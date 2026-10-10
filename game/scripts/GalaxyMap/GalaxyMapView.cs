@@ -779,6 +779,58 @@ public partial class GalaxyMapView : Node3D
         Transform3D view = _camera.GetCameraTransform().AffineInverse();
         Vector2 size = GetViewport().GetVisibleRect().Size;
 
+        // Labels never overlap each other or the panels. They are placed in order of importance: the selection, the
+        // hovered star, Sol, sector names, then the brightest named stars. A label without a free spot is left out.
+        var labeller = new Labeller(size);
+        foreach (Rect2 panel in _ui.PanelRects())
+        {
+            labeller.Block(panel);
+        }
+        var regions = new List<MapOverlay.Text>();
+        var names = new List<MapOverlay.Text>();
+        var front = new List<MapOverlay.Text>();
+        var anchors = new List<Vector2>();
+
+        // The selected and hovered stars have their own labels, so they're left out of the named stars below.
+        long selectedId = _selected is GalaxyStar sel && sel.IsCatalogue ? sel.Address.CatalogueId : -1;
+        long hoveredId = _hover is GalaxyStar hov && hov.IsCatalogue ? hov.Address.CatalogueId : -1;
+
+        // Sol's dot is kept clear, even of the selection's label, so Sol can always be found.
+        Vector2 sol = default;
+        bool solInView = selectedId != 0 && hoveredId != 0 && _view.Distance < 30000
+            && Project(Vector3D.Zero, view, projection, size, out sol)
+            && sol.X > 0 && sol.Y > 0 && sol.X < size.X && sol.Y < size.Y && !labeller.IsCovered(sol);
+        if (solInView)
+        {
+            labeller.Block(sol, Ui.Pxf(4));
+        }
+
+        SystemAddress? selectedAddress = null;
+        if (_selected is GalaxyStar selected && Project(selected.Position, view, projection, size, out Vector2 sp))
+        {
+            selectedAddress = selected.Address;
+            overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(13), Ui.Warm, Ui.Pxf(2)));
+            overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(18), new Color(Ui.Warm, 0.35f), Ui.Pxf(1)));
+            front.Add(AlwaysLabel(labeller, sp, Ui.Pxf(19), _galaxy.NameOf(selected.Address), Ui.Warm, 16,
+                [LabelSide.Below, LabelSide.Above, LabelSide.Right, LabelSide.Left]));
+        }
+        if (_hover is GalaxyStar hover && !hover.Address.Equals(selectedAddress) && Project(hover.Position, view, projection, size, out Vector2 hp))
+        {
+            overlay.Rings.Add(new MapOverlay.Ring(hp, Ui.Pxf(10), new Color(Ui.Accent, 0.7f), Ui.Pxf(1.5f)));
+            front.Insert(0, AlwaysLabel(labeller, hp, Ui.Pxf(11), _galaxy.NameOf(hover.Address), Ui.Text, 15,
+                [LabelSide.Right, LabelSide.Left, LabelSide.Above, LabelSide.Below]));
+        }
+
+        if (solInView)
+        {
+            anchors.Add(sol);
+            if (labeller.TryPlaceAround(sol, Ui.Pxf(2), "Sol", new Color(1f, 0.92f, 0.75f, 0.95f), 15, MapLabel.Strong,
+                    [LabelSide.Right, LabelSide.Left, LabelSide.Below, LabelSide.Above], out MapOverlay.Text label))
+            {
+                names.Add(label);
+            }
+        }
+
         // Sector names around the focus while the grid is visible.
         if (_grid.Visible && _view.Distance > 900)
         {
@@ -800,7 +852,11 @@ public partial class GalaxyMapView : Node3D
                         if (Project(centre, view, projection, size, out Vector2 p))
                         {
                             float alpha = dx == 0 && dz == 0 ? 0.75f : 0.4f;
-                            overlay.Texts.Add(new MapOverlay.Text(p, SectorNames.Name(sx, fy, sz).ToUpperInvariant(), new Color(0.48f, 0.74f, 0.96f, alpha), 12, true, MapLabel.Region));
+                            var text = new MapOverlay.Text(p, SectorNames.Name(sx, fy, sz).ToUpperInvariant(), new Color(0.48f, 0.74f, 0.96f, alpha), 13, true, MapLabel.Region);
+                            if (labeller.TryPlace(text))
+                            {
+                                regions.Add(text);
+                            }
                         }
                     }
                 }
@@ -810,9 +866,6 @@ public partial class GalaxyMapView : Node3D
         // Names of the brightest named stars as seen from the camera.
         Vector3D camera = _view.Position;
         var candidates = new List<(double Apparent, Vector2 Screen, string Name)>();
-        // The selected and hovered stars get their own label, so they're left out here.
-        long selectedId = _selected is GalaxyStar sel && sel.IsCatalogue ? sel.Address.CatalogueId : -1;
-        long hoveredId = _hover is GalaxyStar hov && hov.IsCatalogue ? hov.Address.CatalogueId : -1;
         foreach (CatalogueStar star in _named)
         {
             if (star.Id == 0 || star.Id == selectedId || star.Id == hoveredId)
@@ -832,40 +885,45 @@ public partial class GalaxyMapView : Node3D
             candidates.Add((apparent, p, star.SystemName.Length > 0 ? star.SystemName : star.Name));
         }
         candidates.Sort((a, b) => a.Apparent.CompareTo(b.Apparent));
-        var placed = new List<Vector2>();
-        // Sol is always labelled when it is in view.
-        if (Project(Vector3D.Zero, view, projection, size, out Vector2 sol) && sol.X > 0 && sol.Y > 0 && sol.X < size.X && sol.Y < size.Y
-            && _view.Distance < 30000)
-        {
-            placed.Add(sol);
-            overlay.Texts.Add(new MapOverlay.Text(sol + new Vector2(Ui.Pxf(10), Ui.Pxf(5)), "Sol", new Color(1f, 0.92f, 0.75f, 0.95f), 14, false, MapLabel.Strong));
-        }
+        int labelled = 0;
         foreach ((double _, Vector2 screen, string name) in candidates)
         {
-            if (placed.Count >= 14)
+            if (labelled >= 14)
             {
                 break;
             }
-            if (placed.Any(q => q.DistanceTo(screen) < Ui.Pxf(80)))
+            // Spread out: no two names closer than 80 px, and none for a star hidden by a panel or another label.
+            if (anchors.Exists(q => q.DistanceTo(screen) < Ui.Pxf(80)) || labeller.IsCovered(screen))
             {
                 continue;
             }
-            placed.Add(screen);
-            overlay.Texts.Add(new MapOverlay.Text(screen + new Vector2(Ui.Pxf(10), Ui.Pxf(5)), name, new Color(0.85f, 0.9f, 1f, 0.8f), 13, false));
+            if (labeller.TryPlaceAround(screen, Ui.Pxf(2), name, new Color(0.85f, 0.9f, 1f, 0.85f), 14, MapLabel.Name,
+                    [LabelSide.Right, LabelSide.Left], out MapOverlay.Text label))
+            {
+                anchors.Add(screen);
+                labeller.Block(screen, Ui.Pxf(4));
+                names.Add(label);
+                labelled++;
+            }
         }
 
-        if (_hover is GalaxyStar hover && Project(hover.Position, view, projection, size, out Vector2 hp))
-        {
-            overlay.Rings.Add(new MapOverlay.Ring(hp, Ui.Pxf(10), new Color(Ui.Accent, 0.7f), Ui.Pxf(1.5f)));
-            overlay.Texts.Add(new MapOverlay.Text(hp + new Vector2(Ui.Pxf(15), -Ui.Pxf(10)), _galaxy.NameOf(hover.Address), Ui.Text, 14, false, MapLabel.Strong));
-        }
-        if (_selected is GalaxyStar selected && Project(selected.Position, view, projection, size, out Vector2 sp))
-        {
-            overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(13), Ui.Warm, Ui.Pxf(2)));
-            overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(18), new Color(Ui.Warm, 0.35f), Ui.Pxf(1)));
-            overlay.Texts.Add(new MapOverlay.Text(sp + new Vector2(0, Ui.Pxf(36)), _galaxy.NameOf(selected.Address), Ui.Warm, 15, true, MapLabel.Strong));
-        }
+        overlay.Texts.AddRange(regions);
+        overlay.Texts.AddRange(names);
+        overlay.Texts.AddRange(front);
         overlay.QueueRedraw();
+    }
+
+    // A label that always shows: on the first free side, or on the first side regardless.
+    private static MapOverlay.Text AlwaysLabel(Labeller labeller, Vector2 centre, float ring, string name, Color colour, float size,
+        ReadOnlySpan<LabelSide> sides)
+    {
+        labeller.Block(centre, ring);
+        if (!labeller.TryPlaceAround(centre, ring, name, colour, size, MapLabel.Strong, sides, out MapOverlay.Text label))
+        {
+            label = Labeller.Beside(centre, ring, sides[0], name, colour, size, MapLabel.Strong);
+            labeller.Force(label);
+        }
+        return label;
     }
 
     private bool IsLoadedLevel(int level) => StarStreamer.LevelVisible(level, _view.Distance);

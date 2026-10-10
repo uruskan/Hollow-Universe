@@ -33,6 +33,7 @@ public partial class SystemMapUi : Control
     private Button _compressed = null!;
     private Button _trueScale = null!;
     private bool _logScale = true;
+    private readonly List<Control> _panels = new();
 
     public event Action<int>? BodyChosen;
     public event Action? BackRequested;
@@ -111,6 +112,20 @@ public partial class SystemMapUi : Control
         column.AddChild(bodies);
 
         AddChild(column);
+        _panels.Add(summary);
+        _panels.Add(bodies);
+    }
+
+    /// <summary>Where the visible panels are on screen, so labels on the map can keep clear of them.</summary>
+    public IEnumerable<Rect2> PanelRects()
+    {
+        foreach (Control panel in _panels)
+        {
+            if (panel.IsVisibleInTree())
+            {
+                yield return panel.GetGlobalRect().Grow(Ui.Px(4));
+            }
+        }
     }
 
     // Refitting every frame is a handful of reads, and it settles by itself after anything moves: a new system, a
@@ -144,7 +159,7 @@ public partial class SystemMapUi : Control
         VBoxContainer content;
         (_info, content) = Ui.Card(4);
         _info.Visible = false;
-        Ui.Size(_info, 360);
+        Ui.Size(_info, 380);
         content.AddChild(Ui.Label("Selected body", TextStyle.Overline));
         _infoName = Ui.Label("", TextStyle.Title);
         _infoName.AutowrapMode = TextServer.AutowrapMode.WordSmart;
@@ -156,6 +171,7 @@ public partial class SystemMapUi : Control
         content.AddChild(_infoRows);
         AddChild(_info);
         Ui.Place(_info, LayoutPreset.TopRight);
+        _panels.Add(_info);
     }
 
     // Top centre: time travel and the distance scale.
@@ -180,7 +196,9 @@ public partial class SystemMapUi : Control
         Ui.Track(clock, c =>
         {
             c.AddThemeConstantOverride("separation", 0);
-            c.CustomMinimumSize = new Vector2(Ui.Px(196), 0);
+            // As wide as the widest date, so the bar keeps its width while the clock runs.
+            float widest = Ui.Tabular.GetStringSize("28 May 2026  00:00 UTC", HorizontalAlignment.Left, -1, Ui.SizeOf(TextStyle.Heading)).X;
+            c.CustomMinimumSize = new Vector2(MathF.Ceiling(widest) + Ui.Px(16), 0);
         });
         _time = Ui.Label("", TextStyle.Heading);
         _time.AddThemeFontOverride("font", Ui.Tabular);
@@ -215,6 +233,7 @@ public partial class SystemMapUi : Control
         bar.AddChild(row);
         AddChild(bar);
         Ui.Place(bar, LayoutPreset.CenterTop);
+        _panels.Add(bar);
     }
 
     private void BuildHints()
@@ -234,6 +253,7 @@ public partial class SystemMapUi : Control
         hints.AddChild(line);
         AddChild(hints);
         Ui.Place(hints, LayoutPreset.BottomLeft);
+        _panels.Add(hints);
     }
 
     private static StyleBoxFlat BarStyle()
@@ -331,7 +351,7 @@ public partial class SystemMapUi : Control
         row.AddChild(content);
         Ui.Track(row, r =>
         {
-            r.CustomMinimumSize = new Vector2(0, Ui.Px(moon ? 28 : 32));
+            r.CustomMinimumSize = new Vector2(0, Ui.Px(moon ? 30 : 34));
             content.OffsetLeft = Ui.Px(8 + 16 * depth);
             content.OffsetRight = -Ui.Px(10);
             content.AddThemeConstantOverride("separation", Ui.Px(8));
@@ -475,7 +495,8 @@ public partial class SystemMapUi : Control
         };
     }
 
-    private static string ShortName(StarSystem system, Body body) =>
+    /// <summary>A body's name without the system's name in front ("A 4" for "Nolcas Peris BF-BA 5-0 A 4"); stars keep theirs.</summary>
+    public static string ShortName(StarSystem system, Body body) =>
         body.Kind != BodyKind.Star && body.Name.StartsWith(system.Name + " ", StringComparison.Ordinal)
             ? body.Name[(system.Name.Length + 1)..]
             : body.Name;

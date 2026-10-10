@@ -26,7 +26,8 @@ Read first, in this order:
   - Build the UI with `Ui` (`game/scripts/Common/Ui.cs`): text styles, cards, rows and key hints.
   - Every length goes through `Ui.Px`, and anything that must follow the scale goes through `Ui.Track`, `Ui.Size`
     or `Ui.Place`.
-  - Icons come from `UiIcons`.
+  - Icons come from `UiIcons`. Labels drawn over a map go through `Labeller`, so they never overlap each other or
+    the panels.
   - Never turn on a stretch mode or MSDF for UI text, and never hard-code pixel sizes.
 - **Docs first.** A change to architecture or design updates the matching doc in the same commit.
 - **Every change builds and passes the tests before it's handed over.** Anything visual gets a screenshot.

@@ -24,6 +24,8 @@ public partial class GalaxyMapUi : Control
     private Label _selectionType = null!;
     private GridContainer _selectionRows = null!;
     private Label _status = null!;
+    private readonly List<Control> _panels = new();
+    private bool _hasSelection;
 
     public event Action<string>? SearchChanged;
     public event Action<SearchResult>? ResultChosen;
@@ -60,12 +62,13 @@ public partial class GalaxyMapUi : Control
         content.AddChild(_regionKind);
         content.AddChild(Ui.Separator());
         GridContainer rows = Ui.Rows();
-        _position = AddRow(rows, "Position");
-        _fromSol = AddRow(rows, "From Sol");
-        _viewWidth = AddRow(rows, "View");
+        _position = Ui.AddRow(rows, "Position");
+        _fromSol = Ui.AddRow(rows, "From Sol");
+        _viewWidth = Ui.AddRow(rows, "View");
         content.AddChild(rows);
         AddChild(card);
         Ui.Place(card, LayoutPreset.TopLeft);
+        _panels.Add(card);
     }
 
     // Top right: search, its results, and the selected system below them.
@@ -126,6 +129,9 @@ public partial class GalaxyMapUi : Control
 
         AddChild(column);
         Ui.Place(column, LayoutPreset.TopRight);
+        _panels.Add(_search);
+        _panels.Add(_resultsCard);
+        _panels.Add(_selectionCard);
     }
 
     // Bottom: controls on the left, streaming status on the right.
@@ -149,6 +155,20 @@ public partial class GalaxyMapUi : Control
         statusStrip.AddChild(_status);
         AddChild(statusStrip);
         Ui.Place(statusStrip, LayoutPreset.BottomRight);
+        _panels.Add(hints);
+        _panels.Add(statusStrip);
+    }
+
+    /// <summary>Where the visible panels are on screen, so labels on the map can keep clear of them.</summary>
+    public IEnumerable<Rect2> PanelRects()
+    {
+        foreach (Control panel in _panels)
+        {
+            if (panel.IsVisibleInTree())
+            {
+                yield return panel.GetGlobalRect().Grow(Ui.Px(4));
+            }
+        }
     }
 
     private static HBoxContainer HintLine(params (string Keys, string Action)[] hints)
@@ -169,16 +189,6 @@ public partial class GalaxyMapUi : Control
         strip.ShadowSize = Ui.Px(14);
         strip.ShadowOffset = new Vector2(0, Ui.Px(3));
         return strip;
-    }
-
-    private static Label AddRow(GridContainer rows, string key)
-    {
-        rows.AddChild(Ui.Label(key, TextStyle.Key));
-        Label value = Ui.Label("", TextStyle.Value);
-        value.HorizontalAlignment = HorizontalAlignment.Right;
-        value.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        rows.AddChild(value);
-        return value;
     }
 
     public void SetFocus(string sector, Vector3D focus, double cameraDistance)
@@ -223,17 +233,22 @@ public partial class GalaxyMapUi : Control
             content.AddChild(name);
             content.AddChild(distance);
             row.AddChild(content);
-            Ui.Track(row, r => r.CustomMinimumSize = new Vector2(0, Ui.Px(34)));
+            Ui.Track(row, r => r.CustomMinimumSize = new Vector2(0, Ui.Px(36)));
             row.Pressed += () =>
             {
-                ResultChosen?.Invoke(captured);
                 _resultsCard.Visible = false;
                 _search.ReleaseFocus();
+                ResultChosen?.Invoke(captured);
+                UpdateCards();
             };
             _results.AddChild(row);
         }
         _resultsCard.Visible = results.Count > 0;
+        UpdateCards();
     }
+
+    // Search results take the selected system's place while they're open, so the column never runs off the screen.
+    private void UpdateCards() => _selectionCard.Visible = _hasSelection && !_resultsCard.Visible;
 
     /// <summary>Types into the search box (used by automation; the view answers through SearchChanged).</summary>
     public void Search(string text)
@@ -249,9 +264,12 @@ public partial class GalaxyMapUi : Control
         SetResults(new List<SearchResult>());
     }
 
+    /// <summary>Shows the selected system (and closes any open search results; the search text stays).</summary>
     public void ShowSelection(string name, GalaxyStar star, string sector, int companionCount)
     {
-        _selectionCard.Visible = true;
+        _hasSelection = true;
+        _resultsCard.Visible = false;
+        UpdateCards();
         _selectionName.Text = name;
         string kind = star.Class.KindName;
         _selectionType.Text = star.Class.Kind is StarKind.NeutronStar or StarKind.BlackHole ? kind : $"{star.Class} · {kind}";
@@ -287,7 +305,11 @@ public partial class GalaxyMapUi : Control
         Ui.AddRow(_selectionRows, "Address", star.Address.ToString());
     }
 
-    public void HideSelection() => _selectionCard.Visible = false;
+    public void HideSelection()
+    {
+        _hasSelection = false;
+        UpdateCards();
+    }
 
     public void SetStatus(string text) => _status.Text = text;
 }

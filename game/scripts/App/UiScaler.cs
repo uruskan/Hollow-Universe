@@ -5,9 +5,9 @@ using HollowUniverse.Common;
 namespace HollowUniverse.App;
 
 /// <summary>
-/// Keeps <see cref="Ui.Scale"/> matched to the window: 1.0 at 1080 p (never below 0.875), 1.33 at 1440 p and 2.0 at
-/// 2160 p, times the player's own preference (Ctrl + plus / minus, Ctrl + 0 to reset; saved between sessions). The
-/// interface is then laid out and rasterised at the screen's real pixel size rather than stretched.
+/// Keeps <see cref="Ui.Scale"/> matched to the window (see <see cref="Automatic"/>), times the player's own
+/// preference (Ctrl + plus / minus, Ctrl + 0 to reset; saved between sessions). The interface is then laid out and
+/// rasterised at the screen's real pixel size rather than stretched.
 /// </summary>
 public partial class UiScaler : Node
 {
@@ -35,11 +35,29 @@ public partial class UiScaler : Node
     /// <summary>Recomputes the scale from the window size and the preference.</summary>
     public void Apply()
     {
-        float height = GetTree().Root.Size.Y;
-        float automatic = Math.Clamp(height / 1080f, 0.875f, 4f);
-        float scale = automatic * (Override ?? _preference);
-        // Sixteenths: small window changes don't rebuild the theme, and metrics round consistently.
-        Ui.SetScale(MathF.Round(scale * 16f) / 16f);
+        Vector2I size = GetTree().Root.Size;
+        // Sixteenths: small window changes don't rebuild the theme, and metrics round consistently. The cap rounds
+        // down, so the panels always fit.
+        float wanted = MathF.Round(Automatic(size.X, size.Y) * (Override ?? _preference) * 16f) / 16f;
+        float largest = MathF.Floor(Largest(size.X, size.Y) * 16f) / 16f;
+        Ui.SetScale(Math.Min(wanted, largest));
+    }
+
+    /// <summary>
+    /// The largest scale at which every panel fits the window: the widest row (the system map's body list, time bar
+    /// and selected body, 1,430 px at scale 1 with margins) and the tallest column (the galaxy map's search box and
+    /// selected system, about 580 px, plus room for a title on two lines).
+    /// </summary>
+    public static float Largest(float width, float height) => Math.Max(0.75f, Math.Min(height / 600f, width / 1440f));
+
+    /// <summary>
+    /// The scale for a window: 1.0 from 1600 × 900 up to 1080 p, then growing with the height (1.33 at 1440 p, 2.0
+    /// at 2160 p). A window smaller than 1600 × 900 shrinks it so the layout still fits (0.8 at 1280 × 720).
+    /// </summary>
+    public static float Automatic(float width, float height)
+    {
+        float fit = Math.Min(1f, Math.Min(height / 900f, width / 1600f));
+        return Math.Clamp(Math.Max(height / 1080f, fit), 0.75f, 4f);
     }
 
     public override void _UnhandledKeyInput(InputEvent e)
@@ -66,7 +84,10 @@ public partial class UiScaler : Node
             default:
                 return;
         }
-        _preference = Math.Clamp(preference, 0.6f, 2f);
+        // Never past what the window can show, so Ctrl + minus always has a visible effect.
+        Vector2I size = GetTree().Root.Size;
+        float most = Math.Max(1f, Largest(size.X, size.Y) / Automatic(size.X, size.Y));
+        _preference = Math.Clamp(preference, 0.6f, Math.Min(2f, most));
         var settings = new ConfigFile();
         settings.Load(SettingsPath);
         settings.SetValue("ui", "scale", _preference);

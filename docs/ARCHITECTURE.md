@@ -380,12 +380,15 @@ Each is an interface from day one, so moving it to its own process later is a de
 - **Scenes are thin**: a scene file holds a root node and its script; C# builds the rest. Fewer hand-edited
   scene files means fewer merge conflicts and less editor-only state.
 - **Interface**: drawn at the screen's real pixel size, never stretched. Godot's stretch mode is off; our own
-  UI scale follows the window height (1.0 at 1080p, at least 0.875) times a player preference (Ctrl + / −). Every
-  length goes through `Ui.Px`, so it is a whole number of pixels at that scale. Fonts are rasterised at their
-  final size with no distance fields, using light hinting and greyscale antialiasing. Icons are SVG, rasterised
-  at their final size. The theme is rebuilt when the scale changes. One font family (Inter, variable) with tabular
-  figures for numbers. All of this lives in `game/scripts/Common/Ui.cs` (styles, theme, helpers) and
-  `UiIcons.cs`.
+  UI scale follows the window (1.0 from 1600 × 900 up to 1080p, growing with the height above that, shrinking
+  only to fit a smaller window) times a player preference (Ctrl + / −). Every length goes through `Ui.Px`, so it
+  is a whole number of pixels at that scale. Fonts are rasterised at their final size with no distance fields,
+  using light hinting and greyscale antialiasing. Icons are SVG, rasterised at their final size. The theme is
+  rebuilt when the scale changes. One font family (Inter, variable) with tabular figures for numbers, a step
+  heavier than usual (520 for body text, 600 for values) because light text on dark panels reads thin, and body
+  text no smaller than 15 px at scale 1. The scale never goes past what fits the window, and labels on the maps
+  never overlap each other or the panels. All of this lives in `game/scripts/Common/`: `Ui.cs` (styles, theme,
+  helpers), `UiIcons.cs` and `Labeller.cs`.
 
 ---
 

@@ -24,8 +24,8 @@ public enum TextStyle
 /// <summary>
 /// The interface's design system: palette, type, spacing, theme and icons.
 /// <para>
-/// Everything is drawn at the screen's real pixel size. The UI scale follows the window height (1.0 at 1080 p, set
-/// by <c>UiScaler</c>); every metric is rounded to whole pixels at that scale, fonts are rasterised at their final
+/// Everything is drawn at the screen's real pixel size. The UI scale follows the window (1.0 up to 1080 p, set by
+/// <c>UiScaler</c>); every metric is rounded to whole pixels at that scale, fonts are rasterised at their final
 /// size, icons are rasterised from SVG at their final size, and the theme is rebuilt when the scale changes. Nothing
 /// is ever stretched, so text and edges stay crisp at any resolution.
 /// </para>
@@ -43,30 +43,30 @@ public static class Ui
     public static readonly Color Divider = new(1f, 1f, 1f, 0.08f);
     public static readonly Color Text = new(0.92f, 0.945f, 0.97f);
     public static readonly Color Secondary = new(0.63f, 0.69f, 0.76f);
-    public static readonly Color Tertiary = new(0.45f, 0.51f, 0.58f);
+    public static readonly Color Tertiary = new(0.50f, 0.56f, 0.63f);
     public static readonly Color Accent = new(0.42f, 0.80f, 1.00f);
     public static readonly Color Warm = new(1.00f, 0.73f, 0.42f);
     public static readonly Color Shadow = new(0f, 0f, 0f, 0.38f);
 
-    // ---------------------------------------------------------------- type ramp (pixels at scale 1, i.e. 1080 p)
+    // ---------------------------------------------------------------- type ramp (pixels at scale 1: 900 p to 1080 p)
 
     private static readonly Dictionary<TextStyle, (float Size, Color Colour)> Ramp = new()
     {
         [TextStyle.Title] = (24, Text),
-        [TextStyle.Heading] = (17, Text),
-        [TextStyle.Subtitle] = (15, Warm),
-        [TextStyle.Body] = (15, Text),
-        [TextStyle.Secondary] = (14, Secondary),
-        [TextStyle.Caption] = (13, Tertiary),
-        [TextStyle.Overline] = (12, Accent),
-        [TextStyle.Key] = (14, Secondary),
-        [TextStyle.Value] = (14, Text),
-        [TextStyle.Keycap] = (12, Text),
+        [TextStyle.Heading] = (18, Text),
+        [TextStyle.Subtitle] = (16, Warm),
+        [TextStyle.Body] = (16, Text),
+        [TextStyle.Secondary] = (15, Secondary),
+        [TextStyle.Caption] = (14, Tertiary),
+        [TextStyle.Overline] = (13, Accent),
+        [TextStyle.Key] = (15, Secondary),
+        [TextStyle.Value] = (15, Text),
+        [TextStyle.Keycap] = (13, Text),
     };
 
     // ---------------------------------------------------------------- scale
 
-    /// <summary>Interface scale: 1.0 at 1080 p. Set by <c>UiScaler</c>.</summary>
+    /// <summary>Interface scale: 1.0 up to 1080 p, 1.33 at 1440 p. Set by <c>UiScaler</c>.</summary>
     public static float Scale { get; private set; } = 1f;
 
     /// <summary>Raised after the scale (and with it the theme and icons) changed.</summary>
@@ -107,21 +107,26 @@ public static class Ui
     private static FontVariation? _tabular;
     private static FontVariation? _overline;
 
-    /// <summary>Inter, weight 450: body text (slightly heavier than 400, which reads thin on dark panels).</summary>
-    public static FontVariation Regular => _regular ??= Variation(450);
+    // Light text on a dark panel reads thinner than the same weight dark on light, so every weight sits a step above
+    // the usual: body text is 520 rather than 400, values and buttons 600.
 
-    public static FontVariation Medium => _medium ??= Variation(540);
+    /// <summary>Inter, weight 520: body text, labels of rows, captions.</summary>
+    public static FontVariation Regular => _regular ??= Variation(520);
 
-    public static FontVariation SemiBold => _semiBold ??= Variation(620);
+    /// <summary>Weight 600: values, subtitles, buttons and names on the maps.</summary>
+    public static FontVariation Medium => _medium ??= Variation(600);
+
+    /// <summary>Weight 680: headings, keycaps and the selected object's name on a map.</summary>
+    public static FontVariation SemiBold => _semiBold ??= Variation(680);
 
     /// <summary>Inter Display (optical size 32): titles.</summary>
-    public static FontVariation Display => _display ??= Variation(610, opticalSize: 32);
+    public static FontVariation Display => _display ??= Variation(650, opticalSize: 32);
 
-    /// <summary>Tabular figures, so numbers line up and don't jitter as they change.</summary>
-    public static FontVariation Tabular => _tabular ??= Variation(480, features: new[] { "tnum" });
+    /// <summary>Weight 600 with tabular figures, so numbers line up and don't jitter as they change.</summary>
+    public static FontVariation Tabular => _tabular ??= Variation(600, features: new[] { "tnum" });
 
-    /// <summary>Small capitals-style labels: semibold, letter-spaced (the spacing follows the scale).</summary>
-    public static FontVariation Overline => _overline ??= Variation(640);
+    /// <summary>Small capitals-style labels: bold, letter-spaced (the spacing follows the scale).</summary>
+    public static FontVariation Overline => _overline ??= Variation(700);
 
     private static FontFile File
     {
@@ -373,31 +378,36 @@ public static class Ui
 
     public static HSeparator Separator() => new();
 
-    /// <summary>A two-column grid of key/value rows.</summary>
+    /// <summary>A two-column grid of key/value rows: labels on the left, each value right beside its label.</summary>
     public static GridContainer Rows()
     {
         var grid = new GridContainer { Columns = 2 };
         Track(grid, g =>
         {
-            g.AddThemeConstantOverride("h_separation", Px(18));
-            g.AddThemeConstantOverride("v_separation", Px(5));
+            g.AddThemeConstantOverride("h_separation", Px(16));
+            g.AddThemeConstantOverride("v_separation", Px(6));
         });
         return grid;
     }
 
-    /// <summary>Adds a key/value row; numeric values use tabular figures, text values the body face.</summary>
-    public static void AddRow(GridContainer rows, string key, string value, bool numeric = true)
+    /// <summary>
+    /// Adds a key/value row and returns the value's label. Numeric values use tabular figures; text values use the
+    /// same weight without them and wrap if they don't fit beside the label.
+    /// </summary>
+    public static Label AddRow(GridContainer rows, string key, string value = "", bool numeric = true)
     {
-        rows.AddChild(Label(key, TextStyle.Key));
+        Label k = Label(key, TextStyle.Key);
+        k.VerticalAlignment = VerticalAlignment.Top;
+        rows.AddChild(k);
         Label v = Label(value, TextStyle.Value);
         if (!numeric)
         {
-            v.AddThemeFontOverride("font", Regular);
+            v.AddThemeFontOverride("font", Medium);
         }
-        v.HorizontalAlignment = HorizontalAlignment.Right;
         v.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        v.AutowrapMode = TextServer.AutowrapMode.Off;
+        v.AutowrapMode = numeric ? TextServer.AutowrapMode.Off : TextServer.AutowrapMode.WordSmart;
         rows.AddChild(v);
+        return v;
     }
 
     /// <summary>A keyboard or mouse hint: each key as a keycap, then what it does.</summary>

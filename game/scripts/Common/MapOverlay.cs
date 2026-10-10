@@ -20,7 +20,7 @@ public enum MapLabel
 /// <summary>
 /// Labels and rings drawn over a 3D map in screen space, with the interface's fonts at their real pixel size and a
 /// soft dark outline so they stay legible over stars. Positions are in screen pixels; text sizes are base pixels
-/// (scaled here); baselines are snapped to whole pixels.
+/// (scaled here); baselines are snapped to whole pixels. <see cref="Labeller"/> places labels so they don't overlap.
 /// </summary>
 public partial class MapOverlay : Control
 {
@@ -53,21 +53,44 @@ public partial class MapOverlay : Control
         int outline = Ui.Px(4);
         foreach (Text text in Texts)
         {
-            Font font = text.Style switch
-            {
-                MapLabel.Strong => Ui.SemiBold,
-                MapLabel.Region => Ui.Overline,
-                _ => Ui.Medium,
-            };
+            Font font = FontOf(text.Style);
             int size = Ui.Px(text.Size);
-            Vector2 at = text.Position;
-            if (text.Centred)
-            {
-                at.X -= font.GetStringSize(text.Value, HorizontalAlignment.Left, -1, size).X / 2;
-            }
-            at = new Vector2(MathF.Round(at.X), MathF.Round(at.Y));
+            Vector2 at = Origin(text);
             DrawStringOutline(font, at, text.Value, HorizontalAlignment.Left, -1, size, outline, new Color(0, 0, 0, 0.55f * text.Colour.A));
             DrawString(font, at, text.Value, HorizontalAlignment.Left, -1, size, text.Colour);
         }
+    }
+
+    public static Font FontOf(MapLabel style) => style switch
+    {
+        MapLabel.Strong => Ui.SemiBold,
+        MapLabel.Region => Ui.Overline,
+        _ => Ui.Medium,
+    };
+
+    /// <summary>Width and height of a label's text in screen pixels.</summary>
+    public static Vector2 Measure(string value, float size, MapLabel style) =>
+        FontOf(style).GetStringSize(value, HorizontalAlignment.Left, -1, Ui.Px(size));
+
+    /// <summary>The screen rectangle a label covers, its outline included.</summary>
+    public static Rect2 Bounds(in Text text)
+    {
+        int size = Ui.Px(text.Size);
+        Vector2 extent = Measure(text.Value, text.Size, text.Style);
+        Vector2 at = Origin(text);
+        float outline = Ui.Px(4) / 2f;
+        float top = at.Y - FontOf(text.Style).GetAscent(size);
+        return new Rect2(at.X - outline, top - outline, extent.X + 2 * outline, extent.Y + 2 * outline);
+    }
+
+    // The baseline's left end, snapped to whole pixels.
+    private static Vector2 Origin(in Text text)
+    {
+        Vector2 at = text.Position;
+        if (text.Centred)
+        {
+            at.X -= Measure(text.Value, text.Size, text.Style).X / 2;
+        }
+        return new Vector2(MathF.Round(at.X), MathF.Round(at.Y));
     }
 }

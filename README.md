@@ -81,7 +81,9 @@ names ("Nolcas Peris BF-BA 5-0") and sector names ("Nolcas Peris").
 | Esc | Back to the galaxy map |
 
 **Anywhere:** Ctrl + plus / Ctrl + minus make the interface larger or smaller, and Ctrl + 0 resets it. The
-interface follows the window size on its own (1.0 at 1080p); this is a preference on top, saved between sessions.
+interface also follows the window on its own: the same size from 1600 × 900 up to 1080p, larger above that, and
+smaller only to fit a smaller window. Your setting is applied on top (as far as the window has room) and saved
+between sessions.
 
 ## Layout
 

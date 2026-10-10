@@ -482,6 +482,15 @@ public partial class SystemMapView : Node3D
         MapOverlay overlay = _ui.Overlay;
         overlay.Clear();
         Vector3 cameraPosition = _camera.GlobalPosition;
+        // Labels never overlap each other or the panels. The selected body is always labelled; the others take a
+        // free spot in order of importance (stars, planets, belts, moons) or are left out.
+        var labeller = new Labeller(GetViewport().GetVisibleRect().Size);
+        foreach (Rect2 panel in _ui.PanelRects())
+        {
+            labeller.Block(panel);
+        }
+        var candidates = new List<(int Rank, int Order, Vector2 Anchor, MapOverlay.Text Text)>();
+        MapOverlay.Text? selectedLabel = null;
         foreach (BodyView view in _views)
         {
             Body body = view.Body;
@@ -507,17 +516,43 @@ public partial class SystemMapView : Node3D
                 BodyKind.Belt => new Color(0.75f, 0.7f, 0.6f, 0.6f),
                 _ => new Color(0.85f, 0.92f, 1f, 0.85f),
             };
-            string label = body.Kind == BodyKind.Planet || body.Kind == BodyKind.Moon || body.Kind == BodyKind.Belt
-                ? (body.Name.StartsWith(_system!.Name, StringComparison.Ordinal) ? body.Designation : body.Name)
-                : body.Name;
+            // The same short names as the body list ("A 4", "A 4 a"), so the two always match.
+            string label = SystemMapUi.ShortName(_system!, body);
             float radiusPixels = ScreenRadius(view);
             bool selected = _selected == body.Index;
-            overlay.Texts.Add(new MapOverlay.Text(p + new Vector2(0, radiusPixels + Ui.Pxf(18)), label, selected ? Ui.Warm : colour,
-                body.Kind == BodyKind.Moon ? 12 : 14, true, selected ? MapLabel.Strong : MapLabel.Name));
+            float size = body.Kind == BodyKind.Moon ? 13 : 15;
+            // Baseline below the body (and below the selection ring), by the cap height of the label.
+            float baseline = radiusPixels + Ui.Pxf(selected ? 15 : 8) + 0.73f * Ui.Px(size);
+            var text = new MapOverlay.Text(p + new Vector2(0, baseline), label, selected ? Ui.Warm : colour,
+                size, true, selected ? MapLabel.Strong : MapLabel.Name);
             if (selected)
             {
                 overlay.Rings.Add(new MapOverlay.Ring(p, radiusPixels + Ui.Pxf(7), Ui.Warm, Ui.Pxf(2)));
+                labeller.Block(p, radiusPixels + Ui.Pxf(9));
+                labeller.Force(text);
+                selectedLabel = text;
+                continue;
             }
+            int rank = body.Kind switch
+            {
+                BodyKind.Star => 0,
+                BodyKind.Planet => 1,
+                BodyKind.Belt => 2,
+                _ => 3,
+            };
+            candidates.Add((rank, candidates.Count, p, text));
+        }
+        candidates.Sort((a, b) => a.Rank != b.Rank ? a.Rank.CompareTo(b.Rank) : a.Order.CompareTo(b.Order));
+        foreach ((int _, int _, Vector2 anchor, MapOverlay.Text text) in candidates)
+        {
+            if (!labeller.IsCovered(anchor) && labeller.TryPlace(text))
+            {
+                overlay.Texts.Add(text);
+            }
+        }
+        if (selectedLabel is MapOverlay.Text chosen)
+        {
+            overlay.Texts.Add(chosen);
         }
         overlay.QueueRedraw();
     }
