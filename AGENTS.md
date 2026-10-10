@@ -50,6 +50,9 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
 ```
 
+On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
+`Godot_v4.7.2-stable_mono_win64.exe`); the options are the same.
+
 Client options (after `--`):
 - Camera and selection: `--focus <name>`, `--position=x,y,z` (ly), `--distance <ly>`, `--yaw <deg>`,
   `--pitch <deg>`, `--select <name>`, `--search <text>`.
