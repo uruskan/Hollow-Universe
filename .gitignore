@@ -1,0 +1,17 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+.idea/
+*.swp
+
+# Godot
+.godot/
+game/.godot/
+*.translation
+export_presets.cfg
+/android/
+
+# Local tools
+.tmp/

@@ -1,0 +1,11 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>HollowUniverse</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../src/Hollow.Core/Hollow.Core.csproj" />
+    <ProjectReference Include="../src/Hollow.Galaxy/Hollow.Galaxy.csproj" />
+  </ItemGroup>
+</Project>

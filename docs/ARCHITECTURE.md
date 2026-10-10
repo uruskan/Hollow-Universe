@@ -1,0 +1,439 @@
+# Hollow Universe — Architecture
+
+Status: draft 1, 10 October 2026. This is the foundation plan: how the code is organised and why.
+[GAME_DESIGN.md](GAME_DESIGN.md) says what the game is. [GALAXY.md](GALAXY.md) specifies the universe
+generator in detail. When code and this document disagree, one of them is wrong: fix it in the same commit.
+
+---
+
+## 1. What the architecture has to carry
+
+The end state, not the first milestone:
+
+- **A 1:1 Milky Way.** About 120 billion star systems, real stars near Sol, every system reachable,
+  every solid body landable.
+- **Persistent shards running 24/7.** Players build bases anywhere, with no limit on how many. Bases keep
+  existing, and can be raided, while their owners are offline.
+- **Two games in one world.** Rust-style survival on planet surfaces (gather, craft, build, full-loot PvP,
+  raiding) and Elite-style space (ships, normal flight, supercruise, frame shift jumps).
+- **Fast combat** (firearms on foot, ships in space) that feels right at 50–150 ms ping.
+- **A tiny team where an AI writes most of the code.** Everything must build, run and be checked from
+  text and the command line, without opening an editor.
+
+Scale targets per shard (one universe):
+
+| | First public test | Design target |
+|---|---|---|
+| Concurrent players | 100 | 1,000 |
+| Players in one fight | 30 | 200 |
+| Persistent entities (base parts, boxes, items) | 1 million | 50 million |
+| Star systems | all of them, generated on demand | same |
+
+---
+
+## 2. Principles
+
+| # | Principle | Consequence |
+|---|---|---|
+| P1 | **The universe is a function plus a diff.** | Natural things are generated from (galaxy seed, address, generator version). Only player changes are stored. |
+| P2 | **The server is the only authority.** | Clients send inputs and intents, never results. |
+| P3 | **Rules are engine-free.** | All simulation and rules are plain C#. Godot exists only in the client, for presentation. |
+| P4 | **Generation is bit-exact everywhere.** | The same address gives the same result on Windows, Linux, x64 and ARM64, forever (per generator version). |
+| P5 | **Simulate only where players are.** | Areas load around players and unload when empty. Elapsed time is applied when an area loads. |
+| P6 | **Every persistent object has exactly one owner.** | A zone or the database. Moving an object between owners is a transaction, so nothing duplicates. |
+| P7 | **Scale by adding processes, not by rewriting.** | Start as one process. Boundaries (zones, services) talk through messages from day one, so they can move to other processes later. |
+| P8 | **Numbers live in data.** | Item stats, recipes, ship modules and generator tables are data. Code reads them. |
+| P9 | **Original content.** | Rust, Elite, No Man's Sky and Dune: Awakening are references for feel. No names, assets, data or UI are copied. Real star data is public scientific data, used under its licence. |
+| P10 | **Test here first.** | Every change compiles and passes tests in the AI workspace before it reaches the user's PC. Anything visual gets a screenshot. |
+
+---
+
+## 3. Overview
+
+```
+                 ┌──────────────────────── Shard (one universe) ─────────────────────────┐
+                 │                                                                        │
+ Godot client ───┼─UDP─▶ Zone host ──── zones: surface / local space / system space        │
+ (C#, Hollow.*   │        (.NET)        each zone = one physics world, one thread           │
+  libraries for  │          │                                                             │
+  prediction)    │          ├── Coordinator: which zone owns what, transfers, start/stop   │
+                 │          ├── Services: accounts, chat, notifications, market (later)    │
+                 │          └── Persistence ──▶ database (SQLite, later PostgreSQL)        │
+                 └────────────────────────────────────────────────────────────────────────┘
+```
+
+**Phase 1** (first public test): everything above is one server process, with zones ticking in parallel
+on a worker pool. **Phase 2**: several zone host processes per shard, with a gateway in front so players
+don't reconnect when they change zones. **Phase 3**: several shards that share one account service.
+Phases 2 and 3 need no rewrite because of P7.
+
+---
+
+## 4. Code layout and dependency rules
+
+```
+src/Hollow.Core          math (double vectors, deterministic math), hashing, RNG, IDs, units, time
+src/Hollow.Galaxy        galaxy model, addresses, sectors, star generation, catalogue, names, star systems
+src/Hollow.Simulation    (M2) entities, components, rules: movement, items, crafting, building, combat
+src/Hollow.Net           (M2) protocol, serialization, replication, prediction support, transport adapter
+src/Hollow.Persistence   (M3) storage interfaces, SQLite and PostgreSQL implementations
+src/Hollow.Server        (M2) the dedicated server program: zone host, coordinator, services
+game/                    the Godot client (project.godot, HollowUniverse.csproj)
+tests/Hollow.Tests       test runner for everything engine-free
+tools/                   catalogue builder, bots, load tests
+```
+
+Dependencies only point down this list: `Core ← Galaxy ← Simulation ← Net ← Server / client`.
+Persistence depends on Core and Simulation. **Nothing in `src/` references Godot.** A test fails the build
+if any `src/` assembly references `GodotSharp`.
+
+---
+
+## 5. Languages and tools
+
+| | Choice | Why |
+|---|---|---|
+| Language | **C# 14 on .NET 10** (LTS, supported to November 2028) for everything | One language for server, client and tools. Fast enough for nearly all of it. Godot 4.7 runs .NET 10 projects (tested). |
+| C++ | Only for measured hot spots, as a native library (server) or GDExtension (client) | Every C++ module needs its own native build per platform. Add one only when a profiler shows C# can't do it. |
+| GDScript | **Not used** | |
+| Engine (client) | **Godot 4.7.2 .NET edition**, Forward+ renderer | Text-based project files, light editor, MIT licence. |
+| Server | Plain .NET console program, no engine | P3. Runs on Linux or Windows. |
+| Transport | **LiteNetLib** (MIT, pure C#) over UDP | Proven reliable/unreliable channels, fragmentation, MTU discovery. |
+| Physics | **Jolt** through a C# binding on server and client (decide at M2, see §17) | Same engine family as Godot's built-in physics. Good kinematic character controller. |
+| Database | SQLite for development and small shards, PostgreSQL for production | Same repository interfaces. |
+| Tests | Plain console runner in `tests/` (no NuGet packages needed) | The AI workspace cannot reach NuGet. Can move to xUnit later. |
+
+No reflection or JSON on hot paths. Serializers are generated at compile time (C# source generators).
+
+---
+
+## 6. Coordinates, units and precision
+
+Three frames, each with its own type, so they can't be mixed by accident:
+
+| Frame | Used for | Type | Unit | Origin and axes |
+|---|---|---|---|---|
+| **Galactic** | star positions, galaxy map, jumps | `GalacticPosition` (3 × double) | light-year | Sol. +Z toward the Galactic Centre, +Y toward the north galactic pole, +X toward galactic longitude 90° (the direction of the Sun's orbit). Right-handed, Y up, like Godot. |
+| **System** | bodies, stations, ships in supercruise | `SystemPosition` (3 × double) | metre | the system's primary star. Reference plane is the system's orbital plane (x–z), +Y is its north. |
+| **Local** | physics, rendering, gameplay | `LocalPosition` (3 × float) | metre | the zone's origin, close to the players. Planet surfaces use a tangent frame: origin on the surface, +Y = local up. |
+
+Rules:
+
+- **Physics only ever sees the local frame.** A zone is at most about 20 km across, so float precision stays
+  near 1 mm.
+- **Distances in space never reach the physics engine.** Supercruise and jumps work in double precision on the
+  system and galactic frames. The engine's world-size limit is irrelevant.
+- **The client renders with a floating origin.** The render origin follows the camera. Large-scale things
+  (planets, stars) are drawn at scaled-down distances or as impostors.
+- **Universe time is real UTC** (as in Elite). Orbits and planet rotation are computed from it, so every
+  client and server agrees without synchronising anything but the clock.
+- **Server time is ticks** at 30 Hz per zone. Ticks drive simulation, never wall-clock reads.
+
+---
+
+## 7. Identity
+
+| Thing | ID | Stored in the database? |
+|---|---|---|
+| Star system | `SystemAddress`, 64 bits. Procedural: level + sector + cell + index. Catalogue: flag + catalogue + catalogue ID. Layout in GALAXY.md §6. | No, it's generated |
+| Body (star, planet, moon, belt) | `BodyId` = SystemAddress + 32-bit body path (star, planet, moon) | No |
+| Surface tile | BodyId + cube face + quadtree path | Only if players changed it |
+| Natural feature (ore node, tree, monument) | tile + index | Only overrides, e.g. "depleted until T" |
+| Persistent entity (base part, box, item, ship, character) | `EntityId`, 64 bits, allocated by the shard: 41 bits time + 9 bits allocator + 14 bits sequence | Yes |
+| Account | `AccountId` (GUID) from the account service | Yes |
+
+Natural things have IDs without database rows. A row appears only when a player changes something.
+
+---
+
+## 8. Determinism rules
+
+Everything generated (galaxy, systems, terrain, resources, monuments) must give bit-identical results on
+every machine, because the server and every client generate the same universe independently.
+
+1. **Never use** `System.Random`, `HashCode`, `string.GetHashCode()`, `Dictionary` iteration order,
+   `Parallel` with order-dependent results, `DateTime.Now`, or `Math.Exp/Log/Pow/Sin/Cos/Tan/Atan2`
+   in generation code. The `Math` functions call the platform's C library, which differs between Windows
+   and Linux in the last bit. `HashCode` is allowed only inside `GetHashCode` overrides for dictionaries.
+   A test scans `src/` for all of these.
+2. **Use `Hollow.Core`**: `Hash64` (a fixed 64-bit mixer), `Rng` (SplitMix64, seeded from a hash), and
+   `DMath` (exp, log, pow, sin, cos, atan2 built only from + − × ÷ and `Math.Sqrt`, which are exactly
+   rounded by IEEE 754 and therefore identical everywhere).
+3. **Every generated object has its own RNG stream** seeded from its address. Adding a new property to
+   one object never shifts another object's results.
+4. **Generator versions.** `GalaxyVersion` is a constant. Golden tests pin a hash of known outputs. While
+   in development the generator may change freely (update the goldens on purpose). **Once a shard goes
+   live, its generator version is frozen.** Changes then ship as a new version for new shards or wipes.
+5. **Floats to integers** go through explicit rounding helpers, never casts of values that could sit on a
+   boundary.
+6. **Never depend on optional data.** Generation must give the same result whether or not a data file
+   loaded. For example, procedural stars near Sol are removed in favour of the real-star catalogue even when
+   the catalogue is missing. A missing file is an error to report, never a different universe.
+7. **Treat addresses from outside as untrusted.** A lookup by an address that doesn't exist (a wrong
+   catalogue number, an ID out of range) returns "not found". It never throws or truncates.
+
+Visual-only code (shaders, the galaxy glow, effects) may use normal maths. It must never decide what exists.
+
+---
+
+## 9. Universe generation pipeline
+
+```
+Galaxy (density model)
+ └ Sector         1024-ly cube, has a generated name
+    └ Cell        octree levels 0–7; brighter stars live in bigger cells
+       └ Star system   stars, planets, moons, rings, belts            ← M1 stops here
+          └ Surface    terrain, biomes, resources, monuments          ← M4
+             └ Points of interest, wrecks, signals                    ← later
+```
+
+Each stage is a pure function of (seed, address, version), computed on worker threads and cached (LRU)
+on both server and client. The full specification of the first three stages is in [GALAXY.md](GALAXY.md).
+
+---
+
+## 10. Simulation (server)
+
+### 10.1 Zones
+
+A **zone** is one live simulated area: one physics world, one origin, one thread at a time.
+
+| Zone type | Covers | Physics |
+|---|---|---|
+| System space | one star system's supercruise layer | none: bodies on rails, ships on simple supercruise kinematics |
+| Local space | normal space around a point (a station, a ring, a drop point), up to ~20 km | rigid bodies, ships |
+| Surface | a block of surface tiles on one body | characters, buildings, vehicles, terrain |
+| Interior (later) | inside a station or a large ship | characters |
+
+**Lifecycle**: requested → loading (generate the natural state, load the diff, apply elapsed time) → active
+(ticking) → idle (no players; keeps ticking for 5 minutes so quick returns are instant) → saving → unloaded.
+
+**Zones never touch each other directly.** They exchange messages through the zone host: transfers,
+cross-boundary events. This is what lets zones move to other processes later (P7).
+
+**Surface zones** are built from fixed tiles (a cube-sphere quadtree level, about 2 km per tile):
+
+- If two players are within the **interaction distance** (about 4 km, beyond weapon and building range),
+  they must be in the same zone.
+- Zones grow by taking over tiles, **merge** when their tile sets touch, and **split** when groups drift
+  far apart. Merging moves entities from one physics world to another in a few milliseconds.
+- A zone has a maximum extent (about 20 km) for float precision and a maximum cost of one thread at
+  30 Hz. A big raid (200 players) has to fit in one zone's 33 ms budget. That's the hardest performance
+  target in the project and is load-tested in M3–M4.
+- Far-away bases are shown from a low-frequency "distant view" feed (silhouettes from stored data),
+  not by simulating them.
+
+### 10.2 Entities
+
+- An **entity** is a 64-bit ID plus components (data only). **Systems** (logic) run each tick in a fixed
+  order. Storage is archetype-based (decide own vs. the Arch library at M2).
+- **Static entities** (building parts, deployables, boxes) change rarely: no per-tick cost, replicated
+  reliably when they change.
+- **Dynamic entities** (characters, projectiles, vehicles, ships) are simulated and snapshotted every tick.
+- Components declare their network and save schema with attributes. Serializers are source-generated.
+
+### 10.3 Physics
+
+- **Server**: one Jolt physics system per zone. Characters use Jolt's kinematic character controller.
+  Building parts are static boxes or convex hulls. Terrain is height fields built from the same terrain
+  function the client renders.
+- **Client**: the same physics library runs a small local copy of the nearby collision world, so the
+  player's own character and ship are predicted with exactly the server's code. Godot's built-in physics
+  is only for cosmetics (debris, ragdolls).
+
+### 10.4 Elapsed time (nothing ticks while unloaded)
+
+Every region stores `last_simulated_at`. When it loads, each system's catch-up function runs once with the
+elapsed time:
+
+- decay and upkeep (structures lose health unless upkeep is paid from the claim's storage),
+- miners and production (rate × time, capped by storage and fuel),
+- furnaces, crops, respawning resource nodes.
+
+Catch-up is closed-form (constant work per object, no replaying ticks). Tests check that catch-up matches
+live ticking within rounding.
+
+**Offline raids are live.** Attackers' presence loads the zone, so the base exists in full and its
+defences work. The owners get a raid alert from the notification service and can respawn at a bed inside
+the base.
+
+---
+
+## 11. Networking
+
+### 11.1 Connection and transport
+
+- UDP through LiteNetLib. Channels: reliable ordered (commands, events, static entities) and unreliable
+  sequenced (inputs, snapshots).
+- **Login flow**: the client logs in to the account service over HTTPS and receives a signed **connect
+  token** (shard address, expiry, account ID, session key). It presents the token to the shard. After that,
+  every packet is encrypted with the session key (ChaCha20-Poly1305, built into .NET).
+- Steam or Epic login and relay networking can be added later behind the same token step.
+
+### 11.2 Messages
+
+- Messages are C# structs with attributes. A source generator writes bit-packed serializers: variable-length
+  integers, quantized floats, delta-encoded fields.
+- A protocol version is checked on connect.
+
+### 11.3 Replication (server → client)
+
+- **Relevance per client**: a spatial grid in each zone decides what each client receives, by distance and
+  entity type. The player's own character, ship and team are always relevant.
+- **Static entities** are sent once when they become relevant (rate-limited batches), then only changes.
+  A big base streams in over a few seconds instead of arriving as one burst.
+- **Dynamic entities** are sent in snapshots at 20 Hz, delta-compressed against the last snapshot the
+  client acknowledged. A priority accumulator decides what fits in the client's bandwidth budget
+  (target ≤ 256 kbit/s in a fight).
+- **Events**: shots, impacts and sounds are unreliable when cosmetic and reliable when they change state.
+
+### 11.4 Prediction, reconciliation, interpolation
+
+- The client sends input every frame (move, look, buttons), with the previous few inputs repeated to survive
+  packet loss. The server applies each input on its tick.
+- **Own character and ship are predicted** with the same simulation code. When a snapshot says "input 412
+  processed, you are here", the client rewinds to that state and replays its newer inputs. Small corrections
+  are smoothed visually.
+- **Everything else is interpolated** about 100 ms in the past, between two snapshots.
+- **Actions** (build, craft, loot, use) are intents with sequence numbers. The UI may show them right away;
+  the server confirms or rejects them with a reason code.
+
+### 11.5 Combat
+
+- Projectiles and hits are simulated on the server. For each shot, the server rewinds hitboxes to the time the
+  shooter saw (up to 250 ms) using a one-second history, then simulates the projectile forward.
+- Damage, death and loot exist only on the server.
+
+### 11.6 Cheating
+
+- The server simulates movement itself, so speed and teleport hacks don't work.
+- Every command has a rate budget. Invalid or impossible commands are rejected and counted.
+- Clients never report hits or results.
+- Later: occlusion checks so distant hidden players aren't sent at all (wall-hack resistance), and
+  client integrity checks.
+
+---
+
+## 12. Transfers
+
+| Transfer | Trigger | What happens |
+|---|---|---|
+| Surface ↔ surface | zones merge or split | Entities move between physics worlds in one process. The client notices nothing. |
+| Local space ↔ surface | descending below the handover altitude (or climbing above it) | Ship and occupants are handed over. The client keeps rendering. |
+| Supercruise ↔ local space | drop out / jump to supercruise | Join the local zone at that point, or create one. Join an existing zone if one is within range. |
+| Star system → star system | frame shift jump | A 10–15 s hyperspace sequence on the client covers loading the target system. |
+| Process ↔ process (phase 2) | load balancing, or a jump to a system hosted elsewhere | Serialize, hand over ownership through the coordinator, reconnect hidden behind a jump or loading moment. |
+
+Ownership handover is transactional (P6). The source marks the object "in transit" and the database
+commits the new owner before the target accepts. After a crash, the coordinator resolves every object to
+exactly one owner.
+
+---
+
+## 13. Persistence
+
+- **Storage**: SQLite (development and phase 1) → PostgreSQL (production), behind the same interfaces.
+- **What's stored**: accounts; characters and where they are; persistent entities grouped by region; region
+  metadata (`last_simulated_at`, version); claims; overrides of natural objects (depleted nodes, destroyed
+  monuments); global data (chat history, notifications, market later).
+- **Entity rows**: ID, region key, type, owner, parent container, version, payload. The payload is a compact
+  binary from the same generated serializers, with a schema version for migrations.
+- **Writes**: zones keep their state in memory. Dirty entities are flushed every 30 s and on unload, one
+  transaction per zone per flush. Critical events (death drops, trades, transfers between zones) commit
+  immediately.
+- **Crash safety**: at most 30 s of one zone's ordinary changes can be lost. Items can never duplicate
+  across zones.
+- **Backups**: periodic database snapshots. **Wipes**: a new database, optionally a new galaxy seed.
+  Accounts survive wipes. (Whether the game wipes at all is a design decision; the architecture supports
+  both.)
+- **Schema changes**: versioned payloads plus migration code. Tests load old saves.
+
+---
+
+## 14. Global services
+
+| Service | Job | Phase 1 |
+|---|---|---|
+| Accounts | login, connect tokens, bans | module in the server process |
+| Directory | where each player is, which zone host owns which zone | module |
+| Chat | global, local, team, direct messages | module |
+| Notifications | raid alerts, "your miner is full"; later push to a phone app | module |
+| Market | trading between players | later |
+| Discovery | who first scanned which system or body (optional feature) | later |
+| Admin | moderation, server control | console commands first |
+
+Each is an interface from day one, so moving it to its own process later is a deployment change.
+
+---
+
+## 15. Client (Godot)
+
+- **Layers**: App (modes, settings) → Connection (Hollow.Net client) → World view (entity views pooled by type,
+  floating origin, LOD) → Presentation (planets, ships, characters, effects, audio) → UI (Godot controls,
+  in C#) → Input (Godot input map → game commands).
+- **Modes**: galaxy map, system map, flight, surface, menus. Each is a scene. The world keeps streaming while
+  a map is open.
+- **Planets**: cube-sphere quadtree terrain with chunk LOD; far bodies as impostors. Near the player, the same
+  terrain function as the server gives collision for prediction.
+- **Offline tools**: the galaxy and system maps work without a server, because generation is local and
+  deterministic.
+- **Scenes are thin**: a scene file holds a root node and its script; C# builds the rest. Fewer hand-edited
+  scene files means fewer merge conflicts and less editor-only state.
+
+---
+
+## 16. How we work
+
+- **Build**: `dotnet build HollowUniverse.sln`. **Tests**: `dotnet run --project tests/Hollow.Tests`.
+  **Client**: open `game/project.godot` in Godot 4.7.2 .NET.
+- **Kinds of tests**: unit tests (rules), golden tests (generation stays identical), integration tests
+  (server + headless bot clients, from M2), screenshots (anything visual).
+- **Budgets**: client 60 fps on the user's PC; server zone tick ≤ 10 ms typical and ≤ 33 ms in a 200-player
+  fight; bandwidth per client ≤ 256 kbit/s in a fight.
+- **Style**: nullable reference types on, warnings are errors in `src/` and `tests/`, `.editorconfig` in the
+  repo.
+- **Docs first**: architecture changes update this file in the same commit. Design changes update
+  GAME_DESIGN.md.
+
+---
+
+## 17. Milestones
+
+| | Goal | Done when |
+|---|---|---|
+| **M0** | Repository, toolchain, docs | Builds and tests pass here; the project opens on the user's PC. |
+| **M1** | **Galaxy** | Galaxy map and system map run; real stars near Sol; ~120 billion procedural systems on demand; deterministic; tested. |
+| M2 | Network core | .NET server, two Godot clients and 100 bots in a flat test zone; predicted movement; snapshot replication; bandwidth and tick measured. |
+| M3 | Zones and persistence | Zones load and unload; place a wall; restart the server; the wall is still there; elapsed-time catch-up works. |
+| M4 | Planets | Land on a procedural planet; walk on a curved surface; surface zones merge and split. |
+| M5 | Ships and travel | Normal flight (6 degrees of freedom, flight assist), supercruise, frame shift jumps between systems, docking. |
+| M6 | Survival core | Gather, craft, inventory, Rust-style building, doors, locks, claims, firearms, death, loot, beds. |
+| M7 | Raiding | Explosives, structure damage, decay and upkeep, raid alerts. |
+| M8 | Empire | Miners and automation, monuments and rare loot, ship engineering, deeper crafting. |
+
+---
+
+## 18. Open decisions
+
+| Decision | Options | Lean | Decide at |
+|---|---|---|---|
+| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | Jolt | M2 |
+| Entity storage | own archetype store / Arch | own, small | M2 |
+| Hosting | own machines / rented servers / cloud | rented dedicated servers | M3 |
+| Surface tile size and interaction distance | 1–4 km / 2–6 km | 2 km / 4 km | M4 |
+| Real-star catalogue | HYG 4.1 (~120k stars) / AT-HYG (~2.5M) | HYG now, AT-HYG later | after M1 |
+| Wipes, shard size | design | — | GAME_DESIGN.md |
+
+---
+
+## 19. Risks
+
+| Risk | Mitigation |
+|---|---|
+| Netcode is hard and can sink the project | Built in M2, before any content. Bots and load tests run in the AI workspace. |
+| Planet-scale terrain with physics and building | M4 prototype early; precision rules in §6; tiles and zones designed together. |
+| Millions of persistent entities | Static/dynamic split, per-region loading, database indexes; load tests with generated bases. |
+| Generation differs between Windows and Linux | `DMath`, golden tests run on both. |
+| Big fights overload one zone | One thread per zone, measured budgets, static entities cost nothing per tick. |
+| Godot's visuals are below Unreal's | Strong art direction; C++ rendering extensions only if needed. |
+| Tiny team | Docs first, small milestones, everything tested before it reaches the user. |
