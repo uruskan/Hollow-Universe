@@ -27,6 +27,8 @@ near Sol, the galaxy map and the system map. Networking (M2) comes next. See [th
 - **Galaxy map.** Stars stream in around the focus within a star budget. It shows sector names, a grid,
   search by any name, and works from 1 ly up to the whole galaxy.
 - **System map.** An orrery with a compressed or true scale, body data and time controls.
+- **A crisp interface at any resolution.** Text, icons and panels are drawn at the screen's real pixel size
+  rather than stretched (see [ARCHITECTURE.md §15](docs/ARCHITECTURE.md#15-client-godot)).
 
 ## Requirements
 
@@ -78,6 +80,9 @@ names ("Nolcas Peris BF-BA 5-0") and sector names ("Nolcas Peris").
 | L | Switch between compressed and true scale |
 | Esc | Back to the galaxy map |
 
+**Anywhere:** Ctrl + plus / Ctrl + minus make the interface larger or smaller, and Ctrl + 0 resets it. The
+interface follows the window size on its own (1.0 at 1080p); this is a preference on top, saved between sessions.
+
 ## Layout
 
 | Path | What |
@@ -111,5 +116,7 @@ game logs an error and shows no real stars near Sol.
   `game/data/catalog/hyg41.bin.gz` is shared under the same licence. See
   [its licence file](game/data/catalog/LICENSE.md) for the changes made.
 - Real orbital elements of the planets: NASA JPL approximate positions of the planets (J2000).
+- Interface font: [Inter](https://github.com/rsms/inter) by Rasmus Andersson and contributors, under the
+  [SIL Open Font License 1.1](game/assets/fonts/Inter/OFL.txt).
 - Everything else, including sector names and generated content, is original. The code has no licence yet,
   so all rights are reserved until one is chosen.

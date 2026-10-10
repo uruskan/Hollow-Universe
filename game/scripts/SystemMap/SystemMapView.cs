@@ -4,7 +4,6 @@ using Godot;
 using Hollow.Core;
 using Hollow.Galaxy.Systems;
 using HollowUniverse.Common;
-using HollowUniverse.GalaxyMap;
 
 namespace HollowUniverse.SystemMap;
 
@@ -474,7 +473,7 @@ public partial class SystemMapView : Node3D
         _camera.LookAtFromPosition(_focusPosition + back * (float)_distance, _focusPosition, Vector3.Up);
         _camera.Near = (float)Math.Clamp(_distance * 0.002, 0.002, 1);
 
-        _ui.SetTime(UniverseTime.ToUtc(_time), _paused ? "paused" : SpeedNames[_speedIndex], _logScale);
+        _ui.SetTime(UniverseTime.ToUtc(_time), SpeedNames[_speedIndex], _paused, _logScale);
         DrawOverlay();
     }
 
@@ -512,10 +511,12 @@ public partial class SystemMapView : Node3D
                 ? (body.Name.StartsWith(_system!.Name, StringComparison.Ordinal) ? body.Designation : body.Name)
                 : body.Name;
             float radiusPixels = ScreenRadius(view);
-            overlay.Texts.Add(new MapOverlay.Text(p + new Vector2(0, radiusPixels + 16), label, colour, body.Kind == BodyKind.Moon ? 11 : 13, true));
-            if (_selected == body.Index)
+            bool selected = _selected == body.Index;
+            overlay.Texts.Add(new MapOverlay.Text(p + new Vector2(0, radiusPixels + Ui.Pxf(18)), label, selected ? Ui.Warm : colour,
+                body.Kind == BodyKind.Moon ? 12 : 14, true, selected ? MapLabel.Strong : MapLabel.Name));
+            if (selected)
             {
-                overlay.Rings.Add(new MapOverlay.Ring(p, radiusPixels + 8, Ui.Warm, 2));
+                overlay.Rings.Add(new MapOverlay.Ring(p, radiusPixels + Ui.Pxf(7), Ui.Warm, Ui.Pxf(2)));
             }
         }
         overlay.QueueRedraw();

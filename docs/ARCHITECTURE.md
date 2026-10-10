@@ -379,6 +379,13 @@ Each is an interface from day one, so moving it to its own process later is a de
   deterministic.
 - **Scenes are thin**: a scene file holds a root node and its script; C# builds the rest. Fewer hand-edited
   scene files means fewer merge conflicts and less editor-only state.
+- **Interface**: drawn at the screen's real pixel size, never stretched. Godot's stretch mode is off; our own
+  UI scale follows the window height (1.0 at 1080p, at least 0.875) times a player preference (Ctrl + / −). Every
+  length goes through `Ui.Px`, so it is a whole number of pixels at that scale. Fonts are rasterised at their
+  final size with no distance fields, using light hinting and greyscale antialiasing. Icons are SVG, rasterised
+  at their final size. The theme is rebuilt when the scale changes. One font family (Inter, variable) with tabular
+  figures for numbers. All of this lives in `game/scripts/Common/Ui.cs` (styles, theme, helpers) and
+  `UiIcons.cs`.
 
 ---
 

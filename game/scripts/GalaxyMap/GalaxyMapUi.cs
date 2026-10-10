@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Godot;
 using Hollow.Core;
 using Hollow.Galaxy;
@@ -7,58 +8,21 @@ using HollowUniverse.Common;
 
 namespace HollowUniverse.GalaxyMap;
 
-/// <summary>Labels, rings and lines drawn over the 3D map in screen space.</summary>
-public partial class MapOverlay : Control
-{
-    public readonly record struct Text(Vector2 Position, string Value, Color Colour, int Size, bool Centred);
-    public readonly record struct Ring(Vector2 Position, float Radius, Color Colour, float Width);
-
-    public readonly List<Text> Texts = new();
-    public readonly List<Ring> Rings = new();
-
-    public override void _Ready()
-    {
-        MouseFilter = MouseFilterEnum.Ignore;
-        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-    }
-
-    public void Clear()
-    {
-        Texts.Clear();
-        Rings.Clear();
-    }
-
-    public override void _Draw()
-    {
-        Font font = ThemeDB.FallbackFont;
-        foreach (Ring ring in Rings)
-        {
-            DrawArc(ring.Position, ring.Radius, 0, Mathf.Tau, 48, ring.Colour, ring.Width, true);
-        }
-        foreach (Text text in Texts)
-        {
-            Vector2 size = font.GetStringSize(text.Value, HorizontalAlignment.Left, -1, text.Size);
-            Vector2 at = text.Centred ? text.Position - new Vector2(size.X / 2, 0) : text.Position;
-            DrawString(font, at + new Vector2(1, 1), text.Value, HorizontalAlignment.Left, -1, text.Size, new Color(0, 0, 0, 0.7f * text.Colour.A));
-            DrawString(font, at, text.Value, HorizontalAlignment.Left, -1, text.Size, text.Colour);
-        }
-    }
-}
-
-/// <summary>The galaxy map's interface: focus readout, search, selected star, help and status.</summary>
+/// <summary>The galaxy map's interface: where the camera is, search, the selected system, key hints and status.</summary>
 public partial class GalaxyMapUi : Control
 {
-    private Label _sector = null!;
+    private Label _region = null!;
+    private Label _regionKind = null!;
     private Label _position = null!;
     private Label _fromSol = null!;
-    private Label _scale = null!;
+    private Label _viewWidth = null!;
     private LineEdit _search = null!;
+    private PanelContainer _resultsCard = null!;
     private VBoxContainer _results = null!;
-    private PanelContainer _resultsPanel = null!;
-    private PanelContainer _info = null!;
-    private Label _infoName = null!;
-    private Label _infoType = null!;
-    private GridContainer _infoRows = null!;
+    private PanelContainer _selectionCard = null!;
+    private Label _selectionName = null!;
+    private Label _selectionType = null!;
+    private GridContainer _selectionRows = null!;
     private Label _status = null!;
 
     public event Action<string>? SearchChanged;
@@ -78,26 +42,47 @@ public partial class GalaxyMapUi : Control
         Overlay = new MapOverlay();
         AddChild(Overlay);
 
-        // Top left: where the camera is.
-        var focusPanel = new PanelContainer();
-        var focusBox = new VBoxContainer();
-        focusBox.AddThemeConstantOverride("separation", 2);
-        focusBox.AddChild(Ui.Heading("Hollow Universe · Galaxy map", 12));
-        _sector = Ui.Label("", 20, Ui.Text);
-        _position = Ui.Label("", 13, Ui.Dim);
-        _fromSol = Ui.Label("", 13, Ui.Dim);
-        _scale = Ui.Label("", 13, Ui.Dim);
-        focusBox.AddChild(_sector);
-        focusBox.AddChild(_position);
-        focusBox.AddChild(_fromSol);
-        focusBox.AddChild(_scale);
-        focusPanel.AddChild(focusBox);
-        AddChild(focusPanel);
-        Ui.Place(focusPanel, LayoutPreset.TopLeft);
+        BuildLocationCard();
+        BuildRightColumn();
+        BuildBottom();
+    }
 
-        // Top right: search.
-        var searchBox = new VBoxContainer { CustomMinimumSize = new Vector2(360, 0) };
-        _search = new LineEdit { PlaceholderText = "Search stars, systems and sectors…", ClearButtonEnabled = true };
+    // Top left: where the camera is looking.
+    private void BuildLocationCard()
+    {
+        (PanelContainer card, VBoxContainer content) = Ui.Card(4);
+        Ui.Size(card, 300);
+        content.AddChild(Ui.Label("Galaxy map", TextStyle.Overline));
+        _region = Ui.Label("", TextStyle.Title);
+        _region.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _regionKind = Ui.Label("", TextStyle.Secondary);
+        content.AddChild(_region);
+        content.AddChild(_regionKind);
+        content.AddChild(Ui.Separator());
+        GridContainer rows = Ui.Rows();
+        _position = AddRow(rows, "Position");
+        _fromSol = AddRow(rows, "From Sol");
+        _viewWidth = AddRow(rows, "View");
+        content.AddChild(rows);
+        AddChild(card);
+        Ui.Place(card, LayoutPreset.TopLeft);
+    }
+
+    // Top right: search, its results, and the selected system below them.
+    private void BuildRightColumn()
+    {
+        var column = new VBoxContainer();
+        Ui.Track(column, c => c.AddThemeConstantOverride("separation", Ui.Px(10)));
+        Ui.Size(column, 380);
+        column.MouseFilter = MouseFilterEnum.Ignore;
+
+        _search = new LineEdit
+        {
+            PlaceholderText = "Search stars, systems and sectors",
+            ClearButtonEnabled = true,
+            RightIcon = UiIcons.Get(UiIcon.Search, 16),
+            CaretBlink = true,
+        };
         _search.TextChanged += text => SearchChanged?.Invoke(text);
         _search.TextSubmitted += _ =>
         {
@@ -106,88 +91,156 @@ public partial class GalaxyMapUi : Control
                 first.EmitSignal(BaseButton.SignalName.Pressed);
             }
         };
-        searchBox.AddChild(_search);
-        _resultsPanel = new PanelContainer { Visible = false };
-        _results = new VBoxContainer();
-        _results.AddThemeConstantOverride("separation", 2);
-        _resultsPanel.AddChild(_results);
-        searchBox.AddChild(_resultsPanel);
-        AddChild(searchBox);
-        Ui.Place(searchBox, LayoutPreset.TopRight);
+        column.AddChild(_search);
 
-        // Right: the selected star.
-        _info = new PanelContainer { Visible = false, CustomMinimumSize = new Vector2(360, 0) };
-        var infoBox = new VBoxContainer();
-        infoBox.AddThemeConstantOverride("separation", 4);
-        infoBox.AddChild(Ui.Heading("Selected system", 12));
-        _infoName = Ui.Label("", 22, Ui.Text);
-        _infoName.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        _infoType = Ui.Label("", 14, Ui.Warm);
-        _infoRows = new GridContainer { Columns = 2 };
-        _infoRows.AddThemeConstantOverride("h_separation", 16);
-        _infoRows.AddThemeConstantOverride("v_separation", 3);
-        var open = new Button { Text = "Open system map   (Enter)" };
+        (_resultsCard, _results) = Ui.Card(2);
+        Ui.Track(_resultsCard, c => c.AddThemeStyleboxOverride("panel", Ui.Box(Ui.Panel, 10, Ui.PanelBorder, 6, 6)));
+        _resultsCard.Visible = false;
+        column.AddChild(_resultsCard);
+
+        VBoxContainer content;
+        (_selectionCard, content) = Ui.Card(4);
+        _selectionCard.Visible = false;
+        content.AddChild(Ui.Label("Selected system", TextStyle.Overline));
+        _selectionName = Ui.Label("", TextStyle.Title);
+        _selectionName.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _selectionType = Ui.Label("", TextStyle.Subtitle);
+        content.AddChild(_selectionName);
+        content.AddChild(_selectionType);
+        content.AddChild(Ui.Separator());
+        _selectionRows = Ui.Rows();
+        content.AddChild(_selectionRows);
+        var spacer = new Control();
+        Ui.Size(spacer, 0, 6);
+        content.AddChild(spacer);
+        var open = new Button
+        {
+            Text = "Open system map",
+            ThemeTypeVariation = "PrimaryButton",
+            Icon = UiIcons.Get(UiIcon.Open, 16),
+            IconAlignment = HorizontalAlignment.Right,
+        };
         open.Pressed += () => OpenSystemRequested?.Invoke();
-        infoBox.AddChild(_infoName);
-        infoBox.AddChild(_infoType);
-        infoBox.AddChild(new HSeparator());
-        infoBox.AddChild(_infoRows);
-        infoBox.AddChild(open);
-        _info.AddChild(infoBox);
-        AddChild(_info);
-        Ui.Place(_info, LayoutPreset.TopRight);
-        _info.OffsetTop += 56;
-        _info.OffsetBottom += 56;
+        content.AddChild(open);
+        column.AddChild(_selectionCard);
 
-        // Bottom left: controls.
-        var help = new PanelContainer();
-        help.AddChild(Ui.Label(
-            "Drag: rotate   ·   Right-drag / WASD: move   ·   R/F: up/down   ·   Wheel: zoom\n" +
-            "Click: select   ·   Double-click: fly to   ·   Enter: system map   ·   H: Sol   ·   G: whole galaxy",
-            13, Ui.Dim));
-        AddChild(help);
-        Ui.Place(help, LayoutPreset.BottomLeft);
+        AddChild(column);
+        Ui.Place(column, LayoutPreset.TopRight);
+    }
 
-        // Bottom right: status.
-        _status = Ui.Label("", 12, Ui.Dim);
+    // Bottom: controls on the left, streaming status on the right.
+    private void BuildBottom()
+    {
+        var hints = new PanelContainer();
+        Ui.Track(hints, c => c.AddThemeStyleboxOverride("panel", StripStyle()));
+        var lines = new VBoxContainer();
+        Ui.Track(lines, c => c.AddThemeConstantOverride("separation", Ui.Px(7)));
+        lines.AddChild(HintLine(("Drag", "Rotate"), ("Right-drag", "Pan"), ("Wheel", "Zoom"), ("Click", "Select"), ("Double-click", "Fly to")));
+        lines.AddChild(HintLine(("W|A|S|D", "Move"), ("R|F", "Up / down"), ("Enter", "System map"), ("H", "Sol"), ("G", "Whole galaxy")));
+        hints.AddChild(lines);
+        AddChild(hints);
+        Ui.Place(hints, LayoutPreset.BottomLeft);
+
+        var statusStrip = new PanelContainer();
+        Ui.Track(statusStrip, c => c.AddThemeStyleboxOverride("panel", Ui.Box(new Color(Ui.Panel, 0.7f), 8, null, 10, 6)));
+        _status = Ui.Label("", TextStyle.Caption);
+        _status.AddThemeFontOverride("font", Ui.Tabular);
         _status.HorizontalAlignment = HorizontalAlignment.Right;
-        _status.CustomMinimumSize = new Vector2(520, 0);
-        AddChild(_status);
-        Ui.Place(_status, LayoutPreset.BottomRight);
+        statusStrip.AddChild(_status);
+        AddChild(statusStrip);
+        Ui.Place(statusStrip, LayoutPreset.BottomRight);
+    }
+
+    private static HBoxContainer HintLine(params (string Keys, string Action)[] hints)
+    {
+        var line = new HBoxContainer();
+        Ui.Track(line, c => c.AddThemeConstantOverride("separation", Ui.Px(16)));
+        foreach ((string keys, string action) in hints)
+        {
+            line.AddChild(Ui.KeyHint(keys, action));
+        }
+        return line;
+    }
+
+    private static StyleBoxFlat StripStyle()
+    {
+        StyleBoxFlat strip = Ui.Box(Ui.Panel, 10, Ui.PanelBorder, 12, 10);
+        strip.ShadowColor = Ui.Shadow;
+        strip.ShadowSize = Ui.Px(14);
+        strip.ShadowOffset = new Vector2(0, Ui.Px(3));
+        return strip;
+    }
+
+    private static Label AddRow(GridContainer rows, string key)
+    {
+        rows.AddChild(Ui.Label(key, TextStyle.Key));
+        Label value = Ui.Label("", TextStyle.Value);
+        value.HorizontalAlignment = HorizontalAlignment.Right;
+        value.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        rows.AddChild(value);
+        return value;
     }
 
     public void SetFocus(string sector, Vector3D focus, double cameraDistance)
     {
-        _sector.Text = sector.Length > 0 ? sector + " sector" : "Intergalactic space";
-        _position.Text = $"Position  {Ui.Number(focus.X, "N0")}, {Ui.Number(focus.Y, "N0")}, {Ui.Number(focus.Z, "N0")} ly";
-        _fromSol.Text = $"From Sol  {Ui.Ly(focus.Length)}";
-        _scale.Text = $"View  {Ui.Ly(cameraDistance * 1.15)} wide";
+        bool inside = sector.Length > 0;
+        _region.Text = inside ? sector : "Intergalactic space";
+        _regionKind.Text = inside ? "Sector" : "Outside the sector grid";
+        _position.Text = $"{Ui.Number(focus.X)}, {Ui.Number(focus.Y)}, {Ui.Number(focus.Z)} ly";
+        _fromSol.Text = Ui.Ly(focus.Length);
+        _viewWidth.Text = Ui.Ly(cameraDistance * 1.15) + " wide";
     }
 
     public void SetResults(List<SearchResult> results)
     {
         foreach (Node child in _results.GetChildren())
         {
+            _results.RemoveChild(child);
             child.QueueFree();
         }
         foreach (SearchResult result in results)
         {
             SearchResult captured = result;
-            var button = new Button
+            var row = new Button { ThemeTypeVariation = "ListButton", ClipText = true };
+            var content = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+            content.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            Ui.Track(content, c =>
             {
-                Text = $"{result.Name}   ·   {Ui.Ly(result.Position.Length)}",
-                Alignment = HorizontalAlignment.Left,
-                ClipText = true,
-            };
-            button.Pressed += () =>
+                c.AddThemeConstantOverride("separation", Ui.Px(12));
+                c.OffsetLeft = Ui.Px(10);
+                c.OffsetRight = -Ui.Px(10);
+            });
+            Label name = Ui.Label(result.Name, TextStyle.Body);
+            name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            name.ClipText = true;
+            name.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            name.MouseFilter = MouseFilterEnum.Ignore;
+            name.VerticalAlignment = VerticalAlignment.Center;
+            Label distance = Ui.Label(result.IsSector ? "sector" : Ui.Ly(result.Position.Length), TextStyle.Caption);
+            distance.AddThemeFontOverride("font", Ui.Tabular);
+            distance.MouseFilter = MouseFilterEnum.Ignore;
+            distance.VerticalAlignment = VerticalAlignment.Center;
+            content.AddChild(name);
+            content.AddChild(distance);
+            row.AddChild(content);
+            Ui.Track(row, r => r.CustomMinimumSize = new Vector2(0, Ui.Px(34)));
+            row.Pressed += () =>
             {
                 ResultChosen?.Invoke(captured);
-                _resultsPanel.Visible = false;
+                _resultsCard.Visible = false;
                 _search.ReleaseFocus();
             };
-            _results.AddChild(button);
+            _results.AddChild(row);
         }
-        _resultsPanel.Visible = results.Count > 0;
+        _resultsCard.Visible = results.Count > 0;
+    }
+
+    /// <summary>Types into the search box (used by automation; the view answers through SearchChanged).</summary>
+    public void Search(string text)
+    {
+        _search.Text = text;
+        _search.CaretColumn = text.Length;
+        SearchChanged?.Invoke(text);
     }
 
     public void ClearSearch()
@@ -198,46 +251,43 @@ public partial class GalaxyMapUi : Control
 
     public void ShowSelection(string name, GalaxyStar star, string sector, int companionCount)
     {
-        _info.Visible = true;
-        _infoName.Text = name;
+        _selectionCard.Visible = true;
+        _selectionName.Text = name;
         string kind = star.Class.KindName;
-        _infoType.Text = star.Class.Kind is StarKind.NeutronStar or StarKind.BlackHole ? kind : $"{star.Class} · {kind}";
-        foreach (Node child in _infoRows.GetChildren())
+        _selectionType.Text = star.Class.Kind is StarKind.NeutronStar or StarKind.BlackHole ? kind : $"{star.Class} · {kind}";
+        foreach (Node child in _selectionRows.GetChildren())
         {
+            _selectionRows.RemoveChild(child);
             child.QueueFree();
         }
-        Row("Distance from Sol", Ui.Ly(star.Position.Length));
-        Row("Sector", sector);
-        Row("Position", $"{Ui.Number(star.Position.X, "N1")}, {Ui.Number(star.Position.Y, "N1")}, {Ui.Number(star.Position.Z, "N1")}");
+        Ui.AddRow(_selectionRows, "Distance from Sol", Ui.Ly(star.Position.Length));
+        Ui.AddRow(_selectionRows, "Sector", sector.Length > 0 ? sector : "—", numeric: false);
+        Ui.AddRow(_selectionRows, "Position", $"{Ui.Number(star.Position.X, "N1")}, {Ui.Number(star.Position.Y, "N1")}, {Ui.Number(star.Position.Z, "N1")}");
         if (star.Physics.Temperature > 0)
         {
-            Row("Temperature", Ui.Temperature(star.Physics.Temperature));
+            Ui.AddRow(_selectionRows, "Temperature", Ui.Temperature(star.Physics.Temperature));
         }
-        Row("Mass", Ui.Number(star.Physics.Mass, "N2") + " M☉");
-        Row("Radius", star.Physics.Radius < 0.01 ? Ui.Number(star.Physics.Radius * 695700, "N0") + " km" : Ui.Number(star.Physics.Radius, "N2") + " R☉");
+        Ui.AddRow(_selectionRows, "Mass", Ui.Times(star.Physics.Mass, "Sun"));
+        Ui.AddRow(_selectionRows, "Radius", star.Physics.Radius < 0.01
+            ? Ui.Number(star.Physics.Radius * 695700, "N0") + " km"
+            : Ui.Times(star.Physics.Radius, "Sun"));
         if (star.Physics.Luminosity > 0)
         {
-            Row("Luminosity", Ui.Number(star.Physics.Luminosity, star.Physics.Luminosity < 0.01 ? "G3" : "N2") + " L☉");
+            Ui.AddRow(_selectionRows, "Luminosity", Ui.Times(star.Physics.Luminosity, "Sun", star.Physics.Luminosity < 0.01 ? "G3" : "N2"));
         }
         if (star.Physics.AbsoluteMagnitude < 40)
         {
-            Row("Abs. magnitude", Ui.Magnitude(star.Physics.AbsoluteMagnitude));
+            Ui.AddRow(_selectionRows, "Absolute magnitude", Ui.Magnitude(star.Physics.AbsoluteMagnitude));
         }
         if (companionCount > 0)
         {
-            Row("Companions", companionCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Ui.AddRow(_selectionRows, "Companion stars", companionCount.ToString(CultureInfo.InvariantCulture));
         }
-        Row("Origin", star.IsCatalogue ? "Real star (HYG catalogue)" : "Generated");
-        Row("Address", star.Address.ToString());
+        Ui.AddRow(_selectionRows, "Origin", star.IsCatalogue ? "Real star (HYG)" : "Generated", numeric: false);
+        Ui.AddRow(_selectionRows, "Address", star.Address.ToString());
     }
 
-    public void HideSelection() => _info.Visible = false;
+    public void HideSelection() => _selectionCard.Visible = false;
 
     public void SetStatus(string text) => _status.Text = text;
-
-    private void Row(string key, string value)
-    {
-        _infoRows.AddChild(Ui.Label(key, 13, Ui.Dim));
-        _infoRows.AddChild(Ui.Label(value, 13, Ui.Text));
-    }
 }

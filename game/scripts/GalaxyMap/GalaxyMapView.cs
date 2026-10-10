@@ -203,6 +203,9 @@ public partial class GalaxyMapView : Node3D
         }
     }
 
+    /// <summary>Shows search results for a text, as if typed (for automation).</summary>
+    public void Search(string text) => _ui.Search(text);
+
     public bool SelectByName(string name)
     {
         List<SearchResult> results = _galaxy.Search(name, 1);
@@ -797,7 +800,7 @@ public partial class GalaxyMapView : Node3D
                         if (Project(centre, view, projection, size, out Vector2 p))
                         {
                             float alpha = dx == 0 && dz == 0 ? 0.75f : 0.4f;
-                            overlay.Texts.Add(new MapOverlay.Text(p, SectorNames.Name(sx, fy, sz).ToUpperInvariant(), new Color(0.45f, 0.72f, 0.95f, alpha), 12, true));
+                            overlay.Texts.Add(new MapOverlay.Text(p, SectorNames.Name(sx, fy, sz).ToUpperInvariant(), new Color(0.48f, 0.74f, 0.96f, alpha), 12, true, MapLabel.Region));
                         }
                     }
                 }
@@ -807,9 +810,12 @@ public partial class GalaxyMapView : Node3D
         // Names of the brightest named stars as seen from the camera.
         Vector3D camera = _view.Position;
         var candidates = new List<(double Apparent, Vector2 Screen, string Name)>();
+        // The selected and hovered stars get their own label, so they're left out here.
+        long selectedId = _selected is GalaxyStar sel && sel.IsCatalogue ? sel.Address.CatalogueId : -1;
+        long hoveredId = _hover is GalaxyStar hov && hov.IsCatalogue ? hov.Address.CatalogueId : -1;
         foreach (CatalogueStar star in _named)
         {
-            if (star.Id == 0)
+            if (star.Id == 0 || star.Id == selectedId || star.Id == hoveredId)
             {
                 continue;
             }
@@ -832,7 +838,7 @@ public partial class GalaxyMapView : Node3D
             && _view.Distance < 30000)
         {
             placed.Add(sol);
-            overlay.Texts.Add(new MapOverlay.Text(sol + new Vector2(9, 4), "Sol", new Color(1f, 0.92f, 0.75f, 0.95f), 14, false));
+            overlay.Texts.Add(new MapOverlay.Text(sol + new Vector2(Ui.Pxf(10), Ui.Pxf(5)), "Sol", new Color(1f, 0.92f, 0.75f, 0.95f), 14, false, MapLabel.Strong));
         }
         foreach ((double _, Vector2 screen, string name) in candidates)
         {
@@ -840,24 +846,24 @@ public partial class GalaxyMapView : Node3D
             {
                 break;
             }
-            if (placed.Any(q => q.DistanceTo(screen) < 70))
+            if (placed.Any(q => q.DistanceTo(screen) < Ui.Pxf(80)))
             {
                 continue;
             }
             placed.Add(screen);
-            overlay.Texts.Add(new MapOverlay.Text(screen + new Vector2(9, 4), name, new Color(0.85f, 0.9f, 1f, 0.75f), 13, false));
+            overlay.Texts.Add(new MapOverlay.Text(screen + new Vector2(Ui.Pxf(10), Ui.Pxf(5)), name, new Color(0.85f, 0.9f, 1f, 0.8f), 13, false));
         }
 
         if (_hover is GalaxyStar hover && Project(hover.Position, view, projection, size, out Vector2 hp))
         {
-            overlay.Rings.Add(new MapOverlay.Ring(hp, 9, new Color(0.6f, 0.85f, 1f, 0.6f), 1.5f));
-            overlay.Texts.Add(new MapOverlay.Text(hp + new Vector2(13, -10), _galaxy.NameOf(hover.Address), new Color(0.9f, 0.95f, 1f), 14, false));
+            overlay.Rings.Add(new MapOverlay.Ring(hp, Ui.Pxf(10), new Color(Ui.Accent, 0.7f), Ui.Pxf(1.5f)));
+            overlay.Texts.Add(new MapOverlay.Text(hp + new Vector2(Ui.Pxf(15), -Ui.Pxf(10)), _galaxy.NameOf(hover.Address), Ui.Text, 14, false, MapLabel.Strong));
         }
         if (_selected is GalaxyStar selected && Project(selected.Position, view, projection, size, out Vector2 sp))
         {
-            overlay.Rings.Add(new MapOverlay.Ring(sp, 13, Ui.Warm, 2f));
-            overlay.Rings.Add(new MapOverlay.Ring(sp, 17, new Color(Ui.Warm, 0.35f), 1f));
-            overlay.Texts.Add(new MapOverlay.Text(sp + new Vector2(0, 22), _galaxy.NameOf(selected.Address), Ui.Warm, 14, true));
+            overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(13), Ui.Warm, Ui.Pxf(2)));
+            overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(18), new Color(Ui.Warm, 0.35f), Ui.Pxf(1)));
+            overlay.Texts.Add(new MapOverlay.Text(sp + new Vector2(0, Ui.Pxf(36)), _galaxy.NameOf(selected.Address), Ui.Warm, 15, true, MapLabel.Strong));
         }
         overlay.QueueRedraw();
     }

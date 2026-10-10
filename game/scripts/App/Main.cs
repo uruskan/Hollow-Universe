@@ -22,10 +22,19 @@ public partial class Main : Node
     private Dictionary<string, string> _options = new();
     private double _elapsed;
     private bool _capturing;
+    private bool _rescaled;
+    private UiScaler _scaler = null!;
 
     public override void _Ready()
     {
         _options = ParseOptions(OS.GetCmdlineUserArgs());
+        // The interface scale has to be known before any interface is built.
+        _scaler = new UiScaler { Name = "UiScaler" };
+        if (_options.ContainsKey("ui-scale"))
+        {
+            _scaler.Override = (float)Number("ui-scale", 1);
+        }
+        AddChild(_scaler);
         GalaxyService.Load();
 
         _galaxyMap = new GalaxyMapView { Name = "GalaxyMap" };
@@ -97,6 +106,10 @@ public partial class Main : Node
         {
             GD.PushWarning($"--select: nothing called '{select}'.");
         }
+        if (_options.TryGetValue("search", out string? search))
+        {
+            _galaxyMap.Search(search);
+        }
 
         if (view == "system" && focusAddress.HasValue)
         {
@@ -139,6 +152,13 @@ public partial class Main : Node
             return;
         }
         _elapsed += delta;
+        // --rescale=F: change the interface scale after a moment, to test everything following a new scale.
+        if (_options.ContainsKey("rescale") && !_rescaled && _elapsed > 0.5)
+        {
+            _rescaled = true;
+            _scaler.Override = (float)Number("rescale", 1);
+            _scaler.Apply();
+        }
         double wait = Number("wait", 2);
         bool ready = _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))

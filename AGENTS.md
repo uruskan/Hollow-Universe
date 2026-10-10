@@ -22,6 +22,12 @@ Read first, in this order:
   purpose, in the same commit, and say so in the commit message.
 - **Original content only.** No names, assets, data or UI copied from Rust, Elite Dangerous, No Man's Sky or
   any other game.
+- **Interface: crisp at any resolution** (ARCHITECTURE.md §15).
+  - Build the UI with `Ui` (`game/scripts/Common/Ui.cs`): text styles, cards, rows and key hints.
+  - Every length goes through `Ui.Px`, and anything that must follow the scale goes through `Ui.Track`, `Ui.Size`
+    or `Ui.Place`.
+  - Icons come from `UiIcons`.
+  - Never turn on a stretch mode or MSDF for UI text, and never hard-code pixel sizes.
 - **Docs first.** A change to architecture or design updates the matching doc in the same commit.
 - **Every change builds and passes the tests before it's handed over.** Anything visual gets a screenshot.
 
@@ -43,9 +49,13 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
 ```
 
-Client options (after `--`): `--focus <name>`, `--position=x,y,z` (ly), `--distance <ly>`, `--yaw <deg>`,
-`--pitch <deg>`, `--select <name>`, `--view system`, `--body <name>`, `--time <UTC>`, `--system-distance`,
-`--wait <s>`, `--trace` (prints streaming and exposure state once a second).
+Client options (after `--`):
+- Camera and selection: `--focus <name>`, `--position=x,y,z` (ly), `--distance <ly>`, `--yaw <deg>`,
+  `--pitch <deg>`, `--select <name>`, `--search <text>`.
+- System map: `--view system`, `--body <name>`, `--time <UTC>`, `--system-distance`.
+- Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
+  to test live rescaling).
+- Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
 
 ## Layout
 
@@ -54,5 +64,6 @@ Client options (after `--`): `--focus <name>`, `--position=x,y,z` (ly), `--dista
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
 | `game/` | Godot project: galaxy map, system map, UI, shaders |
+| `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue into `game/data/catalog/hyg41.bin.gz` |
