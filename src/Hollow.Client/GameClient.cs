@@ -9,9 +9,11 @@ using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
 using Hollow.Net.Transport;
 using Hollow.Simulation;
+using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
+using Hollow.Simulation.Players;
 using Hollow.Surface;
 using LiteNetLib;
 
@@ -43,6 +45,13 @@ public struct InputFrame
 
     /// <summary>Jump went down this frame; kept until the next tick uses it, so a quick tap is never lost.</summary>
     public bool JumpPressed;
+
+    /// <summary>Attack (left mouse) and aim or draw (right mouse) are held (G2).</summary>
+    public bool Primary;
+    public bool Secondary;
+
+    /// <summary>Attack went down this frame (kept until a tick uses it, as jump is).</summary>
+    public bool PrimaryPressed;
 }
 
 /// <summary>How a client runs.</summary>
@@ -59,6 +68,15 @@ public sealed record ClientOptions
     /// <summary>Ground shared by many clients in one process (bots); the owner releases unused tiles.</summary>
     public Func<ZoneSpec, ISurface, PhysicsWorld>? SharedPhysics { get; init; }
 
+    /// <summary>
+    /// The natural objects' state shared by many clients with <see cref="SharedPhysics"/> (bots): its owner keeps the
+    /// shared ground's trees in step with it. Null: an own one on the client's own ground.
+    /// </summary>
+    public Func<ZoneSpec, ISurface, Simulation.Nature.NaturalState>? SharedNature { get; init; }
+
+    /// <summary>The game's data (the server must have the same); null finds and loads game/data/ground.</summary>
+    public GameContent? Content { get; init; }
+
     public Action<string> Log { get; init; } = _ => { };
 }
 
@@ -68,7 +86,7 @@ public sealed record ClientOptions
 /// in the past, a mirror of the entities it was told about, and statistics. The Godot game draws it; bots drive it with
 /// scripted input. Call <see cref="Update"/> every frame from one thread.
 /// </summary>
-public sealed class GameClient : INetEventListener, IDisposable
+public sealed partial class GameClient : INetEventListener, IDisposable
 {
     public const int TickRate = CharacterMotor.TickRate;
 
@@ -114,6 +132,8 @@ public sealed class GameClient : INetEventListener, IDisposable
             UnconnectedMessagesEnabled = false,
         };
         _net.StartInManualMode(0);
+        Content = options.Content ?? GameContent.LoadDefault();
+        Local = new LocalPlayer(Content) { Send = SendReliable };
     }
 
     public ClientState State { get; private set; }
@@ -199,7 +219,7 @@ public sealed class GameClient : INetEventListener, IDisposable
             target = _ownRelay.LocalEndPoint;
         }
         _writer.Reset();
-        new Hello { ProtocolVersion = Protocol.Version, SchemaHash = Protocol.SchemaHash, PlayerName = _options.Name }.WriteMessage(_writer);
+        new Hello { ProtocolVersion = Protocol.Version, SchemaHash = Protocol.SchemaHash, PlayerName = _options.Name, ContentHash = Content.Hash }.WriteMessage(_writer);
         _peer = _net.Connect(target, _writer.Data);
         _connectStarted = _clock.Elapsed.TotalMilliseconds;
         State = ClientState.Connecting;
@@ -229,7 +249,9 @@ public sealed class GameClient : INetEventListener, IDisposable
     public void Update(double delta, in InputFrame input)
     {
         _jumpLatched |= input.JumpPressed;
+        _primaryLatched |= input.PrimaryPressed;
         _net.PollEvents();
+        Local.AfterMessages();
         if (State == ClientState.Playing)
         {
             _marginCooldown = Math.Max(0, _marginCooldown - delta);
@@ -257,6 +279,7 @@ public sealed class GameClient : INetEventListener, IDisposable
                 }
                 PruneStale();
             }
+            UpdateSurvival();
         }
         if (_peer != null && _roundTrip < 0)
         {
@@ -287,6 +310,15 @@ public sealed class GameClient : INetEventListener, IDisposable
         {
             buttons |= MoveButtons.Sprint;
         }
+        var actions = new ActionInput
+        {
+            HeldSlot = Local.HeldSlot is >= 0 and < 6 ? (byte)Local.HeldSlot : ActionInput.NoSlot,
+            Buttons = (frame.Primary ? ActionButtons.Primary : ActionButtons.None) |
+                (frame.Secondary ? ActionButtons.Secondary : ActionButtons.None) |
+                (_primaryLatched ? ActionButtons.PrimaryPressed : ActionButtons.None),
+            ViewDelay = ViewDelay(tick),
+        };
+        _primaryLatched = false;
         InputCommand command = NetConvert.ToCommand(new MoveInput
         {
             Forward = frame.Forward,
@@ -294,7 +326,7 @@ public sealed class GameClient : INetEventListener, IDisposable
             Yaw = frame.Yaw,
             Pitch = frame.Pitch,
             Buttons = buttons,
-        });
+        }, actions);
         _predictor!.RecordInput(tick, command);
         if (_predictor.HasState)
         {
@@ -420,6 +452,7 @@ public sealed class GameClient : INetEventListener, IDisposable
                 if (!_reader.Failed)
                 {
                     _remotes.Remove(despawn.NetId);
+                    RemoveThing(despawn.NetId);
                 }
                 break;
             case ChatLine.TypeId:
@@ -428,6 +461,9 @@ public sealed class GameClient : INetEventListener, IDisposable
                 {
                     ChatReceived?.Invoke(line);
                 }
+                break;
+            default:
+                ReceiveSurvival(type);
                 break;
         }
     }
@@ -438,6 +474,7 @@ public sealed class GameClient : INetEventListener, IDisposable
         _surface = Zone.CreateSurface();
         _predictor?.Dispose();
         _predictor = new Predictor(Zone, _surface, _options.SharedPhysics?.Invoke(Zone, _surface));
+        StartSurvival();
         NetId = welcome.NetId;
         EntityId = new EntityId(welcome.EntityId);
         ServerName = welcome.ServerName;

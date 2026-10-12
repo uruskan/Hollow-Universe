@@ -418,6 +418,40 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   and 48.5 ms worst (two over budget): the server, 100 bots and the relay share one PC, and the worst ticks vary from
   run to run.
 
+### 5.2 G2 load test: 100 survival bots with full inventories
+
+Measured on the owner's PC on 13 October 2026, with four other agents' work running on it. Every bot joins with the
+`load-test-kit` loot table (29 stacks: resources, tools, weapons, arrows, food, clothing, a campfire, a bag, a box),
+then plays the survival game (`--script survive`, `SurvivalBrain`): it walks to trees and outcrops and hits their weak
+spots, picks pickups and berry bushes, keeps its tools on the belt, dresses, eats and bandages, crafts what it lacks and
+keeps its queue busy, lights a campfire, and now and then fights a bot nearby with a spear or the bow. All 100 stay
+within 120 m of the origin, so each sees the 99 others.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit
+```
+
+| | G2, 100 survival bots | G1, 100 walking bots (§5.1) | Target |
+|---|---|---|---|
+| Server tick, average | 5.90 ms | 4.25 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 12.3 / 65.5 ms (2 of 1,796 over 33 ms) | 10.2 / 26.9 ms | ≤ 33 ms |
+| Bandwidth per client, down (99 characters in view) | 105 kbit/s | 114 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 24 kbit/s | 18 kbit/s | |
+| Snapshots lost / inputs on their tick | 0 % / 99.85 % | 0 % / 100 % | |
+| Prediction: mean / worst error, corrections | 0.007 / 183 mm, 6 (and 188 respawns) | 0 / 0 mm, 0 | |
+
+In the 68 s the bots made 1,585 gathering hits (848 on the weak spot) for 17,886 items, picked up 770 items, crafted
+125, loosed 3 arrows, landed 902 hits on each other (199 kills, 209 deaths, each a corpse) and sent 1,369 intents (21
+refused, none over budget). The world ended with 227 things (corpses, campfires, drops) and 710 solid props.
+- **Tick time** grew by 1.7 ms for everything G2 adds: swings and their traces, crafting, vitals, devices, the
+  replication of things, nature and each player's own state. The worst ticks are the PC's (a garbage collection, other
+  work); the 99th percentile stays at a third of the budget.
+- **Down** is lower than G1's because bots that gather stand still, and a still character's state is a few bits; G2's
+  own messages (containers, vitals, events, things) add little. **Up** grew by the held slot, buttons and view delay in
+  every input.
+- **Prediction** stays exact while characters walk among solid trees, outcrops and deployables; the few corrections
+  are at props, and respawns (more than 2 m) are counted apart.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -445,6 +479,203 @@ saying where it came from. Sources, in order of preference:
 | Death | Wounded state, lootable body, respawn on the beach, at a sleeping bag or bed (each with a cooldown), sleepers. |
 | Raiding | Explosives and explosive ammo, damage per grade, weak sides, raid alerts. |
 
+### 6.1 As built in G2
+
+The rules live in `Hollow.Simulation` (engine-free); the server applies them, the client runs the same code for its
+optimistic updates. Numbers are in `game/data/ground` (§7); the source of each is noted there.
+
+**Inventory** (`Items/`). 24 main slots, 6 belt slots, 7 clothing slots (`PlayerInventory`). A stack is an item ID, a
+count and, for tools and weapons, a condition (uses left).
+- **Move** (drag): onto an empty slot it moves (a split when part of a stack); onto the same item it tops that stack up
+  and leaves the rest where it was (Rust; RustMVP refused the whole move); onto another item it swaps, whole stacks
+  only.
+- **Quick move** (right-click): onto partial stacks of the same item first, then empty slots that take it; what
+  doesn't fit stays. Its targets depend on where the item is: from the loot to main then belt; to the open loot;
+  clothing to the clothing slots; main to belt and back.
+- **What goes where**: clothing slots take clothing only, one item per layer (head, face, torso, torso armour, legs,
+  legs armour, hands, feet), so a shirt and a chest plate go together; a campfire's or furnace's fuel slot takes fuel,
+  its input slots what it cooks, its output slots nothing; corpses are take only.
+- **Gains** (picking up, gathering, crafting, loot): onto stacks of the same item in main and belt, then empty main
+  slots, then the belt. What doesn't fit is dropped at the player's feet.
+- Every request carries the item the client saw in the slot; if it changed meanwhile (another looter took it), the
+  request is refused as stale rather than moving something else.
+
+**Crafting** (`Items/CraftQueue.cs`, RustMVP §7). Up to 8 jobs of up to 999 units. Starting a job checks the recipe,
+the workbench level within 4 m and the materials for every unit, then takes them all. Only the front job advances, a
+unit every `seconds × 30` ticks; a finished unit goes into the inventory (dropped at the feet if full, as in Rust, rather
+than holding the queue as RustMVP did). Cancelling any job gives back the ingredients of every unit left, the one in
+progress included; what doesn't fit is dropped. At death the queue's ingredients go into the corpse. A workbench counts
+only when the job starts (Rust). Crafting pauses while the player is offline or asleep.
+
+**Gathering** (`Nature/`). Natural objects come from `INaturalObjects`: objects in a rectangle of the zone's tangent
+plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. The planet package's
+scatter will provide them; until then `StandInNaturalObjects` places each kind at its density per 64 m tile from a
+seeded stream (deterministic: the server and every client place the same objects), keeping 9 m around the zone's origin
+clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
+- **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's tree or ore rate
+  (items.json) and gives the share of the object's whole yield that health was, in whole units, so the hits add up to
+  exactly the total: a better tool is quicker, not richer. The last hit gives the rest. A 0.94-size pine (206 wood)
+  takes 32 hits with a rock, 13 with a stone hatchet, 9 with a metal one.
+- **The weak spot** (Rust): it shows with the first hit on a tree or outcrop, on the side facing the hitter (within 50°
+  either way), on the trunk at chest height or on the outcrop's upper side. A hit within 0.3 m of it counts double and
+  moves it, again to the hitter's side at a new height. Its direction and height are part of the stored change and
+  are sent to clients, who draw it. (First placed at random around the object, the spot was on the far side half the
+  time: the bots found it on 3 hits in 132; facing the hitter, 91 in 113.)
+- **Outcrops** shrink through three stages as they lose health (drawn by the client).
+- **Pickups** (piles of wood, stone and ore, fibre plants, wild tubers) and **berry bushes** are taken whole with the
+  interact key; a pickup is gone, a bush stays bare, until it grows back.
+- **Respawn** on the real clock (Unix milliseconds): trees after 20 minutes, outcrops 10, pickups and bushes 8. Only
+  changes are stored (`NaturalState`: health, weak-spot moves, depleted until), and saved.
+- **Collision**: trees (capsules) and outcrops (spheres) are static Jolt bodies while their ground tile exists, on the
+  server and in every client's prediction (`NaturalBodies`); a felled tree's body goes, and comes back when it does.
+  Their body IDs come after every ground tile's, so contacts sort the same way on both sides; two props touched at
+  once may sort differently and cost a small correction.
+
+**The zone's game** (`Zone.*.cs`). A zone built with `GameContent` runs the survival game after movement each tick, in
+§4.2's order: fall damage into the vitals; actions (held item, swings, shots); projectiles and damage; once a second
+survival, natural respawns, despawns and loot reach; devices; crafting; then the hit history. Players' actions are
+`Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `UseItem`, `Craft`, `CancelCraft`, `Open`, `Close`,
+`PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of it or
+nothing, with a reason (`ActionResult`). Every new persistent thing gets an `EntityId` from the server's allocator.
+
+**Survival** (`Zone.Vitals.cs`, once a second, survival.json). Health 0–100, calories 0–500, hydration 0–250; a new life
+starts at 60 / 260 / 160 (hollow-orbit's respawn values).
+- Needs fall by 0.07 calories and 0.09 water a second, ×1.8 sprinting, ×1.4 cold. At zero, starvation costs 0.2 health
+  a second and thirst 0.3.
+- Healing: health owed by food and medicine comes back at 1 a second; well fed (≥ 250 calories, ≥ 120 water) and not
+  bleeding, 0.04 a second more, twice that by a fire.
+- **Bleeding** (ours): a hit with a blade, spear or arrow adds its damage × the weapon's bleed fraction to a pool, lost
+  at 1 health a second while the pool clots by 0.2 a second; bandages and injectors empty it.
+- **Temperature**: felt = the air (`IClimate`: the stand-in has the first world's mean 18 °C, ±3.5 °C over the
+  compressed 87-minute day, −6.5 °C a kilometre up), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but
+  never past 25 °C, and 10 °C colder for two minutes after swimming. Clothing insulation (3–6 °C an item) counts
+  against the cold: with it added, below 5 °C a character gets cold (fully at −10 °C); cold costs calories faster and,
+  past 0.6, 0.15 health a second. There is no overheating yet. The first world is mild, so cold matters on mountains
+  and when wet at night.
+- Sleepers are left as they are (no hunger, no bleeding) until they wake. Crafting pauses for them too.
+
+**Deployables** (`Zone.Things.cs`, `Zone.Actions.cs`). Placed from an inventory slot at a point within 3 m of the eye,
+snapped to the ground below (at most 0.6 m off), refused under water, outside the zone, on ground steeper than the
+item allows (20–30°), or overlapping another deployable, a tree, an outcrop or a character (blocked). Boxes, furnaces and
+workbenches are solid Jolt boxes on both sides; sleeping bags and campfires are not. Every deployable has hit points;
+melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground.
+- **Sleeping bag and bed**: respawn points for their owner only, with a cooldown from placing and after each use (bag
+  300 s, bed 120 s; real clock, as in RustMVP, so it runs while the server is down). A bed needs workbench 1.
+- **Campfire and furnace**: lit by hand when they have fuel; a lit one burns a unit of fuel every `fuel.seconds` (wood:
+  2 s) leaving its by-product (charcoal) in an output slot, cooks every input slot at once (metal ore 4 s, sulphur ore
+  2 s, high-grade ore 8 s in a furnace; wild tubers 15 s on a campfire), waits when the outputs are full and goes out
+  when the fuel does. Both give warmth while lit.
+- **Workbenches**: a level counts for crafting within 4 m.
+- **Boxes**: 18 and 48 slots.
+
+**Dropped items**: a drop lands on the ground in front of the player, lies there for 300 s of world time (it pauses
+while the server is down) and is picked up with the interact key, as much as fits.
+
+**Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
+ingredients, go into a corpse where the player fell (any number of slots), which anyone may take from but not put into;
+it goes when emptied or after 300 s of world time (Rust's corpse lifetime). The dead player chooses: a random beach point
+(no wait, as in Rust; survival.json can add one) or one of their own sleeping bags or beds that has cooled down. A new life has
+the spawn vitals, a rock and a torch. Until the planet package marks beaches, "the beach" is a random point 15–60 m
+from the zone's origin (`Zone.Beaches` takes the real coast).
+
+**Sleepers**: a player who logs off stays where they were, asleep (lying hit shapes), lootable and killable; looting a
+sleeper shows their main slots, belt and clothing, take only. A sleeper killed leaves a corpse like anyone. Logging in
+wakes them where they lie; a player killed while away logs in dead and chooses a respawn.
+
+**Melee** (`Zone.Combat.cs`). The held item comes from the belt slot each input names; taking an item up takes 0.3 s.
+While the primary button is held a melee item swings every `swing` seconds and strikes `strike` seconds after the swing
+starts: a ray from the eye along that tick's view, thickened to 0.15 m, out to the item's reach (1.6–2.4 m). The first
+thing it meets takes the hit: a character (damage), a tree or outcrop (gathering), a deployable (`structure` damage), or
+the ground (nothing). Every hit costs the tool a point of condition; at none it breaks.
+
+**The bow**: holding the secondary button draws it (1 s) while there are arrows; the primary button looses one: from the
+eye along the view at 50 m/s, under the planet's surface gravity (9.0 m/s² on the first world; not the characters'
+1.8×), in two steps a tick, for up to 4 s. Holding on draws the next. An arrow 20 m to a chest flies 0.4 s and drops
+0.7 m; loosed flat from eye height it comes down about 30 m out. An arrow that hits the ground, a tree or a deployable
+can be picked up again half the time.
+
+**Damage to characters**: the weapon's damage × the body part (head 2, body 1, limbs 0.5; RustMVP) × (1 − protection),
+where protection is the sum of what worn items covering that part give against melee or projectiles (at most 0.8).
+
+**Lag compensation** (ARCHITECTURE.md §11.5). The server keeps every character's pose (feet, up, yaw, standing,
+crouching or lying) for 36 ticks (`HitboxHistory`). Each input says how many quarter ticks behind its own tick the
+player was drawing everyone else; a swing or an arrow is tested against characters where they were then, interpolated
+between ticks as the client draws them, at most 0.25 s back. Trees, outcrops, deployables and the ground are tested as
+they are now. An arrow keeps its shooter's delay for its whole flight. Hit shapes: a head sphere (r 0.13 m), a body
+capsule (r 0.21 m), leg and arm capsules; crouching scales them down; sleepers lie. Built for guns to reuse (G4).
+
+### 6.2 Network, persistence and the client API (G2)
+
+**Protocol** (version 2, `Messages.cs`). The connect `Hello` carries the hash of the client's game data; other data is
+refused (`ContentMismatch`). Each tick's input also carries the belt slot in hand, the attack and aim buttons (attack
+pressed is latched like jump) and the view delay in quarter ticks (lag compensation). A character's snapshot state
+adds the item in hand, a 4-bit count of swings and shots with the last kind (others animate each), and asleep.
+- **Intents** (client → server, reliable ordered, each with a sequence number): move, quick move, drop, use, craft,
+  cancel craft, open, close, pick up (a natural object or a dropped item), place, light or put out, respawn. The
+  server applies them as they arrive (at the start of a tick) and answers every one with `IntentResult` (accepted, or
+  the `ActionResult` reason) after that tick's changes have gone out.
+- **Budget** (RustMVP's command budget): 16 at once, 20 a second; every arrival spends one, a bad one too; over it the
+  answer is `RateLimited`, and the server counts accepted, refused and rate-limited intents per player.
+- **The player's own state** (reliable, to them alone): their three containers in full at joining, then changed slots
+  (`ContainerSlots`); what they loot (`LootState`, then the loot's containers in full, then changes, also to every other
+  looter); vitals when a whole unit changes; the crafting queue when it changes (ticks left counted from a server
+  tick); life (dead, how, by whom, beach and bag respawn choices with their cooldowns). The container, loot and
+  crafting messages carry the last intent the server had applied, so the client drops exactly the pending intents its
+  copy now includes.
+- **Events** (reliable, to whom they concern): hit markers, items gained or lost and why, damage taken (amount, body
+  part, from where, with what), a craft finished; projectiles loosed and stopped (to everyone within 300 m), which
+  clients draw on their own arc.
+- **Static things** (deployables, dropped items, corpses) are sent once when they come within 300 m (`ThingSpawn`; at
+  most 48 new ones per snapshot, so a crowded place streams in), again when they change (`ThingUpdate`: health, count,
+  lit, the receiver's own bag) and `Despawn`ed when gone or out of range (320 m).
+- **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
+  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens.
+- **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
+
+**Server** (`GameServer.Survival.cs`). The zone runs with the game data; the server sets its real clock each tick,
+applies inputs and actions, steps it, then routes its events, sends each player's own state, the container changes,
+and the answers; static things and natural changes go with each snapshot. A player who logs off stays as a sleeper
+(saved at once); logging in finds their sleeper and wakes it. A death saves the zone within a second. Admin console: `give <name> <item> [count]`,
+`kit <name> <loot table>`, `heal <name>`, `kill <name>` besides G1's.
+
+**Persistence** (schema 2, `GameDatabase`, `WorldCodec`). Characters gain `dead` and `state` (their vitals, inventory,
+crafting queue, beach cooldown and last death, in a versioned binary record); new tables hold each body's static things
+(`things`: kind and a versioned binary record with the position in the body frame), natural overrides
+(`natural_overrides`: health, weak-spot moves, depleted until) and zone metadata (`zones`). The whole zone (every
+character, sleeper or not, every thing, and the natural changes since the last save) is written in one transaction
+every 30 s, at once on a death, and at shutdown; a character also when they log off. At start the server loads its
+body's characters (as sleepers, or dead), things and overrides. World-time timers (corpses, dropped items, a unit of
+crafting, a fire's fuel) are saved as what is left and pause while the server is down; real-time ones (bag cooldowns,
+respawning nature) keep running. Decoding treats the stored bytes as untrusted: an item the game no longer has is
+dropped. A G1 database migrates in place; G1 characters come back with a new life's kit.
+
+**The client** (`Hollow.Client`). `GameClient.Local` (`LocalPlayer`) is the API the UI binds to:
+
+| Member | What |
+|---|---|
+| `Inventory` (`Main`, `Belt`, `Wear`), `Loot`, `LootBelt`, `LootWear`, `LootKind`, `LootTarget`, `LootTakesDeposits` | Containers as the server has them, with intents not yet answered applied on top. The player's own three are the same objects all session; loot ones are new per open. |
+| `Vitals` | Health, calories, hydration (and their maxima), felt temperature, cold, bleeding, healing, comfort, wet. |
+| `Crafting` | Jobs front first: recipe, count, progress of the unit in hand, seconds left, still pending. |
+| `Life`, `IsDead`, `SecondsUntilReady(option)` | Alive or dead; how, by whom; respawn choices (the beach, each bag) and their countdowns. |
+| `HeldSlot`, `HeldItem`, `WorkbenchLevel`, `CanCraft(recipe, count)` | The belt slot in hand (set by the UI; it goes out with every input), the best bench within 4 m, whether a recipe can start. |
+| `MoveItem`, `QuickMove`, `Drop`, `Use`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, uses, crafting, placing, closing), shows at once. |
+| `Changed`, `ContainerOpened`, `ContainerClosed`, `HitMarker`, `ItemsChanged`, `DamageTaken`, `CraftFinished`, `IntentAnswered`, `IntentRejected`, `Died`, `Respawned` | Events for the UI. A refused intent has already been rolled back when `IntentRejected` fires. |
+
+Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), the natural objects and their changes
+(`Nature`, `Natural`, with trees and outcrops solid in the prediction's physics), projectiles in flight
+(`Projectiles`), others' held items, swings, sleep and clothing (`RemoteEntity`), and finds what the interact key would
+act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
+campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
+
+**Godot** (`game/scripts/Ground`, placeholders until the other packages' models and the RustMVP interface): natural
+objects as simple shapes per 64 m tile (trees, outcrops shrinking with their stage, piles, plants, bushes with their
+berries), glowing weak spots near the player, deployables as boxes (a lit fire has a flame and a light), drops,
+corpses, arrows in flight, the item in hand with a swing, a ghost where a held deployable would go, the interact prompt
+and a debug overlay (`SurvivalOverlay`); mannequins lie down asleep and swing what they hold. `--demo` sets up the camp
+below for screenshots.
+
+![A camp in the demo: a box, a lit campfire, a sleeping bag, a stone hatchet in hand](images/ground/survival-camp.png)
+
 ---
 
 ## 7. Data
@@ -457,6 +688,27 @@ saying where it came from. Sources, in order of preference:
 - damage and protection tables, survival constants.
 
 A test checks that every reference resolves and that every recipe can be made from gatherable resources.
+
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the seven files below,
+resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
+a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
+`game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
+data is refused. Each file starts with a `source` note saying where its numbers came from.
+
+| File | What | Sources |
+|---|---|---|
+| `items.json` | 43 items: resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
+| `recipes.json` | 29 recipes: output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows; times ours |
+| `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
+| `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
+| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load test's kit. | Rust |
+| `survival.json` | Vitals, metabolism, bleeding, temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
+| `categories.json` | The crafting tabs. | Rust's grouping |
+
+The checks (`ContentTests`): unique IDs and keys; every reference resolves; sensible ranges; and a fixpoint from what
+natural objects yield, through recipes, workbench levels, cooking and fuel by-products, proves every recipe can be made.
+Charcoal, for example, comes from wood burnt in a campfire, which is made of wood; the furnace needs lamp oil, made from
+charcoal and fibre.
 
 ---
 
@@ -692,3 +944,31 @@ Decisions taken for the interface (§8) without the owner, to confirm or overtur
     under RustMVP's vignette instead. The menu is English, like the rest of the interface (RustMVP's was Turkish).
 17. **Placeholders until their packages land:** item icons (vector drawings), the mannequin, and the death screen's
     map (a fixed-seed coast).
+
+Decisions taken during G2 (step "Survive") without the owner, to confirm or overturn:
+
+18. **No scrap yet.** Rust's workbenches cost scrap, which comes from barrels and crates (G7). Until then workbench 1
+    is 500 wood and 100 metal fragments, and workbenches 2 and 3 cost refined metal (smelted from the high-grade ore
+    metal outcrops give, as Rust's high-quality metal).
+19. **Lamp oil** (our low-grade fuel) is made from charcoal and fibre, since there are no animals for fat yet; a
+    furnace needs ten. So the first furnace comes after a campfire has burnt wood into charcoal.
+20. **Every recipe is known** from the start; the tech tree (G7) will hide some (`known` in recipes.json).
+21. **Yield is fixed per object**: a better tool or the weak spot gathers it faster, not more of it (hollow-orbit's
+    rule; Rust's numbers differ per tool). The weak spot shows after the first hit, facing the hitter (Rust).
+22. **Dragging onto a stack of the same item tops it up and leaves the rest** (Rust); RustMVP refused the whole move.
+    A crafted unit that doesn't fit drops at the player's feet (Rust) instead of holding the queue (RustMVP). A
+    workbench is checked when a job starts (Rust). Crafting pauses while the player is offline or asleep (RustMVP).
+23. **Sleepers are frozen**: no hunger, thirst or bleeding while logged off; looting them is take only; logging in wakes
+    them at once (no key press).
+24. **The beach** is, until the planet package marks real coasts (`Zone.Beaches`), a random point 15–60 m from the
+    zone's origin; a beach respawn has no wait (Rust). New characters still arrive at G1's spawn ring.
+25. **Timers**: corpses and dropped items last 300 s of world time, which pauses while the server is down, as does
+    crafting and a fire's fuel; sleeping-bag cooldowns and respawning nature run on the real clock.
+26. **Bleeding and the cold** use our own numbers (survival.json) where neither source had any; a fire warms the air
+    felt up to 25 °C; nothing overheats yet.
+27. **Arrows fall with the planet's surface gravity** (9.0 m/s²), not the characters' 1.8×; lag compensation looks back
+    at most 0.25 s (ARCHITECTURE.md §11.5) over a 36-tick history.
+28. **Deployables**: sleeping bags and campfires don't block movement; a broken deployable spills everything it held;
+    arrows do a quarter of their damage to deployables, melee the tool's `structure` value.
+29. **Natural objects' bodies** take free IDs after the ground tiles', so two props touched at once may sort differently
+    on the client than on the server, costing a small correction (§6.1).

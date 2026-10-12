@@ -50,7 +50,8 @@ public static class ArchitectureTests
     {
         var problems = new List<string>();
         int files = 0;
-        foreach (string folder in new[] { "Hollow.Core", "Hollow.Galaxy", "Hollow.Surface" })
+        // Natural objects are generated too (the server and every client place the same ones).
+        foreach (string folder in new[] { "Hollow.Core", "Hollow.Galaxy", "Hollow.Surface", "Hollow.Simulation/Nature" })
         {
             string root = Path.Combine(Fixtures.Root, "src", folder);
             foreach (string file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))

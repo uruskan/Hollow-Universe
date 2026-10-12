@@ -75,6 +75,69 @@ public sealed class PlayerSession
 
     public long ChatTick { get; set; }
 
+    // ---------------------------------------------------------------- G2: actions and the player's own state
+
+    /// <summary>
+    /// The action budget (RustMVP's command budget, survival.json <c>rateLimits</c>): every intent that arrives spends a
+    /// token, a bad one too; tokens refill at <paramref name="perSecond"/> up to <paramref name="burst"/>.
+    /// </summary>
+    public bool SpendIntentToken(long tick, int burst, float perSecond)
+    {
+        if (!_budgetStarted)
+        {
+            _budgetStarted = true;
+            IntentTokens = burst;
+            IntentTick = tick;
+        }
+        IntentTokens = Math.Min(burst, IntentTokens + (tick - IntentTick) * (double)perSecond / Simulation.Movement.CharacterMotor.TickRate);
+        IntentTick = tick;
+        if (IntentTokens < 1)
+        {
+            return false;
+        }
+        IntentTokens -= 1;
+        return true;
+    }
+
+    private bool _budgetStarted;
+
+    public double IntentTokens { get; private set; }
+
+    public long IntentTick { get; private set; }
+
+    /// <summary>Intents accepted, refused (any reason), and refused for being over budget.</summary>
+    public long IntentsAccepted { get; set; }
+
+    public long IntentsRefused { get; set; }
+
+    public long IntentsRateLimited { get; set; }
+
+    /// <summary>The newest intent applied: owner state carries it, so the client knows what its copy includes.</summary>
+    public uint LastIntentSeq { get; set; }
+
+    /// <summary>Answers to send after this tick's changes (so the changes arrive first).</summary>
+    public List<IntentResult> PendingResults { get; } = new();
+
+    /// <summary>What of the player's own state was sent: the revisions, and whether their containers went in full.</summary>
+    public bool OwnContainersSent { get; set; }
+
+    public uint SentVitals { get; set; } = uint.MaxValue;
+
+    public uint SentCraft { get; set; } = uint.MaxValue;
+
+    public uint SentLoot { get; set; } = uint.MaxValue;
+
+    public bool? SentDead { get; set; }
+
+    /// <summary>Static things this player was told about, by net ID, with the revision sent.</summary>
+    public Dictionary<uint, uint> ThingsSent { get; } = new();
+
+    /// <summary>What each relevant character was last told to wear (a hash of the items).</summary>
+    public Dictionary<uint, ulong> LooksSent { get; } = new();
+
+    /// <summary>The 64 m cells whose natural overrides this player has.</summary>
+    public HashSet<(int X, int Z)> NatureCells { get; } = new();
+
     /// <summary>Stores the inputs of a packet that are still useful: not yet simulated, and not absurdly far ahead.</summary>
     public void ReceiveInputs(in InputPacket packet, uint nextTick, long serverTick)
     {
@@ -122,6 +185,7 @@ public sealed class PlayerSession
         {
             InputCommand repeated = LastInput;
             repeated.Buttons &= ~Simulation.Movement.MoveButtons.JumpPressed;
+            repeated.Actions &= ~Simulation.Players.ActionButtons.PrimaryPressed;
             LastInput = repeated;
             InputsMissing++;
         }

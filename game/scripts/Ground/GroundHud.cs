@@ -45,6 +45,9 @@ public partial class GroundHud : Control
 
     public event Action? ChatClosed;
 
+    /// <summary>A chat line starting with '/' (a test command; not sent as chat).</summary>
+    public event Action<string>? CommandEntered;
+
     public bool ShowNetGraph
     {
         get => _showNetGraph;
@@ -125,7 +128,14 @@ public partial class GroundHud : Control
         Ui.Size(_chatInput, 420);
         _chatInput.TextSubmitted += text =>
         {
-            Client.SendChat(text);
+            if (text.StartsWith('/'))
+            {
+                CommandEntered?.Invoke(text);
+            }
+            else
+            {
+                Client.SendChat(text);
+            }
             CloseChat();
         };
         column.AddChild(_chatInput);
@@ -160,8 +170,9 @@ public partial class GroundHud : Control
         Ui.Track(line, c => c.AddThemeConstantOverride("separation", Ui.Px(16)));
         foreach ((string keys, string action) in new[]
                  {
-                     ("W|A|S|D", "Move"), ("Shift", "Sprint"), ("Ctrl", "Crouch"), ("Space", "Jump"), ("Enter", "Chat"),
-                     ("F3", "Network"), ("Esc", "Free the mouse"),
+                     ("W|A|S|D", "Move"), ("Shift", "Sprint"), ("Ctrl", "Crouch"), ("Space", "Jump"), ("1-6", "Belt"), ("LMB", "Use"),
+                     ("RMB", "Aim"), ("E", "Interact"), ("F", "Place"), ("G", "Drop"), ("H", "Eat"), ("Enter", "Chat"),
+                     ("F3", "Network"), ("Esc", "Mouse"),
                  })
         {
             line.AddChild(Ui.KeyHint(keys, action));

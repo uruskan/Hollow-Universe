@@ -16,8 +16,10 @@ using Hollow.Net.Replication;
 using Hollow.Net.Transport;
 using Hollow.Persistence;
 using Hollow.Simulation;
+using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Players;
 using LiteNetLib;
 
 namespace Hollow.Server;
@@ -33,9 +35,10 @@ public struct NetPresence
 
 /// <summary>
 /// The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with
-/// development login by name, snapshot replication, chat, persistence and admin commands. The console program runs it
-/// on its main thread; the game runs it on a background thread for solo play (Host mode). Everything below happens on
-/// the tick thread; <see cref="Execute"/> and <see cref="RequestStop"/> may be called from anywhere.
+/// development login by name, snapshot replication, chat, persistence and admin commands, and from G2 the survival
+/// game (GameServer.Survival.cs). The console program runs it on its main thread; the game runs it on a background
+/// thread for solo play (Host mode). Everything below happens on the tick thread; <see cref="Execute"/> and
+/// <see cref="RequestStop"/> may be called from anywhere.
 /// </summary>
 public sealed partial class GameServer : INetEventListener, IDisposable
 {
@@ -71,9 +74,15 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         galaxy ??= new Galaxy.Galaxy(options.CataloguePath != null ? Galaxy.StarCatalogue.Load(options.CataloguePath) : null);
         Spec = ZoneSpec.FirstWorld(galaxy, options.Latitude, options.Longitude)
             ?? throw new InvalidOperationException("The generator no longer makes the first world (GROUND.md §3).");
-        Zone = new Zone(Spec);
-        _grid = new RelevanceGrid(options.RelevanceRadius);
+        Content = options.Content ?? GameContent.LoadDefault();
         _ids = new EntityIdAllocator(1, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        Zone = new Zone(Spec, content: Content)
+        {
+            UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            NewEntityId = _ids.Next,
+        };
+        _grid = new RelevanceGrid(options.RelevanceRadius);
+        _thingGrid = new RelevanceGrid(options.RelevanceRadius);
         if (options.DatabasePath != null)
         {
             _persistence = new PersistenceWorker(options.DatabasePath, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Log);
@@ -97,10 +106,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         // Build the ground around the spawn now (and warm the code up), so the first player's arrival doesn't stall
         // the tick loop.
         Zone.Physics.EnsureGround(Zone.SpawnPoint(0), radius: 2);
+        LoadWorld();
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
         Log($"{options.Name}: zone on {Spec}, port {Port}, " +
-            (options.DatabasePath != null ? $"database {options.DatabasePath}" : "no persistence"));
+            (options.DatabasePath != null ? $"database {options.DatabasePath}" : "no persistence") + $", data {Content.Hash:X16}");
     }
 
     public ZoneSpec Spec { get; }
@@ -217,6 +227,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     /// <summary>One tick: receive, log players in, step the zone, replicate, save, send.</summary>
     public void Tick()
     {
+        Zone.UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         _net.PollEvents();
         FinishLogins();
         while (_commands.TryDequeue(out string? command))
@@ -238,12 +249,14 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             InputCommand input = session.InputFor(tick);
             ref Character character = ref Zone.Entities.Get<Character>(session.Entity);
             character.Input = NetConvert.ToMoveInput(input);
+            character.Actions = NetConvert.ToActions(input);
             ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(session.Entity);
             presence.Yaw = input.Yaw;
             presence.Pitch = input.Pitch;
         }
         Zone.Step();
         ReportFalls();
+        AfterStep();
 
         _snapshotAccumulator += (double)Protocol.SnapshotRate / TickRate;
         if (_snapshotAccumulator >= 1)
@@ -251,9 +264,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             _snapshotAccumulator -= 1;
             Replicate();
         }
-        if (_persistence != null && Stopwatch.GetElapsedTime(_lastSave).TotalSeconds >= _options.SaveIntervalSeconds)
+        if (_persistence != null && (Stopwatch.GetElapsedTime(_lastSave).TotalSeconds >= _options.SaveIntervalSeconds ||
+            (_deathToSave && Stopwatch.GetElapsedTime(_lastDeathSave).TotalSeconds >= 1)))
         {
-            _lastSave = Stopwatch.GetTimestamp();
+            _lastSave = _lastDeathSave = Stopwatch.GetTimestamp();
+            _deathToSave = false;
             SaveAll();
         }
         long now = Stopwatch.GetTimestamp();
@@ -289,6 +304,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         if (!parsed || hello.ProtocolVersion != Protocol.Version || hello.SchemaHash != Protocol.SchemaHash)
         {
             Refuse(request, GoodbyeReason.ProtocolMismatch, $"This server speaks protocol {Protocol.Version} ({Protocol.SchemaHash:X16}); update the game.");
+            return;
+        }
+        if (hello.ContentHash != Content.Hash)
+        {
+            Refuse(request, GoodbyeReason.ContentMismatch, $"This server runs other game data ({Content.Hash:X16}); update the game.");
             return;
         }
         string name = (hello.PlayerName ?? "").Trim();
@@ -347,46 +367,73 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
     }
 
+    /// <summary>
+    /// A player joins: their sleeper wakes where it lies (logged off earlier, or loaded at start); a stored character
+    /// that isn't in the zone comes back from its record; anyone else starts a new life at the spawn.
+    /// </summary>
     private void Spawn(PlayerSession session, CharacterRecord? record)
     {
         EntityId id;
-        CharacterState state;
+        Entity entity;
         float yaw = 0, pitch = 0;
-        if (record != null && Restorable(record, out Vector3 local))
+        string how;
+        if (record != null && Zone.TryFindPlayer(record.Id, out entity, out Player _))
         {
             id = record.Id;
-            state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
-            state.Health = record.Health == 0 ? Zone.Tuning.MaxHealth : record.Health;
-            state.Stance = (Stance)Math.Min(record.Stance, (byte)Stance.Crouching);
-            yaw = record.Yaw;
+            Zone.Wake(entity);
+            yaw = Zone.Entities.Get<Character>(entity).Input.Yaw;
             pitch = record.Pitch;
+            how = "woke";
         }
         else
         {
-            id = _ids.Next();
-            state = Zone.NewCharacter(Zone.SpawnPoint(Hash64.Of(session.Name.ToUpperInvariant())));
+            CharacterState state;
+            Player? player = null;
+            if (record != null && Restorable(record, out Vector3 local))
+            {
+                id = record.Id;
+                state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
+                state.Stance = (Stance)Math.Min(record.Stance, (byte)Stance.Crouching);
+                player = DecodePlayer(record);
+                yaw = record.Yaw;
+                pitch = record.Pitch;
+                how = "restored";
+            }
+            else
+            {
+                id = record?.Id ?? _ids.Next();
+                state = Zone.NewCharacter(Zone.SpawnPoint(Hash64.Of(session.Name.ToUpperInvariant())));
+                how = "new";
+            }
+            if (Zone.Entities.TryFind(id, out _))
+            {
+                id = _ids.Next();
+            }
+            entity = Zone.AddPlayer(id, session.Name, state, player);
+            Zone.Entities.Get<Character>(entity).Input.Yaw = yaw;
+            if (how == "new" && _options.JoinKit != null && Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(entity) is { } fresh)
+            {
+                GiveKit(fresh, kit);
+            }
         }
-        if (Zone.Entities.TryFind(id, out _))
+        if (!Zone.Entities.Has<NetPresence>(entity))
         {
-            id = _ids.Next();
+            Zone.Entities.Add(entity, new NetPresence { NetId = _nextNetId++ });
         }
-        Entity entity = Zone.AddCharacter(id, session.Name, state);
-        uint netId = _nextNetId++;
-        Zone.Entities.Add(entity, new NetPresence
-        {
-            NetId = netId,
-            Owner = session,
-            Yaw = Quantize.Angle16(yaw),
-            Pitch = Quantize.Angle16(pitch),
-        });
+        ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(entity);
+        presence.Owner = session;
+        presence.Yaw = Quantize.Angle16(yaw);
+        presence.Pitch = Quantize.Angle16(pitch);
         session.Entity = entity;
         session.EntityId = id;
-        session.NetId = netId;
+        session.NetId = presence.NetId;
         session.ResetInputs((uint)Zone.Tick);
+        _accountOf[id] = session.AccountId;
+        _sessionOf[id] = session;
         _writer.Reset();
         new Welcome
         {
-            NetId = netId,
+            NetId = presence.NetId,
             EntityId = id.Value,
             ServerTick = (uint)Zone.Tick,
             TickRate = TickRate,
@@ -397,7 +444,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             Pitch = Quantize.Angle16(pitch),
         }.WriteMessage(_writer);
         session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
-        Log($"{session.Name} joined from {session.Peer} as {id} ({(record != null ? "restored" : "new")}) at {Format(state.Position)}");
+        Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.Entities.Get<Character>(entity).State.Position)}");
     }
 
     // A stored character comes back where it was if that is on this zone's body and within its ground.
@@ -413,6 +460,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     {
     }
 
+    /// <summary>A player left: their character stays in the world, asleep (GROUND.md §6), and is saved.</summary>
     public void OnPeerDisconnected(NetPeer peer, DisconnectInfo info)
     {
         if (!_sessions.Remove(peer, out PlayerSession? session))
@@ -421,11 +469,14 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
         if (session.Playing)
         {
-            if (_persistence != null)
+            Zone.Sleep(session.Entity);
+            ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(session.Entity);
+            presence.Owner = null;
+            _sessionOf.Remove(session.EntityId);
+            if (_persistence != null && Zone.PlayerOf(session.Entity) is { } p)
             {
-                _persistence.Save(new[] { Record(session) });
+                _persistence.Save(new[] { RecordOf(session.Entity, p) });
             }
-            Zone.RemoveCharacter(session.Entity);
             session.Entity = Entity.None;
         }
         Log($"{session.Name} left ({info.Reason})");
@@ -472,7 +523,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 Chat(session, chat.Text.Trim());
                 break;
             default:
-                session.BadPackets++;
+                if (!ReceiveIntent(session, type))
+                {
+                    session.BadPackets++;
+                }
                 break;
         }
     }
@@ -516,8 +570,17 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             Entity entity = Zone.Entities.AtSlot(slots[i]);
             ref Character character = ref Zone.Entities.Get<Character>(entity);
             _grid.Add(values[i].NetId, character.State.Position);
-            _netStates[values[i].NetId] = (entity, NetConvert.ToNet(character.State, values[i].Yaw, values[i].Pitch));
+            CharacterNetState state = NetConvert.ToNet(character.State, values[i].Yaw, values[i].Pitch);
+            if (Zone.PlayerOf(entity) is { } p)
+            {
+                state.Held = p.IsAwakeAndAlive ? p.HeldItem : (ushort)0;
+                state.ActionCount = (byte)(p.ActionCount & 15);
+                state.Action = p.LastAction;
+                state.Sleeping = p.Sleeping && !p.Dead;
+            }
+            _netStates[values[i].NetId] = (entity, state);
         }
+        PrepareThings();
 
         foreach (PlayerSession session in _sessions.Values)
         {
@@ -551,6 +614,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             {
                 session.Relevant.Remove(netId);
                 session.Snapshots.Forget(netId);
+                session.LooksSent.Remove(netId);
                 _writer.Reset();
                 new Despawn { NetId = netId }.WriteMessage(_writer);
                 session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
@@ -576,6 +640,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                     }.WriteMessage(_writer);
                     session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
                 }
+                SendLook(session, netId, entity);
                 float distance = Vector3.Distance(position, centre);
                 _candidates.Add(new SnapshotCandidate
                 {
@@ -598,43 +663,23 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             _writer.Reset();
             session.Snapshots.Write(_writer, header, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_candidates), budget);
             session.Peer.Send(_writer.Data, DeliveryMethod.Sequenced);
+
+            ReplicateThings(session, centre);
+            ReplicateNature(session, centre);
         }
+        FinishThings();
     }
 
     // ---------------------------------------------------------------- saving and shutting down
 
-    private CharacterRecord Record(PlayerSession session)
-    {
-        ref Character c = ref Zone.Entities.Get<Character>(session.Entity);
-        Vector3D body = Zone.Frame.ToBody(c.State.Position);
-        InputCommand view = session.LastInput;
-        return new CharacterRecord
-        {
-            Id = session.EntityId,
-            AccountId = session.AccountId,
-            Name = session.Name,
-            SystemAddress = Spec.SystemAddress,
-            BodyPath = Spec.BodyPath,
-            BodyX = body.X,
-            BodyY = body.Y,
-            BodyZ = body.Z,
-            Yaw = Quantize.FromAngle16(view.Yaw),
-            Pitch = Quantize.FromAngle16(view.Pitch),
-            Stance = (byte)c.State.Stance,
-            Health = c.State.Health,
-            SavedAtUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-        };
-    }
-
-    /// <summary>Queues every playing character to be written (one transaction).</summary>
+    /// <summary>Queues every character (players and sleepers), static thing and natural change to be written (one transaction).</summary>
     public Task SaveAll()
     {
         if (_persistence == null)
         {
             return Task.CompletedTask;
         }
-        var records = _sessions.Values.Where(s => s.Playing).Select(Record).ToList();
-        return _persistence.Save(records);
+        return _persistence.SaveZone(BuildSave());
     }
 
     private void Kick(PlayerSession session, GoodbyeReason reason, string text)
@@ -651,7 +696,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             return;
         }
         _shutDown = true;
-        Log("shutting down: saving characters");
+        Log("shutting down: saving the world");
         try
         {
             SaveAll().Wait(TimeSpan.FromSeconds(10));

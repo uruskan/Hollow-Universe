@@ -89,11 +89,22 @@ public sealed class ClientStats
         _receivedInWindow++;
     }
 
+    /// <summary>A correction this big is a teleport (a respawn, an admin): counted apart, not as a prediction error.</summary>
+    public const float TeleportMetres = 2f;
+
+    /// <summary>Corrections of more than <see cref="TeleportMetres"/> since the start or <see cref="ResetTotals"/>.</summary>
+    public long Teleports { get; private set; }
+
     internal void Prediction(float? error)
     {
         Reconciliations++;
         if (error is not { } e)
         {
+            return;
+        }
+        if (e > TeleportMetres)
+        {
+            Teleports++;
             return;
         }
         LastPredictionError = e;
@@ -112,6 +123,7 @@ public sealed class ClientStats
     public void ResetTotals()
     {
         Corrections = 0;
+        Teleports = 0;
         Reconciliations = 0;
         PredictionErrorTotal = 0;
         PredictionErrorWorst = 0;

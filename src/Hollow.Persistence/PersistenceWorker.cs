@@ -54,6 +54,24 @@ public sealed class PersistenceWorker : IDisposable
             return true;
         });
 
+    /// <summary>Everything stored about a body's zone (read at start, before any player arrives).</summary>
+    public Task<ZoneRecord> LoadZone(ulong systemAddress, uint bodyPath) => Enqueue(db => db.LoadZone(systemAddress, bodyPath));
+
+    /// <summary>Queues a zone's save: one transaction.</summary>
+    public Task SaveZone(ZoneSave save) =>
+        Enqueue(db =>
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            db.SaveZone(save);
+            CharactersSaved += save.Characters.Count;
+            ThingsSaved += save.Things.Count;
+            SaveMilliseconds += watch.Elapsed.TotalMilliseconds;
+            return true;
+        });
+
+    /// <summary>Things written so far.</summary>
+    public long ThingsSaved { get; private set; }
+
     /// <summary>Completes once everything queued before it is written.</summary>
     public Task Flush() => Enqueue(_ => true);
 
