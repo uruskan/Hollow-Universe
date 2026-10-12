@@ -8,12 +8,10 @@ from . import log
 from .export import (apply_matrix, collection, copy_object, export_colour_from_ao, export_glb, keep_uv,
                      select_only)
 
-# Kit forward is +X. Held items point Blender +Y (Godot -Z); world objects face Blender -Y (Godot +Z).
-TURN_HELD = Matrix.Rotation(1.5707963267948966, 4, "Z")
+# Kit forward is +X. Held items keep it (Godot +X forward, +Y up, as the character package holds them); world
+# objects turn to face Blender -Y (Godot +Z, the model front). Sockets keep the kit's frame: +X along the kit's forward.
+TURN_HELD = Matrix.Identity(4)
 TURN_WORLD = Matrix.Rotation(-1.5707963267948966, 4, "Z")
-# A kit socket's frame (+X forward) in Hollow's (+Y forward, which is Godot -Z): sockets point -Z along the kit's
-# forward axis, +Y up.
-SOCKET_FRAME = Matrix.Rotation(-1.5707963267948966, 4, "Z")
 
 
 def snake(name):
@@ -35,7 +33,7 @@ class Conversion:
     def add_part(self, part, pivot, lods, hulls):
         record = self.parts.setdefault(part, {"pivot": Vector(pivot), "lods": [], "hulls": []})
         for i, source in enumerate(lods):
-            record["lods"].append(copy_object(source, f"{part}_LOD{i}", self.out))
+            record["lods"].append(copy_object(source, f"{part}_lod{i}", self.out))
         for j, source in enumerate(hulls):
             hull = copy_object(source, f"{part}_hull{j}-convcolonly", self.out)
             hull.data.materials.clear()
@@ -45,12 +43,12 @@ class Conversion:
                 hull.data.color_attributes.remove(a)
             record["hulls"].append(hull)
 
-    def add_socket(self, name, matrix, kit_frame=True):
-        """An attach point. `matrix` is the kit socket's world matrix (its +X forward when `kit_frame`)."""
+    def add_socket(self, name, matrix):
+        """An attach point at a world matrix (its +X forward, +Z up)."""
         e = bpy.data.objects.new(f"socket_{name}", None)
         e.empty_display_size = 0.03
         self.out.objects.link(e)
-        e.matrix_world = matrix @ SOCKET_FRAME if kit_frame else matrix
+        e.matrix_world = matrix
         self.sockets.append(e)
         return e
 

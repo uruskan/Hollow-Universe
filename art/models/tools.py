@@ -1,7 +1,7 @@
 """Hand tools and simple weapons: torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow.
 
-Held items point Blender +Y (Godot -Z) with the right hand's grip at the origin. Tools stand upright: the handle
-runs up +Z, the head at the top, the blade facing +Y.
+Authored pointing +Y with the right hand's grip at the origin, exported pointing +X (the character package's frame,
+Godot +X forward, +Y up). Tools stand upright: the handle runs up +Z, the head at the top, the blade facing forward.
 
     blender -b --factory-startup --python art/models/tools.py -- [keys...]
 """
@@ -52,7 +52,7 @@ def wrap(m, axis_points, radius, turns, width=0.008, tile=LEATHER, tint=(0.85, 0
 
 
 def torch(seed=41):
-    m = Model("torch", seed=seed)
+    m = Model("torch", seed=seed, held=True)
     handle(m, -0.13, 0.4, 0.017, 0.015, bend=0.004)
     # A head of rags wound round the top, soaked and charred.
     head = [(0.016, 0.33), (0.03, 0.34), (0.037, 0.37), (0.04, 0.41), (0.036, 0.45), (0.022, 0.475), (0.0, 0.48)]
@@ -71,7 +71,7 @@ def torch(seed=41):
 
 
 def metal_hatchet(seed=43):
-    m = Model("metal-hatchet", seed=seed)
+    m = Model("metal-hatchet", seed=seed, held=True)
     handle(m, -0.11, 0.43, 0.018, 0.016, bend=0.012)
     # Forged head: side profile (y forward, z up), thick at the eye, flaring to a curved edge.
     profile = [(-0.04, 0.36), (0.012, 0.355), (0.05, 0.335), (0.095, 0.315), (0.112, 0.34), (0.118, 0.385), (0.112, 0.43),
@@ -92,7 +92,7 @@ def metal_hatchet(seed=43):
 
 
 def metal_pickaxe(seed=45):
-    m = Model("metal-pickaxe", seed=seed)
+    m = Model("metal-pickaxe", seed=seed, held=True)
     handle(m, -0.13, 0.5, 0.019, 0.017, bend=0.01)
     pts, radii = [], []
     for i in range(15):
@@ -127,7 +127,7 @@ def shaft(m, y0, y1, r=0.016, point=0.22, char=True):
 
 
 def wooden_spear(seed=47):
-    m = Model("wooden-spear", seed=seed)
+    m = Model("wooden-spear", seed=seed, held=True)
     shaft(m, -0.78, 1.22)
     wrap(m, [(0, -0.09, 0.0), (0, 0.13, 0.0)], 0.0165, 9, 0.008, tile=CANVAS, tint=(0.75, 0.68, 0.56))
     m.socket("tip", (0, 1.22, 0.0))
@@ -135,7 +135,7 @@ def wooden_spear(seed=47):
 
 
 def stone_spear(seed=49):
-    m = Model("stone-spear", seed=seed)
+    m = Model("stone-spear", seed=seed, held=True)
     shaft(m, -0.78, 1.1, point=0.05, char=False)
     # A knapped stone point: a leaf shape, faceted, lashed into the split tip.
     leaf = []
@@ -156,7 +156,7 @@ def stone_spear(seed=49):
 
 
 def machete(seed=51):
-    m = Model("machete", seed=seed)
+    m = Model("machete", seed=seed, held=True)
     # Grip: two wooden scales on a full tang, three rivets.
     m.box((0.022, 0.03, 0.15), (0, -0.002, 0.005), bevel=0.006, segments=3, tile=TIMBER, tint=(0.42, 0.3, 0.22), metres=0.25)
     for z in (-0.04, 0.0, 0.04):
@@ -178,7 +178,7 @@ def machete(seed=51):
 
 
 def bow(seed=53):
-    m = Model("bow", seed=seed)
+    m = Model("bow", seed=seed, forward=True)
     # Held in the left hand at the grip; the back of the bow faces +Y (the target), the string -Y.
     pts, radii, half = [], [], 0.66
     for i in range(25):
@@ -195,13 +195,15 @@ def bow(seed=53):
     tip_top, tip_bottom = pts[-1], pts[0]
     m.tube([(0, tip_top[1] - 0.004, tip_top[2] - 0.01), (0, tip_bottom[1] - 0.004, tip_bottom[2] + 0.01)], 0.0016, sides=5,
            tile=CANVAS, tint=(1.0, 0.97, 0.9), metres=1.0)
-    m.socket("nock", (0, -0.11 + 0.0, 0.0))
+    # Held in the left hand at the grip; the right hand draws the string from the nock.
+    m.socket("grip_l", (0, 0, 0))
+    m.socket("nock", (0, -0.11, 0.0))
     m.socket("arrow_rest", (0, 0.025, 0.06))
     m.export(floor=False, hulls=[((0, -0.05, 0), (0.05, 0.16, 1.3), (0, 0, 0))])
 
 
 def arrow(seed=55):
-    m = Model("arrow", seed=seed)
+    m = Model("arrow", seed=seed, forward=True)
     # Pivot at the nock; the arrow points +Y.
     m.cylinder(0.0042, 0.72, (0, 0.37, 0), (90, 0, 0), sides=8, tile=TIMBER, tint=(0.95, 0.85, 0.7), metres=0.8)
     m.cylinder(0.0055, 0.02, (0, 0.012, 0), (90, 0, 0), sides=8, tile=GUNMETAL, tint=(0.6, 0.55, 0.5), metres=0.1)

@@ -11,8 +11,9 @@ namespace HollowUniverse.Items;
 /// The model viewer (<c>--view models</c>, GROUND.md §9). By default every catalogue model stands on the ground in
 /// rows by size, beside a 1.8 m figure for scale; <c>--model &lt;key&gt;</c> (or Tab) shows one model on a turntable.
 /// Keys: Tab lineup or turntable, Left/Right the model, Up/Down the depletion stage, 0/1/2 force a LOD, A automatic
-/// LODs by distance, Space pauses the turntable, the mouse wheel zooms. Options: <c>--stage n</c>, <c>--lod n</c>,
-/// <c>--yaw deg</c> (the turntable's angle, paused, for a screenshot).
+/// LODs by distance, Space pauses the turntable, F shows a held item in first person at its catalogue pose, the mouse
+/// wheel zooms. Options: <c>--stage n</c>, <c>--lod n</c>, <c>--yaw deg</c> (the turntable's angle, paused, for a
+/// screenshot), <c>--first-person</c>, <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera).
 /// </summary>
 public partial class ModelViewer : Node3D
 {
@@ -33,6 +34,7 @@ public partial class ModelViewer : Node3D
     private float _angle = -35;
     private float _zoom = 1;
     private int _frames;
+    private bool _firstPerson;
     private Node3D? _shown;
     private Aabb _shownBounds;
 
@@ -59,6 +61,7 @@ public partial class ModelViewer : Node3D
             _index = Math.Max(0, _entries.FindIndex(e => e.Key == key));
             _turntable = true;
         }
+        _firstPerson = Options.ContainsKey("first-person");
         Rebuild();
     }
 
@@ -120,7 +123,7 @@ public partial class ModelViewer : Node3D
         content.AddChild(_title);
         content.AddChild(_detail);
         content.AddChild(Ui.KeyHints(("Tab", "lineup / turntable"), ("← →", "model"), ("↑ ↓", "stage"), ("0 1 2", "LOD"),
-            ("A", "auto LOD"), ("Space", "pause")));
+            ("A", "auto LOD"), ("Space", "pause"), ("F", "first person")));
     }
 
     // ---------------------------------------------------------------- layout
@@ -132,7 +135,15 @@ public partial class ModelViewer : Node3D
             child.QueueFree();
         }
         _shown = null;
-        if (_turntable)
+        foreach (Node child in _camera.GetChildren())
+        {
+            child.QueueFree();
+        }
+        if (_turntable && _firstPerson)
+        {
+            ShowFirstPerson();
+        }
+        else if (_turntable)
         {
             ShowOne();
         }
@@ -174,6 +185,23 @@ public partial class ModelViewer : Node3D
         _shown = pivot;
         _shownBounds = ModelCatalog.LocalBounds(model);
         _shownBounds.Position += model.Position;
+    }
+
+    /// <summary>The held item as the player sees it: at its catalogue pose in front of a 75 degree camera.</summary>
+    private void ShowFirstPerson()
+    {
+        ModelEntry entry = _entries[_index];
+        Node3D? model = entry.Held == null ? null : ModelCatalog.Instantiate(entry.Key);
+        _camera.Fov = 75;
+        _camera.Position = new Vector3(0, 1.6f, 0);
+        _camera.Rotation = Vector3.Zero;
+        if (model == null)
+        {
+            return;
+        }
+        ModelCatalog.ForceLod(model, 0);
+        model.Transform = entry.Held!.FirstPerson.Transform;
+        _camera.AddChild(model);
     }
 
     private void ShowLineup()
@@ -451,6 +479,11 @@ public partial class ModelViewer : Node3D
             case Key.Space:
                 _paused = !_paused;
                 return;
+            case Key.F:
+                _firstPerson = !_firstPerson;
+                _turntable = true;
+                _camera.Fov = 45;
+                break;
             default:
                 return;
         }
@@ -460,7 +493,7 @@ public partial class ModelViewer : Node3D
     public override void _Process(double delta)
     {
         _frames++;
-        if (!_turntable || _shown == null)
+        if (!_turntable || _shown == null || _firstPerson)
         {
             return;
         }

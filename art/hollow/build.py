@@ -1,7 +1,8 @@
 """Building our own models (GROUND.md §9): primitives mapped onto the shared PSG atlas (or the tiling rock), tinted
 per vertex, with vertex ambient occlusion, decimated LODs, a convex hull and attach points, exported in Hollow's
-layout. Models are authored in their final pose: held items point +Y with the grip at the origin; world objects face
--Y with their footprint centred on the origin at ground level.
+layout. Scripts author held items pointing +Y with the grip at the origin (`Model(..., forward=True)` turns them to
++X, the character package's frame, on export, and `held=True` adds socket_grip_r there); world objects face -Y with
+their footprint centred on the origin at ground level.
 """
 import math
 import random
@@ -70,10 +71,12 @@ def _material(name):
 class Model:
     """One model under construction. Call primitives, then `export()`."""
 
-    def __init__(self, key, folder=ITEMS, seed=1):
+    def __init__(self, key, folder=ITEMS, seed=1, held=False, forward=None):
         reset()
         self.key = key
         self.folder = folder
+        self.held = held
+        self.forward = held if forward is None else forward
         self.work = collection("HOLLOW_PARTS")
         self.out = collection("HOLLOW_EXPORT")
         self.parts = {"Body": {"pivot": Vector((0, 0, 0)), "objects": []}}
@@ -364,6 +367,18 @@ class Model:
         convex hull(s) and writes the GLB. `hulls`: "auto" (one hull around everything), "none", or a list of
         (centre, size, rotation) boxes."""
         mats = materials()
+        if self.forward:
+            # Authored pointing +Y; held items point +X (Godot +X forward, +Y up). Sockets authored with no rotation end
+            # up with +X along the item's forward.
+            turn = Matrix.Rotation(math.radians(-90), 4, "Z")
+            for record in self.parts.values():
+                record["pivot"] = turn @ record["pivot"]
+                for o in record["objects"]:
+                    o.data.transform(turn)
+            for e in self.sockets:
+                e.matrix_world = turn @ e.matrix_world @ Matrix.Rotation(math.radians(90), 4, "Z")
+        if self.held and not any(e.name.startswith("socket_grip_") for e in self.sockets):
+            self.socket("grip_r", (0, 0, 0))
         objects = []
         lod0 = {}
         for part, record in self.parts.items():
@@ -374,7 +389,7 @@ class Model:
             if len(objs) > 1:
                 bpy.ops.object.join()
             o = bpy.context.view_layer.objects.active
-            o.name = f"{part}_LOD0"
+            o.name = f"{part}_lod0"
             o.data.name = o.name
             for c in list(o.users_collection):
                 c.objects.unlink(o)
@@ -399,7 +414,7 @@ class Model:
         for part, o in lod0.items():
             chain = [o]
             for i, ratio in enumerate(lods):
-                chain.append(decimated(o, f"{part}_LOD{i + 1}", ratio, self.out))
+                chain.append(decimated(o, f"{part}_lod{i + 1}", ratio, self.out))
             objects += chain
             record = self.parts[part]
             pivot = record["pivot"]

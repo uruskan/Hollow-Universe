@@ -1,8 +1,9 @@
 """PSG Frontier AK R05 -> game/assets/items/rifle.glb, the rifle (GROUND.md §9).
 
-The static pickup meshes LOD0-LOD2 (LOD3 is dropped), the six UCX hulls and the socket contract (muzzle, eject,
-grips, aiming point). Its two texture sets go to 2K. The rifle points Blender +Y (Godot -Z) with its pivot at the
-right hand's grip. The weapon-only animations and the rig stay in the source for G4.
+The static pickup meshes LOD1-LOD3 as lod0-lod2 (the 66,652-triangle LOD0 adds nothing seen in a hand; the character
+package made the same choice), the six UCX hulls and the socket contract (muzzle, eject, grips, sight) with the eye at
+the kit's aiming camera. Its two texture sets go to 2K. The rifle keeps the kit's frame (+X along the barrel, Godot
++Y up) with its pivot at the right hand's grip. The weapon-only animations and the rig stay in the source for G4.
 
     blender -b --factory-startup --python art/import/frontier_rifle.py
 """
@@ -44,23 +45,26 @@ def main():
     mats = materials()
     bpy.ops.wm.open_mainfile(filepath=str(SOURCE / "Source" / "FrontierAK_R05_Game.blend"))
     static = {o.name: o for o in objects_in("05_STATIC_PICKUP")}
-    chain = [static["SM_FrontierAK_R05"], static["SM_FrontierAK_R05_LOD1"], static["SM_FrontierAK_R05_LOD2"]]
+    chain = [static["SM_FrontierAK_R05_LOD1"], static["SM_FrontierAK_R05_LOD2"], static["SM_FrontierAK_R05_LOD3"]]
     hulls = sorted((o for o in objects_in("06_PICKUP_COLLISION") if o.type == "MESH"), key=lambda o: o.name)
     conv = Conversion("rifle")
     conv.add_part("Body", Vector((0, 0, 0)), chain, hulls)
     contract = json.loads((SOURCE / "Exports" / "socket_contract.json").read_text(encoding="utf-8"))
-    names = {"socket_muzzle": "muzzle", "socket_eject": "eject", "socket_grip_r": "hand_r", "socket_grip_l": "hand_l",
+    names = {"socket_muzzle": "muzzle", "socket_eject": "eject", "socket_grip_r": "grip_r", "socket_grip_l": "grip_l",
              "socket_ads": "sight"}
     grip = None
     for s in contract["sockets"]:
         forward = Vector(s["forward_blender"]).normalized()
         up = Vector(s["up_blender"]).normalized()
-        right = forward.cross(up).normalized()
-        frame = Matrix((right, forward, up)).transposed().to_4x4()
+        side = up.cross(forward).normalized()
+        # Socket frames: +X forward, +Z up (Godot +Y).
+        frame = Matrix((forward, side, forward.cross(side))).transposed().to_4x4()
         frame.translation = Vector(s["position_blender_m"])
-        conv.add_socket(names.get(s["name"], s["name"]), frame, kit_frame=False)
+        conv.add_socket(names.get(s["name"], s["name"]), frame)
         if s["name"] == "socket_grip_r":
             grip = Vector(s["position_blender_m"])
+    cameras = {o.name: o for o in bpy.data.objects if o.type == "CAMERA"}
+    conv.add_socket("eye", Matrix.Translation(cameras["CAM_ADS"].matrix_world.translation))
     conv.finish(TURN_HELD @ Matrix.Translation(-grip))
     for o in conv.parts["Body"]["lods"]:
         for attr in list(o.data.color_attributes):

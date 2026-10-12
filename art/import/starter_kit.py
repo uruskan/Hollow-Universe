@@ -23,9 +23,9 @@ from hollow.textures import convert, write_texture_import  # noqa: E402
 KIT = SOURCES / "PSG_StarterKit_R02"
 ATLAS = TEXTURES / "psg"
 
-# Kit asset -> (item key, output folder, role, scale, pivot). Roles: "held" points Blender +Y with the pivot at a
-# socket (the right hand's grip); "mounted" faces Blender -Y with the pivot at the socket that touches the door or
-# wall; "placed" faces Blender -Y with the kit's own ground-centre pivot.
+# Kit asset -> (item key, output folder, role, scale, pivot). Roles: "held" keeps the kit's frame (+X forward) with the
+# pivot at a socket (the right hand's grip); "mounted" faces Blender -Y with the pivot at the socket that touches the
+# door or wall; "placed" faces Blender -Y with the kit's own ground-centre pivot.
 ASSETS = {
     "P250": ("pistol", ITEMS, "held", 1.0, "HandR"),
     "Rock": ("rock", ITEMS, "held", 0.4, "centre"),
@@ -82,8 +82,17 @@ def convert_asset(name, materials):
         own_hulls = sorted((h for h in hulls if h.name.startswith(f"UCX_{o.name}_")), key=lambda h: h.name)
         conv.add_part(part, o.matrix_world.translation, chain, own_hulls)
         log(f"{key}: {part}: {len(chain)} LODs, {len(own_hulls)} hulls")
+    # Socket names as the character package reads them (grip_r and grip_l are the palms).
+    names = {"HandR": "grip_r", "HandL": "grip_l"}
     for sname, s in sorted(sockets.items()):
-        conv.add_socket(snake(sname), s.matrix_world.copy())
+        conv.add_socket(names.get(sname, snake(sname)), s.matrix_world.copy())
+    if name == "P250":
+        # A pistol is aimed at arm's length: the eye 30 cm behind the rear sight.
+        conv.add_socket("eye", Matrix.Translation(sockets["Sight"].matrix_world.translation + Vector((-0.30, 0, 0))))
+    if "HandR" not in sockets and role != "placed":
+        # Held while being placed: the right palm at the middle.
+        lo, hi = world_bounds([r["lods"][0] for r in conv.parts.values()])
+        conv.add_socket("grip_r", Matrix.Translation((lo + hi) * 0.5))
 
     turn = TURN_HELD if role == "held" else TURN_WORLD
     if pivot_rule == "centre":

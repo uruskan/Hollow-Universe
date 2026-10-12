@@ -67,22 +67,27 @@ public static class ModelCatalogueTests
                 string path = Local(game, res);
                 Assert.True(File.Exists(path), $"{key}: {res} is missing");
                 (List<string> nodes, List<string> materials) = ReadGlb(path);
-                List<string> parts = nodes.Where(n => n.EndsWith("_LOD0", StringComparison.Ordinal)).Select(n => n[..^5]).ToList();
-                Assert.True(parts.Count > 0, $"{key}: {res} has no LOD0 mesh");
+                List<string> parts = nodes.Where(n => n.EndsWith("_lod0", StringComparison.Ordinal)).Select(n => n[..^5]).ToList();
+                Assert.True(parts.Count > 0, $"{key}: {res} has no _lod0 mesh");
                 foreach (string part in parts)
                 {
                     for (int lod = 1; lod < lods; lod++)
                     {
-                        Assert.True(nodes.Contains($"{part}_LOD{lod}"), $"{key}: {res} has no {part}_LOD{lod}");
+                        Assert.True(nodes.Contains($"{part}_lod{lod}"), $"{key}: {res} has no {part}_lod{lod}");
                     }
                 }
                 if (convex)
                 {
                     Assert.True(nodes.Any(n => n.EndsWith("-convcolonly", StringComparison.Ordinal)), $"{key}: {res} has no convex hull");
                 }
-                if (m.TryGetProperty("held", out JsonElement held) && held.TryGetProperty("offHand", out JsonElement off))
+                if (m.TryGetProperty("held", out JsonElement held))
                 {
-                    Assert.True(nodes.Contains("socket_" + off.GetString()), $"{key}: no socket_{off.GetString()} for the other hand");
+                    // The character package holds items by their palm sockets.
+                    Assert.True(nodes.Contains("socket_grip_r") || nodes.Contains("socket_grip_l"), $"{key}: held, but no socket_grip_r or socket_grip_l");
+                    if (held.TryGetProperty("offHand", out JsonElement off))
+                    {
+                        Assert.True(nodes.Contains("socket_" + off.GetString()), $"{key}: no socket_{off.GetString()} for the other hand");
+                    }
                 }
                 CheckImport(game, key, path, materials);
                 files++;

@@ -126,7 +126,7 @@ public static class ModelCatalog
     }
 
     /// <summary>
-    /// Visibility ranges for every <c>*_LOD{n}</c> mesh: LOD n shows from distances[n-1] to distances[n]; the last
+    /// Visibility ranges for every <c>*_lod{n}</c> mesh: LOD n shows from distances[n-1] to distances[n]; the last
     /// LOD shows until the last distance (0: always).
     /// </summary>
     public static void SetLodRanges(Node root, float[] distances)
@@ -212,7 +212,7 @@ public static class ModelCatalog
     public static int LodOf(Node node)
     {
         string name = node.Name;
-        int at = name.LastIndexOf("_LOD", StringComparison.Ordinal);
+        int at = name.LastIndexOf("_lod", StringComparison.OrdinalIgnoreCase);
         return at >= 0 && int.TryParse(name.AsSpan(at + 4), NumberStyles.None, CultureInfo.InvariantCulture, out int lod) ? lod : -1;
     }
 

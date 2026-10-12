@@ -2,8 +2,8 @@
 
 Hull and hatch, each with LOD0-LOD2 (LOD3 is dropped), the 26 convex hulls (the hatch's move with it), the nine
 attach points of the socket manifest and the hatch's open and close clips (0 to -78 degrees about the hinge in one
-second). The nose faces Blender -Y, Godot +Z (the model front), like every world object; sockets point -Z along
-the nose. Surface atlas to 2K, markings to 1K; glass and lamps are plain material values.
+second). The nose faces Blender -Y, Godot +Z (the model front), like every world object; sockets keep the native
+frame, +X along the nose. Surface atlas to 2K, markings to 1K; glass and lamps are plain material values.
 
     blender -b --factory-startup --python art/import/tin_finch.py
 """

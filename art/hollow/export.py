@@ -41,6 +41,9 @@ def copy_object(source, name, target):
     o = source.copy()
     if source.data is not None:
         o.data = source.data.copy()
+        if o.type == "MESH" and o.data.validate(verbose=False):
+            # Some kit LOD meshes repeat a few faces; drop them here rather than in the exporter.
+            log(f"{name}: repaired the mesh (duplicate faces)")
     o.name = name
     if o.data is not None:
         o.data.name = name
@@ -262,6 +265,6 @@ def export_glb(path, objects, materials, animations=False):
         raise RuntimeError(f"{path.name}: no Godot material for {sorted(missing)}")
     write_scene_import(path, {k: v for k, v in materials.items() if k in used}, animations)
     tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in objects
-               if o.type == "MESH" and "_LOD0" in o.name)
+               if o.type == "MESH" and o.name.lower().endswith("_lod0"))
     log(f"exported {path.name}: {len(objects)} nodes, LOD0 {tris} triangles, {path.stat().st_size / 1e6:.2f} MB")
     return path

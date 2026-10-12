@@ -41,7 +41,7 @@ def ribbon(m, points, width, thickness=0.0015, **kw):
 
 
 def bandage(seed=61):
-    m = Model("bandage", seed=seed)
+    m = Model("bandage", seed=seed, held=True, forward=False)
     # A roll across X with a loose end hanging down the front.
     r, w = 0.032, 0.07
     roll = [(0.012, -w / 2), (r * 0.97, -w / 2), (r, -w / 2 + 0.004), (r * 1.01, 0.0), (r, w / 2 - 0.004), (r * 0.97, w / 2), (0.012, w / 2)]
@@ -63,7 +63,7 @@ def bandage(seed=61):
 
 
 def injector(seed=63):
-    m = Model("medical-injector", seed=seed)
+    m = Model("medical-injector", seed=seed, held=True)
     # Along +Y, needle end forward; grip at the middle.
     m.lathe([(0.0, -0.075), (0.008, -0.075), (0.0125, -0.07), (0.0125, -0.03), (0.0, -0.03)], (0, 0, 0), (-90, 0, 0),
             sides=20, tile=RUBBER, tint=(0.9, 0.9, 0.9), metres=0.1)
@@ -78,7 +78,7 @@ def injector(seed=63):
 
 
 def berries(key, colour, seed):
-    m = Model(key, seed=seed)
+    m = Model(key, seed=seed, held=True, forward=False)
     stem_tint = (0.42, 0.45, 0.25)
     twig = [(0.0, -0.035, 0.012), (0.0, -0.005, 0.016), (0.004, 0.025, 0.014), (0.006, 0.05, 0.01)]
     m.tube(twig, 0.0018, sides=5, tile=TIMBER, tint=stem_tint, metres=0.1)
@@ -110,7 +110,7 @@ def berries(key, colour, seed):
 
 def tuber(key, roasted, seed):
     """A long, knobbly root with a purple-brown skin; roasted, it is darker and charred in patches."""
-    m = Model(key, seed=seed)
+    m = Model(key, seed=seed, held=True, forward=False)
     skin = (0.3, 0.15, 0.1) if roasted else (0.62, 0.32, 0.26)
 
     def marks(co, tint):
@@ -206,6 +206,8 @@ def key_lock(seed=69):
         for z in (-0.047, 0.047):
             m.cylinder(0.0035, 0.004, (x, -0.0155, z), (90, 0, 0), sides=8, tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.02)
     m.socket("mount", (0, 0, 0))
+    # Held while being placed: the right palm at the middle, +X out of the face.
+    m.socket("grip_r", (0, -0.015, 0), (0, 0, -90))
     m.export(floor=False)
 
 

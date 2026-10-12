@@ -211,9 +211,10 @@ public partial class IconRenderer : Node
     /// <summary>The camera's orbit (yaw, pitch, roll in degrees) for each class when the catalogue gives none.</summary>
     public static Vector3 DefaultView(string modelClass) => modelClass switch
     {
-        "gun" => new Vector3(90, 4, 0),
-        "tool" => new Vector3(70, 14, 42),
-        "spear" or "blade" or "bow" or "arrow" => new Vector3(90, 10, -42),
+        // Held items point +X: seen from their right side, guns level, tools and long things on a diagonal.
+        "gun" => new Vector3(0, 4, 0),
+        "tool" => new Vector3(-20, 14, 42),
+        "spear" or "blade" or "bow" or "arrow" => new Vector3(0, 10, -42),
         "clothing" => new Vector3(18, 12, 0),
         "door" => new Vector3(28, 12, 0),
         _ => new Vector3(35, 26, 0),
