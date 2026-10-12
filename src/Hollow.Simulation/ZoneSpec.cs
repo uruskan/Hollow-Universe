@@ -60,6 +60,13 @@ public sealed record ZoneSpec
     /// </summary>
     public ISurface CreateSurface() => new SphereSurface(Radius, SurfaceSeed);
 
+    /// <summary>
+    /// The natural objects of this zone's ground (trees, outcrops, pickups, bushes). <b>The one place that picks
+    /// them:</b> the stand-in placement until the planet package's scatter lands (GROUND.md §4.6).
+    /// </summary>
+    public Nature.INaturalObjects CreateNature(ISurface surface, ZoneFrame frame, Content.GameContent content) =>
+        new Nature.StandInNaturalObjects(surface, frame, content, Core.Hash64.Of(SurfaceSeed, 0x7A7));
+
     /// <summary>The zone's frame on a surface built by <see cref="CreateSurface"/>.</summary>
     public ZoneFrame CreateFrame(ISurface surface) =>
         ZoneFrame.At(surface, LatitudeDegrees * Math.PI / 180, LongitudeDegrees * Math.PI / 180);

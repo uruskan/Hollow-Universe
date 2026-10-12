@@ -355,6 +355,56 @@ saying where it came from. Sources, in order of preference:
 | Death | Wounded state, lootable body, respawn on the beach, at a sleeping bag or bed (each with a cooldown), sleepers. |
 | Raiding | Explosives and explosive ammo, damage per grade, weak sides, raid alerts. |
 
+### 6.1 As built in G2
+
+The rules live in `Hollow.Simulation` (engine-free); the server applies them, the client runs the same code for its
+optimistic updates. Numbers are in `game/data/ground` (§7); the source of each is noted there.
+
+**Inventory** (`Items/`). 24 main slots, 6 belt slots, 7 clothing slots (`PlayerInventory`). A stack is an item ID, a
+count and, for tools and weapons, a condition (uses left).
+- **Move** (drag): onto an empty slot it moves (a split when part of a stack); onto the same item it tops that stack up
+  and leaves the rest where it was (Rust; RustMVP refused the whole move); onto another item it swaps, whole stacks
+  only.
+- **Quick move** (right-click): onto partial stacks of the same item first, then empty slots that take it; what
+  doesn't fit stays. Its targets depend on where the item is: from the loot to main then belt; to the open loot;
+  clothing to the clothing slots; main to belt and back.
+- **What goes where**: clothing slots take clothing only, one item per layer (head, face, torso, torso armour, legs,
+  legs armour, hands, feet), so a shirt and a chest plate go together; a campfire's or furnace's fuel slot takes fuel,
+  its input slots what it cooks, its output slots nothing; corpses are take only.
+- **Gains** (picking up, gathering, crafting, loot): onto stacks of the same item in main and belt, then empty main
+  slots, then the belt. What doesn't fit is dropped at the player's feet.
+- Every request carries the item the client saw in the slot; if it changed meanwhile (another looter took it), the
+  request is refused as stale rather than moving something else.
+
+**Crafting** (`Items/CraftQueue.cs`, RustMVP §7). Up to 8 jobs of up to 999 units. Starting a job checks the recipe,
+the workbench level within 4 m and the materials for every unit, then takes them all. Only the front job advances, a
+unit every `seconds × 30` ticks; a finished unit goes into the inventory (dropped at the feet if full, as in Rust, rather
+than holding the queue as RustMVP did). Cancelling any job gives back the ingredients of every unit left, the one in
+progress included; what doesn't fit is dropped. At death the queue's ingredients go into the corpse. A workbench counts
+only when the job starts (Rust). Crafting pauses while the player is offline or asleep.
+
+**Gathering** (`Nature/`). Natural objects come from `INaturalObjects`: objects in a rectangle of the zone's tangent
+plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. The planet package's
+scatter will provide them; until then `StandInNaturalObjects` places each kind at its density per 64 m tile from a
+seeded stream (deterministic: the server and every client place the same objects), keeping 9 m around the zone's origin
+clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
+- **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's tree or ore rate
+  (items.json) and gives the share of the object's whole yield that health was, in whole units, so the hits add up to
+  exactly the total: a better tool is quicker, not richer. The last hit gives the rest. A 0.94-size pine (206 wood)
+  takes 32 hits with a rock, 13 with a stone hatchet, 9 with a metal one.
+- **The weak spot** (Rust): each tree and outcrop has one, on the trunk at chest height or on the outcrop's upper side.
+  A hit within 0.3 m of it counts double and moves it; where it is follows from the object's ID and how often it moved,
+  so clients draw it without being told the point.
+- **Outcrops** shrink through three stages as they lose health (drawn by the client).
+- **Pickups** (piles of wood, stone and ore, fibre plants, wild tubers) and **berry bushes** are taken whole with the
+  interact key; a pickup is gone, a bush stays bare, until it grows back.
+- **Respawn** on the real clock (Unix milliseconds): trees after 20 minutes, outcrops 10, pickups and bushes 8. Only
+  changes are stored (`NaturalState`: health, weak-spot moves, depleted until), and saved.
+- **Collision**: trees (capsules) and outcrops (spheres) are static Jolt bodies while their ground tile exists, on the
+  server and in every client's prediction (`NaturalBodies`); a felled tree's body goes, and comes back when it does.
+  Their body IDs come after every ground tile's, so contacts sort the same way on both sides; two props touched at
+  once may sort differently and cost a small correction.
+
 ---
 
 ## 7. Data
