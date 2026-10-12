@@ -405,6 +405,78 @@ clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
   Their body IDs come after every ground tile's, so contacts sort the same way on both sides; two props touched at
   once may sort differently and cost a small correction.
 
+**The zone's game** (`Zone.*.cs`). A zone built with `GameContent` runs the survival game after movement each tick, in
+§4.2's order: fall damage into the vitals; actions (held item, swings, shots); projectiles and damage; once a second
+survival, natural respawns, despawns and loot reach; devices; crafting; then the hit history. Players' actions are
+`Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `UseItem`, `Craft`, `CancelCraft`, `Open`, `Close`,
+`PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of it or
+nothing, with a reason (`ActionResult`). Every new persistent thing gets an `EntityId` from the server's allocator.
+
+**Survival** (`Zone.Vitals.cs`, once a second, survival.json). Health 0–100, calories 0–500, hydration 0–250; a new life
+starts at 60 / 260 / 160 (hollow-orbit's respawn values).
+- Needs fall by 0.07 calories and 0.09 water a second, ×1.8 sprinting, ×1.4 cold. At zero, starvation costs 0.2 health
+  a second and thirst 0.3.
+- Healing: health owed by food and medicine comes back at 1 a second; well fed (≥ 250 calories, ≥ 120 water) and not
+  bleeding, 0.04 a second more, twice that by a fire.
+- **Bleeding** (ours): a hit with a blade, spear or arrow adds its damage × the weapon's bleed fraction to a pool, lost
+  at 1 health a second while the pool clots by 0.2 a second; bandages and injectors empty it.
+- **Temperature**: the air (`IClimate`: the stand-in has the first world's mean 18 °C, ±3.5 °C over the compressed
+  87-minute day, −6.5 °C a kilometre up) + clothing insulation + warmth from a lit campfire (up to +20 °C within 4 m)
+  or furnace − 10 °C for two minutes after swimming. Below 5 °C felt a character gets cold (fully at −10 °C); cold
+  costs calories faster and, past 0.6, 0.15 health a second. The first world is mild, so cold matters on mountains and
+  when wet at night.
+- Sleepers are left as they are (no hunger, no bleeding) until they wake. Crafting pauses for them too.
+
+**Deployables** (`Zone.Things.cs`, `Zone.Actions.cs`). Placed from an inventory slot at a point within 3 m of the eye,
+snapped to the ground below (at most 0.6 m off), refused under water, outside the zone, on ground steeper than the
+item allows (20–30°), or overlapping another deployable, a tree, an outcrop or a character (blocked). Boxes, furnaces and
+workbenches are solid Jolt boxes on both sides; sleeping bags and campfires are not. Every deployable has hit points;
+melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground.
+- **Sleeping bag**: a respawn point for its owner only, 300 s cooldown from placing and after each use (real clock, as
+  in RustMVP, so it runs while the server is down).
+- **Campfire and furnace**: lit by hand when they have fuel; a lit one burns a unit of fuel every `fuel.seconds` (wood:
+  2 s) leaving its by-product (charcoal) in an output slot, cooks every input slot at once (metal ore 4 s, sulphur ore
+  2 s, high-grade ore 8 s in a furnace; wild tubers 15 s on a campfire), waits when the outputs are full and goes out
+  when the fuel does. Both give warmth while lit.
+- **Workbenches**: a level counts for crafting within 4 m.
+- **Boxes**: 18 and 48 slots.
+
+**Dropped items**: a drop lands on the ground in front of the player, lies there for 300 s of world time (it pauses
+while the server is down) and is picked up with the interact key, as much as fits.
+
+**Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
+ingredients, go into a corpse where the player fell (any number of slots), which anyone may take from but not put into;
+it goes when emptied or after 300 s of world time (Rust's corpse lifetime). The dead player chooses: a random beach point
+(no wait, as in Rust; survival.json can add one) or one of their own sleeping bags that has cooled down. A new life has
+the spawn vitals, a rock and a torch. Until the planet package marks beaches, "the beach" is a random point 15–60 m
+from the zone's origin (`Zone.Beaches` takes the real coast).
+
+**Sleepers**: a player who logs off stays where they were, asleep (lying hit shapes), lootable and killable; looting a
+sleeper shows their main slots, belt and clothing, take only. A sleeper killed leaves a corpse like anyone. Logging in
+wakes them where they lie; a player killed while away logs in dead and chooses a respawn.
+
+**Melee** (`Zone.Combat.cs`). The held item comes from the belt slot each input names; taking an item up takes 0.3 s.
+While the primary button is held a melee item swings every `swing` seconds and strikes `strike` seconds after the swing
+starts: a ray from the eye along that tick's view, thickened to 0.15 m, out to the item's reach (1.6–2.4 m). The first
+thing it meets takes the hit: a character (damage), a tree or outcrop (gathering), a deployable (`structure` damage), or
+the ground (nothing). Every hit costs the tool a point of condition; at none it breaks.
+
+**The bow**: holding the secondary button draws it (1 s) while there are arrows; the primary button looses one: from the
+eye along the view at 50 m/s, under the planet's surface gravity (9.0 m/s² on the first world; not the characters'
+1.8×), in two steps a tick, for up to 4 s. Holding on draws the next. An arrow 20 m to a chest flies 0.4 s and drops
+0.7 m; loosed flat from eye height it comes down about 30 m out. An arrow that hits the ground, a tree or a deployable
+can be picked up again half the time.
+
+**Damage to characters**: the weapon's damage × the body part (head 2, body 1, limbs 0.5; RustMVP) × (1 − protection),
+where protection is the sum of what worn items covering that part give against melee or projectiles (at most 0.8).
+
+**Lag compensation** (ARCHITECTURE.md §11.5). The server keeps every character's pose (feet, up, yaw, standing,
+crouching or lying) for 36 ticks (`HitboxHistory`). Each input says how many quarter ticks behind its own tick the
+player was drawing everyone else; a swing or an arrow is tested against characters where they were then, interpolated
+between ticks as the client draws them, at most 0.25 s back. Trees, outcrops, deployables and the ground are tested as
+they are now. An arrow keeps its shooter's delay for its whole flight. Hit shapes: a head sphere (r 0.13 m), a body
+capsule (r 0.21 m), leg and arm capsules; crouching scales them down; sleepers lie. Built for guns to reuse (G4).
+
 ---
 
 ## 7. Data
