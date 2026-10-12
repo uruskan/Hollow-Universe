@@ -12,8 +12,8 @@ public static class GalaxyTests
 {
     // Golden: a hash over a fixed set of generated cells and systems. Changing the generator changes it;
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
-    private const ulong CellsGolden = 0x595FEAC36CFD361DUL;
-    private const ulong SystemsGolden = 0xDEEBD959A57739FBUL;
+    private const ulong CellsGolden = 0x22954A90D19DDA8EUL;
+    private const ulong SystemsGolden = 0x5F09B25668332B31UL;
     private const ulong RealSystemsGolden = 0xD0DADDB204F53B3BUL;
 
     // ---------------------------------------------------------------- frames
@@ -288,6 +288,50 @@ public static class GalaxyTests
                 Assert.True(star.Physics.Mass > 0 && float.IsFinite(star.Physics.Radius), "physical values");
             }
         }
+    }
+
+    [Test]
+    public static void SamplerFollowsTheDensity()
+    {
+        // Level-0 stars are all young-disk stars, whose density falls as sech²(h / 660 ly) away from the midplane, inside
+        // cells 1,024 ly tall. Count the stars within 165 ly of the midplane and compare with the density's share of
+        // each cell (a uniform spread inside the cells would give about 15% fewer).
+        Galaxy.Galaxy galaxy = Fixtures.Galaxy;
+        double observed = 0;
+        double expected = 0;
+        double uniform = 0;
+        int stars = 0;
+        for (int i = 0; i < 36; i++)
+        {
+            // Along a ring around the Galactic Centre, well away from Sol's catalogue region.
+            double angle = i * 0.17;
+            Vector3D model = new(DMath.Sin(angle) * 18000, 0, -DMath.Cos(angle) * 18000);
+            CellKey.TryFromPosition(0, GalaxyFrame.FromModel(model), out CellKey cell);
+            double hMin = double.MaxValue;
+            double hMax = double.MinValue;
+            for (int corner = 0; corner < 8; corner++)
+            {
+                Vector3D p = cell.Min + new Vector3D((corner & 1) * cell.Size, (corner >> 1 & 1) * cell.Size, (corner >> 2) * cell.Size);
+                double h = GalaxyFrame.ToModel(p).Y;
+                hMin = Math.Min(hMin, h);
+                hMax = Math.Max(hMax, h);
+            }
+            double Tanh(double h) => Math.Tanh(h / 660);
+            double inside = Tanh(Math.Clamp(165, hMin, hMax)) - Tanh(Math.Clamp(-165, hMin, hMax));
+            double share = inside / (Tanh(hMax) - Tanh(hMin));
+            double uniformShare = (Math.Clamp(165, hMin, hMax) - Math.Clamp(-165, hMin, hMax)) / (hMax - hMin);
+            foreach (GalaxyStar s in galaxy.GenerateProcedural(cell))
+            {
+                observed += Math.Abs(GalaxyFrame.ToModel(s.Position).Y) < 165 ? 1 : 0;
+                expected += share;
+                uniform += uniformShare;
+                stars++;
+            }
+        }
+        double sigma = Math.Sqrt(expected * (1 - expected / stars));
+        Fixtures.Report($"{stars} level-0 stars: {observed} within 165 ly of the midplane, density says {expected:0}, uniform {uniform:0}");
+        Assert.True(stars > 1000 && expected - uniform > 6 * sigma, "the test can tell the density from a uniform spread");
+        Assert.True(Math.Abs(observed - expected) < 4 * sigma, "stars follow the density inside their cells");
     }
 
     [Test]

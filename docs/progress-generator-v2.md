@@ -84,3 +84,37 @@ procedural system, 4.4 µs per real one).
 universe seed string "Hollow Universe galaxy, version 1" is kept: it names the main universe and is separate
 from the stage versions. Golden hashes skip computed properties so a computed NaN can never make the hash differ
 between x64 and ARM64.
+
+---
+
+## 4. A sampler that can't leave the density; galaxy-wide maps
+
+**Maps first.** `tools/Hollow.GeneratorReport maps` renders every level over the whole sector grid (levels 0–2
+in full, 3–7 one cell column per 256-ly pixel; about 4 minutes on 12 threads): `docs/images/generator/face-on.png`
+(surface density and class mix), `ratio.png` (generated ÷ a fine integral of the density, per 2,048-ly block) and
+`edge-on.png` (levels 0–3 through Sol and the Galactic Centre). Looked at before and after the change:
+
+- No density steps between cells or sectors at any level: χ² per block of generated counts against the fine
+  integral is 1.00–1.05 everywhere (1 = Poisson noise). (A first measurement gave 1.9–2.7 at levels 3–4; that was
+  the map's own sampling comparing one cell column against the whole pixel, fixed by integrating the same
+  footprint.)
+- One real pattern: at level 0, paired red/blue arcs where the spiral arms fade out (R ≈ 50,000 ly). Counting
+  showed the 16-try fallback hit 3,030 of 1.38 million level-0 stars (0.2%) and 76,173 of 78 million at level 1,
+  bunched in cells where the arm is a narrow peak over a faint background (acceptance ~13%, so ~10% of those
+  stars fell back to a uniform spot in a 1,024-ly cell, off the arm).
+- Expected features, not artefacts: the catalogue's holes around Sol (item 2), the hole in the young disk inside
+  the bar, the old bar in red giants at level 1.
+
+**Changed.** The density samples of the cell's integration grid (4 × 4 × 4, or 4 × 8 × 4 at levels 0–2) are kept;
+a star's position now picks a sub-cell by its component's sampled density (binary search over running sums), then
+rejection-samples inside the sub-cell with a bound of 1.3 × the largest sample of the sub-cell and its 26
+neighbours, at most 24 tries. A candidate is always inside a sub-cell where the component has stars, so even a
+star that runs out of tries stays within the density. Measured: fallbacks 0 at level 0 (was 3,030), 57 at level 1
+(was 76,173); the arcs are gone. New test `SamplerFollowsTheDensity`: young-disk stars in 36 level-0 cells follow
+the `sech²` profile (5,498 within 165 ly of the midplane; the density says 5,498, a uniform spread 4,696).
+
+**Golden.** Cells `0x595FEAC36CFD361D` → `0x22954A90D19DDA8E` (every star's random draws changed); procedural
+systems `0xDEEBD959A57739FB` → `0x5F09B25668332B31` (their primaries changed). Real systems unchanged.
+
+**Measured.** Cell generation cost unchanged within noise (the maps took 218 s before and 239 s after, dominated by
+level 2's 3 × 10⁸ stars).

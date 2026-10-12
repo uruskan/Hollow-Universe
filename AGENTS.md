@@ -40,6 +40,7 @@ dotnet run --project tests/Hollow.Tests          # all engine-free tests
 dotnet run --project tests/Hollow.Tests -- Galaxy   # only tests whose name contains "Galaxy"
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs per generated star system
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
 ```
 
 Headless Godot (Linux workspace; `$GODOT` is the Godot 4.7.2 .NET binary; build the solution first):

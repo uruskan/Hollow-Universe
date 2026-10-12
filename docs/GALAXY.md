@@ -191,15 +191,20 @@ seed is the universe seed mixed with the galaxy-stage version (§14); every stre
 
 1. **Integrate the density** over the cell by sampling it on a regular grid (4 × 4 × 4 points; 4 × 8 × 4
    for levels 0–2, whose cells are taller than the disk is thick). This gives the expected number of systems
-   per population in the cell.
+   per population in the cell. Each grid point stands for a sub-cell, and its samples are kept for step 4.
 2. **Expected stars at this level** = Σ over populations of (systems in population) × (fraction of that
    population's class weight that belongs to this level).
 3. **Count**: `n = Poisson(λ)` using the cell's RNG stream.
 4. **For each star i in 0 … n−1**, with an RNG stream seeded from its full address:
    - choose the population (weighted by step 2),
    - choose the class entry within this level (weighted by that population's weights),
-   - choose the position: rejection sampling inside the cell against that population's density, at most
-     16 tries,
+   - choose the position: first a sub-cell, with probability proportional to that component's sampled density
+     there, then rejection sampling inside the sub-cell against the density itself, with a bound of 1.3 times
+     the largest sample of the sub-cell and its 26 neighbours, at most 24 tries. A star that runs out of tries
+     keeps its last candidate, which still lies in a sub-cell where the component has stars, so no star can land
+     where the density says there are none (the old sampler drew from the whole cell and kept an unweighted
+     candidate after 16 failures: 0.2% of level-0 stars, bunched where the arms fade out; now none at level 0
+     and 57 of 78 million at level 1),
    - **catalogue suppression** (§8.3): if the star falls where the catalogue is complete for this level,
      drop it. Its index stays unused, so other stars keep their addresses. In the fade-in zone the
      keep-or-drop roll comes from a stream of its own (`Streams.Suppression`), so a star that survives is
@@ -208,6 +213,28 @@ seed is the universe seed mixed with the galaxy-stage version (§14); every stre
 5. Stars keep their index as their address. The list is sorted by index.
 
 Cost: well under a millisecond for typical cells. The map generates thousands of cells on worker threads.
+
+### 7.1 Galaxy-wide maps
+
+`tools/Hollow.GeneratorReport maps` generates every level across the whole sector grid and draws three contact
+sheets in `docs/images/generator/` (levels 0–3 in the top row, 4–7 below; the Galactic Centre above Sol, as on
+the galaxy map). Levels 0–2 are generated in full; for levels 3–7 one column of cells per 256-ly pixel stands for
+the pixel.
+
+- `face-on.png`: the generated stars in a slab around the midplane (±1,024 ly for levels 0–2, ±256 ly for 3–4,
+  ±64 ly for 5–7), brightness from surface density and colour from the stars' mean colour, so the class mix
+  shows: the young arms at levels 0–1, the old bar and bulge in red giants at level 1, A stars at level 3, red
+  dwarfs at level 7.
+- `ratio.png`: generated stars divided by a fine integral of the density model over the same area, per
+  2,048-ly block (grey = 1; red = more, blue = fewer, full colour at 1.5×). It shows steps between cells or a
+  biased sampler. Measured χ² per block, generated against the integral: 1.00–1.05 at every level, i.e. Poisson
+  noise only. The blue squares at Sol are the catalogue's region (§8.3).
+- `edge-on.png`: levels 0–3 in a slice through Sol and the Galactic Centre (|x| under half a cell), ±8,192 ly
+  high.
+
+Before the generator is frozen these are looked at for artefacts like the ones Elite found after launch (density
+steps between sectors, a cross of suppressed stars). The first look (October 2026) found no steps; the only
+pattern was the old sampler's smear where the arms fade out, fixed by the sampler in step 4.
 
 ---
 
@@ -402,6 +429,7 @@ period; Kepler's equation is solved per frame (Newton's method).
 | Catalogue | Sirius is 8.6 ly away, Proxima Centauri 4.24 ly, Vega 25 ly; Sol has address and name "Sol"; Toliman belongs to Alpha Centauri. |
 | Catalogue independence | Procedural stars near the completeness radii are identical with and without the catalogue loaded, and none lies inside a radius. |
 | Suppression | In the fade-in zone, every star that survives is identical (address, position, class, physics) to the one an unsuppressed generator makes. |
+| Sampler | In 36 level-0 cells around the Galactic Centre, the share of young-disk stars within 165 ly of the midplane matches the density's `sech²` profile within 4σ (and differs from a uniform spread by more than 6σ). |
 | Untrusted addresses | Catalogue addresses with another catalogue number, an out-of-range ID (including one that would truncate to a real ID) or a companion's ID are not found, without errors. |
 | Density | Local density 0.00233 per ly³; 8–14 systems within 10 ly and 900–1,900 within 50 ly (measured: 9 and about 1,430); total 1.1–1.7 × 10¹¹ (measured 1.22 × 10¹¹). |
 | Star counts | `StarCountProfile` agrees with a Monte Carlo integral of the density within 25%, near Sol, in the disk and at the core. |
