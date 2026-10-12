@@ -64,3 +64,9 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 - **Owner feedback on plants:** the grass clumps made from downloaded plant models are out. Grass becomes a Rust-style
   shader system around the camera. Plants and trees must reach the look of hollow-orbit's vegetation; its berry bushes
   are the bar. Berry bushes become pickable food. Both packages have been told.
+- **Started two more packages:**
+  - `ground-assets`: converts the PSG starter kit, the ore nodes and the Tin Finch; builds our own models where the
+    kits have none; adds a model catalogue and renders item icons for the interface.
+  - `ground-build`: phase 1 of G3. It ports Rust's building rules from RustMVP (sockets, stability, upgrade, claims,
+    decay, doors) to C#, converts the building and door kits, and adds a local building sandbox. Networking and item
+    costs come in phase 2, once `ground-survive` is merged.
