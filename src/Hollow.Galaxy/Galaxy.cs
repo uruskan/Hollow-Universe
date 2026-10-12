@@ -15,10 +15,9 @@ public readonly record struct SearchResult(string Name, SystemAddress Address, V
 /// </summary>
 public sealed class Galaxy
 {
-    /// <summary>Generator version (GALAXY.md). Frozen once a shard goes live.</summary>
-    public const int GeneratorVersion = 1;
-
-    /// <summary>The seed of the main universe.</summary>
+    /// <summary>
+    /// The seed of the main universe. Each stage mixes its own generator version into it (<see cref="GeneratorVersion"/>).
+    /// </summary>
     public static readonly ulong DefaultSeed = Hash64.Of("Hollow Universe galaxy, version 1");
 
     private const int CellCacheLimit = 4096;

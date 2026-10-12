@@ -153,7 +153,7 @@ public static class SectorNames
 
 /// <summary>
 /// Procedural system names: <c>&lt;Sector&gt; &lt;Cell&gt; &lt;Level&gt;-&lt;Index&gt;</c>, e.g.
-/// "Varen Doron QX-AB 6-23" (GALAXY.md §9).
+/// "Lumtum Delis FF-WL 6-0" (GALAXY.md §9).
 /// </summary>
 public static class SystemNames
 {

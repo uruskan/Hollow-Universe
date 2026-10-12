@@ -28,8 +28,11 @@ public static class Program
             case "stats":
                 Stats();
                 return 0;
+            case "names":
+                ExampleNames();
+                return 0;
             default:
-                Console.Error.WriteLine("usage: Hollow.GeneratorReport bench|stats");
+                Console.Error.WriteLine("usage: Hollow.GeneratorReport bench|stats|names");
                 return 2;
         }
     }
@@ -68,6 +71,30 @@ public static class Program
                         yield return key;
                     }
                 }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- names
+
+    /// <summary>Real examples of generated names for the docs: one system per level near Sol, and a moon.</summary>
+    private static void ExampleNames()
+    {
+        var galaxy = new Galaxy.Galaxy(LoadCatalogue());
+        Console.WriteLine($"Sol's sector: {Galaxy.Galaxy.SectorNameAt(Vector3D.Zero)}");
+        for (int level = 0; level < StarClassTable.LevelCount; level++)
+        {
+            foreach (CellKey cell in CellsAround(level, new Vector3D(600, -40, 900), SectorGrid.CellSize(level) * 2))
+            {
+                GalaxyStar[] stars = galaxy.GenerateProcedural(cell);
+                if (stars.Length == 0)
+                {
+                    continue;
+                }
+                StarSystem system = galaxy.GetSystem(stars[^1].Address)!;
+                Body? moon = system.Bodies.FirstOrDefault(b => b.Kind == BodyKind.Moon);
+                Console.WriteLine($"level {level}: {system.Name} ({system.Root.StarClass}){(moon != null ? $"; a moon: {moon.Name}" : "")}");
+                break;
             }
         }
     }

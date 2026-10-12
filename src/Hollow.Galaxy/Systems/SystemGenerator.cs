@@ -34,9 +34,16 @@ public sealed class SystemGenerator
 
     private readonly ulong _seed;
 
+    /// <summary>A system generator for a universe seed, at the current system-stage version.</summary>
     public SystemGenerator(ulong seed)
+        : this(seed, GeneratorVersion.System)
     {
-        _seed = seed;
+    }
+
+    /// <summary>Test seam: <paramref name="version"/> stands in for another system-stage version.</summary>
+    internal SystemGenerator(ulong seed, int version)
+    {
+        _seed = GeneratorVersion.SystemSeed(seed, version);
     }
 
     private readonly record struct Companion(StarClass Class, StarPhysics Physics, double SeparationAu, double Eccentricity);

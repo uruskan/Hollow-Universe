@@ -51,3 +51,36 @@ The test `GeneratedSystemsArePlausible` now also requires metal-rich worlds and 
 **Decisions.** The absolute floor went from 0.02 to 0.01 AU so compact M-dwarf systems (like TRAPPIST-1, whose
 innermost planet orbits at 0.0115 AU) can exist. Neutron stars and black holes keep their 0.1 AU inner edge.
 The classification and greenhouse rules are unchanged here; item 6 replaces them with physical state.
+
+---
+
+## 3. Per-stage versions, wider goldens, GALAXY.md corrections
+
+**Changed.**
+- `GeneratorVersion` (new, `Hollow.Galaxy`): `Galaxy = 1`, `System = 1`, `Surface = 1` (reserved for M4). Each
+  stage's seed is `Hash64(universe seed, stage tag, version)` (`GALV`, `SYSV`, `SURV`); `CellGenerator` and
+  `SystemGenerator` derive their seed from it. The old `Galaxy.GeneratorVersion = 1`, which nothing read, is gone.
+- Goldens: `Golden.Of` (tests) hashes every stored field of an object by reflection, recursively and in name
+  order (auto-property backing fields included, computed properties skipped), so fields added in items 5–7 are
+  pinned automatically. The procedural systems golden uses it; a new golden covers Sol and 16 real systems
+  (Alpha Centauri, Proxima Centauri, Barnard's Star, Sirius, Procyon, Tau Ceti, Epsilon Eridani, 61 Cygni, Vega,
+  Capella, Castor, Mizar, Albireo, Polaris, Betelgeuse, Rigel). A new test checks that another galaxy or system
+  version changes its stage.
+- GALAXY.md: sector and system name examples that the tables can't produce ("Vasken Orrimar", cell code "QX-AB"
+  at level 6) replaced with real ones printed by `tools/Hollow.GeneratorReport names`; body designations
+  corrected (only the primary has planets, so "B 3 a" can't exist yet; the one belt is `<system> Belt`, not
+  "Belt A"); multiplicity by primary mass (the code's thresholds, plus 20% for neutron stars, black holes and
+  Wolf–Rayet stars); moons and rings per type as the code does them; the catalogue's real size; a new §14 on
+  versions. ARCHITECTURE.md §8.4 names the per-stage versions.
+
+**Golden.** Everything changes because every seed changed: cells `0x9EB9D62229A1F6AC` → `0x595FEAC36CFD361D`;
+procedural systems `0x313E81E347F46464` → `0xDEEBD959A57739FB` (now over every field); real systems (new)
+`0xD0DADDB204F53B3B`.
+
+**Measured.** No change in speed (the bench varies ±20% between runs on this PC; best of several: 6.4 µs per
+procedural system, 4.4 µs per real one).
+
+**Decisions.** Versions stay at 1 during development (ARCHITECTURE.md §8.4: goldens change instead). The
+universe seed string "Hollow Universe galaxy, version 1" is kept: it names the main universe and is separate
+from the stage versions. Golden hashes skip computed properties so a computed NaN can never make the hash differ
+between x64 and ARM64.

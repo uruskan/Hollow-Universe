@@ -1,7 +1,7 @@
 # Hollow Universe — Galaxy Generation
 
 Status: draft 1, 10 October 2026. Specifies milestone M1: the galaxy, its star systems, and how the maps
-read them. Generator version: **`GalaxyVersion = 1` (development, not frozen)**.
+read them. Generator versions (§14): **galaxy 1, system 1, surface 1 (development, not frozen)**.
 
 The rules in [ARCHITECTURE.md §8](ARCHITECTURE.md#8-determinism-rules) apply to everything here: no
 platform maths, no unseeded randomness, one RNG stream per object.
@@ -186,7 +186,8 @@ below both.
 
 ## 7. Generating a cell
 
-Input: (galaxy seed, level, sector, cell). Output: the list of stars in that cell. Pure function.
+Input: (galaxy seed, level, sector, cell). Output: the list of stars in that cell. Pure function. The galaxy
+seed is the universe seed mixed with the galaxy-stage version (§14); every stream below starts from it.
 
 1. **Integrate the density** over the cell by sampling it on a regular grid (4 × 4 × 4 points; 4 × 8 × 4
    for levels 0–2, whose cells are taller than the disk is thick). This gives the expected number of systems
@@ -216,8 +217,9 @@ Cost: well under a millisecond for typical cells. The map generates thousands of
 
 **HYG database v4.1** (David Nash / astronexus, CC BY-SA 4.0): about 120,000 stars from Hipparcos, Yale
 Bright Star and Gliese, with IAU proper names. The build tool `tools/Hollow.CatalogBuilder` converts the CSV
-into `game/data/catalog/hyg41.bin.gz` (a compact binary). The derived file is published under the same
-licence with attribution (`game/data/catalog/LICENSE.md`). AT-HYG (2.5 million stars) is a later upgrade.
+into `game/data/catalog/hyg41.bin.gz` (a compact binary), which keeps 101,197 of those stars (100,761 systems)
+after the cuts below. The derived file is published under the same licence with attribution
+(`game/data/catalog/LICENSE.md`). AT-HYG (2.5 million stars) is a later upgrade.
 
 ### 8.2 Import rules
 
@@ -256,19 +258,25 @@ A test compares cells near the radii with and without the catalogue.
 
 ## 9. Names
 
-**Sectors** have two-word names, such as "Vasken Orrimar", built from original syllable tables:
-first word 64 × 64 combinations, second word 32 × 16, giving exactly 2²¹ names, one per sector. The sector
-index is scrambled with a fixed odd multiplier first, so neighbouring sectors don't get similar names. The
-mapping is one-to-one, so a name parses back to its sector. A test checks that every name parses uniquely.
+**Sectors** have two-word names, such as "Nolcas Peris" (Sol's sector) or "Jorver Irum" (the Galactic
+Centre's), built from original syllable tables: first word 64 × 64 combinations, second word 32 × 16, giving
+exactly 2²¹ names, one per sector. The sector index is scrambled with fixed odd multipliers and xor-shifts first,
+so neighbouring sectors don't get similar names. The mapping is one-to-one, so a name parses back to its sector.
+A test checks that every name parses uniquely.
 
-**Procedural systems**: `<Sector> <Cell> <Level>-<Index>`, for example `Vasken Orrimar QX-AB 6-23`.
+**Procedural systems**: `<Sector> <Cell> <Level>-<Index>`, for example `Lumtum Delis FF-WL 6-0`.
 
-- `<Cell>` is the cell index inside the sector written in letters (base 26): 1 letter at level 1, up to
-  5 at level 7, with a dash after the first two. Level 0 has no cell part: `Vasken Orrimar 0-12`.
+- `<Cell>` is the cell index inside the sector written in letters (base 26): 0, 1, 2, 2, 3, 4, 4, 5 letters at
+  levels 0–7, with a dash after the first two when there are three or more (`Belath Alum DA 3-17`,
+  `Lumtum Delis BR-HSB 7-0`). The letters must decode to a cell that exists at that level. Level 0 has no cell
+  part: `Bratum Loron 0-0`.
 - `<Level>` is the level digit, `<Index>` the star index.
 
-**Catalogue systems** keep their real names. **Bodies** add designations: companion stars `B`, `C`;
-planets `1`, `2`, …; moons `a`, `b`, …; belts `Belt A`. Example: `Vasken Orrimar QX-AB 6-23 B 3 a`.
+**Catalogue systems** keep their real names. **Bodies** add designations: the primary is `A` when the system
+has companion stars, which are `B`, `C`; planets `1`, `2`, … numbered outward; moons `a`, `b`, …. Only the
+primary star has planets, so a planet of a multiple system is `<system> A 3` and its moon `<system> A 3 a`
+(`Lumtum Delis AP-SQ 5-6 A 3 a`); a single star's planets have no letter (`Lumtum Delis FF-WL 6-0 2 a`). A
+system has at most one belt, called `<system> Belt` (or `<system> A Belt`); it takes no number.
 
 ---
 
@@ -276,19 +284,21 @@ planets `1`, `2`, …; moons `a`, `b`, …; belts `Belt A`. Example: `Vasken Orr
 
 Generated from the system address. Sol, its planets and its main moons are hand-written from real data.
 
-**Random streams.** The system's key is `Hash64(seed, "SYST", address)`. Each object draws from its own
-stream derived from the key: the layout (companion count, orbit slots, which slots hold planets, whether there
-is a belt), the primary, each companion, each orbit slot, and each moon. Changing how one moon is generated
-never shifts a planet. Bodies have stable paths (ARCHITECTURE.md §7): companions `(i + 1) << 24`, a planet
-`(slot + 1) << 16`, its moons add `(m + 1) << 8`, a belt sets bit `0x80`. A planet is identified by its orbit
-slot, not by its number.
+**Random streams.** The system's key is `Hash64(systemSeed, "SYST", address)`, where the system seed mixes the
+universe seed with the system-stage version (§14). Each object draws from its own stream derived from the key:
+the layout (companion count, orbit slots, which slots hold planets, whether there is a belt), the primary, each
+companion, each orbit slot, and each moon. Changing how one moon is generated never shifts a planet. Bodies have
+stable paths (ARCHITECTURE.md §7): companions `(i + 1) << 24`, a planet `(slot + 1) << 16`, its moons add
+`(m + 1) << 8`, a belt sets bit `0x80`. A planet is identified by its orbit slot, not by its number.
 
 **Stars**
 
 - Catalogue systems take their companions from the catalogue (separation from their positions, eccentricity
-  rolled). Procedural systems roll for companions: probability by primary mass (brown dwarfs 15%, M 27%,
-  K–G 45%, F–A 55%, B–O 75%), a second companion in 15% of those, mass ratio uniform 0.1–1 (8% are white
-  dwarfs), separation log-normal around `50 AU · M^0.3` (σ = 1.5 dex, at most 20,000 AU), eccentricity
+  rolled) and roll none of their own. Procedural systems roll for companions, with a probability by primary
+  mass: under 0.08 M☉ (brown dwarfs) 15%, under 0.5 M☉ 27%, under 1.3 M☉ 45%, under 3 M☉ 55%, above that 75%;
+  neutron stars, black holes and Wolf–Rayet stars 20%. A second companion comes in 15% of those systems.
+  Companion mass is the primary's times a uniform 0.1–1 (at least 0.02 M☉; 8% are white dwarfs unless the
+  primary is one), separation log-normal around `50 AU · M^0.3` (σ = 1.5 dex, 0.05–20,000 AU), eccentricity
   Rayleigh (σ = 0.3, at most 0.85).
 - **Floors**: a companion's periapsis is at least three times the sum of the two stars' radii. Multiple
   stars form a stable hierarchy: each wider companion's periapsis is at least three times the previous
@@ -319,12 +329,14 @@ slot, not by its number.
   surface pressure, surface temperature, rotation (close-in planets are tidally locked), axial tilt, and
   orbital elements (semi-major axis, eccentricity, inclination, node, argument of periapsis, mean anomaly at
   epoch J2000).
-- **Moons**: gas giants about 4 major moons, ice giants 2.5, large rocky planets sometimes 1–2, all inside
-  0.4 of the planet's Hill radius (at periapsis).
-- **Rings**: gas giants 40%, ice giants 30%, rocky 2%.
-- **Belts**: about 30% of systems. A belt takes the first chosen slot beyond half the snow line if there is
-  room; otherwise it trails the last planet (1.5–2.5 times its orbit, inside the zone). Its width is 20–40% of
-  its radius, trimmed so it never touches its neighbours.
+- **Moons**: a Poisson number with mean 4 for gas giants, 2.5 for ice giants and 0.4 for every other planet
+  above 0.5 Earth masses (at most 12), all inside 0.4 of the planet's Hill radius (at periapsis). Moons are
+  airless, rocky (or icy and rocky-ice where the planet's equilibrium temperature is under 170 K), tidally
+  locked and landable.
+- **Rings**: gas giants 40%, ice giants 30%, every other planet type 2%.
+- **Belts**: about 30% of systems want one; at most one per system. A belt takes the first chosen slot beyond
+  half the snow line if there is room; otherwise it trails the last planet (1.5–2.5 times its orbit, inside the
+  zone). Its width is 20–40% of its radius, trimmed so it never touches its neighbours.
 - **Landable** means "has a solid surface". Whether it is pleasant to land on is gameplay, not generation.
 
 **Positions over time**: universe time is real UTC. Each body's mean anomaly advances with its orbital
@@ -383,7 +395,8 @@ period; Kepler's equation is solved per frame (Newton's method).
 | Test | Checks |
 |---|---|
 | Determinism | Generating the same cells twice, in any order and on any thread, gives identical stars. |
-| Golden | A hash over a fixed set of cells and systems matches the stored value for this generator version. |
+| Golden | Hashes match their stored values for these generator versions: 40 cells (5 places × 8 levels); the first 8 procedural systems of 12 of those cells (levels 4–7); and the real systems Sol, Alpha Centauri, Proxima Centauri, Barnard's Star, Sirius, Procyon, Tau Ceti, Epsilon Eridani, 61 Cygni, Vega, Capella, Castor, Mizar, Albireo, Polaris, Betelgeuse and Rigel. System hashes cover every stored field of every body (`Golden.Of` walks the fields by reflection, so a new field is pinned without touching the test). |
+| Versions | Another galaxy-stage version changes the stars, another system-stage version changes the systems, and the stages have different seeds. |
 | `DMath` | Results within 4 ulp of `Math` over wide ranges (measured: 3), and bit-identical on every platform. |
 | Frames | The Galactic Centre's equatorial coordinates convert to (0, 0, 1); the north galactic pole to (0, 1, 0). |
 | Catalogue | Sirius is 8.6 ly away, Proxima Centauri 4.24 ly, Vega 25 ly; Sol has address and name "Sol"; Toliman belongs to Alpha Centauri. |
@@ -396,3 +409,23 @@ period; Kepler's equation is solved per frame (Newton's method).
 | Systems | Sol matches its hand data; moons stay inside their planet's Hill sphere. |
 | Orbits | In thousands of systems: neighbouring planets and belts never overlap; companions keep the radius floor and the hierarchy; planets stay clear of companions. |
 | Architecture | Nothing in `src/` references Godot; generation code uses no platform maths, unseeded randomness or clocks. |
+
+---
+
+## 14. Versions
+
+Each stage of the pipeline (ARCHITECTURE.md §9) has its own generator version, `GeneratorVersion` in
+`Hollow.Galaxy`:
+
+| Stage | Constant | Covers | Value |
+|---|---|---|---|
+| Galaxy | `GeneratorVersion.Galaxy` | density model, cells, primary stars and their physics | 1 |
+| System | `GeneratorVersion.System` | companion stars, planets, moons, rings, belts | 1 |
+| Surface | `GeneratorVersion.Surface` | terrain, biomes, resources (M4; reserved, nothing reads it yet) | 1 |
+
+A stage's seed is `Hash64(universe seed, stage tag, version)` (tags `GALV`, `SYSV`, `SURV`), and every stream of
+the stage starts from it. So the output of each stage is a function of (universe seed, address, version), as
+ARCHITECTURE.md P1 says, and the stages are independent: a new system version rebuilds every system but moves no
+star. While the generator is in development the versions stay at 1 and changes update the golden tests instead
+(AGENTS.md). Once a shard goes live, its versions are frozen and recorded with it; a change to a stage then ships
+as a new version of that stage, for new shards or after a wipe.

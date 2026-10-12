@@ -12,8 +12,9 @@ public static class GalaxyTests
 {
     // Golden: a hash over a fixed set of generated cells and systems. Changing the generator changes it;
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
-    private const ulong CellsGolden = 0x9EB9D62229A1F6ACUL;
-    private const ulong SystemsGolden = 0x313E81E347F46464UL;
+    private const ulong CellsGolden = 0x595FEAC36CFD361DUL;
+    private const ulong SystemsGolden = 0xDEEBD959A57739FBUL;
+    private const ulong RealSystemsGolden = 0xD0DADDB204F53B3BUL;
 
     // ---------------------------------------------------------------- frames
 
@@ -626,6 +627,7 @@ public static class GalaxyTests
     [Test]
     public static void SystemGenerationIsDeterministic()
     {
+        // Every stored field of every body (Golden.Of), so future surface inputs can't drift unnoticed.
         Galaxy.Galaxy galaxy = Fixtures.Galaxy;
         ulong h = 0;
         int count = 0;
@@ -635,14 +637,57 @@ public static class GalaxyTests
             {
                 StarSystem a = galaxy.GetSystem(star.Address)!;
                 StarSystem b = galaxy.GetSystem(star.Address)!;
-                ulong ha = HashSystem(a);
-                Assert.Equal(ha, HashSystem(b), "same system twice");
+                ulong ha = Golden.Of(a);
+                Assert.Equal(ha, Golden.Of(b), "same system twice");
                 h = Hash64.Combine(h, ha);
                 count++;
             }
         }
         Fixtures.Report($"{count} systems, hash 0x{h:X16}");
         Assert.Equal(SystemsGolden, h, "systems golden hash");
+    }
+
+    /// <summary>Real systems: Sol (hand data) and catalogue stars with generated planets and real companions.</summary>
+    [Test]
+    public static void RealSystemsMatchTheirGolden()
+    {
+        Galaxy.Galaxy galaxy = Fixtures.Galaxy;
+        ulong h = 0;
+        var names = new List<string>();
+        foreach (string name in RealGoldenSystems)
+        {
+            SearchResult hit = galaxy.Search(name, 1).FirstOrDefault();
+            Assert.True(hit.Name != null && !hit.IsSector, $"'{name}' is a real system");
+            StarSystem system = galaxy.GetSystem(hit.Address)!;
+            h = Hash64.Combine(h, Golden.Of(system));
+            names.Add($"{system.Name} ({system.Bodies.Count})");
+        }
+        Fixtures.Report($"{string.Join(", ", names)}: hash 0x{h:X16}");
+        Assert.Equal(RealSystemsGolden, h, "real systems golden hash");
+    }
+
+    private static readonly string[] RealGoldenSystems =
+    {
+        "Sol", "Alpha Centauri", "Proxima Centauri", "Barnard's Star", "Sirius", "Procyon", "Tau Ceti", "Epsilon Eridani",
+        "61 Cygni", "Vega", "Capella", "Castor", "Mizar", "Albireo", "Polaris", "Betelgeuse", "Rigel",
+    };
+
+    [Test]
+    public static void VersionsSeedTheirStage()
+    {
+        // A stage's version is mixed into its seed: another galaxy version moves the stars, another system version
+        // rebuilds the systems, and neither touches the other stage.
+        var density = new DensityModel();
+        ulong seed = Galaxy.Galaxy.DefaultSeed;
+        CellKey.TryFromPosition(5, new Vector3D(300, -40, 900), out CellKey cell);
+        GalaxyStar[] current = new CellGenerator(seed, density).Generate(cell);
+        GalaxyStar[] other = new CellGenerator(seed, density, leaveSolToCatalogue: true, GeneratorVersion.Galaxy + 1).Generate(cell);
+        Assert.True(current.Length > 0 && HashStars(current) != HashStars(other), "a new galaxy version changes the stars");
+        string name = SystemNames.Format(current[0].Address);
+        StarSystem a = new SystemGenerator(seed).Generate(current[0], name);
+        StarSystem b = new SystemGenerator(seed, GeneratorVersion.System + 1).Generate(current[0], name);
+        Assert.True(Golden.Of(a) != Golden.Of(b), "a new system version changes the system");
+        Assert.True(GeneratorVersion.GalaxySeed(seed) != GeneratorVersion.SystemSeed(seed), "stages have their own seeds");
     }
 
     private static ulong HashStars(GalaxyStar[] stars)
@@ -658,21 +703,6 @@ public static class GalaxyTests
             h = Hash64.Combine(h, BitConverter.SingleToUInt32Bits(s.Physics.AbsoluteMagnitude));
             h = Hash64.Combine(h, BitConverter.SingleToUInt32Bits(s.Physics.Temperature));
             h = Hash64.Combine(h, BitConverter.SingleToUInt32Bits(s.Metallicity));
-        }
-        return h;
-    }
-
-    private static ulong HashSystem(StarSystem system)
-    {
-        ulong h = (ulong)system.Bodies.Count;
-        foreach (Body b in system.Bodies)
-        {
-            h = Hash64.Combine(h, (ulong)b.Kind << 8 | (ulong)b.PlanetType);
-            h = Hash64.Combine(h, Bits(b.Mass));
-            h = Hash64.Combine(h, Bits(b.Radius));
-            h = Hash64.Combine(h, Bits(b.Orbit.SemiMajorAxis));
-            h = Hash64.Combine(h, Bits(b.Orbit.Eccentricity));
-            h = Hash64.Combine(h, Hash64.Of(b.Name));
         }
         return h;
     }

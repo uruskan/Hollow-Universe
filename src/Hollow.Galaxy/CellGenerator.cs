@@ -11,6 +11,11 @@ public static class Streams
     public const ulong Star = 0x53544152; // "STAR"
     public const ulong System = 0x53595354; // "SYST"
     public const ulong Suppression = 0x53555050; // "SUPP"
+
+    // Stage seeds: the universe seed mixed with a stage's generator version (GeneratorVersion).
+    public const ulong GalaxyStage = 0x47414C56; // "GALV"
+    public const ulong SystemStage = 0x53595356; // "SYSV"
+    public const ulong SurfaceStage = 0x53555256; // "SURV"
 }
 
 /// <summary>
@@ -35,15 +40,19 @@ public sealed class CellGenerator
     private readonly DensityModel _density;
     private readonly bool _leaveSolToCatalogue;
 
+    /// <summary>A cell generator for a universe seed, at the current galaxy-stage version.</summary>
     public CellGenerator(ulong seed, DensityModel density)
-        : this(seed, density, leaveSolToCatalogue: true)
+        : this(seed, density, leaveSolToCatalogue: true, GeneratorVersion.Galaxy)
     {
     }
 
-    /// <summary>Test seam: generates the region near Sol too, to prove suppression changes nothing else.</summary>
-    internal CellGenerator(ulong seed, DensityModel density, bool leaveSolToCatalogue)
+    /// <summary>
+    /// Test seam: <paramref name="leaveSolToCatalogue"/> = false generates the region near Sol too, to prove
+    /// suppression changes nothing else; <paramref name="version"/> stands in for another galaxy-stage version.
+    /// </summary>
+    internal CellGenerator(ulong seed, DensityModel density, bool leaveSolToCatalogue, int version = GeneratorVersion.Galaxy)
     {
-        _seed = seed;
+        _seed = GeneratorVersion.GalaxySeed(seed, version);
         _density = density;
         _leaveSolToCatalogue = leaveSolToCatalogue;
     }

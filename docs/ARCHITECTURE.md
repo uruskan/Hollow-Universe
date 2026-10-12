@@ -161,9 +161,12 @@ every machine, because the server and every client generate the same universe in
    rounded by IEEE 754 and therefore identical everywhere).
 3. **Every generated object has its own RNG stream** seeded from its address. Adding a new property to
    one object never shifts another object's results.
-4. **Generator versions.** `GalaxyVersion` is a constant. Golden tests pin a hash of known outputs. While
-   in development the generator may change freely (update the goldens on purpose). **Once a shard goes
-   live, its generator version is frozen.** Changes then ship as a new version for new shards or wipes.
+4. **Generator versions.** Each pipeline stage (§9) has a version constant (`GeneratorVersion.Galaxy`,
+   `.System`, `.Surface`), mixed into that stage's seed, so a stage's output is a function of (seed, address,
+   version) and the stages change independently (GALAXY.md §14). Golden tests pin hashes of known outputs,
+   every stored field included. While in development the generator may change freely (update the goldens on
+   purpose). **Once a shard goes live, its generator versions are frozen.** Changes then ship as a new version
+   of the stage for new shards or wipes.
 5. **Floats to integers** go through explicit rounding helpers, never casts of values that could sit on a
    boundary.
 6. **Never depend on optional data.** Generation must give the same result whether or not a data file
