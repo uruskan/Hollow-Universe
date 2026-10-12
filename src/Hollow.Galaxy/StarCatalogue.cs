@@ -201,7 +201,7 @@ public sealed class StarCatalogue
         return results;
     }
 
-    /// <summary>The galaxy-level view of a catalogue primary.</summary>
+    /// <summary>The galaxy-level view of a catalogue primary, with an age estimated from its class (GALAXY.md §4.1).</summary>
     public GalaxyStar ToGalaxyStar(CatalogueStar star) => new(
         SystemAddress.Catalogue(Number, star.Id),
         star.Position,
@@ -209,7 +209,8 @@ public sealed class StarCatalogue
         star.Physics,
         0f,
         GalaxyComponent.Catalogue,
-        star.Level);
+        star.Level,
+        (float)StellarEvolution.CatalogueAge(Number, star.Id, star.Class, star.Physics));
 
     private void Index(List<CatalogueStar> stars)
     {

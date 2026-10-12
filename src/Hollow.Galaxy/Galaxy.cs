@@ -202,7 +202,7 @@ public sealed class Galaxy
             foreach (CatalogueStar c in real.Companions)
             {
                 companions.Add(new GalaxyStar(SystemAddress.Catalogue(Catalogue.Number, c.Id), c.Position, c.Class,
-                    c.Physics, 0f, GalaxyComponent.Catalogue, c.Level));
+                    c.Physics, 0f, GalaxyComponent.Catalogue, c.Level, primary.Age));
             }
             return _systems.Generate(primary, name, companions);
         }

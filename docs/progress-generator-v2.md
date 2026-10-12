@@ -182,3 +182,45 @@ partial shells at levels 2, 4, 6, 7 (measured 0.99–1.11). Within 10 ly: 9 syst
   plane than toward the poles, which the fit averages over.
 - Levels 0–1 keep their 3,000-ly import limit: there `C` drops from ~0.26 / ~0.08 to 0 in one step, and the
   density stays continuous (real stars inside, procedural outside).
+
+---
+
+## 5. Stellar ages; evolved stars and remnants from age
+
+**Changed.**
+- `StellarEvolution` (new): main-sequence lifetime fit (1 M☉ 10 Gyr, 2 M☉ 1 Gyr, 10 M☉ 25 Myr), turnoff mass,
+  age ranges per density component (young disk 0–1 Gyr, thin disk 0.3–9, thick disk 8–12, bulge 7.5–12.5,
+  nuclear disk 0.01–12, halo 10–13.2), initial–final mass relation, white-dwarf and neutron-star cooling,
+  brown-dwarf cooling.
+- `StarClassTable.Roll` now takes the star's component and returns its age (`GalaxyStar.Age`, Gyr). Main-sequence
+  stars: age cut at their lifetime. Giants, bright giants, subgiants, carbon stars: mass = turnoff mass of their
+  age. Supergiants, T Tauri, Herbig Ae/Be, Wolf–Rayet: ages of their short phases. White dwarfs: progenitor
+  (IMF-weighted, above the turnoff), cooling age → temperature. Neutron stars: cooling age → temperature. Brown
+  dwarfs: mass from the substellar mass function, temperature from mass and age, spectral type from temperature.
+- Catalogue stars: an age estimate from their class, seeded by catalogue ID only (the same in every universe);
+  Sol 4.57 Gyr. `StarSystem.Age` is the primary's.
+- Companions: initial mass relative to the primary's initial mass, and the system's age decides what they are
+  (brown dwarf, main sequence, giant beside an evolved primary, white dwarf, neutron star, black hole). The old
+  "8% are white dwarfs" coin flip is gone; instead 10% of companions may have started heavier and died (like
+  Sirius B). Companion mix in the `stats` sample: 21,336 main sequence, 3,043 white dwarfs, 53 brown dwarfs (before
+  the giant rule: 98 giants beside dwarfs, now only beside evolved primaries).
+- Class table: old-population F1–F9 weight 0.0119 → 0.003 (an old population has few F dwarfs), thin disk 0.0237 →
+  0.0249 to keep the level-4 calibration (model 1,092 vs 1,066 real within 160 ly).
+- System map: the star card shows the system's age.
+
+**Measured** (`stars`, 405,000 generated stars in the disk and bulge): ages per component as designed (young disk
+median 70 Myr, thin disk 3.0 Gyr, thick disk 10.0, bulge 10.0, halo 11.6). Old-population giants weigh 0.93–1.40
+M☉ (median 1.01), subgiants likewise; white dwarfs median 0.56 M☉ and 4,300 K in the old bulge. Main-sequence stars
+younger than their population ("formed late"): 3–6% in old populations (heavy G/F dwarfs). Speed: 8.2 µs per
+procedural system (within the bench's noise).
+
+New test `AgesFollowPopulationsAndEvolution`: ages within their population, main-sequence stars younger than their
+lifetime, giants at the turnoff mass, white dwarfs in range, no main-sequence companion past its lifetime.
+
+**Golden.** Cells `0x5432B95D1D9D85D5` → `0xF3C42388CE7F958C`; procedural systems `0xDB5A9536406D01B2` →
+`0x41FDF66D1B336573`; real systems `0xD0DADDB204F53B3B` → `0xC8BE0B049BAF6BA3` (catalogue stars now carry an age).
+
+**Decisions.** The class table stays the present-day mix (it is calibrated to the real sky); age decides the
+properties of evolved stars and remnants, not whether they exist. Making existence age-conditional would change
+each level's expected count per star and break the cell budget; the table's population weights carry it instead.
+Main-sequence spectral codes are still drawn uniformly within an entry (equal numbers per subclass), as before.

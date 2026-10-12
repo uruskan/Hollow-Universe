@@ -24,8 +24,11 @@ public readonly struct GalaxyStar
     /// <summary>Level of the galaxy octree this star lives in (by its absolute magnitude).</summary>
     public readonly byte Level;
 
+    /// <summary>Age in Gyr (GALAXY.md §4.1); the whole system shares it.</summary>
+    public readonly float Age;
+
     public GalaxyStar(SystemAddress address, Vector3D position, StarClass starClass, StarPhysics physics,
-        float metallicity, GalaxyComponent component, int level)
+        float metallicity, GalaxyComponent component, int level, float age)
     {
         Address = address;
         Position = position;
@@ -34,6 +37,7 @@ public readonly struct GalaxyStar
         Metallicity = metallicity;
         Component = component;
         Level = (byte)level;
+        Age = age;
     }
 
     public bool IsCatalogue => Address.IsCatalogue;

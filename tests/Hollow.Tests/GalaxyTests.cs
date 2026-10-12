@@ -12,9 +12,9 @@ public static class GalaxyTests
 {
     // Golden: a hash over a fixed set of generated cells and systems. Changing the generator changes it;
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
-    private const ulong CellsGolden = 0x5432B95D1D9D85D5UL;
-    private const ulong SystemsGolden = 0xDB5A9536406D01B2UL;
-    private const ulong RealSystemsGolden = 0xD0DADDB204F53B3BUL;
+    private const ulong CellsGolden = 0xF3C42388CE7F958CUL;
+    private const ulong SystemsGolden = 0x41FDF66D1B336573UL;
+    private const ulong RealSystemsGolden = 0xC8BE0B049BAF6BA3UL;
 
     // ---------------------------------------------------------------- frames
 
@@ -333,6 +333,65 @@ public static class GalaxyTests
         Fixtures.Report($"{stars} level-0 stars: {observed} within 165 ly of the midplane, density says {expected:0}, uniform {uniform:0}");
         Assert.True(stars > 1000 && expected - uniform > 6 * sigma, "the test can tell the density from a uniform spread");
         Assert.True(Math.Abs(observed - expected) < 4 * sigma, "stars follow the density inside their cells");
+    }
+
+    [Test]
+    public static void AgesFollowPopulationsAndEvolution()
+    {
+        // GALAXY.md §4.1: ages come from the population; main-sequence stars are younger than their lifetime;
+        // giants have the turnoff mass of their age; companions that would have died by now are remnants.
+        Galaxy.Galaxy galaxy = Fixtures.Galaxy;
+        int stars = 0;
+        int oldGiants = 0;
+        foreach (CellKey cell in GoldenCells())
+        {
+            foreach (GalaxyStar s in galaxy.GenerateProcedural(cell).Take(400))
+            {
+                stars++;
+                (double min, double max) = StellarEvolution.AgeRange(s.Component);
+                Assert.True(s.Age >= 0 && s.Age <= StellarEvolution.OldestStar + 1e-6, $"{s.Address}: age {s.Age} Gyr");
+                switch (s.Class.Kind)
+                {
+                    case StarKind.MainSequence:
+                        Assert.True(s.Age <= StellarEvolution.MainSequenceLifetime(s.Physics.Mass) * 1.0001,
+                            $"{s.Class} star of {s.Physics.Mass} M☉ is {s.Age} Gyr old, past its main sequence");
+                        break;
+                    case StarKind.Giant:
+                    case StarKind.Subgiant:
+                    case StarKind.BrightGiant:
+                        Assert.True(s.Age >= Math.Max(0.04, min) - 1e-6 && s.Age <= max + 1e-6, $"{s.Class} age {s.Age} in {s.Component}");
+                        double turnoff = StellarEvolution.TurnoffMass(s.Age);
+                        Assert.True(Math.Abs(s.Physics.Mass / Math.Clamp(turnoff, 0.8, 8.0) - 1) < 0.06, $"{s.Class} mass {s.Physics.Mass} at turnoff {turnoff}");
+                        oldGiants += s.Component is GalaxyComponent.Halo or GalaxyComponent.ThickDisk && s.Physics.Mass < 1.1 ? 1 : 0;
+                        break;
+                    case StarKind.WhiteDwarf:
+                        Assert.True(s.Physics.Mass is >= 0.49f and <= 1.36f && s.Physics.Temperature >= 3499, $"white dwarf {s.Physics}");
+                        break;
+                }
+            }
+        }
+        // Companions: none is still on the main sequence past its lifetime.
+        int companions = 0;
+        int remnants = 0;
+        foreach (CellKey cell in CellsAround(5, new Vector3D(600, 0, 600), 64))
+        {
+            foreach (GalaxyStar star in galaxy.GenerateProcedural(cell))
+            {
+                StarSystem system = galaxy.GetSystem(star.Address)!;
+                foreach (Body b in system.Bodies.Where(b => b.Kind == BodyKind.Star && b.Index > 0))
+                {
+                    companions++;
+                    remnants += b.StarClass.Kind is StarKind.WhiteDwarf or StarKind.NeutronStar or StarKind.BlackHole ? 1 : 0;
+                    if (b.StarClass.Kind == StarKind.MainSequence)
+                    {
+                        Assert.True(StellarEvolution.MainSequenceLifetime(b.Mass / Units.SolarMass) * 1.01 >= system.Age,
+                            $"{b.Name} ({b.StarClass}, {b.Mass / Units.SolarMass:0.00} M☉) outlived its main sequence at {system.Age:0.0} Gyr");
+                    }
+                }
+            }
+        }
+        Fixtures.Report($"{stars} stars checked, {oldGiants} old-population giants near 1 M☉; {companions} companions, {remnants} remnants");
+        Assert.True(oldGiants > 0 && companions > 50 && remnants > 0, "the sample has old giants, companions and remnants");
     }
 
     [Test]

@@ -11,6 +11,7 @@ public static class Streams
     public const ulong Star = 0x53544152; // "STAR"
     public const ulong System = 0x53595354; // "SYST"
     public const ulong Suppression = 0x53555050; // "SUPP"
+    public const ulong CatalogueAge = 0x43414745; // "CAGE": age estimates of real stars
 
     // Stage seeds: the universe seed mixed with a stage's generator version (GeneratorVersion).
     public const ulong GalaxyStage = 0x47414C56; // "GALV"
@@ -167,10 +168,10 @@ public sealed class CellGenerator
                 }
             }
 
-            (StarClass starClass, StarPhysics physics) = StarClassTable.Roll(entry, ref rng);
+            (StarClass starClass, StarPhysics physics, double age) = StarClassTable.Roll(entry, component, ref rng);
             (double mean, double sigma) = DensityModel.MetallicityOf(component);
             float metallicity = (float)StellarTables.Clamp(rng.Gaussian(mean, sigma), -3.0, 0.6);
-            stars.Add(new GalaxyStar(address, position, starClass, physics, metallicity, component, level));
+            stars.Add(new GalaxyStar(address, position, starClass, physics, metallicity, component, level, (float)age));
         }
         return stars.ToArray();
     }

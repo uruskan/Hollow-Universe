@@ -126,6 +126,9 @@ public sealed class StarSystem
 
     public Body Root => Bodies[0];
 
+    /// <summary>Age of the system in Gyr: its stars and planets formed together (GALAXY.md §4.1).</summary>
+    public double Age => Primary.Age;
+
     /// <summary>Position of a body relative to the primary star (metres, system frame).</summary>
     public Vector3D PositionOf(int bodyIndex, double secondsSinceJ2000)
     {

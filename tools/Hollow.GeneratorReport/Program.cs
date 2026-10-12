@@ -37,6 +37,9 @@ public static class Program
             case "calibrate":
                 Calibrate.Report(LoadCatalogue());
                 return 0;
+            case "stars":
+                StarStats();
+                return 0;
             case "completeness":
                 for (int level = 0; level < StarClassTable.LevelCount; level++)
                 {
@@ -118,6 +121,49 @@ public static class Program
         }
     }
 
+    // ---------------------------------------------------------------- stars
+
+    /// <summary>Ages and evolved stars (GALAXY.md §4.1) in a sample of generated stars: near Sol's radius in the disk, and the bulge.</summary>
+    private static void StarStats()
+    {
+        var galaxy = new Galaxy.Galaxy(null);
+        var stars = new List<GalaxyStar>();
+        foreach (Vector3D centre in new[] { new Vector3D(3000, 0, 2000), new Vector3D(-2000, 1500, 6000), GalaxyFrame.GalacticCentre + new Vector3D(1500, 300, 0) })
+        {
+            for (int level = 0; level < StarClassTable.LevelCount; level++)
+            {
+                foreach (CellKey cell in CellsAround(level, centre, SectorGrid.CellSize(level)).Take(level < 5 ? 27 : 8))
+                {
+                    stars.AddRange(galaxy.GenerateProcedural(cell));
+                }
+            }
+        }
+        CultureInfo c = CultureInfo.InvariantCulture;
+        Console.WriteLine($"{stars.Count} stars");
+        foreach (IGrouping<GalaxyComponent, GalaxyStar> group in stars.GroupBy(s => s.Component).OrderBy(g => g.Key))
+        {
+            List<double> ages = group.Select(s => (double)s.Age).OrderBy(a => a).ToList();
+            (double min, double _) = StellarEvolution.AgeRange(group.Key);
+            int late = group.Count(s => s.Class.Kind == StarKind.MainSequence && s.Age < min);
+            Console.WriteLine(string.Create(c, $"{group.Key}: {group.Count()} stars, age median {ages[ages.Count / 2]:0.00} Gyr, " +
+                $"5–95% {ages[ages.Count / 20]:0.00}–{ages[ages.Count * 19 / 20]:0.00}; main-sequence stars younger than the population: {late}"));
+        }
+        foreach (StarKind kind in new[] { StarKind.Giant, StarKind.Subgiant, StarKind.BrightGiant, StarKind.WhiteDwarf, StarKind.BrownDwarf, StarKind.NeutronStar })
+        {
+            List<GalaxyStar> list = stars.Where(s => s.Class.Kind == kind).ToList();
+            if (list.Count == 0)
+            {
+                continue;
+            }
+            List<double> masses = list.Select(s => (double)s.Physics.Mass).OrderBy(m => m).ToList();
+            List<double> temps = list.Select(s => (double)s.Physics.Temperature).OrderBy(t => t).ToList();
+            Console.WriteLine(string.Create(c, $"{kind}: {list.Count}, mass median {masses[masses.Count / 2]:0.000} (5–95% {masses[masses.Count / 20]:0.000}–{masses[masses.Count * 19 / 20]:0.000}), " +
+                $"Teff median {temps[temps.Count / 2]:0} K (5–95% {temps[temps.Count / 20]:0}–{temps[temps.Count * 19 / 20]:0})"));
+        }
+        var bd = stars.Where(s => s.Class.Kind == StarKind.BrownDwarf).GroupBy(s => s.Class.Letter).OrderBy(g => StarClass.LetterIndex(g.Key));
+        Console.WriteLine("brown dwarfs by spectral letter: " + string.Join(", ", bd.Select(g => $"{g.Key} {g.Count()}")));
+    }
+
     // ---------------------------------------------------------------- stats
 
     /// <summary>What the system generator makes: the mix of bodies in a fixed sample of procedural systems.</summary>
@@ -135,6 +181,7 @@ public static class Program
         }
         var types = new Dictionary<string, int>();
         var atmospheres = new Dictionary<string, int>();
+        var companions = new Dictionary<string, int>();
         var temperatures = new List<double>();
         int planets = 0, moons = 0, belts = 0, multiples = 0, landable = 0, hotGiants = 0;
         Body? hottest = null;
@@ -143,6 +190,11 @@ public static class Program
             multiples += system.Count(BodyKind.Star) > 1 ? 1 : 0;
             foreach (Body b in system.Bodies)
             {
+                if (b.Kind == BodyKind.Star && b.Index > 0)
+                {
+                    string kind = b.StarClass.Kind.ToString();
+                    companions[kind] = companions.GetValueOrDefault(kind) + 1;
+                }
                 if (b.Kind is BodyKind.Planet or BodyKind.Moon)
                 {
                     string key = (b.Kind == BodyKind.Moon ? "moon: " : "") + b.TypeName;
@@ -174,6 +226,7 @@ public static class Program
             $"{hotGiants} gas giants above 1,000 K"));
         Console.WriteLine("types: " + string.Join(", ", types.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}")));
         Console.WriteLine("atmospheres: " + string.Join(", ", atmospheres.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}")));
+        Console.WriteLine("companion stars: " + string.Join(", ", companions.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}")));
     }
 
     // ---------------------------------------------------------------- bench

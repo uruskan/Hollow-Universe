@@ -196,29 +196,23 @@ public sealed class SystemGenerator
             return list;
         }
         int count = layout.Chance(0.15) ? 2 : 1;
+        // Companions were born with the primary: the mass ratio applies to its initial mass, and the system's age
+        // decides what each companion is now (GALAXY.md §4.1).
+        double initialMass = StellarEvolution.InitialMass(kind, mass);
         for (int i = 0; i < count; i++)
         {
             var rng = new Rng(Hash64.Combine(key, CompanionStream + (ulong)i + 0x40));
-            double companionMass = Math.Max(0.02, mass * rng.Range(0.1, 1.0));
-            StarClass cls;
-            StarPhysics phys;
-            if (rng.Chance(0.08) && kind != StarKind.WhiteDwarf)
+            double companionMass = Math.Max(0.013, initialMass * rng.Range(0.1, 1.0));
+            // Sometimes the companion was born the heavier star and has already died: a white dwarf (or neutron star)
+            // fainter than the primary now, like Sirius B. If it would still shine, it would be the primary.
+            double heavier = initialMass * rng.Range(1.0, 3.0);
+            if (rng.Chance(0.1) && StellarEvolution.MainSequenceLifetime(heavier) * 1.08 < primary.Age)
             {
-                double teff = rng.Range(5000, 25000);
-                double wdMass = StellarTables.Clamp(rng.Gaussian(0.6, 0.08), 0.45, 1.2);
-                double radius = 0.0126 * DMath.Pow(wdMass / 0.6, -1.0 / 3.0);
-                cls = new StarClass(StarKind.WhiteDwarf, (float)(Math.Floor(50400.0 / teff * 2) / 2));
-                phys = new StarPhysics((float)teff, (float)StellarTables.WhiteDwarfMagnitude(teff), (float)wdMass,
-                    (float)radius, (float)StellarTables.Luminosity(radius, teff));
+                companionMass = heavier;
             }
-            else
-            {
-                double code = CodeForMass(companionMass);
-                (double teff, double mv, double m, double r) = StellarTables.Typical(StarKind.MainSequence, code);
-                StarKind companionKind = code >= 70 ? StarKind.BrownDwarf : StarKind.MainSequence;
-                cls = new StarClass(companionKind, (float)(Math.Floor(code * 2) / 2));
-                phys = new StarPhysics((float)teff, (float)mv, (float)m, (float)r, (float)StellarTables.Luminosity(r, teff));
-            }
+            // A giant companion would outshine anything but another giant.
+            bool giantPrimary = kind is StarKind.Subgiant or StarKind.Giant or StarKind.BrightGiant or StarKind.Supergiant or StarKind.CarbonStar;
+            (StarClass cls, StarPhysics phys) = EvolvedCompanion(companionMass, primary.Age, giantPrimary, ref rng);
             double eccentricity = StellarTables.Clamp(rng.Rayleigh(0.3), 0, 0.85);
             double separation = StellarTables.Clamp(rng.LogNormal(50 * DMath.Pow(Math.Max(mass, 0.05), 0.3), 1.5), 0.05, MaxCompanionSeparationAu);
             separation = Math.Max(separation, MinimumSeparationAu(primary.Physics, phys, eccentricity));
@@ -226,6 +220,53 @@ public sealed class SystemGenerator
         }
         MakeHierarchical(list, dropTooWide: true);
         return list;
+    }
+
+    // What a star born with this mass is at this age (Gyr): a brown dwarf cooling since birth, a main-sequence star, a
+    // giant just past its main sequence, or the white dwarf, neutron star or black hole it left.
+    private static (StarClass Class, StarPhysics Physics) EvolvedCompanion(double initialMass, double age, bool allowGiant, ref Rng rng)
+    {
+        if (initialMass < 0.075)
+        {
+            double teff = StellarEvolution.BrownDwarfTemperature(initialMass, age);
+            double code = Math.Floor(StellarTables.MainSequenceCodeForTemperature(teff) * 2) / 2;
+            (_, double mv, _, double r) = StellarTables.Typical(StarKind.MainSequence, code);
+            return (new StarClass(StarKind.BrownDwarf, (float)code),
+                new StarPhysics((float)teff, (float)mv, (float)initialMass, (float)r, (float)StellarTables.Luminosity(r, teff)));
+        }
+        double lifetime = StellarEvolution.MainSequenceLifetime(initialMass);
+        if (age < lifetime)
+        {
+            double code = Math.Floor(CodeForMass(initialMass) * 2) / 2;
+            (double teff, double mv, double m, double r) = StellarTables.Typical(StarKind.MainSequence, code);
+            return (new StarClass(StarKind.MainSequence, (float)code),
+                new StarPhysics((float)teff, (float)mv, (float)m, (float)r, (float)StellarTables.Luminosity(r, teff)));
+        }
+        if (initialMass < 8 && age < lifetime * 1.08 && allowGiant)
+        {
+            const double giantCode = 50; // K0 III: the red giant branch and clump
+            (double teff, double mv, _, double r) = StellarTables.Typical(StarKind.Giant, giantCode);
+            return (new StarClass(StarKind.Giant, (float)giantCode),
+                new StarPhysics((float)teff, (float)mv, (float)initialMass, (float)r, (float)StellarTables.Luminosity(r, teff)));
+        }
+        if (initialMass < 8)
+        {
+            double wdMass = StellarEvolution.WhiteDwarfMass(initialMass);
+            double teff = StellarEvolution.WhiteDwarfTemperature(age - lifetime, wdMass);
+            double radius = 0.0126 * DMath.Pow(wdMass / 0.6, -1.0 / 3.0);
+            return (new StarClass(StarKind.WhiteDwarf, (float)(Math.Floor(50400.0 / teff * 2) / 2)),
+                new StarPhysics((float)teff, (float)StellarTables.WhiteDwarfMagnitude(teff), (float)wdMass,
+                    (float)radius, (float)StellarTables.Luminosity(radius, teff)));
+        }
+        if (initialMass < 20)
+        {
+            double teff = StellarEvolution.NeutronStarTemperature(age - lifetime);
+            double nsMass = StellarTables.Clamp(rng.Gaussian(1.4, 0.08), 1.1, 2.1);
+            return (new StarClass(StarKind.NeutronStar, 0),
+                new StarPhysics((float)teff, 30f, (float)nsMass, 1.725e-5f, (float)StellarTables.Luminosity(1.725e-5, teff)));
+        }
+        double bhMass = initialMass * rng.Range(0.2, 0.4);
+        return (new StarClass(StarKind.BlackHole, 0), new StarPhysics(0f, 99f, (float)bhMass, (float)(4.24e-6 * bhMass), 0f));
     }
 
     // Main-sequence spectral code of a star of the given mass (solar masses).

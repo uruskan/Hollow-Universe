@@ -412,6 +412,7 @@ public partial class SystemMapUi : Control
             {
                 Row("Luminosity", Ui.Times(body.Luminosity, "Sun", body.Luminosity < 0.01 ? "G3" : "N2"));
             }
+            Row("Age", Ui.Age(system.Age));
         }
         else if (body.Kind != BodyKind.Belt)
         {

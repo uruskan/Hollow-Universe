@@ -54,7 +54,7 @@ public static class StarClassTable
         new("Herbig Ae/Be", 2, StarKind.HerbigAeBe, 15, 25, 0.00075, 0, 0),
         new("A3–F0 main sequence", 3, StarKind.MainSequence, 23, 31, 0.06, 0.004, 0.0005),
         new("Bright subgiant", 3, StarKind.Subgiant, 28, 38, 0, 0.004, 0.004),
-        new("F1–F9 main sequence", 4, StarKind.MainSequence, 31, 40, 0.047, 0.0237, 0.0119),
+        new("F1–F9 main sequence", 4, StarKind.MainSequence, 31, 40, 0.047, 0.0249, 0.003),
         new("Subgiant", 4, StarKind.Subgiant, 35, 55, 0, 0.0047, 0.0056),
         new("G main sequence", 5, StarKind.MainSequence, 40, 50, 0.042, 0.054, 0.042),
         new("T Tauri", 5, StarKind.TTauri, 45, 60, 0.006, 0, 0),
@@ -121,51 +121,80 @@ public static class StarClassTable
     public static int Pick(Population population, int level, ref Rng rng) =>
         rng.PickWeighted(PickWeights[(int)population][level]);
 
-    /// <summary>Rolls the class and physical properties of a procedural star from a class entry.</summary>
-    public static (StarClass Class, StarPhysics Physics) Roll(int entryIndex, ref Rng rng)
+    /// <summary>
+    /// Rolls the class, physical properties and age (Gyr) of a procedural star from a class entry and the component
+    /// it belongs to (GALAXY.md §4.1). The age comes from the component's star-formation history; for evolved stars
+    /// and remnants it decides the star: a giant's mass is the turnoff mass of its age, a white dwarf's temperature
+    /// its cooling time, a brown dwarf's temperature how long it has been cooling.
+    /// </summary>
+    public static (StarClass Class, StarPhysics Physics, double Age) Roll(int entryIndex, GalaxyComponent component, ref Rng rng)
     {
         StarClassEntry entry = Entries[entryIndex];
         double code = entry.CodeMin + (entry.CodeMax - entry.CodeMin) * rng.NextDouble();
         code = Math.Floor(code * 2.0) / 2.0; // half subclasses, e.g. M4.5
-        double teff, mv, mass, radius;
+        double teff, mv, mass, radius, age;
 
         switch (entry.Kind)
         {
             case StarKind.WhiteDwarf:
             {
-                double u = rng.NextDouble();
-                teff = 4500.0 * DMath.Pow(40000.0 / 4500.0, u * u); // most white dwarfs are cool
-                mass = StellarTables.Clamp(rng.Gaussian(0.6, 0.08), 0.45, 1.3);
+                // The progenitor was heavier than the turnoff mass of the population's age (initial mass function
+                // dN/dM ∝ M^−2.3, up to 8 M☉); it has cooled since it shed its envelope.
+                age = StellarEvolution.DrawAge(component, 0.05, StellarEvolution.OldestStar, ref rng);
+                double initial = SampleInitialMass(Math.Max(StellarEvolution.TurnoffMass(age), 0.9), 8.0, ref rng);
+                double cooling = Math.Max(0.0, age - StellarEvolution.MainSequenceLifetime(initial));
+                mass = StellarEvolution.WhiteDwarfMass(initial);
                 radius = 0.0126 * DMath.Pow(mass / 0.6, -1.0 / 3.0);
+                teff = StellarEvolution.WhiteDwarfTemperature(cooling, mass);
                 mv = StellarTables.WhiteDwarfMagnitude(teff);
                 code = Math.Floor(50400.0 / teff * 2.0) / 2.0;
                 break;
             }
             case StarKind.NeutronStar:
-                teff = rng.LogUniform(1e5, 1e6);
+            {
+                double initial = SampleInitialMass(8.0, 20.0, ref rng);
+                double lifetime = StellarEvolution.MainSequenceLifetime(initial);
+                age = StellarEvolution.DrawAge(component, lifetime, StellarEvolution.OldestStar, ref rng);
+                teff = StellarEvolution.NeutronStarTemperature(age - lifetime);
                 mass = StellarTables.Clamp(rng.Gaussian(1.4, 0.08), 1.1, 2.1);
                 radius = 1.725e-5;
                 mv = 30.0;
                 code = 0;
                 break;
+            }
             case StarKind.BlackHole:
                 mass = rng.LogUniform(5.0, 25.0);
                 radius = 4.24e-6 * mass;
                 teff = 0;
                 mv = 99.0;
                 code = 0;
+                age = StellarEvolution.DrawAge(component, 0.006, StellarEvolution.OldestStar, ref rng);
                 break;
+            case StarKind.BrownDwarf:
+            {
+                // Brown dwarfs never ignite hydrogen: their temperature, and so their spectral type, comes from mass
+                // and age.
+                age = StellarEvolution.DrawAge(component, 0.0, StellarEvolution.OldestStar, ref rng);
+                mass = SampleSubstellarMass(ref rng);
+                teff = StellarEvolution.BrownDwarfTemperature(mass, age);
+                code = Math.Floor(StellarTables.MainSequenceCodeForTemperature(teff) * 2.0) / 2.0;
+                (_, mv, _, radius) = StellarTables.Typical(StarKind.MainSequence, code);
+                radius *= 1.0 + 0.08 * ClampedGaussian(ref rng);
+                break;
+            }
             case StarKind.WolfRayet:
                 teff = rng.Range(40000, 90000);
                 mass = rng.Range(10, 25);
                 radius = rng.Range(1, 5);
                 mv = rng.Range(-6.5, -3.5);
+                age = rng.Range(0.002, 0.007);
                 break;
             case StarKind.CarbonStar:
                 teff = rng.Range(2600, 3300);
-                mass = rng.Range(1.5, 3.0);
                 radius = rng.Range(150, 400);
                 mv = rng.Range(-3.0, -1.0);
+                age = EvolvedAge(component, ref rng);
+                mass = EvolvedMass(age, ref rng);
                 break;
             default:
             {
@@ -174,6 +203,32 @@ public static class StarClassTable
                 mv += 0.15 * ClampedGaussian(ref rng);
                 mass *= 1.0 + 0.05 * ClampedGaussian(ref rng);
                 radius *= 1.0 + 0.08 * ClampedGaussian(ref rng);
+                switch (entry.Kind)
+                {
+                    case StarKind.MainSequence:
+                        // Younger than its main-sequence lifetime (a heavy star in an old population formed late).
+                        age = StellarEvolution.DrawAge(component, 0.0, StellarEvolution.MainSequenceLifetime(mass), ref rng);
+                        break;
+                    case StarKind.Subgiant:
+                    case StarKind.Giant:
+                    case StarKind.BrightGiant:
+                        // Just past the main sequence: its mass is the turnoff mass of its age.
+                        age = EvolvedAge(component, ref rng);
+                        mass = EvolvedMass(age, ref rng);
+                        break;
+                    case StarKind.Supergiant:
+                        age = StellarEvolution.MainSequenceLifetime(mass) * rng.Range(1.0, 1.1);
+                        break;
+                    case StarKind.TTauri:
+                        age = rng.LogUniform(0.0005, 0.01);
+                        break;
+                    case StarKind.HerbigAeBe:
+                        age = rng.LogUniform(0.0003, 0.005);
+                        break;
+                    default:
+                        age = StellarEvolution.DrawAge(component, 0.0, StellarEvolution.OldestStar, ref rng);
+                        break;
+                }
                 break;
             }
         }
@@ -193,8 +248,36 @@ public static class StarClassTable
 
         double luminosity = entry.Kind == StarKind.BlackHole ? 0.0 : StellarTables.Luminosity(radius, teff);
         return (new StarClass(entry.Kind, (float)code),
-            new StarPhysics((float)teff, (float)mv, (float)mass, (float)radius, (float)luminosity));
+            new StarPhysics((float)teff, (float)mv, (float)mass, (float)radius, (float)luminosity), age);
     }
 
     private static double ClampedGaussian(ref Rng rng) => StellarTables.Clamp(rng.Gaussian(), -2.5, 2.5);
+
+    // A giant or subgiant: the population's age, but at least 40 Myr (younger, it would be a supergiant).
+    private static double EvolvedAge(GalaxyComponent component, ref Rng rng) =>
+        StellarEvolution.DrawAge(component, 0.04, StellarEvolution.OldestStar, ref rng);
+
+    // Stars leave the main sequence at the turnoff mass of their age; giants have lost a little since.
+    private static double EvolvedMass(double age, ref Rng rng) =>
+        StellarTables.Clamp(StellarEvolution.TurnoffMass(age) * rng.Range(0.95, 1.05), 0.8, 8.0);
+
+    // Brown-dwarf mass, 0.013–0.078 M☉, from the substellar mass function dN/dM ∝ M^−0.6.
+    private static double SampleSubstellarMass(ref Rng rng)
+    {
+        double a = DMath.Pow(0.013, 0.4);
+        double b = DMath.Pow(0.078, 0.4);
+        return DMath.Pow(a + rng.NextDouble() * (b - a), 1.0 / 0.4);
+    }
+
+    // Initial mass between lo and hi drawn from the initial mass function dN/dM ∝ M^−2.3.
+    private static double SampleInitialMass(double lo, double hi, ref Rng rng)
+    {
+        if (hi <= lo)
+        {
+            return lo;
+        }
+        double a = DMath.Pow(lo, -1.3);
+        double b = DMath.Pow(hi, -1.3);
+        return DMath.Pow(a + rng.NextDouble() * (b - a), -1.0 / 1.3);
+    }
 }

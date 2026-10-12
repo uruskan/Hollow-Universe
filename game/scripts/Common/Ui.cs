@@ -552,6 +552,11 @@ public static class Ui
 
     public static string Magnitude(double value) => value.ToString("+0.00;−0.00", CultureInfo.InvariantCulture);
 
+    /// <summary>An age given in Gyr: "4.57 billion years", "120 million years".</summary>
+    public static string Age(double gyr) => gyr >= 1
+        ? Number(gyr, gyr < 10 ? "N2" : "N1") + " billion years"
+        : Number(gyr * 1000, gyr < 0.01 ? "N1" : "N0") + " million years";
+
     /// <summary>A multiple of the Sun or the Earth, e.g. "1.02 × Sun".</summary>
     public static string Times(double value, string of, string format = "N2") => Number(value, format) + " × " + of;
 }

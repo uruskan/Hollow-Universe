@@ -154,6 +154,41 @@ Physical properties come from interpolation tables (main sequence, giants, super
 brown dwarfs): effective temperature, M_V, mass, radius, luminosity. Each star adds a small seeded scatter
 so no two are identical. Colours are blackbody colours of the effective temperature.
 
+### 4.1 Ages and evolution
+
+Every star has an **age** (`GalaxyStar.Age`, Gyr; the whole system shares it), drawn from its component's
+star-formation history, spread evenly over:
+
+| Component | Young disk | Thin disk | Thick disk | Bulge | Nuclear disk | Halo |
+|---|---|---|---|---|---|---|
+| Ages (Gyr) | 0–1 | 0.3–9 | 8–12 | 7.5–12.5 | 0.01–12 | 10–13.2 |
+
+The age decides what evolved stars and remnants are like (`StellarEvolution`, fits to standard stellar evolution):
+
+- **Main-sequence lifetime** `log₁₀ t[yr] = 10 − 3.6 x + x²`, `x = log₁₀ M` (1 M☉: 10 Gyr; 2 M☉: 1 Gyr; 10 M☉:
+  25 Myr). A main-sequence star is younger than its lifetime: its age is drawn from the component's range cut at
+  the lifetime (a heavy star in an old population formed late; old populations get few F dwarfs for that reason).
+- **Giants, bright giants, subgiants, carbon stars**: age from the population (at least 40 Myr), mass = the
+  **turnoff mass** of that age ± 5%: old-population giants weigh about 1 M☉, young ones several.
+  **Supergiants**: 1.0–1.1 times their main-sequence lifetime. T Tauri stars 0.5–10 Myr, Herbig Ae/Be stars
+  0.3–5 Myr, Wolf–Rayet stars 2–7 Myr.
+- **White dwarfs**: age from the population (at least 50 Myr); the progenitor was heavier than the turnoff mass
+  of that age (initial mass function dN/dM ∝ M^−2.3, up to 8 M☉); mass from the initial–final mass relation
+  `0.109 M_i + 0.394`; it has cooled since: `T_eff = 8,000 K · (t_cool / Gyr)^−0.35 · (M / 0.6 M☉)^0.2`
+  (3,500–150,000 K), so most are cool.
+- **Neutron stars**: progenitor 8–20 M☉ (IMF-weighted); surface temperature
+  `10⁶ K · (1 + t_cool / 10⁵ yr)^−0.2`. **Black holes**: older than 6 Myr.
+- **Brown dwarfs** never ignite hydrogen and cool for ever: mass 0.013–0.078 M☉ (dN/dM ∝ M^−0.6),
+  `T_eff = 1,550 K · (M / 0.05 M☉)^0.83 · (t / Gyr)^−0.32`, and the spectral type follows the temperature: young
+  or heavy ones are L dwarfs, old light ones T and Y.
+- **Real stars** get an age estimate from their class the same way (seeded by catalogue ID, the same in every
+  universe; white dwarfs from their temperature). Sol is 4.57 Gyr.
+- **Companions** (§10) were born with the primary: their initial mass is a fraction of the primary's initial mass,
+  and the system's age decides what they are now. In 10% of systems the companion started heavier, if a star that
+  heavy would be dead by now: it is a white dwarf or neutron star, fainter than the primary, like Sirius B.
+
+The planets of a system share its age, which drives their internal heat, atmosphere loss and cratering (§10).
+
 ---
 
 ## 5. Sectors, levels and cells
@@ -361,9 +396,11 @@ stable paths (ARCHITECTURE.md §7): companions `(i + 1) << 24`, a planet `(slot 
   rolled) and roll none of their own. Procedural systems roll for companions, with a probability by primary
   mass: under 0.08 M☉ (brown dwarfs) 15%, under 0.5 M☉ 27%, under 1.3 M☉ 45%, under 3 M☉ 55%, above that 75%;
   neutron stars, black holes and Wolf–Rayet stars 20%. A second companion comes in 15% of those systems.
-  Companion mass is the primary's times a uniform 0.1–1 (at least 0.02 M☉; 8% are white dwarfs unless the
-  primary is one), separation log-normal around `50 AU · M^0.3` (σ = 1.5 dex, 0.05–20,000 AU), eccentricity
-  Rayleigh (σ = 0.3, at most 0.85).
+  A companion's initial mass is the primary's initial mass times a uniform 0.1–1 (at least 0.013 M☉), or in 10%
+  of systems 1–3 times it if such a star would have died by now; the system's age then makes it a brown dwarf, a
+  main-sequence star, a giant (only beside an evolved primary), a white dwarf, a neutron star or a black hole
+  (§4.1). Separation log-normal around `50 AU · M^0.3` (σ = 1.5 dex, 0.05–20,000 AU), eccentricity Rayleigh
+  (σ = 0.3, at most 0.85).
 - **Floors**: a companion's periapsis is at least three times the sum of the two stars' radii. Multiple
   stars form a stable hierarchy: each wider companion's periapsis is at least three times the previous
   companion's apoapsis. A rolled companion that the hierarchy would push out beyond 40,000 AU (0.63 ly) at
