@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Hollow.Core;
 using Hollow.Galaxy;
+using Hollow.Galaxy.Authored;
 using Hollow.Galaxy.Systems;
 
 namespace Hollow.Tests;
@@ -15,7 +16,7 @@ public static class GalaxyTests
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
     private const ulong CellsGolden = 0xF3C42388CE7F958CUL;
     private const ulong SystemsGolden = 0x3672732AE16E55F1UL;
-    private const ulong RealSystemsGolden = 0x3B34458D8352D1D2UL;
+    private const ulong RealSystemsGolden = 0x32A5776B1B463E3BUL;
 
     // ---------------------------------------------------------------- frames
 
@@ -690,6 +691,76 @@ public static class GalaxyTests
         }
         Fixtures.Report($"{checkedSingles} catalogue stars listed alone checked, {withCompanions} with unseen companions");
         Assert.True(withCompanions > 0, "unseen companions occur");
+    }
+
+    [Test]
+    public static void AuthoredSystemsAndRegions()
+    {
+        // GALAXY.md §15: real planets replace generated ones where they are known; real names land on the right stars;
+        // real clusters and nebulae are places with their own names for the systems inside them.
+        Galaxy.Galaxy galaxy = Fixtures.Galaxy;
+        StarCatalogue catalogue = galaxy.Catalogue!;
+        foreach (AuthoredSystem authored in AuthoredLayer.All)
+        {
+            StarSystem system = galaxy.GetSystem(SystemAddress.Catalogue(catalogue.Number, authored.CatalogueId))!;
+            foreach ((int node, string name) in authored.StarNames)
+            {
+                Assert.Equal(name, system.Find(BodyPath.Node(node))?.Name, $"{authored.Name}: node {node} is {name}");
+            }
+            foreach (AuthoredHost host in authored.Hosts)
+            {
+                Body star = system.Find(BodyPath.Node(host.Node))!;
+                List<Body> planets = system.Bodies.Where(b => b.Kind == BodyKind.Planet && b.Parent == star.Index).ToList();
+                Assert.Equal(host.Planets.Length, planets.Count, $"{host.Prefix} has exactly its known planets");
+                for (int i = 0; i < host.Planets.Length; i++)
+                {
+                    Body p = system.Find(BodyPath.Planet(host.Node, i))!;
+                    Assert.True(p.Name == host.Prefix + " " + host.Planets[i].Designation
+                        && Math.Abs(p.Orbit.SemiMajorAxis / Units.MetresPerAu - host.Planets[i].SemiMajorAu) < 1e-9
+                        && Math.Abs(p.Mass / Units.EarthMass - host.Planets[i].MassEarth) < 1e-9 && p.State != null, $"{p.Name} as measured");
+                }
+            }
+        }
+        StarSystem trappist = galaxy.GetSystem(SystemAddress.Catalogue(catalogue.Number, catalogue.FindByName("TRAPPIST-1")!.Id))!;
+        Body trappistE = trappist.Bodies.First(b => b.Name == "TRAPPIST-1 e");
+        Assert.Near(6.10, trappistE.Orbit.Period / Units.SecondsPerDay, 0.15, "TRAPPIST-1 e's year from its star's mass");
+        StarSystem alphaCen = galaxy.GetSystem(SystemAddress.Catalogue(catalogue.Number, catalogue.FindByName("Alpha Centauri")!.Id))!;
+        Body proxima = alphaCen.Bodies.First(b => b.Name == "Proxima Centauri");
+        Assert.True(proxima.Kind == BodyKind.Star && proxima.Mass < 0.2 * Units.SolarMass
+            && alphaCen.Bodies.Any(b => b.Name == "Proxima Centauri b" && b.Parent == proxima.Index), "Proxima b orbits Proxima Centauri, the red dwarf");
+        Body dimidium = galaxy.GetSystem(SystemAddress.Catalogue(catalogue.Number, catalogue.FindByName("51 Pegasi")!.Id))!.Bodies.First(b => b.Name == "51 Pegasi b");
+        Assert.True(dimidium.PlanetType == PlanetType.GasGiant && dimidium.Temperature > 1000, "51 Pegasi b is a hot Jupiter");
+
+        // Regions: names that never read as sector names; systems inside a region (in its home sector) named after it,
+        // and those names parse back.
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (Region r in Regions.All)
+        {
+            Assert.True(names.Add(r.Name) && !SectorNames.TryParse(r.Name, out _, out _, out _) && r.InGrid, $"{r.Name} is a unique region name");
+            Assert.True(galaxy.Search(r.Designation, 5).Any(hit => hit.IsSector && hit.PlaceKind == r.KindName), $"{r.Designation} finds {r.Name}");
+        }
+        Region pleiades = Regions.Named("Pleiades")!;
+        Assert.Near(444, pleiades.Centre.Length, 1, "the Pleiades at 444 ly");
+        int named = 0;
+        for (int level = 5; level < StarClassTable.LevelCount; level++)
+        {
+            foreach (CellKey cell in CellsAround(level, pleiades.Centre, pleiades.Radius))
+            {
+                foreach (GalaxyStar star in galaxy.GenerateProcedural(cell))
+                {
+                    if (Regions.NamingRegion(star.Address, star.Position) != pleiades)
+                    {
+                        continue;
+                    }
+                    string name = galaxy.NameOf(star.Address);
+                    Assert.True(name.StartsWith("Pleiades ", StringComparison.Ordinal) && name == galaxy.NameOf(star), $"{name} carries the region's name");
+                    Assert.True(galaxy.Search(name, 3).Any(hit => hit.Address == star.Address), $"'{name}' finds its system");
+                    named++;
+                }
+            }
+        }
+        Fixtures.Report($"{AuthoredLayer.All.Count} authored systems, {Regions.All.Count} regions, {named} generated systems named after the Pleiades");
+        Assert.True(named > 0, "generated systems in the Pleiades carry its name");
     }
 
     // A generated star's absolute V magnitude, as the generator gives it (GALAXY.md §4.1).

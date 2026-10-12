@@ -376,8 +376,8 @@ ranges (§8.5), so addresses never collide. Supplement systems are always kept, 
   primary's distance, turned about it by an angle from its ID. A separation of 0 means unknown, and the
   generator rolls one.
 
-Contents (28 objects, all within 20 ly, where the procedural generator makes nothing at their level, so nothing
-is counted twice): the brown dwarfs Luhman 16 A and B (6.5 ly, the nearest), WISE 0855−0714 (Y4, 7.4 ly, the
+Contents (30 objects; 28 within 20 ly, where the procedural generator makes nothing at their level, so nothing
+is counted twice, and two farther hosts of famous planets, kept whatever `C` says): the brown dwarfs Luhman 16 A and B (6.5 ly, the nearest), WISE 0855−0714 (Y4, 7.4 ly, the
 coldest known), UGPS J0722−0540, WISE 1741+2553, WISE 1639−6847, DENIS 0255−4700, WISE 1506+7027,
 DENIS J0817−6155, 2MASS 0939−2448 A and B, WISE 0350−5658, 2MASS J1114−2618, 2MASS J0415−0935, WISE 1541−2250,
 2MASS 0937+2931 and SIMP J0136+0933 (a planetary-mass object); the ultracool stars Teegarden's Star,
@@ -385,7 +385,9 @@ SCR 1845−6357 A (with its brown dwarf B), DENIS J1048−3956, 2MASS J1540−51
 companions of HYG stars: Epsilon Indi Ba and Bb (a pair 2.4 AU apart, 1,459 AU from Epsilon Indi A), Gliese 229 Ba
 and Bb (a 12-day pair, 33 AU from Gliese 229) and Gliese 570 D (1,525 AU from Gliese 570 A). Masses that were never
 measured are typical for the type (noted in the file). The nearby white dwarfs (Sirius B, Procyon B, 40 Eridani B,
-Stein 2051 B, van Maanen's Star, Gliese 440, GJ 1221) were already in HYG.
+Stein 2051 B, van Maanen's Star, Gliese 440, GJ 1221) were already in HYG. Farther out: TRAPPIST-1 (M8, 40.7 ly)
+and Kepler-186 (M1, 579 ly), whose planets the authored layer adds (§15); each adds one star to a place the
+generator also fills, which no count can notice.
 
 ### 8.5 AT-HYG
 
@@ -423,7 +425,16 @@ A test checks that every name parses uniquely.
   part: `Bratum Loron 0-0`.
 - `<Level>` is the level digit, `<Index>` the star index.
 
-**Catalogue systems** keep their real names. **Bodies** add designations. In a multiple system the stars are
+**Systems of a named region** (a real cluster or nebula, §15.2) take the region's name in place of the sector's:
+`Pleiades LA-YS 6-0`, `Orion Nebula CG-HK 5-12`. That applies to a procedural system inside the region's sphere
+(the smallest region, where they nest) and in the sector that holds the region's centre, so the name still
+decodes to one address (the region gives the sector, the rest the cell and star); the rare systems of a region
+that straddles a sector border keep their sector name. The sector form of such a system's name still finds it.
+No region name parses as a sector name (a test checks every one). This is Hollow's own format: the region's real
+name followed by Hollow's cell code, with no word in between.
+
+**Catalogue systems** keep their real names, and the authored layer (§15) names stars of famous multiple systems
+(Proxima Centauri, Epsilon Indi Ba and Bb). **Bodies** add designations. In a multiple system the stars are
 `A`, `B`, `C`, … (A is the primary; letters follow the orbit tree, inner members first) and a barycentre is
 named by its stars (`AB`, `ABC`, `BC`). Planets are numbered outward around their host, `1`, `2`, …, after the
 host's letters: `<system> B 3` orbits star B, `<system> AB 1` orbits the pair A and B; moons add `a`, `b`, …
@@ -773,6 +784,11 @@ period; Kepler's equation is solved per frame (Newton's method).
   a white blob.
 - **Glow adaptation**: the sky glow is dimmed by how much brighter the sky around the camera is than at Sol
   (inside the bulge, about 35 times), like an eye adapting.
+- **Named regions** (§15.2): a ring of the region's size, coloured by its kind (emission nebulae red, reflection
+  nebulae blue, dark nebulae dusky, planetary nebulae teal, supernova remnants amber, clusters pale), and its name,
+  from outside the region out to 60 times its radius (at least 2,500 ly), placed by the Labeller after the
+  stars' names. The focus panel names the region the focus is in; a selected star's card gives its region and
+  sector. Search finds regions by name or designation (M42, NGC 7293).
 - **Floating origin**: each block's mesh is stored relative to the block's corner, and the scene is
   re-centred on the focus, so positions stay precise even 60,000 ly from Sol.
 - **Interaction**: drag to rotate, right-drag or WASD to pan, wheel to zoom, click a star to select it,
@@ -825,6 +841,7 @@ period; Kepler's equation is solved per frame (Newton's method).
 | Solar System calibration | The world builder given the inputs of Earth, Venus, Mars, the Moon and Titan, with 20 random inventories each, makes temperate Earths with liquid water, dry hothouse Venuses, cold thin-aired Marses, airless Moons and cold Titans that keep their air (all 20; Titan at least 14). |
 | Orbits | In thousands of systems: neighbouring planets and belts of every host never overlap; both members of every pair balance at its barycentre and keep the radius floor or the hierarchy; circumbinary planets stay beyond 1.5 times the pair's separation, planets of one member inside half the pair's closest approach. |
 | Orbit tree | Paths are unique, decode to their host, slot and moon, and find their body; the stars' centre of mass stays at the origin at any time; triples, planets around companions, circumbinary planets, planets warmed by a companion and moons with atmospheres all occur. |
+| Authored layer | Every authored system's named stars carry their names at the right paths and every authored host has exactly its known planets, at their measured orbits and masses, with a physical state; TRAPPIST-1 e's year comes out at 6.1 days from its star's mass; Proxima b orbits the red dwarf Proxima Centauri; 51 Pegasi b is a hot Jupiter. Every region name is unique, never parses as a sector name, lies in the grid, and its designation finds it; procedural systems inside the Pleiades carry its name and their names find them. |
 | Architecture | Nothing in `src/` references Godot; generation code uses no platform maths, unseeded randomness or clocks. |
 
 ---
@@ -839,6 +856,7 @@ Each stage of the pipeline (ARCHITECTURE.md §9) has its own generator version, 
 | Galaxy | `GeneratorVersion.Galaxy` | density model, cells, primary stars and their physics | 1 |
 | System | `GeneratorVersion.System` | companion stars, planets, moons, rings, belts | 1 |
 | Surface | `GeneratorVersion.Surface` | terrain, biomes, resources (M4; reserved, nothing reads it yet) | 1 |
+| Authored | `AuthoredLayer.Version` | real planets, star names and named regions (§15) | 1 |
 
 A stage's seed is `Hash64(universe seed, stage tag, version)` (tags `GALV`, `SYSV`, `SURV`), and every stream of
 the stage starts from it. So the output of each stage is a function of (universe seed, address, version), as
@@ -846,3 +864,62 @@ ARCHITECTURE.md P1 says, and the stages are independent: a new system version re
 star. While the generator is in development the versions stay at 1 and changes update the golden tests instead
 (AGENTS.md). Once a shard goes live, its versions are frozen and recorded with it; a change to a stage then ships
 as a new version of that stage, for new shards or after a wipe.
+
+The authored layer has a version too, recorded with a shard the same way: it is content rather than a random
+stage, so it seeds nothing, but a shard must keep the planets, names and regions it was opened with.
+
+---
+
+## 15. Authored layer
+
+Hand-written content from public facts, **compiled into the engine** (`Hollow.Galaxy.Authored`) so it can never be
+a missing or different data file, and **versioned** (`AuthoredLayer.Version`, §14). It is applied on top of
+generation and is keyed so nothing else moves: real systems by their **catalogue ID** (the same in HYG and in
+AT-HYG, §8.5) and their bodies by **body path** (§10.1); regions by position. An address is untrusted: anything
+that isn't a known catalogue ID finds nothing. Sol is hand-written on its own (`SolSystem`, §10).
+
+### 15.1 Real systems
+
+An authored system can name its stars and barycentres by node number, and give a host (by node) its **known
+planets**. An authored host has exactly those planets, in slots 0, 1, 2, … (paths `Planet(node, slot)`), named
+`<prefix> <letter>`; nothing is invented around them (no extra planets or belts, and no rings, since none have
+been seen). What was measured is used as it is: mass (the minimum mass where only that is known, or an estimate
+from the radius, as noted in the data), semi-major axis and eccentricity. The period follows from the masses;
+everything else is generated as for any planet, from the planet's own slot stream: spin and tidal lock, axial tilt,
+moons (the usual rules, which leave close-in planets without any) and the whole physical state (§10.3), from the
+real star's light and age.
+
+| System | Host | Planets | Source |
+|---|---|---|---|
+| Alpha Centauri | node 3, named Proxima Centauri | Proxima Centauri d (0.26 M⊕ min., 0.0288 AU), b (1.06 M⊕ min., 0.0485 AU, habitable zone) | Anglada-Escudé et al. 2016; Faria et al. 2022 |
+| Epsilon Indi | nodes 2, 3 and 9 named Ba, Bb and B | (brown dwarfs, §8.4) | Dieterich et al. 2018 |
+| Gliese 229 | nodes 2, 3 and 9 named Ba, Bb and B | (brown dwarfs, §8.4) | Xuan et al. 2024; Whitebook et al. 2024 |
+| Epsilon Eridani (Ran) | 1 | b, 1.0 Jupiter masses at 3.53 AU, e = 0.06 | Llop-Sayson et al. 2021 |
+| 51 Pegasi (Helvetios) | 1 | b (Dimidium), 0.61 Jupiter masses at 0.0523 AU: the first planet found around a Sun-like star | Mayor & Queloz 1995 |
+| Teegarden's Star | 1 | b, c, d (1.16, 1.05, 0.82 M⊕ min.; 0.026–0.079 AU) | Zechmeister et al. 2019; Dreizler et al. 2024 |
+| TRAPPIST-1 | 1 | b–h, seven Earth-sized planets, 0.012–0.062 AU, masses from transit timing | Agol et al. 2021 |
+| Kepler-186 | 1 | b–f, f in the habitable zone at 0.432 AU (masses estimated from radii) | Quintana et al. 2014 |
+
+The star names are tied to node numbers, which follow the orbit tree (§10.1). A test checks that each lands on the
+intended star (Proxima Centauri must be the red dwarf hosting Proxima b), so a generator change that renumbers
+nodes is caught.
+
+### 15.2 Regions
+
+Real clusters and nebulae as objects of the galaxy (`Region`): a name, a designation, a kind, a centre (from
+J2000 coordinates and distance) and a radius (from the apparent size at that distance, rounded up to take in the
+halo). They name the procedural systems inside them (§9), appear on the galaxy map (§11) and in search. 39
+regions:
+
+| Kind | Regions (designation, distance in ly, radius in ly) |
+|---|---|
+| Open clusters | Hyades (Melotte 25, 153, 15), Pleiades (M45, 444, 15), Beehive Cluster (M44, 577, 12), Coma Star Cluster (Melotte 111, 280, 10), Alpha Persei Cluster (Melotte 20, 570, 15), Southern Pleiades (IC 2602, 479, 8), Omicron Velorum Cluster (IC 2391, 500, 6), Ptolemy's Cluster (M7, 980, 12), Butterfly Cluster (M6, 1,600, 6), Shoe-Buckle Cluster (M35, 2,800, 12), Golden Eye Cluster (M67, 2,770, 12), Wild Duck Cluster (M11, 6,200, 20), Double Cluster (NGC 869 and 884, 7,500, 40) |
+| Globular clusters | Hercules Cluster (M13, 22,200, 75), Sagittarius Cluster (M22, 10,600, 50), Spider Cluster (M4, 7,200, 35), Omega Centauri (NGC 5139, 17,090, 75), 47 Tucanae (NGC 104, 14,700, 60) |
+| Emission nebulae | Orion Nebula (M42, 1,344, 12), Lagoon Nebula (M8, 4,100, 40), Eagle Nebula (M16, 5,700, 35), Omega Nebula (M17, 5,500, 9), Trifid Nebula (M20, 5,200, 21), Carina Nebula (NGC 3372, 8,500, 115), Rosette Nebula (NGC 2237, 5,200, 65), North America Nebula (NGC 7000, 2,590, 45), California Nebula (NGC 1499, 1,000, 25), Heart Nebula (IC 1805, 7,500, 80) |
+| Reflection and dark nebulae | M78 Nebula (M78, 1,600, 2), Horsehead Nebula (Barnard 33, 1,375, 2), Coalsack (Caldwell 99, 600, 30), Rho Ophiuchi Cloud (460, 18) |
+| Planetary nebulae | Dumbbell Nebula (M27, 1,360, 1.5), Ring Nebula (M57, 2,570, 1.3), Owl Nebula (M97, 2,030, 1), Helix Nebula (NGC 7293, 655, 2), Cat's Eye Nebula (NGC 6543, 3,300, 0.5) |
+| Supernova remnants | Crab Nebula (M1, 6,500, 5.5), Veil Nebula (Cygnus Loop, 2,400, 55) |
+
+Regions are places, not yet populations: a cluster holds the stars the density model puts there plus its real
+catalogue members (the Pleiades' and Hyades' bright stars are in HYG), not an overdensity of generated members,
+and a nebula has no gas of its own in the generator. Both are follow-ups.

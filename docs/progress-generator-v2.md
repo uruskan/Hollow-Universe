@@ -16,10 +16,13 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what t
 inner disk) and `Galaxy.GetSystem` over the 1,371 real systems within 60 ly. `stats` describes 42,018 procedural
 systems.
 
-| | Before (5581c88) |
-|---|---|
-| Procedural system | 5.9 µs (8.4 bodies, 0.71 µs per body) |
-| Real system (GetSystem) | 4.4 µs |
+| | Before (5581c88) | After item 7 | After item 9 |
+|---|---|---|---|
+| Procedural system | 5.9 µs (8.4 bodies, 0.71 µs per body) | 9.9 µs (10.4 bodies, 0.95 µs per body) | 20.4 µs (10.3 bodies, 1.98 µs per body) |
+| Real system (GetSystem) | 4.4 µs | 5.3 µs | 15.5 µs |
+
+Item 7 (multiple stars, planets around companions and pairs) added bodies; item 6 (the physical state, a climate
+solve per body with air) doubled the cost per body. 20 µs per system is about 50,000 systems a second on one thread.
 
 ---
 
@@ -438,3 +441,57 @@ are projected. Star bodies are still named by letter (Alpha Centauri C); real st
 the authored layer (item 9). The catalogue keeps its name hyg41.bin.gz and number 0: new IDs only extend it.
 
 **Open for the owner.** The AT-HYG download above (and how to ship a 100 MB catalogue).
+
+---
+
+## 9. The authored layer: real planets, real names, named regions
+
+**Changed.**
+- Hollow.Galaxy.Authored (new): hand-written content from public facts, compiled into the engine (never a
+  missing file) and versioned (AuthoredLayer.Version = 1, recorded with a shard like the stage versions).
+  Systems are keyed by catalogue ID (shared by HYG and AT-HYG) and bodies by body path; addresses are untrusted.
+- Real systems: an authored host gets exactly its known planets (measured mass, semi-major axis, eccentricity; the
+  period from the masses; spin, moons and the physical state generated as usual, from the real star), named
+  <prefix> <letter>; no invented planets, belts or rings around them. Star and barycentre names by node. Content:
+  Proxima Centauri b and d (and the name Proxima Centauri for Alpha Centauri's node 3), Epsilon Eridani b,
+  51 Pegasi b, Teegarden's Star b–d, TRAPPIST-1 b–h, Kepler-186 b–f, and the names Epsilon Indi Ba/Bb/B and
+  Gliese 229 Ba/Bb/B. TRAPPIST-1 and Kepler-186 joined the catalogue supplement (99,142 stars, 98,697 systems).
+  Values checked against Wikipedia's planet tables (Agol 2021, Faria 2022, Dreizler 2024, Quintana 2014).
+- Regions (Region, Regions): 39 real clusters and nebulae (13 open clusters, 5 globulars, 10 emission nebulae,
+  a reflection and 3 dark nebulae, 5 planetary nebulae, 2 supernova remnants) with designation, kind, centre from
+  J2000 coordinates and distance (the Messier list and well-known values), and a radius from their apparent size.
+- Names: a procedural system inside a region, in the sector holding the region's centre, is named
+  <Region> <cell> <level>-<index> (Pleiades LA-YS 6-0): the real name, then Hollow's own cell code, with no
+  word between (not Elite's <Region> Sector form, and from no game's table). It parses back to the address; the
+  sector form still finds it. No region name parses as a sector name.
+- Search: regions by name (from three letters) or designation, as places with their kind; region-named systems.
+  SearchResult gained PlaceKind.
+- Client: the galaxy map draws each region as a ring of its size in a colour by kind with its name (through the
+  Labeller, after star names); the focus panel names the region you're in ("Emission nebula in Xelam Lorire");
+  a selected star's card shows its region and sector. Star bodies show authored names in the system map.
+
+**Measured.** Speed unchanged (20.4 µs per procedural system, 15.5 µs per real one; the authored layer is a
+dictionary lookup per real system and a sector check per procedural name). 27 generated systems near the Pleiades
+carry its name. TRAPPIST-1 e: a 6.1-day year, 225 K, airless around its flaring late red dwarf (as JWST found for
+b and c); TRAPPIST-1 g comes out a water world. 51 Pegasi b: a hot Jupiter above 1,000 K.
+
+Screenshots: docs/images/system-trappist-1.jpg (TRAPPIST-1 e selected), docs/images/galaxy-orion-regions.jpg
+(the Orion Nebula, the Horsehead and M78 among Orion's real stars).
+
+New test AuthoredSystemsAndRegions.
+
+**Golden.** Real systems  x3B34458D8352D1D2 →  x32A5776B1B463E3B (Alpha Centauri gets Proxima b and d and
+Proxima's name; Epsilon Indi its names; Epsilon Eridani its real planet). Cells and procedural systems unchanged.
+
+**Decisions.**
+- Authored hosts have only their known planets: inventing planets around real stars would put fiction next to
+  facts; generated moons are allowed (real moons are unknown, and the usual rules leave close-in planets bare).
+- Minimum masses are used as masses (true masses are usually a little larger); Kepler-186's masses are estimates
+  from radii, noted in the data.
+- Regions name only systems in their home sector, so names stay unique and parseable without a second lookup
+  table; a region straddling a sector border keeps the sector name on its far side.
+- Regions are places, not populations yet: no generated cluster overdensity and no nebula gas (follow-ups).
+- Star names by node number are checked by the test, so a generator change that renumbers nodes fails loudly.
+
+**Open for the owner.** Which further real systems and regions to author (the format makes each a few lines);
+whether clusters should get generated member stars and nebulae a visible volume on the galaxy map.

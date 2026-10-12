@@ -191,11 +191,19 @@ public partial class GalaxyMapUi : Control
         return strip;
     }
 
-    public void SetFocus(string sector, Vector3D focus, double cameraDistance)
+    public void SetFocus(string sector, Region? region, Vector3D focus, double cameraDistance)
     {
         bool inside = sector.Length > 0;
-        _region.Text = inside ? sector : "Intergalactic space";
-        _regionKind.Text = inside ? "Sector" : "Outside the sector grid";
+        if (region != null)
+        {
+            _region.Text = region.Name;
+            _regionKind.Text = char.ToUpperInvariant(region.KindName[0]) + region.KindName[1..] + (inside ? " in " + sector : "");
+        }
+        else
+        {
+            _region.Text = inside ? sector : "Intergalactic space";
+            _regionKind.Text = inside ? "Sector" : "Outside the sector grid";
+        }
         _position.Text = $"{Ui.Number(focus.X)}, {Ui.Number(focus.Y)}, {Ui.Number(focus.Z)} ly";
         _fromSol.Text = Ui.Ly(focus.Length);
         _viewWidth.Text = Ui.Ly(cameraDistance * 1.15) + " wide";
@@ -226,7 +234,7 @@ public partial class GalaxyMapUi : Control
             name.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             name.MouseFilter = MouseFilterEnum.Ignore;
             name.VerticalAlignment = VerticalAlignment.Center;
-            Label distance = Ui.Label(result.IsSector ? "sector" : Ui.Ly(result.Position.Length), TextStyle.Caption);
+            Label distance = Ui.Label(result.IsSector ? result.PlaceKind : Ui.Ly(result.Position.Length), TextStyle.Caption);
             distance.AddThemeFontOverride("font", Ui.Tabular);
             distance.MouseFilter = MouseFilterEnum.Ignore;
             distance.VerticalAlignment = VerticalAlignment.Center;
@@ -279,7 +287,7 @@ public partial class GalaxyMapUi : Control
             child.QueueFree();
         }
         Ui.AddRow(_selectionRows, "Distance from Sol", Ui.Ly(star.Position.Length));
-        Ui.AddRow(_selectionRows, "Sector", sector.Length > 0 ? sector : "—", numeric: false);
+        Ui.AddRow(_selectionRows, "Location", sector.Length > 0 ? sector : "—", numeric: false);
         Ui.AddRow(_selectionRows, "Position", $"{Ui.Number(star.Position.X, "N1")}, {Ui.Number(star.Position.Y, "N1")}, {Ui.Number(star.Position.Z, "N1")}");
         if (star.Physics.Temperature > 0)
         {

@@ -194,6 +194,11 @@ Galaxy (density model)
 Each stage is a pure function of (seed, address, version), computed on worker threads and cached (LRU)
 on both server and client. The full specification of the first three stages is in [GALAXY.md](GALAXY.md).
 
+Real content (famous exoplanets, real names of stars, named clusters and nebulae) is an **authored layer** laid
+over the generated stages (GALAXY.md §15): compiled into `Hollow.Galaxy`, versioned like a stage, and keyed by
+catalogue ID and body path for systems and by position for regions, so it replaces exactly what it names and
+moves nothing else.
+
 ---
 
 ## 10. Simulation (server)

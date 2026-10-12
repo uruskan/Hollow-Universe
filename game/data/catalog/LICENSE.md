@@ -24,7 +24,7 @@ The HYG Database is licensed under the **Creative Commons Attribution-ShareAlike
   stars typed as giants, and van Maanen's Star, VB 10 and Wolf 424 B by name), keeping their measured magnitudes;
 - made Proxima Centauri a companion of Alpha Centauri;
 - added Hollow Universe's hand-entered supplement of 28 brown dwarfs and ultracool stars within 20 light-years that
-  HYG lacks (`tools/Hollow.CatalogBuilder/supplement.csv`), from published measurements (positions, parallaxes,
+  HYG lacks, and the planet hosts TRAPPIST-1 and Kepler-186 (`tools/Hollow.CatalogBuilder/supplement.csv`), from published measurements (positions, parallaxes,
   spectral types, masses), which are facts rather than licensed data;
 - stored the result in a compact binary format ("HUSC" v1, gzip-compressed).
 

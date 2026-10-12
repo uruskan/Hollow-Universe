@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Hollow.Core;
+using Hollow.Galaxy.Authored;
 
 namespace Hollow.Galaxy.Systems;
 
@@ -136,7 +137,14 @@ public sealed class SystemGenerator
     /// Generates the system of <paramref name="primary"/>. <paramref name="knownCompanions"/> are real companion
     /// stars from the catalogue (if any); procedural systems roll their own.
     /// </summary>
-    public StarSystem Generate(GalaxyStar primary, string name, IReadOnlyList<GalaxyStar>? knownCompanions = null)
+    public StarSystem Generate(GalaxyStar primary, string name, IReadOnlyList<GalaxyStar>? knownCompanions = null) =>
+        Generate(primary, name, knownCompanions, null);
+
+    /// <summary>
+    /// As above, with a real system's authored content (GALAXY.md §15): names for its stars and barycentres, and the
+    /// known planets of its hosts in place of generated ones.
+    /// </summary>
+    internal StarSystem Generate(GalaxyStar primary, string name, IReadOnlyList<GalaxyStar>? knownCompanions, AuthoredSystem? authored)
     {
         ulong key = Hash64.Of(_seed, Streams.System, primary.Address.Value);
         var layout = new Rng(Hash64.Combine(key, LayoutStream));
@@ -166,15 +174,15 @@ public sealed class SystemGenerator
         Number(root, stars, pairs);
         bool multiple = stars.Count > 1;
 
-        AddStellarBodies(b, root, -1, name, multiple, key);
+        AddStellarBodies(b, root, -1, name, multiple, key, authored);
         double metallicity = primary.Metallicity;
         foreach (Node host in stars)
         {
-            GeneratePlanets(b, host, name, multiple, metallicity, primary.Age, key);
+            GeneratePlanets(b, host, name, multiple, metallicity, primary.Age, key, authored?.HostFor(host.Number));
         }
         foreach (Node host in pairs)
         {
-            GeneratePlanets(b, host, name, multiple, metallicity, primary.Age, key);
+            GeneratePlanets(b, host, name, multiple, metallicity, primary.Age, key, authored?.HostFor(host.Number));
         }
         return system;
     }
@@ -204,8 +212,9 @@ public sealed class SystemGenerator
 
     // Adds a node and everything under it, root first. The two members of a pair orbit the pair's barycentre on
     // opposite sides, each at its share of the separation (the lighter one farther out).
-    private void AddStellarBodies(Builder b, Node node, int parentIndex, string name, bool multiple, ulong key)
+    private void AddStellarBodies(Builder b, Node node, int parentIndex, string name, bool multiple, ulong key, AuthoredSystem? authored)
     {
+        string? authoredName = authored != null && authored.StarNames.TryGetValue(node.Number, out string? real) ? real : null;
         Orbit orbit = default;
         if (node.Parent is Node pair)
         {
@@ -231,7 +240,7 @@ public sealed class SystemGenerator
                 Index = b.Next,
                 Parent = parentIndex,
                 Kind = BodyKind.Star,
-                Name = multiple ? name + " " + node.Letters : name,
+                Name = authoredName ?? (multiple ? name + " " + node.Letters : name),
                 Designation = node.Letters,
                 Path = BodyPath.Node(node.Number),
                 StarClass = node.Class,
@@ -250,15 +259,15 @@ public sealed class SystemGenerator
             Index = b.Next,
             Parent = parentIndex,
             Kind = BodyKind.Barycentre,
-            Name = name + " " + node.Letters,
+            Name = authoredName ?? name + " " + node.Letters,
             Designation = node.Letters,
             Path = BodyPath.Node(node.Number),
             Mass = node.Mass * Units.SolarMass,
             Luminosity = node.Luminosity,
             Orbit = orbit,
         });
-        AddStellarBodies(b, node.Left!, node.BodyIndex, name, multiple, key);
-        AddStellarBodies(b, node.Right!, node.BodyIndex, name, multiple, key);
+        AddStellarBodies(b, node.Left!, node.BodyIndex, name, multiple, key, authored);
+        AddStellarBodies(b, node.Right!, node.BodyIndex, name, multiple, key, authored);
     }
 
     // Separation floor: periapsis at least three times the sum of the two stars' radii.
@@ -569,8 +578,10 @@ public sealed class SystemGenerator
         return flux;
     }
 
-    // The planets, moons and belt of one host: a star (S-type) or a pair (P-type, circumbinary).
-    private static void GeneratePlanets(Builder b, Node host, string name, bool multiple, double metallicity, double age, ulong key)
+    // The planets, moons and belt of one host: a star (S-type) or a pair (P-type, circumbinary). An authored host
+    // (GALAXY.md §15) has exactly its known planets, in their slots 0, 1, 2, … and nothing invented around them.
+    private static void GeneratePlanets(Builder b, Node host, string name, bool multiple, double metallicity, double age, ulong key,
+        AuthoredHost? authored)
     {
         var layout = new Rng(Hash64.Combine(key, HostStream + (ulong)host.Number));
         Node heaviest = host.Heaviest();
@@ -580,6 +591,25 @@ public sealed class SystemGenerator
         double metalFactor = DMath.Pow10(0.3 * metallicity);
         double giantFactor = DMath.Pow10(2.0 * metallicity);
         double massFactor = StellarTables.Clamp(hostMass, 0.3, 2.0);
+        if (authored != null)
+        {
+            var real = new HostContext(host.Number, host.BodyIndex, authored.Prefix, hostMass * Units.SolarMass, luminosity, OuterFlux(host), key)
+            {
+                FormationSnowLine = 2.7 * Math.Sqrt(Math.Max(host.ZamsLuminosity, 1e-7)),
+                Activity = Activity(heaviest.Class, age),
+                StableHost = heaviest.Class.Kind is StarKind.MainSequence or StarKind.Subgiant && heaviest.Class.Letter is 'F' or 'G' or 'K' or 'M',
+                Age = age,
+                MetalFactor = metalFactor,
+            };
+            double previous = 0;
+            for (int i = 0; i < authored.Planets.Length; i++)
+            {
+                AuthoredPlanet planet = authored.Planets[i];
+                var rng = new Rng(Hash64.Combine(key, SlotStream + (ulong)host.Number * 256 + (ulong)i));
+                previous = AddPlanet(b, real, i + 1, i, planet.Formation, planet.SemiMajorAu, previous, double.MaxValue, ref rng, planet);
+            }
+            return;
+        }
 
         // The zone: outside the star (where equilibrium temperatures reach about 1,600 K, so close-in hot worlds
         // exist), or outside the pair's unstable region; out to 50 AU·√M, and inside the stable region around this
@@ -769,7 +799,7 @@ public sealed class SystemGenerator
 
     // Adds a planet and its moons; returns the planet's apoapsis in AU.
     private static double AddPlanet(Builder b, HostContext host, int number, int slot, Formation formation, double semiMajorAu,
-        double previousApoapsisAu, double apoapsisLimitAu, ref Rng rng)
+        double previousApoapsisAu, double apoapsisLimitAu, ref Rng rng, AuthoredPlanet? authored = null)
     {
         bool giant = formation != Formation.Solid;
         double massEarth = formation switch
@@ -778,6 +808,10 @@ public sealed class SystemGenerator
             Formation.IceGiant => rng.LogUniform(8, 40),
             _ => rng.LogUniform(0.02, 10),
         };
+        if (authored != null)
+        {
+            massEarth = authored.MassEarth;
+        }
         double mass = massEarth * Units.EarthMass;
 
         // Orbits never cross: periapsis stays beyond the previous body's apoapsis, apoapsis inside the next orbit.
@@ -789,6 +823,10 @@ public sealed class SystemGenerator
         if (locked)
         {
             eccentricity *= 0.2;
+        }
+        if (authored != null)
+        {
+            eccentricity = authored.Eccentricity;
         }
         double a = semiMajorAu * Au;
         var orbit = new Orbit(a, eccentricity, StellarTables.Clamp(rng.Rayleigh(2 * DMath.DegToRad), 0, 15 * DMath.DegToRad),
@@ -845,7 +883,8 @@ public sealed class SystemGenerator
             PlanetType.GasDwarf => 0.05,
             _ => 0.02,
         };
-        if (rng.Chance(ringChance))
+        // A real planet has no rings unless they have been seen (none have).
+        if (rng.Chance(ringChance) && authored == null)
         {
             ringInner = radius * rng.Range(1.2, 1.6);
             ringOuter = ringInner * rng.Range(1.3, 2.2);
@@ -856,7 +895,7 @@ public sealed class SystemGenerator
         }
 
         uint path = BodyPath.Planet(host.NodeNumber, slot);
-        string designation = number.ToString(CultureInfo.InvariantCulture);
+        string designation = authored?.Designation ?? number.ToString(CultureInfo.InvariantCulture);
         Body planet = b.Add(new Body
         {
             Index = b.Next,

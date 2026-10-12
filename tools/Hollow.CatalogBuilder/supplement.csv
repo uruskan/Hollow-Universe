@@ -27,3 +27,5 @@ id,primary,near,system,name,aliases,ra,dec,parallax_mas,separation_au,spect,teff
 1000026,,,2MASS 0937+2931,2MASS 0937+2931,2MASS J09373487+2931409,09:37:34.9,+29:31:41,167.19,,T7,900,0.040,
 1000027,,,SIMP J0136+0933,SIMP J0136+0933,SIMP J013656.5+093347,01:36:56.5,+09:33:47,163.4478,,T2.5,1100,0.012,a free-floating planetary-mass object
 1000028,,,Teegarden's Star,Teegarden's Star,SO J025300.5+165258|GAT 1370,02:53:00.9,+16:52:53,261.0,,M7V,2900,0.097,
+1000029,,,TRAPPIST-1,TRAPPIST-1,2MASS J23062928-0502285|2MUCD 12171,23:06:29.37,-05:02:29.0,80.2123,,M8V,2566,0.0898,seven Earth-sized planets (authored layer); beyond 20 ly
+1000030,,,Kepler-186,Kepler-186,KOI-571|KIC 8120608,19:54:36.65,+43:57:18.0,5.6336,,M1V,3755,0.544,five planets (authored layer); 579 ly
