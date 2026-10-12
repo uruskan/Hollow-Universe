@@ -3,7 +3,7 @@
     blender -b --factory-startup --python art/build.py              # everything
     blender -b --factory-startup --python art/build.py -- tools     # one script: starter_kit, frontier_rifle,
                                                                      # tin_finch, resources, tools, supplies, clothing,
-                                                                     # deployables, nodes
+                                                                     # deployables, nodes, attachments, props
 
 Then render the icons with Godot (a real window, not --headless):
 
@@ -26,6 +26,8 @@ SCRIPTS = {
     "clothing": "models/clothing.py",
     "deployables": "models/deployables.py",
     "nodes": "models/nodes.py",
+    "attachments": "models/attachments.py",
+    "props": "models/props.py",
 }
 
 wanted = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

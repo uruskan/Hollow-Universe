@@ -18,7 +18,7 @@ from mathutils import Matrix, Vector  # noqa: E402
 
 from hollow import ITEMS, SOURCES, TEXTURES, WORLD, log, script_args  # noqa: E402
 from hollow.godot import write_material  # noqa: E402
-from hollow.kit import TURN_HELD, TURN_WORLD, Conversion, objects_in, snake, world_bounds  # noqa: E402
+from hollow.kit import TURN_HELD, TURN_WORLD, Conversion, mount_sockets, objects_in, snake, world_bounds  # noqa: E402
 from hollow.textures import convert, write_texture_import  # noqa: E402
 
 KIT = SOURCES / "PSG_StarterKit_R02"
@@ -118,6 +118,9 @@ def convert_asset(name, materials):
         pivot = Vector((0, 0, 0))
     matrix = turn @ Matrix.Scale(scale, 4) @ Matrix.Translation(-pivot)
     conv.finish(matrix)
+    if name == "P250":
+        # Attachment mounts (models.json sockets): a sight on the slide, a light under the frame's dust cover.
+        mount_sockets(conv, rail_x=0.035, under_x=0.15, rail_part="Slide")
     return conv.export(folder / f"{key}.glb", materials)
 
 

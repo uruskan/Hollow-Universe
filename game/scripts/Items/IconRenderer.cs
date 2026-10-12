@@ -150,17 +150,16 @@ public partial class IconRenderer : Node
 
     private async Task<Image?> Render(ModelEntry entry)
     {
-        Node3D? model = ModelCatalog.Instantiate(entry.Key);
+        Node3D? model = Arrangement(entry);
         if (model == null)
         {
             return null;
         }
-        ModelCatalog.ForceLod(model, 0);
         _stage.AddChild(model);
 
         Vector3 view = entry.IconView ?? DefaultView(entry.Class);
         var basis = Basis.FromEuler(new Vector3(-view.Y, view.X, view.Z) * (MathF.PI / 180f));
-        List<Vector3> points = ModelCatalog.Points(model);
+        List<Vector3> points = FramedPoints(model, entry.IconCrop);
         if (points.Count == 0)
         {
             model.QueueFree();
@@ -208,14 +207,72 @@ public partial class IconRenderer : Node
         return image;
     }
 
+    /// <summary>
+    /// What the icon shows: the model, or for <c>bundle</c> n a small fan of n of them (a stack of arrows reads better
+    /// than one thin line).
+    /// </summary>
+    private static Node3D? Arrangement(ModelEntry entry)
+    {
+        var holder = new Node3D { Name = entry.Key };
+        int copies = Math.Max(1, entry.IconBundle);
+        for (int i = 0; i < copies; i++)
+        {
+            Node3D? model = ModelCatalog.Instantiate(entry.Key);
+            if (model == null)
+            {
+                holder.QueueFree();
+                return null;
+            }
+            ModelCatalog.ForceLod(model, 0);
+            float t = copies == 1 ? 0 : i / (float)(copies - 1) - 0.5f;
+            // Fanned in the item's side plane (the icon camera looks across it).
+            model.Transform = new Transform3D(new Basis(Vector3.Back, t * 0.2f), new Vector3(-MathF.Abs(t) * 0.05f, t * 0.022f, 0));
+            holder.AddChild(model);
+        }
+        return holder;
+    }
+
+    /// <summary>
+    /// The points the icon is framed on: all of them, or with <c>crop</c> below 1 only the front part of the item
+    /// along its forward axis (+X), so a long thing like a spear shows its head large and runs out of the square.
+    /// </summary>
+    private static List<Vector3> FramedPoints(Node3D holder, float crop)
+    {
+        var points = new List<Vector3>();
+        foreach (Node child in holder.GetChildren())
+        {
+            if (child is Node3D model)
+            {
+                foreach (Vector3 p in ModelCatalog.Points(model))
+                {
+                    points.Add(model.Transform * p);
+                }
+            }
+        }
+        if (crop >= 0.999f || points.Count == 0)
+        {
+            return points;
+        }
+        float lo = float.MaxValue, hi = float.MinValue;
+        foreach (Vector3 p in points)
+        {
+            lo = MathF.Min(lo, p.X);
+            hi = MathF.Max(hi, p.X);
+        }
+        float from = hi - (hi - lo) * crop;
+        return points.FindAll(p => p.X >= from);
+    }
+
     /// <summary>The camera's orbit (yaw, pitch, roll in degrees) for each class when the catalogue gives none.</summary>
     public static Vector3 DefaultView(string modelClass) => modelClass switch
     {
         // Held items point +X: seen from their right side, guns level, tools and long things on a diagonal.
         "gun" => new Vector3(0, 4, 0),
         "tool" => new Vector3(-20, 14, 42),
-        "spear" or "blade" or "bow" or "arrow" => new Vector3(0, 10, -42),
+        "spear" or "arrow" => new Vector3(0, 8, -45),
+        "blade" or "bow" => new Vector3(0, 10, -42),
         "clothing" => new Vector3(18, 12, 0),
+        "attachment" => new Vector3(25, 18, 0),
         "door" => new Vector3(28, 12, 0),
         _ => new Vector3(35, 26, 0),
     };

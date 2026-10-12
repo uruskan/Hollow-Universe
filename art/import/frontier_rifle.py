@@ -18,7 +18,7 @@ from mathutils import Matrix, Vector  # noqa: E402
 
 from hollow import ITEMS, RUSTMVP_ASSETS, TEXTURES  # noqa: E402
 from hollow.godot import write_material  # noqa: E402
-from hollow.kit import TURN_HELD, Conversion, objects_in  # noqa: E402
+from hollow.kit import TURN_HELD, Conversion, mount_sockets, objects_in  # noqa: E402
 from hollow.textures import convert, write_texture_import  # noqa: E402
 
 SOURCE = RUSTMVP_ASSETS / "PSG_FrontierAK_R05"
@@ -66,6 +66,8 @@ def main():
     cameras = {o.name: o for o in bpy.data.objects if o.type == "CAMERA"}
     conv.add_socket("eye", Matrix.Translation(cameras["CAM_ADS"].matrix_world.translation))
     conv.finish(TURN_HELD @ Matrix.Translation(-grip))
+    # Attachment mounts (models.json sockets): optics on the receiver's top cover, a light under the handguard.
+    mount_sockets(conv, rail_x=0.07, under_x=0.33)
     for o in conv.parts["Body"]["lods"]:
         for attr in list(o.data.color_attributes):
             o.data.color_attributes.remove(attr)

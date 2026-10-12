@@ -109,87 +109,99 @@ def berries(key, colour, seed):
 
 
 def tuber(key, roasted, seed):
-    """A long, knobbly root with a purple-brown skin; roasted, it is darker and charred in patches."""
+    """A knobbly, earthy root: a few lumps grown together along a crooked line, side knobs, eyes, rootlets and soil;
+    roasted, it is dark and charred, split open to the pale flesh."""
     m = Model(key, seed=seed, held=True, forward=False)
-    skin = (0.3, 0.15, 0.1) if roasted else (0.62, 0.32, 0.26)
+    skin = (0.27, 0.17, 0.1) if roasted else (0.5, 0.37, 0.25)
 
-    def marks(co, tint):
-        n = noise.noise(co * 55 + Vector((3.1, 1.7, 0.4)), noise_basis="PERLIN_ORIGINAL")
+    def earth(co, tint):
+        n = noise.noise(co * 45 + Vector((3.1, 1.7, 0.4)), noise_basis="PERLIN_ORIGINAL")
+        d = noise.noise(co * 12 + Vector((7.3, 0.2, 5.1)), noise_basis="PERLIN_ORIGINAL")
         if roasted:
-            return [t * (0.3 if n > 0.2 else 1.0) for t in tint]
-        # Pale, earthy blotches on the raw skin.
-        return [t * (1.25 if n > 0.35 else 1.0) for t in tint]
+            return [t * (0.32 if n > 0.15 else 1.0) for t in tint]
+        # Darker soil caked in patches, paler skin where it rubbed clean.
+        k = 0.62 if d > 0.25 else (1.18 if n > 0.4 else 1.0)
+        return [t * k for t in tint]
 
-    body = m.blob((0.16, 0.06, 0.056), (0, 0, 0.03), (0, 0, 8), subdivisions=4, rough=0.06, freq=3.5, tile=LEATHER,
-                  tint=skin, metres=0.12, vary=0.15, vary_scale=40, tint_fn=marks, flatten=-0.75, sharp=0)
-    for v in body.data.vertices:
-        t = v.co.x / 0.08
-        # Tapered at both ends, fuller toward one, a little bent.
-        k = max(0.0, 1 - abs(t) ** 3.2) ** 0.6 * (1 + 0.18 * t)
-        v.co.y *= max(0.08, k)
-        v.co.z = (v.co.z - 0.03) * max(0.08, k) + 0.03 + 0.012 * (1 - t * t) * 0 + 0.008 * t * t
-        # Eyes: small dimples.
-        e = noise.voronoi(v.co * 70, distance_metric="DISTANCE")[0][0]
-        if e < 0.12:
-            v.co.y *= 0.97
-            v.co.z = 0.03 + (v.co.z - 0.03) * 0.97
+    lumps = [((-0.055, 0.0, 0.03), 0.062, 0.055), ((-0.01, 0.006, 0.033), 0.072, 0.064), ((0.04, -0.004, 0.03), 0.058, 0.052),
+             ((0.075, 0.01, 0.025), 0.038, 0.034), ((-0.02, 0.036, 0.03), 0.034, 0.03), ((0.022, -0.032, 0.026), 0.03, 0.028),
+             ((-0.07, -0.026, 0.022), 0.026, 0.024)]
+    for i, (at, length, width) in enumerate(lumps):
+        m.blob((length, width, width * 0.9), at, (m.rng.uniform(-15, 15), m.rng.uniform(-10, 10), m.rng.uniform(0, 360)),
+               subdivisions=3, rough=0.14, freq=3.6, facets=0.12, material=ROCK, tint=skin, metres=0.08, vary=0.12,
+               vary_scale=40, tint_fn=earth, flatten=-0.75 if i < 4 else None, sharp=0)
     if not roasted:
-        for i in range(7):
-            x = m.rng.uniform(-0.065, 0.06)
+        for _ in range(9):
+            at, length, width = m.rng.choice(lumps[:4])
             a = m.rng.uniform(0, 2 * math.pi)
-            start = Vector((x, math.cos(a) * 0.024, 0.03 + math.sin(a) * 0.022))
-            end = start + Vector((m.rng.uniform(-0.008, 0.008), math.cos(a) * 0.012, math.sin(a) * 0.008 - 0.004))
-            m.tube([start, (start + end) / 2 + Vector((0, 0, -0.003)), end], 0.0008, sides=4, tile=LEATHER, tint=(0.55, 0.42, 0.32), metres=0.05)
-        m.cylinder(0.0055, 0.016, (0.085, 0.0, 0.036), (0, 70, 0), sides=8, tile=TIMBER, tint=(0.42, 0.46, 0.26), metres=0.05)
+            start = Vector(at) + Vector((m.rng.uniform(-0.3, 0.3) * length, math.cos(a) * width * 0.45, math.sin(a) * width * 0.4))
+            end = start + Vector((m.rng.uniform(-0.01, 0.01), math.cos(a) * 0.018, math.sin(a) * 0.012 - 0.008))
+            m.tube([start, (start + end) / 2 + Vector((0, 0, -0.003)), end], 0.0009, sides=4, tile=LEATHER, tint=(0.5, 0.4, 0.3), metres=0.05)
+        m.cylinder(0.006, 0.018, (-0.085, 0.004, 0.04), (0, -70, 0), sides=8, tile=TIMBER, tint=(0.4, 0.4, 0.24), metres=0.05)
     else:
-        # The roasted skin has split along the top, showing the soft yellow inside.
-        m.blob((0.07, 0.016, 0.006), (0.005, 0.0, 0.0575), (0, 0, 8), subdivisions=2, rough=0.15, freq=4, tile=PARCHMENT,
-               tint=(1.0, 0.78, 0.36), metres=0.06, sharp=0)
+        # The skin split along the top, showing the soft, pale inside.
+        m.blob((0.06, 0.014, 0.008), (-0.008, 0.006, 0.062), (0, 0, 10), subdivisions=2, rough=0.15, freq=4, tile=PARCHMENT,
+               tint=(1.0, 0.82, 0.48), metres=0.06, sharp=0)
     m.export(floor=True)
 
 
-def cartridge(m, at, rot, case=0.019, neck=None, r=0.0048, bullet=0.011):
-    """A round standing on local Z: brass case (bottlenecked when `neck` is given) and a copper bullet."""
+def cartridge(m, at, rot, case=0.019, neck=None, r=0.0048, bullet=0.011, tip=None):
+    """A round standing on local Z: brass case (bottlenecked when `neck` is given) and a copper bullet, its tip painted
+    `tip` when given (the ammunition's type)."""
     if neck:
         prof = [(0.0, 0.0), (r * 1.02, 0.0), (r * 1.02, 0.0015), (r * 0.9, 0.0022), (r, 0.003), (r * 0.95, case * 0.72),
                 (neck, case * 0.82), (neck, case), (0.0, case)]
     else:
         prof = [(0.0, 0.0), (r * 1.02, 0.0), (r * 1.02, 0.0012), (r * 0.9, 0.0018), (r, 0.0025), (r, case), (0.0, case)]
-    bm_rot = rot
-    m.lathe(prof, at, bm_rot, sides=14, tile=STEEL, tint=BRASS, metres=0.05, sharp=30)
+    m.lathe(prof, at, rot, sides=14, tile=STEEL, tint=BRASS, metres=0.05, sharp=30)
     rb = neck or r * 0.94
-    tip = [(rb, case - 0.001), (rb, case + bullet * 0.35), (rb * 0.8, case + bullet * 0.75), (0.0, case + bullet)]
-    m.lathe(tip, at, bm_rot, sides=14, tile=STEEL, tint=COPPER, metres=0.05, sharp=60)
+    if tip is None:
+        m.lathe([(rb, case - 0.001), (rb, case + bullet * 0.35), (rb * 0.8, case + bullet * 0.75), (0.0, case + bullet)], at, rot,
+                sides=14, tile=STEEL, tint=COPPER, metres=0.05, sharp=60)
+    else:
+        m.lathe([(0.0, case - 0.001), (rb, case - 0.001), (rb, case + bullet * 0.35), (rb * 0.88, case + bullet * 0.6),
+                 (0.0, case + bullet * 0.6)], at, rot, sides=14, tile=STEEL, tint=COPPER, metres=0.05, sharp=60)
+        m.lathe([(0.0, case + bullet * 0.6), (rb * 0.88, case + bullet * 0.6), (rb * 0.8, case + bullet * 0.75),
+                 (0.0, case + bullet)], at, rot, sides=14, tile=IVORY, tint=tip, metres=0.05, sharp=60)
 
 
-def pistol_ammo(seed=65):
-    m = Model("pistol-ammo", seed=seed)
+RED = (0.78, 0.2, 0.16)
+BLUE = (0.16, 0.34, 0.78)
+ORANGE = (0.95, 0.42, 0.08)
+
+
+def pistol_ammo(key="pistol-ammo", band=RED, tip=None, seed=65):
+    m = Model(key, seed=seed)
     w, d, h = 0.085, 0.056, 0.036
     card = (0.86, 0.68, 0.46)
     m.box((w, d, h), (0, 0, h / 2), bevel=0.0012, tile=PARCHMENT, tint=card, metres=0.15)
-    # The lid folded back, and a printed band.
+    # The lid folded back, and a printed band in the ammunition's colour.
     m.box((w, 0.0016, d * 0.9), (0, d / 2 + 0.006, h + d * 0.42), (-12, 0, 0), bevel=0.0006, tile=PARCHMENT, tint=card, metres=0.15)
-    m.box((w * 1.002, d * 1.002, 0.012), (0, 0, h * 0.45), bevel=0.0006, tile=IVORY, tint=(0.78, 0.2, 0.16), metres=0.1)
+    m.box((w * 1.002, d * 1.002, 0.012), (0, 0, h * 0.45), bevel=0.0006, tile=IVORY, tint=band, metres=0.1)
+    m.box((w * 0.98, 0.0014, d * 0.2), (0, d / 2 + 0.0055, h + d * 0.62), (-12, 0, 0), bevel=0.0, tile=IVORY, tint=band, metres=0.1)
     for i in range(4):
         for j in range(3):
-            cartridge(m, (-0.03 + i * 0.02, -0.016 + j * 0.016, h - 0.012), (0, 0, 0))
-    cartridge(m, (0.012, -0.05, 0.0048), (90, 0, 70))
-    cartridge(m, (-0.022, -0.046, 0.0048), (90, 0, 115))
+            cartridge(m, (-0.03 + i * 0.02, -0.016 + j * 0.016, h - 0.012), (0, 0, 0), tip=tip)
+    cartridge(m, (0.012, -0.05, 0.0048), (90, 0, 70), tip=tip)
+    cartridge(m, (-0.022, -0.046, 0.0048), (90, 0, 115), tip=tip)
     m.export()
 
 
-def rifle_ammo(seed=67):
-    m = Model("rifle-ammo", seed=seed)
-    # An olive tin with a hinged lid standing open, rounds lying in a row on top of a cloth.
+def rifle_ammo(key="rifle-ammo", band=None, tip=None, seed=67):
+    m = Model(key, seed=seed)
+    # An olive tin with a hinged lid standing open, rounds lying in a row on top; special rounds have a painted band.
     w, d, h = 0.11, 0.06, 0.05
     olive = (0.72, 0.78, 0.52)
     m.box((w, d, h), (0, 0, h / 2), bevel=0.003, tile=TEAL, tint=olive, metres=0.2)
     m.box((w + 0.004, d + 0.004, 0.006), (0, 0, h - 0.004), bevel=0.0015, tile=TEAL, tint=(0.6, 0.66, 0.44), metres=0.2)
     m.box((w + 0.004, 0.004, d * 0.95), (0, d / 2 + 0.006, h + d * 0.46), (-8, 0, 0), bevel=0.0015, tile=TEAL, tint=olive, metres=0.2)
     m.box((0.03, 0.008, 0.006), (0, -d / 2 - 0.003, h * 0.75), bevel=0.0015, tile=GUNMETAL, tint=(0.9, 0.9, 0.9), metres=0.05)
+    if band:
+        m.box((w + 0.002, d + 0.002, 0.013), (0, 0, h * 0.42), bevel=0.001, tile=IVORY, tint=band, metres=0.1)
+        m.box((w * 0.9, 0.0045, 0.012), (0, d / 2 + 0.0085, h + d * 0.5), (-8, 0, 0), bevel=0.0005, tile=IVORY, tint=band, metres=0.1)
     for i in range(5):
-        cartridge(m, (-0.04 + i * 0.02, -0.002, h + 0.0045), (-90, 0, 0), case=0.039, neck=0.0041, r=0.0056, bullet=0.017)
-    cartridge(m, (0.03, -0.062, 0.0056), (90, 0, 75), case=0.039, neck=0.0041, r=0.0056, bullet=0.017)
+        cartridge(m, (-0.04 + i * 0.02, -0.002, h + 0.0045), (-90, 0, 0), case=0.039, neck=0.0041, r=0.0056, bullet=0.017, tip=tip)
+    cartridge(m, (0.03, -0.062, 0.0056), (90, 0, 75), case=0.039, neck=0.0041, r=0.0056, bullet=0.017, tip=tip)
     m.export()
 
 
@@ -215,7 +227,12 @@ ALL = {"bandage": bandage, "medical-injector": injector,
        "red-berries": lambda: berries("red-berries", (0.62, 0.05, 0.06), 71),
        "blue-berries": lambda: berries("blue-berries", (0.13, 0.16, 0.42), 73),
        "wild-tuber": lambda: tuber("wild-tuber", False, 75), "roasted-tuber": lambda: tuber("roasted-tuber", True, 77),
-       "pistol-ammo": pistol_ammo, "rifle-ammo": rifle_ammo, "key-lock": key_lock}
+       "pistol-ammo": lambda: pistol_ammo(),
+       "pistol-ammo-hv": lambda: pistol_ammo("pistol-ammo-hv", band=BLUE, tip=BLUE, seed=79),
+       "rifle-ammo": lambda: rifle_ammo(),
+       "rifle-ammo-hv": lambda: rifle_ammo("rifle-ammo-hv", band=BLUE, tip=BLUE, seed=81),
+       "rifle-ammo-incendiary": lambda: rifle_ammo("rifle-ammo-incendiary", band=ORANGE, tip=(0.85, 0.12, 0.06), seed=83),
+       "key-lock": key_lock}
 
 for key in script_args() or list(ALL):
     ALL[key]()

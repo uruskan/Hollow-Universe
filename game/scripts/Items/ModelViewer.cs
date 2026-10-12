@@ -14,7 +14,7 @@ namespace HollowUniverse.Items;
 /// LODs by distance, Space pauses the turntable, F shows a held item in first person at its catalogue pose, the mouse
 /// wheel zooms. Options: <c>--stage n</c>, <c>--lod n</c>, <c>--yaw deg</c> (the turntable's angle, paused, for a
 /// screenshot), <c>--zoom f</c> (the turntable camera's distance, 1 fits the model), <c>--anim name</c> (play one of
-/// the model's clips; H plays the next), <c>--first-person</c>,
+/// the model's clips; H plays the next), <c>--attach a,b</c> (mount attachments on a gun), <c>--first-person</c>,
 /// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera).
 /// </summary>
 public partial class ModelViewer : Node3D
@@ -188,11 +188,28 @@ public partial class ModelViewer : Node3D
             model.Position = new Vector3(0, -bounds.Position.Y, 0);
         }
         pivot.AddChild(model);
+        Mount(entry, model);
         ApplyLod(model);
         PlayClip(model);
         _shown = pivot;
         _shownBounds = ModelCatalog.LocalBounds(model);
         _shownBounds.Position += model.Position;
+    }
+
+    /// <summary>Mounts the attachments named by <c>--attach a,b</c> on a gun at their sockets (catalogue slots).</summary>
+    private void Mount(ModelEntry entry, Node3D model)
+    {
+        if (!Options.TryGetValue("attach", out string? list))
+        {
+            return;
+        }
+        foreach (string key in list.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (ModelCatalog.Attach(model, entry.Key, key) == null)
+            {
+                GD.PushWarning($"--attach: {key} doesn't fit {entry.Key}");
+            }
+        }
     }
 
     /// <summary>
@@ -235,6 +252,7 @@ public partial class ModelViewer : Node3D
         {
             return;
         }
+        Mount(entry, model);
         ModelCatalog.ForceLod(model, 0);
         model.Transform = entry.Held!.FirstPerson.Transform;
         _camera.AddChild(model);

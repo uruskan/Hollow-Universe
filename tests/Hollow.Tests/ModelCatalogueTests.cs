@@ -26,7 +26,10 @@ public static class ModelCatalogueTests
         "workbench-1", "workbench-2", "workbench-3",
         "building-plan", "hammer", "claim-device", "key-lock", "code-lock", "wooden-door", "metal-door", "armoured-door",
         "double-door", "garage-door", "ladder", "pistol", "rifle", "pistol-ammo", "rifle-ammo", "timed-charge",
-        "vehicle-workbench", "engineering-workbench",
+        "vehicle-workbench", "engineering-workbench", "bed",
+        // G4: attachments and ammunition types.
+        "holo-sight", "scope", "silencer", "weapon-light", "muzzle-brake", "pistol-ammo-hv", "rifle-ammo-hv",
+        "rifle-ammo-incendiary",
     };
 
     // World objects the gathering rules place (gather.json) and the ship.
@@ -34,6 +37,8 @@ public static class ModelCatalogueTests
     {
         "stone-node", "metal-node", "sulphur-node", "wood-pile", "stone-pile", "metal-pile", "sulphur-pile",
         "loot-sack", "dropped-bag", "tin-finch",
+        // G7 props.
+        "loot-barrel-1", "loot-barrel-2", "loot-crate", "military-crate", "recycler",
     };
 
     [Test]
@@ -45,6 +50,8 @@ public static class ModelCatalogueTests
         string iconPattern = icons.GetProperty("path").GetString()!;
         int[] sizes = icons.GetProperty("sizes").EnumerateArray().Select(s => s.GetInt32()).ToArray();
         var keys = new HashSet<string>(StringComparer.Ordinal);
+        var slots = new HashSet<string>(StringComparer.Ordinal);
+        var mounts = new HashSet<string>(StringComparer.Ordinal);
         int files = 0, iconFiles = 0;
         foreach (JsonElement m in doc.RootElement.GetProperty("models").EnumerateArray())
         {
@@ -89,8 +96,21 @@ public static class ModelCatalogueTests
                         Assert.True(nodes.Contains("socket_" + off.GetString()), $"{key}: no socket_{off.GetString()} for the other hand");
                     }
                 }
+                // A gun's attachment sockets are nodes of its file.
+                if (m.TryGetProperty("sockets", out JsonElement sockets))
+                {
+                    foreach (JsonProperty socket in sockets.EnumerateObject())
+                    {
+                        Assert.True(nodes.Contains(socket.Value.GetString()!), $"{key}: no {socket.Value.GetString()} node for the {socket.Name} slot");
+                        mounts.Add(socket.Name);
+                    }
+                }
                 CheckImport(game, key, path, materials);
                 files++;
+            }
+            if (m.TryGetProperty("slot", out JsonElement slot))
+            {
+                slots.Add(slot.GetString()!);
             }
             if (m.TryGetProperty("icon", out JsonElement icon) && !icon.TryGetProperty("key", out _))
             {
@@ -104,6 +124,10 @@ public static class ModelCatalogueTests
                     iconFiles++;
                 }
             }
+        }
+        foreach (string slot in slots)
+        {
+            Assert.True(mounts.Contains(slot), $"no gun has a socket for the {slot} slot");
         }
         foreach (string key in RequiredItems.Concat(RequiredWorld))
         {

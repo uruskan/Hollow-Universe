@@ -31,13 +31,20 @@ public sealed record ModelEntry(
     bool Collision,
     string? IconKey,
     Vector3? IconView,
+    float IconCrop,
+    int IconBundle,
     HeldInfo? Held,
     float DropScale,
     float[]? LodDistances,
     string Source,
-    string? StandIn)
+    string? StandIn,
+    string? Slot,
+    IReadOnlyDictionary<string, string> Sockets)
 {
     public bool IsItem => Kind == "item";
+
+    /// <summary>An attachment (<see cref="Slot"/> sight, muzzle or under) mounts on a weapon's socket for that slot.</summary>
+    public bool IsAttachment => Slot != null;
 
     /// <summary>Resource nodes have one file per depletion stage; everything else has one.</summary>
     public int Stages => Files.Count;
@@ -116,6 +123,33 @@ public static class ModelCatalog
         float[] distances = entry.LodDistances ?? DefaultLodDistances(LocalBounds(root, 0));
         SetLodRanges(root, distances);
         return root;
+    }
+
+    /// <summary>
+    /// Mounts an attachment on a weapon instance: the attachment's pivot (its mount point, +X along the barrel) goes
+    /// on the weapon's socket for the attachment's slot (<c>sockets</c> in the catalogue). Returns the attachment, or
+    /// null when either is unknown or the weapon has no such socket.
+    /// </summary>
+    public static Node3D? Attach(Node3D weapon, string weaponKey, string attachmentKey)
+    {
+        ModelEntry? gun = Find(weaponKey);
+        ModelEntry? part = Find(attachmentKey);
+        if (gun == null || part?.Slot == null || !gun.Sockets.TryGetValue(part.Slot, out string? socketName))
+        {
+            return null;
+        }
+        if (weapon.FindChild(socketName, true, false) is not Node3D socket)
+        {
+            return null;
+        }
+        Node3D? attachment = Instantiate(attachmentKey);
+        if (attachment == null)
+        {
+            return null;
+        }
+        attachment.Name = part.Slot;
+        socket.AddChild(attachment);
+        return attachment;
     }
 
     /// <summary>LOD switch distances from a model's size: LOD1, LOD2, and where it disappears (0: never).</summary>
@@ -362,12 +396,22 @@ public static class ModelCatalog
         }
         string? iconKey = null;
         Vector3? iconView = null;
+        float iconCrop = 1f;
+        int iconBundle = 1;
         if (m.TryGetProperty("icon", out JsonElement icon))
         {
             iconKey = icon.TryGetProperty("key", out JsonElement ik) ? ik.GetString() : key;
             if (icon.TryGetProperty("view", out JsonElement iv))
             {
                 iconView = Vec(iv);
+            }
+            if (icon.TryGetProperty("crop", out JsonElement ic))
+            {
+                iconCrop = ic.GetSingle();
+            }
+            if (icon.TryGetProperty("bundle", out JsonElement ib))
+            {
+                iconBundle = ib.GetInt32();
             }
         }
         HeldInfo? held = null;
@@ -396,11 +440,28 @@ public static class ModelCatalog
             m.TryGetProperty("collision", out JsonElement col) && col.GetString() != "none",
             iconKey,
             iconView,
+            iconCrop,
+            iconBundle,
             held,
             m.TryGetProperty("drop", out JsonElement drop) && drop.TryGetProperty("scale", out JsonElement ds) ? ds.GetSingle() : 1f,
             lodDistances,
             m.TryGetProperty("source", out JsonElement src) ? src.GetString() ?? "" : "",
-            m.TryGetProperty("standIn", out JsonElement si) ? si.GetString() : null);
+            m.TryGetProperty("standIn", out JsonElement si) ? (si.ValueKind == JsonValueKind.String ? si.GetString() : si.ToString()) : null,
+            m.TryGetProperty("slot", out JsonElement slot) ? slot.GetString() : null,
+            SocketsOf(m));
+    }
+
+    private static Dictionary<string, string> SocketsOf(JsonElement m)
+    {
+        var sockets = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (m.TryGetProperty("sockets", out JsonElement s))
+        {
+            foreach (JsonProperty p in s.EnumerateObject())
+            {
+                sockets[p.Name] = p.Value.GetString()!;
+            }
+        }
+        return sockets;
     }
 
     private static Pose PoseOf(JsonElement parent, string name)
