@@ -110,8 +110,18 @@ class Model:
         self.count += 1
         me = bpy.data.meshes.new(f"{self.key}_{self.count}")
         bm.normal_update()
-        bm.to_mesh(me)
+        # A canonical face order, each face starting at its lowest vertex: some bmesh operators (solidify) emit faces
+        # in memory-address order, which would make every build write a different file.
+        verts = [v.co.copy() for v in bm.verts]
+        bm.verts.index_update()
+        faces = []
+        for f in bm.faces:
+            vs = [v.index for v in f.verts]
+            k = vs.index(min(vs))
+            faces.append(vs[k:] + vs[:k])
+        faces.sort()
         bm.free()
+        me.from_pydata(verts, [], faces)
         o = bpy.data.objects.new(me.name, me)
         self.work.objects.link(o)
         if scale is not None:
