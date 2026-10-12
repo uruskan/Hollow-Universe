@@ -40,17 +40,87 @@ public sealed record CharacterRecord
     public byte Health { get; init; }
 
     public long SavedAtUnixMilliseconds { get; init; }
+
+    /// <summary>Died and not yet respawned (G2).</summary>
+    public bool Dead { get; init; }
+
+    /// <summary>The survival state (vitals, inventory, crafting queue, timers) as <see cref="WorldCodec"/> writes it; null before G2.</summary>
+    public byte[]? State { get; init; }
+
+    // Records compare by value, the state's bytes included.
+    public bool Equals(CharacterRecord? other) =>
+        other is not null && Id == other.Id && AccountId == other.AccountId && Name == other.Name && SystemAddress == other.SystemAddress &&
+        BodyPath == other.BodyPath && BodyX.Equals(other.BodyX) && BodyY.Equals(other.BodyY) && BodyZ.Equals(other.BodyZ) &&
+        Yaw.Equals(other.Yaw) && Pitch.Equals(other.Pitch) && Stance == other.Stance && Health == other.Health &&
+        SavedAtUnixMilliseconds == other.SavedAtUnixMilliseconds && Dead == other.Dead &&
+        (State == null ? other.State == null : other.State != null && State.AsSpan().SequenceEqual(other.State));
+
+    public override int GetHashCode() => HashCode.Combine(Id, AccountId, Name, SystemAddress, BodyPath, BodyX, BodyY, BodyZ);
+}
+
+/// <summary>A stored static thing of a body (G2): a deployable, a dropped item or a corpse, encoded by <see cref="WorldCodec"/>.</summary>
+public sealed record ThingRecord
+{
+    public EntityId Id { get; init; }
+
+    public ulong SystemAddress { get; init; }
+
+    public uint BodyPath { get; init; }
+
+    /// <summary>What it is (<c>StaticKind</c>), and the codec's bytes.</summary>
+    public byte Kind { get; init; }
+
+    public byte[] Data { get; init; } = Array.Empty<byte>();
+}
+
+/// <summary>A stored change to a natural object (ARCHITECTURE.md §7: only overrides are stored).</summary>
+public readonly record struct NaturalRecord(ulong ObjectId, float Health, ushort WeakSpotMoves, bool Depleted, long RespawnAtUnixMilliseconds);
+
+/// <summary>Everything stored about one body's zone, as loaded at start.</summary>
+public sealed class ZoneRecord
+{
+    public List<CharacterRecord> Characters { get; } = new();
+
+    public List<ThingRecord> Things { get; } = new();
+
+    public List<NaturalRecord> Naturals { get; } = new();
+
+    /// <summary>The zone's own state (world time) from the last save, or null.</summary>
+    public byte[]? Meta { get; set; }
+}
+
+/// <summary>A save of a zone in one transaction: what changed and what went.</summary>
+public sealed class ZoneSave
+{
+    public ulong SystemAddress { get; init; }
+
+    public uint BodyPath { get; init; }
+
+    public long SavedAtUnixMilliseconds { get; init; }
+
+    public List<CharacterRecord> Characters { get; } = new();
+
+    public List<ThingRecord> Things { get; } = new();
+
+    public List<EntityId> RemovedThings { get; } = new();
+
+    public List<NaturalRecord> Naturals { get; } = new();
+
+    public List<ulong> RemovedNaturals { get; } = new();
+
+    public byte[]? Meta { get; set; }
 }
 
 /// <summary>
-/// The ground game's SQLite database (ARCHITECTURE.md §13): accounts and characters. Opening it brings an older
-/// schema up to <see cref="SchemaVersion"/> (kept in <c>PRAGMA user_version</c>) and refuses a newer one. Not
-/// thread-safe: <see cref="PersistenceWorker"/> owns it on one thread.
+/// The ground game's SQLite database (ARCHITECTURE.md §13): accounts, characters, and from G2 the static things,
+/// natural object overrides and zone metadata of each body. Opening it brings an older schema up to
+/// <see cref="SchemaVersion"/> (kept in <c>PRAGMA user_version</c>) and refuses a newer one. Not thread-safe:
+/// <see cref="PersistenceWorker"/> owns it on one thread.
 /// </summary>
 public sealed class GameDatabase : IDisposable
 {
     /// <summary>The schema this build writes. Each step up is a migration in <see cref="Migrations"/>.</summary>
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     private static readonly string[] Migrations =
     {
@@ -77,7 +147,42 @@ public sealed class GameDatabase : IDisposable
             saved_at INTEGER NOT NULL
         );
         """,
+        // 1 → 2 (G2): characters' survival state; static things, natural overrides and zone metadata per body.
+        """
+        ALTER TABLE characters ADD COLUMN dead INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE characters ADD COLUMN state BLOB;
+        CREATE INDEX characters_body ON characters(system_address, body_path);
+        CREATE TABLE things (
+            id INTEGER PRIMARY KEY,
+            system_address INTEGER NOT NULL,
+            body_path INTEGER NOT NULL,
+            kind INTEGER NOT NULL,
+            data BLOB NOT NULL,
+            saved_at INTEGER NOT NULL
+        );
+        CREATE INDEX things_body ON things(system_address, body_path);
+        CREATE TABLE natural_overrides (
+            system_address INTEGER NOT NULL,
+            body_path INTEGER NOT NULL,
+            object_id INTEGER NOT NULL,
+            health REAL NOT NULL,
+            weak_spot_moves INTEGER NOT NULL,
+            depleted INTEGER NOT NULL,
+            respawn_at INTEGER NOT NULL,
+            PRIMARY KEY (system_address, body_path, object_id)
+        );
+        CREATE TABLE zones (
+            system_address INTEGER NOT NULL,
+            body_path INTEGER NOT NULL,
+            saved_at INTEGER NOT NULL,
+            data BLOB,
+            PRIMARY KEY (system_address, body_path)
+        );
+        """,
     };
+
+    private const string CharacterColumns =
+        "id, account_id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at, dead, state";
 
     private readonly SqliteConnection _connection;
 
@@ -149,33 +254,46 @@ public sealed class GameDatabase : IDisposable
     public CharacterRecord? LoadCharacter(long accountId)
     {
         using SqliteCommand command = _connection.CreateCommand();
-        command.CommandText = """
-            SELECT id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at
-            FROM characters WHERE account_id = $account
-            """;
+        command.CommandText = $"SELECT {CharacterColumns} FROM characters WHERE account_id = $account";
         command.Parameters.AddWithValue("$account", accountId);
         using SqliteDataReader reader = command.ExecuteReader();
-        if (!reader.Read())
-        {
-            return null;
-        }
-        return new CharacterRecord
-        {
-            Id = new EntityId(unchecked((ulong)reader.GetInt64(0))),
-            AccountId = accountId,
-            Name = reader.GetString(1),
-            SystemAddress = unchecked((ulong)reader.GetInt64(2)),
-            BodyPath = unchecked((uint)reader.GetInt64(3)),
-            BodyX = reader.GetDouble(4),
-            BodyY = reader.GetDouble(5),
-            BodyZ = reader.GetDouble(6),
-            Yaw = (float)reader.GetDouble(7),
-            Pitch = (float)reader.GetDouble(8),
-            Stance = (byte)reader.GetInt64(9),
-            Health = (byte)reader.GetInt64(10),
-            SavedAtUnixMilliseconds = reader.GetInt64(11),
-        };
+        return reader.Read() ? ReadCharacter(reader) : null;
     }
+
+    /// <summary>Every character on a body (at start, they all come back as sleepers or the dead).</summary>
+    public List<CharacterRecord> LoadCharacters(ulong systemAddress, uint bodyPath)
+    {
+        using SqliteCommand command = _connection.CreateCommand();
+        command.CommandText = $"SELECT {CharacterColumns} FROM characters WHERE system_address = $system AND body_path = $body ORDER BY id";
+        command.Parameters.AddWithValue("$system", unchecked((long)systemAddress));
+        command.Parameters.AddWithValue("$body", (long)bodyPath);
+        using SqliteDataReader reader = command.ExecuteReader();
+        var result = new List<CharacterRecord>();
+        while (reader.Read())
+        {
+            result.Add(ReadCharacter(reader));
+        }
+        return result;
+    }
+
+    private static CharacterRecord ReadCharacter(SqliteDataReader reader) => new()
+    {
+        Id = new EntityId(unchecked((ulong)reader.GetInt64(0))),
+        AccountId = reader.GetInt64(1),
+        Name = reader.GetString(2),
+        SystemAddress = unchecked((ulong)reader.GetInt64(3)),
+        BodyPath = unchecked((uint)reader.GetInt64(4)),
+        BodyX = reader.GetDouble(5),
+        BodyY = reader.GetDouble(6),
+        BodyZ = reader.GetDouble(7),
+        Yaw = (float)reader.GetDouble(8),
+        Pitch = (float)reader.GetDouble(9),
+        Stance = (byte)reader.GetInt64(10),
+        Health = (byte)reader.GetInt64(11),
+        SavedAtUnixMilliseconds = reader.GetInt64(12),
+        Dead = reader.GetInt64(13) != 0,
+        State = reader.IsDBNull(14) ? null : (byte[])reader.GetValue(14),
+    };
 
     /// <summary>Writes characters (insert or replace by ID) in one transaction.</summary>
     public void SaveCharacters(IReadOnlyList<CharacterRecord> records)
@@ -185,15 +303,22 @@ public sealed class GameDatabase : IDisposable
             return;
         }
         using SqliteTransaction transaction = _connection.BeginTransaction();
+        WriteCharacters(records, transaction);
+        transaction.Commit();
+    }
+
+    private void WriteCharacters(IReadOnlyList<CharacterRecord> records, SqliteTransaction transaction)
+    {
         using SqliteCommand command = _connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            INSERT INTO characters (id, account_id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at)
-            VALUES ($id, $account, $name, $system, $body, $x, $y, $z, $yaw, $pitch, $stance, $health, $saved)
+            INSERT INTO characters (id, account_id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at, dead, state)
+            VALUES ($id, $account, $name, $system, $body, $x, $y, $z, $yaw, $pitch, $stance, $health, $saved, $dead, $state)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name, system_address = excluded.system_address, body_path = excluded.body_path,
                 body_x = excluded.body_x, body_y = excluded.body_y, body_z = excluded.body_z, yaw = excluded.yaw,
-                pitch = excluded.pitch, stance = excluded.stance, health = excluded.health, saved_at = excluded.saved_at
+                pitch = excluded.pitch, stance = excluded.stance, health = excluded.health, saved_at = excluded.saved_at,
+                dead = excluded.dead, state = excluded.state
             """;
         SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
         SqliteParameter account = command.Parameters.Add("$account", SqliteType.Integer);
@@ -208,6 +333,8 @@ public sealed class GameDatabase : IDisposable
         SqliteParameter stance = command.Parameters.Add("$stance", SqliteType.Integer);
         SqliteParameter health = command.Parameters.Add("$health", SqliteType.Integer);
         SqliteParameter saved = command.Parameters.Add("$saved", SqliteType.Integer);
+        SqliteParameter dead = command.Parameters.Add("$dead", SqliteType.Integer);
+        SqliteParameter state = command.Parameters.Add("$state", SqliteType.Blob);
         foreach (CharacterRecord r in records)
         {
             id.Value = unchecked((long)r.Id.Value);
@@ -223,12 +350,163 @@ public sealed class GameDatabase : IDisposable
             stance.Value = (long)r.Stance;
             health.Value = (long)r.Health;
             saved.Value = r.SavedAtUnixMilliseconds;
+            dead.Value = r.Dead ? 1L : 0L;
+            state.Value = (object?)r.State ?? DBNull.Value;
+            command.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Everything stored about a body's zone: its characters, things, natural overrides and metadata.</summary>
+    public ZoneRecord LoadZone(ulong systemAddress, uint bodyPath)
+    {
+        var zone = new ZoneRecord();
+        zone.Characters.AddRange(LoadCharacters(systemAddress, bodyPath));
+        long system = unchecked((long)systemAddress), body = bodyPath;
+        using (SqliteCommand command = _connection.CreateCommand())
+        {
+            command.CommandText = "SELECT id, kind, data FROM things WHERE system_address = $system AND body_path = $body ORDER BY id";
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            using SqliteDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                zone.Things.Add(new ThingRecord
+                {
+                    Id = new EntityId(unchecked((ulong)reader.GetInt64(0))),
+                    SystemAddress = systemAddress,
+                    BodyPath = bodyPath,
+                    Kind = (byte)reader.GetInt64(1),
+                    Data = (byte[])reader.GetValue(2),
+                });
+            }
+        }
+        using (SqliteCommand command = _connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT object_id, health, weak_spot_moves, depleted, respawn_at FROM natural_overrides
+                WHERE system_address = $system AND body_path = $body ORDER BY object_id
+                """;
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            using SqliteDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                zone.Naturals.Add(new NaturalRecord(unchecked((ulong)reader.GetInt64(0)), (float)reader.GetDouble(1),
+                    (ushort)reader.GetInt64(2), reader.GetInt64(3) != 0, reader.GetInt64(4)));
+            }
+        }
+        using (SqliteCommand command = _connection.CreateCommand())
+        {
+            command.CommandText = "SELECT data FROM zones WHERE system_address = $system AND body_path = $body";
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            object? data = command.ExecuteScalar();
+            zone.Meta = data is byte[] bytes ? bytes : null;
+        }
+        return zone;
+    }
+
+    /// <summary>Writes a zone's save in one transaction (ARCHITECTURE.md §13: one transaction per zone per flush).</summary>
+    public void SaveZone(ZoneSave save)
+    {
+        using SqliteTransaction transaction = _connection.BeginTransaction();
+        WriteCharacters(save.Characters, transaction);
+        long system = unchecked((long)save.SystemAddress), body = save.BodyPath;
+        if (save.Things.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO things (id, system_address, body_path, kind, data, saved_at) VALUES ($id, $system, $body, $kind, $data, $saved)
+                ON CONFLICT(id) DO UPDATE SET system_address = excluded.system_address, body_path = excluded.body_path,
+                    kind = excluded.kind, data = excluded.data, saved_at = excluded.saved_at
+                """;
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            SqliteParameter kind = command.Parameters.Add("$kind", SqliteType.Integer);
+            SqliteParameter data = command.Parameters.Add("$data", SqliteType.Blob);
+            command.Parameters.AddWithValue("$saved", save.SavedAtUnixMilliseconds);
+            foreach (ThingRecord t in save.Things)
+            {
+                id.Value = unchecked((long)t.Id.Value);
+                kind.Value = (long)t.Kind;
+                data.Value = t.Data;
+                command.ExecuteNonQuery();
+            }
+        }
+        if (save.RemovedThings.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM things WHERE id = $id";
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            foreach (EntityId removed in save.RemovedThings)
+            {
+                id.Value = unchecked((long)removed.Value);
+                command.ExecuteNonQuery();
+            }
+        }
+        if (save.Naturals.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO natural_overrides (system_address, body_path, object_id, health, weak_spot_moves, depleted, respawn_at)
+                VALUES ($system, $body, $id, $health, $moves, $depleted, $respawn)
+                ON CONFLICT(system_address, body_path, object_id) DO UPDATE SET health = excluded.health,
+                    weak_spot_moves = excluded.weak_spot_moves, depleted = excluded.depleted, respawn_at = excluded.respawn_at
+                """;
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            SqliteParameter health = command.Parameters.Add("$health", SqliteType.Real);
+            SqliteParameter moves = command.Parameters.Add("$moves", SqliteType.Integer);
+            SqliteParameter depleted = command.Parameters.Add("$depleted", SqliteType.Integer);
+            SqliteParameter respawn = command.Parameters.Add("$respawn", SqliteType.Integer);
+            foreach (NaturalRecord n in save.Naturals)
+            {
+                id.Value = unchecked((long)n.ObjectId);
+                health.Value = (double)n.Health;
+                moves.Value = (long)n.WeakSpotMoves;
+                depleted.Value = n.Depleted ? 1L : 0L;
+                respawn.Value = n.RespawnAtUnixMilliseconds;
+                command.ExecuteNonQuery();
+            }
+        }
+        if (save.RemovedNaturals.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM natural_overrides WHERE system_address = $system AND body_path = $body AND object_id = $id";
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            foreach (ulong removed in save.RemovedNaturals)
+            {
+                id.Value = unchecked((long)removed);
+                command.ExecuteNonQuery();
+            }
+        }
+        using (SqliteCommand command = _connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO zones (system_address, body_path, saved_at, data) VALUES ($system, $body, $saved, $data)
+                ON CONFLICT(system_address, body_path) DO UPDATE SET saved_at = excluded.saved_at, data = excluded.data
+                """;
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            command.Parameters.AddWithValue("$saved", save.SavedAtUnixMilliseconds);
+            command.Parameters.AddWithValue("$data", (object?)save.Meta ?? DBNull.Value);
             command.ExecuteNonQuery();
         }
         transaction.Commit();
     }
 
     public int CharacterCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM characters"), CultureInfo.InvariantCulture);
+
+    public int ThingCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM things"), CultureInfo.InvariantCulture);
 
     private void Execute(string sql, SqliteTransaction? transaction = null)
     {

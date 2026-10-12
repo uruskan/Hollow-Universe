@@ -477,6 +477,68 @@ between ticks as the client draws them, at most 0.25 s back. Trees, outcrops, de
 they are now. An arrow keeps its shooter's delay for its whole flight. Hit shapes: a head sphere (r 0.13 m), a body
 capsule (r 0.21 m), leg and arm capsules; crouching scales them down; sleepers lie. Built for guns to reuse (G4).
 
+### 6.2 Network, persistence and the client API (G2)
+
+**Protocol** (version 2, `Messages.cs`). The connect `Hello` carries the hash of the client's game data; other data is
+refused (`ContentMismatch`). Each tick's input also carries the belt slot in hand, the attack and aim buttons (attack
+pressed is latched like jump) and the view delay in quarter ticks (lag compensation). A character's snapshot state
+adds the item in hand, a 4-bit count of swings and shots with the last kind (others animate each), and asleep.
+- **Intents** (client → server, reliable ordered, each with a sequence number): move, quick move, drop, use, craft,
+  cancel craft, open, close, pick up (a natural object or a dropped item), place, light or put out, respawn. The
+  server applies them as they arrive (at the start of a tick) and answers every one with `IntentResult` (accepted, or
+  the `ActionResult` reason) after that tick's changes have gone out.
+- **Budget** (RustMVP's command budget): 16 at once, 20 a second; every arrival spends one, a bad one too; over it the
+  answer is `RateLimited`, and the server counts accepted, refused and rate-limited intents per player.
+- **The player's own state** (reliable, to them alone): their three containers in full at joining, then changed slots
+  (`ContainerSlots`); what they loot (`LootState`, then the loot's containers in full, then changes, also to every other
+  looter); vitals when a whole unit changes; the crafting queue when it changes (ticks left counted from a server
+  tick); life (dead, how, by whom, beach and bag respawn choices with their cooldowns). The container, loot and
+  crafting messages carry the last intent the server had applied, so the client drops exactly the pending intents its
+  copy now includes.
+- **Events** (reliable, to whom they concern): hit markers, items gained or lost and why, damage taken (amount, body
+  part, from where, with what), a craft finished; projectiles loosed and stopped (to everyone within 300 m), which
+  clients draw on their own arc.
+- **Static things** (deployables, dropped items, corpses) are sent once when they come within 300 m (`ThingSpawn`; at
+  most 48 new ones per snapshot, so a crowded place streams in), again when they change (`ThingUpdate`: health, count,
+  lit, the receiver's own bag) and `Despawn`ed when gone or out of range (320 m).
+- **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
+  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens.
+- **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
+
+**Server** (`GameServer.Survival.cs`). The zone runs with the game data; the server sets its real clock each tick,
+applies inputs and actions, steps it, then routes its events, sends each player's own state, the container changes,
+and the answers; static things and natural changes go with each snapshot. A player who logs off stays as a sleeper
+(saved at once); logging in finds their sleeper and wakes it. Admin console: `give <name> <item> [count]`,
+`kit <name> <loot table>`, `heal <name>`, `kill <name>` besides G1's.
+
+**Persistence** (schema 2, `GameDatabase`, `WorldCodec`). Characters gain `dead` and `state` (their vitals, inventory,
+crafting queue, beach cooldown and last death, in a versioned binary record); new tables hold each body's static things
+(`things`: kind and a versioned binary record with the position in the body frame), natural overrides
+(`natural_overrides`: health, weak-spot moves, depleted until) and zone metadata (`zones`). The whole zone (every
+character, sleeper or not, every thing, and the natural changes since the last save) is written in one transaction
+every 30 s, at once on a death, and at shutdown; a character also when they log off. At start the server loads its
+body's characters (as sleepers, or dead), things and overrides. World-time timers (corpses, dropped items, a unit of
+crafting, a fire's fuel) are saved as what is left and pause while the server is down; real-time ones (bag cooldowns,
+respawning nature) keep running. Decoding treats the stored bytes as untrusted: an item the game no longer has is
+dropped. A G1 database migrates in place; G1 characters come back with a new life's kit.
+
+**The client** (`Hollow.Client`). `GameClient.Local` (`LocalPlayer`) is the API the UI binds to:
+
+| Member | What |
+|---|---|
+| `Inventory` (`Main`, `Belt`, `Wear`), `Loot`, `LootBelt`, `LootWear`, `LootKind`, `LootTarget`, `LootTakesDeposits` | Containers as the server has them, with intents not yet answered applied on top. The player's own three are the same objects all session; loot ones are new per open. |
+| `Vitals` | Health, calories, hydration (and their maxima), felt temperature, cold, bleeding, healing, comfort, wet. |
+| `Crafting` | Jobs front first: recipe, count, progress of the unit in hand, seconds left, still pending. |
+| `Life`, `IsDead`, `SecondsUntilReady(option)` | Alive or dead; how, by whom; respawn choices (the beach, each bag) and their countdowns. |
+| `HeldSlot`, `HeldItem`, `WorkbenchLevel`, `CanCraft(recipe, count)` | The belt slot in hand (set by the UI; it goes out with every input), the best bench within 4 m, whether a recipe can start. |
+| `MoveItem`, `QuickMove`, `Drop`, `Use`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, uses, crafting, placing, closing), shows at once. |
+| `Changed`, `ContainerOpened`, `ContainerClosed`, `HitMarker`, `ItemsChanged`, `DamageTaken`, `CraftFinished`, `IntentAnswered`, `IntentRejected`, `Died`, `Respawned` | Events for the UI. A refused intent has already been rolled back when `IntentRejected` fires. |
+
+Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), the natural objects and their changes
+(`Nature`, `Natural`, with trees and outcrops solid in the prediction's physics), projectiles in flight
+(`Projectiles`), others' held items, swings, sleep and clothing (`RemoteEntity`), and finds what the interact key would
+act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons.
+
 ---
 
 ## 7. Data

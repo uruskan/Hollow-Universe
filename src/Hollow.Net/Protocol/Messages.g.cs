@@ -5,14 +5,19 @@
 #nullable enable
 using System;
 using Hollow.Net.Bits;
+using Hollow.Simulation.Content;
+using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Players;
+using Hollow.Simulation.World;
+using Hollow.Simulation;
 
 namespace Hollow.Net.Protocol;
 
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x7F406A3714D9D657UL;
+    public const ulong SchemaHash = 0xAB2A38CCA1D4B1E6UL;
 }
 
 partial struct Hello
@@ -31,6 +36,7 @@ partial struct Hello
         w.WriteBits((uint)ProtocolVersion, 32);
         w.WriteBits64(SchemaHash, 64);
         w.WriteString(PlayerName, 32);
+        w.WriteBits64(ContentHash, 64);
     }
 
     public static Hello Read(BitReader r)
@@ -39,6 +45,7 @@ partial struct Hello
         v.ProtocolVersion = (uint)r.ReadBits(32);
         v.SchemaHash = r.ReadBits64(64);
         v.PlayerName = r.ReadString(32);
+        v.ContentHash = r.ReadBits64(64);
         return v;
     }
 }
@@ -145,6 +152,9 @@ partial struct InputCommand
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Pitch, 16);
         w.WriteBits((uint)Buttons, 4);
+        w.WriteBits((uint)Held, 3);
+        w.WriteBits((uint)Actions, 3);
+        w.WriteBits((uint)ViewDelay, 8);
     }
 
     public static InputCommand Read(BitReader r)
@@ -155,6 +165,9 @@ partial struct InputCommand
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
         v.Buttons = (MoveButtons)r.ReadBits(4);
+        v.Held = (byte)r.ReadBits(3);
+        v.Actions = (ActionButtons)r.ReadBits(3);
+        v.ViewDelay = (byte)r.ReadBits(8);
         return v;
     }
 }
@@ -278,6 +291,10 @@ partial struct CharacterNetState
         w.WriteBits((uint)Flags, 4);
         w.WriteBits((uint)Stance, 1);
         w.WriteBits((uint)Health, 8);
+        w.WriteBits((uint)Held, 16);
+        w.WriteBits((uint)ActionCount, 4);
+        w.WriteBits((uint)Action, 2);
+        w.WriteBool(Sleeping);
     }
 
     public static CharacterNetState Read(BitReader r)
@@ -291,6 +308,10 @@ partial struct CharacterNetState
         v.Flags = (MoveFlags)r.ReadBits(4);
         v.Stance = (Stance)r.ReadBits(1);
         v.Health = (byte)r.ReadBits(8);
+        v.Held = (ushort)r.ReadBits(16);
+        v.ActionCount = (byte)r.ReadBits(4);
+        v.Action = (ActionKind)r.ReadBits(2);
+        v.Sleeping = r.ReadBool();
         return v;
     }
 
@@ -369,6 +390,34 @@ partial struct CharacterNetState
         {
             w.WriteBool(false);
         }
+        if (Held != b.Held)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)Held, 16);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (ActionCount != b.ActionCount)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)ActionCount, 4);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Action != b.Action)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)Action, 2);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        w.WriteBool(Sleeping);
     }
 
     public static CharacterNetState ReadDelta(BitReader r, in CharacterNetState b)
@@ -406,10 +455,23 @@ partial struct CharacterNetState
         {
             v.Health = (byte)r.ReadBits(8);
         }
+        if (r.ReadBool())
+        {
+            v.Held = (ushort)r.ReadBits(16);
+        }
+        if (r.ReadBool())
+        {
+            v.ActionCount = (byte)r.ReadBits(4);
+        }
+        if (r.ReadBool())
+        {
+            v.Action = (ActionKind)r.ReadBits(2);
+        }
+        v.Sleeping = r.ReadBool();
         return v;
     }
 
-    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health;
+    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in CharacterNetState b)
@@ -423,11 +485,15 @@ partial struct CharacterNetState
         bits += Flags == b.Flags ? 1 : 5;
         bits += Stance == b.Stance ? 1 : 2;
         bits += Health == b.Health ? 1 : 9;
+        bits += Held == b.Held ? 1 : 17;
+        bits += ActionCount == b.ActionCount ? 1 : 5;
+        bits += Action == b.Action ? 1 : 3;
+        bits += 1;
         return bits;
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 141;
+    public const int FullBits = 164;
 }
 
 partial struct Spawn
@@ -532,6 +598,1081 @@ partial struct ChatLine
         v.Kind = (ChatKind)r.ReadBits(2);
         v.From = r.ReadString(32);
         v.Text = r.ReadString(200);
+        return v;
+    }
+}
+
+partial struct ThingSpawn
+{
+    public const byte TypeId = 22;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(NetId);
+        w.WriteBits64(EntityId, 64);
+        w.WriteBits((uint)Kind, 2);
+        w.WriteVarUInt(Look);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)Yaw, 16);
+        w.WriteBits((uint)Health, 8);
+        w.WriteVarUInt(Count);
+        w.WriteBits((uint)Flags, 4);
+        w.WriteString(Name, 32);
+    }
+
+    public static ThingSpawn Read(BitReader r)
+    {
+        var v = new ThingSpawn();
+        v.NetId = r.ReadVarUInt();
+        v.EntityId = r.ReadBits64(64);
+        v.Kind = (StaticKind)r.ReadBits(2);
+        v.Look = r.ReadVarUInt();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Yaw = (ushort)r.ReadBits(16);
+        v.Health = (byte)r.ReadBits(8);
+        v.Count = r.ReadVarUInt();
+        v.Flags = (ThingFlags)r.ReadBits(4);
+        v.Name = r.ReadString(32);
+        return v;
+    }
+}
+
+partial struct ThingUpdate
+{
+    public const byte TypeId = 23;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(NetId);
+        w.WriteBits((uint)Health, 8);
+        w.WriteVarUInt(Count);
+        w.WriteBits((uint)Flags, 4);
+    }
+
+    public static ThingUpdate Read(BitReader r)
+    {
+        var v = new ThingUpdate();
+        v.NetId = r.ReadVarUInt();
+        v.Health = (byte)r.ReadBits(8);
+        v.Count = r.ReadVarUInt();
+        v.Flags = (ThingFlags)r.ReadBits(4);
+        return v;
+    }
+}
+
+partial struct WornItem
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Item);
+    }
+
+    public static WornItem Read(BitReader r)
+    {
+        var v = new WornItem();
+        v.Item = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct CharacterLook
+{
+    public const byte TypeId = 24;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(NetId);
+        int countWear = Wear == null ? 0 : Math.Min(Wear.Length, 7);
+        w.WriteBits((uint)countWear, 3);
+        for (int i = 0; i < countWear; i++)
+        {
+            Wear![i].Write(w);
+        }
+    }
+
+    public static CharacterLook Read(BitReader r)
+    {
+        var v = new CharacterLook();
+        v.NetId = r.ReadVarUInt();
+        int countWear = (int)r.ReadBits(3);
+        if (countWear > 7)
+        {
+            r.Fail();
+            countWear = 0;
+        }
+        v.Wear = new WornItem[countWear];
+        for (int i = 0; i < countWear; i++)
+        {
+            v.Wear[i] = WornItem.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct NaturalNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteBits((uint)Health, 8);
+        w.WriteBits((uint)WeakSpotMoves, 16);
+        w.WriteBool(Depleted);
+    }
+
+    public static NaturalNet Read(BitReader r)
+    {
+        var v = new NaturalNet();
+        v.Id = r.ReadBits64(64);
+        v.Health = (byte)r.ReadBits(8);
+        v.WeakSpotMoves = (ushort)r.ReadBits(16);
+        v.Depleted = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct NaturalStates
+{
+    public const byte TypeId = 40;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countStates = States == null ? 0 : Math.Min(States.Length, 64);
+        w.WriteBits((uint)countStates, 7);
+        for (int i = 0; i < countStates; i++)
+        {
+            States![i].Write(w);
+        }
+    }
+
+    public static NaturalStates Read(BitReader r)
+    {
+        var v = new NaturalStates();
+        int countStates = (int)r.ReadBits(7);
+        if (countStates > 64)
+        {
+            r.Fail();
+            countStates = 0;
+        }
+        v.States = new NaturalNet[countStates];
+        for (int i = 0; i < countStates; i++)
+        {
+            v.States[i] = NaturalNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ProjectileLaunch
+{
+    public const byte TypeId = 41;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Id);
+        w.WriteVarUInt(Shooter);
+        w.WriteVarUInt(Ammo);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteFloat(VelocityX);
+        w.WriteFloat(VelocityY);
+        w.WriteFloat(VelocityZ);
+    }
+
+    public static ProjectileLaunch Read(BitReader r)
+    {
+        var v = new ProjectileLaunch();
+        v.Id = r.ReadVarUInt();
+        v.Shooter = r.ReadVarUInt();
+        v.Ammo = r.ReadVarUInt();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.VelocityX = r.ReadFloat();
+        v.VelocityY = r.ReadFloat();
+        v.VelocityZ = r.ReadFloat();
+        return v;
+    }
+}
+
+partial struct ProjectileEnd
+{
+    public const byte TypeId = 42;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Id);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)Target, 2);
+    }
+
+    public static ProjectileEnd Read(BitReader r)
+    {
+        var v = new ProjectileEnd();
+        v.Id = r.ReadVarUInt();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Target = (HitTarget)r.ReadBits(2);
+        return v;
+    }
+}
+
+partial struct MoveItemIntent
+{
+    public const byte TypeId = 50;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)FromSlot, 8);
+        w.WriteBits((uint)To, 3);
+        w.WriteBits((uint)ToSlot, 8);
+        w.WriteVarUInt(Amount);
+        w.WriteVarUInt(Expected);
+    }
+
+    public static MoveItemIntent Read(BitReader r)
+    {
+        var v = new MoveItemIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.FromSlot = (byte)r.ReadBits(8);
+        v.To = (ContainerRef)r.ReadBits(3);
+        v.ToSlot = (byte)r.ReadBits(8);
+        v.Amount = r.ReadVarUInt();
+        v.Expected = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct QuickMoveIntent
+{
+    public const byte TypeId = 51;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+    }
+
+    public static QuickMoveIntent Read(BitReader r)
+    {
+        var v = new QuickMoveIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct DropIntent
+{
+    public const byte TypeId = 52;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Amount);
+        w.WriteVarUInt(Expected);
+    }
+
+    public static DropIntent Read(BitReader r)
+    {
+        var v = new DropIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Amount = r.ReadVarUInt();
+        v.Expected = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct UseIntent
+{
+    public const byte TypeId = 53;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+    }
+
+    public static UseIntent Read(BitReader r)
+    {
+        var v = new UseIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct CraftIntent
+{
+    public const byte TypeId = 54;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteVarUInt(Recipe);
+        w.WriteVarUInt(Count);
+    }
+
+    public static CraftIntent Read(BitReader r)
+    {
+        var v = new CraftIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Recipe = r.ReadVarUInt();
+        v.Count = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct CancelCraftIntent
+{
+    public const byte TypeId = 55;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteVarUInt(Ticket);
+    }
+
+    public static CancelCraftIntent Read(BitReader r)
+    {
+        var v = new CancelCraftIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Ticket = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct OpenIntent
+{
+    public const byte TypeId = 56;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits64(Target, 64);
+    }
+
+    public static OpenIntent Read(BitReader r)
+    {
+        var v = new OpenIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Target = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct CloseIntent
+{
+    public const byte TypeId = 57;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+    }
+
+    public static CloseIntent Read(BitReader r)
+    {
+        var v = new CloseIntent();
+        v.Seq = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct PickUpIntent
+{
+    public const byte TypeId = 58;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBool(Natural);
+        w.WriteBits64(Target, 64);
+    }
+
+    public static PickUpIntent Read(BitReader r)
+    {
+        var v = new PickUpIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Natural = r.ReadBool();
+        v.Target = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct PlaceIntent
+{
+    public const byte TypeId = 59;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)Yaw, 16);
+    }
+
+    public static PlaceIntent Read(BitReader r)
+    {
+        var v = new PlaceIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Yaw = (ushort)r.ReadBits(16);
+        return v;
+    }
+}
+
+partial struct ToggleIntent
+{
+    public const byte TypeId = 60;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits64(Target, 64);
+    }
+
+    public static ToggleIntent Read(BitReader r)
+    {
+        var v = new ToggleIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Target = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct RespawnIntent
+{
+    public const byte TypeId = 61;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits64(Bag, 64);
+    }
+
+    public static RespawnIntent Read(BitReader r)
+    {
+        var v = new RespawnIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Bag = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct IntentResult
+{
+    public const byte TypeId = 70;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Result, 5);
+    }
+
+    public static IntentResult Read(BitReader r)
+    {
+        var v = new IntentResult();
+        v.Seq = r.ReadVarUInt();
+        v.Result = (ActionResult)r.ReadBits(5);
+        return v;
+    }
+}
+
+partial struct SlotNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Index, 8);
+        w.WriteVarUInt(Item);
+        w.WriteVarUInt(Count);
+        w.WriteVarUInt(Condition);
+    }
+
+    public static SlotNet Read(BitReader r)
+    {
+        var v = new SlotNet();
+        v.Index = (byte)r.ReadBits(8);
+        v.Item = r.ReadVarUInt();
+        v.Count = r.ReadVarUInt();
+        v.Condition = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct ContainerContents
+{
+    public const byte TypeId = 71;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(LastSeq);
+        w.WriteBits((uint)Which, 3);
+        w.WriteBits((uint)Size, 8);
+        int countSlots = Slots == null ? 0 : Math.Min(Slots.Length, 255);
+        w.WriteBits((uint)countSlots, 8);
+        for (int i = 0; i < countSlots; i++)
+        {
+            Slots![i].Write(w);
+        }
+    }
+
+    public static ContainerContents Read(BitReader r)
+    {
+        var v = new ContainerContents();
+        v.LastSeq = r.ReadVarUInt();
+        v.Which = (ContainerRef)r.ReadBits(3);
+        v.Size = (byte)r.ReadBits(8);
+        int countSlots = (int)r.ReadBits(8);
+        if (countSlots > 255)
+        {
+            r.Fail();
+            countSlots = 0;
+        }
+        v.Slots = new SlotNet[countSlots];
+        for (int i = 0; i < countSlots; i++)
+        {
+            v.Slots[i] = SlotNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ContainerSlots
+{
+    public const byte TypeId = 72;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(LastSeq);
+        w.WriteBits((uint)Which, 3);
+        int countSlots = Slots == null ? 0 : Math.Min(Slots.Length, 255);
+        w.WriteBits((uint)countSlots, 8);
+        for (int i = 0; i < countSlots; i++)
+        {
+            Slots![i].Write(w);
+        }
+    }
+
+    public static ContainerSlots Read(BitReader r)
+    {
+        var v = new ContainerSlots();
+        v.LastSeq = r.ReadVarUInt();
+        v.Which = (ContainerRef)r.ReadBits(3);
+        int countSlots = (int)r.ReadBits(8);
+        if (countSlots > 255)
+        {
+            r.Fail();
+            countSlots = 0;
+        }
+        v.Slots = new SlotNet[countSlots];
+        for (int i = 0; i < countSlots; i++)
+        {
+            v.Slots[i] = SlotNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct LootState
+{
+    public const byte TypeId = 73;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(LastSeq);
+        w.WriteBits64(Target, 64);
+        w.WriteBits((uint)Kind, 3);
+    }
+
+    public static LootState Read(BitReader r)
+    {
+        var v = new LootState();
+        v.LastSeq = r.ReadVarUInt();
+        v.Target = r.ReadBits64(64);
+        v.Kind = (LootKind)r.ReadBits(3);
+        return v;
+    }
+}
+
+partial struct VitalsUpdate
+{
+    public const byte TypeId = 74;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Health);
+        w.WriteVarUInt(Calories);
+        w.WriteVarUInt(Hydration);
+        w.WriteSigned(Temperature, 8);
+        w.WriteBits((uint)Bleeding, 8);
+        w.WriteBits((uint)Healing, 8);
+        w.WriteBits((uint)Cold, 8);
+        w.WriteBool(Comfort);
+        w.WriteBool(Wet);
+    }
+
+    public static VitalsUpdate Read(BitReader r)
+    {
+        var v = new VitalsUpdate();
+        v.Health = r.ReadVarUInt();
+        v.Calories = r.ReadVarUInt();
+        v.Hydration = r.ReadVarUInt();
+        v.Temperature = (sbyte)r.ReadSigned(8);
+        v.Bleeding = (byte)r.ReadBits(8);
+        v.Healing = (byte)r.ReadBits(8);
+        v.Cold = (byte)r.ReadBits(8);
+        v.Comfort = r.ReadBool();
+        v.Wet = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct CraftJobNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Ticket);
+        w.WriteVarUInt(Recipe);
+        w.WriteVarUInt(Count);
+        w.WriteVarUInt(TicksLeft);
+        w.WriteVarUInt(UnitTicks);
+    }
+
+    public static CraftJobNet Read(BitReader r)
+    {
+        var v = new CraftJobNet();
+        v.Ticket = r.ReadVarUInt();
+        v.Recipe = r.ReadVarUInt();
+        v.Count = r.ReadVarUInt();
+        v.TicksLeft = r.ReadVarUInt();
+        v.UnitTicks = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct CraftQueueState
+{
+    public const byte TypeId = 75;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(LastSeq);
+        w.WriteBits((uint)ServerTick, 32);
+        w.WriteVarUInt(NextTicket);
+        int countJobs = Jobs == null ? 0 : Math.Min(Jobs.Length, 8);
+        w.WriteBits((uint)countJobs, 4);
+        for (int i = 0; i < countJobs; i++)
+        {
+            Jobs![i].Write(w);
+        }
+    }
+
+    public static CraftQueueState Read(BitReader r)
+    {
+        var v = new CraftQueueState();
+        v.LastSeq = r.ReadVarUInt();
+        v.ServerTick = (uint)r.ReadBits(32);
+        v.NextTicket = r.ReadVarUInt();
+        int countJobs = (int)r.ReadBits(4);
+        if (countJobs > 8)
+        {
+            r.Fail();
+            countJobs = 0;
+        }
+        v.Jobs = new CraftJobNet[countJobs];
+        for (int i = 0; i < countJobs; i++)
+        {
+            v.Jobs[i] = CraftJobNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct HitMarker
+{
+    public const byte TypeId = 76;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Target, 2);
+        w.WriteBits((uint)Region, 2);
+        w.WriteVarUInt(Damage);
+        w.WriteBool(Killed);
+        w.WriteBool(WeakSpot);
+    }
+
+    public static HitMarker Read(BitReader r)
+    {
+        var v = new HitMarker();
+        v.Target = (HitTarget)r.ReadBits(2);
+        v.Region = (HitRegion)r.ReadBits(2);
+        v.Damage = r.ReadVarUInt();
+        v.Killed = r.ReadBool();
+        v.WeakSpot = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct ItemsChanged
+{
+    public const byte TypeId = 77;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Item);
+        w.WriteSigned(Count, 32);
+        w.WriteBits((uint)Reason, 3);
+        w.WriteBool(WeakSpot);
+    }
+
+    public static ItemsChanged Read(BitReader r)
+    {
+        var v = new ItemsChanged();
+        v.Item = r.ReadVarUInt();
+        v.Count = (int)r.ReadSigned(32);
+        v.Reason = (GainReason)r.ReadBits(3);
+        v.WeakSpot = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct DamageTaken
+{
+    public const byte TypeId = 78;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Damage);
+        w.WriteBits((uint)Region, 2);
+        w.WriteFloat(FromX);
+        w.WriteFloat(FromY);
+        w.WriteFloat(FromZ);
+        w.WriteVarUInt(Weapon);
+    }
+
+    public static DamageTaken Read(BitReader r)
+    {
+        var v = new DamageTaken();
+        v.Damage = r.ReadVarUInt();
+        v.Region = (HitRegion)r.ReadBits(2);
+        v.FromX = r.ReadFloat();
+        v.FromY = r.ReadFloat();
+        v.FromZ = r.ReadFloat();
+        v.Weapon = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct CraftFinished
+{
+    public const byte TypeId = 79;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Item);
+        w.WriteVarUInt(Count);
+    }
+
+    public static CraftFinished Read(BitReader r)
+    {
+        var v = new CraftFinished();
+        v.Item = r.ReadVarUInt();
+        v.Count = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct BagNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteFloat(X);
+        w.WriteFloat(Z);
+        w.WriteVarUInt(ReadySeconds);
+    }
+
+    public static BagNet Read(BitReader r)
+    {
+        var v = new BagNet();
+        v.Id = r.ReadBits64(64);
+        v.X = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.ReadySeconds = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct LifeState
+{
+    public const byte TypeId = 80;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBool(Dead);
+        w.WriteString(Cause, 64);
+        w.WriteString(KilledBy, 32);
+        w.WriteVarUInt(BeachReadySeconds);
+        int countBags = Bags == null ? 0 : Math.Min(Bags.Length, 32);
+        w.WriteBits((uint)countBags, 6);
+        for (int i = 0; i < countBags; i++)
+        {
+            Bags![i].Write(w);
+        }
+    }
+
+    public static LifeState Read(BitReader r)
+    {
+        var v = new LifeState();
+        v.Dead = r.ReadBool();
+        v.Cause = r.ReadString(64);
+        v.KilledBy = r.ReadString(32);
+        v.BeachReadySeconds = r.ReadVarUInt();
+        int countBags = (int)r.ReadBits(6);
+        if (countBags > 32)
+        {
+            r.Fail();
+            countBags = 0;
+        }
+        v.Bags = new BagNet[countBags];
+        for (int i = 0; i < countBags; i++)
+        {
+            v.Bags[i] = BagNet.Read(r);
+        }
         return v;
     }
 }
