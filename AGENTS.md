@@ -54,6 +54,9 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs pe
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|relief|zoom|stats|bench|site|spot|times
+                                                 # the first world's surface: maps, speed, landing site, look-dev
+                                                 # spots (forest|meadow|beach|mountain), sun and moon by the hour
 ```
 
 Character assets (GROUND.md §4.8, §9), rebuilt from text by Blender 5.2 in background mode. MPFB 2 lives in its own
@@ -90,6 +93,14 @@ Client options (after `--`):
 - Camera and selection: `--focus <name>`, `--position=x,y,z` (ly), `--distance <ly>`, `--yaw <deg>`,
   `--pitch <deg>`, `--select <name>`, `--search <text>`.
 - System map: `--view system`, `--body <name>`, `--time <UTC>`, `--system-distance`.
+- Surface (the first world, GROUND.md §3): `--view surface`, `--lat <deg>`, `--lon <deg>` (default: the landing
+  site), `--alt <m above ground>` (1.7 = on foot), `--yaw <deg from north>`, `--pitch <deg>`, `--time <UTC>`,
+  `--time-scale <x>` (how much faster than real the planet turns; the client setting `RotationTimeScale`),
+  `--clouds <0–1>` (cloud cover, default 0.35), `--hide-ui`. Look-dev: `--flora-lineup <m>` with `--flora-lod 0|1|2`
+  (one of each plant at that distance, at one level of detail; 2 = impostors), `--debug-sky <n>`. Screenshots pause
+  the clock at `--time`.
+- Surface keys: W A S D move, Q E down/up, right mouse look, Shift fast, G walk/fly, `[` `]` time ∓ 1 h (with Shift
+  ∓ 6 h), T day speed (1×, 60×, 600×, 3600×), P pause time, H hide the interface, Esc back.
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
 - Character viewer: `--view character`; `--outfit <0–4>`, `--item <flint_axe|flint_pick|hand_stone|wren_pistol|kestrel_rifle>`,
@@ -123,7 +134,7 @@ Client options (after `--`):
 |---|---|
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
-| `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, the stand-in `SphereSurface`, `FirstWorld` |
+| `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, `PlanetSurface` (plates, climate, biomes), cube-sphere tiles, collision, scatter, `SkyEphemeris`, the stand-in `SphereSurface`, `FirstWorld` |
 | `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
 | `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread |
@@ -138,6 +149,9 @@ Client options (after `--`):
 | `game/assets/THIRD_PARTY.md` | Every third-party file: source, version, licence, checksum |
 | `art/` | Blender Python scripts that build the character and item assets from text; `art/.cache` is scratch (not committed) |
 | `game/data/ground` | The ground game's data (GROUND.md §7): items, recipes, natural objects, deployables, loot, survival constants, crafting tabs (JSON, read by server and client) |
+| `game/scripts/Surface` | The surface view: terrain LOD, water, sky and air, lights, clouds, plants (`Vegetation`), shader grass (`GrassField`), look-dev camera, time controls |
+| `game/scripts/Surface/Flora` | Plants made in code after hollow-orbit's flora: painted atlas and bark (`FloraTextures`, `Painter`), geometry (`FloraGeometry`), species and variants (`FloraLibrary`), impostors baked at start (`ImpostorBaker`) |
+| `game/assets/surface/ground` | The eight ground texture layers (Megascans and Poly Haven, `game/assets/THIRD_PARTY.md`), built by `tools/blender/surface_ground.py` |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |
 | `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |
