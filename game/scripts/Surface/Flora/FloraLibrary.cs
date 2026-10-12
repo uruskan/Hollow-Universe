@@ -148,7 +148,7 @@ public sealed class FloraLibrary
         Add(data, "berry_blue", ScatterKind.BerryBlue, 1.0f, shrubs, false, "bark", 2, (s, lod) =>
             FloraGeometry.Bush(new FloraGeometry.Shrub
             {
-                Seed = s, R = 0.85f, H = 1.05f, Cards = 12, Size = 0.95f, Cell = FloraTextures.Berry, Berries = new Vector3(0.06f, 0.07f, 0.26f),
+                Seed = s, R = 0.85f, H = 1.05f, Cards = 12, Size = 0.95f, Cell = FloraTextures.Berry, Berries = new Vector3(0.05f, 0.06f, 0.2f),
             }, lod));
         Add(data, "fern", ScatterKind.Fern, 1.0f, new Bands(24, 75, impostor: false), false, "bark", 3, (s, lod) => FloraGeometry.Fern(s, lod));
         Add(data, "rock", ScatterKind.Rock, 1.0f, new Bands(40, 200, impostor: false), false, "rock", 4, (s, lod) =>
@@ -235,7 +235,7 @@ public sealed class FloraLibrary
         lib.Berries = new ShaderMaterial { Shader = foliage };
         lib.Berries.SetShaderParameter("mode", 2);
         lib.Berries.SetShaderParameter("wind_params", new Vector3(0.1f, 1.0f, 0.01f));
-        lib.Berries.SetShaderParameter("roughness", 0.4f);
+        lib.Berries.SetShaderParameter("roughness", 0.5f);
         lib.Berries.SetShaderParameter("specular_scale", 1.0f);
 
         lib.Rock = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_rock.gdshader") };

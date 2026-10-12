@@ -46,8 +46,9 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs pe
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
-dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|relief|zoom|stats|bench|site|times
-                                                 # the first world's surface: maps, speed, landing site, times of day
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|relief|zoom|stats|bench|site|spot|times
+                                                 # the first world's surface: maps, speed, landing site, look-dev
+                                                 # spots (forest|meadow|beach|mountain), sun and moon by the hour
 ```
 
 Headless Godot (Linux workspace; `$GODOT` is the Godot 4.7.2 .NET binary; build the solution first):
@@ -68,7 +69,13 @@ Client options (after `--`):
   `--pitch <deg>`, `--select <name>`, `--search <text>`.
 - System map: `--view system`, `--body <name>`, `--time <UTC>`, `--system-distance`.
 - Surface (the first world, GROUND.md §3): `--view surface`, `--lat <deg>`, `--lon <deg>` (default: the landing
-  site), `--alt <m above ground>` (1.7 = on foot), `--yaw <deg from north>`, `--pitch <deg>`, `--time <UTC>`.
+  site), `--alt <m above ground>` (1.7 = on foot), `--yaw <deg from north>`, `--pitch <deg>`, `--time <UTC>`,
+  `--time-scale <x>` (how much faster than real the planet turns; the client setting `RotationTimeScale`),
+  `--clouds <0–1>` (cloud cover, default 0.35), `--hide-ui`. Look-dev: `--flora-lineup <m>` with `--flora-lod 0|1|2`
+  (one of each plant at that distance, at one level of detail; 2 = impostors), `--debug-sky <n>`. Screenshots pause
+  the clock at `--time`.
+- Surface keys: W A S D move, Q E down/up, right mouse look, Shift fast, G walk/fly, `[` `]` time ∓ 1 h (with Shift
+  ∓ 6 h), T day speed (1×, 60×, 600×, 3600×), P pause time, H hide the interface, Esc back.
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
@@ -80,7 +87,9 @@ Client options (after `--`):
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, `PlanetSurface` (plates, climate, biomes), cube-sphere tiles, collision, scatter, `SkyEphemeris`, the stand-in `SphereSurface`, `FirstWorld` |
-| `game/scripts/Surface` | The surface view: terrain LOD, water, sky and air, lights, look-dev camera |
+| `game/scripts/Surface` | The surface view: terrain LOD, water, sky and air, lights, clouds, plants (`Vegetation`), shader grass (`GrassField`), look-dev camera, time controls |
+| `game/scripts/Surface/Flora` | Plants made in code after hollow-orbit's flora: painted atlas and bark (`FloraTextures`, `Painter`), geometry (`FloraGeometry`), species and variants (`FloraLibrary`), impostors baked at start (`ImpostorBaker`) |
+| `game/assets/surface/ground` | The eight ground texture layers (Megascans and Poly Haven, `game/assets/THIRD_PARTY.md`), built by `tools/blender/surface_ground.py` |
 | `game/` | Godot project: galaxy map, system map, UI, shaders |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |

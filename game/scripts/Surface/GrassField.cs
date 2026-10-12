@@ -116,30 +116,33 @@ public sealed partial class GrassField : Node3D
         var indices = new List<int>();
         var r = new Rng(201);
         float R() => (float)r.NextDouble();
+        // Cards spread over the tuft's cell at random turns, mostly upright: a field, not a fan of cards.
         const int Cards = 5, Segments = 3;
-        const float W = 0.36f;
+        const float W = 0.34f;
         for (int k = 0; k < Cards; k++)
         {
             float u0 = R() * 0.35f, u1 = Math.Min(1, u0 + 0.55f + 0.1f * R());
-            float a = k / (float)Cards * MathF.Tau + R() * 0.6f;
-            var outward = new Vector3(MathF.Cos(a), 0, MathF.Sin(a));
-            Vector3 side = new Vector3(-MathF.Sin(a), 0, MathF.Cos(a)) * (W * (0.42f + 0.2f * R()));
-            float h = 0.8f + 0.4f * R();
-            float lean = 0.12f + 0.14f * R();
-            Vector3 up = new(outward.X * h * lean * 0.6f, h, outward.Z * h * lean * 0.6f);
-            Vector3 offset = outward * (0.05f + 0.08f * R());
-            Vector3 curl = outward * (h * lean * 0.35f);
-            Vector3 normal = new Vector3(outward.X * 0.35f, 1, outward.Z * 0.35f).Normalized();
+            float turn = R() * MathF.Tau;
+            float lean = 0.04f + 0.12f * R();
+            float leanTurn = R() * MathF.Tau;
+            var leanDir = new Vector3(MathF.Cos(leanTurn), 0, MathF.Sin(leanTurn));
+            Vector3 side = new Vector3(MathF.Cos(turn), 0, MathF.Sin(turn)) * (W * (0.4f + 0.25f * R()));
+            float h = 0.75f + 0.45f * R();
+            Vector3 up = new Vector3(0, h, 0) + leanDir * (h * lean);
+            float ra = R() * MathF.Tau, rr = 0.22f * MathF.Sqrt(R());
+            Vector3 offset = new Vector3(MathF.Cos(ra) * rr, 0, MathF.Sin(ra) * rr);
+            Vector3 curl = leanDir * (h * lean * 0.6f);
+            Vector3 normal = new Vector3(leanDir.X * 0.3f, 1, leanDir.Z * 0.3f).Normalized();
             int b = positions.Count;
             for (int i = 0; i <= Segments; i++)
             {
                 float t = i / (float)Segments;
                 Vector3 c = offset + up * t + curl * (t * t);
-                for (int s = 0; s < 2; s++)
+                for (int sd = 0; sd < 2; sd++)
                 {
-                    positions.Add(c + side * (s == 0 ? -1 : 1) * (1 - 0.35f * t));
+                    positions.Add(c + side * (sd == 0 ? -1 : 1) * (1 - 0.3f * t));
                     normals.Add(normal);
-                    uvs.Add(new Vector2(s == 0 ? u0 : u1, t));
+                    uvs.Add(new Vector2(sd == 0 ? u0 : u1, t));
                     colours.Add(new Color(1, 1, 1, t));
                 }
             }
@@ -268,7 +271,7 @@ public sealed partial class GrassField : Node3D
                 VegetationSample v = _surface.Vegetation(d, s, c, biomes, slope);
                 _surface.Materials(s, c, biomes, slope, Math.Clamp(v.Trees / 0.022, 0, 1), materials);
                 double ground = 1 - materials[(int)GroundMaterial.Rock] - materials[(int)GroundMaterial.Sand] - materials[(int)GroundMaterial.Snow]
-                    - 0.7 * materials[(int)GroundMaterial.Gravel] - 0.45 * materials[(int)GroundMaterial.ForestFloor];
+                    - 0.7 * materials[(int)GroundMaterial.Gravel] - 0.8 * materials[(int)GroundMaterial.ForestFloor];
                 double density = Math.Clamp(v.Grass * 1.15 * Math.Clamp(ground, 0, 1) * (1 - DMath.SmoothStep(0.3, 0.45, slope)), 0, 1);
                 double flowers = Math.Clamp(biomes[(int)Biome.Grassland] + 0.5 * biomes[(int)Biome.Shrubland] + 0.3 * biomes[(int)Biome.TemperateForest], 0, 1)
                     * (1 - Math.Clamp(v.Trees / 0.02, 0, 1));

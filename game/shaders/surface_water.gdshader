@@ -69,7 +69,7 @@ void fragment() {
 	vec2 s2 = texture(wave_normals, p / 15.0 - vec2(0.005, 0.013) * TIME).xy * 2.0 - 1.0;
 	vec2 s3 = texture(wave_normals, p / 5.3 + vec2(0.018, -0.006) * TIME).xy * 2.0 - 1.0;
 	float detail = 1.0 - smoothstep(30.0, 400.0, dist);
-	vec2 slope = (s1 * 0.55 + s2 * 0.45 + s3 * 0.35 * detail) * mix(0.55, 0.12, smoothstep(200.0, 6000.0, dist));
+	vec2 slope = (s1 * 0.55 + s2 * 0.45 + s3 * 0.35 * detail) * mix(0.3, 0.1, smoothstep(150.0, 6000.0, dist));
 	vec3 n = normalize(up + vec3(slope.x, 0.0, slope.y));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 
@@ -97,7 +97,9 @@ void fragment() {
 
 	vec3 through = exp(-absorption * path);
 	float depth_mix = 1.0 - dot(through, vec3(1.0 / 3.0));
-	vec3 body = clear_floor * through + scattering * light * depth_mix * 4.0;
+	// Shallows over sand glow turquoise; deep water is a darker blue.
+	float shallows = 1.0 - smoothstep(0.5, 6.0, path);
+	vec3 body = clear_floor * through + scattering * light * depth_mix * (4.0 + 5.0 * shallows) * vec3(0.8, 1.0, 1.0);
 	float ndv = clamp(dot(n, normalize(CAMERA_POSITION_WORLD - v_world)), 0.0, 1.0);
 	float fresnel = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
 

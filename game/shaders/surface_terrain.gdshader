@@ -154,6 +154,9 @@ void fragment() {
 				t = mix(t, vec3(0.5, 0.5, 0.5), far);
 			}
 		}
+		if (i == 1) {
+			c *= vec3(1.12, 0.9, 0.62); // forest litter: warmer than the scan, which reads grey under a blue sky
+		}
 		if (i == 0) {
 			// The grass layer takes the blades' colour: its texture only gives the detail.
 			float lum = dot(c, vec3(0.2126, 0.7152, 0.0722)) / grass_layer_luminance;

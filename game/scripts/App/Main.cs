@@ -86,6 +86,10 @@ public partial class Main : Node
         }
         _surfaceView.SetTime(time, paused: _options.ContainsKey("shot"));
         _surfaceView.DebugSky = (int)Number("debug-sky", 0);
+        if (_options.ContainsKey("hide-ui"))
+        {
+            _surfaceView.InterfaceVisible = false;
+        }
         if (_options.ContainsKey("clouds"))
         {
             _surfaceView.CloudCoverage = (float)Number("clouds", 0.5);

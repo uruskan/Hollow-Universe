@@ -69,6 +69,13 @@ public partial class SurfaceView : Node3D
 
     public GrassField? Grass => _grass;
 
+    /// <summary>Shows or hides the interface (H), e.g. for clean screenshots.</summary>
+    public bool InterfaceVisible
+    {
+        get => _uiLayer.Visible;
+        set => _uiLayer.Visible = value;
+    }
+
     /// <summary>Cloud cover, 0 (clear) to 1 (overcast).</summary>
     public float CloudCoverage
     {
@@ -83,7 +90,7 @@ public partial class SurfaceView : Node3D
         }
     }
 
-    private float _cloudCoverage = 0.5f;
+    private float _cloudCoverage = 0.35f; // fair-weather cumulus
 
     /// <summary>Look-dev: show one of each plant at a distance and level of detail (see <see cref="Vegetation.Lineup"/>).</summary>
     public void ShowFloraLineup(float distance, int lod)
@@ -461,6 +468,9 @@ public partial class SurfaceView : Node3D
                     break;
                 case Key.P:
                     _timeRuns = !_timeRuns;
+                    break;
+                case Key.H:
+                    _uiLayer.Visible = !_uiLayer.Visible;
                     break;
                 case Key.Escape:
                     BackRequested?.Invoke();

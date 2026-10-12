@@ -28,6 +28,12 @@ public static class FloraTextures
         return new Vector4(cell.X * s + pad / AtlasSize, (cell.Y + 1) * s - pad / AtlasSize, (cell.X + 1) * s - pad / AtlasSize, cell.Y * s + pad / AtlasSize);
     }
 
+    private static double Smooth(double a, double b, double x)
+    {
+        double t = Math.Clamp((x - a) / (b - a), 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
     private static Color Rgba(double r, double g, double b, double a = 1) => new((float)(r / 255), (float)(g / 255), (float)(b / 255), (float)a);
 
     // ---------------------------------------------------------------- atlas
@@ -468,15 +474,25 @@ public static class FloraTextures
                 }
                 else
                 {
-                    double warp = NoiseTextures.Fbm(u, v, 4, 2, 0.5, seed + 31) * 0.08;
-                    double groove = Math.Abs(Math.Sin((u + warp) * Math.PI * 9 + NoiseTextures.Fbm(u, v, 3, 2, 0.5, seed + 33) * 2.0));
-                    double plate = NoiseTextures.Fbm(u * 3 % 1, v, 6, 3, 0.5, seed + 35) * 0.5 + 0.5;
+                    // Plates between deep fissures: seven wandering columns around the trunk, each broken by cracks
+                    // at its own heights; the plates rough and lighter, the fissures dark.
+                    double warp = NoiseTextures.Fbm(u, v, 3, 3, 0.5, seed + 31) * 0.09 + NoiseTextures.Fbm(u, v, 9, 2, 0.5, seed + 32) * 0.025;
+                    double cu = (u + warp) * 7;
+                    int column = (int)Math.Floor(cu);
+                    double fu = cu - column;
+                    int wrapped = ((column % 7) + 7) % 7;
+                    double phase = (Hash64.Of((ulong)seed, (ulong)wrapped) & 0xFFFF) / 65536.0;
+                    double cv = v * 5 + phase + NoiseTextures.Fbm(u, v, 5, 2, 0.5, seed + 33) * 0.15;
+                    double fv = cv - Math.Floor(cv);
+                    double across = Math.Min(fu, 1 - fu) * 2, along = Math.Min(fv, 1 - fv) * 2;
+                    double fissure = Smooth(0.0, 0.35, across) * (0.5 + 0.5 * Smooth(0.0, 0.1, along));
+                    double plate = NoiseTextures.Fbm(u, v, 6, 3, 0.5, seed + 35) * 0.5 + 0.5;
                     double fine = NoiseTextures.Fbm(u, v, 48, 2, 0.5, seed + 37) * 0.5 + 0.5;
-                    double g = 0.35 + 0.55 * Math.Pow(groove, 0.6) * (0.75 + 0.25 * plate) + 0.12 * fine;
+                    double g = 0.22 + 0.62 * fissure * (0.7 + 0.3 * plate) + 0.14 * fine;
                     albedo[k] = (float)(190 * g / 255);
                     albedo[k + 1] = (float)(172 * g / 255);
                     albedo[k + 2] = (float)(156 * g / 255);
-                    height[y * S + x] = (float)g;
+                    height[y * S + x] = (float)(0.8 * fissure + 0.15 * plate + 0.05 * fine);
                 }
                 albedo[k + 3] = 1;
             }

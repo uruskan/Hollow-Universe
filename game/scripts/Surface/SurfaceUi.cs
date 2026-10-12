@@ -59,7 +59,7 @@ public partial class SurfaceUi : Control
         AddChild(clockCard);
         HFlowContainer hints = Ui.KeyHints(("W|A|S|D", "move"), ("Q|E", "down / up"), ("Right mouse", "look"),
             ("Shift", "fast"), ("G", "walk / fly"), ("[|]", "time ∓ 1 h"), ("Shift|[|]", "∓ 6 h"), ("T", "day speed"),
-            ("P", "pause time"));
+            ("P", "pause time"), ("H", "hide interface"));
         Ui.Place(hints, LayoutPreset.BottomLeft);
         AddChild(hints);
     }

@@ -58,8 +58,20 @@ this is the one closest to an Earth-like place to live.
 
 - **Pinned by a test.** A golden test pins the planet's state. If a generator change alters it, the test fails and we
   decide what to do. The ground branch starts from `generator-v2` for this data.
-- **The first zone** sits at a landing site chosen during the surface look-dev: a temperate coast with forest,
-  hills and mountains in view.
+- **The landing site** (the first zone's origin) is 44.8683° N, 170.0010° W (`FirstWorld.LandingLatitude`,
+  `FirstWorld.LandingLongitude`): the east shore of a bay, 21 m above the sea, on a meadow at a forest edge
+  (birches, oaks, spruces, berry bushes); the bay within 2 km to the west and south-west; forested hills to 365 m
+  nearby and to 1,160 m 18 km to the north-east (`surface site` in the generator report). The golden test of the surface includes points around it.
+- **Look-dev views** (`docs/images/ground/`, 1600 × 900; commands in §4.6):
+  - `a_landing_morning.jpg`: the landing site at 09:25 local time.
+  - `b_golden.jpg`: the meadow 700 m south of it at 18:13, looking into the sun (6° up) through the forest edge.
+  - `c_night_moon.jpg`: the same meadow at 22:07, the moon 38° up and 68% lit (behind the camera), the galaxy's
+    band.
+  - `d_hills.jpg`: forested hills 17 km north-east, from 60 m above a 620 m ridge.
+  - `e_beach.jpg`: the beach 4 km south, along the coast.
+  - `f_forest.jpg`: inside the forest 600 m north, toward the sun.
+  - `g_2km.jpg`: from 2 km above the landing site toward the hills, the bay on the left.
+  - `compare/`: the meadow and forest before and after the plants and grass were redone (same views and times).
 
 ---
 
@@ -192,6 +204,64 @@ Godot.
   code at the universe time. The client draws physically based scattering for the planet's own air (Rayleigh, Mie,
   ozone, multiple scattering) with the same tables as the aerial perspective on everything under it.
 - **Water:** the sea at `SeaRadius` (sea level), drawn on the terrain's own tiles.
+
+**The surface view** (client, `game/scripts/Surface`; presentation only, never deciding what exists):
+- **Terrain:** a quadtree of the tiles above around the camera, built on worker threads, morphing toward the parent
+  grid with distance (no cracks: skirts), in a floating origin that moves with the camera without turning. Eight
+  ground layers (texture arrays) blended by the vertices' material weights and their own heights, triplanar rock on
+  cliffs, two scales near and a larger turned copy far so nothing repeats in rows; the grass layer takes the colour
+  of the grass blades (below); far forests colour the ground with their canopy where their impostors end.
+- **Air and light:** the sun (star B) and the moon at their real directions for the universe time; scattering for the
+  thick air (transmittance and multiple-scattering tables, the sky ray-marched at quarter resolution) and the same air
+  in front of everything through a 3D aerial-perspective table. Clouds: a layer of fair-weather cumulus (1.6–2.9 km,
+  cover 0.35) with cloud shadows. Night: the two white dwarfs, the other planets, a star field and the galaxy's band;
+  moonlight on the ground is brightened six times (dark but readable, as in Rust), the moonlit air only 1.5 times;
+  the moon's disc is capped a few times above white so it never blooms over the sky. Exposure meters for the light
+  falling on the ground, nights a few stops darker than days.
+- **Water** reflects the sky and sun with Fresnel, shows the sea floor through water that absorbs red first, glows
+  turquoise in the shallows, foams on the shore and moves with Gerstner swell near the camera.
+- **Plants** are made in code after hollow-orbit's flora (no plant models): firs (spruce-like), pines, birches,
+  broadleaf trees (oak and beech), bushes, red- and blue-berry bushes, ferns and boulders; two to four seeded variants
+  per species, each with two meshes. Leaves are cards of a painted atlas (4 × 4 cells, mipmaps that keep the share of
+  leaf texels so far foliage does not thin), alpha-tested with alpha to coverage, with vertex-colour occlusion,
+  normals pointing out of the crown, hollow-orbit's foliage light (a warm sheen with the sun behind the viewer, light
+  through leaves that face away from it) and little specular. Bark: painted plates and fissures with a normal map.
+  Boulders: icospheres cut into facets, textured with the ground's rock layer in their own frame, moss on top.
+  - *Levels:* trees draw their full mesh to 58 m, then impostors to 2.2 km (eight views of every variant, colour and
+    normals, rendered into an atlas when the view opens); the second mesh only casts shadows, to 250 m; past 1.6 km
+    forests become canopy colour on the ground. Bushes, ferns and rocks use their second mesh to 75–200 m and shrink
+    into the ground at the end. Cross-fades are complementary dithers; distances are the main camera's, also in
+    shadow passes.
+  - *Wind:* every vertex carries a bend weight and a flutter weight; the plant bends along the wind with gusts that
+    roll across the forest, leaves flutter along their normals.
+  - Each plant is a scatter object, known by tile and index; berry bushes are their own kinds (`BerryRed` 7,
+    `BerryBlue` 8) because they will be food.
+- **Grass** is not in the scatter and has no models: `GrassField` draws one MultiMesh of blade tufts on a 0.4 m grid
+  that follows the camera (to 42 m; they shrink into the ground from 22 m). Each tuft's place, height, width, turn,
+  lean, colour, dryness and kind (grass, meadow grass, dry grass, flowers) come from a hash of its ground cell in
+  stable coordinates, so nothing shifts as the grid moves. A field texture (256² at 0.5 m, rebuilt on a worker every
+  14 m) holds the ground's height (the finest tiles' own triangles, so tufts sit on the drawn ground), the grass
+  density (from the biomes, materials and slope), moisture and flowers. The blades are hollow-orbit's painted blade
+  cards spread over each cell, coloured by one function shared with the ground's grass layer
+  (`surface_grass.gdshaderinc`), their foot in the ground's colour, normals mostly up so a field lights as one, light
+  through the tips toward a low sun; wind bends them in gusts drifting downwind with a ripple; they bend away from the
+  walker's feet.
+- **Time:** the clock runs at the universe time; `RotationTimeScale` (client setting `[surface]
+  rotation_time_scale` in `user://settings.cfg`, or `--time-scale`) turns the planet faster than real without
+  moving anything else. Keys: `[` `]` jump the clock an hour (Shift: six), T cycles the day speed 1×, 60×, 600×,
+  3600×, P pauses, H hides the interface; a card in the corner shows local solar time, UTC and the speed.
+  Screenshots pause at `--time`.
+- **Speed** (1600 × 900, RTX 2070 Super, vsync on): 11 ms a frame (90 fps) at the landing site with 4,000 plant
+  meshes, 414,000 impostors and 45,000 grass tufts; 13–15 ms (65–77 fps) above dense forest; 6–7 ms from the air.
+  Opening the view takes about 4 s (tiles, the painted atlas and the plants, then the impostor bake).
+- **Look-dev commands** for the views in §3 (add `--shot <file> --hide-ui` to save them):
+  - (a) `--view surface --alt 1.7 --yaw 60 --pitch -2 --time 2026-10-12T03:00:00Z`;
+  - (b) `--view surface --lat 44.86225 --lon -170.00150 --alt 1.7 --yaw 280 --pitch 0 --time 2026-10-12T15:50:00Z`;
+  - (c) `--view surface --lat 44.86225 --lon -170.00150 --alt 1.7 --yaw 345 --pitch 12 --time 2026-10-18T17:30:00Z`;
+  - (d) `--view surface --lat 44.97185 --lon -169.84163 --alt 60 --yaw 45 --pitch -4 --time 2026-10-12T03:00:00Z`;
+  - (e) `--view surface --lat 44.83304 --lon -169.99447 --alt 1.7 --yaw 20 --pitch -2 --time 2026-10-12T03:00:00Z`;
+  - (f) `--view surface --lat 44.87400 --lon -169.99949 --alt 1.7 --yaw 120 --pitch 6 --time 2026-10-12T03:00:00Z`;
+  - (g) `--view surface --alt 2000 --yaw 20 --pitch -6 --time 2026-10-12T03:00:00Z`.
 - **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height at a point, biome at a
   point (`BiomeAt`), collision for a zone square, scatter for a tile (`ScatterFor`). The last two have default
   implementations, so other `ISurface`s keep compiling.
@@ -301,8 +371,12 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
   them "reconstructions".
 - The texture and plant sets in `D:\GameDev\Assets`:
   - Poly Haven: CC0.
-  - Megascans and other Fab content: check the licence of each item; some Fab content is Unreal-only.
+  - Megascans and other Fab content: check the licence of each item; some Fab content is Unreal-only. Use only sets
+    whose Fab listing is on record (`Inventory`, or a download manifest with the listing URL).
   - LOLIPOP trees: CC BY 4.0, credit required.
+- **In the game now:** the ground textures only (six Megascans surfaces and two Poly Haven sets, listed in
+  `game/assets/THIRD_PARTY.md`, built by `tools/blender/surface_ground.py`). Plants, grass, rocks and their textures
+  are made in code (§4.6); the Megascans and LOLIPOP plant models tried earlier were dropped.
 - CC0 libraries and MakeHuman/CMU data, if the owner allows the downloads (§1).
 
 **Never used** (extracted from Rust's game files):
@@ -343,8 +417,18 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
 ## 11. Open questions
 
 1. **Day length:** keep each planet's real rotation (the first world's day is 35 hours), or compress rotation for play
-   (÷ 24 makes it 87 minutes)? Orbits and seasons would stay real either way.
+   (÷ 24 makes it 87 minutes)? Orbits and seasons would stay real either way. Until decided, the client has one
+   setting, `RotationTimeScale` (1 = real), and the time keys of the surface view (§4.6).
 2. **Downloads for the character:** MakeHuman for Blender (CC0 human assets), the CMU motion-capture library (free for
    use in commercial games), Quaternius's CC0 animation library. Exact files and sizes will be listed before any
    download.
 3. **Tech ladder:** confirm Rust's.
+4. **Decisions taken in the surface work** (to confirm):
+   - Plants are generated in code in hollow-orbit's style rather than scanned models; trees switch to impostors at
+     58 m, which keeps the frame time near 11 ms.
+   - Three Megascans surfaces on disk (Mossy Ground `tj4ocdjr`, Tundra Lichened Rock `vjbode1mw`, Tundra Mossy Ground
+     `vjulbjjr`) have no listing on record, so they were replaced by listed sets and Poly Haven CC0 sets. The six
+     listings used should be checked once for an "Unreal Engine only" note (none is expected for Megascans surfaces).
+   - Cloud cover is fixed at 0.35 (fair weather) until weather exists; moonlight on the ground is brightened six
+     times.
+   - The landing site (§3) can still move: only the surface golden test's landing-area points depend on it.
