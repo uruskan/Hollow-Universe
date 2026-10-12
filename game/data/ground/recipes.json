@@ -1,0 +1,37 @@
+{
+  "source": "Ingredients: hollow-orbit js/game/items.js, Rust's where it has the item (spears, bow, arrows). Scrap is left out of the workbenches until it has a source (G7). Times are ours, between hollow-orbit's and Rust's. Every recipe is known from the start until the tech tree (G7).",
+  "recipes": [
+    { "output": "rock", "seconds": 5, "ingredients": [["stone", 10]] },
+    { "output": "torch", "seconds": 5, "ingredients": [["wood", 30], ["fibre", 1]] },
+    { "output": "stone-hatchet", "seconds": 15, "ingredients": [["wood", 200], ["stone", 100]] },
+    { "output": "stone-pickaxe", "seconds": 15, "ingredients": [["wood", 200], ["stone", 100]] },
+    { "output": "metal-hatchet", "seconds": 30, "workbench": 1, "ingredients": [["wood", 100], ["metal-fragments", 75]] },
+    { "output": "metal-pickaxe", "seconds": 30, "workbench": 1, "ingredients": [["wood", 100], ["metal-fragments", 125]] },
+
+    { "output": "wooden-spear", "seconds": 10, "ingredients": [["wood", 300]] },
+    { "output": "stone-spear", "seconds": 15, "ingredients": [["wooden-spear", 1], ["stone", 20]] },
+    { "output": "machete", "seconds": 30, "workbench": 1, "ingredients": [["wood", 50], ["metal-fragments", 150]] },
+    { "output": "bow", "seconds": 20, "ingredients": [["wood", 200], ["fibre", 50]] },
+    { "output": "arrow", "amount": 2, "seconds": 5, "ingredients": [["wood", 25], ["stone", 10]] },
+
+    { "output": "bandage", "seconds": 5, "ingredients": [["fibre", 4]] },
+    { "output": "medical-injector", "seconds": 10, "workbench": 1, "ingredients": [["fibre", 15], ["metal-fragments", 10]] },
+    { "output": "lamp-oil", "amount": 2, "seconds": 3, "ingredients": [["charcoal", 3], ["fibre", 1]] },
+
+    { "output": "woven-hood", "seconds": 5, "ingredients": [["fibre", 10]] },
+    { "output": "woven-shirt", "seconds": 10, "ingredients": [["fibre", 15]] },
+    { "output": "woven-trousers", "seconds": 10, "ingredients": [["fibre", 20]] },
+    { "output": "woven-gloves", "seconds": 5, "ingredients": [["fibre", 10]] },
+    { "output": "work-boots", "seconds": 10, "ingredients": [["fibre", 30], ["metal-fragments", 10]] },
+    { "output": "chest-plate", "seconds": 30, "workbench": 2, "ingredients": [["refined-metal", 25], ["fibre", 50]] },
+
+    { "output": "sleeping-bag", "seconds": 15, "ingredients": [["fibre", 30]] },
+    { "output": "campfire", "seconds": 10, "ingredients": [["wood", 100]] },
+    { "output": "furnace", "seconds": 20, "ingredients": [["stone", 200], ["wood", 100], ["lamp-oil", 10]] },
+    { "output": "small-box", "seconds": 10, "ingredients": [["wood", 100]] },
+    { "output": "large-box", "seconds": 20, "ingredients": [["wood", 250], ["metal-fragments", 50]] },
+    { "output": "workbench-1", "seconds": 30, "ingredients": [["wood", 500], ["metal-fragments", 100]] },
+    { "output": "workbench-2", "seconds": 45, "workbench": 1, "ingredients": [["metal-fragments", 500], ["refined-metal", 20]] },
+    { "output": "workbench-3", "seconds": 60, "workbench": 2, "ingredients": [["metal-fragments", 1000], ["refined-metal", 100]] }
+  ]
+}

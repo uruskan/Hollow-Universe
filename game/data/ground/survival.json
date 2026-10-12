@@ -1,0 +1,38 @@
+{
+  "source": "Vitals ranges from RustMVP inventory_survival.md §10 (health 100, food 500, water 250). Metabolism, starvation, thirst, cold, regeneration and the respawn vitals from hollow-orbit js/game/player.js. Body-part multipliers from RustMVP damage_rules.hpp (head 2, body 1, limbs 0.5). Corpse and dropped-item lifetimes, the beach respawn without a wait, and the respawn kit (a rock and a torch) are Rust's. Bleeding is ours.",
+  "vitals": {
+    "maxHealth": 100, "maxCalories": 500, "maxHydration": 250,
+    "spawn": { "health": 60, "calories": 260, "hydration": 160 }
+  },
+  "metabolism": {
+    "caloriesPerSecond": 0.07, "hydrationPerSecond": 0.09,
+    "sprintFactor": 1.8, "coldFactor": 1.4,
+    "starvationDamagePerSecond": 0.2, "thirstDamagePerSecond": 0.3,
+    "regenMinCalories": 250, "regenMinHydration": 120, "regenPerSecond": 0.04, "comfortRegenFactor": 2,
+    "healPerSecond": 1.0
+  },
+  "bleeding": { "damagePerSecond": 1.0, "clotPerSecond": 0.2 },
+  "temperature": {
+    "comfortable": 5, "coldScale": 15, "coldDamageFrom": 0.6, "coldDamagePerSecond": 0.15,
+    "wetCooling": 10, "wetSeconds": 120
+  },
+  "climateStandIn": {
+    "note": "The first world (GROUND.md §3): mean 18 °C, 13-20 °C between night and day; the planet package's climate replaces it.",
+    "meanCelsius": 18, "daySwing": 3.5, "lapsePerKilometre": 6.5, "dayLengthSeconds": 5235
+  },
+  "combat": {
+    "head": 2.0, "body": 1.0, "limb": 0.5,
+    "maxRewindSeconds": 0.25,
+    "equipSeconds": 0.3
+  },
+  "world": {
+    "corpseSeconds": 300, "droppedItemSeconds": 300,
+    "interactReach": 3.0, "lootReach": 3.5,
+    "beachCooldownSeconds": 0,
+    "respawnKit": "respawn-kit"
+  },
+  "rateLimits": {
+    "note": "RustMVP command_budget.hpp: 16 at once, 20 a second; every arrival costs one.",
+    "intentBurst": 16, "intentsPerSecond": 20
+  }
+}
