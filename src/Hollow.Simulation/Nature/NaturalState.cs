@@ -244,6 +244,7 @@ public sealed class NaturalState
     {
         bool wasDepleted = IsDepleted(id);
         Revision++;
+        Changed.Add(id);
         if (value is { } v)
         {
             _overrides[id] = v;

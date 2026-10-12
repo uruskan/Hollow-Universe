@@ -53,6 +53,9 @@ public sealed partial class GameServer
     /// <summary>The game's data, as every client must have it too.</summary>
     public GameContent Content { get; }
 
+    private bool _deathToSave;
+    private long _lastDeathSave;
+
     /// <summary>What happened in the game so far, for the load test and <c>status</c>.</summary>
     public GameCounters Counters { get; } = new();
 
@@ -416,8 +419,8 @@ public sealed partial class GameServer
                     Log($"{NameOf(e.Player)} died: {e.Text}" + (e.Other.IsNone ? "" : $", by {NameOf(e.Other)}"));
                     if (_persistence != null)
                     {
-                        // Deaths commit at once (ARCHITECTURE.md §13).
-                        _persistence.SaveZone(BuildSave());
+                        // Deaths commit at once (ARCHITECTURE.md §13): within a second, several deaths in one save.
+                        _deathToSave = true;
                     }
                     break;
                 case ZoneEventKind.ProjectileLaunched:

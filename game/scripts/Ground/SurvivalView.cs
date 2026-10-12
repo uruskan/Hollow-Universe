@@ -98,13 +98,25 @@ public partial class SurvivalView : Node3D
     private void UpdateNature(Num.Vector3 feet)
     {
         (int, int) centre = PhysicsWorld.TileOf(feet);
-        bool rebuild = Client.Natural!.Revision != _natureRevision;
-        if (centre == _centre && !rebuild)
+        // Only the tiles whose objects changed are built again.
+        var changed = new HashSet<(int, int)>();
+        if (Client.Natural!.Revision != _natureRevision)
+        {
+            _natureRevision = Client.Natural.Revision;
+            foreach (ulong id in Client.Natural.Changed)
+            {
+                if (Client.Nature!.TryGet(id, out NaturalObject o))
+                {
+                    changed.Add(PhysicsWorld.TileOf(o.Position));
+                }
+            }
+            Client.Natural.Changed.Clear();
+        }
+        if (centre == _centre && changed.Count == 0)
         {
             return;
         }
         _centre = centre;
-        _natureRevision = Client.Natural.Revision;
         foreach ((int X, int Z) key in _tiles.Keys.Where(k => Math.Max(Math.Abs(k.X - _centre.X), Math.Abs(k.Z - _centre.Z)) > Radius).ToList())
         {
             _tiles[key].QueueFree();
@@ -116,7 +128,7 @@ public partial class SurvivalView : Node3D
             {
                 if (_tiles.TryGetValue((x, z), out Node3D? old))
                 {
-                    if (!rebuild)
+                    if (!changed.Contains((x, z)))
                     {
                         continue;
                     }

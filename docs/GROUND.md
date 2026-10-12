@@ -545,7 +545,7 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
 **Server** (`GameServer.Survival.cs`). The zone runs with the game data; the server sets its real clock each tick,
 applies inputs and actions, steps it, then routes its events, sends each player's own state, the container changes,
 and the answers; static things and natural changes go with each snapshot. A player who logs off stays as a sleeper
-(saved at once); logging in finds their sleeper and wakes it. Admin console: `give <name> <item> [count]`,
+(saved at once); logging in finds their sleeper and wakes it. A death saves the zone within a second. Admin console: `give <name> <item> [count]`,
 `kit <name> <loot table>`, `heal <name>`, `kill <name>` besides G1's.
 
 **Persistence** (schema 2, `GameDatabase`, `WorldCodec`). Characters gain `dead` and `state` (their vitals, inventory,
@@ -574,7 +574,8 @@ dropped. A G1 database migrates in place; G1 characters come back with a new lif
 Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), the natural objects and their changes
 (`Nature`, `Natural`, with trees and outcrops solid in the prediction's physics), projectiles in flight
 (`Projectiles`), others' held items, swings, sleep and clothing (`RemoteEntity`), and finds what the interact key would
-act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons.
+act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
+campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
 
 **Godot** (`game/scripts/Ground`, placeholders until the other packages' models and the RustMVP interface): natural
 objects as simple shapes per 64 m tile (trees, outcrops shrinking with their stage, piles, plants, bushes with their

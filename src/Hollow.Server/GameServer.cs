@@ -264,9 +264,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             _snapshotAccumulator -= 1;
             Replicate();
         }
-        if (_persistence != null && Stopwatch.GetElapsedTime(_lastSave).TotalSeconds >= _options.SaveIntervalSeconds)
+        if (_persistence != null && (Stopwatch.GetElapsedTime(_lastSave).TotalSeconds >= _options.SaveIntervalSeconds ||
+            (_deathToSave && Stopwatch.GetElapsedTime(_lastDeathSave).TotalSeconds >= 1)))
         {
-            _lastSave = Stopwatch.GetTimestamp();
+            _lastSave = _lastDeathSave = Stopwatch.GetTimestamp();
+            _deathToSave = false;
             SaveAll();
         }
         long now = Stopwatch.GetTimestamp();
