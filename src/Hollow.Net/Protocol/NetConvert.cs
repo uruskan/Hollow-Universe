@@ -3,6 +3,7 @@ using System.Numerics;
 using Hollow.Net.Bits;
 using Hollow.Simulation;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Players;
 
 namespace Hollow.Net.Protocol;
 
@@ -19,6 +20,24 @@ public static class NetConvert
         Yaw = Quantize.Angle16(input.Yaw),
         Pitch = Quantize.Angle16(Math.Clamp(input.Pitch, -1.5533f, 1.5533f)),
         Buttons = input.Buttons,
+    };
+
+    /// <summary>A tick's movement and actions as one command (the actions ride along: G2).</summary>
+    public static InputCommand ToCommand(in MoveInput input, in ActionInput actions)
+    {
+        InputCommand command = ToCommand(input);
+        command.Held = (byte)Math.Min(actions.HeldSlot, ActionInput.NoSlot);
+        command.Actions = actions.Buttons & (ActionButtons.Primary | ActionButtons.Secondary | ActionButtons.PrimaryPressed);
+        command.ViewDelay = actions.ViewDelay;
+        return command;
+    }
+
+    /// <summary>The actions of a command (untrusted: a slot past the belt is "none").</summary>
+    public static ActionInput ToActions(in InputCommand command) => new()
+    {
+        HeldSlot = command.Held < 6 ? command.Held : ActionInput.NoSlot,
+        Buttons = command.Actions & (ActionButtons.Primary | ActionButtons.Secondary | ActionButtons.PrimaryPressed),
+        ViewDelay = command.ViewDelay,
     };
 
     public static MoveInput ToMoveInput(in InputCommand command) => new()

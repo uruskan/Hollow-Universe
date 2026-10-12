@@ -19,7 +19,7 @@ public static class Program
         if (o.ContainsKey("help"))
         {
             Console.WriteLine("Hollow.Server options: --port <n> --name <text> --db <path> | --no-db --lat <deg> --lon <deg> " +
-                "--catalogue <path> --max-players <n> --relevance <m>\nCommands:\n" + GameServer.CommandHelp);
+                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table>\nCommands:\n" + GameServer.CommandHelp);
             return 0;
         }
         var options = new ServerOptions
@@ -32,6 +32,7 @@ public static class Program
             CataloguePath = o.GetValueOrDefault("catalogue"),
             MaxPlayers = (int)Number(o, "max-players", 128),
             RelevanceRadius = (float)Number(o, "relevance", 300),
+            JoinKit = o.GetValueOrDefault("kit"),
             ReadConsole = true,
         };
         using var server = new GameServer(options);

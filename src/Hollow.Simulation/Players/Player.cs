@@ -1,0 +1,152 @@
+using System;
+using Hollow.Simulation.Content;
+using Hollow.Simulation.Entities;
+using Hollow.Simulation.Items;
+
+namespace Hollow.Simulation.Players;
+
+/// <summary>The survival state of a character (GROUND.md §6): health and the needs, all in their own units.</summary>
+public struct Vitals
+{
+    public float Health;
+    public float Calories;
+    public float Hydration;
+
+    /// <summary>Health still to be lost to bleeding.</summary>
+    public float Bleeding;
+
+    /// <summary>Health still to be gained over time (bandages, injectors, food).</summary>
+    public float PendingHeal;
+
+    /// <summary>The temperature felt, in °C (the air, a fire, wetness), and how cold that is with clothing on (0 … 1).</summary>
+    public float Temperature;
+    public float Cold;
+
+    /// <summary>Seconds of wetness left after swimming.</summary>
+    public float WetSeconds;
+
+    /// <summary>Near a lit fire.</summary>
+    public bool Comfort;
+
+    public readonly bool Starving => Calories <= 0;
+
+    public readonly bool Dehydrated => Hydration <= 0;
+}
+
+/// <summary>Buttons of one tick for actions, besides movement (they ride in the same input command).</summary>
+[Flags]
+public enum ActionButtons : byte
+{
+    None = 0,
+
+    /// <summary>Attack, swing, loose (left mouse) is held.</summary>
+    Primary = 1,
+
+    /// <summary>Aim, draw a bow (right mouse) is held.</summary>
+    Secondary = 2,
+
+    /// <summary>The primary button went down since the previous tick (kept until a tick uses it).</summary>
+    PrimaryPressed = 4,
+}
+
+/// <summary>One tick of a player's actions: what they hold, the buttons, and how far in the past they saw others.</summary>
+public struct ActionInput
+{
+    /// <summary>The belt slot in hand (0 … 5), or <see cref="NoSlot"/>.</summary>
+    public byte HeldSlot;
+
+    public ActionButtons Buttons;
+
+    /// <summary>
+    /// How many quarter ticks behind this input's tick the player saw everyone else (interpolation and latency): hits
+    /// are tested against where others were then (ARCHITECTURE.md §11.5).
+    /// </summary>
+    public byte ViewDelay;
+
+    public const byte NoSlot = 7;
+
+    public readonly bool Has(ActionButtons b) => (Buttons & b) != 0;
+}
+
+/// <summary>What a swing or shot does visibly, for others to animate (it rides in the character's snapshot state).</summary>
+public enum ActionKind : byte
+{
+    None,
+    Swing,
+    Draw,
+    Shoot,
+}
+
+/// <summary>
+/// One character's survival and items: inventory, crafting queue, vitals, what it holds and is doing, and its life
+/// (alive or dead, awake or asleep). Lives in the zone alongside its <see cref="Character"/>; owned by the zone's
+/// thread.
+/// </summary>
+public sealed class Player
+{
+    public Player(EntityId id, string name)
+    {
+        Id = id;
+        Name = name;
+    }
+
+    /// <summary>The character's permanent ID (the same across lives).</summary>
+    public EntityId Id { get; }
+
+    public string Name { get; }
+
+    public PlayerInventory Inventory { get; } = new();
+
+    public CraftQueue Crafting { get; } = new();
+
+    public Vitals Vitals;
+
+    /// <summary>Dead: the body became a corpse; waits for a respawn.</summary>
+    public bool Dead { get; set; }
+
+    /// <summary>Logged off but still in the world: lootable and killable, wakes when the player logs in.</summary>
+    public bool Sleeping { get; set; }
+
+    /// <summary>How the character died last (for the death screen).</summary>
+    public string DeathCause { get; set; } = "";
+
+    public string KilledBy { get; set; } = "";
+
+    /// <summary>When a beach respawn is allowed again (Unix ms).</summary>
+    public long BeachReadyAtUnixMs { get; set; }
+
+    /// <summary>The object being looted (a box, corpse, device or sleeper), or none.</summary>
+    public EntityId Looting { get; set; }
+
+    /// <summary>Raised whenever <see cref="Looting"/> changes, so the server knows to send contents.</summary>
+    public uint LootRevision { get; set; }
+
+    // ---------------------------------------------------------------- held item and its actions
+
+    /// <summary>The belt slot in hand and the item that was in it when taken up (a change re-equips).</summary>
+    public byte HeldSlot = ActionInput.NoSlot;
+    public ushort HeldItem;
+
+    /// <summary>Tick when the held item is ready (an equip takes a moment).</summary>
+    public long EquipReadyTick;
+
+    /// <summary>Next tick a swing may start, and the tick the swing in progress strikes (−1: none).</summary>
+    public long NextSwingTick;
+    public long StrikeTick = -1;
+
+    /// <summary>Tick the bow started being drawn (−1: not drawing).</summary>
+    public long DrawStartTick = -1;
+
+    /// <summary>Counts swings and shots (wrapping), so others see each one; and what the last was.</summary>
+    public byte ActionCount;
+    public ActionKind LastAction;
+
+    /// <summary>Raised when the vitals change in a way the owner should see (whole units).</summary>
+    public uint VitalsRevision { get; set; }
+
+    public bool IsAwakeAndAlive => !Dead && !Sleeping;
+
+    /// <summary>The item in the hand, if the held slot has one.</summary>
+    public ItemDef? Held(GameContent content) =>
+        HeldSlot < PlayerInventory.BeltSlots ? content.Item(Inventory.Belt[HeldSlot].Item) : null;
+}

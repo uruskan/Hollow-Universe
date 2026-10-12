@@ -48,10 +48,16 @@ dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Pr
 dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server (--no-db, --db <path>, --lat, --lon; type help)
 dotnet run -c Release --project tools/Hollow.Bots -- --server 127.0.0.1:27015 --count 100   # bots (--script, --lag/--jitter/--loss)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60   # server + 100 bots: tick time, bandwidth, prediction
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit   # G2: bots that gather, craft and fight (GROUND.md §5.2)
+dotnet run --project tests/Hollow.Tests -- ContentTests   # checks game/data/ground: references, ranges, every recipe makeable
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs per generated star system
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|relief|zoom|stats|bench|site|spot|times
+                                                 # the first world's surface: maps, speed, landing site, look-dev
+                                                 # spots (forest|meadow|beach|mountain), sun and moon by the hour
+blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
 ```
 
 Character assets (GROUND.md §4.8, §9), rebuilt from text by Blender 5.2 in background mode. MPFB 2 lives in its own
@@ -78,6 +84,9 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --shot ground.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --db /tmp/demo.db --demo --shot camp.png
+xvfb-run -a $GODOT --path game -- --view icons --out game/assets/items/icons   # render every item icon (GROUND.md §9.1)
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view models --shot models.png
 ```
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
@@ -87,6 +96,14 @@ Client options (after `--`):
 - Camera and selection: `--focus <name>`, `--position=x,y,z` (ly), `--distance <ly>`, `--yaw <deg>`,
   `--pitch <deg>`, `--select <name>`, `--search <text>`.
 - System map: `--view system`, `--body <name>`, `--time <UTC>`, `--system-distance`.
+- Surface (the first world, GROUND.md §3): `--view surface`, `--lat <deg>`, `--lon <deg>` (default: the landing
+  site), `--alt <m above ground>` (1.7 = on foot), `--yaw <deg from north>`, `--pitch <deg>`, `--time <UTC>`,
+  `--time-scale <x>` (how much faster than real the planet turns; the client setting `RotationTimeScale`),
+  `--clouds <0–1>` (cloud cover, default 0.35), `--hide-ui`. Look-dev: `--flora-lineup <m>` with `--flora-lod 0|1|2`
+  (one of each plant at that distance, at one level of detail; 2 = impostors), `--debug-sky <n>`. Screenshots pause
+  the clock at `--time`.
+- Surface keys: W A S D move, Q E down/up, right mouse look, Shift fast, G walk/fly, `[` `]` time ∓ 1 h (with Shift
+  ∓ 6 h), T day speed (1×, 60×, 600×, 3600×), P pause time, H hide the interface, Esc back.
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
 - Character viewer: `--view character`; `--outfit <0–4>`, `--item <flint_axe|flint_pick|hand_stone|wren_pistol|kestrel_rifle>`,
@@ -99,6 +116,13 @@ Client options (after `--`):
 - Ground (GROUND.md §4.3): `--view ground --name <n>`, then `--connect host:port` or `--host [--port <n>]` (the
   default: a server in the game); `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad network through a local
   relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once seen, for screenshots).
+  Survival (G2): `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--demo` (host
+  only: a lit campfire, a box and a sleeping bag in view, for screenshots). Keys: 1–6 belt, left mouse use, right
+  mouse aim, E interact, F place, G drop, H eat or bandage, Tab close loot, B respawn on the beach (dead). Chat lines
+  starting with `/` are test commands: `/craft <item> [n]`, `/cancel`, `/put`, `/take`, `/belt`, `/wear`, `/light`,
+  and when hosting `/give <item> [n]`, `/kit <loot table>`.
+- Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
+  `heal`, `kill` besides G1's (type `help`).
 - Checks: `--physics-check` runs the physics check inside the client and quits; its line must match the one
   `dotnet run --project tests/Hollow.Tests -- MovementCheck` prints.
 - Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
@@ -106,6 +130,11 @@ Client options (after `--`):
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
   `--view ui --ui-check` drives the inventory and crafting with real input events (drag, middle-drag, split, quick
   move, drop, craft) and quits with exit code 0 when every check passes.
+- Models (GROUND.md §9.1): `--view models` stands every catalogue model on the ground (`--lineup items|world`,
+  `--pitch <deg>`); `--model <key>` shows one on a turntable (`--stage <n>`, `--lod <n>`, `--yaw <deg>` holds it at an
+  angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--first-person` shows a held item at its first-person pose; keys Tab, ←/→, ↑/↓, 0/1/2, A, Space, F, H).
+  `--view icons --out <dir>` renders every item icon at 128 and 256 px (`--only a,b` for some) and then shows the
+  contact sheet, which `--view icons` alone shows too. `--placeholder-icons` keeps the interface's vector drawings.
 
 ## Layout
 
@@ -113,20 +142,26 @@ Client options (after `--`):
 |---|---|
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
-| `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, the stand-in `SphereSurface`, `FirstWorld` |
-| `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5) |
+| `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, `PlanetSurface` (plates, climate, biomes), cube-sphere tiles, collision, scatter, `SkyEphemeris`, the stand-in `SphereSurface`, `FirstWorld` |
+| `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
 | `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread |
-| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics |
+| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2) |
 | `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication, login, admin |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
 | `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font; Barlow and Barlow Condensed (SIL OFL 1.1), the ground interface's |
 | `game/scripts/Characters` | Player characters (GROUND.md §4.8): `CharacterView` (third person), `ViewmodelView` (first person), animation graph, IK and aim, ragdoll, wardrobe, held items, the `--view character` viewer |
 | `game/assets/characters` | Player body, clothing and animations (GLB), their textures and JSON facts, built by `art/` |
-| `game/assets/items` | Held items (GLB with grip and sight sockets), built by `art/items` |
 | `game/assets/THIRD_PARTY.md` | Every third-party file: source, version, licence, checksum |
-| `art/` | Blender Python scripts that build the character and item assets from text; `art/.cache` is scratch (not committed) |
+| `art/` | Blender Python scripts that build assets from text: the character body, clothing and held-item tests (character package), and the item and world models: `hollow/` (shared code), `import/` (the kits), `models/` (our own), `build.py`; `art/.cache` is scratch (not committed) |
+| `game/data/ground` | The ground game's data (GROUND.md §7): items, recipes, natural objects, deployables, loot, survival constants, crafting tabs (JSON, read by server and client) |
+| `game/scripts/Surface` | The surface view: terrain LOD, water, sky and air, lights, clouds, plants (`Vegetation`), shader grass (`GrassField`), look-dev camera, time controls |
+| `game/scripts/Surface/Flora` | Plants made in code after hollow-orbit's flora: painted atlas and bark (`FloraTextures`, `Painter`), geometry (`FloraGeometry`), species and variants (`FloraLibrary`), impostors baked at start (`ImpostorBaker`) |
+| `game/assets/surface/ground` | The eight ground texture layers (Megascans and Poly Haven, `game/assets/THIRD_PARTY.md`), built by `tools/blender/surface_ground.py` |
+| `game/scripts/Items` | Item and world models (GROUND.md §9.1): `ModelCatalog` (reads `data/ground/models.json`), `CatalogItemIcons`, the icon renderer (`--view icons`) and the model viewer (`--view models`) |
+| `game/assets/items`, `game/assets/world` | Item and world models (GLB with LODs, hulls and sockets) and the item icons (`items/icons/128`, `items/icons/256`), built by `art/` |
+| `game/assets/materials`, `game/assets/textures` | The shared Godot materials the models' `.import` files map to, and their textures (2K at most) |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |
 | `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |

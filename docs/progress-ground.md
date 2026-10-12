@@ -70,3 +70,42 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - `ground-build`: phase 1 of G3. It ports Rust's building rules from RustMVP (sockets, stability, upgrade, claims,
     decay, doors) to C#, converts the building and door kits, and adds a local building sandbox. Networking and item
     costs come in phase 2, once `ground-survive` is merged.
+- **Characters merged** (`ground-character`):
+  - a MakeHuman body, with Quaternius animations retargeted onto it;
+  - clothing and armour from our own Blender scripts;
+  - aim pitch, arm and foot IK, ragdoll;
+  - first-person arms.
+
+  50 characters take 5.7 ms a frame. The clothing, the first-person hands and the melee swing aren't at the Rust bar
+  yet, so the same agent is on a polish pass now. That pass also replaces the capsule players in the ground mode with
+  real characters. 58 of 58 tests pass.
+- **G2 survival merged** (`ground-survive`):
+  - data: 43 items, 29 recipes, 13 natural kinds including the berry bushes, and 9 deployables;
+  - containers, crafting, gathering with the weak spot, vitals, corpses, sleepers, and melee and bow with lag
+    compensation;
+  - SQLite schema 2.
+
+  With 100 survival bots the tick is 5.9 ms on average and each client uses 105 kbit/s.
+- **The first world's surface merged** (`ground-planet`), with the landing site at 44.87° N, 170.00° W:
+  - terrain out to the horizon, thick-air sky, the real sun and moon, stars, clouds and sea;
+  - plants generated in code in hollow-orbit's style, including the berry bushes;
+  - GPU shader grass.
+
+  A frame takes 11 ms at the landing site. Screenshots: `docs/images/ground/a_landing_morning.jpg` to `g_2km.jpg`.
+  A polish pass is running on the forest floor, bark, firs, night, coast and the view from altitude.
+- **Integration started** (`ground-integrate`): the real planet on the server and client, natural objects from the
+  planet's scatter (felling trees, picking berries, ore outcrops), the real UI bound to the client, real characters
+  instead of capsules, a main menu, and a `play-ground.cmd` launcher. 79 of 79 tests pass on `ground`.
+- **Planet polish merged:** forest floor litter, natural bark, fuller firs, smooth LOD fades, far forest canopy, a
+  better night sky, surf and wet sand. All six Megascans Fab listings were checked: Standard License, none
+  Unreal-only. Screenshots in `docs/images/ground/`.
+- **G4 fight started** (`ground-fight`): firearms with server-side ballistics and lag compensation, Rust's AK recoil
+  pattern from RustMVP (deterministic on client and server), aiming down sights, attachments, ammo types, armour and
+  the wounded state. Engine-free for now; the visuals follow after integration.
+- **Assets merged** (`ground-assets`):
+  - 72 catalogued models: converted kit items, the Frontier rifle, the Tin Finch with its hatch, and our own piles,
+    tools, supplies, deployables and outcrops (our own design rather than the kit's Rust-like nodes);
+  - 124 item icons in a Rust-like product-shot style (`docs/images/ground/assets/icons.jpg`).
+
+  The bed is a marked stand-in until its model is made. The assets agent is now making the bed, the G4
+  attachments and ammo variants, icon fixes and world props.

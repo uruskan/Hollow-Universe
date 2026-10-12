@@ -6,6 +6,7 @@ using Hollow.Client;
 using Hollow.Net.Protocol;
 using Hollow.Net.Transport;
 using Hollow.Server;
+using Hollow.Simulation.Content;
 using HollowUniverse.App;
 
 namespace HollowUniverse.Ground;
@@ -15,7 +16,7 @@ namespace HollowUniverse.Ground;
 /// this process for solo play (<c>--host</c>, the default), and shows the first-person view. Options (after "--"):
 /// <c>--view ground --name &lt;n&gt;</c>, <c>--connect host:port</c> or <c>--host [--port n]</c>, <c>--lag</c>,
 /// <c>--jitter</c>, <c>--loss</c> (bad-network test), <c>--netgraph</c> (open the network graph), <c>--face &lt;name&gt;</c>
-/// (turn toward a player once seen, for screenshots).
+/// (turn toward a player once seen, for screenshots), <c>--db &lt;path&gt;</c> (the hosted server's database), <c>--demo</c> (host only: a small camp in view, for screenshots).
 /// </summary>
 public partial class GroundMode : Node
 {
@@ -32,6 +33,8 @@ public partial class GroundMode : Node
     public override void _Ready()
     {
         string name = Option("name", "Player");
+        // The game's data, the same files the server reads (GROUND.md section 7).
+        GameContent content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
         int port = Protocol.DefaultPort;
         string host = "127.0.0.1";
         if (Options.TryGetValue("connect", out string? target) && target != "true")
@@ -51,7 +54,8 @@ public partial class GroundMode : Node
             {
                 Port = port,
                 Name = $"{name}'s game",
-                DatabasePath = ProjectSettings.GlobalizePath("user://hollow-host.db"),
+                DatabasePath = Options.TryGetValue("db", out string? db) && db != "true" ? db : ProjectSettings.GlobalizePath("user://hollow-host.db"),
+                Content = content,
                 Log = line => GD.Print("[server] " + line),
             }, GalaxyService.Galaxy);
             _server.StartThread();
@@ -62,6 +66,7 @@ public partial class GroundMode : Node
         {
             Name = name,
             Conditions = conditions,
+            Content = content,
             Log = line => GD.Print("[client] " + line),
         });
         _client.Connect(host, port);
@@ -72,6 +77,12 @@ public partial class GroundMode : Node
             HostedPort = _server?.Port,
             FaceName = Options.TryGetValue("face", out string? face) ? face : null,
             ShowNetGraph = Options.ContainsKey("netgraph"),
+            HostCommand = _server == null ? null : command =>
+            {
+                _server.Execute(command);
+                return true;
+            },
+            RunDemo = Options.ContainsKey("demo"),
         };
         AddChild(_view);
     }

@@ -4,7 +4,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect.</summary>
-    public const uint Version = 1;
+    public const uint Version = 2;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -37,6 +37,7 @@ public enum GoodbyeReason : byte
     Kicked,
     ServerShutdown,
     Timeout,
+    ContentMismatch,
 }
 
 public enum EntityKind : byte
@@ -48,4 +49,17 @@ public enum ChatKind : byte
 {
     Player,
     Server,
+}
+
+/// <summary>What a client sees of a static thing.</summary>
+[System.Flags]
+public enum ThingFlags : byte
+{
+    None = 0,
+
+    /// <summary>A campfire or furnace burning.</summary>
+    Lit = 1,
+
+    /// <summary>The receiving player's own (their sleeping bag).</summary>
+    Mine = 2,
 }

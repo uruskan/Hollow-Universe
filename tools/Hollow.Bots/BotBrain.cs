@@ -18,6 +18,9 @@ public enum BotScript
 
     /// <summary>A third of each.</summary>
     Mixed,
+
+    /// <summary>Plays the survival game: gathers, picks, crafts, eats, fights now and then (<see cref="SurvivalBrain"/>).</summary>
+    Survive,
 }
 
 /// <summary>

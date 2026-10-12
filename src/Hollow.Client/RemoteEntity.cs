@@ -57,6 +57,19 @@ public sealed class RemoteEntity
 
     public byte Health { get; private set; }
 
+    /// <summary>The item in its hand (0: none), a count of its swings and shots and the last kind (animate on a change).</summary>
+    public ushort Held { get; private set; }
+
+    public byte ActionCount { get; private set; }
+
+    public Simulation.Players.ActionKind Action { get; private set; }
+
+    /// <summary>Logged off and asleep in the world (lying down, lootable).</summary>
+    public bool Sleeping { get; private set; }
+
+    /// <summary>What it wears (item IDs), from the server's look messages.</summary>
+    public ushort[] Wear { get; set; } = System.Array.Empty<ushort>();
+
     /// <summary>True once there is anything to draw.</summary>
     public bool HasState => _count > 0;
 
@@ -128,5 +141,9 @@ public sealed class RemoteEntity
         Flags = discrete.Flags;
         Stance = discrete.Stance;
         Health = discrete.Health;
+        Held = discrete.Held;
+        ActionCount = discrete.ActionCount;
+        Action = discrete.Action;
+        Sleeping = discrete.Sleeping;
     }
 }

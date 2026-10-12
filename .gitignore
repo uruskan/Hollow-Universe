@@ -18,4 +18,5 @@ export_presets.cfg
 
 # Blender build scratch
 art/.cache/
+# Python (Blender scripts in art/)
 __pycache__/

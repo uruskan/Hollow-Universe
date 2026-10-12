@@ -36,10 +36,16 @@ public sealed class PhysicsWorld : IDisposable
 
     private const int TileIdCount = 2 * TileRange * 2 * TileRange;
 
+    /// <summary>Body IDs after the ground tiles' are for props (natural objects, deployables): this many at once.</summary>
+    public const int MaxProps = 65536;
+
     private readonly Dictionary<(int X, int Z), Tile> _tiles = new();
     private readonly Dictionary<(int X, int Z), Task<Shape>> _pending = new();
     private readonly List<(int X, int Z)> _expired = new();
     private readonly List<(int X, int Z)> _adopted = new();
+    private readonly Dictionary<(PropLayer, ulong), Prop> _props = new();
+    private readonly Stack<uint> _freePropIds = new();
+    private uint _nextPropId = TileIdCount;
     private int _tilesBuilt;
     private long _buildTicks;
     private readonly ObjectLayerPairFilterTable _layerPairs;
@@ -65,7 +71,7 @@ public sealed class PhysicsWorld : IDisposable
             Jolt = new PhysicsSystem(new PhysicsSystemSettings
             {
                 // Ground tile IDs take the bottom of the range (see the class remarks); later bodies take the rest.
-                MaxBodies = TileIdCount + 4096,
+                MaxBodies = TileIdCount + MaxProps + 64,
                 MaxBodyPairs = 4096,
                 MaxContactConstraints = 4096,
                 NumBodyMutexes = 0,
@@ -124,6 +130,7 @@ public sealed class PhysicsWorld : IDisposable
                     }
                     TilesBuiltOnDemand++;
                     tile = AddTile(x, z, shape);
+                    Listener?.TileAdded(x, z);
                 }
                 tile.LastUsed = _epoch;
             }
@@ -181,6 +188,7 @@ public sealed class PhysicsWorld : IDisposable
             _pending.Remove((x, z), out Task<Shape>? task);
             Tile tile = AddTile(x, z, task!.Result);
             tile.LastUsed = _epoch;
+            Listener?.TileAdded(x, z);
         }
     }
 
@@ -206,8 +214,9 @@ public sealed class PhysicsWorld : IDisposable
         lock (JoltRuntime.Gate)
         {
             BodyInterface bodies = Jolt.BodyInterface;
-            foreach ((int, int) key in _expired)
+            foreach ((int X, int Z) key in _expired)
             {
+                Listener?.TileRemoved(key.X, key.Z);
                 Tile tile = _tiles[key];
                 bodies.RemoveAndDestroyBody(tile.Body);
                 tile.Shape.Dispose();
@@ -272,6 +281,69 @@ public sealed class PhysicsWorld : IDisposable
         return tile;
     }
 
+    // ---------------------------------------------------------------- props
+
+    /// <summary>Told when ground tiles come and go, on the owning thread (natural objects follow the tiles).</summary>
+    public ITileListener? Listener { get; set; }
+
+    /// <summary>Whether a ground tile is in the world now.</summary>
+    public bool HasTile(int x, int z) => _tiles.ContainsKey((x, z));
+
+    /// <summary>Props in the world now.</summary>
+    public int PropCount => _props.Count;
+
+    public bool HasProp(PropLayer layer, ulong key) => _props.ContainsKey((layer, key));
+
+    /// <summary>
+    /// Adds a static prop (a tree, an outcrop, a box) under a key; nothing if the key is there already. Its body ID
+    /// comes after the ground tiles', so a tile is always ordered before a prop in Jolt's contact lists.
+    /// </summary>
+    public void AddProp(PropLayer layer, ulong key, in PropShape prop)
+    {
+        if (_props.ContainsKey((layer, key)) || _disposed)
+        {
+            return;
+        }
+        uint id;
+        if (_freePropIds.Count > 0)
+        {
+            id = _freePropIds.Pop();
+        }
+        else if (_nextPropId < TileIdCount + MaxProps)
+        {
+            id = _nextPropId++;
+        }
+        else
+        {
+            return; // full: the prop just doesn't collide
+        }
+        lock (JoltRuntime.Gate)
+        {
+            Shape shape = prop.CreateShape();
+            using var creation = new BodyCreationSettings(shape, prop.Centre, prop.Rotation, MotionType.Static, StaticLayer);
+            BodyInterface bodies = Jolt.BodyInterface;
+            var bodyId = new BodyID(id);
+            Body body = bodies.CreateBodyWithID(bodyId, creation)
+                ?? throw new InvalidOperationException($"Jolt refused prop {layer} {key} (body {id}).");
+            bodies.AddBody(body.ID, Activation.DontActivate);
+            _props.Add((layer, key), new Prop(body.ID, shape, id));
+        }
+    }
+
+    public void RemoveProp(PropLayer layer, ulong key)
+    {
+        if (!_props.Remove((layer, key), out Prop? prop))
+        {
+            return;
+        }
+        lock (JoltRuntime.Gate)
+        {
+            Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
+            prop.Shape.Dispose();
+        }
+        _freePropIds.Push(prop.Id);
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -279,6 +351,15 @@ public sealed class PhysicsWorld : IDisposable
             return;
         }
         _disposed = true;
+        lock (JoltRuntime.Gate)
+        {
+            foreach (Prop prop in _props.Values)
+            {
+                Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
+                prop.Shape.Dispose();
+            }
+            _props.Clear();
+        }
         foreach (Task<Shape> building in _pending.Values)
         {
             building.Wait();
@@ -299,6 +380,13 @@ public sealed class PhysicsWorld : IDisposable
             _broadPhaseLayers.Dispose();
             _layerPairs.Dispose();
         }
+    }
+
+    private sealed class Prop(BodyID body, Shape shape, uint id)
+    {
+        public readonly BodyID Body = body;
+        public readonly Shape Shape = shape;
+        public readonly uint Id = id;
     }
 
     private sealed class Tile(BodyID body, Shape shape)

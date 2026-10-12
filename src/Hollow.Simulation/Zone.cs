@@ -1,9 +1,11 @@
 using System;
 using System.Numerics;
 using Hollow.Core;
+using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
+using Hollow.Simulation.Players;
 using Hollow.Surface;
 
 namespace Hollow.Simulation;
@@ -15,6 +17,9 @@ public struct Character
 
     /// <summary>The input of the coming tick (the server puts each player's here before <see cref="Zone.Step"/>).</summary>
     public MoveInput Input;
+
+    /// <summary>The same tick's actions: what is held, attack and aim, how far back the player saw others (G2).</summary>
+    public ActionInput Actions;
 
     public StepEvents Events;
 
@@ -34,8 +39,13 @@ public struct Named
 /// One surface zone's simulation (GROUND.md §4.2): its entities, its Jolt world and its systems, advanced by one fixed
 /// tick at a time (<see cref="CharacterMotor.TickRate"/>). The server owns the clock and calls <see cref="Step"/>;
 /// nothing here reads the time. One thread at a time.
+/// <para>
+/// With <see cref="GameContent"/> (G2) the zone also runs the survival game after movement, in GROUND.md §4.2's
+/// order: actions (swings, shots, crafting), projectiles and damage, survival, devices, timers (Zone.*.cs).
+/// Without it, it is G1's movement-only zone, where the dead come back by themselves.
+/// </para>
 /// </summary>
-public sealed class Zone : IDisposable
+public sealed partial class Zone : IDisposable
 {
     /// <summary>A dead character comes back at the spawn point after this long (death and respawn proper are G2).</summary>
     public const int RespawnDelayTicks = 3 * CharacterMotor.TickRate;
@@ -43,13 +53,13 @@ public sealed class Zone : IDisposable
     /// <summary>Ground tiles nobody stood near for this long are dropped.</summary>
     public const int GroundKeepTicks = 10 * CharacterMotor.TickRate;
 
-    public Zone(ZoneSpec spec, MovementTuning? tuning = null)
-        : this(spec.CreateSurface(), spec, tuning)
+    public Zone(ZoneSpec spec, MovementTuning? tuning = null, GameContent? content = null)
+        : this(spec.CreateSurface(), spec, tuning, content)
     {
     }
 
     /// <summary>A zone on a given surface (tests use surfaces of their own, such as one with a sea).</summary>
-    public Zone(ISurface surface, ZoneSpec spec, MovementTuning? tuning = null)
+    public Zone(ISurface surface, ZoneSpec spec, MovementTuning? tuning = null, GameContent? content = null)
     {
         Spec = spec;
         Surface = surface;
@@ -57,6 +67,10 @@ public sealed class Zone : IDisposable
         Tuning = tuning ?? MovementTuning.Default;
         Movement = new MoveContext(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), Tuning);
         Physics = new PhysicsWorld(surface, Frame);
+        if (content != null)
+        {
+            InitGame(content);
+        }
     }
 
     public ZoneSpec Spec { get; }
@@ -93,6 +107,7 @@ public sealed class Zone : IDisposable
         {
             Entities.Get<Character>(entity).Body.Dispose();
         }
+        History.Forget(Entities.IdOf(entity));
         Entities.Destroy(entity);
     }
 
@@ -147,6 +162,12 @@ public sealed class Zone : IDisposable
                 ref Character character = ref values[i];
                 if (character.State.IsDead)
                 {
+                    if (Content != null)
+                    {
+                        // G2: the dead wait for a respawn of their choice (Zone.Players.cs).
+                        character.Events = default;
+                        continue;
+                    }
                     if (character.RespawnTicks <= 0)
                     {
                         character.RespawnTicks = RespawnDelayTicks;
@@ -164,6 +185,10 @@ public sealed class Zone : IDisposable
             }
         }
         Physics.ReleaseUnusedGround(GroundKeepTicks);
+        if (Content != null)
+        {
+            StepGame();
+        }
     }
 
     public void Dispose()

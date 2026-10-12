@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Hollow.Client;
+using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using HollowUniverse.Common;
 using Num = System.Numerics;
@@ -31,7 +32,13 @@ public partial class GroundView : Node3D
     private float _pitch;
     private bool _viewRestored;
     private bool _jumpPressed;
+    private bool _primaryPressed;
     private bool _faced;
+    private SurvivalView _survival = null!;
+    private SurvivalOverlay _overlay = null!;
+    private Interaction? _aimed;
+    private Num.Vector3? _placeAt;
+    private Demo? _demo;
 
     public GameClient Client { get; set; } = null!;
 
@@ -43,9 +50,15 @@ public partial class GroundView : Node3D
 
     public bool ShowNetGraph { get; set; }
 
+    /// <summary>Runs an admin command on the server this game hosts (null when it joined another).</summary>
+    public Func<string, bool>? HostCommand { get; set; }
+
+    /// <summary>Sets up a little camp for screenshots (<c>--demo</c>, host only).</summary>
+    public bool RunDemo { get; set; }
+
     public bool ReadyForShot =>
         Client.State == ClientState.Playing && Client.HasCharacter && _terrain.IsSettled &&
-        (FaceName == null || _faced);
+        (FaceName == null || _faced) && (_demo == null || _demo.Done);
 
     public override void _Ready()
     {
@@ -54,6 +67,8 @@ public partial class GroundView : Node3D
         AddChild(_terrain);
         _people = new Node3D { Name = "People" };
         AddChild(_people);
+        _survival = new SurvivalView { Name = "Survival", Client = Client };
+        AddChild(_survival);
         _camera = new Camera3D { Name = "Camera", Fov = 75, Near = 0.05f, Far = 4000, Current = true };
         AddChild(_camera);
         var layer = new CanvasLayer { Name = "Hud" };
@@ -62,6 +77,13 @@ public partial class GroundView : Node3D
         layer.AddChild(_hud);
         _hud.ChatOpened += () => Input.MouseMode = Input.MouseModeEnum.Visible;
         _hud.ChatClosed += Capture;
+        _hud.CommandEntered += Command;
+        _overlay = new SurvivalOverlay { Client = Client };
+        layer.AddChild(_overlay);
+        if (RunDemo && HostCommand != null)
+        {
+            _demo = new Demo(this);
+        }
         Capture();
     }
 
@@ -116,11 +138,14 @@ public partial class GroundView : Node3D
             _yaw = Client.InitialYaw;
             _pitch = Client.InitialPitch;
         }
-        Client.Update(delta, ReadInput());
+        InputFrame input = ReadInput();
+        Client.Update(delta, input);
         _jumpPressed = false;
+        _primaryPressed = false;
         if (!Client.HasCharacter)
         {
             _hud.Refresh(_camera, _mannequins.Values);
+            _overlay.Refresh(delta);
             return;
         }
 
@@ -137,6 +162,17 @@ public partial class GroundView : Node3D
         }
         UpdateMannequins();
         _hud.Refresh(_camera, _mannequins.Values);
+
+        // What the interact key would act on, and where a held deployable would go.
+        _aimed = Client.Local.IsDead ? null : Client.Aim(eye, forward);
+        _placeAt = Client.Local.HeldItem?.Deploys != null && !Client.Local.IsDead ? Client.AimGround(eye, forward, Client.Content.PlacementReach) : null;
+        _survival.PlacementPoint = _placeAt;
+        _survival.PlacementYaw = _yaw;
+        _overlay.Prompt = _aimed is { } aimed ? $"E   {aimed.Verb} {aimed.Name}"
+            : _placeAt != null ? $"F   Place {Client.Local.HeldItem!.Name}" : "";
+        _survival.Refresh(_camera, delta, input.Primary, input.Secondary);
+        _overlay.Refresh(delta);
+        _demo?.Step(delta);
     }
 
     private InputFrame ReadInput()
@@ -153,6 +189,9 @@ public partial class GroundView : Node3D
         input.Crouch = Input.IsPhysicalKeyPressed(Key.Ctrl);
         input.Jump = Input.IsPhysicalKeyPressed(Key.Space);
         input.JumpPressed = _jumpPressed;
+        input.Primary = Input.IsMouseButtonPressed(MouseButton.Left);
+        input.Secondary = Input.IsMouseButtonPressed(MouseButton.Right);
+        input.PrimaryPressed = _primaryPressed;
         return input;
     }
 
@@ -173,11 +212,35 @@ public partial class GroundView : Node3D
                 Capture();
                 GetViewport().SetInputAsHandled();
                 break;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }:
+                _primaryPressed = true;
+                break;
             case InputEventKey { Pressed: true, Echo: false } key:
                 switch (key.PhysicalKeycode)
                 {
                     case Key.Space:
                         _jumpPressed = true;
+                        break;
+                    case >= Key.Key1 and <= Key.Key9:
+                        NumberKey((int)(key.PhysicalKeycode - Key.Key1));
+                        break;
+                    case Key.E when _aimed is { } target:
+                        Client.Interact(target);
+                        break;
+                    case Key.F when _placeAt is { } at && Client.Local.HeldSlot >= 0:
+                        Client.Local.Place(ContainerRef.Belt, Client.Local.HeldSlot, at, _yaw);
+                        break;
+                    case Key.G when Client.Local.HeldSlot >= 0:
+                        Client.Local.Drop(ContainerRef.Belt, Client.Local.HeldSlot);
+                        break;
+                    case Key.H when Client.Local.HeldSlot >= 0:
+                        Client.Local.Use(ContainerRef.Belt, Client.Local.HeldSlot);
+                        break;
+                    case Key.Tab when Client.Local.LootTarget.Value != 0:
+                        Client.Local.Close();
+                        break;
+                    case Key.B when Client.Local.IsDead:
+                        Client.Local.Respawn();
                         break;
                     case Key.Enter:
                     case Key.KpEnter:
@@ -194,6 +257,138 @@ public partial class GroundView : Node3D
                         break;
                 }
                 break;
+        }
+    }
+
+    // 1-6 take a belt slot in hand (again: put it away); when dead, 1-9 choose a sleeping bag.
+    private void NumberKey(int index)
+    {
+        LocalPlayer me = Client.Local;
+        if (me.IsDead)
+        {
+            if (index + 1 < me.Life.Options.Count)
+            {
+                me.Respawn(me.Life.Options[index + 1].Bag);
+            }
+            return;
+        }
+        if (index < PlayerInventory.BeltSlots)
+        {
+            me.HeldSlot = me.HeldSlot == index ? -1 : index;
+        }
+    }
+
+    // Chat commands for testing until the inventory and crafting screens arrive (GROUND.md section 8).
+    private void Command(string line)
+    {
+        string[] w = line.TrimStart('/').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (w.Length == 0)
+        {
+            return;
+        }
+        LocalPlayer me = Client.Local;
+        int Arg(int i, int fallback) => w.Length > i && int.TryParse(w[i], out int n) ? n : fallback;
+        switch (w[0].ToLowerInvariant())
+        {
+            case "craft" when w.Length > 1 && Client.Content.Item(w[1]) is { } item:
+                me.Craft(item.Id, Arg(2, 1));
+                break;
+            case "cancel" when me.Crafting.Count > 0:
+                me.CancelCraft(me.Crafting[^1].Ticket);
+                break;
+            case "put" when w.Length > 1:
+                me.QuickMove(ContainerRef.Main, Arg(1, 0));
+                break;
+            case "take" when w.Length > 1:
+                me.QuickMove(ContainerRef.Loot, Arg(1, 0));
+                break;
+            case "belt" when w.Length > 2:
+                me.MoveItem(ContainerRef.Main, Arg(1, 0), ContainerRef.Belt, Arg(2, 0));
+                break;
+            case "wear" when w.Length > 1:
+                me.QuickMove(ContainerRef.Main, Arg(1, 0));
+                break;
+            case "light" when me.LootTarget.Value != 0:
+                me.Toggle(me.LootTarget);
+                break;
+            case "give" when w.Length > 1 && HostCommand != null:
+                HostCommand($"give {Client.Name} {w[1]} {Arg(2, 1)}");
+                break;
+            case "kit" when w.Length > 1 && HostCommand != null:
+                HostCommand($"kit {Client.Name} {w[1]}");
+                break;
+            default:
+                GD.Print("commands: /craft <item> [n], /cancel, /put <main slot>, /take <loot slot>, /belt <main slot> <belt slot>, " +
+                    "/wear <main slot>, /light, and when hosting /give <item> [n], /kit <loot table>");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// <c>--demo</c>: a small camp in front of the player for screenshots: a lit campfire, a box, a sleeping bag, a
+    /// stone hatchet in hand, wood dropped beside.
+    /// </summary>
+    private sealed class Demo(GroundView view)
+    {
+        private double _time;
+        private int _step;
+
+        public bool Done => _step >= 9 && _time > 1.5;
+
+        public void Step(double delta)
+        {
+            _time += delta;
+            GameClient client = view.Client;
+            LocalPlayer me = client.Local;
+            if (_time < 0.6 || _step >= 9 || me.PendingCount > 0)
+            {
+                return;
+            }
+            _time = 0.35;
+            Num.Vector3 feet = client.Character.Position;
+            Num.Vector3 Ahead(float x, float z) => client.AimGround(feet + new Num.Vector3(x, 3, z), -Num.Vector3.UnitY, 10) ?? feet;
+            int Slot(string key) => Enumerable.Range(0, 24).FirstOrDefault(i => me.Inventory.Main[i].Item == client.Content.ItemByKey(key).Id);
+            switch (_step++)
+            {
+                case 0:
+                    view._yaw = 0;
+                    view._pitch = -0.22f;
+                    foreach (string give in new[] { "campfire 1", "small-box 1", "sleeping-bag 1", "wood 300", "stone-hatchet 1", "red-berries 6", "woven-shirt 1" })
+                    {
+                        view.HostCommand!($"give {client.Name} {give}");
+                    }
+                    break;
+                case 1:
+                    me.Place(ContainerRef.Main, Slot("campfire"), Ahead(0f, -2.1f), 0.3f);
+                    break;
+                case 2:
+                    me.Place(ContainerRef.Main, Slot("small-box"), Ahead(-1.3f, -1.5f), -0.4f);
+                    break;
+                case 3:
+                    me.Place(ContainerRef.Main, Slot("sleeping-bag"), Ahead(1.5f, -1.2f), 0f);
+                    break;
+                case 4:
+                    if (client.Things.FirstOrDefault(t => t.Look == client.Content.ItemByKey("campfire").Id) is { } fire)
+                    {
+                        me.Open(fire.Id);
+                    }
+                    break;
+                case 5:
+                    me.MoveItem(ContainerRef.Main, Slot("wood"), ContainerRef.Loot, 0, 40);
+                    break;
+                case 6:
+                    me.Toggle(me.LootTarget);
+                    me.Close();
+                    break;
+                case 7:
+                    me.MoveItem(ContainerRef.Main, Slot("stone-hatchet"), ContainerRef.Belt, 2);
+                    me.QuickMove(ContainerRef.Main, Slot("woven-shirt"));
+                    me.Drop(ContainerRef.Main, Slot("wood"), 60);
+                    break;
+                case 8:
+                    me.HeldSlot = 2;
+                    break;
+            }
         }
     }
 

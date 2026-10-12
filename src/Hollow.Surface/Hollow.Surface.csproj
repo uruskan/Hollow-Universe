@@ -3,6 +3,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Hollow.Surface</RootNamespace>
+    <!-- Surfaces are generated while the game streams them, also in Debug builds (the game runs Debug). -->
+    <Optimize>true</Optimize>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Hollow.Core/Hollow.Core.csproj" />
@@ -10,5 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Hollow.Tests" />
+    <InternalsVisibleTo Include="Hollow.GeneratorReport" />
   </ItemGroup>
 </Project>

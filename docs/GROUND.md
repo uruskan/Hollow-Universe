@@ -60,8 +60,23 @@ this is the one closest to an Earth-like place to live.
 
 - **Pinned by a test.** A golden test pins the planet's state. If a generator change alters it, the test fails and we
   decide what to do. The ground branch starts from `generator-v2` for this data.
-- **The first zone** sits at a landing site chosen during the surface look-dev: a temperate coast with forest,
-  hills and mountains in view.
+- **The landing site** (the first zone's origin) is 44.8683° N, 170.0010° W (`FirstWorld.LandingLatitude`,
+  `FirstWorld.LandingLongitude`): the east shore of a bay, 21 m above the sea, on a meadow at a forest edge
+  (birches, oaks, spruces, berry bushes); the bay within 2 km to the west and south-west; forested hills to 365 m
+  nearby and to 1,160 m 18 km to the north-east (`surface site` in the generator report). The golden test of the surface includes points around it.
+- **Look-dev views** (`docs/images/ground/`, 1600 × 900; commands in §4.6):
+  - `a_landing_morning.jpg`: the landing site at 09:25 local time.
+  - `b_golden.jpg`: the meadow 700 m south of it at 18:13, looking into the sun (6° up) through the forest edge.
+  - `c_night_moon.jpg`: the same meadow at 22:07, the moon 38° up and 68% lit (behind the camera), the galaxy's
+    band.
+  - `d_hills.jpg`: forested hills 17 km north-east, from 60 m above a 620 m ridge.
+  - `e_beach.jpg`: the beach 4 km south, along the coast.
+  - `f_forest.jpg`: inside the forest 600 m north, toward the sun.
+  - `g_2km.jpg`: from 2 km above the landing site toward the hills, the bay on the left.
+  - Also: `b2_golden_shade.jpg` (the meadow at golden hour facing away from the sun, the grass in shade),
+    `f2_forest_clearing.jpg` (a forest clearing near the hills: sparse grass, ferns, litter, full fir crowns),
+    `g2_2km_down.jpg` (from 2 km looking steeply down: the canopy, groves and meadow edges).
+  - `compare/`: the meadow and forest before and after the plants and grass were redone (same views and times).
 
 ---
 
@@ -239,22 +254,129 @@ Godot.
 
 ### 4.6 Planet surface
 
-- **A pure function** of (body, planet state, point on the sphere, surface generator version), built with `DMath`
-  (ARCHITECTURE.md §8), so the server's collision and the client's terrain agree to the bit.
-- **Cube-sphere:** six faces, quadtree tiles. Chunk meshes with levels of detail out to the horizon for drawing;
-  collision only near players. A zone uses a tangent frame at its origin (ARCHITECTURE.md §6).
-- **Height:** continents and oceans that match the ocean cover; mountain ranges and rifts from plate tectonics;
-  hills, valleys, coasts and beaches.
-- **Climate and biomes:** temperature from latitude, height, season and the planet state; moisture; a biome table
-  that picks ground materials and plant sets.
-- **Scatter:** trees, bushes, grass, rocks, ore nodes and plants per tile, deterministic. Their IDs are tile + index
-  (ARCHITECTURE.md §7).
-- **Sky:** scattering from the planet's own air; the real sun, the two white dwarfs, the moon and the other planets
-  at their real positions for the universe time; the star field from the galaxy generator.
-- **Water:** oceans and lakes, with shorelines.
-- **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height and normal at a point,
-  biome at a point, collision chunk for a tile, scatter for a tile. The network work starts on a simple
-  implementation of it and switches to the real one when it lands.
+`PlanetSurface` in Hollow.Surface is the real surface of a rocky planet; `SphereSurface` stays as the stand-in.
+
+- **A pure function** of (universe seed, system, body, planet state, `GeneratorVersion.Surface`), built with `DMath`,
+  `Hash64` and gradient noise made of + − × ÷ and floor only (ARCHITECTURE.md §8), so the server's collision and the
+  client's terrain agree to the bit. A golden test pins heights and biomes at 600 points.
+- **Cube-sphere:** six faces, each a square of face coordinates (u, v) ∈ [−1, 1]² mapped to the sphere through
+  `tan(t·π/4)`, so tiles stay within a factor of 1.5 of the same size. A `TileKey` is face, level (0–28) and x, y;
+  every grid coordinate is a dyadic fraction, exact in double, so parents and children share vertices bit for bit.
+  On the first world a level-16 tile is about 154 m across and a level-18 tile about 39 m.
+- **Tile grids:** 32 × 32 cells, each quad split along the same diagonal at every level. Vertices also carry their
+  position on the parent's grid, so the client morphs between levels without popping, plus eight ground-material
+  weights and the climate. **Collision is built from the level-18 grids** (1.2 m spacing), exactly the vertices the
+  client draws near the player (`GroundCollision`; a test checks it).
+- **Height**, in layers:
+  - *Plates:* 14–20 plates (Voronoi on the sphere, seen through a warped direction so their edges bend), each
+    continental or oceanic with its own Euler pole. Every plate near a point weighs in softly, and each boundary's
+    relief is a function of the distance across it, so the field is continuous at triple junctions.
+  - *Continents:* a warped noise plus the plates' bias, run through a crust curve (abyssal plains, continental slope,
+    shelf, coast, lowlands, interiors). The coastline threshold is calibrated on 6,144 fixed directions until the full
+    height puts exactly `OceanCover` under the sea (45.1% on the first world).
+  - *Boundaries:* mountain belts where plates converge on land, trenches and island arcs at sea, rift valleys and
+    spreading ridges where they part; their strength varies along each boundary. Old worn ranges in a few regions.
+  - *Mountains:* the belts' uplift shaped by eroded ridged noise ("swiss turbulence": octaves displaced along the
+    summed slopes), so crests are sharp, valley floors smooth and side valleys branch.
+  - *Hills:* regional amplitude (mostly gentle, hilly in places and around ranges) over noise whose octaves are damped
+    on steep slopes. Metre-scale ground on top, rougher on stony ground.
+  - *Coasts:* a curve that flattens sandy shores into beaches (a regional "beach" field); rocky shores keep their
+    slope.
+- **Climate:** annual mean temperature from the planet's mean, latitude (42 K equator to pole), noise and a 6 K/km
+  lapse rate; the ice line is calibrated so ice covers `IceCover`. Moisture from latitude bands (wet tropics, dry
+  subtropics, wet mid-latitudes), distance inland and noise. Seasons are drawn, not generated (the sky moves).
+- **Biomes:** ocean, beach, ice sheet, tundra, boreal forest, temperate forest, grassland, shrubland, desert, savanna,
+  tropical forest and alpine ground, as soft weights from a Whittaker-like table. They give the eight ground materials
+  (grass, forest floor, soil, rock, gravel, sand, snow, moss; slope turns ground to scree and rock) and plant
+  densities, thinned by forest clearings, slope, tree line and shore.
+- **Scatter:** per level-16 tile, a jittered grid of candidates per kind (trees 3.5 m, bushes 2.4 m, ferns 1.6 m,
+  rocks 3.2 m), each kept with the probability its density gives. Trees grow in stands of one kind (fir, pine, birch,
+  broadleaf). An object's ID is the tile plus its index: kind in the top byte, candidate cell below (ARCHITECTURE.md
+  §7). Grass is a density per vertex, drawn by the client.
+- **Speed:** about 3.7 µs per height and 7 µs per drawn vertex (with climate and materials), about 7 ms per tile on
+  one core; the client builds tiles on worker threads.
+- **Sky:** `SkyEphemeris` turns the planet's body frame in the system frame: the spin axis leans from the system's
+  +Y toward −X by the axial tilt and stays fixed (seasons follow the orbit); the body turns 2π·t / period about it,
+  prime meridian in the plane of the axis and +X at J2000. Sun, moon, the other suns and planets come from the orbit
+  code at the universe time. The client draws physically based scattering for the planet's own air (Rayleigh, Mie,
+  ozone, multiple scattering) with the same tables as the aerial perspective on everything under it.
+- **Water:** the sea at `SeaRadius` (sea level), drawn on the terrain's own tiles.
+
+**The surface view** (client, `game/scripts/Surface`; presentation only, never deciding what exists):
+- **Terrain:** a quadtree of the tiles above around the camera, built on worker threads, morphing toward the parent
+  grid with distance (no cracks: skirts), in a floating origin that moves with the camera without turning. Eight
+  ground layers (texture arrays) blended by the vertices' material weights and their own heights, triplanar rock on
+  cliffs, two scales near and a larger turned copy far so nothing repeats in rows; the grass layer takes the colour
+  of the grass blades (below). The forest floor is brown leaf litter with cushions of moss, and under trees the
+  canopy keeps much of the sky's light off the ground (sun flecks stay). Beach sand is lighter, with patches of
+  fine wind ripples near by; below the wave line and where the swash runs it is dark and glossy, with thin foam
+  lines left by the waves.
+- **Far forests:** where the trees' impostors end (2.2 km along the ground, so from the air the forest below keeps
+  its trees) the ground draws the canopy: a tiling crown map with its own slopes lit by the sun, groves at a larger
+  scale, stands of dark conifers and lighter broadleaf, dark gaps between crowns, and crisp irregular forest edges
+  with a shadow line on the open side. Seen steeply from the air (where billboards would be slivers) the canopy
+  replaces the impostors.
+- **Air and light:** the sun (star B) and the moon at their real directions for the universe time; scattering for the
+  thick air (transmittance and multiple-scattering tables, the sky ray-marched at quarter resolution) and the same air
+  in front of everything through a 3D aerial-perspective table. Clouds: a layer of fair-weather cumulus (1.6–2.9 km,
+  cover 0.35) with cloud shadows. Night: the two white dwarfs, the other planets, a star field and a narrow, dim
+  band of the galaxy broken into structure; moonlight on the ground is brightened 14 times and turned a little blue
+  (dark but readable, as in Rust), the moonlit air only 2.5 times; the moon's disc is capped a few times above white
+  so it never blooms over the sky. Exposure meters for the light
+  falling on the ground, nights a few stops darker than days.
+- **Water** reflects the sky and sun with Fresnel, shows the sea floor through water that absorbs red first, glows
+  turquoise in the shallows and moves with Gerstner swell near the camera. Surf: broken lines of foam roll in over
+  the shallows along the depth contours, and a swash of foam runs up the sand and back.
+- **Plants** are made in code after hollow-orbit's flora (no plant models): firs (spruce-like), pines, birches,
+  broadleaf trees (oak and beech), bushes, red- and blue-berry bushes, ferns and boulders; two to four seeded variants
+  per species, each with two meshes. Leaves are cards of a painted atlas (4 × 4 cells, mipmaps that keep the share of
+  leaf texels so far foliage does not thin), alpha-tested with alpha to coverage, with vertex-colour occlusion,
+  normals pointing out of the crown, hollow-orbit's foliage light (a warm sheen with the sun behind the viewer, light
+  through leaves that face away from it) and little specular. Bark: fine wandering vertical fissures, cross-cracks,
+  lichen and colour variation, with a normal map; moss low on the trunk's north side. Firs and pines end in small
+  upturned whorls and a needled leader, not a bare spike. Boulders: icospheres cut into facets, textured with the
+  ground's rock layer in their own frame, moss on top.
+  - *Levels:* trees draw their full mesh to 50 m, their second mesh to 170 m, then impostors to 2.2 km (eight views
+    of every variant, colour and normals, rendered into an atlas when the view opens); the near set's impostors and
+    the far blocks' meet at an exact cut (290 m). Each object keeps its level between rebuilds, with a few metres of
+    hysteresis; when it changes level the two cross-fade over 0.45 s (complementary dithers), so no crown stands
+    half-dithered at a boundary. Bushes, ferns and rocks use their second mesh to 75–200 m and shrink into the ground
+    at the end. Past 1.6–2.2 km forests are drawn by the ground (above).
+  - *Wind:* every vertex carries a bend weight and a flutter weight; the plant bends along the wind with gusts that
+    roll across the forest, leaves flutter along their normals.
+  - Each plant is a scatter object, known by tile and index; berry bushes are their own kinds (`BerryRed` 7,
+    `BerryBlue` 8) because they will be food.
+- **Grass and ground cover** are not in the scatter and have no models: `GrassField` draws one MultiMesh of tufts on
+  a 0.4 m grid that follows the camera (to 42 m; they shrink into the ground from 22 m), and a second, flat one of
+  leaf litter, needles and twigs (to 26 m). What grows in each cell (place, height, width, turn, lean, colour,
+  dryness, kind: grass, meadow grass, dry grass, flowers; ferns, herbs and seedlings under trees; dead leaves of the
+  trees around) comes from a hash of the cell in stable coordinates, so nothing shifts as the grid moves. Two field
+  textures (256² at 0.5 m, rebuilt on a worker every 14 m) hold the ground's height (the finest tiles' own
+  triangles, so tufts sit on the drawn ground), the grass density (from the biomes, materials, slope and tree
+  cover), moisture, flowers, forest cover and small plants. Where grass is thin it grows in patches, and a tuft is a
+  few narrow cards of ragged blades, not a block. The blades are hollow-orbit's painted blade cards, coloured by one
+  function shared with the ground's grass layer (`surface_grass.gdshaderinc`), their foot in the ground's colour,
+  normals up on both faces so a field lights as one in sun and shade, light through the tips toward a low sun; wind
+  bends them in gusts drifting downwind with a ripple; they bend away from the walker's feet.
+- **Time:** the clock runs at the universe time; `RotationTimeScale` (client setting `[surface]
+  rotation_time_scale` in `user://settings.cfg`, or `--time-scale`) turns the planet faster than real without
+  moving anything else. Keys: `[` `]` jump the clock an hour (Shift: six), T cycles the day speed 1×, 60×, 600×,
+  3600×, P pauses, H hides the interface; a card in the corner shows local solar time, UTC and the speed.
+  Screenshots pause at `--time`.
+- **Speed** (1600 × 900, RTX 2070 Super, vsync on): 11–12 ms a frame (85–89 fps) at the landing site with 3,300
+  plant meshes, 414,000 impostors and 45,000 grass tufts; 13–15 ms (65–73 fps) inside dense forest; 7 ms from 2 km.
+  Opening the view takes about 4 s (tiles, the painted atlas and the plants, then the impostor bake).
+- **Look-dev commands** for the views in §3 (add `--shot <file> --hide-ui` to save them):
+  - (a) `--view surface --alt 1.7 --yaw 60 --pitch -2 --time 2026-10-12T03:00:00Z`;
+  - (b) `--view surface --lat 44.86225 --lon -170.00150 --alt 1.7 --yaw 280 --pitch 0 --time 2026-10-12T15:50:00Z`;
+  - (c) `--view surface --lat 44.86225 --lon -170.00150 --alt 1.7 --yaw 345 --pitch 12 --time 2026-10-18T17:30:00Z`;
+  - (d) `--view surface --lat 44.97185 --lon -169.84163 --alt 60 --yaw 45 --pitch -4 --time 2026-10-12T03:00:00Z`;
+  - (e) `--view surface --lat 44.83304 --lon -169.99447 --alt 1.7 --yaw 20 --pitch -2 --time 2026-10-12T03:00:00Z`;
+  - (f) `--view surface --lat 44.87400 --lon -169.99949 --alt 1.7 --yaw 120 --pitch 6 --time 2026-10-12T03:00:00Z`;
+  - (g) `--view surface --alt 2000 --yaw 20 --pitch -14 --time 2026-10-12T03:00:00Z`.
+- **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height at a point, biome at a
+  point (`BiomeAt`), collision for a zone square, scatter for a tile (`ScatterFor`). The last two have default
+  implementations, so other `ISurface`s keep compiling.
 
 ### 4.7 Persistence
 
@@ -439,6 +561,40 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   and 48.5 ms worst (two over budget): the server, 100 bots and the relay share one PC, and the worst ticks vary from
   run to run.
 
+### 5.2 G2 load test: 100 survival bots with full inventories
+
+Measured on the owner's PC on 13 October 2026, with four other agents' work running on it. Every bot joins with the
+`load-test-kit` loot table (29 stacks: resources, tools, weapons, arrows, food, clothing, a campfire, a bag, a box),
+then plays the survival game (`--script survive`, `SurvivalBrain`): it walks to trees and outcrops and hits their weak
+spots, picks pickups and berry bushes, keeps its tools on the belt, dresses, eats and bandages, crafts what it lacks and
+keeps its queue busy, lights a campfire, and now and then fights a bot nearby with a spear or the bow. All 100 stay
+within 120 m of the origin, so each sees the 99 others.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit
+```
+
+| | G2, 100 survival bots | G1, 100 walking bots (§5.1) | Target |
+|---|---|---|---|
+| Server tick, average | 5.90 ms | 4.25 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 12.3 / 65.5 ms (2 of 1,796 over 33 ms) | 10.2 / 26.9 ms | ≤ 33 ms |
+| Bandwidth per client, down (99 characters in view) | 105 kbit/s | 114 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 24 kbit/s | 18 kbit/s | |
+| Snapshots lost / inputs on their tick | 0 % / 99.85 % | 0 % / 100 % | |
+| Prediction: mean / worst error, corrections | 0.007 / 183 mm, 6 (and 188 respawns) | 0 / 0 mm, 0 | |
+
+In the 68 s the bots made 1,585 gathering hits (848 on the weak spot) for 17,886 items, picked up 770 items, crafted
+125, loosed 3 arrows, landed 902 hits on each other (199 kills, 209 deaths, each a corpse) and sent 1,369 intents (21
+refused, none over budget). The world ended with 227 things (corpses, campfires, drops) and 710 solid props.
+- **Tick time** grew by 1.7 ms for everything G2 adds: swings and their traces, crafting, vitals, devices, the
+  replication of things, nature and each player's own state. The worst ticks are the PC's (a garbage collection, other
+  work); the 99th percentile stays at a third of the budget.
+- **Down** is lower than G1's because bots that gather stand still, and a still character's state is a few bits; G2's
+  own messages (containers, vitals, events, things) add little. **Up** grew by the held slot, buttons and view delay in
+  every input.
+- **Prediction** stays exact while characters walk among solid trees, outcrops and deployables; the few corrections
+  are at props, and respawns (more than 2 m) are counted apart.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -466,6 +622,203 @@ saying where it came from. Sources, in order of preference:
 | Death | Wounded state, lootable body, respawn on the beach, at a sleeping bag or bed (each with a cooldown), sleepers. |
 | Raiding | Explosives and explosive ammo, damage per grade, weak sides, raid alerts. |
 
+### 6.1 As built in G2
+
+The rules live in `Hollow.Simulation` (engine-free); the server applies them, the client runs the same code for its
+optimistic updates. Numbers are in `game/data/ground` (§7); the source of each is noted there.
+
+**Inventory** (`Items/`). 24 main slots, 6 belt slots, 7 clothing slots (`PlayerInventory`). A stack is an item ID, a
+count and, for tools and weapons, a condition (uses left).
+- **Move** (drag): onto an empty slot it moves (a split when part of a stack); onto the same item it tops that stack up
+  and leaves the rest where it was (Rust; RustMVP refused the whole move); onto another item it swaps, whole stacks
+  only.
+- **Quick move** (right-click): onto partial stacks of the same item first, then empty slots that take it; what
+  doesn't fit stays. Its targets depend on where the item is: from the loot to main then belt; to the open loot;
+  clothing to the clothing slots; main to belt and back.
+- **What goes where**: clothing slots take clothing only, one item per layer (head, face, torso, torso armour, legs,
+  legs armour, hands, feet), so a shirt and a chest plate go together; a campfire's or furnace's fuel slot takes fuel,
+  its input slots what it cooks, its output slots nothing; corpses are take only.
+- **Gains** (picking up, gathering, crafting, loot): onto stacks of the same item in main and belt, then empty main
+  slots, then the belt. What doesn't fit is dropped at the player's feet.
+- Every request carries the item the client saw in the slot; if it changed meanwhile (another looter took it), the
+  request is refused as stale rather than moving something else.
+
+**Crafting** (`Items/CraftQueue.cs`, RustMVP §7). Up to 8 jobs of up to 999 units. Starting a job checks the recipe,
+the workbench level within 4 m and the materials for every unit, then takes them all. Only the front job advances, a
+unit every `seconds × 30` ticks; a finished unit goes into the inventory (dropped at the feet if full, as in Rust, rather
+than holding the queue as RustMVP did). Cancelling any job gives back the ingredients of every unit left, the one in
+progress included; what doesn't fit is dropped. At death the queue's ingredients go into the corpse. A workbench counts
+only when the job starts (Rust). Crafting pauses while the player is offline or asleep.
+
+**Gathering** (`Nature/`). Natural objects come from `INaturalObjects`: objects in a rectangle of the zone's tangent
+plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. The planet package's
+scatter will provide them; until then `StandInNaturalObjects` places each kind at its density per 64 m tile from a
+seeded stream (deterministic: the server and every client place the same objects), keeping 9 m around the zone's origin
+clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
+- **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's tree or ore rate
+  (items.json) and gives the share of the object's whole yield that health was, in whole units, so the hits add up to
+  exactly the total: a better tool is quicker, not richer. The last hit gives the rest. A 0.94-size pine (206 wood)
+  takes 32 hits with a rock, 13 with a stone hatchet, 9 with a metal one.
+- **The weak spot** (Rust): it shows with the first hit on a tree or outcrop, on the side facing the hitter (within 50°
+  either way), on the trunk at chest height or on the outcrop's upper side. A hit within 0.3 m of it counts double and
+  moves it, again to the hitter's side at a new height. Its direction and height are part of the stored change and
+  are sent to clients, who draw it. (First placed at random around the object, the spot was on the far side half the
+  time: the bots found it on 3 hits in 132; facing the hitter, 91 in 113.)
+- **Outcrops** shrink through three stages as they lose health (drawn by the client).
+- **Pickups** (piles of wood, stone and ore, fibre plants, wild tubers) and **berry bushes** are taken whole with the
+  interact key; a pickup is gone, a bush stays bare, until it grows back.
+- **Respawn** on the real clock (Unix milliseconds): trees after 20 minutes, outcrops 10, pickups and bushes 8. Only
+  changes are stored (`NaturalState`: health, weak-spot moves, depleted until), and saved.
+- **Collision**: trees (capsules) and outcrops (spheres) are static Jolt bodies while their ground tile exists, on the
+  server and in every client's prediction (`NaturalBodies`); a felled tree's body goes, and comes back when it does.
+  Their body IDs come after every ground tile's, so contacts sort the same way on both sides; two props touched at
+  once may sort differently and cost a small correction.
+
+**The zone's game** (`Zone.*.cs`). A zone built with `GameContent` runs the survival game after movement each tick, in
+§4.2's order: fall damage into the vitals; actions (held item, swings, shots); projectiles and damage; once a second
+survival, natural respawns, despawns and loot reach; devices; crafting; then the hit history. Players' actions are
+`Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `UseItem`, `Craft`, `CancelCraft`, `Open`, `Close`,
+`PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of it or
+nothing, with a reason (`ActionResult`). Every new persistent thing gets an `EntityId` from the server's allocator.
+
+**Survival** (`Zone.Vitals.cs`, once a second, survival.json). Health 0–100, calories 0–500, hydration 0–250; a new life
+starts at 60 / 260 / 160 (hollow-orbit's respawn values).
+- Needs fall by 0.07 calories and 0.09 water a second, ×1.8 sprinting, ×1.4 cold. At zero, starvation costs 0.2 health
+  a second and thirst 0.3.
+- Healing: health owed by food and medicine comes back at 1 a second; well fed (≥ 250 calories, ≥ 120 water) and not
+  bleeding, 0.04 a second more, twice that by a fire.
+- **Bleeding** (ours): a hit with a blade, spear or arrow adds its damage × the weapon's bleed fraction to a pool, lost
+  at 1 health a second while the pool clots by 0.2 a second; bandages and injectors empty it.
+- **Temperature**: felt = the air (`IClimate`: the stand-in has the first world's mean 18 °C, ±3.5 °C over the
+  compressed 87-minute day, −6.5 °C a kilometre up), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but
+  never past 25 °C, and 10 °C colder for two minutes after swimming. Clothing insulation (3–6 °C an item) counts
+  against the cold: with it added, below 5 °C a character gets cold (fully at −10 °C); cold costs calories faster and,
+  past 0.6, 0.15 health a second. There is no overheating yet. The first world is mild, so cold matters on mountains
+  and when wet at night.
+- Sleepers are left as they are (no hunger, no bleeding) until they wake. Crafting pauses for them too.
+
+**Deployables** (`Zone.Things.cs`, `Zone.Actions.cs`). Placed from an inventory slot at a point within 3 m of the eye,
+snapped to the ground below (at most 0.6 m off), refused under water, outside the zone, on ground steeper than the
+item allows (20–30°), or overlapping another deployable, a tree, an outcrop or a character (blocked). Boxes, furnaces and
+workbenches are solid Jolt boxes on both sides; sleeping bags and campfires are not. Every deployable has hit points;
+melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground.
+- **Sleeping bag and bed**: respawn points for their owner only, with a cooldown from placing and after each use (bag
+  300 s, bed 120 s; real clock, as in RustMVP, so it runs while the server is down). A bed needs workbench 1.
+- **Campfire and furnace**: lit by hand when they have fuel; a lit one burns a unit of fuel every `fuel.seconds` (wood:
+  2 s) leaving its by-product (charcoal) in an output slot, cooks every input slot at once (metal ore 4 s, sulphur ore
+  2 s, high-grade ore 8 s in a furnace; wild tubers 15 s on a campfire), waits when the outputs are full and goes out
+  when the fuel does. Both give warmth while lit.
+- **Workbenches**: a level counts for crafting within 4 m.
+- **Boxes**: 18 and 48 slots.
+
+**Dropped items**: a drop lands on the ground in front of the player, lies there for 300 s of world time (it pauses
+while the server is down) and is picked up with the interact key, as much as fits.
+
+**Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
+ingredients, go into a corpse where the player fell (any number of slots), which anyone may take from but not put into;
+it goes when emptied or after 300 s of world time (Rust's corpse lifetime). The dead player chooses: a random beach point
+(no wait, as in Rust; survival.json can add one) or one of their own sleeping bags or beds that has cooled down. A new life has
+the spawn vitals, a rock and a torch. Until the planet package marks beaches, "the beach" is a random point 15–60 m
+from the zone's origin (`Zone.Beaches` takes the real coast).
+
+**Sleepers**: a player who logs off stays where they were, asleep (lying hit shapes), lootable and killable; looting a
+sleeper shows their main slots, belt and clothing, take only. A sleeper killed leaves a corpse like anyone. Logging in
+wakes them where they lie; a player killed while away logs in dead and chooses a respawn.
+
+**Melee** (`Zone.Combat.cs`). The held item comes from the belt slot each input names; taking an item up takes 0.3 s.
+While the primary button is held a melee item swings every `swing` seconds and strikes `strike` seconds after the swing
+starts: a ray from the eye along that tick's view, thickened to 0.15 m, out to the item's reach (1.6–2.4 m). The first
+thing it meets takes the hit: a character (damage), a tree or outcrop (gathering), a deployable (`structure` damage), or
+the ground (nothing). Every hit costs the tool a point of condition; at none it breaks.
+
+**The bow**: holding the secondary button draws it (1 s) while there are arrows; the primary button looses one: from the
+eye along the view at 50 m/s, under the planet's surface gravity (9.0 m/s² on the first world; not the characters'
+1.8×), in two steps a tick, for up to 4 s. Holding on draws the next. An arrow 20 m to a chest flies 0.4 s and drops
+0.7 m; loosed flat from eye height it comes down about 30 m out. An arrow that hits the ground, a tree or a deployable
+can be picked up again half the time.
+
+**Damage to characters**: the weapon's damage × the body part (head 2, body 1, limbs 0.5; RustMVP) × (1 − protection),
+where protection is the sum of what worn items covering that part give against melee or projectiles (at most 0.8).
+
+**Lag compensation** (ARCHITECTURE.md §11.5). The server keeps every character's pose (feet, up, yaw, standing,
+crouching or lying) for 36 ticks (`HitboxHistory`). Each input says how many quarter ticks behind its own tick the
+player was drawing everyone else; a swing or an arrow is tested against characters where they were then, interpolated
+between ticks as the client draws them, at most 0.25 s back. Trees, outcrops, deployables and the ground are tested as
+they are now. An arrow keeps its shooter's delay for its whole flight. Hit shapes: a head sphere (r 0.13 m), a body
+capsule (r 0.21 m), leg and arm capsules; crouching scales them down; sleepers lie. Built for guns to reuse (G4).
+
+### 6.2 Network, persistence and the client API (G2)
+
+**Protocol** (version 2, `Messages.cs`). The connect `Hello` carries the hash of the client's game data; other data is
+refused (`ContentMismatch`). Each tick's input also carries the belt slot in hand, the attack and aim buttons (attack
+pressed is latched like jump) and the view delay in quarter ticks (lag compensation). A character's snapshot state
+adds the item in hand, a 4-bit count of swings and shots with the last kind (others animate each), and asleep.
+- **Intents** (client → server, reliable ordered, each with a sequence number): move, quick move, drop, use, craft,
+  cancel craft, open, close, pick up (a natural object or a dropped item), place, light or put out, respawn. The
+  server applies them as they arrive (at the start of a tick) and answers every one with `IntentResult` (accepted, or
+  the `ActionResult` reason) after that tick's changes have gone out.
+- **Budget** (RustMVP's command budget): 16 at once, 20 a second; every arrival spends one, a bad one too; over it the
+  answer is `RateLimited`, and the server counts accepted, refused and rate-limited intents per player.
+- **The player's own state** (reliable, to them alone): their three containers in full at joining, then changed slots
+  (`ContainerSlots`); what they loot (`LootState`, then the loot's containers in full, then changes, also to every other
+  looter); vitals when a whole unit changes; the crafting queue when it changes (ticks left counted from a server
+  tick); life (dead, how, by whom, beach and bag respawn choices with their cooldowns). The container, loot and
+  crafting messages carry the last intent the server had applied, so the client drops exactly the pending intents its
+  copy now includes.
+- **Events** (reliable, to whom they concern): hit markers, items gained or lost and why, damage taken (amount, body
+  part, from where, with what), a craft finished; projectiles loosed and stopped (to everyone within 300 m), which
+  clients draw on their own arc.
+- **Static things** (deployables, dropped items, corpses) are sent once when they come within 300 m (`ThingSpawn`; at
+  most 48 new ones per snapshot, so a crowded place streams in), again when they change (`ThingUpdate`: health, count,
+  lit, the receiver's own bag) and `Despawn`ed when gone or out of range (320 m).
+- **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
+  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens.
+- **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
+
+**Server** (`GameServer.Survival.cs`). The zone runs with the game data; the server sets its real clock each tick,
+applies inputs and actions, steps it, then routes its events, sends each player's own state, the container changes,
+and the answers; static things and natural changes go with each snapshot. A player who logs off stays as a sleeper
+(saved at once); logging in finds their sleeper and wakes it. A death saves the zone within a second. Admin console: `give <name> <item> [count]`,
+`kit <name> <loot table>`, `heal <name>`, `kill <name>` besides G1's.
+
+**Persistence** (schema 2, `GameDatabase`, `WorldCodec`). Characters gain `dead` and `state` (their vitals, inventory,
+crafting queue, beach cooldown and last death, in a versioned binary record); new tables hold each body's static things
+(`things`: kind and a versioned binary record with the position in the body frame), natural overrides
+(`natural_overrides`: health, weak-spot moves, depleted until) and zone metadata (`zones`). The whole zone (every
+character, sleeper or not, every thing, and the natural changes since the last save) is written in one transaction
+every 30 s, at once on a death, and at shutdown; a character also when they log off. At start the server loads its
+body's characters (as sleepers, or dead), things and overrides. World-time timers (corpses, dropped items, a unit of
+crafting, a fire's fuel) are saved as what is left and pause while the server is down; real-time ones (bag cooldowns,
+respawning nature) keep running. Decoding treats the stored bytes as untrusted: an item the game no longer has is
+dropped. A G1 database migrates in place; G1 characters come back with a new life's kit.
+
+**The client** (`Hollow.Client`). `GameClient.Local` (`LocalPlayer`) is the API the UI binds to:
+
+| Member | What |
+|---|---|
+| `Inventory` (`Main`, `Belt`, `Wear`), `Loot`, `LootBelt`, `LootWear`, `LootKind`, `LootTarget`, `LootTakesDeposits` | Containers as the server has them, with intents not yet answered applied on top. The player's own three are the same objects all session; loot ones are new per open. |
+| `Vitals` | Health, calories, hydration (and their maxima), felt temperature, cold, bleeding, healing, comfort, wet. |
+| `Crafting` | Jobs front first: recipe, count, progress of the unit in hand, seconds left, still pending. |
+| `Life`, `IsDead`, `SecondsUntilReady(option)` | Alive or dead; how, by whom; respawn choices (the beach, each bag) and their countdowns. |
+| `HeldSlot`, `HeldItem`, `WorkbenchLevel`, `CanCraft(recipe, count)` | The belt slot in hand (set by the UI; it goes out with every input), the best bench within 4 m, whether a recipe can start. |
+| `MoveItem`, `QuickMove`, `Drop`, `Use`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, uses, crafting, placing, closing), shows at once. |
+| `Changed`, `ContainerOpened`, `ContainerClosed`, `HitMarker`, `ItemsChanged`, `DamageTaken`, `CraftFinished`, `IntentAnswered`, `IntentRejected`, `Died`, `Respawned` | Events for the UI. A refused intent has already been rolled back when `IntentRejected` fires. |
+
+Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), the natural objects and their changes
+(`Nature`, `Natural`, with trees and outcrops solid in the prediction's physics), projectiles in flight
+(`Projectiles`), others' held items, swings, sleep and clothing (`RemoteEntity`), and finds what the interact key would
+act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
+campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
+
+**Godot** (`game/scripts/Ground`, placeholders until the other packages' models and the RustMVP interface): natural
+objects as simple shapes per 64 m tile (trees, outcrops shrinking with their stage, piles, plants, bushes with their
+berries), glowing weak spots near the player, deployables as boxes (a lit fire has a flame and a light), drops,
+corpses, arrows in flight, the item in hand with a swing, a ghost where a held deployable would go, the interact prompt
+and a debug overlay (`SurvivalOverlay`); mannequins lie down asleep and swing what they hold. `--demo` sets up the camp
+below for screenshots.
+
+![A camp in the demo: a box, a lit campfire, a sleeping bag, a stone hatchet in hand](images/ground/survival-camp.png)
+
 ---
 
 ## 7. Data
@@ -478,6 +831,27 @@ saying where it came from. Sources, in order of preference:
 - damage and protection tables, survival constants.
 
 A test checks that every reference resolves and that every recipe can be made from gatherable resources.
+
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the seven files below,
+resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
+a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
+`game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
+data is refused. Each file starts with a `source` note saying where its numbers came from.
+
+| File | What | Sources |
+|---|---|---|
+| `items.json` | 43 items: resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
+| `recipes.json` | 29 recipes: output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows; times ours |
+| `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
+| `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
+| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load test's kit. | Rust |
+| `survival.json` | Vitals, metabolism, bleeding, temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
+| `categories.json` | The crafting tabs. | Rust's grouping |
+
+The checks (`ContentTests`): unique IDs and keys; every reference resolves; sensible ranges; and a fixpoint from what
+natural objects yield, through recipes, workbench levels, cooking and fuel by-products, proves every recipe can be made.
+Charcoal, for example, comes from wood burnt in a campfire, which is made of wood; the furnace needs lamp oil, made from
+charcoal and fibre.
 
 ---
 
@@ -517,8 +891,9 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
   at 17 %, selected blue, health, water, food), its type rule (regular Barlow Medium; bold Barlow SemiBold below 26 px
   and Barlow Condensed Bold from 26 px) and its text fields.
 - **Fonts:** Barlow and Barlow Condensed (SIL OFL 1.1), from RustMVP, in `game/assets/fonts/Barlow`.
-- **Icons:** every screen asks `ItemIcons` (an `IItemIconProvider`). Until the icon package renders them from our
-  models, placeholders are flat vector drawings (RustMVP's own placeholder shapes and new ones in their style).
+- **Icons:** every screen asks `ItemIcons` (an `IItemIconProvider`). They are rendered from our models (§9.1) and
+  served by `CatalogItemIcons`; keys without a model get the flat vector placeholders (RustMVP's own placeholder
+  shapes and new ones in their style).
 - **The character on the inventory screen is ours.** The reference image shows RustMVP's extracted body, which is
   never used (§9). Until the character package supplies the body, a plain wooden mannequin stands in, rendered into a
   texture the size of its panel.
@@ -605,7 +980,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
   them "reconstructions".
 - The texture and plant sets in `D:\GameDev\Assets`:
   - Poly Haven: CC0.
-  - Megascans and other Fab content: check the licence of each item; some Fab content is Unreal-only.
+  - Megascans and other Fab content: check the licence of each item; some Fab content is Unreal-only. Use only sets
+    whose Fab listing is on record (`Inventory`, or a download manifest with the listing URL).
   - LOLIPOP trees: CC BY 4.0, credit required.
 - Downloads the owner approved on 12 October 2026 (§1), kept outside the repository in
   `D:\GameDev\Assets\Downloads\<name>\` and listed with their checksums in `game/assets/THIRD_PARTY.md`:
@@ -613,6 +989,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
   - MPFB 2.0.17, MakeHuman for Blender (GPL code; the base mesh, targets, rigs and weights it uses are CC0);
   - the MakeHuman system asset pack (CC0): the skin, eyes, eyebrows, eyelashes and hair of the player body.
 - Other CC0 or CC-BY sources (CMU motion capture, Poly Haven, Kenney) if a need arises.
+- **In the game now:** the ground textures only (six Megascans surfaces and two Poly Haven sets, listed in
+  `game/assets/THIRD_PARTY.md`, built by `tools/blender/surface_ground.py`). Plants, grass, rocks and their textures
+  are made in code (§4.6); the Megascans and LOLIPOP plant models tried earlier were dropped.
 
 **Never used** (extracted from Rust's game files):
 - RustMVP's player body and first-person arms (`Content/Rust/Character`).
@@ -641,6 +1020,98 @@ RustMVP's rules, with Rust's where RustMVP had none:
   bulk loads.
 - **Credits:** every third-party file is listed in `game/assets/THIRD_PARTY.md` with its source and licence.
 
+### 9.1 Item and world models, as built
+
+Every item key and world object has a model, an icon if it's an item, and a line in the model catalogue. All of it is
+rebuilt by scripts:
+
+```bash
+blender -b --factory-startup --python art/build.py                 # every model (30 s; 2 min converting the textures)
+blender -b --factory-startup --python art/build.py -- tools        # one script (names below)
+$GODOT --path game -- --view icons --out game/assets/items/icons   # every icon (a real window; --only a,b for some)
+$GODOT --path game --resolution 1600x900 -- --view icons --shot icons.png       # the contact sheet
+$GODOT --path game --resolution 1600x900 -- --view models --shot models.png     # everything on the ground
+$GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --yaw -38 --shot ship.png
+```
+
+**Scripts** (`art/`, Blender 5.2 in background mode):
+
+| Script | What it makes |
+|---|---|
+| `hollow/` | The shared code: texture conversion, Godot `.import` and `.tres` writers, kit conversion, the model builder (primitives on the shared atlas, per-vertex tint, baked vertex occlusion, decimated LODs, convex hulls, sockets) |
+| `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
+| `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
+| `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
+| `models/resources.py` | The eleven resources as small piles (their dropped look), and the four world pickups as bigger piles |
+| `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
+| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition, key lock |
+| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate |
+| `models/deployables.py` | Campfire, furnace, small box, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
+| `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
+
+**Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
+rifle's LOD1–LOD3, as the character package chose); `UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as
+empties; duplicate faces in some kit LODs dropped; only the OpenGL normal maps used; textures box-filtered to 2K at
+most (the Tin Finch's surface normals and markings to 1K) and written once to `game/assets/textures/<set>/`. Three
+plates of the kit's markings atlas carried Rust's item names (P-250, K-47) or a joke ("fictional game prop");
+`import/relabel_markings.ps1` redraws them as SERVICE PISTOL, FRONTIER RIFLE and TIMED CHARGE with the kit's own
+recipe (Windows: System.Drawing and Consolas).
+
+**Layout of a model** (GLB in `game/assets/items` for things carried, `game/assets/world` for things placed):
+- One node per level of detail and part, `<Part>_lod0` to `_lod2`; parts that move (box lids, doors, hatches,
+  magazines, slides) sit under an empty named after the part, at its pivot.
+- Convex hulls `<Part>_hull<i>-convcolonly` (Godot makes them static bodies); attach points are empties
+  `socket_<name>`, +X along the item's forward and +Y up.
+- **Held items** point +X (barrel, blade or head; the character package's frame, §4.8) with the pivot at
+  `socket_grip_r`, the right palm; `socket_grip_l` is the other hand (the bow is held by `grip_l`). Guns also have
+  `sight`, `eye`, `muzzle` and `eject`, tools `impact`. Things held while being placed (locks, the timed charge) get a
+  palm socket at their middle.
+- **World objects** (deployables, doors, outcrops, piles, the ship) face +Z, glTF's and Godot's model front, with the
+  pivot on the ground at the middle of their footprint; doors hang from their lower hinge corner and close across +X
+  (the garage door: the middle of its bottom edge).
+- No images inside: each GLB's `.import` maps its materials to shared Godot materials in `game/assets/materials`
+  (`psg_surface` and `psg_markings`, the PSG atlas; `frontier_metal` and `frontier_furniture`; `tin_finch_*`;
+  `hollow_rock`, a tiling CC0 rock; `hollow_glossy`, plain). Our own models use the PSG atlas's sixteen material tiles
+  (timber, rusted steel, gunmetal, enamel, canvas, leather, basalt...) tinted per vertex; the vertex colour also
+  carries baked occlusion. Godot stores glTF vertex colours as sRGB, so these materials set `vertex_color_is_srgb`.
+
+**Catalogue:** `game/data/ground/models.json`, read by `game/scripts/Items/ModelCatalog.cs`. One entry per item key
+(kind `item`) or world object (kind `world`):
+
+| Field | Meaning |
+|---|---|
+| `key`, `kind`, `class` | The item key or world kind; `class` is tool, gun, spear, blade, bow, arrow, resource, medical, food, clothing, ammo, lock, explosive, deployable, container, door, building, node, pickup or vehicle |
+| `file` / `stages` | The GLB, or for outcrops one GLB per depletion stage (stage 1 whole, 2 broken, 3 a remnant) |
+| `lods`, `lodDistances` | Levels of detail in the file; switch distances (metres: LOD1, LOD2, gone; 0 = never), by default from the model's size |
+| `collision` | `convex`: hulls in the file |
+| `icon` | Present when the item has an icon; `view` is the icon camera's yaw, pitch and roll (degrees) when the class default isn't right; `key` borrows another item's icon |
+| `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) when no arms are drawn; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow |
+| `drop` | `scale`: how big it lies on the ground when dropped (big deployables shrink to a kit) |
+| `standIn` | A note when the model is a stand-in to replace |
+| `source` | Where it came from |
+
+`ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
+merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
+resampled to the exact pixel size asked, and falls back to the placeholder drawings for keys without an icon; `Main`
+installs it (`--placeholder-icons` keeps the drawings). Its `Blueprint` gives the blueprint look by tinting, so no
+extra files are needed.
+
+**Icons** (`--view icons --out game/assets/items/icons`): every catalogue entry with an icon, on a transparent
+background, at 128 and 256 px: an orthographic three-quarter shot (front-right from above for things placed, the right
+side for guns, a diagonal for tools and long things), framed so the model's extent fills 86 % of the square, under a
+warm key light from the upper left, a cool fill and a white rim from behind, with a light studio for metal to
+reflect. Rendered at 1024 px and area-filtered by coverage, so edges have no dark fringe.
+
+**Viewer** (`--view models`): every model on the ground in groups by size with a 1.8 m figure for scale, or one on a
+turntable (`--model <key>`, Tab); LOD keys 0, 1, 2 and A; F (or `--first-person`) shows a held item at its first-person
+pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open`; the ship stands on a plain
+stand. `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
+has its LODs, hulls, palm sockets and mapped materials, that icons are square RGBA PNGs at both sizes, and that every
+item key (and every item of `items.json` when present) has a model.
+
+Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `models.jpg` (everything on the ground),
+`items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
+
 ---
 
 ## 10. How the work is run
@@ -662,7 +1133,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
 
 ## 11. Open questions
 
-1. **Day length:** compressed ×24 is the working default (§1). The owner may switch it back to real rotation.
+1. **Day length:** compressed ×24 is the working default (§1). The owner may switch it back to real rotation. The
+   client's `RotationTimeScale` setting and the surface view's time keys (§4.6) control it.
 2. **Downloads for the character:** approved by the owner on 12 October 2026 (Quaternius animation libraries, MPFB),
    with free use of other CC0 and CC-BY sources.
 2a. **Character decisions taken by Claude while the owner is away** (§4.8; the owner may change any of them):
@@ -717,3 +1189,71 @@ Decisions taken for the interface (§8) without the owner, to confirm or overtur
     under RustMVP's vignette instead. The menu is English, like the rest of the interface (RustMVP's was Turkish).
 17. **Placeholders until their packages land:** item icons (vector drawings), the mannequin, and the death screen's
     map (a fixed-seed coast).
+
+Decisions taken during G2 (step "Survive") without the owner, to confirm or overturn:
+
+18. **No scrap yet.** Rust's workbenches cost scrap, which comes from barrels and crates (G7). Until then workbench 1
+    is 500 wood and 100 metal fragments, and workbenches 2 and 3 cost refined metal (smelted from the high-grade ore
+    metal outcrops give, as Rust's high-quality metal).
+19. **Lamp oil** (our low-grade fuel) is made from charcoal and fibre, since there are no animals for fat yet; a
+    furnace needs ten. So the first furnace comes after a campfire has burnt wood into charcoal.
+20. **Every recipe is known** from the start; the tech tree (G7) will hide some (`known` in recipes.json).
+21. **Yield is fixed per object**: a better tool or the weak spot gathers it faster, not more of it (hollow-orbit's
+    rule; Rust's numbers differ per tool). The weak spot shows after the first hit, facing the hitter (Rust).
+22. **Dragging onto a stack of the same item tops it up and leaves the rest** (Rust); RustMVP refused the whole move.
+    A crafted unit that doesn't fit drops at the player's feet (Rust) instead of holding the queue (RustMVP). A
+    workbench is checked when a job starts (Rust). Crafting pauses while the player is offline or asleep (RustMVP).
+23. **Sleepers are frozen**: no hunger, thirst or bleeding while logged off; looting them is take only; logging in wakes
+    them at once (no key press).
+24. **The beach** is, until the planet package marks real coasts (`Zone.Beaches`), a random point 15–60 m from the
+    zone's origin; a beach respawn has no wait (Rust). New characters still arrive at G1's spawn ring.
+25. **Timers**: corpses and dropped items last 300 s of world time, which pauses while the server is down, as does
+    crafting and a fire's fuel; sleeping-bag cooldowns and respawning nature run on the real clock.
+26. **Bleeding and the cold** use our own numbers (survival.json) where neither source had any; a fire warms the air
+    felt up to 25 °C; nothing overheats yet.
+27. **Arrows fall with the planet's surface gravity** (9.0 m/s²), not the characters' 1.8×; lag compensation looks back
+    at most 0.25 s (ARCHITECTURE.md §11.5) over a 36-tick history.
+28. **Deployables**: sleeping bags and campfires don't block movement; a broken deployable spills everything it held;
+    arrows do a quarter of their damage to deployables, melee the tool's `structure` value.
+29. **Natural objects' bodies** take free IDs after the ground tiles', so two props touched at once may sort differently
+    on the client than on the server, costing a small correction (§6.1).
+30. **Decisions taken in the surface work** (to confirm):
+   - Plants are generated in code in hollow-orbit's style rather than scanned models; trees switch to their second
+     mesh at 50 m and to impostors at 170 m, which keeps the frame time near 11 ms. Forests farther than 2.2 km are
+     drawn by the ground's canopy, not by trees: a scatter that far would take minutes to generate.
+   - Three Megascans surfaces on disk (Mossy Ground `tj4ocdjr`, Tundra Lichened Rock `vjbode1mw`, Tundra Mossy Ground
+     `vjulbjjr`) have no listing on record, so they were replaced by listed sets and Poly Haven CC0 sets. The six
+     listings used were checked on 2026-10-13: all six say "License terms: Standard License", and none says "licensed
+     for use only with Unreal Engine" (`game/assets/THIRD_PARTY.md`).
+   - Cloud cover is fixed at 0.35 (fair weather) until weather exists; moonlight on the ground is brightened six
+     times.
+   - The landing site (§3) can still move: only the surface golden test's landing-area points depend on it.
+
+Decisions taken for the item and world models (§9.1) without the owner, to confirm or overturn (numbered M1 on, so
+they merge beside the other packages' items):
+
+- M1. **Outcrops are our own design.** The PSG Resource Nodes R01 call themselves "reference-based reconstructions"
+  of Rust's nodes, and their stone, metal and sulphur stages follow Rust's stacked slabs and colours closely; the
+  older `Assets/ResourceNodes` do the same. Neither is used. Ours are clusters of chipped, angular boulders with the
+  mineral showing its own way (metal specks and rust streaks, yellow crystal clusters and crusts, bright flakes),
+  broken along inclined planes for stages 2 and 3, 2 m across and 1.4 m high as gather.json says. A high-grade
+  outcrop is made too, though gather.json gets high-grade ore from metal outcrops.
+- M2. **Doors:** the door kit is the building package's. Until it converts it, our own wooden, armoured, double and
+  garage doors stand in (marked `standIn`); the metal door is the Starter Kit's sheet-metal door.
+- M3. **Clothing icons come from stand-in garments** (`models/clothing.py`, marked `standIn`); render them again from
+  the character package's meshes when they can be posed for the inventory.
+- M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it; the
+  character package's test copy uses 0.62.
+- M5. **Held items use the character package's frame** (+X forward, palm sockets `grip_r` and `grip_l`, LODs `_lod0`),
+  so its hands can hold any of them. That package also built five test copies of the same kit items
+  (`items/flint_axe.glb` and others, with their own copies of the PSG and Frontier textures in `items/textures`). When
+  both are merged, `HeldItems` should load these models through `ModelCatalog` (stone-hatchet, stone-pickaxe, rock,
+  pistol, rifle) so their materials come from the `.import` files, and the test copies and their textures (about
+  20 MB) can go.
+- M6. **Dropped deployables shrink** (`drop.scale`: a workbench lies at 0.3, a door at 0.3, a large box at 0.45), like a
+  packed kit, rather than appearing full size or as a bag.
+- M7. **Textures are 2K at most and shared:** one PSG atlas for the Starter Kit items and every model of ours, the
+  Frontier rifle's two sets, the Tin Finch's surface (normals at 1K) and markings (1K), and one 1K tiling rock
+  (Poly Haven's rock_08) for outcrops, stones and bark. About 37 MB of PNG in all.
+- M8. **Icons fall back to the placeholder drawings** for keys the catalogue doesn't know, so the interface viewer's
+  sample data (RustMVP's old keys) still shows something; the integration replaces those keys with items.json's.

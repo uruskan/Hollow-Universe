@@ -1,0 +1,13 @@
+{
+  "source": "The crafting menu's tabs, in order (Rust's grouping, our labels).",
+  "categories": [
+    { "key": "resources", "name": "Resources" },
+    { "key": "tools", "name": "Tools" },
+    { "key": "weapons", "name": "Weapons" },
+    { "key": "ammunition", "name": "Ammunition" },
+    { "key": "clothing", "name": "Clothing" },
+    { "key": "medical", "name": "Medical" },
+    { "key": "food", "name": "Food" },
+    { "key": "items", "name": "Items" }
+  ]
+}

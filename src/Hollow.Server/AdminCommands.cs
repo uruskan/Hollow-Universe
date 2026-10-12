@@ -18,7 +18,11 @@ public sealed partial class GameServer
         "teleport <name> <x> <z>       move a player to a point of the zone (metres east, south)\n" +
         "teleport <name> <other>       move a player next to another\n" +
         "say <text>                    a server line in everyone's chat\n" +
-        "save                          save every character now\n" +
+        "give <name> <item> [count]    items into a player's inventory (item keys as in items.json)\n" +
+        "kit <name> <loot table>       a loot table's items (loot.json), e.g. supply-crate\n" +
+        "heal <name>                   full health, food and water, no bleeding\n" +
+        "kill <name>                   a player dies (a corpse with their things)\n" +
+        "save                          save the world now\n" +
         "quit                          save everyone and stop";
 
     private void RunCommand(string line)
@@ -67,9 +71,53 @@ public sealed partial class GameServer
                 Log($"[server] {text}");
                 Broadcast(new ChatLine { Kind = ChatKind.Server, From = "Server", Text = text });
                 break;
+            case "give" when words.Length >= 3:
+                if (Find(words[1]) is { Playing: true } taker && Content.Item(words[2]) is { } item &&
+                    Zone.PlayerOf(taker.Entity) is { Dead: false } receiver)
+                {
+                    int count = words.Length > 3 && int.TryParse(words[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? Math.Clamp(n, 1, 100_000) : 1;
+                    int left = receiver.Inventory.Give(Content, item, count);
+                    Log($"gave {taker.Name} {count - left} {item.Name}" + (left > 0 ? $" ({left} didn't fit)" : ""));
+                }
+                else
+                {
+                    Log("give <playing name> <item key> [count]");
+                }
+                break;
+            case "kit" when words.Length >= 3:
+                if (Find(words[1]) is { Playing: true } kitted && Content.Loot(words[2]) is { } table &&
+                    Zone.PlayerOf(kitted.Entity) is { Dead: false } owner)
+                {
+                    GiveKit(owner, table);
+                    Log($"gave {kitted.Name} the {table.Key} kit");
+                }
+                else
+                {
+                    Log("kit <playing name> <loot table key>");
+                }
+                break;
+            case "heal" when words.Length >= 2:
+                if (Find(words[1]) is { Playing: true } healed && Zone.PlayerOf(healed.Entity) is { Dead: false } patient)
+                {
+                    patient.Vitals.Health = Content.Survival.MaxHealth;
+                    patient.Vitals.Calories = Content.Survival.MaxCalories;
+                    patient.Vitals.Hydration = Content.Survival.MaxHydration;
+                    patient.Vitals.Bleeding = 0;
+                    patient.VitalsRevision++;
+                    Zone.Entities.Get<Character>(healed.Entity).State.Health = (byte)Content.Survival.MaxHealth;
+                    Log($"healed {healed.Name}");
+                }
+                break;
+            case "kill" when words.Length >= 2:
+                if (Find(words[1]) is { Playing: true } victim && Zone.PlayerOf(victim.Entity) is { Dead: false } dying)
+                {
+                    Zone.Hurt(victim.Entity, dying, 100_000, "Killed by an admin", Simulation.Entities.EntityId.None, "");
+                    Log($"killed {victim.Name}");
+                }
+                break;
             case "save":
                 SaveAll();
-                Log("saving every character");
+                Log("saving the world");
                 break;
             case "quit":
             case "stop":

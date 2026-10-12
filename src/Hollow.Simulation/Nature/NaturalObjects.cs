@@ -1,0 +1,75 @@
+using System.Collections.Generic;
+using System.Numerics;
+using Hollow.Simulation.Content;
+
+namespace Hollow.Simulation.Nature;
+
+/// <summary>
+/// One natural object (GROUND.md §4.6): a tree, an outcrop, a pickup or a bush, generated from the surface, never
+/// stored. Its <see cref="Id"/> is stable (ARCHITECTURE.md §7: tile and index), so the server, every client and the
+/// database name it the same; only player changes to it are stored (<see cref="NaturalState"/>).
+/// </summary>
+public readonly record struct NaturalObject
+{
+    public ulong Id { get; init; }
+
+    /// <summary>The kind's index in gather.json (<see cref="GameContent.NaturalKinds"/>).</summary>
+    public ushort Kind { get; init; }
+
+    /// <summary>Its base on the ground, in the zone frame.</summary>
+    public Vector3 Position { get; init; }
+
+    /// <summary>Away from the planet's centre at its base.</summary>
+    public Vector3 Up { get; init; }
+
+    /// <summary>Size against the kind's: trees and outcrops get this much more health and yield.</summary>
+    public float Scale { get; init; }
+
+    /// <summary>Turn about <see cref="Up"/>, in radians.</summary>
+    public float Yaw { get; init; }
+}
+
+/// <summary>
+/// Where natural objects are (GROUND.md §4.6): the planet package's scatter will provide them; until then
+/// <see cref="StandInNaturalObjects"/> does. Pure functions of the zone, safe to call from any thread.
+/// </summary>
+public interface INaturalObjects
+{
+    /// <summary>
+    /// Adds the objects whose base lies in [<paramref name="minX"/>, <paramref name="maxX"/>) ×
+    /// [<paramref name="minZ"/>, <paramref name="maxZ"/>) of the zone's tangent plane, always in the same order.
+    /// </summary>
+    void Query(float minX, float minZ, float maxX, float maxZ, List<NaturalObject> into);
+
+    /// <summary>The object with an ID (from outside: untrusted, so a made-up one is simply not found).</summary>
+    bool TryGet(ulong id, out NaturalObject found);
+}
+
+/// <summary>Shapes and derived numbers of natural objects, shared by the server, the client and the physics.</summary>
+public static class NaturalShapes
+{
+    /// <summary>A tree's trunk: a vertical capsule from its base up.</summary>
+    public static (Vector3 A, Vector3 B, float Radius) Trunk(in NaturalObject o, NaturalKind kind)
+    {
+        float radius = kind.Radius * o.Scale;
+        float height = kind.Height * o.Scale;
+        return (o.Position + o.Up * radius, o.Position + o.Up * (height - radius), radius);
+    }
+
+    /// <summary>An outcrop: a sphere half sunk in the ground.</summary>
+    public static (Vector3 Centre, float Radius) Rock(in NaturalObject o, NaturalKind kind)
+    {
+        float radius = kind.Radius * o.Scale;
+        return (o.Position + o.Up * (radius * 0.35f), radius);
+    }
+
+    /// <summary>Where an interaction aims for a pickup or bush (its middle).</summary>
+    public static Vector3 Middle(in NaturalObject o, NaturalKind kind) => o.Position + o.Up * (kind.Height * o.Scale * 0.5f);
+
+    /// <summary>Full health of an object (trees and outcrops).</summary>
+    public static float MaxHealth(in NaturalObject o, NaturalKind kind) => kind.Health * o.Scale;
+
+    /// <summary>The whole yield of an object of a size (trees and outcrops), or one pick (pickups and bushes).</summary>
+    public static int Total(in NaturalObject o, NaturalKind kind, ItemAmount yield) =>
+        kind.IsHarvested ? (int)System.Math.Round(yield.Count * o.Scale) : yield.Count;
+}
