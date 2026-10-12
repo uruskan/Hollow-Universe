@@ -35,6 +35,13 @@ public partial class Main : Node
             _scaler.Override = (float)Number("ui-scale", 1);
         }
         AddChild(_scaler);
+        if (Option("view", "") == "character")
+        {
+            // The character viewer (GROUND.md §4.8) needs no galaxy; it handles --shot itself.
+            AddChild(new HollowUniverse.Characters.CharacterLab(_options));
+            SetProcess(false);
+            return;
+        }
         GalaxyService.Load();
 
         _galaxyMap = new GalaxyMapView { Name = "GalaxyMap" };
