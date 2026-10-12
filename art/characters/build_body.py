@@ -18,6 +18,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bmesh  # noqa: E402
 import bpy  # noqa: E402
@@ -25,6 +26,7 @@ import numpy as np  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 import hollow_art as H  # noqa: E402
+import skin_maps  # noqa: E402
 import surfaces as S  # noqa: E402
 
 # For each part: (target triangles or None for full detail, levels of detail it is drawn at).
@@ -79,6 +81,7 @@ def main():
 
     textures(out)
     stubble(body, eye_centre, os.path.join(out, "textures", "skin_male_albedo.png"))
+    skin_maps.paint(body, os.path.join(out, "textures"))
 
     # Levels of detail.
     lods, levels = {}, {}

@@ -187,7 +187,8 @@ public static class HandFrame
     /// The constant rotation from the grip frame to the hand bone, and the palm centre in the grip frame (relative to
     /// the wrist), from the skeleton's rest pose.
     /// </summary>
-    public static (Basis FrameToBone, Vector3 Palm) Measure(Skeleton3D s, bool right)
+    public static (Basis FrameToBone, Vector3 Palm) Measure(Skeleton3D s, bool right, float along = 0.62f,
+        float lift = 0.022f)
     {
         string side = right ? "_r" : "_l";
         Transform3D hand = s.GetBoneGlobalRest(s.FindBone("hand" + side));
@@ -207,8 +208,8 @@ public static class HandFrame
         Basis frameToBone = frame.Inverse() * hand.Basis;
         Vector3 palmNormal = right ? -z : z;
         float length = (middle - wrist).Length();
-        // The handle sits in the fist: half way to the knuckles, a little out from the palm.
-        Vector3 palmWorld = wrist + f * (length * 0.62f) + palmNormal * 0.022f;
+        // The handle sits in the fist: `along` of the way to the knuckles, `lift` out from the palm's bones.
+        Vector3 palmWorld = wrist + f * (length * along) + palmNormal * lift;
         Vector3 palm = frame.Inverse() * (palmWorld - wrist);
         return (frameToBone, palm);
     }

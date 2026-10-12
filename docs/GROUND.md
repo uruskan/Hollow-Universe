@@ -341,10 +341,15 @@ each leg reaches the ground found by a ray under its foot).
 
 **First person.** The arms are the body's own mesh with only the forearms and hands drawn (and the worn sleeves), on
 render layer 2, without shadows, with their own field of view (60° by default; `ViewmodelView.Fov` is the player
-setting) and depth pulled towards the near plane so they never clip into walls. Both hands reach the item's grips by IK and take finger poses from clip frames. The item moves
-procedurally: sway, walk bob, sprint pose, swing arc, recoil kick on a spring, aiming down the sights (the sight on the
-camera's centre line), reload (item tilts, the magazine drops out and back, the left hand follows it). Unarmed shows no
-arms, as in Rust.
+setting) and depth pulled towards the near plane so they never clip into walls. Their shoulders sit 10 cm lower and
+6 cm further forward than the body's, so the forearms rise into view from the lower corners, as in Rust (nobody sees
+the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round the
+handle: each joint bends just enough for the next to lie on a circle round the handle, so they close on it without
+passing through. The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
+near plane), with its own relief: a normal map made from the skin texture, fine wrinkles over the finger joints and a
+glossy plate for each nail (`art/characters/skin_maps.py`). The item moves procedurally: sway, walk bob, sprint
+pose, swing arc, recoil kick on a spring, aiming down the sights (the sight on the camera's centre line), reload (item
+tilts, the magazine drops out and back, the left hand follows it). Unarmed shows no arms, as in Rust.
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls

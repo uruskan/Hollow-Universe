@@ -92,7 +92,7 @@ Client options (after `--`):
 - Character viewer: `--view character`; `--outfit <0–4>`, `--item <flint_axe|flint_pick|hand_stone|wren_pistol|kestrel_rifle>`,
   `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim>`,
   `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death>` with `--event-at <s>`, `--fp` (first person),
-  `--ads`, `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
+  `--ads`, `--vm-orbit <yaw,pitch,m>` (look at the first-person hands from another side), `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
   `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once;
   `--crowd <n>` adds n characters and `--measure <s>` prints frame times (vsync off) and quits.
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).

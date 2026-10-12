@@ -68,6 +68,12 @@ public static class CharacterMaterials
             string path = sm.Shader.ResourcePath.Replace(".gdshader", "_viewmodel.gdshader");
             sm.Shader = GD.Load<Shader>(path);
             sm.SetShaderParameter("viewmodel_fov", ViewmodelFov);
+            if (path.Contains("character_skin", System.StringComparison.Ordinal))
+            {
+                // Seen from a hand's length away: finer, fainter pores.
+                sm.SetShaderParameter("detail_tiling", 46f);
+                sm.SetShaderParameter("detail_strength", 0.22f);
+            }
         }
         else if (copy is BaseMaterial3D bm)
         {
@@ -84,6 +90,14 @@ public static class CharacterMaterials
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/character_skin.gdshader") };
         m.SetShaderParameter("albedo_texture", Texture("skin_male_albedo.png"));
         m.SetShaderParameter("detail_normal", Texture("skin_detail_normal.png"));
+        if (Exists("skin_male_normal.png"))
+        {
+            m.SetShaderParameter("normal_texture", Texture("skin_male_normal.png"));
+        }
+        else
+        {
+            m.SetShaderParameter("normal_strength", 0f);
+        }
         return m;
     }
 

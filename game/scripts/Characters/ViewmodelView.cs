@@ -84,7 +84,8 @@ public partial class ViewmodelView : Node3D
         _rig.Transform = new Transform3D(new Basis(Vector3.Up, MathF.PI), Vector3.Zero) * new Transform3D(Basis.Identity, -eye);
         MeshPart body = CharacterAssets.Part("body_lod0")!;
         _arms.Add(Instance(body));
-        _gripR = HandFrame.Measure(_skeleton, right: true);
+        // In first person the fist closes tightly, so the handle sits further into the palm, across its crease.
+        _gripR = HandFrame.Measure(_skeleton, right: true, along: HandPoses.FistAlong, lift: HandPoses.FistLift);
         _gripL = HandFrame.Measure(_skeleton, right: false);
         _upperR = _skeleton.FindBone("upperarm_r");
         _lowerR = _skeleton.FindBone("lowerarm_r");
@@ -329,7 +330,7 @@ public partial class ViewmodelView : Node3D
         switch (m.Kind)
         {
             case HeldKind.Pistol:
-                hip = new Vector3(0.075f, -0.175f, -0.4f);
+                hip = new Vector3(0.06f, -0.17f, -0.36f);
                 hipTurn = Basis.FromEuler(new Vector3(0.03f, 0.05f, 0f));
                 break;
             case HeldKind.Rifle:
@@ -338,7 +339,7 @@ public partial class ViewmodelView : Node3D
                 break;
             default:
                 // Tool: the handle rises from the right hand, leaning forward and in; the blade faces forward.
-                hip = new Vector3(0.27f, -0.24f, -0.46f);
+                hip = new Vector3(0.235f, -0.195f, -0.42f);
                 hipTurn = Basis.Identity;
                 break;
         }
@@ -421,8 +422,12 @@ public partial class ViewmodelView : Node3D
         _item!.Transform = item;
         AnimateParts();
 
-        // Hands onto the grips (camera space → skeleton space).
+        // Hands onto the grips (camera space → skeleton space), from shoulders set lower and further forward than the
+        // body's, so the forearms rise into view from the lower corners as in Rust (only forearms and hands are drawn;
+        // nobody sees the shoulders move).
         Transform3D toSkeleton = (_rig.Transform * _skeleton.Transform).AffineInverse();
+        Shoulder(_upperR, ShoulderOffsetR, toSkeleton);
+        Shoulder(_upperL, ShoulderOffsetL, toSkeleton);
         Transform3D gripR = item * HeldItems.Socket(_item, "grip_r");
         Transform3D handR = toSkeleton * HandFrame.HandFor(gripR, HandFrame.PowerGrip, _gripR);
         CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, handR, 1f, new Vector3(-0.7f, -0.7f, -0.1f));
@@ -441,7 +446,7 @@ public partial class ViewmodelView : Node3D
                 Vector3 to = toSkeleton * (mag.Origin + new Vector3(0f, -0.12f, 0.02f));
                 handL.Origin = handL.Origin.Lerp(to, t);
             }
-            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, handL, 1f, new Vector3(0.35f, -1f, -0.1f));
+            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, handL, 1f, new Vector3(0.15f, -1f, 0.1f));
             HandPoses.Apply(_skeleton, HandPoses.Grip.Support, right: false);
         }
         else
@@ -450,6 +455,17 @@ public partial class ViewmodelView : Node3D
             Transform3D rest = _skeleton.GetBoneGlobalRest(_handL);
             CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, rest, 1f, new Vector3(0.7f, -0.7f, -0.2f));
         }
+    }
+
+    // Where the first-person shoulders sit relative to the body's, in camera space (x right, y up, z back).
+    private static readonly Vector3 ShoulderOffsetR = new(-0.03f, -0.1f, -0.06f);
+    private static readonly Vector3 ShoulderOffsetL = new(0.1f, -0.12f, -0.08f);
+
+    private void Shoulder(int upper, Vector3 offset, Transform3D toSkeleton)
+    {
+        Transform3D parent = _skeleton.GetBoneGlobalPose(_skeleton.GetBoneParent(upper));
+        Vector3 target = _skeleton.GetBoneGlobalPose(upper).Origin + toSkeleton.Basis * offset;
+        _skeleton.SetBonePosePosition(upper, parent.AffineInverse() * target);
     }
 
     private void AnimateParts()
