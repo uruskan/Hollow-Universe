@@ -51,3 +51,16 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - `ground-survive`: items, containers, crafting, gathering, survival stats, deployables, death, sleepers, melee and bow, persistence;
   - `ground-ui`: the RustMVP interface rebuilt exactly. That's the HUD, inventory, loot, crafting, death screen, building and hammer wheels, and a main menu.
 - **Still running:** `ground-planet` and `ground-character`.
+- **G2 interface merged** (`ground-ui`). It is the RustMVP interface rebuilt exactly in Godot:
+  - HUD and hotbar;
+  - inventory, with loot panels for boxes, bodies, the furnace and the campfire;
+  - crafting;
+  - death and respawn;
+  - the building and hammer wheels;
+  - a main menu.
+
+  It talks only to a view model (`IGroundUi`). Screenshots are in `docs/images/ground/ui/`; each matches its reference
+  side by side. It gets wired to the real client when `ground-survive` lands.
+- **Owner feedback on plants:** the grass clumps made from downloaded plant models are out. Grass becomes a Rust-style
+  shader system around the camera. Plants and trees must reach the look of hollow-orbit's vegetation; its berry bushes
+  are the bar. Berry bushes become pickable food. Both packages have been told.
