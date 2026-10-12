@@ -155,7 +155,13 @@ void fragment() {
 			}
 		}
 		if (i == 1) {
-			c *= vec3(1.12, 0.9, 0.62); // forest litter: warmer than the scan, which reads grey under a blue sky
+			// Forest floor: brown leaf litter and needles over dark humus, with cushions of moss in patches.
+			vec4 m4 = texture(macro_noise, wp / 9.0 + vec2(0.57, 0.19));
+			float lum1 = dot(c, vec3(0.2126, 0.7152, 0.0722));
+			vec3 litter = c * vec3(1.25, 0.92, 0.55) * (0.75 + 0.45 * m4.r);
+			float moss = smoothstep(0.6, 0.8, m4.g + (macro2.b - 0.5) * 0.35);
+			vec3 moss_colour = vec3(0.05, 0.085, 0.02) * clamp(lum1 / 0.09, 0.5, 1.7);
+			c = mix(litter, moss_colour, moss * 0.85);
 		}
 		if (i == 0) {
 			// The grass layer takes the blades' colour: its texture only gives the detail.
@@ -216,7 +222,9 @@ void fragment() {
 
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
-	AO = mix(0.55, 1.0, smoothstep(0.05, 0.6, height));
+	// Under the trees near by, the canopy keeps much of the sky's light off the ground (the sun's flecks stay).
+	float canopy_ao = 1.0 - 0.38 * smoothstep(0.2, 0.8, v_climate.a) * (1.0 - smoothstep(250.0, 600.0, dist));
+	AO = mix(0.55, 1.0, smoothstep(0.05, 0.6, height)) * canopy_ao;
 	AO_LIGHT_AFFECT = 0.25;
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 

@@ -28,6 +28,21 @@ public static class FloraTextures
         return new Vector4(cell.X * s + pad / AtlasSize, (cell.Y + 1) * s - pad / AtlasSize, (cell.X + 1) * s - pad / AtlasSize, cell.Y * s + pad / AtlasSize);
     }
 
+    // Ridged columns for bark: 1 between fissures, falling to 0 in a narrow groove whose place wanders along v; columns
+    // per turn of the trunk; tiles in u and v.
+    private static double Fissure(double u, double v, int columns, int seed)
+    {
+        double cu = (u - Math.Floor(u)) * columns;
+        int column = (int)Math.Floor(cu);
+        double fu = cu - column;
+        int wrapped = ((column % columns) + columns) % columns;
+        double offset = NoiseTextures.Fbm(wrapped / (double)columns, v, 4, 2, 0.5, seed) * 0.32;
+        double width = 0.09 + 0.07 * (NoiseTextures.Fbm(wrapped / (double)columns, v, 6, 2, 0.5, seed + 1) * 0.5 + 0.5);
+        double d = Math.Abs(fu - 0.5 - offset);
+        d = Math.Min(d, 1 - d);
+        return Smooth(width * 0.3, width, d);
+    }
+
     private static double Smooth(double a, double b, double x)
     {
         double t = Math.Clamp((x - a) / (b - a), 0, 1);
@@ -453,7 +468,7 @@ public static class FloraTextures
     /// <summary>Tiling bark, 256²: grooved plates (tinted per species by vertex colour) or birch, with a normal map.</summary>
     public static (Image Albedo, Image Normal) Bark(bool birch, int seed)
     {
-        const int S = 256;
+        int S = birch ? 256 : 512;
         var height = new float[S * S];
         var albedo = new float[S * S * 4];
         for (int y = 0; y < S; y++)
@@ -474,25 +489,35 @@ public static class FloraTextures
                 }
                 else
                 {
-                    // Plates between deep fissures: seven wandering columns around the trunk, each broken by cracks
-                    // at its own heights; the plates rough and lighter, the fissures dark.
-                    double warp = NoiseTextures.Fbm(u, v, 3, 3, 0.5, seed + 31) * 0.09 + NoiseTextures.Fbm(u, v, 9, 2, 0.5, seed + 32) * 0.025;
-                    double cu = (u + warp) * 7;
-                    int column = (int)Math.Floor(cu);
-                    double fu = cu - column;
-                    int wrapped = ((column % 7) + 7) % 7;
-                    double phase = (Hash64.Of((ulong)seed, (ulong)wrapped) & 0xFFFF) / 65536.0;
-                    double cv = v * 5 + phase + NoiseTextures.Fbm(u, v, 5, 2, 0.5, seed + 33) * 0.15;
-                    double fv = cv - Math.Floor(cv);
-                    double across = Math.Min(fu, 1 - fu) * 2, along = Math.Min(fv, 1 - fv) * 2;
-                    double fissure = Smooth(0.0, 0.35, across) * (0.5 + 0.5 * Smooth(0.0, 0.1, along));
-                    double plate = NoiseTextures.Fbm(u, v, 6, 3, 0.5, seed + 35) * 0.5 + 0.5;
-                    double fine = NoiseTextures.Fbm(u, v, 48, 2, 0.5, seed + 37) * 0.5 + 0.5;
-                    double g = 0.22 + 0.62 * fissure * (0.7 + 0.3 * plate) + 0.14 * fine;
-                    albedo[k] = (float)(190 * g / 255);
-                    albedo[k + 1] = (float)(172 * g / 255);
-                    albedo[k + 2] = (float)(156 * g / 255);
-                    height[y * S + x] = (float)(0.8 * fissure + 0.15 * plate + 0.05 * fine);
+                    // Fine vertical fissures, as on old pines, oaks and spruces: two sets of narrow grooves that wander,
+                    // fork and fade along the trunk (stretched ridged noise), lighter weathered ridges between them, a
+                    // few short cross-cracks, lichen in patches and a little colour variation.
+                    double warp = NoiseTextures.Fbm(u, v, 3, 3, 0.5, seed + 31) * 0.05 + NoiseTextures.Fbm(u, v, 12, 2, 0.5, seed + 32) * 0.012;
+                    double g1 = Fissure(u + warp, v, 23, seed + 40);
+                    double g2 = Fissure(u + warp * 1.3 + 0.37, v, 37, seed + 41);
+                    double depth = Math.Max(1 - g1, (1 - g2) * 0.6);
+                    double fade = NoiseTextures.Fbm(u, v, 5, 2, 0.5, seed + 42) * 0.5 + 0.5;
+                    depth *= 0.65 + 0.35 * Smooth(0.25, 0.7, fade);
+                    double crossPhase = v * 9 + NoiseTextures.Fbm(u, v, 7, 2, 0.5, seed + 43) * 0.8;
+                    double cross = Math.Abs(crossPhase - Math.Floor(crossPhase) - 0.5) * 2;
+                    double crossKeep = Smooth(0.55, 0.8, NoiseTextures.Fbm(u, v, 11, 2, 0.5, seed + 44) * 0.5 + 0.5);
+                    depth = Math.Max(depth, (1 - Smooth(0.0, 0.07, 1 - cross)) * crossKeep * 0.7);
+                    double fine = NoiseTextures.Fbm(u, v, 64, 2, 0.5, seed + 37) * 0.5 + 0.5;
+                    double grain = NoiseTextures.Fbm(u, v * 0.25, 96, 1, 0.5, seed + 38) * 0.5 + 0.5;
+                    double ridge = 1 - depth;
+                    double h = 0.85 * ridge + 0.1 * fine + 0.05 * grain;
+                    double light = (0.32 + 0.6 * Math.Pow(ridge, 1.6)) * (0.88 + 0.24 * fine) * (0.9 + 0.2 * grain);
+                    double r = 168 * light, gg = 150 * light, bb = 134 * light;
+                    // Lichen: grey-green patches on the ridges.
+                    double lichen = Smooth(0.58, 0.8, NoiseTextures.Fbm(u, v, 6, 3, 0.55, seed + 45) * 0.5 + 0.5) * ridge;
+                    r = r * (1 - 0.5 * lichen) + 150 * 0.5 * lichen;
+                    gg = gg * (1 - 0.5 * lichen) + 158 * 0.5 * lichen;
+                    bb = bb * (1 - 0.5 * lichen) + 128 * 0.5 * lichen;
+                    double hue = NoiseTextures.Fbm(u, v, 4, 2, 0.5, seed + 46) * 0.08;
+                    albedo[k] = (float)(r * (1 + hue) / 255);
+                    albedo[k + 1] = (float)(gg / 255);
+                    albedo[k + 2] = (float)(bb * (1 - hue) / 255);
+                    height[y * S + x] = (float)h;
                 }
                 albedo[k + 3] = 1;
             }
@@ -535,7 +560,7 @@ public static class FloraTextures
         }
         var normal = new byte[S * S * 4];
         var colour = new byte[S * S * 4];
-        const float Strength = 3.0f;
+        float Strength = birch ? 3.0f : 7.0f;
         for (int y = 0; y < S; y++)
         {
             for (int x = 0; x < S; x++)

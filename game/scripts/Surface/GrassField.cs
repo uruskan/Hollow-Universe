@@ -13,13 +13,17 @@ namespace HollowUniverse.Surface;
 /// tufts on a grid that follows the camera, placed and shaped entirely on the GPU (surface_grass.gdshader) from a hash
 /// of each ground cell in stable coordinates, so nothing shifts as the grid moves. A field texture made on a worker
 /// from the surface generator gives the shader the ground's height (exactly the rendered triangles of the finest
-/// tiles), and the grass density, moisture and flowers; it is remade when the camera has moved a few metres.
+/// tiles), and the grass density, moisture and flowers; a second texture the forest cover and small plants; it is
+/// remade when the camera has moved a few metres. A second, smaller grid lays leaf litter, needles and twigs flat on
+/// the forest floor.
 /// </summary>
 public sealed partial class GrassField : Node3D
 {
     public const float Cell = 0.4f;
     public const float FarRadius = 42;
     private const float ShrinkStart = 22;
+    private const float LitterRadius = 26;
+    private const float LitterShrink = 14;
     private const int Texels = 256;
     private const double Spacing = 0.5;
     private const double Recentre = 14;
@@ -28,6 +32,7 @@ public sealed partial class GrassField : Node3D
     private sealed class FieldData
     {
         public float[] Pixels = Array.Empty<float>();
+        public float[] Pixels2 = Array.Empty<float>(); // forest cover, small plants
         public double OriginX, OriginZ, BaseY; // stable coordinates of texel (0, 0) and of height zero
     }
 
@@ -39,6 +44,11 @@ public sealed partial class GrassField : Node3D
     private int _gridWidth;
     private MultiMeshInstance3D _instance = null!;
     private ShaderMaterial _material = null!;
+    private MultiMeshInstance3D _litter = null!;
+    private ShaderMaterial _litterMaterial = null!;
+    private int _litterWidth;
+    private Image? _image2;
+    private ImageTexture? _texture2;
     private Task<FieldData>? _job;
     private FieldData? _field;
     private Image? _image;
@@ -74,6 +84,14 @@ public sealed partial class GrassField : Node3D
         _material.SetShaderParameter("cell_meadow", FloraTextures.CellUv(FloraTextures.Meadow, 6));
         _material.SetShaderParameter("cell_flower", FloraTextures.CellUv(FloraTextures.Flower, 6));
         _material.SetShaderParameter("cell_herb", FloraTextures.CellUv(FloraTextures.Herb, 6));
+        _material.SetShaderParameter("cell_fern", FloraTextures.CellUv(FloraTextures.Fern, 6));
+        _material.SetShaderParameter("cell_bush", FloraTextures.CellUv(FloraTextures.Bush, 6));
+        _material.SetShaderParameter("cell_leaves_a", FloraTextures.CellUv(FloraTextures.Broad, 6));
+        _material.SetShaderParameter("cell_leaves_b", FloraTextures.CellUv(FloraTextures.Beech, 6));
+        _material.SetShaderParameter("cell_leaves_c", FloraTextures.CellUv(FloraTextures.OakDark, 6));
+        _material.SetShaderParameter("cell_leaves_d", FloraTextures.CellUv(FloraTextures.BirchLeaf, 6));
+        _material.SetShaderParameter("cell_twigs", FloraTextures.CellUv(FloraTextures.Twigs, 6));
+        _material.SetShaderParameter("cell_needles", FloraTextures.CellUv(FloraTextures.Spruce, 6));
         _material.SetShaderParameter("ground_albedo", groundAlbedo);
         _material.SetShaderParameter("macro_noise", noise);
         _material.SetShaderParameter("blade_mean", bladeMean);
@@ -103,6 +121,91 @@ public sealed partial class GrassField : Node3D
             Visible = false,
         };
         AddChild(_instance);
+
+        // Litter: the same field and hashing on a smaller grid, flat pieces instead of tufts.
+        _litterWidth = (int)Math.Ceiling(2 * LitterRadius / Cell) + 2;
+        _litterMaterial = (ShaderMaterial)_material.Duplicate();
+        _litterMaterial.SetShaderParameter("layer", 1);
+        _litterMaterial.SetShaderParameter("grid_width", _litterWidth);
+        _litterMaterial.SetShaderParameter("far_radius", LitterRadius);
+        _litterMaterial.SetShaderParameter("shrink_start", LitterShrink);
+        int litterCount = _litterWidth * _litterWidth;
+        var litterBuffer = new float[litterCount * 12];
+        for (int i = 0; i < litterCount; i++)
+        {
+            litterBuffer[i * 12] = 1;
+            litterBuffer[i * 12 + 5] = 1;
+            litterBuffer[i * 12 + 10] = 1;
+        }
+        _litter = new MultiMeshInstance3D
+        {
+            Multimesh = new MultiMesh
+            {
+                TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                Mesh = LitterMesh(),
+                InstanceCount = litterCount,
+                Buffer = litterBuffer,
+                CustomAabb = new Aabb(new Vector3(-6000, -6000, -6000), new Vector3(12000, 12000, 12000)),
+            },
+            MaterialOverride = _litterMaterial,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            GIMode = GeometryInstance3D.GIModeEnum.Disabled,
+            Visible = false,
+        };
+        AddChild(_litter);
+    }
+
+    // Litter pieces lying on the ground: three cards of the atlas at random turns and places in the cell, their ends
+    // curling up a little. UV as the tufts' (x across, y along); colour alpha 0 (no blade gradient).
+    private static ArrayMesh LitterMesh()
+    {
+        var positions = new List<Vector3>();
+        var normals = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var colours = new List<Color>();
+        var indices = new List<int>();
+        var r = new Rng(303);
+        float R() => (float)r.NextDouble();
+        const int Pieces = 3, Segments = 3;
+        for (int k = 0; k < Pieces; k++)
+        {
+            float turn = R() * MathF.Tau;
+            var along = new Vector3(MathF.Cos(turn), 0, MathF.Sin(turn));
+            var across = new Vector3(-along.Z, 0, along.X);
+            float length = 0.32f + 0.2f * R(), half = 0.13f + 0.08f * R();
+            float ra = R() * MathF.Tau, rr = 0.2f * MathF.Sqrt(R());
+            Vector3 centre = new(MathF.Cos(ra) * rr, 0, MathF.Sin(ra) * rr);
+            float curl = 0.01f + 0.03f * R();
+            int b = positions.Count;
+            for (int i = 0; i <= Segments; i++)
+            {
+                float t = i / (float)Segments;
+                float x = (t - 0.5f) * length;
+                Vector3 c = centre + along * x + new Vector3(0, curl * (2 * t - 1) * (2 * t - 1) + 0.004f * k, 0);
+                for (int sd = 0; sd < 2; sd++)
+                {
+                    positions.Add(c + across * (sd == 0 ? -half : half));
+                    normals.Add(Vector3.Up);
+                    uvs.Add(new Vector2(sd == 0 ? 0 : 1, t));
+                    colours.Add(new Color(1, 1, 1, 0));
+                }
+            }
+            for (int i = 0; i < Segments; i++)
+            {
+                int p = b + i * 2;
+                indices.AddRange(new[] { p, p + 3, p + 1, p, p + 2, p + 3 });
+            }
+        }
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = positions.ToArray();
+        arrays[(int)Mesh.ArrayType.Normal] = normals.ToArray();
+        arrays[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
+        arrays[(int)Mesh.ArrayType.Color] = colours.ToArray();
+        arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
+        var mesh = new ArrayMesh();
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+        return mesh;
     }
 
     // A tuft at unit height: hollow-orbit's grass clump, cards leaning out around the centre with a curved profile.
@@ -197,15 +300,19 @@ public sealed partial class GrassField : Node3D
         }
         _ready = _field != null;
         _instance.Visible = near && _field != null;
+        _litter.Visible = _instance.Visible;
         if (!_instance.Visible)
         {
             return;
         }
-        long cornerX = (long)Math.Floor(sx / Cell) - _gridWidth / 2, cornerZ = (long)Math.Floor(sz / Cell) - _gridWidth / 2;
-        _material.SetShaderParameter("corner_cell", new Vector2I((int)cornerX, (int)cornerZ));
-        _material.SetShaderParameter("corner_render", new Vector2((float)(cornerX * Cell - travelled.X), (float)(cornerZ * Cell - travelled.Z)));
-        _material.SetShaderParameter("field_origin", new Vector2((float)(_field!.OriginX - travelled.X), (float)(_field.OriginZ - travelled.Z)));
-        _material.SetShaderParameter("field_base", (float)(_field.BaseY - travelled.Y));
+        foreach ((ShaderMaterial material, int width) in new[] { (_material, _gridWidth), (_litterMaterial, _litterWidth) })
+        {
+            long cornerX = (long)Math.Floor(sx / Cell) - width / 2, cornerZ = (long)Math.Floor(sz / Cell) - width / 2;
+            material.SetShaderParameter("corner_cell", new Vector2I((int)cornerX, (int)cornerZ));
+            material.SetShaderParameter("corner_render", new Vector2((float)(cornerX * Cell - travelled.X), (float)(cornerZ * Cell - travelled.Z)));
+            material.SetShaderParameter("field_origin", new Vector2((float)(_field!.OriginX - travelled.X), (float)(_field.OriginZ - travelled.Z)));
+            material.SetShaderParameter("field_base", (float)(_field.BaseY - travelled.Y));
+        }
         _material.SetShaderParameter("trample", walking ? new Vector4(camera.X, camera.Y - 1.7f, camera.Z, 0.9f) : Vector4.Zero);
     }
 
@@ -213,16 +320,26 @@ public sealed partial class GrassField : Node3D
     {
         byte[] bytes = new byte[field.Pixels.Length * 4];
         Buffer.BlockCopy(field.Pixels, 0, bytes, 0, bytes.Length);
-        if (_image == null || _texture == null)
+        byte[] bytes2 = new byte[field.Pixels2.Length * 4];
+        Buffer.BlockCopy(field.Pixels2, 0, bytes2, 0, bytes2.Length);
+        if (_image == null || _texture == null || _image2 == null || _texture2 == null)
         {
             _image = Image.CreateFromData(Texels, Texels, false, Image.Format.Rgbaf, bytes);
             _texture = ImageTexture.CreateFromImage(_image);
-            _material.SetShaderParameter("field", _texture);
+            _image2 = Image.CreateFromData(Texels, Texels, false, Image.Format.Rgbaf, bytes2);
+            _texture2 = ImageTexture.CreateFromImage(_image2);
+            foreach (ShaderMaterial material in new[] { _material, _litterMaterial })
+            {
+                material.SetShaderParameter("field", _texture);
+                material.SetShaderParameter("field2", _texture2);
+            }
         }
         else
         {
             _image.SetData(Texels, Texels, false, Image.Format.Rgbaf, bytes);
             _texture.Update(_image);
+            _image2.SetData(Texels, Texels, false, Image.Format.Rgbaf, bytes2);
+            _texture2.Update(_image2);
         }
     }
 
@@ -231,7 +348,7 @@ public sealed partial class GrassField : Node3D
     private FieldData Build(double centreX, double centreZ)
     {
         double ox = centreX - Texels / 2 * Spacing, oz = centreZ - Texels / 2 * Spacing;
-        var field = new FieldData { OriginX = ox, OriginZ = oz, Pixels = new float[Texels * Texels * 4] };
+        var field = new FieldData { OriginX = ox, OriginZ = oz, Pixels = new float[Texels * Texels * 4], Pixels2 = new float[Texels * Texels * 4] };
         var heights = new Dictionary<(int, long, long), double>();
         var ys = new double[Texels * Texels];
         double baseY = double.NaN;
@@ -250,7 +367,8 @@ public sealed partial class GrassField : Node3D
         field.BaseY = baseY;
         // Density, moisture and flowers on a coarser grid, then spread bilinearly.
         int coarse = Texels / CoarseStep + 1;
-        var climate = new float[coarse * coarse * 3];
+        const int Channels = 5;
+        var climate = new float[coarse * coarse * Channels];
         Span<double> biomes = stackalloc double[BiomeTable.Count];
         Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
         for (int b = 0; b < coarse; b++)
@@ -272,13 +390,21 @@ public sealed partial class GrassField : Node3D
                 _surface.Materials(s, c, biomes, slope, Math.Clamp(v.Trees / 0.022, 0, 1), materials);
                 double ground = 1 - materials[(int)GroundMaterial.Rock] - materials[(int)GroundMaterial.Sand] - materials[(int)GroundMaterial.Snow]
                     - 0.7 * materials[(int)GroundMaterial.Gravel] - 0.8 * materials[(int)GroundMaterial.ForestFloor];
-                double density = Math.Clamp(v.Grass * 1.15 * Math.Clamp(ground, 0, 1) * (1 - DMath.SmoothStep(0.3, 0.45, slope)), 0, 1);
+                double shade = 1 - 0.75 * Math.Clamp(v.Trees / 0.018, 0, 1); // grass thins out under trees
+                double density = Math.Clamp(v.Grass * 1.15 * Math.Clamp(ground, 0, 1) * shade * (1 - DMath.SmoothStep(0.3, 0.45, slope)), 0, 1);
                 double flowers = Math.Clamp(biomes[(int)Biome.Grassland] + 0.5 * biomes[(int)Biome.Shrubland] + 0.3 * biomes[(int)Biome.TemperateForest], 0, 1)
                     * (1 - Math.Clamp(v.Trees / 0.02, 0, 1));
-                int k = (b * coarse + a) * 3;
+                // The forest floor: litter where trees stand (and their ground is litter), small plants in its shade.
+                double cover = Math.Clamp(v.Trees / 0.018, 0, 1);
+                double litter = Math.Pow(Math.Clamp(cover * 1.1, 0, 1), 1.5) * (0.45 + 0.55 * Math.Clamp(materials[(int)GroundMaterial.ForestFloor] * 2, 0, 1))
+                    * (1 - DMath.SmoothStep(0.35, 0.55, slope)) * (s.Height > 0.5 ? 1 : 0);
+                double plants = litter * Math.Clamp(0.45 + 0.8 * c.Moisture, 0, 1);
+                int k = (b * coarse + a) * Channels;
                 climate[k] = (float)density;
                 climate[k + 1] = (float)c.Moisture;
                 climate[k + 2] = (float)flowers;
+                climate[k + 3] = (float)litter;
+                climate[k + 4] = (float)plants;
             }
         }
         for (int b = 0; b < Texels; b++)
@@ -290,11 +416,19 @@ public sealed partial class GrassField : Node3D
                 float u = fa - a0, w = fb - b0;
                 int p = (b * Texels + a) * 4;
                 field.Pixels[p] = (float)(ys[b * Texels + a] - baseY);
-                for (int ch = 0; ch < 3; ch++)
+                for (int ch = 0; ch < Channels; ch++)
                 {
-                    float c00 = climate[(b0 * coarse + a0) * 3 + ch], c10 = climate[(b0 * coarse + a0 + 1) * 3 + ch];
-                    float c01 = climate[((b0 + 1) * coarse + a0) * 3 + ch], c11 = climate[((b0 + 1) * coarse + a0 + 1) * 3 + ch];
-                    field.Pixels[p + 1 + ch] = (c00 * (1 - u) + c10 * u) * (1 - w) + (c01 * (1 - u) + c11 * u) * w;
+                    float c00 = climate[(b0 * coarse + a0) * Channels + ch], c10 = climate[(b0 * coarse + a0 + 1) * Channels + ch];
+                    float c01 = climate[((b0 + 1) * coarse + a0) * Channels + ch], c11 = climate[((b0 + 1) * coarse + a0 + 1) * Channels + ch];
+                    float value = (c00 * (1 - u) + c10 * u) * (1 - w) + (c01 * (1 - u) + c11 * u) * w;
+                    if (ch < 3)
+                    {
+                        field.Pixels[p + 1 + ch] = value;
+                    }
+                    else
+                    {
+                        field.Pixels2[p + ch - 3] = value;
+                    }
                 }
             }
         }

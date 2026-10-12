@@ -1,7 +1,8 @@
 // Far trees of the surface view (GROUND.md §4.6): one quad per tree turned toward the camera about the tree's own up,
 // showing the nearest two of eight views baked when the view opens (colour with alpha, camera-space normals) for its
-// variant, so forests reach the horizon for two triangles a tree. Fades in where the meshes fade out, lit like the
-// leaves up close.
+// variant, so forests reach the horizon for two triangles a tree, lit like the leaves up close. A tree changes to and
+// from its impostor in a short cross-fade over time (never a standing dither); the near set's impostors and the far
+// blocks' meet at an exact distance, where both show the same picture.
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, skip_vertex_transform, diffuse_burley, specular_disabled;
 
@@ -12,8 +13,10 @@ uniform sampler2D colour_atlas : source_color, filter_linear_mipmap, repeat_disa
 uniform sampler2D normal_atlas : filter_linear_mipmap, repeat_disable;
 uniform float rows = 1.0;
 uniform float views = 8.0;
-uniform vec2 fade_in = vec2(170.0, 200.0);
 uniform float fade_out = 4500.0;
+global uniform float hu_lod_clock;
+instance uniform vec2 cut = vec2(0.0, 1e9); // drawn from x to y metres (the near set, or the far blocks)
+const float LOD_FADE = 0.45;
 uniform float translucency = 0.55;
 
 varying vec3 v_world;
@@ -34,12 +37,15 @@ void vertex() {
 	float scale = length(MODEL_MATRIX[1].xyz);
 	vec3 to_camera = CAMERA_POSITION_WORLD - origin;
 	float dist = length(to_camera);
-	v_fade_in = fade_in.y > fade_in.x ? smoothstep(fade_in.x, fade_in.y, dist) : 1.0;
-	v_fade_out = 1.0 - smoothstep(fade_out * 0.85, fade_out, dist);
+	// Custom data: x a random number for the colour, y the variant's row, z the view's extent and the height packed
+	// (floor(extent * 100) + height / 100, metres), w the start of a fade (> 0 in, < 0 out, 0 none; hu_lod_clock).
+	float fade = INSTANCE_CUSTOM.w;
+	v_fade_in = fade > 0.0 ? clamp((hu_lod_clock - fade) / LOD_FADE, 0.0, 1.0) : 1.0;
+	v_fade_out = (fade < 0.0 ? 1.0 - clamp((hu_lod_clock + fade) / LOD_FADE, 0.0, 1.0) : 1.0)
+		* (1.0 - smoothstep(fade_out * 0.85, fade_out, dist)) * step(cut.x, dist) * step(dist, cut.y);
 	float v_fade = v_fade_in * v_fade_out;
-	// Custom data: x a random number for the colour, y the variant's row, z the view's extent (metres), w the height.
-	float extent = INSTANCE_CUSTOM.z * scale;
-	float height = INSTANCE_CUSTOM.w * scale;
+	float extent = floor(INSTANCE_CUSTOM.z) / 100.0 * scale;
+	float height = fract(INSTANCE_CUSTOM.z) * 100.0 * scale;
 	vec3 flat_to = to_camera - up * dot(to_camera, up);
 	vec3 toward = length(flat_to) > 1e-3 ? normalize(flat_to) : normalize(cross(up, vec3(1.0, 0.0, 0.0)));
 	vec3 right = normalize(cross(up, toward));

@@ -24,23 +24,28 @@ uniform float roughness = 0.82;
 uniform float specular_scale = 0.35;
 
 instance uniform vec4 lod_band = vec4(0.0, 0.0, 1e6, 2e6); // fade in from x to y, out from z to w (metres)
-instance uniform float shrink = 0.0; // 1: shrink into the ground across the fade-out instead of dithering
+instance uniform float shrink = 0.0;
+global uniform float hu_lod_clock;
+const float LOD_FADE = 0.45; // seconds a change of level of detail takes (custom data z: > 0 in, < 0 out, 0 none) // 1: shrink into the ground across the fade-out instead of dithering
 
 varying vec3 v_world;
 varying float v_fade_in;
 varying float v_fade_out;
 varying float v_cloud;
 varying vec3 v_tint;
+varying float v_local_y;
 
 void vertex() {
+	v_local_y = VERTEX.y * length(MODEL_MATRIX[1].xyz);
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	// The main camera's distance, also in shadow passes (so each level casts the shadows it draws).
 	float dist = length(origin - MAIN_CAM_INV_VIEW_MATRIX[3].xyz);
 	float fade_in = lod_band.y > lod_band.x ? smoothstep(lod_band.x, lod_band.y, dist) : 1.0;
 	float fade_out = smoothstep(lod_band.z, lod_band.w, dist);
 	float size = shrink > 0.5 ? 1.0 - fade_out : 1.0;
-	v_fade_in = fade_in;
-	v_fade_out = shrink > 0.5 ? 1.0 : 1.0 - fade_out;
+	float lod_fade = INSTANCE_CUSTOM.z;
+	v_fade_in = fade_in * (lod_fade > 0.0 ? clamp((hu_lod_clock - lod_fade) / LOD_FADE, 0.0, 1.0) : 1.0);
+	v_fade_out = (shrink > 0.5 ? 1.0 : 1.0 - fade_out) * (lod_fade < 0.0 ? 1.0 - clamp((hu_lod_clock + lod_fade) / LOD_FADE, 0.0, 1.0) : 1.0);
 	float v_fade = v_fade_in * v_fade_out;
 	if (v_fade <= 0.0 || size <= 0.0) {
 		VERTEX = vec3(0.0);
@@ -86,8 +91,15 @@ void fragment() {
 			SPECULAR = 0.12;
 		} else {
 			NORMAL_MAP = texture(normal_texture, UV).rgb;
-			NORMAL_MAP_DEPTH = 0.9;
+			NORMAL_MAP_DEPTH = 1.0;
 			SPECULAR = 0.3;
+			// Moss low on the trunk, on its north side (render -Z is north), broken up by the bark's own relief.
+			vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+			float north = smoothstep(-0.35, 0.55, -wn.z);
+			float low = 1.0 - smoothstep(0.15, 0.9 + 1.1 * tex.r, v_local_y);
+			float moss = clamp(low * north * (0.6 + 0.8 * tex.g) - 0.15, 0.0, 1.0);
+			albedo = mix(albedo, vec3(0.055, 0.085, 0.022) * (0.75 + 0.5 * tex.r), moss);
+			ROUGHNESS = mix(ROUGHNESS, 0.95, moss);
 		}
 	}
 	// Alpha-tested leaves with alpha to coverage; everything else opaque (the outputs must be set on every path).

@@ -279,7 +279,7 @@ public static class FloraGeometry
     public static GeometryBuilder ConiferTree(Conifer o, bool lod)
     {
         var gb = new GeometryBuilder();
-        var r = new Rng(Hash64.Of((ulong)o.Seed, lod ? 1UL : 0UL));
+        var r = new Rng(Hash64.Of((ulong)o.Seed, 0UL)); // both levels share the stream: same lean, same first whorls
         float R() => (float)r.NextDouble();
         float h = o.H;
         gb.Mat(GeometryBuilder.Bark);
@@ -307,15 +307,15 @@ public static class FloraGeometry
         gb.Mat(GeometryBuilder.Leaves);
         Vector4 uv = FloraTextures.CellUv(lod && o.Cell == FloraTextures.Pine ? FloraTextures.PineFar : o.Cell);
         float crown0 = h * o.CrownStart;
-        int whorls = lod ? Math.Max(4, o.Whorls / 2) : o.Whorls;
-        int per = lod ? Math.Max(3, o.PerWhorl - 3) : o.PerWhorl;
+        int whorls = lod ? Math.Max(6, (int)(o.Whorls * 0.7f)) : o.Whorls;
+        int per = lod ? Math.Max(4, o.PerWhorl - 1) : o.PerWhorl;
         float az = R() * MathF.Tau;
         for (int w = 0; w < whorls; w++)
         {
             float tw = (float)w / (whorls - 1);
             float y = crown0 + (h * 0.985f - crown0) * MathF.Pow(tw, 0.92f);
             float len = (o.LenMin + (o.LenMax - o.LenMin) * MathF.Pow(1 - tw, o.Shape)) * (0.85f + 0.3f * R());
-            int k = per + (R() < 0.5f ? 1 : 0) - (tw > 0.85f ? 2 : 0);
+            int k = per + (R() < 0.5f ? 1 : 0) - (tw > 0.92f ? 1 : 0);
             for (int b = 0; b < k; b++)
             {
                 az += MathF.Tau / k + (R() - 0.5f) * 0.5f;
@@ -350,14 +350,37 @@ public static class FloraGeometry
                 _ = yy;
             }
         }
-        int tuft = lod ? 2 : 4;
-        for (int k = 0; k < tuft; k++)
+        // The top: a few small whorls of short branches turned upward, then a short leader shoot covered in needles,
+        // so the crown closes into a full point instead of a bare spike.
+        int tops = lod ? 2 : 4;
+        for (int w = 0; w < tops; w++)
         {
-            float a = (float)k / tuft * MathF.PI + R() * 0.3f;
-            var basePt = V(bend.X, h * 0.93f, bend.Z);
-            var u = V(MathF.Cos(a) * 0.25f, h * 0.12f + 0.8f, MathF.Sin(a) * 0.25f);
-            var wv = V(-MathF.Sin(a) * 0.45f, 0, MathF.Cos(a) * 0.45f);
-            gb.Card(basePt, u, wv, 1, 0, uv, (_, _) => V(MathF.Cos(a), 0.6f, MathF.Sin(a)).Normalized(), t => Grey(0.6f + 0.4f * t), (_, _) => new Vector2(1, 0.8f));
+            float tw = (w + 1f) / (tops + 1);
+            float y = h * (0.9f + 0.075f * tw);
+            float len = (0.95f - 0.55f * tw) * (0.85f + 0.3f * R()) * Math.Max(o.LenMax / 3f, 0.7f);
+            int k = lod ? 3 : 5;
+            for (int b = 0; b < k; b++)
+            {
+                az += MathF.Tau / k + (R() - 0.5f) * 0.6f;
+                float ty = bend.X * MathF.Pow(y / h, 2), tz = bend.Z * MathF.Pow(y / h, 2);
+                float pitch = Rad(28 + R() * 18);
+                var dir = V(MathF.Cos(az) * MathF.Cos(pitch), MathF.Sin(pitch), MathF.Sin(az) * MathF.Cos(pitch));
+                var side = V(-MathF.Sin(az), 0, MathF.Cos(az));
+                float width = len * o.WidthK + 0.2f;
+                Vector3 TopNormal(Vector3 p, float t) => (V(p.X - ty, 0.4f, p.Z - tz).Normalized() * 0.7f + V(0, 0.6f, 0)).Normalized();
+                gb.Card(V(ty, y, tz), dir * len, side * width, 1, len * 0.12f, uv, TopNormal, t => Grey(0.7f + 0.3f * t),
+                    (t, p) => new Vector2(MathF.Pow(p.Y / h, 2) + 0.15f * t, 0.4f + 0.6f * t));
+            }
+        }
+        int leader = lod ? 2 : 3;
+        for (int k = 0; k < leader; k++)
+        {
+            float a = (float)k / leader * MathF.PI + R() * 0.3f;
+            var basePt = V(bend.X, h * 0.955f, bend.Z);
+            var u = V(MathF.Cos(a) * 0.04f, 0.55f + 0.04f * h, MathF.Sin(a) * 0.04f);
+            var wv = V(-MathF.Sin(a) * 0.2f, 0, MathF.Cos(a) * 0.2f);
+            gb.Card(basePt, u, wv, 1, 0, uv, (_, _) => V(MathF.Cos(a), 0.8f, MathF.Sin(a)).Normalized(), t => Grey(0.75f + 0.25f * t),
+                (_, _) => new Vector2(1, 0.6f));
         }
         return gb;
     }
@@ -435,7 +458,7 @@ public static class FloraGeometry
             }
         }
         gb.Mat(GeometryBuilder.Leaves);
-        int clusters = lod ? Math.Max(5, (int)MathF.Round(o.Clusters * 0.3f)) : o.Clusters;
+        int clusters = lod ? Math.Max(8, (int)MathF.Round(o.Clusters * 0.55f)) : o.Clusters;
         Vector4 uvA = FloraTextures.CellUv(o.CellA), uvB = FloraTextures.CellUv(o.CellB);
         for (int k = 0; k < clusters; k++)
         {
@@ -449,7 +472,7 @@ public static class FloraGeometry
                 float u = R() * 2 - 1, a = R() * MathF.Tau, s = MathF.Sqrt(1 - u * u), rr = 0.55f + 0.45f * MathF.Cbrt(R());
                 p = V(cc.X + MathF.Cos(a) * s * o.CanopyR * rr, cc.Y + u * o.CanopyH * rr, cc.Z + MathF.Sin(a) * s * o.CanopyR * rr);
             }
-            float size = (lod ? 1.45f : 1.0f) * o.ClusterSize * (0.8f + 0.4f * R());
+            float size = (lod ? 1.22f : 1.0f) * o.ClusterSize * (0.8f + 0.4f * R());
             int nq = lod ? 2 : 3;
             Vector4 uvr = R() < 0.5f ? uvA : uvB;
             for (int q = 0; q < nq; q++)
