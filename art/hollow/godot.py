@@ -21,6 +21,9 @@ def write_material(name, resource_name, albedo=None, orm=None, normal=None, emis
     if transparent:
         out.append("transparency = 1")
     out.append("vertex_color_use_as_albedo = " + ("true" if vertex_colour else "false"))
+    if vertex_colour:
+        # Godot's glTF importer stores COLOR_0 (linear in the file) as sRGB; decode it back.
+        out.append("vertex_color_is_srgb = true")
     out.append("albedo_color = Color(%g, %g, %g, %g)" % tuple(colour))
     if albedo:
         out.append(f'albedo_texture = ExtResource("{ids[albedo]}")')

@@ -8,6 +8,7 @@
 [resource]
 resource_name = "M_PSG_Surface"
 vertex_color_use_as_albedo = true
+vertex_color_is_srgb = true
 albedo_color = Color(1, 1, 1, 1)
 albedo_texture = ExtResource("1")
 orm_texture = ExtResource("2")

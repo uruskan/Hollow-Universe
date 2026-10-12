@@ -161,7 +161,7 @@ public partial class ModelViewer : Node3D
             pivot.AddChild(Stand(bounds, lift));
             model.Position = new Vector3(0, lift, 0);
         }
-        else if (entry.IsItem && !IsUpright(entry))
+        else if (!IsPlaced(entry) && !IsUpright(entry))
         {
             Rest(model, bounds);
         }
@@ -178,10 +178,16 @@ public partial class ModelViewer : Node3D
 
     private void ShowLineup()
     {
-        // Rows from the camera outward: small items, larger items, deployables and doors, outcrops and the ship.
-        var rows = new List<List<(ModelEntry Entry, Node3D Model, Aabb Bounds)>> { new(), new(), new(), new() };
+        // Groups from the camera outward, each wrapped into rows: small items, larger items, deployables and doors,
+        // outcrops. The ship has its own shot (--model tin-finch); --lineup items|world shows one half.
+        string only = Options.TryGetValue("lineup", out string? l) ? l : "all";
+        var groups = new List<List<(ModelEntry Entry, Node3D Model, Aabb Bounds)>> { new(), new(), new(), new() };
         foreach (ModelEntry entry in _entries)
         {
+            if (entry.Class == "vehicle" || (only == "items" && !entry.IsItem) || (only == "world" && entry.IsItem && !IsPlaced(entry)))
+            {
+                continue;
+            }
             for (int stage = 0; stage < entry.Stages; stage++)
             {
                 Node3D? model = ModelCatalog.Instantiate(entry.Key, stage);
@@ -190,65 +196,122 @@ public partial class ModelViewer : Node3D
                     continue;
                 }
                 Aabb bounds = ModelCatalog.LocalBounds(model);
-                if (entry.IsItem && !IsUpright(entry))
+                if (!IsPlaced(entry) && !IsUpright(entry))
                 {
                     bounds = Rest(model, bounds);
                 }
-                float size = Math.Max(bounds.Size.X, Math.Max(bounds.Size.Y, bounds.Size.Z));
-                int row = entry.IsItem && size < 0.36f ? 0 : entry.IsItem && size < 1.2f ? 1 : entry.Class is "node" or "vehicle" ? 3 : 2;
-                rows[row].Add((entry, model, bounds));
-            }
-        }
-        float z = 0;
-        float widest = 0;
-        for (int r = 0; r < rows.Count; r++)
-        {
-            var row = rows[r];
-            float gap = r switch { 0 => 0.07f, 1 => 0.15f, 2 => 0.45f, _ => 0.8f };
-            float depth = row.Count == 0 ? 0 : row.Max(m => m.Bounds.Size.Z);
-            float width = row.Sum(m => m.Bounds.Size.X) + gap * Math.Max(0, row.Count - 1);
-            if (r == 2)
-            {
-                width += 1.0f; // the scale figure
-            }
-            widest = Math.Max(widest, width);
-            float x = -width / 2;
-            z -= depth / 2;
-            foreach ((ModelEntry entry, Node3D model, Aabb bounds) in row)
-            {
-                if (entry.Class == "vehicle")
-                {
-                    float lift = 0.45f;
-                    var stand = Stand(bounds, lift);
-                    stand.Position = new Vector3(x - bounds.Position.X, 0, z - bounds.GetCenter().Z);
-                    _content.AddChild(stand);
-                    model.Position += new Vector3(x - bounds.Position.X, lift, z - bounds.GetCenter().Z);
-                }
                 else
                 {
-                    model.Position += new Vector3(x - bounds.Position.X, -bounds.Position.Y, z - bounds.GetCenter().Z);
+                    model.Position = new Vector3(0, -bounds.Position.Y, 0);
+                    bounds.Position += model.Position;
                 }
-                _content.AddChild(model);
-                ApplyLod(model);
-                x += bounds.Size.X + gap;
-                if (r == 2 && Math.Abs(x) < 1.2f && _content.GetNodeOrNull("Figure") == null)
+                float size = Math.Max(bounds.Size.X, Math.Max(bounds.Size.Y, bounds.Size.Z));
+                int group = entry.Class == "node" ? 3 : IsPlaced(entry) ? 2 : size < 0.36f ? 0 : 1;
+                if (only == "world" && group < 2)
                 {
-                    var figure = Figure();
-                    figure.Position = new Vector3(x + 0.3f, 0, z);
-                    _content.AddChild(figure);
-                    x += 1.0f;
+                    continue;
                 }
+                groups[group].Add((entry, model, bounds));
             }
-            z -= depth / 2 + (r == 0 ? 0.25f : r == 1 ? 0.6f : 1.6f);
         }
-        // Looking down the rows from in front, high enough to see the back row over the front ones.
-        float span = MathF.Max(widest, -z * 1.4f);
-        _camera.Position = new Vector3(0, span * 0.42f, span * 0.42f);
-        _camera.LookAt(new Vector3(0, 0, z * 0.42f), Vector3.Up);
+        // Lower things in front of taller ones within each group.
+        foreach (var group in groups)
+        {
+            group.Sort((a, b) => a.Bounds.Size.Y.CompareTo(b.Bounds.Size.Y));
+        }
+        float[] widths = { 3.2f, 6.5f, 11.5f, 13.5f };
+        float[] gaps = { 0.08f, 0.16f, 0.45f, 0.4f };
+        float z = 0;
+        Aabb all = default;
+        bool any = false;
+        bool figure = false;
+        for (int g = 0; g < groups.Count; g++)
+        {
+            var row = new List<(ModelEntry Entry, Node3D Model, Aabb Bounds)>();
+            void Flush()
+            {
+                if (row.Count == 0)
+                {
+                    return;
+                }
+                float depth = row.Max(m => m.Bounds.Size.Z);
+                float width = row.Sum(m => m.Bounds.Size.X) + gaps[g] * (row.Count - 1) + (g == 2 && !figure ? 0.9f : 0);
+                float x = -width / 2;
+                z -= depth / 2;
+                foreach ((ModelEntry _, Node3D model, Aabb bounds) in row)
+                {
+                    model.Position += new Vector3(x - bounds.Position.X, 0, z - bounds.GetCenter().Z);
+                    _content.AddChild(model);
+                    ApplyLod(model);
+                    Aabb placed = new(bounds.Position + new Vector3(x - bounds.Position.X, 0, z - bounds.GetCenter().Z), bounds.Size);
+                    all = any ? all.Merge(placed) : placed;
+                    any = true;
+                    x += bounds.Size.X + gaps[g];
+                }
+                if (g == 2 && !figure)
+                {
+                    // A 1.8 m figure for scale, at the end of the first row of deployables.
+                    Node3D person = Figure();
+                    person.Position = new Vector3(x + 0.35f, 0, z);
+                    _content.AddChild(person);
+                    figure = true;
+                }
+                z -= depth / 2 + gaps[g] * 1.5f;
+                row.Clear();
+            }
+            foreach (var item in groups[g])
+            {
+                float used = row.Sum(m => m.Bounds.Size.X) + gaps[g] * row.Count;
+                if (row.Count > 0 && used + item.Bounds.Size.X > widths[g])
+                {
+                    Flush();
+                }
+                row.Add(item);
+            }
+            Flush();
+            z -= g == 0 ? 0.2f : 0.6f;
+        }
+        if (!any)
+        {
+            return;
+        }
+        // Frame the whole layout from in front and above: the nearest distance at which every corner is in view.
+        float pitch = Mathf.DegToRad(Options.TryGetValue("pitch", out string? p) ? float.Parse(p, CultureInfo.InvariantCulture) : 44f);
+        Vector3 centre = all.GetCenter();
+        Vector3 target = new(centre.X, all.Position.Y + all.Size.Y * 0.15f, centre.Z);
+        var forward = new Vector3(0, -MathF.Sin(pitch), -MathF.Cos(pitch));
+        Vector3 right = Vector3.Right, up = right.Cross(forward).Normalized();
+        float tanV = MathF.Tan(Mathf.DegToRad(_camera.Fov) / 2), tanH = tanV * 16f / 9f;
+        float lo = 0.5f, hi = 200f;
+        for (int i = 0; i < 40; i++)
+        {
+            float d = (lo + hi) / 2;
+            Vector3 eye = target - forward * d;
+            bool fits = true;
+            for (int c = 0; c < 8 && fits; c++)
+            {
+                Vector3 v = all.GetEndpoint(c) - eye;
+                float depth = v.Dot(forward);
+                fits = depth > 0.1f && MathF.Abs(v.Dot(right)) <= depth * tanH * 0.96f && MathF.Abs(v.Dot(up)) <= depth * tanV * 0.94f;
+            }
+            if (fits)
+            {
+                hi = d;
+            }
+            else
+            {
+                lo = d;
+            }
+        }
+        _camera.Position = target - forward * hi;
+        _camera.LookAt(target, Vector3.Up);
     }
 
-    /// <summary>Held items that keep their upright pose on the ground (the rest lie down).</summary>
-    private static bool IsUpright(ModelEntry entry) => entry.Class is "resource" or "food" or "medical" or "ammo" or "container";
+    /// <summary>Things that stand in the world as they are placed (deployables, doors, outcrops...).</summary>
+    private static bool IsPlaced(ModelEntry entry) => !entry.IsItem || entry.Class is "deployable" or "container" or "door" or "building";
+
+    /// <summary>Carried items that keep their upright pose on the ground (tools, weapons and the like lie down).</summary>
+    private static bool IsUpright(ModelEntry entry) => entry.Class is "resource" or "food" or "medical" or "ammo" or "clothing";
 
     /// <summary>Lays an item down: its longest side across the view, its thinnest side up, resting on the ground.</summary>
     private static Aabb Rest(Node3D model, Aabb bounds)

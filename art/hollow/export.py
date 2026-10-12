@@ -198,9 +198,8 @@ def convex_hull(objects, name, target, max_faces=96):
             bm.verts.new(m @ v.co)
     bm.verts.ensure_lookup_table()
     result = bmesh.ops.convex_hull(bm, input=bm.verts, use_existing_faces=False)
-    interior = [g for g in result["geom_interior"] if isinstance(g, bmesh.types.BMVert)]
-    unused = [g for g in result["geom_unused"] if isinstance(g, bmesh.types.BMVert)]
-    bmesh.ops.delete(bm, geom=interior + unused, context="VERTS")
+    loose = {g for g in result["geom_interior"] + result["geom_unused"] if isinstance(g, bmesh.types.BMVert)}
+    bmesh.ops.delete(bm, geom=list(loose), context="VERTS")
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()

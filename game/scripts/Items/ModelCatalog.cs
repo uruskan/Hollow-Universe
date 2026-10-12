@@ -14,8 +14,12 @@ public readonly record struct Pose(Vector3 Position, Vector3 RotationDegrees)
     public Transform3D Transform => new(Basis.FromEuler(RotationDegrees * (MathF.PI / 180f)), Position);
 }
 
-/// <summary>How an item sits in a hand (GROUND.md §9): its pivot is the right hand's grip.</summary>
-public sealed record HeldInfo(Pose FirstPerson, Pose ThirdPerson, string? OffHand);
+/// <summary>
+/// How an item sits in a hand (GROUND.md §9): its pivot is the grip of <see cref="Hand"/> ("right", or "left" for the
+/// bow). <see cref="FirstPerson"/> places the grip in camera space; <see cref="ThirdPerson"/> places the item on the
+/// hand's attach point; <see cref="OffHand"/> names the socket the other hand holds, if any.
+/// </summary>
+public sealed record HeldInfo(Pose FirstPerson, Pose ThirdPerson, string? OffHand, string Hand);
 
 /// <summary>One model of <c>data/ground/models.json</c>: an item key or a world-object kind.</summary>
 public sealed record ModelEntry(
@@ -368,7 +372,8 @@ public static class ModelCatalog
         if (m.TryGetProperty("held", out JsonElement h))
         {
             held = new HeldInfo(PoseOf(h, "firstPerson"), PoseOf(h, "thirdPerson"),
-                h.TryGetProperty("offHand", out JsonElement off) ? off.GetString() : null);
+                h.TryGetProperty("offHand", out JsonElement off) ? off.GetString() : null,
+                h.TryGetProperty("hand", out JsonElement hand) ? hand.GetString() ?? "right" : "right");
         }
         float[]? lodDistances = null;
         if (m.TryGetProperty("lodDistances", out JsonElement ld))

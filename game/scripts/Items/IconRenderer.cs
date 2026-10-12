@@ -89,19 +89,21 @@ public partial class IconRenderer : Node
         {
             SkyTopColor = new Color(0.62f, 0.66f, 0.72f),
             SkyHorizonColor = new Color(0.78f, 0.78f, 0.76f),
-            GroundBottomColor = new Color(0.22f, 0.21f, 0.2f),
-            GroundHorizonColor = new Color(0.55f, 0.54f, 0.52f),
+            // A light floor in the reflections, so metal turned away from the sky isn't black.
+            GroundBottomColor = new Color(0.46f, 0.45f, 0.43f),
+            GroundHorizonColor = new Color(0.64f, 0.63f, 0.61f),
             SunAngleMax = 30,
+            EnergyMultiplier = 1.8f,
         } };
         var environment = new Godot.Environment
         {
             BackgroundMode = Godot.Environment.BGMode.ClearColor,
             Sky = sky,
             AmbientLightSource = Godot.Environment.AmbientSource.Sky,
-            AmbientLightEnergy = 0.55f,
+            AmbientLightEnergy = 0.45f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
             TonemapMode = Godot.Environment.ToneMapper.Filmic,
-            TonemapExposure = 1.05f,
+            TonemapExposure = 1.15f,
             TonemapWhite = 6f,
         };
         _viewport = new SubViewport
@@ -125,9 +127,9 @@ public partial class IconRenderer : Node
         _rig.AddChild(_camera);
         // Directions in the camera's frame: x right, y up, z toward the viewer. Key from the upper left in front,
         // fill from the right, rim from behind on the upper right.
-        AddLight("Key", new Vector3(-0.9f, 1.25f, 1.0f), 2.1f, true, new Color(1f, 0.97f, 0.92f));
-        AddLight("Fill", new Vector3(1.2f, 0.15f, 0.7f), 0.55f, false, new Color(0.9f, 0.94f, 1f));
-        AddLight("Rim", new Vector3(0.7f, 0.9f, -1.3f), 1.7f, false, new Color(1f, 1f, 1f));
+        AddLight("Key", new Vector3(-0.9f, 1.25f, 1.0f), 2.5f, true, new Color(1f, 0.97f, 0.92f));
+        AddLight("Fill", new Vector3(1.2f, 0.15f, 0.7f), 0.7f, false, new Color(0.9f, 0.94f, 1f));
+        AddLight("Rim", new Vector3(0.7f, 0.9f, -1.3f), 2.2f, false, new Color(1f, 1f, 1f));
     }
 
     private void AddLight(string name, Vector3 from, float energy, bool shadow, Color colour)
