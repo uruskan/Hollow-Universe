@@ -164,15 +164,30 @@ Godot.
     snapshots on either side; if snapshots stop they carry on for up to 4 ticks along their last motion, then hold.
   - **Statistics:** round trip (measured by echo), snapshot rate and loss, bandwidth both ways with UDP and IP
     headers, prediction error (last, mean and worst), input margin, clock rate.
-- **The ground mode in Godot** (`game/scripts/Ground/`, G1 placeholders): `--view ground` connects to a server
-  (`--connect host:port`) or hosts one in the game for solo play (`--host`, the default). First-person camera at the
-  eye, mouse look every frame, W A S D, Shift sprint, Ctrl crouch, Space jump. Other players are capsule mannequins of
-  the character's size with a visor and their name (placed by `Labeller`). The ground is drawn from the same collision
-  tiles, 448 m across, coloured by slope, under a placeholder sky and haze; the planet package's renderer replaces
-  it. F3 shows the network graph, Enter opens chat. Zone-frame metres are Godot's coordinates (no floating origin yet:
-  the zone stays within 8.2 km of its origin, where floats are good to half a millimetre).
-
-![Two clients: Bo sees Ada](images/ground/two-players.png)
+- **The ground mode in Godot** (`game/scripts/Ground/`), one game on the real planet:
+  - **Starting:** `--view ground` alone opens the main menu over the landing site (PLAY hosts a game on this
+    computer, CONNECT joins one by address and port, the name is remembered, QUIT). `--host` or `--connect host:port`
+    start at once (`play-ground.cmd`, AGENTS.md).
+  - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.Driven`, `OpenZone`): its
+    terrain, sea, sky, clouds, plants and grass, with the render frame on the zone's own frame (the same origin and
+    axes, and no floating-origin moves: the zone keeps within 8.2 km of its origin, where floats are good to half a
+    millimetre), so zone-frame metres are Godot's coordinates and the drawn ground is the collision's triangles. The
+    sky shows the universe time on the day of play (§1: × 24 from J2000, as the server's climate), so every player
+    sees the same time of day. The game places the view's camera at the predicted eye every frame.
+  - **Natural objects** as the game changed them (`NatureView`): the surface view asks, per scatter object, which
+    kind to draw (`Vegetation.Changes`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn as a
+    plain bush; their scatter tiles are drawn again when their state changes. A tree felled within 150 m tips over away
+    from the player on its own model and sinks into the ground. Outcrops are drawn by the game, smaller with each
+    depletion stage, from `GroundModels` (placeholders until the assets catalogue lands: the planet's own boulder shape
+    and rock material, with ore-coloured chunks for metal and sulphur). Weak spots glow on what was hit.
+  - **Characters:** other players are the character package's `CharacterView`, fed every frame from the replicated
+    state (position, up, yaw, pitch, the velocity seen, stance, ground, the item in hand), with swings and shots,
+    flinches when hurt, a ragdoll on death and lying down asleep; corpses are ragdolls (a player's own body if they
+    died in view). The player has `ViewmodelView` arms in their sleeves holding the belt item's model (`ItemLooks`:
+    rock as the hand stone, hatchets as the flint axe, pickaxes as the flint pick). Godot's own physics gets the ground
+    near the player for ragdolls and feet (`GroundCollision`).
+  - **Interface:** the RustMVP interface (`GroundUi`, §8) over `ClientGroundUi`, names over other players (placed by
+    `Labeller`), F3 for the network graph.
 
 ### 4.4 Network
 
@@ -796,14 +811,10 @@ Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), 
 act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
 campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
 
-**Godot** (`game/scripts/Ground`, placeholders until the other packages' models and the RustMVP interface): natural
-objects as simple shapes per 64 m tile (trees, outcrops shrinking with their stage, piles, plants, bushes with their
-berries), glowing weak spots near the player, deployables as boxes (a lit fire has a flame and a light), drops,
-corpses, arrows in flight, the item in hand with a swing, a ghost where a held deployable would go, the interact prompt
-and a debug overlay (`SurvivalOverlay`); mannequins lie down asleep and swing what they hold. `--demo` sets up the camp
-below for screenshots.
-
-![A camp in the demo: a box, a lit campfire, a sleeping bag, a stone hatchet in hand](images/ground/survival-camp.png)
+**Godot** (`game/scripts/Ground`, §4.3): deployables and dropped stacks from `GroundModels` (placeholders until the
+assets catalogue lands), a lit fire's flame and light (its real strength next to the sun's: the sky meters the camera
+a few thousand times brighter by night, `Glow`), arrows in flight, a ghost where a held deployable would go, and the
+interact prompt; holding E on a fire or furnace lights it or puts it out.
 
 ---
 
@@ -905,10 +916,17 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
 
-**In the game:** the ground mode puts `GroundUi` on a `CanvasLayer` with the client adapter as its `Model`, frees the
-mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the right mouse button (with a plan or
-hammer held, `HeldWheel`) to it. Until that hook lands the ground mode keeps its placeholder HUD
-(`scripts/Ground/GroundHud.cs`).
+**In the game:** the ground mode puts `GroundUi` on a `CanvasLayer` with `ClientGroundUi` (game/scripts/Ground) as its
+`Model`, frees the mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the right mouse button
+(with a plan or hammer held, `HeldWheel`) to it. The adapter reads `GameClient.Local`: containers as the server has
+them with unanswered intents on top (a sleeper's main, belt and clothing laid out as a body), vitals, the crafting
+queue, the life and the respawn choices; it acts through the intents, and turns the client's events into the HUD's
+moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as notices, chat). Item names,
+descriptions and stats come from items.json, the crafting tabs from categories.json. Item icons come from
+`ItemIcons`: until the assets package renders them, `ItemIconAliases` maps items.json keys onto the placeholder
+drawings and adds a few. The inventory shows the player's own body in what they wear (`InventoryBody`, through
+`CharacterPreview.Body`), and the death screen the real ground around the landing site, 9.6 by 4 km (`ZoneMap`,
+through `DeathMap.Use`).
 
 ### 8.2 Behaviour
 

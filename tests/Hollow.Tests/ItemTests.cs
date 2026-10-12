@@ -58,7 +58,7 @@ public static class ItemTests
         Assert.Equal(0f, inv.Protection(C, HitRegion.Head, projectile: false), "nothing on the head");
 
         // A furnace takes fuel in its fuel slot, ore in its inputs, nothing in its outputs; a corpse takes nothing.
-        var furnace = new Container(ContainerKind.Device, 7, C.Deployable("furnace"));
+        var furnace = new Container(ContainerKind.Device, 6, C.Deployable("furnace"));
         main.Set(6, S("metal-ore", 100));
         Assert.Equal(ActionResult.NotAllowed, InventoryRules.Move(C, main, 6, furnace, 0, 0), "ore isn't fuel");
         Assert.Equal(ActionResult.NotAllowed, InventoryRules.Move(C, main, 6, furnace, 4, 0), "nothing goes into an output");

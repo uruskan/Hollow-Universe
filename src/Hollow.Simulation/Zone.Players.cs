@@ -232,13 +232,34 @@ public sealed partial class Zone
         }
         GameContent content = Content!;
         ref Character c = ref Entities.Get<Character>(entity);
-        var stacks = new List<ItemStack>(p.Inventory.Stacks());
-        stacks.AddRange(p.Crafting.TakeAll(content));
+        // The body keeps the player's layout (main 0–23, belt 24–29, clothing 30–36, as the loot panel shows a body);
+        // the crafting queue's ingredients fill empty main slots, then go after the clothing.
+        var stacks = new List<ItemStack>();
+        foreach (Container part in new[] { p.Inventory.Main, p.Inventory.Belt, p.Inventory.Wear })
+        {
+            for (int i = 0; i < part.Size; i++)
+            {
+                stacks.Add(part[i]);
+            }
+        }
+        foreach (ItemStack refund in p.Crafting.TakeAll(content))
+        {
+            int free = stacks.FindIndex(0, PlayerInventory.MainSlots, s => s.IsEmpty);
+            if (free >= 0)
+            {
+                stacks[free] = refund;
+            }
+            else
+            {
+                stacks.Add(refund);
+            }
+        }
+        bool any = stacks.Exists(s => !s.IsEmpty);
         p.Inventory.Clear();
-        if (stacks.Count > 0)
+        if (any)
         {
             Vector3 at = Settle(c.State.Position);
-            var corpse = new Corpse(NextId(), p.Name, p.Id, Math.Max(PlayerInventory.MainSlots + PlayerInventory.BeltSlots + PlayerInventory.WearSlots, stacks.Count),
+            var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
                 at, Frame.UpAt(at), c.Input.Yaw, Tick + (long)(content.Survival.CorpseSeconds * CharacterMotor.TickRate));
             for (int i = 0; i < stacks.Count; i++)
             {

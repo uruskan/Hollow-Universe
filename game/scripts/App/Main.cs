@@ -228,7 +228,7 @@ public partial class Main : Node
                 GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0}ms stars={_galaxyMap.Stars.LoadedStars} blocks={_galaxyMap.Stars.LoadedBlocks} pending={_galaxyMap.Stars.PendingBlocks} glow={_galaxyMap.IsGlowReady} sky={_galaxyMap.SkyBrightness:0.0} {_galaxyMap.TimingDebug} crowd {_galaxyMap.CrowdingDebug}");
             }
         }
-        if (!_options.TryGetValue("shot", out string? path) || _capturing)
+        if (!_options.TryGetValue("shot", out string? path) || _capturing || _ground?.TakesOwnShots == true)
         {
             _elapsed += delta;
             return;

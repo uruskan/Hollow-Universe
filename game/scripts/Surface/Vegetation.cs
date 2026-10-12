@@ -337,7 +337,7 @@ public sealed partial class Vegetation : Node3D
             }
             foreach (ScatterItem item in items)
             {
-                FloraLibrary.Species? species = _library!.For(item.Kind);
+                FloraLibrary.Species? species = _library!.For(DrawnKind(key, item));
                 if (species == null || species.Variants.Count == 0)
                 {
                     continue;
@@ -533,7 +533,7 @@ public sealed partial class Vegetation : Node3D
             }
             foreach (ScatterItem item in items)
             {
-                FloraLibrary.Species? species = _library!.For(item.Kind);
+                FloraLibrary.Species? species = _library!.For(DrawnKind(key, item));
                 if (species == null || !species.Tree)
                 {
                     continue;

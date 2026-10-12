@@ -84,10 +84,23 @@ $GODOT --headless --path game --import       # first run after a clone
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --shot sol.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673 --distance 1100 --shot core.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
-xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --shot ground.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --hour 10 --shot ground.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
-xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --db /tmp/demo.db --demo --shot camp.png
+# The ground game's screenshot run (GROUND.md §5): a host that takes the pictures, and a second player that joins it.
+$GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --db /tmp/tour.db --hour 10 --tour docs/images/ground/play &
+$GODOT --path game --resolution 1280x720 -- --view ground --name Bo --connect 127.0.0.1:27015 --hour 10 --tour guest
 ```
+
+Playing the ground game (Windows, from the repository's root; GROUND.md §4.3):
+
+```bat
+play-ground.cmd                 :: build, then host a game on this computer (port 27015)
+play-ground.cmd join [address]  :: build, then join it as a second player (default 127.0.0.1)
+play-ground.cmd menu            :: build, then open the main menu (PLAY, CONNECT, name, QUIT)
+```
+
+`GODOT` names the Godot executable if it isn't at `D:\Godot_v4.7.2-stable_mono_win64\...`, `PLAYER` the name (Host and
+Guest by default); further arguments go to the game.
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
 `Godot_v4.7.2-stable_mono_win64.exe`); the options are the same.
@@ -113,14 +126,18 @@ Client options (after `--`):
   `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once;
   `--crowd <n>` adds n characters and `--measure <s>` prints frame times (vsync off) and quits.
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
-- Ground (GROUND.md §4.3): `--view ground --name <n>`, then `--connect host:port` or `--host [--port <n>]` (the
-  default: a server in the game); `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad network through a local
-  relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once seen, for screenshots).
-  Survival (G2): `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--demo` (host
-  only: a lit campfire, a box and a sleeping bag in view, for screenshots). Keys: 1–6 belt, left mouse use, right
-  mouse aim, E interact, F place, G drop, H eat or bandage, Tab close loot, B respawn on the beach (dead). Chat lines
-  starting with `/` are test commands: `/craft <item> [n]`, `/cancel`, `/put`, `/take`, `/belt`, `/wear`, `/light`,
-  and when hosting `/give <item> [n]`, `/kit <loot table>`.
+- Ground (GROUND.md §4.3): `--view ground` alone opens the main menu; `--name <n>` with `--host [--port <n>]` (a
+  server in the game) or `--connect host:port` starts at once. `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad
+  network through a local relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once
+  seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
+  arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
+  universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,death,night` (the screenshot run; `--tour guest` is
+  its second player). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
+  (with a deployable in hand: place it; with food or medicine: use it), right mouse aim or draw; E interact (hold it on
+  a fire or furnace to light it or put it out); 1–6 belt; Tab inventory; Q crafting; Enter chat; Esc back, then the
+  menu; F3 network graph; the death screen's buttons respawn. Chat lines starting with `/` are test commands when
+  hosting: `/give <item> [n]`, `/kit <loot table>`, `/heal`, `/kill`.
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
   `heal`, `kill` besides G1's (type `help`).
 - Checks: `--physics-check` runs the physics check inside the client and quits; its line must match the one

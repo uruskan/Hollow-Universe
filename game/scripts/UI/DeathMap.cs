@@ -9,10 +9,13 @@ namespace HollowUniverse.UI;
 /// </summary>
 public static class DeathMap
 {
-    private static ImageTexture? _texture;
+    private static Texture2D? _texture;
 
     /// <summary>The map picture, 2.4 times as wide as tall.</summary>
     public static Texture2D Texture => _texture ??= Build(960, 400);
+
+    /// <summary>The game's real map of its zone, 2.4 times as wide as tall, instead of the placeholder coast.</summary>
+    public static void Use(Texture2D map) => _texture = map;
 
     private static ImageTexture Build(int width, int height)
     {
