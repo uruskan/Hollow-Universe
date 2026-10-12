@@ -37,23 +37,27 @@ public static class StarClassTable
     /// <summary>Upper bound (exclusive) of each level's absolute-magnitude range.</summary>
     private static readonly double[] LevelMagnitudeMax = { -3.0, -0.5, 1.5, 2.8, 4.2, 5.8, 9.0, double.PositiveInfinity };
 
+    // Calibrated against the real-star catalogue inside the distance where it holds every star of a level (V ≤ 7.5:
+    // level 0 within 1,000 ly, 1 within 800, 2 within 400, 3 within 200, 4 within 160, 5 within 80, 6 and 7 within
+    // 20), GALAXY.md §4. tools/Hollow.GeneratorReport calibrate prints the comparison.
     public static readonly IReadOnlyList<StarClassEntry> Entries = new StarClassEntry[]
     {
-        new("O main sequence", 0, StarKind.MainSequence, 3, 10, 0.000015, 0, 0),
-        new("B0 main sequence", 0, StarKind.MainSequence, 10, 11, 0.002, 0, 0),
-        new("Supergiant", 0, StarKind.Supergiant, 10, 66, 0.0015, 0, 0),
-        new("Wolf–Rayet", 0, StarKind.WolfRayet, 3, 3, 0.000005, 0, 0),
-        new("B1–B6 main sequence", 1, StarKind.MainSequence, 11, 17, 0.028, 0.0001, 0),
-        new("Red bright giant", 1, StarKind.BrightGiant, 55, 66, 0.0005, 0.0007, 0.0015),
-        new("Carbon star", 1, StarKind.CarbonStar, 66, 69, 0, 0.00005, 0.0001),
-        new("B7–A2 main sequence", 2, StarKind.MainSequence, 17, 23, 0.035, 0.0004, 0),
-        new("Giant", 2, StarKind.Giant, 48, 56, 0.001, 0.0045, 0.008),
-        new("Herbig Ae/Be", 2, StarKind.HerbigAeBe, 15, 25, 0.0025, 0, 0),
+        new("O main sequence", 0, StarKind.MainSequence, 3, 10, 0.000005, 0, 0),
+        new("B0 main sequence", 0, StarKind.MainSequence, 10, 11, 0.00006, 0, 0),
+        new("Supergiant", 0, StarKind.Supergiant, 10, 66, 0.00038, 0, 0),
+        new("Wolf–Rayet", 0, StarKind.WolfRayet, 3, 3, 0.000003, 0, 0),
+        new("B1–B6 main sequence", 1, StarKind.MainSequence, 11, 17, 0.0041, 0.000015, 0),
+        new("Red bright giant", 1, StarKind.BrightGiant, 55, 66, 0.0001, 0.00014, 0.0003),
+        new("Carbon star", 1, StarKind.CarbonStar, 66, 69, 0, 0.000001, 0.000002),
+        new("B7–A2 main sequence", 2, StarKind.MainSequence, 17, 23, 0.061, 0.0007, 0),
+        new("Giant", 2, StarKind.Giant, 48, 56, 0.00047, 0.0021, 0.0038),
+        new("Herbig Ae/Be", 2, StarKind.HerbigAeBe, 15, 25, 0.00075, 0, 0),
         new("A3–F0 main sequence", 3, StarKind.MainSequence, 23, 31, 0.06, 0.004, 0.0005),
-        new("F1–F9 main sequence", 4, StarKind.MainSequence, 31, 40, 0.06, 0.030, 0.015),
-        new("Subgiant", 4, StarKind.Subgiant, 35, 55, 0, 0.010, 0.012),
-        new("G main sequence", 5, StarKind.MainSequence, 40, 50, 0.06, 0.077, 0.06),
-        new("T Tauri", 5, StarKind.TTauri, 45, 60, 0.04, 0, 0),
+        new("Bright subgiant", 3, StarKind.Subgiant, 28, 38, 0, 0.004, 0.004),
+        new("F1–F9 main sequence", 4, StarKind.MainSequence, 31, 40, 0.047, 0.0237, 0.0119),
+        new("Subgiant", 4, StarKind.Subgiant, 35, 55, 0, 0.0047, 0.0056),
+        new("G main sequence", 5, StarKind.MainSequence, 40, 50, 0.042, 0.054, 0.042),
+        new("T Tauri", 5, StarKind.TTauri, 45, 60, 0.006, 0, 0),
         new("K0–M0 main sequence", 6, StarKind.MainSequence, 50, 61, 0.10, 0.18, 0.18),
         new("M1–M9 main sequence", 7, StarKind.MainSequence, 61, 70, 0.40, 0.52, 0.50),
         new("Brown dwarf", 7, StarKind.BrownDwarf, 70, 92, 0.15, 0.15, 0.14),

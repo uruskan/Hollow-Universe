@@ -12,8 +12,8 @@ public static class GalaxyTests
 {
     // Golden: a hash over a fixed set of generated cells and systems. Changing the generator changes it;
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
-    private const ulong CellsGolden = 0x22954A90D19DDA8EUL;
-    private const ulong SystemsGolden = 0x5F09B25668332B31UL;
+    private const ulong CellsGolden = 0x5432B95D1D9D85D5UL;
+    private const ulong SystemsGolden = 0xDB5A9536406D01B2UL;
     private const ulong RealSystemsGolden = 0xD0DADDB204F53B3BUL;
 
     // ---------------------------------------------------------------- frames
@@ -294,18 +294,19 @@ public static class GalaxyTests
     public static void SamplerFollowsTheDensity()
     {
         // Level-0 stars are all young-disk stars, whose density falls as sech²(h / 660 ly) away from the midplane, inside
-        // cells 1,024 ly tall. Count the stars within 165 ly of the midplane and compare with the density's share of
-        // each cell (a uniform spread inside the cells would give about 15% fewer).
+        // cells 1,024 ly tall. Count the stars within 165 ly of the midplane in 120 such cells and compare with the
+        // density's share of each cell (a uniform spread inside the cells would give about 15% fewer).
         Galaxy.Galaxy galaxy = Fixtures.Galaxy;
         double observed = 0;
         double expected = 0;
         double uniform = 0;
         int stars = 0;
-        for (int i = 0; i < 36; i++)
+        for (int i = 0; i < 120; i++)
         {
-            // Along a ring around the Galactic Centre, well away from Sol's catalogue region.
-            double angle = i * 0.17;
-            Vector3D model = new(DMath.Sin(angle) * 18000, 0, -DMath.Cos(angle) * 18000);
+            // Along two rings around the Galactic Centre, well away from Sol's catalogue region.
+            double angle = i % 60 * 0.105;
+            double ring = i < 60 ? 15000 : 21000;
+            Vector3D model = new(DMath.Sin(angle) * ring, 0, -DMath.Cos(angle) * ring);
             CellKey.TryFromPosition(0, GalaxyFrame.FromModel(model), out CellKey cell);
             double hMin = double.MaxValue;
             double hMax = double.MinValue;
@@ -337,7 +338,7 @@ public static class GalaxyTests
     [Test]
     public static void ClassMixMatchesTheNeighbourhood()
     {
-        // Count primary classes in a shell 100–400 ly from Sol (outside the catalogue's complete region for faint stars).
+        // Count primary classes 2,500 ly from Sol, beyond the catalogue's reach for levels 3–7 (GALAXY.md §8.3).
         Galaxy.Galaxy galaxy = Fixtures.Galaxy;
         var counts = new Dictionary<char, double>();
         double total = 0;
@@ -346,7 +347,7 @@ public static class GalaxyTests
         {
             double size = SectorGrid.CellSize(level);
             // Sample a handful of cells per level and weight by cell volume share.
-            foreach (CellKey cell in CellsAround(level, new Vector3D(250, 0, 0), size * 1.5).Take(27))
+            foreach (CellKey cell in CellsAround(level, new Vector3D(2500, 0, 0), size * 1.5).Take(27))
             {
                 foreach (GalaxyStar s in galaxy.GenerateProcedural(cell))
                 {
@@ -373,16 +374,17 @@ public static class GalaxyTests
         int compared = 0;
         for (int level = 0; level < StarClassTable.LevelCount; level++)
         {
-            double radius = CellGenerator.CatalogueRadius[level];
-            // Cells across the edge of that region, where generated stars fade back in.
-            foreach (CellKey cell in CellsAround(level, new Vector3D(0, 0, radius * 1.1), SectorGrid.CellSize(level)).Take(12))
+            double radius = CatalogueCompleteness.CompleteWithin(level);
+            // Cells across the edge of the region where the catalogue holds every star of the level, and further out.
+            foreach (CellKey cell in CellsAround(level, new Vector3D(0, 0, radius * 1.1), SectorGrid.CellSize(level))
+                         .Concat(CellsAround(level, new Vector3D(0, 0, radius * 1.6), SectorGrid.CellSize(level))).Distinct())
             {
                 GalaxyStar[] a = with.GenerateProcedural(cell);
                 Assert.Equal(HashStars(a), HashStars(without.GenerateProcedural(cell)), $"level {level} cell with and without the catalogue");
                 foreach (GalaxyStar s in a)
                 {
                     Assert.True(s.Position.Length >= radius,
-                        $"generated star {s.Address} at {s.Position.Length:0.0} ly is inside the catalogue's {radius} ly");
+                        $"generated star {s.Address} at {s.Position.Length:0.0} ly is where the catalogue is complete ({radius:0} ly)");
                 }
                 compared += a.Length;
             }
@@ -392,10 +394,43 @@ public static class GalaxyTests
     }
 
     [Test]
+    public static void RealAndGeneratedStarsAddUpToTheModel()
+    {
+        // Where the catalogue holds part of a level (GALAXY.md §8.3), real plus generated stars match the density
+        // model: no doubled neighbourhood beyond the catalogue's reach, no gap inside it.
+        Galaxy.Galaxy galaxy = Fixtures.Galaxy;
+        var profile = new StarCountProfile();
+        profile.Compute(galaxy.Density, Vector3D.Zero);
+        (int Level, double Inner, double Outer)[] shells =
+        {
+            (2, 500, 800), (2, 800, 1500), (4, 250, 400), (4, 400, 800), (6, 20, 65), (6, 65, 250), (7, 25, 50), (7, 50, 100),
+        };
+        var parts = new List<string>();
+        foreach ((int level, double inner, double outer) in shells)
+        {
+            double expected = profile.CountWithin(level, outer) - profile.CountWithin(level, inner);
+            int real = galaxy.Catalogue!.Primaries.Count(s => s.Level == level && s.Position.Length >= inner && s.Position.Length < outer);
+            int generated = 0;
+            foreach (CellKey cell in CellsAround(level, Vector3D.Zero, outer))
+            {
+                foreach (GalaxyStar s in galaxy.GenerateProcedural(cell))
+                {
+                    double d = s.Position.Length;
+                    generated += d >= inner && d < outer ? 1 : 0;
+                }
+            }
+            double ratio = (real + generated) / expected;
+            parts.Add($"L{level} {inner:0}–{outer:0} ly: {real} real + {generated} generated = {ratio:0.00} × model");
+            Assert.InRange(0.85, 1.15, ratio, $"level {level} stars between {inner} and {outer} ly against the model");
+        }
+        Fixtures.Report(string.Join("; ", parts));
+    }
+
+    [Test]
     public static void SuppressionLeavesSurvivingStarsUnchanged()
     {
-        // Where generated stars fade back in near the catalogue's radius, the ones that survive must be exactly
-        // the stars an unsuppressed generator makes: same addresses, positions, classes and physics.
+        // Where the catalogue holds part of a level's stars, the generated stars that survive must be exactly the
+        // stars an unsuppressed generator makes: same addresses, positions, classes and physics.
         var density = new DensityModel();
         var suppressed = new CellGenerator(Galaxy.Galaxy.DefaultSeed, density);
         var everything = new CellGenerator(Galaxy.Galaxy.DefaultSeed, density, leaveSolToCatalogue: false);
@@ -403,8 +438,13 @@ public static class GalaxyTests
         int dropped = 0;
         for (int level = 0; level < StarClassTable.LevelCount; level++)
         {
-            double radius = CellGenerator.CatalogueRadius[level];
-            foreach (CellKey cell in CellsAround(level, new Vector3D(0, 0, radius * 1.12), SectorGrid.CellSize(level)).Take(12))
+            // Around the distance where the catalogue holds half of the level.
+            double radius = CatalogueCompleteness.CompleteWithin(level);
+            while (CatalogueCompleteness.Of(level, radius) > 0.5)
+            {
+                radius *= 1.02;
+            }
+            foreach (CellKey cell in CellsAround(level, new Vector3D(0, 0, radius), SectorGrid.CellSize(level)).Take(12))
             {
                 Dictionary<SystemAddress, GalaxyStar> all = everything.Generate(cell).ToDictionary(s => s.Address);
                 GalaxyStar[] survivors = suppressed.Generate(cell);

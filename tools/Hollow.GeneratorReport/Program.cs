@@ -31,6 +31,20 @@ public static class Program
             case "names":
                 ExampleNames();
                 return 0;
+            case "shells":
+                Shells.Report(args.Length > 1 ? StarCatalogue.Load(args[1]) : LoadCatalogue());
+                return 0;
+            case "calibrate":
+                Calibrate.Report(LoadCatalogue());
+                return 0;
+            case "completeness":
+                for (int level = 0; level < StarClassTable.LevelCount; level++)
+                {
+                    Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                        $"level {level}: catalogue only within {CatalogueCompleteness.CompleteWithin(level):0.0} ly, " +
+                        $"procedural only beyond {CatalogueCompleteness.EmptyBeyond(level):0.0} ly"));
+                }
+                return 0;
             case "maps":
                 Maps.Render(args.Length > 1 ? args[1] : Path.Combine(RepoRoot(), "docs", "images", "generator"),
                     args.Length > 2 ? args[2] : "",

@@ -14,31 +14,74 @@ namespace Hollow.CatalogBuilder;
 /// Converts the HYG v4.1 star database (CSV) into Hollow Universe's compact catalogue (GALAXY.md §8).
 /// Usage: dotnet run --project tools/Hollow.CatalogBuilder -- path/to/hygdata_v41.csv game/data/catalog/hyg41.bin.gz
 /// The CSV is not stored in the repository; get it from https://github.com/astronexus/HYG-Database (CC BY-SA 4.0).
+/// <c>--update in.bin.gz out.bin.gz</c> re-applies the rules that don't need the CSV (which stars to keep) to a
+/// catalogue built earlier, so a rule change doesn't need the source data.
 /// </summary>
 public static class Program
 {
     private const int CatalogueNumber = 0; // HYG 4.1
-    private const double MaxDistance = 1500.0;
-    private const double MaxDistanceLuminous = 3000.0;
 
     public static int Main(string[] args)
     {
+        if (args.Length == 3 && args[0] == "--update")
+        {
+            StarCatalogue built = StarCatalogue.Load(args[1]);
+            List<CatalogueStar> kept = Finish(built.Stars);
+            Write(args[2], built.Number, kept);
+            Console.WriteLine($"Kept {kept.Count} of {built.Stars.Count} stars.");
+            return 0;
+        }
         if (args.Length != 2)
         {
             Console.Error.WriteLine("usage: Hollow.CatalogBuilder <hygdata_v41.csv> <output.bin.gz>");
+            Console.Error.WriteLine("       Hollow.CatalogBuilder --update <input.bin.gz> <output.bin.gz>");
             return 2;
         }
         List<Dictionary<string, string>> rows = ReadCsv(args[0]);
         Console.WriteLine($"Read {rows.Count} rows.");
-        List<CatalogueStar> stars = Build(rows);
-        using (FileStream output = File.Create(args[1]))
-        {
-            StarCatalogue.Write(output, CatalogueNumber, stars);
-        }
-        int primaries = stars.Count(s => s.IsPrimary);
-        Console.WriteLine($"Wrote {stars.Count} stars ({primaries} systems) to {args[1]} ({new FileInfo(args[1]).Length / 1024} KiB).");
+        List<CatalogueStar> stars = Finish(Build(rows));
+        Write(args[1], CatalogueNumber, stars);
         return 0;
     }
+
+    private static void Write(string path, int number, List<CatalogueStar> stars)
+    {
+        using (FileStream output = File.Create(path))
+        {
+            StarCatalogue.Write(output, number, stars);
+        }
+        int primaries = stars.Count(s => s.IsPrimary);
+        Console.WriteLine($"Wrote {stars.Count} stars ({primaries} systems) to {path} ({new FileInfo(path).Length / 1024} KiB).");
+    }
+
+    /// <summary>
+    /// The rules applied to every built catalogue, from the CSV or from an earlier file: keep exactly the systems
+    /// the generator leaves to the catalogue, i.e. where <see cref="CatalogueCompleteness"/> is above zero for the
+    /// primary's level and distance (GALAXY.md §8.3). Companions follow their primary.
+    /// </summary>
+    public static List<CatalogueStar> Finish(IReadOnlyList<CatalogueStar> stars)
+    {
+        var keptPrimaries = new HashSet<int>();
+        foreach (CatalogueStar s in stars)
+        {
+            if (s.PrimaryId < 0 && Catalogued(s))
+            {
+                keptPrimaries.Add(s.Id);
+            }
+        }
+        var kept = new List<CatalogueStar>();
+        foreach (CatalogueStar s in stars)
+        {
+            if (keptPrimaries.Contains(s.PrimaryId < 0 ? s.Id : s.PrimaryId))
+            {
+                kept.Add(s);
+            }
+        }
+        return kept;
+    }
+
+    private static bool Catalogued(CatalogueStar primary) =>
+        primary.Id == 0 || CatalogueCompleteness.Of(StarClassTable.LevelForMagnitude(primary.Physics.AbsoluteMagnitude), primary.Position.Length) > 0;
 
     private sealed class Row
     {
@@ -124,9 +167,10 @@ public static class Program
             {
                 continue;
             }
+            // Where the catalogue counts for this level (Finish applies the same rule to every star).
             double distance = row.Position.Length;
-            int level = StarClassTable.LevelForMagnitude(row.AbsMag);
-            if (distance > MaxDistanceLuminous || (distance > MaxDistance && level > 1))
+            int level = StarClassTable.LevelForMagnitude((float)row.AbsMag); // as stored, so Finish agrees
+            if (row.Id != 0 && CatalogueCompleteness.Of(level, distance) <= 0)
             {
                 continue;
             }

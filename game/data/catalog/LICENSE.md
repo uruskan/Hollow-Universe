@@ -11,7 +11,8 @@ The HYG Database is licensed under the **Creative Commons Attribution-ShareAlike
 
 `tools/Hollow.CatalogBuilder` produced this file from `hygdata_v41.csv`. It:
 
-- kept stars within 1,500 ly of Sol, or within 3,000 ly for very luminous stars;
+- kept the systems within the distance where the catalogue still holds a share of their brightness level, at
+  most 1,500 ly from Sol, or 3,000 ly for very luminous stars (Hollow Universe's GALAXY.md §8.3);
 - converted positions to Hollow Universe's galactic frame, in light-years;
 - turned spectral types into star classes, estimating missing ones from colour index and absolute magnitude,
   and corrected one known source error (Capella's spectral type);

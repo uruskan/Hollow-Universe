@@ -118,3 +118,67 @@ systems `0xDEEBD959A57739FB` → `0x5F09B25668332B31` (their primaries changed).
 
 **Measured.** Cell generation cost unchanged within noise (the maps took 218 s before and 239 s after, dominated by
 level 2's 3 × 10⁸ stars).
+
+---
+
+## 2. Catalogue completeness instead of hard radii
+
+**Measured first** (`tools/Hollow.GeneratorReport shells`: per level, catalogue primaries and actually generated
+procedural stars in 26 shells from 0 to 4,000 ly, against the density model's expected count). Two problems, not
+one:
+
+1. **Doubled beyond the radii**, as the report said: (real + generated) ÷ model peaked at 1.27 (level 2,
+   800–1,000 ly), 2.20 (level 3, 400–500 ly), 1.52 (level 4), 1.60 (level 5), 1.64 (level 6), 1.60 (level 7),
+   settling to 1.0 only where the catalogue thins out.
+2. **The model itself was wrong where the catalogue is complete.** Inside the radii, levels 0–1 had only 4–36% of
+   the model's stars, though the catalogue is certainly complete there (every star brighter than V ≈ 7.5).
+   `calibrate` compared the class table entry by entry against the real sky inside those spheres: 58× too many B0
+   dwarfs, 9× too many supergiants, 7× too many B1–B6 dwarfs, 5× too many bright red giants, 260× too many carbon
+   stars, about 2× too many giants and subgiants, 1.5× too many G dwarfs, and no evolved stars at level 3 (the
+   real sky has 295 within 200 ly). A completeness factor can't hide a wrong model: it would only move the step.
+
+**Changed.**
+- Class table recalibrated (GALAXY.md §4): luminous young and evolved entries scaled to the real counts, a new
+  "Bright subgiant" entry at level 3, T Tauri stars cut to a pre-main-sequence share. Model ÷ real inside the
+  complete spheres is now 1.15 / 1.04 / 1.05 / 1.02 / 1.03 / 1.07 / 1.16 / 0.90 for levels 0–7. Level-0 stars near
+  Sol: about 30 per 1,024-ly cell instead of 300; the galaxy's luminous stars are correspondingly rarer.
+- `CatalogueCompleteness` (new, frozen in code): `C(level, d)`, the share of a level's stars at distance d that the
+  catalogue holds. Form: a complete core ending near d₀ plus a bulk share p falling near d₅₀ (fitted per level by
+  least squares on real ÷ model; a single logistic left 25–55% gaps at levels 6–7 where the Gliese catalogue has a
+  complete core to ~20 ly and then a plateau), clamped to exactly 1 above 0.99 and 0 below 0.01 or beyond the
+  import limit. Procedural stars are left out with probability C (same separate roll stream as before, so
+  survivors are unchanged); the old radii and ramp are gone.
+- Catalogue builder: keeps exactly the systems with C > 0 (both from the CSV and with the new `--update in out`,
+  which re-applies the rules to a built file; the HYG CSV is not in the repository or on this PC).
+  `hyg41.bin.gz` rebuilt with `--update`: 98,676 systems (was 100,761); dropped are far-tail stars where the
+  catalogue holds under 1% of their level.
+
+**After** (`shells`): every shell with more than a dozen expected stars is within 0.86–1.07 × model at every level
+(the few outliers are small-number shells: level 0 at 650–800 ly, 12 stars against 16.5; level 7 at 20–25 ly).
+Within 4,000 ly: real + generated − model = 0.0%. New test `RealAndGeneratedStarsAddUpToTheModel` checks eight
+partial shells at levels 2, 4, 6, 7 (measured 0.99–1.11). Within 10 ly: 9 systems (all real); within 50 ly 1,200
+(850 real; was 1,432).
+
+| Level | Catalogue only within | Procedural only beyond | Worst shell before | Worst shell after |
+|---|---|---|---|---|
+| 0 | 444 ly | 3,000 ly | 0.04 | 0.89 (0.73 in a 12-star shell) |
+| 1 | 423 | 3,000 | 0.07 | 0.96 |
+| 2 | 313 | 1,500 | 1.27 | 0.97–1.02 |
+| 3 | 256 | 1,314 | 2.20 | 0.94–1.02 |
+| 4 | 178 | 820 | 1.52 | 0.97–1.01 |
+| 5 | 106 | 516 | 1.60 | 0.93–1.01 |
+| 6 | 11.7 | 285 | 1.64 (and 0.41 at 25–30 ly) | 0.93–1.20 |
+| 7 | 20.8 | 113 | 1.60 | 0.86–1.03 (0.72 at 20–25 ly) |
+
+**Golden.** Cells `0x22954A90D19DDA8E` → `0x5432B95D1D9D85D5` (class table and suppression); procedural systems
+`0x5F09B25668332B31` → `0xDB5A9536406D01B2`. Real systems unchanged (their stars are still in the file).
+
+**Decisions.**
+- Calibrating the class table is part of this item: without it, no completeness factor can avoid a step where the
+  catalogue ends. It changes the galaxy at large (8× fewer O/B0 stars and supergiants, 5–7× fewer B1–B6 stars and
+  bright giants), which is what the real neighbourhood says; if the far views look too sparse, that is a visual
+  question for the map, not the generator.
+- `C` depends on level and distance only (as specified); extinction makes the real catalogue less complete in the
+  plane than toward the poles, which the fit averages over.
+- Levels 0–1 keep their 3,000-ly import limit: there `C` drops from ~0.26 / ~0.08 to 0 in one step, and the
+  density stays continuous (real stars inside, procedural outside).

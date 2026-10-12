@@ -106,7 +106,7 @@ Each generated system has a **primary star** drawn from a class table. Every ent
 | 0 | < −3.0 | 1024 ly | O and B0 main sequence, supergiants, Wolf–Rayet |
 | 1 | −3.0 … −0.5 | 512 ly | B1–B6, bright red giants, carbon stars |
 | 2 | −0.5 … 1.5 | 256 ly | B7–A2, red clump and K giants, Herbig Ae/Be |
-| 3 | 1.5 … 2.8 | 128 ly | A3–F0 |
+| 3 | 1.5 … 2.8 | 128 ly | A3–F0, bright subgiants |
 | 4 | 2.8 … 4.2 | 64 ly | F1–F9, subgiants |
 | 5 | 4.2 … 5.8 | 32 ly | G, T Tauri |
 | 6 | 5.8 … 9.0 | 16 ly | K0–M0 |
@@ -117,21 +117,22 @@ for each population. Local weights (fraction of systems), before normalising:
 
 | Entry | Level | Young | Disk | Old |
 |---|---|---|---|---|
-| O main sequence (O3–O9.5) | 0 | 0.000015 | 0 | 0 |
-| B0 main sequence | 0 | 0.002 | 0 | 0 |
-| Supergiant (B–M, I) | 0 | 0.0015 | 0 | 0 |
-| Wolf–Rayet | 0 | 0.000005 | 0 | 0 |
-| B1–B6 main sequence | 1 | 0.028 | 0.0001 | 0 |
-| Red giant, bright (M III) | 1 | 0.0005 | 0.0007 | 0.0015 |
-| Carbon star | 1 | 0 | 0.00005 | 0.0001 |
-| B7–A2 main sequence | 2 | 0.035 | 0.0004 | 0 |
-| Giant (G8–K5 III, red clump) | 2 | 0.001 | 0.0045 | 0.008 |
-| Herbig Ae/Be | 2 | 0.0025 | 0 | 0 |
+| O main sequence (O3–O9.5) | 0 | 0.000005 | 0 | 0 |
+| B0 main sequence | 0 | 0.00006 | 0 | 0 |
+| Supergiant (B–M, I) | 0 | 0.00038 | 0 | 0 |
+| Wolf–Rayet | 0 | 0.000003 | 0 | 0 |
+| B1–B6 main sequence | 1 | 0.0041 | 0.000015 | 0 |
+| Red giant, bright (M III) | 1 | 0.0001 | 0.00014 | 0.0003 |
+| Carbon star | 1 | 0 | 0.000001 | 0.000002 |
+| B7–A2 main sequence | 2 | 0.061 | 0.0007 | 0 |
+| Giant (G8–K5 III, red clump) | 2 | 0.00047 | 0.0021 | 0.0038 |
+| Herbig Ae/Be | 2 | 0.00075 | 0 | 0 |
 | A3–F0 main sequence | 3 | 0.06 | 0.004 | 0.0005 |
-| F1–F9 main sequence | 4 | 0.06 | 0.030 | 0.015 |
-| Subgiant (F–K IV) | 4 | 0 | 0.010 | 0.012 |
-| G main sequence | 5 | 0.06 | 0.077 | 0.06 |
-| T Tauri | 5 | 0.04 | 0 | 0 |
+| Bright subgiant (A8–F8 IV) | 3 | 0 | 0.004 | 0.004 |
+| F1–F9 main sequence | 4 | 0.047 | 0.0237 | 0.0119 |
+| Subgiant (F–K IV) | 4 | 0 | 0.0047 | 0.0056 |
+| G main sequence | 5 | 0.042 | 0.054 | 0.042 |
+| T Tauri | 5 | 0.006 | 0 | 0 |
 | K0–M0 main sequence | 6 | 0.10 | 0.18 | 0.18 |
 | M1–M9 main sequence | 7 | 0.40 | 0.52 | 0.50 |
 | Brown dwarf (L, T, Y) | 7 | 0.15 | 0.15 | 0.14 |
@@ -139,9 +140,15 @@ for each population. Local weights (fraction of systems), before normalising:
 | Neutron star | 7 | 0.0005 | 0.0003 | 0.0004 |
 | Black hole | 7 | 0.00005 | 0.00005 | 0.00008 |
 
-These weights are tunable until the generator is frozen. They give the local mix of the real solar
-neighbourhood: about 76% M dwarfs and brown dwarfs, 7.5% G, 0.6% A, 0.1% B, a few O stars per hundred
-million systems.
+These weights are tunable until the generator is frozen. They are **calibrated against the real-star
+catalogue** where it holds every star of a level (brighter than V ≈ 7.5: level 0 within 1,000 ly, 1 within 800,
+2 within 400, 3 within 200, 4 within 160, 5 within 80, 6 and 7 within 20; `tools/Hollow.GeneratorReport
+calibrate`). The density model integrated over those spheres now predicts, per level, 70 / 1,203 / 2,599 / 680 /
+1,095 / 261 / 14 / 57 systems against 61 / 1,162 / 2,479 / 664 / 1,066 / 243 / 12 / 63 real ones. (The first
+table made 8× too many level-0 stars near Sol, 6× too many at level 1, 1.5–2× too many giants, subgiants and G
+dwarfs, and had no evolved stars at level 3, where the real sky has 295 within 200 ly.) The local mix of systems:
+51% M dwarfs, 15% brown dwarfs, 18% K0–M0, 6.7% white dwarfs, 5.2% G, 2.3% F, 0.7% A, 0.01% B and about one O
+star per ten million systems.
 
 Physical properties come from interpolation tables (main sequence, giants, supergiants, white dwarfs,
 brown dwarfs): effective temperature, M_V, mass, radius, luminosity. Each star adds a small seeded scatter
@@ -158,7 +165,7 @@ so no two are identical. Colours are blackbody colours of the effective temperat
   1024 / 2^L ly.
 - A star lives at the level of its class (§4), in the cell containing its position. **Bright stars live in
   big cells.** To show the sky as seen from far away you only need levels 0–2; zooming in adds finer levels.
-  Typical counts near Sol: one level-7 star per 8-ly cell, about 300 level-0 stars per 1024-ly cell in the
+  Typical counts near Sol: one level-7 star per 8-ly cell, about 30 level-0 stars per 1024-ly cell in the
   disk.
 
 ---
@@ -244,15 +251,18 @@ pattern was the old sampler's smear where the arms fade out, fixed by the sample
 
 **HYG database v4.1** (David Nash / astronexus, CC BY-SA 4.0): about 120,000 stars from Hipparcos, Yale
 Bright Star and Gliese, with IAU proper names. The build tool `tools/Hollow.CatalogBuilder` converts the CSV
-into `game/data/catalog/hyg41.bin.gz` (a compact binary), which keeps 101,197 of those stars (100,761 systems)
+into `game/data/catalog/hyg41.bin.gz` (a compact binary), which keeps 99,112 of those stars (98,676 systems)
 after the cuts below. The derived file is published under the same licence with attribution
 (`game/data/catalog/LICENSE.md`). AT-HYG (2.5 million stars) is a later upgrade.
 
 ### 8.2 Import rules
 
 - Skip stars with missing or dubious distances (HYG marks them with distance ≥ 100,000 pc).
-- Keep stars within 1,500 ly, and luminous stars (level 0–1) within 3,000 ly. Beyond that, catalogue
-  distances are too uncertain; procedural stars fill in.
+- Keep exactly the systems where the catalogue counts for the primary's level and distance: completeness `C`
+  above zero (§8.3). That ends at the import limit of 1,500 ly (3,000 ly for the luminous levels 0–1), where
+  catalogue distances get too uncertain, or earlier where the catalogue holds under 1% of a level (level 7 beyond
+  113 ly, for example). The builder applies this rule to the CSV, and `--update` re-applies it to a built file;
+  the current file keeps 98,676 of the 100,761 systems the old distance cuts kept.
 - Convert positions to the galactic frame (§2).
 - Spectral type: parse the catalogue's type (class, subclass, luminosity class, white dwarfs `D…`). If it's
   missing, estimate the temperature from the colour index.
@@ -263,23 +273,50 @@ after the cuts below. The derived file is published under the same licence with 
   constellation genitive (Alpha Canis Majoris); Flamsteed number (61 Cygni); Gliese (Gliese 412); HD; HIP;
   `HYG <id>`. All of them are searchable.
 
-### 8.3 Completeness radii
+### 8.3 Completeness
 
-Near Sol, the catalogue already contains the real stars, so procedural stars of the same level are removed
-there. For bright levels the radius is where a star of that level's faintest magnitude drops below what the
-catalogue reliably lists (apparent magnitude ≈ 8). For the faint levels 6–7 it is where the Gliese catalogue
-of nearby stars stops being nearly complete:
+Near Sol the catalogue already holds the real stars, so it replaces part of the procedural population. How much
+is the catalogue's **completeness** `C(level, d)`: the fraction of a level's stars at distance `d` from Sol that
+the catalogue holds. A procedural star at that level and distance is left out with probability `C` (the roll has
+its own stream, `Streams.Suppression`, so a star that survives is identical to the one an unsuppressed generator
+makes), and the builder keeps exactly the real stars where `C > 0` (§8.2). Real plus procedural stars then add
+up to the density model, with no doubled neighbourhood and no gap.
+
+`C` is analytic and frozen in code (`CatalogueCompleteness`), so it never depends on whether the catalogue file
+loaded. It has a complete core that ends near `d₀` (the Gliese catalogue of nearby stars, for the faint levels)
+and a bulk share `p` that falls near `d₅₀` (the survey's magnitude limit):
+
+```
+c(d) = (1 − p) / (1 + (d / d₀)⁸)  +  p / (1 + (d / d₅₀)^k)
+C(d) = clamp((c − 0.01) / 0.98, 0, 1), and 0 beyond the import limit
+```
+
+Fitted per level (least squares on real ÷ model counts in 26 shells around Sol, after the class table's
+calibration in §4; `tools/Hollow.GeneratorReport shells`):
 
 | Level | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|---|
-| Suppression radius (ly) | 3,000 | 1,500 | 650 | 350 | 190 | 90 | 50 | 30 |
+| p | 0.58 | 0.68 | 0.72 | 0.48 | 0.40 | 0.42 | 0.56 | 0.54 |
+| d₀ (ly) | 750 | 750 | 501 | 422 | 299 | 178 | 18.8 | 33.5 |
+| d₅₀ (ly) | 2,851 | 1,641 | 955 | 733 | 473 | 288 | 146 | 73.3 |
+| k | 2.7 | 3.4 | 4.7 | 6.6 | 6.7 | 6.4 | 6.0 | 9.2 |
+| Catalogue only (C = 1) within (ly) | 444 | 423 | 313 | 256 | 178 | 106 | 11.7 | 20.8 |
+| Procedural only (C = 0) beyond (ly) | 3,000 | 3,000 | 1,500 | 1,314 | 820 | 516 | 285 | 113 |
 
-Procedural stars are fully removed inside the radius and fade in to normal over the next 25%. The result:
-real stars where we know them, procedural stars where we don't, and no doubled neighbourhood.
+At levels 0–1 the catalogue still holds a quarter (level 0) or a tenth (level 1) of the stars at the 3,000-ly
+import limit, so `C` drops to 0 there in one step; the density stays continuous, because the real stars inside
+and the procedural ones outside both follow the model.
+
+Measured (real + generated ÷ model, per shell, `shells`): with the old hard radii (3,000 / 1,500 / 650 / 350 /
+190 / 90 / 50 / 30 ly, fading in over 25%) the neighbourhood was doubled beyond them, up to 1.27× at level 2,
+2.2× at level 3, 1.5–1.6× at levels 4–7, and 70% of the catalogue sat on a full procedural population; inside
+them levels 0–1 had only 4–36% of the model's stars, because the model made far too many luminous stars. Now
+every shell with more than a dozen expected stars is within 0.86–1.07× at every level (a test checks eight
+shells at levels 2, 4, 6 and 7 within ±15%).
 
 Suppression happens **whether or not the catalogue is loaded**. A client missing the catalogue file shows an
 empty neighbourhood (and logs an error) rather than generating different procedural stars from the server.
-A test compares cells near the radii with and without the catalogue.
+A test compares cells across the edge of the complete core with and without the catalogue.
 
 ---
 
@@ -427,8 +464,9 @@ period; Kepler's equation is solved per frame (Newton's method).
 | `DMath` | Results within 4 ulp of `Math` over wide ranges (measured: 3), and bit-identical on every platform. |
 | Frames | The Galactic Centre's equatorial coordinates convert to (0, 0, 1); the north galactic pole to (0, 1, 0). |
 | Catalogue | Sirius is 8.6 ly away, Proxima Centauri 4.24 ly, Vega 25 ly; Sol has address and name "Sol"; Toliman belongs to Alpha Centauri. |
-| Catalogue independence | Procedural stars near the completeness radii are identical with and without the catalogue loaded, and none lies inside a radius. |
-| Suppression | In the fade-in zone, every star that survives is identical (address, position, class, physics) to the one an unsuppressed generator makes. |
+| Catalogue independence | Procedural stars across the edge of the catalogue's complete core are identical with and without the catalogue loaded, and none lies inside the core. |
+| Suppression | Where the catalogue holds about half of a level, every star that survives is identical (address, position, class, physics) to the one an unsuppressed generator makes. |
+| Completeness | Real plus generated stars match the density model within ±15% in eight shells at levels 2, 4, 6 and 7 where the catalogue holds part of the level. |
 | Sampler | In 36 level-0 cells around the Galactic Centre, the share of young-disk stars within 165 ly of the midplane matches the density's `sech²` profile within 4σ (and differs from a uniform spread by more than 6σ). |
 | Untrusted addresses | Catalogue addresses with another catalogue number, an out-of-range ID (including one that would truncate to a real ID) or a companion's ID are not found, without errors. |
 | Density | Local density 0.00233 per ly³; 8–14 systems within 10 ly and 900–1,900 within 50 ly (measured: 9 and about 1,430); total 1.1–1.7 × 10¹¹ (measured 1.22 × 10¹¹). |

@@ -25,12 +25,6 @@ public static class Streams
 /// </summary>
 public sealed class CellGenerator
 {
-    /// <summary>Per level: within this distance of Sol the real-star catalogue is complete (GALAXY.md §8.3).</summary>
-    public static readonly double[] CatalogueRadius = { 3000, 1500, 650, 350, 190, 90, 50, 30 };
-
-    /// <summary>Procedural stars fade back in over this fraction of the radius beyond it.</summary>
-    public const double CatalogueRampFraction = 0.25;
-
     /// <summary>Hard limit per cell, far above anything the density cap allows; protects memory.</summary>
     public const long MaxStarsPerCell = 4_000_000;
 
@@ -102,7 +96,7 @@ public sealed class CellGenerator
         int subCells = GridX * gridY * GridZ;
         Vector3D min = cell.Min;
         var subSize = new Vector3D(cell.Size / GridX, cell.Size / gridY, cell.Size / GridZ);
-        double suppressRadius = CatalogueRadius[level];
+        double catalogueReach = CatalogueCompleteness.EmptyBeyond(level);
         var stars = new List<GalaxyStar>((int)Math.Min(count, 1 << 16));
 
         // Per component, the running sum of its samples over the sub-cells: choosing a sub-cell is a binary search.
@@ -155,18 +149,19 @@ public sealed class CellGenerator
                 }
             }
 
-            // Near Sol the real catalogue already has these stars (GALAXY.md §8.3). The keep roll has its own
-            // stream, so a star that survives is identical to the one an unsuppressed run would make.
+            // Near Sol the real catalogue holds a share of this level's stars (GALAXY.md §8.3); a procedural star is
+            // left out with that probability. The roll has its own stream, so a star that survives is identical to
+            // the one an unsuppressed run would make.
             double d = position.Length;
-            if (_leaveSolToCatalogue && d < suppressRadius * (1.0 + CatalogueRampFraction))
+            if (_leaveSolToCatalogue && d < catalogueReach)
             {
-                if (d < suppressRadius)
+                double catalogued = CatalogueCompleteness.Of(level, d);
+                if (catalogued >= 1)
                 {
                     continue;
                 }
-                double keep = (d - suppressRadius) / (CatalogueRampFraction * suppressRadius);
                 var keepRng = new Rng(Hash64.Of(_seed, Streams.Suppression, address.Value));
-                if (keepRng.NextDouble() >= keep)
+                if (keepRng.NextDouble() < catalogued)
                 {
                     continue;
                 }
