@@ -201,6 +201,13 @@ SQLite through Hollow.Persistence, as in ARCHITECTURE.md §13:
 - dirty entities are written every 30 s and on shutdown;
 - deaths, trades and transfers commit at once.
 
+In G1 (`Hollow.Persistence`): accounts by player name (the development login, case-insensitive) and one character per
+account, stored with its position in the **body frame** (metres from the planet's centre, turning with it), so it
+comes back at the same place on the planet whatever zone frame the server uses next. Also its view angles, stance and
+health. The schema version is SQLite's `user_version`; opening a database migrates it step by step and refuses one
+newer than the build. Every database call runs on one worker thread in the order made, so a tick never waits for the
+disk and a login always reads the last save. Characters are saved on disconnect, every 30 s and on shutdown.
+
 ---
 
 ## 5. Steps

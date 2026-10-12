@@ -18,6 +18,7 @@ public static class ArchitectureTests
         {
             typeof(DMath).Assembly, typeof(Galaxy.Galaxy).Assembly, typeof(Surface.ISurface).Assembly,
             typeof(Simulation.Movement.CharacterMotor).Assembly, typeof(Net.Protocol.Protocol).Assembly,
+            typeof(Persistence.GameDatabase).Assembly,
         };
         foreach (Assembly library in libraries)
         {

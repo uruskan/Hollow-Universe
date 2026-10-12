@@ -82,6 +82,7 @@ Client options (after `--`):
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, the stand-in `SphereSurface`, `FirstWorld` |
 | `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5) |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
+| `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread |
 | `game/` | Godot project: galaxy map, system map, UI, shaders |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |

@@ -12,6 +12,7 @@
     <ProjectReference Include="../../src/Hollow.Surface/Hollow.Surface.csproj" />
     <ProjectReference Include="../../src/Hollow.Simulation/Hollow.Simulation.csproj" />
     <ProjectReference Include="../../src/Hollow.Net/Hollow.Net.csproj" />
+    <ProjectReference Include="../../src/Hollow.Persistence/Hollow.Persistence.csproj" />
     <ProjectReference Include="../../tools/Hollow.NetGen/Hollow.NetGen.csproj" />
   </ItemGroup>
 </Project>

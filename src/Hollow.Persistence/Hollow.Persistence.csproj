@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Hollow.Persistence</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Hollow.Core/Hollow.Core.csproj" />
+    <ProjectReference Include="../Hollow.Simulation/Hollow.Simulation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Vendored in third_party/packages (see third_party/README.md). -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hollow.Tests" />
+  </ItemGroup>
+</Project>
