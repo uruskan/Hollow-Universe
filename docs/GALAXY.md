@@ -285,10 +285,11 @@ pattern was the old sampler's smear where the arms fade out, fixed by the sample
 ### 8.1 Source
 
 **HYG database v4.1** (David Nash / astronexus, CC BY-SA 4.0): about 120,000 stars from Hipparcos, Yale
-Bright Star and Gliese, with IAU proper names. The build tool `tools/Hollow.CatalogBuilder` converts the CSV
-into `game/data/catalog/hyg41.bin.gz` (a compact binary), which keeps 99,112 of those stars (98,676 systems)
-after the cuts below. The derived file is published under the same licence with attribution
-(`game/data/catalog/LICENSE.md`). AT-HYG (2.5 million stars) is a later upgrade.
+Bright Star and Gliese, with IAU proper names, plus Hollow's hand-entered **supplement** of the nearest brown
+dwarfs and ultracool stars that HYG lacks (§8.4). The build tool `tools/Hollow.CatalogBuilder` converts the CSV
+into `game/data/catalog/hyg41.bin.gz` (a compact binary, catalogue number 0), which keeps 99,140 stars (98,695
+systems) after the rules below. The derived file is published under the same licence with attribution
+(`game/data/catalog/LICENSE.md`). AT-HYG (2.5 million stars, Gaia distances) is the planned upgrade (§8.5).
 
 ### 8.2 Import rules
 
@@ -301,9 +302,16 @@ after the cuts below. The derived file is published under the same licence with 
 - Convert positions to the galactic frame (§2).
 - Spectral type: parse the catalogue's type (class, subclass, luminosity class, white dwarfs `D…`). If it's
   missing, estimate the temperature from the colour index.
+- **Repairs** (every build, and `--update`): a star with neither type nor colour became a G5 dwarf; one fainter
+  than +7.5 (no G dwarf is) gets the main-sequence type of its absolute magnitude instead, and so does a "giant"
+  fainter than +6 (a garbled type: Luyten's Star, Gliese 581 and Gliese 876 were "M5 III"). The measured magnitude
+  is always kept. Explicit fixes by HYG ID: van Maanen's Star is a white dwarf (DZ8), VB 10 an M8 dwarf, Wolf 424 B
+  an M7 dwarf; Capella's type is corrected while reading the CSV.
 - Level: from the absolute magnitude, with the thresholds in §4.
 - **Multiple stars**: a star whose `comp_primary` points to another star becomes a companion in that star's
-  system. The system's address is the primary's.
+  system. The system's address is the primary's. **Bindings** join real companions the source lists as systems
+  of their own: Proxima Centauri is Alpha Centauri C. Its address (the old Proxima system's) is now a companion's
+  and finds nothing; its name leads to Alpha Centauri.
 - **Names**, first available: proper name (Sol, Sirius, Proxima Centauri); Bayer letter with the full
   constellation genitive (Alpha Canis Majoris); Flamsteed number (61 Cygni); Gliese (Gliese 412); HD; HIP;
   `HYG <id>`. All of them are searchable.
@@ -352,6 +360,50 @@ shells at levels 2, 4, 6 and 7 within ±15%).
 Suppression happens **whether or not the catalogue is loaded**. A client missing the catalogue file shows an
 empty neighbourhood (and logs an error) rather than generating different procedural stars from the server.
 A test compares cells across the edge of the complete core with and without the catalogue.
+
+### 8.4 The hand-entered supplement
+
+`tools/Hollow.CatalogBuilder/supplement.csv` lists real objects the source catalogue lacks, from public
+measurements (the RECONS and Wikipedia lists of nearest stars and brown dwarfs, and their discovery papers). The
+builder adds it to every build, after the repairs and bindings; `--update` replaces an earlier supplement, so
+running it twice changes nothing. Supplement IDs are 1,000,000–1,999,999, above every HYG ID and below AT-HYG's
+ranges (§8.5), so addresses never collide. Supplement systems are always kept, whatever `C` says.
+
+- A **new system** gives its J2000 right ascension and declination, its parallax, spectral type, temperature and
+  mass (radius and absolute magnitude are typical for the type).
+- A **companion** (of a source star or of a supplement star) gives its separation in AU from its primary, or from
+  the star named in `near` (the partner in a close pair). The builder places it across the line of sight at the
+  primary's distance, turned about it by an angle from its ID. A separation of 0 means unknown, and the
+  generator rolls one.
+
+Contents (28 objects, all within 20 ly, where the procedural generator makes nothing at their level, so nothing
+is counted twice): the brown dwarfs Luhman 16 A and B (6.5 ly, the nearest), WISE 0855−0714 (Y4, 7.4 ly, the
+coldest known), UGPS J0722−0540, WISE 1741+2553, WISE 1639−6847, DENIS 0255−4700, WISE 1506+7027,
+DENIS J0817−6155, 2MASS 0939−2448 A and B, WISE 0350−5658, 2MASS J1114−2618, 2MASS J0415−0935, WISE 1541−2250,
+2MASS 0937+2931 and SIMP J0136+0933 (a planetary-mass object); the ultracool stars Teegarden's Star,
+SCR 1845−6357 A (with its brown dwarf B), DENIS J1048−3956, 2MASS J1540−5101 and LSR J1835+3259; and brown-dwarf
+companions of HYG stars: Epsilon Indi Ba and Bb (a pair 2.4 AU apart, 1,459 AU from Epsilon Indi A), Gliese 229 Ba
+and Bb (a 12-day pair, 33 AU from Gliese 229) and Gliese 570 D (1,525 AU from Gliese 570 A). Masses that were never
+measured are typical for the type (noted in the file). The nearby white dwarfs (Sirius B, Procyon B, 40 Eridani B,
+Stein 2051 B, van Maanen's Star, Gliese 440, GJ 1221) were already in HYG.
+
+### 8.5 AT-HYG
+
+The builder also reads **AT-HYG v4.0** (Augmented Tycho + HYG, astronexus, CC BY-SA 4.0): about 2.55 million stars
+(all of Tycho-2 and HYG) with Gaia DR3 distances for nearly all, positions `x0, y0, z0` (equatorial, parsecs),
+`absmag`, `ci`, `spect` and HYG's names and numbers. It becomes catalogue number 1. Its own `id` is a serial number
+in right-ascension order, which shifts between versions, so IDs are rebuilt to stay stable: a star in HYG keeps its
+HYG ID (Sol stays 0, so a 0:id address maps to 1:id), a Tycho-2 star gets `2²⁴ + (TYC1 · 2¹⁴ + TYC2) · 4 + TYC3`,
+and any other `2³⁰ + its AT-HYG serial` (stable only within one AT-HYG version). AT-HYG lists no multiple stars:
+they come from the HYG CSV (`--hyg`) through AT-HYG's `hyg` column, else from a shared Gliese number (Gl 559 A and B),
+else from a shared Tycho-2 field and number within an arcminute; the brightest member is the primary.
+
+Switching needs, in this order: the file (not in the repository: `data/athyg_40.csv.gz` from
+<https://codeberg.org/astronexus/athyg>, 199,688,001 bytes compressed, stored with Git LFS), optionally HYG's CSV
+for the multiple stars; a build with `--keep-all`; a new completeness fit for catalogue 1 (`shells`, then a
+second parameter set in `CatalogueCompleteness`, since AT-HYG is complete far deeper than HYG); then a normal
+build. The catalogue file grows from 4.6 MB to an estimated 100 MB compressed, so it would likely be streamed by
+sky region rather than loaded whole.
 
 ---
 
@@ -423,8 +475,16 @@ Sol's planets are slots 0–8 of node 1 (the Sun), its belts slots 20 and 21.
 
 **Stars**
 
-- Catalogue systems take their companions from the catalogue (separation from their positions, eccentricity
-  rolled) and roll none of their own. Procedural systems roll for companions, with a probability by primary
+- Catalogue systems take their companions from the catalogue, eccentricity rolled. A companion's separation is
+  its angle from the primary on the sky times the primary's distance: the catalogue's distances of the stars of
+  one system often differ by far more than the stars are apart (parallax errors put Procyon B 3,458 AU from
+  Procyon instead of 15, 61 Cygni B 2,375 AU from A instead of about 86). A companion at the primary's very
+  position has an unknown separation, which is rolled (log-normal around 40 AU). Two companions much closer to
+  each other (under a fifth of their separation from the primary) orbit each other as a close pair: Epsilon Indi
+  Ba and Bb, Gliese 229 Ba and Bb. A catalogue star listed **alone** beyond 25 ly rolls companions like a
+  procedural star and keeps only those the catalogue can't have seen: too faint at that distance (the
+  catalogue holds under half of their level, §8.3) or too close to resolve (under 1″). Within 25 ly the
+  neighbourhood's multiple stars are known, so none are added. Procedural systems roll for companions, with a probability by primary
   mass: under 0.08 M☉ (brown dwarfs) 15%, under 0.5 M☉ 27%, under 1.3 M☉ 45%, under 3 M☉ 55%, above that 75%;
   neutron stars, black holes and Wolf–Rayet stars 20%. A second companion comes in 15% of those systems.
   A companion's initial mass is the primary's initial mass times a uniform 0.1–1 (at least 0.013 M☉), or in 10%
@@ -746,11 +806,12 @@ period; Kepler's equation is solved per frame (Newton's method).
 | Test | Checks |
 |---|---|
 | Determinism | Generating the same cells twice, in any order and on any thread, gives identical stars. |
-| Golden | Hashes match their stored values for these generator versions: 40 cells (5 places × 8 levels); the first 8 procedural systems of 12 of those cells (levels 4–7); and the real systems Sol, Alpha Centauri, Proxima Centauri, Barnard's Star, Sirius, Procyon, Tau Ceti, Epsilon Eridani, 61 Cygni, Vega, Capella, Castor, Mizar, Albireo, Polaris, Betelgeuse and Rigel. System hashes cover every stored field of every body (`Golden.Of` walks the fields by reflection, so a new field is pinned without touching the test). |
+| Golden | Hashes match their stored values for these generator versions: 40 cells (5 places × 8 levels); the first 8 procedural systems of 12 of those cells (levels 4–7); and the real systems Sol, Alpha Centauri, Luhman 16, Epsilon Indi, Barnard's Star, Sirius, Procyon, Tau Ceti, Epsilon Eridani, 61 Cygni, Vega, Capella, Castor, Mizar, Albireo, Polaris, Betelgeuse and Rigel. System hashes cover every stored field of every body (`Golden.Of` walks the fields by reflection, so a new field is pinned without touching the test). |
 | Versions | Another galaxy-stage version changes the stars, another system-stage version changes the systems, and the stages have different seeds. |
 | `DMath` | Results within 4 ulp of `Math` over wide ranges (measured: 3), and bit-identical on every platform. |
 | Frames | The Galactic Centre's equatorial coordinates convert to (0, 0, 1); the north galactic pole to (0, 1, 0). |
-| Catalogue | Sirius is 8.6 ly away, Proxima Centauri 4.24 ly, Vega 25 ly; Sol has address and name "Sol"; Toliman belongs to Alpha Centauri. |
+| Catalogue | Sirius is 8.6 ly away, Proxima Centauri 4.24 ly (a companion of Alpha Centauri), Vega 25 ly; Sol has address and name "Sol"; Toliman belongs to Alpha Centauri. |
+| Nearby dwarfs and companions | Luhman 16 is a pair of brown dwarfs at 6.5 ly and WISE 0855−0714 lies at 7.4 ly (the supplement); Proxima's name leads to Alpha Centauri, and in that system it orbits A and B thousands of AU out; Epsilon Indi Ba and Bb orbit each other; 61 Cygni A and B are 50–200 AU apart (projected), not their 2,375 AU parallax difference; catalogue stars listed alone gain no companions within 25 ly, and beyond it only faint or unresolved ones, which occur. |
 | Catalogue independence | Procedural stars across the edge of the catalogue's complete core are identical with and without the catalogue loaded, and none lies inside the core. |
 | Suppression | Where the catalogue holds about half of a level, every star that survives is identical (address, position, class, physics) to the one an unsuppressed generator makes. |
 | Completeness | Real plus generated stars match the density model within ±15% in eight shells at levels 2, 4, 6 and 7 where the catalogue holds part of the level. |

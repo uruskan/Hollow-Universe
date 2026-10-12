@@ -143,9 +143,11 @@ public sealed class SystemGenerator
         var system = new StarSystem { Address = primary.Address, Name = name, Primary = primary };
         var b = new Builder(system);
 
-        List<Companion> companions = knownCompanions != null
-            ? CompanionsFromCatalogue(primary, knownCompanions, key)
-            : RollCompanions(primary, key, ref layout);
+        List<Companion> companions = knownCompanions == null
+            ? RollCompanions(primary, key, ref layout)
+            : knownCompanions.Count > 0
+                ? CompanionsFromCatalogue(primary, knownCompanions, key)
+                : UnseenCompanions(primary, key, ref layout);
 
         // The stellar tree, innermost companion first: (((A B) C) D), where a companion may itself be a close pair.
         Node a = Node.Star(primary.Class, primary.Physics);
@@ -263,25 +265,109 @@ public sealed class SystemGenerator
     private static double MinimumSeparationAu(StarPhysics a, StarPhysics b, double eccentricity) =>
         3.0 * (Math.Max(a.Radius, 1e-6) + Math.Max(b.Radius, 1e-6)) * AuPerSolarRadius / (1.0 - eccentricity);
 
+    // Real companions from the catalogue (GALAXY.md §10.2). A companion's separation is its angle from the primary on
+    // the sky times the primary's distance: catalogue distances of the stars of one system often differ by far more
+    // than the stars are apart (parallax errors put Procyon B 3,458 AU from Procyon instead of 15). A companion at the
+    // primary's very position has an unknown separation, which is rolled. Two companions much closer to each other than
+    // to the primary orbit each other as a close pair (Epsilon Indi Ba and Bb, Gliese 229 Ba and Bb).
     private static List<Companion> CompanionsFromCatalogue(GalaxyStar primary, IReadOnlyList<GalaxyStar> known, ulong key)
     {
-        var list = new List<Companion>(known.Count);
-        for (int i = 0; i < known.Count; i++)
+        int n = known.Count;
+        var separations = new double[n];
+        var eccentricities = new double[n];
+        for (int i = 0; i < n; i++)
         {
-            GalaxyStar c = known[i];
             var rng = new Rng(Hash64.Combine(key, CompanionStream + 0x80 + (ulong)i));
-            double eccentricity = StellarTables.Clamp(rng.Rayleigh(0.3), 0, 0.8);
-            double separation = Vector3D.Distance(c.Position, primary.Position) * AuPerLightYear;
-            if (separation < 1)
+            eccentricities[i] = StellarTables.Clamp(rng.Rayleigh(0.3), 0, 0.8);
+            double separation = Projected(primary.Position, known[i].Position, primary.Position.Length);
+            separations[i] = separation < 1 ? rng.LogNormal(40, 0.8) : separation;
+        }
+        var partner = new int[n];
+        Array.Fill(partner, -1);
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = i + 1; j < n && partner[i] < 0; j++)
             {
-                separation = rng.LogNormal(40, 0.8);
+                double apart = Projected(known[i].Position, known[j].Position, primary.Position.Length);
+                if (partner[j] < 0 && apart > 0 && apart < 0.2 * Math.Min(separations[i], separations[j]))
+                {
+                    partner[i] = j;
+                    partner[j] = i;
+                }
             }
-            separation = Math.Max(StellarTables.Clamp(separation, 0.5, 20000), MinimumSeparationAu(primary.Physics, c.Physics, eccentricity));
-            list.Add(new Companion(c.Class, c.Physics, separation, eccentricity));
+        }
+
+        var list = new List<Companion>(n);
+        for (int i = 0; i < n; i++)
+        {
+            if (partner[i] >= 0 && partner[i] < i)
+            {
+                continue; // added with its partner
+            }
+            GalaxyStar c = known[i];
+            double eccentricity = eccentricities[i];
+            double separation = Math.Max(StellarTables.Clamp(separations[i], 0.5, 20000), MinimumSeparationAu(primary.Physics, c.Physics, eccentricity));
+            var companion = new Companion(c.Class, c.Physics, separation, eccentricity);
+            if (partner[i] >= 0)
+            {
+                GalaxyStar twin = known[partner[i]];
+                var rng = new Rng(Hash64.Combine(key, PairStream + 0x80 + (ulong)i));
+                double twinEccentricity = StellarTables.Clamp(rng.Rayleigh(0.15), 0, 0.5);
+                double twinSeparation = Math.Max(Projected(c.Position, twin.Position, primary.Position.Length),
+                    MinimumSeparationAu(c.Physics, twin.Physics, twinEccentricity));
+                // The pair's own orbit stays well inside its closest approach to the primary.
+                eccentricity = Math.Min(eccentricity, Math.Max(0, 1 - 5 * twinSeparation * (1 + twinEccentricity) / separation));
+                companion = new Companion(c.Class, c.Physics, separation, eccentricity)
+                {
+                    TwinClass = twin.Class,
+                    TwinPhysics = twin.Physics,
+                    TwinSeparationAu = twinSeparation,
+                    TwinEccentricity = twinEccentricity,
+                };
+            }
+            list.Add(companion);
         }
         MakeHierarchical(list, dropTooWide: false);
         return list;
     }
+
+    // Separation (AU) of two stars as seen from Sol at a distance (ly): the chord between their directions, which is
+    // their angle on the sky to within 0.03% for anything closer than 0.1 rad.
+    private static double Projected(Vector3D a, Vector3D b, double distanceLy)
+    {
+        if (a.Length < 1e-12 || b.Length < 1e-12)
+        {
+            return Vector3D.Distance(a, b) * AuPerLightYear;
+        }
+        return Vector3D.Distance(a.Normalized, b.Normalized) * distanceLy * AuPerLightYear;
+    }
+
+    // Companions the catalogue can't have seen (GALAXY.md §10.2): a catalogue star listed alone beyond 25 ly rolls
+    // companions like a generated star and keeps those too faint for the catalogue at its distance (where it holds
+    // under half of their brightness level) or too close to resolve (under 1″ apart). Within 25 ly the neighbourhood's
+    // multiple stars are all known.
+    private static List<Companion> UnseenCompanions(GalaxyStar primary, ulong key, ref Rng layout)
+    {
+        double distanceLy = primary.Position.Length;
+        var kept = new List<Companion>();
+        if (distanceLy < UnseenCompanionsBeyondLy)
+        {
+            return kept;
+        }
+        double resolvedAu = distanceLy / Units.LightYearsPerParsec; // 1″ at this distance
+        foreach (Companion c in RollCompanions(primary, key, ref layout))
+        {
+            float brightest = c.HasTwin ? Math.Min(c.Physics.AbsoluteMagnitude, c.TwinPhysics.AbsoluteMagnitude) : c.Physics.AbsoluteMagnitude;
+            if (c.SeparationAu < resolvedAu || CatalogueCompleteness.Of(StarClassTable.LevelForMagnitude(brightest), distanceLy) < 0.5)
+            {
+                kept.Add(c);
+            }
+        }
+        return kept;
+    }
+
+    /// <summary>Catalogue stars listed alone get rolled, unseen companions only beyond this distance from Sol (ly).</summary>
+    internal const double UnseenCompanionsBeyondLy = 25;
 
     // Multiple stars are stable only as a hierarchy: sorts the companions outward and moves each one out until its
     // closest approach is at least three times the previous companion's farthest point. Rolled companions that

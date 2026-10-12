@@ -20,6 +20,12 @@ The HYG Database is licensed under the **Creative Commons Attribution-ShareAlike
   to their primary;
 - built system names and search aliases from proper names, Bayer and Flamsteed designations, and the Gliese,
   HD, HIP and HR numbers;
+- repaired spectral types the source gets wrong or leaves out (stars without a type that had become G5 dwarfs, faint
+  stars typed as giants, and van Maanen's Star, VB 10 and Wolf 424 B by name), keeping their measured magnitudes;
+- made Proxima Centauri a companion of Alpha Centauri;
+- added Hollow Universe's hand-entered supplement of 28 brown dwarfs and ultracool stars within 20 light-years that
+  HYG lacks (`tools/Hollow.CatalogBuilder/supplement.csv`), from published measurements (positions, parallaxes,
+  spectral types, masses), which are facts rather than licensed data;
 - stored the result in a compact binary format ("HUSC" v1, gzip-compressed).
 
 ## Licence of this file

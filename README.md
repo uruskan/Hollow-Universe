@@ -93,7 +93,7 @@ between sessions.
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, the star catalogue, names, star systems |
 | `game/` | The Godot project: galaxy map, system map, user interface, shaders |
 | `tests/Hollow.Tests` | Test runner and tests (no NuGet packages needed) |
-| `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue into `game/data/catalog/hyg41.bin.gz` |
+| `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |
 | `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |
 | `docs/` | Design and architecture |
 

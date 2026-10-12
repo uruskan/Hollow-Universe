@@ -15,7 +15,7 @@ public static class GalaxyTests
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
     private const ulong CellsGolden = 0xF3C42388CE7F958CUL;
     private const ulong SystemsGolden = 0x3672732AE16E55F1UL;
-    private const ulong RealSystemsGolden = 0x6D9ECAF5B04D1C7DUL;
+    private const ulong RealSystemsGolden = 0x3B34458D8352D1D2UL;
 
     // ---------------------------------------------------------------- frames
 
@@ -601,7 +601,8 @@ public static class GalaxyTests
         Assert.Equal(0, sol.Id, "Sol's id");
         Assert.Near(0, sol.Position.Length, 1e-4, "Sol at the origin");
         Assert.Near(8.6, catalogue.FindByName("Sirius")!.Position.Length, 0.1, "Sirius distance");
-        Assert.Near(4.24, catalogue.FindByName("Proxima Centauri")!.Position.Length, 0.05, "Proxima distance");
+        CatalogueStar proxima = catalogue.FindByName("Alpha Centauri")!.Companions.First(c => c.Name == "Proxima Centauri");
+        Assert.Near(4.24, proxima.Position.Length, 0.05, "Proxima distance");
         Assert.Near(25.0, catalogue.FindByName("Vega")!.Position.Length, 0.4, "Vega distance");
         CatalogueStar alphaCen = catalogue.FindByName("Alpha Centauri")!;
         Assert.Equal("Alpha Centauri", alphaCen.SystemName, "Alpha Centauri system name");
@@ -636,6 +637,70 @@ public static class GalaxyTests
     }
 
     // ---------------------------------------------------------------- star systems
+
+    [Test]
+    public static void NearbyDwarfsAndRealCompanions()
+    {
+        // GALAXY.md §8.4 and §10.2: the supplement adds the nearest brown dwarfs; Proxima belongs to Alpha Centauri;
+        // catalogue companions sit at their projected separation and close ones pair up; stars the catalogue lists
+        // alone get only companions it can't have seen, and none within 25 ly.
+        Galaxy.Galaxy galaxy = Fixtures.Galaxy;
+        StarCatalogue catalogue = galaxy.Catalogue!;
+        CatalogueStar luhman = catalogue.FindByName("Luhman 16")!;
+        Assert.True(Math.Abs(luhman.Position.Length - 6.51) < 0.02 && luhman.Class.Kind == StarKind.BrownDwarf
+            && luhman.Companions.Count == 1 && luhman.Companions[0].Class.Kind == StarKind.BrownDwarf, "Luhman 16: two brown dwarfs at 6.5 ly");
+        Assert.Near(7.43, catalogue.FindByName("WISE 0855-0714")!.Position.Length, 0.05, "WISE 0855-0714 at 7.4 ly");
+        Assert.Equal("Alpha Centauri", catalogue.FindByName("Proxima Centauri")!.SystemName, "Proxima leads to Alpha Centauri");
+
+        StarSystem System(string name) => galaxy.GetSystem(SystemAddress.Catalogue(catalogue.Number, catalogue.FindByName(name)!.Id))!;
+        StarSystem alphaCen = System("Alpha Centauri");
+        Body proximaBody = alphaCen.Bodies.Where(b => b.Kind == BodyKind.Star).OrderBy(b => b.Mass).First();
+        Assert.True(alphaCen.Count(BodyKind.Star) == 3 && proximaBody.Parent == 0 && proximaBody.Orbit.SemiMajorAxis / Units.MetresPerAu > 5000,
+            "Proxima orbits Alpha Centauri A and B thousands of AU out");
+        StarSystem epsIndi = System("Epsilon Indi");
+        List<Body> dwarfs = epsIndi.Bodies.Where(b => b.Kind == BodyKind.Star && b.StarClass.Kind == StarKind.BrownDwarf).ToList();
+        Assert.True(dwarfs.Count == 2 && dwarfs[0].Parent == dwarfs[1].Parent && epsIndi.Bodies[dwarfs[0].Parent].Kind == BodyKind.Barycentre,
+            "Epsilon Indi Ba and Bb orbit each other");
+        StarSystem cygni = System("61 Cygni");
+        double apart = cygni.Bodies.Where(b => b.Kind == BodyKind.Star).Sum(b => b.Orbit.SemiMajorAxis) / Units.MetresPerAu;
+        Assert.True(apart is > 50 and < 200, $"61 Cygni A and B are {apart:0} AU apart (projected 108 AU), not their 2,375 AU parallax difference");
+
+        int checkedSingles = 0;
+        int withCompanions = 0;
+        foreach (CatalogueStar single in catalogue.Primaries.Where(s => s.Id != 0 && s.Companions.Count == 0 && s.Position.Length < 200))
+        {
+            double ly = single.Position.Length;
+            if (ly >= 25 && single.Id % 20 != 0)
+            {
+                continue; // a sample beyond 25 ly
+            }
+            StarSystem system = galaxy.GetSystem(SystemAddress.Catalogue(catalogue.Number, single.Id))!;
+            List<Body> stars = system.Bodies.Where(b => b.Kind == BodyKind.Star).ToList();
+            checkedSingles++;
+            Assert.True(ly >= SystemGenerator.UnseenCompanionsBeyondLy || stars.Count == 1, $"{system.Name} at {ly:0.0} ly gains no companions");
+            withCompanions += stars.Count > 1 ? 1 : 0;
+            if (stars.Count == 2)
+            {
+                Body companion = stars[1];
+                double separation = stars.Sum(b => b.Orbit.SemiMajorAxis) / Units.MetresPerAu;
+                int level = StarClassTable.LevelForMagnitude(Magnitude(companion));
+                Assert.True(separation < ly / Units.LightYearsPerParsec * (1 + 1e-9) || CatalogueCompleteness.Of(level, ly) < 0.5,
+                    $"{system.Name}: its unseen companion is faint or unresolved");
+            }
+        }
+        Fixtures.Report($"{checkedSingles} catalogue stars listed alone checked, {withCompanions} with unseen companions");
+        Assert.True(withCompanions > 0, "unseen companions occur");
+    }
+
+    // A generated star's absolute V magnitude, as the generator gives it (GALAXY.md §4.1).
+    private static float Magnitude(Body star) => star.StarClass.Kind switch
+    {
+        StarKind.WhiteDwarf => (float)StellarTables.WhiteDwarfMagnitude(star.Temperature),
+        StarKind.NeutronStar => 30f,
+        StarKind.BlackHole => 99f,
+        StarKind.Giant => (float)StellarTables.Typical(StarKind.Giant, star.StarClass.Code).Mv,
+        _ => (float)StellarTables.Typical(StarKind.MainSequence, star.StarClass.Code).Mv,
+    };
 
     [Test]
     public static void SolSystemIsReal()
@@ -1019,7 +1084,7 @@ public static class GalaxyTests
 
     private static readonly string[] RealGoldenSystems =
     {
-        "Sol", "Alpha Centauri", "Proxima Centauri", "Barnard's Star", "Sirius", "Procyon", "Tau Ceti", "Epsilon Eridani",
+        "Sol", "Alpha Centauri", "Luhman 16", "Epsilon Indi", "Barnard's Star", "Sirius", "Procyon", "Tau Ceti", "Epsilon Eridani",
         "61 Cygni", "Vega", "Capella", "Castor", "Mizar", "Albireo", "Polaris", "Betelgeuse", "Rigel",
     };
 

@@ -46,6 +46,9 @@ public static class Program
             case "worlds":
                 ShowWorlds();
                 return 0;
+            case "near":
+                Near(args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 20);
+                return 0;
             case "completeness":
                 for (int level = 0; level < StarClassTable.LevelCount; level++)
                 {
@@ -153,6 +156,21 @@ public static class Program
                         return;
                     }
                 }
+            }
+        }
+    }
+
+    /// <summary>Every catalogue star (primaries and their companions) within a distance of Sol, nearest first.</summary>
+    private static void Near(double radiusLy)
+    {
+        StarCatalogue catalogue = LoadCatalogue();
+        CultureInfo c = CultureInfo.InvariantCulture;
+        foreach (CatalogueStar s in catalogue.Primaries.Where(s => s.Position.Length <= radiusLy).OrderBy(s => s.Position.Length))
+        {
+            Console.WriteLine(string.Create(c, $"{s.Position.Length,6:0.00} ly  {s.Id,7}  {s.Class,-10} {s.Physics.AbsoluteMagnitude,6:0.0}  {s.SystemName} / {s.Name}  [{string.Join(", ", s.Aliases.Take(4))}]"));
+            foreach (CatalogueStar m in s.Companions)
+            {
+                Console.WriteLine(string.Create(c, $"           {m.Id,7}  {m.Class,-10} {m.Physics.AbsoluteMagnitude,6:0.0}    + {m.Name} at {Vector3D.Distance(m.Position, s.Position) * 63241.1:0} AU  [{string.Join(", ", m.Aliases.Take(3))}]"));
             }
         }
     }

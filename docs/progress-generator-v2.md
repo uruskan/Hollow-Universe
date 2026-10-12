@@ -365,3 +365,76 @@ and life occur; SolSystemIsReal checks Sol's states.
 **Open for the owner.** Whether these frequencies (water 1 in 9 systems, life 1 in 30, oxygen 1 in 140, plants
 and animals 1 in 590) suit the game; they are three constants. Whether 72% of solid planets having some volcanism
 is too much for variety.
+
+---
+
+## 8. Nearby brown dwarfs, real companions, Proxima, AT-HYG prepared
+
+**Measured first** (GeneratorReport near 21, every catalogue star within 21 ly with its companions): HYG has all
+the nearby white dwarfs (Sirius B, Procyon B, 40 Eridani B, Stein 2051 B, van Maanen's Star, Gliese 440, GJ 1221)
+but none of the brown dwarfs and few ultracool stars of the published nearest-star lists. It also showed source
+problems that matter for real systems: companions' separations taken from their own noisy parallaxes (Procyon B
+3,458 AU from Procyon, real 15; 61 Cygni B 2,375 AU, real 86; Struve 2398 B 23,634 AU, real about 56); stars
+without a type turned into G5 dwarfs of absolute magnitude 13–16 (van Maanen's Star, a white dwarf, among them);
+red dwarfs typed "M5 III" (Luyten's Star, Gliese 581, 876, 693).
+
+**Changed.**
+- Supplement: 	ools/Hollow.CatalogBuilder/supplement.csv (IDs 1,000,000–1,999,999), 28 objects within 20 ly from
+  public measurements: Luhman 16 A/B, WISE 0855−0714, UGPS J0722−0540, WISE 1741+2553, WISE 1639−6847,
+  DENIS 0255−4700, WISE 1506+7027, DENIS J0817−6155, 2MASS 0939−2448 A/B, WISE 0350−5658, 2MASS J1114−2618,
+  2MASS J0415−0935, WISE 1541−2250, 2MASS 0937+2931, SIMP J0136+0933, Teegarden's Star, SCR 1845−6357 A/B,
+  DENIS J1048−3956, 2MASS J1540−5101, LSR J1835+3259, and the companions Epsilon Indi Ba/Bb, Gliese 229 Ba/Bb,
+  Gliese 570 D. New systems by RA, Dec and parallax; companions by separation (placed across the line of sight).
+  Values checked against the Wikipedia list of nearest stars (Gaia/RECONS parallaxes); unmeasured masses are
+  typical for the type and noted as such.
+- Bindings: Proxima Centauri is Alpha Centauri C (its old system address now names a companion and finds
+  nothing; its name leads to Alpha Centauri).
+- Repairs (every build): untyped stars fainter than +7.5 and "giants" fainter than +6 get the main-sequence type
+  of their measured magnitude; van Maanen's Star → DZ8, VB 10 → M8 V, Wolf 424 B → M7 V.
+- The builder applies all of it in Finish, so --update brought the shipped file up to date without the CSV;
+  running it twice gives a byte-identical file. 99,140 stars, 98,695 systems (was 99,112 / 98,676).
+- Generator: catalogue companions sit at their **projected** separation (angle on the sky × distance); two
+  companions closer to each other than a fifth of their distance from the primary orbit each other as a close pair
+  (Epsilon Indi Ba/Bb, Gliese 229 Ba/Bb); a catalogue star listed alone beyond 25 ly rolls companions and keeps
+  only ones the catalogue can't have seen (where it holds under half of their level at that distance, or closer
+  than 1″). In the test sample, 215 of 658 checked catalogue singles gained unseen companions, none within 25 ly.
+- **AT-HYG prepared, not downloaded.** The builder detects AT-HYG's header and reads it as catalogue number 1:
+  x0, y0, z0 positions, Gaia distances, stable IDs (HYG ID where it has one, so Sol stays 0; Tycho-2 stars
+  2²⁴ + packed TYC; Gaia-only stars 2³⁰ + AT-HYG serial), multiple stars from HYG's CSV through the hyg
+  column (--hyg), else Gliese numbers, else Tycho-2 components within an arcminute; --keep-all for a
+  completeness refit. Checked once on a six-row hand-made sample in the AT-HYG layout (six rows became four
+  systems: a Gliese pair and a Tycho-2 double grouped).
+- GeneratorReport near [ly] lists the catalogue around Sol.
+
+**What the AT-HYG switch needs from the owner** (a download, so not done):
+
+| | |
+|---|---|
+| File | data/athyg_40.csv.gz (AT-HYG v4.0, the current version; one gzip file, Git LFS) |
+| Source | <https://codeberg.org/astronexus/athyg> (raw: https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_40.csv.gz) |
+| Size | 199,688,001 bytes (190 MiB) compressed; LFS object sha256 69ad04dd33d7c7bb4f5e1b4682798075811547ea9fb8d0e802e5b319c46818a6 (read from the repository's LFS pointer, 2026-10-12) |
+| Contents | about 2.55 million stars, Gaia DR3 distances for nearly all; CC BY-SA 4.0 |
+| Optional | HYG's own CSV for multiple stars: data/hyg/CURRENT/hyg_v44.csv.gz (HYG v4.4, about 13.6 MB) from <https://codeberg.org/astronexus/hyg>, or hyg/CURRENT/hygdata_v41.csv (33,932,548 bytes) from <https://github.com/astronexus/HYG-Database>, the version the shipped file came from |
+
+Then: dotnet run --project tools/Hollow.CatalogBuilder -- athyg_40.csv athyg.bin.gz --hyg hygdata_v41.csv --keep-all,
+refit completeness for catalogue 1 with GeneratorReport shells (AT-HYG is complete far deeper than HYG, so
+CatalogueCompleteness needs a second parameter set), rebuild without --keep-all, and decide how to ship a file of
+roughly 100 MB (probably streamed by sky region).
+
+**Measured.** Speed: 18.6 µs per procedural system (unchanged within noise), 13.8 µs per real system. Real systems
+within 60 ly: 1,390 (was 1,371). Alpha Centauri: Proxima orbits the AB barycentre at about 9,600 AU; 61 Cygni A–B
+now 50–200 AU apart instead of 2,375. Screenshot: docs/images/system-alpha-centauri.jpg (Proxima selected, with
+its generated planets until item 9 authors the real ones).
+
+New test NearbyDwarfsAndRealCompanions; CatalogueMatchesRealStars finds Proxima as Alpha Centauri's companion.
+
+**Golden.** Real systems  x6D9ECAF5B04D1C7D →  x3B34458D8352D1D2 (the golden set now has Luhman 16 and Epsilon
+Indi instead of Proxima, which is part of Alpha Centauri; every catalogue multiple's separations changed). Cells and
+procedural systems unchanged.
+
+**Decisions.** The supplement stops at 20 ly, inside the level-7 complete core (§8.3), so no star is counted twice;
+farther famous stars come with item 9. Catalogue stars keep their positions; only the separations used for orbits
+are projected. Star bodies are still named by letter (Alpha Centauri C); real star names in system maps come with
+the authored layer (item 9). The catalogue keeps its name hyg41.bin.gz and number 0: new IDs only extend it.
+
+**Open for the owner.** The AT-HYG download above (and how to ship a 100 MB catalogue).
