@@ -466,7 +466,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
   one-line notices.
 - **Death:** Rust's layout. DEAD, how long the player lived, who killed them, with what and from how far across the
   top; the map with the body and the bags (a ready bag on the map can be clicked); the bags with their cooldowns along
-  the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging.
+  the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
+  names are placed by the `Labeller`, so they never cover each other or a marker.
 - **Wheels:** held right mouse button with the plan or the hammer; release (or click) chooses, Esc cancels. The plan's
   sectors start at −81° so the top ray falls between the foundation and the triangle roof; the hammer's first sector
   is centred at twelve o'clock.

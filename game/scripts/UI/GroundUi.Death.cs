@@ -163,6 +163,22 @@ public partial class GroundUi
 
         Vector2 MapPoint(float u, float v) => (origin + new Vector2(u, v) * size).Round();
         Rect2 inside = area.Grow(-Ui.Px(20));
+        // Bag names go through the Labeller, as every label over a map does: the markers and the bars are taken first,
+        // then each name takes the first free side of its bag, or is left out.
+        var labeller = new Labeller(Size);
+        labeller.Block(new Rect2(0, 0, Size.X, area.Position.Y));
+        labeller.Block(new Rect2(0, area.End.Y, Size.X, Size.Y - area.End.Y));
+        float r = Ui.Pxf(15);
+        Vector2? body = death != null ? MapPoint(death.MapX, death.MapY) : null;
+        if (body is Vector2 b && inside.HasPoint(b))
+        {
+            labeller.Block(b - new Vector2(0, Ui.Pxf(4)), Ui.Pxf(20));
+        }
+        foreach (RespawnBag bag in Model.Bags)
+        {
+            labeller.Block(MapPoint(bag.MapX, bag.MapY), r + Ui.Pxf(2));
+        }
+        ReadOnlySpan<LabelSide> sides = stackalloc[] { LabelSide.Below, LabelSide.Above, LabelSide.Right, LabelSide.Left };
         foreach (RespawnBag bag in Model.Bags)
         {
             Vector2 at = MapPoint(bag.MapX, bag.MapY);
@@ -171,31 +187,36 @@ public partial class GroundUi
                 continue;
             }
             bool ready = bag.Cooldown <= 0;
-            float r = Ui.Pxf(15);
             _p.DrawCircle(at, r + Ui.Pxf(2), new Color(G.Ink, 0.9f), true, -1, true);
             _p.DrawCircle(at, r, ready ? new Color(0.20f, 0.30f, 0.14f) : new Color(0.18f, 0.18f, 0.18f), true, -1, true);
             _o = at;
             Glyph("bag", -10, -10, 20, ready ? G.Ink : G.Muted);
             string state = ready ? bag.Name : $"{bag.Name}  {Clock(bag.Cooldown)}";
-            float w = Measure(state, 16, bold: true);
-            Rect(-w / 2 - 6, 20, w + 12, 22, new Color(0.08f, 0.08f, 0.08f, 0.78f));
-            Text(state, -w / 2, 22, 16, ready ? G.Ink : G.Muted, bold: true);
+            if (labeller.TryPlaceAround(at, r + Ui.Pxf(2), state, G.Ink, 16, MapLabel.Strong, sides, out MapOverlay.Text placed))
+            {
+                // The Labeller measures with the maps' font; the name is drawn in Barlow on the spot it took.
+                FontFile font = G.SemiBold;
+                int px = Ui.Px(16);
+                float w = font.GetStringSize(state, HorizontalAlignment.Left, -1, px).X;
+                float left = MathF.Round(placed.Centred ? placed.Position.X - w / 2 : placed.Position.X);
+                float baseline = MathF.Round(placed.Position.Y);
+                float pad = Ui.Px(6);
+                _p.DrawRect(new Rect2(left - pad, baseline - font.GetAscent(px) - Ui.Px(2), w + 2 * pad, font.GetHeight(px) + Ui.Px(4)),
+                    new Color(0.08f, 0.08f, 0.08f, 0.78f));
+                _p.DrawString(font, new Vector2(left, baseline), state, HorizontalAlignment.Left, -1, px, ready ? G.Ink : G.Muted);
+            }
             if (ready)
             {
                 string id = bag.Id;
                 _hits.Add(new Hit(new Rect2(at - new Vector2(r, r), new Vector2(2 * r, 2 * r)), HitKind.Button, () => Model.Respawn(id)));
             }
         }
-        if (death != null)
+        if (body is Vector2 grave && inside.HasPoint(grave))
         {
-            Vector2 at = MapPoint(death.MapX, death.MapY);
-            if (inside.HasPoint(at))
-            {
-                _p.DrawLine(at + new Vector2(0, Ui.Pxf(10)), at + new Vector2(0, Ui.Pxf(30)), G.Red, Ui.Pxf(3), true);
-                _p.DrawCircle(at, Ui.Pxf(16), G.Red, true, -1, true);
-                _o = at;
-                Glyph("skull", -10, -11, 20, G.Ink);
-            }
+            _p.DrawLine(grave + new Vector2(0, Ui.Pxf(10)), grave + new Vector2(0, Ui.Pxf(30)), G.Red, Ui.Pxf(3), true);
+            _p.DrawCircle(grave, Ui.Pxf(16), G.Red, true, -1, true);
+            _o = grave;
+            Glyph("skull", -10, -11, 20, G.Ink);
         }
     }
 
