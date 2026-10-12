@@ -1,0 +1,156 @@
+{
+  "source": "art/characters/build_clothing.py (our own work)",
+  "meshes": {
+    "knit_cap_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 1372
+    },
+    "knit_cap_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 574
+    },
+    "knit_cap_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 216
+    },
+    "woven_shirt_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 5520
+    },
+    "woven_shirt_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 2317
+    },
+    "woven_shirt_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 882
+    },
+    "woven_trousers_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 3230
+    },
+    "woven_trousers_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 1353
+    },
+    "woven_trousers_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 516
+    },
+    "laced_boots_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 4768
+    },
+    "laced_boots_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 2000
+    },
+    "laced_boots_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 762
+    },
+    "riveted_breastplate_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 6760
+    },
+    "riveted_breastplate_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 2838
+    },
+    "riveted_breastplate_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 1080
+    }
+  },
+  "surfaces": {
+    "knit_cap": {
+      "detail": "rib",
+      "tiling": 21.7,
+      "detail_strength": 0.75,
+      "roughness": 0.92,
+      "preview": [
+        0.29,
+        0.085,
+        0.065
+      ]
+    },
+    "woven_shirt": {
+      "detail": "weave",
+      "tiling": 51.93,
+      "detail_strength": 0.75,
+      "roughness": 0.92,
+      "preview": [
+        0.47,
+        0.43,
+        0.33
+      ]
+    },
+    "woven_trousers": {
+      "detail": "twill",
+      "tiling": 52.14,
+      "detail_strength": 0.75,
+      "roughness": 0.92,
+      "preview": [
+        0.17,
+        0.155,
+        0.13
+      ]
+    },
+    "laced_boots": {
+      "detail": "leather",
+      "tiling": 15.96,
+      "detail_strength": 0.5,
+      "roughness": 0.6,
+      "specular": 0.4,
+      "preview": [
+        0.17,
+        0.105,
+        0.06
+      ]
+    },
+    "riveted_breastplate": {
+      "detail": "metal",
+      "tiling": 5.49,
+      "detail_strength": 0.25,
+      "roughness": 0.5,
+      "metallic": 0.6,
+      "specular": 0.5,
+      "normal_strength": 1.2,
+      "preview": [
+        0.27,
+        0.285,
+        0.29
+      ]
+    }
+  }
+}

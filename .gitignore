@@ -15,3 +15,7 @@ export_presets.cfg
 
 # Local tools
 .tmp/
+
+# Blender build scratch
+art/.cache/
+__pycache__/

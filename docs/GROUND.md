@@ -24,7 +24,7 @@ Every rule is marked **Decided** (the owner said so), **Proposal** (waiting for 
 | Starter ship | The Tin Finch (`D:\GameDev\Assets\TinFinch_TF01`, our own Blender model): a single-seat skiff, crafted at the vehicle workbench. It is the first ship of the space part. | Decided |
 | Day length | Planet rotation compressed 24 times for play: an Earth day becomes an hour, and the first world's day 87 minutes. Orbits and seasons stay real. Chosen by Claude while the owner is away; the owner may veto it. | Proposal |
 | Who runs the work | Claude, on its own, until the whole thing is finished and polished; the owner is busy elsewhere and isn't asked to playtest in between. Progress is logged in `docs/progress-ground.md`. | Decided |
-| Character | Our own character system: body from MPFB (MakeHuman), motion from the Quaternius CC0 libraries; downloads approved by the owner. Never RustMVP's extracted Rust character, even as a fallback. | Decided |
+| Character | Our own character system (§4.8): a MakeHuman body (MPFB 2, CC0), Quaternius' Universal Animation Library 1 and 2 (CC0) retargeted onto it by script, clothing and armour modelled by our own Blender scripts. The owner approved the downloads on 12 October 2026. Never RustMVP's extracted Rust character, even as a fallback. | Decided |
 
 ---
 
@@ -271,6 +271,96 @@ health. The schema version is SQLite's `user_version`; opening a database migrat
 newer than the build. Every database call runs on one worker thread in the order made, so a tick never waits for the
 disk and a login always reads the last save. Characters are saved on disconnect, every 30 s and on shutdown.
 
+### 4.8 Characters
+
+What a player looks like to others and to themselves. Code in `game/scripts/Characters/`, assets in
+`game/assets/characters/` and `game/assets/items/`, built from text by the Blender scripts in `art/` (§9).
+
+**The contract.** `CharacterView` (a `Node3D`) draws one player from state alone. The network side feeds it; nothing in it
+knows about the network.
+
+| Input | Meaning |
+|---|---|
+| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional). |
+| `Trigger(CharacterEvent, direction)` | `Swing` (tool strike or punch), `Fire`, `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`). `Revive()` stands it up again. |
+| `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). |
+
+`ViewmodelView` is the first-person counterpart, a child of the player's camera: `Hold(kind, item)`, `Wear(items)`,
+`Apply(ViewmodelFrame)` every frame (velocity in the camera's frame, look rate, grounded, sprinting, crouching, aiming)
+and `Trigger(Swing | Fire | Reload)`. Its `AimAmount` (0 at the hip, 1 aimed down the sights) lets the owner narrow
+the camera's field of view.
+
+"Up" is given per frame and nothing assumes +Y: the view builds its basis from `Up` and `Yaw`, and everything inside
+works in the character's own frame. The ragdoll falls along −`Up` at the moment of death.
+
+**Body.** A MakeHuman adult male (1.78 m, eyes at 1.67 m), MPFB's game-engine skeleton: 53 bones with UE-style names
+(`pelvis`, `spine_01`…`spine_03`, `neck_01`, `head`, `clavicle_l`, `upperarm_l`, `lowerarm_l`, `hand_l`, three bones per
+finger, `thigh_l`, `calf_l`, `foot_l`, `ball_l`). Rest pose: MakeHuman's A-pose. Levels of detail: about 18,000, 7,000
+and 2,400 triangles for the body; eyes, brows, lashes and short hair (MakeHuman CC0 assets) drop out with distance.
+Players start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric
+surface), so nobody is ever without it.
+
+**Clothing.** Every body face belongs to one of fourteen regions (face, scalp, neck, collar, chest, belly, pelvis, upper
+arm, forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
+are collapsed in the vertex shader (`hidden_regions`, a per-instance bit mask), so skin never pokes through and costs no
+fragments. Garments carry the same regions, so an inner garment hides its parts under an outer one (trousers tucked
+into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton: cut with
+planes for straight hems and a round neckline, given room by a cross-section envelope (cloth falls straight from the
+chest and below the knee instead of following the body in), folded near the joints, and painted from the body's 3D
+positions (stitched hems, seams, a belt, laces, soles, dirt). The breastplate's front and back plates are smooth,
+mirror-symmetric shells built a hand's breadth over the shirt, on leather straps. The first outfit: knit cap, woven
+shirt, woven trousers, laced boots, riveted breastplate.
+
+**Animation.** One `AnimationTree` graph, shared by all characters (`CharacterAnimator`):
+- speed blends for standing (idle, walk, jog, sprint at 0, 1.25, 2.8 and 5.5 m/s), crouching and swimming, kept in
+  step with Godot's cyclic sync; each loop is stretched so its feet keep up with the ground at its speed;
+- a fall pose blended in while airborne, a take-off and a landing played as one-shots;
+- held-item layers: the right arm (tool, pistol, rifle) and the left arm with the chest (pistol, rifle);
+- one-shot upper-body actions (tool swing, punch, throw, pistol fire and reload) and flinches.
+
+The clips only run forward; `CharacterPoser`, a `SkeletonModifier3D`, turns the hips towards the direction of travel
+and the chest back to the aim (running backwards plays the loop in reverse), spreads the view pitch over spine, neck and
+head, reaches both hands onto a rifle's grips with two-bone IK, and plants the feet on uneven ground (the hips drop,
+each leg reaches the ground found by a ray under its foot).
+
+**First person.** The arms are the body's own mesh with only the forearms and hands drawn (and the worn sleeves), on
+render layer 2, without shadows, with their own field of view (60° by default; `ViewmodelView.Fov` is the player
+setting) and depth pulled towards the near plane so they never clip into walls. Both hands reach the item's grips by IK and take finger poses from clip frames. The item moves
+procedurally: sway, walk bob, sprint pose, swing arc, recoil kick on a spring, aiming down the sights (the sight on the
+camera's centre line), reload (item tilts, the magazine drops out and back, the left hand follows it). Unarmed shows no
+arms, as in Rust.
+
+**Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
+calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
+collide with the world (layer 1), not with each other; gravity is applied along −`Up`.
+
+**Held items in third person.** A tool rides upright in the right hand at the hip, a pistol is held by the clip's
+two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK holds the grips and
+lets go while an action clip plays. Items show one level of detail coarser than the body (a rifle's first-person mesh
+is 21,000 triangles).
+
+**Cost.** Mesh level by camera distance (to 9 m, 28 m, 450 m; nothing beyond). Animation runs every frame up close,
+every second frame in the middle distance and every fourth far away, staggered across characters; the procedural layer
+runs only where it can be seen, foot placement only at the nearest level. Animation parameters are cached
+`StringName`s, so a frame allocates nothing per character.
+
+Measured on the owner's PC (RTX 2070 Super, 1600 × 900, Forward+, vsync off, two other Godot sessions running),
+`--view character --crowd 49 --measure 10`, all 50 characters on screen, moving, mixed outfits and held items:
+
+| Setting | Average frame | 99th percentile | Worst |
+|---|---|---|---|
+| Levels of detail by distance (as shipped) | 5.7 ms (174 fps) | 9.0 ms | 12.7 ms |
+| All 50 forced to full detail, full-rate animation and foot placement | 9.8 ms (102 fps) | 13.8 ms | 35 ms (one hitch) |
+
+**Viewer.** `--view character` (options in AGENTS.md): cycle outfits, held items and motions, fire every event, die and
+revive, switch to first person, and measure a crowd. Screenshots in `docs/images/ground/character-*.png`.
+
+**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so the shirt still shows
+the chest's shape and can open small dark gaps where it folds hard (sprinting, crouching); there are no real
+wrinkle normal maps yet; the face has no expression or eye movement; hair is MakeHuman's short cut only; the
+third-person swing is a sword clip; first-person reload and swing are procedural curves, not authored animation; the
+female body is not built yet.
+
 ---
 
 ## 5. Steps
@@ -496,7 +586,12 @@ RustMVP's rules, with Rust's where RustMVP had none:
   - Poly Haven: CC0.
   - Megascans and other Fab content: check the licence of each item; some Fab content is Unreal-only.
   - LOLIPOP trees: CC BY 4.0, credit required.
-- CC0 libraries and MakeHuman/CMU data, if the owner allows the downloads (§1).
+- Downloads the owner approved on 12 October 2026 (§1), kept outside the repository in
+  `D:\GameDev\Assets\Downloads\<name>\` and listed with their checksums in `game/assets/THIRD_PARTY.md`:
+  - Quaternius Universal Animation Library 1 and 2, Standard (CC0);
+  - MPFB 2.0.17, MakeHuman for Blender (GPL code; the base mesh, targets, rigs and weights it uses are CC0);
+  - the MakeHuman system asset pack (CC0): the skin, eyes, eyebrows, eyelashes and hair of the player body.
+- Other CC0 or CC-BY sources (CMU motion capture, Poly Haven, Kenney) if a need arises.
 
 **Never used** (extracted from Rust's game files):
 - RustMVP's player body and first-person arms (`Content/Rust/Character`).
@@ -508,6 +603,17 @@ RustMVP's rules, with Rust's where RustMVP had none:
 
 **Pipeline:**
 - **Models:** Blender Python scripts in the repository export GLB into `game/assets/`.
+- **Characters** (§4.8): scripts in `art/`, run in background Blender (AGENTS.md has the commands), in this order:
+  1. `art/characters/build_body.py`: the MakeHuman body through MPFB (installed in a separate Blender user folder,
+     `BLENDER_USER_RESOURCES`), regions, underwear, levels of detail → `human_male.glb`, `human_male.json`, textures;
+     also `art/.cache/human_male.blend` (not committed) for the next scripts.
+  2. `art/characters/build_clothing.py`: the garments, shaped from the body and skinned to it → `clothing.glb`,
+     `clothing.json` (materials), textures.
+  3. `art/characters/build_animations.py`: retargets the UAL clips → `animations.glb`, `animations.json`.
+  4. `art/items/build_items.py`: the held items from the PSG kits, renamed, with grip and sight sockets →
+     `game/assets/items/<id>.glb`.
+  5. `python -I art/lib/import_settings.py` after Godot first sees new files: compressed textures with mipmaps, no
+     automatic LODs (the scripts make their own), constant animation tracks kept.
 - **Kit FBX files:** centimetres (scale 0.01); `UCX_` collision renamed to Godot's `-col` / `-convcolonly`; use the
   OpenGL normal maps, or flip the green channel of the DirectX ones.
 - **Textures:** 2K by default. The PC has 8 GB of video memory and 16 GB of RAM, and RustMVP ran out of memory on
@@ -538,6 +644,17 @@ RustMVP's rules, with Rust's where RustMVP had none:
 1. **Day length:** compressed ×24 is the working default (§1). The owner may switch it back to real rotation.
 2. **Downloads for the character:** approved by the owner on 12 October 2026 (Quaternius animation libraries, MPFB),
    with free use of other CC0 and CC-BY sources.
+2a. **Character decisions taken by Claude while the owner is away** (§4.8; the owner may change any of them):
+   - The UAL clips are retargeted onto MakeHuman's game-engine skeleton, not the other way round: the body keeps its
+     A-pose bind (better shoulders) and the two skeletons already share bone names.
+   - The first headwear is a knit cap rather than a hood: a hood needs cloth folds around the face that a scripted
+     shell does not give yet.
+   - The seven wear slots are head, face, torso, torso armour, legs, hands and feet.
+   - Underwear is part of the body and cannot be taken off, as in Rust.
+   - In third person a rifle is carried at the right shoulder, pointing where the player looks; with nothing in hand
+     the first-person view shows no arms, as in Rust.
+   - Item names: flint axe, flint pick, hand stone, Wren pistol, Kestrel rifle; knit cap, woven shirt, woven
+     trousers, laced boots, riveted breastplate.
 3. **Tech ladder:** Rust's is assumed.
 
 Decisions taken during G1 without the owner, to confirm or overturn:

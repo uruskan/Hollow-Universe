@@ -54,6 +54,20 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one ex
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
 ```
 
+Character assets (GROUND.md §4.8, §9), rebuilt from text by Blender 5.2 in background mode. MPFB 2 lives in its own
+Blender user folder, so set `BLENDER_USER_RESOURCES` first (on this PC `D:\GameDev\Toolslender-hollow-config`):
+
+```bash
+blender -b --factory-startup --python art/characters/build_body.py        # body → game/assets/characters
+blender -b --factory-startup --python art/characters/build_clothing.py    # garments (needs the body's cache)
+blender -b --factory-startup --python art/characters/build_animations.py  # retargeted clips (needs the body's cache)
+blender -b --factory-startup --disable-autoexec --python art/items/build_items.py   # held items → game/assets/items
+python -I art/lib/import_settings.py                                       # Godot import options, after a first import
+```
+
+Each script takes `-- --preview <prefix>` (Eevee renders) or, for the animations, `-- --sheet <png>` (one pose per
+clip).
+
 Headless Godot (Linux workspace; `$GODOT` is the Godot 4.7.2 .NET binary; build the solution first):
 
 ```bash
@@ -75,6 +89,12 @@ Client options (after `--`):
 - System map: `--view system`, `--body <name>`, `--time <UTC>`, `--system-distance`.
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
+- Character viewer: `--view character`; `--outfit <0–4>`, `--item <flint_axe|flint_pick|hand_stone|wren_pistol|kestrel_rifle>`,
+  `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim>`,
+  `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death>` with `--event-at <s>`, `--fp` (first person),
+  `--ads`, `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
+  `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once;
+  `--crowd <n>` adds n characters and `--measure <s>` prints frame times (vsync off) and quits.
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
 - Ground (GROUND.md §4.3): `--view ground --name <n>`, then `--connect host:port` or `--host [--port <n>]` (the
   default: a server in the game); `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad network through a local
@@ -102,6 +122,11 @@ Client options (after `--`):
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
 | `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font; Barlow and Barlow Condensed (SIL OFL 1.1), the ground interface's |
+| `game/scripts/Characters` | Player characters (GROUND.md §4.8): `CharacterView` (third person), `ViewmodelView` (first person), animation graph, IK and aim, ragdoll, wardrobe, held items, the `--view character` viewer |
+| `game/assets/characters` | Player body, clothing and animations (GLB), their textures and JSON facts, built by `art/` |
+| `game/assets/items` | Held items (GLB with grip and sight sockets), built by `art/items` |
+| `game/assets/THIRD_PARTY.md` | Every third-party file: source, version, licence, checksum |
+| `art/` | Blender Python scripts that build the character and item assets from text; `art/.cache` is scratch (not committed) |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |
 | `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |

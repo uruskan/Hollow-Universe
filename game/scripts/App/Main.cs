@@ -51,6 +51,13 @@ public partial class Main : Node
             AddChild(_ui);
             return;
         }
+        if (Option("view", "") == "character")
+        {
+            // The character viewer (GROUND.md §4.8) needs no galaxy; it handles --shot itself.
+            AddChild(new HollowUniverse.Characters.CharacterLab(_options));
+            SetProcess(false);
+            return;
+        }
         GalaxyService.Load();
         if (Option("view", "galaxy") == "ground")
         {
