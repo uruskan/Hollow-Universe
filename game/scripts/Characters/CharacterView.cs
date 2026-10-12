@@ -46,7 +46,7 @@ public partial class CharacterView : Node3D
     private float _reload = -1f;
 
     // Held item.
-    private BoneAttachment3D _handR = null!;
+    private BoneAttachment3D _handR = null!, _handL = null!;
     private Node3D _carry = null!;
     private Node3D? _item;
     private HeldItemModel? _itemModel;
@@ -96,6 +96,8 @@ public partial class CharacterView : Node3D
         _skeleton.AddChild(_poser);
         _handR = new BoneAttachment3D { Name = "HandR", BoneName = "hand_r" };
         _skeleton.AddChild(_handR);
+        _handL = new BoneAttachment3D { Name = "HandL", BoneName = "hand_l" };
+        _skeleton.AddChild(_handL);
         _carry = new Node3D { Name = "Carry" };
         _skeleton.AddChild(_carry);
         _gripR = HandFrame.Measure(_skeleton, right: true);
@@ -192,7 +194,8 @@ public partial class CharacterView : Node3D
             case CharacterEvent.Swing:
                 PlayAction(_held switch
                 {
-                    HeldKind.Tool => _itemModel == HeldItems.HandStone ? "throw" : "tool_swing",
+                    HeldKind.Tool when _itemModel?.LeftHanded == true => "",
+                    HeldKind.Tool => _itemModel?.Id == "rock" ? "throw" : "tool_swing",
                     HeldKind.Unarmed => "punch_jab",
                     _ => "",
                 });
@@ -473,7 +476,8 @@ public partial class CharacterView : Node3D
                 _tree.Set(CharacterAnimator.HeldLeft, _held.ToString().ToLowerInvariant());
             }
         }
-        float wantR = _held == HeldKind.Unarmed ? 0f : 1f;
+        bool leftHanded = _itemModel?.LeftHanded == true;
+        float wantR = _held == HeldKind.Unarmed || leftHanded ? 0f : 1f;
         float wantL = _held is HeldKind.Pistol or HeldKind.Rifle ? 1f : 0f;
         _holdR += (wantR - _holdR) * Math.Min(1f, dt * 8f);
         _holdL += (wantL - _holdL) * Math.Min(1f, dt * 8f);
@@ -499,7 +503,7 @@ public partial class CharacterView : Node3D
         }
         else if (_held == HeldKind.Tool && _item != null)
         {
-            CarryTool();
+            CarryTool(leftHanded);
         }
         else
         {
@@ -508,17 +512,19 @@ public partial class CharacterView : Node3D
         }
     }
 
-    /// <summary>A tool rides upright in the right hand at the hip, blade forward.</summary>
-    private void CarryTool()
+    /// <summary>A tool rides upright in the right hand at the hip, blade forward (a bow in the left hand).</summary>
+    private void CarryTool(bool left)
     {
-        float hip = _skeleton.GetBoneGlobalRest(_skeleton.FindBone("thigh_r")).Origin.Y;
+        float hip = _skeleton.GetBoneGlobalRest(_skeleton.FindBone(left ? "thigh_l" : "thigh_r")).Origin.Y;
         // Skeleton space: forward +Z, right −X. Item axes: +X blade, +Y handle up.
         var grip = new Transform3D(
             new Basis(Vector3.Left, -0.5f) * new Basis(new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(-1, 0, 0)),
-            new Vector3(-0.25f, hip + 0.08f, 0.2f));
-        _poser.RightHand = HandFrame.HandFor(grip, HandFrame.PowerGrip, _gripR);
-        _poser.RightHandWeight = Smooth(_hold);
-        _poser.LeftHandWeight = 0f;
+            new Vector3(left ? 0.25f : -0.25f, hip + 0.08f, 0.2f));
+        Transform3D hand = HandFrame.HandFor(grip, HandFrame.PowerGrip, left ? _gripL : _gripR);
+        _poser.RightHand = hand;
+        _poser.LeftHand = hand;
+        _poser.RightHandWeight = left ? 0f : Smooth(_hold);
+        _poser.LeftHandWeight = left ? Smooth(_hold) : 0f;
     }
 
     private static float Smooth(float t) => t * t * (3f - 2f * t);
@@ -545,14 +551,13 @@ public partial class CharacterView : Node3D
             _carry.AddChild(_item);
             return;
         }
-        // Held in the right hand: the grip socket in the palm.
-        _handR.AddChild(_item);
-        Transform3D grip = HeldItems.Socket(_item, "grip_r");
-        Transform3D handRest = _skeleton.GetBoneGlobalRest(_skeleton.FindBone("hand_r"));
-        // Where the hand bone would be holding the item, in item space; the item sits at its inverse from the bone.
-        Transform3D handInItem = HandFrame.HandFor(grip, HandFrame.PowerGrip, _gripR);
+        // Held in one hand (the right, or the left for a bow): its grip socket in the palm. Where the hand bone would
+        // be holding the item, in item space; the item sits at its inverse from the bone.
+        bool left = model.LeftHanded;
+        (left ? _handL : _handR).AddChild(_item);
+        Transform3D grip = HeldItems.Socket(_item, left ? "grip_l" : "grip_r");
+        Transform3D handInItem = HandFrame.HandFor(grip, HandFrame.PowerGrip, left ? _gripL : _gripR);
         _item.Transform = handInItem.AffineInverse();
-        _ = handRest;
     }
 
     /// <summary>

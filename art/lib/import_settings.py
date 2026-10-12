@@ -1,10 +1,10 @@
-"""Sets Godot import options for the character and item assets (run with plain Python after Godot has created the
+"""Sets Godot import options for the character assets (run with plain Python after Godot has created the
 .import files once, e.g. after `godot --headless --path game --import`, then import again):
 
     python -I art/lib/import_settings.py
 
 - Textures used on 3D models: VRAM compressed with mipmaps; normal maps compressed as normal maps.
-- Character and item models: no automatic levels of detail (the builds export their own), no light baking.
+- Character models: no automatic levels of detail (the builds export their own), no light baking.
 - Animations: constant tracks are kept, because a clip that holds a pose still has to win a blend.
 """
 import os
@@ -12,7 +12,9 @@ import re
 import sys
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-FOLDERS = ["game/assets/characters", "game/assets/items"]
+# Only the character assets: game/assets/items and the other model folders keep the import settings of the assets
+# package that builds them (GROUND.md §9.1).
+FOLDERS = ["game/assets/characters"]
 
 
 def set_params(path, values):

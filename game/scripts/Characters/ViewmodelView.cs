@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using HollowUniverse.Items;
 
 namespace HollowUniverse.Characters;
 
@@ -185,7 +186,7 @@ public partial class ViewmodelView : Node3D
         }
         switch (e)
         {
-            case CharacterEvent.Swing when _model.Kind == HeldKind.Tool && _swing < 0f:
+            case CharacterEvent.Swing when _model.Swung && _swing < 0f:
                 _swing = 0f;
                 break;
             case CharacterEvent.Fire when _model.Kind is HeldKind.Pistol or HeldKind.Rifle:
@@ -324,7 +325,7 @@ public partial class ViewmodelView : Node3D
         HeldItemModel m = _model!;
         // Item axes (+X barrel or blade, +Y up) to camera axes (−Z forward, +Y up).
         var toCamera = new Basis(new Vector3(0, 0, -1), new Vector3(0, 1, 0), new Vector3(1, 0, 0));
-        Transform3D grip = HeldItems.Socket(_item!, "grip_r");
+        Transform3D grip = HeldItems.Socket(_item!, m.LeftHanded ? "grip_l" : "grip_r");
         Vector3 hip;
         Basis hipTurn;
         switch (m.Kind)
@@ -354,13 +355,21 @@ public partial class ViewmodelView : Node3D
         }
         Vector3 origin = hip - basis * grip.Origin;
         var place = new Transform3D(basis, origin);
+        if (m.Kind == HeldKind.Tool && !m.Swung && m.Entry.Held is HeldInfo held)
+        {
+            // What isn't swung by a handle (spears, the bow, food, bandages, locks, charges) sits where the model
+            // catalogue's first-person pose puts its grip.
+            place = held.FirstPerson.Transform * grip.AffineInverse();
+        }
 
         if (m.Kind is HeldKind.Pistol or HeldKind.Rifle && _aim > 0f)
         {
-            // Sights on the camera's centre line, at the item's eye relief.
-            Transform3D sight = HeldItems.Socket(_item!, "sight");
+            // Sights on the camera's centre line: the model's eye socket at the camera, or the sight at the item's
+            // eye relief.
             Basis aimBasis = toCamera;
-            Vector3 aimOrigin = new Vector3(0, 0, -m.EyeRelief) - aimBasis * sight.Origin;
+            Vector3 aimOrigin = m.EyeRelief <= 0f && HeldItems.HasSocket(_item!, "eye")
+                ? -(aimBasis * HeldItems.Socket(_item!, "eye").Origin)
+                : new Vector3(0, 0, -Math.Max(m.EyeRelief, 0.1f)) - aimBasis * HeldItems.Socket(_item!, "sight").Origin;
             float a = Smooth(_aim);
             place = new Transform3D(
                 new Basis(place.Basis.GetRotationQuaternion().Slerp(aimBasis.GetRotationQuaternion(), a)),
@@ -428,10 +437,21 @@ public partial class ViewmodelView : Node3D
         Transform3D toSkeleton = (_rig.Transform * _skeleton.Transform).AffineInverse();
         Shoulder(_upperR, ShoulderOffsetR, toSkeleton);
         Shoulder(_upperL, ShoulderOffsetL, toSkeleton);
+        if (_model!.LeftHanded)
+        {
+            // The bow: the left hand holds its grip; the right hand stays down out of view.
+            Transform3D gripL1 = item * HeldItems.Socket(_item, "grip_l");
+            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, toSkeleton * HandFrame.HandFor(gripL1,
+                HandFrame.PowerGrip, _gripL), 1f, new Vector3(0.15f, -1f, 0.1f));
+            HandPoses.Apply(_skeleton, HandPoses.Grip.Fist, right: false);
+            CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, _skeleton.GetBoneGlobalRest(_handR), 1f,
+                new Vector3(-0.7f, -0.7f, -0.2f));
+            return;
+        }
         Transform3D gripR = item * HeldItems.Socket(_item, "grip_r");
         Transform3D handR = toSkeleton * HandFrame.HandFor(gripR, HandFrame.PowerGrip, _gripR);
         CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, handR, 1f, new Vector3(-0.7f, -0.7f, -0.1f));
-        HandPoses.Apply(_skeleton, _model!.Kind == HeldKind.Tool ? HandPoses.Grip.Fist : HandPoses.Grip.Pistol, right: true);
+        HandPoses.Apply(_skeleton, _model.Kind == HeldKind.Tool ? HandPoses.Grip.Fist : HandPoses.Grip.Pistol, right: true);
         bool twoHands = _model.Kind is HeldKind.Pistol or HeldKind.Rifle && HeldItems.HasSocket(_item, "grip_l");
         if (twoHands)
         {

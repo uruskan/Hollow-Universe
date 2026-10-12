@@ -396,7 +396,8 @@ disk and a login always reads the last save. Characters are saved on disconnect,
 ### 4.8 Characters
 
 What a player looks like to others and to themselves. Code in `game/scripts/Characters/`, assets in
-`game/assets/characters/` and `game/assets/items/`, built from text by the Blender scripts in `art/` (§9).
+`game/assets/characters/`, built from text by the Blender scripts in `art/characters/` (§9); held items are the item
+models of §9.1.
 
 **The contract.** `CharacterView` (a `Node3D`) draws one player from state alone. The network side feeds it; nothing in it
 knows about the network.
@@ -477,10 +478,15 @@ tilts, the magazine drops out and back, the left hand follows it). Unarmed shows
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
 collide with the world (layer 1), not with each other; gravity is applied along −`Up`.
 
-**Held items in third person.** A tool rides upright in the right hand at the hip, a pistol is held by the clip's
-two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK holds the grips and
-lets go while an action clip plays. Items show one level of detail coarser than the body (a rifle's first-person mesh
-is 21,000 triangles).
+**Held items** are every item the model catalogue gives a held pose (§9.1), loaded through `ModelCatalog` with the
+materials of their import settings, named from items.json (`HeldItems`). Tools and blades are held by the handle and
+swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (spears, food,
+bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip. Aiming down the
+sights puts a gun's eye socket at the camera.
+
+**Held items in third person.** A tool rides upright in the right hand at the hip (the bow in the left), a pistol is
+held by the clip's two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK
+holds the grips and lets go while an action clip plays. Items show one level of detail coarser than the body.
 
 **Cost.** Mesh level by camera distance (to 9 m, 28 m, 450 m; nothing beyond). Animation runs every frame up close,
 every second frame in the middle distance and every fourth far away, staggered across characters; the procedural layer
@@ -1010,10 +1016,10 @@ RustMVP's rules, with Rust's where RustMVP had none:
   2. `art/characters/build_clothing.py`: the garments, shaped from the body and skinned to it → `clothing.glb`,
      `clothing.json` (materials), textures.
   3. `art/characters/build_animations.py`: retargets the UAL clips → `animations.glb`, `animations.json`.
-  4. `art/items/build_items.py`: the held items from the PSG kits, renamed, with grip and sight sockets →
-     `game/assets/items/<id>.glb`.
-  5. `python -I art/lib/import_settings.py` after Godot first sees new files: compressed textures with mipmaps, no
+  4. `python -I art/lib/import_settings.py` after Godot first sees new files: compressed textures with mipmaps, no
      automatic LODs (the scripts make their own), constant animation tracks kept.
+
+  The held items are the item models of §9.1.
 - **Kit FBX files:** centimetres (scale 0.01); `UCX_` collision renamed to Godot's `-col` / `-convcolonly`; use the
   OpenGL normal maps, or flip the green channel of the DirectX ones.
 - **Textures:** 2K by default. The PC has 8 GB of video memory and 16 GB of RAM, and RustMVP ran out of memory on
@@ -1146,8 +1152,8 @@ Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `mo
    - Underwear is part of the body and cannot be taken off, as in Rust.
    - In third person a rifle is carried at the right shoulder, pointing where the player looks; with nothing in hand
      the first-person view shows no arms, as in Rust.
-   - Item names: flint axe, flint pick, hand stone, Wren pistol, Kestrel rifle; knit cap, woven shirt, woven
-     trousers, laced boots, riveted breastplate.
+   - Garment names: knit cap, woven shirt, woven trousers, laced boots, riveted breastplate. Held items take their
+     names from items.json.
    - Armour is rigid and built over the clothes, not cut from the body: plates ride one bone (the chest's), caps and
      lames ride the collarbones and upper arms. It stands clear of the shirt, so the shirt never shows through.
    - The riveted breastplate has faulds and shoulder caps although the brief asked only for a breastplate: without
@@ -1242,14 +1248,10 @@ they merge beside the other packages' items):
   garage doors stand in (marked `standIn`); the metal door is the Starter Kit's sheet-metal door.
 - M3. **Clothing icons come from stand-in garments** (`models/clothing.py`, marked `standIn`); render them again from
   the character package's meshes when they can be posed for the inventory.
-- M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it; the
-  character package's test copy uses 0.62.
+- M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it.
 - M5. **Held items use the character package's frame** (+X forward, palm sockets `grip_r` and `grip_l`, LODs `_lod0`),
-  so its hands can hold any of them. That package also built five test copies of the same kit items
-  (`items/flint_axe.glb` and others, with their own copies of the PSG and Frontier textures in `items/textures`). When
-  both are merged, `HeldItems` should load these models through `ModelCatalog` (stone-hatchet, stone-pickaxe, rock,
-  pistol, rifle) so their materials come from the `.import` files, and the test copies and their textures (about
-  20 MB) can go.
+  so its hands can hold any of them. `HeldItems` loads them through `ModelCatalog`; the character package's test
+  copies of the kit items and their textures are gone.
 - M6. **Dropped deployables shrink** (`drop.scale`: a workbench lies at 0.3, a door at 0.3, a large box at 0.45), like a
   packed kit, rather than appearing full size or as a bag.
 - M7. **Textures are 2K at most and shared:** one PSG atlas for the Starter Kit items and every model of ours, the

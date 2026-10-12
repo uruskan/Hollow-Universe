@@ -400,7 +400,9 @@ public static class ModelCatalog
             m.TryGetProperty("drop", out JsonElement drop) && drop.TryGetProperty("scale", out JsonElement ds) ? ds.GetSingle() : 1f,
             lodDistances,
             m.TryGetProperty("source", out JsonElement src) ? src.GetString() ?? "" : "",
-            m.TryGetProperty("standIn", out JsonElement si) ? si.GetString() : null);
+            // A stand-in names why it is one; some entries only say true.
+            m.TryGetProperty("standIn", out JsonElement si) ? (si.ValueKind == JsonValueKind.String ? si.GetString() :
+                si.ValueKind == JsonValueKind.True ? "stand-in" : null) : null);
     }
 
     private static Pose PoseOf(JsonElement parent, string name)

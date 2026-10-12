@@ -61,13 +61,12 @@ blender -b --factory-startup --python art/build.py   # every item and world mode
 ```
 
 Character assets (GROUND.md §4.8, §9), rebuilt from text by Blender 5.2 in background mode. MPFB 2 lives in its own
-Blender user folder, so set `BLENDER_USER_RESOURCES` first (on this PC `D:\GameDev\Toolslender-hollow-config`):
+Blender user folder, so set `BLENDER_USER_RESOURCES` first (on this PC `D:\GameDev\Tools\blender-hollow-config`):
 
 ```bash
 blender -b --factory-startup --python art/characters/build_body.py        # body → game/assets/characters
 blender -b --factory-startup --python art/characters/build_clothing.py    # garments (needs the body's cache)
 blender -b --factory-startup --python art/characters/build_animations.py  # retargeted clips (needs the body's cache)
-blender -b --factory-startup --disable-autoexec --python art/items/build_items.py   # held items → game/assets/items
 python -I art/lib/import_settings.py                                       # Godot import options, after a first import
 ```
 
@@ -106,7 +105,7 @@ Client options (after `--`):
   ∓ 6 h), T day speed (1×, 60×, 600×, 3600×), P pause time, H hide the interface, Esc back.
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
-- Character viewer: `--view character`; `--outfit <0–4>`, `--item <flint_axe|flint_pick|hand_stone|wren_pistol|kestrel_rifle>`,
+- Character viewer: `--view character`; `--outfit <0–4>`, `--item <key>` (any item key with a held pose in `data/ground/models.json`, e.g. `stone-hatchet`, `rock`, `pistol`, `rifle`, `bow`),
   `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim>`,
   `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death>` with `--event-at <s>`, `--fp` (first person),
   `--ads`, `--vm-orbit <yaw,pitch,m>` (look at the first-person hands from another side), `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
