@@ -47,6 +47,11 @@ public partial class UiViewer : Node
             string[] xy = pointer.Split(',');
             _ui.HoldPointer(new Vector2(float.Parse(xy[0], CultureInfo.InvariantCulture), float.Parse(xy[1], CultureInfo.InvariantCulture)));
         }
+        else if (_shot && screen is not ("wheel" or "plan" or "hammer"))
+        {
+            // Wherever the real mouse happens to be, nothing in a screenshot is hovered.
+            _ui.HoldPointer(new Vector2(-10000, -10000));
+        }
     }
 
     private void Show(string screen)
