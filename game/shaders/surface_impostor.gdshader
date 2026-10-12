@@ -41,8 +41,12 @@ void vertex() {
 	// (floor(extent * 100) + height / 100, metres), w the start of a fade (> 0 in, < 0 out, 0 none; hu_lod_clock).
 	float fade = INSTANCE_CUSTOM.w;
 	v_fade_in = fade > 0.0 ? clamp((hu_lod_clock - fade) / LOD_FADE, 0.0, 1.0) : 1.0;
+	// The far end by distance along the ground, so from the air the forest below keeps its trees.
+	float along_ground = length(to_camera - up * dot(to_camera, up));
+	// Seen steeply from above, a billboard is a sliver: the ground's canopy takes over there (as in the terrain).
+	float steep = smoothstep(0.45, 0.75, dot(to_camera, up) / max(dist, 1.0)) * smoothstep(250.0, 500.0, dist);
 	v_fade_out = (fade < 0.0 ? 1.0 - clamp((hu_lod_clock + fade) / LOD_FADE, 0.0, 1.0) : 1.0)
-		* (1.0 - smoothstep(fade_out * 0.85, fade_out, dist)) * step(cut.x, dist) * step(dist, cut.y);
+		* (1.0 - smoothstep(fade_out * 0.85, fade_out, along_ground)) * step(cut.x, dist) * step(dist, cut.y) * (1.0 - steep);
 	float v_fade = v_fade_in * v_fade_out;
 	float extent = floor(INSTANCE_CUSTOM.z) / 100.0 * scale;
 	float height = fract(INSTANCE_CUSTOM.z) * 100.0 * scale;

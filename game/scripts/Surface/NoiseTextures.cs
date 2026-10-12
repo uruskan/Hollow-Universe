@@ -10,6 +10,76 @@ namespace HollowUniverse.Surface;
 public static class NoiseTextures
 {
     /// <summary>
+    /// A forest seen from far away, 512² RGBA, tiling: crowns on a jittered grid of 24 × 24 per tile (about six metres
+    /// apart when the tile covers 150 m). r = crown height (0 in the gaps), g = a random number per crown (its kind and
+    /// shade), b and a = the crown surface's slope (x and y, 0.5 = flat) for lighting.
+    /// </summary>
+    public static ImageTexture Canopy(int seed)
+    {
+        const int Size = 512, Cells = 24;
+        var height = new float[Size * Size];
+        var kind = new float[Size * Size];
+        var rng = new Hollow.Core.Rng((ulong)seed * 0x9E3779B97F4A7C15UL + 7);
+        var crowns = new (float X, float Y, float R, float H, float K)[Cells * Cells];
+        for (int i = 0; i < crowns.Length; i++)
+        {
+            int cx = i % Cells, cy = i / Cells;
+            crowns[i] = ((cx + 0.15f + 0.7f * (float)rng.NextDouble()) / Cells, (cy + 0.15f + 0.7f * (float)rng.NextDouble()) / Cells,
+                (0.42f + 0.38f * (float)rng.NextDouble()) / Cells, 0.65f + 0.35f * (float)rng.NextDouble(), (float)rng.NextDouble());
+        }
+        System.Threading.Tasks.Parallel.For(0, Size, y =>
+        {
+            for (int x = 0; x < Size; x++)
+            {
+                float u = (x + 0.5f) / Size, v = (y + 0.5f) / Size;
+                int gx = (int)(u * Cells), gy = (int)(v * Cells);
+                float best = 0, bestKind = 0;
+                for (int j = -2; j <= 2; j++)
+                {
+                    for (int i = -2; i <= 2; i++)
+                    {
+                        int cx = ((gx + i) % Cells + Cells) % Cells, cy = ((gy + j) % Cells + Cells) % Cells;
+                        var c = crowns[cy * Cells + cx];
+                        // The crown's centre in this copy of the tile (wrapping).
+                        float dx = u - (c.X + (gx + i - cx) / (float)Cells);
+                        float dy = v - (c.Y + (gy + j - cy) / (float)Cells);
+                        float d = MathF.Sqrt(dx * dx + dy * dy) / c.R;
+                        if (d >= 1)
+                        {
+                            continue;
+                        }
+                        float h = c.H * MathF.Sqrt(1 - d * d);
+                        if (h > best)
+                        {
+                            best = h;
+                            bestKind = c.K;
+                        }
+                    }
+                }
+                height[y * Size + x] = best;
+                kind[y * Size + x] = bestKind;
+            }
+        });
+        var data = new byte[Size * Size * 4];
+        for (int y = 0; y < Size; y++)
+        {
+            for (int x = 0; x < Size; x++)
+            {
+                float hx = height[y * Size + (x + 1) % Size] - height[y * Size + (x + Size - 1) % Size];
+                float hy = height[((y + 1) % Size) * Size + x] - height[((y + Size - 1) % Size) * Size + x];
+                int k = (y * Size + x) * 4;
+                data[k] = ToByte(height[y * Size + x]);
+                data[k + 1] = ToByte(kind[y * Size + x]);
+                data[k + 2] = ToByte(0.5 - hx * 4);
+                data[k + 3] = ToByte(0.5 - hy * 4);
+            }
+        }
+        Image image = Image.CreateFromData(Size, Size, false, Image.Format.Rgba8, data);
+        image.GenerateMipmaps();
+        return ImageTexture.CreateFromImage(image);
+    }
+
+    /// <summary>
     /// 512² RGBA: r = soft cover (few large blobs), g = billows (rounded cells), b = fine detail, a = wisps. Every
     /// channel tiles.
     /// </summary>

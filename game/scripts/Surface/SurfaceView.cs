@@ -185,6 +185,8 @@ public partial class SurfaceView : Node3D
         _terrainMaterial.SetShaderParameter("albedo_array", _groundAlbedo);
         _terrainMaterial.SetShaderParameter("normal_array", _groundNormal);
         _terrainMaterial.SetShaderParameter("macro_noise", _noise);
+        _canopy ??= NoiseTextures.Canopy(13);
+        _terrainMaterial.SetShaderParameter("canopy_texture", _canopy);
         ShaderMaterial? water = null;
         if (surface.SeaRadius > 0)
         {
@@ -207,6 +209,7 @@ public partial class SurfaceView : Node3D
 
     private static bool _globals;
     private ImageTexture? _noise;
+    private ImageTexture? _canopy;
     private AerialTable? _aerial;
 
     private void SetupGlobals()

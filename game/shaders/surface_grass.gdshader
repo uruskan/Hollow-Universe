@@ -66,6 +66,7 @@ varying float v_cloud;
 varying float v_kind;               // 0 grass, 1 plant, 2 litter (faded to browns)
 varying float v_cover;              // forest cover: the canopy keeps sky light off the floor
 varying float v_seed;               // per tuft, for the ragged outline of its blades
+varying vec3 v_normal;              // world normal, the same on both faces of a blade
 
 uint hash_u(uint x) {
 	x ^= x >> 16u;
@@ -119,6 +120,7 @@ void vertex() {
 	v_cell = cell_grass;
 	v_tint = vec3(1.0);
 	v_ground = vec3(0.0);
+	v_normal = vec3(0.0, 1.0, 0.0);
 	// Each card has eight vertices: drop the cards a sparse tuft doesn't have, so thin grass is loose blades.
 	int card = VERTEX_ID / 8;
 	float cards = 5.0;
@@ -211,6 +213,7 @@ void vertex() {
 		VERTEX = (VIEW_MATRIX * vec4(world, 1.0)).xyz;
 		vec3 n = kind == 2.0 ? vec3(0.0, 1.0, 0.0) : normalize(vec3(c * NORMAL.x - sn * NORMAL.z, NORMAL.y * 2.5, sn * NORMAL.x + c * NORMAL.z));
 		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
+		v_normal = n;
 
 		// The ground's own colour at the tuft's foot, as the terrain shader draws its grass layer.
 		vec3 detail = textureLod(ground_albedo, vec3(wp / grass_layer_size, 0.0), 5.0).rgb;
@@ -246,6 +249,9 @@ void fragment() {
 		albedo = v_kind > 0.5 ? blade : mix(v_ground, blade, smoothstep(0.0, 0.45, v_t));
 	}
 	ALBEDO = albedo;
+	// Blades are thin: both faces take the sky's light from above. (Godot would turn the normal down on back faces,
+	// leaving every card seen from behind black in the shade.)
+	NORMAL = normalize((VIEW_MATRIX * vec4(v_normal, 0.0)).xyz);
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
 	AO = 1.0 - 0.38 * smoothstep(0.15, 0.85, v_cover);
