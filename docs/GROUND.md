@@ -475,6 +475,64 @@ hulls) with an ID from the building range after the ground tiles' (`PhysicsWorld
 matrix in Jolt's column-major layout and collide with back faces, so a slab whose middle is underground still cuts the
 ground.
 
+**Art** (§9): `art/import/building_kit.py` and `door_kit.py` run in Blender 5.2.1 in background mode and write
+`game/assets/building/`:
+
+| File | What |
+|---|---|
+| `building_<grade>.glb` (twig, wood, stone, metal, armoured) | Every piece under its key, with `_LOD1` and `_LOD2` (the kit's three levels) and its hulls as `<key>_colNN-convcolonly` (Godot's convex collision; the game's collision comes from the rules, not these). The kit's 13 families come from its FBX files; the 7 pieces it lacks (low wall, L and U stairs, ramp, steps, square and triangle roofs with their gables) are built by the same script with the kit's own generator (its `MeshBuilder`, tier surfaces and atlas tiles, and the twig revision's `TwigMesh`), so they share its look and texel density. |
+| `doors_wood.glb`, `doors_metal.glb`, `doors_armored.glb` | Single and double doors: frame insert and leaves (each leaf's origin is its hinge), with levels and hulls. |
+| `garage_door.glb` | The frame and the skinned curtain with the kit's Open and Close clips. |
+| `window_inserts.glb` | Metal and armoured bars, reinforced glass, horizontal and vertical embrasures (art only in phase 1). |
+| `textures/` | Each grade's atlas (base colour, OpenGL normal map, ORM) shrunk from 4K to 2K JPEG, stored once: the GLBs carry no images, and the doors share the grades' sets (the door kit's are the same files). |
+
+Metres, the kits' axes turned into Godot's by the glTF exporter (a wall's outside is +Z, as in the rules). Godot imports
+the GLBs without generating levels of its own (`.import`: `generate_lods=false`) and the textures VRAM-compressed. The
+GLBs total 94 MB, nearly all the kit's bevelled finest level.
+
+**The build sandbox** (`--view build`, `game/scripts/Build/`): a local zone on the first world's stand-in surface,
+a walking character (the real movement code), the rules above and their art, and the ground interface's belt and
+wheels through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan`'s answer, green when allowed, red
+with the reason. Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; the right mouse button holds the plan's or the
+hammer's wheel (RustMVP's, from §8); the left places, repairs, fits a door or places the device; R turns the piece or
+flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Removed pieces fall
+and sink away, layer after layer.
+
+```bash
+$GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
+# --scene house | ghost-valid | ghost-invalid | stability | stress | empty;  --overlay;  --tool 1–6;  --piece <key>;
+# --wheel plan|hammer;  --from x,y,z --at x,y,z (the camera in the scene's frame);  --finest / --lod n (draw one level)
+```
+
+**Rendering.** Pieces are batched into one `MultiMeshInstance3D` per piece, grade and level of detail in each 24 m
+chunk of the zone; only a batch whose pieces changed is rebuilt. Levels change at 26 m and 64 m, neighbouring levels
+overlapping by a metre (Godot's visibility margins are hysteresis: with them a still camera left whole batches drawn by
+neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows and SSAO on, the 1,060-piece block
+(`--scene stress`: 10 × 10 rooms, three storeys, every grade) in full view:
+
+| | Frame | Draw calls | Triangles |
+|---|---|---|---|
+| Levels of detail (as shipped) | 4.4 ms average, 5.0 ms worst over 300 frames (226 fps) | 365 | 12.8 M |
+| Finest level only | 14.1 ms average (71 fps) | 364 | 49.4 M |
+
+| View | Screenshot |
+|---|---|
+| A two-storey house in mixed grades: stone foundations and doorway with a sheet-metal door, metal and wood walls, windows, an open wooden double door, wood floors, U stairs, metal roofs with gables, a twig porch | `images/ground/build/house.jpg` |
+| The plan's ghost, allowed (a foundation beside the house) and refused (a sixth floor off a balcony: "Not stable enough (0%)") | `ghost-valid.jpg`, `ghost-invalid.jpg` |
+| The stability overlay: the house 100 %, the balcony 90, 70, 50, 30, 10 % | `stability.jpg` |
+| The 1,060-piece block with its frame time | `stress.jpg` |
+| The plan's wheel with the rules' pieces and costs | `wheel.jpg` |
+
+![The house](images/ground/build/house.jpg)
+
+**Phase 2 needs from the survival package:** item definitions for the plan, the hammer, the doors, the key and code
+locks, keys and the claim device; an `IBuildingWallet` over the player's inventory; the claim device as a deployable
+whose container is its upkeep store (`ClaimDevice.Stock` today); its damage routed to `BuildingWorld.Damage` (melee by
+side); the zone calling `BuildingWorld.Tick` each tick and `AdvanceTime` on a slow schedule and once with the elapsed
+time on load; typed intents (place by support, socket and orientation; upgrade, rotate, demolish, repair; doors, locks,
+codes; claims) and the replication of structures, pieces, doors and devices (static, reliable, when they change); body
+IDs replicated with pieces so prediction meets the same contacts; persistence of structures in the body frame.
+
 ---
 
 ## 7. Data
@@ -633,6 +691,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Textures:** 2K by default. The PC has 8 GB of video memory and 16 GB of RAM, and RustMVP ran out of memory on
   bulk loads.
 - **Credits:** every third-party file is listed in `game/assets/THIRD_PARTY.md` with its source and licence.
+- **As built (G3):** `PSG_BuildingKit_R01` (13 families × 5 grades, three levels each, plus 7 pieces built in its style)
+  and `PSG_DoorWindowKit_R01` (doors, the garage door, window bars, glass, embrasures) by `art/import/building_kit.py`
+  and `door_kit.py` (§6.3).
 
 ---
 
@@ -711,3 +772,10 @@ Decisions taken for building (§6.3) without the owner, to confirm or overturn:
     kit, so their art and collision are ours (§9).
 26. **A key lock starts unlocked**, and a key carries its lock's number; key crafting and keys as items come with phase 2.
 27. **Upkeep counts pieces only** for now; Rust also charges for doors and window inserts.
+28. **The building art is 94 MB of GLB** in the repository (the kit's bevelled finest level is most of it), as plain
+    binary files like the character's. Git LFS would suit it; that is the owner's call.
+29. **Textures are 2K JPEG** (normal maps at quality 95), kept beside the GLBs rather than in them, so the doors and the
+    grades share one copy.
+30. **Levels of detail change at 26 m and 64 m** (ours), and the ghost is the stone piece's second level in green or red.
+31. **The sandbox has no network:** it runs the rules in the game process on the stand-in surface; the same rules run on
+    the server in phase 2.

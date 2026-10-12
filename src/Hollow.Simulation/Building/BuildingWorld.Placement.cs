@@ -235,25 +235,44 @@ public sealed partial class BuildingWorld
         {
             centre = eye + flat * maxDistance;
         }
-        // The ground under that point.
-        if (!Physics.Ray(centre + up * 10, -up, 30, out RayHit ground, groundOnly: true))
-        {
-            return null;
-        }
-        centre = ground.Point;
-        up = Up(centre);
-        Vector3D upD = D(up);
-        BuildingFrame level = BuildingFrame.At(D(centre), upD, 0);
+        // Square to the view, in 15° steps; R turns it a quarter.
+        BuildingFrame level = BuildingFrame.At(D(centre), D(up), 0);
         Vector3D forward = level.DirectionToLocal(D(flat));
         double heading = Math.Atan2(-forward.X, -forward.Z) + turns * Math.PI / 2;
         heading = Math.Round(heading / (Math.PI / 12)) * (Math.PI / 12);
-        BuildingFrame probe = BuildingFrame.At(D(centre), upD, heading);
-        // Raise its top just above the highest ground under it.
+        PlacementPlan? plan = FoundationAt(piece, centre, heading);
+        if (plan != null)
+        {
+            Check(plan, player, eye, wallet);
+        }
+        return plan;
+    }
+
+    /// <summary>
+    /// A new structure's first foundation over a zone point, turned by <paramref name="headingRadians"/> from the zone's
+    /// east: its frame's up is the planet's there, and its top sits just above the highest ground under its corners and
+    /// centre. Unchecked (see <see cref="Check"/>); null where there's no ground.
+    /// </summary>
+    public PlacementPlan? FoundationAt(PieceDef piece, Vector3 point, double headingRadians)
+    {
+        if (Physics == null)
+        {
+            return null;
+        }
+        Vector3 up = Up(point);
+        if (!Physics.Ray(point + up * 10, -up, 30, out RayHit ground, groundOnly: true))
+        {
+            return null;
+        }
+        Vector3 centre = ground.Point;
+        up = Up(centre);
+        Vector3D upD = D(up);
+        BuildingFrame probe = BuildingFrame.At(D(centre), upD, headingRadians);
         double highest = double.MinValue;
         foreach (Vector3D sample in GroundSamples(piece))
         {
-            Vector3 point = F(probe.ToZone(sample));
-            if (Physics.Ray(point + up * 10, -up, 10 + (float)(Data.FoundationDepth + 10), out RayHit h, groundOnly: true))
+            Vector3 at = F(probe.ToZone(sample));
+            if (Physics.Ray(at + up * 10, -up, 10 + (float)(Data.FoundationDepth + 10), out RayHit h, groundOnly: true))
             {
                 highest = Math.Max(highest, 10 - h.Distance);
             }
@@ -262,10 +281,8 @@ public sealed partial class BuildingWorld
         {
             return null;
         }
-        BuildingFrame frame = BuildingFrame.At(D(centre) + upD * (highest + Data.FoundationClearance + 0.02), upD, heading);
-        var plan = new PlacementPlan { Piece = piece, Structure = null, Frame = frame, Pose = new Pose(Vector3D.Zero, 0) };
-        Check(plan, player, eye, wallet);
-        return plan;
+        BuildingFrame frame = BuildingFrame.At(D(centre) + upD * (highest + Data.FoundationClearance + 0.02), upD, headingRadians);
+        return new PlacementPlan { Piece = piece, Structure = null, Frame = frame, Pose = new Pose(Vector3D.Zero, 0) };
     }
 
     // Where the ground is sampled under a foundation: its corners and its centre (RustMVP's).

@@ -5,6 +5,7 @@ using Godot;
 using Hollow.Core;
 using Hollow.Galaxy;
 using Hollow.Galaxy.Systems;
+using HollowUniverse.Build;
 using HollowUniverse.GalaxyMap;
 using HollowUniverse.Ground;
 using HollowUniverse.SystemMap;
@@ -27,6 +28,7 @@ public partial class Main : Node
     private bool _rescaled;
     private UiScaler _scaler = null!;
     private GroundMode? _ground;
+    private BuildSandbox? _build;
     private UiViewer? _ui;
 
     public override void _Ready()
@@ -57,6 +59,13 @@ public partial class Main : Node
             // The ground game (GROUND.md §4.3): its own view; the maps aren't built.
             _ground = new GroundMode { Name = "Ground", Options = _options };
             AddChild(_ground);
+            return;
+        }
+        if (Option("view", "galaxy") == "build")
+        {
+            // The build sandbox (GROUND.md §6.3): the building rules and their art in a local zone.
+            _build = new BuildSandbox { Name = "Build", Options = _options };
+            AddChild(_build);
             return;
         }
 
@@ -160,7 +169,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        if (_options.ContainsKey("trace") && _ground == null && _ui == null)
+        if (_options.ContainsKey("trace") && _ground == null && _ui == null && _build == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -183,7 +192,8 @@ public partial class Main : Node
             _scaler.Apply();
         }
         double wait = Number("wait", 2);
-        bool ready = _ui != null ? _ui.ReadyForShot : _ground != null ? _ground.ReadyForShot : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
+        bool ready = _ui != null ? _ui.ReadyForShot : _ground != null ? _ground.ReadyForShot : _build != null ? _build.ReadyForShot :
+            _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
         {
             _capturing = true;

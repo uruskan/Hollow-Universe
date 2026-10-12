@@ -1,0 +1,388 @@
+using System;
+using System.Collections.Generic;
+using Godot;
+using Hollow.Simulation.Building;
+using Num = System.Numerics;
+
+namespace HollowUniverse.Build;
+
+/// <summary>
+/// Draws a <see cref="BuildingWorld"/> (GROUND.md §6.3): pieces batched into one <see cref="MultiMeshInstance3D"/> per
+/// piece kind, grade and level of detail in each 24 m chunk of the zone, so a 1,000-piece base is a few dozen draw calls;
+/// the kit's three levels swap by distance (visibility ranges). Only what changed is rebuilt, when it changes. Doors,
+/// claim devices and falling debris are nodes of their own. The stability overlay recolours every piece by its
+/// stability (green 100 %, through yellow, to red 0 %). Zone metres are Godot's coordinates.
+/// </summary>
+public partial class BuildingRenderer : Node3D
+{
+    private const float Chunk = 24f;
+
+    /// <summary>Where each level of detail stops being drawn (0: never).</summary>
+    private static readonly float[] LodEnd = { 26f, 64f, 0f };
+
+    private readonly Dictionary<BatchKey, Batch> _batches = new();
+    private readonly Dictionary<Piece, Batch> _of = new();
+    private readonly HashSet<Batch> _dirty = new();
+    private readonly Dictionary<Door, DoorView> _doors = new();
+    private readonly Dictionary<ClaimDevice, MeshInstance3D> _claims = new();
+    private readonly List<(Node3D Node, Vector3 Velocity, Vector3 Spin, double Age)> _debris = new();
+    private BuildingWorld _world = null!;
+    private BuildingAssets _assets = null!;
+    private bool _overlay;
+
+    private readonly record struct BatchKey(PieceDef Def, int Grade, int Cx, int Cz);
+
+    private sealed class Batch(BatchKey key)
+    {
+        public readonly BatchKey Key = key;
+        public readonly List<Piece> Pieces = new();
+        public MultiMeshInstance3D[] Lods = Array.Empty<MultiMeshInstance3D>();
+    }
+
+    /// <summary>Pieces drawn.</summary>
+    public int Pieces => _of.Count;
+
+    /// <summary>Multi-meshes in use (each one draw call per pass when in view).</summary>
+    public int MultiMeshes => _batches.Count * BuildingAssets.Lods;
+
+    /// <summary>Draws every piece at its finest level, at any distance (to compare).</summary>
+    public bool FinestOnly { get; set; }
+
+    /// <summary>Draws every piece at this level only, at any distance (to check the art); −1 for the usual ranges.</summary>
+    public int OnlyLod { get; set; } = -1;
+
+    /// <summary>Draw falling pieces for this long after they're removed.</summary>
+    public double DebrisSeconds { get; set; } = 1.6;
+
+    public void Attach(BuildingWorld world, BuildingAssets assets)
+    {
+        _world = world;
+        _assets = assets;
+        foreach (Piece p in world.AllPieces)
+        {
+            Add(p);
+            if (p.Door != null)
+            {
+                AddDoor(p.Door);
+            }
+        }
+        foreach (ClaimDevice c in world.Claims)
+        {
+            AddClaim(c);
+        }
+        world.Changed += OnChanged;
+    }
+
+    public override void _ExitTree()
+    {
+        if (_world != null)
+        {
+            _world.Changed -= OnChanged;
+        }
+    }
+
+    /// <summary>Colours every piece by its stability.</summary>
+    public bool StabilityOverlay
+    {
+        get => _overlay;
+        set
+        {
+            if (_overlay == value)
+            {
+                return;
+            }
+            _overlay = value;
+            foreach (Batch b in _batches.Values)
+            {
+                foreach (MultiMeshInstance3D m in b.Lods)
+                {
+                    m.MaterialOverride = value ? _assets.Overlay : _assets.Grade(b.Key.Grade);
+                }
+                _dirty.Add(b);
+            }
+        }
+    }
+
+    private void OnChanged(BuildingEvent e)
+    {
+        switch (e.Change)
+        {
+            case BuildingChange.PieceAdded:
+                Add(e.Piece!);
+                break;
+            case BuildingChange.PieceRemoved:
+                Drop(e.Piece!, fall: true);
+                break;
+            case BuildingChange.PieceChanged:
+                Drop(e.Piece!, fall: false);
+                Add(e.Piece!);
+                break;
+            case BuildingChange.Stability when _overlay:
+                foreach (Piece p in e.Structure!.Pieces)
+                {
+                    if (_of.TryGetValue(p, out Batch? b))
+                    {
+                        _dirty.Add(b);
+                    }
+                }
+                break;
+            case BuildingChange.DoorAdded:
+                AddDoor(e.Door!);
+                break;
+            case BuildingChange.DoorRemoved:
+                if (_doors.Remove(e.Door!, out DoorView? view))
+                {
+                    view.QueueFree();
+                }
+                break;
+            case BuildingChange.DoorChanged:
+                if (_doors.TryGetValue(e.Door!, out DoorView? changed))
+                {
+                    changed.Target = e.Door!.Open;
+                }
+                break;
+            case BuildingChange.ClaimAdded:
+                AddClaim(e.Claim!);
+                break;
+            case BuildingChange.ClaimRemoved:
+                if (_claims.Remove(e.Claim!, out MeshInstance3D? device))
+                {
+                    device.QueueFree();
+                }
+                break;
+        }
+    }
+
+    private void Add(Piece piece)
+    {
+        if (piece.Gone || _of.ContainsKey(piece))
+        {
+            return;
+        }
+        (Num.Vector3 position, _) = piece.ZoneTransform;
+        var key = new BatchKey(piece.Def, piece.Grade, (int)MathF.Floor(position.X / Chunk), (int)MathF.Floor(position.Z / Chunk));
+        if (!_batches.TryGetValue(key, out Batch? batch))
+        {
+            batch = new Batch(key);
+            batch.Lods = new MultiMeshInstance3D[BuildingAssets.Lods];
+            for (int lod = 0; lod < BuildingAssets.Lods; lod++)
+            {
+                var mm = new MultiMesh
+                {
+                    TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                    UseColors = true,
+                    Mesh = _assets.Piece(piece.Def, piece.Grade, lod),
+                };
+                var instance = new MultiMeshInstance3D
+                {
+                    Name = $"{piece.Def.Key} g{piece.Grade} lod{lod} {key.Cx},{key.Cz}",
+                    Multimesh = mm,
+                    MaterialOverride = _overlay ? _assets.Overlay : _assets.Grade(piece.Grade),
+                    // Neighbouring levels overlap by a metre: Godot's margins are hysteresis, and with them a still
+                    // camera can leave a batch between two levels drawn by neither.
+                    VisibilityRangeBegin = OnlyLod >= 0 ? (lod == OnlyLod ? 0 : 100000) : FinestOnly ? (lod == 0 ? 0 : 100000) : lod == 0 ? 0 : LodEnd[lod - 1] - 0.5f,
+                    VisibilityRangeEnd = OnlyLod >= 0 || FinestOnly || LodEnd[lod] == 0 ? 0 : LodEnd[lod] + 0.5f,
+                };
+                AddChild(instance);
+                batch.Lods[lod] = instance;
+            }
+            _batches.Add(key, batch);
+        }
+        batch.Pieces.Add(piece);
+        _of[piece] = batch;
+        _dirty.Add(batch);
+    }
+
+    private void Drop(Piece piece, bool fall)
+    {
+        if (!_of.Remove(piece, out Batch? batch))
+        {
+            return;
+        }
+        batch.Pieces.Remove(piece);
+        _dirty.Add(batch);
+        if (fall)
+        {
+            Fall(piece);
+        }
+    }
+
+    // A removed piece falls and sinks away: the visible half of a collapse.
+    private void Fall(Piece piece)
+    {
+        (Num.Vector3 position, Num.Quaternion rotation) = piece.ZoneTransform;
+        var node = new MeshInstance3D
+        {
+            Mesh = _assets.Piece(piece.Def, piece.Grade, 1),
+            MaterialOverride = _assets.Grade(piece.Grade),
+            Transform = ToGodot(position, rotation),
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+        };
+        AddChild(node);
+        ulong h = (ulong)piece.Handle * 0x9E3779B97F4A7C15UL;
+        var spin = new Vector3((h & 0xFF) / 255f - 0.5f, ((h >> 8) & 0xFF) / 255f - 0.5f, ((h >> 16) & 0xFF) / 255f - 0.5f) * 1.6f;
+        _debris.Add((node, Vector3.Zero, spin, 0));
+    }
+
+    private void AddDoor(Door door)
+    {
+        var view = new DoorView { Name = "Door " + door.Id, Door = door, Assets = _assets, Target = door.Open };
+        AddChild(view);
+        _doors[door] = view;
+    }
+
+    private void AddClaim(ClaimDevice claim)
+    {
+        (Num.Vector3 position, Num.Quaternion rotation) = claim.ZoneTransform;
+        Num.Vector3 size = _world.Data.ClaimSize;
+        var device = new MeshInstance3D
+        {
+            Name = "Claim device",
+            Mesh = new BoxMesh { Size = new Vector3(size.X, size.Y, size.Z) },
+            MaterialOverride = _assets.Grade(1),
+            Transform = ToGodot(position, rotation).TranslatedLocal(new Vector3(0, size.Y / 2, 0)),
+        };
+        AddChild(device);
+        _claims[claim] = device;
+    }
+
+    public override void _Process(double delta)
+    {
+        foreach (Batch batch in _dirty)
+        {
+            Rebuild(batch);
+        }
+        _dirty.Clear();
+        for (int i = _debris.Count - 1; i >= 0; i--)
+        {
+            (Node3D node, Vector3 velocity, Vector3 spin, double age) = _debris[i];
+            age += delta;
+            if (age > DebrisSeconds)
+            {
+                node.QueueFree();
+                _debris.RemoveAt(i);
+                continue;
+            }
+            // Near the zone's origin its +Y is the planet's up to a fraction of a degree.
+            velocity += Vector3.Down * (float)(9.8 * delta);
+            node.Position += velocity * (float)delta;
+            node.Rotation += spin * (float)delta;
+            node.Scale = Vector3.One * (float)Math.Max(0.05, 1 - Math.Max(0, age - DebrisSeconds * 0.6) / (DebrisSeconds * 0.4));
+            _debris[i] = (node, velocity, spin, age);
+        }
+    }
+
+    private void Rebuild(Batch batch)
+    {
+        int n = batch.Pieces.Count;
+        foreach (MultiMeshInstance3D instance in batch.Lods)
+        {
+            MultiMesh mm = instance.Multimesh;
+            mm.InstanceCount = n;
+            for (int i = 0; i < n; i++)
+            {
+                Piece p = batch.Pieces[i];
+                (Num.Vector3 position, Num.Quaternion rotation) = p.ZoneTransform;
+                mm.SetInstanceTransform(i, ToGodot(position, rotation));
+                mm.SetInstanceColor(i, _overlay ? StabilityColour(p) : p.Collapsing ? new Color(1f, 0.55f, 0.5f) : Colors.White);
+            }
+            instance.Visible = n > 0;
+        }
+    }
+
+    /// <summary>Green at 100 %, yellow at 50 %, red at 0 %.</summary>
+    public static Color StabilityColour(Piece p)
+    {
+        float s = Math.Clamp(p.Stability / 1000f, 0, 1);
+        // Deep enough to stay saturated in sunlight under the tonemapper.
+        var red = new Color(0.62f, 0.05f, 0.03f);
+        var yellow = new Color(0.72f, 0.52f, 0.02f);
+        var green = new Color(0.07f, 0.42f, 0.09f);
+        return p.Collapsing ? new Color(0.2f, 0.02f, 0.02f) : s < 0.5f ? red.Lerp(yellow, s * 2) : yellow.Lerp(green, (s - 0.5f) * 2);
+    }
+
+    public static Transform3D ToGodot(Num.Vector3 position, Num.Quaternion rotation) =>
+        new(new Basis(new Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W)), new Vector3(position.X, position.Y, position.Z));
+}
+
+/// <summary>A door in its opening: the kit's frame insert and leaves, swinging (or a garage curtain rolling) over a second.</summary>
+public partial class DoorView : Node3D
+{
+    private readonly List<(MeshInstance3D Leaf, float OpenYaw)> _leaves = new();
+    private AnimationPlayer? _garage;
+    private float _swing;
+    private bool _shown;
+
+    public Door Door { get; set; } = null!;
+
+    public BuildingAssets Assets { get; set; } = null!;
+
+    /// <summary>Open (true) or shut: the leaves move toward it.</summary>
+    public bool Target { get; set; }
+
+    public override void _Ready()
+    {
+        (Num.Vector3 position, Num.Quaternion rotation) = Door.Frame.ZoneTransform;
+        Transform = BuildingRenderer.ToGodot(position, rotation).RotatedLocal(Vector3.Up, Door.Flip * Mathf.Pi);
+        if (Door.Def.Rolls && Assets.Garage != null)
+        {
+            Node3D garage = Assets.Garage.Instantiate<Node3D>();
+            AddChild(garage);
+            foreach (Node n in garage.FindChildren("*", "MeshInstance3D", true, false))
+            {
+                var mesh = (MeshInstance3D)n;
+                mesh.MaterialOverride = Assets.Named("Door_garage");
+            }
+            _garage = garage.FindChildren("*", "AnimationPlayer", true, false) is { Count: > 0 } players ? (AnimationPlayer)players[0] : null;
+            _swing = Target ? 1 : 0;
+            return;
+        }
+        if (Assets.Part(Door.Def.FrameMesh) is Mesh frame)
+        {
+            AddChild(new MeshInstance3D { Mesh = frame, MaterialOverride = Assets.PartMaterial(frame) });
+        }
+        foreach (LeafDef leaf in Door.Def.Leaves)
+        {
+            Mesh mesh = Assets.Part(leaf.Mesh) ?? new BoxMesh { Size = new Vector3(Math.Abs(leaf.Size.X), leaf.Size.Y, leaf.Size.Z) };
+            var node = new MeshInstance3D
+            {
+                Mesh = mesh,
+                MaterialOverride = Assets.PartMaterial(mesh),
+                Position = new Vector3(leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z),
+            };
+            AddChild(node);
+            _leaves.Add((node, Mathf.DegToRad((float)leaf.OpenYaw)));
+        }
+        _swing = Target ? 1 : 0;
+    }
+
+    public override void _Process(double delta)
+    {
+        float goal = Target ? 1 : 0;
+        if (_garage != null)
+        {
+            if (!_shown || Mathf.Abs(goal - _swing) > 0.001f)
+            {
+                string clip = Target ? "Open" : "Close";
+                if (_garage.HasAnimation(clip) && _garage.CurrentAnimation != clip)
+                {
+                    _garage.Play(clip);
+                    if (!_shown)
+                    {
+                        _garage.Seek(_garage.CurrentAnimationLength, true);
+                    }
+                }
+                _swing = goal;
+                _shown = true;
+            }
+            return;
+        }
+        // The kit's leaves travel in one second, easing at both ends.
+        _swing = Mathf.MoveToward(_swing, goal, (float)delta);
+        float eased = _swing * _swing * (3 - 2 * _swing);
+        foreach ((MeshInstance3D leaf, float openYaw) in _leaves)
+        {
+            leaf.Rotation = new Vector3(0, openYaw * eased, 0);
+        }
+    }
+}
