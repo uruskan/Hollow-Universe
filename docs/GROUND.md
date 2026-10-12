@@ -798,6 +798,121 @@ below for screenshots.
 
 ![A camp in the demo: a box, a lit campfire, a sleeping bag, a stone hatchet in hand](images/ground/survival-camp.png)
 
+### 6.3 Combat as built in G4
+
+Firearms, their rounds and attachments, bullets with drop and drag, Rust's recoil, armour by body part and the wounded
+state. The rules are `Hollow.Simulation` code shared by the server and the shooter's client (`Combat/Firearms.cs`:
+`FirearmRules`, `Recoil`, `Ballistics`; `Zone.Guns.cs`, `Zone.Wounded.cs`); the numbers are in `weapons.json` and
+`survival.json`.
+
+**The guns** (`weapons.json`, from RustMVP's `weapon_definition.hpp`, every field it has used exactly):
+
+| | Service pistol (`pistol`) | Frontier rifle (`rifle`) | Source |
+|---|---|---|---|
+| Magazine, fire | 15, semi-automatic | 30, automatic | RustMVP |
+| Interval | 0.15 s (400 a minute: 4.5 ticks) | 60/450 s (450 a minute: 4 ticks) | RustMVP |
+| Reload, equip | 2.4 s, 0.5 s | 2.4 s, 0.5 s | RustMVP |
+| Muzzle speed, gravity, range, lifetime | 300 m/s, 1.0 × the planet's (RustMVP's 980 cm/s² on a 1 g world), 200 m, 3 s | the same | RustMVP |
+| Drag (speed lost a second) | 0.4 | 0.3 | ours |
+| Damage; head, body, limb | 35; ×2, ×1, ×0.5 | the same | RustMVP |
+| Falloff | full to 70 m, then down to ×0.45 at 200 m | the same | hollow-orbit `falloff` (full to 35% of the range) |
+| Spread (cone half-angle) | 1.5° at the hip, 0.25° aimed, +0.25° bloom a shot (at most 2°, fading 3° a second) | the same | RustMVP |
+| Spread moving, airborne, crouched | +170% at the hip and +50% aimed at full sprinting speed (in proportion below), ×2.4 in the air, ×0.8 crouched | the same | hollow-orbit `_spread` |
+| Recoil | a straight 3° kick a shot, × (1 ± 0.12), ±0.66° sideways; limits 30°/30° | the AK pattern, 30 steps (adding up to 29.37° up, 0.61° right), ±0.06° sideways a step; limits 60°/60°; starts again after 0.4 s | RustMVP (the steps, limits, reset); hollow-orbit `_kick` (the random part) |
+| Kick, hold, recovery | applied over 0.1 s; held 0.2 s after the last shot; all of it back over 0.08 s (smoothstep) | the same | RustMVP |
+| Recoil aimed, crouched | ×0.78, ×0.85 | the same | hollow-orbit `_kick` |
+| Aimed zoom | 1.57× (65° at 90°) | the same | RustMVP |
+| Attachments | holo sight, silencer, weapon light, muzzle brake | all five | ours |
+| Condition | 200 shots | 300 shots | hollow-orbit `dur` |
+
+**Rounds** (multipliers on the gun; Rust's speeds in proportion; bleeding, burning and damage to deployables ours):
+
+| Round | Damage | Speed | Bleeding (of the damage) | Burning | Deployables (of the damage) |
+|---|---|---|---|---|---|
+| `pistol-ammo`, `rifle-ammo` | ×1 | ×1 | 25% | — | 15% |
+| `pistol-ammo-hv` | ×0.85 | ×1.33 (Rust: 400 against 300 m/s) | 25% | — | 15% |
+| `rifle-ammo-hv` | ×0.85 | ×1.2 (Rust: 450 against 375 m/s) | 25% | — | 15% |
+| `pistol-ammo-incendiary` | ×0.85 | ×0.75 (Rust: 225 against 300 m/s) | 10% | 6 health, 2 a second | 50% |
+| `rifle-ammo-incendiary` | ×0.85 | ×0.6 (Rust: 225 against 375 m/s) | 10% | 6 health, 2 a second | 50% |
+
+**Attachments** (one each in a sight, muzzle and rail slot; ours, in the direction of Rust's):
+
+| Attachment | Slot | Effect |
+|---|---|---|
+| `holo-sight` | sight | 2× aimed zoom, aimed spread ×0.7 |
+| `scope` (rifle only) | sight | 4× aimed zoom, aimed spread ×0.6 |
+| `silencer` | muzzle | recoil ×0.8, spread ×0.7, speed ×0.75, damage ×0.85; no muzzle flash, a quiet shot |
+| `weapon-light` | rail | a light while the gun is in hand |
+| `muzzle-brake` | muzzle | recoil ×0.5, spread ×1.5, damage ×0.8 |
+
+**Drop** (flat from the muzzle, below the line; `GunTests` prints it): plain rounds 0.15 m at 50 m, 0.6 m at 100 m,
+1.3 m at 150 m, 2.4–2.5 m at 200 m (0.75 s); high-velocity rifle rounds 1.6 m at 200 m; incendiary rifle rounds 7.4 m.
+
+**A shot.** The client sends a fire intent for the tick it fired on, with its view, whether aimed, how far behind it saw
+others and its sequence number; the server queues it and applies it on that tick (a late one, resent after a loss, as of
+its tick, from where the shooter was then; older than the rewind limit it is refused). In order (RustMVP's): the gun in
+hand is the one named, then equip time, reloading, cadence, an empty magazine; not while sprinting or swimming; a view
+no input can have is refused. Then:
+- **Where it goes:** the view (the input's, without recoil) plus the recoil before this shot's kick, plus a point in the
+  spread cone; never steeper than 85°. The cone: hip or aimed (attachments scale it), wider moving, in the air, narrower
+  crouched, plus the bloom left.
+- **Randomness** (the cone's point, the kick's random part) comes from a seed both sides know: the shooter and the shot's
+  sequence number. So the server and the shooter's client compute the same direction and recoil, bit for bit.
+- **The gun moves on:** the cadence deadline (RustMVP: a deadline crossed since the previous tick carries over, so 4.5
+  ticks average out; a pause restarts it), a round out of the magazine, one point of condition (a gun that breaks gives
+  back its rounds and attachments), the kick.
+- **The bullet** leaves the eye at the gun's speed (× the round's and the attachments'), falls with the planet's gravity
+  and slows with drag, integrated exactly in two steps a tick; it stops at what it meets first (characters where the
+  shooter saw them, at most 0.25 s back over the 36-tick hitbox history; trees, outcrops, deployables and the ground as
+  they are now), after 200 m, or after 3 s. Its ground test steps as far as its height allows (the ground rises at most
+  51°), so a bullet high up costs few samples.
+
+**Recoil, Rust's way** (RustMVP `sample_recoil`, `apply_recoil_shot`). Each shot samples where the view is, then adds one
+step (the pattern's next, or the straight kick), scaled aimed (×0.78), crouched (×0.85) and by attachments, towards a new
+target the view reaches over 0.1 s. The pattern starts again after 0.4 s without a shot and holds its last step. 0.2 s
+after the last shot the whole of it returns over 0.08 s. The recoil is an offset on the camera; the view the player
+controls (and sends) stays clean, and the server adds the recoil itself, so a client can't leave it out. The player pulls
+against it with the mouse; as it recovers, what they pulled is given back to their view (RustMVP's countersteer credit,
+`RecoilCompensation` on the client), so letting go of the trigger doesn't drop the aim by what they compensated.
+
+**Reload** is an intent for a tick, with a timer: equip time, not already reloading, the gun takes those rounds (by
+default the kind loaded, else the first kind of its calibre the player has), not full of them, some in the inventory.
+After 2.4 s the rounds of another kind come out (back into the inventory) and the magazine fills from the inventory, all
+at once (RustMVP: nothing is spent until it completes). Taking another item up cancels it. The magazine (rounds and their
+kind) and the attachments are part of the weapon item, so they go wherever it goes: moved, dropped, into a corpse, saved.
+
+**Damage** to a character from a bullet: the gun's damage × the round's × the attachments' × the falloff for the
+distance flown × the gun's multiplier for the part hit (head 2, body 1, limbs 0.5) × (1 − protection), where protection
+is the sum of what worn items covering that part give against projectiles (at most 0.8). It adds the round's bleeding
+and burning. Melee and arrows keep G2's rule (survival.json's multipliers).
+
+**Armour** (items.json `wear`: the regions an item covers and its protection there; a hit on the head counts the face,
+scalp and neck; the body the chest, belly and pelvis; a limb the arms, hands, legs and feet):
+
+| Item | Covers | Against projectiles | Against melee | Source |
+|---|---|---|---|---|
+| Metal mask (`metal-mask`, G4) | face, scalp | 50% | 50% | hollow-orbit `metal_facemask` |
+| Chest plate | chest, belly | 25% | 30% | hollow-orbit `metal_chestplate` |
+| Woven hood | scalp, neck | 3% | 3% | hollow-orbit |
+| Woven shirt | chest, belly, upper arms, forearms | 4% | 4% | hollow-orbit `burlap_shirt` |
+| Woven trousers | pelvis, thighs, calves | 4% | 4% | hollow-orbit `burlap_trousers` |
+| Woven gloves | hands | 2% | 2% | ours |
+| Work boots | ankles, feet | 3% | 3% | hollow-orbit `boots` |
+
+So a rifle round in a chest under a plate and shirt does 24.9 instead of 35, and in a masked head 35 instead of 70.
+
+**The wounded state** (Rust's; survival.json `wounded`). A lethal hit knocks the player down instead of killing them,
+unless it is a shot (bullet or arrow) to the head, a hit of 75 or more, cold or fire, or the player is already down or
+asleep. Down:
+- they have 7–12 health and crawl at 0.8 m/s (no jumping or sprinting; the movement step's `Crawling` stance, predicted
+  like any other), can't use items, swing, shoot or open anything, and lie down for hit tests;
+- their vitals pause (the timer decides); anyone can loot them, as a sleeper;
+- another player within 2.5 m helps them up with the interact key (an intent): they stand with the health they have;
+- any more damage that would kill finishes them off;
+- after 40–50 s they get up by themselves with a chance of 20%, up to 45% when fed and watered (Rust's), else they die
+  of what downed them, killed by whoever did;
+- logging off while down is death.
+
 ---
 
 ## 7. Data
