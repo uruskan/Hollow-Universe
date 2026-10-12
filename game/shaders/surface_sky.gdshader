@@ -114,9 +114,9 @@ vec3 galaxy_band(vec3 c) {
 	float b = asin(clamp(dot(c, galaxy_pole), -1.0, 1.0));
 	float toward = dot(c, galaxy_centre) * 0.5 + 0.5;
 	float n = noise3(c * 6.0) * 0.6 + noise3(c * 15.0) * 0.3 + noise3(c * 40.0) * 0.1;
-	float width = 0.16 + 0.12 * toward * toward;
-	float band = exp(-b * b / (width * width)) * (0.35 + 1.2 * pow(toward, 3.0)) * (0.55 + 0.9 * n);
-	float dust = 1.0 - 0.75 * exp(-b * b / (0.035 * 0.035)) * smoothstep(0.35, 0.75, noise3(c * 9.0 + 3.0));
+	float width = 0.065 + 0.035 * toward * toward;
+	float band = exp(-b * b / (width * width)) * (0.3 + 0.6 * pow(toward, 3.0)) * (0.35 + 1.3 * n * n);
+	float dust = 1.0 - 0.75 * exp(-b * b / (0.018 * 0.018)) * smoothstep(0.35, 0.75, noise3(c * 9.0 + 3.0));
 	vec3 colour = mix(vec3(0.75, 0.82, 1.0), vec3(1.0, 0.86, 0.68), toward);
 	return colour * band * dust * galaxy_brightness;
 }

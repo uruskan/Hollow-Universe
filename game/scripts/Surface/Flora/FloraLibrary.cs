@@ -95,7 +95,7 @@ public sealed class FloraLibrary
             return FloraGeometry.ConiferTree(new FloraGeometry.Conifer
             {
                 Seed = s, H = 13 * (0.9f + 0.2f * R()), RBase = 0.3f, CrownStart = 0.07f + 0.06f * R(), Whorls = 13 + (int)(R() * 3),
-                PerWhorl = 7, LenMax = 3.0f * (0.9f + 0.2f * R()), LenMin = 0.35f, Droop = 0.32f * (0.85f + 0.3f * R()),
+                PerWhorl = 7, LenMax = 3.0f * (0.9f + 0.2f * R()), LenMin = 0.55f, Droop = 0.32f * (0.85f + 0.3f * R()),
                 Pitch = -14 + (R() - 0.5f) * 6, Cell = FloraTextures.Spruce, Shape = 1.0f, WidthK = 0.5f,
                 BarkLow = new Vector3(0.44f, 0.36f, 0.3f), BarkHigh = new Vector3(0.55f, 0.42f, 0.33f),
             }, lod);

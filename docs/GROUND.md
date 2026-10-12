@@ -73,6 +73,9 @@ this is the one closest to an Earth-like place to live.
   - `e_beach.jpg`: the beach 4 km south, along the coast.
   - `f_forest.jpg`: inside the forest 600 m north, toward the sun.
   - `g_2km.jpg`: from 2 km above the landing site toward the hills, the bay on the left.
+  - Also: `b2_golden_shade.jpg` (the meadow at golden hour facing away from the sun, the grass in shade),
+    `f2_forest_clearing.jpg` (a forest clearing near the hills: sparse grass, ferns, litter, full fir crowns),
+    `g2_2km_down.jpg` (from 2 km looking steeply down: the canopy, groves and meadow edges).
   - `compare/`: the meadow and forest before and after the plants and grass were redone (same views and times).
 
 ---
@@ -304,49 +307,64 @@ Godot.
   grid with distance (no cracks: skirts), in a floating origin that moves with the camera without turning. Eight
   ground layers (texture arrays) blended by the vertices' material weights and their own heights, triplanar rock on
   cliffs, two scales near and a larger turned copy far so nothing repeats in rows; the grass layer takes the colour
-  of the grass blades (below); far forests colour the ground with their canopy where their impostors end.
+  of the grass blades (below). The forest floor is brown leaf litter with cushions of moss, and under trees the
+  canopy keeps much of the sky's light off the ground (sun flecks stay). Beach sand is lighter, with patches of
+  fine wind ripples near by; below the wave line and where the swash runs it is dark and glossy, with thin foam
+  lines left by the waves.
+- **Far forests:** where the trees' impostors end (2.2 km along the ground, so from the air the forest below keeps
+  its trees) the ground draws the canopy: a tiling crown map with its own slopes lit by the sun, groves at a larger
+  scale, stands of dark conifers and lighter broadleaf, dark gaps between crowns, and crisp irregular forest edges
+  with a shadow line on the open side. Seen steeply from the air (where billboards would be slivers) the canopy
+  replaces the impostors.
 - **Air and light:** the sun (star B) and the moon at their real directions for the universe time; scattering for the
   thick air (transmittance and multiple-scattering tables, the sky ray-marched at quarter resolution) and the same air
   in front of everything through a 3D aerial-perspective table. Clouds: a layer of fair-weather cumulus (1.6–2.9 km,
-  cover 0.35) with cloud shadows. Night: the two white dwarfs, the other planets, a star field and the galaxy's band;
-  moonlight on the ground is brightened six times (dark but readable, as in Rust), the moonlit air only 1.5 times;
-  the moon's disc is capped a few times above white so it never blooms over the sky. Exposure meters for the light
+  cover 0.35) with cloud shadows. Night: the two white dwarfs, the other planets, a star field and a narrow, dim
+  band of the galaxy broken into structure; moonlight on the ground is brightened 14 times and turned a little blue
+  (dark but readable, as in Rust), the moonlit air only 2.5 times; the moon's disc is capped a few times above white
+  so it never blooms over the sky. Exposure meters for the light
   falling on the ground, nights a few stops darker than days.
 - **Water** reflects the sky and sun with Fresnel, shows the sea floor through water that absorbs red first, glows
-  turquoise in the shallows, foams on the shore and moves with Gerstner swell near the camera.
+  turquoise in the shallows and moves with Gerstner swell near the camera. Surf: broken lines of foam roll in over
+  the shallows along the depth contours, and a swash of foam runs up the sand and back.
 - **Plants** are made in code after hollow-orbit's flora (no plant models): firs (spruce-like), pines, birches,
   broadleaf trees (oak and beech), bushes, red- and blue-berry bushes, ferns and boulders; two to four seeded variants
   per species, each with two meshes. Leaves are cards of a painted atlas (4 × 4 cells, mipmaps that keep the share of
   leaf texels so far foliage does not thin), alpha-tested with alpha to coverage, with vertex-colour occlusion,
   normals pointing out of the crown, hollow-orbit's foliage light (a warm sheen with the sun behind the viewer, light
-  through leaves that face away from it) and little specular. Bark: painted plates and fissures with a normal map.
-  Boulders: icospheres cut into facets, textured with the ground's rock layer in their own frame, moss on top.
-  - *Levels:* trees draw their full mesh to 58 m, then impostors to 2.2 km (eight views of every variant, colour and
-    normals, rendered into an atlas when the view opens); the second mesh only casts shadows, to 250 m; past 1.6 km
-    forests become canopy colour on the ground. Bushes, ferns and rocks use their second mesh to 75–200 m and shrink
-    into the ground at the end. Cross-fades are complementary dithers; distances are the main camera's, also in
-    shadow passes.
+  through leaves that face away from it) and little specular. Bark: fine wandering vertical fissures, cross-cracks,
+  lichen and colour variation, with a normal map; moss low on the trunk's north side. Firs and pines end in small
+  upturned whorls and a needled leader, not a bare spike. Boulders: icospheres cut into facets, textured with the
+  ground's rock layer in their own frame, moss on top.
+  - *Levels:* trees draw their full mesh to 50 m, their second mesh to 170 m, then impostors to 2.2 km (eight views
+    of every variant, colour and normals, rendered into an atlas when the view opens); the near set's impostors and
+    the far blocks' meet at an exact cut (290 m). Each object keeps its level between rebuilds, with a few metres of
+    hysteresis; when it changes level the two cross-fade over 0.45 s (complementary dithers), so no crown stands
+    half-dithered at a boundary. Bushes, ferns and rocks use their second mesh to 75–200 m and shrink into the ground
+    at the end. Past 1.6–2.2 km forests are drawn by the ground (above).
   - *Wind:* every vertex carries a bend weight and a flutter weight; the plant bends along the wind with gusts that
     roll across the forest, leaves flutter along their normals.
   - Each plant is a scatter object, known by tile and index; berry bushes are their own kinds (`BerryRed` 7,
     `BerryBlue` 8) because they will be food.
-- **Grass** is not in the scatter and has no models: `GrassField` draws one MultiMesh of blade tufts on a 0.4 m grid
-  that follows the camera (to 42 m; they shrink into the ground from 22 m). Each tuft's place, height, width, turn,
-  lean, colour, dryness and kind (grass, meadow grass, dry grass, flowers) come from a hash of its ground cell in
-  stable coordinates, so nothing shifts as the grid moves. A field texture (256² at 0.5 m, rebuilt on a worker every
-  14 m) holds the ground's height (the finest tiles' own triangles, so tufts sit on the drawn ground), the grass
-  density (from the biomes, materials and slope), moisture and flowers. The blades are hollow-orbit's painted blade
-  cards spread over each cell, coloured by one function shared with the ground's grass layer
-  (`surface_grass.gdshaderinc`), their foot in the ground's colour, normals mostly up so a field lights as one, light
-  through the tips toward a low sun; wind bends them in gusts drifting downwind with a ripple; they bend away from the
-  walker's feet.
+- **Grass and ground cover** are not in the scatter and have no models: `GrassField` draws one MultiMesh of tufts on
+  a 0.4 m grid that follows the camera (to 42 m; they shrink into the ground from 22 m), and a second, flat one of
+  leaf litter, needles and twigs (to 26 m). What grows in each cell (place, height, width, turn, lean, colour,
+  dryness, kind: grass, meadow grass, dry grass, flowers; ferns, herbs and seedlings under trees; dead leaves of the
+  trees around) comes from a hash of the cell in stable coordinates, so nothing shifts as the grid moves. Two field
+  textures (256² at 0.5 m, rebuilt on a worker every 14 m) hold the ground's height (the finest tiles' own
+  triangles, so tufts sit on the drawn ground), the grass density (from the biomes, materials, slope and tree
+  cover), moisture, flowers, forest cover and small plants. Where grass is thin it grows in patches, and a tuft is a
+  few narrow cards of ragged blades, not a block. The blades are hollow-orbit's painted blade cards, coloured by one
+  function shared with the ground's grass layer (`surface_grass.gdshaderinc`), their foot in the ground's colour,
+  normals up on both faces so a field lights as one in sun and shade, light through the tips toward a low sun; wind
+  bends them in gusts drifting downwind with a ripple; they bend away from the walker's feet.
 - **Time:** the clock runs at the universe time; `RotationTimeScale` (client setting `[surface]
   rotation_time_scale` in `user://settings.cfg`, or `--time-scale`) turns the planet faster than real without
   moving anything else. Keys: `[` `]` jump the clock an hour (Shift: six), T cycles the day speed 1×, 60×, 600×,
   3600×, P pauses, H hides the interface; a card in the corner shows local solar time, UTC and the speed.
   Screenshots pause at `--time`.
-- **Speed** (1600 × 900, RTX 2070 Super, vsync on): 11 ms a frame (90 fps) at the landing site with 4,000 plant
-  meshes, 414,000 impostors and 45,000 grass tufts; 13–15 ms (65–77 fps) above dense forest; 6–7 ms from the air.
+- **Speed** (1600 × 900, RTX 2070 Super, vsync on): 11–12 ms a frame (85–89 fps) at the landing site with 3,300
+  plant meshes, 414,000 impostors and 45,000 grass tufts; 13–15 ms (65–73 fps) inside dense forest; 7 ms from 2 km.
   Opening the view takes about 4 s (tiles, the painted atlas and the plants, then the impostor bake).
 - **Look-dev commands** for the views in §3 (add `--shot <file> --hide-ui` to save them):
   - (a) `--view surface --alt 1.7 --yaw 60 --pitch -2 --time 2026-10-12T03:00:00Z`;
@@ -355,7 +373,7 @@ Godot.
   - (d) `--view surface --lat 44.97185 --lon -169.84163 --alt 60 --yaw 45 --pitch -4 --time 2026-10-12T03:00:00Z`;
   - (e) `--view surface --lat 44.83304 --lon -169.99447 --alt 1.7 --yaw 20 --pitch -2 --time 2026-10-12T03:00:00Z`;
   - (f) `--view surface --lat 44.87400 --lon -169.99949 --alt 1.7 --yaw 120 --pitch 6 --time 2026-10-12T03:00:00Z`;
-  - (g) `--view surface --alt 2000 --yaw 20 --pitch -6 --time 2026-10-12T03:00:00Z`.
+  - (g) `--view surface --alt 2000 --yaw 20 --pitch -14 --time 2026-10-12T03:00:00Z`.
 - **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height at a point, biome at a
   point (`BiomeAt`), collision for a zone square, scatter for a tile (`ScatterFor`). The last two have default
   implementations, so other `ISurface`s keep compiling.
@@ -1082,11 +1100,13 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
 29. **Natural objects' bodies** take free IDs after the ground tiles', so two props touched at once may sort differently
     on the client than on the server, costing a small correction (§6.1).
 30. **Decisions taken in the surface work** (to confirm):
-   - Plants are generated in code in hollow-orbit's style rather than scanned models; trees switch to impostors at
-     58 m, which keeps the frame time near 11 ms.
+   - Plants are generated in code in hollow-orbit's style rather than scanned models; trees switch to their second
+     mesh at 50 m and to impostors at 170 m, which keeps the frame time near 11 ms. Forests farther than 2.2 km are
+     drawn by the ground's canopy, not by trees: a scatter that far would take minutes to generate.
    - Three Megascans surfaces on disk (Mossy Ground `tj4ocdjr`, Tundra Lichened Rock `vjbode1mw`, Tundra Mossy Ground
      `vjulbjjr`) have no listing on record, so they were replaced by listed sets and Poly Haven CC0 sets. The six
-     listings used should be checked once for an "Unreal Engine only" note (none is expected for Megascans surfaces).
+     listings used were checked on 2026-10-13: all six say "License terms: Standard License", and none says "licensed
+     for use only with Unreal Engine" (`game/assets/THIRD_PARTY.md`).
    - Cloud cover is fixed at 0.35 (fair weather) until weather exists; moonlight on the ground is brightened six
      times.
    - The landing site (§3) can still move: only the surface golden test's landing-area points depend on it.

@@ -17,6 +17,8 @@ uniform vec3 moss_colour = vec3(0.16, 0.23, 0.07);
 
 instance uniform vec4 lod_band = vec4(0.0, 0.0, 1e6, 2e6);
 instance uniform float shrink = 0.0;
+global uniform float hu_lod_clock;
+const float LOD_FADE = 0.45; // seconds a change of level of detail takes (custom data z: > 0 in, < 0 out, 0 none)
 
 varying vec3 v_world;
 varying vec3 v_local;
@@ -33,8 +35,9 @@ void vertex() {
 	float fade_in = lod_band.y > lod_band.x ? smoothstep(lod_band.x, lod_band.y, dist) : 1.0;
 	float fade_out = smoothstep(lod_band.z, lod_band.w, dist);
 	float size = shrink > 0.5 ? 1.0 - fade_out : 1.0;
-	v_fade_in = fade_in;
-	v_fade_out = shrink > 0.5 ? 1.0 : 1.0 - fade_out;
+	float lod_fade = INSTANCE_CUSTOM.z;
+	v_fade_in = fade_in * (lod_fade > 0.0 ? clamp((hu_lod_clock - lod_fade) / LOD_FADE, 0.0, 1.0) : 1.0);
+	v_fade_out = (shrink > 0.5 ? 1.0 : 1.0 - fade_out) * (lod_fade < 0.0 ? 1.0 - clamp((hu_lod_clock + lod_fade) / LOD_FADE, 0.0, 1.0) : 1.0);
 	float v_fade = v_fade_in * v_fade_out;
 	float s = length(MODEL_MATRIX[0].xyz);
 	v_local = VERTEX * s + vec3(INSTANCE_CUSTOM.x, INSTANCE_CUSTOM.y, INSTANCE_CUSTOM.x * 0.7) * 37.0;
