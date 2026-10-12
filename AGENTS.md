@@ -6,6 +6,8 @@ Read first, in this order:
 2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it's built. Its principles (§2) and determinism rules (§8)
    are not optional.
 3. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
+4. [docs/GROUND.md](docs/GROUND.md): the Rust-style ground game, if you touch planet surfaces, the server, the
+   network or anything players do on foot.
 
 ## Rules
 
@@ -20,8 +22,10 @@ Read first, in this order:
   file is missing, and lookups by address must treat the address as untrusted.
 - **Changing generated output** (any star, name or planet) changes the golden test values. Update them on
   purpose, in the same commit, and say so in the commit message.
-- **Original content only.** No names, assets, data or UI copied from Rust, Elite Dangerous, No Man's Sky or
-  any other game.
+- **No other game's files.** Models, textures, animations, sounds, maps and monuments from Rust, Elite Dangerous,
+  No Man's Sky or any other game never enter the repository, not even as placeholders (GROUND.md §9 lists such
+  files on this PC). Their mechanics, numbers and UI design may be used: the ground game follows Rust's, and its
+  interface matches RustMVP's (owner's decision, 12 October 2026). Names stay our own.
 - **Interface: crisp at any resolution** (ARCHITECTURE.md §15).
   - Build the UI with `Ui` (`game/scripts/Common/Ui.cs`): text styles, cards, rows and key hints.
   - Every length goes through `Ui.Px`, and anything that must follow the scale goes through `Ui.Track`, `Ui.Size`

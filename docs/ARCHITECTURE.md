@@ -74,18 +74,24 @@ Phases 2 and 3 need no rewrite because of P7.
 ```
 src/Hollow.Core          math (double vectors, deterministic math), hashing, RNG, IDs, units, time
 src/Hollow.Galaxy        galaxy model, addresses, sectors, star generation, catalogue, names, star systems
-src/Hollow.Simulation    (M2) entities, components, rules: movement, items, crafting, building, combat
-src/Hollow.Net           (M2) protocol, serialization, replication, prediction support, transport adapter
-src/Hollow.Persistence   (M3) storage interfaces, SQLite and PostgreSQL implementations
-src/Hollow.Server        (M2) the dedicated server program: zone host, coordinator, services
+src/Hollow.Surface       (G1) planet surfaces: height, climate, biomes, scatter, chunk meshes and collision
+src/Hollow.Simulation    (G1) entities, components, rules: movement, items, crafting, building, combat
+src/Hollow.Net           (G1) protocol, serialization, replication, prediction support, transport adapter
+src/Hollow.Client        (G1) the client without graphics: connection, prediction, interpolation, client world
+src/Hollow.Persistence   (G1) storage interfaces, SQLite and PostgreSQL implementations
+src/Hollow.Server        (G1) the dedicated server program: zone host, coordinator, services
 game/                    the Godot client (project.godot, HollowUniverse.csproj)
+game/data/ground         (G2) item, recipe, building, loot and weapon tables, read by server and client
 tests/Hollow.Tests       test runner for everything engine-free
-tools/                   catalogue builder, bots, load tests
+tools/                   catalogue builder, generator report, bots (Hollow.Bots), load tests
+third_party/             vendored packages, so everything builds without network access
 ```
 
-Dependencies only point down this list: `Core ← Galaxy ← Simulation ← Net ← Server / client`.
-Persistence depends on Core and Simulation. **Nothing in `src/` references Godot.** A test fails the build
-if any `src/` assembly references `GodotSharp`.
+Dependencies only point down this list: `Core ← Galaxy ← Surface ← Simulation ← Net ← Client / Server`.
+Persistence depends on Core and Simulation. The Godot client uses `Hollow.Client`, and `Hollow.Server` when it
+hosts a game itself. Bots are `Hollow.Client` without graphics. **Nothing in `src/` references Godot.** A test fails
+the build if any `src/` assembly references `GodotSharp`. GROUND.md §4 describes how these fit together for the
+ground game.
 
 ---
 
@@ -99,9 +105,10 @@ if any `src/` assembly references `GodotSharp`.
 | Engine (client) | **Godot 4.7.2 .NET edition**, Forward+ renderer | Text-based project files, light editor, MIT licence. |
 | Server | Plain .NET console program, no engine | P3. Runs on Linux or Windows. |
 | Transport | **LiteNetLib** (MIT, pure C#) over UDP | Proven reliable/unreliable channels, fragmentation, MTU discovery. |
-| Physics | **Jolt** through a C# binding on server and client (decide at M2, see §17) | Same engine family as Godot's built-in physics. Good kinematic character controller. |
+| Physics | **Jolt** through JoltPhysicsSharp on server and client (confirmed by a G1 spike; fallback BepuPhysics2) | Same engine family as Godot's built-in physics. Its virtual character is a good kinematic controller and isn't part of the solver, so replaying inputs for prediction is cheap. |
 | Database | SQLite for development and small shards, PostgreSQL for production | Same repository interfaces. |
-| Tests | Plain console runner in `tests/` (no NuGet packages needed) | The AI workspace cannot reach NuGet. Can move to xUnit later. |
+| Tests | Plain console runner in `tests/` | Can move to xUnit later. |
+| Third-party packages | Vendored in `third_party/` (a local package folder or source) | The AI workspace cannot reach NuGet, so a clone must build offline. |
 
 No reflection or JSON on hot paths. Serializers are generated at compile time (C# source generators).
 
@@ -430,14 +437,22 @@ Each is an interface from day one, so moving it to its own process later is a de
 | M7 | Raiding | Explosives, structure damage, decay and upkeep, raid alerts. |
 | M8 | Empire | Miners and automation, monuments and rare loot, ship engineering, deeper crafting. |
 
+**The ground game runs ahead** (decided 12 October 2026) as steps G1–G7 in GROUND.md §5, on a real planet from the
+start:
+- M2 and M3 become part of G1–G3;
+- M6 and M7 become G2–G5;
+- G1 builds one planet's surface ahead of M4;
+- M4 finishes with G7 (every landable body, zones that merge and split);
+- M5 (ships) follows.
+
 ---
 
 ## 18. Open decisions
 
 | Decision | Options | Lean | Decide at |
 |---|---|---|---|
-| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | Jolt | M2 |
-| Entity storage | own archetype store / Arch | own, small | M2 |
+| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | Jolt | G1 spike |
+| Entity storage | own archetype store / Arch | own, small | G1 |
 | Hosting | own machines / rented servers / cloud | rented dedicated servers | M3 |
 | Surface tile size and interaction distance | 1–4 km / 2–6 km | 2 km / 4 km | M4 |
 | Real-star catalogue | HYG 4.1 (~120k stars) / AT-HYG (~2.5M) | HYG now, AT-HYG later | after M1 |

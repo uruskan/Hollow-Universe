@@ -36,7 +36,7 @@ Dune: Awakening.
 | 3 | **An empire you can see** (Decided) | Progress isn't a level number. It's your bases, miners, ships and gear spread across the galaxy. No limit on the number of bases. |
 | 4 | **Earned in the world** (Proposal) | Power comes from resources, monuments and engineering, not from a shop. |
 | 5 | **Big and quiet, then sudden** (Decided) | Space is huge and encounters with other players are rare. When they happen, they matter. |
-| 6 | **Original** (Decided) | Our own names, art, ships and UI. Other games are references for feel only. |
+| 6 | **Original** (Decided) | Our own names, art and ships. Other games' mechanics, numbers and UI design may be borrowed (the ground game uses Rust's, GROUND.md §1); their files never are. |
 
 ---
 
@@ -63,13 +63,14 @@ Dune: Awakening.
 | Where players start | A populated region around Sol (like Elite's bubble). | Proposal |
 | Rarity | Rare resources and monuments depend on the type of star and planet (for example, rich metals on metal-rich worlds, exotic materials near neutron stars). They're spread across the whole galaxy, not concentrated in a few systems. | Decided |
 | Monuments | Special sites on certain planets that hold special loot and are dangerous to run. | Decided |
-| Universe time | Real time: planets orbit and rotate continuously, the same for everyone. | Proposal |
+| Universe time | Real time: planets orbit and rotate continuously, the same for everyone. Whether rotation is compressed so days on the ground are short enough to play is open (GROUND.md §11). | Proposal |
 
 ---
 
 ## 5. On the ground
 
-Almost the full Rust gameplay loop, on planets. (Decided.)
+Almost the full Rust gameplay loop, on planets. (Decided.) The first world is a real generated planet, Nolcas
+Peris CQ-SLY 7-0 B 3. [GROUND.md](GROUND.md) has the details, the build order and the decisions of 12 October 2026.
 
 | Topic | Rule | Status |
 |---|---|---|
@@ -144,8 +145,9 @@ Almost the full Rust gameplay loop, on planets. (Decided.)
 
 ## 10. Content rules
 
-- Rust, Elite Dangerous, No Man's Sky, Astroneer and Dune: Awakening are references for feel and mechanics
-  only. No names, art, models, sounds, UI or data from them.
+- Rust, Elite Dangerous, No Man's Sky, Astroneer and Dune: Awakening are references for feel and mechanics.
+  Their mechanics, numbers and UI design may be used (the ground game follows Rust's; owner's decision,
+  12 October 2026). Their files (models, textures, animations, sounds, maps, monuments) and names never are.
 - Real star data comes from public catalogues, credited under their licence (GALAXY.md §8).
 - Every generated name uses our own syllable tables.
 
