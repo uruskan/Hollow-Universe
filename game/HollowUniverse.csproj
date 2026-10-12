@@ -8,5 +8,8 @@
     <ProjectReference Include="../src/Hollow.Core/Hollow.Core.csproj" />
     <ProjectReference Include="../src/Hollow.Galaxy/Hollow.Galaxy.csproj" />
     <ProjectReference Include="../src/Hollow.Surface/Hollow.Surface.csproj" />
+    <ProjectReference Include="../src/Hollow.Simulation/Hollow.Simulation.csproj" />
+    <ProjectReference Include="../src/Hollow.Client/Hollow.Client.csproj" />
+    <ProjectReference Include="../src/Hollow.Server/Hollow.Server.csproj" />
   </ItemGroup>
 </Project>

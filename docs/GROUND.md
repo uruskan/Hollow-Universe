@@ -24,7 +24,7 @@ Every rule is marked **Decided** (the owner said so), **Proposal** (waiting for 
 | Starter ship | The Tin Finch (`D:\GameDev\Assets\TinFinch_TF01`, our own Blender model): a single-seat skiff, crafted at the vehicle workbench. It is the first ship of the space part. | Decided |
 | Day length | Planet rotation compressed 24 times for play: an Earth day becomes an hour, and the first world's day 87 minutes. Orbits and seasons stay real. Chosen by Claude while the owner is away; the owner may veto it. | Proposal |
 | Who runs the work | Claude, on its own, until the whole thing is finished and polished; the owner is busy elsewhere and isn't asked to playtest in between. Progress is logged in `docs/progress-ground.md`. | Decided |
-| Character | Our own character system. Base body and motion data from free sources (MakeHuman CC0, CMU motion capture, Quaternius CC0) if the owner allows the downloads. | Open |
+| Character | Our own character system: body from MPFB (MakeHuman), motion from the Quaternius CC0 libraries; downloads approved by the owner. Never RustMVP's extracted Rust character, even as a fallback. | Decided |
 
 ---
 
@@ -108,6 +108,16 @@ Godot.
 - **Static entities** (building parts, deployables, boxes) cost nothing per tick until something happens to them.
 - **Natural things** (trees, ore, plants) come from the surface generator. Only changes are stored, such as "this tree
   is cut until T" (ARCHITECTURE.md P1).
+- **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world at a
+  latitude and longitude from the command line (the planet package picks the landing site). Each tick: receive, finish
+  logins, run admin commands, give every character its input for this tick, step the zone, send snapshots (20 a
+  second), save every 30 s, send. Tick time is measured (average, 99th percentile, maximum).
+  - **Login** is by player name for development: the name is the account, one character per name, refused if in use.
+  - **Admin console:** `status`, `kick <name> [reason]`, `teleport <name> <x> <z>` or `teleport <name> <other>`,
+    `say <text>`, `save`, `quit`. Ctrl+C or `quit` saves everyone, says goodbye to every client and stops.
+  - **Host mode:** the game runs the same `GameServer` on a background thread for solo play (`--host`); other
+    clients can join it on the same port.
+  - Ground near the spawn is built at start, so the first arrival doesn't stall the tick.
 
 ### 4.3 Client
 
@@ -123,6 +133,28 @@ Godot.
   entity views pooled by type, a first-person camera and viewmodel, third-person characters, UI and audio.
   Mouse look is applied every frame, never held back by the tick.
 - **Bots** are Hollow.Client with scripted input. Tests run the server and bots headless.
+- **As built in G1** (`src/Hollow.Client`, no Godot): `GameClient.Update(delta, input)` every frame receives, runs
+  the ticks that are due (each predicts and sends its input) and advances what is drawn.
+  - **Prediction:** a `Predictor` keeps 4 s of inputs and predicted states. A snapshot brings the server's state of
+    the character after some tick; if it differs from the prediction for that tick, the predictor takes the server's
+    state and replays the newer inputs. Identical inputs give identical results (§4.5), so on a clean line nothing is
+    ever corrected.
+  - **Smoothing:** a correction under 2 m is added to a visual offset that fades in about 0.1 s; a bigger one (a
+    teleport, a respawn) shows at once. The drawn position blends the last two predicted ticks, so movement is smooth
+    at any frame rate; the eye height eases between stances (RustMVP's rate 18).
+  - **Remote entities** are drawn 100 ms behind a clock that follows the newest snapshot tick, blended between the
+    snapshots on either side; if snapshots stop they carry on for up to 4 ticks along their last motion, then hold.
+  - **Statistics:** round trip (measured by echo), snapshot rate and loss, bandwidth both ways with UDP and IP
+    headers, prediction error (last, mean and worst), input margin, clock rate.
+- **The ground mode in Godot** (`game/scripts/Ground/`, G1 placeholders): `--view ground` connects to a server
+  (`--connect host:port`) or hosts one in the game for solo play (`--host`, the default). First-person camera at the
+  eye, mouse look every frame, W A S D, Shift sprint, Ctrl crouch, Space jump. Other players are capsule mannequins of
+  the character's size with a visor and their name (placed by `Labeller`). The ground is drawn from the same collision
+  tiles, 448 m across, coloured by slope, under a placeholder sky and haze; the planet package's renderer replaces
+  it. F3 shows the network graph, Enter opens chat. Zone-frame metres are Godot's coordinates (no floating origin yet:
+  the zone stays within 8.2 km of its origin, where floats are good to half a millimetre).
+
+![Two clients: Bo sees Ada](images/ground/two-players.png)
 
 ### 4.4 Network
 
@@ -135,14 +167,74 @@ Godot.
   shooter saw, using one second of hitbox history. Clients never report hits.
 - For testing, the transport can add latency, jitter and packet loss, and the client shows a network graph.
 
+**As built in G1** (`src/Hollow.Net`):
+- **Transport:** LiteNetLib 2.1 in manual mode (no background threads: the server polls once a tick, a client once a
+  frame). Reliable ordered: `Welcome`, `Spawn`, `Despawn`, chat. Sequenced (unreliable, newest wins): inputs and
+  snapshots.
+- **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name). A
+  refusal carries a `Goodbye` with a reason (protocol mismatch, bad name, name in use, server full; also kick and
+  shutdown). An accepted player gets `Welcome`: net and entity IDs, the server tick, the rates, the zone (body, radius,
+  gravity, surface seed, latitude, longitude) and the saved view.
+- **Clocks:** every input is for a tick. The client runs its tick clock ahead of the server's so inputs arrive in
+  time: every snapshot says how early this client's inputs arrived (the least over the last half second). The client
+  aims for 2 ticks: 4 % faster below, 3 % slower above 4, and it jumps when inputs arrive late or very early. A jump
+  forward runs the extra ticks over the next frames (their inputs still go out); one of over a second skips them (the
+  server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. The first lead
+  comes from the connect handshake's round trip.
+- **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, yaw and pitch in 1/65,536 of a turn,
+  buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the snapshot acknowledgements and
+  a client timestamp for measuring the round trip. Only four losses in a row lose an input. The server applies each
+  tick's input on that tick; without one it repeats the last (without the jump press) and counts a miss.
+- **Snapshots:** 20 a second per client (every 1.5 ticks on average). The header has the sequence, the server tick,
+  the input margin, the player's own character exactly (floats, for reconciliation) with its tick, and the echo. Then
+  the relevant entities, each delta-coded against its newest state the client confirmed (acknowledged by sequence and
+  32 bits), highest accumulated priority first, within 1,600 bytes and the path's MTU. Remote positions are on a
+  1/256 m grid.
+- **Relevance:** a 64 m grid; an entity becomes relevant within 300 m (reliable `Spawn`) and stops beyond 320 m
+  (`Despawn`). Everyone's own character is always theirs.
+- **Bad network:** `ConditionedRelay`, a local UDP relay below LiteNetLib (whose own simulation is compiled out of its
+  release package), adds round-trip latency, jitter and loss in both directions; clients and bots take `--lag <ms>`,
+  `--jitter <ms>` and `--loss <percent>`.
+
 ### 4.5 Physics and movement
 
-- **Jolt** through JoltPhysicsSharp, on the server and in the client's prediction. A G1 spike confirms it runs in both
-  processes; the fallback is BepuPhysics2 (pure C#).
-- **Characters** use Jolt's virtual character. "Up" is away from the planet's centre, expressed in the zone's frame,
-  so nothing assumes +Y is up. Walk, sprint, crouch, jump, swim, fall damage.
-- **Collision:** terrain chunks are mesh shapes built from Hollow.Surface, identical on both sides. Building parts
-  are boxes and convex hulls from data. Deployables and natural objects use simple shapes.
+- **Jolt** through JoltPhysicsSharp 2.23 (joltc 1.1), on the server and in the client's prediction. **The G1 spike
+  passed (12 October 2026):** a fixed script of 600 ticks of input (walk, sprint while turning, jumps, crouch, strafe)
+  walks a virtual character over mesh ground from `ISurface.GroundCollision`, with up from `ZoneFrame.UpAt`, on a
+  stand-in planet of the first world's size. A .NET console process and the Godot 4.7.2 client (which also loads
+  Godot's own Jolt) print the same final position and the same hash of every state on the way
+  (`0x6E7FDE937D5A46FA` on win-x64 with the movement code of 12 October 2026; any change to movement changes it).
+  BepuPhysics2 is not needed. The check stays: `dotnet run --project tests/Hollow.Tests -- MovementCheck` and
+  `$GODOT --headless --path game -- --physics-check` must print the same line
+  (`Hollow.Simulation.Movement.MovementCheck`).
+- **One step is a pure function** of the character's state (feet position, velocity, stance, health), one tick of
+  input and the static world. Every step first puts Jolt's character exactly at the state and finds its contacts
+  afresh, on the server as in prediction, so the client can rewind to any state the server sends and replay its
+  inputs to the same bits. Results are repeatable within one build and platform; across platforms they may differ in
+  the last bits, which reconciliation absorbs.
+- **One lock for Jolt.** joltc's character functions share one temporary allocator inside the native library, so
+  `JoltRuntime.Gate` serialises every call into Jolt in a process (a hosted server and the client's prediction share
+  the game process). A zone holds it for its movement pass. Zones ticking in parallel (G7) will need joltc's
+  per-caller allocators.
+- **Characters** use Jolt's virtual character, a capsule (radius 0.32 m, 1.76 m standing, 1.10 m crouched) whose
+  position is its feet. "Up" is away from the planet's centre at the character, expressed in the zone's frame
+  (`ZoneFrame.UpAt`), so nothing assumes +Y is up; the view's yaw is measured about the zone's +Y and laid onto the
+  local horizontal. Characters don't collide with each other in G1 (§11), so prediction depends only on the static
+  world and the player's own inputs.
+- **Movement** follows RustMVP's numbers (`MovementTuning`, from `weapons_character_ui.md` §2): walk 2.8 m/s,
+  sprint 5.5 m/s (straight forward only), crouch 1.3 m/s, acceleration and braking 60 m/s², ground friction 8, air
+  control 0.25, jump 7.0 m/s (7.6 crouched), steps up to 0.40 m, slopes up to 46°.
+  - **Gravity** is the planet's surface gravity times RustMVP's gravity scale 1.8: 16.2 m/s² on the first world, so a
+    standing jump rises 1.51 m.
+  - **Fall damage** (RustMVP had none; Rust's rule): landing faster than 15 m/s toward the ground costs
+    500 × (speed − 15) / 85 health, rounded up. A fall of about 7 m starts to hurt; about 31 m kills.
+  - **Swimming** where `ISurface.SeaRadius` > 0: a character swims once the water reaches 65 % of its height (Rust's
+    threshold), steers in the view direction (look down to dive), rises with jump and sinks with crouch, and floats
+    at 75 % depth otherwise. 2.0 m/s, 3.0 m/s with sprint. Landing in water never hurts.
+- **Collision:** the ground is static mesh tiles of 64 m built from `ISurface.GroundCollision`, identical on both
+  sides. A tile's Jolt body ID follows from its grid position (Jolt orders contacts by body ID), so tiles agree where
+  they meet whatever else each side holds. Tiles exist within ±8.2 km of the zone's origin. Building parts are boxes
+  and convex hulls from data. Deployables and natural objects use simple shapes.
 - Godot's own physics is used only for cosmetic things: ragdolls and debris.
 
 ### 4.6 Planet surface
@@ -172,6 +264,13 @@ SQLite through Hollow.Persistence, as in ARCHITECTURE.md §13:
 - dirty entities are written every 30 s and on shutdown;
 - deaths, trades and transfers commit at once.
 
+In G1 (`Hollow.Persistence`): accounts by player name (the development login, case-insensitive) and one character per
+account, stored with its position in the **body frame** (metres from the planet's centre, turning with it), so it
+comes back at the same place on the planet whatever zone frame the server uses next. Also its view angles, stance and
+health. The schema version is SQLite's `user_version`; opening a database migrates it step by step and refuses one
+newer than the build. Every database call runs on one worker thread in the order made, so a tick never waits for the
+disk and a login always reads the last save. Characters are saved on disconnect, every 30 s and on shutdown.
+
 ---
 
 ## 5. Steps
@@ -191,6 +290,43 @@ Each step is multiplayer and playable. The owner playtests at the end of each on
 
 Later: electricity and turrets, farming, traps, miners (our own feature), ground vehicles. Ships (M5) cover what
 Rust's helicopters do.
+
+### 5.1 G1 network measurements
+
+Measured on the owner's PC (12 threads, 16 GB) on 12 October 2026 with the stand-in surface. The server runs alone
+in one process; 100 bots run in another, each a full client that predicts its character. Bots wander, circle and jump
+within 120 m of the spawn, so every bot sees the 99 others (the bandwidth worst case). 60 s measured after an 8 s
+warm-up:
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --lag 150 --loss 5
+```
+
+| | Clean loopback | 150 ms ping, 5 % loss each way | Target |
+|---|---|---|---|
+| Server tick, average | 4.25 ms | 4.27 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 10.2 / 26.9 ms | 9.5 / 24.7 ms | ≤ 33 ms |
+| Bandwidth per client, down (99 characters in view, UDP and IP headers included) | 114 kbit/s | 123 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 18 kbit/s | 17 kbit/s | |
+| Snapshots lost | 0 % | 4.6 % | |
+| Inputs that missed their tick | 0 of 180,000 | 2 of 180,000 | |
+| Prediction: corrections / reconciliations | 0 / 120,000 | 1 / 114,069 | |
+| Prediction error: mean / worst | 0 / 0 mm | < 0.001 / 1.9 mm | |
+
+- **Prediction is exact** whenever the server applied the input the client predicted with: the clock keeps inputs
+  2 ticks early, and each packet carries four ticks of input, so loss rarely costs one.
+- **Ground tiles** cost about 10 ms each to build (3.7 ms sampling the stand-in surface, 6.2 ms for Jolt's mesh tree),
+  so tiles two out from every character are built ahead on worker threads; the worst ticks left are a tile a character
+  needed before it was ready, and garbage collections.
+- A server sharing its process with the bots measured 5.1 / 16.2 / 36 ms (their allocations and collections land on
+  its ticks), which is why the load test runs the bots in a child process.
+- **With jitter as well** (150 ms ping, ±20 ms jitter, 5 % loss, 30 s): 99.89 % of inputs on their tick, 11
+  corrections in 56,211 reconciliations (mean 0.011 mm, worst 14 cm), 17 clock jumps among 100 bots. Jitter
+  sometimes makes an input late before the clock moves; the clock then runs the missing ticks quickly rather than
+  skipping them, so their inputs still go out. Server ticks in that run were 6.2 ms average, 16.9 ms 99th percentile
+  and 48.5 ms worst (two over budget): the server, 100 bots and the relay share one PC, and the worst ticks vary from
+  run to run.
 
 ---
 
@@ -312,10 +448,23 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
 ## 11. Open questions
 
 1. **Day length:** compressed ×24 is the working default (§1). The owner may switch it back to real rotation.
-2. **Downloads for the character:** asked on 12 October 2026:
-   - Quaternius Universal Animation Library (CC0, about 13 MB);
-   - Quaternius Universal Animation Library 2 (CC0, about 10 MB);
-   - MPFB 2.0.17, MakeHuman for Blender (42.9 MB).
-
-   Without them, the character is built from scratch in Blender.
+2. **Downloads for the character:** approved by the owner on 12 October 2026 (Quaternius animation libraries, MPFB),
+   with free use of other CC0 and CC-BY sources.
 3. **Tech ladder:** Rust's is assumed.
+
+Decisions taken during G1 without the owner, to confirm or overturn:
+
+4. **Character gravity** is the planet's surface gravity times RustMVP's gravity scale 1.8 (§4.5). Without the scale
+   RustMVP's 7 m/s jump would rise 2.7 m on the first world; with it, 1.51 m.
+5. **Fall damage** uses Rust's rule (safe below 15 m/s, 500 × (speed − 15) / 85), since RustMVP has none.
+6. **Swimming numbers** are ours until tuned: swim at 65 % depth, float at 75 %, 2.0 m/s (3.0 with sprint).
+7. **Characters pass through each other** in G1. Colliding characters need the other players' positions in
+   prediction, which are 100 ms old; it comes back with combat (G4) if it's wanted.
+8. **The zone's origin** is 28.4°, −61.7° until the landing site is chosen (the stand-in surface is the same
+   everywhere); the server takes `--lat` and `--lon`, and characters are stored in the body frame, so moving the zone
+   later keeps them where they were on the planet.
+9. **Development login** is the player name alone: no password, one character per name. Real accounts come with the
+   account service and connect tokens (ARCHITECTURE.md §11.1).
+10. **Placeholders in the client** until their owners land: the ground drawn from collision tiles and a fixed sun
+    (planet package), capsule mannequins (character work), a minimal HUD (the RustMVP interface, G2). Day and night
+    come with the planet package's sky.

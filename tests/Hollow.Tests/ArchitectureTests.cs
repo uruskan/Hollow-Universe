@@ -14,7 +14,12 @@ public static class ArchitectureTests
     [Test]
     public static void EngineFreeLibrariesDoNotReferenceGodot()
     {
-        Assembly[] libraries = { typeof(DMath).Assembly, typeof(Galaxy.Galaxy).Assembly, typeof(Surface.ISurface).Assembly };
+        Assembly[] libraries =
+        {
+            typeof(DMath).Assembly, typeof(Galaxy.Galaxy).Assembly, typeof(Surface.ISurface).Assembly,
+            typeof(Simulation.Movement.CharacterMotor).Assembly, typeof(Net.Protocol.Protocol).Assembly,
+            typeof(Persistence.GameDatabase).Assembly, typeof(Client.GameClient).Assembly, typeof(Server.GameServer).Assembly,
+        };
         foreach (Assembly library in libraries)
         {
             string[] godot = library.GetReferencedAssemblies()

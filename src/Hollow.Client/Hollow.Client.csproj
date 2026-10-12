@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Hollow.Client</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Hollow.Core/Hollow.Core.csproj" />
+    <ProjectReference Include="../Hollow.Simulation/Hollow.Simulation.csproj" />
+    <ProjectReference Include="../Hollow.Net/Hollow.Net.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hollow.Tests" />
+  </ItemGroup>
+</Project>

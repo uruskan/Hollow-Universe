@@ -105,12 +105,15 @@ ground game.
 | Engine (client) | **Godot 4.7.2 .NET edition**, Forward+ renderer | Text-based project files, light editor, MIT licence. |
 | Server | Plain .NET console program, no engine | P3. Runs on Linux or Windows. |
 | Transport | **LiteNetLib** (MIT, pure C#) over UDP | Proven reliable/unreliable channels, fragmentation, MTU discovery. |
-| Physics | **Jolt** through JoltPhysicsSharp on server and client (confirmed by a G1 spike; fallback BepuPhysics2) | Same engine family as Godot's built-in physics. Its virtual character is a good kinematic controller and isn't part of the solver, so replaying inputs for prediction is cheap. |
+| Physics | **Jolt** through JoltPhysicsSharp on server and client (confirmed by the G1 spike: identical results in a console process and in the Godot client, GROUND.md §4.5) | Same engine family as Godot's built-in physics. Its virtual character is a good kinematic controller and isn't part of the solver, so replaying inputs for prediction is cheap. |
 | Database | SQLite for development and small shards, PostgreSQL for production | Same repository interfaces. |
 | Tests | Plain console runner in `tests/` | Can move to xUnit later. |
-| Third-party packages | Vendored in `third_party/` (a local package folder or source) | The AI workspace cannot reach NuGet, so a clone must build offline. |
+| Third-party packages | Vendored in `third_party/packages` as `.nupkg` files; `NuGet.config` maps their IDs to that folder only (`third_party/README.md` lists them) | The AI workspace cannot reach NuGet, so a clone must build offline. |
 
-No reflection or JSON on hot paths. Serializers are generated at compile time (C# source generators).
+No reflection or JSON on hot paths. Serializers are generated ahead of time: `tools/Hollow.NetGen` reads the message
+definitions (`src/Hollow.Net/Protocol/Messages.cs`) and writes `Messages.g.cs` into the repository, and a test fails
+when that file is out of date. A Roslyn source generator would need the compiler packages, which aren't vendored;
+a text-to-text tool also keeps working when a definition changes in a way the old generated code can't compile with.
 
 ---
 
@@ -242,11 +245,13 @@ cross-boundary events. This is what lets zones move to other processes later (P7
 ### 10.2 Entities
 
 - An **entity** is a 64-bit ID plus components (data only). **Systems** (logic) run each tick in a fixed
-  order. Storage is archetype-based (decide own vs. the Arch library at M2).
+  order. Storage is our own and small (`Hollow.Simulation.Entities`, decided in G1): an entity is a slot with a
+  generation and a permanent `EntityId`; each component type has one sparse set (dense arrays to iterate, O(1) add,
+  get and remove). Archetype storage can replace the pools if profiling ever asks for it.
 - **Static entities** (building parts, deployables, boxes) change rarely: no per-tick cost, replicated
   reliably when they change.
 - **Dynamic entities** (characters, projectiles, vehicles, ships) are simulated and snapshotted every tick.
-- Components declare their network and save schema with attributes. Serializers are source-generated.
+- Components declare their network and save schema with attributes. Serializers are generated (§5).
 
 ### 10.3 Physics
 
@@ -288,9 +293,13 @@ the base.
 
 ### 11.2 Messages
 
-- Messages are C# structs with attributes. A source generator writes bit-packed serializers: variable-length
-  integers, quantized floats, delta-encoded fields.
-- A protocol version is checked on connect.
+- Messages are C# structs with attributes (`[NetMessage(id)]`, `[NetStruct]`, `[NetState]`; fields with `[Bits]`,
+  `[Signed]`, `[VarInt]`, `[Angle]`, `[Quantize]`, `[MaxLength]`, `[MaxCount]`). `tools/Hollow.NetGen` writes their
+  bit-packed serializers (§5): variable-length integers, quantized floats, and for entity states a delta against a
+  baseline (a bit per field, then the difference in as few bits as fit). Readers never throw on bad data; a message
+  that reads past its end or breaks a limit is dropped.
+- A protocol version and a hash of every message layout (generated) are checked on connect, so builds that don't
+  speak the same protocol refuse each other with a reason.
 
 ### 11.3 Replication (server → client)
 
@@ -298,9 +307,10 @@ the base.
   entity type. The player's own character, ship and team are always relevant.
 - **Static entities** are sent once when they become relevant (rate-limited batches), then only changes.
   A big base streams in over a few seconds instead of arriving as one burst.
-- **Dynamic entities** are sent in snapshots at 20 Hz, delta-compressed against the last snapshot the
-  client acknowledged. A priority accumulator decides what fits in the client's bandwidth budget
-  (target ≤ 256 kbit/s in a fight).
+- **Dynamic entities** are sent in snapshots at 20 Hz, delta-compressed against what the client acknowledged:
+  each entity against its newest state in a snapshot the client confirmed (by sequence and a 32-bit mask), so a lost
+  snapshot never breaks a later one. A priority accumulator decides what fits in the client's bandwidth budget
+  (target ≤ 256 kbit/s in a fight). GROUND.md §4.4 has the details as built.
 - **Events**: shots, impacts and sounds are unreliable when cosmetic and reliable when they change state.
 
 ### 11.4 Prediction, reconciliation, interpolation
@@ -451,8 +461,8 @@ start:
 
 | Decision | Options | Lean | Decide at |
 |---|---|---|---|
-| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | Jolt | G1 spike |
-| Entity storage | own archetype store / Arch | own, small | G1 |
+| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | **Decided: Jolt** (JoltPhysicsSharp; the G1 spike passed, GROUND.md §4.5) | done |
+| Entity storage | own archetype store / Arch | **Decided: own, small** — a sparse set per component type (§10.2) | done |
 | Hosting | own machines / rented servers / cloud | rented dedicated servers | M3 |
 | Surface tile size and interaction distance | 1–4 km / 2–6 km | 2 km / 4 km | M4 |
 | Real-star catalogue | HYG 4.1 (~120k stars) / AT-HYG (~2.5M) | HYG now, AT-HYG later | after M1 |

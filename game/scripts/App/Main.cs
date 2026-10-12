@@ -6,6 +6,7 @@ using Hollow.Core;
 using Hollow.Galaxy;
 using Hollow.Galaxy.Systems;
 using HollowUniverse.GalaxyMap;
+using HollowUniverse.Ground;
 using HollowUniverse.SystemMap;
 
 namespace HollowUniverse.App;
@@ -24,10 +25,16 @@ public partial class Main : Node
     private bool _capturing;
     private bool _rescaled;
     private UiScaler _scaler = null!;
+    private GroundMode? _ground;
 
     public override void _Ready()
     {
         _options = ParseOptions(OS.GetCmdlineUserArgs());
+        if (_options.ContainsKey("physics-check"))
+        {
+            GroundChecks.RunPhysicsCheck(this);
+            return;
+        }
         // The interface scale has to be known before any interface is built.
         _scaler = new UiScaler { Name = "UiScaler" };
         if (_options.ContainsKey("ui-scale"))
@@ -36,6 +43,13 @@ public partial class Main : Node
         }
         AddChild(_scaler);
         GalaxyService.Load();
+        if (Option("view", "galaxy") == "ground")
+        {
+            // The ground game (GROUND.md §4.3): its own view; the maps aren't built.
+            _ground = new GroundMode { Name = "Ground", Options = _options };
+            AddChild(_ground);
+            return;
+        }
 
         _galaxyMap = new GalaxyMapView { Name = "GalaxyMap" };
         AddChild(_galaxyMap);
@@ -137,7 +151,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        if (_options.ContainsKey("trace"))
+        if (_options.ContainsKey("trace") && _ground == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -160,7 +174,7 @@ public partial class Main : Node
             _scaler.Apply();
         }
         double wait = Number("wait", 2);
-        bool ready = _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
+        bool ready = _ground != null ? _ground.ReadyForShot : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
         {
             _capturing = true;
