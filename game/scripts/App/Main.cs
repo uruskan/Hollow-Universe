@@ -6,6 +6,7 @@ using Hollow.Core;
 using Hollow.Galaxy;
 using Hollow.Galaxy.Systems;
 using HollowUniverse.GalaxyMap;
+using HollowUniverse.Ground;
 using HollowUniverse.SystemMap;
 
 namespace HollowUniverse.App;
@@ -28,6 +29,11 @@ public partial class Main : Node
     public override void _Ready()
     {
         _options = ParseOptions(OS.GetCmdlineUserArgs());
+        if (_options.ContainsKey("physics-check"))
+        {
+            GroundChecks.RunPhysicsCheck(this);
+            return;
+        }
         // The interface scale has to be known before any interface is built.
         _scaler = new UiScaler { Name = "UiScaler" };
         if (_options.ContainsKey("ui-scale"))

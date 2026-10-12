@@ -105,10 +105,10 @@ ground game.
 | Engine (client) | **Godot 4.7.2 .NET edition**, Forward+ renderer | Text-based project files, light editor, MIT licence. |
 | Server | Plain .NET console program, no engine | P3. Runs on Linux or Windows. |
 | Transport | **LiteNetLib** (MIT, pure C#) over UDP | Proven reliable/unreliable channels, fragmentation, MTU discovery. |
-| Physics | **Jolt** through JoltPhysicsSharp on server and client (confirmed by a G1 spike; fallback BepuPhysics2) | Same engine family as Godot's built-in physics. Its virtual character is a good kinematic controller and isn't part of the solver, so replaying inputs for prediction is cheap. |
+| Physics | **Jolt** through JoltPhysicsSharp on server and client (confirmed by the G1 spike: identical results in a console process and in the Godot client, GROUND.md §4.5) | Same engine family as Godot's built-in physics. Its virtual character is a good kinematic controller and isn't part of the solver, so replaying inputs for prediction is cheap. |
 | Database | SQLite for development and small shards, PostgreSQL for production | Same repository interfaces. |
 | Tests | Plain console runner in `tests/` | Can move to xUnit later. |
-| Third-party packages | Vendored in `third_party/` (a local package folder or source) | The AI workspace cannot reach NuGet, so a clone must build offline. |
+| Third-party packages | Vendored in `third_party/packages` as `.nupkg` files; `NuGet.config` maps their IDs to that folder only (`third_party/README.md` lists them) | The AI workspace cannot reach NuGet, so a clone must build offline. |
 
 No reflection or JSON on hot paths. Serializers are generated at compile time (C# source generators).
 
@@ -451,7 +451,7 @@ start:
 
 | Decision | Options | Lean | Decide at |
 |---|---|---|---|
-| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | Jolt | G1 spike |
+| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | **Decided: Jolt** (JoltPhysicsSharp; the G1 spike passed, GROUND.md §4.5) | done |
 | Entity storage | own archetype store / Arch | own, small | G1 |
 | Hosting | own machines / rented servers / cloud | rented dedicated servers | M3 |
 | Surface tile size and interaction distance | 1–4 km / 2–6 km | 2 km / 4 km | M4 |

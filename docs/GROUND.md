@@ -135,12 +135,42 @@ Godot.
 
 ### 4.5 Physics and movement
 
-- **Jolt** through JoltPhysicsSharp, on the server and in the client's prediction. A G1 spike confirms it runs in both
-  processes; the fallback is BepuPhysics2 (pure C#).
-- **Characters** use Jolt's virtual character. "Up" is away from the planet's centre, expressed in the zone's frame,
-  so nothing assumes +Y is up. Walk, sprint, crouch, jump, swim, fall damage.
-- **Collision:** terrain chunks are mesh shapes built from Hollow.Surface, identical on both sides. Building parts
-  are boxes and convex hulls from data. Deployables and natural objects use simple shapes.
+- **Jolt** through JoltPhysicsSharp 2.23 (joltc 1.1), on the server and in the client's prediction. **The G1 spike
+  passed (12 October 2026):** a fixed script of 600 ticks of input (walk, sprint while turning, jumps, crouch, strafe)
+  walks a virtual character over mesh ground from `ISurface.GroundCollision`, with up from `ZoneFrame.UpAt`, on a
+  stand-in planet of the first world's size. A .NET console process and the Godot 4.7.2 client (which also loads
+  Godot's own Jolt) print the same final position and the same hash of every state on the way
+  (`0x268A8EBB4AE4D881` on win-x64). BepuPhysics2 is not needed. The check stays:
+  `dotnet run --project tests/Hollow.Tests -- MovementCheck` and `$GODOT --headless --path game -- --physics-check`
+  must print the same line (`Hollow.Simulation.Movement.MovementCheck`).
+- **One step is a pure function** of the character's state (feet position, velocity, stance, health), one tick of
+  input and the static world. Every step first puts Jolt's character exactly at the state and finds its contacts
+  afresh, on the server as in prediction, so the client can rewind to any state the server sends and replay its
+  inputs to the same bits. Results are repeatable within one build and platform; across platforms they may differ in
+  the last bits, which reconciliation absorbs.
+- **One lock for Jolt.** joltc's character functions share one temporary allocator inside the native library, so
+  `JoltRuntime.Gate` serialises every call into Jolt in a process (a hosted server and the client's prediction share
+  the game process). A zone holds it for its movement pass. Zones ticking in parallel (G7) will need joltc's
+  per-caller allocators.
+- **Characters** use Jolt's virtual character, a capsule (radius 0.32 m, 1.76 m standing, 1.10 m crouched) whose
+  position is its feet. "Up" is away from the planet's centre at the character, expressed in the zone's frame
+  (`ZoneFrame.UpAt`), so nothing assumes +Y is up; the view's yaw is measured about the zone's +Y and laid onto the
+  local horizontal. Characters don't collide with each other in G1 (§11), so prediction depends only on the static
+  world and the player's own inputs.
+- **Movement** follows RustMVP's numbers (`MovementTuning`, from `weapons_character_ui.md` §2): walk 2.8 m/s,
+  sprint 5.5 m/s (straight forward only), crouch 1.3 m/s, acceleration and braking 60 m/s², ground friction 8, air
+  control 0.25, jump 7.0 m/s (7.6 crouched), steps up to 0.40 m, slopes up to 46°.
+  - **Gravity** is the planet's surface gravity times RustMVP's gravity scale 1.8: 16.2 m/s² on the first world, so a
+    standing jump rises 1.51 m.
+  - **Fall damage** (RustMVP had none; Rust's rule): landing faster than 15 m/s toward the ground costs
+    500 × (speed − 15) / 85 health, rounded up. A fall of about 7 m starts to hurt; about 31 m kills.
+  - **Swimming** where `ISurface.SeaRadius` > 0: a character swims once the water reaches 65 % of its height (Rust's
+    threshold), steers in the view direction (look down to dive), rises with jump and sinks with crouch, and floats
+    at 75 % depth otherwise. 2.0 m/s, 3.0 m/s with sprint. Landing in water never hurts.
+- **Collision:** the ground is static mesh tiles of 64 m built from `ISurface.GroundCollision`, identical on both
+  sides. A tile's Jolt body ID follows from its grid position (Jolt orders contacts by body ID), so tiles agree where
+  they meet whatever else each side holds. Tiles exist within ±8.2 km of the zone's origin. Building parts are boxes
+  and convex hulls from data. Deployables and natural objects use simple shapes.
 - Godot's own physics is used only for cosmetic things: ragdolls and debris.
 
 ### 4.6 Planet surface
@@ -314,3 +344,12 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
    use in commercial games), Quaternius's CC0 animation library. Exact files and sizes will be listed before any
    download.
 3. **Tech ladder:** confirm Rust's.
+
+Decisions taken during G1 without the owner, to confirm or overturn:
+
+4. **Character gravity** is the planet's surface gravity times RustMVP's gravity scale 1.8 (§4.5). Without the scale
+   RustMVP's 7 m/s jump would rise 2.7 m on the first world; with it, 1.51 m.
+5. **Fall damage** uses Rust's rule (safe below 15 m/s, 500 × (speed − 15) / 85), since RustMVP has none.
+6. **Swimming numbers** are ours until tuned: swim at 65 % depth, float at 75 %, 2.0 m/s (3.0 with sprint).
+7. **Characters pass through each other** in G1. Colliding characters need the other players' positions in
+   prediction, which are 100 ms old; it comes back with combat (G4) if it's wanted.
