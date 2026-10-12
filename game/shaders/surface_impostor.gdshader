@@ -1,0 +1,98 @@
+// Far trees of the surface view (GROUND.md §4.6): one quad per tree turned toward the camera about the tree's own up,
+// showing the nearest two of eight baked views (colour with alpha, camera-space normals) for its variant, so forests
+// reach the horizon for two triangles a tree. Fades in where the meshes fade out.
+shader_type spatial;
+render_mode cull_disabled, depth_draw_opaque, skip_vertex_transform, diffuse_burley, specular_disabled;
+
+#include "res://shaders/surface_atmosphere.gdshaderinc"
+#include "res://shaders/surface_clouds.gdshaderinc"
+
+uniform sampler2D colour_atlas : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D normal_atlas : filter_linear_mipmap, repeat_disable;
+uniform float rows = 1.0;
+uniform float views = 8.0;
+uniform vec2 fade_in = vec2(170.0, 200.0);
+uniform float fade_out = 4500.0;
+uniform vec3 tint = vec3(1.0);
+uniform float translucency = 0.6;
+
+varying vec3 v_world;
+varying float v_frame;
+varying float v_row;
+varying float v_fade;
+varying float v_cloud;
+varying vec3 v_right;
+varying vec3 v_up;
+varying vec3 v_toward;
+varying vec3 v_tint;
+varying float v_height;
+
+void vertex() {
+	vec3 origin = MODEL_MATRIX[3].xyz;
+	vec3 up = normalize(MODEL_MATRIX[1].xyz);
+	float scale = length(MODEL_MATRIX[1].xyz);
+	vec3 to_camera = CAMERA_POSITION_WORLD - origin;
+	float dist = length(to_camera);
+	v_fade = smoothstep(fade_in.x, fade_in.y, dist) * (1.0 - smoothstep(fade_out * 0.85, fade_out, dist));
+	// Custom data: x tint, y unused, z the view's extent (metres), w the model's height (metres).
+	float extent = INSTANCE_CUSTOM.z * scale;
+	float height = INSTANCE_CUSTOM.w * scale;
+	vec3 flat_to = to_camera - up * dot(to_camera, up);
+	vec3 toward = length(flat_to) > 1e-3 ? normalize(flat_to) : normalize(cross(up, vec3(1.0, 0.0, 0.0)));
+	vec3 right = normalize(cross(up, toward));
+	// Which baked view: the camera's direction in the tree's own frame.
+	vec3 local = transpose(mat3(MODEL_MATRIX)) * to_camera;
+	float azimuth = atan(local.x, local.z);
+	v_frame = fract(azimuth / 6.2831853) * views;
+	v_row = INSTANCE_CUSTOM.y;
+	vec3 corner = origin + right * (VERTEX.x * extent) + up * (height * 0.5 + (VERTEX.y - 0.5) * extent);
+	if (v_fade <= 0.0) {
+		corner = origin;
+	}
+	v_world = corner;
+	v_right = right;
+	v_up = up;
+	v_toward = toward;
+	v_tint = tint * mix(vec3(0.82, 0.86, 0.8), vec3(1.12, 1.1, 1.0), INSTANCE_CUSTOM.x);
+	v_height = VERTEX.y;
+	VERTEX = (VIEW_MATRIX * vec4(corner, 1.0)).xyz;
+	NORMAL = normalize((VIEW_MATRIX * vec4(toward, 0.0)).xyz);
+}
+
+void fragment() {
+	float f0 = floor(v_frame);
+	float t = v_frame - f0;
+	float f1 = mod(f0 + 1.0, views);
+	vec2 cell = vec2(UV.x, UV.y);
+	vec2 uv0 = vec2((f0 + cell.x) / views, (v_row + cell.y) / rows);
+	vec2 uv1 = vec2((f1 + cell.x) / views, (v_row + cell.y) / rows);
+	vec4 c0 = texture(colour_atlas, uv0);
+	vec4 c1 = texture(colour_atlas, uv1);
+	vec4 c = mix(c0, c1, t);
+	float dither = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
+	if (c.a < 0.5 || (v_fade < 0.999 && dither > v_fade)) {
+		discard;
+	}
+	vec3 n0 = texture(normal_atlas, uv0).rgb * 2.0 - 1.0;
+	vec3 n1 = texture(normal_atlas, uv1).rgb * 2.0 - 1.0;
+	vec3 nc = normalize(mix(n0, n1, t) + vec3(0.0, 0.0, 0.25));
+	vec3 n = normalize(v_right * nc.x + v_up * nc.y + v_toward * nc.z);
+	ALBEDO = c.rgb * v_tint;
+	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
+	AO = mix(0.6, 1.0, 1.0 - v_height);
+	AO_LIGHT_AFFECT = 0.2;
+	vec3 a = ALBEDO;
+	vec4 fog;
+	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
+	ALBEDO = a;
+	FOG = fog;
+	float altitude = hu_camera_altitude + dot(v_world - hu_camera_position, hu_camera_up);
+	v_cloud = hu_cloud_shadow(v_world, altitude);
+}
+
+void light() {
+	float ndl = dot(NORMAL, LIGHT);
+	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+	float through = translucency * clamp(-ndl, 0.0, 1.0) * 0.5;
+	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * (clamp(ndl * 0.75 + 0.25, 0.0, 1.0) + through) / HU_PI;
+}

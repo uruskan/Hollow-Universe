@@ -44,6 +44,9 @@ public static class SurfaceReport
             case "site":
                 Site(surface, Num(2, 0));
                 return 0;
+            case "spot":
+                Spot(surface, Arg(2, "forest"), Num(3, FirstWorld.LandingLatitude), Num(4, FirstWorld.LandingLongitude), Num(5, 4000));
+                return 0;
             case "times":
                 Times(found.System, found.Planet, Num(2, FirstWorld.LandingLatitude), Num(3, FirstWorld.LandingLongitude), Arg(4, "2026-10-12T00:00:00Z"));
                 return 0;
@@ -400,6 +403,126 @@ public static class SurfaceReport
             var r = results[i];
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{r.Score:0.00}  lat {r.Lat:0.0000} lon {r.Lon:0.0000}  {r.Note}"));
         }
+    }
+
+    // ---------------------------------------------------------------- look-dev spots
+
+    /// <summary>
+    /// The best spot of a kind within a radius of a point: "forest" (dense trees), "meadow" (open grass with trees
+    /// near), "beach" (sand at the waterline), "mountain" (a view toward high ground). Prints lat, lon and the yaw
+    /// to look along.
+    /// </summary>
+    private static void Spot(PlanetSurface surface, string kind, double latitude, double longitude, double radius)
+    {
+        ZoneFrame frame = ZoneFrame.At(surface, latitude * DMath.DegToRad, longitude * DMath.DegToRad);
+        double bestScore = double.MinValue, bestX = 0, bestZ = 0, bestYaw = 0;
+        string note = "";
+        Span<double> biomes = stackalloc double[BiomeTable.Count];
+        for (double z = -radius; z <= radius; z += 40)
+        {
+            for (double x = -radius; x <= radius; x += 40)
+            {
+                if (x * x + z * z > radius * radius)
+                {
+                    continue;
+                }
+                Vector3D d = frame.ToBody(x, 0, z).Normalized;
+                SurfaceSample s = surface.Sample(d);
+                if (s.Height < 0.5)
+                {
+                    if (kind != "beach")
+                    {
+                        continue;
+                    }
+                }
+                ClimateSample c = surface.Climate(d, s);
+                surface.BiomeWeights(d, s, c, biomes);
+                VegetationSample v = surface.Vegetation(d, s, c, biomes, 0);
+                double score;
+                double yaw = 0;
+                string n = "";
+                switch (kind)
+                {
+                    case "forest":
+                        score = v.Trees * 1000 - Math.Abs(s.Height - 40) * 0.01;
+                        n = $"trees {v.Trees:0.000}/m², height {s.Height:0}";
+                        break;
+                    case "meadow":
+                    {
+                        // Open grass here, trees around within 150 m.
+                        double around = 0;
+                        for (int a = 0; a < 8; a++)
+                        {
+                            Vector3D p = frame.ToBody(x + 120 * Math.Cos(a * Math.PI / 4), 0, z + 120 * Math.Sin(a * Math.PI / 4)).Normalized;
+                            SurfaceSample ps = surface.Sample(p);
+                            ClimateSample pc = surface.Climate(p, ps);
+                            surface.BiomeWeights(p, ps, pc, biomes);
+                            around += surface.Vegetation(p, ps, pc, biomes, 0).Trees;
+                        }
+                        surface.BiomeWeights(d, s, c, biomes);
+                        score = v.Grass * 2 - v.Trees * 80 + Math.Min(around, 0.12) * 10 - Math.Max(0, s.Height - 80) * 0.01;
+                        n = $"grass {v.Grass:0.00}, trees here {v.Trees:0.000}, around {around:0.000}";
+                        break;
+                    }
+                    case "beach":
+                    {
+                        score = s.Height is > 0.3 and < 2.5 ? biomes[(int)Biome.Beach] * 2 + s.Beach : -1;
+                        // Look toward the sea: the direction where it is deepest 300 m out.
+                        double deepest = 1e9;
+                        for (int a = 0; a < 16; a++)
+                        {
+                            double ang = a * Math.PI / 8;
+                            double h = surface.HeightAt(frame.ToBody(x + 300 * Math.Sin(ang), 0, z - 300 * Math.Cos(ang)).Normalized);
+                            if (h < deepest)
+                            {
+                                deepest = h;
+                                yaw = ang * 180 / Math.PI;
+                            }
+                        }
+                        if (deepest > -2)
+                        {
+                            score = -1;
+                        }
+                        n = $"beach {biomes[(int)Biome.Beach]:0.00}, sand {s.Beach:0.00}, height {s.Height:0.0}";
+                        break;
+                    }
+                    default:
+                    {
+                        // A view: the highest ground seen between 3 and 25 km, from open ground.
+                        double best = 0;
+                        for (int a = 0; a < 24; a++)
+                        {
+                            double ang = a * Math.PI / 12;
+                            for (double r = 3000; r <= 25000; r += 2000)
+                            {
+                                double h = surface.HeightAt(frame.ToBody(x + r * Math.Sin(ang), 0, z - r * Math.Cos(ang)).Normalized);
+                                double rise = (h - s.Height) / r;
+                                if (rise > best)
+                                {
+                                    best = rise;
+                                    yaw = ang * 180 / Math.PI;
+                                }
+                            }
+                        }
+                        score = best * 100 - v.Trees * 50 + Math.Min(s.Height, 300) * 0.002;
+                        n = $"rise {best:0.000}, trees {v.Trees:0.000}, height {s.Height:0}";
+                        break;
+                    }
+                }
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestX = x;
+                    bestZ = z;
+                    bestYaw = yaw;
+                    note = n;
+                }
+            }
+        }
+        Vector3D spot = frame.ToBody(bestX, 0, bestZ).Normalized;
+        double lat = DMath.Asin(spot.Y) * DMath.RadToDeg, lon = DMath.Atan2(-spot.Z, spot.X) * DMath.RadToDeg;
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"{kind}: --lat {lat:0.00000} --lon {lon:0.00000} --yaw {bestYaw:0}  ({bestX:0} m east, {-bestZ:0} m north; {note})"));
     }
 
     // ---------------------------------------------------------------- times of day

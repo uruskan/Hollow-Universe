@@ -56,6 +56,12 @@ public enum ScatterKind : byte
 
     /// <summary>Stones and boulders lying on the ground.</summary>
     Rock = 6,
+
+    /// <summary>Bushes with red berries (food).</summary>
+    BerryRed = 7,
+
+    /// <summary>Bushes with blue berries (food).</summary>
+    BerryBlue = 8,
 }
 
 /// <summary>The climate at a point: what the biome, materials and plants are picked from.</summary>
@@ -130,6 +136,12 @@ public static class BiomeTable
 
     /// <summary>Ferns and low plants per square metre.</summary>
     private static readonly double[] FernDensity = { 0, 0, 0, 0.01, 0.06, 0.09, 0.02, 0.01, 0, 0.005, 0.12, 0.004 };
+
+    /// <summary>Red-berry bushes per square metre: forest edges and clearings of the temperate belt.</summary>
+    private static readonly double[] RedBerryDensity = { 0, 0, 0, 0.0004, 0.0012, 0.0035, 0.0018, 0.0012, 0, 0.0004, 0.0015, 0 };
+
+    /// <summary>Blue-berry bushes per square metre: the floors of cool forests and the tundra.</summary>
+    private static readonly double[] BlueBerryDensity = { 0, 0, 0, 0.0015, 0.0035, 0.0022, 0.0004, 0, 0, 0, 0.0004, 0.0004 };
 
     /// <summary>Loose rocks per square metre on gentle ground.</summary>
     private static readonly double[] RockDensity = { 0, 0.003, 0.001, 0.02, 0.004, 0.003, 0.002, 0.008, 0.01, 0.003, 0.002, 0.03 };
@@ -214,6 +226,8 @@ public static class BiomeTable
     public static double Bushes(ReadOnlySpan<double> weights) => Mix(weights, BushDensity);
     public static double Ferns(ReadOnlySpan<double> weights) => Mix(weights, FernDensity);
     public static double Rocks(ReadOnlySpan<double> weights) => Mix(weights, RockDensity);
+    public static double RedBerries(ReadOnlySpan<double> weights) => Mix(weights, RedBerryDensity);
+    public static double BlueBerries(ReadOnlySpan<double> weights) => Mix(weights, BlueBerryDensity);
 
     /// <summary>Weights of the four tree kinds (Fir, Pine, Birch, Broadleaf) for these biome weights.</summary>
     public static void TreeKinds(ReadOnlySpan<double> weights, Span<double> kinds)

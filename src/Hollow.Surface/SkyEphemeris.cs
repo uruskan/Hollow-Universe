@@ -15,7 +15,8 @@ namespace Hollow.Surface;
 /// turns about that axis by 2π · t / <see cref="Body.RotationPeriod"/> (negative periods turn backwards), and at
 /// J2000 its prime meridian lies in the plane of the axis and +X.</para>
 /// <para><see cref="RotationTimeScale"/> speeds up the spin alone (1 = real); orbits and seasons stay real. It exists
-/// for the open question of day length (GROUND.md §11) and is a client setting.</para>
+/// for the open question of day length (GROUND.md §11) and is a client setting; changing it, or jumping the clock,
+/// never makes the sky jump.</para>
 /// </remarks>
 public sealed class SkyEphemeris
 {
@@ -34,8 +35,48 @@ public sealed class SkyEphemeris
 
     public Body Planet { get; }
 
+    // The spin as turns since J2000: turns(t) = baseTurns + (t − baseTime) · scale / |period|. With the defaults
+    // (0, 0, 1) that is t / |period|, the real rotation.
+    private double _baseTime;
+    private double _baseTurns;
+    private double _scale = 1;
+
     /// <summary>How much faster than real the planet spins (1 = its real rotation).</summary>
-    public double RotationTimeScale { get; set; } = 1;
+    public double RotationTimeScale => _scale;
+
+    /// <summary>
+    /// Spins the planet <paramref name="scale"/> times faster than real from time <paramref name="now"/> on, keeping
+    /// its orientation at that moment, so the sky doesn't jump when the scale changes.
+    /// </summary>
+    public void SetRotationTimeScale(double scale, double now)
+    {
+        if (!(scale > 0))
+        {
+            throw new ArgumentOutOfRangeException(nameof(scale));
+        }
+        _baseTurns = Turns(now);
+        _baseTime = now;
+        _scale = scale;
+    }
+
+    /// <summary>
+    /// Keeps the spin in step with a jump of the clock by <paramref name="delta"/> seconds: the planet turns by that
+    /// much real time whatever the scale, so a jump of an hour is an hour on its clock.
+    /// </summary>
+    public void JumpClock(double delta)
+    {
+        double period = Math.Abs(Planet.RotationPeriod);
+        if (period > 0)
+        {
+            _baseTurns += delta * (1 - _scale) / period;
+        }
+    }
+
+    private double Turns(double t)
+    {
+        double period = Math.Abs(Planet.RotationPeriod);
+        return period == 0 ? 0 : _baseTurns + (t - _baseTime) * _scale / period;
+    }
 
     /// <summary>The spin angle at a time (seconds since J2000), radians in [0, 2π) (or (−2π, 0] when retrograde).</summary>
     public double RotationAngle(double t)
@@ -45,7 +86,7 @@ public sealed class SkyEphemeris
         {
             return 0;
         }
-        double turns = t * RotationTimeScale / Math.Abs(period);
+        double turns = Turns(t);
         double fraction = turns - Math.Floor(turns);
         return (period > 0 ? 1 : -1) * DMath.TwoPi * fraction;
     }

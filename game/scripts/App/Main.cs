@@ -80,6 +80,10 @@ public partial class Main : Node
         _surfaceView.SetActive(true);
         _surfaceView.Open(system, planet, surface, Number("lat", Hollow.Surface.FirstWorld.LandingLatitude),
             Number("lon", Hollow.Surface.FirstWorld.LandingLongitude), Number("alt", 1.7), Number("yaw", 0), Number("pitch", 0), time);
+        if (_options.ContainsKey("time-scale"))
+        {
+            _surfaceView.SetRotationTimeScale(Math.Clamp(Number("time-scale", 1), 0.01, 100000));
+        }
         _surfaceView.SetTime(time, paused: _options.ContainsKey("shot"));
         _surfaceView.DebugSky = (int)Number("debug-sky", 0);
     }
@@ -176,7 +180,7 @@ public partial class Main : Node
                 _traceTimer = 0;
                 if (_surfaceView.Visible)
                 {
-                    GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} tiles={_surfaceView.Terrain.DrawnTiles} pending={_surfaceView.Terrain.Pending} build={_surfaceView.Terrain.BuildMicroseconds:0}us ready={_surfaceView.IsReady} exposure={_surfaceView.Sky?.Exposure:0.###} sun={_surfaceView.Sky?.SunElevation:0.0}");
+                    GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} tiles={_surfaceView.Terrain.DrawnTiles} pending={_surfaceView.Terrain.Pending} build={_surfaceView.Terrain.BuildMicroseconds:0}us plants={_surfaceView.Plants?.MeshInstances}/{_surfaceView.Plants?.ImpostorInstances}/{_surfaceView.Plants?.GrassInstances} ready={_surfaceView.IsReady} exposure={_surfaceView.Sky?.Exposure:0.###} sun={_surfaceView.Sky?.SunElevation:0.0} {_surfaceView.LightDebug}");
                 }
                 else
                 GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0}ms stars={_galaxyMap.Stars.LoadedStars} blocks={_galaxyMap.Stars.LoadedBlocks} pending={_galaxyMap.Stars.PendingBlocks} glow={_galaxyMap.IsGlowReady} sky={_galaxyMap.SkyBrightness:0.0} {_galaxyMap.TimingDebug} crowd {_galaxyMap.CrowdingDebug}");

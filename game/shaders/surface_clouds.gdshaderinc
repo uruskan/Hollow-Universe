@@ -129,7 +129,7 @@ vec4 hu_clouds(vec3 rd, int steps, int light_steps, float jitter) {
 	// The air between the camera and the cloud dims it and adds its own light.
 	vec3 L;
 	vec3 Ta;
-	hu_atmosphere(rd, first, 6, L, Ta);
+	hu_ap_lookup(rd, first, L, Ta);
 	float alpha = (1.0 - T) * far_fade;
 	return vec4((light * Ta + L * (1.0 - T)) * far_fade, alpha);
 }

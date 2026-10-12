@@ -24,6 +24,7 @@ public partial class SurfaceView : Node3D
     private DirectionalLight3D _sunLight = null!;
     private DirectionalLight3D _moonLight = null!;
     private TerrainLod _terrain = null!;
+    private Vegetation? _vegetation;
     private ShaderMaterial _terrainMaterial = null!;
     private CanvasLayer _uiLayer = null!;
     private SurfaceUi _ui = null!;
@@ -35,7 +36,7 @@ public partial class SurfaceView : Node3D
     private SurfaceSky? _sky;
     private RenderFrame? _frame;
     private double _time;
-    private double _timeSpeed;
+    private bool _timeRuns = true;
     private double _yaw;
     private double _pitch;
     private bool _walk;
@@ -44,9 +45,16 @@ public partial class SurfaceView : Node3D
     private int _idleFrames;
     private double _cloudDrift;
     private float _frameMs;
+    private bool _firstFrame = true;
 
-    /// <summary>How much faster than real the planet turns (1 = its real day). A client setting (GROUND.md §11).</summary>
+    /// <summary>
+    /// How much faster than real the planet turns (1 = its real day): a client setting (GROUND.md §11), read from
+    /// settings.cfg ([surface] rotation_time_scale) or --time-scale; T cycles it live through <see cref="Scales"/>.
+    /// </summary>
     public static double RotationTimeScale { get; private set; } = 1;
+
+    /// <summary>The scales T steps through.</summary>
+    public static readonly double[] Scales = { 1, 60, 600, 3600 };
 
     public event Action? BackRequested;
 
@@ -57,7 +65,11 @@ public partial class SurfaceView : Node3D
     public bool IsReady => _frame != null && _idleFrames > 20;
 
     public PlanetSurface? Surface => _surface;
+
+    /// <summary>The sun light's colour and energy, for --trace.</summary>
+    public string LightDebug => $"sunlight {_sunLight.LightColor} x {_sunLight.LightEnergy:0.000}";
     public TerrainLod Terrain => _terrain;
+    public Vegetation? Plants => _vegetation;
     public SurfaceSky? Sky => _sky;
 
     public override void _Ready()
@@ -65,7 +77,7 @@ public partial class SurfaceView : Node3D
         var settings = new ConfigFile();
         if (settings.Load(SettingsPath) == Error.Ok)
         {
-            RotationTimeScale = Math.Clamp(settings.GetValue("surface", "rotation_time_scale", 1.0).AsDouble(), 0.01, 1000);
+            RotationTimeScale = Math.Clamp(settings.GetValue("surface", "rotation_time_scale", 1.0).AsDouble(), 0.01, 100000);
         }
         _camera = new Camera3D { Fov = 55, Near = 0.08f, Far = 900_000 };
         AddChild(_camera);
@@ -119,7 +131,7 @@ public partial class SurfaceView : Node3D
         _air = AtmosphereModel.For(planet);
         _air.Build();
         _sky = new SurfaceSky(system, planet, _air);
-        _sky.Ephemeris.RotationTimeScale = RotationTimeScale;
+        _sky.Ephemeris.SetRotationTimeScale(RotationTimeScale, time);
 
         Vector3D direction = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
         double ground = Math.Max(surface.HeightAt(direction), 0);
@@ -131,6 +143,9 @@ public partial class SurfaceView : Node3D
         SetupGlobals();
         SetupEnvironment();
         _terrainMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_terrain.gdshader") };
+        _terrainMaterial.SetShaderParameter("albedo_array", GD.Load<TextureLayered>("res://assets/surface/ground/ground_albedo.webp"));
+        _terrainMaterial.SetShaderParameter("normal_array", GD.Load<TextureLayered>("res://assets/surface/ground/ground_normal.webp"));
+        _terrainMaterial.SetShaderParameter("macro_noise", _noise);
         ShaderMaterial? water = null;
         if (surface.SeaRadius > 0)
         {
@@ -138,13 +153,20 @@ public partial class SurfaceView : Node3D
             water.SetShaderParameter("wave_normals", NoiseTextures.WaveNormals(11));
         }
         _terrain.Setup(surface, _frame, _terrainMaterial, water);
+        _vegetation?.QueueFree();
+        _vegetation = new Vegetation { Name = "Vegetation" };
+        AddChild(_vegetation);
+        _vegetation.Setup(surface, _frame);
         _idleFrames = 0;
+        _firstFrame = true;
         UpdateWorld(0);
     }
 
     // ---------------------------------------------------------------- set-up
 
     private static bool _globals;
+    private ImageTexture? _noise;
+    private AerialTable? _aerial;
 
     private void SetupGlobals()
     {
@@ -182,11 +204,20 @@ public partial class SurfaceView : Node3D
         Add("hu_ozone_half_width", T, (float)air.OzoneHalfWidth);
         Add("hu_transmittance_lut", S2, ImageTexture.CreateFromImage(air.Transmittance!));
         Add("hu_multiscatter_lut", S2, ImageTexture.CreateFromImage(air.MultiScattering!));
-        Add("hu_cloud_noise", S2, NoiseTextures.Clouds(7));
+        _noise ??= NoiseTextures.Clouds(7);
+        Add("hu_cloud_noise", S2, _noise);
         Add("hu_cloud_wind", V2, Vector2.Zero);
         Add("hu_cloud_coverage", T, 0.5f);
         Add("hu_cloud_layer", V2, new Vector2(1600, 2900));
         Add("hu_texture_offset", V3, Vector3.Zero);
+        var S3 = RenderingServer.GlobalShaderParameterType.Sampler3D;
+        _aerial = new AerialTable(air);
+        Add("hu_ap_up", V3, Vector3.Up);
+        Add("hu_ap_east", V3, Vector3.Right);
+        Add("hu_ap_range", T, (float)AtmosphereModel.ApRange);
+        _aerial.Update(0, 2, Vector3.Up, Vector3.Right, Vector3.Up, Vector3.One, Vector3.Down, Vector3.Zero, wait: true);
+        Add("hu_ap_inscatter", S3, _aerial.Inscatter);
+        Add("hu_ap_transmittance", S3, _aerial.Transmittance);
         _globals = true;
     }
 
@@ -228,10 +259,13 @@ public partial class SurfaceView : Node3D
             return;
         }
         _frameMs = (float)(delta * 1000);
-        _time += delta * _timeSpeed;
+        if (_timeRuns)
+        {
+            _time += delta;
+        }
         Fly((float)delta);
         UpdateWorld(delta);
-        _idleFrames = _terrain.IsIdle ? _idleFrames + 1 : 0;
+        _idleFrames = _terrain.IsIdle && (_vegetation?.IsIdle ?? true) ? _idleFrames + 1 : 0;
     }
 
     private void UpdateWorld(double delta)
@@ -247,11 +281,11 @@ public partial class SurfaceView : Node3D
             Vector3 shift = frame.Move(dir * (surface.Radius + Math.Max(surface.HeightAt(dir), 0)));
             _camera.Position -= shift;
             _terrain.Reanchor();
+            _vegetation?.Reanchor();
         }
         Vector3D camera = frame.ToBody(_camera.Position);
-        _sky!.Ephemeris.RotationTimeScale = RotationTimeScale;
         float pixelAngle = Mathf.DegToRad(_camera.Fov) / Math.Max(GetViewport().GetVisibleRect().Size.Y, 1);
-        _sky.Update(_time, camera, frame, _skyMaterial, _sunLight, _moonLight, pixelAngle);
+        _sky!.Update(_time, camera, frame, _skyMaterial, _sunLight, _moonLight, pixelAngle);
 
         double altitude = camera.Length - surface.Radius;
         RenderingServer.GlobalShaderParameterSet("hu_camera_altitude", (float)Math.Max(altitude, 0.05));
@@ -261,17 +295,31 @@ public partial class SurfaceView : Node3D
         RenderingServer.GlobalShaderParameterSet("hu_sun_illuminance", _sky.SunIlluminance);
         RenderingServer.GlobalShaderParameterSet("hu_moon_direction", _sky.MoonDirection);
         RenderingServer.GlobalShaderParameterSet("hu_moon_illuminance", _sky.MoonIlluminance * SurfaceSky.MoonLightBoost);
-        // Clouds drift with the wind (12 m/s from the west), and stay put on the ground when the origin moves.
-        _cloudDrift += delta * Math.Max(Math.Abs(_timeSpeed), 1) * 12;
+        // The table's axes: the camera's up, and east made level there.
+        Vector3 apUp = frame.DirectionToRender(camera.Normalized);
+        Vector3 apEast = (Vector3.Right - apUp * apUp.Dot(Vector3.Right)).Normalized();
+        _aerial!.Update(Time.GetTicksMsec() / 1000.0, Math.Max(altitude, 0.5), apUp, apEast, _sky.SunDirection, _sky.SunIlluminance,
+            _sky.MoonDirection, _sky.MoonIlluminance * SurfaceSky.MoonLightBoost, wait: _firstFrame);
+        _firstFrame = false;
+        // Clouds drift with the wind (12 m/s from the west), faster when the day is sped up, and stay put on the
+        // ground when the origin moves.
+        _cloudDrift += (_timeRuns ? delta * RotationTimeScale : 0) * 12;
         Vector3D travelled = frame.DirectionToRenderD(frame.Travelled);
         RenderingServer.GlobalShaderParameterSet("hu_cloud_wind", new Vector2((float)(travelled.X - _cloudDrift), (float)travelled.Z));
         RenderingServer.GlobalShaderParameterSet("hu_texture_offset", frame.WrappedTravel(4096));
-        _environment.TonemapExposure = _sky.Exposure;
+        _environment.TonemapExposure = DebugSky == 15 ? 1 : _sky.Exposure;
+        if (DebugSky == 15)
+        {
+            _environment.TonemapMode = Godot.Environment.ToneMapper.Linear;
+            _environment.GlowEnabled = false;
+            _environment.SsaoEnabled = false;
+        }
         _skyMaterial.SetShaderParameter("debug_view", DebugSky < 10 ? DebugSky : 0);
         _terrainMaterial.SetShaderParameter("debug_view", DebugSky >= 10 ? DebugSky - 10 : 0);
 
         _terrain.UpdateLod(camera);
-        _ui.Refresh(_planet!, surface, frame, camera, _sky, _time, _frameMs, _terrain, _walk);
+        _vegetation?.UpdateVegetation(camera);
+        _ui.Refresh(_planet!, surface, frame, camera, _sky, _time, _frameMs, _terrain, _walk, _timeRuns);
     }
 
     // ---------------------------------------------------------------- camera
@@ -352,13 +400,17 @@ public partial class SurfaceView : Node3D
                     _walk = !_walk;
                     break;
                 case Key.Bracketleft:
-                    _time -= 1800;
+                    JumpClock(key.ShiftPressed ? -6 * 3600 : -3600);
                     break;
                 case Key.Bracketright:
-                    _time += 1800;
+                    JumpClock(key.ShiftPressed ? 6 * 3600 : 3600);
                     break;
                 case Key.T:
-                    _timeSpeed = _timeSpeed == 0 ? 600 : 0;
+                    int next = (Array.IndexOf(Scales, RotationTimeScale) + 1) % Scales.Length;
+                    SetRotationTimeScale(Scales[Math.Max(next, 0)]);
+                    break;
+                case Key.P:
+                    _timeRuns = !_timeRuns;
                     break;
                 case Key.Escape:
                     BackRequested?.Invoke();
@@ -367,10 +419,25 @@ public partial class SurfaceView : Node3D
         }
     }
 
-    /// <summary>Sets the universe time and whether it runs.</summary>
+    /// <summary>Moves the universe time by <paramref name="seconds"/> (the planet turns by as much, whatever the scale).</summary>
+    public void JumpClock(double seconds)
+    {
+        _time += seconds;
+        _sky?.Ephemeris.JumpClock(seconds);
+    }
+
+    /// <summary>Sets how much faster than real the planet turns, from now on (the sky doesn't jump).</summary>
+    public void SetRotationTimeScale(double scale)
+    {
+        RotationTimeScale = scale;
+        _sky?.Ephemeris.SetRotationTimeScale(scale, _time);
+    }
+
+    /// <summary>Sets the universe time and whether it runs (screenshots pause it: they never wait for time).</summary>
     public void SetTime(double time, bool paused)
     {
         _time = time;
-        _timeSpeed = paused ? 0 : 1;
+        _timeRuns = !paused;
+        _sky?.Ephemeris.SetRotationTimeScale(RotationTimeScale, time);
     }
 }

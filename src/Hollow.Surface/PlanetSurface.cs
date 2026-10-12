@@ -37,19 +37,25 @@ public readonly struct SurfaceSample
 /// <summary>Plant and rock densities at a point, per square metre (GROUND.md §4.6).</summary>
 public readonly struct VegetationSample
 {
-    public VegetationSample(double trees, double bushes, double ferns, double rocks, double grass)
+    public VegetationSample(double trees, double bushes, double ferns, double rocks, double grass, double redBerries = 0, double blueBerries = 0)
     {
         Trees = trees;
         Bushes = bushes;
         Ferns = ferns;
         Rocks = rocks;
         Grass = grass;
+        RedBerries = redBerries;
+        BlueBerries = blueBerries;
     }
 
     public double Trees { get; }
     public double Bushes { get; }
     public double Ferns { get; }
     public double Rocks { get; }
+
+    /// <summary>Red- and blue-berry bushes per square metre (food).</summary>
+    public double RedBerries { get; }
+    public double BlueBerries { get; }
 
     /// <summary>How thick the grass is, 0 (bare) to 1 (a full meadow).</summary>
     public double Grass { get; }
@@ -439,7 +445,11 @@ public sealed class PlanetSurface : ISurface
             + 0.7 * biomes[(int)Biome.Savanna] + 0.6 * biomes[(int)Biome.Shrubland] + 0.5 * biomes[(int)Biome.Tundra]
             + 0.8 * biomes[(int)Biome.TropicalForest] + 0.3 * biomes[(int)Biome.Alpine];
         double grass = Math.Clamp(meadow * shore * gentle * (1 - 0.6 * clearing * BiomeTable.Trees(biomes) / 0.03), 0, 1);
-        return new VegetationSample(trees, bushes, ferns, rocks, grass);
+        // Berries like the light at forest edges and in clearings, not deep shade or open grass.
+        double edge = 0.35 + 2.6 * clearing * (1 - clearing);
+        double redBerries = BiomeTable.RedBerries(biomes) * edge * shore * gentle;
+        double blueBerries = BiomeTable.BlueBerries(biomes) * (0.5 + 0.5 * clearing) * shore * gentle;
+        return new VegetationSample(trees, bushes, ferns, rocks, grass, redBerries, blueBerries);
     }
 
     /// <summary>Forest cover from patches and clearings: 0 (open meadow) to 1 (closed forest).</summary>

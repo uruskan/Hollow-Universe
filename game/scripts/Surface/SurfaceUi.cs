@@ -18,11 +18,14 @@ public partial class SurfaceUi : Control
     private Label _sun = null!;
     private Label _moon = null!;
     private Label _frame = null!;
+    private Label _clock = null!;
+    private Label _date = null!;
+    private Label _scale = null!;
     private double _lastUpdate;
 
     public override void _Ready()
     {
-        SetAnchorsPreset(LayoutPreset.FullRect);
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore;
         Theme = Ui.Theme;
         (PanelContainer card, VBoxContainer content) = Ui.Card();
@@ -40,14 +43,29 @@ public partial class SurfaceUi : Control
         _moon = Ui.AddRow(rows, "Moon");
         _frame = Ui.AddRow(rows, "Frame");
         AddChild(card);
+        // The clock, top right: local solar time large, then UTC and how fast the day runs.
+        (PanelContainer clockCard, VBoxContainer clock) = Ui.Card(2);
+        Ui.Place(clockCard, LayoutPreset.TopRight);
+        Ui.Size(clockCard, 220);
+        _clock = Ui.Label("", TextStyle.Title);
+        _clock.HorizontalAlignment = HorizontalAlignment.Right;
+        clock.AddChild(_clock);
+        _date = Ui.Label("", TextStyle.Secondary);
+        _date.HorizontalAlignment = HorizontalAlignment.Right;
+        clock.AddChild(_date);
+        _scale = Ui.Label("", TextStyle.Caption);
+        _scale.HorizontalAlignment = HorizontalAlignment.Right;
+        clock.AddChild(_scale);
+        AddChild(clockCard);
         HFlowContainer hints = Ui.KeyHints(("W|A|S|D", "move"), ("Q|E", "down / up"), ("Right mouse", "look"),
-            ("Shift", "fast"), ("G", "walk / fly"), ("[|]", "time ∓ 30 min"), ("T", "run time"));
+            ("Shift", "fast"), ("G", "walk / fly"), ("[|]", "time ∓ 1 h"), ("Shift|[|]", "∓ 6 h"), ("T", "day speed"),
+            ("P", "pause time"));
         Ui.Place(hints, LayoutPreset.BottomLeft);
         AddChild(hints);
     }
 
     public void Refresh(Body planet, PlanetSurface surface, RenderFrame frame, Vector3D camera, SurfaceSky sky, double time,
-        float frameMs, TerrainLod terrain, bool walking)
+        float frameMs, TerrainLod terrain, bool walking, bool timeRuns)
     {
         double now = Time.GetTicksMsec() / 1000.0;
         if (now - _lastUpdate < 0.25)
@@ -58,7 +76,12 @@ public partial class SurfaceUi : Control
         _title.Text = planet.Name;
         double hours = sky.LocalHours;
         int h = (int)Math.Floor(hours), m = (int)Math.Floor((hours - h) * 60);
-        _time.Text = $"{h:00}:{m:00}  ({UniverseTime.ToUtc(time):yyyy-MM-dd HH:mm} UTC)";
+        _time.Text = $"{h:00}:{m:00}";
+        _clock.Text = $"{h:00}:{m:00}";
+        _date.Text = $"{UniverseTime.ToUtc(time):yyyy-MM-dd HH:mm} UTC";
+        double scale = sky.Ephemeris.RotationTimeScale;
+        string speed = scale == 1 ? "real day" : $"day × {Ui.Number(scale, "N0")}";
+        _scale.Text = timeRuns ? speed : $"{speed}, paused";
         Vector3D d = camera.Normalized;
         double lat = Math.Asin(Math.Clamp(d.Y, -1, 1)) * 180 / Math.PI;
         double lon = Math.Atan2(-d.Z, d.X) * 180 / Math.PI;

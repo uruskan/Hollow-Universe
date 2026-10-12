@@ -37,6 +37,7 @@ public sealed class AtmosphereModel
     public Image? MultiScattering { get; private set; }
 
     private float[] _transmittance = Array.Empty<float>();
+    private float[] _multiScattering = Array.Empty<float>();
 
     /// <summary>The air of a planet from its physical state: denser and taller with more pressure, lower gravity, more heat.</summary>
     public static AtmosphereModel For(Body planet)
@@ -190,6 +191,7 @@ public sealed class AtmosphereModel
             }
         }
         MultiScattering = Image.CreateFromData(n, n, false, Image.Format.Rgbaf, ToBytes(ms));
+        _multiScattering = ms;
     }
 
     // Hillaire 2020: second-order isotropic scattering at a point, and the fraction re-scattered, summed as a series.
@@ -237,6 +239,112 @@ public sealed class AtmosphereModel
         l2 /= directions.Length;
         fms /= directions.Length;
         return new Vector3(l2.X / (1 - fms.X), l2.Y / (1 - fms.Y), l2.Z / (1 - fms.Z));
+    }
+
+
+    // ---------------------------------------------------------------- aerial perspective table
+
+    /// <summary>Size of the aerial-perspective table: azimuth, cosine of zenith, distance.</summary>
+    public const int ApAzimuths = 32;
+    public const int ApZeniths = 48;
+    public const int ApDistances = 32;
+
+    /// <summary>Distance the aerial-perspective table reaches (metres).</summary>
+    public const double ApRange = 400_000;
+
+    private Vector3 SampleMultiScattering(double h, double mus)
+    {
+        int n = MultiScatteringSize;
+        double x = Math.Clamp((mus * 0.5 + 0.5) * (n - 1), 0, n - 1.001);
+        double y = Math.Clamp(h / (TopRadius - BottomRadius) * (n - 1), 0, n - 1.001);
+        int x0 = (int)x, y0 = (int)y;
+        float fx = (float)(x - x0), fy = (float)(y - y0);
+        Vector3 Get(int i, int j)
+        {
+            int k = (j * n + i) * 4;
+            return new Vector3(_multiScattering[k], _multiScattering[k + 1], _multiScattering[k + 2]);
+        }
+        Vector3 a = Get(x0, y0).Lerp(Get(x0 + 1, y0), fx), b = Get(x0, y0 + 1).Lerp(Get(x0 + 1, y0 + 1), fx);
+        return a.Lerp(b, fy);
+    }
+
+    private static float RayleighPhase(double nu) => (float)(3 / (16 * Math.PI) * (1 + nu * nu));
+
+    private float MiePhase(double nu)
+    {
+        double g = MieG, g2 = g * g;
+        return (float)(3 / (8 * Math.PI) * ((1 - g2) * (1 + nu * nu)) / ((2 + g2) * Math.Pow(Math.Max(1 + g2 - 2 * g * nu, 1e-4), 1.5)));
+    }
+
+    /// <summary>
+    /// Light scattered toward a camera at <paramref name="altitude"/> along every direction, and the transmittance,
+    /// out to <see cref="ApRange"/>: a table indexed by azimuth (around <paramref name="up"/>, from
+    /// <paramref name="east"/>), cosine of zenith (square-root mapped, finer near the horizon) and distance
+    /// (square-root mapped). Directions and lights are in render axes. About 20 ms; run it off the main thread.
+    /// </summary>
+    public void AerialPerspective(double altitude, Vector3 up, Vector3 east, Vector3 sunDirection, Vector3 sunIlluminance,
+        Vector3 moonDirection, Vector3 moonIlluminance, float[] inscatter, float[] transmittance)
+    {
+        Vector3 north = up.Cross(east).Normalized();
+        double r0 = BottomRadius + Math.Max(altitude, 0.5);
+        double mus0 = sunDirection.Dot(up), mum0 = moonDirection.Dot(up);
+        bool moon = moonIlluminance.LengthSquared() > 0;
+        const int Sub = 4;
+        System.Threading.Tasks.Parallel.For(0, ApZeniths, iz =>
+        {
+            double v = (double)iz / (ApZeniths - 1) * 2 - 1;
+            double mu = Math.Sign(v) * v * v;
+            double sinZ = Math.Sqrt(Math.Max(0, 1 - mu * mu));
+            for (int ia = 0; ia < ApAzimuths; ia++)
+            {
+                double az = (double)ia / ApAzimuths * 2 * Math.PI;
+                Vector3 d = (east * (float)(Math.Cos(az) * sinZ) + north * (float)(Math.Sin(az) * sinZ) + up * (float)mu).Normalized();
+                double nus = d.Dot(sunDirection), num = d.Dot(moonDirection);
+                float prs = RayleighPhase(nus), pms = MiePhase(nus), prm = RayleighPhase(num), pmm = MiePhase(num);
+                Vector3 l = Vector3.Zero, t = Vector3.One;
+                double previous = 0;
+                for (int k = 0; k < ApDistances; k++)
+                {
+                    double w = (double)k / (ApDistances - 1);
+                    double target = w * w * ApRange;
+                    double dt = (target - previous) / Sub;
+                    for (int s = 0; s < Sub && dt > 0; s++)
+                    {
+                        double tt = previous + (s + 0.5) * dt;
+                        double r = Math.Sqrt(r0 * r0 + 2 * r0 * mu * tt + tt * tt);
+                        // Past where a downward ray meets the sea the table is never read; keep it finite there.
+                        double h = Math.Max(r - BottomRadius, 0);
+                        float dr = (float)Math.Exp(-h / RayleighHeight), dm = (float)Math.Exp(-h / MieHeight);
+                        float dz = (float)Math.Max(0, 1 - Math.Abs(h - OzoneCentre) / OzoneHalfWidth);
+                        Vector3 sr = RayleighScattering * dr;
+                        float sm = (float)MieScattering * dm;
+                        Vector3 ext = sr + Vector3.One * (float)(MieExtinction * dm) + OzoneAbsorption * dz;
+                        double mus = (r0 * mus0 + tt * nus) / r;
+                        Vector3 src = sunIlluminance * (TransmittanceToSky(h, mus) * (sr * prs + Vector3.One * sm * pms)
+                            + SampleMultiScattering(h, mus) * (sr + Vector3.One * sm));
+                        if (moon)
+                        {
+                            double mum = (r0 * mum0 + tt * num) / r;
+                            src += moonIlluminance * (TransmittanceToSky(h, mum) * (sr * prm + Vector3.One * sm * pmm)
+                                + SampleMultiScattering(h, mum) * (sr + Vector3.One * sm));
+                        }
+                        Vector3 step = new(MathF.Exp(-ext.X * (float)dt), MathF.Exp(-ext.Y * (float)dt), MathF.Exp(-ext.Z * (float)dt));
+                        l += t * Integrate(src, ext, step);
+                        t *= step;
+                    }
+                    previous = target;
+                    int index = ((k * ApZeniths + iz) * ApAzimuths + ia) * 4;
+                    inscatter[index] = l.X;
+                    inscatter[index + 1] = l.Y;
+                    inscatter[index + 2] = l.Z;
+                    inscatter[index + 3] = 1;
+                    transmittance[index] = t.X;
+                    transmittance[index + 1] = t.Y;
+                    transmittance[index + 2] = t.Z;
+                    transmittance[index + 3] = 1;
+                }
+            }
+        });
     }
 
     // ∫ T · S over a step of constant medium, energy-conserving.

@@ -62,10 +62,11 @@ public static class Scatter
     private const int BushCells = 64;
     private const int FernCells = 96;
     private const int RockCells = 48;
+    private const int BerryCells = 24;
 
     private readonly struct Densities
     {
-        public readonly float Trees, Bushes, Ferns, Rocks, Area;
+        public readonly float Trees, Bushes, Ferns, Rocks, Area, RedBerries, BlueBerries;
         public readonly float Fir, Pine, Birch, Broadleaf;
 
         public Densities(in VegetationSample v, double area, ReadOnlySpan<double> kinds)
@@ -74,6 +75,8 @@ public static class Scatter
             Bushes = (float)v.Bushes;
             Ferns = (float)v.Ferns;
             Rocks = (float)v.Rocks;
+            RedBerries = (float)v.RedBerries;
+            BlueBerries = (float)v.BlueBerries;
             Area = (float)area;
             Fir = (float)kinds[0];
             Pine = (float)kinds[1];
@@ -83,7 +86,13 @@ public static class Scatter
     }
 
     /// <summary>Everything the scatter places on a tile of <see cref="Level"/>, in a fixed order.</summary>
-    public static List<ScatterItem> ForTile(PlanetSurface surface, TileKey tile)
+    public static List<ScatterItem> ForTile(PlanetSurface surface, TileKey tile) => ForTile(surface, tile, treesOnly: false);
+
+    /// <summary>
+    /// The scatter of a tile, or only its trees (for drawing far away). The trees are the same objects either way: each
+    /// kind has its own candidates and random streams.
+    /// </summary>
+    public static List<ScatterItem> ForTile(PlanetSurface surface, TileKey tile, bool treesOnly)
     {
         var items = new List<ScatterItem>();
         if (tile.Level != Level)
@@ -93,9 +102,14 @@ public static class Scatter
         Densities[] grid = DensityField(surface, tile);
         ulong tileSeed = Hash64.Of(surface.Seed, 0x53434154, tile.Packed); // "SCAT"
         Place(surface, tile, grid, tileSeed, ScatterKind.Fir, TreeCells, items);
-        Place(surface, tile, grid, tileSeed, ScatterKind.Bush, BushCells, items);
-        Place(surface, tile, grid, tileSeed, ScatterKind.Fern, FernCells, items);
-        Place(surface, tile, grid, tileSeed, ScatterKind.Rock, RockCells, items);
+        if (!treesOnly)
+        {
+            Place(surface, tile, grid, tileSeed, ScatterKind.Bush, BushCells, items);
+            Place(surface, tile, grid, tileSeed, ScatterKind.Fern, FernCells, items);
+            Place(surface, tile, grid, tileSeed, ScatterKind.Rock, RockCells, items);
+            Place(surface, tile, grid, tileSeed, ScatterKind.BerryRed, BerryCells, items);
+            Place(surface, tile, grid, tileSeed, ScatterKind.BerryBlue, BerryCells, items);
+        }
         return items;
     }
 
@@ -218,6 +232,8 @@ public static class Scatter
         ScatterKind.Fir => d.Trees,
         ScatterKind.Bush => d.Bushes,
         ScatterKind.Fern => d.Ferns,
+        ScatterKind.BerryRed => d.RedBerries,
+        ScatterKind.BerryBlue => d.BlueBerries,
         _ => d.Rocks,
     };
 

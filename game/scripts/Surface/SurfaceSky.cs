@@ -217,7 +217,8 @@ public sealed class SurfaceSky
         }
         Vector3 colour = illuminance / Math.Max(energy, 1e-12f);
         float max = Math.Max(colour.X, Math.Max(colour.Y, colour.Z));
-        light.LightColor = new Color(colour.X / max, colour.Y / max, colour.Z / max);
+        // Godot reads a light's colour as sRGB and linearises it; ours is linear already.
+        light.LightColor = new Color(colour.X / max, colour.Y / max, colour.Z / max).LinearToSrgb();
         // Godot multiplies light energy by π (so energy 1 lights white to 1); illuminance E gives radiance E/π.
         light.LightEnergy = energy * max / Mathf.Pi;
         Vector3 up = Math.Abs(toLight.Y) > 0.99f ? Vector3.Forward : Vector3.Up;

@@ -18,6 +18,13 @@ global uniform vec4 hu_ozone;               // rgb absorption per metre at its p
 global uniform float hu_ozone_half_width;
 global uniform sampler2D hu_transmittance_lut;
 global uniform sampler2D hu_multiscatter_lut;
+// The aerial-perspective table (AerialTable.cs): in-scattered light and transmittance from the camera by azimuth
+// (around hu_ap_up, from hu_ap_east), cosine of zenith (square-root mapped) and distance (square-root mapped).
+global uniform sampler3D hu_ap_inscatter;
+global uniform sampler3D hu_ap_transmittance;
+global uniform vec3 hu_ap_up;
+global uniform vec3 hu_ap_east;
+global uniform float hu_ap_range;
 
 const float HU_PI = 3.14159265358979;
 
@@ -123,6 +130,20 @@ void hu_atmosphere(vec3 rd, float t_max, int steps, out vec3 inscatter, out vec3
 	transmittance = T;
 }
 
+// The air between the camera and a point at distance t along unit direction d, from the table.
+void hu_ap_lookup(vec3 d, float t, out vec3 inscatter, out vec3 transmittance) {
+	vec3 north = cross(hu_ap_up, hu_ap_east);
+	float mu = clamp(dot(d, hu_ap_up), -1.0, 1.0);
+	float az = atan(dot(d, north), dot(d, hu_ap_east));
+	vec3 size = vec3(32.0, 48.0, 32.0);
+	float u = az / (2.0 * HU_PI) + 0.5 / size.x;
+	float v = (sign(mu) * sqrt(abs(mu)) * 0.5 + 0.5) * (size.y - 1.0);
+	float w = sqrt(clamp(t / hu_ap_range, 0.0, 1.0)) * (size.z - 1.0);
+	vec3 uvw = vec3(u, (v + 0.5) / size.y, (w + 0.5) / size.z);
+	inscatter = texture(hu_ap_inscatter, uvw).rgb;
+	transmittance = texture(hu_ap_transmittance, uvw).rgb;
+}
+
 // Aerial perspective for a surface point: applies the air between the camera and the point through Godot's fog
 // output (colour × mean transmittance + in-scattered light), tinting the albedo by the transmittance's colour.
 void hu_aerial(vec3 world_point, vec3 camera, int steps, inout vec3 albedo, out vec4 fog) {
@@ -130,7 +151,7 @@ void hu_aerial(vec3 world_point, vec3 camera, int steps, inout vec3 albedo, out 
 	float t = max(length(d), 0.01);
 	vec3 L;
 	vec3 T;
-	hu_atmosphere(d / t, t, steps, L, T);
+	hu_ap_lookup(d / t, t, L, T);
 	float ta = clamp(dot(T, vec3(1.0 / 3.0)), 1e-4, 1.0);
 	albedo *= clamp(T / ta, vec3(0.0), vec3(2.0));
 	fog = vec4(L / max(1.0 - ta, 1e-4), 1.0 - ta);
