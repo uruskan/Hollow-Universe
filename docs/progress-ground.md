@@ -70,3 +70,12 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - `ground-build`: phase 1 of G3. It ports Rust's building rules from RustMVP (sockets, stability, upgrade, claims,
     decay, doors) to C#, converts the building and door kits, and adds a local building sandbox. Networking and item
     costs come in phase 2, once `ground-survive` is merged.
+- **Characters merged** (`ground-character`):
+  - a MakeHuman body, with Quaternius animations retargeted onto it;
+  - clothing and armour from our own Blender scripts;
+  - aim pitch, arm and foot IK, ragdoll;
+  - first-person arms.
+
+  50 characters take 5.7 ms a frame. The clothing, the first-person hands and the melee swing aren't at the Rust bar
+  yet, so the same agent is on a polish pass now. That pass also replaces the capsule players in the ground mode with
+  real characters. 58 of 58 tests pass.
