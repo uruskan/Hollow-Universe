@@ -102,3 +102,10 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 - **G4 fight started** (`ground-fight`): firearms with server-side ballistics and lag compensation, Rust's AK recoil
   pattern from RustMVP (deterministic on client and server), aiming down sights, attachments, ammo types, armour and
   the wounded state. Engine-free for now; the visuals follow after integration.
+- **Assets merged** (`ground-assets`):
+  - 72 catalogued models: converted kit items, the Frontier rifle, the Tin Finch with its hatch, and our own piles,
+    tools, supplies, deployables and outcrops (our own design rather than the kit's Rust-like nodes);
+  - 124 item icons in a Rust-like product-shot style (`docs/images/ground/assets/icons.jpg`).
+
+  The bed is a marked stand-in until its model is made. The assets agent is now making the bed, the G4
+  attachments and ammo variants, icon fixes and world props.
