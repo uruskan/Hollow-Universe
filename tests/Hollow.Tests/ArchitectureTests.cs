@@ -17,7 +17,7 @@ public static class ArchitectureTests
         Assembly[] libraries =
         {
             typeof(DMath).Assembly, typeof(Galaxy.Galaxy).Assembly, typeof(Surface.ISurface).Assembly,
-            typeof(Simulation.Movement.CharacterMotor).Assembly,
+            typeof(Simulation.Movement.CharacterMotor).Assembly, typeof(Net.Protocol.Protocol).Assembly,
         };
         foreach (Assembly library in libraries)
         {

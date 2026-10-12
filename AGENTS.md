@@ -43,6 +43,7 @@ dotnet build HollowUniverse.sln                  # everything, including the God
 dotnet run --project tests/Hollow.Tests          # all engine-free tests
 dotnet run --project tests/Hollow.Tests -- Galaxy   # only tests whose name contains "Galaxy"
 dotnet run --project tests/Hollow.Tests -- MovementCheck   # the physics check (GROUND.md §4.5)
+dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Protocol/Messages.cs: rewrites Messages.g.cs
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs per generated star system
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
@@ -80,9 +81,11 @@ Client options (after `--`):
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, the stand-in `SphereSurface`, `FirstWorld` |
 | `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5) |
+| `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
 | `game/` | Godot project: galaxy map, system map, UI, shaders |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |
 | `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |
+| `tools/Hollow.NetGen` | Writes the network serializers (`Messages.g.cs`) from `Messages.cs` |
 | `third_party/` | Vendored NuGet packages (LiteNetLib, JoltPhysicsSharp, Microsoft.Data.Sqlite), so the build needs no network; see its README |

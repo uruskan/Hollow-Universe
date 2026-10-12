@@ -110,7 +110,10 @@ ground game.
 | Tests | Plain console runner in `tests/` | Can move to xUnit later. |
 | Third-party packages | Vendored in `third_party/packages` as `.nupkg` files; `NuGet.config` maps their IDs to that folder only (`third_party/README.md` lists them) | The AI workspace cannot reach NuGet, so a clone must build offline. |
 
-No reflection or JSON on hot paths. Serializers are generated at compile time (C# source generators).
+No reflection or JSON on hot paths. Serializers are generated ahead of time: `tools/Hollow.NetGen` reads the message
+definitions (`src/Hollow.Net/Protocol/Messages.cs`) and writes `Messages.g.cs` into the repository, and a test fails
+when that file is out of date. A Roslyn source generator would need the compiler packages, which aren't vendored;
+a text-to-text tool also keeps working when a definition changes in a way the old generated code can't compile with.
 
 ---
 
@@ -290,9 +293,13 @@ the base.
 
 ### 11.2 Messages
 
-- Messages are C# structs with attributes. A source generator writes bit-packed serializers: variable-length
-  integers, quantized floats, delta-encoded fields.
-- A protocol version is checked on connect.
+- Messages are C# structs with attributes (`[NetMessage(id)]`, `[NetStruct]`, `[NetState]`; fields with `[Bits]`,
+  `[Signed]`, `[VarInt]`, `[Angle]`, `[Quantize]`, `[MaxLength]`, `[MaxCount]`). `tools/Hollow.NetGen` writes their
+  bit-packed serializers (§5): variable-length integers, quantized floats, and for entity states a delta against a
+  baseline (a bit per field, then the difference in as few bits as fit). Readers never throw on bad data; a message
+  that reads past its end or breaks a limit is dropped.
+- A protocol version and a hash of every message layout (generated) are checked on connect, so builds that don't
+  speak the same protocol refuse each other with a reason.
 
 ### 11.3 Replication (server → client)
 
