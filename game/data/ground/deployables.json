@@ -1,9 +1,11 @@
 {
-  "source": "Hit points and sizes from hollow-orbit js/game/items.js DEPLOY; slots from Rust (boxes 18 and 48); the sleeping bag's 300 s cooldown from RustMVP inventory_survival.md §9 (and Rust). Sizes are half extents in metres (x across, y up, z along). Fuel burn and cooking times are on the items.",
+  "source": "Hit points and sizes from hollow-orbit js/game/items.js DEPLOY; slots from Rust (boxes 18 and 48); the sleeping bag's 300 s cooldown from RustMVP inventory_survival.md §9 (and Rust), the bed's 120 s from hollow-orbit and Rust. Sizes are half extents in metres (x across, y up, z along). Fuel burn and cooking times are on the items.",
   "placement": { "reach": 3.0, "maxStep": 0.6 },
   "deployables": [
     { "key": "sleeping-bag", "item": "sleeping-bag", "health": 60, "size": [0.45, 0.08, 1.0], "maxSlope": 30, "solid": false,
       "respawn": 300 },
+    { "key": "bed", "item": "bed", "health": 150, "size": [0.6, 0.3, 1.1], "maxSlope": 20, "solid": false,
+      "respawn": 120 },
     { "key": "campfire", "item": "campfire", "health": 100, "size": [0.5, 0.25, 0.5], "maxSlope": 30, "solid": false,
       "slots": 5,
       "device": { "fuel": [0], "input": [1, 2], "output": [3, 4], "cooks": "campfire", "warmth": { "radius": 4, "celsius": 20 } } },

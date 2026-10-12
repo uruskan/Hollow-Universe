@@ -469,8 +469,8 @@ snapped to the ground below (at most 0.6 m off), refused under water, outside th
 item allows (20–30°), or overlapping another deployable, a tree, an outcrop or a character (blocked). Boxes, furnaces and
 workbenches are solid Jolt boxes on both sides; sleeping bags and campfires are not. Every deployable has hit points;
 melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground.
-- **Sleeping bag**: a respawn point for its owner only, 300 s cooldown from placing and after each use (real clock, as
-  in RustMVP, so it runs while the server is down).
+- **Sleeping bag and bed**: respawn points for their owner only, with a cooldown from placing and after each use (bag
+  300 s, bed 120 s; real clock, as in RustMVP, so it runs while the server is down). A bed needs workbench 1.
 - **Campfire and furnace**: lit by hand when they have fuel; a lit one burns a unit of fuel every `fuel.seconds` (wood:
   2 s) leaving its by-product (charcoal) in an output slot, cooks every input slot at once (metal ore 4 s, sulphur ore
   2 s, high-grade ore 8 s in a furnace; wild tubers 15 s on a campfire), waits when the outputs are full and goes out
@@ -484,7 +484,7 @@ while the server is down) and is picked up with the interact key, as much as fit
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
 ingredients, go into a corpse where the player fell (any number of slots), which anyone may take from but not put into;
 it goes when emptied or after 300 s of world time (Rust's corpse lifetime). The dead player chooses: a random beach point
-(no wait, as in Rust; survival.json can add one) or one of their own sleeping bags that has cooled down. A new life has
+(no wait, as in Rust; survival.json can add one) or one of their own sleeping bags or beds that has cooled down. A new life has
 the spawn vitals, a rock and a torch. Until the planet package marks beaches, "the beach" is a random point 15–60 m
 from the zone's origin (`Zone.Beaches` takes the real coast).
 
@@ -607,10 +607,10 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 
 | File | What | Sources |
 |---|---|---|
-| `items.json` | 42 items: resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
-| `recipes.json` | 28 recipes: output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows; times ours |
+| `items.json` | 43 items: resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
+| `recipes.json` | 29 recipes: output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows; times ours |
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
-| `deployables.json` | Sleeping bag, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag |
+| `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
 | `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load test's kit. | Rust |
 | `survival.json` | Vitals, metabolism, bleeding, temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
 | `categories.json` | The crafting tabs. | Rust's grouping |

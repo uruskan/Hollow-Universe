@@ -37,7 +37,7 @@ public static class ContentTests
                      "rock", "torch", "stone-hatchet", "stone-pickaxe", "metal-hatchet", "metal-pickaxe", "wooden-spear", "stone-spear",
                      "machete", "bow", "arrow", "bandage", "medical-injector", "woven-shirt", "woven-trousers", "work-boots", "woven-hood",
                      "woven-gloves", "chest-plate", "sleeping-bag", "campfire", "furnace", "small-box", "large-box", "workbench-1",
-                     "workbench-2", "workbench-3", "red-berries", "blue-berries" })
+                     "workbench-2", "workbench-3", "red-berries", "blue-berries", "bed" })
         {
             Assert.True(content.Item(key) != null, $"item {key}");
         }

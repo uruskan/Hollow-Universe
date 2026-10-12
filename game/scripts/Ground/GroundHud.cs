@@ -170,8 +170,9 @@ public partial class GroundHud : Control
         Ui.Track(line, c => c.AddThemeConstantOverride("separation", Ui.Px(16)));
         foreach ((string keys, string action) in new[]
                  {
-                     ("W|A|S|D", "Move"), ("Shift", "Sprint"), ("Space", "Jump"), ("1-6", "Belt"), ("LMB", "Use"), ("RMB", "Aim"),
-                     ("E", "Interact"), ("F", "Place"), ("G", "Drop"), ("H", "Eat"), ("Enter", "Chat"), ("F3", "Network"),
+                     ("W|A|S|D", "Move"), ("Shift", "Sprint"), ("Ctrl", "Crouch"), ("Space", "Jump"), ("1-6", "Belt"), ("LMB", "Use"),
+                     ("RMB", "Aim"), ("E", "Interact"), ("F", "Place"), ("G", "Drop"), ("H", "Eat"), ("Enter", "Chat"),
+                     ("F3", "Network"), ("Esc", "Mouse"),
                  })
         {
             line.AddChild(Ui.KeyHint(keys, action));
