@@ -96,3 +96,9 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 - **Integration started** (`ground-integrate`): the real planet on the server and client, natural objects from the
   planet's scatter (felling trees, picking berries, ore outcrops), the real UI bound to the client, real characters
   instead of capsules, a main menu, and a `play-ground.cmd` launcher. 79 of 79 tests pass on `ground`.
+- **Planet polish merged:** forest floor litter, natural bark, fuller firs, smooth LOD fades, far forest canopy, a
+  better night sky, surf and wet sand. All six Megascans Fab listings were checked: Standard License, none
+  Unreal-only. Screenshots in `docs/images/ground/`.
+- **G4 fight started** (`ground-fight`): firearms with server-side ballistics and lag compensation, Rust's AK recoil
+  pattern from RustMVP (deterministic on client and server), aiming down sights, attachments, ammo types, armour and
+  the wounded state. Engine-free for now; the visuals follow after integration.
