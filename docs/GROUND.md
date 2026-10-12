@@ -382,12 +382,13 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
 
 | Screen | Reference (in `D:\GameDev\Projects\RustMVP`) | As built (`docs/images/ground/ui/`) |
 |---|---|---|
-| HUD, hotbar, vitals | `docs/evidence/ui-restoration-2026-10-01/hud-final.png`, `logs/ui-polish/hud.png` | `hud.png` |
-| Inventory and loot | `docs/evidence/ui-restoration-2026-10-01/inventory-final.png`, `logs/ui-reference-final/inventory.png`, `loot-circle-preview.png` | `inventory.png`, `loot.png`, `furnace.png` |
-| Crafting | `logs/ui-reference-final/crafting.png` | `crafting.png` |
-| Building and hammer wheels | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png` | `wheel.png`, `hammer.png` |
-| Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.png` |
-| Main menu | `logs/ui-polish/menu.png` | `menu.png` |
+| HUD, hotbar, vitals | `docs/evidence/ui-restoration-2026-10-01/hud-final.png`, `logs/ui-polish/hud.png` | `hud.jpg` |
+| Inventory and loot | `docs/evidence/ui-restoration-2026-10-01/inventory-final.png`, `logs/ui-reference-final/inventory.png`, `loot-circle-preview.png` | `inventory.jpg`, `loot.jpg`, `furnace.jpg` |
+| Crafting | `logs/ui-reference-final/crafting.png` | `crafting.jpg` |
+| Building and hammer wheels | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png` | `wheel.jpg`, `hammer.jpg` |
+| Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.jpg` |
+| Main menu | `logs/ui-polish/menu.png` | `menu.jpg` |
+| Other scales | | `crafting-720p.jpg` (scale 0.8), `inventory-1440p.jpg` (scale 1.3125) |
 | Specification | `docs/architecture/legacy/weapons_character_ui.md` | |
 
 - **Numbers** come from RustMVP's final interface, `unreal/Bare/Source/Bare/UI/SBareRoot.cpp`: every position, size,
@@ -432,6 +433,11 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
+
+**In the game:** the ground mode puts `GroundUi` on a `CanvasLayer` with the client adapter as its `Model`, frees the
+mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the right mouse button (with a plan or
+hammer held, `HeldWheel`) to it. Until that hook lands the ground mode keeps its placeholder HUD
+(`scripts/Ground/GroundHud.cs`).
 
 ### 8.2 Behaviour
 

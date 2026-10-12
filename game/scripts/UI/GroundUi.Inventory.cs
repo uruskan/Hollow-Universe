@@ -31,6 +31,7 @@ public partial class GroundUi
     private readonly Dictionary<SlotRef, double> _hoverStarted = new();
     private readonly HashSet<SlotRef> _hoverDone = new();
     private static readonly Color Transparent = new(0, 0, 0, 0);
+    private static readonly Color Caption = new(0.89f, 0.875f, 0.84f, 0.8f);
 
     private ItemStack StackAt(SlotRef slot)
     {
@@ -234,12 +235,12 @@ public partial class GroundUi
                 {
                     Cell(i, 1040 + i % 6 * 80, y + 67 + i / 6 * 80);
                 }
-                Text("CLOTHING", 1040, y + 388, 16, G.Muted, bold: true);
+                Text("CLOTHING", 1040, y + 388, 16, Caption, bold: true);
                 for (int i = 0; i < 7; i++)
                 {
                     Cell(30 + i, 1040 + i * 67, y + 412, 63);
                 }
-                Text("BELT", 1040, y + 482, 16, G.Muted, bold: true);
+                Text("BELT", 1040, y + 482, 16, Caption, bold: true);
                 for (int i = 0; i < 6; i++)
                 {
                     Cell(24 + i, 1040 + i * 80, y + 506);
@@ -249,11 +250,11 @@ public partial class GroundUi
             case ContainerKind.Furnace or ContainerKind.Campfire:
             {
                 bool furnace = loot.Kind == ContainerKind.Furnace;
-                Text("FUEL", 1040, y + 67, 16, G.Muted, bold: true);
-                Text(furnace ? "INPUT" : "COOKING", 1120, y + 67, 16, G.Muted, bold: true);
+                Text("FUEL", 1040, y + 67, 16, Caption, bold: true);
+                Text(furnace ? "INPUT" : "COOKING", 1120, y + 67, 16, Caption, bold: true);
                 if (furnace)
                 {
-                    Text("OUTPUT", 1280, y + 67, 16, G.Muted, bold: true);
+                    Text("OUTPUT", 1280, y + 67, 16, Caption, bold: true);
                 }
                 for (int i = 0; i < slots.Count && i < 6; i++)
                 {

@@ -93,7 +93,6 @@ public partial class GroundUi : Control
 
         _search = Field("Search", 21, Ui.Ground.Panel, new Color(0.76f, 0.74f, 0.70f, 0.22f));
         _search.PlaceholderText = "Search...";
-        _search.TextChanged += _ => QueueRedraw();
         _quantity = Field("Quantity", 21, new Color(0.10f, 0.10f, 0.09f, 0.22f), new Color(0.76f, 0.74f, 0.70f, 0.22f));
         _quantity.MaxLength = 3;
         _quantity.Text = "1";
@@ -132,6 +131,8 @@ public partial class GroundUi : Control
         Resized += Layout;
         Ui.ScaleChanged += Layout;
         Open(Screen);
+        // RustMVP's greeting on entering the game.
+        OnNotice("TAB  Inventory     Q  Crafting     E  Interact");
     }
 
     public override void _ExitTree()
@@ -181,7 +182,6 @@ public partial class GroundUi : Control
         }
         GetViewport()?.GuiReleaseFocus();
         Layout();
-        QueueRedraw();
     }
 
     /// <summary>Tab: opens or closes the inventory (closing crafting too).</summary>
@@ -257,6 +257,7 @@ public partial class GroundUi : Control
         {
             _chat.Visible = false;
             _chat.ReleaseFocus();
+            Layout();
         }
     }
 
@@ -278,7 +279,8 @@ public partial class GroundUi : Control
         bool wheel = Wheel != null && Screen == GroundScreen.Hud, menu = Screen == GroundScreen.Menu;
         _blur.Visible = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.Menu || wheel;
         _blurMaterial.SetShaderParameter("blur", wheel ? 1.6f : menu ? 3.2f : 2.5f);
-        _blurMaterial.SetShaderParameter("dim", wheel ? 0.74f : menu ? 0.42f : 0.86f);
+        // RustMVP: the inventory darkens the blurred world by 14 %; a wheel only blurs it (its own 26 % veil is painted).
+        _blurMaterial.SetShaderParameter("dim", wheel ? 1f : menu ? 0.42f : 0.86f);
         MouseFilter = WantsCursor ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
         _character.Present(Screen == GroundScreen.Inventory, new Vector2I(Ui.Px(455), Ui.Px(628)));
     }
@@ -444,8 +446,13 @@ public partial class GroundUi : Control
         AcceptEvent();
     }
 
-    /// <summary>The pointer in screen pixels (or the held design point, for screenshots).</summary>
-    private Vector2 Pointer => _pointerDesign is Vector2 design ? CentreFrame + design * Ui.Scale : _pointer;
+    /// <summary>
+    /// The pointer in screen pixels, or the held design point (for screenshots): on the centred frame over the HUD
+    /// and wheels, on the canvas elsewhere.
+    /// </summary>
+    private Vector2 Pointer => _pointerDesign is Vector2 design
+        ? (Screen == GroundScreen.Hud ? CentreFrame : CanvasFrame) + design * Ui.Scale
+        : _pointer;
 
     private void Press(MouseButton button)
     {
