@@ -58,6 +58,10 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|reli
                                                  # the first world's surface: maps, speed, landing site, look-dev
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
 blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
+dotnet run --project tests/Hollow.Tests -- Building   # the building rules (GROUND.md §6.3)
+# The building and door kits into game/assets/building (Blender 5.2.1, D:/GameDev/Tools/blender-5.2.1-windows-x64):
+blender --background --factory-startup --python art/import/building_kit.py [-- twig wood stone metal armoured]
+blender --background --factory-startup --python art/import/door_kit.py
 ```
 
 Character assets (GROUND.md §4.8, §9), rebuilt from text by Blender 5.2 in background mode. MPFB 2 lives in its own
@@ -87,6 +91,7 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inven
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --db /tmp/demo.db --demo --shot camp.png
 xvfb-run -a $GODOT --path game -- --view icons --out game/assets/items/icons   # render every item icon (GROUND.md §9.1)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view models --shot models.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
 ```
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
@@ -125,6 +130,14 @@ Client options (after `--`):
   `heal`, `kill` besides G1's (type `help`).
 - Checks: `--physics-check` runs the physics check inside the client and quits; its line must match the one
   `dotnet run --project tests/Hollow.Tests -- MovementCheck` prints.
+- Build sandbox (GROUND.md §6.3): `--view build`, local, on the first world's stand-in surface. `--scene
+  house|ghost-valid|ghost-invalid|stability|stress|empty` (a built base; `stress` measures 300 frames and prints the
+  frame time), `--overlay` (stability colours), `--tool 1–6` (plan, hammer, three doors, claim device), `--piece <key>`,
+  `--wheel plan|hammer` (open the wheel), `--from x,y,z --at x,y,z` (the camera in the scene's frame), `--finest` or
+  `--lod n` (draw one level of detail). Keys: right mouse wheels, left places or repairs, R turns, E doors, F2 the
+  stability overlay, F5 an hour of upkeep and decay. `--view build --scene empty --build-check` plays a round of
+  building through the sandbox's input (place, snap, upgrade, turn, door, demolish and collapse) and quits with exit
+  code 0 when every step passes.
 - Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
   (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`);
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
@@ -143,13 +156,17 @@ Client options (after `--`):
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, `PlanetSurface` (plates, climate, biomes), cube-sphere tiles, collision, scatter, `SkyEphemeris`, the stand-in `SphereSurface`, `FirstWorld` |
-| `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation |
+| `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3) |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
 | `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread |
 | `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2) |
 | `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication, login, admin |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
 | `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
+| `game/assets/building` | The building and door kits as GLB (three levels of detail, Godot collision names) and their 2K textures (GROUND.md §6.3) |
+| `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines and the wheels' view model |
+| `game/data/ground` | The ground game's numbers; `building.json`: pieces, grades, sockets, costs, doors, locks, the claim device |
+| `art/import` | Blender scripts that convert the PSG kits into `game/assets/` |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font; Barlow and Barlow Condensed (SIL OFL 1.1), the ground interface's |
 | `game/scripts/Characters` | Player characters (GROUND.md §4.8): `CharacterView` (third person), `ViewmodelView` (first person), animation graph, IK and aim, ragdoll, wardrobe, held items, the `--view character` viewer |
 | `game/assets/characters` | Player body, clothing and animations (GLB), their textures and JSON facts, built by `art/` |

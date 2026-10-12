@@ -39,6 +39,17 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary>Body IDs after the ground tiles' are for props (natural objects, deployables): this many at once.</summary>
     public const int MaxProps = 65536;
 
+    /// <summary>
+    /// Body IDs from here on belong to building pieces, doors and claim devices (<c>Building/BuildingPhysics</c>), at
+    /// most <see cref="MaxBuildingBodies"/> of them; ground tiles, props and the 64 spare bodies come first.
+    /// </summary>
+    public const int FirstBuildingBody = TileIdCount + MaxProps + 64;
+
+    public const int MaxBuildingBodies = 16384;
+
+    /// <summary>Whether a body is a ground tile.</summary>
+    public static bool IsGroundBody(uint id) => id < TileIdCount;
+
     private readonly Dictionary<(int X, int Z), Tile> _tiles = new();
     private readonly Dictionary<(int X, int Z), Task<Shape>> _pending = new();
     private readonly List<(int X, int Z)> _expired = new();
@@ -71,7 +82,7 @@ public sealed class PhysicsWorld : IDisposable
             Jolt = new PhysicsSystem(new PhysicsSystemSettings
             {
                 // Ground tile IDs take the bottom of the range (see the class remarks); later bodies take the rest.
-                MaxBodies = TileIdCount + MaxProps + 64,
+                MaxBodies = FirstBuildingBody + MaxBuildingBodies,
                 MaxBodyPairs = 4096,
                 MaxContactConstraints = 4096,
                 NumBodyMutexes = 0,
