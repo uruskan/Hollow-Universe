@@ -61,6 +61,7 @@ $GODOT --headless --path game --import       # first run after a clone
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --shot sol.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673 --distance 1100 --shot core.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --shot ground.png
 ```
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
@@ -73,6 +74,9 @@ Client options (after `--`):
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
+- Ground (GROUND.md §4.3): `--view ground --name <n>`, then `--connect host:port` or `--host [--port <n>]` (the
+  default: a server in the game); `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad network through a local
+  relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once seen, for screenshots).
 - Checks: `--physics-check` runs the physics check inside the client and quits; its line must match the one
   `dotnet run --project tests/Hollow.Tests -- MovementCheck` prints.
 

@@ -144,6 +144,15 @@ Godot.
     snapshots on either side; if snapshots stop they carry on for up to 4 ticks along their last motion, then hold.
   - **Statistics:** round trip (measured by echo), snapshot rate and loss, bandwidth both ways with UDP and IP
     headers, prediction error (last, mean and worst), input margin, clock rate.
+- **The ground mode in Godot** (`game/scripts/Ground/`, G1 placeholders): `--view ground` connects to a server
+  (`--connect host:port`) or hosts one in the game for solo play (`--host`, the default). First-person camera at the
+  eye, mouse look every frame, W A S D, Shift sprint, Ctrl crouch, Space jump. Other players are capsule mannequins of
+  the character's size with a visor and their name (placed by `Labeller`). The ground is drawn from the same collision
+  tiles, 448 m across, coloured by slope, under a placeholder sky and haze; the planet package's renderer replaces
+  it. F3 shows the network graph, Enter opens chat. Zone-frame metres are Godot's coordinates (no floating origin yet:
+  the zone stays within 8.2 km of its origin, where floats are good to half a millimetre).
+
+![Two clients: Bo sees Ada](images/ground/two-players.png)
 
 ### 4.4 Network
 
