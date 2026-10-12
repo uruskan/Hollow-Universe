@@ -99,7 +99,8 @@ void vertex() {
 
 	// What grows in this cell. Thin grass grows in patches, not evenly spread.
 	float patchy = texture(macro_noise, wp / 5.3 + vec2(0.71, 0.29)).r;
-	f.g = clamp(f.g * (0.25 + 1.5 * smoothstep(0.3, 0.7, patchy)), 0.0, 1.0) * step(0.02, f.g);
+	float patches = mix(0.25 + 1.5 * smoothstep(0.3, 0.7, patchy), 1.0, smoothstep(0.55, 0.9, f.g)); // dense meadows stay closed
+	f.g = clamp(f.g * patches, 0.0, 1.0) * step(0.02, f.g);
 	float roll = rnd(s);
 	float kind = -1.0; // -1 nothing, 0 grass, 1 plant, 2 litter
 	if (layer == 0) {
