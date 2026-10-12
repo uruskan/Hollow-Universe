@@ -107,19 +107,26 @@ public sealed class SnapshotSender
         }
         _order.Sort(static (a, b) => a.Priority != b.Priority ? b.Priority.CompareTo(a.Priority) : a.NetId.CompareTo(b.NetId));
         int budget = byteBudget * 8 - HeaderBits;
+        int left = budget;
         _chosen.Clear();
         foreach ((float _, uint netId, int index) in _order)
         {
-            ref readonly SnapshotCandidate c = ref candidates[index];
-            int bits = 16 + AgeBits + (Baseline(c.NetId, sequence, out CharacterNetState b) ? c.State.DeltaBits(b) : CharacterNetState.FullBits);
-            if (bits > budget)
+            int bits = 16 + EntityBits(candidates[index], sequence);
+            if (bits > left)
             {
                 break;
             }
-            budget -= bits;
+            left -= bits;
             _chosen.Add((netId, index));
         }
+        // In net ID order the gaps are known exactly. Each was guessed at 16 bits; should the real ones not fit (net
+        // IDs far apart), drop the least important until they do: a snapshot must never outgrow the packet.
         _chosen.Sort(static (a, b) => a.NetId.CompareTo(b.NetId));
+        while (_chosen.Count > 0 && ExactBits(candidates, sequence) > budget)
+        {
+            int last = _chosen.FindIndex(c => c.Index == _order[_chosen.Count - 1].Index);
+            _chosen.RemoveAt(last >= 0 ? last : _chosen.Count - 1);
+        }
 
         // Write.
         header.Sequence = sequence;
@@ -150,7 +157,22 @@ public sealed class SnapshotSender
         LastWritten = _chosen.Count;
     }
 
-    private bool Baseline(uint netId, uint sequence, out CharacterNetState state) => Baseline(netId, sequence, out state, out _);
+    // An entity's bits after its net ID: the baseline age and the state, against its baseline or in full.
+    private int EntityBits(in SnapshotCandidate c, uint sequence) =>
+        AgeBits + (Baseline(c.NetId, sequence, out CharacterNetState b, out _) ? c.State.DeltaBits(b) : CharacterNetState.FullBits);
+
+    // The chosen entities' bits exactly, net ID gaps included (they must be in net ID order).
+    private int ExactBits(ReadOnlySpan<SnapshotCandidate> candidates, uint sequence)
+    {
+        int bits = 0;
+        uint previous = 0;
+        foreach ((uint netId, int index) in _chosen)
+        {
+            bits += BitWriter.DeltaBits((int)(netId - previous)) + EntityBits(candidates[index], sequence);
+            previous = netId;
+        }
+        return bits;
+    }
 
     private bool Baseline(uint netId, uint sequence, out CharacterNetState state, out uint age)
     {

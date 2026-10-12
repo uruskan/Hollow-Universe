@@ -63,6 +63,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     private long _lastNetUpdate;
     private Thread? _thread;
     private bool _shutDown;
+    private int _failedTicks;
 
     public GameServer(ServerOptions options, Galaxy.Galaxy? galaxy = null)
     {
@@ -131,7 +132,23 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             while (!_stop.IsCancellationRequested)
             {
                 long start = Stopwatch.GetTimestamp();
-                Tick();
+                try
+                {
+                    Tick();
+                }
+                catch (Exception e)
+                {
+                    // A bug in one tick must not take every player down: report it in full and carry on. Ten in a row
+                    // is not a passing problem, so the server stops (saving what it can).
+                    Log($"tick {Zone.Tick} failed: {e}");
+                    if (++_failedTicks >= 10)
+                    {
+                        Log("ten ticks in a row failed: stopping");
+                        break;
+                    }
+                    continue;
+                }
+                _failedTicks = 0;
                 double ms = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
                 Ticks.Add(ms, 1000.0 / TickRate);
                 next += period;

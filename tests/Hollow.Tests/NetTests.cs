@@ -166,6 +166,38 @@ public static class NetTests
         Assert.True(bitsPerEntity < 90, "delta coding is compact (a full state is 141 bits)");
     }
 
+    /// <summary>
+    /// A snapshot never outgrows its budget (the transport refuses unreliable packets past the MTU), even with net IDs
+    /// far apart, and what was left out goes first next time.
+    /// </summary>
+    [Test]
+    public static void SnapshotsStayWithinBudget()
+    {
+        var sender = new SnapshotSender();
+        var receiver = new SnapshotReceiver();
+        var writer = new BitWriter();
+        var reader = new BitReader();
+        var decoded = new List<(uint NetId, CharacterNetState State)>();
+        SnapshotCandidate[] crowd = Enumerable.Range(0, 300)
+            .Select(i => new SnapshotCandidate { NetId = 1 + (uint)i * 50_000, State = new CharacterNetState { X = i * 1000, Health = 100 }, Weight = 1 })
+            .ToArray();
+        var seen = new HashSet<uint>();
+        for (int round = 0; round < 14; round++)
+        {
+            writer.Reset();
+            sender.Write(writer, new SnapshotHeader(), crowd, 600);
+            Assert.True(writer.ByteCount <= 600, $"snapshot {round} is {writer.ByteCount} bytes");
+            byte[] data = writer.ToArray();
+            reader.Reset(data, 0, data.Length);
+            reader.ReadBits(8);
+            Assert.True(receiver.TryRead(reader, out _, decoded), "decodes");
+            decoded.ForEach(d => seen.Add(d.NetId));
+            sender.Acknowledge(receiver.LatestSequence, receiver.AckBits);
+        }
+        Fixtures.Report($"{sender.LastWritten} of {crowd.Length} entities per 600-byte snapshot; all {seen.Count} sent within 14 snapshots");
+        Assert.Equal(crowd.Length, seen.Count, "priority reaches everyone");
+    }
+
     /// <summary>Messages.g.cs is what tools/Hollow.NetGen makes of Messages.cs (run the tool after changing it).</summary>
     [Test]
     public static void GeneratedSerializersAreUpToDate()

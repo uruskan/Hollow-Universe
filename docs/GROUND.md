@@ -459,3 +459,11 @@ Decisions taken during G1 without the owner, to confirm or overturn:
 6. **Swimming numbers** are ours until tuned: swim at 65 % depth, float at 75 %, 2.0 m/s (3.0 with sprint).
 7. **Characters pass through each other** in G1. Colliding characters need the other players' positions in
    prediction, which are 100 ms old; it comes back with combat (G4) if it's wanted.
+8. **The zone's origin** is 28.4°, −61.7° until the landing site is chosen (the stand-in surface is the same
+   everywhere); the server takes `--lat` and `--lon`, and characters are stored in the body frame, so moving the zone
+   later keeps them where they were on the planet.
+9. **Development login** is the player name alone: no password, one character per name. Real accounts come with the
+   account service and connect tokens (ARCHITECTURE.md §11.1).
+10. **Placeholders in the client** until their owners land: the ground drawn from collision tiles and a fixed sun
+    (planet package), capsule mannequins (character work), a minimal HUD (the RustMVP interface, G2). Day and night
+    come with the planet package's sky.
