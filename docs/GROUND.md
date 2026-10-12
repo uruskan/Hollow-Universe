@@ -406,8 +406,9 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
   at 17 %, selected blue, health, water, food), its type rule (regular Barlow Medium; bold Barlow SemiBold below 26 px
   and Barlow Condensed Bold from 26 px) and its text fields.
 - **Fonts:** Barlow and Barlow Condensed (SIL OFL 1.1), from RustMVP, in `game/assets/fonts/Barlow`.
-- **Icons:** every screen asks `ItemIcons` (an `IItemIconProvider`). Until the icon package renders them from our
-  models, placeholders are flat vector drawings (RustMVP's own placeholder shapes and new ones in their style).
+- **Icons:** every screen asks `ItemIcons` (an `IItemIconProvider`). They are rendered from our models (§9.1) and
+  served by `CatalogItemIcons`; keys without a model get the flat vector placeholders (RustMVP's own placeholder
+  shapes and new ones in their style).
 - **The character on the inventory screen is ours.** The reference image shows RustMVP's extracted body, which is
   never used (§9). Until the character package supplies the body, a plain wooden mannequin stands in, rendered into a
   texture the size of its panel.
@@ -514,6 +515,94 @@ RustMVP's rules, with Rust's where RustMVP had none:
   bulk loads.
 - **Credits:** every third-party file is listed in `game/assets/THIRD_PARTY.md` with its source and licence.
 
+### 9.1 Item and world models, as built
+
+Every item key and world object has a model, an icon if it's an item, and a line in the model catalogue. All of it is
+rebuilt by scripts:
+
+```bash
+blender -b --factory-startup --python art/build.py                 # every model (about 10 minutes)
+blender -b --factory-startup --python art/build.py -- tools        # one script (names below)
+$GODOT --path game -- --view icons --out game/assets/items/icons   # every icon (a real window; --only a,b for some)
+$GODOT --path game --resolution 1600x900 -- --view icons --shot icons.png       # the contact sheet
+$GODOT --path game --resolution 1600x900 -- --view models --shot models.png     # everything on the ground
+$GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --yaw -38 --shot ship.png
+```
+
+**Scripts** (`art/`, Blender 5.2 in background mode):
+
+| Script | What it makes |
+|---|---|
+| `hollow/` | The shared code: texture conversion, Godot `.import` and `.tres` writers, kit conversion, the model builder (primitives on the shared atlas, per-vertex tint, baked vertex occlusion, decimated LODs, convex hulls, sockets) |
+| `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
+| `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
+| `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
+| `models/resources.py` | The eleven resources as small piles (their dropped look), and the four world pickups as bigger piles |
+| `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
+| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition, key lock |
+| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate |
+| `models/deployables.py` | Campfire, furnace, small box, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
+| `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
+
+**Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
+rifle's LOD1–LOD3, as the character package chose); `UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as
+empties; duplicate faces in some kit LODs dropped; only the OpenGL normal maps used; textures box-filtered to 2K at
+most (the Tin Finch's surface normals and markings to 1K) and written once to `game/assets/textures/<set>/`.
+
+**Layout of a model** (GLB in `game/assets/items` for things carried, `game/assets/world` for things placed):
+- One node per level of detail and part, `<Part>_lod0` to `_lod2`; parts that move (box lids, doors, hatches,
+  magazines, slides) sit under an empty named after the part, at its pivot.
+- Convex hulls `<Part>_hull<i>-convcolonly` (Godot makes them static bodies); attach points are empties
+  `socket_<name>`, +X along the item's forward and +Y up.
+- **Held items** point +X (barrel, blade or head; the character package's frame, §4.8) with the pivot at
+  `socket_grip_r`, the right palm; `socket_grip_l` is the other hand (the bow is held by `grip_l`). Guns also have
+  `sight`, `eye`, `muzzle` and `eject`, tools `impact`. Things held while being placed (locks, the timed charge) get a
+  palm socket at their middle.
+- **World objects** (deployables, doors, outcrops, piles, the ship) face +Z, glTF's and Godot's model front, with the
+  pivot on the ground at the middle of their footprint; doors hang from their lower hinge corner and close across +X
+  (the garage door: the middle of its bottom edge).
+- No images inside: each GLB's `.import` maps its materials to shared Godot materials in `game/assets/materials`
+  (`psg_surface` and `psg_markings`, the PSG atlas; `frontier_metal` and `frontier_furniture`; `tin_finch_*`;
+  `hollow_rock`, a tiling CC0 rock; `hollow_glossy`, plain). Our own models use the PSG atlas's sixteen material tiles
+  (timber, rusted steel, gunmetal, enamel, canvas, leather, basalt...) tinted per vertex; the vertex colour also
+  carries baked occlusion. Godot stores glTF vertex colours as sRGB, so these materials set `vertex_color_is_srgb`.
+
+**Catalogue:** `game/data/ground/models.json`, read by `game/scripts/Items/ModelCatalog.cs`. One entry per item key
+(kind `item`) or world object (kind `world`):
+
+| Field | Meaning |
+|---|---|
+| `key`, `kind`, `class` | The item key or world kind; `class` is tool, gun, spear, blade, bow, arrow, resource, medical, food, clothing, ammo, lock, explosive, deployable, container, door, building, node, pickup or vehicle |
+| `file` / `stages` | The GLB, or for outcrops one GLB per depletion stage (stage 1 whole, 2 broken, 3 a remnant) |
+| `lods`, `lodDistances` | Levels of detail in the file; switch distances (metres: LOD1, LOD2, gone; 0 = never), by default from the model's size |
+| `collision` | `convex`: hulls in the file |
+| `icon` | Present when the item has an icon; `view` is the icon camera's yaw, pitch and roll (degrees) when the class default isn't right; `key` borrows another item's icon |
+| `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) when no arms are drawn; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow |
+| `drop` | `scale`: how big it lies on the ground when dropped (big deployables shrink to a kit) |
+| `standIn` | A note when the model is a stand-in to replace |
+| `source` | Where it came from |
+
+`ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
+merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
+resampled to the exact pixel size asked, and falls back to the placeholder drawings for keys without an icon; `Main`
+installs it (`--placeholder-icons` keeps the drawings). Its `Blueprint` gives the blueprint look by tinting, so no
+extra files are needed.
+
+**Icons** (`--view icons --out game/assets/items/icons`): every catalogue entry with an icon, on a transparent
+background, at 128 and 256 px: an orthographic three-quarter shot (front-right from above for things placed, the right
+side for guns, a diagonal for tools and long things), framed so the model's extent fills 86 % of the square, under a
+warm key light from the upper left, a cool fill and a white rim from behind, with a light studio for metal to
+reflect. Rendered at 1024 px and area-filtered by coverage, so edges have no dark fringe.
+
+**Viewer** (`--view models`): every model on the ground in groups by size with a 1.8 m figure for scale, or one on a
+turntable (`--model <key>`, Tab); LOD keys 0, 1, 2 and A; F (or `--first-person`) shows a held item at its first-person
+pose; the ship stands on a plain stand. `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
+has its LODs, hulls, palm sockets and mapped materials, that icons are square RGBA PNGs at both sizes, and that every
+item key (and every item of `items.json` when present) has a model.
+
+Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `models.jpg` (everything on the ground),
+`items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
+
 ---
 
 ## 10. How the work is run
@@ -575,3 +664,32 @@ Decisions taken for the interface (§8) without the owner, to confirm or overtur
     under RustMVP's vignette instead. The menu is English, like the rest of the interface (RustMVP's was Turkish).
 17. **Placeholders until their packages land:** item icons (vector drawings), the mannequin, and the death screen's
     map (a fixed-seed coast).
+
+Decisions taken for the item and world models (§9.1) without the owner, to confirm or overturn (numbered M1 on, so
+they merge beside the other packages' items):
+
+- M1. **Outcrops are our own design.** The PSG Resource Nodes R01 call themselves "reference-based reconstructions"
+  of Rust's nodes, and their stone, metal and sulphur stages follow Rust's stacked slabs and colours closely; the
+  older `Assets/ResourceNodes` do the same. Neither is used. Ours are clusters of chipped, angular boulders with the
+  mineral showing its own way (metal specks and rust streaks, yellow crystal clusters and crusts, bright flakes),
+  broken along inclined planes for stages 2 and 3, 2 m across and 1.4 m high as gather.json says. A high-grade
+  outcrop is made too, though gather.json gets high-grade ore from metal outcrops.
+- M2. **Doors:** the door kit is the building package's. Until it converts it, our own wooden, armoured, double and
+  garage doors stand in (marked `standIn`); the metal door is the Starter Kit's sheet-metal door.
+- M3. **Clothing icons come from stand-in garments** (`models/clothing.py`, marked `standIn`); render them again from
+  the character package's meshes when they can be posed for the inventory.
+- M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it; the
+  character package's test copy uses 0.62.
+- M5. **Held items use the character package's frame** (+X forward, palm sockets `grip_r` and `grip_l`, LODs `_lod0`),
+  so its hands can hold any of them. That package also built five test copies of the same kit items
+  (`items/flint_axe.glb` and others, with their own copies of the PSG and Frontier textures in `items/textures`). When
+  both are merged, `HeldItems` should load these models through `ModelCatalog` (stone-hatchet, stone-pickaxe, rock,
+  pistol, rifle) so their materials come from the `.import` files, and the test copies and their textures (about
+  20 MB) can go.
+- M6. **Dropped deployables shrink** (`drop.scale`: a workbench lies at 0.3, a door at 0.3, a large box at 0.45), like a
+  packed kit, rather than appearing full size or as a bag.
+- M7. **Textures are 2K at most and shared:** one PSG atlas for the Starter Kit items and every model of ours, the
+  Frontier rifle's two sets, the Tin Finch's surface (normals at 1K) and markings (1K), and one 1K tiling rock
+  (Poly Haven's rock_08) for outcrops, stones and bark. About 37 MB of PNG in all.
+- M8. **Icons fall back to the placeholder drawings** for keys the catalogue doesn't know, so the interface viewer's
+  sample data (RustMVP's old keys) still shows something; the integration replaces those keys with items.json's.

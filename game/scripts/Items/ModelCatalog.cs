@@ -141,10 +141,12 @@ public static class ModelCatalog
             }
             float begin = lod == 0 ? 0 : distances[Math.Min(lod - 1, distances.Length - 1)];
             float end = lod >= last ? distances[^1] : distances[Math.Min(lod, distances.Length - 1)];
+            // No margins: with fading off they act as hysteresis, and a model created inside a margin band would show
+            // no level at all until the camera moved across it.
             mesh.VisibilityRangeBegin = begin;
             mesh.VisibilityRangeEnd = end;
-            mesh.VisibilityRangeBeginMargin = lod == 0 ? 0 : 0.5f;
-            mesh.VisibilityRangeEndMargin = end > 0 ? 0.5f : 0;
+            mesh.VisibilityRangeBeginMargin = 0;
+            mesh.VisibilityRangeEndMargin = 0;
             mesh.VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Disabled;
         }
     }

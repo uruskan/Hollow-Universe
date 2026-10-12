@@ -52,6 +52,7 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs pe
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
+blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
 ```
 
 Headless Godot (Linux workspace; `$GODOT` is the Godot 4.7.2 .NET binary; build the solution first):
@@ -64,6 +65,8 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --shot ground.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
+xvfb-run -a $GODOT --path game -- --view icons --out game/assets/items/icons   # render every item icon (GROUND.md §9.1)
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view models --shot models.png
 ```
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
@@ -86,6 +89,11 @@ Client options (after `--`):
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
   `--view ui --ui-check` drives the inventory and crafting with real input events (drag, middle-drag, split, quick
   move, drop, craft) and quits with exit code 0 when every check passes.
+- Models (GROUND.md §9.1): `--view models` stands every catalogue model on the ground (`--lineup items|world`,
+  `--pitch <deg>`); `--model <key>` shows one on a turntable (`--stage <n>`, `--lod <n>`, `--yaw <deg>` holds it at an
+  angle, `--zoom <f>` moves the camera, `--first-person` shows a held item at its first-person pose; keys Tab, ←/→, ↑/↓, 0/1/2, A, Space, F).
+  `--view icons --out <dir>` renders every item icon at 128 and 256 px (`--only a,b` for some) and then shows the
+  contact sheet, which `--view icons` alone shows too. `--placeholder-icons` keeps the interface's vector drawings.
 
 ## Layout
 
@@ -102,6 +110,10 @@ Client options (after `--`):
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
 | `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font; Barlow and Barlow Condensed (SIL OFL 1.1), the ground interface's |
+| `game/scripts/Items` | Item and world models (GROUND.md §9.1): `ModelCatalog` (reads `data/ground/models.json`), `CatalogItemIcons`, the icon renderer (`--view icons`) and the model viewer (`--view models`) |
+| `game/assets/items`, `game/assets/world` | Item and world models (GLB with LODs, hulls and sockets) and the item icons (`items/icons/128`, `items/icons/256`), built by `art/` |
+| `game/assets/materials`, `game/assets/textures` | The shared Godot materials the models' `.import` files map to, and their textures (2K at most) |
+| `art/` | Blender Python scripts that build the item and world models: `hollow/` (shared code), `import/` (the kits), `models/` (our own), `build.py` (all of them) |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |
 | `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |

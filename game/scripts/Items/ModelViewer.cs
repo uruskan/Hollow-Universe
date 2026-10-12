@@ -13,7 +13,8 @@ namespace HollowUniverse.Items;
 /// Keys: Tab lineup or turntable, Left/Right the model, Up/Down the depletion stage, 0/1/2 force a LOD, A automatic
 /// LODs by distance, Space pauses the turntable, F shows a held item in first person at its catalogue pose, the mouse
 /// wheel zooms. Options: <c>--stage n</c>, <c>--lod n</c>, <c>--yaw deg</c> (the turntable's angle, paused, for a
-/// screenshot), <c>--first-person</c>, <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera).
+/// screenshot), <c>--zoom f</c> (the turntable camera's distance, 1 fits the model), <c>--first-person</c>,
+/// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera).
 /// </summary>
 public partial class ModelViewer : Node3D
 {
@@ -50,6 +51,10 @@ public partial class ModelViewer : Node3D
         if (Options.TryGetValue("lod", out string? lod))
         {
             _lod = int.Parse(lod, CultureInfo.InvariantCulture);
+        }
+        if (Options.TryGetValue("zoom", out string? zoom))
+        {
+            _zoom = float.Parse(zoom, CultureInfo.InvariantCulture);
         }
         if (Options.TryGetValue("yaw", out string? yaw))
         {
@@ -212,7 +217,7 @@ public partial class ModelViewer : Node3D
         var groups = new List<List<(ModelEntry Entry, Node3D Model, Aabb Bounds)>> { new(), new(), new(), new() };
         foreach (ModelEntry entry in _entries)
         {
-            if (entry.Class == "vehicle" || (only == "items" && !entry.IsItem) || (only == "world" && entry.IsItem && !IsPlaced(entry)))
+            if (entry.Class == "vehicle" || (only == "items" && IsPlaced(entry)) || (only == "world" && !IsPlaced(entry)))
             {
                 continue;
             }

@@ -323,7 +323,14 @@ public partial class IconSheet : Control
             {
                 DrawTextureRect(icon, box.Grow(-Ui.Px(5)), false);
             }
-            DrawString(font, new Vector2(MathF.Round(x), MathF.Round(y + slot + Ui.Px(15))), key, HorizontalAlignment.Center, slot, fontSize, Ui.Ground.Ink);
+            // Long keys get a smaller size so they fit their cell.
+            int size = fontSize;
+            while (size > Ui.Px(9) && font.GetStringSize(key, HorizontalAlignment.Left, -1, size).X > cellW - Ui.Px(4))
+            {
+                size--;
+            }
+            float cellX = (i % columns) * cellW;
+            DrawString(font, new Vector2(MathF.Round(cellX), MathF.Round(y + slot + Ui.Px(15))), key, HorizontalAlignment.Center, cellW, size, Ui.Ground.Ink);
         }
     }
 }
