@@ -118,3 +118,20 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   A 1,060-piece base draws in about 5 ms. In the merge I fixed a physics body ID clash between survival's props and
   buildings. Phase 2a is now running: building over the network, saves, inventory costs, the claim-device store and
   bots that build. 91 of 91 tests pass.
+- **Assets pass 2 merged:**
+  - a real bed (replacing the stand-in);
+  - holo sight, scope, silencer, weapon light and muzzle brake, mounting on the guns' sockets;
+  - high-velocity and incendiary ammo boxes;
+  - better icons for the spears, arrows and tubers;
+  - first-person item placements;
+  - loot barrels, crates and a recycler for G7.
+
+  91 of 91 tests pass.
+- **Sound started** (`ground-audio`):
+  - a catalogue of every sound event: footsteps per ground material, gathering, building, doors, weapons with
+    near/far layers, explosions, Rust-like UI clicks, and ambience by biome and time of day;
+  - an audio system with pooled 3D voices, distance layering, buses and occlusion;
+  - an audition viewer.
+
+  Sources are CC0 recordings with our own processing, checked by loudness and clipping measurements. The owner's
+  ears are still needed.
