@@ -547,7 +547,10 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
 rifle's LOD1–LOD3, as the character package chose); `UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as
 empties; duplicate faces in some kit LODs dropped; only the OpenGL normal maps used; textures box-filtered to 2K at
-most (the Tin Finch's surface normals and markings to 1K) and written once to `game/assets/textures/<set>/`.
+most (the Tin Finch's surface normals and markings to 1K) and written once to `game/assets/textures/<set>/`. Three
+plates of the kit's markings atlas carried Rust's item names (P-250, K-47) or a joke ("fictional game prop");
+`import/relabel_markings.ps1` redraws them as SERVICE PISTOL, FRONTIER RIFLE and TIMED CHARGE with the kit's own
+recipe (Windows: System.Drawing and Consolas).
 
 **Layout of a model** (GLB in `game/assets/items` for things carried, `game/assets/world` for things placed):
 - One node per level of detail and part, `<Part>_lod0` to `_lod2`; parts that move (box lids, doors, hatches,

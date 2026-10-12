@@ -7,6 +7,7 @@ it (art/import/frontier_rifle.py). The solar panel isn't an item yet.
 
     blender -b --factory-startup --python art/import/starter_kit.py -- [kit asset names...]
 """
+import subprocess
 import sys
 from pathlib import Path
 
@@ -47,6 +48,18 @@ ASSETS = {
 }
 
 
+def relabel(markings):
+    """Our names on the plates that carried the kit's Rust names (P-250, K-47) or a joke ("fictional game prop"):
+    art/import/relabel_markings.ps1 redraws them with the kit's own recipe (Windows: System.Drawing and Consolas)."""
+    script = Path(__file__).resolve().parent / "relabel_markings.ps1"
+    try:
+        result = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script),
+                                 "-Path", str(markings)], capture_output=True, text=True, timeout=120)
+        log(result.stdout.strip() or result.stderr.strip())
+    except OSError as error:
+        log(f"could not relabel the markings ({error}); the kit's plates are kept")
+
+
 def atlas_materials():
     """The kit's shared atlas at 2K and its two Godot materials; returns {Blender material name: .tres}."""
     src = KIT / "Shared" / "Textures"
@@ -60,6 +73,7 @@ def atlas_materials():
     markings = ATLAS / "T_PSG_Markings_BaseColor.png"
     if not markings.exists():
         convert(src / "T_PSG_Markings_BaseColor.png", markings, 2048)
+        relabel(markings)
     write_texture_import(markings)
     surface = write_material("psg_surface", "M_PSG_Surface", albedo=maps["BaseColor"], orm=maps["ORM"],
                              normal=maps["NormalGL"], emission=maps["Emissive"], emission_energy=1.5)
