@@ -226,6 +226,9 @@ public sealed class SurvivalTuning
     public float ColdDamageFrom { get; init; } = 0.6f;
     public float ColdDamagePerSecond { get; init; }
     public float WetCooling { get; init; }
+
+    /// <summary>A fire warms the air felt up to this, never above it (°C).</summary>
+    public float FireWarmsTo { get; init; } = 25;
     public float WetSeconds { get; init; }
 
     public float ClimateMeanCelsius { get; init; } = 18;

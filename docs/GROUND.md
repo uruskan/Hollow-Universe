@@ -328,6 +328,40 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   and 48.5 ms worst (two over budget): the server, 100 bots and the relay share one PC, and the worst ticks vary from
   run to run.
 
+### 5.2 G2 load test: 100 survival bots with full inventories
+
+Measured on the owner's PC on 13 October 2026, with four other agents' work running on it. Every bot joins with the
+`load-test-kit` loot table (29 stacks: resources, tools, weapons, arrows, food, clothing, a campfire, a bag, a box),
+then plays the survival game (`--script survive`, `SurvivalBrain`): it walks to trees and outcrops and hits their weak
+spots, picks pickups and berry bushes, keeps its tools on the belt, dresses, eats and bandages, crafts what it lacks and
+keeps its queue busy, lights a campfire, and now and then fights a bot nearby with a spear or the bow. All 100 stay
+within 120 m of the origin, so each sees the 99 others.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit
+```
+
+| | G2, 100 survival bots | G1, 100 walking bots (§5.1) | Target |
+|---|---|---|---|
+| Server tick, average | 5.90 ms | 4.25 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 12.3 / 65.5 ms (2 of 1,796 over 33 ms) | 10.2 / 26.9 ms | ≤ 33 ms |
+| Bandwidth per client, down (99 characters in view) | 105 kbit/s | 114 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 24 kbit/s | 18 kbit/s | |
+| Snapshots lost / inputs on their tick | 0 % / 99.85 % | 0 % / 100 % | |
+| Prediction: mean / worst error, corrections | 0.007 / 183 mm, 6 (and 188 respawns) | 0 / 0 mm, 0 | |
+
+In the 68 s the bots made 1,585 gathering hits (848 on the weak spot) for 17,886 items, picked up 770 items, crafted
+125, loosed 3 arrows, landed 902 hits on each other (199 kills, 209 deaths, each a corpse) and sent 1,369 intents (21
+refused, none over budget). The world ended with 227 things (corpses, campfires, drops) and 710 solid props.
+- **Tick time** grew by 1.7 ms for everything G2 adds: swings and their traces, crafting, vitals, devices, the
+  replication of things, nature and each player's own state. The worst ticks are the PC's (a garbage collection, other
+  work); the 99th percentile stays at a third of the budget.
+- **Down** is lower than G1's because bots that gather stand still, and a still character's state is a few bits; G2's
+  own messages (containers, vitals, events, things) add little. **Up** grew by the held slot, buttons and view delay in
+  every input.
+- **Prediction** stays exact while characters walk among solid trees, outcrops and deployables; the few corrections
+  are at props, and respawns (more than 2 m) are counted apart.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -422,11 +456,12 @@ starts at 60 / 260 / 160 (hollow-orbit's respawn values).
   bleeding, 0.04 a second more, twice that by a fire.
 - **Bleeding** (ours): a hit with a blade, spear or arrow adds its damage × the weapon's bleed fraction to a pool, lost
   at 1 health a second while the pool clots by 0.2 a second; bandages and injectors empty it.
-- **Temperature**: the air (`IClimate`: the stand-in has the first world's mean 18 °C, ±3.5 °C over the compressed
-  87-minute day, −6.5 °C a kilometre up) + clothing insulation + warmth from a lit campfire (up to +20 °C within 4 m)
-  or furnace − 10 °C for two minutes after swimming. Below 5 °C felt a character gets cold (fully at −10 °C); cold
-  costs calories faster and, past 0.6, 0.15 health a second. The first world is mild, so cold matters on mountains and
-  when wet at night.
+- **Temperature**: felt = the air (`IClimate`: the stand-in has the first world's mean 18 °C, ±3.5 °C over the
+  compressed 87-minute day, −6.5 °C a kilometre up), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but
+  never past 25 °C, and 10 °C colder for two minutes after swimming. Clothing insulation (3–6 °C an item) counts
+  against the cold: with it added, below 5 °C a character gets cold (fully at −10 °C); cold costs calories faster and,
+  past 0.6, 0.15 health a second. There is no overheating yet. The first world is mild, so cold matters on mountains
+  and when wet at night.
 - Sleepers are left as they are (no hunger, no bleeding) until they wake. Crafting pauses for them too.
 
 **Deployables** (`Zone.Things.cs`, `Zone.Actions.cs`). Placed from an inventory slot at a point within 3 m of the eye,
@@ -540,6 +575,15 @@ Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), 
 (`Nature`, `Natural`, with trees and outcrops solid in the prediction's physics), projectiles in flight
 (`Projectiles`), others' held items, swings, sleep and clothing (`RemoteEntity`), and finds what the interact key would
 act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons.
+
+**Godot** (`game/scripts/Ground`, placeholders until the other packages' models and the RustMVP interface): natural
+objects as simple shapes per 64 m tile (trees, outcrops shrinking with their stage, piles, plants, bushes with their
+berries), glowing weak spots near the player, deployables as boxes (a lit fire has a flame and a light), drops,
+corpses, arrows in flight, the item in hand with a swing, a ghost where a held deployable would go, the interact prompt
+and a debug overlay (`SurvivalOverlay`); mannequins lie down asleep and swing what they hold. `--demo` sets up the camp
+below for screenshots.
+
+![A camp in the demo: a box, a lit campfire, a sleeping bag, a stone hatchet in hand](images/ground/survival-camp.png)
 
 ---
 
@@ -675,3 +719,31 @@ Decisions taken during G1 without the owner, to confirm or overturn:
 10. **Placeholders in the client** until their owners land: the ground drawn from collision tiles and a fixed sun
     (planet package), capsule mannequins (character work), a minimal HUD (the RustMVP interface, G2). Day and night
     come with the planet package's sky.
+
+Decisions taken during G2 (step "Survive") without the owner, to confirm or overturn:
+
+11. **No scrap yet.** Rust's workbenches cost scrap, which comes from barrels and crates (G7). Until then workbench 1
+    is 500 wood and 100 metal fragments, and workbenches 2 and 3 cost refined metal (smelted from the high-grade ore
+    metal outcrops give, as Rust's high-quality metal).
+12. **Lamp oil** (our low-grade fuel) is made from charcoal and fibre, since there are no animals for fat yet; a
+    furnace needs ten. So the first furnace comes after a campfire has burnt wood into charcoal.
+13. **Every recipe is known** from the start; the tech tree (G7) will hide some (`known` in recipes.json).
+14. **Yield is fixed per object**: a better tool or the weak spot gathers it faster, not more of it (hollow-orbit's
+    rule; Rust's numbers differ per tool). The weak spot shows after the first hit, facing the hitter (Rust).
+15. **Dragging onto a stack of the same item tops it up and leaves the rest** (Rust); RustMVP refused the whole move.
+    A crafted unit that doesn't fit drops at the player's feet (Rust) instead of holding the queue (RustMVP). A
+    workbench is checked when a job starts (Rust). Crafting pauses while the player is offline or asleep (RustMVP).
+16. **Sleepers are frozen**: no hunger, thirst or bleeding while logged off; looting them is take only; logging in wakes
+    them at once (no key press).
+17. **The beach** is, until the planet package marks real coasts (`Zone.Beaches`), a random point 15–60 m from the
+    zone's origin; a beach respawn has no wait (Rust). New characters still arrive at G1's spawn ring.
+18. **Timers**: corpses and dropped items last 300 s of world time, which pauses while the server is down, as does
+    crafting and a fire's fuel; sleeping-bag cooldowns and respawning nature run on the real clock.
+19. **Bleeding and the cold** use our own numbers (survival.json) where neither source had any; a fire warms the air
+    felt up to 25 °C; nothing overheats yet.
+20. **Arrows fall with the planet's surface gravity** (9.0 m/s²), not the characters' 1.8×; lag compensation looks back
+    at most 0.25 s (ARCHITECTURE.md §11.5) over a 36-tick history.
+21. **Deployables**: sleeping bags and campfires don't block movement; a broken deployable spills everything it held;
+    arrows do a quarter of their damage to deployables, melee the tool's `structure` value.
+22. **Natural objects' bodies** take free IDs after the ground tiles', so two props touched at once may sort differently
+    on the client than on the server, costing a small correction (§6.1).

@@ -698,7 +698,7 @@ public sealed class GameContent
                 "starvationDamagePerSecond", "thirstDamagePerSecond", "regenMinCalories", "regenMinHydration", "regenPerSecond",
                 "comfortRegenFactor", "healPerSecond");
             JsonElement b = Section("bleeding", "damagePerSecond", "clotPerSecond");
-            JsonElement t = Section("temperature", "comfortable", "coldScale", "coldDamageFrom", "coldDamagePerSecond", "wetCooling", "wetSeconds");
+            JsonElement t = Section("temperature", "comfortable", "coldScale", "coldDamageFrom", "coldDamagePerSecond", "wetCooling", "wetSeconds", "fireWarmsTo");
             JsonElement c = Section("climateStandIn", "meanCelsius", "daySwing", "lapsePerKilometre", "dayLengthSeconds");
             JsonElement k = Section("combat", "head", "body", "limb", "maxRewindSeconds", "equipSeconds");
             JsonElement o = Section("world", "corpseSeconds", "droppedItemSeconds", "interactReach", "lootReach", "beachCooldownSeconds", "respawnKit");
@@ -730,6 +730,7 @@ public sealed class GameContent
                 ColdDamagePerSecond = f.Number(t, "coldDamagePerSecond", w + ": temperature"),
                 WetCooling = f.Number(t, "wetCooling", w + ": temperature", 0),
                 WetSeconds = f.Number(t, "wetSeconds", w + ": temperature", 0),
+                FireWarmsTo = f.Number(t, "fireWarmsTo", w + ": temperature", 25),
                 ClimateMeanCelsius = f.Number(c, "meanCelsius", w + ": climateStandIn"),
                 ClimateDaySwing = f.Number(c, "daySwing", w + ": climateStandIn"),
                 ClimateLapsePerKilometre = f.Number(c, "lapsePerKilometre", w + ": climateStandIn"),

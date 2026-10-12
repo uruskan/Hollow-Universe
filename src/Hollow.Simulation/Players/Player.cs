@@ -18,7 +18,7 @@ public struct Vitals
     /// <summary>Health still to be gained over time (bandages, injectors, food).</summary>
     public float PendingHeal;
 
-    /// <summary>The temperature felt, in °C (air, clothing, fires, wetness), and how cold that is (0 … 1).</summary>
+    /// <summary>The temperature felt, in °C (the air, a fire, wetness), and how cold that is with clothing on (0 … 1).</summary>
     public float Temperature;
     public float Cold;
 

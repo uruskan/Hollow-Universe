@@ -57,7 +57,7 @@ public partial class SurvivalOverlay : Control
         _loot = Line(content, TextStyle.Secondary);
         content.AddChild(Ui.Separator());
         _log = Line(content, TextStyle.Secondary);
-        Ui.Size(card, 360);
+        Ui.Size(card, 400);
         Ui.Track(card, c =>
         {
             c.AnchorLeft = 0;

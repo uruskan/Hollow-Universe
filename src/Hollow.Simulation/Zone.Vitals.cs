@@ -30,7 +30,8 @@ public sealed partial class Zone
             (int health, int calories, int hydration, int temperature, bool bleeding) before =
                 ((int)Math.Ceiling(v.Health), (int)v.Calories, (int)v.Hydration, (int)Math.Round(v.Temperature), v.Bleeding > 0);
 
-            // Temperature felt: the air, clothing, a fire nearby, and being wet.
+            // Temperature felt: the air, warmed by a fire nearby (up to a comfortable level), less when wet; clothing
+            // keeps the cold off.
             if ((c.State.Flags & MoveFlags.Swimming) != 0)
             {
                 v.WetSeconds = s.WetSeconds;
@@ -42,8 +43,9 @@ public sealed partial class Zone
             float air = Climate?.TemperatureAt(c.State.Position, now) ?? s.ClimateMeanCelsius;
             float warmth = Warmth(c.State.Position);
             v.Comfort = warmth > 0;
-            v.Temperature = air + p.Inventory.Insulation(content) + warmth - (v.WetSeconds > 0 ? s.WetCooling : 0);
-            v.Cold = Math.Clamp((s.ComfortableCelsius - v.Temperature) / Math.Max(1, s.ColdScale), 0, 1);
+            float warmed = warmth > 0 ? Math.Max(air, Math.Min(air + warmth, s.FireWarmsTo)) : air;
+            v.Temperature = warmed - (v.WetSeconds > 0 ? s.WetCooling : 0);
+            v.Cold = Math.Clamp((s.ComfortableCelsius - v.Temperature - p.Inventory.Insulation(content)) / Math.Max(1, s.ColdScale), 0, 1);
 
             // Needs: faster when sprinting or cold.
             float factor = ((c.State.Flags & MoveFlags.Sprinting) != 0 ? s.SprintFactor : 1) * (v.Cold > 0 ? s.ColdFactor : 1);

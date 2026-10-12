@@ -13,7 +13,7 @@
   },
   "bleeding": { "damagePerSecond": 1.0, "clotPerSecond": 0.2 },
   "temperature": {
-    "comfortable": 5, "coldScale": 15, "coldDamageFrom": 0.6, "coldDamagePerSecond": 0.15,
+    "comfortable": 5, "coldScale": 15, "coldDamageFrom": 0.6, "coldDamagePerSecond": 0.15, "fireWarmsTo": 25,
     "wetCooling": 10, "wetSeconds": 120
   },
   "climateStandIn": {
