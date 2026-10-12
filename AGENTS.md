@@ -62,6 +62,7 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --shot sol.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673 --distance 1100 --shot core.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --shot ground.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
 ```
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
@@ -79,6 +80,9 @@ Client options (after `--`):
   relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once seen, for screenshots).
 - Checks: `--physics-check` runs the physics check inside the client and quits; its line must match the one
   `dotnet run --project tests/Hollow.Tests -- MovementCheck` prints.
+- Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
+  (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`);
+  `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
 
 ## Layout
 
@@ -93,7 +97,8 @@ Client options (after `--`):
 | `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics |
 | `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication, login, admin |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
-| `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font |
+| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
+| `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font; Barlow and Barlow Condensed (SIL OFL 1.1), the ground interface's |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |
 | `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |

@@ -8,6 +8,7 @@ using Hollow.Galaxy.Systems;
 using HollowUniverse.GalaxyMap;
 using HollowUniverse.Ground;
 using HollowUniverse.SystemMap;
+using HollowUniverse.UI.Viewer;
 
 namespace HollowUniverse.App;
 
@@ -26,6 +27,7 @@ public partial class Main : Node
     private bool _rescaled;
     private UiScaler _scaler = null!;
     private GroundMode? _ground;
+    private UiViewer? _ui;
 
     public override void _Ready()
     {
@@ -42,6 +44,13 @@ public partial class Main : Node
             _scaler.Override = (float)Number("ui-scale", 1);
         }
         AddChild(_scaler);
+        if (Option("view", "galaxy") == "ui")
+        {
+            // The ground game's interface on sample data (GROUND.md §8): --screen hud|inventory|crafting|...
+            _ui = new UiViewer { Name = "UiViewer", Options = _options };
+            AddChild(_ui);
+            return;
+        }
         GalaxyService.Load();
         if (Option("view", "galaxy") == "ground")
         {
@@ -151,7 +160,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        if (_options.ContainsKey("trace") && _ground == null)
+        if (_options.ContainsKey("trace") && _ground == null && _ui == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -174,7 +183,7 @@ public partial class Main : Node
             _scaler.Apply();
         }
         double wait = Number("wait", 2);
-        bool ready = _ground != null ? _ground.ReadyForShot : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
+        bool ready = _ui != null ? _ui.ReadyForShot : _ground != null ? _ground.ReadyForShot : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
         {
             _capturing = true;
