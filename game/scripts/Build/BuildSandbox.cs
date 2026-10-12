@@ -61,6 +61,8 @@ public partial class BuildSandbox : Node3D
     private int _frames;
 
     private Transform3D? _fixedCamera;
+    private (Vector3 Eye, Vector3 At, Vector3 Up)? _view;
+    private Num.Vector3 _site;
     private bool _measure;
     private int _measured;
     private double _frameSum, _frameWorst;
@@ -116,12 +118,15 @@ public partial class BuildSandbox : Node3D
         layer.AddChild(_hud);
         _ui = new GroundUi { Name = "GroundUi", Model = _model };
         layer.AddChild(_ui);
+        _ui.QuitRequested += () => GetTree().Quit();
+        _ui.HostRequested += _ => _ui.Open(GroundScreen.Hud);
         if (_shot)
         {
             _ui.HoldPointer(new Vector2(-10000, -10000));
         }
 
         Num.Vector3 site = FlatSite();
+        _site = site;
         _zone.Physics.EnsureGround(site, 1);
         BuildScene(site);
         _renderer.Attach(_world, _assets);
@@ -149,6 +154,10 @@ public partial class BuildSandbox : Node3D
             _ui.HoldPointer(wheel == "hammer" ? new Vector2(800, 190) : new Vector2(1025, 300));
         }
         Capture();
+        if (Options.ContainsKey("build-check"))
+        {
+            RunCheck();
+        }
     }
 
     // ---------------------------------------------------------------- scenes
@@ -247,9 +256,28 @@ public partial class BuildSandbox : Node3D
             }
         }
         // --from x,y,z --at x,y,z: the camera in the scene's frame, for a chosen view.
-        if (Options.TryGetValue("from", out string? from) && Options.TryGetValue("at", out string? at))
+        bool chosen = Options.TryGetValue("from", out string? from) & Options.TryGetValue("at", out string? at);
+        if (chosen)
         {
-            Look(frame, ParseVector(from), ParseVector(at));
+            Look(frame, ParseVector(from!), ParseVector(at!));
+        }
+        if (_view is (Vector3 eye, Vector3 target, Vector3 up))
+        {
+            if (_shot || chosen)
+            {
+                // A screenshot holds the scene's view.
+                _fixedCamera = new Transform3D(Basis.LookingAt(target - eye, up), eye);
+            }
+            else
+            {
+                // Playing: the builder stands under the scene's view, facing what it looks at.
+                spawn = N(eye);
+                Num.Vector3 ground = _zone.GroundAt(spawn.X, spawn.Z);
+                Num.Vector3 look = N(target) - (ground + N(up) * _zone.Tuning.StandingEyeHeight);
+                Num.Vector3 flat = look - N(up) * Num.Vector3.Dot(look, N(up));
+                _yaw = MathF.Atan2(-flat.X, -flat.Z);
+                _pitch = MathF.Atan2(Num.Vector3.Dot(look, N(up)), flat.Length());
+            }
         }
         AddPlayer(spawn);
     }
@@ -260,12 +288,8 @@ public partial class BuildSandbox : Node3D
         return new Vector3D(v[0], v[1], v[2]);
     }
 
-    private void Look(in BuildingFrame frame, Vector3D from, Vector3D at)
-    {
-        Vector3 eye = G(frame.ToZone(from)), target = G(frame.ToZone(at));
-        Vector3 up = G(frame.DirectionToZone(Vector3D.UnitY));
-        _fixedCamera = new Transform3D(Basis.LookingAt(target - eye, up), eye);
-    }
+    private void Look(in BuildingFrame frame, Vector3D from, Vector3D at) =>
+        _view = (G(frame.ToZone(from)), G(frame.ToZone(at)), G(frame.DirectionToZone(Vector3D.UnitY)));
 
     private void AddPlayer(Num.Vector3 near)
     {

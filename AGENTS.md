@@ -91,7 +91,9 @@ Client options (after `--`):
   frame time), `--overlay` (stability colours), `--tool 1–6` (plan, hammer, three doors, claim device), `--piece <key>`,
   `--wheel plan|hammer` (open the wheel), `--from x,y,z --at x,y,z` (the camera in the scene's frame), `--finest` or
   `--lod n` (draw one level of detail). Keys: right mouse wheels, left places or repairs, R turns, E doors, F2 the
-  stability overlay, F5 an hour of upkeep and decay.
+  stability overlay, F5 an hour of upkeep and decay. `--view build --scene empty --build-check` plays a round of
+  building through the sandbox's input (place, snap, upgrade, turn, door, demolish and collapse) and quits with exit
+  code 0 when every step passes.
 - Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
   (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`);
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.

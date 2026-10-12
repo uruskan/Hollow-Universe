@@ -19,6 +19,8 @@ import bpy
 import bmesh
 from mathutils import Vector
 
+# No __pycache__ beside the scripts in the repository.
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import kit_common as kc  # noqa: E402
 

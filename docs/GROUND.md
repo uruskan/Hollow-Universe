@@ -496,7 +496,10 @@ wheels through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan
 with the reason. Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; the right mouse button holds the plan's or the
 hammer's wheel (RustMVP's, from §8); the left places, repairs, fits a door or places the device; R turns the piece or
 flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Removed pieces fall
-and sink away, layer after layer.
+and sink away, layer after layer. A scene's view is held for screenshots; otherwise the builder stands under it and
+walks. `--build-check` plays a round through the sandbox's own input paths (a free foundation, a wall snapped to its
+edge, the hammer's upgrade and turn, a doorway and a door aimed into its opening, E, then demolishing the foundation
+and watching the rest come down) and quits with exit code 0 when all nine steps pass.
 
 ```bash
 $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
