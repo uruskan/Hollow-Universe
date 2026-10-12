@@ -175,9 +175,10 @@ Godot.
   gravity, surface seed, latitude, longitude) and the saved view.
 - **Clocks:** every input is for a tick. The client runs its tick clock ahead of the server's so inputs arrive in
   time: every snapshot says how early this client's inputs arrived (the least over the last half second). The client
-  aims for 2 ticks: 4 % faster below, 3 % slower above 4, and it jumps when inputs arrive late (skipping ticks, which
-  the server and the prediction both fill by repeating the last input) or very early (pausing). The first lead comes
-  from the connect handshake's round trip.
+  aims for 2 ticks: 4 % faster below, 3 % slower above 4, and it jumps when inputs arrive late or very early. A jump
+  forward runs the extra ticks over the next frames (their inputs still go out); one of over a second skips them (the
+  server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. The first lead
+  comes from the connect handshake's round trip.
 - **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, yaw and pitch in 1/65,536 of a turn,
   buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the snapshot acknowledgements and
   a client timestamp for measuring the round trip. Only four losses in a row lose an input. The server applies each
@@ -317,6 +318,12 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   needed before it was ready, and garbage collections.
 - A server sharing its process with the bots measured 5.1 / 16.2 / 36 ms (their allocations and collections land on
   its ticks), which is why the load test runs the bots in a child process.
+- **With jitter as well** (150 ms ping, ±20 ms jitter, 5 % loss, 30 s): 99.89 % of inputs on their tick, 11
+  corrections in 56,211 reconciliations (mean 0.011 mm, worst 14 cm), 17 clock jumps among 100 bots. Jitter
+  sometimes makes an input late before the clock moves; the clock then runs the missing ticks quickly rather than
+  skipping them, so their inputs still go out. Server ticks in that run were 6.2 ms average, 16.9 ms 99th percentile
+  and 48.5 ms worst (two over budget): the server, 100 bots and the relay share one PC, and the worst ticks vary from
+  run to run.
 
 ---
 

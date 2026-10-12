@@ -193,4 +193,31 @@ public static class MultiplayerTests
             Assert.Near(2.0, ada.InitialYaw, 0.001, "and facing the same way");
         }
     }
+
+    /// <summary>
+    /// GROUND.md §4.2: admin commands and chat. A teleport reaches the client as a correction; a player's line and a
+    /// server line reach everyone; a kick ends the connection with its reason.
+    /// </summary>
+    [Test]
+    public static void AdminCommandsAndChat()
+    {
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        var lines = new List<string>();
+        ada.ChatReceived += line => lines.Add($"{line.From}: {line.Text}");
+        rig.WaitUntilPlaying();
+        ada.SendChat("hello");
+        rig.Server.Execute("say welcome");
+        rig.Server.Execute("teleport Ada 40 -25");
+        rig.Run(1.0, (_, _) => default);
+        Fixtures.Report($"chat: {string.Join(" | ", lines)}; after teleport at {ada.Character.Position}");
+        Assert.True(lines.Contains("Ada: hello") && lines.Contains("Server: welcome"), "both chat lines arrived");
+        Assert.Near(40, ada.Character.Position.X, 0.05, "teleported east");
+        Assert.Near(-25, ada.Character.Position.Z, 0.05, "teleported north");
+        rig.Server.Execute("kick Ada testing");
+        rig.Run(1.0, (_, _) => default);
+        Assert.Equal(ClientState.Disconnected, ada.State, "kicked");
+        Assert.True(ada.Goodbye == GoodbyeReason.Kicked && ada.DisconnectReason!.Contains("testing", StringComparison.Ordinal),
+            $"told why: {ada.DisconnectReason}");
+    }
 }

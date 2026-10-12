@@ -241,8 +241,9 @@ public sealed class GameClient : INetEventListener, IDisposable
                 _nextTick++;
                 ran++;
             }
-            if (_tickClock - _nextTick > MaxTicksPerUpdate)
+            if (_tickClock - _nextTick > TickRate)
             {
+                // A hitch of over a second (a debugger, a stall): drop the time; the margin reports set the clock again.
                 _tickClock = _nextTick;
             }
             UpdateRender(delta);
@@ -524,11 +525,12 @@ public sealed class GameClient : INetEventListener, IDisposable
         if (margin < 0 || error > 10)
         {
             // Inputs arrive late (each one the server lacks is a misprediction) or far too early: move the clock at
-            // once, then let the reports (the least margin over half a second) catch up before steering again.
-            // Forward skips ticks, to a tick of slack beyond the target (the server repeats the last input for the
-            // skipped ones, and prediction does the same); back pauses until the clock gets there.
+            // once, to a tick of slack beyond the target, then let the reports (the least margin over half a second)
+            // catch up before steering again. Forward runs the extra ticks over the next frames, so their inputs are
+            // still sent; more than a second behind, it skips them (the server repeats the last input for those, and
+            // prediction does the same). Back pauses until the clock gets there.
             int move = error < 0 ? -error + 1 : -error;
-            if (move > 0)
+            if (move > TickRate)
             {
                 _nextTick += (uint)move;
             }

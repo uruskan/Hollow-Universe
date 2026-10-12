@@ -77,7 +77,8 @@ public static class Program
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"REPORT {all.Sum(c => c.Stats.Reconciliations)} {all.Sum(c => c.Stats.PredictionErrorTotal):R} " +
                 $"{all.Max(c => c.Stats.PredictionErrorWorst):R} {all.Sum(c => c.Stats.Corrections)} {all.Average(c => c.Stats.RoundTripMs):R} " +
-                $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R}"));
+                $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
+                $"{all.Sum(c => c.Stats.ClockJumps)}"));
             return 0;
         }
         while (!stop && elapsed < duration)
@@ -197,7 +198,7 @@ public static class Program
             $"snapshots received {F(6):0.0}/s per bot, {F(9):0.0} % lost\n" +
             $"Inputs applied on their tick: {100.0 * applied / Math.Max(1, applied + missing):0.00} % ({missing} missing)\n" +
             $"Prediction: {F(1):0} reconciliations, mean error {meanError * 1000:0.000} mm, worst {F(3) * 1000:0.0} mm, " +
-            $"{F(4):0} corrections; round trip {F(5):0} ms\n" +
+            $"{F(4):0} corrections; round trip {F(5):0} ms; {F(10):0} clock jumps\n" +
             $"Bots: {F(7):0} playing, {F(8):0} disconnected"));
         return F(7) == count ? 0 : 2;
     }
