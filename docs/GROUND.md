@@ -372,21 +372,109 @@ A test checks that every reference resolves and that every recipe can be made fr
 
 ## 8. Interface
 
-The RustMVP interface is the reference, matched exactly: layout, colours, fonts, spacing, behaviour.
+The RustMVP interface is the reference, matched exactly: layout, colours, fonts, spacing, behaviour. It is built
+(G2) in `game/scripts/UI` and runs on sample data in the viewer:
 
-| Screen | Reference (in `D:\GameDev\Projects\RustMVP`) |
-|---|---|
-| HUD, hotbar, vitals | `docs/evidence/ui-restoration-2026-10-01/hud-final.png`, `logs/ui-polish/hud.png` |
-| Inventory | `docs/evidence/ui-restoration-2026-10-01/inventory-final.png`, `logs/ui-reference-final/inventory.png` |
-| Crafting | `logs/ui-reference-final/crafting.png` |
-| Building and hammer wheels | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png` |
-| Specification | `docs/architecture/legacy/weapons_character_ui.md` |
+```bash
+$GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
+# --screen hud | inventory | loot | corpse | furnace | campfire | crafting | death | wheel | hammer | menu
+```
 
-- **Fonts:** Barlow and Barlow Condensed (SIL OFL 1.1), as in RustMVP (`assets/SourceUI/fonts`).
-- **Built with `Ui`:** every length through `Ui.Px`, no stretch mode (AGENTS.md).
-- **Icons** are rendered from our own models.
+| Screen | Reference (in `D:\GameDev\Projects\RustMVP`) | As built (`docs/images/ground/ui/`) |
+|---|---|---|
+| HUD, hotbar, vitals | `docs/evidence/ui-restoration-2026-10-01/hud-final.png`, `logs/ui-polish/hud.png` | `hud.jpg` |
+| Inventory and loot | `docs/evidence/ui-restoration-2026-10-01/inventory-final.png`, `logs/ui-reference-final/inventory.png`, `loot-circle-preview.png` | `inventory.jpg`, `loot.jpg`, `furnace.jpg` |
+| Crafting | `logs/ui-reference-final/crafting.png` | `crafting.jpg` |
+| Building and hammer wheels | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png` | `wheel.jpg`, `hammer.jpg` |
+| Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.jpg` |
+| Main menu | `logs/ui-polish/menu.png` | `menu.jpg` |
+| Other scales | | `crafting-720p.jpg` (scale 0.8), `inventory-1440p.jpg` (scale 1.3125) |
+| Specification | `docs/architecture/legacy/weapons_character_ui.md` | |
+
+- **Numbers** come from RustMVP's final interface, `unreal/Bare/Source/Bare/UI/SBareRoot.cpp`: every position, size,
+  colour and font size on its 1600 × 900 design canvas. Where its Godot predecessor (`e569e19`) differs and the
+  reference shots agree with it, the Godot one wins: the centred recipe title and table headers, the darker amount
+  field.
+- **Drawn as RustMVP drew it:** one control, `GroundUi`, paints each screen in immediate mode on the design canvas, in
+  partial files per screen. Every design length goes through `Ui.Px`, so at 1600 × 900 each element sits where
+  RustMVP put it and at other sizes it is still whole pixels; fonts and icons are rasterised at their final size.
+- **Anchoring:** the canvas sits centred on the window's bottom edge, so the belt doesn't move when the inventory
+  opens. Vitals, statuses and pickups follow the bottom-right corner; chat and notices the bottom-left; the centre dot,
+  prompts and wheels the centre; the inventory and crafting tabs hang from the top edge. The scale is the usual
+  `Ui.Scale` (1.0 up to 1080p, ARCHITECTURE.md §15).
+- **Style:** `Ui.Ground` in `Ui.cs`, beside the map styles: RustMVP's palette (ink `#E3DFD6`, panel `(.71,.69,.65)`
+  at 17 %, selected blue, health, water, food), its type rule (regular Barlow Medium; bold Barlow SemiBold below 26 px
+  and Barlow Condensed Bold from 26 px) and its text fields.
+- **Fonts:** Barlow and Barlow Condensed (SIL OFL 1.1), from RustMVP, in `game/assets/fonts/Barlow`.
+- **Icons:** every screen asks `ItemIcons` (an `IItemIconProvider`). Until the icon package renders them from our
+  models, placeholders are flat vector drawings (RustMVP's own placeholder shapes and new ones in their style).
 - **The character on the inventory screen is ours.** The reference image shows RustMVP's extracted body, which is
-  never used (§9).
+  never used (§9). Until the character package supplies the body, a plain wooden mannequin stands in, rendered into a
+  texture the size of its panel.
+
+### 8.1 View model
+
+The screens never talk to the network. They read and act through `IGroundUi` (`game/scripts/UI/Model`), plain C# with
+no Godot types, which an adapter over the client API implements. `MockGroundUi` implements it with sample data and
+local rules (stacking, swapping, splitting, quick moves, a crafting queue with refunds, bag cooldowns) for the viewer.
+
+| Part | Contract |
+|---|---|
+| Items | `Item(key)`: name, description, category, stack size, wearable, usable, INFORMATION stats. Unknown keys get a stand-in. Stacks: key, amount, condition (0–1 or none), loaded rounds (or none). |
+| Containers | `Slots(container)`: main 24, belt 6, clothing 7, and the open container's. A slot is `(container, index)`. |
+| Vitals | Health /100, calories /500, hydration /250 (as RustMVP), body temperature (°C), comfort, bleeding (health per second), wetness, building rights. Cold below 5 °C, hot above 40 °C. |
+| Belt | `ActiveBelt` (−1 for none); `Ammo`: loaded, reserve, reloading. |
+| Loot | `Loot`: kind, title, slots; for furnaces and campfires also burning, progress and fuel seconds. Slot order per kind: a box any number; a body 0–23 main, 24–29 belt, 30–36 clothing; a furnace 0 fuel, 1–2 input, 3–5 output; a campfire 0 fuel, 1–4 cooking. |
+| Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
+| Death | `Death`: alive for, killed by (a player or a cause), weapon, distance, place on the map; `Bags`: id, name, cooldown, place on the map. |
+| HUD | `Prompt` (key, action, more options). Events: hit confirmed (head shot), damaged (bearing), gathered (item, amount), crafted (item, amount), notice, chat line. |
+| Wheels | `Wheel(kind)`: the plan's pieces or the hammer's actions in clockwise order (glyph, title, description, cost line, reason it can't be chosen); `WheelCurrent(kind)`. |
+| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `ChooseWheel(kind, i)`, `CloseLoot()`, `Say(text)`. Each is a request; the answer is a changed read, or a notice. |
+
+`GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
+when it wants the mouse pointer (`WantsCursor`).
+
+**In the game:** the ground mode puts `GroundUi` on a `CanvasLayer` with the client adapter as its `Model`, frees the
+mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the right mouse button (with a plan or
+hammer held, `HeldWheel`) to it. Until that hook lands the ground mode keeps its placeholder HUD
+(`scripts/Ground/GroundHud.cs`).
+
+### 8.2 Behaviour
+
+RustMVP's rules, with Rust's where RustMVP had none:
+
+- **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
+  inventory, closing any open container; Esc closes the wheel, the inventory or crafting, then opens the menu; 1–6
+  select the belt; Enter opens chat. A container opened in the world opens the inventory with it.
+- **Inventory:** a click selects a slot and shows the item panel (name, description, INFORMATION, ACTIONS, and
+  SPLITTING for stacks). Dragging moves the whole stack; middle-dragging half, with left Shift a third (rounded up);
+  dragging the split icon moves the slider's amount. Right-click moves a stack across (into the open container and
+  back, or between main and belt). Holding H, each filled slot the pointer rests on for 350 ms moves across once,
+  with a green ring filling meanwhile. Released on another slot a drag merges, swaps or splits; released on a panel
+  it does nothing; released outside every panel it drops the items.
+- **Item actions:** USE (medicine, food), WEAR or UNEQUIP (to the first free clothing or main slot), DROP.
+- **Quick craft:** what the player can craft now (up to three rows); a click crafts one.
+- **Crafting:** categories with their counts, search, the recipe grid (the mouse wheel scrolls it), the details with
+  the workbench badge (green when in reach, red when not), time and yield, ingredients with TOTAL for the amount and
+  HAVE (short ones in amber), − / amount / + / the most the player can make / CRAFT, and favourites (kept on this
+  computer). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
+  cancels and refunds.
+- **HUD:** the centre dot; the hit marker (red for a head shot); red arcs pointing to where damage came from; the
+  interaction prompt; the belt with the active slot in blue, condition bars and loaded rounds; the ammo counter above
+  it; status rows above the vitals (building privilege or blocked, bleeding, cold or hot, wet, comfort); pickups and
+  crafts ("+20 Wood") above those, fading after four seconds; chat at the bottom left, fading after twelve; RustMVP's
+  one-line notices.
+- **Death:** Rust's layout. DEAD, how long the player lived, who killed them, with what and from how far across the
+  top; the map with the body and the bags (a ready bag on the map can be clicked); the bags with their cooldowns along
+  the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
+  names are placed by the `Labeller`, so they never cover each other or a marker.
+- **Wheels:** held right mouse button with the plan or the hammer; release (or click) chooses, Esc cancels. The plan's
+  sectors start at −81° so the top ray falls between the foundation and the triangle roof; the hammer's first sector
+  is centred at twelve o'clock.
+- **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, address and port (HOST SOLO or CONNECT); QUIT.
+  The name and address are remembered.
+- **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
+  drop outside and on a panel, split, Q, CRAFT, Tab) against `MockGroundUi` and quits with 0 when all pass.
 
 ---
 
@@ -468,3 +556,22 @@ Decisions taken during G1 without the owner, to confirm or overturn:
 10. **Placeholders in the client** until their owners land: the ground drawn from collision tiles and a fixed sun
     (planet package), capsule mannequins (character work), a minimal HUD (the RustMVP interface, G2). Day and night
     come with the planet package's sky.
+
+Decisions taken for the interface (§8) without the owner, to confirm or overturn:
+
+11. **Where RustMVP's references disagree, its final code wins.** The 20 September Godot shots set small bold labels
+    in Barlow Condensed with a shadow; twelve minutes later RustMVP switched to "cleaner text" (Barlow SemiBold below
+    26 px, no shadow), which both its final Godot and Unreal code keep, so we do too. Likewise the plan wheel's order
+    and its −81° start: RustMVP re-matched them to Rust's screenshot on 4 October, after the build-4 capture we have.
+12. **No compass:** RustMVP had none (Rust has one at the top); it can come with the map.
+13. **Rust's manner where RustMVP had nothing:** the death screen (RustMVP's was a plain card with the same choices),
+    damage arcs, status rows, the pickup feed, chat, the furnace, campfire and body loot layouts, dropping outside
+    the panels, and the USE / WEAR / DROP actions (RustMVP showed only WEAR, at the bottom of the column).
+14. **The ground screens keep `Ui.Scale`** (1.0 up to 1080p) instead of RustMVP's stretch-to-fit; on a 1080p screen
+    the inventory stays 1600 × 900 pixels, centred on the bottom edge, and the tabs stay on the top edge.
+15. **Our names for items**, plain words or our own (Service Pistol, Frontier Rifle, Refined Metal, Claim Device);
+    the RustMVP catalogue's Rust names aren't carried over.
+16. **The menu has no picture:** RustMVP's coast image isn't ours to reuse. The world behind is blurred and darkened
+    under RustMVP's vignette instead. The menu is English, like the rest of the interface (RustMVP's was Turkish).
+17. **Placeholders until their packages land:** item icons (vector drawings), the mannequin, and the death screen's
+    map (a fixed-seed coast).
