@@ -421,7 +421,10 @@ works in the character's own frame. The ragdoll falls along −`Up` at the momen
 finger, `thigh_l`, `calf_l`, `foot_l`, `ball_l`). Rest pose: MakeHuman's A-pose. Levels of detail: about 18,000, 7,000
 and 2,400 triangles for the body; eyes, brows, lashes and short hair (MakeHuman CC0 assets) drop out with distance.
 Players start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric
-surface), so nobody is ever without it.
+surface), so nobody is ever without it. The face blinks every two to six seconds at the nearest level of detail (a
+"blink" shape on the body and lashes from MakeHuman's eyelid-closure expression units); the eyes have a wet clear coat;
+the hair cards blend their thin ends over a depth pre-pass, and a dark hair base painted on the scalp fades into the
+forehead, so the hairline is soft.
 
 **Clothing.** Every body face belongs to one of fourteen regions (face, scalp, neck, collar, chest, belly, pelvis, upper
 arm, forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
@@ -511,7 +514,7 @@ revive, switch to first person, and measure a crowd. Screenshots in `docs/images
 
 **Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so they don't swing or
 drape as the body moves, and their wrinkles are painted, not simulated; the back plate is plainer than the front; the
-face has no expression or eye movement; hair is MakeHuman's short cut only; first-person reloads move the hand but not
+face has no expressions or eye movement beyond the blink; hair is MakeHuman's short cut only; first-person reloads move the hand but not
 the magazine (the catalogue's guns are one mesh); the female body is not built yet.
 
 ---

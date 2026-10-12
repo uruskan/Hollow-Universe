@@ -59,6 +59,9 @@ public partial class CharacterView : Node3D
     /// <summary>Forces a level of detail (0–2) regardless of distance; −1 picks by distance.</summary>
     public int ForcedLod { get; set; } = -1;
 
+    /// <summary>Holds the eyelids at this closure (0 open, 1 shut) instead of blinking now and then; −1 blinks.</summary>
+    public float BlinkOverride { get; set; } = -1f;
+
     /// <summary>Feet placement on the ground below (needs Godot physics colliders); on by default.</summary>
     public bool FootPlacement { get; set; } = true;
 
@@ -92,7 +95,13 @@ public partial class CharacterView : Node3D
             }
             MeshInstance3D mi = Instance(part);
             _meshes.Add((mi, part.Lods, part.Name.StartsWith("body", StringComparison.Ordinal)));
+            int shape = mi.FindBlendShapeByName("blink");
+            if (shape >= 0)
+            {
+                _blinkers.Add((mi, shape));
+            }
         }
+        _nextBlink = 1f + (float)(GD.Randf() * 4.0);
         _poser = new CharacterPoser { Name = "Poser" };
         _skeleton.AddChild(_poser);
         _handR = new BoneAttachment3D { Name = "HandR", BoneName = "hand_r" };
@@ -293,6 +302,10 @@ public partial class CharacterView : Node3D
         }
         float dt = (float)_pending;
         _pending = 0;
+        if (lod == 0)
+        {
+            Blink(dt);
+        }
         Animate(dt, lod);
         _tree.Advance(dt);
         _skeleton.Advance(dt);
@@ -317,6 +330,44 @@ public partial class CharacterView : Node3D
             }
         }
         return 3;
+    }
+
+    // The eyelids (the nearest level of detail carries a "blink" shape): every two to six seconds, shut in 70 ms and
+    // open again in 130 ms; now and then twice.
+    private readonly List<(MeshInstance3D Mesh, int Shape)> _blinkers = new();
+    private float _nextBlink, _blinkClock = -1f;
+
+    private void Blink(float dt)
+    {
+        float closure;
+        if (BlinkOverride >= 0f)
+        {
+            closure = Math.Clamp(BlinkOverride, 0f, 1f);
+        }
+        else
+        {
+            _nextBlink -= dt;
+            if (_nextBlink <= 0f && _blinkClock < 0f)
+            {
+                _blinkClock = 0f;
+                _nextBlink = GD.Randf() < 0.15f ? 0.3f : 2f + (float)(GD.Randf() * 4.0);
+            }
+            closure = 0f;
+            if (_blinkClock >= 0f)
+            {
+                _blinkClock += dt;
+                closure = _blinkClock < 0.07f ? _blinkClock / 0.07f : 1f - (_blinkClock - 0.07f) / 0.13f;
+                if (_blinkClock >= 0.2f)
+                {
+                    _blinkClock = -1f;
+                    closure = 0f;
+                }
+            }
+        }
+        foreach ((MeshInstance3D mesh, int shape) in _blinkers)
+        {
+            mesh.SetBlendShapeValue(shape, Math.Clamp(closure, 0f, 1f));
+        }
     }
 
     private void SetLod(int lod)

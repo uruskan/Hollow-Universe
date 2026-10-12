@@ -305,7 +305,7 @@ def resize_image(path_in, path_out, size):
 
 # ---------------------------------------------------------------- export
 
-def export_glb(path, objects, *, animations=False, active_actions=None):
+def export_glb(path, objects, *, animations=False, active_actions=None, morphs=False):
     """Exports the given objects (an armature and its meshes) as GLB. Materials are placeholders: the client builds
     its own from the textures next to the file. Modifiers other than the armature are applied."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -314,7 +314,7 @@ def export_glb(path, objects, *, animations=False, active_actions=None):
         filepath=path, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
         export_texcoords=True, export_normals=True, export_tangents=False, export_materials='EXPORT', export_image_format='NONE',
         export_vertex_color='NONE', export_attributes=False, export_skins=True, export_influence_nb=4,
-        export_morph=False, export_animations=animations, export_def_bones=False, export_leaf_bone=False,
+        export_morph=morphs, export_morph_normal=morphs, export_morph_tangent=False, export_animations=animations, export_def_bones=False, export_leaf_bone=False,
         export_rest_position_armature=True, export_extras=False, export_cameras=False, export_lights=False,
     )
     if animations:

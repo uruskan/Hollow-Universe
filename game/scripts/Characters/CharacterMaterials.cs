@@ -28,10 +28,14 @@ public static class CharacterMaterials
             AlphaScissorThreshold = 0.5f,
             Roughness = 0.18f,
             MetallicSpecular = 0.5f,
+            // A wet eye: a sharp highlight over the iris and white.
+            ClearcoatEnabled = true,
+            Clearcoat = 1f,
+            ClearcoatRoughness = 0.02f,
             TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
         },
         "brow" or "lash" => Cards(surface + "_albedo.png", null, 0.75f, surface == "lash" ? 0.35f : 0.3f),
-        "hair" => Cards("hair_albedo.png", "hair_normal.png", 0.55f, 0.3f, BaseMaterial3D.CullModeEnum.Back),
+        "hair" => Cards("hair_albedo.png", "hair_normal.png", 0.55f, 0.3f, BaseMaterial3D.CullModeEnum.Back, blended: true),
         _ => Garment(surface),
     };
 
@@ -102,12 +106,13 @@ public static class CharacterMaterials
     }
 
     private static StandardMaterial3D Cards(string albedo, string? normal, float roughness, float threshold,
-        BaseMaterial3D.CullModeEnum cull = BaseMaterial3D.CullModeEnum.Disabled)
+        BaseMaterial3D.CullModeEnum cull = BaseMaterial3D.CullModeEnum.Disabled, bool blended = false)
     {
         var m = new StandardMaterial3D
         {
             AlbedoTexture = Texture(albedo),
-            Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor,
+            // Hair blends its thin ends over a depth pre-pass of its solid middle, so the hairline is soft, not cut.
+            Transparency = blended ? BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass : BaseMaterial3D.TransparencyEnum.AlphaScissor,
             AlphaScissorThreshold = threshold,
             AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage,
             CullMode = cull,

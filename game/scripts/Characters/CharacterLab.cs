@@ -86,6 +86,10 @@ public partial class CharacterLab : Node3D
                 float.Parse(v[1], CultureInfo.InvariantCulture), float.Parse(v[2], CultureInfo.InvariantCulture));
         }
         _aiming = _options.ContainsKey("ads");
+        if (_options.TryGetValue("blink", out string? blink))
+        {
+            _character.BlinkOverride = float.Parse(blink, CultureInfo.InvariantCulture);
+        }
         if (_options.TryGetValue("lod", out string? lod))
         {
             _character.ForcedLod = int.Parse(lod, CultureInfo.InvariantCulture);

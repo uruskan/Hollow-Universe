@@ -65,6 +65,7 @@ def main():
     H.log("human built:", {k: H.triangles(o) for k, o in parts.items()})
 
     TargetService.bake_targets(body)
+    blink = blink_offsets(body, TargetService, LocationService)
     eye_centre = bbox_centre(parts["eyes"])
     remove_helpers(body)
     for obj in [body] + list(parts.values()):
@@ -81,6 +82,7 @@ def main():
 
     textures(out)
     stubble(body, eye_centre, os.path.join(out, "textures", "skin_male_albedo.png"))
+    scalp(body, eye_centre, os.path.join(out, "textures", "skin_male_albedo.png"))
     skin_maps.paint(body, os.path.join(out, "textures"))
 
     # Levels of detail.
@@ -101,6 +103,8 @@ def main():
         bpy.data.objects.remove(obj) if key != "body" else None
     counts = {name: H.triangles(o) for name, o in lods.items()}
     H.log("levels of detail:", counts)
+    for name in ("body_lod0", "lashes_lod0"):
+        add_blink(lods[name], blink)
 
     # The cache keeps the full-resolution body with its regions, for the clothing script.
     body.name = "body_source"
@@ -110,7 +114,7 @@ def main():
     bpy.ops.wm.save_as_mainfile(filepath=cache, check_existing=False, compress=True)
     H.log("saved", os.path.relpath(cache, H.REPO))
 
-    H.export_glb(os.path.join(out, "human_male.glb"), [rig] + list(lods.values()))
+    H.export_glb(os.path.join(out, "human_male.glb"), [rig] + list(lods.values()), morphs=True)
     bones = {b.name: [round(x, 4) for x in (rig.matrix_world @ b.head_local)] for b in rig.data.bones}
     H.write_json(os.path.join(out, "human_male.json"), {
         "source": "MakeHuman (MPFB 2.0.17, CC0 base mesh and system assets), art/characters/build_body.py",
@@ -124,6 +128,83 @@ def main():
     if a.get("preview"):
         import preview
         preview.render(a["preview"], [rig] + [o for n, o in lods.items() if n.endswith("lod0")], out)
+
+
+def blink_offsets(body, TargetService, LocationService):
+    """The closed-eyelid shape of MakeHuman's expression units (both eyes), measured on a copy of the body while it
+    still has the base mesh's vertex order: world positions and how far each moves (only the vertices that do)."""
+    probe = H.duplicate(body, "blink_probe")
+    units = os.path.join(LocationService.get_mpfb_data("targets"), "expression", "units", "caucasian")
+    for side in ("left", "right"):
+        TargetService.load_target(probe, os.path.join(units, "eye-%s-closure.target.gz" % side), weight=1.0,
+                                  name="blink_" + side)
+    keys = probe.data.shape_keys.key_blocks
+    basis = np.array([v.co[:] for v in keys[0].data], np.float64)
+    moved = np.zeros_like(basis)
+    for kb in keys[1:]:
+        moved += np.array([v.co[:] for v in kb.data], np.float64) - basis
+    m = np.array(probe.matrix_world)
+    world = basis @ m[:3, :3].T + m[:3, 3]
+    shift = moved @ m[:3, :3].T
+    moving = np.linalg.norm(shift, axis=1) > 1e-5
+    # Keep the still vertices round the eyes too, so the movement can be interpolated (it fades to nothing).
+    lo, hi = world[moving].min(axis=0) - 0.02, world[moving].max(axis=0) + 0.02
+    near = np.all((world > lo) & (world < hi), axis=1)
+    bpy.data.objects.remove(probe)
+    H.log("blink: %d vertices move, up to %.1f mm" % (int(moving.sum()), np.linalg.norm(shift, axis=1).max() * 1000))
+    return world[near], shift[near]
+
+
+def add_blink(obj, blink):
+    """A "blink" shape key: each vertex moves as the full body's nearest vertices do round the eyes (weighted by
+    inverse distance), so the closure reaches the decimated body and the lashes standing off the lids."""
+    from mathutils.kdtree import KDTree
+    world, shift = blink
+    tree = KDTree(len(world))
+    for i, p in enumerate(world):
+        tree.insert(p, i)
+    tree.balance()
+    lo, hi = world.min(axis=0), world.max(axis=0)
+    m = obj.matrix_world
+    inv = m.inverted().to_3x3()
+    obj.shape_key_add(name="Basis", from_mix=False)
+    key = obj.shape_key_add(name="blink", from_mix=False)
+    count = 0
+    for v in obj.data.vertices:
+        p = m @ v.co
+        if not (np.all(np.array(p[:]) > lo) and np.all(np.array(p[:]) < hi)):
+            continue
+        found = tree.find_n(p, 4)
+        weights = [(1.0 / max(dist, 1e-4) ** 2, index) for _, index, dist in found if dist < 0.012]
+        if not weights:
+            continue
+        total = sum(w for w, _ in weights)
+        move = sum((Vector(shift[i]) * w for w, i in weights), Vector()) / total
+        if move.length > 1e-5:
+            key.data[v.index].co = v.co + inv @ move
+            count += 1
+    H.log("blink key on %s: %d vertices" % (obj.name, count))
+
+
+def scalp(body, eye, path):
+    """Paints a dark hair base over the scalp (the skin shows between the hair cards) that fades out softly into the
+    forehead and temples, with a broken, hair-like edge."""
+    import garment as G
+    px, w, h = H.load_image_pixels(path)
+    img = np.flipud(px[..., :3]).copy()
+    mask, pos, _, _ = G.rasterise(body, w)
+    head = {b.name: b for b in body.parent.data.bones}["head"]
+    centre_y = (body.parent.matrix_world @ head.head_local).y
+    y, z = pos[..., 1], pos[..., 2]
+    # The hairline: above the brows in front, round the temples, low at the nape (like the scalp region's line).
+    t = np.clip((y - (centre_y - 0.11)) / 0.2, 0, 1)
+    line = eye.z + 0.062 - 0.095 * t
+    strands = S.value_noise(w, 300, 51) * 0.6 + S.value_noise(w, 60, 52) * 0.4
+    cover = np.clip((z - line) / 0.022 + (strands - 0.5) * 0.9, 0, 1) * mask
+    hair = np.array((0.075, 0.052, 0.036), np.float32) * (0.85 + 0.3 * S.value_noise(w, 120, 53))[..., None]
+    img = img * (1 - cover[..., None] * 0.92) + hair * cover[..., None] * 0.92
+    H.save_image(S.to_blender_pixels(np.clip(img, 0, 1)), w, h, path)
+    H.log("scalp painted")
 
 
 def bbox_centre(obj):
