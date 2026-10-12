@@ -324,6 +324,10 @@ public partial class IconRenderer : Node
         var layer = new CanvasLayer { Name = "Sheet" };
         AddChild(layer);
         var sheet = new IconSheet { Name = "IconSheet" };
+        if (Options.TryGetValue("only", out string? only))
+        {
+            sheet.Only.UnionWith(only.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
         sheet.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         layer.AddChild(sheet);
         ReadyAfterFrames();
@@ -344,11 +348,14 @@ public partial class IconSheet : Control
 {
     private readonly List<(string Key, Texture2D? Icon)> _icons = new();
 
+    /// <summary>Only these keys (all when empty).</summary>
+    public HashSet<string> Only { get; } = new(StringComparer.Ordinal);
+
     public override void _Ready()
     {
         foreach (ModelEntry entry in ModelCatalog.Entries)
         {
-            if (entry.IconKey == entry.Key)
+            if (entry.IconKey == entry.Key && (Only.Count == 0 || Only.Contains(entry.Key)))
             {
                 string path = ModelCatalog.IconPath(entry.Key, ModelCatalog.IconSizes[^1]);
                 // Fresh files are read from disk: the import of a just-rendered PNG may not have run yet.
@@ -362,7 +369,7 @@ public partial class IconSheet : Control
     public override void _Draw()
     {
         DrawRect(new Rect2(Vector2.Zero, Size), new Color(0.105f, 0.11f, 0.105f));
-        int columns = 13;
+        int columns = _icons.Count <= 24 ? 6 : 13;
         int rows = Math.Max(1, (_icons.Count + columns - 1) / columns);
         float cellW = Size.X / columns;
         float cellH = Math.Min(Size.Y / rows, cellW + Ui.Px(22));

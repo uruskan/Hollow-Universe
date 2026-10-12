@@ -1025,8 +1025,10 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition, key lock |
 | `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate |
-| `models/deployables.py` | Campfire, furnace, small box, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
+| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
+| `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
+| `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
 rifle's LOD1–LOD3, as the character package chose); `UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as
@@ -1067,7 +1069,17 @@ recipe (Windows: System.Drawing and Consolas).
 | `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) when no arms are drawn; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow |
 | `drop` | `scale`: how big it lies on the ground when dropped (big deployables shrink to a kit) |
 | `standIn` | A note when the model is a stand-in to replace |
+| `slot` | Attachments: the gun slot they mount on, `sight`, `muzzle` or `under` |
+| `sockets` | Guns: each slot's socket node (`sight` → `socket_rail`, `muzzle` → `socket_muzzle`, `under` → `socket_under`) |
 | `source` | Where it came from |
+
+**Attachments** (G4): each one's pivot is its mount point and it points +X like the guns, so it sits on the gun's
+socket for its slot with no offset: a sight's rail clamp on `socket_rail` (on top of the pistol's slide, which carries
+it, and of the rifle's receiver cover), a silencer's or brake's rear face on `socket_muzzle`, a light's clamp on
+`socket_under` (under the pistol's frame and the rifle's handguard). The rail and under sockets are placed by casting
+rays onto the converted guns' surfaces. `ModelCatalog.Attach(gun, gunKey, attachmentKey)` mounts one; the sights carry
+`socket_eye` for aiming through them. Ammunition types are the boxes with colour bands and painted tips: blue for high
+velocity (`pistol-ammo-hv`, `rifle-ammo-hv`), orange for incendiary (`rifle-ammo-incendiary`).
 
 `ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
 merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
@@ -1081,6 +1093,12 @@ side for guns, a diagonal for tools and long things), framed so the model's exte
 warm key light from the upper left, a cool fill and a white rim from behind, with a light studio for metal to
 reflect. Rendered at 1024 px and area-filtered by coverage, so edges have no dark fringe.
 
+Long things get two icon options: `crop` frames only the front part of the item along its forward axis (the
+spears show their head large, the shaft running out of the square), and `bundle` shows a small fan of several (three
+arrows). First-person poses are set from where the item's forward and up should point in camera space (tools lean in
+from the lower right with the head toward the middle, guns point in toward the crosshair), then written as Euler
+angles.
+
 **Viewer** (`--view models`): every model on the ground in groups by size with a 1.8 m figure for scale, or one on a
 turntable (`--model <key>`, Tab); LOD keys 0, 1, 2 and A; F (or `--first-person`) shows a held item at its first-person
 pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open`; the ship stands on a plain
@@ -1088,7 +1106,9 @@ stand. `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is the
 has its LODs, hulls, palm sockets and mapped materials, that icons are square RGBA PNGs at both sizes, and that every
 item key (and every item of `items.json` when present) has a model.
 
-Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `models.jpg` (everything on the ground),
+Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `icons-g4.jpg` (the bed, the G4 items and
+the reworked icons), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
+`models.jpg` (everything on the ground),
 `items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
 
 ---
@@ -1232,3 +1252,8 @@ they merge beside the other packages' items):
   (Poly Haven's rock_08) for outcrops, stones and bark. About 37 MB of PNG in all.
 - M8. **Icons fall back to the placeholder drawings** for keys the catalogue doesn't know, so the interface viewer's
   sample data (RustMVP's old keys) still shows something; the integration replaces those keys with items.json's.
+- M9. **One set of attachments fits both guns** through the three slots; the holographic sight is sized for the rifle
+  and sits large on the pistol, as in Rust. Ammunition types are told apart by a colour band on the box and painted
+  bullet tips (blue high velocity, orange incendiary).
+- M10. **First-person poses are placements without arms:** the character package's viewmodel holds items by their palm
+  sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback).

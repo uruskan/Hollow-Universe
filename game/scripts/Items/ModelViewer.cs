@@ -14,7 +14,8 @@ namespace HollowUniverse.Items;
 /// LODs by distance, Space pauses the turntable, F shows a held item in first person at its catalogue pose, the mouse
 /// wheel zooms. Options: <c>--stage n</c>, <c>--lod n</c>, <c>--yaw deg</c> (the turntable's angle, paused, for a
 /// screenshot), <c>--zoom f</c> (the turntable camera's distance, 1 fits the model), <c>--anim name</c> (play one of
-/// the model's clips; H plays the next), <c>--attach a,b</c> (mount attachments on a gun), <c>--first-person</c>,
+/// the model's clips; H plays the next), <c>--attach a,b</c> (mount attachments on a gun), <c>--upright</c> (a held
+/// item as it is held, not lying down), <c>--first-person</c>,
 /// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera).
 /// </summary>
 public partial class ModelViewer : Node3D
@@ -100,7 +101,6 @@ public partial class ModelViewer : Node3D
             LightEnergy = 1.25f,
             LightColor = new Color(1f, 0.96f, 0.9f),
             ShadowEnabled = true,
-            LightAngularDistance = 0.8f,
             DirectionalShadowMaxDistance = 70,
         };
         AddChild(sun);
@@ -179,7 +179,7 @@ public partial class ModelViewer : Node3D
             pivot.AddChild(Stand(bounds, lift));
             model.Position = new Vector3(0, lift, 0);
         }
-        else if (!IsPlaced(entry) && !IsUpright(entry))
+        else if (!IsPlaced(entry) && !IsUpright(entry) && !Options.ContainsKey("upright"))
         {
             Rest(model, bounds);
         }
