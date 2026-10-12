@@ -26,3 +26,28 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   | `ground-character` | Player body (MPFB), clothing layers, animation, ragdoll, first-person arms and viewmodel | running |
 
 - **Downloads approved by the owner:** Quaternius animation libraries (CC0) and MPFB (MakeHuman for Blender).
+
+## 12 October 2026, night
+
+- **G1 network core merged** (`ground-net`, 13 commits, about 10,000 lines):
+  - a dedicated .NET server;
+  - an engine-free client with prediction and interpolation;
+  - generated serializers and delta snapshots;
+  - SQLite characters, which survive restarts;
+  - 100-bot load tests;
+  - a first-person ground mode with placeholders (capsule players, flat-coloured ground).
+
+  The Jolt physics check passed in both the server and Godot. Measured with 100 bots:
+
+  | Measure | Result |
+  |---|---|
+  | Server tick | 4.25 ms average, 10.2 ms at the 99th percentile |
+  | Bandwidth per client | 114 kbit/s |
+  | Prediction on a clean line | exact |
+  | Prediction at 150 ms ping and 5% loss | 1 correction in 114,069 checks |
+
+  Screenshot: `docs/images/ground/two-players.png`. 57 of 57 tests pass.
+- **G2 started**, as two packages:
+  - `ground-survive`: items, containers, crafting, gathering, survival stats, deployables, death, sleepers, melee and bow, persistence;
+  - `ground-ui`: the RustMVP interface rebuilt exactly. That's the HUD, inventory, loot, crafting, death screen, building and hammer wheels, and a main menu.
+- **Still running:** `ground-planet` and `ground-character`.
