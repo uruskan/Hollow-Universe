@@ -35,12 +35,34 @@ public static class CharacterMaterials
         _ => Garment(surface),
     };
 
-    /// <summary>Field of view of first-person materials, degrees.</summary>
-    public const float ViewmodelFov = 60f;
+    private static readonly List<Material> ViewmodelMaterials = new();
 
-    private static Material ForViewmodel(Material normal)
+    /// <summary>Vertical field of view of the first-person arms and items, degrees (a player setting).</summary>
+    public static float ViewmodelFov { get; private set; } = 60f;
+
+    /// <summary>Changes the first-person field of view of every first-person material made so far and to come.</summary>
+    public static void SetViewmodelFov(float degrees)
+    {
+        ViewmodelFov = Mathf.Clamp(degrees, 40f, 100f);
+        foreach (Material m in ViewmodelMaterials)
+        {
+            if (m is ShaderMaterial sm)
+            {
+                sm.SetShaderParameter("viewmodel_fov", ViewmodelFov);
+            }
+            else if (m is BaseMaterial3D bm)
+            {
+                bm.FovOverride = ViewmodelFov;
+            }
+        }
+    }
+
+    /// <summary>The first-person copy of a material: the viewmodel shader variant, or a standard material with its FOV
+    /// override and depth pulled towards the near plane.</summary>
+    public static Material ForViewmodel(Material normal)
     {
         var copy = (Material)normal.Duplicate();
+        ViewmodelMaterials.Add(copy);
         if (copy is ShaderMaterial sm)
         {
             string path = sm.Shader.ResourcePath.Replace(".gdshader", "_viewmodel.gdshader");

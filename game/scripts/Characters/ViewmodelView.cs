@@ -33,6 +33,8 @@ public partial class ViewmodelView : Node3D
     /// <summary>Render layer of everything in the view model (bit 1, layer 2).</summary>
     public const uint RenderLayer = 1u << 1;
 
+    private static readonly Dictionary<Material, Material> ItemMaterials = new();
+
     private Node3D _rig = null!;
     private Skeleton3D _skeleton = null!;
     private readonly List<MeshInstance3D> _arms = new();
@@ -56,8 +58,12 @@ public partial class ViewmodelView : Node3D
     private float _slideKick;
     private float _equip = 1f;
 
-    /// <summary>Vertical field of view of the arms and item, degrees.</summary>
-    public float Fov => CharacterMaterials.ViewmodelFov;
+    /// <summary>Vertical field of view of the arms and item, degrees (a player setting, shared by every view model).</summary>
+    public float Fov
+    {
+        get => CharacterMaterials.ViewmodelFov;
+        set => CharacterMaterials.SetViewmodelFov(value);
+    }
 
     /// <summary>0 at the hip, 1 fully aimed down the sights (the owner may narrow the camera's view with it).</summary>
     public float AimAmount => _aim;
@@ -192,12 +198,15 @@ public partial class ViewmodelView : Node3D
         }
     }
 
+    /// <summary>What first person draws: forearms and hands. Upper arms would only fill the view near the camera.</summary>
+    private const BodyRegions Shown = BodyRegions.Forearm | BodyRegions.Hand;
+
     private void ApplyRegions()
     {
-        BodyRegions hidden = BodyRegions.All & ~BodyRegions.Arms;
+        BodyRegions hidden = BodyRegions.All & ~Shown;
         foreach (Wearable w in _worn)
         {
-            hidden |= w.Hides & BodyRegions.Arms;
+            hidden |= w.Hides & Shown;
         }
         foreach (MeshInstance3D arm in _arms)
         {
@@ -205,7 +214,7 @@ public partial class ViewmodelView : Node3D
         }
         foreach ((MeshInstance3D mesh, _) in _sleeves)
         {
-            mesh.SetInstanceShaderParameter("hidden_regions", (int)(BodyRegions.All & ~BodyRegions.Arms));
+            mesh.SetInstanceShaderParameter("hidden_regions", (int)(BodyRegions.All & ~Shown));
         }
     }
 
@@ -220,14 +229,14 @@ public partial class ViewmodelView : Node3D
             for (int i = 0; i < mi.GetSurfaceOverrideMaterialCount(); i++)
             {
                 Material? m = mi.GetActiveMaterial(i);
-                if (m is BaseMaterial3D bm)
+                if (m != null)
                 {
-                    var copy = (BaseMaterial3D)bm.Duplicate();
-                    copy.UseFovOverride = true;
-                    copy.FovOverride = Fov;
-                    copy.UseZClipScale = true;
-                    copy.ZClipScale = 0.12f;
-                    mi.SetSurfaceOverrideMaterial(i, copy);
+                    if (!ItemMaterials.TryGetValue(m, out Material? vm))
+                    {
+                        vm = CharacterMaterials.ForViewmodel(m);
+                        ItemMaterials[m] = vm;
+                    }
+                    mi.SetSurfaceOverrideMaterial(i, vm);
                 }
             }
             // Only the most detailed mesh of the item.

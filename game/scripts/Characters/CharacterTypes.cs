@@ -126,6 +126,6 @@ public enum BodyRegions
     Collar = 1 << 13,
     All = (1 << 14) - 1,
 
-    /// <summary>What the first-person view shows of the body.</summary>
+    /// <summary>The arms.</summary>
     Arms = UpperArm | Forearm | Hand,
 }

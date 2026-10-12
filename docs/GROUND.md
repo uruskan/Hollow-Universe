@@ -224,9 +224,9 @@ and the chest back to the aim (running backwards plays the loop in reverse), spr
 head, reaches both hands onto a rifle's grips with two-bone IK, and plants the feet on uneven ground (the hips drop,
 each leg reaches the ground found by a ray under its foot).
 
-**First person.** The arms are the body's own mesh with only the arm regions drawn (and the worn sleeves), on render
-layer 2, without shadows, with their own field of view (60°) and depth pulled towards the near plane so they never
-clip into walls. Both hands reach the item's grips by IK and take finger poses from clip frames. The item moves
+**First person.** The arms are the body's own mesh with only the forearms and hands drawn (and the worn sleeves), on
+render layer 2, without shadows, with their own field of view (60° by default; `ViewmodelView.Fov` is the player
+setting) and depth pulled towards the near plane so they never clip into walls. Both hands reach the item's grips by IK and take finger poses from clip frames. The item moves
 procedurally: sway, walk bob, sprint pose, swing arc, recoil kick on a spring, aiming down the sights (the sight on the
 camera's centre line), reload (item tilts, the magazine drops out and back, the left hand follows it). Unarmed shows no
 arms, as in Rust.
