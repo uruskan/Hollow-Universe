@@ -409,6 +409,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             entity = Zone.AddPlayer(id, session.Name, state, player);
             Zone.Entities.Get<Character>(entity).Input.Yaw = yaw;
+            if (how == "new" && _options.JoinKit != null && Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(entity) is { } fresh)
+            {
+                GiveKit(fresh, kit);
+            }
         }
         if (!Zone.Entities.Has<NetPresence>(entity))
         {

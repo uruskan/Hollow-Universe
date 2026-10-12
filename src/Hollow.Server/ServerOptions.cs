@@ -35,6 +35,9 @@ public sealed record ServerOptions
     /// <summary>Read admin commands from the console's standard input (the console program).</summary>
     public bool ReadConsole { get; init; }
 
+    /// <summary>A loot table every new character also gets (the load test's full inventories); null: none.</summary>
+    public string? JoinKit { get; init; }
+
     /// <summary>The game's data (game/data/ground); null finds and loads it (GameContent.FindFolder).</summary>
     public Simulation.Content.GameContent? Content { get; init; }
 

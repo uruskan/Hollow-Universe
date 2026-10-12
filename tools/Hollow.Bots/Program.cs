@@ -33,7 +33,8 @@ public static class Program
         {
             if (words.Contains("loadtest"))
             {
-                return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300));
+                return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300),
+                    o.GetValueOrDefault("kit"));
             }
             if (!o.TryGetValue("server", out string? server))
             {
@@ -78,7 +79,7 @@ public static class Program
                 $"REPORT {all.Sum(c => c.Stats.Reconciliations)} {all.Sum(c => c.Stats.PredictionErrorTotal):R} " +
                 $"{all.Max(c => c.Stats.PredictionErrorWorst):R} {all.Sum(c => c.Stats.Corrections)} {all.Average(c => c.Stats.RoundTripMs):R} " +
                 $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
-                $"{all.Sum(c => c.Stats.ClockJumps)}"));
+                $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights}"));
             return 0;
         }
         while (!stop && elapsed < duration)
@@ -99,11 +100,11 @@ public static class Program
     /// The load test of GROUND.md §5: a server in this process and <paramref name="count"/> bots in a child process (so
     /// the bots' own work and garbage collections don't land on the server's ticks), measured after a warm-up.
     /// </summary>
-    private static int LoadTest(int count, double duration, double warmup, BotScript script, NetConditions conditions, float relevance)
+    private static int LoadTest(int count, double duration, double warmup, BotScript script, NetConditions conditions, float relevance, string? kit)
     {
         Console.WriteLine($"Load test: a server and {count} bots ({script}) in another process, {warmup:0} s warm-up, {duration:0} s measured" +
             (conditions.IsNone ? "" : $", bots through a relay: {conditions}"));
-        using var server = new GameServer(new ServerOptions { Port = 0, DatabasePath = null, RelevanceRadius = relevance, Log = _ => { } });
+        using var server = new GameServer(new ServerOptions { Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, Log = _ => { } });
         server.StartThread();
 
         string self = Environment.ProcessPath!;
@@ -148,6 +149,7 @@ public static class Program
                 sv.Ticks.ResetTotals();
                 return sv.Players.ToDictionary(p => p.Name, p => Traffic(p));
             });
+        string countersBefore = server.Inspect(sv => sv.Counters.ToString());
         System.Threading.Thread.Sleep(TimeSpan.FromSeconds(duration));
         var measured = server.Inspect(sv => new
         {
@@ -157,6 +159,12 @@ public static class Program
             Max = sv.Ticks.TotalMaxMs,
             Over = sv.Ticks.Overruns,
             Tiles = sv.Zone.Physics.TileCount,
+            Props = sv.Zone.Physics.PropCount,
+            Things = sv.Zone.Statics().Count(),
+            Counters = sv.Counters.ToString(),
+            Intents = sv.Players.Sum(p => p.IntentsAccepted),
+            Refused = sv.Players.Sum(p => p.IntentsRefused),
+            Limited = sv.Players.Sum(p => p.IntentsRateLimited),
             OnDemand = sv.Zone.Physics.TilesBuiltOnDemand,
             Players = sv.Players.Select(p =>
             {
@@ -200,6 +208,13 @@ public static class Program
             $"Prediction: {F(1):0} reconciliations, mean error {meanError * 1000:0.000} mm, worst {F(3) * 1000:0.0} mm, " +
             $"{F(4):0} corrections; round trip {F(5):0} ms; {F(10):0} clock jumps\n" +
             $"Bots: {F(7):0} playing, {F(8):0} disconnected"));
+        if (r.Length > 13)
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"Survival (whole run): {measured.Counters}; bots started {F(11):0} crafts, {F(12):0} pickups and {F(13):0} fights\n" +
+                $"Intents: {measured.Intents} accepted, {measured.Refused} refused ({measured.Limited} over budget); " +
+                $"{measured.Things} things in the world, {measured.Props} solid props in the physics"));
+        }
         return F(7) == count ? 0 : 2;
     }
 

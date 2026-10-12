@@ -56,8 +56,8 @@ public static class GatheringTests
 
     /// <summary>
     /// GROUND.md §6, gathering: yield grows with the tool (a stone hatchet fells a tree in fewer hits than a rock, for
-    /// the same total); the weak spot counts double and moves; outcrops go through three stages, then respawn on time;
-    /// pickups and berry bushes are picked whole and come back.
+    /// the same total); the weak spot shows after the first hit, facing the hitter, counts double and moves; outcrops go
+    /// through three stages, then respawn on time; pickups and berry bushes are picked whole and come back.
     /// </summary>
     [Test]
     public static void GatheringYieldDepletionAndRespawn()
@@ -68,7 +68,8 @@ public static class GatheringTests
         int wood = NaturalShapes.Total(tree, pine, pine.Yield[0]);
         long now = 1_800_000_000_000;
 
-        // Same tree, two tools, never touching the weak spot (aim at the opposite side).
+        // Same tree, two tools, hit from the east on its west side: never on the weak spot, which faces the hitter.
+        Vector3 east = tree.Position + new Vector3(3, 1.6f, 0), west = tree.Position + new Vector3(-0.6f, 1.2f, 0);
         int HitsToFell(string tool, out int total)
         {
             var state = new NaturalState(C, objects);
@@ -77,9 +78,7 @@ public static class GatheringTests
             int hits = 0;
             while (!state.IsDepleted(tree.Id) && hits < 1000)
             {
-                Vector3 spot = state.WeakSpot(tree, pine);
-                Vector3 away = tree.Position + (tree.Position - spot) with { Y = 0 } + tree.Up * 1.2f;
-                GatherResult r = state.Hit(tree, stats, away, now);
+                GatherResult r = state.Hit(tree, stats, west, east, now);
                 Assert.True(r.Hit && !r.WeakSpot, "an ordinary hit");
                 total += r.Yield.Sum(y => y.Count);
                 hits++;
@@ -92,14 +91,19 @@ public static class GatheringTests
         Assert.True(rockWood == wood && hatchetWood == wood, "the whole yield, to the unit");
         Assert.True(hatchetHits * 2 < rockHits, "a hatchet is more than twice as quick");
 
-        // The weak spot: double, and it moves.
+        // The weak spot: none until the first hit, then on the hitter's side; a hit on it counts double and moves it.
         var weak = new NaturalState(C, objects);
         MeleeStats hatchet = C.ItemByKey("stone-hatchet").Melee!;
-        Vector3 before = weak.WeakSpot(tree, pine);
-        GatherResult onSpot = weak.Hit(tree, hatchet, before, now);
-        Vector3 after = weak.WeakSpot(tree, pine);
+        Assert.True(weak.WeakSpot(tree, pine) == null, "no weak spot before the first hit");
+        GatherResult first = weak.Hit(tree, hatchet, west, east, now);
+        Vector3 before = weak.WeakSpot(tree, pine)!.Value;
+        Assert.True(!first.WeakSpot && Vector3.Dot(before - tree.Position, east - tree.Position) > 0, "it shows facing the hitter");
+        float health = weak.Health(tree, pine);
+        GatherResult onSpot = weak.Hit(tree, hatchet, before, east, now);
+        Vector3 after = weak.WeakSpot(tree, pine)!.Value;
         Assert.True(onSpot.WeakSpot && Vector3.Distance(before, after) > 0.05f, "a weak-spot hit moves the spot");
-        Assert.Near(NaturalShapes.MaxHealth(tree, pine) - 2 * hatchet.Tree, weak.Health(tree, pine), 1e-3, "and counts double");
+        Assert.Near(health - 2 * hatchet.Tree, weak.Health(tree, pine), 1e-3, "and counts double");
+        Assert.True(Vector3.Dot(after - tree.Position, east - tree.Position) > 0, "still on the hitter's side");
 
         // An outcrop through its stages, then gone, then back on time.
         NaturalObject node = Find(objects, "metal-node");
@@ -111,7 +115,7 @@ public static class GatheringTests
         while (!rocks.IsDepleted(node.Id))
         {
             stages.Add(rocks.Stage(node, metal));
-            GatherResult r = rocks.Hit(node, pick, node.Position - node.Up * 5, now);
+            GatherResult r = rocks.Hit(node, pick, node.Position - node.Up * 5, node.Position + new Vector3(3, 1.6f, 0), now);
             foreach (ItemAmount y in r.Yield)
             {
                 gained[y.Item.Key] = gained.GetValueOrDefault(y.Item.Key) + y.Count;
@@ -152,7 +156,7 @@ public static class GatheringTests
         MeleeStats axe = C.ItemByKey("metal-hatchet").Melee!;
         while (!state.IsDepleted(tree.Id))
         {
-            state.Hit(tree, axe, tree.Position, 0);
+            state.Hit(tree, axe, tree.Position, tree.Position + Vector3.UnitX * 3, 0);
         }
         Assert.True(!world.HasProp(PropLayer.Nature, tree.Id) && world.PropCount == solid - 1, "felled: gone from the physics");
         state.Respawn(long.MaxValue);

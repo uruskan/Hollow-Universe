@@ -74,7 +74,7 @@ public sealed record ThingRecord
 }
 
 /// <summary>A stored change to a natural object (ARCHITECTURE.md §7: only overrides are stored).</summary>
-public readonly record struct NaturalRecord(ulong ObjectId, float Health, ushort WeakSpotMoves, bool Depleted, long RespawnAtUnixMilliseconds);
+public readonly record struct NaturalRecord(ulong ObjectId, float Health, uint WeakSpot, bool Depleted, long RespawnAtUnixMilliseconds);
 
 /// <summary>Everything stored about one body's zone, as loaded at start.</summary>
 public sealed class ZoneRecord
@@ -166,7 +166,7 @@ public sealed class GameDatabase : IDisposable
             body_path INTEGER NOT NULL,
             object_id INTEGER NOT NULL,
             health REAL NOT NULL,
-            weak_spot_moves INTEGER NOT NULL,
+            weak_spot INTEGER NOT NULL,
             depleted INTEGER NOT NULL,
             respawn_at INTEGER NOT NULL,
             PRIMARY KEY (system_address, body_path, object_id)
@@ -383,7 +383,7 @@ public sealed class GameDatabase : IDisposable
         using (SqliteCommand command = _connection.CreateCommand())
         {
             command.CommandText = """
-                SELECT object_id, health, weak_spot_moves, depleted, respawn_at FROM natural_overrides
+                SELECT object_id, health, weak_spot, depleted, respawn_at FROM natural_overrides
                 WHERE system_address = $system AND body_path = $body ORDER BY object_id
                 """;
             command.Parameters.AddWithValue("$system", system);
@@ -392,7 +392,7 @@ public sealed class GameDatabase : IDisposable
             while (reader.Read())
             {
                 zone.Naturals.Add(new NaturalRecord(unchecked((ulong)reader.GetInt64(0)), (float)reader.GetDouble(1),
-                    (ushort)reader.GetInt64(2), reader.GetInt64(3) != 0, reader.GetInt64(4)));
+                    (uint)reader.GetInt64(2), reader.GetInt64(3) != 0, reader.GetInt64(4)));
             }
         }
         using (SqliteCommand command = _connection.CreateCommand())
@@ -452,23 +452,23 @@ public sealed class GameDatabase : IDisposable
             using SqliteCommand command = _connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
-                INSERT INTO natural_overrides (system_address, body_path, object_id, health, weak_spot_moves, depleted, respawn_at)
-                VALUES ($system, $body, $id, $health, $moves, $depleted, $respawn)
+                INSERT INTO natural_overrides (system_address, body_path, object_id, health, weak_spot, depleted, respawn_at)
+                VALUES ($system, $body, $id, $health, $spot, $depleted, $respawn)
                 ON CONFLICT(system_address, body_path, object_id) DO UPDATE SET health = excluded.health,
-                    weak_spot_moves = excluded.weak_spot_moves, depleted = excluded.depleted, respawn_at = excluded.respawn_at
+                    weak_spot = excluded.weak_spot, depleted = excluded.depleted, respawn_at = excluded.respawn_at
                 """;
             command.Parameters.AddWithValue("$system", system);
             command.Parameters.AddWithValue("$body", body);
             SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
             SqliteParameter health = command.Parameters.Add("$health", SqliteType.Real);
-            SqliteParameter moves = command.Parameters.Add("$moves", SqliteType.Integer);
+            SqliteParameter spot = command.Parameters.Add("$spot", SqliteType.Integer);
             SqliteParameter depleted = command.Parameters.Add("$depleted", SqliteType.Integer);
             SqliteParameter respawn = command.Parameters.Add("$respawn", SqliteType.Integer);
             foreach (NaturalRecord n in save.Naturals)
             {
                 id.Value = unchecked((long)n.ObjectId);
                 health.Value = (double)n.Health;
-                moves.Value = (long)n.WeakSpotMoves;
+                spot.Value = (long)n.WeakSpot;
                 depleted.Value = n.Depleted ? 1L : 0L;
                 respawn.Value = n.RespawnAtUnixMilliseconds;
                 command.ExecuteNonQuery();

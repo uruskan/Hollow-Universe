@@ -392,9 +392,11 @@ clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
   (items.json) and gives the share of the object's whole yield that health was, in whole units, so the hits add up to
   exactly the total: a better tool is quicker, not richer. The last hit gives the rest. A 0.94-size pine (206 wood)
   takes 32 hits with a rock, 13 with a stone hatchet, 9 with a metal one.
-- **The weak spot** (Rust): each tree and outcrop has one, on the trunk at chest height or on the outcrop's upper side.
-  A hit within 0.3 m of it counts double and moves it; where it is follows from the object's ID and how often it moved,
-  so clients draw it without being told the point.
+- **The weak spot** (Rust): it shows with the first hit on a tree or outcrop, on the side facing the hitter (within 50°
+  either way), on the trunk at chest height or on the outcrop's upper side. A hit within 0.3 m of it counts double and
+  moves it, again to the hitter's side at a new height. Its direction and height are part of the stored change and
+  are sent to clients, who draw it. (First placed at random around the object, the spot was on the far side half the
+  time: the bots found it on 3 hits in 132; facing the hitter, 91 in 113.)
 - **Outcrops** shrink through three stages as they lose health (drawn by the client).
 - **Pickups** (piles of wood, stone and ore, fibre plants, wild tubers) and **berry bushes** are taken whole with the
   interact key; a pickup is gone, a bush stays bare, until it grows back.

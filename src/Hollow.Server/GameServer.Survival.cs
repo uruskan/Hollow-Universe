@@ -53,6 +53,9 @@ public sealed partial class GameServer
     /// <summary>The game's data, as every client must have it too.</summary>
     public GameContent Content { get; }
 
+    /// <summary>What happened in the game so far, for the load test and <c>status</c>.</summary>
+    public GameCounters Counters { get; } = new();
+
     // ---------------------------------------------------------------- loading and saving the world
 
     // Everything stored about this body: characters come back asleep (or dead), things where they were, natural
@@ -99,13 +102,9 @@ public sealed partial class GameServer
         }
         foreach (NaturalRecord n in stored.Naturals)
         {
-            Zone.Natural!.Apply(n.ObjectId, new NaturalOverride
-            {
-                Health = n.Health,
-                WeakSpotMoves = n.WeakSpotMoves,
-                Depleted = n.Depleted,
-                RespawnAtUnixMs = n.RespawnAtUnixMilliseconds,
-            });
+            var loaded = new NaturalOverride { Health = n.Health, Depleted = n.Depleted, RespawnAtUnixMs = n.RespawnAtUnixMilliseconds };
+            loaded.UnpackWeakSpot(n.WeakSpot);
+            Zone.Natural!.Apply(n.ObjectId, loaded);
             _savedNaturals.Add(n.ObjectId);
             IndexOverride(n.ObjectId);
         }
@@ -205,7 +204,7 @@ public sealed partial class GameServer
         {
             if (Zone.Natural!.TryGetOverride(id, out NaturalOverride o))
             {
-                save.Naturals.Add(new NaturalRecord(id, o.Health, o.WeakSpotMoves, o.Depleted, o.RespawnAtUnixMs));
+                save.Naturals.Add(new NaturalRecord(id, o.Health, o.PackedWeakSpot, o.Depleted, o.RespawnAtUnixMs));
                 _savedNaturals.Add(id);
             }
             else if (_savedNaturals.Remove(id))
@@ -384,6 +383,7 @@ public sealed partial class GameServer
     {
         foreach (ZoneEvent e in Zone.GameEvents)
         {
+            Counters.Count(e);
             PlayerSession? to = _sessionOf.GetValueOrDefault(e.Player);
             _writer.Reset();
             switch (e.Kind)
@@ -876,8 +876,59 @@ public sealed partial class GameServer
         {
             float max = kind.IsHarvested ? NaturalShapes.MaxHealth(obj, kind) : 1;
             byte health = kind.IsHarvested ? (byte)Math.Clamp(Math.Round(o.Health / max * 255), 0, 255) : (byte)(o.Depleted ? 0 : 255);
-            return new NaturalNet { Id = id, Health = health, WeakSpotMoves = o.WeakSpotMoves, Depleted = o.Depleted };
+            return new NaturalNet
+            {
+                Id = id, Health = health, HasWeakSpot = o.HasWeakSpot, WeakSpotYaw = o.WeakSpotYaw, WeakSpotLift = o.WeakSpotLift, Depleted = o.Depleted,
+            };
         }
         return new NaturalNet { Id = id, Health = 255 };
     }
+}
+
+/// <summary>Counts of what happened in the survival game (from the zone's events).</summary>
+public sealed class GameCounters
+{
+    public long Gathered { get; private set; }
+    public long GatherHits { get; private set; }
+    public long WeakSpotHits { get; private set; }
+    public long PickedUp { get; private set; }
+    public long Crafted { get; private set; }
+    public long CharacterHits { get; private set; }
+    public long Kills { get; private set; }
+    public long Deaths { get; private set; }
+    public long Arrows { get; private set; }
+
+    public void Count(in ZoneEvent e)
+    {
+        switch (e.Kind)
+        {
+            case ZoneEventKind.ItemsGained when e.Reason == GainReason.Gathered:
+                Gathered += e.Count;
+                break;
+            case ZoneEventKind.ItemsGained when e.Reason == GainReason.PickedUp:
+                PickedUp += e.Count;
+                break;
+            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Natural:
+                GatherHits++;
+                WeakSpotHits += e.Flag ? 1 : 0;
+                break;
+            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Character:
+                CharacterHits++;
+                Kills += e.Flag ? 1 : 0;
+                break;
+            case ZoneEventKind.CraftFinished:
+                Crafted += e.Count;
+                break;
+            case ZoneEventKind.Died:
+                Deaths++;
+                break;
+            case ZoneEventKind.ProjectileLaunched:
+                Arrows++;
+                break;
+        }
+    }
+
+    public override string ToString() =>
+        $"{GatherHits} gathering hits ({WeakSpotHits} on the weak spot) for {Gathered} items, {PickedUp} items picked up, " +
+        $"{Crafted} crafted, {Arrows} arrows, {CharacterHits} hits on players, {Kills} kills, {Deaths} deaths";
 }

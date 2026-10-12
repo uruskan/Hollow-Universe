@@ -17,7 +17,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xAB2A38CCA1D4B1E6UL;
+    public const ulong SchemaHash = 0x4CC6D9E9ACCEBB6CUL;
 }
 
 partial struct Hello
@@ -740,7 +740,9 @@ partial struct NaturalNet
     {
         w.WriteBits64(Id, 64);
         w.WriteBits((uint)Health, 8);
-        w.WriteBits((uint)WeakSpotMoves, 16);
+        w.WriteBool(HasWeakSpot);
+        w.WriteBits((uint)WeakSpotYaw, 16);
+        w.WriteBits((uint)WeakSpotLift, 8);
         w.WriteBool(Depleted);
     }
 
@@ -749,7 +751,9 @@ partial struct NaturalNet
         var v = new NaturalNet();
         v.Id = r.ReadBits64(64);
         v.Health = (byte)r.ReadBits(8);
-        v.WeakSpotMoves = (ushort)r.ReadBits(16);
+        v.HasWeakSpot = r.ReadBool();
+        v.WeakSpotYaw = (ushort)r.ReadBits(16);
+        v.WeakSpotLift = (byte)r.ReadBits(8);
         v.Depleted = r.ReadBool();
         return v;
     }

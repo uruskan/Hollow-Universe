@@ -144,7 +144,7 @@ public static class SurvivalNetTests
                 var found = new List<NaturalObject>();
                 sv.Zone.Nature!.Query(-200, -200, 200, 200, found);
                 NaturalObject tree = found.First(o => c.Natural(o.Kind)!.Class == NaturalClass.Tree);
-                sv.Zone.Natural!.Hit(tree, c.ItemByKey("stone-hatchet").Melee!, tree.Position, sv.Zone.UnixMilliseconds);
+                sv.Zone.Natural!.Hit(tree, c.ItemByKey("stone-hatchet").Melee!, tree.Position, tree.Position + new Vector3(2, 1.6f, 0), sv.Zone.UnixMilliseconds);
                 return (tree.Id, sv.Zone.Natural.Health(tree, c.Natural(tree.Kind)!));
             });
             rig.Run(1.0, (_, _) => default);

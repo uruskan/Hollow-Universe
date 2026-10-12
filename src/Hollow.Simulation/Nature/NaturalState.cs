@@ -12,14 +12,29 @@ public struct NaturalOverride
     /// <summary>Health left (trees and outcrops).</summary>
     public float Health;
 
-    /// <summary>How many times its weak spot moved: where the spot is follows from the ID and this.</summary>
-    public ushort WeakSpotMoves;
+    /// <summary>
+    /// The weak spot (Rust's): none until the first hit, then on the side facing whoever hit last. Which way it faces
+    /// about the object's up, in 1/65536 of a turn, and how high on the object (0 … 255 of its range).
+    /// </summary>
+    public bool HasWeakSpot;
+    public ushort WeakSpotYaw;
+    public byte WeakSpotLift;
 
     /// <summary>Felled, broken or picked: gone (a bush: bare) until <see cref="RespawnAtUnixMs"/>.</summary>
     public bool Depleted;
 
     /// <summary>When it grows back, in Unix milliseconds (real time: nature carries on while the server is down).</summary>
     public long RespawnAtUnixMs;
+
+    /// <summary>The weak spot in one number (0: none), for storage and the wire.</summary>
+    public readonly uint PackedWeakSpot => HasWeakSpot ? 1u << 24 | (uint)WeakSpotLift << 16 | WeakSpotYaw : 0;
+
+    public void UnpackWeakSpot(uint packed)
+    {
+        HasWeakSpot = (packed & 1u << 24) != 0;
+        WeakSpotLift = (byte)(packed >> 16);
+        WeakSpotYaw = (ushort)packed;
+    }
 }
 
 /// <summary>What a gather hit or a pick gave.</summary>
@@ -43,6 +58,9 @@ public struct GatherResult
 /// </summary>
 public sealed class NaturalState
 {
+    /// <summary>A moved weak spot faces the hitter within this many degrees either way.</summary>
+    public const double WeakSpotSpreadDegrees = 50;
+
     private readonly Dictionary<ulong, NaturalOverride> _overrides = new();
     private readonly List<ulong> _expired = new();
 
@@ -62,6 +80,9 @@ public sealed class NaturalState
 
     /// <summary>IDs whose state changed since the owner last took them (replication and saving).</summary>
     public HashSet<ulong> Changed { get; } = new();
+
+    /// <summary>Raised on every change (views rebuild what they drew when it moves).</summary>
+    public uint Revision { get; private set; }
 
     /// <summary>Raised on the owning thread when an object appears or disappears (the physics follows it).</summary>
     public event Action<ulong>? PresenceChanged;
@@ -84,31 +105,46 @@ public sealed class NaturalState
         return Math.Clamp((int)((1 - fraction) * kind.Stages), 0, kind.Stages - 1);
     }
 
-    /// <summary>Where an object's weak spot is now: on a tree's trunk at chest height, on an outcrop's upper surface.</summary>
-    public Vector3 WeakSpot(in NaturalObject o, NaturalKind kind)
+    /// <summary>Where an object's weak spot is now, or null before its first hit: on a tree's trunk at chest height, on an outcrop's upper surface.</summary>
+    public Vector3? WeakSpot(in NaturalObject o, NaturalKind kind)
     {
-        ushort moves = _overrides.TryGetValue(o.Id, out NaturalOverride v) ? v.WeakSpotMoves : (ushort)0;
-        var rng = new Rng(Hash64.Of(o.Id, moves, 0x5B07));
-        double angle = rng.Range(0, DMath.TwoPi);
-        (Vector3 forward, _) = Movement.CharacterMotor.HorizontalBasis((float)angle, o.Up);
+        if (!_overrides.TryGetValue(o.Id, out NaturalOverride v) || !v.HasWeakSpot || v.Depleted)
+        {
+            return null;
+        }
+        return SpotAt(o, kind, Quantize16(v.WeakSpotYaw), v.WeakSpotLift / 255f);
+    }
+
+    private static Vector3 SpotAt(in NaturalObject o, NaturalKind kind, double yaw, float lift)
+    {
+        (Vector3 forward, _) = Movement.CharacterMotor.HorizontalBasis((float)yaw, o.Up);
         if (kind.Class == NaturalClass.Tree)
         {
             (Vector3 a, _, float radius) = NaturalShapes.Trunk(o, kind);
-            float height = (float)rng.Range(0.9, 1.6);
-            return a - o.Up * radius + o.Up * height + forward * radius;
+            return a - o.Up * radius + o.Up * (0.9f + 0.7f * lift) + forward * radius;
         }
         (Vector3 centre, float r) = NaturalShapes.Rock(o, kind);
-        double elevation = rng.Range(0.15, 0.85);
+        double elevation = 0.15 + 0.7 * lift;
         float up = (float)DMath.Sin(elevation), outward = (float)DMath.Cos(elevation);
         return centre + (forward * outward + o.Up * up) * r;
     }
 
+    private static double Quantize16(ushort angle) => (short)angle * (Math.PI / 32768);
+
+    private static ushort Angle16(double radians)
+    {
+        double turns = radians / DMath.TwoPi;
+        turns -= Math.Floor(turns);
+        return (ushort)((int)Math.Round(turns * 65536, MidpointRounding.ToEven) & 0xFFFF);
+    }
+
     /// <summary>
-    /// A tool's hit on a tree or outcrop at <paramref name="point"/>: takes the tool's rate of health (twice that on
-    /// the weak spot, which then moves) and gives the share of the object's whole yield that health was. The last hit
-    /// gives the remainder and starts the respawn timer.
+    /// A tool's hit on a tree or outcrop at <paramref name="point"/>, by someone whose eye is at <paramref name="from"/>:
+    /// takes the tool's rate of health (twice that on the weak spot) and gives the share of the object's whole yield that
+    /// health was. The weak spot appears with the first hit, and after each hit on it moves, both times to the side
+    /// facing the hitter. The last hit gives the remainder and starts the respawn timer.
     /// </summary>
-    public GatherResult Hit(in NaturalObject o, MeleeStats tool, Vector3 point, long nowUnixMs)
+    public GatherResult Hit(in NaturalObject o, MeleeStats tool, Vector3 point, Vector3 from, long nowUnixMs)
     {
         var result = new GatherResult { Yield = new List<ItemAmount>() };
         NaturalKind? kind = Content.Natural(o.Kind);
@@ -124,11 +160,22 @@ public sealed class NaturalState
         result.Hit = true;
         float max = NaturalShapes.MaxHealth(o, kind);
         NaturalOverride state = _overrides.TryGetValue(o.Id, out NaturalOverride v) ? v : new NaturalOverride { Health = max };
-        if (Vector3.Distance(point, WeakSpot(o, kind)) <= Content.WeakSpot.Radius)
+        bool onSpot = WeakSpot(o, kind) is { } spot && Vector3.Distance(point, spot) <= Content.WeakSpot.Radius;
+        if (onSpot)
         {
             rate *= Content.WeakSpot.Bonus;
             result.WeakSpot = true;
-            state.WeakSpotMoves++;
+        }
+        if (onSpot || !state.HasWeakSpot)
+        {
+            // Face the hitter, give or take a little, at a new height.
+            Vector3 d = from - o.Position;
+            Vector3 flat = d - o.Up * Vector3.Dot(d, o.Up);
+            var rng = new Rng(Hash64.Of(o.Id, (ulong)BitConverter.SingleToUInt32Bits(state.Health), 0x5B07));
+            double facing = DMath.Atan2(-flat.X, -flat.Z) + (rng.NextDouble() * 2 - 1) * WeakSpotSpreadDegrees * Math.PI / 180;
+            state.HasWeakSpot = true;
+            state.WeakSpotYaw = Angle16(facing);
+            state.WeakSpotLift = (byte)rng.NextInt(256);
         }
         float before = state.Health, after = Math.Max(0, before - rate);
         foreach (ItemAmount y in kind.Yield)
@@ -144,6 +191,7 @@ public sealed class NaturalState
         if (after <= 0)
         {
             state.Depleted = true;
+            state.HasWeakSpot = false;
             state.RespawnAtUnixMs = nowUnixMs + (long)(kind.RespawnSeconds * 1000);
             result.Depleted = true;
         }
@@ -184,6 +232,7 @@ public sealed class NaturalState
         foreach (ulong id in _expired)
         {
             _overrides.Remove(id);
+            Revision++;
             Changed.Add(id);
             PresenceChanged?.Invoke(id);
         }
@@ -194,6 +243,7 @@ public sealed class NaturalState
     public void Apply(ulong id, NaturalOverride? value)
     {
         bool wasDepleted = IsDepleted(id);
+        Revision++;
         if (value is { } v)
         {
             _overrides[id] = v;
@@ -211,6 +261,7 @@ public sealed class NaturalState
     private void Set(ulong id, NaturalOverride value, bool presence)
     {
         _overrides[id] = value;
+        Revision++;
         Changed.Add(id);
         if (presence)
         {

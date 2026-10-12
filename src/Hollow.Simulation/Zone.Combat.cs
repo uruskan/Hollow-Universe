@@ -140,7 +140,7 @@ public sealed partial class Zone
                 }
                 break;
             case HitTarget.Natural:
-                Gather(p, entity, hit.Natural, melee, hit.Point);
+                Gather(p, entity, hit.Natural, melee, hit.Point, eye);
                 break;
             case HitTarget.Deployable:
                 DamageDeployable(hit.Deployable!, melee.Structure);
@@ -150,9 +150,9 @@ public sealed partial class Zone
         Wear(entity, p, p.HeldSlot);
     }
 
-    private void Gather(Player p, Entity entity, in NaturalObject o, MeleeStats tool, Vector3 point)
+    private void Gather(Player p, Entity entity, in NaturalObject o, MeleeStats tool, Vector3 point, Vector3 eye)
     {
-        GatherResult result = Natural!.Hit(o, tool, point, UnixMilliseconds);
+        GatherResult result = Natural!.Hit(o, tool, point, eye, UnixMilliseconds);
         if (!result.Hit)
         {
             return;

@@ -261,7 +261,7 @@ public partial struct CharacterLook
     [MaxCount(7)] public WornItem[] Wear;
 }
 
-/// <summary>A natural object as players changed it; health 255 and not depleted, with no weak-spot moves, is as new.</summary>
+/// <summary>A natural object as players changed it; health 255, not depleted and no weak spot is as new.</summary>
 [NetStruct]
 public partial struct NaturalNet
 {
@@ -269,7 +269,11 @@ public partial struct NaturalNet
 
     /// <summary>Health as a fraction of 255 of its full health.</summary>
     public byte Health;
-    public ushort WeakSpotMoves;
+
+    /// <summary>The weak spot, if it has one yet: which way it faces (1/65536 turns) and how high (0 … 255).</summary>
+    public bool HasWeakSpot;
+    [Angle] public ushort WeakSpotYaw;
+    public byte WeakSpotLift;
     public bool Depleted;
 }
 

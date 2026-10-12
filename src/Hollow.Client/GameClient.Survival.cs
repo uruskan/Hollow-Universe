@@ -346,7 +346,7 @@ public sealed partial class GameClient
 
     private void ApplyNatural(in NaturalNet n)
     {
-        if (n.Health == 255 && !n.Depleted && n.WeakSpotMoves == 0)
+        if (n.Health == 255 && !n.Depleted && !n.HasWeakSpot)
         {
             Natural!.Apply(n.Id, null);
             return;
@@ -356,7 +356,10 @@ public sealed partial class GameClient
         {
             max = NaturalShapes.MaxHealth(o, kind);
         }
-        Natural!.Apply(n.Id, new NaturalOverride { Health = n.Health / 255f * max, WeakSpotMoves = n.WeakSpotMoves, Depleted = n.Depleted });
+        Natural!.Apply(n.Id, new NaturalOverride
+        {
+            Health = n.Health / 255f * max, HasWeakSpot = n.HasWeakSpot, WeakSpotYaw = n.WeakSpotYaw, WeakSpotLift = n.WeakSpotLift, Depleted = n.Depleted,
+        });
     }
 
     /// <summary>
@@ -424,6 +427,56 @@ public sealed partial class GameClient
                 InteractionKind.LootSleeper, 0, remote.Id, "Loot", $"{remote.Name} (asleep)");
         }
         return best;
+    }
+
+    /// <summary>
+    /// Where a view from the eye meets the ground within <paramref name="reach"/> (for placing a deployable), or null;
+    /// the surface's own height, so it agrees with where the server will put it.
+    /// </summary>
+    public Vector3? AimGround(Vector3 eye, Vector3 direction, float reach)
+    {
+        if (_surface == null || Zone == null)
+        {
+            return null;
+        }
+        GroundProbe probe = new(_surface, Frame);
+        float previous = probe.Height(eye);
+        if (previous < 0)
+        {
+            return null;
+        }
+        const float step = 0.25f;
+        for (float t = step; t <= reach + 1e-3f; t += step)
+        {
+            if (probe.Height(eye + direction * t) < 0)
+            {
+                float lo = t - step, hi = t;
+                for (int i = 0; i < 10; i++)
+                {
+                    float mid = (lo + hi) / 2;
+                    if (probe.Height(eye + direction * mid) < 0)
+                    {
+                        hi = mid;
+                    }
+                    else
+                    {
+                        lo = mid;
+                    }
+                }
+                return eye + direction * hi;
+            }
+        }
+        return null;
+    }
+
+    private readonly struct GroundProbe(Surface.ISurface surface, Surface.ZoneFrame frame)
+    {
+        public float Height(Vector3 point)
+        {
+            Core.Vector3D body = frame.ToBody(point);
+            double r = body.Length;
+            return (float)(r - (surface.Radius + surface.HeightAt(body / r)));
+        }
     }
 
     /// <summary>Acts on what <see cref="Aim"/> found: picks, picks up or opens it. Returns the intent's sequence number.</summary>
