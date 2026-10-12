@@ -15,3 +15,6 @@ export_presets.cfg
 
 # Local tools
 .tmp/
+
+# Python (Blender scripts in art/)
+__pycache__/

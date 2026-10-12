@@ -1,0 +1,19 @@
+[gd_resource type="ORMMaterial3D" load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/psg/T_PSG_Surface_BaseColor.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/textures/psg/T_PSG_Surface_ORM.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/textures/psg/T_PSG_Surface_NormalGL.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/textures/psg/T_PSG_Surface_Emissive.png" id="4"]
+
+[resource]
+resource_name = "M_PSG_Surface"
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("1")
+orm_texture = ExtResource("2")
+normal_enabled = true
+normal_texture = ExtResource("3")
+emission_enabled = true
+emission_texture = ExtResource("4")
+emission_energy_multiplier = 1.5
+texture_filter = 5
