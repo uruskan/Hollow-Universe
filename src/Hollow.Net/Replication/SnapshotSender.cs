@@ -39,7 +39,7 @@ public sealed class SnapshotSender
     private const int AgeBits = 6;
 
     // Header and own state, with room for the varints at their largest.
-    private const int HeaderBits = 8 + 32 + 32 + 8 + 32 + 6 * 32 + 1 + 8 + 4 + 40;
+    private const int HeaderBits = 8 + 32 + 32 + 8 + 32 + 6 * 32 + 1 + 8 + 4 + 32 + 40;
 
     private readonly Sent[] _sent = new Sent[History];
     private readonly Dictionary<uint, (uint Sequence, CharacterNetState State)> _baselines = new();

@@ -44,6 +44,7 @@ dotnet run --project tests/Hollow.Tests          # all engine-free tests
 dotnet run --project tests/Hollow.Tests -- Galaxy   # only tests whose name contains "Galaxy"
 dotnet run --project tests/Hollow.Tests -- MovementCheck   # the physics check (GROUND.md §4.5)
 dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Protocol/Messages.cs: rewrites Messages.g.cs
+dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server (--no-db, --db <path>, --lat, --lon; type help)
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs per generated star system
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
@@ -83,6 +84,8 @@ Client options (after `--`):
 | `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5) |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
 | `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread |
+| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics |
+| `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication, login, admin |
 | `game/` | Godot project: galaxy map, system map, UI, shaders |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |

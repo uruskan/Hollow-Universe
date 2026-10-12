@@ -124,9 +124,14 @@ public static class CharacterMotor
                 horizontal = AirVelocity(horizontal, wish, wishLength, maxSpeed, tuning);
             }
             // Gravity by the midpoint rule: move with the tick's mean vertical speed, so a jump peaks at exactly v²/2g.
-            // On the ground this also presses into it, so contact holds over bumps.
             requested = horizontal + up * (verticalSpeed - 0.5f * context.Gravity * dt);
             next = horizontal + up * (verticalSpeed - context.Gravity * dt);
+            if (supportedBefore && !events.Jumped)
+            {
+                // Standing or walking: press into the ground along its normal, so contact holds over bumps but nothing
+                // pushes the character down a slope it can stand on.
+                requested = horizontal - body.GroundNormal * (0.5f * context.Gravity * dt);
+            }
         }
 
         Vector3 before = state.Position;

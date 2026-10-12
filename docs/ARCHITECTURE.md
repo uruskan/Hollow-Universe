@@ -251,7 +251,7 @@ cross-boundary events. This is what lets zones move to other processes later (P7
 - **Static entities** (building parts, deployables, boxes) change rarely: no per-tick cost, replicated
   reliably when they change.
 - **Dynamic entities** (characters, projectiles, vehicles, ships) are simulated and snapshotted every tick.
-- Components declare their network and save schema with attributes. Serializers are source-generated.
+- Components declare their network and save schema with attributes. Serializers are generated (§5).
 
 ### 10.3 Physics
 
@@ -307,9 +307,10 @@ the base.
   entity type. The player's own character, ship and team are always relevant.
 - **Static entities** are sent once when they become relevant (rate-limited batches), then only changes.
   A big base streams in over a few seconds instead of arriving as one burst.
-- **Dynamic entities** are sent in snapshots at 20 Hz, delta-compressed against the last snapshot the
-  client acknowledged. A priority accumulator decides what fits in the client's bandwidth budget
-  (target ≤ 256 kbit/s in a fight).
+- **Dynamic entities** are sent in snapshots at 20 Hz, delta-compressed against what the client acknowledged:
+  each entity against its newest state in a snapshot the client confirmed (by sequence and a 32-bit mask), so a lost
+  snapshot never breaks a later one. A priority accumulator decides what fits in the client's bandwidth budget
+  (target ≤ 256 kbit/s in a fight). GROUND.md §4.4 has the details as built.
 - **Events**: shots, impacts and sounds are unreliable when cosmetic and reliable when they change state.
 
 ### 11.4 Prediction, reconciliation, interpolation

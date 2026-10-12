@@ -106,6 +106,16 @@ Godot.
 - **Static entities** (building parts, deployables, boxes) cost nothing per tick until something happens to them.
 - **Natural things** (trees, ore, plants) come from the surface generator. Only changes are stored, such as "this tree
   is cut until T" (ARCHITECTURE.md P1).
+- **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world at a
+  latitude and longitude from the command line (the planet package picks the landing site). Each tick: receive, finish
+  logins, run admin commands, give every character its input for this tick, step the zone, send snapshots (20 a
+  second), save every 30 s, send. Tick time is measured (average, 99th percentile, maximum).
+  - **Login** is by player name for development: the name is the account, one character per name, refused if in use.
+  - **Admin console:** `status`, `kick <name> [reason]`, `teleport <name> <x> <z>` or `teleport <name> <other>`,
+    `say <text>`, `save`, `quit`. Ctrl+C or `quit` saves everyone, says goodbye to every client and stops.
+  - **Host mode:** the game runs the same `GameServer` on a background thread for solo play (`--host`); other
+    clients can join it on the same port.
+  - Ground near the spawn is built at start, so the first arrival doesn't stall the tick.
 
 ### 4.3 Client
 
@@ -121,6 +131,19 @@ Godot.
   entity views pooled by type, a first-person camera and viewmodel, third-person characters, UI and audio.
   Mouse look is applied every frame, never held back by the tick.
 - **Bots** are Hollow.Client with scripted input. Tests run the server and bots headless.
+- **As built in G1** (`src/Hollow.Client`, no Godot): `GameClient.Update(delta, input)` every frame receives, runs
+  the ticks that are due (each predicts and sends its input) and advances what is drawn.
+  - **Prediction:** a `Predictor` keeps 4 s of inputs and predicted states. A snapshot brings the server's state of
+    the character after some tick; if it differs from the prediction for that tick, the predictor takes the server's
+    state and replays the newer inputs. Identical inputs give identical results (§4.5), so on a clean line nothing is
+    ever corrected.
+  - **Smoothing:** a correction under 2 m is added to a visual offset that fades in about 0.1 s; a bigger one (a
+    teleport, a respawn) shows at once. The drawn position blends the last two predicted ticks, so movement is smooth
+    at any frame rate; the eye height eases between stances (RustMVP's rate 18).
+  - **Remote entities** are drawn 100 ms behind a clock that follows the newest snapshot tick, blended between the
+    snapshots on either side; if snapshots stop they carry on for up to 4 ticks along their last motion, then hold.
+  - **Statistics:** round trip (measured by echo), snapshot rate and loss, bandwidth both ways with UDP and IP
+    headers, prediction error (last, mean and worst), input margin, clock rate.
 
 ### 4.4 Network
 
@@ -133,6 +156,34 @@ Godot.
   shooter saw, using one second of hitbox history. Clients never report hits.
 - For testing, the transport can add latency, jitter and packet loss, and the client shows a network graph.
 
+**As built in G1** (`src/Hollow.Net`):
+- **Transport:** LiteNetLib 2.1 in manual mode (no background threads: the server polls once a tick, a client once a
+  frame). Reliable ordered: `Welcome`, `Spawn`, `Despawn`, chat. Sequenced (unreliable, newest wins): inputs and
+  snapshots.
+- **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name). A
+  refusal carries a `Goodbye` with a reason (protocol mismatch, bad name, name in use, server full; also kick and
+  shutdown). An accepted player gets `Welcome`: net and entity IDs, the server tick, the rates, the zone (body, radius,
+  gravity, surface seed, latitude, longitude) and the saved view.
+- **Clocks:** every input is for a tick. The client runs its tick clock ahead of the server's so inputs arrive in
+  time: every snapshot says how early this client's inputs arrived (the least over the last half second). The client
+  aims for 2 ticks: 4 % faster below, 3 % slower above 4, and it jumps when inputs arrive late (skipping ticks, which
+  the server and the prediction both fill by repeating the last input) or very early (pausing). The first lead comes
+  from the connect handshake's round trip.
+- **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, yaw and pitch in 1/65,536 of a turn,
+  buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the snapshot acknowledgements and
+  a client timestamp for measuring the round trip. Only four losses in a row lose an input. The server applies each
+  tick's input on that tick; without one it repeats the last (without the jump press) and counts a miss.
+- **Snapshots:** 20 a second per client (every 1.5 ticks on average). The header has the sequence, the server tick,
+  the input margin, the player's own character exactly (floats, for reconciliation) with its tick, and the echo. Then
+  the relevant entities, each delta-coded against its newest state the client confirmed (acknowledged by sequence and
+  32 bits), highest accumulated priority first, within 1,600 bytes and the path's MTU. Remote positions are on a
+  1/256 m grid.
+- **Relevance:** a 64 m grid; an entity becomes relevant within 300 m (reliable `Spawn`) and stops beyond 320 m
+  (`Despawn`). Everyone's own character is always theirs.
+- **Bad network:** `ConditionedRelay`, a local UDP relay below LiteNetLib (whose own simulation is compiled out of its
+  release package), adds round-trip latency, jitter and loss in both directions; clients and bots take `--lag <ms>`,
+  `--jitter <ms>` and `--loss <percent>`.
+
 ### 4.5 Physics and movement
 
 - **Jolt** through JoltPhysicsSharp 2.23 (joltc 1.1), on the server and in the client's prediction. **The G1 spike
@@ -140,7 +191,7 @@ Godot.
   walks a virtual character over mesh ground from `ISurface.GroundCollision`, with up from `ZoneFrame.UpAt`, on a
   stand-in planet of the first world's size. A .NET console process and the Godot 4.7.2 client (which also loads
   Godot's own Jolt) print the same final position and the same hash of every state on the way
-  (`0xCBB8E7C8AC0FD9DA` on win-x64 with the movement code of 12 October 2026; any change to movement changes it).
+  (`0x6E7FDE937D5A46FA` on win-x64 with the movement code of 12 October 2026; any change to movement changes it).
   BepuPhysics2 is not needed. The check stays: `dotnet run --project tests/Hollow.Tests -- MovementCheck` and
   `$GODOT --headless --path game -- --physics-check` must print the same line
   (`Hollow.Simulation.Movement.MovementCheck`).

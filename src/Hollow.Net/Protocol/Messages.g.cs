@@ -12,7 +12,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xC18052CD9A64C629UL;
+    public const ulong SchemaHash = 0x7F406A3714D9D657UL;
 }
 
 partial struct Hello
@@ -116,6 +116,8 @@ partial struct Welcome
         w.WriteBits((uint)SnapshotRate, 8);
         Zone.Write(w);
         w.WriteString(ServerName, 64);
+        w.WriteBits((uint)Yaw, 16);
+        w.WriteBits((uint)Pitch, 16);
     }
 
     public static Welcome Read(BitReader r)
@@ -128,6 +130,8 @@ partial struct Welcome
         v.SnapshotRate = (byte)r.ReadBits(8);
         v.Zone = ZoneInfo.Read(r);
         v.ServerName = r.ReadString(64);
+        v.Yaw = (ushort)r.ReadBits(16);
+        v.Pitch = (ushort)r.ReadBits(16);
         return v;
     }
 }
@@ -177,6 +181,7 @@ partial struct InputPacket
         {
             Inputs![i].Write(w);
         }
+        w.WriteBits((uint)ClientTime, 16);
     }
 
     public static InputPacket Read(BitReader r)
@@ -196,6 +201,7 @@ partial struct InputPacket
         {
             v.Inputs[i] = InputCommand.Read(r);
         }
+        v.ClientTime = (ushort)r.ReadBits(16);
         return v;
     }
 }
@@ -240,6 +246,8 @@ partial struct SnapshotHeader
         w.WriteSigned(InputMargin, 8);
         w.WriteBits((uint)OwnTick, 32);
         Own.Write(w);
+        w.WriteBits((uint)EchoTime, 16);
+        w.WriteBits((uint)EchoHold, 16);
         w.WriteVarUInt(EntityCount);
     }
 
@@ -251,6 +259,8 @@ partial struct SnapshotHeader
         v.InputMargin = (sbyte)r.ReadSigned(8);
         v.OwnTick = (uint)r.ReadBits(32);
         v.Own = OwnState.Read(r);
+        v.EchoTime = (ushort)r.ReadBits(16);
+        v.EchoHold = (ushort)r.ReadBits(16);
         v.EntityCount = r.ReadVarUInt();
         return v;
     }

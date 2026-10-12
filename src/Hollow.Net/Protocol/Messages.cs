@@ -51,6 +51,10 @@ public partial struct Welcome
     public byte SnapshotRate;
     public ZoneInfo Zone;
     [MaxLength(64)] public string ServerName;
+
+    /// <summary>The view the character was saved with (a returning player faces where they left off).</summary>
+    [Angle] public ushort Yaw;
+    [Angle] public ushort Pitch;
 }
 
 // ---------------------------------------------------------------- input (client → server, unreliable, every tick)
@@ -84,6 +88,9 @@ public partial struct InputPacket
     public uint AckBits;
     public uint NewestTick;
     [MaxCount(4)] public InputCommand[] Inputs;
+
+    /// <summary>The client's clock in milliseconds (wrapping), echoed in snapshots to measure the round trip.</summary>
+    public ushort ClientTime;
 }
 
 // ---------------------------------------------------------------- snapshots (server → client, unreliable, 20 Hz)
@@ -119,6 +126,10 @@ public partial struct SnapshotHeader
     /// <summary>The last tick the server stepped this player's character, and its state after it (0: no character).</summary>
     public uint OwnTick;
     public OwnState Own;
+
+    /// <summary>The newest input packet's client time, and how many milliseconds the server held it before this.</summary>
+    public ushort EchoTime;
+    public ushort EchoHold;
 
     [VarInt] public uint EntityCount;
 }
