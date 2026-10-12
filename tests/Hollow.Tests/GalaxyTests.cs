@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Hollow.Core;
@@ -13,8 +14,8 @@ public static class GalaxyTests
     // Golden: a hash over a fixed set of generated cells and systems. Changing the generator changes it;
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
     private const ulong CellsGolden = 0xF3C42388CE7F958CUL;
-    private const ulong SystemsGolden = 0xEFAF6FE0D28121BFUL;
-    private const ulong RealSystemsGolden = 0xF1DF976ED04A7E2AUL;
+    private const ulong SystemsGolden = 0x3672732AE16E55F1UL;
+    private const ulong RealSystemsGolden = 0x6D9ECAF5B04D1C7DUL;
 
     // ---------------------------------------------------------------- frames
 
@@ -650,6 +651,11 @@ public static class GalaxyTests
         double longitude = DMath.Atan2(-atJ2000.Z, atJ2000.X) * DMath.RadToDeg;
         Assert.Near(100.4, longitude < 0 ? longitude + 360 : longitude, 0.5, "Earth's heliocentric longitude at J2000");
         Assert.True(sol.Bodies.Any(b => b.Name == "Titan" && b.Parent == sol.Bodies.First(p => p.Name == "Saturn").Index), "Titan orbits Saturn");
+        // Hand-written physical states (GALAXY.md §10.3).
+        PlanetState Of(string name) => sol.Bodies.First(b => b.Name == name).State!;
+        Assert.True(Of("Earth").Biosphere == Biosphere.Complex && Of("Earth").Hazards == Hazards.Quakes && Of("Io").Volcanism == Volcanism.Sulphur
+            && Of("Europa").SubsurfaceOcean && Of("Titan").Liquid == LiquidKind.Hydrocarbons && Of("Jupiter").Surface == SurfaceKind.None
+            && (Of("Venus").Hazards & Hazards.Corrosive) != 0, "Sol's bodies have their real states");
     }
 
     [Test]
@@ -662,6 +668,9 @@ public static class GalaxyTests
         int earthLikes = 0;
         int hotGiants = 0;
         var types = new Dictionary<PlanetType, int>();
+        var liquids = new Dictionary<LiquidKind, int>();
+        int alive = 0;
+        int subsurfaceOceans = 0;
         foreach (CellKey cell in CellsAround(6, new Vector3D(400, 0, 400), 120).Concat(CellsAround(4, new Vector3D(400, 0, 400), 300)))
         {
             foreach (GalaxyStar star in galaxy.GenerateProcedural(cell))
@@ -672,6 +681,14 @@ public static class GalaxyTests
                 foreach (Body b in system.Bodies)
                 {
                     Assert.True(double.IsFinite(b.Mass) && double.IsFinite(b.Radius) && double.IsFinite(b.Temperature), $"finite values in {b.Name}");
+                    if (b.Kind is BodyKind.Planet or BodyKind.Moon)
+                    {
+                        CheckState(b);
+                        PlanetState s = b.State!;
+                        liquids[s.Liquid] = liquids.GetValueOrDefault(s.Liquid) + 1;
+                        alive += s.Biosphere != Biosphere.None ? 1 : 0;
+                        subsurfaceOceans += s.SubsurfaceOcean ? 1 : 0;
+                    }
                     if (b.Kind == BodyKind.Planet)
                     {
                         planets++;
@@ -693,10 +710,107 @@ public static class GalaxyTests
             }
         }
         string mix = string.Join(", ", types.OrderByDescending(kv => kv.Value).Select(kv => $"{Body.PlanetTypeName(kv.Key)} {kv.Value}"));
-        Fixtures.Report($"{systems} systems, {planets} planets, {moons} moons, {earthLikes} Earth-like, {hotGiants} gas giants above 1,000 K; {mix}");
+        string wet = string.Join(", ", liquids.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}"));
+        Fixtures.Report($"{systems} systems, {planets} planets, {moons} moons, {earthLikes} Earth-like, {hotGiants} gas giants above 1,000 K; {mix}; " +
+            $"liquids: {wet}; {alive} with life, {subsurfaceOceans} subsurface oceans");
         Assert.True(systems > 50 && planets > systems, "systems have planets");
         // Close-in hot worlds exist (GALAXY.md §10): metal-rich worlds and hot giants.
         Assert.True(types.GetValueOrDefault(PlanetType.MetalRich) > 0 && hotGiants > 0, "metal-rich worlds and hot giants exist");
+        // The physical state makes the variety (GALAXY.md §10.3): oceans, lava, lakes, buried oceans and life.
+        Assert.True(liquids.GetValueOrDefault(LiquidKind.Water) > 0 && liquids.GetValueOrDefault(LiquidKind.Magma) > 0
+            && liquids.GetValueOrDefault(LiquidKind.Hydrocarbons) > 0 && subsurfaceOceans > 0 && alive > 0,
+            "oceans, lava, hydrocarbon lakes, subsurface oceans and life occur");
+    }
+
+    // A body's labels follow from its physical state (GALAXY.md §10.3), and the state is self-consistent.
+    private static void CheckState(Body b)
+    {
+        PlanetState? s = b.State;
+        Assert.True(s != null, $"{b.Name} has a physical state");
+        Composition c = s!.Composition;
+        Assert.Near(1, c.Metal + c.Rock + c.Ice + c.Gas, 1e-3, $"{b.Name}: composition adds up");
+        Gases g = s.Gases;
+        double gases = g.Hydrogen + g.Helium + g.Nitrogen + g.Oxygen + g.CarbonDioxide + g.Methane + g.Water + g.Ammonia + g.SulphurDioxide + g.Argon;
+        Assert.True(Math.Abs(gases - 1) < 1e-3 || (gases == 0 && b.SurfacePressure < 1e-9), $"{b.Name}: gases add up");
+        bool giant = b.PlanetType is PlanetType.GasGiant or PlanetType.IceGiant or PlanetType.GasDwarf;
+        Assert.True(giant == (s.Surface == SurfaceKind.None), $"{b.Name}: only giants and gas dwarfs have no surface");
+        Assert.True(b.Landable == (s.Surface is SurfaceKind.Rock or SurfaceKind.Ice), $"{b.Name}: landable on rock or ice");
+        Assert.True(giant || (s.MinTemperature <= b.Temperature + 1e-9 && b.Temperature <= s.MaxTemperature + 1e-9), $"{b.Name}: mean between night and day");
+        Assert.True(giant || ((s.Hazards & Hazards.Vacuum) != 0) == (b.SurfacePressure < 0.001), $"{b.Name}: vacuum below 0.001 atm");
+        Assert.True(b.PlanetType != PlanetType.EarthLike || (s.Biosphere >= Biosphere.Simple && s.Liquid == LiquidKind.Water && g.Oxygen >= 0.1),
+            $"{b.Name}: Earth-like means oxygen from life over liquid water");
+        Assert.True(s.Surface != SurfaceKind.Ocean || s.OceanCover >= 0.95, $"{b.Name}: an ocean surface covers it");
+    }
+
+    [Test]
+    public static void WorldsMatchTheSolarSystem()
+    {
+        // The world builder (GALAXY.md §10.3) given the Solar System's inputs, over many random inventories: Earth
+        // keeps a temperate climate with liquid water, Venus becomes a dry hothouse, Mars a cold desert with thin air,
+        // the Moon airless, Titan a cold world that keeps its air.
+        const double year = 365.25 * 86400;
+        var sun = new WorldInput { HostMass = Units.SolarMass, Activity = 1.07, Age = 4.57, StableHost = true, Formation = Formation.Solid };
+        var earth = sun with
+        {
+            MassEarth = 1, FormationZone = 0.37, Flux = 1, OrbitRadius = Units.MetresPerAu, OrbitPeriod = year,
+            Eccentricity = 0.017, RotationPeriod = 86164,
+        };
+        var venus = sun with
+        {
+            MassEarth = 0.815, FormationZone = 0.27, Flux = 1.91, OrbitRadius = 0.723 * Units.MetresPerAu, OrbitPeriod = 0.615 * year,
+            Eccentricity = 0.007, RotationPeriod = -2.1e7,
+        };
+        var mars = sun with
+        {
+            MassEarth = 0.107, FormationZone = 0.56, Flux = 0.43, OrbitRadius = 1.524 * Units.MetresPerAu, OrbitPeriod = 1.88 * year,
+            Eccentricity = 0.093, RotationPeriod = 88643,
+        };
+        var moon = earth with
+        {
+            MassEarth = 0.0123, HostMass = Units.EarthMass, OrbitRadius = 3.844e8, OrbitPeriod = 27.32 * 86400, Eccentricity = 0.055,
+            RotationPeriod = 27.32 * 86400, TidallyLocked = true, IsMoon = true, ParentRadius = Units.EarthRadius,
+        };
+        var titan = sun with
+        {
+            MassEarth = 0.0225, FormationZone = 3.5, Flux = 0.011, HostMass = 95.2 * Units.EarthMass, OrbitRadius = 1.222e9,
+            OrbitPeriod = 15.95 * 86400, Eccentricity = 0.0288, RotationPeriod = 15.95 * 86400, TidallyLocked = true, IsMoon = true,
+            ParentRadius = 5.82e7,
+        };
+        int temperate = 0, hothouse = 0, desert = 0, airless = 0, titanAir = 0;
+        var misses = new List<string>();
+        const int Seeds = 20;
+        for (ulong seed = 1; seed <= Seeds; seed++)
+        {
+            World Make(WorldInput input, ulong salt)
+            {
+                var rng = new Rng(Hash64.Combine(seed, salt));
+                return WorldBuilder.Build(input, ref rng);
+            }
+            World e = Make(earth, 1);
+            bool isTemperate = e.State.Liquid == LiquidKind.Water && e.Temperature is > 270 and < 320 && e.Pressure is > 0.3 and < 8;
+            temperate += isTemperate ? 1 : 0;
+            World v = Make(venus, 2);
+            bool isHothouse = v.Temperature > 500 && v.Pressure > 10 && v.State.Liquid == LiquidKind.None;
+            hothouse += isHothouse ? 1 : 0;
+            foreach ((string name, World w, bool ok) in new[] { ("Earth", e, isTemperate), ("Venus", v, isHothouse) })
+            {
+                if (!ok)
+                {
+                    misses.Add(string.Create(CultureInfo.InvariantCulture,
+                        $"{name} {w.Temperature:0} K {w.Pressure:0.###} atm {w.Atmosphere} {w.State.Liquid} metal {w.State.Composition.Metal:0.00} ice {w.State.Composition.Ice:0.0000}"));
+                }
+            }
+            World m = Make(mars, 3);
+            desert += m.Pressure < 0.1 && m.Temperature < 250 && m.State.Liquid == LiquidKind.None ? 1 : 0;
+            World l = Make(moon, 4);
+            airless += l.Pressure < 1e-6 ? 1 : 0;
+            World t = Make(titan, 5);
+            titanAir += t.Pressure > 0.05 && t.Temperature < 120 ? 1 : 0;
+        }
+        Fixtures.Report($"of {Seeds}: temperate Earths {temperate}, hothouse Venuses {hothouse}, desert Marses {desert}, airless Moons {airless}, Titans with air {titanAir}"
+            + (misses.Count > 0 ? "; misses: " + string.Join("; ", misses.Take(8)) : ""));
+        Assert.True(temperate >= 18 && hothouse >= 18 && desert >= 18 && airless == Seeds && titanAir >= 14,
+            "the Solar System's inputs give the Solar System's worlds");
     }
 
     [Test]
@@ -839,12 +953,13 @@ public static class GalaxyTests
                     double extent = stars.Max(s => system.PositionOf(s.Index, t).Length);
                     Assert.True((weighted / total).Length <= 1e-9 * extent + 1, $"{system.Name}: the centre of mass drifts");
                 }
-                // A planet around a star of a multiple system is at least as warm as its own star alone would make it.
+                // A planet around a star of a multiple system is at least as warm as its own star alone would make it
+                // (with the planet's albedo).
                 foreach (Body p in system.Bodies.Where(b => b.Kind == BodyKind.Planet && system.Bodies[b.Parent].Kind == BodyKind.Star))
                 {
                     Body host = system.Bodies[p.Parent];
                     double au = p.Orbit.SemiMajorAxis / Units.MetresPerAu;
-                    double alone = 278.6 * Math.Pow(host.Luminosity / (au * au), 0.25);
+                    double alone = 278.6 * Math.Pow((1 - p.State!.Albedo) * host.Luminosity / (au * au), 0.25);
                     Assert.True(p.Temperature >= alone * (1 - 1e-9), $"{p.Name} gets its star's light");
                     warmer += p.Temperature > alone * 1.001 && p.Atmosphere == AtmosphereType.None ? 1 : 0;
                 }

@@ -464,24 +464,221 @@ Sol's planets are slots 0–8 of node 1 (the Sun), its belts slots 20 and 21.
   `278.6 K · (L / a² + F)^¼`, where `L` is the host's light (both stars for a pair) and `F` the light of the stars
   outside the host, each at the orbit-averaged distance of the pair that joins it to the host,
   `F = Σ L_out / (a² √(1 − e²))`.
-- Types: metal-rich, rocky, rocky-ice, icy, water world, Earth-like (rare: rocky, 0.5–3 Earth masses,
-  temperate; 4% of temperate rocky slots around F–K stars, 0.6% around M dwarfs; in the test sample of
-  30,000 systems near Sol, about 1 system in 110 has one), ammonia world, ice giant, gas giant. Gas giants
-  are more likely beyond the snow line and around metal-rich stars.
-- Each planet has mass, radius, gravity, atmosphere (none, thin, thick, Earth-like, hydrogen-helium) and
-  surface pressure, surface temperature, rotation (close-in planets are tidally locked), axial tilt, and
-  orbital elements (semi-major axis, eccentricity, inclination, node, argument of periapsis, mean anomaly at
-  epoch J2000).
+- **How a planet forms**: around a slot hotter than 1,000 K a gas giant with probability `0.05 × g` (at most
+  0.3); inside the snow line `0.08 × g × m` (at most 0.5); beyond it a gas giant with `0.3 × g × m` (0.05–0.7),
+  an ice giant with 0.25, otherwise a solid planet (`g` grows with metallicity, `m` with the star's mass). Masses
+  are log-uniform: gas giants 40–4,000, ice giants 8–40, solid planets 0.02–10 Earth masses.
+- **Where it formed** (its *formation zone*, the formation distance over the snow line of the young star,
+  `2.7 AU · √L_ZAMS`): a solid planet formed at 0.7–1.4 times its orbit; a giant now inside that snow line
+  migrated in from 1–3 times it. Moons share their planet's zone.
+- Eccentricity Rayleigh (σ 0.08 for giants, 0.05 otherwise), limited so orbits never cross. A solid planet inside
+  `0.1 AU · M^⅓` is **tidally locked**: its day is its year, its eccentricity is a fifth of the rolled one (what
+  neighbours force after tides circularised it) and its axial tilt a fiftieth. Other planets spin in 10 hours to
+  100 days (10% retrograde), tilt Gaussian (σ 25°).
+- Everything else about a planet or moon (what it is made of, its heat, air, water, climate and life) is its
+  **physical state** (§10.3). Its type, atmosphere label, surface and hazards are derived from that state.
 - **Moons**: a Poisson number with mean 4 for gas giants, 2.5 for ice giants and 0.4 for every other planet
   above 0.5 Earth masses (at most 12), all inside 0.4 of the planet's Hill radius (at periapsis, against its
-  host's mass). Moons are rocky (or icy and rocky-ice where the planet's equilibrium temperature is under 170 K),
-  tidally locked and landable. Moons above 0.005 Earth masses can hold an atmosphere: cold ones (under 130 K) a
-  thick one in 35% of cases (0.5–5 atm, like Titan), otherwise a thin one in 20% (10⁻⁵–0.01 atm).
-- **Rings**: gas giants 40%, ice giants 30%, every other planet type 2%.
+  host's mass). Masses log-uniform from 10⁻⁵ Earth masses to `min(0.03, 3·10⁻⁴ · M_planet)`. The first orbits at
+  1.2–2 times `max(2.5 R_planet, 1.15 × the rings' outer edge)`, each next one 1.3–2.2 times further out. A
+  quarter are held in a **resonance** with a neighbour that forces an eccentricity of 0.002–0.012 (Io 0.004,
+  Europa 0.009); tides have circularised the rest to 10⁻⁶–10⁻⁴. Moons are tidally locked.
+- **Rings**: gas giants 40%, ice giants 30%, gas dwarfs 5%, every other planet 2%; 1.2–1.6 planet radii to
+  1.3–2.2 times that; mass 10⁻⁹–10⁻⁶ of the planet's. Made of ice where the planet's equilibrium temperature is
+  under 170 K, rock and dust under 700 K, metal above.
 - **Belts**: about 30% of hosts want one; at most one per host. A belt takes the first chosen slot beyond
   half the snow line if there is room; otherwise it trails the last planet (1.5–2.5 times its orbit, inside the
-  zone). Its width is 20–40% of its radius, trimmed so it never touches its neighbours.
-- **Landable** means "has a solid surface". Whether it is pleasant to land on is gameplay, not generation.
+  zone). Its width is 20–40% of its radius, trimmed so it never touches its neighbours. Its total mass is
+  10⁻⁴–0.05 Earth masses (times the metallicity factor); it is metal inside 0.15 of the young star's snow line,
+  metal-rich rock inside 0.5, rock inside 1.3 and ice beyond.
+- **Landable** means "has a solid surface": rock or ice (§10.3). Giants, gas dwarfs and global oceans are not.
+  How dangerous a surface is lives in its hazards; whether that stops anyone is gameplay.
+
+### 10.3 Physical state
+
+Every planet and moon has a **physical state** (`PlanetState`), built top-down by `WorldBuilder` from the star,
+the orbit and the system's age: formation zone → bulk composition → radius → internal and tidal heat → atmosphere
+(volatile inventories, escape, stripping) → climate (cold traps, water, ice, albedo, greenhouse; carbon dioxide
+regulated by weathering) → life and oxygen → crust, volcanism and magnetic field → labels and hazards. The
+planet-surface milestone (M4) builds terrain, biomes, vegetation, animals and resources from it. The model is a set
+of approximate fits to planetary science, calibrated on the Solar System (a test feeds it the Solar System's inputs,
+§13). Each planet and moon draws it from its own stream (`Hash64(system key, "world" + node·256 + slot)` for a
+planet; a moon from its own moon stream), with `DMath` and exactly rounded operations only. Sol's planets and
+moons have hand-written states from real data (`SolSystem`), which go through the same hazard rules.
+
+**Inputs.** Mass and how it formed (solid, ice giant, gas giant); formation zone; starlight `S` in Earth units
+(L☉/AU², including companions' light, §10.2); the host's **activity** `X`, its high-energy output (ultraviolet,
+X-rays, flares, wind) relative to the Sun's, from its heaviest star: white dwarf 0.3, black hole 0.5, F dwarf 0.8,
+G dwarf and brown dwarf 1, other giants and subgiants 1, O–A dwarfs 1.5, supergiant 2, K dwarf 2, M0–M4 dwarf 4,
+M5 and later 16 (late red dwarfs stay saturated for billions of years), neutron star 5, Herbig Ae/Be and
+Wolf–Rayet 10, T Tauri 30, all times `1 + 0.3 / age[Gyr]`; the system's age; the orbit, spin and tidal lock; for
+a moon its planet's radius and whether it is a gas giant over 150 Earth masses (radiation belts); and whether the
+light comes from a **stable host** (an F–M main-sequence star or subgiant) that gives life time.
+
+**1. Composition** (mass fractions; `Composition`):
+
+| Formation zone | Metal | Ice | Rock |
+|---|---|---|---|
+| under 0.03 (only metal condensed) | 0.45–0.70 | 0 | the rest |
+| 0.03–0.85 | 0.22–0.38; a giant impact stripped the mantle (0.45–0.70, like Mercury) in 15% of cases inside 0.25, 3% beyond | 10⁻⁵–3·10⁻³ (log-uniform: water delivered late) | the rest |
+| 0.85–1.3 | 0.15–0.30 | 0.02–0.40 | the rest |
+| beyond 1.3 | 0.08–0.18 | 0.30–0.55 | the rest |
+
+A solid planet heavier than 1.5 Earth masses may have captured a hydrogen–helium envelope (probability
+`clamp((log₁₀ M − 0.18) / 0.6, 0, 0.9)`, 90% from 5 Earth masses) of 0.2–5% of its mass. It keeps it if its core
+holds hydrogen (below) and `S · X < 50 (M / 5 M⊕)²`: a **gas dwarf**, radius `R_core (1 + 3.9 f^0.6)`, albedo 0.3,
+no surface, hazards crushing pressure, toxic air and storms.
+
+**2. Radius**: `R = (3M / 4πρ)^⅓ · (1 + 2 M/M⊕)^−0.065`, with ρ the uncompressed density of the mix (iron 7.9,
+rock 3.3, ice 1.0 g/cm³). Earth comes out at 1.00 R⊕, the Moon 1,738 km, Ganymede 2,630 km. The metal core's radius
+is `√metal` of the body's.
+
+**3. Heat** (`HeatFlow`, W/m²). Radiogenic and primordial: `47 TW · M · (metal + rock) · M^0.3 · e^−(age − 4.57)/2.8`
+(M in Earth masses, age in Gyr: Earth 0.09 W/m², Mars 0.02). Tides, for tidally locked planets and moons:
+`(21/2)(k₂/Q) G M_host² R⁵ n e² / a⁶` with `k₂/Q` 0.02 for icy bodies (over 10% ice), 0.01 for rock, at most
+5 W/m² (Io: 2.5; beyond that the interior melts and the orbit circularises).
+
+**4. Atmosphere.** Inventories as fractions of the body's mass: carbon dioxide 2·10⁻⁵–2·10⁻⁴ (log-uniform; Earth's
+carbonates hold about 5·10⁻⁵, Venus's air 10⁻⁴); nitrogen 3·10⁻⁷–5·10⁻⁶ (Earth 7·10⁻⁷), twenty times that for
+bodies formed beyond twice the snow line (Titan 7·10⁻⁵); argon `10⁻⁸ · (metal + rock) · min(1, age / 4.57)`;
+beyond twice the snow line also methane 10⁻⁷–10⁻⁴ and ammonia (2% of the ice). Water: the ice fraction if it is at
+least 5%, otherwise half of it (the rest stays in the mantle).
+- **Stripping** (the "cosmic shoreline"): with `I = S · X` and `I_s = 0.6 (v_esc / 5 km/s)⁴`, a fraction
+  `exp(−14 (I / I_s)²)` of every gas is kept: Earth and Venus keep theirs, Mars 0.04%, Mercury and the Moon
+  nothing. Under 1% kept, the body counts as **airless**.
+- **Escape**: a gas also needs an escape speed six times its thermal speed at the exosphere,
+  `T_exo = T₀ + 750 K · √(S X)` (about 1,050 K at Earth, 170 K at Titan), where `T₀ = 278.6 K · S^¼`.
+- **Runaway greenhouse**: when `0.7 · S · 340 W/m² > 282 W/m²` (more light than a wet atmosphere can radiate,
+  S > 1.19) all water is vapour, and after 0.3 Gyr only `max(10⁻⁵, exp(−60 I / I_s))` of it is left (Venus:
+  10⁻⁵; a heavy super-Earth keeps a steam atmosphere).
+- An airless body loses its surface water if `T₀ > 200 K`, or if it is rocky and heated over 0.3 W/m² (Io).
+  A water-rich body (ice ≥ 5%) holds 95% of its carbon dioxide in its deep ocean.
+
+**5. Climate** (`Evaluate`, iterated until the temperature moves less than 0.2 K, at most 12 passes, starting
+warm as young planets do, so a world that can keep liquid water does):
+- **Cold traps**: carbon dioxide, nitrogen, methane and ammonia condense where their partial pressure exceeds
+  the saturation pressure `exp(L/R · (1/T_b − 1/T_c))` at the coldest surface temperature
+  `T_c = T · max(1 − max(swing, 0.15), 0.25)` (boiling or sublimation points at 1 atm `T_b` = 194.7, 77.35,
+  111.7, 239.8 K; `L/R` = 3,030, 830, 986, 2,800 K).
+- **Water vapour**: 60% of saturation, `0.00604 atm · exp(L/R (1/273.16 − 1/T))` (`L/R` 6,140 K over ice, 5,420 K
+  over water), at most all the water.
+- **Liquids and ice**: magma above 1,300 K (cover `clamp((T − 1300)/700, 0.2, 1)`). Water if some remains on the
+  surface, above 0.006 atm, between 273.15 K and the boiling point `1 / (1/373.15 − ln P / 4884)`: ocean cover
+  `1 − exp(−w / 1.9·10⁻⁴)` for surface water `w` (a fraction of the mass: Earth's 2.3·10⁻⁴ gives 71%; global from
+  0.5%), polar and sea ice `clamp((300 − T)/120, 0, 0.9)`. With ammonia, over 1% water and 176–273 K: an
+  ammonia–water sea (cover `clamp(w / 0.05, 0.3, 1)`). Frozen water covers an icy body completely, a rocky one
+  `1 − exp(−w / 2·10⁻⁵)`. Methane, over 0.5 atm and 85–115 K: hydrocarbon lakes (`clamp(1000 f_CH₄, 0.01, 0.2)`).
+  Nitrogen or carbon dioxide frosts make at least 20% ice.
+- **Albedo**: ground (oceans 0.06, lava 0.05, land 0.15, metal-rich land 0.10) under ice (0.55); above 0.01 atm
+  pulled towards clouds by `1 − exp(−P / 20 atm)`: 0.75 for a hot (over 400 K) carbon dioxide or sulphur dioxide
+  atmosphere (sulphuric acid clouds, Venus), 0.4 otherwise; at least 0.28 over liquid water (water clouds), 0.25
+  under methane haze below 150 K.
+- **Greenhouse** (grey optical depth from partial pressures in atm; each doubling of carbon dioxide warms Earth
+  about 3 K, twice Earth's nitrogen about 5 K):
+  `τ = 0.08 ln(1 + p_CO₂/3·10⁻⁴) + B(1.75, p_CO₂, 300) + 0.2 ln(1 + p_H₂O/4·10⁻⁴) + B(2, p_H₂O, 300) + B(2.5, p_CH₄, 50)
+  + B(3, p_NH₃, 50) + B(5, p_SO₂, 50) + 0.07 P² / (1 + P/2) / (1 + P/200)`, with saturating bands
+  `B(k, p, s) = k p / (1 + p/s)`.
+- **Temperature**: `T = min((T_eq⁴ + q/σ)^¼ · (1 + 0.75 τ)^¼, 3,000 K)`, `T_eq = 278.6 K · ((1 − A) S)^¼`.
+- **Carbonate–silicate cycle**: on a body with water, exposed rock (ice under 5%), air, no runaway and a warm
+  climate with all its carbon dioxide, weathering locks carbon dioxide away until the surface is near 288 K: the
+  air keeps the least amount between 3·10⁻⁴ atm and the whole inventory that reaches 288 K (bisection, 6 steps).
+  Outer-zone worlds keep bars of it; inner ones a trace.
+
+**6. Life.** A world is habitable with liquid water, 260–330 K, over 0.05 atm, a stable host and 0.8 Gyr of age.
+Life starts there with probability 0.3 (microbes); after 2 Gyr it makes oxygen with probability 0.3 (simple
+life: oxygen of 12–30% against the nitrogen and argon, methane falls to 1%); after 3.5 Gyr it grows complex with
+probability 0.45 (plants and animals). Nobody knows these odds; these make life rare but findable (below).
+
+**7. Crust.**
+- **Tectonics**: molten above 1,300 K; dead under 0.01 W/m² (0.003 for icy bodies with over 10% ice); plates for a
+  rocky body of 0.3–6 Earth masses with liquid water and over 0.03 W/m²; otherwise a stagnant lid.
+- **Volcanism**: activity `clamp(log₁₀(q / q₀) / 2, 0, 1)` with `q₀` 0.04 W/m² for rock (Earth 0.18, Io 0.9) and
+  0.01 for ice (Enceladus just over it). Rocky bodies: sulphur volcanoes on a moon heated mostly by tides,
+  otherwise lava. Icy bodies: nitrogen geysers below 60 K on bodies formed beyond five times the snow line,
+  ammonia–water cryovolcanoes with ammonia, water geysers otherwise. Rocky volcanoes on an airless body leave a
+  trace of sulphur dioxide (`10⁻⁹ × activity` atm).
+- **Magnetic field** (× Earth's): `metal / 0.32 · √M · spin · min(1, q_int / 0.06)` for bodies over 5% metal,
+  0.02 Earth masses and 0.04 W/m² of internal heat; `spin` 1 for days under 30 hours, `√(30 h / day)` beyond.
+- **Subsurface ocean**: ice ≥ 5%, colder than 273 K, over 200 km radius, `q > 0.004 W/m² · (1,000 km / R)`, and
+  no liquid on the surface.
+- **Day and night**: `swing = 0.6 · s / (1 + 5 P^0.7)`, `s` 1 when tidally locked, otherwise
+  `clamp(log₁₀(day[h] / 10) / 2, 0.15, 1)`; day `T (1 + 0.55 swing)`, night `T · max(1 − swing, 0.25)`.
+- **Cratering**: `clamp(min(1, age / 3 Gyr) · (1 − renewal) / (1 + 10 P), 0, 1)`, renewal the largest of the
+  volcanic activity, 0.9 for plates, the ocean cover and 0.5 for a subsurface ocean (1 when molten).
+
+**8. Labels**, derived from the state:
+- **Type** (the first that applies): metal-rich world (metal ≥ 45%); lava world (magma on the surface);
+  Earth-like world (simple or complex life, oxygen ≥ 10%, liquid water); water world (water covers ≥ 95%);
+  ammonia world (ammonia–water seas ≥ 50%); icy world (ice ≥ 30%); rocky ice world (ice ≥ 5% or ice cover ≥ 90%);
+  rocky world. Giants are gas giants or ice giants by how they formed; gas dwarfs as above.
+- **Atmosphere** (`AtmosphereType`, by mole fraction): none (under 10⁻⁹ atm; rock vapour above 1,500 K);
+  hydrogen–helium (over half H₂ + He); oxygen–nitrogen (O₂ ≥ 10%, N₂ > 30%); steam, carbon dioxide, nitrogen
+  (nitrogen–methane with over 1% methane), methane, ammonia or sulphur dioxide when that gas is over half;
+  otherwise the largest gas. Its words add the pressure: trace under 0.001 atm, thin under 0.5, thick from 2,
+  crushing from 30.
+- **Surface** (`SurfaceKind`): none (giants, gas dwarfs); ocean (water or ammonia–water covers ≥ 95%); ice (ice
+  cover ≥ 50%, or ice ≥ 30% below 250 K); rock.
+- **Hazards** (`Hazards`, flags; one rule set, `WorldBuilder.HazardsFor`, also for Sol):
+
+| Hazard | When |
+|---|---|
+| Vacuum | under 0.001 atm |
+| Extreme heat | day above 400 K |
+| Extreme cold | night below 150 K |
+| High pressure | over 10 atm |
+| Toxic atmosphere | over 0.01 atm and not breathable (oxygen 0.16–0.5 atm, CO₂ under 1%, SO₂ under 0.01%) |
+| Corrosive | over 0.01 atm with SO₂ over 1%, or over half CO₂ above 10 atm and 500 K (acid clouds) |
+| High gravity | over 1.6 g |
+| Volcanic | volcanic activity over 0.5 |
+| Radiation | inside 10 radii of a gas giant over 150 Earth masses (its belts), or no magnetic field (under 0.1), under 0.1 atm and `S · X > 2` |
+| Molten | a molten surface |
+| Storms | over 5 atm, or over 0.1 atm with day and night 150 K apart |
+| Quakes | tidal heating over 0.1 W/m², or moving plates |
+
+**Giants** keep a simple state: envelope 80–94% of the mass (gas giants) or 8–20% (ice giants), ice 30–60%
+(75–85%) of the rest, rock 70% of what remains, metal the rest. Radius: gas giants
+`11.2 R⊕ · (M / 318)^−0.04` from 95 Earth masses, `9.45 R⊕ · (M / 95)^0.5` below, up to 20% larger when irradiated
+above 1,000 K; ice giants `3.9 R⊕ · (M / 17)^0.3`. Albedo 0.08 above 1,000 K, 0.2 above 350 K, 0.32 below. Their
+own heat `5.4 W/m² · (M / 318)^0.5 · (age / 4.6 Gyr)^−1.2` (Jupiter's) adds to the starlight. Gases: 86% hydrogen,
+13.5% helium, with methane (0.3%, ice giants 2%) and ammonia below 200 K, water vapour above. Magnetic field
+`10 · (M / 318)^0.8` × Earth's (ice giants 0.5). No surface.
+
+**Fields** (`PlanetState`, ranges as generated):
+
+| Field | Unit | Range | Meaning |
+|---|---|---|---|
+| `FormationZone` | – | 0.01–100 | formation distance over the young star's snow line |
+| `Composition` | mass fractions | each 0–1, sum 1 | metal, rock, ice (all volatiles), gas (H₂ + He) |
+| `CoreRadius` | fraction of radius | 0–0.85 | the metal core |
+| `HeatFlow` | W/m² | 0–10 (Earth 0.09, Io 2.5) | internal plus tidal heat through the surface |
+| `TidalHeating` | W/m² | 0–5 | the tidal part |
+| `Tectonics` | enum | none, stagnant lid, plates, molten | how the crust moves |
+| `Volcanism` | enum | none, silicate, sulphur, water, ammonia–water, nitrogen | what erupts |
+| `VolcanicActivity` | – | 0–1 (Earth 0.18, Io 0.9) | how active |
+| `MagneticField` | × Earth's | 0–80 (Jupiter 10 by construction) | intrinsic field |
+| `Cratering` | – | 0–1 (the Moon 1) | how old and battered the surface is |
+| `Albedo` | – | 0.05–0.75 | Bond albedo |
+| `EquilibriumTemperature` | K | 3–2,500 | with this albedo, without greenhouse or internal heat |
+| `MinTemperature`, `MaxTemperature` | K | 3–3,000 | typical night (or polar) and day temperatures |
+| `Gases` | mole fractions | each 0–1, sum 1 (all 0 without air) | H₂, He, N₂, O₂, CO₂, CH₄, H₂O, NH₃, SO₂, Ar |
+| `Greenhouse` | optical depth | 0–1,000 (Earth 0.8, Venus 130) | the greenhouse τ |
+| `Liquid` | enum | none, water, ammonia–water, hydrocarbons, magma | the surface liquid |
+| `OceanCover`, `IceCover` | fraction of surface | 0–1 | liquid and ice cover |
+| `SubsurfaceOcean` | bool | | liquid water under an ice shell |
+| `Biosphere` | enum | none, microbial, simple, complex | life |
+| `Surface` | enum | none, rock, ice, ocean | what you would stand on |
+| `Hazards` | flags | | dangers (table above) |
+
+With it on `Body`: the type, atmosphere label, surface pressure (atm; giants nominally 1,000) and surface
+temperature (K) derived from the state; `RingMaterial` and `RingMass` (kg); a belt's `BeltMaterial` and total
+`Mass` (kg). `Landable` is a surface of rock or ice.
+
+**What it makes** (`Hollow.GeneratorReport stats`; frequencies in a volume-complete sample of 3,551 systems
+within 70 ly of a point 570 ly from Sol, so mostly red dwarfs as in the real Galaxy): liquid water on the surface
+in 1 system in 9 (G dwarfs 1 in 4, M dwarfs 1 in 10, brown dwarfs 1 in 75), life in 1 in 30, oxygen in 1 in
+140, plants and animals in about 1 in 600. In a 43,000-system sample: 19% of moons are volcanically active, nearly
+all by tides; 72% of solid planets have some volcanism, most of it as gentle as Earth's; 1 system in 290 has an
+Earth-like world; 18% of bodies have a subsurface ocean.
 
 **Positions over time**: universe time is real UTC. Each body's mean anomaly advances with its orbital
 period; Kepler's equation is solved per frame (Newton's method).
@@ -529,8 +726,15 @@ period; Kepler's equation is solved per frame (Newton's method).
   universe time (with a time-speed control).
 - Distances are drawn on a compressed (logarithmic) scale by default so inner planets stay visible; a linear
   scale can be switched on.
-- Selecting a body shows its data: type, mass, radius, gravity, temperature, atmosphere, orbit, day length,
-  landable; for stars and barycentres, the system's age (and a barycentre's members).
+- Selecting a body shows its data: type, orbit, mass, radius, gravity, temperature (day and night when they
+  differ by more than 20 K), atmosphere with its pressure, day length, axial tilt, and its physical state (§10.3):
+  surface with its liquids and ice, composition, geology, heat flow, magnetic field, a subsurface ocean, life,
+  hazards, ring material and landable; for belts their material and mass; for stars and barycentres, the
+  system's age (and a barycentre's members).
+- Planets are drawn from their state: oceans, lava seas (glowing), hydrocarbon lakes and ammonia seas fill the
+  low ground up to their cover, ice caps cover their share from the poles, and the atmosphere's rim grows with
+  pressure and takes the colour of its gases; a deep cloudy atmosphere (over 5 atm of carbon dioxide, sulphur
+  dioxide, steam or nitrogen–methane) hides the ground.
 - Barycentres are empty points in the orrery (labelled only when selected) and rows in the body list. Around the
   root, distances use the system's (compressed) scale; around a companion or an inner pair, 0.35 of it, so that
   host's planets stay clustered around it.
@@ -555,7 +759,9 @@ period; Kepler's equation is solved per frame (Newton's method).
 | Density | Local density 0.00233 per ly³; 8–14 systems within 10 ly and 900–1,900 within 50 ly (measured: 9 and about 1,430); total 1.1–1.7 × 10¹¹ (measured 1.22 × 10¹¹). |
 | Star counts | `StarCountProfile` agrees with a Monte Carlo integral of the density within 25%, near Sol, in the disk and at the core. |
 | Addresses and names | Address ↔ fields round-trip; name ↔ address round-trip; every sector name parses uniquely. |
-| Systems | Sol matches its hand data; moons stay inside their planet's Hill sphere. |
+| Systems | Sol matches its hand data, including its bodies' physical states (Earth's complex life, Io's sulphur volcanoes, Europa's buried ocean, Titan's lakes, Venus's acid); moons stay inside their planet's Hill sphere. |
+| Physical state | In thousands of generated systems every planet and moon has a state; compositions and gases add up; only giants and gas dwarfs lack a surface; landable means rock or ice; the mean temperature lies between night and day; vacuum means under 0.001 atm; Earth-like means oxygen from life over liquid water; liquid water, lava, hydrocarbon lakes, subsurface oceans and life all occur. |
+| Solar System calibration | The world builder given the inputs of Earth, Venus, Mars, the Moon and Titan, with 20 random inventories each, makes temperate Earths with liquid water, dry hothouse Venuses, cold thin-aired Marses, airless Moons and cold Titans that keep their air (all 20; Titan at least 14). |
 | Orbits | In thousands of systems: neighbouring planets and belts of every host never overlap; both members of every pair balance at its barycentre and keep the radius floor or the hierarchy; circumbinary planets stay beyond 1.5 times the pair's separation, planets of one member inside half the pair's closest approach. |
 | Orbit tree | Paths are unique, decode to their host, slot and moon, and find their body; the stars' centre of mass stays at the origin at any time; triples, planets around companions, circumbinary planets, planets warmed by a companion and moons with atmospheres all occur. |
 | Architecture | Nothing in `src/` references Godot; generation code uses no platform maths, unseeded randomness or clocks. |

@@ -266,3 +266,102 @@ companion light, all the new configurations occur); `OrbitsNeverCross` now check
 **Decisions.** Up to 5 stars (a primary, two companions, either a close pair); the path format allows 8 stars and
 7 barycentres. Rings stay on planets only. Moons of moons and binary planets are left out (the path reserves
 bits for moons of moons). The system frame's origin is now the root barycentre (ARCHITECTURE.md §6 updated).
+
+---
+
+## 6. Per-body physical state; labels and hazards derived from it
+
+**Changed.**
+- PlanetState (new, on every planet and moon): formation zone, bulk composition (metal, rock, ice, gas), core
+  radius, heat flow and its tidal part, tectonics, volcanism and its activity, magnetic field, cratering, albedo,
+  equilibrium / day / night temperatures, gases (ten mole fractions), greenhouse depth, surface liquid with ocean and
+  ice cover, subsurface ocean, biosphere, surface kind (none, rock, ice, ocean) and hazards (twelve flags). Every
+  field, unit, range and formula is in GALAXY.md §10.3.
+- WorldBuilder (new) builds it top-down: composition by formation zone (metal-rich only where metal alone
+  condensed, or after a giant impact), radius from composition, radiogenic and tidal heat, volatile inventories,
+  stripping by the "cosmic shoreline" (high-energy light against escape speed) and Jeans escape at an exosphere
+  heated by that light, runaway greenhouse with water loss, a climate solver (cold traps for CO₂, N₂, CH₄, NH₃;
+  water vapour; oceans, lava, lakes, ice; albedo; a grey greenhouse with log and saturating bands), the
+  carbonate–silicate cycle as a bisection for the CO₂ that keeps 288 K, life and oxygen, crust and volcanism,
+  magnetic field, subsurface oceans, day/night swing, cratering. The type (new: gas dwarf, lava world), the
+  atmosphere label (now by its main gases: carbon dioxide, nitrogen, nitrogen–methane, steam, oxygen–nitrogen, …
+  plus trace / thin / thick / crushing) and the surface kind are derived from it. Landable is now "surface of
+  rock or ice", not "not a giant". Giants keep a simple state (envelope, own heat, gases, field).
+- HazardsFor: one rule set for generated bodies and Sol (vacuum, heat, cold, pressure, toxic air, acid, gravity,
+  eruptions, radiation, molten ground, storms, quakes).
+- Star activity (high-energy output relative to the Sun, by type and age) feeds stripping and exospheres; late red
+  dwarfs 16 (they stay saturated for billions of years), early ones 4.
+- Orbits: moons in a resonance (25%) keep a forced eccentricity of 0.002–0.012, the rest are circularised
+  (10⁻⁶–10⁻⁴); moons start 1.2–2 times (was 1–1.5) beyond 2.5 planet radii; tidally locked planets get a fifth of the
+  rolled eccentricity and a fiftieth of the tilt. Tidal heating is capped at 5 W/m² (twice Io).
+- Rings carry a material (ice, rock and dust, metal, by the planet's equilibrium temperature) and a mass; belts a
+  material (by formation zone) and a total mass.
+- Sol: every planet and moon has a hand-written state from real data (Earth's oceans, plates and life; Venus's
+  92 atm of CO₂ and acid; Io's sulphur volcanoes; Europa's and Enceladus's buried oceans; Titan's lakes; …); the
+  Main and Kuiper belts and Saturn's, Uranus's and Neptune's rings have their materials and masses.
+- Client: the body card shows surface (with oceans, lava, lakes, ice), composition, geology, heat flow, magnetic
+  field, buried ocean, life, hazards, day/night temperatures, the atmosphere with its pressure, ring and belt
+  materials. Planets are drawn from their state: ocean and lava cover, ice caps, glowing lava, haze coloured by the
+  gases, deep cloud decks hiding the ground.
+- GeneratorReport: stats reports the state (surface, liquids, life, tectonics, volcanism split into planets and
+  moons with heat-flow percentiles, hazards) and a volume-complete frequency table by primary star; new worlds
+  prints one example of each notable kind of world with its whole state.
+
+**Calibration.** The new test WorldsMatchTheSolarSystem feeds the builder the Solar System's inputs with 20 random
+inventories each. It found two real errors that the statistics had hidden: an exosphere at 4 × T_eq stripped
+Titan's nitrogen (0 of 20 kept air; now T₀ + 750 K·√(S X), 170 K at Titan, 20 of 20), and pressure broadening twice
+too strong made Earths with 3–4 atm of nitrogen 312–321 K (now twice Earth's nitrogen warms it about 5 K). Now all
+20 Earths are temperate with liquid water, all Venuses dry hothouses, all Marses cold thin-aired deserts, all Moons
+airless, all Titans cold and with air. Earlier rounds (with stats): the first climate loop started with all CO₂
+in the air, so every temperate wet world fell onto the hot branch (liquid water on 534 bodies in 43,083 systems,
+Earth-like 1 system in 2,268); free moon eccentricities and moons too close in made 54% of bodies volcanic and
+radiation-belt rules 48%; the water-vapour feedback had a loop gain above 1.
+
+**Measured** (stats; the frequency rows from a volume-complete sample of 3,551 systems within 70 ly of a point
+570 ly from Sol, mostly red dwarfs as in the real Galaxy; the rest from the usual 43,083 systems):
+
+| | Item 7 | Item 6 |
+|---|---|---|
+| Speed | 9.9 µs per system, 0.95 µs per body | 20.0 µs per system, 1.95 µs per body (real systems 15.1 µs) |
+| Median planet temperature | 262 K | 288 K (now with albedo and greenhouse) |
+| Earth-like worlds | rolled, about 1 system in 110 | derived, 1 system in 293 |
+| Surface liquid water | – | 1 system in 9 (G dwarfs 1 in 4, M dwarfs 1 in 10) |
+| Life / oxygen / plants and animals | – | 1 system in 30 / 140 / 590 |
+| Volcanically active | – | moons 19% (almost all by tides), solid planets 72% (mostly as gentle as Earth) |
+| Subsurface oceans | – | 18% of planets and moons |
+| Landable | every planet and moon but giants | 82% of planets and moons (rock or ice) |
+| Moons with atmospheres (test sample) | 576 (rolled) | 921 (retained) |
+
+The climate solver is the cost: airless bodies settle in two passes, bodies with air in up to twelve, and wet
+temperate rocky worlds run up to eight climates for the carbonate–silicate bisection.
+
+Screenshots (system map, body card with the state): docs/images/system-earth.jpg (Sol, Earth),
+system-complex-life.jpg (a 4.8 M⊕ super-Earth with plants and animals around an M0 dwarf, 1.5 atm
+oxygen–nitrogen, high gravity), system-ocean-world.jpg (a global ocean under 4.8 atm of CO₂ with microbes, in a
+quadruple system, beside a sulphur-volcano moon), system-lava-world.jpg (an airless, tidally locked lava world
+around a T Tauri star, 1,788 K by day, 538 K by night).
+
+New tests: WorldsMatchTheSolarSystem; GeneratedSystemsArePlausible checks every body's state (compositions and
+gases add up, only giants and gas dwarfs lack a surface, landable = rock or ice, mean between night and day, vacuum
+below 0.001 atm, Earth-like = oxygen from life over water) and that oceans, lava, hydrocarbon lakes, buried oceans
+and life occur; SolSystemIsReal checks Sol's states.
+
+**Golden.** Procedural systems  xEFAF6FE0D28121BF →  x3672732AE16E55F1; real systems  xF1DF976ED04A7E2A →
+ x6D9ECAF5B04D1C7D (every planet and moon now has a state; moon and locked-planet orbits changed). Cells unchanged.
+
+**Decisions.**
+- The odds of life (0.3), of oxygen-making life after 2 Gyr (0.3) and of complex life after 3.5 Gyr (0.45) are
+  unknowable; they are constants (WorldBuilder.LifeChance and next) chosen so living worlds are rare but
+  findable: about 17 worlds with plants and animals among the 10,000 systems within 100 ly of any point.
+- Red-dwarf activity follows the cumulative X-ray/UV record (saturated for Gyr): Earth-sized planets in the
+  habitable zones of late red dwarfs are mostly airless, as JWST found for TRAPPIST-1 b and c; super-Earths keep air.
+- The climate starts warm (as planets form) and the carbonate–silicate cycle is solved directly, so a world that
+  can hold liquid water does; snowball states are not generated.
+- Volcanism stays common on large rocky planets (internal heat over Earth's threshold); the eruption hazard needs
+  activity over 0.5 (14% of bodies).
+- Breathable means 0.16–0.5 atm of oxygen with under 1% CO₂ and 0.01% SO₂; Earth's only hazard is quakes.
+- The state is stored on Body (not recomputed), so goldens pin it and M4 reads it without the generator.
+
+**Open for the owner.** Whether these frequencies (water 1 in 9 systems, life 1 in 30, oxygen 1 in 140, plants
+and animals 1 in 590) suit the game; they are three constants. Whether 72% of solid planets having some volcanism
+is too much for variety.

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 using Hollow.Core;
 
 namespace Hollow.Galaxy.Systems;
@@ -40,6 +39,7 @@ public sealed class SystemGenerator
     private const ulong HostStream = 0x400;
     private const ulong SlotStream = 0x10000;
     private const ulong MoonStream = 0x1000000;
+    private const ulong WorldStream = 0x3000000;
 
     private readonly ulong _seed;
 
@@ -85,6 +85,11 @@ public sealed class SystemGenerator
         public double Mass => IsStar ? Math.Max(Physics.Mass, 0.01) : Left!.Mass + Right!.Mass;
 
         public double Luminosity => IsStar ? Math.Max(Physics.Luminosity, 0) : Left!.Luminosity + Right!.Luminosity;
+
+        /// <summary>Light when its stars were young (on the main sequence), when the planets formed.</summary>
+        public double ZamsLuminosity => IsStar
+            ? StellarEvolution.MainSequenceLuminosity(StellarEvolution.InitialMass(Class.Kind, Math.Max(Physics.Mass, 0.01)))
+            : Left!.ZamsLuminosity + Right!.ZamsLuminosity;
 
         public static Node Star(StarClass cls, StarPhysics physics) => new() { Class = cls, Physics = physics };
 
@@ -163,11 +168,11 @@ public sealed class SystemGenerator
         double metallicity = primary.Metallicity;
         foreach (Node host in stars)
         {
-            GeneratePlanets(b, host, name, multiple, metallicity, key);
+            GeneratePlanets(b, host, name, multiple, metallicity, primary.Age, key);
         }
         foreach (Node host in pairs)
         {
-            GeneratePlanets(b, host, name, multiple, metallicity, key);
+            GeneratePlanets(b, host, name, multiple, metallicity, primary.Age, key);
         }
         return system;
     }
@@ -479,7 +484,7 @@ public sealed class SystemGenerator
     }
 
     // The planets, moons and belt of one host: a star (S-type) or a pair (P-type, circumbinary).
-    private static void GeneratePlanets(Builder b, Node host, string name, bool multiple, double metallicity, ulong key)
+    private static void GeneratePlanets(Builder b, Node host, string name, bool multiple, double metallicity, double age, ulong key)
     {
         var layout = new Rng(Hash64.Combine(key, HostStream + (ulong)host.Number));
         Node heaviest = host.Heaviest();
@@ -561,16 +566,23 @@ public sealed class SystemGenerator
         bool wantBelt = layout.Chance(0.3);
         double trailingBelt = layout.Range(1.5, 2.5);
 
+        // Planets formed when the star was young: for an evolved host, the snow line of its main-sequence days.
+        double formationSnowLine = 2.7 * Math.Sqrt(Math.Max(host.ZamsLuminosity, 1e-7));
         double snowLine = 2.7 * sqrtL;
-        bool earthLikeHost = heaviest.Class.Kind == StarKind.MainSequence && heaviest.Class.Letter is 'F' or 'G' or 'K';
-        bool mDwarf = heaviest.Class.Kind == StarKind.MainSequence && heaviest.Class.Letter == 'M';
         double hostMassKg = hostMass * Units.SolarMass;
         double outerFlux = OuterFlux(host);
         string prefix = multiple ? name + " " + host.Letters : name;
         int planetNumber = 0;
         bool beltPlaced = !wantBelt;
         double previousApoapsis = inner;
-        var context = new HostContext(host.Number, host.BodyIndex, prefix, hostMassKg, luminosity, outerFlux, key);
+        var context = new HostContext(host.Number, host.BodyIndex, prefix, hostMassKg, luminosity, outerFlux, key)
+        {
+            FormationSnowLine = formationSnowLine,
+            Activity = Activity(heaviest.Class, age),
+            StableHost = heaviest.Class.Kind is StarKind.MainSequence or StarKind.Subgiant && heaviest.Class.Letter is 'F' or 'G' or 'K' or 'M',
+            Age = age,
+            MetalFactor = metalFactor,
+        };
 
         for (int k = 0; k < chosen.Count; k++)
         {
@@ -579,7 +591,6 @@ public sealed class SystemGenerator
             // Stay well inside the next body's orbit (or the edge of the zone).
             double apoapsisLimit = Math.Min(outer, k + 1 < chosen.Count ? slots[chosen[k + 1]] / 1.3 : outer);
             var rng = new Rng(Hash64.Combine(key, SlotStream + (ulong)host.Number * 256 + (ulong)slot));
-            double teq = context.EquilibriumTemperature(semiMajor);
 
             // A belt takes the place of one planet, preferably near the snow line, if there's room for it.
             if (!beltPlaced && semiMajor > 0.5 * snowLine && semiMajor > 1.2 * previousApoapsis)
@@ -590,8 +601,8 @@ public sealed class SystemGenerator
             }
 
             planetNumber++;
-            PlanetType type = ChoosePlanetType(teq, semiMajor, snowLine, giantFactor, massFactor, earthLikeHost, mDwarf, ref rng);
-            previousApoapsis = AddPlanet(b, context, planetNumber, slot, type, semiMajor, teq, previousApoapsis, apoapsisLimit, ref rng);
+            Formation formation = ChooseFormation(context.EquilibriumTemperature(semiMajor), semiMajor, formationSnowLine, giantFactor, massFactor, ref rng);
+            previousApoapsis = AddPlanet(b, context, planetNumber, slot, formation, semiMajor, previousApoapsis, apoapsisLimit, ref rng);
         }
         if (!beltPlaced && chosen.Count > 0)
         {
@@ -607,164 +618,97 @@ public sealed class SystemGenerator
     /// <summary>What a host's bodies need to know about it.</summary>
     private sealed record HostContext(int NodeNumber, int BodyIndex, string Prefix, double MassKg, double Luminosity, double OuterFlux, ulong Key)
     {
-        // Zero-albedo equilibrium temperature at a distance (AU) from the host: its own light plus its companions'.
-        public double EquilibriumTemperature(double au) =>
-            278.6 * Math.Sqrt(Math.Sqrt(Luminosity / (au * au) + OuterFlux));
+        public double FormationSnowLine { get; init; }
+        public double Activity { get; init; }
+        public bool StableHost { get; init; }
+        public double Age { get; init; }
+        public double MetalFactor { get; init; }
+
+        /// <summary>Starlight at a distance (AU) from the host, L☉/AU²: its own light plus its companions'.</summary>
+        public double FluxAt(double au) => Luminosity / (au * au) + OuterFlux;
+
+        /// <summary>Zero-albedo equilibrium temperature at a distance (AU) from the host.</summary>
+        public double EquilibriumTemperature(double au) => 278.6 * Math.Sqrt(Math.Sqrt(FluxAt(au)));
     }
 
-    private static PlanetType ChoosePlanetType(double teq, double a, double snowLine, double giantFactor,
-        double massFactor, bool earthLikeHost, bool mDwarf, ref Rng rng)
+    /// <summary>
+    /// High-energy output (ultraviolet, X-rays, flares and wind) of a star relative to the Sun's, which strips
+    /// atmospheres (GALAXY.md §10.3): red dwarfs flare for billions of years, young stars are wild, white dwarfs quiet.
+    /// </summary>
+    private static double Activity(StarClass star, double age)
+    {
+        double type = star.Kind switch
+        {
+            StarKind.WhiteDwarf => 0.3,
+            StarKind.NeutronStar => 5,
+            StarKind.BlackHole => 0.5,
+            StarKind.BrownDwarf => 1,
+            StarKind.TTauri => 30,
+            StarKind.HerbigAeBe or StarKind.WolfRayet => 10,
+            StarKind.Supergiant => 2,
+            StarKind.MainSequence => star.Letter switch
+            {
+                'O' or 'B' or 'A' => 1.5,
+                'F' => 0.8,
+                'G' => 1.0,
+                'K' => 2.0,
+                'M' => star.Code < 64.5 ? 4 : 16, // late red dwarfs stay saturated for billions of years
+                _ => 1,
+            },
+            _ => 1,
+        };
+        return type * (1 + 0.3 / Math.Max(age, 0.05));
+    }
+
+    // How a planet in this slot formed: gas giants are likelier beyond the snow line of the young star and around
+    // metal-rich and heavier stars; ice giants form far out; everything else is a solid body.
+    private static Formation ChooseFormation(double teq, double a, double snowLine, double giantFactor, double massFactor, ref Rng rng)
     {
         if (teq > 1000)
         {
-            if (rng.Chance(StellarTables.Clamp(0.05 * giantFactor, 0, 0.3)))
-            {
-                return PlanetType.GasGiant;
-            }
-            return teq > 1300 || rng.Chance(0.4) ? PlanetType.MetalRich : PlanetType.Rocky;
+            return rng.Chance(StellarTables.Clamp(0.05 * giantFactor, 0, 0.3)) ? Formation.GasGiant : Formation.Solid;
         }
         if (a < snowLine)
         {
-            if (rng.Chance(StellarTables.Clamp(0.08 * giantFactor * massFactor, 0, 0.5)))
-            {
-                return PlanetType.GasGiant;
-            }
-            if (teq > 230 && teq < 310)
-            {
-                double earthChance = earthLikeHost ? 0.04 : mDwarf ? 0.006 : 0.0;
-                if (rng.Chance(earthChance))
-                {
-                    return PlanetType.EarthLike;
-                }
-            }
-            if (teq > 200 && teq < 400 && rng.Chance(0.08))
-            {
-                return PlanetType.WaterWorld;
-            }
-            return teq > 150 ? PlanetType.Rocky : PlanetType.RockyIce;
+            return rng.Chance(StellarTables.Clamp(0.08 * giantFactor * massFactor, 0, 0.5)) ? Formation.GasGiant : Formation.Solid;
         }
         double roll = rng.NextDouble();
         double pGas = StellarTables.Clamp(0.3 * giantFactor * massFactor, 0.05, 0.7);
         if (roll < pGas)
         {
-            return PlanetType.GasGiant;
+            return Formation.GasGiant;
         }
-        roll -= pGas;
-        if (roll < 0.25)
-        {
-            return PlanetType.IceGiant;
-        }
-        roll -= 0.25;
-        if (roll < 0.03)
-        {
-            return PlanetType.AmmoniaWorld;
-        }
-        return rng.Chance(0.5) ? PlanetType.Icy : PlanetType.RockyIce;
+        return roll - pGas < 0.25 ? Formation.IceGiant : Formation.Solid;
     }
-
-    private static double MassForType(PlanetType type, ref Rng rng) => type switch
-    {
-        PlanetType.EarthLike => rng.LogUniform(0.5, 3),
-        PlanetType.WaterWorld => rng.LogUniform(0.8, 8),
-        PlanetType.Icy => rng.LogUniform(0.01, 4),
-        PlanetType.AmmoniaWorld => rng.LogUniform(0.5, 6),
-        PlanetType.IceGiant => rng.LogUniform(8, 40),
-        PlanetType.GasGiant => rng.LogUniform(40, 4000),
-        _ => rng.LogUniform(0.05, 8),
-    };
-
-    // Radius in Earth radii for a mass in Earth masses.
-    private static double RadiusFor(PlanetType type, double massEarth, double teq)
-    {
-        switch (type)
-        {
-            case PlanetType.GasGiant:
-            {
-                double r = massEarth >= 95 ? 11.2 * DMath.Pow(massEarth / 318.0, -0.04) : 9.45 * DMath.Pow(massEarth / 95.0, 0.5);
-                return teq > 1000 ? r * 1.2 : r;
-            }
-            case PlanetType.IceGiant:
-                return 3.9 * DMath.Pow(massEarth / 17.0, 0.3);
-            case PlanetType.Icy:
-            case PlanetType.RockyIce:
-            case PlanetType.WaterWorld:
-            case PlanetType.AmmoniaWorld:
-                return 1.15 * DMath.Pow(massEarth, 0.28);
-            case PlanetType.MetalRich:
-                return 0.85 * DMath.Pow(massEarth, 0.28);
-            default:
-                return DMath.Pow(massEarth, 0.28);
-        }
-    }
-
-    private static double Greenhouse(AtmosphereType atmosphere, double pressure) => atmosphere switch
-    {
-        AtmosphereType.Thin => 1.05,
-        AtmosphereType.Thick => 1.0 + 0.5 * Math.Min(1.0, pressure / 10.0),
-        AtmosphereType.Breathable => 1.06,
-        _ => 1.0,
-    };
 
     // Adds a planet and its moons; returns the planet's apoapsis in AU.
-    private static double AddPlanet(Builder b, HostContext host, int number, int slot, PlanetType type, double semiMajorAu,
-        double teq, double previousApoapsisAu, double apoapsisLimitAu, ref Rng rng)
+    private static double AddPlanet(Builder b, HostContext host, int number, int slot, Formation formation, double semiMajorAu,
+        double previousApoapsisAu, double apoapsisLimitAu, ref Rng rng)
     {
-        double massEarth = MassForType(type, ref rng);
-        double radiusEarth = RadiusFor(type, massEarth, teq);
-        double mass = massEarth * Units.EarthMass;
-        double radius = radiusEarth * Units.EarthRadius;
-        bool giant = type is PlanetType.GasGiant or PlanetType.IceGiant;
-
-        AtmosphereType atmosphere;
-        double pressure;
-        switch (type)
+        bool giant = formation != Formation.Solid;
+        double massEarth = formation switch
         {
-            case PlanetType.GasGiant:
-            case PlanetType.IceGiant:
-                atmosphere = AtmosphereType.HydrogenHelium;
-                pressure = 1000;
-                break;
-            case PlanetType.EarthLike:
-                atmosphere = AtmosphereType.Breathable;
-                pressure = rng.Range(0.5, 2.0);
-                break;
-            case PlanetType.WaterWorld:
-            case PlanetType.AmmoniaWorld:
-                atmosphere = AtmosphereType.Thick;
-                pressure = rng.Range(1, 10);
-                break;
-            default:
-            {
-                double roll = rng.NextDouble();
-                if (massEarth < 0.2 || roll < 0.5)
-                {
-                    atmosphere = AtmosphereType.None;
-                    pressure = 0;
-                }
-                else if (roll < 0.8)
-                {
-                    atmosphere = AtmosphereType.Thin;
-                    pressure = rng.LogUniform(0.001, 0.5);
-                }
-                else
-                {
-                    atmosphere = AtmosphereType.Thick;
-                    pressure = rng.LogUniform(1, 90);
-                }
-                break;
-            }
-        }
+            Formation.GasGiant => rng.LogUniform(40, 4000),
+            Formation.IceGiant => rng.LogUniform(8, 40),
+            _ => rng.LogUniform(0.02, 10),
+        };
+        double mass = massEarth * Units.EarthMass;
 
         // Orbits never cross: periapsis stays beyond the previous body's apoapsis, apoapsis inside the next orbit.
         double eccentricityLimit = Math.Min(Math.Min(0.5, 1 - 1.15 * previousApoapsisAu / semiMajorAu), apoapsisLimitAu / semiMajorAu - 1);
         double eccentricity = StellarTables.Clamp(rng.Rayleigh(giant ? 0.08 : 0.05), 0, Math.Max(0, eccentricityLimit));
+        // Close in, tides lock a solid planet's spin and circularise its orbit down to what its neighbours force.
+        double lockDistance = 0.1 * DMath.Pow(host.MassKg / Units.SolarMass, 1.0 / 3.0);
+        bool locked = !giant && semiMajorAu < lockDistance;
+        if (locked)
+        {
+            eccentricity *= 0.2;
+        }
         double a = semiMajorAu * Au;
         var orbit = new Orbit(a, eccentricity, StellarTables.Clamp(rng.Rayleigh(2 * DMath.DegToRad), 0, 15 * DMath.DegToRad),
             rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi),
             Orbit.PeriodFor(a, host.MassKg + mass));
 
-        double lockDistance = 0.1 * DMath.Pow(host.MassKg / Units.SolarMass, 1.0 / 3.0);
-        bool locked = !giant && semiMajorAu < lockDistance;
         double rotation = giant
             ? rng.Range(8, 20) * 3600
             : locked ? orbit.Period : rng.LogUniform(10 * 3600, 100 * Units.SecondsPerDay);
@@ -772,14 +716,57 @@ public sealed class SystemGenerator
         {
             rotation = -rotation;
         }
+        double tilt = StellarTables.Clamp(Math.Abs(rng.Gaussian(0, 25 * DMath.DegToRad)), 0, DMath.Pi);
+        if (locked)
+        {
+            tilt *= 0.02; // tides also right a locked planet's spin axis
+        }
+
+        // Where it formed: a giant inside the snow line migrated in from beyond it; solid planets formed near where
+        // they are, give or take the mixing of a young disc.
+        double formedAu = semiMajorAu * rng.LogUniform(0.7, 1.4);
+        if (giant && formedAu < host.FormationSnowLine)
+        {
+            formedAu = host.FormationSnowLine * rng.Range(1.0, 3.0);
+        }
+        var worldRng = new Rng(Hash64.Combine(host.Key, WorldStream + (ulong)host.NodeNumber * 256 + (ulong)slot));
+        World world = WorldBuilder.Build(new WorldInput
+        {
+            MassEarth = massEarth,
+            Formation = formation,
+            FormationZone = formedAu / host.FormationSnowLine,
+            Flux = host.FluxAt(semiMajorAu),
+            Activity = host.Activity,
+            Age = host.Age,
+            HostMass = host.MassKg,
+            OrbitRadius = a,
+            OrbitPeriod = orbit.Period,
+            Eccentricity = eccentricity,
+            RotationPeriod = rotation,
+            TidallyLocked = locked,
+            StableHost = host.StableHost,
+        }, ref worldRng);
+        double radius = world.Radius;
 
         double ringInner = 0;
         double ringOuter = 0;
-        double ringChance = type == PlanetType.GasGiant ? 0.4 : type == PlanetType.IceGiant ? 0.3 : 0.02;
+        double ringMass = 0;
+        Material ringMaterial = Material.None;
+        double ringChance = world.Type switch
+        {
+            PlanetType.GasGiant => 0.4,
+            PlanetType.IceGiant => 0.3,
+            PlanetType.GasDwarf => 0.05,
+            _ => 0.02,
+        };
         if (rng.Chance(ringChance))
         {
             ringInner = radius * rng.Range(1.2, 1.6);
             ringOuter = ringInner * rng.Range(1.3, 2.2);
+            // Ice survives in rings only where it's cold; closer in they are dust and rock, near hot stars metal.
+            double teq = world.State.EquilibriumTemperature;
+            ringMaterial = teq < 170 ? Material.Icy : teq < 700 ? Material.Rocky : Material.Metallic;
+            ringMass = mass * rng.LogUniform(1e-9, 1e-6);
         }
 
         uint path = BodyPath.Planet(host.NodeNumber, slot);
@@ -792,22 +779,24 @@ public sealed class SystemGenerator
             Name = host.Prefix + " " + designation,
             Designation = designation,
             Path = path,
-            PlanetType = type,
+            PlanetType = world.Type,
             Mass = mass,
             Radius = radius,
-            Temperature = teq * Greenhouse(atmosphere, pressure),
-            Atmosphere = atmosphere,
-            SurfacePressure = pressure,
+            Temperature = world.Temperature,
+            Atmosphere = world.Atmosphere,
+            SurfacePressure = world.Pressure,
             Orbit = orbit,
             RotationPeriod = rotation,
-            AxialTilt = StellarTables.Clamp(Math.Abs(rng.Gaussian(0, 25 * DMath.DegToRad)), 0, DMath.Pi),
+            AxialTilt = tilt,
             TidallyLocked = locked,
             RingInnerRadius = ringInner,
             RingOuterRadius = ringOuter,
-            Landable = !giant,
+            RingMaterial = ringMaterial,
+            RingMass = ringMass,
+            State = world.State,
         });
 
-        double moonRate = type switch
+        double moonRate = world.Type switch
         {
             PlanetType.GasGiant => 4.0,
             PlanetType.IceGiant => 2.5,
@@ -816,50 +805,53 @@ public sealed class SystemGenerator
         int moons = (int)Math.Min(rng.Poisson(moonRate), 12);
         double hill = orbit.Periapsis * DMath.Pow(mass / (3 * host.MassKg), 1.0 / 3.0);
         double moonLimit = 0.4 * hill;
-        double moonA = Math.Max(2.5 * radius, ringOuter * 1.15) * rng.Range(1.0, 1.5);
+        double moonA = Math.Max(2.5 * radius, ringOuter * 1.15) * rng.Range(1.2, 2.0);
         for (int m = 0; m < moons && moonA < moonLimit; m++)
         {
             var moonRng = new Rng(Hash64.Combine(host.Key, MoonStream + ((ulong)host.NodeNumber * 256 + (ulong)slot) * 256 + (ulong)m));
-            AddMoon(b, planet, designation, path, m, moonA, teq, mass, massEarth, ref moonRng);
+            AddMoon(b, host, planet, world, designation, path, m, moonA, massEarth, ref moonRng);
             moonA *= rng.Range(1.3, 2.2);
         }
         return semiMajorAu * (1 + eccentricity);
     }
 
-    private static void AddMoon(Builder b, Body planet, string designation, uint planetPath, int m, double moonA, double teq,
-        double planetMass, double planetMassEarth, ref Rng rng)
+    private static void AddMoon(Builder b, HostContext host, Body planet, World planetWorld, string designation, uint planetPath,
+        int m, double moonA, double planetMassEarth, ref Rng rng)
     {
-        bool icy = teq < 170;
         double maxMoonMass = Math.Min(0.03, 3e-4 * planetMassEarth);
         double moonMassEarth = rng.LogUniform(1e-5, Math.Max(2e-5, maxMoonMass));
-        PlanetType moonType = icy ? (rng.Chance(0.6) ? PlanetType.Icy : PlanetType.RockyIce) : PlanetType.Rocky;
-        double moonRadius = RadiusFor(moonType, moonMassEarth, teq) * Units.EarthRadius;
         double moonMass = moonMassEarth * Units.EarthMass;
         bool retrograde = rng.Chance(0.1);
         double inclination = StellarTables.Clamp(rng.Rayleigh(1 * DMath.DegToRad), 0, 20 * DMath.DegToRad);
-        var moonOrbit = new Orbit(moonA, StellarTables.Clamp(rng.Rayleigh(0.01), 0, 0.2),
-            retrograde ? DMath.Pi - inclination : inclination,
+        // Tides circularise a moon's orbit within a few hundred million years unless a resonance with another moon
+        // keeps forcing it (Io 0.004, Europa 0.009, Enceladus 0.005); only that forced part heats it.
+        bool resonant = rng.Chance(0.25);
+        double eccentricity = resonant ? rng.LogUniform(0.002, 0.012) : rng.LogUniform(1e-6, 1e-4);
+        var moonOrbit = new Orbit(moonA, eccentricity, retrograde ? DMath.Pi - inclination : inclination,
             rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi),
-            Orbit.PeriodFor(moonA, planetMass + moonMass));
+            Orbit.PeriodFor(moonA, planet.Mass + moonMass));
 
-        // Big moons can hold atmospheres too: cold ones keep thick nitrogen and methane (like Titan), others at most a
-        // thin veil from outgassing.
-        AtmosphereType atmosphere = AtmosphereType.None;
-        double pressure = 0;
-        if (moonMassEarth > 0.005)
+        // A moon forms in its planet's disc, so it shares the planet's formation zone, and gets the planet's starlight.
+        double planetAu = planet.Orbit.SemiMajorAxis / Units.MetresPerAu;
+        World world = WorldBuilder.Build(new WorldInput
         {
-            double roll = rng.NextDouble();
-            if (teq < 130 && roll < 0.35)
-            {
-                atmosphere = AtmosphereType.Thick;
-                pressure = rng.LogUniform(0.5, 5);
-            }
-            else if (roll < 0.55)
-            {
-                atmosphere = AtmosphereType.Thin;
-                pressure = rng.LogUniform(1e-5, 0.01);
-            }
-        }
+            MassEarth = moonMassEarth,
+            Formation = Formation.Solid,
+            FormationZone = planetWorld.State.FormationZone,
+            Flux = host.FluxAt(planetAu),
+            Activity = host.Activity,
+            Age = host.Age,
+            HostMass = planet.Mass,
+            OrbitRadius = moonA,
+            OrbitPeriod = moonOrbit.Period,
+            Eccentricity = eccentricity,
+            RotationPeriod = moonOrbit.Period,
+            TidallyLocked = true,
+            IsMoon = true,
+            ParentRadius = planet.Radius,
+            ParentHasBelts = planetWorld.Type == PlanetType.GasGiant && planetMassEarth > 150,
+            StableHost = host.StableHost,
+        }, ref rng);
 
         string letter = ((char)('a' + m)).ToString();
         b.Add(new Body
@@ -870,26 +862,30 @@ public sealed class SystemGenerator
             Name = planet.Name + " " + letter,
             Designation = designation + " " + letter,
             Path = BodyPath.Moon(planetPath, m),
-            PlanetType = moonType,
+            PlanetType = world.Type,
             Mass = moonMass,
-            Radius = moonRadius,
-            Temperature = teq * Greenhouse(atmosphere, pressure),
-            Atmosphere = atmosphere,
-            SurfacePressure = pressure,
+            Radius = world.Radius,
+            Temperature = world.Temperature,
+            Atmosphere = world.Atmosphere,
+            SurfacePressure = world.Pressure,
             Orbit = moonOrbit,
             RotationPeriod = moonOrbit.Period,
             TidallyLocked = true,
-            Landable = true,
+            State = world.State,
         });
     }
 
-    // Adds a belt between innerLimitAu and outerLimitAu; returns its outer edge in AU.
+    // Adds a belt between innerLimitAu and outerLimitAu; returns its outer edge in AU. What it is made of follows where
+    // it lies against the young star's snow line, like the planets.
     private static double AddBelt(Builder b, HostContext host, int slot, double semiMajorAu,
         double innerLimitAu, double outerLimitAu, ref Rng rng)
     {
         double widthAu = semiMajorAu * rng.Range(0.2, 0.4);
         widthAu = Math.Max(0, Math.Min(widthAu, 2 * Math.Min(semiMajorAu - innerLimitAu, outerLimitAu - semiMajorAu)));
         double a = semiMajorAu * Au;
+        double zone = semiMajorAu / host.FormationSnowLine;
+        Material material = zone < 0.15 ? Material.Metallic : zone < 0.5 ? Material.MetalRich : zone < 1.3 ? Material.Rocky : Material.Icy;
+        double mass = rng.LogUniform(1e-4, 0.05) * host.MetalFactor * Units.EarthMass;
         b.Add(new Body
         {
             Index = b.Next,
@@ -899,8 +895,10 @@ public sealed class SystemGenerator
             Designation = "Belt",
             Path = BodyPath.Belt(host.NodeNumber, slot),
             PlanetType = PlanetType.AsteroidBelt,
+            Mass = mass,
             Orbit = new Orbit(a, 0, 0, 0, 0, 0, Orbit.PeriodFor(a, host.MassKg)),
             BeltWidth = widthAu * Au,
+            BeltMaterial = material,
         });
         return semiMajorAu + widthAu / 2;
     }

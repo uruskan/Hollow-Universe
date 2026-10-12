@@ -59,7 +59,7 @@ Dune: Awakening.
 | Travel between systems | Frame shift drive jumps, limited by jump range. A jump is a short hyperspace sequence. | Decided |
 | Travel inside a system | Supercruise between bodies; drop to normal space near a target. | Decided |
 | Planets | Procedural spherical planets you can land on, with biomes on worlds that have atmospheres. | Decided |
-| Which bodies are landable | Every body with a solid surface. | Proposal |
+| Which bodies are landable | Every body with a solid surface of rock or ice (not giants or global oceans). Its physical state (air, temperature, gravity, life) and hazards (GALAXY.md §10.3) decide what it takes to survive there. | Proposal |
 | Where players start | A populated region around Sol (like Elite's bubble). | Proposal |
 | Rarity | Rare resources and monuments depend on the type of star and planet (for example, rich metals on metal-rich worlds, exotic materials near neutron stars). They're spread across the whole galaxy, not concentrated in a few systems. | Decided |
 | Monuments | Special sites on certain planets that hold special loot and are dangerous to run. | Decided |

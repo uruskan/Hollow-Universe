@@ -396,6 +396,8 @@ public partial class SystemMapUi : Control
             else
             {
                 Row("Width", Ui.Distance(body.BeltWidth));
+                Row("Material", BodyText.MaterialName(body.BeltMaterial), numeric: false);
+                Row("Mass", Ui.Times(body.Mass / Units.EarthMass, "Earth", "G2"));
             }
         }
         if (body.Kind == BodyKind.Barycentre)
@@ -438,15 +440,44 @@ public partial class SystemMapUi : Control
             Row("Radius", Ui.Number(body.Radius / 1000, "N0") + " km");
             Row("Gravity", Ui.Number(body.SurfaceGravity, "N2") + " g");
             Row("Temperature", Ui.Temperature(body.Temperature));
+            PlanetState? state = body.State;
+            if (state != null && state.MaxTemperature - state.MinTemperature > 20)
+            {
+                Row("Day / night", Ui.Number(state.MaxTemperature, "N0") + " / " + Ui.Temperature(state.MinTemperature));
+            }
             Row("Atmosphere", AtmosphereName(body), numeric: false);
             if (body.RotationPeriod != 0)
             {
                 Row("Day length", body.TidallyLocked ? "Tidally locked" : Ui.Duration(body.RotationPeriod), !body.TidallyLocked);
             }
             Row("Axial tilt", Ui.Number(body.AxialTilt * 180 / Math.PI, "0.0") + "°");
+            if (state != null)
+            {
+                Row("Surface", BodyText.Surface(state), numeric: false);
+                Row("Made of", BodyText.Composition(state.Composition), numeric: false);
+                if (state.Surface != SurfaceKind.None)
+                {
+                    Row("Geology", BodyText.Geology(state), numeric: false);
+                    Row("Heat flow", Ui.Number(state.HeatFlow, state.HeatFlow < 0.1 ? "0.000" : "N2") + " W/m²"
+                        + (state.TidalHeating > 0.5 * state.HeatFlow ? " (tides)" : ""));
+                }
+                if (state.MagneticField >= 0.01)
+                {
+                    Row("Magnetic field", Ui.Times(state.MagneticField, "Earth", state.MagneticField < 10 ? "N2" : "N0"));
+                }
+                if (state.SubsurfaceOcean)
+                {
+                    Row("Under the ice", "Liquid water ocean", numeric: false);
+                }
+                if (state.Biosphere != Biosphere.None)
+                {
+                    Row("Life", BodyText.Life(state.Biosphere), numeric: false);
+                }
+                Row("Hazards", BodyText.HazardList(state.Hazards), numeric: false);
+            }
             if (body.HasRings)
             {
-                Row("Rings", "Yes", numeric: false);
+                Row("Rings", body.RingMaterial != Hollow.Galaxy.Systems.Material.None ? BodyText.MaterialName(body.RingMaterial) : "Yes", numeric: false);
             }
             Row("Landable", body.Landable ? "Yes" : "No", numeric: false);
         }
@@ -510,6 +541,8 @@ public partial class SystemMapUi : Control
             PlanetType.IceGiant => new Color(0.55f, 0.85f, 0.95f),
             PlanetType.AmmoniaWorld => new Color(0.85f, 0.75f, 0.45f),
             PlanetType.MetalRich => new Color(0.95f, 0.60f, 0.40f),
+            PlanetType.LavaWorld => new Color(1.00f, 0.50f, 0.28f),
+            PlanetType.GasDwarf => new Color(0.62f, 0.82f, 0.84f),
             PlanetType.Icy or PlanetType.RockyIce => new Color(0.78f, 0.86f, 0.94f),
             PlanetType.AsteroidBelt => Ui.Tertiary,
             _ => body.Kind == BodyKind.Moon ? Ui.Secondary : new Color(0.75f, 0.72f, 0.68f),
@@ -525,15 +558,16 @@ public partial class SystemMapUi : Control
             ? body.Name[(system.Name.Length + 1)..]
             : body.Name;
 
-    private static string AtmosphereName(Body body) => body.Atmosphere switch
+    // The atmosphere by its gases and pressure, e.g. "Thick carbon dioxide, 92 atm"; a giant's has no surface.
+    private static string AtmosphereName(Body body)
     {
-        AtmosphereType.None => "None",
-        AtmosphereType.Thin => $"Thin ({Ui.Number(body.SurfacePressure, body.SurfacePressure < 0.01 ? "G2" : "N2")} atm)",
-        AtmosphereType.Thick => $"Thick ({Ui.Number(body.SurfacePressure, "N1")} atm)",
-        AtmosphereType.Breathable => $"Breathable ({Ui.Number(body.SurfacePressure, "N2")} atm)",
-        AtmosphereType.HydrogenHelium => "Hydrogen–helium",
-        _ => "Unknown",
-    };
+        if (body.Atmosphere == AtmosphereType.None || body.State is { Surface: SurfaceKind.None })
+        {
+            return body.AtmosphereName;
+        }
+        double p = body.SurfacePressure;
+        return body.AtmosphereName + ", " + Ui.Number(p, p < 0.01 ? "G2" : p < 10 ? "N2" : "N0") + " atm";
+    }
 
     // Bodies in tree order: each star or planet followed by what orbits it, inner orbits first.
     private static IEnumerable<Body> TreeOrder(StarSystem system)

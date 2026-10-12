@@ -5,7 +5,10 @@ using Hollow.Galaxy.Systems;
 
 namespace HollowUniverse.SystemMap;
 
-/// <summary>Colours and surface parameters of planets by type (presentation only).</summary>
+/// <summary>
+/// Colours and surface parameters of planets (presentation only): a base look by type, then oceans, lava, lakes, ice
+/// caps and haze from the body's physical state (GALAXY.md §10.3).
+/// </summary>
 public static class PlanetLook
 {
     public static void Apply(ShaderMaterial material, Body body)
@@ -20,6 +23,7 @@ public static class PlanetLook
         float ocean = 0;
         float ice = 0;
         float atmosphere = 0;
+        float glow = 0;
         var atmosphereColour = new Color(0.5f, 0.7f, 1f);
         float noiseScale = 3.2f;
 
@@ -42,25 +46,31 @@ public static class PlanetLook
                 a = new Color(0.72f, 0.80f, 0.88f);
                 b = new Color(0.94f, 0.96f, 1.00f);
                 break;
+            case PlanetType.LavaWorld:
+                a = new Color(0.16f, 0.10f, 0.09f);
+                b = new Color(0.36f, 0.20f, 0.14f);
+                noiseScale = 4f;
+                break;
             case PlanetType.WaterWorld:
                 a = new Color(0.12f, 0.30f, 0.55f);
                 b = new Color(0.20f, 0.45f, 0.72f);
-                atmosphere = 0.5f;
                 break;
             case PlanetType.EarthLike:
                 a = new Color(0.22f, 0.42f, 0.18f);
                 b = new Color(0.58f, 0.52f, 0.36f);
                 c = new Color(0.05f, 0.16f, 0.40f);
-                ocean = 0.53f;
-                ice = 0.16f;
-                atmosphere = 0.9f;
-                atmosphereColour = new Color(0.45f, 0.65f, 1f);
                 break;
             case PlanetType.AmmoniaWorld:
                 a = new Color(0.58f, 0.48f, 0.30f);
                 b = new Color(0.76f, 0.66f, 0.42f);
-                atmosphere = 0.5f;
-                atmosphereColour = new Color(0.85f, 0.75f, 0.45f);
+                c = new Color(0.42f, 0.36f, 0.24f);
+                break;
+            case PlanetType.GasDwarf:
+                a = new Color(0.56f, 0.70f, 0.74f);
+                b = new Color(0.68f, 0.80f, 0.82f);
+                c = new Color(0.50f, 0.64f, 0.70f);
+                banding = 6;
+                atmosphere = 0.4f;
                 break;
             case PlanetType.IceGiant:
                 a = new Color(0.42f, 0.66f, 0.82f);
@@ -92,13 +102,53 @@ public static class PlanetLook
                 break;
         }
 
-        if (body.Atmosphere == AtmosphereType.Thick && body.PlanetType is PlanetType.Rocky or PlanetType.MetalRich)
+        if (body.State is { Surface: not SurfaceKind.None } state)
         {
-            a = new Color(0.82f, 0.74f, 0.55f);
-            b = new Color(0.90f, 0.84f, 0.66f);
-            atmosphere = 0.6f;
-            atmosphereColour = new Color(0.95f, 0.85f, 0.6f);
-            noiseScale = 1.5f;
+            // Liquids fill the low ground (the shader's ocean level is a height threshold; about 0.3 + 0.4 × cover
+            // gives that share of the surface), and ice caps cover their share of the sphere from the poles.
+            if (state.Liquid != LiquidKind.None && state.OceanCover > 0.005)
+            {
+                ocean = state.OceanCover >= 0.95 ? 1.1f : 0.3f + 0.4f * (float)state.OceanCover;
+                c = state.Liquid switch
+                {
+                    LiquidKind.Magma => new Color(1.0f, 0.42f, 0.10f),
+                    LiquidKind.Hydrocarbons => new Color(0.10f, 0.08f, 0.06f),
+                    LiquidKind.AmmoniaWater => new Color(0.42f, 0.36f, 0.24f),
+                    _ => c,
+                };
+                glow = state.Liquid == LiquidKind.Magma ? 0.8f : 0;
+            }
+            if (state.IceCover is > 0.01 and < 0.9)
+            {
+                ice = (float)state.IceCover;
+            }
+
+            // Air: a rim that grows with pressure, coloured by its gases; a deep, cloudy one hides the ground.
+            if (body.SurfacePressure > 0.01)
+            {
+                atmosphere = Math.Clamp(0.15f + 0.2f * (float)Math.Log10(1 + body.SurfacePressure * 10), 0, 0.9f);
+                atmosphereColour = body.Atmosphere switch
+                {
+                    AtmosphereType.CarbonDioxide => new Color(0.95f, 0.85f, 0.60f),
+                    AtmosphereType.SulphurDioxide => new Color(0.92f, 0.86f, 0.42f),
+                    AtmosphereType.NitrogenMethane => new Color(0.92f, 0.62f, 0.30f),
+                    AtmosphereType.Steam => new Color(0.92f, 0.94f, 0.96f),
+                    AtmosphereType.Ammonia => new Color(0.86f, 0.76f, 0.46f),
+                    AtmosphereType.Methane => new Color(0.62f, 0.76f, 0.90f),
+                    _ => new Color(0.45f, 0.65f, 1f),
+                };
+                bool cloudDeck = body.SurfacePressure > 5 && body.Atmosphere is AtmosphereType.CarbonDioxide
+                    or AtmosphereType.SulphurDioxide or AtmosphereType.Steam or AtmosphereType.NitrogenMethane;
+                if (cloudDeck)
+                {
+                    a = atmosphereColour.Darkened(0.12f);
+                    b = atmosphereColour.Lightened(0.05f);
+                    ocean = 0;
+                    ice = 0;
+                    glow = 0;
+                    noiseScale = 1.5f;
+                }
+            }
         }
 
         // A few real bodies have well-known looks.
@@ -141,6 +191,7 @@ public static class PlanetLook
         material.SetShaderParameter("ice_caps", ice);
         material.SetShaderParameter("atmosphere", atmosphere);
         material.SetShaderParameter("atmosphere_colour", atmosphereColour);
+        material.SetShaderParameter("glow", glow);
     }
 
     private static Color Shift(Color c, float amount) =>

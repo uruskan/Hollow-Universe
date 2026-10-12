@@ -1,4 +1,4 @@
-// System-map planets and moons: procedural surface colours by planet type, lit by the star.
+// System-map planets and moons: procedural surface colours by planet type and state, lit by the star; lava glows.
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
 
@@ -11,6 +11,7 @@ uniform float seed = 0.0;
 uniform float ocean = 0.0;
 uniform float ice_caps = 0.0;
 uniform float atmosphere = 0.0;
+uniform float glow = 0.0;
 uniform vec3 atmosphere_colour = vec3(0.5, 0.7, 1.0);
 uniform float ambient = 0.06;
 
@@ -51,6 +52,7 @@ void fragment() {
 	vec3 p = normalize(v_object);
 	float n = fbm(p * noise_scale + vec3(seed));
 	vec3 colour;
+	float lava = 0.0;
 	if (banding > 0.0) {
 		float warp = fbm(p * 2.0 + vec3(seed * 1.3)) * 2.5;
 		float bands = sin(p.y * banding + warp);
@@ -61,6 +63,7 @@ void fragment() {
 		if (ocean > 0.0) {
 			float land = smoothstep(ocean - 0.015, ocean + 0.015, n);
 			colour = mix(colour_c, colour, land);
+			lava = (1.0 - land) * glow;
 		}
 		if (ice_caps > 0.0) {
 			float cap = smoothstep(1.0 - ice_caps, 1.0 - ice_caps + 0.06, abs(p.y) + (n - 0.5) * 0.15);
@@ -69,5 +72,5 @@ void fragment() {
 	}
 	ALBEDO = colour;
 	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
-	EMISSION = atmosphere_colour * rim * atmosphere + colour * ambient;
+	EMISSION = atmosphere_colour * rim * atmosphere + colour * ambient + colour_c * lava;
 }

@@ -186,6 +186,7 @@ Galaxy (density model)
  └ Sector         1024-ly cube, has a generated name
     └ Cell        octree levels 0–7; brighter stars live in bigger cells
        └ Star system   stars, planets, moons, rings, belts            ← M1 stops here
+                       and each body's physical state (the surface's inputs)
           └ Surface    terrain, biomes, resources, monuments          ← M4
              └ Points of interest, wrecks, signals                    ← later
 ```

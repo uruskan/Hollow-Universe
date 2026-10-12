@@ -20,6 +20,25 @@ public static class StellarEvolution
         return DMath.Pow10(1.0 - 3.6 * x + x * x); // 10^(10 − 3.6x + x²) yr in Gyr
     }
 
+    /// <summary>Luminosity (L☉) of a main-sequence star of this mass: L ∝ M^2.3 below 0.43 M☉, M⁴ to 2, M^3.5 above.</summary>
+    public static double MainSequenceLuminosity(double mass)
+    {
+        if (mass < 0.08)
+        {
+            return 1e-4 * mass / 0.08; // a brown dwarf in its youth
+        }
+        if (mass < 0.43)
+        {
+            return 0.23 * DMath.Pow(mass, 2.3);
+        }
+        if (mass < 2)
+        {
+            double m2 = mass * mass;
+            return m2 * m2;
+        }
+        return mass < 55 ? 1.4 * DMath.Pow(mass, 3.5) : 32000 * mass;
+    }
+
     /// <summary>
     /// The mass whose main-sequence lifetime is <paramref name="age"/>: stars above it have evolved. Above about 150 M☉
     /// for ages under 6 Myr (every star is still on the main sequence).

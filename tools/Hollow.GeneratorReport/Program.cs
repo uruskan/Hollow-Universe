@@ -43,6 +43,9 @@ public static class Program
             case "find":
                 FindShowcases();
                 return 0;
+            case "worlds":
+                ShowWorlds();
+                return 0;
             case "completeness":
                 for (int level = 0; level < StarClassTable.LevelCount; level++)
                 {
@@ -57,7 +60,7 @@ public static class Program
                     args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : StarClassTable.LevelCount - 1);
                 return 0;
             default:
-                Console.Error.WriteLine("usage: Hollow.GeneratorReport bench|stats|names|maps [folder] [prefix]");
+                Console.Error.WriteLine("usage: Hollow.GeneratorReport bench|stats|names|maps [folder] [prefix]|shells|calibrate|completeness|stars|find|worlds");
                 return 2;
         }
     }
@@ -151,6 +154,67 @@ public static class Program
                     }
                 }
             }
+        }
+    }
+
+    /// <summary>The first world of each notable kind near a fixed point, with its whole physical state (GALAXY.md §10.3).</summary>
+    private static void ShowWorlds()
+    {
+        var galaxy = new Galaxy.Galaxy(LoadCatalogue());
+        var wanted = new (string Label, Func<Body, bool> Test)[]
+        {
+            ("Complex life", b => b.State is { Biosphere: Biosphere.Complex }),
+            ("Oxygen world", b => b.State is { Biosphere: Biosphere.Simple }),
+            ("Ocean world", b => b.State is { Surface: SurfaceKind.Ocean, Liquid: LiquidKind.Water }),
+            ("Lava world", b => b.PlanetType == PlanetType.LavaWorld && b.SurfacePressure < 0.01),
+            ("Io-like moon", b => b.Kind == BodyKind.Moon && b.State is { Volcanism: Volcanism.Sulphur, VolcanicActivity: > 0.6 }),
+            ("Ice shell over an ocean", b => b.Kind == BodyKind.Moon && b.State is { SubsurfaceOcean: true, Volcanism: Volcanism.Water }),
+            ("Hydrocarbon lakes", b => b.State is { Liquid: LiquidKind.Hydrocarbons }),
+            ("Ammonia sea", b => b.State is { Liquid: LiquidKind.AmmoniaWater }),
+            ("Hothouse", b => b.State != null && b.Atmosphere == AtmosphereType.CarbonDioxide && b.SurfacePressure > 30),
+        };
+        var found = new Dictionary<string, (StarSystem System, Body Body)>();
+        foreach (CellKey cell in CellsAround(6, new Vector3D(400, 0, 400), 150).Concat(CellsAround(5, new Vector3D(400, 0, 400), 300)))
+        {
+            foreach (GalaxyStar star in galaxy.GenerateProcedural(cell))
+            {
+                StarSystem system = galaxy.GetSystem(star.Address)!;
+                foreach (Body b in system.Bodies)
+                {
+                    foreach ((string label, Func<Body, bool> test) in wanted)
+                    {
+                        if (!found.ContainsKey(label) && test(b))
+                        {
+                            found[label] = (system, b);
+                        }
+                    }
+                }
+            }
+            if (found.Count == wanted.Length)
+            {
+                break;
+            }
+        }
+        CultureInfo c = CultureInfo.InvariantCulture;
+        foreach ((string label, _) in wanted)
+        {
+            if (!found.TryGetValue(label, out var hit))
+            {
+                Console.WriteLine($"{label}: none found");
+                continue;
+            }
+            Body b = hit.Body;
+            PlanetState s = b.State!;
+            Body host = hit.System.PrimaryStar;
+            Console.WriteLine(string.Create(c, $"{label}: {b.Name} ({b.TypeName}) around {host.StarClass}, age {hit.System.Age:0.0} Gyr, " +
+                $"{b.Mass / Units.EarthMass:0.###} M⊕, {b.Radius / 1000:0} km, {b.Temperature:0} K ({s.MinTemperature:0}–{s.MaxTemperature:0}), " +
+                $"{b.SurfacePressure:0.####} atm {b.AtmosphereName}"));
+            Console.WriteLine(string.Create(c, $"    zone {s.FormationZone:0.00}, metal {s.Composition.Metal:0.00} rock {s.Composition.Rock:0.00} ice {s.Composition.Ice:0.000}; " +
+                $"heat {s.HeatFlow:0.000} W/m² (tidal {s.TidalHeating:0.000}), {s.Tectonics}, {s.Volcanism} {s.VolcanicActivity:0.00}, field {s.MagneticField:0.00}, " +
+                $"cratering {s.Cratering:0.00}"));
+            Console.WriteLine(string.Create(c, $"    albedo {s.Albedo:0.00}, greenhouse {s.Greenhouse:0.00}; N2 {s.Gases.Nitrogen:0.###} O2 {s.Gases.Oxygen:0.###} " +
+                $"CO2 {s.Gases.CarbonDioxide:0.####} H2O {s.Gases.Water:0.####} CH4 {s.Gases.Methane:0.####}; {s.Liquid} {s.OceanCover:0.00}, ice {s.IceCover:0.00}, " +
+                $"subsurface ocean {s.SubsurfaceOcean}, {s.Biosphere}, {s.Surface}; {s.Hazards}"));
         }
     }
 
@@ -260,6 +324,68 @@ public static class Program
         Console.WriteLine("types: " + string.Join(", ", types.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}")));
         Console.WriteLine("atmospheres: " + string.Join(", ", atmospheres.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}")));
         Console.WriteLine("companion stars: " + string.Join(", ", companions.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}")));
+
+        // The physical state (GALAXY.md §10.3) of planets and moons.
+        List<PlanetState> states = systems.SelectMany(s => s.Bodies).Where(b => b.State != null).Select(b => b.State!).ToList();
+        string Tally<T>(Func<PlanetState, T> key) where T : notnull =>
+            string.Join(", ", states.GroupBy(key).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} {g.Count()}"));
+        Console.WriteLine("surface: " + Tally(s => s.Surface));
+        Console.WriteLine("liquid: " + Tally(s => s.Liquid));
+        Console.WriteLine("biosphere: " + Tally(s => s.Biosphere));
+        Console.WriteLine("tectonics: " + Tally(s => s.Tectonics));
+        Console.WriteLine("volcanism: " + Tally(s => s.Volcanism));
+        Console.WriteLine(string.Create(c, $"subsurface oceans: {states.Count(s => s.SubsurfaceOcean)}; magnetic fields above 0.1: {states.Count(s => s.MagneticField > 0.1)}"));
+        var solids = systems.SelectMany(s => s.Bodies).Where(b => b.State is { Surface: not SurfaceKind.None }).ToList();
+        foreach (BodyKind kind in new[] { BodyKind.Planet, BodyKind.Moon })
+        {
+            List<Body> group = solids.Where(b => b.Kind == kind).ToList();
+            int active = group.Count(b => b.State!.Volcanism != Volcanism.None);
+            int tidal = group.Count(b => b.State!.Volcanism != Volcanism.None && b.State.TidalHeating > b.State.HeatFlow / 2);
+            List<double> flows = group.Select(b => b.State!.HeatFlow).OrderBy(x => x).ToList();
+            Console.WriteLine(string.Create(c, $"{kind}s: {group.Count} solid, {100.0 * active / group.Count:0.0}% volcanic ({100.0 * tidal / group.Count:0.0}% by tides); " +
+                $"heat flow p50 {flows[flows.Count / 2]:0.0000}, p90 {flows[flows.Count * 9 / 10]:0.000}, p99 {flows[flows.Count * 99 / 100]:0.00} W/m²"));
+        }
+        var hazardCounts = Enum.GetValues<Hazards>().Where(h => h != Hazards.None)
+            .Select(h => (h, states.Count(s => (s.Hazards & h) != 0))).OrderByDescending(x => x.Item2);
+        Console.WriteLine("hazards: " + string.Join(", ", hazardCounts.Select(x => $"{x.h} {x.Item2}")));
+        int earthLikeSystems = systems.Count(s => s.Bodies.Any(b => b.PlanetType == PlanetType.EarthLike));
+        Console.WriteLine(string.Create(c, $"systems with an Earth-like world: {earthLikeSystems} (1 in {(double)systems.Count / Math.Max(1, earthLikeSystems):0})"));
+
+        // Where the water and the life are, by the system's primary star: share of systems with surface water, with any
+        // life, with oxygen (photosynthesis) and with complex life, in a volume-complete sample (every level inside
+        // one sphere), which is what a traveller meets.
+        var centre = new Vector3D(400, 0, 400);
+        const double radius = 70;
+        systems.Clear();
+        for (int level = 0; level < StarClassTable.LevelCount; level++)
+        {
+            foreach (CellKey cell in CellsAround(level, centre, radius))
+            {
+                foreach (GalaxyStar star in galaxy.GenerateProcedural(cell))
+                {
+                    if ((star.Position - centre).Length <= radius)
+                    {
+                        systems.Add(galaxy.GetSystem(star.Address)!);
+                    }
+                }
+            }
+        }
+        static bool Wet(StarSystem s) => s.Bodies.Any(b => b.State is { Liquid: LiquidKind.Water });
+        static bool Alive(StarSystem s, Biosphere least) => s.Bodies.Any(b => b.State != null && b.State.Biosphere >= least);
+        static string Primary(StarSystem s) => s.PrimaryStar.StarClass.Kind == StarKind.MainSequence
+            ? s.PrimaryStar.StarClass.Letter.ToString()
+            : s.PrimaryStar.StarClass.Kind.ToString();
+        string Rate(int n, int total) => n == 0 ? "-" : string.Create(c, $"1 in {(double)total / n:0}");
+        Console.WriteLine("water / life / oxygen / complex life, by primary:");
+        foreach (var g in systems.GroupBy(Primary).OrderByDescending(g => g.Count()).Take(9))
+        {
+            int n = g.Count();
+            Console.WriteLine(string.Create(c, $"  {g.Key,-12} {n,6} systems: {Rate(g.Count(Wet), n),-10} {Rate(g.Count(s => Alive(s, Biosphere.Microbial)), n),-10} " +
+                $"{Rate(g.Count(s => Alive(s, Biosphere.Simple)), n),-10} {Rate(g.Count(s => Alive(s, Biosphere.Complex)), n)}"));
+        }
+        int all = systems.Count;
+        Console.WriteLine(string.Create(c, $"  {"all",-12} {all,6} systems: {Rate(systems.Count(Wet), all),-10} {Rate(systems.Count(s => Alive(s, Biosphere.Microbial)), all),-10} " +
+            $"{Rate(systems.Count(s => Alive(s, Biosphere.Simple)), all),-10} {Rate(systems.Count(s => Alive(s, Biosphere.Complex)), all)}"));
     }
 
     // ---------------------------------------------------------------- bench
