@@ -109,3 +109,12 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 
   The bed is a marked stand-in until its model is made. The assets agent is now making the bed, the G4
   attachments and ammo variants, icon fixes and world props.
+- **G3 building, phase 1 merged** (`ground-build`):
+  - 20 pieces in 5 grades, 7 doors, locks, and the claim device with upkeep and decay;
+  - stability and collapse, and hammer actions;
+  - the building and door kits converted;
+  - a `--view build` sandbox (screenshot `docs/images/ground/build/house.jpg`).
+
+  A 1,060-piece base draws in about 5 ms. In the merge I fixed a physics body ID clash between survival's props and
+  buildings. Phase 2a is now running: building over the network, saves, inventory costs, the claim-device store and
+  bots that build. 91 of 91 tests pass.
