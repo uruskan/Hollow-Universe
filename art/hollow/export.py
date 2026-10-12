@@ -189,6 +189,8 @@ def decimated(source, name, ratio, target):
         mod.use_collapse_triangulate = True
         select_only([o])
         bpy.ops.object.modifier_apply(modifier=mod.name)
+        # Collapsing can leave a degenerate or doubled face; drop them.
+        o.data.validate(verbose=False)
     return o
 
 

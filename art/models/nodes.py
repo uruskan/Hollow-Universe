@@ -15,17 +15,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import bmesh  # noqa: E402
-from mathutils import Matrix, Vector, noise  # noqa: E402
+from mathutils import Matrix, Vector, geometry, noise  # noqa: E402
 
 from hollow import WORLD, script_args  # noqa: E402
 from hollow.build import GLOSSY, ROCK, STEEL, GUNMETAL, Model  # noqa: E402
 
 KINDS = {
-    # rock tint, fresh-break tint
-    "stone-node": ((0.58, 0.56, 0.53), (0.78, 0.76, 0.72)),
-    "metal-node": ((0.46, 0.31, 0.23), (0.62, 0.5, 0.44)),
-    "sulphur-node": ((0.72, 0.68, 0.5), (0.86, 0.83, 0.68)),
-    "high-grade-node": ((0.3, 0.31, 0.34), (0.5, 0.51, 0.54)),
+    # rock tint, fresh-break tint (paler and greyer: unweathered rock)
+    "stone-node": ((0.58, 0.56, 0.53), (0.86, 0.85, 0.82)),
+    "metal-node": ((0.46, 0.31, 0.23), (0.74, 0.66, 0.6)),
+    "sulphur-node": ((0.72, 0.68, 0.5), (0.9, 0.88, 0.74)),
+    "high-grade-node": ((0.3, 0.31, 0.34), (0.62, 0.63, 0.66)),
 }
 
 # Where each stage breaks: (point, normal); everything on the normal's side goes.
@@ -86,32 +86,60 @@ def mineral_tint(kind, base):
     return fn
 
 
-def cut(bm, point, normal, fresh_tint=None):
-    """Removes what lies on the normal's side of the plane and caps the break with a rough, pale fracture."""
+def cut(bm, point, normal, spacing=0.07):
+    """Removes what lies on the normal's side of the plane and caps the break with a rough fracture surface: the rim
+    and a jittered grid of points inside it, Delaunay-triangulated, displaced by noise. Returns the cap's vertices
+    (for the pale, fresh colour)."""
     point, normal = Vector(point), Vector(normal).normalized()
     geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
     res = bmesh.ops.bisect_plane(bm, geom=geom, plane_co=point, plane_no=normal, clear_outer=True)
-    edges = [e for e in res["geom_cut"] if isinstance(e, bmesh.types.BMEdge)]
-    if not edges:
+    rim_edges = [e for e in bm.edges if e.is_boundary]
+    if not rim_edges:
         return []
-    filled = bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=0)["faces"]
-    cap = list(filled)
-    rings = set()
-    for _ in range(3):
-        if not cap:
-            break
-        res = bmesh.ops.inset_region(bm, faces=cap, thickness=0.06, depth=0.0)
-        rings |= {v for f in res["faces"] for v in f.verts}
-    cap_verts = {v for f in cap for v in f.verts} | rings
-    poked = bmesh.ops.poke(bm, faces=cap)
-    cap_verts |= set(poked["verts"])
-    # Roughen the break: interior vertices of the cap only.
-    rim = {v for e in bm.edges if e.is_boundary for v in e.verts}
-    for v in cap_verts:
-        if v in rim:
+    u = normal.orthogonal().normalized()
+    w = normal.cross(u)
+    rim_verts = list({v for e in rim_edges for v in e.verts})
+    index = {v: i for i, v in enumerate(rim_verts)}
+    coords = [((v.co - point).dot(u), (v.co - point).dot(w)) for v in rim_verts]
+    lo_u, hi_u = min(c[0] for c in coords), max(c[0] for c in coords)
+    lo_w, hi_w = min(c[1] for c in coords), max(c[1] for c in coords)
+    rng = random.Random(int((lo_u + hi_w) * 1000))
+    inner = []
+    y = lo_w + spacing / 2
+    while y < hi_w:
+        x = lo_u + spacing / 2
+        while x < hi_u:
+            inner.append((x + rng.uniform(-0.3, 0.3) * spacing, y + rng.uniform(-0.3, 0.3) * spacing))
+            x += spacing
+        y += spacing
+    points = coords + inner
+    edges = [(index[e.verts[0]], index[e.verts[1]]) for e in rim_edges]
+    out_verts, _, out_faces, orig_verts, _, _ = geometry.delaunay_2d_cdt(
+        [Vector(p) for p in points], edges, [], 2, 1e-6)
+    made = []
+    for i, p2 in enumerate(out_verts):
+        original = orig_verts[i]
+        if original and original[0] < len(rim_verts):
+            made.append(rim_verts[original[0]])
+        else:
+            q = point + u * p2[0] + w * p2[1]
+            n = noise.fractal(q * 4.5 + Vector((1.3, 2.9, 0.7)), 0.6, 2.0, 4, noise_basis="PERLIN_ORIGINAL")
+            made.append(bm.verts.new(q + normal * 0.07 * n))
+    cap = []
+    for f in out_faces:
+        vs = [made[i] for i in f]
+        if len(set(vs)) < 3:
             continue
-        v.co += normal * 0.04 * noise.noise(v.co * 6.0, noise_basis="PERLIN_ORIGINAL")
-    return list(cap_verts)
+        try:
+            cap.append(bm.faces.new(vs))
+        except ValueError:
+            pass
+    bm.normal_update()
+    # Face the cap outward (along the plane normal).
+    for f in cap:
+        if f.normal.dot(normal) < 0:
+            f.normal_flip()
+    return list({v for f in cap for v in f.verts})
 
 
 def outcrop(kind, stage, seed=200):
@@ -124,6 +152,7 @@ def outcrop(kind, stage, seed=200):
               ((0.55, 0.42, 0.22), (0.75, 0.7, 0.55), (6, 0, 40))]
     tint = mineral_tint(kind, base)
     rocks = []
+    broken = set()
     for i, (at, size, rot) in enumerate(layout):
         bm = boulder_mesh(rng, size, seed + i * 7.3)
         frame = Matrix.LocRotScale(Vector(at), Matrix.Rotation(math.radians(rot[2]), 3, "Z").to_quaternion()
@@ -142,17 +171,19 @@ def outcrop(kind, stage, seed=200):
         def colour(co, t, fresh_cos=fresh_cos):
             c = tint(co, t)
             if co.copy().freeze() in fresh_cos:
-                return [x * 0.4 + y * 0.6 for x, y in zip(c, fresh)]
+                return [x * 0.2 + y * 0.8 for x, y in zip(c, fresh)]
             return c
 
         rocks.append(m.add(bm, material=ROCK, tint=base, metres=1.1, sharp=38, tint_fn=colour, vary=0.0))
+        broken |= fresh_cos
     # Minerals on the surviving surface.
     pieces = []
     surface = []
     for o in rocks:
         me = o.data
         for v in me.vertices:
-            if v.co.z > 0.12 and v.normal.z > -0.2:
+            # Minerals show on the weathered surface, not on a fresh break.
+            if v.co.z > 0.12 and v.normal.z > -0.2 and v.co.copy().freeze() not in broken:
                 surface.append((v.co.copy(), v.normal.copy()))
     rng2 = random.Random(seed * 3 + len(kind))
     rng2.shuffle(surface)
