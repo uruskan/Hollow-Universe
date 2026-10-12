@@ -521,7 +521,7 @@ Every item key and world object has a model, an icon if it's an item, and a line
 rebuilt by scripts:
 
 ```bash
-blender -b --factory-startup --python art/build.py                 # every model (half a minute; two with the textures)
+blender -b --factory-startup --python art/build.py                 # every model (30 s; 2 min converting the textures)
 blender -b --factory-startup --python art/build.py -- tools        # one script (names below)
 $GODOT --path game -- --view icons --out game/assets/items/icons   # every icon (a real window; --only a,b for some)
 $GODOT --path game --resolution 1600x900 -- --view icons --shot icons.png       # the contact sheet
