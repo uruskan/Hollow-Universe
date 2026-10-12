@@ -455,7 +455,9 @@ The first outfit: knit cap, woven shirt, woven trousers, laced boots, riveted br
   step with Godot's cyclic sync; each loop is stretched so its feet keep up with the ground at its speed;
 - a fall pose blended in while airborne, a take-off and a landing played as one-shots;
 - held-item layers: the right arm (tool, pistol, rifle) and the left arm with the chest (pistol, rifle);
-- one-shot upper-body actions (tool swing, punch, throw, pistol fire and reload) and flinches.
+- one-shot upper-body actions and flinches: hatchets, picks, hammers and torches chop (UAL2's tree-chopping loop,
+  started at its wind-up a little faster than the clip and faded out after the follow-through, so the blow lands at
+  about the item's strike time), blades slash, the rock comes down overhand; punch, pistol fire and reload.
 
 The clips only run forward; `CharacterPoser`, a `SkeletonModifier3D`, turns the hips towards the direction of travel
 and the chest back to the aim (running backwards plays the loop in reverse), spreads the view pitch over spine, neck and
@@ -471,8 +473,11 @@ handle: each joint bends just enough for the next to lie on a circle round the h
 passing through. The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
 near plane), with its own relief: a normal map made from the skin texture, fine wrinkles over the finger joints and a
 glossy plate for each nail (`art/characters/skin_maps.py`). The item moves procedurally: sway, walk bob, sprint
-pose, swing arc, recoil kick on a spring, aiming down the sights (the sight on the camera's centre line), reload (item
-tilts, the magazine drops out and back, the left hand follows it). Unarmed shows no arms, as in Rust.
+pose, recoil kick on a spring, aiming down the sights (the sight on the camera's centre line). Swings and reloads are
+key poses (`ViewmodelMotion`): a swing turns about the hand, up and back for the wind-up, a beat at the top, then down
+and across fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and
+recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
+works the slide or the charging handle (another jolt) and returns. Unarmed shows no arms, as in Rust.
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
@@ -506,9 +511,8 @@ revive, switch to first person, and measure a crowd. Screenshots in `docs/images
 
 **Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so they don't swing or
 drape as the body moves, and their wrinkles are painted, not simulated; the back plate is plainer than the front; the
-face has no expression or eye movement; hair is MakeHuman's short cut only; the
-third-person swing is a sword clip; first-person reload and swing are procedural curves, not authored animation; the
-female body is not built yet.
+face has no expression or eye movement; hair is MakeHuman's short cut only; first-person reloads move the hand but not
+the magazine (the catalogue's guns are one mesh); the female body is not built yet.
 
 ---
 

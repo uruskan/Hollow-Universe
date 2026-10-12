@@ -44,6 +44,15 @@ public static class CharacterAnimator
 
     public static readonly (string Clip, float Speed)[] SwimPoints = { ("swim_idle", 0f), ("swim", 2.0f) };
 
+    /// <summary>Where one chop starts in the chopping loop (its wind-up), seconds into the clip.</summary>
+    public const float ChopWindUp = 0.6f;
+
+    /// <summary>How much faster than the clip a chop plays.</summary>
+    public const float ChopRate = 1.3f;
+
+    /// <summary>When the chop fades out, seconds after it starts (after the follow-through).</summary>
+    public const float ChopFadeAt = 0.42f;
+
     /// <summary>Clips for one-off actions, by name in the action transition.</summary>
     public static readonly string[] ActionClips = { "tool_swing", "chop", "punch_jab", "pistol_fire", "pistol_reload", "throw" };
 
@@ -114,7 +123,17 @@ public static class CharacterAnimator
         var actionClip = new AnimationNodeTransition { XfadeTime = 0f };
         t.AddNode("action_clip", actionClip, new Vector2(1450, 300));
         AddInputs(t, "action_clip", actionClip, Array.ConvertAll(ActionClips, c => (c, c)));
-        var action = new AnimationNodeOneShot { FadeInTime = 0.08f, FadeOutTime = 0.22f, FilterEnabled = true };
+        // The chop is a loop that starts mid-swing: it starts at its wind-up, a little faster than the clip, and the
+        // character fades it out after the follow-through (CharacterView, ChopFadeAt).
+        if (t.GetNode("action_clip_chop") is AnimationNodeAnimation chop && CharacterAssets.Clips.TryGetValue("chop", out ClipInfo? info))
+        {
+            chop.UseCustomTimeline = true;
+            chop.StartOffset = ChopWindUp;
+            chop.TimelineLength = info.Length / ChopRate;
+            chop.StretchTimeScale = true;
+            chop.LoopMode = Animation.LoopModeEnum.Linear;
+        }
+        var action = new AnimationNodeOneShot { FadeInTime = 0.08f, FadeOutTime = 0.22f, FilterEnabled = true, BreakLoopAtEnd = true };
         Filter(action, UpperBody);
         t.AddNode("action", action, new Vector2(1650, 150));
         t.ConnectNode("action", 0, "hold_l");

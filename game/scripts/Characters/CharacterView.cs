@@ -44,6 +44,7 @@ public partial class CharacterView : Node3D
     private float _recoil;
     private float _hold = 1f;
     private float _reload = -1f;
+    private float _actionFade = -1f;
 
     // Held item.
     private BoneAttachment3D _handR = null!, _handL = null!;
@@ -195,7 +196,8 @@ public partial class CharacterView : Node3D
                 PlayAction(_held switch
                 {
                     HeldKind.Tool when _itemModel?.LeftHanded == true => "",
-                    HeldKind.Tool => _itemModel?.Id == "rock" ? "throw" : "tool_swing",
+                    // Hatchets, picks, hammers and torches chop; blades slash; the rock is brought down overhand.
+                    HeldKind.Tool => _itemModel?.Id == "rock" ? "throw" : _itemModel?.Class == "blade" ? "tool_swing" : "chop",
                     HeldKind.Unarmed => "punch_jab",
                     _ => "",
                 });
@@ -243,6 +245,8 @@ public partial class CharacterView : Node3D
         }
         _tree.Set(CharacterAnimator.ActionClip, clip);
         _tree.Set(CharacterAnimator.Action, (int)AnimationNodeOneShot.OneShotRequest.Fire);
+        // The chop is cut from a loop: it ends after its follow-through.
+        _actionFade = clip == "chop" ? CharacterAnimator.ChopFadeAt : -1f;
     }
 
     private void Die(Vector3 direction)
@@ -485,6 +489,14 @@ public partial class CharacterView : Node3D
         _tree.Set(CharacterAnimator.HoldLeft, _holdL);
 
         _recoil = Math.Max(0f, _recoil - dt * 7f);
+        if (_actionFade >= 0f)
+        {
+            _actionFade -= dt;
+            if (_actionFade < 0f)
+            {
+                _tree.Set(CharacterAnimator.Action, (int)AnimationNodeOneShot.OneShotRequest.FadeOut);
+            }
+        }
         if (_reload >= 0f)
         {
             _reload += dt / 2.2f;

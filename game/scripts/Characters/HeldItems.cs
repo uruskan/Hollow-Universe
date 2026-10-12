@@ -30,6 +30,11 @@ public sealed class HeldItemModel
     /// socket_eye at the camera.</summary>
     public float EyeRelief { get; init; }
 
+    /// <summary>How long a swing takes, and when in it the blow lands (seconds; items.json, melee).</summary>
+    public float SwingTime { get; init; } = 0.85f;
+
+    public float StrikeTime { get; init; } = 0.3f;
+
     /// <summary>Swung like a hatchet: held by a handle at the hip, head forward (tools and blades).</summary>
     public bool Swung => Kind == HeldKind.Tool && Class is "tool" or "blade" && Id != "building-plan" && !LeftHanded;
 }
@@ -117,7 +122,7 @@ public static class HeldItems
         }
         _all = new List<HeldItemModel>();
         _byId = new Dictionary<string, HeldItemModel>(StringComparer.Ordinal);
-        Dictionary<string, string> names = ItemNames();
+        Dictionary<string, (string Name, float Swing, float Strike)> items = ItemData();
         foreach (ModelEntry entry in ModelCatalog.Entries)
         {
             if (!entry.IsItem || entry.Held == null)
@@ -127,7 +132,9 @@ public static class HeldItems
             var model = new HeldItemModel
             {
                 Id = entry.Key,
-                Name = names.TryGetValue(entry.Key, out string? name) ? name : NameFromKey(entry.Key),
+                Name = items.TryGetValue(entry.Key, out var data) ? data.Name : NameFromKey(entry.Key),
+                SwingTime = data.Swing > 0f ? data.Swing : 0.85f,
+                StrikeTime = data.Strike > 0f ? data.Strike : 0.3f,
                 Kind = entry.Class == "gun" ? (entry.Key == "pistol" ? HeldKind.Pistol : HeldKind.Rifle) : HeldKind.Tool,
                 Class = entry.Class,
                 Entry = entry,
@@ -140,24 +147,31 @@ public static class HeldItems
         }
     }
 
-    /// <summary>Item names by key from items.json (read once).</summary>
-    private static Dictionary<string, string> ItemNames()
+    /// <summary>Each item's name and melee timing by key, from items.json (read once).</summary>
+    private static Dictionary<string, (string Name, float Swing, float Strike)> ItemData()
     {
-        var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        var items = new Dictionary<string, (string, float, float)>(StringComparer.Ordinal);
         const string path = "res://data/ground/items.json";
         if (!FileAccess.FileExists(path))
         {
-            return names;
+            return items;
         }
         using JsonDocument doc = JsonDocument.Parse(FileAccess.GetFileAsString(path));
         foreach (JsonElement item in doc.RootElement.GetProperty("items").EnumerateArray())
         {
-            if (item.TryGetProperty("key", out JsonElement key) && item.TryGetProperty("name", out JsonElement name))
+            if (!item.TryGetProperty("key", out JsonElement key) || !item.TryGetProperty("name", out JsonElement name))
             {
-                names[key.GetString()!] = name.GetString()!;
+                continue;
             }
+            float swing = 0f, strike = 0f;
+            if (item.TryGetProperty("melee", out JsonElement melee))
+            {
+                swing = melee.TryGetProperty("swing", out JsonElement sw) ? sw.GetSingle() : 0f;
+                strike = melee.TryGetProperty("strike", out JsonElement st) ? st.GetSingle() : 0f;
+            }
+            items[key.GetString()!] = (name.GetString()!, swing, strike);
         }
-        return names;
+        return items;
     }
 
     private static string NameFromKey(string key)
