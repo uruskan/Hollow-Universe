@@ -21,7 +21,9 @@ Every rule is marked **Decided** (the owner said so), **Proposal** (waiting for 
 | First world | A real planet from the generator: Nolcas Peris CQ-SLY 7-0 B 3 (§3). | Decided |
 | It must look good | The surface (terrain, plants, water, sky) is part of G1 and is judged by the owner on screenshots. | Decided |
 | Tech ladder | Rust's: rock, then stone tools, metal, firearms. Sci-fi only above that. | Proposal |
-| Day length | The planet's real rotation (35 h on the first world), or rotation compressed for play (for example ÷ 24: 87 minutes). | Open |
+| Starter ship | The Tin Finch (`D:\GameDev\Assets\TinFinch_TF01`, our own Blender model): a single-seat skiff, crafted at the vehicle workbench. It is the first ship of the space part. | Decided |
+| Day length | Planet rotation compressed 24 times for play: an Earth day becomes an hour, and the first world's day 87 minutes. Orbits and seasons stay real. Chosen by Claude while the owner is away; the owner may veto it. | Proposal |
+| Who runs the work | Claude, on its own, until the whole thing is finished and polished; the owner is busy elsewhere and isn't asked to playtest in between. Progress is logged in `docs/progress-ground.md`. | Decided |
 | Character | Our own character system. Base body and motion data from free sources (MakeHuman CC0, CMU motion capture, Quaternius CC0) if the owner allows the downloads. | Open |
 
 ---
@@ -183,8 +185,9 @@ Each step is multiplayer and playable. The owner playtests at the end of each on
 | **G3 Build** | Foundations, walls, doorways, windows, floors, stairs and roofs, in five grades. Upgrade, rotate, demolish. Stability and collapse. Doors with key and code locks. The claim device: build rights, upkeep, decay. | A base survives a server restart. A big base streams in without a hitch. |
 | **G4 Fight** | Guns with drop, recoil (the AK pattern), aiming down sights, attachments and ammo types. Damage by body part, armour, wounded state. | A fight between two players at a simulated 150 ms ping feels fair to both. |
 | **G5 Raid** | Explosives, damage by grade and weak side, raid alerts, offline raids. | A base can be raided while its owner is offline, and the owner is alerted. |
-| **G6 World** | Animals, monuments with loot, guards and radiation, barrels, a recycler, a currency and a tech tree, teams, the map. | |
-| **G7 More worlds** | The same game on any landable body; several zones per planet that merge and split (ARCHITECTURE.md §10.1). | |
+| **G6 Ship** | The vehicle workbench crafts the Tin Finch. Board it through its hatch; first-person cockpit; take off, fly and land anywhere on the first world, and climb to orbit. Other players see it fly. | Two players can fly one to the other side of the planet and land beside a base. |
+| **G7 World** | Animals, monuments with loot, guards and radiation, barrels, a recycler, a currency and a tech tree, teams, the map. | |
+| **G8 More worlds** | The same game on any landable body; several zones per planet that merge and split (ARCHITECTURE.md §10.1). The ship reaches the moon and the other planets (supercruise, M5). | |
 
 Later: electricity and turrets, farming, traps, miners (our own feature), ground vehicles. Ships (M5) cover what
 Rust's helicopters do.
@@ -308,9 +311,11 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
 
 ## 11. Open questions
 
-1. **Day length:** keep each planet's real rotation (the first world's day is 35 hours), or compress rotation for play
-   (÷ 24 makes it 87 minutes)? Orbits and seasons would stay real either way.
-2. **Downloads for the character:** MakeHuman for Blender (CC0 human assets), the CMU motion-capture library (free for
-   use in commercial games), Quaternius's CC0 animation library. Exact files and sizes will be listed before any
-   download.
-3. **Tech ladder:** confirm Rust's.
+1. **Day length:** compressed ×24 is the working default (§1). The owner may switch it back to real rotation.
+2. **Downloads for the character:** asked on 12 October 2026:
+   - Quaternius Universal Animation Library (CC0, about 13 MB);
+   - Quaternius Universal Animation Library 2 (CC0, about 10 MB);
+   - MPFB 2.0.17, MakeHuman for Blender (42.9 MB).
+
+   Without them, the character is built from scratch in Blender.
+3. **Tech ladder:** Rust's is assumed.
