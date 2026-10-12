@@ -79,7 +79,7 @@ public static class Program
                 $"REPORT {all.Sum(c => c.Stats.Reconciliations)} {all.Sum(c => c.Stats.PredictionErrorTotal):R} " +
                 $"{all.Max(c => c.Stats.PredictionErrorWorst):R} {all.Sum(c => c.Stats.Corrections)} {all.Average(c => c.Stats.RoundTripMs):R} " +
                 $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
-                $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights}"));
+                $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights} {all.Sum(c => c.Stats.Teleports)}"));
             return 0;
         }
         while (!stop && elapsed < duration)
@@ -211,7 +211,8 @@ public static class Program
         if (r.Length > 13)
         {
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"Survival (whole run): {measured.Counters}; bots started {F(11):0} crafts, {F(12):0} pickups and {F(13):0} fights\n" +
+                $"Survival (whole run): {measured.Counters}; bots started {F(11):0} crafts, {F(12):0} pickups and {F(13):0} fights; " +
+                $"{(r.Length > 14 ? F(14) : 0):0} teleports (respawns, not counted as prediction errors)\n" +
                 $"Intents: {measured.Intents} accepted, {measured.Refused} refused ({measured.Limited} over budget); " +
                 $"{measured.Things} things in the world, {measured.Props} solid props in the physics"));
         }

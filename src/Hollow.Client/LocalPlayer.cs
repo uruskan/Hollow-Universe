@@ -98,8 +98,8 @@ public sealed class LocalPlayer
         Content = content;
     }
 
-    /// <summary>Sends a message on the reliable channel (set by the client).</summary>
-    internal Action<Action<BitWriter>>? Send { get; set; }
+    /// <summary>Sends a message on the reliable channel (set by the client); false when not connected and playing.</summary>
+    internal Func<Action<BitWriter>, bool>? Send { get; set; }
 
     public GameContent Content { get; }
 
@@ -181,6 +181,8 @@ public sealed class LocalPlayer
     public event Action? Respawned;
 
     // ---------------------------------------------------------------- intents
+
+    // Every intent returns its sequence number (0 if it couldn't be sent): IntentAnswered and IntentRejected name it.
 
     /// <summary>Drags <paramref name="amount"/> (0: all) from one slot to another: move, split, top up or swap.</summary>
     public uint MoveItem(ContainerRef from, int fromSlot, ContainerRef to, int toSlot, int amount = 0)
@@ -290,10 +292,15 @@ public sealed class LocalPlayer
 
     private ushort ItemAt(ContainerRef which, int slot) => Resolve(which) is { } c && c.InRange(slot) ? c[slot].Item : (ushort)0;
 
+    // Sends an intent and shows its effect at once; returns its sequence number, or 0 when it couldn't be sent (not
+    // playing yet, or disconnected).
     private uint Intend(Pending? pending, Action<BitWriter> write)
     {
         uint seq = _nextSeq;
-        Send?.Invoke(write);
+        if (Send?.Invoke(write) != true)
+        {
+            return 0;
+        }
         if (pending != null)
         {
             pending.Seq = seq;

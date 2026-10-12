@@ -71,15 +71,16 @@ public sealed partial class GameClient
     /// <summary>Raised when a character's look (clothing) changes or arrives.</summary>
     public event Action<RemoteEntity>? LookChanged;
 
-    private void SendReliable(Action<BitWriter> write)
+    private bool SendReliable(Action<BitWriter> write)
     {
         if (_peer == null || State != ClientState.Playing)
         {
-            return;
+            return false;
         }
         _writer.Reset();
         write(_writer);
         _peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+        return true;
     }
 
     // How far behind this input's tick the player sees others: the input's tick against the remote render tick.

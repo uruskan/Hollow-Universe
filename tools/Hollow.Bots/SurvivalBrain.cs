@@ -153,7 +153,7 @@ public sealed class SurvivalBrain
             return;
         }
         Vector3 feet = client.Character.Position;
-        if (_rng.Chance(0.04))
+        if (_rng.Chance(0.015))
         {
             RemoteEntity? other = client.Entities
                 .Where(e => !e.Sleeping && (e.Flags & MoveFlags.Dead) == 0 && Vector3.Distance(e.Position, feet) < 30)
