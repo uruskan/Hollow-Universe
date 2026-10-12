@@ -79,3 +79,20 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   50 characters take 5.7 ms a frame. The clothing, the first-person hands and the melee swing aren't at the Rust bar
   yet, so the same agent is on a polish pass now. That pass also replaces the capsule players in the ground mode with
   real characters. 58 of 58 tests pass.
+- **G2 survival merged** (`ground-survive`):
+  - data: 43 items, 29 recipes, 13 natural kinds including the berry bushes, and 9 deployables;
+  - containers, crafting, gathering with the weak spot, vitals, corpses, sleepers, and melee and bow with lag
+    compensation;
+  - SQLite schema 2.
+
+  With 100 survival bots the tick is 5.9 ms on average and each client uses 105 kbit/s.
+- **The first world's surface merged** (`ground-planet`), with the landing site at 44.87° N, 170.00° W:
+  - terrain out to the horizon, thick-air sky, the real sun and moon, stars, clouds and sea;
+  - plants generated in code in hollow-orbit's style, including the berry bushes;
+  - GPU shader grass.
+
+  A frame takes 11 ms at the landing site. Screenshots: `docs/images/ground/a_landing_morning.jpg` to `g_2km.jpg`.
+  A polish pass is running on the forest floor, bark, firs, night, coast and the view from altitude.
+- **Integration started** (`ground-integrate`): the real planet on the server and client, natural objects from the
+  planet's scatter (felling trees, picking berries, ore outcrops), the real UI bound to the client, real characters
+  instead of capsules, a main menu, and a `play-ground.cmd` launcher. 79 of 79 tests pass on `ground`.
