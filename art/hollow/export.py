@@ -203,8 +203,11 @@ def convex_hull(objects, name, target, max_faces=96):
             bm.verts.new(m @ v.co)
     bm.verts.ensure_lookup_table()
     result = bmesh.ops.convex_hull(bm, input=bm.verts, use_existing_faces=False)
-    loose = {g for g in result["geom_interior"] + result["geom_unused"] if isinstance(g, bmesh.types.BMVert)}
-    bmesh.ops.delete(bm, geom=list(loose), context="VERTS")
+    bm.verts.index_update()
+    # Sorted, not a set's order (that follows memory addresses), so every build writes the same file.
+    loose = sorted({g for g in result["geom_interior"] + result["geom_unused"] if isinstance(g, bmesh.types.BMVert)},
+                   key=lambda v: v.index)
+    bmesh.ops.delete(bm, geom=loose, context="VERTS")
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -219,7 +222,9 @@ def convex_hull(objects, name, target, max_faces=96):
         bm = bmesh.new()
         bm.from_mesh(me)
         res = bmesh.ops.convex_hull(bm, input=bm.verts, use_existing_faces=False)
-        bmesh.ops.delete(bm, geom=[g for g in res["geom_interior"] if isinstance(g, bmesh.types.BMVert)], context="VERTS")
+        bm.verts.index_update()
+        bmesh.ops.delete(bm, geom=sorted((g for g in res["geom_interior"] if isinstance(g, bmesh.types.BMVert)),
+                                         key=lambda v: v.index), context="VERTS")
         bm.to_mesh(me)
         bm.free()
     me.materials.clear()

@@ -145,9 +145,11 @@ Client options (after `--`):
   move, drop, craft) and quits with exit code 0 when every check passes.
 - Models (GROUND.md §9.1): `--view models` stands every catalogue model on the ground (`--lineup items|world`,
   `--pitch <deg>`); `--model <key>` shows one on a turntable (`--stage <n>`, `--lod <n>`, `--yaw <deg>` holds it at an
-  angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--first-person` shows a held item at its first-person pose; keys Tab, ←/→, ↑/↓, 0/1/2, A, Space, F, H).
+  angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--attach a,b`
+  mounts attachments on a gun, `--upright` shows a held item as held, `--first-person` shows a held item at its
+  first-person pose; keys Tab, ←/→, ↑/↓, 0/1/2, A, Space, F, H).
   `--view icons --out <dir>` renders every item icon at 128 and 256 px (`--only a,b` for some) and then shows the
-  contact sheet, which `--view icons` alone shows too. `--placeholder-icons` keeps the interface's vector drawings.
+  contact sheet, which `--view icons` alone shows too (`--only` limits it). `--placeholder-icons` keeps the interface's vector drawings.
 
 ## Layout
 

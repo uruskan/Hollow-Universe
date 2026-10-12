@@ -91,6 +91,45 @@ class Conversion:
         return export_glb(path, self.objects(), materials, animations)
 
 
+def surface_point(objects, origin, direction):
+    """Where a ray from `origin` along `direction` first meets `objects` (world space), or None. Used to put mount
+    sockets on the real surface of a converted model (the top of a rail, the underside of a handguard)."""
+    from mathutils.bvhtree import BVHTree
+    bpy.context.view_layer.update()
+    verts, polys = [], []
+    for o in objects:
+        m = o.matrix_world
+        base = len(verts)
+        verts += [m @ v.co for v in o.data.vertices]
+        polys += [[base + i for i in p.vertices] for p in o.data.polygons]
+    tree = BVHTree.FromPolygons(verts, polys, epsilon=0.0)
+    hit, _, _, _ = tree.ray_cast(Vector(origin), Vector(direction).normalized(), 10.0)
+    return hit
+
+
+def mount_sockets(conv, rail_x, under_x, rail_part=None):
+    """Attachment sockets on a converted gun (after finish): `rail` on top at rail_x, `under` below at under_x, both
+    on the surface of the LOD0 meshes, +X along the barrel. `rail_part` (a moving part such as the pistol's slide)
+    carries the rail socket with it."""
+    lod0 = [r["lods"][0] for r in conv.parts.values()]
+    found = {}
+    for name, x, z, dz in (("rail", rail_x, 1.0, -1.0), ("under", under_x, -1.0, 1.0)):
+        hit = surface_point(lod0, (x, 0.0, z), (0.0, 0.0, dz))
+        if hit is None:
+            raise RuntimeError(f"{conv.key}: no surface for socket_{name} at x={x}")
+        e = bpy.data.objects.new(f"socket_{name}", None)
+        e.empty_display_size = 0.03
+        conv.out.objects.link(e)
+        e.location = hit
+        if name == "rail" and rail_part:
+            parent = next(x for x in conv.extra if x.name == rail_part)
+            e.parent = parent
+            e.matrix_parent_inverse = parent.matrix_world.inverted()
+        conv.sockets.append(e)
+        found[name] = tuple(round(c, 4) for c in hit)
+    log(f"{conv.key}: mount sockets {found}")
+
+
 def world_bounds(objects):
     pts = [o.matrix_world @ Vector(c) for o in objects for c in o.bound_box]
     lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))

@@ -151,6 +151,44 @@ def small_box(seed=105):
     m.export(hulls=[((0, 0, (h + 0.06) / 2), (w + 0.03, d + 0.03, h + 0.06), (0, 0, 0))])
 
 
+def bed(seed=121):
+    """A rough wooden frame bed: posts, rails, a plank head and foot, a stuffed mattress, a wool blanket turned down at
+    the head, a pillow. 2.1 m long, head toward +Y (away from the front)."""
+    m = Model("bed", WORLD, seed=seed)
+    half_w, half_l = 0.5, 1.03
+    post = (0.07, 0.07)
+    for x in (-half_w, half_w):
+        for y, h in ((-half_l, 0.56), (half_l, 0.86)):
+            m.box((post[0], post[1], h), (x, y, h / 2), bevel=0.006, tile=TIMBER, tint=(0.7, 0.6, 0.5), metres=1.0, vary=0.05)
+            m.box((0.085, 0.085, 0.02), (x, y, h + 0.01), bevel=0.004, tile=TIMBER, tint=(0.6, 0.5, 0.42), metres=0.2)
+        m.box((0.055, 2 * half_l, 0.13), (x, 0, 0.27), bevel=0.006, tile=TIMBER, tint=(0.78, 0.68, 0.56), metres=1.6, vary=0.05)
+        for y in (-half_l + 0.06, half_l - 0.06):
+            m.box((0.06, 0.12, 0.018), (x * 1.005, y, 0.27), bevel=0.002, tile=RUST, tint=(0.75, 0.72, 0.7), metres=0.15)
+    for z in (0.5, 0.62, 0.74):
+        plank(m, (2 * half_w - 0.06, 0.035, 0.1), (0, half_l, z), tint=(0.8, 0.7, 0.58))
+    for z in (0.36, 0.47):
+        plank(m, (2 * half_w - 0.06, 0.035, 0.09), (0, -half_l, z), tint=(0.8, 0.7, 0.58))
+    for k in range(7):
+        plank(m, (2 * half_w - 0.04, 0.09, 0.02), (0, -half_l + 0.15 + k * 0.29, 0.335), tint=(0.85, 0.76, 0.62))
+    # Mattress, blanket, pillow.
+    m.box((2 * half_w - 0.06, 2 * half_l - 0.08, 0.15), (0, 0, 0.42), bevel=0.045, segments=3, tile=CANVAS,
+          tint=(0.86, 0.83, 0.74), metres=0.9, vary=0.06)
+    wool = (0.42, 0.5, 0.56)
+    top_end = 0.36
+    length = top_end + half_l - 0.02
+    centre = (top_end - half_l + 0.02) / 2
+    m.box((2 * half_w - 0.02, length, 0.024), (0, centre, 0.5), bevel=0.01, segments=2, tile=CANVAS, tint=wool, metres=0.9, vary=0.1)
+    for x in (-half_w + 0.012, half_w - 0.012):
+        m.box((0.024, length, 0.15), (x, centre, 0.43), bevel=0.01, segments=2, tile=CANVAS, tint=wool, metres=0.9, vary=0.1)
+    m.box((2 * half_w - 0.02, 0.024, 0.13), (0, -half_l + 0.02, 0.44), bevel=0.01, segments=2, tile=CANVAS, tint=wool, metres=0.9)
+    m.cylinder(0.03, 2 * half_w - 0.04, (0, top_end, 0.515), (0, 90, 0), sides=16, tile=CANVAS, tint=(0.36, 0.43, 0.49), metres=0.5)
+    m.blob((0.6, 0.34, 0.13), (0, half_l - 0.27, 0.55), subdivisions=3, rough=0.03, freq=2.5, tile=CANVAS,
+           tint=(0.88, 0.86, 0.8), metres=0.4, vary=0.05)
+    m.socket("sleep", (0, 0.2, 0.55))
+    m.socket("use", (0, -1.5, 0.6))
+    m.export(hulls=[((0, 0, 0.3), (2 * half_w + 0.08, 2 * half_l + 0.08, 0.6), (0, 0, 0))])
+
+
 def ladder(seed=107):
     m = Model("ladder", WORLD, seed=seed)
     height, half = 3.2, 0.24
@@ -316,7 +354,7 @@ def dropped_bag(seed=119):
 
 QUILT_TILE = 9
 
-ALL = {"campfire": campfire, "furnace": furnace, "small-box": small_box, "ladder": ladder, "wooden-door": wooden_door,
+ALL = {"campfire": campfire, "furnace": furnace, "small-box": small_box, "bed": bed, "ladder": ladder, "wooden-door": wooden_door,
        "armoured-door": armoured_door, "double-door": double_door, "garage-door": garage_door, "loot-sack": loot_sack,
        "dropped-bag": dropped_bag}
 
