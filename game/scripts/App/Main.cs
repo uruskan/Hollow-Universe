@@ -8,6 +8,7 @@ using Hollow.Galaxy.Systems;
 using HollowUniverse.GalaxyMap;
 using HollowUniverse.Ground;
 using HollowUniverse.Surface;
+using HollowUniverse.Items;
 using HollowUniverse.SystemMap;
 using HollowUniverse.UI.Viewer;
 
@@ -30,6 +31,8 @@ public partial class Main : Node
     private UiScaler _scaler = null!;
     private GroundMode? _ground;
     private UiViewer? _ui;
+    private IconRenderer? _icons;
+    private ModelViewer? _models;
 
     public override void _Ready()
     {
@@ -46,6 +49,25 @@ public partial class Main : Node
             _scaler.Override = (float)Number("ui-scale", 1);
         }
         AddChild(_scaler);
+        // Item icons rendered from the models (GROUND.md §9); --placeholder-icons keeps the vector drawings.
+        if (!_options.ContainsKey("placeholder-icons"))
+        {
+            CatalogItemIcons.Install();
+        }
+        if (Option("view", "galaxy") == "icons")
+        {
+            // Renders the item icons (--out <dir>) and shows them all on one sheet (GROUND.md §9).
+            _icons = new IconRenderer { Name = "Icons", Options = _options };
+            AddChild(_icons);
+            return;
+        }
+        if (Option("view", "galaxy") == "models")
+        {
+            // Every catalogue model on the ground, or one on a turntable (GROUND.md §9).
+            _models = new ModelViewer { Name = "Models", Options = _options };
+            AddChild(_models);
+            return;
+        }
         if (Option("view", "galaxy") == "ui")
         {
             // The ground game's interface on sample data (GROUND.md §8): --screen hud|inventory|crafting|...
@@ -214,7 +236,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        if (_options.ContainsKey("trace") && _ground == null && _ui == null)
+        if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -243,6 +265,7 @@ public partial class Main : Node
         }
         double wait = Number("wait", 2);
         bool ready = _ui != null ? _ui.ReadyForShot : _ground != null ? _ground.ReadyForShot
+            : _icons != null ? _icons.ReadyForShot : _models != null ? _models.ReadyForShot
             : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady
             : _surfaceView.Visible ? _surfaceView.IsReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))

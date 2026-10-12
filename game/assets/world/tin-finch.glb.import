@@ -1,0 +1,68 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://djjy13tii1q4"
+path="res://.godot/imported/tin-finch.glb-822ee91c10e6a1f6aa3787bb9b5076bb.scn"
+
+[deps]
+
+source_file="res://assets/world/tin-finch.glb"
+dest_files=["res://.godot/imported/tin-finch.glb-822ee91c10e6a1f6aa3787bb9b5076bb.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=false
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"M_TinFinch_Glass": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/tin_finch_glass.tres",
+"use_external/path": "res://assets/materials/tin_finch_glass.tres"
+},
+"M_TinFinch_Lamps": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/tin_finch_lamps.tres",
+"use_external/path": "res://assets/materials/tin_finch_lamps.tres"
+},
+"M_TinFinch_Markings": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/tin_finch_markings.tres",
+"use_external/path": "res://assets/materials/tin_finch_markings.tres"
+},
+"M_TinFinch_Surface": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/tin_finch_surface.tres",
+"use_external/path": "res://assets/materials/tin_finch_surface.tres"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=0
+gltf/texture_map_mode=0
