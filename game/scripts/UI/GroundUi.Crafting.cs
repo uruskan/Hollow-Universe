@@ -155,7 +155,9 @@ public partial class GroundUi
         Button("−", 798, 710, 49, 40, () => SetAmount(_amount - 1), 35);
         Button("+", 938, 710, 49, 40, () => SetAmount(_amount + 1), 35);
         Button("", 992, 710, 49, 40, () => SetAmount(MaxCraft(recipe)), 28);
-        Arrow(1016, 730);
+        // "The most": a play triangle against a bar, as in the reference.
+        _p.DrawColoredPolygon(new[] { Pt(1015, 726.5f), Pt(1023.5f, 731), Pt(1015, 735.5f) }, G.Ink);
+        Rect(1029, 721, 4, 21, G.Ink);
         Button("CRAFT", 1368, 710, 118, 40, () => Model.Craft(recipe.Key, _amount), 22, enabled: CanCraft(recipe, _amount));
     }
 

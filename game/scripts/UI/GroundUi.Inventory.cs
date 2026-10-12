@@ -56,7 +56,7 @@ public partial class GroundUi
         {
             Slot(new SlotRef(ContainerId.Main, i), main[i], 550 + i % 6 * 80, 476 + i / 6 * 80, 75, true, false, true);
         }
-        PanelArea(550, 449, 475, 428);
+        PanelArea(545, 445, 492, 435);
         IReadOnlyList<ItemStack> wear = Model.Slots(ContainerId.Wear);
         for (int i = 0; i < 7 && i < wear.Count; i++)
         {
@@ -106,7 +106,7 @@ public partial class GroundUi
         Rect(827, 194, 200, 25, G.Panel);
         Text("INFORMATION", 558, 194, 17, G.Ink, bold: true);
         Text("ACTIONS", 833, 194, 17, G.Ink, bold: true);
-        PanelArea(552, 84, 475, content + (split ? 0 : 0));
+        PanelArea(545, 80, 492, 370);
 
         var stats = new List<ItemStat>(info.Stats);
         if (stack.HasCondition)
@@ -204,7 +204,7 @@ public partial class GroundUi
             Paragraph("Items you have the resources for show here. You can't craft anything with what you carry right now.",
                 1060, y + 49, 435, 18, G.Ink);
         }
-        PanelArea(1040, y, 475, 763 - y);
+        PanelArea(1037, y - 4, 483, 767 - y);
     }
 
     private void PaintLoot(LootView loot)
@@ -283,7 +283,7 @@ public partial class GroundUi
                 bottom = y + 67 + (slots.Count + 5) / 6 * 80;
                 break;
         }
-        PanelArea(1040, y, 475, bottom - y);
+        PanelArea(1037, y - 4, 483, bottom - y + 8);
     }
 
     private static string Minutes(float seconds)
@@ -369,6 +369,7 @@ public partial class GroundUi
         {
             UpdateSplit();
         }
+        PanMap();
     }
 
     private void UpdateSplit()

@@ -60,6 +60,9 @@ public interface IGroundUi
     /// <summary>What pressing the interaction key would do now, or null.</summary>
     InteractionPrompt? Prompt { get; }
 
+    /// <summary>The wheel the held item opens with the right mouse button (the plan's, the hammer's), or null.</summary>
+    WheelKind? HeldWheel { get; }
+
     /// <summary>A wheel's sectors, in clockwise order.</summary>
     IReadOnlyList<WheelChoice> Wheel(WheelKind kind);
 

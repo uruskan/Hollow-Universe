@@ -113,33 +113,63 @@ public partial class GroundUi
     }
 
     // The map: the picture, a lettered grid, where the body lies and the bags (click a ready bag to respawn there).
+    // It is larger than its window and starts centred on the body; dragging pans it.
+    private Vector2 _mapPan;
+    private Vector2? _mapGrab;
+    private Vector2 _mapGrabPan;
+
     private void PaintDeathMap(Rect2 area, DeathInfo? death)
     {
-        _p.DrawTextureRect(DeathMap.Texture, area, false);
+        Texture2D picture = DeathMap.Texture;
+        var size = new Vector2(area.Size.X * 1.6f, area.Size.X * 1.6f * picture.GetHeight() / picture.GetWidth());
+        size.Y = Math.Max(size.Y, area.Size.Y);
+        Vector2 focus = death != null ? new Vector2(death.MapX, death.MapY) : new Vector2(0.5f, 0.5f);
+        Vector2 origin = area.GetCenter() - focus * size + _mapPan;
+        origin = new Vector2(
+            Math.Clamp(origin.X, area.End.X - size.X, area.Position.X),
+            Math.Clamp(origin.Y, area.End.Y - size.Y, area.Position.Y)).Round();
+        _mapPan = origin - (area.GetCenter() - focus * size);
+        var texture = new Vector2(picture.GetWidth(), picture.GetHeight());
+        _p.DrawTextureRectRegion(picture, area, new Rect2((area.Position - origin) / size * texture, area.Size / size * texture));
+        _hits.Add(new Hit(area, HitKind.Map));
+
+        // Grid lines and labels every 230 design pixels of the map, lettered across and numbered down.
         float cell = Ui.Px(230);
-        _o = area.Position;
-        int column = 0;
-        for (float x = 0; x < area.Size.X; x += cell, column++)
+        var line = new Color(0.1f, 0.1f, 0.1f, 0.35f);
+        int first = (int)MathF.Floor((area.Position.X - origin.X) / cell), top = (int)MathF.Floor((area.Position.Y - origin.Y) / cell);
+        for (int column = first; origin.X + column * cell < area.End.X; column++)
         {
-            int row = 0;
-            for (float y = 0; y < area.Size.Y; y += cell, row++)
+            float x = MathF.Round(origin.X + column * cell);
+            if (x > area.Position.X)
             {
-                if (x > 0)
+                _p.DrawRect(new Rect2(x, area.Position.Y, 1, area.Size.Y), line);
+            }
+            for (int row = top; origin.Y + row * cell < area.End.Y; row++)
+            {
+                float y = MathF.Round(origin.Y + row * cell);
+                if (column == first && y > area.Position.Y)
                 {
-                    _p.DrawRect(new Rect2(area.Position.X + MathF.Round(x), area.Position.Y + MathF.Round(y), 1, cell), new Color(0.1f, 0.1f, 0.1f, 0.35f));
+                    _p.DrawRect(new Rect2(area.Position.X, y, area.Size.X, 1), line);
                 }
-                if (y > 0)
+                var label = new Vector2(x + Ui.Px(14), y + Ui.Px(8));
+                if (area.Grow(-Ui.Px(4)).HasPoint(label) && area.HasPoint(label + new Vector2(Ui.Px(40), Ui.Px(22))))
                 {
-                    _p.DrawRect(new Rect2(area.Position.X + MathF.Round(x), area.Position.Y + MathF.Round(y), cell, 1), new Color(0.1f, 0.1f, 0.1f, 0.35f));
+                    _o = label;
+                    Text(((char)('A' + Math.Clamp(column, 0, 25))).ToString() + row.ToString(CultureInfo.InvariantCulture), 0, 0, 18,
+                        new Color(0.12f, 0.12f, 0.12f, 0.7f));
                 }
-                string label = ((char)('K' + column)).ToString() + (14 + row).ToString(CultureInfo.InvariantCulture);
-                Text(label, x / Ui.Scale + 14, y / Ui.Scale + 8, 18, new Color(0.12f, 0.12f, 0.12f, 0.7f));
             }
         }
-        Vector2 MapPoint(float u, float v) => area.Position + new Vector2(u * area.Size.X, v * area.Size.Y).Round();
+
+        Vector2 MapPoint(float u, float v) => (origin + new Vector2(u, v) * size).Round();
+        Rect2 inside = area.Grow(-Ui.Px(20));
         foreach (RespawnBag bag in Model.Bags)
         {
             Vector2 at = MapPoint(bag.MapX, bag.MapY);
+            if (!inside.HasPoint(at))
+            {
+                continue;
+            }
             bool ready = bag.Cooldown <= 0;
             float r = Ui.Pxf(15);
             _p.DrawCircle(at, r + Ui.Pxf(2), new Color(G.Ink, 0.9f), true, -1, true);
@@ -159,10 +189,28 @@ public partial class GroundUi
         if (death != null)
         {
             Vector2 at = MapPoint(death.MapX, death.MapY);
-            _p.DrawLine(at + new Vector2(0, Ui.Pxf(10)), at + new Vector2(0, Ui.Pxf(30)), G.Red, Ui.Pxf(3), true);
-            _p.DrawCircle(at, Ui.Pxf(16), G.Red, true, -1, true);
-            _o = at;
-            Glyph("skull", -10, -11, 20, G.Ink);
+            if (inside.HasPoint(at))
+            {
+                _p.DrawLine(at + new Vector2(0, Ui.Pxf(10)), at + new Vector2(0, Ui.Pxf(30)), G.Red, Ui.Pxf(3), true);
+                _p.DrawCircle(at, Ui.Pxf(16), G.Red, true, -1, true);
+                _o = at;
+                Glyph("skull", -10, -11, 20, G.Ink);
+            }
+        }
+    }
+
+    /// <summary>Starts or ends dragging the map (from the press on it).</summary>
+    private void GrabMap(bool grab)
+    {
+        _mapGrab = grab ? Pointer : null;
+        _mapGrabPan = _mapPan;
+    }
+
+    private void PanMap()
+    {
+        if (_mapGrab is Vector2 grab)
+        {
+            _mapPan = _mapGrabPan + (Pointer - grab);
         }
     }
 

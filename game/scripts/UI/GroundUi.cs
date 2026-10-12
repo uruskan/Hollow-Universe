@@ -220,11 +220,17 @@ public partial class GroundUi : Control
         Open(GroundScreen.Menu);
     }
 
+    /// <summary>The slot whose item the item panel shows, if any.</summary>
+    public SlotRef? SelectedSlot => _selected;
+
     /// <summary>Selects a slot, as a click does (the item panel shows it).</summary>
     public void Select(SlotRef slot) => SelectSlot(slot);
 
     /// <summary>Selects a recipe on the crafting screen.</summary>
     public void SelectRecipe(string key) => _recipe = key;
+
+    /// <summary>Where a point of the inventory's design canvas is on the window, in pixels.</summary>
+    public Vector2 CanvasPoint(Vector2 design) => CanvasFrame + design * Ui.Scale;
 
     /// <summary>Holds the pointer at a design-canvas point, for screenshots of hover states and wheels.</summary>
     public void HoldPointer(Vector2 design)
@@ -356,6 +362,21 @@ public partial class GroundUi : Control
 
     public override void _UnhandledInput(InputEvent e)
     {
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right } mouse)
+        {
+            if (mouse.Pressed && Screen == GroundScreen.Hud && Wheel == null && !IsChatting && Model.HeldWheel is WheelKind held)
+            {
+                OpenWheel(held);
+                GetViewport().WarpMouse((Size / 2).Floor());
+                GetViewport().SetInputAsHandled();
+            }
+            else if (!mouse.Pressed && Wheel != null)
+            {
+                CloseWheel(true);
+                GetViewport().SetInputAsHandled();
+            }
+            return;
+        }
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
         {
             return;
@@ -369,7 +390,7 @@ public partial class GroundUi : Control
             case Key.Escape when Screen is GroundScreen.Inventory or GroundScreen.Crafting:
                 Open(GroundScreen.Hud);
                 break;
-            case Key.Escape when Screen == GroundScreen.Hud:
+            case Key.Escape when Screen is GroundScreen.Hud or GroundScreen.Death:
                 ShowMenu(inGame: true);
                 break;
             case Key.Escape when Screen == GroundScreen.Menu && _inGame:
@@ -455,6 +476,11 @@ public partial class GroundUi : Control
             PressInventory(h, button);
             return;
         }
+        if (h.Kind == HitKind.Map && button == MouseButton.Left)
+        {
+            GrabMap(true);
+            return;
+        }
         if (button == MouseButton.Left && h.Click != null)
         {
             h.Click();
@@ -463,6 +489,10 @@ public partial class GroundUi : Control
 
     private void Release(MouseButton button)
     {
+        if (button == MouseButton.Left)
+        {
+            GrabMap(false);
+        }
         if (Wheel != null && button == MouseButton.Right)
         {
             CloseWheel(true);
@@ -480,6 +510,7 @@ public partial class GroundUi : Control
         SplitIcon,
         SplitTrack,
         Panel,
+        Map,
     }
 
     /// <summary>Something under the pointer: a button with its action, a slot, or a panel (so drops don't fall through).</summary>
@@ -487,16 +518,22 @@ public partial class GroundUi : Control
 
     private readonly List<Hit> _hits = new();
 
+    // The topmost button or slot under the point; a bare panel only when there is none.
     private Hit? HitAt(Vector2 point)
     {
+        Hit? panel = null;
         for (int i = _hits.Count - 1; i >= 0; i--)
         {
             if (_hits[i].Rect.HasPoint(point))
             {
-                return _hits[i];
+                if (_hits[i].Kind is not (HitKind.Panel or HitKind.Map))
+                {
+                    return _hits[i];
+                }
+                panel ??= _hits[i];
             }
         }
-        return null;
+        return panel;
     }
 
     // ---------------------------------------------------------------- HUD moments

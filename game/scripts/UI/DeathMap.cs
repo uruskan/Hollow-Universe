@@ -11,14 +11,15 @@ public static class DeathMap
 {
     private static ImageTexture? _texture;
 
-    public static Texture2D Texture => _texture ??= Build(640, 268);
+    /// <summary>The map picture, 2.4 times as wide as tall.</summary>
+    public static Texture2D Texture => _texture ??= Build(960, 400);
 
     private static ImageTexture Build(int width, int height)
     {
         var land = new FastNoiseLite { Seed = 7, NoiseType = FastNoiseLite.NoiseTypeEnum.Perlin, Frequency = 0.008f, FractalOctaves = 5 };
         var woods = new FastNoiseLite { Seed = 11, NoiseType = FastNoiseLite.NoiseTypeEnum.Perlin, Frequency = 0.02f, FractalOctaves = 3 };
         Color deep = new(0.22f, 0.36f, 0.43f), shallow = new(0.36f, 0.50f, 0.53f), sand = new(0.78f, 0.73f, 0.59f);
-        Color grass = new(0.58f, 0.60f, 0.45f), forest = new(0.36f, 0.43f, 0.30f), rock = new(0.55f, 0.53f, 0.49f);
+        Color grass = new(0.58f, 0.60f, 0.45f), forest = new(0.36f, 0.43f, 0.30f), rock = new(0.60f, 0.59f, 0.52f);
         Image image = Image.CreateEmpty(width, height, false, Image.Format.Rgb8);
         for (int y = 0; y < height; y++)
         {
@@ -40,7 +41,7 @@ public static class DeathMap
                 {
                     c = sand;
                 }
-                else if (h > 0.5f)
+                else if (h > 0.6f)
                 {
                     c = rock;
                 }

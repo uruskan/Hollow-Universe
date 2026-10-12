@@ -657,6 +657,8 @@ public static class Ui
                 f.AddThemeColorOverride("caret_color", Ink);
                 f.AddThemeColorOverride("selection_color", new Color(Selected, 0.55f));
                 f.AddThemeConstantOverride("caret_width", Math.Max(1, Px(1.5f)));
+                // The field is exactly as wide as the design says, however short (RustMVP's amount field is 80 px).
+                f.AddThemeConstantOverride("minimum_character_width", 0);
             });
         }
     }

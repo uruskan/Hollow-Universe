@@ -80,6 +80,13 @@ public sealed class MockGroundUi : IGroundUi
 
     public int Have(string key) => _main.Concat(_belt).Where(s => s.Key == key).Sum(s => s.Amount);
 
+    public WheelKind? HeldWheel => ActiveBelt < 0 ? null : _belt[ActiveBelt].Key switch
+    {
+        "plan" => WheelKind.Plan,
+        "hammer" => WheelKind.Hammer,
+        _ => null,
+    };
+
     public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) => kind == WheelKind.Plan ? PlanChoices() : HammerChoices();
 
     public int WheelCurrent(WheelKind kind) => kind == WheelKind.Plan ? _planPiece : -1;

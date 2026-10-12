@@ -83,6 +83,8 @@ Client options (after `--`):
 - Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
   (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`);
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
+  `--view ui --ui-check` drives the inventory and crafting with real input events (drag, middle-drag, split, quick
+  move, drop, craft) and quits with exit code 0 when every check passes.
 
 ## Layout
 
