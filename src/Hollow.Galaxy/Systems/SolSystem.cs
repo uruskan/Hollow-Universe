@@ -43,6 +43,7 @@ public static class SolSystem
             Kind = BodyKind.Star,
             Name = "Sol",
             Designation = "A",
+            Path = BodyPath.Node(1),
             StarClass = new StarClass(StarKind.MainSequence, 42),
             Mass = SunMass,
             Radius = Units.SolarRadius,
@@ -62,7 +63,7 @@ public static class SolSystem
             1.0, 6371.0, 23.9345, 23.44, 288, AtmosphereType.Breathable, 1.0);
         int mars = Planet(w, "Mars", 4, PlanetType.Rocky, 1.52371034, 0.09339410, 1.84969142, 49.55953891, 286.49683150, 19.39019754,
             0.107, 3389.5, 24.6229, 25.19, 210, AtmosphereType.Thin, 0.006);
-        Belt(w, "Main Belt", 2.7, 1.2);
+        Belt(w, "Main Belt", 20, 2.7, 1.2);
         int jupiter = Planet(w, "Jupiter", 5, PlanetType.GasGiant, 5.20288700, 0.04838624, 1.30439695, 100.47390909, 274.25457074, 19.66796068,
             317.8, 69911, 9.925, 3.13, 165, AtmosphereType.HydrogenHelium, 1000);
         int saturn = Planet(w, "Saturn", 6, PlanetType.GasGiant, 9.53667594, 0.05386179, 2.48599187, 113.66242448, 338.93645383, 317.35536592,
@@ -73,7 +74,7 @@ public static class SolSystem
             17.15, 24622, 16.11, 28.32, 72, AtmosphereType.HydrogenHelium, 1000, 41900, 62930);
         int pluto = Planet(w, "Pluto", 9, PlanetType.Icy, 39.48211675, 0.24882730, 17.14001206, 110.30393684, 113.76497945, 14.86012204,
             0.0022, 1188.3, -153.29, 122.53, 44, AtmosphereType.Thin, 0.00001);
-        Belt(w, "Kuiper Belt", 42, 18);
+        Belt(w, "Kuiper Belt", 21, 42, 18);
 
         // parent, name, letter, type, a (km), e, i (deg, to the ecliptic), period (days), radius (km), mass (kg), temperature (K)
         Moon(w, earth, "Moon", "a", PlanetType.Rocky, 384400, 0.0549, 5.145, 27.3217, 1737.4, 7.342e22, 250);
@@ -117,7 +118,7 @@ public static class SolSystem
             Kind = BodyKind.Planet,
             Name = name,
             Designation = designation,
-            Path = (uint)number << 16,
+            Path = BodyPath.Planet(1, number - 1),
             PlanetType = type,
             Mass = mass,
             Radius = radiusKm * Km,
@@ -148,7 +149,7 @@ public static class SolSystem
             Kind = BodyKind.Moon,
             Name = name,
             Designation = planet.Designation + " " + letter,
-            Path = planet.Path | (uint)moonNumber << 8,
+            Path = BodyPath.Moon(planet.Path, moonNumber - 1),
             PlanetType = type,
             Mass = mass,
             Radius = radiusKm * Km,
@@ -163,7 +164,8 @@ public static class SolSystem
         });
     }
 
-    private static void Belt(Writer w, string name, double aAu, double widthAu)
+    // Sol's belts take orbit slots 20 and 21, apart from the planets' 0–8, so their paths never collide.
+    private static void Belt(Writer w, string name, int slot, double aAu, double widthAu)
     {
         double a = aAu * Units.MetresPerAu;
         w.Add(new Body
@@ -173,7 +175,7 @@ public static class SolSystem
             Kind = BodyKind.Belt,
             Name = name,
             Designation = name,
-            Path = (0xF0u + (uint)w.Next) << 16,
+            Path = BodyPath.Belt(1, slot),
             PlanetType = PlanetType.AsteroidBelt,
             Orbit = new Orbit(a, 0, 0, 0, 0, 0, Orbit.PeriodFor(a, SunMass)),
             BeltWidth = widthAu * Units.MetresPerAu,

@@ -224,3 +224,45 @@ lifetime, giants at the turnoff mass, white dwarfs in range, no main-sequence co
 properties of evolved stars and remnants, not whether they exist. Making existence age-conditional would change
 each level's expected count per star and break the cell budget; the table's population weights carry it instead.
 Main-sequence spectral codes are still drawn uniformly within an entry (equal numbers per subclass), as before.
+
+---
+
+## 7. A barycentric orbit tree
+
+**Changed.**
+- A system is now a tree: the root (body 0) is the only star or the outermost barycentre, fixed at the origin;
+  `BodyKind.Barycentre` is new. Multiple stars are hierarchical, `(((A B) C) D)`, and a companion wider than 50 AU
+  is itself a close pair in 25% of cases, `(A (B C))`. Both members of every pair orbit the barycentre on opposite
+  sides at their mass share of the separation (one period), so the stars' centre of mass stays at the origin.
+- Every star and every barycentre hosts planets: S-type around one star, P-type (circumbinary) around a pair, each
+  zone limited by the stability limits for planets in binaries (Holman & Wiegert 1999) against everything outside
+  it. A close companion stunts planet formation: around one star of a pair the planet rate falls (in log distance)
+  from full at 50 AU closest approach to zero at 3 AU; circumbinary planets get half the single-star rate.
+- Companion light: a planet's equilibrium temperature includes the light of every star outside its host, at the
+  orbit-averaged distance of the pair that joins them.
+- Moons above 0.005 M⊕ can hold atmospheres (cold ones thick, like Titan; others a thin veil). Item 6 replaces
+  these rolls with retention physics.
+- `BodyPath` (new): 32 bits = node (star 1–8 or barycentre 9–15) · orbit slot · moon · reserved moon-of-moon ·
+  feature (belt). Sol's planets are slots 0–8 of node 1, its belts slots 20–21. `StarSystem.Find(path)`,
+  `StarSystem.PrimaryStar`. Names: `<system> B 3`, `<system> AB 1`, `<system> B 3 a`, `<system> B Belt`.
+- Client: barycentres are empty points (labelled when selected) and rows with their own icon; the star card shows
+  members and age; planets around a companion or inner pair are drawn at 0.35 of the system's compressed scale
+  around their host; short names drop the system name for stars too ("A", "BC 1").
+
+**Measured** (`stats`, 43,083 procedural systems): 135,277 planets (was 107,069: companions and pairs now host
+planets; without the close-binary suppression it was 179,508 with a median of 356 K, from planets squeezed into
+the hot inner zones of tight pairs), median planet 262 K, hot giants in 0.7% of systems, 2,073 metal-rich worlds.
+Companion stars: 25,297 main sequence, 2,162 white dwarfs (7.8%), 185 brown dwarfs, 46 giants. The test sample
+(757 multiple systems near 600 ly) has 212 systems with 3+ stars, 1,335 planets around companions, 462 circumbinary
+planets, 134 airless planets measurably warmed by a companion and 576 moons with atmospheres. Speed: 10.4 bodies per
+system (was 8.5), 9.9 µs per system, 0.95 µs per body.
+
+New test `MultipleStarsFormABarycentricTree` (paths unique and decodable, centre of mass fixed at three times,
+companion light, all the new configurations occur); `OrbitsNeverCross` now checks every host and every pair.
+
+**Golden.** Procedural systems `0x41FDF66D1B336573` → `0xEFAF6FE0D28121BF`; real systems `0xC8BE0B049BAF6BA3` →
+`0xF1DF976ED04A7E2A`. Cells unchanged.
+
+**Decisions.** Up to 5 stars (a primary, two companions, either a close pair); the path format allows 8 stars and
+7 barycentres. Rings stay on planets only. Moons of moons and binary planets are left out (the path reserves
+bits for moons of moons). The system frame's origin is now the root barycentre (ARCHITECTURE.md §6 updated).

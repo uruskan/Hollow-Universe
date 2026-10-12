@@ -9,6 +9,9 @@ public enum BodyKind : byte
     Planet = 1,
     Moon = 2,
     Belt = 3,
+
+    /// <summary>The centre of mass of two stars (or of a star and a pair) that orbit each other.</summary>
+    Barycentre = 4,
 }
 
 public enum PlanetType : byte
@@ -40,16 +43,16 @@ public sealed class Body
 {
     public int Index { get; init; }
 
-    /// <summary>Index of the body this one orbits; −1 for the primary star.</summary>
+    /// <summary>Index of the body this one orbits; −1 for the root (the only star, or the outermost barycentre).</summary>
     public int Parent { get; init; }
 
     public BodyKind Kind { get; init; }
     public string Name { get; init; } = "";
 
-    /// <summary>Short designation inside the system: "A", "B", "3", "3 a", "Belt A".</summary>
+    /// <summary>Short designation inside the system: "A", "B", "AB", "3", "B 3 a", "Belt".</summary>
     public string Designation { get; init; } = "";
 
-    /// <summary>Packed path (star · planet · moon), unique inside the system (ARCHITECTURE.md §7).</summary>
+    /// <summary>Permanent path inside the system (<see cref="BodyPath"/>, ARCHITECTURE.md §7).</summary>
     public uint Path { get; init; }
 
     public StarClass StarClass { get; init; }
@@ -97,6 +100,7 @@ public sealed class Body
     {
         BodyKind.Star => StarClass.ToString(),
         BodyKind.Belt => "Asteroid belt",
+        BodyKind.Barycentre => "Barycentre",
         _ => PlanetTypeName(PlanetType),
     };
 
@@ -116,7 +120,10 @@ public sealed class Body
     };
 }
 
-/// <summary>A star system: the primary star at index 0, then everything that orbits.</summary>
+/// <summary>
+/// A star system: a tree of bodies. The root (index 0) is the only star, or for multiple stars the outermost
+/// barycentre, fixed at the origin of the system frame; every other body orbits its parent (GALAXY.md §10.1).
+/// </summary>
 public sealed class StarSystem
 {
     public SystemAddress Address { get; init; }
@@ -124,12 +131,42 @@ public sealed class StarSystem
     public GalaxyStar Primary { get; init; }
     public List<Body> Bodies { get; } = new();
 
+    /// <summary>The root of the orbit tree: the only star, or the outermost barycentre.</summary>
     public Body Root => Bodies[0];
+
+    /// <summary>The primary star's body (star A).</summary>
+    public Body PrimaryStar
+    {
+        get
+        {
+            foreach (Body b in Bodies)
+            {
+                if (b.Kind == BodyKind.Star)
+                {
+                    return b;
+                }
+            }
+            return Bodies[0];
+        }
+    }
 
     /// <summary>Age of the system in Gyr: its stars and planets formed together (GALAXY.md §4.1).</summary>
     public double Age => Primary.Age;
 
-    /// <summary>Position of a body relative to the primary star (metres, system frame).</summary>
+    /// <summary>The body with this path, or null.</summary>
+    public Body? Find(uint path)
+    {
+        foreach (Body b in Bodies)
+        {
+            if (b.Path == path)
+            {
+                return b;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Position of a body relative to the root (metres, system frame).</summary>
     public Vector3D PositionOf(int bodyIndex, double secondsSinceJ2000)
     {
         Vector3D p = Vector3D.Zero;

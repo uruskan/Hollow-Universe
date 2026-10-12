@@ -13,8 +13,8 @@ public static class GalaxyTests
     // Golden: a hash over a fixed set of generated cells and systems. Changing the generator changes it;
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
     private const ulong CellsGolden = 0xF3C42388CE7F958CUL;
-    private const ulong SystemsGolden = 0x41FDF66D1B336573UL;
-    private const ulong RealSystemsGolden = 0xC8BE0B049BAF6BA3UL;
+    private const ulong SystemsGolden = 0xEFAF6FE0D28121BFUL;
+    private const ulong RealSystemsGolden = 0xF1DF976ED04A7E2AUL;
 
     // ---------------------------------------------------------------- frames
 
@@ -668,7 +668,7 @@ public static class GalaxyTests
             {
                 StarSystem system = galaxy.GetSystem(star.Address)!;
                 systems++;
-                double previous = 0;
+                var previous = new Dictionary<int, double>();
                 foreach (Body b in system.Bodies)
                 {
                     Assert.True(double.IsFinite(b.Mass) && double.IsFinite(b.Radius) && double.IsFinite(b.Temperature), $"finite values in {b.Name}");
@@ -678,14 +678,14 @@ public static class GalaxyTests
                         types[b.PlanetType] = types.GetValueOrDefault(b.PlanetType) + 1;
                         earthLikes += b.PlanetType == PlanetType.EarthLike ? 1 : 0;
                         hotGiants += b.PlanetType == PlanetType.GasGiant && b.Temperature > 1000 ? 1 : 0;
-                        Assert.True(b.Orbit.SemiMajorAxis > previous, $"{b.Name} orbits beyond the previous planet");
-                        previous = b.Orbit.SemiMajorAxis;
+                        Assert.True(b.Orbit.SemiMajorAxis > previous.GetValueOrDefault(b.Parent), $"{b.Name} orbits beyond the previous planet of its host");
+                        previous[b.Parent] = b.Orbit.SemiMajorAxis;
                     }
                     if (b.Kind == BodyKind.Moon)
                     {
                         moons++;
                         Body planet = system.Bodies[b.Parent];
-                        double hill = planet.Orbit.Periapsis * Math.Cbrt(planet.Mass / (3 * system.Root.Mass));
+                        double hill = planet.Orbit.Periapsis * Math.Cbrt(planet.Mass / (3 * system.Bodies[planet.Parent].Mass));
                         Assert.True(b.Orbit.SemiMajorAxis < 0.5 * hill, $"{b.Name} inside its planet's Hill sphere");
                         Assert.True(b.Orbit.SemiMajorAxis > planet.Radius, $"{b.Name} outside its planet");
                     }
@@ -724,43 +724,136 @@ public static class GalaxyTests
         int multiples = 0;
         foreach (StarSystem system in systems)
         {
-            Body root = system.Root;
-            List<Body> around = system.Bodies
-                .Where(b => b.Parent == root.Index && b.Kind is BodyKind.Planet or BodyKind.Belt)
-                .OrderBy(b => b.Orbit.SemiMajorAxis)
-                .ToList();
-            for (int i = 1; i < around.Count; i++)
+            foreach (Body host in system.Bodies.Where(b => b.Kind is BodyKind.Star or BodyKind.Barycentre))
             {
-                Assert.True(OuterEdge(around[i - 1]) < InnerEdge(around[i]),
-                    $"{system.Name}: {around[i - 1].Name} reaches {OuterEdge(around[i - 1]) / Units.MetresPerAu:0.###} AU, " +
-                    $"past {around[i].Name} at {InnerEdge(around[i]) / Units.MetresPerAu:0.###} AU");
-                pairs++;
-            }
-            List<Body> stars = system.Bodies.Where(b => b.Kind == BodyKind.Star && b.Parent == root.Index)
-                .OrderBy(b => b.Orbit.SemiMajorAxis).ToList();
-            multiples += stars.Count > 0 ? 1 : 0;
-            for (int i = 0; i < stars.Count; i++)
-            {
-                Body star = stars[i];
-                Assert.True(star.Orbit.Periapsis >= 3 * (root.Radius + star.Radius) * (1 - 1e-9),
-                    $"{star.Name} comes within three radii of {root.Name}");
-                if (i > 0)
+                // Planets and belts of one host never overlap.
+                List<Body> around = host.Children.Select(i => system.Bodies[i])
+                    .Where(b => b.Kind is BodyKind.Planet or BodyKind.Belt)
+                    .OrderBy(b => b.Orbit.SemiMajorAxis)
+                    .ToList();
+                for (int i = 1; i < around.Count; i++)
                 {
-                    Assert.True(star.Orbit.Periapsis >= 3 * stars[i - 1].Orbit.Apoapsis * (1 - 1e-9),
-                        $"{star.Name}'s orbit is too close to {stars[i - 1].Name}'s");
+                    Assert.True(OuterEdge(around[i - 1]) < InnerEdge(around[i]),
+                        $"{system.Name}: {around[i - 1].Name} reaches {OuterEdge(around[i - 1]) / Units.MetresPerAu:0.###} AU, " +
+                        $"past {around[i].Name} at {InnerEdge(around[i]) / Units.MetresPerAu:0.###} AU");
+                    pairs++;
                 }
-                bool close = star.Orbit.Apoapsis < 5 * Units.MetresPerAu;
+                if (host.Kind != BodyKind.Barycentre)
+                {
+                    continue;
+                }
+                // A pair: its two members orbit on opposite sides, far enough apart; planets around both stay outside.
+                multiples += host.Parent < 0 ? 1 : 0;
+                List<Body> members = host.Children.Select(i => system.Bodies[i]).Where(b => b.Kind is BodyKind.Star or BodyKind.Barycentre).ToList();
+                Assert.Equal(2, members.Count, $"{host.Name} has two members");
+                double a = members[0].Orbit.SemiMajorAxis + members[1].Orbit.SemiMajorAxis;
+                double e = members[0].Orbit.Eccentricity;
+                Assert.Near(members[0].Mass * members[0].Orbit.SemiMajorAxis, members[1].Mass * members[1].Orbit.SemiMajorAxis,
+                    1e-9 * members[0].Mass * a, $"{host.Name}: both members balance at the barycentre");
+                // Two stars keep three times their radii apart; a star and an inner pair, three times the pair's width.
+                double sizes = members.All(m => m.Kind == BodyKind.Star)
+                    ? 3 * (members[0].Radius + members[1].Radius)
+                    : 3 * members.Where(m => m.Kind == BodyKind.Barycentre).Max(m => InnerPairApoapsis(system, m));
+                Assert.True(a * (1 - e) >= sizes * (1 - 1e-9), $"{host.Name}: the pair's members come too close");
                 foreach (Body p in around)
                 {
-                    Assert.True(close
-                            ? InnerEdge(p) >= 3 * star.Orbit.Apoapsis * (1 - 1e-9)
-                            : OuterEdge(p) <= star.Orbit.Periapsis / 3 * (1 + 1e-9),
-                        $"{p.Name} strays too near {star.Name}");
+                    Assert.True(InnerEdge(p) >= 1.5 * a, $"{p.Name} orbits too close to the pair {host.Name}");
+                }
+                // Planets around one member stay well inside the pair's closest approach.
+                foreach (Body member in members)
+                {
+                    foreach (Body p in member.Children.Select(i => system.Bodies[i]).Where(b => b.Kind is BodyKind.Planet or BodyKind.Belt))
+                    {
+                        Assert.True(OuterEdge(p) <= 0.5 * a * (1 - e) * (1 + 1e-9), $"{p.Name} strays too near {member.Name}'s companion");
+                    }
                 }
             }
         }
         Fixtures.Report($"{systems.Count} systems ({multiples} multiple), {pairs} neighbouring orbits checked");
         Assert.True(pairs > 200 && multiples > 20, "enough systems checked");
+    }
+
+    // How far the stars of an inner pair swing from its barycentre at most (their relative apoapsis).
+    private static double InnerPairApoapsis(StarSystem system, Body pair)
+    {
+        List<Body> members = pair.Children.Select(i => system.Bodies[i]).Where(b => b.Kind is BodyKind.Star or BodyKind.Barycentre).ToList();
+        return (members[0].Orbit.SemiMajorAxis + members[1].Orbit.SemiMajorAxis) * (1 + members[0].Orbit.Eccentricity);
+    }
+
+    [Test]
+    public static void MultipleStarsFormABarycentricTree()
+    {
+        // GALAXY.md §10.1: barycentres keep the centre of mass fixed; planets orbit single stars and close pairs;
+        // companions add their light; moons can hold atmospheres; every body has a unique, decodable path.
+        Galaxy.Galaxy galaxy = Fixtures.Galaxy;
+        int multiple = 0;
+        int triples = 0;
+        int companionPlanets = 0;
+        int circumbinary = 0;
+        int moonAtmospheres = 0;
+        int warmer = 0;
+        foreach (CellKey cell in CellsAround(5, new Vector3D(600, 0, 600), 100))
+        {
+            foreach (GalaxyStar star in galaxy.GenerateProcedural(cell))
+            {
+                StarSystem system = galaxy.GetSystem(star.Address)!;
+                var paths = new HashSet<uint>();
+                foreach (Body b in system.Bodies)
+                {
+                    Assert.True(paths.Add(b.Path), $"{b.Name}: path 0x{b.Path:X8} is unique in its system");
+                    Assert.True(system.Find(b.Path) == b, $"{b.Name} is found by its path");
+                    int node = BodyPath.NodeOf(b.Path);
+                    Body parent = b.Parent >= 0 ? system.Bodies[b.Parent] : b;
+                    switch (b.Kind)
+                    {
+                        case BodyKind.Planet:
+                        case BodyKind.Belt:
+                            Assert.True(node == BodyPath.NodeOf(parent.Path) && BodyPath.SlotOf(b.Path) >= 0
+                                && BodyPath.IsBelt(b.Path) == (b.Kind == BodyKind.Belt), $"{b.Name}'s path names its host and slot");
+                            companionPlanets += b.Kind == BodyKind.Planet && parent.Kind == BodyKind.Star && parent.Index != system.PrimaryStar.Index ? 1 : 0;
+                            circumbinary += b.Kind == BodyKind.Planet && parent.Kind == BodyKind.Barycentre ? 1 : 0;
+                            break;
+                        case BodyKind.Moon:
+                            Assert.True(BodyPath.MoonOf(b.Path) >= 0 && (b.Path & 0xFFF00000u) == (parent.Path & 0xFFF00000u), $"{b.Name}'s path extends its planet's");
+                            moonAtmospheres += b.Atmosphere != AtmosphereType.None ? 1 : 0;
+                            break;
+                    }
+                }
+                List<Body> stars = system.Bodies.Where(b => b.Kind == BodyKind.Star).ToList();
+                if (stars.Count < 2)
+                {
+                    continue;
+                }
+                multiple++;
+                triples += stars.Count >= 3 ? 1 : 0;
+                // The stars' centre of mass stays at the origin (the root barycentre) at any time.
+                foreach (double t in new[] { 0.0, 3.1e8, 1.7e10 })
+                {
+                    Vector3D weighted = Vector3D.Zero;
+                    double total = 0;
+                    foreach (Body s in stars)
+                    {
+                        weighted += system.PositionOf(s.Index, t) * s.Mass;
+                        total += s.Mass;
+                    }
+                    double extent = stars.Max(s => system.PositionOf(s.Index, t).Length);
+                    Assert.True((weighted / total).Length <= 1e-9 * extent + 1, $"{system.Name}: the centre of mass drifts");
+                }
+                // A planet around a star of a multiple system is at least as warm as its own star alone would make it.
+                foreach (Body p in system.Bodies.Where(b => b.Kind == BodyKind.Planet && system.Bodies[b.Parent].Kind == BodyKind.Star))
+                {
+                    Body host = system.Bodies[p.Parent];
+                    double au = p.Orbit.SemiMajorAxis / Units.MetresPerAu;
+                    double alone = 278.6 * Math.Pow(host.Luminosity / (au * au), 0.25);
+                    Assert.True(p.Temperature >= alone * (1 - 1e-9), $"{p.Name} gets its star's light");
+                    warmer += p.Temperature > alone * 1.001 && p.Atmosphere == AtmosphereType.None ? 1 : 0;
+                }
+            }
+        }
+        Fixtures.Report($"{multiple} multiple systems ({triples} with three or more stars), {companionPlanets} planets around companions, " +
+            $"{circumbinary} circumbinary planets, {warmer} airless planets warmed by a companion, {moonAtmospheres} moons with atmospheres");
+        Assert.True(triples > 0 && companionPlanets > 0 && circumbinary > 0 && warmer > 0 && moonAtmospheres > 0,
+            "triples, planets around companions and pairs, companion light and moon atmospheres all occur");
     }
 
     private static double InnerEdge(Body b) => b.Kind == BodyKind.Belt ? b.Orbit.SemiMajorAxis - b.BeltWidth / 2 : b.Orbit.Periapsis;

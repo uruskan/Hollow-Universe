@@ -40,6 +40,9 @@ public static class Program
             case "stars":
                 StarStats();
                 return 0;
+            case "find":
+                FindShowcases();
+                return 0;
             case "completeness":
                 for (int level = 0; level < StarClassTable.LevelCount; level++)
                 {
@@ -121,6 +124,36 @@ public static class Program
         }
     }
 
+    // ---------------------------------------------------------------- find
+
+    /// <summary>Generated systems worth a screenshot near Sol: multiple stars with planets around companions and pairs.</summary>
+    private static void FindShowcases()
+    {
+        var galaxy = new Galaxy.Galaxy(LoadCatalogue());
+        int found = 0;
+        foreach (CellKey cell in CellsAround(5, new Vector3D(300, 0, 300), 200))
+        {
+            foreach (GalaxyStar star in galaxy.GenerateProcedural(cell))
+            {
+                StarSystem system = galaxy.GetSystem(star.Address)!;
+                int stars = system.Count(BodyKind.Star);
+                int circumbinary = system.Bodies.Count(b => b.Kind == BodyKind.Planet && system.Bodies[b.Parent].Kind == BodyKind.Barycentre);
+                int companion = system.Bodies.Count(b => b.Kind == BodyKind.Planet && system.Bodies[b.Parent].Kind == BodyKind.Star
+                    && b.Parent != system.PrimaryStar.Index);
+                int primaryPlanets = system.Bodies.Count(b => b.Kind == BodyKind.Planet && b.Parent == system.PrimaryStar.Index);
+                if (stars >= 2 && circumbinary + companion >= 3 && (primaryPlanets > 0 || circumbinary > 0))
+                {
+                    Console.WriteLine($"{system.Name}: {stars} stars, {primaryPlanets} planets around A, {companion} around companions, " +
+                        $"{circumbinary} around pairs, {system.Count(BodyKind.Moon)} moons");
+                    if (++found >= 12)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- stars
 
     /// <summary>Ages and evolved stars (GALAXY.md §4.1) in a sample of generated stars: near Sol's radius in the disk, and the bulge.</summary>
@@ -190,7 +223,7 @@ public static class Program
             multiples += system.Count(BodyKind.Star) > 1 ? 1 : 0;
             foreach (Body b in system.Bodies)
             {
-                if (b.Kind == BodyKind.Star && b.Index > 0)
+                if (b.Kind == BodyKind.Star && b.Path != BodyPath.Node(1))
                 {
                     string kind = b.StarClass.Kind.ToString();
                     companions[kind] = companions.GetValueOrDefault(kind) + 1;

@@ -1,15 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using Hollow.Core;
 
 namespace Hollow.Galaxy.Systems;
 
 /// <summary>
-/// Generates a star system's companion stars, planets, moons, rings and belts from its primary star
-/// (GALAXY.md §10). A pure function of (seed, address): the same system on every machine.
-/// Every object draws from its own random stream (ARCHITECTURE.md §8.3): the layout of the system, each
-/// companion, each orbit slot and each moon. Changing how one moon is generated never shifts a planet.
+/// Generates a star system's stars, planets, moons, rings and belts from its primary star (GALAXY.md §10). A pure
+/// function of (seed, address): the same system on every machine. Every object draws from its own random stream
+/// (ARCHITECTURE.md §8.3): the layout, each companion, each star, each pair's orbit, each planet host's layout, each
+/// orbit slot and each moon. Changing how one moon is generated never shifts a planet.
+/// <para>
+/// Multiple stars form a barycentric tree (§10.1): two stars, or a star and an inner pair, orbit their common
+/// barycentre. Every star and every barycentre can host planets: around one star (S-type), or around a close pair
+/// (P-type, circumbinary), each zone limited by what orbits outside it.
+/// </para>
 /// </summary>
 public sealed class SystemGenerator
 {
@@ -29,6 +35,9 @@ public sealed class SystemGenerator
     private const ulong LayoutStream = 1;
     private const ulong PrimaryStream = 2;
     private const ulong CompanionStream = 0x100;
+    private const ulong PairStream = 0x200;
+    private const ulong StarStream = 0x300;
+    private const ulong HostStream = 0x400;
     private const ulong SlotStream = 0x10000;
     private const ulong MoonStream = 0x1000000;
 
@@ -46,7 +55,59 @@ public sealed class SystemGenerator
         _seed = GeneratorVersion.SystemSeed(seed, version);
     }
 
-    private readonly record struct Companion(StarClass Class, StarPhysics Physics, double SeparationAu, double Eccentricity);
+    /// <summary>A companion before the tree is built: one star, or a close pair of stars that orbit together.</summary>
+    private sealed record Companion(StarClass Class, StarPhysics Physics, double SeparationAu, double Eccentricity)
+    {
+        public StarClass TwinClass { get; init; }
+        public StarPhysics TwinPhysics { get; init; }
+        public double TwinSeparationAu { get; init; }
+        public double TwinEccentricity { get; init; }
+        public bool HasTwin => TwinSeparationAu > 0;
+        public double Mass => Physics.Mass + (HasTwin ? TwinPhysics.Mass : 0);
+    }
+
+    /// <summary>A node of the stellar tree: a star, or a pair (two nodes orbiting their barycentre).</summary>
+    private sealed class Node
+    {
+        public Node? Left;
+        public Node? Right;
+        public Node? Parent;
+        public StarClass Class;
+        public StarPhysics Physics;
+        public double SeparationAu;
+        public double Eccentricity;
+        public int Number;
+        public string Letters = "";
+        public int BodyIndex;
+
+        public bool IsStar => Left == null;
+
+        public double Mass => IsStar ? Math.Max(Physics.Mass, 0.01) : Left!.Mass + Right!.Mass;
+
+        public double Luminosity => IsStar ? Math.Max(Physics.Luminosity, 0) : Left!.Luminosity + Right!.Luminosity;
+
+        public static Node Star(StarClass cls, StarPhysics physics) => new() { Class = cls, Physics = physics };
+
+        public static Node Pair(Node left, Node right, double separationAu, double eccentricity)
+        {
+            var pair = new Node { Left = left, Right = right, SeparationAu = separationAu, Eccentricity = eccentricity };
+            left.Parent = pair;
+            right.Parent = pair;
+            return pair;
+        }
+
+        // The heaviest star under this node.
+        public Node Heaviest()
+        {
+            if (IsStar)
+            {
+                return this;
+            }
+            Node l = Left!.Heaviest();
+            Node r = Right!.Heaviest();
+            return r.Physics.Mass > l.Physics.Mass ? r : l;
+        }
+    }
 
     private sealed class Builder
     {
@@ -74,64 +135,123 @@ public sealed class SystemGenerator
     {
         ulong key = Hash64.Of(_seed, Streams.System, primary.Address.Value);
         var layout = new Rng(Hash64.Combine(key, LayoutStream));
-        var own = new Rng(Hash64.Combine(key, PrimaryStream));
         var system = new StarSystem { Address = primary.Address, Name = name, Primary = primary };
         var b = new Builder(system);
 
-        double primaryMassSun = Math.Max(primary.Physics.Mass, 0.01);
-        double primaryRadiusAu = Math.Max(primary.Physics.Radius, 1e-6) * AuPerSolarRadius;
         List<Companion> companions = knownCompanions != null
             ? CompanionsFromCatalogue(primary, knownCompanions, key)
             : RollCompanions(primary, key, ref layout);
-        bool multiple = companions.Count > 0;
 
-        b.Add(new Body
+        // The stellar tree, innermost companion first: (((A B) C) D), where a companion may itself be a close pair.
+        Node a = Node.Star(primary.Class, primary.Physics);
+        Node root = a;
+        foreach (Companion c in companions)
         {
-            Index = 0,
-            Parent = -1,
-            Kind = BodyKind.Star,
-            Name = multiple ? name + " A" : name,
-            Designation = "A",
-            Path = 0,
-            StarClass = primary.Class,
-            Mass = primaryMassSun * Units.SolarMass,
-            Radius = Math.Max(primary.Physics.Radius, 1e-6) * Units.SolarRadius,
-            Temperature = primary.Physics.Temperature,
-            Luminosity = primary.Physics.Luminosity,
-            RotationPeriod = own.Range(5, 40) * Units.SecondsPerDay,
-            AxialTilt = own.Range(0, 0.3),
-        });
+            Node unit = Node.Star(c.Class, c.Physics);
+            if (c.HasTwin)
+            {
+                unit = Node.Pair(unit, Node.Star(c.TwinClass, c.TwinPhysics), c.TwinSeparationAu, c.TwinEccentricity);
+            }
+            root = Node.Pair(root, unit, c.SeparationAu, c.Eccentricity);
+        }
+        var stars = new List<Node>();
+        var pairs = new List<Node>();
+        Number(root, stars, pairs);
+        bool multiple = stars.Count > 1;
 
-        for (int i = 0; i < companions.Count; i++)
+        AddStellarBodies(b, root, -1, name, multiple, key);
+        double metallicity = primary.Metallicity;
+        foreach (Node host in stars)
         {
-            Companion c = companions[i];
-            var rng = new Rng(Hash64.Combine(key, CompanionStream + (ulong)i));
-            double massKg = Math.Max(c.Physics.Mass, 0.01) * Units.SolarMass;
-            double a = c.SeparationAu * Au;
-            string letter = ((char)('B' + i)).ToString();
+            GeneratePlanets(b, host, name, multiple, metallicity, key);
+        }
+        foreach (Node host in pairs)
+        {
+            GeneratePlanets(b, host, name, multiple, metallicity, key);
+        }
+        return system;
+    }
+
+    // Letters A, B, … for the stars in tree order (left first), node numbers 1–8 for stars and 9–15 for barycentres
+    // (inner pairs first); a pair's letters are its stars' letters.
+    private static void Number(Node root, List<Node> stars, List<Node> pairs)
+    {
+        Visit(root);
+
+        void Visit(Node n)
+        {
+            if (n.IsStar)
+            {
+                n.Number = 1 + stars.Count;
+                n.Letters = ((char)('A' + stars.Count)).ToString();
+                stars.Add(n);
+                return;
+            }
+            Visit(n.Left!);
+            Visit(n.Right!);
+            n.Number = BodyPath.FirstBarycentre + pairs.Count;
+            n.Letters = n.Left!.Letters + n.Right!.Letters;
+            pairs.Add(n);
+        }
+    }
+
+    // Adds a node and everything under it, root first. The two members of a pair orbit the pair's barycentre on
+    // opposite sides, each at its share of the separation (the lighter one farther out).
+    private void AddStellarBodies(Builder b, Node node, int parentIndex, string name, bool multiple, ulong key)
+    {
+        Orbit orbit = default;
+        if (node.Parent is Node pair)
+        {
+            var rng = new Rng(Hash64.Combine(key, PairStream + (ulong)pair.Number));
+            double inclination = rng.Range(0, 0.6);
+            double ascending = rng.Range(0, DMath.TwoPi);
+            double periapsis = rng.Range(0, DMath.TwoPi);
+            double meanAnomaly = rng.Range(0, DMath.TwoPi);
+            double total = pair.Mass;
+            double other = node == pair.Left ? pair.Right!.Mass : pair.Left!.Mass;
+            double relative = pair.SeparationAu * Au;
+            double period = Orbit.PeriodFor(relative, total * Units.SolarMass);
+            double argument = node == pair.Left ? periapsis : periapsis + DMath.Pi;
+            orbit = new Orbit(relative * other / total, pair.Eccentricity, inclination, ascending, argument, meanAnomaly, period);
+        }
+
+        node.BodyIndex = b.Next;
+        if (node.IsStar)
+        {
+            var rng = new Rng(Hash64.Combine(key, node.Number == 1 ? PrimaryStream : StarStream + (ulong)node.Number));
             b.Add(new Body
             {
                 Index = b.Next,
-                Parent = 0,
+                Parent = parentIndex,
                 Kind = BodyKind.Star,
-                Name = name + " " + letter,
-                Designation = letter,
-                Path = (uint)(i + 1) << 24,
-                StarClass = c.Class,
-                Mass = massKg,
-                Radius = Math.Max(c.Physics.Radius, 1e-6) * Units.SolarRadius,
-                Temperature = c.Physics.Temperature,
-                Luminosity = c.Physics.Luminosity,
+                Name = multiple ? name + " " + node.Letters : name,
+                Designation = node.Letters,
+                Path = BodyPath.Node(node.Number),
+                StarClass = node.Class,
+                Mass = node.Mass * Units.SolarMass,
+                Radius = Math.Max(node.Physics.Radius, 1e-6) * Units.SolarRadius,
+                Temperature = node.Physics.Temperature,
+                Luminosity = node.Physics.Luminosity,
+                Orbit = orbit,
                 RotationPeriod = rng.Range(5, 40) * Units.SecondsPerDay,
-                Orbit = new Orbit(a, c.Eccentricity, rng.Range(0, 0.6),
-                    rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi),
-                    Orbit.PeriodFor(a, primaryMassSun * Units.SolarMass + massKg)),
+                AxialTilt = rng.Range(0, 0.3),
             });
+            return;
         }
-
-        string planetPrefix = multiple ? name + " A" : name;
-        GeneratePlanets(b, primary, primaryMassSun, primaryRadiusAu, companions, planetPrefix, key, ref layout);
-        return system;
+        b.Add(new Body
+        {
+            Index = b.Next,
+            Parent = parentIndex,
+            Kind = BodyKind.Barycentre,
+            Name = name + " " + node.Letters,
+            Designation = node.Letters,
+            Path = BodyPath.Node(node.Number),
+            Mass = node.Mass * Units.SolarMass,
+            Luminosity = node.Luminosity,
+            Orbit = orbit,
+        });
+        AddStellarBodies(b, node.Left!, node.BodyIndex, name, multiple, key);
+        AddStellarBodies(b, node.Right!, node.BodyIndex, name, multiple, key);
     }
 
     // Separation floor: periapsis at least three times the sum of the two stars' radii.
@@ -199,6 +319,8 @@ public sealed class SystemGenerator
         // Companions were born with the primary: the mass ratio applies to its initial mass, and the system's age
         // decides what each companion is now (GALAXY.md §4.1).
         double initialMass = StellarEvolution.InitialMass(kind, mass);
+        // A giant companion would outshine anything but another giant.
+        bool giantPrimary = kind is StarKind.Subgiant or StarKind.Giant or StarKind.BrightGiant or StarKind.Supergiant or StarKind.CarbonStar;
         for (int i = 0; i < count; i++)
         {
             var rng = new Rng(Hash64.Combine(key, CompanionStream + (ulong)i + 0x40));
@@ -210,13 +332,32 @@ public sealed class SystemGenerator
             {
                 companionMass = heavier;
             }
-            // A giant companion would outshine anything but another giant.
-            bool giantPrimary = kind is StarKind.Subgiant or StarKind.Giant or StarKind.BrightGiant or StarKind.Supergiant or StarKind.CarbonStar;
             (StarClass cls, StarPhysics phys) = EvolvedCompanion(companionMass, primary.Age, giantPrimary, ref rng);
             double eccentricity = StellarTables.Clamp(rng.Rayleigh(0.3), 0, 0.85);
             double separation = StellarTables.Clamp(rng.LogNormal(50 * DMath.Pow(Math.Max(mass, 0.05), 0.3), 1.5), 0.05, MaxCompanionSeparationAu);
             separation = Math.Max(separation, MinimumSeparationAu(primary.Physics, phys, eccentricity));
-            list.Add(new Companion(cls, phys, separation, eccentricity));
+            var companion = new Companion(cls, phys, separation, eccentricity);
+
+            // A wide companion is itself a close pair a quarter of the time (a hierarchical triple): its two stars
+            // orbit each other well inside its orbit around the primary.
+            if (separation > 50 && rng.Chance(0.25))
+            {
+                double twinMass = Math.Max(0.013, companionMass * rng.Range(0.2, 1.0));
+                (StarClass twinClass, StarPhysics twinPhysics) = EvolvedCompanion(twinMass, primary.Age, giantPrimary, ref rng);
+                double twinEccentricity = StellarTables.Clamp(rng.Rayleigh(0.15), 0, 0.5);
+                double twinSeparation = Math.Max(rng.LogUniform(0.02, 0.05 * separation), MinimumSeparationAu(phys, twinPhysics, twinEccentricity));
+                if (twinSeparation * (1 + twinEccentricity) <= separation * (1 - eccentricity) / 5)
+                {
+                    companion = companion with
+                    {
+                        TwinClass = twinClass,
+                        TwinPhysics = twinPhysics,
+                        TwinSeparationAu = twinSeparation,
+                        TwinEccentricity = twinEccentricity,
+                    };
+                }
+            }
+            list.Add(companion);
         }
         MakeHierarchical(list, dropTooWide: true);
         return list;
@@ -282,11 +423,9 @@ public sealed class SystemGenerator
         return 92;
     }
 
-    private static double PlanetRate(GalaxyStar star)
+    private static double PlanetRate(StarClass star)
     {
-        StarKind kind = star.Class.Kind;
-        char letter = star.Class.Letter;
-        return kind switch
+        return star.Kind switch
         {
             StarKind.WhiteDwarf => 0.5,
             StarKind.BrownDwarf => 0.8,
@@ -298,7 +437,7 @@ public sealed class SystemGenerator
             StarKind.CarbonStar => 1.0,
             StarKind.TTauri => 3.0,
             StarKind.HerbigAeBe => 2.0,
-            _ => letter switch
+            _ => star.Letter switch
             {
                 'O' => 0.3,
                 'B' => 1.0,
@@ -312,39 +451,72 @@ public sealed class SystemGenerator
         };
     }
 
-    private static void GeneratePlanets(Builder b, GalaxyStar star, double starMassSun, double starRadiusAu,
-        List<Companion> companions, string prefix, ulong key, ref Rng layout)
+    // Stability limits for planets in binaries (Holman & Wiegert 1999), as multiples of the binary's separation.
+    // S-type: a planet orbiting one star, perturbed by the other (mass fraction mu of the pair) stays within this.
+    private static double StableAroundOne(double mu, double e) =>
+        StellarTables.Clamp(0.464 - 0.380 * mu - 0.631 * e + 0.586 * mu * e + 0.150 * e * e - 0.198 * mu * e * e, 0.01, 0.5);
+
+    // P-type: a planet orbiting both stars (mu = the lighter star's fraction of the pair) stays beyond this.
+    private static double StableAroundBoth(double mu, double e) =>
+        StellarTables.Clamp(1.60 + 5.10 * e - 2.22 * e * e + 4.12 * mu - 4.27 * e * mu - 5.09 * mu * mu + 4.61 * e * e * mu * mu, 1.5, 6.0);
+
+    // Light reaching a host's planets from stars outside it (L☉ / AU²): each outer member at the orbit-averaged
+    // distance of the pair that joins it to the host, ⟨1/r²⟩ = 1 / (a² √(1 − e²)).
+    private static double OuterFlux(Node host)
     {
-        double luminosity = Math.Max(star.Physics.Luminosity, 1e-7);
+        double flux = 0;
+        Node child = host;
+        Node? parent = host.Parent;
+        while (parent != null)
+        {
+            Node sibling = parent.Left == child ? parent.Right! : parent.Left!;
+            double a = parent.SeparationAu;
+            flux += sibling.Luminosity / (a * a * Math.Sqrt(1 - parent.Eccentricity * parent.Eccentricity));
+            child = parent;
+            parent = parent.Parent;
+        }
+        return flux;
+    }
+
+    // The planets, moons and belt of one host: a star (S-type) or a pair (P-type, circumbinary).
+    private static void GeneratePlanets(Builder b, Node host, string name, bool multiple, double metallicity, ulong key)
+    {
+        var layout = new Rng(Hash64.Combine(key, HostStream + (ulong)host.Number));
+        Node heaviest = host.Heaviest();
+        double hostMass = host.Mass;
+        double luminosity = Math.Max(host.Luminosity, 1e-7);
         double sqrtL = Math.Sqrt(luminosity);
-        double metallicity = star.Metallicity;
         double metalFactor = DMath.Pow10(0.3 * metallicity);
         double giantFactor = DMath.Pow10(2.0 * metallicity);
-        double massFactor = StellarTables.Clamp(starMassSun, 0.3, 2.0);
+        double massFactor = StellarTables.Clamp(hostMass, 0.3, 2.0);
 
-        // The planet zone: outside the star (and any close companion), inside a third of the nearest approach of
-        // every wide companion. The inner edge sits where the equilibrium temperature reaches about 1,600 K, so
-        // close-in hot worlds (metal-rich worlds, hot giants) exist; real ones orbit even closer.
-        double inner = Math.Max(Math.Max(0.01, 0.03 * sqrtL), 3 * starRadiusAu);
-        if (star.Class.Kind is StarKind.NeutronStar or StarKind.BlackHole)
+        // The zone: outside the star (where equilibrium temperatures reach about 1,600 K, so close-in hot worlds
+        // exist), or outside the pair's unstable region; out to 50 AU·√M, and inside the stable region around this
+        // host left by everything that orbits outside it.
+        double inner;
+        if (host.IsStar)
         {
-            inner = 0.1;
+            inner = Math.Max(Math.Max(0.01, 0.03 * sqrtL), 3 * Math.Max(host.Physics.Radius, 1e-6) * AuPerSolarRadius);
+            if (host.Class.Kind is StarKind.NeutronStar or StarKind.BlackHole)
+            {
+                inner = 0.1;
+            }
         }
-        double outer = Math.Max(2.0, 50.0 * Math.Sqrt(starMassSun));
-        double centralMass = starMassSun;
-        foreach (Companion c in companions)
+        else
         {
-            double periapsis = c.SeparationAu * (1 - c.Eccentricity);
-            double apoapsis = c.SeparationAu * (1 + c.Eccentricity);
-            if (apoapsis < 5)
-            {
-                inner = Math.Max(inner, 3 * apoapsis); // circumbinary planets
-                centralMass += c.Physics.Mass;
-            }
-            else
-            {
-                outer = Math.Min(outer, periapsis / 3);
-            }
+            double mu = Math.Min(host.Left!.Mass, host.Right!.Mass) / hostMass;
+            inner = Math.Max(0.03 * sqrtL, host.SeparationAu * StableAroundBoth(mu, host.Eccentricity));
+        }
+        double outer = Math.Max(2.0, 50.0 * Math.Sqrt(hostMass));
+        Node child = host;
+        Node? parent = host.Parent;
+        while (parent != null)
+        {
+            Node sibling = parent.Left == child ? parent.Right! : parent.Left!;
+            double mu = sibling.Mass / (sibling.Mass + child.Mass);
+            outer = Math.Min(outer, parent.SeparationAu * StableAroundOne(mu, parent.Eccentricity));
+            child = parent;
+            parent = parent.Parent;
         }
         if (outer <= inner * 1.2)
         {
@@ -358,7 +530,16 @@ public sealed class SystemGenerator
             slots.Add(a);
             a *= layout.Range(1.4, 2.4);
         }
-        int count = (int)Math.Min(Math.Min(layout.Poisson(PlanetRate(star) * metalFactor), slots.Count), MaxPlanets);
+        // Circumbinary planets are rarer than planets around single stars, and a close companion stunts the disc a
+        // planet forms in: planets around one star of a pair get rarer as the pair's closest approach shrinks below
+        // 50 AU and are gone below 3 AU (as surveys of real binaries find).
+        double rate = PlanetRate(heaviest.Class) * (host.IsStar ? 1.0 : 0.5);
+        if (host.Parent is Node pair)
+        {
+            double closest = pair.SeparationAu * (1 - pair.Eccentricity);
+            rate *= DMath.SmoothStep(DMath.Log10(3), DMath.Log10(50), DMath.Log10(closest));
+        }
+        int count = (int)Math.Min(Math.Min(layout.Poisson(rate * metalFactor), slots.Count), MaxPlanets);
 
         // Choose which slots hold planets; slot indices (not planet numbers) identify bodies permanently. Slots are
         // equally likely beyond about ten-day orbits (0.1 AU·√L); closer in, real planets get rarer fast (occurrence
@@ -381,12 +562,15 @@ public sealed class SystemGenerator
         double trailingBelt = layout.Range(1.5, 2.5);
 
         double snowLine = 2.7 * sqrtL;
-        bool earthLikeHost = star.Class.Kind == StarKind.MainSequence && star.Class.Letter is 'F' or 'G' or 'K';
-        bool mDwarf = star.Class.Kind == StarKind.MainSequence && star.Class.Letter == 'M';
-        double centralMassKg = centralMass * Units.SolarMass;
+        bool earthLikeHost = heaviest.Class.Kind == StarKind.MainSequence && heaviest.Class.Letter is 'F' or 'G' or 'K';
+        bool mDwarf = heaviest.Class.Kind == StarKind.MainSequence && heaviest.Class.Letter == 'M';
+        double hostMassKg = hostMass * Units.SolarMass;
+        double outerFlux = OuterFlux(host);
+        string prefix = multiple ? name + " " + host.Letters : name;
         int planetNumber = 0;
         bool beltPlaced = !wantBelt;
         double previousApoapsis = inner;
+        var context = new HostContext(host.Number, host.BodyIndex, prefix, hostMassKg, luminosity, outerFlux, key);
 
         for (int k = 0; k < chosen.Count; k++)
         {
@@ -394,32 +578,38 @@ public sealed class SystemGenerator
             double semiMajor = slots[slot];
             // Stay well inside the next body's orbit (or the edge of the zone).
             double apoapsisLimit = Math.Min(outer, k + 1 < chosen.Count ? slots[chosen[k + 1]] / 1.3 : outer);
-            var rng = new Rng(Hash64.Combine(key, SlotStream + (ulong)slot));
-            double teq = 278.6 * DMath.Pow(luminosity, 0.25) / Math.Sqrt(semiMajor);
+            var rng = new Rng(Hash64.Combine(key, SlotStream + (ulong)host.Number * 256 + (ulong)slot));
+            double teq = context.EquilibriumTemperature(semiMajor);
 
             // A belt takes the place of one planet, preferably near the snow line, if there's room for it.
             if (!beltPlaced && semiMajor > 0.5 * snowLine && semiMajor > 1.2 * previousApoapsis)
             {
                 beltPlaced = true;
-                previousApoapsis = AddBelt(b, prefix, slot, semiMajor, centralMassKg, 1.05 * previousApoapsis, apoapsisLimit, ref rng);
+                previousApoapsis = AddBelt(b, context, slot, semiMajor, 1.05 * previousApoapsis, apoapsisLimit, ref rng);
                 continue;
             }
 
             planetNumber++;
             PlanetType type = ChoosePlanetType(teq, semiMajor, snowLine, giantFactor, massFactor, earthLikeHost, mDwarf, ref rng);
-            double apoapsis = AddPlanet(b, prefix, planetNumber, slot, type, semiMajor, teq, centralMassKg,
-                previousApoapsis, apoapsisLimit, key, ref rng);
-            previousApoapsis = apoapsis;
+            previousApoapsis = AddPlanet(b, context, planetNumber, slot, type, semiMajor, teq, previousApoapsis, apoapsisLimit, ref rng);
         }
         if (!beltPlaced && chosen.Count > 0)
         {
             double beltA = Math.Min(slots[chosen[^1]] * trailingBelt, outer * 0.9);
             if (beltA > previousApoapsis * 1.3)
             {
-                var rng = new Rng(Hash64.Combine(key, SlotStream + MaxSlots));
-                AddBelt(b, prefix, MaxSlots, beltA, centralMassKg, 1.05 * previousApoapsis, outer, ref rng);
+                var rng = new Rng(Hash64.Combine(key, SlotStream + (ulong)host.Number * 256 + MaxSlots));
+                AddBelt(b, context, MaxSlots, beltA, 1.05 * previousApoapsis, outer, ref rng);
             }
         }
+    }
+
+    /// <summary>What a host's bodies need to know about it.</summary>
+    private sealed record HostContext(int NodeNumber, int BodyIndex, string Prefix, double MassKg, double Luminosity, double OuterFlux, ulong Key)
+    {
+        // Zero-albedo equilibrium temperature at a distance (AU) from the host: its own light plus its companions'.
+        public double EquilibriumTemperature(double au) =>
+            278.6 * Math.Sqrt(Math.Sqrt(Luminosity / (au * au) + OuterFlux));
     }
 
     private static PlanetType ChoosePlanetType(double teq, double a, double snowLine, double giantFactor,
@@ -507,9 +697,17 @@ public sealed class SystemGenerator
         }
     }
 
+    private static double Greenhouse(AtmosphereType atmosphere, double pressure) => atmosphere switch
+    {
+        AtmosphereType.Thin => 1.05,
+        AtmosphereType.Thick => 1.0 + 0.5 * Math.Min(1.0, pressure / 10.0),
+        AtmosphereType.Breathable => 1.06,
+        _ => 1.0,
+    };
+
     // Adds a planet and its moons; returns the planet's apoapsis in AU.
-    private static double AddPlanet(Builder b, string prefix, int number, int slot, PlanetType type, double semiMajorAu,
-        double teq, double centralMassKg, double previousApoapsisAu, double apoapsisLimitAu, ulong key, ref Rng rng)
+    private static double AddPlanet(Builder b, HostContext host, int number, int slot, PlanetType type, double semiMajorAu,
+        double teq, double previousApoapsisAu, double apoapsisLimitAu, ref Rng rng)
     {
         double massEarth = MassForType(type, ref rng);
         double radiusEarth = RadiusFor(type, massEarth, teq);
@@ -556,13 +754,6 @@ public sealed class SystemGenerator
                 break;
             }
         }
-        double greenhouse = atmosphere switch
-        {
-            AtmosphereType.Thin => 1.05,
-            AtmosphereType.Thick => 1.0 + 0.5 * Math.Min(1.0, pressure / 10.0),
-            AtmosphereType.Breathable => 1.06,
-            _ => 1.0,
-        };
 
         // Orbits never cross: periapsis stays beyond the previous body's apoapsis, apoapsis inside the next orbit.
         double eccentricityLimit = Math.Min(Math.Min(0.5, 1 - 1.15 * previousApoapsisAu / semiMajorAu), apoapsisLimitAu / semiMajorAu - 1);
@@ -570,9 +761,9 @@ public sealed class SystemGenerator
         double a = semiMajorAu * Au;
         var orbit = new Orbit(a, eccentricity, StellarTables.Clamp(rng.Rayleigh(2 * DMath.DegToRad), 0, 15 * DMath.DegToRad),
             rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi),
-            Orbit.PeriodFor(a, centralMassKg + mass));
+            Orbit.PeriodFor(a, host.MassKg + mass));
 
-        double lockDistance = 0.1 * DMath.Pow(centralMassKg / Units.SolarMass, 1.0 / 3.0);
+        double lockDistance = 0.1 * DMath.Pow(host.MassKg / Units.SolarMass, 1.0 / 3.0);
         bool locked = !giant && semiMajorAu < lockDistance;
         double rotation = giant
             ? rng.Range(8, 20) * 3600
@@ -591,20 +782,20 @@ public sealed class SystemGenerator
             ringOuter = ringInner * rng.Range(1.3, 2.2);
         }
 
-        uint path = (uint)(slot + 1) << 16;
+        uint path = BodyPath.Planet(host.NodeNumber, slot);
         string designation = number.ToString(CultureInfo.InvariantCulture);
         Body planet = b.Add(new Body
         {
             Index = b.Next,
-            Parent = 0,
+            Parent = host.BodyIndex,
             Kind = BodyKind.Planet,
-            Name = prefix + " " + designation,
+            Name = host.Prefix + " " + designation,
             Designation = designation,
             Path = path,
             PlanetType = type,
             Mass = mass,
             Radius = radius,
-            Temperature = teq * greenhouse,
+            Temperature = teq * Greenhouse(atmosphere, pressure),
             Atmosphere = atmosphere,
             SurfacePressure = pressure,
             Orbit = orbit,
@@ -623,50 +814,77 @@ public sealed class SystemGenerator
             _ => massEarth > 0.5 ? 0.4 : 0.0,
         };
         int moons = (int)Math.Min(rng.Poisson(moonRate), 12);
-        double hill = orbit.Periapsis * DMath.Pow(mass / (3 * centralMassKg), 1.0 / 3.0);
+        double hill = orbit.Periapsis * DMath.Pow(mass / (3 * host.MassKg), 1.0 / 3.0);
         double moonLimit = 0.4 * hill;
         double moonA = Math.Max(2.5 * radius, ringOuter * 1.15) * rng.Range(1.0, 1.5);
         for (int m = 0; m < moons && moonA < moonLimit; m++)
         {
-            var moonRng = new Rng(Hash64.Combine(key, MoonStream + (ulong)slot * 64 + (ulong)m));
-            bool icy = teq < 170;
-            double maxMoonMass = Math.Min(0.03, 3e-4 * massEarth);
-            double moonMassEarth = moonRng.LogUniform(1e-5, Math.Max(2e-5, maxMoonMass));
-            PlanetType moonType = icy ? (moonRng.Chance(0.6) ? PlanetType.Icy : PlanetType.RockyIce) : PlanetType.Rocky;
-            double moonRadius = RadiusFor(moonType, moonMassEarth, teq) * Units.EarthRadius;
-            double moonMass = moonMassEarth * Units.EarthMass;
-            bool retrograde = moonRng.Chance(0.1);
-            double inclination = StellarTables.Clamp(moonRng.Rayleigh(1 * DMath.DegToRad), 0, 20 * DMath.DegToRad);
-            var moonOrbit = new Orbit(moonA, StellarTables.Clamp(moonRng.Rayleigh(0.01), 0, 0.2),
-                retrograde ? DMath.Pi - inclination : inclination,
-                moonRng.Range(0, DMath.TwoPi), moonRng.Range(0, DMath.TwoPi), moonRng.Range(0, DMath.TwoPi),
-                Orbit.PeriodFor(moonA, mass + moonMass));
-            string letter = ((char)('a' + m)).ToString();
-            b.Add(new Body
-            {
-                Index = b.Next,
-                Parent = planet.Index,
-                Kind = BodyKind.Moon,
-                Name = planet.Name + " " + letter,
-                Designation = designation + " " + letter,
-                Path = path | (uint)(m + 1) << 8,
-                PlanetType = moonType,
-                Mass = moonMass,
-                Radius = moonRadius,
-                Temperature = teq,
-                Atmosphere = AtmosphereType.None,
-                Orbit = moonOrbit,
-                RotationPeriod = moonOrbit.Period,
-                TidallyLocked = true,
-                Landable = true,
-            });
+            var moonRng = new Rng(Hash64.Combine(host.Key, MoonStream + ((ulong)host.NodeNumber * 256 + (ulong)slot) * 256 + (ulong)m));
+            AddMoon(b, planet, designation, path, m, moonA, teq, mass, massEarth, ref moonRng);
             moonA *= rng.Range(1.3, 2.2);
         }
         return semiMajorAu * (1 + eccentricity);
     }
 
+    private static void AddMoon(Builder b, Body planet, string designation, uint planetPath, int m, double moonA, double teq,
+        double planetMass, double planetMassEarth, ref Rng rng)
+    {
+        bool icy = teq < 170;
+        double maxMoonMass = Math.Min(0.03, 3e-4 * planetMassEarth);
+        double moonMassEarth = rng.LogUniform(1e-5, Math.Max(2e-5, maxMoonMass));
+        PlanetType moonType = icy ? (rng.Chance(0.6) ? PlanetType.Icy : PlanetType.RockyIce) : PlanetType.Rocky;
+        double moonRadius = RadiusFor(moonType, moonMassEarth, teq) * Units.EarthRadius;
+        double moonMass = moonMassEarth * Units.EarthMass;
+        bool retrograde = rng.Chance(0.1);
+        double inclination = StellarTables.Clamp(rng.Rayleigh(1 * DMath.DegToRad), 0, 20 * DMath.DegToRad);
+        var moonOrbit = new Orbit(moonA, StellarTables.Clamp(rng.Rayleigh(0.01), 0, 0.2),
+            retrograde ? DMath.Pi - inclination : inclination,
+            rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi), rng.Range(0, DMath.TwoPi),
+            Orbit.PeriodFor(moonA, planetMass + moonMass));
+
+        // Big moons can hold atmospheres too: cold ones keep thick nitrogen and methane (like Titan), others at most a
+        // thin veil from outgassing.
+        AtmosphereType atmosphere = AtmosphereType.None;
+        double pressure = 0;
+        if (moonMassEarth > 0.005)
+        {
+            double roll = rng.NextDouble();
+            if (teq < 130 && roll < 0.35)
+            {
+                atmosphere = AtmosphereType.Thick;
+                pressure = rng.LogUniform(0.5, 5);
+            }
+            else if (roll < 0.55)
+            {
+                atmosphere = AtmosphereType.Thin;
+                pressure = rng.LogUniform(1e-5, 0.01);
+            }
+        }
+
+        string letter = ((char)('a' + m)).ToString();
+        b.Add(new Body
+        {
+            Index = b.Next,
+            Parent = planet.Index,
+            Kind = BodyKind.Moon,
+            Name = planet.Name + " " + letter,
+            Designation = designation + " " + letter,
+            Path = BodyPath.Moon(planetPath, m),
+            PlanetType = moonType,
+            Mass = moonMass,
+            Radius = moonRadius,
+            Temperature = teq * Greenhouse(atmosphere, pressure),
+            Atmosphere = atmosphere,
+            SurfacePressure = pressure,
+            Orbit = moonOrbit,
+            RotationPeriod = moonOrbit.Period,
+            TidallyLocked = true,
+            Landable = true,
+        });
+    }
+
     // Adds a belt between innerLimitAu and outerLimitAu; returns its outer edge in AU.
-    private static double AddBelt(Builder b, string prefix, int slot, double semiMajorAu, double centralMassKg,
+    private static double AddBelt(Builder b, HostContext host, int slot, double semiMajorAu,
         double innerLimitAu, double outerLimitAu, ref Rng rng)
     {
         double widthAu = semiMajorAu * rng.Range(0.2, 0.4);
@@ -675,13 +893,13 @@ public sealed class SystemGenerator
         b.Add(new Body
         {
             Index = b.Next,
-            Parent = 0,
+            Parent = host.BodyIndex,
             Kind = BodyKind.Belt,
-            Name = prefix + " Belt",
+            Name = host.Prefix + " Belt",
             Designation = "Belt",
-            Path = (uint)(slot + 1) << 16 | 0x80,
+            Path = BodyPath.Belt(host.NodeNumber, slot),
             PlanetType = PlanetType.AsteroidBelt,
-            Orbit = new Orbit(a, 0, 0, 0, 0, 0, Orbit.PeriodFor(a, centralMassKg)),
+            Orbit = new Orbit(a, 0, 0, 0, 0, 0, Orbit.PeriodFor(a, host.MassKg)),
             BeltWidth = widthAu * Au,
         });
         return semiMajorAu + widthAu / 2;

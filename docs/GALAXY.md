@@ -371,11 +371,12 @@ A test checks that every name parses uniquely.
   part: `Bratum Loron 0-0`.
 - `<Level>` is the level digit, `<Index>` the star index.
 
-**Catalogue systems** keep their real names. **Bodies** add designations: the primary is `A` when the system
-has companion stars, which are `B`, `C`; planets `1`, `2`, … numbered outward; moons `a`, `b`, …. Only the
-primary star has planets, so a planet of a multiple system is `<system> A 3` and its moon `<system> A 3 a`
-(`Lumtum Delis AP-SQ 5-6 A 3 a`); a single star's planets have no letter (`Lumtum Delis FF-WL 6-0 2 a`). A
-system has at most one belt, called `<system> Belt` (or `<system> A Belt`); it takes no number.
+**Catalogue systems** keep their real names. **Bodies** add designations. In a multiple system the stars are
+`A`, `B`, `C`, … (A is the primary; letters follow the orbit tree, inner members first) and a barycentre is
+named by its stars (`AB`, `ABC`, `BC`). Planets are numbered outward around their host, `1`, `2`, …, after the
+host's letters: `<system> B 3` orbits star B, `<system> AB 1` orbits the pair A and B; moons add `a`, `b`, …
+(`<system> B 3 a`). A single star's planets have no letter (`Lumtum Delis FF-WL 6-0 2 a`). A host has at most one
+belt, `<system> Belt` (or `<system> B Belt`); it takes no number.
 
 ---
 
@@ -385,10 +386,40 @@ Generated from the system address. Sol, its planets and its main moons are hand-
 
 **Random streams.** The system's key is `Hash64(systemSeed, "SYST", address)`, where the system seed mixes the
 universe seed with the system-stage version (§14). Each object draws from its own stream derived from the key:
-the layout (companion count, orbit slots, which slots hold planets, whether there is a belt), the primary, each
-companion, each orbit slot, and each moon. Changing how one moon is generated never shifts a planet. Bodies have
-stable paths (ARCHITECTURE.md §7): companions `(i + 1) << 24`, a planet `(slot + 1) << 16`, its moons add
-`(m + 1) << 8`, a belt sets bit `0x80`. A planet is identified by its orbit slot, not by its number.
+the layout (companion count), each companion, each star, each pair's orbit, each host's layout (orbit slots,
+which slots hold planets, whether there is a belt), each orbit slot and each moon. Changing how one moon is
+generated never shifts a planet.
+
+### 10.1 The orbit tree and body paths
+
+A system is a **tree of bodies**. The root (body 0) is the only star or, for multiple stars, the outermost
+barycentre, fixed at the origin of the system frame; everything else orbits its parent on a Keplerian orbit.
+Multiple stars are **hierarchical**: the primary and its innermost companion orbit their barycentre; that pair and
+the next companion orbit theirs, and so on — `(((A B) C) D)`. A wide companion (beyond 50 AU) is itself a close
+pair a quarter of the time, `((A (B C))`, its two stars orbiting each other within a fifth of their distance from
+the rest. The two members of every pair orbit their barycentre on opposite sides, each at its share of the
+separation (`a₁ = a · m₂ / (m₁ + m₂)`, periapsis arguments π apart, one period from the pair's total mass), so the
+stars' centre of mass stays at the origin. A system has at most 8 stars and 7 barycentres; the generator makes up
+to 5 stars.
+
+**Every star and every barycentre is a planet host** (S-type around one star, P-type around a pair). Each host
+draws its own zone, slots, planet count and belt, with its own layout stream. Light from stars outside a host
+reaches its planets too (§10.2).
+
+**Body paths** (`BodyPath`, 32 bits, ARCHITECTURE.md §7) name a body for ever, so they never depend on numbering
+that could shift (a planet is its host's orbit slot, not its number; a suppressed slot keeps its path unused):
+
+| Bits | Field |
+|---|---|
+| 28–31 | node: the star (1–8, A–H) or barycentre (9–15, inner pairs first) the body is or orbits |
+| 20–27 | orbit slot + 1 around that node (0 = the node itself) |
+| 12–19 | moon + 1 (0 = the planet itself) |
+| 4–11 | reserved for moons of moons (0) |
+| 0–3 | feature: 0 = the body, 1 = a belt in that slot |
+
+Sol's planets are slots 0–8 of node 1 (the Sun), its belts slots 20 and 21.
+
+### 10.2 Stars, planets, moons
 
 **Stars**
 
@@ -400,28 +431,39 @@ stable paths (ARCHITECTURE.md §7): companions `(i + 1) << 24`, a planet `(slot 
   of systems 1–3 times it if such a star would have died by now; the system's age then makes it a brown dwarf, a
   main-sequence star, a giant (only beside an evolved primary), a white dwarf, a neutron star or a black hole
   (§4.1). Separation log-normal around `50 AU · M^0.3` (σ = 1.5 dex, 0.05–20,000 AU), eccentricity Rayleigh
-  (σ = 0.3, at most 0.85).
-- **Floors**: a companion's periapsis is at least three times the sum of the two stars' radii. Multiple
-  stars form a stable hierarchy: each wider companion's periapsis is at least three times the previous
-  companion's apoapsis. A rolled companion that the hierarchy would push out beyond 40,000 AU (0.63 ly) at
-  apoapsis is dropped instead; real companions are always kept.
+  (σ = 0.3, at most 0.85). A companion wider than 50 AU is a close pair in 25% of cases: the second star's initial
+  mass is the first's times 0.2–1, separation log-uniform 0.02 AU to 5% of the wide orbit, eccentricity Rayleigh
+  (σ = 0.15, at most 0.5).
+- **Floors**: two stars' periapsis is at least three times the sum of their radii. Multiple stars form a stable
+  hierarchy: each wider companion's periapsis is at least three times the previous companion's apoapsis, and a
+  companion pair's apoapsis is at most a fifth of its own periapsis around the rest. A rolled companion that the
+  hierarchy would push out beyond 40,000 AU (0.63 ly) at apoapsis is dropped instead; real companions are always
+  kept.
 
 **Planets**
 
-- Expected count by primary type (M 3.0, K 3.5, G 4.5, F 4.0, A 2.5, B 1.0, O 0.3, giants 1.5, white dwarfs
-  0.5, brown dwarfs 0.8, neutron stars 0.2, black holes 0.1), raised by metallicity, at most 14.
-- **Planet zone**: from `max(0.01 AU, 0.03 AU · √L, 3 stellar radii)` out to `max(2 AU, 50 AU · √M)`. The
-  inner edge is where the equilibrium temperature reaches about 1,600 K, so close-in hot worlds exist
-  (metal-rich worlds, hot giants). Companions with an apoapsis under 5 AU make a close pair: planets orbit
-  both, beyond three times the companion's apoapsis. Wider companions cut the zone at a third of their
-  periapsis.
+- Expected count per host by its (heaviest) star's type (M 3.0, K 3.5, G 4.5, F 4.0, A 2.5, B 1.0, O 0.3, giants
+  1.5, white dwarfs 0.5, brown dwarfs 0.8, neutron stars 0.2, black holes 0.1), raised by metallicity, at most 14.
+  A pair (circumbinary planets) gets half. A close companion stunts the disc planets form in: around one star of
+  a pair the rate falls smoothly (in log distance) from full at a closest approach of 50 AU to zero at 3 AU.
+- **Planet zone** around a star: from `max(0.01 AU, 0.03 AU · √L, 3 stellar radii)` (where the equilibrium
+  temperature reaches about 1,600 K, so close-in hot worlds exist: metal-rich worlds, hot giants) out to
+  `max(2 AU, 50 AU · √M)`. Around a pair: from `max(0.03 AU · √L, a · c_P)` with the pair's total light and mass.
+  Every host's zone ends where planets stop being stable against what orbits outside it: for each enclosing pair,
+  at `a · c_S` of that pair. `c_S` and `c_P` are the stability limits for planets in binaries (Holman & Wiegert
+  1999), with `μ` the perturbing (or lighter) star's share of the pair's mass and `e` its eccentricity:
+  `c_S = 0.464 − 0.380μ − 0.631e + 0.586μe + 0.150e² − 0.198μe²` (0.01–0.5) and
+  `c_P = 1.60 + 5.10e − 2.22e² + 4.12μ − 4.27eμ − 5.09μ² + 4.61e²μ²` (1.5–6).
 - **Orbit slots** from the inner edge outward, each 1.4–2.4 times the previous one; planets take a weighted
   random subset of the slots. Slots beyond `0.1 AU · √L` (orbits of about ten days around the Sun) all weigh
   1; closer in, real planets get rarer quickly, so a slot weighs `(a / 0.1 AU·√L)³`. In the sample of 30,000
   systems near Sol about 1 system in 120 has a gas giant above 1,000 K, and 2% of planets are metal-rich.
 - **Orbits never cross**: each planet's eccentricity is limited so its periapsis stays at least 15% beyond
   the previous body's apoapsis and its apoapsis stays inside the next slot divided by 1.3.
-- Snow line `2.7 AU · √L`; equilibrium temperature `278.6 K · L^¼ / √a`.
+- Snow line `2.7 AU · √L` (the host's own light). **Companion light**: the equilibrium temperature is
+  `278.6 K · (L / a² + F)^¼`, where `L` is the host's light (both stars for a pair) and `F` the light of the stars
+  outside the host, each at the orbit-averaged distance of the pair that joins it to the host,
+  `F = Σ L_out / (a² √(1 − e²))`.
 - Types: metal-rich, rocky, rocky-ice, icy, water world, Earth-like (rare: rocky, 0.5–3 Earth masses,
   temperate; 4% of temperate rocky slots around F–K stars, 0.6% around M dwarfs; in the test sample of
   30,000 systems near Sol, about 1 system in 110 has one), ammonia world, ice giant, gas giant. Gas giants
@@ -431,11 +473,12 @@ stable paths (ARCHITECTURE.md §7): companions `(i + 1) << 24`, a planet `(slot 
   orbital elements (semi-major axis, eccentricity, inclination, node, argument of periapsis, mean anomaly at
   epoch J2000).
 - **Moons**: a Poisson number with mean 4 for gas giants, 2.5 for ice giants and 0.4 for every other planet
-  above 0.5 Earth masses (at most 12), all inside 0.4 of the planet's Hill radius (at periapsis). Moons are
-  airless, rocky (or icy and rocky-ice where the planet's equilibrium temperature is under 170 K), tidally
-  locked and landable.
+  above 0.5 Earth masses (at most 12), all inside 0.4 of the planet's Hill radius (at periapsis, against its
+  host's mass). Moons are rocky (or icy and rocky-ice where the planet's equilibrium temperature is under 170 K),
+  tidally locked and landable. Moons above 0.005 Earth masses can hold an atmosphere: cold ones (under 130 K) a
+  thick one in 35% of cases (0.5–5 atm, like Titan), otherwise a thin one in 20% (10⁻⁵–0.01 atm).
 - **Rings**: gas giants 40%, ice giants 30%, every other planet type 2%.
-- **Belts**: about 30% of systems want one; at most one per system. A belt takes the first chosen slot beyond
+- **Belts**: about 30% of hosts want one; at most one per host. A belt takes the first chosen slot beyond
   half the snow line if there is room; otherwise it trails the last planet (1.5–2.5 times its orbit, inside the
   zone). Its width is 20–40% of its radius, trimmed so it never touches its neighbours.
 - **Landable** means "has a solid surface". Whether it is pleasant to land on is gameplay, not generation.
@@ -487,7 +530,10 @@ period; Kepler's equation is solved per frame (Newton's method).
 - Distances are drawn on a compressed (logarithmic) scale by default so inner planets stay visible; a linear
   scale can be switched on.
 - Selecting a body shows its data: type, mass, radius, gravity, temperature, atmosphere, orbit, day length,
-  landable.
+  landable; for stars and barycentres, the system's age (and a barycentre's members).
+- Barycentres are empty points in the orrery (labelled only when selected) and rows in the body list. Around the
+  root, distances use the system's (compressed) scale; around a companion or an inner pair, 0.35 of it, so that
+  host's planets stay clustered around it.
 
 ---
 
@@ -510,7 +556,8 @@ period; Kepler's equation is solved per frame (Newton's method).
 | Star counts | `StarCountProfile` agrees with a Monte Carlo integral of the density within 25%, near Sol, in the disk and at the core. |
 | Addresses and names | Address ↔ fields round-trip; name ↔ address round-trip; every sector name parses uniquely. |
 | Systems | Sol matches its hand data; moons stay inside their planet's Hill sphere. |
-| Orbits | In thousands of systems: neighbouring planets and belts never overlap; companions keep the radius floor and the hierarchy; planets stay clear of companions. |
+| Orbits | In thousands of systems: neighbouring planets and belts of every host never overlap; both members of every pair balance at its barycentre and keep the radius floor or the hierarchy; circumbinary planets stay beyond 1.5 times the pair's separation, planets of one member inside half the pair's closest approach. |
+| Orbit tree | Paths are unique, decode to their host, slot and moon, and find their body; the stars' centre of mass stays at the origin at any time; triples, planets around companions, circumbinary planets, planets warmed by a companion and moons with atmospheres all occur. |
 | Architecture | Nothing in `src/` references Godot; generation code uses no platform maths, unseeded randomness or clocks. |
 
 ---

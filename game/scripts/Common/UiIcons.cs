@@ -17,6 +17,7 @@ public enum UiIcon
     Moon,
     Belt,
     Open,
+    Barycentre,
 }
 
 /// <summary>
@@ -47,6 +48,8 @@ public static class UiIcons
             "<circle cx=\"12.5\" cy=\"9.2\" r=\"1.7\"/><circle cx=\"16.5\" cy=\"10\" r=\"1.2\"/><circle cx=\"19.8\" cy=\"12.8\" r=\"1.5\"/>" +
             "<circle cx=\"10.5\" cy=\"14.5\" r=\"1\"/><circle cx=\"15\" cy=\"14\" r=\"1.1\"/></g>",
         [UiIcon.Open] = "<path d=\"M9.5 5.5 L16 12 L9.5 18.5\"/>",
+        [UiIcon.Barycentre] = "<circle cx=\"5.5\" cy=\"12\" r=\"2.6\" fill=\"#ffffff\" stroke=\"none\"/>" +
+            "<circle cx=\"19\" cy=\"12\" r=\"1.9\" fill=\"#ffffff\" stroke=\"none\"/><path d=\"M12 9.3 V14.7 M9.3 12 H14.7\" stroke-width=\"1.6\"/>",
     };
 
     private static readonly Dictionary<(UiIcon Icon, float Size), ImageTexture> Cache = new();

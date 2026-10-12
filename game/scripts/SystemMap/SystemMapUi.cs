@@ -293,7 +293,7 @@ public partial class SystemMapUi : Control
     {
         _name.Text = system.Name;
         GalaxyStar primary = system.Primary;
-        _star.Text = $"{system.Root.StarClass} · {system.Root.StarClass.KindName}";
+        _star.Text = $"{system.PrimaryStar.StarClass} · {system.PrimaryStar.StarClass.KindName}";
         int stars = system.Count(BodyKind.Star);
         int planets = system.Count(BodyKind.Planet);
         int moons = system.Count(BodyKind.Moon);
@@ -398,7 +398,22 @@ public partial class SystemMapUi : Control
                 Row("Width", Ui.Distance(body.BeltWidth));
             }
         }
-        if (body.Kind == BodyKind.Star)
+        if (body.Kind == BodyKind.Barycentre)
+        {
+            Row("Mass", Ui.Times(body.Mass / Units.SolarMass, "Sun"));
+            var members = new List<string>();
+            foreach (int child in body.Children)
+            {
+                Body member = system.Bodies[child];
+                if (member.Kind is BodyKind.Star or BodyKind.Barycentre)
+                {
+                    members.Add(ShortName(system, member));
+                }
+            }
+            Row("Members", string.Join(" and ", members), numeric: false);
+            Row("Age", Ui.Age(system.Age));
+        }
+        else if (body.Kind == BodyKind.Star)
         {
             Row("Mass", Ui.Times(body.Mass / Units.SolarMass, "Sun"));
             Row("Radius", body.Radius < 0.01 * Units.SolarRadius
@@ -414,7 +429,7 @@ public partial class SystemMapUi : Control
             }
             Row("Age", Ui.Age(system.Age));
         }
-        else if (body.Kind != BodyKind.Belt)
+        else if (body.Kind is BodyKind.Planet or BodyKind.Moon)
         {
             double earthMasses = body.Mass / Units.EarthMass;
             Row("Mass", earthMasses < 0.001
@@ -472,6 +487,7 @@ public partial class SystemMapUi : Control
         BodyKind.Star => UiIcon.Star,
         BodyKind.Belt => UiIcon.Belt,
         BodyKind.Moon => UiIcon.Moon,
+        BodyKind.Barycentre => UiIcon.Barycentre,
         _ => UiIcon.Planet,
     };
 
@@ -481,6 +497,10 @@ public partial class SystemMapUi : Control
         if (body.Kind == BodyKind.Star)
         {
             return StarColors.For(body.StarClass, (float)body.Temperature).Lerp(Ui.Warm, 0.25f);
+        }
+        if (body.Kind == BodyKind.Barycentre)
+        {
+            return Ui.Secondary;
         }
         return body.PlanetType switch
         {
@@ -496,9 +516,12 @@ public partial class SystemMapUi : Control
         };
     }
 
-    /// <summary>A body's name without the system's name in front ("A 4" for "Nolcas Peris BF-BA 5-0 A 4"); stars keep theirs.</summary>
+    /// <summary>
+    /// A body's name without the system's name in front ("A 4" for "Nolcas Peris BF-BA 5-0 A 4", "B" for its star B);
+    /// a single star keeps its name.
+    /// </summary>
     public static string ShortName(StarSystem system, Body body) =>
-        body.Kind != BodyKind.Star && body.Name.StartsWith(system.Name + " ", StringComparison.Ordinal)
+        body.Name.StartsWith(system.Name + " ", StringComparison.Ordinal)
             ? body.Name[(system.Name.Length + 1)..]
             : body.Name;
 
@@ -543,7 +566,7 @@ public partial class SystemMapUi : Control
             depth++;
             parent = system.Bodies[parent].Parent;
         }
-        return body.Kind == BodyKind.Star && body.Index == 0 ? 0 : depth + 1;
+        return body.Index == 0 ? 0 : depth + 1;
     }
 
     private static string Plural(int n, string word) => $"{n} {word}{(n == 1 ? "" : "s")}";

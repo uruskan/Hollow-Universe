@@ -114,7 +114,7 @@ Three frames, each with its own type, so they can't be mixed by accident:
 | Frame | Used for | Type | Unit | Origin and axes |
 |---|---|---|---|---|
 | **Galactic** | star positions, galaxy map, jumps | `GalacticPosition` (3 × double) | light-year | Sol. +Z toward the Galactic Centre, +Y toward the north galactic pole, +X toward galactic longitude 90° (the direction of the Sun's orbit). Right-handed, Y up, like Godot. |
-| **System** | bodies, stations, ships in supercruise | `SystemPosition` (3 × double) | metre | the system's primary star. Reference plane is the system's orbital plane (x–z), +Y is its north. |
+| **System** | bodies, stations, ships in supercruise | `SystemPosition` (3 × double) | metre | the root of the system's orbit tree: its only star, or the barycentre of its stars (GALAXY.md §10.1). Reference plane is the system's orbital plane (x–z), +Y is its north. |
 | **Local** | physics, rendering, gameplay | `LocalPosition` (3 × float) | metre | the zone's origin, close to the players. Planet surfaces use a tangent frame: origin on the surface, +Y = local up. |
 
 Rules:
@@ -136,7 +136,7 @@ Rules:
 | Thing | ID | Stored in the database? |
 |---|---|---|
 | Star system | `SystemAddress`, 64 bits. Procedural: level + sector + cell + index. Catalogue: flag + catalogue + catalogue ID. Layout in GALAXY.md §6. | No, it's generated |
-| Body (star, planet, moon, belt) | `BodyId` = SystemAddress + 32-bit body path (star, planet, moon) | No |
+| Body (star, barycentre, planet, moon, belt) | `BodyId` = SystemAddress + 32-bit body path: node (star or barycentre), orbit slot, moon, feature (GALAXY.md §10.1). Never a list position, so it can't shift. | No |
 | Surface tile | BodyId + cube face + quadtree path | Only if players changed it |
 | Natural feature (ore node, tree, monument) | tile + index | Only overrides, e.g. "depleted until T" |
 | Persistent entity (base part, box, item, ship, character) | `EntityId`, 64 bits, allocated by the shard: 41 bits time + 9 bits allocator + 14 bits sequence | Yes |
