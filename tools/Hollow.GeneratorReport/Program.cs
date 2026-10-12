@@ -57,13 +57,15 @@ public static class Program
                         $"procedural only beyond {CatalogueCompleteness.EmptyBeyond(level):0.0} ly"));
                 }
                 return 0;
+            case "surface":
+                return SurfaceReport.Run(args);
             case "maps":
                 Maps.Render(args.Length > 1 ? args[1] : Path.Combine(RepoRoot(), "docs", "images", "generator"),
                     args.Length > 2 ? args[2] : "",
                     args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : StarClassTable.LevelCount - 1);
                 return 0;
             default:
-                Console.Error.WriteLine("usage: Hollow.GeneratorReport bench|stats|names|maps [folder] [prefix]|shells|calibrate|completeness|stars|find|worlds");
+                Console.Error.WriteLine("usage: Hollow.GeneratorReport bench|stats|names|maps [folder] [prefix]|shells|calibrate|completeness|stars|find|worlds|surface");
                 return 2;
         }
     }

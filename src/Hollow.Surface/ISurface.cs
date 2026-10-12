@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Hollow.Core;
 
 namespace Hollow.Surface;
@@ -29,6 +30,15 @@ public interface ISurface
     /// natural objects and water are separate.
     /// </summary>
     TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size);
+
+    /// <summary>The biome at a unit direction (stand-in surfaces: grassland).</summary>
+    Biome BiomeAt(Vector3D direction) => Biome.Grassland;
+
+    /// <summary>
+    /// Natural objects (trees, bushes, ferns, rocks) on a scatter tile of <see cref="Scatter.Level"/>, in a fixed
+    /// order; each one's ID is the tile plus its <see cref="ScatterItem.Index"/> (stand-in surfaces: none).
+    /// </summary>
+    IReadOnlyList<ScatterItem> ScatterFor(TileKey tile) => Array.Empty<ScatterItem>();
 }
 
 /// <summary>

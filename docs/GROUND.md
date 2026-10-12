@@ -145,22 +145,56 @@ Godot.
 
 ### 4.6 Planet surface
 
-- **A pure function** of (body, planet state, point on the sphere, surface generator version), built with `DMath`
-  (ARCHITECTURE.md §8), so the server's collision and the client's terrain agree to the bit.
-- **Cube-sphere:** six faces, quadtree tiles. Chunk meshes with levels of detail out to the horizon for drawing;
-  collision only near players. A zone uses a tangent frame at its origin (ARCHITECTURE.md §6).
-- **Height:** continents and oceans that match the ocean cover; mountain ranges and rifts from plate tectonics;
-  hills, valleys, coasts and beaches.
-- **Climate and biomes:** temperature from latitude, height, season and the planet state; moisture; a biome table
-  that picks ground materials and plant sets.
-- **Scatter:** trees, bushes, grass, rocks, ore nodes and plants per tile, deterministic. Their IDs are tile + index
-  (ARCHITECTURE.md §7).
-- **Sky:** scattering from the planet's own air; the real sun, the two white dwarfs, the moon and the other planets
-  at their real positions for the universe time; the star field from the galaxy generator.
-- **Water:** oceans and lakes, with shorelines.
-- **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height and normal at a point,
-  biome at a point, collision chunk for a tile, scatter for a tile. The network work starts on a simple
-  implementation of it and switches to the real one when it lands.
+`PlanetSurface` in Hollow.Surface is the real surface of a rocky planet; `SphereSurface` stays as the stand-in.
+
+- **A pure function** of (universe seed, system, body, planet state, `GeneratorVersion.Surface`), built with `DMath`,
+  `Hash64` and gradient noise made of + − × ÷ and floor only (ARCHITECTURE.md §8), so the server's collision and the
+  client's terrain agree to the bit. A golden test pins heights and biomes at 600 points.
+- **Cube-sphere:** six faces, each a square of face coordinates (u, v) ∈ [−1, 1]² mapped to the sphere through
+  `tan(t·π/4)`, so tiles stay within a factor of 1.5 of the same size. A `TileKey` is face, level (0–28) and x, y;
+  every grid coordinate is a dyadic fraction, exact in double, so parents and children share vertices bit for bit.
+  On the first world a level-16 tile is about 154 m across and a level-18 tile about 39 m.
+- **Tile grids:** 32 × 32 cells, each quad split along the same diagonal at every level. Vertices also carry their
+  position on the parent's grid, so the client morphs between levels without popping, plus eight ground-material
+  weights and the climate. **Collision is built from the level-18 grids** (1.2 m spacing), exactly the vertices the
+  client draws near the player (`GroundCollision`; a test checks it).
+- **Height**, in layers:
+  - *Plates:* 14–20 plates (Voronoi on the sphere, seen through a warped direction so their edges bend), each
+    continental or oceanic with its own Euler pole. Every plate near a point weighs in softly, and each boundary's
+    relief is a function of the distance across it, so the field is continuous at triple junctions.
+  - *Continents:* a warped noise plus the plates' bias, run through a crust curve (abyssal plains, continental slope,
+    shelf, coast, lowlands, interiors). The coastline threshold is calibrated on 6,144 fixed directions until the full
+    height puts exactly `OceanCover` under the sea (45.1% on the first world).
+  - *Boundaries:* mountain belts where plates converge on land, trenches and island arcs at sea, rift valleys and
+    spreading ridges where they part; their strength varies along each boundary. Old worn ranges in a few regions.
+  - *Mountains:* the belts' uplift shaped by eroded ridged noise ("swiss turbulence": octaves displaced along the
+    summed slopes), so crests are sharp, valley floors smooth and side valleys branch.
+  - *Hills:* regional amplitude (mostly gentle, hilly in places and around ranges) over noise whose octaves are damped
+    on steep slopes. Metre-scale ground on top, rougher on stony ground.
+  - *Coasts:* a curve that flattens sandy shores into beaches (a regional "beach" field); rocky shores keep their
+    slope.
+- **Climate:** annual mean temperature from the planet's mean, latitude (42 K equator to pole), noise and a 6 K/km
+  lapse rate; the ice line is calibrated so ice covers `IceCover`. Moisture from latitude bands (wet tropics, dry
+  subtropics, wet mid-latitudes), distance inland and noise. Seasons are drawn, not generated (the sky moves).
+- **Biomes:** ocean, beach, ice sheet, tundra, boreal forest, temperate forest, grassland, shrubland, desert, savanna,
+  tropical forest and alpine ground, as soft weights from a Whittaker-like table. They give the eight ground materials
+  (grass, forest floor, soil, rock, gravel, sand, snow, moss; slope turns ground to scree and rock) and plant
+  densities, thinned by forest clearings, slope, tree line and shore.
+- **Scatter:** per level-16 tile, a jittered grid of candidates per kind (trees 3.5 m, bushes 2.4 m, ferns 1.6 m,
+  rocks 3.2 m), each kept with the probability its density gives. Trees grow in stands of one kind (fir, pine, birch,
+  broadleaf). An object's ID is the tile plus its index: kind in the top byte, candidate cell below (ARCHITECTURE.md
+  §7). Grass is a density per vertex, drawn by the client.
+- **Speed:** about 3.7 µs per height and 7 µs per drawn vertex (with climate and materials), about 7 ms per tile on
+  one core; the client builds tiles on worker threads.
+- **Sky:** `SkyEphemeris` turns the planet's body frame in the system frame: the spin axis leans from the system's
+  +Y toward −X by the axial tilt and stays fixed (seasons follow the orbit); the body turns 2π·t / period about it,
+  prime meridian in the plane of the axis and +X at J2000. Sun, moon, the other suns and planets come from the orbit
+  code at the universe time. The client draws physically based scattering for the planet's own air (Rayleigh, Mie,
+  ozone, multiple scattering) with the same tables as the aerial perspective on everything under it.
+- **Water:** the sea at `SeaRadius` (sea level), drawn on the terrain's own tiles.
+- **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height at a point, biome at a
+  point (`BiomeAt`), collision for a zone square, scatter for a tile (`ScatterFor`). The last two have default
+  implementations, so other `ISurface`s keep compiling.
 
 ### 4.7 Persistence
 

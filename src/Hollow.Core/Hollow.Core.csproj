@@ -3,5 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Hollow.Core</RootNamespace>
+    <!-- Surfaces are generated while the game streams them, also in Debug builds (the game runs Debug). -->
+    <Optimize>true</Optimize>
   </PropertyGroup>
 </Project>

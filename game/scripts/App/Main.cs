@@ -6,6 +6,7 @@ using Hollow.Core;
 using Hollow.Galaxy;
 using Hollow.Galaxy.Systems;
 using HollowUniverse.GalaxyMap;
+using HollowUniverse.Surface;
 using HollowUniverse.SystemMap;
 
 namespace HollowUniverse.App;
@@ -19,6 +20,7 @@ public partial class Main : Node
 {
     private GalaxyMapView _galaxyMap = null!;
     private SystemMapView _systemMap = null!;
+    private SurfaceView _surfaceView = null!;
     private Dictionary<string, string> _options = new();
     private double _elapsed;
     private bool _capturing;
@@ -41,8 +43,11 @@ public partial class Main : Node
         AddChild(_galaxyMap);
         _systemMap = new SystemMapView { Name = "SystemMap" };
         AddChild(_systemMap);
+        _surfaceView = new SurfaceView { Name = "Surface" };
+        AddChild(_surfaceView);
         _galaxyMap.OpenSystemRequested += address => OpenSystem(address, UniverseTime.Now);
         _systemMap.BackRequested += ShowGalaxy;
+        _surfaceView.BackRequested += ShowGalaxy;
         ShowGalaxy();
         ApplyOptions();
         if (_options.ContainsKey("shot"))
@@ -55,7 +60,28 @@ public partial class Main : Node
     private void ShowGalaxy()
     {
         _systemMap.SetActive(false);
+        _surfaceView.SetActive(false);
         _galaxyMap.SetActive(true);
+    }
+
+    /// <summary>Opens the first world's surface (GROUND.md §3): the surface view's options are degrees and metres.</summary>
+    private void OpenSurface(double time)
+    {
+        var found = Hollow.Surface.FirstWorld.Find(GalaxyService.Galaxy);
+        if (found == null)
+        {
+            GD.PushError("--view surface: the first world is not in this universe.");
+            return;
+        }
+        (StarSystem system, Body planet) = found.Value;
+        var surface = Hollow.Surface.PlanetSurface.For(GalaxyService.Galaxy, system, planet);
+        _galaxyMap.SetActive(false);
+        _systemMap.SetActive(false);
+        _surfaceView.SetActive(true);
+        _surfaceView.Open(system, planet, surface, Number("lat", Hollow.Surface.FirstWorld.LandingLatitude),
+            Number("lon", Hollow.Surface.FirstWorld.LandingLongitude), Number("alt", 1.7), Number("yaw", 0), Number("pitch", 0), time);
+        _surfaceView.SetTime(time, paused: _options.ContainsKey("shot"));
+        _surfaceView.DebugSky = (int)Number("debug-sky", 0);
     }
 
     private bool OpenSystem(SystemAddress address, double time)
@@ -111,13 +137,14 @@ public partial class Main : Node
             _galaxyMap.Search(search);
         }
 
+        if (view == "surface")
+        {
+            OpenSurface(OptionTime());
+        }
+
         if (view == "system" && focusAddress.HasValue)
         {
-            double time = UniverseTime.Now;
-            if (_options.TryGetValue("time", out string? t))
-            {
-                time = UniverseTime.SecondsSinceJ2000(DateTime.Parse(t, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal));
-            }
+            double time = OptionTime();
             if (OpenSystem(focusAddress.Value, time))
             {
                 _systemMap.SetTime(time, paused: _options.ContainsKey("shot"));
@@ -133,6 +160,10 @@ public partial class Main : Node
         }
     }
 
+    private double OptionTime() => _options.TryGetValue("time", out string? t)
+        ? UniverseTime.SecondsSinceJ2000(DateTime.Parse(t, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal))
+        : UniverseTime.Now;
+
     private double _traceTimer;
 
     public override void _Process(double delta)
@@ -143,6 +174,11 @@ public partial class Main : Node
             if (_traceTimer >= 1)
             {
                 _traceTimer = 0;
+                if (_surfaceView.Visible)
+                {
+                    GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} tiles={_surfaceView.Terrain.DrawnTiles} pending={_surfaceView.Terrain.Pending} build={_surfaceView.Terrain.BuildMicroseconds:0}us ready={_surfaceView.IsReady} exposure={_surfaceView.Sky?.Exposure:0.###} sun={_surfaceView.Sky?.SunElevation:0.0}");
+                }
+                else
                 GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0}ms stars={_galaxyMap.Stars.LoadedStars} blocks={_galaxyMap.Stars.LoadedBlocks} pending={_galaxyMap.Stars.PendingBlocks} glow={_galaxyMap.IsGlowReady} sky={_galaxyMap.SkyBrightness:0.0} {_galaxyMap.TimingDebug} crowd {_galaxyMap.CrowdingDebug}");
             }
         }
@@ -160,7 +196,8 @@ public partial class Main : Node
             _scaler.Apply();
         }
         double wait = Number("wait", 2);
-        bool ready = _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
+        bool ready = _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady
+            : _surfaceView.Visible ? _surfaceView.IsReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
         {
             _capturing = true;
