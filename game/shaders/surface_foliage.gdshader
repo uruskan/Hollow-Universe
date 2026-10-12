@@ -1,77 +1,108 @@
-// Plants and rocks of the surface view (GROUND.md §4.6), drawn with MultiMesh: alpha-tested leaves lit through from
-// behind, wind that sways whole trees and flutters their foliage, a distance band per level of detail with a
-// dithered cross-fade (instances outside it collapse to nothing), cloud shadows and the planet's air in front.
+// Plants of the surface view (GROUND.md §4.6), drawn with MultiMesh, after hollow-orbit's flora materials:
+// - leaves: the painted atlas, alpha-tested with alpha to coverage, vertex-colour occlusion, crown-shaped normals,
+//   light through the leaves and a warm sheen where the sun is behind the viewer, little specular;
+// - bark: tiling bark with a normal map, tinted by vertex colour; berries: vertex colour, glossy;
+// - wind (per vertex weights in CUSTOM0: bend, flutter): the whole plant bends along the wind with travelling gusts,
+//   leaves flutter along their normals;
+// - levels of detail: each MultiMesh draws a distance band, cross-fading by dither, or shrinking into the ground at
+//   the far end of its last band; cloud shadows and the planet's air in front.
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/surface_atmosphere.gdshaderinc"
 #include "res://shaders/surface_clouds.gdshaderinc"
 
+global uniform vec3 hu_texture_offset;
+global uniform vec4 hu_wind; // xyz: direction the wind blows toward (render space, unit); w: strength (1 = a breeze)
+
+uniform int mode = 0; // 0 leaves, 1 bark, 2 berries
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2D normal_texture : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform bool foliage = true;
-uniform bool has_normal = false;
-uniform bool two_sided = true;
-uniform vec4 lod_band = vec4(0.0, 0.0, 50.0, 60.0); // fade in from x to y, out from z to w (metres)
-uniform vec3 tint = vec3(1.0);
-uniform float wind = 0.25;        // metres of sway at the top
-uniform float plant_height = 10.0;
-uniform float translucency = 0.6;
-uniform float alpha_cut = 0.5;
-uniform float roughness = 0.75;
+uniform sampler2D normal_texture : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform vec3 wind_params = vec3(0.22, 1.15, 0.035); // metres of bend, its frequency, metres of flutter
+uniform float translucency = 0.55;
+uniform float roughness = 0.82;
+uniform float specular_scale = 0.35;
+
+instance uniform vec4 lod_band = vec4(0.0, 0.0, 1e6, 2e6); // fade in from x to y, out from z to w (metres)
+instance uniform float shrink = 0.0; // 1: shrink into the ground across the fade-out instead of dithering
 
 varying vec3 v_world;
-varying float v_fade;
+varying float v_fade_in;
+varying float v_fade_out;
 varying float v_cloud;
 varying vec3 v_tint;
-varying float v_height;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
-	float dist = length(origin - CAMERA_POSITION_WORLD);
+	// The main camera's distance, also in shadow passes (so each level casts the shadows it draws).
+	float dist = length(origin - MAIN_CAM_INV_VIEW_MATRIX[3].xyz);
 	float fade_in = lod_band.y > lod_band.x ? smoothstep(lod_band.x, lod_band.y, dist) : 1.0;
-	float fade_out = 1.0 - smoothstep(lod_band.z, lod_band.w, dist);
-	v_fade = fade_in * fade_out;
-	v_height = clamp(VERTEX.y / max(plant_height, 0.1), 0.0, 1.0);
-	if (v_fade <= 0.0) {
+	float fade_out = smoothstep(lod_band.z, lod_band.w, dist);
+	float size = shrink > 0.5 ? 1.0 - fade_out : 1.0;
+	v_fade_in = fade_in;
+	v_fade_out = shrink > 0.5 ? 1.0 : 1.0 - fade_out;
+	float v_fade = v_fade_in * v_fade_out;
+	if (v_fade <= 0.0 || size <= 0.0) {
 		VERTEX = vec3(0.0);
-	} else if (wind > 0.0) {
-		// Sway grows with height squared; two frequencies so it never looks like a metronome.
-		float s = length(MODEL_MATRIX[0].xyz);
-		float phase = INSTANCE_CUSTOM.x * 6.2831 + dot(origin.xz, vec2(0.031, 0.017));
-		float h = v_height;
-		float sway = (sin(TIME * 0.83 + phase) * 0.65 + sin(TIME * 1.91 + phase * 1.7) * 0.35) * wind * h * h;
-		vec3 world_offset = vec3(0.86, 0.0, 0.5) * sway;
-		if (foliage) {
-			float flutter = sin(TIME * 5.3 + dot(VERTEX, vec3(2.1, 1.3, 1.7)) + phase) * 0.04 * wind * (0.3 + h);
-			world_offset += vec3(flutter, flutter * 0.6, -flutter * 0.4);
-		}
-		VERTEX += (vec4(world_offset, 0.0) * MODEL_MATRIX).xyz / (s * s);
+	} else {
+		mat3 m = mat3(MODEL_MATRIX);
+		float s2 = max(dot(m[0], m[0]), 1e-6);
+		vec3 base = origin + hu_texture_offset;
+		vec3 wind = hu_wind.xyz * hu_wind.w;
+		vec3 wl = vec3(dot(m[0], wind), dot(m[1], wind), dot(m[2], wind)) / s2;
+		float ph = dot(base, vec3(0.061, 0.047, 0.053));
+		// Gusts roll across the forest: a slow wave in space and time.
+		float gust = 0.55 + 0.45 * sin(TIME * 0.37 - dot(base, hu_wind.xyz) * 0.035 + dot(base, vec3(0.011, 0.007, 0.009)) * 6.0);
+		float bend = CUSTOM0.x * (0.65 + 0.35 * sin(TIME * wind_params.y + ph)) * gust;
+		vec3 v = VERTEX + wl * bend * wind_params.x;
+		float flutter = CUSTOM0.y * sin(TIME * 7.3 + ph * 4.0 + dot(VERTEX, vec3(2.1, 1.7, 2.3))) * gust * hu_wind.w;
+		v += NORMAL * flutter * wind_params.z / sqrt(s2);
+		VERTEX = v * size;
 	}
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	v_tint = tint * mix(vec3(0.82, 0.86, 0.8), vec3(1.12, 1.1, 1.0), INSTANCE_CUSTOM.x);
+	// Per-instance colour (custom data x, y: two random numbers): brightness, and a warmer or cooler hue.
+	float t = INSTANCE_CUSTOM.x, h = INSTANCE_CUSTOM.y;
+	float k = 0.86 + 0.28 * t;
+	v_tint = vec3(k * (0.92 + 0.16 * h), k, k * (1.04 - 0.1 * h));
+	if (mode == 1) {
+		v_tint = vec3(0.9 + 0.2 * t);
+	}
 }
 
 void fragment() {
-	vec4 tex = texture(albedo_texture, UV);
-	if (foliage && tex.a < alpha_cut) {
-		discard;
+	vec3 albedo;
+	float alpha = 1.0;
+	if (mode == 2) {
+		albedo = COLOR.rgb;
+		ROUGHNESS = roughness;
+		SPECULAR = 0.5;
+	} else {
+		vec4 tex = texture(albedo_texture, UV);
+		albedo = tex.rgb * COLOR.rgb * v_tint;
+		ROUGHNESS = roughness;
+		if (mode == 0) {
+			alpha = tex.a;
+			// Cards have made-up normals: keep sky reflections off them, or leaves turn white at grazing angles.
+			SPECULAR = 0.12;
+		} else {
+			NORMAL_MAP = texture(normal_texture, UV).rgb;
+			NORMAL_MAP_DEPTH = 0.9;
+			SPECULAR = 0.3;
+		}
 	}
-	// Interleaved gradient noise: a stable per-pixel threshold for the cross-fade between levels of detail.
+	// Alpha-tested leaves with alpha to coverage; everything else opaque (the outputs must be set on every path).
+	ALPHA = alpha;
+	ALPHA_SCISSOR_THRESHOLD = 0.5;
+	ALPHA_ANTIALIASING_EDGE = 0.25;
+	ALPHA_TEXTURE_COORDINATE = UV * vec2(textureSize(albedo_texture, 0));
+	// Interleaved gradient noise: a stable per-pixel threshold for the cross-fade between levels of detail. A level
+	// fading out keeps the pixels below its fade, one fading in those above: together they cover each pixel once.
 	float dither = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
-	if (v_fade < 0.999 && dither > v_fade) {
+	if (dither > v_fade_out || 1.0 - dither > v_fade_in) {
 		discard;
 	}
-	ALBEDO = tex.rgb * v_tint;
-	if (has_normal) {
-		NORMAL_MAP = texture(normal_texture, UV).rgb;
-	}
-	if (two_sided && !FRONT_FACING) {
-		NORMAL = -NORMAL;
-	}
-	ROUGHNESS = roughness;
-	AO = mix(0.55, 1.0, v_height);
-	AO_LIGHT_AFFECT = 0.3;
+	// (With culling off, Godot has already turned NORMAL toward the viewer on back faces, as three.js does.)
+	ALBEDO = albedo;
 	vec3 a = ALBEDO;
 	vec4 fog;
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
@@ -84,16 +115,14 @@ void fragment() {
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
 	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
-	float diffuse = foliage ? clamp(ndl * 0.75 + 0.25, 0.0, 1.0) : clamp(ndl, 0.0, 1.0);
-	// Light through the leaves, strongest looking toward the light.
-	float through = foliage ? translucency * clamp(-ndl, 0.0, 1.0) * (0.35 + 0.65 * pow(clamp(dot(VIEW, -LIGHT), 0.0, 1.0), 3.0)) : 0.0;
-	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * (diffuse + through) / HU_PI;
-	vec3 hv = normalize(VIEW + LIGHT);
-	float ndh = clamp(dot(NORMAL, hv), 0.0, 1.0);
-	float r = ROUGHNESS * ROUGHNESS;
-	float d = r * r / (HU_PI * pow(ndh * ndh * (r * r - 1.0) + 1.0, 2.0));
-	float nl = clamp(ndl, 0.0, 1.0);
-	float ndv = clamp(dot(NORMAL, VIEW), 1e-3, 1.0);
-	float f = 0.03 + 0.97 * pow(1.0 - clamp(dot(hv, VIEW), 0.0, 1.0), 5.0);
-	SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * d * f * nl / max(4.0 * nl * ndv, 1e-3) * nl * 0.5;
+	vec3 light = LIGHT_COLOR * ATTENUATION * cloud / HU_PI;
+	DIFFUSE_LIGHT += light * clamp(ndl, 0.0, 1.0);
+	if (mode == 0) {
+		// hollow-orbit's foliage light: a warm sheen with the sun behind the viewer, and light through leaves that face
+		// away from it.
+		float back = clamp(dot(VIEW, LIGHT), 0.0, 1.0);
+		float wrap = clamp(-ndl * 0.6 + 0.4, 0.0, 1.0);
+		DIFFUSE_LIGHT += light * translucency * (pow(back, 4.0) * 1.6 + wrap * 0.35) * vec3(0.9, 1.05, 0.55);
+	}
+	SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * hu_specular(NORMAL, VIEW, LIGHT, ROUGHNESS) * specular_scale;
 }

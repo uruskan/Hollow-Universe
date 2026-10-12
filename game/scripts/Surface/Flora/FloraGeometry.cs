@@ -64,6 +64,23 @@ public sealed class GeometryBuilder
 
     public int Triangles(int part) => _parts[part].I.Count / 3;
 
+    /// <summary>Height of the top above the foot, and the side of a square (centred at half that height) that holds it all.</summary>
+    public (float Height, float Extent) Size()
+    {
+        float top = 0, radius = 0, bottom = 0;
+        foreach (Part part in _parts)
+        {
+            foreach (Vector3 p in part.P)
+            {
+                top = Math.Max(top, p.Y);
+                bottom = Math.Min(bottom, p.Y);
+                radius = Math.Max(radius, new Vector2(p.X, p.Z).Length());
+            }
+        }
+        float extent = Math.Max(Math.Max(top, 2 * radius), 2 * Math.Max(top / 2 - bottom, top / 2));
+        return (top, extent * 1.04f);
+    }
+
     /// <summary>The mesh: a surface per part that has triangles, with the given materials (null for parts not used).</summary>
     public ArrayMesh Build(Material?[] materials)
     {
@@ -517,7 +534,7 @@ public static class FloraGeometry
                 int cl = 3 + (int)(R() * 3);
                 for (int j = 0; j < cl; j++)
                 {
-                    float s = (lod ? 0.075f : 0.05f) + 0.02f * R();
+                    float s = (lod ? 0.05f : 0.032f) + 0.012f * R();
                     Vector3 p = c + V((R() - 0.5f) * 0.12f, (R() - 0.5f) * 0.12f, (R() - 0.5f) * 0.12f);
                     float shade = 0.8f + 0.3f * R();
                     Vector3 col = o.Berries.Value * shade;
@@ -581,7 +598,7 @@ public static class FloraGeometry
         for (int i = 0; i < p.Length; i++)
         {
             Vector3 v = p[i];
-            float n = (float)NoiseTextures.Fbm(v.X * 0.35 + 0.5 + seed * 0.13, v.Y * 0.35 + v.Z * 0.21 + 0.5, 4, 3, 0.5, seed) * noise;
+            float n = (float)NoiseTextures.Fbm(v.X * 0.35 + 0.5 + (seed % 997) * 0.13, v.Y * 0.35 + v.Z * 0.21 + 0.5, 4, 3, 0.5, seed) * noise;
             v *= 1 + n;
             foreach ((Vector3 pn, float d) in planes)
             {

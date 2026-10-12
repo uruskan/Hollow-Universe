@@ -28,6 +28,21 @@ global uniform float hu_ap_range;
 
 const float HU_PI = 3.14159265358979;
 
+// Cook-Torrance specular (GGX, Smith-Schlick, Schlick Fresnel with F0 0.04) times the cosine at the surface:
+// what a light of unit colour adds toward the viewer. Bounded at grazing angles.
+float hu_specular(vec3 n, vec3 v, vec3 l, float roughness) {
+	float ndl = clamp(dot(n, l), 0.0, 1.0);
+	float ndv = clamp(dot(n, v), 1e-3, 1.0);
+	vec3 h = normalize(v + l);
+	float ndh = clamp(dot(n, h), 0.0, 1.0);
+	float r = roughness * roughness;
+	float d = r * r / (HU_PI * pow(ndh * ndh * (r * r - 1.0) + 1.0, 2.0));
+	float k = r * 0.5;
+	float g = ndl / (ndl * (1.0 - k) + k) * ndv / (ndv * (1.0 - k) + k);
+	float f = 0.04 + 0.96 * pow(1.0 - clamp(dot(h, v), 0.0, 1.0), 5.0);
+	return d * g * f / max(4.0 * ndl * ndv, 1e-3) * ndl;
+}
+
 // Transmittance from altitude h toward the top of the air at cosine of zenith mu (Bruneton's table mapping).
 vec3 hu_transmittance(float h, float mu) {
 	float R = hu_planet_radius;

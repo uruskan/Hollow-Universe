@@ -7,6 +7,7 @@ render_mode cull_back, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/surface_atmosphere.gdshaderinc"
 #include "res://shaders/surface_clouds.gdshaderinc"
+#include "res://shaders/surface_grass.gdshaderinc"
 
 instance uniform vec2 morph_range = vec2(1e12, 2e12);
 global uniform vec3 hu_texture_offset;
@@ -17,6 +18,9 @@ uniform sampler2D macro_noise : filter_linear_mipmap, repeat_enable;
 uniform float normal_strength = 1.0;
 uniform vec2 normal_sign = vec2(1.0, -1.0);
 uniform int debug_view = 0;
+uniform vec3 blade_mean = vec3(0.5, 0.63, 0.34);      // mean linear colour of the painted grass blades
+uniform float grass_layer_luminance = 0.1;            // mean luminance of the grass layer's texture
+uniform vec2 canopy_fade = vec2(1600.0, 2200.0);      // where far forests become the ground's colour
 
 // Metres covered by one repeat of each layer (the scans' own sizes), and their roughness.
 const float layer_size[8] = { 4.0, 3.0, 2.0, 2.4, 4.0, 4.0, 2.0, 4.0 };
@@ -84,10 +88,15 @@ void fragment() {
 		w[i] /= max(total, 1e-4);
 	}
 
+	float dryness = hu_grass_dryness(wp, v_climate.g, macro_noise);
+	vec3 grass_colour = blade_mean * hu_grass_tint(wp, dryness, macro_noise);
+
 	// Near: two scales per layer; middle: the large one; far: each layer's mean colour.
 	float near = 1.0 - smoothstep(120.0, 260.0, dist);
 	float far = smoothstep(900.0, 2500.0, dist);
 	mat2 rot = rotation(1.7);
+	mat2 rot_huge = rotation(0.6);
+	float huge = smoothstep(90.0, 380.0, dist) * (1.0 - far);
 	vec3 colours[8];
 	vec2 normals[8];
 	float heights[8];
@@ -134,10 +143,22 @@ void fragment() {
 				c = mix(c_large, c_small, m);
 				t = mix(t_large, t_small, m);
 			}
+			if (huge > 0.0) {
+				// From the air the large scale would repeat in rows: blend in a much larger, turned copy.
+				vec2 uv_huge = rot_huge * uv * 0.071 + vec2(0.71, 0.23);
+				c = mix(c, texture(albedo_array, vec3(uv_huge, layer)).rgb, huge * 0.6);
+				t = mix(t, texture(normal_array, vec3(uv_huge, layer)).rgb, huge * 0.6);
+			}
 			if (far > 0.0) {
 				c = mix(c, textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb, far);
 				t = mix(t, vec3(0.5, 0.5, 0.5), far);
 			}
+		}
+		if (i == 0) {
+			// The grass layer takes the blades' colour: its texture only gives the detail.
+			float lum = dot(c, vec3(0.2126, 0.7152, 0.0722)) / grass_layer_luminance;
+			lum = mix(lum, 1.0, smoothstep(150.0, 900.0, dist) * 0.55);
+			c = clamp(lum, 0.4, 1.8) * grass_colour;
 		}
 		colours[i] = c;
 		normals[i] = vec2((t.r * 2.0 - 1.0) * normal_sign.x, (t.g * 2.0 - 1.0) * normal_sign.y);
@@ -166,14 +187,19 @@ void fragment() {
 	height /= max(sum, 1e-4);
 	rough /= max(sum, 1e-4);
 
-	// Grass and moss follow the climate: lush where it is wet, straw where it is dry; and the hues wander.
-	float grassy = w[0] + w[7];
+	// Moss follows the climate too; the other layers' hues wander a little.
 	vec3 lush = vec3(0.70, 0.95, 0.42);
 	vec3 dry = vec3(1.20, 1.02, 0.62);
 	vec3 tint = mix(dry, lush, smoothstep(0.25, 0.7, v_climate.g + (macro.g - 0.5) * 0.3));
-	albedo *= mix(vec3(1.0), tint, clamp(grassy, 0.0, 1.0));
-	albedo *= 0.78 + 0.44 * macro.r;
-	albedo = mix(albedo, albedo * vec3(1.06, 1.0, 0.9), macro.b);
+	albedo *= mix(vec3(1.0), tint, clamp(w[7], 0.0, 1.0));
+	float others = 1.0 - clamp(w[0], 0.0, 1.0);
+	albedo *= mix(1.0, 0.82 + 0.36 * macro.r, others);
+	albedo = mix(albedo, albedo * vec3(1.06, 1.0, 0.9), macro.b * others);
+	// Far forests: the trees have gone, their canopy colours the ground (as in hollow-orbit).
+	float canopy = smoothstep(canopy_fade.x, canopy_fade.y, dist) * smoothstep(0.15, 0.6, v_climate.a) * (1.0 - cliff) * (1.0 - w[6]);
+	vec3 canopy_colour = vec3(0.030, 0.050, 0.022) * (0.75 + 0.5 * macro2.r) * (0.85 + 0.3 * macro.b);
+	albedo = mix(albedo, canopy_colour, canopy * 0.92);
+	rough = mix(rough, 0.95, canopy);
 	// Wet sand and stones at the waterline.
 	float wet = 1.0 - smoothstep(0.1, 0.9, v_height);
 	albedo *= 1.0 - 0.38 * wet;

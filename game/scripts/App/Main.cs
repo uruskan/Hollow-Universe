@@ -86,6 +86,14 @@ public partial class Main : Node
         }
         _surfaceView.SetTime(time, paused: _options.ContainsKey("shot"));
         _surfaceView.DebugSky = (int)Number("debug-sky", 0);
+        if (_options.ContainsKey("clouds"))
+        {
+            _surfaceView.CloudCoverage = (float)Number("clouds", 0.5);
+        }
+        if (_options.ContainsKey("flora-lineup"))
+        {
+            _surfaceView.ShowFloraLineup((float)Number("flora-lineup", 40), (int)Number("flora-lod", 0));
+        }
     }
 
     private bool OpenSystem(SystemAddress address, double time)
@@ -180,7 +188,7 @@ public partial class Main : Node
                 _traceTimer = 0;
                 if (_surfaceView.Visible)
                 {
-                    GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} tiles={_surfaceView.Terrain.DrawnTiles} pending={_surfaceView.Terrain.Pending} build={_surfaceView.Terrain.BuildMicroseconds:0}us plants={_surfaceView.Plants?.MeshInstances}/{_surfaceView.Plants?.ImpostorInstances}/{_surfaceView.Plants?.GrassInstances} ready={_surfaceView.IsReady} exposure={_surfaceView.Sky?.Exposure:0.###} sun={_surfaceView.Sky?.SunElevation:0.0} {_surfaceView.LightDebug}");
+                    GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} tiles={_surfaceView.Terrain.DrawnTiles} pending={_surfaceView.Terrain.Pending} build={_surfaceView.Terrain.BuildMicroseconds:0}us plants={_surfaceView.Plants?.MeshInstances}/{_surfaceView.Plants?.ImpostorInstances} grass={_surfaceView.Grass?.Tufts} ready={_surfaceView.IsReady} exposure={_surfaceView.Sky?.Exposure:0.###} sun={_surfaceView.Sky?.SunElevation:0.0} {_surfaceView.LightDebug}");
                 }
                 else
                 GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0}ms stars={_galaxyMap.Stars.LoadedStars} blocks={_galaxyMap.Stars.LoadedBlocks} pending={_galaxyMap.Stars.PendingBlocks} glow={_galaxyMap.IsGlowReady} sky={_galaxyMap.SkyBrightness:0.0} {_galaxyMap.TimingDebug} crowd {_galaxyMap.CrowdingDebug}");

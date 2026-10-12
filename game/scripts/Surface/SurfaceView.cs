@@ -25,6 +25,9 @@ public partial class SurfaceView : Node3D
     private DirectionalLight3D _moonLight = null!;
     private TerrainLod _terrain = null!;
     private Vegetation? _vegetation;
+    private GrassField? _grass;
+    private TextureLayered _groundAlbedo = null!;
+    private TextureLayered _groundNormal = null!;
     private ShaderMaterial _terrainMaterial = null!;
     private CanvasLayer _uiLayer = null!;
     private SurfaceUi _ui = null!;
@@ -61,8 +64,35 @@ public partial class SurfaceView : Node3D
     /// <summary>Debug views of the sky shader (0 = normal), for look-dev.</summary>
     public int DebugSky { get; set; }
 
-    /// <summary>True once the terrain around the camera has finished streaming (for screenshots).</summary>
+    /// <summary>True once the terrain, plants and grass around the camera have finished streaming (for screenshots).</summary>
     public bool IsReady => _frame != null && _idleFrames > 20;
+
+    public GrassField? Grass => _grass;
+
+    /// <summary>Cloud cover, 0 (clear) to 1 (overcast).</summary>
+    public float CloudCoverage
+    {
+        get => _cloudCoverage;
+        set
+        {
+            _cloudCoverage = Math.Clamp(value, 0, 1);
+            if (_globals)
+            {
+                RenderingServer.GlobalShaderParameterSet("hu_cloud_coverage", _cloudCoverage);
+            }
+        }
+    }
+
+    private float _cloudCoverage = 0.5f;
+
+    /// <summary>Look-dev: show one of each plant at a distance and level of detail (see <see cref="Vegetation.Lineup"/>).</summary>
+    public void ShowFloraLineup(float distance, int lod)
+    {
+        if (_vegetation != null)
+        {
+            _vegetation.Lineup = (distance, lod, -_camera.GlobalBasis.Z);
+        }
+    }
 
     public PlanetSurface? Surface => _surface;
 
@@ -143,8 +173,10 @@ public partial class SurfaceView : Node3D
         SetupGlobals();
         SetupEnvironment();
         _terrainMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_terrain.gdshader") };
-        _terrainMaterial.SetShaderParameter("albedo_array", GD.Load<TextureLayered>("res://assets/surface/ground/ground_albedo.webp"));
-        _terrainMaterial.SetShaderParameter("normal_array", GD.Load<TextureLayered>("res://assets/surface/ground/ground_normal.webp"));
+        _groundAlbedo = GD.Load<TextureLayered>("res://assets/surface/ground/ground_albedo.webp");
+        _groundNormal = GD.Load<TextureLayered>("res://assets/surface/ground/ground_normal.webp");
+        _terrainMaterial.SetShaderParameter("albedo_array", _groundAlbedo);
+        _terrainMaterial.SetShaderParameter("normal_array", _groundNormal);
         _terrainMaterial.SetShaderParameter("macro_noise", _noise);
         ShaderMaterial? water = null;
         if (surface.SeaRadius > 0)
@@ -156,7 +188,9 @@ public partial class SurfaceView : Node3D
         _vegetation?.QueueFree();
         _vegetation = new Vegetation { Name = "Vegetation" };
         AddChild(_vegetation);
-        _vegetation.Setup(surface, _frame);
+        _vegetation.Setup(surface, _frame, _groundAlbedo, _groundNormal);
+        _grass?.QueueFree();
+        _grass = null;
         _idleFrames = 0;
         _firstFrame = true;
         UpdateWorld(0);
@@ -207,9 +241,10 @@ public partial class SurfaceView : Node3D
         _noise ??= NoiseTextures.Clouds(7);
         Add("hu_cloud_noise", S2, _noise);
         Add("hu_cloud_wind", V2, Vector2.Zero);
-        Add("hu_cloud_coverage", T, 0.5f);
+        Add("hu_cloud_coverage", T, _cloudCoverage);
         Add("hu_cloud_layer", V2, new Vector2(1600, 2900));
         Add("hu_texture_offset", V3, Vector3.Zero);
+        Add("hu_wind", V4, new Vector4(0.86f, 0, -0.5f, 1));
         var S3 = RenderingServer.GlobalShaderParameterType.Sampler3D;
         _aerial = new AerialTable(air);
         Add("hu_ap_up", V3, Vector3.Up);
@@ -265,7 +300,7 @@ public partial class SurfaceView : Node3D
         }
         Fly((float)delta);
         UpdateWorld(delta);
-        _idleFrames = _terrain.IsIdle && (_vegetation?.IsIdle ?? true) ? _idleFrames + 1 : 0;
+        _idleFrames = _terrain.IsIdle && (_vegetation?.IsIdle ?? true) && (_grass?.IsIdle ?? false) ? _idleFrames + 1 : 0;
     }
 
     private void UpdateWorld(double delta)
@@ -294,12 +329,14 @@ public partial class SurfaceView : Node3D
         RenderingServer.GlobalShaderParameterSet("hu_sun_direction", _sky.SunDirection);
         RenderingServer.GlobalShaderParameterSet("hu_sun_illuminance", _sky.SunIlluminance);
         RenderingServer.GlobalShaderParameterSet("hu_moon_direction", _sky.MoonDirection);
-        RenderingServer.GlobalShaderParameterSet("hu_moon_illuminance", _sky.MoonIlluminance * SurfaceSky.MoonLightBoost);
+        // The air scatters the moon's real light; only the light on the ground is boosted (nights stay dark, the ground
+        // readable).
+        RenderingServer.GlobalShaderParameterSet("hu_moon_illuminance", _sky.MoonIlluminance * SurfaceSky.MoonSkyBoost);
         // The table's axes: the camera's up, and east made level there.
         Vector3 apUp = frame.DirectionToRender(camera.Normalized);
         Vector3 apEast = (Vector3.Right - apUp * apUp.Dot(Vector3.Right)).Normalized();
         _aerial!.Update(Time.GetTicksMsec() / 1000.0, Math.Max(altitude, 0.5), apUp, apEast, _sky.SunDirection, _sky.SunIlluminance,
-            _sky.MoonDirection, _sky.MoonIlluminance * SurfaceSky.MoonLightBoost, wait: _firstFrame);
+            _sky.MoonDirection, _sky.MoonIlluminance * SurfaceSky.MoonSkyBoost, wait: _firstFrame);
         _firstFrame = false;
         // Clouds drift with the wind (12 m/s from the west), faster when the day is sped up, and stay put on the
         // ground when the origin moves.
@@ -317,8 +354,21 @@ public partial class SurfaceView : Node3D
         _skyMaterial.SetShaderParameter("debug_view", DebugSky < 10 ? DebugSky : 0);
         _terrainMaterial.SetShaderParameter("debug_view", DebugSky >= 10 ? DebugSky - 10 : 0);
 
+        // A breeze from the west-south-west that rises and falls over minutes.
+        float gusts = (float)(0.85 + 0.3 * Math.Sin(_time * 0.011) * Math.Sin(_time * 0.0037 + 1.3));
+        RenderingServer.GlobalShaderParameterSet("hu_wind", new Vector4(0.86f, 0, -0.5f, gusts));
+
         _terrain.UpdateLod(camera);
         _vegetation?.UpdateVegetation(camera);
+        if (_grass == null && _vegetation?.Library is { } library)
+        {
+            _terrainMaterial.SetShaderParameter("blade_mean", library.BladeMean);
+            _grass = new GrassField { Name = "Grass" };
+            AddChild(_grass);
+            _grass.Setup(surface, frame, library, _groundAlbedo, _noise!, library.BladeMean);
+        }
+        double overGround = camera.Length - surface.Radius - Math.Max(surface.HeightAt(camera.Normalized), 0);
+        _grass?.UpdateGrass(_camera.Position, overGround, _walk);
         _ui.Refresh(_planet!, surface, frame, camera, _sky, _time, _frameMs, _terrain, _walk, _timeRuns);
     }
 

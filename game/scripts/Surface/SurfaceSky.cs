@@ -128,6 +128,9 @@ public sealed class SurfaceSky
             MoonPhase = (float)(0.5 * (1 + Math.Cos(phaseAngle)));
             MoonElevation = (float)(Math.Asin(Math.Clamp(Vector3D.Dot(toMoon / d, up), -1, 1)) * 180 / Math.PI);
             skyMaterial.SetShaderParameter("moon_radiance", _sunColour * (float)(moonSunE * GeometricAlbedo * 1.5 / Math.PI));
+            // A camera metering for the moonlit ground would burn the moon out into a huge glow; eyes don't: show it
+            // a few times brighter than white at the current exposure, whatever that is.
+            skyMaterial.SetShaderParameter("moon_max", 6f / Math.Max(Exposure, 1e-3f));
             skyMaterial.SetShaderParameter("moon_earthshine", _sunColour * (float)(moonSunE * 2e-4));
         }
         skyMaterial.SetShaderParameter("moon_direction_view", MoonViewDirection);
@@ -179,7 +182,7 @@ public sealed class SurfaceSky
         // A magnitude-0 star relative to this sun (magnitude −26.7 at Earth's sunlight).
         float magnitudeZero = SolarConstant * 2.2e-11f * StarBoost;
         skyMaterial.SetShaderParameter("star_brightness", magnitudeZero);
-        skyMaterial.SetShaderParameter("galaxy_brightness", magnitudeZero * 2.5e5f);
+        skyMaterial.SetShaderParameter("galaxy_brightness", magnitudeZero * 1.2e4f);
         skyMaterial.SetShaderParameter("pixel_angle", pixelAngle);
 
         // Lights at the ground: sunlight and moonlight through the air.
@@ -200,12 +203,15 @@ public sealed class SurfaceSky
         float light = AtmosphereModel.Luminance(sunGround) * (float)Math.Max(mus, 0)
             + topLum * 0.1f * (float)SmoothStep(-0.2, 0.3, mus)
             + AtmosphereModel.Luminance(moonGround) * MoonLightBoost + day * 1e-6f;
-        float target = 3.6f / (day * MathF.Pow(Math.Max(light, 1e-12f) / day, 0.8f));
-        Exposure = Math.Clamp(target, 0.05f, 4000f);
+        float target = 4.6f / (day * MathF.Pow(Math.Max(light, 1e-12f) / day, 0.8f));
+        Exposure = Math.Clamp(target, 0.05f, 20000f);
     }
 
     /// <summary>Moonlight is brightened a little, like eyes adapted to the dark (Rust's nights are readable too).</summary>
     public const float MoonLightBoost = 6f;
+
+    /// <summary>The moonlit air is brightened much less, so the night sky stays dark around the moon.</summary>
+    public const float MoonSkyBoost = 1.5f;
 
     private static void SetLight(DirectionalLight3D light, Vector3 toLight, Vector3 illuminance, RenderFrame frame)
     {

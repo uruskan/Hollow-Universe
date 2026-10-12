@@ -19,6 +19,7 @@ uniform float sun_angular_radius = 0.0045;
 uniform vec3 moon_direction_view = vec3(0.0, 1.0, 0.0); // from the camera (with parallax)
 uniform float moon_angular_radius = 0.008;
 uniform vec3 moon_radiance = vec3(0.1);             // a fully lit patch of the moon
+uniform float moon_max = 1e9;                        // the brightest the disc is shown
 uniform vec3 moon_sun_direction = vec3(0.0, 1.0, 0.0); // from the moon toward the sun
 uniform vec3 moon_earthshine = vec3(0.0);
 
@@ -200,6 +201,7 @@ void sky() {
 					float albedo = mix(1.0, 0.62, maria) * (0.85 + 0.3 * craters);
 					float lit = max(dot(n, moon_sun_direction), 0.0);
 					vec3 radiance = moon_radiance * albedo * lit + moon_earthshine * albedo;
+					radiance *= min(1.0, moon_max / max(max(moon_radiance.r, moon_radiance.g), 1e-12));
 					colour = colour * (1.0 - clear) + clear * (colour + radiance * T);
 					moon_alpha = 1.0;
 				}
