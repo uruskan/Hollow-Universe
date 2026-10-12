@@ -1,5 +1,5 @@
 {
-  "source": "Vitals ranges from RustMVP inventory_survival.md §10 (health 100, food 500, water 250). Metabolism, starvation, thirst, cold, regeneration and the respawn vitals from hollow-orbit js/game/player.js. Body-part multipliers from RustMVP damage_rules.hpp (head 2, body 1, limbs 0.5). Corpse and dropped-item lifetimes, the beach respawn without a wait, and the respawn kit (a rock and a torch) are Rust's. Bleeding is ours.",
+  "source": "Vitals ranges from RustMVP inventory_survival.md §10 (health 100, food 500, water 250). Metabolism, starvation, thirst, cold, regeneration and the respawn vitals from hollow-orbit js/game/player.js. Body-part multipliers from RustMVP damage_rules.hpp (head 2, body 1, limbs 0.5). Corpse and dropped-item lifetimes, the beach respawn without a wait, and the respawn kit (a rock and a torch) are Rust's. Bleeding and burning are ours. The wounded state is Rust's (see its note).",
   "vitals": {
     "maxHealth": 100, "maxCalories": 500, "maxHydration": 250,
     "spawn": { "health": 60, "calories": 260, "hydration": 160 }
@@ -12,6 +12,19 @@
     "healPerSecond": 1.0
   },
   "bleeding": { "damagePerSecond": 1.0, "clotPerSecond": 0.2 },
+  "burning": {
+    "note": "Ours: health that incendiary rounds set burning is lost at this rate until it is gone; water puts it out.",
+    "damagePerSecond": 2.0
+  },
+  "wounded": {
+    "note": "Rust's wounded state: a lethal blow, arrow or bullet that isn't to the head, a fall, bleeding, hunger or thirst knocks the player down instead of killing them, unless the hit is this big or they are already down; down they crawl with a little health, can be helped up or finished off, and when their time runs out they get up by themselves (20%, up to 25% more when fed and watered) or die. The knock-down limit is ours.",
+    "maxDamage": 75,
+    "health": [7, 12],
+    "seconds": [40, 50],
+    "recoverChance": 0.2,
+    "fedBonus": 0.25,
+    "helpReach": 2.5
+  },
   "temperature": {
     "comfortable": 5, "coldScale": 15, "coldDamageFrom": 0.6, "coldDamagePerSecond": 0.15, "fireWarmsTo": 25,
     "wetCooling": 10, "wetSeconds": 120
@@ -32,7 +45,8 @@
     "respawnKit": "respawn-kit"
   },
   "rateLimits": {
-    "note": "RustMVP command_budget.hpp: 16 at once, 20 a second; every arrival costs one.",
-    "intentBurst": 16, "intentsPerSecond": 20
+    "note": "RustMVP command_budget.hpp: 16 at once, 20 a second; every arrival costs one. Shots and reloads have their own budget, RustMVP's weapon one (BareWeaponComponent: 20 at once, 30 a second).",
+    "intentBurst": 16, "intentsPerSecond": 20,
+    "gunBurst": 20, "gunActionsPerSecond": 30
   }
 }

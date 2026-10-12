@@ -77,6 +77,25 @@ internal sealed class JsonFields
         return fallback ?? 0;
     }
 
+    /// <summary>A number at full precision (the weapons' recoil patterns and cadences).</summary>
+    public double Double(JsonElement o, string name, string where, double? fallback = null)
+    {
+        if (o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out JsonElement v))
+        {
+            if (v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out double d) && double.IsFinite(d))
+            {
+                return d;
+            }
+            Problem(where, $"\"{name}\" must be a number");
+            return fallback ?? 0;
+        }
+        if (fallback == null)
+        {
+            Problem(where, $"\"{name}\" is missing");
+        }
+        return fallback ?? 0;
+    }
+
     public int Integer(JsonElement o, string name, string where, int? fallback = null)
     {
         if (o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out JsonElement v))

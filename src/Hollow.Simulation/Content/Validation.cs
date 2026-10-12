@@ -53,7 +53,8 @@ internal static class Validation
             {
                 Problem(where, $"stack {item.StackSize} must be 1 … 60000");
             }
-            bool single = item.HasCondition || item.Wear != null || item.Melee != null || item.Bow != null || item.Deploys != null;
+            bool single = item.HasCondition || item.Wear != null || item.Melee != null || item.Bow != null || item.Deploys != null ||
+                item.Firearm != null || item.Attachment != null;
             if (single && item.StackSize != 1)
             {
                 Problem(where, "tools, weapons, clothing and deployables stack to 1");
@@ -213,6 +214,100 @@ internal static class Validation
             s.SpawnHydration > s.MaxHydration || s.MaxRewindSeconds is < 0 or > 1 || s.IntentBurst < 1 || s.IntentsPerSecond <= 0)
         {
             Problem("survival.json", "spawn vitals within the maxima; rewind 0 … 1 s; positive rate limits");
+        }
+
+        // ---------------------------------------------------------------- weapons (G4; RustMVP's valid_weapon_definition)
+        foreach (FirearmStats g in c.Firearms)
+        {
+            string where = $"weapons.json: weapon \"{g.Item.Key}\"";
+            if (!g.Item.HasCondition)
+            {
+                Problem(where, "a firearm has condition (shots before it breaks)");
+            }
+            if (g.Magazine is < 1 or > 255 || g.IntervalSeconds <= 0 || g.ReloadSeconds <= 0 || g.EquipSeconds < 0)
+            {
+                Problem(where, "magazine 1 … 255, interval and reload positive, equip not negative");
+            }
+            if (g.Speed is <= 0 or > 2000 || g.Drag is < 0 or > 5 || g.Gravity is < 0 or > 10 || g.Range <= 0 || g.LifetimeSeconds is <= 0 or > 5)
+            {
+                Problem(where, "speed 0 … 2000 m/s, drag 0 … 5, gravity 0 … 10, range positive, lifetime 0 … 5 s");
+            }
+            if (g.Damage < 0 || g.FalloffStart < 0 || g.FalloffEnd < g.FalloffStart || g.FalloffLeast is <= 0 or > 1 ||
+                new[] { g.Head, g.Body, g.Limb }.Any(m => m is < 0 or > 10))
+            {
+                Problem(where, "damage not negative; falloff [start ≤ end, least 0 … 1]; multipliers 0 … 10");
+            }
+            SpreadStats sp = g.Spread;
+            if (new[] { sp.Hip, sp.Aimed, sp.BloomPerShot, sp.MaxBloom, sp.BloomRecovery, sp.Moving, sp.MovingAimed, sp.Airborne, sp.Crouched }.Any(v => v < 0) ||
+                sp.Hip + sp.MaxBloom >= 45 || sp.Aimed + sp.MaxBloom >= 45)
+            {
+                Problem(where, "spread: nothing negative, hip or aimed + the most bloom under 45°");
+            }
+            RecoilStats r = g.Recoil;
+            if (r.PitchLimit is < 0 or > 85 || r.YawLimit is < 0 or > 180 || r.KickSeconds < 0 || r.KickSeconds > g.IntervalSeconds ||
+                r.RecoveryDelaySeconds < 0 || r.RecoverySeconds < 0 || r.PitchJitter is < 0 or >= 1 || r.YawJitter < 0 || r.Aimed < 0 || r.Crouched < 0)
+            {
+                Problem(where, "recoil: limits up to 85° and 180°, the kick no longer than the interval, nothing negative, pitch jitter under 1");
+            }
+            if (r.Mode == RecoilMode.Vertical && (r.PitchPerShot < 0 || r.PitchPerShot > r.PitchLimit))
+            {
+                Problem(where, "recoil: the kick within the pitch limit");
+            }
+            if (r.Mode == RecoilMode.Pattern && (r.Pattern.Count is < 1 or > 32 || r.ResetSeconds <= 0 ||
+                r.Pattern.Any(st => st.Pitch < 0 || st.Pitch > r.PitchLimit || Math.Abs(st.Yaw) > r.YawLimit)))
+            {
+                Problem(where, "recoil: a pattern of 1 … 32 steps within the limits, and a reset time");
+            }
+            if (g.Zoom < 1)
+            {
+                Problem(where, "zoom at least 1");
+            }
+            if (g.Ammo.Count == 0)
+            {
+                Problem(where, $"no rounds of calibre \"{g.Calibre}\"");
+            }
+            foreach (ItemDef a in g.Attachments.Where(a => a.Attachment == null))
+            {
+                Problem(where, $"\"{a.Key}\" is not an attachment");
+            }
+        }
+        foreach (BulletStats b in c.Bullets)
+        {
+            string where = $"weapons.json: ammo \"{b.Item.Key}\"";
+            if (!c.Firearms.Any(g => g.Calibre == b.Calibre))
+            {
+                Problem(where, $"no weapon fires calibre \"{b.Calibre}\"");
+            }
+            if (b.Damage is <= 0 or > 10 || b.Speed is <= 0 or > 10 || b.Bleed is < 0 or > 2 || b.Burn is < 0 or > 100 || b.Structure is < 0 or > 1)
+            {
+                Problem(where, "damage and speed 0 … 10 times, bleed 0 … 2, burn 0 … 100, structure 0 … 1");
+            }
+            if (b.Item.Ammo != null || b.Item.Firearm != null)
+            {
+                Problem(where, "a round is not an arrow or a gun");
+            }
+        }
+        foreach (AttachmentStats a in c.Attachments)
+        {
+            string where = $"weapons.json: attachment \"{a.Item.Key}\"";
+            if ((a.Zoom != 0 && a.Zoom < 1) || new[] { a.HipSpread, a.AimedSpread, a.Recoil, a.Speed, a.Damage }.Any(m => m is <= 0 or > 10))
+            {
+                Problem(where, "zoom 0 (the gun's) or at least 1; multipliers 0 … 10");
+            }
+            if (!c.Firearms.Any(g => g.Attachments.Contains(a.Item)))
+            {
+                Problem(where, "no weapon takes it");
+            }
+        }
+        if (c.Attachments.Count > 8)
+        {
+            Problem("weapons.json: attachments", "at most 8 (others see a held gun's attachments as 8 bits)");
+        }
+        if (s.WoundMaxDamage < 0 || s.WoundedHealthLeast <= 0 || s.WoundedHealthMost < s.WoundedHealthLeast || s.WoundedHealthMost > s.MaxHealth ||
+            s.WoundedSecondsLeast <= 0 || s.WoundedSecondsMost < s.WoundedSecondsLeast || s.WoundedRecoverChance is < 0 or > 1 ||
+            s.WoundedFedBonus is < 0 or > 1 || s.HelpReach <= 0 || s.BurnDamagePerSecond < 0 || s.GunBurst < 1 || s.GunActionsPerSecond <= 0)
+        {
+            Problem("survival.json", "wounded: health and seconds [least ≤ most], chances 0 … 1, reach positive; burning and the gun budget positive");
         }
 
         // ---------------------------------------------------------------- every recipe from gatherable resources

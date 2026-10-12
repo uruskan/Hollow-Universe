@@ -1,5 +1,5 @@
 {
-  "source": "GROUND.md §6-7. Numbers from hollow-orbit js/game/items.js (tool damage and gather rates, clothing protection, consumables, stack sizes) and RustMVP inventory_survival.md (stack sizes); arrows, bow, spears and berries use Rust's numbers. Names are ours. IDs are stable: never reuse a retired one (saves and the wire use them).",
+  "source": "GROUND.md §6-7. Numbers from hollow-orbit js/game/items.js (tool damage and gather rates, clothing protection, consumables, stack sizes) and RustMVP inventory_survival.md (stack sizes); arrows, bow, spears and berries use Rust's numbers. G4: firearms, rounds and attachments get their numbers from weapons.json (their stack of 128 and the guns' magazines from RustMVP, condition per shot from hollow-orbit's dur: pistol 200, rifle 300); the metal mask is hollow-orbit's metal_facemask (50% against shots and blows to the head). Names are ours. IDs are stable: never reuse a retired one (saves and the wire use them).",
   "items": [
     { "id": 1, "key": "wood", "name": "Wood", "category": "resources", "stack": 1000,
       "description": "Chopped from trees. Builds, crafts and burns.",
@@ -27,6 +27,8 @@
       "description": "Pulled from fibre plants. Clothing, bandages, bags and bows." },
     { "id": 11, "key": "lamp-oil", "name": "Lamp oil", "category": "resources", "stack": 500,
       "description": "Rendered from charcoal and fibre. A furnace needs some to be built." },
+    { "id": 12, "key": "gunpowder", "name": "Gunpowder", "category": "resources", "stack": 1000,
+      "description": "Charcoal and sulphur, ground together. Every round of ammunition needs some." },
 
     { "id": 20, "key": "rock", "name": "Rock", "category": "tools", "condition": 200,
       "description": "A fist-sized rock. Knocks wood off trees and stone off outcrops; better than nothing in a fight.",
@@ -60,9 +62,37 @@
       "description": "Hold the right mouse button to draw, click to loose an arrow. Arrows drop with distance.",
       "bow": { "ammo": ["arrow"], "draw": 1.0, "speed": 1.0, "damage": 1.0 } },
 
+    { "id": 34, "key": "pistol", "name": "Service pistol", "category": "weapons", "condition": 200,
+      "description": "A semi-automatic pistol with a 15-round magazine. One shot a click; it kicks straight up. Takes a sight, a muzzle attachment and a light." },
+    { "id": 35, "key": "rifle", "name": "Frontier rifle", "category": "weapons", "condition": 300,
+      "description": "A fully automatic rifle with a 30-round magazine. Its recoil follows the same pattern every burst: learn it and pull against it." },
+
     { "id": 40, "key": "arrow", "name": "Arrow", "category": "ammunition", "stack": 64,
       "description": "A fletched shaft. Often survives a miss.",
       "ammo": { "damage": 50, "speed": 50, "gravity": 1.0, "bleed": 0.5, "structure": 0.25, "recover": 0.5, "lifetime": 4 } },
+    { "id": 41, "key": "pistol-ammo", "name": "Pistol rounds", "category": "ammunition", "stack": 128,
+      "description": "Ammunition for the service pistol." },
+    { "id": 42, "key": "pistol-ammo-hv", "name": "High-velocity pistol rounds", "category": "ammunition", "stack": 128,
+      "description": "Faster and flatter than plain pistol rounds, a little weaker." },
+    { "id": 43, "key": "pistol-ammo-incendiary", "name": "Incendiary pistol rounds", "category": "ammunition", "stack": 128,
+      "description": "Slow rounds that set what they hit burning." },
+    { "id": 44, "key": "rifle-ammo", "name": "Rifle rounds", "category": "ammunition", "stack": 128,
+      "description": "Ammunition for the frontier rifle." },
+    { "id": 45, "key": "rifle-ammo-hv", "name": "High-velocity rifle rounds", "category": "ammunition", "stack": 128,
+      "description": "Faster and flatter than plain rifle rounds, a little weaker." },
+    { "id": 46, "key": "rifle-ammo-incendiary", "name": "Incendiary rifle rounds", "category": "ammunition", "stack": 128,
+      "description": "Slow rounds that set what they hit burning." },
+
+    { "id": 90, "key": "holo-sight", "name": "Holo sight", "category": "weapons",
+      "description": "A reflex sight: a little magnification and tighter shots aimed down the sights." },
+    { "id": 91, "key": "scope", "name": "4x scope", "category": "weapons",
+      "description": "Four times magnification for the rifle. Very tight shots when aimed." },
+    { "id": 92, "key": "silencer", "name": "Silencer", "category": "weapons",
+      "description": "Hides the muzzle flash and quiets the shot. Less recoil and spread; slower, weaker rounds." },
+    { "id": 93, "key": "weapon-light", "name": "Weapon light", "category": "weapons",
+      "description": "A light under the barrel, lit while the gun is in hand." },
+    { "id": 94, "key": "muzzle-brake", "name": "Muzzle brake", "category": "weapons",
+      "description": "Halves the recoil, but the shots spread wider and hit a little softer." },
 
     { "id": 50, "key": "bandage", "name": "Bandage", "category": "medical", "stack": 3,
       "description": "Stops bleeding and heals a little over time.",
@@ -103,6 +133,9 @@
     { "id": 65, "key": "chest-plate", "name": "Chest plate", "category": "clothing",
       "description": "Riveted metal plates over the chest, worn on top of a shirt.",
       "wear": { "layers": ["torso-armour"], "covers": ["chest", "belly"], "melee": 0.3, "projectile": 0.25, "insulation": 0 } },
+    { "id": 66, "key": "metal-mask", "name": "Metal mask", "category": "clothing",
+      "description": "A welded mask over the face and the crown of the head. Halves what a hit to the head does.",
+      "wear": { "layers": ["face"], "covers": ["face", "scalp"], "melee": 0.5, "projectile": 0.5, "insulation": 0 } },
 
     { "id": 70, "key": "sleeping-bag", "name": "Sleeping bag", "category": "items",
       "description": "Place it and you can come back here after you die, every five minutes.",
