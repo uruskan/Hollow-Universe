@@ -112,20 +112,16 @@ def convert(source, target, size=2048, normal=False, directx=False, channels=3):
 
 def write_texture_import(png, normal_map=False, srgb_colour=True):
     """A Godot `.import` beside `png`: VRAM-compressed with mipmaps for 3D use (normal maps as RGTC)."""
+    from .godot import merge_import
     png = Path(png)
-    target = png.with_name(png.name + ".import")
-    uid = _existing_uid(target)
-    lines = ["[remap]", "", 'importer="texture"', 'type="CompressedTexture2D"']
-    if uid:
-        lines.append(f'uid="{uid}"')
-    lines += ["", "[params]", "",
-              "compress/mode=2",
-              "compress/high_quality=false",
-              f"compress/normal_map={1 if normal_map else 2}",
-              "mipmaps/generate=true",
-              "process/fix_alpha_border=true",
-              "detect_3d/compress_to=0", ""]
-    target.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    merge_import(png.with_name(png.name + ".import"), ['importer="texture"', 'type="CompressedTexture2D"'], {
+        "compress/mode": "2",
+        "compress/high_quality": "false",
+        "compress/normal_map": "1" if normal_map else "2",
+        "mipmaps/generate": "true",
+        "process/fix_alpha_border": "true",
+        "detect_3d/compress_to": "0",
+    })
 
 
 def _existing_uid(path):
