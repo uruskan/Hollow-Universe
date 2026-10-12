@@ -13,7 +13,7 @@ public static class GalaxyTests
     // Golden: a hash over a fixed set of generated cells and systems. Changing the generator changes it;
     // update on purpose (AGENTS.md). A mismatch on another platform means generation isn't deterministic.
     private const ulong CellsGolden = 0x9EB9D62229A1F6ACUL;
-    private const ulong SystemsGolden = 0xD88E791D58901CB4UL;
+    private const ulong SystemsGolden = 0x313E81E347F46464UL;
 
     // ---------------------------------------------------------------- frames
 
@@ -516,6 +516,7 @@ public static class GalaxyTests
         int planets = 0;
         int moons = 0;
         int earthLikes = 0;
+        int hotGiants = 0;
         var types = new Dictionary<PlanetType, int>();
         foreach (CellKey cell in CellsAround(6, new Vector3D(400, 0, 400), 120).Concat(CellsAround(4, new Vector3D(400, 0, 400), 300)))
         {
@@ -532,6 +533,7 @@ public static class GalaxyTests
                         planets++;
                         types[b.PlanetType] = types.GetValueOrDefault(b.PlanetType) + 1;
                         earthLikes += b.PlanetType == PlanetType.EarthLike ? 1 : 0;
+                        hotGiants += b.PlanetType == PlanetType.GasGiant && b.Temperature > 1000 ? 1 : 0;
                         Assert.True(b.Orbit.SemiMajorAxis > previous, $"{b.Name} orbits beyond the previous planet");
                         previous = b.Orbit.SemiMajorAxis;
                     }
@@ -547,8 +549,10 @@ public static class GalaxyTests
             }
         }
         string mix = string.Join(", ", types.OrderByDescending(kv => kv.Value).Select(kv => $"{Body.PlanetTypeName(kv.Key)} {kv.Value}"));
-        Fixtures.Report($"{systems} systems, {planets} planets, {moons} moons, {earthLikes} Earth-like; {mix}");
+        Fixtures.Report($"{systems} systems, {planets} planets, {moons} moons, {earthLikes} Earth-like, {hotGiants} gas giants above 1,000 K; {mix}");
         Assert.True(systems > 50 && planets > systems, "systems have planets");
+        // Close-in hot worlds exist (GALAXY.md §10): metal-rich worlds and hot giants.
+        Assert.True(types.GetValueOrDefault(PlanetType.MetalRich) > 0 && hotGiants > 0, "metal-rich worlds and hot giants exist");
     }
 
     [Test]

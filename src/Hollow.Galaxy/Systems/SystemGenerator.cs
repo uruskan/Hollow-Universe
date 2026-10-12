@@ -275,8 +275,9 @@ public sealed class SystemGenerator
         double massFactor = StellarTables.Clamp(starMassSun, 0.3, 2.0);
 
         // The planet zone: outside the star (and any close companion), inside a third of the nearest approach of
-        // every wide companion.
-        double inner = Math.Max(Math.Max(0.02, 0.1 * sqrtL), 3 * starRadiusAu);
+        // every wide companion. The inner edge sits where the equilibrium temperature reaches about 1,600 K, so
+        // close-in hot worlds (metal-rich worlds, hot giants) exist; real ones orbit even closer.
+        double inner = Math.Max(Math.Max(0.01, 0.03 * sqrtL), 3 * starRadiusAu);
         if (star.Class.Kind is StarKind.NeutronStar or StarKind.BlackHole)
         {
             inner = 0.1;
@@ -311,17 +312,21 @@ public sealed class SystemGenerator
         }
         int count = (int)Math.Min(Math.Min(layout.Poisson(PlanetRate(star) * metalFactor), slots.Count), MaxPlanets);
 
-        // Choose which slots hold planets; slot indices (not planet numbers) identify bodies permanently.
+        // Choose which slots hold planets; slot indices (not planet numbers) identify bodies permanently. Slots are
+        // equally likely beyond about ten-day orbits (0.1 AU·√L); closer in, real planets get rarer fast (occurrence
+        // per log period falls roughly as P²), so those slots are weighted down by (a / 0.1 AU·√L)³. A weighted random
+        // subset: each slot gets the key ln(u) / weight and the largest keys win.
+        double hotEdge = 0.1 * sqrtL;
+        var keys = new double[slots.Count];
         var order = new int[slots.Count];
-        for (int i = 0; i < order.Length; i++)
+        for (int i = 0; i < slots.Count; i++)
         {
+            double ratio = Math.Min(1.0, slots[i] / hotEdge);
+            double weight = Math.Max(ratio * ratio * ratio, 1e-6);
+            keys[i] = DMath.Log(layout.NextDoubleNonZero()) / weight;
             order[i] = i;
         }
-        for (int i = 0; i < order.Length; i++)
-        {
-            int j = i + layout.NextInt(order.Length - i);
-            (order[i], order[j]) = (order[j], order[i]);
-        }
+        Array.Sort(order, (x, y) => keys[x] != keys[y] ? keys[y].CompareTo(keys[x]) : x.CompareTo(y));
         var chosen = new List<int>(order[..count]);
         chosen.Sort();
         bool wantBelt = layout.Chance(0.3);

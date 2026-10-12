@@ -94,6 +94,7 @@ between sessions.
 | `game/` | The Godot project: galaxy map, system map, user interface, shaders |
 | `tests/Hollow.Tests` | Test runner and tests (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue into `game/data/catalog/hyg41.bin.gz` |
+| `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |
 | `docs/` | Design and architecture |
 
 Nothing in `src/` depends on Godot. The future server will use the same libraries.

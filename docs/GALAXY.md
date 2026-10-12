@@ -299,11 +299,15 @@ slot, not by its number.
 
 - Expected count by primary type (M 3.0, K 3.5, G 4.5, F 4.0, A 2.5, B 1.0, O 0.3, giants 1.5, white dwarfs
   0.5, brown dwarfs 0.8, neutron stars 0.2, black holes 0.1), raised by metallicity, at most 14.
-- **Planet zone**: from `max(0.02 AU, 0.1 AU · √L, 3 stellar radii)` out to `max(2 AU, 50 AU · √M)`.
-  Companions with an apoapsis under 5 AU make a close pair: planets orbit both, beyond three times the
-  companion's apoapsis. Wider companions cut the zone at a third of their periapsis.
-- **Orbit slots** from the inner edge outward, each 1.4–2.4 times the previous one; planets take a random
-  subset of the slots.
+- **Planet zone**: from `max(0.01 AU, 0.03 AU · √L, 3 stellar radii)` out to `max(2 AU, 50 AU · √M)`. The
+  inner edge is where the equilibrium temperature reaches about 1,600 K, so close-in hot worlds exist
+  (metal-rich worlds, hot giants). Companions with an apoapsis under 5 AU make a close pair: planets orbit
+  both, beyond three times the companion's apoapsis. Wider companions cut the zone at a third of their
+  periapsis.
+- **Orbit slots** from the inner edge outward, each 1.4–2.4 times the previous one; planets take a weighted
+  random subset of the slots. Slots beyond `0.1 AU · √L` (orbits of about ten days around the Sun) all weigh
+  1; closer in, real planets get rarer quickly, so a slot weighs `(a / 0.1 AU·√L)³`. In the sample of 30,000
+  systems near Sol about 1 system in 120 has a gas giant above 1,000 K, and 2% of planets are metal-rich.
 - **Orbits never cross**: each planet's eccentricity is limited so its periapsis stays at least 15% beyond
   the previous body's apoapsis and its apoapsis stays inside the next slot divided by 1.3.
 - Snow line `2.7 AU · √L`; equilibrium temperature `278.6 K · L^¼ / √a`.

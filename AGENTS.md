@@ -38,6 +38,8 @@ Read first, in this order:
 dotnet build HollowUniverse.sln                  # everything, including the Godot client's C#
 dotnet run --project tests/Hollow.Tests          # all engine-free tests
 dotnet run --project tests/Hollow.Tests -- Galaxy   # only tests whose name contains "Galaxy"
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs per generated star system
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 ```
 
 Headless Godot (Linux workspace; `$GODOT` is the Godot 4.7.2 .NET binary; build the solution first):
@@ -71,3 +73,4 @@ Client options (after `--`):
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue into `game/data/catalog/hyg41.bin.gz` |
+| `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |
