@@ -36,6 +36,17 @@ public sealed class PhysicsWorld : IDisposable
 
     private const int TileIdCount = 2 * TileRange * 2 * TileRange;
 
+    /// <summary>
+    /// Body IDs from here on belong to building pieces, doors and claim devices (<c>Building/BuildingPhysics</c>), at
+    /// most <see cref="MaxBuildingBodies"/> of them; ground tiles and other bodies come first.
+    /// </summary>
+    public const int FirstBuildingBody = TileIdCount + 4096;
+
+    public const int MaxBuildingBodies = 16384;
+
+    /// <summary>Whether a body is a ground tile.</summary>
+    public static bool IsGroundBody(uint id) => id < TileIdCount;
+
     private readonly Dictionary<(int X, int Z), Tile> _tiles = new();
     private readonly Dictionary<(int X, int Z), Task<Shape>> _pending = new();
     private readonly List<(int X, int Z)> _expired = new();
@@ -65,7 +76,7 @@ public sealed class PhysicsWorld : IDisposable
             Jolt = new PhysicsSystem(new PhysicsSystemSettings
             {
                 // Ground tile IDs take the bottom of the range (see the class remarks); later bodies take the rest.
-                MaxBodies = TileIdCount + 4096,
+                MaxBodies = FirstBuildingBody + MaxBuildingBodies,
                 MaxBodyPairs = 4096,
                 MaxContactConstraints = 4096,
                 NumBodyMutexes = 0,

@@ -355,6 +355,126 @@ saying where it came from. Sources, in order of preference:
 | Death | Wounded state, lootable body, respawn on the beach, at a sleeping bag or bed (each with a cooldown), sleepers. |
 | Raiding | Explosives and explosive ammo, damage per grade, weak sides, raid alerts. |
 
+### 6.3 Building, claims and doors (G3)
+
+Built in two phases. **Phase 1** (this section): the rules, engine-free and tested, their data, the kit's art and a
+local sandbox that previews placement with the same code. **Phase 2**, after the survival package: network intents,
+persistence, costs taken from the inventory, the claim device's interface.
+
+| Part | Where |
+|---|---|
+| Rules | `src/Hollow.Simulation/Building/`: `BuildingWorld` (structures, links, stability, collapse; partial files for placement, the hammer, damage), `PieceGeometry` (sockets and snapping), `PieceShapes` (collision), `BuildingPhysics` (Jolt), `Doors`, `ClaimDevice` (rights, upkeep, decay) |
+| Numbers | `game/data/ground/building.json`: module sizes, placement, hammer, stability, grades, the 20 pieces with their costs and sockets, the plan wheel's order, doors, locks, the claim device |
+| Tests | `tests/Hollow.Tests/BuildingTests.cs` (`dotnet run --project tests/Hollow.Tests -- Building`) |
+
+**Sources.** RustMVP's engine-free rules were ported to C# line by line: `building_rules.hpp` (pieces, sockets,
+snapping, support losses, stability, upgrade, repair, the edit window), `building_geometry.hpp` (reach to the nearest
+logical surface, aiming at a slab's whole footprint, opening planes, the seams that may overlap) and `damage_rules.hpp`
+(damage summed by type, rounded up once). Its spec `docs/architecture/legacy/building_damage.md` gave the costs, the
+hit points (the owner's 10 / 200 / 500 / 1,000 / 2,000), the ground check, the placement order, the cupboard and the
+door and code-lock rules. The kits' `dimension_contract.json` and `assembly_manifest.json` gave every size and hinge.
+hollow-orbit's `construct.js` gave decay times (Rust's 1, 3, 5, 8 and 12 hours), upkeep and the claim radii; Rust gave
+its upkeep brackets, the weak side and the key lock. Names are ours.
+
+**Frame.** A structure is the pieces linked to each other through sockets. It has its own frame: its origin is its
+first foundation, +Y the planet's up there (`ZoneFrame.UpAt`), turned to the player's view in 15° steps. Pieces snap
+in that frame, so a base stays square on a curved world; across a 100 m base the curvature is below a millimetre. All
+yaws in a structure are multiples of 30° (squares turn by 90°, triangles by 120°), so they are stored as whole steps
+with exact sines and cosines. Positions are doubles in the frame; Jolt and the renderer get floats. Demolishing a
+connector splits a structure in two with the same frame; a piece linking two structures of one frame joins them.
+
+**Pieces and sockets** (RustMVP's 20, with their ids): square and triangle foundations; square and triangle floors and
+floor frames; wall, half wall, low wall, window, doorway and wall frame; L, U, spiral and triangle spiral stairs, ramp
+and steps; square and triangle roofs. The module is 3 m, the storey 3 m, walls 30 cm thick, foundations 1 m deep, floors
+20 cm. Sockets: a slab's edges take walls, floors, roofs and (on a foundation) foundations level or half a storey up or
+down; its centre takes stairs of the same footprint; a wall's top takes walls, floors and roofs; a staircase's top takes
+floors and the next module; a square roof's high edge takes roofs, floors and walls. Each piece's sockets are listed in
+the data; the snap formulas are code (`PieceGeometry.Snap`), and a test checks that every pair of neighbouring slabs,
+square and triangle, closes its shared edge exactly under a turned parent.
+
+**The plan's aim** (RustMVP's preview): every compatible socket of the pieces near the aim, in every orientation, is
+scored by how near the aim passes (a floor by its whole footprint, so a ceiling can be chosen by aiming anywhere on it),
+how far it is from what the aim hits, and how close its facing is to the one asked for (a wall's hard side away from
+the player, stairs and roofs rising away; R turns it). The best eight are checked and the first allowed wins; if none
+is, the best shows with its reason. With no socket near, a foundation goes on the ground: along the aim, at most 3.5 m
+across, its top 5 cm above the highest ground under it.
+
+**Placement checks**, in this order, each refusal with a line for the player (`Refusal`, `Outcome.Text`):
+
+| Check | Rule | Refusal |
+|---|---|---|
+| Size | at most 4,000 pieces in a structure | "This building can't grow any bigger" |
+| Reach | 8 m from the eye to the piece's nearest logical surface | "Too far away" |
+| Sight | nothing between the eye and that point (35 cm of slack; the ground never hides a foundation) | "Something is in the way" |
+| Rights | no claim device the player isn't authorised on covers the spot (2.25 m padding) | "Building blocked: someone else's claim" |
+| Spot | no piece of the same kind (slab, wall, stairs, roof) within 1 cm | "Something is already built there" |
+| Ground | under every corner and the centre of a foundation: ground within 1 m below its top, at least 5 cm below, with a normal of at least 0.75 up | "…would float", "…would be buried", "The ground is too steep" |
+| Collision | a Jolt query of the piece's real hulls: pieces block unless linked through a socket or meeting on a seam (wall on a slab's edge, slabs side by side, walls at a corner); the ground blocks everything but foundations; doors, devices and natural objects block | "It would cut into another piece", "…into the ground", "Something is in the way" |
+| Players | no character's capsule reaches into the piece | "A player is in the way" |
+| Stability | at least 0.1 % | "Not stable enough (0%)" |
+| Claims | it would not link two claimed structures | "That would join two claimed buildings" |
+| Price | the twig cost in wood | "Not enough wood" |
+
+**Stability** (RustMVP's): foundations hold 100 %. Along each support link the value drops by the link's loss: nothing
+from foundation to foundation or to a wall; 10 % for a staircase on a slab's centre, anything on a wall or staircase,
+and a roof; 20 % along any other slab edge. A piece takes its strongest path from the ground, so a loop never holds
+itself up. A foundation, four walls and a floor on them: 100, 100, 90 %; floors reaching out past the walls 90 (on the
+wall's top), 70, 50, 30 and 10 %, and the next can't be placed. Links come only from exact snaps.
+
+**Collapse.** When a piece goes (demolished, destroyed, decayed), the structure is solved again and the pieces left at
+0 % come down in sequence: layer by layer outward from the lost support through their links, one layer every 0.2 s,
+announced at once (they stop supporting anything) and removed on the zone's ticks. Over elapsed time (decay) they go at
+once.
+
+**Hammer.** Upgrade to any higher grade, paying that grade's cost in its material; the piece keeps its fraction of
+health (Rust's rule; RustMVP healed it fully). Rotate (walls flip their soft side, stairs turn 90°, triangle spirals
+120°; not slabs, roofs or a frame holding a door) and demolish (no refund) only within 10 minutes of placing, the
+boundary included. Repair: +100 health a hit, not within 30 s of damage ("Recently damaged: repair in 20 s"), for
+max(1, ⌈cost × 0.2 × restored ÷ max⌉) of the grade's material, worked in whole millionths (a stone wall at 400 of 500:
+12 stone). Every hammer action needs reach and building rights.
+
+**Doors.** Deployable items fitted into an opening: single doors into doorways, double doors and the garage door into
+wall frames, one per opening, never upgraded. Wooden 200, sheet metal 250, armoured 1,000 health (RustMVP), garage 600
+(ours). Their leaves swing on the kit manifest's hinges (single: 56.2 cm left of centre, 17.2 cm out, 100°; doubles
+mirrored) and collide open or shut; a turn of 180° on placing swaps the hinge side. A garage door rolls up. Opening a
+door needs no rights, only its lock's consent, and its new pose clear of players. Picking a door up needs it open with
+no lock on it. **Key lock** (Rust's): its owner opens it without a key; anyone with a key cut for it (its key code)
+opens it and it stays locked. **Code lock** (RustMVP's, no guest codes): four digits; setting the code locks it and
+leaves only the setter authorised; the right code authorises (up to 64); wrong codes make the player wait 1, 5, 5, 5,
+then 30 s; lock, unlock and take off by an authorised player, taking off only when unlocked.
+
+**Claim device** (our tool cupboard): stands on a foundation or floor, one per structure, its owner authorised.
+Anyone may authorise at it; only someone on the list may clear it. It covers the points within 16 m of any of its
+structure's pieces or 25 m of itself, so the area grows with the base and ends where the base ends; a player builds,
+upgrades, rotates, demolishes, repairs and fits doors and locks there only if every covering device lists them
+(RustMVP's strict rule: Rust's twig-floor exception for strangers isn't kept). Without a device anyone builds.
+
+**Upkeep and decay.** A day's upkeep is each piece's cost at its grade times Rust's bracket rate: the first 15 pieces
+pay 10 %, the next 50 15 %, the next 125 20 %, the rest 33.3 %. The device's store pays each material until it runs out
+("protected for" is the shortest); a piece whose material isn't paid, or with no device, loses its full health over its
+grade's decay time (twig 1 h, wood 3, stone 5, metal 8, armoured 12). `AdvanceTime` applies any interval in closed form
+(ARCHITECTURE.md §10.4): between events everything is linear, and the events are a material running out and a piece
+reaching zero (removed, with what it held), after which the rates are worked out again. Work grows with the events,
+not the interval: 82 hours of a ten-piece base take 3 ms. A test runs the same base once over 82 hours and in 29,520
+steps of 10 s: the same pieces stand, with the same health within a millionth and the same materials taken.
+
+**Damage hook** (for G5's explosives): `Damage(piece, hit)` sums bullet, melee, explosive and heat through the grade's
+transmissions and rounds up once (RustMVP's resolver), capped at the health left. A wall hit from its inside (−Z, the
+soft side) uses the grade's soft transmissions, Rust's weak side: 100 melee does 5 to a stone wall's hard side and 100
+to its soft side. Bullets don't hurt stone and up; explosives hurt every grade alike. A destroyed piece collapses what
+it held. Doors take their material's protection.
+
+**Static entities.** Pieces are plain data: nothing runs per tick but a collapse in progress. A world of 1,024 pieces
+ticks in 0.007 µs touching none (a test).
+
+**Collision** comes from the module sizes, never from the art, the same on the server and every client: one hull for a
+slab or a wall, jambs and lintel around an opening, a frame's border strips, the kit's spiral (twelve 10 cm treads of
+15° rising 12.5 cm about a 12-sided column), solid ramps for the ramp, the steps and the first flights of the L and U
+stairs, sloped slabs for their second flights and for roofs. Each piece is one static Jolt body (a hull or a compound of
+hulls) with an ID from the building range after the ground tiles' (`PhysicsWorld.FirstBuildingBody`). Queries pass the
+matrix in Jolt's column-major layout and collide with back faces, so a slab whose middle is underground still cuts the
+ground.
+
 ---
 
 ## 7. Data
@@ -575,3 +695,19 @@ Decisions taken for the interface (§8) without the owner, to confirm or overtur
     under RustMVP's vignette instead. The menu is English, like the rest of the interface (RustMVP's was Turkish).
 17. **Placeholders until their packages land:** item icons (vector drawings), the mannequin, and the death screen's
     map (a fixed-seed coast).
+
+Decisions taken for building (§6.3) without the owner, to confirm or overturn:
+
+18. **Hit points are RustMVP's, the owner's:** twig 10, wood 200 (Rust has 250), stone 500, metal 1,000, armoured 2,000.
+19. **Reach is RustMVP's 8 m** to the nearest logical surface (the owner's correction in RustMVP); Rust's feels shorter.
+20. **Claim radii are hollow-orbit's** (16 m around every piece, 25 m around the device): RustMVP's 30 m around every
+    piece would block a 70 m square around a one-room base.
+21. **Upgrades keep the health fraction** (Rust's rule) where RustMVP healed fully; neither has a time window.
+22. **Up to 4,000 pieces a structure**: RustMVP's 100 is far below the 1,000-piece bases G3 must carry.
+23. **Soft-side and melee transmissions are ours** until G5 tunes raiding: stone's hard side lets 5 % of melee through,
+    its soft side all of it; metal 2 % and 50 %; armoured 1 % and 25 %.
+24. **Collapse runs at 0.2 s a layer** (ours); RustMVP removed everything in one commit.
+25. **The garage door has 600 health** and rolls up; the L and U stairs, ramp, steps, low wall and roofs aren't in the
+    kit, so their art and collision are ours (§9).
+26. **A key lock starts unlocked**, and a key carries its lock's number; key crafting and keys as items come with phase 2.
+27. **Upkeep counts pieces only** for now; Rust also charges for doors and window inserts.

@@ -1,0 +1,182 @@
+{
+  "source": "GROUND.md §6.3. Pieces, sockets, grade hit points, costs, stability losses, hammer timings, doors and code locks from RustMVP (docs/architecture/legacy/building_damage.md and unreal/Bare/Source/Bare/Rules/building_rules.hpp, building_geometry.hpp, damage_rules.hpp; the owner's numbers there: hit points 10/200/500/1000/2000). Sizes from PSG_BuildingKit_R01 Reports/dimension_contract.json and PSG_DoorWindowKit_R01 assembly_manifest.json (hinges converted to metres, Y up, outside +Z). Decay times, upkeep and the claim radii are Rust's mechanics as hollow-orbit js/game/construct.js has them; Rust's upkeep brackets. Soft-side and melee transmissions are ours until G5 tunes them. Names are ours. Piece ids are stable (RustMVP's part ids): never reuse one.",
+
+  "module": {
+    "width": 3.0, "storey": 3.0, "halfWall": 1.5, "lowWall": 1.0, "ramp": 0.75,
+    "foundationDepth": 1.0, "floorThickness": 0.2, "wallThickness": 0.3, "frameBorder": 0.2,
+    "doorOpening": [1.2, 2.3], "doubleOpening": [2.7, 2.85], "windowOpening": [1.8, 1.2], "windowSill": 0.9
+  },
+
+  "placement": {
+    "reach": 8.0, "socketAimRadius": 1.75, "freeFoundationDistance": 3.5, "foundationClearance": 0.05,
+    "groundNormalMin": 0.75, "sightTolerance": 0.35, "claimPadding": 2.25, "candidatesTried": 8,
+    "maxPiecesPerBuilding": 4000, "contactTolerance": 0.01
+  },
+
+  "hammer": { "editWindow": 600, "repairDelay": 30, "repairPerHit": 100, "repairCostFraction": 0.2 },
+
+  "stability": {
+    "ground": 1000, "minimum": 1, "collapseStep": 0.2,
+    "loss": { "foundationToFoundation": 0, "toWall": 0, "centre": 100, "fromWall": 100, "fromStairs": 100, "toRoof": 100, "slabEdge": 200 }
+  },
+
+  "materials": [
+    { "key": "wood", "name": "Wood" },
+    { "key": "stone", "name": "Stone" },
+    { "key": "metal-fragments", "name": "Metal fragments" },
+    { "key": "refined-metal", "name": "Refined metal" }
+  ],
+
+  "grades": [
+    { "key": "twig", "name": "Twig", "material": "wood", "health": 10, "decayHours": 1,
+      "hard": { "bullet": 1, "melee": 1, "explosive": 1, "heat": 1 },
+      "soft": { "bullet": 1, "melee": 1, "explosive": 1, "heat": 1 } },
+    { "key": "wood", "name": "Wood", "material": "wood", "health": 200, "decayHours": 3,
+      "hard": { "bullet": 1, "melee": 0.5, "explosive": 1, "heat": 1 },
+      "soft": { "bullet": 1, "melee": 1, "explosive": 1, "heat": 1 } },
+    { "key": "stone", "name": "Stone", "material": "stone", "health": 500, "decayHours": 5,
+      "hard": { "bullet": 0, "melee": 0.05, "explosive": 1, "heat": 0 },
+      "soft": { "bullet": 0, "melee": 1, "explosive": 1, "heat": 0 } },
+    { "key": "metal", "name": "Metal", "material": "metal-fragments", "health": 1000, "decayHours": 8,
+      "hard": { "bullet": 0, "melee": 0.02, "explosive": 1, "heat": 0 },
+      "soft": { "bullet": 0, "melee": 0.5, "explosive": 1, "heat": 0 } },
+    { "key": "armoured", "name": "Armoured", "material": "refined-metal", "health": 2000, "decayHours": 12,
+      "hard": { "bullet": 0, "melee": 0.01, "explosive": 1, "heat": 0 },
+      "soft": { "bullet": 0, "melee": 0.25, "explosive": 1, "heat": 0 } }
+  ],
+
+  "pieces": [
+    { "id": 0, "key": "foundation", "name": "Foundation", "description": "A square support for your base.",
+      "family": "foundation", "shape": "square", "cost": [50, 200, 300, 200, 25],
+      "sockets": [
+        { "at": "edges", "accepts": ["foundation", "floor", "wall", "roof"] },
+        { "at": "edges-up", "accepts": ["foundation"] },
+        { "at": "edges-down", "accepts": ["foundation"] },
+        { "at": "centre", "accepts": ["stairs"], "sameShape": true } ] },
+    { "id": 1, "key": "foundation-triangle", "name": "Triangle Foundation", "description": "A triangular support for your base.",
+      "family": "foundation", "shape": "triangle", "cost": [25, 100, 150, 100, 13],
+      "sockets": [
+        { "at": "edges", "accepts": ["foundation", "floor", "wall", "roof"] },
+        { "at": "edges-up", "accepts": ["foundation"] },
+        { "at": "edges-down", "accepts": ["foundation"] },
+        { "at": "centre", "accepts": ["stairs"], "sameShape": true } ] },
+    { "id": 2, "key": "floor", "name": "Floor", "description": "A square upper floor or ceiling.",
+      "family": "floor", "shape": "square", "cost": [25, 100, 150, 100, 13],
+      "sockets": [
+        { "at": "edges", "accepts": ["floor", "wall", "roof"] },
+        { "at": "centre", "accepts": ["stairs"], "sameShape": true } ] },
+    { "id": 3, "key": "floor-triangle", "name": "Triangle Floor", "description": "A triangular upper floor or ceiling.",
+      "family": "floor", "shape": "triangle", "cost": [13, 50, 75, 50, 7],
+      "sockets": [
+        { "at": "edges", "accepts": ["floor", "wall", "roof"] },
+        { "at": "centre", "accepts": ["stairs"], "sameShape": true } ] },
+    { "id": 4, "key": "wall", "name": "Wall", "description": "Enclose your base with a full wall.",
+      "family": "wall", "shape": "wall", "height": 3.0, "cost": [50, 200, 300, 200, 25], "rotate": 6,
+      "sockets": [ { "at": "top", "accepts": ["wall", "floor", "roof"] } ] },
+    { "id": 5, "key": "half-wall", "name": "Half Wall", "description": "A wall half the normal height.",
+      "family": "wall", "shape": "wall", "height": 1.5, "cost": [50, 200, 300, 200, 25], "rotate": 6,
+      "sockets": [ { "at": "top", "accepts": ["wall", "floor", "roof"] } ] },
+    { "id": 6, "key": "low-wall", "name": "Low Wall", "description": "A low protective wall.",
+      "family": "wall", "shape": "wall", "height": 1.0, "cost": [25, 100, 150, 100, 13], "rotate": 6,
+      "sockets": [ { "at": "top", "accepts": ["wall", "floor", "roof"] } ] },
+    { "id": 7, "key": "window", "name": "Window", "description": "A wall with a window opening.",
+      "family": "wall", "shape": "wall", "height": 3.0, "opening": "window", "cost": [35, 140, 210, 140, 18], "rotate": 6,
+      "sockets": [ { "at": "top", "accepts": ["wall", "floor", "roof"] } ] },
+    { "id": 8, "key": "doorway", "name": "Doorway", "description": "A wall opening for a single door.",
+      "family": "wall", "shape": "wall", "height": 3.0, "opening": "door", "cost": [35, 140, 210, 140, 18], "rotate": 6,
+      "sockets": [ { "at": "top", "accepts": ["wall", "floor", "roof"] } ] },
+    { "id": 9, "key": "wall-frame", "name": "Wall Frame", "description": "An opening for a double door.",
+      "family": "wall", "shape": "wall", "height": 3.0, "opening": "double", "cost": [25, 100, 150, 100, 13], "rotate": 6,
+      "sockets": [ { "at": "top", "accepts": ["wall", "floor", "roof"] } ] },
+    { "id": 10, "key": "floor-frame", "name": "Floor Frame", "description": "A square frame with an open centre.",
+      "family": "floor", "shape": "square", "frame": true, "cost": [25, 100, 150, 100, 13],
+      "sockets": [
+        { "at": "edges", "accepts": ["floor", "wall", "roof"] },
+        { "at": "centre", "accepts": ["stairs"], "sameShape": true } ] },
+    { "id": 11, "key": "floor-frame-triangle", "name": "Triangle Floor Frame", "description": "A triangular frame with an open centre.",
+      "family": "floor", "shape": "triangle", "frame": true, "cost": [13, 50, 75, 50, 7],
+      "sockets": [
+        { "at": "edges", "accepts": ["floor", "wall", "roof"] },
+        { "at": "centre", "accepts": ["stairs"], "sameShape": true } ] },
+    { "id": 12, "key": "stairs-l", "name": "L Stairs", "description": "A full-height staircase with a corner.",
+      "family": "stairs", "shape": "square", "height": 3.0, "stairs": "l", "cost": [50, 200, 300, 200, 25], "rotate": 3,
+      "sockets": [ { "at": "top", "accepts": ["floor", "stairs"], "sameShape": true } ] },
+    { "id": 13, "key": "stairs-u", "name": "U Stairs", "description": "A full-height returning staircase.",
+      "family": "stairs", "shape": "square", "height": 3.0, "stairs": "u", "cost": [50, 200, 300, 200, 25], "rotate": 3,
+      "sockets": [ { "at": "top", "accepts": ["floor", "stairs"], "sameShape": true } ] },
+    { "id": 14, "key": "stairs-spiral", "name": "Spiral Stairs", "description": "A half-height square spiral staircase.",
+      "family": "stairs", "shape": "square", "height": 1.5, "stairs": "spiral", "cost": [50, 200, 300, 200, 25], "rotate": 3,
+      "sockets": [ { "at": "top", "accepts": ["floor", "stairs"], "sameShape": true } ] },
+    { "id": 15, "key": "stairs-spiral-triangle", "name": "Triangle Spiral Stairs", "description": "A half-height triangular spiral staircase.",
+      "family": "stairs", "shape": "triangle", "height": 1.5, "stairs": "spiral", "cost": [25, 100, 150, 100, 13], "rotate": 4,
+      "sockets": [ { "at": "top", "accepts": ["floor", "stairs"], "sameShape": true } ] },
+    { "id": 16, "key": "ramp", "name": "Ramp", "description": "A quarter-height sloping access ramp.",
+      "family": "stairs", "shape": "square", "height": 0.75, "stairs": "ramp", "cost": [25, 100, 150, 100, 13], "rotate": 3,
+      "sockets": [ { "at": "top", "accepts": ["floor", "stairs"], "sameShape": true } ] },
+    { "id": 17, "key": "steps", "name": "Steps", "description": "Half-height steps attached to a floor.",
+      "family": "stairs", "shape": "square", "height": 1.5, "stairs": "steps", "cost": [25, 100, 150, 100, 13], "rotate": 3,
+      "sockets": [ { "at": "top", "accepts": ["floor", "stairs"], "sameShape": true } ] },
+    { "id": 18, "key": "roof", "name": "Roof", "description": "A sloping square roof section.",
+      "family": "roof", "shape": "square", "height": 3.0, "cost": [50, 200, 300, 200, 25],
+      "sockets": [ { "at": "top", "accepts": ["piece:roof", "floor", "wall"] } ] },
+    { "id": 19, "key": "roof-triangle", "name": "Triangle Roof", "description": "A sloping triangular roof section.",
+      "family": "roof", "shape": "triangle", "height": 3.0, "cost": [25, 100, 150, 100, 13],
+      "sockets": [] }
+  ],
+
+  "wheel": [
+    "foundation", "foundation-triangle", "ramp", "steps", "floor", "floor-triangle", "floor-frame",
+    "floor-frame-triangle", "wall", "doorway", "window", "wall-frame", "half-wall", "low-wall", "stairs-l",
+    "stairs-u", "stairs-spiral", "stairs-spiral-triangle", "roof", "roof-triangle"
+  ],
+
+  "doors": [
+    { "key": "wooden-door", "name": "Wooden Door", "opening": "door", "health": 200, "protection": "wood",
+      "repair": { "material": "wood", "full": 150 },
+      "leaves": [ { "mesh": "Wood_SingleDoor_Left", "hinge": [-0.562, 0.012, 0.172], "size": [1.144, 2.25, 0.06], "openYaw": 100 } ],
+      "frameMesh": "Wood_SingleDoor_Frame" },
+    { "key": "sheet-metal-door", "name": "Sheet Metal Door", "opening": "door", "health": 250, "protection": "metal",
+      "repair": { "material": "metal-fragments", "full": 75 },
+      "leaves": [ { "mesh": "Metal_SingleDoor_Left", "hinge": [-0.562, 0.012, 0.172], "size": [1.144, 2.25, 0.06], "openYaw": 100 } ],
+      "frameMesh": "Metal_SingleDoor_Frame" },
+    { "key": "armoured-door", "name": "Armoured Door", "opening": "door", "health": 1000, "protection": "armoured",
+      "repair": { "material": "refined-metal", "full": 10 },
+      "leaves": [ { "mesh": "Armored_SingleDoor_Left", "hinge": [-0.562, 0.012, 0.172], "size": [1.144, 2.25, 0.08], "openYaw": 100 } ],
+      "frameMesh": "Armored_SingleDoor_Frame" },
+    { "key": "wooden-double-door", "name": "Wooden Double Door", "opening": "double", "health": 200, "protection": "wood",
+      "repair": { "material": "wood", "full": 300 },
+      "leaves": [
+        { "mesh": "Wood_DoubleDoor_Left", "hinge": [-1.312, 0.012, 0.172], "size": [1.322, 2.8, 0.06], "openYaw": 100 },
+        { "mesh": "Wood_DoubleDoor_Right", "hinge": [1.312, 0.012, 0.172], "size": [-1.322, 2.8, 0.06], "openYaw": -100 } ],
+      "frameMesh": "Wood_DoubleDoor_Frame" },
+    { "key": "sheet-metal-double-door", "name": "Sheet Metal Double Door", "opening": "double", "health": 250, "protection": "metal",
+      "repair": { "material": "metal-fragments", "full": 150 },
+      "leaves": [
+        { "mesh": "Metal_DoubleDoor_Left", "hinge": [-1.312, 0.012, 0.172], "size": [1.322, 2.8, 0.06], "openYaw": 100 },
+        { "mesh": "Metal_DoubleDoor_Right", "hinge": [1.312, 0.012, 0.172], "size": [-1.322, 2.8, 0.06], "openYaw": -100 } ],
+      "frameMesh": "Metal_DoubleDoor_Frame" },
+    { "key": "armoured-double-door", "name": "Armoured Double Door", "opening": "double", "health": 1000, "protection": "armoured",
+      "repair": { "material": "refined-metal", "full": 20 },
+      "leaves": [
+        { "mesh": "Armored_DoubleDoor_Left", "hinge": [-1.312, 0.012, 0.172], "size": [1.322, 2.8, 0.08], "openYaw": 100 },
+        { "mesh": "Armored_DoubleDoor_Right", "hinge": [1.312, 0.012, 0.172], "size": [-1.322, 2.8, 0.08], "openYaw": -100 } ],
+      "frameMesh": "Armored_DoubleDoor_Frame" },
+    { "key": "garage-door", "name": "Garage Door", "opening": "double", "health": 600, "protection": "metal", "rolls": true,
+      "repair": { "material": "metal-fragments", "full": 150 },
+      "leaves": [ { "mesh": "GarageDoor_Curtain", "hinge": [-1.35, 0.0, 0.12], "size": [2.7, 2.85, 0.08], "openYaw": 0 } ],
+      "frameMesh": "GarageDoor_Frame" }
+  ],
+
+  "locks": {
+    "codeLength": 4, "maxAuthorised": 64, "wrongCodeWait": [1, 5, 5, 5, 30],
+    "keyLock": { "key": "key-lock", "name": "Key Lock" },
+    "codeLock": { "key": "code-lock", "name": "Code Lock" }
+  },
+
+  "claim": {
+    "key": "claim-device", "name": "Claim Device", "size": [0.9, 1.8, 0.7],
+    "pieceRadius": 16, "deviceRadius": 25, "maxAuthorised": 64,
+    "upkeepPeriodHours": 24,
+    "upkeepBrackets": [ { "pieces": 15, "fraction": 0.1 }, { "pieces": 50, "fraction": 0.15 }, { "pieces": 125, "fraction": 0.2 }, { "pieces": 0, "fraction": 0.333 } ]
+  }
+}
