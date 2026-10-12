@@ -14,7 +14,7 @@ these package IDs to `third_party/packages`, and only there; nothing else in the
 | SQLitePCLRaw.core | 2.1.12 | Apache-2.0 | (dependency) | |
 | SQLitePCLRaw.provider.e_sqlite3 | 2.1.12 | Apache-2.0 | (dependency) | |
 | SQLitePCLRaw.lib.e_sqlite3 | 2.1.12 | Apache-2.0 (SQLite itself is public domain) | (dependency) | Native SQLite. **Trimmed** to `win-x64` and `linux-x64`. |
-| System.Memory | 4.5.3 | MIT | (dependency of SQLitePCLRaw.core) | Restore needs it; on .NET 10 it adds no assembly. |
+| System.Memory | 4.5.3 | MIT | (dependency of SQLitePCLRaw.core) | The .NET 10 SDK prunes it (the framework has it); kept for restores that don't prune. |
 
 All were downloaded from nuget.org on 12 October 2026. The two trimmed packages keep their id, version and
 licence files; only the other platforms' native files and the repository signature (which no longer matches) were
