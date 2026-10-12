@@ -18,7 +18,8 @@ namespace Hollow.Bots;
 /// <item><c>loadtest --count 100 --duration 60</c>: a server in this process plus the bots; prints tick time,
 /// bandwidth per client and prediction error (GROUND.md §5, measured).</item>
 /// </list>
-/// Both take <c>--script wander|circle|jump|mixed</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>.
+/// Both take <c>--script wander|circle|jump|mixed</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>; the load test also
+/// <c>--spawn origin|beach</c> (where bots arrive: the landing site, the default, or the beaches) and <c>--stand-in</c>.
 /// </summary>
 public static class Program
 {
@@ -34,12 +35,13 @@ public static class Program
             if (words.Contains("loadtest"))
             {
                 return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300),
-                    o.GetValueOrDefault("kit"));
+                    o.GetValueOrDefault("kit"), o.GetValueOrDefault("spawn", "origin") == "beach", o.ContainsKey("stand-in"));
             }
             if (!o.TryGetValue("server", out string? server))
             {
                 Console.WriteLine("Hollow.Bots --server <host:port> [--count 100] [--duration <s>] [--script mixed] [--lag ms --jitter ms --loss %]\n" +
-                    "Hollow.Bots loadtest [--count 100] [--duration 60] [--warmup 8] [--script mixed] [--lag ms --jitter ms --loss %]");
+                    "Hollow.Bots loadtest [--count 100] [--duration 60] [--warmup 8] [--script mixed] [--lag ms --jitter ms --loss %] " +
+                    "[--spawn origin|beach] [--stand-in]");
                 return 1;
             }
             string[] parts = server.Split(':');
@@ -100,11 +102,17 @@ public static class Program
     /// The load test of GROUND.md §5: a server in this process and <paramref name="count"/> bots in a child process (so
     /// the bots' own work and garbage collections don't land on the server's ticks), measured after a warm-up.
     /// </summary>
-    private static int LoadTest(int count, double duration, double warmup, BotScript script, NetConditions conditions, float relevance, string? kit)
+    private static int LoadTest(int count, double duration, double warmup, BotScript script, NetConditions conditions, float relevance, string? kit,
+        bool beaches, bool standIn)
     {
         Console.WriteLine($"Load test: a server and {count} bots ({script}) in another process, {warmup:0} s warm-up, {duration:0} s measured" +
-            (conditions.IsNone ? "" : $", bots through a relay: {conditions}"));
-        using var server = new GameServer(new ServerOptions { Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, Log = _ => { } });
+            (conditions.IsNone ? "" : $", bots through a relay: {conditions}") +
+            (standIn ? ", on the stand-in ground" : $", on the first world, arriving {(beaches ? "on the beaches" : "at the landing site")}"));
+        // By default everyone arrives at the landing site, so each bot sees all the others (the bandwidth worst case).
+        using var server = new GameServer(new ServerOptions
+        {
+            Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, Log = _ => { }, SpawnAtOrigin = !beaches, StandIn = standIn,
+        });
         server.StartThread();
 
         string self = Environment.ProcessPath!;

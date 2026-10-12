@@ -120,10 +120,16 @@ Godot.
 - **Static entities** (building parts, deployables, boxes) cost nothing per tick until something happens to them.
 - **Natural things** (trees, ore, plants) come from the surface generator. Only changes are stored, such as "this tree
   is cut until T" (ARCHITECTURE.md P1).
-- **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world at a
-  latitude and longitude from the command line (the planet package picks the landing site). Each tick: receive, finish
-  logins, run admin commands, give every character its input for this tick, step the zone, send snapshots (20 a
-  second), save every 30 s, send. Tick time is measured (average, 99th percentile, maximum).
+- **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world, its
+  origin at the landing site (§3; `--lat`, `--lon` move it), on the planet's real surface (`ZoneSpec.CreateSurface`:
+  `PlanetSurface`, one instance per process shared by the server, the prediction and the terrain; `--stand-in` gives
+  tests the old hilly sphere). Each tick: receive, finish logins, run admin commands, give every character its input
+  for this tick, step the zone, send snapshots (20 a second), save every 30 s, send. Tick time is measured (average,
+  99th percentile, maximum).
+  - **Arrival:** a new character arrives on a random one of the zone's beach points, as in Rust (`Beaches`: up to 24
+    points of sandy shore 0.5–3.5 m above the sea with the water within 30 m, at least 45 m apart, nearest to the
+    origin first; at the landing site they lie 0.3–0.8 km away). `--spawn origin` puts arrivals at the landing site
+    instead (load tests, measurements).
   - **Login** is by player name for development: the name is the account, one character per name, refused if in use.
   - **Admin console:** `status`, `kick <name> [reason]`, `teleport <name> <x> <z>` or `teleport <name> <other>`,
     `say <text>`, `save`, `quit`. Ctrl+C or `quit` saves everyone, says goodbye to every client and stops.
@@ -290,6 +296,11 @@ Godot.
   rocks 3.2 m), each kept with the probability its density gives. Trees grow in stands of one kind (fir, pine, birch,
   broadleaf). An object's ID is the tile plus its index: kind in the top byte, candidate cell below (ARCHITECTURE.md
   §7). Grass is a density per vertex, drawn by the client.
+  - **Gameplay kinds** come after the plants and are drawn by the ground game, not the surface view: stone, metal and
+    sulphur outcrops (`ScatterKind` 9–11) on a 12-cell grid per tile, about one per 3,000 m² of open, gentle land of
+    average roughness: more on stony and mountain ground, 40 % fewer in closed forest, none on sand, ice, cliffs or
+    within 1.5 m of the sea; mostly stone, about a third metal, a sixth sulphur (more ore in the mountains). Each kind
+    has its own candidates and random streams, so adding them moved nothing else; new kinds only ever go at the end.
 - **Speed:** about 3.7 µs per height and 7 µs per drawn vertex (with climate and materials), about 7 ms per tile on
   one core; the client builds tiles on worker threads.
 - **Sky:** `SkyEphemeris` turns the planet's body frame in the system frame: the spin axis leans from the system's
@@ -612,10 +623,21 @@ progress included; what doesn't fit is dropped. At death the queue's ingredients
 only when the job starts (Rust). Crafting pauses while the player is offline or asleep.
 
 **Gathering** (`Nature/`). Natural objects come from `INaturalObjects`: objects in a rectangle of the zone's tangent
-plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. The planet package's
-scatter will provide them; until then `StandInNaturalObjects` places each kind at its density per 64 m tile from a
-seeded stream (deterministic: the server and every client place the same objects), keeping 9 m around the zone's origin
-clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
+plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. `ZoneSpec.CreateNature`
+is the one place that picks the provider:
+- **On the real surface, the planet's own scatter** (`ScatterNaturalObjects`): exactly the objects the client draws,
+  under the same IDs on the server and every client (4 bits tag, cube face, the level-16 tile's X and Y, the scatter
+  kind and the candidate cell). gather.json maps scatter kinds onto gameplay kinds (`scatter`): spruces, pines,
+  birches and broadleaf trees give wood; red and blue berry bushes are picked; ferns are the fibre plants; rocks of size
+  0.9 and more are boulders (`boulder` class: solid, they stop a swing or an arrow, give nothing); outcrops are the
+  scatter's gameplay kinds. Plain bushes and small stones are scenery. Scatter tiles are generated on demand (about
+  15 ms each; ahead on the physics prefetch workers, `ITileListener.TilePreparing`) and cached, at most 384, least
+  recently used first out. An ID from outside is untrusted: one that doesn't decode to a mapped object of a tile in the
+  zone isn't found, and a pick-up names a place near the player before anything is generated (`TryGetNear`). Around
+  the landing site, 800 × 800 m hold about 4,000 trees, 2,000 berry bushes, 19,000 ferns, 800 boulders and 210
+  outcrops (111 stone, 69 metal, 30 sulphur).
+- **On the stand-in** (tests), `StandInNaturalObjects` places each kind at its density per 64 m tile from a seeded
+  stream (deterministic), keeping 9 m around the zone's origin clear.
 - **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's tree or ore rate
   (items.json) and gives the share of the object's whole yield that health was, in whole units, so the hits add up to
   exactly the total: a better tool is quicker, not richer. The last hit gives the rest. A 0.94-size pine (206 wood)
@@ -630,10 +652,11 @@ clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
   interact key; a pickup is gone, a bush stays bare, until it grows back.
 - **Respawn** on the real clock (Unix milliseconds): trees after 20 minutes, outcrops 10, pickups and bushes 8. Only
   changes are stored (`NaturalState`: health, weak-spot moves, depleted until), and saved.
-- **Collision**: trees (capsules) and outcrops (spheres) are static Jolt bodies while their ground tile exists, on the
-  server and in every client's prediction (`NaturalBodies`); a felled tree's body goes, and comes back when it does.
-  Their body IDs come after every ground tile's, so contacts sort the same way on both sides; two props touched at
-  once may sort differently and cost a small correction.
+- **Collision**: trees (capsules), outcrops and boulders (spheres) are static Jolt bodies while their ground tile
+  exists, on the server and in every client's prediction (`NaturalBodies`); a felled tree's body goes, and comes back
+  when it does. Their body IDs come after every ground tile's, so contacts sort the same way on both sides; a prop's ID
+  is the first free one after a hash of its key, not the order props arrived in, so two props touched at once sort the
+  same way too (with arrival order they cost 9 cm corrections on the real planet).
 
 **The zone's game** (`Zone.*.cs`). A zone built with `GameContent` runs the survival game after movement each tick, in
 §4.2's order: fall damage into the vitals; actions (held item, swings, shots); projectiles and damage; once a second
@@ -650,8 +673,10 @@ starts at 60 / 260 / 160 (hollow-orbit's respawn values).
   bleeding, 0.04 a second more, twice that by a fire.
 - **Bleeding** (ours): a hit with a blade, spear or arrow adds its damage × the weapon's bleed fraction to a pool, lost
   at 1 health a second while the pool clots by 0.2 a second; bandages and injectors empty it.
-- **Temperature**: felt = the air (`IClimate`: the stand-in has the first world's mean 18 °C, ±3.5 °C over the
-  compressed 87-minute day, −6.5 °C a kilometre up), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but
+- **Temperature**: felt = the air (`IClimate`; on the real planet `PlanetClimate`: the planet's annual mean at the
+  place from its latitude and height, about 11 °C at the landing site, ±3.5 °C following the zone's sun at play speed,
+  warmest at 14:00 local solar time and coldest at 02:00, so it is cold when it looks dark; the stand-in has the first
+  world's mean 18 °C over a compressed 87-minute day), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but
   never past 25 °C, and 10 °C colder for two minutes after swimming. Clothing insulation (3–6 °C an item) counts
   against the cold: with it added, below 5 °C a character gets cold (fully at −10 °C); cold costs calories faster and,
   past 0.6, 0.15 health a second. There is no overheating yet. The first world is mild, so cold matters on mountains
@@ -679,8 +704,8 @@ while the server is down) and is picked up with the interact key, as much as fit
 ingredients, go into a corpse where the player fell (any number of slots), which anyone may take from but not put into;
 it goes when emptied or after 300 s of world time (Rust's corpse lifetime). The dead player chooses: a random beach point
 (no wait, as in Rust; survival.json can add one) or one of their own sleeping bags or beds that has cooled down. A new life has
-the spawn vitals, a rock and a torch. Until the planet package marks beaches, "the beach" is a random point 15–60 m
-from the zone's origin (`Zone.Beaches` takes the real coast).
+the spawn vitals, a rock and a torch. The beach points are the real coast's (`Beaches`, §4.2); on the stand-in ground
+"the beach" is a random point 15–60 m from the zone's origin.
 
 **Sleepers**: a player who logs off stays where they were, asleep (lying hit shapes), lootable and killable; looting a
 sleeper shows their main slots, belt and clothing, take only. A sleeper killed leaves a corpse like anyone. Logging in
@@ -1069,8 +1094,8 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
     workbench is checked when a job starts (Rust). Crafting pauses while the player is offline or asleep (RustMVP).
 23. **Sleepers are frozen**: no hunger, thirst or bleeding while logged off; looting them is take only; logging in wakes
     them at once (no key press).
-24. **The beach** is, until the planet package marks real coasts (`Zone.Beaches`), a random point 15–60 m from the
-    zone's origin; a beach respawn has no wait (Rust). New characters still arrive at G1's spawn ring.
+24. **The beach** is one of the zone's real beach points (§4.2: up to 24, nearest the origin first); a beach respawn
+    has no wait (Rust), and new characters arrive there too.
 25. **Timers**: corpses and dropped items last 300 s of world time, which pauses while the server is down, as does
     crafting and a fire's fuel; sleeping-bag cooldowns and respawning nature run on the real clock.
 26. **Bleeding and the cold** use our own numbers (survival.json) where neither source had any; a fire warms the air
@@ -1079,8 +1104,8 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
     at most 0.25 s (ARCHITECTURE.md §11.5) over a 36-tick history.
 28. **Deployables**: sleeping bags and campfires don't block movement; a broken deployable spills everything it held;
     arrows do a quarter of their damage to deployables, melee the tool's `structure` value.
-29. **Natural objects' bodies** take free IDs after the ground tiles', so two props touched at once may sort differently
-    on the client than on the server, costing a small correction (§6.1).
+29. **Natural objects' bodies** take IDs after the ground tiles', each the first free one after a hash of its key, so
+    the client and the server give a prop the same ID (§6.1).
 30. **Decisions taken in the surface work** (to confirm):
    - Plants are generated in code in hollow-orbit's style rather than scanned models; trees switch to impostors at
      58 m, which keeps the frame time near 11 ms.
@@ -1090,3 +1115,21 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
    - Cloud cover is fixed at 0.35 (fair weather) until weather exists; moonlight on the ground is brightened six
      times.
    - The landing site (§3) can still move: only the surface golden test's landing-area points depend on it.
+
+Decisions taken while joining the pieces into one game on the real planet (G1 and G2 integrated), to confirm or overturn:
+
+31. **Ferns are the fibre plants** (10 fibre each, as Rust's hemp gives cloth). On the real planet they are many
+    (about 19,000 in 800 × 800 m around the landing site), so fibre is easy to come by; a rarer plant of our own can
+    replace them later.
+32. **Scenery and obstacles**: plain bushes and stones smaller than 0.9 of the rock model are scenery (walked through,
+    as Rust's bushes); bigger rocks are boulders that block movement, swings and arrows and give nothing (Rust's
+    boulders can't be mined either). Stone, metal and sulphur come from the outcrops (§4.6), about one per 3,000 m².
+33. **Arrival and respawn on the beach**: as in Rust, new characters arrive on a random beach point, not at the landing
+    site; the nearest beach is 0.3 km from it. The landing site is the zone's origin and the place of the screenshots.
+34. **The day of play** is the planet's rotation × 24 counted from J2000 (`ZoneSpec.RotationTimeScale`, sent to clients
+    with the zone, `--day-scale` on the server), so every player sees the same time of day and the air is cold when it
+    is dark. The server's climate is the real planet's mean at the place (11 °C at the landing site, not the stand-in's
+    18 °C) with the same ±3.5 °C day swing.
+35. **The stand-in stays for tests**: the old hilly sphere and its natural objects (`ZoneSpec.StandIn`,
+    `ServerOptions.StandIn`) keep the network and survival tests plain and quick; the game, the dedicated server and
+    the load test run on the planet.

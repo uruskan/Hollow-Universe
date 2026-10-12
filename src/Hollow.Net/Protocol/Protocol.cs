@@ -4,7 +4,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect.</summary>
-    public const uint Version = 2;
+    public const uint Version = 3;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

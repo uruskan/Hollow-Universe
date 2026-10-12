@@ -94,6 +94,8 @@ public sealed partial class Zone : IDisposable
     public Entity AddCharacter(EntityId id, string name, in CharacterState state)
     {
         Entity entity = Entities.Create(id);
+        // The tiles around are built in parallel, then waited for: one tick's hitch at most where nobody was.
+        Physics.Prefetch(state.Position, 1);
         Physics.EnsureGround(state.Position);
         var body = new CharacterBody(Physics, Tuning, state.Position, Frame.UpAt(state.Position));
         Entities.Add(entity, new Character { State = state, Body = body });
@@ -125,6 +127,7 @@ public sealed partial class Zone : IDisposable
         ref Character character = ref Entities.Get<Character>(entity);
         character.State.Position = position;
         character.State.Velocity = Vector3.Zero;
+        Physics.Prefetch(position, 1);
         Physics.EnsureGround(position);
     }
 

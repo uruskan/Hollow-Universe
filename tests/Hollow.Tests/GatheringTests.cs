@@ -15,7 +15,7 @@ public static class GatheringTests
 
     private static (ZoneSpec Spec, ISurface Surface, ZoneFrame Frame, INaturalObjects Objects) World()
     {
-        ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)!;
+        ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)! with { StandIn = true };
         ISurface surface = spec.CreateSurface();
         ZoneFrame frame = spec.CreateFrame(surface);
         return (spec, surface, frame, spec.CreateNature(surface, frame, C));
@@ -44,7 +44,7 @@ public static class GatheringTests
         b.Query(-320, -320, 320, 320, second);
         Assert.True(first.SequenceEqual(second), "two instances place the same objects");
         Assert.True(first.Count > 500, $"a populated ground ({first.Count} objects in 640 × 640 m)");
-        foreach (NaturalKind kind in C.NaturalKinds)
+        foreach (NaturalKind kind in C.NaturalKinds.Where(k => k.StandInPerTile > 0))
         {
             Assert.True(first.Any(o => o.Kind == kind.Index), $"some {kind.Key}");
         }

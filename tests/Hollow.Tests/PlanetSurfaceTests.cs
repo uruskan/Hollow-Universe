@@ -200,12 +200,12 @@ public static class PlanetSurfaceTests
             Assert.Near(surface.HeightAt(a[i].Direction), a[i].Height, 1e-3, "on the ground");
             h = Hash64.Combine(h, (ulong)a[i].Index);
         }
-        var counts = new int[9];
+        var counts = new int[256];
         foreach (ScatterItem item in a)
         {
             counts[(int)item.Kind]++;
         }
-        Fixtures.Report($"{a.Count} objects (fir {counts[0]}, pine {counts[1]}, birch {counts[2]}, broadleaf {counts[3]}, bush {counts[4]}, fern {counts[5]}, rock {counts[6]}, red berries {counts[7]}, blue berries {counts[8]}), hash 0x{h:X16}");
+        Fixtures.Report($"{a.Count} objects (fir {counts[0]}, pine {counts[1]}, birch {counts[2]}, broadleaf {counts[3]}, bush {counts[4]}, fern {counts[5]}, rock {counts[6]}, red berries {counts[7]}, blue berries {counts[8]}; outcrops: stone {counts[9]}, metal {counts[10]}, sulphur {counts[11]}), hash 0x{h:X16}");
     }
 
     /// <summary>The sun rises and sets: over one rotation the landing site sees day and night, and local time runs 0–24.</summary>

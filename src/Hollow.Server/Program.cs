@@ -7,7 +7,7 @@ namespace Hollow.Server;
 
 /// <summary>
 /// The dedicated server's console program:
-/// <c>dotnet run --project src/Hollow.Server -- --port 27015 --db hollow-server.db --lat 28.4 --lon -61.7</c>.
+/// <c>dotnet run --project src/Hollow.Server -- --port 27015 --db hollow-server.db</c> (the zone at the landing site).
 /// Type admin commands at the prompt (<c>help</c>); Ctrl+C or <c>quit</c> saves everyone and stops.
 /// </summary>
 public static class Program
@@ -19,7 +19,8 @@ public static class Program
         if (o.ContainsKey("help"))
         {
             Console.WriteLine("Hollow.Server options: --port <n> --name <text> --db <path> | --no-db --lat <deg> --lon <deg> " +
-                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table>\nCommands:\n" + GameServer.CommandHelp);
+                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --day-scale <x> --spawn beach|origin --stand-in\nCommands:\n" +
+                GameServer.CommandHelp);
             return 0;
         }
         var options = new ServerOptions
@@ -27,8 +28,11 @@ public static class Program
             Port = (int)Number(o, "port", Net.Protocol.Protocol.DefaultPort),
             Name = o.GetValueOrDefault("name", "Hollow development server"),
             DatabasePath = o.ContainsKey("no-db") ? null : o.GetValueOrDefault("db", "hollow-server.db"),
-            Latitude = Number(o, "lat", 28.4),
-            Longitude = Number(o, "lon", -61.7),
+            Latitude = Number(o, "lat", Surface.FirstWorld.LandingLatitude),
+            Longitude = Number(o, "lon", Surface.FirstWorld.LandingLongitude),
+            RotationTimeScale = Math.Clamp(Number(o, "day-scale", Simulation.ZoneSpec.DefaultRotationTimeScale), 0.01, 10000),
+            SpawnAtOrigin = o.GetValueOrDefault("spawn", "beach") == "origin",
+            StandIn = o.ContainsKey("stand-in"),
             CataloguePath = o.GetValueOrDefault("catalogue"),
             MaxPlayers = (int)Number(o, "max-players", 128),
             RelevanceRadius = (float)Number(o, "relevance", 300),

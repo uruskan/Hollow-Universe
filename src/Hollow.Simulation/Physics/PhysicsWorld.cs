@@ -44,8 +44,7 @@ public sealed class PhysicsWorld : IDisposable
     private readonly List<(int X, int Z)> _expired = new();
     private readonly List<(int X, int Z)> _adopted = new();
     private readonly Dictionary<(PropLayer, ulong), Prop> _props = new();
-    private readonly Stack<uint> _freePropIds = new();
-    private uint _nextPropId = TileIdCount;
+    private readonly bool[] _propIdUsed = new bool[MaxProps];
     private int _tilesBuilt;
     private long _buildTicks;
     private readonly ObjectLayerPairFilterTable _layerPairs;
@@ -160,7 +159,12 @@ public sealed class PhysicsWorld : IDisposable
                     continue;
                 }
                 (int X, int Z) key = (x, z);
-                _pending.Add(key, Task.Run(() => BuildShape(key.X, key.Z)));
+                ITileListener? listener = Listener;
+                _pending.Add(key, Task.Run(() =>
+                {
+                    listener?.TilePreparing(key.X, key.Z);
+                    return BuildShape(key.X, key.Z);
+                }));
             }
         }
     }
@@ -304,19 +308,20 @@ public sealed class PhysicsWorld : IDisposable
         {
             return;
         }
-        uint id;
-        if (_freePropIds.Count > 0)
-        {
-            id = _freePropIds.Pop();
-        }
-        else if (_nextPropId < TileIdCount + MaxProps)
-        {
-            id = _nextPropId++;
-        }
-        else
+        // The body ID comes from the key (the next free one after its hash), not from the order props arrive in, so
+        // the server and every client give a prop the same ID whatever else they hold, and Jolt orders contacts
+        // with two props the same way on both sides.
+        if (_props.Count >= MaxProps)
         {
             return; // full: the prop just doesn't collide
         }
+        uint slot = (uint)(Core.Hash64.Of((ulong)layer, key) % MaxProps);
+        while (_propIdUsed[slot])
+        {
+            slot = (slot + 1) % MaxProps;
+        }
+        _propIdUsed[slot] = true;
+        uint id = TileIdCount + slot;
         lock (JoltRuntime.Gate)
         {
             Shape shape = prop.CreateShape();
@@ -341,7 +346,7 @@ public sealed class PhysicsWorld : IDisposable
             Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
             prop.Shape.Dispose();
         }
-        _freePropIds.Push(prop.Id);
+        _propIdUsed[prop.Id - TileIdCount] = false;
     }
 
     public void Dispose()

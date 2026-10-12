@@ -46,6 +46,12 @@ public partial struct ZoneInfo
     public ulong SurfaceSeed;
     public double LatitudeDegrees;
     public double LongitudeDegrees;
+
+    /// <summary>The stand-in ground instead of the body's real surface (tests).</summary>
+    public bool StandIn;
+
+    /// <summary>How much faster than real the planet turns for play (GROUND.md §1: 24), counted from J2000.</summary>
+    public float RotationTimeScale;
 }
 
 /// <summary>The server's first message to an accepted client.</summary>

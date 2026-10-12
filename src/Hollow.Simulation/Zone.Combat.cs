@@ -409,7 +409,7 @@ public sealed partial class Zone
         foreach (NaturalObject o in _traceNature)
         {
             NaturalKind? kind = Content!.Natural(o.Kind);
-            if (kind == null || !kind.IsHarvested || Natural!.IsDepleted(o.Id))
+            if (kind == null || !kind.IsSolid || Natural!.IsDepleted(o.Id))
             {
                 continue;
             }
@@ -423,6 +423,13 @@ public sealed partial class Zone
             {
                 (Vector3 centre, float r) = NaturalShapes.Rock(o, kind);
                 t = Geometry.RaySphere(origin, direction, length, centre, r + thickness);
+            }
+            if (!kind.IsHarvested)
+            {
+                // A boulder: stops the swing or the arrow like the ground, and gives nothing.
+                var stone = new TraceHit();
+                Consider(t, HitTarget.Ground, ref stone);
+                continue;
             }
             var candidate = new TraceHit { Natural = o };
             Consider(t, HitTarget.Natural, ref candidate);

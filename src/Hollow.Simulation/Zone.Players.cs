@@ -39,7 +39,7 @@ public sealed partial class Zone
     /// <summary>Hands out IDs for new persistent entities (the server's allocator); a counter if not set.</summary>
     public Func<EntityId>? NewEntityId { get; set; }
 
-    /// <summary>A beach point for a respawn (the planet package's coast); the stand-in ring if not set.</summary>
+    /// <summary>A beach point for a respawn (the server sets the planet's real coast, <see cref="Simulation.Beaches"/>); the stand-in ring if not set.</summary>
     public Func<ulong, Vector3>? Beaches { get; set; }
 
     /// <summary>One second of poses of every character, for hits as the attacker saw them.</summary>
@@ -313,11 +313,12 @@ public sealed partial class Zone
         c.Input = new MoveInput { Yaw = yaw };
         c.Actions = default;
         SyncHealth(ref c, p);
+        Physics.Prefetch(at, 1);
         Physics.EnsureGround(at);
         return ActionResult.Accepted;
     }
 
-    /// <summary>A random beach point: the planet package's coast, or until then a ring 15–60 m around the origin.</summary>
+    /// <summary>A random beach point: the planet's coast (<see cref="Beaches"/>), or on the stand-in ground a ring 15–60 m around the origin.</summary>
     public Vector3 BeachPoint(ulong salt)
     {
         if (Beaches != null)

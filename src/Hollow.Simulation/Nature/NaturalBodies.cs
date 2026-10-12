@@ -35,6 +35,13 @@ public sealed class NaturalBodies : ITileListener
         }
     }
 
+    /// <summary>On a worker thread: the tile's objects are generated (and cached) before the tick adds the tile.</summary>
+    public void TilePreparing(int x, int z)
+    {
+        var scratch = new List<NaturalObject>();
+        _state.Objects.Query(x * PhysicsWorld.TileSize, z * PhysicsWorld.TileSize, (x + 1) * PhysicsWorld.TileSize, (z + 1) * PhysicsWorld.TileSize, scratch);
+    }
+
     public void TileRemoved(int x, int z)
     {
         foreach (NaturalObject o in TileObjects(x, z))

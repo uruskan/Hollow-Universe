@@ -45,9 +45,12 @@ dotnet run --project tests/Hollow.Tests          # all engine-free tests
 dotnet run --project tests/Hollow.Tests -- Galaxy   # only tests whose name contains "Galaxy"
 dotnet run --project tests/Hollow.Tests -- MovementCheck   # the physics check (GROUND.md §4.5)
 dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Protocol/Messages.cs: rewrites Messages.g.cs
-dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server (--no-db, --db <path>, --lat, --lon; type help)
+dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server on the first world's landing site (--no-db,
+                                                 # --db <path>, --lat, --lon, --spawn beach|origin, --day-scale <x>,
+                                                 # --stand-in for the old test sphere; type help)
 dotnet run -c Release --project tools/Hollow.Bots -- --server 127.0.0.1:27015 --count 100   # bots (--script, --lag/--jitter/--loss)
-dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60   # server + 100 bots: tick time, bandwidth, prediction
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60   # server + 100 bots at the landing site: tick
+                                                 # time, bandwidth, prediction (--spawn beach, --stand-in)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit   # G2: bots that gather, craft and fight (GROUND.md §5.2)
 dotnet run --project tests/Hollow.Tests -- ContentTests   # checks game/data/ground: references, ranges, every recipe makeable
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs per generated star system
