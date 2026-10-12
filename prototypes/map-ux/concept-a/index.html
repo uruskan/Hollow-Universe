@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow Map · Search &amp; Go</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="booting">
+<canvas id="gl"></canvas>
+<div id="markers" aria-hidden="true"></div>
+<div id="labels"></div>
+<div id="tip" class="tip" aria-hidden="true"></div>
+
+<!-- search: the one main control -->
+<div id="top" class="ui-block" role="search">
+  <div class="search-row">
+    <svg class="mag" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.6" cy="8.6" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m12.8 12.8 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <input id="q" type="text" placeholder="Search stars and places, or ask “nearest fuel”" autocomplete="off" spellcheck="false" aria-label="Search the galaxy">
+    <button id="qclear" class="qclear" aria-label="Clear search" tabindex="-1"><svg viewBox="0 0 16 16"><path d="m4.5 4.5 7 7m0-7-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    <kbd class="qkey">/</kbd>
+  </div>
+  <div id="panel" class="panel"></div>
+</div>
+
+<!-- ship status -->
+<div id="ship" class="ui-block pill-card" title="Your ship">
+  <div class="ship-ico"><svg viewBox="0 0 16 16"><path d="M8 1.8 12.6 14 8 11.2 3.4 14Z" fill="currentColor"/></svg></div>
+  <div class="ship-txt">
+    <div class="ship-name"><b id="shipName">Wayfarer</b><span id="shipWhere">at Gliese 54.1</span></div>
+    <div class="ship-meta"><span class="fuel" id="fuel"></span><span id="fuelTxt">6/6</span><span class="dot">·</span><span>jump 12.5 ly</span></div>
+  </div>
+</div>
+<button id="targetPill" class="ui-block pill-card target-pill hidden"></button>
+
+<!-- view controls -->
+<div id="ctrl" class="ui-block">
+  <div class="seg" role="tablist">
+    <button id="vLocal" class="on" role="tab">Neighbourhood</button>
+    <button id="vGal" role="tab">Galaxy</button>
+    <span class="seg-thumb"></span>
+  </div>
+  <button id="recentre" class="round" title="Back to your ship (H)"><svg viewBox="0 0 16 16"><path d="M13.6 2.4 2.6 7l4.6 1.6L8.8 13.2Z" fill="currentColor"/></svg></button>
+</div>
+
+<div id="zoom" class="ui-block">
+  <button id="zin" aria-label="Zoom in">+</button><span class="zsep"></span><button id="zout" aria-label="Zoom out">−</button>
+</div>
+<div id="scale" class="scale ui-block"><span class="bar"></span><span class="txt">25 ly</span></div>
+<div id="mock" class="mock-note ui-block">Stars, planets and names are from Hollow’s generator. Stations, bases, danger zones, resources and the ship are mock.</div>
+<div id="hint" class="hint ui-block">Drag to orbit · Right-drag to pan · Scroll to zoom · <kbd>/</kbd> to search</div>
+
+<!-- place card / results / itinerary -->
+<div id="sheet" class="ui-block sheet" aria-live="polite"><div class="grab"></div><div class="sheet-body" id="sheetBody"></div></div>
+
+<!-- system view -->
+<div id="system" class="system" aria-hidden="true"></div>
+
+<div id="toast" class="toast"></div>
+<div id="boot" class="boot"><div class="boot-mark"></div><div class="boot-txt">Charting 37,409 nearby systems…</div></div>
+
+<!-- data (real generator output + mock layer) -->
+<script src="../data/local.js"></script>
+<script src="../data/galaxy.js"></script>
+<script src="../data/mock.js"></script>
+<script src="data.js"></script>
+<script src="map.js"></script>
+<script src="app.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+  import * as THREE from 'three';
+  import { Line2 } from 'three/addons/lines/Line2.js';
+  import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+  import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+  window.App.start(THREE, { Line2, LineMaterial, LineGeometry });
+</script>
+</body>
+</html>

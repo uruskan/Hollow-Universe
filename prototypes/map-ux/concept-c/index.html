@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reach Map · Hollow Universe</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
+<script src="../data/local.js"></script>
+<script src="../data/galaxy.js"></script>
+<script src="../data/mock.js"></script>
+<script src="js/model.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</head>
+<body>
+<div id="stage">
+  <div id="gl"></div>
+  <div id="overlay"></div>
+</div>
+<div id="rulers"><div id="ruler-x"></div><div id="ruler-y"></div></div>
+
+<div id="searchbox" class="glass">
+  <div class="search-row">
+    <svg class="i" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4 4"/></svg>
+    <span id="token" class="token hidden"></span>
+    <input id="q" type="text" placeholder="Search stars, stations, squares" autocomplete="off" spellcheck="false">
+    <kbd id="q-kbd">/</kbd>
+    <button id="q-clear" class="iconbtn hidden" title="Clear (Esc)"><svg viewBox="0 0 20 20"><path d="M6 6l8 8M14 6l-8 8"/></svg></button>
+  </div>
+  <div id="results"></div>
+</div>
+
+<nav id="crumbs" class="glass"></nav>
+<section id="card" class="glass panel hidden"></section>
+<aside id="route" class="glass panel hidden"></aside>
+<div id="status" class="glass"></div>
+<div id="controls" class="glass">
+  <button id="b-out" title="Zoom out (−)"><svg viewBox="0 0 20 20"><path d="M5 10h10"/></svg></button>
+  <button id="b-in" title="Zoom in (+)"><svg viewBox="0 0 20 20"><path d="M5 10h10M10 5v10"/></svg></button>
+  <span class="sep"></span>
+  <button id="b-tilt" class="txt" title="3D tilt (T)">3D</button>
+  <button id="b-home" title="Back to your ship (Space)"><svg viewBox="0 0 20 20"><path d="M10 2.5v3M10 14.5v3M2.5 10h3M14.5 10h3"/><circle cx="10" cy="10" r="4.5"/><circle cx="10" cy="10" r="1.2" class="fill"/></svg></button>
+  <span class="sep"></span>
+  <button id="b-legend" class="txt" title="Legend (L)">Legend</button>
+</div>
+<section id="legend" class="glass hidden"></section>
+<div id="scale"><span id="scale-label"></span><div id="scale-bar"></div></div>
+<div id="toast" class="glass"></div>
+<div id="mocknote">Stations, bases, danger zones, resources and the ship are mock data</div>
+<div id="loading"><div class="spinner"></div><span>Charting 37,409 systems…</span></div>
+<script type="module">
+  import * as THREE from 'three';
+  RM.start(THREE);
+</script>
+</body>
+</html>

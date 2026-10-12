@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow Universe · Galaxy map · Concept B: Zoom levels</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="vignette"></div>
+  <div id="markers"></div>
+  <div id="labels"></div>
+</div>
+
+<div id="ui">
+  <!-- Top left: where you are -->
+  <nav id="crumbs" class="glass" aria-label="Location"></nav>
+  <div id="levelcap"><span id="levelname"></span><span id="levelsub"></span></div>
+
+  <!-- Left: the four zoom levels -->
+  <div id="rail" class="glass" aria-label="Zoom level">
+    <div class="rail-track"><div class="rail-fill"></div></div>
+    <div class="rail-thumb"></div>
+    <button class="rail-stop" data-level="0"><i></i><span>Galaxy</span></button>
+    <button class="rail-stop" data-level="1"><i></i><span>Region</span></button>
+    <button class="rail-stop" data-level="2"><i></i><span>Neighbourhood</span></button>
+    <button class="rail-stop" data-level="3"><i></i><span>System</span></button>
+  </div>
+
+  <!-- Top right: ship status and search -->
+  <div id="topright">
+    <button id="shipcard" class="glass" title="Centre on me (C)"></button>
+    <div id="search" class="glass">
+      <svg class="ico" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg>
+      <input id="searchinput" type="text" placeholder="Search" autocomplete="off" spellcheck="false">
+      <kbd>/</kbd>
+      <div id="results"></div>
+    </div>
+  </div>
+
+  <!-- Right: inspector -->
+  <aside id="inspector" class="glass"><div id="insp-scroll"></div></aside>
+
+  <!-- Bottom: filters -->
+  <div id="chips" class="glass" role="toolbar" aria-label="Filters"></div>
+  <div id="hint"><span>Scroll to zoom</span><i></i><span>Drag to orbit</span><i></i><span>Esc to go back</span></div>
+
+  <!-- Bottom right: camera -->
+  <div id="tools">
+    <div class="toolgroup glass">
+      <button id="btn-top" class="tool" title="Top view (T)"><svg class="ico" viewBox="0 0 20 20"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><circle cx="10" cy="10" r="1.6" class="fill"/></svg><span class="tool-txt">Top</span></button>
+      <button id="btn-me" class="tool" title="Centre on me (C)"><svg class="ico" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5"/><circle cx="10" cy="10" r="1.8" class="fill"/><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3"/></svg></button>
+    </div>
+    <div class="toolgroup glass">
+      <button id="btn-in" class="tool" title="Zoom in (+)"><svg class="ico" viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></svg></button>
+      <button id="btn-out" class="tool" title="Zoom out (−)"><svg class="ico" viewBox="0 0 20 20"><path d="M4.5 10h11"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Bottom left: scale and data note -->
+  <div id="footer">
+    <div id="scale"><div id="scalebar"></div><span id="scaletxt"></span></div>
+    <div id="note">Stars, planets and sectors: Hollow's generator. <span class="mock">Stations, bases, danger, resources and ship are mock.</span></div>
+  </div>
+
+  <div id="hovercard" class="glass"></div>
+  <div id="toast" class="glass"></div>
+  <div id="loading"><div class="spinner"></div><span>Loading the galaxy</span></div>
+</div>
+
+<script src="../data/local.js"></script>
+<script src="../data/galaxy.js"></script>
+<script src="../data/mock.js"></script>
+<script src="app.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+window.HollowMap.start({ THREE, Line2, LineMaterial, LineGeometry });
+</script>
+</body>
+</html>
