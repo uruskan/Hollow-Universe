@@ -9,5 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Hollow.Core/Hollow.Core.csproj" />
     <ProjectReference Include="../../src/Hollow.Galaxy/Hollow.Galaxy.csproj" />
+    <ProjectReference Include="../../src/Hollow.Surface/Hollow.Surface.csproj" />
   </ItemGroup>
 </Project>

@@ -14,7 +14,7 @@ public static class ArchitectureTests
     [Test]
     public static void EngineFreeLibrariesDoNotReferenceGodot()
     {
-        Assembly[] libraries = { typeof(DMath).Assembly, typeof(Galaxy.Galaxy).Assembly };
+        Assembly[] libraries = { typeof(DMath).Assembly, typeof(Galaxy.Galaxy).Assembly, typeof(Surface.ISurface).Assembly };
         foreach (Assembly library in libraries)
         {
             string[] godot = library.GetReferencedAssemblies()
@@ -45,7 +45,7 @@ public static class ArchitectureTests
     {
         var problems = new List<string>();
         int files = 0;
-        foreach (string folder in new[] { "Hollow.Core", "Hollow.Galaxy" })
+        foreach (string folder in new[] { "Hollow.Core", "Hollow.Galaxy", "Hollow.Surface" })
         {
             string root = Path.Combine(Fixtures.Root, "src", folder);
             foreach (string file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
