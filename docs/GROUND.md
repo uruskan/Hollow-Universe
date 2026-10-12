@@ -484,7 +484,7 @@ ground.
 | `doors_wood.glb`, `doors_metal.glb`, `doors_armored.glb` | Single and double doors: frame insert and leaves (each leaf's origin is its hinge), with levels and hulls. |
 | `garage_door.glb` | The frame and the skinned curtain with the kit's Open and Close clips. |
 | `window_inserts.glb` | Metal and armoured bars, reinforced glass, horizontal and vertical embrasures (art only in phase 1). |
-| `textures/` | Each grade's atlas (base colour, OpenGL normal map, ORM) shrunk from 4K to 2K JPEG, stored once: the GLBs carry no images, and the doors share the grades' sets (the door kit's are the same files). |
+| `textures/` | Each grade's atlas (base colour, OpenGL normal map, ORM) shrunk from 4K to 2K JPEG, stored once: the GLBs carry no images, and the doors share the grades' sets (the door kit's are the same files). Saved as stored, without Blender's view transform; every channel's mean is within 0.006 of the kit's. |
 
 Metres, the kits' axes turned into Godot's by the glTF exporter (a wall's outside is +Z, as in the rules). Godot imports
 the GLBs without generating levels of its own (`.import`: `generate_lods=false`) and the textures VRAM-compressed. The
@@ -515,7 +515,7 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 
 | | Frame | Draw calls | Triangles |
 |---|---|---|---|
-| Levels of detail (as shipped) | 4.4 ms average, 5.0 ms worst over 300 frames (226 fps) | 365 | 12.8 M |
+| Levels of detail (as shipped) | 5.0 ms average, 8.9 ms worst over 300 frames (199 fps; 4.4 ms in a quieter run) | 365 | 12.8 M |
 | Finest level only | 14.1 ms average (71 fps) | 364 | 49.4 M |
 
 | View | Screenshot |

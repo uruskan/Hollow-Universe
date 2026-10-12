@@ -69,14 +69,13 @@ def texture(source, name, size=2048, quality=90, colour=True):
     out = TEXTURES / (name + ".jpg")
     if not out.exists():
         image = bpy.data.images.load(str(source), check_existing=False)
+        image.colorspace_settings.name = 'sRGB' if colour else 'Non-Color'
         if image.size[0] > size or image.size[1] > size:
             image.scale(min(size, image.size[0]), min(size, image.size[1]))
-        scene = bpy.context.scene
-        settings = scene.render.image_settings
-        settings.file_format = 'JPEG'
-        settings.color_mode = 'RGB'
-        settings.quality = quality
-        image.save_render(str(out), scene=scene)
+        # Saved as stored: save_render would push the pixels through the scene's view transform (AgX by default),
+        # which bends the colours and ruins normal and ORM data.
+        image.file_format = 'JPEG'
+        image.save(filepath=str(out), quality=quality)
         bpy.data.images.remove(image)
     image = bpy.data.images.load(str(out), check_existing=True)
     image.colorspace_settings.name = 'sRGB' if colour else 'Non-Color'
