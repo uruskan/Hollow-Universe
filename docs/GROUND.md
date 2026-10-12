@@ -599,7 +599,8 @@ reflect. Rendered at 1024 px and area-filtered by coverage, so edges have no dar
 
 **Viewer** (`--view models`): every model on the ground in groups by size with a 1.8 m figure for scale, or one on a
 turntable (`--model <key>`, Tab); LOD keys 0, 1, 2 and A; F (or `--first-person`) shows a held item at its first-person
-pose; the ship stands on a plain stand. `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
+pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open`; the ship stands on a plain
+stand. `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
 has its LODs, hulls, palm sockets and mapped materials, that icons are square RGBA PNGs at both sizes, and that every
 item key (and every item of `items.json` when present) has a model.
 

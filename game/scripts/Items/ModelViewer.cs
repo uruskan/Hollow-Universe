@@ -13,7 +13,8 @@ namespace HollowUniverse.Items;
 /// Keys: Tab lineup or turntable, Left/Right the model, Up/Down the depletion stage, 0/1/2 force a LOD, A automatic
 /// LODs by distance, Space pauses the turntable, F shows a held item in first person at its catalogue pose, the mouse
 /// wheel zooms. Options: <c>--stage n</c>, <c>--lod n</c>, <c>--yaw deg</c> (the turntable's angle, paused, for a
-/// screenshot), <c>--zoom f</c> (the turntable camera's distance, 1 fits the model), <c>--first-person</c>,
+/// screenshot), <c>--zoom f</c> (the turntable camera's distance, 1 fits the model), <c>--anim name</c> (play one of
+/// the model's clips; H plays the next), <c>--first-person</c>,
 /// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera).
 /// </summary>
 public partial class ModelViewer : Node3D
@@ -36,6 +37,7 @@ public partial class ModelViewer : Node3D
     private float _zoom = 1;
     private int _frames;
     private bool _firstPerson;
+    private int _clip;
     private Node3D? _shown;
     private Aabb _shownBounds;
 
@@ -128,7 +130,7 @@ public partial class ModelViewer : Node3D
         content.AddChild(_title);
         content.AddChild(_detail);
         content.AddChild(Ui.KeyHints(("Tab", "lineup / turntable"), ("← →", "model"), ("↑ ↓", "stage"), ("0 1 2", "LOD"),
-            ("A", "auto LOD"), ("Space", "pause"), ("F", "first person")));
+            ("A", "auto LOD"), ("Space", "pause"), ("F", "first person"), ("H", "clip")));
     }
 
     // ---------------------------------------------------------------- layout
@@ -187,9 +189,38 @@ public partial class ModelViewer : Node3D
         }
         pivot.AddChild(model);
         ApplyLod(model);
+        PlayClip(model);
         _shown = pivot;
         _shownBounds = ModelCatalog.LocalBounds(model);
         _shownBounds.Position += model.Position;
+    }
+
+    /// <summary>
+    /// Plays the model's clip named by <c>--anim</c> (the Tin Finch's Hatch_Open, say); H plays the next clip. For a
+    /// screenshot the clip is held at its end.
+    /// </summary>
+    private void PlayClip(Node3D model, bool next = false)
+    {
+        var player = model.FindChild("AnimationPlayer", true, false) as AnimationPlayer;
+        if (player == null)
+        {
+            return;
+        }
+        string[] clips = player.GetAnimationList();
+        if (clips.Length == 0)
+        {
+            return;
+        }
+        string clip = Options.TryGetValue("anim", out string? wanted) && !next ? wanted : clips[(_clip++) % clips.Length];
+        if (!player.HasAnimation(clip))
+        {
+            return;
+        }
+        player.Play(clip);
+        if (Options.ContainsKey("shot"))
+        {
+            player.Seek(player.GetAnimation(clip).Length, true);
+        }
     }
 
     /// <summary>The held item as the player sees it: at its catalogue pose in front of a 75 degree camera.</summary>
@@ -483,6 +514,18 @@ public partial class ModelViewer : Node3D
                 break;
             case Key.Space:
                 _paused = !_paused;
+                return;
+            case Key.H:
+                if (_shown?.GetChildCount() > 0)
+                {
+                    foreach (Node child in _shown.GetChildren())
+                    {
+                        if (child is Node3D n3)
+                        {
+                            PlayClip(n3, next: true);
+                        }
+                    }
+                }
                 return;
             case Key.F:
                 _firstPerson = !_firstPerson;
