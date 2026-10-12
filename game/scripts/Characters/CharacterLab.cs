@@ -199,6 +199,10 @@ public partial class CharacterLab : Node3D
         {
             var view = new CharacterView { Name = "Crowd" + i };
             AddChild(view);
+            if (_options.TryGetValue("lod", out string? lod))
+            {
+                view.ForcedLod = int.Parse(lod, CultureInfo.InvariantCulture);
+            }
             view.Wear(Wardrobe.Outfits[1 + i % (Wardrobe.Outfits.Count - 1)].Items);
             _crowd.Add((view, 2.5f + (i % 10) * 2.6f, rng.Randf() * MathF.Tau, 0f, kinds[i % kinds.Length], motions[i % motions.Length]));
         }

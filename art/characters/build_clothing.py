@@ -42,18 +42,20 @@ def main():
     textures = os.path.join(out, "textures")
     detail_textures(textures)
 
+    shirt = woven_shirt(body, marks)
     garments = [
         ("knit_cap", knit_cap(body, marks)),
-        ("woven_shirt", woven_shirt(body, marks)),
+        ("woven_shirt", shirt),
         ("woven_trousers", woven_trousers(body, marks)),
         ("laced_boots", laced_boots(body, marks)),
-        ("riveted_breastplate", breastplate(body, marks)),
+        # The plate is shaped over the shirt, so it always clears it.
+        ("riveted_breastplate", breastplate(body, marks, shirt[0])),
     ]
     surfaces = {}
     exported = []
     counts = {}
     for name, (obj, paint) in garments:
-        G.weights_from_body(obj, body) if obj.get("rigid") is None else None
+        G.weights_from_body(obj, body)
         G.regions_from_body(obj, body)
         G.pack_uvs(obj)
         surfaces[name] = paint(obj, textures, name)
@@ -145,26 +147,28 @@ def woven_shirt(body, m):
     G.cut(obj, (0, 0, hem_z), (0, 0, 1), select=torso)
     neck_y = m.head_of("neck_01").y
     neck_z = m.neck.z - 0.004
-    G.round_opening(obj, (0.0, neck_y), 0.092, 0.082, neck_z - 0.04, lambda th: neck_z + 0.018 * math.sin(th))
+    G.round_opening(obj, (0.0, neck_y), 0.092, 0.082, neck_z - 0.04, lambda th: neck_z + 0.03 * math.sin(th))
     for s in ("_l", "_r"):
         wrist = m.head_of("hand" + s)
         fore = (wrist - m.head_of("lowerarm" + s)).normalized()
         G.cut(obj, wrist + fore * 0.012, -fore, select=lambda co, w=wrist: (co - w).length < 0.12)
+    arms = G.vertices_in_regions(obj, body, {R["upper_arm"], R["forearm"], R["hand"]})
     G.smooth(obj, 10, 0.5, weight=lambda co: 1.0 if abs(co.x) < 0.2 else 0.4)
     # Roomier towards the hem, so the shirt hangs over the trousers' waist.
     G.offset(obj, lambda co, n: 0.008 + (0.011 * smoothstep(m.waist + 0.06, hem_z, co.z) if abs(co.x) < 0.25 else 0.0))
     # The trunk: round, and hanging straight down from the chest and shoulder blades.
+    trunk = set(range(len(obj.data.vertices))) - arms
     G.envelope(obj, (0, m.spine_y, 1.56), (0, 0, -1), sectors=56, blur_theta=3, blur_t=3, drape=(1.56 - 1.37, 0.22),
-               extra=0.003, select=lambda co: abs(co.x) < 0.205 and co.z < 1.52)
+               extra=0.003, select=lambda co: co.z < 1.52, indices=trunk)
     # Cloth bridges the small bumps of the chest.
     G.smooth(obj, 24, 0.5, weight=lambda co: 1.0 if abs(co.x) < 0.16 and 1.2 < co.z < 1.42 else 0.0)
     for s in ("_l", "_r"):
         shoulder, elbow, wrist = m.head_of("upperarm" + s), m.head_of("lowerarm" + s), m.head_of("hand" + s)
         side = 1 if s == "_l" else -1
         G.envelope(obj, shoulder, elbow - shoulder, sectors=32, blur_theta=2, blur_t=2, extra=0.004,
-                   select=near_segment(shoulder, elbow, 0.12, 0.3, 1.0, side))
+                   select=near_segment(shoulder, elbow, 0.12, 0.3, 1.0, side), indices=arms)
         G.envelope(obj, elbow, wrist - elbow, sectors=32, blur_theta=2, blur_t=2, extra=0.004,
-                   select=near_segment(elbow, wrist, 0.1, 0.0, 1.05, side))
+                   select=near_segment(elbow, wrist, 0.1, 0.0, 1.05, side), indices=arms)
         fore = wrist - elbow
 
         def cuff(co, t, L=fore.length, sd=side):
@@ -292,74 +296,173 @@ def low_line(co, m):
     return m.head.z + 0.06 - 0.08 * smoothstep(-0.12, 0.08, co.y - m.head.y)
 
 
-def breastplate(body, m):
-    centre = Vector((0, (m.b["spine_03"][0].y + m.b["spine_03"][1].y) / 2, 0))
-    regions = [0] * len(body.data.polygons)
-    body.data.attributes["region"].data.foreach_get("value", regions)
-
-    def angle(c):
-        # 0 at the front (−Y), ±180° at the back.
-        return math.degrees(math.atan2(c.x, -(c.y - centre.y)))
-
-    def front(f, r):
-        c = f.calc_center_median()
-        return r in (R["chest"], R["belly"], R["neck"], R["collar"]) and 1.08 < c.z < 1.5 and abs(angle(c)) < 75
-
-    def back(f, r):
-        c = f.calc_center_median()
-        return r in (R["chest"], R["belly"], R["neck"], R["collar"]) and 1.08 < c.z < 1.52 and abs(angle(c)) > 110
-
-    def straps(f, r):
-        c = f.calc_center_median()
-        over = r in (R["chest"], R["collar"]) and 0.04 < abs(c.x) < 0.14 and 1.36 < c.z < m.neck.z + 0.035
-        side = r in (R["chest"], R["belly"]) and 1.13 < c.z < 1.21 and 45 < abs(angle(c)) < 140
-        return over or side
-
-    parts = []
-    for name, keep, out_by, thick in (("plate_front", front, 0.03, 0.005), ("plate_back", back, 0.028, 0.005),
-                                      ("plate_straps", straps, 0.024, 0.003)):
-        p = G.extract(body, name, keep)
-        if name == "plate_front":
-            G.cut(p, (0, 0, 1.13), (0, 0, 1))
-            G.cut(p, (0, 0, m.neck.z - 0.035), (0, -0.25, -1))
-            for sd in (1, -1):
-                G.cut(p, (0, centre.y, 0), (-sd * 0.53, -0.848, 0))
-        elif name == "plate_back":
-            G.cut(p, (0, 0, 1.14), (0, 0, 1))
-            G.cut(p, (0, 0, m.neck.z - 0.005), (0, 0.2, -1))
-            for sd in (1, -1):
-                G.cut(p, (0, centre.y, 0), (-sd * 0.616, 0.788, 0))
-        else:
-            for sd in (1, -1):
-                G.cut(p, (sd * 0.05, 0, 0), (sd, 0, 0), select=lambda co, k=sd: co.z > 1.34 and co.x * k > 0)
-                G.cut(p, (sd * 0.115, 0, 0), (-sd, 0, 0), select=lambda co, k=sd: co.z > 1.34 and co.x * k > 0)
-            G.cut(p, (0, 0, 1.15), (0, 0, 1), select=lambda co: co.z < 1.3)
-            G.cut(p, (0, 0, 1.195), (0, 0, -1), select=lambda co: co.z < 1.3)
-        G.smooth(p, 8, 0.5)
-        G.offset(p, lambda co, n, d=out_by: d)
-        if name != "plate_straps":
-            # A plate is convex: fill the pecs and the spine groove, and fall straight below the chest.
-            G.envelope(p, (0, m.spine_y, 1.56), (0, 0, -1), sectors=72, blur_theta=6, blur_t=5,
-                       drape=(1.56 - 1.36, 0.12), extra=0.002)
-            G.smooth(p, 4, 0.5)
-        G.solidify(p, thick)
-        parts.append(p)
+def breastplate(body, m, shirt):
+    """Front and back plates on leather straps. The plates are built as smooth, mirror-symmetric shells around the
+    trunk, a hand's breadth over the shirt; the straps run over the shoulders and round the sides."""
+    axis = Vector((0, m.spine_y, 0))
+    over = [v.co.copy() for v in shirt.data.vertices if abs(v.co.x) < 0.2 and 1.0 < v.co.z < 1.56]
+    table = RadiusTable(over, axis)
+    parts = [
+        plate_shell("plate_front", table, axis, 0.0, 58.0, 1.13, m.neck.z - 0.03, 0.014, 0.10),
+        plate_shell("plate_back", table, axis, 180.0, 54.0, 1.14, m.neck.z + 0.0, 0.014, 0.06),
+    ]
+    for side in (1, -1):
+        parts.append(shoulder_strap("strap_shoulder", shirt, m, side, axis, table))
+        parts.append(ring_strap("strap_side", table, axis, side, 1.165, 0.035))
+    for part in parts:
+        G.solidify(part, 0.0045 if part.name.startswith("plate") else 0.003)
     H.select_only(parts, parts[0])
     bpy.ops.object.join()
     obj = parts[0]
     obj.name = obj.data.name = "riveted_breastplate"
-    # Plates ride the chest: rigid on the upper spine, blending into the lower spine at the bottom edge.
-    G.weights_from_body(obj, body)
-    for v in obj.data.vertices:
-        if abs(v.co.x) < 0.13 or v.co.z < 1.38:
-            hi = smoothstep(1.16, 1.32, v.co.z)
-            for g in list(v.groups):
-                g.weight = 0.0
-            obj.vertex_groups["spine_03"].add([v.index], hi, 'REPLACE')
-            obj.vertex_groups["spine_02"].add([v.index], 1.0 - hi, 'REPLACE')
-    H.limit_and_normalise_weights(obj)
-    obj["rigid"] = True
+    for mod in list(obj.modifiers):
+        obj.modifiers.remove(mod)
+    # The plates take the body's own weights (as the shirt under them does), so the two move together and the shirt
+    # never comes through, at the price of a plate that flexes a little with the shoulders.
+    for g in body.vertex_groups:
+        if H.is_deform_group(g.name) and g.name not in obj.vertex_groups:
+            obj.vertex_groups.new(name=g.name)
+    obj.modifiers.new("Armature", 'ARMATURE').object = body.parent
+    body_regions = [0] * len(body.data.polygons)
+    body.data.attributes["region"].data.foreach_get("value", body_regions)
+    attr = obj.data.attributes.new("region", 'INT', 'FACE')
+    attr.data.foreach_set("value", [H.REGION["chest"]] * len(obj.data.polygons))
     return obj, lambda o, folder, name: paint_metal(o, folder, name)
+
+
+class RadiusTable:
+    """Largest radius of a set of points around the trunk's vertical axis, by height and angle, mirrored left to right
+    and blurred: the outside of the shirt, as a smooth function a plate can follow."""
+
+    def __init__(self, points, axis, z_step=0.01, sectors=72):
+        import numpy as np
+        self.z0 = min(p.z for p in points)
+        self.z_step = z_step
+        self.sectors = sectors
+        nz = int((max(p.z for p in points) - self.z0) / z_step) + 2
+        t = np.zeros((nz, sectors))
+        for p in points:
+            rel = p - axis
+            i = int((p.z - self.z0) / z_step)
+            j = int((math.atan2(rel.x, -rel.y) + math.pi) / math.tau * sectors) % sectors
+            t[i, j] = max(t[i, j], math.hypot(rel.x, rel.y))
+        for _ in range(sectors):
+            empty = t == 0
+            if not empty.any():
+                break
+            t[empty] = np.maximum(np.roll(t, 1, axis=1), np.roll(t, -1, axis=1))[empty]
+        # Mirror: angle a and -a share the larger radius.
+        mirror = t[:, ::-1]
+        mirror = np.roll(mirror, 1, axis=1)
+        t = np.maximum(t, mirror)
+        for _ in range(6):
+            t = (np.roll(t, 1, axis=1) + np.roll(t, -1, axis=1) + 2 * t) / 4
+        for _ in range(4):
+            up = np.vstack([t[:1], t[:-1]])
+            down = np.vstack([t[1:], t[-1:]])
+            t = (up + down + 2 * t) / 4
+        self.t = t
+
+    def radius(self, z, degrees):
+        i = min(self.t.shape[0] - 1, max(0, int((z - self.z0) / self.z_step)))
+        j = int((math.radians(degrees) + math.pi) / math.tau * self.sectors) % self.sectors
+        return float(self.t[i, j])
+
+
+def polar(axis, z, degrees, r):
+    a = math.radians(degrees)
+    return Vector((axis.x + r * math.sin(a), axis.y - r * math.cos(a), z))
+
+
+def grid_object(name, rows, cols, point):
+    """A quad grid; point(i, j) gives each vertex; UVs follow the grid."""
+    mesh = bpy.data.meshes.new(name)
+    verts = [point(i, j) for i in range(rows + 1) for j in range(cols + 1)]
+    faces = []
+    for i in range(rows):
+        for j in range(cols):
+            a = i * (cols + 1) + j
+            faces.append((a, a + 1, a + cols + 2, a + cols + 1))
+    mesh.from_pydata([tuple(v) for v in verts], [], faces)
+    uv = mesh.uv_layers.new(name="UVMap")
+    for poly in mesh.polygons:
+        for li, vi in zip(poly.loop_indices, poly.vertices):
+            i, j = divmod(vi, cols + 1)
+            uv.data[li].uv = (j / cols, i / rows)
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    return obj
+
+
+def plate_shell(name, table, axis, centre_deg, half_width, z_low, z_high, clearance, bulge):
+    rows, cols = 22, 30
+
+    def point(i, j):
+        u = j / cols * 2 - 1           # -1..1 across
+        v = i / rows                   # 0..1 up
+        z = z_low + (z_high - z_low) * v
+        # The top edge dips at the middle for the neck; the bottom corners are cut.
+        z -= 0.035 * (1 - u * u) * v ** 3
+        deg = centre_deg + half_width * u
+        r = table.radius(z, deg) + clearance + bulge * 0.12 * (1 - u * u) * math.sin(math.pi * v)
+        # Edges turn in a little, like a rolled rim.
+        edge = max(abs(u), abs(v * 2 - 1))
+        r -= 0.006 * max(0.0, (edge - 0.9) / 0.1) ** 2
+        return polar(axis, z, deg, r)
+
+    return grid_object(name, rows, cols, point)
+
+
+def shoulder_strap(name, shirt, m, side, axis, table):
+    """Over the shoulder, from the front plate's top corner to the back plate's."""
+    rows, cols = 20, 3
+    x = side * 0.105
+    top = [v.co for v in shirt.data.vertices if abs(v.co.x - x) < 0.02 and v.co.z > 1.35]
+    front_y = axis.y - table.radius(m.neck.z - 0.04, side * 40) - 0.004
+    back_y = axis.y + table.radius(m.neck.z - 0.02, 180 - side * 40) + 0.004
+
+    def surface_z(y):
+        near = [p.z for p in top if abs(p.y - y) < 0.02]
+        return (max(near) if near else m.neck.z) + 0.012
+
+    front_z = m.neck.z - 0.03 - 0.035 * (1 - (40 / 58) ** 2)
+    back_z = m.neck.z - 0.035 * (1 - (40 / 54) ** 2)
+
+    def point(i, j):
+        v = i / rows
+        y = front_y + (back_y - front_y) * v
+        # Pinned to the plates' top edges at the ends, lying on the shoulder in between.
+        w = math.sin(math.pi * v) ** 0.6
+        z = (front_z + (back_z - front_z) * v) * (1 - w) + max(surface_z(y), front_z, back_z) * w
+        return Vector((x + (j / cols - 0.5) * 0.04, y, z))
+
+    obj = grid_object("%s_%d" % (name, side), rows, cols, point)
+    G.smooth(obj, 6, 0.5)
+    return obj
+
+
+def ring_strap(name, table, axis, side, z, width):
+    """Round the side, from the front plate's edge to the back plate's."""
+    rows, cols = 2, 16
+    start, stop = 50, 132
+
+    def point(i, j):
+        deg = side * (start + (stop - start) * j / cols)
+        zz = z - width / 2 + width * i / rows
+        return polar(axis, zz, deg, table.radius(zz, deg) + 0.009)
+
+    obj = grid_object("%s_%d" % (name, side), rows, cols, point)
+    if side < 0:
+        # Keep the faces pointing outwards on the right side, where the grid runs the other way.
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+        bm.to_mesh(obj.data)
+        bm.free()
+    return obj
 
 
 # ---------------------------------------------------------------- textures

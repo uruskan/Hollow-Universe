@@ -53,6 +53,7 @@ public partial class CharacterView : Node3D
     private (Basis FrameToBone, Vector3 Palm) _gripR, _gripL;
 
     private CharacterRagdoll? _ragdoll;
+    private PhysicsRayQueryParameters3D? _ray;
 
     /// <summary>Forces a level of detail (0–2) regardless of distance; −1 picks by distance.</summary>
     public int ForcedLod { get; set; } = -1;
@@ -560,7 +561,8 @@ public partial class CharacterView : Node3D
     private void PlaceRifle(CharacterFrame f)
     {
         int chest = _skeleton.FindBone("spine_03");
-        Vector3 anchor = _skeleton.GetBoneGlobalRest(chest).Origin;
+        // The chest as the clips put it (crouching lowers it); the aim comes from the pitch, not the chest.
+        Vector3 anchor = _skeleton.GetBoneGlobalPose(chest).Origin;
         float pitch = f.Pitch;
         // Skeleton space: forward +Z, right −X, up +Y.
         Basis aim = new Basis(Vector3.Left, pitch);
@@ -601,8 +603,10 @@ public partial class CharacterView : Node3D
         {
             return (false, Vector3.Zero, Vector3.Up);
         }
-        var query = PhysicsRayQueryParameters3D.Create(from, from + motion, 1);
-        Godot.Collections.Dictionary hit = space.IntersectRay(query);
+        _ray ??= new PhysicsRayQueryParameters3D { CollisionMask = 1 };
+        _ray.From = from;
+        _ray.To = from + motion;
+        Godot.Collections.Dictionary hit = space.IntersectRay(_ray);
         if (hit.Count == 0)
         {
             return (false, Vector3.Zero, Vector3.Up);

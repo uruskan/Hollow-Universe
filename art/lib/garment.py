@@ -207,7 +207,7 @@ def ripples(obj, origin, axis, t0, t1, wavelength, depth, twist=0.0, sharp=2.0, 
 
 
 def envelope(obj, origin, axis, *, t_step=0.01, sectors=48, blur_t=2, blur_theta=2, fill=1.0, drape=None,
-             extra=0.0, select=None, reference=None):
+             extra=0.0, select=None, reference=None, indices=None):
     """Makes cross-sections round and roomy, the way cloth hangs. Around an axis (a limb or the trunk), each vertex is
     pushed out to at least `fill` times the largest radius found in its cell (position along the axis × angle around
     it), after blurring that table; concave places (the spine groove, between the toes, under the pecs) fill in.
@@ -219,7 +219,7 @@ def envelope(obj, origin, axis, *, t_step=0.01, sectors=48, blur_t=2, blur_theta
     d = Vector(axis).normalized()
     a = d.orthogonal().normalized()
     b = d.cross(a)
-    verts = [v for v in me.vertices if select is None or select(v.co)]
+    verts = [v for v in me.vertices if (select is None or select(v.co)) and (indices is None or v.index in indices)]
     if not verts:
         return
     coords = []
@@ -266,6 +266,20 @@ def envelope(obj, origin, axis, *, t_step=0.01, sectors=48, blur_t=2, blur_theta
         want = max(r, fill * table[i, j]) + extra
         scale = want / r
         v.co = o + d * t + a * (x * scale) + b * (y * scale)
+
+
+def vertices_in_regions(obj, body, regions):
+    """Indices of the garment's vertices whose nearest body face is in one of the given regions."""
+    from mathutils.bvhtree import BVHTree
+    tree = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get(), deform=False)
+    body_regions = [0] * len(body.data.polygons)
+    body.data.attributes["region"].data.foreach_get("value", body_regions)
+    found = set()
+    for v in obj.data.vertices:
+        _, _, index, _ = tree.find_nearest(v.co)
+        if index is not None and body_regions[index] in regions:
+            found.add(v.index)
+    return found
 
 
 def weights_from_body(obj, body):

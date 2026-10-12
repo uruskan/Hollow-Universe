@@ -77,19 +77,19 @@
       "lods": [
         0
       ],
-      "triangles": 4052
+      "triangles": 6760
     },
     "riveted_breastplate_lod1": {
       "lods": [
         1
       ],
-      "triangles": 1698
+      "triangles": 2838
     },
     "riveted_breastplate_lod2": {
       "lods": [
         2
       ],
-      "triangles": 648
+      "triangles": 1080
     }
   },
   "surfaces": {
@@ -106,7 +106,7 @@
     },
     "woven_shirt": {
       "detail": "weave",
-      "tiling": 52.55,
+      "tiling": 51.93,
       "detail_strength": 0.75,
       "roughness": 0.92,
       "preview": [
@@ -140,7 +140,7 @@
     },
     "riveted_breastplate": {
       "detail": "metal",
-      "tiling": 4.99,
+      "tiling": 5.49,
       "detail_strength": 0.25,
       "roughness": 0.5,
       "metallic": 0.6,

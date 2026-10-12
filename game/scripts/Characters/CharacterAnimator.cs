@@ -12,28 +12,30 @@ namespace HollowUniverse.Characters;
 ///   → hold_r (right arm: tool, pistol, rifle pose) → hold_l (left arm and chest: pistol, rifle pose)
 ///   → action (upper body: swing, punch, fire, reload) → hit (upper body flinch) → output
 /// </code>
+/// Parameter names are cached <see cref="StringName"/>s: building one from a string every frame for every character
+/// would feed the garbage collector.
 /// Directional movement comes from <see cref="CharacterPoser"/>, which turns the hips towards the direction of travel
 /// and the chest back towards the aim (the clips only run forward).
 /// </summary>
 public static class CharacterAnimator
 {
-    public const string Stance = "parameters/stance/transition_request";
-    public const string StandSpeed = "parameters/stand/blend_position";
-    public const string CrouchSpeed = "parameters/crouch/blend_position";
-    public const string SwimSpeed = "parameters/swim/blend_position";
-    public const string Rate = "parameters/rate/scale";
-    public const string Air = "parameters/air/blend_amount";
-    public const string Jump = "parameters/jump/request";
-    public const string Land = "parameters/land/request";
-    public const string HeldRight = "parameters/held_r/transition_request";
-    public const string HeldLeft = "parameters/held_l/transition_request";
-    public const string HoldRight = "parameters/hold_r/blend_amount";
-    public const string HoldLeft = "parameters/hold_l/blend_amount";
-    public const string ActionClip = "parameters/action_clip/transition_request";
-    public const string Action = "parameters/action/request";
-    public const string ActionActive = "parameters/action/active";
-    public const string HitClip = "parameters/hit_clip/transition_request";
-    public const string Hit = "parameters/hit/request";
+    public static readonly StringName Stance = "parameters/stance/transition_request";
+    public static readonly StringName StandSpeed = "parameters/stand/blend_position";
+    public static readonly StringName CrouchSpeed = "parameters/crouch/blend_position";
+    public static readonly StringName SwimSpeed = "parameters/swim/blend_position";
+    public static readonly StringName Rate = "parameters/rate/scale";
+    public static readonly StringName Air = "parameters/air/blend_amount";
+    public static readonly StringName Jump = "parameters/jump/request";
+    public static readonly StringName Land = "parameters/land/request";
+    public static readonly StringName HeldRight = "parameters/held_r/transition_request";
+    public static readonly StringName HeldLeft = "parameters/held_l/transition_request";
+    public static readonly StringName HoldRight = "parameters/hold_r/blend_amount";
+    public static readonly StringName HoldLeft = "parameters/hold_l/blend_amount";
+    public static readonly StringName ActionClip = "parameters/action_clip/transition_request";
+    public static readonly StringName Action = "parameters/action/request";
+    public static readonly StringName ActionActive = "parameters/action/active";
+    public static readonly StringName HitClip = "parameters/hit_clip/transition_request";
+    public static readonly StringName Hit = "parameters/hit/request";
 
     /// <summary>Speeds (m/s) the stand blend places its clips at: the movement code's crouch, walk and sprint.</summary>
     public static readonly (string Clip, float Speed)[] StandPoints = { ("idle", 0f), ("walk", 1.25f), ("jog", 2.8f), ("sprint", 5.5f) };

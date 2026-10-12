@@ -24,3 +24,13 @@ Downloaded on 12 October 2026 with the owner's approval.
 Our own work in `characters/`: the body's regions, underwear and levels of detail, every garment and its textures, the
 procedural surface textures (`*_detail_normal.png`, `knit_normal.png`, `weave_normal.png` and the like), and the
 retargeting, all made by the scripts in `art/`.
+
+## Held items (`items/`)
+
+Not downloads: kits made for this project by Blender Python (GROUND.md §9). `art/items/build_items.py` reads their
+source `.blend` files and renames the items.
+
+| Ours | Source | Licence of the textures |
+|---|---|---|
+| Flint axe, flint pick, hand stone, Wren pistol; `items/textures/psg_surface_*.png` (the kit's shared atlas, 4096 → 2048 px) | `D:\GameDev\Assets\PSG_StarterKit_R02` (stone axe, stone pickaxe, rock, P250-style pistol) | Three atlas tiles are modified CC0 Poly Haven textures by Rob Tuytel (fine_grained_wood, rusty_metal_02, green_metal_rust); the rest is the kit's own |
+| Kestrel rifle; `items/textures/kestrel_*.png` (4096 → 2048 px) | `D:\GameDev\Projects\RustMVP\assets\PSG_FrontierAK_R05` (static meshes LOD1–LOD3, sockets, aiming camera) | The kit's own bakes; its wood is Poly Haven's rough_wood (CC0; licence and download record in the kit's `Source/ThirdParty/rough_wood`) |

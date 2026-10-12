@@ -55,7 +55,7 @@ Blender user folder, so set `BLENDER_USER_RESOURCES` first (on this PC `D:\GameD
 blender -b --factory-startup --python art/characters/build_body.py        # body → game/assets/characters
 blender -b --factory-startup --python art/characters/build_clothing.py    # garments (needs the body's cache)
 blender -b --factory-startup --python art/characters/build_animations.py  # retargeted clips (needs the body's cache)
-blender -b --factory-startup --python art/items/build_items.py            # held items → game/assets/items
+blender -b --factory-startup --disable-autoexec --python art/items/build_items.py   # held items → game/assets/items
 python -I art/lib/import_settings.py                                       # Godot import options, after a first import
 ```
 
@@ -84,7 +84,8 @@ Client options (after `--`):
 - Character viewer: `--view character`; `--outfit <0–4>`, `--item <flint_axe|flint_pick|hand_stone|wren_pistol|kestrel_rifle>`,
   `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim>`,
   `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death>` with `--event-at <s>`, `--fp` (first person),
-  `--ads`, `--slope` (stand on the ramp), `--lod <0–2>`, camera `--yaw`, `--pitch`, `--distance`, `--height`;
+  `--ads`, `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
+  `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once;
   `--crowd <n>` adds n characters and `--measure <s>` prints frame times (vsync off) and quits.
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
 

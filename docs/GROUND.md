@@ -201,11 +201,16 @@ and 2,400 triangles for the body; eyes, brows, lashes and short hair (MakeHuman 
 Players start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric
 surface), so nobody is ever without it.
 
-**Clothing.** Every body face belongs to one of thirteen regions (face, scalp, neck, chest, belly, pelvis, upper arm,
-forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
+**Clothing.** Every body face belongs to one of fourteen regions (face, scalp, neck, collar, chest, belly, pelvis, upper
+arm, forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
 are collapsed in the vertex shader (`hidden_regions`, a per-instance bit mask), so skin never pokes through and costs no
 fragments. Garments carry the same regions, so an inner garment hides its parts under an outer one (trousers tucked
-into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton.
+into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton: cut with
+planes for straight hems and a round neckline, given room by a cross-section envelope (cloth falls straight from the
+chest and below the knee instead of following the body in), folded near the joints, and painted from the body's 3D
+positions (stitched hems, seams, a belt, laces, soles, dirt). The breastplate's front and back plates are smooth,
+mirror-symmetric shells built a hand's breadth over the shirt, on leather straps. The first outfit: knit cap, woven
+shirt, woven trousers, laced boots, riveted breastplate.
 
 **Animation.** One `AnimationTree` graph, shared by all characters (`CharacterAnimator`):
 - speed blends for standing (idle, walk, jog, sprint at 0, 1.25, 2.8 and 5.5 m/s), crouching and swimming, kept in
@@ -230,12 +235,32 @@ arms, as in Rust.
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
 collide with the world (layer 1), not with each other; gravity is applied along −`Up`.
 
+**Held items in third person.** A tool rides upright in the right hand at the hip, a pistol is held by the clip's
+two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK holds the grips and
+lets go while an action clip plays. Items show one level of detail coarser than the body (a rifle's first-person mesh
+is 21,000 triangles).
+
 **Cost.** Mesh level by camera distance (to 9 m, 28 m, 450 m; nothing beyond). Animation runs every frame up close,
 every second frame in the middle distance and every fourth far away, staggered across characters; the procedural layer
-runs only where it can be seen, foot placement only at the nearest level.
+runs only where it can be seen, foot placement only at the nearest level. Animation parameters are cached
+`StringName`s, so a frame allocates nothing per character.
+
+Measured on the owner's PC (RTX 2070 Super, 1600 × 900, Forward+, vsync off, two other Godot sessions running),
+`--view character --crowd 49 --measure 10`, all 50 characters on screen, moving, mixed outfits and held items:
+
+| Setting | Average frame | 99th percentile | Worst |
+|---|---|---|---|
+| Levels of detail by distance (as shipped) | 5.7 ms (174 fps) | 9.0 ms | 12.7 ms |
+| All 50 forced to full detail, full-rate animation and foot placement | 9.8 ms (102 fps) | 13.8 ms | 35 ms (one hitch) |
 
 **Viewer.** `--view character` (options in AGENTS.md): cycle outfits, held items and motions, fire every event, die and
-revive, switch to first person, and measure a crowd.
+revive, switch to first person, and measure a crowd. Screenshots in `docs/images/ground/character-*.png`.
+
+**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so the shirt still shows
+the chest's shape and can open small dark gaps where it folds hard (sprinting, crouching); there are no real
+wrinkle normal maps yet; the face has no expression or eye movement; hair is MakeHuman's short cut only; the
+third-person swing is a sword clip; first-person reload and swing are procedural curves, not authored animation; the
+female body is not built yet.
 
 ---
 
