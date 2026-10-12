@@ -304,12 +304,28 @@ surface), so nobody is ever without it.
 arm, forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
 are collapsed in the vertex shader (`hidden_regions`, a per-instance bit mask), so skin never pokes through and costs no
 fragments. Garments carry the same regions, so an inner garment hides its parts under an outer one (trousers tucked
-into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton: cut with
-planes for straight hems and a round neckline, given room by a cross-section envelope (cloth falls straight from the
-chest and below the knee instead of following the body in), folded near the joints, and painted from the body's 3D
-positions (stitched hems, seams, a belt, laces, soles, dirt). The breastplate's front and back plates are smooth,
-mirror-symmetric shells built a hand's breadth over the shirt, on leather straps. The first outfit: knit cap, woven
-shirt, woven trousers, laced boots, riveted breastplate.
+into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton. Each one
+is:
+- cut with planes for straight hems, and along a curved line round the base of the neck for a crew neckline; a ribbed
+  band stands up from it and hugs the neck a finger's width off the skin;
+- given room by a cross-section envelope that makes every cross-section convex, so cloth spans the chest instead of
+  following it and falls straight from the chest and below the knee;
+- skinned with the body's weights blurred over the garment, so loose cloth moves as a whole instead of creasing where
+  the body's weights change;
+- folded near the joints;
+- painted from the body's 3D positions: stitched hems and seams, ribbed collar and cuffs, wrinkles, a belt, laces,
+  soles, dirt.
+
+The breastplate is not cut from the body. It is a riveted cuirass of our own design:
+- front and back plates with a keel down the front, rolled rims and a flared lower edge, standing 25 mm clear of the
+  shirt and rigid on the chest bone (`spine_03`), so they never flex with the chest;
+- two fauld lames over the belly, each flaring out from under the one above;
+- a cap over each shoulder and a lame round each upper arm, fitted to the sleeve by rays cast from the joints;
+- leather straps over the shoulders and round the sides, with brass buckles.
+
+It is built for the silhouette: broad steel shoulders, a keeled chest and a flared skirt read as armour at 20 m.
+
+The first outfit: knit cap, woven shirt, woven trousers, laced boots, riveted breastplate.
 
 **Animation.** One `AnimationTree` graph, shared by all characters (`CharacterAnimator`):
 - speed blends for standing (idle, walk, jog, sprint at 0, 1.25, 2.8 and 5.5 m/s), crouching and swimming, kept in
@@ -355,9 +371,9 @@ Measured on the owner's PC (RTX 2070 Super, 1600 × 900, Forward+, vsync off, tw
 **Viewer.** `--view character` (options in AGENTS.md): cycle outfits, held items and motions, fire every event, die and
 revive, switch to first person, and measure a crowd. Screenshots in `docs/images/ground/character-*.png`.
 
-**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so the shirt still shows
-the chest's shape and can open small dark gaps where it folds hard (sprinting, crouching); there are no real
-wrinkle normal maps yet; the face has no expression or eye movement; hair is MakeHuman's short cut only; the
+**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so they don't swing or
+drape as the body moves, and their wrinkles are painted, not simulated; the back plate is plainer than the front; the
+face has no expression or eye movement; hair is MakeHuman's short cut only; the
 third-person swing is a sword clip; first-person reload and swing are procedural curves, not authored animation; the
 female body is not built yet.
 
@@ -655,6 +671,10 @@ RustMVP's rules, with Rust's where RustMVP had none:
      the first-person view shows no arms, as in Rust.
    - Item names: flint axe, flint pick, hand stone, Wren pistol, Kestrel rifle; knit cap, woven shirt, woven
      trousers, laced boots, riveted breastplate.
+   - Armour is rigid and built over the clothes, not cut from the body: plates ride one bone (the chest's), caps and
+     lames ride the collarbones and upper arms. It stands clear of the shirt, so the shirt never shows through.
+   - The riveted breastplate has faulds and shoulder caps although the brief asked only for a breastplate: without
+     them it did not read as armour at 20 m.
 3. **Tech ladder:** Rust's is assumed.
 
 Decisions taken during G1 without the owner, to confirm or overturn:
