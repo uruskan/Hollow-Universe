@@ -47,6 +47,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     private readonly EntityIdAllocator _ids;
     private readonly Dictionary<NetPeer, PlayerSession> _sessions = new();
     private readonly ConcurrentQueue<string> _commands = new();
+    private readonly ConcurrentQueue<Action> _inspections = new();
     private readonly BitWriter _writer = new(2048);
     private readonly BitReader _reader = new();
     private readonly RelevanceGrid _grid;
@@ -171,6 +172,31 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     /// <summary>Queues an admin command (from any thread); it runs at the start of the next tick.</summary>
     public void Execute(string command) => _commands.Enqueue(command);
 
+    /// <summary>
+    /// Runs <paramref name="look"/> on the tick thread at the start of the next tick and waits for it: the safe way for
+    /// another thread (a load test, the game's overlay in Host mode) to read the server's state.
+    /// </summary>
+    public T Inspect<T>(Func<GameServer, T> look)
+    {
+        if (_thread == null || Thread.CurrentThread == _thread || _shutDown)
+        {
+            return look(this);
+        }
+        var done = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _inspections.Enqueue(() =>
+        {
+            try
+            {
+                done.SetResult(look(this));
+            }
+            catch (Exception e)
+            {
+                done.SetException(e);
+            }
+        });
+        return done.Task.Wait(TimeSpan.FromSeconds(5)) ? done.Task.Result : throw new TimeoutException("The server's tick didn't run.");
+    }
+
     /// <summary>One tick: receive, log players in, step the zone, replicate, save, send.</summary>
     public void Tick()
     {
@@ -179,6 +205,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         while (_commands.TryDequeue(out string? command))
         {
             RunCommand(command);
+        }
+        while (_inspections.TryDequeue(out Action? inspection))
+        {
+            inspection();
         }
 
         uint tick = (uint)Zone.Tick + 1;
@@ -392,8 +422,8 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             return;
         }
-        byte[] data = packet.GetRemainingBytes();
-        _reader.Reset(data, 0, data.Length);
+        // Read in place: the transport recycles the packet after this returns.
+        _reader.Reset(packet.RawData, packet.Position, packet.AvailableBytes);
         uint type = _reader.ReadBits(8);
         switch (type)
         {

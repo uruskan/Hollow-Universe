@@ -1,7 +1,10 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using Hollow.Surface;
 using JoltPhysicsSharp;
 
@@ -34,7 +37,11 @@ public sealed class PhysicsWorld : IDisposable
     private const int TileIdCount = 2 * TileRange * 2 * TileRange;
 
     private readonly Dictionary<(int X, int Z), Tile> _tiles = new();
+    private readonly Dictionary<(int X, int Z), Task<Shape>> _pending = new();
     private readonly List<(int X, int Z)> _expired = new();
+    private readonly List<(int X, int Z)> _adopted = new();
+    private int _tilesBuilt;
+    private long _buildTicks;
     private readonly ObjectLayerPairFilterTable _layerPairs;
     private readonly BroadPhaseLayerInterfaceTable _broadPhaseLayers;
     private readonly ObjectVsBroadPhaseLayerFilterTable _objectVsBroadPhase;
@@ -78,10 +85,10 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary>Ground tiles currently in the world.</summary>
     public int TileCount => _tiles.Count;
 
-    /// <summary>Ground tiles built so far, and the time that took, for statistics.</summary>
-    public int TilesBuilt { get; private set; }
+    /// <summary>Ground tiles built so far, and the time that took (on whatever thread), for statistics.</summary>
+    public int TilesBuilt => Volatile.Read(ref _tilesBuilt);
 
-    public double TileBuildMilliseconds { get; private set; }
+    public double TileBuildMilliseconds => Interlocked.Read(ref _buildTicks) * 1000.0 / Stopwatch.Frequency;
 
     /// <summary>The tile holding a local point.</summary>
     public static (int X, int Z) TileOf(Vector3 position) =>
@@ -89,10 +96,12 @@ public sealed class PhysicsWorld : IDisposable
 
     /// <summary>
     /// Makes sure the ground exists in the square of tiles within <paramref name="radius"/> tiles of the tile under
-    /// <paramref name="position"/>, building what is missing, and marks those tiles as in use this epoch.
+    /// <paramref name="position"/>, and marks those tiles as in use this epoch. Tiles built ahead by
+    /// <see cref="Prefetch"/> are taken in; a tile still missing is built now (or waited for, if already on its way).
     /// </summary>
     public void EnsureGround(Vector3 position, int radius = 1)
     {
+        AdoptPrefetched();
         (int cx, int cz) = TileOf(position);
         for (int z = cz - radius; z <= cz + radius; z++)
         {
@@ -104,11 +113,74 @@ public sealed class PhysicsWorld : IDisposable
                 }
                 if (!_tiles.TryGetValue((x, z), out Tile? tile))
                 {
-                    tile = BuildTile(x, z);
-                    _tiles.Add((x, z), tile);
+                    Shape shape;
+                    if (_pending.Remove((x, z), out Task<Shape>? building))
+                    {
+                        shape = building.Result;
+                    }
+                    else
+                    {
+                        shape = BuildShape(x, z);
+                    }
+                    TilesBuiltOnDemand++;
+                    tile = AddTile(x, z, shape);
                 }
                 tile.LastUsed = _epoch;
             }
+        }
+    }
+
+    /// <summary>
+    /// Starts building, on worker threads, the tiles within <paramref name="radius"/> of a point that don't exist yet,
+    /// so that <see cref="EnsureGround"/> finds them ready and a tick never waits for a tile (about 10 ms each). Tiles
+    /// already there are marked as in use.
+    /// </summary>
+    public void Prefetch(Vector3 position, int radius = 2)
+    {
+        (int cx, int cz) = TileOf(position);
+        for (int z = cz - radius; z <= cz + radius; z++)
+        {
+            for (int x = cx - radius; x <= cx + radius; x++)
+            {
+                if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange || _pending.ContainsKey((x, z)))
+                {
+                    continue;
+                }
+                if (_tiles.TryGetValue((x, z), out Tile? tile))
+                {
+                    // Near someone: keep it.
+                    tile.LastUsed = _epoch;
+                    continue;
+                }
+                (int X, int Z) key = (x, z);
+                _pending.Add(key, Task.Run(() => BuildShape(key.X, key.Z)));
+            }
+        }
+    }
+
+    /// <summary>Tiles a step had to build or wait for itself (none, when prefetching keeps ahead).</summary>
+    public int TilesBuiltOnDemand { get; private set; }
+
+    // Adds the tiles whose background build has finished.
+    private void AdoptPrefetched()
+    {
+        if (_pending.Count == 0)
+        {
+            return;
+        }
+        _adopted.Clear();
+        foreach (((int, int) key, Task<Shape> task) in _pending)
+        {
+            if (task.IsCompleted)
+            {
+                _adopted.Add(key);
+            }
+        }
+        foreach ((int x, int z) in _adopted)
+        {
+            _pending.Remove((x, z), out Task<Shape>? task);
+            Tile tile = AddTile(x, z, task!.Result);
+            tile.LastUsed = _epoch;
         }
     }
 
@@ -148,27 +220,47 @@ public sealed class PhysicsWorld : IDisposable
     public TriangleMesh TileMesh(int x, int z) =>
         Surface.GroundCollision(Frame, (x + 0.5) * TileSize, (z + 0.5) * TileSize, TileSize);
 
-    private Tile BuildTile(int x, int z)
+    // The mesh shape of a tile: the surface's triangles, then Jolt's tree over them. Thread-safe (a pure function of
+    // the surface, and Jolt builds shapes without the shared allocator), so prefetching runs it on worker threads.
+    private Shape BuildShape(int x, int z)
     {
         long start = Stopwatch.GetTimestamp();
         TriangleMesh mesh = TileMesh(x, z);
-        var vertices = new Vector3[mesh.VertexCount];
-        for (int i = 0; i < vertices.Length; i++)
+        // Pooled: these are large-object-heap sized, and tiles come and go all the time.
+        Vector3[] vertices = ArrayPool<Vector3>.Shared.Rent(mesh.VertexCount);
+        IndexedTriangle[] triangles = ArrayPool<IndexedTriangle>.Shared.Rent(mesh.TriangleCount);
+        Shape shape;
+        try
         {
-            vertices[i] = new Vector3(mesh.Positions[3 * i], mesh.Positions[3 * i + 1], mesh.Positions[3 * i + 2]);
+            for (int i = 0; i < mesh.VertexCount; i++)
+            {
+                vertices[i] = new Vector3(mesh.Positions[3 * i], mesh.Positions[3 * i + 1], mesh.Positions[3 * i + 2]);
+            }
+            for (int t = 0; t < mesh.TriangleCount; t++)
+            {
+                int a = mesh.Indices[3 * t], b = mesh.Indices[3 * t + 1], c = mesh.Indices[3 * t + 2];
+                triangles[t] = new IndexedTriangle(a, b, c, 0, 0);
+            }
+            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount));
+            shape = settings.Create();
         }
-        var triangles = new IndexedTriangle[mesh.TriangleCount];
-        for (int t = 0; t < triangles.Length; t++)
+        finally
         {
-            int a = mesh.Indices[3 * t], b = mesh.Indices[3 * t + 1], c = mesh.Indices[3 * t + 2];
-            triangles[t] = new IndexedTriangle(a, b, c, 0, 0);
+            ArrayPool<Vector3>.Shared.Return(vertices);
+            ArrayPool<IndexedTriangle>.Shared.Return(triangles);
         }
+        Interlocked.Increment(ref _tilesBuilt);
+        Interlocked.Add(ref _buildTicks, Stopwatch.GetTimestamp() - start);
+        return shape;
+    }
+
+    // Adds a built tile to the physics system, under the tile's own body ID. On the owning thread.
+    private Tile AddTile(int x, int z, Shape shape)
+    {
         var id = new BodyID((uint)((x + TileRange) + (z + TileRange) * 2 * TileRange));
         Tile tile;
         lock (JoltRuntime.Gate)
         {
-            using var settings = new MeshShapeSettings(vertices, triangles);
-            Shape shape = settings.Create();
             using var creation = new BodyCreationSettings(shape, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer);
             BodyInterface bodies = Jolt.BodyInterface;
             Body body = bodies.CreateBodyWithID(id, creation)
@@ -176,8 +268,7 @@ public sealed class PhysicsWorld : IDisposable
             bodies.AddBody(body.ID, Activation.DontActivate);
             tile = new Tile(body.ID, shape);
         }
-        TilesBuilt++;
-        TileBuildMilliseconds += Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+        _tiles.Add((x, z), tile);
         return tile;
     }
 
@@ -188,6 +279,12 @@ public sealed class PhysicsWorld : IDisposable
             return;
         }
         _disposed = true;
+        foreach (Task<Shape> building in _pending.Values)
+        {
+            building.Wait();
+            building.Result.Dispose();
+        }
+        _pending.Clear();
         lock (JoltRuntime.Gate)
         {
             BodyInterface bodies = Jolt.BodyInterface;

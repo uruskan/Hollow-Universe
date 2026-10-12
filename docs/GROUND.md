@@ -278,6 +278,37 @@ Each step is multiplayer and playable. The owner playtests at the end of each on
 Later: electricity and turrets, farming, traps, miners (our own feature), ground vehicles. Ships (M5) cover what
 Rust's helicopters do.
 
+### 5.1 G1 network measurements
+
+Measured on the owner's PC (12 threads, 16 GB) on 12 October 2026 with the stand-in surface. The server runs alone
+in one process; 100 bots run in another, each a full client that predicts its character. Bots wander, circle and jump
+within 120 m of the spawn, so every bot sees the 99 others (the bandwidth worst case). 60 s measured after an 8 s
+warm-up:
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --lag 150 --loss 5
+```
+
+| | Clean loopback | 150 ms ping, 5 % loss each way | Target |
+|---|---|---|---|
+| Server tick, average | 4.25 ms | 4.27 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 10.2 / 26.9 ms | 9.5 / 24.7 ms | ≤ 33 ms |
+| Bandwidth per client, down (99 characters in view, UDP and IP headers included) | 114 kbit/s | 123 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 18 kbit/s | 17 kbit/s | |
+| Snapshots lost | 0 % | 4.6 % | |
+| Inputs that missed their tick | 0 of 180,000 | 2 of 180,000 | |
+| Prediction: corrections / reconciliations | 0 / 120,000 | 1 / 114,069 | |
+| Prediction error: mean / worst | 0 / 0 mm | < 0.001 / 1.9 mm | |
+
+- **Prediction is exact** whenever the server applied the input the client predicted with: the clock keeps inputs
+  2 ticks early, and each packet carries four ticks of input, so loss rarely costs one.
+- **Ground tiles** cost about 10 ms each to build (3.7 ms sampling the stand-in surface, 6.2 ms for Jolt's mesh tree),
+  so tiles two out from every character are built ahead on worker threads; the worst ticks left are a tile a character
+  needed before it was ready, and garbage collections.
+- A server sharing its process with the bots measured 5.1 / 16.2 / 36 ms (their allocations and collections land on
+  its ticks), which is why the load test runs the bots in a child process.
+
 ---
 
 ## 6. Gameplay rules and their numbers

@@ -299,6 +299,7 @@ public sealed class GameClient : INetEventListener, IDisposable
         {
             _predictor.Predict(tick);
         }
+        _predictor.EndTick();
 
         // The packet: this tick's input and the three before it, and which snapshots arrived.
         for (int i = _sent.Length - 1; i > 0; i--)
@@ -387,8 +388,8 @@ public sealed class GameClient : INetEventListener, IDisposable
 
     public void OnNetworkReceive(NetPeer peer, NetPacketReader packet, byte channel, DeliveryMethod method)
     {
-        byte[] data = packet.GetRemainingBytes();
-        _reader.Reset(data, 0, data.Length);
+        // Read in place: the transport recycles the packet after this returns.
+        _reader.Reset(packet.RawData, packet.Position, packet.AvailableBytes);
         uint type = _reader.ReadBits(8);
         switch (type)
         {

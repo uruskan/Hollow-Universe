@@ -159,6 +159,7 @@ public sealed class Zone : IDisposable
                     continue;
                 }
                 Physics.EnsureGround(character.State.Position);
+                Physics.Prefetch(character.State.Position);
                 character.Events = CharacterMotor.Step(ref character.State, character.Input, character.Body, Movement);
             }
         }

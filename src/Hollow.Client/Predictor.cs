@@ -154,7 +154,23 @@ public sealed class Predictor : IDisposable
         lock (JoltRuntime.Gate)
         {
             _world.EnsureGround(state.Position);
+            _world.Prefetch(state.Position);
             CharacterMotor.Step(ref state, NetConvert.ToMoveInput(command), _body, _context);
+        }
+    }
+
+    /// <summary>
+    /// Call once a tick: drops ground tiles nobody stood near for a while, when this predictor owns its world (a shared
+    /// world is its owner's to trim).
+    /// </summary>
+    public void EndTick()
+    {
+        if (_ownsWorld)
+        {
+            lock (JoltRuntime.Gate)
+            {
+                _world.ReleaseUnusedGround(Zone.GroundKeepTicks);
+            }
         }
     }
 
