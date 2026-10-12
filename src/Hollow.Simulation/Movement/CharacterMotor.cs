@@ -101,32 +101,32 @@ public static class CharacterMotor
         float verticalSpeed = Vector3.Dot(velocity, up);
         Vector3 horizontal = velocity - up * verticalSpeed;
         bool supportedBefore = body.OnWalkableGround && verticalSpeed < 0.1f;
-        Vector3 requested;
+        Vector3 requested, next;
 
         if (swimming)
         {
-            requested = SwimVelocity(velocity, input, forward, right, up, submersion, sprinting || input.Has(MoveButtons.Sprint), context);
-        }
-        else if (supportedBefore)
-        {
-            horizontal = GroundVelocity(horizontal, wish, wishLength, maxSpeed, tuning);
-            if (input.Has(MoveButtons.JumpPressed))
-            {
-                verticalSpeed = crouching ? tuning.CrouchJumpSpeed : tuning.JumpSpeed;
-                events.Jumped = true;
-            }
-            else
-            {
-                // Keep pressing into the ground, so contact holds over bumps.
-                verticalSpeed = -context.Gravity * dt;
-            }
-            requested = horizontal + up * verticalSpeed;
+            requested = next = SwimVelocity(velocity, input, forward, right, up, submersion, input.Has(MoveButtons.Sprint), context);
         }
         else
         {
-            horizontal = AirVelocity(horizontal, wish, wishLength, maxSpeed, tuning);
-            verticalSpeed -= context.Gravity * dt;
-            requested = horizontal + up * verticalSpeed;
+            if (supportedBefore)
+            {
+                horizontal = GroundVelocity(horizontal, wish, wishLength, maxSpeed, tuning);
+                verticalSpeed = 0f;
+                if (input.Has(MoveButtons.JumpPressed))
+                {
+                    verticalSpeed = crouching ? tuning.CrouchJumpSpeed : tuning.JumpSpeed;
+                    events.Jumped = true;
+                }
+            }
+            else
+            {
+                horizontal = AirVelocity(horizontal, wish, wishLength, maxSpeed, tuning);
+            }
+            // Gravity by the midpoint rule: move with the tick's mean vertical speed, so a jump peaks at exactly v²/2g.
+            // On the ground this also presses into it, so contact holds over bumps.
+            requested = horizontal + up * (verticalSpeed - 0.5f * context.Gravity * dt);
+            next = horizontal + up * (verticalSpeed - context.Gravity * dt);
         }
 
         Vector3 before = state.Position;
@@ -135,14 +135,12 @@ public static class CharacterMotor
         Vector3 after = body.Position;
         bool supportedAfter = body.OnWalkableGround;
 
-        // Velocity for the next step: what was asked for, except that the ground ends a fall and a ceiling ends a rise.
-        float requestedUp = Vector3.Dot(requested, up);
-        Vector3 next = requested;
+        // Velocity for the next step: as integrated, except that the ground ends a fall and a ceiling ends a rise.
         if (!swimming)
         {
+            float requestedUp = Vector3.Dot(requested, up);
             float movedUp = Vector3.Dot(after - before, up) / dt;
-            Vector3 nextHorizontal = requested - up * requestedUp;
-            float nextUp = requestedUp;
+            float nextUp = Vector3.Dot(next, up);
             if (supportedAfter && requestedUp <= 0.1f)
             {
                 nextUp = 0f;
@@ -151,7 +149,7 @@ public static class CharacterMotor
             {
                 nextUp = MathF.Max(0f, movedUp);
             }
-            next = nextHorizontal + up * nextUp;
+            next = horizontal + up * nextUp;
 
             // Landing: fall damage from the speed toward the ground (Rust's rule, MovementTuning).
             if (supportedAfter && !supportedBefore && requestedUp < 0f)

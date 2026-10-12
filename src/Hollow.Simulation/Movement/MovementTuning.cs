@@ -97,10 +97,10 @@ public sealed record MovementTuning
     public float FastSwimSpeed { get; init; } = 3.0f;
 
     /// <summary>How quickly a swimmer reaches the wanted velocity (water drag).</summary>
-    public float SwimAcceleration { get; init; } = 8f;
+    public float SwimAcceleration { get; init; } = 12f;
 
     /// <summary>Strongest vertical speed buoyancy gives.</summary>
-    public float BuoyancySpeed { get; init; } = 1.0f;
+    public float BuoyancySpeed { get; init; } = 2.0f;
 
     // ---------------------------------------------------------------- health
 

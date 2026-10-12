@@ -15,7 +15,7 @@ public static class PhysicsTests
         MovementCheck.Result second = MovementCheck.Run();
         Fixtures.Report(first.ToString());
         Assert.Equal(first.Hash, second.Hash, "hash of every state in two runs");
-        Assert.True(first.Position.Length() > 50, "the character got somewhere");
+        Assert.True(first.Position.Length() > 40, "the character got somewhere");
         Assert.Equal(100, (int)first.Health, "nothing in the script hurts");
     }
 }

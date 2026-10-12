@@ -79,7 +79,7 @@ Client options (after `--`):
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, the stand-in `SphereSurface`, `FirstWorld` |
-| `src/Hollow.Simulation` | Rules and simulation of the ground game: Jolt physics world and ground tiles, character movement (GROUND.md §4.5) |
+| `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5) |
 | `game/` | Godot project: galaxy map, system map, UI, shaders |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |

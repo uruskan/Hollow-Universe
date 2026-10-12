@@ -242,7 +242,9 @@ cross-boundary events. This is what lets zones move to other processes later (P7
 ### 10.2 Entities
 
 - An **entity** is a 64-bit ID plus components (data only). **Systems** (logic) run each tick in a fixed
-  order. Storage is archetype-based (decide own vs. the Arch library at M2).
+  order. Storage is our own and small (`Hollow.Simulation.Entities`, decided in G1): an entity is a slot with a
+  generation and a permanent `EntityId`; each component type has one sparse set (dense arrays to iterate, O(1) add,
+  get and remove). Archetype storage can replace the pools if profiling ever asks for it.
 - **Static entities** (building parts, deployables, boxes) change rarely: no per-tick cost, replicated
   reliably when they change.
 - **Dynamic entities** (characters, projectiles, vehicles, ships) are simulated and snapshotted every tick.
@@ -452,7 +454,7 @@ start:
 | Decision | Options | Lean | Decide at |
 |---|---|---|---|
 | Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | **Decided: Jolt** (JoltPhysicsSharp; the G1 spike passed, GROUND.md §4.5) | done |
-| Entity storage | own archetype store / Arch | own, small | G1 |
+| Entity storage | own archetype store / Arch | **Decided: own, small** — a sparse set per component type (§10.2) | done |
 | Hosting | own machines / rented servers / cloud | rented dedicated servers | M3 |
 | Surface tile size and interaction distance | 1–4 km / 2–6 km | 2 km / 4 km | M4 |
 | Real-star catalogue | HYG 4.1 (~120k stars) / AT-HYG (~2.5M) | HYG now, AT-HYG later | after M1 |

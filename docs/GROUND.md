@@ -140,9 +140,10 @@ Godot.
   walks a virtual character over mesh ground from `ISurface.GroundCollision`, with up from `ZoneFrame.UpAt`, on a
   stand-in planet of the first world's size. A .NET console process and the Godot 4.7.2 client (which also loads
   Godot's own Jolt) print the same final position and the same hash of every state on the way
-  (`0x268A8EBB4AE4D881` on win-x64). BepuPhysics2 is not needed. The check stays:
-  `dotnet run --project tests/Hollow.Tests -- MovementCheck` and `$GODOT --headless --path game -- --physics-check`
-  must print the same line (`Hollow.Simulation.Movement.MovementCheck`).
+  (`0xCBB8E7C8AC0FD9DA` on win-x64 with the movement code of 12 October 2026; any change to movement changes it).
+  BepuPhysics2 is not needed. The check stays: `dotnet run --project tests/Hollow.Tests -- MovementCheck` and
+  `$GODOT --headless --path game -- --physics-check` must print the same line
+  (`Hollow.Simulation.Movement.MovementCheck`).
 - **One step is a pure function** of the character's state (feet position, velocity, stance, health), one tick of
   input and the static world. Every step first puts Jolt's character exactly at the state and finds its contacts
   afresh, on the server as in prediction, so the client can rewind to any state the server sends and replay its
