@@ -78,6 +78,7 @@ def main():
         H.set_region_uv(obj, [H.REGION["face"]] * len(obj.data.polygons))
 
     textures(out)
+    stubble(body, eye_centre, os.path.join(out, "textures", "skin_male_albedo.png"))
 
     # Levels of detail.
     lods, levels = {}, {}
@@ -173,6 +174,7 @@ def landmarks(rig, eye_centre):
         "waist": hip + 0.045,              # underwear waistband
         "leg": hip - 0.20,                 # underwear leg openings
         "chest": b["spine_03"][0].z + 0.06,
+        "collar": (b["clavicle_l"][0].z + b["clavicle_r"][0].z) / 2 - 0.035,
         "boot": b["calf_l"][1].z + 0.16,   # top of a boot shaft
         "eye": eye_centre.z,
     }
@@ -230,7 +232,7 @@ def classify(body, rig, eye_centre):
         if stem in ARM:
             region = ARM[stem]
         elif stem == "clavicle":
-            region = "chest"
+            region = "collar" if c.z > marks["collar"] else "chest"
         elif stem == "head":
             t = (c.y - y_front) / max(1e-6, y_back - y_front)
             line = marks["eye"] + 0.050 + (-0.095) * t
@@ -241,6 +243,8 @@ def classify(body, rig, eye_centre):
             region = "foot"
         elif stem == "calf":
             region = "calf" if c.z > marks["boot"] else "ankle"
+        elif c.z > marks["collar"] and abs(c.x) < 0.17:
+            region = "collar"
         elif c.z > marks["chest"]:
             region = "chest"
         elif c.z > marks["waist"]:
@@ -350,6 +354,29 @@ def set_single_material(obj, name):
 
 
 # ---------------------------------------------------------------- textures
+
+def stubble(body, eye, path):
+    """Paints a few days' stubble over the jaw, chin and upper lip of the skin texture (not on the lips)."""
+    import garment as G
+    px, w, h = H.load_image_pixels(path)
+    img = np.flipud(px[..., :3]).copy()
+    mask, pos, _, _ = G.rasterise(body, w)
+    head = {b.name: b for b in body.parent.data.bones}["head"]
+    centre_y = (body.parent.matrix_world @ head.head_local).y
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    front = np.clip((centre_y + 0.035 - y) / 0.05, 0, 1)
+    jaw = np.clip(1 - np.abs(z - (eye.z - 0.095)) / 0.05, 0, 1) * front
+    cheek_line = np.clip(((eye.z - 0.045) - z) / 0.02, 0, 1)
+    lips = np.exp(-((x / 0.026) ** 2 + ((z - (eye.z - 0.083)) / 0.009) ** 2)) * (y < centre_y - 0.06)
+    area = np.clip(jaw * cheek_line * 1.6, 0, 1) * (1 - np.clip(lips * 1.5, 0, 1)) * mask
+    dots = (S.value_noise(w, 380, 41) > 0.52).astype(np.float32) * 0.6 + S.value_noise(w, 90, 42) * 0.4
+    shade = 1 - 0.42 * area * (0.55 + 0.45 * dots)
+    tint = np.array((0.95, 0.97, 1.0), np.float32)
+    img = img * (1 - (1 - shade[..., None]) * tint)
+    H.save_image(S.to_blender_pixels(np.clip(img, 0, 1)), w, h, path)
+    H.log("stubble painted")
+
+
 
 def textures(out):
     _, _, LocationService = H.mpfb()

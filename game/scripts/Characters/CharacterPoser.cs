@@ -37,6 +37,9 @@ public partial class CharacterPoser : SkeletonModifier3D
     /// <summary>Extra rotation applied to the chest after pitch (recoil, flinches), skeleton space.</summary>
     public Quaternion ChestKick = Quaternion.Identity;
 
+    /// <summary>The right hand as the IK left it (skeleton space), for debugging and tests.</summary>
+    public Transform3D LastRightHand;
+
     /// <summary>Last foot placement offsets (metres along up), for debugging and tests.</summary>
     public float FootDropLeft;
     public float FootDropRight;
@@ -87,6 +90,7 @@ public partial class CharacterPoser : SkeletonModifier3D
         if (RightHandWeight > 0.001f)
         {
             ReachArm(s, _upperR, _lowerR, _handR, RightHand, RightHandWeight, new Vector3(-0.6f, -0.8f, -0.4f));
+            LastRightHand = s.GetBoneGlobalPose(_handR);
         }
         if (LeftHandWeight > 0.001f)
         {

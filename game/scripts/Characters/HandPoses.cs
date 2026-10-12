@@ -1,11 +1,12 @@
+using System;
 using System.Collections.Generic;
 using Godot;
 
 namespace HollowUniverse.Characters;
 
 /// <summary>
-/// Finger poses for holding things, taken from single frames of the animation clips: a closed fist round a handle
-/// (from the sword idle), a pistol grip, and a support hand (from the pistol idle).
+/// Finger poses for holding things, made by curling each finger joint towards the palm from the rest pose: a fist
+/// round a handle, a pistol grip (index finger along the trigger guard) and a support hand under a barrel.
 /// </summary>
 public static class HandPoses
 {
@@ -17,54 +18,73 @@ public static class HandPoses
         Support,
     }
 
-    private static readonly string[] FingerNames = { "thumb", "index", "middle", "ring", "pinky" };
-    private static readonly Dictionary<(Grip, bool), Dictionary<string, Quaternion>> Cache = new();
+    // Curl of the three joints of each finger (degrees), per grip; the thumb has its own.
+    private static readonly Dictionary<Grip, (float[] Finger, float[] Index, float[] Thumb)> Curls = new()
+    {
+        [Grip.Relaxed] = (new[] { 12f, 15f, 10f }, new[] { 8f, 10f, 8f }, new[] { 5f, 8f, 5f }),
+        [Grip.Fist] = (new[] { 62f, 78f, 48f }, new[] { 58f, 72f, 44f }, new[] { 25f, 30f, 28f }),
+        [Grip.Pistol] = (new[] { 66f, 80f, 50f }, new[] { 22f, 28f, 12f }, new[] { 28f, 26f, 22f }),
+        [Grip.Support] = (new[] { 40f, 52f, 34f }, new[] { 36f, 46f, 30f }, new[] { 12f, 16f, 10f }),
+    };
 
-    /// <summary>Sets the finger bones of one hand to a grip (local rotations from the clip frame).</summary>
+    // Every character skeleton comes from the same template, so one table per hand serves them all.
+    private static readonly Dictionary<bool, List<(int Bone, Quaternion RestRotation, Vector3 Axis, int Joint, int Kind)>> Rigs = new();
+
+    /// <summary>Sets the finger bones of one hand to a grip (from their rest pose).</summary>
     public static void Apply(Skeleton3D s, Grip grip, bool right, float weight = 1f)
     {
-        Dictionary<string, Quaternion> pose = Get(grip, right);
-        foreach ((string bone, Quaternion q) in pose)
+        (float[] finger, float[] index, float[] thumb) = Curls[grip];
+        foreach ((int bone, Quaternion rest, Vector3 axis, int joint, int kind) in Rig(s, right))
         {
-            int i = s.FindBone(bone);
-            if (i < 0)
-            {
-                continue;
-            }
-            Quaternion now = s.GetBonePoseRotation(i);
-            s.SetBonePoseRotation(i, weight >= 1f ? q : now.Slerp(q, weight));
+            float degrees = kind switch { 0 => thumb[joint], 1 => index[joint], _ => finger[joint] } * weight;
+            s.SetBonePoseRotation(bone, rest * new Quaternion(axis, Mathf.DegToRad(degrees)));
         }
     }
 
-    private static Dictionary<string, Quaternion> Get(Grip grip, bool right)
+    /// <summary>For each finger bone: its rest rotation and the local axis that bends it towards the palm.</summary>
+    private static List<(int, Quaternion, Vector3, int, int)> Rig(Skeleton3D s, bool right)
     {
-        if (Cache.TryGetValue((grip, right), out Dictionary<string, Quaternion>? pose))
+        if (Rigs.TryGetValue(right, out var rig))
         {
-            return pose;
+            return rig;
         }
-        (string clip, float time) = grip switch
-        {
-            Grip.Fist => ("tool_idle", 0.5f),
-            Grip.Pistol => ("pistol_idle", 0.5f),
-            Grip.Support => ("pistol_idle", 0.5f),
-            _ => ("idle", 0.5f),
-        };
-        pose = new Dictionary<string, Quaternion>();
-        Animation animation = CharacterAssets.Library.GetAnimation(clip);
+        rig = new List<(int, Quaternion, Vector3, int, int)>();
         string side = right ? "_r" : "_l";
-        foreach (string finger in FingerNames)
+        Transform3D hand = s.GetBoneGlobalRest(s.FindBone("hand" + side));
+        Vector3 wrist = hand.Origin;
+        Vector3 middle = s.GetBoneGlobalRest(s.FindBone("middle_01" + side)).Origin;
+        Vector3 index = s.GetBoneGlobalRest(s.FindBone("index_01" + side)).Origin;
+        Vector3 pinky = s.GetBoneGlobalRest(s.FindBone("pinky_01" + side)).Origin;
+        Vector3 f = (middle - wrist).Normalized();
+        Vector3 t = index - pinky;
+        t = (t - f * t.Dot(f)).Normalized();
+        Vector3 z = f.Cross(t).Normalized();
+        Vector3 palm = right ? -z : z;
+        foreach (string name in new[] { "thumb", "index", "middle", "ring", "pinky" })
         {
             for (int k = 1; k <= 3; k++)
             {
-                string bone = $"{finger}_0{k}{side}";
-                int track = animation.FindTrack(new NodePath("Skeleton:" + bone), Animation.TrackType.Rotation3D);
-                if (track >= 0)
+                int bone = s.FindBone($"{name}_0{k}{side}");
+                if (bone < 0)
                 {
-                    pose[bone] = animation.RotationTrackInterpolate(track, time);
+                    continue;
                 }
+                Transform3D g = s.GetBoneGlobalRest(bone);
+                int child = k < 3 ? s.FindBone($"{name}_0{k + 1}{side}") : -1;
+                Vector3 dir = child >= 0 ? (s.GetBoneGlobalRest(child).Origin - g.Origin).Normalized() : g.Basis.Y.Normalized();
+                // The thumb closes across the palm, towards the little finger's side.
+                Vector3 towards = name == "thumb" ? (palm * 0.6f - t * 0.8f).Normalized() : palm;
+                Vector3 axis = dir.Cross(towards);
+                if (axis.LengthSquared() < 1e-8f)
+                {
+                    continue;
+                }
+                Vector3 local = (g.Basis.Inverse() * axis.Normalized()).Normalized();
+                rig.Add((bone, s.GetBoneRest(bone).Basis.GetRotationQuaternion(), local, k - 1,
+                    name == "thumb" ? 0 : name == "index" ? 1 : 2));
             }
         }
-        Cache[(grip, right)] = pose;
-        return pose;
+        Rigs[right] = rig;
+        return rig;
     }
 }

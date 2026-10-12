@@ -40,6 +40,7 @@ REGIONS = [
     "calf",       # 10 knee to boot top
     "ankle",      # 11 boot shaft
     "foot",       # 12
+    "collar",     # 13 base of the neck and tops of the shoulders: shows above a shirt's neckline
 ]
 REGION = {name: i for i, name in enumerate(REGIONS)}
 
@@ -102,14 +103,32 @@ MALE = {
 }
 
 
+# Shape targets on top of the macros (MakeHuman target files, weight): a squarer jaw, broader shoulders, a thicker
+# neck and a heavier brow, so the man reads as a man under a cap at fighting distance.
+MALE_TARGETS = [
+    ("head/head-square.target.gz", 0.45),
+    ("chin/chin-bones-incr.target.gz", 0.5),
+    ("chin/chin-prognathism-incr.target.gz", 0.15),
+    ("neck/measure-neck-circ-incr.target.gz", 0.5),
+    ("torso/measure-shoulder-dist-incr.target.gz", 0.35),
+    ("torso/torso-vshape-incr.target.gz", 0.45),
+    ("torso/measure-hips-circ-decr.target.gz", 0.3),
+    ("eyebrows/eyebrows-trans-forward.target.gz", 0.35),
+    ("eyebrows/eyebrows-trans-down.target.gz", 0.2),
+]
+
+
 def make_male():
     """The MakeHuman male with MPFB's game-engine skeleton (UE-style bone names, 53 bones) and its weights."""
-    HumanService, TargetService, _ = mpfb()
+    HumanService, TargetService, LocationService = mpfb()
     macro = TargetService.get_default_macro_info_dict()
     macro.update({k: v for k, v in MALE.items() if k != "race"})
     macro["race"] = dict(MALE["race"])
     body = HumanService.create_human(mask_helpers=True, detailed_helpers=True, extra_vertex_groups=True,
                                      feet_on_ground=True, scale=0.1, macro_detail_dict=macro)
+    targets = LocationService.get_mpfb_data("targets")
+    for rel, weight in MALE_TARGETS:
+        TargetService.load_target(body, os.path.join(targets, rel), weight=weight)
     rig = HumanService.add_builtin_rig(body, "game_engine", import_weights=True)
     return body, rig
 

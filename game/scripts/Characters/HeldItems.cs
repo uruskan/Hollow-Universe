@@ -63,7 +63,9 @@ public static class HeldItems
         };
     }
 
-    /// <summary>A new instance of the model, or null if its file is missing.</summary>
+    private static readonly Dictionary<string, Material> Materials = new();
+
+    /// <summary>A new instance of the model (materials applied, the most detailed level shown), or null if missing.</summary>
     public static Node3D? Instantiate(HeldItemModel model)
     {
         if (!Scenes.TryGetValue(model.Id, out PackedScene? scene))
@@ -75,7 +77,75 @@ public static class HeldItems
             scene = GD.Load<PackedScene>(model.Path);
             Scenes[model.Id] = scene;
         }
-        return scene.Instantiate<Node3D>();
+        Node3D item = scene.Instantiate<Node3D>();
+        ApplyMaterials(item);
+        SetLod(item, 0);
+        return item;
+    }
+
+    /// <summary>Shows one level of detail of an item (meshes are named "…_lod0" to "…_lod2").</summary>
+    public static void SetLod(Node node, int lod)
+    {
+        if (node is MeshInstance3D mi)
+        {
+            string name = mi.Name;
+            int at = name.LastIndexOf("_lod", System.StringComparison.Ordinal);
+            if (at >= 0 && int.TryParse(name[(at + 4)..], out int level))
+            {
+                mi.Visible = level == lod;
+            }
+        }
+        foreach (Node child in node.GetChildren())
+        {
+            SetLod(child, lod);
+        }
+    }
+
+    private static void ApplyMaterials(Node node)
+    {
+        if (node is MeshInstance3D mi && mi.Mesh != null)
+        {
+            for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+            {
+                string surface = mi.Mesh.SurfaceGetMaterial(i)?.ResourceName ?? "";
+                if (surface.Length > 0)
+                {
+                    mi.SetSurfaceOverrideMaterial(i, MaterialFor(surface));
+                }
+            }
+        }
+        foreach (Node child in node.GetChildren())
+        {
+            ApplyMaterials(child);
+        }
+    }
+
+    private static Material MaterialFor(string surface)
+    {
+        if (Materials.TryGetValue(surface, out Material? m))
+        {
+            return m;
+        }
+        const string folder = "res://assets/items/textures/";
+        var orm = new OrmMaterial3D
+        {
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
+        };
+        if (ResourceLoader.Exists(folder + surface + "_albedo.png"))
+        {
+            orm.AlbedoTexture = GD.Load<Texture2D>(folder + surface + "_albedo.png");
+        }
+        if (ResourceLoader.Exists(folder + surface + "_orm.png"))
+        {
+            orm.OrmTexture = GD.Load<Texture2D>(folder + surface + "_orm.png");
+        }
+        if (ResourceLoader.Exists(folder + surface + "_normal.png"))
+        {
+            orm.NormalEnabled = true;
+            orm.NormalTexture = GD.Load<Texture2D>(folder + surface + "_normal.png");
+        }
+        Materials[surface] = orm;
+        return orm;
     }
 
     /// <summary>A socket's transform in the item's space (identity if the model has none of that name).</summary>
@@ -109,6 +179,9 @@ public static class HandFrame
 
     /// <summary>Left palm under a barrel, item space: thumb forward (+X), palm up (+Y), fingers to the right (+Z).</summary>
     public static readonly Basis SupportGrip = new(new Vector3(0, 0, 1), new Vector3(1, 0, 0), new Vector3(0, 1, 0));
+
+    /// <summary>Left palm against the right hand on a pistol grip: palm to the right (+Z), thumb forward, fingers down.</summary>
+    public static readonly Basis PistolSupport = new(new Vector3(0, -1, 0), new Vector3(1, 0, 0), new Vector3(0, 0, 1));
 
     /// <summary>
     /// The constant rotation from the grip frame to the hand bone, and the palm centre in the grip frame (relative to

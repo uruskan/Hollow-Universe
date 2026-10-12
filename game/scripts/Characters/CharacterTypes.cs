@@ -121,7 +121,10 @@ public enum BodyRegions
     Calf = 1 << 10,
     Ankle = 1 << 11,
     Foot = 1 << 12,
-    All = (1 << 13) - 1,
+
+    /// <summary>Base of the neck and tops of the shoulders, above a shirt's neckline.</summary>
+    Collar = 1 << 13,
+    All = (1 << 14) - 1,
 
     /// <summary>What the first-person view shows of the body.</summary>
     Arms = UpperArm | Forearm | Hand,

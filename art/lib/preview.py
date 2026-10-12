@@ -38,6 +38,19 @@ def _material(mat, folder):
             bsdf.inputs["Subsurface Weight"].default_value = 0.15
             bsdf.inputs["Subsurface Radius"].default_value = (1.0, 0.35, 0.2)
             bsdf.inputs["Subsurface Scale"].default_value = 0.01
+    elif os.path.exists(os.path.join(folder, "textures", mat.name + "_albedo.png")):
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = bpy.data.images.load(os.path.join(folder, "textures", mat.name + "_albedo.png"), check_existing=True)
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        bsdf.inputs["Roughness"].default_value = 0.8
+        normal = os.path.join(folder, "textures", mat.name + "_normal.png")
+        if os.path.exists(normal):
+            ntex = nt.nodes.new("ShaderNodeTexImage")
+            ntex.image = bpy.data.images.load(normal, check_existing=True)
+            ntex.image.colorspace_settings.name = 'Non-Color'
+            nmap = nt.nodes.new("ShaderNodeNormalMap")
+            nt.links.new(ntex.outputs["Color"], nmap.inputs["Color"])
+            nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
     elif colour:
         bsdf.inputs["Base Color"].default_value = tuple(colour) + (1.0,) if len(colour) == 3 else tuple(colour)
         bsdf.inputs["Roughness"].default_value = mat.get("preview_roughness", 0.85)

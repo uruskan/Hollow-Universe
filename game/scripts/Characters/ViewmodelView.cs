@@ -320,21 +320,28 @@ public partial class ViewmodelView : Node3D
         switch (m.Kind)
         {
             case HeldKind.Pistol:
-                hip = new Vector3(0.13f, -0.16f, -0.36f);
+                hip = new Vector3(0.075f, -0.175f, -0.4f);
                 hipTurn = Basis.FromEuler(new Vector3(0.03f, 0.05f, 0f));
                 break;
             case HeldKind.Rifle:
-                hip = new Vector3(0.12f, -0.17f, -0.28f);
-                hipTurn = Basis.FromEuler(new Vector3(0.02f, 0.035f, 0f));
+                hip = new Vector3(0.155f, -0.205f, -0.17f);
+                hipTurn = Basis.FromEuler(new Vector3(0.02f, 0.06f, 0f));
                 break;
             default:
-                // Tool: held up at the right, head forward and a little inward.
-                hip = new Vector3(0.26f, -0.27f, -0.42f);
-                hipTurn = Basis.FromEuler(new Vector3(0.95f, 0.25f, 0.2f));
+                // Tool: the handle rises from the right hand, leaning forward and in; the blade faces forward.
+                hip = new Vector3(0.27f, -0.24f, -0.46f);
+                hipTurn = Basis.Identity;
                 break;
         }
         // Hip placement puts the right grip at `hip`.
         Basis basis = hipTurn * toCamera;
+        if (m.Kind == HeldKind.Tool)
+        {
+            Vector3 handle = new Vector3(-0.24f, 0.78f, -0.57f).Normalized();
+            Vector3 blade = new Vector3(-0.45f, -0.25f, -0.86f);
+            blade = (blade - handle * blade.Dot(handle)).Normalized();
+            basis = new Basis(blade, handle, blade.Cross(handle));
+        }
         Vector3 origin = hip - basis * grip.Origin;
         var place = new Transform3D(basis, origin);
 
@@ -415,7 +422,8 @@ public partial class ViewmodelView : Node3D
         if (twoHands)
         {
             Transform3D gripL = item * HeldItems.Socket(_item, "grip_l");
-            Transform3D handL = toSkeleton * HandFrame.HandFor(gripL, HandFrame.SupportGrip, _gripL);
+            Basis support = _model.Kind == HeldKind.Pistol ? HandFrame.PistolSupport : HandFrame.SupportGrip;
+            Transform3D handL = toSkeleton * HandFrame.HandFor(gripL, support, _gripL);
             if (_reload >= 0f)
             {
                 // To the magazine and back.
@@ -424,7 +432,7 @@ public partial class ViewmodelView : Node3D
                 Vector3 to = toSkeleton * (mag.Origin + new Vector3(0f, -0.12f, 0.02f));
                 handL.Origin = handL.Origin.Lerp(to, t);
             }
-            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, handL, 1f, new Vector3(0.7f, -0.7f, -0.2f));
+            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, handL, 1f, new Vector3(0.35f, -1f, -0.1f));
             HandPoses.Apply(_skeleton, HandPoses.Grip.Support, right: false);
         }
         else

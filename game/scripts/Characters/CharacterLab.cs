@@ -421,14 +421,24 @@ public partial class CharacterLab : Node3D
                 }
             }
             GD.Print($"[debug] lod={_character.Lod} pelvis={_character.Skeleton.GetBoneGlobalPose(_character.Skeleton.FindBone("pelvis")).Origin}");
+            int hand = _character.Skeleton.FindBone("hand_r");
+            GD.Print($"[debug] hand target {_character.Poser.RightHand} weight {_character.Poser.RightHandWeight}");
+            GD.Print($"[debug] hand actual {_character.Poser.LastRightHand}");
+            if (_character.HeldModel != null)
+            {
+                Node3D? attach = _character.HeldModel.GetParent() as Node3D;
+                GD.Print($"[debug] attachment {_character.Skeleton.GlobalTransform.AffineInverse() * attach!.GlobalTransform}");
+                GD.Print($"[debug] item {_character.Skeleton.GlobalTransform.AffineInverse() * _character.HeldModel.GlobalTransform}");
+            }
         }
     }
 
     /// <summary>The state the movement code would give for a motion, standing on the spot (a treadmill).</summary>
     private CharacterFrame MotionFrame(string motion, float t, float dt)
     {
-        CharacterFrame f = CharacterFrame.Standing(Vector3.Zero, Vector3.Up, 0f);
-        Vector3 forward = CharacterFrame.Facing(Vector3.Up, 0f);
+        float face = Mathf.DegToRad((float)Number("face", 0));
+        CharacterFrame f = CharacterFrame.Standing(Vector3.Zero, Vector3.Up, face);
+        Vector3 forward = CharacterFrame.Facing(Vector3.Up, face);
         Vector3 right = forward.Cross(Vector3.Up);
         switch (motion)
         {

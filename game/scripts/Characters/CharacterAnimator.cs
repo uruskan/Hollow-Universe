@@ -31,6 +31,7 @@ public static class CharacterAnimator
     public const string HoldLeft = "parameters/hold_l/blend_amount";
     public const string ActionClip = "parameters/action_clip/transition_request";
     public const string Action = "parameters/action/request";
+    public const string ActionActive = "parameters/action/active";
     public const string HitClip = "parameters/hit_clip/transition_request";
     public const string Hit = "parameters/hit/request";
 

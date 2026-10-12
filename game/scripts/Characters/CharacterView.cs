@@ -42,6 +42,7 @@ public partial class CharacterView : Node3D
     private bool _wasGrounded = true;
     private float _holdR, _holdL;
     private float _recoil;
+    private float _hold = 1f;
     private float _reload = -1f;
 
     // Held item.
@@ -66,6 +67,9 @@ public partial class CharacterView : Node3D
     public Skeleton3D Skeleton => _skeleton;
 
     public CharacterPoser Poser => _poser;
+
+    /// <summary>The held item's model, if any (for debugging and tests).</summary>
+    public Node3D? HeldModel => _item;
 
     public IReadOnlyList<Wearable> Worn => _worn;
 
@@ -318,6 +322,11 @@ public partial class CharacterView : Node3D
         {
             mesh.Visible = Array.IndexOf(lods, lod) >= 0;
         }
+        if (_item != null)
+        {
+            // Third person never needs an item's first-person detail.
+            HeldItems.SetLod(_item, Math.Min(2, lod + 1));
+        }
         _poser.GroundProbe = lod == 0 && FootPlacement ? Probe : null;
     }
 
@@ -480,9 +489,16 @@ public partial class CharacterView : Node3D
             }
         }
         _poser.ChestKick = new Quaternion(Vector3.Left, 0.09f * Kick(_recoil));
+        // While an upper-body action plays, the clip moves the arms; otherwise the hands hold their grips.
+        bool acting = (bool)_tree.Get(CharacterAnimator.ActionActive);
+        _hold = Math.Clamp(_hold + (acting ? -dt * 9f : dt * 5f), 0f, 1f);
         if (_held == HeldKind.Rifle && _item != null)
         {
             PlaceRifle(f);
+        }
+        else if (_held == HeldKind.Tool && _item != null)
+        {
+            CarryTool();
         }
         else
         {
@@ -490,6 +506,21 @@ public partial class CharacterView : Node3D
             _poser.LeftHandWeight = 0f;
         }
     }
+
+    /// <summary>A tool rides upright in the right hand at the hip, blade forward.</summary>
+    private void CarryTool()
+    {
+        float hip = _skeleton.GetBoneGlobalRest(_skeleton.FindBone("thigh_r")).Origin.Y;
+        // Skeleton space: forward +Z, right −X. Item axes: +X blade, +Y handle up.
+        var grip = new Transform3D(
+            new Basis(Vector3.Left, -0.5f) * new Basis(new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(-1, 0, 0)),
+            new Vector3(-0.25f, hip + 0.08f, 0.2f));
+        _poser.RightHand = HandFrame.HandFor(grip, HandFrame.PowerGrip, _gripR);
+        _poser.RightHandWeight = Smooth(_hold);
+        _poser.LeftHandWeight = 0f;
+    }
+
+    private static float Smooth(float t) => t * t * (3f - 2f * t);
 
     private static float Kick(float t) => t <= 0f ? 0f : MathF.Sin(MathF.Min(1f, (1f - t) * 4f) * MathF.PI * 0.5f) * t;
 
@@ -507,6 +538,7 @@ public partial class CharacterView : Node3D
         {
             return;
         }
+        HeldItems.SetLod(_item, Math.Min(2, Math.Max(0, _lod) + 1));
         if (model.Kind == HeldKind.Rifle)
         {
             _carry.AddChild(_item);
@@ -533,7 +565,7 @@ public partial class CharacterView : Node3D
         // Skeleton space: forward +Z, right −X, up +Y.
         Basis aim = new Basis(Vector3.Left, pitch);
         float kick = Kick(_recoil);
-        Vector3 shoulder = anchor + new Vector3(-0.15f, 0.13f, 0.06f) + aim * new Vector3(0, 0.0f, 0.20f - 0.06f * kick);
+        Vector3 shoulder = anchor + new Vector3(-0.15f, 0.12f, 0.02f) + aim * new Vector3(0, 0.0f, 0.12f - 0.05f * kick);
         // Item axes: +X barrel, +Y up. Skeleton: barrel along +Z.
         var itemBasis = new Basis(new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(-1, 0, 0));
         Basis b = aim * new Basis(Vector3.Left, 0.06f * kick) * itemBasis;
@@ -556,8 +588,8 @@ public partial class CharacterView : Node3D
             left.Origin += (b * new Vector3(-0.17f, -0.17f, 0.02f)) * t;
         }
         _poser.LeftHand = left;
-        _poser.RightHandWeight = 1f;
-        _poser.LeftHandWeight = 1f;
+        _poser.RightHandWeight = Smooth(_hold);
+        _poser.LeftHandWeight = Smooth(_hold);
     }
 
     // ---------------------------------------------------------------- ground probe for the feet
