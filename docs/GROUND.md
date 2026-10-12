@@ -1086,7 +1086,8 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
      58 m, which keeps the frame time near 11 ms.
    - Three Megascans surfaces on disk (Mossy Ground `tj4ocdjr`, Tundra Lichened Rock `vjbode1mw`, Tundra Mossy Ground
      `vjulbjjr`) have no listing on record, so they were replaced by listed sets and Poly Haven CC0 sets. The six
-     listings used should be checked once for an "Unreal Engine only" note (none is expected for Megascans surfaces).
+     listings used were checked on 2026-10-13: all six say "License terms: Standard License", and none says "licensed
+     for use only with Unreal Engine" (`game/assets/THIRD_PARTY.md`).
    - Cloud cover is fixed at 0.35 (fair weather) until weather exists; moonlight on the ground is brightened six
      times.
    - The landing site (§3) can still move: only the surface golden test's landing-area points depend on it.

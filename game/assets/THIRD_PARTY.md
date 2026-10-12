@@ -56,5 +56,7 @@ brought to one convention. Layers in `Hollow.Surface.GroundMaterial` order:
 
 The Megascans sets are owned on the project's Fab account (listing URLs from the local download manifest,
 `D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`). The Fab Standard License allows use in any
-engine; none of these listings is one of the Unreal-Engine-only ones (to be re-checked on the listing pages, GROUND.md
-§11). The Fab Standard License does not allow redistributing the files on their own: they ship only inside the game.
+engine. **Checked on 2026-10-13:** each of the six listing pages above gives "License terms: Standard License" and
+none of them says the product is licensed for use only with Unreal Engine (the pages mention Unreal only in Fab's
+footer). The Fab Standard License does not allow redistributing the files on their own: they ship only inside the
+game.
