@@ -222,12 +222,139 @@ Godot.
   - **Sound** (`GroundAudio`, §4.9): the audio package's director at the camera, ambience from the place, every
     character's footsteps on the ground under them, and the game's events (gathering, pickups, food and bandages,
     hurt and death, the cold, fires, boxes, placing, swings, the bow and arrows, hit markers, the interface).
-  - **Steady frames** (measured with `--measure`, §5.4): everything the game may show is drawn once, tiny, while the
-    world opens, so the renderer never builds a pipeline in play (`GroundView.Warmup`); the plants near the camera are
-    rebuilt on a worker thread with the game's changes frozen when it starts (`Vegetation.ChangesSnapshot`), and so
-    are tree impostor blocks; changes farther than 25 m wait up to five seconds to be drawn together; scatter objects
-    are only looked up in tiles already generated (`ScatterNaturalObjects.TryGetCached`); the game runs with .NET's
-    sustained low-latency collector. A lost connection returns to the menu.
+  - **Steady frames** (measured with `--measure`, §5.4): everything the game may show is drawn once, tiny, under the
+    loading screen, so the renderer never builds a pipeline in play (the renderer's warm-up, §4.3.1); the plants near
+    the camera are rebuilt on a worker thread with the game's changes frozen when it starts
+    (`Vegetation.ChangesSnapshot`), and so are tree impostor blocks; changes farther than 25 m wait up to five seconds
+    to be drawn together; scatter objects are only looked up in tiles already generated
+    (`ScatterNaturalObjects.TryGetCached`); the game runs with .NET's sustained low-latency collector. A lost
+    connection returns to the menu.
+  - **Loading** (§4.3.1): one loading pipeline and one loading screen; play starts when every part is ready.
+
+### 4.3.1 Loading: one pipeline, one screen
+
+The owner, 13 October 2026: "Every time the game loads there's some time before it's actually playable and actually
+looks good. Is it shaders compiling? Maybe we need a proper loading screen like Rust's, so when the game finally opens
+it's playable right away instead of waiting for the world to become playable." Built the same day (`ground-loading`,
+decisions O1–O16).
+
+**The start, measured** (`--load-trace`, below): the timeline from launch to steady play of a hosted game
+(`play-ground.cmd`'s command line, the owner's database, 1600 × 900, Ryzen 5 3600, RTX 2070 Super). Before, play was
+the player's from the moment the character arrived, in a world still opening: the window froze for 8.8 s, then twice
+for 2.7 s, then stuttered for two more seconds.
+
+| Seconds since the process started | Before | After, first launch (Godot's caches empty) | After, second launch |
+|---|---|---|---|
+| The ground mode starts (engine, .NET, the galaxy) | 2.4 | 3.3 | 2.6 |
+| First frame (until then Godot's logo; now the loading picture) | 3.6 | 5.2 | 4.2 |
+| The hosted server ready; connected | 6.1; 6.2 | 7.5; 7.6 | 6.3; 6.3 |
+| Welcomed, the character placed (before: play began here) | 7.2 | 8.5 | 7.3 |
+| The world's things received (the last one) | 7.2 | 8.5 | 7.3 |
+| The world view opened (the frame it froze) | 16.0 (8.8 s) | 18.0 (9.5 s, under the screen) | 13.3 (6.0 s, under the screen) |
+| The land at full detail | 24.5 | 23.7 | 18.0 |
+| The plants and grass, impostors baked | 22.3 | 25.6 | 19.4 |
+| The renderer warmed (every model, garment, grade, gib, effect drawn) | (part of the 8.8 s) | 24.8 | 18.4 |
+| Play handed over, after 0.75 s of steady frames | 7.2, in a world opening | 26.4 | 20.1 |
+| First steady second (no frame over 33 ms) | 24.1 | 25.5 | 19.3 |
+| Frames over 33 ms once the character was placed | 21 in play: 8.8 s, 2.7 s, 2.7 s, 1.0 s, 0.7 s, then 40–140 ms | 44 under the screen; 2 in the next two minutes of play (46, 118 ms) | 54 under the screen; none in play |
+| Pipelines built after the character was placed | 142 surface, 22 mesh, 2 draw: all in play | 178 surface, 2 draw: all under the screen, none in play | the same |
+
+An arrival in the second launch (`--arrival-check`, a teleport of 826 m): input held at once, the short screen from
+0.25 s, play again after 1.05 s (the world's things 0.63 s, the land 0.95 s, the forest 1.05 s), no slow frame after.
+
+Where the time went before: the frozen 8.8 s were the world view's opening (1.9 s), the old warm-up, the spare bodies,
+the sound and every view's first look (about 2.2 s, much of it reading files) and, in the draw, about 4.5 s of Godot
+loading the variants of every material's shader on its first use (some 930 variants from the shader cache, about 5 ms
+each). The two 2.7 s freezes were the impostor atlas's dilation and mipmaps on the main thread. The client's own
+welcome (the planet, the prediction world) took 0.8–1 s.
+
+What remains: the frame the world opens in is still frozen for 6 s, under the screen: 2 s of the main thread (the
+world view 0.9 s, the arms and spare bodies 0.7 s, the sound 0.1 s, the views' first look) and about 4 s of Godot
+loading the variants of the shaders of the world and the characters as they are first drawn. The client's welcome
+takes 0.8 s. The warm-up then shows everything else while the land and plants stream (about 200 ms a frame for each
+held item's first-person materials). Godot's caches empty cost the first launch about 6 s more. Tried and left: showing
+the warm-up from the first frame on a stage of its own, to load those shaders while the server starts; a single
+character's first draw then held the main thread 4–6 s just as the server became ready, and play came 3–5 s later.
+
+**The pipeline** (`src/Hollow.Client/Loading`, engine-free; `LoadingTests`): a `LoadingPipeline` per game, in which
+each part registers the `LoadStage` it owns: a key, its measure (done, progress, failed) and when it takes part
+(`LoadScope.Start`, once; `LoadScope.Arrival`, also whenever the player arrives somewhere new). The stages' words,
+their weights (the seconds each takes on this PC, which are also their shares of the bar) and their rules' numbers are
+data: `game/data/ground/loading.json` (`LoadingPlan`, with the tips, the picture, the fades and what an arrival is).
+Updated once a frame with the frame's wall-clock time, the pipeline measures every stage taking part, keeps done stages
+done and progress from going back, names the first stage not done (in the plan's order) and hands play over the moment
+all are done; a failed stage (the server stopped, the connection was refused) ends the load, and the game shows the
+menu as before. Neither the screen nor the hand-over knows which parts exist.
+
+| Stage | Title | Registered by | Done when | Scope |
+|---|---|---|---|---|
+| `server` | Starting the world | `ChildServer.LoadStage` (hosting) | it printed "Ready." (or another game hosts on the port, which is joined instead); progress estimated from its weight | start |
+| `connect` | Connecting | `GameClient.LoadStages` | the character is placed (connecting, joined, welcomed, placed) | start |
+| `world` | Receiving the world | `GameClient.LoadStages` | nothing new (things, building pieces, natural states) for 0.5 s since the character arrived (`QuietStream`; 6 s at most) | arrival |
+| `land` | Painting the land | `SurfaceView.LoadStages` | the terrain idle for 10 frames (progress: the finest level drawn) | arrival |
+| `forest` | Growing the forest | `SurfaceView.LoadStages` | the plants (library, impostor bake, scatter) and the grass idle for 10 frames | arrival |
+| `renderer` | Warming up the renderer | `RenderWarmup.Stage` (the ground view) | everything shown, then 10 frames without a pipeline built (40 s at most) | start |
+| `steady` | Arriving | `SteadyFrames.Stage` (the ground view) | 0.75 s of frames each under 33.4 ms, counted once every other stage is done | start |
+
+A joined game (`play-ground.cmd join`) has no `server` stage; `--in-process` builds its server before the first frame
+(O16).
+
+**The screen** (`game/scripts/UI/LoadingScreen.cs`, a canvas layer over everything): a picture of the first world filling
+the window (the golden meadow, look-dev view (b) rendered at 2560 × 1421, `game/assets/loading/golden-meadow.jpg`,
+cropped to the window's shape), RustMVP's title block (the red rule, HOLLOW in Barlow Condensed, where the game goes),
+the current stage's words, one bar for the whole load with its percentage (RustMVP's grey panel, the done part in ink,
+a red edge that breathes while loading) and a tip from `loading.json`, changed every 8 s. It is painted on the
+1600 × 900 design canvas with `Ui.Px` and fonts at their final size, so it is crisp at any window size and interface
+scale. While a load runs it takes every input event; when play is handed over it fades out over 0.6 s. The boot splash
+is the same picture (`splash.png`: Godot's splash takes PNG only), so the game looks like itself from its first moment
+(O9). Mid-load: `docs/images/ground/loading/loading-screen.jpg`.
+
+**The hand-over** (`GroundView`): until the pipeline hands over, the character stands as it arrived (no input is read),
+the mouse stays free, and mouse look and the game's keys do nothing; the camera is at the player's eye, so the world
+streams and is drawn where play begins. The interface is drawn all along under the screen (its first draw is never at
+the hand-over) and greets the player when play starts. Screenshots and scripted runs wait for the screen to go
+(`GroundView.LoadingShown`).
+
+**Arrivals** (O6): a respawn or a far teleport moves the player more than 120 m at once. The pipeline (`Follow`, fed the
+player's feet every frame; flying, the place is only kept) then runs the arrival's stages again (`world`, `land`,
+`forest`) and holds input; if they aren't done within 0.25 s the screen fades in, without the title block and the tip,
+and fades out when they are.
+
+**The renderer's warm-up** (`game/scripts/Ground/RenderWarmup.cs`; O7, O8, O10): every library lists what it can draw
+as `WarmItem`s (`game/scripts/Common/WarmItem.cs`: the files it is made of, how to show it once), read from its own
+catalogue: `ModelWarm` (every model of models.json at every stage, all its levels of detail at once), `CharacterWarm`
+(each body as others see it and as first-person arms, wearing every garment of the wardrobe in as few outfits as the
+slots allow; every held item as the first person draws it), `BuildingWarm` (every grade's material on its pieces'
+levels of detail, batched as the building is; the plan's ghost; every door and window part; the garage door),
+`GibWarm` (a piece of every gib set), `FxWarm` (every effect of fx.json, played tiny: one-shots, loops, tracers, muzzle
+flashes both ways), `AnimalWarm`, `ShipWarm` (engines running and boosting), the weak spots' markers, and files read
+without being drawn (the ground's textures, every sound of sounds.json). `GroundWarmup` puts the sources together, one
+line each; new content in a catalogue needs no code. The files are asked of Godot's loader threads from the first
+frame, 6 at a time, what the world's opening reads first, and are kept for the game, so nothing waits on a file in play
+(1.2 GB of video memory, 0.4 GB of memory in all). Once the world is open every item is shown once, tiny, two metres
+before the camera, up to 12 a frame within 12 ms; the stage is done after 10 frames without a pipeline built.
+`--load-trace` counts no pipeline built in play after the hand-over.
+
+**Off the main thread** (O11–O14): the impostor atlas's dilation and mipmaps run on a worker; the planet's air tables and
+the first world's surface are computed on workers while the server starts (`AtmosphereModel.Prepare` and `Take`,
+`GroundMode.Prefetch`); behind the screen the terrain puts up to 64 finished tiles a frame in place (10 in play); the
+hosted server runs above normal priority; the game's C# is compiled optimized in its Debug build, as Hollow.Surface's
+was.
+
+**Caches** (O15): `rendering/shader_compiler/shader_cache/enabled` and `rendering/rendering_device/pipeline_cache/enable`
+are on (set in project.godot; they are Godot's defaults) and persist in the project's user folder
+(`%APPDATA%\Godot\app_userdata\Hollow Universe\shader_cache`, 60 MB, and `vulkan\pipelines.*.cache`, 76 MiB, loaded
+at start: "Startup PSO cache" in the verbose log), shared by every worktree of the project. None of the runs measured
+here compiled a shader from source. What every launch still pays is Godot loading the cached variants of each
+material's shader the first time it is drawn (about 5 ms each, thousands for the game's materials); the warm-up puts
+all of it under the screen.
+
+**Measuring a start:** `--load-trace [seconds]` prints the timeline since the process started (the server ready, the
+connection, the world's opening and streaming, each stage done, play handed over), every frame over 33 ms with its
+process time, garbage collection, JIT and the pipelines built in it, the pipelines built after spawning and in play,
+the ground view's slowest parts, the warm-up's costliest items and the memory, then quits; `--load-shot <file>` saves
+the screen once the load is half done; `--arrival-check` teleports the hosting player to the landing site three
+seconds into play and times the arrival.
 
 ### 4.4 Network
 
@@ -470,7 +597,8 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   Screenshots pause at `--time`.
 - **Speed** (1600 × 900, RTX 2070 Super, vsync on): 11–12 ms a frame (85–89 fps) at the landing site with 3,300
   plant meshes, 414,000 impostors and 45,000 grass tufts; 13–15 ms (65–73 fps) inside dense forest; 7 ms from 2 km.
-  Opening the view takes about 4 s (tiles, the painted atlas and the plants, then the impostor bake).
+  Opening the view takes about 4 s (tiles, the painted atlas and the plants, then the impostor bake); in the game it
+  happens under the loading screen (§4.3.1).
 - **Look-dev commands** for the views in §3 (add `--shot <file> --hide-ui` to save them):
   - (a) `--view surface --alt 1.7 --yaw 60 --pitch -2 --time 2026-10-12T03:00:00Z`;
   - (b) `--view surface --lat 44.86225 --lon -170.00150 --alt 1.7 --yaw 280 --pitch 0 --time 2026-10-12T15:50:00Z`;
@@ -1585,8 +1713,9 @@ is the one place that picks the provider:
 §4.2's order: fall damage into the vitals; actions (held item, swings, shots); projectiles and damage; once a second
 survival, natural respawns, the lifetimes of loose things (one step for bags, bodies, duds and carcasses,
 GROUND_SYSTEMS.md §3.7) and loot reach; devices (the burners and machines alone); crafting; then the hit history.
-Players' actions are `Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `UseItem`, `Craft`, `CancelCraft`, `Open`,
-`Close`, `PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of
+Players' actions are `Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `ItemAction` (the inventory's buttons, by
+their handlers: eat, use, wear, take off, learn, unload, remove an attachment; GROUND_SYSTEMS.md §7), `Craft`,
+`CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of
 it or nothing, with a reason (an `Outcome`: one code list for the whole game and the number its line names; the lines
 are in texts.json, GROUND_SYSTEMS.md §3.2). An action on a thing needs the eye within reach of its nearest surface, in
 sight (survival.json `reach`, GROUND_SYSTEMS.md §3.4). Every new persistent thing gets an `EntityId` from the server's allocator.
@@ -1748,7 +1877,7 @@ dropped. A G1 database migrates in place; G1 characters come back with a new lif
 | `Crafting` | Jobs front first: recipe, count, progress of the unit in hand, seconds left, still pending. |
 | `Life`, `IsDead`, `SecondsUntilReady(option)` | Alive or dead; how, by whom; respawn choices (the beach, each bag) and their countdowns. |
 | `HeldSlot`, `HeldItem`, `WorkbenchLevel`, `CanCraft(recipe, count)` | The belt slot in hand (set by the UI; it goes out with every input), the best bench within 4 m, whether a recipe can start. |
-| `MoveItem`, `QuickMove`, `Drop`, `Use`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, uses, crafting, placing, closing), shows at once. |
+| `MoveItem`, `QuickMove`, `Drop`, `ItemAction(from, slot, action, arg)`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, item actions, crafting, placing, closing), shows at once. `ItemActions(from, slot, list)` gives a stack's buttons as the server would judge them, `FirstAction`/`UsePart` a held part's first (a click with food, medicine or a blueprint in hand; GROUND_SYSTEMS.md §7). |
 | `Changed`, `ContainerOpened`, `ContainerClosed`, `HitMarker`, `ItemsChanged`, `DamageTaken`, `CraftFinished`, `IntentAnswered`, `IntentRejected`, `Died`, `Respawned` | Events for the UI. A refused intent has already been rolled back when `IntentRejected` fires. |
 
 Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), the natural objects and their changes
@@ -2043,6 +2172,10 @@ default the kind loaded, else the first kind of its calibre the player has), not
 After 2.4 s the rounds of another kind come out (back into the inventory) and the magazine fills from the inventory, all
 at once (RustMVP: nothing is spent until it completes). Taking another item up cancels it. The magazine (rounds and their
 kind) and the attachments are part of the weapon item, so they go wherever it goes: moved, dropped, into a corpse, saved.
+**Unload** (P3, GROUND_SYSTEMS.md §7) returns the magazine's rounds to the inventory, all or (no room) none, the kind staying
+named: the gun in hand's on its own timeline (an `UnloadIntent` for a tick, refused while equipping or reloading or empty),
+any other by the inventory's UNLOAD (an item action). R tapped reloads with the loaded kind; R held opens the gun's rounds
+(every kind of its calibre carried, with how many, and UNLOAD). A gun's refusals are outcome codes in the one answer list.
 
 **Damage** to a character from a bullet: the gun's damage × the round's × the attachments' × the falloff for the
 distance flown × the gun's multiplier for the part hit (head 2, body 1, limbs 0.5) × (1 − protection), where protection
@@ -2118,8 +2251,9 @@ replays the rest from the server's state, as movement does; on a clean line noth
 | `Local.Gun.TakeCompensation()`, `ObserveLook(dYaw, dPitch)` | Every frame after `GameClient.Update`, in this order (RustMVP's): what to add to the controlled view as the recoil recovers (RustMVP's countersteer credit, so pulling against a spray doesn't drop the aim when it ends); then the mouse's turn of the view since the last frame. Then the camera. |
 | `Local.Gun.ShotFired` (`ShotEvent`: sequence, weapon, round, origin, direction, speed, silenced, aimed) | A shot, at once: muzzle flash, sound, viewmodel kick, the tracer. The direction is the server's to the bit when the prediction holds. |
 | `Local.Gun.ReloadStarted`, `ReloadFinished` (`ReloadEvent`: weapon, round, seconds) | A reload began (at once) and ended. |
-| `Local.Gun.Refused` (`GunRefusal`: sequence, `GunResult`) | The server refused a shot or reload (already rolled back), or a reload couldn't start (no rounds, full). |
-| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.Detach(...)`, `Local.HelpUp(target)` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
+| `Local.Gun.Refused` (`GunRefusal`: sequence, `OutcomeCode`) | The server refused a shot, reload or unload (already rolled back), or one couldn't start (no rounds, full, empty). |
+| `Local.Gun.Unload()`, `Unloaded` (`UnloadEvent`), `InHand(from, slot)` | UNLOAD of the gun in hand on its timeline (predicted at once); the event; whether a slot holds the gun in hand. |
+| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.ItemAction(... "remove" ...)`, `Local.HelpUp(target)` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
 | `Local.HitMarker` (`HitMarkerEvent` + `Downed`), `Local.DamageTaken` (`DamageEvent`: from the shooter's eye, the gun) | Hits landed and taken. |
 | `Local.Life.Wounded`, `WoundedUntilSeconds`, `Local.IsWounded`, `Downed`, `GotUp`; `Local.Vitals.Burning` | Down (crawling, a countdown) and up again; burning. |
 | `GameClient.Projectiles` (`ClientProjectile`: `IsBullet`, `Own`, `Seq`, `Drag`, `Silenced`; `PositionAt`, `DirectionAt` follow drag) | Bullets in flight: our own from the moment we fire (the server's launch then names it), others' from their launch; where each stopped and on what. |
@@ -2135,8 +2269,8 @@ the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
 **As built** (`game/scripts/Ground`): `GroundView`, after the client's update, adds `TakeCompensation` to the view, passes
-the mouse's turn to `ObserveLook` and draws the camera at the view plus `ViewKick`, zooms by `Zoom` while `Aimed` (eased),
-and reloads on R;
+the mouse's turn to `ObserveLook` and draws the camera at the view plus `ViewKick`, zooms by `Zoom` while `Aimed` (eased);
+R is the gun's held control's (GROUND_SYSTEMS.md §7): a tap reloads with the loaded kind, held its rounds' radial;
 `FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle with its muzzle effect, and plays a
 reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
 tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
@@ -2147,7 +2281,8 @@ and hits are the effects library's (§9.3, as hooked up there). Attachments show
 through `ModelCatalog.Attach`: a sight on the rail, a silencer or a brake on the muzzle, the light under the barrel):
 on one's own gun with the arms' layer and materials, from the weapon stack's mods, and on others' from `HeldMods`;
 the muzzle effect then leaves from the far end of a silencer or brake. In the inventory, an attachment dropped on a
-gun goes onto it (`Local.Attach`), and a gun's item panel offers REMOVE for each of its attachments (`Local.Detach`).
+gun goes onto it (`Local.Attach`), and a gun's item panel offers UNLOAD and REMOVE for each of its attachments (item
+actions, GROUND_SYSTEMS.md §7); its slot shows the loaded round's icon at the bottom left.
 Not drawn yet, for want of the character contract (§4.8): others' aiming pose and crawling (the wounded crouch
 instead).
 
@@ -3127,7 +3262,7 @@ What stands where, by rule (each a field of the data):
 | Placeable | Where | Reach | Rights | Limits |
 |---|---|---|---|---|
 | Deployables | the ground, a foundation's, floor's or landing's top; every corner held within 15 cm; dry | 3 m | not in others' claims | 20 on a structure; 128 bags or beds a player |
-| Building pieces | the building's sockets, or a free foundation on the ground (its own checks: stability, collisions, the price) | 8 m | not within 2.25 m of others' claims | 4,000 a structure (the building's) |
+| Building pieces | the building's sockets, or a free foundation on the ground (its own checks: stability, collisions, the price) | 8 m | not in others' claims, which reach 2.25 m further for a piece | 4,000 a structure (the building's) |
 | Doors | the doorway or wall frame aimed through (a double or garage door: a wall frame); R hangs it the other way | 8 m | not in others' claims | one an opening |
 | Locks | the door aimed at, at its lock spot | 3.5 m | not in others' claims | one a door |
 | Claim device | a foundation's or floor's top, square to it in 30° steps | 8 m | not in others' claims | one a structure |
@@ -3255,13 +3390,14 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | Items | `Item(key)`: name, description, category, stack size, wearable, usable, INFORMATION stats. Unknown keys get a stand-in. Stacks: key, amount, condition (0–1 or none), loaded rounds (or none). |
 | Containers | `Slots(container)`: main 24, belt 6, clothing 7, and the open container's. A slot is `(container, index)`. |
 | Vitals | Health /100, calories /500, hydration /250 (as RustMVP), body temperature (°C), comfort, bleeding (health per second), wetness, building rights. Cold below 5 °C, hot above 40 °C. |
-| Belt | `ActiveBelt` (−1 for none); `Ammo`: loaded, reserve, reloading. |
+| Belt | `ActiveBelt` (−1 for none); `Ammo`: loaded, reserve, reloading (the held item's control's). A slot's stack: key, amount, condition, a gun's rounds and their kind's key (`Round`, drawn small at the bottom left), a blueprint's item. |
 | Loot | `Loot`: kind, title, slots; for furnaces and campfires also burning, progress and fuel seconds. Slot order per kind: a box any number; a body 0–23 main, 24–29 belt, 30–36 clothing; a furnace 0 fuel, 1–2 input, 3–5 output; a campfire 0 fuel, 1–4 cooking. |
-| Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
+| Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `SecondsHere(recipe)` (a unit's time with the workbench in reach, GROUND_SYSTEMS.md §7), `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
 | Death | `Death`: alive for, killed by (a player or a cause), weapon, distance, place on the map; `Bags`: id, name, cooldown, place on the map. |
 | HUD | `Prompt` (key, action, more options). Events: hit confirmed (head shot), damaged (bearing), gathered (item, amount), crafted (item, amount), notice, chat line. |
 | Radials (§8.4) | `Radials`: the held inputs that open a radial menu and what each opens now (`RadialBinding`: the input, its hold time, a function giving an `IRadialSource` or none). A source gives the options in clockwise order (icon: a glyph's name or an item's key; title, description, cost line, the reason it can't be chosen or a warning), the current one, whether twelve o'clock falls between the last and the first, and acts on a choice. |
-| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; a radial's choice is its source's. Each is a request; the answer is a changed read, or a notice. |
+| Item panel (P3) | `Rows(slot)`: the INFORMATION of a slot's stack (its parts' describers, GROUND_SYSTEMS.md §7); `Actions(slot)`: its ACTIONS besides DROP (label, what it does, why it can't be done now). |
+| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; an item panel's action and a radial's choice are their own. Each is a request; the answer is a changed read, or a notice. |
 | World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
@@ -3317,7 +3453,7 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `kill` | `[player]` | everyone (another player: admins) | server | You die where you stand ("Suicide"): your body keeps what you carried and the respawn screen opens, as Rust's F1 kill: to come back at a bag in a base under attack (GAME_DESIGN.md §5). God mode doesn't stop it. |
 | `players` | | everyone | server | Who is on, admins marked, alive, wounded or dead (admins also see pings), and how many sleep in the world. |
 | `whereami` | | everyone | server | Latitude and longitude, the zone position (with the `teleport` that comes back here), height above the sea, map cell, biome, local solar time, the air's temperature. |
-| `give` | `<item> [amount] [player]` | admins | server | Items into an inventory (1–100,000); what doesn't fit drops at the feet (24 stacks at most); "+N" in the pickup feed. |
+| `give` | `<item> [amount] [player]` | admins | server | Items into an inventory (1–100,000); what doesn't fit drops at the feet (24 stacks at most); "+N" in the pickup feed. `<item>.blueprint` gives that item's blueprint (V12). |
 | `kit` | `<loot table> [player]` | admins | server | A loot table's items (loot.json). |
 | `learn` | `<item\|all> [player]` | admins | server | A blueprint, or every one. |
 | `teleport` | `<player>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <x> <z>` | admins | server | To a player (1.5 m east of them), or to a point of the zone on the ground: metres east and south of its origin, or a latitude and longitude (marked N, S, E or W, or with three decimals or more on both and inside the zone). Not out of a ship's seat. |
@@ -3410,17 +3546,21 @@ RustMVP's rules, with Rust's where RustMVP had none:
   SPLITTING for stacks). Dragging moves the whole stack; middle-dragging half, with left Shift a third (rounded up);
   dragging the split icon moves the slider's amount. Right-click moves a stack across (into the open container and
   back, or between main and belt). Holding H, each filled slot the pointer rests on for 350 ms moves across once,
-  with a green ring filling meanwhile. Released on another slot a drag merges, swaps or splits; released on a panel
-  it does nothing; released outside every panel it drops the items.
-- **Item actions:** USE (medicine, food), WEAR or UNEQUIP (to the first free clothing or main slot), DROP.
+  with a green ring filling meanwhile. Released on another slot a drag merges, swaps or splits; released on its own
+  slot it is put back; released anywhere else, over a panel, a button or the world, it drops the items (Rust; P3).
+- **Item panel (P3, GROUND_SYSTEMS.md §7):** INFORMATION is what the item's parts say (a gun's damage, fire, magazine,
+  reload, aim cone, range and recoil; an explosive's fuse and how many break each wall; ...), label on the left and value
+  on the right; ACTIONS are what its parts offer (EAT or USE, WEAR or UNEQUIP, LEARN, UNLOAD, REMOVE <attachment>),
+  then DROP; a refused one is muted and says why when clicked.
 - **Quick craft:** what the player can craft now (up to three rows); a click crafts one.
 - **Crafting:** categories with their counts, search, the recipe grid (the mouse wheel scrolls it), the details with
   the workbench badge (green when in reach, red when not), time and yield, ingredients with TOTAL for the amount and
   HAVE (short ones in amber), − / amount / + / the most the player can make / CRAFT, and favourites (kept on this
-  computer). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
+  computer). The time is a unit's here: in green, with how much faster on the workbench line, when a workbench in reach
+  is above the recipe's level (P3). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
   cancels and refunds.
 - **HUD:** the centre dot; the hit marker (red for a head shot); red arcs pointing to where damage came from; the
-  interaction prompt; the belt with the active slot in blue, condition bars and loaded rounds; the ammo counter above
+  interaction prompt; the belt with the active slot in blue, condition bars, loaded rounds and their kind's icon; the ammo counter above
   it; status rows above the vitals (building privilege or blocked, bleeding, cold or hot, wet, comfort); pickups and
   crafts ("+20 Wood") above those, fading after four seconds; chat at the bottom left, fading after twelve; RustMVP's
   one-line notices.
@@ -3429,7 +3569,7 @@ RustMVP's rules, with Rust's where RustMVP had none:
   the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
   names are placed by the `Labeller`, so they never cover each other or a marker.
 - **Radials (§8.4):** the right mouse held with the plan or the hammer opens its radial at once; a key held for its hold
-  time opens its own (E, R: P1, P3; the viewer's samples). Release (or a left click) chooses; a key let go sooner
+  time opens its own (E: P1; R with a gun: its rounds and UNLOAD, P3), each the held item's control's. Release (or a left click) chooses; a key let go sooner
   chooses the current option; Esc or the right mouse cancels. The plan's sectors start at −81° so the top ray falls
   between the foundation and the triangle roof; every other radial centres its first option at twelve o'clock.
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
@@ -3458,9 +3598,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Commands in chat:** any other line starting with "/" runs as in the F1 console (`/give rifle`), with the player's
   own rights on any server; the answer's first line shows as a notice, and the whole of it in the console's log.
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
-  drop outside and on a panel, split, Q, CRAFT, Tab; the plan's radial on the right mouse; the sample door's on E: a
-  tap, a hold, a disabled option, a choice, Esc and the right mouse cancelling) against `MockGroundUi` and quits with 0
-  when all 19 pass.
+  drop outside, on a panel and back on its own slot, split, Q, CRAFT, Tab; the plan's radial on the right mouse; the
+  sample door's on E: a tap, a hold, a disabled option, a choice, Esc and the right mouse cancelling) against
+  `MockGroundUi`, checks every held behaviour has its control, and quits with 0 when all 21 pass.
 
 ### 8.4 Radial menu (GROUND_SYSTEMS.md §4, package P5)
 
@@ -5121,6 +5261,104 @@ Decisions taken for the shared foundations (GROUND_SYSTEMS.md §3, package P0) w
   `ShipNetFlags` renumbered without Mine and Locked (10 bits); `ExplosiveCodec` version 2; capabilities.json and
   texts.json; survival.json's `reach` and `lifetimes` (`world.corpseSeconds` and `droppedItemSeconds` gone).
 
+Decisions taken for held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3) without the
+owner, to confirm or overturn (numbered V1 on):
+
+- V1. **Parts come from the data's blocks, held behaviours from parts.** An item's parts are worked out once, when the
+  data is read, from one table (`ItemPartTable`): the block that declares each, and the held behaviour it gives. A
+  deployable, a door, a lock, the tool cupboard and a ship all give `Placer`: one behaviour (place where the aim is, R
+  turns), whatever is placed. The parts aren't numbered on the wire or in saves, so the list may change.
+- V2. **The gun's state still follows the hands**, outside the held behaviours: its queue of shots, reloads and unloads
+  is stepped for every player every tick (a late action for a gun put away must still be answered), and taking anything
+  up re-equips it. The held behaviours' server side is what they do with the buttons each tick (melee, bow) and what
+  putting them away ends; the others act by intents, each checked by the behaviour that sends it.
+- V3. **The gun's answers are outcome codes from 100 up**, so the codes P1 and P2 add from 73 never meet them. Equipping
+  is `Cooldown` ("Not ready yet"), down or dead is `Dead`; the gun's refusals still roll its prediction back by
+  themselves and aren't shown as notices (a refused shot is a misprediction, not the player's mistake).
+- V4. **The item panel's INFORMATION is wider and its rows closer**: 312 design pixels (ACTIONS 160), rows 17 apart in
+  14 px Barlow, the label on the left and the value right-aligned, its font narrowed to fit, so the AK's eleven rows and
+  the bag charge's nine fit (RustMVP's column was 272 wide with 24 px rows and room for nine short ones). An explosive's
+  damage to walls and doors reads as how many it takes to break one (from the wall's hard side), Rust's way of reading it.
+- V5. **One handler per inventory action, offered by its part**, P1's Offer-and-do shape: the server does an action only
+  when its handler offers it on that stack, enabled, so a button the panel shows and what the server accepts never
+  disagree. Food is EAT and medicine USE by what it does (calories or water: food), not by its tab; WEAR is refused
+  while something worn covers its layer (the new `Worn` answer, Rust swaps; ours says why). Actions work on the player's
+  own main, belt and clothing slots only.
+- V6. **UNLOAD puts every round back or none** (Rust drops what doesn't fit; ours says "No room for that"), and keeps the
+  round's kind named on the empty gun. **The gun in hand's unload rides the gun's own timeline** (`UnloadIntent`, with its
+  shots and reloads): an item action applied when it arrives could overtake shots still waiting for their tick and leave
+  the prediction's magazine and the server's apart. Any other gun is unloaded by the item action. The only place the
+  client chooses between the two is `LocalPlayer.ItemAction` (the gun in hand's UNLOAD).
+- V7. **Numbers taken in shared spaces:** protocol 17; messages 230 (`ItemActionIntent`) and 231 (`UnloadIntent`); 53
+  and 65 free; outcome codes 100–108; items.json's `actions` list.
+- V8. **The held item's radials are its control's**: the aim button opens the plan's and the hammer's at once (as before),
+  R a gun's rounds after 0.35 s (E's hold time, RustMVP's), and a tap of R reloads with the radial's current option. With
+  nothing that has an R radial in hand, R goes to the hands (the plan and the placers turn). Free look now also keeps the
+  plan's and the hammer's radials shut (L4: the hands do nothing while Alt is held).
+- V9. **Placing goes through one small interface until P2 replaces what is behind it** (`IPlacement`: aim, place, turn).
+  Today's implementation routes by the part that makes the item placeable to the old entry points, a lookup P2 deletes;
+  the Tin Finch's item says "You can't place that here" until then. *Since P2 merged:* `PlacementView` is behind it and
+  the lookup is gone (Z12); the Tin Finch's item places it.
+- V10. **First person picks nothing by item key**: the torch's flame, the guns' pose and the rifle's eye relief are
+  catalogue fields (`held.flame`, `held.pose`, `held.eyeRelief`), and `HeldItems` reads the pose there too (it picked the
+  pistol by its key). The placeholder stick for items without a model is gone: every item that does something in sight
+  of the hands has a held pose, and a test keeps it so.
+- V11. **The workbench's speed is recipes.json's** (`workbenchSpeed.byLevelsAbove`: 1, 0.5, 0.25), beside the recipes it
+  shortens, rather than in deployables.json (whose placement block P2 rewrites): one level above a recipe's halves it, two
+  or more quarter it, by the best workbench in reach when the job starts. A recipe made at a station of its own (the Tin
+  Finch at the vehicle workbench) isn't shortened by a workbench.
+- V12. **The console's `give` takes `<item>.blueprint`** (a blueprint of that item's recipe), so a blueprint to LEARN can be
+  given; the tour's `held` step uses it.
+
+Decisions taken for the loading screen (§4.3.1, the owner's request of 13 October 2026) without the owner, to confirm or
+overturn (numbered O1 on):
+
+- O1. **One pipeline, stages registered by their owners.** The hosted server's process, the client, the surface view, the
+  renderer's warm-up and the frames each register the stage they own (a key and a measure); the stages' words, weights and
+  their rules' numbers are data (`loading.json`). The screen draws the pipeline's total and current stage, the game asks
+  it whether play may start, and neither knows which parts exist. The world's stages are registered by the surface view,
+  which the ground view now makes at its start (it opens once the zone is known), so the bar knows every stage from the
+  first frame.
+- O2. **Weights are the seconds a stage takes on this PC**, measured, so the bar moves at an even pace; a stage without a
+  measure of its own (the server's start) is estimated from its weight, at most to 95 %; a stage's progress never goes
+  back, so neither does the bar.
+- O3. **Play waits for every stage**: no input is read, the mouse stays free, mouse look and keys do nothing, and the
+  character stands where it arrived. The interface is drawn all along under the screen (its first draw would otherwise be
+  the first frame of play) and greets the player at the hand-over, rather than at its start, unseen.
+- O4. **The last stage is 0.75 s of steady frames** (each under 33.4 ms, the measurements' budget), counted only once
+  every other stage is done: streaming and warming end with a quiet world, and play starts on smooth frames.
+- O5. **The world's things are in when nothing new came for 0.5 s** after the character arrived (6 s at most in a place
+  that never goes quiet). The server sends its backlog a part every snapshot while there is one, so no message or
+  protocol change was needed.
+- O6. **Arrivals:** a move of more than 120 m at once on foot (a respawn, a teleport) runs the arrival's stages again
+  (the world's things, the land, the forest) and holds input; the screen comes back only if they take longer than 0.25 s,
+  without its title block and tip. Flying never counts (a long frame at a boosting Tin Finch's 260 m/s isn't an arrival),
+  and the place is kept while flying, so stepping out far from where the flight began isn't one either.
+- O7. **The warm-up loads every file the libraries list from the first frame, 6 at a time, and keeps them** for the
+  game (1.2 GB of video memory, 0.4 GB of memory in all): nothing the game draws or plays later waits on a file. It
+  shows each item once the world is open, not before: the first draw of a material loads its shader's variants (about
+  4 s for the characters' alone), and doing that before the welcome kept the main thread from seeing the server ready
+  (tried: the game handed play over 3–5 s later).
+- O8. **Held items are warmed in first person too.** Each item's first-person copy of its materials is a shader of its
+  own: about 30 more shaders to load under the screen, where each would otherwise cost about 200 ms the first time the
+  item is equipped.
+- O9. **The picture is our first world's golden meadow** (look-dev view (b), rendered at 2560 × 1421), and the boot splash
+  shows it too (a 1600-wide PNG, 3 MB: Godot's splash takes PNG only), so from the first moment the window is the game.
+- O10. **Files load in the order the world's opening reads them** (the ground's textures, the bodies, the building's art,
+  then the catalogue), the 563 sound files last.
+- O11. **The hosted server's process runs above normal priority** (its tick already did, P10): the game loading beside it
+  doesn't slow its start.
+- O12. **The game's C# is compiled optimized in Debug builds**, which Godot runs, as Hollow.Surface's already was: the
+  air's tables, the flora's painting, the impostors' atlas and the warm-up run several times faster.
+- O13. **The impostor atlas's dilation and mipmaps run on a worker** (two frozen 2.7 s before); the first world's surface and
+  air tables are computed on workers while the server starts.
+- O14. **Behind the screen the terrain puts up to 64 finished tiles a frame in place** (10 in play): nobody sees the frames.
+- O15. **Shader and pipeline caches stay Godot's** (on, in the project's user folder, shared by every worktree). They
+  work: no shader was compiled from source in the runs measured. What remains on every launch is loading cached shader
+  variants on first use (about 5 ms each); a shader baker (exported games only) or fewer distinct materials would cut it.
+- O16. **`--in-process` hosting still builds its server on the main thread** before the first frame (tests and the screenshot
+  run's statistics), so it has no `server` stage.
+
 Decisions taken for placement (GROUND_SYSTEMS.md §6, package P2) without the owner, to confirm or overturn (numbered Z1
 on):
 
@@ -5155,10 +5393,11 @@ on):
 - Z10. **What stands on a piece goes with it**: a deployable on a foundation or floor breaks when it goes (Rust), spilling
   what it held. The link is saved with the thing (its record's version 4; no SQL schema step) and settled after a
   restart: a thing whose piece didn't come back breaks.
-- Z11. **The Tin Finch's item is placed by hand** like a deployable: anything with a placeable that isn't thrown or a
-  building tool is (`ItemDef.Hands`). Within 12 m, on the ground or a slab's top no steeper than 20° (the bay's slope),
-  dry, its hull clear, with ships.json's `fuel.placed` (50 of lamp oil, the recipe's first tank). Built ones still roll
-  out onto the vehicle workbench's bay (S4); both share the hull's check.
-- Z12. **Numbers taken in shared spaces:** protocol 17; message 220 (`PlaceIntent`) and `PoseNet`; messages 59, 90 and 111
-  free; `OutcomeCode` 73–77 (Misplaced, Overhangs, StructureFull, TooMany, InWater); `ThingSpawn`'s support (family and
-  ID); the thing record's version 4; capabilities.json's `standing` (index 11); placement.json (hashed).
+- Z11. **The Tin Finch's item is placed by hand** like a deployable (its part's held behaviour is P3's `Placer`, V1):
+  within 12 m, on the ground or a slab's top no steeper than 20° (the bay's slope), dry, its hull clear, with ships.json's
+  `fuel.placed` (50 of lamp oil, the recipe's first tank). Built ones still roll out onto the vehicle workbench's bay
+  (S4); both share the hull's check.
+- Z12. **Numbers taken in shared spaces:** protocol 18 (P3 took 17); message 220 (`PlaceIntent`) and `PoseNet`; messages
+  59, 90 and 111 free; `OutcomeCode` 73–77 (Misplaced, Overhangs, StructureFull, TooMany, InWater); `ThingSpawn`'s
+  support (family and ID); the thing record's version 4; capabilities.json's `standing` (index 11); placement.json
+  (hashed). P3's `IPlacement` (the held controls' way in) is P2's `PlacementView`; its stand-in is gone.

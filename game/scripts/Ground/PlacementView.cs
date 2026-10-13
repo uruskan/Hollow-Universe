@@ -9,16 +9,17 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// Placing in the game (GROUND_SYSTEMS.md §6): the controller the held item's behaviour calls (today the hands in
-/// <see cref="GroundView"/> and the building tools in <see cref="BuildView"/>), whatever is held: a deployable, the plan's
-/// piece, a door, a lock, the claim device, a charge, a ship. Every frame it asks the client for the ghost
+/// Placing in the game (GROUND_SYSTEMS.md §6): the one placement controller, behind <see cref="IPlacement"/> for the held
+/// controls (§7: the placer's, the planner's and a charge's), whatever is held: a deployable, the plan's piece, a door, a
+/// lock, the claim device, a charge, a ship. Each frame the held control aims it, and it asks the client for the ghost
 /// (<see cref="GameClient.Plan"/>: the server's own pipeline on the replicated world) and shows it with the one
 /// <see cref="PlacementGhost"/>; a click sends what the ghost shows; R turns it by its rule. The lines under the crosshair
-/// read its verdict.
+/// (<see cref="BuildView"/>) read its verdict.
 /// </summary>
-public partial class PlacementView : Node3D
+public partial class PlacementView : Node3D, IPlacement
 {
     private PlacementGhost _ghost = null!;
+    private bool _aimed;
 
     public GameClient Client { get; set; } = null!;
 
@@ -50,17 +51,33 @@ public partial class PlacementView : Node3D
         AddChild(_ghost);
     }
 
-    /// <summary>Every frame: the ghost of <paramref name="placeable"/> (null: none) where the player aims, and the placements on their way.</summary>
-    public void Refresh(Placeable? placeable, Num.Vector3 eye, Num.Vector3 forward, float viewYaw)
+    /// <summary>A frame starts: the ghost shows only if what is held aims it before <see cref="EndFrame"/>.</summary>
+    public void BeginFrame() => _aimed = false;
+
+    /// <summary>A frame ends: nothing aimed, nothing placed (no ghost, R's turns forgotten); the placements on their way are drawn whatever is held.</summary>
+    public void EndFrame()
+    {
+        if (!_aimed)
+        {
+            Placeable = null;
+            Current = null;
+            Turns = 0;
+            _ghost.Show(null);
+        }
+        _ghost.ShowPending(Client.Local.PendingPlacements);
+    }
+
+    /// <summary>The ghost of <paramref name="placeable"/> where the player aims, turned by R's presses since it was taken up.</summary>
+    public void Refresh(Placeable placeable, Num.Vector3 eye, Num.Vector3 forward, float viewYaw)
     {
         if (placeable != Placeable)
         {
             Placeable = placeable;
             Turns = 0;
         }
-        Current = placeable != null ? Client.Plan(placeable, eye, forward, viewYaw, Turns) : null;
+        _aimed = true;
+        Current = Client.Plan(placeable, eye, forward, viewYaw, Turns);
         _ghost.Show(Current);
-        _ghost.ShowPending(Client.Local.PendingPlacements);
     }
 
     /// <summary>R: the next turn by the rule (a step, the other side of a door).</summary>
@@ -82,6 +99,19 @@ public partial class PlacementView : Node3D
         }
         return 0;
     }
+
+    // What the held controls ask (the item's placeable, or the plan's piece; paid from the held belt slot).
+    void IPlacement.Aim(HeldContext ctx, Num.Vector3 eye, Num.Vector3 forward)
+    {
+        if ((ctx.Item.Places ?? ctx.Build.PlannedPiece) is { } placeable)
+        {
+            Refresh(placeable, eye, forward, ctx.Yaw);
+        }
+    }
+
+    void IPlacement.Place(HeldContext ctx) => Place(ContainerRef.Belt, ctx.Slot);
+
+    void IPlacement.Turn(HeldContext ctx) => Turn();
 
     private string Line(Outcome outcome) => outcome.Ok ? "" : Client.Content.Texts.Line(outcome);
 }

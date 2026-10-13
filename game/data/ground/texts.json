@@ -86,6 +86,17 @@
     "Overhangs": "It would hang over the edge",
     "StructureFull": "This building can't hold another {item|one of these}",
     "TooMany": "You can't place another {item|one of these}",
-    "InWater": "It can't go in the water"
+    "InWater": "It can't go in the water",
+
+    "NoWeapon": "No gun in hand",
+    "Reloading": "Reloading",
+    "Empty": "The magazine is empty",
+    "Cadence": "Not ready to fire",
+    "NoAmmo": "No rounds for it",
+    "Full": "The magazine is full",
+    "Lowered": "The gun is lowered",
+    "TooLate": "Too late: the connection is slow",
+
+    "Worn": "You're wearing something there already"
   }
 }

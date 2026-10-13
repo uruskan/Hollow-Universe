@@ -38,7 +38,7 @@ public partial class BuildView : Node3D, IHammerActions
     private RayHit _hit;
     private ItemWallet? _wallet;
     private PlanRadial? _planRadial;
-    private Dictionary<BuildingRole, IRadialSource>? _radials;
+    private IRadialSource? _hammer;
 
     public GameClient Client { get; set; } = null!;
 
@@ -68,8 +68,8 @@ public partial class BuildView : Node3D, IHammerActions
     /// <summary>The building plan's radial: its pieces, and the one chosen.</summary>
     public PlanRadial Plan => _planRadial ??= NewPlan();
 
-    /// <summary>The radial the held building tool opens with the right mouse (the plan's pieces, the hammer's actions), or null.</summary>
-    public IRadialSource? HeldRadial => Radials.GetValueOrDefault(Held);
+    /// <summary>The hammer's radial: upgrade, turn or demolish the piece aimed at.</summary>
+    public IRadialSource HammerRadial => _hammer ??= BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this);
 
     /// <summary>What the held item does in building (none: not a building tool).</summary>
     public BuildingRole Held { get; private set; }
@@ -122,11 +122,10 @@ public partial class BuildView : Node3D, IHammerActions
     }
 
     // What the hands do with each use of a held item that places something (the keys' hints).
-    private static readonly Dictionary<HandUse, string> PlaceHints = new()
+    private static readonly Dictionary<HeldUse, string> PlaceHints = new()
     {
-        [HandUse.Place] = "LMB PLACE   ·   R TURN",
-        [HandUse.Build] = "LMB PLACE   ·   R TURN",
-        [HandUse.Throw] = "LMB THROW   ·   RMB PLACE ON THE SURFACE",
+        [HeldUse.Placer] = "LMB PLACE   ·   R TURN",
+        [HeldUse.Throwable] = "LMB THROW   ·   RMB PLACE ON THE SURFACE",
     };
 
     // The lines for what is being placed: its name (and price, if it costs materials), then why it doesn't fit, or (a
@@ -148,7 +147,7 @@ public partial class BuildView : Node3D, IHammerActions
         }
         Hud.Hints = Held == BuildingRole.Plan
             ? "LMB BUILD   ·   HOLD RMB SELECT PIECE   ·   R ROTATE"
-            : item != null ? PlaceHints.GetValueOrDefault(item.Hands) : null;
+            : item != null ? PlaceHints.GetValueOrDefault(item.Held) : null;
     }
 
     private double _lockSync;
@@ -305,14 +304,6 @@ public partial class BuildView : Node3D, IHammerActions
 
     private PieceDef ChosenPiece => Plan.Chosen;
 
-    // The building tools' radials by the held tool's role (GROUND_SYSTEMS.md §4): a lookup, written once for the game and
-    // the build sandbox (BuildingRadials).
-    private Dictionary<BuildingRole, IRadialSource> Radials => _radials ??= new()
-    {
-        [BuildingRole.Plan] = Plan,
-        [BuildingRole.Hammer] = BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this),
-    };
-
     // What the player carries, counted as the building rules count it.
     private ItemWallet Wallet => _wallet ??= new ItemWallet(Client.Content, Client.Local.Inventory.Carried);
 
@@ -342,17 +333,10 @@ public partial class BuildView : Node3D, IHammerActions
         return double.IsInfinity(hours) ? "FOREVER" : hours < 1 ? $"{hours * 60:0} MIN" : $"{hours:0.#} H";
     }
 
-    /// <summary>R: the next turn of what is being placed, by its rule (a piece's facing, a door's side).</summary>
-    public void Rotate() => Placing.Turn();
-
-    /// <summary>The attack button with a building tool: what it places goes where its ghost shows; the hammer repairs.</summary>
+    /// <summary>The hammer's attack button: repairs the piece aimed at. (What a building tool places goes through the placement controller, <see cref="PlacementView"/>.)</summary>
     public void Use()
     {
-        if (Placing.Placeable != null)
-        {
-            Placing.Place(ContainerRef.Belt, Client.Local.HeldSlot);
-        }
-        else if (Held == BuildingRole.Hammer && _target is Piece piece)
+        if (Held == BuildingRole.Hammer && _target is Piece piece)
         {
             Client.Local.Repair(piece);
         }

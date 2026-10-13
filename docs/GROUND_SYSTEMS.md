@@ -306,9 +306,10 @@ building's rules into the pipeline; the building keeps stability, sockets, colli
 reason under the crosshair (the building plan's line), and a pending look until the server's answer arrives. R turns it
 by its rule. Building pieces keep their batched ghost mesh in the same material.
 
-*As built:* `game/scripts/Ground/PlacementView.cs` is the one controller the hands and the building tools call, whatever
-is held: every frame `GameClient.Plan` for the held item's placeable (or the plan's piece), a click sends what the ghost
-shows (`Local.Place`), R turns it. `PlacementGhost` draws it in one hologram material
+*As built:* `game/scripts/Ground/PlacementView.cs` is the one controller, behind the held controls' `IPlacement` (§7:
+the placer's, the planner's and a charge's), whatever is held: every frame the held item's control aims it and it asks
+`GameClient.Plan` for the item's placeable (or the plan's piece), a click sends what the ghost shows (`Local.Place`), R
+turns it; with nothing aimed in a frame there is no ghost. `PlacementGhost` draws it in one hologram material
 (`shaders/placement_ghost.gdshader`: unshaded, divided by the camera's exposure, a rim and faint lines), pale blue when
 it fits and red when not, the line under the crosshair saying why (`BuildHud`); its model comes by the kind's name (a
 piece's kit mesh, a door's frame and leaves), else the model catalogue's by the placeable's key (deployables, locks, the
@@ -320,7 +321,7 @@ the hand's ground aim (`AimGround`) are gone.
 PlaceIntent, PlacePieceIntent, DoorIntent.Place, LockIntent.Attach, ClaimIntent.Place and PlaceChargeIntent. Throwing
 stays its own action and keeps the shared sweep for sticking.
 
-*As built:* message 220 (protocol 17): the slot that pays and the item seen there, the placeable's number, the support
+*As built:* message 220 (protocol 18): the slot that pays and the item seen there, the placeable's number, the support
 (`TargetNet`), the socket's code, the pose (`PoseNet`: a point in the zone frame and a 16-bit yaw) and the variant (a
 piece's orientation or a free foundation's heading, a door's side, a turn in the support's steps), answered by
 `IntentResult`. Messages 59, 90 and 111 are free; `DoorIntent`, `LockIntent` and `ClaimIntent` lost their placing
@@ -345,8 +346,8 @@ ship family's placement handler calls `SpawnShip`).
 floor or stairs' landing (not a wall, a roof or another thing), every corner held; the claim device on a slab, one to a
 structure. The Tin Finch's item places it within 12 m, its skids on the ground or a slab's top no steeper than 20°,
 dry, its hull clear, with ships.json's `fuel.placed` (50 of lamp oil, its recipe's first tank); the vehicle workbench
-still rolls a built one out onto its bay. Anything that places something is placed by hand (`ItemDef.Hands`), so the
-Tin Finch's item in the belt shows its ghost.
+still rolls a built one out onto its bay. The Tin Finch's item is held as a placer (its ship part's held behaviour,
+§7), so in the belt it shows its ghost and the attack button places it.
 
 **Cost:** client solve and ghost under 0.2 ms a frame.
 
@@ -383,6 +384,86 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
 
 **Replaces:** the chains listed in §1 (input, `BuildView.Use`, `FirstPersonView`, the server's melee/bow chain,
 `Describe`, `MoreActions`), and the `Key == "torch"` and `"rifle"` checks, which become model-catalogue flags.
+
+*As built* (package P3, `ground-p3`; GROUND.md §11, decisions V1 on):
+
+- **Parts.** `ItemPart` (`Content/ItemParts.cs`) names the 21 blocks of data that give an item behaviour: melee, bow,
+  arrow, consumable, wearable, fuel, cookable, deployable, ship, firearm, round, attachment, throwable, plan, hammer,
+  cupboard, lock, key, door, blueprint and component (an ingredient of a recipe, or recycled into salvage). One table
+  (`ItemPartTable`) says where each is declared and which held behaviour it gives; when the data has been read, every
+  item gets its parts (`ItemDef.Parts`), what uses it (`UsedIn`) and its one held behaviour (`ItemDef.Held`, a `HeldUse`,
+  and `HeldPart`). Two parts that would each give one are a problem in the data. Test:
+  `HeldTests.HeldBehaviourComesFromOnePart`.
+- **Held behaviours on the server** (`Zone.Held.cs`): one handler per `HeldUse` in a registry the zone seals at start.
+  The tick asks the item in hand's handler for its buttons (melee swings, the bow drawn and loosed) and, when the hands
+  change, the handler of what was put away ends what was going on; the rest act by intents. An intent a held behaviour
+  sends is checked by that behaviour (`Zone.ItemFor`): a throw of something whose held behaviour isn't `Throwable` is
+  refused, whatever it is.
+- **Held behaviours on the client** (`game/scripts/Ground/Held/`): one control per `HeldUse` (`IHeldControl`) in a
+  registry the game builds at start (complete, or it doesn't start; `--ui-check` checks it). The ground view asks the item
+  in hand's control what the attack and aim buttons and R do this frame (`Hands`), which radial a held input opens
+  (`Radial`: the aim button's at once, the plan's pieces and the hammer's work; R's after 0.35 s, a gun's rounds), the
+  HUD's ammo counter (`Ammo`), where a placeable's ghost goes (`Aim`) and what the first-person arms do (`Arms`: a melee
+  swing in the server's rhythm, a bow's draw, a gun's attachments). The view's `Hands` switch, its `Throw` and
+  `ItemDef.Hands` (`HandUse`) are gone, and so are `FirstPersonView`'s melee and bow branches and its placeholder stick
+  (every item held in sight has a model; a test checks it). Free look, death and the pilot's seat stop the hands in one
+  place, the view's `HandsFree`, before any control is asked, so no radial of the item opens while Alt is held either.
+  The controls: melee and the bow send the tick's buttons; the firearm sends them too (the predicted gun fires from them),
+  and R opens its rounds (`AmmoRadial`: every round of its calibre carried with how many, then UNLOAD; the current option
+  the round a tap reloads with, the loaded kind while there are more; with none carried the loaded kind shows refused, so
+  a tap says why); a throwable throws, puts a charge on a surface or lobs a grenade; a placer and the planner place and turn
+  through `IPlacement`, P2's system (since P2 merged, `PlacementView`, §6: the ghost of whatever is held, a charge's too,
+  and one `PlaceIntent`); the hammer repairs and opens its radial; food,
+  medicine and blueprints do their part's first inventory button (EAT, USE, LEARN). The model catalogue says what was
+  picked by item key: `held.flame` (the torch's fire, `fire.torch`), `held.pose` (`pistol`, `rifle`: the arms' pose and
+  the muzzle's place when a model has none) and `held.eyeRelief` (the rifle's). Test:
+  `HeldTests.HeldItemsShowFromTheCatalogue`.
+- **Information** (`Items/ItemRows.cs`): a describer per part in a registry (every part has one, or nothing starts), each
+  adding its rows; an item's information is its parts' rows in order, then its condition. A stack is described with
+  what is its own: a gun's magazine and attachments (which change its numbers), what a blueprint teaches and whether the
+  reader knows it. Guns say their damage, fire (auto or semi, rounds a minute), magazine, reload, aim cone hip and aimed,
+  range and recoil; rounds what fires them, their damage, speed, bleeding, fire and blast; attachments what they fit and
+  change; explosives their fuse and duds, blast, and how many break each grade of wall and each door; deployables their
+  health, slots, workbench level, fuel, cooking, warmth, machine and respawn time; doors, locks, the cupboard, the plan
+  and the hammer their numbers from building.json; ships their hull, fuel and speeds; components what uses them and what
+  they recycle into; and melee (now with structures and bleeding), bows, arrows, food (now with poison), clothing (now
+  where it is worn), fuel and cooking as before. The panel lays the rows out label left, value right, and narrows a long
+  value's font until it fits (`IGroundUi.Rows`). Test: `HeldTests.EveryPartIsDescribed`.
+- **Inventory actions** (`Items/ItemActions.cs`): items.json's `actions` list (use, eat, wear, unequip, learn, unload,
+  remove; append only, a place is the wire number, a label may name the item: `REMOVE {item}`) and one handler per
+  action, listed under the part that offers it (`IItemAction`: `Offer` the buttons of it a stack has, enabled or with the
+  refusal; `Do` it). A stack offers what its parts' handlers offer: food EAT and medicine USE, clothing WEAR (refused,
+  `Worn`, while something worn has its layer) and UNEQUIP, a blueprint LEARN (refused once known), a gun UNLOAD (refused
+  while empty or reloading) and REMOVE for each attachment. One `ItemActionIntent { Seq, From, Slot, Expected, Action,
+  Arg }` (message 230) sends any of them; the server (`Zone.ItemAction`) does an action only when its handler offers it on
+  that stack, enabled, and the client predicts it with the same handlers (`LocalPlayer.ItemAction`; `IItemActor` is the
+  player as each side has them: eating's vitals and a learnt blueprint's count are the server's). `UseIntent` (53) and
+  `DetachIntent` (65) are gone, with `Zone.UseItem`, `Zone.Detach`, `LocalPlayer.Use` and `Detach`, the panel's
+  `MoreActions` and its USE and WEAR code. DROP and the split stay the inventory's own. The panel shows what
+  `IGroundUi.Actions` gives, then DROP; a refused button is muted and a click on it says why (as a radial's disabled
+  option). A click with food, medicine or a blueprint in hand does its part's first button (`LocalPlayer.UsePart`). Test:
+  `HeldTests.InventoryActionsComeFromParts`.
+- **Guns.** UNLOAD returns the rounds to the inventory, all or (no room) none; the kind stays named, so R loads it again.
+  The gun in hand's goes on its own timeline (`UnloadIntent`, message 231, a `GunActionKind.Unload` in order with its
+  shots and reloads, predicted by `LocalGun.Unload`); a gun in the main slots or elsewhere on the belt is unloaded by the
+  item action. A gun's slot shows its loaded round's icon at the bottom left (`ItemStack.Round` in the interface's model),
+  the count staying at the bottom right, on the belt, in the inventory and in loot. Test: `HeldTests.UnloadReturnsTheRounds`.
+- **Dropping**: a drag released on another slot moves there, on its own slot is put back, and anywhere else (over a
+  panel, a button or the world) drops (Rust). `--ui-check` checks the panel and the own slot.
+- **Workbench speed** (`Items/CraftingSpeed.cs`): a job takes its recipe's time times recipes.json's `workbenchSpeed`
+  factor for how many levels the best workbench in reach is above the recipe's (1, ½, ¼: Rust's; the last holds for
+  more), fixed in the job when it starts (it keeps that time if the bench goes); a station's own recipe (the Tin Finch)
+  keeps its time. The server, the client's prediction and the crafting panel use the one rule: the panel's clock shows the
+  time a unit takes here, in green when shorter, and the workbench line says how much faster (`IGroundUi.SecondsHere`);
+  the queue's progress follows each job's own time. Test: `HeldTests.AWorkbenchAboveTheRecipeCraftsFaster`.
+- **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
+  lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
+  from 100), and `GunUpdate` carries the code in 7 bits.
+- **Cost:** the zone's tick does one array lookup per player for the held behaviour; the client one per frame for the
+  control; the item panel's rows and buttons are worked out once per stack and cached until it, the inventory, the
+  blueprints or the gun change; the ammo radial lists the calibre's rounds only while open.
+- **Pictures** (a hosted game, `--tour-steps held`): `docs/images/ground/held/ak-info.jpg`, `bag-charge-info.jpg`,
+  `ammo-icon.jpg`, `ammo-radial.jpg`, `blueprint-learn.jpg`, `crafting-workbench.jpg`. Protocol 17; six tests.
 
 ## 8. Damage and destruction (package P4, built: GROUND.md §6.4.2)
 

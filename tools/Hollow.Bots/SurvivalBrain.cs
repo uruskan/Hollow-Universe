@@ -237,12 +237,12 @@ public sealed class SurvivalBrain
         }
         if (me.Vitals.IsBleeding && Slot(me, c, "bandage") is { } bandage)
         {
-            me.Use(bandage.Which, bandage.Slot);
+            me.UsePart(bandage.Which, bandage.Slot, ItemPart.Consumable);
             return;
         }
         if (me.Vitals.Calories < 200 && (Slot(me, c, "roasted-tuber") ?? Slot(me, c, "red-berries") ?? Slot(me, c, "blue-berries") ?? Slot(me, c, "wild-tuber")) is { } food)
         {
-            me.Use(food.Which, food.Slot);
+            me.UsePart(food.Which, food.Slot, ItemPart.Consumable);
             return;
         }
         if (me.Crafting.Count == 0)

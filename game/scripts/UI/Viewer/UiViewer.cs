@@ -38,6 +38,7 @@ public partial class UiViewer : Node
         _model = new MockGroundUi();
         _ui = new GroundUi { Name = "GroundUi", Model = _model, HoldEffects = _shot };
         layer.AddChild(_ui);
+        _ui.Greet();
         Show(Options.TryGetValue("screen", out string? screen) ? screen : "hud");
         if (Options.ContainsKey("ui-check"))
         {
@@ -165,6 +166,18 @@ public partial class UiViewer : Node
         Vector2 Point(float x, float y) => _ui.CanvasPoint(new Vector2(x, y));
         Vector2 Main(int i) => Point(550 + i % 6 * 80 + 37, 476 + i / 6 * 80 + 37);
 
+        // GROUND_SYSTEMS.md §7: every held behaviour has its control (the registry won't seal otherwise).
+        bool controls;
+        try
+        {
+            controls = HollowUniverse.Ground.HeldControls.Create().Problems.Count == 0;
+        }
+        catch (System.InvalidOperationException)
+        {
+            controls = false;
+        }
+        Expect(controls, "every held behaviour has its control");
+
         _ui.Open(GroundScreen.Inventory);
         await Frames(6);
         await Click(Main(0));
@@ -177,8 +190,19 @@ public partial class UiViewer : Node
         Expect(At(ContainerId.Belt, 5).IsEmpty && _model.Have("bandage") == 5, "a right-click moves a belt stack to the main slots");
         await Drag(Main(20), Point(1300, 150));
         Expect(At(ContainerId.Main, 20).IsEmpty && _model.Have("wood") == 1000, "released outside the panels, a drag drops");
-        await Drag(Main(1), Point(700, 150));
-        Expect(At(ContainerId.Main, 1).Amount == 1000, "released on a panel, a drag does nothing");
+        // GROUND_SYSTEMS.md §7: released anywhere but a slot (the item panel here), a drag drops; on its own slot it is put back.
+        // (The sample's metal ore: the wood stays for the craft below.)
+        ItemStack onPanel = At(ContainerId.Main, 4);
+        int had = _model.Have(onPanel.Key);
+        await Drag(Main(4), Point(700, 150));
+        Expect(At(ContainerId.Main, 4).IsEmpty && _model.Have(onPanel.Key) == had - onPanel.Amount, "released on a panel, a drag drops");
+        ItemStack own = At(ContainerId.Main, 2);
+        await MoveTo(Main(2));
+        await Mouse(Main(2), MouseButton.Left, true);
+        await MoveTo(Point(1300, 150));
+        await MoveTo(Main(2));
+        await Mouse(Main(2), MouseButton.Left, false);
+        Expect(At(ContainerId.Main, 2) == own, "released on its own slot, a drag is put back");
         await Click(Main(21));
         await Click(Point(552 + 205, 427));
         await Drag(Point(996, 413), Main(22));

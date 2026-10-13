@@ -291,10 +291,10 @@ public static class WorldTests
         Assert.True(print.Item == c.ItemByKey("blueprint").Id && print.Condition == c.ItemByKey("pistol").Id, "a pistol blueprint");
         Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Loot, rs.OutputSlot, 0), "taken");
         int slot = SlotOf(a.Inventory.Main, "blueprint");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.UseItem(ada, ContainerRef.Main, slot, 0), "read");
+        Assert.Equal(OutcomeCode.Done, rig.Act(ada, ContainerRef.Main, slot, "learn"), "read");
         Assert.True(a.Blueprints.Knows(c.Recipe(c.ItemByKey("pistol").Id)!) && a.Inventory.Count(c.ItemByKey("blueprint")) == 0, "learnt, and used up");
         a.Inventory.Main.Set(0, TechTrees.BlueprintOf(c, c.Recipe(c.ItemByKey("pistol").Id)!));
-        Assert.Equal(OutcomeCode.AlreadyKnown, rig.Zone.UseItem(ada, ContainerRef.Main, 0, 0), "known already");
+        Assert.Equal(OutcomeCode.AlreadyKnown, rig.Act(ada, ContainerRef.Main, 0, "learn"), "known already");
         rig.Zone.Hurt(ada, a, 1000, "Test", EntityId.None, "");
         Assert.True(a.Dead && a.Blueprints.Learnt.Count == 3, "blueprints last through death");
         Assert.True(rig.Zone.WorldStats.Unlocked == 2 && rig.Zone.WorldStats.Learned == 1, "two unlocked, one learnt");

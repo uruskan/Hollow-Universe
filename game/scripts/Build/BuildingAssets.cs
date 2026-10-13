@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Hollow.Simulation.Building;
 using Num = System.Numerics;
@@ -56,24 +57,59 @@ public sealed class BuildingAssets
     /// <summary>The garage door: frame, skinned curtain and its Open and Close clips.</summary>
     public PackedScene? Garage { get; private set; }
 
+    private const string Folder = "res://assets/building/";
+    private static readonly string[] PartFiles = { "doors_wood", "doors_metal", "doors_armored", "window_inserts" };
+    private const string GarageFile = Folder + "garage_door.glb";
+
+    private static readonly WeakReference<BuildingAssets?> Loaded = new(null);
+
+    /// <summary>The files the kit's art is read from: the grades', the doors' and windows', the garage door's.</summary>
+    public static IReadOnlyList<string> Files { get; } = GradeKeys.Select(g => $"{Folder}building_{g}.glb")
+        .Concat(PartFiles.Select(f => $"{Folder}{f}.glb")).Append(GarageFile).ToArray();
+
+    /// <summary>
+    /// The art for these rules, shared by everyone drawing them at the same time (the game's building, the renderer's
+    /// warm-up, the sandbox): its meshes and materials are only drawn, never changed. Read again once nobody holds it.
+    /// </summary>
     public static BuildingAssets Load(BuildingData data)
     {
+        if (Loaded.TryGetTarget(out BuildingAssets? shared) && shared?._data == data)
+        {
+            return shared;
+        }
         var assets = new BuildingAssets(data);
         for (int g = 0; g < GradeKeys.Length; g++)
         {
-            assets.Read($"res://assets/building/building_{GradeKeys[g]}.glb", (name, lod, mesh) =>
+            assets.Read($"{Folder}building_{GradeKeys[g]}.glb", (name, lod, mesh) =>
                 assets._pieces[(name, g, lod)] = mesh);
         }
-        foreach (string file in new[] { "doors_wood", "doors_metal", "doors_armored", "window_inserts" })
+        foreach (string file in PartFiles)
         {
-            assets.Read($"res://assets/building/{file}.glb", (name, lod, mesh) => assets._parts[(name, lod)] = mesh);
+            assets.Read($"{Folder}{file}.glb", (name, lod, mesh) => assets._parts[(name, lod)] = mesh);
         }
-        if (ResourceLoader.Exists("res://assets/building/garage_door.glb"))
+        if (ResourceLoader.Exists(GarageFile))
         {
-            assets.Garage = GD.Load<PackedScene>("res://assets/building/garage_door.glb");
+            assets.Garage = GD.Load<PackedScene>(GarageFile);
         }
+        Loaded.SetTarget(assets);
         return assets;
     }
+
+    /// <summary>Every grade (its index) with one of its pieces' meshes at each level of detail, for the warm-up.</summary>
+    public IEnumerable<(int Grade, Mesh[] Lods)> GradeSamples()
+    {
+        for (int g = 0; g < GradeKeys.Length; g++)
+        {
+            string? key = _pieces.Keys.Where(k => k.Grade == g && k.Lod == 0).Select(k => k.Key).OrderBy(k => k, StringComparer.Ordinal).FirstOrDefault();
+            if (key != null)
+            {
+                yield return (g, Enumerable.Range(0, Lods).Select(l => _pieces.GetValueOrDefault((key, g, l)) ?? _pieces[(key, g, 0)]).ToArray());
+            }
+        }
+    }
+
+    /// <summary>Every door and window part's mesh at every level of detail.</summary>
+    public IEnumerable<Mesh> AllParts => _parts.Values;
 
     // Every mesh of an imported GLB by node name; "_LOD1" and "_LOD2" mark the lower levels; collision is skipped.
     private void Read(string path, Action<string, int, Mesh> add)

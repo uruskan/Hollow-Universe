@@ -157,22 +157,16 @@ public sealed partial class Zone
         return OutcomeCode.Done;
     }
 
+    // A throw or a placed charge: from the belt, checked by the held behaviour that sends it (GROUND_SYSTEMS.md §7).
     private Outcome CanThrow(Player p, int slot, ushort expected, out ThrowableStats? stats)
     {
         stats = null;
-        if (slot is < 0 or >= PlayerInventory.BeltSlots)
+        Outcome holding = ItemFor(p, ContainerRef.Belt, slot, expected, HeldUse.Throwable, out ItemDef item);
+        if (!holding.Ok)
         {
-            return OutcomeCode.Invalid;
+            return holding;
         }
-        ItemStack s = p.Inventory.Belt[slot];
-        if (s.IsEmpty || (expected != 0 && s.Item != expected))
-        {
-            return OutcomeCode.Stale;
-        }
-        if (Content!.Item(s.Item)?.Throwable is not { } t)
-        {
-            return OutcomeCode.NotUsable;
-        }
+        ThrowableStats t = item.Throwable!;
         if (Tick < _nextThrowTick.GetValueOrDefault(p.Id))
         {
             return OutcomeCode.Cooldown;

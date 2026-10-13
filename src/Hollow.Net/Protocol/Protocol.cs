@@ -17,11 +17,14 @@ public static partial class Protocol
     /// event (<see cref="ThingDestroyed"/>, GROUND.md §6.4.2); 15: free look (Alt), the head's turn from the view in every
     /// input and in characters' state; 16: the shared foundations (GROUND_SYSTEMS.md §3): one answer for every intent
     /// (<see cref="IntentResult"/>'s code and detail; <c>BuildResult</c> is gone), things named by
-    /// <see cref="TargetNet"/> (family, ID, part) and hit kinds by target family, and viewer flags; 17: placing anything is
-    /// one <see cref="PlaceIntent"/> (GROUND_SYSTEMS.md §6: the deployables', pieces', charges' and doors', locks' and the
-    /// claim device's own placing gone), and a thing says what it stands on (<see cref="ThingSpawn"/>).
+    /// <see cref="TargetNet"/> (family, ID, part) and hit kinds by target family, and viewer flags; 17: held items, item
+    /// information and inventory actions (GROUND_SYSTEMS.md §7): one item action intent for every inventory button
+    /// (<see cref="ItemActionIntent"/>; <c>UseIntent</c> and <c>DetachIntent</c> are gone), the gun's unload on its own
+    /// timeline (<see cref="UnloadIntent"/>) and its answers in the one answer list (<see cref="GunUpdate"/>'s code); 18:
+    /// placing anything is one <see cref="PlaceIntent"/> (GROUND_SYSTEMS.md §6: the deployables', pieces', charges' and
+    /// doors', locks' and the claim device's own placing gone), and a thing says what it stands on (<see cref="ThingSpawn"/>).
     /// </summary>
-    public const uint Version = 17;
+    public const uint Version = 18;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

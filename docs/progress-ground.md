@@ -527,3 +527,87 @@ placement (P2) and held-item (P3) packages build on. The playtest's code-lock de
 - Checked once in a hosted game (`--tour-steps foundations`): `docs/images/ground/p0/set-code.jpg` (SET CODE first on a
   fresh code lock) and `refusal.jpg` (the cupboard opened through its wall: "Something is in the way"). Protocol 16;
   decisions E1–E13 in GROUND.md §11. Seven new tests; with `ground` merged, 186 of 186 pass.
+
+## 13 October 2026, held items, item information and inventory actions (P3, `ground-p3`)
+
+The third package of [GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) (§7), after the owner's rule: what an item does in the hands,
+what it says about itself and what its inventory buttons are now come from its parts, each part's behaviour one handler in
+a registry; nothing asks what kind of item it is.
+
+- **What the player sees:** every item's panel says what it is. The AK: damage, auto at 450 rounds a minute, magazine,
+  reload, aim cone at the hip and aimed, range, recoil, what is loaded and fitted. The bag charge (the owner's example):
+  its fuse and duds, blast, and how many break each wall and door. Rounds, attachments, deployables, doors, locks, the
+  cupboard, the plan, the hammer, ships, blueprints and components too; melee, food and clothing say more.
+- **Actions:** the panel's buttons are the item's own: EAT food, USE medicine, WEAR and UNEQUIP clothing, LEARN a
+  blueprint (it had none), UNLOAD a gun, REMOVE each attachment, then DROP; a refused one is muted and says why. One
+  `ItemActionIntent` replaced `UseIntent` and `DetachIntent`; the server does an action only when its handler offers it,
+  and the client predicts it with the same handlers.
+- **Guns:** a gun's slot shows its loaded round's icon at the bottom left. R tapped reloads with the loaded kind; held,
+  it opens the gun's rounds (every kind of its calibre carried, with how many) and UNLOAD. Unloading the gun in hand
+  rides the gun's own timeline. The gun's answers joined the one answer list.
+- **Dropping:** a drag released anywhere but a slot drops, over panels and buttons too; on its own slot it is put back.
+- **Workbench speed:** a workbench one level above a recipe's halves its time, two or more quarter it (recipes.json),
+  fixed when the job starts; the crafting panel shows the time here.
+- **Underneath:** `ItemPart` and one table give every item its parts and its one held behaviour (two are refused when the
+  data is read); the zone's tick asks the held item's handler, and the client's hands ask its control (mouse, R, the
+  radials, the HUD's ammo, the arms). First person picks nothing by item key any more: the torch's flame and the guns'
+  pose are model catalogue fields. The console's `give` takes `<item>.blueprint`.
+- Pictures from a hosted game (`--tour-steps held`): `docs/images/ground/held/ak-info.jpg`, `bag-charge-info.jpg`,
+  `ammo-icon.jpg`, `ammo-radial.jpg`, `blueprint-learn.jpg`, `crafting-workbench.jpg`. `--ui-check` passes 21 of 21.
+  Protocol 17; decisions V1–V12 in GROUND.md §11. Six new tests; 192 of 192 pass.
+
+## 13 October 2026, the loading screen (`ground-loading`)
+
+GROUND.md §4.3.1; decisions O1–O16.
+
+- **The owner's question answered.** "Is it shaders compiling?" Partly. Measured on the owner's own game (hosted, 1600 ×
+  900): the character arrived after 7.2 s and play began there, in a world still opening. The window then froze for
+  8.8 s (the world view, the spare bodies, the sound, reading files, and 4.5 s of Godot loading the variants of every
+  material's shader on first use), twice for 2.7 s (the impostor atlas finished on the main thread) and stuttered until
+  24 s. Godot's shader and pipeline caches are on and persist; no shader was compiled from source. What costs is loading
+  thousands of cached shader variants the first time each material draws.
+- **One loading pipeline.** Each part registers the stage it owns (the hosted server's start, the connection, the
+  world's things, the land, the forest, the renderer's warm-up, a run of steady frames); their words, weights and
+  numbers are data (`loading.json`). The screen draws the total and the current stage; play (input, mouse look, the
+  keys) starts only when every stage is done, then the screen fades. Neither knows which parts exist. A respawn or a far
+  teleport runs the arrival's stages again, behind a short version of the screen when they take longer than 0.25 s.
+- **The screen,** Rust-like in RustMVP's style: our own first world's golden meadow (rendered for it at 2560 × 1421, and
+  the boot splash too), HOLLOW, where the game goes, the stage's words ("Starting the world", "Connecting", "Receiving the
+  world", "Painting the land", "Growing the forest", "Warming up the renderer", "Arriving"), one bar with its percentage,
+  and a tip. Crisp at any size through `Ui`. Picture: `docs/images/ground/loading/loading-screen.jpg`.
+- **Everything the game can draw is warmed under it**, from the catalogues, not lists: every model at every stage and
+  level of detail, both bodies in every garment and as first-person arms, every held item in first person, every grade
+  and door of the building and the plan's ghost, every gib set, every effect of fx.json, the animals, the Tin Finch with
+  its engines lit. Their files load from the first frame (6 at a time, kept for the game, sounds too). In play after the
+  hand-over no pipeline is built; no frame went over 33 ms (with Godot's caches emptied, two in two minutes: 46 and
+  118 ms).
+- **Faster where it was blocking:** the impostor atlas on a worker, the planet's air and surface prepared while the server
+  starts, the terrain putting more tiles a frame behind the screen, the hosted server at a higher priority, the game's
+  C# optimized in Debug builds.
+- **Timeline** (seconds from launch): before, playable at 7.2 in a frozen world, steady at 24.1; now, the screen from the
+  first moment, play handed over at 20.1 on smooth frames (26.4 with Godot's caches emptied). An arrival of 826 m took
+  1.05 s.
+- Left: the world's opening still holds one frame for about 6 s under the screen (shader variants of the world and the
+  characters); opening the world while a hosted server starts would hide more of it, but it needs the zone predicted
+  and was not done. `--load-trace` (with `--load-shot`, `--arrival-check`) measures a start.
+- Seven new tests (`LoadingTests`); with `ground` merged (P0, P3), 199 of 199 pass.
+
+## 13 October 2026, placement (P2, `ground-p2`)
+
+GROUND_SYSTEMS.md §6; GROUND.md §6.10 and decisions Z1–Z12.
+
+- **One way to place anything.** Every placeable has one rule in data (`placement.json`'s defaults, its kind's block,
+  and its own block next to its definition): where it may stand, how the aim finds its spot, its footprint, what must
+  hold it up, slope, step, water, how R turns it, reach, building rights, limits. The solvers, rotations, checks and kinds
+  are handlers found by name. The client's ghost and the server's verdict are the same code, and the server takes a
+  placement only within 30 cm of its own. One `PlaceIntent` replaces six messages (protocol 18).
+- **One ghost** for everything placed, in a hologram: pale blue when it fits, red with the reason under the crosshair,
+  breathing until the server answers. Doors, the garage door, locks, the claim device, charges and the Tin Finch had
+  none. P3's held controls place through it.
+- **The playtest's fixes:** furnaces, boxes, campfires and bags stand on foundations and floors, and break when what
+  they stand on goes (after a restart too); the Tin Finch's item is placed (with 50 of lamp oil); reach, sight, water and
+  building rights are one rule for everything.
+- Checked in a hosted game (`--tour-steps place`): `docs/images/ground/place/` (`furnace-fits.jpg`,
+  `furnace-refused.jpg`, `garage-door.jpg`, `cupboard.jpg`, `code-lock.jpg`, `charge.jpg`, `tin-finch.jpg`,
+  `tin-finch-placed.jpg`). A ghost costs 32 µs a frame (a wall on sockets 80 µs). The build sandbox's check passes 9 of 9.
+  Nine new tests, one a rule; with `ground` merged (P3, the loading screen), 208 of 208 pass.

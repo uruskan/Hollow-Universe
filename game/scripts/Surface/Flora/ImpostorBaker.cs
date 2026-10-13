@@ -113,29 +113,43 @@ public sealed partial class ImpostorBaker : Node
                 await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             }
             Image image = viewport.GetTexture().GetImage();
-            image.Convert(Image.Format.Rgba8);
+            int p = pass;
             string dump = OS.GetEnvironment("HU_FLORA_DUMP");
-            if (dump.Length > 0)
-            {
-                image.SavePng(dump + $"/impostor_{pass}.png");
-            }
-            float[] px = ToFloats(image);
-            int w = image.GetWidth(), h = image.GetHeight();
+            // The atlas's own work (dilation, mipmaps: seconds for thousands of texels a side) runs on a worker, so the
+            // frames go on (the loading screen draws through it, GROUND.md §4.3.1); only the upload is the main thread's.
+            Image atlas = await Task.Run(() => Finish(image, p, rows, dump));
             if (pass == 0)
             {
-                FloraTextures.Dilate(px, w, h, 4);
-                result.Colour = ImageTexture.CreateFromImage(FloraTextures.WithCoverageMipmaps(px, w, h, Views, rows));
+                result.Colour = ImageTexture.CreateFromImage(atlas);
             }
             else
             {
-                FloraTextures.Dilate(px, w, h, 4);
-                Image normal = FromFloats(px, w, h);
-                normal.GenerateMipmaps();
-                result.Normal = ImageTexture.CreateFromImage(normal);
+                result.Normal = ImageTexture.CreateFromImage(atlas);
             }
         }
         viewport.QueueFree();
         return result;
+    }
+
+    // A pass's read-back atlas made ready to draw: dilated into its transparent texels, with mipmaps (the colour pass's
+    // keep each cell's share of leaf texels, so far foliage doesn't thin).
+    private static Image Finish(Image image, int pass, int rows, string dump)
+    {
+        image.Convert(Image.Format.Rgba8);
+        if (dump.Length > 0)
+        {
+            image.SavePng(dump + $"/impostor_{pass}.png");
+        }
+        float[] px = ToFloats(image);
+        int w = image.GetWidth(), h = image.GetHeight();
+        FloraTextures.Dilate(px, w, h, 4);
+        if (pass == 0)
+        {
+            return FloraTextures.WithCoverageMipmaps(px, w, h, Views, rows);
+        }
+        Image normal = FromFloats(px, w, h);
+        normal.GenerateMipmaps();
+        return normal;
     }
 
     private static float[] ToFloats(Image image)

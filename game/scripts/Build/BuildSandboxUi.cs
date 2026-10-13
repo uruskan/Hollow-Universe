@@ -167,10 +167,6 @@ public sealed class BuildSandboxUi : IGroundUi
     {
     }
 
-    public void Use(SlotRef slot)
-    {
-    }
-
     public void Craft(string key, int amount)
     {
     }

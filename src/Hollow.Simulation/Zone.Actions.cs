@@ -158,46 +158,53 @@ public sealed partial class Zone
         return result;
     }
 
-    /// <summary>Eats food or uses a medical item from the player's own slots.</summary>
-    public Outcome UseItem(Entity entity, ContainerRef from, int slot, ushort expected)
+    /// <summary>
+    /// An inventory action (GROUND_SYSTEMS.md §7) on a stack in the player's own slots: eat, use, wear, take off, learn,
+    /// unload, take an attachment off, by its number in items.json's list (and its argument: which attachment). The
+    /// action's handler checks it is offered on that stack and does it, as the client predicted it.
+    /// </summary>
+    public Outcome ItemAction(Entity entity, ContainerRef from, int slot, ushort expected, int action, int arg)
     {
         if (!Acting(entity, out Player p))
         {
             return OutcomeCode.Dead;
         }
-        if (from is not (ContainerRef.Main or ContainerRef.Belt))
+        return Content!.ItemActions.Do(new PlayerActor(this, entity, p), from, slot, expected, action, arg);
+    }
+
+    /// <summary>The player an item action acts for, as the zone has them: eating feeds them, learning counts, the gun in hand hears of its magazine.</summary>
+    private sealed class PlayerActor(Zone zone, Entity entity, Player p) : IItemActor
+    {
+        public GameContent Content => zone.Content!;
+
+        public PlayerInventory Inventory => p.Inventory;
+
+        public BlueprintBook Blueprints => p.Blueprints;
+
+        public bool Reloading(ContainerRef from, int slot) => from == ContainerRef.Belt && slot == p.HeldSlot && p.Gun.Reloading;
+
+        public void Consumed(ItemDef item)
         {
-            return OutcomeCode.NotAllowed;
+            ConsumeStats consume = item.Consume!;
+            Consume(p, consume, Content.Survival);
+            ref Character c = ref zone.Entities.Get<Character>(entity);
+            SyncHealth(ref c, p);
+            if (consume.Poison > 0)
+            {
+                // G7: raw or burnt meat makes the eater sick.
+                zone.Hurt(entity, p, consume.Poison, "Food poisoning", EntityId.None, "");
+            }
         }
-        Container source = p.Inventory[from];
-        if (!source.InRange(slot))
+
+        public void Learned(Recipe recipe) => zone.WorldStats.Learned++;
+
+        public void MagazineChanged(ContainerRef from, int slot)
         {
-            return OutcomeCode.Invalid;
+            if (from == ContainerRef.Belt && slot == p.HeldSlot)
+            {
+                p.GunRevision++;
+            }
         }
-        ItemStack s = source[slot];
-        if (s.IsEmpty || (expected != 0 && s.Item != expected))
-        {
-            return OutcomeCode.Stale;
-        }
-        if (Content!.World.Blueprint is { } blueprint && s.Item == blueprint.Id)
-        {
-            return LearnBlueprint(p, source, slot, s); // G7: reading a blueprint learns it
-        }
-        if (Content.Item(s.Item)?.Consume is not { } consume)
-        {
-            return OutcomeCode.NotUsable;
-        }
-        Consume(p, consume, Content.Survival);
-        s.Count--;
-        source.Set(slot, s);
-        ref Character c = ref Entities.Get<Character>(entity);
-        SyncHealth(ref c, p);
-        if (consume.Poison > 0)
-        {
-            // G7: raw or burnt meat makes the eater sick.
-            Hurt(entity, p, consume.Poison, "Food poisoning", EntityId.None, "");
-        }
-        return OutcomeCode.Done;
     }
 
     // ---------------------------------------------------------------- crafting

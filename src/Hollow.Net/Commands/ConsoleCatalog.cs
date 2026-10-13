@@ -70,7 +70,7 @@ public static class ConsoleCatalog
             false, CommandSide.Server, [], "pos", "global.whereami"),
 
         // ---------------------------------------------------------------- admins
-        Def("give", ["give <item> [amount] [player]"], "Puts items into an inventory (item keys as in items.json; the rest drops at the feet).",
+        Def("give", ["give <item> [amount] [player]"], "Puts items into an inventory (item keys as in items.json, <item>.blueprint for its blueprint; the rest drops at the feet).",
             true, CommandSide.Server, [ArgKind.Item, ArgKind.Amount, ArgKind.Player], "inventory.give", "inventory.giveto", "giveto", "inventory.giveid"),
         Def("kit", ["kit <loot table> [player]"], "Gives a loot table's items (loot.json), e.g. supply-crate or gunfight-kit.",
             true, CommandSide.Server, [ArgKind.LootTable, ArgKind.Player], "inventory.kit"),

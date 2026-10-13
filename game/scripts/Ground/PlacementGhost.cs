@@ -57,6 +57,14 @@ public partial class PlacementGhost : Node3D
         _pendingMaterial.SetShaderParameter("pending", 1.0f);
     }
 
+    /// <summary>The hologram's material on a mesh, for the renderer's warm-up (its shader compiled before play).</summary>
+    public static MeshInstance3D Warmup(Mesh mesh) => new()
+    {
+        Mesh = mesh,
+        MaterialOverride = new ShaderMaterial { Shader = _shader ??= GD.Load<Shader>("res://shaders/placement_ghost.gdshader"), RenderPriority = 1 },
+        CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+    };
+
     /// <summary>The live ghost: a placeable where a candidate puts it, in its verdict's colour; null hides it.</summary>
     public void Show(PlacementCandidate? candidate)
     {

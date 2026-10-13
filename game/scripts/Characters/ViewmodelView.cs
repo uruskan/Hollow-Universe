@@ -287,7 +287,7 @@ public partial class ViewmodelView : Node3D
     }
 
     /// <summary>Layer 2, no shadows, and the item's own materials drawn with the view model's field of view.</summary>
-    private void PrepareItem(Node node)
+    public static void PrepareItem(Node node)
     {
         if (node is MeshInstance3D mi)
         {
