@@ -591,3 +591,32 @@ GROUND.md §4.3.1; decisions O1–O16.
   characters); opening the world while a hosted server starts would hide more of it, but it needs the zone predicted
   and was not done. `--load-trace` (with `--load-shot`, `--arrival-check`) measures a start.
 - Seven new tests (`LoadingTests`); with `ground` merged (P0, P3), 199 of 199 pass.
+
+## 13 October 2026, interaction (P1, `ground-p1`)
+
+[GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) §5; GROUND.md decisions I1–I17. Everything the E key does is one system now: the
+verbs are data, each thing's kinds of behaviour offer and do their own, one query finds what is aimed at, and one intent
+carries every verb.
+
+- **E as in Rust.** A tap does what the prompt says ("E  OPEN WOODEN DOOR", "E  SET CODE", "E  PICK UP ARROW", or why
+  not); holding E for 0.35 s opens the radial of everything the thing offers, a disabled option saying why. The player
+  walks on while a radial is open (every radial: E's, R's, the plan's, the hammer's). A code verb asks the keypad first.
+- **The playtest's dead ends are fixed:** a fresh code lock offers its owner SET CODE first; the garage door shuts again
+  (E through its rolled-up opening); the tool cupboard's options appear (authorise first for a stranger, its store for
+  those on its list). The claim device is called the Tool Cupboard on screen.
+- **New on E:** a deployable is picked back up as its item when empty and where the player may build; a dud is lit
+  again; a wounded player is helped up (held E loots them); a team leader invites a player looked at; a workbench opens
+  its tech tree; a ship's hatch, seat and tank by the part looked at. An open doorway no longer hides what is behind it.
+- **Spent arrows stay where they stuck** (the owner's): in the ground, a wall, a door, a box, a tree, an animal or a
+  player, riding a body's bone as it moves; taken back with E, from the living too; gone after 5 minutes, or falling
+  when what holds them goes. No more arrows in bags. Every client draws them in one draw call.
+- **Gone:** six intents and the building's, team's and ship's on-foot actions (one `InteractIntent` instead), the
+  client's five pickers and its interaction kinds, the held-E options list and GroundView's hold-E code.
+- Checked once in a hosted game through the keys (`--tour-steps interact`), pictures in
+  `docs/images/ground/interact/`: `prompt.jpg` (E SET CODE on a fresh code lock, the hold hint), `code-lock.jpg` (E
+  held: SET CODE current, OPEN, LOCK disabled, REMOVE LOCK), `cupboard.jpg` (the tool cupboard's radial), `arrow-wall.jpg`
+  and `arrow-taken.jpg` (two arrows in the hut's wall, one taken back with a tap), `arrow-deer.jpg` (an arrow in a deer
+  running off, small at that distance), `garage-open.jpg` and `garage-closing.jpg` (CLOSE GARAGE DOOR through the
+  opening, the curtain coming down).
+- Protocol 18 (P3 took 17). Nine new tests (`InteractionTests`); with `ground` merged (P3, the loading screen), 208 of
+  208 pass. A frame's query and options cost 23 µs in the test's fan of views.

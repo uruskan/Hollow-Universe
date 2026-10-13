@@ -2008,34 +2008,44 @@ public partial class GroundTour : Node
             await Shot("arrow-taken");
         }
 
-        // A deer 7 m ahead, met by an arrow loosed as it comes (the bow drawn first); it runs with the arrow in it.
+        // A deer 5 m ahead, met by an arrow loosed as it comes (the bow drawn first, then put away so it hides nothing); the
+        // arrow turns with the deer as it turns to run.
         (spot, towards) = OpenSpot(new Num.Vector3(-40, 0, 70));
         await TeleportTo(spot);
         View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
         View.Pitch = 0;
         await Settle();
-        for (int attempt = 0; attempt < 4; attempt++)
+        for (int attempt = 0; attempt < 6; attempt++)
         {
+            await Hold("bow", 4);
             int before = Client.Arrows.Count;
             View.Scripted = new InputFrame { Secondary = true };
             await Seconds(1.1);
             var known = Client.Animals.Select(a => a.Id).ToHashSet();
-            Command?.Invoke($"spawn deer {Client.Name} 1 7");
+            Command?.Invoke($"spawn deer {Client.Name} 1 6");
             await Until(() => Client.Animals.Any(a => !known.Contains(a.Id)), 3);
             if (Client.Animals.FirstOrDefault(a => !known.Contains(a.Id)) is not { } deer)
             {
                 View.Scripted = null;
                 continue;
             }
-            Face(deer.Position + Client.Frame.UpAt(deer.Position) * 0.95f);
+            // At the deer's nearest hit shape, a little into it.
+            Num.Vector3 eye = Client.Character.Position + Client.Frame.UpAt(Client.Character.Position) * Client.EyeHeight;
+            Num.Vector3 aim = deer.Position + Client.Frame.UpAt(deer.Position) * 0.9f;
+            if (Client.TargetViewOf(TargetFamily.Animal) is { } animals && animals.TryNearest(new TargetRef(TargetFamily.Animal, deer.Id.Value), eye, out Num.Vector3 near))
+            {
+                aim = near + Num.Vector3.Normalize(near - eye) * 0.08f;
+            }
+            Face(aim);
             View.Scripted = new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true };
             await Seconds(0.1);
             View.Scripted = null;
+            Me.HeldSlot = 5;
             await Until(() => Client.Arrows.Count > before, 1.0);
+            GD.Print($"[tour] the deer, try {attempt + 1}: {(Client.Arrows.Count > before ? "an arrow stuck" : "no arrow stuck")} ({(deer.HurtCount > 0 ? "hit" : "not hit")})");
             if (Client.Arrows.Count > before)
             {
-                await Seconds(0.25);
-                GD.Print($"[tour] an arrow in a deer at the {attempt + 1}th try");
+                await Seconds(0.3);
                 await Shot("arrow-deer");
                 break;
             }
@@ -2064,7 +2074,7 @@ public partial class GroundTour : Node
         Num.Vector3 frameAt = Centre(frame), front = FlatUnit(Client.Character.Position - frameAt);
         await TeleportTo(frameAt + front * 3.0f);
         Face(frameAt + up * 1.4f);
-        await Hold("garage-door", 6);
+        await Hold("garage-door", 5);
         View.UseHeld();
         await Until(() => Doors().Any(d => d.Frame == frame), 5);
         if (Doors().FirstOrDefault(d => d.Frame == frame) is not { } garage)
@@ -2072,7 +2082,7 @@ public partial class GroundTour : Node
             GD.PushWarning("[tour] the garage door wasn't fitted");
             return;
         }
-        Me.HeldSlot = 6;
+        Me.HeldSlot = 5;
         Me.Interact(garage.Ref, "door-open");
         await Until(() => garage.Open, 3);
         await Seconds(1.4);
@@ -2084,7 +2094,8 @@ public partial class GroundTour : Node
         await Seconds(0.08);
         Press(Godot.Key.E, false);
         await Until(() => !garage.Open, 3);
-        await Seconds(0.45);
+        // The curtain unrolls over three seconds (the kit's animation): halfway down.
+        await Seconds(1.5);
         GD.Print($"[tour] tapped E through the opening: the garage door {(garage.Open ? "stayed open" : "is shutting")}");
         await Shot("garage-closing");
     }
