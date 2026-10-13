@@ -18,7 +18,7 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
     (map on G, tech tree from a workbench, recycler, research, teams);
   - effects, sound, characters and assets.
 
-  158/158 tests pass, and the protocol is version 10. Nothing has ever been pushed, and nothing merged into `main`
+  163/163 tests pass, and the protocol is version 11 (the F1 console is in). Nothing has ever been pushed, and nothing merged into `main`
   (that needs the owner).
 - **Play it:** `play-ground.cmd` hosts a game; `play-ground.cmd join` adds a second player; `play-ground.cmd menu`
   opens the main menu. Controls and tour steps are in AGENTS.md.
@@ -42,7 +42,9 @@ Their worktrees in `D:\GameDev\Projects\Hollow-wt\` can be removed once the owne
 
    `ItemLooks.Worn` already uses `Wardrobe.ForItem`.
 3. **Night bloom:** some glowing models bloom too much at night (the weapon light, perhaps).
-4. **Server performance:** next is parallel snapshot writing, since replication takes about 3 ms a tick
+4. **Watch Jolt native crashes under low memory:** two test runs crashed inside Jolt while the PC was out of
+   GPU and system memory (Elite Dangerous running); unconfirmed, so reproduce before trusting it.
+5. **Server performance:** next is parallel snapshot writing, since replication takes about 3 ms a tick
    (GROUND.md §5.11).
 
 ## What's left after that
