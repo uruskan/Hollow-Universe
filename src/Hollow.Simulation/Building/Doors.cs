@@ -328,7 +328,7 @@ public sealed partial class BuildingWorld
         return Outcome.Done;
     }
 
-    internal void RemoveDoor(Door door)
+    internal void RemoveDoor(Door door, Removal reason = Removal.Taken)
     {
         if (door.Gone)
         {
@@ -342,7 +342,7 @@ public sealed partial class BuildingWorld
         }
         door.Frame.Door = null;
         door.Lock = null;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorRemoved, door.Frame, door, Structure: door.Frame.Structure));
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorRemoved, door.Frame, door, Structure: door.Frame.Structure, Removal: reason));
     }
 
     /// <summary>Fits a key lock (unlocked) to a door without one; needs building rights at the door.</summary>
@@ -564,7 +564,7 @@ public sealed partial class BuildingWorld
         bool destroyed = door.Health <= 0;
         if (destroyed)
         {
-            RemoveDoor(door);
+            RemoveDoor(door, Removal.Destroyed);
         }
         else
         {

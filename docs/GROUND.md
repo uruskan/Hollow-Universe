@@ -1583,8 +1583,9 @@ wakes them where they lie; a player killed while away logs in dead and chooses a
 **Melee** (`Zone.Combat.cs`). The held item comes from the belt slot each input names; taking an item up takes 0.3 s.
 While the primary button is held a melee item swings every `swing` seconds and strikes `strike` seconds after the swing
 starts: a ray from the eye along that tick's view, thickened to 0.15 m, out to the item's reach (1.6–2.4 m). The first
-thing it meets takes the hit: a character (damage), a tree or outcrop (gathering), a deployable (`structure` damage), or
-the ground (nothing). Every hit costs the tool a point of condition; at none it breaks.
+thing it meets takes the hit, as a melee request through the damage pipeline (§6.4.2): a character (damage), a tree or
+outcrop (gathering), a deployable (`structure` damage), or the ground (nothing). Every hit costs the tool a point of
+condition; at none it breaks.
 
 **The bow**: holding the secondary button draws it (1 s) while there are arrows; the primary button looses one: from the
 eye along the view at 50 m/s, under the planet's surface gravity (9.0 m/s² on the first world; not the characters'
@@ -2050,6 +2051,96 @@ gun goes onto it (`Local.Attach`), and a gun's item panel offers REMOVE for each
 Not drawn yet, for want of the character contract (§4.8): others' aiming pose and crawling (the wounded crouch
 instead).
 
+### 6.4.2 Damage: one pipeline, after RustMVP's plan
+
+Every way of hurting something goes through one pipeline, as RustMVP's damage plan (`docs/damage_architecture.md`) laid
+it out: damage source → delivery → receiver (its defences) → resolver → consequences. The code is
+`Combat/Damage.cs` (the types), `Zone.Damage.cs` (the entry point, the registry, `Trace`, `Blast` and the Destroyed event)
+and one receiver class in each domain's own file.
+
+- **The request** (`DamageRequest`), built by every delivery: who (`By`, the attacking player while in the zone;
+  `Attacker` and `AttackerName`, who is blamed, kept when they've left; `ByAnimal`) and with what (`Weapon`, an item);
+  how it came (`Delivery`: melee, arrow, bullet, blast, bite) and the kind of damage (`Channel`: the building rules'
+  melee, bullet or explosive, which armour and grades resist); what each kind of thing takes before its own defences
+  (`Amounts`: flesh, already scaled for the body part; structure, for deployables; building, through the channel; hull);
+  bleeding and burning; how a character dies of it; a blast's own table by grade and door, its falloff, and whether this
+  is the thing hit (`Direct`) or splash; what it met (`Hit`: the kind, the thing, the body part, the point), from where,
+  which way; and which kinds give the attacker a hit marker.
+- **One entry point**, `Zone.Damage(in DamageRequest)`: the receiver registered for the thing's kind applies its
+  defences, then its consequences, and answers with a `DamageOutcome` (landed, dealt after defences, health taken,
+  killed or broken, knocked down, the victim); the shared step after it gives the attacker their hit marker.
+- **The deliveries** build the request from their own data and know nothing of the receivers: a swing (`Strike`), an
+  arrow (`ProjectileHit`), a bullet (`BulletRequest`), a blast (`Blast`: each receiver lists its things in reach, all are
+  looked at before anything is damaged, each in sight gets its own request), an animal's attack (`AnimalAttacksPlayer`,
+  `DamageAnimal`). The old per-target calls (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
+  `DamageBuildingBy`, `DamageShip`, `DamageAnimal`) stay for tests and tools, as one request each.
+- **The receivers** (`IDamageReceiver`, registered once in `Zone.InitDamage`, in the order a ray tests them): each finds
+  its own things along a ray (`Trace` asks each in turn) and within a blast's reach, says whether an arrow that lands in
+  one stays there, and takes requests.
+
+| Receiver | Found by | Defences | Consequences |
+|---|---|---|---|
+| Characters (`Zone.Combat.cs`) | hit shapes where the attacker saw them (lag compensation); chest and head in a blast | what is worn on the part hit, against blows or against projectiles and blasts | health (a lethal hit may knock down, not a projectile to the head), bleeding, burning, the victim's damage indicator |
+| Animals (`Zone.Animals.cs`) | their hit shapes and history; their middle in a blast | none | health, a flinch, turning on the attacker or running, the kill; a tool's blow on a corpse butchers it |
+| Trees and outcrops (`Zone.Combat.cs`) | trunks and rocks (a boulder stops a ray like the ground) | — | a tool's blow gathers (§6.1's code, unchanged); arrows and bullets do nothing |
+| Deployables and props (`Zone.Things.cs`) | their boxes | crates and recyclers can't be broken | health; at 0 its contents spill, a research table gives back its work, a barrel goes until its respawn; destroyed |
+| The building (`Zone.Building.cs`) | pieces, doors and claim devices by their bodies; by nearest point in a blast (a claim device by its box) | a grade's or door's protection by channel, a wall's soft side, whole points; a blast's own table by grade and door, whole on the piece hit and a splash share on the rest, fractions carried to the next hit | the building rules' (breaking, collapse), raid hits (any explosive on a claimed base; a blow, arrow or bullet that took something off one whose claim doesn't list the attacker) |
+| Ships (`Zone.Ships.cs`) | hull boxes; nearest point in a blast | the hull's share by delivery (ships.json) | hull health, last attacker; at 0 a wreck (the pilot dies, loot); destroyed |
+| The ground (`Zone.Combat.cs`) | the surface (a bullet's test steps by height) | — | — (it hides what is behind it) |
+
+**A new damageable thing** (a vehicle, a monument's door) is one class implementing `IDamageReceiver` (how to find it
+along a ray and in a blast's reach, its defences, its consequences) and one `Register` line; no delivery changes. A new
+delivery (a flamethrower, a vehicle's impact) builds requests and calls `Damage`; no receiver changes.
+
+**What changed in behaviour** (numbers did not: every test that existed passes unchanged; the gunfight and raid load
+tests below): hit markers now say where the blow landed and with what for every kind (they said the attacker's eye for
+blows and arrows on characters, the animal's middle for animals; only character markers are shown, and the position
+only places what animals hear); a blast looks at everything in its reach before damaging anything (ships and animals
+were looked at after the building's damage, so a wall the blast broke didn't shield them); the raid counters
+(`RaidStats`) count blows on buildings too; a blast's report counts by kind of thing (`Hit`, `Destroyed`); an archer who
+left keeps their name on a kill (D7, D8, D10).
+
+**The Destroyed event.** One place makes it (`Zone.Destroyed`): the receivers' consequences end there when the thing
+broke, and so do the building's own removals and a ship's crash. It is `ZoneEventKind.Destroyed` in the zone and
+`ThingDestroyed` (message 165, reliable, protocol 12) to every client within the relevance radius of where it stood; the
+client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.Destructions` (the last two seconds).
+
+| Field | Zone event / message / client | Meaning |
+|---|---|---|
+| Receiver kind | `Target` / `Receiver` / `Receiver` | `HitTarget.Deployable` (deployables and world props), `Building` (pieces, doors, claim devices), `Ship` |
+| What it was | `Part` / `Kind` / `Kind` | `DestroyedKind`: `Deployable`, `Prop`, `Piece`, `Door`, `ClaimDevice`, `Ship`: says what the key names |
+| Entity ID | `Other` / `Id` / `Id` | the thing's `EntityId` (a piece, door or claim device by the building's IDs; a deployable or prop as `RemoteThing.Id`; a ship's) |
+| Model key | `Text` / `Key` / `Key` | a deployable's key (deployables.json, its item's model), a prop's key (world.json, models.json kind "world"), a piece's or door's key (building.json), the claim device's item key, a ship's key (ships.json) |
+| Grade | `Grade` / `Grade` / `Grade` | a piece's grade (0 twig … 4 armoured); 0 otherwise |
+| Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's frame piece's (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
+| Direction | `Velocity` / `Direction*` / `Direction` | the blow's direction of travel (unit; from the blast to the thing for an explosion), zero for a collapse, decay, demolition or crash |
+| Cause | `Cause` / `Cause` / `Cause` | `DestroyCause`: `Melee`, `Bullet`, `Arrow`, `Explosion` (the blow's delivery; a door broken with its frame, or a claim device with its piece, takes the blow's), `Collapse`, `Decay`, `Demolish`, `Crash` |
+| Who, with what | `Player`, `Item` / `Attacker` (net ID), `Item` / `Attacker`, `Item` | the attacking (or demolishing) player, 0 for none or gone; the weapon, tool or explosive's item |
+
+What is destroyed: a deployable or world prop at 0 health (an emptied crate going is not); a building piece, door or
+claim device broken by damage, collapsed when what held it went, decayed away or demolished (one picked up is not); a
+ship wrecked by weapons or a crash. The event carries all it takes to draw the thing breaking: the thing itself may be
+gone from the client's lists already, or go a moment later (the building's removal message still makes removed
+pieces fall and sink until the client's break-apart pieces replace that).
+
+**Against RustMVP's foundation** (`docs/architecture/FOUNDATION.md` §1, §5.6, §6, §7, and the damage plan):
+
+| RustMVP | Hollow | |
+|---|---|---|
+| §1.1 Engine first (Unreal's systems before our own) | Rules in engine-free C# shared by server, client and bots (§2's lesson); Godot draws | deliberately different |
+| §1.2 Server authority, client prediction, typed intents | Typed intents, server checks everything; the client predicts movement, the gun (cadence, magazine, recoil exactly as the server) and building | done |
+| §1.3 Data, not code; no magic item IDs | Every number in `game/data/ground` (weapons, items and armour, explosives and raid tables, building grades, ships' hull shares, animals); no item-name special cases in the rules | done |
+| §1.4 Scale by design | Static things cost nothing per tick, change-driven and delta replication, relevance grids; measured by the load tests (§5) | done |
+| §5.6 Combat: typed weapon intents, server ballistics, bounded lag compensation, recoil rules; weapon state on the item; one damage request for every receiver | All of it; the magazine and attachments live on the weapon item, the recoil on the gun in hand (D4); one request and receiver registry (this section) | done |
+| §6 Data: items as definitions with fragments; "new behaviour = new fragment, not new switch statements" | Items are JSON definitions with typed sections (melee, bow, firearm, throwable, wear, deployable…), the same idea; the zone still picks the held item's action by section (`StepActions`) | mostly |
+| §7 Damage through GAS (request → effect → armour execution → health; death a tag and an event) | Request → receiver (armour) → `Hurt` (health; `Die` or `Wound` the one place) and events; no GAS (no Unreal) | done, our way |
+| Damage plan: source → delivery → receiver → resolver → consequence owner; one request/result; type apart from delivery; armour by coverage and channel; no weapon-name cases in receivers | As above; armour covers body regions per item, by channel (blows, projectiles and blasts) | done |
+
+Left over: an attack carries one channel (an incendiary round's burning is an effect, not a heat channel); fall damage,
+cold, hunger and crashes hurt characters directly (`Hurt`) rather than through a request; armour doesn't wear when hit;
+no penetration; durable damage outcomes are the 30-second saves (deaths at once), not RustMVP's journal; the server's
+event dispatch and the client's message dispatch are still switch chains.
+
 ### 6.5 Building over the network and saved (G3, phase 2a)
 
 The rules of §6.3 run in the live zone; players build through intents; the building replicates as static entities and
@@ -2328,8 +2419,8 @@ claimed hut in front of a player for playtests.
 
 **Building** is phase 2a's (§6.3, §6.5). A blast goes into `BuildingWorld.Damage`'s explosive channel, so what it
 breaks and brings down replicates and is saved like any other change. Swings, arrows and bullets that stop at a piece,
-door or claim device (`HitTarget.Building`) go through `Zone.DamageBuildingBy`, which damages through the same rules
-and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
+door or claim device (`HitTarget.Building`) go to the building's receiver in the damage pipeline (§6.4.2), which damages
+through the same rules and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
 building rules, on the analytic ground (§11 R14).
 
 ### 6.7 Ships (G6)
@@ -4371,3 +4462,27 @@ confirm or overturn (numbered D1 on):
   then, then the camera; a shot settles what is owed before its kick, and a correction settles the old prediction before
   rebasing. Before, the credit came a frame after the camera (the aim dipped while a heavily compensated spray
   recovered) and a shot or correction during the recovery kept what it should have given back.
+- D6. **One damage pipeline, receivers in a registry** (§6.4.2; RustMVP's plan and the owner's rule of 13 October: modular,
+  data-driven, no switch that grows with every target): every delivery builds one `DamageRequest` and calls
+  `Zone.Damage`; each kind of thing is one `IDamageReceiver`, registered once, which finds its own things along a ray and
+  in a blast's reach and applies its own defences and consequences. The amounts a blow brings are kept by class of thing
+  (flesh, structure, building, hull) and filled by each delivery from its data, so every number stayed what it was; the
+  kind of damage is the building rules' channel, apart from the delivery.
+- D7. **Hit markers are made in one place**, the same for every kind of thing: where the blow landed (blows and arrows
+  on characters said the attacker's eye, animals their middle) and with what; none for hurting oneself; a blast's only
+  for characters, animals and hulls (as before: the walls and boxes it breaks are seen and heard instead). Gathering
+  and butchering keep their own markers (the weak spot).
+- D8. **A blast looks at everything in its reach before damaging anything**, ships and animals too (they were looked at
+  after the building's damage, so a wall the blast broke didn't shield them), then damages in the receivers' order
+  (characters, animals, deployables, ships, then the building's pieces, doors and claim devices), which nothing in the
+  rules depends on; a piece counts for the raid alert of the base it belongs to as the blast reaches it.
+- D9. **The Destroyed event** (§6.4.2) is made in one place from the receivers' consequences and the building's own
+  removals: the building rules now say why they took a piece, door or claim device away (`Removal`), the zone adds the
+  blow. Things taken away whole (a door or claim device picked up, an emptied crate, a piece removed by a test) are not
+  destroyed. Reliable, to the clients within the relevance radius of where it stood; protocol 12, message 165.
+- D10. **Small normalisations that came with it**: the raid counters count every hit on a building (blows too; the
+  load test's raids are all explosives, so its numbers didn't move); a blast's report counts by kind of thing; an arrow
+  whose archer left keeps their name on what it does, as a bullet did.
+- D11. **The per-target calls stay** for tests and tools (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
+  `DamageBuildingBy`, `DamageShip`, `DamageAnimal`, and `DamageBuilding`, the building receiver's resolver), each one
+  request into the pipeline now, so the tests that used them pass unchanged.

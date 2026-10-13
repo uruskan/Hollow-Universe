@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Core;
+using Hollow.Simulation.Building;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -186,24 +188,99 @@ public sealed partial class Zone
 
     // ---------------------------------------------------------------- deployables
 
-    /// <summary>Damage to a deployable (melee, arrows; raiding later): at 0 it breaks and its contents spill.</summary>
-    public void DamageDeployable(Deployable d, float amount)
+    /// <summary>
+    /// Damage to a deployable (tests, the admin's tools): a blow of <paramref name="amount"/> through the deployables'
+    /// receiver, with no hit marker; at 0 it breaks and its contents spill.
+    /// </summary>
+    public void DamageDeployable(Deployable d, float amount) => Damage(new DamageRequest
+    {
+        AttackerName = "",
+        Delivery = DamageDelivery.Melee,
+        Channel = DamageType.Melee,
+        Amounts = new DamageAmounts { Structure = amount },
+        Direct = true,
+        Hit = new TraceHit { Target = HitTarget.Deployable, Deployable = d, Point = d.Centre },
+        Markers = HitTargets.None,
+    });
+
+    /// <summary>
+    /// The deployables' receiver (GROUND.md §6.4.2): placed things and the world's props, found by their boxes. No
+    /// defences but this: crates and recyclers can't be broken (Rust's). Every blow takes its structure damage off their
+    /// health (a claim device's box passes it to the building rules); at 0 one breaks: what it held spills, a research
+    /// table gives back its work, a barrel goes until its respawn, and it is reported destroyed.
+    /// </summary>
+    private sealed class DeployableReceiver(Zone zone) : IDamageReceiver
+    {
+        public HitTarget Kind => HitTarget.Deployable;
+
+        public bool Keeps => false;
+
+        public void Raycast(in RayQuery ray, ref TraceHit best)
+        {
+            Vector3 end = ray.Origin + ray.Direction * ray.Length;
+            zone._traceThings.Clear();
+            zone.DeployablesNear((ray.Origin + end) / 2, ray.Length / 2 + 2f, zone._traceThings);
+            foreach (Deployable d in zone._traceThings)
+            {
+                (Vector3 right, Vector3 forward) = Geometry.Axes(d.Up, d.Yaw);
+                float t = Geometry.RayBox(ray.Origin, ray.Direction, ray.Length, d.Centre, d.Def.HalfExtents + new Vector3(ray.Thickness), right, d.Up, forward);
+                ray.Consider(ref best, t, HitTarget.Deployable, new TraceHit { Deployable = d });
+            }
+        }
+
+        public void InReach(in BlastQuery blast, List<BlastTarget> into)
+        {
+            zone._blastThings.Clear();
+            zone.DeployablesNear(blast.At, blast.Radius + 2f, zone._blastThings);
+            foreach (Deployable d in zone._blastThings)
+            {
+                // A claim device's box is the building's (its receiver finds it).
+                if (d.Health <= 0 || zone.ClaimOf(d) != null)
+                {
+                    continue;
+                }
+                Vector3 point = ClosestPoint(d, blast.At);
+                float distance = Vector3.Distance(point, blast.At);
+                bool stuck = d == blast.StuckTo;
+                if (distance <= blast.Radius || stuck)
+                {
+                    into.Add(new BlastTarget
+                    {
+                        Hit = new TraceHit { Target = HitTarget.Deployable, Deployable = d, Point = point }, Thing = d, Sight = point, Sight2 = d.Centre,
+                        Self = d, Distance = stuck ? 0 : distance, Stuck = stuck,
+                    });
+                }
+            }
+        }
+
+        public DamageOutcome Receive(in DamageRequest r)
+        {
+            Deployable d = r.Hit.Deployable!;
+            float amount = r.Amounts.Structure;
+            float before = d.Health;
+            bool broke = zone.HurtDeployable(d, amount);
+            return new DamageOutcome(true, amount, Math.Max(0, before - Math.Max(0, d.Health)), broke, false, d.Id);
+        }
+    }
+
+    // The deployables' consequences: true when it broke.
+    private bool HurtDeployable(Deployable d, float amount)
     {
         if (amount <= 0 || d.Health <= 0 || d is WorldProp { Prop.Breakable: false })
         {
-            return; // crates and recyclers can't be broken (Rust's)
+            return false; // crates and recyclers can't be broken (Rust's)
         }
         if (ClaimOf(d) is { } claim)
         {
             // A claim device takes its damage through the building rules (Zone.Building.cs).
             DamageBuilding(claim, Vector3.Zero, amount, projectile: false);
-            return;
+            return false;
         }
         d.Health -= amount;
         d.Revision++;
         if (d.Health > 0)
         {
-            return;
+            return false;
         }
         if (d.Storage != null)
         {
@@ -221,6 +298,9 @@ public sealed partial class Zone
         {
             PropGone(prop); // a barrel's loot lies on the ground; the barrel comes back on its timer (G7)
         }
+        Destroyed(HitTarget.Deployable, d is WorldProp ? DestroyedKind.Prop : DestroyedKind.Deployable, d.Id, d is WorldProp p ? p.Prop.Key : d.Def.Key, 0,
+            d.Position, Geometry.Upright(Frame.UpAt(d.Position), d.Yaw));
+        return true;
     }
 
     // Campfires and furnaces (GROUND.md §6): a lit one burns a unit of fuel every fuel.seconds, leaving its by-product

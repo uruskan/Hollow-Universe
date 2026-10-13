@@ -22,7 +22,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xDFE5143E621761C1UL;
+    public const ulong SchemaHash = 0x2DDA2C11000C07CEUL;
 }
 
 partial struct Hello
@@ -3909,6 +3909,66 @@ partial struct ZoneClock
         v.BaseTurns = r.ReadDouble();
         v.Scale = r.ReadDouble();
         v.Overridden = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct ThingDestroyed
+{
+    public const byte TypeId = 165;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Receiver, 3);
+        w.WriteBits((uint)Kind, 3);
+        w.WriteBits64(Id, 64);
+        w.WriteString(Key, 48);
+        w.WriteBits((uint)Grade, 3);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteQuantized(RotationX, -1f, 1f, 16);
+        w.WriteQuantized(RotationY, -1f, 1f, 16);
+        w.WriteQuantized(RotationZ, -1f, 1f, 16);
+        w.WriteQuantized(RotationW, -1f, 1f, 16);
+        w.WriteQuantized(DirectionX, -1f, 1f, 12);
+        w.WriteQuantized(DirectionY, -1f, 1f, 12);
+        w.WriteQuantized(DirectionZ, -1f, 1f, 12);
+        w.WriteBits((uint)Cause, 3);
+        w.WriteBool(Open);
+        w.WriteVarUInt(Attacker);
+        w.WriteVarUInt(Item);
+    }
+
+    public static ThingDestroyed Read(BitReader r)
+    {
+        var v = new ThingDestroyed();
+        v.Receiver = (HitTarget)r.ReadBits(3);
+        v.Kind = (DestroyedKind)r.ReadBits(3);
+        v.Id = r.ReadBits64(64);
+        v.Key = r.ReadString(48);
+        v.Grade = (byte)r.ReadBits(3);
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.RotationX = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationY = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationZ = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationW = r.ReadQuantized(-1f, 1f, 16);
+        v.DirectionX = r.ReadQuantized(-1f, 1f, 12);
+        v.DirectionY = r.ReadQuantized(-1f, 1f, 12);
+        v.DirectionZ = r.ReadQuantized(-1f, 1f, 12);
+        v.Cause = (DestroyCause)r.ReadBits(3);
+        v.Open = r.ReadBool();
+        v.Attacker = r.ReadVarUInt();
+        v.Item = r.ReadVarUInt();
         return v;
     }
 }

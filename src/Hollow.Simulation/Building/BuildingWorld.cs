@@ -97,7 +97,7 @@ public sealed partial class BuildingWorld : IDisposable
             if (!piece.Gone)
             {
                 touched.Add(piece.Structure);
-                RemoveOne(piece);
+                RemoveOne(piece, Removal.Collapsed);
             }
         }
         foreach (Structure s in touched)
@@ -420,11 +420,12 @@ public sealed partial class BuildingWorld : IDisposable
     // ---------------------------------------------------------------- removal and collapse
 
     /// <summary>
-    /// Removes a piece (demolished, destroyed or decayed) and brings down what it held up: pieces left unsupported
-    /// collapse in sequence, nearest first, one layer every <see cref="BuildingData.CollapseStep"/> seconds; with
-    /// <paramref name="immediate"/> (catch-up over elapsed time) they go at once. A structure split in two becomes two.
+    /// Removes a piece (demolished, destroyed or decayed: <paramref name="reason"/>) and brings down what it held up:
+    /// pieces left unsupported collapse in sequence, nearest first, one layer every <see cref="BuildingData.CollapseStep"/>
+    /// seconds; with <paramref name="immediate"/> (catch-up over elapsed time) they go at once. A structure split in two
+    /// becomes two.
     /// </summary>
-    public void Remove(Piece piece, double now, bool immediate = false)
+    public void Remove(Piece piece, double now, bool immediate = false, Removal reason = Removal.Taken)
     {
         if (piece.Gone)
         {
@@ -432,7 +433,7 @@ public sealed partial class BuildingWorld : IDisposable
         }
         Structure structure = piece.Structure;
         var neighbours = piece.SupportedBy.Concat(piece.Supports).Select(l => l.Other).ToList();
-        RemoveOne(piece);
+        RemoveOne(piece, reason);
         if (structure.Count > 0)
         {
             Settle(structure, now, immediate, neighbours);
@@ -452,7 +453,7 @@ public sealed partial class BuildingWorld : IDisposable
             {
                 foreach (Piece p in unsupported)
                 {
-                    RemoveOne(p);
+                    RemoveOne(p, Removal.Collapsed);
                 }
                 if (structure.Count > 0)
                 {
@@ -509,8 +510,8 @@ public sealed partial class BuildingWorld : IDisposable
         }
     }
 
-    // Takes one piece out of everything: links, indexes, physics, its door and the claim standing on it.
-    private void RemoveOne(Piece piece)
+    // Takes one piece out of everything: links, indexes, physics, its door and the claim standing on it (for the same reason).
+    private void RemoveOne(Piece piece, Removal reason = Removal.Taken)
     {
         if (piece.Gone)
         {
@@ -529,11 +530,11 @@ public sealed partial class BuildingWorld : IDisposable
         piece.Supports.Clear();
         if (piece.Door != null)
         {
-            RemoveDoor(piece.Door);
+            RemoveDoor(piece.Door, reason);
         }
         if (structure.Claim != null && structure.Claim.Support == piece)
         {
-            RemoveClaim(structure.Claim);
+            RemoveClaim(structure.Claim, reason);
         }
         Physics?.Remove(piece.Body, piece);
         piece.Body = 0;
@@ -544,12 +545,12 @@ public sealed partial class BuildingWorld : IDisposable
         _pieceIds.Remove(piece.Id);
         piece.Gone = true;
         piece.Collapsing = false;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.PieceRemoved, piece, Structure: structure));
+        Changed?.Invoke(new BuildingEvent(BuildingChange.PieceRemoved, piece, Structure: structure, Removal: reason));
         if (structure.Count == 0)
         {
             if (structure.Claim != null)
             {
-                RemoveClaim(structure.Claim);
+                RemoveClaim(structure.Claim, reason);
             }
             DropStructure(structure);
         }

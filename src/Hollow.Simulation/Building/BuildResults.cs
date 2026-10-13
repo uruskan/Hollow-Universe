@@ -217,4 +217,27 @@ public enum BuildingChange : byte
 }
 
 public readonly record struct BuildingEvent(BuildingChange Change, Piece? Piece = null, Door? Door = null, ClaimDevice? Claim = null,
-    Structure? Structure = null);
+    Structure? Structure = null, Removal Removal = Removal.Taken);
+
+/// <summary>
+/// Why the building rules took a piece, door or claim device away (on the removed events): destroyed, collapsed, decayed
+/// and demolished are the zone's Destroyed event (GROUND.md §6.4.2); taken is not (picked up, or a client's copy
+/// following the server).
+/// </summary>
+public enum Removal : byte
+{
+    /// <summary>Taken away whole: picked up, removed by a test or an admin, or forgotten by a client's copy.</summary>
+    Taken,
+
+    /// <summary>Broken by damage, with what went with it (the door in its frame, the claim device on its piece).</summary>
+    Destroyed,
+
+    /// <summary>Came down when what held it up went.</summary>
+    Collapsed,
+
+    /// <summary>Decayed away, its upkeep unpaid.</summary>
+    Decayed,
+
+    /// <summary>Demolished with the hammer.</summary>
+    Demolished,
+}

@@ -1,4 +1,5 @@
 using System.Numerics;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 
@@ -43,6 +44,19 @@ public enum ZoneEventKind : byte
     Detonated,
     /// <summary>To a player: a line to read (<see cref="ZoneEvent.Text"/>), such as a built ship waiting for room (G6).</summary>
     Notice,
+
+    /// <summary>
+    /// To everyone near (GROUND.md §6.4.2): something was destroyed: a deployable or world prop broken, a building piece,
+    /// door or claim device broken, brought down, decayed or demolished, a ship wrecked. <see cref="ZoneEvent.Target"/> is
+    /// the receiver's kind (deployable, building, ship) and <see cref="ZoneEvent.Part"/> what it was, <see cref="ZoneEvent.Other"/>
+    /// its entity ID, <see cref="ZoneEvent.Text"/> its model key (a piece's with <see cref="ZoneEvent.Grade"/>);
+    /// <see cref="ZoneEvent.Position"/> and <see cref="ZoneEvent.Rotation"/> where it stood (zone frame, as it is drawn: a
+    /// door's are its frame piece's, with <see cref="ZoneEvent.Flag"/> set when it was open);
+    /// <see cref="ZoneEvent.Velocity"/> the blow's direction (zero for a collapse, decay or demolition);
+    /// <see cref="ZoneEvent.Cause"/> what did it; <see cref="ZoneEvent.Player"/> who and <see cref="ZoneEvent.Item"/> with what.
+    /// Made in one place, <c>Zone.Destroyed</c>.
+    /// </summary>
+    Destroyed,
 }
 
 /// <summary>Why items arrived, for the UI's notifications.</summary>
@@ -114,4 +128,14 @@ public struct ZoneEvent
     public Vector3 Velocity;
     public uint Projectile;
     public string? Text;
+
+    /// <summary>A destroyed thing's turn as it was drawn (<see cref="ZoneEventKind.Destroyed"/>).</summary>
+    public Quaternion Rotation;
+
+    /// <summary>What destroyed it, what it was, and a piece's grade (<see cref="ZoneEventKind.Destroyed"/>).</summary>
+    public DestroyCause Cause;
+
+    public DestroyedKind Part;
+
+    public byte Grade;
 }

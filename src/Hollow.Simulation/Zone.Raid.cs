@@ -49,7 +49,6 @@ public sealed partial class Zone
     private readonly List<Piece> _blastPieces = new();
     private readonly List<Deployable> _blastThings = new();
     private readonly List<NaturalObject> _blastNature = new();
-    private readonly List<BlastTarget> _blastTargets = new();
 
     /// <summary>Explosives in the world (flying, stuck, resting, duds).</summary>
     public IReadOnlyList<LiveExplosive> Explosives => _explosives;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -711,47 +712,62 @@ public sealed partial class Zone
     // ---------------------------------------------------------------- damage and wrecks
 
     /// <summary>
-    /// A blast's share for ships (G5's explosions, GROUND.md §6.6 and §6.7): every hull within the radius whose nearest
-    /// point the blast sees takes the blast's damage to deployables with the falloff (the one a rocket or round hit, or a
-    /// charge stuck to, whole), times the hull's share for explosives. The pilot inside is the cabin's to protect.
+    /// Ships' hulls (GROUND.md §6.4.2, §6.7): found by their hull boxes along a ray and by their nearest points in a
+    /// blast's reach (seen from a point just off the hull toward the blast: the hull never hides its own side); a ship in
+    /// orbit or wrecked is out of reach. Its defence: the hull's share by how the blow came (ships.json). Its consequences:
+    /// the hull's health and last attacker; at 0 the ship is wrecked (the pilot dies in it, a wreck to loot) and reported
+    /// destroyed. The pilot inside is the cabin's to protect.
     /// </summary>
-    private void BlastShips(Content.BlastStats blast, Vector3 at, object? stuckTo, ushort item, Player? by, Raid.BlastReport report)
+    private sealed class ShipReceiver(Zone zone) : IDamageReceiver
     {
-        float radius = (float)blast.Radius;
-        foreach (Ship ship in _ships)
+        public HitTarget Kind => HitTarget.Ship;
+
+        /// <summary>An arrow on a hull is lost.</summary>
+        public bool Keeps => true;
+
+        public void Raycast(in RayQuery ray, ref TraceHit best)
         {
-            if (ship.Destroyed || ship.InOrbit)
+            if (zone._ships.Count > 0)
             {
-                continue;
+                float t = zone.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship);
+                ray.Consider(ref best, t, HitTarget.Ship, new TraceHit { Ship = ship });
             }
-            Vector3 point = ShipClosestPoint(ship, at);
-            float distance = ship == stuckTo ? 0 : Vector3.Distance(point, at);
-            if (distance > radius)
+        }
+
+        public void InReach(in BlastQuery blast, List<BlastTarget> into)
+        {
+            foreach (Ship ship in zone._ships)
             {
-                continue;
-            }
-            // Seen from the blast: a point just off the hull toward it (the hull itself never hides its own side).
-            Vector3 off = at - point;
-            Vector3 seen = off.LengthSquared() > 1e-6f ? point + Vector3.Normalize(off) * 0.05f : point;
-            if (ship != stuckTo && !BlastSees(at, seen))
-            {
-                report.Shielded.Add(ship);
-                continue;
-            }
-            float lost = DamageShip(ship, (float)(blast.Deployable * blast.Falloff(distance)), ShipDamage.Explosive, by);
-            if (lost <= 0)
-            {
-                continue;
-            }
-            report.Damage[ship] = lost;
-            report.ShipsHit++;
-            if (by != null)
-            {
-                GameEvents.Add(new ZoneEvent
+                if (ship.Destroyed || ship.InOrbit)
                 {
-                    Kind = ZoneEventKind.HitConfirmed, Player = by.Id, Other = ship.Id, Target = HitTarget.Ship, Amount = lost, Position = point, Item = item,
+                    continue;
+                }
+                Vector3 point = ShipClosestPoint(ship, blast.At);
+                bool stuck = ship == blast.StuckTo;
+                float distance = stuck ? 0 : Vector3.Distance(point, blast.At);
+                if (distance > blast.Radius)
+                {
+                    continue;
+                }
+                Vector3 off = blast.At - point;
+                Vector3 seen = off.LengthSquared() > 1e-6f ? point + Vector3.Normalize(off) * 0.05f : point;
+                into.Add(new BlastTarget
+                {
+                    Hit = new TraceHit { Target = HitTarget.Ship, Ship = ship, Point = point }, Thing = ship, Sight = seen, Sight2 = seen, Distance = distance,
+                    Stuck = stuck,
                 });
             }
+        }
+
+        public DamageOutcome Receive(in DamageRequest r)
+        {
+            Ship ship = r.Hit.Ship!;
+            if (ship.Destroyed || ship.InOrbit)
+            {
+                return default;
+            }
+            float lost = zone.HurtShip(ship, r.Amounts.Hull, r.Delivery, r.By);
+            return new DamageOutcome(true, lost, lost, ship.Destroyed, false, ship.Id);
         }
     }
 
@@ -777,23 +793,41 @@ public sealed partial class Zone
     }
 
     /// <summary>
-    /// Damage to a ship's hull from a weapon (the hook for melee, arrows, bullets and G5's explosions): the hull takes its
-    /// share for the kind; at 0 it is destroyed. Returns the hull lost.
+    /// Damage to a ship's hull from a weapon of a kind (tests): a request through the ships' receiver, with no hit marker.
+    /// The hull takes its share for the kind; at 0 it is wrecked. Returns the hull lost.
     /// </summary>
-    public float DamageShip(Ship ship, float damage, ShipDamage kind, Player? attacker)
+    public float DamageShip(Ship ship, float damage, ShipDamage kind, Player? attacker) => Damage(new DamageRequest
+    {
+        By = attacker,
+        Attacker = attacker?.Id ?? EntityId.None,
+        AttackerName = attacker?.Name ?? "",
+        Delivery = kind switch
+        {
+            ShipDamage.Melee => DamageDelivery.Melee,
+            ShipDamage.Arrow => DamageDelivery.Arrow,
+            ShipDamage.Bullet => DamageDelivery.Bullet,
+            _ => DamageDelivery.Blast,
+        },
+        Channel = kind switch
+        {
+            ShipDamage.Melee => DamageType.Melee,
+            ShipDamage.Explosive => DamageType.Explosive,
+            _ => DamageType.Bullet,
+        },
+        Amounts = new DamageAmounts { Hull = damage },
+        Direct = true,
+        Hit = new TraceHit { Target = HitTarget.Ship, Ship = ship, Point = ship.Origin },
+        Markers = HitTargets.None,
+    }).Taken;
+
+    // The ships' consequences: the hull's share for how the blow came; at 0 the ship is wrecked. Returns the hull lost.
+    private float HurtShip(Ship ship, float damage, DamageDelivery delivery, Player? attacker)
     {
         if (ship.Destroyed || ship.InOrbit || damage <= 0)
         {
             return 0;
         }
-        float scale = kind switch
-        {
-            ShipDamage.Melee => ship.Def.MeleeDamage,
-            ShipDamage.Arrow => ship.Def.ArrowDamage,
-            ShipDamage.Bullet => ship.Def.BulletDamage,
-            _ => ship.Def.ExplosiveDamage,
-        };
-        float lost = MathF.Min(ship.State.Health, damage * scale);
+        float lost = MathF.Min(ship.State.Health, damage * ship.Def.Share(delivery));
         if (lost <= 0)
         {
             return 0;
@@ -834,6 +868,8 @@ public sealed partial class Zone
         ship.State.Flags |= ShipFlags.Destroyed;
         ship.State.Velocity = Vector3.Zero;
         ship.State.AngularVelocity = Vector3.Zero;
+        // Destroyed by the blow being applied, or (none) by its crash.
+        Destroyed(HitTarget.Ship, DestroyedKind.Ship, ship.Id, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, _blow.Active ? null : DestroyCause.Crash);
         if (ship.ParkedBody != 0)
         {
             lock (JoltRuntime.Gate)
