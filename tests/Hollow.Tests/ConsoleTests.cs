@@ -196,6 +196,9 @@ public static class ConsoleTests
         RunUntil(rig, () => ada.Animals.Count(a => a.SpeciesKey == "wolf") == 2, "two wolves in her view");
         float ahead = ada.Animals.Where(a => a.SpeciesKey == "wolf").Min(a => Vector3.Distance(a.Position, ada.Character.Position));
         Assert.InRange(10, 35, ahead, "the pack in front of her (m)");
+        List<ConsoleAnswer> usage = Run(rig, ada, "spawn");
+        Assert.True(usage.All(a => a.Kind == ConsoleReplyKind.Error && a.Text.Length <= 360) && string.Concat(usage.Select(a => a.Text)).Contains("raidbase", StringComparison.Ordinal),
+            "a long answer comes whole, in lines a reply holds");
         Run(rig, ada, "spawn small-box");
         RunUntil(rig, () => ada.Things.Any(t => t.Deployable(c)?.Key == "small-box"), "a small box in her view");
         Run(rig, ada, "spawn crate");

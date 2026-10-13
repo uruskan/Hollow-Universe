@@ -121,13 +121,29 @@ public sealed partial class GameServer
 
     private void SendConsoleReply(PlayerSession session, uint seq, ConsoleReplyKind kind, string text)
     {
-        foreach (string line in text.Split('\n'))
+        foreach (string raw in text.Split('\n'))
         {
-            _writer.Reset();
-            new ConsoleReply { Seq = seq, Kind = kind, Text = line.TrimEnd('\r') }.WriteMessage(_writer);
-            session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+            // A line longer than a reply carries goes as several, broken at spaces.
+            string line = raw.TrimEnd('\r');
+            do
+            {
+                int cut = line.Length;
+                if (cut > ConsoleLineChars)
+                {
+                    int space = line.LastIndexOf(' ', ConsoleLineChars);
+                    cut = space > ConsoleLineChars / 2 ? space : ConsoleLineChars;
+                }
+                _writer.Reset();
+                new ConsoleReply { Seq = seq, Kind = kind, Text = line[..cut] }.WriteMessage(_writer);
+                session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+                line = line[cut..].TrimStart();
+            }
+            while (line.Length > 0);
         }
     }
+
+    // A reply's line holds 400 bytes: a little less in characters, for the odd degree sign.
+    private const int ConsoleLineChars = 360;
 
     // The console's view of the server: this player's rights and who is on.
     private void SendServerState(PlayerSession session)
