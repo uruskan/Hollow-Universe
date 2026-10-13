@@ -119,7 +119,7 @@
       "lods": [
         1
       ],
-      "triangles": 3516
+      "triangles": 3517
     },
     "woven_hood_lod2": {
       "lods": [
@@ -219,7 +219,7 @@
     },
     "woven_hood": {
       "detail": "weave",
-      "tiling": 28.77,
+      "tiling": 29.47,
       "detail_strength": 0.85,
       "roughness": 0.93,
       "preview": [

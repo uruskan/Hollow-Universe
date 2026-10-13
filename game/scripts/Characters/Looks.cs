@@ -57,7 +57,7 @@ public static class Looks
     /// <summary>Skin tones: name, blend from the light to the dark texture, tint (linear).</summary>
     public static readonly (string Name, float Tone, Color Tint)[] SkinTones =
     {
-        ("pale", 0.0f, new Color(1.05f, 1.04f, 1.07f)),
+        ("pale", 0.0f, new Color(1.0f, 0.985f, 0.99f)),
         ("fair", 0.0f, new Color(1f, 1f, 1f)),
         ("light olive", 0.07f, new Color(0.99f, 1.0f, 0.9f)),
         ("light tan", 0.16f, new Color(1.0f, 0.97f, 0.9f)),

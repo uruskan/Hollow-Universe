@@ -495,7 +495,9 @@ smoothed head (with every face shape), the mask and the shirt, plus room (22 mm 
   breastplate's plates and straps;
 - a soft point stands behind the crown, and the cape's hem is lowest behind.
 
-It is fitted over the mask, so it goes over it.
+It is fitted over the mask, so it goes over it. The cape stands 15 mm clear of the shirt and, where it lies over it,
+takes the shirt's own skin weights (blending back to the hood's smoothed ones up the neck), so the two move together
+when the arms come forward and the shirt doesn't come through it.
 
 The metal mask (`metal-mask`) is a beaten shell from the brow to under the chin and round the cheeks to in front of the
 ears, 13 mm clear of every face shape: one eye slit across both eyes, a keel down the welded centre seam, a heavier ridge
@@ -597,20 +599,41 @@ runs only where it can be seen, foot placement only at the nearest level. Animat
 `StringName`s, so a frame allocates nothing per character.
 
 Measured on the owner's PC (RTX 2070 Super, 1600 × 900, Forward+, vsync off, two other Godot sessions running),
-`--view character --crowd 49 --measure 10`, all 50 characters on screen, moving, mixed outfits and held items:
+`--view character --crowd 49 --measure 10`, all 50 characters on screen, each with their own look (skin, face, hair)
+and one of the eight outfits (hoods, masks, gloves and plates among them), standing, walking, running, crouching,
+lying wounded, crawling and asleep, bare-handed or holding a tool, pistol, rifle (raised), drawn bow or spear:
 
 | Setting | Average frame | 99th percentile | Worst |
 |---|---|---|---|
-| Levels of detail by distance (as shipped) | 5.7 ms (174 fps) | 9.0 ms | 12.7 ms |
-| All 50 forced to full detail, full-rate animation and foot placement | 9.8 ms (102 fps) | 13.8 ms | 35 ms (one hitch) |
+| Levels of detail by distance (as shipped) | 6.5 ms (154 fps) | 11.7 ms | 20.8 ms |
+| All 50 forced to full detail, full-rate animation and foot placement | 14.9 ms (67 fps) | 22.6 ms | 41.6 ms |
 
-**Viewer.** `--view character` (options in AGENTS.md): cycle outfits, held items and motions, fire every event, die and
-revive, switch to first person, and measure a crowd. Screenshots in `docs/images/ground/character-*.png`.
+The other sessions made these noisy (one character alone measured anywhere from 5 to 12 ms). Before the wardrobe and
+looks (plain outfits, one hair style, no lying or bows) the same crowd measured 5.7 ms as shipped and 9.8 ms at full
+detail. On the first world's own ground (`--on-surface`) the 50 characters added 0.5 ms to what the surface view
+alone took on the same busy machine (34.6 against 34.2 ms; that view is 11–12 ms on a quiet one).
 
-**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so they don't swing or
-drape as the body moves, and their wrinkles are painted, not simulated; the back plate is plainer than the front; the
-face has no expressions or eye movement beyond the blink; hair is MakeHuman's short cut only; first-person reloads move the hand but not
-the magazine (the catalogue's guns are one mesh); the female body's crop top still has a few notched faces at its edges, and her shirt shows the bust a little more than a real shirt would.
+**Viewer.** `--view character` (options in AGENTS.md): cycle outfits, looks, held items and motions, fire every
+event, help a wounded player up, die and revive, switch to first person, and measure a crowd. `--on-surface` stands
+everything on the first world's ground at the landing site (or `--lat`, `--lon`) at `--time`, lit by its sun, sky and
+exposure, to judge the looks under the ground's own light. Screenshots in `docs/images/ground/character-*.png` and,
+for the wardrobe, looks and new animations, `docs/images/ground/character/`: `crowd.png` (eight players on the
+meadow, mixed bodies, looks and outfits), `hood-mask-gloves.png` (the hood over the mask, gloves and plate),
+`sleeping.png`, `wounded-crawl.png`, `help-up.png`, `bow-drawn.png`, `rifle-reload.png` (third person, the new
+magazine in the hand) and `fp-gloves-rifle.png` (first person, gloves on). The lying ones are on the viewer's own
+flat ground: the meadow's grass hides a body lying in it, as it should.
+
+**Not good enough yet** (next passes), judged against Rust: Rust's players are scanned-quality models with
+sculpted, layered clothing; ours are MakeHuman bodies with garments that are shells of the body, so at arm's length
+they read as a good indie game, not as Rust. In particular: garments aren't simulated cloth, so they don't swing or
+drape as the body moves, and their wrinkles are painted; in the crawl, close up, the shirt still shows through the
+hood's cape at the armpit (the cape follows the shirt, but the shirt itself creases there); the hood's cape is short;
+gloves are plain in first person; the back plate is plainer than the front; faces have no expressions or eye movement
+beyond the blink and the shut eyes of a sleeper; hair is cards from MakeHuman, without Rust's strand detail; the
+sleeper's lower arm lies stretched out palm up; lying bodies stay flat in the character's plane, so on a slope the
+head or feet sink in or float (C12); the rifle's own magazine stays in it during a reload (C11); the bow's string is
+two straight cords; the female body's crop top still has a few notched faces at its edges, and her shirt shows the
+bust a little more than a real shirt would.
 
 ### 4.9 Audio
 
@@ -2135,6 +2158,12 @@ on):
   bow too (a line in GameServer's state, for integration).
 - C11. **The rifle's own magazine stays in place** in a reload (the catalogue's rifle is one mesh); the new magazine is
   drawn in the hand until it is seated.
+- C12. **Lying poses don't follow the ground's slope**: a wounded or sleeping body lies flat in the plane square to the
+  character's `Up`. Integration could tilt `Up` towards the ground's normal under the body while it lies (the
+  server's lying hit shapes would want the same).
+- C13. **The look under the ground's light is judged with `--on-surface`** (the viewer on the first world's meadow,
+  its sun and sky, auto exposure): skin, hair and cloth were tuned there, not only under the viewer's own sky; the
+  palest skin was made a little warmer, as it read grey in full sun.
 
 Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 

@@ -176,10 +176,6 @@ public sealed class BowRig
                 }
             }
             arrays[(int)Mesh.ArrayType.Index] = kept.ToArray();
-            if (OS.IsDebugBuild() && mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal))
-            {
-                GD.Print($"[bow] {mesh.Name}: {(indices.Length - kept.Count) / 3} of {indices.Length / 3} triangles were the string (x {_stringX:0.000})");
-            }
             var shape = new Vector3[verts.Length];
             for (int i = 0; i < verts.Length; i++)
             {

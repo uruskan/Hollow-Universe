@@ -157,7 +157,7 @@ public partial class ViewmodelView : Node3D
     {
         foreach ((MeshInstance3D mesh, _) in _sleeves)
         {
-            mesh.QueueFree();
+            CharacterView.Discard(mesh);
         }
         _sleeves.Clear();
         _worn.Clear();

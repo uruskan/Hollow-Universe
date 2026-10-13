@@ -69,11 +69,17 @@ def main():
     surfaces = {}
     exported = []
     counts = {}
+    shirt_weights = None
     for name, (obj, paint) in garments:
         if obj.get("rigid") is None:
             G.weights_from_body(obj, body)
             if obj.get("weight_smoothing"):
                 G.smooth_weights(obj, int(obj["weight_smoothing"]))
+            if obj.get("weights_over_shirt") is not None and shirt_weights is not None:
+                weights_over(obj, shirt_weights, *[float(x) for x in obj["weights_over_shirt"]])
+            if name == "woven_shirt":
+                # Kept (with its final weights) for what lies over it.
+                shirt_weights = H.duplicate(obj, "shirt_weights")
         else:
             # Armour is skinned part by part as it is built (rigid plates); keep it that way.
             H.limit_and_normalise_weights(obj)
@@ -92,6 +98,8 @@ def main():
             counts[copy.name] = H.triangles(copy)
             exported.append(copy)
         bpy.data.objects.remove(obj)
+    if shirt_weights is not None:
+        bpy.data.objects.remove(shirt_weights)
     H.log("garments:", counts)
     H.export_glb(os.path.join(out, "clothing%s.glb" % suffix), [rig] + exported)
     H.write_json(os.path.join(out, "clothing%s.json" % suffix), {
@@ -1042,6 +1050,56 @@ def cut_below(obj, height):
         v.co.z += float(height(v.co.x, v.co.y))
 
 
+def weights_over(obj, under, near, far, z_full, z_none):
+    """Where a loose garment lies over another (the hood's cape over the shirt), it takes that garment's skin weights,
+    so the two move together and keep the gap between them in every pose (with its own, smoothed weights the cape lagged
+    behind the shirt's shoulders when the arms came forward, and the shirt came through). Fully within `near` metres of
+    the other garment and below `z_full`, back to its own weights by `far` metres off it or `z_none` up."""
+    from mathutils.bvhtree import BVHTree
+    tmp = H.duplicate(obj, obj.name + "_over")
+    tmp.vertex_groups.clear()
+    G.weights_from_body(tmp, under)
+
+    def table(o):
+        groups = {g.index: g.name for g in o.vertex_groups if H.is_deform_group(g.name)}
+        rows = [{} for _ in o.data.vertices]
+        for v in o.data.vertices:
+            for e in v.groups:
+                if e.group in groups:
+                    rows[v.index][groups[e.group]] = e.weight
+        return rows
+
+    own, theirs = table(obj), table(tmp)
+    bpy.data.objects.remove(tmp)
+    tree = BVHTree.FromObject(under, bpy.context.evaluated_depsgraph_get(), deform=False)
+
+    def ease(a, b, x):
+        t = min(1.0, max(0.0, (x - a) / (b - a)))
+        return t * t * (3 - 2 * t)
+
+    blended = 0
+    rows = []
+    for v in obj.data.vertices:
+        _, _, _, d = tree.find_nearest(v.co)
+        t = 0.0 if d is None else (1 - ease(near, far, d)) * (1 - ease(z_full, z_none, v.co.z))
+        row = dict(own[v.index])
+        if t > 0:
+            blended += 1
+            names = set(row) | set(theirs[v.index])
+            row = {n: own[v.index].get(n, 0.0) * (1 - t) + theirs[v.index].get(n, 0.0) * t for n in names}
+        rows.append(row)
+    for g in list(obj.vertex_groups):
+        if H.is_deform_group(g.name):
+            obj.vertex_groups.remove(g)
+    for i, row in enumerate(rows):
+        for n, w in row.items():
+            if w > 1e-4:
+                g = obj.vertex_groups.get(n) or obj.vertex_groups.new(name=n)
+                g.add([i], w, 'REPLACE')
+    H.limit_and_normalise_weights(obj)
+    H.log("%s: %d of %d vertices take the weights of %s" % (obj.name, blended, len(rows), under.name))
+
+
 def push_clear(obj, trees, select=None, passes=5):
     """Moves vertices out along their normals until they stand at least each tree's clearance off its surface (a
     hood over the shirt, the mask and the skin)."""
@@ -1283,7 +1341,7 @@ def woven_hood(body, m, which, shirt, mask):
     orient(obj, lambda p: Vector((c.x, c.y, p.z)) if p.z < c.z else c)
     # Clear of the shirt, the skin, every face and the mask, measured square to their surfaces (the rays meet the
     # shoulders at a slant), then the cape flares a little towards its hem.
-    clear = [(trees[0], 0.014), (trees[1], 0.011)] + ([(trees[2], 0.006)] if mask is not None else [])
+    clear = [(trees[0], 0.017), (trees[1], 0.015)] + ([(trees[2], 0.006)] if mask is not None else [])
     G.smooth(obj, 6, 0.4)
     neck_down = lambda co: co.z < m.neck.z + 0.08  # noqa: E731 (the head's rays meet it square; the cape's don't)
     push_clear(obj, clear, select=neck_down)
@@ -1305,6 +1363,8 @@ def woven_hood(body, m, which, shirt, mask):
     H.log("hood: %d vertices within 2 mm of the shirt" % inside)
     obj.data.materials.clear()
     obj["weight_smoothing"] = 8
+    # The cape over the shoulders moves with the shirt under it; the hood round the head and neck keeps its own.
+    obj["weights_over_shirt"] = [0.045, 0.075, m.neck.z + 0.03, m.neck.z + 0.07]
     # Darker than the shirt, so the hood reads as its own garment at a distance.
     colour = (0.255, 0.235, 0.18)
     return obj, lambda o, folder, name: paint_hood(o, folder, name, colour, m, c, hem_height)

@@ -119,13 +119,13 @@
       "lods": [
         1
       ],
-      "triangles": 3557
+      "triangles": 3556
     },
     "woven_hood_lod2": {
       "lods": [
         2
       ],
-      "triangles": 1354
+      "triangles": 1353
     },
     "riveted_breastplate_lod0": {
       "lods": [
@@ -219,7 +219,7 @@
     },
     "woven_hood_female": {
       "detail": "weave",
-      "tiling": 27.63,
+      "tiling": 28.07,
       "detail_strength": 0.85,
       "roughness": 0.93,
       "preview": [

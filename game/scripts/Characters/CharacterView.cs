@@ -190,7 +190,7 @@ public partial class CharacterView : Node3D
         {
             if (_meshes[i].Mesh.Name.ToString().StartsWith("hair", StringComparison.Ordinal))
             {
-                _meshes[i].Mesh.QueueFree();
+                Discard(_meshes[i].Mesh);
                 _meshes.RemoveAt(i);
             }
         }
@@ -247,6 +247,16 @@ public partial class CharacterView : Node3D
         return false;
     }
 
+    /// <summary>
+    /// Takes a mesh out of the tree at once and frees it: a new one of the same name added in the same frame keeps its
+    /// name (the hair and clothing are told apart by name), instead of being renamed past the one still waiting to go.
+    /// </summary>
+    internal static void Discard(Node node)
+    {
+        node.GetParent()?.RemoveChild(node);
+        node.QueueFree();
+    }
+
     private MeshInstance3D Instance(MeshPart part)
     {
         var mi = new MeshInstance3D
@@ -286,7 +296,7 @@ public partial class CharacterView : Node3D
         }
         foreach ((MeshInstance3D mesh, _, _) in _clothes)
         {
-            mesh.QueueFree();
+            Discard(mesh);
         }
         _clothes.Clear();
         _worn.Clear();
