@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Surface;
 using JoltPhysicsSharp;
 
@@ -109,6 +110,9 @@ public sealed class PhysicsWorld : IDisposable
 
     internal PhysicsSystem Jolt { get; }
 
+    /// <summary>Times the ground's work on the owning thread (the server's tick; null in a client's prediction).</summary>
+    public TickProfile? Profile { get; set; }
+
     /// <summary>Ground tiles currently in the world.</summary>
     public int TileCount => _tiles.Count;
 
@@ -141,17 +145,23 @@ public sealed class PhysicsWorld : IDisposable
                 if (!_tiles.TryGetValue((x, z), out Tile? tile))
                 {
                     Shape shape;
-                    if (_pending.Remove((x, z), out Task<Shape>? building))
+                    using (Profile.Time(ProfileSection.TileWait))
                     {
-                        shape = building.Result;
-                    }
-                    else
-                    {
-                        shape = BuildShape(x, z);
+                        if (_pending.Remove((x, z), out Task<Shape>? building))
+                        {
+                            shape = building.Result;
+                        }
+                        else
+                        {
+                            shape = BuildShape(x, z);
+                        }
                     }
                     TilesBuiltOnDemand++;
-                    tile = AddTile(x, z, shape);
-                    Listener?.TileAdded(x, z);
+                    using (Profile.Time(ProfileSection.TileAdd))
+                    {
+                        tile = AddTile(x, z, shape);
+                        Listener?.TileAdded(x, z);
+                    }
                 }
                 tile.LastUsed = _epoch;
             }
@@ -211,6 +221,7 @@ public sealed class PhysicsWorld : IDisposable
         }
         foreach ((int x, int z) in _adopted)
         {
+            using TickProfile.Scope _ = Profile.Time(ProfileSection.TileAdd);
             _pending.Remove((x, z), out Task<Shape>? task);
             Tile tile = AddTile(x, z, task!.Result);
             tile.LastUsed = _epoch;
@@ -245,6 +256,7 @@ public sealed class PhysicsWorld : IDisposable
             BodyInterface bodies = Jolt.BodyInterface;
             foreach ((int X, int Z) key in _expired)
             {
+                using TickProfile.Scope _ = Profile.Time(ProfileSection.TileRemove);
                 Listener?.TileRemoved(key.X, key.Z);
                 Tile tile = _tiles[key];
                 bodies.RemoveAndDestroyBody(tile.Body);

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Physics;
 
 namespace Hollow.Simulation.Nature;
@@ -26,7 +27,9 @@ public sealed class NaturalBodies : ITileListener
 
     public void TileAdded(int x, int z)
     {
-        foreach (NaturalObject o in TileObjects(x, z))
+        List<NaturalObject> objects = TileObjects(x, z);
+        using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.PropAdd);
+        foreach (NaturalObject o in objects)
         {
             if (!_state.IsDepleted(o.Id))
             {
@@ -44,7 +47,9 @@ public sealed class NaturalBodies : ITileListener
 
     public void TileRemoved(int x, int z)
     {
-        foreach (NaturalObject o in TileObjects(x, z))
+        List<NaturalObject> objects = TileObjects(x, z);
+        using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.PropRemove);
+        foreach (NaturalObject o in objects)
         {
             _world.RemoveProp(PropLayer.Nature, o.Id);
         }
@@ -93,6 +98,7 @@ public sealed class NaturalBodies : ITileListener
 
     private List<NaturalObject> TileObjects(int x, int z)
     {
+        using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.NatureQuery);
         _scratch.Clear();
         _state.Objects.Query(x * PhysicsWorld.TileSize, z * PhysicsWorld.TileSize, (x + 1) * PhysicsWorld.TileSize, (z + 1) * PhysicsWorld.TileSize, _scratch);
         return _scratch;

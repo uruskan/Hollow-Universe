@@ -4,6 +4,7 @@ using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
@@ -327,6 +328,7 @@ public sealed partial class Zone
     /// </summary>
     public ActionResult Respawn(Entity entity, EntityId bag)
     {
+        using TickProfile.Scope timed = Profile.Time(ProfileSection.Respawn);
         if (PlayerOf(entity) is not { } p)
         {
             return ActionResult.Invalid;

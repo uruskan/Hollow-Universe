@@ -17,6 +17,7 @@ using Hollow.Net.Transport;
 using Hollow.Persistence;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
@@ -132,6 +133,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         LoadWorld();
         StartBuilding();
         StartRaid();
+        Zone.Profile = Profile;
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
         Log($"{options.Name}: zone on {Spec}, port {Port}, " +
@@ -265,9 +267,17 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     /// <summary>One tick: receive, log players in, step the zone, replicate, save, send.</summary>
     public void Tick()
     {
+        TimeSpan gcBefore = GC.GetTotalPauseDuration();
+        TickProfile.Scope whole = Profile.Time(ProfileSection.Tick);
         Zone.UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        _net.PollEvents();
-        FinishLogins();
+        using (Profile.Time(ProfileSection.Receive))
+        {
+            _net.PollEvents();
+        }
+        using (Profile.Time(ProfileSection.Logins))
+        {
+            FinishLogins();
+        }
         while (_commands.TryDequeue(out string? command))
         {
             RunCommand(command);
@@ -294,28 +304,44 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             ApplyShipInput(session, input);
         }
         long stepStarted = Stopwatch.GetTimestamp();
-        Zone.Step();
+        using (Profile.Time(ProfileSection.Step))
+        {
+            Zone.Step();
+        }
         StepTime += Stopwatch.GetElapsedTime(stepStarted);
         ReportFalls();
-        AfterStep();
+        using (Profile.Time(ProfileSection.AfterStep))
+        {
+            AfterStep();
+        }
 
         _snapshotAccumulator += (double)Protocol.SnapshotRate / TickRate;
         if (_snapshotAccumulator >= 1)
         {
             _snapshotAccumulator -= 1;
+            using TickProfile.Scope _ = Profile.Time(ProfileSection.Replicate);
             Replicate();
         }
         if (_persistence != null && (Stopwatch.GetElapsedTime(_lastSave).TotalSeconds >= _options.SaveIntervalSeconds ||
             (_deathToSave && Stopwatch.GetElapsedTime(_lastDeathSave).TotalSeconds >= 1)))
         {
+            using TickProfile.Scope _ = Profile.Time(ProfileSection.Save);
             _lastSave = _lastDeathSave = Stopwatch.GetTimestamp();
             _deathToSave = false;
             SaveAll();
         }
-        long now = Stopwatch.GetTimestamp();
-        _net.ManualUpdate((float)((now - _lastNetUpdate) * 1000.0 / Stopwatch.Frequency));
-        _lastNetUpdate = now;
+        using (Profile.Time(ProfileSection.Send))
+        {
+            long now = Stopwatch.GetTimestamp();
+            _net.ManualUpdate((float)((now - _lastNetUpdate) * 1000.0 / Stopwatch.Frequency));
+            _lastNetUpdate = now;
+        }
+        whole.Dispose();
+        Profile.EndTick((GC.GetTotalPauseDuration() - gcBefore).TotalMilliseconds);
     }
+
+    /// <summary>Where the ticks go (GROUND.md §5.9): the load test prints it.</summary>
+    public TickProfile Profile { get; } = new();
 
     private void ReportFalls()
     {
@@ -452,7 +478,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             entity = Zone.AddPlayer(id, session.Name, state, player);
             Zone.Entities.Get<Character>(entity).Input.Yaw = yaw;
-            if (how == "new" && _options.ShipOnJoin)
+            if (how == "new" && (_options.ShipOnJoin || _options.ShipOnJoinFor?.Invoke(session.Name) == true))
             {
                 _shipOnJoin.Add(session);
             }
