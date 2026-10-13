@@ -1557,7 +1557,7 @@ foundation and wall at two thirds, a twig foundation gone).
 ### 6.6 Raiding (G5)
 
 Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids. The rules
-are `Hollow.Simulation` code (`Zone.Raid.cs`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
+are `Hollow.Simulation` code (`Zone.Raid.cs`, `Zone.Blast.cs`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
 `explosives.json` and `weapons.json`; the server's side is `GameServer.Raid.cs` and the notification service
 `Hollow.Server/Notifications`; the client's `GameClient.Raid.cs`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
 
@@ -1662,9 +1662,10 @@ and bursts where it lands, which is all it does to buildings.
 **Offline raids** (ARCHITECTURE.md §10.4: they are live). The zone runs whether the owners are there or not: their sleepers lie
 where they logged off and die to blasts and bullets like anyone (into a lootable corpse), upkeep is taken from the claim device's
 store and unpaid pieces decay on the zone's slow schedule (every minute, in closed form), and the alerts wait for them.
-`RaidAlertTests.AWholeOfflineRaid` walks through one: the owner logs off asleep in a stone hut with a sheet metal door; a raider
-breaks the door with a timed charge (alert queued), kills the sleeper with a second one inside (summed into a follow-up after
-the minute) and loots the body; two hours of upkeep and decay pass; the owner logs in dead to two alerts.
+`RaidAlertTests.AWholeOfflineRaid` walks through one: the owner logs off asleep in a stone hut with a sheet metal door; two hours
+pass (upkeep paid from the claim device, an unclaimed twig foundation nearby decayed away, the hut whole); a raider breaks the
+door with a timed charge (alert queued), kills the sleeper with a second one inside, which breaks the claim device too (summed
+into a follow-up after the minute), and loots the body; the owner logs in dead to two alerts.
 
 **Network** (protocol 6, `Messages.cs`):
 - *Intents* (the general sequence, answered by `IntentResult`): `ThrowIntent` (belt slot, item, view, lob), `PlaceChargeIntent`
@@ -1694,7 +1695,8 @@ package: `timed-charge`, `bag-charge`, `tin-grenade`, `rocket-launcher`, `rocket
 `explosives`); explosives drawn and blinking, with throw, bounce, stick, fizzle and relight sounds; the throw and place animations
 (held item, left mouse throws, right mouse lobs or places: the controls are the integration's); detonations with flash, smoke,
 debris, a camera shake and a loud, far sound; rockets with a trail; the "Light" prompt on duds; the raid-alert notice and the list
-at login (base on the map, time, what was hit); pieces showing damage (their health is replicated by phase 2a).
+at login (base on the map, time, what was hit); pieces showing damage (their health is replicated by phase 2a). Until the sound
+package makes them, `sounds.json` maps the new items to stand-ins (§11 R15).
 
 **Persistence.** Charges stuck or lying in the world (duds too, and any still in the air, which fall on) survive a restart: they
 are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`) with their fuse as world time left, which pauses while the
@@ -1708,7 +1710,7 @@ claimed hut in front of a player for playtests.
 breaks and brings down replicates and is saved like any other change. Swings, arrows and bullets that stop at a piece,
 door or claim device (`HitTarget.Building`) go through `Zone.DamageBuildingBy`, which damages through the same rules
 and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
-building rules, on the analytic ground (R14).
+building rules, on the analytic ground (§11 R14).
 
 ---
 

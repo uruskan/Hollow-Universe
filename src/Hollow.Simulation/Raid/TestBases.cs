@@ -98,14 +98,23 @@ public static class TestBases
         hut.Roof = On(world, walls[0], Top, "floor", grade, owner, now);
         if (door != null)
         {
-            FitDoor(world, hut);
+            FitDoor(zone, hut);
         }
         if (claim)
         {
-            world.PlaceClaim(owner, foundation, new Vector3D(0.8, 0, -0.8), 0, out ClaimDevice? device);
-            hut.Claim = device;
+            hut.Claim = PutClaim(zone, foundation, owner, new[] { owner });
         }
         return hut;
+    }
+
+    // The claim device in its corner of the foundation, listing whom it lists: put straight in like the pieces, since the
+    // placement rules would refuse it under a neighbour's claim (which reaches over the next huts of a ring) or over a
+    // character standing there.
+    private static ClaimDevice? PutClaim(Zone zone, Piece foundation, ulong owner, IEnumerable<ulong> listed)
+    {
+        BuildingWorld world = zone.Building!;
+        return world.RestoreClaim(zone.NextId(), owner, foundation, new Vector3D(0.8, foundation.Pose.Position.Y, -0.8), 0, world.Data.ClaimHealth,
+            listed);
     }
 
     /// <summary>Puts back whatever of a hut is gone (a wall, the door, the roof, the claim device), as new; false when its foundation went (build another).</summary>
@@ -131,20 +140,12 @@ public static class TestBases
         }
         if (hut.DoorKey != null && hut.Door is null or { Gone: true })
         {
-            FitDoor(world, hut);
+            FitDoor(zone, hut);
         }
         if (hut.Claim is null or { Gone: true })
         {
             ulong[] listed = hut.Claim != null ? new List<ulong>(hut.Claim.Authorised).ToArray() : new[] { hut.Owner };
-            world.PlaceClaim(hut.Owner, hut.Foundation, new Vector3D(0.8, 0, -0.8), 0, out ClaimDevice? device);
-            hut.Claim = device;
-            if (device != null)
-            {
-                foreach (ulong player in listed)
-                {
-                    world.Authorise(player, device);
-                }
-            }
+            hut.Claim = PutClaim(zone, hut.Foundation, hut.Owner, listed);
         }
         return true;
     }
@@ -181,16 +182,15 @@ public static class TestBases
         return BuildingFrame.At(probe.Origin + upD * (highest + data.FoundationClearance + 0.02), upD, heading);
     }
 
-    private static void FitDoor(BuildingWorld world, Hut hut)
+    // The door in the doorway, shut and unlocked: put straight in like the claim device (PutClaim).
+    private static void FitDoor(Zone zone, Hut hut)
     {
+        BuildingWorld world = zone.Building!;
         if (world.Data.Door(hut.DoorKey!) is not { } def)
         {
             return;
         }
-        (Vector3 position, Quaternion rotation) = hut.Doorway.ZoneTransform;
-        Vector3 eye = position + Vector3.Transform(new Vector3(0, 1.6f, 2), rotation);
-        world.PlaceDoor(hut.Owner, def, hut.Doorway, 0, eye, out Door? door);
-        hut.Door = door;
+        hut.Door = world.RestoreDoor(zone.NextId(), def, hut.Doorway, 0, hut.Owner, open: false, def.Health);
     }
 
     private static Piece On(BuildingWorld world, Piece parent, SocketId socket, string key, int grade, ulong owner, double now)
