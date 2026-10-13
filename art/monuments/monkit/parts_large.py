@@ -1204,10 +1204,36 @@ def _main_transformer(b):
     b.box((0.8, 0.02, 0.15), (w / 2 - 0.6, -d / 2 - 0.56, 2.0), mat=PAINT, tint=YELLOW, solid=False, vary=0)
 
 
+def _haul_truck(b):
+    """A mine haul truck: tyres taller than a person (dual at the rear), a chassis, the dump body with its canopy
+    over the cab, the upper deck with rails and a stair up to it."""
+    body = srgb(0.86, 0.66, 0.14)
+    for x, ys in ((4.4, (-3.0, 3.0)), (-3.4, (-2.2, -3.6, 2.2, 3.6))):
+        for y in ys:
+            b.cyl(2.0, 1.3, (x, y, 2.0), (90, 0, 0), mat=MATTE, tint=srgb(0.07, 0.07, 0.07), sides=20, solid=False)
+            b.cyl(0.9, 1.34, (x, y, 2.0), (90, 0, 0), mat=PAINT, tint=GREY, sides=12, solid=False)
+    b.box((12.4, 3.0, 1.6), (0.2, 0, 2.6), mat=PAINT, tint=body)
+    b.box((3.0, 4.4, 2.8), (5.4, 0, 3.6), mat=PAINT, tint=body, bevel=0.1)
+    b.box((0.2, 3.6, 2.0), (6.95, 0, 3.6), mat=PAINT, tint=DARK, solid=False)
+    b.box((3.4, 7.2, 0.25), (5.2, 0, 5.15), mat=GRATE, tint=GREY)
+    railing(b, (3.5, -3.6, 5.3), (6.9, -3.6, 5.3), spacing=1.2, toe=False)
+    railing(b, (6.9, -3.6, 5.3), (6.9, 3.6, 5.3), spacing=1.2, toe=False)
+    b.box((2.4, 2.4, 2.4), (4.6, -2.0, 6.5), mat=PAINT, tint=body, bevel=0.06)
+    b.box((0.04, 2.2, 1.2), (5.82, -2.0, 6.9), mat=GLASS, solid=False)
+    b.box((2.2, 0.04, 1.0), (4.6, -3.22, 6.9), mat=GLASS, solid=False)
+    b.extrude([(-7.4, 4.2), (3.0, 3.4), (3.2, 7.4), (6.8, 8.0), (6.8, 8.3), (2.4, 8.3), (-7.8, 6.6)], 6.8,
+              (0, 0, 0), (0, 0, 0), mat=PAINT, tint=body, bevel=0.05)
+    for x in (-5.0, -2.0, 1.0):
+        b.box((0.3, 6.9, 0.4), (x, 0, 4.1 + (x + 7.4) * 0.06), mat=PAINT, tint=srgb(0.70, 0.52, 0.10), solid=False)
+    stairs(b, (6.6, -4.4, 0.4), (0, 0, 90), 0.8, 4.75, 5.4, tint=YELLOW)
+    b.collide_box(Vector((0, 0, 2.2)), (14.0, 7.6, 4.4), (0, 0, 0))
+
+
 kit.PIECES.update({
     "flood-mast": _flood_mast,
     "container-40": _container_40,
     "wreck-car": _wreck_car,
     "wreck-truck": _wreck_truck,
     "main-transformer": _main_transformer,
+    "haul-truck": _haul_truck,
 })
