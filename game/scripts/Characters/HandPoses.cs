@@ -40,9 +40,13 @@ public static class HandPoses
 
     private static readonly string[] Fingers = { "index", "middle", "ring", "pinky" };
 
-    // Every character skeleton comes from the same template, so one table per hand serves them all.
-    private static readonly Dictionary<bool, List<(int Bone, Quaternion RestRotation, Vector3 Axis, int Joint, int Kind, int Finger)>> Rigs = new();
-    private static readonly Dictionary<(bool Right, Grip Grip), float[][]> Wraps = new();
+    // Skeletons come from one template per body, so one table per hand and body serves them all (keyed by where
+    // the hand is at rest, which tells the bodies apart).
+    private static readonly Dictionary<(bool, Vector3I), List<(int Bone, Quaternion RestRotation, Vector3 Axis, int Joint, int Kind, int Finger)>> Rigs = new();
+    private static readonly Dictionary<(bool Right, Grip Grip, Vector3I Body), float[][]> Wraps = new();
+
+    private static Vector3I BodyKey(Skeleton3D s, bool right) =>
+        (Vector3I)(s.GetBoneGlobalRest(s.FindBone(right ? "hand_r" : "hand_l")).Origin * 1000f).Round();
 
     /// <summary>Sets the finger bones of one hand to a grip (from their rest pose).</summary>
     public static void Apply(Skeleton3D s, Grip grip, bool right, float weight = 1f)
@@ -67,7 +71,7 @@ public static class HandPoses
     /// handle, which lies across the palm where <see cref="FistAlong"/> and <see cref="FistLift"/> put it.</summary>
     private static float[][] Wrap(Skeleton3D s, Grip grip, bool right)
     {
-        if (Wraps.TryGetValue((right, grip), out float[][]? cached))
+        if (Wraps.TryGetValue((right, grip, BodyKey(s, right)), out float[][]? cached))
         {
             return cached;
         }
@@ -107,7 +111,7 @@ public static class HandPoses
             }
             result[i] = bend;
         }
-        Wraps[(right, grip)] = result;
+        Wraps[(right, grip, BodyKey(s, right))] = result;
         return result;
     }
 
@@ -153,7 +157,7 @@ public static class HandPoses
     /// <summary>For each finger bone: its rest rotation and the local axis that bends it towards the palm.</summary>
     private static List<(int, Quaternion, Vector3, int, int, int)> Rig(Skeleton3D s, bool right)
     {
-        if (Rigs.TryGetValue(right, out var rig))
+        if (Rigs.TryGetValue((right, BodyKey(s, right)), out var rig))
         {
             return rig;
         }
@@ -186,7 +190,7 @@ public static class HandPoses
                     name == "thumb" ? 0 : name == "index" ? 1 : 2, n - 1));
             }
         }
-        Rigs[right] = rig;
+        Rigs[(right, BodyKey(s, right))] = rig;
         return rig;
     }
 }

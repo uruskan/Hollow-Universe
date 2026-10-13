@@ -118,16 +118,34 @@ MALE_TARGETS = [
 ]
 
 
+# The adult female: the same build, a woman's proportions. Fit and lean, as a survivor would be.
+FEMALE = {
+    "gender": 0.0, "age": 0.55, "muscle": 0.66, "weight": 0.5, "height": 0.52, "proportions": 0.62,
+    "cupsize": 0.42, "firmness": 0.6,
+    "race": {"caucasian": 0.62, "african": 0.19, "asian": 0.19},
+}
+
+FEMALE_TARGETS = [
+    ("torso/measure-shoulder-dist-incr.target.gz", 0.12),
+    ("neck/measure-neck-circ-incr.target.gz", 0.15),
+]
+
+
 def make_male():
     """The MakeHuman male with MPFB's game-engine skeleton (UE-style bone names, 53 bones) and its weights."""
+    return make_human(MALE, MALE_TARGETS)
+
+
+def make_human(macros, shape_targets):
+    """A MakeHuman body from macro values and shape targets, with MPFB's game-engine skeleton and its weights."""
     HumanService, TargetService, LocationService = mpfb()
     macro = TargetService.get_default_macro_info_dict()
-    macro.update({k: v for k, v in MALE.items() if k != "race"})
-    macro["race"] = dict(MALE["race"])
+    macro.update({k: v for k, v in macros.items() if k != "race"})
+    macro["race"] = dict(macros["race"])
     body = HumanService.create_human(mask_helpers=True, detailed_helpers=True, extra_vertex_groups=True,
                                      feet_on_ground=True, scale=0.1, macro_detail_dict=macro)
     targets = LocationService.get_mpfb_data("targets")
-    for rel, weight in MALE_TARGETS:
+    for rel, weight in shape_targets:
         TargetService.load_target(body, os.path.join(targets, rel), weight=weight)
     rig = HumanService.add_builtin_rig(body, "game_engine", import_weights=True)
     return body, rig

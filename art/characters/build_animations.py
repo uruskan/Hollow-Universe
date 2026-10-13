@@ -100,7 +100,10 @@ ARM_CHAIN = ("clavicle_", "upperarm_", "lowerarm_", "hand_", "thumb_", "index_",
 def main():
     a = H.args()
     out = os.path.abspath(a.get("out", H.CHARACTERS))
-    cache = os.path.join(H.CACHE, "human_male.blend")
+    # The female's clips (-- --body female) are retargeted onto her own rig: animations_female.glb.
+    which = a.get("body", "male")
+    suffix = "" if which == "male" else "_" + which
+    cache = os.path.join(H.CACHE, "human_%s.blend" % which)
     bpy.ops.wm.open_mainfile(filepath=cache)
     scene = bpy.context.scene
     scene.render.fps = 30
@@ -146,15 +149,15 @@ def main():
     meshes = [o for o in bpy.data.objects if o.type == 'MESH']
     for m in meshes:
         bpy.data.objects.remove(m)
-    H.export_glb(os.path.join(out, "animations.glb"), [rig], animations=True)
-    H.write_json(os.path.join(out, "animations.json"), {
+    H.export_glb(os.path.join(out, "animations%s.glb" % suffix), [rig], animations=True)
+    H.write_json(os.path.join(out, "animations%s.json" % suffix), {
         "source": "Quaternius Universal Animation Library 1 and 2, Standard (CC0), retargeted by "
                   "art/characters/build_animations.py",
         "fps": scene.render.fps,
         "clips": meta,
     })
     if a.get("sheet"):
-        contact_sheet(a["sheet"], os.path.join(out, "animations.glb"), list(meta.keys()), meta)
+        contact_sheet(a["sheet"], os.path.join(out, "animations%s.glb" % suffix), list(meta.keys()), meta)
 
 
 def import_library(path):

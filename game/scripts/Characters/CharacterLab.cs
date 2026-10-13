@@ -59,12 +59,13 @@ public partial class CharacterLab : Node3D
     public override void _Ready()
     {
         BuildWorld();
-        _character = new CharacterView { Name = "Character" };
+        BodyType body = Option("body", "male") == "female" ? BodyType.Female : BodyType.Male;
+        _character = new CharacterView { Name = "Character", Body = body };
         AddChild(_character);
         _camera = new Camera3D { Name = "Camera", Fov = 50f, Near = 0.03f, Far = 800f, CullMask = 1 | ViewmodelView.RenderLayer };
         AddChild(_camera);
         _camera.MakeCurrent();
-        _viewmodel = new ViewmodelView { Name = "Viewmodel" };
+        _viewmodel = new ViewmodelView { Name = "Viewmodel", Body = body };
         _camera.AddChild(_viewmodel);
         BuildInterface();
 
@@ -393,7 +394,7 @@ public partial class CharacterLab : Node3D
         if (_firstPerson)
         {
             Vector3 up = frame.Up;
-            float eye = frame.Stance == CharacterStance.Crouch ? 1.02f : CharacterAssets.EyeHeight;
+            float eye = frame.Stance == CharacterStance.Crouch ? 1.02f : CharacterAssets.For(_character.Body).EyeHeight;
             Basis look = CharacterFrame.BasisOf(up, frame.Yaw) * new Basis(Vector3.Right, _aimPitch);
             var eyes = new Transform3D(look, frame.Position + up * eye);
             _camera.GlobalTransform = eyes;

@@ -420,8 +420,11 @@ works in the character's own frame. The ragdoll falls along −`Up` at the momen
 (`pelvis`, `spine_01`…`spine_03`, `neck_01`, `head`, `clavicle_l`, `upperarm_l`, `lowerarm_l`, `hand_l`, three bones per
 finger, `thigh_l`, `calf_l`, `foot_l`, `ball_l`). Rest pose: MakeHuman's A-pose. Levels of detail: about 18,000, 7,000
 and 2,400 triangles for the body; eyes, brows, lashes and short hair (MakeHuman CC0 assets) drop out with distance.
-Players start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric
-surface), so nobody is ever without it. The face blinks every two to six seconds at the nearest level of detail (a
+A female body (1.61 m, eyes at 1.50 m) is built by the same scripts (`-- --body female`): the same skeleton names, her
+own meshes, clothing cut from her body and clips retargeted onto her rig (`human_female.glb`, `clothing_female.glb`,
+`animations_female.glb`); a character picks its body with `CharacterView.Body` and `ViewmodelView.Body`. Players
+start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric surface, and
+for a woman a crop top cut straight round the chest), so nobody is ever without it. The face blinks every two to six seconds at the nearest level of detail (a
 "blink" shape on the body and lashes from MakeHuman's eyelid-closure expression units); the eyes have a wet clear coat;
 the hair cards blend their thin ends over a depth pre-pass, and a dark hair base painted on the scalp fades into the
 forehead, so the hairline is soft.
@@ -518,7 +521,7 @@ revive, switch to first person, and measure a crowd. Screenshots in `docs/images
 **Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so they don't swing or
 drape as the body moves, and their wrinkles are painted, not simulated; the back plate is plainer than the front; the
 face has no expressions or eye movement beyond the blink; hair is MakeHuman's short cut only; first-person reloads move the hand but not
-the magazine (the catalogue's guns are one mesh); the female body is not built yet.
+the magazine (the catalogue's guns are one mesh); the female body's crop top still has a few notched faces at its edges, and her shirt shows the bust a little more than a real shirt would.
 
 ---
 
@@ -1168,6 +1171,9 @@ Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `mo
      lames ride the collarbones and upper arms. It stands clear of the shirt, so the shirt never shows through.
    - The riveted breastplate has faulds and shoulder caps although the brief asked only for a breastplate: without
      them it did not read as armour at 20 m.
+   - The female body comes from the same scripts with her own MakeHuman build, skin, brows and hair (a ponytail),
+     a crop top as underwear and garments cut from her own body; the two bodies share no meshes, only the skeleton's
+     names, the materials of eyes, lashes and underwear, and the animation graph.
 3. **Tech ladder:** Rust's is assumed.
 
 Decisions taken during G1 without the owner, to confirm or overturn:

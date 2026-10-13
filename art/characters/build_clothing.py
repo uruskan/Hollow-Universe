@@ -33,13 +33,18 @@ LODS = (1.0, 0.42, 0.16)
 def main():
     a = H.args()
     out = os.path.abspath(a.get("out", H.CHARACTERS))
-    bpy.ops.wm.open_mainfile(filepath=os.path.join(H.CACHE, "human_male.blend"))
+    # The male's garments are clothing.glb; the female's (-- --body female) clothing_female.glb, with their own
+    # surfaces and textures (suffix "_female"), since they are cut from her body.
+    which = a.get("body", "male")
+    suffix = "" if which == "male" else "_" + which
+    bpy.ops.wm.open_mainfile(filepath=os.path.join(H.CACHE, "human_%s.blend" % which))
     body = bpy.data.objects["body_source"]
     rig = bpy.data.objects["Rig"]
     for o in list(bpy.data.objects):
         if o.type == 'MESH' and o is not body:
             bpy.data.objects.remove(o)
     marks = Marks(rig)
+    marks.female = which == "female"
     textures = os.path.join(out, "textures")
     detail_textures(textures)
 
@@ -65,9 +70,9 @@ def main():
             H.limit_and_normalise_weights(obj)
         G.regions_from_body(obj, body)
         G.pack_uvs(obj)
-        surfaces[name] = paint(obj, textures, name)
+        surfaces[name + suffix] = paint(obj, textures, name + suffix)
         obj.data.materials.clear()
-        obj.data.materials.append(bpy.data.materials.get(name) or bpy.data.materials.new(name))
+        obj.data.materials.append(bpy.data.materials.get(name + suffix) or bpy.data.materials.new(name + suffix))
         H.parent_to_rig(obj, rig)
         for level, ratio in enumerate(LODS):
             copy = H.duplicate(obj, "%s_lod%d" % (name, level))
@@ -79,8 +84,8 @@ def main():
             exported.append(copy)
         bpy.data.objects.remove(obj)
     H.log("garments:", counts)
-    H.export_glb(os.path.join(out, "clothing.glb"), [rig] + exported)
-    H.write_json(os.path.join(out, "clothing.json"), {
+    H.export_glb(os.path.join(out, "clothing%s.glb" % suffix), [rig] + exported)
+    H.write_json(os.path.join(out, "clothing%s.json" % suffix), {
         "source": "art/characters/build_clothing.py (our own work)",
         "meshes": {o.name: {"lods": [int(o.name[-1])], "triangles": counts[o.name]} for o in exported},
         "surfaces": surfaces,
@@ -88,8 +93,8 @@ def main():
     if a.get("preview"):
         import preview
         for name, _ in garments:
-            m = bpy.data.materials[name]
-            m["preview_colour"] = surfaces[name]["preview"]
+            m = bpy.data.materials[name + suffix]
+            m["preview_colour"] = surfaces[name + suffix]["preview"]
         body.hide_render = False
         preview.render(a["preview"], [rig, body] + [o for o in exported if o.name.endswith("lod0")], out)
 
@@ -108,6 +113,7 @@ class Marks:
         self.neck = (b["clavicle_l"][0] + b["clavicle_r"][0]) / 2
         self.head = b["head"][0]
         self.spine_y = (b["spine_01"][0].y + b["spine_03"][0].y + b["spine_03"][1].y) / 3
+        self.female = False
 
     def head_of(self, bone):
         return self.b[bone][0]
@@ -175,7 +181,9 @@ def woven_shirt(body, m):
     trunk = set(range(len(obj.data.vertices))) - arms
     G.envelope(obj, (0, m.spine_y, 1.56), (0, 0, -1), sectors=64, blur_theta=4, blur_t=3, drape=(1.56 - 1.33, 0.12),
                extra=0.004, select=lambda co: co.z < neck_mid - 0.03, indices=trunk, hull=True)
-    G.smooth(obj, 16, 0.5, weight=lambda co: 1.0 if abs(co.x) < 0.17 and 1.18 < co.z < neck_mid - 0.03 else 0.0)
+    # Over a woman's bust the cloth spans from point to point, so it gets smoothed for longer.
+    G.smooth(obj, 40 if m.female else 16, 0.5,
+             weight=lambda co: 1.0 if abs(co.x) < 0.17 and (1.05 if m.female else 1.18) < co.z < neck_mid - 0.03 else 0.0)
     for s in ("_l", "_r"):
         shoulder, elbow, wrist = m.head_of("upperarm" + s), m.head_of("lowerarm" + s), m.head_of("hand" + s)
         side = 1 if s == "_l" else -1

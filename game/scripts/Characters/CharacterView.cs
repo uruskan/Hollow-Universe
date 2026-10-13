@@ -59,6 +59,11 @@ public partial class CharacterView : Node3D
     /// <summary>Forces a level of detail (0–2) regardless of distance; −1 picks by distance.</summary>
     public int ForcedLod { get; set; } = -1;
 
+    /// <summary>Which body this character has; set it before the view enters the tree.</summary>
+    public BodyType Body { get; set; } = BodyType.Male;
+
+    private BodyAssets _assets = null!;
+
     /// <summary>Holds the eyelids at this closure (0 open, 1 shut) instead of blinking now and then; −1 blinks.</summary>
     public float BlinkOverride { get; set; } = -1f;
 
@@ -80,14 +85,14 @@ public partial class CharacterView : Node3D
 
     public override void _Ready()
     {
-        CharacterAssets.Load();
+        _assets = CharacterAssets.For(Body);
         // The art faces +Z; the view's forward is −Z.
         _model = new Node3D { Name = "Model", RotationDegrees = new Vector3(0, 180, 0) };
         AddChild(_model);
-        _skeleton = CharacterAssets.NewSkeleton();
+        _skeleton = _assets.NewSkeleton();
         _skeleton.ModifierCallbackModeProcess = Skeleton3D.ModifierCallbackModeProcessEnum.Manual;
         _model.AddChild(_skeleton);
-        foreach (MeshPart part in CharacterAssets.Meshes.Values)
+        foreach (MeshPart part in _assets.Meshes.Values)
         {
             if (!IsBodyPart(part.Name))
             {
@@ -116,11 +121,11 @@ public partial class CharacterView : Node3D
         _tree = new AnimationTree
         {
             Name = "Animation",
-            TreeRoot = CharacterAnimator.Tree,
+            TreeRoot = CharacterAnimator.TreeFor(_assets),
             CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual,
             RootNode = new NodePath(".."),
         };
-        _tree.AddAnimationLibrary("", CharacterAssets.Library);
+        _tree.AddAnimationLibrary("", _assets.Library);
         _model.AddChild(_tree);
         _tree.Active = true;
         ApplyRegions();
@@ -179,7 +184,7 @@ public partial class CharacterView : Node3D
         {
             for (int level = 0; level < 3; level++)
             {
-                MeshPart? part = CharacterAssets.Part(w.Mesh + "_lod" + level);
+                MeshPart? part = _assets.Part(w.Mesh + "_lod" + level);
                 if (part == null)
                 {
                     continue;

@@ -28,12 +28,13 @@ NAIL_HALF_WIDTH = {"thumb": 0.0072, "index": 0.0058, "middle": 0.006, "ring": 0.
 
 
 def main():
-    bpy.ops.wm.open_mainfile(filepath=os.path.join(H.CACHE, "human_male.blend"))
-    paint(bpy.data.objects["body_source"], os.path.join(H.CHARACTERS, "textures"))
+    body = H.args().get("body", "male")
+    bpy.ops.wm.open_mainfile(filepath=os.path.join(H.CACHE, "human_%s.blend" % body))
+    paint(bpy.data.objects["body_source"], os.path.join(H.CHARACTERS, "textures"), "skin_" + body)
 
 
-def paint(body, folder):
-    path = os.path.join(folder, "skin_male_albedo.png")
+def paint(body, folder, stem="skin_male"):
+    path = os.path.join(folder, stem + "_albedo.png")
     px, w, h = H.load_image_pixels(path)
     img = np.flipud(px).copy()
     mask, pos, nor, _ = G.rasterise(body, w)
@@ -50,7 +51,7 @@ def paint(body, folder):
     height += nail * 0.022 - cuticle * 0.03 + knuckles(rig, pos, nor)
     height *= mask
     normal = S.height_to_normal(height, 5.0)
-    H.save_image(S.to_blender_pixels(G.bleed(normal, mask, 8)), w, h, os.path.join(folder, "skin_male_normal.png"))
+    H.save_image(S.to_blender_pixels(G.bleed(normal, mask, 8)), w, h, os.path.join(folder, stem + "_normal.png"))
     img[..., 3] = 1.0 - 0.55 * np.clip(nail, 0, 1)
     H.save_image(S.to_blender_pixels(img), w, h, path)
     H.log("skin maps painted (%d nail texels)" % int((nail > 0.5).sum()))

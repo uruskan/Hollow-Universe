@@ -56,9 +56,25 @@ public static class CharacterAnimator
     /// <summary>Clips for one-off actions, by name in the action transition.</summary>
     public static readonly string[] ActionClips = { "tool_swing", "chop", "punch_jab", "pistol_fire", "pistol_reload", "throw" };
 
-    private static AnimationNodeBlendTree? _tree;
+    private static readonly Dictionary<BodyType, AnimationNodeBlendTree> Trees = new();
 
-    public static AnimationNodeBlendTree Tree => _tree ??= Build();
+    /// <summary>The male body's graph.</summary>
+    public static AnimationNodeBlendTree Tree => TreeFor(CharacterAssets.For(BodyType.Male));
+
+    /// <summary>The graph for a body: the same nodes, its own clips' ground speeds.</summary>
+    public static AnimationNodeBlendTree TreeFor(BodyAssets body)
+    {
+        if (!Trees.TryGetValue(body.Type, out AnimationNodeBlendTree? tree))
+        {
+            _clips = body.Clips;
+            tree = Build();
+            Trees[body.Type] = tree;
+        }
+        return tree;
+    }
+
+    // The clips of the body whose graph is being built.
+    private static IReadOnlyDictionary<string, ClipInfo> _clips = new Dictionary<string, ClipInfo>();
 
     /// <summary>Highest speed of the stand blend; faster movement plays it faster.</summary>
     public static float TopSpeed => StandPoints[^1].Speed;
@@ -125,7 +141,7 @@ public static class CharacterAnimator
         AddInputs(t, "action_clip", actionClip, Array.ConvertAll(ActionClips, c => (c, c)));
         // The chop is a loop that starts mid-swing: it starts at its wind-up, a little faster than the clip, and the
         // character fades it out after the follow-through (CharacterView, ChopFadeAt).
-        if (t.GetNode("action_clip_chop") is AnimationNodeAnimation chop && CharacterAssets.Clips.TryGetValue("chop", out ClipInfo? info))
+        if (t.GetNode("action_clip_chop") is AnimationNodeAnimation chop && _clips.TryGetValue("chop", out ClipInfo? info))
         {
             chop.UseCustomTimeline = true;
             chop.StartOffset = ChopWindUp;
@@ -164,7 +180,7 @@ public static class CharacterAnimator
     private static AnimationNodeAnimation Clip(string name, float speed = 0f)
     {
         var node = new AnimationNodeAnimation { Animation = name };
-        if (speed > 0f && CharacterAssets.Clips.TryGetValue(name, out ClipInfo? info) && info.GroundSpeed > 0f)
+        if (speed > 0f && _clips.TryGetValue(name, out ClipInfo? info) && info.GroundSpeed > 0f)
         {
             float rate = Math.Clamp(speed / info.GroundSpeed, 0.7f, 1.45f);
             node.UseCustomTimeline = true;

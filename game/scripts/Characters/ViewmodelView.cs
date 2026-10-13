@@ -71,19 +71,24 @@ public partial class ViewmodelView : Node3D
 
     public HeldItemModel? Model => _model;
 
+    /// <summary>Whose arms these are; set it before the view enters the tree.</summary>
+    public BodyType Body { get; set; } = BodyType.Male;
+
+    private BodyAssets _assets = null!;
+
     public override void _Ready()
     {
-        CharacterAssets.Load();
+        _assets = CharacterAssets.For(Body);
         _rig = new Node3D { Name = "Rig" };
         AddChild(_rig);
-        _skeleton = CharacterAssets.NewSkeleton();
+        _skeleton = _assets.NewSkeleton();
         _skeleton.ModifierCallbackModeProcess = Skeleton3D.ModifierCallbackModeProcessEnum.Manual;
         _rig.AddChild(_skeleton);
         // The camera sits at the eyes: the body faces +Z, the camera looks along −Z.
         int head = _skeleton.FindBone("head");
-        Vector3 eye = new(0f, CharacterAssets.EyeHeight, _skeleton.GetBoneGlobalRest(head).Origin.Z + 0.09f);
+        Vector3 eye = new(0f, _assets.EyeHeight, _skeleton.GetBoneGlobalRest(head).Origin.Z + 0.09f);
         _rig.Transform = new Transform3D(new Basis(Vector3.Up, MathF.PI), Vector3.Zero) * new Transform3D(Basis.Identity, -eye);
-        MeshPart body = CharacterAssets.Part("body_lod0")!;
+        MeshPart body = _assets.Part("body_lod0")!;
         _arms.Add(Instance(body));
         // In first person the fist closes tightly, so the handle sits further into the palm, across its crease.
         _gripR = HandFrame.Measure(_skeleton, right: true, along: HandPoses.FistAlong, lift: HandPoses.FistLift);
@@ -133,7 +138,7 @@ public partial class ViewmodelView : Node3D
         _worn.AddRange(items);
         foreach (Wearable w in _worn)
         {
-            MeshPart? part = w.OnArms ? CharacterAssets.Part(w.Mesh + "_lod0") : null;
+            MeshPart? part = w.OnArms ? _assets.Part(w.Mesh + "_lod0") : null;
             if (part != null)
             {
                 _sleeves.Add((Instance(part), w));
