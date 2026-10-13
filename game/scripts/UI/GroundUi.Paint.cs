@@ -313,7 +313,7 @@ public partial class GroundUi
             {
                 // A gun's loaded round, small at the bottom left (its count stays at the bottom right).
                 float round = MathF.Round(size * 0.3f);
-                Icon(stack.Round, x + 4, y + size - round - 3, round, round, alpha);
+                Icon(stack.Round, x + 7, y + size - round - 4, round, round, alpha);
             }
             string label = stack.Amount > 1 ? Count(stack.Amount) : stack.HasAmmo ? stack.Ammo.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
             if (label.Length > 0)

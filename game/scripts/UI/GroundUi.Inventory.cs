@@ -156,7 +156,7 @@ public partial class GroundUi
         for (int i = 0; i < rows.Count && 224 + (i + 1) * step <= bottom - 2; i++)
         {
             float y = 224 + i * step;
-            float label = Text(rows[i].Label, left, y, size, G.Ink, bold: true, condensed: true);
+            float label = Text(rows[i].Label, left, y, size, G.Ink, bold: true);
             float room = right - left - label - 12, value = size;
             while (value > 10 && Measure(rows[i].Value, value, bold: true) > room)
             {

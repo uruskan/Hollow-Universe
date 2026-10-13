@@ -358,6 +358,11 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
 - **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
   lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
   from 100), and `GunUpdate` carries the code in 7 bits.
+- **Cost:** the zone's tick does one array lookup per player for the held behaviour; the client one per frame for the
+  control; the item panel's rows and buttons are worked out once per stack and cached until it, the inventory, the
+  blueprints or the gun change; the ammo radial lists the calibre's rounds only while open.
+- **Pictures** (a hosted game, `--tour-steps held`): `docs/images/ground/held/ak-info.jpg`, `bag-charge-info.jpg`,
+  `ammo-icon.jpg`, `ammo-radial.jpg`, `blueprint-learn.jpg`, `crafting-workbench.jpg`. Protocol 17; six tests.
 - **Information** (`Items/ItemRows.cs`): a describer per part in a registry (every part has one, or nothing starts), each
   adding its rows; an item's information is its parts' rows in order, then its condition. A stack is described with
   what is its own: a gun's magazine and attachments (which change its numbers), what a blueprint teaches and whether the
