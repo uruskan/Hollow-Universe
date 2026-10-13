@@ -206,6 +206,8 @@ public partial class PeopleView : Node3D
         p.Velocity = p.Frames < 3 ? Vector3.Zero : p.Velocity.Lerp(seen, 0.3f);
         p.Last = e.Position;
         bool swimming = (e.Flags & MoveFlags.Swimming) != 0;
+        // In a ship's seat (G6): the character contract has no sitting pose, so the pilot isn't drawn (§11).
+        p.View.Visible = e.Stance != Stance.Seated;
         (HeldKind kind, string? model) = e.Held != 0 && Client.Content.Item(e.Held) is { } item && ItemLooks.Held(item.Key) is { } held
             ? held : (HeldKind.Unarmed, (string?)null);
         p.View.Apply(new CharacterFrame

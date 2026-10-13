@@ -126,6 +126,7 @@ public sealed partial class GameClient
         Local.ServerTick = _remoteClock;
         Local.ClockSeconds = ClockSeconds;
         Local.WorkbenchLevel = WorkbenchNear();
+        Local.StationNear ??= StationNear;
         Local.Update();
         Local.UpdateBuilding();
         UpdateRaid();
@@ -147,6 +148,32 @@ public sealed partial class GameClient
                 Vector3.Distance(thing.Position + Vector3.UnitY * d.HalfExtents.Y, at) <= Simulation.Zone.WorkbenchReach + d.HalfExtents.X)
             {
                 best = d.Workbench;
+            }
+        }
+        return best;
+    }
+
+    // The nearest deployable of a kind whose centre is within its reach (a workbench's 4 m plus its half width), as the
+    // server's Zone.StationNear finds a ship's vehicle workbench.
+    private ulong StationNear(DeployableDef def)
+    {
+        if (!HasCharacter)
+        {
+            return 0;
+        }
+        Vector3 at = Character.Position;
+        ulong best = 0;
+        float bestDistance = float.MaxValue;
+        foreach (RemoteThing thing in _things.Values)
+        {
+            if (thing.Kind != StaticKind.Deployable || thing.Deployable(Content) != def)
+            {
+                continue;
+            }
+            float distance = Vector3.Distance(thing.Position + Frame.UpAt(thing.Position) * def.HalfExtents.Y, at);
+            if (distance <= Simulation.Zone.WorkbenchReach + def.HalfExtents.X && distance < bestDistance)
+            {
+                (best, bestDistance) = (thing.Id.Value, distance);
             }
         }
         return best;

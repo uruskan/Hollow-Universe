@@ -824,6 +824,40 @@ def interface():
        cooldown=0.5)
 
 
+# ---------------------------------------------------------------- ships (G6)
+
+def scifi(name):
+    return pack("kenney-sci-fi-sounds", "Audio/" + name)
+
+
+def ships():
+    # The Tin Finch's engines (GROUND.md §6.7): a low hum that runs with them and the thrusters' burn, each a seamless
+    # loop the game turns up with the thrust; a boost's roar; the hatch; a touchdown on the skids and a crash.
+    event("ship.engine", [loop("ship/engine_loop.ogg", "loop", scifi("spaceEngineLow_000.ogg"), 0.5, 3.0, overlap=1.0,
+                               fx="highpass=f=35,lowpass=f=8000")],
+          "SFX", 0.0, unitSize=8.0, maxDistance=300.0, priority=65, limit=8)
+    event("ship.thrust", [loop("ship/thrust_loop.ogg", "loop", scifi("thrusterFire_001.ogg"), 0.5, 3.0, overlap=1.0,
+                               fx="highpass=f=60,lowpass=f=12000")],
+          "SFX", 0.0, unitSize=10.0, maxDistance=400.0, priority=65, limit=8)
+    event("ship.boost", [Out(numbered("ship/boost", k), "foley", [
+        Seg(scifi("spaceEngineLarge_00%d.ogg" % k), 0.0, 1.8, fade_out=0.9, fx="highpass=f=40"),
+        Seg(scifi("thrusterFire_00%d.ogg" % (k + 2)), 0.0, 1.6, gain=-4, fade_out=0.8)]) for k in range(2)],
+          "SFX", 0.0, unitSize=10.0, maxDistance=400.0, priority=70, limit=4)
+    event("ship.hatch.open", [Out(numbered("ship/hatch_open", k), "foley", [Seg(scifi("doorOpen_00%d.ogg" % k))])
+                              for k in range(2)], "SFX", -2.0, unitSize=3.0, maxDistance=30.0, priority=50)
+    event("ship.hatch.close", [Out(numbered("ship/hatch_close", k), "foley", [Seg(scifi("doorClose_00%d.ogg" % k))])
+                               for k in range(2)], "SFX", -2.0, unitSize=3.0, maxDistance=30.0, priority=50)
+    event("ship.touchdown", [Out(numbered("ship/touchdown", k), "impact", [
+        Seg(scifi("impactMetal_00%d.ogg" % k), fx="lowpass=f=2500"),
+        Seg(kenney("impactSoft_heavy_00%d.ogg" % k), gain=-3, fx=THUMP)]) for k in range(2)],
+          "SFX", 0.0, unitSize=6.0, maxDistance=80.0, priority=60)
+    event("ship.crash", [Out(numbered("ship/crash", k), "impact", [
+        Seg(scifi("impactMetal_00%d.ogg" % (k + 2))),
+        Seg(scifi("explosionCrunch_00%d.ogg" % k), gain=-4, pitch=0.8, fx="lowpass=f=5000"),
+        Seg(kenney("impactMetal_heavy_00%d.ogg" % k), gain=-2)]) for k in range(2)],
+          "SFX", 0.0, unitSize=8.0, maxDistance=150.0, priority=75)
+
+
 # ---------------------------------------------------------------- ambience
 
 def ambience():
@@ -937,6 +971,10 @@ ITEMS = {
     "rocket-hv": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
     "rifle-ammo-explosive": {"explode": "impact.metal"},
     # Door items (models.json) and door kinds (building.json).
+    # Ships (G6): the Tin Finch's engines, boost, hatch, touchdown, crash and wreck.
+    "tin-finch": {"engine": "ship.engine", "thrust": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open",
+                  "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash",
+                  "destroyed": "explosion"},
     "wooden-door": door_roles("wood"), "metal-door": door_roles("metal"), "armoured-door": door_roles("armoured"),
     "double-door": door_roles("wood"), "garage-door": door_roles("garage"),
     "sheet-metal-door": door_roles("metal"), "wooden-double-door": door_roles("wood"),
@@ -954,6 +992,7 @@ def everything():
     building()
     weapons()
     explosives()
+    ships()
     interface()
     ambience()
     return list(OUTS), list(EVENTS)

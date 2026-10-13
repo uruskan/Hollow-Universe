@@ -33,7 +33,8 @@ public partial class GroundUi
     }
 
     private bool CanCraft(Recipe recipe, int amount) =>
-        Model.Death == null && Model.Workbench >= recipe.Workbench && recipe.Ingredients.All(i => Model.Have(i.Key) >= i.Amount * amount);
+        Model.Death == null && Model.Workbench >= recipe.Workbench && (recipe.Station == null || Model.StationNear(recipe.Station)) &&
+        recipe.Ingredients.All(i => Model.Have(i.Key) >= i.Amount * amount);
 
     private List<Recipe> VisibleRecipes()
     {
@@ -115,7 +116,14 @@ public partial class GroundUi
             SavePreferences();
         }, 11);
         StarShape(811, 153, 5, favourite ? G.Green : G.Ink);
-        if (recipe.Workbench > 0)
+        if (recipe.Station != null)
+        {
+            // Made at a station (a ship at the vehicle workbench, G6): it rolls out onto the bench's bay.
+            bool near = Model.StationNear(recipe.Station);
+            Rect(991, 133, 345, 22, near ? new Color(0.31f, 0.44f, 0.18f, 0.72f) : new Color(G.Red, 0.72f));
+            TextIn($"{Model.Item(recipe.Station).Name.ToUpperInvariant()} REQUIRED", 991, 133, 345, 16, G.Ink, HorizontalAlignment.Center, bold: true);
+        }
+        else if (recipe.Workbench > 0)
         {
             bool near = Model.Workbench >= recipe.Workbench;
             Rect(991, 133, 345, 22, near ? new Color(0.31f, 0.44f, 0.18f, 0.72f) : new Color(G.Red, 0.72f));
@@ -136,16 +144,19 @@ public partial class GroundUi
         {
             TextIn(name, x, 560, w, 16, G.Ink, HorizontalAlignment.Center, bold: true);
         }
-        for (int i = 0; i < 4; i++)
+        // Four rows as RustMVP draws them; a recipe with more (the Tin Finch's five) shares the same height.
+        int rows = Math.Max(4, recipe.Ingredients.Count);
+        float step = 116f / rows;
+        for (int i = 0; i < rows; i++)
         {
-            Rect(798, 584 + i * 29, 688, 27, new Color(0.13f, 0.12f, 0.10f, 0.15f));
+            Rect(798, 584 + i * step, 688, step - 2, new Color(0.13f, 0.12f, 0.10f, 0.15f));
         }
-        for (int i = 0; i < recipe.Ingredients.Count && i < 4; i++)
+        for (int i = 0; i < recipe.Ingredients.Count; i++)
         {
             Ingredient ingredient = recipe.Ingredients[i];
             int have = Model.Have(ingredient.Key);
             Color colour = have >= ingredient.Amount * _amount ? G.Ink : G.Short;
-            float y = 584 + i * 29;
+            float y = 584 + i * step + (step - 29) / 2;
             TextIn(ingredient.Amount.ToString(CultureInfo.InvariantCulture), 799, y, 129, 19, colour, HorizontalAlignment.Right);
             Text(Model.Item(ingredient.Key).Name, 937, y, 19, colour);
             Text((ingredient.Amount * _amount).ToString(CultureInfo.InvariantCulture), 1222, y, 19, colour);

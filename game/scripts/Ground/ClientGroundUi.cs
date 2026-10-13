@@ -48,7 +48,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
             .Concat(c.Categories.Select(cat => new CraftCategory(cat.Name.ToUpperInvariant(), c.Recipes.Count(r => r.Known && r.Output.Category == cat.Key))))
             .ToArray();
         Recipes = c.Recipes.Where(r => r.Known).Select(r => new UiRecipe(r.Output.Key, CategoryName(r.Output.Category), r.Seconds,
-            r.Ingredients.Select(i => new Ingredient(i.Item.Key, i.Count)).ToArray(), r.Amount, r.Workbench)).ToArray();
+            r.Ingredients.Select(i => new Ingredient(i.Item.Key, i.Count)).ToArray(), r.Amount, r.Workbench, r.Station?.Key)).ToArray();
         LocalPlayer me = client.Local;
         me.HitMarker += OnHitMarker;
         me.DamageTaken += OnDamage;
@@ -236,6 +236,10 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
+    public bool Piloting => _client.Piloting;
+
+    public bool StationNear(string station) => C.Deployable(station) is { } def && (Me.StationNear?.Invoke(def) ?? 0) != 0;
+
     /// <summary>The building in the game (wheels, building rights), set by the ground view.</summary>
     public BuildView? Build { get; set; }
 
@@ -327,6 +331,11 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
             ActionResult.BadPlacement => "You can't place that here.",
             ActionResult.NotAllowed => "That doesn't go there.",
             ActionResult.NotUsable => "You can't use that.",
+            ActionResult.NeedsStation => "Needs a vehicle workbench nearby.",
+            ActionResult.Locked => "It's locked.",
+            ActionResult.Occupied => "Someone is in the seat.",
+            ActionResult.NotLanded => "Land first: you can only step out of a ship at rest.",
+            ActionResult.HatchShut => "Open the hatch first.",
             _ => null,
         };
         if (text != null)

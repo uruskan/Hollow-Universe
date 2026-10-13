@@ -40,12 +40,17 @@ public partial class GroundUi
                 return;
         }
         bool inventory = Screen is GroundScreen.Inventory or GroundScreen.Crafting;
-        if (Screen == GroundScreen.Hud && Wheel == null)
+        // Flying, the ship's HUD (drawn by the ground view) has the centre, the belt's and the vitals' places.
+        bool flying = Screen == GroundScreen.Hud && Model.Piloting;
+        if (Screen == GroundScreen.Hud && Wheel == null && !flying)
         {
             PaintCentre();
         }
-        PaintBelt(inventory);
-        PaintVitals(inventory);
+        if (!flying)
+        {
+            PaintBelt(inventory);
+            PaintVitals(inventory);
+        }
         if (Screen == GroundScreen.Hud)
         {
             PaintFeed();

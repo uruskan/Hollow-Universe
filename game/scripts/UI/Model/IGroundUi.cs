@@ -36,6 +36,12 @@ public interface IGroundUi
     /// <summary>The open container, or null.</summary>
     LootView? Loot { get; }
 
+    /// <summary>The player flies a ship (G6): the flight HUD takes the belt's, the vitals' and the crosshair's place.</summary>
+    bool Piloting => false;
+
+    /// <summary>A station (a deployable's key, e.g. the vehicle workbench) is within reach, for a recipe made at one.</summary>
+    bool StationNear(string station) => true;
+
     /// <summary>The crafting categories in display order, each with its number of recipes.</summary>
     IReadOnlyList<CraftCategory> Categories { get; }
 

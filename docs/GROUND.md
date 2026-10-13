@@ -1014,6 +1014,11 @@ with building, raiding and the effects library in the game, except `menu.jpg`):
 | `charge.jpg` | A timed charge stuck on the hut's side wall, its lamp lit; another in hand. |
 | `explosion.jpg` | The charge going off: the fireball, debris and the smoke rising over the hut; the raid alert at the top right. |
 | `firefight.jpg` | Firing at the hut from the meadow, in the frame a shot leaves: the muzzle brake's flame out of its ports, the tracer, the holo sight and brake on the rifle; the second player firing beside. |
+| `ship-craft.jpg` | Pass 4: the Tin Finch's recipe at a vehicle workbench (behind the menu): "VEHICLE WORKBENCH REQUIRED" in green, its five makings. |
+| `ship-boarding.jpg` | The Tin Finch rolled out onto the bench's bay (the builder told so in chat), its hatch open: "E BOARD TIN FINCH". |
+| `ship-cockpit.jpg` | The cockpit at 106 m/s, 59 m over the forest, with the flight HUD (speed, height, climb, heading, the lever, flight assist, fuel and hull). |
+| `ship-chase.jpg` | The chase camera hovering near the hut, the lift nozzles burning; the second player on the ground below, watching. |
+| `ship-landed.jpg` | Landed beside the stone hut: "LANDED", and the keys to step out, work the hatch and lock it. |
 | `death.jpg` | The death screen over the map of the real coast. |
 | `night.jpg` | Night, by the catalogue's campfire, lit: the effects library's flames, embers and smoke, and its flickering light on the grass; the respawn kit on the belt. |
 
@@ -2196,6 +2201,29 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
 5. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
    `ShipEventKind.Destroyed`.
 
+**Hooked up** (integration pass 4, `game/scripts/Ground/ShipsView.cs` and `GroundView`):
+- Every ship the client knows is drawn by a `ShipView` (`ShipsView`): others at `RemoteShip.Origin` and `Rotation`
+  with their hatch, thrust and flags, the one flown at `OwnShipRenderPosition`/`OwnShipRenderRotation` with the
+  predicted thrust and flags; `ShipView.Exposure` from the sky; hidden in orbit. In the cockpit the own ship's nearest
+  plumes hide (`FromCockpit`).
+- While `Piloting`, `ShipControls.Read` fills `InputFrame.Ship` each frame (with the interface open the lever stays and
+  the stick lets go); the mouse moves the stick; the camera is `ShipCamera.Follow` on the ship as drawn (cockpit or
+  chase, V), with the blasts' shake; `ShipHud` replaces the belt, the vitals and the crosshair (`IGroundUi.Piloting`);
+  the arms draw nothing; F steps out, H works the hatch, L the lock, J descends from orbit; E, R and Space belong to the
+  ship (roll, nothing, rise).
+- On foot, `AimShip` gives the prompt under the crosshair ("E BOARD TIN FINCH", the hatch, "REFUEL", the cargo) after
+  the survival targets; E `Interact`s; the cargo opens in the loot panel like a box; refusals (locked, occupied, not
+  landed, the hatch shut) are toasts.
+- Seated pilots aren't drawn: the character contract (§4.8) has no sitting pose (§11 87).
+- The vehicle workbench is a deployable like any other; the crafting menu shows the Tin Finch's "VEHICLE WORKBENCH
+  REQUIRED" (green within reach) and the client checks the station as the server does (`LocalPlayer.StationNear`);
+  crafted, it rolls out onto the bench's bay, and the builder is told in chat.
+- Sounds (`sounds.json`, built from Kenney's CC0 sci-fi pack by `art/audio/events.py`, `ships()`): `ship.engine` (a
+  hum) and `ship.thrust` (the burn), loops at `socket_engine_audio` turned up with the thrust; `ship.boost` when a boost
+  starts; `ship.hatch.open`/`close`; `ship.touchdown` when it lands moving; `ship.crash` when the hull is hurt as the
+  ship stops short; the wreck's `explosion`. The wreck: `explosion.rocket` (1.6 ×) and `fire.burning` on the hull
+  until it goes. All from the replicated flags, hull and velocity: the server sends no ship events to clients.
+
 ---
 
 ## 7. Data
@@ -3207,6 +3235,11 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     point isn't used yet (Rust raises the sight line to it).
 86. **Attaching is a drop and detaching a button** (cheaper than Rust's attachment slots in the item panel): an
     attachment dropped on a gun goes onto it; the gun's panel lists REMOVE <PART> for each one.
+87. **A seated pilot isn't drawn** in the cockpit, others' or one's own: the character contract has no sitting pose
+    (§4.8), and a standing body would stick out of the canopy. A `Seated` stance there would put them in the seat.
+88. **The ships' sounds are made from Kenney's sci-fi pack** (CC0, already a source of the explosions): the Tin Finch
+    hums and burns with its thrust; a ship's crash is told from its hull dropping while its speed changes by more
+    than 3 m/s in a frame (gunfire hurts the hull without the jolt), since the server sends no ship events.
 
 
 Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn (numbered S1 on):
