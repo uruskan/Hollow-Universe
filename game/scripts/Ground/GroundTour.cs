@@ -1176,6 +1176,11 @@ public partial class GroundTour : Node
                 await Until(() => !Client.Props.Any(t => t.Id == barrel.Id), 15);
                 View.Scripted = null;
                 GD.Print($"[tour] the barrel {(Client.Props.Any(t => t.Id == barrel.Id) ? "still stands" : "broke")}");
+                // Its pieces in the air, then on the ground (gibs, GROUND.md §9.4).
+                await Seconds(0.25);
+                await Shot("barrel-gibs");
+                await Seconds(1.6);
+                await Shot("barrel-gibs-rest");
                 Me.HeldSlot = -1;
                 await Seconds(0.8);
             }

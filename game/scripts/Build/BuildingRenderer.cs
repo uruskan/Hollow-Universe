@@ -9,9 +9,10 @@ namespace HollowUniverse.Build;
 /// <summary>
 /// Draws a <see cref="BuildingWorld"/> (GROUND.md §6.3): pieces batched into one <see cref="MultiMeshInstance3D"/> per
 /// piece kind, grade and level of detail in each 24 m chunk of the zone, so a 1,000-piece base is a few dozen draw calls;
-/// the kit's three levels swap by distance (visibility ranges). Only what changed is rebuilt, when it changes. Doors,
-/// claim devices and falling debris are nodes of their own. The stability overlay recolours every piece by its
-/// stability (green 100 %, through yellow, to red 0 %). Zone metres are Godot's coordinates.
+/// the kit's three levels swap by distance (visibility ranges). Only what changed is rebuilt, when it changes. Doors and
+/// claim devices are nodes of their own. A piece that goes is simply no longer drawn: one that broke breaks into its gibs
+/// (GROUND.md §9.4, the destruction's own path). The stability overlay recolours every piece by its stability (green
+/// 100 %, through yellow, to red 0 %). Zone metres are Godot's coordinates.
 /// </summary>
 public partial class BuildingRenderer : Node3D
 {
@@ -25,7 +26,6 @@ public partial class BuildingRenderer : Node3D
     private readonly HashSet<Batch> _dirty = new();
     private readonly Dictionary<Door, DoorView> _doors = new();
     private readonly Dictionary<ClaimDevice, MeshInstance3D> _claims = new();
-    private readonly List<(Node3D Node, Vector3 Velocity, Vector3 Spin, double Age)> _debris = new();
     private BuildingWorld _world = null!;
     private BuildingAssets _assets = null!;
     private bool _overlay;
@@ -50,9 +50,6 @@ public partial class BuildingRenderer : Node3D
 
     /// <summary>Draws every piece at this level only, at any distance (to check the art); −1 for the usual ranges.</summary>
     public int OnlyLod { get; set; } = -1;
-
-    /// <summary>Draw falling pieces for this long after they're removed.</summary>
-    public double DebrisSeconds { get; set; } = 1.6;
 
     public void Attach(BuildingWorld world, BuildingAssets assets)
     {
@@ -111,10 +108,10 @@ public partial class BuildingRenderer : Node3D
                 Add(e.Piece!);
                 break;
             case BuildingChange.PieceRemoved:
-                Drop(e.Piece!, fall: true);
+                Drop(e.Piece!);
                 break;
             case BuildingChange.PieceChanged:
-                Drop(e.Piece!, fall: false);
+                Drop(e.Piece!);
                 Add(e.Piece!);
                 break;
             case BuildingChange.Stability when _overlay:
@@ -193,7 +190,7 @@ public partial class BuildingRenderer : Node3D
         _dirty.Add(batch);
     }
 
-    private void Drop(Piece piece, bool fall)
+    private void Drop(Piece piece)
     {
         if (!_of.Remove(piece, out Batch? batch))
         {
@@ -201,27 +198,6 @@ public partial class BuildingRenderer : Node3D
         }
         batch.Pieces.Remove(piece);
         _dirty.Add(batch);
-        if (fall)
-        {
-            Fall(piece);
-        }
-    }
-
-    // A removed piece falls and sinks away: the visible half of a collapse.
-    private void Fall(Piece piece)
-    {
-        (Num.Vector3 position, Num.Quaternion rotation) = piece.ZoneTransform;
-        var node = new MeshInstance3D
-        {
-            Mesh = _assets.Piece(piece.Def, piece.Grade, 1),
-            MaterialOverride = _assets.Grade(piece.Grade),
-            Transform = ToGodot(position, rotation),
-            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-        };
-        AddChild(node);
-        ulong h = (ulong)piece.Handle * 0x9E3779B97F4A7C15UL;
-        var spin = new Vector3((h & 0xFF) / 255f - 0.5f, ((h >> 8) & 0xFF) / 255f - 0.5f, ((h >> 16) & 0xFF) / 255f - 0.5f) * 1.6f;
-        _debris.Add((node, Vector3.Zero, spin, 0));
     }
 
     private void AddDoor(Door door)
@@ -253,23 +229,6 @@ public partial class BuildingRenderer : Node3D
             Rebuild(batch);
         }
         _dirty.Clear();
-        for (int i = _debris.Count - 1; i >= 0; i--)
-        {
-            (Node3D node, Vector3 velocity, Vector3 spin, double age) = _debris[i];
-            age += delta;
-            if (age > DebrisSeconds)
-            {
-                node.QueueFree();
-                _debris.RemoveAt(i);
-                continue;
-            }
-            // Near the zone's origin its +Y is the planet's up to a fraction of a degree.
-            velocity += Vector3.Down * (float)(9.8 * delta);
-            node.Position += velocity * (float)delta;
-            node.Rotation += spin * (float)delta;
-            node.Scale = Vector3.One * (float)Math.Max(0.05, 1 - Math.Max(0, age - DebrisSeconds * 0.6) / (DebrisSeconds * 0.4));
-            _debris[i] = (node, velocity, spin, age);
-        }
     }
 
     private void Rebuild(Batch batch)

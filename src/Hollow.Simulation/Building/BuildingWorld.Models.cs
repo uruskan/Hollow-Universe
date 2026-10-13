@@ -1,4 +1,5 @@
 using System.Numerics;
+using Hollow.Simulation.Entities;
 
 namespace Hollow.Simulation.Building;
 
@@ -19,4 +20,12 @@ public sealed partial class BuildingWorld
         (Vector3 position, Quaternion rotation) = door.Frame.ZoneTransform;
         return new ModelPlacement(door.Def.Model, door.Def.Key, position, ModelPlacement.Flipped(rotation, door.Flip));
     }
+
+    /// <summary>What a removal took away, as the catalogue's model: a piece or a door (null for anything else).</summary>
+    public (EntityId Id, ModelPlacement Model)? Removed(in BuildingEvent e) => e.Change switch
+    {
+        BuildingChange.PieceRemoved when e.Piece is { } piece => (piece.Id, ModelOf(piece)),
+        BuildingChange.DoorRemoved when e.Door is { } door => (door.Id, ModelOf(door)),
+        _ => null,
+    };
 }

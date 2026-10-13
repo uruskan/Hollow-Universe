@@ -250,11 +250,10 @@ public partial class NatureView : Node3D
         Vector3 at = GroundView.ToGodot(o.Position + o.Up * (tree ? 1.3f : 0.7f) * Math.Max(0.6f, o.Scale));
         if (current.Item4 && !(known && before.Gone))
         {
-            Sounds.At(tree ? "gather.wood.break" : "gather.node.break.3", at);
-            if (!tree)
+            // Used up: an outcrop's remnant crumbles into its gibs, with its sound and dust (GibsView, GROUND.md §9.4).
+            if (tree)
             {
-                FxDirector.Play("gather.node-break", GroundView.ToGodot(o.Position + o.Up * 0.4f * o.Scale), GroundView.ToGodot(o.Up),
-                    new FxParams { Scale = Math.Clamp(o.Scale, 0.6f, 1.6f) });
+                Sounds.At("gather.wood.break", at);
             }
             return;
         }

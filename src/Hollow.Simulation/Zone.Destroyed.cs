@@ -50,12 +50,5 @@ public sealed partial class Zone
     /// What a removal from the building was broken by: the blow under way when damage broke it, else the removal itself
     /// (a collapse, decay, the hammer). Null when it was taken away whole.
     /// </summary>
-    private Blow? BlowOf(BuildingRemoval removal) => removal switch
-    {
-        BuildingRemoval.Destroyed => _blow,
-        BuildingRemoval.Collapsed => new Blow(DestroyCause.Collapse, Vector3.Zero, EntityId.None),
-        BuildingRemoval.Decayed => new Blow(DestroyCause.Decay, Vector3.Zero, EntityId.None),
-        BuildingRemoval.Demolished => new Blow(DestroyCause.Demolish, Vector3.Zero, EntityId.None),
-        _ => null,
-    };
+    private Blow? BlowOf(BuildingRemoval removal) => Blow.Of(removal, _blow);
 }

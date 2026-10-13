@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 
@@ -32,6 +33,19 @@ public readonly record struct Blow(DestroyCause Cause, Vector3 Direction, Entity
     /// <summary>A blow travelling along <paramref name="travel"/> (any length; zero: no direction).</summary>
     public static Blow Along(DestroyCause cause, Vector3 travel, EntityId by) =>
         new(cause, travel.LengthSquared() > 1e-10f ? Vector3.Normalize(travel) : Vector3.Zero, by);
+
+    /// <summary>
+    /// What a part removed from the building was broken by: <paramref name="destroyedBy"/> when damage broke it, else
+    /// the removal itself (a collapse, decay, the hammer); null when it was taken away whole (picked up, forgotten).
+    /// </summary>
+    public static Blow? Of(BuildingRemoval removal, in Blow destroyedBy) => removal switch
+    {
+        BuildingRemoval.Destroyed => destroyedBy,
+        BuildingRemoval.Collapsed => new Blow(DestroyCause.Collapse, Vector3.Zero, EntityId.None),
+        BuildingRemoval.Decayed => new Blow(DestroyCause.Decay, Vector3.Zero, EntityId.None),
+        BuildingRemoval.Demolished => new Blow(DestroyCause.Demolish, Vector3.Zero, EntityId.None),
+        _ => null,
+    };
 }
 
 /// <summary>

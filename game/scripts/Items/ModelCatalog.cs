@@ -21,6 +21,12 @@ public readonly record struct Pose(Vector3 Position, Vector3 RotationDegrees)
 /// </summary>
 public sealed record HeldInfo(Pose FirstPerson, Pose ThirdPerson, string? OffHand, string Hand);
 
+/// <summary>
+/// What a model breaks into (GROUND.md §9.4): its gib file (pieces fractured by <c>art/gibs/build.py</c>; a kit's are
+/// grouped by part) and the gib material (<c>gibs.json</c>) its pieces bounce, dust and sound as.
+/// </summary>
+public sealed record GibsInfo(string File, string Material);
+
 /// <summary>One model of <c>data/ground/models.json</c>: an item key or a world-object kind.</summary>
 public sealed record ModelEntry(
     string Key,
@@ -39,9 +45,13 @@ public sealed record ModelEntry(
     string Source,
     string? StandIn,
     string? Slot,
-    IReadOnlyDictionary<string, string> Sockets)
+    IReadOnlyDictionary<string, string> Sockets,
+    GibsInfo? Gibs)
 {
     public bool IsItem => Kind == "item";
+
+    /// <summary>A kit (the building's grades, the doors): art the building package draws by its own names; listed for its parts' gibs.</summary>
+    public bool IsKit => Kind == "kit";
 
     /// <summary>An attachment (<see cref="Slot"/> sight, muzzle or under) mounts on a weapon's socket for that slot.</summary>
     public bool IsAttachment => Slot != null;
@@ -450,7 +460,10 @@ public static class ModelCatalog
             m.TryGetProperty("standIn", out JsonElement si) ? (si.ValueKind == JsonValueKind.String ? si.GetString() :
                 si.ValueKind == JsonValueKind.True ? "stand-in" : null) : null,
             m.TryGetProperty("slot", out JsonElement slot) ? slot.GetString() : null,
-            SocketsOf(m));
+            SocketsOf(m),
+            m.TryGetProperty("gibs", out JsonElement gibs) && gibs.TryGetProperty("file", out JsonElement gibFile)
+                ? new GibsInfo(gibFile.GetString()!, gibs.TryGetProperty("material", out JsonElement gm) ? gm.GetString() ?? "" : "")
+                : null);
     }
 
     private static Dictionary<string, string> SocketsOf(JsonElement m)

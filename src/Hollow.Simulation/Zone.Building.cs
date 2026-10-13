@@ -154,11 +154,8 @@ public sealed partial class Zone
         switch (e.Change)
         {
             // A piece or door broken, brought down, decayed or demolished breaks apart as its kit's part (GROUND.md §9.4).
-            case BuildingChange.PieceRemoved when e.Piece is { } piece && BlowOf(e.Removal) is { } blow:
-                ReportDestroyed(HitTarget.Building, piece.Id, Building!.ModelOf(piece), blow);
-                break;
-            case BuildingChange.DoorRemoved when e.Door is { } door && BlowOf(e.Removal) is { } blow:
-                ReportDestroyed(HitTarget.Building, door.Id, BuildingWorld.ModelOf(door), blow);
+            case BuildingChange.PieceRemoved or BuildingChange.DoorRemoved when Building!.Removed(e) is { } gone && BlowOf(e.Removal) is { } blow:
+                ReportDestroyed(HitTarget.Building, gone.Id, gone.Model, blow);
                 break;
             case BuildingChange.ClaimAdded when e.Claim is { } claim && !_claimDeployables.ContainsKey(claim):
             {
