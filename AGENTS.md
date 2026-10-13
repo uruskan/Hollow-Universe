@@ -173,7 +173,8 @@ Client options (after `--`):
   `--event <swing|fire|reload|hit|death|helpup|use|eat|bandage|inject|motion:NAME>` with
   `--event-at <s>` (motion:idle from down plays getting up, motion:down from idle the fall), `--partner <male|female>`
   (a wounded player in front, who gets up when the character helps; `--partner-outfit <n>`, `--partner-distance <m>`),
-  `--ads` (aim; with the bow, draw), keys U use, G help up, `--fp` (first person),
+  `--ads` (aim; with the bow, draw), keys U use, G help up, `--fp` (first person), `--fp-sheet <png|jpg>` (every held
+  item in first person on one sheet, then quits; `--only a,b` some, `--full` the whole frame),
   `--ads`, `--vm-orbit <yaw,pitch,m>` (look at the first-person hands from another side), `--blink <0–1>` (hold the eyelids), `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
   `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once; `--hide-ui` (the picture
   alone); `--on-surface` (everything on the first world's ground and in its light, at the landing site or `--lat`,

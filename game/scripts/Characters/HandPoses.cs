@@ -6,9 +6,10 @@ namespace HollowUniverse.Characters;
 
 /// <summary>
 /// Finger poses for holding things (first person; third person takes its fingers from the clips). The fingers of a
-/// fist and of a pistol grip are wrapped round the handle: each joint is bent just enough for the next one to lie on a
-/// circle round the handle's axis (its radius plus a finger's half thickness), so the fingers close on the handle
-/// without passing through it. The thumb, the trigger finger and the support hand use fixed curls.
+/// fist and of a pistol grip are wrapped round what they hold: each joint is bent just enough for the next one to lie on
+/// a circle round its axis (its radius plus a finger's half thickness), so the fingers close on it without passing
+/// through it, whether a 1.8 cm handle or a rock (the catalogue's grip radius, GROUND.md §4.8). The thumb, the trigger
+/// finger and the support hand use fixed curls; the thumb opens as what is held gets thicker.
 /// </summary>
 public static class HandPoses
 {
@@ -24,8 +25,24 @@ public static class HandPoses
     /// hand's length) and this far out from the palm's bones (metres). <see cref="HandFrame.Measure"/> takes them.</summary>
     public const float FistAlong = 0.7f, FistLift = 0.03f;
 
-    // Handle radius (metres) each wrapped grip closes on.
+    // Handle radius (metres) each wrapped grip closes on when the item doesn't say.
     private static readonly Dictionary<Grip, float> HandleRadius = new() { [Grip.Fist] = 0.018f, [Grip.Pistol] = 0.019f };
+
+    /// <summary>The radius a grip closes on unless the item gives its own (0 for grips that don't wrap).</summary>
+    public static float DefaultRadius(Grip grip) => HandleRadius.TryGetValue(grip, out float r) ? r : 0f;
+
+    /// <summary>The palm's flesh over its bones (metres): what the hand holds rests on it.</summary>
+    public const float PalmFlesh = 0.012f;
+
+    /// <summary>How far out from the palm's surface a handle's axis sits in a closed fist: its radius.</summary>
+    public const float HandleSeat = FistLift - PalmFlesh;
+
+    /// <summary>
+    /// Where the axis (or the middle) of what a hand holds sits in it, as <see cref="FistAlong"/> and
+    /// <see cref="FistLift"/>: <paramref name="seat"/> out from the palm's surface (a handle's or a rock's radius, a
+    /// flat thing's half thickness).
+    /// </summary>
+    public static (float Along, float Lift) Seat(float seat) => (FistAlong, PalmFlesh + seat);
 
     private const float FingerHalfThickness = 0.0085f;
 
@@ -43,21 +60,31 @@ public static class HandPoses
     // Skeletons come from one template per body, so one table per hand and body serves them all (keyed by where
     // the hand is at rest, which tells the bodies apart).
     private static readonly Dictionary<(bool, Vector3I), List<(int Bone, Quaternion RestRotation, Vector3 Axis, int Joint, int Kind, int Finger)>> Rigs = new();
-    private static readonly Dictionary<(bool Right, Grip Grip, Vector3I Body), float[][]> Wraps = new();
+    private static readonly Dictionary<(bool Right, Grip Grip, Vector3I Body, int Radius, int Seat), float[][]> Wraps = new();
 
     private static Vector3I BodyKey(Skeleton3D s, bool right) =>
         (Vector3I)(s.GetBoneGlobalRest(s.FindBone(right ? "hand_r" : "hand_l")).Origin * 1000f).Round();
 
-    /// <summary>Sets the finger bones of one hand to a grip (from their rest pose).</summary>
-    public static void Apply(Skeleton3D s, Grip grip, bool right, float weight = 1f)
+    /// <summary>
+    /// Sets the finger bones of one hand to a grip (from their rest pose); a wrapping grip closes on
+    /// <paramref name="radius"/> (0: its own handle's) round an axis <paramref name="seat"/> out from the palm (below
+    /// 0: a handle's).
+    /// </summary>
+    public static void Apply(Skeleton3D s, Grip grip, bool right, float weight = 1f, float radius = 0f, float seat = -1f)
     {
         (float[] finger, float[] index, float[] thumb) = Curls[grip];
-        float[][]? wrap = HandleRadius.ContainsKey(grip) ? Wrap(s, grip, right) : null;
+        if (radius <= 0f)
+        {
+            radius = DefaultRadius(grip);
+        }
+        float[][]? wrap = HandleRadius.ContainsKey(grip) ? Wrap(s, grip, right, radius, seat < 0f ? HandleSeat : seat) : null;
+        // The thumb lies along something thick instead of closing over it (a rock: about half the fist's curl).
+        float thumbCurl = 1f - 0.6f * Math.Clamp((radius - DefaultRadius(grip)) / 0.03f, 0f, 1f);
         foreach ((int bone, Quaternion rest, Vector3 axis, int joint, int kind, int f) in Rig(s, right))
         {
             float degrees = kind switch
             {
-                0 => thumb[joint],
+                0 => thumb[joint] * thumbCurl,
                 1 when grip == Grip.Pistol => index[joint],
                 _ when wrap != null => wrap[f][joint],
                 1 => index[joint],
@@ -67,21 +94,24 @@ public static class HandPoses
         }
     }
 
-    /// <summary>For each finger (index … pinky), the bend of its three joints (degrees) that wraps it round the grip's
-    /// handle, which lies across the palm where <see cref="FistAlong"/> and <see cref="FistLift"/> put it.</summary>
-    private static float[][] Wrap(Skeleton3D s, Grip grip, bool right)
+    /// <summary>For each finger (index … pinky), the bend of its three joints (degrees) that wraps it round what the grip
+    /// holds (<paramref name="holding"/> its radius), whose axis lies across the palm where <see cref="Seat"/> puts it.</summary>
+    private static float[][] Wrap(Skeleton3D s, Grip grip, bool right, float holding, float seat)
     {
-        if (Wraps.TryGetValue((right, grip, BodyKey(s, right)), out float[][]? cached))
+        // To a tenth of a millimetre, so the table stays small.
+        (int r, int a) = ((int)MathF.Round(holding * 10000f), (int)MathF.Round(seat * 10000f));
+        if (Wraps.TryGetValue((right, grip, BodyKey(s, right), r, a), out float[][]? cached))
         {
             return cached;
         }
         string side = right ? "_r" : "_l";
         (Vector3 wrist, Vector3 f, _, Vector3 palm) = Frame(s, side);
         float length = (s.GetBoneGlobalRest(s.FindBone("middle_01" + side)).Origin - wrist).Length();
-        // The bending plane: x along the hand, y towards the palm. The handle's axis runs across it.
+        // The bending plane: x along the hand, y towards the palm. The held thing's axis runs across it.
         Vector2 Flat(Vector3 p) => new((p - wrist).Dot(f), (p - wrist).Dot(palm));
-        Vector2 centre = new(length * FistAlong, FistLift);
-        float radius = HandleRadius[grip] + FingerHalfThickness;
+        (float along, float lift) = Seat(seat);
+        Vector2 centre = new(length * along, lift);
+        float radius = holding + FingerHalfThickness;
         var result = new float[Fingers.Length][];
         for (int i = 0; i < Fingers.Length; i++)
         {
@@ -111,7 +141,7 @@ public static class HandPoses
             }
             result[i] = bend;
         }
-        Wraps[(right, grip, BodyKey(s, right))] = result;
+        Wraps[(right, grip, BodyKey(s, right), r, a)] = result;
         return result;
     }
 

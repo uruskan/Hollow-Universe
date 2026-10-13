@@ -44,6 +44,11 @@ public partial class ViewmodelView : Node3D
     private (Basis FrameToBone, Vector3 Palm) _gripR, _gripL;
     private int _upperR, _lowerR, _handR, _upperL, _lowerL, _handL;
 
+    // The item's grip (item space: the hand's frame on the axis its fingers close round) and where that axis sits in
+    // the right hand (a thicker thing further out from the palm), from the catalogue (HeldItems.Grip).
+    private Transform3D _grip = Transform3D.Identity;
+    private (Basis FrameToBone, Vector3 Palm) _palmR;
+
     private HeldItemModel? _model;
     private Node3D? _item;
     private Node3D? _slide, _magazine, _bolt;
@@ -198,6 +203,9 @@ public partial class ViewmodelView : Node3D
             return;
         }
         AddChild(_item);
+        _grip = HeldItems.Grip(_item, model);
+        (float along, float lift) = HandPoses.Seat(model.GripSeat);
+        _palmR = HandFrame.Measure(_skeleton, right: true, along: along, lift: lift);
         _bowRig = model.LeftHanded ? BowRig.Attach(_item) : null;
         _draw = _bowAim = 0f;
         _loose = _thrust = _useTime = -1f;
@@ -427,7 +435,7 @@ public partial class ViewmodelView : Node3D
         HeldItemModel m = _model!;
         // Item axes (+X barrel or blade, +Y up) to camera axes (−Z forward, +Y up).
         var toCamera = new Basis(new Vector3(0, 0, -1), new Vector3(0, 1, 0), new Vector3(1, 0, 0));
-        Transform3D grip = HeldItems.Socket(_item!, m.LeftHanded ? "grip_l" : "grip_r");
+        Transform3D grip = _grip;
         Vector3 hip;
         Basis hipTurn;
         switch (m.Kind)
@@ -457,10 +465,10 @@ public partial class ViewmodelView : Node3D
         }
         Vector3 origin = hip - basis * grip.Origin;
         var place = new Transform3D(basis, origin);
-        if (m.Kind == HeldKind.Tool && !m.Swung && m.Entry.Held is HeldInfo held)
+        if (m.Kind == HeldKind.Tool && !m.HeldByHandle && m.Entry.Held is HeldInfo held)
         {
-            // What isn't swung by a handle (spears, the bow, food, bandages, locks, charges) sits where the model
-            // catalogue's first-person pose puts its grip.
+            // What isn't swung by a handle (spears, the bow, food, bandages, locks, charges, the rock in the palm) sits
+            // where the model catalogue's first-person pose puts its grip.
             place = held.FirstPerson.Transform * grip.AffineInverse();
         }
         if (m.LeftHanded && _bowAim > 0f)
@@ -524,7 +532,7 @@ public partial class ViewmodelView : Node3D
         {
             (Vector3 turn, Vector3 offset) = ViewmodelMotion.Swing(_swing, m.StrikeTime / Math.Max(0.3f, m.SwingTime), m.SwingTime);
             Basis arc = Basis.FromEuler(turn);
-            Vector3 hand = place * grip.Origin;
+            Vector3 hand = place * grip.Origin + m.SwingPivot;
             place = new Transform3D(arc * place.Basis, hand + arc * (place.Origin - hand) + offset);
         }
 
@@ -670,10 +678,11 @@ public partial class ViewmodelView : Node3D
             CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, rest, 1f, new Vector3(-0.7f, -0.7f, -0.2f));
             return;
         }
-        Transform3D gripR = item * HeldItems.Socket(_item, "grip_r");
-        Transform3D handR = toSkeleton * HandFrame.HandFor(gripR, HandFrame.PowerGrip, _gripR);
+        // The right hand closes on the item's grip: round a handle, or round a rock's girth (the catalogue's grip).
+        Transform3D gripR = item * _grip;
+        Transform3D handR = toSkeleton * HandFrame.HandFor(gripR, HandFrame.PowerGrip, _palmR);
         CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, handR, 1f, new Vector3(-0.7f, -0.7f, -0.1f));
-        HandPoses.Apply(_skeleton, _model.Kind == HeldKind.Tool ? HandPoses.Grip.Fist : HandPoses.Grip.Pistol, right: true);
+        HandPoses.Apply(_skeleton, _model.Fingers, right: true, radius: _model.GripRadius, seat: _model.GripSeat);
         bool twoHands = _model.Kind is HeldKind.Pistol or HeldKind.Rifle && HeldItems.HasSocket(_item, "grip_l");
         if (twoHands)
         {

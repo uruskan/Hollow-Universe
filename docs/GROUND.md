@@ -657,15 +657,18 @@ each leg reaches the ground found by a ray under its foot).
 render layer 2, without shadows, with their own field of view (60° by default; `ViewmodelView.Fov` is the player
 setting) and depth pulled towards the near plane so they never clip into walls. Their shoulders sit 10 cm lower and
 6 cm further forward than the body's, so the forearms rise into view from the lower corners, as in Rust (nobody sees
-the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round the
-handle: each joint bends just enough for the next to lie on a circle round the handle, so they close on it without
-passing through. The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
+the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round what
+they hold: each joint bends just enough for the next to lie on a circle round it, so they close on it without passing
+through, a 1.8 cm handle or, from the catalogue's grip (§9.1, L8), a rock's 4 cm girth with the thumb opening as it
+thickens; an open hand (grip radius 0) lets food lie on the palm, its fingers lightly curled. The rock, the bandage
+and the tin grenade are cradled in the right hand, the palm up and to the left and the fingers round their far side,
+and food lies on the open palm the same way (L7). The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
 near plane), with its own relief: a normal map made from the skin texture, fine wrinkles over the finger joints and a
 glossy plate for each nail (`art/characters/skin_maps.py`). The item moves procedurally: sway, walk bob, sprint
 pose, recoil kick on a spring, aiming down the sights (the sight on the camera's centre line). Swings and reloads are
-key poses (`ViewmodelMotion`): a swing turns about the hand, up and back for the wind-up, a beat at the top, then down
-and across fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and
-recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
+key poses (`ViewmodelMotion`): a swing turns about the hand (the rock about the wrist, its grip's pivot, so it rises
+and comes down instead of turning in the palm), up and back for the wind-up, a beat at the top, then down and across
+fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
 works the slide or the charging handle (another jolt) and returns; the pistol's magazine (the catalogue's `Magazine`
 part) drops and comes back. The bow is raised upright in front of the left eye and drawn (the string to a little over
 half its third-person draw, so the hand stops in front of the face), an arrow on the string; a shot looses it. A spear
@@ -681,9 +684,11 @@ collide with the world (layer 1), not with each other; gravity is applied along 
 
 **Held items** are every item the model catalogue gives a held pose (§9.1), loaded through `ModelCatalog` with the
 materials of their import settings, named from items.json (`HeldItems`). Tools and blades are held by the handle and
-swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (spears, food,
-bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip. Aiming down the
-sights puts a gun's eye socket at the camera.
+swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (the rock, spears,
+food, bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip (its own
+grip, or its palm socket), the poses set for the arms' 60° view (L9). Aiming down the sights puts a gun's eye socket at
+the camera. `--view character --fp-sheet <png>` pictures every held item in first person on one sheet
+(`images/ground/look/fp-held-items.jpg`).
 
 **Held items in third person.** A tool rides upright in the right hand at the hip (the bow in the left), a pistol is
 held by the clip's two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK
@@ -3344,7 +3349,7 @@ recipe (Windows: System.Drawing and Consolas).
 | `lods`, `lodDistances` | Levels of detail in the file; switch distances (metres: LOD1, LOD2, gone; 0 = never), by default from the model's size |
 | `collision` | `convex`: hulls in the file |
 | `icon` | Present when the item has an icon; `view` is the icon camera's yaw, pitch and roll (degrees) when the class default isn't right; `key` borrows another item's icon |
-| `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) when no arms are drawn; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow |
+| `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) for an item not held by a handle, its rotation the holding hand's (fingers along X, thumb along Y), in the arms' 60° view; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow; `grip` (optional, L8): how the first-person hand holds it, in the item's frame: `fingers` and `thumb` (directions; the fingers close round an axis along the thumb), `radius` (what they close round; 0: an open hand), `seat` (how far out from the palm that axis or the item's middle sits; default the radius), `at` (a point on the axis; default the item's middle) and `pivot` (where a swing turns, from the grip in camera space; default the hand). Without it the palm socket is the grip and a handle's 1.8 cm what the fist closes round |
 | `drop` | `scale`: how big it lies on the ground when dropped (big deployables shrink to a kit) |
 | `standIn` | A note when the model is a stand-in to replace |
 | `slot` | Attachments: the gun slot they mount on, `sight`, `muzzle` or `under` |
@@ -3765,7 +3770,8 @@ they merge beside the other packages' items):
   and sits large on the pistol, as in Rust. Ammunition types are told apart by a colour band on the box and painted
   bullet tips (blue high velocity, orange incendiary).
 - M10. **First-person poses are placements without arms:** the character package's viewmodel holds items by their palm
-  sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback).
+  sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback). *Replaced by L9: the arms
+  place everything not held by a handle at its first-person pose, and the viewer shows it as they do.*
 - M11. **The metal mask is our own design** (round eye ports in riveted bezels, a brow band, a slotted grille over the
   mouth), not Rust's slit-eyed plate. Only the item is modelled here; the worn mask is the character package's.
 - M12. **The G5 raid items are our own designs** (a stuffed satchel with an igniter, a nail-bound food tin with a fuse,
@@ -4377,3 +4383,18 @@ without the owner, to confirm or overturn (numbered L1 on):
 - L5. **Free look also works in the Tin Finch's cockpit** (the head turns about the seat while the stick lets go); in
   the chase camera Alt does nothing. A seated pilot isn't drawn (decision 87), so nobody sees that head turn.
 - L6. **Protocol 12** (free look in inputs and characters' state); no message IDs were needed from 160–164.
+- L7. **The rock is cradled, not gripped like a handle** (the owner's "hand looks weird holding the rock": the fist
+  closed on a 1.8 cm handle inside the rock, the palm a pale blob behind it): in the right hand at the lower right, the
+  palm up and to the left, the fingers round its far side, the forearm from the lower right corner. Of the four holds
+  tried (side grip, from above, as a handle, the cradle) the cradle read best; Rust's own pose had no reference to
+  check against. The bandage and the tin grenade are held the same way; food lies on the open palm.
+- L8. **How a hand holds an item is catalogue data** (`held.grip` in models.json: the hand's frame, the radius closed
+  round, the seat, the point, the swing's pivot), read by the one grip code for every item (`HeldItems.Grip`,
+  `HandPoses`); tools and blades without one keep the handle rule. No item key is named in code.
+- L9. **First-person poses are set for the arms' 60° view** (`ViewmodelView.Fov`): the poses had been set in the 75°
+  model viewer, so food, the bandage, locks, the building plan, charges, the grenade and spears sat at or below the
+  bottom of the picture with their hands out of sight; the food and the rest are re-posed, the others moved to where the
+  viewer showed them (positions scaled by tan 30° / tan 37.5°). The model viewer's first-person view now uses the arms'
+  field of view and their grip. The pistol's support hand still comes in large from the lower left: unchanged.
+- L10. **The rock swings from the wrist** (its grip's pivot, 8 cm behind and 5 cm below it), so the wind-up raises it
+  and the strike brings it down in front, where turning about the hand only turned it in the palm.
