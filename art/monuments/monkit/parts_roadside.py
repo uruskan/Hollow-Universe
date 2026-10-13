@@ -189,6 +189,21 @@ def ball(b, at, radius, tint=ORANGE, mat=GLOSS, sides=12, rings=6, solid=False):
     b.lathe(prof, at, mat=mat, tint=tint, sides=sides, solid="hull" if solid else False, vary=0)
 
 
+def rod(b, a, c, radius, mat=PAINT, tint=GREY, sides=8, solid=False, trim=0.0, cap=True):
+    """A round bar or pipe from `a` to `c` as a cylinder, which the builder subdivides along its length (a two-point
+    tube has vertices only at its ends, and ends buried in a column bake black). `trim` shortens it at both ends."""
+    a, c = Vector(a), Vector(c)
+    d = c - a
+    if d.length < 2 * trim + 1e-3:
+        return None
+    u = d.normalized()
+    a, c = a + u * trim, c - u * trim
+    q = u.to_track_quat("Z", "Y" if abs(u.z) < 0.99 else "X")
+    rot = tuple(math.degrees(v) for v in q.to_euler())
+    return b.cyl(radius, (c - a).length, tuple((a + c) / 2), rot, mat=mat, tint=tint, sides=sides, cap=cap,
+                 solid=solid, vary=0)
+
+
 # ------------------------------------------------------------------------------------------------ ground
 
 
