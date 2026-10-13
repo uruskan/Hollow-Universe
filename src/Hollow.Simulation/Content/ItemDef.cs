@@ -236,6 +236,9 @@ public sealed class ItemDef
 
     public AttachmentStats? Attachment { get; internal set; }
 
+    /// <summary>An explosive thrown or placed by hand (explosives.json, G5); null for other items.</summary>
+    public ThrowableStats? Throwable { get; internal set; }
+
     public bool HasCondition => MaxCondition > 0;
 
     public override string ToString() => Key;

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json;
 using Hollow.Core;
+using BuildingData = Hollow.Simulation.Building.BuildingData;
 
 namespace Hollow.Simulation.Content;
 
@@ -17,13 +18,13 @@ public sealed class ContentException(string message) : Exception(message);
 /// the same files; <see cref="Hash"/> is checked at connect, so both run the same rules. Read once at start, then
 /// read-only (safe to share between threads).
 /// </summary>
-public sealed class GameContent
+public sealed partial class GameContent
 {
     /// <summary>The files, in the order their text goes into <see cref="Hash"/>.</summary>
     public static readonly string[] Files =
     {
         "items.json", "recipes.json", "gather.json", "deployables.json", "loot.json", "survival.json", "categories.json",
-        "weapons.json",
+        "weapons.json", "building.json", "explosives.json",
     };
 
     private readonly ItemDef?[] _byId;
@@ -44,6 +45,10 @@ public sealed class GameContent
         Firearms = loaded.Firearms;
         Bullets = loaded.Bullets;
         Attachments = loaded.Attachments;
+        Building = loaded.Building ?? BuildingData.Parse("{}");
+        Blasts = loaded.Blasts;
+        Throwables = loaded.Throwables;
+        RaidAlerts = loaded.RaidAlerts;
         Survival = loaded.Survival;
         WeakSpot = loaded.WeakSpot;
         PlacementReach = loaded.PlacementReach;
@@ -85,6 +90,29 @@ public sealed class GameContent
     public IReadOnlyList<BulletStats> Bullets { get; }
 
     public IReadOnlyList<AttachmentStats> Attachments { get; }
+
+    /// <summary>The building rules' numbers (building.json, GROUND.md §6.3).</summary>
+    public BuildingData Building { get; }
+
+    /// <summary>G5 (explosives.json): every blast, the explosives thrown or placed by hand, and how raid alerts go out.</summary>
+    public IReadOnlyList<BlastStats> Blasts { get; }
+
+    public IReadOnlyList<ThrowableStats> Throwables { get; }
+
+    public RaidAlertSettings RaidAlerts { get; }
+
+    /// <summary>A blast by key, or null.</summary>
+    public BlastStats? Blast(string key)
+    {
+        foreach (BlastStats b in Blasts)
+        {
+            if (b.Key == key)
+            {
+                return b;
+            }
+        }
+        return null;
+    }
 
     public SurvivalTuning Survival { get; }
 
@@ -185,7 +213,9 @@ public sealed class GameContent
         loaded.Hash = hash;
         var reader = new ContentReader(new JsonFields(problems), documents, loaded);
         reader.ReadAll();
+        ReadBuilding(texts.GetValueOrDefault("building.json") ?? "", documents["building.json"], loaded, problems);
         Validation.Check(loaded, problems);
+        ExplosivesReader.Check(loaded, loaded.Building, problems);
         return new GameContent(loaded);
     }
 
@@ -230,6 +260,10 @@ public sealed class GameContent
         public List<FirearmStats> Firearms = new();
         public List<BulletStats> Bullets = new();
         public List<AttachmentStats> Attachments = new();
+        public BuildingData? Building;
+        public List<BlastStats> Blasts = new();
+        public List<ThrowableStats> Throwables = new();
+        public RaidAlertSettings RaidAlerts = new();
         public SurvivalTuning Survival = new();
         public WeakSpot WeakSpot = new(0.3f, 2f);
         public float PlacementReach = 3f;
@@ -254,6 +288,7 @@ public sealed class GameContent
             ReadLoot();
             ReadSurvival();
             ReadWeapons();
+            ExplosivesReader.Read(f, files[ExplosivesReader.File], loaded, Resolve);
         }
 
         private JsonElement Root(string file, params string[] fields)
@@ -859,7 +894,7 @@ public sealed class GameContent
                 JsonElement e = ammo[i];
                 string key = f.Text(e, "item", $"{file}: ammo[{i}]");
                 string where = $"{file}: ammo {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "item", "calibre", "damage", "speed", "bleed", "burn", "structure", "note");
+                f.OnlyKnown(e, where, "item", "calibre", "damage", "speed", "bleed", "burn", "structure", "blast", "note");
                 ItemDef? item = Resolve(key, where);
                 if (item == null)
                 {
@@ -874,6 +909,7 @@ public sealed class GameContent
                     Bleed = f.Double(e, "bleed", where, 0),
                     Burn = f.Double(e, "burn", where, 0),
                     Structure = f.Double(e, "structure", where, 0),
+                    BlastKey = f.Has(e, "blast") ? f.Text(e, "blast", where) : null,
                 };
                 if (item.Bullet != null)
                 {

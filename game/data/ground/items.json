@@ -1,5 +1,5 @@
 {
-  "source": "GROUND.md §6-7. Numbers from hollow-orbit js/game/items.js (tool damage and gather rates, clothing protection, consumables, stack sizes) and RustMVP inventory_survival.md (stack sizes); arrows, bow, spears and berries use Rust's numbers. G4: firearms, rounds and attachments get their numbers from weapons.json (their stack of 128 and the guns' magazines from RustMVP, condition per shot from hollow-orbit's dur: pistol 200, rifle 300); the metal mask is hollow-orbit's metal_facemask (50% against shots and blows to the head). Names are ours. IDs are stable: never reuse a retired one (saves and the wire use them).",
+  "source": "GROUND.md §6-7. Numbers from hollow-orbit js/game/items.js (tool damage and gather rates, clothing protection, consumables, stack sizes) and RustMVP inventory_survival.md (stack sizes); arrows, bow, spears and berries use Rust's numbers. G4: firearms, rounds and attachments get their numbers from weapons.json (their stack of 128 and the guns' magazines from RustMVP, condition per shot from hollow-orbit's dur: pistol 200, rifle 300); the metal mask is hollow-orbit's metal_facemask (50% against shots and blows to the head). G5 (120-127): the explosives and the raiding weapons, Rust's stack sizes (charges and grenades 10, rockets 3, explosives 100); their blasts are in explosives.json and weapons.json. Names are ours. IDs are stable: never reuse a retired one (saves and the wire use them).",
   "items": [
     { "id": 1, "key": "wood", "name": "Wood", "category": "resources", "stack": 1000,
       "description": "Chopped from trees. Builds, crafts and burns.",
@@ -163,6 +163,23 @@
       "deploys": "workbench-2" },
     { "id": 77, "key": "workbench-3", "name": "Workbench, level 3", "category": "items",
       "description": "Crafts level 3 items within 4 metres of it.",
-      "deploys": "workbench-3" }
+      "deploys": "workbench-3" },
+
+    { "id": 120, "key": "explosives", "name": "Explosives", "category": "resources", "stack": 100,
+      "description": "A stable blasting compound. Timed charges and rockets are made from it." },
+    { "id": 121, "key": "timed-charge", "name": "Timed charge", "category": "weapons", "stack": 10,
+      "description": "Sticks to whatever it is placed on or thrown at, and goes off ten seconds later. Two break a stone wall." },
+    { "id": 122, "key": "bag-charge", "name": "Bag charge", "category": "weapons", "stack": 10,
+      "description": "A bag of powder with a fuse. It sticks where it lands; the fuse burns six to twelve seconds and sometimes goes out. Press E on a dud to light it again." },
+    { "id": 123, "key": "tin-grenade", "name": "Tin grenade", "category": "weapons", "stack": 10,
+      "description": "A tin of powder with a short fuse. Throw it: it bounces, rolls and goes off about four seconds later, unless it fizzles." },
+    { "id": 124, "key": "rocket-launcher", "name": "Rocket launcher", "category": "weapons", "condition": 120,
+      "description": "Fires one rocket at a time and is slow to reload. Rockets fall over distance: aim high for far targets." },
+    { "id": 125, "key": "rocket", "name": "Rocket", "category": "ammunition", "stack": 3,
+      "description": "Explodes where it hits. Four break a stone wall." },
+    { "id": 126, "key": "rocket-hv", "name": "High-velocity rocket", "category": "ammunition", "stack": 3,
+      "description": "Twice as fast and much flatter, with a small blast: made for people, not walls." },
+    { "id": 127, "key": "rifle-ammo-explosive", "name": "Explosive rifle rounds", "category": "ammunition", "stack": 128,
+      "description": "Rounds that burst where they hit: weaker against people, but they chip away at walls and doors." }
   ]
 }

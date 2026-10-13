@@ -1,5 +1,5 @@
 {
-  "source": "Loot tables: a table gives every 'guaranteed' entry, then 'rolls' picks from 'entries' by weight ([item, least, most, weight]). The respawn kit is Rust's (a rock and a torch). Crates and barrels come with monuments (G7); 'supply-crate' is here for admin tests and the bots; 'gunfight-kit' arms the G4 load test's bots (a rifle and a pistol with rounds, two attachments, armour, bandages and food).",
+  "source": "Loot tables: a table gives every 'guaranteed' entry, then 'rolls' picks from 'entries' by weight ([item, least, most, weight]). The respawn kit is Rust's (a rock and a torch). Crates and barrels come with monuments (G7); 'supply-crate' is here for admin tests and the bots; 'gunfight-kit' arms the G4 load test's bots (a rifle and a pistol with rounds, two attachments, armour, bandages and food); 'raid-kit' the G5 raid bots (charges, bag charges, grenades, a rocket launcher with rockets, a rifle with explosive rounds).",
   "tables": [
     { "key": "respawn-kit", "guaranteed": [["rock", 1, 1], ["torch", 1, 1]] },
     { "key": "supply-crate", "rolls": [2, 4],
@@ -22,6 +22,11 @@
         ["pistol-ammo", 128, 128], ["holo-sight", 1, 1], ["muzzle-brake", 1, 1], ["bandage", 3, 3], ["bandage", 3, 3],
         ["medical-injector", 2, 2], ["roasted-tuber", 20, 20], ["woven-shirt", 1, 1], ["woven-trousers", 1, 1], ["work-boots", 1, 1],
         ["chest-plate", 1, 1], ["metal-mask", 1, 1]
+      ] },
+    { "key": "raid-kit", "guaranteed": [
+        ["timed-charge", 4, 4], ["bag-charge", 6, 6], ["tin-grenade", 8, 8], ["rocket-launcher", 1, 1], ["rocket", 3, 3], ["rocket", 3, 3],
+        ["rocket-hv", 2, 2], ["rifle", 1, 1], ["rifle-ammo-explosive", 96, 96], ["rifle-ammo", 64, 64], ["bandage", 3, 3],
+        ["roasted-tuber", 10, 10], ["woven-shirt", 1, 1], ["woven-trousers", 1, 1], ["work-boots", 1, 1], ["chest-plate", 1, 1]
       ] }
   ]
 }
