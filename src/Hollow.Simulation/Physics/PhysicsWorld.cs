@@ -76,6 +76,14 @@ public sealed class PhysicsWorld : IDisposable
     private long _epoch;
     private bool _disposed;
 
+    // Jolt gives a body the ID asked for (CreateBodyWithID) by walking its list of free IDs, and with the IDs this world
+    // uses (tiles by grid position, props by hash: far apart) that walk cost 20–60 µs a body, so a tile's trees took
+    // 2–3 ms to add (GROUND.md §5.9). So a body, once made, is kept: taken out of the world it leaves the broadphase
+    // and is parked on a tiny shared shape; put back, it takes its new shape and pose exactly as a new body would.
+    private const byte NoBody = 0, ParkedBody = 1, BodyInWorld = 2;
+    private readonly byte[] _bodies = new byte[FirstShipBody + MaxShipBodies];
+    private readonly Shape _parked;
+
     public PhysicsWorld(ISurface surface, ZoneFrame frame)
     {
         Surface = surface;
@@ -83,6 +91,10 @@ public sealed class PhysicsWorld : IDisposable
         JoltRuntime.EnsureInitialised();
         lock (JoltRuntime.Gate)
         {
+            using (var parked = new SphereShapeSettings(0.01f))
+            {
+                _parked = parked.Create();
+            }
             _layerPairs = new ObjectLayerPairFilterTable(2);
             _layerPairs.EnableCollision(StaticLayer, MovingLayer);
             _layerPairs.EnableCollision(MovingLayer, MovingLayer);
@@ -253,14 +265,12 @@ public sealed class PhysicsWorld : IDisposable
         }
         lock (JoltRuntime.Gate)
         {
-            BodyInterface bodies = Jolt.BodyInterface;
             foreach ((int X, int Z) key in _expired)
             {
                 using TickProfile.Scope _ = Profile.Time(ProfileSection.TileRemove);
                 Listener?.TileRemoved(key.X, key.Z);
                 Tile tile = _tiles[key];
-                bodies.RemoveAndDestroyBody(tile.Body);
-                Interlocked.Increment(ref _bodyChanges);
+                RemoveStaticBody(tile.Body.ID);
                 tile.Shape.Dispose();
                 _tiles.Remove(key);
             }
@@ -331,53 +341,102 @@ public sealed class PhysicsWorld : IDisposable
     }
 
     private int _bodyChanges;
-    private int _sinceOptimize;
 
     /// <summary>
-    /// Rebuilds Jolt's broadphase tree after bodies came and went (ground tiles, props). The world never runs Jolt's
-    /// own update, which would keep the tree in shape, and contact queries on a tree grown body by body cost several
-    /// times more. Call with the Jolt lock held, once a tick before characters move; it rebuilds at most twice a second
-    /// (sooner after many changes).
+    /// Keeps Jolt's broadphase tree in shape after bodies came and went (ground tiles, props, building, parked ships):
+    /// a tree grown body by body makes every contact query walk all that was added since. The world never steps Jolt
+    /// (characters and ships move by queries), so this runs the broadphase part of Jolt's update alone (an update with
+    /// no time step does nothing else): it rebuilds only the parts of the tree that changed, as Jolt does for a
+    /// streaming world, in about 0.1–0.3 ms where a whole rebuild took 5–10 ms with 30,000 bodies (GROUND.md §5.9).
+    /// Queries find the same bodies whatever the tree's shape. Call with the Jolt lock held, once a tick before
+    /// characters move.
     /// </summary>
     public void OptimizeBroadPhase()
     {
-        _sinceOptimize++;
-        if (_bodyChanges == 0 || (_sinceOptimize < 15 && _bodyChanges < 64))
+        if (_bodyChanges == 0)
         {
             return;
         }
         long started = Stopwatch.GetTimestamp();
-        Jolt.OptimizeBroadPhase();
+        Jolt.Update(0f, 1, JoltRuntime.Jobs);
         TimeSpan took = Stopwatch.GetElapsedTime(started);
         BroadPhaseTime += took;
         BroadPhaseWorst = took > BroadPhaseWorst ? took : BroadPhaseWorst;
         BroadPhaseRebuilds++;
         _bodyChanges = 0;
-        _sinceOptimize = 0;
     }
 
-    /// <summary>Broadphase rebuilds so far, their time in all and the longest (the load tests' statistics).</summary>
+    /// <summary>Broadphase updates so far, their time in all and the longest (the load tests' statistics).</summary>
     public int BroadPhaseRebuilds { get; private set; }
 
     public TimeSpan BroadPhaseTime { get; private set; }
 
     public TimeSpan BroadPhaseWorst { get; private set; }
 
+    /// <summary>
+    /// Puts a static body into the world under an ID: made the first time, afterwards the same body taken out of its
+    /// parking (see <see cref="_bodies"/>). Ground tiles, props, building pieces and parked ships all come in here.
+    /// </summary>
+    internal void AddStaticBody(uint id, Shape shape, Vector3 position, Quaternion rotation)
+    {
+        lock (JoltRuntime.Gate)
+        {
+            var bodyId = new BodyID(id);
+            BodyInterface bodies = Jolt.BodyInterface;
+            switch (_bodies[id])
+            {
+                case NoBody:
+                {
+                    using var creation = new BodyCreationSettings(shape, position, rotation, MotionType.Static, StaticLayer);
+                    _ = bodies.CreateBodyWithID(bodyId, creation) ?? throw new InvalidOperationException($"Jolt refused body {id}.");
+                    BodiesMade++;
+                    break;
+                }
+                case ParkedBody:
+                    // The shape first: the pose then puts its centre of mass where a new body's would be.
+                    bodies.SetShape(bodyId, shape, false, Activation.DontActivate);
+                    bodies.SetPositionAndRotation(bodyId, position, rotation, Activation.DontActivate);
+                    BodiesReused++;
+                    break;
+                default:
+                    throw new InvalidOperationException($"Body {id} is in the world already.");
+            }
+            bodies.AddBody(bodyId, Activation.DontActivate);
+            _bodies[id] = BodyInWorld;
+            _bodyChanges++;
+        }
+    }
+
+    /// <summary>Bodies made in Jolt so far, and bodies put back from their parking (statistics, tests).</summary>
+    public int BodiesMade { get; private set; }
+
+    public int BodiesReused { get; private set; }
+
+    /// <summary>Takes a static body out of the world; it stays made, parked, for the next body under its ID.</summary>
+    internal void RemoveStaticBody(uint id)
+    {
+        if (_disposed || _bodies[id] != BodyInWorld)
+        {
+            return;
+        }
+        lock (JoltRuntime.Gate)
+        {
+            var bodyId = new BodyID(id);
+            BodyInterface bodies = Jolt.BodyInterface;
+            bodies.RemoveBody(bodyId);
+            // Lets go of its shape (the owner disposes its own handle).
+            bodies.SetShape(bodyId, _parked, false, Activation.DontActivate);
+            _bodies[id] = ParkedBody;
+            _bodyChanges++;
+        }
+    }
+
     // Adds a built tile to the physics system, under the tile's own body ID. On the owning thread.
     private Tile AddTile(int x, int z, Shape shape)
     {
-        Interlocked.Increment(ref _bodyChanges);
         var id = new BodyID((uint)((x + TileRange) + (z + TileRange) * 2 * TileRange));
-        Tile tile;
-        lock (JoltRuntime.Gate)
-        {
-            using var creation = new BodyCreationSettings(shape, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer);
-            BodyInterface bodies = Jolt.BodyInterface;
-            Body body = bodies.CreateBodyWithID(id, creation)
-                ?? throw new InvalidOperationException($"Jolt refused ground tile {x},{z} (body {id.ID}).");
-            bodies.AddBody(body.ID, Activation.DontActivate);
-            tile = new Tile(body.ID, shape);
-        }
+        AddStaticBody(id.ID, shape, Vector3.Zero, Quaternion.Identity);
+        var tile = new Tile(id, shape);
         _tiles.Add((x, z), tile);
         return tile;
     }
@@ -421,15 +480,37 @@ public sealed class PhysicsWorld : IDisposable
         uint id = TileIdCount + slot;
         lock (JoltRuntime.Gate)
         {
+            if (!_propBodiesMade && MakePropBodiesAhead)
+            {
+                MakePropBodies();
+            }
             Shape shape = prop.CreateShape();
-            using var creation = new BodyCreationSettings(shape, prop.Centre, prop.Rotation, MotionType.Static, StaticLayer);
-            BodyInterface bodies = Jolt.BodyInterface;
-            var bodyId = new BodyID(id);
-            Body body = bodies.CreateBodyWithID(bodyId, creation)
-                ?? throw new InvalidOperationException($"Jolt refused prop {layer} {key} (body {id}).");
-            bodies.AddBody(body.ID, Activation.DontActivate);
-            _props.Add((layer, key), new Prop(body.ID, shape, id));
-            Interlocked.Increment(ref _bodyChanges);
+            AddStaticBody(id, shape, prop.Centre, prop.Rotation);
+            _props.Add((layer, key), new Prop(new BodyID(id), shape, id));
+        }
+    }
+
+    private bool _propBodiesMade;
+
+    /// <summary>Whether the first prop makes every prop body ahead (see <see cref="MakePropBodies"/>); tests compare without.</summary>
+    internal bool MakePropBodiesAhead { get; set; } = true;
+
+    // Props' IDs are spread over their whole range by hash, so even a prop's first body would walk Jolt's free list.
+    // With the first prop, every prop body is made at once, parked, from the top of the range down: each new ID is
+    // then at the head of the list (about 0.1 µs a body, 65,536 bodies, 9 MB). Ground tiles and building pieces are
+    // made as they come (tiles walk the tiles' part of the list the first time, at most 30 µs).
+    private void MakePropBodies()
+    {
+        _propBodiesMade = true;
+        using var creation = new BodyCreationSettings(_parked, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer);
+        BodyInterface bodies = Jolt.BodyInterface;
+        for (uint id = TileIdCount + MaxProps - 1; id >= TileIdCount; id--)
+        {
+            if (_bodies[id] == NoBody)
+            {
+                _ = bodies.CreateBodyWithID(new BodyID(id), creation) ?? throw new InvalidOperationException($"Jolt refused body {id}.");
+                _bodies[id] = ParkedBody;
+            }
         }
     }
 
@@ -441,9 +522,8 @@ public sealed class PhysicsWorld : IDisposable
         }
         lock (JoltRuntime.Gate)
         {
-            Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
+            RemoveStaticBody(prop.Id);
             prop.Shape.Dispose();
-            Interlocked.Increment(ref _bodyChanges);
         }
         _propIdUsed[prop.Id - TileIdCount] = false;
     }
@@ -454,16 +534,6 @@ public sealed class PhysicsWorld : IDisposable
         {
             return;
         }
-        _disposed = true;
-        lock (JoltRuntime.Gate)
-        {
-            foreach (Prop prop in _props.Values)
-            {
-                Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
-                prop.Shape.Dispose();
-            }
-            _props.Clear();
-        }
         foreach (Task<Shape> building in _pending.Values)
         {
             building.Wait();
@@ -472,14 +542,20 @@ public sealed class PhysicsWorld : IDisposable
         _pending.Clear();
         lock (JoltRuntime.Gate)
         {
-            BodyInterface bodies = Jolt.BodyInterface;
+            // Jolt frees every body still made (in the world or parked) with the physics system, and with them their
+            // hold on the shapes; the shapes' own handles go here.
+            _disposed = true;
+            foreach (Prop prop in _props.Values)
+            {
+                prop.Shape.Dispose();
+            }
+            _props.Clear();
             foreach (Tile tile in _tiles.Values)
             {
-                bodies.RemoveAndDestroyBody(tile.Body);
-                Interlocked.Increment(ref _bodyChanges);
                 tile.Shape.Dispose();
             }
             _tiles.Clear();
+            _parked.Dispose();
             Jolt.Dispose();
             _objectVsBroadPhase.Dispose();
             _broadPhaseLayers.Dispose();

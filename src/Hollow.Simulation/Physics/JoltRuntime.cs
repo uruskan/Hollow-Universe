@@ -22,6 +22,8 @@ public static class JoltRuntime
     /// <summary>Held around every call into Jolt (see the class remarks).</summary>
     public static readonly Lock Gate = new();
 
+    private static JobSystem? _jobs;
+
     /// <summary>Initialises Jolt if it isn't yet. Throws if the native library can't be loaded.</summary>
     public static void EnsureInitialised()
     {
@@ -35,7 +37,14 @@ public static class JoltRuntime
             {
                 throw new InvalidOperationException("Jolt (joltc) failed to initialise.");
             }
+            // Jolt's update asks for a job system. Ours only ever updates the broadphase (PhysicsWorld.OptimizeBroadPhase),
+            // which runs on the calling thread, so the pool has no threads of its own.
+            var config = new JobSystemThreadPoolConfig { maxJobs = 256, maxBarriers = 8, numThreads = 0 };
+            _jobs = new JobSystemThreadPool(in config);
             _initialised = true;
         }
     }
+
+    /// <summary>The job system for Jolt's update: no threads (see <see cref="EnsureInitialised"/>).</summary>
+    internal static JobSystem Jobs => _jobs ?? throw new InvalidOperationException("Jolt isn't initialised.");
 }

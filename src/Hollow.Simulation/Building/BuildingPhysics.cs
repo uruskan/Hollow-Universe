@@ -121,14 +121,7 @@ public sealed class BuildingPhysics : IDisposable
         {
             return 0;
         }
-        lock (JoltRuntime.Gate)
-        {
-            using var creation = new BodyCreationSettings(shape, position, rotation, MotionType.Static, PhysicsWorld.StaticLayer);
-            BodyInterface bodies = _world.Jolt.BodyInterface;
-            Body body = bodies.CreateBodyWithID(new BodyID(id), creation)
-                ?? throw new InvalidOperationException($"Jolt refused building body {id}.");
-            bodies.AddBody(body.ID, Activation.DontActivate);
-        }
+        _world.AddStaticBody(id, shape, position, rotation);
         _owners.Add(id, owner);
         return id;
     }
@@ -142,6 +135,7 @@ public sealed class BuildingPhysics : IDisposable
         lock (JoltRuntime.Gate)
         {
             _world.Jolt.BodyInterface.SetPositionAndRotation(new BodyID(id), position, rotation, Activation.DontActivate);
+            _world.NoteBodyChanged();
         }
     }
 
@@ -160,10 +154,7 @@ public sealed class BuildingPhysics : IDisposable
         {
             return;
         }
-        lock (JoltRuntime.Gate)
-        {
-            _world.Jolt.BodyInterface.RemoveAndDestroyBody(new BodyID(id));
-        }
+        _world.RemoveStaticBody(id);
         _free.Push(id);
     }
 
@@ -243,10 +234,9 @@ public sealed class BuildingPhysics : IDisposable
         _disposed = true;
         lock (JoltRuntime.Gate)
         {
-            BodyInterface bodies = _world.Jolt.BodyInterface;
             foreach (uint id in _owners.Keys)
             {
-                bodies.RemoveAndDestroyBody(new BodyID(id));
+                _world.RemoveStaticBody(id);
             }
             _owners.Clear();
             foreach (Shape shape in _shapes.Values)

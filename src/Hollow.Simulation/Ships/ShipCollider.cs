@@ -237,14 +237,8 @@ public sealed class ShipCollider : IDisposable
         {
             return 0;
         }
-        Shape shape = HullShape(def, swept: false);
-        using var creation = new BodyCreationSettings(shape, position, rotation, MotionType.Static, PhysicsWorld.StaticLayer);
-        BodyInterface bodies = _world.Jolt.BodyInterface;
-        Body body = bodies.CreateBodyWithID(new BodyID(id), creation)
-            ?? throw new InvalidOperationException($"Jolt refused ship body {id}.");
-        bodies.AddBody(body.ID, Activation.DontActivate);
+        _world.AddStaticBody(id, HullShape(def, swept: false), position, rotation);
         _bodies.Add(id);
-        _world.NoteBodyChanged();
         return id;
     }
 
@@ -254,8 +248,7 @@ public sealed class ShipCollider : IDisposable
         {
             return;
         }
-        _world.Jolt.BodyInterface.RemoveAndDestroyBody(new BodyID(id));
-        _world.NoteBodyChanged();
+        _world.RemoveStaticBody(id);
         _free.Push(id);
     }
 
@@ -269,7 +262,7 @@ public sealed class ShipCollider : IDisposable
         {
             foreach (uint id in _bodies)
             {
-                _world.Jolt.BodyInterface.RemoveAndDestroyBody(new BodyID(id));
+                _world.RemoveStaticBody(id);
             }
             _bodies.Clear();
             _filter.Dispose();
