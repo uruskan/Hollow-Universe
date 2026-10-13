@@ -64,12 +64,6 @@ public sealed partial class GameServer : IPlayerPresence
                 return !_reader.Failed && Intent(session, m.Seq,
                     () => Zone.ThrowExplosive(me, m.Slot, Expected(m.Expected), Quantize.FromAngle16(m.Yaw), Quantize.FromAngle16(m.Pitch), m.Lob));
             }
-            case PlaceChargeIntent.TypeId:
-            {
-                PlaceChargeIntent m = PlaceChargeIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.PlaceCharge(me, m.Slot, Expected(m.Expected), Quantize.FromAngle16(m.Yaw), Quantize.FromAngle16(m.Pitch)));
-            }
             default:
                 return false;
         }

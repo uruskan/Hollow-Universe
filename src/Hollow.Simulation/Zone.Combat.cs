@@ -489,7 +489,7 @@ public sealed partial class Zone
     }
 
     /// <summary>Where a ray first goes below the ground (within <paramref name="length"/>), or −1.</summary>
-    public float GroundCrossing(Vector3 origin, Vector3 direction, float length) => GroundAim.Crossing(Surface, Frame, origin, direction, length);
+    public float GroundCrossing(Vector3 origin, Vector3 direction, float length) => Ground.Crossing(origin, direction, length);
 
     /// <summary>
     /// Trees, outcrops and boulders (GROUND.md §6.4.2): found by their trunks and rocks along a ray (a boulder stops a

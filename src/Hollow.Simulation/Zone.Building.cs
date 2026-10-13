@@ -23,27 +23,6 @@ public enum HammerAction : byte
     Repair,
 }
 
-/// <summary>What a door intent does: placing alone (opening, shutting and picking up are verbs, GROUND_SYSTEMS.md §5).</summary>
-public enum DoorAction : byte
-{
-    /// <summary>Fit the door item in a slot into a doorway or wall frame.</summary>
-    Place,
-}
-
-/// <summary>What a lock intent does: fitting alone (codes, locking, keys and taking it off are verbs, GROUND_SYSTEMS.md §5).</summary>
-public enum LockAction : byte
-{
-    /// <summary>Fit the key or code lock in a slot to a door.</summary>
-    Attach,
-}
-
-/// <summary>What a tool cupboard intent does: placing alone (its list and picking it up are verbs, GROUND_SYSTEMS.md §5).</summary>
-public enum ClaimAction : byte
-{
-    /// <summary>Place the tool cupboard in a slot on a foundation or floor.</summary>
-    Place,
-}
-
 // Building in a live zone (GROUND.md §6.3, phase 2): the zone's BuildingWorld on its Jolt world, run on the zone's
 // tick (collapses) and on a slow schedule (upkeep and decay, closed form); the player's building actions, each checked
 // against what they carry and answered with the rules' reason; the claim device as a deployable whose storage is its
@@ -453,97 +432,10 @@ public sealed partial class Zone
         return _keys;
     }
 
-    // The item in a slot of the player's main or belt slots, when it is what the client saw and plays the role asked for.
-    private Outcome Holding(Player p, ContainerRef from, int slot, ushort expected, BuildingRole role, out ItemDef? item)
-    {
-        item = null;
-        if (from is not (ContainerRef.Main or ContainerRef.Belt) || !p.Inventory[from].InRange(slot))
-        {
-            return OutcomeCode.Invalid;
-        }
-        ItemStack s = p.Inventory[from][slot];
-        if (s.IsEmpty || (expected != 0 && s.Item != expected))
-        {
-            return OutcomeCode.Stale;
-        }
-        item = Content!.Item(s.Item);
-        if (item?.Building != role && !(role == BuildingRole.KeyLock && item?.Building == BuildingRole.CodeLock))
-        {
-            return OutcomeCode.Invalid;
-        }
-        return Outcome.Done;
-    }
-
-    private void TakeOne(Player p, ContainerRef from, int slot) => InventoryRules.Remove(p.Inventory[from], slot, 1, 0, out _);
-
     private void GiveBack(Entity entity, Player p, ItemDef item, int count = 1, ushort condition = 0)
     {
         GiveOrDrop(entity, p, condition != 0 ? new ItemStack(item.Id, count, condition) : ItemStack.Of(item, count));
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = item.Id, Count = count, Reason = GainReason.Refunded });
-    }
-
-    /// <summary>
-    /// Places a piece from the building plan (the player must carry one): on a support's socket in an orientation, or a
-    /// foundation on open ground at a point and heading (in 15° steps). The rules check everything again; twig is paid
-    /// from the player's main and belt slots.
-    /// </summary>
-    public Outcome PlacePiece(Entity entity, int pieceId, EntityId supportId, int socket, int orientation, Vector3 point, int headingSteps,
-        out Piece? piece)
-    {
-        piece = null;
-        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
-        if (!ok.Ok)
-        {
-            return ok;
-        }
-        BuildingWorld building = Building!;
-        if (building.Data.Piece(pieceId) is not { } def)
-        {
-            return OutcomeCode.Invalid;
-        }
-        if (!Carries(p, BuildingRole.Plan))
-        {
-            return OutcomeCode.NoTool.With(ToolItem(BuildingRole.Plan));
-        }
-        PlacementPlan? plan;
-        if (!supportId.IsNone)
-        {
-            if (building.PieceOf(supportId) is not { } support)
-            {
-                return OutcomeCode.NotFound;
-            }
-            if (SocketId.FromCode(socket) is not { } at || orientation is < 0 or > 255)
-            {
-                return OutcomeCode.Invalid;
-            }
-            plan = building.FromIntent(def, support, at, orientation);
-            if (plan == null)
-            {
-                return OutcomeCode.NoSocket;
-            }
-        }
-        else
-        {
-            if (def.Family != PieceFamily.Foundation || !float.IsFinite(point.X) || !float.IsFinite(point.Y) || !float.IsFinite(point.Z) ||
-                headingSteps is < 0 or >= BuildingWorld.HeadingSteps)
-            {
-                return OutcomeCode.Invalid;
-            }
-            // The point is on the player's aim: where to look for the ground (across it, near the player) and how high
-            // the top goes, which the ground under the foundation bounds (FoundationAt); the rules check the reach to
-            // the foundation itself.
-            Vector3 across = point - eye, up = Frame.UpAt(eye);
-            if ((across - up * Vector3.Dot(across, up)).Length() > building.Data.Reach + 1)
-            {
-                return OutcomeCode.OutOfReach;
-            }
-            plan = building.FoundationAt(def, point, headingSteps * BuildingWorld.HeadingStep);
-            if (plan == null)
-            {
-                return OutcomeCode.Floating;
-            }
-        }
-        return building.Place(plan, p.Id.Value, eye, new ItemWallet(Content!, p.Inventory.Carried), BuildingNow, out piece);
     }
 
     /// <summary>Upgrades (to <paramref name="grade"/>), turns, demolishes or repairs a piece with the hammer (the player must carry one).</summary>
@@ -574,32 +466,6 @@ public sealed partial class Zone
         };
     }
 
-    /// <summary>Doors: fits the door item in a slot into a frame piece (<paramref name="target"/>), turned by <paramref name="flip"/>.</summary>
-    public Outcome DoorAct(Entity entity, DoorAction action, ContainerRef from, int slot, ushort expected, EntityId target, int flip)
-    {
-        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
-        if (!ok.Ok)
-        {
-            return ok;
-        }
-        BuildingWorld building = Building!;
-        Outcome holding = Holding(p, from, slot, expected, BuildingRole.Door, out ItemDef? item);
-        if (!holding.Ok)
-        {
-            return holding;
-        }
-        if (building.PieceOf(target) is not { } frame)
-        {
-            return OutcomeCode.NotFound;
-        }
-        Outcome placed = building.PlaceDoor(p.Id.Value, item!.Door!, frame, flip, eye, out _);
-        if (placed.Ok)
-        {
-            TakeOne(p, from, slot);
-        }
-        return placed;
-    }
-
     /// <summary>An open door without a lock taken back as its item (the door capability's verb, GROUND_SYSTEMS.md §5).</summary>
     internal Outcome TakeDoor(Entity entity, Player p, Door door)
     {
@@ -622,40 +488,6 @@ public sealed partial class Zone
             }
         }
         return null;
-    }
-
-    /// <summary>Locks on a door: fits the key or code lock in a slot.</summary>
-    public Outcome LockAct(Entity entity, LockAction action, ContainerRef from, int slot, ushort expected, EntityId target, string? code)
-    {
-        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
-        if (!ok.Ok)
-        {
-            return ok;
-        }
-        BuildingWorld building = Building!;
-        if (building.DoorOf(target) is not { } door)
-        {
-            return OutcomeCode.NotFound;
-        }
-        Outcome reach = Reach(eye, door.Ref, Content!.Survival.OpenReach);
-        if (!reach.Ok)
-        {
-            return reach;
-        }
-        ulong player = p.Id.Value;
-        Outcome holding = Holding(p, from, slot, expected, BuildingRole.KeyLock, out ItemDef? item);
-        if (!holding.Ok)
-        {
-            return holding;
-        }
-        Outcome attached = item!.Building == BuildingRole.CodeLock
-            ? building.AttachCodeLock(player, door, out _)
-            : building.AttachKeyLock(player, door, out _);
-        if (attached.Ok)
-        {
-            TakeOne(p, from, slot);
-        }
-        return attached;
     }
 
     /// <summary>A key cut for a key lock, by its owner for its price in wood (the key lock capability's verb).</summary>
@@ -693,51 +525,6 @@ public sealed partial class Zone
             GiveBack(entity, p, item);
         }
         return removed;
-    }
-
-    /// <summary>
-    /// The tool cupboard: places the one in a slot on a foundation or floor (<paramref name="target"/>) at a point of its
-    /// top (<paramref name="localX"/>, <paramref name="localZ"/> in the structure's frame) turned by <paramref name="yaw"/>
-    /// 30° steps.
-    /// </summary>
-    public Outcome ClaimAct(Entity entity, ClaimAction action, ContainerRef from, int slot, ushort expected, EntityId target,
-        double localX, double localZ, int yaw)
-    {
-        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
-        if (!ok.Ok)
-        {
-            return ok;
-        }
-        BuildingWorld building = Building!;
-        ulong player = p.Id.Value;
-        if (action == ClaimAction.Place)
-        {
-            Outcome holding = Holding(p, from, slot, expected, BuildingRole.Claim, out _);
-            if (!holding.Ok)
-            {
-                return holding;
-            }
-            if (building.PieceOf(target) is not { } support)
-            {
-                return OutcomeCode.NotFound;
-            }
-            if (!double.IsFinite(localX) || !double.IsFinite(localZ))
-            {
-                return OutcomeCode.Invalid;
-            }
-            Vector3 at = BuildingWorld.F(support.Structure.Frame.ToZone(new Vector3D(localX, support.Pose.Position.Y, localZ)));
-            if (Vector3.Distance(eye, at) > building.Data.Reach)
-            {
-                return OutcomeCode.OutOfReach;
-            }
-            Outcome placed = building.PlaceClaim(player, support, new Vector3D(localX, 0, localZ), yaw, out _);
-            if (placed.Ok)
-            {
-                TakeOne(p, from, slot);
-            }
-            return placed;
-        }
-        return OutcomeCode.Invalid;
     }
 
     /// <summary>The tool cupboard picked up by one on its list, its store into their slots (the cupboard capability's verb).</summary>

@@ -55,7 +55,7 @@ public static partial class CapabilityHandlers
                      new Owned(), new Holds(verbs), new Burner(verbs), new Machine(verbs), new DoorCapability(verbs), new KeyLockCapability(verbs),
                      new CodeLockCapability(verbs), new CupboardCapability(verbs), new ShipCapability(verbs), new Lifetime(), new ExplosiveCapability(),
                      new Pickup(verbs), new Portable(verbs, data), new Station(verbs), new WoundedCapability(verbs), new CharacterCapability(verbs),
-                     new DudCapability(verbs), new ArrowCapability(),
+                     new DudCapability(verbs), new ArrowCapability(), new Standing(),
                  })
         {
             registry.Add(handler.Key, handler);
@@ -181,6 +181,25 @@ public static partial class CapabilityHandlers
             if (thing is LiveExplosive e)
             {
                 zone.Drop(e);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stands on what it was placed on (GROUND_SYSTEMS.md §3.6, §6): a deployable on a foundation or floor goes when that
+    /// goes, as in Rust: it breaks, and what it held spills in one bag. Nothing to tell a viewer.
+    /// </summary>
+    private sealed class Standing : ICapability, IDependentCapability
+    {
+        public string Key => "standing";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public void SupportLost(Zone zone, in TargetRef dependent, object thing)
+        {
+            if (thing is Deployable d)
+            {
+                zone.Break(d, Combat.DestroyCause.Collapse);
             }
         }
     }

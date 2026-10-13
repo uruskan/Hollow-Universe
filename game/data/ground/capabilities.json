@@ -12,6 +12,7 @@
     { "key": "ship", "note": "ships.json. Locked when its owner locked it." },
     { "key": "lifetime", "note": "Goes after a while, on world time, by the zone's one lifetime step (GROUND_SYSTEMS.md §3.7): survival.json lifetimes (bags of dropped items, bodies, a dud), animals.json corpse (an animal's carcass). At once when emptied, if its rule says so." },
     { "key": "explosive", "note": "explosives.json throwables: a charge or grenade with its fuse. Stuck to or lying on a thing, it falls when that goes (GROUND_SYSTEMS.md §3.6)." },
+    { "key": "standing", "note": "Placed on something that may go (GROUND_SYSTEMS.md §6): every deployable (deployables.json). Standing on a foundation or floor, it goes when that goes (Rust): it breaks and what it held spills in one bag. Nothing for a viewer." },
     { "key": "pickup", "note": "Taken whole with E (GROUND_SYSTEMS.md §5): gather.json's pickups and berry bushes (a bush is picked bare and stays), bags of dropped items (all that fits), spent arrows." },
     { "key": "portable", "note": "deployables.json pickup: an emptied deployable is picked back up as its item where the viewer has building rights (Rust's)." },
     { "key": "station", "note": "deployables.json workbench: its tech tree, opened with E, and the tree's unlocks (world.json trees)." },

@@ -54,6 +54,9 @@ public sealed partial class Zone
                 Physics.AddProp(PropLayer.Deployable, d.Id.Value, PropShape.Box(d.Centre, d.Def.HalfExtents, d.Up, d.Yaw));
             }
             RespawnPointChanged(d);
+            CountOwned(d, +1);
+            // Standing on a piece, it goes with it (GROUND_SYSTEMS.md §3.6; restored, its piece may come back after it).
+            Hold(d.Ref, d.Support);
         }
         thing.Revision++;
         return entity;
@@ -73,6 +76,8 @@ public sealed partial class Zone
         {
             Cell(d.Position).Remove(d);
             Physics.RemoveProp(PropLayer.Deployable, d.Id.Value);
+            CountOwned(d, -1);
+            Release(d.Ref);
         }
         if (Entities.TryFind(thing.Id, out Entity entity))
         {
@@ -268,7 +273,21 @@ public sealed partial class Zone
         {
             return false;
         }
-        // Its body goes first, so what it held comes to rest where it stood (on the floor under a box, not its lid).
+        Break(d);
+        return true;
+    }
+
+    /// <summary>
+    /// A deployable breaks (its health gone, or what it stood on gone: <paramref name="cause"/>): its body goes first, so
+    /// what it held comes to rest where it stood (on the floor under a box, not its lid), in one bag; a research table gives
+    /// back its work; it is reported destroyed.
+    /// </summary>
+    internal void Break(Deployable d, DestroyCause? cause = null)
+    {
+        if (StaticOf(d.Id) != d)
+        {
+            return;
+        }
         RemoveStatic(d);
         Vector3 at = d.Position + d.Up * 0.3f;
         if (d.Storage != null)
@@ -280,8 +299,7 @@ public sealed partial class Zone
         {
             PropGone(prop); // a barrel's loot lies on the ground; the barrel comes back on its timer (G7)
         }
-        Destroyed(d.Ref, d.ModelKey, 0, d.Position, Geometry.Upright(Frame.UpAt(d.Position), d.Yaw));
-        return true;
+        Destroyed(d.Ref, d.ModelKey, 0, d.Position, Geometry.Upright(Frame.UpAt(d.Position), d.Yaw), cause);
     }
 
     // Campfires and furnaces (GROUND.md §6): a lit one burns a unit of fuel every fuel.seconds, leaving its by-product

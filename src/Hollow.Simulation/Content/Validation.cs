@@ -193,9 +193,9 @@ internal static class Validation
             {
                 Problem(where, "health and size must be positive");
             }
-            if (d.MaxSlopeDegrees is <= 0 or > 60 || d.Slots is < 0 or > 64 || d.Workbench is < 0 or > 3 || d.RespawnSeconds < 0)
+            if (d.Slots is < 0 or > 64 || d.Workbench is < 0 or > 3 || d.RespawnSeconds < 0)
             {
-                Problem(where, "max slope 0 … 60°, slots 0 … 64, workbench 0 … 3");
+                Problem(where, "slots 0 … 64, workbench 0 … 3");
             }
             if (d.Device is { } device)
             {
@@ -209,10 +209,6 @@ internal static class Validation
                     Problem(where, "a device needs fuel and output slots");
                 }
             }
-        }
-        if (c.PlacementReach <= 0 || c.PlacementMaxStep <= 0)
-        {
-            Problem("deployables.json: placement", "reach and maxStep must be positive");
         }
         foreach (DeployableDef d in c.Deployables.Where(d => d.Bay != null))
         {

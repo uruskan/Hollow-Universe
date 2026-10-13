@@ -170,56 +170,6 @@ public static class ShipShapes
 }
 
 /// <summary>
-/// The ground along a ray, the same on both sides (each has the planet's surface and the zone's frame): where the ray first
-/// goes below it. It hides everything behind it.
-/// </summary>
-public static class GroundAim
-{
-    /// <summary>How far a point is above the surface, in metres (negative below).</summary>
-    public static float Height(Hollow.Surface.ISurface surface, Hollow.Surface.ZoneFrame frame, Vector3 point)
-    {
-        Core.Vector3D body = frame.ToBody(point);
-        double r = body.Length;
-        return (float)(r - (surface.Radius + surface.HeightAt(body / r)));
-    }
-
-    /// <summary>Where a ray first goes below the ground within <paramref name="length"/>, or −1 (from under it: never).</summary>
-    public static float Crossing(Hollow.Surface.ISurface surface, Hollow.Surface.ZoneFrame frame, Vector3 origin, Vector3 direction, float length)
-    {
-        if (Height(surface, frame, origin) < 0)
-        {
-            return -1; // starting under the ground: the surface doesn't block (it would block everything)
-        }
-        int steps = Math.Max(1, (int)MathF.Ceiling(length / 0.5f));
-        float t0 = 0;
-        for (int i = 1; i <= steps; i++)
-        {
-            float t1 = length * i / steps;
-            if (Height(surface, frame, origin + direction * t1) < 0)
-            {
-                // Bisect between the last point above and this one.
-                float lo = t0, hi = t1;
-                for (int k = 0; k < 8; k++)
-                {
-                    float mid = (lo + hi) / 2;
-                    if (Height(surface, frame, origin + direction * mid) < 0)
-                    {
-                        hi = mid;
-                    }
-                    else
-                    {
-                        lo = mid;
-                    }
-                }
-                return hi;
-            }
-            t0 = t1;
-        }
-        return -1;
-    }
-}
-
-/// <summary>
 /// Natural objects along the interact key's ray, the same on both sides (each generates them from the surface): a pickup
 /// or bush by a ball a little bigger than it, a tree by its trunk, a rock by its sphere; what was used up isn't there.
 /// </summary>

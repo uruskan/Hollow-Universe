@@ -81,8 +81,9 @@ public sealed partial class BuildingWorld
     public IEnumerable<ClaimDevice> Claims => _structures.Where(s => s.Claim != null).Select(s => s.Claim!);
 
     /// <summary>
-    /// Places a claim device on the top of a foundation or floor (<paramref name="localPoint"/> in its structure's frame):
-    /// one per structure, with building rights there, clear of players and other things. Its owner is authorised.
+    /// Places a claim device on the top of a foundation or floor (<paramref name="localPoint"/> in its structure's frame),
+    /// turned by <paramref name="yaw"/> 30° steps: one per structure, on the slab's footprint. Its owner is authorised.
+    /// Reach, sight, building rights and a clear space are the placement pipeline's (GROUND_SYSTEMS.md §6).
     /// </summary>
     public Outcome PlaceClaim(ulong player, Piece support, Vector3D localPoint, int yaw, out ClaimDevice? device)
     {
@@ -108,26 +109,7 @@ public sealed partial class BuildingWorld
         }
         var pose = new Pose(position, PieceGeometry.Wrap(yaw));
         (Vector3 zonePosition, Quaternion zoneRotation) = support.Structure.Frame.ToZone(pose);
-        if (PrivilegeAt(player, zonePosition, 0) == Privilege.Blocked)
-        {
-            return OutcomeCode.BuildingBlocked;
-        }
         ConvexPart[] parts = { PieceShapes.Claim(Data) };
-        if (CharacterInside(parts, zonePosition, zoneRotation))
-        {
-            return OutcomeCode.PlayerInTheWay;
-        }
-        if (Physics != null)
-        {
-            Physics.Overlaps(Physics.ShapeFor(Data.ClaimItem, parts), zonePosition, zoneRotation, (float)Data.ContactTolerance, _overlaps);
-            foreach (OverlapHit hit in _overlaps)
-            {
-                if (Physics.OwnerOf(hit.Body) != support)
-                {
-                    return OutcomeCode.Blocked;
-                }
-            }
-        }
         device = new ClaimDevice(_newId(), player, support, position, pose.Yaw, Data.ClaimHealth);
         support.Structure.Claim = device;
         _claimIds[device.Id] = device;

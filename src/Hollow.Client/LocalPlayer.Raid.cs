@@ -34,16 +34,6 @@ public sealed partial class LocalPlayer
         }.WriteMessage(w));
     }
 
-    /// <summary>Places the charge in a belt slot on the surface a view meets within reach (3 m): a wall, a door, a floor, a box, the ground.</summary>
-    public uint PlaceCharge(int slot, float yaw, float pitch)
-    {
-        ushort expected = ItemAt(ContainerRef.Belt, slot);
-        return Intend(new Pending(p => p.Content.Item(expected)?.Throwable is { Placeable: true } && p.TakeThrowable(slot, expected)), w => new PlaceChargeIntent
-        {
-            Seq = _nextSeq, Slot = (byte)Math.Clamp(slot, 0, 7), Expected = expected, Yaw = Quantize.Angle16(yaw), Pitch = Quantize.Angle16(pitch),
-        }.WriteMessage(w));
-    }
-
     private bool TakeThrowable(int slot, ushort expected) =>
         Content.Item(expected)?.Throwable != null && InventoryRules.Remove(Inventory.Belt, slot, 1, expected, out _) == Simulation.OutcomeCode.Done;
 

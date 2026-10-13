@@ -137,6 +137,9 @@ public sealed class ShipDef
 
     public float FuelBoost { get; init; } = 1;
 
+    /// <summary>The fuel a ship placed from its item carries (ships.json fuel.placed: its recipe's first tank).</summary>
+    public float PlacedFuel { get; init; }
+
     public int CargoSlots { get; init; }
 
     public IReadOnlyList<HullBox> Hull { get; init; } = Array.Empty<HullBox>();

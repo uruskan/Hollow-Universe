@@ -31,6 +31,7 @@ public sealed partial class GameContent
         "surfaces.json",
         "capabilities.json",
         Content.InteractionData.File,
+        "placement.json",
     };
 
     /// <summary>Files read with the rest but not part of <see cref="Hash"/>: the player's lines (a translation may differ).</summary>
@@ -66,14 +67,13 @@ public sealed partial class GameContent
         AnimalSpawning = loaded.AnimalSpawning;
         HarvestRates = loaded.HarvestRates;
         Survival = loaded.Survival;
-        PlacementReach = loaded.PlacementReach;
-        PlacementMaxStep = loaded.PlacementMaxStep;
         WorkbenchSpeed = loaded.WorkbenchSpeed;
         Hash = loaded.Hash;
         Problems = loaded.Problems;
         Texts = loaded.Texts!;
         Capabilities = loaded.Capabilities ?? new CapabilityData(Array.Empty<string>());
         Interactions = loaded.Interactions ?? new InteractionData(Array.Empty<VerbDef>(), 0.35f);
+        Placement = loaded.Placement ?? Simulation.Placement.PlacementData.Empty;
         ItemActions = loaded.Actions ?? global::Hollow.Simulation.Items.ItemActions.Bind(Array.Empty<global::Hollow.Simulation.Items.ItemActionDef>(), new List<string>());
         Building = loaded.Building ?? BuildingData.Parse("{}");
         ClaimDeployable = loaded.ClaimDeployable ?? new DeployableDef { Key = "claim-device", Item = new ItemDef { Key = "claim-device" }, Health = 200, Slots = 24 };
@@ -180,11 +180,6 @@ public sealed partial class GameContent
 
     public SurvivalTuning Survival { get; }
 
-    /// <summary>A deployable is placed at most this far from the eye, on ground at most this far below the aim.</summary>
-    public float PlacementReach { get; }
-
-    public float PlacementMaxStep { get; }
-
     /// <summary>
     /// How much of a recipe's time a job takes by how many levels the best workbench in reach is above the recipe's
     /// (recipes.json <c>workbenchSpeed</c>, GROUND_SYSTEMS.md §7: Rust's 1, ½, ¼); the last holds for more.
@@ -208,6 +203,9 @@ public sealed partial class GameContent
 
     /// <summary>The interaction verbs (interactions.json, GROUND_SYSTEMS.md §5): what the E key can do, by number and key.</summary>
     public InteractionData Interactions { get; }
+
+    /// <summary>Everything that can be placed and its rule, by the wire's numbers, and the pipeline's handlers (placement.json, GROUND_SYSTEMS.md §6).</summary>
+    public Simulation.Placement.PlacementData Placement { get; }
 
     /// <summary>
     /// The inventory's buttons (items.json <c>actions</c>, GROUND_SYSTEMS.md §7) and their handlers: what a stack offers
@@ -316,6 +314,7 @@ public sealed partial class GameContent
         reader.ReadAll();
         loaded.Texts = ReadTexts(texts.GetValueOrDefault(Content.Texts.File) ?? "", loaded, problems);
         LinkBuilding(texts.GetValueOrDefault("building.json") ?? "", documents["building.json"], loaded, problems);
+        PlacementReader.Read(new JsonFields(problems), documents, loaded);
         Validation.Check(loaded, problems);
         ExplosivesReader.Check(loaded, loaded.Building, problems);
         WorldReader.Check(loaded, problems);
@@ -489,11 +488,10 @@ public sealed partial class GameContent
         public Texts? Texts;
         public CapabilityData? Capabilities;
         public InteractionData? Interactions;
+        public Simulation.Placement.PlacementData? Placement;
         public List<global::Hollow.Simulation.Items.ItemActionDef> ItemActions = new();
         public IReadOnlyList<double> WorkbenchSpeed = new[] { 1.0 };
         public global::Hollow.Simulation.Items.ItemActions? Actions;
-        public float PlacementReach = 3f;
-        public float PlacementMaxStep = 0.6f;
         public ulong Hash;
         public List<string> Problems = new();
     }
@@ -952,20 +950,14 @@ public sealed partial class GameContent
 
         private void ReadDeployables()
         {
-            JsonElement root = Root("deployables.json", "placement", "deployables");
-            if (f.TryChild(root, "placement", out JsonElement placement))
-            {
-                f.OnlyKnown(placement, "deployables.json: placement", "reach", "maxStep");
-                loaded.PlacementReach = f.Number(placement, "reach", "deployables.json: placement", 3);
-                loaded.PlacementMaxStep = f.Number(placement, "maxStep", "deployables.json: placement", 0.6f);
-            }
+            JsonElement root = Root("deployables.json", "deployables");
             JsonElement[] list = f.List(root, "deployables", "deployables.json");
             for (int i = 0; i < list.Length; i++)
             {
                 JsonElement e = list[i];
                 string key = f.Text(e, "key", $"deployables.json: deployables[{i}]");
                 string where = $"deployables.json: {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "key", "item", "health", "size", "maxSlope", "solid", "respawn", "slots", "device", "workbench", "bay", "pickup");
+                f.OnlyKnown(e, where, "key", "item", "health", "size", "placement", "solid", "respawn", "slots", "device", "workbench", "bay", "pickup");
                 ItemDef? item = Resolve(f.Text(e, "item", where), where + ".item");
                 JsonElement[] size = f.List(e, "size", where);
                 Vector3 half = Vector3.Zero;
@@ -1021,7 +1013,6 @@ public sealed partial class GameContent
                     Item = item,
                     Health = f.Number(e, "health", where),
                     HalfExtents = half,
-                    MaxSlopeDegrees = f.Number(e, "maxSlope", where, 30),
                     Solid = f.Flag(e, "solid", where, true),
                     RespawnSeconds = f.Number(e, "respawn", where, 0),
                     Slots = f.Integer(e, "slots", where, 0),
@@ -1530,7 +1521,7 @@ public sealed partial class GameContent
                 string key = f.Text(e, "key", $"ships.json: ships[{i}]");
                 string where = $"ships.json: {JsonFields.Quote(key)}";
                 f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
-                    "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "ceiling", "wreck");
+                    "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "ceiling", "wreck", "placement");
                 ItemDef? item = Resolve(f.Text(e, "item", where), where + ".item");
                 var blocks = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
                 foreach (string name in new[] { "damage", "thrust", "speed", "boost", "rates", "drag", "landing", "skids", "crash", "fuel", "sockets", "nozzles" })
@@ -1560,7 +1551,7 @@ public sealed partial class GameContent
                 f.OnlyKnown(landing, where + ".landing", "maxSlope", "assist");
                 f.OnlyKnown(skids, where + ".skids", "points", "stiffness", "damping", "travel", "friction");
                 f.OnlyKnown(crash, where + ".crash", "safe", "scale", "pilot");
-                f.OnlyKnown(fuel, where + ".fuel", "item", "capacity", "idle", "full", "boost");
+                f.OnlyKnown(fuel, where + ".fuel", "item", "capacity", "idle", "full", "boost", "placed");
                 f.OnlyKnown(sockets, where + ".sockets", "seat", "eye", "hatch", "fuel", "cargo", "exits");
                 f.OnlyKnown(nozzles, where + ".nozzles", "main", "aux", "lift", "rcs");
                 var hull = new List<Ships.HullBox>();
@@ -1637,6 +1628,7 @@ public sealed partial class GameContent
                     FuelIdle = f.Number(fuel, "idle", where + ".fuel"),
                     FuelFull = f.Number(fuel, "full", where + ".fuel"),
                     FuelBoost = f.Number(fuel, "boost", where + ".fuel", 1),
+                    PlacedFuel = f.Number(fuel, "placed", where + ".fuel", 0),
                     CargoSlots = f.Integer(e, "cargo", where, 0),
                     Hull = hull,
                     Seat = Vector(sockets, "seat", where + ".sockets"),

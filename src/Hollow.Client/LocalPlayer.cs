@@ -367,18 +367,6 @@ public sealed partial class LocalPlayer
     /// <summary>Closes the loot at once (the server agrees).</summary>
     public uint Close() => Intend(new Pending(p => p.ApplyClose()), w => new CloseIntent { Seq = _nextSeq }.WriteMessage(w));
 
-    /// <summary>Places the deployable in a slot at a point on the ground (zone frame), turned by a yaw.</summary>
-    public uint Place(ContainerRef from, int slot, Vector3 at, float yaw)
-    {
-        ushort expected = ItemAt(from, slot);
-        return Intend(new Pending(p => p.Resolve(from) is { } c && from is ContainerRef.Main or ContainerRef.Belt &&
-                p.Content.Item(expected)?.Deploys != null && InventoryRules.Remove(c, slot, 1, expected, out _) == OutcomeCode.Done),
-            w => new PlaceIntent
-            {
-                Seq = _nextSeq, From = from, Slot = (byte)slot, Expected = expected, X = at.X, Y = at.Y, Z = at.Z, Yaw = Quantize.Angle16(yaw),
-            }.WriteMessage(w));
-    }
-
     /// <summary>Respawns at one of the player's sleeping bags, or on the beach (no bag).</summary>
     public uint Respawn(EntityId bag = default) => Intend(null, w => new RespawnIntent { Seq = _nextSeq, Bag = bag.Value }.WriteMessage(w));
 
@@ -737,7 +725,7 @@ public sealed partial class LocalPlayer
             _dirty = true;
         }
         var answer = new IntentAnswer(m.Seq, m.Code, (int)Math.Min(m.Detail, int.MaxValue));
-        AnsweredPiece(m.Seq, answer.Done);
+        AnsweredPlacement(m.Seq, answer.Done);
         IntentAnswered?.Invoke(answer);
         if (!answer.Done)
         {

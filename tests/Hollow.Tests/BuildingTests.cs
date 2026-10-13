@@ -9,6 +9,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Physics;
+using Hollow.Simulation.Placement;
 using Hollow.Surface;
 
 namespace Hollow.Tests;
@@ -47,6 +48,52 @@ public static class BuildingTests
     }
 
     private static SocketId Edge(int i) => new(SocketKind.Edge, i);
+
+    // ---------------------------------------------------------------- the placement pipeline (GROUND_SYSTEMS.md §6)
+
+    /// <summary>A placement world of a building alone (its collision if it has any), on a ground and frame (flat by default).</summary>
+    private static PlacementWorld Placing(BuildingWorld world, ISurface? surface = null)
+    {
+        ISurface ground = surface ?? new CliffSurface(6_435_000);
+        return new PlacementWorld(ContentFixture.Content, ZoneFrame.At(ground, 0, 0), ground, world.Physics?.World, world, new Alone(world));
+    }
+
+    private static PlacementContext Context(PieceDef piece, ulong player, Vector3 eye, IBuildingWallet? wallet) =>
+        new(player, eye, ContentFixture.Content.Placement.Of(piece)!, wallet);
+
+    /// <summary>
+    /// The pipeline's verdict on a plan the building rules made: reach, sight and building rights are the pipeline's (one
+    /// rule for everything placed), the rest the building's own.
+    /// </summary>
+    private static Outcome Verdict(PlacementWorld placing, PlacementPlan plan, ulong player, Vector3 eye, IBuildingWallet? wallet)
+    {
+        PlacementContext ctx = Context(plan.Piece, player, eye, wallet);
+        PlacementCandidate c = Placer.OfPlan(placing, ctx, plan);
+        c.Outcome = Placer.Check(placing, ctx, c);
+        return c.Outcome;
+    }
+
+    /// <summary>The ghost of a piece where a player aims (the pipeline's socket solver and checks): its plan, or null.</summary>
+    private static PlacementCandidate? Ghost(PlacementWorld placing, PieceDef piece, Vector3 eye, Vector3 aim, IBuildingWallet? wallet, int turns = 0) =>
+        Placer.Plan(placing, Context(piece, Ada, eye, wallet), new PlacementAim(aim, 0, turns));
+
+    /// <summary>A building's surroundings for placement: its characters, nothing else.</summary>
+    private sealed class Alone(BuildingWorld world) : IPlacementSurroundings
+    {
+        public void ThingsNear(Vector3 point, float radius, List<PlacedThing> into)
+        {
+        }
+
+        public void CharactersNear(Vector3 point, float radius, List<Capsule> into) => into.AddRange(world.Characters?.Invoke() ?? Array.Empty<Capsule>());
+
+        public void ShipsNear(Vector3 point, float radius, List<PlacedShip> into)
+        {
+        }
+
+        public int ThingsOn(in Hollow.Simulation.Targets.TargetRef support) => 0;
+
+        public int ThingsOwned(ulong player, Hollow.Simulation.Content.DeployableDef def) => 0;
+    }
 
     private static readonly SocketId Top = new(SocketKind.Top, 0);
     private static readonly SocketId Centre = new(SocketKind.Centre, 0);
@@ -154,7 +201,7 @@ public static class BuildingTests
             values.Add(reach.Stability);
         }
         PlacementPlan fifth = world.FromIntent(P("floor"), reach, Edge(1), 3)!;
-        world.Check(fifth, Ada, ZoneOf(fifth) + new Vector3(0, 1, 0), null);
+        world.CheckBuilding(fifth, Ada, null);
         Piece spiral = On(world, First(world, x: 30), Centre, "stairs-spiral");
         Piece landing = On(world, spiral, Top, "floor");
         Fixtures.Report($"foundation {f.StabilityPercent}%, walls {walls.Select(w => w.StabilityPercent).Min()}%, ceiling {ceiling.StabilityPercent}%, " +
@@ -304,9 +351,10 @@ public static class BuildingTests
 
         PlacementPlan wall = world.FromIntent(P("wall"), f, Edge(0), 0)!;
         var wallet = new Wallet { Endless = true };
-        world.Check(wall, Bo, new Vector3(0, 1.6f, 5), wallet);
-        Assert.Equal(OutcomeCode.BuildingBlocked, wall.Outcome.Code, "Bo's wall is refused");
-        Assert.Equal("Building blocked: someone else's tool cupboard", Line(wall.Outcome), "with the reason");
+        PlacementWorld placing = Placing(world);
+        Outcome blocked = Verdict(placing, wall, Bo, new Vector3(0, 1.6f, 5), wallet);
+        Assert.Equal(OutcomeCode.BuildingBlocked, blocked.Code, "Bo's wall is refused");
+        Assert.Equal("Building blocked: someone else's tool cupboard", Line(blocked), "with the reason");
         Assert.Equal(Privilege.None, world.PrivilegeAt(Bo, new Vector3(60, 0, 0)), "far away is free");
 
         var far = new Vector3(0, 0, -36);
@@ -319,8 +367,8 @@ public static class BuildingTests
         Assert.Equal(Privilege.Blocked, world.PrivilegeAt(Bo, far), "the area grew with the base");
 
         Assert.True(world.Authorise(Bo, device!).Ok, "Bo authorises at the device");
-        world.Check(wall, Bo, new Vector3(0, 1.6f, 5), wallet);
-        Assert.True(wall.Valid, "now Bo may build: " + wall.Outcome);
+        Outcome allowed = Verdict(placing, wall, Bo, new Vector3(0, 1.6f, 5), wallet);
+        Assert.True(allowed.Ok, "now Bo may build: " + allowed);
         Assert.Equal(OutcomeCode.NotAuthorised, world.ClearAuthorised(3, device!).Code, "a stranger can't clear the list");
         Assert.True(world.ClearAuthorised(Ada, device!).Ok, "Ada clears the list");
         Assert.Equal(Privilege.Blocked, world.PrivilegeAt(Bo, new Vector3(5, 0, 0)), "Bo is blocked again");
@@ -402,13 +450,12 @@ public static class BuildingTests
         Piece doorway = On(world, f, Edge(0), "doorway");
         Piece frame = On(world, f, Edge(1), "wall-frame");
         Piece wall = On(world, f, Edge(2), "wall");
-        Vector3 eye = new(0, 1.6f, 4);
         DoorDef wooden = Data.Door("wooden-door")!, doubleDoor = Data.Door("wooden-double-door")!;
-        Assert.Equal(OutcomeCode.NeedsWallFrame, world.PlaceDoor(Ada, doubleDoor, doorway, 0, eye, out _).Code, "a double door needs a wall frame");
-        Assert.Equal(OutcomeCode.NotAnOpening, world.PlaceDoor(Ada, wooden, wall, 0, eye, out _).Code, "not in a plain wall");
-        Assert.True(world.PlaceDoor(Ada, wooden, doorway, 0, eye, out Door? door).Ok, "door fitted");
-        Assert.True(world.PlaceDoor(Ada, doubleDoor, frame, 1, eye, out Door? wide).Ok, "double door fitted, turned round");
-        Assert.Equal(OutcomeCode.HasDoor, world.PlaceDoor(Ada, wooden, doorway, 0, eye, out _).Code, "one door per opening");
+        Assert.Equal(OutcomeCode.NeedsWallFrame, world.PlaceDoor(Ada, doubleDoor, doorway, 0, out _).Code, "a double door needs a wall frame");
+        Assert.Equal(OutcomeCode.NotAnOpening, world.PlaceDoor(Ada, wooden, wall, 0, out _).Code, "not in a plain wall");
+        Assert.True(world.PlaceDoor(Ada, wooden, doorway, 0, out Door? door).Ok, "door fitted");
+        Assert.True(world.PlaceDoor(Ada, doubleDoor, frame, 1, out Door? wide).Ok, "double door fitted, turned round");
+        Assert.Equal(OutcomeCode.HasDoor, world.PlaceDoor(Ada, wooden, doorway, 0, out _).Code, "one door per opening");
 
         (Vector3 _, Quaternion shut) = door!.Leaf(0, open: false);
         (Vector3 _, Quaternion open) = door.Leaf(0, open: true);
@@ -547,21 +594,23 @@ public static class BuildingTests
         world.Characters = () => players;
         var wallet = new Wallet { ["wood"] = 10_000 };
         var refusals = new List<string>();
+        PlacementWorld placing = Placing(world, surface);
         void Expect(OutcomeCode reason, PlacementPlan? plan, Vector3 eye, IBuildingWallet? purse = null)
         {
             Assert.True(plan != null, $"a plan for {reason}");
-            world.Check(plan!, Ada, eye, purse ?? wallet);
-            Assert.Equal(reason, plan!.Outcome.Code, $"{plan.Piece.Key}: {Line(plan.Outcome)}");
-            Assert.True(Line(plan.Outcome).Length > 0, "a line for the player");
-            refusals.Add(Line(plan.Outcome));
+            Outcome verdict = Verdict(placing, plan!, Ada, eye, purse ?? wallet);
+            Assert.Equal(reason, verdict.Code, $"{plan!.Piece.Key}: {Line(verdict)}");
+            Assert.True(Line(verdict).Length > 0, "a line for the player");
+            refusals.Add(Line(verdict));
         }
 
         // A free foundation where the player looks, 3 m ahead on the flat.
         var standing = new Vector3(6, 0, 4);
         Vector3 eye = standing + new Vector3(0, 1.6f, 0);
-        PlacementPlan? first = world.Plan(Ada, P("foundation"), eye, new Vector3(0, -1.6f, -3), 0, wallet, now: 0);
-        Assert.True(first != null && first.Valid && first.Support == null, "free foundation: " + first);
-        Assert.True(world.Place(first!, Ada, eye, wallet, now: 0, out Piece? f).Ok, "placed");
+        PlacementCandidate? ghost = Ghost(placing, P("foundation"), eye, new Vector3(0, -1.6f, -3), wallet);
+        PlacementPlan? first = ghost?.Detail as PlacementPlan;
+        Assert.True(ghost is { Valid: true } && first is { Support: null }, "free foundation: " + ghost);
+        Assert.True(world.Place(first!, Ada, wallet, now: 0, out Piece? f).Ok, "placed");
         Assert.Equal(10_000 - 50, wallet["wood"], "paid 50 wood");
         (Vector3 fPosition, _) = f!.ZoneTransform;
         Fixtures.Report($"free foundation at {fPosition}, its top {fPosition.Y:0.000} m above the flat ground");
@@ -569,9 +618,10 @@ public static class BuildingTests
 
         // Aiming at its east edge with a wall plan picks that edge.
         Vector3 east = f.Structure.Frame.ToZone(PieceGeometry.ToFrame(f.Pose, new Vector3D(1.5, 0.6, 0))) is var e ? BuildingWorld_F(e) : default;
-        PlacementPlan? wallPlan = world.Plan(Ada, P("wall"), eye, east - eye, 0, wallet, now: 1);
-        Assert.True(wallPlan != null && wallPlan.Valid && wallPlan.Socket == Edge(1), "the wall snaps to the edge aimed at: " + wallPlan);
-        world.Place(wallPlan!, Ada, eye, wallet, now: 1, out Piece? eastWall);
+        PlacementCandidate? wallGhost = Ghost(placing, P("wall"), eye, east - eye, wallet);
+        PlacementPlan? wallPlan = wallGhost?.Detail as PlacementPlan;
+        Assert.True(wallGhost is { Valid: true } && wallPlan!.Socket == Edge(1), "the wall snaps to the edge aimed at: " + wallGhost);
+        world.Place(wallPlan!, Ada, wallet, now: 1, out Piece? eastWall);
 
         Expect(OutcomeCode.Occupied, world.FromIntent(P("wall"), f, Edge(1), 1), eye);
         Expect(OutcomeCode.OutOfReach, world.FromIntent(P("wall"), f, Edge(3), 0), fPosition + new Vector3(-20, 1.6f, 0));
@@ -603,10 +653,10 @@ public static class BuildingTests
         Expect(OutcomeCode.PlayerInTheWay, southWall, eye);
         players.Clear();
         Expect(OutcomeCode.NotEnough, southWall, eye, new Wallet());
-        Assert.Equal("Not enough wood", Line(southWall!.Outcome), "names the material");
-        world.Check(southWall, Ada, eye, wallet);
-        Assert.True(southWall.Valid, "with the player gone and wood paid, the wall fits: " + southWall.Outcome);
-        Assert.True(world.Plan(Ada, P("wall"), eye, new Vector3(0, 1, 0), 0, wallet, now: 3) == null, "a wall aimed at the sky: nothing to place");
+        Assert.Equal("Not enough wood", Line(Verdict(placing, southWall!, Ada, eye, new Wallet())), "names the material");
+        Outcome fits = Verdict(placing, southWall!, Ada, eye, wallet);
+        Assert.True(fits.Ok, "with the player gone and wood paid, the wall fits: " + fits);
+        Assert.True(Ghost(placing, P("wall"), eye, new Vector3(0, 1, 0), wallet) == null, "a wall aimed at the sky: nothing to place");
         Fixtures.Report(string.Join(" | ", refusals));
         Assert.Equal(eastWall!.Body != 0, true, "pieces have bodies");
     }
@@ -654,10 +704,12 @@ public static class BuildingTests
         Vector3 eye = new(0, 1.6f, 4);
         double rise = slope * Data.Width / 2, clearance = Data.FoundationClearance, depth = Data.FoundationDepth;
         double lowest = rise + clearance, highest = depth - rise;
+        PlacementWorld placing = Placing(world, surface);
         double Top(Vector3 aim, string what)
         {
-            PlacementPlan? plan = world.Plan(Ada, P("foundation"), eye, aim, 0, wallet, now: 0);
-            Assert.True(plan != null && plan.Support == null && plan.Valid, $"{what}: a valid free foundation, not {plan}");
+            PlacementCandidate? ghost = Ghost(placing, P("foundation"), eye, aim, wallet);
+            PlacementPlan? plan = ghost?.Detail as PlacementPlan;
+            Assert.True(ghost is { Valid: true } && plan is { Support: null }, $"{what}: a valid free foundation, not {ghost}");
             PlacementPlan again = world.FoundationAt(P("foundation"), plan!.Point, plan.HeadingSteps * BuildingWorld.HeadingStep)!;
             Assert.True(again.Frame.Equals(plan.Frame), $"{what}: the server's foundation from the plan's point is the ghost's");
             double top = plan.Frame.Origin.Y;

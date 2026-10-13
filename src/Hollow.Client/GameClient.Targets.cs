@@ -156,7 +156,8 @@ public sealed partial class GameClient
         {
             if (c._surface != null && c.Zone != null)
             {
-                ray.Consider(ref best, GroundAim.Crossing(c._surface, c.Frame, ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground, AimKind.Backdrop);
+                ray.Consider(ref best, new GroundProbe(c._surface, c.Frame).Crossing(ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground,
+                    AimKind.Backdrop);
             }
         }
 

@@ -20,21 +20,6 @@ public sealed partial class GameClient
     /// <summary>The replicated building with what the server says of doors and claim devices for this player.</summary>
     public BuildingReplica? BuildingReplica => _buildingReplica;
 
-    /// <summary>
-    /// The ghost: the placement the building plan would make where the player aims, checked by the server's own rules
-    /// against the replicated building, this player's materials and building rights. <paramref name="turns"/> counts
-    /// presses of the rotate key. Null when there is nothing to show.
-    /// </summary>
-    public PlacementPlan? PlanPiece(PieceDef piece, Vector3 eye, Vector3 direction, int turns = 0)
-    {
-        if (_buildingReplica == null || !HasCharacter)
-        {
-            return null;
-        }
-        return _buildingReplica.World.Plan(EntityId.Value, piece, eye, direction, turns,
-            new ItemWallet(Content, Local.Inventory.Carried), ClockSeconds);
-    }
-
     /// <summary>What the player aims at within the building plan's reach: a piece, a door or a claim device (or null).</summary>
     public object? AimBuilding(Vector3 eye, Vector3 direction) =>
         _buildingReplica?.World.Target(eye, direction, (float)Content.Building.Reach, out _);

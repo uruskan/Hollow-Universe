@@ -50,6 +50,7 @@ public partial class GroundView : Node3D
     private ClientGroundUi _model = null!;
     private GroundAudio? _audio;
     private BuildView _build = null!;
+    private PlacementView _placing = null!;
     private RaidView _raid = null!;
     private ShipsView _ships = null!;
     private HollowUniverse.Ships.ShipHud _shipHud = null!;
@@ -216,7 +217,10 @@ public partial class GroundView : Node3D
         _firstPerson = new FirstPersonView { Name = "FirstPerson", Client = Client };
         AddChild(_firstPerson);
         var buildHud = new HollowUniverse.Build.BuildHud { Name = "BuildHud" };
-        _build = new BuildView { Name = "Building", Client = Client, Hud = buildHud };
+        // Placing anything (GROUND_SYSTEMS.md §6): one controller and one ghost, whatever the hands hold.
+        _placing = new PlacementView { Name = "Placing", Client = Client };
+        AddChild(_placing);
+        _build = new BuildView { Name = "Building", Client = Client, Hud = buildHud, Placing = _placing };
         AddChild(_build);
 
         var layer = new CanvasLayer { Name = "Interface" };
@@ -240,7 +244,7 @@ public partial class GroundView : Node3D
         // Things breaking apart (GROUND.md §9.4): every destruction the server reports, one path.
         AddChild(new GibsView { Name = "Gibs", Client = Client });
         _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build, AskCode = ShowKeypad };
-        _hands = new HeldContext { Client = Client, Build = _build, Arms = _firstPerson, Placement = new TodaysPlacement(_build), Say = _model.ShowNotice };
+        _hands = new HeldContext { Client = Client, Build = _build, Arms = _firstPerson, Placement = _placing, Say = _model.ShowNotice };
         // The radials the held item opens (the aim button, R) and the HUD's ammo come from its control.
         _model.HeldRadial = input => HandsFree() is { } held ? held.Radial(_hands, input) : null;
         _model.HeldAmmo = () => Holding() is { } held ? held.Ammo(_hands) : null;
@@ -257,6 +261,7 @@ public partial class GroundView : Node3D
         _model.Console = _console;
         Client.ZoneDayChanged += ApplyDay;
         _build.Say = _model.ShowNotice;
+        _placing.Say = _model.ShowNotice;
         _ui = new GroundUi { Name = "GroundUi", Model = _model };
         _ui.QuitRequested += () => QuitRequested?.Invoke();
         layer.AddChild(_ui);
@@ -529,6 +534,12 @@ public partial class GroundView : Node3D
             _model.Prompt = null;
         }
         _build.Aimed = _model.AimedTarget;
+        // Where what is held would be placed, and its ghost (GROUND_SYSTEMS.md §6): the held item's control aims it.
+        _placing.Ghost.Assets ??= _build.Assets;
+        _placing.BeginFrame();
+        Holding()?.Aim(_hands, eye, forward);
+        _placing.EndFrame();
+        Time("placing", ref t0);
         _build.Refresh(delta, eye, forward);
         // The lines under the crosshair give way to the keypad.
         _build.Hud.Visible = !_keypad.Visible;
@@ -540,11 +551,6 @@ public partial class GroundView : Node3D
         Time("ships", ref t0);
         _audio?.Refresh(delta, input.Sprint);
         Time("audio", ref t0);
-
-        // Where what is held would be placed (its ghost), by its control.
-        _firstPerson.PlacementPoint = null;
-        Holding()?.Aim(_hands, eye, forward);
-        Time("aim", ref t0);
         _firstPerson.Refresh(delta, input, _yaw, _pitch);
         Holding()?.Arms(_hands, delta, input);
         Time("first person", ref t0);

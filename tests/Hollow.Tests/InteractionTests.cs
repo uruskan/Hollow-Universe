@@ -548,9 +548,7 @@ public static class InteractionTests
         Piece foundation = world.AddFirst(TestBases.FrameOver(zone, data, foundationDef, at, 0), foundationDef, 2, owner, zone.BuildingNow);
         PlacementPlan plan = world.FromIntent(frameDef, foundation, new SocketId(SocketKind.Edge, 0), 0) ?? throw new TestFailure("no wall frame");
         Piece frame = world.Add(plan.Structure!, frameDef, 2, plan.Pose, owner, zone.BuildingNow);
-        (Vector3 position, Quaternion rotation) = frame.ZoneTransform;
-        Assert.True(world.PlaceDoor(owner, data.Door("garage-door")!, frame, 0, position + Vector3.Transform(new Vector3(0, 1.6f, 2), rotation), out Door? door).Ok,
-            "the garage door fitted");
+        Assert.True(world.PlaceDoor(owner, data.Door("garage-door")!, frame, 0, out Door? door).Ok, "the garage door fitted");
         return (frame, door!);
     }
 }

@@ -156,8 +156,6 @@ public sealed class DeployableDef
     /// <summary>Half extents in metres: x across, y up, z along (its yaw turns x and z).</summary>
     public Vector3 HalfExtents { get; init; }
 
-    public float MaxSlopeDegrees { get; init; } = 30;
-
     /// <summary>Blocks movement (a Jolt body); sleeping bags and campfires don't.</summary>
     public bool Solid { get; init; } = true;
 

@@ -17,10 +17,11 @@ namespace HollowUniverse.Ground;
 
 /// <summary>
 /// Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's
-/// <see cref="BuildingRenderer"/> (batched per piece kind, grade and chunk), the plan's ghost from
-/// <see cref="GameClient.PlanPiece"/> (green, or red with the reason), the lines under the crosshair and the held tool's
-/// keys (<see cref="BuildHud"/>), the plan's and the hammer's radials, and what the held tool does: place a piece, repair,
-/// upgrade, rotate or demolish one, fit a door or a lock, place the claim device. Doors open and shut with E; a code lock
+/// <see cref="BuildingRenderer"/> (batched per piece kind, grade and chunk), the lines under the crosshair and the held
+/// tool's keys (<see cref="BuildHud"/>: what <see cref="PlacementView"/> says of whatever is being placed, the plan's piece
+/// with its cost and stability), the plan's and the hammer's radials, and what the held tool does: a building tool that
+/// places (the plan's piece, a door, a lock, the claim device) places through the one placement controller
+/// (GROUND_SYSTEMS.md §6), the hammer repairs, upgrades, rotates or demolishes. Doors open and shut with E; a code lock
 /// asks for its code (<see cref="Keypad"/>); held E on a door or the claim device offers its options (lock, change the
 /// code, cut a key, authorise, clear the list, pick up). Pieces placed and upgraded, and doors, sound and show (the
 /// effects library); pieces broken, brought down or demolished break apart through the gibs (<see cref="GibsView"/>).
@@ -31,23 +32,27 @@ public partial class BuildView : Node3D, IHammerActions
 {
     private BuildingAssets? _assets;
     private BuildingRenderer? _renderer;
-    private BuildGhost? _ghost;
     private BuildingWorld? _world;
-    private readonly List<MeshInstance3D> _pending = new();
     private readonly Dictionary<Piece, int> _grades = new();
     private readonly Dictionary<Door, bool> _open = new();
-    private StandardMaterial3D? _pendingMaterial;
     private double _since;
-    private int _turns, _flip;
-    private PlacementPlan? _plan;
     private object? _target;
     private RayHit _hit;
-    private Num.Vector3 _eye, _forward;
     private ItemWallet? _wallet;
     private PlanRadial? _planRadial;
     private IRadialSource? _hammer;
 
     public GameClient Client { get; set; } = null!;
+
+    /// <summary>The placement controller (GROUND_SYSTEMS.md §6): what the held item places, its ghost and verdict.</summary>
+    public PlacementView Placing { get; set; } = null!;
+
+    /// <summary>The building's art, once loaded (the placement ghost draws pieces and doors from it).</summary>
+    public BuildingAssets? Assets => _assets;
+
+    /// <summary>The plan's chosen piece as a placeable while the building plan is held, else null.</summary>
+    public Hollow.Simulation.Placement.Placeable? PlannedPiece =>
+        !Client.Local.IsDead && Client.Local.HeldItem?.Building == BuildingRole.Plan ? Client.Content.Placement.Of(Plan.Chosen) : null;
 
     /// <summary>The lines under the crosshair (in the interface's layer).</summary>
     public BuildHud Hud { get; set; } = null!;
@@ -83,8 +88,6 @@ public partial class BuildView : Node3D, IHammerActions
     public void Refresh(double delta, Num.Vector3 eye, Num.Vector3 forward)
     {
         _since += delta;
-        _eye = eye;
-        _forward = forward;
         Attach();
         if (_world == null)
         {
@@ -94,51 +97,57 @@ public partial class BuildView : Node3D, IHammerActions
         LocalPlayer me = Client.Local;
         ItemDef? item = me.IsDead ? null : me.HeldItem;
         Held = item?.Building ?? BuildingRole.None;
-        _plan = null;
         Hud.Line = null;
         Hud.Reason = null;
         Hud.Hints = null;
-        switch (Held)
+        if (Placing.Placeable is { } placing)
         {
-            case BuildingRole.Plan:
-                AimPlan();
-                break;
-            case BuildingRole.Hammer:
-                Hud.Hints = "LMB REPAIR   ·   HOLD RMB UPGRADE / ROTATE / DEMOLISH";
-                Hud.Line = _target != null ? TargetLine(_target) : null;
-                break;
-            case BuildingRole.Door when item!.Door is { } door:
-                Hud.Hints = $"LMB PLACE {door.Name.ToUpperInvariant()}   ·   R TURN 180°";
-                if (OpeningAimed() is { } opening)
-                {
-                    Hud.Line = $"{opening.Def.Name.ToUpperInvariant()}  ·  {(opening.Door == null ? "EMPTY" : opening.Door.Def.Name.ToUpperInvariant())}";
-                }
-                break;
-            case BuildingRole.KeyLock or BuildingRole.CodeLock:
-                Hud.Hints = "LMB FIT ON THE DOOR";
-                Hud.Line = _target is Door d ? $"{d.Def.Name.ToUpperInvariant()}  ·  {(d.Lock == null ? "NO LOCK" : "LOCKED BY " + (d.Lock is CodeLock ? "A CODE LOCK" : "A KEY LOCK"))}" : null;
-                break;
-            case BuildingRole.Claim:
-                Hud.Hints = "LMB PLACE ON A FOUNDATION OR FLOOR";
-                Hud.Line = _target is Piece { Def.IsSlab: true } slab ? TargetLine(slab) : null;
-                break;
-            default:
-                // The door or tool cupboard the interact key acts on (an ID names one thing, whatever its family).
-                var aimed = new Hollow.Simulation.Entities.EntityId(Aimed.Id);
-                if (!Aimed.IsNone && ((object?)_world.DoorOf(aimed) ?? _world.ClaimOf(aimed)) is { } part)
-                {
-                    Hud.Line = TargetLine(part);
-                }
-                break;
+            PlacingLines(placing, item);
         }
-        _ghost!.Show(_plan);
-        DrawPending();
+        else if (Held == BuildingRole.Hammer)
+        {
+            Hud.Hints = "LMB REPAIR   ·   HOLD RMB UPGRADE / ROTATE / DEMOLISH";
+            Hud.Line = _target != null ? TargetLine(_target) : null;
+        }
+        else if (AimedPart() is { } part)
+        {
+            Hud.Line = TargetLine(part);
+        }
         _lockSync -= delta;
         if (_lockSync <= 0)
         {
             _lockSync = 0.5;
             DrawLocks();
         }
+    }
+
+    // What the hands do with each use of a held item that places something (the keys' hints).
+    private static readonly Dictionary<HeldUse, string> PlaceHints = new()
+    {
+        [HeldUse.Placer] = "LMB PLACE   ·   R TURN",
+        [HeldUse.Throwable] = "LMB THROW   ·   RMB PLACE ON THE SURFACE",
+    };
+
+    // The lines for what is being placed: its name (and price, if it costs materials), then why it doesn't fit, or (a
+    // piece) how stable it would be.
+    private void PlacingLines(Hollow.Simulation.Placement.Placeable placing, ItemDef? item)
+    {
+        string line = placing.Name.ToUpperInvariant();
+        foreach (Hollow.Simulation.Placement.PlacementCost cost in placing.Costs)
+        {
+            line += $"  ·  {cost.Amount} {Data.MaterialName(cost.Material).ToUpperInvariant()} ({Owned(cost.Material):N0})";
+        }
+        Hud.Line = line;
+        Hud.Reason = Placing.Reason;
+        Hud.ReasonIsWarning = Placing.Current != null;
+        if (Hud.Reason == null && Placing.Current?.Detail is PlacementPlan plan)
+        {
+            Hud.Reason = $"{plan.Stability / 10.0:0.#}% STABLE";
+            Hud.ReasonIsWarning = false;
+        }
+        Hud.Hints = Held == BuildingRole.Plan
+            ? "LMB BUILD   ·   HOLD RMB SELECT PIECE   ·   R ROTATE"
+            : item != null ? PlaceHints.GetValueOrDefault(item.Held) : null;
     }
 
     private double _lockSync;
@@ -182,9 +191,10 @@ public partial class BuildView : Node3D, IHammerActions
             }
             var holder = new Node3D { Name = "Lock" };
             holder.SetMeta("key", want);
-            // By the free edge, at hand height, its back on the outside face (a mounted model faces +Z from its back).
-            float edge = leaf.Size.X * 0.86f, thickness = MathF.Abs(leaf.Size.Z) / 2 + 0.002f;
-            holder.Position = new Vector3(edge, 1.05f, thickness);
+            // By the free edge, at hand height, its back on the outside face (a mounted model faces +Z from its back): where
+            // the placement ghost put it.
+            Num.Vector3 spot = Door.LockOffset(leaf);
+            holder.Position = new Vector3(spot.X, spot.Y, spot.Z);
             holder.AddChild(model);
             leafNode.AddChild(holder);
         }
@@ -203,8 +213,6 @@ public partial class BuildView : Node3D, IHammerActions
         _renderer = new BuildingRenderer { Name = "Buildings" };
         AddChild(_renderer);
         _renderer.Attach(world, _assets);
-        _ghost = new BuildGhost { Name = "Ghost", Assets = _assets };
-        AddChild(_ghost);
         foreach (Piece p in world.AllPieces)
         {
             _grades[p] = p.Grade;
@@ -292,41 +300,6 @@ public partial class BuildView : Node3D, IHammerActions
         ? new Vector3(1.5f, 0.15f, 1.5f)
         : new Vector3(1.5f, (float)piece.Def.Height / 2, 0.15f);
 
-    // Placements not yet answered, drawn where they will stand.
-    private void DrawPending()
-    {
-        IReadOnlyList<PendingPiece> pending = Client.Local.PendingPieces;
-        _pendingMaterial ??= new StandardMaterial3D
-        {
-            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            AlbedoColor = new Color(0.85f, 0.78f, 0.6f, 0.55f),
-        };
-        int used = 0;
-        foreach (PendingPiece p in pending)
-        {
-            if (_assets == null)
-            {
-                break;
-            }
-            if (used >= _pending.Count)
-            {
-                var mesh = new MeshInstance3D { CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, MaterialOverride = _pendingMaterial };
-                AddChild(mesh);
-                _pending.Add(mesh);
-            }
-            MeshInstance3D m = _pending[used++];
-            m.Mesh = _assets.HasArt(p.Piece, 0) ? _assets.Piece(p.Piece, 0, 0) : _assets.Hulls(p.Piece);
-            (Num.Vector3 position, Num.Quaternion rotation) = p.ZoneTransform;
-            m.Transform = BuildingRenderer.ToGodot(position, rotation);
-            m.Visible = true;
-        }
-        for (int i = used; i < _pending.Count; i++)
-        {
-            _pending[i].Visible = false;
-        }
-    }
-
     // ---------------------------------------------------------------- the held tool
 
     private PieceDef ChosenPiece => Plan.Chosen;
@@ -334,42 +307,13 @@ public partial class BuildView : Node3D, IHammerActions
     // What the player carries, counted as the building rules count it.
     private ItemWallet Wallet => _wallet ??= new ItemWallet(Client.Content, Client.Local.Inventory.Carried);
 
-    private PlanRadial NewPlan()
-    {
-        var plan = new PlanRadial(Data, Wallet);
-        plan.Changed += () => _turns = 0;
-        return plan;
-    }
+    private PlanRadial NewPlan() => new(Data, Wallet);
 
     void IHammerActions.Upgrade(Piece piece, int grade) => Client.Local.Upgrade(piece, grade);
 
     void IHammerActions.Rotate(Piece piece) => Client.Local.Rotate(piece);
 
     void IHammerActions.Demolish(Piece piece) => Client.Local.Demolish(piece);
-
-    private void AimPlan()
-    {
-        PieceDef piece = ChosenPiece;
-        _plan = Client.PlanPiece(piece, _eye, _forward, _turns);
-        GradeDef twig = Data.Grades[0];
-        Hud.Line = $"{piece.Name.ToUpperInvariant()}  ·  {Data.CostOf(piece, 0)} {Data.MaterialName(twig.Material).ToUpperInvariant()} ({Owned(twig.Material):N0})";
-        if (_plan == null)
-        {
-            Hud.Reason = Line(OutcomeCode.NoSocket);
-            Hud.ReasonIsWarning = false;
-        }
-        else if (!_plan.Valid)
-        {
-            Hud.Reason = Line(_plan.Outcome);
-            Hud.ReasonIsWarning = true;
-        }
-        else
-        {
-            Hud.Reason = $"{_plan.Stability / 10.0:0.#}% STABLE";
-            Hud.ReasonIsWarning = false;
-        }
-        Hud.Hints = "LMB BUILD   ·   HOLD RMB SELECT PIECE   ·   R ROTATE";
-    }
 
     private int Owned(string material) => Wallet.Count(material);
 
@@ -389,87 +333,20 @@ public partial class BuildView : Node3D, IHammerActions
         return double.IsInfinity(hours) ? "FOREVER" : hours < 1 ? $"{hours * 60:0} MIN" : $"{hours:0.#} H";
     }
 
-    /// <summary>R: the next turn of the piece, or a door the other way round.</summary>
-    public void Rotate()
-    {
-        _turns++;
-        _flip ^= 1;
-    }
-
-    /// <summary>The attack button with a building tool: place, repair, fit, claim.</summary>
+    /// <summary>The hammer's attack button: repairs the piece aimed at. (What a building tool places goes through the placement controller, <see cref="PlacementView"/>.)</summary>
     public void Use()
     {
-        LocalPlayer me = Client.Local;
-        int slot = me.HeldSlot;
-        switch (Held)
+        if (Held == BuildingRole.Hammer && _target is Piece piece)
         {
-            case BuildingRole.Plan when _plan is { Valid: true }:
-                me.PlacePiece(_plan);
-                break;
-            case BuildingRole.Plan:
-                Say?.Invoke(Line(_plan?.Outcome ?? OutcomeCode.NoSocket));
-                break;
-            case BuildingRole.Hammer when _target is Piece piece:
-                me.Repair(piece);
-                break;
-            case BuildingRole.Door:
-                if (OpeningAimed() is { } opening)
-                {
-                    me.PlaceDoor(ContainerRef.Belt, slot, opening, _flip == 1);
-                }
-                else
-                {
-                    Say?.Invoke(Line(OutcomeCode.NotAnOpening));
-                }
-                break;
-            case BuildingRole.KeyLock or BuildingRole.CodeLock when _target is Door door:
-                me.AttachLock(ContainerRef.Belt, slot, door);
-                break;
-            case BuildingRole.Claim when _target is Piece { Def.IsSlab: true } slab:
-            {
-                Vector3D local = slab.Structure.Frame.ToLocal(new Vector3D(_hit.Point.X, _hit.Point.Y, _hit.Point.Z));
-                me.PlaceClaim(ContainerRef.Belt, slot, slab, local.X, local.Z, slab.Pose.Yaw);
-                break;
-            }
+            Client.Local.Repair(piece);
         }
     }
 
-    // A doorway or wall frame the aim passes through (its empty opening counts, as in RustMVP).
-    private Piece? OpeningAimed()
+    // The door or tool cupboard the interact key acts on (an ID names one thing, whatever its family), for its line.
+    private object? AimedPart()
     {
-        if (_target is Piece { Def.Opening: Opening.Door or Opening.Double } aimed)
-        {
-            return aimed;
-        }
-        if (_world == null)
-        {
-            return null;
-        }
-        var near = new List<Piece>();
-        Num.Vector3 end = _eye + _forward * (float)Data.Reach;
-        _world.PiecesNear(_eye, end, 3.5f, near);
-        Piece? best = null;
-        double nearest = double.MaxValue;
-        foreach (Piece p in near)
-        {
-            if (p.Def.Opening is not (Opening.Door or Opening.Double))
-            {
-                continue;
-            }
-            (double w, double h) = p.Def.Opening == Opening.Door ? Data.DoorOpening : Data.DoubleOpening;
-            BuildingFrame frame = p.Structure.Frame;
-            Vector3D eye = new(_eye.X, _eye.Y, _eye.Z), far = new(end.X, end.Y, end.Z);
-            if (PieceGeometry.RayOpening(p.Pose, w, h, frame.ToLocal(eye), frame.ToLocal(far), out Vector3D hit))
-            {
-                double distance = (frame.ToZone(hit) - eye).Length;
-                if (distance < nearest)
-                {
-                    nearest = distance;
-                    best = p;
-                }
-            }
-        }
-        return best;
+        var id = new Hollow.Simulation.Entities.EntityId(Aimed.Id);
+        return Aimed.IsNone || _world == null ? null : (object?)_world.DoorOf(id) ?? _world.ClaimOf(id);
     }
 
     // ---------------------------------------------------------------- helpers

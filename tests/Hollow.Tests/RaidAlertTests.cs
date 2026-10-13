@@ -174,8 +174,7 @@ public static class RaidAlertTests
         Raids.Belt(rig, bo, 0, "timed-charge", 2);
         rig.Step(2);
         rig.Look(bo, doorFace + doorOut * 0.2f);
-        ref Character ch = ref rig.Ch(bo);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.PlaceCharge(bo, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "a charge on the door");
+        Assert.Equal(OutcomeCode.Done, rig.PlaceAimed(bo, ContainerRef.Belt, 0, "timed-charge"), "a charge on the door");
         Assert.True(rig.Zone.Explosives.Single().Link.Support.Whole == hut.Door!.Ref, "stuck to the door");
         Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 8, doorFace.Z + doorOut.Z * 8));
         Raids.StepUntil(rig, () => { Route(rig, service); return hut.Door!.Gone; }, 320, "the door breaking");
@@ -188,8 +187,7 @@ public static class RaidAlertTests
         rig.Step(30);
         Vector3 beside = hut.ToZone(new(0.3, 0, 0.7));
         rig.Look(bo, beside);
-        ch = ref rig.Ch(bo);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.PlaceCharge(bo, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "a charge beside her");
+        Assert.Equal(OutcomeCode.Done, rig.PlaceAimed(bo, ContainerRef.Belt, 0, "timed-charge"), "a charge beside her");
         Assert.True(rig.Zone.Explosives.Single().Link.Support.Whole == hut.Foundation.Ref, "on the floor");
         Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 8, doorFace.Z + doorOut.Z * 8));
         long before = rig.Zone.UnixMilliseconds;

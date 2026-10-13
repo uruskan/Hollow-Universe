@@ -59,6 +59,7 @@ public sealed partial class Zone
         Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
         InitThings(content);
         InitBuilding(content);
+        InitPlacement(content);
         InitWorld(content);
         InitAnimals(content);
         InitTargets();
@@ -443,30 +444,13 @@ public sealed partial class Zone
     public EntityId NextId() => NewEntityId?.Invoke() ?? new EntityId(0x7000_0000_0000_0000UL + (ulong)_localIds++);
 
     /// <summary>The point on the ground below (or above) a point.</summary>
-    public Vector3 Settle(Vector3 point)
-    {
-        Vector3 ground = GroundAt(point.X, point.Z);
-        return ground;
-    }
+    public Vector3 Settle(Vector3 point) => Ground.Settle(point);
 
     /// <summary>How far a point is above the ground, in metres (negative below).</summary>
-    public float HeightAboveGround(Vector3 point) => GroundAim.Height(Surface, Frame, point);
+    public float HeightAboveGround(Vector3 point) => Ground.HeightAbove(point);
 
     /// <summary>The ground's up and its slope (radians) under a point, from the surface by finite differences.</summary>
-    public (Vector3 Normal, float Slope) GroundNormal(Vector3 point)
-    {
-        const float d = 0.35f;
-        Vector3 a = GroundAt(point.X - d, point.Z), b = GroundAt(point.X + d, point.Z);
-        Vector3 c = GroundAt(point.X, point.Z - d), e = GroundAt(point.X, point.Z + d);
-        Vector3 normal = Vector3.Normalize(Vector3.Cross(e - c, b - a));
-        Vector3 up = Frame.UpAt(point);
-        if (Vector3.Dot(normal, up) < 0)
-        {
-            normal = -normal;
-        }
-        float cos = Math.Clamp(Vector3.Dot(normal, up), -1, 1);
-        return (normal, MathF.Acos(cos));
-    }
+    public (Vector3 Normal, float Slope) GroundNormal(Vector3 point) => Ground.Normal(point);
 
     /// <summary>The eye of a character now.</summary>
     public Vector3 EyeOf(in CharacterState state) => state.Position + Frame.UpAt(state.Position) * Tuning.EyeHeight(state.Stance);

@@ -119,8 +119,9 @@ public static class WorldNetTests
         RunUntil(rig, () => me.Inventory.Count(c.ItemByKey("workbench-1")) == 1 && me.Inventory.Count(c.ItemByKey("salvage")) >= 100, "the bench and salvage");
         Vector3 feet = ada.Character.Position;
         Vector3 away = Vector3.Normalize(new Vector3(-machine.X, 0, -machine.Z));
-        Vector3? ground = ada.AimGround(feet + ada.Frame.UpAt(feet) * 1.6f + away * 2.2f, -ada.Frame.UpAt(feet), 4);
-        me.Place(ContainerRef.Main, SlotOf(me.Inventory.Main, "workbench-1"), ground!.Value, 0);
+        Simulation.Placement.PlacementCandidate? bench = ada.PlanAt(c.ItemByKey("workbench-1").Places!, ada.Ground!.Value.Settle(feet + away * 2.2f), 0);
+        Assert.True(bench is { Valid: true }, $"the bench's ghost fits ({bench})");
+        me.Place(bench!, ContainerRef.Main, SlotOf(me.Inventory.Main, "workbench-1"));
         RunUntil(rig, () => me.WorkbenchLevel == 1, "the bench in reach");
         int salvage = me.Inventory.Count(c.ItemByKey("salvage"));
         Recipe hatchet = c.Recipe(c.ItemByKey("metal-hatchet").Id)!;

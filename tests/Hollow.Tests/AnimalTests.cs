@@ -333,7 +333,7 @@ public static class AnimalTests
         rig.Give(ada, "campfire", 1);
         Vector3 at = rig.Zone.GroundAt(21.5f, 20);
         rig.Look(ada, at);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, 0, c.ItemByKey("campfire").Id, at, 0), "place the campfire");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, 0, at, 0, c.ItemByKey("campfire").Id), "place the campfire");
         Deployable fire = rig.Zone.Statics().OfType<Deployable>().Single();
         DeviceStats device = fire.Def.Device!;
         fire.Storage!.Set(device.FuelSlots[0], ItemStack.Of(c.ItemByKey("wood"), 200));

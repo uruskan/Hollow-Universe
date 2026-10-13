@@ -119,6 +119,8 @@ public sealed partial class GameServer
             IndexOverride(n.ObjectId);
         }
         LoadBuilding(stored);
+        // What stood on pieces that didn't come back goes now (GROUND_SYSTEMS.md §3.6).
+        Zone.SettleSupports();
         LoadShips(stored);
         RestoreExplosives();
         RestoreCorpses();
@@ -293,12 +295,6 @@ public sealed partial class GameServer
                 CloseIntent m = CloseIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.Close(me));
             }
-            case PlaceIntent.TypeId:
-            {
-                PlaceIntent m = PlaceIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.Place(me, m.From, m.Slot, Expected(m.Expected), new Vector3(m.X, m.Y, m.Z), Quantize.FromAngle16(m.Yaw)));
-            }
             case RespawnIntent.TypeId:
             {
                 RespawnIntent m = RespawnIntent.Read(_reader);
@@ -355,7 +351,8 @@ public sealed partial class GameServer
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.Attach(me, m.From, m.Slot, m.WeaponIn, m.WeaponSlot, Expected(m.Expected)));
             }
             default:
-                return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type) || ReceiveWorldIntent(session, type);
+                return ReceivePlacementIntent(session, type) || ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type) ||
+                    ReceiveWorldIntent(session, type);
         }
     }
 
@@ -960,6 +957,8 @@ public sealed partial class GameServer
                     Count = count,
                     Flags = flags,
                     Name = thing.Name,
+                    SupportFamily = thing.Support.Family,
+                    Support = thing.Support.Id,
                     Capabilities = thing.CapabilitiesIn(Content.Capabilities).Bits,
                 }.WriteMessage(_writer);
                 Send(session);

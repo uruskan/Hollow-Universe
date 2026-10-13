@@ -592,6 +592,26 @@ GROUND.md §4.3.1; decisions O1–O16.
   and was not done. `--load-trace` (with `--load-shot`, `--arrival-check`) measures a start.
 - Seven new tests (`LoadingTests`); with `ground` merged (P0, P3), 199 of 199 pass.
 
+## 13 October 2026, placement (P2, `ground-p2`)
+
+GROUND_SYSTEMS.md §6; GROUND.md §6.10 and decisions Z1–Z12.
+
+- **One way to place anything.** Every placeable has one rule in data (`placement.json`'s defaults, its kind's block,
+  and its own block next to its definition): where it may stand, how the aim finds its spot, its footprint, what must
+  hold it up, slope, step, water, how R turns it, reach, building rights, limits. The solvers, rotations, checks and kinds
+  are handlers found by name. The client's ghost and the server's verdict are the same code, and the server takes a
+  placement only within 30 cm of its own. One `PlaceIntent` replaces six messages (protocol 18).
+- **One ghost** for everything placed, in a hologram: pale blue when it fits, red with the reason under the crosshair,
+  breathing until the server answers. Doors, the garage door, locks, the claim device, charges and the Tin Finch had
+  none. P3's held controls place through it.
+- **The playtest's fixes:** furnaces, boxes, campfires and bags stand on foundations and floors, and break when what
+  they stand on goes (after a restart too); the Tin Finch's item is placed (with 50 of lamp oil); reach, sight, water and
+  building rights are one rule for everything.
+- Checked in a hosted game (`--tour-steps place`): `docs/images/ground/place/` (`furnace-fits.jpg`,
+  `furnace-refused.jpg`, `garage-door.jpg`, `cupboard.jpg`, `code-lock.jpg`, `charge.jpg`, `tin-finch.jpg`,
+  `tin-finch-placed.jpg`). A ghost costs 32 µs a frame (a wall on sockets 80 µs). The build sandbox's check passes 9 of 9.
+  Nine new tests, one a rule; with `ground` merged (P3, the loading screen), 208 of 208 pass.
+
 ## 13 October 2026, interaction (P1, `ground-p1`)
 
 [GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) §5; GROUND.md decisions I1–I17. Everything the E key does is one system now: the
@@ -618,5 +638,9 @@ carries every verb.
   and `arrow-taken.jpg` (two arrows in the hut's wall, one taken back with a tap), `arrow-deer.jpg` (an arrow in a deer
   running off, small at that distance), `garage-open.jpg` and `garage-closing.jpg` (CLOSE GARAGE DOOR through the
   opening, the curtain coming down).
-- Protocol 18 (P3 took 17). Nine new tests (`InteractionTests`); with `ground` merged (P3, the loading screen), 208 of
-  208 pass. A frame's query and options cost 23 µs in the test's fan of views.
+- Protocol 19 (P3 took 17, P2 18). Nine new tests (`InteractionTests`); with `ground` merged (P3, the loading screen,
+  P2's placement), 217 of 217 pass. A frame's query and options cost 23 µs in the test's fan of views.
+- **Merged with P2's placement:** placing is P2's `PlaceIntent` and E's verbs are P1's, so nothing is left of the door,
+  lock and claim intents (messages 92–94 free); the ground is P2's one probe for both (P1's own copy went); the answers
+  Seated and NotEmpty moved to 78 and 79, P1's capabilities after P2's `standing`. The tour's code lock and garage door
+  go on through P2's ghost.

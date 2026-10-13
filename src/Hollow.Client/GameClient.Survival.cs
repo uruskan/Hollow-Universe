@@ -101,7 +101,7 @@ public sealed partial class GameClient
         Local.WorkbenchLevel = ThingOf(new EntityId(BenchNear().Id))?.Deployable(Content)?.Workbench ?? 0;
         Local.StationNear ??= StationNear;
         Local.Update();
-        Local.UpdateBuilding();
+        Local.UpdatePlacements();
         UpdateRaid();
         UpdateDestroyed();
         UpdateArrows();
@@ -145,6 +145,7 @@ public sealed partial class GameClient
         {
             _thingsById.Remove(thing.Id);
             ThingBodyRemoved(thing); // G7
+            ThingSupportRemoved(thing); // P2
         }
     }
 
@@ -171,11 +172,13 @@ public sealed partial class GameClient
                     Count = (int)Math.Min(m.Count, int.MaxValue),
                     Flags = m.Flags,
                     Name = m.Name ?? "",
+                    Support = m.SupportFamily == Simulation.Targets.TargetFamily.Piece ? new Simulation.Targets.TargetRef(m.SupportFamily, m.Support) : default,
                     Capabilities = new Simulation.Capabilities.CapabilitySet(m.Capabilities),
                 };
                 _things[m.NetId] = thing;
                 _thingsById[thing.Id] = thing;
                 ThingBodyAdded(thing); // G7
+                ThingSupportAdded(thing); // P2
                 return;
             }
             case ThingUpdate.TypeId:
@@ -398,56 +401,6 @@ public sealed partial class GameClient
             Health = n.Health / 255f * max, HasWeakSpot = n.HasWeakSpot, WeakSpotYaw = n.WeakSpotYaw, WeakSpotLift = n.WeakSpotLift, Depleted = n.Depleted,
             Streak = n.Streak, LastHit = n.HitOffset, SeenHits = n.HitAge <= FreshHitTicks ? (byte)(seen + 1) : seen,
         });
-    }
-
-    /// <summary>
-    /// Where a view from the eye meets the ground within <paramref name="reach"/> (for placing a deployable), or null;
-    /// the surface's own height, so it agrees with where the server will put it.
-    /// </summary>
-    public Vector3? AimGround(Vector3 eye, Vector3 direction, float reach)
-    {
-        if (_surface == null || Zone == null)
-        {
-            return null;
-        }
-        GroundProbe probe = new(_surface, Frame);
-        float previous = probe.Height(eye);
-        if (previous < 0)
-        {
-            return null;
-        }
-        const float step = 0.25f;
-        for (float t = step; t <= reach + 1e-3f; t += step)
-        {
-            if (probe.Height(eye + direction * t) < 0)
-            {
-                float lo = t - step, hi = t;
-                for (int i = 0; i < 10; i++)
-                {
-                    float mid = (lo + hi) / 2;
-                    if (probe.Height(eye + direction * mid) < 0)
-                    {
-                        hi = mid;
-                    }
-                    else
-                    {
-                        lo = mid;
-                    }
-                }
-                return eye + direction * hi;
-            }
-        }
-        return null;
-    }
-
-    private readonly struct GroundProbe(Surface.ISurface surface, Surface.ZoneFrame frame)
-    {
-        public float Height(Vector3 point)
-        {
-            Core.Vector3D body = frame.ToBody(point);
-            double r = body.Length;
-            return (float)(r - (surface.Radius + surface.HeightAt(body / r)));
-        }
     }
 
     // Our own shot: drawn at once, from the eye along the predicted direction (the server's ProjectileLaunch then names it).

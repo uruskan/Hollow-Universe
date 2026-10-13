@@ -70,7 +70,8 @@ public sealed class BlastStats
 
 /// <summary>
 /// An explosive thrown or placed by hand (explosives.json <c>throwables</c>): the timed charge, the bag charge, the tin
-/// grenade. Its fuse is a random length between two bounds, it may be a dud (and can be lit again), and it sticks to
+/// grenade. Which are also put on a surface by hand is the placement system's list (placement.json: a charge's item
+/// places it, <see cref="ItemDef.Places"/>). Its fuse is a random length between two bounds, it may be a dud (and can be lit again), and it sticks to
 /// what it touches or bounces and comes to rest.
 /// </summary>
 public sealed class ThrowableStats
@@ -91,9 +92,6 @@ public sealed class ThrowableStats
 
     /// <summary>Sticks to the first surface it touches (charges); otherwise it bounces and rolls to rest (grenades).</summary>
     public bool Sticky { get; init; }
-
-    /// <summary>Can be placed by hand on the surface aimed at, besides thrown.</summary>
-    public bool Placeable { get; init; }
 
     /// <summary>Speed of a throw and of a gentle lob (m/s).</summary>
     public double ThrowSpeed { get; init; }
@@ -224,7 +222,7 @@ internal static class ExplosivesReader
             JsonElement e = throwables[i];
             string key = f.Text(e, "item", $"{File}: throwables[{i}]");
             string where = $"{File}: throwable {JsonFields.Quote(key)}";
-            f.OnlyKnown(e, where, "item", "blast", "fuse", "dud", "sticky", "place", "throw", "lob", "cooldown", "bounce", "radius", "note");
+            f.OnlyKnown(e, where, "item", "blast", "fuse", "dud", "sticky", "placement", "throw", "lob", "cooldown", "bounce", "radius", "note");
             ItemDef? item = resolve(key, where);
             double[] fuse = f.List(e, "fuse", where).Where(x => x.ValueKind == JsonValueKind.Number).Select(x => x.GetDouble()).ToArray();
             if (fuse.Length != 2)
@@ -247,7 +245,6 @@ internal static class ExplosivesReader
                 FuseMost = fuse[1],
                 DudChance = f.Double(e, "dud", where, 0),
                 Sticky = f.Flag(e, "sticky", where, false),
-                Placeable = f.Flag(e, "place", where, false),
                 ThrowSpeed = f.Double(e, "throw", where),
                 LobSpeed = f.Double(e, "lob", where),
                 CooldownSeconds = f.Double(e, "cooldown", where, 1),

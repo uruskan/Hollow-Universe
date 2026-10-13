@@ -54,6 +54,12 @@ public abstract class WorldObject : ITargetable, IContainerHolder
     /// <summary>Raised on every change others can see.</summary>
     public uint Revision { get; set; }
 
+    /// <summary>
+    /// What it stands on (GROUND_SYSTEMS.md §3.6, §6): a building piece, held by a support link, so it goes when that goes;
+    /// none on the ground, which never goes. Clients are told it (a structure's limit counts what stands on it).
+    /// </summary>
+    public TargetRef Support { get; set; }
+
     private int _shown;
 
     /// <summary>

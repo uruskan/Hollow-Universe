@@ -271,7 +271,7 @@ public static class WorldTests
         // Research: a pistol and its tier's salvage make a pistol blueprint.
         rig.Give(ada, "research-table", 1);
         Vector3 at = rig.Zone.Settle(new Vector3(30, 0, 31.6f));
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "research-table"), 0, at, 0), "a research table");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, SlotOf(a.Inventory.Main, "research-table"), at, 0), "a research table");
         Deployable table = rig.Zone.Statics().OfType<Deployable>().Single(d => d.Def.Research != null);
         rig.Look(ada, table.Centre);
         Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, table.Ref, "open"), "open it");
@@ -426,8 +426,7 @@ public static class WorldTests
         Assert.True(a.Markers.Count == 0, "none left");
         rig.Give(ada, "sleeping-bag", 1);
         revision = a.MapRevision;
-        Assert.Equal(OutcomeCode.Done, z.Place(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "sleeping-bag"), 0, z.Settle(new Vector3(11, 0, 11.5f)), 0),
-            "a bag");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, SlotOf(a.Inventory.Main, "sleeping-bag"), z.Settle(new Vector3(11, 0, 11.5f)), 0), "a bag");
         Assert.True(a.MapRevision > revision, "the bag is on her map");
         Assert.True(a.DeathPoint == null, "not dead yet");
         z.Hurt(ada, a, 1000, "Test", EntityId.None, "");

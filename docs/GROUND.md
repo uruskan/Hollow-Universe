@@ -1738,9 +1738,12 @@ starts at 60 / 260 / 160 (hollow-orbit's respawn values).
   and when wet at night.
 - Sleepers are left as they are (no hunger, no bleeding) until they wake. Crafting pauses for them too.
 
-**Deployables** (`Zone.Things.cs`, `Zone.Actions.cs`). Placed from an inventory slot at a point within 3 m of the eye,
-snapped to the ground below (at most 0.6 m off), refused under water, outside the zone, on ground steeper than the
-item allows (20–30°), or overlapping another deployable, a tree, an outcrop or a character (blocked). Boxes, furnaces and
+**Deployables** (`Zone.Things.cs`; placed through the placement pipeline since P2, §6.10). Placed from an inventory slot
+where the ghost shows them: on the ground or the top of a foundation, floor or stairs' landing at most 0.6 m from the
+aim, within 3 m of the eye to their nearest point and in sight of it, every corner held within 15 cm; refused in the water
+(5 cm), on ground steeper than the item allows (15–30°), in someone else's claim, overlapping anything (a body, another
+deployable's box, a character), or past 20 on one structure and 128 sleeping bags a player. One standing on a piece goes
+when the piece goes: it breaks and spills what it held. Boxes, furnaces and
 workbenches are solid Jolt boxes on both sides; sleeping bags and campfires are not. Every deployable has hit points;
 melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground, in
 one bag.
@@ -2039,8 +2042,8 @@ GLBs total 94 MB, nearly all the kit's bevelled finest level.
 
 **The build sandbox** (`--view build`, `game/scripts/Build/`): a local zone on the first world's stand-in surface,
 a walking character (the real movement code), the rules above and their art, and the ground interface's belt and
-radials through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan`'s answer, green when allowed, red
-with the reason. Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; the right mouse button holds the plan's or the
+radials through a view model (`BuildSandboxUi`). The ghost is the placement pipeline's answer on the sandbox's building
+(§6.10), drawn by the game's one placement ghost, pale blue when allowed, red with the reason. Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; the right mouse button holds the plan's or the
 hammer's radial (RustMVP's, §8.4: the game's own sources, `PlanRadial` and `BuildingRadials.Hammer`, acting through the
 rules here); the left places, repairs, fits a door or places the device; R turns the piece or
 flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Pieces that come
@@ -2426,11 +2429,11 @@ arrows stop at pieces, doors and claim devices (the `Piece`, `Door` and `Cupboar
 (a wall's soft side counts), arrows as bullets (stone and up take none).
 
 **Intents** (protocol 3; client to server, reliable, with the sequence numbers and the budget of G2's: 16 at once, 20 a
-second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's point on the aim and
-heading in 15° steps), `HammerIntent` (upgrade to a grade, rotate, demolish, repair), `DoorIntent` (fit from a slot,
-turned round or not), `LockIntent` (fit from a slot) and `ClaimIntent` (place from a slot at a point on a foundation or
-floor, turned). Opening and shutting, picking up, codes, locking, keys, authorising and the list are the interaction's
-verbs since P1 (`InteractIntent`, GROUND_SYSTEMS.md §5). Each is answered with `IntentResult` (since P0; it was `BuildResult`): done, or
+second): `HammerIntent` (upgrade to a grade, rotate, demolish, repair). Placing a piece, fitting a door or a lock and
+placing the claim device are one `PlaceIntent` since P2 (§6.10): the piece and its support, socket and orientation, or a
+free foundation's top and heading in 15° steps; a door's frame and side; a lock's door; the device's slab, point and
+turn. Opening and shutting, picking up, codes, locking, keys, authorising and the list are the interaction's verbs since
+P1 (`InteractIntent`, GROUND_SYSTEMS.md §5), so `DoorIntent`, `LockIntent` and `ClaimIntent` are gone. Each is answered with `IntentResult` (since P0; it was `BuildResult`): done, or
 the rules' reason (an `Outcome`, whose line is in texts.json), after that tick's container changes. The server works out every pose itself and checks everything
 again.
 
@@ -2449,9 +2452,9 @@ on their shared ground. The API for the ground mode:
 |---|---|
 | `GameClient.Building` | The building in range: `Structures`, `AllPieces`, `Doors`, `Claims`, and `Changed` (piece, door and claim events) for drawing |
 | `GameClient.BuildingReplica.StateOf(door)`, `StateOf(claim)` | A door's lock and its viewer flags (locked, whether this player may pass, has a code, theirs); a claim device's flags (on its list) and its protection in hours |
-| `GameClient.PlanPiece(piece, eye, direction, turns)` | The ghost: the server's own `Plan` on the mirror, with this player's materials and building rights |
+| `GameClient.Plan(placeable, eye, direction, viewYaw, turns)` | The ghost of anything placed (§6.10): the server's own pipeline on the mirror and the replicated world, with this player's materials and building rights; a piece's plan in its `Detail` |
 | `GameClient.AimBuilding(eye, direction)` | The piece, door or claim device aimed at |
-| `Local.PlacePiece(plan)`, `Upgrade`, `Rotate`, `Demolish`, `Repair`, `PlaceDoor`, `AttachLock`, `PlaceClaim`; the rest through `Local.Interact(target, verb, code: …)` (`door-open`, `set-code`, `enter-code`, `code-lock`, `cut-key`, `authorise`, `clear-list`, … GROUND_SYSTEMS.md §5) | Intents, each returning its sequence number. Optimistic: the materials or the item leave the inventory at once, and a placement is drawn at once (`Local.PendingPieces`) until its piece arrives; a refusal rolls back. |
+| `Local.Place(ghost, from, slot)`, `Upgrade`, `Rotate`, `Demolish`, `Repair`; the rest through `Local.Interact(target, verb, code: …)` (`door-open`, `set-code`, `enter-code`, `code-lock`, `cut-key`, `authorise`, `clear-list`, … GROUND_SYSTEMS.md §5) | Intents, each returning its sequence number. Optimistic: the materials or the item leave the inventory at once, and a placement is drawn at once (`Local.PendingPlacements`) until the answer; a refusal rolls back. |
 | `Local.IntentAnswered`, `Local.IntentRejected` (every intent's, since P0), `Local.Carries(role)` | Answers with the reason and its line; whether the player carries a building plan or a hammer |
 | The tool cupboard's store | `Local.Interact(claim.Ref, "open")`, then `Local.Loot` like a box |
 
@@ -2470,11 +2473,11 @@ closed-form step. Decoding treats the bytes as untrusted: a kind that no longer 
 
 **In the game (phase 2b, `game/scripts/Ground/BuildView.cs`).** The replica's `BuildingWorld` is drawn by the building
 package's `BuildingRenderer` (batched per kind, grade and 24 m chunk, doors swinging); a held building plan shows
-`GameClient.PlanPiece`'s ghost with `BuildGhost` (green, or red with the reason under the crosshair, `BuildHud`) and
-the right mouse button opens the plan's radial (the piece) or the hammer's (upgrade to each grade, rotate, demolish),
-the held tool's sources by its role in `BuildView` (§8.4); the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
-the doorway aimed through or a held lock on the door aimed at, or places the claim device on a foundation or floor;
-R turns the piece (or the door) a step. E opens and shuts doors (the door's own sound, `world.door-slam` when it
+the one placement ghost (§6.10: pale blue, or red with the reason under the crosshair, `BuildHud`) and the right mouse
+button opens the plan's radial (the piece) or the hammer's (upgrade to each grade, rotate, demolish), the held tool's
+sources by its role in `BuildView` (§8.4); the left button places what the ghost shows (`Local.Place`: the piece, a held
+door in the doorway aimed through, a held lock on the door aimed at, the claim device on a foundation or floor) or
+repairs with the hammer; R turns the piece a step (or hangs the door the other way round). E opens and shuts doors (the door's own sound, `world.door-slam` when it
 shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's manner: digits, C, OK; a fresh lock's
 owner sets it first), authorises at the tool cupboard and then opens its store as a loot panel; held E opens the radial
 of a door's, its lock's or the cupboard's options (lock, unlock, change the code, cut a key, take the lock, pick up;
@@ -2606,9 +2609,10 @@ door with a timed charge (alert queued), kills the sleeper with a second one ins
 into a follow-up after the minute), and loots the body; the owner logs in dead to two alerts.
 
 **Network** (protocol 6, `Messages.cs`):
-- *Intents* (the general sequence, answered by `IntentResult`): `ThrowIntent` (belt slot, item, view, lob), `PlaceChargeIntent`
-  (belt slot, item, view); a dud is lit again with the interaction's `relight` (P1; it was `RearmIntent`). Rockets go
-  through `FireIntent` and `ReloadIntent` (§6.4).
+- *Intents* (the general sequence, answered by `IntentResult`): `ThrowIntent` (belt slot, item, view, lob). A charge is put
+  on a surface by the one `PlaceIntent` since P2 (§6.10: where its ghost shows it, the explosives' own sweep from the
+  eye); a dud is lit again with the interaction's `relight` (P1; it was `RearmIntent`). Rockets go through `FireIntent`
+  and `ReloadIntent` (§6.4).
 - *Explosives* (`ExplosiveUpdate`, reliable, to everyone within 300 m when one appears and whenever it changes: thrown, bounced,
   stuck, at rest, a dud, lit again, moved with a door): its ID, item, owner, state (flying, resting, stuck), dud, the arc's start
   and velocity at a server tick, the surface's normal, the tick its fuse ends on and the fuse's length. `ExplosiveGone` when one
@@ -2730,7 +2734,10 @@ it is thrust-borne.
 refined metal and 300 wood). The Tin Finch's recipe names it as its `station`: the job starts only within crafting reach
 of one (`NeedsStation`), remembers which, and when it is done the ship rolls out onto the bench's bay (4.6 m in front of
 it), never into an inventory. While the bay isn't clear (a box, a tree, a character, another ship, ground over 20°) the
-unit waits, asks again every second and tells its builder once. The recipe's lamp oil is its first tank.
+unit waits, asks again every second and tells its builder once. The recipe's lamp oil is its first tank. Since P2 the
+Tin Finch's item (an admin's `give`) is placed by hand like a deployable (§6.10): its hull clear, its skids on the ground
+or a slab's top no steeper than 20°, dry, within 12 m, with ships.json's `fuel.placed` of lamp oil (50, the recipe's
+tank); the bay and the hand share the hull's check (`HullFootprint.Clear`).
 
 **Boarding.** The hatch opens and shuts in a second (the model's clip); it opens only while the ship is still (landed,
 or slower than 2.5 m/s within 3.5 m of the ground). Boarding needs the hatch open, the seat free and reach of the
@@ -3240,6 +3247,46 @@ Animals are not in `Entities` (characters only).
 
 **Admin and bots**: `animals` (how many of each, awake, what they cost), `spawn <species> <name> [n] [m]`;
 `loadtest --animals <n>` places n animals round the landing site, always out (§5.10).
+
+### 6.10 Placement (GROUND_SYSTEMS.md §6, package P2)
+
+One way to place anything: deployables, building pieces, doors, locks, the claim device, charges on a surface and the
+Tin Finch. Its design and how it is built are GROUND_SYSTEMS.md §6; decisions Z1–Z12 (§11).
+
+| Part | Where |
+|---|---|
+| Rules | `game/data/ground/placement.json` (defaults, kinds, the placeables' wire list); a `placement` block next to a definition overrides them (deployables.json, building.json's pieces, doors, locks and claim, explosives.json's throwables, ships.json) |
+| Pipeline | `src/Hollow.Simulation/Placement/`: `Placer` (`Plan`, `Settle`, `Check`), solvers, rotations, checks, kinds, footprints, `PlacementWorld`; `Content/PlacementReader.cs` |
+| Server | `Zone.Place(entity, PlaceRequest)` and the kinds' `Put` (`Zone.Placement.cs`); `GameServer.Placement.cs` |
+| Client | `GameClient.Plan`, `PlanAt`, `Settle`, `PlacementNothing`, `Placement` (`GameClient.Placement.cs`); `Local.Place`, `Local.PendingPlacements` (`LocalPlayer.Placement.cs`) |
+| Game | `PlacementView` (the controller), `PlacementGhost` and `shaders/placement_ghost.gdshader` |
+| Tests | `PlacementTests` (one a rule), and every placement in the survival, building, raid, world and ship tests |
+
+What stands where, by rule (each a field of the data):
+
+| Placeable | Where | Reach | Rights | Limits |
+|---|---|---|---|---|
+| Deployables | the ground, a foundation's, floor's or landing's top; every corner held within 15 cm; dry | 3 m | not in others' claims | 20 on a structure; 128 bags or beds a player |
+| Building pieces | the building's sockets, or a free foundation on the ground (its own checks: stability, collisions, the price) | 8 m | not in others' claims, which reach 2.25 m further for a piece | 4,000 a structure (the building's) |
+| Doors | the doorway or wall frame aimed through (a double or garage door: a wall frame); R hangs it the other way | 8 m | not in others' claims | one an opening |
+| Locks | the door aimed at, at its lock spot | 3.5 m | not in others' claims | one a door |
+| Claim device | a foundation's or floor's top, square to it in 30° steps | 8 m | not in others' claims | one a structure |
+| Charges | the first surface the view meets (anything, the water too), lying along it | 3 m | none needed | — |
+| Tin Finch | the ground or a slab's top, its hull clear, no steeper than 20°, dry | 12 m | not in others' claims | — |
+
+In the game the held item's ghost shows wherever the player looks: pale blue when it fits, red with the reason under the
+crosshair when not (out of reach, out of sight, too steep, hanging over the edge, in the water, something in the way,
+building blocked, the building full); the left button places it, R turns it, and what was sent shows breathing until the
+server answers. Pictures from the screenshot run's `place` step (AGENTS.md):
+
+![A furnace's ghost fitting in the middle of a twig foundation, pale blue](images/ground/place/furnace-fits.jpg)
+![The furnace's ghost pushed into the doorway's post, red: "Something is in the way"](images/ground/place/furnace-refused.jpg)
+![A garage door's ghost in a doorway, red: "This door needs a wall frame"](images/ground/place/garage-door.jpg)
+![The claim device's ghost on the foundation](images/ground/place/cupboard.jpg)
+![A code lock's ghost at its spot on a hut's sheet metal door](images/ground/place/code-lock.jpg)
+![A timed charge's ghost lying on the hut's stone wall](images/ground/place/charge.jpg)
+![The Tin Finch's hologram on a forest clearing](images/ground/place/tin-finch.jpg)
+![The Tin Finch placed from its item where its hologram stood](images/ground/place/tin-finch-placed.jpg)
 
 ---
 
@@ -5258,7 +5305,8 @@ owner, to confirm or overturn (numbered V1 on):
   plan's and the hammer's radials shut (L4: the hands do nothing while Alt is held).
 - V9. **Placing goes through one small interface until P2 replaces what is behind it** (`IPlacement`: aim, place, turn).
   Today's implementation routes by the part that makes the item placeable to the old entry points, a lookup P2 deletes;
-  the Tin Finch's item says "You can't place that here" until then.
+  the Tin Finch's item says "You can't place that here" until then. *Since P2 merged:* `PlacementView` is behind it and
+  the lookup is gone (Z12); the Tin Finch's item places it.
 - V10. **First person picks nothing by item key**: the torch's flame, the guns' pose and the rifle's eye relief are
   catalogue fields (`held.flame`, `held.pose`, `held.eyeRelief`), and `HeldItems` reads the pose there too (it picked the
   pistol by its key). The placeholder stick for items without a model is gone: every item that does something in sight
@@ -5319,6 +5367,49 @@ overturn (numbered O1 on):
 - O16. **`--in-process` hosting still builds its server on the main thread** before the first frame (tests and the screenshot
   run's statistics), so it has no `server` stage.
 
+Decisions taken for placement (GROUND_SYSTEMS.md §6, package P2) without the owner, to confirm or overturn (numbered Z1
+on):
+
+- Z1. **One rule per placeable, in three layers**: placement.json's defaults, its kind's block, then a `placement` block
+  next to its definition. The placeables list is the wire's numbering (append only) and holds the building pieces too
+  (placed with the building plan as their tool, paid in twig); the building's reach (8 m, the hammer's too), sight
+  slack (35 cm) and claim padding (2.25 m) moved from building.json to the piece rule. A content error in the lists'
+  names is reported once, not once per placeable.
+- Z2. **The checks' order**: reach, surface, step, slope, water, overlap, support, sight, building rights, limits, then
+  the kind's own. Something in the way says so before "out of sight" or "would hang over the edge" (a box pushed into a
+  furnace is in the way), and the building's own checks (stability, collisions, the price) stay last, as they were.
+- Z3. **Deployables stand on the ground and on slabs** (a foundation's, floor's or stairs' landing top: the owner's
+  default 2), never on a wall, a roof or another thing. The aim's first body, then straight down within 0.6 m (RustMVP's
+  floor trace); under a ceiling the floor is looked for from just under it, never on the storey above.
+- Z4. **RustMVP's corners**: every corner of a footprint within 15 cm of an allowed surface facing up (normal 0.75 or
+  more), so a box half over a floor's edge is refused; beside a foundation on the ground the ground 5 cm lower holds it.
+  The Tin Finch's skids may be 40 cm off (uneven ground).
+- Z5. **Water by rule for every placeable**: deployables, the claim device and the Tin Finch must be dry (RustMVP's
+  5 cm); building pieces, doors, locks and charges may stand in the sea, as before P2.
+- Z6. **The server works every claim out again** and takes it only within 0.3 m of its own pose (RustMVP's rule): a
+  free placement under the claimed point (the support named must be what is there), a piece from its support, socket and
+  orientation, a door from its frame, a lock from its door, a charge by the sweep from the server's eye toward it.
+- Z7. **Limits** count what stands on a structure's pieces (support links): 20 deployables a structure, one claim device;
+  128 sleeping bags a player and 128 beds, each counted on its own.
+- Z8. **Turning**: deployables face where the player looks, R adding 90° (no snapping); the claim device sits square to
+  its slab in 30° steps, R turning it 90°; a door hangs the frame's own way round, R the other; a piece's orientations on
+  its socket are cycled by R as before (`fixed`: as its solver found it); a lock sits at its spot.
+- Z9. **The ghost** is a hologram (unshaded, divided by the camera's exposure, a rim and faint lines): pale blue when it
+  fits, red when not, a pale breathing colour from the click until the answer and half a second after. Its model is the
+  catalogue's or the building kit's, a box when there is none. A held charge shows its ghost too: the attack button
+  still throws it, the aim button puts it where the ghost is.
+- Z10. **What stands on a piece goes with it**: a deployable on a foundation or floor breaks when it goes (Rust), spilling
+  what it held. The link is saved with the thing (its record's version 4; no SQL schema step) and settled after a
+  restart: a thing whose piece didn't come back breaks.
+- Z11. **The Tin Finch's item is placed by hand** like a deployable (its part's held behaviour is P3's `Placer`, V1):
+  within 12 m, on the ground or a slab's top no steeper than 20° (the bay's slope), dry, its hull clear, with ships.json's
+  `fuel.placed` (50 of lamp oil, the recipe's first tank). Built ones still roll out onto the vehicle workbench's bay
+  (S4); both share the hull's check.
+- Z12. **Numbers taken in shared spaces:** protocol 18 (P3 took 17); message 220 (`PlaceIntent`) and `PoseNet`; messages
+  59, 90 and 111 free; `OutcomeCode` 73–77 (Misplaced, Overhangs, StructureFull, TooMany, InWater); `ThingSpawn`'s
+  support (family and ID); the thing record's version 4; capabilities.json's `standing` (index 11); placement.json
+  (hashed). P3's `IPlacement` (the held controls' way in) is P2's `PlacementView`; its stand-in is gone.
+
 Decisions taken for interaction (GROUND_SYSTEMS.md §5, package P1) without the owner, to confirm or overturn (numbered I1
 on):
 
@@ -5338,8 +5429,8 @@ on):
   ("Ada's body", "Ada (asleep)"), OPEN on boxes, bags, crates, devices, the cupboard and a ship's cargo. A verb may
   leave the thing's name out of its prompt (`named: false`: SET CODE, ENTER CODE, CHANGE CODE, OPEN TECH TREE, OPEN
   HATCH, CLOSE HATCH).
-- I4. **Two new answers**, before P3's gun codes (100 on): Seated (73, "Not from the seat"), the gate for one in a
-  ship's seat, and NotEmpty (74, "Empty it first"), a deployable picked up with something in it. The wounded and the
+- I4. **Two new answers**, after P2's (73–77) and before P3's gun codes (100 on): Seated (78, "Not from the seat"), the
+  gate for one in a ship's seat, and NotEmpty (79, "Empty it first"), a deployable picked up with something in it. The wounded and the
   dead fail a verb's gates with Dead, as their other actions do.
 - I5. **A panel's verb never reaches the server**: the tech tree is the interface's to open. Its unlocks are the
   station's `unlock` (not in the radial), the recipe as the verb's number, sent to the best bench in reach
@@ -5391,8 +5482,10 @@ on):
   hammer's.
 - I16. **The claim device is the Tool Cupboard wherever a player reads it** (items.json, building.json, texts.json, the
   build sandbox and the mock interface); the code's names stay for the rename after the merges.
-- I17. **Numbers taken in shared spaces:** protocol 18 (P3 took 17); messages 210 (`InteractIntent`), 211
-  (`ArrowStates`) and 212 (`ArrowsGone`); 56, 58, 60, 66, 112 and 130 free; `TargetFamily.Arrow` (11); answers 73 and
-  74; capabilities.json's `pickup`, `portable`, `station`, `wounded`, `character`, `dud` and `arrow`; interactions.json;
+- I17. **Numbers taken in shared spaces:** protocol 19 (P3 took 17, P2 18); messages 210 (`InteractIntent`), 211
+  (`ArrowStates`) and 212 (`ArrowsGone`); 56, 58, 60, 66, 112 and 130 free, and with P2's placing 92, 93 and 94 (the
+  door, lock and claim intents, empty once both took their actions); `TargetFamily.Arrow` (11); answers 78 and 79;
+  capabilities.json's `pickup`, `portable`, `station`, `wounded`, `character`, `dud` and `arrow`, after P2's
+  `standing`; interactions.json;
   survival.json's `arrows` and `lifetimes.arrow`; ships.json's `sockets.cargo` (its `reach` gone); deployables.json's
   `pickup`.
