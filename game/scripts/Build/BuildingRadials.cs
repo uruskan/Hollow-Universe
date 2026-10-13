@@ -97,11 +97,11 @@ public static class BuildingRadials
         {
             Piece? piece = target();
             // What an option does to the piece (nothing without one: the radial never chooses those, a script might).
-            Action On(Action<Piece> act) => () =>
+            Action On(Action<Piece> does) => () =>
             {
                 if (piece != null)
                 {
-                    act(piece);
+                    does(piece);
                 }
             };
             for (int grade = 1; grade < data.Grades.Count; grade++)
