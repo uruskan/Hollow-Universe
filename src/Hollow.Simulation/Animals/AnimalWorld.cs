@@ -110,6 +110,12 @@ public sealed partial class AnimalWorld
 
     public List<AnimalNoise> Noises { get; } = new();
 
+    /// <summary>
+    /// Points that keep the animals near them awake without being seen or heard: a spectator's camera (the animal
+    /// sandbox, an admin watching). Players keep them awake as observers.
+    /// </summary>
+    public List<Vector3> Watchers { get; } = new();
+
     /// <summary>One second of every animal's poses (feet, up, heading; lying when dead), for hits as the attacker saw them.</summary>
     public HitboxHistory History { get; } = new();
 
@@ -137,14 +143,20 @@ public sealed partial class AnimalWorld
 
     /// <summary>
     /// Puts a herd of <paramref name="count"/> animals of a species on the ground around a point (a spawn slot's, or by
-    /// hand when <paramref name="slot"/> is null), roaming within <paramref name="range"/> metres of it.
+    /// hand when <paramref name="slot"/> is null), roaming within <paramref name="range"/> metres of it, facing
+    /// <paramref name="facing"/> (the characters' yaw; a little each way per animal) or any way.
     /// </summary>
-    public Herd SpawnHerd(AnimalSpecies species, Vector3 at, int count, float range = 70, SpawnSlot? slot = null)
+    public Herd SpawnHerd(AnimalSpecies species, Vector3 at, int count, float range = 70, SpawnSlot? slot = null, float? facing = null)
     {
         var herd = new Herd(species, at, range) { Slot = slot, WanderGoal = at };
         for (int i = 0; i < count; i++)
         {
-            AddMember(herd, at, i);
+            Animal a = AddMember(herd, at, i);
+            if (facing is { } yaw)
+            {
+                a.Yaw = WrapAngle(yaw + (float)(new Rng(a.Seed).NextDouble() - 0.5) * 0.8f);
+                a.DesiredYaw = a.Yaw;
+            }
         }
         return herd;
     }
@@ -304,6 +316,11 @@ public sealed partial class AnimalWorld
             foreach (AnimalObserver o in Observers)
             {
                 float dx = o.Position.X - a.Position.X, dz = o.Position.Z - a.Position.Z;
+                nearest = MathF.Min(nearest, dx * dx + dz * dz);
+            }
+            foreach (Vector3 w in Watchers)
+            {
+                float dx = w.X - a.Position.X, dz = w.Z - a.Position.Z;
                 nearest = MathF.Min(nearest, dx * dx + dz * dz);
             }
             bool asleep = nearest > SleepDistance * SleepDistance;

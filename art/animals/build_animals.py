@@ -416,14 +416,14 @@ SPECIES = {"deer": deer, "boar": boar, "wolf": wolf, "bear": bear}
 # ---------------------------------------------------------------- coats
 
 COATS = {
-    "deer": dict(back=(0.42, 0.24, 0.12), side=(0.55, 0.33, 0.17), belly=(0.86, 0.8, 0.7), leg=(0.36, 0.24, 0.14),
-                 muzzle=(0.18, 0.13, 0.1), rump=(0.9, 0.86, 0.78), mottle=0.12),
+    "deer": dict(back=(0.34, 0.24, 0.16), side=(0.45, 0.32, 0.21), belly=(0.8, 0.75, 0.66), leg=(0.31, 0.23, 0.16),
+                 muzzle=(0.18, 0.13, 0.1), rump=(0.86, 0.82, 0.74), mottle=0.12),
     "wolf": dict(back=(0.24, 0.22, 0.2), side=(0.52, 0.47, 0.4), belly=(0.82, 0.78, 0.7), leg=(0.62, 0.55, 0.45),
                  muzzle=(0.78, 0.72, 0.62), rump=(0.45, 0.4, 0.34), mottle=0.18),
     "boar": dict(back=(0.12, 0.1, 0.085), side=(0.25, 0.2, 0.16), belly=(0.33, 0.27, 0.22), leg=(0.12, 0.1, 0.085),
                  muzzle=(0.2, 0.15, 0.12), rump=(0.22, 0.18, 0.14), mottle=0.22),
-    "bear": dict(back=(0.2, 0.12, 0.07), side=(0.3, 0.19, 0.11), belly=(0.26, 0.17, 0.1), leg=(0.14, 0.09, 0.06),
-                 muzzle=(0.42, 0.32, 0.22), rump=(0.27, 0.17, 0.1), mottle=0.15),
+    "bear": dict(back=(0.16, 0.11, 0.075), side=(0.24, 0.165, 0.11), belly=(0.2, 0.14, 0.095), leg=(0.12, 0.085, 0.06),
+                 muzzle=(0.36, 0.28, 0.2), rump=(0.21, 0.145, 0.1), mottle=0.15),
 }
 
 PART_COLOURS = {
@@ -918,6 +918,7 @@ def key_clips(a, rig, clips):
     for clip in clips:
         action = bpy.data.actions.new(clip.name)
         action.use_fake_user = True
+        clip.action = action
         if hasattr(clip, "hit"):
             action["hit"] = clip.hit
         slot = action.slots.new(id_type="OBJECT", name=rig.name)
@@ -984,11 +985,21 @@ def build(key, mats):
     body.data.materials.append(fur)
     for p in parts:
         p.data.materials.append(glossy if p["glossy"] else fur)
+    # Antlers stay a mesh of their own: a view shows them on the stags only (GROUND.md §6.9).
+    antlers = [p for p in parts if p["kind"] == "antler"]
+    parts = [p for p in parts if p["kind"] != "antler"]
     select_only([body] + parts)
     bpy.context.view_layer.objects.active = body
     bpy.ops.object.join()
     body = bpy.context.view_layer.objects.active
     uv_box(body.data)
+    antler = None
+    if antlers:
+        select_only(antlers)
+        bpy.context.view_layer.objects.active = antlers[0]
+        bpy.ops.object.join()
+        antler = bpy.context.view_layer.objects.active
+        uv_box(antler.data)
     # Levels of detail: the full skin decimated to each budget, all skinned to the same rig.
     out = collection("HOLLOW_EXPORT")
     lods = []
@@ -1009,14 +1020,48 @@ def build(key, mats):
             mod.use_collapse_triangulate = True
             select_only([o])
             bpy.ops.object.modifier_apply(modifier=mod.name)
+            # The collapse leaves the odd degenerate face; glTF wants clean geometry.
+            o.data.validate(clean_customdata=False)
         o.parent = rig
         arm = o.modifiers.new("rig", "ARMATURE")
         arm.object = rig
         normalise_weights(o)
         lods.append(o)
+    extra = []
+    if antler is not None:
+        for i, ratio in enumerate((1.0, 0.5, 0.25)):
+            o = antler.copy()
+            o.data = antler.data.copy()
+            o.name = f"Antlers_lod{i}"
+            o.data.name = o.name
+            for c in list(o.users_collection):
+                c.objects.unlink(o)
+            out.objects.link(o)
+            if ratio < 1:
+                mod = o.modifiers.new("lod", "DECIMATE")
+                mod.decimate_type = "COLLAPSE"
+                mod.ratio = ratio
+                mod.use_collapse_triangulate = True
+                select_only([o])
+                bpy.ops.object.modifier_apply(modifier=mod.name)
+                o.data.validate(clean_customdata=False)
+            o.parent = rig
+            arm = o.modifiers.new("rig", "ARMATURE")
+            arm.object = rig
+            extra.append(o)
     clips = key_clips(a, rig, make_clips(a))
+    # Each clip on a muted NLA track of its own: the glTF exporter's ACTIONS mode exports them one animation each.
+    rig.animation_data_create()
+    rig.animation_data.action = None
+    for clip in clips:
+        track = rig.animation_data.nla_tracks.new()
+        track.name = clip.name
+        strip = track.strips.new(clip.name, 0, clip.action)
+        if hasattr(strip, "action_slot") and len(clip.action.slots) > 0:
+            strip.action_slot = clip.action.slots[0]
+        track.mute = True
     OUT.mkdir(parents=True, exist_ok=True)
-    export_glb(OUT / f"{key}.glb", [rig] + lods, mats, animations=True)
+    export_glb(OUT / f"{key}.glb", [rig] + lods + extra, mats, animations=True)
     facts = {
         "species": key,
         "source": "Hollow (art/animals/build_animals.py): our own, metaball anatomy, procedural clips",

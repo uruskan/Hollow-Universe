@@ -73,6 +73,9 @@ public sealed class ClientAnimal
     /// <summary>Aware of a threat: head up, ears forward.</summary>
     public bool Alert { get; private set; }
 
+    /// <summary>Warning someone off before it charges: a growl, a snort, a bear rearing.</summary>
+    public bool Warning { get; private set; }
+
     /// <summary>Health as a fraction (0 … 1); a corpse's: the harvest left.</summary>
     public float Health { get; private set; }
 
@@ -142,8 +145,7 @@ public sealed class ClientAnimal
             {
                 events.Add(new AnimalEvent(AnimalEventKind.Fled, this));
             }
-            if ((look.State == AnimalState.Chase && State is not (AnimalState.Chase or AnimalState.Attack)) ||
-                (look.State == AnimalState.Alert && State != AnimalState.Alert && Species?.Temperament != Temperament.Flee && look.Alert))
+            if ((look.State == AnimalState.Chase && State is not (AnimalState.Chase or AnimalState.Attack)) || (look.Warning && !Warning))
             {
                 events.Add(new AnimalEvent(AnimalEventKind.Threatens, this));
             }
@@ -154,6 +156,7 @@ public sealed class ClientAnimal
         Dead = look.Dead;
         State = look.State;
         Alert = look.Alert;
+        Warning = look.Warning;
         Health = look.Health;
         if (delta > 1e-6)
         {

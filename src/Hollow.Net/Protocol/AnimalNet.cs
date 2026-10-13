@@ -15,6 +15,7 @@ public readonly record struct AnimalLook(
     bool Dead,
     bool Alert,
     float Health,
+    bool Warning,
     byte AttackCount,
     AttackKind Attack,
     byte HurtCount);
@@ -25,7 +26,8 @@ public readonly record struct AnimalLook(
 /// part of replication as it is; this is what its fields mean for an animal:
 /// <list type="table">
 /// <item><term>X, Y, Z, Yaw</term><description>its feet on the ground and its heading, as a character's.</description></item>
-/// <item><term>Flags</term><description><see cref="MoveFlags.Dead"/> for a corpse, else <see cref="MoveFlags.OnGround"/>.</description></item>
+/// <item><term>Flags</term><description><see cref="MoveFlags.Dead"/> for a corpse, else <see cref="MoveFlags.OnGround"/>;
+/// <see cref="MoveFlags.Sprinting"/> while it warns someone off (<see cref="Animal.Warning"/>).</description></item>
 /// <item><term>Health</term><description>its health as a fraction of 255; a corpse's, the harvest left.</description></item>
 /// <item><term>Held</term><description>its species' number (animals.json <c>id</c>).</description></item>
 /// <item><term>ActionCount, Action</term><description>attacks begun (4 bits, wrapping) and the last one's
@@ -44,7 +46,7 @@ public static class AnimalNet
         Y = Quantize.Fixed(a.Position.Y, Quantize.PositionScale),
         Z = Quantize.Fixed(a.Position.Z, Quantize.PositionScale),
         Yaw = Quantize.Angle16(a.Yaw),
-        Flags = a.IsDead ? MoveFlags.Dead : MoveFlags.OnGround,
+        Flags = (a.IsDead ? MoveFlags.Dead : MoveFlags.OnGround) | (a.Warning ? MoveFlags.Sprinting : MoveFlags.None),
         Health = (byte)Math.Clamp((int)MathF.Ceiling((a.IsDead ? a.HarvestFraction : a.HealthFraction) * 255), 0, 255),
         Held = a.Species.Id,
         ActionCount = (byte)(a.AttackCount & 15),
@@ -59,6 +61,7 @@ public static class AnimalNet
         (s.Flags & MoveFlags.Dead) != 0,
         s.Aiming,
         s.Health / 255f,
+        (s.Flags & MoveFlags.Sprinting) != 0,
         s.ActionCount,
         (AttackKind)Math.Min((byte)s.Action, (byte)AttackKind.Swipe),
         (byte)(s.HeldMods & 15));

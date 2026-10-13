@@ -206,8 +206,8 @@ public sealed class Animal
     /// <summary>Aware of a threat (ears up, head up): others see it.</summary>
     public bool Alert { get; internal set; }
 
-    /// <summary>0 (fed) … 1 (starving): hunters hunt when hungry.</summary>
-    public float Hunger { get; internal set; }
+    /// <summary>0 (fed) … 1 (starving): hunters hunt when hungry. Settable for the sandbox and the admin.</summary>
+    public float Hunger { get; set; }
 
     /// <summary>When it thinks next (the AI runs on a slow, staggered tick) and thought last, and when its chase began and where.</summary>
     internal long NextThink;
@@ -275,6 +275,9 @@ public sealed class Animal
     public bool Removed { get; internal set; }
 
     public bool IsDead => State == AnimalState.Dead;
+
+    /// <summary>A fighter's warning to someone in its space (a growl, a snort, a bear rearing), before it charges.</summary>
+    public bool Warning => State == AnimalState.Alert && WarnStart != Never;
 
     /// <summary>A corpse: the harvest left (of <see cref="AnimalSpecies.HarvestHealth"/>), when it goes (world ticks) and who killed it.</summary>
     public float HarvestLeft { get; internal set; }

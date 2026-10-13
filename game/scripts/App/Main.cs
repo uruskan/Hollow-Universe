@@ -39,6 +39,7 @@ public partial class Main : Node
     private ModelViewer? _models;
     private SoundViewer? _sounds;
     private FxViewer? _fx;
+    private HollowUniverse.Animals.AnimalSandbox? _animals;
 
     public override void _Ready()
     {
@@ -108,6 +109,13 @@ public partial class Main : Node
             // The ground game (GROUND.md §4.3): its own view; the maps aren't built.
             _ground = new GroundMode { Name = "Ground", Options = _options };
             AddChild(_ground);
+            return;
+        }
+        if (Option("view", "galaxy") == "animals")
+        {
+            // The animal sandbox (GROUND.md §6.9): herds, a wolf pack, the bear, butchering and cooking on the real surface.
+            _animals = new HollowUniverse.Animals.AnimalSandbox { Name = "Animals", Options = _options };
+            AddChild(_animals);
             return;
         }
         if (Option("view", "galaxy") == "build")
@@ -264,7 +272,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _build == null
-            && _sounds == null && _fx == null)
+            && _sounds == null && _fx == null && _animals == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -297,6 +305,7 @@ public partial class Main : Node
             : _sounds != null ? _sounds.ReadyForShot
             : _icons != null ? _icons.ReadyForShot : _models != null ? _models.ReadyForShot
             : _fx != null ? _fx.ReadyForShot
+            : _animals != null ? _animals.ReadyForShot
             : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady
             : _surfaceView.Visible ? _surfaceView.IsReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
