@@ -45,7 +45,7 @@ What each source taught us (§13 has the research):
 
 | From | We take | We avoid |
 |---|---|---|
-| Rust | The ladder of access chips and power cells; contamination as a clock and a gear check; recyclers at monuments; guards and armoured patrols at the big ones; safe zones; landmarks you navigate by; events everyone sees (a crate dropped, a cargo ship arriving). | Its names, layouts and models. |
+| Rust | The ladder of access chips and power cells, each room giving the next chip and blueprint fragments; tiers as distance bands from where players arrive; a full ladder guaranteed on every map, the largest monuments placed first; contamination as a gear check, a clock and an eviction tool; recyclers at monuments, taxed in safe zones; guards and armoured patrols at the big ones; events everyone sees and hears (a crate dropped, a cargo ship arriving); the 2026 power grid that ties monuments into one economy; reworking what players ignore. | Its names, layouts and models; monuments that silently fail to spawn on unlucky seeds; rooms campers can starve. |
 | Dune: Awakening | A fixed layer players learn plus a layer that renews; each kind of site the main source of one family of parts; wrecks and buried stations; events announced loudly (a column you see for kilometres, an explosion overhead); scale shown on the approach, not inside. | Waves of enemies in locked rooms as the main content; an endgame gated behind PvP. |
 | Empyrion | Compound sites from many small pieces; loot rank tied to how hard a place is to reach; site variants by biome. | A placer that retries at random and quietly drops what doesn't fit; the same set of sites on every planet of a type. |
 | Others | State overlays (abandoned, occupied, infested, powered); damage and dressing variants; logs that differ per site; trade-able leads; events with a short life near active players. | Hand-made templates repeated without variation (Starfield). |
@@ -92,7 +92,7 @@ The game is named Hollow for a reason: the galaxy players fly into is full of wh
 | **R** Roadside | 5–50 m | to 30 m | 1–5 min | 0.5–2 km | Every few hundred metres along the old lines; several in sight from any hill | Substations, roadside junk, water wells, cabins |
 | **S** Small | 50–150 m | to 40 m | 5–15 min | 2–5 km | Every 1–2 km² | Gas station, supermarket, lighthouse, quarries, fishing village |
 | **M** Medium | 150–350 m | to 80 m | 15–40 min | 5–10 km | A few in every 4 × 4 km zone | Dome, satellite dish, harbour, sewer branch, outpost, bandit camp |
-| **L** Large | 350–900 m | to 150 m | 40–90 min | 10–20 km | One or two per zone near old settlements | Launch site, power plant, train yard, military tunnels, excavator |
+| **L** Large | 300–700 m | to 150 m | 40–90 min | 10–20 km | One or two per zone near old settlements | Launch site, power plant, train yard, military tunnels, excavator |
 | **X** Landmark | 0.8–5 km (lines to 40 km) | to 900 m | Hours | 40–60 km, and from orbit | One per old region (about every 100 km) on colonised worlds | — (Dune's heighliner wreck, in spirit) |
 | **W** Wonder | Any | Any | Sessions | Through leads | A few per planet at most; some planets none | — |
 | **O** Orbital | 100–800 m | — | 20–60 min | From the system map | A few per settled system | Oil rigs, cargo ship |
@@ -100,6 +100,12 @@ The game is named Hollow for a reason: the galaxy players fly into is full of wh
 
 A 4 × 4 km zone on a settled world (the size of a Rust map) therefore holds about what a Rust map does: 1–2 large,
 3–5 medium, 8–12 small, dozens of roadside sites, and a landmark on the horizon. Wild worlds hold far less (§9.2).
+
+For comparison (Rust's research, §13): a 4.5 km Rust map holds about 17 main monuments, two safe zones, three fishing
+villages, a dozen small sites, about 26 substations, caves, quarries and wells. Its largest monument (544 × 276 m)
+spans 12% of the map; its landmarks stand 84–120 m tall; footprint area tracks reward (roadside about 3,000 m², the
+green tier 10,000–50,000, the large set 50,000–100,000, the launch site 150,000). Our L tier keeps those sizes; the X
+tier goes beyond them because players see whole planets, from the air and from orbit.
 
 ### 4.2 Showing scale
 
@@ -262,7 +268,8 @@ Monuments of a settled region are joined, as in Rust:
 
 ## 6. Events: what spawns at random (Proposal)
 
-Events are the renewing layer. Each comes from a hash of (planet, cell, time window), so every server and client
+Events are the renewing layer. Each comes from a hash of (planet, cell, time window) or from what players do (E5's
+grid, E11), so every server and client
 agrees on where and when; the server announces it and stores only what players took. Each is loud (seen or heard
 from far), short (15–35 minutes) and contested.
 
@@ -278,6 +285,8 @@ from far), short (15–35 minutes) and contested.
 | E8 | **Meteor Fall** | A shower: impact craters hold exotic ore for a day (the rare materials of GAME_DESIGN.md §4 come partly from here). | Streaks in the sky | — |
 | E9 | **Trader Convoy** | A Reclaimer convoy crosses the zone selling rare goods; attacked, it fights back. | Its lights and horns | Rust's travelling vendor |
 | E10 | **Freighter Drift** | The Drifting Freighter (§5.7): an hour in orbit to board, then it falls as an Orbital Fall. | System-wide broadcast | Rust's cargo ship |
+| E11 | **Called Fall** | Players who power the Launch Complex's tracking room and feed it a guidance core bring a dead satellite down on purpose: its descent is visible to the whole server, and its crates open once the wreck cools. | Everyone sees it fall | Rust's satellite crash (2026) |
+| E12 | **Wreck Field Window** | In orbit, a debris field of derelicts opens for about three hours, then a radiation storm closes it for one to two and a half; whatever is left inside is lost. Its derelicts restock slowly. | A system-wide warning 20 minutes before it closes | Rust's Deep Sea (2026) |
 
 Rules for every event (from the research, §13):
 
@@ -296,20 +305,32 @@ Rules for every event (from the research, §13):
 
 | Tier | Opens with | Found at | Gives |
 |---|---|---|---|
-| 1 | Nothing | Roadside and small sites | Barrels, crates, salvage, amber chips |
-| 2 | **Amber chip** | Small and medium sites' locked rooms | Military crates, cyan chips, blueprints |
-| 3 | **Cyan chip** + **power cell** | Medium and large sites' secure rooms | Sealed crates, violet chips |
-| 4 | **Violet chip** + **power cell** | Large sites' vaults | Vault crates: best guns, armour, schematics |
+| 1 | Nothing | Roadside and small sites | Barrels, crates, salvage, amber chips (in offices, on desks) |
+| 2 | **Amber chip** + **power cell** | Medium sites' locked rooms | Military crates, a cyan chip, a torn schematic |
+| 3 | **Cyan chip** + **power cell** (some an amber chip too) | Medium and large sites' secure rooms | A violet chip, two torn schematics |
+| 4 | **Violet chip** + **power cell** (some lower chips too) | Large sites' vaults, orbital stations | Vault crates (best guns, armour), two sealed schematics |
 | 5 | Tokens from landmarks | Landmarks, the Vault | Unique blueprints, ship parts |
 
-As in Rust: a chip is used up opening its door (or loses durability), a power cell powers a door's panel for a few
-minutes, the rooms' loot respawns on a timer (30–60 minutes with random spread).
+The schematics are G7a's torn and sealed schematics (Rust's blueprint fragments), which the level 2 and 3 workbenches
+need, so the ladder is the workbench gate it became in Rust in 2025. Rust's rules, which we keep:
+
+- A **power cell** goes into a fuse box (often in another building), a switch is thrown, and the chip reader is live
+  for 3 minutes. A **chip** loses a quarter of its condition per swipe.
+- A room's **refresh timer starts when someone loots it**; 10 minutes before the refresh the room floods with
+  contamination nobody survives, and it resets only after 5 minutes with nobody inside or near. Campers can't starve
+  it.
+- Rooms sitting farther from the landing sites (§9.1) roll better crates.
 
 ### 7.2 Contamination
 
-Levels 1–5 (Rust's radiation tiers in kind), with protection from clothing and suits; each monument lists its zones
-(the builder's `zone("radiation", ...)`). On worlds with bad air, the planet's own hazard adds to it (no air, cold,
-heat), so the same monument is harder on a harsher world.
+Levels 1–5 with Rust's numbers: 2, 10, 25 and 45 doses a second for levels 1–4 (75 for level 5, the cores of
+landmarks), less the protection worn; no harm at all when protection reaches the level's dose. Pills and a tea take
+some off. Each monument lists its zones (the builder's `zone("radiation", ...)`). On worlds with bad air, the planet's
+own hazard adds to it (no air, cold, heat), so the same monument is harder on a harsher world.
+
+Contamination does four jobs, as in Rust: a **gear check** (enter only with the suit), a **clock** (how long you
+can stay), **eviction** (rooms before refresh, orbital stations after their crate opens, the Wreck Field Window
+closing) and a **weapon** (contaminated water players can use against raiders).
 
 ### 7.3 Guards
 
@@ -327,7 +348,8 @@ Reclaimers reuse the player character (§4.8 of GROUND.md) with their own clothi
 ### 7.4 Safe zones
 
 The Exchange and the Reclaimer Camp: no damage to players inside; anyone who shoots there is marked hostile for a few
-minutes and the turrets kill them; vendors, recyclers, a research table and a workbench.
+minutes and the turrets kill them; vendors, recyclers, a research table and a workbench. Safety costs something, as
+in Rust since 2024: recyclers in safe zones give 80% and take 8 s a batch, those at monuments 120% and 5 s.
 
 ### 7.5 States
 
@@ -351,6 +373,23 @@ medicine and cloth**. **Open**: the exact items (G7a's components are Rust's set
 
 Logs and terminals at monuments point to others: a site on the same planet, a landmark in the next system, a wonder
 somewhere in the region. Leads are items, so they can be traded.
+
+### 7.9 The old grid
+
+The Seedward's power grid is a system of its own, after Rust's 2026 grid: a goal a whole server cares about, and the
+reason the leftover substations matter.
+
+- **Sources:** a region's Fusion Plant (or Great Dam) can be restarted: heavy cells into its reactor hall, a sequence of
+  switches, contested while it spins up. It then runs for a day of real time per load.
+- **Lines:** power runs out along the region's power lines (§5.9). Every **Grid Substation** on the way is a switch
+  that someone must close (a power cell in its fuse box, a breaker thrown) for power to pass; anyone can open it
+  again, cutting everything beyond.
+- **What power does:** lamps light at powered monuments (the sky line of a region shows who holds the grid); extra loot
+  rooms open (one per medium and large site, behind powered doors); recyclers there run faster; lifts and cranes work
+  (the tower climbs get shorter); Wardens wake at powered Seedward sites. Players can also draw power from a powered
+  line for their bases.
+- **Surges** (E5) are the grid waking on its own for a few minutes somewhere, which is how players find out the grid
+  exists.
 
 ---
 
@@ -432,12 +471,20 @@ beside a person and the Tin Finch.
 
 Placement is local and deterministic, like the scatter (GROUND.md §4.6) and Minecraft's structure grid (§13):
 
-- The cube-sphere's tiles at one level per tier hold at most one **candidate** each: roadside level 15 (about 300 m),
-  small 14 (600 m), medium 13 (1.2 km), large 12 (2.5 km), landmark 9 (20 km) on the first world.
-- A candidate's position is jittered inside its tile by `Hash64(seed, tier, tile)`; its kind is drawn from the tier's
-  table weighted by the planet's history and the ground there (biome, height, slope, coast, river, ore); it is kept if
-  the ground suits it (flat enough across its pad, dry, not on ice or cliffs unless it is meant to be) and if no
-  bigger monument's pad is near (bigger tiers are decided first, so nothing is ever dropped for lack of room).
+- **Districts** are the unit Rust calls a map: cube-sphere tiles of level 11 (about 5 km on the first world). Each
+  settled district draws a **set** of monuments that completes the ladder (§7.1): tier-1 sites, two or three amber
+  rooms, one or two cyan, one violet, a safe zone or recycler site near its landing points, as Rust guarantees a full
+  set per map.
+- **Tiers by distance**, as in Rust: inside a district the low tiers go near its coast and landing points and the high
+  tiers farthest from them, so loot rises as players move out.
+- **Placement by terrain analysis, largest first:** candidate spots on a jittered grid (`Hash64(seed, district, i)`)
+  are scored for each kind (flat enough across its pad, the ground it wants: coast, river, plain, cliff, ore; dry; not
+  on ice unless meant to be); the largest kinds take the best spots first; minimum distances relax step by step down
+  to a quarter when room runs out; a monument the ladder needs is never dropped (it takes the best remaining spot or a
+  smaller variant). Rust's biggest generator problem was monuments silently missing on unlucky seeds; a test generates
+  thousands of districts and checks every ladder is complete.
+- **Regions** (level 8, about 40 km) hold the landmarks, one at most, placed the same way; **scatter cells** (level 15,
+  about 300 m) hold the roadside sites that don't follow a line.
 - **Lines** (roads, power lines, pipelines, rail) join a region's monuments as a minimum spanning tree plus a few
   extra links, routed along gentle ground; roadside sites are then placed along the lines (substations at junctions,
   every few km).
@@ -530,7 +577,8 @@ depends on.
 
 ## 13. Research
 
-Done on 13 October 2026 for this document: Rust's monuments (Facepunch's devblogs and wikis), Dune: Awakening's
+Done on 13 October 2026 for this document: Rust's monuments to its 1 October 2026 patch (Facepunch's devblogs and
+changelists, the map-making wiki, the community wiki; footprints from a server plugin's bounding boxes), Dune: Awakening's
 points of interest (Funcom's posts, patch notes and the community wiki, to patch 1.5), and Empyrion with No Man's Sky,
 Starfield, Star Citizen and others (playfield files, developer guidelines, reviews). The notes, with their sources,
 are kept on the owner's PC in `research_notes/Monuments/` of the main checkout (excluded from git, like the Elite
