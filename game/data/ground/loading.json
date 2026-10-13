@@ -1,16 +1,16 @@
 {
-  "_comment": "The loading screen (GROUND.md §4.3.1): the stages parts of the game register, in the order the screen names them, each with its words, its weight (the seconds it takes on the reference PC, its share of the bar) and its own rule's numbers; the picture, the fades, what counts as arriving somewhere new, and the tips. Client only.",
+  "_comment": "The loading screen (GROUND.md §4.3.1): the stages parts of the game register, in the order the screen names them, each with its words, its weight (the seconds it takes on the reference PC, a Ryzen 5 3600 with an RTX 2070 Super, measured with --load-trace: its share of the bar) and its own rule's numbers; the picture, the fades, what counts as arriving somewhere new, and the tips. Client only.",
   "picture": "res://assets/loading/golden-meadow.jpg",
   "fadeSeconds": 0.6,
   "tipSeconds": 8,
   "arrival": { "metres": 120, "graceSeconds": 0.25 },
   "stages": [
-    { "key": "server", "title": "Starting the world", "weight": 5.0 },
-    { "key": "connect", "title": "Connecting", "weight": 0.4 },
+    { "key": "server", "title": "Starting the world", "weight": 3.5 },
+    { "key": "connect", "title": "Connecting", "weight": 1.0 },
     { "key": "world", "title": "Receiving the world", "weight": 0.6, "quietSeconds": 0.5, "mostSeconds": 6 },
-    { "key": "land", "title": "Painting the land", "weight": 1.5, "idleFrames": 10 },
-    { "key": "forest", "title": "Growing the forest", "weight": 3.0, "idleFrames": 10 },
-    { "key": "renderer", "title": "Warming up the renderer", "weight": 3.0, "settleFrames": 10, "perFrame": 12, "loadsAtOnce": 6, "mostSeconds": 40 },
+    { "key": "land", "title": "Painting the land", "weight": 4.7, "idleFrames": 10 },
+    { "key": "forest", "title": "Growing the forest", "weight": 6.1, "idleFrames": 10 },
+    { "key": "renderer", "title": "Warming up the renderer", "weight": 5.2, "settleFrames": 10, "perFrame": 12, "loadsAtOnce": 6, "mostSeconds": 40 },
     { "key": "steady", "title": "Arriving", "weight": 0.75, "seconds": 0.75, "frameMs": 33.4 }
   ],
   "tips": [

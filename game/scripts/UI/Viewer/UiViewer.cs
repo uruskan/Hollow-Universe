@@ -38,6 +38,7 @@ public partial class UiViewer : Node
         _model = new MockGroundUi();
         _ui = new GroundUi { Name = "GroundUi", Model = _model, HoldEffects = _shot };
         layer.AddChild(_ui);
+        _ui.Greet();
         Show(Options.TryGetValue("screen", out string? screen) ? screen : "hud");
         if (Options.ContainsKey("ui-check"))
         {

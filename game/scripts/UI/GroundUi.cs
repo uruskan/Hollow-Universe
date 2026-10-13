@@ -155,9 +155,10 @@ public partial class GroundUi : Control
         Resized += Layout;
         Ui.ScaleChanged += Layout;
         Open(Screen);
-        // RustMVP's greeting on entering the game.
-        OnNotice("TAB  Inventory     Q  Crafting     E  Interact");
     }
+
+    /// <summary>RustMVP's greeting on entering the game (the game calls it when play is the player's).</summary>
+    public void Greet() => OnNotice("TAB  Inventory     Q  Crafting     E  Interact");
 
     public override void _ExitTree()
     {

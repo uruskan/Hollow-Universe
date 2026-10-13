@@ -1885,6 +1885,8 @@ public partial class GroundTour : Node
 
     private async Task Shot(string name, int frames = 3)
     {
+        // A far teleport is an arrival (GROUND.md §4.3.1): its short loading screen goes first.
+        await Until(() => !View.LoadingShown, 30);
         for (int i = 0; i < frames; i++)
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

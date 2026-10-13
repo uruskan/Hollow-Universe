@@ -47,6 +47,14 @@ public partial class BuildGhost : Node3D
         Visible = false;
     }
 
+    /// <summary>Shows the ghost's materials on <paramref name="mesh"/> where it stands (the renderer's warm-up).</summary>
+    public void ShowForWarmup(Mesh mesh)
+    {
+        _mesh.Mesh = mesh;
+        _outline.Mesh = mesh;
+        Visible = true;
+    }
+
     /// <summary>Shows a plan, or hides the ghost for null.</summary>
     public void Show(PlacementPlan? plan)
     {

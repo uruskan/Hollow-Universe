@@ -117,6 +117,7 @@ public partial class BuildSandbox : Node3D, IHammerActions
         layer.AddChild(_hud);
         _ui = new GroundUi { Name = "GroundUi", Model = _model };
         layer.AddChild(_ui);
+        _ui.Greet();
         _ui.QuitRequested += () => GetTree().Quit();
         _ui.HostRequested += _ => _ui.Open(GroundScreen.Hud);
         if (_shot)

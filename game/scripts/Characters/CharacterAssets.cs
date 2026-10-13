@@ -114,6 +114,21 @@ public static class CharacterAssets
     /// <summary>Whether a body's files are there (the female body is optional).</summary>
     public static bool Has(BodyType body) => ResourceLoader.Exists(Folder + Stem(body) + ".glb");
 
+    /// <summary>The files a body is read from (the warm-up loads them ahead, GROUND.md §4.3.1).</summary>
+    public static IReadOnlyList<string> Files(BodyType body)
+    {
+        string suffix = body == BodyType.Male ? "" : "_" + body.ToString().ToLowerInvariant();
+        var files = new List<string> { Folder + Stem(body) + ".glb" };
+        foreach (string stem in new[] { "clothing" + suffix, "animations" + suffix })
+        {
+            if (ResourceLoader.Exists(Folder + stem + ".glb"))
+            {
+                files.Add(Folder + stem + ".glb");
+            }
+        }
+        return files;
+    }
+
     /// <summary>A body's files, loaded on first use (the male body if the one asked for is missing).</summary>
     public static BodyAssets For(BodyType body)
     {
