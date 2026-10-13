@@ -229,11 +229,28 @@ public partial class AudioDirector : Node
         return ok ? handle : SoundHandle.None;
     }
 
-    /// <summary>Loops a flat event (an ambience bed) until <see cref="Stop"/>.</summary>
-    public SoundHandle Loop2D(string key, float volumeDb = 0f)
+    /// <summary>
+    /// Loops a flat event (an ambience bed) until <see cref="Stop"/>. <paramref name="startGainDb"/> is the extra gain it
+    /// starts at (−80 to fade it in with <see cref="SetGain"/>).
+    /// </summary>
+    public SoundHandle Loop2D(string key, float volumeDb = 0f, float startGainDb = 0f)
     {
         SoundEventData? e = Event(key);
-        return e == null ? SoundHandle.None : Start2D(e, volumeDb, 1f, loop: true);
+        if (e == null)
+        {
+            return SoundHandle.None;
+        }
+        SoundHandle handle = Start2D(e, volumeDb, 1f, loop: true);
+        foreach (Voice v in _voices2D)
+        {
+            if (v.Active && v.Handle == handle.Id)
+            {
+                v.GainDb = startGainDb;
+                v.TargetDb = startGainDb;
+                v.Apply();
+            }
+        }
+        return handle;
     }
 
     /// <summary>Fades a sound out over <paramref name="fade"/> seconds and frees its voices.</summary>
@@ -265,6 +282,19 @@ public partial class AudioDirector : Node
                 v.FadeRate = fade <= 0 ? 1e6f : Math.Max(1f, Math.Abs(db - v.GainDb) / fade);
             }
         }
+    }
+
+    /// <summary>The volume a sound plays at now (its event and caller dB plus its gain), or null when it isn't playing.</summary>
+    public float? VolumeOf(SoundHandle handle)
+    {
+        foreach (Voice v in AllVoices())
+        {
+            if (v.Active && v.Handle == handle.Id)
+            {
+                return v.BaseDb + v.GainDb;
+            }
+        }
+        return null;
     }
 
     public bool IsPlaying(SoundHandle handle)

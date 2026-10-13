@@ -65,7 +65,7 @@ public partial class AmbienceDirector : Node
             bool audible = bed.Level > 0.015;
             if (audible && !director.IsPlaying(bed.Handle))
             {
-                bed.Handle = director.Loop2D(key, -80f);
+                bed.Handle = director.Loop2D(key, 0f, startGainDb: -80f);
                 director.SetGain(bed.Handle, Db(bed.Level), 0.3f);
             }
             if (director.IsPlaying(bed.Handle))
@@ -85,6 +85,13 @@ public partial class AmbienceDirector : Node
             Accent(director, AmbienceMix.CrowKey, Levels.CrowRate, 70, 220, ear, delta);
             Accent(director, AmbienceMix.ThunderKey, Levels.ThunderRate, 1500, 4000, ear, delta);
         }
+    }
+
+    /// <summary>The volume a bed plays at now (dB), or null when it isn't playing.</summary>
+    public float? PlayingDb(string key)
+    {
+        AudioDirector? director = Director ?? AudioDirector.Instance;
+        return director != null && _beds.TryGetValue(key, out Bed? bed) ? director.VolumeOf(bed.Handle) : null;
     }
 
     /// <summary>Stops every bed.</summary>

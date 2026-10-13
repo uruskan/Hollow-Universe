@@ -46,6 +46,7 @@ public partial class SoundViewer : Node3D
     private SoundHandle _loop = SoundHandle.None;
 
     private int _playAll = -1;
+    private double _traceTimer;
     private double _playAllTimer;
 
     private bool _ambienceOn;
@@ -611,9 +612,19 @@ public partial class SoundViewer : Node3D
             };
             _ambience.Update(delta, input, _director.ListenerPosition());
             AmbienceLevels l = _ambience.Levels;
-            foreach ((string key, double level) in l.Beds())
+            // What each bed plays at now (the director's voice), not just what the mix asks for.
+            var trace = new System.Text.StringBuilder();
+            foreach ((string key, double _) in l.Beds())
             {
-                _bedLabels[key].Text = level < 0.005 ? "–" : $"{20 * Math.Log10(level):0} dB";
+                float? db = _ambience.PlayingDb(key);
+                _bedLabels[key].Text = db is float v && v > -60 ? $"{v:0} dB" : "–";
+                trace.Append(key).Append('=').Append(db is float t ? t.ToString("0.0", CultureInfo.InvariantCulture) : "off").Append(' ');
+            }
+            _traceTimer += delta;
+            if (Options.ContainsKey("trace") && _traceTimer >= 1)
+            {
+                _traceTimer = 0;
+                GD.Print("[ambience] " + trace);
             }
             _ambienceState.Text = $"{Biomes[_biome].Name}, sun {input.SunElevation:0}°, accents a minute: owl {l.OwlRate:0.0}, crow {l.CrowRate:0.0}, thunder {l.ThunderRate:0.0}";
         }
