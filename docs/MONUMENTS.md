@@ -15,7 +15,7 @@ Every rule is marked **Decided** (the owner said so), **Proposal** (waiting for 
 |---|---|---|
 | What a monument is | A built site on a planet (or in orbit) with special loot, danger and a reason to come back: Rust's monuments, on real planets. | Decided (GAME_DESIGN.md §4) |
 | Inspiration | Rust first (the loot ladder, keycards, fuses, radiation, guards, recyclers, safe zones, landmarks by silhouette). Dune: Awakening for the space setting (wrecks, buried sites, sites that renew, events you see from afar). Empyrion for sites on many procedural worlds. Mechanics and numbers may be borrowed; names, layouts, models and art never are (GAME_DESIGN.md §10). | Proposal |
-| How many | 66 kinds of monument in eight scales, from a fenced substation to a kilometre-tall tower, plus 10 events that spawn at random (§5, §6). Rust has about 45 kinds, Dune: Awakening about 20. | Proposal |
+| How many | 66 kinds of monument in eight scales, from a fenced substation to a kilometre-tall tower, plus 12 events, most of them spawning at random (§5, §6). Rust has about 45 kinds, Dune: Awakening about 20. | Proposal |
 | Scale | Real scale. The largest monuments are kilometres across or tall and read from 40–60 km away in clear air. Interiors stay human-scale. | Proposal |
 | Rarity | By encounter rate, not by count: something small every few minutes on foot, a roadside site near every landing, a large monument on most colonised worlds, a landmark every few systems, wonders only through leads (§4). | Proposal |
 | Where | A pure function of the planet (seed, body, history and terrain), so every server and client agrees without storing anything (§9). Only what players change is stored. | Decided (ARCHITECTURE.md §7–8) |
