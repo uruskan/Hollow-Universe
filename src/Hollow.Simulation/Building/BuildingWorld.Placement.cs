@@ -30,7 +30,10 @@ public sealed class PlacementPlan
 
     public int Orientation { get; init; }
 
-    /// <summary>A free foundation's aim point on the ground (zone frame) and its heading in 15° steps, as the wire asks for it.</summary>
+    /// <summary>
+    /// A free foundation's aim point (zone frame: where the aim meets the ground, or the point on the aim at the free
+    /// distance, whose height lifts the top) and its heading in 15° steps, as the wire asks for it.
+    /// </summary>
     public Vector3 Point { get; init; }
 
     public int HeadingSteps { get; init; }
@@ -211,9 +214,11 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>
-    /// A foundation on open ground: along the aim, at most <see cref="BuildingData.FreeFoundationDistance"/> away
-    /// across the ground, square to the player's view (15° steps, R turns it 90°), its top just above the highest
-    /// ground under it. It starts a new structure whose frame has the planet's up there.
+    /// A foundation on open ground (RustMVP's free foundation): where the aim meets the ground, at most
+    /// <see cref="BuildingData.FreeFoundationDistance"/> away across it; aimed further, it stays at that distance and the
+    /// aim's height there lifts its top (<see cref="FoundationAt"/>), so raising the view raises the foundation within
+    /// its depth. Square to the player's view (15° steps, R turns it 90°). It starts a new structure whose frame has the
+    /// planet's up there.
     /// </summary>
     private PlacementPlan? FreeFoundation(ulong player, PieceDef piece, Vector3 eye, Vector3 direction, int turns, IBuildingWallet? wallet)
     {
@@ -223,29 +228,28 @@ public sealed partial class BuildingWorld
         }
         Vector3 up = Up(eye);
         Vector3 flat = direction - up * Vector3.Dot(direction, up);
-        if (flat.LengthSquared() < 1e-6f)
+        // How far the aim goes across the ground for each metre along it (straight up or down: nowhere).
+        float across = flat.Length();
+        if (across < 1e-3f)
         {
             return null;
         }
-        flat = Vector3.Normalize(flat);
-        float maxDistance = (float)Data.FreeFoundationDistance;
-        Vector3 centre;
+        flat /= across;
+        float distance = (float)Data.FreeFoundationDistance;
         if (Physics.Ray(eye, direction, (float)Data.Reach, out RayHit hit) && hit.IsGround)
         {
-            Vector3 across = hit.Point - eye;
-            float horizontal = (across - up * Vector3.Dot(across, up)).Length();
-            centre = horizontal <= maxDistance ? hit.Point : eye + flat * maxDistance;
+            Vector3 toHit = hit.Point - eye;
+            distance = Math.Min(distance, (toHit - up * Vector3.Dot(toHit, up)).Length());
         }
-        else
-        {
-            centre = eye + flat * maxDistance;
-        }
+        // The point on the aim at that distance across the ground: the ground where the aim meets it nearer, else in
+        // the air, its height the top's.
+        Vector3 point = eye + direction * (distance / across);
         // Square to the view, in 15° steps; R turns it a quarter.
-        BuildingFrame level = BuildingFrame.At(D(centre), D(up), 0);
+        BuildingFrame level = BuildingFrame.At(D(point), D(up), 0);
         Vector3D forward = level.DirectionToLocal(D(flat));
         double heading = Math.Atan2(-forward.X, -forward.Z) + turns * Math.PI / 2;
         heading = Math.Round(heading / (Math.PI / 12)) * (Math.PI / 12);
-        PlacementPlan? plan = FoundationAt(piece, centre, heading);
+        PlacementPlan? plan = FoundationAt(piece, point, heading);
         if (plan != null)
         {
             Check(plan, player, eye, wallet);
@@ -253,10 +257,17 @@ public sealed partial class BuildingWorld
         return plan;
     }
 
+    /// <summary>Kept between a free foundation's top and the ground's limits (metres), so float rays agree with it.</summary>
+    private const double FoundationMargin = 0.02;
+
     /// <summary>
-    /// A new structure's first foundation over a zone point, turned by <paramref name="headingRadians"/> from the zone's
-    /// east: its frame's up is the planet's there, and its top sits just above the highest ground under its corners and
-    /// centre. Unchecked (see <see cref="Check"/>); null where there's no ground.
+    /// A new structure's first foundation for a zone point on the player's aim, turned by
+    /// <paramref name="headingRadians"/> from the zone's east: over the ground below the point, its frame's up the
+    /// planet's there. Its top is the point's height plus the clearance (RustMVP's), held where the ground check allows
+    /// it, wherever the slope leaves room: at least the clearance above the highest ground under its corners and centre,
+    /// and no more than its depth above the lowest. A point on (or below) the ground gives the lowest such top. The
+    /// client's ghost and the server's intent both come here with the same point. Unchecked (see <see cref="Check"/>);
+    /// null where there's no ground.
     /// </summary>
     public PlacementPlan? FoundationAt(PieceDef piece, Vector3 point, double headingRadians)
     {
@@ -273,20 +284,26 @@ public sealed partial class BuildingWorld
         up = Up(centre);
         Vector3D upD = D(up);
         BuildingFrame probe = BuildingFrame.At(D(centre), upD, headingRadians);
-        double highest = double.MinValue;
+        double highest = double.MinValue, lowest = double.MaxValue;
         foreach (Vector3D sample in GroundSamples(piece))
         {
             Vector3 at = F(probe.ToZone(sample));
             if (GroundBelow(at + up * 10, up, 10 + (float)(Data.FoundationDepth + 10), out RayHit h))
             {
                 highest = Math.Max(highest, 10 - h.Distance);
+                lowest = Math.Min(lowest, 10 - h.Distance);
             }
         }
         if (highest == double.MinValue)
         {
             return null;
         }
-        BuildingFrame frame = BuildingFrame.At(D(centre) + upD * (highest + Data.FoundationClearance + 0.02), upD, headingRadians);
+        // Heights above the ground under the centre. Too steep to fit both limits: the lowest top (the check says why).
+        double aimed = Vector3.Dot(point - centre, up) + Data.FoundationClearance;
+        double low = highest + Data.FoundationClearance + FoundationMargin;
+        double high = lowest + Data.FoundationDepth - FoundationMargin;
+        double top = Math.Max(low, Math.Min(aimed, high));
+        BuildingFrame frame = BuildingFrame.At(D(centre) + upD * top, upD, headingRadians);
         int steps = (int)Math.Round(headingRadians / HeadingStep);
         return new PlacementPlan
         {

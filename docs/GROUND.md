@@ -1718,8 +1718,13 @@ square and triangle, closes its shared edge exactly under a turned parent.
 scored by how near the aim passes (a floor by its whole footprint, so a ceiling can be chosen by aiming anywhere on it),
 how far it is from what the aim hits, and how close its facing is to the one asked for (a wall's hard side away from
 the player, stairs and roofs rising away; R turns it). The best eight are checked and the first allowed wins; if none
-is, the best shows with its reason. With no socket near, a foundation goes on the ground: along the aim, at most 3.5 m
-across, its top 5 cm above the highest ground under it.
+is, the best shows with its reason. With no socket near, a foundation goes on the ground (RustMVP's free foundation,
+L1): where the aim meets the ground, at most 3.5 m across; aimed further, it stays 3.5 m out and the aim's height there
+lifts its top, so raising the view raises the foundation continuously within its depth. The top is that height plus the
+5 cm clearance, held where the ground check below allows it: at least the clearance above the highest ground under its
+corners and centre, at most its 1 m depth above the lowest (2 cm inside both). Aimed at the ground it sits as low as the
+ground allows. The wire sends the point on the aim and the server works the same foundation out from it
+(`BuildingWorld.FoundationAt`).
 
 **Placement checks**, in this order, each refusal with a line for the player (`Refusal`, `Outcome.Text`):
 
@@ -2082,7 +2087,7 @@ arrows stop at pieces, doors and claim devices (`HitTarget.Building`): melee doe
 (a wall's soft side counts), arrows as bullets (stone and up take none).
 
 **Intents** (protocol 3; client to server, reliable, with the sequence numbers and the budget of G2's: 16 at once, 20 a
-second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's ground point and
+second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's point on the aim and
 heading in 15° steps), `HammerIntent` (upgrade to a grade, rotate, demolish, repair), `DoorIntent` (fit from a slot,
 turned round or not; open or shut; pick up), `LockIntent` (fit from a slot; set a code; enter a code; lock; unlock; cut
 a key; take off) and `ClaimIntent` (place from a slot at a point on a foundation or floor, turned; authorise;
@@ -4333,3 +4338,12 @@ Decisions taken for the F1 console (§8.2) without the owner, to confirm or over
   was built), for bug reports; an exported game would show only the build time.
 - K15. **Numbers taken in shared spaces:** protocol 11, messages 150–153, two bits for the cheats in `OwnState`. Whichever
   branch merges second takes the next free protocol number.
+
+Decisions taken for the owner's first playtest findings on looking, holding and free foundations (`ground-look`)
+without the owner, to confirm or overturn (numbered L1 on):
+
+- L1. **A free foundation's top follows the aim, as RustMVP's did** (§6.3): within 3.5 m it sits where the aim meets the
+  ground; beyond, the aim's height 3.5 m out lifts it. Its top is held between the highest ground under its corners and
+  centre plus the clearance and the lowest plus its depth, rather than RustMVP's limits at the centre alone, so whatever
+  the aim, a slope that leaves room gives a foundation the ground check accepts. Only a hit on the ground stops the aim's
+  distance (RustMVP: anything but a building piece), as Hollow's free foundation did before.
