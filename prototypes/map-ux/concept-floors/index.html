@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow Universe · Galaxy map · Concept Floors</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="vignette"></div>
+  <div id="markers"></div>
+  <svg id="leader" aria-hidden="true"><line x1="0" y1="0" x2="0" y2="0"/></svg>
+  <div id="labels"></div>
+</div>
+
+<!-- System level, Simple view: concept A's row of worlds -->
+<div id="simple"></div>
+
+<div id="ui">
+  <!-- Top left: where you are -->
+  <nav id="crumbs" class="glass" aria-label="Location"></nav>
+  <div id="levelcap"><span id="levelname"></span><span id="levelsub"></span></div>
+
+  <!-- Left: the four zoom levels -->
+  <div id="rail" class="glass" aria-label="Zoom level">
+    <div class="rail-track"><div class="rail-fill"></div></div>
+    <div class="rail-thumb"></div>
+    <button class="rail-stop" data-level="0"><i></i><span>Galaxy</span></button>
+    <button class="rail-stop" data-level="1"><i></i><span>Region</span></button>
+    <button class="rail-stop" data-level="2"><i></i><span>Neighbourhood</span></button>
+    <button class="rail-stop" data-level="3"><i></i><span>System</span></button>
+  </div>
+
+  <!-- Top centre (System level only): Simple or Realistic -->
+  <div id="sysmode" class="seg glass" role="tablist" aria-label="System view">
+    <span class="seg-thumb"></span>
+    <button data-v="simple" role="tab" title="Simple: a calm row of worlds (V)">Simple</button>
+    <button data-v="realistic" role="tab" title="Realistic: orbits, moons and labels (V)">Realistic</button>
+  </div>
+
+  <!-- Top right: ship status and the search pill -->
+  <div id="topright">
+    <button id="shipcard" class="glass" title="Centre on me (C)"></button>
+    <button id="searchpill" class="glass" title="Search (/)">
+      <svg class="mag" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.6" cy="8.6" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m12.8 12.8 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Search or ask “nearest fuel”</span><kbd>/</kbd>
+    </button>
+  </div>
+
+  <!-- Right: the floor picker (Neighbourhood level): which horizontal slice of space is shown -->
+  <div id="floors" class="glass hide" aria-label="Floors">
+    <div class="fl-head"><span>Floors</span><em>10 ly each</em></div>
+    <button class="fl-step" data-d="1" title="Up a floor (E or Page Up)"><svg viewBox="0 0 16 16"><path d="M3.5 10.5 8 6l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="fl-win"><div class="fl-frame"></div><div class="fl-list"></div></div>
+    <button class="fl-step" data-d="-1" title="Down a floor (Q or Page Down)"><svg viewBox="0 0 16 16"><path d="M3.5 5.5 8 10l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="fl-ghost on" title="Show the stars of nearby floors as faint ▲ ▼ ghosts"><i></i><span>Ghosts on</span></button>
+  </div>
+  <div id="floortip"></div>
+
+  <!-- Right: inspector -->
+  <aside id="inspector" class="glass"><div id="insp-scroll"></div></aside>
+
+  <!-- Bottom: filters -->
+  <div id="chips" class="glass" role="toolbar" aria-label="Filters"></div>
+  <div id="hint"><span>Scroll to zoom</span><i></i><span>Drag to orbit</span><i></i><span><kbd>E</kbd> <kbd>Q</kbd> or Shift-scroll to change floor</span><i></i><span><kbd>/</kbd> to search</span></div>
+
+  <!-- Bottom right: camera -->
+  <div id="tools">
+    <div class="toolgroup glass">
+      <button id="btn-top" class="tool" title="Top view (V)"><svg viewBox="0 0 16 16"><rect x="2.6" y="2.6" width="10.8" height="10.8" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></svg></button>
+      <button id="btn-me" class="tool" title="Centre on me (C)"><svg viewBox="0 0 16 16"><path d="M13.6 2.4 2.6 7l4.6 1.6L8.8 13.2Z" fill="currentColor"/></svg></button>
+    </div>
+    <div class="toolgroup glass">
+      <button id="btn-in" class="tool" title="Zoom in (+)"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <button id="btn-out" class="tool" title="Zoom out (−)"><svg viewBox="0 0 16 16"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Bottom left: scale and data note -->
+  <div id="footer">
+    <div id="scale"><div id="scalebar"></div><span id="scaletxt"></span></div>
+    <div id="note">Stars, planets and sectors: Hollow's generator. <span class="mock">Stations, bases, territory, danger, resources and ship are mock.</span></div>
+  </div>
+
+  <div id="hovercard"></div>
+  <div id="chooser" role="listbox" aria-label="Stars under the cursor"></div>
+  <div id="toast"></div>
+
+  <!-- Search: concept A's big panel, opened by the pill or "/" -->
+  <div id="scrim"></div>
+  <div id="top" role="search">
+    <div class="search-row">
+      <svg class="mag" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.6" cy="8.6" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m12.8 12.8 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input id="q" type="text" placeholder="Search stars and places, or ask “nearest fuel”" autocomplete="off" spellcheck="false" aria-label="Search the galaxy">
+      <button id="qclear" class="qclear" aria-label="Clear search" tabindex="-1"><svg viewBox="0 0 16 16"><path d="m4.5 4.5 7 7m0-7-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      <kbd class="qkey">esc</kbd>
+    </div>
+    <div id="panel" class="panel"></div>
+  </div>
+
+  <div id="loading"><div class="spinner"></div><span>Charting 37,409 nearby systems</span></div>
+</div>
+
+<!-- data: the real generator's output, then the mock layers -->
+<script src="../data/local.js"></script>
+<script src="../data/galaxy.js"></script>
+<script src="../data/mock.js"></script>
+<script src="territory.js"></script>
+<!-- concept A's engine-free search, intents and route planner (window.HD) -->
+<script src="data.js"></script>
+<!-- the star field: drawing, highlighting, picking and label ranking (window.HollowStars) -->
+<script src="stars.js"></script>
+<script src="app.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+window.HollowMap.start({ THREE, Line2, LineMaterial, LineGeometry });
+</script>
+</body>
+</html>
