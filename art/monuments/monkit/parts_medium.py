@@ -537,6 +537,183 @@ def geodesic_dome(b, centre, radius, cut_z, freq=9, strut=0.34, tint=OFFWHITE, k
     return pos, kept, edges, fallen
 
 
+def paraboloid_panels(b, r, f, z_off=0.0, rings=8, sectors=40, r_in=0.12, missing=0.08, tint=OFFWHITE,
+                      thick=0.12):
+    """The reflector of a dish: panels on the paraboloid z = z_off + rho^2 / (4 f) out to radius `r`, opening toward
+    local +Z; a `missing` share gone (more toward the rim), a few in a replacement shade."""
+    for i in range(rings):
+        r0 = r * (r_in + (1 - r_in) * i / rings)
+        r1 = r * (r_in + (1 - r_in) * (i + 1) / rings)
+        for j in range(sectors):
+            if b.rng.random() < missing * (0.4 + 1.2 * i / rings):
+                continue
+            a0 = 2 * math.pi * j / sectors
+            a1 = 2 * math.pi * (j + 1) / sectors
+            pts = [(rr * math.cos(aa), rr * math.sin(aa), z_off + rr * rr / (4 * f))
+                   for rr, aa in ((r0, a0), (r1, a0), (r1, a1), (r0, a1))]
+            back = [(p[0], p[1], p[2] - thick) for p in pts]
+            t = PALE if b.rng.random() < 0.06 else tint
+            b.mesh(pts + back, [[0, 1, 2, 3], [7, 6, 5, 4], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]],
+                   mat=PANEL, tint=t, solid=False, vary=0.025, smooth=False)
+
+
+def big_dish(b, at, diameter=60.0, elevation=50.0, azimuth=0.0, axis_h=30.0, base_z=9.5, f_ratio=0.36, yoke=9.0,
+             tint=OFFWHITE, steel=srgb(0.66, 0.68, 0.68), missing=0.08, rings=8, sectors=40, spokes=20, leg=6.0):
+    """A large az-el dish: an alidade of two braced A-frame towers standing on the azimuth track at `base_z`, the
+    elevation bearings at `axis_h`, the reflector (panels on a paraboloid of focal ratio `f_ratio`) on a back
+    structure of radial trusses and hoops, a cradle and counterweight behind, a quadripod carrying the
+    subreflector at the focus. The dish opens toward -Y turned by `azimuth`, tilted up by `elevation`.
+    Returns {"bearing": world points of the two bearings, "platform": height of the bearing platforms, ...}."""
+    r = diameter / 2
+    f = diameter * f_ratio
+    depth = r * r / (4 * f)
+    z_off = 2.0
+    out = {}
+    with b.frame(at, (0, 0, azimuth)):
+        # The alidade: two A-frames on bogies, braced together, with platforms at the bearings.
+        for s in (-1, 1):
+            x = s * yoke
+            for y in (-leg, leg):
+                b.beam((x, y, base_z), (x, 0.0, axis_h - 0.8), 0.9, 0.9, tint=steel, solid=True)
+            b.box((2.4, 2 * leg + 1.6, 1.4), (x, 0, base_z + 0.7), tint=srgb(0.4, 0.42, 0.42))
+            for y in (-leg + 0.4, leg - 0.4):
+                b.cyl(0.55, 0.5, (x, y, base_z + 0.3), (0, 90, 0), tint=DARK, sides=12, solid=False)
+            for zz in (base_z + 6.0, base_z + 12.0):
+                k = 1 - (zz - base_z) / (axis_h - base_z)
+                b.beam((x, -leg * k, zz), (x, leg * k, zz), 0.4, 0.4, tint=steel)
+            b.cyl(1.5, 1.6, (x, 0, axis_h), (0, 90, 0), tint=DARK, sides=20)
+            b.box((3.2, 4.0, 0.15), (x + s * 0.4, 0, axis_h - 1.6), mat=GRATE, tint=GREY)
+        for zz in (base_z + 1.6, base_z + 8.0):
+            k = 1 - (zz - base_z) / (axis_h - base_z)
+            for y in (-leg * k, leg * k):
+                b.beam((-yoke, y, zz), (yoke, y, zz), 0.5, 0.5, tint=steel)
+        b.beam((-yoke, -leg * 0.8, base_z + 1.6), (yoke, leg * 0.8, base_z + 1.6), 0.35, 0.35, tint=steel)
+        out["bearing"] = [b.world((-yoke, 0, axis_h)), b.world((yoke, 0, axis_h))]
+        out["platform"] = axis_h - 1.6
+        with b.frame((0, 0, axis_h), (90 - elevation, 0, 0)):
+            paraboloid_panels(b, r, f, z_off, rings, sectors, 0.12, missing, tint)
+            # Back structure: radial trusses (two chords and a web), hoops.
+            for j in range(spokes):
+                a = 2 * math.pi * (j + 0.5) / spokes
+                ca, sa = math.cos(a), math.sin(a)
+                top, bot = [], []
+                for k in range(6):
+                    rho = r * (0.12 + 0.88 * k / 5)
+                    zs = z_off + rho * rho / (4 * f) - 0.25
+                    top.append((rho * ca, rho * sa, zs))
+                    bot.append((rho * ca, rho * sa, zs - (3.2 - 2.4 * k / 5)))
+                b.tube(top, 0.13, tint=steel, sides=6)
+                b.tube(bot, 0.11, tint=steel, sides=6)
+                for k in range(5):
+                    b.beam(top[k], bot[k + 1], 0.08, 0.08, tint=steel)
+                    b.beam(bot[k], top[k], 0.08, 0.08, tint=steel)
+            for frac in (0.45, 0.75, 1.0):
+                rho = r * frac
+                zs = z_off + rho * rho / (4 * f) - 0.3
+                pts = [(rho * math.cos(2 * math.pi * k / 40), rho * math.sin(2 * math.pi * k / 40), zs)
+                       for k in range(41)]
+                b.tube(pts, 0.12, tint=steel, sides=6, cap=False)
+            # Hub, cradle to the bearings, counterweight.
+            b.cyl(r * 0.13, 3.4, (0, 0, z_off - 1.2), tint=tint, sides=24)
+            b.cyl(r * 0.13 + 0.05, 0.5, (0, 0, z_off - 0.2), tint=ORANGE, sides=24, solid=False, vary=0)
+            for s in (-1, 1):
+                for yy in (-3.0, 3.0):
+                    b.beam((s * yoke, 0, 0), (s * 2.8, yy, z_off - 2.6), 0.6, 0.6, tint=steel)
+                b.beam((s * yoke, 0, 0), (s * yoke * 0.5, 0, -6.5), 0.7, 0.7, tint=steel)
+            b.box((yoke * 1.1, 4.0, 4.5), (0, 0, -8.5), mat=CONCRETE, tint=srgb(0.62, 0.62, 0.6))
+            b.box((yoke * 1.1 + 0.1, 0.05, 0.6), (0, -2.03, -7.2), tint=YELLOW, solid=False, vary=0)
+            # Quadripod and subreflector at the focus, feed cone at the hub.
+            fz = z_off + f
+            for k in range(4):
+                a = math.pi / 4 + k * math.pi / 2
+                rho = r * 0.66
+                b.beam((rho * math.cos(a), rho * math.sin(a), z_off + rho * rho / (4 * f)), (0, 0, fz - 1.2), 0.45,
+                       0.6, tint=steel)
+            b.lathe([(0.0, fz - 0.6), (2.6, fz - 0.2), (2.7, fz + 0.1), (0.0, fz + 0.4)], (0, 0, 0), tint=tint,
+                    sides=24)
+            b.cyl(0.9, 2.4, (0, 0, fz - 1.6), tint=DARK, sides=16, solid=False)
+            b.cyl(1.6, 4.0, (0, 0, z_off + 2.0), tint=tint, sides=20, radius2=0.7)
+            out["rim_top"] = b.world((0, r, z_off + depth))
+            out["focus"] = b.world((0, 0, fz))
+    return out
+
+
+def drum_building(b, at, radius, height, doors=(), mat=FORMWORK, tint=CONCRETE_T, band=ORANGE, segments=28,
+                  roof=True):
+    """A round building of wall panels with real doorways (`doors`: (angle in degrees, width, door dict or None)),
+    a roof slab, a painted band."""
+    x, y, z = at
+    gaps = []
+    for ang, w, door in doors:
+        half = math.degrees((w / 2 + 0.25) / radius)
+        gaps.append((ang - half, ang + half, ang, w, door))
+    gaps.sort(key=lambda g: g[0])
+    for k in range(segments):
+        a0, a1 = 360.0 * k / segments, 360.0 * (k + 1) / segments
+        spans = [(a0, a1)]
+        for g in gaps:
+            g0, g1 = g[0], g[1]
+            new = []
+            for s0, s1 in spans:
+                hit = False
+                for lo, hi in ((g0, g1), (g0 + 360, g1 + 360), (g0 - 360, g1 - 360)):
+                    if hi <= s0 or lo >= s1:
+                        continue
+                    if lo > s0:
+                        new.append((s0, lo))
+                    if hi < s1:
+                        new.append((hi, s1))
+                    hit = True
+                    break
+                if not hit:
+                    new.append((s0, s1))
+            spans = new
+        for s0, s1 in spans:
+            if s1 - s0 < 0.2:
+                continue
+            mid = math.radians((s0 + s1) / 2)
+            ln = 2 * radius * math.sin(math.radians(s1 - s0) / 2) + 0.04
+            b.box((ln, 0.4, height), (x + math.cos(mid) * radius, y + math.sin(mid) * radius, z + height / 2),
+                  (0, 0, math.degrees(mid) + 90), mat=mat, tint=tint)
+            if band:
+                b.box((ln, 0.04, 0.6), (x + math.cos(mid) * (radius + 0.22), y + math.sin(mid) * (radius + 0.22),
+                                         z + height - 1.2), (0, 0, math.degrees(mid) + 90), mat=PAINT, tint=band,
+                      solid=False, vary=0, wear=0.5)
+    for g0, g1, ang, w, door in gaps:
+        a = math.radians(ang)
+        cx, cy = x + math.cos(a) * radius, y + math.sin(a) * radius
+        with b.frame((cx, cy, z), (0, 0, ang + 90)):
+            b.box((w + 0.5, 0.42, height - 2.5), (0, 0, 2.5 + (height - 2.5) / 2), mat=mat, tint=tint)
+            for xx in (-w / 2, w / 2):
+                b.box((0.1, 0.5, 2.5), (xx, 0, 1.25), mat=PAINT, tint=DARK, solid=False, vary=0)
+            if door is not None:
+                st = door.get("state", "shut" if door.get("chip") else "ajar")
+                if st == "shut":
+                    door_leaf(b, (-w / 2, 0, 0), w, 2.45, 0, tint=door.get("tint", GREY))
+                elif st != "gone":
+                    door_leaf(b, (-w / 2, 0.1, 0), w, 2.45, 80.0, tint=door.get("tint", GREY))
+                if door.get("chip"):
+                    reader(b, (w / 2 + 0.4, -0.21, 0), (0, 0, 0), door["chip"], door.get("cell", False))
+                props = {k: v for k, v in door.items() if k in ("kind_of", "chip", "cell", "room")}
+                props.setdefault("kind_of", "door")
+                b.marker("door", (0, 0, 0), 180.0, width=round(w, 2), height=2.45, **props)
+    if roof:
+        b.cyl(radius + 0.35, 0.4, (x, y, z + height + 0.2), mat=CONCRETE, tint=tint, sides=segments)
+
+
+def cable_trench(b, points, width=0.8, tint=CONCRETE_T):
+    """Precast covers over a cable trench along `points` (flush with the ground), every 1.5 m."""
+    pts = [Vector(p) for p in points]
+    for a, c in zip(pts, pts[1:]):
+        d = c - a
+        n = max(1, int(d.length / 1.5))
+        yaw = _yaw(d)
+        for i in range(n):
+            p = a + d * ((i + 0.5) / n)
+            b.box((d.length / n - 0.05, width, 0.12), (p.x, p.y, p.z + 0.06), (0, 0, yaw), mat=CONCRETE, tint=tint,
+                  solid=False, vary=0.04, wear=0.6)
+
+
 # ------------------------------------------------------------------------------------------------ overgrowth
 
 
@@ -833,6 +1010,148 @@ def wire_fence(b, points, post=4.0, height=1.3, broken=0.15, tint=WOOD, wire=srg
                       tint=wire, segments=3)
 
 
+# ------------------------------------------------------------------------------------------------ Reclaimer work
+
+SCRAP = ((CORRUGATED, srgb(0.62, 0.62, 0.6)), (CORRUGATED, srgb(0.70, 0.45, 0.3)), (RUST, (1.0, 1.0, 1.0)),
+         (RUST, (1.0, 1.0, 1.0)), (PAINT, srgb(0.36, 0.48, 0.55)), (PAINT, srgb(0.62, 0.30, 0.18)),
+         (PAINT, srgb(0.78, 0.74, 0.62)), (HULL, srgb(0.75, 0.75, 0.73)), (PAINT, srgb(0.38, 0.44, 0.3)))
+
+
+def scrap_wall(b, a, c, height=2.6, gaps=0.06, posts=2.6, marks=0.25):
+    """A Reclaimer wall of welded scrap from `a` to `c`: pipe and rail posts, overlapping sheets of corrugated,
+    rusted and painted steel and hull plate of uneven sizes, some tilted; `gaps` leaves holes; sprayed marks."""
+    a, c = Vector(a), Vector(c)
+    d = Vector((c.x - a.x, c.y - a.y, 0.0))
+    length = d.length
+    rng = b.rng
+    with b.frame(tuple(a), (0, 0, _yaw(d))):
+        n = max(1, int(math.ceil(length / posts)))
+        for i in range(n + 1):
+            x = length * i / n
+            h = height + rng.uniform(0.1, 0.6)
+            b.box((0.12, 0.12, h), (x, 0.1, h / 2), (rng.uniform(-3, 3), rng.uniform(-3, 3), 0), mat=RUST,
+                  tint=(1, 1, 1), solid=False, vary=0.05)
+        x = 0.0
+        while x < length - 0.05:
+            w = min(rng.uniform(0.9, 2.2), length - x)
+            z0 = 0.0
+            for row in range(2):
+                h = rng.uniform(1.1, 1.6) if row == 0 else max(0.4, height - z0 + rng.uniform(-0.35, 0.25))
+                if rng.random() >= gaps:
+                    mat, tint = SCRAP[rng.randrange(len(SCRAP))]
+                    b.box((w + rng.uniform(0.1, 0.3), 0.04, h), (x + w / 2, rng.uniform(-0.07, 0.07), z0 + h / 2),
+                          (0, rng.uniform(-5, 5), rng.uniform(-1.5, 1.5)), mat=mat, tint=tint, solid=False,
+                          vary=0.05, wear=0.7)
+                z0 += h - rng.uniform(0.05, 0.2)
+            if rng.random() < marks:
+                mark(b, (x + w / 2, -0.12, rng.uniform(0.8, 1.6)), (0, 0, 0), rng.uniform(0.7, 1.2),
+                     rng.choice(("slash", "ring", "tally", "arrow", "zigzag")))
+            x += w
+        b.collide_box(Vector((length / 2, 0, height / 2)), (length, 0.25, height), (0, 0, 0))
+
+
+def sheet(b, grid, thick=0.03, mat=MATTE, tint=TARP_BLUE, solid=False):
+    """A thin closed sheet (tarp, canvas, membrane) through a grid of points (rows of equal length)."""
+    ny, nx = len(grid), len(grid[0])
+    up = Vector((0, 0, thick / 2))
+    verts = [Vector(p) + up for row in grid for p in row] + [Vector(p) - up for row in grid for p in row]
+    off = nx * ny
+    faces = []
+    for j in range(ny - 1):
+        for i in range(nx - 1):
+            q = [j * nx + i, j * nx + i + 1, (j + 1) * nx + i + 1, (j + 1) * nx + i]
+            faces.append(q)
+            faces.append([v + off for v in reversed(q)])
+    ring = [i for i in range(nx)] + [j * nx + nx - 1 for j in range(1, ny)] + \
+           [(ny - 1) * nx + i for i in range(nx - 2, -1, -1)] + [j * nx for j in range(ny - 2, 0, -1)]
+    for k in range(len(ring)):
+        u, v = ring[k], ring[(k + 1) % len(ring)]
+        faces.append([u, v, v + off, u + off])
+    return b.mesh(verts, faces, mat=mat, tint=tint, solid=solid, vary=0.06, smooth=True, wear=0.6)
+
+
+def tarp_shelter(b, at, rot, w=4.0, d=3.0, h_front=2.3, h_back=2.0, tint=TARP_BLUE, sag=0.25, tattered=False):
+    """A tarp stretched over four poles, sagging in the middle (front toward -Y)."""
+    rng = b.rng
+    with b.frame(at, rot):
+        for x in (-w / 2, w / 2):
+            for y, hh in ((-d / 2, h_front), (d / 2, h_back)):
+                b.cyl(0.04, hh + 0.1, (x, y, (hh + 0.1) / 2), mat=PAINT, tint=GREY, sides=6, solid=False, vary=0)
+        nx, ny = 5, 4
+        grid = []
+        for j in range(ny + 1):
+            v = j / ny
+            row = []
+            for i in range(nx + 1):
+                u = i / nx
+                z = h_front + (h_back - h_front) * v - sag * math.sin(math.pi * u) * math.sin(math.pi * v)
+                edge = tattered and j == 0
+                row.append((-w / 2 - 0.15 + (w + 0.3) * u, -d / 2 - 0.25 + (d + 0.4) * v,
+                            z - (rng.uniform(0.0, 0.5) if edge else 0.0)))
+            grid.append(row)
+        sheet(b, grid, tint=tint)
+        for x in (-w / 2, w / 2):
+            cable(b, (x, -d / 2, h_front), (x + (0.8 if x > 0 else -0.8), -d / 2 - 1.2, 0.05), sag=0.0, radius=0.01,
+                  tint=srgb(0.5, 0.45, 0.35), segments=1)
+        b.collide_box(Vector((0, 0, (h_front + h_back) / 2)), (w, d, 0.1), (0, 0, 0))
+
+
+def string_lights(b, a, c, sag=0.06, spacing=1.2, colour=WARM_LAMP, marker_every=3):
+    """Bulbs strung on a cable between two points; a light marker every few bulbs."""
+    a, c = Vector(a), Vector(c)
+    cable(b, a, c, sag=sag, radius=0.012, tint=BLACK, segments=8)
+    ln = (c - a).length
+    n = max(1, int(ln / spacing))
+    for i in range(1, n):
+        t = i / n
+        p = a.lerp(c, t)
+        p.z -= 4 * sag * ln * t * (1 - t) + 0.08
+        b.box((0.08, 0.08, 0.11), tuple(p), mat=LAMP, tint=colour, solid=False, vary=0)
+        if i % (marker_every * 2) == marker_every:
+            b.marker("light", tuple(p), colour=[round(v, 3) for v in colour], range=8.0)
+
+
+def barricade(b, at, rot, length=6.0, kind="mixed"):
+    """A Reclaimer barricade: tyres, sandbags, a sheet, a jersey barrier."""
+    rng = b.rng
+    with b.frame(at, rot):
+        x = -length / 2
+        while x < length / 2:
+            k = rng.random()
+            if k < 0.35:
+                for z in range(rng.randint(2, 4)):
+                    b.cyl(0.42, 0.26, (x + 0.45, rng.uniform(-0.05, 0.05), 0.13 + z * 0.26), mat=MATTE,
+                          tint=srgb(0.09, 0.09, 0.09), sides=12, solid=False, vary=0.05)
+                x += 0.95
+            elif k < 0.7:
+                for row in range(3):
+                    for i in range(2):
+                        b.box((0.6, 0.38, 0.17), (x + 0.32 + i * 0.6 + (0.3 if row % 2 else 0), 0, 0.09 + row * 0.16),
+                              (0, 0, rng.uniform(-6, 6)), mat=MATTE, tint=srgb(0.55, 0.50, 0.38), bevel=0.06,
+                              solid=False, vary=0.08)
+                x += 1.3
+            else:
+                mat, tint = SCRAP[rng.randrange(len(SCRAP))]
+                b.box((1.6, 0.05, 1.3), (x + 0.8, 0.1, 0.62), (rng.uniform(-10, 10), 0, rng.uniform(-8, 8)), mat=mat,
+                      tint=tint, solid=False)
+                x += 1.6
+        b.collide_box(Vector((0, 0, 0.6)), (length, 0.6, 1.2), (0, 0, 0))
+
+
+def power_pole(b, at, height=9.0, arm=1.4, tint=srgb(0.66, 0.65, 0.62), rot=(0, 0, 0)):
+    """A concrete distribution pole with a cross arm and three insulators; returns the three wire points."""
+    x, y, z = at
+    b.cyl(0.16, height, (x, y, z + height / 2), mat=CONCRETE, tint=tint, sides=8, radius2=0.11)
+    pts = []
+    with b.frame(at, rot):
+        b.box((arm * 2, 0.12, 0.14), (0, 0, height - 0.6), tint=DARK, solid=False)
+        for xx in (-arm + 0.1, 0.0, arm - 0.1):
+            zz = height - 0.45 + (0.25 if xx == 0.0 else 0.0)
+            b.cyl(0.05, 0.22, (xx, 0, zz), mat=GLOSS, tint=srgb(0.6, 0.35, 0.22), sides=6, solid=False, vary=0)
+            pts.append(b.world((xx, 0, zz + 0.12)))
+    return pts
+
+
 # ------------------------------------------------------------------------------------------------ preview helpers
 
 
@@ -899,7 +1218,88 @@ def _sack_pallet(b):
     b.collide_box(Vector((0, 0, 0.4)), (1.2, 1.0, 0.8), (0, 0, 0))
 
 
+def _rack_row(b):
+    """Three equipment cabinets in a row with status lamps and a cable tray over them."""
+    for i, x in enumerate((-0.62, 0.0, 0.62)):
+        b.box((0.6, 0.9, 2.1), (x, 0, 1.05), mat=PAINT, tint=srgb(0.26, 0.28, 0.3), bevel=0.015, solid=False)
+        b.box((0.52, 0.02, 1.8), (x, -0.46, 1.1), mat=PAINT, tint=srgb(0.18, 0.19, 0.2), solid=False, vary=0)
+        for k in range(5):
+            b.box((0.4, 0.025, 0.05), (x, -0.475, 0.4 + k * 0.32), mat=PAINT, tint=srgb(0.35, 0.37, 0.4),
+                  solid=False, vary=0)
+            col = (CHIP["cyan"], CHIP["amber"], srgb(0.2, 0.9, 0.3))[(i + k) % 3]
+            b.box((0.04, 0.03, 0.03), (x + 0.15, -0.48, 0.42 + k * 0.32), mat=LAMP, tint=col, solid=False, vary=0)
+    b.box((2.0, 0.4, 0.08), (0, 0, 2.3), mat=GRATE, tint=GREY, solid=False)
+    for x in (-0.9, 0.9):
+        b.box((0.04, 0.04, 0.2), (x, 0, 2.2), mat=PAINT, tint=GREY, solid=False)
+    b.tube([(-1.0, 0.05, 2.36), (1.0, 0.05, 2.36)], 0.05, tint=BLACK, sides=6)
+    b.collide_box(Vector((0, 0, 1.05)), (1.86, 0.9, 2.1), (0, 0, 0))
+
+
+def _console(b):
+    """A control desk: a sloped panel of switches and two screens."""
+    b.box((1.8, 0.8, 0.75), (0, 0, 0.375), mat=PAINT, tint=srgb(0.80, 0.80, 0.78), bevel=0.02, solid=False)
+    b.box((1.8, 0.5, 0.06), (0, -0.05, 0.92), (-25, 0, 0), mat=PAINT, tint=srgb(0.3, 0.32, 0.34), solid=False)
+    for k in range(10):
+        col = (CHIP["cyan"], CHIP["amber"], srgb(0.2, 0.9, 0.3), RED)[k % 4]
+        b.box((0.05, 0.05, 0.03), (-0.75 + k * 0.16, -0.12, 0.98), (-25, 0, 0), mat=LAMP if k % 3 == 0 else PAINT,
+              tint=col, solid=False, vary=0)
+    for x in (-0.45, 0.45):
+        b.box((0.7, 0.06, 0.45), (x, 0.25, 1.3), (8, 0, 0), mat=PAINT, tint=DARK, solid=False)
+        b.box((0.62, 0.02, 0.38), (x, 0.21, 1.3), (8, 0, 0), mat=GLASS, solid=False, vary=0)
+        b.box((0.06, 0.06, 0.4), (x, 0.3, 1.0), mat=PAINT, tint=DARK, solid=False)
+    b.collide_box(Vector((0, 0, 0.5)), (1.8, 0.8, 1.0), (0, 0, 0))
+
+
+def _utility_truck(b):
+    """A six-wheeled utility truck: cab-over, a flatbed with a toolbox and a folded loader crane (tinted per
+    instance)."""
+    body = (1.0, 1.0, 1.0)
+    b.box((7.2, 1.0, 0.35), (0, 0, 0.75), mat=PAINT, tint=DARK)
+    for x in (-2.4, -1.2, 2.5):
+        for y in (-1.05, 1.05):
+            b.cyl(0.52, 0.4, (x, y, 0.52), (90, 0, 0), mat=MATTE, tint=srgb(0.1, 0.1, 0.1), sides=14, solid=False)
+            b.cyl(0.28, 0.42, (x, y, 0.52), (90, 0, 0), mat=PAINT, tint=GREY, sides=10, solid=False, vary=0)
+    b.box((2.0, 2.4, 2.1), (2.6, 0, 2.0), mat=PAINT, tint=body, bevel=0.08)
+    b.box((0.06, 2.1, 0.9), (3.62, 0, 2.45), (0, -12, 0), mat=GLASS, solid=False, vary=0)
+    for y in (-1.21, 1.21):
+        b.box((1.0, 0.05, 0.7), (2.9, y, 2.5), mat=GLASS, solid=False, vary=0)
+    b.box((0.25, 2.5, 0.4), (3.7, 0, 1.15), mat=PAINT, tint=DARK, solid=False)
+    for y in (-0.8, 0.8):
+        b.box((0.06, 0.3, 0.18), (3.84, y, 1.35), mat=LAMP, tint=srgb(1.0, 0.92, 0.75), solid=False, vary=0)
+    b.box((1.8, 2.3, 0.12), (2.6, 0, 3.12), mat=PAINT, tint=ORANGE, solid=False, vary=0)
+    b.box((4.8, 2.4, 0.18), (-1.3, 0, 1.05), mat=PAINT, tint=srgb(0.4, 0.42, 0.42))
+    for y in (-1.15, 1.15):
+        b.box((4.8, 0.08, 0.5), (-1.3, y, 1.4), mat=PAINT, tint=body, solid=False)
+    b.box((1.2, 2.3, 0.9), (0.95, 0, 1.6), mat=PAINT, tint=srgb(0.55, 0.57, 0.58), bevel=0.03)
+    b.cyl(0.35, 0.8, (0.2, 0.7, 1.55), mat=PAINT, tint=YELLOW, sides=12, solid=False)
+    b.beam((0.2, 0.7, 1.9), (-3.2, 0.7, 2.3), 0.35, 0.4, tint=YELLOW)
+    b.beam((-3.2, 0.7, 2.3), (-1.0, 0.7, 2.0), 0.28, 0.3, tint=YELLOW)
+    b.collide_box(Vector((0, 0, 1.4)), (7.4, 2.5, 2.8), (0, 0, 0))
+
+
+def _fire_barrel(b):
+    """A rusted drum burning scrap wood: the Reclaimers' brazier, on a ring of ash."""
+    b.cyl(0.65, 0.02, (0, 0, 0.01), mat=MATTE, tint=srgb(0.12, 0.11, 0.1), sides=12, solid=False, vary=0)
+    b.cyl(0.3, 0.9, (0, 0, 0.45), mat=RUST, tint=(1, 1, 1), sides=14, cap=False, solid=False)
+    b.cyl(0.29, 0.05, (0, 0, 0.3), mat=RUST, tint=(1, 1, 1), sides=14, solid=False)
+    for k in range(6):
+        a = 2 * math.pi * k / 6
+        b.box((0.08, 0.02, 0.1), (math.cos(a) * 0.3, math.sin(a) * 0.3, 0.2), (0, 0, math.degrees(a) + 90),
+              mat=PAINT, tint=BLACK, solid=False, vary=0)
+    for k in range(4):
+        a = 2 * math.pi * k / 4 + 0.4
+        b.beam((math.cos(a) * 0.15, math.sin(a) * 0.15, 0.6), (math.cos(a) * 0.05, math.sin(a) * 0.05, 1.05), 0.07,
+               0.07, mat=MATTE, tint=srgb(0.2, 0.16, 0.12))
+    b.cyl(0.24, 0.35, (0, 0, 0.98), mat=LAMP, tint=srgb(1.0, 0.45, 0.12), sides=8, radius2=0.04, solid=False)
+    b.marker("light", (0, 0, 1.2), colour=[1.0, 0.45, 0.12], range=7.0, flicker=True)
+    b.collide_box(Vector((0, 0, 0.45)), (0.6, 0.6, 0.9), (0, 0, 0))
+
+
 kit.PIECES.update({
+    "fire-barrel": _fire_barrel,
     "crate-stack": _crate_stack,
     "sack-pallet": _sack_pallet,
+    "rack-row": _rack_row,
+    "console": _console,
+    "utility-truck": _utility_truck,
 })
