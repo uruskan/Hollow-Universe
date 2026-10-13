@@ -10,6 +10,9 @@ reviewed 2026-10-12/13. This file keeps the conclusions so nothing is lost while
   orbits (B). This is `concept-ab`.
 - **C (flat reach map with an atlas grid) is out.** Transit (metro diagram) looks good but doesn't make sense to use; parked.
   Lens is a good idea but unusable as built; parked.
+- **Hollow's own system map stays.** The owner rates the Godot client's system map (bodies list on the left, time
+  controls at the top, body card on the right, Compressed / True scale, the planet textures) as "very good". The web
+  prototypes never replace it: the real map work builds on it, and B's "Realistic" orbit view is only its web stand-in.
 - **Camera**: holding the left mouse button and moving up/down must tilt the view freely through the full range. Every
   prototype so far clamped the tilt, and that "drives him crazy". Fix in any future prototype and in the real map.
 
