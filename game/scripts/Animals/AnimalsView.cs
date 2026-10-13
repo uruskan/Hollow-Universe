@@ -28,6 +28,7 @@ public partial class AnimalsView : Node3D
     private readonly HashSet<uint> _seen = new();
     private readonly List<uint> _gone = new();
     private readonly List<AnimalFrame> _frames = new();
+    private bool _announced;
 
     /// <summary>The ground game's client: its replicated animals.</summary>
     public GameClient? Client { get; set; }
@@ -170,6 +171,11 @@ public partial class AnimalsView : Node3D
         AnimalView view = AnimalView.Create(model);
         view.Sounds = Sounds;
         AddChild(view);
+        if (!_announced)
+        {
+            _announced = true;
+            GD.Print($"[animals] first animal drawn: {species}");
+        }
         return view;
     }
 

@@ -25,6 +25,52 @@ public static class AnimalNetTests
     }
 
     /// <summary>
+    /// GROUND.md §6.9 on the real planet: a player at the landing site has the spawn areas around her surveyed from the
+    /// planet's own biomes and forests, and herds come out in them, none nearer than 70 m; walking up to one, her client
+    /// sees it.
+    /// </summary>
+    [Test]
+    public static void AnimalsComeOutOnThePlanet()
+    {
+        using var rig = new LoopbackRig(planet: true, animals: true);
+        GameClient ada = rig.Join("Ada");
+        rig.WaitUntilPlaying();
+        var id = new EntityId(ada.EntityId.Value);
+        Vector3 Her(Hollow.Server.GameServer sv) => sv.Zone.TryFindPlayer(id, out Entity e, out _) ? sv.Zone.Entities.Get<Character>(e).State.Position : default;
+        // To the landing site, inland (she arrived on a beach).
+        rig.Server.Inspect(sv =>
+        {
+            sv.Zone.TryFindPlayer(id, out Entity e, out _);
+            Vector3 ground = sv.Zone.GroundAt(0, 0);
+            sv.Zone.Teleport(e, ground + sv.Zone.Frame.UpAt(ground) * 0.05f);
+            return 0;
+        });
+        RunUntil(rig, () => rig.Server.Inspect(sv => sv.Zone.Animals!.Count) > 0, "herds out around the landing site", 20);
+        rig.Run(1, (_, _) => default);
+        (string status, float nearest, Vector3 herd) = rig.Server.Inspect(sv =>
+        {
+            Vector3 her = Her(sv);
+            Animal a = sv.Zone.Animals!.All.OrderBy(x => Vector3.Distance(x.Position, her)).First();
+            return (sv.AnimalStatus(), Vector3.Distance(a.Position, her), a.Position);
+        });
+        Fixtures.Report($"around the landing site: {status}; the nearest {nearest:0} m away");
+        Assert.True(nearest >= 60, $"none came out on top of her ({nearest:0} m)");
+
+        // She goes up to the nearest herd: it comes into her view.
+        rig.Server.Inspect(sv =>
+        {
+            sv.Zone.TryFindPlayer(id, out Entity e, out _);
+            Vector3 her = Her(sv);
+            Vector3 d = Vector3.Normalize(new Vector3(her.X - herd.X, 0, her.Z - herd.Z));
+            Vector3 ground = sv.Zone.GroundAt(herd.X + d.X * 45, herd.Z + d.Z * 45);
+            sv.Zone.Teleport(e, ground + sv.Zone.Frame.UpAt(ground) * 0.05f);
+            return 0;
+        });
+        RunUntil(rig, () => ada.Animals.Count > 0, "animals in her view", 10);
+        Assert.True(ada.Animals.All(a => a.Species != null), "of species her data knows: " + string.Join(", ", ada.Animals.Select(a => a.SpeciesKey)));
+    }
+
+    /// <summary>
     /// GROUND.md §6.9 over the network: a herd the server places in front of a player appears in her client as animals
     /// of its species (not as characters), interpolated where the server has them; a hit makes one flinch and the herd
     /// run (the client sees the hurt event and the flight); a kill leaves a corpse that stays in view with its harvest

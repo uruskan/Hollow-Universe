@@ -63,10 +63,13 @@ public interface IAnimalHost
 /// </summary>
 public sealed partial class AnimalWorld
 {
-    /// <summary>The AI thinks every so many ticks: engaged (fleeing, chasing, alert) and calm.</summary>
+    /// <summary>
+    /// The AI thinks every so many ticks, staggered by animal: engaged (fleeing, chasing, alert) 7.5 times a second,
+    /// calm 5 times; movement runs every tick.
+    /// </summary>
     public const int EngagedThinkTicks = 4;
 
-    public const int CalmThinkTicks = 8;
+    public const int CalmThinkTicks = 6;
 
     /// <summary>Animals farther than this from every player sleep (beyond what anyone can see).</summary>
     public const float SleepDistance = 340f;

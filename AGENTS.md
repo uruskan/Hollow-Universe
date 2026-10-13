@@ -72,6 +72,9 @@ blender -b --factory-startup --python art/build.py   # every item and world mode
 dotnet run --project tests/Hollow.Tests -- Building   # the building rules, over the network and saved (GROUND.md §6.3, §6.5)
 dotnet run --project tests/Hollow.Tests -- Ship   # G6: the Tin Finch's flight, boarding, building, prediction, storage (GROUND.md §6.7)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly   # G6: bots that board their ships and fly loops
+dotnet run --project tests/Hollow.Tests -- Animal   # G7: animals' AI, harvest, cooking, spawning, armour, cost, network and a restart (GROUND.md §6.9)
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit --animals 200   # G7: 200 animals among the bots (GROUND.md §5.10)
+blender -b --factory-startup --python art/animals/build_animals.py [-- deer boar wolf bear] [--preview <png>]   # the animals → game/assets/animals (GROUND.md §6.9)
 blender -b --factory-startup --python art/fx/build.py   # the effects' textures, decals and debris → game/assets/fx (GROUND.md §9.3)
 # The building and door kits into game/assets/building (Blender 5.2.1, D:/GameDev/Tools/blender-5.2.1-windows-x64):
 blender --background --factory-startup --python art/import/building_kit.py [-- twig wood stone metal armoured]
@@ -111,6 +114,7 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view models --shot mod
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --scene forest --shot forest.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --tour   # the whole flying loop through the keys; exit code 0 when it lands and steps out
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view animals --scene wolves --shot wolves.png   # the animal sandbox (GROUND.md §6.9)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view sounds --sound rifle.shot --distance 320 --ambience --shot sounds.png
 $GODOT --headless --path game -- --view sounds --sound-check   # every sound file loaded and measured in the engine
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png   # effects (GROUND.md §9.3)
@@ -201,6 +205,9 @@ Client options (after `--`):
   (and `--raid-radius <m>`; servers without a database) builds claimed huts on a ring for raid tests;
   `raidbase <name> [grade]` builds one in front of a player, listing them.
   `ship <name>` sets a Tin Finch down beside a player, theirs and fuelled (G6).
+  G7's animals: `--no-animals` (none), `--animals <n> [--animal-radius <m>]` (a fixed population of n round the landing
+  site, always out, for load tests); admin `animals` (how many of each, what they cost) and `spawn <species> <name> [n]
+  [m]` (a herd of deer, boar, wolf or bear m metres in front of a player).
 - Ship sandbox (GROUND.md §6.7): `--view ship`, local, on the first world's real surface: you start beside your Tin
   Finch on a vehicle workbench's bay. `--scene pad|hover|forest|cockpit|slope|ceiling` (screenshots hold the scene's
   camera), `--hour <h>` (the play clock's hour at the landing site; 9.5 by default) or `--time <UTC>`, `--trace` (the ship's speed, height, attitude and thrust once a second), `--tour` (plays the
@@ -208,6 +215,11 @@ Client options (after `--`):
   hatch, L lock, R refuel. In the seat: the mouse is the stick, W/S throttle lever (X zero), A/D strafe, Space/C up and
   down, Q/E roll, arrows a keyboard stick, Shift boost, Z flight assist, V cockpit or chase camera, F step out, H hatch,
   L lock, J descend from orbit; Esc frees the mouse.
+- Animal sandbox (GROUND.md §6.9): `--view animals`, a local zone on the first world's real surface with scenes at
+  clearings near the landing site: `--scene herd|wolves|bear|harvest|cooking` (screenshots wait for the scene's moment:
+  the pack stalking, the bear rearing, a cut going in), `--hour <h>` (local solar time; each scene has its own),
+  `--trace` (the scene's animals once a second), `--sound-trace`, `--mute`, `--hide-ui`. Keys: 1–5 scenes, `[` `]` the
+  hour, the wheel zooms, the right mouse drags the view round.
 - Checks: `--physics-check` runs the physics check inside the client and quits; its line must match the one
   `dotnet run --project tests/Hollow.Tests -- MovementCheck` prints.
 - Build sandbox (GROUND.md §6.3): `--view build`, local, on the first world's stand-in surface. `--scene
@@ -248,6 +260,9 @@ Client options (after `--`):
 | `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
 | `game/assets/building` | The building and door kits as GLB (three levels of detail, Godot collision names) and their 2K textures (GROUND.md §6.3) |
 | `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines and the wheels' view model |
+| `src/Hollow.Simulation/Animals` | G7's animals (GROUND.md §6.9): `AnimalWorld` (the staggered AI tick, perception, the brain, steering, spawning), `NavGrid` (ground, water, slopes and trunks in 2 m cells, short paths), `AnimalHitboxes`; the zone's side in `Zone.Animals.cs`; the numbers in `game/data/ground/animals.json` |
+| `game/scripts/Animals` | Animals drawn (GROUND.md §6.9): `AnimalView` (model, clips, footsteps, voice, blood), `AnimalsView` (the seam: `Client` and `Refresh`), the sandbox (`--view animals`) |
+| `art/animals` | `build_animals.py`: the deer, boar, wolf and bear in Blender from text (metaball anatomy, skeleton, clips) → `game/assets/animals` |
 | `game/scripts/Ships` | Ships drawn and flown (GROUND.md §6.7): `ShipView` (model, plumes, lights, hatch), `ShipCamera`, `ShipControls`, `ShipHud`, the ship sandbox (`--view ship`, `--tour`) |
 | `game/data/ground` | The ground game's numbers; `building.json`: pieces, grades, sockets, costs, doors, locks, the claim device |
 | `art/import` | Blender scripts that convert the PSG kits into `game/assets/` |

@@ -40,6 +40,7 @@ public partial class GroundView : Node3D
     private NatureView _nature = null!;
     private ThingsView _things = null!;
     private PeopleView _people = null!;
+    private HollowUniverse.Animals.AnimalsView _animals = null!;
     private FirstPersonView _firstPerson = null!;
     private GroundUi _ui = null!;
     private GroundOverlay _overlay = null!;
@@ -156,6 +157,9 @@ public partial class GroundView : Node3D
         AddChild(_things);
         _people = new PeopleView { Name = "People", Client = Client };
         AddChild(_people);
+        // G7's animals (GROUND.md §6.9): drawn from the client's replicated ones.
+        _animals = new HollowUniverse.Animals.AnimalsView { Name = "Animals", Client = Client };
+        AddChild(_animals);
         _firstPerson = new FirstPersonView { Name = "FirstPerson", Client = Client };
         AddChild(_firstPerson);
         var buildHud = new HollowUniverse.Build.BuildHud { Name = "BuildHud" };
@@ -435,6 +439,7 @@ public partial class GroundView : Node3D
         _things.Refresh(Client.ClockSeconds);
         Time("things", ref t0);
         _people.Refresh(delta);
+        _animals.Refresh(delta);
         Time("people", ref t0);
         _build.Refresh(delta, eye, forward);
         // The lines under the crosshair give way to the keypad and the options.

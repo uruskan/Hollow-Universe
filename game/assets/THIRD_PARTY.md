@@ -201,6 +201,7 @@ lock's and the charge timer's piezo tones (`art/audio/synth.py`).
 | [2452](https://bigsoundbank.com/s2452.html) | Body Fall #1 | https://bigsoundbank.com/UPLOAD/bwf-en/2452.wav (222,032 bytes) | `4770f7b32fcab7437c5b1ce79b80df592f3ff76885c49c62fb367d74a4f3430c` |
 | [2453](https://bigsoundbank.com/s2453.html) | Body Fall #2 | https://bigsoundbank.com/UPLOAD/bwf-en/2453.wav (221,794 bytes) | `852d68dbf84df1399182dbb938594203a80eea24a681ac4ffe473dc0dca3b3ad` |
 | [2454](https://bigsoundbank.com/s2454.html) | Body fall #3 | https://bigsoundbank.com/UPLOAD/bwf-en/2454.wav (213,650 bytes) | `5fb4940962fcfd5f00c516c204f46036ae8046ddb201a2913e1eac557d8c2a08` |
+| [2455](https://bigsoundbank.com/s2455.html) | Body fall #4 | https://bigsoundbank.com/UPLOAD/bwf-en/2455.wav (168,478 bytes) | `a3ae2782efe4668afeaa3597afecc6d60df7ad5baa5c0e2ef46ae6dc1e8f8f67` |
 | [2459](https://bigsoundbank.com/s2459.html) | Punch #4 | https://bigsoundbank.com/UPLOAD/bwf-en/2459.wav (123,806 bytes) | `140e2b97f610d3b5035d17b70fbdd39e207da7dc289dda89417d4c13eff2f851` |
 | [2460](https://bigsoundbank.com/s2460.html) | Punch #5 | https://bigsoundbank.com/UPLOAD/bwf-en/2460.wav (123,770 bytes) | `2c40a361dbaa2f01971448215df2e5ff2925d4b7ccfd8d390e5ed073610e3db3` |
 | [2461](https://bigsoundbank.com/s2461.html) | Punch #6 | https://bigsoundbank.com/UPLOAD/bwf-en/2461.wav (128,938 bytes) | `3ce4c0be524362ec90d6a5591dba940ed88c3b5e5f392f0783031246f48389dd` |
@@ -225,6 +226,17 @@ lock's and the charge timer's piezo tones (`art/audio/synth.py`).
 | [3463](https://bigsoundbank.com/s3463.html) | Carrion Crow #3 | https://bigsoundbank.com/UPLOAD/bwf-en/3463.wav (392,316 bytes) | `46bc06fea635eefeafe35751c175dea30b6cd47c03695bbf24b3ecd81cf8ea42` |
 | [3589](https://bigsoundbank.com/s3589.html) | Anvil #1 | https://bigsoundbank.com/UPLOAD/bwf-en/3589.wav (4,727,472 bytes) | `ebc51af2da517a3b3a2e21a7f7be1ce0c5942f3583a0a8702506af87d4ca10c0` |
 | [3590](https://bigsoundbank.com/s3590.html) | Anvil #2 | https://bigsoundbank.com/UPLOAD/bwf-en/3590.wav (3,170,872 bytes) | `62c4aa8d870f3a5a7b94825bd5cbf44261013f430169b589536a4402520367d1` |
+## Animals (`animals/`, `audio/animals/`)
+
+All our own (G7, GROUND.md §6.9); nothing was downloaded for them:
+
+| Path | What | Made by | Licence |
+|---|---|---|---|
+| `animals/*.glb`, `animals/*.json` | The deer, boar, wolf and bear: metaball anatomy polygonised into a skin with three levels of detail, rigid parts (antlers, hooves, tusks, claws, eyes), a quadruped skeleton and eleven procedural clips each, with their facts (clip lengths, gait speeds, the attack's hit) | `art/animals/build_animals.py` (Blender 5.2) | Ours |
+| `animals/textures/`, `materials/animal_*.tres` | The shared fur detail and normal textures (made in code) and the fur and glossy materials | `art/animals/build_animals.py` | Ours |
+| `audio/animals/*_call`, `_alarm`, `_threat`, `_attack`, `_hurt`, `_death` | The animals' voices, synthesised (a glottal source through formant resonators, a growl's rattle, clicks for teeth and a jaw), a howl with the outdoor tail of `art/audio/synth.py`; deaths end with BigSoundBank's body falls 2452–2455 (above) | `art/audio/animal_voices.py`, `art/audio/events.py` | Ours, and CC0 for the falls |
+| `audio/animals/*_step` | Footsteps: BigSoundBank's grass steps 1253 and 0854 (above), quicker and lighter for hooves (with a made hoof's tock), softer for paws, slower for the bear, with Kenney's soft thumps under the bear's | `art/audio/events.py` | CC0 |
+
 ## Effects (`fx/`)
 
 | Path | What | Source | Licence |

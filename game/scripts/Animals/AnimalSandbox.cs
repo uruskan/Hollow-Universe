@@ -126,6 +126,10 @@ public partial class AnimalSandbox : Node3D
         {
             _audio = new AudioDirector { Name = "Audio", Listener = _world.Camera };
             AddChild(_audio);
+            if (Options.ContainsKey("sound-trace"))
+            {
+                _audio.Started += (key, layer, distance, db, pitch) => GD.Print($"[sound] {key} {db:0.0} dB at {distance:0} m");
+            }
         }
         _animals = new AnimalsView { Name = "Animals", Source = () => _frames, Eye = () => _world.Camera.GlobalPosition };
         AddChild(_animals);

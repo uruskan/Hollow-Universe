@@ -168,7 +168,7 @@ public partial class AnimalSandbox
     {
         Person? dummy = null;
         Herd? pack = null;
-        var scene = new Scene { Name = "wolves", Site = site, Toward = toward, Hour = 16.5, Fov = 34 };
+        var scene = new Scene { Name = "wolves", Site = site, Toward = toward, Hour = 16.5, Fov = 38 };
         scene.Build = () =>
         {
             dummy = AddPerson("Dummy", site, YawOf(toward), dummy: true);
@@ -185,7 +185,7 @@ public partial class AnimalSandbox
             Num.Vector3 c = pack != null ? Centre(pack) : site + toward * 40;
             Num.Vector3 up = _zone.Frame.UpAt(d);
             // Over the dummy's shoulder, a little above the grass, at the pack coming in.
-            return (d - toward * 2f + Side(toward, up) * 1.2f + up * 2.3f, Num.Vector3.Lerp(d, c, 0.7f) + up * 0.4f);
+            return (d - toward * 2.8f + Side(toward, up) * 0.75f + up * 2.3f, Num.Vector3.Lerp(d, c, 0.62f) + up * 0.45f);
         };
         // Stalking: the pack trotting in, its middle 9 to 15 m off.
         scene.Moment = () => dummy != null && pack != null && pack.Members.All(w => w.State == AnimalState.Chase) &&

@@ -280,7 +280,7 @@ public sealed partial class AnimalWorld
                     ClimateSample climate = planet.Climate(direction, sample);
                     planet.BiomeWeights(direction, sample, climate, weights);
                     VegetationSample v = planet.Vegetation(direction, sample, climate, weights, 0);
-                    cover += Math.Clamp(v.Trees / 0.02, 0, 1);
+                    cover += Math.Clamp(v.Trees / ClosedForest, 0, 1);
                     for (int b = 0; b < BiomeTable.Count; b++)
                     {
                         area.Biomes[b] += (float)weights[b];
@@ -325,6 +325,12 @@ public sealed partial class AnimalWorld
         }
         return area;
     }
+
+    /// <summary>
+    /// The planet's trees a square metre that make a closed forest (its trees are big and spaced: 50 a hectare already
+    /// shade the ground).
+    /// </summary>
+    public const double ClosedForest = 0.005;
 
     // Tree cover on a stand-in surface: the natural objects' trees in the area against a closed forest's 200 a hectare.
     private float StandInCover(int x, int z, float size)

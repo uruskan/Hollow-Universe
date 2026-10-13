@@ -1,5 +1,5 @@
 {
-  "source": "GROUND.md §6.9. Rust's animals are the target. From the Facepunch Rust wiki (read 13 October 2026): health (wolf 100; deer and boar 150, as Rust's stag and pig; bear 400) and what a corpse gives (deer 4 meat, 50 leather, 50 bone fragments, 10 fat; pig 8 pork, 20 leather, 50 bone fragments, 40 fat; wolf 5 meat, 75 leather, 40 bone fragments, 10 fat; bear 20 meat, 100 leather, 150 bone fragments, 100 fat; their cloth is left out, hide stands for leather). Population in animals a square kilometre after Rust's server settings (stag 3, boar 5, wolf 2, bear 2), raised a little for deer and lowered for the bear, the rare apex. Speeds, senses, bites and charges are ours (the wiki has none), set against the player's 5.5 m/s sprint and 100 health: a deer outruns everything, wolves and bears outrun a sprinting player, a boar nearly does. Names are plain words.",
+  "source": "GROUND.md §6.9. Rust's animals are the target. From the Facepunch Rust wiki (read 13 October 2026): health (wolf 100; deer and boar 150, as Rust's stag and pig; bear 400) and what a corpse gives (deer 4 meat, 50 leather, 50 bone fragments, 10 fat; pig 8 pork, 20 leather, 50 bone fragments, 40 fat; wolf 5 meat, 75 leather, 40 bone fragments, 10 fat; bear 20 meat, 100 leather, 150 bone fragments, 100 fat; their cloth is left out, hide stands for leather). Population in animals a square kilometre of land that suits them, from Rust's server settings (stag 3, boar 5, wolf 2, bear 2) raised for a zone a few kilometres across (Rust's maps are bigger and its animals roam): deer 12, boars 8, wolves 4, and the bear, the rare apex, 1.2; a player usually has a herd or two within reach (GROUND.md §11 N3). Speeds, senses, bites and charges are ours (the wiki has none), set against the player's 5.5 m/s sprint and 100 health: a deer outruns everything, wolves and bears outrun a sprinting player, a boar nearly does. Names are plain words.",
   "senses": {
     "note": "How far noises carry, in metres, before a species' hearing; a crouching player is seen at 55% of the range, one standing still at 80%; anything within 5 m is noticed whichever way an animal faces.",
     "noise": { "sprint": 28, "walk": 10, "crouch": 3, "swim": 12, "gunshot": 180, "silenced": 45, "bow": 14, "melee": 18, "gather": 30, "explosion": 400 },
@@ -27,7 +27,7 @@
       "group": [2, 5], "cohesion": 14, "prey": true,
       "habitat": { "biomes": { "Grassland": 1.0, "Shrubland": 0.7, "Savanna": 0.7, "TemperateForest": 0.8, "BorealForest": 0.6, "Tundra": 0.3 },
         "open": 1.0, "wooded": 0.55 },
-      "density": 6, "slope": 40, "respawn": 300, "corpse": 300,
+      "density": 12, "slope": 40, "respawn": 300, "corpse": 300,
       "harvest": { "health": 200, "yield": [["raw-venison", 4], ["hide", 50], ["bone-fragments", 50], ["animal-fat", 10]] }
     },
     {
@@ -43,7 +43,7 @@
       "attack": { "kind": "charge", "damage": 16, "reach": 1.5, "rate": 1.6, "windup": 0.35, "bleed": 0.4, "region": "limb", "animals": 16 },
       "habitat": { "biomes": { "TemperateForest": 1.0, "BorealForest": 0.6, "TropicalForest": 0.8, "Grassland": 0.6, "Shrubland": 0.6, "Savanna": 0.4 },
         "open": 0.5, "wooded": 1.0 },
-      "density": 5, "slope": 36, "respawn": 360, "corpse": 300,
+      "density": 8, "slope": 36, "respawn": 360, "corpse": 300,
       "harvest": { "health": 200, "yield": [["raw-pork", 8], ["hide", 20], ["bone-fragments", 50], ["animal-fat", 40]] }
     },
     {
@@ -59,7 +59,7 @@
       "attack": { "kind": "bite", "damage": 12, "reach": 1.6, "rate": 1.4, "windup": 0.45, "bleed": 0.5, "region": "limb", "animals": 22 },
       "habitat": { "biomes": { "BorealForest": 1.0, "TemperateForest": 0.8, "Tundra": 0.8, "Grassland": 0.5, "Shrubland": 0.4, "Alpine": 0.3 },
         "open": 0.6, "wooded": 1.0 },
-      "density": 2.5, "slope": 42, "respawn": 600, "corpse": 300,
+      "density": 4, "slope": 42, "respawn": 600, "corpse": 300,
       "harvest": { "health": 150, "yield": [["raw-wolf-meat", 5], ["hide", 75], ["bone-fragments", 40], ["animal-fat", 10]] }
     },
     {
@@ -75,7 +75,7 @@
       "attack": { "kind": "swipe", "damage": 30, "reach": 2.0, "rate": 1.9, "windup": 0.6, "bleed": 0.35, "region": "body", "animals": 45 },
       "habitat": { "biomes": { "BorealForest": 1.0, "TemperateForest": 0.9, "Tundra": 0.4, "Alpine": 0.3, "Grassland": 0.25 },
         "open": 0.25, "wooded": 1.0 },
-      "density": 0.8, "slope": 38, "respawn": 900, "corpse": 300,
+      "density": 1.2, "slope": 38, "respawn": 900, "corpse": 300,
       "harvest": { "health": 600, "yield": [["raw-bear-meat", 20], ["hide", 100], ["bone-fragments", 150], ["animal-fat", 100]] }
     }
   ]
