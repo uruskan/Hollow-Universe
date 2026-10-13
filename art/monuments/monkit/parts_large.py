@@ -1234,14 +1234,28 @@ RAIL_TOP = 0.62
 WHEEL_R = 0.46
 
 
+def boxes_mesh(b, boxes, **kw):
+    """Several axis-aligned boxes, each (centre x, y, z, size x, y, z), as one mesh primitive: no subdivision and
+    one tint, for parts repeated thousands of times (track)."""
+    verts, faces = [], []
+    for cx, cy, cz, sx, sy, sz in boxes:
+        hx, hy, hz = sx / 2, sy / 2, sz / 2
+        base = len(verts)
+        verts += [(cx - hx, cy - hy, cz - hz), (cx + hx, cy - hy, cz - hz), (cx + hx, cy + hy, cz - hz),
+                  (cx - hx, cy + hy, cz - hz), (cx - hx, cy - hy, cz + hz), (cx + hx, cy - hy, cz + hz),
+                  (cx + hx, cy + hy, cz + hz), (cx - hx, cy + hy, cz + hz)]
+        faces += [[base + i for i in f] for f in ([0, 3, 2, 1], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5],
+                                                  [2, 3, 7, 6], [3, 0, 4, 7])]
+    return b.mesh(verts, faces, smooth=False, **kw)
+
+
 def _track_10(b):
-    """Ten metres of track on the ballast: fifteen concrete sleepers and two rails (standard gauge)."""
-    for k in range(15):
-        x = -5.0 + (k + 0.5) * 10.0 / 15
-        b.box((0.26, 2.5, 0.16), (x, 0, 0.38), mat=CONCRETE, tint=srgb(0.62, 0.60, 0.56), solid=False, vary=0.05)
-    for y in (-0.7535, 0.7535):
-        b.box((10.0, 0.07, 0.16), (0, y, 0.54), mat=RUST, tint=(1, 1, 1), solid=False)
-        b.box((10.0, 0.14, 0.03), (0, y, 0.475), mat=RUST, tint=(1, 1, 1), solid=False)
+    """Ten metres of track on the ballast: fifteen concrete sleepers and two rails (standard gauge), each set one
+    mesh so the piece stays light (a yard places a thousand of them)."""
+    boxes_mesh(b, [(-5.0 + (k + 0.5) * 10.0 / 15, 0.0, 0.38, 0.26, 2.5, 0.16) for k in range(15)], mat=CONCRETE,
+               tint=srgb(0.62, 0.60, 0.56), solid=False)
+    boxes_mesh(b, [(0.0, y, 0.54, 10.0, 0.07, 0.16) for y in (-0.7535, 0.7535)] +
+               [(0.0, y, 0.475, 10.0, 0.14, 0.03) for y in (-0.7535, 0.7535)], mat=RUST, tint=(1, 1, 1), solid=False)
 
 
 def _bogie(b, x, axles=2):
