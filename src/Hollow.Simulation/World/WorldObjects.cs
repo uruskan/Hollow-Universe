@@ -3,6 +3,7 @@ using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation.World;
 
@@ -25,7 +26,7 @@ public enum StaticKind : byte
 /// nothing per tick until something happens to it; <see cref="Revision"/> rises when what others see changes, so the
 /// server sends it again.
 /// </summary>
-public abstract class WorldObject
+public abstract class WorldObject : ITargetable
 {
     protected WorldObject(EntityId id, Vector3 position, Vector3 up, float yaw)
     {
@@ -36,6 +37,9 @@ public abstract class WorldObject
     }
 
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Thing, Id.Value);
 
     public abstract StaticKind Kind { get; }
 
@@ -74,6 +78,26 @@ public abstract class WorldObject
     /// deployable, which clients name by its item.
     /// </summary>
     public virtual string Name => "";
+
+    /// <summary>What it is drawn as (the model catalogue's key); empty for a body, which the characters draw.</summary>
+    public virtual string ModelKey => "";
+
+    /// <summary>
+    /// The nearest point of its bounds to a point (GROUND_SYSTEMS.md §3.4: reach is measured to it): a sphere of
+    /// <see cref="BoundsRadius"/> <see cref="BoundsLift"/> above its base, unless it says otherwise (a deployable's box).
+    /// </summary>
+    public virtual Vector3 Nearest(Vector3 from)
+    {
+        Vector3 centre = Position + Up * BoundsLift;
+        Vector3 off = from - centre;
+        float d = off.Length();
+        return d <= BoundsRadius ? from : centre + off * (BoundsRadius / d);
+    }
+
+    /// <summary>Its bounds as a sphere: how far above its base, and how big (the interact key's picker uses the same).</summary>
+    protected virtual float BoundsLift => 0.15f;
+
+    protected virtual float BoundsRadius => 0.35f;
 }
 
 /// <summary>
@@ -116,6 +140,20 @@ public class Deployable : WorldObject
     public override ushort Look => Def.Id;
 
     public override float HealthFraction => Health / Def.Health;
+
+    public override string ModelKey => Def.Key;
+
+    /// <summary>The nearest point of its box.</summary>
+    public override Vector3 Nearest(Vector3 from)
+    {
+        (Vector3 right, Vector3 forward) = Combat.Geometry.Axes(Up, Yaw);
+        Vector3 local = from - Centre;
+        Vector3 half = Def.HalfExtents;
+        float x = Math.Clamp(Vector3.Dot(local, right), -half.X, half.X);
+        float y = Math.Clamp(Vector3.Dot(local, Up), -half.Y, half.Y);
+        float z = Math.Clamp(Vector3.Dot(local, forward), -half.Z, half.Z);
+        return Centre + right * x + Up * y + forward * z;
+    }
 
     public override bool Burning => Lit;
 
@@ -181,6 +219,8 @@ public sealed class WorldProp : Deployable
     public override StaticKind Kind => StaticKind.Prop;
 
     public override string Name => Prop.Name;
+
+    public override string ModelKey => Prop.Key;
 
     /// <summary>A barrel's loot is only had by breaking it; a crate and a recycler open like a box.</summary>
     public override Container? Container => Prop.Openable ? Storage : null;
@@ -250,6 +290,8 @@ public sealed class DroppedBag : DroppedContainer
     /// <summary>A bag, whatever is in it.</summary>
     public override ushort Look => 0;
 
+    public override string ModelKey => "dropped-bag";
+
     /// <summary>How many stacks it holds: one is picked up at once, more open like a box.</summary>
     public override int ShownCount
     {
@@ -283,6 +325,11 @@ public sealed class Corpse : DroppedContainer
     public EntityId Of { get; }
 
     public override ushort Look => 0;
+
+    /// <summary>A body lies along the ground: a wider sphere, lower.</summary>
+    protected override float BoundsLift => 0.25f;
+
+    protected override float BoundsRadius => 0.6f;
 }
 
 /// <summary>The entity component linking a static entity to its object.</summary>

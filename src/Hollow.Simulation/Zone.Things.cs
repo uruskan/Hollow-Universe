@@ -8,6 +8,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -159,8 +160,8 @@ public sealed partial class Zone
         Channel = DamageType.Melee,
         Amounts = new DamageAmounts { Structure = amount },
         Direct = true,
-        Hit = new TraceHit { Target = HitTarget.Deployable, Deployable = d, Point = d.Centre },
-        Markers = HitTargets.None,
+        Hit = new TraceHit { Target = d.Ref, Point = d.Centre },
+        Markers = TargetFamilies.None,
     });
 
     /// <summary>
@@ -171,7 +172,7 @@ public sealed partial class Zone
     /// </summary>
     private sealed class DeployableReceiver(Zone zone) : IDamageReceiver
     {
-        public HitTarget Kind => HitTarget.Deployable;
+        public TargetFamily[] Families { get; } = { TargetFamily.Thing };
 
         public bool Keeps => false;
 
@@ -184,7 +185,7 @@ public sealed partial class Zone
             {
                 (Vector3 right, Vector3 forward) = Geometry.Axes(d.Up, d.Yaw);
                 float t = Geometry.RayBox(ray.Origin, ray.Direction, ray.Length, d.Centre, d.Def.HalfExtents + new Vector3(ray.Thickness), right, d.Up, forward);
-                ray.Consider(ref best, t, HitTarget.Deployable, new TraceHit { Deployable = d });
+                ray.Consider(ref best, t, d.Ref);
             }
         }
 
@@ -201,12 +202,12 @@ public sealed partial class Zone
                 }
                 Vector3 point = ClosestPoint(d, blast.At);
                 float distance = Vector3.Distance(point, blast.At);
-                bool stuck = d == blast.StuckTo;
+                bool stuck = blast.IsStuckTo(d.Ref);
                 if (distance <= blast.Radius || stuck)
                 {
                     into.Add(new BlastTarget
                     {
-                        Hit = new TraceHit { Target = HitTarget.Deployable, Deployable = d, Point = point }, Thing = d, Sight = point, Sight2 = d.Centre,
+                        Hit = new TraceHit { Target = d.Ref, Point = point }, Thing = d, Sight = point, Sight2 = d.Centre,
                         Self = d, Distance = stuck ? 0 : distance, Stuck = stuck,
                     });
                 }
@@ -215,7 +216,10 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            Deployable d = r.Hit.Deployable!;
+            if (zone.StaticOf(new EntityId(r.Hit.Target.Id)) is not Deployable d)
+            {
+                return default;
+            }
             float amount = r.Amounts.Structure;
             float before = d.Health;
             bool broke = zone.HurtDeployable(d, amount);
@@ -254,8 +258,7 @@ public sealed partial class Zone
         {
             PropGone(prop); // a barrel's loot lies on the ground; the barrel comes back on its timer (G7)
         }
-        Destroyed(HitTarget.Deployable, d is WorldProp ? DestroyedKind.Prop : DestroyedKind.Deployable, d.Id, d is WorldProp p ? p.Prop.Key : d.Def.Key, 0,
-            d.Position, Geometry.Upright(Frame.UpAt(d.Position), d.Yaw));
+        Destroyed(d.Ref, d.ModelKey, 0, d.Position, Geometry.Upright(Frame.UpAt(d.Position), d.Yaw));
         return true;
     }
 

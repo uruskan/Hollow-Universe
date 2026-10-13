@@ -59,6 +59,7 @@ public sealed partial class Zone
         InitBuilding(content);
         InitWorld(content);
         InitAnimals(content);
+        InitTargets();
         InitDamage();
     }
 
@@ -362,7 +363,7 @@ public sealed partial class Zone
             }
             if (d.Owner != p.Id)
             {
-                return OutcomeCode.NotAllowed;
+                return OutcomeCode.NotOwner;
             }
             if (UnixMilliseconds < d.ReadyAtUnixMs)
             {

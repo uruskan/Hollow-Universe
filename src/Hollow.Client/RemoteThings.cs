@@ -105,7 +105,8 @@ public sealed class ClientProjectile
 
     public double EndedTime { get; set; }
 
-    public Simulation.HitTarget EndTarget { get; set; }
+    /// <summary>The family of what it stopped on (none: out of range or time).</summary>
+    public Simulation.Targets.TargetFamily EndTarget { get; set; }
 
     /// <summary>Where it is drawn at a time on the client's clock: on its arc, held at its end once stopped.</summary>
     public Vector3 PositionAt(double time)

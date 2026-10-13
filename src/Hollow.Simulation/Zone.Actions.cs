@@ -434,7 +434,7 @@ public sealed partial class Zone
             }
             if (!fuel)
             {
-                return OutcomeCode.NotEnough;
+                return OutcomeCode.NoFuel;
             }
         }
         d.Lit = !d.Lit;

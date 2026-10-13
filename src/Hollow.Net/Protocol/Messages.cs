@@ -9,6 +9,7 @@ using Hollow.Simulation.Ships;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Net.Protocol;
 
@@ -424,7 +425,7 @@ public partial struct ProjectileLaunch
     public bool Silenced;
 }
 
-/// <summary>A projectile stopped, at a point, on something (nothing: out of range or time in the air).</summary>
+/// <summary>A projectile stopped, at a point, on a thing of a family (none: out of range or time in the air).</summary>
 [NetMessage(42)]
 public partial struct ProjectileEnd
 {
@@ -432,7 +433,16 @@ public partial struct ProjectileEnd
     public float X;
     public float Y;
     public float Z;
-    [Bits(3)] public HitTarget Target;
+    [Bits(4)] public TargetFamily Target;
+}
+
+/// <summary>A thing named on the wire (GROUND_SYSTEMS.md §3.1): its family, its ID, and a part of it (0: the whole).</summary>
+[NetStruct]
+public partial struct TargetNet
+{
+    [Bits(4)] public TargetFamily Family;
+    public ulong Id;
+    public byte Part;
 }
 
 // ---------------------------------------------------------------- G2: intents (client → server, reliable ordered)
@@ -678,7 +688,7 @@ public partial struct CraftQueueState
 [NetMessage(76)]
 public partial struct HitMarker
 {
-    [Bits(3)] public HitTarget Target;
+    [Bits(4)] public TargetFamily Target;
     [Bits(2)] public HitRegion Region;
     [VarInt] public uint Damage;
     public bool Killed;
@@ -1123,7 +1133,7 @@ public partial struct Detonation
     [Quantize(-1, 1, 12)] public float NormalY;
     [Quantize(-1, 1, 12)] public float NormalZ;
     [Quantize(0, 20, 10)] public float Radius;
-    [Bits(3)] public HitTarget Target;
+    [Bits(4)] public TargetFamily Target;
     public bool Round;
 }
 
@@ -1367,17 +1377,15 @@ public partial struct ZoneClock
 
 /// <summary>
 /// Something was destroyed (to everyone within range, reliable): a deployable or world prop broken, a building piece, door
-/// or claim device broken, brought down, decayed or demolished, a ship wrecked. What it was (the receiver's kind and the
-/// kind of thing, its entity ID, its model key and a piece's grade), where it stood as it was drawn (zone frame; a door's
-/// frame piece's, open or not), the blow's direction (zero for a collapse, decay or demolition), what did it, who (a
-/// character's net ID, 0 if none or gone) and with what (an item).
+/// or claim device broken, brought down, decayed or demolished, a ship wrecked. What it was (the thing: its family and ID;
+/// its model key and a piece's grade), where it stood as it was drawn (zone frame; a door's frame piece's, open or not),
+/// the blow's direction (zero for a collapse, decay or demolition), what did it, who (a character's net ID, 0 if none or
+/// gone) and with what (an item).
 /// </summary>
 [NetMessage(165)]
 public partial struct ThingDestroyed
 {
-    [Bits(3)] public HitTarget Receiver;
-    [Bits(3)] public DestroyedKind Kind;
-    public ulong Id;
+    public TargetNet Target;
     [MaxLength(48)] public string Key;
     [Bits(3)] public byte Grade;
     public float X;

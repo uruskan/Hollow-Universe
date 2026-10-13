@@ -8,6 +8,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -17,15 +18,12 @@ namespace Hollow.Simulation;
 /// </summary>
 internal readonly record struct RayQuery(Vector3 Origin, Vector3 Direction, float Length, float Thickness, EntityId Ignore, double ViewTick, bool Bullet)
 {
-    /// <summary>Puts a candidate at <paramref name="t"/> along the ray into <paramref name="best"/> when nearer (a tie keeps the first found).</summary>
-    public void Consider(ref TraceHit best, float t, HitTarget target, in TraceHit candidate)
+    /// <summary>Puts a thing met at <paramref name="t"/> along the ray into <paramref name="best"/> when nearer (a tie keeps the first found).</summary>
+    public void Consider(ref TraceHit best, float t, TargetRef target, HitRegion region = HitRegion.None)
     {
         if (t >= 0 && (best.Distance < 0 || t < best.Distance))
         {
-            best = candidate;
-            best.Distance = t;
-            best.Target = target;
-            best.Point = Origin + Direction * t;
+            best = new TraceHit { Target = target, Region = region, Distance = t, Point = Origin + Direction * t };
         }
     }
 
@@ -33,8 +31,12 @@ internal readonly record struct RayQuery(Vector3 Origin, Vector3 Direction, floa
     public float Upto(in TraceHit best) => best.Distance >= 0 ? best.Distance : Length;
 }
 
-/// <summary>An explosion's reach, for the receivers to find their things in: where, how far, and what the explosive was on.</summary>
-internal readonly record struct BlastQuery(Vector3 At, float Radius, object? StuckTo);
+/// <summary>An explosion's reach, for the receivers to find their things in: where, how far, and what the explosive was stuck to.</summary>
+internal readonly record struct BlastQuery(Vector3 At, float Radius, TargetRef StuckTo)
+{
+    /// <summary>Whether the explosive was stuck to this thing (whichever of its parts).</summary>
+    public bool IsStuckTo(in TargetRef thing) => !StuckTo.IsNone && StuckTo.Whole == thing.Whole;
+}
 
 /// <summary>
 /// A thing within an explosion's reach, as its receiver found it: what it is (a trace's hit: its kind, the thing, the
@@ -64,13 +66,15 @@ internal struct BlastTarget
 public sealed partial class Zone
 {
     /// <summary>
-    /// A kind of thing blows can land on (RustMVP's receiver capability): it finds its things along a ray and within a
-    /// blast's reach, and takes a request against one of them: its defences first (armour, a grade, a hull's share), then
-    /// its consequences (health, death or breaking, what spills, what is reported).
+    /// The damage side of a target family (RustMVP's receiver capability, GROUND_SYSTEMS.md §3.1): it finds its things along
+    /// a ray and within a blast's reach, and takes a request against one of them: its defences first (armour, a grade, a
+    /// hull's share), then its consequences (health, death or breaking, what spills, what is reported). One receiver may
+    /// serve more than one family (the building's pieces, doors and cupboards).
     /// </summary>
     private interface IDamageReceiver
     {
-        HitTarget Kind { get; }
+        /// <summary>The families it is the damage side of.</summary>
+        TargetFamily[] Families { get; }
 
         /// <summary>A projectile that lands in one of its things stays there (an arrow in a body or a hull is lost); elsewhere it may be picked up again.</summary>
         bool Keeps { get; }
@@ -85,7 +89,7 @@ public sealed partial class Zone
         DamageOutcome Receive(in DamageRequest request);
     }
 
-    private readonly IDamageReceiver?[] _receivers = new IDamageReceiver?[(int)Enum.GetValues<HitTarget>().Max() + 1];
+    private Registry<IDamageReceiver> _receivers = null!;
     private readonly List<IDamageReceiver> _receiverOrder = new();
     private readonly List<BlastTarget> _blastTargets = new();
     private int _blasts;
@@ -96,6 +100,8 @@ public sealed partial class Zone
     // its targets in the same order.
     private void InitDamage()
     {
+        // By target family (the explosives' takes no damage: it has no receiver).
+        _receivers = Registry<IDamageReceiver>.ForEnum<TargetFamily>("damage receivers", complete: false, TargetFamily.None);
         Register(new CharacterReceiver(this));
         Register(new AnimalReceiver(this));
         Register(new NatureReceiver(this));
@@ -103,16 +109,20 @@ public sealed partial class Zone
         Register(new ShipReceiver(this));
         Register(new BuildingReceiver(this));
         Register(new GroundReceiver(this));
+        _receivers.Seal();
     }
 
     private void Register(IDamageReceiver receiver)
     {
-        _receivers[(int)receiver.Kind] = receiver;
+        foreach (TargetFamily family in receiver.Families)
+        {
+            _receivers.Add((int)family, receiver);
+        }
         _receiverOrder.Add(receiver);
     }
 
-    /// <summary>Whether a projectile that hit this kind of thing stays in it (it can't be picked up again).</summary>
-    private bool Keeps(HitTarget kind) => _receivers[(int)kind]?.Keeps == true;
+    /// <summary>Whether a projectile that hit a thing of this family stays in it (it can't be picked up again).</summary>
+    private bool Keeps(TargetFamily family) => _receivers.Find((int)family)?.Keeps == true;
 
     /// <summary>
     /// The first thing a ray (thickened by <paramref name="thickness"/>) meets: a character as it was at
@@ -138,7 +148,7 @@ public sealed partial class Zone
     /// </summary>
     public DamageOutcome Damage(in DamageRequest request)
     {
-        if (_receivers[(int)request.Hit.Target] is not { } receiver)
+        if (_receivers.Find((int)request.Hit.Target.Family) is not { } receiver)
         {
             return default;
         }
@@ -153,8 +163,7 @@ public sealed partial class Zone
         {
             _blow = outer;
         }
-        if (result.Landed && request.By is { } by && result.Victim != by.Id &&
-            (request.Markers & (HitTargets)(1 << (int)request.Hit.Target)) != 0)
+        if (result.Landed && request.By is { } by && result.Victim != by.Id && request.Markers.Has(request.Hit.Target.Family))
         {
             GameEvents.Add(new ZoneEvent
             {
@@ -196,17 +205,15 @@ public sealed partial class Zone
     /// and a ship's crash. The blow being applied gives the cause (unless <paramref name="own"/> names one), its
     /// direction, who and with what.
     /// </summary>
-    private void Destroyed(HitTarget receiver, DestroyedKind kind, EntityId id, string key, int grade, Vector3 position, Quaternion rotation,
-        DestroyCause? own = null, bool open = false)
+    private void Destroyed(TargetRef target, string key, int grade, Vector3 position, Quaternion rotation, DestroyCause? own = null, bool open = false)
     {
         Blow blow = _blow;
         GameEvents.Add(new ZoneEvent
         {
             Kind = ZoneEventKind.Destroyed,
             Player = blow.Active ? blow.Attacker : EntityId.None,
-            Other = id,
-            Target = receiver,
-            Part = kind,
+            Other = new EntityId(target.Id),
+            Target = target.Whole,
             Text = key,
             Grade = (byte)Math.Clamp(grade, 0, 255),
             Position = position,
@@ -230,14 +237,16 @@ public sealed partial class Zone
     /// and animals its damage to flesh (characters less what they wear on the body against projectiles; a lethal hit may
     /// knock down). Claimed bases hit are reported in <see cref="RaidHits"/>, one alert a base.
     /// </summary>
-    public BlastReport Blast(BlastStats blast, Vector3 at, Vector3 normal, object? stuckTo, HitTarget target, EntityId attacker, string attackerName,
+    /// <param name="stuckTo">What the explosive was stuck to (it takes the table whole), or none.</param>
+    /// <param name="on">What it went off on (the family, for the explosion's look): what it was stuck to or lay on.</param>
+    public BlastReport Blast(BlastStats blast, Vector3 at, Vector3 normal, TargetRef stuckTo, TargetFamily on, EntityId attacker, string attackerName,
         ushort item, EntityId explosive = default, bool round = false)
     {
         // (A blast set off by another's consequences gets a list of its own.)
         List<BlastTarget> targets = _blasts++ == 0 ? _blastTargets : new List<BlastTarget>();
         try
         {
-            return Blast(targets, blast, at, normal, stuckTo, target, attacker, attackerName, item, explosive, round);
+            return Blast(targets, blast, at, normal, stuckTo, on, attacker, attackerName, item, explosive, round);
         }
         finally
         {
@@ -245,7 +254,7 @@ public sealed partial class Zone
         }
     }
 
-    private BlastReport Blast(List<BlastTarget> targets, BlastStats blast, Vector3 at, Vector3 normal, object? stuckTo, HitTarget target,
+    private BlastReport Blast(List<BlastTarget> targets, BlastStats blast, Vector3 at, Vector3 normal, TargetRef stuckTo, TargetFamily on,
         EntityId attacker, string attackerName, ushort item, EntityId explosive, bool round)
     {
         var report = new BlastReport();
@@ -319,13 +328,13 @@ public sealed partial class Zone
                 Hit = t.Hit,
                 From = at,
                 Direction = t.Stuck || toward.LengthSquared() < 1e-6f ? -normal : Vector3.Normalize(toward),
-                Markers = HitTargets.Living,
+                Markers = TargetFamilies.Living,
             };
             DamageOutcome result = Damage(request);
             if (result.Landed)
             {
                 report.Damage[t.Thing] = result.Dealt;
-                report.Count(t.Hit.Target, result.Killed);
+                report.Count(t.Hit.Target.Family, result.Killed);
             }
         }
 
@@ -335,7 +344,7 @@ public sealed partial class Zone
         GameEvents.Add(new ZoneEvent
         {
             Kind = ZoneEventKind.Detonated, Player = attacker, Other = explosive, Position = at, Velocity = normal, Item = item, Amount = radius,
-            Target = target, Flag = round,
+            Target = new TargetRef(on, 0), Flag = round,
         });
         return report;
     }

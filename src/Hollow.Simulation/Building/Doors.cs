@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation.Building;
 
@@ -102,6 +103,9 @@ public sealed class Door : IBuildingPart
     }
 
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Door, Id.Value);
 
     public DoorDef Def { get; }
 

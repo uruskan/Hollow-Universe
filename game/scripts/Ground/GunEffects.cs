@@ -11,6 +11,7 @@ using Hollow.Simulation.World;
 using HollowUniverse.Fx;
 using HollowUniverse.Items;
 using Num = System.Numerics;
+using Hollow.Simulation.Targets;
 
 namespace HollowUniverse.Ground;
 
@@ -124,16 +125,16 @@ public static class GunEffects
         normal = -dir;
         switch (p.EndTarget)
         {
-            case HitTarget.Character:
+            case TargetFamily.Character:
                 return FxSurface.Flesh;
-            case HitTarget.Natural:
+            case TargetFamily.Natural:
                 return NaturalAt(client, end) switch
                 {
                     NaturalClass.Tree => FxSurface.Wood,
                     NaturalClass.Bush => FxSurface.Grass,
                     _ => FxSurface.Rock,
                 };
-            case HitTarget.Deployable:
+            case TargetFamily.Thing:
             {
                 RemoteThing? thing = null;
                 float best = 2.5f;
@@ -154,7 +155,7 @@ public static class GunEffects
                     _ => FxSurface.Wood,
                 };
             }
-            case HitTarget.Building:
+            case TargetFamily.Piece or TargetFamily.Door or TargetFamily.Cupboard:
                 return client.AimBuilding(end - dir * 0.4f, dir) switch
                 {
                     Piece piece => FxSurfaces.OfGrade(client.Content.Building.Grades[Math.Clamp(piece.Grade, 0, client.Content.Building.Grades.Count - 1)].Key),

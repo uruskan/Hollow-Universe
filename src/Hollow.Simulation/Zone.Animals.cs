@@ -12,6 +12,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -107,10 +108,11 @@ public sealed partial class Zone : IAnimalHost
                 case ZoneEventKind.Detonated:
                     animals.Noises.Add(new AnimalNoise { Position = e.Position, Radius = senses.Explosion, Tick = Tick, Source = e.Player, Loud = true });
                     break;
-                case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Natural:
+                case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Natural:
                     animals.Noises.Add(new AnimalNoise { Position = e.Position, Radius = senses.Gather, Tick = Tick, Source = e.Player });
                     break;
-                case ZoneEventKind.HitConfirmed when e.Target is HitTarget.Building or HitTarget.Deployable or HitTarget.Character:
+                case ZoneEventKind.HitConfirmed when e.Target.Family is TargetFamily.Piece or TargetFamily.Door or TargetFamily.Cupboard or TargetFamily.Thing
+                    or TargetFamily.Character:
                     animals.Noises.Add(new AnimalNoise { Position = e.Position, Radius = senses.Melee, Tick = Tick, Source = e.Player });
                     break;
             }
@@ -147,9 +149,13 @@ public sealed partial class Zone : IAnimalHost
                 _ => "Mauled",
             },
             Direct = true,
-            Hit = new TraceHit { Target = HitTarget.Character, Character = entity, Region = attack.Region, Point = Entities.Get<Character>(entity).State.Position },
+            Hit = new TraceHit
+            {
+                Target = new TargetRef(TargetFamily.Character, Entities.IdOf(entity).Value), Region = attack.Region,
+                Point = Entities.Get<Character>(entity).State.Position,
+            },
             From = AnimalHitboxes.Head(animal.Species, PoseOf(animal)),
-            Markers = HitTargets.None,
+            Markers = TargetFamilies.None,
         });
         if (!bite.Landed)
         {
@@ -227,9 +233,9 @@ public sealed partial class Zone : IAnimalHost
             Channel = DamageType.Melee,
             Amounts = new DamageAmounts { Flesh = amount },
             Direct = true,
-            Hit = new TraceHit { Target = HitTarget.Animal, Animal = a, Region = region, Point = AnimalHitboxes.Middle(a.Species, PoseOf(a)) },
+            Hit = new TraceHit { Target = a.Ref, Region = region, Point = AnimalHitboxes.Middle(a.Species, PoseOf(a)) },
             From = from,
-            Markers = HitTargets.All,
+            Markers = TargetFamilies.All,
         }).Taken;
 
     /// <summary>
@@ -240,7 +246,7 @@ public sealed partial class Zone : IAnimalHost
     /// </summary>
     private sealed class AnimalReceiver(Zone zone) : IDamageReceiver
     {
-        public HitTarget Kind => HitTarget.Animal;
+        public TargetFamily[] Families { get; } = { TargetFamily.Animal };
 
         /// <summary>An arrow in an animal stays in it; one in a corpse is lost too.</summary>
         public bool Keeps => true;
@@ -248,9 +254,9 @@ public sealed partial class Zone : IAnimalHost
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             if (zone.Animals != null && zone.TraceAnimal(ray.Origin, ray.Direction, ray.Length, ray.Thickness, ray.ViewTick, out float at, out Animal? animal,
-                out HitRegion region))
+                out HitRegion region, out int shape))
             {
-                ray.Consider(ref best, at, HitTarget.Animal, new TraceHit { Animal = animal, Region = region });
+                ray.Consider(ref best, at, new TargetRef(TargetFamily.Animal, animal!.Id.Value, (byte)(shape + 1)), region);
             }
         }
 
@@ -273,7 +279,7 @@ public sealed partial class Zone : IAnimalHost
                 {
                     into.Add(new BlastTarget
                     {
-                        Hit = new TraceHit { Target = HitTarget.Animal, Animal = a, Region = HitRegion.Body, Point = middle }, Thing = a, Sight = middle,
+                        Hit = new TraceHit { Target = a.Ref, Region = HitRegion.Body, Point = middle }, Thing = a, Sight = middle,
                         Sight2 = middle, Distance = distance,
                     });
                 }
@@ -282,7 +288,10 @@ public sealed partial class Zone : IAnimalHost
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            Animal a = r.Hit.Animal!;
+            if (zone.Animals?.Find(new EntityId(r.Hit.Target.Id)) is not { } a)
+            {
+                return default;
+            }
             if (a.IsDead)
             {
                 if (r.Channel == DamageType.Melee && r.By is { } p && zone.Content!.Item(r.Weapon) is { } tool && zone.TryFindPlayer(p.Id, out Entity entity, out _))
@@ -317,7 +326,7 @@ public sealed partial class Zone : IAnimalHost
         List<ItemAmount> gained = Animals!.Harvest(corpse, rate);
         GameEvents.Add(new ZoneEvent
         {
-            Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = corpse.Id, Target = HitTarget.Animal, Region = HitRegion.Body, Amount = rate,
+            Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = corpse.Id, Target = corpse.Ref, Region = HitRegion.Body, Amount = rate,
             Position = point, Item = tool.Id,
         });
         Animals.Noises.Add(new AnimalNoise { Position = point, Radius = Content.AnimalSenses.Gather, Tick = Tick, Source = p.Id });
@@ -332,11 +341,12 @@ public sealed partial class Zone : IAnimalHost
     /// animals' hit history); corpses as they lie now.
     /// </summary>
     private bool TraceAnimal(Vector3 origin, Vector3 direction, float length, float thickness, double viewTick, out float distance,
-        out Animal? hit, out HitRegion region)
+        out Animal? hit, out HitRegion region, out int shape)
     {
         distance = -1;
         hit = null;
         region = HitRegion.None;
+        shape = -1;
         AnimalWorld animals = Animals!;
         Vector3 middle = origin + direction * (length / 2);
         animals.Near(middle, length / 2 + 4f, _animalTrace);
@@ -351,12 +361,13 @@ public sealed partial class Zone : IAnimalHost
             {
                 pose = PoseOf(a);
             }
-            float t = AnimalHitboxes.Raycast(a.Species, pose, origin, direction, length, thickness, out HitRegion r);
+            float t = AnimalHitboxes.Raycast(a.Species, pose, origin, direction, length, thickness, out HitRegion r, out int s);
             if (t >= 0 && (distance < 0 || t < distance))
             {
                 distance = t;
                 hit = a;
                 region = r;
+                shape = s;
             }
         }
         return hit != null;

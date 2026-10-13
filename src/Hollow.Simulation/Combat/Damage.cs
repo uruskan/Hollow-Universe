@@ -4,6 +4,7 @@ using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation.Combat;
 
@@ -54,44 +55,25 @@ public enum DestroyCause : byte
     Crash,
 }
 
-/// <summary>What was destroyed, which says what its model key names (the <see cref="ZoneEventKind.Destroyed"/> event).</summary>
-public enum DestroyedKind : byte
-{
-    /// <summary>A placed deployable: its key is the deployable's (deployables.json, its item's model).</summary>
-    Deployable,
-
-    /// <summary>A world prop, such as a barrel: its key is the prop's (world.json, models.json kind "world").</summary>
-    Prop,
-
-    /// <summary>A building piece: its key is the piece's (building.json), with its grade.</summary>
-    Piece,
-
-    /// <summary>A door: its key is the door's (building.json); placed as its frame piece is.</summary>
-    Door,
-
-    /// <summary>A claim device: its key is its item's.</summary>
-    ClaimDevice,
-
-    /// <summary>A ship's hull, wrecked: its key is the ship's (ships.json).</summary>
-    Ship,
-}
-
-/// <summary>Kinds of thing, as a set (which give the attacker a hit marker).</summary>
+/// <summary>Target families, as a set (those that give the attacker a hit marker).</summary>
 [System.Flags]
-public enum HitTargets : uint
+public enum TargetFamilies : uint
 {
     None = 0,
-    Character = 1 << (int)HitTarget.Character,
-    Natural = 1 << (int)HitTarget.Natural,
-    Deployable = 1 << (int)HitTarget.Deployable,
-    Building = 1 << (int)HitTarget.Building,
-    Ship = 1 << (int)HitTarget.Ship,
-    Animal = 1 << (int)HitTarget.Animal,
+    Character = 1 << (int)TargetFamily.Character,
+    Animal = 1 << (int)TargetFamily.Animal,
+    Ship = 1 << (int)TargetFamily.Ship,
 
     /// <summary>What lives, and hulls: a blast's markers (the walls and boxes it breaks are seen and heard instead).</summary>
     Living = Character | Animal | Ship,
 
     All = uint.MaxValue,
+}
+
+/// <summary>Sets of target families.</summary>
+public static class TargetFamilySets
+{
+    public static bool Has(this TargetFamilies set, TargetFamily family) => ((uint)set & 1u << (int)family) != 0;
 }
 
 /// <summary>
@@ -162,7 +144,7 @@ public struct DamageRequest
     /// <summary>The thing the blow was aimed at or stuck to: every blow's, a blast's piece it hit (a raid alert names it first).</summary>
     public bool Direct;
 
-    /// <summary>What it met: the kind of thing and the thing, the body part, the point.</summary>
+    /// <summary>What it met: the thing (its family, ID and the bone hit), the body part, the point.</summary>
     public TraceHit Hit;
 
     /// <summary>Where it came from: the attacker's eye, the arrow, the muzzle, the blast, the animal's head.</summary>
@@ -171,8 +153,8 @@ public struct DamageRequest
     /// <summary>Which way it travelled (a wall's soft side; the Destroyed event's direction).</summary>
     public Vector3 Direction;
 
-    /// <summary>The kinds of thing that give the attacker a hit marker.</summary>
-    public HitTargets Markers;
+    /// <summary>The families of thing that give the attacker a hit marker.</summary>
+    public TargetFamilies Markers;
 
     /// <summary>A blast's raid alerts, summed per base over the whole blast; null: a blow's own alert.</summary>
     internal Zone.RaidTallies? Raids;

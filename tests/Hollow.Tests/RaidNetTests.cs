@@ -12,6 +12,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -157,7 +158,7 @@ public static class RaidNetTests
                 Assert.True(z.TryFindPlayer(adaId, out _, out Player owner) && owner.Sleeping, "Ada asleep");
                 TestBases.Hut hut = TestBases.Build(z, z.GroundAt(0, 6), 0, 2, owner.Id.Value)!;
                 (Vector3 face, Vector3 outward) = hut.Face(hut.Walls[1]);
-                z.Blast(c.Blast("timed-charge")!, face + outward * Zone.StuckOffset, outward, hut.Walls[1], HitTarget.Building, EntityId.None, "Bo",
+                z.Blast(c.Blast("timed-charge")!, face + outward * Zone.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, EntityId.None, "Bo",
                     c.ItemByKey("timed-charge").Id);
                 return (charge.Id, bag.Id, box.Id, charge.FuseEndTick - z.Tick);
             });

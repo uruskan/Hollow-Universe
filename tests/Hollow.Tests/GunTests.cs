@@ -10,6 +10,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -175,7 +176,7 @@ public static class GunTests
             Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 1, aimed: true, viewDelay: viewDelay), "queued");
             rig.Step(3);
             float taken = rig.Zone.GameEvents.Where(x => x.Kind == ZoneEventKind.DamageTaken && x.Player == b.Id).Sum(x => x.Amount);
-            bool marker = rig.Zone.GameEvents.Any(x => x.Kind == ZoneEventKind.HitConfirmed && x.Player == rig.P(ada).Id && x.Target == HitTarget.Character);
+            bool marker = rig.Zone.GameEvents.Any(x => x.Kind == ZoneEventKind.HitConfirmed && x.Player == rig.P(ada).Id && x.Target.Family == TargetFamily.Character);
             Fixtures.Report($"view delay {viewDelay / 4.0:0} ticks: Bo took {taken:0.0}; hit marker {marker}");
             if (viewDelay > 0)
             {

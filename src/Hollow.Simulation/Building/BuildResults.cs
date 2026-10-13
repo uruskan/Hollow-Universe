@@ -90,7 +90,7 @@ public readonly record struct BuildingEvent(BuildingChange Change, Piece? Piece 
 /// A piece, a door or a claim device: what blows, blasts and raid alerts take alike (the zone's building receiver,
 /// GROUND.md §6.4.2).
 /// </summary>
-public interface IBuildingPart
+public interface IBuildingPart : Targets.ITargetable
 {
     Entities.EntityId Id { get; }
 

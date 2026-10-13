@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation.Building;
 
@@ -29,6 +30,9 @@ public sealed class ClaimDevice : IBuildingPart
     }
 
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Cupboard, Id.Value);
 
     /// <summary>The player who placed it (authorised from the start).</summary>
     public ulong Owner { get; }

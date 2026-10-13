@@ -19,6 +19,7 @@ using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 using LiteNetLib;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Server;
 
@@ -530,11 +531,11 @@ public sealed partial class GameServer
                 case ZoneEventKind.HitConfirmed when to != null:
                     new HitMarker
                     {
-                        Target = e.Target,
+                        Target = e.Target.Family,
                         Region = e.Region,
                         Damage = Tenths(e.Amount),
-                        Killed = e.Target is HitTarget.Character or HitTarget.Animal && e.Flag,
-                        WeakSpot = e.Target == HitTarget.Natural && e.Flag,
+                        Killed = e.Target.Family is TargetFamily.Character or TargetFamily.Animal && e.Flag,
+                        WeakSpot = e.Target.Family == TargetFamily.Natural && e.Flag,
                         Downed = e.Downed,
                     }.WriteMessage(_writer);
                     Send(to);
@@ -571,7 +572,7 @@ public sealed partial class GameServer
                     SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
                     break;
                 case ZoneEventKind.ProjectileEnded:
-                    new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target }.WriteMessage(_writer);
+                    new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target.Family }.WriteMessage(_writer);
                     SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
                     break;
                 case ZoneEventKind.Notice:
@@ -1129,11 +1130,11 @@ public sealed class GameCounters
             case ZoneEventKind.ItemsGained when e.Reason == GainReason.PickedUp:
                 PickedUp += e.Count;
                 break;
-            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Natural:
+            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Natural:
                 GatherHits++;
                 WeakSpotHits += e.Flag ? 1 : 0;
                 break;
-            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Character:
+            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Character:
                 CharacterHits++;
                 Kills += e.Flag ? 1 : 0;
                 Downed += e.Downed ? 1 : 0;
@@ -1141,7 +1142,7 @@ public sealed class GameCounters
             case ZoneEventKind.Recovered:
                 Recovered++;
                 break;
-            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Animal:
+            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Animal:
                 AnimalHits++;
                 AnimalKills += e.Flag ? 1 : 0;
                 break;
@@ -1157,7 +1158,7 @@ public sealed class GameCounters
             case ZoneEventKind.ProjectileLaunched:
                 Arrows++;
                 break;
-            case ZoneEventKind.ProjectileEnded when e.Seq != 0 && e.Target == HitTarget.Character:
+            case ZoneEventKind.ProjectileEnded when e.Seq != 0 && e.Target.Family == TargetFamily.Character:
                 BulletHits++;
                 break;
         }

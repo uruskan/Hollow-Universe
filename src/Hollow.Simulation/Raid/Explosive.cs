@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation.Raid;
 
@@ -38,7 +39,7 @@ public enum SupportKind : byte
 /// to rest) or placed (stuck where it was put), with its fuse burning; a dud lies there until lit again. Simulated on
 /// the server only; clients get its state when it changes (and draw a flight on its arc themselves).
 /// </summary>
-public sealed class LiveExplosive
+public sealed class LiveExplosive : ITargetable
 {
     internal LiveExplosive(EntityId id, ThrowableStats stats, EntityId owner, string ownerName)
     {
@@ -50,6 +51,9 @@ public sealed class LiveExplosive
 
     /// <summary>A persistent ID (charges survive a restart).</summary>
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Explosive, Id.Value);
 
     public ThrowableStats Stats { get; }
 
@@ -212,14 +216,19 @@ public sealed record ExplosiveSave
 /// <summary>What one explosion did, for tests and the load test's counts.</summary>
 public sealed class BlastReport
 {
-    private static readonly int Kinds = (int)Enum.GetValues<HitTarget>().Max() + 1;
+    private static readonly int Kinds = (int)Enum.GetValues<TargetFamily>().Max() + 1;
     private readonly int[] _hit = new int[Kinds];
     private readonly int[] _destroyed = new int[Kinds];
 
-    /// <summary>Things of a kind its blast landed on (building pieces, doors and claim devices are the building's), and those it destroyed or killed.</summary>
-    public int Hit(HitTarget kind) => _hit[(int)kind];
+    /// <summary>Things of a family its blast landed on, and those it destroyed or killed.</summary>
+    public int Hit(TargetFamily family) => _hit[(int)family];
 
-    public int Destroyed(HitTarget kind) => _destroyed[(int)kind];
+    public int Destroyed(TargetFamily family) => _destroyed[(int)family];
+
+    /// <summary>The building's: pieces, doors and the claim device together.</summary>
+    public int HitBuilding => Hit(TargetFamily.Piece) + Hit(TargetFamily.Door) + Hit(TargetFamily.Cupboard);
+
+    public int DestroyedBuilding => Destroyed(TargetFamily.Piece) + Destroyed(TargetFamily.Door) + Destroyed(TargetFamily.Cupboard);
 
     /// <summary>Damage each thing took (by its object: a piece, door, claim device, deployable, ship, animal or player), after its defences.</summary>
     public Dictionary<object, double> Damage { get; } = new();
@@ -227,12 +236,12 @@ public sealed class BlastReport
     /// <summary>Things within the radius that something stood in front of: they took nothing.</summary>
     public List<object> Shielded { get; } = new();
 
-    internal void Count(HitTarget kind, bool destroyed)
+    internal void Count(TargetFamily family, bool destroyed)
     {
-        _hit[(int)kind]++;
+        _hit[(int)family]++;
         if (destroyed)
         {
-            _destroyed[(int)kind]++;
+            _destroyed[(int)family]++;
         }
     }
 }

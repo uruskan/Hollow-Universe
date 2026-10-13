@@ -11,6 +11,7 @@ using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -608,7 +609,7 @@ public sealed partial class Zone
         }
         if (p.Id != ship.Owner)
         {
-            return OutcomeCode.NotAllowed;
+            return OutcomeCode.NotOwner;
         }
         ship.Locked = !ship.Locked;
         ship.Revision++;
@@ -720,7 +721,7 @@ public sealed partial class Zone
     /// </summary>
     private sealed class ShipReceiver(Zone zone) : IDamageReceiver
     {
-        public HitTarget Kind => HitTarget.Ship;
+        public TargetFamily[] Families { get; } = { TargetFamily.Ship };
 
         /// <summary>An arrow on a hull is lost.</summary>
         public bool Keeps => true;
@@ -730,7 +731,10 @@ public sealed partial class Zone
             if (zone._ships.Count > 0)
             {
                 float t = zone.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship);
-                ray.Consider(ref best, t, HitTarget.Ship, new TraceHit { Ship = ship });
+                if (ship != null)
+                {
+                    ray.Consider(ref best, t, ship.Ref);
+                }
             }
         }
 
@@ -743,7 +747,7 @@ public sealed partial class Zone
                     continue;
                 }
                 Vector3 point = ShipClosestPoint(ship, blast.At);
-                bool stuck = ship == blast.StuckTo;
+                bool stuck = blast.IsStuckTo(ship.Ref);
                 float distance = stuck ? 0 : Vector3.Distance(point, blast.At);
                 if (distance > blast.Radius)
                 {
@@ -753,7 +757,7 @@ public sealed partial class Zone
                 Vector3 seen = off.LengthSquared() > 1e-6f ? point + Vector3.Normalize(off) * 0.05f : point;
                 into.Add(new BlastTarget
                 {
-                    Hit = new TraceHit { Target = HitTarget.Ship, Ship = ship, Point = point }, Thing = ship, Sight = seen, Sight2 = seen, Distance = distance,
+                    Hit = new TraceHit { Target = ship.Ref, Point = point }, Thing = ship, Sight = seen, Sight2 = seen, Distance = distance,
                     Stuck = stuck,
                 });
             }
@@ -761,8 +765,7 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            Ship ship = r.Hit.Ship!;
-            if (ship.Destroyed || ship.InOrbit)
+            if (zone.ShipOf(new EntityId(r.Hit.Target.Id)) is not { } ship || ship.Destroyed || ship.InOrbit)
             {
                 return default;
             }
@@ -816,8 +819,8 @@ public sealed partial class Zone
         },
         Amounts = new DamageAmounts { Hull = damage },
         Direct = true,
-        Hit = new TraceHit { Target = HitTarget.Ship, Ship = ship, Point = ship.Origin },
-        Markers = HitTargets.None,
+        Hit = new TraceHit { Target = ship.Ref, Point = ship.Origin },
+        Markers = TargetFamilies.None,
     }).Taken;
 
     // The ships' consequences: the hull's share for how the blow came; at 0 the ship is wrecked. Returns the hull lost.
@@ -869,7 +872,7 @@ public sealed partial class Zone
         ship.State.Velocity = Vector3.Zero;
         ship.State.AngularVelocity = Vector3.Zero;
         // Destroyed by the blow being applied, or (none) by its crash.
-        Destroyed(HitTarget.Ship, DestroyedKind.Ship, ship.Id, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, _blow.Active ? null : DestroyCause.Crash);
+        Destroyed(ship.Ref, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, _blow.Active ? null : DestroyCause.Crash);
         if (ship.ParkedBody != 0)
         {
             lock (JoltRuntime.Gate)

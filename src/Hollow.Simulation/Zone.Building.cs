@@ -10,6 +10,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -180,20 +181,20 @@ public sealed partial class Zone
             case BuildingChange.PieceRemoved when e.Piece is { } piece && e.Removal != Removal.Taken:
             {
                 (Vector3 position, Quaternion rotation) = piece.ZoneTransform;
-                Destroyed(HitTarget.Building, DestroyedKind.Piece, piece.Id, piece.Def.Key, piece.Grade, position, rotation, CauseOf(e.Removal));
+                Destroyed(piece.Ref, piece.Def.Key, piece.Grade, position, rotation, CauseOf(e.Removal));
                 break;
             }
             case BuildingChange.DoorRemoved when e.Door is { } door && e.Removal != Removal.Taken:
             {
                 (Vector3 position, Quaternion rotation) = door.Frame.ZoneTransform;
-                Destroyed(HitTarget.Building, DestroyedKind.Door, door.Id, door.Def.Key, 0, position, rotation, CauseOf(e.Removal), door.Open);
+                Destroyed(door.Ref, door.Def.Key, 0, position, rotation, CauseOf(e.Removal), door.Open);
                 break;
             }
             case BuildingChange.ClaimRemoved when e.Claim is { } claim && _claimDeployables.Remove(claim, out Deployable? d):
                 if (e.Removal != Removal.Taken)
                 {
                     (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
-                    Destroyed(HitTarget.Building, DestroyedKind.ClaimDevice, claim.Id, Content!.ClaimDeployable.Key, 0, position, rotation, CauseOf(e.Removal));
+                    Destroyed(claim.Ref, Content!.ClaimDeployable.Key, 0, position, rotation, CauseOf(e.Removal));
                 }
                 // Its store spills where it stood, in one bag.
                 RemoveStatic(d);
@@ -270,16 +271,17 @@ public sealed partial class Zone
     /// </summary>
     private sealed class BuildingReceiver(Zone zone) : IDamageReceiver
     {
-        public HitTarget Kind => HitTarget.Building;
+        public TargetFamily[] Families { get; } = { TargetFamily.Piece, TargetFamily.Door, TargetFamily.Cupboard };
 
         public bool Keeps => false;
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             // Walls stop swings, arrows and bullets: only up to the nearest thing found so far.
-            if (zone.Building != null && zone.TraceBuilding(ray.Origin, ray.Direction, ray.Upto(best), out float wall, out object? part))
+            if (zone.Building != null && zone.TraceBuilding(ray.Origin, ray.Direction, ray.Upto(best), out float wall, out object? part) &&
+                part is ITargetable thing)
             {
-                ray.Consider(ref best, wall, HitTarget.Building, new TraceHit { Building = part });
+                ray.Consider(ref best, wall, thing.Ref);
             }
         }
 
@@ -298,7 +300,7 @@ public sealed partial class Zone
                 }
                 Vector3 point = ClosestPoint(building.Data, piece, blast.At);
                 float d = Vector3.Distance(point, blast.At);
-                bool stuck = piece == blast.StuckTo;
+                bool stuck = blast.IsStuckTo(piece.Ref);
                 if (d <= blast.Radius || stuck)
                 {
                     into.Add(Target(piece, point, CentreOf(piece), stuck ? 0 : d, stuck, table: true));
@@ -307,7 +309,7 @@ public sealed partial class Zone
                 {
                     (Vector3 doorPoint, Vector3 _) = ClosestPoint(door, blast.At);
                     float dd = Vector3.Distance(doorPoint, blast.At);
-                    bool onDoor = door == blast.StuckTo;
+                    bool onDoor = blast.IsStuckTo(door.Ref);
                     if (dd <= blast.Radius || onDoor)
                     {
                         into.Add(Target(door, doorPoint, CentreOf(door), onDoor ? 0 : dd, onDoor, table: true));
@@ -325,7 +327,7 @@ public sealed partial class Zone
                 }
                 Vector3 point = ClosestPoint(box, blast.At);
                 float distance = Vector3.Distance(point, blast.At);
-                bool stuck = claim == blast.StuckTo || box == blast.StuckTo;
+                bool stuck = blast.IsStuckTo(claim.Ref) || blast.IsStuckTo(box.Ref);
                 if (distance <= blast.Radius || stuck)
                 {
                     into.Add(Target(claim, point, box.Centre, stuck ? 0 : distance, stuck, table: false));
@@ -333,9 +335,9 @@ public sealed partial class Zone
             }
         }
 
-        private static BlastTarget Target(object part, Vector3 point, Vector3 centre, float distance, bool stuck, bool table) => new()
+        private static BlastTarget Target(IBuildingPart part, Vector3 point, Vector3 centre, float distance, bool stuck, bool table) => new()
         {
-            Hit = new TraceHit { Target = HitTarget.Building, Building = part, Point = point },
+            Hit = new TraceHit { Target = part.Ref, Point = point },
             Thing = part,
             Sight = point,
             Sight2 = centre,
@@ -347,7 +349,7 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (zone.Building is not { } building || r.Hit.Building is not IBuildingPart part || part.Gone || part is Piece { Collapsing: true })
+            if (zone.Building is not { } building || zone.Resolve(r.Hit.Target) is not IBuildingPart part || part.Gone || part is Piece { Collapsing: true })
             {
                 return default;
             }

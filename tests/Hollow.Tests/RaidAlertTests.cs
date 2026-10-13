@@ -11,6 +11,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -72,7 +73,7 @@ public static class RaidAlertTests
 
         // A charge on the east wall: one alert at once, to Ada in the game and queued (and pushed) for Bo.
         (Vector3 face, Vector3 outward) = hut.Face(hut.Walls[1]);
-        rig.Zone.Blast(charge, face + outward * Zone.StuckOffset, outward, hut.Walls[1], HitTarget.Building, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
+        rig.Zone.Blast(charge, face + outward * Zone.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
         Assert.Equal(1, rig.Zone.RaidHits.Count, "one raid hit");
         Route(rig, service);
         Assert.Equal(1, presence.Delivered.Count, "Ada, playing, got it in the game");
@@ -86,10 +87,10 @@ public static class RaidAlertTests
         // Within the minute: summed, not sent; after it, one alert with both hits (the second charge breaks the east wall;
         // a rocket on the north wall, which still hides the claim device).
         rig.Zone.UnixMilliseconds += 10_000;
-        rig.Zone.Blast(charge, face + outward * Zone.StuckOffset, outward, hut.Walls[1], HitTarget.Building, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
+        rig.Zone.Blast(charge, face + outward * Zone.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
         rig.Zone.UnixMilliseconds += 10_000;
         (Vector3 northFace, Vector3 northOut) = hut.Face(hut.Walls[2]);
-        rig.Zone.Blast(c.Blast("rocket")!, northFace + northOut * Zone.StuckOffset, northOut, hut.Walls[2], HitTarget.Building, rig.P(cy).Id, "Cy",
+        rig.Zone.Blast(c.Blast("rocket")!, northFace + northOut * Zone.StuckOffset, northOut, hut.Walls[2].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy",
             c.ItemByKey("rocket").Id);
         Assert.True(!hut.Claim!.Gone, "the claim device stands");
         Route(rig, service);
@@ -114,7 +115,7 @@ public static class RaidAlertTests
         // An unclaimed structure: nobody to tell.
         TestBases.Hut open = TestBases.Build(rig.Zone, rig.Zone.GroundAt(0, 7), 0, 2, 1, claim: false)!;
         (Vector3 openFace, Vector3 openOut) = open.Face(open.Walls[1]);
-        rig.Zone.Blast(charge, openFace + openOut * Zone.StuckOffset, openOut, open.Walls[1], HitTarget.Building, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
+        rig.Zone.Blast(charge, openFace + openOut * Zone.StuckOffset, openOut, open.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
         Assert.Equal(0, rig.Zone.RaidHits.Count, "no claim, no alert");
 
         // Bo logs in: his two alerts, once.

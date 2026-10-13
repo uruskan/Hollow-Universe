@@ -9,6 +9,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -55,9 +56,9 @@ public sealed partial class Zone
             Channel = projectile ? DamageType.Bullet : DamageType.Melee,
             Amounts = new DamageAmounts { Building = amount },
             Direct = true,
-            Hit = new TraceHit { Target = HitTarget.Building, Building = part, Distance = 0 },
+            Hit = new TraceHit { Target = part is ITargetable thing ? thing.Ref : TargetRef.None, Distance = 0 },
             Direction = direction,
-            Markers = HitTargets.None,
+            Markers = TargetFamilies.None,
         }).Taken;
 
     /// <summary>What a raid alert calls a piece, door or claim device ("Stone wall", "Sheet Metal Door", "Claim device").</summary>

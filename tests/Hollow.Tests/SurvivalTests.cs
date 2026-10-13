@@ -9,6 +9,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -299,7 +300,7 @@ public static class SurvivalTests
             Hold(false, flat);
             landed ??= rig.Zone.GameEvents.Where(e => e.Kind == ZoneEventKind.ProjectileEnded).Select(e => (ZoneEvent?)e).FirstOrDefault();
         });
-        Assert.True(landed?.Target == HitTarget.Ground, "it came down on the ground");
+        Assert.True(landed?.Target.Family == TargetFamily.Ground, "it came down on the ground");
         float distance = Vector3.Distance(landed!.Value.Position, rig.Ch(ada).State.Position);
         float expected = 50 * MathF.Sqrt(2 * 1.7f / g);
         Fixtures.Report($"flat: landed {distance:0.0} m out (flat ground would be {expected:0.0} m)");
@@ -364,7 +365,7 @@ public static class SurvivalTests
         int fire = Enumerable.Range(0, 24).First(k => a.Inventory.Main[k].Item == c.ItemByKey("campfire").Id);
         Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, fire, 0, fireAt, 0), "a campfire");
         Deployable campfire = rig.Zone.Statics().OfType<Deployable>().Single();
-        Assert.Equal(OutcomeCode.NotEnough, rig.Zone.Toggle(ada, campfire.Id), "no fuel, no fire");
+        Assert.Equal(OutcomeCode.NoFuel, rig.Zone.Toggle(ada, campfire.Id), "no fuel, no fire");
         Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, campfire.Id), "open it");
         int wood = Enumerable.Range(0, 24).First(k => a.Inventory.Main[k].Item == c.ItemByKey("wood").Id);
         Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Main, wood, 0), "wood in");

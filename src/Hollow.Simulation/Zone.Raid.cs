@@ -13,6 +13,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
@@ -44,6 +45,7 @@ public sealed partial class Zone
     private const float FlightStepSeconds = CharacterMotor.DeltaTime / FlightSteps;
 
     private readonly List<LiveExplosive> _explosives = new();
+    private readonly Dictionary<EntityId, LiveExplosive> _explosiveIds = new();
     private readonly Dictionary<object, double> _blastResidue = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<EntityId, long> _nextThrowTick = new();
     private readonly List<Piece> _blastPieces = new();
@@ -59,18 +61,8 @@ public sealed partial class Zone
     /// <summary>What raiding has done so far (the load test reports it).</summary>
     public RaidCounters RaidStats { get; } = new();
 
-    /// <summary>An explosive by its ID, or null.</summary>
-    public LiveExplosive? ExplosiveOf(EntityId id)
-    {
-        foreach (LiveExplosive e in _explosives)
-        {
-            if (e.Id == id && !e.Gone)
-            {
-                return e;
-            }
-        }
-        return null;
-    }
+    /// <summary>An explosive by its ID (the explosives' family's lookup), or null.</summary>
+    public LiveExplosive? ExplosiveOf(EntityId id) => _explosiveIds.TryGetValue(id, out LiveExplosive? e) && !e.Gone ? e : null;
 
     // ---------------------------------------------------------------- the player's actions
 
@@ -268,6 +260,7 @@ public sealed partial class Zone
             Normal = Frame.UpAt(at),
         };
         _explosives.Add(e);
+        _explosiveIds[e.Id] = e;
         return e;
     }
 
@@ -329,7 +322,14 @@ public sealed partial class Zone
                 e.Gone = true;
             }
         }
-        _explosives.RemoveAll(e => e.Gone);
+        for (int i = _explosives.Count - 1; i >= 0; i--)
+        {
+            if (_explosives[i].Gone)
+            {
+                _explosiveIds.Remove(_explosives[i].Id);
+                _explosives.RemoveAt(i);
+            }
+        }
         if (Tick % CharacterMotor.TickRate == 0 && _blastResidue.Count > 0)
         {
             foreach (object part in _blastResidue.Keys.Where(Broken).ToList())
@@ -340,12 +340,7 @@ public sealed partial class Zone
         RaidStats.Time += Stopwatch.GetElapsedTime(started);
     }
 
-    private static bool Broken(object part) => part switch
-    {
-        Piece p => p.Gone,
-        Door d => d.Gone,
-        _ => true,
-    };
+    private static bool Broken(object part) => part is not IBuildingPart { Gone: false };
 
     // Two steps a tick under the planet's gravity; a charge sticks where it touches, a grenade bounces off with its
     // restitution and some friction, and rests once slow on ground that is flat enough.
@@ -487,15 +482,11 @@ public sealed partial class Zone
     private void Explode(LiveExplosive e)
     {
         e.Gone = true;
-        object? stuckTo = e.State == ExplosiveState.Stuck ? e.Support : null;
-        HitTarget target = e.SupportKind switch
-        {
-            SupportKind.Piece or SupportKind.Door => HitTarget.Building,
-            SupportKind.Deployable => HitTarget.Deployable,
-            SupportKind.Natural => HitTarget.Natural,
-            _ => e.State == ExplosiveState.Flying ? HitTarget.Nothing : HitTarget.Ground,
-        };
-        Blast(e.Stats.Blast, e.Position, e.Normal, stuckTo, target, e.Owner, e.OwnerName, e.Item.Id, e.Id);
+        TargetRef on = e.State == ExplosiveState.Flying ? TargetRef.None
+            : e.Support is ITargetable thing ? thing.Ref
+            : e.SupportKind == SupportKind.Natural ? new TargetRef(TargetFamily.Natural, e.SupportId)
+            : TargetRef.Ground;
+        Blast(e.Stats.Blast, e.Position, e.Normal, e.State == ExplosiveState.Stuck ? on : TargetRef.None, on.Family, e.Owner, e.OwnerName, e.Item.Id, e.Id);
     }
 
     // A rocket or an explosive round goes off a little short of what it hit (so its blast starts outside a wall).
@@ -503,14 +494,7 @@ public sealed partial class Zone
     {
         Vector3 direction = b.Velocity.LengthSquared() > 1e-6f ? Vector3.Normalize(b.Velocity) : -Frame.UpAt(b.Position);
         Vector3 at = hit.Point - direction * 0.05f;
-        object? stuckTo = hit.Target switch
-        {
-            HitTarget.Building => hit.Building,
-            HitTarget.Deployable => hit.Deployable,
-            HitTarget.Ship => hit.Ship,
-            _ => null,
-        };
-        Blast(blast, at, -direction, stuckTo, hit.Target, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
+        Blast(blast, at, -direction, hit.Target, hit.Target.Family, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
     }
 
     // ---------------------------------------------------------------- what a flying explosive meets
@@ -741,6 +725,7 @@ public sealed partial class Zone
             }
         }
         _explosives.Add(e);
+        _explosiveIds[e.Id] = e;
         return true;
     }
 

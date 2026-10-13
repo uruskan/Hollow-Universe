@@ -9,6 +9,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -93,7 +94,7 @@ public static class ShipGameTests
         Assert.True(Vector3.Distance(Ch(rig, ada).State.Position, feet) < 0.1f, "standing on the ground, clear of the hull");
 
         // The lock: only the owner gets in.
-        Assert.Equal(OutcomeCode.NotAllowed, zone.LockShip(bo, ship.Id), "only the owner locks it");
+        Assert.Equal(OutcomeCode.NotOwner, zone.LockShip(bo, ship.Id), "only the owner locks it");
         Look(rig, ada, ship.PointOf(ShipRig.Finch.Hatch));
         Assert.Equal(OutcomeCode.Done, zone.LockShip(ada, ship.Id), "Ada locks it");
         Look(rig, bo, ship.PointOf(ShipRig.Finch.Hatch));
@@ -194,8 +195,8 @@ public static class ShipGameTests
         ref Character cb = ref Ch(rig, bo);
         Vector3 eye = zone.EyeOf(cb.State);
         TraceHit hit = zone.Trace(eye, Vector3.Normalize(side - eye), 2.5f, 0.15f, pb.Id, zone.Tick);
-        Assert.Equal(HitTarget.Ship, hit.Target, "a swing at the hull meets the ship");
-        float lost = zone.DamageShip(hit.Ship!, 15, ShipDamage.Melee, pb);
+        Assert.Equal(ship.Ref, hit.Target, "a swing at the hull meets the ship");
+        float lost = zone.DamageShip(ship, 15, ShipDamage.Melee, pb);
         Assert.Near(15 * ShipRig.Finch.MeleeDamage, lost, 1e-4, "melee does its share");
 
         // Bullets and explosions take the rest.
@@ -218,7 +219,7 @@ public static class ShipGameTests
         Vector3 at = ship.PointOf(new Vector3(0, 1.4f, 3.6f));
         float distance = Vector3.Distance(Zone.ShipClosestPoint(ship, at), at);
         float hull = ship.State.Health, health = pa.Vitals.Health;
-        zone.Blast(rocket, at, Vector3.UnitZ, null, HitTarget.Nothing, pb.Id, "Bo", c.ItemByKey("rocket").Id);
+        zone.Blast(rocket, at, Vector3.UnitZ, TargetRef.None, TargetFamily.None, pb.Id, "Bo", c.ItemByKey("rocket").Id);
         float expected = (float)(rocket.Deployable * rocket.Falloff(distance)) * ShipRig.Finch.ExplosiveDamage;
         Fixtures.Report(FormattableString.Invariant($"a rocket {distance:0.00} m from the hull: {hull - ship.State.Health:0.0} hull lost"));
         Assert.True(expected > 0, "in the blast's reach");
@@ -228,7 +229,7 @@ public static class ShipGameTests
         Vector3 skin = Zone.ShipClosestPoint(ship, ship.PointOf(new Vector3(-2, 1.4f, 0.4f)));
         for (int i = 0; i < 2 && !ship.Destroyed; i++)
         {
-            zone.Blast(charge, skin, -Vector3.UnitX, ship, HitTarget.Ship, pb.Id, "Bo", c.ItemByKey("timed-charge").Id);
+            zone.Blast(charge, skin, -Vector3.UnitX, ship.Ref, TargetFamily.Ship, pb.Id, "Bo", c.ItemByKey("timed-charge").Id);
         }
         Assert.True(ship.Destroyed, "two timed charges stuck to it destroy it");
         Assert.True(pa.Dead && pa.KilledBy == "Bo", "the pilot went down with it, killed by Bo");

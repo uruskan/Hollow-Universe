@@ -13,6 +13,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
 using Hollow.Simulation;
@@ -22,7 +23,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x443BFAAA9E56254EUL;
+    public const ulong SchemaHash = 0xE85062D1F65BE89AUL;
 }
 
 partial struct Hello
@@ -1305,7 +1306,7 @@ partial struct ProjectileEnd
         w.WriteFloat(X);
         w.WriteFloat(Y);
         w.WriteFloat(Z);
-        w.WriteBits((uint)Target, 3);
+        w.WriteBits((uint)Target, 4);
     }
 
     public static ProjectileEnd Read(BitReader r)
@@ -1315,7 +1316,26 @@ partial struct ProjectileEnd
         v.X = r.ReadFloat();
         v.Y = r.ReadFloat();
         v.Z = r.ReadFloat();
-        v.Target = (HitTarget)r.ReadBits(3);
+        v.Target = (TargetFamily)r.ReadBits(4);
+        return v;
+    }
+}
+
+partial struct TargetNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Family, 4);
+        w.WriteBits64(Id, 64);
+        w.WriteBits((uint)Part, 8);
+    }
+
+    public static TargetNet Read(BitReader r)
+    {
+        var v = new TargetNet();
+        v.Family = (TargetFamily)r.ReadBits(4);
+        v.Id = r.ReadBits64(64);
+        v.Part = (byte)r.ReadBits(8);
         return v;
     }
 }
@@ -2026,7 +2046,7 @@ partial struct HitMarker
 
     public readonly void Write(BitWriter w)
     {
-        w.WriteBits((uint)Target, 3);
+        w.WriteBits((uint)Target, 4);
         w.WriteBits((uint)Region, 2);
         w.WriteVarUInt(Damage);
         w.WriteBool(Killed);
@@ -2037,7 +2057,7 @@ partial struct HitMarker
     public static HitMarker Read(BitReader r)
     {
         var v = new HitMarker();
-        v.Target = (HitTarget)r.ReadBits(3);
+        v.Target = (TargetFamily)r.ReadBits(4);
         v.Region = (HitRegion)r.ReadBits(2);
         v.Damage = r.ReadVarUInt();
         v.Killed = r.ReadBool();
@@ -3166,7 +3186,7 @@ partial struct Detonation
         w.WriteQuantized(NormalY, -1f, 1f, 12);
         w.WriteQuantized(NormalZ, -1f, 1f, 12);
         w.WriteQuantized(Radius, 0f, 20f, 10);
-        w.WriteBits((uint)Target, 3);
+        w.WriteBits((uint)Target, 4);
         w.WriteBool(Round);
     }
 
@@ -3183,7 +3203,7 @@ partial struct Detonation
         v.NormalY = r.ReadQuantized(-1f, 1f, 12);
         v.NormalZ = r.ReadQuantized(-1f, 1f, 12);
         v.Radius = r.ReadQuantized(0f, 20f, 10);
-        v.Target = (HitTarget)r.ReadBits(3);
+        v.Target = (TargetFamily)r.ReadBits(4);
         v.Round = r.ReadBool();
         return v;
     }
@@ -3946,9 +3966,7 @@ partial struct ThingDestroyed
 
     public readonly void Write(BitWriter w)
     {
-        w.WriteBits((uint)Receiver, 3);
-        w.WriteBits((uint)Kind, 3);
-        w.WriteBits64(Id, 64);
+        Target.Write(w);
         w.WriteString(Key, 48);
         w.WriteBits((uint)Grade, 3);
         w.WriteFloat(X);
@@ -3970,9 +3988,7 @@ partial struct ThingDestroyed
     public static ThingDestroyed Read(BitReader r)
     {
         var v = new ThingDestroyed();
-        v.Receiver = (HitTarget)r.ReadBits(3);
-        v.Kind = (DestroyedKind)r.ReadBits(3);
-        v.Id = r.ReadBits64(64);
+        v.Target = TargetNet.Read(r);
         v.Key = r.ReadString(48);
         v.Grade = (byte)r.ReadBits(3);
         v.X = r.ReadFloat();

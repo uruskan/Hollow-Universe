@@ -316,7 +316,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     private void OnHitMarker(HitMarkerEvent e)
     {
-        if (e.Target == HitTarget.Character)
+        if (e.Target == Hollow.Simulation.Targets.TargetFamily.Character)
         {
             HitConfirmed?.Invoke(e.Region == Hollow.Simulation.Content.HitRegion.Head);
         }

@@ -8,6 +8,7 @@ using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Client;
 
@@ -63,7 +64,7 @@ public sealed record LifeView
 }
 
 /// <summary>A hit landed (the UI's hit marker): <paramref name="Downed"/> when it knocked the player down (G4).</summary>
-public readonly record struct HitMarkerEvent(HitTarget Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot, bool Downed = false);
+public readonly record struct HitMarkerEvent(TargetFamily Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot, bool Downed = false);
 
 /// <summary>Items gained (gathered, picked up, crafted, refunded) or lost (a tool broke), for the notifications.</summary>
 public readonly record struct ItemsChangedEvent(ItemDef Item, int Count, GainReason Reason, bool WeakSpot);

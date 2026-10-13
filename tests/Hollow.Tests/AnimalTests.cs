@@ -12,6 +12,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -64,7 +65,7 @@ public static class AnimalTests
         bool hit = false;
         rig.Step(15, () =>
         {
-            hit |= rig.Zone.GameEvents.Any(e => e.Kind == ZoneEventKind.HitConfirmed && e.Target == HitTarget.Animal);
+            hit |= rig.Zone.GameEvents.Any(e => e.Kind == ZoneEventKind.HitConfirmed && e.Target.Family == TargetFamily.Animal);
         });
         Assert.True(hit && target.Health < target.Species.Health && target.HurtCount == 1, $"the deer was hit ({target.Health:0} health left)");
         Assert.True(AnimalRig.Alive(herd).All(a => a.State == AnimalState.Flee), "the whole herd runs: " + string.Join(", ", herd.Members.Select(a => a.State)));
@@ -291,7 +292,7 @@ public static class AnimalTests
                 ch.Input = new MoveInput { Buttons = MoveButtons.Crouch };
                 rig.Look(ada, aim);
                 ch.Actions = new ActionInput { HeldSlot = 0, Buttons = deer.Removed ? ActionButtons.None : ActionButtons.Primary };
-                count += rig.Zone.GameEvents.Count(e => e.Kind == ZoneEventKind.HitConfirmed && e.Target == HitTarget.Animal && e.Player == p.Id);
+                count += rig.Zone.GameEvents.Count(e => e.Kind == ZoneEventKind.HitConfirmed && e.Target.Family == TargetFamily.Animal && e.Player == p.Id);
                 rig.Zone.GameEvents.Clear();
             });
             string gained = string.Join(", ", deer.Species.Harvest.Select(y => $"{p.Inventory.Count(y.Item)} {y.Item.Key}"));

@@ -14,6 +14,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -163,11 +164,11 @@ public static class RaidTests
     }
 
     // Blasts of one kind on a target (stuck to it) until it breaks.
-    private static int Count(GameRig rig, BlastStats blast, ushort item, object target, Vector3 at, Vector3 normal, Func<bool> gone)
+    private static int Count(GameRig rig, BlastStats blast, ushort item, ITargetable target, Vector3 at, Vector3 normal, Func<bool> gone)
     {
         for (int n = 1; n <= 1000; n++)
         {
-            rig.Zone.Blast(blast, at, normal, target, HitTarget.Building, EntityId.None, "", item);
+            rig.Zone.Blast(blast, at, normal, target.Ref, target.Ref.Family, EntityId.None, "", item);
             if (gone())
             {
                 return n;
