@@ -483,6 +483,142 @@ wrinkle normal maps yet; the face has no expression or eye movement; hair is Mak
 third-person swing is a sword clip; first-person reload and swing are procedural curves, not authored animation; the
 female body is not built yet.
 
+### 4.9 Audio
+
+Rust's sound is the bar: grounded, punchy, readable, nothing cartoonish. Built in the `ground-audio` package from CC0
+recordings (§9.2); the ground mode and the surface view still have to call it (the hook-up list below).
+
+| Part | Where |
+|---|---|
+| Sound files: 463, Ogg Vorbis q5 at 48 kHz (interface clicks 16-bit WAV), 12.6 MB | `game/assets/audio/` |
+| The catalogue: 138 events with their variants, volume, random pitch and volume, attenuation, bus, priority, voice limit; distance layers; loudness categories; what each item plays | `game/data/ground/sounds.json` |
+| Every file's measurements (loudness, true peak, spectrum, lead, tail, SHA-256) | `game/assets/audio/levels.json` |
+| The pipeline that builds both (§9.2) | `art/audio/` |
+| Engine-free rules: the catalogue model, a BS.1770 meter, distance layers, footstep surfaces and cadence, the ambience mix | `src/Hollow.Client/Audio/` |
+| The Godot side: `AudioDirector`, `AudioBuses`, `FootstepDriver`, `AmbienceDirector`, `SoundLibrary`, `SoundMeter`, the viewer | `game/scripts/Audio/` |
+| Tests: files there and imported at 48 kHz, measurements current, peaks, loudness, items covered | `tests/Hollow.Tests/SoundCatalogueTests.cs` |
+
+**An event** (sounds.json) has `files` (its variants), `volume` (dB), `pitch` (a random range), `jitter` (± dB),
+`unitSize` and `maxDistance` (metres: inverse-distance falloff from the unit size; beyond the maximum it doesn't start),
+`bus` (SFX, Footsteps, UI, Ambience), `priority` (0–100), `limit` (voices of this event at once), `loop`, `space`
+(`2d` for the interface and ambience beds), `occlude`, `delay` (starts after the time sound takes to arrive, 343 m/s),
+`cooldown`. A layered event (gunshots, explosions) has `layers` instead: each with its files, a distance band
+(`from`, `to`, `fade`), its own volume and falloff. `items` maps item keys and door kinds to roles and events
+(`"stone-hatchet": {"swing": "melee.swing.heavy", "hitWood": "gather.wood.hit", …}`), so the game asks
+`SoundCatalogData.ItemEvent(item, role)` instead of knowing keys. The build owns each event's files and category and
+the item map; every other field may be tuned by hand and is kept when the build runs again.
+
+**Events.** Footsteps: walk, run, crouch and land on grass, dirt, sand, rock, snow, wood, metal and shallow water, and a
+swim stroke. Gathering: wood hit, a tree falling, stone hit, ore hit, an outcrop breaking at each of its three stages,
+the weak spot's tick, berries, plants, picking an item up. Survival: eat, drink, bandage, hurt, death, cold breath.
+Deployables: campfire and furnace loops, their ignition, putting out, a box opening and closing, placing. Building:
+placing by grade, upgrading to each grade, repair, demolish, collapse; doors opening and closing in wood, sheet metal,
+armour and the garage door; the code lock's key press, accepted and refused; a key lock. Weapons: melee swings (light,
+heavy) and hits (flesh, hard), the bow's draw and release, an arrow's flight and impacts, the pistol and rifle shot in
+three layers and silenced, reload parts (magazine out and in, slide or bolt), dry fire, spent cases, bullet impacts on
+flesh, wood, stone, metal, dirt and water, the hit marker, a head shot and a kill. Explosives: the fuse, the timer's
+beep, the blast in three layers, debris. Interface (Rust's manner: quiet clicks, cloth for the inventory): click,
+hover, drag, drop, craft started and finished, error, inventory open and close, a notice. Ambience: calm, strong and
+high wind, meadow and forest birds, night insects, near and far surf, leaves; owls, crows and distant thunder.
+
+**Loudness** (ITU-R BS.1770, measured with ffmpeg after encoding; the engine's own decode agrees within 0.7 LU,
+`--sound-check`). A one-shot's *event loudness* is its highest momentary loudness corrected for sounds shorter than
+the 400 ms window (down to 100 ms), a loop's is its integrated loudness. Every file peaks under −1 dBTP (highest
+−1.10).
+
+| Category | Metric | Target | Range | As built |
+|---|---|---|---|---|
+| footstep | event | −26 | −30 … −22 | −27.9 … −25.9 |
+| foley (handling, swings, doors, eating) | event | −23 | −27 … −19 | −26.9 … −22.9 |
+| click (reloads, locks, cases) | event | −27 | −33 … −21 | −32.0 … −26.9 |
+| gather (chops, picks, building) | event | −19 | −23 … −15 | −22.4 … −18.9 |
+| impact (hits, bullet impacts) | event | −21 | −27 … −17 | −25.6 … −20.9 |
+| voice | event | −21 | −25 … −17 | −21.4 … −21.0 |
+| gunshot (near) | event | −20 | −25 … −16 | −24.3 … −22.2 |
+| distant (mid and far layers) | event | −22 | −27 … −17 | −25.8 … −21.9 |
+| explosion (near) | event | −13 | −18 … −9 | −14.8 … −13.4 |
+| ui, marker | event | −27, −23 | −33 … −21, −28 … −18 | −27.9 … −26.9, −23.5 … −23.0 |
+| loop (fires, fuse) | integrated | −29 | −34 … −24 | −32.6 … −29.0 |
+| ambience (beds) | integrated | −30 | −34 … −26 | −30.5 … −30.1 |
+| accent | event | −27 | −32 … −22 | −27.3 … −26.9 |
+
+A recorded gunshot is a few milliseconds of blast: at −1 dBTP its event loudness is about −22 LUFS, and no more than
+6 dB of limiting is allowed, so shots aren't squashed. They are louder in the game than the numbers say: their
+falloff starts at 12 m (footsteps at 2 m), the mid and far layers carry them to 1.5 km, and the event volumes set the mix.
+
+**The director** (`AudioDirector`, one node; others call `AudioDirector.Instance`): pools of 56 placed
+(`AudioStreamPlayer3D`) and 20 flat (`AudioStreamPlayer`) voices; an event's own limit cuts its oldest voice; a full
+pool gives a new sound the voice of the lowest priority, then the oldest, or drops it if every voice matters more.
+Variants come in shuffled rounds (`VariantBag`: never the same twice in a row); pitch and volume are random within the
+event's ranges. A layered event plays each layer whose band covers the listener's distance, crossfaded with equal
+power (`DistanceLayers.Weight`) and started after distance ÷ 343 m/s. Air absorption (a high shelf from 7 kHz) on
+ordinary 3D sounds; layered ones carry their distance in their files. Occlusion: a ray from the listener to the source
+on `OcclusionMask` (collision layer 1 by default, or `OcclusionTest`); a blocked voice plays on its bus's "Occluded"
+child, low-passed at 900 Hz; loops look again every 0.3 s. API: `Play(key, position, volumeDb, pitch)`,
+`Play2D(key, …)`, `Loop(key, node)` (follows the node until `Stop` or the node goes), `Loop2D(key)`,
+`Stop(handle, fade)`, `SetGain(handle, db, fade)`, `IsPlaying(handle)`.
+
+**Buses** (`AudioBuses.Ensure`, made in code): Master (a hard limiter at −1 dBFS) ← SFX, Footsteps, UI, Ambience; SFX
+and Footsteps carry a short room reverb whose wet level follows `AudioBuses.SetSpace(indoor)` (dry outdoors, a damped
+room inside a building) and an "Occluded" child each. `AudioBuses.SetVolume(bus, 0–1)` for the player's settings.
+
+**Footsteps** (`FootstepDriver`, one per character; rules in `Footsteps`, `FootstepCadence`): a step every stride, the
+stride growing with speed (0.6 m walking slowly to 1.75 m sprinting; shorter crouched), so steps keep pace with the
+animation at any frame rate. Run above 3.6 m/s or sprinting, crouch when crouched; a landing after at least 0.12 s in
+the air and 2.2 m/s down, louder the harder (−8 to +3 dB); swim strokes every 1.15 s (0.85 s sprinting); shallow water
+(8 cm or more, not swimming) splashes whatever the ground. Surfaces from Hollow.Surface: grass and moss → grass; forest
+floor, soil and gravel → dirt; rock → rock; sand → sand; snow → snow (`Footsteps.FromGround`, `FromWeights` for a
+vertex's eight weights, `FromBiome` when only the biome is known); building floors by grade (twig and wood → wood, stone
+→ rock, metal and armoured → metal, `FromGrade`). The player's own feet play flat, 3 dB down; others' at their feet.
+
+**Ambience** (`AmbienceDirector`, rules in `AmbienceMix`): flat loops on the Ambience bus, gliding to their levels over
+1.5 s, started when heard and stopped after 4 s unheard. Wind always (stronger with wind, height and exposure; a strong
+bed from 400 m up and in wind, a high whistle on exposed heights); meadow birds by day in the open, forest birds among
+trees, night insects in warm biomes; all wildlife quieter in wind, storm and above 1.5 km; surf within 220 m of the sea,
+a far surf to 1.6 km; leaves among trees, louder in wind. Accents placed 50 m to 4 km around the listener: owls at night
+near trees, crows by day, thunder only in a storm (no weather yet, so none).
+
+**Viewer** (`--view sounds`, options in AGENTS.md): every event in a list, a click plays it; its settings, layers, and
+each variant's loudness from the pipeline beside the engine's decode; a source walking away from the listener (posts at
+10 m to 1.5 km; layer weights and the arrival delay shown); the ambience by biome, hour, wind, sea, forest, height and
+storm with every bed's level. `--sound-check` loads and measures all 463 files in the engine and quits with 0 when they
+agree with the pipeline.
+
+![The audition viewer: the rifle at 320 m (mid 98 %, far 45 %, arriving after 933 ms) and a forest morning](images/ground/audio/sounds.jpg)
+
+**How to hook it up** (the ground mode and the surface view own these; nothing below is wired yet):
+1. At start: add one `AudioDirector` (set `OcclusionMask` to the world and building layers) and one `AmbienceDirector`;
+   `SoundLibrary.Preload` the footsteps and the held items' events.
+2. Each frame, the player's `FootstepDriver { Local = true }.Update(dt, FootInput, feet)` from the predicted character
+   (speed, vertical speed, grounded, crouching, swimming, sprinting, the surface under the feet, water depth); one
+   driver per remote character from its interpolated state.
+3. Each frame (or a few times a second), `AmbienceDirector.Update(dt, AmbienceInput, camera)`: altitude, exposure,
+   `BiomeAt`, tree density around (the scatter's or `Vegetation` trees), distance to the sea, the sun's elevation from
+   the sky, wind; `Indoor` and `AudioBuses.SetSpace` when under a roof.
+
+| Game event (client API, §6.2) | Sound |
+|---|---|
+| A swing or strike (own input, a remote entity's swing count) | `ItemEvent(held, "swing")` at the hand |
+| A hit on a tree / an outcrop (the natural object's health drops) | `hitWood` / `hitStone` (`hitOre` on metal) at the impact; `gather.weakspot` with it when the weak spot moved |
+| An outcrop's stage changes; a tree falls | `gather.node.break.1/2/3`; `gather.wood.break` |
+| `PickUpNatural` / `PickUpItem` answered | `gather.berry` (bushes), `gather.plant` (fibre, tubers), `gather.pickup` (piles, drops) |
+| `Use` accepted (food, medicine) | `ItemEvent(item, "use")`, flat |
+| `DamageTaken` / a remote flinch; `Died` | `survival.hurt`; `survival.death` |
+| Cold (`Vitals.Cold` above 0.5) | `survival.cold` every 4–7 s, flat |
+| A deployable spawns (`ThingSpawn`, own `Place` accepted) | `ItemEvent(kind, "place")` at it |
+| A fire lights / goes out (`ThingUpdate.Lit`) | `ignite`, then `Loop(loop, node)`; `extinguish` and `Stop` |
+| `ContainerOpened` / `ContainerClosed` on a box, campfire or furnace | `box.open` / `box.close` at it |
+| Building: placed, upgraded, repaired, demolished; a collapse layer falls | `build.place.<grade>`, `build.upgrade.<grade>`, `build.repair`, `build.demolish`; `build.collapse` per layer |
+| A door opens or shuts | `ItemEvent(door, "open" / "close")` at the door |
+| A code lock's key, accepted, refused; a key lock | `codelock.beep` / `codelock.accept` / `codelock.deny`; `lock.key` |
+| A shot (own fire, a remote shot count, `Projectiles` loosed) | `ItemEvent(gun, "shot")` (`"shotSilenced"` with a silencer) at the muzzle: the layers and delay follow from the distance |
+| Reload steps; firing empty | `magOut`, `magIn`, `rack` at the hands; `gun.dryfire`; `gun.shell` where a case lands |
+| The bow drawn, loosed; an arrow in flight, stopping | `bow.draw`, `bow.release`; `arrow.flight`; `arrow.impact` / `arrow.impact.flesh` |
+| A projectile stops on a material | `impact.flesh/wood/stone/metal/dirt/water` at the hit |
+| `HitMarker` | `hit.marker`, `hit.headshot` (head), `hit.kill` (the target died), flat |
+| A timed charge: armed, ticking, going off | `Loop("explosive.fuse", charge)`, `explosive.beep` each second, `explosion` (layered) and `explosion.debris` |
+| The interface (`GroundUi`): buttons, hover, drag, drop, `Craft`, `CraftFinished`, `IntentRejected`, Tab, notices | `ui.click`, `ui.hover`, `ui.drag`, `ui.drop`, `ui.craft.start`, `ui.craft.done`, `ui.error`, `ui.inventory.open/close`, `ui.notify` |
+
 ---
 
 ## 5. Steps
@@ -1007,6 +1143,8 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 | `survival.json` | Vitals, metabolism, bleeding, temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
 | `categories.json` | The crafting tabs. | Rust's grouping |
 
+The client alone also reads `sounds.json`, the sound catalogue (§4.9); it is not part of the game data's hash.
+
 The checks (`ContentTests`): unique IDs and keys; every reference resolves; sensible ranges; and a fixpoint from what
 natural objects yield, through recipes, workbench levels, cooking and fuel by-products, proves every recipe can be made.
 Charcoal, for example, comes from wood burnt in a campfire, which is made of wood; the furnace needs lamp oil, made from
@@ -1148,6 +1286,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
   - MPFB 2.0.17, MakeHuman for Blender (GPL code; the base mesh, targets, rigs and weights it uses are CC0);
   - the MakeHuman system asset pack (CC0): the skin, eyes, eyebrows, eyelashes and hair of the player body.
 - Other CC0 or CC-BY sources (CMU motion capture, Poly Haven, Kenney) if a need arises.
+- Sounds (§9.2): free CC0 downloads, approved by the owner on 13 October 2026 (BigSoundBank, the Free Firearm Sound
+  Library, Kenney's audio packs, OpenGameArt's CC0 packs), in the same `Downloads` folders, listed in
+  `game/assets/THIRD_PARTY.md`.
 - **In the game now:** the ground textures only (six Megascans surfaces and two Poly Haven sets, listed in
   `game/assets/THIRD_PARTY.md`, built by `tools/blender/surface_ground.py`). Plants, grass, rocks and their textures
   are made in code (§4.6); the Megascans and LOLIPOP plant models tried earlier were dropped.
@@ -1293,6 +1434,45 @@ Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `ic
 the reworked icons), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
 `models.jpg` (everything on the ground),
 `items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
+
+### 9.2 Sounds, as built
+
+Every sound (§4.9) is rebuilt from text: recipes in `art/audio/events.py`, run by `art/audio/build.py` with ffmpeg
+(`HOLLOW_FFMPEG`, else ShareX's copy on this PC, else `ffmpeg` on the path) and Python's standard library only.
+
+```bash
+python -I art/audio/sources.py --fetch     # the downloads that are missing, each checked by SHA-256
+python -I art/audio/build.py               # every sound whose recipe or sources changed (6 at once), the catalogue, the levels
+python -I art/audio/build.py --only weapon/rifle   # some; --force rebuilds all (about a minute)
+$GODOT --headless --path game --import     # then build.py again: it marks loops and keeps the WAVs uncompressed
+python -I art/audio/build.py --credits     # the THIRD_PARTY.md tables of the recordings used
+python -I art/audio/inspect.py <file> <out.png> --steps    # a waveform and spectrogram with the cuts marked
+```
+
+**Sources** (CC0, downloaded 13 October 2026 with the owner's approval, listed in `game/assets/THIRD_PARTY.md`):
+BigSoundBank (Joseph Sardin's field and foley recordings: footsteps, axes, fire, doors, metal, water, eating, birds,
+insects, surf, wind, thunder, explosions at 10, 150 and 250 m, a pistol's slide and magazine), the Free Firearm Sound
+Library (22 firearms recorded near and at mid distance: the rifle is an AK-47 and an SKS, the pistol a Walther PPQ and
+a 1911), HaelDB's male grunts and yells, Kenney's Impact, Interface, UI, RPG and Sci-fi packs, and OpenGameArt's
+footstep packs (Fantozzi, Corsica_S, TinyWorlds) and rubberduck's metal, wood and breaking packs. Made in code
+(`art/audio/synth.py`): the calm and high wind beds, the outdoor impulse response of the far gunshot tails, and two
+piezo tones (the code lock's verdicts and the charge's timer). No sound comes from Rust or any other game.
+
+**How a recipe becomes a file:**
+1. *Parts* of recordings: found by onset analysis (`audiolib.find_events` for hits and shots, `find_steps` for
+   sequences of steps or chops, from a smoothed envelope), picked at a steady level and spread through the take.
+2. Each part's gain, varispeed pitch (heavier or lighter), filters and offset; parts layered; a convolution with the
+   outdoor impulse response where a tail is wanted.
+3. Cut from where the sound starts (45 dB under its peak) to where its tail has died away (48–55 dB under), with short
+   fades; or, for a loop, the steadiest stretch of the recording with its end crossfaded into its start (equal power).
+4. Brought to its category's loudness (§4.9) under −1 dBTP: a look-ahead limiter takes at most the category's
+   allowance (0–10 dB), the rest stays as recorded.
+5. Encoded bit-exactly (no random Ogg serials or tags), measured again, and recorded with its SHA-256 in
+   `levels.json`; a recipe that didn't change isn't built again.
+
+Archives are unpacked into `art/.cache/audio/src` by Python's `zipfile` and our own 7z reader (`art/audio/sevenzip.py`:
+LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. The waveform and
+spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since nobody listened while they were made.
 
 ---
 
@@ -1463,3 +1643,34 @@ Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 43. **Levels of detail change at 26 m and 64 m** (ours), and the ghost is the stone piece's second level in green or red.
 44. **The sandbox has no network:** it runs the rules in the game process on the stand-in surface; the same rules run on
     the server in phase 2.
+
+Decisions taken for the sound (§4.9, §9.2) without the owner, to confirm or overturn (numbered A1 on):
+
+- A1. **One-shots are levelled by their event loudness** (the highest momentary loudness, corrected for sounds shorter
+  than 400 ms), loops by integrated loudness, each category to its own target (§4.9); the event volumes in
+  sounds.json do the mix on top.
+- A2. **Gunshots stay as recorded** (at most 6 dB of limiting): their event loudness is −24 to −22 LUFS, under the
+  −20 target, because a real shot is a few milliseconds of blast. Rust's shots sound denser; heavier compression or a
+  saturated body layer is the owner's call after listening.
+- A3. **Distance layers:** guns near to 60 m, mid 60–350 m, far 350–1500 m; explosions 80, 500 and 2,500 m; sound
+  arrives at 343 m/s. The far gun layer is the mid recording with its report ducked under its echo, darkened, through
+  a made-in-code outdoor tail.
+- A4. **Silenced shots are processed** from the near recordings (a 1.5 kHz low-pass, compression, the slide's clack);
+  no recording of a suppressed gun was found under CC0.
+- A5. **Footstep surfaces:** forest floor, soil and gravel sound like a dirt path, moss like grass; metal floors are our
+  layering of a hard shoe step and a thin plate's ring (no CC0 recording of steps on sheet metal was found).
+- A6. **The player's voice** is one vocalist of HaelDB's pack (short grunts for hurt, a cry and a body fall at death);
+  a female voice comes with the female body.
+- A7. **Made in code only where it is natural:** the calm and high wind beds (two bands of noise in slow gusts), the far
+  tail's impulse response, and two piezo tones (the code lock and the charge's timer). Fire, surf, birds, insects,
+  strong wind and leaves are recordings.
+- A8. **The interface is quiet and physical** (Kenney's soft clicks; cloth and leather for the inventory and dragging),
+  in Rust's manner; hover has a 50 ms cooldown, errors 200 ms.
+- A9. **The medical injector** uses the bandage's sound until it has its own; eating is one event for every food.
+- A10. **No weather yet:** `AmbienceInput.Storm` is 0, so there is no thunder; wind comes from the caller.
+- A11. **Occlusion is one ray** (collision layer 1) and a 900 Hz low-pass bus; no portals or diffraction. Indoors is a
+  short room reverb on the SFX and Footsteps buses (`AudioBuses.SetSpace`).
+- A12. **The buses are made in code** (`AudioBuses.Ensure`), not a `default_bus_layout.tres`, so the layout lives in
+  one reviewed place.
+- A13. **BigSoundBank's single files** were downloaded into one folder (`Downloads/bigsoundbank`) rather than one folder
+  each; every file is checked by its SHA-256 before use.

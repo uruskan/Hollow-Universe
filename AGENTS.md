@@ -62,6 +62,10 @@ dotnet run --project tests/Hollow.Tests -- Building   # the building rules (GROU
 # The building and door kits into game/assets/building (Blender 5.2.1, D:/GameDev/Tools/blender-5.2.1-windows-x64):
 blender --background --factory-startup --python art/import/building_kit.py [-- twig wood stone metal armoured]
 blender --background --factory-startup --python art/import/door_kit.py
+# The sounds (GROUND.md §4.9, §9.2; Python's standard library and ffmpeg, HOLLOW_FFMPEG):
+python -I art/audio/sources.py --fetch    # the CC0 downloads that are missing, each checked by SHA-256
+python -I art/audio/build.py              # sounds whose recipe changed → game/assets/audio, sounds.json, levels.json
+                                          # (--only <path prefix>, --force, --credits); after Godot imports new files, run it again
 ```
 
 Character assets (GROUND.md §4.8, §9), rebuilt from text by Blender 5.2 in background mode. MPFB 2 lives in its own
@@ -92,6 +96,8 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada
 xvfb-run -a $GODOT --path game -- --view icons --out game/assets/items/icons   # render every item icon (GROUND.md §9.1)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view models --shot models.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view sounds --sound rifle.shot --distance 320 --ambience --shot sounds.png
+$GODOT --headless --path game -- --view sounds --sound-check   # every sound file loaded and measured in the engine
 ```
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
@@ -117,6 +123,12 @@ Client options (after `--`):
   `--ads`, `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
   `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once;
   `--crowd <n>` adds n characters and `--measure <s>` prints frame times (vsync off) and quits.
+- Sounds (GROUND.md §4.9): `--view sounds` lists every sound event (a click plays it; Space play, W walk away, S stop,
+  ↑/↓ the event, A ambience, B biome); `--sound <key>` selects one, `--play` plays it, `--walk` sends the source away
+  from the listener (distance layers, arrival delay), `--distance <m>` places it; `--ambience` with `--biome
+  Meadow|Forest|Taiga|Beach|Tundra|Alpine|Desert`, `--hour <h>`, `--wind <0–1>`, `--sea <m>`, `--forest <0–1>`,
+  `--altitude <m>`, `--storm <0–1>`. `--sound-check` loads and measures every file in the engine and quits with exit
+  code 0 when all agree with the pipeline's measurements.
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
 - Ground (GROUND.md §4.3): `--view ground --name <n>`, then `--connect host:port` or `--host [--port <n>]` (the
   default: a server in the game); `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad network through a local
@@ -161,7 +173,7 @@ Client options (after `--`):
 | `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3) |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
 | `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread |
-| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2) |
+| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2); `Audio/`: the sound catalogue model, a BS.1770 loudness meter, distance layers, footstep and ambience rules (§4.9) |
 | `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication, login, admin |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
 | `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
@@ -174,7 +186,10 @@ Client options (after `--`):
 | `game/assets/characters` | Player body, clothing and animations (GLB), their textures and JSON facts, built by `art/` |
 | `game/assets/THIRD_PARTY.md` | Every third-party file: source, version, licence, checksum |
 | `art/` | Blender Python scripts that build assets from text: the character body, clothing and held-item tests (character package), and the item and world models: `hollow/` (shared code), `import/` (the kits), `models/` (our own), `build.py`; `art/.cache` is scratch (not committed) |
-| `game/data/ground` | The ground game's data (GROUND.md §7): items, recipes, natural objects, deployables, loot, survival constants, crafting tabs (JSON, read by server and client) |
+| `game/data/ground` | The ground game's data (GROUND.md §7): items, recipes, natural objects, deployables, loot, survival constants, crafting tabs (JSON, read by server and client); `sounds.json`, the sound catalogue (client only, §4.9) |
+| `game/scripts/Audio` | The sound (GROUND.md §4.9): `AudioDirector` (pooled voices, limits, priorities, distance layers, occlusion), `AudioBuses`, `FootstepDriver`, `AmbienceDirector`, `SoundLibrary`, `SoundMeter`, the viewer (`--view sounds`) |
+| `game/assets/audio` | The sound files (Ogg Vorbis, 48 kHz; interface clicks WAV) and `levels.json`, their measurements; built by `art/audio` |
+| `art/audio` | The sound pipeline (GROUND.md §9.2): sources and their checksums, recipes (`events.py`), the build, our 7z reader, sounds made in code, `inspect.py` (waveform and spectrogram pictures) |
 | `game/scripts/Surface` | The surface view: terrain LOD, water, sky and air, lights, clouds, plants (`Vegetation`), shader grass (`GrassField`), look-dev camera, time controls |
 | `game/scripts/Surface/Flora` | Plants made in code after hollow-orbit's flora: painted atlas and bark (`FloraTextures`, `Painter`), geometry (`FloraGeometry`), species and variants (`FloraLibrary`), impostors baked at start (`ImpostorBaker`) |
 | `game/assets/surface/ground` | The eight ground texture layers (Megascans and Poly Haven, `game/assets/THIRD_PARTY.md`), built by `tools/blender/surface_ground.py` |

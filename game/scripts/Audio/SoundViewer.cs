@@ -212,7 +212,7 @@ public partial class SoundViewer : Node3D
         // Right: the selected event.
         (PanelContainer right, VBoxContainer info) = Ui.Card(6);
         Ui.Place(right, Control.LayoutPreset.TopRight);
-        Ui.Size(right, 420);
+        Ui.Size(right, 470);
         root.AddChild(right);
         _title = Ui.Label("", TextStyle.Heading);
         info.AddChild(_title);
@@ -235,6 +235,7 @@ public partial class SoundViewer : Node3D
         info.AddChild(_loudness);
         info.AddChild(Ui.Separator());
         _where = Ui.Label("", TextStyle.Secondary);
+        _where.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         info.AddChild(_where);
         var buttons = new HBoxContainer();
         Ui.Track(buttons, b => b.AddThemeConstantOverride("separation", Ui.Px(8)));
@@ -248,7 +249,7 @@ public partial class SoundViewer : Node3D
         // Bottom: the ambience.
         (PanelContainer amb, VBoxContainer ambience) = Ui.Card(5);
         Ui.Place(amb, Control.LayoutPreset.CenterBottom);
-        Ui.Size(amb, 640);
+        Ui.Size(amb, 600);
         root.AddChild(amb);
         var head2 = new HBoxContainer();
         Ui.Track(head2, h => h.AddThemeConstantOverride("separation", Ui.Px(12)));
@@ -259,6 +260,8 @@ public partial class SoundViewer : Node3D
         head2.AddChild(_ambienceButton);
         _ambienceState = Ui.Label("", TextStyle.Caption);
         _ambienceState.VerticalAlignment = VerticalAlignment.Center;
+        _ambienceState.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _ambienceState.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         head2.AddChild(_ambienceState);
         ambience.AddChild(head2);
         GridContainer controls = Ui.Rows();

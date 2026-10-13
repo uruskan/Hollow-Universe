@@ -827,6 +827,8 @@ def interface():
 # ---------------------------------------------------------------- ambience
 
 def ambience():
+    # Each bed is the steadiest stretch of its recording (the least spread of short-term loudness), so no single
+    # call or gust stands out each time the loop comes round.
     synth = __import__("synth")
     calm = synth.wind("wind_calm", seconds=44.0, seed=7)
     high = synth.wind("wind_high", seconds=44.0, seed=19, body=(0.35, 0.18, 0.1, 0.06), whistle=(0.5, 0.3, 0.15),
@@ -841,12 +843,12 @@ def ambience():
     bed("amb.wind.strong", "wind_strong.ogg", bsb("0146"), 10.0, 40.0,
         fx="highpass=f=110,lowpass=f=9000,equalizer=f=400:t=q:w=1:g=2,adelay=delays=0|23", overlap=4.0)
     bed("amb.wind.high", "wind_high.ogg", high, 0.0, 40.0, fx="highpass=f=60", overlap=4.0)
-    bed("amb.birds.meadow", "birds_meadow.ogg", bsb("0898"), 8.0, 50.0, fx="highpass=f=320,lowpass=f=14000")
-    bed("amb.birds.forest", "birds_forest.ogg", bsb("0100"), 2.0, 48.0, fx="highpass=f=250,lowpass=f=15000")
-    bed("amb.insects.night", "insects_night.ogg", bsb("1880"), 60.0, 50.0, fx="highpass=f=300,lowpass=f=14000")
+    bed("amb.birds.meadow", "birds_meadow.ogg", bsb("0898"), 13.0, 50.0, fx="highpass=f=320,lowpass=f=14000")
+    bed("amb.birds.forest", "birds_forest.ogg", bsb("2715"), 108.0, 48.0, fx="highpass=f=250,lowpass=f=15000")
+    bed("amb.insects.night", "insects_night.ogg", bsb("1880"), 71.0, 50.0, fx="highpass=f=300,lowpass=f=14000")
     bed("amb.surf.near", "surf_near.ogg", bsb("0698"), 20.0, 44.0, fx="highpass=f=45,lowpass=f=13000")
     bed("amb.surf.far", "surf_far.ogg", bsb("0698"), 80.0, 44.0, fx="highpass=f=40,lowpass=f=900")
-    bed("amb.leaves", "leaves.ogg", bsb("0904"), 30.0, 40.0, fx="highpass=f=250,lowpass=f=13000")
+    bed("amb.leaves", "leaves.ogg", bsb("0904"), 50.0, 40.0, fx="highpass=f=250,lowpass=f=13000")
 
     # Rare accents, placed far around the listener: distant thunder, owls at night, crows by day.
     thunder = [bsb(s) for s in ("3113", "3114", "3179", "2718")]
