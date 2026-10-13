@@ -45,6 +45,9 @@ public partial class SoundViewer : Node3D
     private double _replay;
     private SoundHandle _loop = SoundHandle.None;
 
+    private int _playAll = -1;
+    private double _playAllTimer;
+
     private bool _ambienceOn;
     private int _biome = 1;
     private double _hour = 9;
@@ -394,6 +397,10 @@ public partial class SoundViewer : Node3D
         {
             ToggleAmbience();
         }
+        if (Options.ContainsKey("play-all"))
+        {
+            _playAll = 0;
+        }
         if (Options.ContainsKey("walk"))
         {
             StartWalk();
@@ -551,6 +558,10 @@ public partial class SoundViewer : Node3D
     public override void _Process(double delta)
     {
         _frames++;
+        if (_playAll >= 0)
+        {
+            PlayAllStep(delta);
+        }
         if (_selected == null)
         {
             return;
@@ -642,6 +653,49 @@ public partial class SoundViewer : Node3D
                 i = Math.Clamp(i + (key.Keycode == Key.Up ? -1 : 1), 0, _rows.Count - 1);
                 Select(_rows[i].Event);
                 break;
+        }
+    }
+
+    /// <summary>--play-all: every event in turn, a fifth of a second apart, at 1 m, 50 m and 600 m (a smoke test of the
+    /// director: variants, layers, loops, flat events); prints what played and quits.</summary>
+    private void PlayAllStep(double delta)
+    {
+        _playAllTimer -= delta;
+        if (_playAllTimer > 0)
+        {
+            return;
+        }
+        _playAllTimer = 0.2;
+        IReadOnlyList<SoundEventData> events = SoundLibrary.Data.Events;
+        if (_playAll >= events.Count)
+        {
+            (int placed, int flat) = _director.Busy;
+            GD.Print($"[play-all] {events.Count} events played; voices still busy: {placed} placed, {flat} flat");
+            _director.StopAll();
+            _ambience.StopAll(0f);
+            GetTree().Quit(0);
+            _playAll = -1;
+            return;
+        }
+        SoundEventData e = events[_playAll++];
+        Select(e);
+        float[] distances = e.Layered ? new[] { 1f, 50f, 600f } : new[] { 3f };
+        foreach (float d in distances)
+        {
+            _emitter.Position = new Vector3(0, 1, -d);
+            if (e.Loop)
+            {
+                SoundHandle h = e.Positional ? _director.Loop(e.Key, _emitter) : _director.Loop2D(e.Key);
+                _director.Stop(h, 0.15f);
+            }
+            else if (e.Positional)
+            {
+                _director.Play(e.Key, _emitter.GlobalPosition);
+            }
+            else
+            {
+                _director.Play2D(e.Key);
+            }
         }
     }
 

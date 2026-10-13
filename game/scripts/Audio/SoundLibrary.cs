@@ -49,6 +49,9 @@ public static class SoundLibrary
         return stream;
     }
 
+    /// <summary>Lets go of the loaded streams (the director does when it leaves the tree).</summary>
+    public static void Release() => Streams.Clear();
+
     /// <summary>Loads every file of these events now, so their first play doesn't wait on the disk.</summary>
     public static void Preload(IEnumerable<string> keys)
     {

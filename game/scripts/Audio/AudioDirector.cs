@@ -109,9 +109,22 @@ public partial class AudioDirector : Node
 
     public override void _ExitTree()
     {
+        StopAll();
+        foreach (Voice v in AllVoices())
+        {
+            if (v.P3 != null)
+            {
+                v.P3.Stream = null;
+            }
+            if (v.P2 != null)
+            {
+                v.P2.Stream = null;
+            }
+        }
         if (Instance == this)
         {
             Instance = null;
+            SoundLibrary.Release();
         }
     }
 
