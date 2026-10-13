@@ -1,0 +1,1337 @@
+What art/import/building_fit.py did to each drawn mesh (GROUND.md §6.3, Fit; the rule in building_fit.json):
+each face's reach past its logical face (the percentile its rule names, mm), its target, and the move; a
+wall is then drawn 3 mm lower and up to 4 mm lower still near its ends. Written by building_kit.py.
+
+== twig
+foundation:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -35.4 mm  ->  +8.0 mm  move  +43.4 mm
+    slab edge     (+1.00,+0.00)  reach   -39.6 mm  ->  +8.0 mm  move  +47.6 mm
+    slab edge     (-0.00,-1.00)  reach   -32.7 mm  ->  +8.0 mm  move  +40.7 mm
+    slab edge     (-1.00,+0.00)  reach   -31.5 mm  ->  +8.0 mm  move  +39.5 mm
+foundation_LOD1:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -37.0 mm  ->  +8.0 mm  move  +45.0 mm
+    slab edge     (+1.00,+0.00)  reach   -40.9 mm  ->  +8.0 mm  move  +48.9 mm
+    slab edge     (-0.00,-1.00)  reach   -33.2 mm  ->  +8.0 mm  move  +41.2 mm
+    slab edge     (-1.00,+0.00)  reach   -36.9 mm  ->  +8.0 mm  move  +44.9 mm
+foundation_LOD2:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -38.2 mm  ->  +8.0 mm  move  +46.2 mm
+    slab edge     (+1.00,+0.00)  reach   -45.4 mm  ->  +8.0 mm  move  +53.4 mm
+    slab edge     (-0.00,-1.00)  reach   -32.4 mm  ->  +8.0 mm  move  +40.4 mm
+    slab edge     (-1.00,+0.00)  reach   -43.5 mm  ->  +8.0 mm  move  +51.5 mm
+foundation-triangle:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -34.6 mm  ->  +8.0 mm  move  +42.6 mm
+    slab edge     (+0.87,-0.50)  reach   -32.8 mm  ->  +8.0 mm  move  +40.8 mm
+    slab edge     (-0.87,-0.50)  reach   -28.4 mm  ->  +8.0 mm  move  +36.4 mm
+    footprint scale 1.0479, shift +2.7, +2.8 mm
+foundation-triangle_LOD1:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -37.8 mm  ->  +8.0 mm  move  +45.8 mm
+    slab edge     (+0.87,-0.50)  reach   -36.0 mm  ->  +8.0 mm  move  +44.0 mm
+    slab edge     (-0.87,-0.50)  reach   -33.5 mm  ->  +8.0 mm  move  +41.5 mm
+    footprint scale 1.0527, shift +1.5, +2.2 mm
+foundation-triangle_LOD2:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -34.4 mm  ->  +8.0 mm  move  +42.4 mm
+    slab edge     (+0.87,-0.50)  reach   -33.4 mm  ->  +8.0 mm  move  +41.4 mm
+    slab edge     (-0.87,-0.50)  reach   -33.7 mm  ->  +8.0 mm  move  +41.7 mm
+    footprint scale 1.0503, shift -0.2, +0.6 mm
+floor:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -34.8 mm  ->  +8.0 mm  move  +42.8 mm
+    slab edge     (+1.00,+0.00)  reach   -36.6 mm  ->  +8.0 mm  move  +44.6 mm
+    slab edge     (-0.00,-1.00)  reach   -35.0 mm  ->  +8.0 mm  move  +43.0 mm
+    slab edge     (-1.00,+0.00)  reach   -34.4 mm  ->  +8.0 mm  move  +42.4 mm
+floor_LOD1:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -36.6 mm  ->  +8.0 mm  move  +44.6 mm
+    slab edge     (+1.00,+0.00)  reach   -39.2 mm  ->  +8.0 mm  move  +47.2 mm
+    slab edge     (-0.00,-1.00)  reach   -35.9 mm  ->  +8.0 mm  move  +43.9 mm
+    slab edge     (-1.00,+0.00)  reach   -38.7 mm  ->  +8.0 mm  move  +46.7 mm
+floor_LOD2:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -38.9 mm  ->  +8.0 mm  move  +46.9 mm
+    slab edge     (+1.00,+0.00)  reach   -39.8 mm  ->  +8.0 mm  move  +47.8 mm
+    slab edge     (-0.00,-1.00)  reach   -41.5 mm  ->  +8.0 mm  move  +49.5 mm
+    slab edge     (-1.00,+0.00)  reach   -35.2 mm  ->  +8.0 mm  move  +43.2 mm
+floor-triangle:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -26.9 mm  ->  +8.0 mm  move  +34.9 mm
+    slab edge     (+0.87,-0.50)  reach   -30.3 mm  ->  +8.0 mm  move  +38.3 mm
+    slab edge     (-0.87,-0.50)  reach   -36.9 mm  ->  +8.0 mm  move  +44.9 mm
+    footprint scale 1.0472, shift -4.0, -4.7 mm
+floor-triangle_LOD1:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -31.2 mm  ->  +8.0 mm  move  +39.2 mm
+    slab edge     (+0.87,-0.50)  reach   -35.1 mm  ->  +8.0 mm  move  +43.1 mm
+    slab edge     (-0.87,-0.50)  reach   -38.5 mm  ->  +8.0 mm  move  +46.5 mm
+    footprint scale 1.0517, shift -2.0, -3.9 mm
+floor-triangle_LOD2:
+    slab top        y=+0.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    slab edge     (-0.00,+1.00)  reach   -41.1 mm  ->  +8.0 mm  move  +49.1 mm
+    slab edge     (+0.87,-0.50)  reach   -33.1 mm  ->  +8.0 mm  move  +41.1 mm
+    slab edge     (-0.87,-0.50)  reach   -37.1 mm  ->  +8.0 mm  move  +45.1 mm
+    footprint scale 1.0545, shift -2.5, +4.2 mm
+wall:
+    wall bottom     y=+0.00  reach   -11.4 mm  ->  +8.0 mm  move  +19.4 mm
+    wall top        y=+3.00  reach    -6.3 mm  ->  +0.0 mm  move   +6.3 mm
+    wall end        x=-1.50  reach   -26.3 mm  ->  +8.0 mm  move  +34.3 mm
+    wall end        x=+1.50  reach   -24.9 mm  ->  +8.0 mm  move  +32.9 mm
+wall_LOD1:
+    wall bottom     y=+0.00  reach   -14.9 mm  ->  +8.0 mm  move  +22.9 mm
+    wall top        y=+3.00  reach    +1.1 mm  ->  +0.0 mm  move   -1.1 mm
+    wall end        x=-1.50  reach   -30.7 mm  ->  +8.0 mm  move  +38.7 mm
+    wall end        x=+1.50  reach   -34.0 mm  ->  +8.0 mm  move  +42.0 mm
+wall_LOD2:
+    wall bottom     y=+0.00  reach   -23.2 mm  ->  +8.0 mm  move  +31.2 mm
+    wall top        y=+3.00  reach   -10.9 mm  ->  +0.0 mm  move  +10.9 mm
+    wall end        x=-1.50  reach   -26.2 mm  ->  +8.0 mm  move  +34.2 mm
+    wall end        x=+1.50  reach   -25.1 mm  ->  +8.0 mm  move  +33.1 mm
+half-wall:
+    wall bottom     y=+0.00  reach   -20.8 mm  ->  +8.0 mm  move  +28.8 mm
+    wall top        y=+1.50  reach    -3.8 mm  ->  +0.0 mm  move   +3.8 mm
+    wall end        x=-1.50  reach   -28.3 mm  ->  +8.0 mm  move  +36.3 mm
+    wall end        x=+1.50  reach   -12.2 mm  ->  +8.0 mm  move  +20.2 mm
+half-wall_LOD1:
+    wall bottom     y=+0.00  reach   -13.6 mm  ->  +8.0 mm  move  +21.6 mm
+    wall top        y=+1.50  reach    -8.1 mm  ->  +0.0 mm  move   +8.1 mm
+    wall end        x=-1.50  reach   -20.7 mm  ->  +8.0 mm  move  +28.7 mm
+    wall end        x=+1.50  reach   -29.2 mm  ->  +8.0 mm  move  +37.2 mm
+half-wall_LOD2:
+    wall bottom     y=+0.00  reach   -18.5 mm  ->  +8.0 mm  move  +26.5 mm
+    wall top        y=+1.50  reach    -6.0 mm  ->  +0.0 mm  move   +6.0 mm
+    wall end        x=-1.50  reach   -17.2 mm  ->  +8.0 mm  move  +25.2 mm
+    wall end        x=+1.50  reach   -21.6 mm  ->  +8.0 mm  move  +29.6 mm
+low-wall:
+    wall bottom     y=+0.00  reach   -12.2 mm  ->  +8.0 mm  move  +20.2 mm
+    wall top        y=+1.00  reach    -7.1 mm  ->  +0.0 mm  move   +7.1 mm
+    wall end        x=-1.50  reach   -16.8 mm  ->  +8.0 mm  move  +24.8 mm
+    wall end        x=+1.50  reach   -12.9 mm  ->  +8.0 mm  move  +20.9 mm
+low-wall_LOD1:
+    wall bottom     y=+0.00  reach   -11.3 mm  ->  +8.0 mm  move  +19.3 mm
+    wall top        y=+1.00  reach    -9.0 mm  ->  +0.0 mm  move   +9.0 mm
+    wall end        x=-1.50  reach   -24.4 mm  ->  +8.0 mm  move  +32.4 mm
+    wall end        x=+1.50  reach   -29.1 mm  ->  +8.0 mm  move  +37.1 mm
+low-wall_LOD2:
+    wall bottom     y=+0.00  reach   -16.7 mm  ->  +8.0 mm  move  +24.7 mm
+    wall top        y=+1.00  reach    -6.5 mm  ->  +0.0 mm  move   +6.5 mm
+    wall end        x=-1.50  reach   -21.4 mm  ->  +8.0 mm  move  +29.4 mm
+    wall end        x=+1.50  reach   -23.1 mm  ->  +8.0 mm  move  +31.1 mm
+window:
+    wall bottom     y=+0.00  reach   -21.1 mm  ->  +8.0 mm  move  +29.1 mm
+    wall top        y=+3.00  reach   -12.4 mm  ->  +0.0 mm  move  +12.4 mm
+    wall end        x=-1.50  reach   -28.2 mm  ->  +8.0 mm  move  +36.2 mm
+    wall end        x=+1.50  reach   -36.5 mm  ->  +8.0 mm  move  +44.5 mm
+    opening side    x=-0.90  reach   -23.1 mm  ->  +0.0 mm  move  +23.1 mm
+    opening side    x=+0.90  reach   -17.1 mm  ->  +0.0 mm  move  +17.1 mm
+    opening head    y=+2.10  reach    -9.1 mm  ->  +0.0 mm  move   +9.1 mm
+    opening sill    y=+0.90  reach   -14.1 mm  ->  +0.0 mm  move  +14.1 mm
+window_LOD1:
+    wall bottom     y=+0.00  reach   -15.2 mm  ->  +8.0 mm  move  +23.2 mm
+    wall top        y=+3.00  reach    -7.5 mm  ->  +0.0 mm  move   +7.5 mm
+    wall end        x=-1.50  reach   -20.8 mm  ->  +8.0 mm  move  +28.8 mm
+    wall end        x=+1.50  reach   -32.3 mm  ->  +8.0 mm  move  +40.3 mm
+    opening side    x=-0.90  reach   -18.0 mm  ->  +0.0 mm  move  +18.0 mm
+    opening side    x=+0.90  reach   -19.5 mm  ->  +0.0 mm  move  +19.5 mm
+    opening head    y=+2.10  reach   -19.9 mm  ->  +0.0 mm  move  +19.9 mm
+    opening sill    y=+0.90  reach   -18.4 mm  ->  +0.0 mm  move  +18.4 mm
+window_LOD2:
+    wall bottom     y=+0.00  reach   -22.4 mm  ->  +8.0 mm  move  +30.4 mm
+    wall top        y=+3.00  reach    -6.9 mm  ->  +0.0 mm  move   +6.9 mm
+    wall end        x=-1.50  reach   -22.3 mm  ->  +8.0 mm  move  +30.3 mm
+    wall end        x=+1.50  reach   -23.1 mm  ->  +8.0 mm  move  +31.1 mm
+    opening side    x=-0.90  reach   -22.3 mm  ->  +0.0 mm  move  +22.3 mm
+    opening side    x=+0.90  reach   -17.6 mm  ->  +0.0 mm  move  +17.6 mm
+    opening head    y=+2.10  reach   -19.9 mm  ->  +0.0 mm  move  +19.9 mm
+    opening sill    y=+0.90  reach   -16.7 mm  ->  +0.0 mm  move  +16.7 mm
+doorway:
+    wall bottom     y=+0.00  reach   -21.2 mm  ->  +8.0 mm  move  +29.2 mm
+    wall top        y=+3.00  reach    -4.1 mm  ->  +0.0 mm  move   +4.1 mm
+    wall end        x=-1.50  reach   -29.8 mm  ->  +8.0 mm  move  +37.8 mm
+    wall end        x=+1.50  reach   -21.4 mm  ->  +8.0 mm  move  +29.4 mm
+    opening side    x=-0.60  reach   -20.3 mm  ->  +0.0 mm  move  +20.3 mm
+    opening side    x=+0.60  reach   -15.4 mm  ->  +0.0 mm  move  +15.4 mm
+    opening head    y=+2.30  reach   -21.7 mm  ->  +0.0 mm  move  +21.7 mm
+doorway_LOD1:
+    wall bottom     y=+0.00  reach   -23.1 mm  ->  +8.0 mm  move  +31.1 mm
+    wall top        y=+3.00  reach    -0.5 mm  ->  +0.0 mm  move   +0.5 mm
+    wall end        x=-1.50  reach   -23.9 mm  ->  +8.0 mm  move  +31.9 mm
+    wall end        x=+1.50  reach   -18.5 mm  ->  +8.0 mm  move  +26.5 mm
+    opening side    x=-0.60  reach   -22.1 mm  ->  +0.0 mm  move  +22.1 mm
+    opening side    x=+0.60  reach   -18.6 mm  ->  +0.0 mm  move  +18.6 mm
+    opening head    y=+2.30  reach   -13.2 mm  ->  +0.0 mm  move  +13.2 mm
+doorway_LOD2:
+    wall bottom     y=+0.00  reach   -30.7 mm  ->  +8.0 mm  move  +38.7 mm
+    wall top        y=+3.00  reach    +1.6 mm  ->  +0.0 mm  move   -1.6 mm
+    wall end        x=-1.50  reach   -17.7 mm  ->  +8.0 mm  move  +25.7 mm
+    wall end        x=+1.50  reach   -29.1 mm  ->  +8.0 mm  move  +37.1 mm
+    opening side    x=-0.60  reach   -26.7 mm  ->  +0.0 mm  move  +26.7 mm
+    opening side    x=+0.60  reach   -21.9 mm  ->  +0.0 mm  move  +21.9 mm
+    opening head    y=+2.30  reach   -24.7 mm  ->  +0.0 mm  move  +24.7 mm
+wall-frame:
+    wall bottom     y=+0.00  reach   -30.0 mm  ->  +8.0 mm  move  +38.0 mm
+    wall top        y=+3.00  reach    +4.3 mm  ->  +0.0 mm  move   -4.3 mm
+    wall end        x=-1.50  reach   -23.1 mm  ->  +8.0 mm  move  +31.1 mm
+    wall end        x=+1.50  reach   -25.1 mm  ->  +8.0 mm  move  +33.1 mm
+    opening side    x=-1.35  reach   -16.6 mm  ->  +0.0 mm  move  +16.6 mm
+    opening side    x=+1.35  reach   -15.0 mm  ->  +0.0 mm  move  +15.0 mm
+    opening head    y=+2.85  reach   -11.8 mm  ->  +0.0 mm  move  +11.8 mm
+wall-frame_LOD1:
+    wall bottom     y=+0.00  reach   -30.0 mm  ->  +8.0 mm  move  +38.0 mm
+    wall top        y=+3.00  reach    -3.7 mm  ->  +0.0 mm  move   +3.7 mm
+    wall end        x=-1.50  reach   -16.0 mm  ->  +8.0 mm  move  +24.0 mm
+    wall end        x=+1.50  reach   -27.1 mm  ->  +8.0 mm  move  +35.1 mm
+    opening side    x=-1.35  reach   -20.3 mm  ->  +0.0 mm  move  +20.3 mm
+    opening side    x=+1.35  reach   -20.9 mm  ->  +0.0 mm  move  +20.9 mm
+    opening head    y=+2.85  reach   -12.4 mm  ->  +0.0 mm  move  +12.4 mm
+wall-frame_LOD2:
+    wall bottom     y=+0.00  reach   -30.0 mm  ->  +8.0 mm  move  +38.0 mm
+    wall top        y=+3.00  reach   -12.1 mm  ->  +0.0 mm  move  +12.1 mm
+    wall end        x=-1.50  reach   -22.5 mm  ->  +8.0 mm  move  +30.5 mm
+    wall end        x=+1.50  reach   -22.3 mm  ->  +8.0 mm  move  +30.3 mm
+    opening side    x=-1.35  reach   -21.7 mm  ->  +0.0 mm  move  +21.7 mm
+    opening side    x=+1.35  reach   -21.4 mm  ->  +0.0 mm  move  +21.4 mm
+    opening head    y=+2.85  reach   -15.6 mm  ->  +0.0 mm  move  +15.6 mm
+floor-frame:
+    slab top        y=+0.00  reach   -21.8 mm  ->  +0.0 mm  move  +21.8 mm
+    slab edge     (-0.00,+1.00)  reach   -34.8 mm  ->  +8.0 mm  move  +42.8 mm
+    slab edge     (+1.00,+0.00)  reach   -33.6 mm  ->  +8.0 mm  move  +41.6 mm
+    slab edge     (-0.00,-1.00)  reach   -34.9 mm  ->  +8.0 mm  move  +42.9 mm
+    slab edge     (-1.00,+0.00)  reach   -37.9 mm  ->  +8.0 mm  move  +45.9 mm
+floor-frame_LOD1:
+    slab top        y=+0.00  reach   -23.1 mm  ->  +0.0 mm  move  +23.1 mm
+    slab edge     (-0.00,+1.00)  reach   -38.7 mm  ->  +8.0 mm  move  +46.7 mm
+    slab edge     (+1.00,+0.00)  reach   -38.6 mm  ->  +8.0 mm  move  +46.6 mm
+    slab edge     (-0.00,-1.00)  reach   -38.7 mm  ->  +8.0 mm  move  +46.7 mm
+    slab edge     (-1.00,+0.00)  reach   -41.5 mm  ->  +8.0 mm  move  +49.5 mm
+floor-frame_LOD2:
+    slab top        y=+0.00  reach   -27.6 mm  ->  +0.0 mm  move  +27.6 mm
+    slab edge     (-0.00,+1.00)  reach   -39.2 mm  ->  +8.0 mm  move  +47.2 mm
+    slab edge     (+1.00,+0.00)  reach   -39.5 mm  ->  +8.0 mm  move  +47.5 mm
+    slab edge     (-0.00,-1.00)  reach   -40.3 mm  ->  +8.0 mm  move  +48.3 mm
+    slab edge     (-1.00,+0.00)  reach   -39.9 mm  ->  +8.0 mm  move  +47.9 mm
+floor-frame-triangle:
+    slab top        y=+0.00  reach   -18.5 mm  ->  +0.0 mm  move  +18.5 mm
+    slab edge     (-0.00,+1.00)  reach   -35.0 mm  ->  +8.0 mm  move  +43.0 mm
+    slab edge     (+0.87,-0.50)  reach   -28.6 mm  ->  +8.0 mm  move  +36.6 mm
+    slab edge     (-0.87,-0.50)  reach   -36.1 mm  ->  +8.0 mm  move  +44.1 mm
+    footprint scale 1.0495, shift -4.6, +1.9 mm
+floor-frame-triangle_LOD1:
+    slab top        y=+0.00  reach   -20.7 mm  ->  +0.0 mm  move  +20.7 mm
+    slab edge     (-0.00,+1.00)  reach   -35.5 mm  ->  +8.0 mm  move  +43.5 mm
+    slab edge     (+0.87,-0.50)  reach   -34.7 mm  ->  +8.0 mm  move  +42.7 mm
+    slab edge     (-0.87,-0.50)  reach   -36.5 mm  ->  +8.0 mm  move  +44.5 mm
+    footprint scale 1.0524, shift -1.1, -0.1 mm
+floor-frame-triangle_LOD2:
+    slab top        y=+0.00  reach   -19.5 mm  ->  +0.0 mm  move  +19.5 mm
+    slab edge     (-0.00,+1.00)  reach   -38.3 mm  ->  +8.0 mm  move  +46.3 mm
+    slab edge     (+0.87,-0.50)  reach   -28.5 mm  ->  +8.0 mm  move  +36.5 mm
+    slab edge     (-0.87,-0.50)  reach   -33.5 mm  ->  +8.0 mm  move  +41.5 mm
+    footprint scale 1.0497, shift -3.0, +5.1 mm
+stairs-l:
+stairs-l_LOD1:
+stairs-l_LOD2:
+stairs-u:
+stairs-u_LOD1:
+stairs-u_LOD2:
+stairs-spiral:
+    column bottom   y=+0.00  reach   -15.0 mm  ->  +0.0 mm  move  +15.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD1:
+    column bottom   y=+0.00  reach   -15.0 mm  ->  +0.0 mm  move  +15.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD2:
+    column bottom   y=+0.00  reach   -15.0 mm  ->  +0.0 mm  move  +15.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle:
+    column bottom   y=+0.00  reach   -15.0 mm  ->  +0.0 mm  move  +15.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD1:
+    column bottom   y=+0.00  reach   -15.0 mm  ->  +0.0 mm  move  +15.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD2:
+    column bottom   y=+0.00  reach   -15.0 mm  ->  +0.0 mm  move  +15.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+ramp:
+ramp_LOD1:
+ramp_LOD2:
+steps:
+steps_LOD1:
+steps_LOD2:
+roof:
+roof_LOD1:
+roof_LOD2:
+roof-triangle:
+roof-triangle_LOD1:
+roof-triangle_LOD2:
+
+
+
+
+
+
+
+== wood
+foundation:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+foundation-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+foundation-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+floor-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+doorway:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+doorway_LOD1:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+doorway_LOD2:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame_LOD1:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame_LOD2:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+floor-frame:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+floor-frame-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-frame-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+stairs-l:
+stairs-l_LOD1:
+stairs-l_LOD2:
+stairs-u:
+stairs-u_LOD1:
+stairs-u_LOD2:
+stairs-spiral:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD1:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD2:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD1:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD2:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+ramp:
+ramp_LOD1:
+ramp_LOD2:
+steps:
+steps_LOD1:
+steps_LOD2:
+roof:
+roof_LOD1:
+roof_LOD2:
+roof-triangle:
+roof-triangle_LOD1:
+roof-triangle_LOD2:
+
+
+
+
+
+
+== stone
+foundation:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation_LOD2:
+    slab top        y=+0.00  reach   -19.0 mm  ->  +0.0 mm  move  +19.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+foundation-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+foundation-triangle_LOD2:
+    slab top        y=+0.00  reach   -17.5 mm  ->  +0.0 mm  move  +17.5 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor_LOD2:
+    slab top        y=+0.00  reach   -18.5 mm  ->  +0.0 mm  move  +18.5 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-triangle_LOD2:
+    slab top        y=+0.00  reach   -14.4 mm  ->  +0.0 mm  move  +14.4 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+doorway:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+doorway_LOD1:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+doorway_LOD2:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame_LOD1:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame_LOD2:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+floor-frame:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame_LOD2: left out (the game draws level 1 here)
+floor-frame-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-frame-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-frame-triangle_LOD2: left out (the game draws level 1 here)
+stairs-l:
+stairs-l_LOD1:
+stairs-l_LOD2:
+stairs-u:
+stairs-u_LOD1:
+stairs-u_LOD2:
+stairs-spiral:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD1:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD2:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD1:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD2:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+ramp:
+ramp_LOD1:
+ramp_LOD2:
+steps:
+steps_LOD1:
+steps_LOD2:
+roof:
+roof_LOD1:
+roof_LOD2:
+roof-triangle:
+roof-triangle_LOD1:
+roof-triangle_LOD2:
+
+== metal
+foundation:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+foundation-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+foundation-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+floor-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+doorway:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+doorway_LOD1:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+doorway_LOD2:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame_LOD1:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame_LOD2:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+floor-frame:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+floor-frame-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-frame-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+stairs-l:
+stairs-l_LOD1:
+stairs-l_LOD2:
+stairs-u:
+stairs-u_LOD1:
+stairs-u_LOD2:
+stairs-spiral:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD1:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD2:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD1:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD2:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+ramp:
+ramp_LOD1:
+ramp_LOD2:
+steps:
+steps_LOD1:
+steps_LOD2:
+roof:
+roof_LOD1:
+roof_LOD2:
+roof-triangle:
+roof-triangle_LOD1:
+roof-triangle_LOD2:
+
+
+
+
+== armoured
+foundation:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+foundation-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+foundation-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, -0.0 mm
+foundation-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, -0.0 mm
+floor:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+floor-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+half-wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+low-wall_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+1.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window_LOD1:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+window_LOD2:
+    wall bottom     y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening side    x=+0.90  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening head    y=+2.10  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+    opening sill    y=+0.90  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+doorway:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+doorway_LOD1:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+doorway_LOD2:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+0.60  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.30  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame_LOD1:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+wall-frame_LOD2:
+    wall bottom     y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall top        y=+3.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=-1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    wall end        x=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=-1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening side    x=+1.35  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    opening head    y=+2.85  reach    +0.0 mm  ->  +0.0 mm  move   -0.0 mm
+floor-frame:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,-1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-1.00,+0.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+floor-frame-triangle:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift +0.0, +0.0 mm
+floor-frame-triangle_LOD1:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+floor-frame-triangle_LOD2:
+    slab top        y=+0.00  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.00,+1.00)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (+0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    slab edge     (-0.87,-0.50)  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    footprint scale 1.0000, shift -0.0, +0.0 mm
+stairs-l:
+stairs-l_LOD1:
+stairs-l_LOD2:
+stairs-u:
+stairs-u_LOD1:
+stairs-u_LOD2:
+stairs-spiral:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD1:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral_LOD2:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD1:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+stairs-spiral-triangle_LOD2:
+    column bottom   y=+0.00  reach    -0.0 mm  ->  +0.0 mm  move   +0.0 mm
+    column top      y=+1.50  reach    +0.0 mm  ->  +0.0 mm  move   +0.0 mm
+ramp:
+ramp_LOD1:
+ramp_LOD2:
+steps:
+steps_LOD1:
+steps_LOD2:
+roof:
+roof_LOD1:
+roof_LOD2:
+roof-triangle:
+roof-triangle_LOD1:
+roof-triangle_LOD2:
