@@ -114,8 +114,9 @@ scattered slack constants (`+0.3`, `+0.5`, `+1.5`, `+3`, `+4`) and adds the miss
 (by ID) and no ground within 0.25 m of it. survival.json's `reach`: interact 3, open 3.5, keepOpen 4.5 (no sight), help
 3, invite 6, station 4 (no sight). Opening, looting and keeping a container open, picking up, lighting, doors, locks,
 the claim device, helping up, lighting a dud again, team invites and a workbench's level all use it; interactions
-through walls are refused. Placement (deployables 3 m, building 8 m) and a ship's parts keep their own until P2 and
-P1. Test: `FoundationTests.ReachIsToTheNearestSurfaceInSight`.
+through walls are refused, and the client's prompt for things (`GameClient.Aim`) stops at the first building body (a
+thing's own excepted), so it no longer offers what the server would refuse. Placement (deployables 3 m, building 8 m)
+and a ship's parts keep their own until P2 and P1. Test: `FoundationTests.ReachIsToTheNearestSurfaceInSight`.
 
 ### 3.5 Registries
 A small `Registry<THandler>` keyed by the data list's index, filled at start-up, validated against the data. Used by

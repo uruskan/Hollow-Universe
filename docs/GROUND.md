@@ -5042,7 +5042,9 @@ Decisions taken for the shared foundations (GROUND_SYSTEMS.md §3, package P0) w
   invite 6, station 4. Keeping a container open and a workbench's level need no sight; the station's reach is from the
   eye (it was the feet). The sight ray stops 0.1 m short of the surface and ignores the ground within 0.25 m of the
   thing; any building body but the target's own blocks it. Interactions through walls are refused now: two tests that
-  stood their player behind a wall stand them in sight.
+  stood their player behind a wall stand them in sight. The client's prompt for things (`GameClient.Aim`: boxes, bags,
+  bodies, sleepers, duds) stops at the first building body the view meets, a thing's own body excepted (the claim
+  device's box), so it no longer offers through a wall what the server refuses.
 - E7. **Viewer flags ride on things, doors, claim devices and ships** (`ThingSpawn`/`ThingUpdate`, `DoorNet`, `ClaimNet`,
   `ShipNetState.Viewer`), one byte each. A thing is sent again when its contents change (Empty) or its viewer does (a
   team joined or left, a key picked up: doors and claim devices go again too). A door has no owner of its own: its Mine
@@ -5064,8 +5066,9 @@ Decisions taken for the shared foundations (GROUND_SYSTEMS.md §3, package P0) w
   and the loose things in lists of their own. A bag a looter takes from tells others its count at once (it was within
   the second).
 - E12. **Left for the next packages**: a ship's parts keep their reach (`ShipReachSlack`, P1's ship verbs); placement
-  keeps its 3 m and 8 m (P2's rule); the gun keeps its own answers (P3); the server's replication of things still walks
-  every static thing per snapshot (P6).
+  keeps its 3 m and 8 m (P2's rule); the gun keeps its own answers (P3); the client's prompts still pick along the view
+  alone, not by the nearest surface in sight (P1's one `Aim`); the server's replication of things still walks every
+  static thing per snapshot (P6).
 - E13. **Numbers taken in shared spaces:** protocol 16; `IntentResult`'s code 7 bits and its detail a varint; message 95
   (`BuildResult`) free and no new message IDs (190–199 unused); `TargetNet` (a 4-bit family, the ID, the part);
   `ShipNetFlags` renumbered without Mine and Locked (10 bits); `ExplosiveCodec` version 2; capabilities.json and

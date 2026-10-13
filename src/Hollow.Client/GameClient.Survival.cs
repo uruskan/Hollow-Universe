@@ -452,15 +452,24 @@ public sealed partial class GameClient
 
     /// <summary>
     /// What the interact key would act on from the eye along a direction: the nearest pickup or berry bush, bag of
-    /// dropped items, box, device, corpse or sleeper within reach (for the prompt, and for bots).
+    /// dropped items, box, device, corpse or sleeper within reach (for the prompt, and for bots). What the view meets of the
+    /// building first hides what lies behind it, as the server's sight rule refuses it (GROUND_SYSTEMS.md §3.4); a thing's
+    /// own body (the claim device's box) doesn't.
     /// </summary>
     public Interaction? Aim(Vector3 eye, Vector3 direction, float? reach = null)
     {
         float range = reach ?? InteractReach;
         Interaction? best = null;
+        float wall = float.PositiveInfinity;
+        ulong wallOf = 0;
+        if (Building?.Physics is { } building && building.Ray(eye, direction, range, out Simulation.Building.RayHit hit, buildingOnly: true))
+        {
+            wall = hit.Distance;
+            wallOf = building.OwnerOf(hit.Body) is Simulation.Targets.ITargetable owner ? owner.Ref.Id : 0;
+        }
         void Consider(float t, InteractionKind kind, ulong natural, EntityId entity, string verb, string name)
         {
-            if (t >= 0 && t <= range && (best == null || t < best.Value.Distance))
+            if (t >= 0 && t <= range && (best == null || t < best.Value.Distance) && (t <= wall || wallOf == entity.Value && wallOf != 0))
             {
                 best = new Interaction(kind, natural, entity, verb, name, t);
             }

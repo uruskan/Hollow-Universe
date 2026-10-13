@@ -502,3 +502,28 @@ GROUND_SYSTEMS.md §4; GROUND.md §8.4 and decisions Q1–Q9.
   load, its ends folded like a parcel's and a grommeted hem across the front, with two crossed leather straps and iron
   buckles. 0.42 × 0.32 × 0.30 m; LODs of 6,242, 3,120 and 1,366 triangles. No game code changed; with `ground`
   merged, 179 of 179 tests pass. Pictures: `docs/images/ground/drop/bag-model.jpg`, `bag.jpg`, `bag-open.jpg`.
+
+## 13 October 2026, the shared foundations (P0, `ground-p0`)
+
+The first package of [GROUND_SYSTEMS.md](GROUND_SYSTEMS.md), after the owner's rule (each concern built once, no switch
+that grows with every new thing). There is nothing new to play with: these are the foundations the interaction (P1),
+placement (P2) and held-item (P3) packages build on. The playtest's code-lock dead end is fixed on the way.
+
+- **One name for anything in the zone** (§3.1): `TargetRef` (family, ID, part) and ten families, each answering for its
+  own things: whether one exists, where it or a part of it is, its nearest point, its model, its capabilities, and
+  taking it out of the world. The four lookups and the damage code's field per kind of thing are gone, and the Destroyed
+  event names what broke by its `TargetRef`.
+- **One answer for every intent** (§3.2): one code list (`Outcome`), with the lines in `texts.json`. The building's own
+  answers are gone; every refusal shows the same way, with the one error sound.
+- **What each player is told** (§3.3): one byte of viewer flags per thing, made by its capabilities (`capabilities.json`,
+  one handler each). **The code lock is fixed:** holding E on a fresh lock's door offers its owner SET CODE first, and
+  LOCK only once it has a code.
+- **Reach and sight** (§3.4): every action on a thing measures from the eye to its nearest surface (survival.json
+  `reach`) and needs it in sight. Boxes and the cupboard can no longer be opened through walls, and no prompt offers it.
+- **Support links** (§3.6): a charge stuck on a door swings with its leaf and falls when its support goes. It's one rule,
+  which the next packages' arrows and deployables will use.
+- **Lifetimes** (§3.7): bags, bodies, duds and carcasses go by one step and one table (survival.json `lifetimes`).
+  Nothing scans every static thing for them any more, nor for the furnaces.
+- Checked once in a hosted game (`--tour-steps foundations`): `docs/images/ground/p0/set-code.jpg` (SET CODE first on a
+  fresh code lock) and `refusal.jpg` (the cupboard opened through its wall: "Something is in the way"). Protocol 16;
+  decisions E1–E13 in GROUND.md §11. Seven new tests; with `ground` merged, 186 of 186 pass.
