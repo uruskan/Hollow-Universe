@@ -235,7 +235,7 @@ public sealed partial class LocalPlayer
         }.WriteMessage(w));
     }
 
-    /// <summary>Drops <paramref name="amount"/> (0: all) in front of the player.</summary>
+    /// <summary>Drops <paramref name="amount"/> (0: all) in front of the player, into the bag lying there or a new one.</summary>
     public uint Drop(ContainerRef from, int slot, int amount = 0)
     {
         ushort expected = ItemAt(from, slot);
@@ -292,7 +292,7 @@ public sealed partial class LocalPlayer
     /// <summary>Picks a pickup or berry bush (a natural object's ID).</summary>
     public uint PickUpNatural(ulong naturalId) => Intend(null, w => new PickUpIntent { Seq = _nextSeq, Natural = true, Target = naturalId }.WriteMessage(w));
 
-    /// <summary>Picks up a dropped item (its entity ID).</summary>
+    /// <summary>Picks up a bag of dropped items (its entity ID): everything in it that fits.</summary>
     public uint PickUpItem(EntityId item) => Intend(null, w => new PickUpIntent { Seq = _nextSeq, Natural = false, Target = item.Value }.WriteMessage(w));
 
     /// <summary>Places the deployable in a slot at a point on the ground (zone frame), turned by a yaw.</summary>

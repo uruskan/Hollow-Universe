@@ -195,19 +195,12 @@ public sealed partial class Zone
                     (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
                     Destroyed(HitTarget.Building, DestroyedKind.ClaimDevice, claim.Id, Content!.ClaimDeployable.Key, 0, position, rotation, CauseOf(e.Removal));
                 }
-                // Its store spills where it stood.
+                // Its store spills where it stood, in one bag.
+                RemoveStatic(d);
                 if (d.Storage != null)
                 {
-                    for (int i = 0; i < d.Storage.Size; i++)
-                    {
-                        if (!d.Storage[i].IsEmpty)
-                        {
-                            DropAt(d.Position + d.Up * 0.3f, d.Storage[i]);
-                        }
-                    }
-                    d.Storage.Clear();
+                    Spill(d.Position + d.Up * 0.3f, d.Storage, d.Yaw);
                 }
-                RemoveStatic(d);
                 break;
         }
     }
@@ -496,13 +489,7 @@ public sealed partial class Zone
 
     private void GiveBack(Entity entity, Player p, ItemDef item, int count = 1, ushort condition = 0)
     {
-        ItemStack stack = condition != 0 ? new ItemStack(item.Id, count, condition) : ItemStack.Of(item, count);
-        int left = p.Inventory.Give(Content!, stack);
-        if (left > 0)
-        {
-            stack.Count = left;
-            Drop(entity, stack);
-        }
+        GiveOrDrop(entity, p, condition != 0 ? new ItemStack(item.Id, count, condition) : ItemStack.Of(item, count));
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = item.Id, Count = count, Reason = GainReason.Refunded });
     }
 

@@ -337,6 +337,28 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   Protocol 11; the console's tests (parsing, completion, a non-admin refused, give, teleport, spawn, kill and time over
   the network, god and noclip against the prediction) pass with the rest.
 
+## 13 October 2026, dropped items lie in bags (owner's playtest)
+
+- **Bags** (`ground-drop`, GROUND.md §6.1, decisions U1–U7), for the owner's finding that a dropped Tin Finch lay on the
+  ground as a full-size ship. Everything that lands on the ground now lies in a small bag: one function
+  (`Zone.Spill`) packs whatever lands within 1.5 m of a bag with room into it, else starts a bag where it comes to rest,
+  and every source calls it: drops, crafts, refunds and gifts that don't fit, broken boxes, furnaces, barrels and claim
+  devices, a broken research table's work, spent arrows. A bag has 48 slots, lasts 300 s from its newest item, rests on
+  the floor it lands on (not the terrain under a base) and goes once emptied; E takes a bag of one stack whole and opens
+  one holding more (take only, the rows it fills). Others see only a bag and its number of stacks.
+- **Our own model** (`dropped-bag`): a burlap sack gathered into a neck with a wound cord, two corners standing out of
+  the knot, a leather strap with a buckle round its belly. Pictures: `docs/images/ground/drop/bag.jpg`, `bag-open.jpg`,
+  `bag-model.jpg` (new screenshot step `--tour-steps bags`).
+- **Shared code made generic on the way:** bodies and bags are one `DroppedContainer`; what clients are told of a thing
+  (health, count, burning, whose, name) is the thing's own; how a container is looted follows its kind; the copies of
+  "give, drop the rest" are one `GiveOrDrop`. Bots open the bags they find and take what they want.
+- Protocol 12, the things' record version 3 (old dropped stacks load as bags; no SQL step), survival.json's `bag`;
+  models.json's unused `drop.scale` went. 166 of 166 tests pass (three new: packing, taking or opening, and what
+  another player sees over the network).
+- **Not done:** deploying the Tin Finch from its item (the other half of this package) was stopped by the owner's new
+  rule: placement (deployables, doors, locks, the claim device, charges, building pieces and the ship) will be one
+  system, designed with the owner first. No ship-deploy code was written.
+
 ## 13 October 2026, the recoil and the damage code (`ground-damage`)
 
 After the owner's first playtest: "the AK doesn't use the recoil pattern exactly from RustMVP", and is the weapon and
@@ -363,7 +385,7 @@ damage code as modular as RustMVP's foundation planned?
   Every number stayed the same: no test changed for it.
 - **The Destroyed event**: whatever breaks, collapses, decays, is demolished or wrecked is reported once, from one
   place, with its kind, ID, model key (a piece's grade), where it stood, the blow's direction, the cause, who and with
-  what. It reaches clients in range as `GameClient.Destroyed` (message 165, protocol 12), for the break-apart pieces
+  what. It reaches clients in range as `GameClient.Destroyed` (message 165, protocol 13), for the break-apart pieces
   `ground-gibs` is making. The building rules now say why they took a piece away.
 - **The audit** against RustMVP's FOUNDATION.md and damage plan is in GROUND.md §6.4.2: what is done, what is ours on
   purpose (engine-free rules shared by server and client instead of Unreal and GAS), what is left (one channel an

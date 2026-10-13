@@ -492,11 +492,7 @@ public sealed partial class Zone
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.CraftFinished, Player = p.Id, Item = a.Item.Id, Count = a.Count });
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = a.Item.Id, Count = a.Count, Reason = GainReason.Crafted });
             }
-            if (_overflow.Count > 0)
-            {
-                Entity entity = Entities.AtSlot(slots[i]);
-                DropAll(entity, _overflow);
-            }
+            Drop(crafter, _overflow);
         }
     }
 

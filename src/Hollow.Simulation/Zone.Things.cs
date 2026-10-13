@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using Hollow.Core;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
-using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.World;
 
@@ -148,49 +146,11 @@ public sealed partial class Zone
         return best;
     }
 
-    // ---------------------------------------------------------------- dropped items
-
-    /// <summary>
-    /// Drops a stack in front of a character: it lands on the ground there (GROUND.md §6) and stays until picked up or
-    /// <c>droppedItemSeconds</c> pass.
-    /// </summary>
-    public DroppedItem Drop(Entity by, ItemStack stack)
-    {
-        ref Character c = ref Entities.Get<Character>(by);
-        Vector3 up = Frame.UpAt(c.State.Position);
-        (Vector3 forward, Vector3 right) = CharacterMotor.HorizontalBasis(c.Input.Yaw, up);
-        // A little scatter so several drops don't stack on one point.
-        var rng = new Rng(Hash64.Of((ulong)Tick, (ulong)_localIds, 0xD0));
-        Vector3 at = c.State.Position + forward * 0.7f + right * (float)rng.Range(-0.25, 0.25);
-        return DropAt(at, stack, c.Input.Yaw);
-    }
-
-    /// <summary>A stack lying on the ground at a point.</summary>
-    public DroppedItem DropAt(Vector3 point, ItemStack stack, float yaw = 0)
-    {
-        Vector3 ground = Settle(point);
-        var item = new DroppedItem(NextId(), stack, ground, Frame.UpAt(ground), yaw,
-            Tick + (long)(Content!.Survival.DroppedItemSeconds * CharacterMotor.TickRate));
-        AddStatic(item);
-        return item;
-    }
-
-    private void DropAll(Entity by, List<ItemStack> stacks)
-    {
-        foreach (ItemStack s in stacks)
-        {
-            if (!s.IsEmpty)
-            {
-                Drop(by, s);
-            }
-        }
-    }
-
     // ---------------------------------------------------------------- deployables
 
     /// <summary>
     /// Damage to a deployable (tests, the admin's tools): a blow of <paramref name="amount"/> through the deployables'
-    /// receiver, with no hit marker; at 0 it breaks and its contents spill.
+    /// receiver, with no hit marker; at 0 it breaks and its contents spill, in one bag.
     /// </summary>
     public void DamageDeployable(Deployable d, float amount) => Damage(new DamageRequest
     {
@@ -206,8 +166,8 @@ public sealed partial class Zone
     /// <summary>
     /// The deployables' receiver (GROUND.md §6.4.2): placed things and the world's props, found by their boxes. No
     /// defences but this: crates and recyclers can't be broken (Rust's). Every blow takes its structure damage off their
-    /// health (a claim device's box passes it to the building rules); at 0 one breaks: what it held spills, a research
-    /// table gives back its work, a barrel goes until its respawn, and it is reported destroyed.
+    /// health (a claim device's box passes it to the building rules); at 0 one breaks: what it held spills in one bag,
+    /// a research table gives back its work, a barrel goes until its respawn, and it is reported destroyed.
     /// </summary>
     private sealed class DeployableReceiver(Zone zone) : IDamageReceiver
     {
@@ -282,18 +242,14 @@ public sealed partial class Zone
         {
             return false;
         }
+        // Its body goes first, so what it held comes to rest where it stood (on the floor under a box, not its lid).
+        RemoveStatic(d);
+        Vector3 at = d.Position + d.Up * 0.3f;
         if (d.Storage != null)
         {
-            for (int i = 0; i < d.Storage.Size; i++)
-            {
-                if (!d.Storage[i].IsEmpty)
-                {
-                    DropAt(d.Position + d.Up * 0.3f, d.Storage[i]);
-                }
-            }
+            Spill(at, d.Storage, d.Yaw);
         }
-        SpillResearch(d);
-        RemoveStatic(d);
+        SpillResearch(d, at);
         if (d is WorldProp prop)
         {
             PropGone(prop); // a barrel's loot lies on the ground; the barrel comes back on its timer (G7)
@@ -426,21 +382,25 @@ public sealed partial class Zone
 
     // ---------------------------------------------------------------- timers
 
-    // Dropped items and corpses despawn on world time (it pauses while the server is down); empty corpses go at once.
+    // Bags of dropped items and bodies despawn on world time (it pauses while the server is down), and go once emptied;
+    // a bag a looter took from tells others how many stacks it still holds.
     private void StepDespawns()
     {
         _expiredThings.Clear();
         ComponentPool<StaticLink> pool = Entities.Pool<StaticLink>();
         for (int i = 0; i < pool.Count; i++)
         {
-            switch (pool.Values[i].Object)
+            if (pool.Values[i].Object is not DroppedContainer dropped)
             {
-                case DroppedItem item when Tick >= item.DespawnTick || item.Stack.IsEmpty:
-                    _expiredThings.Add(item);
-                    break;
-                case Corpse corpse when Tick >= corpse.DespawnTick || corpse.Loot.IsEmpty:
-                    _expiredThings.Add(corpse);
-                    break;
+                continue;
+            }
+            if (dropped.Expired(Tick))
+            {
+                _expiredThings.Add(dropped);
+            }
+            else
+            {
+                dropped.PublishChanges();
             }
         }
         foreach (WorldObject thing in _expiredThings)

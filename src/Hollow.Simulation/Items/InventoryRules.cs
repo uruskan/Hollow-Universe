@@ -108,9 +108,11 @@ public static class InventoryRules
     /// <summary>
     /// Puts a stack into containers: onto partial stacks of the same item first (in container order), then into empty
     /// slots that accept it. Returns how many didn't fit. <paramref name="except"/>'s slots are skipped entirely (the
-    /// source of a quick move).
+    /// source of a quick move). <paramref name="byPlayer"/> false: the game itself fills them (a bag of dropped items),
+    /// so what a player may put where (<see cref="Container.Accepts"/>: take only, clothing layers, devices' slots)
+    /// doesn't apply.
     /// </summary>
-    public static int AddTo(GameContent content, IReadOnlyList<Container> targets, ItemStack stack, Container? except = null)
+    public static int AddTo(GameContent content, IReadOnlyList<Container> targets, ItemStack stack, Container? except = null, bool byPlayer = true)
     {
         ItemDef? item = content.Item(stack.Item);
         if (item == null || stack.IsEmpty)
@@ -130,7 +132,7 @@ public static class InventoryRules
                 {
                     ItemStack s = c[i];
                     if (s.Item == stack.Item && s.Condition == stack.Condition && s.Count < item.StackSize &&
-                        c.Accepts(content, i, new ItemStack(s.Item, s.Count + 1, s.Condition)))
+                        (!byPlayer || c.Accepts(content, i, new ItemStack(s.Item, s.Count + 1, s.Condition))))
                     {
                         int n = Math.Min(item.StackSize - s.Count, left);
                         s.Count += n;
@@ -153,7 +155,7 @@ public static class InventoryRules
                     continue;
                 }
                 ItemStack part = stack.WithCount(Math.Min(item.StackSize, left));
-                if (c.Accepts(content, i, part))
+                if (!byPlayer || c.Accepts(content, i, part))
                 {
                     c.Set(i, part);
                     left -= part.Count;

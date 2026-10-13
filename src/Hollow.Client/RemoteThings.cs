@@ -8,8 +8,8 @@ using Hollow.Simulation.World;
 namespace Hollow.Client;
 
 /// <summary>
-/// A static thing as this client knows it (GROUND.md §6): a deployable, a dropped item or a corpse, sent reliably when
-/// it comes into range and again when it changes. Nothing to interpolate: it stands still.
+/// A static thing as this client knows it (GROUND.md §6): a deployable, a bag of dropped items or a corpse, sent reliably
+/// when it comes into range and again when it changes. Nothing to interpolate: it stands still.
 /// </summary>
 public sealed class RemoteThing
 {
@@ -24,7 +24,7 @@ public sealed class RemoteThing
 
     public StaticKind Kind { get; set; }
 
-    /// <summary>A deployable's or dropped item's item (0 for a corpse).</summary>
+    /// <summary>A deployable's item, a world prop's number (0 for a corpse or a bag: a bag's contents show only when opened).</summary>
     public ushort Look { get; set; }
 
     /// <summary>Its base on the ground (zone frame) and turn about up.</summary>
@@ -35,12 +35,12 @@ public sealed class RemoteThing
     /// <summary>Health as a fraction (deployables).</summary>
     public float Health { get; set; } = 1;
 
-    /// <summary>A dropped stack's count.</summary>
+    /// <summary>How many stacks a bag holds (one is picked up at once; more open like a box).</summary>
     public int Count { get; set; }
 
     public ThingFlags Flags { get; set; }
 
-    /// <summary>A corpse's name.</summary>
+    /// <summary>Its own name, as the server gives it: a body's (the dead player's), a bag's, a world prop's; empty for a deployable.</summary>
     public string Name { get; set; } = "";
 
     public bool Lit => (Flags & ThingFlags.Lit) != 0;

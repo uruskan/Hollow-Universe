@@ -752,7 +752,7 @@ public sealed partial class GameServer
         }
         WorldObject[] statics = Zone.Statics().ToArray();
         ctx.Out($"Things: {statics.Count(s => s.Kind == StaticKind.Deployable)} deployables, {statics.Count(s => s.Kind == StaticKind.Prop)} world props, " +
-            $"{statics.Count(s => s.Kind == StaticKind.DroppedItem)} dropped items, {statics.Count(s => s.Kind == StaticKind.Corpse)} bodies.");
+            $"{statics.Count(s => s.Kind == StaticKind.DroppedBag)} loot bags, {statics.Count(s => s.Kind == StaticKind.Corpse)} bodies.");
         if (Zone.Building is { } building)
         {
             ctx.Out($"Building: {building.PieceCount} pieces, {building.Doors.Count()} doors, {building.Claims.Count()} claim devices" +

@@ -201,13 +201,7 @@ public sealed partial class Zone
     {
         foreach (ItemAmount a in items)
         {
-            int left = p.Inventory.Give(Content!, a.Item, a.Count);
-            while (left > 0)
-            {
-                int n = Math.Min(left, a.Item.StackSize);
-                Drop(entity, ItemStack.Of(a.Item, n));
-                left -= n;
-            }
+            GiveOrDrop(entity, p, ItemStack.Of(a.Item, a.Count));
             GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = a.Item.Id, Count = a.Count, Reason = reason, Flag = flag });
         }
     }
@@ -378,11 +372,11 @@ public sealed partial class Zone
         {
             return;
         }
-        // A miss often leaves the arrow where it landed.
+        // A miss often leaves the arrow where it landed (in a bag, with others that landed close by).
         var rng = new Rng(Hash64.Of(pr.Id, (ulong)Tick, 0xA770));
         if (rng.NextDouble() < ammo.Recover)
         {
-            DropAt(hit.Point - Vector3.Normalize(pr.Velocity) * 0.1f, ItemStack.Of(pr.Ammo, 1));
+            Spill(hit.Point - Vector3.Normalize(pr.Velocity) * 0.1f, ItemStack.Of(pr.Ammo, 1));
         }
     }
 

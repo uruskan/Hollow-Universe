@@ -92,10 +92,45 @@ public static class SurvivalNetTests
     }
 
     /// <summary>
+    /// GROUND.md §6.1 over the network: another player sees a bag of dropped items as a bag, not what is in it, with how
+    /// many stacks it holds; his interact key opens one holding two, and only then do its contents come to him, take
+    /// only.
+    /// </summary>
+    [Test]
+    public static void OthersSeeOnlyABag()
+    {
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        GameClient bo = rig.Join("Bo");
+        rig.WaitUntilPlaying();
+        rig.Server.Execute("teleport Ada 0 0");
+        rig.Server.Execute("teleport Bo 1 0");
+        rig.Run(0.5, (_, _) => default);
+        rig.Server.Execute("give Ada stone 50");
+        rig.Server.Execute("give Ada bandage 2");
+        RunUntil(rig, () => ada.Local.Inventory.Count(ContentFixture.Item("stone")) == 50 && ada.Local.Inventory.Count(ContentFixture.Item("bandage")) == 2, "the gifts");
+        ada.Local.Drop(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "stone"));
+        ada.Local.Drop(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "bandage"));
+        RunUntil(rig, () => bo.Things.Any(t => t.Kind == StaticKind.DroppedBag && t.Count == 2), "Bo to see a bag of two stacks");
+        RemoteThing bag = bo.Things.Single(t => t.Kind == StaticKind.DroppedBag);
+        Assert.Equal(0, (int)bag.Look, "a bag, not what is in it");
+        Assert.True(bo.Local.Loot == null, "nothing of its contents yet");
+
+        Vector3 eye = bo.Character.Position + bo.Frame.UpAt(bo.Character.Position) * bo.EyeHeight;
+        Interaction? aim = bo.Aim(eye, Vector3.Normalize(bag.Position - eye));
+        Assert.True(aim is { Kind: InteractionKind.Open } && aim.Value.Entity == bag.Id, $"E opens it ({aim?.Verb} {aim?.Name})");
+        bo.Interact(aim!.Value);
+        RunUntil(rig, () => bo.Local.LootKind == LootKind.Crate && bo.Local.Loot != null, "the bag to open");
+        Assert.True(bo.Local.Loot!.Slots.ToArray().Count(s => !s.IsEmpty) == 2 && InventoryRules.Count(new[] { bo.Local.Loot }, ContentFixture.Item("stone").Id) == 50,
+            "its two stacks, to Bo alone");
+        Assert.True(!bo.Local.LootTakesDeposits, "take only");
+    }
+
+    /// <summary>
     /// GROUND.md §6, persistence of everything: after a server restart the characters come back (the one who stayed
     /// logged in, and a sleeper) with their inventories, vitals and crafting queues; the box with its contents, the
-    /// sleeping bag with its cooldown, the corpse and the dropped item with their timers left, and the natural object
-    /// a player damaged, all as they were.
+    /// sleeping bag with its cooldown, the corpse and the bag of dropped stone with their timers left, and the natural
+    /// object a player damaged, all as they were.
     /// </summary>
     [Test]
     public static void EverythingSurvivesARestart()
@@ -162,7 +197,7 @@ public static class SurvivalNetTests
                 var corpse = new Corpse(sv.Zone.NextId(), "Cy", EntityId.None, 37, sv.Zone.Settle(at + new Vector3(3, 0, 0)), Vector3.UnitY, 0, sv.Zone.Tick + 5000);
                 corpse.Loot.Set(0, ItemStack.Of(c.ItemByKey("bandage"), 2));
                 sv.Zone.AddStatic(corpse);
-                DroppedItem dropped = sv.Zone.Statics().OfType<DroppedItem>().Single();
+                DroppedBag dropped = sv.Zone.Statics().OfType<DroppedBag>().Single();
                 Deployable bag = sv.Zone.Statics().OfType<Deployable>().Single(d => d.Def.IsRespawnPoint);
                 return (corpse.DespawnTick - sv.Zone.Tick, dropped.DespawnTick - sv.Zone.Tick, bag.ReadyAtUnixMs);
             });
@@ -187,8 +222,9 @@ public static class SurvivalNetTests
                 Corpse corpse = z.Statics().OfType<Corpse>().Single();
                 Assert.InRange(corpseLeft - 60, corpseLeft, corpse.DespawnTick - z.Tick, "the corpse's time left");
                 Assert.Equal(2, InventoryRules.Count(new[] { corpse.Loot }, c.ItemByKey("bandage").Id), "and its contents");
-                DroppedItem dropped = z.Statics().OfType<DroppedItem>().Single();
-                Assert.True(dropped.Stack.Count == 30 && dropped.DespawnTick - z.Tick <= droppedLeft, "the dropped stone and its time");
+                DroppedBag dropped = z.Statics().OfType<DroppedBag>().Single();
+                Assert.True(InventoryRules.Count(new[] { dropped.Loot }, c.ItemByKey("stone").Id) == 30 && dropped.ShownCount == 1 &&
+                    dropped.DespawnTick - z.Tick <= droppedLeft, "the dropped stone in its bag, and its time");
                 Assert.True(z.Nature!.TryGet(treeId, out NaturalObject tree) && Math.Abs(z.Natural!.Health(tree, c.Natural(tree.Kind)!) - treeHealth) < 1e-3,
                     "the tree as Ada left it");
                 return $"{z.Statics().Count()} things, {z.Natural!.Count} natural changes";

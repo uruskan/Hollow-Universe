@@ -959,7 +959,7 @@ public sealed partial class GameServer
                     Health = health,
                     Count = count,
                     Flags = flags,
-                    Name = thing is Corpse corpse ? corpse.Name : "",
+                    Name = thing.Name,
                 }.WriteMessage(_writer);
                 Send(session);
             }
@@ -980,13 +980,10 @@ public sealed partial class GameServer
         Send(session);
     }
 
-    private static (byte Health, uint Count, ThingFlags Flags) Look(WorldObject thing, PlayerSession session) => thing switch
-    {
-        Deployable d => ((byte)Math.Clamp(Math.Ceiling(d.Health / d.Def.Health * 255), 0, 255), 0u,
-            (d.Lit ? ThingFlags.Lit : ThingFlags.None) | (d.Owner == session.EntityId ? ThingFlags.Mine : ThingFlags.None)),
-        DroppedItem item => (255, (uint)Math.Max(0, item.Stack.Count), ThingFlags.None),
-        _ => (255, 0u, ThingFlags.None),
-    };
+    // What a client is told of a thing besides its look: health, a count (a bag's stacks), burning, theirs.
+    private static (byte Health, uint Count, ThingFlags Flags) Look(WorldObject thing, PlayerSession session) =>
+        ((byte)Math.Clamp(Math.Ceiling(thing.HealthFraction * 255), 0, 255), (uint)Math.Max(0, thing.ShownCount),
+            (thing.Burning ? ThingFlags.Lit : ThingFlags.None) | (thing.OwnedBy(session.EntityId) ? ThingFlags.Mine : ThingFlags.None));
 
     private void FinishThings()
     {

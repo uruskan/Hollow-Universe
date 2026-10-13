@@ -29,7 +29,8 @@ namespace HollowUniverse.Ground;
 /// the inventory, crafting, the other player, chopping a tree and after, an outcrop, a rifle fired down the sights, a
 /// base being built with the plan's ghost, a finished hut with a code lock and its keypad, a timed charge on its wall
 /// and the blast, a firefight at the hut, the Tin Finch crafted, boarded, flown and landed, G7's team, props, recycler,
-/// tech tree, research table and map, the death screen, night by a fire) and quits; with <c>--tour guest</c>, a second
+/// tech tree, research table and map, a bag of dropped items and its loot, the death screen, night by a fire) and quits;
+/// with <c>--tour guest</c>, a second
 /// client that dresses in what it is given, takes up its hatchet and faces the host, fires a rifle it is given at the
 /// nearest building wall, and takes a team invite. Pictures are 1600 × 900 JPEG at the window's size.
 /// </summary>
@@ -62,7 +63,7 @@ public partial class GroundTour : Node
         {
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
-            ("world", World), ("death", Death), ("night", Night), ("f1", F1),
+            ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -1596,6 +1597,50 @@ public partial class GroundTour : Node
         await Seconds(1.0);
         await Shot("f1-tools");
         GD.Print($"[tour] f1: {checks - failed} of {checks} checks passed");
+    }
+
+    // GROUND.md §6.1: what is dropped together lies in one bag. Five stacks dropped in the open by the landing site, the
+    // bag with its prompt, then the bag open beside the inventory.
+    private async Task Bags()
+    {
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Num.Vector3.Zero);
+        await TeleportTo(spot);
+        Face(spot + towards * 3);
+        await Settle();
+        Admin("give", "metal-ore 120");
+        Admin("give", "cloth 20");
+        await Until(() => Count("metal-ore") >= 120 && Count("cloth") >= 20, 5);
+        foreach ((string key, int amount) in new[] { ("wood", 200), ("stone", 100), ("fibre", 40), ("metal-ore", 120), ("cloth", 20) })
+        {
+            if (SlotOf(Me.Inventory.Main, key) is int slot)
+            {
+                Me.Drop(ContainerRef.Main, slot, Math.Min(amount, Me.Inventory.Main[slot].Count));
+                await Seconds(0.25);
+            }
+        }
+        const Hollow.Simulation.World.StaticKind bagKind = Hollow.Simulation.World.StaticKind.DroppedBag;
+        await Until(() => Client.Things.Any(t => t.Kind == bagKind && t.Count >= 5), 5);
+        RemoteThing? bag = Client.Things.Where(t => t.Kind == bagKind)
+            .OrderBy(t => Num.Vector3.Distance(t.Position, Client.Character.Position)).FirstOrDefault();
+        if (bag == null)
+        {
+            GD.PushWarning("[tour] the dropped stacks made no bag");
+            return;
+        }
+        await TeleportTo(bag.Position - towards * 1.3f);
+        Face(bag.Position + Client.Frame.UpAt(bag.Position) * 0.15f);
+        await Seconds(1.0);
+        await Shot("bag");
+        if (View.Aimed is { Kind: InteractionKind.Open } aimed)
+        {
+            Client.Interact(aimed);
+        }
+        await Until(() => Me.LootKind == LootKind.Crate && Me.Loot != null, 4);
+        await Seconds(1.0);
+        await Shot("bag-open");
+        Me.Close();
+        View.Interface.Open(GroundScreen.Hud);
+        await Seconds(0.3);
     }
 
     // ---------------------------------------------------------------- helpers
