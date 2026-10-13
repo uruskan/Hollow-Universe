@@ -411,7 +411,7 @@ public static class ItemRows
             AttachmentStats a = d.Item.Attachment!;
             ItemDef item = d.Item;
             into.Add(new ItemRow("Fits", Names(d.Content.Firearms.Where(g => g.Takes(item)).Select(g => g.Item.Name))));
-            into.Add(new ItemRow("Slot", a.Slot switch { AttachmentSlot.Sight => "Sight", AttachmentSlot.Muzzle => "Muzzle", _ => "Rail" }));
+            into.Add(new ItemRow("Slot", a.Slot.ToString()));
             if (a.Zoom > 0)
             {
                 into.Add(new ItemRow("Zoom", "×" + N(a.Zoom)));
