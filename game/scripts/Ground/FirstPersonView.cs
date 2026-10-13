@@ -14,7 +14,8 @@ namespace HollowUniverse.Ground;
 /// The local player in first person (GROUND.md §4.8): the character package's <see cref="ViewmodelView"/> holding the
 /// active belt item's model (the arms in the worn sleeves), swinging with the server's rhythm while the attack is
 /// held; a plain placeholder for items without a model yet; a shot's muzzle effect and a lit torch's flame (the effects
-/// library, drawn with the arms); blood dripping while bleeding; and a ghost where a held deployable would go.
+/// library, drawn with the arms); blood dripping while bleeding. (Where a held thing would go is the placement ghost's,
+/// <see cref="PlacementView"/>.)
 /// </summary>
 public partial class FirstPersonView : Node3D
 {
@@ -25,7 +26,6 @@ public partial class FirstPersonView : Node3D
     private FxHandle _flame;
     private Node3D? _flameSocket;
     private double _drip;
-    private MeshInstance3D _ghost = null!;
     private Camera3D _camera = null!;
     private string? _heldKey;
     private int _wearRevision = -1;
@@ -36,11 +36,6 @@ public partial class FirstPersonView : Node3D
     private float _lastYaw, _lastPitch;
 
     public GameClient Client { get; set; } = null!;
-
-    /// <summary>Where a held deployable would go (the view sets it; the server decides).</summary>
-    public Num.Vector3? PlacementPoint { get; set; }
-
-    public float PlacementYaw { get; set; }
 
     /// <summary>
     /// The aim seen from the camera (the camera's basis inverted, times the aim's): identity, unless free look (Alt) has
@@ -137,22 +132,9 @@ public partial class FirstPersonView : Node3D
         };
         _placeholder.AddChild(_stick);
         _body.AddChild(_placeholder);
-        _ghost = new MeshInstance3D
-        {
-            Name = "PlacementGhost",
-            Mesh = new BoxMesh(),
-            MaterialOverride = new StandardMaterial3D
-            {
-                AlbedoColor = new Color(0.4f, 0.85f, 1f, 0.3f),
-                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-            },
-            Visible = false,
-        };
-        AddChild(_ghost);
     }
 
-    /// <summary>Every frame, after the camera is placed: what is held, how it moves, swings, and the placement ghost.</summary>
+    /// <summary>Every frame, after the camera is placed: what is held, how it moves and swings.</summary>
     public void Refresh(double delta, in InputFrame input, float yaw, float pitch)
     {
         LocalPlayer me = Client.Local;
@@ -229,7 +211,6 @@ public partial class FirstPersonView : Node3D
         UpdatePlaceholder(item, delta, input);
         UpdateTorch(item);
         Bleed(delta);
-        UpdateGhost(item);
     }
 
     // A torch in hand burns: the effects library's flame on its flame socket, drawn with the arms; its light is the
@@ -324,49 +305,5 @@ public partial class FirstPersonView : Node3D
         }
         Vector3 rest = new(0.3f - 0.2f * _draw, -0.3f + 0.1f * _draw, -0.5f - 0.1f * _draw);
         _placeholder.Transform = new Transform3D(Basis.FromEuler(new Vector3(-0.35f - 1.2f * swing, 0.15f, 0)), rest + new Vector3(-0.05f * swing, 0.05f * swing, -0.15f * swing));
-    }
-
-    private Node3D? _ghostModel;
-    private string? _ghostKey;
-
-    // Where a held deployable would go: its own model in the ghost's colour (a box if it has none).
-    private void UpdateGhost(ItemDef? item)
-    {
-        if (item?.Deploys is not { } def || PlacementPoint is not { } at)
-        {
-            _ghost.Visible = false;
-            if (_ghostModel != null)
-            {
-                _ghostModel.Visible = false;
-            }
-            return;
-        }
-        Num.Vector3 up = Client.Frame.UpAt(at);
-        Basis basis = NatureView.Upright(up, PlacementYaw);
-        if (_ghostKey != def.Key)
-        {
-            _ghostKey = def.Key;
-            _ghostModel?.QueueFree();
-            _ghostModel = GroundModels.Provider.Deployable(def.Key, new Vector3(def.HalfExtents.X, def.HalfExtents.Y, def.HalfExtents.Z));
-            if (_ghostModel != null)
-            {
-                foreach (MeshInstance3D mesh in HollowUniverse.Items.ModelCatalog.Meshes(_ghostModel))
-                {
-                    mesh.MaterialOverride = _ghost.MaterialOverride;
-                    mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
-                }
-                AddChild(_ghostModel);
-            }
-        }
-        if (_ghostModel != null)
-        {
-            _ghostModel.GlobalTransform = new Transform3D(basis, GroundView.ToGodot(at));
-            _ghostModel.Visible = true;
-            _ghost.Visible = false;
-            return;
-        }
-        ((BoxMesh)_ghost.Mesh).Size = new Vector3(def.HalfExtents.X * 2, def.HalfExtents.Y * 2, def.HalfExtents.Z * 2);
-        _ghost.GlobalTransform = new Transform3D(basis, GroundView.ToGodot(at + up * def.HalfExtents.Y));
-        _ghost.Visible = true;
     }
 }

@@ -8,9 +8,9 @@ using JoltPhysicsSharp;
 namespace Hollow.Simulation.Building;
 
 /// <summary>
-/// What a placement would be: the piece, its structure (none yet for a free foundation), its pose in the structure's
-/// frame, the socket it snaps to, and whether the rules allow it (with the reason when they don't). The client's ghost
-/// and the server's check are the same object from the same code.
+/// What a piece's placement would be: the piece, its structure (none yet for a free foundation), its pose in the
+/// structure's frame, the socket it snaps to, and whether the building's rules allow it (with the reason when they don't).
+/// The placement pipeline's socket solver proposes these, and its candidates carry them (GROUND_SYSTEMS.md §6).
 /// </summary>
 public sealed class PlacementPlan
 {
@@ -48,6 +48,14 @@ public sealed class PlacementPlan
     /// <summary>Where the ghost goes in the zone.</summary>
     public (Vector3 Position, Quaternion Rotation) ZoneTransform => Frame.ToZone(Pose);
 
+    /// <summary>
+    /// What a placement intent says of it (GROUND_SYSTEMS.md §6): its support, socket and orientation, or (a free
+    /// foundation) the ground, its top's middle and its heading in 15° steps.
+    /// </summary>
+    public Placement.PlacementClaim Claim => Support == null
+        ? new Placement.PlacementClaim(Targets.TargetRef.Ground, 0, ZoneTransform.Position, 0, HeadingSteps)
+        : new Placement.PlacementClaim(Support.Ref, Socket.Code, ZoneTransform.Position, 0, Orientation);
+
     public override string ToString() =>
         $"{Piece.Key} at {Pose.Position} yaw {Pose.YawDegrees}° on {(Support == null ? "the ground" : Support.Def.Key + " " + Socket)}: {Outcome}";
 }
@@ -60,14 +68,15 @@ public sealed partial class BuildingWorld
     private readonly List<Piece> _supports = new();
 
     /// <summary>
-    /// The placement the player is aiming at with a plan holding <paramref name="piece"/> (RustMVP's preview): every
-    /// compatible socket of the pieces near the aim, in every orientation, scored by how near the aim passes, how far
-    /// from what it hits, and how close its facing is to the player's (turned by <paramref name="turns"/> presses of
-    /// R). The best few are checked and the first allowed one wins; when none is allowed the best is returned with its
-    /// reason. A foundation with no socket near is placed on the ground. Returns null when there's nothing to show.
+    /// Where the player could put <paramref name="piece"/> with the plan, aiming from the eye (RustMVP's preview, the
+    /// placement pipeline's socket solver, GROUND_SYSTEMS.md §6): every compatible socket of the pieces near the aim, in
+    /// every orientation, scored by how near the aim passes, how far from what it hits, and how close its facing is to the
+    /// player's (turned by <paramref name="turns"/> presses of R); the best <see cref="BuildingData.CandidatesTried"/>, best
+    /// first, unchecked. With no socket near, a foundation on the ground. <paramref name="into"/> is cleared first.
     /// </summary>
-    public PlacementPlan? Plan(ulong player, PieceDef piece, Vector3 eye, Vector3 direction, int turns, IBuildingWallet? wallet, double now)
+    public void Candidates(PieceDef piece, Vector3 eye, Vector3 direction, int turns, List<PlacementPlan> into)
     {
+        into.Clear();
         direction = Vector3.Normalize(direction);
         float reach = (float)Data.Reach, aimRadius = (float)Data.SocketAimRadius;
         Vector3 end = eye + direction * (reach + aimRadius);
@@ -85,18 +94,14 @@ public sealed partial class BuildingWorld
             Score(support, piece, eye, end, direction, aimHit ? hit.Point : null, turns);
         }
         _candidates.Sort((a, b) => a.Score.CompareTo(b.Score));
-
-        PlacementPlan? best = null;
-        int tried = 0;
-        for (int i = 0; i < _candidates.Count && tried < Data.CandidatesTried; i++)
+        for (int i = 0; i < _candidates.Count && into.Count < Data.CandidatesTried; i++)
         {
             (double _, Piece support, SocketId socket, int orientation, Pose pose) = _candidates[i];
             if (Duplicate(i))
             {
                 continue;
             }
-            tried++;
-            var plan = new PlacementPlan
+            into.Add(new PlacementPlan
             {
                 Piece = piece,
                 Structure = support.Structure,
@@ -105,23 +110,12 @@ public sealed partial class BuildingWorld
                 Support = support,
                 Socket = socket,
                 Orientation = orientation,
-            };
-            Check(plan, player, eye, wallet);
-            if (plan.Valid)
-            {
-                return plan;
-            }
-            best ??= plan;
+            });
         }
-        if (best != null)
+        if (into.Count == 0 && piece.Family == PieceFamily.Foundation && FreeFoundation(piece, eye, direction, turns) is { } free)
         {
-            return best;
+            into.Add(free);
         }
-        if (piece.Family == PieceFamily.Foundation)
-        {
-            return FreeFoundation(player, piece, eye, direction, turns, wallet);
-        }
-        return null;
     }
 
     // An earlier candidate (better scored) put the same piece in the same place.
@@ -220,7 +214,7 @@ public sealed partial class BuildingWorld
     /// its depth. Square to the player's view (15° steps, R turns it 90°). It starts a new structure whose frame has the
     /// planet's up there.
     /// </summary>
-    private PlacementPlan? FreeFoundation(ulong player, PieceDef piece, Vector3 eye, Vector3 direction, int turns, IBuildingWallet? wallet)
+    private PlacementPlan? FreeFoundation(PieceDef piece, Vector3 eye, Vector3 direction, int turns)
     {
         if (Physics == null)
         {
@@ -249,12 +243,7 @@ public sealed partial class BuildingWorld
         Vector3D forward = level.DirectionToLocal(D(flat));
         double heading = Math.Atan2(-forward.X, -forward.Z) + turns * Math.PI / 2;
         heading = Math.Round(heading / (Math.PI / 12)) * (Math.PI / 12);
-        PlacementPlan? plan = FoundationAt(piece, point, heading);
-        if (plan != null)
-        {
-            Check(plan, player, eye, wallet);
-        }
-        return plan;
+        return FoundationAt(piece, point, heading);
     }
 
     /// <summary>Kept between a free foundation's top and the ground's limits (metres), so float rays agree with it.</summary>
@@ -335,16 +324,18 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>
-    /// Every rule a placement must pass, in order: the building's size, reach, sight, building rights, a free spot, the
-    /// ground under a foundation, collision with pieces, the ground and objects, characters, stability, two claims
-    /// joined, and the price. Sets the plan's outcome and stability.
+    /// The building's own rules a placement must pass (GROUND.md §6.3), in order: the building's size, a free spot, the
+    /// ground under a foundation, collision with pieces, the ground and objects, characters, stability, two claims joined,
+    /// and the price. Reach, sight and building rights are the placement pipeline's, as for everything placed
+    /// (GROUND_SYSTEMS.md §6). Sets the plan's outcome and stability.
     /// </summary>
-    public void Check(PlacementPlan plan, ulong player, Vector3 eye, IBuildingWallet? wallet)
+    public Outcome CheckBuilding(PlacementPlan plan, ulong player, IBuildingWallet? wallet)
     {
-        plan.Outcome = CheckRules(plan, player, eye, wallet);
+        plan.Outcome = CheckRules(plan, wallet);
+        return plan.Outcome;
     }
 
-    private Outcome CheckRules(PlacementPlan plan, ulong player, Vector3 eye, IBuildingWallet? wallet)
+    private Outcome CheckRules(PlacementPlan plan, IBuildingWallet? wallet)
     {
         PieceDef piece = plan.Piece;
         BuildingFrame frame = plan.Frame;
@@ -357,35 +348,7 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.NotFound;
         }
-
-        // Reach, to the nearest point of the piece's logical surface.
-        Vector3D eyeLocal = frame.ToLocal(D(eye));
-        Vector3D nearest = PieceGeometry.ClosestPoint(Data, piece, pose, eyeLocal);
-        double distance = (nearest - eyeLocal).Length;
-        if (distance > Data.Reach)
-        {
-            return OutcomeCode.OutOfReach;
-        }
-
-        // Sight: nothing else between the eye and that point (a little short of it is fine).
-        if (Physics != null && distance > Data.SightTolerance)
-        {
-            Vector3 target = F(frame.ToZone(nearest));
-            // A foundation is meant to sit partly in the ground, so the ground never hides one.
-            if (Physics.Ray(eye, target - eye, (float)distance, out RayHit blocker) &&
-                !(blocker.IsGround && piece.Family == PieceFamily.Foundation) &&
-                blocker.Distance < distance - Data.SightTolerance && Vector3.Distance(blocker.Point, target) > Data.SightTolerance)
-            {
-                return OutcomeCode.OutOfSight;
-            }
-        }
-
-        // Building rights where the piece goes.
         (Vector3 zonePosition, Quaternion zoneRotation) = frame.ToZone(pose);
-        if (PrivilegeAt(player, zonePosition, Data.ClaimPadding) == Privilege.Blocked)
-        {
-            return OutcomeCode.BuildingBlocked;
-        }
 
         // A free spot.
         if (plan.Structure != null)
@@ -593,14 +556,14 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>
-    /// Places a planned piece, after checking it again (the server never trusts a client's plan): pays the twig cost,
-    /// starts a structure for a free foundation, and adds the piece at full twig health.
+    /// Places a planned piece after checking the building's rules again (<see cref="CheckBuilding"/>), paying its twig cost:
+    /// the sandbox's and the tests' way; the game places through the placement pipeline, which checks reach, sight and rights
+    /// too and takes the price itself (<see cref="Build"/>).
     /// </summary>
-    public Outcome Place(PlacementPlan plan, ulong player, Vector3 eye, IBuildingWallet wallet, double now, out Piece? piece)
+    public Outcome Place(PlacementPlan plan, ulong player, IBuildingWallet wallet, double now, out Piece? piece)
     {
         piece = null;
-        Check(plan, player, eye, wallet);
-        if (!plan.Valid)
+        if (!CheckBuilding(plan, player, wallet).Ok)
         {
             return plan.Outcome;
         }
@@ -609,10 +572,60 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.NotEnough.With(Data.MaterialItem(twig.Material));
         }
+        return Build(plan, player, now, out piece);
+    }
+
+    /// <summary>
+    /// Adds a planned piece at full twig health, after checking the building's rules again (without its price: the caller
+    /// takes it): a new structure for a free foundation, else onto its support's.
+    /// </summary>
+    public Outcome Build(PlacementPlan plan, ulong player, double now, out Piece? piece)
+    {
+        piece = null;
+        if (!CheckBuilding(plan, player, null).Ok)
+        {
+            return plan.Outcome;
+        }
         piece = plan.Structure == null
             ? AddFirst(plan.Frame, plan.Piece, 0, player, now)
             : Add(plan.Structure, plan.Piece, 0, plan.Pose, player, now);
         return Outcome.Done;
+    }
+
+    /// <summary>
+    /// The doorway or wall frame the aim passes through within <paramref name="reach"/>: the piece aimed at, or the one
+    /// whose empty opening the aim goes through (RustMVP's), the nearest; null when none.
+    /// </summary>
+    public Piece? OpeningAimed(Vector3 eye, Vector3 direction, float reach)
+    {
+        if (Target(eye, direction, reach, out _) is Piece { Def.Opening: Opening.Door or Opening.Double } aimed)
+        {
+            return aimed;
+        }
+        Vector3 end = eye + Vector3.Normalize(direction) * reach;
+        PiecesNear(eye, end, 3.5f, _aimed);
+        Piece? best = null;
+        double nearest = double.MaxValue;
+        foreach (Piece p in _aimed)
+        {
+            if (p.Gone || p.Collapsing || p.Def.Opening is not (Opening.Door or Opening.Double))
+            {
+                continue;
+            }
+            (double w, double h) = p.Def.Opening == Opening.Door ? Data.DoorOpening : Data.DoubleOpening;
+            BuildingFrame frame = p.Structure.Frame;
+            Vector3D from = D(eye);
+            if (PieceGeometry.RayOpening(p.Pose, w, h, frame.ToLocal(from), frame.ToLocal(D(end)), out Vector3D hit))
+            {
+                double distance = (frame.ToZone(hit) - from).Length;
+                if (distance < nearest)
+                {
+                    nearest = distance;
+                    best = p;
+                }
+            }
+        }
+        return best;
     }
 
     /// <summary>

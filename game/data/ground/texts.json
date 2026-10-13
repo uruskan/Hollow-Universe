@@ -80,6 +80,12 @@
     "NotOnStructure": "Place it on a foundation or a floor",
     "ListFull": "The list is full",
     "NotOnLock": "You aren't authorised on this lock",
-    "NeedsKey": "You need its key"
+    "NeedsKey": "You need its key",
+
+    "Misplaced": "It doesn't fit there any more: aim again",
+    "Overhangs": "It would hang over the edge",
+    "StructureFull": "This building can't hold another {item|one of these}",
+    "TooMany": "You can't place another {item|one of these}",
+    "InWater": "It can't go in the water"
   }
 }

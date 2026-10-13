@@ -268,7 +268,7 @@ public static class WorldTests
         // Research: a pistol and its tier's salvage make a pistol blueprint.
         rig.Give(ada, "research-table", 1);
         Vector3 at = rig.Zone.Settle(new Vector3(30, 0, 31.6f));
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "research-table"), 0, at, 0), "a research table");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, SlotOf(a.Inventory.Main, "research-table"), at, 0), "a research table");
         Deployable table = rig.Zone.Statics().OfType<Deployable>().Single(d => d.Def.Research != null);
         rig.Look(ada, table.Centre);
         Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, table.Id), "open it");
@@ -384,14 +384,14 @@ public static class WorldTests
         z.TeamAct(bo, TeamAction.Accept, EntityId.None, team);
         // Inside the hut, in sight of the claim device (since P0 a wall between hides it).
         Raids.Stand(rig, ada, hut.Inside);
-        Outcome claimed = z.ClaimAct(ada, ClaimAction.AuthoriseTeam, ContainerRef.Main, 0, 0, claim.Id, 0, 0, 0);
+        Outcome claimed = z.ClaimAct(ada, ClaimAction.AuthoriseTeam, claim.Id);
         Assert.True(claimed.Ok, $"authorise team at the claim device: {claimed}");
         Assert.True(claim.IsAuthorised(A) && claim.IsAuthorised(B) && !claim.IsAuthorised(C), "Ada and Bo are on its list, Cy isn't");
         Raids.Stand(rig, ada, z.Settle(door.Frame.ZoneTransform.Position + new Vector3(0, 0, -1.5f)));
-        Outcome stranger = z.LockAct(ada, LockAction.AuthoriseTeam, ContainerRef.Main, 0, 0, door.Id, null);
+        Outcome stranger = z.LockAct(ada, LockAction.AuthoriseTeam, door.Id, null);
         Assert.Equal(OutcomeCode.NotOnLock, stranger.Code, "a stranger to the lock can't");
-        Assert.True(z.LockAct(ada, LockAction.EnterCode, ContainerRef.Main, 0, 0, door.Id, "1234").Ok, "the code");
-        Assert.True(z.LockAct(ada, LockAction.AuthoriseTeam, ContainerRef.Main, 0, 0, door.Id, null).Ok, "then she can");
+        Assert.True(z.LockAct(ada, LockAction.EnterCode, door.Id, "1234").Ok, "the code");
+        Assert.True(z.LockAct(ada, LockAction.AuthoriseTeam, door.Id, null).Ok, "then she can");
         Assert.True(codeLock!.IsAuthorised(B) && !codeLock.IsAuthorised(C), "Bo is on the lock now");
     }
 
@@ -422,8 +422,7 @@ public static class WorldTests
         Assert.True(a.Markers.Count == 0, "none left");
         rig.Give(ada, "sleeping-bag", 1);
         revision = a.MapRevision;
-        Assert.Equal(OutcomeCode.Done, z.Place(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "sleeping-bag"), 0, z.Settle(new Vector3(11, 0, 11.5f)), 0),
-            "a bag");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, SlotOf(a.Inventory.Main, "sleeping-bag"), z.Settle(new Vector3(11, 0, 11.5f)), 0), "a bag");
         Assert.True(a.MapRevision > revision, "the bag is on her map");
         Assert.True(a.DeathPoint == null, "not dead yet");
         z.Hurt(ada, a, 1000, "Test", EntityId.None, "");

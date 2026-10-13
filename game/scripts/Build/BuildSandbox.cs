@@ -9,6 +9,7 @@ using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Placement;
 using HollowUniverse.App;
 using HollowUniverse.Ground;
 using HollowUniverse.UI;
@@ -20,7 +21,9 @@ namespace HollowUniverse.Build;
 /// <summary>
 /// The build sandbox (<c>--view build</c>, GROUND.md §6.3): a local zone on the first world's stand-in surface with one
 /// walking character, the building rules and their art, and the ground interface's belt and radials. Everything the
-/// player sees comes from the same rules code the server runs: the ghost is <see cref="BuildingWorld.Plan"/>'s answer.
+/// player sees comes from the same rules code the server runs: the ghost is the placement pipeline's verdict
+/// (GROUND_SYSTEMS.md §6, <see cref="Placer"/>), on a placement world of this building alone, drawn by the one
+/// <see cref="PlacementGhost"/>; what a click places, the placeable's kind puts in through this sandbox's site.
 /// <para>
 /// Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; hold the right mouse button for the plan's or the hammer's radial;
 /// left button places, repairs, fits a door or places the device; R turns the piece (or flips the door); E opens and
@@ -28,7 +31,7 @@ namespace HollowUniverse.Build;
 /// house|stability|ghost-valid|ghost-invalid|stress|empty</c>, <c>--overlay</c>, <c>--tool</c> 1–6, <c>--piece key</c>.
 /// </para>
 /// </summary>
-public partial class BuildSandbox : Node3D, IHammerActions
+public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
 {
     private const ulong Player = 1;
     private const float MouseSensitivity = 0.002f;
@@ -41,7 +44,10 @@ public partial class BuildSandbox : Node3D, IHammerActions
     private BuildingWorld _world = null!;
     private BuildingAssets _assets = null!;
     private BuildingRenderer _renderer = null!;
-    private BuildGhost _ghost = null!;
+    private PlacementGhost _ghost = null!;
+    private PlacementWorld _placement = null!;
+    private GameContent _content = null!;
+    private PlacementCandidate? _candidate;
     private BuildHud _hud = null!;
     private GroundUi _ui = null!;
     private BuildSandboxUi _model = null!;
@@ -55,8 +61,7 @@ public partial class BuildSandbox : Node3D, IHammerActions
     private float _yaw, _pitch;
     private bool _jumpPressed;
     private double _clock;
-    private int _turns, _flip;
-    private PlacementPlan? _plan;
+    private int _turns, _tool;
     private object? _target;
     private RayHit _targetHit;
     private bool _shot;
@@ -80,6 +85,7 @@ public partial class BuildSandbox : Node3D, IHammerActions
         _shot = Options.ContainsKey("shot");
         // The whole game data: the building's numbers, and the player's lines for its answers (texts.json).
         GameContent content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
+        _content = content;
         _data = content.Building;
         _texts = content.Texts;
         ZoneSpec spec = ZoneSpec.FirstWorld(GalaxyService.Galaxy, 28.4, -61.7) ?? new ZoneSpec
@@ -93,6 +99,7 @@ public partial class BuildSandbox : Node3D, IHammerActions
         _zone = new Zone(spec);
         ulong next = 0;
         _world = new BuildingWorld(_data, _zone.Physics, () => new EntityId(++next)) { Characters = Capsules };
+        _placement = new PlacementWorld(content, _zone.Frame, _zone.Surface, _zone.Physics, _world, new Surroundings(this));
 
         BuildEnvironment();
         _terrain = new GroundTerrain { Name = "Terrain" };
@@ -105,7 +112,7 @@ public partial class BuildSandbox : Node3D, IHammerActions
             OnlyLod = Options.TryGetValue("lod", out string? lodOption) ? int.Parse(lodOption, CultureInfo.InvariantCulture) : -1,
         };
         AddChild(_renderer);
-        _ghost = new BuildGhost { Name = "Ghost", Assets = _assets };
+        _ghost = new PlacementGhost { Name = "Ghost", Assets = _assets };
         AddChild(_ghost);
         _camera = new Camera3D { Name = "Camera", Fov = 75, Near = 0.05f, Far = 4000, Current = true };
         AddChild(_camera);
@@ -423,61 +430,40 @@ public partial class BuildSandbox : Node3D, IHammerActions
         return input;
     }
 
-    // What the held tool would do where the player looks: the ghost, the target and the lines under the crosshair.
+    // What the held tool would do where the player looks: the ghost (the placement pipeline's verdict for what the tool
+    // places), the target and the lines under the crosshair.
     private void Aim()
     {
         Num.Vector3 eye = N(_camera.GlobalPosition);
         Num.Vector3 forward = N(-_camera.GlobalBasis.Z);
         _target = _world.Target(eye, forward, (float)_data.Reach, out _targetHit);
         _model.SetPrivilege(_world.PrivilegeAt(Player, _feetNow));
-        _plan = null;
         _hud.Line = null;
         _hud.Reason = null;
         _hud.Legend = _renderer.StabilityOverlay;
         _model.Prompt = null;
         int tool = _model.ActiveBelt;
-        if (tool == 0)
+        if (tool != _tool)
         {
-            PieceDef piece = _model.Plan.Chosen;
-            _plan = _world.Plan(Player, piece, eye, forward, _turns, _wallet, _clock);
-            GradeDef twig = _data.Grades[0];
-            _hud.Line = $"{piece.Name.ToUpperInvariant()}  ·  {_data.CostOf(piece, 0)} {_data.MaterialName(twig.Material).ToUpperInvariant()} ({_wallet.Count(twig.Material):N0})";
-            if (_plan == null)
-            {
-                _hud.Reason = _texts.Line(OutcomeCode.NoSocket);
-                _hud.ReasonIsWarning = false;
-            }
-            else if (!_plan.Valid)
-            {
-                _hud.Reason = _texts.Line(_plan.Outcome);
-                _hud.ReasonIsWarning = true;
-            }
-            else
-            {
-                _hud.Reason = $"{_plan.Stability / 10.0:0.#}% STABLE";
-                _hud.ReasonIsWarning = false;
-            }
-            _hud.Hints = "LMB BUILD   ·   HOLD RMB SELECT PIECE   ·   R ROTATE   ·   F2 STABILITY";
+            (_tool, _turns) = (tool, 0);
         }
-        else if (tool == 1)
+        Placeable? placing = (uint)tool < (uint)Tools.Length ? Tools[tool](this) : null;
+        _candidate = placing != null
+            ? Placer.Plan(_placement, new PlacementContext(Player, eye, placing, _wallet), new PlacementAim(forward, MathF.Atan2(-forward.X, -forward.Z), _turns))
+            : null;
+        _ghost.Show(_candidate);
+        if (placing != null)
         {
-            _hud.Hints = "LMB REPAIR   ·   HOLD RMB UPGRADE / ROTATE / DEMOLISH   ·   F2 STABILITY";
-        }
-        else if (tool <= 4)
-        {
-            DoorDef door = DoorHeld(tool)!;
-            _hud.Hints = $"LMB PLACE {door.Name.ToUpperInvariant()}   ·   R TURN 180°   ·   E OPEN / SHUT";
-            Piece? opening = OpeningAimed(eye, forward);
-            if (opening != null)
+            _hud.Line = placing.Name.ToUpperInvariant();
+            foreach (PlacementCost cost in placing.Costs)
             {
-                _hud.Line = $"{opening.Def.Name.ToUpperInvariant()}  ·  {(opening.Door == null ? "EMPTY" : opening.Door.Def.Name.ToUpperInvariant())}";
+                _hud.Line += $"  ·  {cost.Amount} {_data.MaterialName(cost.Material).ToUpperInvariant()} ({_wallet.Count(cost.Material):N0})";
             }
+            Outcome verdict = _candidate?.Outcome ?? Placer.Nothing(_placement, placing);
+            _hud.Reason = verdict.Ok ? _candidate?.Detail is PlacementPlan plan ? $"{plan.Stability / 10.0:0.#}% STABLE" : null : _texts.Line(verdict);
+            _hud.ReasonIsWarning = _candidate is { Valid: false };
         }
-        else
-        {
-            _hud.Hints = "LMB PLACE ON A FOUNDATION OR FLOOR   ·   F5 ONE HOUR OF UPKEEP";
-        }
-        _ghost.Show(_plan);
+        _hud.Hints = Hints[Math.Clamp(tool, 0, Hints.Length - 1)];
         if (tool != 0 && _target != null)
         {
             _hud.Line ??= TargetLine(_target);
@@ -487,6 +473,29 @@ public partial class BuildSandbox : Node3D, IHammerActions
             _model.Prompt = new InteractionPrompt("E", aimedDoor.Open ? "CLOSE DOOR" : "OPEN DOOR");
         }
     }
+
+    // What each tool on the belt places (none: the hammer): the plan's piece, three doors, the claim device.
+    private static readonly Func<BuildSandbox, Placeable?>[] Tools =
+    {
+        s => s._content.Placement.Of(s._model.Plan.Chosen),
+        _ => null,
+        s => s.Door("wooden-door"),
+        s => s.Door("armoured-door"),
+        s => s.Door("sheet-metal-double-door"),
+        s => s._content.Placement.Of(s._content.ClaimDeployable),
+    };
+
+    private static readonly string[] Hints =
+    {
+        "LMB BUILD   ·   HOLD RMB SELECT PIECE   ·   R ROTATE   ·   F2 STABILITY",
+        "LMB REPAIR   ·   HOLD RMB UPGRADE / ROTATE / DEMOLISH   ·   F2 STABILITY",
+        "LMB PLACE THE DOOR   ·   R TURN 180°   ·   E OPEN / SHUT",
+        "LMB PLACE THE DOOR   ·   R TURN 180°   ·   E OPEN / SHUT",
+        "LMB PLACE THE DOOR   ·   R TURN 180°   ·   E OPEN / SHUT",
+        "LMB PLACE ON A FOUNDATION OR FLOOR   ·   R TURN   ·   F5 ONE HOUR OF UPKEEP",
+    };
+
+    private Placeable? Door(string key) => _data.Door(key) is { } def ? _content.Placement.Of(def) : null;
 
     private string TargetLine(object target) => target switch
     {
@@ -500,47 +509,6 @@ public partial class BuildSandbox : Node3D, IHammerActions
     {
         double seconds = _world.ProtectedSeconds(claim.Structure);
         return double.IsInfinity(seconds) ? "FOREVER" : seconds < 3600 ? $"{seconds / 60:0} MIN" : $"{seconds / 3600:0.#} H";
-    }
-
-    private DoorDef? DoorHeld(int tool) => tool switch
-    {
-        2 => _data.Door("wooden-door"),
-        3 => _data.Door("armoured-door"),
-        4 => _data.Door("sheet-metal-double-door"),
-        _ => null,
-    };
-
-    // A doorway or wall frame the aim passes through (its empty opening counts, as in RustMVP).
-    private Piece? OpeningAimed(Num.Vector3 eye, Num.Vector3 forward)
-    {
-        if (_target is Piece { Def.Opening: Opening.Door or Opening.Double } aimed)
-        {
-            return aimed;
-        }
-        var near = new List<Piece>();
-        Num.Vector3 end = eye + forward * (float)_data.Reach;
-        _world.PiecesNear(eye, end, 3.5f, near);
-        Piece? best = null;
-        double nearest = double.MaxValue;
-        foreach (Piece p in near)
-        {
-            if (p.Def.Opening is not (Opening.Door or Opening.Double))
-            {
-                continue;
-            }
-            (double w, double h) = p.Def.Opening == Opening.Door ? _data.DoorOpening : _data.DoubleOpening;
-            BuildingFrame frame = p.Structure.Frame;
-            if (PieceGeometry.RayOpening(p.Pose, w, h, frame.ToLocal(D(eye)), frame.ToLocal(D(end)), out Vector3D hit))
-            {
-                double distance = (frame.ToZone(hit) - D(eye)).Length;
-                if (distance < nearest)
-                {
-                    nearest = distance;
-                    best = p;
-                }
-            }
-        }
-        return best;
     }
 
     // The hammer's radial acts on the piece through the rules here; the game sends intents instead (BuildView).
@@ -606,7 +574,6 @@ public partial class BuildSandbox : Node3D, IHammerActions
                         break;
                     case Key.R:
                         _turns++;
-                        _flip ^= 1;
                         break;
                     case Key.E:
                         UseDoor();
@@ -626,50 +593,80 @@ public partial class BuildSandbox : Node3D, IHammerActions
         }
     }
 
-    // The left mouse button with the held tool.
+    // The left mouse button with the held tool: what it places goes where the ghost shows (its kind puts it in through
+    // this sandbox's site, the materials from the sandbox's wallet); the hammer repairs.
     private void Use()
     {
         Num.Vector3 eye = N(_camera.GlobalPosition);
-        Num.Vector3 forward = N(-_camera.GlobalBasis.Z);
-        switch (_model.ActiveBelt)
+        if (_model.ActiveBelt == 1)
         {
-            case 0 when _plan != null:
-                Tell(_world.Place(_plan, Player, eye, _wallet, _clock, out _));
-                break;
-            case 0:
-                _model.Say(_texts.Line(OutcomeCode.NoSocket));
-                break;
-            case 1 when _target is Piece piece:
+            if (_target is Piece piece)
+            {
                 Tell(_world.Repair(Player, piece, _wallet, eye, _clock));
-                break;
-            case >= 2 and <= 4:
-            {
-                Piece? opening = OpeningAimed(eye, forward);
-                if (opening == null)
-                {
-                    _model.Say(_texts.Line(OutcomeCode.NotAnOpening));
-                    break;
-                }
-                Tell(_world.PlaceDoor(Player, DoorHeld(_model.ActiveBelt)!, opening, _flip, eye, out _));
-                break;
             }
-            case 5 when _target is Piece slab:
+            return;
+        }
+        if (_candidate is not { } c)
+        {
+            if ((uint)_model.ActiveBelt < (uint)Tools.Length && Tools[_model.ActiveBelt](this) is { } placing)
             {
-                Vector3D local = slab.Structure.Frame.ToLocal(D(_targetHit.Point));
-                Tell(_world.PlaceClaim(Player, slab, local, slab.Pose.Yaw, out _));
-                break;
+                Tell(Placer.Nothing(_placement, placing));
+            }
+            return;
+        }
+        if (!c.Valid)
+        {
+            Tell(c.Outcome);
+            return;
+        }
+        Outcome put = c.Placeable.Kind.Put(this, Player, c);
+        if (put.Ok)
+        {
+            foreach (PlacementCost cost in c.Placeable.Costs)
+            {
+                _wallet.Take(cost.Material, cost.Amount);
             }
         }
+        Tell(put);
     }
 
     private void UseDoor()
     {
         Num.Vector3 eye = N(_camera.GlobalPosition);
-        Door? door = _target as Door ?? OpeningAimed(eye, N(-_camera.GlobalBasis.Z))?.Door;
+        Door? door = _target as Door ?? _world.OpeningAimed(eye, N(-_camera.GlobalBasis.Z), (float)_data.Reach)?.Door;
         if (door != null)
         {
             Tell(_world.Toggle(Player, door));
         }
+    }
+
+    // The sandbox as a placement site: its building alone (no zone: no deployables, charges or ships here).
+    BuildingWorld? IPlacementSite.Building => _world;
+
+    double IPlacementSite.BuildingNow => _clock;
+
+    Outcome IPlacementSite.PutDeployable(ulong player, DeployableDef def, PlacementCandidate c) => OutcomeCode.NotAllowed;
+
+    Outcome IPlacementSite.PutCharge(ulong player, ThrowableStats stats, PlacementCandidate c) => OutcomeCode.NotAllowed;
+
+    Outcome IPlacementSite.PutShip(ulong player, Hollow.Simulation.Ships.ShipDef def, PlacementCandidate c) => OutcomeCode.NotAllowed;
+
+    /// <summary>The sandbox's surroundings for placement: its builder, nothing else.</summary>
+    private sealed class Surroundings(BuildSandbox sandbox) : IPlacementSurroundings
+    {
+        public void ThingsNear(Num.Vector3 point, float radius, List<PlacedThing> into)
+        {
+        }
+
+        public void CharactersNear(Num.Vector3 point, float radius, List<Capsule> into) => into.AddRange(sandbox.Capsules());
+
+        public void ShipsNear(Num.Vector3 point, float radius, List<PlacedShip> into)
+        {
+        }
+
+        public int ThingsOn(in Hollow.Simulation.Targets.TargetRef support) => 0;
+
+        public int ThingsOwned(ulong player, DeployableDef def) => 0;
     }
 
     private void Capture()

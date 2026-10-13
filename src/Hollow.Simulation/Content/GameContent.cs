@@ -30,6 +30,7 @@ public sealed partial class GameContent
         "ships.json", "world.json", "animals.json",
         "surfaces.json",
         "capabilities.json",
+        "placement.json",
     };
 
     /// <summary>Files read with the rest but not part of <see cref="Hash"/>: the player's lines (a translation may differ).</summary>
@@ -65,12 +66,11 @@ public sealed partial class GameContent
         AnimalSpawning = loaded.AnimalSpawning;
         HarvestRates = loaded.HarvestRates;
         Survival = loaded.Survival;
-        PlacementReach = loaded.PlacementReach;
-        PlacementMaxStep = loaded.PlacementMaxStep;
         Hash = loaded.Hash;
         Problems = loaded.Problems;
         Texts = loaded.Texts!;
         Capabilities = loaded.Capabilities ?? new CapabilityData(Array.Empty<string>());
+        Placement = loaded.Placement ?? Simulation.Placement.PlacementData.Empty;
         Building = loaded.Building ?? BuildingData.Parse("{}");
         ClaimDeployable = loaded.ClaimDeployable ?? new DeployableDef { Key = "claim-device", Item = new ItemDef { Key = "claim-device" }, Health = 200, Slots = 24 };
         _byId = new ItemDef?[ushort.MaxValue + 1];
@@ -176,11 +176,6 @@ public sealed partial class GameContent
 
     public SurvivalTuning Survival { get; }
 
-    /// <summary>A deployable is placed at most this far from the eye, on ground at most this far below the aim.</summary>
-    public float PlacementReach { get; }
-
-    public float PlacementMaxStep { get; }
-
     /// <summary>A hash of every file's text (line ends normalised): the server and client must have the same.</summary>
     public ulong Hash { get; }
 
@@ -195,6 +190,9 @@ public sealed partial class GameContent
 
     /// <summary>The kinds of behaviour world things have, and which have which (capabilities.json, GROUND_SYSTEMS.md §2.1).</summary>
     public CapabilityData Capabilities { get; }
+
+    /// <summary>Everything that can be placed and its rule, by the wire's numbers, and the pipeline's handlers (placement.json, GROUND_SYSTEMS.md §6).</summary>
+    public Simulation.Placement.PlacementData Placement { get; }
 
     /// <summary>Everything wrong with the files: empty when they are good. <see cref="Load"/> refuses any.</summary>
     public IReadOnlyList<string> Problems { get; }
@@ -297,6 +295,7 @@ public sealed partial class GameContent
         reader.ReadAll();
         loaded.Texts = ReadTexts(texts.GetValueOrDefault(Content.Texts.File) ?? "", loaded, problems);
         LinkBuilding(texts.GetValueOrDefault("building.json") ?? "", documents["building.json"], loaded, problems);
+        PlacementReader.Read(new JsonFields(problems), documents, loaded);
         Validation.Check(loaded, problems);
         ExplosivesReader.Check(loaded, loaded.Building, problems);
         WorldReader.Check(loaded, problems);
@@ -465,8 +464,7 @@ public sealed partial class GameContent
         public DeployableDef? ClaimDeployable;
         public Texts? Texts;
         public CapabilityData? Capabilities;
-        public float PlacementReach = 3f;
-        public float PlacementMaxStep = 0.6f;
+        public Simulation.Placement.PlacementData? Placement;
         public ulong Hash;
         public List<string> Problems = new();
     }
@@ -898,20 +896,14 @@ public sealed partial class GameContent
 
         private void ReadDeployables()
         {
-            JsonElement root = Root("deployables.json", "placement", "deployables");
-            if (f.TryChild(root, "placement", out JsonElement placement))
-            {
-                f.OnlyKnown(placement, "deployables.json: placement", "reach", "maxStep");
-                loaded.PlacementReach = f.Number(placement, "reach", "deployables.json: placement", 3);
-                loaded.PlacementMaxStep = f.Number(placement, "maxStep", "deployables.json: placement", 0.6f);
-            }
+            JsonElement root = Root("deployables.json", "deployables");
             JsonElement[] list = f.List(root, "deployables", "deployables.json");
             for (int i = 0; i < list.Length; i++)
             {
                 JsonElement e = list[i];
                 string key = f.Text(e, "key", $"deployables.json: deployables[{i}]");
                 string where = $"deployables.json: {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "key", "item", "health", "size", "maxSlope", "solid", "respawn", "slots", "device", "workbench", "bay");
+                f.OnlyKnown(e, where, "key", "item", "health", "size", "placement", "solid", "respawn", "slots", "device", "workbench", "bay");
                 ItemDef? item = Resolve(f.Text(e, "item", where), where + ".item");
                 JsonElement[] size = f.List(e, "size", where);
                 Vector3 half = Vector3.Zero;
@@ -967,7 +959,6 @@ public sealed partial class GameContent
                     Item = item,
                     Health = f.Number(e, "health", where),
                     HalfExtents = half,
-                    MaxSlopeDegrees = f.Number(e, "maxSlope", where, 30),
                     Solid = f.Flag(e, "solid", where, true),
                     RespawnSeconds = f.Number(e, "respawn", where, 0),
                     Slots = f.Integer(e, "slots", where, 0),
@@ -1471,7 +1462,7 @@ public sealed partial class GameContent
                 string key = f.Text(e, "key", $"ships.json: ships[{i}]");
                 string where = $"ships.json: {JsonFields.Quote(key)}";
                 f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
-                    "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "reach", "ceiling", "wreck");
+                    "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "reach", "ceiling", "wreck", "placement");
                 ItemDef? item = Resolve(f.Text(e, "item", where), where + ".item");
                 var blocks = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
                 foreach (string name in new[] { "damage", "thrust", "speed", "boost", "rates", "drag", "landing", "skids", "crash", "fuel", "sockets", "nozzles" })
@@ -1501,7 +1492,7 @@ public sealed partial class GameContent
                 f.OnlyKnown(landing, where + ".landing", "maxSlope", "assist");
                 f.OnlyKnown(skids, where + ".skids", "points", "stiffness", "damping", "travel", "friction");
                 f.OnlyKnown(crash, where + ".crash", "safe", "scale", "pilot");
-                f.OnlyKnown(fuel, where + ".fuel", "item", "capacity", "idle", "full", "boost");
+                f.OnlyKnown(fuel, where + ".fuel", "item", "capacity", "idle", "full", "boost", "placed");
                 f.OnlyKnown(sockets, where + ".sockets", "seat", "eye", "hatch", "fuel", "exits");
                 f.OnlyKnown(nozzles, where + ".nozzles", "main", "aux", "lift", "rcs");
                 var hull = new List<Ships.HullBox>();
@@ -1578,6 +1569,7 @@ public sealed partial class GameContent
                     FuelIdle = f.Number(fuel, "idle", where + ".fuel"),
                     FuelFull = f.Number(fuel, "full", where + ".fuel"),
                     FuelBoost = f.Number(fuel, "boost", where + ".fuel", 1),
+                    PlacedFuel = f.Number(fuel, "placed", where + ".fuel", 0),
                     CargoSlots = f.Integer(e, "cargo", where, 0),
                     Hull = hull,
                     Seat = Vector(sockets, "seat", where + ".sockets"),

@@ -310,6 +310,22 @@ public sealed class BuildingData
     public string CodeLockItem { get; private set; } = "code-lock";
     public string CodeLockName { get; private set; } = "Code Lock";
 
+    /// <summary>The two locks as things to place (GROUND_SYSTEMS.md §6): their keys (the items'), names and kinds.</summary>
+    public IReadOnlyList<LockDef> Locks { get; private set; } = Array.Empty<LockDef>();
+
+    /// <summary>A lock by its key, or null.</summary>
+    public LockDef? Lock(string key)
+    {
+        foreach (LockDef l in Locks)
+        {
+            if (l.Key == key)
+            {
+                return l;
+            }
+        }
+        return null;
+    }
+
     /// <summary>The item a key lock's keys are (its condition holds the lock's number), and what cutting one costs.</summary>
     public string KeyItem { get; private set; } = "door-key";
     public string KeyCostMaterial { get; private set; } = "wood";
@@ -445,13 +461,10 @@ public sealed class BuildingData
         WindowSill = r.Number(m, "windowSill", 0.9);
 
         JsonElement p = r.Object(root, "placement");
-        Reach = r.Number(p, "reach", 8);
         SocketAimRadius = r.Number(p, "socketAimRadius", 1.75);
         FreeFoundationDistance = r.Number(p, "freeFoundationDistance", 3.5);
         FoundationClearance = r.Number(p, "foundationClearance", 0.05);
         GroundNormalMin = r.Number(p, "groundNormalMin", 0.75);
-        SightTolerance = r.Number(p, "sightTolerance", 0.35);
-        ClaimPadding = r.Number(p, "claimPadding", 2.25);
         CandidatesTried = (int)r.Number(p, "candidatesTried", 8);
         MaxPiecesPerBuilding = (int)r.Number(p, "maxPiecesPerBuilding", 4000);
         ContactTolerance = r.Number(p, "contactTolerance", 0.01);
@@ -688,6 +701,18 @@ public sealed class BuildingData
         JsonElement code = r.Object(l, "codeLock");
         CodeLockItem = r.Text(code, "key", "code-lock");
         CodeLockName = r.Text(code, "name", "Code Lock");
+        Locks = new[] { new LockDef(KeyLockItem, KeyLockName, LockKind.Key, "keyLock"), new LockDef(CodeLockItem, CodeLockName, LockKind.Code, "codeLock") };
+    }
+
+    /// <summary>
+    /// The piece rule's reach, sight slack and claim padding (placement.json, GROUND_SYSTEMS.md §6): the building's reach is
+    /// the plan's and the hammer's.
+    /// </summary>
+    internal void UsePlacement(double reach, double sightTolerance, double claimPadding)
+    {
+        Reach = reach;
+        SightTolerance = sightTolerance;
+        ClaimPadding = claimPadding;
     }
 
     private void ReadClaim(Reader r, JsonElement root)

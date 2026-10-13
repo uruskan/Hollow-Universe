@@ -51,6 +51,7 @@ public partial class GroundView : Node3D
     private ClientGroundUi _model = null!;
     private GroundAudio? _audio;
     private BuildView _build = null!;
+    private PlacementView _placing = null!;
     private RaidView _raid = null!;
     private ShipsView _ships = null!;
     private HollowUniverse.Ships.ShipHud _shipHud = null!;
@@ -87,7 +88,6 @@ public partial class GroundView : Node3D
     // The buttons pressed for the hands since the last frame (Hands acts on them).
     private HandPress _presses;
     private Interaction? _aimed;
-    private Num.Vector3? _placeAt;
     private double _interactHeld = -1;
     private bool _interactDone;
     private bool _faced;
@@ -185,7 +185,10 @@ public partial class GroundView : Node3D
         _firstPerson = new FirstPersonView { Name = "FirstPerson", Client = Client };
         AddChild(_firstPerson);
         var buildHud = new HollowUniverse.Build.BuildHud { Name = "BuildHud" };
-        _build = new BuildView { Name = "Building", Client = Client, Hud = buildHud };
+        // Placing anything (GROUND_SYSTEMS.md §6): one controller and one ghost, whatever the hands hold.
+        _placing = new PlacementView { Name = "Placing", Client = Client };
+        AddChild(_placing);
+        _build = new BuildView { Name = "Building", Client = Client, Hud = buildHud, Placing = _placing };
         AddChild(_build);
 
         var layer = new CanvasLayer { Name = "Interface" };
@@ -222,6 +225,7 @@ public partial class GroundView : Node3D
         _model.Console = _console;
         Client.ZoneDayChanged += ApplyDay;
         _build.Say = _model.ShowNotice;
+        _placing.Say = _model.ShowNotice;
         _ui = new GroundUi { Name = "GroundUi", Model = _model };
         _ui.QuitRequested += () => QuitRequested?.Invoke();
         layer.AddChild(_ui);
@@ -525,6 +529,12 @@ public partial class GroundView : Node3D
         _people.Refresh(delta);
         _animals.Refresh(delta);
         Time("people", ref t0);
+        // What the hands place, if anything (the held item's placeable, or the plan's piece), and its ghost.
+        LocalPlayer holder = Client.Local;
+        bool hands = !holder.IsDead && !piloting;
+        _placing.Ghost.Assets ??= _build.Assets;
+        _placing.Refresh(hands ? holder.HeldItem?.Places ?? _build.PlannedPiece : null, eye, forward, _yaw);
+        Time("placing", ref t0);
         _build.Refresh(delta, eye, forward);
         // The lines under the crosshair give way to the keypad and the options.
         _build.Hud.Visible = !_keypad.Visible && !_options.Visible;
@@ -543,9 +553,6 @@ public partial class GroundView : Node3D
         _aimed = alive && !piloting ? Client.Aim(eye, forward) : null;
         _aimedShip = alive && !piloting ? Client.AimShip(eye, forward) : null;
         _aimedBench = alive && !piloting && _aimed == null && _aimedShip == null ? AimWorkbench(eye, forward) : null;
-        _placeAt = alive && me.HeldItem?.Hands == HandUse.Place ? Client.AimGround(eye, forward, Client.Content.PlacementReach) : null;
-        _firstPerson.PlacementPoint = _placeAt;
-        _firstPerson.PlacementYaw = _yaw;
         Time("aim", ref t0);
         _firstPerson.Refresh(delta, input, _yaw, _pitch);
         Time("first person", ref t0);
@@ -732,8 +739,15 @@ public partial class GroundView : Node3D
                     _build.Rotate();
                 }
                 break;
-            case HandUse.Place when click && _placeAt is { } at:
-                me.Place(ContainerRef.Belt, me.HeldSlot, at, _yaw);
+            case HandUse.Place:
+                if (click)
+                {
+                    _placing.Place(ContainerRef.Belt, me.HeldSlot);
+                }
+                if (r)
+                {
+                    _placing.Turn();
+                }
                 break;
             case HandUse.Use when click:
                 Sounds.Used(Client.Content, me.Inventory.Belt[me.HeldSlot].Item);
@@ -755,9 +769,10 @@ public partial class GroundView : Node3D
         }
         _thrownAt = Client.ClockSeconds;
         LocalPlayer me = Client.Local;
-        if (secondary && throwable.Placeable)
+        if (secondary && item.Places != null)
         {
-            me.PlaceCharge(me.HeldSlot, _yaw, _pitch);
+            // Put on the surface its ghost shows (GROUND_SYSTEMS.md §6).
+            _placing.Place(ContainerRef.Belt, me.HeldSlot);
             return;
         }
         me.Throw(me.HeldSlot, _yaw, _pitch, lob: secondary);

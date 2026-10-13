@@ -204,7 +204,7 @@ public static class FoundationTests
         (Vector3 front, Vector3 doorOut) = hut.Face(hut.Doorway, height: 0);
         Vector3 aside = Vector3.Normalize(Vector3.Cross(z.Frame.UpAt(front), doorOut));
         Raids.Stand(rig, ada, z.Settle(front + doorOut * 0.8f + aside * 1.6f));
-        Assert.Equal(OutcomeCode.Done, z.DoorAct(ada, DoorAction.Toggle, ContainerRef.Main, 0, 0, door.Id, 0), "the door opens from aside");
+        Assert.Equal(OutcomeCode.Done, z.DoorAct(ada, DoorAction.Toggle, door.Id), "the door opens from aside");
 
         // A dud stuck on the east wall's outside: not lit through the wall, lit from in front.
         (Vector3 east, Vector3 eastOut) = hut.Face(hut.Walls[1], height: 1.0);
@@ -308,12 +308,16 @@ public static class FoundationTests
         });
         // Ada in front of the door, in reach and in sight of it.
         rig.Server.Execute(FormattableString.Invariant($"teleport Ada {front.X:0.00} {front.Z:0.00}"));
-        Until(() => ada.Building!.DoorOf(doorId) != null && bo.Building!.DoorOf(doorId) != null && ada.ThingOf(bagId) != null && bo.ThingOf(bagId) != null,
-            "the door and the bag on both clients");
+        Until(() => ada.Building!.DoorOf(doorId) != null && bo.Building!.DoorOf(doorId) != null && ada.ThingOf(bagId) != null && bo.ThingOf(bagId) != null &&
+            Vector2.Distance(new Vector2(ada.Character.Position.X, ada.Character.Position.Z), new Vector2(front.X, front.Z)) < 0.5f,
+            "the door and the bag on both clients, Ada in front of the door on hers");
         Assert.True(ada.ThingOf(bagId)!.Mine && !bo.ThingOf(bagId)!.Mine, "the bag is Ada's on her client alone");
         Door adaDoor = ada.Building!.DoorOf(doorId)!, boDoor = bo.Building!.DoorOf(doorId)!;
         int lockSlot = Enumerable.Range(0, ada.Local.Inventory.Main.Size).First(i => ada.Local.Inventory.Main[i].Item == ContentFixture.Item("code-lock").Id);
-        ada.Local.AttachLock(ContainerRef.Main, lockSlot, adaDoor);
+        // Fitted where its ghost shows it on the door (GROUND_SYSTEMS.md §6).
+        Simulation.Placement.PlacementCandidate? lockGhost = ada.PlanAt(ContentFixture.Item("code-lock").Places!, adaDoor.LockSpot.Position, 0);
+        Assert.True(lockGhost is { Valid: true }, $"the lock's ghost on the door ({lockGhost})");
+        ada.Local.Place(lockGhost!, ContainerRef.Main, lockSlot);
         Until(() => ada.BuildingReplica!.StateOf(adaDoor).Lock == LockKind.Code && bo.BuildingReplica!.StateOf(boDoor).Lock == LockKind.Code, "the lock on both");
         DoorState mine = ada.BuildingReplica!.StateOf(adaDoor), his = bo.BuildingReplica!.StateOf(boDoor);
         Assert.True(mine is { Mine: true, HasCode: false, CanUse: true } && his is { Mine: false, HasCode: false },

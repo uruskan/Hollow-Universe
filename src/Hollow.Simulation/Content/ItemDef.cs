@@ -277,6 +277,12 @@ public sealed class ItemDef
 
     public DeployableDef? Deploys { get; internal set; }
 
+    /// <summary>
+    /// What placing this item makes (placement.json, GROUND_SYSTEMS.md §6): a deployable, a door, a lock, the claim device,
+    /// a charge on a surface, a ship; null when it places nothing itself (the building plan places the piece chosen on it).
+    /// </summary>
+    public Placement.Placeable? Places { get; internal set; }
+
     /// <summary>The ship this item is (ships.json, G6): crafted at a station, it rolls out as a ship, never into an inventory.</summary>
     public string? ShipKey { get; init; }
 

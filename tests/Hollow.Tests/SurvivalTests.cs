@@ -1,3 +1,4 @@
+using Hollow.Simulation.Placement;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -76,6 +77,31 @@ public sealed class GameRig : IDisposable
 
     public void Give(Entity e, string key, int count) => P(e).Inventory.Give(C, C.ItemByKey(key), count);
 
+    /// <summary>
+    /// Places what the item in a slot places on the ground at a point, turned by a yaw (GROUND_SYSTEMS.md §6): the intent a
+    /// client sends for its ghost there, the server working it out again from the claim.
+    /// </summary>
+    public Outcome Place(Entity e, int slot, Vector3 ground, float yaw, ushort expected = 0, ContainerRef from = ContainerRef.Main)
+    {
+        Placeable? placeable = C.Item(P(e).Inventory[from][slot].Item)?.Places;
+        return placeable == null
+            ? OutcomeCode.NotUsable
+            : Zone.Place(e, new PlaceRequest(from, slot, expected, placeable.Index, new PlacementClaim(TargetRef.Ground, 0, ground, yaw, 0)));
+    }
+
+    /// <summary>
+    /// Places an item's placeable where the character's view meets it (its ghost on the zone's world, then the intent):
+    /// a charge on a wall. Out of reach when the view meets nothing.
+    /// </summary>
+    public Outcome PlaceAimed(Entity e, ContainerRef from, int slot, string itemKey)
+    {
+        ItemDef item = C.ItemByKey(itemKey);
+        ref Character ch = ref Ch(e);
+        Vector3 direction = CharacterMotor.ViewDirection(ch.Input.Yaw, ch.Input.Pitch, Zone.Frame.UpAt(ch.State.Position));
+        PlacementCandidate? ghost = Zone.Aim(e, item.Places!, direction);
+        return ghost == null ? OutcomeCode.OutOfReach : Zone.Place(e, new PlaceRequest(from, slot, item.Id, item.Places!.Index, ghost.Claim));
+    }
+
     public void Dispose() => Zone.Dispose();
 }
 
@@ -104,7 +130,7 @@ public static class SurvivalTests
         // A sleeping bag placed a little way off, then a craft started (its ingredients held by the queue).
         Vector3 bagAt = rig.Zone.GroundAt(19, 21.8f);
         rig.Look(ada, bagAt);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, 3, 0, bagAt, 0.3f), "place the bag");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, 3, bagAt, 0.3f), "place the bag");
         Deployable bag = rig.Zone.Statics().OfType<Deployable>().Single();
         Assert.Equal(OutcomeCode.Done, rig.Zone.Craft(ada, c.ItemByKey("stone-hatchet").Id, 1, out _), "craft");
         Assert.Equal(400, a.Inventory.Count(c.ItemByKey("wood")), "the queue holds 200 wood");
@@ -363,7 +389,7 @@ public static class SurvivalTests
         rig.Give(ada, "wood", 20);
         Vector3 fireAt = rig.Zone.GroundAt(11.5f, -31.5f);
         int fire = Enumerable.Range(0, 24).First(k => a.Inventory.Main[k].Item == c.ItemByKey("campfire").Id);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, fire, 0, fireAt, 0), "a campfire");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, fire, fireAt, 0), "a campfire");
         Deployable campfire = rig.Zone.Statics().OfType<Deployable>().Single();
         Assert.Equal(OutcomeCode.NoFuel, rig.Zone.Toggle(ada, campfire.Id), "no fuel, no fire");
         Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, campfire.Id), "open it");
@@ -392,13 +418,19 @@ public static class SurvivalTests
         rig.Give(ada, "metal-ore", 10);
         Vector3 eye = rig.Zone.EyeOf(rig.Ch(ada).State);
         Vector3 there = rig.Zone.GroundAt(52, 50);
-        Assert.Equal(OutcomeCode.OutOfReach, rig.Zone.Place(ada, ContainerRef.Main, 0, 0, rig.Zone.GroundAt(58, 50), 0), "too far");
-        Assert.Equal(OutcomeCode.BadPlacement, rig.Zone.Place(ada, ContainerRef.Main, 0, 0, there + rig.Zone.Frame.UpAt(there) * 1.5f, 0), "in the air");
-        Assert.Equal(OutcomeCode.Blocked, rig.Zone.Place(ada, ContainerRef.Main, 0, 0, rig.Zone.GroundAt(50.3f, 50), 0), "where Ada stands");
-        var steep = new DeployableDef { Key = "test", Item = c.ItemByKey("furnace"), Health = 1, HalfExtents = new Vector3(0.5f), MaxSlopeDegrees = 0.001f };
-        Assert.Equal(OutcomeCode.TooSteep, rig.Zone.CanPlace(eye, steep, there, 0, out _), "steeper than allowed");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, 0, c.ItemByKey("furnace").Id, there, 0), "the furnace");
-        Assert.Equal(OutcomeCode.Blocked, rig.Zone.Place(ada, ContainerRef.Main, 1, 0, rig.Zone.GroundAt(52.3f, 50.2f), 0), "on top of the furnace");
+        Assert.Equal(OutcomeCode.OutOfReach, rig.Place(ada, 0, rig.Zone.GroundAt(58, 50), 0), "too far");
+        Assert.Equal(OutcomeCode.BadPlacement, rig.Place(ada, 0, there + rig.Zone.Frame.UpAt(there) * 1.5f, 0), "in the air");
+        Assert.Equal(OutcomeCode.PlayerInTheWay, rig.Place(ada, 0, rig.Zone.GroundAt(50.3f, 50), 0), "where Ada stands");
+        // A furnace whose rule allows no slope at all: the ground here isn't that flat.
+        Placeable furnacePlaceable = c.ItemByKey("furnace").Places!;
+        var steep = new Placeable
+        {
+            Index = furnacePlaceable.Index, Key = "test", Kind = furnacePlaceable.Kind, Definition = furnacePlaceable.Definition,
+            Item = furnacePlaceable.Item, Footprint = furnacePlaceable.Footprint, Rule = new PlacementRule { MaxSlopeDegrees = 0.001f },
+        };
+        Assert.Equal(OutcomeCode.TooSteep, rig.Zone.Aim(ada, steep, there - eye)?.Outcome.Code, "steeper than allowed");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, 0, there, 0, c.ItemByKey("furnace").Id), "the furnace");
+        Assert.Equal(OutcomeCode.Blocked, rig.Place(ada, 1, rig.Zone.GroundAt(52.75f, 50), 0), "against the furnace");
         Deployable furnace = rig.Zone.Statics().OfType<Deployable>().Single();
         Assert.True(rig.Zone.Physics.HasProp(Hollow.Simulation.Physics.PropLayer.Deployable, furnace.Id.Value), "solid");
 

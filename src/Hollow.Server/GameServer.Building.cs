@@ -50,8 +50,8 @@ public sealed partial class GameServer
     private uint _nextFrameId = 1;
     private bool _buildingStarted;
 
-    /// <summary>Pieces placed and building intents answered, for the load test.</summary>
-    public long PiecesPlaced { get; private set; }
+    /// <summary>Pieces placed, for the load test.</summary>
+    public long PiecesPlaced => PlacedOf("piece");
 
     private void StartBuilding()
     {
@@ -260,20 +260,6 @@ public sealed partial class GameServer
         Entity me = session.Entity;
         switch (type)
         {
-            case PlacePieceIntent.TypeId:
-            {
-                PlacePieceIntent m = PlacePieceIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () =>
-                {
-                    Outcome placed = Zone.PlacePiece(me, m.Piece, new EntityId(m.Support), m.Socket, m.Orientation, new Vector3(m.X, m.Y, m.Z),
-                        m.Heading, out _);
-                    if (placed.Ok)
-                    {
-                        PiecesPlaced++;
-                    }
-                    return placed;
-                });
-            }
             case HammerIntent.TypeId:
             {
                 HammerIntent m = HammerIntent.Read(_reader);
@@ -282,20 +268,17 @@ public sealed partial class GameServer
             case DoorIntent.TypeId:
             {
                 DoorIntent m = DoorIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.DoorAct(me, m.Action, m.From, m.Slot, Expected(m.Expected), new EntityId(m.Target), m.Flip ? 1 : 0));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.DoorAct(me, m.Action, new EntityId(m.Target)));
             }
             case LockIntent.TypeId:
             {
                 LockIntent m = LockIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.LockAct(me, m.Action, m.From, m.Slot, Expected(m.Expected), new EntityId(m.Door), m.Code));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.LockAct(me, m.Action, new EntityId(m.Door), m.Code));
             }
             case ClaimIntent.TypeId:
             {
                 ClaimIntent m = ClaimIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.ClaimAct(me, m.Action, m.From, m.Slot, Expected(m.Expected), new EntityId(m.Target), m.X, m.Z, m.Yaw));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.ClaimAct(me, m.Action, new EntityId(m.Target)));
             }
             default:
                 return ReceiveShipIntent(session, type);

@@ -16,6 +16,7 @@ using Hollow.Simulation.Raid;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 using Hollow.Simulation.Capabilities;
+using Hollow.Simulation.Placement;
 
 namespace Hollow.Simulation;
 
@@ -87,7 +88,7 @@ public sealed partial class Zone
         Vector3 eye = EyeOf(c.State);
         // From a hand's length in front of the eye, unless something is right there.
         Vector3 start = eye + direction * 0.3f;
-        if (Sweep(eye, start, 0, out _))
+        if (Placement.Sweep(eye, start, 0, out _))
         {
             start = eye;
         }
@@ -102,35 +103,28 @@ public sealed partial class Zone
     }
 
     /// <summary>
-    /// Places the charge in a belt slot on the surface the view meets within reach (a wall, a door, a floor, a box, the
-    /// ground): it sticks there with its fuse burning. No building rights are needed (raiding: RustMVP's rule).
+    /// A charge put on a surface by hand (the placement pipeline's charge kind, GROUND_SYSTEMS.md §6): stuck where the
+    /// checked candidate says, held by what it touched, its fuse burning. No building rights are needed (raiding:
+    /// RustMVP's rule). One throw or placement a cooldown, at most <see cref="MaxExplosives"/> in the zone.
     /// </summary>
-    public Outcome PlaceCharge(Entity entity, int slot, ushort expected, float yaw, float pitch)
+    public Outcome PutCharge(ulong player, ThrowableStats stats, PlacementCandidate c)
     {
-        if (!Acting(entity, out Player p))
+        if (!TryFindPlayer(new EntityId(player), out _, out Player p))
         {
             return OutcomeCode.Dead;
         }
-        Outcome check = CanThrow(p, slot, expected, out ThrowableStats? stats);
-        if (check != OutcomeCode.Done)
+        if (Tick < _nextThrowTick.GetValueOrDefault(p.Id))
         {
-            return check;
+            return OutcomeCode.Cooldown;
         }
-        if (!stats!.Placeable)
+        if (_explosives.Count >= MaxExplosives)
         {
-            return OutcomeCode.NotUsable;
+            return OutcomeCode.NotAllowed;
         }
-        ref Character c = ref Entities.Get<Character>(entity);
-        (yaw, pitch) = TrustedView(c, yaw, pitch);
-        Vector3 eye = EyeOf(c.State);
-        Vector3 direction = CharacterMotor.ViewDirection(yaw, pitch, Frame.UpAt(c.State.Position));
-        if (!Sweep(eye, eye + direction * Content!.PlacementReach, 0, out SurfaceHit hit))
-        {
-            return OutcomeCode.OutOfReach;
-        }
-        TakeOne(p, slot, stats);
-        LiveExplosive e = Spawn(stats, p.Id, p.Name, hit.Point, Vector3.Zero);
-        Stick(e, hit);
+        _nextThrowTick[p.Id] = Tick + CharacterTicks.From(stats.CooldownSeconds);
+        Vector3 surface = c.Detail is Vector3 point ? point : c.Position - c.Normal * StuckOffset;
+        LiveExplosive e = Spawn(stats, p.Id, p.Name, surface, Vector3.Zero);
+        Stick(e, new PlacementHit(0, surface, c.Normal, c.Support, c.Surface));
         Arm(e);
         RaidStats.Placed++;
         p.ActionCount++;
@@ -236,7 +230,7 @@ public sealed partial class Zone
     public LiveExplosive? StickExplosive(ThrowableStats stats, Vector3 from, Vector3 direction, float reach, EntityId owner, string ownerName,
         bool? dud = null)
     {
-        if (!Sweep(from, from + Vector3.Normalize(direction) * reach, 0, out SurfaceHit hit))
+        if (!Placement.Sweep(from, from + Vector3.Normalize(direction) * reach, 0, out PlacementHit hit))
         {
             return null;
         }
@@ -367,7 +361,7 @@ public sealed partial class Zone
             Vector3 g = -Frame.UpAt(p) * gravity;
             float h = FlightStepSeconds;
             Vector3 next = p + v * h + g * (0.5f * h * h);
-            if (Sweep(p, next, radius, out SurfaceHit hit))
+            if (Placement.Sweep(p, next, radius, out PlacementHit hit))
             {
                 if (t.Sticky)
                 {
@@ -406,17 +400,17 @@ public sealed partial class Zone
         if (++e.Airborne > MaxAirborneTicks || HeightAboveGround(p) < -0.5f)
         {
             Vector3 ground = Settle(p);
-            Rest(e, new SurfaceHit { Point = ground, Normal = GroundNormal(ground).Normal, Support = TargetRef.Ground }, ground + Frame.UpAt(ground) * radius);
+            Rest(e, new PlacementHit(0, ground, GroundNormal(ground).Normal, TargetRef.Ground, PlacementSurfaces.Terrain), ground + Frame.UpAt(ground) * radius);
         }
     }
 
-    private void Stick(LiveExplosive e, in SurfaceHit hit)
+    private void Stick(LiveExplosive e, in PlacementHit hit)
     {
         e.State = ExplosiveState.Stuck;
         Lay(e, hit, hit.Point + hit.Normal * StuckOffset);
     }
 
-    private void Rest(LiveExplosive e, in SurfaceHit hit, Vector3 at)
+    private void Rest(LiveExplosive e, in PlacementHit hit, Vector3 at)
     {
         e.State = ExplosiveState.Resting;
         Lay(e, hit, at);
@@ -424,7 +418,7 @@ public sealed partial class Zone
 
     // Comes to lie or stick on what it touched (GROUND_SYSTEMS.md §3.6): linked to it where it is, its up the surface's
     // normal, so it moves with a door's leaf and goes with its support.
-    private void Lay(LiveExplosive e, in SurfaceHit hit, Vector3 at)
+    private void Lay(LiveExplosive e, in PlacementHit hit, Vector3 at)
     {
         e.Position = at;
         e.Velocity = Vector3.Zero;
@@ -433,7 +427,7 @@ public sealed partial class Zone
         e.Normal = hit.Normal;
         e.StateTick = Tick;
         e.Airborne = 0;
-        e.Link = LinkTo(hit.Support, new TargetPose(at, Geometry.Upright(hit.Normal, 0)));
+        e.Link = LinkTo(hit.Target, new TargetPose(at, Geometry.Upright(hit.Normal, 0)));
         Hold(e.Ref, e.Link.Support);
         e.Revision++;
     }
@@ -495,131 +489,6 @@ public sealed partial class Zone
         Vector3 at = hit.Point - direction * 0.05f;
         Blast(blast, at, -direction, hit.Target, hit.Target.Family, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
     }
-
-    // ---------------------------------------------------------------- what a flying explosive meets
-
-    private struct SurfaceHit
-    {
-        public float Distance;
-        public Vector3 Point;
-        public Vector3 Normal;
-
-        /// <summary>What was touched (a door's leaf as its part): what holds the explosive if it sticks or rests there.</summary>
-        public TargetRef Support;
-    }
-
-    // The first surface a ball of a radius meets from one point to the next: building pieces, doors and claim devices,
-    // deployables, trees and outcrops, the ground (characters are passed through).
-    private bool Sweep(Vector3 from, Vector3 to, float radius, out SurfaceHit best)
-    {
-        best = new SurfaceHit { Distance = float.MaxValue };
-        Vector3 d = to - from;
-        float length = d.Length();
-        if (length < 1e-6f)
-        {
-            return false;
-        }
-        Vector3 direction = d / length;
-
-        if (Building?.Physics is { } physics && physics.Ray(from, direction, length + radius, out RayHit rh, buildingOnly: true))
-        {
-            float t = MathF.Max(0, rh.Distance - radius);
-            if (t <= length)
-            {
-                // A piece, a door's leaf (its part), the claim device: whatever owns the body says how it is named.
-                best = new SurfaceHit
-                {
-                    Distance = t, Point = rh.Point, Normal = Facing(rh.Normal, direction),
-                    Support = physics.OwnerOf(rh.Body) is ITargetable owner ? owner.Ref : TargetRef.None,
-                };
-            }
-        }
-
-        float reach = MathF.Min(length, best.Distance);
-        _blastThings.Clear();
-        DeployablesNear((from + to) / 2, length / 2 + 2f, _blastThings);
-        foreach (Deployable thing in _blastThings)
-        {
-            (Vector3 right, Vector3 forward) = Geometry.Axes(thing.Up, thing.Yaw);
-            Vector3 half = thing.Def.HalfExtents + new Vector3(radius);
-            float t = Geometry.RayBox(from, direction, reach, thing.Centre, half, right, thing.Up, forward);
-            if (t >= 0 && t < best.Distance)
-            {
-                Vector3 point = from + direction * t;
-                Vector3 local = point - thing.Centre;
-                float x = Vector3.Dot(local, right) / half.X, y = Vector3.Dot(local, thing.Up) / half.Y, z = Vector3.Dot(local, forward) / half.Z;
-                Vector3 normal = MathF.Abs(x) >= MathF.Abs(y) && MathF.Abs(x) >= MathF.Abs(z) ? right * MathF.Sign(x)
-                    : MathF.Abs(y) >= MathF.Abs(z) ? thing.Up * MathF.Sign(y) : forward * MathF.Sign(z);
-                if (t <= 0 && Vector3.Dot(direction, normal) >= 0)
-                {
-                    continue; // touching it and moving away
-                }
-                best = new SurfaceHit { Distance = t, Point = point - normal * radius, Normal = normal, Support = thing.Ref };
-                reach = t;
-            }
-        }
-
-        if (Nature != null && Natural != null)
-        {
-            _blastNature.Clear();
-            float margin = 3f;
-            Nature.Query(MathF.Min(from.X, to.X) - margin, MathF.Min(from.Z, to.Z) - margin, MathF.Max(from.X, to.X) + margin,
-                MathF.Max(from.Z, to.Z) + margin, _blastNature);
-            foreach (NaturalObject o in _blastNature)
-            {
-                NaturalKind? kind = Content!.Natural(o.Kind);
-                if (kind == null || !kind.IsHarvested || Natural.IsDepleted(o.Id))
-                {
-                    continue;
-                }
-                float t;
-                Vector3 normal;
-                if (kind.Class == NaturalClass.Tree)
-                {
-                    (Vector3 a, Vector3 b, float r) = NaturalShapes.Trunk(o, kind);
-                    t = Geometry.RayCapsule(from, direction, reach, a, b, r + radius);
-                    Vector3 point = from + direction * MathF.Max(0, t);
-                    Vector3 axis = Vector3.Normalize(b - a);
-                    Vector3 onAxis = a + axis * Math.Clamp(Vector3.Dot(point - a, axis), 0, Vector3.Distance(a, b));
-                    normal = SafeNormal(point - onAxis, -direction);
-                }
-                else
-                {
-                    (Vector3 centre, float r) = NaturalShapes.Rock(o, kind);
-                    t = Geometry.RaySphere(from, direction, reach, centre, r + radius);
-                    normal = SafeNormal(from + direction * MathF.Max(0, t) - centre, -direction);
-                }
-                if (t >= 0 && t < best.Distance && !(t <= 0 && Vector3.Dot(direction, normal) >= 0))
-                {
-                    best = new SurfaceHit
-                    {
-                        Distance = t, Point = from + direction * t - normal * radius, Normal = normal, Support = new TargetRef(TargetFamily.Natural, o.Id),
-                    };
-                    reach = t;
-                }
-            }
-        }
-
-        float ground = GroundCrossing(from, direction, reach);
-        if (ground >= 0 && ground < best.Distance)
-        {
-            Vector3 point = from + direction * ground;
-            best = new SurfaceHit { Distance = ground, Point = point, Normal = GroundNormal(point).Normal, Support = TargetRef.Ground };
-        }
-        return best.Distance <= length;
-    }
-
-    private static Vector3 Facing(Vector3 normal, Vector3 direction)
-    {
-        if (!float.IsFinite(normal.X) || normal.LengthSquared() < 1e-6f)
-        {
-            return -direction;
-        }
-        normal = Vector3.Normalize(normal);
-        return Vector3.Dot(normal, direction) > 0 ? -normal : normal;
-    }
-
-    private static Vector3 SafeNormal(Vector3 v, Vector3 fallback) => v.LengthSquared() > 1e-8f ? Vector3.Normalize(v) : fallback;
 
     // ---------------------------------------------------------------- saving and loading
 

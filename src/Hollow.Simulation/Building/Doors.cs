@@ -8,6 +8,12 @@ using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Building;
 
+/// <summary>
+/// A lock as something to place (building.json's locks, GROUND_SYSTEMS.md §6): its key (its item's), name, kind, and the
+/// field of building.json's locks it is read from.
+/// </summary>
+public sealed record LockDef(string Key, string Name, LockKind Kind, string Field);
+
 /// <summary>A lock on a door. Its secrets (a code, who is authorised) stay on the server.</summary>
 public abstract class DoorLock
 {
@@ -164,6 +170,22 @@ public sealed class Door : IBuildingPart, IOwned
         return (position + Vector3.Transform(hinge, frameFlip), Quaternion.Normalize(frameFlip * swing));
     }
 
+    /// <summary>
+    /// Where a lock sits on a door's first leaf, in the leaf's frame (its origin the hinge): by the free edge at hand
+    /// height, its back on the outside face. The lock is drawn there and placed there.
+    /// </summary>
+    public static Vector3 LockOffset(LeafDef leaf) => new(leaf.Size.X * 0.86f, 1.05f, MathF.Abs(leaf.Size.Z) / 2 + 0.002f);
+
+    /// <summary>Where a lock on this door is now (it swings with the leaf), in the zone.</summary>
+    public (Vector3 Position, Quaternion Rotation) LockSpot
+    {
+        get
+        {
+            (Vector3 position, Quaternion rotation) = Leaf(0, Open);
+            return (position + Vector3.Transform(LockOffset(Def.Leaves[0]), rotation), rotation);
+        }
+    }
+
     public override string ToString() => $"{Def.Key} in {Frame.Def.Key} #{Frame.Handle} ({(Open ? "open" : "shut")})";
 }
 
@@ -200,12 +222,12 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>
-    /// Fits a door into a doorway (single doors) or a wall frame (double doors, the garage door): one per opening, with
-    /// building rights there, shut, its swing clear of players.
+    /// Whether a door fits into a frame piece, turned by <paramref name="flip"/> (the door's own rules: building rights,
+    /// reach and sight are the placement pipeline's, GROUND_SYSTEMS.md §6): single doors into doorways, double doors and the
+    /// garage door into wall frames, one per opening, shut, its leaves clear of players.
     /// </summary>
-    public Outcome PlaceDoor(ulong player, DoorDef def, Piece frame, int flip, Vector3 eye, out Door? door)
+    public Outcome CanFitDoor(DoorDef def, Piece frame, int flip)
     {
-        door = null;
         if (frame.Gone || frame.Collapsing)
         {
             return OutcomeCode.NotFound;
@@ -222,20 +244,19 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.HasDoor;
         }
-        (Vector3 position, _) = frame.ZoneTransform;
-        if (PrivilegeAt(player, position, 0) == Privilege.Blocked)
+        return LeavesBlocked(new Door(EntityId.None, def, frame, flip & 1, 0), open: false) ? OutcomeCode.PlayerInTheWay : Outcome.Done;
+    }
+
+    /// <summary>Fits a door into a frame piece (the checks of <see cref="CanFitDoor"/> again): shut, unlocked, owned by its fitter.</summary>
+    public Outcome PlaceDoor(ulong player, DoorDef def, Piece frame, int flip, out Door? door)
+    {
+        door = null;
+        Outcome fits = CanFitDoor(def, frame, flip);
+        if (!fits.Ok)
         {
-            return OutcomeCode.BuildingBlocked;
-        }
-        if (Vector3.Distance(eye, position + Up(position) * 1.2f) > Data.Reach)
-        {
-            return OutcomeCode.OutOfReach;
+            return fits;
         }
         var fitted = new Door(_newId(), def, frame, flip & 1, player);
-        if (LeavesBlocked(fitted, open: false))
-        {
-            return OutcomeCode.PlayerInTheWay;
-        }
         frame.Door = fitted;
         _doorIds[fitted.Id] = fitted;
         for (int i = 0; i < def.Leaves.Count; i++)
@@ -366,39 +387,28 @@ public sealed partial class BuildingWorld
         Changed?.Invoke(new BuildingEvent(BuildingChange.DoorRemoved, door.Frame, door, Structure: door.Frame.Structure, Removal: reason));
     }
 
-    /// <summary>Fits a key lock (unlocked) to a door without one; needs building rights at the door.</summary>
-    public Outcome AttachKeyLock(ulong player, Door door, out KeyLock? keyLock)
+    // A new lock of each kind, by the kind's number (a lookup, not a switch over kinds): a key lock takes the next key number.
+    private static readonly Func<BuildingWorld, ulong, DoorLock>?[] NewLocks =
     {
-        keyLock = null;
-        Outcome ok = CanAttach(player, door);
-        if (!ok.Ok)
-        {
-            return ok;
-        }
-        keyLock = new KeyLock(_newId(), player, _nextKeyCode);
+        null,
+        (world, owner) => new KeyLock(world._newId(), owner, world.NextKeyCode()),
+        (world, owner) => new CodeLock(world._newId(), owner),
+    };
+
+    private int NextKeyCode()
+    {
+        int code = _nextKeyCode;
         _nextKeyCode = _nextKeyCode % MaxKeyCode + 1;
-        door.Lock = keyLock;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
-        return Outcome.Done;
+        return code;
     }
 
-    /// <summary>Fits a code lock (no code yet, unlocked, its owner authorised) to a door without one.</summary>
-    public Outcome AttachCodeLock(ulong player, Door door, out CodeLock? codeLock)
+    /// <summary>
+    /// Fits a lock of a kind to a door without one: a key lock unlocked, its owner the fitter; a code lock with no code yet,
+    /// unlocked, its owner authorised. Building rights are the placement pipeline's (GROUND_SYSTEMS.md §6).
+    /// </summary>
+    public Outcome AttachLock(ulong player, Door door, LockKind kind, out DoorLock? fitted)
     {
-        codeLock = null;
-        Outcome ok = CanAttach(player, door);
-        if (!ok.Ok)
-        {
-            return ok;
-        }
-        codeLock = new CodeLock(_newId(), player);
-        door.Lock = codeLock;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
-        return Outcome.Done;
-    }
-
-    private Outcome CanAttach(ulong player, Door door)
-    {
+        fitted = null;
         if (door.Gone)
         {
             return OutcomeCode.NotFound;
@@ -407,12 +417,30 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.HasLock;
         }
-        (Vector3 position, _) = door.Frame.ZoneTransform;
-        if (PrivilegeAt(player, position, 0) == Privilege.Blocked)
+        if ((uint)kind >= (uint)NewLocks.Length || NewLocks[(int)kind] is not { } make)
         {
-            return OutcomeCode.BuildingBlocked;
+            return OutcomeCode.Invalid;
         }
+        fitted = make(this, player);
+        door.Lock = fitted;
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
         return Outcome.Done;
+    }
+
+    /// <summary>Fits a key lock (<see cref="AttachLock"/>).</summary>
+    public Outcome AttachKeyLock(ulong player, Door door, out KeyLock? keyLock)
+    {
+        Outcome done = AttachLock(player, door, LockKind.Key, out DoorLock? fitted);
+        keyLock = fitted as KeyLock;
+        return done;
+    }
+
+    /// <summary>Fits a code lock (<see cref="AttachLock"/>).</summary>
+    public Outcome AttachCodeLock(ulong player, Door door, out CodeLock? codeLock)
+    {
+        Outcome done = AttachLock(player, door, LockKind.Code, out DoorLock? fitted);
+        codeLock = fitted as CodeLock;
+        return done;
     }
 
     /// <summary>

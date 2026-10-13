@@ -438,9 +438,10 @@ public sealed class WorldBrain
             if (_phase == 0 && time >= _nextStep && me.PendingCount == 0 && Slot(me, c, c.World.Research.TableKey) is { } slot)
             {
                 (Vector3 forward, _) = CharacterMotor.HorizontalBasis(_yaw, up);
-                if (client.AimGround(feet + up * 2 + forward * 2.2f, -up, 4) is { } at)
+                if (client.Ground?.Settle(feet + forward * 2.2f) is { } at && c.Item(c.World.Research.TableKey)?.Places is { } placeable &&
+                    client.PlanAt(placeable, at, _yaw) is { Valid: true } ghost)
                 {
-                    Note(me.Place(slot.Which, slot.Slot, at, _yaw), "Place");
+                    Note(me.Place(ghost, slot.Which, slot.Slot), "Place");
                     _phase = 1;
                     _wait = time + 3;
                 }

@@ -872,9 +872,17 @@ public partial class GroundTour : Node
                 Outcome? refused = null;
                 void Refused(IntentAnswer answer) => refused = answer.Outcome;
                 Me.IntentRejected += Refused;
-                if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Client.AimGround(at + up * 2, -up, 4) is { } ground)
+                if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Placeable("vehicle-workbench") is { } workbench &&
+                    Client.PlanAt(workbench, Client.Ground?.Settle(at) ?? at, View.Yaw) is { } ghost)
                 {
-                    Me.Place(ContainerRef.Main, slot, ground, View.Yaw);
+                    if (ghost.Valid)
+                    {
+                        Me.Place(ghost, ContainerRef.Main, slot);
+                    }
+                    else
+                    {
+                        refused = ghost.Outcome;
+                    }
                 }
                 await Until(() => Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "vehicle-workbench") || refused != null, 2);
                 Me.IntentRejected -= Refused;
@@ -897,7 +905,7 @@ public partial class GroundTour : Node
         Num.Vector3 up = Client.Frame.UpAt(p);
         Num.Vector3 east = Num.Vector3.Normalize(Num.Vector3.Cross(up, new Num.Vector3(0, 0, 1)));
         Num.Vector3 north = Num.Vector3.Cross(east, up);
-        Num.Vector3? Ground(Num.Vector3 q) => Client.AimGround(q + up * 6, -up, 14);
+        Num.Vector3? Ground(Num.Vector3 q) => Client.Ground?.Settle(q);
         if (Ground(p) is not { } a || Ground(p + east) is not { } b || Ground(p + north) is not { } c)
         {
             return 90;
@@ -1159,7 +1167,10 @@ public partial class GroundTour : Node
             return false;
         }
         View.Building.PlanPiece = index;
-        PieceDef def = data.Wheel[index];
+        if (Client.Content.Placement.Of(data.Wheel[index]) is not { } piece)
+        {
+            return false;
+        }
         Num.Vector3 up = Client.Frame.UpAt(Client.RenderPosition);
         Num.Vector3 eye = Client.RenderPosition + up * Client.EyeHeight;
         float bestCost = float.MaxValue, bestYaw = View.Yaw, bestPitch = View.Pitch;
@@ -1168,7 +1179,7 @@ public partial class GroundTour : Node
             for (float pitch = -1.2f; pitch <= 0.3f; pitch += 0.03f)
             {
                 Num.Vector3 dir = CharacterMotor.ViewDirection(View.Yaw + dy, pitch, up);
-                if (Client.PlanPiece(def, eye, dir) is { Valid: true } plan && want(plan))
+                if (Client.Plan(piece, eye, dir, View.Yaw + dy) is { Valid: true, Detail: PlacementPlan plan } && want(plan))
                 {
                     float cost = MathF.Abs(dy) + MathF.Abs(pitch - View.Pitch) * 0.5f;
                     if (cost < bestCost)
@@ -1460,13 +1471,16 @@ public partial class GroundTour : Node
                 }
                 Num.Vector3 dir = Num.Vector3.Transform(towards, Num.Quaternion.CreateFromAxisAngle(up, turn));
                 Num.Vector3 at = from + dir * 2.2f;
-                if (Client.AimGround(at + up * 2, -up, 4) is not { } ground)
+                if (Placeable(key) is not { } placeable || Client.PlanAt(placeable, Client.Ground?.Settle(at) ?? at, yaw) is not { } ghost)
                 {
                     continue;
                 }
                 var before = Client.Things.Select(t => t.Id).ToHashSet();
-                refused = OutcomeCode.Done;
-                Me.Place(ContainerRef.Main, slot, ground, yaw);
+                refused = ghost.Outcome;
+                if (ghost.Valid)
+                {
+                    Me.Place(ghost, ContainerRef.Main, slot);
+                }
                 await Until(() => refused != OutcomeCode.Done ||
                     Client.Things.Any(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key), 5);
                 RemoteThing? placed = Client.Things.FirstOrDefault(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key);
@@ -1549,9 +1563,10 @@ public partial class GroundTour : Node
         await Settle();
         // The fire two metres ahead, lit with wood.
         Num.Vector3 at = Client.Character.Position + Forward() * 2.2f;
-        if (SlotOf(Me.Inventory.Main, "campfire") is int fire && Client.AimGround(at + Client.Frame.UpAt(at) * 2, -Client.Frame.UpAt(at), 4) is { } ground)
+        if (SlotOf(Me.Inventory.Main, "campfire") is int fire && Placeable("campfire") is { } campfireItem &&
+            Client.PlanAt(campfireItem, Client.Ground?.Settle(at) ?? at, View.Yaw) is { Valid: true } ghost)
         {
-            Me.Place(ContainerRef.Main, fire, ground, View.Yaw);
+            Me.Place(ghost, ContainerRef.Main, fire);
             await Until(() => Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "campfire"), 5);
             RemoteThing campfire = Client.Things.First(t => t.Deployable(Client.Content)?.Key == "campfire");
             Me.Open(campfire.Id);
@@ -1839,6 +1854,9 @@ public partial class GroundTour : Node
     // ---------------------------------------------------------------- helpers
 
     private void Admin(string command, string args) => Command?.Invoke($"{command} {Client.Name} {args}".Trim());
+
+    // What an item places (placement.json), or null.
+    private Hollow.Simulation.Placement.Placeable? Placeable(string itemKey) => Client.Content.Item(itemKey)?.Places;
 
     private int Count(string key) => Client.Content.Item(key) is { } def ? Me.Inventory.Count(def) : 0;
 
