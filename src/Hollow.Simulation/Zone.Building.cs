@@ -462,7 +462,7 @@ public sealed partial class Zone
         return 0;
     }
 
-    // The numbers of the keys a player carries.
+    // The numbers of the keys a player carries (the zone's own list, good until the next call).
     private List<int> KeysOf(Player p)
     {
         _keys.Clear();
@@ -506,14 +506,6 @@ public sealed partial class Zone
     {
         GiveOrDrop(entity, p, condition != 0 ? new ItemStack(item.Id, count, condition) : ItemStack.Of(item, count));
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = item.Id, Count = count, Reason = GainReason.Refunded });
-    }
-
-    private bool WithinReach(Vector3 eye, Vector3 at) => Vector3.Distance(eye, at) <= Content!.Survival.InteractReach + 1.5f;
-
-    private Vector3 DoorMiddle(Door door)
-    {
-        (Vector3 position, _) = door.Frame.ZoneTransform;
-        return position + Frame.UpAt(position) * 1.2f;
     }
 
     /// <summary>
@@ -642,9 +634,10 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotFound;
         }
-        if (!WithinReach(eye, DoorMiddle(door)))
+        Outcome reach = Reach(eye, door.Ref, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         switch (action)
         {
@@ -693,9 +686,10 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotFound;
         }
-        if (!WithinReach(eye, DoorMiddle(door)))
+        Outcome reach = Reach(eye, door.Ref, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         ulong player = p.Id.Value;
         switch (action)
@@ -810,10 +804,10 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotFound;
         }
-        (Vector3 position, _) = device.ZoneTransform;
-        if (!WithinReach(eye, position + Frame.UpAt(position) * 0.9f))
+        Outcome reach = Reach(eye, device.Ref, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         switch (action)
         {

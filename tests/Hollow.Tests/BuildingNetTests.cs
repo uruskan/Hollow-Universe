@@ -220,6 +220,10 @@ public static class BuildingNetTests
         RunUntil(rig, () => ada.Local.Inventory.Count(ContentFixture.Item("wood")) == 200, "the wood");
         ClaimDevice claim = ada.Building.Claims.Single();
         Assert.True(ada.ThingOf(claim.Id)?.Deployable(ada.Content)?.Slots == 24, "the claim device is a thing with a 24-slot store");
+        // Opened from her floor, in sight of it (since P0 the doorway's wall and its shut door hide it from outside).
+        Vector3 floorMiddle = BuildingWorld.F(floor.Structure.Frame.ToZone(floor.Pose.Position));
+        rig.Server.Execute(FormattableString.Invariant($"teleport Ada {floorMiddle.X:0.00} {floorMiddle.Z:0.00}"));
+        rig.Run(0.6, (_, _) => default);
         ada.Local.Open(claim.Id);
         RunUntil(rig, () => ada.Local.LootKind == Simulation.Items.LootKind.Box && ada.Local.Loot?.Size == 24, "its store open");
         ada.Local.MoveItem(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wood"), ContainerRef.Loot, 0);

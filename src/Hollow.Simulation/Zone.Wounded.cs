@@ -57,10 +57,10 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotFound;
         }
-        Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
-        if (Vector3.Distance(eye, Entities.Get<Character>(e).State.Position) > Content!.Survival.HelpReach + 0.5f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), down.Ref, Content!.Survival.HelpReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         GetUp(e, down, Entities.IdOf(entity));
         return OutcomeCode.Done;

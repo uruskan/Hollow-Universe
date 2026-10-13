@@ -11,6 +11,7 @@ using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -517,7 +518,7 @@ public sealed partial class Zone
         {
             return can;
         }
-        if (WorkbenchLevel(Entities.Get<Character>(entity).State.Position) < node.Tier)
+        if (WorkbenchLevel(EyeOf(Entities.Get<Character>(entity).State)) < node.Tier)
         {
             return OutcomeCode.NeedsWorkbench.With(node.Tier);
         }
@@ -564,10 +565,10 @@ public sealed partial class Zone
                 {
                     return OutcomeCode.NotFound;
                 }
-                Vector3 a = Entities.Get<Character>(entity).State.Position, b = Entities.Get<Character>(other).State.Position;
-                if (Vector3.Distance(a, b) > Content!.Survival.InteractReach + 3)
+                Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), invited.Ref, Content!.Survival.InviteReach);
+                if (!reach.Ok)
                 {
-                    return OutcomeCode.OutOfReach;
+                    return reach;
                 }
                 return Teams.Invite(p.Id, invited.Id, UnixMilliseconds);
             }

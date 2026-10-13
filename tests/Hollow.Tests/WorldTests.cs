@@ -382,8 +382,8 @@ public static class WorldTests
         ulong team = z.Teams.TeamOf(rig.P(ada).Id)!.Id;
         z.TeamAct(ada, TeamAction.Invite, rig.P(bo).Id, 0);
         z.TeamAct(bo, TeamAction.Accept, EntityId.None, team);
-        Vector3 at = claim.ZoneTransform.Position;
-        Raids.Stand(rig, ada, z.Settle(at + new Vector3(1.2f, 0, 0)));
+        // Inside the hut, in sight of the claim device (since P0 a wall between hides it).
+        Raids.Stand(rig, ada, hut.Inside);
         Outcome claimed = z.ClaimAct(ada, ClaimAction.AuthoriseTeam, ContainerRef.Main, 0, 0, claim.Id, 0, 0, 0);
         Assert.True(claimed.Ok, $"authorise team at the claim device: {claimed}");
         Assert.True(claim.IsAuthorised(A) && claim.IsAuthorised(B) && !claim.IsAuthorised(C), "Ada and Bo are on its list, Cy isn't");

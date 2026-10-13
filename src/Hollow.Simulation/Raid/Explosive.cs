@@ -5,6 +5,7 @@ using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Raid;
 
@@ -39,7 +40,7 @@ public enum SupportKind : byte
 /// to rest) or placed (stuck where it was put), with its fuse burning; a dud lies there until lit again. Simulated on
 /// the server only; clients get its state when it changes (and draw a flight on its arc themselves).
 /// </summary>
-public sealed class LiveExplosive : ITargetable
+public sealed class LiveExplosive : ITargetable, IOwned
 {
     internal LiveExplosive(EntityId id, ThrowableStats stats, EntityId owner, string ownerName)
     {
@@ -61,6 +62,8 @@ public sealed class LiveExplosive : ITargetable
 
     /// <summary>Who threw or placed it (its blast is theirs).</summary>
     public EntityId Owner { get; }
+
+    ulong IOwned.OwnerId => Owner.Value;
 
     public string OwnerName { get; }
 

@@ -155,9 +155,10 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotUsable;
         }
-        if (Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), e.Position) > Content!.Survival.InteractReach + 0.5f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), e.Ref, Content!.Survival.InteractReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         Arm(e);
         RaidStats.Rearmed++;
@@ -478,14 +479,18 @@ public sealed partial class Zone
         e.Revision++;
     }
 
+    /// <summary>What an explosive is stuck to or lies on (none while it flies).</summary>
+    internal TargetRef SupportOf(LiveExplosive e) =>
+        e.State == ExplosiveState.Flying ? TargetRef.None
+        : e.Support is ITargetable thing ? thing.Ref
+        : e.SupportKind == SupportKind.Natural ? new TargetRef(TargetFamily.Natural, e.SupportId)
+        : TargetRef.Ground;
+
     // A fuse burnt down: the blast, from where it is; what it is stuck to takes the table's damage whole.
     private void Explode(LiveExplosive e)
     {
         e.Gone = true;
-        TargetRef on = e.State == ExplosiveState.Flying ? TargetRef.None
-            : e.Support is ITargetable thing ? thing.Ref
-            : e.SupportKind == SupportKind.Natural ? new TargetRef(TargetFamily.Natural, e.SupportId)
-            : TargetRef.Ground;
+        TargetRef on = SupportOf(e);
         Blast(e.Stats.Blast, e.Position, e.Normal, e.State == ExplosiveState.Stuck ? on : TargetRef.None, on.Family, e.Owner, e.OwnerName, e.Item.Id, e.Id);
     }
 

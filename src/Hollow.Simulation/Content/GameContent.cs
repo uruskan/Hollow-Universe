@@ -29,6 +29,7 @@ public sealed partial class GameContent
         "building.json", "explosives.json",
         "ships.json", "world.json", "animals.json",
         "surfaces.json",
+        "capabilities.json",
     };
 
     /// <summary>Files read with the rest but not part of <see cref="Hash"/>: the player's lines (a translation may differ).</summary>
@@ -69,6 +70,7 @@ public sealed partial class GameContent
         Hash = loaded.Hash;
         Problems = loaded.Problems;
         Texts = loaded.Texts!;
+        Capabilities = loaded.Capabilities ?? new CapabilityData(Array.Empty<string>());
         Building = loaded.Building ?? BuildingData.Parse("{}");
         ClaimDeployable = loaded.ClaimDeployable ?? new DeployableDef { Key = "claim-device", Item = new ItemDef { Key = "claim-device" }, Health = 200, Slots = 24 };
         _byId = new ItemDef?[ushort.MaxValue + 1];
@@ -190,6 +192,9 @@ public sealed partial class GameContent
 
     /// <summary>The player's lines for every answer (texts.json, GROUND_SYSTEMS.md §3.2).</summary>
     public Texts Texts { get; }
+
+    /// <summary>The kinds of behaviour world things have, and which have which (capabilities.json, GROUND_SYSTEMS.md §2.1).</summary>
+    public CapabilityData Capabilities { get; }
 
     /// <summary>Everything wrong with the files: empty when they are good. <see cref="Load"/> refuses any.</summary>
     public IReadOnlyList<string> Problems { get; }
@@ -459,6 +464,7 @@ public sealed partial class GameContent
         public BuildingData? Building;
         public DeployableDef? ClaimDeployable;
         public Texts? Texts;
+        public CapabilityData? Capabilities;
         public float PlacementReach = 3f;
         public float PlacementMaxStep = 0.6f;
         public ulong Hash;
@@ -473,6 +479,7 @@ public sealed partial class GameContent
 
         public void ReadAll()
         {
+            ReadCapabilities();
             ReadCategories();
             ReadItems();
             ReadRecipes();
@@ -505,6 +512,30 @@ public sealed partial class GameContent
             }
             f.Problem(where, $"no item \"{key}\"");
             return null;
+        }
+
+        // capabilities.json: the capabilities' keys, in their append-only order (at most 64: a thing's set is one word).
+        private void ReadCapabilities()
+        {
+            const string file = CapabilityData.File;
+            JsonElement root = Root(file, "capabilities");
+            var keys = new List<string>();
+            foreach ((JsonElement e, int i) in f.List(root, "capabilities", file).Select((e, i) => (e, i)))
+            {
+                string where = $"{file}: capabilities[{i}]";
+                f.OnlyKnown(e, where, "key", "note");
+                string key = f.Text(e, "key", where);
+                if (keys.Contains(key))
+                {
+                    f.Problem(where, $"\"{key}\" is in the list twice");
+                }
+                keys.Add(key);
+            }
+            if (keys.Count > Hollow.Simulation.Capabilities.CapabilitySet.Most)
+            {
+                f.Problem(file, $"at most {Hollow.Simulation.Capabilities.CapabilitySet.Most} capabilities");
+            }
+            loaded.Capabilities = new CapabilityData(keys);
         }
 
         private void ReadCategories()
@@ -1023,7 +1054,7 @@ public sealed partial class GameContent
         private void ReadSurvival()
         {
             JsonElement root = Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature",
-                "climateStandIn", "combat", "world", "bag", "rateLimits");
+                "climateStandIn", "combat", "world", "bag", "rateLimits", "reach");
             string w = "survival.json";
             JsonElement Section(string name, params string[] fields)
             {
@@ -1047,11 +1078,12 @@ public sealed partial class GameContent
             JsonElement t = Section("temperature", "comfortable", "coldScale", "coldDamageFrom", "coldDamagePerSecond", "wetCooling", "wetSeconds", "fireWarmsTo");
             JsonElement c = Section("climateStandIn", "meanCelsius", "daySwing", "lapsePerKilometre", "dayLengthSeconds");
             JsonElement k = Section("combat", "head", "body", "limb", "maxRewindSeconds", "equipSeconds");
-            JsonElement o = Section("world", "corpseSeconds", "droppedItemSeconds", "interactReach", "lootReach", "beachCooldownSeconds", "respawnKit");
+            JsonElement o = Section("world", "corpseSeconds", "droppedItemSeconds", "beachCooldownSeconds", "respawnKit");
+            JsonElement reach = Section("reach", "interact", "open", "keepOpen", "help", "invite", "station");
             JsonElement bag = Section("bag", "name", "slots", "mergeRadius");
             JsonElement r = Section("rateLimits", "intentBurst", "intentsPerSecond", "gunBurst", "gunActionsPerSecond");
             JsonElement burning = Section("burning", "damagePerSecond");
-            JsonElement wounded = Section("wounded", "maxDamage", "health", "seconds", "recoverChance", "fedBonus", "helpReach");
+            JsonElement wounded = Section("wounded", "maxDamage", "health", "seconds", "recoverChance", "fedBonus");
             (float Least, float Most) Pair(JsonElement e, string name, string where, float least, float most)
             {
                 if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(name, out JsonElement v))
@@ -1114,8 +1146,12 @@ public sealed partial class GameContent
                 BagName = f.Text(bag, "name", w + ": bag"),
                 BagSlots = Math.Clamp(f.Integer(bag, "slots", w + ": bag"), 1, 255),
                 BagMergeRadius = f.Number(bag, "mergeRadius", w + ": bag"),
-                InteractReach = f.Number(o, "interactReach", w + ": world"),
-                LootReach = f.Number(o, "lootReach", w + ": world"),
+                InteractReach = f.Number(reach, "interact", w + ": reach"),
+                OpenReach = f.Number(reach, "open", w + ": reach"),
+                KeepOpenReach = f.Number(reach, "keepOpen", w + ": reach"),
+                HelpReach = f.Number(reach, "help", w + ": reach"),
+                InviteReach = f.Number(reach, "invite", w + ": reach"),
+                StationReach = f.Number(reach, "station", w + ": reach"),
                 BeachCooldownSeconds = f.Number(o, "beachCooldownSeconds", w + ": world", 0),
                 RespawnKitKey = f.Text(o, "respawnKit", w + ": world"),
                 IntentBurst = f.Integer(r, "intentBurst", w + ": rateLimits", 16),
@@ -1130,7 +1166,6 @@ public sealed partial class GameContent
                 WoundedSecondsMost = woundedSecondsMost,
                 WoundedRecoverChance = f.Number(wounded, "recoverChance", w + ": wounded"),
                 WoundedFedBonus = f.Number(wounded, "fedBonus", w + ": wounded", 0),
-                HelpReach = f.Number(wounded, "helpReach", w + ": wounded"),
             };
         }
 

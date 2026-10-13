@@ -8,6 +8,7 @@ using Hollow.Simulation.Animals;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Items;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Ships;
@@ -136,5 +137,76 @@ public static class FoundationTests
         z.DamageBuildingBy(hut.Walls[1], Vector3.UnitX, 50, projectile: false, attacker: null, weapon: 0);
         Assert.True(hut.Walls[1].Health < before, "the wall took the blow through its family's receiver");
         Fixtures.Report($"{named.Length} families named; Ada's head {Vector3.Distance(head.Position, feet.Position):0.00} m above her feet");
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §3.4: one reach rule. Reach runs from the eye to a thing's nearest surface, within a reach from
+    /// data: a box opens from 3.4 m of its side and not from 3.6 m; a wall between hides it (a box inside a hut, a dud on the
+    /// wall's far side), while what holds a thing doesn't (a door seen past its frame from aside); and the dud is lit
+    /// from in front.
+    /// </summary>
+    [Test]
+    public static void ReachIsToTheNearestSurfaceInSight()
+    {
+        using var rig = new GameRig();
+        Zone z = rig.Zone;
+        GameContent c = rig.C;
+        SurvivalTuning s = c.Survival;
+        Entity ada = rig.Add("Ada", 30, 30);
+        Vector3 Eye() => z.EyeOf(rig.Ch(ada).State);
+
+        // A box in the open, Ada east of its east side.
+        Vector3 boxAt = z.GroundAt(30, 40);
+        var box = new Deployable(z.NextId(), c.Deployable("large-box")!, boxAt, z.Frame.UpAt(boxAt), 0, rig.P(ada).Id);
+        z.AddStatic(box);
+        Vector3 StandFromSide(float gap)
+        {
+            // Stand so that the eye is gap metres from the box's nearest surface.
+            for (float x = 0.5f; x < 8; x += 0.01f)
+            {
+                Raids.Stand(rig, ada, z.GroundAt(30 + box.Def.HalfExtents.X + x, 40));
+                if (Vector3.Distance(box.Nearest(Eye()), Eye()) >= gap)
+                {
+                    return Eye();
+                }
+            }
+            throw new TestFailure("no place");
+        }
+        StandFromSide(s.OpenReach - 0.1f);
+        Assert.Equal(OutcomeCode.Done, z.Open(ada, box.Id), "opened from 0.1 m inside the reach of its side");
+        z.Close(ada);
+        Vector3 eye = StandFromSide(s.OpenReach + 0.1f);
+        Assert.Equal(OutcomeCode.OutOfReach, z.Open(ada, box.Id), "not from 0.1 m beyond it");
+        Fixtures.Report($"reach {s.OpenReach} m to the side: {Vector3.Distance(eye, box.Centre):0.00} m from its centre is too far");
+
+        // A hut: a box inside is hidden from outside by a wall, not from inside.
+        TestBases.Hut hut = Raids.Hut(rig, 0, 0, door: "wooden-door");
+        Vector3 inside = hut.Inside;
+        var chest = new Deployable(z.NextId(), c.Deployable("large-box")!, inside, z.Frame.UpAt(inside), 0, rig.P(ada).Id);
+        z.AddStatic(chest);
+        (Vector3 face, Vector3 outward) = hut.Face(hut.Walls[1], height: 0);
+        Raids.Stand(rig, ada, z.Settle(face + outward * 1.2f));
+        Assert.True(Vector3.Distance(chest.Nearest(Eye()), Eye()) < s.OpenReach, "the box inside is within reach");
+        Assert.Equal(OutcomeCode.OutOfSight, z.Open(ada, chest.Id), "but the wall hides it");
+        Raids.Stand(rig, ada, z.Settle(inside + hut.Direction(new(0, 0, 1)) * 1.0f));
+        Assert.Equal(OutcomeCode.Done, z.Open(ada, chest.Id), "from inside it opens");
+        z.Close(ada);
+
+        // The door, from aside in front of the doorway: its frame holds it and doesn't hide it.
+        Door door = hut.Door!;
+        (Vector3 front, Vector3 doorOut) = hut.Face(hut.Doorway, height: 0);
+        Vector3 aside = Vector3.Normalize(Vector3.Cross(z.Frame.UpAt(front), doorOut));
+        Raids.Stand(rig, ada, z.Settle(front + doorOut * 0.8f + aside * 1.6f));
+        Assert.Equal(OutcomeCode.Done, z.DoorAct(ada, DoorAction.Toggle, ContainerRef.Main, 0, 0, door.Id, 0), "the door opens from aside");
+
+        // A dud stuck on the east wall's outside: not lit through the wall, lit from in front.
+        (Vector3 east, Vector3 eastOut) = hut.Face(hut.Walls[1], height: 1.0);
+        LiveExplosive dud = z.StickExplosive(c.ItemByKey("bag-charge").Throwable!, east + eastOut * 1.5f, -eastOut, 3, EntityId.None, "", dud: true)!;
+        Raids.StepUntil(rig, () => dud.Dud, 12 * 30 + 2, "the fuse going out");
+        (Vector3 eastIn, Vector3 inward) = hut.Face(hut.Walls[1], height: 0, inside: true);
+        Raids.Stand(rig, ada, z.Settle(eastIn + inward * 0.6f));
+        Assert.Equal(OutcomeCode.OutOfSight, z.Rearm(ada, dud.Id), "the wall hides the dud");
+        Raids.Stand(rig, ada, z.Settle(face + outward * 1.0f));
+        Assert.Equal(OutcomeCode.Done, z.Rearm(ada, dud.Id), "lit from in front");
     }
 }

@@ -9,6 +9,7 @@ using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -209,7 +210,7 @@ public sealed partial class Zone
         {
             return OutcomeCode.Dead;
         }
-        Vector3 at = Entities.Get<Character>(entity).State.Position;
+        Vector3 at = EyeOf(Entities.Get<Character>(entity).State);
         int bench = WorkbenchLevel(at);
         ulong station = 0;
         if (Content!.Recipe(recipe) is { Station: { } needs })
@@ -253,22 +254,23 @@ public sealed partial class Zone
         {
             return OpenShip(entity, p, ship); // its cargo (G6)
         }
-        Vector3 at;
+        TargetRef looted;
         if (StaticOf(e) is { Container: not null } thing)
         {
-            at = thing is Deployable d ? d.Centre : thing.Position;
+            looted = thing.Ref;
         }
         else if (PlayerOf(e) is { Dead: false } other && (other.Sleeping || other.Wounded))
         {
-            at = Entities.Get<Character>(e).State.Position;
+            looted = other.Ref;
         }
         else
         {
             return OutcomeCode.NotFound;
         }
-        if (Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), at) > Content!.Survival.LootReach + 0.5f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), looted, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         p.Looting = target;
         p.LootRevision++;
@@ -310,13 +312,13 @@ public sealed partial class Zone
                 }
                 continue;
             }
-            (WorldObject? thing, Player? sleeper, Entity e) = LootTarget(p);
+            (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
             bool keep = (thing != null || sleeper != null) && p.IsAwakeAndAlive;
             if (keep)
             {
-                Vector3 at = thing is Deployable d ? d.Centre : thing?.Position ?? Entities.Get<Character>(e).State.Position;
+                // Open while its nearest surface is within reach (walking round it is no reason to close).
                 Vector3 eye = EyeOf(Entities.Get<Character>(Entities.AtSlot(players.Slots[i])).State);
-                keep = Vector3.Distance(eye, at) <= Content!.Survival.LootReach + 1.5f;
+                keep = Reach(eye, thing?.Ref ?? sleeper!.Ref, Content!.Survival.KeepOpenReach, sight: false).Ok;
             }
             if (!keep)
             {
@@ -336,6 +338,7 @@ public sealed partial class Zone
             return OutcomeCode.Dead;
         }
         Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
+        // (An untrusted ID naming a place far away is refused before its tile is made: the biggest objects are 4 m across.)
         if (!Nature!.TryGetNear(id, eye, Content!.Survival.InteractReach + 4, out NaturalObject o) || Content.Natural(o.Kind) is not { } kind)
         {
             return OutcomeCode.NotFound;
@@ -348,9 +351,10 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotFound;
         }
-        if (Vector3.Distance(eye, NaturalShapes.Middle(o, kind)) > Content.Survival.InteractReach + kind.Radius * o.Scale)
+        Outcome reach = Reach(eye, new TargetRef(TargetFamily.Natural, id), Content.Survival.InteractReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         GatherResult result = Natural.Pick(o, UnixMilliseconds);
         Give(entity, p, result.Yield, GainReason.PickedUp);
@@ -371,10 +375,10 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotFound;
         }
-        Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
-        if (Vector3.Distance(eye, bag.Position) > Content!.Survival.InteractReach + 0.3f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), bag.Ref, Content!.Survival.InteractReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         bool taken = false;
         for (int i = 0; i < bag.Loot.Size; i++)
@@ -413,17 +417,17 @@ public sealed partial class Zone
         if (StaticOf(id) is Deployable { Def.Device: null, Def.IsMachine: true, Storage: not null } machine)
         {
             // G7: a recycler (on or off) or a research table (start).
-            return Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), machine.Centre) > Content!.Survival.LootReach + 0.5f
-                ? OutcomeCode.OutOfReach
-                : ToggleMachine(machine);
+            Outcome near = Reach(EyeOf(Entities.Get<Character>(entity).State), machine.Ref, Content!.Survival.OpenReach);
+            return near.Ok ? ToggleMachine(machine) : near;
         }
         if (StaticOf(id) is not Deployable { Def.Device: not null, Storage: { } storage } d)
         {
             return OutcomeCode.NotFound;
         }
-        if (Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), d.Centre) > Content!.Survival.LootReach + 0.5f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), d.Ref, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return OutcomeCode.OutOfReach;
+            return reach;
         }
         if (!d.Lit)
         {

@@ -306,17 +306,18 @@ public sealed partial class Zone
         return true;
     }
 
-    /// <summary>The nearest station of a kind within crafting reach of a point, or null.</summary>
-    public Deployable? StationNear(Vector3 point, DeployableDef def)
+    /// <summary>The nearest station of a kind within crafting reach of an eye (its nearest surface, as a workbench's), or null.</summary>
+    public Deployable? StationNear(Vector3 eye, DeployableDef def)
     {
+        float reach = Content!.Survival.StationReach;
         _near.Clear();
-        DeployablesNear(point, WorkbenchReach + 3f, _near);
+        DeployablesNear(eye, reach + 6f, _near);
         Deployable? best = null;
         float bestDistance = float.MaxValue;
         foreach (Deployable d in _near)
         {
-            float distance = Vector3.Distance(d.Centre, point);
-            if (d.Def == def && distance <= WorkbenchReach + d.Def.HalfExtents.X && distance < bestDistance)
+            float distance = Vector3.Distance(d.Nearest(eye), eye);
+            if (d.Def == def && distance <= reach && distance < bestDistance)
             {
                 best = d;
                 bestDistance = distance;

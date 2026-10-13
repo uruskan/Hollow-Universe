@@ -19,9 +19,6 @@ public sealed partial class Zone
     /// <summary>Side of the cells deployables are indexed by, for placement checks and hit tests.</summary>
     private const float ThingCell = 16f;
 
-    /// <summary>A workbench counts for crafting within this many metres (Rust).</summary>
-    public const float WorkbenchReach = 4f;
-
     private readonly Dictionary<(int X, int Z), List<Deployable>> _deployableCells = new();
     private readonly List<WorldObject> _expiredThings = new();
 
@@ -111,15 +108,19 @@ public sealed partial class Zone
 
     private readonly List<Deployable> _near = new();
 
-    /// <summary>The best workbench level within <see cref="WorkbenchReach"/> of a point (0: none).</summary>
-    public int WorkbenchLevel(Vector3 point)
+    /// <summary>
+    /// The best workbench level within reach of an eye (0: none): a bench counts when its nearest surface is within
+    /// survival.json's <c>reach.station</c> (GROUND_SYSTEMS.md §3.4; no sight needed, as Rust's).
+    /// </summary>
+    public int WorkbenchLevel(Vector3 eye)
     {
+        float reach = Content!.Survival.StationReach;
         _near.Clear();
-        DeployablesNear(point, WorkbenchReach + 1.5f, _near);
+        DeployablesNear(eye, reach + 3f, _near);
         int best = 0;
         foreach (Deployable d in _near)
         {
-            if (d.Def.Workbench > best && Vector3.Distance(d.Centre, point) <= WorkbenchReach + d.Def.HalfExtents.X)
+            if (d.Def.Workbench > best && Vector3.DistanceSquared(d.Nearest(eye), eye) <= reach * reach)
             {
                 best = d.Def.Workbench;
             }

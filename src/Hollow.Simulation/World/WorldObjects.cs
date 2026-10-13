@@ -4,6 +4,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.World;
 
@@ -26,7 +27,7 @@ public enum StaticKind : byte
 /// nothing per tick until something happens to it; <see cref="Revision"/> rises when what others see changes, so the
 /// server sends it again.
 /// </summary>
-public abstract class WorldObject : ITargetable
+public abstract class WorldObject : ITargetable, IContainerHolder
 {
     protected WorldObject(EntityId id, Vector3 position, Vector3 up, float yaw)
     {
@@ -82,6 +83,9 @@ public abstract class WorldObject : ITargetable
     /// <summary>What it is drawn as (the model catalogue's key); empty for a body, which the characters draw.</summary>
     public virtual string ModelKey => "";
 
+    /// <summary>Its capabilities (GROUND_SYSTEMS.md §2.1): a deployable's from its blocks, a bag's and a body's their kind's.</summary>
+    public abstract CapabilitySet CapabilitiesIn(CapabilityData data);
+
     /// <summary>
     /// The nearest point of its bounds to a point (GROUND_SYSTEMS.md §3.4: reach is measured to it): a sphere of
     /// <see cref="BoundsRadius"/> <see cref="BoundsLift"/> above its base, unless it says otherwise (a deployable's box).
@@ -104,7 +108,7 @@ public abstract class WorldObject : ITargetable
 /// A placed object (GROUND.md §6): sleeping bag, campfire, furnace, box, workbench, research table; and (G7) the
 /// world's own props (<see cref="WorldProp"/>), which hits, blasts, opening and replication treat the same way.
 /// </summary>
-public class Deployable : WorldObject
+public class Deployable : WorldObject, IOwned
 {
     public Deployable(EntityId id, DeployableDef def, Vector3 position, Vector3 up, float yaw, EntityId owner)
         : base(id, position, up, yaw)
@@ -143,17 +147,12 @@ public class Deployable : WorldObject
 
     public override string ModelKey => Def.Key;
 
+    public override CapabilitySet CapabilitiesIn(CapabilityData data) => data.Of(Def);
+
+    ulong IOwned.OwnerId => Owner.Value;
+
     /// <summary>The nearest point of its box.</summary>
-    public override Vector3 Nearest(Vector3 from)
-    {
-        (Vector3 right, Vector3 forward) = Combat.Geometry.Axes(Up, Yaw);
-        Vector3 local = from - Centre;
-        Vector3 half = Def.HalfExtents;
-        float x = Math.Clamp(Vector3.Dot(local, right), -half.X, half.X);
-        float y = Math.Clamp(Vector3.Dot(local, Up), -half.Y, half.Y);
-        float z = Math.Clamp(Vector3.Dot(local, forward), -half.Z, half.Z);
-        return Centre + right * x + Up * y + forward * z;
-    }
+    public override Vector3 Nearest(Vector3 from) => Combat.Geometry.NearestOnBox(Position, Up, Yaw, Def.HalfExtents, from);
 
     public override bool Burning => Lit;
 
@@ -292,6 +291,8 @@ public sealed class DroppedBag : DroppedContainer
 
     public override string ModelKey => "dropped-bag";
 
+    public override CapabilitySet CapabilitiesIn(CapabilityData data) => data.Bag;
+
     /// <summary>How many stacks it holds: one is picked up at once, more open like a box.</summary>
     public override int ShownCount
     {
@@ -325,6 +326,8 @@ public sealed class Corpse : DroppedContainer
     public EntityId Of { get; }
 
     public override ushort Look => 0;
+
+    public override CapabilitySet CapabilitiesIn(CapabilityData data) => data.Corpse;
 
     /// <summary>A body lies along the ground: a wider sphere, lower.</summary>
     protected override float BoundsLift => 0.25f;

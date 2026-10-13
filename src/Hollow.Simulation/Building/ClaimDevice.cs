@@ -5,6 +5,7 @@ using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Building;
 
@@ -13,7 +14,7 @@ namespace Hollow.Simulation.Building;
 /// authorised to build there, gives that structure an area of building rights, and holds the materials that pay its
 /// upkeep. One per connected structure.
 /// </summary>
-public sealed class ClaimDevice : IBuildingPart
+public sealed class ClaimDevice : IBuildingPart, IOwned
 {
     internal readonly List<ulong> AuthorisedList = new();
     internal uint Body;
@@ -36,6 +37,8 @@ public sealed class ClaimDevice : IBuildingPart
 
     /// <summary>The player who placed it (authorised from the start).</summary>
     public ulong Owner { get; }
+
+    ulong IOwned.OwnerId => Owner;
 
     /// <summary>The foundation or floor it stands on; it falls with it.</summary>
     public Piece Support { get; }

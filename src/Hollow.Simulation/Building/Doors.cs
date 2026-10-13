@@ -4,6 +4,7 @@ using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Building;
 
@@ -22,6 +23,9 @@ public abstract class DoorLock
     public ulong Owner { get; }
 
     public bool Locked { get; internal set; }
+
+    /// <summary>What kind of lock it is (what replication and capabilities go by).</summary>
+    public abstract LockKind Kind { get; }
 }
 
 /// <summary>
@@ -37,6 +41,8 @@ public sealed class KeyLock : DoorLock
 
     /// <summary>The number its keys carry.</summary>
     public int KeyCode { get; }
+
+    public override LockKind Kind => LockKind.Key;
 
     public bool CanUse(ulong player, IReadOnlyCollection<int>? keys) => !Locked || player == Owner || (keys != null && Contains(keys, KeyCode));
 
@@ -72,6 +78,8 @@ public sealed class CodeLock : DoorLock
 
     public bool HasCode => CodeHash != 0;
 
+    public override LockKind Kind => LockKind.Code;
+
     /// <summary>The hash a code is kept as on this lock (never 0).</summary>
     public ulong HashOf(string code) => Math.Max(1, Hash64.Combine(Hash64.Of(Id.Value, 0xC0DE), Hash64.Of(code)));
 
@@ -87,7 +95,7 @@ public sealed class CodeLock : DoorLock
 /// upgraded. Its leaves swing on the hinges from the kit's assembly manifest; open or shut they collide, so an open
 /// door still blocks (RustMVP's rule).
 /// </summary>
-public sealed class Door : IBuildingPart
+public sealed class Door : IBuildingPart, IOwned
 {
     internal uint[] Bodies;
 
@@ -116,6 +124,9 @@ public sealed class Door : IBuildingPart
     public int Flip { get; }
 
     public ulong Owner { get; }
+
+    /// <summary>Whose it is to a viewer (GROUND_SYSTEMS.md §3.3): its lock's fitter while it has a lock, else who fitted the door.</summary>
+    ulong IOwned.OwnerId => Lock?.Owner ?? Owner;
 
     public bool Open { get; internal set; }
 
@@ -156,8 +167,11 @@ public sealed class Door : IBuildingPart
     public override string ToString() => $"{Def.Key} in {Frame.Def.Key} #{Frame.Handle} ({(Open ? "open" : "shut")})";
 }
 
-/// <summary>The owner of a door leaf's body.</summary>
-internal sealed record DoorLeaf(Door Door, int Index);
+/// <summary>The owner of a door leaf's body: the door's leaf (its part, <see cref="TargetRef.Part"/>).</summary>
+internal sealed record DoorLeaf(Door Door, int Index) : ITargetable
+{
+    public TargetRef Ref => Door.Ref with { Part = (byte)(Index + 1) };
+}
 
 public sealed partial class BuildingWorld
 {

@@ -134,6 +134,9 @@ public interface ITargetFamily
 
     /// <summary>What it is drawn as (the model catalogue's key); empty when nothing draws it.</summary>
     string ModelKey(ulong id);
+
+    /// <summary>Its capabilities now (a door's include its lock's), from its definition's blocks (GROUND_SYSTEMS.md §2.1).</summary>
+    Capabilities.CapabilitySet Capabilities(ulong id);
 }
 
 /// <summary>A world thing that knows how it is named (<see cref="TargetRef"/>): its family and ID.</summary>

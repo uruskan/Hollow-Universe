@@ -12,6 +12,9 @@ using Hollow.Simulation.Raid;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Capabilities;
+using Hollow.Simulation.Teams;
+using System.Collections.Generic;
 
 namespace Hollow.Simulation;
 
@@ -22,6 +25,7 @@ namespace Hollow.Simulation;
 public sealed partial class Zone
 {
     private Registry<ITargetFamily>? _families;
+    private Registry<ICapability>? _capabilities;
 
     /// <summary>The families of world things, by <see cref="TargetFamily"/> (null in a movement-only zone).</summary>
     public Registry<ITargetFamily> Families => _families ?? throw new InvalidOperationException("a zone without game data names no things");
@@ -38,7 +42,30 @@ public sealed partial class Zone
             families.Add((int)family.Family, family);
         }
         _families = families.Seal();
+        _capabilities = CapabilityHandlers.Create(Content!.Capabilities);
     }
+
+    /// <summary>Every capability's handler, by capabilities.json's index (checked at start: one each).</summary>
+    public Registry<ICapability> Capabilities => _capabilities ?? throw new InvalidOperationException("a zone without game data has no capabilities");
+
+    /// <summary>
+    /// What a target tells a viewer (GROUND_SYSTEMS.md §3.3): every capability it has gives its share, through the
+    /// registry; none for a thing that doesn't exist.
+    /// </summary>
+    public ViewerFlags FlagsFor(in TargetRef target, in Viewer viewer)
+    {
+        if (FamilyOf(target.Family) is not { } family || family.Resolve(target.Id) is not { } thing)
+        {
+            return ViewerFlags.None;
+        }
+        return Capabilities.Flags(family.Capabilities(target.Id), thing, viewer);
+    }
+
+    /// <summary>
+    /// A player as a viewer: their ID, their team and the numbers of the keys they carry. The keys are the zone's own
+    /// list, good until the next call.
+    /// </summary>
+    public Viewer ViewerOf(Player p) => new(p.Id, Teams.TeamOf(p.Id), KeysOf(p));
 
     /// <summary>The family a target belongs to, or null (none, or a number from outside that names no family).</summary>
     public ITargetFamily? FamilyOf(TargetFamily family) => _families?.Find((int)family);
@@ -87,6 +114,8 @@ public sealed partial class Zone
         }
 
         public string ModelKey(ulong id) => "";
+
+        public CapabilitySet Capabilities(ulong id) => CapabilitySet.Empty;
     }
 
     /// <summary>Players' characters, awake, down or asleep (a dead one is gone: its body is a thing); parts are bones.</summary>
@@ -129,6 +158,8 @@ public sealed partial class Zone
         }
 
         public string ModelKey(ulong id) => "";
+
+        public CapabilitySet Capabilities(ulong id) => CapabilitySet.Empty;
 
         // The body as it is now: standing, crouching, or lying asleep or down.
         private bool Body(ulong id, out HitPose pose)
@@ -192,6 +223,8 @@ public sealed partial class Zone
 
         public string ModelKey(ulong id) => Find(id)?.Species.Key ?? "";
 
+        public CapabilitySet Capabilities(ulong id) => CapabilitySet.Empty;
+
         private Animal? Find(ulong id) => zone.Animals?.Find(new EntityId(id)) is { Removed: false } a ? a : null;
     }
 
@@ -244,6 +277,8 @@ public sealed partial class Zone
 
         public string ModelKey(ulong id) => Find(id, out _, out NaturalKind? kind) ? kind!.Key : "";
 
+        public CapabilitySet Capabilities(ulong id) => CapabilitySet.Empty;
+
         private bool Find(ulong id, out NaturalObject o, out NaturalKind? kind)
         {
             kind = null;
@@ -289,6 +324,8 @@ public sealed partial class Zone
         }
 
         public string ModelKey(ulong id) => zone.StaticOf(new EntityId(id))?.ModelKey ?? "";
+
+        public CapabilitySet Capabilities(ulong id) => zone.StaticOf(new EntityId(id))?.CapabilitiesIn(zone.Content!.Capabilities) ?? CapabilitySet.Empty;
     }
 
     /// <summary>Building pieces (one coming down still stands until it is taken away).</summary>
@@ -324,6 +361,8 @@ public sealed partial class Zone
         }
 
         public string ModelKey(ulong id) => Find(id)?.Def.Key ?? "";
+
+        public CapabilitySet Capabilities(ulong id) => CapabilitySet.Empty;
 
         private Piece? Find(ulong id) => zone.Building?.PieceOf(new EntityId(id)) is { Gone: false } piece ? piece : null;
     }
@@ -364,6 +403,12 @@ public sealed partial class Zone
 
         public string ModelKey(ulong id) => Find(id)?.Def.Key ?? "";
 
+        public CapabilitySet Capabilities(ulong id)
+        {
+            CapabilityData data = zone.Content!.Capabilities;
+            return Find(id) is { } door ? door.Lock is { } fitted ? data.Door.With(data.Lock(fitted.Kind)) : data.Door : CapabilitySet.Empty;
+        }
+
         private Door? Find(ulong id) => zone.Building?.DoorOf(new EntityId(id)) is { Gone: false } door ? door : null;
     }
 
@@ -401,6 +446,8 @@ public sealed partial class Zone
 
         public string ModelKey(ulong id) => Find(id) != null ? zone.Content!.ClaimDeployable.Key : "";
 
+        public CapabilitySet Capabilities(ulong id) => Find(id) != null ? zone.Content!.Capabilities.Cupboard : CapabilitySet.Empty;
+
         private ClaimDevice? Find(ulong id) => zone.Building?.ClaimOf(new EntityId(id)) is { Gone: false } claim ? claim : null;
     }
 
@@ -436,6 +483,8 @@ public sealed partial class Zone
         }
 
         public string ModelKey(ulong id) => zone.ExplosiveOf(new EntityId(id))?.Item.Key ?? "";
+
+        public CapabilitySet Capabilities(ulong id) => zone.ExplosiveOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Explosive : CapabilitySet.Empty;
     }
 
     /// <summary>Ships, wrecks included until they go; found by their hulls.</summary>
@@ -470,5 +519,7 @@ public sealed partial class Zone
         }
 
         public string ModelKey(ulong id) => zone.ShipOf(new EntityId(id))?.Def.Key ?? "";
+
+        public CapabilitySet Capabilities(ulong id) => zone.ShipOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Ship : CapabilitySet.Empty;
     }
 }

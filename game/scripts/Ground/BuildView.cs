@@ -27,8 +27,6 @@ namespace HollowUniverse.Ground;
 /// </summary>
 public partial class BuildView : Node3D
 {
-    private const float DoorReach = 3.5f;
-
     private BuildingAssets? _assets;
     private BuildingRenderer? _renderer;
     private BuildGhost? _ghost;
@@ -78,7 +76,8 @@ public partial class BuildView : Node3D
             return;
         }
         _target = _world.Target(eye, forward, (float)Data.Reach, out _hit);
-        Interactable = _target is Door or ClaimDevice && _hit.Distance < DoorReach ? _target : null;
+        // Doors and the claim device are opened within survival.json's reach.open, as the server checks.
+        Interactable = _target is Door or ClaimDevice && _hit.Distance < Client.Content.Survival.OpenReach ? _target : null;
         LocalPlayer me = Client.Local;
         ItemDef? item = me.IsDead ? null : me.HeldItem;
         Held = item?.Building ?? BuildingRole.None;

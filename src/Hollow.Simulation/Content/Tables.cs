@@ -370,8 +370,22 @@ public sealed class SurvivalTuning
     public string BagName { get; init; } = "Loot bag";
     public int BagSlots { get; init; } = 48;
     public float BagMergeRadius { get; init; } = 1.5f;
+    /// <summary>
+    /// The reaches (GROUND_SYSTEMS.md §3.4, survival.json's <c>reach</c>), each from the eye to the target's nearest
+    /// surface (<c>Zone.Reach</c>): picking up and lighting a dud; opening, lighting, doors, locks and the claim device; an
+    /// open container closes beyond <see cref="KeepOpenReach"/>; helping the wounded up; a team invite; a workbench's level.
+    /// </summary>
     public float InteractReach { get; init; } = 3;
-    public float LootReach { get; init; } = 3.5f;
+
+    public float OpenReach { get; init; } = 3.5f;
+
+    public float KeepOpenReach { get; init; } = 4.5f;
+
+    public float HelpReach { get; init; } = 3f;
+
+    public float InviteReach { get; init; } = 6f;
+
+    public float StationReach { get; init; } = 4f;
     public float BeachCooldownSeconds { get; init; }
     public string RespawnKitKey { get; init; } = "respawn-kit";
 
@@ -399,7 +413,6 @@ public sealed class SurvivalTuning
     public float WoundedSecondsMost { get; init; } = 50;
     public float WoundedRecoverChance { get; init; } = 0.2f;
     public float WoundedFedBonus { get; init; } = 0.25f;
-    public float HelpReach { get; init; } = 2.5f;
 
     public float RegionMultiplier(HitRegion region) => region switch
     {
