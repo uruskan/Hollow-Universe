@@ -21,8 +21,8 @@ namespace HollowUniverse.Ground;
 /// keys (<see cref="BuildHud"/>), the plan's and the hammer's radials, and what the held tool does: place a piece, repair,
 /// upgrade, rotate or demolish one, fit a door or a lock, place the claim device. Doors open and shut with E; a code lock
 /// asks for its code (<see cref="Keypad"/>); held E on a door or the claim device offers its options (lock, change the
-/// code, cut a key, authorise, clear the list, pick up). Pieces placed, upgraded, demolished and collapsing, and doors,
-/// sound and show (the effects library).
+/// code, cut a key, authorise, clear the list, pick up). Pieces placed and upgraded, and doors, sound and show (the
+/// effects library); pieces broken, brought down or demolished break apart through the gibs (<see cref="GibsView"/>).
 /// </summary>
 public partial class BuildView : Node3D, IHammerActions
 {
@@ -219,8 +219,8 @@ public partial class BuildView : Node3D, IHammerActions
         }
     }
 
-    // What happens to the building sounds and shows: a piece placed (once the world is in), upgraded, demolished or
-    // collapsing; a door opened or shut.
+    // What happens to the building sounds and shows: a piece placed (once the world is in) or upgraded; a door opened or
+    // shut. (What breaks is the gibs' own path, GibsView.)
     private void OnChanged(BuildingEvent e)
     {
         bool near(Num.Vector3 at) => Num.Vector3.Distance(at, Client.Character.Position) < 60;
@@ -249,22 +249,8 @@ public partial class BuildView : Node3D, IHammerActions
                 break;
             }
             case BuildingChange.PieceRemoved when e.Piece is { } removed:
-            {
                 _grades.Remove(removed);
-                (Num.Vector3 at, _) = removed.ZoneTransform;
-                if (!near(at))
-                {
-                    break;
-                }
-                bool fell = removed.Collapsing || removed.Health <= 0;
-                Sounds.At(fell ? "build.collapse" : "build.demolish", GroundView.ToGodot(at));
-                FxDirector.Play("world.collapse", GroundView.ToGodot(at), Up(at), new FxParams
-                {
-                    Area = HalfSize(removed),
-                    Tint = GradeTint(removed.Grade),
-                });
                 break;
-            }
             case BuildingChange.DoorAdded when e.Door is { } fitted:
                 _open[fitted] = fitted.Open;
                 break;
@@ -300,14 +286,6 @@ public partial class BuildView : Node3D, IHammerActions
     private Vector3 HalfSize(Piece piece) => piece.Def.IsSlab
         ? new Vector3(1.5f, 0.15f, 1.5f)
         : new Vector3(1.5f, (float)piece.Def.Height / 2, 0.15f);
-
-    private static Color GradeTint(int grade) => grade switch
-    {
-        0 => new Color(0.75f, 0.62f, 0.42f),
-        1 => new Color(0.62f, 0.48f, 0.32f),
-        2 => new Color(0.62f, 0.6f, 0.56f),
-        _ => new Color(0.48f, 0.5f, 0.52f),
-    };
 
     // Placements not yet answered, drawn where they will stand.
     private void DrawPending()

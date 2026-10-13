@@ -445,6 +445,33 @@ damage code as modular as RustMVP's foundation planned?
   tests: free look over the network, free foundations on a slope, the catalogue's grips; with `ground` merged (protocol
   13 after the bags' 12), 168 of 168 tests pass.
 
+## 13 October 2026, things breaking apart (`ground-gibs`)
+
+- **Nothing destroyed just vanishes** (GROUND.md §9.4, X1–X12). Barrels, boxes, furnaces, campfires, workbenches, beds
+  and bags, the research table, the vehicle workbench, the claim device, doors and every building piece of every grade
+  break into their own pieces where they stood: thrown along the blow, tumbling, bouncing and settling on the ground,
+  lying a few seconds, then sinking away, with dust in their material's colour. A collapse lets its pieces drop, an
+  explosion throws them. An outcrop's last remnant crumbles the same way when it is mined out.
+- **Made from our own models** by one Blender script (`art/gibs/build.py`): Voronoi cuts capped with the material's
+  inside, the barrels and the recycler hollow so they break into curved sheets, small parts (bolts, bricks, logs) left
+  whole. 30 files, 1,106 pieces, 278,000 triangles, 18.1 MB, rebuilt in 40 s with the same bytes.
+- **All of it data.** A model's gibs are declared beside it in models.json (the building's grades and the doors as
+  kits), how the pieces fly and go in gibs.json (materials, causes, limits), the dust in fx.json's `gibs` family. One
+  hookup breaks whatever the damage pipeline's Destroyed event names, by its key and grade; no code names a kind of
+  thing. The building's old falling-and-sinking pieces and the props' and collapses' bursts made way for it. The
+  Destroyed event now gives a door's turn as it was drawn (half round when it was fitted the other way).
+- **Cheap**: no physics bodies, a small integrator against the ground under the pieces, one draw call per piece shape
+  in sight, at most 640 pieces (the oldest recycled first), pieces within 70 m and dust to 170 m. A stone wall blown
+  in and ten barrels shot every 2.5 s cost 0.22–0.30 ms a frame (the GPU 0.18–0.21 ms of it, the gibs' own CPU work
+  0.06–0.08 ms), under the 0.5 ms asked.
+- To look at it: `--view fx --gibs` (everything breaking in a grid; `--gibs raid`; `--gibs <key>`), `--stress gibs
+  --measure 6`; the tour shoots a barrel and an outcrop breaking. Pictures: `docs/images/ground/gibs/sheet.jpg`,
+  `raid.jpg`, `wall.jpg`, `barrel.jpg`, `barrel-rest.jpg`, `outcrop.jpg`.
+- Left for later: pieces don't hit each other or walls sideways (X3); an open door breaks from its shut pose (X9);
+  the building's own materials are still made in code beside the gib build's files (X11).
+- One new test (everything that can be destroyed has gibs, and its data and files check out); with `ground` merged,
+  179 of 179 tests pass.
+
 ## 13 October 2026, one radial menu (`ground-radial`, P5)
 
 GROUND_SYSTEMS.md §4; GROUND.md §8.4 and decisions Q1–Q9.
