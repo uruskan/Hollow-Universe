@@ -174,7 +174,10 @@ def building(b, at, rot, w, d, floors=1, floor_h=3.4, mat=CONCRETE, tint=CONCRET
             "roof": plinth + H + slab}
     with b.frame(at, rot):
         if plinth > 0:
-            b.box((w + 0.5, d + 0.5, plinth), (0, 0, plinth / 2), mat=CONCRETE, tint=srgb(0.72, 0.71, 0.68))
+            # Flush with the walls' outer faces: a plinth sticking out under a wall puts the wall's lowest vertices
+            # inside it, and the baked occlusion then turns the whole face black.
+            b.box((w + wall_t - 0.04, d + wall_t - 0.04, plinth), (0, 0, plinth / 2), mat=CONCRETE,
+                  tint=srgb(0.72, 0.71, 0.68))
         for si, side in enumerate(SIDES):
             a, c = corners[si], corners[(si + 1) % 4]
             for k in range(floors):
@@ -1496,7 +1499,117 @@ def _turret_mast(b):
     b.marker("light", (0, 0.3, 9.5), colour=[round(v, 3) for v in CHIP["cyan"]], range=10.0, blink=2.0)
 
 
+def _bunk(b):
+    """A steel double bunk with two mattresses and a ladder; a locker beside it."""
+    for x in (-0.95, 0.95):
+        for y in (-0.42, 0.42):
+            b.box((0.05, 0.05, 1.75), (x, y, 0.875), tint=BULWARK, solid=False, vary=0)
+    for z in (0.35, 1.3):
+        b.box((1.95, 0.88, 0.06), (0, 0, z), tint=BULWARK, solid=False, vary=0)
+        b.box((1.85, 0.8, 0.14), (0, 0, z + 0.1), mat=MATTE, tint=KHAKI, bevel=0.03, solid=False, vary=0.08)
+        b.box((0.45, 0.6, 0.1), (-0.65, 0, z + 0.22), mat=MATTE, tint=srgb(0.8, 0.78, 0.7), solid=False, vary=0.05)
+    for z in (0.7, 1.0):
+        b.box((0.04, 0.4, 0.04), (0.98, 0.0, z), tint=BULWARK, solid=False, vary=0)
+    b.box((0.55, 0.5, 1.8), (1.35, 0.1, 0.9), tint=srgb(0.42, 0.46, 0.4), bevel=0.01)
+    b.box((0.02, 0.15, 0.04), (1.35, -0.16, 1.2), tint=DARK, solid=False, vary=0)
+    b.collide_box(Vector((0.2, 0, 0.9)), (2.4, 0.9, 1.8), (0, 0, 0))
+
+
+def _gabion_row(b):
+    """Five wire-mesh gabions filled with earth and stone: a Bulwark revetment section 5.5 m long."""
+    for i in range(5):
+        x = -2.2 + i * 1.1
+        b.box((1.04, 1.04, 1.36), (x, 0, 0.68), mat=MATTE, tint=srgb(0.40, 0.36, 0.28), vary=0.08)
+        b.box((1.1, 1.1, 1.4), (x, 0, 0.7), mat=CHAINLINK, tint=srgb(0.7, 0.7, 0.66), solid=False, vary=0)
+        b.box((1.0, 1.0, 0.1), (x, 0, 1.42), mat=MATTE, tint=srgb(0.34, 0.38, 0.22), solid=False, vary=0.1)
+    b.collide_box(Vector((0, 0, 0.7)), (5.5, 1.1, 1.4), (0, 0, 0))
+
+
+def _sandbag_run(b):
+    """Three courses of sandbags, 3 m long (instanced, so the bags can be shaped)."""
+    k = 0
+    for row in range(3):
+        off = 0.3 if row % 2 else 0.0
+        for i in range(5):
+            x = -1.5 + 0.3 + i * 0.6 + off
+            if x > 1.4:
+                continue
+            b.box((0.6, 0.38, 0.17), (x, ((k * 7) % 5 - 2) * 0.01, 0.09 + row * 0.16), (0, 0, (k * 13) % 9 - 4),
+                  mat=MATTE, tint=srgb(0.55, 0.50, 0.38), bevel=0.06, solid=False, vary=0.08, wear=0.6)
+            k += 1
+    b.box((3.0, 0.3, 0.06), (0, 0, 0.03), mat=MATTE, tint=srgb(0.4, 0.36, 0.28), solid=False, vary=0)
+    b.collide_box(Vector((0, 0, 0.25)), (3.0, 0.4, 0.5), (0, 0, 0))
+
+
+def _sandbag_nest(b):
+    """A U of sandbags four courses high round a gun position (open toward +Y)."""
+    k = 0
+    for side in range(3):
+        for row in range(4):
+            off = 0.3 if row % 2 else 0.0
+            for i in range(5):
+                t = -1.5 + 0.3 + i * 0.6 + off
+                if t > 1.4:
+                    continue
+                if side == 0:
+                    pos, yaw = (t, -1.5), 0
+                elif side == 1:
+                    pos, yaw = (-1.5, t), 90
+                else:
+                    pos, yaw = (1.5, t), 90
+                b.box((0.6, 0.38, 0.17), (pos[0], pos[1], 0.09 + row * 0.16), (0, 0, yaw + (k * 13) % 9 - 4),
+                      mat=MATTE, tint=srgb(0.55, 0.50, 0.38), bevel=0.06, solid=False, vary=0.08, wear=0.6)
+                k += 1
+    b.box((0.12, 0.6, 0.1), (0, -1.2, 0.75), tint=DARK, solid=False)
+    b.cyl(0.03, 1.0, (0, -1.7, 0.75), (90, 0, 0), tint=BLACK, sides=6, solid=False)
+    b.box((0.08, 0.08, 0.5), (0, -1.1, 0.5), tint=DARK, solid=False)
+    b.collide_box(Vector((0, -1.5, 0.33)), (3.2, 0.4, 0.66), (0, 0, 0))
+    b.collide_box(Vector((-1.5, 0, 0.33)), (0.4, 3.2, 0.66), (0, 0, 0))
+    b.collide_box(Vector((1.5, 0, 0.33)), (0.4, 3.2, 0.66), (0, 0, 0))
+
+
+def _apc(b):
+    """An eight-wheeled Bulwark armoured carrier, angular hull, a small turret (tinted per instance)."""
+    body = (1.0, 1.0, 1.0)
+    prof = [(-3.6, 0.7), (3.0, 0.7), (3.9, 1.4), (3.4, 2.0), (-3.2, 2.15), (-3.7, 1.6)]
+    b.extrude(prof, 2.5, (0, 0, 0), (0, 0, 0), mat=PAINT, tint=body)
+    b.box((7.0, 0.3, 0.5), (0, 1.3, 1.25), mat=PAINT, tint=body, solid=False)
+    b.box((7.0, 0.3, 0.5), (0, -1.3, 1.25), mat=PAINT, tint=body, solid=False)
+    for x in (-2.6, -1.2, 1.0, 2.4):
+        for y in (-1.25, 1.25):
+            b.cyl(0.58, 0.45, (x, y, 0.6), (90, 0, 0), mat=MATTE, tint=srgb(0.1, 0.1, 0.1), sides=14, solid=False)
+            b.cyl(0.3, 0.47, (x, y, 0.6), (90, 0, 0), mat=PAINT, tint=body, sides=10, solid=False, vary=0)
+    b.cyl(0.75, 0.55, (-0.3, 0, 2.42), mat=PAINT, tint=body, sides=12)
+    b.box((1.2, 1.0, 0.4), (0.2, 0, 2.5), mat=PAINT, tint=body)
+    b.cyl(0.07, 2.0, (1.6, 0, 2.55), (0, 90, 0), tint=DARK, sides=8, solid=False)
+    for y in (-0.7, 0.7):
+        b.box((0.3, 0.4, 0.15), (3.45, y, 1.75), (0, 30, 0), mat=GLASS, solid=False, vary=0)
+    b.box((0.8, 0.05, 0.7), (-3.6, 0.0, 1.35), tint=DARK, solid=False)
+    b.box((0.6, 2.52, 0.08), (0.6, 0, 2.0), mat=PAINT, tint=YELLOW, solid=False, vary=0, wear=0.6)
+    b.collide_box(Vector((0, 0, 1.4)), (7.8, 2.6, 2.6), (0, 0, 0))
+
+
+def _weapon_rack(b):
+    """A steel rack of rifles and a shelf of ammunition tins."""
+    b.box((1.8, 0.45, 0.08), (0, 0, 0.3), tint=DARK, solid=False)
+    b.box((1.8, 0.1, 1.6), (0, 0.2, 0.9), tint=srgb(0.36, 0.4, 0.34), solid=False)
+    b.box((1.8, 0.35, 0.05), (0, 0.02, 1.75), tint=DARK, solid=False)
+    for i in range(7):
+        x = -0.75 + i * 0.25
+        b.box((0.05, 0.05, 1.0), (x, 0.0, 0.85), (0, 6, 0), tint=BLACK, solid=False, vary=0)
+        b.box((0.07, 0.14, 0.32), (x + 0.03, -0.02, 0.5), tint=srgb(0.3, 0.26, 0.2), solid=False, vary=0)
+    for i in range(4):
+        b.box((0.3, 0.2, 0.18), (-0.6 + i * 0.4, 0.0, 1.87), tint=OLIVE, solid=False, vary=0.05)
+    b.collide_box(Vector((0, 0.05, 1.0)), (1.8, 0.5, 2.0), (0, 0, 0))
+
+
 kit.PIECES.update({
+    "bunk": _bunk,
+    "gabion-row": _gabion_row,
+    "sandbag-run": _sandbag_run,
+    "sandbag-nest": _sandbag_nest,
+    "apc": _apc,
+    "weapon-rack": _weapon_rack,
     "vendor-stall-blue": _stall(TARP_BLUE),
     "vendor-stall-orange": _stall(TARP_ORANGE),
     "vendor-stall-green": _stall(TARP_GREEN),
