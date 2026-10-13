@@ -24,7 +24,8 @@ namespace HollowUniverse.Ground;
 /// <c>--jitter</c>, <c>--loss</c> (bad-network test), <c>--netgraph</c>, <c>--face &lt;name&gt;</c> (turn toward a
 /// player once seen), <c>--db &lt;path&gt;</c> (the hosted server's database), <c>--spawn origin</c> (hosted: arrive at
 /// the landing site, not on a beach), <c>--time &lt;UTC&gt;</c> or <c>--hour &lt;h&gt;</c> (show another time of day: a
-/// universe time, or the next time it is h o'clock at the landing site), <c>--tour &lt;folder&gt;</c>
+/// universe time, or the next time it is h o'clock at the landing site), <c>--measure &lt;s&gt; [--expect &lt;n&gt;]</c>
+/// (frame and tick times with n other players in view, <see cref="GroundMeasure"/>), <c>--tour &lt;folder&gt;</c>
 /// (the scripted screenshot run, <see cref="GroundTour"/>).
 /// </summary>
 public partial class GroundMode : Node
@@ -49,6 +50,8 @@ public partial class GroundMode : Node
 
     public override void _Ready()
     {
+        // A game: no blocking full collections in the middle of play where they can be avoided.
+        System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
         // The game's data, the same files the server reads (GROUND.md section 7).
         _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
         if (ItemIcons.Provider is not ItemIconAliases)
@@ -186,6 +189,13 @@ public partial class GroundMode : Node
         AddChild(_view);
         _view.Interface.HostRequested += player => Begin(player, null, Protocol.DefaultPort);
         _view.Interface.ConnectRequested += (player, address, p) => Begin(player, address, p);
+        if (Options.ContainsKey("measure"))
+        {
+            AddChild(new GroundMeasure
+            {
+                Name = "Measure", View = _view, Server = _server, Seconds = Number("measure", 20), Expect = (int)Number("expect", 0),
+            });
+        }
         if (Options.TryGetValue("tour", out string? folder) && folder != "true")
         {
             _tour = new GroundTour

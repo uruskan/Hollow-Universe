@@ -112,6 +112,18 @@ public sealed class ScatterNaturalObjects : INaturalObjects
 
     public bool TryGet(ulong id, out NaturalObject found) => TryGetNear(id, Vector3.Zero, float.PositiveInfinity, out found);
 
+    /// <summary>The object with an ID if its scatter tile is generated already (never generates one: for a frame's work).</summary>
+    public bool TryGetCached(ulong id, out NaturalObject found)
+    {
+        found = default;
+        if (Decode(id) is not var (tile, _) || !_tiles.TryGetValue(tile.Packed, out TileObjects? objects) || !objects.ById.TryGetValue(id, out int at))
+        {
+            return false;
+        }
+        found = objects.Objects[at];
+        return true;
+    }
+
     public bool TryGetNear(ulong id, Vector3 point, float radius, out NaturalObject found)
     {
         found = default;

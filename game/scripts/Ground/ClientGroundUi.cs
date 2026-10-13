@@ -103,9 +103,17 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         get
         {
             VitalsView v = Me.Vitals;
-            return new UiVitals(v.Health, v.Calories, v.Hydration, v.Temperature, v.Comfort ? 1 : 0, v.IsBleeding ? 1 : 0, v.Wet ? 1 : 0);
+            if (v != _vitalsFrom)
+            {
+                _vitalsFrom = v;
+                _vitals = new UiVitals(v.Health, v.Calories, v.Hydration, v.Temperature, v.Comfort ? 1 : 0, v.IsBleeding ? 1 : 0, v.Wet ? 1 : 0);
+            }
+            return _vitals;
         }
     }
+
+    private VitalsView _vitalsFrom;
+    private UiVitals _vitals = new(100, 500, 250);
 
     public IReadOnlyList<UiStack> Slots(ContainerId container) => container switch
     {

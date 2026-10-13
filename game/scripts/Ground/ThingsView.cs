@@ -18,8 +18,8 @@ public partial class ThingsView : Node3D
 {
     private readonly Dictionary<uint, (Node3D Node, uint Revision)> _things = new();
     private readonly List<MeshInstance3D> _arrows = new();
-    private StandardMaterial3D? _flame;
-    private StandardMaterial3D? _shaft;
+    private static StandardMaterial3D? _flame;
+    private static StandardMaterial3D? _shaft;
 
     public GameClient Client { get; set; } = null!;
 
@@ -42,6 +42,7 @@ public partial class ThingsView : Node3D
                 existing.Node.QueueFree();
             }
             Node3D node = Build(thing);
+            FrameEvents.Note("thing " + thing.Kind);
             AddChild(node);
             _things[thing.NetId] = (node, thing.Revision);
         }
@@ -87,7 +88,7 @@ public partial class ThingsView : Node3D
     }
 
     // A flame that flickers and a warm light that throws shadows.
-    private void AddFire(Node3D parent, Vector3 at, float size)
+    public static void AddFire(Node3D parent, Vector3 at, float size)
     {
         if (_flame == null)
         {
@@ -123,8 +124,12 @@ public partial class ThingsView : Node3D
             LightColor = new Color(1f, 0.58f, 0.25f),
             LightEnergy = Glow.FireLight * size,
             OmniRange = 14 * size,
-            ShadowEnabled = true,
             Position = new Vector3(0, 0.45f * size, 0),
+            DistanceFadeEnabled = true,
+            DistanceFadeBegin = 60,
+            DistanceFadeLength = 20,
+            DistanceFadeShadow = 25,
+            ShadowEnabled = true,
         });
         parent.AddChild(fire);
     }

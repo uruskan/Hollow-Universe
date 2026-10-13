@@ -45,6 +45,7 @@ public partial class GroundCollision : Node3D
                 var body = new StaticBody3D { Name = $"Ground {key}", CollisionLayer = 1, CollisionMask = 0 };
                 body.AddChild(new CollisionShape3D { Shape = shape });
                 AddChild(body);
+                FrameEvents.Note("collision tile");
                 _tiles[key] = body;
             }
         }

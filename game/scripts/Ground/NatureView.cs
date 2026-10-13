@@ -37,7 +37,31 @@ public partial class NatureView : Node3D
     private readonly HashSet<ulong> _falling = new();
     private (int X, int Z) _centre = (int.MinValue, 0);
     private uint _revision = uint.MaxValue;
-    private StandardMaterial3D? _spotMaterial;
+    private static StandardMaterial3D? _spotMaterial;
+
+    /// <summary>A weak spot's glowing mark (also shown once while the world opens, so its shader is ready).</summary>
+    public static MeshInstance3D Spot()
+    {
+        if (_spotMaterial == null)
+        {
+            _spotMaterial = new StandardMaterial3D
+            {
+                AlbedoColor = Colors.Black,
+                EmissionEnabled = true,
+                Emission = new Color(1f, 0.45f, 0.1f),
+                DisableReceiveShadows = true,
+                Roughness = 1,
+                MetallicSpecular = 0,
+            };
+            Glow.Track(_spotMaterial, 2.5f);
+        }
+        return new MeshInstance3D
+        {
+            Mesh = new SphereMesh { Radius = 0.07f, Height = 0.14f, RadialSegments = 12, Rings = 6 },
+            MaterialOverride = _spotMaterial,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+        };
+    }
     private bool _hooked;
 
     public GameClient Client { get; set; } = null!;
@@ -52,11 +76,29 @@ public partial class NatureView : Node3D
         {
             return;
         }
+        long t = System.Diagnostics.Stopwatch.GetTimestamp();
         Hook();
         HashSet<(int, int)> changed = TakeChanges(feet);
+        Lap("changes", ref t);
+        RedrawPlants();
+        Lap("redraw", ref t);
         UpdateOutcrops(feet, changed);
+        Lap("outcrops", ref t);
         UpdateSpots(feet);
+        Lap("spots", ref t);
         UpdateFalls(delta);
+        Lap("falls", ref t);
+    }
+
+    private static void Lap(string what, ref long since)
+    {
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        double ms = (now - since) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        if (ms > 4)
+        {
+            FrameEvents.Note($"{what} {ms:0} ms");
+        }
+        since = now;
     }
 
     // ---------------------------------------------------------------- the plants of the surface view
@@ -102,34 +144,94 @@ public partial class NatureView : Node3D
             return tiles;
         }
         _revision = state.Revision;
-        var scatterTiles = new HashSet<ulong>();
         foreach (ulong id in state.Changed)
         {
-            if (!Client.Nature!.TryGet(id, out NaturalObject o))
+            // The ID names the scatter tile and kind: no generating a far tile on this thread just to look at it.
+            if (ScatterNaturalObjects.Decode(id) is not var (tile, index))
             {
                 continue;
             }
-            tiles.Add(PhysicsWorld.TileOf(o.Position));
-            if (ScatterNaturalObjects.Decode(id) is not var (tile, _))
+            Num.Vector3 centre = Client.Frame.ToLocal(tile.Centre * Client.Surface!.Radius);
+            float distance = Num.Vector2.Distance(new Num.Vector2(centre.X, centre.Z), new Num.Vector2(feet.X, feet.Z));
+            bool tree = (ScatterKind)(index >> 24) is ScatterKind.Fir or ScatterKind.Pine or ScatterKind.Birch or ScatterKind.Broadleaf;
+            bool falls = false;
+            if (distance < FallDistance + 60 && Cached(id, out NaturalObject o))
             {
-                continue;
+                tiles.Add(PhysicsWorld.TileOf(o.Position));
+                distance = Num.Vector3.Distance(o.Position, feet);
+                falls = tree && state.IsDepleted(id) && distance < FallDistance && !_falling.Contains(id);
+                if (falls)
+                {
+                    StartFall(o, tile, feet);
+                }
             }
-            scatterTiles.Add(tile.Packed);
-            if (state.IsDepleted(id) && Client.Content.Natural(o.Kind) is { Class: NaturalClass.Tree } &&
-                Num.Vector3.Distance(o.Position, feet) < FallDistance && !_falling.Contains(id))
+            // The plants near the camera (within 300 m) are drawn again at once for what is within reach or starts
+            // to fall, otherwise every five seconds for everything that changed meanwhile (others gathering).
+            if (distance < NearPlants)
             {
-                StartFall(o, tile, feet);
+                Schedule(_nearRedraw, tile.Packed, falls || distance < 25 ? 0 : 5);
+            }
+            // A tree's impostor shows beyond 58 m: its block is drawn again every ten seconds.
+            if (tree && distance > 45)
+            {
+                Schedule(_blockRedraw, tile.Packed, 10);
             }
         }
         state.Changed.Clear();
-        if (World.Plants is { } plants)
-        {
-            foreach (ulong packed in scatterTiles)
-            {
-                plants.Refresh(TileKey.FromPacked(packed)!.Value);
-            }
-        }
         return tiles;
+    }
+
+    // An object whose scatter tile is generated already (those around the player are, for the prediction's physics):
+    // a frame never waits for a tile to be generated.
+    private bool Cached(ulong id, out NaturalObject o)
+    {
+        if (Client.Nature is ScatterNaturalObjects scatter)
+        {
+            return scatter.TryGetCached(id, out o);
+        }
+        return Client.Nature!.TryGet(id, out o);
+    }
+
+    /// <summary>The surface view draws plant meshes out to about this far; beyond, only tree impostors.</summary>
+    private const float NearPlants = 320;
+
+    private readonly Dictionary<ulong, double> _nearRedraw = new();
+    private readonly Dictionary<ulong, double> _blockRedraw = new();
+
+    private static void Schedule(Dictionary<ulong, double> pending, ulong tile, double after)
+    {
+        double due = Time.GetTicksMsec() / 1000.0 + after;
+        pending[tile] = pending.TryGetValue(tile, out double was) ? Math.Min(was, due) : due;
+    }
+
+    // Redrawing the plants rebuilds every mesh near the camera (about 10 ms), so every tile waiting is redrawn in one
+    // go once the first is due; impostor blocks likewise.
+    private void RedrawPlants()
+    {
+        if (World.Plants is not { } plants)
+        {
+            return;
+        }
+        plants.ApplyRefreshes();
+        double now = Time.GetTicksMsec() / 1000.0;
+        if (_nearRedraw.Count > 0 && _nearRedraw.Values.Min() <= now)
+        {
+            foreach (ulong packed in _nearRedraw.Keys)
+            {
+                plants.Refresh(TileKey.FromPacked(packed)!.Value, near: true, trees: false);
+            }
+            _nearRedraw.Clear();
+            FrameEvents.Note("plants redrawn");
+        }
+        if (_blockRedraw.Count > 0 && _blockRedraw.Values.Min() <= now)
+        {
+            foreach (ulong packed in _blockRedraw.Keys)
+            {
+                plants.Refresh(TileKey.FromPacked(packed)!.Value, near: false, trees: true);
+            }
+            _blockRedraw.Clear();
+            FrameEvents.Note("impostors redrawn");
+        }
     }
 
     // ---------------------------------------------------------------- outcrops
@@ -213,6 +315,7 @@ public partial class NatureView : Node3D
             node.QueueFree();
         }
         _outcrops[(tx, tz)] = list;
+        FrameEvents.Note("outcrops");
     }
 
     /// <summary>A basis with +Y along <paramref name="up"/>, turned by <paramref name="yaw"/>.</summary>
@@ -238,25 +341,7 @@ public partial class NatureView : Node3D
             }
             if (used >= _spots.Count)
             {
-                if (_spotMaterial == null)
-                {
-                    _spotMaterial = new StandardMaterial3D
-                    {
-                        AlbedoColor = Colors.Black,
-                        EmissionEnabled = true,
-                        Emission = new Color(1f, 0.45f, 0.1f),
-                        DisableReceiveShadows = true,
-                        Roughness = 1,
-                        MetallicSpecular = 0,
-                    };
-                    Glow.Track(_spotMaterial, 2.5f);
-                }
-                var spot = new MeshInstance3D
-                {
-                    Mesh = new SphereMesh { Radius = 0.07f, Height = 0.14f, RadialSegments = 12, Rings = 6 },
-                    MaterialOverride = _spotMaterial,
-                    CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                };
+                MeshInstance3D spot = Spot();
                 AddChild(spot);
                 _spots.Add(spot);
             }
@@ -386,6 +471,7 @@ public partial class NatureView : Node3D
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On,
         };
         AddChild(fall.Instance);
+        FrameEvents.Note("tree falls");
         return true;
     }
 

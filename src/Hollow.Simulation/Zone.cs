@@ -156,6 +156,16 @@ public sealed partial class Zone : IDisposable
     {
         Tick++;
         ComponentPool<Character> characters = Entities.Pool<Character>();
+        // The ground under everyone first, outside Jolt's lock: a tile that has to be built or waited for then
+        // doesn't hold up a client predicting in the same process (Host mode).
+        foreach (ref Character character in characters.Values)
+        {
+            if (!character.State.IsDead)
+            {
+                Physics.EnsureGround(character.State.Position);
+                Physics.Prefetch(character.State.Position);
+            }
+        }
         lock (JoltRuntime.Gate)
         {
             Span<Character> values = characters.Values;
@@ -182,8 +192,6 @@ public sealed partial class Zone : IDisposable
                     character.Events = default;
                     continue;
                 }
-                Physics.EnsureGround(character.State.Position);
-                Physics.Prefetch(character.State.Position);
                 character.Events = CharacterMotor.Step(ref character.State, character.Input, character.Body, Movement);
             }
         }

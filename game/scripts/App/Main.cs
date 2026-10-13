@@ -261,7 +261,7 @@ public partial class Main : Node
         }
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         Image image = GetViewport().GetTexture().GetImage();
-        Error error = image.SavePng(path);
+        Error error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? image.SaveJpg(path, 0.9f) : image.SavePng(path);
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
         GetTree().Quit(error == Error.Ok ? 0 : 1);
     }

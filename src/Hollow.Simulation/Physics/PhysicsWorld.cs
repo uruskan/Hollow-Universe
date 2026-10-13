@@ -31,6 +31,9 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary>Half the width of the zone that can have ground, in metres.</summary>
     public const float Extent = TileRange * TileSize;
 
+    /// <summary>A ground tile keeps the surface's triangles this far beyond its square (neighbours overlap by this much).</summary>
+    public const float ClipMargin = 2f;
+
     internal static readonly ObjectLayer StaticLayer = new(0);
     internal static readonly ObjectLayer MovingLayer = new(1);
 
@@ -249,12 +252,37 @@ public sealed class PhysicsWorld : IDisposable
             {
                 vertices[i] = new Vector3(mesh.Positions[3 * i], mesh.Positions[3 * i + 1], mesh.Positions[3 * i + 2]);
             }
+            // Only the triangles over the tile's square and a margin: a surface's grids cover more than the square
+            // (the planet's level-18 tiles overlap it by up to a tile), and neighbours would otherwise hold the same
+            // triangles twice, which every character's contact query pays for.
+            // The square is the tangent plane's, so each vertex is seen from the body's centre on that plane (on a
+            // small body the ground falls away from the plane and its triangles crowd towards the origin).
+            float x0 = x * TileSize - ClipMargin, x1 = (x + 1) * TileSize + ClipMargin;
+            float z0 = z * TileSize - ClipMargin, z1 = (z + 1) * TileSize + ClipMargin;
+            double r0 = Frame.Origin.Length;
+            Vector2 Plane(Vector3 v) => r0 + v.Y > r0 * 0.01 ? new Vector2(v.X, v.Z) * (float)(r0 / (r0 + v.Y)) : new Vector2(v.X, v.Z);
+            int kept = 0;
             for (int t = 0; t < mesh.TriangleCount; t++)
             {
                 int a = mesh.Indices[3 * t], b = mesh.Indices[3 * t + 1], c = mesh.Indices[3 * t + 2];
-                triangles[t] = new IndexedTriangle(a, b, c, 0, 0);
+                Vector2 pa = Plane(vertices[a]), pb = Plane(vertices[b]), pc = Plane(vertices[c]);
+                if (MathF.Max(pa.X, MathF.Max(pb.X, pc.X)) < x0 || MathF.Min(pa.X, MathF.Min(pb.X, pc.X)) > x1 ||
+                    MathF.Max(pa.Y, MathF.Max(pb.Y, pc.Y)) < z0 || MathF.Min(pa.Y, MathF.Min(pb.Y, pc.Y)) > z1)
+                {
+                    continue;
+                }
+                triangles[kept++] = new IndexedTriangle(a, b, c, 0, 0);
             }
-            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount));
+            if (kept == 0)
+            {
+                // Nothing over the square (it can't happen with a surface that covers it): keep everything.
+                for (int t = 0; t < mesh.TriangleCount; t++)
+                {
+                    triangles[t] = new IndexedTriangle(mesh.Indices[3 * t], mesh.Indices[3 * t + 1], mesh.Indices[3 * t + 2], 0, 0);
+                }
+                kept = mesh.TriangleCount;
+            }
+            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, kept));
             shape = settings.Create();
         }
         finally

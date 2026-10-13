@@ -181,6 +181,9 @@ public static class PlanetGroundTests
         using var rig = new LoopbackRig(planet: true);
         GameClient ada = rig.Join("Ada");
         rig.WaitUntilPlaying();
+        // Arrival settles onto the sloping sand (a few centimetres, corrected once at most); then the steady state.
+        rig.Run(1, (_, _) => default);
+        ada.Stats.ResetTotals();
         Vector3 arrived = ada.Character.Position;
         Assert.True(rig.Server.Beaches!.Points.Any(p => Vector3.Distance(p, arrived) < 1), $"arrived on a beach ({arrived})");
         // Walk inland (towards the landing site) for three seconds.

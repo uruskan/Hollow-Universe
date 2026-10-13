@@ -44,6 +44,7 @@ public partial class PeopleView : Node3D
     private readonly Dictionary<uint, Corpse> _corpses = new();
     private readonly HashSet<uint> _seen = new();
     private ushort[] _myWear = Array.Empty<ushort>();
+    private uint _wearRevision = uint.MaxValue;
 
     public GameClient Client { get; set; } = null!;
 
@@ -66,13 +67,16 @@ public partial class PeopleView : Node3D
         {
             p.Wear = entity.Wear;
             p.View.Wear(ItemLooks.Outfit(Client.Content, entity.Wear));
+            FrameEvents.Note("clothes");
         }
     }
 
     public void Refresh(double delta)
     {
-        if (!Client.Local.IsDead)
+        uint wearRevision = Client.Local.Inventory.Wear.Revision;
+        if (!Client.Local.IsDead && wearRevision != _wearRevision)
         {
+            _wearRevision = wearRevision;
             _myWear = Client.Local.Inventory.Wear.Slots.ToArray().Select(s => s.Item).Where(i => i != 0).ToArray();
         }
         _seen.Clear();
@@ -83,6 +87,7 @@ public partial class PeopleView : Node3D
             if (!_people.TryGetValue(entity.NetId, out Person? p))
             {
                 p = new Person { View = new CharacterView { Name = "Player " + entity.Name }, Last = entity.Position, Name = entity.Name };
+                FrameEvents.Note("character");
                 AddChild(p.View);
                 p.Wear = entity.Wear;
                 p.View.Wear(ItemLooks.Outfit(Client.Content, entity.Wear));
@@ -137,6 +142,7 @@ public partial class PeopleView : Node3D
                 // Dead: pushed back from where they faced; asleep: they just lie down.
                 Vector3 push = dead ? -CharacterFrame.Facing(GroundView.ToGodot(up), e.Yaw) * 1.5f : Vector3.Zero;
                 p.View.Trigger(CharacterEvent.Death, push);
+                FrameEvents.Note("ragdoll");
             }
             else
             {
@@ -200,6 +206,7 @@ public partial class PeopleView : Node3D
             {
                 corpse.Fallen = true;
                 corpse.View.Trigger(CharacterEvent.Death, Vector3.Zero);
+                FrameEvents.Note("corpse");
             }
         }
         foreach (uint gone in _corpses.Keys.Where(k => !things.Contains(k)).ToList())

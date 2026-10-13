@@ -188,6 +188,43 @@ public partial class GroundView : Node3D
         _camera.Near = 0.05f;
         _camera.Current = true;
         _firstPerson.Attach(_camera);
+        Warmup(_camera);
+    }
+
+    // Everything the game may show later, shown once, tiny, while the world opens: each new material makes the
+    // renderer build its pipelines the first time it is drawn (a stall of 100 ms or more in the middle of play).
+    private void Warmup(Camera3D camera)
+    {
+        var warm = new Node3D { Name = "Warmup", Position = new Vector3(0, 0, -2), Scale = Vector3.One * 0.004f };
+        camera.AddChild(warm);
+        warm.AddChild(NatureView.Spot());
+        ThingsView.AddFire(warm, Vector3.Zero, 1);
+        float x = 0;
+        foreach (DeployableDef def in Client.Content.Deployables)
+        {
+            if (GroundModels.Provider.Deployable(def.Key, new Vector3(def.HalfExtents.X, def.HalfExtents.Y, def.HalfExtents.Z)) is { } model)
+            {
+                model.Position = new Vector3(x += 2, 0, 0);
+                warm.AddChild(model);
+            }
+        }
+        foreach (string key in new[] { "stone-node", "metal-node", "sulphur-node" })
+        {
+            if (GroundModels.Provider.Outcrop(key, 1, 0) is { } rock)
+            {
+                rock.Position = new Vector3(x += 3, 0, 0);
+                warm.AddChild(rock);
+            }
+        }
+        if (GroundModels.Provider.Dropped("wood") is { } dropped)
+        {
+            warm.AddChild(dropped);
+        }
+        var body = new HollowUniverse.Characters.CharacterView { Name = "Body", Position = new Vector3(x + 3, 0, 0) };
+        warm.AddChild(body);
+        body.Wear(HollowUniverse.Characters.Wardrobe.All);
+        body.Apply(HollowUniverse.Characters.CharacterFrame.Standing(Vector3.Zero, Vector3.Up));
+        GetTree().CreateTimer(1.5).Timeout += warm.QueueFree;
     }
 
     // ---------------------------------------------------------------- frame
@@ -207,7 +244,10 @@ public partial class GroundView : Node3D
         }
         UpdateMouse(playing);
         InputFrame input = ReadInput();
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         Client.Update(delta, input);
+        Time("client", ref t0);
         _jumpPressed = false;
         _primaryPressed = false;
         string? status = Client.State switch
@@ -248,11 +288,15 @@ public partial class GroundView : Node3D
         if (Client.Physics != null)
         {
             _collision.Follow(Client.Physics, feet);
+            Time("collision", ref t0);
             _flat?.Follow(Client.Physics, feet);
         }
         _nature.Refresh(feet, delta);
+        Time("nature", ref t0);
         _things.Refresh(Client.ClockSeconds);
+        Time("things", ref t0);
         _people.Refresh(delta);
+        Time("people", ref t0);
 
         // What the interact key would act on, and where a held deployable would go.
         LocalPlayer me = Client.Local;
@@ -261,12 +305,44 @@ public partial class GroundView : Node3D
         _placeAt = alive && me.HeldItem?.Deploys != null ? Client.AimGround(eye, forward, Client.Content.PlacementReach) : null;
         _firstPerson.PlacementPoint = _placeAt;
         _firstPerson.PlacementYaw = _yaw;
+        Time("aim", ref t0);
         _firstPerson.Refresh(delta, input, _yaw, _pitch);
+        Time("first person", ref t0);
         UpdateInteract(delta);
         _model.Prompt = _aimed is { } aimed
             ? new InteractionPrompt("E", $"{aimed.Verb} {aimed.Name}".ToUpperInvariant(), MoreOptions: IsDevice(aimed))
             : null;
         _overlay.Refresh(_camera, _people.Names(ToGodot(eye)), status);
+        Time("overlay", ref t0);
+    }
+
+    /// <summary>Milliseconds spent in each part of the frame since the last reset (for --measure).</summary>
+    public System.Collections.Generic.Dictionary<string, double> Timings { get; } = new();
+
+    /// <summary>The slowest time of each part since the last reset (for --measure).</summary>
+    public System.Collections.Generic.Dictionary<string, double> Slowest { get; } = new();
+
+    /// <summary>Bytes allocated on the main thread by each part since the last reset (for --measure).</summary>
+    public System.Collections.Generic.Dictionary<string, long> Allocations { get; } = new();
+
+    private long _allocatedBefore;
+
+    private void Time(string part, ref long since)
+    {
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        double ms = (now - since) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        Timings[part] = System.Collections.Generic.CollectionExtensions.GetValueOrDefault(Timings, part) + ms;
+        if (ms > System.Collections.Generic.CollectionExtensions.GetValueOrDefault(Slowest, part))
+        {
+            Slowest[part] = ms;
+        }
+        since = now;
+        long allocated = GC.GetAllocatedBytesForCurrentThread();
+        if (part != "client" || _allocatedBefore != 0)
+        {
+            Allocations[part] = System.Collections.Generic.CollectionExtensions.GetValueOrDefault(Allocations, part) + allocated - _allocatedBefore;
+        }
+        _allocatedBefore = allocated;
     }
 
     private bool IsDevice(in Interaction target) =>
