@@ -964,7 +964,7 @@ public sealed partial class GameContent
         private void ReadSurvival()
         {
             JsonElement root = Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature",
-                "climateStandIn", "combat", "world", "rateLimits");
+                "climateStandIn", "combat", "world", "bag", "rateLimits");
             string w = "survival.json";
             JsonElement Section(string name, params string[] fields)
             {
@@ -989,6 +989,7 @@ public sealed partial class GameContent
             JsonElement c = Section("climateStandIn", "meanCelsius", "daySwing", "lapsePerKilometre", "dayLengthSeconds");
             JsonElement k = Section("combat", "head", "body", "limb", "maxRewindSeconds", "equipSeconds");
             JsonElement o = Section("world", "corpseSeconds", "droppedItemSeconds", "interactReach", "lootReach", "beachCooldownSeconds", "respawnKit");
+            JsonElement bag = Section("bag", "name", "slots", "mergeRadius");
             JsonElement r = Section("rateLimits", "intentBurst", "intentsPerSecond", "gunBurst", "gunActionsPerSecond");
             JsonElement burning = Section("burning", "damagePerSecond");
             JsonElement wounded = Section("wounded", "maxDamage", "health", "seconds", "recoverChance", "fedBonus", "helpReach");
@@ -1051,6 +1052,9 @@ public sealed partial class GameContent
                 EquipSeconds = f.Number(k, "equipSeconds", w + ": combat", 0.3f),
                 CorpseSeconds = f.Number(o, "corpseSeconds", w + ": world"),
                 DroppedItemSeconds = f.Number(o, "droppedItemSeconds", w + ": world"),
+                BagName = f.Text(bag, "name", w + ": bag"),
+                BagSlots = Math.Clamp(f.Integer(bag, "slots", w + ": bag"), 1, 255),
+                BagMergeRadius = f.Number(bag, "mergeRadius", w + ": bag"),
                 InteractReach = f.Number(o, "interactReach", w + ": world"),
                 LootReach = f.Number(o, "lootReach", w + ": world"),
                 BeachCooldownSeconds = f.Number(o, "beachCooldownSeconds", w + ": world", 0),

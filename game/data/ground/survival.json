@@ -44,6 +44,10 @@
     "beachCooldownSeconds": 0,
     "respawnKit": "respawn-kit"
   },
+  "bag": {
+    "note": "Ours (GROUND.md §6.1, decisions U1-U4): everything that lands on the ground lies in a small bag, and what lands within mergeRadius metres of a bag with room goes into it (Rust drops one pouch for a broken box's contents). 48 slots: a large box's, so whatever one container spills fits one bag, and a player's whole inventory (37 slots) too. A bag lasts world.droppedItemSeconds from the newest item put in.",
+    "name": "Loot bag", "slots": 48, "mergeRadius": 1.5
+  },
   "rateLimits": {
     "note": "RustMVP command_budget.hpp: 16 at once, 20 a second; every arrival costs one. Shots and reloads have their own budget, RustMVP's weapon one (BareWeaponComponent: 20 at once, 30 a second).",
     "intentBurst": 16, "intentsPerSecond": 20,

@@ -8,8 +8,8 @@ using HollowUniverse.Surface.Flora;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// Where the ground game's world models come from (GROUND.md §9): deployables, dropped items, outcrops and the dead's
-/// backpacks, by their data keys. <see cref="CatalogModels"/> takes them from the assets package's model catalogue
+/// Where the ground game's world models come from (GROUND.md §9): deployables, bags of dropped items, outcrops and the
+/// dead's backpacks, by their data keys. <see cref="CatalogModels"/> takes them from the assets package's model catalogue
 /// (<c>data/ground/models.json</c>); <see cref="PlaceholderModels"/> builds plain shapes in code (tests, and anything
 /// the catalogue lacks).
 /// </summary>
@@ -22,8 +22,8 @@ public interface IGroundModels
     /// </summary>
     Node3D? Deployable(string key, Vector3 halfExtents);
 
-    /// <summary>A dropped stack of an item lying on the ground; null to draw nothing.</summary>
-    Node3D? Dropped(string key);
+    /// <summary>A bag of dropped items lying on the ground (whatever it holds, GROUND.md §6.1), its base at the origin; null to draw nothing.</summary>
+    Node3D? Bag();
 
     /// <summary>
     /// An outcrop (gather.json key) at a depletion stage (0 whole … 2 nearly gone), for an object of size 1: a rock about
@@ -43,9 +43,9 @@ public static class GroundModels
 
 /// <summary>
 /// The assets package's models (GROUND.md §9.1) through <see cref="ModelCatalog"/>: deployables as placed (their
-/// sockets kept), dropped stacks as the item's own model at its drop scale lying on the ground (the dropped-item bag
-/// for an item without one), the stone, metal and sulphur outcrops at their three depletion stages, and the dead
-/// body's backpack (<c>loot-sack</c>). Anything the catalogue doesn't have falls back to <see cref="Fallback"/>.
+/// sockets kept), the bag dropped items lie in (<c>dropped-bag</c>), the stone, metal and sulphur outcrops at their
+/// three depletion stages, and the dead body's backpack (<c>loot-sack</c>). Anything the catalogue doesn't have falls
+/// back to <see cref="Fallback"/>.
 /// </summary>
 public sealed class CatalogModels(IGroundModels fallback) : IGroundModels
 {
@@ -54,30 +54,7 @@ public sealed class CatalogModels(IGroundModels fallback) : IGroundModels
     public Node3D? Deployable(string key, Vector3 halfExtents) =>
         ModelCatalog.Instantiate(key) ?? Fallback.Deployable(key, halfExtents);
 
-    public Node3D? Dropped(string key)
-    {
-        ModelEntry? entry = ModelCatalog.Find(key);
-        Node3D? model = entry != null ? ModelCatalog.Instantiate(key) : null;
-        float scale = entry is { DropScale: > 0 } ? entry.DropScale : 1;
-        if (model == null)
-        {
-            model = ModelCatalog.Instantiate("dropped-bag");
-            scale = 1;
-            if (model == null)
-            {
-                return Fallback.Dropped(key);
-            }
-        }
-        // Items are modelled in the hand's frame (pivot at the grip): lay the model's lowest point on the ground and its
-        // middle over the origin.
-        Aabb box = ModelCatalog.LocalBounds(model, 0);
-        Vector3 centre = box.GetCenter();
-        model.Scale = Vector3.One * scale;
-        model.Position = new Vector3(-centre.X, -box.Position.Y, -centre.Z) * scale;
-        var root = new Node3D { Name = "Dropped " + key };
-        root.AddChild(model);
-        return root;
-    }
+    public Node3D? Bag() => ModelCatalog.Instantiate("dropped-bag") ?? Fallback.Bag();
 
     public Node3D? Outcrop(string key, int stage, int variant)
     {
@@ -173,11 +150,11 @@ public sealed class PlaceholderModels : IGroundModels
         return root;
     }
 
-    public Node3D? Dropped(string key)
+    public Node3D? Bag()
     {
-        var root = new Node3D { Name = "Dropped " + key };
-        Add(root, Sphere(), new Vector3(0, 0.1f, 0), new Vector3(0.24f, 0.13f, 0.2f), 0, new Color(0.55f, 0.47f, 0.33f));
-        Add(root, Cylinder(0.035f, 0.08f), new Vector3(0, 0.24f, 0), Vector3.One, 0, new Color(0.42f, 0.35f, 0.24f));
+        var root = new Node3D { Name = "Bag" };
+        Add(root, Sphere(), new Vector3(0, 0.11f, 0), new Vector3(0.2f, 0.11f, 0.16f), 0, new Color(0.55f, 0.47f, 0.33f));
+        Add(root, Box(new Vector3(0.05f, 0.23f, 0.33f)), new Vector3(0, 0.1f, 0), Vector3.One, 0, new Color(0.30f, 0.22f, 0.15f));
         return root;
     }
 
