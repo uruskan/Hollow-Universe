@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using Hollow.Core;
 
 namespace Hollow.Surface;
@@ -245,21 +246,22 @@ public static class TileMesh
     /// full collections (GROUND.md §5.9). Dispose the result to give them back.
     /// </summary>
     public static PooledTriangles CollisionPooled(ISurface surface, in ZoneFrame frame, double centreX, double centreZ, double size,
-        int level, int cells)
+        int level, int cells, GridHeights? heights = null)
     {
         List<TileKey> tiles = TilesCovering(surface, frame, centreX, centreZ, size, level);
         int n = cells + 1;
         int vertices = tiles.Count * n * n, indexCount = tiles.Count * cells * cells * 6;
         float[] positions = ArrayPool<float>.Shared.Rent(vertices * 3);
         int[] indices = ArrayPool<int>.Shared.Rent(indexCount);
-        WriteCollision(surface, frame, tiles, cells, positions, indices);
+        WriteCollision(surface, frame, tiles, cells, positions, indices, heights);
         return new PooledTriangles(positions, indices, vertices, indexCount / 3, rented: true);
     }
 
     private static readonly ConcurrentDictionary<int, int[]> IndexCache = new();
 
     // Every grid's vertices in the zone's frame (as Positions computes them) and its triangles, one grid after another.
-    private static void WriteCollision(ISurface surface, in ZoneFrame frame, List<TileKey> tiles, int cells, float[] positions, int[] indices)
+    private static void WriteCollision(ISurface surface, in ZoneFrame frame, List<TileKey> tiles, int cells, float[] positions, int[] indices,
+        GridHeights? heights = null)
     {
         int n = cells + 1;
         int[] gridIndices = IndexCache.GetOrAdd(cells, Indices);
@@ -267,12 +269,13 @@ public static class TileMesh
         {
             TileKey key = tiles[t];
             int baseVertex = t * n * n;
+            double[]? known = heights?.Get(surface, key, cells);
             for (int j = 0; j < n; j++)
             {
                 for (int i = 0; i < n; i++)
                 {
                     Vector3D d = Direction(key, cells, i, j);
-                    var local = frame.ToLocal(d * (surface.Radius + surface.HeightAt(d)));
+                    var local = frame.ToLocal(d * (surface.Radius + (known != null ? known[j * n + i] : surface.HeightAt(d))));
                     int k = (baseVertex + j * n + i) * 3;
                     positions[k] = local.X;
                     positions[k + 1] = local.Y;
@@ -325,4 +328,70 @@ public static class TileMesh
     }
 
     private static byte ToByte(double x) => (byte)Math.Clamp((int)Math.Floor(x * 255 + 0.5), 0, 255);
+}
+
+/// <summary>
+/// The heights of grids' vertices, kept for the grids around them (GROUND.md Â§5.9): a 64 m physics tile samples
+/// about nine level-18 grids and its neighbours share most of them, so each grid's 1,089 heights are worked out once
+/// instead of three or four times. Heights are a pure function of the surface, so a kept one is the same to the bit.
+/// Thread-safe; the least recently used quarter goes when it holds more than its limit.
+/// </summary>
+public sealed class GridHeights
+{
+    private readonly ConcurrentDictionary<(ulong Key, int Cells), Grid> _grids = new();
+    private readonly int _limit;
+    private long _clock;
+    private int _trimming;
+
+    public GridHeights(int limit) => _limit = limit;
+
+    /// <summary>Grids kept now.</summary>
+    public int Count => _grids.Count;
+
+    private sealed class Grid(double[] heights)
+    {
+        public readonly double[] Heights = heights;
+        public long LastUsed;
+    }
+
+    /// <summary>The heights above the surface's radius of a grid's (cells + 1)Â² vertices, row-major.</summary>
+    public double[] Get(ISurface surface, TileKey key, int cells)
+    {
+        long now = Interlocked.Increment(ref _clock);
+        if (!_grids.TryGetValue((key.Packed, cells), out Grid? grid))
+        {
+            int n = cells + 1;
+            var heights = new double[n * n];
+            for (int j = 0; j < n; j++)
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    heights[j * n + i] = surface.HeightAt(TileMesh.Direction(key, cells, i, j));
+                }
+            }
+            // Two threads may make the same grid at once: the same numbers, so either is kept.
+            grid = _grids.GetOrAdd((key.Packed, cells), new Grid(heights));
+            if (_grids.Count > _limit && Interlocked.Exchange(ref _trimming, 1) == 0)
+            {
+                Trim();
+                Volatile.Write(ref _trimming, 0);
+            }
+        }
+        grid.LastUsed = now;
+        return grid.Heights;
+    }
+
+    private void Trim()
+    {
+        var all = new List<(long Used, (ulong, int) Key)>(_grids.Count);
+        foreach (KeyValuePair<(ulong, int), Grid> pair in _grids)
+        {
+            all.Add((pair.Value.LastUsed, pair.Key));
+        }
+        all.Sort((a, b) => a.Used.CompareTo(b.Used));
+        for (int i = 0; i < all.Count - _limit * 3 / 4; i++)
+        {
+            _grids.TryRemove(all[i].Key, out _);
+        }
+    }
 }
