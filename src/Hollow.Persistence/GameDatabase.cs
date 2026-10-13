@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Microsoft.Data.Sqlite;
 
@@ -85,6 +86,9 @@ public sealed class ZoneRecord
 
     public List<NaturalRecord> Naturals { get; } = new();
 
+    /// <summary>The body's building: pieces, doors and claim devices (G3).</summary>
+    public List<BuildingRecord> Building { get; } = new();
+
     /// <summary>The zone's own state (world time) from the last save, or null.</summary>
     public byte[]? Meta { get; set; }
 }
@@ -108,6 +112,11 @@ public sealed class ZoneSave
 
     public List<ulong> RemovedNaturals { get; } = new();
 
+    /// <summary>Pieces, doors and claim devices that changed since the last save, and those gone (G3).</summary>
+    public List<BuildingRecord> Building { get; } = new();
+
+    public List<EntityId> RemovedBuilding { get; } = new();
+
     public byte[]? Meta { get; set; }
 }
 
@@ -120,7 +129,7 @@ public sealed class ZoneSave
 public sealed class GameDatabase : IDisposable
 {
     /// <summary>The schema this build writes. Each step up is a migration in <see cref="Migrations"/>.</summary>
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
 
     private static readonly string[] Migrations =
     {
@@ -179,7 +188,20 @@ public sealed class GameDatabase : IDisposable
             PRIMARY KEY (system_address, body_path)
         );
         """,
-        // 2 → 3 (G5): notifications waiting for players who were offline (raid alerts), oldest first.
+        // 2 → 3 (G3): the building of each body, a row per piece, door and claim device; the zone's data says when
+        // upkeep and decay were last applied.
+        """
+        CREATE TABLE building (
+            id INTEGER PRIMARY KEY,
+            system_address INTEGER NOT NULL,
+            body_path INTEGER NOT NULL,
+            kind INTEGER NOT NULL,
+            data BLOB NOT NULL,
+            saved_at INTEGER NOT NULL
+        );
+        CREATE INDEX building_body ON building(system_address, body_path);
+        """,
+        // 3 → 4 (G5): notifications waiting for players who were offline (raid alerts), oldest first.
         """
         CREATE TABLE notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -408,6 +430,18 @@ public sealed class GameDatabase : IDisposable
         }
         using (SqliteCommand command = _connection.CreateCommand())
         {
+            command.CommandText = "SELECT id, kind, data FROM building WHERE system_address = $system AND body_path = $body ORDER BY kind, id";
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            using SqliteDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                zone.Building.Add(new BuildingRecord(new EntityId(unchecked((ulong)reader.GetInt64(0))), (BuildPartKind)reader.GetInt64(1),
+                    (byte[])reader.GetValue(2)));
+            }
+        }
+        using (SqliteCommand command = _connection.CreateCommand())
+        {
             command.CommandText = "SELECT data FROM zones WHERE system_address = $system AND body_path = $body";
             command.Parameters.AddWithValue("$system", system);
             command.Parameters.AddWithValue("$body", body);
@@ -499,6 +533,41 @@ public sealed class GameDatabase : IDisposable
                 command.ExecuteNonQuery();
             }
         }
+        if (save.Building.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO building (id, system_address, body_path, kind, data, saved_at) VALUES ($id, $system, $body, $kind, $data, $saved)
+                ON CONFLICT(id) DO UPDATE SET system_address = excluded.system_address, body_path = excluded.body_path,
+                    kind = excluded.kind, data = excluded.data, saved_at = excluded.saved_at
+                """;
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            SqliteParameter kind = command.Parameters.Add("$kind", SqliteType.Integer);
+            SqliteParameter data = command.Parameters.Add("$data", SqliteType.Blob);
+            command.Parameters.AddWithValue("$saved", save.SavedAtUnixMilliseconds);
+            foreach (BuildingRecord b in save.Building)
+            {
+                id.Value = unchecked((long)b.Id.Value);
+                kind.Value = (long)b.Kind;
+                data.Value = b.Data;
+                command.ExecuteNonQuery();
+            }
+        }
+        if (save.RemovedBuilding.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM building WHERE id = $id";
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            foreach (EntityId removed in save.RemovedBuilding)
+            {
+                id.Value = unchecked((long)removed.Value);
+                command.ExecuteNonQuery();
+            }
+        }
         using (SqliteCommand command = _connection.CreateCommand())
         {
             command.Transaction = transaction;
@@ -579,6 +648,8 @@ public sealed class GameDatabase : IDisposable
     public int CharacterCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM characters"), CultureInfo.InvariantCulture);
 
     public int ThingCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM things"), CultureInfo.InvariantCulture);
+
+    public int BuildingCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM building"), CultureInfo.InvariantCulture);
 
     private void Execute(string sql, SqliteTransaction? transaction = null)
     {

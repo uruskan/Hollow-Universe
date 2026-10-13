@@ -11,13 +11,13 @@ using Hollow.Simulation.Raid;
 namespace Hollow.Bots;
 
 /// <summary>
-/// A bot that raids (GROUND.md §5.4, G5) through the same client API as a player: its kit (charges, bag charges,
+/// A bot that raids (GROUND.md §5.5, G5) through the same client API as a player: its kit (charges, bag charges,
 /// grenades, a rocket launcher with rockets, a rifle with explosive rounds) arrives with every life; it runs to the hut of
 /// the next one on the server's ring (<c>--raid-bases</c>; its own is hut <c>index mod huts</c>) and works through it: a timed charge placed on the door, then
 /// stepping back out of the blast; bag charges and grenades thrown at the doorway and the walls; rockets from fifteen
 /// metres; bursts of explosive rounds. Its own hut is raided by the bot before it, and it hears the raid alerts. The huts
-/// face the zone's origin, so it raids from the inside of the ring; it never knows what is still standing (no building
-/// replication yet), it just goes through its plan. Deterministic per bot.
+/// face the zone's origin, so it raids from the inside of the ring; it doesn't look at what is still standing, it just
+/// goes through its plan. Deterministic per bot.
 /// </summary>
 public sealed class RaidBrain
 {

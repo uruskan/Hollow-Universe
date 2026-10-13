@@ -107,6 +107,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         // the tick loop.
         Zone.Physics.EnsureGround(Zone.SpawnPoint(0), radius: 2);
         LoadWorld();
+        StartBuilding();
         StartRaid();
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
@@ -677,9 +678,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
             ReplicateThings(session, centre);
             ReplicateNature(session, centre);
+            ReplicateBuilding(session, centre);
             ReplicateExplosives(session, centre);
         }
         FinishThings();
+        FinishBuilding();
     }
 
     // ---------------------------------------------------------------- saving and shutting down

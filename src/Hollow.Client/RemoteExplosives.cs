@@ -8,7 +8,7 @@ using Hollow.Simulation.Raid;
 namespace Hollow.Client;
 
 /// <summary>
-/// An explosive in the world as this client knows it (GROUND.md §6.5): a timed charge, bag charge or tin grenade the
+/// An explosive in the world as this client knows it (GROUND.md §6.6): a timed charge, bag charge or tin grenade the
 /// server says is there, with its state and fuse. A flying one is drawn on its arc from where it set off (the server
 /// sends each bounce); a stuck or resting one lies at <see cref="ArcStart"/>, facing <see cref="Normal"/>.
 /// </summary>
@@ -71,7 +71,7 @@ public sealed class ClientExplosive
 }
 
 /// <summary>
-/// An explosion (GROUND.md §6.5), for the visual layer and sound: where, facing which way (the surface's normal), how far
+/// An explosion (GROUND.md §6.6), for the visual layer and sound: where, facing which way (the surface's normal), how far
 /// its blast reaches, of what (the explosive or round: a charge's boom, a rocket's, a round's small burst), on what, and
 /// whose (a character's net ID). <see cref="Explosive"/> is the explosive that went off (none for a rocket or round).
 /// </summary>
@@ -79,7 +79,7 @@ public readonly record struct DetonationEvent(EntityId Explosive, ItemDef? Item,
     bool Round, uint Owner, double ClientSeconds);
 
 /// <summary>
-/// A raid alert (GROUND.md §6.5): a base the player is authorised on was raided. Which base (its claim device), where it
+/// A raid alert (GROUND.md §6.6): a base the player is authorised on was raided. Which base (its claim device), where it
 /// stands (zone frame), when it was first and last hit, how many pieces and doors were hit and broken, what (the most
 /// telling first: "Stone wall broken, Sheet Metal Door") and with what. <see cref="WhileAway"/>: it waited while they were
 /// offline and came at login.

@@ -17,7 +17,7 @@ using LiteNetLib;
 
 namespace Hollow.Server;
 
-// Raiding on the server (GROUND.md §6.5, G5): throw, place and re-arm intents; explosives replicated to everyone in range
+// Raiding on the server (GROUND.md §6.6, G5): throw, place and re-arm intents; explosives replicated to everyone in range
 // with their arc and fuse; detonations to everyone within hearing; claimed bases hurt by raids handed to the notification
 // service, which alerts the players they list in the game, or queues the alert for those offline and hands it over when
 // they log in; charges saved with their fuse left; and the raid load test's bases.
@@ -312,7 +312,7 @@ public sealed partial class GameServer : IPlayerPresence
 }
 
 /// <summary>
-/// The raid load test's bases (GROUND.md §5.4): stone huts with sheet metal doors on a ring around the zone's origin; the
+/// The raid load test's bases (GROUND.md §5.5): stone huts with sheet metal doors on a ring around the zone's origin; the
 /// player called <c>{prefix}{n:000}</c> is listed on hut <c>(n − 1) mod huts</c> once they join (so raids on it alert them;
 /// with half as many huts as bots, two to a hut), and they are kept standing: whatever a raid broke is put back every
 /// 20 s, a hut whose foundation went is built again.

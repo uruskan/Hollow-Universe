@@ -17,7 +17,7 @@ using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
-// The blast of a charge, grenade, rocket or explosive round (GROUND.md §6.5): what it reaches and sees, the damage to
+// The blast of a charge, grenade, rocket or explosive round (GROUND.md §6.6): what it reaches and sees, the damage to
 // building pieces and doors (by grade and side, through the building rules), deployables and characters, and the raid
 // hits on claimed bases it makes.
 public sealed partial class Zone
@@ -34,7 +34,7 @@ public sealed partial class Zone
     }
 
     /// <summary>
-    /// An explosion (GROUND.md §6.5) at <paramref name="at"/>, facing <paramref name="normal"/>: building pieces and doors
+    /// An explosion (GROUND.md §6.6) at <paramref name="at"/>, facing <paramref name="normal"/>: building pieces and doors
     /// within the radius that nothing of the building or the ground hides take the blast's table damage for their grade
     /// (and side) times the falloff; the one it was stuck to (or else the nearest in sight) whole, the others
     /// <see cref="BlastStats.Splash"/> of it. Deployables and characters in sight take their damage with the falloff
@@ -78,7 +78,12 @@ public sealed partial class Zone
             }
         }
 
-        // Deployables within reach.
+        // Deployables within reach. A claim device's box stands for the claim device, which is the building's: its body
+        // is what hides it, and its health is the building rules'.
+        if (stuckTo is Deployable box && ClaimOf(box) is { } stuckClaim)
+        {
+            stuckTo = stuckClaim;
+        }
         _blastThings.Clear();
         DeployablesNear(at, radius + 2f, _blastThings);
         foreach (Deployable d in _blastThings)
@@ -87,11 +92,13 @@ public sealed partial class Zone
             {
                 continue;
             }
+            ClaimDevice? claim = ClaimOf(d);
+            object part = (object?)claim ?? d;
             Vector3 point = ClosestPoint(d, at);
             float distance = Vector3.Distance(point, at);
-            if (distance <= radius || d == stuckTo)
+            if (distance <= radius || part == stuckTo)
             {
-                _blastTargets.Add(new BlastTarget { Part = d, Point = point, Distance = d == stuckTo ? 0 : distance });
+                _blastTargets.Add(new BlastTarget { Part = part, Point = point, Distance = part == stuckTo ? 0 : distance, Claim = claim });
             }
         }
 
@@ -221,18 +228,38 @@ public sealed partial class Zone
             }
         }
 
-        // Deployables.
+        // Deployables; a claim device takes their damage through the building rules' explosive channel, as a raid on its base.
         foreach (BlastTarget t in _blastTargets)
         {
-            if (t.Visible && t.Part is Deployable d && d.Health > 0)
+            if (!t.Visible)
             {
-                float amount = (float)(blast.Deployable * blast.Falloff(t.Distance));
-                if (amount > 0)
+                continue;
+            }
+            float amount = (float)(blast.Deployable * blast.Falloff(t.Distance));
+            if (amount <= 0)
+            {
+                continue;
+            }
+            if (t.Part is ClaimDevice { Gone: false } device && Building != null)
+            {
+                Vector3 toward = t.Point - at;
+                Vector3 direction = toward.LengthSquared() < 1e-6f ? -normal : Vector3.Normalize(toward);
+                (double lost, bool destroyed) = DamageStructure(device, amount, direction, now);
+                report.Damage[device] = amount;
+                report.DeployablesHit++;
+                RaidStats.StructureDamage += (long)Math.Round(lost);
+                if (!raids.TryGetValue(device, out RaidTally? tally))
                 {
-                    DamageDeployable(d, amount);
-                    report.Damage[d] = amount;
-                    report.DeployablesHit++;
+                    tally = new RaidTally(device);
+                    raids.Add(device, tally);
                 }
+                tally.Add(content.ClaimDeployable.Item.Name, destroyed, primary: false);
+            }
+            else if (t.Part is Deployable d && d.Health > 0)
+            {
+                DamageDeployable(d, amount);
+                report.Damage[d] = amount;
+                report.DeployablesHit++;
             }
         }
 
@@ -277,9 +304,10 @@ public sealed partial class Zone
         return report;
     }
 
-    // Damage to a piece or door, kept to the fraction: the building rules take whole points (rounded up once, RustMVP's
-    // resolver), so the parts of a point are carried to the next hit; Rust's raid counts come out exactly (a grenade's
-    // 8.99 against metal takes 112, not 100). The table's explosive damage goes in through the explosive channel.
+    // Damage to a piece, door or claim device, kept to the fraction: the building rules take whole points (rounded up
+    // once, RustMVP's resolver), so the parts of a point are carried to the next hit; Rust's raid counts come out exactly
+    // (a grenade's 8.99 against metal takes 112, not 100). The table's explosive damage goes in through the explosive
+    // channel.
     private (double Lost, bool Destroyed) DamageStructure(object part, double amount, Vector3 direction, double now)
     {
         BuildingWorld building = Building!;
@@ -295,6 +323,7 @@ public sealed partial class Zone
         {
             Piece piece => building.Damage(piece, hit, now),
             Door door => building.Damage(door, hit, now),
+            ClaimDevice device => building.Damage(device, hit, now),
             _ => default,
         };
         if (result.Destroyed)
@@ -305,9 +334,9 @@ public sealed partial class Zone
     }
 
     /// <summary>
-    /// A blow, arrow or bullet on a piece or door (GROUND.md §6.3's hook) by a player: the building rules take it, and if
-    /// the base is claimed and doesn't list the attacker, it is a raid (soft-siding, shooting a wooden door): reported
-    /// in <see cref="RaidHits"/>. Returns the health lost.
+    /// A blow, arrow or bullet on a piece, door or claim device (GROUND.md §6.3's hook) by a player: the building rules
+    /// take it, and if the base is claimed and doesn't list the attacker, it is a raid (soft-siding, shooting a wooden
+    /// door): reported in <see cref="RaidHits"/>. Returns the health lost.
     /// </summary>
     public float DamageBuildingBy(object part, Vector3 direction, float amount, bool projectile, Player? attacker, ushort weapon)
     {
@@ -315,18 +344,19 @@ public sealed partial class Zone
         {
             Piece piece => piece.Structure?.Claim,
             Door door => door.Frame.Structure?.Claim,
+            ClaimDevice device => device,
             _ => null,
         };
         float lost = DamageBuilding(part, direction, amount, projectile);
         if (lost > 0 && claim != null && (attacker == null || !claim.IsAuthorised(attacker.Id.Value)))
         {
             var tally = new RaidTally(claim);
-            bool destroyed = part is Piece { Gone: true } || part is Door { Gone: true };
+            bool destroyed = part is Piece { Gone: true } or Door { Gone: true } or ClaimDevice { Gone: true };
             tally.Add(part switch
             {
                 Piece piece => $"{Building!.Data.Grades[piece.Grade].Name} {piece.Def.Name.ToLowerInvariant()}",
                 Door door => door.Def.Name,
-                _ => "",
+                _ => Content!.ClaimDeployable.Item.Name,
             }, destroyed, primary: true);
             RaidHits.Add(tally.Hit(attacker?.Id ?? EntityId.None, attacker?.Name ?? "", weapon, UnixMilliseconds));
             RaidStats.RaidHits++;
@@ -445,7 +475,7 @@ public sealed partial class Zone
         return d.Centre + right * x + d.Up * y + forward * z;
     }
 
-    // A second point to look at a target by: the middle of a piece, a door's leaf, a deployable.
+    // A second point to look at a target by: the middle of a piece, a door's leaf, a deployable, a claim device's box.
     private Vector3 CentreOf(object part)
     {
         switch (part)
@@ -461,6 +491,8 @@ public sealed partial class Zone
                 return ClosestPoint(door, door.Leaf(0, door.Open).Position).Centre;
             case Deployable d:
                 return d.Centre;
+            case ClaimDevice c:
+                return DeployableOf(c)?.Centre ?? c.ZoneTransform.Position;
             default:
                 return Vector3.Zero;
         }

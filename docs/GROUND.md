@@ -212,6 +212,13 @@ Godot.
   release package), adds round-trip latency, jitter and loss in both directions; clients and bots take `--lag <ms>`,
   `--jitter <ms>` and `--loss <percent>`.
 
+**Building (G3, §6.5):** pieces, doors and claim devices are static entities, replicated by 64 m area. When an area
+comes within 300 m its pieces are queued for that player, nearest areas first, and go out within 1,200 bytes a
+snapshot (at most about 190 kbit/s while a base streams in); after that only changes travel, removals first (a
+client's copy may give a freed body ID to a new piece). Positions are exact doubles in exact frames and each piece
+carries the server's Jolt body ID, so a client's copy links, solves and collides exactly as the server's. A
+1,074-piece base reaches a player who joins beside it in about 1.9 s (a test).
+
 ### 4.5 Physics and movement
 
 - **Jolt** through JoltPhysicsSharp 2.23 (joltc 1.1), on the server and in the client's prediction. **The G1 spike
@@ -392,13 +399,20 @@ account, stored with its position in the **body frame** (metres from the planet'
 comes back at the same place on the planet whatever zone frame the server uses next. Also its view angles, stance and
 health. The schema version is SQLite's `user_version`; opening a database migrates it step by step and refuses one
 newer than the build. Every database call runs on one worker thread in the order made, so a tick never waits for the
-disk and a login always reads the last save. Characters are saved on disconnect, every 30 s and on shutdown. G5 (schema 3) adds a `notifications` table: raid alerts waiting for players who were offline, handed over at
-login; charges in the world are saved with the zone's things (§6.5).
+disk and a login always reads the last save. Characters are saved on disconnect, every 30 s and on shutdown.
+
+Schema 3 (G3, §6.5) adds the body's building: a row per piece, door (with its lock) and claim device (with its list,
+store and upkeep debt), each a versioned binary record, written only when it changed and deleted when it's gone. The
+zone's record keeps when upkeep and decay were last applied, so loading catches up the time the server was down.
+
+Schema 4 (G5, §6.6) adds a `notifications` table: raid alerts waiting for players who were offline, handed over at
+login. Charges in the world are saved with the zone's things.
 
 ### 4.8 Characters
 
 What a player looks like to others and to themselves. Code in `game/scripts/Characters/`, assets in
-`game/assets/characters/` and `game/assets/items/`, built from text by the Blender scripts in `art/` (§9).
+`game/assets/characters/`, built from text by the Blender scripts in `art/characters/` (§9); held items are the item
+models of §9.1.
 
 **The contract.** `CharacterView` (a `Node3D`) draws one player from state alone. The network side feeds it; nothing in it
 knows about the network.
@@ -421,26 +435,53 @@ works in the character's own frame. The ragdoll falls along −`Up` at the momen
 (`pelvis`, `spine_01`…`spine_03`, `neck_01`, `head`, `clavicle_l`, `upperarm_l`, `lowerarm_l`, `hand_l`, three bones per
 finger, `thigh_l`, `calf_l`, `foot_l`, `ball_l`). Rest pose: MakeHuman's A-pose. Levels of detail: about 18,000, 7,000
 and 2,400 triangles for the body; eyes, brows, lashes and short hair (MakeHuman CC0 assets) drop out with distance.
-Players start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric
-surface), so nobody is ever without it.
+A female body (1.61 m, eyes at 1.50 m) is built by the same scripts (`-- --body female`): the same skeleton names, her
+own meshes, clothing cut from her body and clips retargeted onto her rig (`human_female.glb`, `clothing_female.glb`,
+`animations_female.glb`); a character picks its body with `CharacterView.Body` and `ViewmodelView.Body`. Players
+start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric surface, and
+for a woman a crop top cut straight round the chest), so nobody is ever without it. The face blinks every two to six seconds at the nearest level of detail (a
+"blink" shape on the body and lashes from MakeHuman's eyelid-closure expression units); the eyes have a wet clear coat;
+the hair cards blend their thin ends over a depth pre-pass, and a dark hair base painted on the scalp fades into the
+forehead, so the hairline is soft.
 
 **Clothing.** Every body face belongs to one of fourteen regions (face, scalp, neck, collar, chest, belly, pelvis, upper
 arm, forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
 are collapsed in the vertex shader (`hidden_regions`, a per-instance bit mask), so skin never pokes through and costs no
 fragments. Garments carry the same regions, so an inner garment hides its parts under an outer one (trousers tucked
-into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton: cut with
-planes for straight hems and a round neckline, given room by a cross-section envelope (cloth falls straight from the
-chest and below the knee instead of following the body in), folded near the joints, and painted from the body's 3D
-positions (stitched hems, seams, a belt, laces, soles, dirt). The breastplate's front and back plates are smooth,
-mirror-symmetric shells built a hand's breadth over the shirt, on leather straps. The first outfit: knit cap, woven
-shirt, woven trousers, laced boots, riveted breastplate.
+into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton. Each one
+is:
+- cut with planes for straight hems, and along a curved line round the base of the neck for a crew neckline; a ribbed
+  band stands up from it and hugs the neck a finger's width off the skin;
+- given room by a cross-section envelope that makes every cross-section convex, so cloth spans the chest instead of
+  following it and falls straight from the chest and below the knee;
+- skinned with the body's weights blurred over the garment, so loose cloth moves as a whole instead of creasing where
+  the body's weights change;
+- folded near the joints;
+- painted from the body's 3D positions: stitched hems and seams, ribbed collar and cuffs, wrinkles, a belt, laces,
+  soles, dirt.
+
+The breastplate is not cut from the body. It is a riveted cuirass of our own design:
+- front and back plates with a keel down the front, rolled rims and a flared lower edge, standing 25 mm clear of the
+  shirt and rigid on the chest bone (`spine_03`), so they never flex with the chest;
+- two fauld lames over the belly, each flaring out from under the one above;
+- a cap over each shoulder and a lame round each upper arm, fitted to the sleeve by rays cast from the joints;
+- leather straps over the shoulders and round the sides, with brass buckles.
+
+It is built for the silhouette: broad steel shoulders, a keeled chest and a flared skirt read as armour at 20 m.
+
+The first outfit: knit cap, woven shirt, woven trousers, laced boots, riveted breastplate.
 
 **Animation.** One `AnimationTree` graph, shared by all characters (`CharacterAnimator`):
 - speed blends for standing (idle, walk, jog, sprint at 0, 1.25, 2.8 and 5.5 m/s), crouching and swimming, kept in
-  step with Godot's cyclic sync; each loop is stretched so its feet keep up with the ground at its speed;
+  step with Godot's cyclic sync; each loop is stretched so its feet keep up with the ground at its speed. The jog,
+  sprint and crouch walk are also re-timed when they are built: a hand-keyed run's planted foot swept back twice as
+  fast as the body moved, so its stance phases are stretched until the foot sweeps back at the blend point's speed
+  and the swing and flight take the time left (the cycle keeps its length). At the blend speeds the feet don't slide;
 - a fall pose blended in while airborne, a take-off and a landing played as one-shots;
 - held-item layers: the right arm (tool, pistol, rifle) and the left arm with the chest (pistol, rifle);
-- one-shot upper-body actions (tool swing, punch, throw, pistol fire and reload) and flinches.
+- one-shot upper-body actions and flinches: hatchets, picks, hammers and torches chop (UAL2's tree-chopping loop,
+  started at its wind-up a little faster than the clip and faded out after the follow-through, so the blow lands at
+  about the item's strike time), blades slash, the rock comes down overhand; punch, pistol fire and reload.
 
 The clips only run forward; `CharacterPoser`, a `SkeletonModifier3D`, turns the hips towards the direction of travel
 and the chest back to the aim (running backwards plays the loop in reverse), spreads the view pitch over spine, neck and
@@ -449,19 +490,32 @@ each leg reaches the ground found by a ray under its foot).
 
 **First person.** The arms are the body's own mesh with only the forearms and hands drawn (and the worn sleeves), on
 render layer 2, without shadows, with their own field of view (60° by default; `ViewmodelView.Fov` is the player
-setting) and depth pulled towards the near plane so they never clip into walls. Both hands reach the item's grips by IK and take finger poses from clip frames. The item moves
-procedurally: sway, walk bob, sprint pose, swing arc, recoil kick on a spring, aiming down the sights (the sight on the
-camera's centre line), reload (item tilts, the magazine drops out and back, the left hand follows it). Unarmed shows no
-arms, as in Rust.
+setting) and depth pulled towards the near plane so they never clip into walls. Their shoulders sit 10 cm lower and
+6 cm further forward than the body's, so the forearms rise into view from the lower corners, as in Rust (nobody sees
+the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round the
+handle: each joint bends just enough for the next to lie on a circle round the handle, so they close on it without
+passing through. The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
+near plane), with its own relief: a normal map made from the skin texture, fine wrinkles over the finger joints and a
+glossy plate for each nail (`art/characters/skin_maps.py`). The item moves procedurally: sway, walk bob, sprint
+pose, recoil kick on a spring, aiming down the sights (the sight on the camera's centre line). Swings and reloads are
+key poses (`ViewmodelMotion`): a swing turns about the hand, up and back for the wind-up, a beat at the top, then down
+and across fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and
+recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
+works the slide or the charging handle (another jolt) and returns. Unarmed shows no arms, as in Rust.
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
 collide with the world (layer 1), not with each other; gravity is applied along −`Up`.
 
-**Held items in third person.** A tool rides upright in the right hand at the hip, a pistol is held by the clip's
-two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK holds the grips and
-lets go while an action clip plays. Items show one level of detail coarser than the body (a rifle's first-person mesh
-is 21,000 triangles).
+**Held items** are every item the model catalogue gives a held pose (§9.1), loaded through `ModelCatalog` with the
+materials of their import settings, named from items.json (`HeldItems`). Tools and blades are held by the handle and
+swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (spears, food,
+bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip. Aiming down the
+sights puts a gun's eye socket at the camera.
+
+**Held items in third person.** A tool rides upright in the right hand at the hip (the bow in the left), a pistol is
+held by the clip's two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK
+holds the grips and lets go while an action clip plays. Items show one level of detail coarser than the body.
 
 **Cost.** Mesh level by camera distance (to 9 m, 28 m, 450 m; nothing beyond). Animation runs every frame up close,
 every second frame in the middle distance and every fourth far away, staggered across characters; the procedural layer
@@ -479,11 +533,146 @@ Measured on the owner's PC (RTX 2070 Super, 1600 × 900, Forward+, vsync off, tw
 **Viewer.** `--view character` (options in AGENTS.md): cycle outfits, held items and motions, fire every event, die and
 revive, switch to first person, and measure a crowd. Screenshots in `docs/images/ground/character-*.png`.
 
-**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so the shirt still shows
-the chest's shape and can open small dark gaps where it folds hard (sprinting, crouching); there are no real
-wrinkle normal maps yet; the face has no expression or eye movement; hair is MakeHuman's short cut only; the
-third-person swing is a sword clip; first-person reload and swing are procedural curves, not authored animation; the
-female body is not built yet.
+**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so they don't swing or
+drape as the body moves, and their wrinkles are painted, not simulated; the back plate is plainer than the front; the
+face has no expressions or eye movement beyond the blink; hair is MakeHuman's short cut only; first-person reloads move the hand but not
+the magazine (the catalogue's guns are one mesh); the female body's crop top still has a few notched faces at its edges, and her shirt shows the bust a little more than a real shirt would.
+
+### 4.9 Audio
+
+Rust's sound is the bar: grounded, punchy, readable, nothing cartoonish. Built in the `ground-audio` package from CC0
+recordings (§9.2); the ground mode and the surface view still have to call it (the hook-up list below).
+
+| Part | Where |
+|---|---|
+| Sound files: 463, Ogg Vorbis q5 at 48 kHz (interface clicks 16-bit WAV), 12.6 MB | `game/assets/audio/` |
+| The catalogue: 138 events with their variants, volume, random pitch and volume, attenuation, bus, priority, voice limit; distance layers; loudness categories; what each item plays | `game/data/ground/sounds.json` |
+| Every file's measurements (loudness, true peak, spectrum, lead, tail, SHA-256) | `game/assets/audio/levels.json` |
+| The pipeline that builds both (§9.2) | `art/audio/` |
+| Engine-free rules: the catalogue model, a BS.1770 meter, distance layers, footstep surfaces and cadence, the ambience mix | `src/Hollow.Client/Audio/` |
+| The Godot side: `AudioDirector`, `AudioBuses`, `FootstepDriver`, `AmbienceDirector`, `SoundLibrary`, `SoundMeter`, the viewer | `game/scripts/Audio/` |
+| Tests: files there and imported at 48 kHz, measurements current, peaks, loudness, items covered | `tests/Hollow.Tests/SoundCatalogueTests.cs` |
+
+**An event** (sounds.json) has `files` (its variants), `volume` (dB), `pitch` (a random range), `jitter` (± dB),
+`unitSize` and `maxDistance` (metres: inverse-distance falloff from the unit size; beyond the maximum it doesn't start),
+`bus` (SFX, Footsteps, UI, Ambience), `priority` (0–100), `limit` (voices of this event at once), `loop`, `space`
+(`2d` for the interface and ambience beds), `occlude`, `delay` (starts after the time sound takes to arrive, 343 m/s),
+`cooldown`. A layered event (gunshots, explosions) has `layers` instead: each with its files, a distance band
+(`from`, `to`, `fade`), its own volume and falloff. `items` maps item keys and door kinds to roles and events
+(`"stone-hatchet": {"swing": "melee.swing.heavy", "hitWood": "gather.wood.hit", …}`), so the game asks
+`SoundCatalogData.ItemEvent(item, role)` instead of knowing keys. The build owns each event's files and category and
+the item map; every other field may be tuned by hand and is kept when the build runs again.
+
+**Events.** Footsteps: walk, run, crouch and land on grass, dirt, sand, rock, snow, wood, metal and shallow water, and a
+swim stroke. Gathering: wood hit, a tree falling, stone hit, ore hit, an outcrop breaking at each of its three stages,
+the weak spot's tick, berries, plants, picking an item up. Survival: eat, drink, bandage, hurt, death, cold breath.
+Deployables: campfire and furnace loops, their ignition, putting out, a box opening and closing, placing. Building:
+placing by grade, upgrading to each grade, repair, demolish, collapse; doors opening and closing in wood, sheet metal,
+armour and the garage door; the code lock's key press, accepted and refused; a key lock. Weapons: melee swings (light,
+heavy) and hits (flesh, hard), the bow's draw and release, an arrow's flight and impacts, the pistol and rifle shot in
+three layers and silenced, reload parts (magazine out and in, slide or bolt), dry fire, spent cases, bullet impacts on
+flesh, wood, stone, metal, dirt and water, the hit marker, a head shot and a kill. Explosives: the fuse, the timer's
+beep, the blast in three layers, debris. Interface (Rust's manner: quiet clicks, cloth for the inventory): click,
+hover, drag, drop, craft started and finished, error, inventory open and close, a notice. Ambience: calm, strong and
+high wind, meadow and forest birds, night insects, near and far surf, leaves; owls, crows and distant thunder.
+
+**Loudness** (ITU-R BS.1770, measured with ffmpeg after encoding; the engine's own decode agrees within 0.7 LU,
+`--sound-check`). A one-shot's *event loudness* is its highest momentary loudness corrected for sounds shorter than
+the 400 ms window (down to 100 ms), a loop's is its integrated loudness. Every file peaks under −1 dBTP (highest
+−1.10).
+
+| Category | Metric | Target | Range | As built |
+|---|---|---|---|---|
+| footstep | event | −26 | −30 … −22 | −27.9 … −25.9 |
+| foley (handling, swings, doors, eating) | event | −23 | −27 … −19 | −26.9 … −22.9 |
+| click (reloads, locks, cases) | event | −27 | −33 … −21 | −32.0 … −26.9 |
+| gather (chops, picks, building) | event | −19 | −23 … −15 | −22.4 … −18.9 |
+| impact (hits, bullet impacts) | event | −21 | −27 … −17 | −25.6 … −20.9 |
+| voice | event | −21 | −25 … −17 | −21.4 … −21.0 |
+| gunshot (near) | event | −20 | −25 … −16 | −24.3 … −22.2 |
+| distant (mid and far layers) | event | −22 | −27 … −17 | −25.8 … −21.9 |
+| explosion (near) | event | −13 | −18 … −9 | −14.8 … −13.4 |
+| ui, marker | event | −27, −23 | −33 … −21, −28 … −18 | −27.9 … −26.9, −23.5 … −23.0 |
+| loop (fires, fuse) | integrated | −29 | −34 … −24 | −32.6 … −29.0 |
+| ambience (beds) | integrated | −30 | −34 … −26 | −30.5 … −30.1 |
+| accent | event | −27 | −32 … −22 | −27.3 … −26.9 |
+
+A recorded gunshot is a few milliseconds of blast: at −1 dBTP its event loudness is about −22 LUFS, and no more than
+6 dB of limiting is allowed, so shots aren't squashed. They are louder in the game than the numbers say: their
+falloff starts at 12 m (footsteps at 2 m), the mid and far layers carry them to 1.5 km, and the event volumes set the mix.
+
+**The director** (`AudioDirector`, one node; others call `AudioDirector.Instance`): pools of 56 placed
+(`AudioStreamPlayer3D`) and 20 flat (`AudioStreamPlayer`) voices; an event's own limit cuts its oldest voice; a full
+pool gives a new sound the voice of the lowest priority, then the oldest, or drops it if every voice matters more.
+Variants come in shuffled rounds (`VariantBag`: never the same twice in a row); pitch and volume are random within the
+event's ranges. A layered event plays each layer whose band covers the listener's distance, crossfaded with equal
+power (`DistanceLayers.Weight`) and started after distance ÷ 343 m/s. Air absorption (a high shelf from 7 kHz) on
+ordinary 3D sounds; layered ones carry their distance in their files. Occlusion: a ray from the listener to the source
+on `OcclusionMask` (collision layer 1 by default, or `OcclusionTest`); a blocked voice plays on its bus's "Occluded"
+child, low-passed at 900 Hz; loops look again every 0.3 s. API: `Play(key, position, volumeDb, pitch)`,
+`Play2D(key, …)`, `Loop(key, node)` (follows the node until `Stop` or the node goes), `Loop2D(key)`,
+`Stop(handle, fade)`, `SetGain(handle, db, fade)`, `IsPlaying(handle)`.
+
+**Buses** (`AudioBuses.Ensure`, made in code): Master (a hard limiter at −1 dBFS) ← SFX, Footsteps, UI, Ambience; SFX
+and Footsteps carry a short room reverb whose wet level follows `AudioBuses.SetSpace(indoor)` (dry outdoors, a damped
+room inside a building) and an "Occluded" child each. `AudioBuses.SetVolume(bus, 0–1)` for the player's settings.
+
+**Footsteps** (`FootstepDriver`, one per character; rules in `Footsteps`, `FootstepCadence`): a step every stride, the
+stride growing with speed (0.6 m walking slowly to 1.75 m sprinting; shorter crouched), so steps keep pace with the
+animation at any frame rate. Run above 3.6 m/s or sprinting, crouch when crouched; a landing after at least 0.12 s in
+the air and 2.2 m/s down, louder the harder (−8 to +3 dB); swim strokes every 1.15 s (0.85 s sprinting); shallow water
+(8 cm or more, not swimming) splashes whatever the ground. Surfaces from Hollow.Surface: grass and moss → grass; forest
+floor, soil and gravel → dirt; rock → rock; sand → sand; snow → snow (`Footsteps.FromGround`, `FromWeights` for a
+vertex's eight weights, `FromBiome` when only the biome is known); building floors by grade (twig and wood → wood, stone
+→ rock, metal and armoured → metal, `FromGrade`). The player's own feet play flat, 3 dB down; others' at their feet.
+
+**Ambience** (`AmbienceDirector`, rules in `AmbienceMix`): flat loops on the Ambience bus, gliding to their levels over
+1.5 s, started when heard and stopped after 4 s unheard. Wind always (stronger with wind, height and exposure; a strong
+bed from 400 m up and in wind, a high whistle on exposed heights); meadow birds by day in the open, forest birds among
+trees, night insects in warm biomes; all wildlife quieter in wind, storm and above 1.5 km; surf within 220 m of the sea,
+a far surf to 1.6 km; leaves among trees, louder in wind. Accents placed 50 m to 4 km around the listener: owls at night
+near trees, crows by day, thunder only in a storm (no weather yet, so none).
+
+**Viewer** (`--view sounds`, options in AGENTS.md): every event in a list, a click plays it; its settings, layers, and
+each variant's loudness from the pipeline beside the engine's decode; a source walking away from the listener (posts at
+10 m to 1.5 km; layer weights and the arrival delay shown); the ambience by biome, hour, wind, sea, forest, height and
+storm with every bed's level. `--sound-check` loads and measures all 463 files in the engine and quits with 0 when they
+agree with the pipeline.
+
+![The audition viewer: the rifle at 320 m (mid 98 %, far 45 %, arriving after 933 ms) and a forest morning](images/ground/audio/sounds.jpg)
+
+**How to hook it up** (the ground mode and the surface view own these; nothing below is wired yet):
+1. At start: add one `AudioDirector` (set `OcclusionMask` to the world and building layers) and one `AmbienceDirector`;
+   `SoundLibrary.Preload` the footsteps and the held items' events.
+2. Each frame, the player's `FootstepDriver { Local = true }.Update(dt, FootInput, feet)` from the predicted character
+   (speed, vertical speed, grounded, crouching, swimming, sprinting, the surface under the feet, water depth); one
+   driver per remote character from its interpolated state.
+3. Each frame (or a few times a second), `AmbienceDirector.Update(dt, AmbienceInput, camera)`: altitude, exposure,
+   `BiomeAt`, tree density around (the scatter's or `Vegetation` trees), distance to the sea, the sun's elevation from
+   the sky, wind; `Indoor` and `AudioBuses.SetSpace` when under a roof.
+
+| Game event (client API, §6.2) | Sound |
+|---|---|
+| A swing or strike (own input, a remote entity's swing count) | `ItemEvent(held, "swing")` at the hand |
+| A hit on a tree / an outcrop (the natural object's health drops) | `hitWood` / `hitStone` (`hitOre` on metal) at the impact; `gather.weakspot` with it when the weak spot moved |
+| An outcrop's stage changes; a tree falls | `gather.node.break.1/2/3`; `gather.wood.break` |
+| `PickUpNatural` / `PickUpItem` answered | `gather.berry` (bushes), `gather.plant` (fibre, tubers), `gather.pickup` (piles, drops) |
+| `Use` accepted (food, medicine) | `ItemEvent(item, "use")`, flat |
+| `DamageTaken` / a remote flinch; `Died` | `survival.hurt`; `survival.death` |
+| Cold (`Vitals.Cold` above 0.5) | `survival.cold` every 4–7 s, flat |
+| A deployable spawns (`ThingSpawn`, own `Place` accepted) | `ItemEvent(kind, "place")` at it |
+| A fire lights / goes out (`ThingUpdate.Lit`) | `ignite`, then `Loop(loop, node)`; `extinguish` and `Stop` |
+| `ContainerOpened` / `ContainerClosed` on a box, campfire or furnace | `box.open` / `box.close` at it |
+| Building: placed, upgraded, repaired, demolished; a collapse layer falls | `build.place.<grade>`, `build.upgrade.<grade>`, `build.repair`, `build.demolish`; `build.collapse` per layer |
+| A door opens or shuts | `ItemEvent(door, "open" / "close")` at the door |
+| A code lock's key, accepted, refused; a key lock | `codelock.beep` / `codelock.accept` / `codelock.deny`; `lock.key` |
+| A shot (own fire, a remote shot count, `Projectiles` loosed) | `ItemEvent(gun, "shot")` (`"shotSilenced"` with a silencer) at the muzzle: the layers and delay follow from the distance |
+| Reload steps; firing empty | `magOut`, `magIn`, `rack` at the hands; `gun.dryfire`; `gun.shell` where a case lands |
+| The bow drawn, loosed; an arrow in flight, stopping | `bow.draw`, `bow.release`; `arrow.flight`; `arrow.impact` / `arrow.impact.flesh` |
+| A projectile stops on a material | `impact.flesh/wood/stone/metal/dirt/water` at the hit |
+| `HitMarker` | `hit.marker`, `hit.headshot` (head), `hit.kill` (the target died), flat |
+| A timed charge: armed, ticking, going off | `Loop("explosive.fuse", charge)`, `explosive.beep` each second, `explosion` (layered) and `explosion.debris` |
+| The interface (`GroundUi`): buttons, hover, drag, drop, `Craft`, `CraftFinished`, `IntentRejected`, Tab, notices | `ui.click`, `ui.hover`, `ui.drag`, `ui.drop`, `ui.craft.start`, `ui.craft.done`, `ui.error`, `ui.inventory.open/close`, `ui.notify` |
 
 ---
 
@@ -624,7 +813,46 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   the ticks the client predicted walking meanwhile are corrected (at most the difference between walking and crawling
   over a round trip).
 
-### 5.4 G5 load test: 100 bots raiding
+### 5.4 G3 load test: 100 bots build 100 bases
+
+Measured on the owner's PC on 13 October 2026, with other agents' work and apps using about a third of the CPU. Every
+bot joins with the `build-kit` loot table (a building plan, a hammer, 2,000 wood, 1,000 stone, a wooden door, a code
+lock and a claim device) and runs `--script build` (`BuildBrain`): it walks to a plot of its own (a 10 × 10 grid of
+plots 36 m apart round the origin, since a claim device covers 25 m round itself), picks a spot the rules take from
+where it stands (as a player would: no tree in the way, ground a foundation stands on), places a foundation and a
+second beside it (level or half a storey up), the walls round them with a doorway, floors on top, a wooden door with a
+code lock and a code, upgrades the foundations to stone and the walls to wood, places its claim device, and from then
+on opens and shuts its door every few seconds. Every step goes through the client's building API: checked first with
+the same rules as the ghost, sent as an intent, waited for. Neighbouring plots are 36 m apart, so each bot sees most
+of the bases within its 300 m.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 120 --script build --kit build-kit
+```
+
+| | G3, 100 building bots | G2, 100 survival bots (§5.2) | Target |
+|---|---|---|---|
+| Server tick, average | 7.38 ms | 5.90 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 21.3 / 68.2 ms (5 of 3,602 over 33 ms) | 12.3 / 65.5 ms | ≤ 33 ms |
+| Bandwidth per client, down (with 90 characters in view) | 83.7 kbit/s (87.3 most) | 105 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 23.1 kbit/s | 24 kbit/s | |
+| Snapshots lost / inputs on their tick | 0 % / 100 % | 0 % / 99.85 % | |
+| Prediction: mean / worst error, corrections | 0 / 0 mm, 0 | 0.007 / 183 mm, 6 | |
+
+In the 128 s all 100 bots built their bases: 965 pieces in 100 structures, 97 doors with code locks, 97 claim
+devices; 2,013 building intents done and 44 refused (a neighbour's claim reached, someone in the way), none over the
+budget; 1,364 door toggles. The bots' shared copy held all 965 pieces.
+- **Tick time** grew by about 1.5 ms over G2's for the building, its replication and the doors opening and shutting
+  every few seconds. The upkeep pass every minute finds every base unpaid (the bots stock no claim device), so every
+  piece's health changes at once and goes out to every player within the budget over the next two seconds: the
+  heaviest case. Worst ticks are the PC's (the other work on it, collections); an earlier run (83 bases) with less on
+  the PC measured 6.74 / 17.9 / 59.7 ms.
+- **Down** is lower than G2's because the bots stand at their bases; building costs little once a base has arrived
+  (its changes only). A big base streaming in takes up to 1,200 bytes a snapshot on top (§4.4).
+- **Prediction** stays exact with 965 pieces and 97 doors in the shared prediction physics: the copy's bodies carry
+  the server's IDs, so contacts are the same on both sides.
+
+### 5.5 G5 load test: 100 bots raiding
 
 Measured on the owner's PC on 13 October 2026, with other agents' work running on it. The server builds 50 claimed stone
 huts with sheet metal doors on a ring 70 m around the origin (`--raid-bases`, half the bots by default) and lists two bots on
@@ -632,7 +860,7 @@ each as they join; every 20 s it puts back what the raids broke. Every bot gets 
 timed charges, six bag charges, eight tin grenades, a rocket launcher with six rockets and two high-velocity ones, a rifle with
 96 explosive rounds, clothes, bandages, food) and raids the next bot's hut (`--script raid`, `RaidBrain`): a timed charge on the
 door or the doorway beside it, then out of its blast; bag charges and grenades thrown from 5–6 m; rockets from 15 m; bursts of
-explosive rounds from 10 m. It never knows what still stands (building replication is phase 2a's), so it works through its plan.
+explosive rounds from 10 m. It doesn't look at what still stands; it works through its plan.
 All 100 stay within 120 m of the origin, so each sees the 99 others.
 
 ```bash
@@ -887,9 +1115,11 @@ below for screenshots.
 ![A camp in the demo: a box, a lit campfire, a sleeping bag, a stone hatchet in hand](images/ground/survival-camp.png)
 ### 6.3 Building, claims and doors (G3)
 
-Built in two phases. **Phase 1** (this section): the rules, engine-free and tested, their data, the kit's art and a
-local sandbox that previews placement with the same code. **Phase 2**, after the survival package: network intents,
-persistence, costs taken from the inventory, the claim device's interface.
+Built in phases. **Phase 1** (this section): the rules, engine-free and tested, their data, the kit's art and a local
+sandbox that previews placement with the same code. **Phase 2a** (§6.5): items and recipes, costs taken from the
+inventory, the claim device as a deployable, intents, replication, persistence, the client API and bots. **Phase 2b**,
+after the integration package: the ground mode's hookup (the held plan and hammer, the ghost, the wheels, drawing
+structures from replication).
 
 | Part | Where |
 |---|---|
@@ -974,6 +1204,7 @@ leaves only the setter authorised; the right code authorises (up to 64); wrong c
 then 30 s; lock, unlock and take off by an authorised player, taking off only when unlocked.
 
 **Claim device** (our tool cupboard): stands on a foundation or floor, one per structure, its owner authorised.
+200 health with wood's protection (hollow-orbit's cupboard); its store is a 24-slot container (§6.5).
 Anyone may authorise at it; only someone on the list may clear it. It covers the points within 16 m of any of its
 structure's pieces or 25 m of itself, so the area grows with the base and ends where the base ends; a player builds,
 upgrades, rotates, demolishes, repairs and fits doors and locks there only if every covering device lists them
@@ -1057,14 +1288,6 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 | The plan's wheel with the rules' pieces and costs | `wheel.jpg` |
 
 ![The house](images/ground/build/house.jpg)
-
-**Phase 2 needs from the survival package:** item definitions for the plan, the hammer, the doors, the key and code
-locks, keys and the claim device; an `IBuildingWallet` over the player's inventory; the claim device as a deployable
-whose container is its upkeep store (`ClaimDevice.Stock` today); its damage routed to `BuildingWorld.Damage` (melee by
-side); the zone calling `BuildingWorld.Tick` each tick and `AdvanceTime` on a slow schedule and once with the elapsed
-time on load; typed intents (place by support, socket and orientation; upgrade, rotate, demolish, repair; doors, locks,
-codes; claims) and the replication of structures, pieces, doors and devices (static, reliable, when they change); body
-IDs replicated with pieces so prediction meets the same contacts; persistence of structures in the body frame.
 
 ### 6.3 Combat as built in G4
 
@@ -1238,7 +1461,100 @@ and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attac
 the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
-### 6.5 Raiding (G5)
+### 6.5 Building over the network and saved (G3, phase 2a)
+
+The rules of §6.3 run in the live zone; players build through intents; the building replicates as static entities and
+is saved with the zone. The ground mode's hookup is phase 2b.
+
+| Part | Where |
+|---|---|
+| Items, recipes, kits | `game/data/ground/items.json` (100–110), `recipes.json`, `loot.json` (`build-kit`), `categories.json` (Construction) |
+| In the zone | `src/Hollow.Simulation/Zone.Building.cs`; `Building/ItemWallet.cs`; `Building/BuildingWorld.Replica.cs` (lookups by ID, batches, restoring, the mirror) |
+| Protocol | `src/Hollow.Net/Protocol/Messages.cs` (90–100: intents, `BuildResult`, `BuildFrames`, `BuildPieces`, `BuildRemoved`, `BuildDoors`, `BuildClaims`) |
+| Server | `src/Hollow.Server/GameServer.Building.cs` (intents, replication, loading and saving) |
+| Storage | `src/Hollow.Persistence/BuildingCodec.cs`, schema 3 in `GameDatabase.cs` |
+| Client | `src/Hollow.Client/BuildingReplica.cs`, `GameClient.Building.cs`, `LocalPlayer.Building.cs` |
+| Bots | `tools/Hollow.Bots/BuildBrain.cs` (`--script build`) |
+| Tests | `tests/Hollow.Tests/BuildingNetTests.cs`, `BuildingPersistenceTests.cs` (`-- BuildingNet`, `-- BuildingPersistence`) |
+
+**Items** (`items.json` 100–110, the Construction tab): the building plan, the hammer, the claim device, the key and
+code locks, the key, and the wooden, sheet metal, armoured, sheet metal double and garage doors. An item's
+`"building"` says what it does with the rules; a door names its door in building.json; a key's condition holds the
+number of the lock it was cut for. Recipes, hollow-orbit's and Rust's: plan 20 wood, hammer 100 wood, claim device
+1,000 wood, key lock 75 wood, code lock 100 metal fragments, wooden door 300 wood; sheet metal door 150 fragments
+(workbench 1), double door 200 (1), garage door 300 (2), armoured door 20 refined metal and 100 fragments (3). A key
+costs 75 wood, cut at its lock by the lock's owner. building.json is now read with the rest of the data and is part of
+the content hash (§7).
+
+**In the zone** (`Zone.Building.cs`). The zone owns the `BuildingWorld` on its Jolt world. Each tick it takes down the
+pieces whose collapse is due (nothing at all while none is); every 60 s it applies upkeep and decay in closed form. The
+building's clock is the real one (Unix seconds): edit windows, repair delays, code waits, upkeep and decay run on while
+the server is down. Players act through zone methods that check what they carry and answer with the rules' `Outcome`:
+placing needs a building plan in the main or belt slots, the hammer's actions a hammer; costs are taken through
+`ItemWallet` (a material is the item with its key, taken in slot order, so the client's optimistic copy takes the same
+stacks); a door, lock or claim device comes from the slot the intent names, as the item the client saw there. Fitting
+a door and placing a claim device reach as far as the plan (8 m); opening and shutting, locks and the claim device's
+list need the player within 4.5 m. A picked-up door or lock comes back as its item; a picked-up claim device comes
+back with its store.
+
+**The claim device** is a deployable whose storage is its upkeep store: it replicates and opens like a box (a loot
+panel: anyone there may put in or take out, so a raider takes the upkeep), and its upkeep is paid from those slots.
+Hits on it go through the building rules (`BuildingWorld.Damage`); at zero its store spills on the ground. Swings and
+arrows stop at pieces, doors and claim devices (`HitTarget.Building`): melee does the tool's structure damage as melee
+(a wall's soft side counts), arrows as bullets (stone and up take none).
+
+**Intents** (protocol 3; client to server, reliable, with the sequence numbers and the budget of G2's: 16 at once, 20 a
+second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's ground point and
+heading in 15° steps), `HammerIntent` (upgrade to a grade, rotate, demolish, repair), `DoorIntent` (fit from a slot,
+turned round or not; open or shut; pick up), `LockIntent` (fit from a slot; set a code; enter a code; lock; unlock; cut
+a key; take off) and `ClaimIntent` (place from a slot at a point on a foundation or floor, turned; authorise;
+deauthorise; clear the list; pick up). Each is answered with `BuildResult`: done, or the rules' reason (`Refusal`) and
+the player's line, after that tick's container changes. The server works out every pose itself and checks everything
+again.
+
+**Replication** (§4.4). A piece carries its frame (each frame numbered once for everyone and sent once to a player, 12
+doubles), kind, grade, turn and exact position, health, the server's body ID, the seconds left to turn or demolish it,
+and whether it is coming down. A door carries its frame piece, kind, turn, open or shut, health, its lock's kind,
+whether it's locked and whether this player may pass; a claim device its piece, place and turn, health, whether this
+player is on its list, and how long its store keeps the base. Doors and locks are state: sent again when they change.
+
+**The client** (`Hollow.Client`). `BuildingReplica` keeps a mirror `BuildingWorld`: the same rules answer the ghost's
+questions, but nothing collapses, decays or pays upkeep by itself, and its bodies take the server's IDs. Bots share one
+on their shared ground. The API for the ground mode:
+
+| Member | What |
+|---|---|
+| `GameClient.Building` | The building in range: `Structures`, `AllPieces`, `Doors`, `Claims`, and `Changed` (piece, door and claim events) for drawing |
+| `GameClient.BuildingReplica.StateOf(door)`, `StateOf(claim)` | A door's lock, locked, and whether this player may pass; whether they're on a claim device's list, and its protection in hours |
+| `GameClient.PlanPiece(piece, eye, direction, turns)` | The ghost: the server's own `Plan` on the mirror, with this player's materials and building rights |
+| `GameClient.AimBuilding(eye, direction)` | The piece, door or claim device aimed at |
+| `Local.PlacePiece(plan)`, `Upgrade`, `Rotate`, `Demolish`, `Repair`, `PlaceDoor`, `ToggleDoor`, `PickUpDoor`, `AttachLock`, `SetCode`, `EnterCode`, `Lock`, `Unlock`, `MakeKey`, `RemoveLock`, `PlaceClaim`, `Authorise`, `Deauthorise`, `ClearAuthorised`, `PickUpClaim` | Intents, each returning its sequence number. Optimistic: the materials or the item leave the inventory at once, and a placement is drawn at once (`Local.PendingPieces`) until its piece arrives; a refusal rolls back. |
+| `Local.BuildAnswered`, `Local.BuildRejected`, `Local.Carries(role)` | Answers with the reason and line; whether the player carries a building plan or a hammer |
+| The claim device's store | `Local.Open(device ID)`, then `Local.Loot` like a box |
+
+**Persistence** (schema 3, `BuildingCodec`). A row per piece, door and claim device in the `building` table, each a
+versioned binary record: a piece keeps its structure's frame in the body frame (so it comes back at the same place on
+the planet whatever zone frame the server uses next, and the pieces of one lattice come back in one), its exact pose,
+kind, grade, health, owner, and when it was placed and last damaged; a door its frame piece, kind, turn, open, health
+and lock (a key lock's number; a code lock's code as a hash salted with the lock's ID, and its list); a claim device
+its piece, place, turn, owner, health, list, store and what its structure owes. A save writes only what changed since
+the last (a claim device when its store's slots change) and deletes what is gone; claim devices are no longer saved as
+things. The zone's record keeps when upkeep and decay were last applied: on load the pieces go back in one batch
+(stability solved once), then the doors and claim devices, then the time the server was down is caught up in one
+closed-form step. Decoding treats the bytes as untrusted: a kind that no longer exists is left out.
+
+**Bots** (`--script build`, §5.4) build a small base each through the same API, and the load test reports the building.
+
+**Tests:** `BuildingNetTests.PlacingGoesThroughTheServer` (a player without wood is refused, with the reason; a
+foundation and a wall placed through intents show at once, then arrive in every client's copy at exactly the ghost's
+pose, with the server's stability and body IDs), `CodeLocksKeepStrangersOut` (a door, a code lock, a code; a stranger
+is kept out, waits after a wrong code, gets in with the right one; the claim device keeps him from building),
+`ABigBaseStreamsIn` (1,074 pieces reach a new player in about 1.9 s, and the copy is one structure with the server's
+stability); `BuildingPersistenceTests.ABaseSurvivesARestart` (pieces exactly, doors,
+locks, codes, lists, the claim device and its store) and `DecayCatchesUpOnLoad` (an hour away: an unclaimed wood
+foundation and wall at two thirds, a twig foundation gone).
+
+### 6.6 Raiding (G5)
 
 Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids. The rules
 are `Hollow.Simulation` code (`Zone.Raid.cs`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
@@ -1303,7 +1619,8 @@ shields what was behind it).
   it whole; with nothing stuck, the nearest one in sight counts as hit; every other takes 30% (hollow-orbit's splash). A piece is
   in sight when a ray from the blast to its nearest point or its middle meets no other piece, door or claim device, and no
   ground; behind a wall, a floor or a door, nothing.
-- *Deployables* in sight take the blast's deployable damage with the falloff; one broken spills what it held.
+- *Deployables* in sight take the blast's deployable damage with the falloff; one broken spills what it held. A
+  claim device takes it through the building rules' explosive channel, as part of the raid on its base.
 - *Characters* in sight (chest or head; sleepers and the downed lying) take the blast's damage with the falloff, less what they
   wear on the body against projectiles; a lethal blast may knock down (G4's rule: not at 75 or more). Sleepers are killable.
 - A piece broken comes down through the building rules: what it held collapses layer by layer (§6.3).
@@ -1349,7 +1666,7 @@ store and unpaid pieces decay on the zone's slow schedule (every minute, in clos
 breaks the door with a timed charge (alert queued), kills the sleeper with a second one inside (summed into a follow-up after
 the minute) and loots the body; two hours of upkeep and decay pass; the owner logs in dead to two alerts.
 
-**Network** (protocol 5, `Messages.cs`):
+**Network** (protocol 6, `Messages.cs`):
 - *Intents* (the general sequence, answered by `IntentResult`): `ThrowIntent` (belt slot, item, view, lob), `PlaceChargeIntent`
   (belt slot, item, view), `RearmIntent` (the explosive). Rockets go through `FireIntent` and `ReloadIntent` (§6.4).
 - *Explosives* (`ExplosiveUpdate`, reliable, to everyone within 300 m when one appears and whenever it changes: thrown, bounced,
@@ -1382,16 +1699,16 @@ at login (base on the map, time, what was hit); pieces showing damage (their hea
 **Persistence.** Charges stuck or lying in the world (duds too, and any still in the air, which fall on) survive a restart: they
 are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`) with their fuse as world time left, which pauses while the
 server is down, and restored after the rest of the world with what they were stuck to; one whose support is gone falls. Rockets
-and rounds in flight are not saved (as bullets). Queued alerts live in `notifications` (schema 3) until handed over.
+and rounds in flight are not saved (as bullets). Queued alerts live in `notifications` (schema 4) until handed over.
 
-**Bots and the load test:** `RaidBrain` and `loadtest --script raid` (§5.4); the admin's `raidbase <name> [grade]` builds a
+**Bots and the load test:** `RaidBrain` and `loadtest --script raid` (§5.5); the admin's `raidbase <name> [grade]` builds a
 claimed hut in front of a player for playtests.
 
-**Building on this branch.** Raiding needs the zone's `BuildingWorld`, which building phase 2a brings with the player's building
-actions, replication and persistence. Until it merges, `Zone.Building.cs` carries the members raiding uses under 2a's names
-(`Building`, `BuildingNow`, `InitBuilding`, `StepBuilding`, `AdvanceBuilding`, `TraceBuilding`, `DamageBuilding`), swings,
-arrows and bullets hit pieces and doors as in 2a, `BuildingPhysics.Ray` takes 2a's `buildingOnly`, and `GameContent` reads
-`building.json`; on merging, 2a's versions win. Test huts come from `TestBases`.
+**Building** is phase 2a's (§6.3, §6.5). A blast goes into `BuildingWorld.Damage`'s explosive channel, so what it
+breaks and brings down replicates and is saved like any other change. Swings, arrows and bullets that stop at a piece,
+door or claim device (`HitTarget.Building`) go through `Zone.DamageBuildingBy`, which damages through the same rules
+and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
+building rules, on the analytic ground (R14).
 
 ---
 
@@ -1406,7 +1723,8 @@ arrows and bullets hit pieces and doors as in 2a, `BuildingPhysics.Ray` takes 2a
 
 A test checks that every reference resolves and that every recipe can be made from gatherable resources.
 
-**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (ten since G5: `building.json` and `explosives.json` joined),
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (ten:
+G3 phase 2a added building.json, G5 explosives.json),
 resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
 a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
 `game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
@@ -1414,16 +1732,18 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 
 | File | What | Sources |
 |---|---|---|
-| `items.json` | 66 items (43 in G2; G4 adds the pistol and rifle, six kinds of round, five attachments, gunpowder and the metal mask; G5 the explosives, timed and bag charges, the tin grenade, the rocket launcher, two rockets and explosive rifle rounds, ids 120–127): resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
-| `recipes.json` | 52 recipes (G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask; G5: Rust's raiding recipes): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows; times ours |
+| `items.json` | 77 items (43 in G2; G4 adds the pistol and rifle, six kinds of round, five attachments, gunpowder and the metal mask; G3 phase 2a the building plan, hammer, claim device, locks, key and doors; G5 the explosives, timed and bag charges, the tin grenade, the rocket launcher, two rockets and explosive rifle rounds, ids 120–127): resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`, `building` (what it does with the building rules) and `door`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
+| `recipes.json` | 62 recipes (G3: the building plan, hammer, claim device, locks and doors; G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask; G5: Rust's raiding recipes): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows, the key lock, the double and garage doors and raiding; times ours |
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
 | `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
-| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (G2, G4's gunfight kit, G5's raid kit). | Rust |
+| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`, `raid-kit`). | Rust |
 | `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
-| `categories.json` | The crafting tabs. | Rust's grouping |
+| `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
-| `building.json` (G3, read by `GameContent` since G5) | The building rules' numbers (§6.3). | RustMVP, the PSG kits, hollow-orbit |
-| `explosives.json` (G5) | The blasts (radius, falloff, splash, damage to people and deployables, one hit's damage to a piece of each grade by side and to a door of each protection), the explosives thrown or placed by hand (fuse, dud chance, sticky or not, throw and lob speeds, bounce, size), and how raid alerts go out (cooldown, how long and how many are kept). §6.5 has the tables. | Rust's raid costs; RustMVP `building_damage.md`; hollow-orbit `construct.js` and `items.js`; ours for fuses' spread, throws and alerts |
+| `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
+| `explosives.json` (G5) | The blasts (radius, falloff, splash, damage to people and deployables, one hit's damage to a piece of each grade by side and to a door of each protection), the explosives thrown or placed by hand (fuse, dud chance, sticky or not, throw and lob speeds, bounce, size), and how raid alerts go out (cooldown, how long and how many are kept). §6.6 has the tables. | Rust's raid costs; RustMVP `building_damage.md`; hollow-orbit `construct.js` and `items.js`; ours for fuses' spread, throws and alerts |
+
+The client alone also reads `sounds.json`, the sound catalogue (§4.9); it is not part of the game data's hash.
 
 The checks (`ContentTests`): unique IDs and keys; every reference resolves; sensible ranges; and a fixpoint from what
 natural objects yield, through recipes, workbench levels, cooking and fuel by-products, proves every recipe can be made.
@@ -1566,6 +1886,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
   - MPFB 2.0.17, MakeHuman for Blender (GPL code; the base mesh, targets, rigs and weights it uses are CC0);
   - the MakeHuman system asset pack (CC0): the skin, eyes, eyebrows, eyelashes and hair of the player body.
 - Other CC0 or CC-BY sources (CMU motion capture, Poly Haven, Kenney) if a need arises.
+- Sounds (§9.2): free CC0 downloads, approved by the owner on 13 October 2026 (BigSoundBank, the Free Firearm Sound
+  Library, Kenney's audio packs, OpenGameArt's CC0 packs), in the same `Downloads` folders, listed in
+  `game/assets/THIRD_PARTY.md`.
 - **In the game now:** the ground textures only (six Megascans surfaces and two Poly Haven sets, listed in
   `game/assets/THIRD_PARTY.md`, built by `tools/blender/surface_ground.py`). Plants, grass, rocks and their textures
   are made in code (§4.6); the Megascans and LOLIPOP plant models tried earlier were dropped.
@@ -1587,10 +1910,10 @@ RustMVP's rules, with Rust's where RustMVP had none:
   2. `art/characters/build_clothing.py`: the garments, shaped from the body and skinned to it → `clothing.glb`,
      `clothing.json` (materials), textures.
   3. `art/characters/build_animations.py`: retargets the UAL clips → `animations.glb`, `animations.json`.
-  4. `art/items/build_items.py`: the held items from the PSG kits, renamed, with grip and sight sockets →
-     `game/assets/items/<id>.glb`.
-  5. `python -I art/lib/import_settings.py` after Godot first sees new files: compressed textures with mipmaps, no
+  4. `python -I art/lib/import_settings.py` after Godot first sees new files: compressed textures with mipmaps, no
      automatic LODs (the scripts make their own), constant animation tracks kept.
+
+  The held items are the item models of §9.1.
 - **Kit FBX files:** centimetres (scale 0.01); `UCX_` collision renamed to Godot's `-col` / `-convcolonly`; use the
   OpenGL normal maps, or flip the green channel of the DirectX ones.
 - **Textures:** 2K by default. The PC has 8 GB of video memory and 16 GB of RAM, and RustMVP ran out of memory on
@@ -1712,6 +2035,45 @@ the reworked icons), `attachments.jpg` (attachments mounted on the rifle and pis
 `models.jpg` (everything on the ground),
 `items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
 
+### 9.2 Sounds, as built
+
+Every sound (§4.9) is rebuilt from text: recipes in `art/audio/events.py`, run by `art/audio/build.py` with ffmpeg
+(`HOLLOW_FFMPEG`, else ShareX's copy on this PC, else `ffmpeg` on the path) and Python's standard library only.
+
+```bash
+python -I art/audio/sources.py --fetch     # the downloads that are missing, each checked by SHA-256
+python -I art/audio/build.py               # every sound whose recipe or sources changed (6 at once), the catalogue, the levels
+python -I art/audio/build.py --only weapon/rifle   # some; --force rebuilds all (about a minute)
+$GODOT --headless --path game --import     # then build.py again: it marks loops and keeps the WAVs uncompressed
+python -I art/audio/build.py --credits     # the THIRD_PARTY.md tables of the recordings used
+python -I art/audio/inspect.py <file> <out.png> --steps    # a waveform and spectrogram with the cuts marked
+```
+
+**Sources** (CC0, downloaded 13 October 2026 with the owner's approval, listed in `game/assets/THIRD_PARTY.md`):
+BigSoundBank (Joseph Sardin's field and foley recordings: footsteps, axes, fire, doors, metal, water, eating, birds,
+insects, surf, wind, thunder, explosions at 10, 150 and 250 m, a pistol's slide and magazine), the Free Firearm Sound
+Library (22 firearms recorded near and at mid distance: the rifle is an AK-47 and an SKS, the pistol a Walther PPQ and
+a 1911), HaelDB's male grunts and yells, Kenney's Impact, Interface, UI, RPG and Sci-fi packs, and OpenGameArt's
+footstep packs (Fantozzi, Corsica_S, TinyWorlds) and rubberduck's metal, wood and breaking packs. Made in code
+(`art/audio/synth.py`): the calm and high wind beds, the outdoor impulse response of the far gunshot tails, and two
+piezo tones (the code lock's verdicts and the charge's timer). No sound comes from Rust or any other game.
+
+**How a recipe becomes a file:**
+1. *Parts* of recordings: found by onset analysis (`audiolib.find_events` for hits and shots, `find_steps` for
+   sequences of steps or chops, from a smoothed envelope), picked at a steady level and spread through the take.
+2. Each part's gain, varispeed pitch (heavier or lighter), filters and offset; parts layered; a convolution with the
+   outdoor impulse response where a tail is wanted.
+3. Cut from where the sound starts (45 dB under its peak) to where its tail has died away (48–55 dB under), with short
+   fades; or, for a loop, the steadiest stretch of the recording with its end crossfaded into its start (equal power).
+4. Brought to its category's loudness (§4.9) under −1 dBTP: a look-ahead limiter takes at most the category's
+   allowance (0–10 dB), the rest stays as recorded.
+5. Encoded bit-exactly (no random Ogg serials or tags), measured again, and recorded with its SHA-256 in
+   `levels.json`; a recipe that didn't change isn't built again.
+
+Archives are unpacked into `art/.cache/audio/src` by Python's `zipfile` and our own 7z reader (`art/audio/sevenzip.py`:
+LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. The waveform and
+spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since nobody listened while they were made.
+
 ---
 
 ## 10. How the work is run
@@ -1746,8 +2108,15 @@ the reworked icons), `attachments.jpg` (attachments mounted on the rifle and pis
    - Underwear is part of the body and cannot be taken off, as in Rust.
    - In third person a rifle is carried at the right shoulder, pointing where the player looks; with nothing in hand
      the first-person view shows no arms, as in Rust.
-   - Item names: flint axe, flint pick, hand stone, Wren pistol, Kestrel rifle; knit cap, woven shirt, woven
-     trousers, laced boots, riveted breastplate.
+   - Garment names: knit cap, woven shirt, woven trousers, laced boots, riveted breastplate. Held items take their
+     names from items.json.
+   - Armour is rigid and built over the clothes, not cut from the body: plates ride one bone (the chest's), caps and
+     lames ride the collarbones and upper arms. It stands clear of the shirt, so the shirt never shows through.
+   - The riveted breastplate has faulds and shoulder caps although the brief asked only for a breastplate: without
+     them it did not read as armour at 20 m.
+   - The female body comes from the same scripts with her own MakeHuman build, skin, brows and hair (a ponytail),
+     a crop top as underwear and garments cut from her own body; the two bodies share no meshes, only the skeleton's
+     names, the materials of eyes, lashes and underwear, and the animation graph.
 3. **Tech ladder:** Rust's is assumed.
 
 Decisions taken during G1 without the owner, to confirm or overturn:
@@ -1838,14 +2207,10 @@ they merge beside the other packages' items):
   garage doors stand in (marked `standIn`); the metal door is the Starter Kit's sheet-metal door.
 - M3. **Clothing icons come from stand-in garments** (`models/clothing.py`, marked `standIn`); render them again from
   the character package's meshes when they can be posed for the inventory.
-- M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it; the
-  character package's test copy uses 0.62.
+- M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it.
 - M5. **Held items use the character package's frame** (+X forward, palm sockets `grip_r` and `grip_l`, LODs `_lod0`),
-  so its hands can hold any of them. That package also built five test copies of the same kit items
-  (`items/flint_axe.glb` and others, with their own copies of the PSG and Frontier textures in `items/textures`). When
-  both are merged, `HeldItems` should load these models through `ModelCatalog` (stone-hatchet, stone-pickaxe, rock,
-  pistol, rifle) so their materials come from the `.import` files, and the test copies and their textures (about
-  20 MB) can go.
+  so its hands can hold any of them. `HeldItems` loads them through `ModelCatalog`; the character package's test
+  copies of the kit items and their textures are gone.
 - M6. **Dropped deployables shrink** (`drop.scale`: a workbench lies at 0.3, a door at 0.3, a large box at 0.45), like a
   packed kit, rather than appearing full size or as a bag.
 - M7. **Textures are 2K at most and shared:** one PSG atlas for the Starter Kit items and every model of ours, the
@@ -1926,53 +2291,118 @@ Decisions taken during G4 (step "Fight") without the owner, to confirm or overtu
 56. **Names**: Service pistol and Frontier rifle (the assets package's markings), Pistol rounds, Rifle rounds and their
     high-velocity and incendiary kinds, Holo sight, 4x scope, Silencer, Weapon light, Muzzle brake, Metal mask, Gunpowder.
 
-Decisions taken during G5 (step "Raid") without the owner, to confirm or overturn:
+Decisions taken for the sound (§4.9, §9.2) without the owner, to confirm or overturn (numbered A1 on):
 
-57. **Raid costs are Rust's counts on our hit points.** One hit's damage per grade and door is set so Rust's counts come out on
-    RustMVP's hit points (wood 200 against Rust's 250, the armoured door 1,000 against 800); the blast keeps fractions of a point
-    from hit to hit, since the building resolver rounds every hit up. The tin grenade's doors and the high-velocity rocket are ours,
-    in proportion.
-58. **Explosives ignore the side** of a wall (Rust); the data can give a grade [hard, soft]. G5 leaves the melee soft-side numbers
-    of decision 36 as they are.
-59. **The blast is hollow-orbit's:** the piece stuck to or hit takes the table whole, the nearest in sight counts as hit when nothing
-    is stuck, other pieces in sight take 30% with the falloff (full within 40% of the radius). Rust's stuck charges hurt only their
-    piece; here a charge's neighbours in sight take a share too.
-60. **Line of sight:** building pieces, doors, claim devices and the ground block a blast; deployables, trees and characters don't.
-    Everything is looked at before anything is damaged, so a wall that breaks still shields what was behind it.
-61. **Fuses and duds:** timed charge 10 s, never a dud (RustMVP, Rust); bag charge 6–12 s with one in five a dud, tin grenade
-    3.5–4.5 s with three in twenty (Rust's in kind; exact Rust numbers not on record). Anyone within reach lights a dud again, any
-    number of times; a dud left alone goes after 10 minutes of world time (ours).
-62. **Throwing:** from any belt slot (not only the one in hand), at 9 m/s for charges and 15 m/s for grenades, or a lob; the view is
-    the intent's when within 0.6 rad of the server's (anti-cheat); one a second (grenades 0.8 s); thrown things pass through people;
-    charges stick to anything static; grenades bounce (restitution 0.35) and rest. Placing reaches 3 m (the deployables' reach;
-    RustMVP had 6 m) and needs no building rights (RustMVP). At most 1,024 explosives in a zone (RustMVP: 1,000 charges).
-63. **The rocket launcher is a firearm** of its own calibre, so rockets use G4's fire and reload intents and the client's gun
-    prediction (the task's "fire rocket" intent is `FireIntent`); a rocket flies 18 m/s with 0.15× the planet's gravity for 5 s and
-    explodes on contact or at the end; the high-velocity one 2.22× faster with a small blast. Its 5 s reload and 1 s equip are ours.
-64. **Explosive rifle rounds** do ×0.6 damage at ×0.6 speed (Rust's speed ratio) and burst (0.6 m); the burst is all they do to
-    buildings and deployables.
-65. **Blasts on people** use what is worn on the body against projectiles (armour has no explosion protection yet); a lethal blast may
-    knock down unless it does 75 or more.
-66. **Recipes are Rust's** with stand-ins for what doesn't exist yet: fibre for cloth, rope and the stash, refined metal for tech
-    trash and pipes, lamp oil for low-grade fuel. Rust's intermediate "explosives" is a new item key (`explosives`, id 120).
-67. **Raid alerts:** to everyone the claim device lists at the hit; for any explosive damage to a claimed piece or door, and blows or
-    shots by someone it doesn't list; not for decay. One a minute per base, the hits in between summed into the next; queued alerts
-    kept 7 days, 50 a player; a push channel is a seam with nothing behind it. The base is its claim device's ID; its place is in the
-    zone's frame (a moved zone would show it elsewhere).
-68. **Charges survive a restart** with their fuse left as world time (it pauses while the server is down, like a fire's fuel),
-    rather than being defused on load; one whose support is gone falls. Saved as things (`things.kind` 16), not a table of their
-    own. Queued alerts are a `notifications` table: schema 3, which building phase 2a also takes: the integration numbers one of the
-    two migrations 4.
-69. **Building in the zone before phase 2a:** `Zone.Building.cs` carries what raiding needs under 2a's names, so 2a's file replaces
-    it on merging; 2a's `DamageBuilding` callers for blows, arrows and bullets should call `DamageBuildingBy`, which raises the
-    alerts for strangers' blows. Upkeep and decay advance every 60 s here (2a's data has its own `advanceSeconds`). Claim devices
-    have no health on this branch, so blasts pass them by; with 2a's `Damage(ClaimDevice, …)` the blast should hurt them as it
-    hurts deployables.
-    `HitTarget.Building` is appended after G4's `Nothing` (2a appended it after `Ground`): one of the two goes.
-70. **Test bases stand on the surface itself:** `TestBases` computes a foundation's frame from the analytic ground, because Jolt's
-    rays straight down onto the ground tiles' meshes miss about a third of the time (a ray against a mesh tile; rays against
-    building hulls never missed in 13,000 tries). `BuildingWorld.FoundationAt` (G3) uses those rays and fails at random spots; the
-    building package should take the ground from the surface or a shape cast. Explosives' flight and lines of sight use the analytic
-    ground for the same reason.
-71. **Stand-in models** for the new items until the assets package models them: the timed charge for the bag charge and grenade,
-    the rifle for the launcher, rifle rounds for rockets, incendiary rounds for explosive ones, sulphur for explosives.
+- A1. **One-shots are levelled by their event loudness** (the highest momentary loudness, corrected for sounds shorter
+  than 400 ms), loops by integrated loudness, each category to its own target (§4.9); the event volumes in
+  sounds.json do the mix on top.
+- A2. **Gunshots stay as recorded** (at most 6 dB of limiting): their event loudness is −24 to −22 LUFS, under the
+  −20 target, because a real shot is a few milliseconds of blast. Rust's shots sound denser; heavier compression or a
+  saturated body layer is the owner's call after listening.
+- A3. **Distance layers:** guns near to 60 m, mid 60–350 m, far 350–1500 m; explosions 80, 500 and 2,500 m; sound
+  arrives at 343 m/s. The far gun layer is the mid recording with its report ducked under its echo, darkened, through
+  a made-in-code outdoor tail.
+- A4. **Silenced shots are processed** from the near recordings (a 1.5 kHz low-pass, compression, the slide's clack);
+  no recording of a suppressed gun was found under CC0.
+- A5. **Footstep surfaces:** forest floor, soil and gravel sound like a dirt path, moss like grass; metal floors are our
+  layering of a hard shoe step and a thin plate's ring (no CC0 recording of steps on sheet metal was found).
+- A6. **The player's voice** is one vocalist of HaelDB's pack (short grunts for hurt, a cry and a body fall at death);
+  a female voice comes with the female body.
+- A7. **Made in code only where it is natural:** the calm and high wind beds (two bands of noise in slow gusts), the far
+  tail's impulse response, and two piezo tones (the code lock and the charge's timer). Fire, surf, birds, insects,
+  strong wind and leaves are recordings.
+- A8. **The interface is quiet and physical** (Kenney's soft clicks; cloth and leather for the inventory and dragging),
+  in Rust's manner; hover has a 50 ms cooldown, errors 200 ms.
+- A9. **The medical injector** uses the bandage's sound until it has its own; eating is one event for every food.
+- A10. **No weather yet:** `AmbienceInput.Storm` is 0, so there is no thunder; wind comes from the caller.
+- A11. **Occlusion is one ray** (collision layer 1) and a 900 Hz low-pass bus; no portals or diffraction. Indoors is a
+  short room reverb on the SFX and Footsteps buses (`AudioBuses.SetSpace`).
+- A12. **The buses are made in code** (`AudioBuses.Ensure`), not a `default_bus_layout.tres`, so the layout lives in
+  one reviewed place.
+- A13. **BigSoundBank's single files** were downloaded into one folder (`Downloads/bigsoundbank`) rather than one folder
+  each; every file is checked by its SHA-256 before use.
+
+Decisions taken in G3's phase 2a (§6.5, building over the network), to confirm or overturn:
+
+- B1. **The key is an item of its own** (`door-key`) whose condition holds its lock's number; it has no model yet, so the
+  catalogue lists it with the key lock's model and icon.
+- B2. **No ladder yet:** climbing needs the movement code (and the prediction) to know ladders; it comes with the
+  ground-mode hookup or later.
+- B3. **`double-door` is the sheet metal double door** (Rust's common one); the wooden and armoured doubles stay in
+  building.json for later items. The armoured door's gears and sheet metal (not in the game yet) are metal fragments.
+- B4. **Building needs the tool carried, not held:** placing needs a building plan in the main or belt slots and the
+  hammer's actions a hammer, because an intent can arrive before the input that changes the held slot. Rust needs
+  it in hand.
+- B5. **The claim device has 200 health, 24 slots and wood's protection** (hollow-orbit's tool cupboard); anyone at it
+  may open its store, as in Rust.
+- B6. **The building runs on the real clock**, so its timers and decay run on while the server is down and are caught up
+  on load (Rust decays only while the server runs).
+- B7. **Arrows hit buildings as bullets** and melee as melee, so arrows do nothing to stone and up; a claim device hit
+  through its deployable box takes melee.
+- B8. **Replication budget:** 1,200 bytes of building per player per snapshot (about 190 kbit/s at most while a base
+  streams in), by 64 m areas; positions are exact doubles rather than quantised, so a client's copy links and collides
+  exactly as the server's.
+- B9. **Building results** are their own message (`BuildResult`, the rules' 48 reasons and the line) rather than G2's
+  `IntentResult` (at most 32 reasons).
+- B10. **Saved per part:** a row per piece, door and claim device rather than per structure, because structures merge and
+  split; only what changed is written.
+- B11. **The load test's bots build 36 m apart:** a claim device covers 25 m round itself (with 2.25 m of padding for
+  the hammer), so nearer bases would block each other.
+
+Decisions taken during G5 (step "Raid", §6.6) without the owner, to confirm or overturn (numbered R1 on):
+
+- R1. **Raid costs are Rust's counts on our hit points.** One hit's damage per grade and door is set so Rust's counts come
+  out on RustMVP's hit points (wood 200 against Rust's 250, the armoured door 1,000 against 800); the blast keeps
+  fractions of a point from hit to hit, since the building resolver rounds every hit up. The tin grenade's doors and the
+  high-velocity rocket are ours, in proportion.
+- R2. **Explosives ignore the side** of a wall (Rust); the data can give a grade [hard, soft]. G5 leaves the melee
+  soft-side numbers of decision 36 as they are.
+- R3. **The blast is hollow-orbit's:** the piece stuck to or hit takes the table whole, the nearest in sight counts as
+  hit when nothing is stuck, other pieces in sight take 30% with the falloff (full within 40% of the radius). Rust's
+  stuck charges hurt only their piece; here a charge's neighbours in sight take a share too.
+- R4. **Line of sight:** building pieces, doors, claim devices and the ground block a blast; deployables, trees and
+  characters don't. Everything is looked at before anything is damaged, so a wall that breaks still shields what was
+  behind it.
+- R5. **Fuses and duds:** timed charge 10 s, never a dud (RustMVP, Rust); bag charge 6–12 s with one in five a dud, tin
+  grenade 3.5–4.5 s with three in twenty (Rust's in kind; exact Rust numbers not on record). Anyone within reach lights a
+  dud again, any number of times; a dud left alone goes after 10 minutes of world time (ours).
+- R6. **Throwing:** from any belt slot (not only the one in hand), at 9 m/s for charges and 15 m/s for grenades, or a
+  lob; the view is the intent's when within 0.6 rad of the server's (anti-cheat); one a second (grenades 0.8 s); thrown
+  things pass through people; charges stick to anything static; grenades bounce (restitution 0.35) and rest. Placing
+  reaches 3 m (the deployables' reach; RustMVP had 6 m) and needs no building rights (RustMVP). At most 1,024 explosives
+  in a zone (RustMVP: 1,000 charges).
+- R7. **The rocket launcher is a firearm** of its own calibre, so rockets use G4's fire and reload intents and the
+  client's gun prediction (the task's "fire rocket" intent is `FireIntent`); a rocket flies 18 m/s with 0.15× the
+  planet's gravity for 5 s and explodes on contact or at the end; the high-velocity one 2.22× faster with a small blast.
+  Its 5 s reload and 1 s equip are ours.
+- R8. **Explosive rifle rounds** do ×0.6 damage at ×0.6 speed (Rust's speed ratio) and burst (0.6 m); the burst is all
+  they do to buildings and deployables.
+- R9. **Blasts on people** use what is worn on the body against projectiles (armour has no explosion protection yet); a
+  lethal blast may knock down unless it does 75 or more.
+- R10. **Recipes are Rust's** with stand-ins for what doesn't exist yet: fibre for cloth, rope and the stash, refined
+  metal for tech trash and pipes, lamp oil for low-grade fuel. Rust's intermediate "explosives" is a new item key
+  (`explosives`, id 120).
+- R11. **Raid alerts:** to everyone the claim device lists at the hit; for any explosive damage to a claimed piece, door
+  or claim device, and blows or shots by someone it doesn't list; not for decay. One a minute per base, the hits in
+  between summed into the next; queued alerts kept 7 days, 50 a player; a push channel is a seam with nothing behind it.
+  The base is its claim device's ID; its place is in the zone's frame (a moved zone would show it elsewhere).
+- R12. **Charges survive a restart** with their fuse left as world time (it pauses while the server is down, like a
+  fire's fuel, while the building's own timers run on the real clock, B6), rather than being defused on load; one whose
+  support is gone falls. Saved as things (`things.kind` 16), not a table of their own. Queued alerts are a
+  `notifications` table: schema 4, after phase 2a's `building` table at 3.
+- R13. **Hits on buildings go through `Zone.DamageBuildingBy`:** phase 2a's swings, arrows and bullets that stop at a
+  piece, door or claim device (`HitTarget.Building`) are kept and take the same building rules; the one call adds the
+  raid alert for a stranger's hit. A claim device in a blast takes the blast's damage to deployables (with the falloff,
+  no splash share) through the explosive channel, as part of the raid; blows and shots on its box stay phase 2a's (B7).
+- R14. **Test bases and explosives use the analytic ground:** `TestBases` takes a foundation's frame from the surface
+  itself, and explosives' flight and lines of sight take the ground from it too, because Jolt's rays straight down onto
+  the ground tiles' meshes missed about a third of the time here (phase 2a found the seam between two tiles and tries
+  again a millimetre aside in `FoundationAt`). Rays against building hulls never missed in 13,000 tries.
+- R15. **Stand-in models and sounds** for the new items until the assets and sound packages make them: the timed charge
+  for the bag charge and grenade, the rifle for the launcher, rifle rounds for rockets, incendiary rounds for explosive
+  ones, sulphur for explosives; in `sounds.json` (and `art/audio/events.py`) the charge's fuse and explosion for every
+  explosive, a swing for a throw, a fire going out for a dud and a fire lit for lighting it again, a metal impact for a
+  grenade's bounce and an explosive round's burst, the rifle's sounds for the launcher and an arrow's flight for a rocket.
+- R16. **The raid arena runs only without a database** (`--raid-bases`, the load test's huts): the building is saved now,
+  so its huts would come back at the next start and be built again over themselves. The admin's `raidbase` builds one
+  hut that is saved like any other.

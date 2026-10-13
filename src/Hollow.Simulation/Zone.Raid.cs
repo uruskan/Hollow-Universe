@@ -17,7 +17,7 @@ using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
-// Raiding (GROUND.md §6.5, G5): explosives thrown, placed and lit again; their flight, bounces and sticking; fuses and
+// Raiding (GROUND.md §6.6, G5): explosives thrown, placed and lit again; their flight, bounces and sticking; fuses and
 // duds; and the blast of a charge, a rocket or an explosive round: damage with falloff to building pieces (by grade and
 // side, through BuildingWorld.Damage), doors, deployables and characters, each only if nothing of the building or the
 // ground stands in between; the piece hit (or the nearest in sight) takes the table's damage, others in sight a share.
@@ -657,7 +657,7 @@ public sealed partial class Zone
 
     // ---------------------------------------------------------------- saving and loading
 
-    /// <summary>An explosive's stored form (GROUND.md §6.5): its fuse as ticks left, which pause while the server is down.</summary>
+    /// <summary>An explosive's stored form (GROUND.md §6.6): its fuse as ticks left, which pause while the server is down.</summary>
     public ExplosiveSave SaveOf(LiveExplosive e) => new()
     {
         Id = e.Id,

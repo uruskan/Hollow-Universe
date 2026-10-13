@@ -135,3 +135,70 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 
   Sources are CC0 recordings with our own processing, checked by loudness and clipping measurements. The owner's
   ears are still needed.
+- **G4 fight core merged** (`ground-fight`):
+  - the pistol and rifle with RustMVP's definitions and the AK recoil pattern, exactly as given;
+  - three rounds per calibre and five attachments;
+  - server-side bullets with drop, drag and lag compensation;
+  - damage by distance, body part and armour;
+  - Rust's wounded state (down, crawl, help up, bleed out).
+
+  With 100 fighting bots the tick is 8.6 ms on average and each client uses 169 kbit/s. The visuals (muzzle flash,
+  tracers, aiming and the HUD) follow after integration. Three new items have marked stand-in models for now.
+  102 of 102 tests pass.
+- **G5 raid started** (`ground-raid`):
+  - timed charges, bag charges (they can dud), tin grenades, the rocket launcher and rockets, explosive ammo;
+  - damage by grade and side, aiming at Rust's raid costs;
+  - line-of-sight shielding;
+  - raid alerts to owners, online or offline, and offline raids that work.
+- **Character polish merged:**
+  - a proper crew-neck shirt with no skin showing in any pose;
+  - a riveted cuirass of our own design that reads as armour from a distance;
+  - natural first-person hands and grips;
+  - a real chop for tools, and weighty swings and reloads;
+  - blinking, ragdoll joint limits, no foot sliding;
+  - a female body.
+
+  Held items load from the shared catalogue. 102 of 102 tests pass.
+- **Effects and the last item models started** (`ground-fx`):
+  - muzzle flashes, tracers, impacts and decals per surface, blood, gathering chips;
+  - explosions from the PSG C4 flipbooks, and fire;
+  - real models for the three stand-ins and the G5 explosives and launcher.
+- **Sound merged** (`ground-audio`):
+  - 463 files for 138 events, about 13 MB, all CC0 with our own processing;
+  - footsteps per ground type, gathering, building, doors, guns with near, mid and far layers, explosions, Rust-like
+    interface clicks;
+  - ambience by biome and time of day;
+  - an audio system and the `--view sounds` viewer.
+
+  Every file was checked by measurement. Gunshot loudness, silenced shots and the generated wind beds need the owner's
+  ears. The sounds aren't wired into the ground mode yet. 105 of 105 tests pass.
+- **G6 ship started** (`ground-ship`), with the Tin Finch:
+  - crafted at the vehicle workbench;
+  - hatch and seat, flight assist, hover, landing on its skids;
+  - first-person cockpit and chase camera;
+  - flight up to an "orbit reached" ceiling;
+  - network prediction, saved parked ships;
+  - a `--view ship` sandbox over the real planet.
+- **Integration pass 1 finished** (`ground-integrate`). G1 and G2 play as one game on the real planet:
+  - arriving on real beaches;
+  - felling the surface's own trees, picking berries, mining new stone, metal and sulphur outcrops;
+  - crafting, clothing, fires, melee and bow, death and respawn, sleepers;
+  - real characters and first-person arms;
+  - the RustMVP interface with Rust's keys;
+  - a ×24 day.
+
+  Launch it with `play-ground.cmd` (host), `play-ground.cmd join`, or `play-ground.cmd menu`. Screenshots are in
+  `docs/images/ground/play/`. It runs at 81 fps with 2 players and 50 bots. Integration pass 2 is running now:
+  - merging `ground` in;
+  - the asset catalogue, characters by worn items with a male or female choice, sound;
+  - the gun visual layer;
+  - Host as a separate server process, since hosting in-process stalls on shared garbage collection;
+  - tick profiling.
+- **G3 building phase 2a merged:**
+  - building works over the network and survives restarts, with costs paid from the inventory;
+  - the claim device's store pays upkeep;
+  - code locks and keys.
+
+  With 100 bots building 100 bases the tick is 7.4 ms on average and each client uses 84 kbit/s. A 1,074-piece
+  base streams to a newcomer in 1.9 s. The ground-mode hookup (held plan and hammer, ghost, wheels, drawing
+  structures) follows the running integration pass. 110 of 110 tests pass.

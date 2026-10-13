@@ -6,7 +6,7 @@ using Hollow.Simulation.Entities;
 
 namespace Hollow.Simulation.Raid;
 
-/// <summary>Where a thrown or placed explosive is (GROUND.md §6.5).</summary>
+/// <summary>Where a thrown or placed explosive is (GROUND.md §6.6).</summary>
 public enum ExplosiveState : byte
 {
     /// <summary>In the air, on the arc from <see cref="LiveExplosive.ArcStart"/> and <see cref="LiveExplosive.ArcVelocity"/> at its state tick.</summary>
@@ -33,7 +33,7 @@ public enum SupportKind : byte
 }
 
 /// <summary>
-/// A timed charge, bag charge or tin grenade in the world (GROUND.md §6.5): thrown (it flies, sticks or bounces and comes
+/// A timed charge, bag charge or tin grenade in the world (GROUND.md §6.6): thrown (it flies, sticks or bounces and comes
 /// to rest) or placed (stuck where it was put), with its fuse burning; a dud lies there until lit again. Simulated on
 /// the server only; clients get its state when it changes (and draw a flight on its arc themselves).
 /// </summary>
@@ -164,7 +164,7 @@ public readonly record struct RaidHit
     public long UnixMilliseconds { get; init; }
 }
 
-/// <summary>An explosive's stored form (GROUND.md §6.5: charges with their fuse left survive a restart), positions in the zone frame.</summary>
+/// <summary>An explosive's stored form (GROUND.md §6.6: charges with their fuse left survive a restart), positions in the zone frame.</summary>
 public sealed record ExplosiveSave
 {
     public EntityId Id { get; init; }

@@ -17,7 +17,7 @@ using Hollow.Simulation.World;
 
 namespace Hollow.Tests;
 
-/// <summary>Raiding in a <see cref="GameRig"/>: huts built through the building rules, explosives through the zone (GROUND.md §6.5).</summary>
+/// <summary>Raiding in a <see cref="GameRig"/>: huts built through the building rules, explosives through the zone (GROUND.md §6.6).</summary>
 public static class Raids
 {
     public static ThrowableStats Throwable(GameRig rig, string key) => rig.C.ItemByKey(key).Throwable!;
@@ -59,7 +59,7 @@ public static class Raids
 public static class RaidTests
 {
     /// <summary>
-    /// GROUND.md §6.5, the raid-cost table: how many of each explosive break each grade of wall, hit on its hard side
+    /// GROUND.md §6.6, the raid-cost table: how many of each explosive break each grade of wall, hit on its hard side
     /// and on its soft side, and each door. Rust's counts (the owner allows its raid tables) come out exactly on our hit
     /// points: timed charges 1/2/4/8 for wood, stone, metal and armoured walls, rockets 2/4/8/15, bag charges 3/10/23/46,
     /// tin grenades 13/46/112/223, explosive rounds 49/185/400/799; doors as in the table. Explosives hurt both sides alike
@@ -177,7 +177,7 @@ public static class RaidTests
     }
 
     /// <summary>
-    /// GROUND.md §6.5, throwing: a tin grenade thrown at a box bounces off it and comes to rest on the ground (not hanging in
+    /// GROUND.md §6.6, throwing: a tin grenade thrown at a box bounces off it and comes to rest on the ground (not hanging in
     /// the air beside the box); a timed charge thrown at the box sticks to it, and its blast breaks the box.
     /// </summary>
     [Test]
@@ -218,7 +218,7 @@ public static class RaidTests
     }
 
     /// <summary>
-    /// GROUND.md §6.5, line of sight: a timed charge placed on a hut's north wall from outside breaks a share of it; a box
+    /// GROUND.md §6.6, line of sight: a timed charge placed on a hut's north wall from outside breaks a share of it; a box
     /// and a player outside within the blast are hurt (with the falloff: the farther, the less); the box and the sleeper
     /// inside, the walls behind and the door across the room take nothing: the wall stands between. A grenade thrown in
     /// through the door hurts the sleeper.
@@ -288,7 +288,7 @@ public static class RaidTests
     }
 
     /// <summary>
-    /// GROUND.md §6.5, duds: a bag charge thrown at a wall sticks to it, its fuse 6 to 12 seconds; one whose fuse goes out
+    /// GROUND.md §6.6, duds: a bag charge thrown at a wall sticks to it, its fuse 6 to 12 seconds; one whose fuse goes out
     /// lies there harmless, can't be lit from afar, and the interact key lights it again with a new fuse (which may go out
     /// too), until it goes off. A charge that is burning can't be "lit again".
     /// </summary>
@@ -355,7 +355,7 @@ public static class RaidTests
     }
 
     /// <summary>
-    /// GROUND.md §6.5, rockets: a rocket flies at 18 m/s with a little drop (so 20 m takes 1.1 s), explodes on the wall it
+    /// GROUND.md §6.6, rockets: a rocket flies at 18 m/s with a little drop (so 20 m takes 1.1 s), explodes on the wall it
     /// hits (137 or 138 of a stone wall's 500) and hurts someone standing beside the impact; the launcher holds one and
     /// reloads in 5 s; a high-velocity rocket flies faster and flatter but hardly scratches stone.
     /// </summary>
@@ -399,7 +399,7 @@ public static class RaidTests
     }
 
     /// <summary>
-    /// GROUND.md §6.3 and §6.5, collapse: two timed charges stuck to a stone hut's foundation from inside break it; what
+    /// GROUND.md §6.3 and §6.6, collapse: two timed charges stuck to a stone hut's foundation from inside break it; what
     /// it held (walls, doorway and door, the roof, the claim device) comes down through the building rules, layer by layer;
     /// a dud stuck to a wall falls to the ground when its wall goes.
     /// </summary>

@@ -42,6 +42,9 @@ public sealed class BuildingPhysics : IDisposable
 
     public PhysicsWorld World => _world;
 
+    /// <summary>A mirror's bodies all carry the server's IDs: without one, a body isn't made.</summary>
+    public bool OnlyRequested { get; set; }
+
     /// <summary>Building bodies in the world.</summary>
     public int BodyCount => _owners.Count;
 
@@ -83,11 +86,30 @@ public sealed class BuildingPhysics : IDisposable
         return shape;
     }
 
-    /// <summary>Adds a static body for an owner; returns its ID, or 0 when the building range is full.</summary>
-    public uint Add(object owner, Shape shape, Vector3 position, Quaternion rotation)
+    /// <summary>
+    /// Adds a static body for an owner; returns its ID, or 0 when the building range is full. A client's mirror asks
+    /// for the server's ID (<paramref name="requested"/>), so its prediction meets the same contacts in the same order.
+    /// </summary>
+    public uint Add(object owner, Shape shape, Vector3 position, Quaternion rotation, uint requested = 0)
     {
         uint id;
-        if (_free.Count > 0)
+        if (requested != 0)
+        {
+            if (requested < PhysicsWorld.FirstBuildingBody || requested >= PhysicsWorld.FirstBuildingBody + PhysicsWorld.MaxBuildingBodies)
+            {
+                return 0;
+            }
+            if (_owners.ContainsKey(requested))
+            {
+                Remove(requested);
+            }
+            id = requested;
+        }
+        else if (OnlyRequested)
+        {
+            return 0;
+        }
+        else if (_free.Count > 0)
         {
             id = _free.Pop();
         }
@@ -120,6 +142,15 @@ public sealed class BuildingPhysics : IDisposable
         lock (JoltRuntime.Gate)
         {
             _world.Jolt.BodyInterface.SetPositionAndRotation(new BodyID(id), position, rotation, Activation.DontActivate);
+        }
+    }
+
+    /// <summary>Removes a body, but only while it still belongs to <paramref name="owner"/> (a mirror may have given its ID to a newer piece).</summary>
+    public void Remove(uint id, object owner)
+    {
+        if (id != 0 && _owners.TryGetValue(id, out object? current) && Equals(current, owner))
+        {
+            Remove(id);
         }
     }
 

@@ -9,7 +9,7 @@ using Hollow.Simulation.Raid;
 namespace Hollow.Persistence;
 
 /// <summary>
-/// An explosive's stored form (GROUND.md §6.5, G5): a charge stuck or lying in the world with its fuse left survives a
+/// An explosive's stored form (GROUND.md §6.6, G5): a charge stuck or lying in the world with its fuse left survives a
 /// restart; its fuse is world time, which pauses while the server is down, so it goes off as many seconds after the
 /// start as it had left. Kept in the <c>things</c> table under <see cref="ThingKind"/>. Positions in the body frame
 /// (directions too: the zone's frame may move between runs); decoded as untrusted.

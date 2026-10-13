@@ -456,14 +456,15 @@ public sealed partial class Zone
                 break;
             case HitTarget.Building:
             {
-                float amount = (float)(b.Damage * b.Gun.Falloff(distance) * b.Round.Structure);
+                // A wall stops the bullet; what it takes is its grade's protection against bullets (none from stone up). An explosive
+                // round's burst (below) is all it does to buildings, so Rust's counts hold (GROUND.md §6.6).
+                float amount = b.Round.Blast != null ? 0 : (float)(b.Damage * b.Gun.Falloff(distance));
                 float lost = amount > 0 ? DamageBuildingBy(hit.Building!, Vector3.Normalize(b.Velocity), amount, projectile: true, shooter, b.Gun.Item.Id) : 0;
-                if (shooter != null && lost > 0)
+                if (shooter != null)
                 {
                     GameEvents.Add(new ZoneEvent
                     {
-                        Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point,
-                        Item = b.Gun.Item.Id,
+                        Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point, Item = b.Gun.Item.Id,
                     });
                 }
                 break;

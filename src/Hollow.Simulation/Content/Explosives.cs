@@ -7,7 +7,7 @@ using Hollow.Simulation.Building;
 namespace Hollow.Simulation.Content;
 
 /// <summary>
-/// One explosion (explosives.json <c>blasts</c>, GROUND.md §6.5): how far it reaches, how it falls off, what it does to
+/// One explosion (explosives.json <c>blasts</c>, GROUND.md §6.6): how far it reaches, how it falls off, what it does to
 /// people and deployables, and how much one hit takes from a building piece of each grade (by side) and from a door of
 /// each protection grade. The piece it is stuck to or hit takes the table's damage whole; other pieces in sight take
 /// <see cref="Splash"/> of it with the falloff; whatever is behind a piece or the ground takes nothing.

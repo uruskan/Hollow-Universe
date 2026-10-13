@@ -116,6 +116,7 @@ public sealed partial class GameServer
             _savedNaturals.Add(n.ObjectId);
             IndexOverride(n.ObjectId);
         }
+        LoadBuilding(stored);
         RestoreExplosives();
         Log($"loaded {sleepers} sleepers, {things} things and {stored.Naturals.Count} changed natural objects");
     }
@@ -190,6 +191,10 @@ public sealed partial class GameServer
         var current = new HashSet<EntityId>();
         foreach (WorldObject thing in Zone.Statics())
         {
+            if (thing is Deployable deployable && Zone.ClaimOf(deployable) != null)
+            {
+                continue; // saved with the building
+            }
             save.Things.Add(new ThingRecord
             {
                 Id = thing.Id,
@@ -223,6 +228,7 @@ public sealed partial class GameServer
             }
         }
         _naturalsToSave.Clear();
+        AddBuildingToSave(save);
         return save;
     }
 
@@ -345,7 +351,7 @@ public sealed partial class GameServer
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.HelpUp(me, new EntityId(m.Target)));
             }
             default:
-                return ReceiveRaidIntent(session, type);
+                return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type);
         }
     }
 
@@ -443,6 +449,7 @@ public sealed partial class GameServer
             }
             session.PendingResults.Clear();
         }
+        SendBuildResults();
     }
 
     private void Send(PlayerSession session) => session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);

@@ -190,6 +190,29 @@ public sealed class CookStats
     public int Ticks => Math.Max(1, (int)Math.Round(Seconds * CharacterTicks.Rate));
 }
 
+/// <summary>What an item does in building (GROUND.md §6.3; items.json's <c>"building"</c>).</summary>
+public enum BuildingRole : byte
+{
+    None,
+
+    /// <summary>The building plan: places twig pieces.</summary>
+    Plan,
+
+    /// <summary>Upgrades, turns, demolishes and repairs pieces.</summary>
+    Hammer,
+
+    /// <summary>The claim device, placed on a foundation or floor.</summary>
+    Claim,
+    KeyLock,
+    CodeLock,
+
+    /// <summary>A key cut for a key lock; its condition holds the lock's number.</summary>
+    Key,
+
+    /// <summary>A door; <see cref="ItemDef.Door"/> says which.</summary>
+    Door,
+}
+
 /// <summary>One kind of item (items.json).</summary>
 public sealed class ItemDef
 {
@@ -236,6 +259,12 @@ public sealed class ItemDef
 
     public AttachmentStats? Attachment { get; internal set; }
 
+    /// <summary>What it does in building (G3); a door names its door in building.json.</summary>
+    public BuildingRole Building { get; init; }
+
+    public string? DoorKey { get; init; }
+
+    public Building.DoorDef? Door { get; internal set; }
     /// <summary>An explosive thrown or placed by hand (explosives.json, G5); null for other items.</summary>
     public ThrowableStats? Throwable { get; internal set; }
 

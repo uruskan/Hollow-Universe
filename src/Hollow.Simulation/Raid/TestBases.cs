@@ -8,9 +8,9 @@ namespace Hollow.Simulation.Raid;
 
 /// <summary>
 /// Small claimed bases built straight through the building rules (no player, no wallet, no placement checks), for the raid
-/// tests, the admin's <c>raidbase</c> and the raid bots' load test (GROUND.md §6.5), until players build over the network
-/// (building phase 2a). A hut is a foundation with three walls and a doorway with a door, a floor on top for a roof and a
-/// claim device inside listing its owner.
+/// tests, the admin's <c>raidbase</c> and the raid bots' load test (GROUND.md §6.6): the same pieces players build, in one
+/// go. A hut is a foundation with three walls and a doorway with a door, a floor on top for a roof and a claim device
+/// inside listing its owner.
 /// </summary>
 public static class TestBases
 {

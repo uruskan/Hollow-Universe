@@ -8,7 +8,7 @@ using Hollow.Simulation.Raid;
 
 namespace Hollow.Client;
 
-// Raiding in the client (GROUND.md §6.5, G5): the explosives in range as the server has them (drawn on their arcs, with
+// Raiding in the client (GROUND.md §6.6, G5): the explosives in range as the server has them (drawn on their arcs, with
 // their fuses), the detonations, for the visual layer and sound, and raid alerts (LocalPlayer).
 public sealed partial class GameClient
 {

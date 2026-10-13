@@ -8,7 +8,7 @@ using Hollow.Simulation.Items;
 
 namespace Hollow.Client;
 
-// The player's raiding (GROUND.md §6.5, G5): throwing and placing explosives, lighting a dud again, and the raid alerts
+// The player's raiding (GROUND.md §6.6, G5): throwing and placing explosives, lighting a dud again, and the raid alerts
 // of the bases they are authorised on.
 public sealed partial class LocalPlayer
 {

@@ -13,7 +13,7 @@ using Hollow.Simulation.Raid;
 namespace Hollow.Server.Notifications;
 
 /// <summary>
-/// A raid alert as a player gets it (GROUND.md §6.5): which base (its claim device), where it stands (zone frame), when
+/// A raid alert as a player gets it (GROUND.md §6.6): which base (its claim device), where it stands (zone frame), when
 /// it was first and last hit in this alert's window (Unix ms), how many pieces and doors were hit and broken, what (the
 /// most telling first) and with what (the explosive or weapon's item).
 /// </summary>
@@ -109,7 +109,7 @@ public sealed class NotificationCounters
 }
 
 /// <summary>
-/// Raid alerts (GROUND.md §6.5): a hit on a claimed base alerts every player its claim device lists at the moment of the
+/// Raid alerts (GROUND.md §6.6): a hit on a claimed base alerts every player its claim device lists at the moment of the
 /// hit, rate-limited per base: the first hit sends an alert at once; hits within the cooldown are summed (hits, broken
 /// pieces, what, the time of the last) into one alert sent when the cooldown is over. A player playing gets it in the
 /// game; one offline gets it queued (and pushed, later), to be listed at login with the base, the time and what was hit.

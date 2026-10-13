@@ -35,7 +35,7 @@ public static class RaidNetTests
     }
 
     /// <summary>
-    /// GROUND.md §6.5 over the network: Bo throws a tin grenade at a stone hut listing Ada (the intent: it leaves his belt
+    /// GROUND.md §6.6 over the network: Bo throws a tin grenade at a stone hut listing Ada (the intent: it leaves his belt
     /// at once); both clients see it fly on its arc and come to rest, its fuse burning; if it fizzles, Bo lights it again with
     /// the interact key; when it goes off both clients get the detonation (where, how big, of what), and Ada, playing, gets a
     /// raid alert for her base in the game.
@@ -118,7 +118,7 @@ public static class RaidNetTests
     }
 
     /// <summary>
-    /// GROUND.md §6.5, persistence: charges stuck in the world come back after a restart with the fuse they had left (world
+    /// GROUND.md §6.6, persistence: charges stuck in the world come back after a restart with the fuse they had left (world
     /// time: it paused while the server was down) and stuck to what they were on, a fizzling one still fizzling; a raid
     /// alert queued for Ada while she was away waits in the database and comes to her at login, with the base, the time
     /// and what was hit.
