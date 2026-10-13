@@ -33,24 +33,25 @@ the galaxy is: full of what somebody built, with nobody left in it.
 | Factions | None. No factions, no history, no campaign. Enemies at monuments are kinds of enemy (§5), not sides with a story. | Decided |
 | Aliens | None known. Nothing in the game is not human: no alien ruins, artefacts, ships or intelligent creatures. A world's animals are animals. | Decided |
 | Magic | None: no magic, psychic powers, ancient energies or the like. The game is as down to earth as Rust. | Decided |
-| The rumour | One rumour, almost never heard (§3). | Decided |
+| The rumour | One rumour, almost never heard: the hollow men (§3). | Decided |
 
 ---
 
-## 3. The rumour (Decided; its wording Open)
+## 3. The rumour: the hollow men (Decided)
 
-Very rarely there is a rumour that humanity was wiped out by machines made in its own image. The game almost never
-mentions it: a line scratched into a wall, a torn note at a rare site. It is never a cutscene, a quest, a boss or an
-explanation.
+Very rarely there is a rumour that humanity was wiped out by machines made in its own image: **the hollow men**. The
+game almost never mentions it: a line scratched into a wall, a torn note at a rare site. It is never a cutscene, a
+quest, a boss or an explanation.
 
 To keep it a rumour:
 
 - Nothing ever confirms or denies it.
 - The whole game holds only a handful of traces, each one deniable.
-- **No humanoid robots anywhere** (Proposal). The old civilisation's machines are turrets, drones, crawlers and
+- **No humanoid robots anywhere** (Decided). The old civilisation's machines are turrets, drones, crawlers and
   gunships (§5), never walking metal men; one walking machine in a ruin would turn the rumour into the story.
-- **Its words are Open.** The owner calls them "men of iron", but that is Warhammer 40,000's name for exactly this
-  idea, and other franchises' names are never used (GAME_DESIGN.md §10). The rumour needs words of our own.
+- **The words.** "The hollow men" is the title of T. S. Eliot's 1925 poem, and it echoes the game's name. Use the
+  phrase only, never lines of the poem. Not "men of iron": that is Warhammer 40,000's name for the same idea, and
+  other franchises' names are never used (GAME_DESIGN.md §10).
 
 ---
 
@@ -120,7 +121,6 @@ fought whom. Each one belongs to a visual family. The data keys are internal and
 
 ## 8. Open questions
 
-1. The rumour's own words (§3).
-2. Does the old civilisation stay without a name, even in item text? (Proposal: yes.)
-3. The Anomaly (MONUMENTS.md §5.6, #59): without aliens, it has to be the old civilisation's own work (a failed
+1. Does the old civilisation stay without a name, even in item text? (Proposal: yes.)
+2. The Anomaly (MONUMENTS.md §5.6, #59): without aliens, it has to be the old civilisation's own work (a failed
    experiment, say), or it goes.
