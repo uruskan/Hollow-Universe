@@ -18,7 +18,7 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
     (map on G, tech tree from a workbench, recycler, research, teams);
   - effects, sound, characters and assets.
 
-  145/145 tests pass, and the protocol is version 9. Nothing has ever been pushed, and nothing merged into `main`
+  157/157 tests pass, and the protocol is version 10. Nothing has ever been pushed, and nothing merged into `main`
   (that needs the owner).
 - **Play it:** `play-ground.cmd` hosts a game; `play-ground.cmd join` adds a second player; `play-ground.cmd menu`
   opens the main menu. Controls and tour steps are in AGENTS.md.
@@ -33,7 +33,7 @@ Their agents ran in the first session. Whatever they committed is safe; check `g
 | `ground-integrate` | **Pass 4 merged** (Tin Finch and G7a UI in the game). | Next pass: wire the wardrobe (Wardrobe/Looks APIs, Sleep stance for sleepers, Aiming for bows) and the animals (`AnimalView`) once they're merged; fix the over-bright night bloom on some glowing models. |
 | `ground-perf` | Just started: server cost of flying ships streaming ground, broadphase rebuilds, respawn hitches. | Profile and fix (targets ≤ 10 ms average and ≤ 33 ms 99th percentile with 100 bots + 20 flying), then GROUND.md §5.10 (§5.9 is G7a's load test). |
 | `ground-wardrobe` | **Finished** (0cf21c5…1bb9d9d, 110 tests on its older base): every clothing and armour item wearable (hood, metal mask, gloves…), looks from the player ID (skin, face, hair), sleep, wounded and crawl, help-up, spear, bow, third-person reloads, eat, bandage, inject. APIs: `Wardrobe.ForItem(s)`, `Looks.ForPlayer(id, body)`, stances `Crawl` and `Sleep`, `CharacterFrame.Aiming`. | Merge `ground` into it first (it is behind), then merge. Integration sets `Stance = Sleep` for sleepers and sends `Aiming` for bows (C9, C10). |
-| `ground-animals` (G7b) | 4 commits ahead: animals with AI, harvesting, cooking. | Finish and merge; integration then wires `AnimalView`. |
+| `ground-animals` (G7b) | **Merged** (protocol 10): deer, boar, wolves, bear; AI, harvest, cooking; `AnimalsView` already in `GroundView`. | Polish later: foot IK and gaits, ragdolls, voices by ear, spawn density at the landing site (about 20 around a player). |
 
 ## What's left after that
 
