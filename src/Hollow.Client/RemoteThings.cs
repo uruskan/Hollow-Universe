@@ -40,7 +40,7 @@ public sealed class RemoteThing
 
     public ThingFlags Flags { get; set; }
 
-    /// <summary>A corpse's name.</summary>
+    /// <summary>Its own name, as the server gives it: a body's (the dead player's), a bag's, a world prop's; empty for a deployable.</summary>
     public string Name { get; set; } = "";
 
     public bool Lit => (Flags & ThingFlags.Lit) != 0;

@@ -309,7 +309,8 @@ public static class WorldCodec
                         stacks.Add(ReadStack(r, content, version));
                     }
                 }
-                var bag = new DroppedBag(id, Math.Clamp(Math.Max(stacks.Count, content.Survival.BagSlots), 1, 255), position, up, yaw, tick + Math.Max(0, left));
+                var bag = new DroppedBag(id, content.Survival.BagName, Math.Clamp(Math.Max(stacks.Count, content.Survival.BagSlots), 1, 255), position, up, yaw,
+                    tick + Math.Max(0, left));
                 for (int i = 0; i < stacks.Count && i < bag.Loot.Size; i++)
                 {
                     bag.Loot.Set(i, stacks[i]);

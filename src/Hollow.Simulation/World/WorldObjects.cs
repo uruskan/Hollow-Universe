@@ -68,6 +68,12 @@ public abstract class WorldObject
 
     /// <summary>Whether a player owns it (a sleeping bag is its owner's alone to respawn at).</summary>
     public virtual bool OwnedBy(EntityId player) => false;
+
+    /// <summary>
+    /// Its own name, shown on prompts and loot panels: a body's (the dead player's), a bag's, a world prop's; empty for a
+    /// deployable, which clients name by its item.
+    /// </summary>
+    public virtual string Name => "";
 }
 
 /// <summary>
@@ -174,6 +180,8 @@ public sealed class WorldProp : Deployable
 
     public override StaticKind Kind => StaticKind.Prop;
 
+    public override string Name => Prop.Name;
+
     /// <summary>A barrel's loot is only had by breaking it; a crate and a recycler open like a box.</summary>
     public override Container? Container => Prop.Openable ? Storage : null;
 
@@ -228,12 +236,16 @@ public abstract class DroppedContainer : WorldObject
 /// </summary>
 public sealed class DroppedBag : DroppedContainer
 {
-    public DroppedBag(EntityId id, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
+    public DroppedBag(EntityId id, string name, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
         : base(id, ContainerKind.Crate, slots, position, up, yaw, despawnTick)
     {
+        Name = name;
     }
 
     public override StaticKind Kind => StaticKind.DroppedBag;
+
+    /// <summary>What bags are called (survival.json's <c>bag.name</c>).</summary>
+    public override string Name { get; }
 
     /// <summary>A bag, whatever is in it.</summary>
     public override ushort Look => 0;
@@ -266,7 +278,7 @@ public sealed class Corpse : DroppedContainer
     public override StaticKind Kind => StaticKind.Corpse;
 
     /// <summary>Whose body it was.</summary>
-    public string Name { get; }
+    public override string Name { get; }
 
     public EntityId Of { get; }
 

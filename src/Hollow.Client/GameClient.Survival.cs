@@ -478,7 +478,7 @@ public sealed partial class GameClient
                     // A bag of one stack is taken at once; one holding more opens like a box (GROUND.md §6.1).
                     bool open = thing.Count > 1;
                     Consider(Geometry.RaySphere(eye, direction, range, thing.Position + Frame.UpAt(thing.Position) * 0.15f, 0.35f),
-                        open ? InteractionKind.Open : InteractionKind.PickItem, 0, thing.Id, open ? "Open" : "Pick up", Content.Survival.BagName);
+                        open ? InteractionKind.Open : InteractionKind.PickItem, 0, thing.Id, open ? "Open" : "Pick up", thing.Name);
                     break;
                 }
                 case StaticKind.Corpse:

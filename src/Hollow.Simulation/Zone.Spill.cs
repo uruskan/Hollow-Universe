@@ -155,7 +155,7 @@ public sealed partial class Zone
         while (left > 0)
         {
             EntityId id = NextId();
-            var bag = new DroppedBag(id, content.Survival.BagSlots, rest, Frame.UpAt(rest), yaw ?? BagYaw(id), until);
+            var bag = new DroppedBag(id, content.Survival.BagName, content.Survival.BagSlots, rest, Frame.UpAt(rest), yaw ?? BagYaw(id), until);
             AddStatic(bag);
             int before = left;
             left = Fill(bag, stack.WithCount(left), until);

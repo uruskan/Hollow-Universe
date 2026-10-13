@@ -956,7 +956,7 @@ public sealed partial class GameServer
                     Health = health,
                     Count = count,
                     Flags = flags,
-                    Name = thing is Corpse corpse ? corpse.Name : "",
+                    Name = thing.Name,
                 }.WriteMessage(_writer);
                 Send(session);
             }

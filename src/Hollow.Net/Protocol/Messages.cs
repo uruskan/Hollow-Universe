@@ -329,7 +329,7 @@ public partial struct ThingSpawn
     [VarInt] public uint Count;
     [Bits(4)] public ThingFlags Flags;
 
-    /// <summary>A corpse's name.</summary>
+    /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
     [MaxLength(32)] public string Name;
 }
 

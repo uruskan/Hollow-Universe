@@ -1650,7 +1650,7 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
   (`ThingSpawn`; at most 48 new ones per snapshot, so a crowded place streams in), again when they change
   (`ThingUpdate`: health, a bag's number of stacks, lit, the receiver's own sleeping bag) and `Despawn`ed when gone or
   out of range (320 m). What is sent of a thing is the thing's own to say (`WorldObject`: its look, health, count,
-  burning, whose); a bag shows no item (protocol 12).
+  burning, whose, and its own name: a body's, a bag's, a world prop's); a bag shows no item (protocol 12).
 - **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
   changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens.
 - **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
@@ -4384,8 +4384,9 @@ confirm or overturn (numbered U1 on):
   box's body goes before its contents spill, so they lie where it stood.
 - U6. **Bodies and bags are one kind of thing** (`DroppedContainer`: a container lying for a while, take only, gone when
   emptied or when its time is up), so an emptied body now goes at once too, rather than within the second. What clients
-  are told of a thing (health, count, burning, whose) is the thing's own to say (`WorldObject`'s virtual members), and
-  how a container is looted follows its kind (`LootRules.KindOf`): two switches over object types replaced.
+  are told of a thing (health, count, burning, whose, its name) is the thing's own to say (`WorldObject`'s virtual
+  members; a world prop now sends its name, which titles a crate's loot as it does a bag's), and how a container is
+  looted follows its kind (`LootRules.KindOf`): three switches and tests over object types replaced.
 - U7. **Numbers taken in shared spaces:** protocol 12 (a change of meaning, not of layout: a thing of kind
   `StaticKind.DroppedBag`, formerly `DroppedItem` with the same value, shows no item and counts its stacks); the things'
   record version 3 (`WorldCodec.ThingVersion`; the things table is unchanged, so no SQL schema step); survival.json's
