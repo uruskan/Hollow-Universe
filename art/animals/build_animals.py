@@ -807,10 +807,14 @@ def idle_pose(a, clip, t):
             pose["hind_upper.r"] = (-0.6 * up, 0, 0)
             pose["hind_lower.l"] = (0.3 * up, 0, 0)
             pose["hind_lower.r"] = (0.3 * up, 0, 0)
-            pose["front_upper.l"] = (0.5 * up, 0, 0)
-            pose["front_upper.r"] = (0.5 * up, 0, 0)
-            pose["neck"] = (-0.3 * up, 0, 0)
-            pose["jaw"] = (-0.45 * up, 0, 0)
+            pose["front_upper.l"] = (0.7 * up, 0, 0.12 * up)
+            pose["front_upper.r"] = (0.7 * up, 0, -0.12 * up)
+            pose["front_lower.l"] = (-0.5 * up, 0, 0)
+            pose["front_lower.r"] = (-0.5 * up, 0, 0)
+            # The head down at whoever it warns, the snout out, the jaw wide.
+            pose["neck"] = (-0.5 * up, 0, 0)
+            pose["head"] = (-0.2 * up, 0, 0.05 * math.sin(w * 2))
+            pose["jaw"] = (-0.55 * up, 0, 0)
             pose["_hips_offset"] = V((0, -0.15 * up, 0.12 * up))
     return pose
 

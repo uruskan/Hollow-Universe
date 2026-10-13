@@ -68,6 +68,7 @@ public partial class AnimalSandbox : Node3D
         public float Fov = 50;
         public Func<(Num.Vector3 Eye, Num.Vector3 At)> Camera = null!;
         public Func<bool> Moment = () => true;
+        public Func<string>? Trace;
         public Action? Tick;
         public Action<double>? Frame;
         public bool Built;
@@ -98,7 +99,7 @@ public partial class AnimalSandbox : Node3D
     public Dictionary<string, string> Options { get; set; } = new();
 
     /// <summary>For automated screenshots: the ground drawn and the scene at its moment.</summary>
-    public bool ReadyForShot => _scene != null && _world.IsReady && _sceneTime > 3 && _scene.Moment();
+    public bool ReadyForShot => _scene != null && _world.IsReady && _sceneTime > 1 && _scene.Moment();
 
     public Zone Zone => _zone;
 
@@ -193,8 +194,10 @@ public partial class AnimalSandbox : Node3D
     public override void _Process(double delta)
     {
         _elapsed += delta;
-        _sceneTime += delta;
-        _accumulator += Math.Min(delta, 0.25);
+        // The world held still until the ground around is drawn, so a scene's moment isn't missed while it streams.
+        bool waiting = !_world.IsReady && _elapsed < 30;
+        _sceneTime += waiting ? 0 : delta;
+        _accumulator += waiting ? 0 : Math.Min(delta, 0.25);
         int steps = 0;
         while (_accumulator >= TickSeconds && steps < 4)
         {
@@ -239,7 +242,7 @@ public partial class AnimalSandbox : Node3D
                 parts.Add($"{a.Species.Key} {a.State}{(a.Warning ? "!" : "")} {d:0}m v={a.Speed:0.0} {v?.Playing} {(v?.Visible == true ? "shown" : "hidden")} {seen}");
             }
         }
-        GD.Print($"[animals] t={_elapsed:0} {_scene?.Name} moment={_scene?.Moment()} ready={_world.IsReady} | " + string.Join("; ", parts));
+        GD.Print($"[animals] t={_elapsed:0} {_scene?.Name} moment={_scene?.Moment()} ready={_world.IsReady} {_scene?.Trace?.Invoke()} | " + string.Join("; ", parts));
     }
 
     private void Step()

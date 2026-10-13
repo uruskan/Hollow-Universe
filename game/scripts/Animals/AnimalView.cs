@@ -359,10 +359,9 @@ public partial class AnimalView : Node3D
         return MathF.Abs(speed - boundary) > boundary * 0.08f ? wanted : _gait;
     }
 
-    // Standing still: what it is doing.
+    // Standing still: what it is doing. The threat display (a wolf's growl, the bear rearing) only while it warns.
     private static string Standing(in AnimalFrame f)
     {
-        bool fighter = f.Data == null || f.Data.Temperament != Temperament.Flee;
         if (f.Warning)
         {
             return "Threaten";
@@ -371,8 +370,7 @@ public partial class AnimalView : Node3D
         {
             AnimalState.Graze => "Graze",
             AnimalState.Eat => "Eat",
-            AnimalState.Alert or AnimalState.Flee => "Alert",
-            AnimalState.Chase or AnimalState.Attack => fighter ? "Threaten" : "Alert",
+            AnimalState.Alert or AnimalState.Flee or AnimalState.Chase or AnimalState.Attack => "Alert",
             _ => f.Alert ? "Alert" : "Idle",
         };
     }

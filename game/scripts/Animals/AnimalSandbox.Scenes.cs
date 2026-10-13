@@ -197,7 +197,7 @@ public partial class AnimalSandbox
     {
         Person? dummy = null;
         Animal? bear = null;
-        var scene = new Scene { Name = "bear", Site = site, Toward = toward, Hour = 17.5, Fov = 45 };
+        var scene = new Scene { Name = "bear", Site = site, Toward = toward, Hour = 17.5, Fov = 40 };
         scene.Build = () =>
         {
             dummy = AddPerson("Dummy", site, YawOf(toward), dummy: true);
@@ -210,10 +210,12 @@ public partial class AnimalSandbox
             Num.Vector3 d = dummy != null ? dummy.Current : site;
             Num.Vector3 b = bear?.Position ?? site + toward * 13;
             Num.Vector3 up = _zone.Frame.UpAt(d);
-            return (d - toward * 4.5f + Side(toward, up) * 2.6f + up * 1.35f, b + up * 1.0f);
+            // Over the dummy's shoulder: the bear rearing at it, the dummy in the near corner.
+            return (d - toward * 4f + Side(toward, up) * 2.2f + up * 1.45f, Num.Vector3.Lerp(d, b, 0.8f) + up * 1.0f);
         };
         // The warning: rearing, half a second in.
-        scene.Moment = () => bear != null && _animals.ViewOf((uint)bear.Id.Value) is { Playing: "Threaten", PlayingFor: > 0.6 };
+        scene.Moment = () => bear is { Warning: true } && _animals.ViewOf((uint)bear.Id.Value) is { Playing: "Threaten", PlayingFor: > 0.6 };
+        scene.Trace = () => bear != null && dummy != null ? $"bear {Flat(bear.Position, dummy.Current):0.0} m from the dummy, {bear.State}{(bear.Warning ? " warning" : "")}" : "";
         _scenes.Add(scene);
     }
 
