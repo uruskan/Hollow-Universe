@@ -46,6 +46,9 @@ public sealed class WorldStats
     public long Unlocked { get; internal set; }
     public long Learned { get; internal set; }
 
+    /// <summary>The zone's time in the world's steps: props coming and going, recyclers and research tables at work.</summary>
+    public TimeSpan Time { get; internal set; }
+
     public override string ToString() =>
         $"{BarrelsBroken} barrels broken, {CratesEmptied} crates emptied, {Respawned} props back; {UnitsRecycled} units recycled in {Batches} batches; " +
         $"{Unlocked} blueprints unlocked, {Researched} researched, {Learned} learnt from items";
@@ -196,6 +199,7 @@ public sealed partial class Zone
     // the way: a player, a deployable, a building piece); invites run out.
     private void StepWorld()
     {
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
         _gone.Clear();
         foreach (WorldProp prop in _props.Values)
         {
@@ -227,6 +231,7 @@ public sealed partial class Zone
             }
         }
         Teams.Expire(UnixMilliseconds);
+        WorldStats.Time += System.Diagnostics.Stopwatch.GetElapsedTime(started);
     }
 
     private bool SpotFree(in LootSpot spot)
@@ -270,18 +275,19 @@ public sealed partial class Zone
     // A lit recycler or research table, each tick (Zone.Things' devices pass).
     private void StepMachine(Deployable d)
     {
-        if (d.Storage is not { } storage)
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (d.Storage is { } storage)
         {
-            return;
+            if (d.Def.Recycler is { } recycler)
+            {
+                StepRecycler(d, recycler, storage);
+            }
+            else if (d.Def.Research is { } research)
+            {
+                StepResearch(d, research, storage);
+            }
         }
-        if (d.Def.Recycler is { } recycler)
-        {
-            StepRecycler(d, recycler, storage);
-        }
-        else if (d.Def.Research is { } research)
-        {
-            StepResearch(d, research, storage);
-        }
+        WorldStats.Time += System.Diagnostics.Stopwatch.GetElapsedTime(started);
     }
 
     // One batch every few seconds: the first input stack's batch comes apart into the outputs; with nothing to take

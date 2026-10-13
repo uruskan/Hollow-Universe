@@ -1,5 +1,5 @@
 {
-  "source": "Loot tables: a table gives every 'guaranteed' entry, then 'rolls' picks from 'entries' by weight ([item, least, most, weight]). An entry of \"blueprint\" takes a fifth number: the workbench level of the recipe it teaches, drawn from those not known from the start (world.json). The respawn kit is Rust's (a rock and a torch). G7: the world's barrels and crates (world.json says which prop rolls which table), in Rust's manner: salvage every time (barrels 1-3 as Rust's 2, crates 4-7, military crates 8-12), then components, ammunition, food, medicine, tools, and now and then a blueprint or a schematic; military crates hold gun parts, guns and armour. 'supply-crate' is here for admin tests and the bots; 'gunfight-kit' arms the G4 load test's bots (a rifle and a pistol with rounds, two attachments, armour, bandages and food). 'build-kit' is what a building bot needs for its base (G3). 'raid-kit' is what the G5 raid bots carry (charges, bag charges, grenades, a rocket launcher with rockets, a rifle with explosive rounds).",
+  "source": "Loot tables: a table gives every 'guaranteed' entry, then 'rolls' picks from 'entries' by weight ([item, least, most, weight]). An entry of \"blueprint\" takes a fifth number: the workbench level of the recipe it teaches, drawn from those not known from the start (world.json). The respawn kit is Rust's (a rock and a torch). G7: the world's barrels and crates (world.json says which prop rolls which table), in Rust's manner: salvage every time (barrels 1-3 as Rust's 2, crates 4-7, military crates 8-12), then components, ammunition, food, medicine, tools, and now and then a blueprint or a schematic; military crates hold gun parts, guns and armour. 'supply-crate' is here for admin tests and the bots; 'gunfight-kit' arms the G4 load test's bots (a rifle and a pistol with rounds, two attachments, armour, bandages and food). 'build-kit' is what a building bot needs for its base (G3). 'raid-kit' is what the G5 raid bots carry (charges, bag charges, grenades, a rocket launcher with rockets, a rifle with explosive rounds). 'world-kit' is what the G7 world bots start with (a machete for barrels, a metal hatchet to research, a research table, salvage, a few components for the recycler).",
   "tables": [
     { "key": "respawn-kit", "guaranteed": [["rock", 1, 1], ["torch", 1, 1]] },
     { "key": "supply-crate", "rolls": [2, 4],
@@ -31,6 +31,10 @@
         ["timed-charge", 4, 4], ["bag-charge", 6, 6], ["tin-grenade", 8, 8], ["rocket-launcher", 1, 1], ["rocket", 3, 3], ["rocket", 3, 3],
         ["rocket-hv", 2, 2], ["rifle", 1, 1], ["rifle-ammo-explosive", 96, 96], ["rifle-ammo", 64, 64], ["bandage", 3, 3],
         ["roasted-tuber", 10, 10], ["woven-shirt", 1, 1], ["woven-trousers", 1, 1], ["work-boots", 1, 1], ["chest-plate", 1, 1]
+      ] },
+    { "key": "world-kit", "guaranteed": [
+        ["machete", 1, 1], ["metal-hatchet", 1, 1], ["research-table", 1, 1], ["salvage", 100, 100], ["gears", 2, 2], ["metal-pipe", 2, 2],
+        ["bandage", 2, 2], ["roasted-tuber", 5, 5]
       ] },
 
     { "key": "barrel", "rolls": [1, 2],

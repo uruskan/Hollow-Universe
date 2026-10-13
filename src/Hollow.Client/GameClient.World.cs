@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using Hollow.Client.Map;
 using Hollow.Net.Protocol;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Physics;
 using Hollow.Simulation.World;
 using LiteNetLib;
 
@@ -15,6 +18,8 @@ namespace Hollow.Client;
 // zone's map.
 public sealed partial class GameClient
 {
+    // Who holds each solid thing's body, per prediction physics world (clients sharing one, the bots, count together).
+    private static readonly ConditionalWeakTable<PhysicsWorld, Dictionary<ulong, int>> ThingBodies = new();
     private ZoneMap? _map;
 
     /// <summary>
@@ -28,6 +33,38 @@ public sealed partial class GameClient
 
     /// <summary>Whether a player is in the local player's team (for name tags and the map; not the player themself).</summary>
     public bool IsTeammate(EntityId player) => player != EntityId && Local.Team?.Has(player) == true;
+
+    // Solid deployables and the world's props stand in the prediction physics as on the server (the same box from the
+    // same place, up and yaw), so walking into a barrel, a crate or a box stops the character here too instead of
+    // pulling the prediction back. Clients sharing a physics world count who holds each body: one moving out of range
+    // leaves it for the others.
+    private void ThingBodyAdded(RemoteThing thing)
+    {
+        if (Physics is not { } physics || thing.Deployable(Content) is not { Solid: true } def)
+        {
+            return;
+        }
+        Dictionary<ulong, int> held = ThingBodies.GetOrCreateValue(physics);
+        held[thing.Id.Value] = held.GetValueOrDefault(thing.Id.Value) + 1;
+        Vector3 up = Frame.UpAt(thing.Position);
+        physics.AddProp(PropLayer.Deployable, thing.Id.Value, PropShape.Box(thing.Position + up * def.HalfExtents.Y, def.HalfExtents, up, thing.Yaw));
+    }
+
+    private void ThingBodyRemoved(RemoteThing thing)
+    {
+        if (Physics is not { } physics || !ThingBodies.TryGetValue(physics, out Dictionary<ulong, int>? held) ||
+            !held.TryGetValue(thing.Id.Value, out int count))
+        {
+            return;
+        }
+        if (count > 1)
+        {
+            held[thing.Id.Value] = count - 1;
+            return;
+        }
+        held.Remove(thing.Id.Value);
+        physics.RemoveProp(PropLayer.Deployable, thing.Id.Value);
+    }
 
     /// <summary>A chat line to the player's team alone.</summary>
     public void SendTeamChat(string text)

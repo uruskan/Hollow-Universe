@@ -58,6 +58,7 @@ dotnet run --project tests/Hollow.Tests -- Wounded    # G4: down, crawling, help
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 120 --script build --kit build-kit   # G3: bots that build bases (GROUND.md §5.4)
 dotnet run --project tests/Hollow.Tests -- Raid       # G5: raid costs, line of sight, duds, rockets, collapse, alerts, an offline raid, network, restart
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script raid   # G5: bots raiding claimed huts (GROUND.md §5.5)
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script world   # G7: bots looting, recycling, researching, in teams (GROUND.md §5.8)
 dotnet run --project tests/Hollow.Tests -- ContentTests   # checks game/data/ground: references, ranges, every recipe makeable
 dotnet run --project tests/Hollow.Tests -- World      # G7: loot, the recycler, tech trees and research, teams, map markers, over the network and a restart
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs per generated star system

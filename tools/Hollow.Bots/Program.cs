@@ -18,7 +18,7 @@ namespace Hollow.Bots;
 /// <item><c>loadtest --count 100 --duration 60</c>: a server in this process plus the bots; prints tick time,
 /// bandwidth per client and prediction error (GROUND.md §5, measured).</item>
 /// </list>
-/// Both take <c>--script wander|circle|jump|mixed|survive|fight|raid</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>; the load
+/// Both take <c>--script wander|circle|jump|mixed|survive|fight|raid|world</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>; the load
 /// test takes <c>--kit</c> (a loot table every new character gets; with <c>fight</c> and <c>raid</c>, every new life too),
 /// <c>--spawn origin|beach</c> (where bots arrive: the landing site, the default, or the beaches) and <c>--stand-in</c>. With
 /// <c>raid</c> the server builds <c>--raid-bases</c> huts (half the bots by default) on a ring of <c>--raid-radius</c> metres,
@@ -40,7 +40,7 @@ public static class Program
             if (words.Contains("loadtest"))
             {
                 return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300),
-                    o.GetValueOrDefault("kit") ?? (script == BotScript.Raid ? "raid-kit" : null), raidBases, raidRadius,
+                    o.GetValueOrDefault("kit") ?? (script == BotScript.Raid ? "raid-kit" : script == BotScript.World ? "world-kit" : null), raidBases, raidRadius,
                     o.GetValueOrDefault("spawn", "origin") == "beach", o.ContainsKey("stand-in"));
             }
             if (!o.TryGetValue("server", out string? server))
@@ -90,7 +90,8 @@ public static class Program
                 $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights} {all.Sum(c => c.Stats.Teleports)} " +
                 $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)} " +
                 $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building?.PieceCount ?? 0)} " +
-                $"{swarm.Raids.Placed} {swarm.Raids.Thrown} {swarm.Raids.Rockets} {swarm.Raids.Bursts} {swarm.Raids.Alerts}"));
+                $"{swarm.Raids.Placed} {swarm.Raids.Thrown} {swarm.Raids.Rockets} {swarm.Raids.Bursts} {swarm.Raids.Alerts} " +
+                $"{swarm.World.Broken} {swarm.World.Emptied} {swarm.World.Picked} {swarm.World.Recycled} {swarm.World.Researched} {swarm.World.Learnt} {swarm.World.Teamed}"));
             return 0;
         }
         Console.CancelKeyPress += (_, _) => Console.WriteLine(swarm.BuildProgress);
@@ -173,13 +174,15 @@ public static class Program
         bots.BeginOutputReadLine();
 
         System.Threading.Thread.Sleep(TimeSpan.FromSeconds(warmup));
-        TimeSpan stepBefore = TimeSpan.Zero, raidBefore = TimeSpan.Zero;
+        TimeSpan stepBefore = TimeSpan.Zero, raidBefore = TimeSpan.Zero, worldBefore = TimeSpan.Zero, worldSendBefore = TimeSpan.Zero;
         Dictionary<string, (long Bytes, long Packets, long BytesIn, long PacketsIn, long Applied, long Missing)> before =
             server.Inspect(sv =>
             {
                 sv.Ticks.ResetTotals();
                 stepBefore = sv.StepTime;
                 raidBefore = sv.Zone.RaidStats.Time;
+                worldBefore = sv.Zone.WorldStats.Time;
+                worldSendBefore = sv.WorldTime;
                 return sv.Players.ToDictionary(p => p.Name, p => Traffic(p));
             });
         string countersBefore = server.Inspect(sv => sv.Counters.ToString());
@@ -209,6 +212,12 @@ public static class Program
             RaidMs = (sv.Zone.RaidStats.Time - raidBefore).TotalMilliseconds,
             Raid = sv.Zone.RaidStats.ToString(),
             Alerts = sv.Notifications.Counters.ToString(),
+            World = sv.Zone.WorldStats.ToString(),
+            WorldMs = (sv.Zone.WorldStats.Time - worldBefore).TotalMilliseconds,
+            WorldSendMs = (sv.WorldTime - worldSendBefore).TotalMilliseconds,
+            WorldProps = sv.Zone.Props.Count,
+            Teams = sv.Zone.Teams.Count,
+            TeamMembers = sv.Zone.Teams.All.Sum(t => t.Members.Count),
             Explosives = sv.Zone.Explosives.Count,
             Restored = sv.Arena?.Restored ?? 0,
             GunLimited = sv.Players.Sum(p => p.GunRateLimited),
@@ -276,6 +285,15 @@ public static class Program
                 $"Raids (server, whole run): {measured.Raid}; explosives and blasts {measured.RaidMs / Math.Max(1, measured.Ticks):0.000} ms a tick on average " +
                 $"(measured part); {measured.Explosives} explosives in the world at the end, {measured.Pieces} building pieces, {measured.Restored} huts put back\n" +
                 $"Alerts: {measured.Alerts}"));
+        }
+        if (r.Length > 34 && script == BotScript.World)
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"World (bots, whole run): {F(28):0} barrels broken, {F(29):0} crates emptied, {F(30):0} things picked up, " +
+                $"{F(31):0} recycler runs started, {F(32):0} research begun, {F(33):0} blueprints learnt; {F(34):0} bots in teams\n" +
+                $"World (server, whole run): {measured.World}; {measured.WorldProps} props in the world at the end; " +
+                $"{measured.Teams} teams with {measured.TeamMembers} members; the world's steps {measured.WorldMs / Math.Max(1, measured.Ticks):0.000} ms " +
+                $"and its messages {measured.WorldSendMs / Math.Max(1, measured.Ticks):0.000} ms a tick on average (measured part)"));
         }
         if (r.Length > 13)
         {

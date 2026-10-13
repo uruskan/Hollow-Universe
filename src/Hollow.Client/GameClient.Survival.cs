@@ -160,6 +160,7 @@ public sealed partial class GameClient
         if (_things.Remove(netId, out RemoteThing? thing))
         {
             _thingsById.Remove(thing.Id);
+            ThingBodyRemoved(thing); // G7
         }
     }
 
@@ -189,6 +190,7 @@ public sealed partial class GameClient
                 };
                 _things[m.NetId] = thing;
                 _thingsById[thing.Id] = thing;
+                ThingBodyAdded(thing); // G7
                 return;
             }
             case ThingUpdate.TypeId:

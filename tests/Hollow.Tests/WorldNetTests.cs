@@ -10,6 +10,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 
@@ -50,7 +51,7 @@ public static class WorldNetTests
     }
 
     /// <summary>
-    /// GROUND.md §6.8 over the network: the world's props reach clients as things of kind Prop (a crate opens take only
+    /// GROUND.md §6.8 over the network: the world's props reach clients as things of kind Prop, solid in their prediction (a crate opens take only
     /// and goes once emptied); a recycler started from the client runs with its state shown to the looter; a tech tree
     /// node unlocked shows at once and is confirmed; a team made, an invite sent and accepted, team chat to members
     /// alone, teammates' positions; a marker on the map.
@@ -71,6 +72,7 @@ public static class WorldNetTests
         Fixtures.Report($"Ada sees {ada.Props.Count()} props near the crate: " +
             string.Join(", ", ada.Props.GroupBy(p => p.Prop(c)!.Name).Select(g => $"{g.Count()} {g.Key}")));
         Assert.Equal(WorldPropKind.Crate, seen.Prop(c)!.Kind, "a crate");
+        Assert.True(ada.Physics!.HasProp(PropLayer.Deployable, crate.Value), "solid in her prediction too");
         me.Open(crate);
         RunUntil(rig, () => me.LootTarget == crate && me.Loot != null, "the crate's contents");
         Assert.Equal(LootKind.Crate, me.LootKind, "as a crate");
@@ -83,6 +85,7 @@ public static class WorldNetTests
             }
         }
         RunUntil(rig, () => ada.ThingOf(crate) == null, "the emptied crate to go", 4);
+        Assert.True(!ada.Physics!.HasProp(PropLayer.Deployable, crate.Value), "and gone from her prediction");
         Assert.True(me.Inventory.Count(c.ItemByKey("salvage")) >= 4, "its salvage taken");
 
         // The recycler.

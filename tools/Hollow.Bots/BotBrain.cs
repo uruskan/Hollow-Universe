@@ -30,6 +30,9 @@ public enum BotScript
 
     /// <summary>Raids the next bot's hut with charges, grenades, rockets and explosive rounds (<see cref="RaidBrain"/>, G5).</summary>
     Raid,
+
+    /// <summary>Lives off the world's loot: barrels, crates, the recycler, research, teams (<see cref="WorldBrain"/>, G7).</summary>
+    World,
 }
 
 /// <summary>

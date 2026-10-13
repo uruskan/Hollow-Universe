@@ -160,7 +160,17 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- after each step
 
+    /// <summary>The server's time in the world's messages after each step (blueprints, teams, invites, map, machines, teammates).</summary>
+    public TimeSpan WorldTime { get; private set; }
+
     private void AfterWorld()
+    {
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        SendWorld();
+        WorldTime += System.Diagnostics.Stopwatch.GetElapsedTime(started);
+    }
+
+    private void SendWorld()
     {
         foreach (EntityId affected in Zone.Teams.Affected)
         {

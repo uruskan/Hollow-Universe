@@ -1061,6 +1061,45 @@ ragdoll (40–60 ms, the character package's) and plant rebuilds landing (20–3
 take a spare body (`PeopleView`: four of each body made while the world opens, and those leaving are kept), so only
 new arrivals and corpses build one.
 
+### 5.8 G7 load test: 100 bots living off the world's loot
+
+Measured on the owner's PC on 13 October 2026, with other agents' work on it but in a quiet stretch (71 clock jumps in
+the bots' process, 99.96 % of inputs on their tick). Every bot gets the `world-kit` loot table (a machete, a metal
+hatchet, a research table, 100 salvage, two gears and two metal pipes, bandages and food) and plays `--script world`
+(`WorldBrain`): it walks to the barrels and crates it can see (one of the nearest five, so the crowd spreads), breaks
+barrels with the machete (holding the swing while someone else stands at the barrel: friendly fire is on), picks up the
+salvage, components and blueprints that spill, empties crates, takes three or more components to one of the recyclers
+in range and turns it on, places its research table once and researches the hatchet into a blueprint, and learns every
+blueprint it finds. One bot in four leads a team and invites the bots within 5 m; the others accept. Each puts a marker
+on its map. All arrive at the landing site and roam up to 450 m.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script world
+```
+
+| | G7, 100 world bots | 100 survival bots on the first world (§5.7, after) | Target |
+|---|---|---|---|
+| Server tick, average | 5.75 ms, of which the zone's step 1.51 ms; the world's steps 0.006 ms and its messages 0.024 ms | 5.04 ms, of which the zone's step 1.21 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 18.6 / 48.5 ms (5 of 1,802 over 33 ms) | 13.1 / 93.3 ms | ≤ 33 ms |
+| Bandwidth per client, down (91 characters in view) / up | 100.0 / 20.4 kbit/s | 105.3 / 22.1 kbit/s | ≤ 256 kbit/s |
+| Snapshots lost / inputs on their tick | 0 % / 99.96 % | | |
+| Prediction: mean / worst error, corrections | 0.012 / 282 mm, 46 in 120,000 | 0.089 / 259 mm, 125 in 80,460 | |
+
+In the 80 s the server counted 10 barrels broken and 3 crates emptied (a hundred bots share the cluster near the landing
+site and those 200–450 m out, and a barrel takes four blows), 62 components recycled in 31 batches, 35 research runs and
+28 blueprints learnt, and 22 teams with 55 members; 198 props stood at the end (none came back: barrels return after 20
+minutes).
+- **The world costs next to nothing**: its steps (crates going, props coming back, recyclers and research tables at
+  work) take 0.006 ms a tick, and its messages (blueprints, teams, invites, markers, machines, teammates' positions twice a
+  second) 0.024 ms. The rest of the tick is movement and replication, as in §5.7.
+- **Prediction is exact** but for the crowd shoving at the same barrels and recyclers: solid deployables and props are
+  now in every client's prediction physics (W10). Before that, 8 world bots made 120 corrections in 48 s walking into
+  barrels and crates; after it, none.
+- **Refusals** (186 of 1,025 intents) are the crowd's: a research table placed where another bot stood (106; the bot
+  turns and tries again), an invite to a bot already in a team (62), an output another bot took first (9).
+- **An earlier run on a busy PC** (945 clock jumps, 2.5 % of inputs late) measured 7.28 ms average and 61.4 / 438 ms at
+  the 99th percentile and worst; there the bots still swung into each other at the barrels: 54 hits, 30 deaths.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -2052,7 +2091,7 @@ shoreline, and paper grain, stains and a darker edge. Deterministic (Hash64 nois
 so the game caches it on disk under `ZoneMap.CacheKey`. The grid (26 × 26 cells of 150 m, lettered A–Z from the west and
 numbered from the north, as Rust's) and every label are drawn by the interface, crisp at any scale.
 
-**Bots and the load test**: `WorldBrain` and `loadtest --script world` (§5.6).
+**Bots and the load test**: `WorldBrain` and `loadtest --script world` (§5.8).
 
 ---
 
@@ -3079,9 +3118,11 @@ confirm or overturn (numbered W1 on):
 - W9. **Loot spots** are generated clusters (coasts, forest edges, the open), within 1.6 km of the zone's origin and never
   within 90 m of it, where players arrive (and the tests play); one cluster always about 130 m out. Barrels and crates
   stand anywhere a cluster is kept, not along roads (there are none).
-- W10. **World props are deployables to the rules** (hits, blasts, opening, replication) and solid in the server's
-  physics only, as boxes and furnaces are: the client's prediction doesn't hold deployables, so a player walking into one
-  is corrected (§5.2). Clients see them as things of kind `Prop`.
+- W10. **World props are deployables to the rules** (hits, blasts, opening, replication). Clients see them as things of
+  kind `Prop`. They are solid on the server and in every client's prediction, as boxes and furnaces now are: a solid
+  deployable or prop reaching a client gets the server's box (same place, up and yaw) in its prediction physics, and
+  loses it when it goes (`GameClient.ThingBodyAdded`; clients sharing a physics world, the bots, count who holds each).
+  Before, walking into one was corrected: 8 world bots made 120 corrections in 48 s, and none after.
 - W11. **Teams**: Rust's size of 8; an invite lasts 5 minutes and goes to a player within 6 m (looking at them); a leader
   who leaves passes the lead to the oldest member. "Authorise team" on a claim device adds the player and the team (anyone
   may authorise there); on a code lock only someone it knows can. Friendly fire stays on. Teammates' positions go to
