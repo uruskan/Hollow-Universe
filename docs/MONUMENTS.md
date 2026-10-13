@@ -7,6 +7,11 @@ the galaxy, the events that spawn at random, and how they are built and brought 
 
 Every rule is marked **Decided** (the owner said so), **Proposal** (waiting for a yes or no) or **Open**.
 
+**Built so far (13 October 2026):** 55 of the 66 monuments: every roadside, small, medium, large and landmark
+monument in §5 (58 scripts with the Strip Mine's three variants), each with three or four look-dev views in
+`docs/images/monuments/` and scale charts of the tiers (`scale-*.jpg`). The wonders, orbital and sea monuments are
+designed here but not built. None is in the game yet (§11, M3).
+
 ---
 
 ## 1. Decisions
@@ -182,18 +187,18 @@ crate); **guards**: Reclaimers (people) and Wardens (machines).
 
 | # | Monument | Size | Where | What | Holds and does | Like |
 |---|---|---|---|---|---|---|
-| 26 | **Biodome** | 160 m, dome 70 m tall | Plains near towns | A geodesic greenhouse dome, half its panes gone, overgrown inside, with service buildings | A climb up the frame to crates at the top; contamination 2 | Rust's dome |
-| 27 | **Uplink Array** | 220 × 160 m | Plateaus | A 60 m dish and three smaller ones, a control block, transformer yard | Cyan room behind an amber chip door; tech; contamination 1 | Rust's satellite dish |
-| 28 | **Transit Station** | 200 × 80 m | On rail lines | Platforms under a canopy, a ticket hall, a portal into the tunnel network | The way into the underground (tunnels link stations, §5.9); Reclaimers below | Rust's train stations and tunnels |
-| 29 | **Refinery** | 300 × 200 m | Coasts, oil worlds | Distillation columns, tank farm, flare stack, pipe racks | Fuel, gunpowder makings; cyan room; contamination 2 | — |
-| 30 | **Research Outpost** | 200 × 150 m | Odd ground: craters, ice, near anomalies | White modular labs on stilts, clean rooms, a test range | An access puzzle through the labs (chips, cells, a code found inside); schematics | Dune's testing stations |
-| 31 | **Cargo Port** | 350 × 200 m | Coasts | Quays, two gantry cranes, container stacks, a warehouse, a ship at the quay | Cyan room, container crates, recycler; a boat way in | Rust's harbours |
-| 32 | **Garrison** | 250 × 200 m | Strategic ground | Barracks, a motor pool, watchtowers, sandbag walls, an armoury | Reclaimers guard it; military crates, weapons; armoury needs a cyan chip | Rust's military bases |
-| 33 | **Landing Field** | 400 × 250 m | Flat ground | Pads, two hangars, a control tower, a fuel farm, a crashed lander | Ship parts and fuel; cyan room in the tower | Rust's airfield |
-| 34 | **Drainage Works** | 150 × 100 m (and under) | Below towns | A pumping station over storm drains; a parkour route through the drains | An amber-chip puzzle underground; recycler | Rust's sewer branch |
-| 35 | **Detention Block** | 220 × 220 m | Remote | A walled penal compound, cell blocks, guard towers, a yard | Reclaimers; cells as loot rooms; violet room in the warden's office | — |
-| 36 | **Reclaimer Camp** (safe) | 200 × 150 m | Swamps, forests | The clans' market in a scrap-walled ruin: stalls, a gambling wheel, a bar | Safe zone; trades, gambling, a recycler; hostile to the hostile (§7.4) | Rust's bandit camp |
-| 37 | **Exchange** (safe) | 250 × 200 m | Near the landing site of each zone | A repurposed depot under Warden turrets that enforce the peace | Safe zone; vendors, recycler, research table, workbench, drone market (later) | Rust's outpost |
+| 26 | **Biodome** | 160 m, dome 70 m tall | Plains near towns | A geodesic greenhouse dome, half its panes gone, overgrown inside, with service buildings | A climb up the frame to crates at the top; contamination 2 *Built: `biodome.py`* | Rust's dome |
+| 27 | **Uplink Array** | 220 × 160 m | Plateaus | A 60 m dish and three smaller ones, a control block, transformer yard | Cyan room behind an amber chip door; tech; contamination 1 *Built: `uplink_array.py`* | Rust's satellite dish |
+| 28 | **Transit Station** | 200 × 80 m | On rail lines | Platforms under a canopy, a ticket hall, a portal into the tunnel network | The way into the underground (tunnels link stations, §5.9); Reclaimers below *Built: `transit_station.py`* | Rust's train stations and tunnels |
+| 29 | **Refinery** | 300 × 200 m | Coasts, oil worlds | Distillation columns, tank farm, flare stack, pipe racks | Fuel, gunpowder makings; cyan room; contamination 2 *Built: `refinery.py`* | — |
+| 30 | **Research Outpost** | 200 × 150 m | Odd ground: craters, ice, near anomalies | White modular labs on stilts, clean rooms, a test range | An access puzzle through the labs (chips, cells, a code found inside); schematics *Built: `research_outpost.py`* | Dune's testing stations |
+| 31 | **Cargo Port** | 350 × 200 m | Coasts | Quays, two gantry cranes, container stacks, a warehouse, a ship at the quay | Cyan room, container crates, recycler; a boat way in *Built: `cargo_port.py`* | Rust's harbours |
+| 32 | **Garrison** | 250 × 200 m | Strategic ground | Barracks, a motor pool, watchtowers, sandbag walls, an armoury | Reclaimers guard it; military crates, weapons; armoury needs a cyan chip *Built: `garrison.py`* | Rust's military bases |
+| 33 | **Landing Field** | 400 × 250 m | Flat ground | Pads, two hangars, a control tower, a fuel farm, a crashed lander | Ship parts and fuel; cyan room in the tower *Built: `landing_field.py`* | Rust's airfield |
+| 34 | **Drainage Works** | 150 × 100 m (and under) | Below towns | A pumping station over storm drains; a parkour route through the drains | An amber-chip puzzle underground; recycler *Built: `drainage_works.py`* | Rust's sewer branch |
+| 35 | **Detention Block** | 220 × 220 m | Remote | A walled penal compound, cell blocks, guard towers, a yard | Reclaimers; cells as loot rooms; violet room in the warden's office *Built: `detention_block.py`* | — |
+| 36 | **Reclaimer Camp** (safe) | 200 × 150 m | Swamps, forests | The clans' market in a scrap-walled ruin: stalls, a gambling wheel, a bar | Safe zone; trades, gambling, a recycler; hostile to the hostile (§7.4) *Built: `reclaimer_camp.py`* | Rust's bandit camp |
+| 37 | **Exchange** (safe) | 250 × 200 m | Near the landing site of each zone | A repurposed depot under Warden turrets that enforce the peace | Safe zone; vendors, recycler, research table, workbench, drone market (later) *Built: `exchange.py`* | Rust's outpost |
 
 ### 5.4 Large (L) — 10
 
@@ -267,6 +272,9 @@ Monuments of a settled region are joined, as in Rust:
 ---
 
 ## 6. Events: what spawns at random (Proposal)
+
+This section and §7 are an outline of how monuments will play, kept for the gameplay pass that comes after the
+monuments are in the world; the monuments themselves (§5, §8) are designed and built first.
 
 Events are the renewing layer. Each comes from a hash of (planet, cell, time window) or from what players do (E5's
 grid, E11), so every server and client
