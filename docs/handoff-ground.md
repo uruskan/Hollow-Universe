@@ -15,9 +15,9 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
   information rows, item actions, ammo icon and hold-R radial, drop anywhere, workbench speed), the damage pipeline
   with the Destroyed event, gibs, the loading screen, and building pieces fitted to their slots (no gaps or flicker
   between pieces: `art/import/building_fit.py`, `building_fit.json`). **218 tests pass; protocol 19.**
-- **The repository is on GitHub:** `origin` is https://github.com/uruskan/Hollow-Universe (every branch pushed on
-  13 October 2026; `main` shows the README with a pointer to `ground`). Commit and push work branches there; still
-  never merge into `main` without the owner.
+- **The repository is on GitHub:** `origin` is https://github.com/uruskan/Hollow-Universe; `main` shows the README with
+  a pointer to `ground`. **The owner pushes, from GitHub Desktop; sessions only commit** (never push). Never merge into
+  `main` without the owner.
 - Another session works on monuments (G7c) in worktree `D:\GameDev\Projects\Hollow-wt\monuments`, branch
   `ground-monuments`, and fast-forwarded `ground` to it once (486716d). Merge with care; don't rewrite its files.
 - **Left, in order:** the owner's playtest of all of this; the code identifiers' rename from claim device to tool
