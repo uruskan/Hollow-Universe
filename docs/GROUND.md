@@ -485,7 +485,31 @@ The breastplate is not cut from the body. It is a riveted cuirass of our own des
 
 It is built for the silhouette: broad steel shoulders, a keeled chest and a flared skirt read as armour at 20 m.
 
-The first outfit: knit cap, woven shirt, woven trousers, laced boots, riveted breastplate.
+The hood (`woven-hood`) is not cut from the body either. It is a grid of rays cast out from inside the head and down
+the neck (rows from the crown to below the shoulders, columns all the way round), each as long as the furthest of a
+smoothed head (with every face shape), the mask and the shirt, plus room (22 mm over the head, less at the neck):
+- the face opening is cut out of the grid along a curve that runs level over the forehead, in front of the ears and
+  round under the chin, and its edge is rolled, with soft folds running back from it;
+- under the chin the cloth hangs from the chin instead of following the throat, gathers at the throat and falls in
+  drape folds into a short cape over the base of the neck and the tops of the shoulders: over the shirt, under the
+  breastplate's plates and straps;
+- a soft point stands behind the crown, and the cape's hem is lowest behind.
+
+It is fitted over the mask, so it goes over it.
+
+The metal mask (`metal-mask`) is a beaten shell from the brow to under the chin and round the cheeks to in front of the
+ears, 13 mm clear of every face shape: one eye slit across both eyes, a keel down the welded centre seam, a heavier ridge
+over the brow and a flared lower edge, with a steel band round the back of the head above the ears and a strap over the
+crown riveted to it. It is rigid on the head bone. Its welds, heat tint, rivets, drilled breathing holes and rust are
+painted. Gloves (`woven-gloves`) are a shell 2.5 mm over the hands (thicker on their backs and the fingertips) whose
+cuff runs 5 cm up the forearm under the sleeve; first person draws them.
+
+**The wardrobe** (`Wardrobe`): `ForItem(itemKey)` gives the garments an item is worn as: woven-hood → woven hood,
+woven-shirt → woven shirt, woven-trousers → woven trousers, woven-gloves → woven gloves, work-boots → laced boots,
+chest-plate → riveted breastplate, metal-mask → metal mask (the knit cap stays for the viewer). Layering, from the skin
+out (`Wardrobe.Layer`): trousers and gloves, the shirt, boots, the chest plate, the mask, the hood. An outer garment
+hides the parts of inner ones in the regions it covers completely; the hood and the mask hide the hair (the hair base
+painted on the scalp stays, and shows at the hairline as hair would).
 
 **Animation.** One `AnimationTree` graph, shared by all characters (`CharacterAnimator`):
 - speed blends for standing (idle, walk, jog, sprint at 0, 1.25, 2.8 and 5.5 m/s), crouching and swimming, kept in
@@ -1925,8 +1949,8 @@ spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since
 2a. **Character decisions taken by Claude while the owner is away** (§4.8; the owner may change any of them):
    - The UAL clips are retargeted onto MakeHuman's game-engine skeleton, not the other way round: the body keeps its
      A-pose bind (better shoulders) and the two skeletons already share bone names.
-   - The first headwear is a knit cap rather than a hood: a hood needs cloth folds around the face that a scripted
-     shell does not give yet.
+   - The first headwear was a knit cap rather than a hood; the hood now has its own construction (C5), and the knit
+     cap stays for the viewer.
    - The seven wear slots are head, face, torso, torso armour, legs, hands and feet.
    - Underwear is part of the body and cannot be taken off, as in Rust.
    - In third person a rifle is carried at the right shoulder, pointing where the player looks; with nothing in hand
@@ -2059,6 +2083,14 @@ on):
   darker skin, as are the faces that lean African; the face leaning East Asian is more likely on lighter skin.
 - C4. **Faces change only the lower and middle face** (nose, cheeks, mouth, jaw, chin): the hair, brows, eyes and every
   garment then fit all of them without a fit per face.
+- C5. **The hood is one mesh that fits over the mask**, rather than one cut for each: without a mask it stands a little
+  further off the cheeks than it needs to, which reads as a roomy hood. It has a short cape over the shoulders (under
+  the breastplate) so that it reads as a hood from behind, at 20 m.
+- C6. **The metal mask covers the crown with a band and a strap**, as items.json says ("the face and the crown of the
+  head"), and hides the hair as a helmet would; our own design (one slit, a keeled plate, drilled breathing holes), not
+  Rust's.
+- C7. **Glove cuffs go under the sleeves** (gloves are an inner layer), so a gloved hand never shows a step at the
+  wrist and the sleeve's hem lies over the glove.
 
 Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 

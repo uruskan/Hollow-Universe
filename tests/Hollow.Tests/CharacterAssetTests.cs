@@ -70,7 +70,8 @@ public static class CharacterAssetTests
 
         using JsonDocument clothing = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, $"clothing{suffix}.json")));
         Dictionary<string, int[]> garments = Lods(clothing.RootElement);
-        foreach (string item in new[] { "knit_cap", "woven_shirt", "woven_trousers", "laced_boots", "riveted_breastplate" })
+        // Every garment of the wardrobe (Wardrobe.cs): the worn look of each clothing and armour item, and the knit cap.
+        foreach (string item in new[] { "knit_cap", "woven_hood", "metal_mask", "woven_shirt", "woven_trousers", "woven_gloves", "laced_boots", "riveted_breastplate" })
         {
             for (int level = 0; level < 3; level++)
             {

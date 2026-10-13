@@ -73,6 +73,60 @@
       ],
       "triangles": 760
     },
+    "woven_gloves_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 6872
+    },
+    "woven_gloves_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 2884
+    },
+    "woven_gloves_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 1096
+    },
+    "metal_mask_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 6652
+    },
+    "metal_mask_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 2792
+    },
+    "metal_mask_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 1064
+    },
+    "woven_hood_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 8474
+    },
+    "woven_hood_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 3557
+    },
+    "woven_hood_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 1354
+    },
     "riveted_breastplate_lod0": {
       "lods": [
         0
@@ -136,6 +190,42 @@
         0.17,
         0.105,
         0.06
+      ]
+    },
+    "woven_gloves_female": {
+      "detail": "knit",
+      "tiling": 40.23,
+      "detail_strength": 0.7,
+      "roughness": 0.9,
+      "preview": [
+        0.25,
+        0.22499999403953552,
+        0.1899999976158142
+      ]
+    },
+    "metal_mask_female": {
+      "detail": "metal",
+      "tiling": 3.0,
+      "detail_strength": 0.25,
+      "roughness": 0.45,
+      "metallic": 0.9,
+      "specular": 0.5,
+      "normal_strength": 1.2,
+      "preview": [
+        0.34,
+        0.345,
+        0.35
+      ]
+    },
+    "woven_hood_female": {
+      "detail": "weave",
+      "tiling": 27.63,
+      "detail_strength": 0.85,
+      "roughness": 0.93,
+      "preview": [
+        0.2549999952316284,
+        0.23499999940395355,
+        0.18000000715255737
       ]
     },
     "riveted_breastplate_female": {
