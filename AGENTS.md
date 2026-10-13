@@ -19,9 +19,11 @@ A session that continues the game opens `Hollow-wt\ground` (or reads files there
 Read first, in this order:
 
 1. [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): what the game is.
-2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it's built. Its principles (§2) and determinism rules (§8)
+2. [docs/LORE.md](docs/LORE.md): the setting (a vanished human civilisation, scrap technology, no factions, no
+   aliens), before you make any model, texture, sound, name, item text or monument.
+3. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it's built. Its principles (§2) and determinism rules (§8)
    are not optional.
-3. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
+4. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
 
 ## Rules
 
