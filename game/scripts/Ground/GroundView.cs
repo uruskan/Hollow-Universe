@@ -453,11 +453,8 @@ public partial class GroundView : Node3D
         }
         _model.Frame();
         Num.Vector3 feet = Client.RenderPosition;
-        if (!Client.Piloting)
-        {
-            // A respawn or a far teleport is an arrival: the land, plants and things around stream again (§4.3.1).
-            Loading?.Follow(feet.X, feet.Y, feet.Z);
-        }
+        // A respawn or a far teleport on foot is an arrival: the land, plants and things around stream again (§4.3.1).
+        Loading?.Follow(feet.X, feet.Y, feet.Z, arrivals: !Client.Piloting);
         Num.Vector3 up = Client.Frame.UpAt(feet);
         Num.Vector3 eye = feet + up * Client.EyeHeight;
         FaceTarget(eye, up);

@@ -308,8 +308,9 @@ the hand-over) and greets the player when play starts. Screenshots and scripted 
 (`GroundView.LoadingShown`).
 
 **Arrivals** (O6): a respawn or a far teleport moves the player more than 120 m at once. The pipeline (`Follow`, fed the
-player's feet every frame on foot) then runs the arrival's stages again (`world`, `land`, `forest`) and holds input; if
-they aren't done within 0.25 s the screen fades in, without the title block and the tip, and fades out when they are.
+player's feet every frame; flying, the place is only kept) then runs the arrival's stages again (`world`, `land`,
+`forest`) and holds input; if they aren't done within 0.25 s the screen fades in, without the title block and the tip,
+and fades out when they are.
 
 **The renderer's warm-up** (`game/scripts/Ground/RenderWarmup.cs`; O7, O8, O10): every library lists what it can draw
 as `WarmItem`s (`game/scripts/Common/WarmItem.cs`: the files it is made of, how to show it once), read from its own
@@ -5142,7 +5143,8 @@ overturn (numbered O1 on):
   protocol change was needed.
 - O6. **Arrivals:** a move of more than 120 m at once on foot (a respawn, a teleport) runs the arrival's stages again
   (the world's things, the land, the forest) and holds input; the screen comes back only if they take longer than 0.25 s,
-  without its title block and tip. Flying never counts (a ship's long frame isn't an arrival).
+  without its title block and tip. Flying never counts (a long frame at a boosting Tin Finch's 260 m/s isn't an arrival),
+  and the place is kept while flying, so stepping out far from where the flight began isn't one either.
 - O7. **The warm-up loads every file the libraries list from the first frame, 6 at a time, and keeps them** for the
   game (1.2 GB of video memory, 0.4 GB of memory in all): nothing the game draws or plays later waits on a file. It
   shows each item once the world is open, not before: the first draw of a material loads its shader's variants (about

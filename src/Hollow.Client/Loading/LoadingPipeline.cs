@@ -196,12 +196,13 @@ public sealed class LoadingPipeline
     }
 
     /// <summary>
-    /// The player's place, every frame they are on foot (zone metres): moving farther than the plan's
-    /// <see cref="LoadingPlan.ArrivalMetres"/> at once while playing is an arrival (<see cref="Arrive"/>).
+    /// The player's place, every frame (zone metres): moving farther than the plan's <see cref="LoadingPlan.ArrivalMetres"/>
+    /// at once while playing is an arrival (<see cref="Arrive"/>). With <paramref name="arrivals"/> false (flying: a long
+    /// frame at speed isn't an arrival) the place is only kept, so stepping out far from where the flight began isn't one.
     /// </summary>
-    public void Follow(double x, double y, double z)
+    public void Follow(double x, double y, double z, bool arrivals = true)
     {
-        if (_place is { } last && Playing)
+        if (_place is { } last && Playing && arrivals)
         {
             double dx = x - last.X, dy = y - last.Y, dz = z - last.Z;
             if (dx * dx + dy * dy + dz * dz > Plan.ArrivalMetres * Plan.ArrivalMetres)

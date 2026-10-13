@@ -152,6 +152,10 @@ public static class LoadingTests
         pipeline.Follow(0, 0, 0);
         pipeline.Follow(60, 0, 0);
         Assert.True(pipeline.Playing, "walking (60 m in one frame is a hitch, not an arrival)");
+        pipeline.Follow(1060, 0, 0, arrivals: false);
+        pipeline.Follow(1061, 0, 0);
+        Assert.True(pipeline.Playing, "a flight's kilometre and stepping out at its end are no arrival");
+        pipeline.Follow(60, 0, 0);
         land = false;
         pipeline.Follow(400, 0, 300);
         Assert.Equal(LoadPhase.Arriving, pipeline.Phase, "a 450 m jump is an arrival");
