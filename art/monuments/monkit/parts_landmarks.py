@@ -1189,6 +1189,29 @@ def _cryo_rack(b):
 kit.PIECES["cryo-rack"] = _cryo_rack
 
 
+def _ore_hauler(b):
+    """Kit piece: a mine haul truck, 15 m long and 7 m tall: a dump body over six tyres taller than a person, the
+    cab up on the deck, a ladder up the front."""
+    for x, y in ((5.0, -3.3), (5.0, 3.3), (-2.6, -3.0), (-2.6, 3.0), (-6.0, -3.0), (-6.0, 3.0)):
+        b.cyl(1.75, 1.5, (x, y, 1.75), (90, 0, 0), mat=PAINT, tint=BLACK, sides=20, solid=False)
+        b.cyl(0.85, 1.55, (x, y, 1.75), (90, 0, 0), mat=PAINT, tint=YELLOW, sides=12, solid=False, vary=0)
+    b.box((13.0, 3.4, 1.4), (0, 0, 2.6), mat=PAINT, tint=DARK)
+    b.box((4.0, 7.2, 2.6), (5.2, 0, 4.1), mat=PAINT, tint=YELLOW, bevel=0.1)
+    b.box((2.4, 2.6, 2.2), (5.4, -2.0, 6.5), mat=PAINT, tint=YELLOW, bevel=0.1)
+    b.box((0.08, 2.2, 1.0), (6.62, -2.0, 6.8), mat=GLASS, solid=False, vary=0)
+    b.box((7.4, 0.25, 0.2), (5.4, -3.7, 5.45), mat=PAINT, tint=DARK, solid=False)
+    b.extrude([(-8.6, 3.2), (3.4, 3.2), (4.6, 8.0), (-8.6, 7.4)], 7.0, (0, 0, 0), (0, 0, 0), mat=PAINT,
+              tint=srgb(0.82, 0.6, 0.12))
+    b.box((12.2, 6.4, 0.6), (-2.6, 0, 7.6), mat=PAINT, tint=srgb(0.45, 0.4, 0.33), solid=False)
+    for y in (-0.9, 0.9):
+        b.box((0.1, 0.45, 0.3), (7.25, y * 2.6, 4.6), mat=LAMP, tint=WARM_LAMP, solid=False, vary=0)
+    ladder(b, (7.3, 1.0, 1.0), 4.0, (0, 0, 90), cage=False)
+    b.collide_box(Vector((-0.8, 0, 4.0)), (15.0, 7.4, 8.0))
+
+
+kit.PIECES["ore-hauler"] = _ore_hauler
+
+
 kit.PIECES["climber-car"] = _climber_car
 kit.PIECES["hauler-truck"] = _hauler_truck
 
