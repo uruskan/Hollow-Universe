@@ -149,16 +149,3 @@ public sealed record ChatLine(string From, string Text, bool FromServer = false)
     /// <summary>A line to the player's team alone (G7).</summary>
     public bool Team { get; init; }
 }
-
-/// <summary>The radial wheels: the building plan's pieces and the hammer's actions.</summary>
-public enum WheelKind : byte
-{
-    Plan,
-    Hammer,
-}
-
-/// <summary>
-/// A sector of a wheel: its outline glyph (<c>WheelGlyphs</c>), its title, a line of description, the cost line
-/// ("25 x WOOD (915)") and, when it can't be chosen, why ("Not enough wood").
-/// </summary>
-public sealed record WheelChoice(int Glyph, string Title, string Description, string? Cost = null, string? Reason = null);

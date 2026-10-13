@@ -1894,9 +1894,10 @@ GLBs total 94 MB, nearly all the kit's bevelled finest level.
 
 **The build sandbox** (`--view build`, `game/scripts/Build/`): a local zone on the first world's stand-in surface,
 a walking character (the real movement code), the rules above and their art, and the ground interface's belt and
-wheels through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan`'s answer, green when allowed, red
+radials through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan`'s answer, green when allowed, red
 with the reason. Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; the right mouse button holds the plan's or the
-hammer's wheel (RustMVP's, from §8); the left places, repairs, fits a door or places the device; R turns the piece or
+hammer's radial (RustMVP's, §8.4: the game's own sources, `PlanRadial` and `BuildingRadials.Hammer`, acting through the
+rules here); the left places, repairs, fits a door or places the device; R turns the piece or
 flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Removed pieces fall
 and sink away, layer after layer. A scene's view is held for screenshots; otherwise the builder stands under it and
 walks. `--build-check` plays a round through the sandbox's own input paths (a free foundation, a wall snapped to its
@@ -1906,7 +1907,7 @@ and watching the rest come down) and quits with exit code 0 when all nine steps 
 ```bash
 $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
 # --scene house | ghost-valid | ghost-invalid | stability | stress | empty;  --overlay;  --tool 1–6;  --piece <key>;
-# --wheel plan|hammer;  --from x,y,z --at x,y,z (the camera in the scene's frame);  --finest / --lod n (draw one level)
+# --wheel plan|hammer (the radial open);  --from x,y,z --at x,y,z (the camera in the scene's frame);  --finest / --lod n
 ```
 
 **Rendering.** Pieces are batched into one `MultiMeshInstance3D` per piece, grade and level of detail in each 24 m
@@ -1927,7 +1928,7 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 | A free foundation lifted by a raised aim (L1): the aim half a metre over the ground 3.5 m out, the top 0.6 m up (`--scene empty --tool 1 --piece foundation --from 0,1.8,6 --at 0,0.48,2.5`; in the game, `images/ground/look/game-foundation-lifted.jpg`) | `foundation-lifted.png` |
 | The stability overlay: the house 100 %, the balcony 90, 70, 50, 30, 10 % | `stability.jpg` |
 | The 1,060-piece block with its frame time | `stress.jpg` |
-| The plan's wheel with the rules' pieces and costs | `wheel.jpg` |
+| The plan's radial with the rules' pieces and costs | `wheel.jpg` |
 
 ![The house](images/ground/build/house.jpg)
 
@@ -2315,8 +2316,8 @@ closed-form step. Decoding treats the bytes as untrusted: a kind that no longer 
 **In the game (phase 2b, `game/scripts/Ground/BuildView.cs`).** The replica's `BuildingWorld` is drawn by the building
 package's `BuildingRenderer` (batched per kind, grade and 24 m chunk, doors swinging); a held building plan shows
 `GameClient.PlanPiece`'s ghost with `BuildGhost` (green, or red with the reason under the crosshair, `BuildHud`) and
-the right mouse button opens the plan's wheel (the piece) or the hammer's (upgrade to each grade, rotate, demolish),
-both from `ClientGroundUi`; the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
+the right mouse button opens the plan's radial (the piece) or the hammer's (upgrade to each grade, rotate, demolish),
+the held tool's sources by its role in `BuildView` (§8.4); the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
 the doorway aimed through or a held lock on the door aimed at, or places the claim device on a foundation or floor;
 R turns the piece (or the door) a step. E opens and shuts doors (the door's own sound, `world.door-slam` when it
 shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's manner: digits, C, OK; the owner
@@ -3133,6 +3134,7 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
 $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
 # --screen hud | inventory | loot | corpse | furnace | campfire | crafting | death | wheel | hammer | menu
 #          map | techtree | recycler | research   (G7)
+#          options | ammo   (§8.4: the radial on the sample door's options and the pistol's rounds)
 ```
 
 | Screen | Reference (in `D:\GameDev\Projects\RustMVP`) | As built (`docs/images/ground/ui/`) |
@@ -3140,7 +3142,7 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
 | HUD, hotbar, vitals | `docs/evidence/ui-restoration-2026-10-01/hud-final.png`, `logs/ui-polish/hud.png` | `hud.jpg` |
 | Inventory and loot | `docs/evidence/ui-restoration-2026-10-01/inventory-final.png`, `logs/ui-reference-final/inventory.png`, `loot-circle-preview.png` | `inventory.jpg`, `loot.jpg`, `furnace.jpg` |
 | Crafting | `logs/ui-reference-final/crafting.png` | `crafting.jpg` |
-| Building and hammer wheels | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png` | `wheel.jpg`, `hammer.jpg` |
+| The radial menu (§8.4): the plan's, the hammer's, a door's options | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png`, `docs/evidence/building-repair-2026-10-04/door-lock-context.png` | `radial/plan.jpg`, `radial/hammer.jpg`, `radial/options.jpg`, `radial/ammo.jpg` (and the older `wheel.jpg`, `hammer.jpg`) |
 | Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.jpg` |
 | Main menu | `logs/ui-polish/menu.png` | `menu.jpg` |
 | Map (G7) | Rust's map: parchment, a lettered and numbered grid, markers; RustMVP's panels beside it | `map.jpg` |
@@ -3158,7 +3160,7 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
   RustMVP put it and at other sizes it is still whole pixels; fonts and icons are rasterised at their final size.
 - **Anchoring:** the canvas sits centred on the window's bottom edge, so the belt doesn't move when the inventory
   opens. Vitals, statuses and pickups follow the bottom-right corner; chat and notices the bottom-left; the centre dot,
-  prompts and wheels the centre; the inventory and crafting tabs hang from the top edge. The scale is the usual
+  prompts and radials the centre; the inventory and crafting tabs hang from the top edge. The scale is the usual
   `Ui.Scale` (1.0 up to 1080p, ARCHITECTURE.md §15).
 - **Style:** `Ui.Ground` in `Ui.cs`, beside the map styles: RustMVP's palette (ink `#E3DFD6`, panel `(.71,.69,.65)`
   at 17 %, selected blue, health, water, food), its type rule (regular Barlow Medium; bold Barlow SemiBold below 26 px
@@ -3187,16 +3189,16 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
 | Death | `Death`: alive for, killed by (a player or a cause), weapon, distance, place on the map; `Bags`: id, name, cooldown, place on the map. |
 | HUD | `Prompt` (key, action, more options). Events: hit confirmed (head shot), damaged (bearing), gathered (item, amount), crafted (item, amount), notice, chat line. |
-| Wheels | `Wheel(kind)`: the plan's pieces or the hammer's actions in clockwise order (glyph, title, description, cost line, reason it can't be chosen); `WheelCurrent(kind)`. |
-| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `ChooseWheel(kind, i)`, `CloseLoot()`, `Say(text)`. Each is a request; the answer is a changed read, or a notice. |
+| Radials (§8.4) | `Radials`: the held inputs that open a radial menu and what each opens now (`RadialBinding`: the input, its hold time, a function giving an `IRadialSource` or none). A source gives the options in clockwise order (icon: a glyph's name or an item's key; title, description, cost line, the reason it can't be chosen or a warning), the current one, whether twelve o'clock falls between the last and the first, and acts on a choice. |
+| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; a radial's choice is its source's. Each is a request; the answer is a changed read, or a notice. |
 | World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
 
 **In the game:** the ground mode puts `GroundUi` on a `CanvasLayer` with `ClientGroundUi` (game/scripts/Ground) as its
-`Model`, frees the mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the right mouse button
-(with a plan or hammer held, `HeldWheel`) to it. The adapter reads `GameClient.Local`: containers as the server has
+`Model`, frees the mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the inputs its radial bindings
+ask for (the right mouse with a plan or hammer held) to it. The adapter reads `GameClient.Local`: containers as the server has
 them with unanswered intents on top (a sleeper's main, belt and clothing laid out as a body), vitals, the crafting
 queue, the life and the respawn choices; it acts through the intents, and turns the client's events into the HUD's
 moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as notices, chat). Item names,
@@ -3329,7 +3331,7 @@ spills, empties), but it doesn't come back once gone and isn't kept across a res
 RustMVP's rules, with Rust's where RustMVP had none:
 
 - **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
-  inventory, closing any open container; Esc closes the wheel, the inventory or crafting, then opens the menu; 1–6
+  inventory, closing any open container; Esc closes the radial, the inventory or crafting, then opens the menu; 1–6
   select the belt; Enter opens chat; F1 opens and closes the console (§8.2, even from a text field; it may stay open
   over the death screen, but a death closes it). A container opened in the world opens the inventory with it. Left Alt
   held is free look (§4.5): the camera turns, the hands do nothing, and any screen that shows the cursor ends it.
@@ -3355,9 +3357,10 @@ RustMVP's rules, with Rust's where RustMVP had none:
   top; the map with the body and the bags (a ready bag on the map can be clicked); the bags with their cooldowns along
   the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
   names are placed by the `Labeller`, so they never cover each other or a marker.
-- **Wheels:** held right mouse button with the plan or the hammer; release (or click) chooses, Esc cancels. The plan's
-  sectors start at −81° so the top ray falls between the foundation and the triangle roof; the hammer's first sector
-  is centred at twelve o'clock.
+- **Radials (§8.4):** the right mouse held with the plan or the hammer opens its radial at once; a key held for its hold
+  time opens its own (E, R: P1, P3; the viewer's samples). Release (or a left click) chooses; a key let go sooner
+  chooses the current option; Esc or the right mouse cancels. The plan's sectors start at −81° so the top ray falls
+  between the foundation and the triangle roof; every other radial centres its first option at twelve o'clock.
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
   port (HOST SOLO or CONNECT); QUIT.
   The name and address are remembered.
@@ -3384,7 +3387,55 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Commands in chat:** any other line starting with "/" runs as in the F1 console (`/give rifle`), with the player's
   own rights on any server; the answer's first line shows as a notice, and the whole of it in the console's log.
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
-  drop outside and on a panel, split, Q, CRAFT, Tab) against `MockGroundUi` and quits with 0 when all pass.
+  drop outside and on a panel, split, Q, CRAFT, Tab; the plan's radial on the right mouse; the sample door's on E: a
+  tap, a hold, a disabled option, a choice, Esc and the right mouse cancelling) against `MockGroundUi` and quits with 0
+  when all 19 pass.
+
+### 8.4 Radial menu (GROUND_SYSTEMS.md §4, package P5)
+
+One control draws every radial menu, in RustMVP's look at any resolution, and takes a source of options, never a kind
+of menu (decisions Q1–Q9).
+
+| Part | Where | What |
+|---|---|---|
+| Contract | `game/scripts/UI/Model/RadialTypes.cs` (plain C#) | `RadialOption`: icon, title, description, cost line, the reason it can't be chosen, or a warning that doesn't stop it. `RadialIcon`: a glyph's name or an item's key. `IRadialSource`: the options clockwise, the current one, `SplitAtTop`, `Choose(index)`, `Cancel()`. `RadialBinding`: a held input, its hold time, what it opens now. `RadialInput`: aim, interact, reload. `RadialMenu`: a source of options that each carry what choosing them does, listed again whenever read. |
+| Control | `game/scripts/UI/GroundUi.Radial.cs` | The drawing, the pointer's choice, the one way of opening from any binding; `OpenRadial`, `CloseRadial`, `RadialPoint` for the viewer, the sandbox and scripted runs. |
+| Glyphs | `game/scripts/UI/RadialGlyphs.cs` | RustMVP's outlines by name: every building piece under its building.json key, `upgrade`, `rotate`, `demolish`, `door`, `lock`, `unlock`, `keypad`, `pick-up`. |
+| Building sources | `game/scripts/Build/BuildingRadials.cs` | `PlanRadial` (building.json's wheel and the chosen piece) and `BuildingRadials.Hammer` (upgrade to each grade, rotate, demolish, on the piece aimed at), written once: the game's `BuildView` acts through intents, the build sandbox through the rules (`IHammerActions`). |
+| Samples | `game/scripts/UI/Model/MockGroundUi.Radials.cs` | The plan and the hammer, a door with a fresh code lock (E), the pistol's rounds (R). |
+
+**Drawing** (RustMVP's numbers, SBareRoot.cpp): the world behind veiled at 26 % and blurred; an ivory ring 200–300 px
+from the centre; the pointed option's sector in brick red, 197–318; each option's icon at radius 250 (257 and ivory when
+pointed at): a glyph stroked 7.5 % of its size wide, or an item's icon (`ItemIcons`) in a square 2.2 glyph sizes wide;
+in the middle the pointed option's icon large (size 64 at y 345), its title (40 px, smaller down to 22 to fit 355 px)
+at 431, the description (20 to 15 px) at 480, the cost line at 568 and the reason or warning in the warning colour at
+601; the footer names the input held ("RELEASE E TO SELECT   ·   ESC TO CANCEL"). Under 95 px from the centre or beyond
+430 nothing is pointed at, and the source's current option shows.
+
+**Opening.** The view model lists its bindings (`IGroundUi.Radials`). A press of a binding's input over the HUD asks it
+for a source; none, and the input goes on to the game (the right mouse aims a gun). Held for the binding's time (0 for
+the right mouse; 0.35 s for E and R, GROUND_SYSTEMS.md §11), the radial opens with the pointer in the middle. Released,
+the option under the pointer is chosen; a disabled one shows its reason as a notice instead. Let go before the radial
+opened, the press was a tap: the source's current option is chosen (E's primary action, R's reload with the loaded
+round). Esc or the right mouse cancels, and the held input's release then does nothing; a left click chooses; another
+screen, death, or a release the window never saw (it lost focus) cancels.
+
+**In the game** (`ClientGroundUi`): one binding so far, the right mouse, opening `BuildView.HeldRadial`, the held building
+tool's source looked up by its role. P1 adds E's binding (the options on what is aimed at) and P3 R's (a gun's rounds);
+`OptionsMenu`, the held-E list, stays until P1 moves it onto the radial.
+
+**Viewer:** `--screen wheel`, `hammer`, `options` (the sample door, the pointer on LOCK: "Set a code first") and `ammo`;
+interactively, on the HUD, the right mouse opens the held plan's or hammer's radial, E held the door's options, R held
+with the pistol its rounds. `--ui-check` plays the gestures (§8.3).
+
+| View | Picture (`images/ground/ui/radial/`) |
+|---|---|
+| The plan's pieces (RustMVP's `plan-wheel-build4-image-1.png`) | `plan.jpg` |
+| The hammer's actions (`hammer-wheel-build4-image-1.png`) | `hammer.jpg` |
+| A door with a fresh code lock: OPEN DOOR, SET CODE, LOCK disabled until a code is set, PICK UP (`door-lock-context.png`) | `options.jpg` |
+| The pistol's rounds carried, as item icons, and UNLOAD (R; RustMVP had none) | `ammo.jpg` |
+
+![The sample door's options](images/ground/ui/radial/options.jpg)
 
 ---
 
@@ -4737,3 +4788,38 @@ without the owner, to confirm or overturn (numbered L1 on):
   field of view and their grip. The pistol's support hand still comes in large from the lower left: unchanged.
 - L10. **The rock swings from the wrist** (its grip's pivot, 8 cm behind and 5 cm below it), so the wind-up raises it
   and the strike brings it down in front, where turning about the hand only turned it in the palm.
+
+Decisions taken for the radial menu (§8.4, GROUND_SYSTEMS.md §4, package P5) without the owner, to confirm or overturn
+(numbered Q1 on):
+
+- Q1. **One radial on sources, not kinds.** `IRadialSource` gives the options and acts on a choice; the radial never knows
+  what opened it. The plan and the hammer are two sources written once for the game and the build sandbox
+  (`PlanRadial`, `BuildingRadials.Hammer`), where each had its own copy and chose the hammer's action by its index. Gone:
+  `WheelKind`, `WheelChoice`, the view model's `HeldWheel`, `Wheel(kind)`, `WheelCurrent(kind)` and `ChooseWheel(kind,
+  i)` in its four implementations, and the plan's special start angle (now `SplitAtTop`, the source's). The held-E
+  `OptionsMenu` stays until P1 moves interaction onto the radial (GROUND_SYSTEMS.md §5), as planned.
+- Q2. **The view model lists its bindings** (`IGroundUi.Radials`: the input, its hold time, what it opens now), and the
+  interface handles every one the same way. The inputs are named as Rust binds them (aim, interact, reload) and mapped
+  to the right mouse, E and R in one table in `GroundUi`, so rebinding one later is a line. A source is asked for only
+  when its input is pressed.
+- Q3. **A tap chooses the current option.** A held key let go before its radial opens chooses the source's current
+  option: E's primary action and R's reload with the loaded round, one rule for both (RustMVP's primary action on E).
+  The current option is also what the middle shows while the pointer rests there: the plan's piece, otherwise the
+  first (RustMVP's wheels).
+- Q4. **Disabled options look like the rest in the ring** (RustMVP's): the middle says why in the warning colour, and
+  choosing one shows the reason as a notice and does nothing (RustMVP's status line). A warning that doesn't disable
+  shows in the same place: the plan's "Not enough wood", where the piece is still chosen and its ghost refuses
+  (RustMVP's).
+- Q5. **The hammer says "Not enough <material>" before choosing** (RustMVP's "Not enough materials"), rather than sending
+  the upgrade for the server to refuse.
+- Q6. **Glyphs by name, not number.** RustMVP's outlines are one table keyed by name: a building piece by its building.json
+  key, the hammer's and the interaction's by what they show (`upgrade`, `rotate`, `demolish`, `door`, `lock`, `unlock`,
+  `keypad`, `pick-up`), so P1's interactions.json can name them; an unknown name draws a plain ring, so it shows. An
+  item's icon (`ItemIcons`) is the other kind of icon, for rounds and other items.
+- Q7. **Counts on the cost line are plain numbers** ("25 x WOOD (2000)", RustMVP's); the game's wheel grouped them by the
+  computer's language settings ("2,000" or "2.000").
+- Q8. **A lost release cancels.** When the window stops seeing the held input down without its release (it lost focus),
+  the radial closes without a choice rather than choosing what the pointer was on.
+- Q9. **The viewer's samples:** on E, a door with a fresh code lock whose owner the player is (OPEN DOOR, SET CODE, LOCK
+  disabled until a code is set, PICK UP the lock, disabled while locked); on R with the pistol, the rounds carried and
+  UNLOAD, with high-velocity pistol rounds added to the sample inventory so there are two kinds. Both open after 0.35 s.

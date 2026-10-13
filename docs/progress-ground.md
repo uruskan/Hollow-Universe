@@ -444,3 +444,25 @@ damage code as modular as RustMVP's foundation planned?
   through Alt and the mouse, a lifted foundation) and the character viewer (a head turned, every held item). New
   tests: free look over the network, free foundations on a slope, the catalogue's grips; with `ground` merged (protocol
   13 after the bags' 12), 168 of 168 tests pass.
+
+## 13 October 2026, one radial menu (`ground-radial`, P5)
+
+GROUND_SYSTEMS.md §4; GROUND.md §8.4 and decisions Q1–Q9.
+
+- **One radial control for every menu of options**, drawn exactly as RustMVP's wheel at any interface scale. It takes a
+  source of options, never a kind: each option has a glyph or an item's icon, a title, a description, a cost line and,
+  when it can't be chosen, why. The building plan and the hammer are now two such sources, written once for the game and
+  the build sandbox (each had its own copy). `WheelKind`, `WheelChoice`, the four wheel members of the view model and
+  the hammer's choice by its index are gone. The glyphs have names (a building piece's key, `door`, `keypad`, ...), so
+  data can name them.
+- **One way to open it:** a held input. The view model lists its bindings (the right mouse with the plan or hammer
+  today; E and R next); a press asks for a source, a hold opens the radial, the release chooses, a quick tap chooses the
+  current option (E's primary action, R's reload), Esc or the right mouse cancels.
+- **Proved on the interface viewer** with sample sources: E held opens a door's options with a fresh code lock (OPEN
+  DOOR, SET CODE, LOCK disabled until a code is set, PICK UP), R held with the pistol its rounds as item icons. The UI
+  check now also plays the radial (the plan on the right mouse; E tapped, held, refused, chosen, cancelled by Esc and by
+  the right mouse): 19 of 19 pass. The plan's and the hammer's radials look as before. Pictures:
+  `docs/images/ground/ui/radial/` (`plan.jpg`, `hammer.jpg`, `options.jpg`, `ammo.jpg`).
+- 178 of 178 tests pass (no engine-free code changed).
+- **Next:** P1 moves hold-E onto it (and deletes the vertical options list), P3 adds R's ammo radial; GROUND_SYSTEMS.md
+  §4 says how.

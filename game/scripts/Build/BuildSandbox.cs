@@ -18,16 +18,16 @@ namespace HollowUniverse.Build;
 
 /// <summary>
 /// The build sandbox (<c>--view build</c>, GROUND.md §6.3): a local zone on the first world's stand-in surface with one
-/// walking character, the building rules and their art, and the ground interface's belt and wheels. Everything the
+/// walking character, the building rules and their art, and the ground interface's belt and radials. Everything the
 /// player sees comes from the same rules code the server runs: the ghost is <see cref="BuildingWorld.Plan"/>'s answer.
 /// <para>
-/// Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; hold the right mouse button for the plan's or the hammer's wheel;
+/// Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; hold the right mouse button for the plan's or the hammer's radial;
 /// left button places, repairs, fits a door or places the device; R turns the piece (or flips the door); E opens and
 /// shuts a door; F2 the stability overlay; F5 one hour of upkeep and decay. Options (after "--"): <c>--scene
 /// house|stability|ghost-valid|ghost-invalid|stress|empty</c>, <c>--overlay</c>, <c>--tool</c> 1–6, <c>--piece key</c>.
 /// </para>
 /// </summary>
-public partial class BuildSandbox : Node3D
+public partial class BuildSandbox : Node3D, IHammerActions
 {
     private const ulong Player = 1;
     private const float MouseSensitivity = 0.002f;
@@ -109,9 +109,8 @@ public partial class BuildSandbox : Node3D
         _camera = new Camera3D { Name = "Camera", Fov = 75, Near = 0.05f, Far = 4000, Current = true };
         AddChild(_camera);
 
-        _model = new BuildSandboxUi(_data, _wallet);
-        _model.PlanChosen += _ => _turns = 0;
-        _model.HammerChosen += Hammer;
+        _model = new BuildSandboxUi(_data, _wallet, BuildingRadials.Hammer(() => _target as Piece, _data, _wallet, () => _clock, this));
+        _model.Plan.Changed += () => _turns = 0;
         var layer = new CanvasLayer { Name = "Interface" };
         AddChild(layer);
         _hud = new BuildHud { Name = "BuildHud" };
@@ -143,14 +142,14 @@ public partial class BuildSandbox : Node3D
             int index = _data.Wheel.ToList().FindIndex(p => p.Key == key);
             if (index >= 0)
             {
-                _model.PlanPiece = index;
+                _model.Plan.Piece = index;
             }
         }
-        // --wheel plan|hammer: the held tool's wheel open, the pointer on a sector (a screenshot of the hook-up).
+        // --wheel plan|hammer: the held tool's radial open, the pointer on a sector (a screenshot of the hook-up).
         if (Options.TryGetValue("wheel", out string? wheel))
         {
             _model.SelectBelt(wheel == "hammer" ? 1 : 0);
-            _ui.OpenWheel(wheel == "hammer" ? WheelKind.Hammer : WheelKind.Plan);
+            _ui.OpenRadial(_model.HeldRadial!, RadialInput.Aim);
             _ui.HoldPointer(wheel == "hammer" ? new Vector2(800, 190) : new Vector2(1025, 300));
         }
         Capture();
@@ -231,7 +230,7 @@ public partial class BuildSandbox : Node3D
             {
                 DemoBases.TwoStorey(_world, first);
                 _model.SelectBelt(0);
-                _model.PlanPiece = _data.Wheel.ToList().FindIndex(p => p.Key == "foundation");
+                _model.Plan.Piece = _data.Wheel.ToList().FindIndex(p => p.Key == "foundation");
                 Look(frame, new Vector3D(-9.5, 1.8, 5.5), new Vector3D(-1.6, 0.05, 0.3));
                 spawn = F(frame.ToZone(new Vector3D(-12, 0.5, 9)));
                 break;
@@ -241,7 +240,7 @@ public partial class BuildSandbox : Node3D
                 DemoBases.House house = DemoBases.TwoStorey(_world, first);
                 DemoBases.Balcony(_world, house);
                 _model.SelectBelt(0);
-                _model.PlanPiece = _data.Wheel.ToList().FindIndex(p => p.Key == "floor");
+                _model.Plan.Piece = _data.Wheel.ToList().FindIndex(p => p.Key == "floor");
                 Look(frame, new Vector3D(5.2, 5.2, -20.5), new Vector3D(0, 2.9, -18.2));
                 break;
             }
@@ -403,7 +402,7 @@ public partial class BuildSandbox : Node3D
         int tool = _model.ActiveBelt;
         if (tool == 0)
         {
-            PieceDef piece = _data.Wheel[Math.Clamp(_model.PlanPiece, 0, _data.Wheel.Count - 1)];
+            PieceDef piece = _model.Plan.Chosen;
             _plan = _world.Plan(Player, piece, eye, forward, _turns, _wallet, _clock);
             GradeDef twig = _data.Grades[0];
             _hud.Line = $"{piece.Name.ToUpperInvariant()}  ·  {_data.CostOf(piece, 0)} {_data.MaterialName(twig.Material).ToUpperInvariant()} ({_wallet.Count(twig.Material):N0})";
@@ -427,7 +426,6 @@ public partial class BuildSandbox : Node3D
         else if (tool == 1)
         {
             _hud.Hints = "LMB REPAIR   ·   HOLD RMB UPGRADE / ROTATE / DEMOLISH   ·   F2 STABILITY";
-            _model.HammerChoices = HammerChoices(_target as Piece);
         }
         else if (tool <= 4)
         {
@@ -509,40 +507,12 @@ public partial class BuildSandbox : Node3D
         return best;
     }
 
-    private IReadOnlyList<WheelChoice> HammerChoices(Piece? piece)
-    {
-        var choices = new List<WheelChoice>();
-        const string strength = "Improve this piece's strength";
-        for (int grade = 1; grade < _data.Grades.Count; grade++)
-        {
-            GradeDef g = _data.Grades[grade];
-            string? reason = piece == null ? "Aim at a building piece" : piece.Grade >= grade ? "Already at this grade or stronger" : null;
-            string? cost = piece == null ? null : $"{_data.CostOf(piece.Def, grade)} x {_data.MaterialName(g.Material).ToUpperInvariant()} ({_wallet.Count(g.Material):N0})";
-            choices.Add(new WheelChoice(99 + grade, $"UPGRADE TO {g.Name.ToUpperInvariant()}", strength, cost, reason));
-        }
-        bool late = piece != null && _clock - piece.PlacedAt > _data.EditWindow;
-        choices.Add(new WheelChoice(104, "ROTATE", "Turn this piece around",
-            Reason: piece == null ? "Aim at a building piece" : piece.Def.RotateSteps == 0 ? "This piece can't be rotated" : late ? "The 10 minutes are over" : null));
-        choices.Add(new WheelChoice(105, "DEMOLISH", "Remove this piece and unsupported pieces",
-            Reason: piece == null ? "Aim at a building piece" : late ? "The 10 minutes are over" : null));
-        return choices;
-    }
+    // The hammer's radial acts on the piece through the rules here; the game sends intents instead (BuildView).
+    void IHammerActions.Upgrade(Piece piece, int grade) => Tell(_world.Upgrade(Player, piece, grade, _wallet, N(_camera.GlobalPosition)));
 
-    private void Hammer(int choice)
-    {
-        if (_target is not Piece piece)
-        {
-            return;
-        }
-        Num.Vector3 eye = N(_camera.GlobalPosition);
-        Outcome outcome = choice switch
-        {
-            < 4 => _world.Upgrade(Player, piece, choice + 1, _wallet, eye),
-            4 => _world.Rotate(Player, piece, eye, _clock),
-            _ => _world.Demolish(Player, piece, eye, _clock),
-        };
-        Tell(outcome);
-    }
+    void IHammerActions.Rotate(Piece piece) => Tell(_world.Rotate(Player, piece, N(_camera.GlobalPosition), _clock));
+
+    void IHammerActions.Demolish(Piece piece) => Tell(_world.Demolish(Player, piece, N(_camera.GlobalPosition), _clock));
 
     private void Tell(Outcome outcome)
     {

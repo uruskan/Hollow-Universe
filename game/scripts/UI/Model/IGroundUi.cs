@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HollowUniverse.UI.Model;
 
 /// <summary>
-/// The ground game's view model (GROUND.md §8): everything the HUD, inventory, crafting, death and wheel screens show,
+/// The ground game's view model (GROUND.md §8): everything the HUD, inventory, crafting, death and radial screens show,
 /// and every action they take, as plain calls. The interface never talks to the network; an adapter over the client
 /// API implements this, and <see cref="MockGroundUi"/> fakes it with sample data.
 /// <para>
@@ -66,14 +66,12 @@ public interface IGroundUi
     /// <summary>What pressing the interaction key would do now, or null.</summary>
     InteractionPrompt? Prompt { get; }
 
-    /// <summary>The wheel the held item opens with the right mouse button (the plan's, the hammer's), or null.</summary>
-    WheelKind? HeldWheel { get; }
-
-    /// <summary>A wheel's sectors, in clockwise order.</summary>
-    IReadOnlyList<WheelChoice> Wheel(WheelKind kind);
-
-    /// <summary>The sector to show when the pointer is in the middle: the plan's selected piece, or −1.</summary>
-    int WheelCurrent(WheelKind kind);
+    /// <summary>
+    /// The held inputs that open a radial menu and what each opens now (GROUND_SYSTEMS.md §4): the right mouse with the
+    /// building plan or the hammer in hand, E on what is aimed at (P1), R with a gun (P3). The interface handles every
+    /// binding the same way; none by default.
+    /// </summary>
+    IReadOnlyList<RadialBinding> Radials => Array.Empty<RadialBinding>();
 
     // ---------------------------------------------------------------- events (the HUD's moments)
 
@@ -126,9 +124,6 @@ public interface IGroundUi
 
     /// <summary>Lights or puts out the open furnace or campfire.</summary>
     void SetBurning(bool on);
-
-    /// <summary>Applies a wheel's sector (selects a piece, upgrades, demolishes).</summary>
-    void ChooseWheel(WheelKind kind, int index);
 
     /// <summary>The player closed the loot panel.</summary>
     void CloseLoot();
