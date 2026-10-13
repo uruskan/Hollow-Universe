@@ -7,10 +7,11 @@ public static partial class Protocol
     /// Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect. 3: the zone on the
     /// real planet (stand-in flag, day scale); 4: G4, guns and the wounded; 5: G3, building over the network (and the
     /// integration package's 3 + 4 together); 6: G5, raiding (explosives, detonations, raid alerts); 7: all of them
-    /// together on the real planet; 8: G7, animals (entities of kind <see cref="EntityKind.Animal"/>, whose snapshot
-    /// state means what <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>).
+    /// together on the real planet; 8: G6, ships; 9: G7, the world (world props, blueprints and tech trees, teams, the
+    /// map); 10: G7, animals (entities of kind <see cref="EntityKind.Animal"/>, whose snapshot state means what
+    /// <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>).
     /// </summary>
-    public const uint Version = 8;
+    public const uint Version = 10;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -50,14 +51,61 @@ public enum EntityKind : byte
 {
     Character,
 
+    /// <summary>A ship (G6): its state rides in the snapshots' ship section.</summary>
+    Ship,
+
     /// <summary>An animal (G7, GROUND.md §6.9): its <c>Spawn</c> names its species; its state is packed by <see cref="AnimalNet"/>.</summary>
     Animal,
+}
+
+/// <summary>What a ship's state says it is doing (G6).</summary>
+[System.Flags]
+public enum ShipNetFlags : ushort
+{
+    None = 0,
+    Piloted = 1,
+    HatchOpen = 2,
+    Locked = 4,
+
+    /// <summary>The receiving player's own (they built it).</summary>
+    Mine = 8,
+    Landed = 16,
+    Destroyed = 32,
+    InOrbit = 64,
+    Boosting = 128,
+    EnginesOn = 256,
+    AssistOff = 512,
+    Wet = 1024,
+    Asleep = 2048,
+}
+
+/// <summary>A ship action (<see cref="ShipIntent"/>).</summary>
+public enum ShipAction : byte
+{
+    Hatch,
+    Board,
+    Exit,
+    Lock,
+    Refuel,
+    Descend,
 }
 
 public enum ChatKind : byte
 {
     Player,
     Server,
+
+    /// <summary>G7: a line to the sender's team alone.</summary>
+    Team,
+}
+
+/// <summary>How a teammate is (G7): up and about, asleep (logged off), down (wounded) or dead.</summary>
+public enum TeammateState : byte
+{
+    Awake,
+    Asleep,
+    Down,
+    Dead,
 }
 
 /// <summary>What a client sees of a static thing.</summary>
@@ -66,7 +114,7 @@ public enum ThingFlags : byte
 {
     None = 0,
 
-    /// <summary>A campfire or furnace burning.</summary>
+    /// <summary>A campfire or furnace burning; a recycler running, a research table researching (G7).</summary>
     Lit = 1,
 
     /// <summary>The receiving player's own (their sleeping bag).</summary>

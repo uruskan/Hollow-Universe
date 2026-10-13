@@ -48,10 +48,15 @@ public sealed partial class Zone
 
     public LootKind LootKindOf(Player p)
     {
+        if (LootShip(p) != null)
+        {
+            return LootKind.Box; // a ship's cargo (G6)
+        }
         (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
         return thing switch
         {
-            Deployable { Def.Device: not null } => LootKind.Device,
+            WorldProp { Prop.Kind: WorldPropKind.Crate } => LootKind.Crate,
+            Deployable { Def.IsMachine: true } => LootKind.Device,
             Deployable => LootKind.Box,
             Corpse => LootKind.Corpse,
             _ => sleeper != null ? LootKind.Sleeper : LootKind.None,
@@ -67,6 +72,10 @@ public sealed partial class Zone
             case ContainerRef.Belt:
             case ContainerRef.Wear:
                 return p.Inventory[which];
+        }
+        if (LootShip(p) is { } ship)
+        {
+            return which == ContainerRef.Loot ? ship.Cargo : null;
         }
         (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
         if (thing != null)
@@ -175,7 +184,11 @@ public sealed partial class Zone
         {
             return ActionResult.Stale;
         }
-        if (Content!.Item(s.Item)?.Consume is not { } consume)
+        if (Content!.World.Blueprint is { } blueprint && s.Item == blueprint.Id)
+        {
+            return LearnBlueprint(p, source, slot, s); // G7: reading a blueprint learns it
+        }
+        if (Content.Item(s.Item)?.Consume is not { } consume)
         {
             return ActionResult.NotUsable;
         }
@@ -202,8 +215,19 @@ public sealed partial class Zone
         {
             return ActionResult.Dead;
         }
-        int bench = WorkbenchLevel(Entities.Get<Character>(entity).State.Position);
-        return p.Crafting.Start(Content!, p.Inventory, recipe, count, bench, out ticket);
+        Vector3 at = Entities.Get<Character>(entity).State.Position;
+        int bench = WorkbenchLevel(at);
+        ulong station = 0;
+        if (Content!.Recipe(recipe) is { Station: { } needs })
+        {
+            // Made at a station (a ship at the vehicle workbench, G6): the nearest within reach builds it.
+            if (StationNear(at, needs) is not { } found)
+            {
+                return ActionResult.NeedsStation;
+            }
+            station = found.Id.Value;
+        }
+        return p.Crafting.Start(Content!, p.Inventory, recipe, count, bench, out ticket, p.Blueprints, station);
     }
 
     public ActionResult CancelCraft(Entity entity, uint ticket)
@@ -230,6 +254,10 @@ public sealed partial class Zone
         if (target == p.Id || !Entities.TryFind(target, out Entity e))
         {
             return ActionResult.NotFound;
+        }
+        if (ShipOf(e) is { Destroyed: false } ship)
+        {
+            return OpenShip(entity, p, ship); // its cargo (G6)
         }
         Vector3 at;
         if (StaticOf(e) is { Container: not null } thing)
@@ -276,6 +304,16 @@ public sealed partial class Zone
             Player p = players.Values[i].Player;
             if (p.Looting.IsNone)
             {
+                continue;
+            }
+            if (ShipOf(p.Looting) is { } ship)
+            {
+                // A ship's cargo (G6): open while at its hatch, or in its seat.
+                if (ship.Destroyed || !p.IsAwakeAndAlive || !StillAtShip(Entities.AtSlot(players.Slots[i]), ship))
+                {
+                    p.Looting = EntityId.None;
+                    p.LootRevision++;
+                }
                 continue;
             }
             (WorldObject? thing, Player? sleeper, Entity e) = LootTarget(p);
@@ -366,6 +404,13 @@ public sealed partial class Zone
         if (!Acting(entity, out Player _))
         {
             return ActionResult.Dead;
+        }
+        if (StaticOf(id) is Deployable { Def.Device: null, Def.IsMachine: true, Storage: not null } machine)
+        {
+            // G7: a recycler (on or off) or a research table (start).
+            return Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), machine.Centre) > Content!.Survival.LootReach + 0.5f
+                ? ActionResult.OutOfReach
+                : ToggleMachine(machine);
         }
         if (StaticOf(id) is not Deployable { Def.Device: not null, Storage: { } storage } d)
         {

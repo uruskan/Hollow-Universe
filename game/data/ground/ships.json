@@ -1,0 +1,51 @@
+{
+  "source": "Ours (GROUND.md §6.6). The Tin Finch TF-01's sizes, sockets, skids and nozzles come from its asset (D:/GameDev/Assets/TinFinch_TF01: socket_manifest.json and the source geometry, in the game model's axes: +Z the nose, +Y up, +X the left side, metres from the pivot on the ground between the skids). Mass, thrust, rates and drag are chosen for a weighty, thrust-borne skiff flown the Elite way (flight assist on by default, boost); drag areas are Cd x area. The hull's 750 is Rust's minicopter's; it burns lamp oil, our low-grade fuel, as Rust's helicopters burn theirs. The air comes from the planet (the zone's spec), not from here.",
+  "ships": [
+    {
+      "key": "tin-finch",
+      "item": "tin-finch",
+      "mass": 6000,
+      "inertia": [16200, 16500, 8700],
+      "centreOfMass": [0, 1.23, -0.28],
+      "health": 750,
+      "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
+      "thrust": { "main": 150000, "retro": 90000, "lateral": 45000, "lift": 110000, "down": 40000 },
+      "speed": { "forward": 160, "reverse": 40, "lateral": 40, "up": 25, "down": 20 },
+      "boost": { "thrust": 1.8, "speed": 260, "seconds": 4, "cooldown": 5 },
+      "rates": { "pitch": [55, 160], "yaw": [35, 100], "roll": [110, 320] },
+      "drag": { "forward": 2.6, "side": 6.5, "top": 9.0, "turn": 0.6 },
+      "landing": { "maxSlope": 25, "assist": [1.5, 0.25] },
+      "skids": {
+        "points": [[0.99, 0, -1.51], [0.99, 0, 1.06], [-0.99, 0, -1.51], [-0.99, 0, 1.06]],
+        "stiffness": 270000, "damping": 24000, "travel": 0.12, "friction": 0.55
+      },
+      "crash": { "safe": 6, "scale": 2.5, "pilot": 0.1 },
+      "fuel": { "item": "lamp-oil", "capacity": 500, "idle": 0.1, "full": 0.9, "boost": 2.0 },
+      "cargo": 12,
+      "hull": [
+        { "centre": [0, 1.42, 0.45], "size": [0.74, 0.85, 1.22] },
+        { "centre": [0, 1.30, -1.65], "size": [0.60, 0.75, 0.95] },
+        { "centre": [1.18, 0.97, -1.85], "size": [0.31, 0.31, 1.15] },
+        { "centre": [-1.18, 0.97, -1.85], "size": [0.31, 0.31, 1.15] },
+        { "centre": [0.99, 0.18, -0.39], "size": [0.06, 0.11, 2.29], "skid": true },
+        { "centre": [-0.99, 0.18, -0.39], "size": [0.06, 0.11, 2.29], "skid": true }
+      ],
+      "sockets": {
+        "seat": [0, 0.992, -0.08],
+        "eye": [0, 1.89, -0.25],
+        "hatch": [-0.73, 1.2, 0.37],
+        "fuel": [-0.77, 1.79, -1.285],
+        "exits": [[-1.37, 0, 0.42], [1.45, 0, 0.42], [0, 0, -3.7], [0, 0, 2.7]]
+      },
+      "nozzles": {
+        "main": [[0, 1.004, -2.57]],
+        "aux": [[-1.177, 0.97, -3.01], [1.177, 0.97, -3.01]],
+        "lift": [[1.177, 0.605, -2.31], [-1.177, 0.605, -2.31], [0.64, 0.545, 1.15], [-0.64, 0.545, 1.15]],
+        "rcs": [[1.246, 0.98, -0.71], [-1.246, 0.98, -0.71]]
+      },
+      "reach": 2.4,
+      "ceiling": 15000,
+      "wreck": [["metal-fragments", 300], ["refined-metal", 20]]
+    }
+  ]
+}

@@ -110,8 +110,11 @@ public enum ContainerKind : byte
     /// <summary>A dead player's belongings: take only.</summary>
     Corpse,
 
-    /// <summary>A campfire or furnace: fuel, input and output slots (<see cref="DeviceStats"/>).</summary>
+    /// <summary>A machine: a campfire or furnace (fuel, input and output slots, <see cref="DeviceStats"/>); a recycler or research table (G7).</summary>
     Device,
+
+    /// <summary>A world crate (G7): take only.</summary>
+    Crate,
 }
 
 /// <summary>
@@ -267,8 +270,15 @@ public sealed class Container
                     }
                 }
                 return true;
-            case ContainerKind.Corpse:
+            case ContainerKind.Corpse or ContainerKind.Crate:
                 return false;
+            case ContainerKind.Device when Deployable?.Recycler is { } recycler:
+                // Anything the recycler takes apart into its inputs; nothing into its outputs (G7).
+                return Contains(recycler.InputSlots, slot) && Economy.Recycling.CanRecycle(content, item);
+            case ContainerKind.Device when Deployable?.Research is { } research:
+                // The item slot takes what can be researched, the salvage slot salvage; the blueprint's slot nothing (G7).
+                return slot == research.ItemSlot ? Economy.Research.CanResearch(content, item)
+                    : slot == research.SalvageSlot && item == content.World.Currency;
             case ContainerKind.Device:
                 DeviceStats? device = Deployable?.Device;
                 if (device == null)

@@ -74,6 +74,9 @@ public static class ContentTests
         texts["recipes.json"] = texts["recipes.json"].Replace("[\"stone\", 10]", "[\"unobtainium\", 10]", StringComparison.Ordinal)
             .Replace("[[\"wood\", 300]]", "[[\"refined-metal\", 1]], \"workbench\": 3", StringComparison.Ordinal);
         texts["gather.json"] = texts["gather.json"].Replace("[[\"metal-ore\", 250], [\"high-grade-ore\", 20]]", "[[\"metal-ore\", 250]]", StringComparison.Ordinal);
+        // G7: the recycler turns loot into refined metal too; take that away as well.
+        texts["world.json"] = texts["world.json"].Replace(", [\"refined-metal\", 1]]", "]", StringComparison.Ordinal)
+            .Replace(", [\"refined-metal\", 2]]", "]", StringComparison.Ordinal);
         GameContent content = GameContent.FromTexts(texts);
         string all = string.Join("\n", content.Problems);
         Fixtures.Report($"{content.Problems.Count} problems found, e.g. {content.Problems.FirstOrDefault()}");

@@ -1,18 +1,23 @@
 using System;
-using System.Collections.Generic;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 
 namespace Hollow.Net.Replication;
 
 /// <summary>An entity offered to a snapshot: its state now and how much it matters to this client.</summary>
-public struct SnapshotCandidate
+public struct SnapshotCandidate : IDeltaCandidate<CharacterNetState>
 {
     public uint NetId;
     public CharacterNetState State;
 
     /// <summary>Added to the entity's priority each snapshot it waits (nearer and moving entities weigh more).</summary>
     public float Weight;
+
+    readonly uint IDeltaCandidate<CharacterNetState>.Id => NetId;
+
+    readonly CharacterNetState IDeltaCandidate<CharacterNetState>.Value => State;
+
+    readonly float IDeltaCandidate<CharacterNetState>.Weight => Weight;
 }
 
 /// <summary>
@@ -28,6 +33,11 @@ public struct SnapshotCandidate
 /// first until the byte budget is used, so in a crowd near and moving things update often and the rest still update.
 /// An entity left out of a snapshot is simply not updated in it (spawn and despawn are reliable messages).
 /// </para>
+/// <para>
+/// <b>Two sections</b> (G6): characters (the header's count), then ships (a count of their own), each kind with its own
+/// baselines and priorities under the same sequence numbers. Ships choose first, within <see cref="ShipShare"/> of the
+/// budget: they are few, big and fast.
+/// </para>
 /// </summary>
 public sealed class SnapshotSender
 {
@@ -36,24 +46,18 @@ public sealed class SnapshotSender
     /// <summary>The client keeps <see cref="History"/> snapshots; a baseline must be younger than that.</summary>
     public const int MaxBaselineAge = History - 1;
 
-    private const int AgeBits = 6;
+    /// <summary>Ships may take at most this share of a snapshot's budget.</summary>
+    public const float ShipShare = 0.35f;
 
-    // Header and own state, with room for the varints at their largest.
-    private const int HeaderBits = 8 + 32 + 32 + 8 + 32 + 6 * 32 + 1 + 8 + 4 + 32 + 40;
+    // Header and own state, with room for the varints at their largest; the ship section's count and the own ship's
+    // presence bit (G6).
+    private const int HeaderBits = 8 + 32 + 32 + 8 + 32 + 6 * 32 + 1 + 8 + 4 + 32 + 40 + 1 + 40;
 
-    private readonly Sent[] _sent = new Sent[History];
-    private readonly Dictionary<uint, (uint Sequence, CharacterNetState State)> _baselines = new();
-    private readonly Dictionary<uint, float> _priority = new();
-    private readonly List<(float Priority, uint NetId, int Index)> _order = new();
-    private readonly List<(uint NetId, int Index)> _chosen = new();
+    // The pilot's own ship, exactly (OwnShipState: two varints, 15 floats, three ushorts and nine bits of flags).
+    private const int OwnShipBits = 2 * 40 + 15 * 32 + 3 * 16 + 9;
 
-    public SnapshotSender()
-    {
-        for (int i = 0; i < History; i++)
-        {
-            _sent[i] = new Sent();
-        }
-    }
+    private readonly DeltaChannel<CharacterNetState> _characters = new();
+    private readonly DeltaChannel<ShipNetState> _ships = new();
 
     /// <summary>The sequence number of the last snapshot written (0 before the first).</summary>
     public uint LastSequence { get; private set; }
@@ -62,6 +66,9 @@ public sealed class SnapshotSender
     public int LastWritten { get; private set; }
 
     public int LastOffered { get; private set; }
+
+    /// <summary>Ships written in the last snapshot.</summary>
+    public int LastShips { get; private set; }
 
     /// <summary>The client confirmed these snapshots (from its input packets). Untrusted: anything odd is ignored.</summary>
     public void Acknowledge(uint newest, uint bits)
@@ -88,158 +95,46 @@ public sealed class SnapshotSender
     /// standing still are left out until they move).
     /// </summary>
     public bool Holds(uint netId, in CharacterNetState state) =>
-        _baselines.TryGetValue(netId, out (uint Sequence, CharacterNetState State) b) && state.DeltaBits(b.State) <= UnchangedBits;
+        _characters.TryGetBaseline(netId, out CharacterNetState b) && state.DeltaBits(b) <= UnchangedBits;
 
     /// <summary>An entity stopped being relevant to this client: its next state goes in full.</summary>
     public void Forget(uint netId)
     {
-        _baselines.Remove(netId);
-        _priority.Remove(netId);
+        _characters.Forget(netId);
+        _ships.Forget(netId);
     }
 
     /// <summary>
     /// Writes one snapshot packet: the type byte, the header, then as many of <paramref name="candidates"/> as fit in
-    /// <paramref name="byteBudget"/>, highest priority first, in ascending net ID.
+    /// <paramref name="byteBudget"/>, highest priority first, in ascending net ID; and an empty ship section.
     /// </summary>
-    public void Write(BitWriter w, SnapshotHeader header, ReadOnlySpan<SnapshotCandidate> candidates, int byteBudget)
+    public void Write(BitWriter w, SnapshotHeader header, ReadOnlySpan<SnapshotCandidate> candidates, int byteBudget) =>
+        Write(w, header, candidates, ReadOnlySpan<ShipCandidate>.Empty, byteBudget);
+
+    /// <summary>Writes one snapshot packet with ships (G6): the header, the characters that fit, the ships that fit.</summary>
+    public void Write(BitWriter w, SnapshotHeader header, ReadOnlySpan<SnapshotCandidate> candidates, ReadOnlySpan<ShipCandidate> ships,
+        int byteBudget)
     {
         uint sequence = ++LastSequence;
         LastOffered = candidates.Length;
+        int budget = byteBudget * 8 - HeaderBits - (header.OwnShip is { Length: > 0 } ? OwnShipBits : 0);
+        int shipBits = _ships.Choose(ships, sequence, (int)(Math.Max(0, budget) * ShipShare));
+        _characters.Choose(candidates, sequence, budget - shipBits);
 
-        // Choose: accumulate priority, then take from the top while the (slightly pessimistic) size fits.
-        _order.Clear();
-        for (int i = 0; i < candidates.Length; i++)
-        {
-            ref readonly SnapshotCandidate c = ref candidates[i];
-            float priority = _priority.GetValueOrDefault(c.NetId) + c.Weight;
-            _priority[c.NetId] = priority;
-            _order.Add((priority, c.NetId, i));
-        }
-        _order.Sort(static (a, b) => a.Priority != b.Priority ? b.Priority.CompareTo(a.Priority) : a.NetId.CompareTo(b.NetId));
-        int budget = byteBudget * 8 - HeaderBits;
-        int left = budget;
-        _chosen.Clear();
-        foreach ((float _, uint netId, int index) in _order)
-        {
-            int bits = 16 + EntityBits(candidates[index], sequence);
-            if (bits > left)
-            {
-                break;
-            }
-            left -= bits;
-            _chosen.Add((netId, index));
-        }
-        // In net ID order the gaps are known exactly. Each was guessed at 16 bits; should the real ones not fit (net
-        // IDs far apart), drop the least important until they do: a snapshot must never outgrow the packet.
-        _chosen.Sort(static (a, b) => a.NetId.CompareTo(b.NetId));
-        while (_chosen.Count > 0 && ExactBits(candidates, sequence) > budget)
-        {
-            int last = _chosen.FindIndex(c => c.Index == _order[_chosen.Count - 1].Index);
-            _chosen.RemoveAt(last >= 0 ? last : _chosen.Count - 1);
-        }
-
-        // Write.
         header.Sequence = sequence;
-        header.EntityCount = (uint)_chosen.Count;
+        header.EntityCount = (uint)_characters.Chosen;
         w.WriteBits(Protocol.Protocol.SnapshotTypeId, 8);
         header.Write(w);
-        Sent sent = _sent[sequence % History];
-        sent.Reset(sequence, _chosen.Count);
-        uint previous = 0;
-        foreach ((uint _, int index) in _chosen)
-        {
-            ref readonly SnapshotCandidate c = ref candidates[index];
-            w.WriteDelta((int)(c.NetId - previous));
-            previous = c.NetId;
-            if (Baseline(c.NetId, sequence, out CharacterNetState baseline, out uint age))
-            {
-                w.WriteBits(age, AgeBits);
-                c.State.WriteDelta(w, baseline);
-            }
-            else
-            {
-                w.WriteBits(0, AgeBits);
-                c.State.Write(w);
-            }
-            sent.Add(c.NetId, c.State);
-            _priority[c.NetId] = 0;
-        }
-        LastWritten = _chosen.Count;
-    }
-
-    // An entity's bits after its net ID: the baseline age and the state, against its baseline or in full.
-    private int EntityBits(in SnapshotCandidate c, uint sequence) =>
-        AgeBits + (Baseline(c.NetId, sequence, out CharacterNetState b, out _) ? c.State.DeltaBits(b) : CharacterNetState.FullBits);
-
-    // The chosen entities' bits exactly, net ID gaps included (they must be in net ID order).
-    private int ExactBits(ReadOnlySpan<SnapshotCandidate> candidates, uint sequence)
-    {
-        int bits = 0;
-        uint previous = 0;
-        foreach ((uint netId, int index) in _chosen)
-        {
-            bits += BitWriter.DeltaBits((int)(netId - previous)) + EntityBits(candidates[index], sequence);
-            previous = netId;
-        }
-        return bits;
-    }
-
-    private bool Baseline(uint netId, uint sequence, out CharacterNetState state, out uint age)
-    {
-        if (_baselines.TryGetValue(netId, out (uint Sequence, CharacterNetState State) b) && sequence - b.Sequence <= MaxBaselineAge)
-        {
-            state = b.State;
-            age = sequence - b.Sequence;
-            return true;
-        }
-        state = default;
-        age = 0;
-        return false;
+        _characters.Write(w, candidates, sequence);
+        w.WriteVarUInt((uint)_ships.Chosen);
+        _ships.Write(w, ships, sequence);
+        LastWritten = _characters.Chosen;
+        LastShips = _ships.Chosen;
     }
 
     private void Confirm(uint sequence)
     {
-        Sent sent = _sent[sequence % History];
-        if (sent.Sequence != sequence || sent.Confirmed)
-        {
-            return;
-        }
-        sent.Confirmed = true;
-        for (int i = 0; i < sent.Count; i++)
-        {
-            uint netId = sent.NetIds[i];
-            if (!_baselines.TryGetValue(netId, out (uint Sequence, CharacterNetState State) b) || b.Sequence < sequence)
-            {
-                _baselines[netId] = (sequence, sent.States[i]);
-            }
-        }
-    }
-
-    private sealed class Sent
-    {
-        public uint Sequence;
-        public bool Confirmed;
-        public int Count;
-        public uint[] NetIds = new uint[16];
-        public CharacterNetState[] States = new CharacterNetState[16];
-
-        public void Reset(uint sequence, int capacity)
-        {
-            Sequence = sequence;
-            Confirmed = false;
-            Count = 0;
-            if (NetIds.Length < capacity)
-            {
-                NetIds = new uint[Math.Max(capacity, NetIds.Length * 2)];
-                States = new CharacterNetState[NetIds.Length];
-            }
-        }
-
-        public void Add(uint netId, in CharacterNetState state)
-        {
-            NetIds[Count] = netId;
-            States[Count] = state;
-            Count++;
-        }
+        _characters.Confirm(sequence);
+        _ships.Confirm(sequence);
     }
 }

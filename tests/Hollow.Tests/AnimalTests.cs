@@ -362,12 +362,12 @@ public static class AnimalTests
         Assert.Near(160, p.Vitals.Calories, 0.01, "40 calories");
         Assert.Near(10, p.Vitals.PendingHeal, 0.01, "and 10 health to heal");
 
-        // Lamp oil, Rust's way: 3 fat and a fibre make 4.
+        // Lamp oil, Rust's way: 3 fat and a cloth make 4.
         Recipe fat = c.RecipeByKey("lamp-oil-from-fat")!;
-        Assert.True(fat.Output == c.ItemByKey("lamp-oil") && fat.Id == 179 && c.Recipe(179) == fat, "the second lamp-oil recipe");
+        Assert.True(fat.Output == c.ItemByKey("lamp-oil") && fat.Id == 220 && c.Recipe(220) == fat, "the second lamp-oil recipe");
         Assert.True(c.Recipe(c.ItemByKey("lamp-oil").Id)!.Ingredients.Any(i => i.Item.Key == "charcoal"), "beside the charcoal one");
         rig.Give(ada, "animal-fat", 3);
-        rig.Give(ada, "fibre", 1);
+        rig.Give(ada, "cloth", 1);
         Assert.Equal(ActionResult.Accepted, rig.Zone.Craft(ada, fat.Id, 1, out _), "craft it");
         rig.Step((int)(fat.Seconds * 30) + 2);
         Assert.Equal(4, p.Inventory.Count(c.ItemByKey("lamp-oil")), "four lamp oil");

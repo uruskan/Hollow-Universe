@@ -21,6 +21,8 @@ public sealed class BotSwarm : IDisposable
 {
     private readonly List<(GameClient Client, BotBrain Brain, SurvivalBrain? Survival, FightBrain? Fight, BuildBrain? Build, RaidBrain? Raid)> _bots =
         new();
+    private readonly System.Collections.Generic.Dictionary<GameClient, FlyBrain> _pilots = new();
+    private readonly Dictionary<GameClient, WorldBrain> _world = new();
     private readonly ConditionedRelay? _relay;
     private readonly GameContent _content = GameContent.LoadDefault();
     private PhysicsWorld? _ground;
@@ -60,6 +62,14 @@ public sealed class BotSwarm : IDisposable
                 script == BotScript.Fight ? new FightBrain(i) : null,
                 script == BotScript.Build ? new BuildBrain(i) { Log = i < 3 ? log : null } : null,
                 script == BotScript.Raid ? new RaidBrain(i, raidBases, raidRadius) : null));
+            if (script == BotScript.Fly)
+            {
+                _pilots.Add(client, new FlyBrain(i));
+            }
+            if (script == BotScript.World)
+            {
+                _world[client] = new WorldBrain(i);
+            }
         }
     }
 
@@ -81,10 +91,21 @@ public sealed class BotSwarm : IDisposable
     public string BuildProgress => string.Join("; ", _bots.Where(b => b.Build != null).GroupBy(b => b.Build!.Progress.Split(',')[0])
         .Select(g => $"{g.Count()} {g.Key}"));
 
+    /// <summary>What the flying bots did: boardings, bots flying now, seconds flown in all, their ships' corrections (G6).</summary>
+    public (int Boardings, int Flying, double Seconds, long Corrections) Flights =>
+        (_pilots.Values.Sum(p => p.Boardings), _pilots.Keys.Count(c => c.Piloting), _pilots.Values.Sum(p => p.Airborne),
+            _pilots.Keys.Sum(c => c.Stats.ShipCorrections));
+
     /// <summary>What the raiding bots did: charges placed, things thrown, rockets, bursts of explosive rounds; raid alerts heard.</summary>
     public (int Placed, int Thrown, int Rockets, int Bursts, int Alerts) Raids =>
         (_bots.Sum(b => b.Raid?.Placed ?? 0), _bots.Sum(b => b.Raid?.Thrown ?? 0), _bots.Sum(b => b.Raid?.Rockets ?? 0),
             _bots.Sum(b => b.Raid?.Bursts ?? 0), _bots.Sum(b => b.Client.Local.RaidAlerts.Count));
+
+    /// <summary>What the world bots did (G7): barrels broken, crates emptied, things picked up, recycler runs started, research begun, blueprints learnt; teams they are in.</summary>
+    public (int Broken, int Emptied, int Picked, int Recycled, int Researched, int Learnt, int Teamed) World =>
+        (_world.Values.Sum(w => w.Broken), _world.Values.Sum(w => w.Emptied), _world.Values.Sum(w => w.Picked),
+            _world.Values.Sum(w => w.Recycled), _world.Values.Sum(w => w.Researched), _world.Values.Sum(w => w.Learnt),
+            _world.Keys.Count(c => c.Local.Team is { Members.Count: > 1 }));
 
     public int Playing => _bots.Count(b => b.Client.State == ClientState.Playing);
 
@@ -123,7 +144,9 @@ public sealed class BotSwarm : IDisposable
             foreach ((GameClient client, BotBrain brain, SurvivalBrain? survival, FightBrain? fight, BuildBrain? build, RaidBrain? raid) in _bots)
             {
                 InputFrame input = !client.HasCharacter ? default
+                    : _world.TryGetValue(client, out WorldBrain? world) ? world.Think(now, delta, client)
                     : raid != null ? raid.Think(now, delta, client)
+                    : _pilots.TryGetValue(client, out FlyBrain? pilot) ? pilot.Think(now, delta, client)
                     : fight != null ? fight.Think(now, delta, client)
                     : build != null ? build.Think(now, delta, client)
                     : survival != null ? survival.Think(now, delta, client)

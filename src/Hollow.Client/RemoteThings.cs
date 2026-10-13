@@ -51,8 +51,16 @@ public sealed class RemoteThing
     /// <summary>Raised when it changes, for views that cache what they built.</summary>
     public uint Revision { get; set; }
 
-    /// <summary>The deployable it is, if one.</summary>
-    public DeployableDef? Deployable(GameContent content) => Kind == StaticKind.Deployable ? content.Deployable(Look) : null;
+    /// <summary>The deployable it is, if one (a world prop is one too, G7).</summary>
+    public DeployableDef? Deployable(GameContent content) => Kind switch
+    {
+        StaticKind.Deployable => content.Deployable(Look),
+        StaticKind.Prop => content.Prop(Look)?.Deployable,
+        _ => null,
+    };
+
+    /// <summary>The world prop it is (a barrel, crate or recycler, G7), if one.</summary>
+    public PropDef? Prop(GameContent content) => Kind == StaticKind.Prop ? content.Prop(Look) : null;
 }
 
 /// <summary>

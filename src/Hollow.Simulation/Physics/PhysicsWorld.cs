@@ -50,6 +50,14 @@ public sealed class PhysicsWorld : IDisposable
 
     public const int MaxBuildingBodies = 16384;
 
+    /// <summary>
+    /// Body IDs from here on belong to ships parked on the ground (<c>Ships/ShipCollider</c>, G6), at most
+    /// <see cref="MaxShipBodies"/> of them; everything above comes first.
+    /// </summary>
+    public const int FirstShipBody = FirstBuildingBody + MaxBuildingBodies;
+
+    public const int MaxShipBodies = 1024;
+
     /// <summary>Whether a body is a ground tile.</summary>
     public static bool IsGroundBody(uint id) => id < TileIdCount;
 
@@ -84,7 +92,7 @@ public sealed class PhysicsWorld : IDisposable
             Jolt = new PhysicsSystem(new PhysicsSystemSettings
             {
                 // Ground tile IDs take the bottom of the range (see the class remarks); later bodies take the rest.
-                MaxBodies = FirstBuildingBody + MaxBuildingBodies,
+                MaxBodies = FirstShipBody + MaxShipBodies,
                 MaxBodyPairs = 4096,
                 MaxContactConstraints = 4096,
                 NumBodyMutexes = 0,
@@ -210,6 +218,9 @@ public sealed class PhysicsWorld : IDisposable
         }
     }
 
+    /// <summary>A body came or went outside this class (a parked ship, G6): the broadphase wants rebuilding (<see cref="OptimizeBroadPhase"/>).</summary>
+    internal void NoteBodyChanged() => Interlocked.Increment(ref _bodyChanges);
+
     /// <summary>
     /// Starts a new epoch and removes tiles nobody marked in the last <paramref name="keepEpochs"/> epochs. Call once a
     /// tick (server) or frame (client), after the <see cref="EnsureGround"/> calls of the previous one.
@@ -323,10 +334,22 @@ public sealed class PhysicsWorld : IDisposable
         {
             return;
         }
+        long started = Stopwatch.GetTimestamp();
         Jolt.OptimizeBroadPhase();
+        TimeSpan took = Stopwatch.GetElapsedTime(started);
+        BroadPhaseTime += took;
+        BroadPhaseWorst = took > BroadPhaseWorst ? took : BroadPhaseWorst;
+        BroadPhaseRebuilds++;
         _bodyChanges = 0;
         _sinceOptimize = 0;
     }
+
+    /// <summary>Broadphase rebuilds so far, their time in all and the longest (the load tests' statistics).</summary>
+    public int BroadPhaseRebuilds { get; private set; }
+
+    public TimeSpan BroadPhaseTime { get; private set; }
+
+    public TimeSpan BroadPhaseWorst { get; private set; }
 
     // Adds a built tile to the physics system, under the tile's own body ID. On the owning thread.
     private Tile AddTile(int x, int z, Shape shape)

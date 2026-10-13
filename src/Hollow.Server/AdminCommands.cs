@@ -22,7 +22,10 @@ public sealed partial class GameServer
         "kit <name> <loot table>       a loot table's items (loot.json), e.g. supply-crate\n" +
         "heal <name>                   full health, food and water, no bleeding\n" +
         "kill <name>                   a player dies (a corpse with their things)\n" +
+        "ship <name>                   a Tin Finch beside a player, full and theirs, its hatch open\n" +
         "raidbase <name> [grade]       a claimed hut 8 m in front of a player, listing them (grade 0-4, stone by default)\n" +
+        "learn <name> <item|all>       a player learns a blueprint (G7), or every one\n" +
+        "world                         the world's props, teams and economy (G7)\n" +
         "animals                       how many animals, of each kind, what they cost\n" +
         "spawn <species> <name> [n] [m] a herd of deer, boar, wolf or bear m metres (25) in front of a player\n" +
         "save                          save the world now\n" +
@@ -118,6 +121,12 @@ public sealed partial class GameServer
                     Log($"killed {victim.Name}");
                 }
                 break;
+            case "ship" when words.Length >= 2:
+                if (Find(words[1]) is { Playing: true } pilot)
+                {
+                    Log(GiveShip(pilot) is { } given ? $"a {given.Def.Name} for {pilot.Name} ({given.Id})" : $"no room for a ship beside {pilot.Name}");
+                }
+                break;
             case "raidbase" when words.Length >= 2:
                 if (Find(words[1]) is { Playing: true } builder && Zone.PlayerOf(builder.Entity) is { } owner2)
                 {
@@ -147,7 +156,10 @@ public sealed partial class GameServer
                 RequestStop();
                 break;
             default:
-                Log($"unknown command '{line.Trim()}' (help lists them)");
+                if (!RunWorldCommand(words))
+                {
+                    Log($"unknown command '{line.Trim()}' (help lists them)");
+                }
                 break;
         }
     }

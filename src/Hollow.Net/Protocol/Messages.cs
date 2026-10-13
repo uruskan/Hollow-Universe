@@ -5,7 +5,9 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Ships;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
 
 namespace Hollow.Net.Protocol;
@@ -58,6 +60,9 @@ public partial struct ZoneInfo
 
     /// <summary>How much faster than real the planet turns for play (GROUND.md §1: 24), counted from J2000.</summary>
     public float RotationTimeScale;
+    /// <summary>The air's density at the mean radius (kg/m³) and its scale height (m): ships' drag (G6).</summary>
+    public float AirDensity;
+    public float AirScaleHeight;
 }
 
 /// <summary>The server's first message to an accepted client.</summary>
@@ -103,6 +108,24 @@ public partial struct InputCommand
 
     /// <summary>Quarter ticks between this input's tick and the tick the player was drawing others at (lag compensation).</summary>
     public byte ViewDelay;
+
+    /// <summary>A pilot's controls (G6): one entry while flying a ship, none on foot (a bit).</summary>
+    [MaxCount(1)] public ShipControls[] Ship;
+}
+
+/// <summary>One tick of a pilot's controls (G6), each −127 … 127: stick, throttle lever, strafe, up and down.</summary>
+[NetStruct]
+public partial struct ShipControls
+{
+    [Signed(8)] public sbyte Pitch;
+    [Signed(8)] public sbyte Yaw;
+    [Signed(8)] public sbyte Roll;
+    [Signed(8)] public sbyte Throttle;
+    [Signed(8)] public sbyte Strafe;
+    [Signed(8)] public sbyte Vertical;
+
+    /// <summary>Boost held, flight assist off.</summary>
+    [Bits(2)] public ShipButtons Buttons;
 }
 
 /// <summary>
@@ -161,6 +184,61 @@ public partial struct SnapshotHeader
     public ushort EchoHold;
 
     [VarInt] public uint EntityCount;
+
+    /// <summary>The ship the player flies (G6), exactly, after <c>OwnTick</c>: one entry while in a seat, none on foot.</summary>
+    [MaxCount(1)] public OwnShipState[] OwnShip;
+}
+
+/// <summary>The ship the player flies, exactly as the server has it, for its prediction's reconciliation (G6).</summary>
+[NetStruct]
+public partial struct OwnShipState
+{
+    [VarInt] public uint NetId;
+
+    /// <summary>Its kind (the ship's item).</summary>
+    [VarInt] public uint Kind;
+    public float PositionX;
+    public float PositionY;
+    public float PositionZ;
+    public float RotationX;
+    public float RotationY;
+    public float RotationZ;
+    public float RotationW;
+    public float VelocityX;
+    public float VelocityY;
+    public float VelocityZ;
+    public float SpinX;
+    public float SpinY;
+    public float SpinZ;
+    public float Health;
+    public float Fuel;
+    public ushort BoostTicks;
+    public ushort CooldownTicks;
+    public ushort RestTicks;
+    [Bits(9)] public ShipFlags Flags;
+}
+
+/// <summary>
+/// A ship as everyone sees it (G6): position on a 1/256 m grid, its turn as yaw, pitch and roll (about the zone's +Y,
+/// then its own x, then its own z), what it is doing, its hatch, its engines' output (±127 = ±2 of each axis's thrust,
+/// boost above 1), its hull (of 255) and its kind (the item).
+/// </summary>
+[NetState]
+public partial struct ShipNetState
+{
+    [Signed(32)] public int X;
+    [Signed(32)] public int Y;
+    [Signed(32)] public int Z;
+    [Angle] public ushort Yaw;
+    [Angle] public ushort Pitch;
+    [Angle] public ushort Roll;
+    [Bits(12)] public ShipNetFlags Flags;
+    [Bits(5)] public byte Hatch;
+    [Signed(8)] public sbyte ThrustX;
+    [Signed(8)] public sbyte ThrustY;
+    [Signed(8)] public sbyte ThrustZ;
+    public byte Health;
+    [VarInt] public uint Kind;
 }
 
 /// <summary>A character as other players see it: position on a 1/256 m grid, view angles, what it's doing.</summary>
@@ -459,6 +537,18 @@ public partial struct IntentResult
 {
     [VarInt] public uint Seq;
     [Bits(5)] public ActionResult Result;
+}
+
+/// <summary>
+/// A ship action (G6, client → server, reliable ordered, the general intent sequence and budget, answered by
+/// <see cref="IntentResult"/>): the hatch, boarding, stepping out, the lock, refuelling, descending from orbit.
+/// </summary>
+[NetMessage(120)]
+public partial struct ShipIntent
+{
+    [VarInt] public uint Seq;
+    public ulong Ship;
+    [Bits(3)] public ShipAction Action;
 }
 
 /// <summary>A firearm's magazine and attachments (G4), carried by its slot.</summary>
@@ -1046,4 +1136,160 @@ public partial struct RaidAlertMessage
 public partial struct RaidAlertList
 {
     [MaxCount(64)] public RaidAlertNet[] Alerts;
+}
+
+// ---------------------------------------------------------------- G7: the world (GROUND.md §6.8)
+// Intents (client → server, the general sequence, answered by IntentResult). A blueprint is learnt with UseIntent, a
+// recycler or research table started with ToggleIntent, "authorise team" is ClaimIntent's and LockIntent's.
+
+/// <summary>Unlock a tech tree node (its recipe) at a workbench of its level within reach, for its salvage.</summary>
+[NetMessage(130)]
+public partial struct UnlockIntent
+{
+    [VarInt] public uint Seq;
+    [VarInt] public uint Recipe;
+}
+
+/// <summary>A team action: create; invite a player near by (Target); accept or decline a team's invite (Team); leave; kick or promote a member (Target).</summary>
+[NetMessage(131)]
+public partial struct TeamIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public TeamAction Action;
+    public ulong Target;
+    public ulong Team;
+}
+
+/// <summary>A chat line to the player's team alone.</summary>
+[NetMessage(132)]
+public partial struct TeamChatSend
+{
+    [MaxLength(200)] public string Text;
+}
+
+/// <summary>Put a marker on the map (a point of the zone frame, a colour, a label), or take one off (Index; −1: all).</summary>
+[NetMessage(133)]
+public partial struct MarkerIntent
+{
+    [VarInt] public uint Seq;
+    public bool Remove;
+    [Signed(8)] public sbyte Index;
+    public float X;
+    public float Z;
+    [Bits(3)] public byte Colour;
+    [MaxLength(24)] public string Label;
+}
+
+// The player's own (server → owner, reliable unless said otherwise).
+
+/// <summary>A recipe (its output item's ID).</summary>
+[NetStruct]
+public partial struct RecipeNet
+{
+    [VarInt] public uint Recipe;
+}
+
+/// <summary>Every blueprint the player has learnt, when that changes (and at joining).</summary>
+[NetMessage(140)]
+public partial struct BlueprintList
+{
+    [VarInt] public uint LastSeq;
+    [MaxCount(1024)] public RecipeNet[] Recipes;
+}
+
+[NetStruct]
+public partial struct TeamMemberNet
+{
+    public ulong Id;
+    [MaxLength(32)] public string Name;
+    public bool Online;
+}
+
+/// <summary>The player's team (Team 0: none): its leader and its members, oldest first.</summary>
+[NetMessage(141)]
+public partial struct TeamState
+{
+    [VarInt] public uint LastSeq;
+    public ulong Team;
+    public ulong Leader;
+    [MaxCount(16)] public TeamMemberNet[] Members;
+}
+
+[NetStruct]
+public partial struct TeamInviteNet
+{
+    public ulong Team;
+    [MaxLength(32)] public string From;
+    [VarInt] public uint Seconds;
+}
+
+/// <summary>The team invites waiting for the player (when they change).</summary>
+[NetMessage(142)]
+public partial struct TeamInvites
+{
+    [MaxCount(16)] public TeamInviteNet[] Invites;
+}
+
+/// <summary>A teammate where they are (zone frame), facing, and how they are.</summary>
+[NetStruct]
+public partial struct TeammateNet
+{
+    public ulong Id;
+    public float X;
+    public float Y;
+    public float Z;
+    [Angle] public ushort Yaw;
+    [Bits(2)] public TeammateState State;
+}
+
+/// <summary>Where the player's teammates are (unreliable, twice a second; the newest Sequence wins), for the map and name tags beyond range.</summary>
+[NetMessage(143)]
+public partial struct TeamPositions
+{
+    public uint Sequence;
+    [MaxCount(16)] public TeammateNet[] Members;
+}
+
+[NetStruct]
+public partial struct MarkerNet
+{
+    public float X;
+    public float Y;
+    public float Z;
+    [Bits(3)] public byte Colour;
+    [MaxLength(24)] public string Label;
+}
+
+[NetStruct]
+public partial struct RespawnPointNet
+{
+    public ulong Id;
+    public float X;
+    public float Y;
+    public float Z;
+    public bool Bed;
+}
+
+/// <summary>What the player's map shows of their own: their markers, where they died last, their sleeping bags and beds.</summary>
+[NetMessage(144)]
+public partial struct MapState
+{
+    [VarInt] public uint LastSeq;
+    [MaxCount(8)] public MarkerNet[] Markers;
+    public bool HasDeath;
+    public float DeathX;
+    public float DeathY;
+    public float DeathZ;
+    [MaxCount(64)] public RespawnPointNet[] Points;
+}
+
+/// <summary>The recycler or research table the player is looting: running, how far through (0 … 255), seconds left, what it researches.</summary>
+[NetMessage(145)]
+public partial struct MachineState
+{
+    public ulong Target;
+    public bool Running;
+    public byte Progress;
+    [VarInt] public uint SecondsLeft;
+    [VarInt] public uint Item;
 }

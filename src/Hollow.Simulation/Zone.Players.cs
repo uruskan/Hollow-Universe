@@ -56,6 +56,7 @@ public sealed partial class Zone
         _ = new NaturalBodies(Physics, Natural);
         Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
         InitBuilding(content);
+        InitWorld(content);
         InitAnimals(content);
     }
 
@@ -75,6 +76,7 @@ public sealed partial class Zone
             StepVitals();
             Natural!.Respawn(UnixMilliseconds);
             StepDespawns();
+            StepWorld();
             CheckLoot();
         }
         StepDevices();
@@ -242,7 +244,7 @@ public sealed partial class Zone
         ref Character c = ref Entities.Get<Character>(entity);
         if (p.Vitals.Health <= 0)
         {
-            if (canWound && CanBeWounded(p, amount))
+            if (canWound && CanBeWounded(p, amount) && !Entities.Has<Ships.ShipSeat>(entity))
             {
                 Wound(entity, p, cause, by, byName);
             }
@@ -308,6 +310,8 @@ public sealed partial class Zone
         p.Dead = true;
         p.Wounded = false;
         ResetGun(p);
+        p.DeathPoint = c.State.Position;
+        p.MapRevision++;
         p.DeathCause = cause;
         p.KilledBy = byName;
         p.Vitals = default;
@@ -445,7 +449,8 @@ public sealed partial class Zone
             }
             _overflow.Clear();
             _finished.Clear();
-            p.Crafting.Advance(content, p.Inventory, _overflow, _finished);
+            Entity crafter = Entities.AtSlot(slots[i]);
+            p.Crafting.Advance(content, p.Inventory, _overflow, _finished, (recipe, station) => DeliverShip(crafter, p, recipe, station));
             foreach (ItemAmount a in _finished)
             {
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.CraftFinished, Player = p.Id, Item = a.Item.Id, Count = a.Count });
@@ -473,6 +478,12 @@ public sealed partial class Zone
                 continue;
             }
             ref Character c = ref Entities.Get<Character>(Entities.AtSlot(slots[i]));
+            if (c.State.Stance == Stance.Seated)
+            {
+                // In a ship's cabin (G6): shots hit the hull, not the pilot.
+                History.Forget(p.Id);
+                continue;
+            }
             History.Record(p.Id, Tick, new HitPose
             {
                 Feet = c.State.Position,

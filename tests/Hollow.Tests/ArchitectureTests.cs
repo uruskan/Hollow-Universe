@@ -50,9 +50,10 @@ public static class ArchitectureTests
     {
         var problems = new List<string>();
         int files = 0;
-        // Natural objects are generated too (the server and every client place the same ones).
+        // Natural objects and the world's loot spots are generated too (the same every time), and the map's picture (G7).
         // Animals spawn from the planet and their AI is replayed from the same inputs (G7): deterministic too.
-        foreach (string folder in new[] { "Hollow.Core", "Hollow.Galaxy", "Hollow.Surface", "Hollow.Simulation/Nature", "Hollow.Simulation/Animals" })
+        foreach (string folder in new[] { "Hollow.Core", "Hollow.Galaxy", "Hollow.Surface", "Hollow.Simulation/Nature", "Hollow.Client/Map",
+                     "Hollow.Simulation/Animals" })
         {
             string root = Path.Combine(Fixtures.Root, "src", folder);
             foreach (string file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))

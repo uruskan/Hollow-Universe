@@ -12,6 +12,7 @@ using HollowUniverse.GalaxyMap;
 using HollowUniverse.Ground;
 using HollowUniverse.Surface;
 using HollowUniverse.Items;
+using HollowUniverse.Ships;
 using HollowUniverse.SystemMap;
 using HollowUniverse.UI.Viewer;
 
@@ -34,6 +35,7 @@ public partial class Main : Node
     private UiScaler _scaler = null!;
     private GroundMode? _ground;
     private BuildSandbox? _build;
+    private ShipSandbox? _ship;
     private UiViewer? _ui;
     private IconRenderer? _icons;
     private ModelViewer? _models;
@@ -123,6 +125,13 @@ public partial class Main : Node
             // The build sandbox (GROUND.md §6.3): the building rules and their art in a local zone.
             _build = new BuildSandbox { Name = "Build", Options = _options };
             AddChild(_build);
+            return;
+        }
+        if (Option("view", "galaxy") == "ship")
+        {
+            // The ship sandbox (GROUND.md §6.7): the Tin Finch on the first world's real surface.
+            _ship = new ShipSandbox { Name = "Ship", Options = _options };
+            AddChild(_ship);
             return;
         }
 
@@ -272,7 +281,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _build == null
-            && _sounds == null && _fx == null && _animals == null)
+            && _sounds == null && _fx == null && _ship == null && _animals == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -302,6 +311,7 @@ public partial class Main : Node
         double wait = Number("wait", 2);
         bool ready = _ui != null ? _ui.ReadyForShot : _ground != null ? _ground.ReadyForShot
             : _build != null ? _build.ReadyForShot
+            : _ship != null ? _ship.ReadyForShot
             : _sounds != null ? _sounds.ReadyForShot
             : _icons != null ? _icons.ReadyForShot : _models != null ? _models.ReadyForShot
             : _fx != null ? _fx.ReadyForShot

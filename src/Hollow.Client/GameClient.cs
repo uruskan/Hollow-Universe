@@ -52,6 +52,9 @@ public struct InputFrame
 
     /// <summary>Attack went down this frame (kept until a tick uses it, as jump is).</summary>
     public bool PrimaryPressed;
+
+    /// <summary>A pilot's controls (G6): sent with every tick's input while the player flies a ship.</summary>
+    public Simulation.Ships.ShipInput Ship;
 }
 
 /// <summary>How a client runs.</summary>
@@ -294,6 +297,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
                 {
                     remote.Sample(renderTick);
                 }
+                SampleShips(renderTick);
                 PruneStale();
                 UpdateAnimals(delta);
             }
@@ -345,16 +349,23 @@ public sealed partial class GameClient : INetEventListener, IDisposable
             Pitch = frame.Pitch,
             Buttons = buttons,
         }, actions);
+        if (Piloting)
+        {
+            // G6: the pilot's controls ride in the input; the ship is predicted first, as the server steps it, so the
+            // seated character goes where its seat is.
+            command.Ship = new[] { ShipConvert.ToControls(frame.Ship) };
+        }
         _predictor!.RecordInput(tick, command);
         if (_predictor.HasState)
         {
+            PredictShip(tick);
             _predictor.Predict(tick);
         }
         _predictor.EndTick();
         if (_predictor.HasState)
         {
             // G4: the gun in hand fires (or reloads) on this tick's predicted state, and sends its intent for this tick.
-            Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frame, _predictor.Tuning, EntityId, !Local.IsDead && !Local.IsWounded);
+            Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frame, _predictor.Tuning, EntityId, !Local.IsDead && !Local.IsWounded && !Piloting);
         }
 
         // The packet: this tick's input and the three before it, and which snapshots arrived.
@@ -387,6 +398,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
 
     private void UpdateRender(double delta)
     {
+        UpdateShipRender(delta);
         if (_predictor == null || !_predictor.HasState)
         {
             return;
@@ -461,7 +473,11 @@ public sealed partial class GameClient : INetEventListener, IDisposable
                 break;
             case Spawn.TypeId:
                 Spawn spawn = Spawn.Read(_reader);
-                if (!_reader.Failed)
+                if (!_reader.Failed && spawn.Kind == EntityKind.Ship)
+                {
+                    SpawnShip(spawn.NetId, spawn.EntityId, spawn.Name ?? "");
+                }
+                else if (!_reader.Failed)
                 {
                     RemoteEntity remote = Remote(spawn.NetId);
                     remote.Spawned = true;
@@ -476,6 +492,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
                 {
                     _remotes.Remove(despawn.NetId);
                     RemoveThing(despawn.NetId);
+                    DespawnShip(despawn.NetId);
                 }
                 break;
             case ChatLine.TypeId:
@@ -495,12 +512,15 @@ public sealed partial class GameClient : INetEventListener, IDisposable
     {
         Zone = NetConvert.FromInfo(welcome.Zone);
         _surface = Zone.CreateSurface();
+        DisposeShips();
         DisposeBuilding();
         _predictor?.Dispose();
         _predictor = new Predictor(Zone, _surface, _options.SharedPhysics?.Invoke(Zone, _surface));
         StartSurvival();
+        StartShips();
         NetId = welcome.NetId;
         EntityId = new EntityId(welcome.EntityId);
+        Local.EntityId = EntityId;
         ServerName = welcome.ServerName;
         InitialYaw = Quantize.FromAngle16(welcome.Yaw);
         InitialPitch = Quantize.FromAngle16(welcome.Pitch);
@@ -516,7 +536,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
 
     private void OnSnapshot()
     {
-        if (!_snapshots.TryRead(_reader, out SnapshotHeader header, _decoded))
+        if (!_snapshots.TryRead(_reader, out SnapshotHeader header, _decoded, _decodedShips))
         {
             return;
         }
@@ -546,12 +566,14 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         {
             Remote(netId).Add(header.ServerTick, state);
         }
+        ReceiveShips(header.ServerTick);
         SteerClock(header.InputMargin);
 
         if (header.OwnTick == 0 || _predictor == null)
         {
             return;
         }
+        ReconcileShip(header);
         CharacterState server = NetConvert.FromOwn(header.Own);
         if (!_predictor.HasState)
         {
@@ -674,6 +696,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _peer?.Disconnect();
         _net.ManualUpdate(0);
         _net.Stop();
+        DisposeShips();
         DisposeBuilding();
         _predictor?.Dispose();
         _ownRelay?.Dispose();

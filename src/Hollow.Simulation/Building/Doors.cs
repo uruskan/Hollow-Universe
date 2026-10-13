@@ -462,6 +462,42 @@ public sealed partial class BuildingWorld
         return Outcome.Refuse(Refusal.WrongCode);
     }
 
+    /// <summary>
+    /// "Authorise team" (G7, Rust's): a player on a code lock's list puts the members of their team on it too, up to the
+    /// list's limit. Refused for a stranger (it would be a way round the code) or a key lock.
+    /// </summary>
+    public Outcome AuthoriseOnLock(ulong player, Door door, IEnumerable<ulong> members)
+    {
+        if (door.Lock is not CodeLock codeLock)
+        {
+            return Outcome.Refuse(Refusal.NoLock);
+        }
+        if (!codeLock.IsAuthorised(player))
+        {
+            return Outcome.Refuse(Refusal.NotAuthorised, "You aren't authorised on this lock");
+        }
+        bool changed = false, full = false;
+        foreach (ulong member in members)
+        {
+            if (codeLock.IsAuthorised(member))
+            {
+                continue;
+            }
+            if (codeLock.AuthorisedList.Count >= Data.LockMaxAuthorised)
+            {
+                full = true;
+                break;
+            }
+            codeLock.AuthorisedList.Add(member);
+            changed = true;
+        }
+        if (changed)
+        {
+            Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        }
+        return full && !changed ? Outcome.Refuse(Refusal.ListFull) : Outcome.Done;
+    }
+
     /// <summary>Locks a lock: a code lock by an authorised player once it has a code; a key lock by its owner or a key holder.</summary>
     public Outcome SetLocked(ulong player, Door door, bool locked, IReadOnlyCollection<int>? keys = null)
     {

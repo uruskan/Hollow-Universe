@@ -50,6 +50,9 @@ public sealed record ServerOptions
     /// <summary>Gives <see cref="JoinKit"/> with every new life too, not only to new characters (the G4 load test's firefights).</summary>
     public bool KitEveryLife { get; init; }
 
+    /// <summary>Every new character gets a Tin Finch beside them, full and theirs (the G6 load test's pilots).</summary>
+    public bool ShipOnJoin { get; init; }
+
     /// <summary>
     /// G5's raid load test: this many claimed stone huts on a ring of <see cref="RaidRadius"/> metres around the zone's
     /// origin, hut i listing the player called <see cref="RaidBasePrefix"/> + (i + 1) as three digits, kept standing.
@@ -59,6 +62,9 @@ public sealed record ServerOptions
     public float RaidRadius { get; init; } = 70f;
 
     public string RaidBasePrefix { get; init; } = "bot";
+
+    /// <summary>G7: the world's barrels, crates and recyclers stand in the zone (GROUND.md §6.8).</summary>
+    public bool World { get; init; } = true;
 
     /// <summary>
     /// Animals live in the zone's spawn areas and come and go with the players (G7, GROUND.md §6.9). Off for tests that

@@ -255,6 +255,11 @@ public sealed class ItemDef
 
     public DeployableDef? Deploys { get; internal set; }
 
+    /// <summary>The ship this item is (ships.json, G6): crafted at a station, it rolls out as a ship, never into an inventory.</summary>
+    public string? ShipKey { get; init; }
+
+    public Ships.ShipDef? Ship { get; internal set; }
+
     /// <summary>A firearm's numbers (weapons.json), a round's, an attachment's; null for other items (G4).</summary>
     public FirearmStats? Firearm { get; internal set; }
 

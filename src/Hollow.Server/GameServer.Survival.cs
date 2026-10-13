@@ -117,8 +117,10 @@ public sealed partial class GameServer
             IndexOverride(n.ObjectId);
         }
         LoadBuilding(stored);
+        LoadShips(stored);
         RestoreExplosives();
         RestoreCorpses();
+        LoadWorldState(stored);
         Log($"loaded {sleepers} sleepers, {things} things and {stored.Naturals.Count} changed natural objects");
     }
 
@@ -231,6 +233,8 @@ public sealed partial class GameServer
         }
         _naturalsToSave.Clear();
         AddBuildingToSave(save);
+        AddShipsToSave(save);
+        AddWorldToSave(save);
         return save;
     }
 
@@ -353,7 +357,7 @@ public sealed partial class GameServer
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.HelpUp(me, new EntityId(m.Target)));
             }
             default:
-                return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type);
+                return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type) || ReceiveWorldIntent(session, type);
         }
     }
 
@@ -432,7 +436,9 @@ public sealed partial class GameServer
         }
         natural.Changed.Clear();
         RouteEvents();
+        RouteShipEvents();
         AfterRaid();
+        AfterWorld();
         foreach (PlayerSession session in _sessions.Values)
         {
             if (session.Playing && Zone.PlayerOf(session.Entity) is { } p)
@@ -513,6 +519,9 @@ public sealed partial class GameServer
                     new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target }.WriteMessage(_writer);
                     SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
                     break;
+                case ZoneEventKind.Notice:
+                    Notify(e.Player, e.Text ?? "");
+                    break;
                 case ZoneEventKind.Wounded:
                     Log($"{NameOf(e.Player)} is down: {e.Text}" + (e.Other.IsNone ? "" : $", by {NameOf(e.Other)}"));
                     break;
@@ -558,9 +567,17 @@ public sealed partial class GameServer
             session.SentLoot = p.LootRevision;
             (WorldObject? thing, Player? sleeper, _) = Zone.LootTarget(p);
             _writer.Reset();
-            new LootState { LastSeq = session.LastIntentSeq, Target = thing != null || sleeper != null ? p.Looting.Value : 0, Kind = Zone.LootKindOf(p) }.WriteMessage(_writer);
+            Simulation.Ships.Ship? ship = Zone.LootShip(p);
+            new LootState
+            {
+                LastSeq = session.LastIntentSeq, Target = thing != null || sleeper != null || ship != null ? p.Looting.Value : 0, Kind = Zone.LootKindOf(p),
+            }.WriteMessage(_writer);
             Send(session);
-            if (thing?.Container is { } container)
+            if (ship != null)
+            {
+                SendContents(session, ContainerRef.Loot, ship.Cargo); // a ship's cargo (G6)
+            }
+            else if (thing?.Container is { } container)
             {
                 SendContents(session, ContainerRef.Loot, container);
             }
