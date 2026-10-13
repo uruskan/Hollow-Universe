@@ -310,6 +310,11 @@ public sealed class BuildingData
     public string CodeLockItem { get; private set; } = "code-lock";
     public string CodeLockName { get; private set; } = "Code Lock";
 
+    /// <summary>The item a key lock's keys are (its condition holds the lock's number), and what cutting one costs.</summary>
+    public string KeyItem { get; private set; } = "door-key";
+    public string KeyCostMaterial { get; private set; } = "wood";
+    public int KeyCost { get; private set; } = 75;
+
     // ---------------------------------------------------------------- claim device
 
     public string ClaimItem { get; private set; } = "claim-device";
@@ -320,6 +325,16 @@ public sealed class BuildingData
     public double ClaimPieceRadius { get; private set; } = 16;
     public double ClaimDeviceRadius { get; private set; } = 25;
     public int ClaimMaxAuthorised { get; private set; } = 64;
+
+    /// <summary>The device's hit points and the grade whose (hard side) protection it takes.</summary>
+    public double ClaimHealth { get; private set; } = 200;
+    public GradeDef ClaimProtection { get; private set; } = new();
+
+    /// <summary>Slots of its upkeep store.</summary>
+    public int ClaimSlots { get; private set; } = 24;
+
+    /// <summary>A live zone applies upkeep and decay this often, in seconds (closed form, so any interval agrees).</summary>
+    public double AdvanceSeconds { get; private set; } = 60;
     public double UpkeepPeriodHours { get; private set; } = 24;
 
     /// <summary>Rust's upkeep brackets: the next <c>Pieces</c> pieces pay <c>Fraction</c> of their cost a period (0: the rest).</summary>
@@ -333,6 +348,21 @@ public sealed class BuildingData
     public PieceDef? Piece(int id) => id >= 0 && id < Pieces.Count ? Pieces[id] : null;
 
     public DoorDef? Door(string key) => _doors.TryGetValue(key, out DoorDef? d) ? d : null;
+
+    /// <summary>A door by its place in building.json's list (the wire and saves use it), or null.</summary>
+    public DoorDef? Door(int index) => index >= 0 && index < Doors.Count ? Doors[index] : null;
+
+    public int IndexOf(DoorDef door)
+    {
+        for (int i = 0; i < Doors.Count; i++)
+        {
+            if (Doors[i] == door)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
 
     public string MaterialName(string key) => _materialNames.TryGetValue(key, out string? name) ? name : key;
 
@@ -641,6 +671,10 @@ public sealed class BuildingData
         JsonElement key = r.Object(l, "keyLock");
         KeyLockItem = r.Text(key, "key", "key-lock");
         KeyLockName = r.Text(key, "name", "Key Lock");
+        KeyItem = r.Text(key, "keyItem", "door-key");
+        JsonElement keyCost = r.Object(key, "keyCost");
+        KeyCostMaterial = r.Text(keyCost, "material", "wood");
+        KeyCost = (int)r.Number(keyCost, "amount", 75);
         JsonElement code = r.Object(l, "codeLock");
         CodeLockItem = r.Text(code, "key", "code-lock");
         CodeLockName = r.Text(code, "name", "Code Lock");
@@ -655,6 +689,16 @@ public sealed class BuildingData
         ClaimPieceRadius = r.Number(c, "pieceRadius", 16);
         ClaimDeviceRadius = r.Number(c, "deviceRadius", 25);
         ClaimMaxAuthorised = (int)r.Number(c, "maxAuthorised", 64);
+        ClaimHealth = r.Number(c, "health", 200);
+        string protection = r.Text(c, "protection", "wood");
+        GradeDef? grade = Grade(protection);
+        if (grade == null)
+        {
+            r.Problem($"claim: unknown protection grade \"{protection}\"");
+        }
+        ClaimProtection = grade ?? (Grades.Count > 0 ? Grades[0] : new GradeDef());
+        ClaimSlots = (int)r.Number(c, "slots", 24);
+        AdvanceSeconds = r.Number(c, "advanceSeconds", 60);
         UpkeepPeriodHours = r.Number(c, "upkeepPeriodHours", 24);
         UpkeepBrackets = r.Array(c, "upkeepBrackets")
             .Select(b => ((int)r.Number(b, "pieces", 0), r.Number(b, "fraction", 0.1)))
@@ -729,6 +773,14 @@ public sealed class BuildingData
         if (UpkeepBrackets.Count == 0)
         {
             problems.Add("claim: needs upkeep brackets");
+        }
+        if (!(ClaimHealth > 0) || ClaimSlots is < 1 or > 64 || !(AdvanceSeconds > 0))
+        {
+            problems.Add("claim: health and advanceSeconds must be positive, slots 1 … 64");
+        }
+        if (KeyCost < 1 || !Materials.Contains(KeyCostMaterial))
+        {
+            problems.Add("locks: a key costs at least 1 of a material");
         }
     }
 

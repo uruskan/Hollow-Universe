@@ -57,6 +57,9 @@ public enum HitTarget : byte
 
     /// <summary>Nothing: a projectile that ran out of range or time in the air.</summary>
     Nothing,
+
+    /// <summary>A building piece, door or claim device (G3).</summary>
+    Building,
 }
 
 /// <summary>

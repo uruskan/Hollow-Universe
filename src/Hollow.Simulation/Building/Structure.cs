@@ -141,6 +141,9 @@ public sealed class Piece
 
     internal uint Body;
 
+    /// <summary>Its Jolt body's ID (0: none), replicated so a client's prediction meets the same contacts.</summary>
+    public uint BodyId => Body;
+
     public double MaxHealth => Structure.World.Data.Grades[Grade].Health;
 
     public double StabilityPercent => Stability / 10.0;

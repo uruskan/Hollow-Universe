@@ -127,10 +127,7 @@ public static class DemoBases
         world.PlaceClaim(Owner, h.F, h.F.Pose.Position + new Vector3D(0.6, 0, -0.7), 0, out ClaimDevice? claim);
         if (claim != null)
         {
-            claim.Stock["wood"] = 1500;
-            claim.Stock["stone"] = 2000;
-            claim.Stock["metal-fragments"] = 800;
-            claim.Stock["refined-metal"] = 60;
+            claim.Store = new Wallet { ["wood"] = 1500, ["stone"] = 2000, ["metal-fragments"] = 800, ["refined-metal"] = 60 };
         }
         return h;
     }

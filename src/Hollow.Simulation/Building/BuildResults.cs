@@ -50,6 +50,24 @@ public enum Refusal : byte
     NotOnStructure,
     ListFull,
     Gone,
+
+    // Phase 2: refusals of a player's request over the network.
+
+    /// <summary>The player doesn't carry what the action needs (a building plan, a hammer).</summary>
+    NoTool,
+
+    /// <summary>Malformed: a piece, socket, slot, grade or code that can't be.</summary>
+    Invalid,
+    Dead,
+
+    /// <summary>Over the player's action budget.</summary>
+    RateLimited,
+
+    /// <summary>The slot no longer holds the item the client saw there.</summary>
+    Stale,
+
+    /// <summary>Only the lock's owner may do that.</summary>
+    NotOwner,
 }
 
 /// <summary>The answer to a building action: done, or refused with a reason and a line for the player.</summary>
@@ -107,6 +125,12 @@ public readonly record struct Outcome(Refusal Reason, string Text)
         Refusal.NotOnStructure => "Place it on a foundation or a floor",
         Refusal.ListFull => "The list is full",
         Refusal.Gone => "It's gone",
+        Refusal.NoTool => "You need the right tool",
+        Refusal.Invalid => "That can't be done",
+        Refusal.Dead => "Not while dead",
+        Refusal.RateLimited => "Too fast: wait a moment",
+        Refusal.Stale => "That item has moved",
+        Refusal.NotOwner => "Only its owner can do that",
         _ => reason.ToString(),
     };
 

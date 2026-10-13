@@ -81,9 +81,11 @@ public static class Program
                 $"{all.Max(c => c.Stats.PredictionErrorWorst):R} {all.Sum(c => c.Stats.Corrections)} {all.Average(c => c.Stats.RoundTripMs):R} " +
                 $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
                 $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights} {all.Sum(c => c.Stats.Teleports)} " +
-                $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)}"));
+                $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)} " +
+                $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building?.PieceCount ?? 0)}"));
             return 0;
         }
+        Console.CancelKeyPress += (_, _) => Console.WriteLine(swarm.BuildProgress);
         while (!stop && elapsed < duration)
         {
             double step = Math.Min(5, duration - elapsed);
@@ -94,6 +96,10 @@ public static class Program
                 $"{elapsed,5:0} s: {swarm.Playing} playing, {swarm.Disconnected} disconnected; per bot {clients.Average(c => c.Stats.KilobitsIn):0.0} kbit/s in, " +
                 $"{clients.Average(c => c.Stats.KilobitsOut):0.0} out, {clients.Average(c => c.Stats.SnapshotsPerSecond):0.0} snapshots/s, " +
                 $"round trip {clients.Average(c => c.Stats.RoundTripMs):0} ms, prediction error {clients.Average(c => c.Stats.PredictionErrorMean) * 1000:0.00} mm"));
+        }
+        if (script == BotScript.Build)
+        {
+            Console.WriteLine($"Building bots: {swarm.BuildProgress}");
         }
         return 0;
     }
@@ -170,6 +176,11 @@ public static class Program
             Tiles = sv.Zone.Physics.TileCount,
             Props = sv.Zone.Physics.PropCount,
             Things = sv.Zone.Statics().Count(),
+            Pieces = sv.Zone.Building!.PieceCount,
+            Structures = sv.Zone.Building.Structures.Count,
+            Doors = sv.Zone.Building.Doors.Count(),
+            Claims = sv.Zone.Building.Claims.Count(),
+            Placed = sv.PiecesPlaced,
             Counters = sv.Counters.ToString(),
             Intents = sv.Players.Sum(p => p.IntentsAccepted),
             GunActions = sv.Players.Sum(p => p.GunActions),
@@ -240,6 +251,13 @@ public static class Program
                 $"{(r.Length > 14 ? F(14) : 0):0} teleports (respawns, not counted as prediction errors)\n" +
                 $"Intents: {measured.Intents} accepted, {measured.Refused} refused ({measured.Limited} over budget); " +
                 $"{measured.Things} things in the world, {measured.Props} solid props in the physics"));
+        }
+        if (r.Length > 22)
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"Building (whole run): {measured.Placed} pieces placed; the world has {measured.Pieces} pieces in {measured.Structures} structures, " +
+                $"{measured.Doors} doors, {measured.Claims} claim devices; bots: {F(19):0} building intents done, {F(20):0} refused, " +
+                $"{F(21):0} door toggles; a bot's copy holds {F(22):0} pieces"));
         }
         return F(7) == count ? 0 : 2;
     }
