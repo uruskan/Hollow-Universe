@@ -270,15 +270,8 @@ def surface_material(name):
     return mat
 
 
-def ground(size=6000.0, pad=None, pad_colour=(0.42, 0.40, 0.36)):
-    """Open meadow ground (a tinted noise), and the monument's pad on it."""
-    bpy.ops.mesh.primitive_plane_add(size=size, location=(0, 0, -0.02))
-    g = bpy.context.active_object
-    g.name = "ground"
-    mat = bpy.data.materials.new("preview_ground")
-    mat.use_nodes = True
-    nt = mat.node_tree
-    bsdf = nt.nodes["Principled BSDF"]
+def _meadow(nt):
+    """The meadow's colour (a socket): broad patches of greens and a finer mottle, as the game's grass layer."""
     tc = nt.nodes.new("ShaderNodeTexCoord")
     n1 = nt.nodes.new("ShaderNodeTexNoise")
     n1.inputs["Scale"].default_value = 0.02
@@ -298,44 +291,136 @@ def ground(size=6000.0, pad=None, pad_colour=(0.42, 0.40, 0.36)):
     mix.inputs[0].default_value = 0.6
     nt.links.new(ramp.outputs["Color"], mix.inputs[6])
     nt.links.new(n2.outputs["Color"], mix.inputs[7])
-    nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+    return mix.outputs[2], tc
+
+
+# The pad's ground by its `ground` (linear colours): what the terrain is painted with inside a pad.
+PAD_GROUND = {
+    "gravel": ((0.075, 0.07, 0.06), (0.14, 0.13, 0.11)),
+    "concrete": ((0.17, 0.165, 0.155), (0.27, 0.265, 0.25)),
+    "asphalt": ((0.035, 0.035, 0.037), (0.075, 0.075, 0.078)),
+    "dirt": ((0.08, 0.06, 0.04), (0.15, 0.11, 0.075)),
+    "sand": ((0.30, 0.25, 0.17), (0.42, 0.36, 0.25)),
+    "snow": ((0.62, 0.64, 0.68), (0.80, 0.82, 0.86)),
+}
+
+
+def ground(size=6000.0, pad=None, pad_colour=None):
+    """Open meadow ground, and the monument's pad on it: the pad's ground (gravel, concrete, asphalt, dirt...)
+    blended back into the meadow over the pad's blend distance with a ragged edge and grass breaking through, as the
+    terrain will be in the game."""
+    bpy.ops.mesh.primitive_plane_add(size=size, location=(0, 0, -0.02))
+    g = bpy.context.active_object
+    g.name = "ground"
+    mat = bpy.data.materials.new("preview_ground")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    meadow, _ = _meadow(nt)
+    nt.links.new(meadow, bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = 0.95
     fogged(nt, bsdf.outputs[0], nt.nodes["Material Output"])
     g.data.materials.append(mat)
     if pad:
-        _pad_mesh(pad, pad_colour)
+        _pad_mesh(pad)
     return g
 
 
-def _pad_mesh(pad, colour):
-    shape = pad["shape"]
+def _outside_distance(shape, x, y):
+    """Metres from points (arrays) to the pad's shape, 0 inside."""
     if shape[0] == "rect":
-        w, d = shape[1], shape[2]
-        pts = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
+        dx = np.maximum(np.abs(x) - shape[1] / 2, 0)
+        dy = np.maximum(np.abs(y) - shape[2] / 2, 0)
+        return np.hypot(dx, dy)
+    if shape[0] == "circle":
+        return np.maximum(np.hypot(x, y) - shape[1], 0)
+    pts = np.asarray(shape[1], np.float64)
+    inside = np.zeros_like(x, bool)
+    best = np.full_like(x, 1e9)
+    for i in range(len(pts)):
+        ax, ay = pts[i]
+        bx, by = pts[(i + 1) % len(pts)]
+        cond = ((ay > y) != (by > y)) & (x < (bx - ax) * (y - ay) / (by - ay + 1e-12) + ax)
+        inside ^= cond
+        ex, ey = bx - ax, by - ay
+        t = np.clip(((x - ax) * ex + (y - ay) * ey) / max(ex * ex + ey * ey, 1e-12), 0, 1)
+        best = np.minimum(best, np.hypot(x - (ax + t * ex), y - (ay + t * ey)))
+    return np.where(inside, 0.0, best)
+
+
+def _pad_mesh(pad):
+    shape = pad["shape"]
+    blend = max(4.0, float(pad.get("blend", 10.0)))
+    if shape[0] == "rect":
+        hx, hy = shape[1] / 2, shape[2] / 2
     elif shape[0] == "circle":
-        r = shape[1]
-        pts = [(r * math.cos(a), r * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 48, endpoint=False)]
+        hx = hy = shape[1]
     else:
-        pts = shape[1]
+        hx = max(abs(p[0]) for p in shape[1])
+        hy = max(abs(p[1]) for p in shape[1])
+    hx += blend * 1.5
+    hy += blend * 1.5
+    cell = max(2.0, max(hx, hy) / 120)
+    nx, ny = int(2 * hx / cell) + 1, int(2 * hy / cell) + 1
+    xs = np.linspace(-hx, hx, nx)
+    ys = np.linspace(-hy, hy, ny)
+    X, Y = np.meshgrid(xs, ys)
+    d = _outside_distance(shape, X.ravel(), Y.ravel())
+    t = np.clip(d / blend, 0, 1)
+    factor = 1 - t * t * (3 - 2 * t)
+    verts = [(float(x), float(y), -0.005) for x, y in zip(X.ravel(), Y.ravel())]
+    faces = [[j * nx + i, j * nx + i + 1, (j + 1) * nx + i + 1, (j + 1) * nx + i]
+             for j in range(ny - 1) for i in range(nx - 1)]
     me = bpy.data.meshes.new("pad")
-    me.from_pydata([(x, y, -0.005) for x, y in pts], [], [list(range(len(pts)))])
+    me.from_pydata(verts, [], faces)
+    attr = me.color_attributes.new(name="Pad", type="FLOAT_COLOR", domain="POINT")
+    rgba = np.ones((len(verts), 4), np.float32)
+    rgba[:, 0] = factor
+    attr.data.foreach_set("color", rgba.ravel())
     o = bpy.data.objects.new("pad", me)
     bpy.context.scene.collection.objects.link(o)
+    lo, hi = PAD_GROUND.get(pad.get("ground", "gravel"), PAD_GROUND["gravel"])
     mat = bpy.data.materials.new("preview_pad")
     mat.use_nodes = True
     nt = mat.node_tree
     bsdf = nt.nodes["Principled BSDF"]
-    tc = nt.nodes.new("ShaderNodeTexCoord")
+    meadow, tc = _meadow(nt)
     n = nt.nodes.new("ShaderNodeTexNoise")
-    n.inputs["Scale"].default_value = 3.0
-    n.inputs["Detail"].default_value = 10
+    n.inputs["Scale"].default_value = 0.9
+    n.inputs["Detail"].default_value = 12
     nt.links.new(tc.outputs["Object"], n.inputs["Vector"])
     ramp = nt.nodes.new("ShaderNodeValToRGB")
-    c = colour
-    ramp.color_ramp.elements[0].color = (c[0] * 0.6, c[1] * 0.6, c[2] * 0.6, 1)
-    ramp.color_ramp.elements[1].color = (c[0], c[1], c[2], 1)
+    ramp.color_ramp.elements[0].color = (*lo, 1)
+    ramp.color_ramp.elements[1].color = (*hi, 1)
     nt.links.new(n.outputs["Fac"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    # Ragged edge and grass breaking through: the blend factor pushed by a coarse noise, then sharpened.
+    attr_node = nt.nodes.new("ShaderNodeVertexColor")
+    attr_node.layer_name = "Pad"
+    sep = nt.nodes.new("ShaderNodeSeparateColor")
+    nt.links.new(attr_node.outputs["Color"], sep.inputs[0])
+    patch = nt.nodes.new("ShaderNodeTexNoise")
+    patch.inputs["Scale"].default_value = 0.12
+    patch.inputs["Detail"].default_value = 6
+    nt.links.new(tc.outputs["Object"], patch.inputs["Vector"])
+    push = nt.nodes.new("ShaderNodeMath")
+    push.operation = "MULTIPLY_ADD"
+    nt.links.new(patch.outputs["Fac"], push.inputs[0])
+    push.inputs[1].default_value = -0.6
+    push.inputs[2].default_value = 0.3
+    add = nt.nodes.new("ShaderNodeMath")
+    add.operation = "ADD"
+    nt.links.new(sep.outputs[0], add.inputs[0])
+    nt.links.new(push.outputs[0], add.inputs[1])
+    sharp = nt.nodes.new("ShaderNodeMapRange")
+    sharp.inputs["From Min"].default_value = 0.35
+    sharp.inputs["From Max"].default_value = 0.65
+    nt.links.new(add.outputs[0], sharp.inputs["Value"])
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    nt.links.new(sharp.outputs["Result"], mix.inputs[0])
+    nt.links.new(meadow, mix.inputs[6])
+    nt.links.new(ramp.outputs["Color"], mix.inputs[7])
+    nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = 0.95
     fogged(nt, bsdf.outputs[0], nt.nodes["Material Output"])
     me.materials.append(mat)
@@ -422,7 +507,7 @@ def render(path):
     log(f"rendered {path}")
 
 
-def stage(builder, ao=True, sun=(28.0, 215.0), people=(), ship=None, pad_colour=(0.20, 0.19, 0.17), fast=False,
+def stage(builder, ao=True, sun=(28.0, 215.0), people=(), ship=None, pad_colour=None, fast=False,
           fog=0.0, ground_size=6000.0, lights=False):
     """Puts `builder`'s monument (built after `reset_scene()`) on open ground under the sky with its materials;
     returns its objects."""
@@ -433,7 +518,7 @@ def stage(builder, ao=True, sun=(28.0, 215.0), people=(), ship=None, pad_colour=
     else:
         setup_render()
     setup_sky(*sun, fog=fog)
-    ground(size=ground_size, pad=builder.pad, pad_colour=pad_colour)
+    ground(size=ground_size, pad=builder.pad)
     col = bpy.data.collections.new("monument")
     bpy.context.scene.collection.children.link(col)
     chunks, inst = builder.realise(col, 0)
