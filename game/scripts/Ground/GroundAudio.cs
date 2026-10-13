@@ -168,11 +168,15 @@ public partial class GroundAudio : Node
     }
 
     /// <summary>What the ground sounds like underfoot at a point (zone frame): the strongest ground material there.</summary>
-    public static FootSurface SurfaceAt(GameClient client, Num.Vector3 local)
+    public static FootSurface SurfaceAt(GameClient client, Num.Vector3 local) =>
+        client.Surface is PlanetSurface ? Footsteps.FromGround(MaterialAt(client, local)) : FootSurface.Grass;
+
+    /// <summary>The ground's main material at a point (zone frame): grass, dirt, sand, rock… (grass off the planet).</summary>
+    public static GroundMaterial MaterialAt(GameClient client, Num.Vector3 local)
     {
         if (client.Surface is not PlanetSurface planet)
         {
-            return FootSurface.Grass;
+            return GroundMaterial.Grass;
         }
         Vector3D p = client.Frame.ToBody(local).Normalized;
         SurfaceSample s = planet.Sample(p);
@@ -189,7 +193,7 @@ public partial class GroundAudio : Node
                 best = i;
             }
         }
-        return Footsteps.FromGround((GroundMaterial)best);
+        return (GroundMaterial)best;
     }
 
     /// <summary>Sea water over a point (zone frame), metres; 0 on land.</summary>

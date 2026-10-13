@@ -26,9 +26,10 @@ namespace HollowUniverse.Ground;
 /// through the game at the landing site that saves one picture per moment (the HUD by berry bushes, picking berries,
 /// the inventory, crafting, the other player, chopping a tree and after, an outcrop, a rifle fired down the sights, a
 /// base being built with the plan's ghost, a finished hut with a code lock and its keypad, a timed charge on its wall
-/// and the blast, the death screen, night by a fire) and
+/// and the blast, a firefight at the hut, the death screen, night by a fire) and
 /// quits; with <c>--tour guest</c>, a second client that dresses in what it is given, takes up its hatchet and
-/// faces the host. Pictures are 1600 × 900 JPEG at the window's size.
+/// faces the host, and fires a rifle where the host's server line "tour:fire x y z" says. Pictures are 1600 × 900 JPEG
+/// at the window's size.
 /// </summary>
 public partial class GroundTour : Node
 {
@@ -52,13 +53,14 @@ public partial class GroundTour : Node
     {
         if (Folder == "guest")
         {
+            Client.ChatReceived += OnChat;
             return;
         }
         Directory.CreateDirectory(Folder);
         var all = new (string Name, Func<Task> Step)[]
         {
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
-            ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge),
+            ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight),
             ("death", Death), ("night", Night),
         };
         _steps.Enqueue(Prepare);
@@ -519,6 +521,128 @@ public partial class GroundTour : Node
         await Seconds(1.0);
     }
 
+    // A firefight at the stone hut: the host and the guest (if in) firing rifles at its side wall from the meadow, in
+    // bursts, the picture taken while a tracer is in the air (G4 with the effects library).
+    private async Task Firefight()
+    {
+        if (_hut is not { } hut)
+        {
+            return;
+        }
+        Admin("give", "rifle 1");
+        Admin("give", "rifle-ammo 150");
+        await Until(() => Count("rifle") > 0 && Count("rifle-ammo") > 0, 5);
+        Num.Vector3 up = Client.Frame.UpAt(hut.Door);
+        Num.Vector3 centre = hut.Door - hut.Outward * 1.5f;
+        Piece? wall = Client.Building?.AllPieces.Where(p => p.Def.Key == "wall")
+            .OrderBy(p => Num.Vector3.Distance(Centre(p), hut.Door)).FirstOrDefault();
+        if (wall == null)
+        {
+            return;
+        }
+        Num.Vector3 wallAt = Centre(wall), normal = FlatUnit(wallAt - centre);
+        Num.Vector3 side = Num.Vector3.Normalize(Num.Vector3.Cross(normal, up));
+        Num.Vector3 stand = wallAt + normal * 22f - side * 2f;
+        Num.Vector3 target = wallAt + normal * 0.2f + up * 1.3f;
+        await Until(() => Client.Entities.Any(e => e.Name.Length > 0), 30);
+        string? guest = Client.Entities.FirstOrDefault(e => e.Name.Length > 0)?.Name;
+        if (guest != null)
+        {
+            // The guest ahead and to the right, in view, firing at the same wall.
+            Num.Vector3 at = stand - normal * 7f + side * 5.5f;
+            Command?.Invoke($"give {guest} rifle 1");
+            Command?.Invoke($"give {guest} rifle-ammo 150");
+            Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {guest} {at.X:0.00} {at.Z:0.00}"));
+        }
+        await TeleportTo(stand);
+        Face(target);
+        await Hold("rifle", 5);
+        await Until(() => Me.Gun.Ready, 3);
+        Me.Gun.Reload();
+        await Until(() => Me.Gun.Loaded > 0 && !Me.Gun.Reloading, 8);
+        await Settle();
+        if (guest != null)
+        {
+            Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"say tour:fire {target.X:0.00} {target.Y:0.00} {target.Z:0.00}"));
+            await Seconds(1.5);
+        }
+        for (int burst = 0; burst < 4; burst++)
+        {
+            double until = Time.GetTicksMsec() / 1000.0 + 0.45;
+            View.Scripted = new InputFrame { Primary = true, PrimaryPressed = true };
+            while (Time.GetTicksMsec() / 1000.0 < until)
+            {
+                Face(target);
+                if (burst == 3 && FxDirector.Instance.ActiveTracers > 0)
+                {
+                    await Shot("firefight", frames: 0);
+                    break;
+                }
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+            View.Scripted = null;
+            await Seconds(0.35);
+        }
+        await Seconds(0.5);
+        Me.HeldSlot = 2;
+    }
+
+    // The guest's part of the firefight: the server line "tour:fire x y z" from the host's run.
+    private Num.Vector3? _fireAt;
+    private double _fireUntil;
+
+    private void OnChat(Hollow.Net.Protocol.ChatLine line)
+    {
+        string[] w = (line.Text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (w.Length == 4 && w[0] == "tour:fire" && float.TryParse(w[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) &&
+            float.TryParse(w[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float y) &&
+            float.TryParse(w[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float z))
+        {
+            _fireAt = new Num.Vector3(x, y, z);
+            _fireUntil = Time.GetTicksMsec() / 1000.0 + 4.5;
+        }
+    }
+
+    // A rifle given to the guest: on the belt, in hand, loaded; it fires in bursts while told to.
+    private bool GuestRifle()
+    {
+        double now = Time.GetTicksMsec() / 1000.0;
+        if (_fireAt is { } aim && now < _fireUntil && SlotOf(Me.Inventory.Belt, "rifle") is int held && Me.HeldSlot == held)
+        {
+            Face(aim);
+            bool on = (now % 0.8) < 0.45 && Me.Gun.Loaded > 0;
+            View.Scripted = new InputFrame { Primary = on, PrimaryPressed = on };
+            return true;
+        }
+        if (View.Scripted != null)
+        {
+            View.Scripted = null;
+        }
+        if (Me.PendingCount > 0)
+        {
+            return false;
+        }
+        if (SlotOf(Me.Inventory.Main, "rifle") is int rifle)
+        {
+            Me.MoveItem(ContainerRef.Main, rifle, ContainerRef.Belt, 3);
+            return true;
+        }
+        if (SlotOf(Me.Inventory.Belt, "rifle") is int belt)
+        {
+            if (Me.HeldSlot != belt)
+            {
+                Me.HeldSlot = belt;
+                return true;
+            }
+            if (Me.Gun.Ready && Me.Gun.Loaded == 0 && !Me.Gun.Reloading && Count("rifle-ammo") > 0)
+            {
+                Me.Gun.Reload();
+            }
+            return _fireAt != null && now < _fireUntil;
+        }
+        return false;
+    }
+
     private IEnumerable<Door> Doors() =>
         Client.Building?.AllPieces.Where(p => p.Door != null).Select(p => p.Door!) ?? Enumerable.Empty<Door>();
 
@@ -669,6 +793,10 @@ public partial class GroundTour : Node
     private void Guest()
     {
         if (Client.State != ClientState.Playing || !Client.HasCharacter || Me.IsDead)
+        {
+            return;
+        }
+        if (GuestRifle())
         {
             return;
         }

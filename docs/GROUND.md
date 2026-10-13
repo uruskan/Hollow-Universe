@@ -1647,16 +1647,14 @@ the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from
 
 **As built** (`game/scripts/Ground`): `GroundView` adds `ViewKick` to the camera, passes the mouse's turn to
 `ObserveLook` and adds `TakeCompensation` to the view, zooms by `Zoom` while `Aimed` (eased), and reloads on R;
-`FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle and flashes it, and plays a reload's
-parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws bullets as tracers (our own
-leaving the muzzle and closing on the shot's line over 50 m) and, where one stops, a puff and the sound of what it hit
-(the nearest natural object's class tells wood from rock; the sea from its depth); `PeopleView` plays others' shots
-(silenced from `HeldMods`) with a flash and their reloads; the HUD's ammo counter and the gun's slot show the
+`FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle with its muzzle effect, and plays a
+reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
+tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
+from `HeldMods`) with their muzzle effect and their reloads; the HUD's ammo counter and the gun's slot show the
 magazine; `GroundOverlay` draws the hip crosshair from `Spread`, a reload's progress under the centre, and the
-wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The flash, tracer and puff
-are plain ones made in code behind `ShotEffects.Provider` (`IShotEffects`) until the effects package lands. Not drawn
-yet, for want of the character contract (§4.8): attachments on guns in hand, others' aiming pose, and crawling (the
-wounded crouch instead).
+wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The muzzle effects, tracers
+and hits are the effects library's (§9.3, as hooked up there). Not drawn yet, for want of the character contract
+(§4.8): others' aiming pose and crawling (the wounded crouch instead).
 
 ### 6.5 Building over the network and saved (G3, phase 2a)
 
@@ -2415,6 +2413,29 @@ first use, or `FxDirector.Install(parent)`):
 | A step on sand (footsteps) | `world.footstep.sand` |
 | Every frame | the camera: rotation += `FxDirector.CameraShake(camera position)` |
 
+**Hooked up in the game** (pass 3):
+- *Shots:* `FirstPersonView.OnShot` plays `Muzzle(GunEffects.MuzzleKey(gun, its attachments), the muzzle of the gun the
+  arms hold (past a silencer or brake), first person)`; `PeopleView.Shot` the same on the gun in the other player's hands,
+  and the launcher's `backblast.rocket` out of `socket_exhaust`. `ThingsView` launches a tracer when `WantsTracer`
+  (`tracer.incendiary` for incendiary rounds) from where the gun is drawn, along the bullet's velocity, gravity and drag,
+  ends it where the bullet stopped and plays the hit: `GunEffects.SurfaceOf` takes the ground's material there
+  (`GroundAudio.MaterialAt`), a natural object's class (tree wood, bush grass, outcrop and boulder rock), the deployable
+  hit (wood, a furnace's stone, the metal workbenches), a building piece's grade or a door (wood or metal), water, or a
+  body (`impact.bullet.flesh`, the blood hit); `impact.incendiary` for incendiary rounds. Arrows fly with `trail.arrow` and
+  hit alike.
+- *Blood:* a hit on another player bleeds (`blood.hit` on the chest along their facing) unless a bullet's blood showed
+  there just now; while the player bleeds, `blood.drip` falls under them every 1.5 s.
+- *Gathering* (`NatureView`): `gather.wood`, `gather.rock` or `gather.sparks` (metal and sulphur ore) where the tool bit,
+  on the side towards the player; `gather.weakspot` when the weak spot moves; `gather.node-break` when an outcrop breaks a
+  stage (smaller) or is used up; `gather.tree-fall` along the trunk where a felled tree lands.
+- *Fires:* `ThingsView` starts `fire.campfire` or `fire.furnace` at the model's `socket_fire` while it is lit (the loop
+  outlives the model's rebuilds); a torch in hand burns with `fire.torch` on its `socket_flame` (first person with the
+  arms; for others on their torch).
+- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades, collapses and doors in
+  `BuildView` (§6.5); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
+  place and installs the director with the view.
+- *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`.
+
 **The effects** (`fx.json`; each has an `about` line there):
 
 | Family | Keys |
@@ -2901,9 +2922,9 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     snapshot), for everyone's hits alike, so one's own hit sounds a round trip after the swing; a burst of more than 20
     changes at once is an area coming into range and is silent. A deployable that appears within 25 m once the world
     is in was just placed.
-77. **A muzzle flash is drawn over the gun** (no depth test) for two drawn frames: the arms are drawn over the world,
-    so a flash at the very muzzle would hide behind the barrel. Aimed down the sights, one's own tracer is seen almost
-    end-on, as in life.
+77. **One's own tracer leaves where the arms show the muzzle** (`FxDirector.ViewmodelToWorld`), parallel to the
+    bullet's path a hand's breadth off it, and stops where the bullet stopped; the muzzle effect is drawn with the arms
+    (their render layer and field of view). Aimed down the sights, one's own tracer is seen almost end-on, as in life.
 78. **What the character contract can't show yet is left out** rather than drawn around it: attachments on guns in
     hand, others' aiming pose, crawling (the wounded crouch), sleepers' pose (75). The character package's views would
     need an attachment list for `Hold`, an aiming flag and a crawling stance.

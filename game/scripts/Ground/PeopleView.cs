@@ -10,6 +10,7 @@ using Hollow.Simulation.World;
 using Hollow.Client.Audio;
 using HollowUniverse.Audio;
 using HollowUniverse.Characters;
+using HollowUniverse.Fx;
 using Num = System.Numerics;
 
 namespace HollowUniverse.Ground;
@@ -37,6 +38,8 @@ public partial class PeopleView : Node3D
         public ushort[] Wear = Array.Empty<ushort>();
         public byte Body;
         public FootstepDriver? Feet;
+        public FxHandle Flame;
+        public Node3D? FlameSocket;
         public FootSurface Surface = FootSurface.Grass;
         public Num.Vector3 SurfaceAt = new(float.MaxValue);
     }
@@ -69,6 +72,10 @@ public partial class PeopleView : Node3D
         _people.Values.Where(p => !p.Down && p.View.Visible)
             .Select(p => (p.View.GlobalPosition + p.View.GlobalBasis.Y * 1.95f, p.Name, p.View.GlobalPosition.DistanceTo(eye)))
             .Where(n => n.Item3 < 40);
+
+    /// <summary>Where a player's gun shows its muzzle (by net ID), when they are drawn holding one: their tracers start there.</summary>
+    public Vector3? MuzzleOf(uint netId) =>
+        _people.TryGetValue(netId, out Person? p) && GunEffects.MuzzleEnd(p.View.HeldModel) is { } end ? end.GlobalPosition : null;
 
     /// <summary>The character view of a player by name (for screenshots that face them).</summary>
     public CharacterView? ViewOf(string name) => _people.Values.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.View;
@@ -174,6 +181,7 @@ public partial class PeopleView : Node3D
         }
         foreach (uint gone in _people.Keys.Where(k => !_seen.Contains(k)).ToList())
         {
+            Torch(_people[gone], null);
             Release(_people[gone].View);
             _people[gone].Feet?.QueueFree();
             _people.Remove(gone);
@@ -223,6 +231,7 @@ public partial class PeopleView : Node3D
         bool dead = (e.Flags & MoveFlags.Dead) != 0;
         bool down = dead || e.Sleeping;
         Vector3 head = GroundView.ToGodot(e.Position + up * 1.5f);
+        Torch(p, !down && model == "torch" ? GunEffects.Socket(p.View.HeldModel, "flame") : null);
         if (!down)
         {
             Steps(p, e, up, swimming, dt);
@@ -258,7 +267,7 @@ public partial class PeopleView : Node3D
                         p.View.Trigger(CharacterEvent.Fire);
                         if (heldItem?.Firearm != null)
                         {
-                            Shot(e, heldItem, up);
+                            Shot(p, e, heldItem, up);
                         }
                         break;
                     case ActionKind.Reload:
@@ -279,8 +288,15 @@ public partial class PeopleView : Node3D
             }
             if (e.Health < p.Health && e.Health > 0)
             {
-                p.View.Trigger(CharacterEvent.Hit, -CharacterFrame.Facing(GroundView.ToGodot(up), e.Yaw));
+                Vector3 facing = CharacterFrame.Facing(GroundView.ToGodot(up), e.Yaw);
+                p.View.Trigger(CharacterEvent.Hit, -facing);
                 Sounds.At("survival.hurt", head);
+                // A blow or a bite bleeds here; a bullet's blood was shown where it hit.
+                Vector3 chest = GroundView.ToGodot(e.Position + up * 1.25f);
+                if (!GunEffects.FleshShown(chest, Client.ClockSeconds))
+                {
+                    FxDirector.Play("blood.hit", chest + facing * 0.15f, facing, new FxParams { Direction = facing });
+                }
             }
         }
         p.Actions = e.ActionCount;
@@ -289,9 +305,28 @@ public partial class PeopleView : Node3D
 
     private int _silencers = -1;
 
+    // A torch in their hand burns (the effects library's flame on its flame socket), out when they put it away.
+    private static void Torch(Person p, Node3D? socket)
+    {
+        if (socket == p.FlameSocket)
+        {
+            return;
+        }
+        if (p.Flame.IsValid)
+        {
+            FxDirector.Stop(p.Flame);
+            p.Flame = default;
+        }
+        p.FlameSocket = socket;
+        if (socket != null)
+        {
+            p.Flame = FxDirector.Start("fire.torch", socket.GlobalPosition, Vector3.Up, new FxParams { Follow = socket });
+        }
+    }
+
     // Another player's shot (G4): the gun's sound at its muzzle (layered by distance, arriving at the speed of sound)
-    // and, unless silenced, a flash.
-    private void Shot(RemoteEntity e, ItemDef gun, Num.Vector3 up)
+    // and its muzzle effect on the gun in their hands (silenced, braked or plain; a rocket's, with its back blast).
+    private void Shot(Person p, RemoteEntity e, ItemDef gun, Num.Vector3 up)
     {
         if (_silencers < 0)
         {
@@ -302,9 +337,22 @@ public partial class PeopleView : Node3D
         Num.Vector3 muzzle = eye + CharacterMotor.ViewDirection(e.Yaw, e.Pitch, up) * 0.75f;
         Vector3 at = GroundView.ToGodot(muzzle);
         Sounds.At(Sounds.Item(gun.Key, silenced ? "shotSilenced" : "shot"), at);
-        if (!silenced)
+        string key = GunEffects.MuzzleKey(Client.Content, gun.Key, e.HeldMods);
+        Node3D? held = p.View.HeldModel;
+        if (GunEffects.MuzzleEnd(held) is { } end)
         {
-            ShotEffects.Provider.MuzzleFlash(this, at, GroundView.ToGodot(CharacterMotor.ViewDirection(e.Yaw, e.Pitch, up)));
+            FxDirector.Muzzle(key, end, firstPerson: false);
+        }
+        else
+        {
+            Vector3 direction = GroundView.ToGodot(CharacterMotor.ViewDirection(e.Yaw, e.Pitch, up));
+            FxDirector.Play(key, at, direction, new FxParams { Direction = direction });
+        }
+        if (GunEffects.Socket(held, "exhaust") is { } exhaust)
+        {
+            // The launcher's back blast out of its venturi (+X of the socket points backwards).
+            Vector3 back = exhaust.GlobalBasis.X.Normalized();
+            FxDirector.Play("backblast.rocket", exhaust.GlobalPosition, back, new FxParams { Direction = back });
         }
     }
 

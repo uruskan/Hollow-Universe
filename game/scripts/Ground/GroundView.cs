@@ -48,6 +48,7 @@ public partial class GroundView : Node3D
     private BuildView _build = null!;
     private RaidView _raid = null!;
     private double _thrownAt = -10;
+    private bool _effectsWarmed;
     private Keypad _keypad = null!;
     private OptionsMenu _options = null!;
     private Hollow.Simulation.Building.Door? _keypadDoor;
@@ -264,6 +265,7 @@ public partial class GroundView : Node3D
         _camera.Current = true;
         _firstPerson.Attach(_camera);
         _things.Muzzle = _firstPerson.Muzzle;
+        _things.TheirMuzzle = _people.MuzzleOf;
         Warmup(_camera);
         _people.MakeSpares();
         // Sound: the director listens at the camera (GROUND.md §4.9); --mute leaves it out.
@@ -274,6 +276,25 @@ public partial class GroundView : Node3D
         }
     }
 
+    // The effects' materials drawn once, tiny, two metres ahead, when the camera is first in place (their pipelines are
+    // built the first time they draw, a stall in the middle of a fight otherwise).
+    private void WarmEffects()
+    {
+        if (_effectsWarmed || _camera == null)
+        {
+            return;
+        }
+        _effectsWarmed = true;
+        Vector3 at = _camera.GlobalTransform * new Vector3(0, 0, -2);
+        var tiny = new FxParams { Scale = 0.003f };
+        foreach (string key in new[] { "explosion.timed-charge", "impact.bullet.rock", "impact.bullet.wood", "blood.hit", "gather.sparks" })
+        {
+            FxDirector.Play(key, at, Vector3.Up, tiny);
+        }
+        FxHandle fire = FxDirector.Start("fire.campfire", at, Vector3.Up, tiny);
+        GetTree().CreateTimer(1.5).Timeout += () => FxDirector.Stop(fire, immediate: true);
+    }
+
     // Everything the game may show later, shown once, tiny, while the world opens: each new material makes the
     // renderer build its pipelines the first time it is drawn (a stall of 100 ms or more in the middle of play).
     private void Warmup(Camera3D camera)
@@ -281,7 +302,6 @@ public partial class GroundView : Node3D
         var warm = new Node3D { Name = "Warmup", Position = new Vector3(0, 0, -2), Scale = Vector3.One * 0.004f };
         camera.AddChild(warm);
         warm.AddChild(NatureView.Spot());
-        ThingsView.AddFire(warm, Vector3.Zero, 1);
         float x = 0;
         foreach (DeployableDef def in Client.Content.Deployables)
         {
@@ -395,6 +415,7 @@ public partial class GroundView : Node3D
         // Blasts shake the camera (the effects library sums them by distance), never the view the player controls.
         Vector3 shake = FxDirector.CameraShake(ToGodot(eye));
         _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(look), ToGodot(up)) * Basis.FromEuler(shake), ToGodot(eye));
+        WarmEffects();
         float zoom = gun.Aimed ? Math.Max(1, gun.Zoom) : 1;
         float fov = 2 * MathF.Atan(MathF.Tan(Mathf.DegToRad(FieldOfView) / 2) / zoom);
         _camera.Fov = Mathf.MoveToward(_camera.Fov, Mathf.RadToDeg(fov), (float)delta * 240);
@@ -438,6 +459,10 @@ public partial class GroundView : Node3D
         _model.Prompt = _aimed is { } aimed
             ? new InteractionPrompt("E", $"{aimed.Verb} {aimed.Name}".ToUpperInvariant(), MoreOptions: IsDevice(aimed))
             : _build.Prompt();
+        if (_keypad.Visible)
+        {
+            _model.Prompt = null;
+        }
         _overlay.Refresh(_camera, _people.Names(ToGodot(eye)), status);
         Time("overlay", ref t0);
     }

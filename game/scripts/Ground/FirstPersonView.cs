@@ -5,6 +5,7 @@ using Hollow.Client;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Movement;
 using HollowUniverse.Characters;
+using HollowUniverse.Fx;
 using Num = System.Numerics;
 
 namespace HollowUniverse.Ground;
@@ -12,15 +13,17 @@ namespace HollowUniverse.Ground;
 /// <summary>
 /// The local player in first person (GROUND.md §4.8): the character package's <see cref="ViewmodelView"/> holding the
 /// active belt item's model (the arms in the worn sleeves), swinging with the server's rhythm while the attack is
-/// held; a plain placeholder for items without a model yet (a torch, a spear, the bow); a torch's light; and a ghost
-/// where a held deployable would go.
+/// held; a plain placeholder for items without a model yet; a shot's muzzle effect and a lit torch's flame (the effects
+/// library, drawn with the arms); blood dripping while bleeding; and a ghost where a held deployable would go.
 /// </summary>
 public partial class FirstPersonView : Node3D
 {
     private ViewmodelView _arms = null!;
     private Node3D _placeholder = null!;
     private MeshInstance3D _stick = null!;
-    private OmniLight3D _torch = null!;
+    private FxHandle _flame;
+    private Node3D? _flameSocket;
+    private double _drip;
     private MeshInstance3D _ghost = null!;
     private Camera3D _camera = null!;
     private string? _heldKey;
@@ -50,7 +53,8 @@ public partial class FirstPersonView : Node3D
         Client.Local.Gun.ReloadStarted -= OnReload;
     }
 
-    // A shot of our own, at once (predicted): the arms kick, the gun sounds, the muzzle flashes (G4, GROUND.md §6.4).
+    // A shot of our own, at once (predicted): the arms kick, the gun sounds, its muzzle effect plays on the gun in hand
+    // (by its attachments: silenced, braked or plain; a rocket's), drawn with the arms (G4, GROUND.md §6.4, §9.3).
     private void OnShot(ShotEvent shot)
     {
         if (_camera == null)
@@ -58,11 +62,16 @@ public partial class FirstPersonView : Node3D
             return;
         }
         _arms.Trigger(CharacterEvent.Fire);
-        Vector3 muzzle = Muzzle();
-        Sounds.At(Sounds.Item(shot.Weapon.Key, shot.Silenced ? "shotSilenced" : "shot"), muzzle);
-        if (!shot.Silenced)
+        Sounds.At(Sounds.Item(shot.Weapon.Key, shot.Silenced ? "shotSilenced" : "shot"), Muzzle());
+        string key = GunEffects.MuzzleKey(Client.Content, shot.Weapon.Key, Client.Local.Gun.Mods.Bits);
+        if (GunEffects.MuzzleEnd(HeldModel) is { } end)
         {
-            ShotEffects.Provider.MuzzleFlash(this, muzzle, -_camera.GlobalBasis.Z);
+            FxDirector.Muzzle(key, end, firstPerson: true);
+        }
+        else
+        {
+            Vector3 forward = -_camera.GlobalBasis.Z;
+            FxDirector.Play(key, Muzzle(), forward, new FxParams { Direction = forward, FirstPerson = true });
         }
     }
 
@@ -73,11 +82,18 @@ public partial class FirstPersonView : Node3D
         Sounds.Flat(Sounds.Item(itemKey, "throw"));
     }
 
-    // Where the muzzle is, near enough for a flash and the start of a tracer: just past the gun's end, lower right at
-    // the hip, under the sight when aimed (the arms are drawn over the world, so a flash at the very muzzle would hide
-    // behind the gun).
+    /// <summary>The model in hand as the arms draw it (the catalogue's, named by its model), if any.</summary>
+    public Node3D? HeldModel => _arms?.Model is { } model ? _arms.GetNodeOrNull<Node3D>(model.Id) : null;
+
+    // Where the muzzle is seen, for the start of a tracer: the gun's muzzle as the arms draw it (with their own field of
+    // view) put where it shows in the world's view; without a model, a point past the gun's end, lower right at the hip,
+    // under the sight when aimed.
     public Vector3 Muzzle()
     {
+        if (GunEffects.MuzzleEnd(HeldModel) is { } end)
+        {
+            return FxDirector.ViewmodelToWorld(end.GlobalPosition);
+        }
         bool rifle = Client.Local.HeldItem?.Key == "rifle";
         float aim = _arms.AimAmount;
         Vector3 local = new Vector3(0.14f, -0.12f, -(rifle ? 1.0f : 0.6f)).Lerp(new Vector3(0, -0.05f, -(rifle ? 1.05f : 0.6f)), aim);
@@ -112,8 +128,6 @@ public partial class FirstPersonView : Node3D
         };
         _placeholder.AddChild(_stick);
         camera.AddChild(_placeholder);
-        _torch = new OmniLight3D { LightColor = new Color(1f, 0.6f, 0.28f), LightEnergy = Glow.FireLight * 0.7f, OmniRange = 14, ShadowEnabled = true, Visible = false };
-        camera.AddChild(_torch);
         _ghost = new MeshInstance3D
         {
             Name = "PlacementGhost",
@@ -197,7 +211,43 @@ public partial class FirstPersonView : Node3D
         }
         _drawing = drawing;
         UpdatePlaceholder(item, delta, input);
+        UpdateTorch(item);
+        Bleed(delta);
         UpdateGhost(item);
+    }
+
+    // A torch in hand burns: the effects library's flame on its flame socket, drawn with the arms; its light is the
+    // flame's.
+    private void UpdateTorch(ItemDef? item)
+    {
+        Node3D? socket = item?.Key == "torch" ? GunEffects.Socket(HeldModel, "flame") : null;
+        if (socket == _flameSocket)
+        {
+            return;
+        }
+        if (_flame.IsValid)
+        {
+            FxDirector.Stop(_flame, immediate: true);
+            _flame = default;
+        }
+        _flameSocket = socket;
+        if (socket != null)
+        {
+            _flame = FxDirector.Start("fire.torch", socket.GlobalPosition, Vector3.Up, new FxParams { Follow = socket, FirstPerson = true });
+        }
+    }
+
+    // While bleeding, a drop falls under the player every second and a half (blood.drip).
+    private void Bleed(double delta)
+    {
+        _drip -= delta;
+        if (_drip > 0 || !Client.Local.Vitals.IsBleeding || Client.Local.IsDead)
+        {
+            return;
+        }
+        _drip = 1.5;
+        Num.Vector3 feet = Client.RenderPosition;
+        FxDirector.Play("blood.drip", GroundView.ToGodot(feet), GroundView.ToGodot(Client.Frame.UpAt(feet)));
     }
 
     private void DressArms()
@@ -216,7 +266,6 @@ public partial class FirstPersonView : Node3D
     {
         bool show = item != null && ItemLooks.NeedsPlaceholder(item);
         _placeholder.Visible = show;
-        _torch.Visible = item?.Key == "torch";
         if (!show)
         {
             return;
@@ -232,7 +281,6 @@ public partial class FirstPersonView : Node3D
         }
         Vector3 rest = new(0.3f - 0.2f * _draw, -0.3f + 0.1f * _draw, -0.5f - 0.1f * _draw);
         _placeholder.Transform = new Transform3D(Basis.FromEuler(new Vector3(-0.35f - 1.2f * swing, 0.15f, 0)), rest + new Vector3(-0.05f * swing, 0.05f * swing, -0.15f * swing));
-        _torch.Position = rest + new Vector3(0, 0.25f, -0.2f);
     }
 
     private Node3D? _ghostModel;
