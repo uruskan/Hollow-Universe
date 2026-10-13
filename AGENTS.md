@@ -10,9 +10,14 @@ Read first, in this order:
    network or anything players do on foot.
 5. [docs/handoff-ground.md](docs/handoff-ground.md) and [docs/progress-ground.md](docs/progress-ground.md): where the
    ground game stands, what to do next, how merges between work packages go, and what happened so far.
+6. [docs/GROUND_SYSTEMS.md](docs/GROUND_SYSTEMS.md): the shared systems every ground feature goes through, if you
+   touch interaction, placement, held items, item information, damage or anything a player does to a world thing.
 
 ## Rules
 
+- **One system per concern.** Behaviour comes from capabilities declared in the data, each handled by one handler
+  found in a registry. No if/else or switch chains over item kinds, target families or object types; a new feature
+  extends a shared system rather than adding a path (the owner's rule, 13 October 2026; docs/GROUND_SYSTEMS.md).
 - **C# only.** No GDScript. C++ only after a profiler proves a hot spot, and only with a note in
   ARCHITECTURE.md.
 - **Nothing in `src/` may reference Godot.** Rules and simulation are engine-free; the Godot project in
