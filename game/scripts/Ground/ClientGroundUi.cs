@@ -25,7 +25,7 @@ namespace HollowUniverse.Ground;
 /// from items.json, crafting tabs from categories.json. Reads are cached per revision, so polling them every frame
 /// costs nothing.
 /// </summary>
-public sealed class ClientGroundUi : IGroundUi, IDisposable
+public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 {
     private readonly GameClient _client;
     private readonly Dictionary<string, ItemInfo> _items = new(StringComparer.Ordinal);
@@ -39,16 +39,13 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
     private DamageEvent? _lastDamage;
     private double _lastDamageAt = -100;
     private DeathInfo? _death;
+    private IReadOnlyList<CraftCategory> _categories = Array.Empty<CraftCategory>();
+    private IReadOnlyList<UiRecipe>? _recipes;
+    private long _recipesKnown;
 
     public ClientGroundUi(GameClient client)
     {
         _client = client;
-        GameContent c = client.Content;
-        Categories = new[] { new CraftCategory("FAVOURITE", 0), new CraftCategory("COMMON", 0) }
-            .Concat(c.Categories.Select(cat => new CraftCategory(cat.Name.ToUpperInvariant(), c.Recipes.Count(r => r.Known && r.Output.Category == cat.Key))))
-            .ToArray();
-        Recipes = c.Recipes.Where(r => r.Known).Select(r => new UiRecipe(r.Output.Key, CategoryName(r.Output.Category), r.Seconds,
-            r.Ingredients.Select(i => new Ingredient(i.Item.Key, i.Count)).ToArray(), r.Amount, r.Workbench, r.Station?.Key)).ToArray();
         LocalPlayer me = client.Local;
         me.HitMarker += OnHitMarker;
         me.DamageTaken += OnDamage;
@@ -57,6 +54,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         me.IntentRejected += OnRejected;
         me.Died += OnDied;
         client.ChatReceived += OnChat;
+        SubscribeWorld(me);
     }
 
     public void Dispose()
@@ -69,6 +67,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         me.IntentRejected -= OnRejected;
         me.Died -= OnDied;
         _client.ChatReceived -= OnChat;
+        UnsubscribeWorld(me);
     }
 
     private LocalPlayer Me => _client.Local;
@@ -146,6 +145,12 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
             RemoteThing? thing = _client.ThingOf(Me.LootTarget);
             switch (Me.LootKind)
             {
+                case LootKind.Crate:
+                    return new LootView(UiContainerKind.Crate, (thing?.Prop(C)?.Name ?? "Crate").ToUpperInvariant(), LootSlots());
+                case LootKind.Device when thing?.Deployable(C)?.Recycler != null:
+                    return Recycler(thing!);
+                case LootKind.Device when thing?.Deployable(C) is { Research: { } research } table:
+                    return ResearchTable(thing!, table, research);
                 case LootKind.Device:
                 {
                     bool furnace = thing?.Deployable(C)?.Key == "furnace";
@@ -173,9 +178,40 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    public IReadOnlyList<CraftCategory> Categories { get; }
+    public IReadOnlyList<CraftCategory> Categories
+    {
+        get
+        {
+            RefreshRecipes();
+            return _categories;
+        }
+    }
 
-    public IReadOnlyList<UiRecipe> Recipes { get; }
+    /// <summary>The recipes the player knows (from the start, or learnt: G7), again whenever a blueprint is learnt.</summary>
+    public IReadOnlyList<UiRecipe> Recipes
+    {
+        get
+        {
+            RefreshRecipes();
+            return _recipes!;
+        }
+    }
+
+    private void RefreshRecipes()
+    {
+        long known = KnownSignature();
+        if (_recipes != null && known == _recipesKnown)
+        {
+            return;
+        }
+        _recipesKnown = known;
+        GameContent c = C;
+        _categories = new[] { new CraftCategory("FAVOURITE", 0), new CraftCategory("COMMON", 0) }
+            .Concat(c.Categories.Select(cat => new CraftCategory(cat.Name.ToUpperInvariant(), c.Recipes.Count(r => Me.Knows(r) && r.Output.Category == cat.Key))))
+            .ToArray();
+        _recipes = c.Recipes.Where(Me.Knows).Select(r => new UiRecipe(r.Output.Key, CategoryName(r.Output.Category), r.Seconds,
+            r.Ingredients.Select(i => new Ingredient(i.Item.Key, i.Count)).ToArray(), r.Amount, r.Workbench, r.Station?.Key)).ToArray();
+    }
 
     public int Workbench => Me.WorkbenchLevel;
 
@@ -229,7 +265,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
                     continue;
                 }
                 string name = _client.ThingOf(option.Bag)?.Deployable(C)?.Item.Name ?? "Sleeping bag";
-                (float x, float y) = ZoneMap.Point(option.Position.X, option.Position.Y);
+                (float x, float y) = OnMap(new System.Numerics.Vector3(option.Position.X, 0, option.Position.Y));
                 _bags.Add(new RespawnBag(option.Bag.Value.ToString(CultureInfo.InvariantCulture), name, (float)Me.SecondsUntilReady(option), x, y));
             }
             return _bags;
@@ -317,7 +353,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
 
     private void OnRejected(IntentAnswer answer)
     {
-        string? text = answer.Result switch
+        string? text = WorldRefusal(answer) ?? answer.Result switch
         {
             ActionResult.NoSpace => "No room for that.",
             ActionResult.NotEnough => "Not enough resources.",
@@ -347,7 +383,10 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
     private void OnDied(LifeView life) => _death = null;
 
     private void OnChat(Hollow.Net.Protocol.ChatLine line) =>
-        ChatReceived?.Invoke(new ChatLine(line.From ?? "", line.Text ?? "", line.Kind == Hollow.Net.Protocol.ChatKind.Server));
+        ChatReceived?.Invoke(new ChatLine(line.From ?? "", line.Text ?? "", line.Kind == Hollow.Net.Protocol.ChatKind.Server)
+        {
+            Team = line.Kind == Hollow.Net.Protocol.ChatKind.Team,
+        });
 
     // ---------------------------------------------------------------- actions
 
@@ -583,6 +622,11 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         {
             return default;
         }
+        if (def == C.World.Blueprint)
+        {
+            // G7: a blueprint shows the item it teaches (its condition holds the recipe).
+            return new UiStack(def.Key, s.Count) { Teaches = C.Recipe(s.Condition)?.Output.Key };
+        }
         float condition = def.HasCondition ? Math.Clamp((float)s.Condition / def.MaxCondition, 0, 1) : -1f;
         // A gun shows the rounds in its magazine on its slot (G4).
         return new UiStack(def.Key, s.Count, condition, def.Firearm != null ? s.Loaded : -1);
@@ -658,7 +702,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         {
             distance = System.Numerics.Vector3.Distance(at, _lastDamage.Value.From);
         }
-        (float x, float y) = ZoneMap.Point(at.X, at.Z);
+        (float x, float y) = OnMap(at);
         return new DeathInfo((float)Math.Max(0, _client.ClockSeconds - _aliveSince), by, weapon, distance, x, y);
     }
 }

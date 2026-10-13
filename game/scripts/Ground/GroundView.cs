@@ -55,6 +55,9 @@ public partial class GroundView : Node3D
     private readonly HollowUniverse.Ships.ShipCamera _shipCamera = new();
     private bool _wasPiloting;
     private ShipInteraction? _aimedShip;
+
+    // A workbench in reach (G7): E opens its tech tree.
+    private RemoteThing? _aimedBench;
     private double _thrownAt = -10;
     private bool _effectsWarmed;
     private Keypad _keypad = null!;
@@ -233,7 +236,8 @@ public partial class GroundView : Node3D
         InventoryBody.Release();
     }
 
-    private System.Threading.Tasks.Task<Image>? _map;
+    // The zone's map picture (G7) is warmed once the zone is known: rendered on a worker thread, or read from the disk.
+    private bool _mapWarm;
 
     // ---------------------------------------------------------------- the world
 
@@ -254,7 +258,6 @@ public partial class GroundView : Node3D
             _world.OpenZone(found.System, found.Body, found.Surface, Client.Frame.Origin, time, zone.RotationTimeScale);
             _camera = _world.Camera;
             _nature.World = _world;
-            _map = ZoneMap.Build(found.Surface, Client.Frame);
         }
         else
         {
@@ -400,7 +403,7 @@ public partial class GroundView : Node3D
         }
         if (_camera == null || !Client.HasCharacter)
         {
-            _overlay.Refresh(_camera, Array.Empty<(Vector3, string, float)>(), status ?? "Arriving...");
+            _overlay.Refresh(_camera, Array.Empty<(Vector3, string, float, bool)>(), status ?? "Arriving...");
             return;
         }
 
@@ -408,14 +411,12 @@ public partial class GroundView : Node3D
         // The effects' numbers are seen at exposure 1 under a sun of 1.3 (their viewer): the camera's exposure divides them,
         // so a blast or a fire looks as bright by day as by night, like everything that glows.
         FxDirector.Brightness = 1.3f / Glow.Exposure;
-        if (_map is { IsCompleted: true } map)
+        // The map (G) and the death screen draw the zone's map: its picture starts as soon as the zone is known.
+        if (!_mapWarm && Client.Map != null)
         {
-            if (map.IsCompletedSuccessfully)
-            {
-                DeathMap.Use(ImageTexture.CreateFromImage(map.Result));
-            }
-            _map = null;
+            _mapWarm = _ui.MapReady;
         }
+        _model.Frame();
         Num.Vector3 feet = Client.RenderPosition;
         Num.Vector3 up = Client.Frame.UpAt(feet);
         Num.Vector3 eye = feet + up * Client.EyeHeight;
@@ -490,6 +491,7 @@ public partial class GroundView : Node3D
         bool alive = !me.IsDead;
         _aimed = alive && !piloting ? Client.Aim(eye, forward) : null;
         _aimedShip = alive && !piloting ? Client.AimShip(eye, forward) : null;
+        _aimedBench = alive && !piloting && _aimed == null && _aimedShip == null ? AimWorkbench(eye, forward) : null;
         _placeAt = alive && me.HeldItem?.Deploys != null ? Client.AimGround(eye, forward, Client.Content.PlacementReach) : null;
         _firstPerson.PlacementPoint = _placeAt;
         _firstPerson.PlacementYaw = _yaw;
@@ -501,7 +503,9 @@ public partial class GroundView : Node3D
             ? new InteractionPrompt("E", $"{aimed.Verb} {aimed.Name}".ToUpperInvariant(), MoreOptions: IsDevice(aimed))
             : _aimedShip is { } ship
                 ? new InteractionPrompt("E", $"{ship.Verb} {ship.Name}".ToUpperInvariant())
-                : _build.Prompt();
+                : _aimedBench != null
+                    ? new InteractionPrompt("E", "OPEN TECH TREE")
+                    : _build.Prompt();
         if (_keypad.Visible || piloting)
         {
             _model.Prompt = null;
@@ -537,6 +541,30 @@ public partial class GroundView : Node3D
             Allocations[part] = System.Collections.Generic.CollectionExtensions.GetValueOrDefault(Allocations, part) + allocated - _allocatedBefore;
         }
         _allocatedBefore = allocated;
+    }
+
+    // The workbench the view meets within reach, if one with a tech tree (G7, GROUND.md §6.8).
+    private RemoteThing? AimWorkbench(Num.Vector3 eye, Num.Vector3 direction)
+    {
+        float reach = Client.InteractReach, best = float.MaxValue;
+        RemoteThing? found = null;
+        foreach (RemoteThing thing in Client.Things)
+        {
+            if (thing.Kind != Hollow.Simulation.World.StaticKind.Deployable || Num.Vector3.DistanceSquared(thing.Position, eye) > (reach + 2) * (reach + 2) ||
+                thing.Deployable(Client.Content) is not { Workbench: > 0 } def || Client.Content.World.Tree(def.Workbench) == null)
+            {
+                continue;
+            }
+            Num.Vector3 up = Client.Frame.UpAt(thing.Position);
+            (Num.Vector3 right, Num.Vector3 front) = Hollow.Simulation.Combat.Geometry.Axes(up, thing.Yaw);
+            float t = Hollow.Simulation.Combat.Geometry.RayBox(eye, direction, reach, thing.Position + up * def.HalfExtents.Y,
+                def.HalfExtents + new Num.Vector3(0.1f), right, up, front);
+            if (t >= 0 && t < best)
+            {
+                (best, found) = (t, thing);
+            }
+        }
+        return found;
     }
 
     private bool IsDevice(in Interaction target) =>
@@ -628,6 +656,11 @@ public partial class GroundView : Node3D
             {
                 // A ship: its hatch, the seat, the fuel cap or the cargo (which opens like a box).
                 Client.Interact(ship);
+            }
+            else if (!_interactDone && _aimedBench != null)
+            {
+                // A workbench: its tech tree (G7).
+                _ui.OpenTechTree();
             }
             else if (!_interactDone)
             {

@@ -62,7 +62,7 @@ public partial class GroundTour : Node
         {
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
-            ("death", Death), ("night", Night),
+            ("world", World), ("death", Death), ("night", Night),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -1069,6 +1069,327 @@ public partial class GroundTour : Node
         return true;
     }
 
+    // G7 (GROUND.md §6.8): a team with the second player (the invite prompt, then their name tag far off), the barrels
+    // and crate nearest the landing site (a barrel broken, the crate opened), a recycler at work, a workbench's tech tree
+    // with a node unlocked, a research table before and after, a blueprint read, and the map with markers and the team.
+    private async Task World()
+    {
+        Admin("give", "stone-hatchet 1");
+        Admin("give", "workbench-1 1");
+        Admin("give", "research-table 1");
+        Admin("give", "sleeping-bag 1");
+        Admin("give", "salvage 600");
+        Admin("give", "pistol 1");
+        Admin("give", "gears 10");
+        Admin("give", "metal-pipe 3");
+        await Until(() => Count("research-table") > 0 && Count("salvage") >= 600 && Count("metal-pipe") >= 3, 8);
+        if (SlotOf(Me.Inventory.Belt, "stone-hatchet") == null)
+        {
+            MoveToBelt("stone-hatchet", 5);
+            await Seconds(0.3);
+        }
+        Me.HeldSlot = -1;
+
+        // A team, and the second player (close by, looked at) invited into it.
+        if (Me.Team != null && !Me.LeadsTeam)
+        {
+            Me.LeaveTeam();
+            await Until(() => Me.Team == null, 5);
+        }
+        if (Me.Team == null)
+        {
+            Me.CreateTeam();
+            await Until(() => Me.Team != null, 5);
+        }
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Client.Character.Position);
+        await TeleportTo(spot);
+        RemoteEntity? guest = Client.Entities.FirstOrDefault(e => e.Name.Length > 0);
+        if (guest != null)
+        {
+            string name = guest.Name;
+            Num.Vector3 ahead = spot + towards * 3.0f;
+            Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {name} {ahead.X:0.00} {ahead.Z:0.00}"));
+            await Until(() => Client.Entities.FirstOrDefault(e => e.Name == name) is { } g && Flat(g.Position - ahead) < 1.5f, 10);
+            await Seconds(1.5);
+            if (Client.Entities.FirstOrDefault(e => e.Name == name) is { } there)
+            {
+                Face(there.Position + Client.Frame.UpAt(there.Position) * 1.1f);
+            }
+            await Settle();
+            await Until(() => View.Aimed?.Kind == InteractionKind.InviteToTeam, 5);
+            await Seconds(0.5);
+            await Shot("team-invite");
+            if (View.Aimed is { Kind: InteractionKind.InviteToTeam } invite)
+            {
+                Client.Interact(invite);
+            }
+            else
+            {
+                Me.InviteToTeam(guest.Id);
+            }
+            await Until(() => Me.Team?.Members.Count >= 2, 15);
+            GD.Print($"[tour] team: {string.Join(", ", Me.Team?.Members.Select(m => m.Name) ?? Array.Empty<string>())}");
+            // Further off than strangers are named: the teammate's name tag in the team's green, with how far.
+            Num.Vector3 far = spot - towards * 70;
+            await TeleportTo(far);
+            if (Client.Entities.FirstOrDefault(e => e.Name == name) is { } mate)
+            {
+                Face(mate.Position + Client.Frame.UpAt(mate.Position) * 1.0f);
+            }
+            await Settle();
+            await Seconds(1.0);
+            await Shot("teammate");
+        }
+
+        // The barrels and crate nearest the landing site: the cluster, a barrel broken with the hatchet, the crate opened.
+        RemoteThing? crate = NearestProp(WorldPropKind.Crate, Num.Vector3.Zero);
+        GD.Print($"[tour] props in range: {Client.Props.Count()}, crate at {crate?.Position}");
+        if (crate != null)
+        {
+            Num.Vector3 up = Client.Frame.UpAt(crate.Position);
+            await TeleportTo(ClearView(crate.Position, 6.5f));
+            Face(crate.Position + up * 0.3f);
+            View.Pitch -= 0.05f;
+            await Settle();
+            await Seconds(1.5);
+            await Shot("loot-props");
+            if (NearestProp(WorldPropKind.Barrel, crate.Position) is { } barrel && Flat(barrel.Position - crate.Position) < 12)
+            {
+                await TeleportTo(Away(barrel.Position, 1.5f));
+                Face(barrel.Position + Client.Frame.UpAt(barrel.Position) * 0.5f);
+                if (SlotOf(Me.Inventory.Belt, "stone-hatchet") is int hatchet)
+                {
+                    Me.HeldSlot = hatchet;
+                }
+                await Seconds(1.0);
+                View.Scripted = new InputFrame { Primary = true };
+                await Until(() => !Client.Props.Any(t => t.Id == barrel.Id), 15);
+                View.Scripted = null;
+                GD.Print($"[tour] the barrel {(Client.Props.Any(t => t.Id == barrel.Id) ? "still stands" : "broke")}");
+                Me.HeldSlot = -1;
+                await Seconds(0.8);
+            }
+            await TeleportTo(Away(crate.Position, 1.6f));
+            Face(crate.Position + up * 0.3f);
+            await Seconds(0.5);
+            Me.Open(crate.Id);
+            await Until(() => Me.LootKind == LootKind.Crate, 5);
+            await Seconds(1.0);
+            await Shot("crate");
+            Me.Close();
+            View.Interface.Open(GroundScreen.Hud);
+            await Seconds(0.5);
+        }
+
+        // A recycler at work: gears and pipes in, salvage and metal out.
+        RemoteThing? recycler = NearestProp(WorldPropKind.Recycler, Client.Character.Position);
+        if (recycler == null && Client.Content.World.RecyclerPoints.Count > 0)
+        {
+            System.Numerics.Vector2 p = Client.Content.World.RecyclerPoints[0];
+            await TeleportTo(new Num.Vector3(p.X, 0, p.Y));
+            await Until(() => (recycler = NearestProp(WorldPropKind.Recycler, Client.Character.Position)) != null, 10);
+        }
+        if (recycler != null)
+        {
+            Num.Vector3 up = Client.Frame.UpAt(recycler.Position);
+            Num.Vector3 middle = recycler.Position + up * 0.9f;
+            await TeleportTo(Away(recycler.Position, 2.4f));
+            Face(middle);
+            await Settle();
+            Me.Open(recycler.Id);
+            await Until(() => Me.LootKind == LootKind.Device, 5);
+            if (SlotOf(Me.Inventory.Main, "gears") is int gears)
+            {
+                Me.MoveItem(ContainerRef.Main, gears, ContainerRef.Loot, 0);
+                await Seconds(0.4);
+            }
+            if (SlotOf(Me.Inventory.Main, "metal-pipe") is int pipes)
+            {
+                Me.MoveItem(ContainerRef.Main, pipes, ContainerRef.Loot, 1);
+                await Seconds(0.4);
+            }
+            Me.Toggle(recycler.Id);
+            await Until(() => Me.Machine?.Running == true, 5);
+            await Seconds(6.5);
+            await Shot("recycler");
+            Me.Close();
+            View.Interface.Open(GroundScreen.Hud);
+            await Seconds(0.8);
+            Face(middle);
+            await Shot("recycler-running");
+        }
+
+        // A workbench, a research table and a sleeping bag in the open.
+        (spot, towards) = OpenSpot(Client.Character.Position);
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = -0.3f;
+        await Settle();
+        // Each within placing reach (3 m from the eye): the bag to the left, the bench ahead, the table ahead of a step right.
+        Num.Vector3 right = Num.Vector3.Normalize(Num.Vector3.Cross(towards, Client.Frame.UpAt(spot)));
+        float yaw = View.Yaw;
+        await PlaceNear("sleeping-bag", spot, -right, yaw);
+        RemoteThing? bench = await PlaceNear("workbench-1", spot, towards, yaw);
+        Num.Vector3 side = spot + right * 2.8f;
+        await TeleportTo(side);
+        RemoteThing? table = await PlaceNear("research-table", side, towards, yaw);
+        await TeleportTo(spot);
+        if (bench != null)
+        {
+            Face(bench.Position + Client.Frame.UpAt(bench.Position) * 0.8f);
+            await Seconds(0.8);
+            await Shot("workbench");
+            // The tech tree: a root unlocked for its salvage, then the node after it chosen.
+            View.Interface.OpenTechTree();
+            View.Interface.SelectTechNode("metal-hatchet");
+            await Seconds(0.5);
+            View.Model.Unlock("metal-hatchet");
+            await Until(() => Client.Content.Item("metal-hatchet") is { } h && Client.Content.Recipe(h.Id) is { } r && Me.Knows(r), 5);
+            await Seconds(1.5);
+            View.Interface.SelectTechNode("metal-pickaxe");
+            await Seconds(0.5);
+            await Shot("techtree");
+            View.Interface.Open(GroundScreen.Hud);
+            await Seconds(0.5);
+        }
+        if (table != null)
+        {
+            // The research table: a pistol and salvage in, the price; then the blueprint out, and read.
+            await TeleportTo(side);
+            Face(table.Position + Client.Frame.UpAt(table.Position) * 0.8f);
+            Me.Open(table.Id);
+            await Until(() => Me.LootKind == LootKind.Device, 5);
+            if (SlotOf(Me.Inventory.Main, "pistol") is int pistol)
+            {
+                Me.MoveItem(ContainerRef.Main, pistol, ContainerRef.Loot, 0);
+                await Seconds(0.4);
+            }
+            if (SlotOf(Me.Inventory.Main, "salvage") is int salvage)
+            {
+                Me.MoveItem(ContainerRef.Main, salvage, ContainerRef.Loot, 1, 200);
+                await Seconds(0.4);
+            }
+            await Seconds(0.8);
+            await Shot("research");
+            Me.Toggle(table.Id);
+            await Until(() => Me.Loot is { Size: > 2 } slots && !slots[2].IsEmpty, 15);
+            await Seconds(0.8);
+            await Shot("research-done");
+            Me.QuickMove(ContainerRef.Loot, 2);
+            await Seconds(0.6);
+            Me.Close();
+            View.Interface.Open(GroundScreen.Hud);
+            if (SlotOf(Me.Inventory.Main, "blueprint") is int blueprint)
+            {
+                Me.Learn(ContainerRef.Main, blueprint);
+                await Until(() => Client.Content.Item("pistol") is { } p && Client.Content.Recipe(p.Id) is { } r && Me.Knows(r), 5);
+            }
+            await Seconds(0.5);
+        }
+
+        // The map (G): two markers, the teammate, the bag, the player.
+        Me.PlaceMarker(spot + towards * 40 + right * 25, 2, "Base");
+        if (crate != null)
+        {
+            Me.PlaceMarker(crate.Position, 3, "Crates");
+        }
+        await Until(() => Me.Markers.Count >= 1, 5);
+        View.Interface.ToggleMap();
+        await Until(() => View.Interface.MapReady, 60);
+        await Seconds(1.0);
+        await Shot("map");
+        View.Interface.Open(GroundScreen.Hud);
+        await Seconds(0.3);
+    }
+
+    // The nearest world prop of a kind in range.
+    private RemoteThing? NearestProp(WorldPropKind kind, Num.Vector3 near) =>
+        Client.Props.Where(t => t.Prop(Client.Content)?.Kind == kind).OrderBy(t => Flat(t.Position - near)).FirstOrDefault();
+
+    // Places a deployable from the main slots 2.2 m from where the player stands, towards a direction or, refused (too
+    // steep, something in the way), turned a little further each time; waits for it to stand there.
+    private async Task<RemoteThing?> PlaceNear(string key, Num.Vector3 from, Num.Vector3 towards, float yaw)
+    {
+        Num.Vector3 up = Client.Frame.UpAt(from);
+        ActionResult refused = ActionResult.Accepted;
+        void Refused(IntentAnswer answer) => refused = answer.Result;
+        Me.IntentRejected += Refused;
+        try
+        {
+            foreach (float turn in new[] { 0f, 0.6f, -0.6f, 1.2f, -1.2f, 1.9f, -1.9f })
+            {
+                if (SlotOf(Me.Inventory.Main, key) is not int slot)
+                {
+                    GD.PushWarning($"[tour] no {key} to place");
+                    return null;
+                }
+                Num.Vector3 dir = Num.Vector3.Transform(towards, Num.Quaternion.CreateFromAxisAngle(up, turn));
+                Num.Vector3 at = from + dir * 2.2f;
+                if (Client.AimGround(at + up * 2, -up, 4) is not { } ground)
+                {
+                    continue;
+                }
+                var before = Client.Things.Select(t => t.Id).ToHashSet();
+                refused = ActionResult.Accepted;
+                Me.Place(ContainerRef.Main, slot, ground, yaw);
+                await Until(() => refused != ActionResult.Accepted ||
+                    Client.Things.Any(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key), 5);
+                RemoteThing? placed = Client.Things.FirstOrDefault(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key);
+                if (placed != null)
+                {
+                    await Seconds(0.3);
+                    return placed;
+                }
+                GD.Print($"[tour] the {key} was refused there: {refused}");
+                await Seconds(0.3);
+            }
+            GD.PushWarning($"[tour] the {key} wasn't placed");
+            return null;
+        }
+        finally
+        {
+            Me.IntentRejected -= Refused;
+        }
+    }
+
+    // A point a distance from a target with the clearest view of it: the fewest trees, bushes and rocks near the line of
+    // sight (for pictures of things among the plants).
+    private Num.Vector3 ClearView(Num.Vector3 target, float distance)
+    {
+        var all = new List<NaturalObject>();
+        float r = distance + 4;
+        Client.Nature!.Query(target.X - r, target.Z - r, target.X + r, target.Z + r, all);
+        Num.Vector3 best = Away(target, distance);
+        float bestCost = float.MaxValue;
+        for (int k = 0; k < 16; k++)
+        {
+            float a = k * MathF.Tau / 16;
+            Num.Vector3 eye = target + new Num.Vector3(MathF.Cos(a), 0, MathF.Sin(a)) * distance;
+            float cost = 0;
+            foreach (NaturalObject o in all)
+            {
+                if (Client.Content.Natural(o.Kind) is not { Class: NaturalClass.Tree or NaturalClass.Bush or NaturalClass.Boulder or NaturalClass.Node } kind ||
+                    Client.Natural?.IsDepleted(o.Id) == true)
+                {
+                    continue;
+                }
+                // How close the object stands to the line from the eye to the target (in the ground plane).
+                Num.Vector2 p = new(o.Position.X - eye.X, o.Position.Z - eye.Z), d = new(target.X - eye.X, target.Z - eye.Z);
+                float t = Math.Clamp(Num.Vector2.Dot(p, d) / d.LengthSquared(), 0, 1);
+                float off = (p - d * t).Length() - kind.Radius * o.Scale;
+                if (off < 1.6f && t < 0.9f)
+                {
+                    cost += kind.Class == NaturalClass.Tree ? 3 : 2;
+                }
+            }
+            if (cost < bestCost)
+            {
+                (bestCost, best) = (cost, eye);
+            }
+        }
+        return best;
+    }
+
     private async Task Death()
     {
         Admin("kill", "");
@@ -1128,12 +1449,26 @@ public partial class GroundTour : Node
     // ---------------------------------------------------------------- the guest
 
     private bool _guestDressed;
+    private double _guestAnswered = -10;
 
     private void Guest()
     {
         if (Client.State != ClientState.Playing || !Client.HasCharacter || Me.IsDead)
         {
             return;
+        }
+        // G7: a team invite is taken (leaving any team first).
+        if (Me.TeamInvites.Count > 0 && Client.ClockSeconds - _guestAnswered > 2)
+        {
+            _guestAnswered = Client.ClockSeconds;
+            if (Me.Team != null)
+            {
+                Me.LeaveTeam();
+            }
+            else
+            {
+                Me.AcceptInvite(Me.TeamInvites[0].Team);
+            }
         }
         if (GuestRifle())
         {

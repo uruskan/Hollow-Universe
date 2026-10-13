@@ -35,6 +35,7 @@ public partial class PeopleView : Node3D
         public bool Dead;
         public int Frames;
         public string Name = "";
+        public Hollow.Simulation.Entities.EntityId Id;
         public ushort[] Wear = Array.Empty<ushort>();
         public byte Body;
         public FootstepDriver? Feet;
@@ -67,11 +68,35 @@ public partial class PeopleView : Node3D
 
     public GameClient Client { get; set; } = null!;
 
-    /// <summary>Living, awake players near enough to name: the point above their head and their name.</summary>
-    public IEnumerable<(Vector3 Head, string Name, float Distance)> Names(Vector3 eye) =>
-        _people.Values.Where(p => !p.Down && p.View.Visible)
-            .Select(p => (p.View.GlobalPosition + p.View.GlobalBasis.Y * 1.95f, p.Name, p.View.GlobalPosition.DistanceTo(eye)))
-            .Where(n => n.Item3 < 40);
+    /// <summary>
+    /// Players to name: the point above their head, their name, how far, and whether they are in the player's team.
+    /// Living, awake players near enough; teammates at any distance (through walls, as Rust's), those out of range
+    /// where the server last said (G7, GROUND.md §6.8).
+    /// </summary>
+    public IEnumerable<(Vector3 Head, string Name, float Distance, bool Team)> Names(Vector3 eye)
+    {
+        foreach (Person p in _people.Values)
+        {
+            if (p.Down || !p.View.Visible)
+            {
+                continue;
+            }
+            bool team = Client.IsTeammate(p.Id);
+            float distance = p.View.GlobalPosition.DistanceTo(eye);
+            if (distance < 40 || team)
+            {
+                yield return (p.View.GlobalPosition + p.View.GlobalBasis.Y * 1.95f, p.Name, distance, team);
+            }
+        }
+        foreach (TeammateView mate in Client.Local.Teammates)
+        {
+            if (mate.State is Hollow.Net.Protocol.TeammateState.Awake or Hollow.Net.Protocol.TeammateState.Down && !_people.Values.Any(p => p.Id == mate.Id))
+            {
+                Vector3 head = GroundView.ToGodot(mate.Position + Client.Frame.UpAt(mate.Position) * 1.95f);
+                yield return (head, mate.Name, head.DistanceTo(eye), true);
+            }
+        }
+    }
 
     /// <summary>Where a player's gun shows its muzzle (by net ID), when they are drawn holding one: their tracers start there.</summary>
     public Vector3? MuzzleOf(uint netId) =>
@@ -177,6 +202,7 @@ public partial class PeopleView : Node3D
                 p.View.Wear(ItemLooks.Outfit(Client.Content, entity.Wear));
                 _people.Add(entity.NetId, p);
             }
+            p.Id = entity.Id;
             Update(p, entity, dt);
         }
         foreach (uint gone in _people.Keys.Where(k => !_seen.Contains(k)).ToList())

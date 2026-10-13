@@ -183,8 +183,9 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,death,night`
-  (the screenshot run; `--tour guest` is its second player, which also joins the firefight and watches the ship), `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,death,night`
+  (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
+  the team invite), `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
   (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire; with the building plan: place
@@ -192,9 +193,11 @@ Client options (after `--`):
   it), right mouse aim or draw (with the plan or the hammer, held: its wheel; with a charge: put it on the surface
   aimed at; with a grenade: lob it); R reload (with a building tool: turn the piece or door); E interact (doors, a code
   lock's keypad, a dud to light; held on a fire or furnace to light it or put it out, on a door or the claim device for
-  its options; help a wounded player up); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it, the
-  gun's panel takes it off); Q crafting; Enter chat; Esc back, then the menu; F3 network graph; the death screen's
-  buttons respawn. At a ship, E opens its hatch, boards, refuels or opens the cargo. Flying (G6): the mouse is the
+  its options; help a wounded player up; G7: open a crate or recycler, a workbench's tech tree, invite a player close by
+  into the team one leads); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it, the gun's panel takes
+  it off; a blueprint is used like food, and learnt); Q crafting (its TECH TREE tab at a workbench); G the map (a click
+  puts a marker down, a right-click takes it off; the team beside it); Enter chat (`/t ` before a line: to the team
+  alone); Esc back, then the menu; F3 network graph; the death screen's buttons respawn. At a ship, E opens its hatch, boards, refuels or opens the cargo. Flying (G6): the mouse is the
   stick, W/S move the throttle lever (X: zero), A/D slide, Space/C rise and sink, Q/E roll, Shift boosts, Z switches
   flight assist, V the camera (chase or cockpit), F steps out, H the hatch, L the lock, J descends from orbit. Chat lines starting with `/` are test commands when
   hosting: `/give <item> [n]`, `/kit <loot table>`, `/heal`, `/kill`.
