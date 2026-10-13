@@ -1,8 +1,8 @@
 # Hollow Universe — the ground game's shared systems
 
-Status: **proposal for the owner's review**, 13 October 2026. Nothing here is built yet. It changes how the ground game
-([GROUND.md](GROUND.md)) is put together, not what it plays like. Where it and GROUND.md disagree on structure, this
-document wins once approved.
+Status: **approved by the owner on 13 October 2026**, with the defaults of §11; being built (§10). It changes how the
+ground game ([GROUND.md](GROUND.md)) is put together, not what it plays like. Where it and GROUND.md disagree on
+structure, this document wins.
 
 ---
 
@@ -83,6 +83,20 @@ scattered slack constants (`+0.3`, `+0.5`, `+1.5`, `+3`, `+4`) and adds the miss
 A small `Registry<THandler>` keyed by the data list's index, filled at start-up, validated against the data. Used by
 every system below.
 
+### 3.6 Support links
+A world thing may rest on or be stuck in another: a furnace on a foundation, a lock on a door, a charge on a wall, an
+arrow in a tree, a wall or a deer's flank. `SupportLink { Support : TargetRef, local pose, bone }` records it once, the
+same way for all of them. A linked thing is drawn and found where its support is now (on a moving body, at that bone),
+and when its support is destroyed or removed, its dependents go with it by one rule (Rust: what stands on a foundation
+goes with it; an arrow in a body that is gone falls with the body's loot rules). Placement (§6) creates links;
+interaction (§5) reaches linked things where they are.
+
+### 3.7 Lifetimes
+One despawn rule for every loose thing in the world: a `lifetime` from data (survival.json today: dropped items and bags
+300 s, bodies 300 s, spent arrows), counted on world time (it pauses while the server is down), restarted by what the
+data says restarts it (a bag's newest item), and ended at once when the thing is emptied. One step in the zone runs it
+for every thing that has a lifetime; bags, bodies and arrows don't each keep their own timer code.
+
 ## 4. One radial menu (package P5, first)
 
 One immediate-mode control in RustMVP's look (its pictures: RustMVP
@@ -117,12 +131,17 @@ Outcome Do(in InteractContext ctx, VerbId verb, in InteractArgs args);
 | Burner (`device`: campfire, furnace) | Light, Put out; Open |
 | Machine (recycler, research table) | Start, Stop; Open |
 | Station (`workbench`) | Tech tree |
-| Pickup (gather.json pickups and bushes, drops) | Pick up |
+| Pickup (gather.json pickups and bushes, drops, spent arrows) | Pick up |
 | Picked-up deployable (new flag `pickup`) | Pick up (empty, and authorised where a cupboard covers it, as in Rust) |
 | Wounded character | Help up |
 | Character (when the viewer leads a team) | Invite to team |
 | Dud explosive | Relight |
 | Ship (by part) | Hatch, Board, Refuel, Cargo, Lock |
+
+**Spent arrows** (the owner, 13 October 2026) stay where they stuck: in the ground, a building, a deployable, a tree, an
+animal or a player, alive or dead, held there by a support link (§3.6) and riding on a moving body. Each is its own small
+target; a tap of E on it picks it up, from a living player or animal too, and the shared lifetime (§3.7) removes it
+later. They no longer go into bags.
 
 **Targeting:** one `Aim(eye, direction)` asks every registered family for its nearest hit along the ray and takes the
 nearest of all, not the first in a priority list. A door's target includes its opening, so an open garage door, whose
@@ -231,10 +250,21 @@ relevance grid; replication and saving written once per component (NetGen extend
 interpolator; one client view per capability. Building pieces keep their structure solver (sockets, stability) behind the
 same capabilities. This is the largest and riskiest change; it is decided after P0–P5 have proved the capability model.
 
+## 9a. Later: characters and held items (package P7)
+
+The owner's playtest (13 October 2026) found the characters' presentation unpolished: items clip into the third-person
+body or are held oddly, the first-person rock wants Rust's closed grip, and a swing's visible contact misses the point the
+server hits (the pickaxe's tip doesn't meet the hotspot). First and third person are two presentations of the same body
+asset, as in Rust: the player's own forearms and hands on the camera (key poses, 60° field of view) and the full body
+for others (retargeted clips and IK). The package gives both one set of grip points and sockets per item (from the
+model catalogue), hand IK onto them in third person, held-item clips per kind of held behaviour (§7), and swings whose
+contact frame and point come from the same hit the server computes. To be planned with the owner.
+
 ## 10. Order of work
 
-1. Merge the five packages running now: freelook, hands and foundation height; exact recoil and the damage request
-   (P4); tree X and node hotspots; gibs; loot bags. The Tin Finch's placement waits for P2.
+1. Merge the five packages of the first playtest: freelook, hands and foundation height; exact recoil and the damage
+   request (P4); tree X and node hotspots; loot bags (all merged 13 October 2026); gibs. The Tin Finch's placement waits
+   for P2.
 2. **P0** foundations, then **P5** the radial.
 3. **P1** interaction, **P2** placement and **P3** held items, in parallel.
 4. Merge, then the owner plays.
