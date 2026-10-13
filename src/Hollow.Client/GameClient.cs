@@ -74,6 +74,12 @@ public sealed record ClientOptions
     /// </summary>
     public Func<ZoneSpec, ISurface, Simulation.Nature.NaturalState>? SharedNature { get; init; }
 
+    /// <summary>
+    /// The replicated building shared by many clients with <see cref="SharedPhysics"/> (bots), on that physics world.
+    /// Null: an own one on the client's own ground.
+    /// </summary>
+    public Func<ZoneSpec, ISurface, PhysicsWorld, BuildingReplica>? SharedBuilding { get; init; }
+
     /// <summary>The game's data (the server must have the same); null finds and loads game/data/ground.</summary>
     public GameContent? Content { get; init; }
 
@@ -472,6 +478,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
     {
         Zone = NetConvert.FromInfo(welcome.Zone);
         _surface = Zone.CreateSurface();
+        DisposeBuilding();
         _predictor?.Dispose();
         _predictor = new Predictor(Zone, _surface, _options.SharedPhysics?.Invoke(Zone, _surface));
         StartSurvival();
@@ -650,6 +657,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _peer?.Disconnect();
         _net.ManualUpdate(0);
         _net.Stop();
+        DisposeBuilding();
         _predictor?.Dispose();
         _ownRelay?.Dispose();
     }

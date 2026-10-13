@@ -265,7 +265,7 @@ public sealed partial class BuildingWorld
             return null;
         }
         Vector3 up = Up(point);
-        if (!Physics.Ray(point + up * 10, -up, 30, out RayHit ground, groundOnly: true))
+        if (!GroundBelow(point + up * 10, up, 30, out RayHit ground))
         {
             return null;
         }
@@ -277,7 +277,7 @@ public sealed partial class BuildingWorld
         foreach (Vector3D sample in GroundSamples(piece))
         {
             Vector3 at = F(probe.ToZone(sample));
-            if (Physics.Ray(at + up * 10, -up, 10 + (float)(Data.FoundationDepth + 10), out RayHit h, groundOnly: true))
+            if (GroundBelow(at + up * 10, up, 10 + (float)(Data.FoundationDepth + 10), out RayHit h))
             {
                 highest = Math.Max(highest, 10 - h.Distance);
             }
@@ -293,6 +293,18 @@ public sealed partial class BuildingWorld
             Piece = piece, Structure = null, Frame = frame, Pose = new Pose(Vector3D.Zero, 0), Point = point,
             HeadingSteps = ((steps % HeadingSteps) + HeadingSteps) % HeadingSteps,
         };
+    }
+
+    // The ground straight down from a point. A ray exactly along the seam of two ground tiles can slip between their
+    // meshes, so a miss is tried again a millimetre aside.
+    private bool GroundBelow(Vector3 from, Vector3 up, float length, out RayHit hit)
+    {
+        if (Physics!.Ray(from, -up, length, out hit, groundOnly: true))
+        {
+            return true;
+        }
+        var aside = new Vector3(1e-3f, 0, 1e-3f);
+        return Physics.Ray(from + aside, -up, length, out hit, groundOnly: true) || Physics.Ray(from - aside, -up, length, out hit, groundOnly: true);
     }
 
     // Where the ground is sampled under a foundation: its corners and its centre (RustMVP's).

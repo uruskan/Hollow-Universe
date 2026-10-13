@@ -145,6 +145,15 @@ public sealed class BuildingPhysics : IDisposable
         }
     }
 
+    /// <summary>Removes a body, but only while it still belongs to <paramref name="owner"/> (a mirror may have given its ID to a newer piece).</summary>
+    public void Remove(uint id, object owner)
+    {
+        if (id != 0 && _owners.TryGetValue(id, out object? current) && Equals(current, owner))
+        {
+            Remove(id);
+        }
+    }
+
     public void Remove(uint id)
     {
         if (id == 0 || !_owners.Remove(id))

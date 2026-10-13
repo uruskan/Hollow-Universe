@@ -106,6 +106,7 @@ public sealed partial class GameClient
             Natural = new NaturalState(Content, Nature);
             _ = new NaturalBodies(_predictor!.World, Natural);
         }
+        StartBuilding();
     }
 
     private void UpdateSurvival()
@@ -114,6 +115,7 @@ public sealed partial class GameClient
         Local.ClockSeconds = ClockSeconds;
         Local.WorkbenchLevel = WorkbenchNear();
         Local.Update();
+        Local.UpdateBuilding();
         double now = ClockSeconds;
         _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 8);
     }
@@ -342,6 +344,9 @@ public sealed partial class GameClient
                 }
                 return;
             }
+            default:
+                ReceiveBuilding(type);
+                return;
         }
     }
 

@@ -184,6 +184,19 @@ public sealed partial class BuildingWorld
         return device;
     }
 
+    /// <summary>The piece of a kind standing at a pose in a frame, if any.</summary>
+    public Piece? PieceAt(in BuildingFrame frame, PieceDef def, in Pose pose)
+    {
+        foreach (Structure s in Lattice(frame))
+        {
+            if (s.At(def, pose) is { } piece && piece.Def == def)
+            {
+                return piece;
+            }
+        }
+        return null;
+    }
+
     /// <summary>A structure's upkeep owed but not yet taken from its store (fractions of an item), by material.</summary>
     public IReadOnlyDictionary<string, double> DebtOf(Structure structure) => structure.UpkeepDebt;
 
@@ -337,4 +350,12 @@ public enum LockKind : byte
     None,
     Key,
     Code,
+}
+
+/// <summary>Which kind of building part a replicated ID names.</summary>
+public enum BuildPartKind : byte
+{
+    Piece,
+    Door,
+    Claim,
 }

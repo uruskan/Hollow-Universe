@@ -80,7 +80,7 @@ public readonly record struct IntentAnswer(uint Seq, ActionResult Result);
 /// </para>
 /// Call from the thread that calls <see cref="GameClient.Update"/>.
 /// </summary>
-public sealed class LocalPlayer
+public sealed partial class LocalPlayer
 {
     private readonly PlayerInventory _server = new();
     private readonly CraftQueue _serverCraft = new();

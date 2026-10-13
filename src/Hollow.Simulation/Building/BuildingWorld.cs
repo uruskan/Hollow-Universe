@@ -535,7 +535,7 @@ public sealed partial class BuildingWorld : IDisposable
         {
             RemoveClaim(structure.Claim);
         }
-        Physics?.Remove(piece.Body);
+        Physics?.Remove(piece.Body, piece);
         piece.Body = 0;
         ZoneIndex(piece, add: false);
         structure.Unindex(piece, piece.Pose);

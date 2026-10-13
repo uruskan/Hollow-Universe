@@ -49,6 +49,9 @@ public sealed class ClaimDevice
 
     public bool IsAuthorised(ulong player) => AuthorisedList.Contains(player);
 
+    /// <summary>Its Jolt body's ID.</summary>
+    public uint BodyId => Body;
+
     /// <summary>
     /// The upkeep store: whole items by material key. A dictionary of its own until the zone gives the device its
     /// container (the loot panel's), which then pays the upkeep.
@@ -134,7 +137,7 @@ public sealed partial class BuildingWorld
         }
         device.Gone = true;
         _claimIds.Remove(device.Id);
-        Physics?.Remove(device.Body);
+        Physics?.Remove(device.Body, device);
         Structure structure = device.Support.Structure;
         if (structure.Claim == device)
         {

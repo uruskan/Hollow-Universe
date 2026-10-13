@@ -297,7 +297,7 @@ public sealed partial class GameServer
                 return Intent(session, m.Seq, () => Zone.Respawn(me, new EntityId(m.Bag)), whileDead: true);
             }
             default:
-                return false;
+                return ReceiveBuildIntent(session, type);
         }
     }
 
@@ -377,6 +377,7 @@ public sealed partial class GameServer
             }
             session.PendingResults.Clear();
         }
+        SendBuildResults();
     }
 
     private void Send(PlayerSession session) => session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);

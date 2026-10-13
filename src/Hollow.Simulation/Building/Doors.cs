@@ -123,6 +123,9 @@ public sealed class Door
 
     public bool Gone { get; internal set; }
 
+    /// <summary>Its leaves' Jolt body IDs.</summary>
+    public IReadOnlyList<uint> BodyIds => Bodies;
+
     /// <summary>
     /// A leaf's pose in the zone, open or shut: the frame's transform, the flip, the hinge from the manifest, then the
     /// leaf's yaw about its hinge.
@@ -333,9 +336,9 @@ public sealed partial class BuildingWorld
         }
         door.Gone = true;
         _doorIds.Remove(door.Id);
-        foreach (uint body in door.Bodies)
+        for (int i = 0; i < door.Bodies.Length; i++)
         {
-            Physics?.Remove(body);
+            Physics?.Remove(door.Bodies[i], new DoorLeaf(door, i));
         }
         door.Frame.Door = null;
         door.Lock = null;
@@ -449,6 +452,7 @@ public sealed partial class BuildingWorld
                     return Outcome.Refuse(Refusal.ListFull);
                 }
                 codeLock.AuthorisedList.Add(player);
+                Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
             }
             return Outcome.Done;
         }

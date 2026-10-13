@@ -5,6 +5,7 @@
 #nullable enable
 using System;
 using Hollow.Net.Bits;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
@@ -17,7 +18,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x090AAB1EFE3E2A12UL;
+    public const ulong SchemaHash = 0x1EC600826A55E26CUL;
 }
 
 partial struct Hello
@@ -1676,6 +1677,576 @@ partial struct LifeState
         for (int i = 0; i < countBags; i++)
         {
             v.Bags[i] = BagNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct PlacePieceIntent
+{
+    public const byte TypeId = 90;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Piece, 8);
+        w.WriteBits64(Support, 64);
+        w.WriteBits((uint)Socket, 8);
+        w.WriteBits((uint)Orientation, 8);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)Heading, 5);
+    }
+
+    public static PlacePieceIntent Read(BitReader r)
+    {
+        var v = new PlacePieceIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Piece = (byte)r.ReadBits(8);
+        v.Support = r.ReadBits64(64);
+        v.Socket = (byte)r.ReadBits(8);
+        v.Orientation = (byte)r.ReadBits(8);
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Heading = (byte)r.ReadBits(5);
+        return v;
+    }
+}
+
+partial struct HammerIntent
+{
+    public const byte TypeId = 91;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Action, 2);
+        w.WriteBits64(Target, 64);
+        w.WriteBits((uint)Grade, 3);
+    }
+
+    public static HammerIntent Read(BitReader r)
+    {
+        var v = new HammerIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Action = (HammerAction)r.ReadBits(2);
+        v.Target = r.ReadBits64(64);
+        v.Grade = (byte)r.ReadBits(3);
+        return v;
+    }
+}
+
+partial struct DoorIntent
+{
+    public const byte TypeId = 92;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Action, 2);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+        w.WriteBits64(Target, 64);
+        w.WriteBool(Flip);
+    }
+
+    public static DoorIntent Read(BitReader r)
+    {
+        var v = new DoorIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Action = (DoorAction)r.ReadBits(2);
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        v.Target = r.ReadBits64(64);
+        v.Flip = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct LockIntent
+{
+    public const byte TypeId = 93;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Action, 3);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+        w.WriteBits64(Door, 64);
+        w.WriteString(Code, 8);
+    }
+
+    public static LockIntent Read(BitReader r)
+    {
+        var v = new LockIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Action = (LockAction)r.ReadBits(3);
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        v.Door = r.ReadBits64(64);
+        v.Code = r.ReadString(8);
+        return v;
+    }
+}
+
+partial struct ClaimIntent
+{
+    public const byte TypeId = 94;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Action, 3);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+        w.WriteBits64(Target, 64);
+        w.WriteDouble(X);
+        w.WriteDouble(Z);
+        w.WriteBits((uint)Yaw, 4);
+    }
+
+    public static ClaimIntent Read(BitReader r)
+    {
+        var v = new ClaimIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Action = (ClaimAction)r.ReadBits(3);
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        v.Target = r.ReadBits64(64);
+        v.X = r.ReadDouble();
+        v.Z = r.ReadDouble();
+        v.Yaw = (byte)r.ReadBits(4);
+        return v;
+    }
+}
+
+partial struct BuildResult
+{
+    public const byte TypeId = 95;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Reason, 6);
+        w.WriteString(Text, 96);
+    }
+
+    public static BuildResult Read(BitReader r)
+    {
+        var v = new BuildResult();
+        v.Seq = r.ReadVarUInt();
+        v.Reason = (Refusal)r.ReadBits(6);
+        v.Text = r.ReadString(96);
+        return v;
+    }
+}
+
+partial struct BuildFrameNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Id);
+        w.WriteDouble(OriginX);
+        w.WriteDouble(OriginY);
+        w.WriteDouble(OriginZ);
+        w.WriteDouble(XX);
+        w.WriteDouble(XY);
+        w.WriteDouble(XZ);
+        w.WriteDouble(YX);
+        w.WriteDouble(YY);
+        w.WriteDouble(YZ);
+        w.WriteDouble(ZX);
+        w.WriteDouble(ZY);
+        w.WriteDouble(ZZ);
+    }
+
+    public static BuildFrameNet Read(BitReader r)
+    {
+        var v = new BuildFrameNet();
+        v.Id = r.ReadVarUInt();
+        v.OriginX = r.ReadDouble();
+        v.OriginY = r.ReadDouble();
+        v.OriginZ = r.ReadDouble();
+        v.XX = r.ReadDouble();
+        v.XY = r.ReadDouble();
+        v.XZ = r.ReadDouble();
+        v.YX = r.ReadDouble();
+        v.YY = r.ReadDouble();
+        v.YZ = r.ReadDouble();
+        v.ZX = r.ReadDouble();
+        v.ZY = r.ReadDouble();
+        v.ZZ = r.ReadDouble();
+        return v;
+    }
+}
+
+partial struct BuildFrames
+{
+    public const byte TypeId = 96;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countFrames = Frames == null ? 0 : Math.Min(Frames.Length, 16);
+        w.WriteBits((uint)countFrames, 5);
+        for (int i = 0; i < countFrames; i++)
+        {
+            Frames![i].Write(w);
+        }
+    }
+
+    public static BuildFrames Read(BitReader r)
+    {
+        var v = new BuildFrames();
+        int countFrames = (int)r.ReadBits(5);
+        if (countFrames > 16)
+        {
+            r.Fail();
+            countFrames = 0;
+        }
+        v.Frames = new BuildFrameNet[countFrames];
+        for (int i = 0; i < countFrames; i++)
+        {
+            v.Frames[i] = BuildFrameNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct PieceNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteVarUInt(Frame);
+        w.WriteBits((uint)Piece, 8);
+        w.WriteBits((uint)Grade, 3);
+        w.WriteBits((uint)Yaw, 4);
+        w.WriteDouble(X);
+        w.WriteDouble(Y);
+        w.WriteDouble(Z);
+        w.WriteBits((uint)Health, 16);
+        w.WriteVarUInt(Body);
+        w.WriteVarUInt(EditLeft);
+        w.WriteBool(Collapsing);
+    }
+
+    public static PieceNet Read(BitReader r)
+    {
+        var v = new PieceNet();
+        v.Id = r.ReadBits64(64);
+        v.Frame = r.ReadVarUInt();
+        v.Piece = (byte)r.ReadBits(8);
+        v.Grade = (byte)r.ReadBits(3);
+        v.Yaw = (byte)r.ReadBits(4);
+        v.X = r.ReadDouble();
+        v.Y = r.ReadDouble();
+        v.Z = r.ReadDouble();
+        v.Health = (ushort)r.ReadBits(16);
+        v.Body = r.ReadVarUInt();
+        v.EditLeft = r.ReadVarUInt();
+        v.Collapsing = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct BuildPieces
+{
+    public const byte TypeId = 97;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countPieces = Pieces == null ? 0 : Math.Min(Pieces.Length, 64);
+        w.WriteBits((uint)countPieces, 7);
+        for (int i = 0; i < countPieces; i++)
+        {
+            Pieces![i].Write(w);
+        }
+    }
+
+    public static BuildPieces Read(BitReader r)
+    {
+        var v = new BuildPieces();
+        int countPieces = (int)r.ReadBits(7);
+        if (countPieces > 64)
+        {
+            r.Fail();
+            countPieces = 0;
+        }
+        v.Pieces = new PieceNet[countPieces];
+        for (int i = 0; i < countPieces; i++)
+        {
+            v.Pieces[i] = PieceNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct BuildIdNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+    }
+
+    public static BuildIdNet Read(BitReader r)
+    {
+        var v = new BuildIdNet();
+        v.Id = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct BuildRemoved
+{
+    public const byte TypeId = 98;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Kind, 2);
+        w.WriteBool(Destroyed);
+        int countIds = Ids == null ? 0 : Math.Min(Ids.Length, 255);
+        w.WriteBits((uint)countIds, 8);
+        for (int i = 0; i < countIds; i++)
+        {
+            Ids![i].Write(w);
+        }
+    }
+
+    public static BuildRemoved Read(BitReader r)
+    {
+        var v = new BuildRemoved();
+        v.Kind = (BuildPartKind)r.ReadBits(2);
+        v.Destroyed = r.ReadBool();
+        int countIds = (int)r.ReadBits(8);
+        if (countIds > 255)
+        {
+            r.Fail();
+            countIds = 0;
+        }
+        v.Ids = new BuildIdNet[countIds];
+        for (int i = 0; i < countIds; i++)
+        {
+            v.Ids[i] = BuildIdNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct DoorNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteBits64(Frame, 64);
+        w.WriteBits((uint)Door, 8);
+        w.WriteBool(Flip);
+        w.WriteBool(Open);
+        w.WriteBits((uint)Health, 16);
+        w.WriteBits((uint)Lock, 2);
+        w.WriteBits64(LockId, 64);
+        w.WriteBool(Locked);
+        w.WriteBool(CanUse);
+        w.WriteVarUInt(Body0);
+        w.WriteVarUInt(Body1);
+    }
+
+    public static DoorNet Read(BitReader r)
+    {
+        var v = new DoorNet();
+        v.Id = r.ReadBits64(64);
+        v.Frame = r.ReadBits64(64);
+        v.Door = (byte)r.ReadBits(8);
+        v.Flip = r.ReadBool();
+        v.Open = r.ReadBool();
+        v.Health = (ushort)r.ReadBits(16);
+        v.Lock = (LockKind)r.ReadBits(2);
+        v.LockId = r.ReadBits64(64);
+        v.Locked = r.ReadBool();
+        v.CanUse = r.ReadBool();
+        v.Body0 = r.ReadVarUInt();
+        v.Body1 = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct BuildDoors
+{
+    public const byte TypeId = 99;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countDoors = Doors == null ? 0 : Math.Min(Doors.Length, 32);
+        w.WriteBits((uint)countDoors, 6);
+        for (int i = 0; i < countDoors; i++)
+        {
+            Doors![i].Write(w);
+        }
+    }
+
+    public static BuildDoors Read(BitReader r)
+    {
+        var v = new BuildDoors();
+        int countDoors = (int)r.ReadBits(6);
+        if (countDoors > 32)
+        {
+            r.Fail();
+            countDoors = 0;
+        }
+        v.Doors = new DoorNet[countDoors];
+        for (int i = 0; i < countDoors; i++)
+        {
+            v.Doors[i] = DoorNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ClaimNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteBits64(Support, 64);
+        w.WriteDouble(X);
+        w.WriteDouble(Y);
+        w.WriteDouble(Z);
+        w.WriteBits((uint)Yaw, 4);
+        w.WriteBits((uint)Health, 16);
+        w.WriteBool(Authorised);
+        w.WriteVarUInt(Body);
+        w.WriteVarUInt(ProtectedMinutes);
+    }
+
+    public static ClaimNet Read(BitReader r)
+    {
+        var v = new ClaimNet();
+        v.Id = r.ReadBits64(64);
+        v.Support = r.ReadBits64(64);
+        v.X = r.ReadDouble();
+        v.Y = r.ReadDouble();
+        v.Z = r.ReadDouble();
+        v.Yaw = (byte)r.ReadBits(4);
+        v.Health = (ushort)r.ReadBits(16);
+        v.Authorised = r.ReadBool();
+        v.Body = r.ReadVarUInt();
+        v.ProtectedMinutes = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct BuildClaims
+{
+    public const byte TypeId = 100;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countClaims = Claims == null ? 0 : Math.Min(Claims.Length, 16);
+        w.WriteBits((uint)countClaims, 5);
+        for (int i = 0; i < countClaims; i++)
+        {
+            Claims![i].Write(w);
+        }
+    }
+
+    public static BuildClaims Read(BitReader r)
+    {
+        var v = new BuildClaims();
+        int countClaims = (int)r.ReadBits(5);
+        if (countClaims > 16)
+        {
+            r.Fail();
+            countClaims = 0;
+        }
+        v.Claims = new ClaimNet[countClaims];
+        for (int i = 0; i < countClaims; i++)
+        {
+            v.Claims[i] = ClaimNet.Read(r);
         }
         return v;
     }

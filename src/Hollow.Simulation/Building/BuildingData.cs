@@ -349,6 +349,21 @@ public sealed class BuildingData
 
     public DoorDef? Door(string key) => _doors.TryGetValue(key, out DoorDef? d) ? d : null;
 
+    /// <summary>A door by its place in building.json's list (the wire and saves use it), or null.</summary>
+    public DoorDef? Door(int index) => index >= 0 && index < Doors.Count ? Doors[index] : null;
+
+    public int IndexOf(DoorDef door)
+    {
+        for (int i = 0; i < Doors.Count; i++)
+        {
+            if (Doors[i] == door)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     public string MaterialName(string key) => _materialNames.TryGetValue(key, out string? name) ? name : key;
 
     /// <summary>A grade by key, or null.</summary>
