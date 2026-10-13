@@ -31,6 +31,7 @@ public partial class CharacterLab : Node3D
     private float _aimPitch;
     private bool _firstPerson;
     private bool _aiming;
+    private Vector3? _viewmodelOrbit;
     private float _time;
     private float _jumpClock;
 
@@ -58,12 +59,13 @@ public partial class CharacterLab : Node3D
     public override void _Ready()
     {
         BuildWorld();
-        _character = new CharacterView { Name = "Character" };
+        BodyType body = Option("body", "male") == "female" ? BodyType.Female : BodyType.Male;
+        _character = new CharacterView { Name = "Character", Body = body };
         AddChild(_character);
         _camera = new Camera3D { Name = "Camera", Fov = 50f, Near = 0.03f, Far = 800f, CullMask = 1 | ViewmodelView.RenderLayer };
         AddChild(_camera);
         _camera.MakeCurrent();
-        _viewmodel = new ViewmodelView { Name = "Viewmodel" };
+        _viewmodel = new ViewmodelView { Name = "Viewmodel", Body = body };
         _camera.AddChild(_viewmodel);
         BuildInterface();
 
@@ -77,7 +79,18 @@ public partial class CharacterLab : Node3D
         _distance = (float)Number("distance", _distance);
         _height = (float)Number("height", _height);
         _firstPerson = _options.ContainsKey("fp");
+        if (_options.TryGetValue("vm-orbit", out string? orbit))
+        {
+            // Inspect the first-person hands from another side: yaw, pitch (degrees) and distance (metres) round them.
+            string[] v = orbit.Split(',');
+            _viewmodelOrbit = new Vector3(float.Parse(v[0], CultureInfo.InvariantCulture),
+                float.Parse(v[1], CultureInfo.InvariantCulture), float.Parse(v[2], CultureInfo.InvariantCulture));
+        }
         _aiming = _options.ContainsKey("ads");
+        if (_options.TryGetValue("blink", out string? blink))
+        {
+            _character.BlinkOverride = float.Parse(blink, CultureInfo.InvariantCulture);
+        }
         if (_options.TryGetValue("lod", out string? lod))
         {
             _character.ForcedLod = int.Parse(lod, CultureInfo.InvariantCulture);
@@ -381,9 +394,18 @@ public partial class CharacterLab : Node3D
         if (_firstPerson)
         {
             Vector3 up = frame.Up;
-            float eye = frame.Stance == CharacterStance.Crouch ? 1.02f : CharacterAssets.EyeHeight;
+            float eye = frame.Stance == CharacterStance.Crouch ? 1.02f : CharacterAssets.For(_character.Body).EyeHeight;
             Basis look = CharacterFrame.BasisOf(up, frame.Yaw) * new Basis(Vector3.Right, _aimPitch);
-            _camera.GlobalTransform = new Transform3D(look, frame.Position + up * eye);
+            var eyes = new Transform3D(look, frame.Position + up * eye);
+            _camera.GlobalTransform = eyes;
+            if (_viewmodelOrbit is Vector3 o)
+            {
+                _viewmodel.TopLevel = true;
+                _viewmodel.GlobalTransform = eyes;
+                Basis turn = look * Basis.FromEuler(new Vector3(Mathf.DegToRad(o.Y), Mathf.DegToRad(o.X), 0f));
+                Vector3 hands = eyes * new Vector3(0.1f, -0.16f, -0.36f);
+                _camera.GlobalTransform = new Transform3D(turn, hands + turn * new Vector3(0f, 0f, o.Z));
+            }
             _viewmodel.Hold(frame.Held, frame.HeldItem);
             Vector3 local = look.Inverse() * frame.Velocity;
             _viewmodel.Apply(new ViewmodelFrame
@@ -402,6 +424,14 @@ public partial class CharacterLab : Node3D
             _character.Visible = true;
             _viewmodel.Hold(HeldKind.Unarmed);
             Vector3 focus = _character.GlobalPosition + Vector3.Up * _height;
+            if (_character.IsDead)
+            {
+                // Follow the body, which the ragdoll carries away from where the character stood.
+                if (_character.Skeleton.FindChild("Body_pelvis", true, false) is Node3D pelvis)
+                {
+                    focus = pelvis.GlobalPosition + Vector3.Up * (_height - 0.95f);
+                }
+            }
             float yaw = Mathf.DegToRad(_yaw), pitch = Mathf.DegToRad(_pitch);
             Vector3 offset = new Vector3(MathF.Sin(yaw) * MathF.Cos(pitch), MathF.Sin(pitch), MathF.Cos(yaw) * MathF.Cos(pitch)) * _distance;
             _camera.Fov = 50f;

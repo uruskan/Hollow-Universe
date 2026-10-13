@@ -18,7 +18,8 @@ namespace Hollow.Bots;
 /// <item><c>loadtest --count 100 --duration 60</c>: a server in this process plus the bots; prints tick time,
 /// bandwidth per client and prediction error (GROUND.md §5, measured).</item>
 /// </list>
-/// Both take <c>--script wander|circle|jump|mixed</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>.
+/// Both take <c>--script wander|circle|jump|mixed|survive|fight</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>; the load
+/// test takes <c>--kit</c> (a loot table every new character gets; with <c>fight</c>, every new life too).
 /// </summary>
 public static class Program
 {
@@ -80,6 +81,7 @@ public static class Program
                 $"{all.Max(c => c.Stats.PredictionErrorWorst):R} {all.Sum(c => c.Stats.Corrections)} {all.Average(c => c.Stats.RoundTripMs):R} " +
                 $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
                 $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights} {all.Sum(c => c.Stats.Teleports)} " +
+                $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)} " +
                 $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building?.PieceCount ?? 0)}"));
             return 0;
         }
@@ -110,7 +112,11 @@ public static class Program
     {
         Console.WriteLine($"Load test: a server and {count} bots ({script}) in another process, {warmup:0} s warm-up, {duration:0} s measured" +
             (conditions.IsNone ? "" : $", bots through a relay: {conditions}"));
-        using var server = new GameServer(new ServerOptions { Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, Log = _ => { } });
+        // Fighting bots get their kit with every life, so the firefights go on after the first deaths.
+        using var server = new GameServer(new ServerOptions
+        {
+            Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, KitEveryLife = script == BotScript.Fight, Log = _ => { },
+        });
         server.StartThread();
 
         string self = Environment.ProcessPath!;
@@ -149,10 +155,12 @@ public static class Program
         bots.BeginOutputReadLine();
 
         System.Threading.Thread.Sleep(TimeSpan.FromSeconds(warmup));
+        TimeSpan stepBefore = TimeSpan.Zero;
         Dictionary<string, (long Bytes, long Packets, long BytesIn, long PacketsIn, long Applied, long Missing)> before =
             server.Inspect(sv =>
             {
                 sv.Ticks.ResetTotals();
+                stepBefore = sv.StepTime;
                 return sv.Players.ToDictionary(p => p.Name, p => Traffic(p));
             });
         string countersBefore = server.Inspect(sv => sv.Counters.ToString());
@@ -160,6 +168,7 @@ public static class Program
         var measured = server.Inspect(sv => new
         {
             Ticks = sv.Ticks.Ticks,
+            StepMs = (sv.StepTime - stepBefore).TotalMilliseconds,
             Average = sv.Ticks.TotalAverageMs,
             P99 = sv.Ticks.TotalPercentileMs(99),
             Max = sv.Ticks.TotalMaxMs,
@@ -174,6 +183,11 @@ public static class Program
             Placed = sv.PiecesPlaced,
             Counters = sv.Counters.ToString(),
             Intents = sv.Players.Sum(p => p.IntentsAccepted),
+            GunActions = sv.Players.Sum(p => p.GunActions),
+            BulletMs = sv.Zone.BulletTime.TotalMilliseconds,
+            GunResults = sv.Zone.GunResults.ToArray(),
+            BulletSteps = sv.Zone.BulletStepsFlown,
+            GunLimited = sv.Players.Sum(p => p.GunRateLimited),
             Refused = sv.Players.Sum(p => p.IntentsRefused),
             Limited = sv.Players.Sum(p => p.IntentsRateLimited),
             OnDemand = sv.Zone.Physics.TilesBuiltOnDemand,
@@ -209,7 +223,8 @@ public static class Program
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"Server tick ({measured.Ticks} ticks): {measured.Average:0.00} ms average, {measured.P99:0.0} ms 99th percentile, " +
-            $"{measured.Max:0.0} ms worst, {measured.Over} over 33.3 ms; {measured.Tiles} ground tiles, {measured.OnDemand} built on demand\n" +
+            $"{measured.Max:0.0} ms worst, {measured.Over} over 33.3 ms; {measured.Tiles} ground tiles, {measured.OnDemand} built on demand; " +
+            $"the zone's step {measured.StepMs / Math.Max(1, measured.Ticks):0.00} ms of it on average\n" +
             $"Bandwidth per client, server to client: {measured.Players.Average(p => p.OutKbit):0.0} kbit/s average, " +
             $"{measured.Players.Max(p => p.OutKbit):0.0} most (UDP and IP headers included)\n" +
             $"Bandwidth per client, client to server: {measured.Players.Average(p => p.InKbit):0.0} kbit/s average\n" +
@@ -219,6 +234,16 @@ public static class Program
             $"Prediction: {F(1):0} reconciliations, mean error {meanError * 1000:0.000} mm, worst {F(3) * 1000:0.0} mm, " +
             $"{F(4):0} corrections; round trip {F(5):0} ms; {F(10):0} clock jumps\n" +
             $"Bots: {F(7):0} playing, {F(8):0} disconnected"));
+        if (r.Length > 18)
+        {
+            string refusals = string.Join(", ", Enumerable.Range(1, 15).Where(i => measured.GunResults[i] > 0)
+                .Select(i => $"{(Hollow.Simulation.Combat.GunResult)i} {measured.GunResults[i]}"));
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"Guns (bots): {F(15):0} bursts, {F(16):0} reloads asked for, {F(17):0} downed players helped up, {F(18):0} gun actions unanswered at the end; " +
+                $"server: {measured.GunActions} gun actions arrived ({measured.GunLimited} over budget); bullets flown in {measured.BulletMs / Math.Max(1, measured.Ticks + warmup * 30):0.00} ms a tick " +
+                $"on average ({measured.BulletSteps} steps, {measured.BulletMs * 1000 / Math.Max(1, measured.BulletSteps):0.0} µs a step); " +
+                $"answered {measured.GunResults[0]} accepted, refused: {(refusals.Length > 0 ? refusals : "none")} (whole run)"));
+        }
         if (r.Length > 13)
         {
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
@@ -227,12 +252,12 @@ public static class Program
                 $"Intents: {measured.Intents} accepted, {measured.Refused} refused ({measured.Limited} over budget); " +
                 $"{measured.Things} things in the world, {measured.Props} solid props in the physics"));
         }
-        if (r.Length > 18)
+        if (r.Length > 22)
         {
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"Building (whole run): {measured.Placed} pieces placed; the world has {measured.Pieces} pieces in {measured.Structures} structures, " +
-                $"{measured.Doors} doors, {measured.Claims} claim devices; bots: {F(15):0} building intents done, {F(16):0} refused, " +
-                $"{F(17):0} door toggles; a bot's copy holds {F(18):0} pieces"));
+                $"{measured.Doors} doors, {measured.Claims} claim devices; bots: {F(19):0} building intents done, {F(20):0} refused, " +
+                $"{F(21):0} door toggles; a bot's copy holds {F(22):0} pieces"));
         }
         return F(7) == count ? 0 : 2;
     }

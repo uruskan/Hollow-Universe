@@ -67,6 +67,14 @@ public sealed class RemoteEntity
     /// <summary>Logged off and asleep in the world (lying down, lootable).</summary>
     public bool Sleeping { get; private set; }
 
+    /// <summary>Down (wounded, G4): crawling; the interact key helps them up.</summary>
+    public bool Wounded => Stance == Stance.Crawling && (Flags & MoveFlags.Dead) == 0;
+
+    /// <summary>Aiming a gun down its sights, and the held gun's attachments (bit i: weapons.json's attachment i), G4.</summary>
+    public bool Aiming { get; private set; }
+
+    public byte HeldMods { get; private set; }
+
     /// <summary>What it wears (item IDs), from the server's look messages.</summary>
     public ushort[] Wear { get; set; } = System.Array.Empty<ushort>();
 
@@ -145,5 +153,7 @@ public sealed class RemoteEntity
         ActionCount = discrete.ActionCount;
         Action = discrete.Action;
         Sleeping = discrete.Sleeping;
+        Aiming = discrete.Aiming;
+        HeldMods = discrete.HeldMods;
     }
 }

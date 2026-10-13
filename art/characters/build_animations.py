@@ -72,6 +72,10 @@ CLIPS = {
     "sit_idle": ("ual1", "Sitting_Idle_Loop", True),
 }
 LOCOMOTION = ("walk", "jog", "sprint", "crouch_walk", "carry_walk")
+# Loops re-timed so the planted foot sweeps back at the speed the client plays them at (CharacterAnimator's blend
+# points): the stance phases are stretched or squeezed and the rest of the cycle takes the time left. Without it a
+# hand-keyed run's foot sweeps back twice as fast as the body moves during its short contact, and slides.
+PLANTED_SPEED = {"jog": 2.8, "sprint": 5.5, "crouch_walk": 1.3}
 
 # UAL 1 uses Rigify deform names; UAL 2 uses UE-style names like ours.
 UAL1_NAMES = {
@@ -96,7 +100,10 @@ ARM_CHAIN = ("clavicle_", "upperarm_", "lowerarm_", "hand_", "thumb_", "index_",
 def main():
     a = H.args()
     out = os.path.abspath(a.get("out", H.CHARACTERS))
-    cache = os.path.join(H.CACHE, "human_male.blend")
+    # The female's clips (-- --body female) are retargeted onto her own rig: animations_female.glb.
+    which = a.get("body", "male")
+    suffix = "" if which == "male" else "_" + which
+    cache = os.path.join(H.CACHE, "human_%s.blend" % which)
     bpy.ops.wm.open_mainfile(filepath=cache)
     scene = bpy.context.scene
     scene.render.fps = 30
@@ -142,15 +149,15 @@ def main():
     meshes = [o for o in bpy.data.objects if o.type == 'MESH']
     for m in meshes:
         bpy.data.objects.remove(m)
-    H.export_glb(os.path.join(out, "animations.glb"), [rig], animations=True)
-    H.write_json(os.path.join(out, "animations.json"), {
+    H.export_glb(os.path.join(out, "animations%s.glb" % suffix), [rig], animations=True)
+    H.write_json(os.path.join(out, "animations%s.json" % suffix), {
         "source": "Quaternius Universal Animation Library 1 and 2, Standard (CC0), retargeted by "
                   "art/characters/build_animations.py",
         "fps": scene.render.fps,
         "clips": meta,
     })
     if a.get("sheet"):
-        contact_sheet(a["sheet"], os.path.join(out, "animations.glb"), list(meta.keys()), meta)
+        contact_sheet(a["sheet"], os.path.join(out, "animations%s.glb" % suffix), list(meta.keys()), meta)
 
 
 def import_library(path):
@@ -318,11 +325,17 @@ def retarget(rig, source_rig, source_action, offsets, names, clip, loops):
         for side in ("l", "r"):
             foot_track[side].append(rig.matrix_world @ pose["ball_" + side].translation)
 
+    warped = None
+    if clip in PLANTED_SPEED:
+        keys, warped = warp_to_speed(keys, foot_track, scene.render.fps, PLANTED_SPEED[clip])
     action = bpy.data.actions.new(clip)
     action.use_fake_user = True
     write_keys(rig, action, frames, keys)
     info = {"loop": loops, "frames": len(frames), "length": round((last - first) / scene.render.fps, 4)}
-    if clip in LOCOMOTION:
+    if warped is not None:
+        info["ground_speed"] = PLANTED_SPEED[clip]
+        info["stance"] = warped
+    elif clip in LOCOMOTION:
         info["ground_speed"] = round(ground_speed(foot_track, scene.render.fps), 3)
     H.log("clip %-14s %3d frames %s" % (clip, len(frames), info.get("ground_speed", "")))
     return action, info
@@ -360,6 +373,51 @@ def write_keys(rig, action, frames, keys):
     for fc in channelbag.fcurves:
         for kp in fc.keyframe_points:
             kp.interpolation = 'LINEAR'
+
+
+def warp_to_speed(keys, track, fps, speed, contact=0.07):
+    """Re-times a loop (keys per frame, the last frame closing the cycle) so that whenever a foot is planted (both
+    ends of a frame interval within `contact` metres of its lowest) it sweeps back at `speed`; the other intervals
+    share the time left, so the cycle keeps its length. Returns the new keys (same frames) and the stance share of
+    the cycle."""
+    from mathutils import Quaternion
+    n = len(track["l"])
+    period = (n - 1) / fps
+    travel = [0.0] * (n - 1)
+    for side in ("l", "r"):
+        z = [p.z for p in track[side]]
+        y = [p.y for p in track[side]]
+        low = min(z) + contact
+        for i in range(n - 1):
+            back = y[i + 1] - y[i]          # the character faces −Y: a planted foot moves to +Y
+            if max(z[i], z[i + 1]) < low and back > 0:
+                travel[i] = max(travel[i], back)
+    stance = [t / speed for t in travel]
+    stance_time = sum(stance)
+    if stance_time > 0.85 * period:
+        stance = [t * 0.85 * period / stance_time for t in stance]
+        stance_time = 0.85 * period
+    others = [i for i in range(n - 1) if travel[i] == 0.0]
+    share = (period - stance_time) / max(1, len(others))
+    durations = [stance[i] if travel[i] > 0 else share for i in range(n - 1)]
+    # Source time (in frames) at each output frame.
+    starts = [0.0]
+    for d in durations:
+        starts.append(starts[-1] + d)
+    warped = {name: {"rot": [], "loc": []} for name in keys}
+    for k in range(n):
+        t = min(k / fps, period)
+        i = 0
+        while i < n - 2 and starts[i + 1] <= t:
+            i += 1
+        u = 0.0 if durations[i] <= 0 else min(1.0, max(0.0, (t - starts[i]) / durations[i]))
+        for name, k_ in keys.items():
+            q0, q1 = Quaternion(k_["rot"][i]), Quaternion(k_["rot"][i + 1])
+            if q0.dot(q1) < 0:
+                q1 = -q1
+            warped[name]["rot"].append(q0.slerp(q1, u))
+            warped[name]["loc"].append(k_["loc"][i].lerp(k_["loc"][i + 1], u))
+    return warped, round(stance_time / period, 3)
 
 
 def ground_speed(track, fps):

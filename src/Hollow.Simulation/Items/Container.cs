@@ -5,7 +5,10 @@ using Hollow.Simulation.Content;
 
 namespace Hollow.Simulation.Items;
 
-/// <summary>Some of one item in a slot. Empty when <see cref="Item"/> is 0.</summary>
+/// <summary>
+/// Some of one item in a slot. Empty when <see cref="Item"/> is 0. A firearm (G4) also carries its magazine and its
+/// attachments, so they go wherever it goes: moved, dropped, into a corpse, saved.
+/// </summary>
 public struct ItemStack : IEquatable<ItemStack>
 {
     public ItemStack(ushort item, int count, ushort condition = 0)
@@ -23,15 +26,63 @@ public struct ItemStack : IEquatable<ItemStack>
     /// <summary>Uses left before it breaks (items with condition); 0 otherwise.</summary>
     public ushort Condition;
 
+    /// <summary>A firearm's magazine: rounds loaded, and their kind (an item ID; it stays when the magazine runs dry).</summary>
+    public ushort Loaded;
+
+    public ushort LoadedAmmo;
+
+    /// <summary>A firearm's attachments, by slot (item IDs, 0 for none).</summary>
+    public ushort Sight;
+
+    public ushort Muzzle;
+
+    public ushort Rail;
+
     public readonly bool IsEmpty => Item == 0 || Count <= 0;
 
     public static ItemStack Of(ItemDef item, int count) => new(item.Id, count, (ushort)Math.Clamp(item.MaxCondition, 0, ushort.MaxValue));
 
-    public readonly bool Equals(ItemStack other) => Item == other.Item && Count == other.Count && Condition == other.Condition;
+    /// <summary>The same stack with another count (a split, a part moved): a firearm keeps its magazine and attachments.</summary>
+    public readonly ItemStack WithCount(int count)
+    {
+        ItemStack s = this;
+        s.Count = count;
+        return s;
+    }
+
+    /// <summary>Whether it carries anything besides item, count and condition (a magazine, an attachment).</summary>
+    public readonly bool HasWeaponState => Loaded != 0 || LoadedAmmo != 0 || Sight != 0 || Muzzle != 0 || Rail != 0;
+
+    /// <summary>The attachment in a slot (0: none).</summary>
+    public readonly ushort Mod(AttachmentSlot slot) => slot switch
+    {
+        AttachmentSlot.Sight => Sight,
+        AttachmentSlot.Muzzle => Muzzle,
+        _ => Rail,
+    };
+
+    public void SetMod(AttachmentSlot slot, ushort item)
+    {
+        switch (slot)
+        {
+            case AttachmentSlot.Sight:
+                Sight = item;
+                break;
+            case AttachmentSlot.Muzzle:
+                Muzzle = item;
+                break;
+            default:
+                Rail = item;
+                break;
+        }
+    }
+
+    public readonly bool Equals(ItemStack other) => Item == other.Item && Count == other.Count && Condition == other.Condition &&
+        Loaded == other.Loaded && LoadedAmmo == other.LoadedAmmo && Sight == other.Sight && Muzzle == other.Muzzle && Rail == other.Rail;
 
     public override readonly bool Equals(object? obj) => obj is ItemStack s && Equals(s);
 
-    public override readonly int GetHashCode() => HashCode.Combine(Item, Count, Condition);
+    public override readonly int GetHashCode() => HashCode.Combine(Item, Count, Condition, Loaded, LoadedAmmo, Sight, Muzzle, Rail);
 
     public static bool operator ==(ItemStack a, ItemStack b) => a.Equals(b);
 

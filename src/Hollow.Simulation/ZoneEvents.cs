@@ -27,6 +27,12 @@ public enum ZoneEventKind : byte
 
     /// <summary>To everyone near: a projectile stopped (position).</summary>
     ProjectileEnded,
+
+    /// <summary>To a player: they were knocked down, wounded (<see cref="ZoneEvent.Text"/>: how; <see cref="ZoneEvent.Other"/>: by whom).</summary>
+    Wounded,
+
+    /// <summary>To a player: they got up again (<see cref="ZoneEvent.Other"/>: who helped them up, or none).</summary>
+    Recovered,
 }
 
 /// <summary>Why items arrived, for the UI's notifications.</summary>
@@ -48,6 +54,9 @@ public enum HitTarget : byte
     Natural,
     Deployable,
     Ground,
+
+    /// <summary>Nothing: a projectile that ran out of range or time in the air.</summary>
+    Nothing,
 
     /// <summary>A building piece, door or claim device (G3).</summary>
     Building,
@@ -76,8 +85,14 @@ public struct ZoneEvent
     public int Count;
     public float Amount;
 
-    /// <summary>Killed (hits), on the weak spot (gathering).</summary>
+    /// <summary>Killed (hits), on the weak spot (gathering), silenced (a bullet launched).</summary>
     public bool Flag;
+
+    /// <summary>The hit knocked the victim down (wounded them), G4.</summary>
+    public bool Downed;
+
+    /// <summary>A bullet's shot: the shooter's gun action sequence number (0 for arrows), so their client knows it.</summary>
+    public uint Seq;
 
     public Vector3 Position;
     public Vector3 Velocity;

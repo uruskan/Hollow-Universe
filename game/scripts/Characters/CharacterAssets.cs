@@ -23,9 +23,62 @@ public sealed class ClipInfo
 }
 
 /// <summary>
-/// The character files (GROUND.md §4.8, §9), loaded once and shared by every <see cref="CharacterView"/>: the skeleton,
-/// the body and clothing meshes with their skins, the materials, and the animation library. Built by the Blender
-/// scripts in art/characters.
+/// One body's files (GROUND.md §4.8, §9), loaded once and shared by every character of that body: the skeleton, the
+/// body and clothing meshes with their skins, and the animation library retargeted onto that skeleton.
+/// </summary>
+public sealed class BodyAssets
+{
+    private readonly Skeleton3D _skeleton;
+    private readonly Dictionary<string, MeshPart> _parts;
+    private readonly Dictionary<string, ClipInfo> _clips;
+
+    internal BodyAssets(BodyType type, Skeleton3D skeleton, Dictionary<string, MeshPart> parts,
+        Dictionary<string, ClipInfo> clips, AnimationLibrary library, float eyeHeight)
+    {
+        Type = type;
+        _skeleton = skeleton;
+        _parts = parts;
+        _clips = clips;
+        Library = library;
+        EyeHeight = eyeHeight;
+    }
+
+    public BodyType Type { get; }
+
+    /// <summary>Eye height above the feet in the rest pose.</summary>
+    public float EyeHeight { get; }
+
+    public AnimationLibrary Library { get; }
+
+    public IReadOnlyDictionary<string, ClipInfo> Clips => _clips;
+
+    public IReadOnlyDictionary<string, MeshPart> Meshes => _parts;
+
+    public MeshPart? Part(string name) => _parts.TryGetValue(name, out MeshPart? p) ? p : null;
+
+    /// <summary>A new skeleton with the body's bones at rest.</summary>
+    public Skeleton3D NewSkeleton()
+    {
+        var skeleton = new Skeleton3D { Name = "Skeleton" };
+        int count = _skeleton.GetBoneCount();
+        for (int i = 0; i < count; i++)
+        {
+            skeleton.AddBone(_skeleton.GetBoneName(i));
+        }
+        for (int i = 0; i < count; i++)
+        {
+            skeleton.SetBoneParent(i, _skeleton.GetBoneParent(i));
+            skeleton.SetBoneRest(i, _skeleton.GetBoneRest(i));
+        }
+        skeleton.ResetBonePoses();
+        return skeleton;
+    }
+}
+
+/// <summary>
+/// The character files (GROUND.md §4.8, §9), by body, loaded on first use: human_male.glb with clothing.glb and
+/// animations.glb, or human_female.glb with clothing_female.glb and animations_female.glb. Built by the Blender
+/// scripts in art/characters. The members without a body are the male body's.
 /// </summary>
 public static class CharacterAssets
 {
@@ -34,60 +87,59 @@ public static class CharacterAssets
     /// <summary>Camera distance at which each level of detail ends (metres). Beyond the last, characters are not drawn.</summary>
     public static readonly float[] LodEnd = { 9f, 28f, 450f };
 
-    private static Skeleton3D? _skeleton;
-    private static readonly Dictionary<string, MeshPart> Parts = new();
-    private static readonly Dictionary<string, ClipInfo> ClipTable = new();
+    private static readonly Dictionary<BodyType, BodyAssets> Bodies = new();
     private static readonly Dictionary<(string, bool), Material> Materials = new();
-    private static AnimationLibrary? _library;
 
-    public static bool Loaded => _skeleton != null;
+    public static bool Loaded => Bodies.ContainsKey(BodyType.Male);
 
-    /// <summary>Eye height above the feet in the rest pose (from human_male.json).</summary>
-    public static float EyeHeight { get; private set; } = 1.68f;
+    /// <summary>The male body's eye height above the feet in the rest pose.</summary>
+    public static float EyeHeight => For(BodyType.Male).EyeHeight;
 
-    public static AnimationLibrary Library => _library ?? throw new InvalidOperationException("CharacterAssets.Load first");
+    public static AnimationLibrary Library => For(BodyType.Male).Library;
 
-    public static IReadOnlyDictionary<string, ClipInfo> Clips => ClipTable;
+    public static IReadOnlyDictionary<string, ClipInfo> Clips => For(BodyType.Male).Clips;
 
-    public static IReadOnlyDictionary<string, MeshPart> Meshes => Parts;
+    public static IReadOnlyDictionary<string, MeshPart> Meshes => For(BodyType.Male).Meshes;
 
-    public static void Load()
+    public static void Load() => For(BodyType.Male);
+
+    /// <summary>Whether a body's files are there (the female body is optional).</summary>
+    public static bool Has(BodyType body) => ResourceLoader.Exists(Folder + Stem(body) + ".glb");
+
+    /// <summary>A body's files, loaded on first use (the male body if the one asked for is missing).</summary>
+    public static BodyAssets For(BodyType body)
     {
-        if (Loaded)
+        if (Bodies.TryGetValue(body, out BodyAssets? assets))
         {
-            return;
+            return assets;
+        }
+        if (body != BodyType.Male && !Has(body))
+        {
+            return For(BodyType.Male);
         }
         ulong start = Time.GetTicksUsec();
-        LoadModel(Folder + "human_male.glb", takeSkeleton: true);
-        if (ResourceLoader.Exists(Folder + "clothing.glb"))
+        string suffix = body == BodyType.Male ? "" : "_" + body.ToString().ToLowerInvariant();
+        var parts = new Dictionary<string, MeshPart>();
+        Skeleton3D skeleton = LoadModel(Folder + Stem(body) + ".glb", parts, takeSkeleton: true)!;
+        if (ResourceLoader.Exists(Folder + "clothing" + suffix + ".glb"))
         {
-            LoadModel(Folder + "clothing.glb", takeSkeleton: false);
+            LoadModel(Folder + "clothing" + suffix + ".glb", parts, takeSkeleton: false);
         }
-        ReadBodyFacts();
-        LoadAnimations();
-        GD.Print($"[characters] loaded {Parts.Count} meshes, {ClipTable.Count} clips in {(Time.GetTicksUsec() - start) / 1000.0:0} ms");
+        using JsonDocument facts = JsonDocument.Parse(FileAccess.GetFileAsString(Folder + Stem(body) + ".json"));
+        float eye = facts.RootElement.GetProperty("eye_height_m").GetSingle();
+        string animations = ResourceLoader.Exists(Folder + "animations" + suffix + ".glb") ? "animations" + suffix : "animations";
+        var clips = new Dictionary<string, ClipInfo>();
+        AnimationLibrary library = LoadAnimations(animations, clips);
+        assets = new BodyAssets(body, skeleton, parts, clips, library, eye);
+        Bodies[body] = assets;
+        GD.Print($"[characters] {body}: loaded {parts.Count} meshes, {clips.Count} clips in {(Time.GetTicksUsec() - start) / 1000.0:0} ms");
+        return assets;
     }
 
-    /// <summary>A new skeleton with the character's bones at rest.</summary>
-    public static Skeleton3D NewSkeleton()
-    {
-        Skeleton3D template = _skeleton ?? throw new InvalidOperationException("CharacterAssets.Load first");
-        var skeleton = new Skeleton3D { Name = "Skeleton" };
-        int count = template.GetBoneCount();
-        for (int i = 0; i < count; i++)
-        {
-            skeleton.AddBone(template.GetBoneName(i));
-        }
-        for (int i = 0; i < count; i++)
-        {
-            skeleton.SetBoneParent(i, template.GetBoneParent(i));
-            skeleton.SetBoneRest(i, template.GetBoneRest(i));
-        }
-        skeleton.ResetBonePoses();
-        return skeleton;
-    }
+    /// <summary>A new skeleton with the male body's bones at rest.</summary>
+    public static Skeleton3D NewSkeleton() => For(BodyType.Male).NewSkeleton();
 
-    public static MeshPart? Part(string name) => Parts.TryGetValue(name, out MeshPart? p) ? p : null;
+    public static MeshPart? Part(string name) => For(BodyType.Male).Part(name);
 
     /// <summary>The shared material for a surface name the art scripts gave (skin, underwear, eye, hair, a garment ...).</summary>
     public static Material MaterialFor(string surface, bool viewmodel = false)
@@ -101,9 +153,11 @@ public static class CharacterAssets
         return m;
     }
 
+    private static string Stem(BodyType body) => "human_" + body.ToString().ToLowerInvariant();
+
     // ---------------------------------------------------------------- loading
 
-    private static void LoadModel(string path, bool takeSkeleton)
+    private static Skeleton3D? LoadModel(string path, Dictionary<string, MeshPart> parts, bool takeSkeleton)
     {
         var scene = GD.Load<PackedScene>(path);
         Node root = scene.Instantiate();
@@ -120,7 +174,7 @@ public static class CharacterAssets
                 continue;
             }
             string name = mi.Name;
-            Parts[name] = new MeshPart
+            parts[name] = new MeshPart
             {
                 Name = name,
                 Mesh = mi.Mesh,
@@ -128,6 +182,7 @@ public static class CharacterAssets
                 Lods = lods.TryGetValue(name, out int[]? l) ? l : LodsFromName(name),
             };
         }
+        Skeleton3D? kept = null;
         if (takeSkeleton)
         {
             skeleton.GetParent().RemoveChild(skeleton);
@@ -136,9 +191,10 @@ public static class CharacterAssets
                 skeleton.RemoveChild(child);
                 child.Free();
             }
-            _skeleton = skeleton;
+            kept = skeleton;
         }
         root.Free();
+        return kept;
     }
 
     private static int[] LodsFromName(string name)
@@ -170,20 +226,14 @@ public static class CharacterAssets
         return table;
     }
 
-    private static void ReadBodyFacts()
+    private static AnimationLibrary LoadAnimations(string stem, Dictionary<string, ClipInfo> clips)
     {
-        using JsonDocument doc = JsonDocument.Parse(FileAccess.GetFileAsString(Folder + "human_male.json"));
-        EyeHeight = doc.RootElement.GetProperty("eye_height_m").GetSingle();
-    }
-
-    private static void LoadAnimations()
-    {
-        using (JsonDocument doc = JsonDocument.Parse(FileAccess.GetFileAsString(Folder + "animations.json")))
+        using (JsonDocument doc = JsonDocument.Parse(FileAccess.GetFileAsString(Folder + stem + ".json")))
         {
             foreach (JsonProperty clip in doc.RootElement.GetProperty("clips").EnumerateObject())
             {
                 JsonElement c = clip.Value;
-                ClipTable[clip.Name] = new ClipInfo
+                clips[clip.Name] = new ClipInfo
                 {
                     Loop = c.GetProperty("loop").GetBoolean(),
                     Length = c.GetProperty("length").GetSingle(),
@@ -191,8 +241,8 @@ public static class CharacterAssets
                 };
             }
         }
-        Node root = GD.Load<PackedScene>(Folder + "animations.glb").Instantiate();
-        AnimationPlayer player = FindFirst<AnimationPlayer>(root) ?? throw new InvalidOperationException("animations.glb has no animations");
+        Node root = GD.Load<PackedScene>(Folder + stem + ".glb").Instantiate();
+        AnimationPlayer player = FindFirst<AnimationPlayer>(root) ?? throw new InvalidOperationException(stem + ".glb has no animations");
         var library = new AnimationLibrary();
         foreach (StringName libraryName in player.GetAnimationLibraryList())
         {
@@ -213,14 +263,14 @@ public static class CharacterAssets
                     animation.TrackSetPath(t, new NodePath("Skeleton:" + bone));
                 }
                 string clip = name.ToString();
-                animation.LoopMode = ClipTable.TryGetValue(clip, out ClipInfo? info) && info.Loop
+                animation.LoopMode = clips.TryGetValue(clip, out ClipInfo? info) && info.Loop
                     ? Animation.LoopModeEnum.Linear
                     : Animation.LoopModeEnum.None;
                 library.AddAnimation(clip, animation);
             }
         }
         root.Free();
-        _library = library;
+        return library;
     }
 
     private static T? FindFirst<T>(Node node) where T : Node

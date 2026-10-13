@@ -82,6 +82,11 @@ public sealed partial class Zone
                 continue;
             }
             ref Character c = ref Entities.Get<Character>(entity);
+            if (p.Wounded)
+            {
+                RefuseGunActions(p, GunResult.NotAlive);
+                continue;
+            }
             ActionInput input = c.Actions;
             // Taking up another item (or another in the same slot) takes a moment and ends what was going on.
             ushort inSlot = input.HeldSlot < PlayerInventory.BeltSlots ? p.Inventory.Belt[input.HeldSlot].Item : (ushort)0;
@@ -92,6 +97,7 @@ public sealed partial class Zone
                 p.EquipReadyTick = Tick + CharacterTicks.From(content.Survival.EquipSeconds);
                 p.StrikeTick = -1;
                 p.DrawStartTick = -1;
+                EquipGun(p);
             }
             ItemDef? held = p.Held(content);
             if (held?.Melee is { } melee)
@@ -102,6 +108,7 @@ public sealed partial class Zone
             {
                 StepBow(entity, ref c, p, held, bow);
             }
+            StepGun(entity, ref c, p);
         }
     }
 
@@ -202,6 +209,7 @@ public sealed partial class Zone
         if (s.Condition <= 1)
         {
             p.Inventory.Belt.Set(beltSlot, default);
+            ReturnRounds(entity, p, s);
             GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = s.Item, Count = -1, Reason = GainReason.Broke });
             return;
         }
@@ -369,14 +377,17 @@ public sealed partial class Zone
             return 0;
         }
         victim.Vitals.Bleeding += amount * bleed;
-        float taken = Hurt(victimEntity, victim, amount, projectile ? "Shot" : "Struck down", attacker?.Id ?? EntityId.None, attacker?.Name ?? "");
+        bool wasDown = victim.Wounded;
+        // Rust: a projectile to the head kills outright; anything else lethal may knock down instead (G4).
+        float taken = Hurt(victimEntity, victim, amount, projectile ? "Shot" : "Struck down", attacker?.Id ?? EntityId.None, attacker?.Name ?? "",
+            canWound: !(projectile && region == HitRegion.Head));
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.DamageTaken, Player = victim.Id, Other = attacker?.Id ?? EntityId.None, Amount = amount, Region = region, Position = from, Item = weapon });
         if (attacker != null)
         {
             GameEvents.Add(new ZoneEvent
             {
                 Kind = ZoneEventKind.HitConfirmed, Player = attacker.Id, Other = victim.Id, Target = HitTarget.Character, Region = region,
-                Amount = amount, Flag = victim.Dead, Position = from, Item = weapon,
+                Amount = amount, Flag = victim.Dead, Downed = victim.Wounded && !wasDown, Position = from, Item = weapon,
             });
         }
         return taken;
@@ -387,7 +398,7 @@ public sealed partial class Zone
     /// <paramref name="viewTick"/> (interpolated from the history), a tree or outcrop, a deployable, or the ground.
     /// <paramref name="ignore"/> is the attacker.
     /// </summary>
-    public TraceHit Trace(Vector3 origin, Vector3 direction, float length, float thickness, EntityId ignore, double viewTick)
+    public TraceHit Trace(Vector3 origin, Vector3 direction, float length, float thickness, EntityId ignore, double viewTick, bool bullet = false)
     {
         var best = new TraceHit { Distance = -1 };
         void Consider(float t, HitTarget target, ref TraceHit candidate)
@@ -401,10 +412,11 @@ public sealed partial class Zone
             }
         }
 
-        // Characters, where the attacker saw them.
+        // Characters, where the attacker saw them (those nowhere near now are skipped before their history is looked up).
         foreach (EntityId id in History.Characters)
         {
-            if (id == ignore || !History.Sample(id, viewTick, out HitPose pose) ||
+            if (id == ignore || (History.TryNewest(id, out Vector3 now) && Vector3.DistanceSquared(now, origin) > (length + 8f) * (length + 8f)) ||
+                !History.Sample(id, viewTick, out HitPose pose) ||
                 Vector3.DistanceSquared(pose.Feet, origin) > (length + 2.5f) * (length + 2.5f))
             {
                 continue;
@@ -465,7 +477,9 @@ public sealed partial class Zone
         }
 
         // The ground, which hides all behind it.
-        float ground = GroundCrossing(origin, direction, best.Distance >= 0 ? best.Distance : length);
+        float ground = bullet
+            ? BulletGroundCrossing(origin, direction, best.Distance >= 0 ? best.Distance : length)
+            : GroundCrossing(origin, direction, best.Distance >= 0 ? best.Distance : length);
         if (ground >= 0)
         {
             var candidate = new TraceHit();

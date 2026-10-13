@@ -65,6 +65,8 @@ public sealed partial class Zone
         TakeFallDamage();
         StepActions();
         StepProjectiles();
+        StepBullets();
+        StepWounded();
         if (Tick % CharacterMotor.TickRate == 0)
         {
             StepVitals();
@@ -113,6 +115,12 @@ public sealed partial class Zone
             c.State.Health = 0;
             c.State.Flags = MoveFlags.Dead;
         }
+        else if (player.Wounded)
+        {
+            // Saved while down (a server stopped): the player was gone meanwhile, and a wounded player who is gone dies.
+            player.Wounded = false;
+            Die(entity, player, player.WoundedCause.Length > 0 ? player.WoundedCause : "Bled out", player.WoundedBy, player.WoundedByName);
+        }
         else
         {
             SyncHealth(ref c, player);
@@ -136,6 +144,8 @@ public sealed partial class Zone
         p.StrikeTick = -1;
         p.DrawStartTick = -1;
         p.VitalsRevision++;
+        ResetGun(p);
+        p.Wounded = false;
         if (Content.Loot(s.RespawnKitKey) is { } kit)
         {
             var rng = new Rng(Hash64.Of(p.Id.Value, (ulong)Tick));
@@ -152,6 +162,11 @@ public sealed partial class Zone
         if (PlayerOf(entity) is not { } p)
         {
             return;
+        }
+        if (p.Wounded)
+        {
+            // Down and gone: Rust's wounded who log off die.
+            Die(entity, p, p.WoundedCause.Length > 0 ? p.WoundedCause : "Bled out", p.WoundedBy, p.WoundedByName);
         }
         p.Sleeping = true;
         p.Looting = EntityId.None;
@@ -170,6 +185,12 @@ public sealed partial class Zone
         {
             p.Sleeping = false;
             p.VitalsRevision++;
+            // A new connection numbers its gun actions from 1 again, and takes up what it holds afresh.
+            ResetGun(p);
+            p.Gun.LastSeq = 0;
+            p.GunRefusedSeq = 0;
+            p.HeldSlot = ActionInput.NoSlot;
+            p.HeldItem = 0;
         }
     }
 
@@ -200,8 +221,11 @@ public sealed partial class Zone
         }
     }
 
-    /// <summary>Takes health; at 0 the character dies. Returns the health taken.</summary>
-    public float Hurt(Entity entity, Player p, float amount, string cause, EntityId by, string byName)
+    /// <summary>
+    /// Takes health; at 0 the character dies, or is knocked down (wounded, G4) when <paramref name="canWound"/> and the
+    /// hit is small enough (Zone.Wounded.cs). Returns the health taken.
+    /// </summary>
+    public float Hurt(Entity entity, Player p, float amount, string cause, EntityId by, string byName, bool canWound = true)
     {
         if (p.Dead || amount <= 0)
         {
@@ -213,7 +237,14 @@ public sealed partial class Zone
         ref Character c = ref Entities.Get<Character>(entity);
         if (p.Vitals.Health <= 0)
         {
-            Die(entity, p, cause, by, byName);
+            if (canWound && CanBeWounded(p, amount))
+            {
+                Wound(entity, p, cause, by, byName);
+            }
+            else
+            {
+                Die(entity, p, cause, by, byName);
+            }
         }
         else
         {
@@ -249,6 +280,8 @@ public sealed partial class Zone
             AddStatic(corpse);
         }
         p.Dead = true;
+        p.Wounded = false;
+        ResetGun(p);
         p.DeathCause = cause;
         p.KilledBy = byName;
         p.Vitals = default;
@@ -368,8 +401,7 @@ public sealed partial class Zone
     }
 
     /// <summary>The eye of a character now.</summary>
-    public Vector3 EyeOf(in CharacterState state) =>
-        state.Position + Frame.UpAt(state.Position) * (state.Stance == Stance.Crouching ? Tuning.CrouchingEyeHeight : Tuning.StandingEyeHeight);
+    public Vector3 EyeOf(in CharacterState state) => state.Position + Frame.UpAt(state.Position) * Tuning.EyeHeight(state.Stance);
 
     // ---------------------------------------------------------------- crafting
 
@@ -419,7 +451,7 @@ public sealed partial class Zone
                 Feet = c.State.Position,
                 Up = Frame.UpAt(c.State.Position),
                 Yaw = c.Input.Yaw,
-                Pose = p.Sleeping ? Pose.Lying : c.State.Stance == Stance.Crouching ? Pose.Crouching : Pose.Standing,
+                Pose = p.Sleeping || p.Wounded ? Pose.Lying : c.State.Stance == Stance.Crouching ? Pose.Crouching : Pose.Standing,
             });
         }
     }

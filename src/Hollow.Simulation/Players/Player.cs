@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -14,6 +16,9 @@ public struct Vitals
 
     /// <summary>Health still to be lost to bleeding.</summary>
     public float Bleeding;
+
+    /// <summary>Health still to be lost to burning (incendiary rounds, G4); water puts it out.</summary>
+    public float Burning;
 
     /// <summary>Health still to be gained over time (bandages, injectors, food).</summary>
     public float PendingHeal;
@@ -75,6 +80,9 @@ public enum ActionKind : byte
     Swing,
     Draw,
     Shoot,
+
+    /// <summary>A gun reload began (G4).</summary>
+    Reload,
 }
 
 /// <summary>
@@ -144,7 +152,40 @@ public sealed class Player
     /// <summary>Raised when the vitals change in a way the owner should see (whole units).</summary>
     public uint VitalsRevision { get; set; }
 
+    // ---------------------------------------------------------------- G4: the gun in hand
+
+    /// <summary>The gun in hand: cadence, recoil, reload, the last gun action applied (its magazine is in the item).</summary>
+    public GunState Gun = GunState.None;
+
+    /// <summary>Shots and reloads that arrived, in order, waiting for their tick.</summary>
+    public List<GunAction> GunQueue { get; } = new();
+
+    /// <summary>Raised whenever <see cref="Gun"/> changes in a way the owner should hear (the server sends it then).</summary>
+    public uint GunRevision { get; set; }
+
+    /// <summary>The last gun action refused, and why (sent with the gun's state).</summary>
+    public uint GunRefusedSeq { get; set; }
+
+    public GunResult GunRefused { get; set; }
+
+    // ---------------------------------------------------------------- G4: the wounded state (Rust's)
+
+    /// <summary>Down: crawling with a little health, until helped up, up by themselves, finished off or dead.</summary>
+    public bool Wounded { get; set; }
+
+    /// <summary>When a wounded player's time runs out (a tick), and what downed them (the death screen's if they die).</summary>
+    public long WoundedUntilTick { get; set; }
+
+    public string WoundedCause { get; set; } = "";
+
+    public EntityId WoundedBy { get; set; }
+
+    public string WoundedByName { get; set; } = "";
+
     public bool IsAwakeAndAlive => !Dead && !Sleeping;
+
+    /// <summary>Awake, alive and not down: can act (use items, swing, shoot, open things).</summary>
+    public bool CanAct => !Dead && !Sleeping && !Wounded;
 
     /// <summary>The item in the hand, if the held slot has one.</summary>
     public ItemDef? Held(GameContent content) =>

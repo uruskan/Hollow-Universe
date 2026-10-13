@@ -61,7 +61,8 @@ public sealed class RemoteThing
 /// </summary>
 public sealed class ClientProjectile
 {
-    public uint Id { get; init; }
+    /// <summary>The server's ID (0 for our own shot until the server's launch message names it).</summary>
+    public uint Id { get; set; }
 
     /// <summary>Who loosed it (a character's net ID; 0 if not known).</summary>
     public uint Shooter { get; init; }
@@ -74,6 +75,19 @@ public sealed class ClientProjectile
 
     /// <summary>Gravity (m/s², along −up at the origin) and up there.</summary>
     public Vector3 Gravity { get; init; }
+
+    /// <summary>Speed lost a second, as a fraction (bullets, G4; 0 for arrows).</summary>
+    public float Drag { get; init; }
+
+    /// <summary>A bullet's shot: the shooter's gun action (0 for arrows); ours when <see cref="Own"/> (drawn since we fired).</summary>
+    public uint Seq { get; init; }
+
+    public bool Own { get; init; }
+
+    /// <summary>Fired through a silencer: no muzzle flash, a quiet shot.</summary>
+    public bool Silenced { get; init; }
+
+    public bool IsBullet => Seq != 0;
 
     /// <summary>The client's clock (seconds) when it was loosed.</summary>
     public double LaunchedAt { get; init; }
@@ -89,7 +103,9 @@ public sealed class ClientProjectile
     public Vector3 PositionAt(double time)
     {
         float t = (float)Math.Max(0, time - LaunchedAt);
-        Vector3 onArc = Origin + Velocity * t + Gravity * (0.5f * t * t);
+        Vector3 onArc = Drag > 1e-6f
+            ? Origin + Gravity / Drag * t + (Velocity - Gravity / Drag) * ((1 - MathF.Exp(-Drag * t)) / Drag)
+            : Origin + Velocity * t + Gravity * (0.5f * t * t);
         if (EndedAt is { } end && Vector3.DistanceSquared(Origin, onArc) >= Vector3.DistanceSquared(Origin, end))
         {
             return end;
@@ -101,7 +117,7 @@ public sealed class ClientProjectile
     public Vector3 DirectionAt(double time)
     {
         float t = (float)Math.Max(0, time - LaunchedAt);
-        Vector3 v = Velocity + Gravity * t;
+        Vector3 v = Drag > 1e-6f ? Gravity / Drag + (Velocity - Gravity / Drag) * MathF.Exp(-Drag * t) : Velocity + Gravity * t;
         return v.LengthSquared() > 1e-6f ? Vector3.Normalize(v) : Vector3.UnitZ;
     }
 }

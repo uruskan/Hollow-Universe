@@ -252,6 +252,13 @@ public sealed class ItemDef
 
     public DeployableDef? Deploys { get; internal set; }
 
+    /// <summary>A firearm's numbers (weapons.json), a round's, an attachment's; null for other items (G4).</summary>
+    public FirearmStats? Firearm { get; internal set; }
+
+    public BulletStats? Bullet { get; internal set; }
+
+    public AttachmentStats? Attachment { get; internal set; }
+
     /// <summary>What it does in building (G3); a door names its door in building.json.</summary>
     public BuildingRole Building { get; init; }
 

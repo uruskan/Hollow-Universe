@@ -71,8 +71,10 @@ public static class CharacterMotor
         Vector3 up = context.Frame.UpAt(state.Position);
         body.Restore(state.Position, state.Velocity, up, state.Stance);
 
-        // Stance: crouch at once; stand up only where there is room.
-        Stance wanted = input.Has(MoveButtons.Crouch) ? Stance.Crouching : Stance.Standing;
+        // Stance: crouch at once; stand up only where there is room. A crawling (wounded) character stays down until the
+        // server lets it up.
+        bool crawling = state.Stance == Stance.Crawling;
+        Stance wanted = crawling ? Stance.Crawling : input.Has(MoveButtons.Crouch) ? Stance.Crouching : Stance.Standing;
         if (wanted != state.Stance && body.TrySetStance(wanted, dt))
         {
             state.Stance = wanted;
@@ -90,9 +92,9 @@ public static class CharacterMotor
         }
 
         // Sprint only straight forward (RustMVP: W alone; W+A, W+D, strafing and backward don't sprint).
-        bool sprinting = input.Has(MoveButtons.Sprint) && !crouching && input.Forward > 0f &&
+        bool sprinting = input.Has(MoveButtons.Sprint) && !crouching && !crawling && input.Forward > 0f &&
             MathF.Abs(input.Right) <= MathF.Max(0.1f, input.Forward * 0.005f);
-        float maxSpeed = crouching ? tuning.CrouchSpeed : sprinting ? tuning.SprintSpeed : tuning.WalkSpeed;
+        float maxSpeed = crawling ? tuning.CrawlSpeed : crouching ? tuning.CrouchSpeed : sprinting ? tuning.SprintSpeed : tuning.WalkSpeed;
 
         float submersion = Submersion(state.Position, context);
         bool swimming = submersion >= tuning.SwimDepth;
@@ -113,7 +115,7 @@ public static class CharacterMotor
             {
                 horizontal = GroundVelocity(horizontal, wish, wishLength, maxSpeed, tuning);
                 verticalSpeed = 0f;
-                if (input.Has(MoveButtons.JumpPressed))
+                if (input.Has(MoveButtons.JumpPressed) && !crawling)
                 {
                     verticalSpeed = crouching ? tuning.CrouchJumpSpeed : tuning.JumpSpeed;
                     events.Jumped = true;
