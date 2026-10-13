@@ -23,3 +23,7 @@ __pycache__/
 
 # The dedicated server's admins (GROUND.md §8.2): per machine, never shared
 /admins.txt
+
+# Monument models: rebuilt by art/monuments/build.py (MONUMENTS.md §8.1); not committed while how they ship is open
+/game/assets/monuments/**/*.glb
+/game/assets/monuments/**/*.glb.import
