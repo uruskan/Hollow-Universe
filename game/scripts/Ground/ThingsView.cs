@@ -16,7 +16,7 @@ namespace HollowUniverse.Ground;
 /// campfire's or furnace's fire (the effects library's), arrows in flight with their trail, and bullets: a tracer for
 /// some, flying the bullet's own path from the gun, and each hit's effect and sound by what it hit (§6.4, §9.3). The
 /// world's props (G7, §6.8): barrels, crates and recyclers from the model catalogue by their key, a running recycler's
-/// lamp and hum, a barrel's blows and its breaking.
+/// lamp and hum, a barrel's blows. Whatever breaks breaks apart through the gibs (<see cref="GibsView"/>, §9.4).
 /// Corpses are <see cref="PeopleView"/>'s ragdolls; rockets are <see cref="RaidView"/>'s.
 /// </summary>
 public partial class ThingsView : Node3D
@@ -78,10 +78,7 @@ public partial class ThingsView : Node3D
             {
                 FxDirector.Stop(fire, immediate: true);
             }
-            if (_props.Remove(gone, out (PropDef Prop, Num.Vector3 At, float Health) prop))
-            {
-                Broke(prop.Prop, prop.At);
-            }
+            _props.Remove(gone);
         }
         UpdateArrows(time);
     }
@@ -117,7 +114,7 @@ public partial class ThingsView : Node3D
         }
     }
 
-    // A world prop (G7): a barrel rings under blows; remembered, so one gone close by is heard breaking.
+    // A world prop (G7): a barrel rings under blows.
     private void Prop(RemoteThing thing, bool known)
     {
         if (thing.Prop(Client.Content) is not { } prop)
@@ -130,20 +127,6 @@ public partial class ThingsView : Node3D
         {
             Sounds.At(Sounds.Item(prop.Key, "hit"), GroundView.ToGodot(thing.Position + Client.Frame.UpAt(thing.Position) * 0.5f));
         }
-    }
-
-    // A barrel gone close by was broken (one leaving the range goes far away; an emptied crate goes quietly): its sound
-    // and a burst of metal.
-    private void Broke(PropDef prop, Num.Vector3 at)
-    {
-        if (!prop.Breakable || !Client.HasCharacter || Num.Vector3.Distance(at, Client.Character.Position) > 40)
-        {
-            return;
-        }
-        Num.Vector3 up = Client.Frame.UpAt(at);
-        Vector3 middle = GroundView.ToGodot(at + up * 0.5f);
-        Sounds.At(Sounds.Item(prop.Key, "break"), middle);
-        FxDirector.Play("impact.bullet.metal", middle, GroundView.ToGodot(up), new FxParams { Scale = 2.4f });
     }
 
     // A lit campfire or furnace burns where its model says (socket_fire): the effects library's fire, which goes on

@@ -1897,8 +1897,8 @@ a walking character (the real movement code), the rules above and their art, and
 wheels through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan`'s answer, green when allowed, red
 with the reason. Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; the right mouse button holds the plan's or the
 hammer's wheel (RustMVP's, from §8); the left places, repairs, fits a door or places the device; R turns the piece or
-flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Removed pieces fall
-and sink away, layer after layer. A scene's view is held for screenshots; otherwise the builder stands under it and
+flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Pieces that come
+down, are demolished or decay break into their gibs (§9.4), layer after layer. A scene's view is held for screenshots; otherwise the builder stands under it and
 walks. `--build-check` plays a round through the sandbox's own input paths (a free foundation, a wall snapped to its
 edge, the hammer's upgrade and turn, a doorway and a door aimed into its opening, E, then demolishing the foundation
 and watching the rest come down) and quits with exit code 0 when all nine steps pass.
@@ -2199,7 +2199,7 @@ client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.
 | Entity ID | `Other` / `Id` / `Id` | the thing's `EntityId` (a piece, door or claim device by the building's IDs; a deployable or prop as `RemoteThing.Id`; a ship's) |
 | Model key | `Text` / `Key` / `Key` | a deployable's key (deployables.json, its item's model), a prop's key (world.json, models.json kind "world"), a piece's or door's key (building.json), the claim device's item key, a ship's key (ships.json) |
 | Grade | `Grade` / `Grade` / `Grade` | a piece's grade (0 twig … 4 armoured); 0 otherwise |
-| Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's frame piece's (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
+| Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's as drawn: its frame piece's, turned half round when fitted the other way (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
 | Direction | `Velocity` / `Direction*` / `Direction` | the blow's direction of travel (unit; from the blast to the thing for an explosion), zero for a collapse, decay, demolition or crash |
 | Cause | `Cause` / `Cause` / `Cause` | `DestroyCause`: `Melee`, `Bullet`, `Arrow`, `Explosion` (the blow's delivery; a door broken with its frame, or a claim device with its piece, takes the blow's), `Collapse`, `Decay`, `Demolish`, `Crash` |
 | Who, with what | `Player`, `Item` / `Attacker` (net ID), `Item` / `Attacker`, `Item` | the attacking (or demolishing) player, 0 for none or gone; the weapon, tool or explosive's item |
@@ -2207,8 +2207,8 @@ client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.
 What is destroyed: a deployable or world prop at 0 health (an emptied crate going is not); a building piece, door or
 claim device broken by damage, collapsed when what held it went, decayed away or demolished (one picked up is not); a
 ship wrecked by weapons or a crash. The event carries all it takes to draw the thing breaking: the thing itself may be
-gone from the client's lists already, or go a moment later (the building's removal message still makes removed
-pieces fall and sink until the client's break-apart pieces replace that).
+gone from the client's lists already, or go a moment later. The client breaks it into its gibs (§9.4): what the event
+names, by its key and grade; the building's removal message only takes a piece out of what is drawn.
 
 **Against RustMVP's foundation** (`docs/architecture/FOUNDATION.md` §1, §5.6, §6, §7, and the damage plan):
 
@@ -2323,8 +2323,8 @@ shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's
 also sets a new code), and opens the claim device's store as a loot panel; held E offers a door's or the claim
 device's options (lock, unlock, change the code, cut a key, take the lock, pick up; authorise, deauthorise, clear the
 list, pick up: `OptionsMenu`, chosen with the mouse, let go to do it). Placements not yet answered show where they
-will stand; pieces placed nearby, upgraded (`world.upgrade.<grade>`), demolished and collapsing (`world.collapse`)
-sound and show; the building rights where the player stands show on the HUD.
+will stand; pieces placed nearby and upgraded (`world.upgrade.<grade>`) sound and show, and what is broken, brought down,
+demolished or decays breaks into its gibs (§9.4); the building rights where the player stands show on the HUD.
 
 **Tests:** `BuildingNetTests.PlacingGoesThroughTheServer` (a player without wood is refused, with the reason; a
 foundation and a wall placed through intents show at once, then arrive in every client's copy at exactly the ghost's
@@ -2936,7 +2936,8 @@ numbered from the north, as Rust's) and every label are drawn by the interface, 
   can't be researched, the last blueprint not taken out, the salvage short); running and progress come from `Machine`.
   A blueprint is drawn as the item it teaches, on blueprint blue, and is learnt by using it.
 - Props from the model catalogue by their key; a running recycler's lamp (a small green light on its top) and hum; a
-  barrel rings under blows, and one gone within 40 m broke: its sound and a burst of metal (§11 91); bullets strike
+  barrel rings under blows, and one broken breaks into its gibs (§9.4; until then one gone within 40 m was taken to have
+  broken, §11 91); bullets strike
   metal on barrels, military crates and recyclers. Crates and recyclers open and shut with the box's sounds.
 - Teams: E on a player close by while leading says "INVITE TO TEAM"; the map's panel creates, leaves, promotes, kicks
   and answers invites; chat lines starting `/t ` go to the team and show as [TEAM]. Teammates' names are drawn in the
@@ -3691,13 +3692,13 @@ first use, or `FxDirector.Install(parent)`):
 | Arrows in flight, landing | `Tracer("trail.arrow", …)`, `EndTracer`; the impact as for bullets |
 | `Local.HitMarker`, `DamageTaken`, bleeding | `blood.hit` on the victim; while bleeding, `blood.drip` on the ground under them every second or two |
 | A gathering hit (the swing's impact, `ItemsChanged` with `Gather`) | `gather.wood` on trees, `gather.rock` on stone, `gather.sparks` on metal and sulphur ore; `gather.weakspot` too when `WeakSpot` |
-| A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); `gather.node-break` |
+| A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); the outcrop's remnant breaks into its gibs (§9.4) |
 | Timed charge, bag charge, tin grenade, rocket, explosive round going off | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`; a dud `explosion.dud`; while a fuse burns, `Start("fuse.burning", Follow = socket_fuse)` |
 | A rocket fired, in flight | `Muzzle("muzzle.rocket", socket_muzzle, first person)`, `Play("backblast.rocket")` on `socket_exhaust` (+X backwards), `Start("trail.rocket", Follow = the rocket)` |
 | Campfire, furnace lit and out | `Start("fire.campfire"` / `"fire.furnace", Follow = its model)`, `Stop` |
 | A lit torch in hand | `Start("fire.torch", Follow = socket_flame, FirstPerson)` (third person for others) |
 | A player burning (`Vitals.Burning`) | `Start("fire.burning", Follow = the body)` while it burns |
-| A building piece collapsing | `world.collapse` (`Area` the piece's half size, `Tint` the grade's colour) |
+| A building piece collapsing, anything broken | its gibs (§9.4), with the material's dust (`gibs.dust.*`, tinted); `world.collapse` stays in the catalogue |
 | An upgrade with the hammer | `world.upgrade.wood`, `.stone`, `.metal`, `.armoured` over the piece (`Area`) |
 | A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
 | A step on sand (footsteps) | `world.footstep.sand` |
@@ -3721,8 +3722,8 @@ first use, or `FxDirector.Install(parent)`):
 - *Fires:* `ThingsView` starts `fire.campfire` or `fire.furnace` at the model's `socket_fire` while it is lit (the loop
   outlives the model's rebuilds); a torch in hand burns with `fire.torch` on its `socket_flame` (first person with the
   arms; for others on their torch).
-- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades, collapses and doors in
-  `BuildView` (§6.5); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
+- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades and doors in
+  `BuildView` (§6.5), and whatever breaks in `GibsView` (§9.4); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
   place and installs the director with the view.
 - *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`.
 
@@ -3738,6 +3739,7 @@ first use, or `FxDirector.Install(parent)`):
 | explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
 | fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning` (loops) |
 | world | `world.collapse`, `world.upgrade.wood`, `.stone`, `.metal`, `.armoured`, `world.door-slam`, `world.footstep.sand` |
+| gibs | `gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`: the dust of something breaking apart (§9.4), tinted by its material, over its size |
 
 **Assets** (`art/fx/build.py`, about 15 s):
 - *The PSG C4 VFX kit* (`D:\GameDev\Assets\PSG_C4VFX_R01`, made for this project: a Mantaflow simulation rendered by
@@ -3788,6 +3790,123 @@ Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's cont
 
 ![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 
+### 9.4 Gibs: things breaking apart
+
+Nothing that is destroyed just vanishes: it breaks into its own pieces ("gibs", as Rust calls them), which fly from the
+blow, tumble, bounce and settle on the ground, lie there a few seconds, then sink away, with dust in the material's
+colour. The owner's words: "super optimized and efficient and scalable". The network carries only the fact (the damage
+pipeline's Destroyed event, §6.4.2); the pieces are the client's alone.
+
+| Part | Where |
+|---|---|
+| The pieces | `art/gibs/build.py` (Blender 5.2, background) fractures every model whose catalogue entry has `gibs` → `game/assets/gibs/<key>.glb` |
+| What breaks into what | `game/data/ground/models.json`: an entry's `gibs` (its file, its gib material, and for the build: `pieces`, `hollow`, `budget`, `cut`); the building's grades and the doors as kits (`kind: kit`), whose parts are building.json's pieces (a grade's kit names its `grade`) and doors (those drawn from its file) |
+| How pieces fly and go | `game/data/ground/gibs.json`: limits, the integrator's numbers, the pieces' life, materials (bounce, friction, spin, dust, colour, sound), causes (push, spread, lift, spin, dust, a sound) |
+| Dust | fx.json's family `gibs` (`gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`), tinted by the material, over the thing's size |
+| Runtime | `game/scripts/Gibs/`: `GibLibrary` (the sets, found by key and grade), `GibWorld` (the pieces: integrator and drawing), `GibDirector` (the API), `GibCatalog` (gibs.json) |
+| Hookups | `Ground/GibsView.cs` (the Destroyed event), the build sandbox's own building, `NatureView` (an outcrop's look) |
+| Viewer | `Fx/FxViewer.Gibs.cs`: `--view fx --gibs` |
+| Tests | `GibTests.EverythingThatBreaksHasGibs` (`dotnet run --project tests/Hollow.Tests -- Gib`); the event itself is `DamageTests`' |
+
+**What breaks.** Everything the Destroyed event names, and an outcrop used up:
+- deployables (boxes, furnaces, campfires, workbenches, beds and bags, the research table, the vehicle workbench), the
+  claim device, and the barrels (crates and the recycler have gibs too, though the rules never break them);
+- doors, broken or brought down with their doorway;
+- building pieces of every grade, broken by blows, bullets and blasts, brought down when what held them went, decayed
+  or demolished: each breaks where it stands, as Rust's do (no piece falls whole any more);
+- an outcrop's last remnant, when its gather look says so (gather.json `look.depleted.gibs`).
+
+**The pieces** (`blender -b --factory-startup --python art/gibs/build.py [-- keys]`, `-- --list` for the plan; 40 s for
+all; the same bytes on every build):
+1. The source: every part of the model in place (lids shut, a door's leaves on their hinges, the garage door's curtain
+   down), at the finest level of detail within the set's triangle budget (`budget`: 1,200 by default; the building's
+   kits 500, twig 1,000, the doors 800), decimated toward it (to half at most) when even the coarsest is above;
+   coincident vertices welded, so each primitive is one closed island.
+2. A hollow model (`hollow`: the barrels' 4 mm sheet, the recycler's 1 cm) gets an inner wall, so it breaks into sheets.
+3. Seeds spread through the solid: halfway through it under random surface points, picked farthest-first with a little
+   chance, so thin things (walls, floors, doors) are cut right through. As many as 1.5 + 1.6 × its two longest sides in
+   metres, 6 to 12, or `pieces` (the building's parts 9, the barrels 8).
+4. Each island is cut by the seeds' Voronoi cells (bisected by the planes halfway between seeds) and every cut is capped
+   with faces of the material's inside: the island's own atlas tile, planar mapped at the material's texel density (the
+   PSG atlas's tiles at 1 m, the building kit's at 4 m, the tiling rock at 1.1 m), its colour darkened. An island smaller
+   than half a cell goes whole to the cell its middle is in, so bolts, bricks, boards, stones and the campfire's logs stay
+   whole; slivers join their nearest piece.
+5. Each piece is turned into its principal axes and centred on its box (the runtime's contact box fits it); its node
+   keeps where it sat, so the pieces put together are the model again.
+
+A whole model's file holds its pieces as top nodes (`c00`…); a kit's a node per part (a piece's or a door's key) with
+its pieces under it. The pieces use the materials the models do (`psg_surface`, `hollow_rock`…; the build writes
+`building_<grade>.tres` and `door_garage.tres`, the building's art's own textures and settings, for the kits).
+
+| | Files | Pieces | Triangles | Size |
+|---|---|---|---|---|
+| Props, deployables, the claim device, outcrops (22 models; the research table shares the engineering workbench's) | 21 | 143 (6–9 each) | 55,000 | 3.6 MB |
+| The building: 20 pieces in each of 5 grades | 5 | 900 (9 a piece) | 196,000 (stone 20,000 … twig 67,000) | 12.9 MB (1.4–4.5 a grade) |
+| Doors: 7 in 4 kits | 4 | 63 (7 a single door, 10 a double, 12 the garage door) | 26,000 | 1.6 MB |
+| **All** | **30** | **1,106** | **278,000** | **18.1 MB** |
+
+**Found by what the event names.** `GibLibrary.Find(key, grade)`: a whole model answers to its catalogue key at any
+grade (a deployable's, a prop's, the claim device's, an outcrop's); a kit's part to its own key, at the kit's grade (a
+grade's kit) or at any (a door kit). So the one hookup, `GibsView`, breaks whatever arrives
+(`GibDirector.Break(e.Key, e.Grade, where it stood, the blow, the cause, up, gravity)`) and plays the sound the data
+names: the cause's (a collapse's or the hammer's) or the model's own `break` sound (sounds.json), else the material's.
+No code names a kind of thing.
+
+**The runtime** (`GibWorld`): every live piece in one array of 640 (gibs.json `limits.pieces`), claimed round a ring so
+the oldest goes first when it is full; above 75 % full a break keeps only its bigger half of pieces.
+- *Spawn:* each piece where it sat in the model, pushed along the blow (harder on the side it came in), spread from the
+  middle, lifted and spun by the cause (an explosion throws at 4–9 m/s, a collapse lets them drop), the material's dust
+  over the whole thing. Within 70 m of the camera pieces and dust; to 170 m dust alone; beyond, nothing.
+- *Flight:* gravity along the planet's up there, a little drag, spin.
+- *Floor:* a ray down the client's own collision (ground, building, what stands on them; the sandbox's plane in the
+  viewer), once a break, two frames after it (what broke has left the collision by then), shared by its pieces, and
+  again for a piece each metre it travels (16 a frame at most). A piece buried under the floor at its start (a
+  foundation's lower half) lies still and sinks in its turn.
+- *Contact:* the lowest of up to 14 hull points (taken at load along the axes and diagonals) against the floor plane:
+  pushed out, then an impulse with bounce and friction through the piece's box inertia, so it tumbles; asleep once slow
+  for 0.3 s, or after two seconds on the floor.
+- *Life:* at rest 3.5–5.5 s, then it sinks a little over its size and shrinks by a third over 1.6 s; nothing lives
+  more than 14 s.
+- *Drawing:* one `MultiMeshInstance3D` per piece mesh: a wall's 9 pieces are 9 draw calls, ten barrels' 80 pieces 8.
+  A batch's buffer is written in place and handed over in one call when something in it moved; its count and box are
+  told only when they change (the box grows by 3 m when a piece leaves it). Nothing is allocated per frame once the
+  meshes have batches; every set is read, and a piece of each drawn once, while the world opens (`GibDirector.Warm`).
+- Pieces don't collide with each other or sideways with walls (X3).
+
+**The viewer** (`--view fx --gibs`): every model that breaks, in a grid, breaking at once (Space again, C the cause, P
+pause; `--gib-parts wall,doorway,foundation` the building's parts shown); `--gibs raid`, a stone wall blown in and ten
+barrels shot before it; `--gibs <key>[/<part>]`, one close up (`--yaw`, `--distance`); with `--shot`, held `--at <s>`
+after the break (0.6 s by default). `--stress gibs --measure <s>`: the raid scene breaking every 2.5 s, gibs off and on.
+
+```bash
+$GODOT --path game --resolution 1600x900 -- --view fx --gibs --at 0.5 --shot sheet.png
+$GODOT --path game --resolution 1600x900 -- --view fx --gibs building-stone/wall --at 2.5 --yaw 200 --distance 4.5 --shot wall.png
+$GODOT --path game --resolution 1600x900 -- --view fx --stress gibs --measure 6
+```
+
+**Cost** (the owner's PC, RTX 2070 Super, 1600 × 900, vsync off, the game's C# in its usual Debug build, four other
+agents at work on it): a stone wall blown in and ten barrels shot every 2.5 s (89 pieces a time, 267 alive at most, 160 on
+average of which 47 moving), gibs off and on in turn, two phases of each, 8 s a phase:
+
+| | Frame | GPU | The gibs' CPU |
+|---|---|---|---|
+| Gibs off | 2.18 ms | 1.54 ms | |
+| Gibs on (pieces and their dust) | 2.48 ms | 1.75 ms | 0.08 ms a frame on average (0.03 ms of it the buffers handed over, 19 calls); a break's own frame 0.3–0.5 ms |
+| **What they cost** | **+0.30 ms** | **+0.21 ms** | |
+
+An earlier run on a quieter PC measured +0.22 ms (GPU +0.18 ms, the gibs' CPU 0.06 ms). So a raid wall and ten barrels
+breaking cost a quarter of a millisecond a frame, inside the 0.5 ms asked; most of it is drawing the pieces and their
+dust. The slowest frames rose more (95th percentile 2.38 → 3.23 ms): the frames of the breaks themselves, and the PC's
+other work. The explosion's own effect isn't in it (it is the fx library's, §9.3).
+
+Screenshots (`docs/images/ground/gibs/`): `sheet.jpg` (every model breaking: props, deployables, outcrops, doors, each
+grade's wall, doorway and foundation), `raid.jpg` (the raid scene a moment after), `wall.jpg` (a stone wall's pieces at
+rest), `barrel.jpg` and `barrel-rest.jpg` (a barrel broken with the hatchet in the game, in the air and on the ground:
+the tour's world step), `outcrop.jpg` (a metal outcrop mined out, its remnant crumbling: the tour's mine step).
+
+![Every model breaking](images/ground/gibs/sheet.jpg)
+
+
 **Gathering's feedback** (the owner's first playtest: hitting trees and outcrops gave "no feedback other than the
 sound"; decisions H1–H14). What was wrong: the hit effects played, but at a guessed point 1.1 m up on the side facing
 the local player, usually below or beside the crosshair, with chips too small and thrown straight at the camera; the
@@ -3813,7 +3932,7 @@ coming into range replayed its old hits (sounds, effects, even felled trees fall
   (`gather.tree-fall`) and the camera's small shake, lies 2.2 s and sinks; the felling sound starts 0.95 s after the
   hit so its crash (1.45 s into the recording) comes as the trunk lands.
 - **Outcrops** break with a burst and their stage's sound at each stage (Devblog 166 masks the model swap the same way),
-  and with the bigger burst and the last sound when gone; the final crumble into chunks is the gibs package's.
+  and with the last sound when gone, when their remnant crumbles into its gibs (§9.4: `look.depleted.gibs`).
 
 Pictures (`docs/images/ground/gather/`, the tour's `chop` and `mine` steps with `--tour-tree pine-tree`): `chop-x.jpg`,
 `chop-hit.jpg`, `chop-falling.jpg`, `chop-landed.jpg`, `mine-hotspot.jpg`, `mine-stage.jpg`, `outcrop-broken.jpg`.
@@ -4737,3 +4856,43 @@ without the owner, to confirm or overturn (numbered L1 on):
   field of view and their grip. The pistol's support hand still comes in large from the lower left: unchanged.
 - L10. **The rock swings from the wrist** (its grip's pivot, 8 cm behind and 5 cm below it), so the wind-up raises it
   and the strike brings it down in front, where turning about the hand only turned it in the palm.
+
+Decisions taken for gibs, things breaking apart (§9.4), after the owner's first playtest, without the owner (numbered X1
+on):
+
+- X1. **Gibs are fractured offline from our own models** by one script (`art/gibs/build.py`: Voronoi cells cut by planes,
+  every cut capped with the model's own inside tile), not cut at run time and not modelled by hand: all 30 files rebuild
+  from text in 40 s with the same bytes, and a new model breaks as soon as its catalogue entry says `gibs`.
+- X2. **Gibs come from the damage pipeline's Destroyed event** (§6.4.2, `ground-damage`'s), found by what it names, a key and
+  a grade: no second signal (this package first had its own, dropped at the merge). The building's grades and the doors
+  are kits in models.json (`kind: kit`): a grade's kit names its `grade` and its parts are building.json's pieces by key; a
+  door kit's parts are the doors drawn from its file. The event now gives a door's turn as drawn, half round when it was
+  fitted the other way (it gave its frame's), and one mapping (`BuildingWorld.Removed`) names a removed piece or door for
+  the zone's event and for the build sandbox.
+- X3. **Pieces meet only a floor plane**, sampled down the client's own collision once a break and again each metre a piece
+  travels: no Jolt bodies, no piece against piece, nothing sideways. A piece thrown into a wall passes through it (short and
+  rare); none ever falls through a floor.
+- X4. **Pieces are drawn by one MultiMesh per piece mesh**, its buffer handed over whole when something in it moved: a draw
+  call per piece shape in sight, however many things of that kind break. Considered and left for later: one mesh per set
+  with the pieces' transforms in a texture (a draw call per kind of thing, a texture upload a frame), which needs our own
+  copy of every material's shader.
+- X5. **640 pieces at most** (gibs.json `limits`), the oldest recycled first; above 75 % a break keeps its bigger half; pieces
+  within 70 m of the camera, dust alone to 170 m, nothing beyond. A piece rests 3.5–5.5 s, then sinks and shrinks over 1.6 s
+  (Rust's way); none lives more than 14 s.
+- X6. **The building breaks from the kit's coarsest level** (LOD2, at most halved again, 500 triangles a piece before the cuts;
+  twig's sticks 1,000) **into 9 pieces**: 1.4–4.5 MB a grade. The finer levels made the twig file alone 7.9 MB for pieces
+  seen a few seconds.
+- X7. **Barrels and the recycler are hollow** (an inner wall 4 mm and 1 cm thick), so they break into curved sheets; parts
+  smaller than half a piece (bolts, bricks, boards, stones, the campfire's logs) stay whole.
+- X8. **An outcrop's last remnant crumbles through its gather look** (gather.json `look.depleted.gibs`), not through the
+  Destroyed event: natural objects aren't things the damage pipeline destroys, and the client knows it was used up. The
+  gibs' dust replaces the node-break burst there.
+- X9. **Crates and the recycler have gibs although the rules never break them** (an emptied crate goes quietly, as in Rust);
+  a door that was open breaks from its shut pose (the event's `Open` isn't used).
+- X10. **Sounds come from data**: a cause's own (a collapse's `build.collapse`, the hammer's `build.demolish`), else the
+  model's `break` sound (sounds.json), else its material's (gibs.json). A collapse of twenty pieces plays twenty, one a layer.
+- X11. **The kits' gib materials are files** (`building_<grade>.tres`, `door_garage.tres`, written by the gib build with the
+  building art's textures and settings) beside `BuildingAssets`' materials made in code: the same look, twice described.
+  `BuildingAssets` could load these (it isn't changed here: its instance colour would start tinting collapsing pieces).
+- X12. **The measurement leaves the explosion's own effect out**: the stress breaks the wall with gibs and dust alone, so the
+  number is the gibs'.

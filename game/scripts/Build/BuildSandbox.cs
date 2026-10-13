@@ -130,6 +130,9 @@ public partial class BuildSandbox : Node3D
         _zone.Physics.EnsureGround(site, 1);
         BuildScene(site);
         _renderer.Attach(_world, _assets);
+        // What goes breaks apart (GROUND.md §9.4), as the zone reports it in the game: brought down, demolished, decayed.
+        HollowUniverse.Gibs.GibDirector.Install(this).Floor = Floor;
+        _world.Changed += BreakApart;
         if (Options.ContainsKey("overlay"))
         {
             _renderer.StabilityOverlay = true;
@@ -158,6 +161,38 @@ public partial class BuildSandbox : Node3D
         {
             RunCheck();
         }
+    }
+
+
+    private void BreakApart(BuildingEvent e)
+    {
+        if (e.Removal == Removal.Taken || BuildingWorld.Removed(e) is not { } gone)
+        {
+            return;
+        }
+        // The sandbox has no blows: what breaks here comes down, is demolished or decays (a break by damage counts as a blow).
+        Hollow.Simulation.Combat.DestroyCause cause = BuildingWorld.CauseOf(e.Removal) ?? Hollow.Simulation.Combat.DestroyCause.Melee;
+        Num.Vector3 up = _zone.Frame.UpAt(gone.Position);
+        HollowUniverse.Gibs.GibBreak broke = HollowUniverse.Gibs.GibDirector.Break(gone.Key, gone.Grade, gone.Position, gone.Rotation, Num.Vector3.Zero,
+            cause, up, (float)(_zone.Spec.SurfaceGravity * 9.80665), gone.Id.Value);
+        if (broke.Shown)
+        {
+            Sounds.At(broke.CauseSound ?? Sounds.Item(gone.Key, "break") ?? broke.MaterialSound, broke.Centre);
+        }
+    }
+
+    // The sandbox's own collision under a point (its ground and pieces), for the pieces of what broke.
+    private bool Floor(Vector3 from, Vector3 down, float length, out Vector3 point, out Vector3 normal)
+    {
+        point = default;
+        normal = Vector3.Up;
+        if (_world.Physics is not { } physics || !physics.Ray(new Num.Vector3(from.X, from.Y, from.Z), new Num.Vector3(down.X, down.Y, down.Z), length, out RayHit hit))
+        {
+            return false;
+        }
+        point = new Vector3(hit.Point.X, hit.Point.Y, hit.Point.Z);
+        normal = new Vector3(hit.Normal.X, hit.Normal.Y, hit.Normal.Z);
+        return true;
     }
 
     // ---------------------------------------------------------------- scenes

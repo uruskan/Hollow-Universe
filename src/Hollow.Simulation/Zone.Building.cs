@@ -177,18 +177,9 @@ public sealed partial class Zone
                 break;
             // Pieces, doors and claim devices broken, brought down, decayed or demolished: destroyed (GROUND.md §6.4.2), with
             // the blow that broke them (or what went with it, as a door in its frame) or the building's own reason.
-            case BuildingChange.PieceRemoved when e.Piece is { } piece && e.Removal != Removal.Taken:
-            {
-                (Vector3 position, Quaternion rotation) = piece.ZoneTransform;
-                Destroyed(HitTarget.Building, DestroyedKind.Piece, piece.Id, piece.Def.Key, piece.Grade, position, rotation, CauseOf(e.Removal));
+            case BuildingChange.PieceRemoved or BuildingChange.DoorRemoved when e.Removal != Removal.Taken && BuildingWorld.Removed(e) is { } gone:
+                Destroyed(HitTarget.Building, gone.Kind, gone.Id, gone.Key, gone.Grade, gone.Position, gone.Rotation, BuildingWorld.CauseOf(e.Removal), gone.Open);
                 break;
-            }
-            case BuildingChange.DoorRemoved when e.Door is { } door && e.Removal != Removal.Taken:
-            {
-                (Vector3 position, Quaternion rotation) = door.Frame.ZoneTransform;
-                Destroyed(HitTarget.Building, DestroyedKind.Door, door.Id, door.Def.Key, 0, position, rotation, CauseOf(e.Removal), door.Open);
-                break;
-            }
             case BuildingChange.ClaimRemoved when e.Claim is { } claim && _claimDeployables.Remove(claim, out Deployable? d):
                 if (e.Removal != Removal.Taken)
                 {
@@ -251,13 +242,7 @@ public sealed partial class Zone
     }
 
     // The building's own reasons for taking a piece away (destroyed: the blow's).
-    private static DestroyCause? CauseOf(Removal removal) => removal switch
-    {
-        Removal.Collapsed => DestroyCause.Collapse,
-        Removal.Decayed => DestroyCause.Decay,
-        Removal.Demolished => DestroyCause.Demolish,
-        _ => null,
-    };
+    private static DestroyCause? CauseOf(Removal removal) => BuildingWorld.CauseOf(removal);
 
     /// <summary>
     /// The building's receiver (GROUND.md §6.4.2): pieces, doors and claim devices, found by their bodies along a ray and

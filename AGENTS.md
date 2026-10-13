@@ -88,6 +88,9 @@ dotnet run --project tests/Hollow.Tests -- Animal   # G7: animals' AI, harvest, 
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit --animals 200   # G7: 200 animals among the bots (GROUND.md §5.10)
 blender -b --factory-startup --python art/animals/build_animals.py [-- deer boar wolf bear] [--preview <png>]   # the animals → game/assets/animals (GROUND.md §6.9)
 blender -b --factory-startup --python art/fx/build.py   # the effects' textures, decals and debris → game/assets/fx (GROUND.md §9.3)
+blender -b --factory-startup --python art/gibs/build.py   # gibs: every model that breaks, fractured into its pieces → game/assets/gibs
+                                                          # (GROUND.md §9.4; -- <keys> for some, -- --list for the plan)
+dotnet run --project tests/Hollow.Tests -- Gib            # gibs: everything that can be destroyed has pieces, found as the Destroyed event names it
 # The building and door kits into game/assets/building (Blender 5.2.1, D:/GameDev/Tools/blender-5.2.1-windows-x64):
 blender --background --factory-startup --python art/import/building_kit.py [-- twig wood stone metal armoured]
 blender --background --factory-startup --python art/import/door_kit.py
@@ -131,6 +134,8 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view sounds --sound ri
 $GODOT --headless --path game -- --view sounds --sound-check   # every sound file loaded and measured in the engine
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png   # effects (GROUND.md §9.3)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --stress firefight --measure 8   # what a firefight's effects cost
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --gibs --at 0.5 --shot gibs.png   # every model breaking (GROUND.md §9.4)
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --stress gibs --measure 6   # what a raid wall and ten barrels breaking cost
 # The ground game's screenshot run (GROUND.md §5.6): a host that takes the pictures, and a second player that joins it.
 # Paths are relative to game/, where Godot runs.
 $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --db /tmp/tour.db --hour 10 --tour ../docs/images/ground/play &
@@ -202,7 +207,10 @@ Client options (after `--`):
   `--shot` caught `--at <s>` after it starts; keys ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
   fx.json); `--sheet <family>` (contact sheet), `--strip <key> --times a,b,c`, `--action <family>` (a scene in use),
   `--stress firefight --measure <s>` (ten players fighting, effects off and on: prints what they cost and quits),
-  `--night`, `--only-batch <name>`.
+  `--night`, `--only-batch <name>`. Gibs (GROUND.md §9.4): `--gibs` (every model that breaks, in a grid, breaking at once;
+  Space again, C the cause, P pause; `--gib-parts a,b` the building's parts shown), `--gibs raid` (a stone wall blown in,
+  ten barrels shot), `--gibs <key>[/<part>]` (one close up, `--yaw`, `--distance`); with `--shot`, held `--at <s>` after
+  the break; `--stress gibs --measure <s>` (the raid every 2.5 s, gibs off and on: prints what they cost and quits).
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
 - Ground (GROUND.md §4.3): `--view ground` alone opens the main menu; `--body male|female` (default: the menu's last
   choice); `--mute` (no sound), `--sound-trace` (print every sound started); `--name <n>` with `--host [--port <n>]` (the
@@ -324,6 +332,8 @@ Client options (after `--`):
 | `game/scripts/Items` | Item and world models (GROUND.md §9.1): `ModelCatalog` (reads `data/ground/models.json`), `CatalogItemIcons`, the icon renderer (`--view icons`) and the model viewer (`--view models`) |
 | `game/scripts/Fx` | The effects library (GROUND.md §9.3): `FxDirector` (the API: `Play`, `Impact`, `Muzzle`, `Tracer`, `Start`/`Stop`, `CameraShake`), world particle batches, muzzle flashes, tracers, decals, lights, fire loops, the catalogue (`data/ground/fx.json`) and the viewer (`--view fx`) |
 | `game/assets/fx` | The effects' textures (the PSG C4 VFX kit converted, our own flash atlas, noise and decals), debris meshes and shaders, built by `art/fx/build.py` |
+| `game/scripts/Gibs` | Gibs (GROUND.md §9.4): `GibDirector` (the API: `Break` what the Destroyed event names), `GibWorld` (every piece: integrator, floors, batched drawing), `GibLibrary` (the sets by key and grade), `GibCatalog` (`data/ground/gibs.json`); the hookup is `Ground/GibsView.cs` |
+| `game/assets/gibs`, `art/gibs` | The pieces things break into (one GLB per model or kit, parts by key), built by `art/gibs/build.py` from the models themselves |
 | `game/assets/items`, `game/assets/world` | Item and world models (GLB with LODs, hulls and sockets) and the item icons (`items/icons/128`, `items/icons/256`), built by `art/` |
 | `game/assets/materials`, `game/assets/textures` | The shared Godot materials the models' `.import` files map to, and their textures (2K at most) |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |

@@ -63,9 +63,11 @@ public sealed record LastHitRule
 
 /// <summary>
 /// One thing that happens on screen and in the ears (gather.json <c>look</c>): an effect of fx.json and a sound event
-/// of sounds.json, both optional. <c>{stage}</c> in <see cref="Sound"/> becomes the stage reached.
+/// of sounds.json, both optional. <c>{stage}</c> in <see cref="Sound"/> becomes the stage reached. With
+/// <see cref="Gibs"/>, the object's model breaks into its gibs where it stood (GROUND.md §9.4: an outcrop's last remnant
+/// crumbling).
 /// </summary>
-public sealed record GatherCue(string? Fx, string? Sound, float FxScale = 1, float SoundDelay = 0, float PitchStep = 0);
+public sealed record GatherCue(string? Fx, string? Sound, float FxScale = 1, float SoundDelay = 0, float PitchStep = 0, bool Gibs = false);
 
 /// <summary>The weak spot drawn (gather.json <c>look.marker</c>): a decal style and its glints.</summary>
 public sealed record MarkerLook
@@ -257,9 +259,10 @@ internal static class GatherReader
             return null;
         }
         string at = $"{where}.{name}";
-        f.OnlyKnown(e, at, "fx", "sound", "fxScale", "soundDelay", "pitchStep");
+        f.OnlyKnown(e, at, "fx", "sound", "fxScale", "soundDelay", "pitchStep", "gibs");
         return new GatherCue(f.Has(e, "fx") ? f.Text(e, "fx", at) : null, f.Has(e, "sound") ? f.Text(e, "sound", at) : null,
-            f.Number(e, "fxScale", at, 1), f.Number(e, "soundDelay", at, 0), f.Number(e, "pitchStep", at, 0));
+            f.Number(e, "fxScale", at, 1), f.Number(e, "soundDelay", at, 0), f.Number(e, "pitchStep", at, 0),
+            e.TryGetProperty("gibs", out JsonElement gibs) && gibs.ValueKind == JsonValueKind.True);
     }
 
     /// <summary>A list of exactly <paramref name="count"/> numbers.</summary>
