@@ -994,8 +994,8 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
 - **Down** is lower than on the stand-in: bots seeking trees and outcrops spread out, and each sees about 46 others
   instead of 99.
 
-**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 2
-with the catalogue's models and icons, the female body and the gun layer, except `menu.jpg`):
+**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 3
+with building, raiding and the effects library in the game, except `menu.jpg`):
 
 | Picture | What it shows |
 |---|---|
@@ -1007,9 +1007,15 @@ with the catalogue's models and icons, the female body and the gun layer, except
 | `player.jpg` | The second player with the female body, in the knit cap, woven shirt and trousers, laced boots and the riveted cuirass, hatchet in hand, her name above her. |
 | `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
 | `outcrop.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop, and its broken stage after the pickaxe. |
-| `gun.jpg` | The rifle aimed down its sights the moment a shot leaves: the flash, 28 of 60 rounds. |
+| `gun.jpg` | The rifle aimed down its sights in the frame a shot leaves: the effects library's muzzle flame and its light on the gun, 29 of 60 rounds. |
+| `build.jpg` | A base begun in the meadow: two twig foundations and three walls, the building plan in hand, the green ghost of a doorway with its cost and stability under the crosshair. |
+| `keypad.jpg` | The stone hut's sheet metal door with a code lock fitted: its keypad, two digits entered. |
+| `base.jpg` | The stone hut from outside (the `raidbase` command's), the code lock on the door by its free edge. |
+| `charge.jpg` | A timed charge stuck on the hut's side wall, its lamp lit; another in hand. |
+| `explosion.jpg` | The charge going off: the fireball, debris and the smoke rising over the hut; the raid alert at the top right. |
+| `firefight.jpg` | Firing at the hut from the meadow, in the frame a shot leaves: the muzzle brake's flame out of its ports, the tracer, the holo sight and brake on the rifle; the second player firing beside. |
 | `death.jpg` | The death screen over the map of the real coast. |
-| `night.jpg` | Night, by the catalogue's campfire, lit: the fire's own light on the grass; the respawn kit on the belt. |
+| `night.jpg` | Night, by the catalogue's campfire, lit: the effects library's flames, embers and smoke, and its flickering light on the grass; the respawn kit on the belt. |
 
 **Judgement.** It plays as one game: arrive on a real beach, walk, swim and fall on the planet's ground, gather from
 its own trees, bushes, ferns and outcrops, craft, wear, cook, fight, die, loot bodies and respawn, with another player
@@ -1056,6 +1062,27 @@ The frame now carries the sound and the catalogue's models, and the PC was busie
 ragdoll (40–60 ms, the character package's) and plant rebuilds landing (20–30 ms). Players coming back into range
 take a spare body (`PeopleView`: four of each body made while the world opens, and those leaving are kept), so only
 new arrivals and corpses build one.
+
+### 5.8 Pass 3: building, raiding and the effects in the game
+
+Measured on the owner's PC on 13 October 2026 as in §5.7 (the measuring client hosts, its server in a process of its
+own; a headless second player and 50 survival bots at the landing site; `--measure 20 --expect 45`), now with the
+building drawn, the raid view, the effects library everywhere and attachments. Another agent's game client and bots
+were running on the same PC at the time, so the comparison is rough.
+
+| | Pass 2 (§5.7) | Pass 3 |
+|---|---|---|
+| Frame, average / 99th percentile / worst | 14.6 / 23.2 / 122 ms | 16.7 / 25.0 / 91 ms |
+| GPU, a frame | 10.6 ms | 11.1 ms |
+| Server tick (its own process) | 3.05 ms average | 5.82 ms average, 379 ms the most in the last 10 s |
+
+- The new parts of the ground view cost next to nothing: the building view 0.02 ms a frame, the raid view under
+  0.01 ms; the effects library's own work runs in the engine's process step (a ten-player firefight's effects cost about
+  0.3 ms, §9.3). The ground view's parts as a whole: people 0.96 ms, nature 0.22 ms, overlay 0.20 ms, the client 0.13 ms.
+- The slowest frames are as in pass 2: a new ragdoll and a corpse (60–90 ms, the character package's) and plants
+  redrawn after hits (25–30 ms).
+- The average sits at 60 fps with the GPU at 11.1 ms: the other agent's client was drawing on the same GPU, and the
+  server's tick, doubled, shares the CPU with its bots.
 
 ---
 

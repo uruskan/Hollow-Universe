@@ -51,7 +51,8 @@ public partial class RaidView : Node3D
     private readonly List<ClientProjectile> _rocketsGone = new();
     private static StandardMaterial3D? _lampMaterial;
     private readonly Random _random = new(0xB00);
-    private bool _alertsShown;
+    private int _awaySeen, _awayShown;
+    private double _awaySince;
 
     public GameClient Client { get; set; } = null!;
 
@@ -108,16 +109,33 @@ public partial class RaidView : Node3D
             Remove(id);
         }
         Rockets();
-        if (!_alertsShown && Client.State == ClientState.Playing && Client.HasCharacter)
+        AwayAlerts();
+    }
+
+    // At login, the alerts that waited while the player was away (they come with the join, one message): shown together
+    // half a second after the last of them came.
+    private void AwayAlerts()
+    {
+        int away = 0;
+        foreach (RaidAlertView a in Client.Local.RaidAlerts)
         {
-            // At login: the alerts that waited while the player was away (they come with the join).
-            _alertsShown = true;
-            List<RaidAlertView> waited = Client.Local.RaidAlerts.Where(a => a.WhileAway).ToList();
-            if (waited.Count > 0)
+            if (a.WhileAway)
             {
-                Alerts.ShowAway(waited.Select(a => (a.What + (a.Item != null ? $" ({a.Item.Name})" : ""), Details(a))).ToList());
-                Sounds.Flat("ui.notify");
+                away++;
             }
+        }
+        if (away != _awaySeen)
+        {
+            _awaySeen = away;
+            _awaySince = Client.ClockSeconds;
+            return;
+        }
+        if (away > _awayShown && Client.ClockSeconds - _awaySince > 0.5)
+        {
+            Alerts.ShowAway(Client.Local.RaidAlerts.Where(a => a.WhileAway).Skip(_awayShown)
+                .Select(a => (a.What + (a.Item != null ? $" ({a.Item.Name})" : ""), Details(a))).ToList());
+            Sounds.Flat("ui.notify");
+            _awayShown = away;
         }
     }
 

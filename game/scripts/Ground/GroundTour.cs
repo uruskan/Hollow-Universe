@@ -548,13 +548,13 @@ public partial class GroundTour : Node
         }
         Num.Vector3 wallAt = Centre(wall), normal = FlatUnit(wallAt - centre);
         Num.Vector3 left = Num.Vector3.Normalize(Num.Vector3.Cross(normal, up));
-        Num.Vector3 stand = wallAt + normal * 13f + left * 1.5f;
+        Num.Vector3 stand = wallAt + normal * 10f + left * 1.5f;
         Num.Vector3 target = wallAt + normal * 0.2f + up * 1.3f;
         await Until(() => Client.Entities.Any(e => e.Name.Length > 0), 30);
         if (Client.Entities.FirstOrDefault(e => e.Name.Length > 0)?.Name is { } guest)
         {
             // The guest ahead and to the right, in view; it fires at the wall nearest it once it has a loaded rifle.
-            Num.Vector3 at = wallAt + normal * 8f - left * 3f;
+            Num.Vector3 at = wallAt + normal * 5.5f - left * 2f;
             foreach (string item in new[] { "rifle 1", "rifle-ammo 150", "holo-sight 1", "weapon-light 1" })
             {
                 Command?.Invoke($"give {guest} {item}");
@@ -579,23 +579,24 @@ public partial class GroundTour : Node
         Me.Gun.Reload();
         await Until(() => Me.Gun.Loaded > 0 && !Me.Gun.Reloading, 8);
         await Settle();
-        // The picture is the frame a shot with a tracer leaves in, once the wall has taken a few hits.
+        // The picture is the frame a shot with a tracer leaves in, the second once the wall has taken a few hits.
         Task? capture = null;
         bool armed = false;
+        int tracers = 0;
         void Fired(ShotEvent shot)
         {
-            if (armed && capture == null && FxDirector.WantsTracer(Client.NetId, shot.Seq))
+            if (armed && capture == null && FxDirector.WantsTracer(Client.NetId, shot.Seq) && ++tracers >= 2)
             {
                 capture = Shot("firefight", frames: 0);
             }
         }
         Me.Gun.ShotFired += Fired;
         double started = Time.GetTicksMsec() / 1000.0;
-        for (int burst = 0; burst < 8 && capture == null; burst++)
+        for (int burst = 0; burst < 10 && capture == null; burst++)
         {
             double until = Time.GetTicksMsec() / 1000.0 + 0.45;
             View.Scripted = new InputFrame { Primary = true, PrimaryPressed = true };
-            armed = Time.GetTicksMsec() / 1000.0 - started > 1.2;
+            armed = Time.GetTicksMsec() / 1000.0 - started > 1.6;
             while (Time.GetTicksMsec() / 1000.0 < until && capture == null)
             {
                 Face(target);
