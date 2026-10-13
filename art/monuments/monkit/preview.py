@@ -408,7 +408,13 @@ def camera(target, distance, yaw, pitch, lens=35.0, name="cam"):
 
 
 def render(path):
+    """Renders to `path` (.png, or .jpg at quality 88 for the docs)."""
     sc = bpy.context.scene
+    if str(path).lower().endswith((".jpg", ".jpeg")):
+        sc.render.image_settings.file_format = "JPEG"
+        sc.render.image_settings.quality = 88
+    else:
+        sc.render.image_settings.file_format = "PNG"
     sc.render.filepath = str(path)
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.render.render(write_still=True)

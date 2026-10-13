@@ -1,9 +1,10 @@
 """The monuments' scripts (art/monuments/sites/*.py, MONUMENTS.md §5): each defines KEY, TITLE, `build(b)` and
 VIEWS (look-dev cameras), and optionally BUILDER (builder options), SUN, PEOPLE and SHIP for the renders.
 
-    build.py -- [keys...] [--preview <folder>] [--export] [--fast]
+    build.py -- [keys...] [--preview <folder>] [--export] [--fast] [--jpg]
 
-With neither --preview nor --export a monument is exported. --fast renders at half size with fewer samples.
+With neither --preview nor --export a monument is exported. --fast renders at half size with fewer samples; --jpg
+writes JPEG (the docs' images) instead of PNG.
 """
 import importlib.util
 from pathlib import Path
@@ -34,18 +35,24 @@ def make(m):
 
 def main(argv):
     from . import kit, preview
-    keys, preview_dir, export, fast = [], None, False, False
+    keys, preview_dir, export, fast, ext = [], None, False, False, ".png"
     i = 0
     while i < len(argv):
         a = argv[i]
         if a == "--preview":
+            # Relative to the repository (Blender may start in another folder).
             preview_dir = Path(argv[i + 1])
+            if not preview_dir.is_absolute():
+                from . import GAME
+                preview_dir = GAME.parent / preview_dir
             i += 2
             continue
         if a == "--export":
             export = True
         elif a == "--fast":
             fast = True
+        elif a == "--jpg":
+            ext = ".jpg"
         elif not a.startswith("--"):
             keys.append(a)
         i += 1
@@ -74,5 +81,5 @@ def main(argv):
                               ground_size=getattr(m, "GROUND", 6000.0),
                               ao=getattr(m, "PREVIEW_AO", True))
                 preview.camera(v["target"], v["distance"], v["yaw"], v["pitch"], v.get("lens", 35.0))
-                preview.render(preview_dir / f"{key}-{v['name']}.png")
+                preview.render(preview_dir / f"{key}-{v['name']}{ext}")
         log(f"monument {key} done")
