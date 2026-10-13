@@ -423,6 +423,14 @@ public partial class CharacterLab : Node3D
             _character.Visible = true;
             _viewmodel.Hold(HeldKind.Unarmed);
             Vector3 focus = _character.GlobalPosition + Vector3.Up * _height;
+            if (_character.IsDead)
+            {
+                // Follow the body, which the ragdoll carries away from where the character stood.
+                if (_character.Skeleton.FindChild("Body_pelvis", true, false) is Node3D pelvis)
+                {
+                    focus = pelvis.GlobalPosition + Vector3.Up * (_height - 0.95f);
+                }
+            }
             float yaw = Mathf.DegToRad(_yaw), pitch = Mathf.DegToRad(_pitch);
             Vector3 offset = new Vector3(MathF.Sin(yaw) * MathF.Cos(pitch), MathF.Sin(pitch), MathF.Cos(yaw) * MathF.Cos(pitch)) * _distance;
             _camera.Fov = 50f;
