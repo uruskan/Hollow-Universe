@@ -1,5 +1,21 @@
 # Working on Hollow Universe (for AI agents and people)
 
+## Where development is now (13 October 2026)
+
+`main` holds milestone M1, the galaxy. Work continues on branches, each in its own git worktree under
+`D:\GameDev\Projects\Hollow-wt\` (this checkout stays on `main`; nothing merges into `main` without the owner's
+approval):
+
+| Branch | Worktree | What |
+|---|---|---|
+| `ground` | `Hollow-wt\ground` | **The active line.** The networked Rust-style ground game on the first world (dedicated .NET server, Godot client), on top of `generator-v2`. Start with its `docs/handoff-ground.md`, then `docs/GROUND_SYSTEMS.md` and `docs/GROUND.md`; its AGENTS.md has the full rules, commands and layout. Play it with `play-ground.cmd` there. |
+| `ground-monuments` | `Hollow-wt\monuments` | G7c monuments, worked on by its own session and merged into `ground` from time to time. |
+| `generator-v2` | `Hollow-wt\generator-v2` | The generator overhaul (real planets, names, clusters); already inside `ground`. |
+| `map-ux` | `Hollow-wt\map-ux` | Three web prototypes of the galaxy map's user experience, waiting for the owner's choice. |
+
+The other `ground-*` branches are finished work packages, all merged into `ground`; their worktrees can be removed.
+A session that continues the game opens `Hollow-wt\ground` (or reads files there) rather than this checkout.
+
 Read first, in this order:
 
 1. [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): what the game is.

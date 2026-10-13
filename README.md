@@ -3,7 +3,8 @@
 An online survival game in a full-scale Milky Way: Rust-style building, raiding and full-loot PvP on procedural
 planets, with Elite-style ships and travel between about 120 billion star systems. Built with Godot 4 and C#.
 
-This repository is at **milestone M1, the galaxy**. It contains the deterministic galaxy generator, real stars
+The `main` branch is at **milestone M1, the galaxy**; development continues on the `ground` branch (the networked
+Rust-style ground game on the first world: see that branch's `docs/handoff-ground.md`). This branch contains the deterministic galaxy generator, real stars
 near Sol, the galaxy map and the system map. Networking (M2) comes next. See [the milestones](docs/ARCHITECTURE.md#17-milestones).
 
 ![The galaxy map from outside the disk](docs/images/galaxy.jpg)
