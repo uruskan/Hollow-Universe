@@ -347,6 +347,10 @@ public partial struct ThingSpawn
 
     /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
     [MaxLength(32)] public string Name;
+
+    /// <summary>What it stands on (GROUND_SYSTEMS.md §6): a building piece's family and ID, or none (the ground).</summary>
+    [Bits(4)] public TargetFamily SupportFamily;
+    [VarInt] public ulong Support;
 }
 
 /// <summary>A relevant static thing changed: health, count, or what the receiver is told of it.</summary>
@@ -526,20 +530,6 @@ public partial struct PickUpIntent
     [VarInt] public uint Seq;
     public bool Natural;
     public ulong Target;
-}
-
-/// <summary>Place the deployable in a slot at a point (zone frame), turned by a yaw.</summary>
-[NetMessage(59)]
-public partial struct PlaceIntent
-{
-    [VarInt] public uint Seq;
-    [Bits(3)] public ContainerRef From;
-    public byte Slot;
-    [VarInt] public uint Expected;
-    public float X;
-    public float Y;
-    public float Z;
-    [Angle] public ushort Yaw;
 }
 
 /// <summary>Light or put out a campfire or furnace.</summary>
@@ -834,24 +824,6 @@ public partial struct GunUpdate
 // ---------------------------------------------------------------- G3: building intents (client → server, reliable)
 // Each has a sequence number from the same series as G2's intents and is answered with an IntentResult (GROUND.md §6.3).
 
-/// <summary>
-/// Place a piece from the building plan: on a support's socket in an orientation (the server derives the pose), or,
-/// with no support, a foundation on the ground at a point (zone frame) and heading in 15° steps.
-/// </summary>
-[NetMessage(90)]
-public partial struct PlacePieceIntent
-{
-    [VarInt] public uint Seq;
-    public byte Piece;
-    public ulong Support;
-    public byte Socket;
-    public byte Orientation;
-    public float X;
-    public float Y;
-    public float Z;
-    [Bits(5)] public byte Heading;
-}
-
 /// <summary>A hammer action on a piece: upgrade (to a grade), rotate, demolish, repair.</summary>
 [NetMessage(91)]
 public partial struct HammerIntent
@@ -862,48 +834,32 @@ public partial struct HammerIntent
     [Bits(3)] public byte Grade;
 }
 
-/// <summary>Fit the door in a slot into a frame piece (flipped or not), open or shut a door, or pick one up.</summary>
+/// <summary>Open or shut a door, or pick one up (fitting one is a <see cref="PlaceIntent"/>).</summary>
 [NetMessage(92)]
 public partial struct DoorIntent
 {
     [VarInt] public uint Seq;
     [Bits(2)] public DoorAction Action;
-    [Bits(3)] public ContainerRef From;
-    public byte Slot;
-    [VarInt] public uint Expected;
     public ulong Target;
-    public bool Flip;
 }
 
-/// <summary>A lock on a door: fit one from a slot, set or enter a code, lock, unlock, cut a key, take it off.</summary>
+/// <summary>A lock on a door: set or enter a code, lock, unlock, cut a key, take it off (fitting one is a <see cref="PlaceIntent"/>).</summary>
 [NetMessage(93)]
 public partial struct LockIntent
 {
     [VarInt] public uint Seq;
     [Bits(3)] public LockAction Action;
-    [Bits(3)] public ContainerRef From;
-    public byte Slot;
-    [VarInt] public uint Expected;
     public ulong Door;
     [MaxLength(8)] public string Code;
 }
 
-/// <summary>
-/// The claim device: place the one in a slot on a foundation or floor at a point of its top (frame metres, X and Z)
-/// turned by 30° steps; authorise, deauthorise, clear the list; pick it up.
-/// </summary>
+/// <summary>The claim device: authorise, deauthorise, clear the list; pick it up (placing one is a <see cref="PlaceIntent"/>).</summary>
 [NetMessage(94)]
 public partial struct ClaimIntent
 {
     [VarInt] public uint Seq;
     [Bits(3)] public ClaimAction Action;
-    [Bits(3)] public ContainerRef From;
-    public byte Slot;
-    [VarInt] public uint Expected;
     public ulong Target;
-    public double X;
-    public double Z;
-    [Bits(4)] public byte Yaw;
 }
 
 // ---------------------------------------------------------------- G3: building replication (server → client, reliable)
@@ -1045,17 +1001,6 @@ public partial struct ThrowIntent
     [Angle] public ushort Yaw;
     [Angle] public ushort Pitch;
     public bool Lob;
-}
-
-/// <summary>Place the charge in a belt slot on the surface the view meets within reach.</summary>
-[NetMessage(111)]
-public partial struct PlaceChargeIntent
-{
-    [VarInt] public uint Seq;
-    [Bits(3)] public byte Slot;
-    [VarInt] public uint Expected;
-    [Angle] public ushort Yaw;
-    [Angle] public ushort Pitch;
 }
 
 /// <summary>Light a dud again (the interact key on it).</summary>
@@ -1388,6 +1333,40 @@ public partial struct ThingDestroyed
     public bool Open;
     [VarInt] public uint Attacker;
     [VarInt] public uint Item;
+}
+
+// ---------------------------------------------------------------- P2: placing anything (GROUND_SYSTEMS.md §6)
+
+/// <summary>A pose on the wire: a point in the zone frame and a turn about up (in the characters' convention).</summary>
+[NetStruct]
+public partial struct PoseNet
+{
+    public float X;
+    public float Y;
+    public float Z;
+    [Angle] public ushort Yaw;
+}
+
+/// <summary>
+/// Place anything (GROUND_SYSTEMS.md §6; one intent for deployables, building pieces, doors, locks, the claim device,
+/// charges on a surface and ships): the slot that pays for it (the item used up, or the building plan carried) and the
+/// item the client saw there; the placeable (placement.json's number); what holds it, the socket it snaps to, where it goes
+/// and its turn, and its variant (a piece's orientation or a free foundation's heading, a door's side, a turn in its
+/// support's steps). The server works the placement out again from these and takes it only within the rule's tolerance of
+/// its own; answered by <see cref="IntentResult"/>.
+/// </summary>
+[NetMessage(220)]
+public partial struct PlaceIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public ContainerRef From;
+    public byte Slot;
+    [VarInt] public uint Expected;
+    [VarInt] public uint Placeable;
+    public TargetNet Support;
+    public byte Socket;
+    public PoseNet Pose;
+    public byte Variant;
 }
 
 // ---------------------------------------------------------------- P3: held items and inventory actions (GROUND_SYSTEMS.md §7)

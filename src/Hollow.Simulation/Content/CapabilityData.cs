@@ -16,7 +16,7 @@ public sealed class CapabilityData
     public const string File = "capabilities.json";
 
     private readonly Dictionary<string, int> _index = new(StringComparer.Ordinal);
-    private readonly CapabilitySet _owned, _container, _burner, _machine;
+    private readonly CapabilitySet _owned, _container, _burner, _machine, _standing;
     private readonly CapabilitySet[] _locks;
 
     internal CapabilityData(IReadOnlyList<string> keys)
@@ -30,6 +30,7 @@ public sealed class CapabilityData
         _container = Set("container");
         _burner = Set("burner");
         _machine = Set("machine");
+        _standing = Set("standing");
         Bag = Set("container", "lifetime");
         Corpse = Set("container", "lifetime");
         Door = Set("door", "owned");
@@ -84,12 +85,12 @@ public sealed class CapabilityData
     public CapabilitySet Lock(LockKind kind) => (uint)kind < (uint)_locks.Length ? _locks[(int)kind] : CapabilitySet.Empty;
 
     /// <summary>
-    /// A deployable's (or world prop's), from its blocks: placed by a player (owned), <c>slots</c> (container),
-    /// <c>device</c> (burner), <c>recycler</c> or <c>research</c> (machine).
+    /// A deployable's (or world prop's), from its blocks: placed by a player (owned), standing on what it was placed on,
+    /// <c>slots</c> (container), <c>device</c> (burner), <c>recycler</c> or <c>research</c> (machine).
     /// </summary>
     public CapabilitySet Of(DeployableDef def)
     {
-        CapabilitySet set = _owned;
+        CapabilitySet set = _owned.With(_standing);
         if (def.Slots > 0)
         {
             set = set.With(_container);

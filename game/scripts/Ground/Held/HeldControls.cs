@@ -107,12 +107,21 @@ public sealed class FirearmControl : IHeldControl
 }
 
 /// <summary>
-/// An explosive: the attack button throws it; the aim button puts a charge on the surface aimed at within reach, or lobs a
-/// grenade gently. One every cooldown.
+/// An explosive: the attack button throws it; the aim button puts a charge where its ghost shows it (placement.json lists
+/// the charges, GROUND_SYSTEMS.md §6), or lobs a grenade gently. One every cooldown.
 /// </summary>
 public sealed class ThrowableControl : IHeldControl
 {
     private double _thrownAt = -10;
+
+    // A charge's ghost on the surface the view meets.
+    public void Aim(HeldContext ctx, Num.Vector3 eye, Num.Vector3 forward)
+    {
+        if (ctx.Item.Places != null)
+        {
+            ctx.Placement.Aim(ctx, eye, forward);
+        }
+    }
 
     public void Hands(HeldContext ctx, ref InputFrame input, in HandButtons buttons)
     {
@@ -127,9 +136,9 @@ public sealed class ThrowableControl : IHeldControl
         }
         _thrownAt = ctx.Client.ClockSeconds;
         bool secondary = buttons.AimClicked && !buttons.Clicked;
-        if (secondary && throwable.Placeable)
+        if (secondary && ctx.Item.Places != null)
         {
-            ctx.Me.PlaceCharge(ctx.Slot, ctx.Yaw, ctx.Pitch);
+            ctx.Placement.Place(ctx);
             return;
         }
         ctx.Me.Throw(ctx.Slot, ctx.Yaw, ctx.Pitch, lob: secondary);

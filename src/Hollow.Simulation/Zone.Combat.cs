@@ -495,41 +495,7 @@ public sealed partial class Zone
     }
 
     /// <summary>Where a ray first goes below the ground (within <paramref name="length"/>), or −1.</summary>
-    public float GroundCrossing(Vector3 origin, Vector3 direction, float length)
-    {
-        float previous = HeightAboveGround(origin);
-        if (previous < 0)
-        {
-            return -1; // starting under the ground: the surface doesn't block (it would block everything)
-        }
-        int steps = Math.Max(1, (int)MathF.Ceiling(length / 0.5f));
-        float t0 = 0;
-        for (int i = 1; i <= steps; i++)
-        {
-            float t1 = length * i / steps;
-            float height = HeightAboveGround(origin + direction * t1);
-            if (height < 0)
-            {
-                // Bisect between the last point above and this one.
-                float lo = t0, hi = t1;
-                for (int k = 0; k < 8; k++)
-                {
-                    float mid = (lo + hi) / 2;
-                    if (HeightAboveGround(origin + direction * mid) < 0)
-                    {
-                        hi = mid;
-                    }
-                    else
-                    {
-                        lo = mid;
-                    }
-                }
-                return hi;
-            }
-            t0 = t1;
-        }
-        return -1;
-    }
+    public float GroundCrossing(Vector3 origin, Vector3 direction, float length) => Ground.Crossing(origin, direction, length);
 
     /// <summary>
     /// Trees, outcrops and boulders (GROUND.md §6.4.2): found by their trunks and rocks along a ray (a boulder stops a

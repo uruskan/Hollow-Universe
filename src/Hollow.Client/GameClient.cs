@@ -527,6 +527,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _surface = Zone.CreateSurface();
         DisposeShips();
         DisposeBuilding();
+        ResetPlacement();
         _predictor?.Dispose();
         _predictor = new Predictor(Zone, _surface, _options.SharedPhysics?.Invoke(Zone, _surface));
         StartSurvival();
@@ -711,6 +712,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _net.Stop();
         DisposeShips();
         DisposeBuilding();
+        ResetPlacement();
         _predictor?.Dispose();
         _ownRelay?.Dispose();
     }

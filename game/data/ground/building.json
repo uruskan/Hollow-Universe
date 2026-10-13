@@ -1,5 +1,5 @@
 {
-  "source": "GROUND.md §6.3. Pieces, sockets, grade hit points, costs, stability losses, hammer timings, doors and code locks from RustMVP (docs/architecture/legacy/building_damage.md and unreal/Bare/Source/Bare/Rules/building_rules.hpp, building_geometry.hpp, damage_rules.hpp; the owner's numbers there: hit points 10/200/500/1000/2000). Sizes from PSG_BuildingKit_R01 Reports/dimension_contract.json and PSG_DoorWindowKit_R01 assembly_manifest.json (hinges converted to metres, Y up, outside +Z). Decay times, upkeep and the claim radii are Rust's mechanics as hollow-orbit js/game/construct.js has them; Rust's upkeep brackets. Soft-side and melee transmissions are ours until G5 tunes them. The claim device's health, slots and size are hollow-orbit's tool cupboard's; Rust's key costs 75 wood. Names are ours. Piece ids are stable (RustMVP's part ids): never reuse one.",
+  "source": "GROUND.md §6.3. Pieces, sockets, grade hit points, costs, stability losses, hammer timings, doors and code locks from RustMVP (docs/architecture/legacy/building_damage.md and unreal/Bare/Source/Bare/Rules/building_rules.hpp, building_geometry.hpp, damage_rules.hpp; the owner's numbers there: hit points 10/200/500/1000/2000). Sizes from PSG_BuildingKit_R01 Reports/dimension_contract.json and PSG_DoorWindowKit_R01 assembly_manifest.json (hinges converted to metres, Y up, outside +Z). Decay times, upkeep and the claim radii are Rust's mechanics as hollow-orbit js/game/construct.js has them; Rust's upkeep brackets. Soft-side and melee transmissions are ours until G5 tunes them. The claim device's health, slots and size are hollow-orbit's tool cupboard's; Rust's key costs 75 wood. Names are ours. Piece ids are stable (RustMVP's part ids): never reuse one. P2 (GROUND_SYSTEMS.md §6): the pieces' reach (8 m to the nearest logical surface, the hammer's too), sight slack (35 cm) and claim padding (2.25 m) are their placement rule's, in placement.json; a piece, door, lock or the claim device may have a placement block of its own.",
 
   "module": {
     "width": 3.0, "storey": 3.0, "halfWall": 1.5, "lowWall": 1.0, "ramp": 0.75,
@@ -8,8 +8,8 @@
   },
 
   "placement": {
-    "reach": 8.0, "socketAimRadius": 1.75, "freeFoundationDistance": 3.5, "foundationClearance": 0.05,
-    "groundNormalMin": 0.75, "sightTolerance": 0.35, "claimPadding": 2.25, "candidatesTried": 8,
+    "socketAimRadius": 1.75, "freeFoundationDistance": 3.5, "foundationClearance": 0.05,
+    "groundNormalMin": 0.75, "candidatesTried": 8,
     "maxPiecesPerBuilding": 4000, "contactTolerance": 0.01
   },
 

@@ -135,11 +135,10 @@ public sealed partial class Zone : IDisposable
     }
 
     /// <summary>The ground under a point of the zone's tangent plane, in the zone frame.</summary>
-    public Vector3 GroundAt(float x, float z)
-    {
-        Vector3D direction = Frame.ToBody(x, 0, z).Normalized;
-        return Frame.ToLocal(direction * (Surface.Radius + Surface.HeightAt(direction)));
-    }
+    public Vector3 GroundAt(float x, float z) => Ground.At(x, z);
+
+    /// <summary>The surface's own ground, asked as a client asks it (<see cref="GroundProbe"/>).</summary>
+    public GroundProbe Ground => new(Surface, Frame);
 
     /// <summary>
     /// Where a new character appears: on a ring of 3–8 m around the zone's origin, at a place fixed by

@@ -29,8 +29,9 @@ namespace HollowUniverse.Ground;
 /// the inventory, crafting, the other player, chopping a tree and after, an outcrop, a rifle fired down the sights, a
 /// base being built with the plan's ghost, a finished hut with a code lock and its keypad, a timed charge on its wall
 /// and the blast, a firefight at the hut, the Tin Finch crafted, boarded, flown and landed, G7's team, props, recycler,
-/// tech tree, research table and map, a bag of dropped items and its loot, the death screen, night by a fire, and P3's
-/// held items: a gun's slot and rounds, the AK's, bag charge's and a blueprint's panels, crafting at a workbench) and quits;
+/// tech tree, research table and map, a bag of dropped items and its loot, the death screen, night by a fire, P3's held
+/// items: a gun's slot and rounds, the AK's, bag charge's and a blueprint's panels, crafting at a workbench, and things
+/// placed with their one ghost) and quits;
 /// with <c>--tour guest</c>, a second
 /// client that dresses in what it is given, takes up its hatchet and faces the host, fires a rifle it is given at the
 /// nearest building wall, and takes a team invite. Pictures are 1600 × 900 JPEG at the window's size.
@@ -65,7 +66,7 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("look", Look),
-            ("foundations", Foundations), ("held", Held),
+            ("foundations", Foundations), ("held", Held), ("place", Place),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -873,9 +874,17 @@ public partial class GroundTour : Node
                 Outcome? refused = null;
                 void Refused(IntentAnswer answer) => refused = answer.Outcome;
                 Me.IntentRejected += Refused;
-                if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Client.AimGround(at + up * 2, -up, 4) is { } ground)
+                if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Placeable("vehicle-workbench") is { } workbench &&
+                    Client.PlanAt(workbench, Client.Ground?.Settle(at) ?? at, View.Yaw) is { } ghost)
                 {
-                    Me.Place(ContainerRef.Main, slot, ground, View.Yaw);
+                    if (ghost.Valid)
+                    {
+                        Me.Place(ghost, ContainerRef.Main, slot);
+                    }
+                    else
+                    {
+                        refused = ghost.Outcome;
+                    }
                 }
                 await Until(() => Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "vehicle-workbench") || refused != null, 2);
                 Me.IntentRejected -= Refused;
@@ -898,7 +907,7 @@ public partial class GroundTour : Node
         Num.Vector3 up = Client.Frame.UpAt(p);
         Num.Vector3 east = Num.Vector3.Normalize(Num.Vector3.Cross(up, new Num.Vector3(0, 0, 1)));
         Num.Vector3 north = Num.Vector3.Cross(east, up);
-        Num.Vector3? Ground(Num.Vector3 q) => Client.AimGround(q + up * 6, -up, 14);
+        Num.Vector3? Ground(Num.Vector3 q) => Client.Ground?.Settle(q);
         if (Ground(p) is not { } a || Ground(p + east) is not { } b || Ground(p + north) is not { } c)
         {
             return 90;
@@ -1160,7 +1169,10 @@ public partial class GroundTour : Node
             return false;
         }
         View.Building.PlanPiece = index;
-        PieceDef def = data.Wheel[index];
+        if (Client.Content.Placement.Of(data.Wheel[index]) is not { } piece)
+        {
+            return false;
+        }
         Num.Vector3 up = Client.Frame.UpAt(Client.RenderPosition);
         Num.Vector3 eye = Client.RenderPosition + up * Client.EyeHeight;
         float bestCost = float.MaxValue, bestYaw = View.Yaw, bestPitch = View.Pitch;
@@ -1169,7 +1181,7 @@ public partial class GroundTour : Node
             for (float pitch = -1.2f; pitch <= 0.3f; pitch += 0.03f)
             {
                 Num.Vector3 dir = CharacterMotor.ViewDirection(View.Yaw + dy, pitch, up);
-                if (Client.PlanPiece(def, eye, dir) is { Valid: true } plan && want(plan))
+                if (Client.Plan(piece, eye, dir, View.Yaw + dy) is { Valid: true, Detail: PlacementPlan plan } && want(plan))
                 {
                     float cost = MathF.Abs(dy) + MathF.Abs(pitch - View.Pitch) * 0.5f;
                     if (cost < bestCost)
@@ -1461,13 +1473,16 @@ public partial class GroundTour : Node
                 }
                 Num.Vector3 dir = Num.Vector3.Transform(towards, Num.Quaternion.CreateFromAxisAngle(up, turn));
                 Num.Vector3 at = from + dir * 2.2f;
-                if (Client.AimGround(at + up * 2, -up, 4) is not { } ground)
+                if (Placeable(key) is not { } placeable || Client.PlanAt(placeable, Client.Ground?.Settle(at) ?? at, yaw) is not { } ghost)
                 {
                     continue;
                 }
                 var before = Client.Things.Select(t => t.Id).ToHashSet();
-                refused = OutcomeCode.Done;
-                Me.Place(ContainerRef.Main, slot, ground, yaw);
+                refused = ghost.Outcome;
+                if (ghost.Valid)
+                {
+                    Me.Place(ghost, ContainerRef.Main, slot);
+                }
                 await Until(() => refused != OutcomeCode.Done ||
                     Client.Things.Any(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key), 5);
                 RemoteThing? placed = Client.Things.FirstOrDefault(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key);
@@ -1627,9 +1642,10 @@ public partial class GroundTour : Node
         await Settle();
         // The fire two metres ahead, lit with wood.
         Num.Vector3 at = Client.Character.Position + Forward() * 2.2f;
-        if (SlotOf(Me.Inventory.Main, "campfire") is int fire && Client.AimGround(at + Client.Frame.UpAt(at) * 2, -Client.Frame.UpAt(at), 4) is { } ground)
+        if (SlotOf(Me.Inventory.Main, "campfire") is int fire && Placeable("campfire") is { } campfireItem &&
+            Client.PlanAt(campfireItem, Client.Ground?.Settle(at) ?? at, View.Yaw) is { Valid: true } ghost)
         {
-            Me.Place(ContainerRef.Main, fire, ground, View.Yaw);
+            Me.Place(ghost, ContainerRef.Main, fire);
             await Until(() => Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "campfire"), 5);
             RemoteThing campfire = Client.Things.First(t => t.Deployable(Client.Content)?.Key == "campfire");
             Me.Open(campfire.Id);
@@ -1914,9 +1930,128 @@ public partial class GroundTour : Node
         await Shot("refusal");
     }
 
+    // Placing anything with its one ghost (GROUND_SYSTEMS.md §6, P2), whatever is held. On a foundation built with the
+    // plan, a doorway on its far edge: a furnace's ghost that fits on it, then one pushed into the doorway's wall
+    // (refused, with the reason); a garage door's in the doorway (it needs a wall frame); the claim device's on the
+    // foundation. At a hut (the raidbase command): a code lock's on its door and a timed charge's on its wall. On the
+    // meadow: the Tin Finch's hologram, then the ship placed from its item.
+    private async Task Place()
+    {
+        foreach (string gift in new[]
+                 {
+                     "building-plan 1", "wood 3000", "furnace 1", "garage-door 1", "claim-device 1", "code-lock 1", "timed-charge 1",
+                     "tin-finch 1",
+                 })
+        {
+            Admin("give", gift);
+        }
+        await Until(() => Count("tin-finch") > 0 && Count("timed-charge") > 0 && Count("building-plan") > 0 && Count("wood") >= 3000, 5);
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(-60, 0, -20));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = -0.3f;
+        await Settle();
+
+        await Hold("building-plan", 5);
+        Num.Vector3 ahead = Forward(), up = Client.Frame.UpAt(Client.Character.Position);
+        Num.Vector3 right = Num.Vector3.Normalize(Num.Vector3.Cross(ahead, up));
+        if (await PlaceAimed("foundation", p => p.Support == null) is not { } foundation)
+        {
+            return;
+        }
+        Num.Vector3 c = Centre(foundation);
+        if (await PlaceAimed("doorway", p => p.Support == foundation && Num.Vector3.Dot(At(p) - c, ahead) > 1) is not { } doorway)
+        {
+            return;
+        }
+        Num.Vector3 opening = Centre(doorway);
+
+        // The furnace: in the middle of the foundation, then (from its side) pushed into the doorway's wall beside the
+        // opening.
+        await TeleportTo(c - ahead * 2.6f + right * 0.5f);
+        await Hold("furnace", 5);
+        Face(c);
+        await Seconds(0.8);
+        await Shot("furnace-fits");
+        Num.Vector3 byTheWall = opening - ahead * 0.3f + right * 1.0f;
+        await TeleportTo(byTheWall + right * 2.4f - ahead * 0.4f);
+        Face(byTheWall);
+        await Seconds(0.8);
+        await Shot("furnace-refused");
+
+        // The garage door aimed into the doorway from outside: a doorway is too narrow for it.
+        await TeleportTo(opening + ahead * 2.8f);
+        await Hold("garage-door", 5);
+        Face(opening + up * 1.1f);
+        await Seconds(0.8);
+        await Shot("garage-door");
+
+        // The claim device on the foundation, from a few steps back (it stands 1.8 m tall).
+        await TeleportTo(c - ahead * 3.8f - right * 0.4f);
+        await Hold("claim-device", 5);
+        Face(c + right * 0.6f);
+        await Seconds(0.8);
+        await Shot("cupboard");
+
+        // A stone hut with a sheet metal door: a code lock's ghost on its door, a timed charge's on its side wall.
+        (Num.Vector3 hutSpot, Num.Vector3 hutTowards) = OpenSpot(new Num.Vector3(-60, 0, 20));
+        await TeleportTo(hutSpot);
+        View.Yaw = MathF.Atan2(-hutTowards.X, -hutTowards.Z);
+        View.Pitch = 0;
+        await Seconds(0.6);
+        int doors = Doors().Count();
+        Admin("raidbase", "2");
+        await Until(() => Doors().Count() > doors, 5);
+        await Settle();
+        if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
+        {
+            GD.PushWarning("[tour] no hut");
+            return;
+        }
+        Num.Vector3 doorAt = Centre(door.Frame), outward = FlatUnit(Client.Character.Position - doorAt);
+        await TeleportTo(doorAt + outward * 2.2f);
+        await Hold("code-lock", 5);
+        Face(door.LockSpot.Position);
+        await Seconds(0.8);
+        await Shot("code-lock");
+        Piece? wall = Client.Building?.AllPieces.Where(p => p.Def.Key == "wall")
+            .OrderBy(p => Num.Vector3.Distance(Centre(p), doorAt)).FirstOrDefault();
+        if (wall != null)
+        {
+            Num.Vector3 wallAt = Centre(wall), normal = FlatUnit(wallAt - (doorAt - outward * 1.5f));
+            await TeleportTo(wallAt + normal * 1.6f);
+            await Hold("timed-charge", 5);
+            Face(wallAt + up * 1.3f);
+            await Seconds(0.8);
+            await Shot("charge");
+        }
+
+        // The Tin Finch: its hologram on the meadow, then the ship placed there.
+        (Num.Vector3 pad, Num.Vector3 padTowards) = OpenSpot(new Num.Vector3(-20, 0, -70));
+        await TeleportTo(pad);
+        View.Yaw = MathF.Atan2(-padTowards.X, -padTowards.Z);
+        await Settle();
+        await Hold("tin-finch", 5);
+        Num.Vector3 feet = Client.Character.Position;
+        Face(Client.Ground?.Settle(feet + padTowards * 6f) ?? feet + padTowards * 6f);
+        await Seconds(0.8);
+        await Shot("tin-finch");
+        int ships = Client.Ships.Count();
+        View.UseHeld();
+        await Until(() => Client.Ships.Count() > ships, 5);
+        await Seconds(1.0);
+        View.Pitch = Math.Max(View.Pitch, -0.2f);
+        await Seconds(0.3);
+        await Shot("tin-finch-placed");
+        GD.Print($"[tour] place: the Tin Finch {(Client.Ships.Count() > ships ? "placed" : "not placed")}");
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private void Admin(string command, string args) => Command?.Invoke($"{command} {Client.Name} {args}".Trim());
+
+    // What an item places (placement.json), or null.
+    private Hollow.Simulation.Placement.Placeable? Placeable(string itemKey) => Client.Content.Item(itemKey)?.Places;
 
     private int Count(string key) => Client.Content.Item(key) is { } def ? Me.Inventory.Count(def) : 0;
 

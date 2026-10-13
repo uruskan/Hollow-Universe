@@ -376,18 +376,6 @@ public sealed partial class LocalPlayer
     /// <summary>Picks up a bag of dropped items (its entity ID): everything in it that fits.</summary>
     public uint PickUpItem(EntityId item) => Intend(null, w => new PickUpIntent { Seq = _nextSeq, Natural = false, Target = item.Value }.WriteMessage(w));
 
-    /// <summary>Places the deployable in a slot at a point on the ground (zone frame), turned by a yaw.</summary>
-    public uint Place(ContainerRef from, int slot, Vector3 at, float yaw)
-    {
-        ushort expected = ItemAt(from, slot);
-        return Intend(new Pending(p => p.Resolve(from) is { } c && from is ContainerRef.Main or ContainerRef.Belt &&
-                p.Content.Item(expected)?.Deploys != null && InventoryRules.Remove(c, slot, 1, expected, out _) == OutcomeCode.Done),
-            w => new PlaceIntent
-            {
-                Seq = _nextSeq, From = from, Slot = (byte)slot, Expected = expected, X = at.X, Y = at.Y, Z = at.Z, Yaw = Quantize.Angle16(yaw),
-            }.WriteMessage(w));
-    }
-
     /// <summary>Lights or puts out a campfire or furnace.</summary>
     public uint Toggle(EntityId device) => Intend(null, w => new ToggleIntent { Seq = _nextSeq, Target = device.Value }.WriteMessage(w));
 
@@ -752,7 +740,7 @@ public sealed partial class LocalPlayer
             _dirty = true;
         }
         var answer = new IntentAnswer(m.Seq, m.Code, (int)Math.Min(m.Detail, int.MaxValue));
-        AnsweredPiece(m.Seq, answer.Done);
+        AnsweredPlacement(m.Seq, answer.Done);
         IntentAnswered?.Invoke(answer);
         if (!answer.Done)
         {

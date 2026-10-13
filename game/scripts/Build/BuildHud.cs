@@ -95,6 +95,8 @@ public partial class BuildHud : Control
         Font font = G.Font(size, bold);
         float width = font.GetStringSize(text, HorizontalAlignment.Left, -1, px).X;
         var at = new Vector2(frame.X + Ui.Px(800) - MathF.Round(width / 2), MathF.Round(frame.Y + Ui.Px(y) + font.GetAscent(px)));
+        // A soft dark edge as well as the shadow, so a line reads over a placement ghost's bright hologram.
+        DrawStringOutline(font, at, text, HorizontalAlignment.Left, -1, px, Ui.Px(5), new Color(0, 0, 0, 0.75f));
         DrawString(font, at + new Vector2(1, 1), text, HorizontalAlignment.Left, -1, px, new Color(0, 0, 0, 0.55f));
         DrawString(font, at, text, HorizontalAlignment.Left, -1, px, colour);
     }

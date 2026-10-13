@@ -23,7 +23,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x213B890B31525AEEUL;
+    public const ulong SchemaHash = 0xB82C3DBFBBC7A91BUL;
 }
 
 partial struct Hello
@@ -1078,6 +1078,8 @@ partial struct ThingSpawn
         w.WriteVarUInt(Count);
         w.WriteBits((uint)Flags, 8);
         w.WriteString(Name, 32);
+        w.WriteBits((uint)SupportFamily, 4);
+        w.WriteVarULong(Support);
     }
 
     public static ThingSpawn Read(BitReader r)
@@ -1095,6 +1097,8 @@ partial struct ThingSpawn
         v.Count = r.ReadVarUInt();
         v.Flags = (ViewerFlags)r.ReadBits(8);
         v.Name = r.ReadString(32);
+        v.SupportFamily = (TargetFamily)r.ReadBits(4);
+        v.Support = r.ReadVarULong();
         return v;
     }
 }
@@ -1582,44 +1586,6 @@ partial struct PickUpIntent
         v.Seq = r.ReadVarUInt();
         v.Natural = r.ReadBool();
         v.Target = r.ReadBits64(64);
-        return v;
-    }
-}
-
-partial struct PlaceIntent
-{
-    public const byte TypeId = 59;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)From, 3);
-        w.WriteBits((uint)Slot, 8);
-        w.WriteVarUInt(Expected);
-        w.WriteFloat(X);
-        w.WriteFloat(Y);
-        w.WriteFloat(Z);
-        w.WriteBits((uint)Yaw, 16);
-    }
-
-    public static PlaceIntent Read(BitReader r)
-    {
-        var v = new PlaceIntent();
-        v.Seq = r.ReadVarUInt();
-        v.From = (ContainerRef)r.ReadBits(3);
-        v.Slot = (byte)r.ReadBits(8);
-        v.Expected = r.ReadVarUInt();
-        v.X = r.ReadFloat();
-        v.Y = r.ReadFloat();
-        v.Z = r.ReadFloat();
-        v.Yaw = (ushort)r.ReadBits(16);
         return v;
     }
 }
@@ -2405,46 +2371,6 @@ partial struct GunUpdate
     }
 }
 
-partial struct PlacePieceIntent
-{
-    public const byte TypeId = 90;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)Piece, 8);
-        w.WriteBits64(Support, 64);
-        w.WriteBits((uint)Socket, 8);
-        w.WriteBits((uint)Orientation, 8);
-        w.WriteFloat(X);
-        w.WriteFloat(Y);
-        w.WriteFloat(Z);
-        w.WriteBits((uint)Heading, 5);
-    }
-
-    public static PlacePieceIntent Read(BitReader r)
-    {
-        var v = new PlacePieceIntent();
-        v.Seq = r.ReadVarUInt();
-        v.Piece = (byte)r.ReadBits(8);
-        v.Support = r.ReadBits64(64);
-        v.Socket = (byte)r.ReadBits(8);
-        v.Orientation = (byte)r.ReadBits(8);
-        v.X = r.ReadFloat();
-        v.Y = r.ReadFloat();
-        v.Z = r.ReadFloat();
-        v.Heading = (byte)r.ReadBits(5);
-        return v;
-    }
-}
-
 partial struct HammerIntent
 {
     public const byte TypeId = 91;
@@ -2490,11 +2416,7 @@ partial struct DoorIntent
     {
         w.WriteVarUInt(Seq);
         w.WriteBits((uint)Action, 2);
-        w.WriteBits((uint)From, 3);
-        w.WriteBits((uint)Slot, 8);
-        w.WriteVarUInt(Expected);
         w.WriteBits64(Target, 64);
-        w.WriteBool(Flip);
     }
 
     public static DoorIntent Read(BitReader r)
@@ -2502,11 +2424,7 @@ partial struct DoorIntent
         var v = new DoorIntent();
         v.Seq = r.ReadVarUInt();
         v.Action = (DoorAction)r.ReadBits(2);
-        v.From = (ContainerRef)r.ReadBits(3);
-        v.Slot = (byte)r.ReadBits(8);
-        v.Expected = r.ReadVarUInt();
         v.Target = r.ReadBits64(64);
-        v.Flip = r.ReadBool();
         return v;
     }
 }
@@ -2526,9 +2444,6 @@ partial struct LockIntent
     {
         w.WriteVarUInt(Seq);
         w.WriteBits((uint)Action, 3);
-        w.WriteBits((uint)From, 3);
-        w.WriteBits((uint)Slot, 8);
-        w.WriteVarUInt(Expected);
         w.WriteBits64(Door, 64);
         w.WriteString(Code, 8);
     }
@@ -2538,9 +2453,6 @@ partial struct LockIntent
         var v = new LockIntent();
         v.Seq = r.ReadVarUInt();
         v.Action = (LockAction)r.ReadBits(3);
-        v.From = (ContainerRef)r.ReadBits(3);
-        v.Slot = (byte)r.ReadBits(8);
-        v.Expected = r.ReadVarUInt();
         v.Door = r.ReadBits64(64);
         v.Code = r.ReadString(8);
         return v;
@@ -2562,13 +2474,7 @@ partial struct ClaimIntent
     {
         w.WriteVarUInt(Seq);
         w.WriteBits((uint)Action, 3);
-        w.WriteBits((uint)From, 3);
-        w.WriteBits((uint)Slot, 8);
-        w.WriteVarUInt(Expected);
         w.WriteBits64(Target, 64);
-        w.WriteDouble(X);
-        w.WriteDouble(Z);
-        w.WriteBits((uint)Yaw, 4);
     }
 
     public static ClaimIntent Read(BitReader r)
@@ -2576,13 +2482,7 @@ partial struct ClaimIntent
         var v = new ClaimIntent();
         v.Seq = r.ReadVarUInt();
         v.Action = (ClaimAction)r.ReadBits(3);
-        v.From = (ContainerRef)r.ReadBits(3);
-        v.Slot = (byte)r.ReadBits(8);
-        v.Expected = r.ReadVarUInt();
         v.Target = r.ReadBits64(64);
-        v.X = r.ReadDouble();
-        v.Z = r.ReadDouble();
-        v.Yaw = (byte)r.ReadBits(4);
         return v;
     }
 }
@@ -2975,38 +2875,6 @@ partial struct ThrowIntent
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
         v.Lob = r.ReadBool();
-        return v;
-    }
-}
-
-partial struct PlaceChargeIntent
-{
-    public const byte TypeId = 111;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)Slot, 3);
-        w.WriteVarUInt(Expected);
-        w.WriteBits((uint)Yaw, 16);
-        w.WriteBits((uint)Pitch, 16);
-    }
-
-    public static PlaceChargeIntent Read(BitReader r)
-    {
-        var v = new PlaceChargeIntent();
-        v.Seq = r.ReadVarUInt();
-        v.Slot = (byte)r.ReadBits(3);
-        v.Expected = r.ReadVarUInt();
-        v.Yaw = (ushort)r.ReadBits(16);
-        v.Pitch = (ushort)r.ReadBits(16);
         return v;
     }
 }
@@ -3959,6 +3827,67 @@ partial struct ThingDestroyed
         v.Open = r.ReadBool();
         v.Attacker = r.ReadVarUInt();
         v.Item = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct PoseNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)Yaw, 16);
+    }
+
+    public static PoseNet Read(BitReader r)
+    {
+        var v = new PoseNet();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Yaw = (ushort)r.ReadBits(16);
+        return v;
+    }
+}
+
+partial struct PlaceIntent
+{
+    public const byte TypeId = 220;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+        w.WriteVarUInt(Placeable);
+        Support.Write(w);
+        w.WriteBits((uint)Socket, 8);
+        Pose.Write(w);
+        w.WriteBits((uint)Variant, 8);
+    }
+
+    public static PlaceIntent Read(BitReader r)
+    {
+        var v = new PlaceIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        v.Placeable = r.ReadVarUInt();
+        v.Support = TargetNet.Read(r);
+        v.Socket = (byte)r.ReadBits(8);
+        v.Pose = PoseNet.Read(r);
+        v.Variant = (byte)r.ReadBits(8);
         return v;
     }
 }

@@ -283,36 +283,45 @@ public partial class DoorView : Node3D
     {
         (Num.Vector3 position, Num.Quaternion rotation) = Door.Frame.ZoneTransform;
         Transform = BuildingRenderer.ToGodot(position, rotation).RotatedLocal(Vector3.Up, Door.Flip * Mathf.Pi);
-        if (Door.Def.Rolls && Assets.Garage != null)
+        _garage = Parts(Door.Def, Assets, this, _leaves);
+        _swing = Target ? 1 : 0;
+    }
+
+    /// <summary>
+    /// A door's kit parts under a node (in the frame piece's frame, flipped by the caller): its frame and its leaves on their
+    /// hinges, shut, or the garage door's frame and curtain. The door drawn in the world and the placement ghost's door
+    /// (GROUND_SYSTEMS.md §6) are the same parts. Returns the garage door's animation player, if it is one.
+    /// </summary>
+    public static AnimationPlayer? Parts(DoorDef def, BuildingAssets assets, Node3D into, List<(MeshInstance3D Leaf, float OpenYaw)>? leaves = null)
+    {
+        if (def.Rolls && assets.Garage != null)
         {
-            Node3D garage = Assets.Garage.Instantiate<Node3D>();
-            AddChild(garage);
+            Node3D garage = assets.Garage.Instantiate<Node3D>();
+            into.AddChild(garage);
             foreach (Node n in garage.FindChildren("*", "MeshInstance3D", true, false))
             {
                 var mesh = (MeshInstance3D)n;
-                mesh.MaterialOverride = Assets.Named("Door_garage");
+                mesh.MaterialOverride = assets.Named("Door_garage");
             }
-            _garage = garage.FindChildren("*", "AnimationPlayer", true, false) is { Count: > 0 } players ? (AnimationPlayer)players[0] : null;
-            _swing = Target ? 1 : 0;
-            return;
+            return garage.FindChildren("*", "AnimationPlayer", true, false) is { Count: > 0 } players ? (AnimationPlayer)players[0] : null;
         }
-        if (Assets.Part(Door.Def.FrameMesh) is Mesh frame)
+        if (assets.Part(def.FrameMesh) is Mesh frame)
         {
-            AddChild(new MeshInstance3D { Mesh = frame, MaterialOverride = Assets.PartMaterial(frame) });
+            into.AddChild(new MeshInstance3D { Mesh = frame, MaterialOverride = assets.PartMaterial(frame) });
         }
-        foreach (LeafDef leaf in Door.Def.Leaves)
+        foreach (LeafDef leaf in def.Leaves)
         {
-            Mesh mesh = Assets.Part(leaf.Mesh) ?? new BoxMesh { Size = new Vector3(Math.Abs(leaf.Size.X), leaf.Size.Y, leaf.Size.Z) };
+            Mesh mesh = assets.Part(leaf.Mesh) ?? new BoxMesh { Size = new Vector3(Math.Abs(leaf.Size.X), leaf.Size.Y, leaf.Size.Z) };
             var node = new MeshInstance3D
             {
                 Mesh = mesh,
-                MaterialOverride = Assets.PartMaterial(mesh),
+                MaterialOverride = assets.PartMaterial(mesh),
                 Position = new Vector3(leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z),
             };
-            AddChild(node);
-            _leaves.Add((node, Mathf.DegToRad((float)leaf.OpenYaw)));
+            into.AddChild(node);
+            leaves?.Add((node, Mathf.DegToRad((float)leaf.OpenYaw)));
         }
-        _swing = Target ? 1 : 0;
+        return null;
     }
 
     public override void _Process(double delta)

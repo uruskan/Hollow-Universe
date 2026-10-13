@@ -232,7 +232,14 @@ public static class MultiplayerTests
             GameClient ada = rig.Join("Ada");
             rig.WaitUntilPlaying();
             rig.Run(1.5, (_, t) => new InputFrame { Forward = t < 1.0 ? 1 : 0, Yaw = 2.0f });
-            leftAt = ada.Character.Position;
+            // The server saves the state it has stepped, which on a busy PC can be some ticks behind the client's
+            // prediction: stand still until the two agree, then remember where the server has the character.
+            var settle = Stopwatch.StartNew();
+            while (settle.Elapsed.TotalSeconds < 5 && Vector3.Distance(ServerPosition(rig, ada), ada.Character.Position) > 0.005f)
+            {
+                rig.Run(0.1, (_, _) => new InputFrame { Yaw = 2.0f });
+            }
+            leftAt = ServerPosition(rig, ada);
         }
         using (var rig = new LoopbackRig(file.Path))
         {
@@ -245,6 +252,12 @@ public static class MultiplayerTests
             Assert.Near(2.0, ada.InitialYaw, 0.001, "and facing the same way");
         }
     }
+
+    // Where the server's zone has a client's character now (read across threads: fine for a test's comparison).
+    private static Vector3 ServerPosition(LoopbackRig rig, GameClient client) =>
+        rig.Server.Zone.TryFindPlayer(client.EntityId, out Entity entity, out _)
+            ? rig.Server.Zone.Entities.Get<Character>(entity).State.Position
+            : client.Character.Position;
 
     /// <summary>
     /// GROUND.md §4.2: admin commands and chat. A teleport reaches the client as a correction; a player's line and a

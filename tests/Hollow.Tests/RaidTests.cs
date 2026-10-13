@@ -125,8 +125,7 @@ public static class RaidTests
                 DoorDef def = data.Door(doorKeys[d])!;
                 Piece frame = On(world, foundation, new SocketId(SocketKind.Edge, 0), def.Opening == Opening.Double ? "wall-frame" : "doorway", 4);
                 (Vector3 position, Quaternion rotation) = frame.ZoneTransform;
-                Assert.True(world.PlaceDoor(1, def, frame, 0, position + Vector3.Transform(new Vector3(0, 1.6f, 2), rotation), out Door? door).Ok,
-                    $"{def.Key} fitted");
+                Assert.True(world.PlaceDoor(1, def, frame, 0, out Door? door).Ok, $"{def.Key} fitted");
                 Vector3 outward = Vector3.Transform(Vector3.UnitZ, rotation);
                 (Vector3 hinge, Quaternion leafTurn) = door!.Leaf(0, false);
                 LeafDef leaf = def.Leaves[0];
@@ -250,12 +249,11 @@ public static class RaidTests
 
         // Ada places the charge on the wall in front of her.
         rig.Look(ada, face);
-        ref Character ch = ref rig.Ch(ada);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.PlaceCharge(ada, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "placed");
+        Assert.Equal(OutcomeCode.Done, rig.PlaceAimed(ada, ContainerRef.Belt, 0, "timed-charge"), "placed");
         LiveExplosive charge = rig.Zone.Explosives.Single();
         Assert.True(charge.State == ExplosiveState.Stuck && charge.Link.Support.Whole == north.Ref, $"stuck to the north wall ({charge.State}, {charge.Link.Support})");
         Assert.True(rig.P(ada).Inventory.Belt[0].IsEmpty, "the charge left the belt");
-        Assert.Equal(OutcomeCode.Stale, rig.Zone.PlaceCharge(ada, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "nothing more to place");
+        Assert.Equal(OutcomeCode.Stale, rig.PlaceAimed(ada, ContainerRef.Belt, 0, "timed-charge"), "nothing more to place");
         Assert.Equal(300, charge.FuseTicks, "a ten-second fuse");
         // She runs off (out of the blast); everyone else stays.
         Raids.Stand(rig, ada, rig.Zone.GroundAt(face.X + outward.X * 9, face.Z + outward.Z * 9));
