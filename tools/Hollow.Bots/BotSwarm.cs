@@ -46,7 +46,7 @@ public sealed class BotSwarm : IDisposable
                 Content = _content,
                 Log = i == 0 ? log : _ => { },
             });
-            if (i == 0)
+            if (i == 0 || Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null)
             {
                 client.Local.IntentRejected += a => log($"{client.Name}: intent {a.Seq} refused: {a.Result}");
             }

@@ -33,6 +33,7 @@ public sealed class RaidBrain
     private double _nextAction;
     private double _burstUntil;
     private double _nextReload;
+    private bool _arrived;
     private float _yaw;
     private float _pitch;
 
@@ -90,7 +91,8 @@ public sealed class RaidBrain
         // The plan: (stand off how far, aim at which face, what).
         (float stand, Vector3 aim, int slot) = (_step % 5) switch
         {
-            0 => (1.6f, centre + outward * 1.75f + up * 1.2f, ChargeSlot),
+            // The door, or the doorway beside it every other time (a broken door leaves nothing to stick to).
+            0 => (1.6f, centre + outward * 1.75f + right * (Placed % 2 == 0 ? 0 : 0.95f) + up * 1.2f, ChargeSlot),
             1 => (5f, centre + outward * 1.75f + up * 0.6f, BagSlot),
             2 => (6f, centre + outward * 1.75f + right * 1.1f + up * 1.0f, GrenadeSlot),
             3 => (15f, centre + outward * 1.7f + right * 1.1f + up * 1.6f, LauncherSlot),
@@ -99,9 +101,17 @@ public sealed class RaidBrain
         Vector3 spot = centre + outward * (1.7f + stand);
         if (!Steer(ref input, feet, spot, 0.8f, delta))
         {
+            _arrived = false;
             return Remember(input);
         }
         Look(ref input, eye, aim, up);
+        if (!_arrived)
+        {
+            // Turned to the target: a moment for the server to see the new view before acting on it (it takes a throw's
+            // or a charge's view from the intent only if it is near the view it has for the player).
+            _arrived = true;
+            _nextAction = Math.Max(_nextAction, time + 0.4);
+        }
         if (time < _nextAction)
         {
             return Remember(input);

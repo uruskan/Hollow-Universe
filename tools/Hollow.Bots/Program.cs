@@ -153,6 +153,10 @@ public static class Program
             {
                 report = e.Data;
             }
+            else if (e.Data?.Contains("refused", StringComparison.Ordinal) == true && Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null)
+            {
+                Console.WriteLine("  bot: " + e.Data);
+            }
         };
         bots.BeginOutputReadLine();
 

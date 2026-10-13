@@ -276,7 +276,8 @@ live ticking within rounding.
 
 **Offline raids are live.** Attackers' presence loads the zone, so the base exists in full and its
 defences work. The owners get a raid alert from the notification service and can respawn at a bed inside
-the base.
+the base. As built in G5 (GROUND.md §6.5): sleepers die to raids like anyone, upkeep and decay run on the zone's slow
+schedule, and alerts wait for the owners' login.
 
 ---
 
@@ -383,7 +384,7 @@ exactly one owner.
 | Accounts | login, connect tokens, bans | module in the server process |
 | Directory | where each player is, which zone host owns which zone | module |
 | Chat | global, local, team, direct messages | module |
-| Notifications | raid alerts, "your miner is full"; later push to a phone app | module |
+| Notifications | raid alerts, "your miner is full"; later push to a phone app | module (G5: `INotificationService` in `Hollow.Server/Notifications`: raid alerts in the game or queued in SQLite for login, a push seam; GROUND.md §6.5) |
 | Market | trading between players | later |
 | Discovery | who first scanned which system or body (optional feature) | later |
 | Admin | moderation, server control | console commands first |
