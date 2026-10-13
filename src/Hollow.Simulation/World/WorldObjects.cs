@@ -107,6 +107,9 @@ public class Deployable : WorldObject
     /// <summary>Where a box stands: its centre (the base is on the ground).</summary>
     public Vector3 Centre => Position + Up * Def.HalfExtents.Y;
 
+    /// <summary>Its model in the catalogue (its item's key; a prop's own) as it stands (GROUND.md §9.4).</summary>
+    public ModelPlacement Model => new(Def.Key, "", Position, ModelPlacement.Upright(Up, Yaw));
+
     /// <summary>A research table's work under way (G7): the item being taken apart (0: none; kept in its first cook slot, so it is saved).</summary>
     public ushort ResearchItem
     {

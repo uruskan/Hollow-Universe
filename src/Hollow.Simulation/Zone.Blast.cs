@@ -205,7 +205,7 @@ public sealed partial class Zone
                 name = door.Def.Name;
                 report.DoorsHit++;
             }
-            (double lost, bool destroyed) = DamageStructure(t.Part, amount, direction, now);
+            (double lost, bool destroyed) = DamageStructure(t.Part, amount, direction, now, attacker);
             report.Damage[t.Part] = amount;
             RaidStats.StructureDamage += (long)Math.Round(lost);
             if (destroyed)
@@ -248,7 +248,7 @@ public sealed partial class Zone
             {
                 Vector3 toward = t.Point - at;
                 Vector3 direction = toward.LengthSquared() < 1e-6f ? -normal : Vector3.Normalize(toward);
-                (double lost, bool destroyed) = DamageStructure(device, amount, direction, now);
+                (double lost, bool destroyed) = DamageStructure(device, amount, direction, now, attacker);
                 report.Damage[device] = amount;
                 report.DeployablesHit++;
                 RaidStats.StructureDamage += (long)Math.Round(lost);
@@ -261,7 +261,7 @@ public sealed partial class Zone
             }
             else if (t.Part is Deployable d && d.Health > 0)
             {
-                DamageDeployable(d, amount);
+                DamageDeployable(d, amount, Blow.Along(DestroyCause.Explosion, t.Point - at, attacker));
                 report.Damage[d] = amount;
                 report.DeployablesHit++;
             }
@@ -316,7 +316,7 @@ public sealed partial class Zone
     // once, RustMVP's resolver), so the parts of a point are carried to the next hit; Rust's raid counts come out exactly
     // (a grenade's 8.99 against metal takes 112, not 100). The table's explosive damage goes in through the explosive
     // channel.
-    private (double Lost, bool Destroyed) DamageStructure(object part, double amount, Vector3 direction, double now)
+    private (double Lost, bool Destroyed) DamageStructure(object part, double amount, Vector3 direction, double now, EntityId by)
     {
         BuildingWorld building = Building!;
         double total = _blastResidue.GetValueOrDefault(part) + amount;
@@ -327,6 +327,8 @@ public sealed partial class Zone
             return (0, false);
         }
         var hit = new DamageHit(direction, Explosive: whole);
+        Blow was = _blow;
+        _blow = Blow.Along(DestroyCause.Explosion, direction, by);
         DamageResult result = part switch
         {
             Piece piece => building.Damage(piece, hit, now),
@@ -334,6 +336,7 @@ public sealed partial class Zone
             ClaimDevice device => building.Damage(device, hit, now),
             _ => default,
         };
+        _blow = was;
         if (result.Destroyed)
         {
             _blastResidue.Remove(part);
@@ -346,7 +349,8 @@ public sealed partial class Zone
     /// take it, and if the base is claimed and doesn't list the attacker, it is a raid (soft-siding, shooting a wooden
     /// door): reported in <see cref="RaidHits"/>. Returns the health lost.
     /// </summary>
-    public float DamageBuildingBy(object part, Vector3 direction, float amount, bool projectile, Player? attacker, ushort weapon)
+    public float DamageBuildingBy(object part, Vector3 direction, float amount, bool projectile, Player? attacker, ushort weapon,
+        DestroyCause? cause = null)
     {
         ClaimDevice? claim = part switch
         {
@@ -355,7 +359,8 @@ public sealed partial class Zone
             ClaimDevice device => device,
             _ => null,
         };
-        float lost = DamageBuilding(part, direction, amount, projectile);
+        float lost = DamageBuilding(part, direction, amount, projectile,
+            Blow.Along(cause ?? (projectile ? DestroyCause.Bullet : DestroyCause.Melee), direction, attacker?.Id ?? EntityId.None));
         if (lost > 0 && claim != null && (attacker == null || !claim.IsAuthorised(attacker.Id.Value)))
         {
             var tally = new RaidTally(claim);

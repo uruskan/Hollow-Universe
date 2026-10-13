@@ -43,6 +43,15 @@ public enum ZoneEventKind : byte
     Detonated,
     /// <summary>To a player: a line to read (<see cref="ZoneEvent.Text"/>), such as a built ship waiting for room (G6).</summary>
     Notice,
+
+    /// <summary>
+    /// To everyone near (GROUND.md §9.4): something broke. <see cref="ZoneEvent.Target"/> is what kind of thing it was
+    /// (deployable, building, natural), <see cref="ZoneEvent.Other"/> which; <see cref="ZoneEvent.Model"/> names its model in
+    /// the catalogue as it stood (key, kit part, place, turn, size); <see cref="ZoneEvent.Velocity"/> is the blow's direction
+    /// (zero for none), <see cref="ZoneEvent.Cause"/> what broke it and <see cref="ZoneEvent.Player"/> who. Raised only by
+    /// <c>Zone.ReportDestroyed</c>; the client breaks the model into its gibs.
+    /// </summary>
+    Destroyed,
 }
 
 /// <summary>Why items arrived, for the UI's notifications.</summary>
@@ -114,4 +123,10 @@ public struct ZoneEvent
     public Vector3 Velocity;
     public uint Projectile;
     public string? Text;
+
+    /// <summary>Destroyed: the model that broke, as it stood.</summary>
+    public ModelPlacement Model;
+
+    /// <summary>Destroyed: what broke it.</summary>
+    public DestroyCause Cause;
 }

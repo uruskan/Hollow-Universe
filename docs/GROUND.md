@@ -3596,6 +3596,53 @@ Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's cont
 
 ![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 
+### 9.4 Gibs: things breaking apart
+
+Barrels, boxes, furnaces, workbenches, beds, the claim device, doors, building pieces of every grade and an outcrop's
+last remnant don't vanish when they are destroyed: they break into their own pieces, which fly from the blow, tumble,
+bounce, settle and sink away after a few seconds, with dust in the material's colour, as Rust's gibs do. The owner's
+words: "super optimized and efficient and scalable". The network carries only the fact that something broke.
+
+| Part | Where |
+|---|---|
+| Pieces | `art/gibs/build.py` (Blender 5.2, background): every model with `gibs` in `models.json` fractured into `game/assets/gibs/<key>.glb` |
+| Which model breaks into what | `game/data/ground/models.json`: an entry's `gibs` (its file, its material, options); kits (`kind: kit`) for the building's grades and the doors, whose parts are building.json's pieces and doors |
+| How pieces fly and go | `game/data/ground/gibs.json`: limits, the integrator's numbers, the pieces' life, materials (bounce, friction, spin, dust, sound), causes (push, spread, lift, spin) |
+| Dust | `fx.json`'s family `gibs` (`gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`), tinted by the material |
+| The fact | `ZoneEventKind.Destroyed`, raised only by `Zone.ReportDestroyed` (`Zone.Destroyed.cs`); the `Destruction` message (175); `GameClient.Destroyed` |
+| Tests | `tests/Hollow.Tests/GibTests.cs` (`dotnet run --project tests/Hollow.Tests -- Gib`) |
+
+**The pieces** (`art/gibs/build.py`; `-- <keys>` for some, `-- --list` for the plan):
+
+```bash
+blender -b --factory-startup --python art/gibs/build.py        # every set (about 40 s)
+```
+
+1. The source: every part of the model in place (lids shut, a door's leaves on their hinges), at the finest level of
+   detail within the set's triangle budget (`budget`, 1,200 by default), decimated toward it (to half at most) when even
+   the coarsest is above, coincident vertices welded so each primitive is one closed island.
+2. A hollow model (`hollow`: metres; the barrels, the recycler) gets an inner wall, so its pieces are sheets.
+3. Seeds spread through the solid (halfway through it under random surface points, picked farthest-first with a little
+   chance): 1.5 + 1.6 × its two longest sides in metres, 6 to 12, or `pieces`.
+4. Each island is cut by the seeds' Voronoi cells, every cut capped with faces of the material's inside (the island's own
+   atlas tile, planar mapped at the material's texel density, its colour darkened). An island smaller than half a cell
+   goes whole to the cell its middle is in, so bolts, bricks, boards and stones stay whole. Slivers join their neighbour.
+5. Each piece lies in its principal axes (so the game's contact box fits it); its node keeps where it sat, so the pieces
+   put together are the model again.
+
+A whole model's file holds its pieces as top nodes (`c00`…); a kit's holds a node per part (a piece's or a door's key)
+with its pieces under it. Pieces use the shared materials the models use (`psg_surface`, `hollow_rock`, …; the build
+writes `building_<grade>.tres` and `door_garage.tres` for the kits' parts).
+
+**The fact** (`Zone.Destroyed.cs`). Every destruction is reported once, through one method, `Zone.ReportDestroyed`, as
+`ZoneEventKind.Destroyed`: what kind of thing broke (`HitTarget`: deployable, building, natural) and which, its model as it
+stood (`ModelPlacement`: the catalogue key, the kit's part, its place, turn and size), the blow's direction and its cause
+(`DestroyCause`: melee, bullet, arrow, explosion, collapse, decay, demolish, fire), and by whom. Deployables and props
+report where they break (`DamageDeployable`); the building world says why a piece, door or claim device left it
+(`BuildingEvent.Removal`: taken, destroyed, collapsed, decayed, demolished), so a door or claim device picked up breaks
+nothing, while a door in a doorway brought down breaks with it; an outcrop used up reports its kind's model. The server
+sends `Destruction` (175, reliable) to everyone near; `GameClient.Destroyed` and `Destructions` give it to the visual layer.
+
 ---
 
 ## 10. How the work is run

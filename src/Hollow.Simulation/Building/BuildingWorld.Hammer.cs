@@ -118,7 +118,10 @@ public sealed partial class BuildingWorld
         {
             return Outcome.Refuse(Refusal.EditWindowOver);
         }
-        Remove(piece, now);
+        using (Removing(BuildingRemoval.Demolished))
+        {
+            Remove(piece, now);
+        }
         return Outcome.Done;
     }
 
@@ -226,7 +229,10 @@ public sealed partial class BuildingWorld
         bool destroyed = piece.Health <= 0;
         if (destroyed)
         {
-            Remove(piece, now);
+            using (Removing(BuildingRemoval.Destroyed))
+            {
+                Remove(piece, now);
+            }
         }
         else
         {

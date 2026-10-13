@@ -22,7 +22,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xDFE5143E621761C1UL;
+    public const ulong SchemaHash = 0xDB91467BA943D6FCUL;
 }
 
 partial struct Hello
@@ -3909,6 +3909,60 @@ partial struct ZoneClock
         v.BaseTurns = r.ReadDouble();
         v.Scale = r.ReadDouble();
         v.Overridden = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct Destruction
+{
+    public const byte TypeId = 175;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Receiver, 3);
+        w.WriteBits64(Id, 64);
+        w.WriteString(Model, 48);
+        w.WriteString(Part, 48);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteQuantized(RotationX, -1f, 1f, 14);
+        w.WriteQuantized(RotationY, -1f, 1f, 14);
+        w.WriteQuantized(RotationZ, -1f, 1f, 14);
+        w.WriteQuantized(RotationW, -1f, 1f, 14);
+        w.WriteQuantized(Scale, 0f, 8f, 12);
+        w.WriteQuantized(BlowX, -1f, 1f, 10);
+        w.WriteQuantized(BlowY, -1f, 1f, 10);
+        w.WriteQuantized(BlowZ, -1f, 1f, 10);
+        w.WriteBits((uint)Cause, 3);
+    }
+
+    public static Destruction Read(BitReader r)
+    {
+        var v = new Destruction();
+        v.Receiver = (HitTarget)r.ReadBits(3);
+        v.Id = r.ReadBits64(64);
+        v.Model = r.ReadString(48);
+        v.Part = r.ReadString(48);
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.RotationX = r.ReadQuantized(-1f, 1f, 14);
+        v.RotationY = r.ReadQuantized(-1f, 1f, 14);
+        v.RotationZ = r.ReadQuantized(-1f, 1f, 14);
+        v.RotationW = r.ReadQuantized(-1f, 1f, 14);
+        v.Scale = r.ReadQuantized(0f, 8f, 12);
+        v.BlowX = r.ReadQuantized(-1f, 1f, 10);
+        v.BlowY = r.ReadQuantized(-1f, 1f, 10);
+        v.BlowZ = r.ReadQuantized(-1f, 1f, 10);
+        v.Cause = (DestroyCause)r.ReadBits(3);
         return v;
     }
 }

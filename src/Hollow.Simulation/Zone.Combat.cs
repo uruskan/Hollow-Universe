@@ -165,7 +165,7 @@ public sealed partial class Zone
                 Gather(p, entity, hit.Natural, melee, hit.Point, eye);
                 break;
             case HitTarget.Deployable:
-                DamageDeployable(hit.Deployable!, melee.Structure);
+                DamageDeployable(hit.Deployable!, melee.Structure, Blow.Along(DestroyCause.Melee, direction, p.Id));
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = hit.Deployable!.Id, Target = HitTarget.Deployable, Amount = melee.Structure, Position = hit.Point });
                 break;
             case HitTarget.Building:
@@ -201,6 +201,10 @@ public sealed partial class Zone
         if (!result.Hit)
         {
             return;
+        }
+        if (result.Depleted)
+        {
+            ReportDepleted(o, eye, point, p.Id);
         }
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Natural, Flag = result.WeakSpot, Position = point });
         Give(entity, p, result.Yield, GainReason.Gathered, result.WeakSpot);
@@ -368,7 +372,7 @@ public sealed partial class Zone
                 }
                 return;
             case HitTarget.Deployable:
-                DamageDeployable(hit.Deployable!, pr.Damage * ammo.Structure);
+                DamageDeployable(hit.Deployable!, pr.Damage * ammo.Structure, Blow.Along(DestroyCause.Arrow, pr.Velocity, pr.Shooter));
                 if (shooter != null)
                 {
                     GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = hit.Deployable!.Id, Target = HitTarget.Deployable, Amount = pr.Damage * ammo.Structure, Position = hit.Point });
@@ -376,7 +380,8 @@ public sealed partial class Zone
                 break;
             case HitTarget.Building:
             {
-                float lost = DamageBuildingBy(hit.Building!, Vector3.Normalize(pr.Velocity), pr.Damage * ammo.Structure, projectile: true, shooter, pr.Ammo.Id);
+                float lost = DamageBuildingBy(hit.Building!, Vector3.Normalize(pr.Velocity), pr.Damage * ammo.Structure, projectile: true, shooter, pr.Ammo.Id,
+                    DestroyCause.Arrow);
                 if (shooter != null)
                 {
                     GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });

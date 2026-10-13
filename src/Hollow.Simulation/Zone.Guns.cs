@@ -444,7 +444,7 @@ public sealed partial class Zone
                 break;
             case HitTarget.Deployable:
                 float structure = (float)(b.Damage * b.Gun.Falloff(distance) * b.Round.Structure);
-                DamageDeployable(hit.Deployable!, structure);
+                DamageDeployable(hit.Deployable!, structure, Blow.Along(DestroyCause.Bullet, b.Velocity, shooter?.Id ?? EntityId.None));
                 if (shooter != null)
                 {
                     GameEvents.Add(new ZoneEvent

@@ -216,5 +216,25 @@ public enum BuildingChange : byte
     ClaimChanged,
 }
 
+/// <summary>Why a piece, door or claim device left the building: taken away whole, or broken (GROUND.md §9.4).</summary>
+public enum BuildingRemoval : byte
+{
+    /// <summary>Picked up, or a client's copy forgetting it: nothing broke.</summary>
+    Taken,
+
+    /// <summary>Its health ran out under a blow.</summary>
+    Destroyed,
+
+    /// <summary>It came down for want of support.</summary>
+    Collapsed,
+
+    /// <summary>It decayed away.</summary>
+    Decayed,
+
+    /// <summary>Taken down with the hammer.</summary>
+    Demolished,
+}
+
+/// <summary>A change in the building world; for removals, <see cref="Removal"/> says why.</summary>
 public readonly record struct BuildingEvent(BuildingChange Change, Piece? Piece = null, Door? Door = null, ClaimDevice? Claim = null,
-    Structure? Structure = null);
+    Structure? Structure = null, BuildingRemoval Removal = BuildingRemoval.Taken);

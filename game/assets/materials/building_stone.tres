@@ -1,0 +1,16 @@
+[gd_resource type="ORMMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/building/textures/building_stone_BaseColor.jpg" id="1"]
+[ext_resource type="Texture2D" path="res://assets/building/textures/building_stone_ORM.jpg" id="2"]
+[ext_resource type="Texture2D" path="res://assets/building/textures/building_stone_NormalGL.jpg" id="3"]
+
+[resource]
+resource_name = "Building_stone"
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("1")
+orm_texture = ExtResource("2")
+normal_enabled = true
+normal_texture = ExtResource("3")
+texture_filter = 5
+normal_scale = 0.85

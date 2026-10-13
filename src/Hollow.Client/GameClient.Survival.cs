@@ -133,6 +133,7 @@ public sealed partial class GameClient
         Local.Update();
         Local.UpdateBuilding();
         UpdateRaid();
+        UpdateDestructions();
         double now = ClockSeconds;
         _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 8);
     }
@@ -410,7 +411,7 @@ public sealed partial class GameClient
                 return;
             }
             default:
-                if (!ReceiveRaid(type) && !ReceiveWorld(type))
+                if (!ReceiveRaid(type) && !ReceiveWorld(type) && !ReceiveDestruction(type))
                 {
                     ReceiveBuilding(type);
                 }

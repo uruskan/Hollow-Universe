@@ -36,6 +36,10 @@ public sealed partial class BuildingWorld : IDisposable
     private int _nextStructure = 1;
     private int _pieceCount;
 
+    // Why pieces, doors and claim devices go during the call under way (GROUND.md §9.4): taken away unless an entry point
+    // (damage, the collapse, decay, the hammer) says otherwise for its extent.
+    private BuildingRemoval _removal;
+
     /// <param name="physics">The zone's Jolt world, or null for rules without collision (pure tests).</param>
     /// <param name="newId">Hands out permanent IDs for new pieces, doors and devices.</param>
     public BuildingWorld(BuildingData data, PhysicsWorld? physics, Func<EntityId> newId)
@@ -97,7 +101,10 @@ public sealed partial class BuildingWorld : IDisposable
             if (!piece.Gone)
             {
                 touched.Add(piece.Structure);
-                RemoveOne(piece);
+                using (Removing(BuildingRemoval.Collapsed))
+                {
+                    RemoveOne(piece);
+                }
             }
         }
         foreach (Structure s in touched)
@@ -544,7 +551,7 @@ public sealed partial class BuildingWorld : IDisposable
         _pieceIds.Remove(piece.Id);
         piece.Gone = true;
         piece.Collapsing = false;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.PieceRemoved, piece, Structure: structure));
+        Changed?.Invoke(new BuildingEvent(BuildingChange.PieceRemoved, piece, Structure: structure, Removal: _removal));
         if (structure.Count == 0)
         {
             if (structure.Claim != null)
@@ -553,6 +560,24 @@ public sealed partial class BuildingWorld : IDisposable
             }
             DropStructure(structure);
         }
+    }
+
+    /// <summary>Sets why things go (<see cref="BuildingEvent.Removal"/>) until the scope ends.</summary>
+    private RemovalScope Removing(BuildingRemoval why) => new(this, why);
+
+    private readonly struct RemovalScope : IDisposable
+    {
+        private readonly BuildingWorld _world;
+        private readonly BuildingRemoval _was;
+
+        public RemovalScope(BuildingWorld world, BuildingRemoval why)
+        {
+            _world = world;
+            _was = world._removal;
+            world._removal = why;
+        }
+
+        public void Dispose() => _world._removal = _was;
     }
 
     // Splits a structure whose pieces no longer all connect into one structure per connected part (same frame). The

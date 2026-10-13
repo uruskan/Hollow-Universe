@@ -585,6 +585,9 @@ public sealed partial class GameServer
                 case ZoneEventKind.Detonated:
                     SendDetonation(e);
                     break;
+                case ZoneEventKind.Destroyed:
+                    SendDestruction(e);
+                    break;
             }
         }
         Zone.GameEvents.Clear();

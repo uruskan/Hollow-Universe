@@ -143,7 +143,7 @@ public sealed partial class BuildingWorld
         {
             structure.Claim = null;
         }
-        Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimRemoved, device.Support, Claim: device, Structure: structure));
+        Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimRemoved, device.Support, Claim: device, Structure: structure, Removal: _removal));
     }
 
     /// <summary>
@@ -166,7 +166,10 @@ public sealed partial class BuildingWorld
         bool destroyed = device.Health <= 0;
         if (destroyed)
         {
-            RemoveClaim(device);
+            using (Removing(BuildingRemoval.Destroyed))
+            {
+                RemoveClaim(device);
+            }
         }
         else
         {
@@ -492,7 +495,10 @@ public sealed partial class BuildingWorld
                 foreach (Piece p in dead)
                 {
                     p.Health = 0;
-                    Remove(p, now + t, immediate: true);
+                    using (Removing(BuildingRemoval.Decayed))
+                    {
+                        Remove(p, now + t, immediate: true);
+                    }
                 }
                 if (_nextStructure != known)
                 {

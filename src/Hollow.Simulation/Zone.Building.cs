@@ -153,6 +153,13 @@ public sealed partial class Zone
     {
         switch (e.Change)
         {
+            // A piece or door broken, brought down, decayed or demolished breaks apart as its kit's part (GROUND.md §9.4).
+            case BuildingChange.PieceRemoved when e.Piece is { } piece && BlowOf(e.Removal) is { } blow:
+                ReportDestroyed(HitTarget.Building, piece.Id, Building!.ModelOf(piece), blow);
+                break;
+            case BuildingChange.DoorRemoved when e.Door is { } door && BlowOf(e.Removal) is { } blow:
+                ReportDestroyed(HitTarget.Building, door.Id, BuildingWorld.ModelOf(door), blow);
+                break;
             case BuildingChange.ClaimAdded when e.Claim is { } claim && !_claimDeployables.ContainsKey(claim):
             {
                 (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
@@ -175,6 +182,11 @@ public sealed partial class Zone
                 }
                 break;
             case BuildingChange.ClaimRemoved when e.Claim is { } claim && _claimDeployables.Remove(claim, out Deployable? d):
+                // Broken (not picked up): its model breaks apart (GROUND.md §9.4), drawn as the deployable it also is.
+                if (BlowOf(e.Removal) is { } broken)
+                {
+                    ReportDestroyed(HitTarget.Building, claim.Id, d.Model, broken);
+                }
                 // Its store spills where it stood.
                 if (d.Storage != null)
                 {
@@ -215,12 +227,15 @@ public sealed partial class Zone
 
     /// <summary>
     /// Damage to a piece, door or claim device through the building rules (its grade's protection, a wall's soft side):
-    /// melee as melee, arrows and bullets as bullets. Returns the health lost.
+    /// melee as melee, arrows and bullets as bullets. Whatever it breaks is reported broken by <paramref name="blow"/>
+    /// (by default a bullet's or a melee blow's along <paramref name="direction"/>). Returns the health lost.
     /// </summary>
-    public float DamageBuilding(object part, Vector3 direction, float amount, bool projectile)
+    public float DamageBuilding(object part, Vector3 direction, float amount, bool projectile, Blow? blow = null)
     {
         BuildingWorld building = Building!;
         var hit = projectile ? new DamageHit(direction, Bullet: amount) : new DamageHit(direction, Melee: amount);
+        Blow was = _blow;
+        _blow = blow ?? Blow.Along(projectile ? DestroyCause.Bullet : DestroyCause.Melee, direction, EntityId.None);
         DamageResult result = part switch
         {
             Piece piece => building.Damage(piece, hit, BuildingNow),
@@ -228,6 +243,7 @@ public sealed partial class Zone
             ClaimDevice device => building.Damage(device, hit, BuildingNow),
             _ => default,
         };
+        _blow = was;
         return (float)result.Loss;
     }
 

@@ -186,8 +186,11 @@ public sealed partial class Zone
 
     // ---------------------------------------------------------------- deployables
 
-    /// <summary>Damage to a deployable (melee, arrows; raiding later): at 0 it breaks and its contents spill.</summary>
-    public void DamageDeployable(Deployable d, float amount)
+    /// <summary>
+    /// Damage to a deployable (melee, arrows, bullets, blasts): at 0 it breaks, its contents spill and it is reported
+    /// destroyed by <paramref name="blow"/> (GROUND.md §9.4).
+    /// </summary>
+    public void DamageDeployable(Deployable d, float amount, in Blow blow = default)
     {
         if (amount <= 0 || d.Health <= 0 || d is WorldProp { Prop.Breakable: false })
         {
@@ -196,7 +199,7 @@ public sealed partial class Zone
         if (ClaimOf(d) is { } claim)
         {
             // A claim device takes its damage through the building rules (Zone.Building.cs).
-            DamageBuilding(claim, Vector3.Zero, amount, projectile: false);
+            DamageBuilding(claim, blow.Direction, amount, projectile: false, blow);
             return;
         }
         d.Health -= amount;
@@ -216,6 +219,7 @@ public sealed partial class Zone
             }
         }
         SpillResearch(d);
+        ReportDestroyed(HitTarget.Deployable, d.Id, d.Model, blow);
         RemoveStatic(d);
         if (d is WorldProp prop)
         {

@@ -1346,3 +1346,31 @@ public partial struct ZoneClock
     public double Scale;
     public bool Overridden;
 }
+
+// ---------------------------------------------------------------- gibs: things breaking apart (GROUND.md §9.4)
+
+/// <summary>
+/// Something broke (to everyone near, reliable): what kind of thing and which, its model in the catalogue as it stood (the
+/// key, and the part of a kit: a building piece's or a door's key), its place in the zone frame, turn and size, the blow's
+/// direction (zero for none) and what broke it. The client breaks the model into its gibs; nothing else travels.
+/// </summary>
+[NetMessage(175)]
+public partial struct Destruction
+{
+    [Bits(3)] public HitTarget Receiver;
+    public ulong Id;
+    [MaxLength(48)] public string Model;
+    [MaxLength(48)] public string Part;
+    public float X;
+    public float Y;
+    public float Z;
+    [Quantize(-1, 1, 14)] public float RotationX;
+    [Quantize(-1, 1, 14)] public float RotationY;
+    [Quantize(-1, 1, 14)] public float RotationZ;
+    [Quantize(-1, 1, 14)] public float RotationW;
+    [Quantize(0, 8, 12)] public float Scale;
+    [Quantize(-1, 1, 10)] public float BlowX;
+    [Quantize(-1, 1, 10)] public float BlowY;
+    [Quantize(-1, 1, 10)] public float BlowZ;
+    [Bits(3)] public DestroyCause Cause;
+}

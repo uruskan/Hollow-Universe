@@ -1,7 +1,7 @@
 {
   "source": "GROUND.md §9.3. The effects library's catalogue, read by game/scripts/Fx/FxCatalog.cs. Sizes in metres (a billboard's full width; a streak's base length), speeds in m/s, lives and delays in seconds, cones in degrees; [a, b] is a range picked per particle; colours are linear [r, g, b]. Batches: spark, ember, flash, fire, dust, smoke, smoke_hero, haze, haze_rise, ring, droplet, chunk_stone, chunk_wood, chunk_metal (FxBatch.cs). dir: normal, up, down, along (the effect's direction), back, reflect, sphere, ring (outward along the surface). cap: how many may play at once; cull: metres from the camera past which it is skipped; hero: the moment the viewer's contact sheet shows; stage: what the viewer plays it on.",
   "tracerEvery": 3,
-  "families": ["muzzle", "tracer", "impact", "blood", "gather", "explosion", "fire", "world"],
+  "families": ["muzzle", "tracer", "impact", "blood", "gather", "explosion", "fire", "world", "gibs"],
   "effects": [
     { "key": "muzzle.rifle", "family": "muzzle", "about": "Rifle shot: a long flame, a flicker of light, a wisp of smoke, now and then a spark.",
       "cap": 24, "cull": 250, "duration": 0.1, "hero": 0.0, "stage": "gun",
@@ -565,6 +565,54 @@
           "offset": 0.02, "color": [0.72, 0.62, 0.45] },
         { "batch": "dust", "count": [1, 2], "size": [0.15, 0.25], "grow": 2, "life": [0.6, 1.0], "speed": [0.2, 0.5], "dir": "ring", "cone": 20,
           "offset": 0.04, "color": [0.74, 0.66, 0.51], "alpha": [0.25, 0.4] }
+      ] },
+    { "key": "gibs.dust.wood", "family": "gibs", "about": "Something wooden breaking apart (gibs, GROUND.md §9.4): a puff of dust over it and splinters (Area: its half size; Tint: the material's dust colour).",
+      "cap": 24, "cull": 160, "duration": 3, "hero": 0.25, "stage": "wood",
+      "layers": [
+        { "batch": "dust", "count": [6, 9], "size": [0.45, 0.8], "grow": 2.0, "life": [1.4, 2.4], "speed": [0.3, 1.2], "dir": "sphere", "area": true,
+          "color": [1, 1, 1], "vary": 0.08, "alpha": [0.35, 0.5] },
+        { "batch": "chunk_wood", "count": [8, 12], "size": [0.025, 0.07], "speed": [1.5, 4], "life": [2, 3.5], "dir": "sphere", "area": true,
+          "color": [1.4, 1.4, 1.4], "vary": 0.12 }
+      ] },
+    { "key": "gibs.dust.stone", "family": "gibs", "about": "Stone breaking apart (gibs): a heavy cloud of grit and chips (Area: its half size; Tint: the material's dust colour).",
+      "cap": 24, "cull": 200, "duration": 3.5, "hero": 0.3, "stage": "wall",
+      "layers": [
+        { "batch": "dust", "count": [8, 12], "size": [0.6, 1.1], "grow": 2.2, "life": [1.8, 3.0], "speed": [0.4, 1.5], "dir": "sphere", "area": true,
+          "color": [1, 1, 1], "vary": 0.08, "alpha": [0.45, 0.6] },
+        { "batch": "chunk_stone", "count": [10, 16], "size": [0.03, 0.09], "speed": [1.5, 4.5], "life": [2.5, 4], "dir": "sphere", "area": true,
+          "color": [1.2, 1.2, 1.2], "vary": 0.12 }
+      ] },
+    { "key": "gibs.dust.metal", "family": "gibs", "about": "Metal breaking apart (gibs): a thin puff of rust and grime, torn bits of tin (Area: its half size; Tint: the material's dust colour).",
+      "cap": 24, "cull": 160, "duration": 2.5, "hero": 0.2, "stage": "metal",
+      "layers": [
+        { "batch": "dust", "count": [4, 6], "size": [0.35, 0.65], "grow": 2.0, "life": [1.0, 1.8], "speed": [0.3, 1.0], "dir": "sphere", "area": true,
+          "color": [1, 1, 1], "vary": 0.08, "alpha": [0.25, 0.38] },
+        { "batch": "chunk_metal", "count": [6, 10], "size": [0.02, 0.06], "speed": [2, 5], "life": [1.5, 3], "dir": "sphere", "area": true,
+          "color": [1.5, 1.5, 1.5] }
+      ] },
+    { "key": "gibs.dust.rock", "family": "gibs", "about": "A rock crumbling (gibs: an outcrop's last break): stone dust and gravel (Area: its half size; Tint: the material's dust colour).",
+      "cap": 8, "cull": 180, "duration": 3.5, "hero": 0.25, "stage": "rock",
+      "layers": [
+        { "batch": "dust", "count": [8, 12], "size": [0.7, 1.2], "grow": 2.2, "life": [2, 3.5], "speed": [0.6, 1.8], "dir": "sphere", "area": true,
+          "color": [1, 1, 1], "vary": 0.1, "alpha": [0.5, 0.65] },
+        { "batch": "chunk_stone", "count": [12, 18], "size": [0.03, 0.1], "speed": [2, 5], "life": [2.5, 4], "dir": "sphere", "area": true,
+          "color": [1.15, 1.15, 1.15], "vary": 0.12 }
+      ] },
+    { "key": "gibs.dust.cloth", "family": "gibs", "about": "Cloth and padding torn apart (gibs): a faint puff of lint (Area: its half size; Tint: the material's dust colour).",
+      "cap": 12, "cull": 100, "duration": 2, "hero": 0.2, "stage": "dirt",
+      "layers": [
+        { "batch": "dust", "count": [4, 6], "size": [0.3, 0.55], "grow": 1.8, "life": [1.0, 1.6], "speed": [0.2, 0.8], "dir": "sphere", "area": true,
+          "color": [1, 1, 1], "vary": 0.06, "alpha": [0.2, 0.3] }
+      ] },
+    { "key": "gibs.dust.ash", "family": "gibs", "about": "A fire place kicked apart (gibs): ash, a few embers and grit (Area: its half size; Tint: the material's dust colour).",
+      "cap": 12, "cull": 120, "duration": 3, "hero": 0.25, "stage": "campfire",
+      "layers": [
+        { "batch": "dust", "count": [6, 9], "size": [0.4, 0.75], "grow": 2.0, "life": [1.4, 2.4], "speed": [0.3, 1.1], "dir": "sphere", "area": true,
+          "color": [1, 1, 1], "vary": 0.08, "alpha": [0.4, 0.55] },
+        { "batch": "ember", "count": [5, 9], "size": [0.02, 0.04], "speed": [0.6, 2], "life": [0.8, 1.6], "dir": "up", "cone": 50, "area": true,
+          "color": [1.0, 0.45, 0.12] },
+        { "batch": "chunk_stone", "count": [4, 7], "size": [0.02, 0.05], "speed": [1, 3], "life": [2, 3], "dir": "sphere", "area": true,
+          "color": [1, 1, 1] }
       ] }
   ]
 }
