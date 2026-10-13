@@ -32,6 +32,7 @@ public partial class PeopleView : Node3D
         public int Frames;
         public string Name = "";
         public ushort[] Wear = Array.Empty<ushort>();
+        public byte Body;
     }
 
     private sealed class Corpse
@@ -80,6 +81,13 @@ public partial class PeopleView : Node3D
         }
     }
 
+    private CharacterView NewView(RemoteEntity entity)
+    {
+        var view = new CharacterView { Name = "Player " + entity.Name, Body = (BodyType)entity.Body };
+        AddChild(view);
+        return view;
+    }
+
     public void Refresh(double delta)
     {
         uint wearRevision = Client.Local.Inventory.Wear.Revision;
@@ -95,9 +103,8 @@ public partial class PeopleView : Node3D
             _seen.Add(entity.NetId);
             if (!_people.TryGetValue(entity.NetId, out Person? p))
             {
-                p = new Person { View = new CharacterView { Name = "Player " + entity.Name }, Last = entity.Position, Name = entity.Name };
+                p = new Person { View = NewView(entity), Last = entity.Position, Name = entity.Name, Body = entity.Body };
                 FrameEvents.Note("character");
-                AddChild(p.View);
                 p.Wear = entity.Wear;
                 p.View.Wear(ItemLooks.Outfit(Client.Content, entity.Wear));
                 _people.Add(entity.NetId, p);
@@ -114,6 +121,15 @@ public partial class PeopleView : Node3D
 
     private void Update(Person p, RemoteEntity e, float dt)
     {
+        if (p.Body != e.Body && !p.Down)
+        {
+            // Another body: a new view (a view's body is chosen when it is made), dressed as before.
+            p.View.QueueFree();
+            p.View = NewView(e);
+            p.View.Wear(ItemLooks.Outfit(Client.Content, p.Wear));
+            p.Body = e.Body;
+            p.Frames = 0;
+        }
         p.Frames++;
         Num.Vector3 up = Client.Frame.UpAt(e.Position);
         Vector3 seen = GroundView.ToGodot((e.Position - p.Last) / dt);
@@ -212,10 +228,11 @@ public partial class PeopleView : Node3D
                 _corpses[thing.NetId] = new Corpse { View = died.View, Fallen = true, Since = now };
                 continue;
             }
-            var view = new CharacterView { Name = "Corpse " + thing.Name };
+            Person? owner = _people.Values.FirstOrDefault(p => p.Name == thing.Name);
+            byte body = thing.Name == Client.Name ? Client.Body : owner?.Body ?? 0;
+            var view = new CharacterView { Name = "Corpse " + thing.Name, Body = (BodyType)body };
             AddChild(view);
-            ushort[] wear = thing.Name == Client.Name ? _myWear
-                : _people.Values.FirstOrDefault(p => p.Name == thing.Name)?.Wear ?? Array.Empty<ushort>();
+            ushort[] wear = thing.Name == Client.Name ? _myWear : owner?.Wear ?? Array.Empty<ushort>();
             view.Wear(ItemLooks.Outfit(Client.Content, wear));
             Num.Vector3 up = Client.Frame.UpAt(thing.Position);
             view.Apply(CharacterFrame.Standing(at, GroundView.ToGodot(up), thing.Yaw));

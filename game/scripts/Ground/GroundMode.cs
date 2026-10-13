@@ -37,6 +37,9 @@ public partial class GroundMode : Node
     private Node3D? _menu;
     private GameContent _content = null!;
 
+    // The body chosen in the menu (or with --body female|male), sent at connect.
+    private bool _female;
+
     /// <summary>The command-line options; set before adding to the tree.</summary>
     public Dictionary<string, string> Options { get; set; } = new();
 
@@ -66,6 +69,7 @@ public partial class GroundMode : Node
             GroundModels.Provider = new CatalogModels(new PlaceholderModels());
         }
         string name = Option("name", "Survivor");
+        _female = Options.TryGetValue("body", out string? body) && body != "true" ? body == "female" : GroundUi.SavedFemaleBody();
         if (Options.TryGetValue("connect", out string? target) && target != "true")
         {
             string[] parts = target.Split(':');
@@ -105,8 +109,8 @@ public partial class GroundMode : Node
         var ui = new GroundUi { Name = "GroundUi", Model = new MenuGroundUi() };
         layer.AddChild(ui);
         ui.ShowMenu(inGame: false);
-        ui.HostRequested += player => Begin(player, null, Protocol.DefaultPort);
-        ui.ConnectRequested += (player, host, port) => Begin(player, host, port);
+        ui.HostRequested += player => Begin(player, null, Protocol.DefaultPort, ui.FemaleBody);
+        ui.ConnectRequested += (player, host, port) => Begin(player, host, port, ui.FemaleBody);
         ui.QuitRequested += () => GetTree().Quit();
         Input.MouseMode = Input.MouseModeEnum.Visible;
     }
@@ -126,8 +130,9 @@ public partial class GroundMode : Node
     }
 
     // From a menu: the menu (or the game before) goes, the game starts.
-    private void Begin(string name, string? host, int port)
+    private void Begin(string name, string? host, int port, bool female)
     {
+        _female = female;
         Callable.From(() =>
         {
             _menu?.QueueFree();
@@ -173,6 +178,7 @@ public partial class GroundMode : Node
         _client = new GameClient(new ClientOptions
         {
             Name = name,
+            Body = (byte)(_female ? 1 : 0),
             Conditions = conditions,
             Content = _content,
             Log = line => GD.Print("[client] " + line),
@@ -194,8 +200,8 @@ public partial class GroundMode : Node
         };
         _view.QuitRequested += () => GetTree().Quit();
         AddChild(_view);
-        _view.Interface.HostRequested += player => Begin(player, null, Protocol.DefaultPort);
-        _view.Interface.ConnectRequested += (player, address, p) => Begin(player, address, p);
+        _view.Interface.HostRequested += player => Begin(player, null, Protocol.DefaultPort, _view.Interface.FemaleBody);
+        _view.Interface.ConnectRequested += (player, address, p) => Begin(player, address, p, _view.Interface.FemaleBody);
         if (Options.ContainsKey("measure"))
         {
             AddChild(new GroundMeasure

@@ -38,7 +38,7 @@ public partial class InventoryBody : Node3D
 
     public override void _Ready()
     {
-        var view = new CharacterView { Name = "Body", FootPlacement = false, ForcedLod = 0 };
+        var view = new CharacterView { Name = "Body", FootPlacement = false, ForcedLod = 0, Body = (BodyType)_client.Body };
         AddChild(view);
         view.Wear(ItemLooks.Outfit(_client.Content, _client.Local.Inventory.Wear.Slots.ToArray().Select(s => s.Item)));
         (HeldKind kind, string? model) = _held != null && ItemLooks.Held(_held) is { } h ? h : (HeldKind.Unarmed, (string?)null);

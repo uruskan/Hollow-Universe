@@ -29,6 +29,9 @@ public sealed class PlayerSession
 
     public string Name { get; }
 
+    /// <summary>The body the player chose at connect (0 male, 1 female).</summary>
+    public byte Body { get; set; }
+
     /// <summary>The account and stored character, while logging in.</summary>
     public Task<(long AccountId, CharacterRecord? Character)>? Login { get; set; }
 

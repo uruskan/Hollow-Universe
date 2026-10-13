@@ -26,6 +26,9 @@ public partial struct Hello
 
     /// <summary>The hash of the client's game data (game/data/ground): both sides must run the same rules.</summary>
     public ulong ContentHash;
+
+    /// <summary>The body the player chose (GROUND.md §4.8): 0 male, 1 female; saved with the character.</summary>
+    public byte Body;
 }
 
 /// <summary>Why a connection was refused or closed (connection reject or disconnect data).</summary>
@@ -270,6 +273,9 @@ public partial struct CharacterLook
 {
     [VarInt] public uint NetId;
     [MaxCount(7)] public WornItem[] Wear;
+
+    /// <summary>The character's body: 0 male, 1 female.</summary>
+    public byte Body;
 }
 
 /// <summary>A natural object as players changed it; health 255, not depleted and no weak spot is as new.</summary>

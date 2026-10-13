@@ -272,7 +272,7 @@ public partial class GroundUi : Control
         bool entry = Screen == GroundScreen.Menu && _menuEntry;
         Place(_search, crafting, CanvasFrame, 266, 622, 521, 40);
         Place(_quantity, crafting && CurrentRecipe() != null, CanvasFrame, 853, 710, 80, 40);
-        Place(_name, entry, LeftFrame, 916, 468, 534, 45);
+        Place(_name, entry, LeftFrame, 916, 468, 374, 45);
         Place(_host, entry, LeftFrame, 916, 561, 400, 45);
         Place(_port, entry, LeftFrame, 1333, 561, 118, 45);
         Place(_chat, _chat.Visible, LeftFrame, 20, 806, 440, 32);
@@ -616,10 +616,22 @@ public partial class GroundUi : Control
 
     private const string PreferencesPath = "user://ground-ui.cfg";
 
+    /// <summary>The body chosen in the menu (GROUND.md §4.8): female or not (male).</summary>
+    public bool FemaleBody { get; set; }
+
+    /// <summary>The body last chosen in the menu, as saved on this computer.</summary>
+    public static bool SavedFemaleBody()
+    {
+        var file = new ConfigFile();
+        file.Load(PreferencesPath);
+        return (string)file.GetValue("connection", "body", "male") == "female";
+    }
+
     private void LoadPreferences()
     {
         var file = new ConfigFile();
         file.Load(PreferencesPath);
+        FemaleBody = (string)file.GetValue("connection", "body", "male") == "female";
         _name.Text = (string)file.GetValue("connection", "name", "Survivor");
         _host.Text = (string)file.GetValue("connection", "host", "127.0.0.1");
         _port.Text = ((int)file.GetValue("connection", "port", 27015)).ToString(CultureInfo.InvariantCulture);
@@ -634,6 +646,7 @@ public partial class GroundUi : Control
         var file = new ConfigFile();
         file.Load(PreferencesPath);
         file.SetValue("connection", "name", _name.Text);
+        file.SetValue("connection", "body", FemaleBody ? "female" : "male");
         file.SetValue("connection", "host", _host.Text);
         file.SetValue("connection", "port", MenuPort());
         file.SetValue("crafting", "favourites", new List<string>(_favourites).ToArray());

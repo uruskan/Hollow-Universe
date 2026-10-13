@@ -39,6 +39,7 @@ public sealed class BotSwarm : IDisposable
             var client = new GameClient(new ClientOptions
             {
                 Name = $"{prefix}{i + 1:000}",
+                Body = (byte)(i % 3 == 1 ? 1 : 0), // a third of the crowd female
                 SharedRelay = _relay,
                 SharedPhysics = SharedGround,
                 SharedNature = SharedNature,

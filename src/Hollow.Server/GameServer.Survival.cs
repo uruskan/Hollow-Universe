@@ -755,7 +755,7 @@ public sealed partial class GameServer
         {
             return;
         }
-        ulong hash = 0x10C;
+        ulong hash = Hash64.Combine(0x10C, p.Body);
         for (int i = 0; i < p.Inventory.Wear.Size; i++)
         {
             hash = Hash64.Combine(hash, p.Inventory.Wear[i].Item);
@@ -774,7 +774,7 @@ public sealed partial class GameServer
             }
         }
         _writer.Reset();
-        new CharacterLook { NetId = netId, Wear = wear.ToArray() }.WriteMessage(_writer);
+        new CharacterLook { NetId = netId, Wear = wear.ToArray(), Body = p.Body }.WriteMessage(_writer);
         Send(session);
     }
 

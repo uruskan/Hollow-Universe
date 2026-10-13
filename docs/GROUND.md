@@ -186,9 +186,13 @@ Godot.
   - **Characters:** other players are the character package's `CharacterView`, fed every frame from the replicated
     state (position, up, yaw, pitch, the velocity seen, stance, ground, the item in hand), with swings and shots,
     flinches when hurt, a ragdoll on death and lying down asleep; corpses are ragdolls (a player's own body if they
-    died in view). The player has `ViewmodelView` arms in their sleeves holding the belt item's model (`ItemLooks`:
-    rock as the hand stone, hatchets as the flint axe, pickaxes as the flint pick). Godot's own physics gets the ground
-    near the player for ragdolls and feet (`GroundCollision`).
+    died in view). Each wears what their worn items show (`ItemLooks.Worn`: the woven hood as the knit cap until a hood
+    exists, shirt, trousers, the work boots as the laced boots, the chest plate as the riveted breastplate; gloves and
+    the metal mask have no garment yet) in the body they chose in the menu (`CharacterView.Body`, male or female: sent
+    in `Hello.Body`, kept in the character's saved state, shown to others in `CharacterLook.Body`). The player has
+    `ViewmodelView` arms of their own body in their sleeves, holding the belt item's catalogue model (`ItemLooks`,
+    through `HeldItems`), and the inventory shows the same body. Godot's own physics gets the ground near the player
+    for ragdolls and feet (`GroundCollision`).
   - **Interface:** the RustMVP interface (`GroundUi`, §8) over `ClientGroundUi`, names over other players (placed by
     `Labeller`), F3 for the network graph.
   - **Steady frames** (measured with `--measure`, §5.4): everything the game may show is drawn once, tiny, while the
@@ -214,7 +218,7 @@ Godot.
 - **Transport:** LiteNetLib 2.1 in manual mode (no background threads: the server polls once a tick, a client once a
   frame). Reliable ordered: `Welcome`, `Spawn`, `Despawn`, chat. Sequenced (unreliable, newest wins): inputs and
   snapshots.
-- **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name). A
+- **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name, the body chosen). A
   refusal carries a `Goodbye` with a reason (protocol mismatch, bad name, name in use, server full; also kick and
   shutdown). An accepted player gets `Welcome`: net and entity IDs, the server tick, the rates, the zone (body, radius,
   gravity, surface seed, latitude, longitude) and the saved view.
@@ -1645,7 +1649,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Wheels:** held right mouse button with the plan or the hammer; release (or click) chooses, Esc cancels. The plan's
   sectors start at −81° so the top ray falls between the foundation and the triangle roof; the hammer's first sector
   is centred at twelve o'clock.
-- **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, address and port (HOST SOLO or CONNECT); QUIT.
+- **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
+  port (HOST SOLO or CONNECT); QUIT.
   The name and address are remembered.
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
   drop outside and on a panel, split, Q, CRAFT, Tab) against `MockGroundUi` and quits with 0 when all pass.
@@ -2159,3 +2164,7 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     so a crowd of the dead costs no ragdolls far away.
 73. **A picked berry bush is the same bush without berries**: two draw-only flora kinds (253 and 254, never
     scattered) built from the berry bushes' own seeds.
+74. **The body is chosen in the menu at every connect**, like the name: the server keeps the latest choice with the
+    character (player state version 3), so others see it while the player sleeps. A third of the bots are female.
+75. **Sleepers stay ragdolls**: the character package's clips include a death fall and a sitting idle, but its
+    contract (§4.8) has no lying pose to ask for; a `Sleep` event or a lying stance there would replace the ragdoll.

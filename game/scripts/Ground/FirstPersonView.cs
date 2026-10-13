@@ -41,7 +41,7 @@ public partial class FirstPersonView : Node3D
     public void Attach(Camera3D camera)
     {
         _camera = camera;
-        _arms = new ViewmodelView { Name = "Viewmodel" };
+        _arms = new ViewmodelView { Name = "Viewmodel", Body = (BodyType)Client.Body };
         camera.AddChild(_arms);
         _placeholder = new Node3D { Name = "HeldPlaceholder", Visible = false };
         _stick = new MeshInstance3D

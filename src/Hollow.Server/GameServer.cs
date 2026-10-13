@@ -366,7 +366,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             return;
         }
         NetPeer peer = request.Accept();
-        var session = new PlayerSession(peer, name);
+        var session = new PlayerSession(peer, name) { Body = Math.Min(hello.Body, (byte)1) };
         session.Login = _persistence != null
             ? _persistence.Login(name)
             : Task.FromResult<(long, CharacterRecord?)>((0, null));
@@ -453,6 +453,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             {
                 GiveKit(fresh, kit);
             }
+        }
+        if (Zone.PlayerOf(entity) is { } chosen)
+        {
+            chosen.Body = session.Body; // the body chosen in the menu, kept with the character
         }
         if (!Zone.Entities.Has<NetPresence>(entity))
         {

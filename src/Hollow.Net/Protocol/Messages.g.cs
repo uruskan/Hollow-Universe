@@ -18,7 +18,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xE5680B498C19C302UL;
+    public const ulong SchemaHash = 0x350BE2F8FC0B4D30UL;
 }
 
 partial struct Hello
@@ -38,6 +38,7 @@ partial struct Hello
         w.WriteBits64(SchemaHash, 64);
         w.WriteString(PlayerName, 32);
         w.WriteBits64(ContentHash, 64);
+        w.WriteBits((uint)Body, 8);
     }
 
     public static Hello Read(BitReader r)
@@ -47,6 +48,7 @@ partial struct Hello
         v.SchemaHash = r.ReadBits64(64);
         v.PlayerName = r.ReadString(32);
         v.ContentHash = r.ReadBits64(64);
+        v.Body = (byte)r.ReadBits(8);
         return v;
     }
 }
@@ -739,6 +741,7 @@ partial struct CharacterLook
         {
             Wear![i].Write(w);
         }
+        w.WriteBits((uint)Body, 8);
     }
 
     public static CharacterLook Read(BitReader r)
@@ -756,6 +759,7 @@ partial struct CharacterLook
         {
             v.Wear[i] = WornItem.Read(r);
         }
+        v.Body = (byte)r.ReadBits(8);
         return v;
     }
 }
