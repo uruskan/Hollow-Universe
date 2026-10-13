@@ -21,9 +21,12 @@ namespace Hollow.Persistence;
 /// </summary>
 public static class WorldCodec
 {
-    /// <summary>Raised by hand when a layout changes; decoding reads every older version.</summary>
-    public const byte PlayerVersion = 1;
-    public const byte ThingVersion = 1;
+    /// <summary>
+    /// Raised by hand when a layout changes; decoding reads every older version. 2 (G4): a firearm's magazine and
+    /// attachments in its stack; a character's burning and being down.
+    /// </summary>
+    public const byte PlayerVersion = 2;
+    public const byte ThingVersion = 2;
 
     // ---------------------------------------------------------------- characters
 
@@ -45,6 +48,11 @@ public static class WorldCodec
             w.Write(p.BeachReadyAtUnixMs);
             w.Write(p.DeathCause);
             w.Write(p.KilledBy);
+            w.Write(v.Burning);
+            w.Write(p.Wounded);
+            w.Write(p.WoundedCause);
+            w.Write(p.WoundedByName);
+            w.Write(p.WoundedBy.Value);
             WriteContainer(w, p.Inventory.Main);
             WriteContainer(w, p.Inventory.Belt);
             WriteContainer(w, p.Inventory.Wear);
@@ -86,9 +94,18 @@ public static class WorldCodec
         p.BeachReadyAtUnixMs = r.ReadInt64();
         p.DeathCause = r.ReadString();
         p.KilledBy = r.ReadString();
-        ReadContainer(r, p.Inventory.Main, content);
-        ReadContainer(r, p.Inventory.Belt, content);
-        ReadContainer(r, p.Inventory.Wear, content);
+        if (version >= 2)
+        {
+            p.Vitals.Burning = Math.Max(0, Finite(r.ReadSingle()));
+            // Down when saved: the zone finishes it when the character is added (a wounded player who is gone dies).
+            p.Wounded = r.ReadBoolean();
+            p.WoundedCause = r.ReadString();
+            p.WoundedByName = r.ReadString();
+            p.WoundedBy = new EntityId(r.ReadUInt64());
+        }
+        ReadContainer(r, p.Inventory.Main, content, version);
+        ReadContainer(r, p.Inventory.Belt, content, version);
+        ReadContainer(r, p.Inventory.Wear, content, version);
         uint nextTicket = r.ReadUInt32();
         int jobs = r.ReadByte();
         var list = new List<CraftJob>();
@@ -105,6 +122,7 @@ public static class WorldCodec
         if (p.Dead)
         {
             p.Vitals = default;
+            p.Wounded = false;
         }
         return p;
     }
@@ -203,18 +221,18 @@ public static class WorldCodec
                 {
                     if (d.Storage != null)
                     {
-                        ReadContainer(r, d.Storage, content);
+                        ReadContainer(r, d.Storage, content, version);
                     }
                     else
                     {
-                        ReadContainer(r, new Container(ContainerKind.Box, 1024), content);
+                        ReadContainer(r, new Container(ContainerKind.Box, 1024), content, version);
                     }
                 }
                 return d;
             }
             case StaticKind.DroppedItem:
             {
-                ItemStack stack = ReadStack(r, content);
+                ItemStack stack = ReadStack(r, content, version);
                 long left = r.ReadInt64();
                 return stack.IsEmpty ? null : new DroppedItem(id, stack, position, up, yaw, tick + Math.Max(0, left));
             }
@@ -227,7 +245,7 @@ public static class WorldCodec
                 int size = r.ReadUInt16();
                 for (int i = 0; i < size; i++)
                 {
-                    slots.Add(ReadStack(r, content));
+                    slots.Add(ReadStack(r, content, version));
                 }
                 var corpse = new Corpse(id, name, of, Math.Max(1, size), position, up, yaw, tick + Math.Max(0, left));
                 for (int i = 0; i < slots.Count; i++)
@@ -252,12 +270,12 @@ public static class WorldCodec
         }
     }
 
-    private static void ReadContainer(BinaryReader r, Container into, GameContent content)
+    private static void ReadContainer(BinaryReader r, Container into, GameContent content, byte version)
     {
         int size = r.ReadUInt16();
         for (int i = 0; i < size; i++)
         {
-            ItemStack stack = ReadStack(r, content);
+            ItemStack stack = ReadStack(r, content, version);
             if (i < into.Size)
             {
                 into.Set(i, stack);
@@ -276,10 +294,20 @@ public static class WorldCodec
         w.Write(s.Item);
         w.Write(s.Count);
         w.Write(s.Condition);
+        w.Write(s.HasWeaponState);
+        if (s.HasWeaponState)
+        {
+            w.Write(s.Loaded);
+            w.Write(s.LoadedAmmo);
+            w.Write(s.Sight);
+            w.Write(s.Muzzle);
+            w.Write(s.Rail);
+        }
     }
 
-    // A stack of an item the game no longer has, or a count outside its stack size, comes back empty.
-    private static ItemStack ReadStack(BinaryReader r, GameContent content)
+    // A stack of an item the game no longer has, or a count outside its stack size, comes back empty. A firearm keeps
+    // only rounds of its calibre (as many as its magazine holds) and attachments it takes, each in its own slot.
+    private static ItemStack ReadStack(BinaryReader r, GameContent content, byte version)
     {
         ushort item = r.ReadUInt16();
         if (item == 0)
@@ -288,12 +316,39 @@ public static class WorldCodec
         }
         int count = r.ReadInt32();
         ushort condition = r.ReadUInt16();
+        ushort loaded = 0, loadedAmmo = 0;
+        var mods = new ushort[3];
+        if (version >= 2 && r.ReadBoolean())
+        {
+            loaded = r.ReadUInt16();
+            loadedAmmo = r.ReadUInt16();
+            mods[0] = r.ReadUInt16();
+            mods[1] = r.ReadUInt16();
+            mods[2] = r.ReadUInt16();
+        }
         ItemDef? def = content.Item(item);
         if (def == null || count < 1 || count > def.StackSize)
         {
             return default;
         }
-        return new ItemStack(item, count, def.HasCondition ? (ushort)Math.Clamp((int)condition, 1, def.MaxCondition) : (ushort)0);
+        var stack = new ItemStack(item, count, def.HasCondition ? (ushort)Math.Clamp((int)condition, 1, def.MaxCondition) : (ushort)0);
+        if (def.Firearm is { } gun)
+        {
+            if (content.Item(loadedAmmo)?.Bullet is { } round && round.Calibre == gun.Calibre)
+            {
+                stack.LoadedAmmo = loadedAmmo;
+                stack.Loaded = (ushort)Math.Min((int)loaded, gun.Magazine);
+            }
+            for (int i = 0; i < 3; i++)
+            {
+                var slot = (AttachmentSlot)i;
+                if (content.Item(mods[i]) is { Attachment: { } a } && a.Slot == slot && gun.Takes(a.Item))
+                {
+                    stack.SetMod(slot, mods[i]);
+                }
+            }
+        }
+        return stack;
     }
 
     private static float Finite(float value) => float.IsFinite(value) ? value : 0;

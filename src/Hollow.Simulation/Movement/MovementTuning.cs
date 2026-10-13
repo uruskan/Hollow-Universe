@@ -26,6 +26,17 @@ public sealed record MovementTuning
 
     public float CrouchingEyeHeight { get; init; } = 1.02f;
 
+    /// <summary>A crawling (wounded) character's eye, near the ground (ours).</summary>
+    public float CrawlingEyeHeight { get; init; } = 0.45f;
+
+    /// <summary>The eye's height above the feet in a stance.</summary>
+    public float EyeHeight(Stance stance) => stance switch
+    {
+        Stance.Crouching => CrouchingEyeHeight,
+        Stance.Crawling => CrawlingEyeHeight,
+        _ => StandingEyeHeight,
+    };
+
     /// <summary>How fast the eye follows a change of stance, per second (RustMVP interpolation rate 18).</summary>
     public float EyeHeightRate { get; init; } = 18f;
 
@@ -43,6 +54,9 @@ public sealed record MovementTuning
     public float SprintSpeed { get; init; } = 5.5f;
 
     public float CrouchSpeed { get; init; } = 1.3f;
+
+    /// <summary>A wounded player crawls this fast (G4; ours: Rust's crawl is slow, its number isn't in our sources).</summary>
+    public float CrawlSpeed { get; init; } = 0.8f;
 
     /// <summary>Acceleration toward the wanted speed (RustMVP 6000 cm/s²).</summary>
     public float Acceleration { get; init; } = 60f;

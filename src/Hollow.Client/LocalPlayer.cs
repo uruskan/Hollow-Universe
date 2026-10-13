@@ -4,6 +4,7 @@ using System.Numerics;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -24,15 +25,17 @@ public readonly record struct VitalsView
     public float Temperature { get; init; }
     public float Cold { get; init; }
 
-    /// <summary>Health still to bleed away, and to heal over time.</summary>
+    /// <summary>Health still to bleed away, and to heal over time, and (G4) to burn.</summary>
     public float Bleeding { get; init; }
     public float Healing { get; init; }
+    public float Burning { get; init; }
 
     /// <summary>Near a lit fire; wet from swimming.</summary>
     public bool Comfort { get; init; }
     public bool Wet { get; init; }
 
     public bool IsBleeding => Bleeding > 0;
+    public bool IsBurning => Burning > 0;
     public bool IsStarving => Calories <= 0;
     public bool IsDehydrated => Hydration <= 0;
 }
@@ -46,17 +49,21 @@ public readonly record struct RespawnOption(EntityId Bag, Vector2 Position, doub
     public bool IsBeach => Bag.IsNone;
 }
 
-/// <summary>Alive or dead, and when dead: how, by whom, where the player can come back.</summary>
+/// <summary>Alive or dead (or down), and when dead: how, by whom, where the player can come back.</summary>
 public sealed record LifeView
 {
     public bool Dead { get; init; }
+
+    /// <summary>Down (wounded, G4): crawling until helped up, up by themselves or dead at <see cref="WoundedUntilSeconds"/> (the client's clock).</summary>
+    public bool Wounded { get; init; }
+    public double WoundedUntilSeconds { get; init; }
     public string Cause { get; init; } = "";
     public string KilledBy { get; init; } = "";
     public IReadOnlyList<RespawnOption> Options { get; init; } = Array.Empty<RespawnOption>();
 }
 
-/// <summary>A hit landed (the UI's hit marker).</summary>
-public readonly record struct HitMarkerEvent(HitTarget Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot);
+/// <summary>A hit landed (the UI's hit marker): <paramref name="Downed"/> when it knocked the player down (G4).</summary>
+public readonly record struct HitMarkerEvent(HitTarget Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot, bool Downed = false);
 
 /// <summary>Items gained (gathered, picked up, crafted, refunded) or lost (a tool broke), for the notifications.</summary>
 public readonly record struct ItemsChangedEvent(ItemDef Item, int Count, GainReason Reason, bool WeakSpot);
@@ -96,10 +103,14 @@ public sealed class LocalPlayer
     internal LocalPlayer(GameContent content)
     {
         Content = content;
+        Gun = new LocalGun(this);
     }
 
     /// <summary>Sends a message on the reliable channel (set by the client); false when not connected and playing.</summary>
     internal Func<Action<BitWriter>, bool>? Send { get; set; }
+
+    /// <summary>Sends a gun intent (reliable, unordered: a lost shot holds nothing else up); falls back to <see cref="Send"/>.</summary>
+    internal Func<Action<BitWriter>, bool>? SendGun { get; set; }
 
     public GameContent Content { get; }
 
@@ -132,6 +143,12 @@ public sealed class LocalPlayer
     public LifeView Life { get; private set; } = new();
 
     public bool IsDead => Life.Dead;
+
+    /// <summary>Down (wounded): crawling, can't act; another player can help them up (G4).</summary>
+    public bool IsWounded => Life.Wounded;
+
+    /// <summary>The gun in hand, predicted: magazine, reload, recoil on the camera, the shot and reload events (G4).</summary>
+    public LocalGun Gun { get; }
 
     /// <summary>The belt slot in hand (0 … 5), or −1 for none: set by the UI (keys 1–6); it goes out with every input.</summary>
     public int HeldSlot { get; set; } = -1;
@@ -179,6 +196,11 @@ public sealed class LocalPlayer
     public event Action<LifeView>? Died;
 
     public event Action? Respawned;
+
+    /// <summary>Knocked down (wounded), and up again (helped or by themselves), G4.</summary>
+    public event Action<LifeView>? Downed;
+
+    public event Action? GotUp;
 
     // ---------------------------------------------------------------- intents
 
@@ -278,6 +300,27 @@ public sealed class LocalPlayer
     /// <summary>Respawns at one of the player's sleeping bags, or on the beach (no bag).</summary>
     public uint Respawn(EntityId bag = default) => Intend(null, w => new RespawnIntent { Seq = _nextSeq, Bag = bag.Value }.WriteMessage(w));
 
+    /// <summary>Reloads the gun in hand (R): with these rounds, or (null) the kind loaded, else any it takes. See <see cref="LocalGun"/>.</summary>
+    public void Reload(ItemDef? ammo = null) => Gun.Reload(ammo);
+
+    /// <summary>Puts the attachment in a slot on the firearm in another (main slots or belt); what was on comes back.</summary>
+    public uint Attach(ContainerRef from, int slot, ContainerRef weaponIn, int weaponSlot)
+    {
+        ushort expected = ItemAt(from, slot);
+        return Intend(new Pending(p => from is ContainerRef.Main or ContainerRef.Belt && weaponIn is ContainerRef.Main or ContainerRef.Belt &&
+                AttachmentRules.Attach(p.Content, p.Resolve(from)!, slot, p.Resolve(weaponIn)!, weaponSlot, expected) == ActionResult.Accepted),
+            w => new AttachIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, WeaponIn = weaponIn, WeaponSlot = (byte)weaponSlot, Expected = expected }.WriteMessage(w));
+    }
+
+    /// <summary>Takes the attachment in a slot (sight, muzzle, rail) off the firearm in a slot, into the inventory.</summary>
+    public uint Detach(ContainerRef weaponIn, int weaponSlot, AttachmentSlot mod) =>
+        Intend(new Pending(p => weaponIn is ContainerRef.Main or ContainerRef.Belt &&
+                AttachmentRules.Detach(p.Content, p.Inventory, p.Resolve(weaponIn)!, weaponSlot, mod) == ActionResult.Accepted),
+            w => new DetachIntent { Seq = _nextSeq, WeaponIn = weaponIn, WeaponSlot = (byte)weaponSlot, Mod = mod }.WriteMessage(w));
+
+    /// <summary>Helps a wounded player up (the interact key on them, within 2.5 m): <see cref="GameClient.Aim"/> finds them.</summary>
+    public uint HelpUp(EntityId target) => Intend(null, w => new HelpUpIntent { Seq = _nextSeq, Target = target.Value }.WriteMessage(w));
+
     /// <summary>The container an intent would name (the UI's view of it).</summary>
     public Container? Resolve(ContainerRef which) => which switch
     {
@@ -374,8 +417,15 @@ public sealed class LocalPlayer
         {
             pending.Apply(this);
         }
+        Gun.ApplyTo(Inventory.Belt);
         RebuildCraftViews();
     }
+
+    /// <summary>Sends a message on the reliable channel (the gun's intents); false when not connected and playing.</summary>
+    internal bool SendRaw(Action<BitWriter> write) => (SendGun ?? Send)?.Invoke(write) == true;
+
+    /// <summary>Something the UI shows changed (the gun's prediction): rebuild and announce at the next update.</summary>
+    internal void Touch() => _dirty = true;
 
     private static void CopyLoot(Container? from, Container? to)
     {
@@ -476,7 +526,21 @@ public sealed class LocalPlayer
             return;
         }
         ItemDef? item = Content.Item((int)Math.Min(s.Item, ushort.MaxValue));
-        target.Set(s.Index, item == null || s.Count == 0 ? default : new ItemStack(item.Id, (int)Math.Min(s.Count, int.MaxValue), (ushort)Math.Min(s.Condition, ushort.MaxValue)));
+        if (item == null || s.Count == 0)
+        {
+            target.Set(s.Index, default);
+            return;
+        }
+        var stack = new ItemStack(item.Id, (int)Math.Min(s.Count, int.MaxValue), (ushort)Math.Min(s.Condition, ushort.MaxValue));
+        if (s.Gun is { Length: > 0 } gun)
+        {
+            stack.Loaded = (ushort)Math.Min(gun[0].Loaded, ushort.MaxValue);
+            stack.LoadedAmmo = (ushort)Math.Min(gun[0].LoadedAmmo, ushort.MaxValue);
+            stack.Sight = (ushort)Math.Min(gun[0].Sight, ushort.MaxValue);
+            stack.Muzzle = (ushort)Math.Min(gun[0].Muzzle, ushort.MaxValue);
+            stack.Rail = (ushort)Math.Min(gun[0].Rail, ushort.MaxValue);
+        }
+        target.Set(s.Index, stack);
     }
 
     // The server's copy of a container named by an intent's reference, created for the loot as it opens.
@@ -575,6 +639,7 @@ public sealed class LocalPlayer
             Cold = m.Cold / 255f,
             Bleeding = m.Bleeding,
             Healing = m.Healing,
+            Burning = m.Burning,
             Comfort = m.Comfort,
             Wet = m.Wet,
         };
@@ -626,22 +691,37 @@ public sealed class LocalPlayer
                 options.Add(new RespawnOption(new EntityId(bag.Id), new Vector2(bag.X, bag.Z), ClockSeconds + bag.ReadySeconds));
             }
         }
-        Life = new LifeView { Dead = m.Dead, Cause = m.Cause ?? "", KilledBy = m.KilledBy ?? "", Options = options };
+        bool wasDown = Life.Wounded;
+        Life = new LifeView
+        {
+            Dead = m.Dead, Cause = m.Cause ?? "", KilledBy = m.KilledBy ?? "", Options = options,
+            Wounded = m.Wounded && !m.Dead, WoundedUntilSeconds = ClockSeconds + m.WoundedSeconds,
+        };
         _dirty = true;
         if (m.Dead && !wasDead)
         {
+            Gun.Reset();
             Died?.Invoke(Life);
         }
         else if (!m.Dead && wasDead)
         {
+            Gun.Reset();
             Respawned?.Invoke();
+        }
+        if (Life.Wounded && !wasDown)
+        {
+            Downed?.Invoke(Life);
+        }
+        else if (!Life.Wounded && wasDown && !m.Dead)
+        {
+            GotUp?.Invoke();
         }
     }
 
     /// <summary>Seconds until a respawn option is ready (0: now).</summary>
     public double SecondsUntilReady(RespawnOption option) => Math.Max(0, option.ReadyAtSeconds - ClockSeconds);
 
-    internal void OnHitMarker(in HitMarker m) => HitMarker?.Invoke(new HitMarkerEvent(m.Target, m.Region, m.Damage / 10f, m.Killed, m.WeakSpot));
+    internal void OnHitMarker(in HitMarker m) => HitMarker?.Invoke(new HitMarkerEvent(m.Target, m.Region, m.Damage / 10f, m.Killed, m.WeakSpot, m.Downed));
 
     internal void OnItemsChanged(in ItemsChanged m)
     {

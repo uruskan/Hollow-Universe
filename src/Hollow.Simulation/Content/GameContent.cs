@@ -23,6 +23,7 @@ public sealed class GameContent
     public static readonly string[] Files =
     {
         "items.json", "recipes.json", "gather.json", "deployables.json", "loot.json", "survival.json", "categories.json",
+        "weapons.json",
     };
 
     private readonly ItemDef?[] _byId;
@@ -40,6 +41,9 @@ public sealed class GameContent
         Deployables = loaded.Deployables;
         LootTables = loaded.Loot;
         Categories = loaded.Categories;
+        Firearms = loaded.Firearms;
+        Bullets = loaded.Bullets;
+        Attachments = loaded.Attachments;
         Survival = loaded.Survival;
         WeakSpot = loaded.WeakSpot;
         PlacementReach = loaded.PlacementReach;
@@ -74,6 +78,13 @@ public sealed class GameContent
     public IReadOnlyList<LootTable> LootTables { get; }
 
     public IReadOnlyList<Category> Categories { get; }
+
+    /// <summary>The firearms, kinds of rounds and attachments (weapons.json, G4); each also hangs off its item.</summary>
+    public IReadOnlyList<FirearmStats> Firearms { get; }
+
+    public IReadOnlyList<BulletStats> Bullets { get; }
+
+    public IReadOnlyList<AttachmentStats> Attachments { get; }
 
     public SurvivalTuning Survival { get; }
 
@@ -216,6 +227,9 @@ public sealed class GameContent
         public List<DeployableDef> Deployables = new();
         public List<LootTable> Loot = new();
         public List<Category> Categories = new();
+        public List<FirearmStats> Firearms = new();
+        public List<BulletStats> Bullets = new();
+        public List<AttachmentStats> Attachments = new();
         public SurvivalTuning Survival = new();
         public WeakSpot WeakSpot = new(0.3f, 2f);
         public float PlacementReach = 3f;
@@ -239,6 +253,7 @@ public sealed class GameContent
             ReadDeployables();
             ReadLoot();
             ReadSurvival();
+            ReadWeapons();
         }
 
         private JsonElement Root(string file, params string[] fields)
@@ -676,8 +691,8 @@ public sealed class GameContent
 
         private void ReadSurvival()
         {
-            JsonElement root = Root("survival.json", "vitals", "metabolism", "bleeding", "temperature", "climateStandIn", "combat",
-                "world", "rateLimits");
+            JsonElement root = Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature",
+                "climateStandIn", "combat", "world", "rateLimits");
             string w = "survival.json";
             JsonElement Section(string name, params string[] fields)
             {
@@ -702,7 +717,29 @@ public sealed class GameContent
             JsonElement c = Section("climateStandIn", "meanCelsius", "daySwing", "lapsePerKilometre", "dayLengthSeconds");
             JsonElement k = Section("combat", "head", "body", "limb", "maxRewindSeconds", "equipSeconds");
             JsonElement o = Section("world", "corpseSeconds", "droppedItemSeconds", "interactReach", "lootReach", "beachCooldownSeconds", "respawnKit");
-            JsonElement r = Section("rateLimits", "intentBurst", "intentsPerSecond");
+            JsonElement r = Section("rateLimits", "intentBurst", "intentsPerSecond", "gunBurst", "gunActionsPerSecond");
+            JsonElement burning = Section("burning", "damagePerSecond");
+            JsonElement wounded = Section("wounded", "maxDamage", "health", "seconds", "recoverChance", "fedBonus", "helpReach");
+            (float Least, float Most) Pair(JsonElement e, string name, string where, float least, float most)
+            {
+                if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(name, out JsonElement v))
+                {
+                    if (e.ValueKind == JsonValueKind.Object)
+                    {
+                        f.Problem(where, $"\"{name}\" is missing");
+                    }
+                    return (least, most);
+                }
+                if (v.ValueKind == JsonValueKind.Array && v.GetArrayLength() == 2 && v[0].ValueKind == JsonValueKind.Number &&
+                    v[1].ValueKind == JsonValueKind.Number)
+                {
+                    return ((float)v[0].GetDouble(), (float)v[1].GetDouble());
+                }
+                f.Problem(where, $"\"{name}\" must be [least, most]");
+                return (least, most);
+            }
+            (float woundedHealthLeast, float woundedHealthMost) = Pair(wounded, "health", w + ": wounded", 7, 12);
+            (float woundedSecondsLeast, float woundedSecondsMost) = Pair(wounded, "seconds", w + ": wounded", 40, 50);
             loaded.Survival = new SurvivalTuning
             {
                 MaxHealth = f.Number(vitals, "maxHealth", w + ": vitals", 100),
@@ -748,6 +785,245 @@ public sealed class GameContent
                 RespawnKitKey = f.Text(o, "respawnKit", w + ": world"),
                 IntentBurst = f.Integer(r, "intentBurst", w + ": rateLimits", 16),
                 IntentsPerSecond = f.Number(r, "intentsPerSecond", w + ": rateLimits", 20),
+                GunBurst = f.Integer(r, "gunBurst", w + ": rateLimits", 20),
+                GunActionsPerSecond = f.Number(r, "gunActionsPerSecond", w + ": rateLimits", 30),
+                BurnDamagePerSecond = f.Number(burning, "damagePerSecond", w + ": burning"),
+                WoundMaxDamage = f.Number(wounded, "maxDamage", w + ": wounded"),
+                WoundedHealthLeast = woundedHealthLeast,
+                WoundedHealthMost = woundedHealthMost,
+                WoundedSecondsLeast = woundedSecondsLeast,
+                WoundedSecondsMost = woundedSecondsMost,
+                WoundedRecoverChance = f.Number(wounded, "recoverChance", w + ": wounded"),
+                WoundedFedBonus = f.Number(wounded, "fedBonus", w + ": wounded", 0),
+                HelpReach = f.Number(wounded, "helpReach", w + ": wounded"),
+            };
+        }
+
+        // ---------------------------------------------------------------- weapons.json (G4)
+
+        // Attachments and rounds first: the guns name them.
+        private void ReadWeapons()
+        {
+            const string file = "weapons.json";
+            JsonElement root = Root(file, "weapons", "ammo", "attachments");
+            JsonElement[] attachments = f.List(root, "attachments", file);
+            for (int i = 0; i < attachments.Length; i++)
+            {
+                JsonElement e = attachments[i];
+                string key = f.Text(e, "item", $"{file}: attachments[{i}]");
+                string where = $"{file}: attachment {JsonFields.Quote(key)}";
+                f.OnlyKnown(e, where, "item", "slot", "zoom", "hipSpread", "aimedSpread", "recoil", "speed", "damage", "silenced", "light", "note");
+                ItemDef? item = Resolve(key, where);
+                string slotName = f.Text(e, "slot", where);
+                AttachmentSlot? slot = slotName switch
+                {
+                    "sight" => AttachmentSlot.Sight,
+                    "muzzle" => AttachmentSlot.Muzzle,
+                    "rail" => AttachmentSlot.Rail,
+                    _ => null,
+                };
+                if (slot == null)
+                {
+                    f.Problem(where, $"slot \"{slotName}\" is not sight, muzzle or rail");
+                }
+                if (item == null)
+                {
+                    continue;
+                }
+                var stats = new AttachmentStats
+                {
+                    Item = item,
+                    Index = loaded.Attachments.Count,
+                    Slot = slot ?? AttachmentSlot.Sight,
+                    Zoom = f.Double(e, "zoom", where, 0),
+                    HipSpread = f.Double(e, "hipSpread", where, 1),
+                    AimedSpread = f.Double(e, "aimedSpread", where, 1),
+                    Recoil = f.Double(e, "recoil", where, 1),
+                    Speed = f.Double(e, "speed", where, 1),
+                    Damage = f.Double(e, "damage", where, 1),
+                    Silenced = f.Flag(e, "silenced", where, false),
+                    Light = f.Flag(e, "light", where, false),
+                };
+                if (item.Attachment != null)
+                {
+                    f.Problem(where, "is listed twice");
+                    continue;
+                }
+                item.Attachment = stats;
+                loaded.Attachments.Add(stats);
+            }
+
+            JsonElement[] ammo = f.List(root, "ammo", file);
+            for (int i = 0; i < ammo.Length; i++)
+            {
+                JsonElement e = ammo[i];
+                string key = f.Text(e, "item", $"{file}: ammo[{i}]");
+                string where = $"{file}: ammo {JsonFields.Quote(key)}";
+                f.OnlyKnown(e, where, "item", "calibre", "damage", "speed", "bleed", "burn", "structure", "note");
+                ItemDef? item = Resolve(key, where);
+                if (item == null)
+                {
+                    continue;
+                }
+                var stats = new BulletStats
+                {
+                    Item = item,
+                    Calibre = f.Text(e, "calibre", where),
+                    Damage = f.Double(e, "damage", where, 1),
+                    Speed = f.Double(e, "speed", where, 1),
+                    Bleed = f.Double(e, "bleed", where, 0),
+                    Burn = f.Double(e, "burn", where, 0),
+                    Structure = f.Double(e, "structure", where, 0),
+                };
+                if (item.Bullet != null)
+                {
+                    f.Problem(where, "is listed twice");
+                    continue;
+                }
+                item.Bullet = stats;
+                loaded.Bullets.Add(stats);
+            }
+
+            JsonElement[] weapons = f.List(root, "weapons", file);
+            for (int i = 0; i < weapons.Length; i++)
+            {
+                JsonElement e = weapons[i];
+                string key = f.Text(e, "item", $"{file}: weapons[{i}]");
+                string where = $"{file}: weapon {JsonFields.Quote(key)}";
+                f.OnlyKnown(e, where, "item", "calibre", "magazine", "fire", "interval", "reload", "equip", "speed", "drag", "gravity",
+                    "range", "lifetime", "damage", "falloff", "head", "body", "limb", "spread", "recoil", "zoom", "attachments", "note");
+                ItemDef? item = Resolve(key, where);
+                string mode = f.Text(e, "fire", where);
+                if (mode is not ("semi" or "auto"))
+                {
+                    f.Problem(where, $"fire \"{mode}\" is not semi or auto");
+                }
+                double[] falloff = Numbers(e, "falloff", where, 3) ?? new double[] { 0, 0, 1 };
+                var stats = new FirearmStats
+                {
+                    Item = item!,
+                    Calibre = f.Text(e, "calibre", where),
+                    Magazine = f.Integer(e, "magazine", where),
+                    Mode = mode == "auto" ? FireMode.Auto : FireMode.Semi,
+                    IntervalSeconds = f.Double(e, "interval", where),
+                    ReloadSeconds = f.Double(e, "reload", where),
+                    EquipSeconds = f.Double(e, "equip", where),
+                    Speed = f.Double(e, "speed", where),
+                    Drag = f.Double(e, "drag", where, 0),
+                    Gravity = f.Double(e, "gravity", where, 1),
+                    Range = f.Double(e, "range", where),
+                    LifetimeSeconds = f.Double(e, "lifetime", where),
+                    Damage = f.Double(e, "damage", where),
+                    FalloffStart = falloff[0],
+                    FalloffEnd = falloff[1],
+                    FalloffLeast = falloff[2],
+                    Head = f.Double(e, "head", where),
+                    Body = f.Double(e, "body", where),
+                    Limb = f.Double(e, "limb", where),
+                    Spread = Spread(e, where + ".spread"),
+                    Recoil = Recoil(e, where + ".recoil"),
+                    Zoom = f.Double(e, "zoom", where, 1),
+                    AttachmentKeys = f.Texts(e, "attachments", where),
+                };
+                if (item == null)
+                {
+                    continue;
+                }
+                if (item.Firearm != null)
+                {
+                    f.Problem(where, "is listed twice");
+                    continue;
+                }
+                stats.Attachments = stats.AttachmentKeys.Select(k => Resolve(k, where + ".attachments")).OfType<ItemDef>().ToArray();
+                stats.Ammo = loaded.Bullets.Where(b => b.Calibre == stats.Calibre).Select(b => b.Item).ToArray();
+                item.Firearm = stats;
+                loaded.Firearms.Add(stats);
+            }
+        }
+
+        private double[]? Numbers(JsonElement e, string name, string where, int count)
+        {
+            if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(name, out JsonElement v))
+            {
+                f.Problem(where, $"\"{name}\" is missing");
+                return null;
+            }
+            if (v.ValueKind != JsonValueKind.Array || v.GetArrayLength() != count || v.EnumerateArray().Any(x => x.ValueKind != JsonValueKind.Number))
+            {
+                f.Problem(where, $"\"{name}\" must be {count} numbers");
+                return null;
+            }
+            return v.EnumerateArray().Select(x => x.GetDouble()).ToArray();
+        }
+
+        private SpreadStats Spread(JsonElement weapon, string where)
+        {
+            if (!f.TryChild(weapon, "spread", out JsonElement e))
+            {
+                f.Problem(where, "is missing");
+                return new SpreadStats();
+            }
+            f.OnlyKnown(e, where, "hip", "aimed", "bloom", "maxBloom", "bloomRecovery", "moving", "movingAimed", "airborne", "crouched", "note");
+            return new SpreadStats
+            {
+                Hip = f.Double(e, "hip", where),
+                Aimed = f.Double(e, "aimed", where),
+                BloomPerShot = f.Double(e, "bloom", where, 0),
+                MaxBloom = f.Double(e, "maxBloom", where, 0),
+                BloomRecovery = f.Double(e, "bloomRecovery", where, 0),
+                Moving = f.Double(e, "moving", where, 0),
+                MovingAimed = f.Double(e, "movingAimed", where, 0),
+                Airborne = f.Double(e, "airborne", where, 1),
+                Crouched = f.Double(e, "crouched", where, 1),
+            };
+        }
+
+        private RecoilStats Recoil(JsonElement weapon, string where)
+        {
+            if (!f.TryChild(weapon, "recoil", out JsonElement e))
+            {
+                f.Problem(where, "is missing");
+                return new RecoilStats();
+            }
+            f.OnlyKnown(e, where, "mode", "pitch", "pattern", "pitchJitter", "yawJitter", "pitchLimit", "yawLimit", "reset", "kick",
+                "recoveryDelay", "recovery", "aimed", "crouched", "note");
+            string mode = f.Text(e, "mode", where);
+            if (mode is not ("vertical" or "pattern"))
+            {
+                f.Problem(where, $"mode \"{mode}\" is not vertical or pattern");
+            }
+            bool pattern = mode == "pattern";
+            var steps = new List<RecoilStep>();
+            if (pattern)
+            {
+                foreach (JsonElement step in f.List(e, "pattern", where))
+                {
+                    if (step.ValueKind == JsonValueKind.Array && step.GetArrayLength() == 2 &&
+                        step[0].ValueKind == JsonValueKind.Number && step[1].ValueKind == JsonValueKind.Number)
+                    {
+                        steps.Add(new RecoilStep(step[0].GetDouble(), step[1].GetDouble()));
+                    }
+                    else
+                    {
+                        f.Problem(where, "each pattern step is [pitch, yaw]");
+                    }
+                }
+            }
+            return new RecoilStats
+            {
+                Mode = pattern ? RecoilMode.Pattern : RecoilMode.Vertical,
+                PitchPerShot = pattern ? 0 : f.Double(e, "pitch", where),
+                Pattern = steps,
+                PitchJitter = f.Double(e, "pitchJitter", where, 0),
+                YawJitter = f.Double(e, "yawJitter", where, 0),
+                PitchLimit = f.Double(e, "pitchLimit", where),
+                YawLimit = f.Double(e, "yawLimit", where),
+                ResetSeconds = f.Double(e, "reset", where, pattern ? null : 0.4),
+                KickSeconds = f.Double(e, "kick", where),
+                RecoveryDelaySeconds = f.Double(e, "recoveryDelay", where),
+                RecoverySeconds = f.Double(e, "recovery", where),
+                Aimed = f.Double(e, "aimed", where, 1),
+                Crouched = f.Double(e, "crouched", where, 1),
             };
         }
     }

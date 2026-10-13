@@ -1,0 +1,328 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Numerics;
+using Hollow.Client;
+using Hollow.Net.Bits;
+using Hollow.Net.Protocol;
+using Hollow.Persistence;
+using Hollow.Simulation;
+using Hollow.Simulation.Combat;
+using Hollow.Simulation.Content;
+using Hollow.Simulation.Entities;
+using Hollow.Simulation.Items;
+using Hollow.Simulation.Movement;
+using Hollow.Simulation.Players;
+using Hollow.Simulation.World;
+
+namespace Hollow.Tests;
+
+public static class GunNetTests
+{
+    /// <summary>
+    /// GROUND.md §6.3–6.4: the client and the server compute the same recoil and the same bullet directions, to the bit,
+    /// for a recorded stream of input: walking, strafing, crouching, aiming, bursts, a pause, a reload, and sprinting
+    /// with the trigger held (refused on both sides alike). The client side is the real one (the predictor and
+    /// <see cref="LocalGun"/>); its fire and reload intents go into the zone's queue as the server's network code puts them.
+    /// </summary>
+    [Test]
+    public static void ClientAndServerAgreeOnRecoilAndDirections()
+    {
+        using var rig = new GameRig();
+        GameContent c = rig.C;
+        Entity ada = rig.Add("Ada", 0, 0);
+        Player p = rig.P(ada);
+        rig.Ch(ada).State.Health = 100; // as the vitals will have it (the rig set them)
+        ItemStack rifle = ItemStack.Of(c.ItemByKey("rifle"), 1);
+        rifle.Loaded = 30;
+        rifle.LoadedAmmo = c.ItemByKey("rifle-ammo").Id;
+        rifle.Sight = c.ItemByKey("holo-sight").Id;
+        p.Inventory.Belt.Set(0, rifle);
+        rig.Give(ada, "rifle-ammo", 60);
+
+        // The client: its own ground and predictor, and the local player with the inventory the server would send.
+        using var predictor = new Predictor(rig.Zone.Spec, rig.Zone.Spec.CreateSurface(), null);
+        uint start = (uint)rig.Zone.Tick;
+        predictor.Reset(start, rig.Ch(ada).State, start);
+        var sent = new List<byte[]>();
+        var local = new LocalPlayer(c)
+        {
+            Send = write =>
+            {
+                var w = new BitWriter(256);
+                write(w);
+                sent.Add(w.ToArray());
+                return true;
+            },
+        };
+        local.OnContents(Contents(ContainerRef.Belt, p.Inventory.Belt));
+        local.OnContents(Contents(ContainerRef.Main, p.Inventory.Main));
+        local.Update();
+        var shots = new List<ShotEvent>();
+        local.Gun.ShotFired += shots.Add;
+
+        int launches = 0, reloads = 0, sprintTicks = 0;
+        for (uint tick = start + 1; tick <= start + 240; tick++)
+        {
+            int t = (int)(tick - start);
+            var move = new MoveInput
+            {
+                Forward = t is > 40 and < 120 ? 0.6f : t is >= 200 and < 220 ? 1 : 0,
+                Right = t is > 60 and < 100 ? -0.8f : 0,
+                Yaw = 0.3f + 0.002f * t,
+                Pitch = 0.05f - 0.004f * (t % 50),
+                Buttons = (t is > 80 and < 110 ? MoveButtons.Crouch : MoveButtons.None) | (t is >= 200 and < 220 ? MoveButtons.Sprint : MoveButtons.None),
+            };
+            bool burst = (t % 40) is > 5 and < 30;
+            var actions = new ActionInput
+            {
+                HeldSlot = 0,
+                Buttons = (burst ? ActionButtons.Primary : ActionButtons.None) | ((t % 40) == 6 ? ActionButtons.PrimaryPressed : ActionButtons.None) |
+                    (t is > 100 and < 140 ? ActionButtons.Secondary : ActionButtons.None),
+                ViewDelay = (byte)(t % 9),
+            };
+            if (t == 100)
+            {
+                local.Reload();
+            }
+            InputCommand command = NetConvert.ToCommand(move, actions);
+            predictor.RecordInput(tick, command);
+            predictor.Predict(tick);
+            int before = shots.Count;
+            local.Gun.Tick(tick, command, predictor.Latest, predictor.Frame, predictor.Tuning, p.Id, canAct: true);
+            foreach (byte[] packet in sent)
+            {
+                var r = new BitReader(packet);
+                uint type = r.ReadBits(8);
+                if (type == FireIntent.TypeId)
+                {
+                    FireIntent m = FireIntent.Read(r);
+                    rig.Zone.QueueGunAction(ada, new GunAction
+                    {
+                        Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = (ushort)m.Item,
+                        Yaw = Quantize.FromAngle16(m.Yaw), Pitch = Quantize.FromAngle16(m.Pitch), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
+                    });
+                }
+                else if (type == ReloadIntent.TypeId)
+                {
+                    ReloadIntent m = ReloadIntent.Read(r);
+                    rig.Zone.QueueGunAction(ada, new GunAction
+                    {
+                        Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Reload, Slot = m.Slot, Item = (ushort)m.Item, Ammo = (ushort)m.Ammo,
+                    });
+                    reloads++;
+                }
+            }
+            sent.Clear();
+
+            // The server's tick, with the same input.
+            ref Character ch = ref rig.Ch(ada);
+            ch.Input = NetConvert.ToMoveInput(command);
+            ch.Actions = NetConvert.ToActions(command);
+            rig.Zone.GameEvents.Clear();
+            rig.Step();
+            Assert.True(predictor.Latest.Equals(rig.Ch(ada).State), $"tick {t}: the movement agrees");
+            if ((rig.Ch(ada).State.Flags & MoveFlags.Sprinting) != 0 && burst)
+            {
+                sprintTicks++;
+            }
+            List<ZoneEvent> fired = Guns.Launches(rig);
+            Assert.Equal(fired.Count, shots.Count - before, $"tick {t}: shots on both sides");
+            for (int i = 0; i < fired.Count; i++)
+            {
+                ShotEvent shot = shots[before + i];
+                Assert.True(shot.Direction * shot.Speed == fired[i].Velocity, $"tick {t}: the same direction to the bit ({shot.Direction * shot.Speed} / {fired[i].Velocity})");
+                Assert.True(shot.Origin == fired[i].Position, $"tick {t}: from the same eye");
+                launches++;
+            }
+            Assert.True(local.Gun.State.Recoil.Equals(p.Gun.Recoil), $"tick {t}: the same recoil ({local.Gun.State.Recoil.Pitch} / {p.Gun.Recoil.Pitch})");
+            Assert.Equal(p.Gun.NextFire16, local.Gun.State.NextFire16, $"tick {t}: the same cadence");
+            Assert.Equal((int)p.Inventory.Belt[0].Loaded, local.Gun.Loaded, $"tick {t}: the same magazine");
+        }
+        Fixtures.Report($"{launches} shots and {reloads} reload in 8 s of recorded input, every one the same on both sides; " +
+            $"{sprintTicks} ticks of sprinting with the trigger held fired nothing on either side");
+        Assert.True(launches >= 20 && reloads == 1 && sprintTicks >= 10, "bursts, a reload, sprinting");
+        Assert.True(p.GunRefusedSeq == 0, $"the server refused nothing ({p.GunRefused})");
+    }
+
+    private static ContainerContents Contents(ContainerRef which, Container container) => new()
+    {
+        Which = which,
+        Size = (byte)container.Size,
+        Slots = Enumerable.Range(0, container.Size).Where(i => !container[i].IsEmpty).Select(i =>
+        {
+            ItemStack s = container[i];
+            return new SlotNet
+            {
+                Index = (byte)i, Item = s.Item, Count = (uint)s.Count, Condition = s.Condition,
+                Gun = s.HasWeaponState ? new[] { new GunNet { Loaded = s.Loaded, LoadedAmmo = s.LoadedAmmo, Sight = s.Sight, Muzzle = s.Muzzle, Rail = s.Rail } } : null!,
+            };
+        }).ToArray(),
+    };
+
+    private static void RunUntil(LoopbackRig rig, Func<bool> done, string what, Func<GameClient, double, InputFrame> input, double seconds = 8)
+    {
+        var watch = Stopwatch.StartNew();
+        while (!done())
+        {
+            Assert.True(watch.Elapsed.TotalSeconds < seconds, $"timed out waiting for {what}");
+            rig.Run(0.05, input);
+        }
+    }
+
+    /// <summary>
+    /// GROUND.md §6.4, a gunfight over the network: Ada takes up a rifle and reloads (predicted at once, the server's
+    /// magazine follows), then fires at Bo; her shots show at once, the server accepts every one (nothing refused, nothing
+    /// left pending), her magazine agrees with the server's, she gets hit markers and Bo the damage; the body shot that
+    /// would kill him knocks him down (both hear of it); Ada helps him up with the interact key.
+    /// </summary>
+    [Test]
+    public static void GunfightOverTheNetwork()
+    {
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        GameClient bo = rig.Join("Bo");
+        rig.WaitUntilPlaying();
+        GameContent c = ada.Content;
+        rig.Server.Execute("teleport Ada -3 0");
+        rig.Server.Execute("teleport Bo 3 0");
+        rig.Server.Execute("give Ada rifle 1");
+        rig.Server.Execute("give Ada rifle-ammo 64");
+        InputFrame Still(GameClient who, double _) => who == bo ? new InputFrame { Yaw = MathF.PI / 2 } : new InputFrame { Yaw = -MathF.PI / 2 };
+        RunUntil(rig, () => ada.Local.Inventory.Count(c.ItemByKey("rifle-ammo")) == 64 && ada.Local.Inventory.Count(c.ItemByKey("rifle")) == 1,
+            "the rifle and rounds", Still);
+        int rifleSlot = Enumerable.Range(0, 24).First(i => ada.Local.Inventory.Main[i].Item == c.ItemByKey("rifle").Id);
+        ada.Local.MoveItem(ContainerRef.Main, rifleSlot, ContainerRef.Belt, 2);
+        ada.Local.HeldSlot = 2;
+        RunUntil(rig, () => ada.Local.Gun.Ready, "the rifle taken up", Still);
+
+        var events = new List<string>();
+        ada.Local.Gun.ShotFired += _ => events.Add("shot");
+        ada.Local.Gun.ReloadStarted += _ => events.Add("reload");
+        ada.Local.Gun.ReloadFinished += _ => events.Add("reloaded");
+        ada.Local.Gun.Refused += r => events.Add($"refused {r.Result}");
+        var markers = new List<HitMarkerEvent>();
+        ada.Local.HitMarker += markers.Add;
+        var damage = new List<DamageEvent>();
+        bo.Local.DamageTaken += damage.Add;
+        bool boDown = false, boUp = false;
+        bo.Local.Downed += _ => boDown = true;
+        bo.Local.GotUp += () => boUp = true;
+
+        // Reload: shown at once, done 2.4 s later on both sides.
+        ada.Local.Reload();
+        rig.Run(0.1, Still);
+        Assert.True(ada.Local.Gun.Reloading && events.Contains("reload"), "reloading at once");
+        RunUntil(rig, () => ada.Local.Gun.Loaded == 30 && !ada.Local.Gun.Reloading && ada.Local.Gun.PendingCount == 0, "the magazine full", Still);
+        Assert.True(events.Contains("reloaded"), "the reload's end");
+        RunUntil(rig, () => ada.Local.Inventory.Count(c.ItemByKey("rifle-ammo")) == 34, "the rounds out of the inventory", Still);
+
+        // Fire at Bo's chest, a few rounds at a time, until he is down.
+        Vector3 chest = rig.Server.Inspect(sv =>
+        {
+            sv.Zone.TryFindPlayer(bo.EntityId, out Entity e, out _);
+            Vector3 at = sv.Zone.Entities.Get<Character>(e).State.Position;
+            return at + sv.Zone.Frame.UpAt(at) * 1.15f;
+        });
+        double shotsFrom = 0;
+        InputFrame Shoot(GameClient who, double time)
+        {
+            if (who == bo)
+            {
+                return new InputFrame { Yaw = MathF.PI / 2 };
+            }
+            Vector3 eye = ada.RenderPosition + ada.Frame.UpAt(ada.RenderPosition) * ada.EyeHeight;
+            Vector3 d = chest - eye, up = ada.Frame.UpAt(eye), flat = d - up * Vector3.Dot(d, up);
+            // One shot a burst (a tap): the pattern starts again each time, so every round goes where she aims.
+            bool firing = time - shotsFrom < 0.05;
+            return new InputFrame
+            {
+                Yaw = MathF.Atan2(-flat.X, -flat.Z), Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length()), Primary = firing, Secondary = true,
+                PrimaryPressed = firing,
+            };
+        }
+        for (int burst = 0; burst < 8 && !boDown; burst++)
+        {
+            shotsFrom = 0;
+            rig.Run(0.6, Shoot);
+        }
+        RunUntil(rig, () => boDown, "Bo down", Still);
+        RunUntil(rig, () => ada.Local.Gun.PendingCount == 0, "every shot answered", Still);
+        int fired = events.Count(e => e == "shot");
+        int serverLoaded = rig.Server.Inspect(sv =>
+        {
+            sv.Zone.TryFindPlayer(ada.EntityId, out _, out Player p);
+            return (int)p.Inventory.Belt[2].Loaded;
+        });
+        Fixtures.Report($"Ada fired {fired}, {markers.Count(m => m.Target == HitTarget.Character)} hit Bo ({string.Join(", ", markers.Select(m => $"{m.Region} {m.Damage:0.#}"))}); " +
+            $"Bo took {damage.Sum(d => d.Damage):0.#}; magazine {ada.Local.Gun.Loaded} here, {serverLoaded} on the server; {string.Join(", ", events.Where(e => e.StartsWith("refused", StringComparison.Ordinal)))}");
+        Assert.True(!events.Any(e => e.StartsWith("refused", StringComparison.Ordinal)), "nothing refused");
+        Assert.Equal(serverLoaded, ada.Local.Gun.Loaded, "the predicted magazine is the server's");
+        Assert.Equal(30 - fired, serverLoaded, "every predicted shot was a shot on the server");
+        // Bo joined with a new life's 60 health: the second body shot knocks him down.
+        Assert.True(markers.Count(m => m.Target == HitTarget.Character) >= 2 && markers.Last().Downed, "hit markers, the last one 'downed'");
+        Assert.True(damage.Count >= 2 && bo.Local.IsWounded, "Bo took the damage and is down");
+
+        // Ada helps him up.
+        rig.Server.Execute("teleport Ada Bo");
+        rig.Run(0.3, Still);
+        ada.Local.HelpUp(bo.EntityId);
+        RunUntil(rig, () => boUp && !bo.Local.IsWounded, "Bo up again", Still);
+    }
+
+    /// <summary>
+    /// GROUND.md §4.7, persistence of weapons: a character's rifle keeps its rounds and attachments, a pistol in a corpse
+    /// keeps its own; stored bytes are untrusted, so rounds of the wrong calibre and attachments the gun doesn't take are
+    /// dropped, and a magazine can't hold more than it does. A character saved while down comes back dead, in a corpse.
+    /// </summary>
+    [Test]
+    public static void WeaponsKeepTheirMagazinesAndAttachments()
+    {
+        using var rig = new GameRig();
+        GameContent c = rig.C;
+        Entity ada = rig.Add("Ada", 4, 4);
+        Player a = rig.P(ada);
+        ItemStack rifle = ItemStack.Of(c.ItemByKey("rifle"), 1);
+        rifle.Loaded = 17;
+        rifle.LoadedAmmo = c.ItemByKey("rifle-ammo-hv").Id;
+        rifle.Sight = c.ItemByKey("scope").Id;
+        rifle.Muzzle = c.ItemByKey("silencer").Id;
+        rifle.Rail = c.ItemByKey("weapon-light").Id;
+        rifle.Condition = 123;
+        a.Inventory.Belt.Set(1, rifle);
+        ItemStack odd = ItemStack.Of(c.ItemByKey("pistol"), 1);
+        odd.Loaded = 99;
+        odd.LoadedAmmo = c.ItemByKey("rifle-ammo").Id;
+        odd.Sight = c.ItemByKey("scope").Id;
+        odd.Muzzle = c.ItemByKey("muzzle-brake").Id;
+        a.Inventory.Main.Set(3, odd);
+        a.Vitals.Burning = 4;
+
+        Player back = WorldCodec.DecodePlayer(WorldCodec.EncodePlayer(a), a.Id, a.Name, c);
+        Assert.True(back.Inventory.Belt[1] == rifle, $"the rifle as it was: {back.Inventory.Belt[1]}");
+        ItemStack pistol = back.Inventory.Main[3];
+        Assert.True(pistol.Loaded == 0 && pistol.LoadedAmmo == 0, "rifle rounds don't stay in a pistol");
+        Assert.True(pistol.Sight == 0 && pistol.Muzzle == c.ItemByKey("muzzle-brake").Id, "nor a scope; the brake does");
+        Assert.Equal(4f, back.Vitals.Burning, "burning");
+
+        // In a corpse (a static thing), through the thing's own record.
+        var corpse = new Corpse(new EntityId(77), "Ada", a.Id, 37, rig.Zone.GroundAt(4, 4), Vector3.UnitY, 0, rig.Zone.Tick + 900);
+        corpse.Loot.Set(5, rifle);
+        WorldObject? thing = WorldCodec.DecodeThing(corpse.Id, StaticKind.Corpse,
+            WorldCodec.EncodeThing(corpse, rig.Zone.Frame.ToBody(corpse.Position), rig.Zone.Tick), c, rig.Zone.Frame.ToLocal, rig.Zone.Frame.UpAt, rig.Zone.Tick);
+        Assert.True(thing is Corpse { } k && k.Loot[5] == rifle, "the rifle in the corpse, as it was");
+
+        // Down when saved: back as a corpse with everything.
+        a.Vitals.Health = 9;
+        a.Wounded = true;
+        a.WoundedCause = "Shot";
+        a.WoundedByName = "Bo";
+        Player saved = WorldCodec.DecodePlayer(WorldCodec.EncodePlayer(a), new EntityId(0xADA2), "Ada2", c);
+        Assert.True(saved.Wounded, "stored down");
+        Entity again = rig.Zone.AddPlayer(saved.Id, saved.Name, rig.Zone.NewCharacter(rig.Zone.GroundAt(6, 6)), saved);
+        Assert.True(saved.Dead && saved.KilledBy == "Bo", "added down: dead, killed by who downed them");
+        Assert.True(rig.Zone.Statics().OfType<Corpse>().Any(k => k.Of == saved.Id && k.Loot.Slots.ToArray().Contains(rifle)), "their corpse has the rifle");
+        Assert.True(rig.Zone.Entities.Get<Character>(again).State.IsDead, "and the character is dead");
+    }
+}

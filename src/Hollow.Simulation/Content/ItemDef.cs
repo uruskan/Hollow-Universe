@@ -229,6 +229,13 @@ public sealed class ItemDef
 
     public DeployableDef? Deploys { get; internal set; }
 
+    /// <summary>A firearm's numbers (weapons.json), a round's, an attachment's; null for other items (G4).</summary>
+    public FirearmStats? Firearm { get; internal set; }
+
+    public BulletStats? Bullet { get; internal set; }
+
+    public AttachmentStats? Attachment { get; internal set; }
+
     public bool HasCondition => MaxCondition > 0;
 
     public override string ToString() => Key;

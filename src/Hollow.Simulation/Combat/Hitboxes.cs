@@ -119,6 +119,18 @@ public sealed class HitboxHistory
 
     public IEnumerable<EntityId> Characters => _tracks.Keys;
 
+    /// <summary>A character's newest recorded feet (a cheap first test before sampling); false with no samples.</summary>
+    public bool TryNewest(EntityId id, out Vector3 feet)
+    {
+        feet = default;
+        if (!_tracks.TryGetValue(id, out Track? track) || !track.TryNewest(out HitPose pose))
+        {
+            return false;
+        }
+        feet = pose.Feet;
+        return true;
+    }
+
     private sealed class Track
     {
         private readonly long[] _ticks = new long[Length];
@@ -137,6 +149,12 @@ public sealed class HitboxHistory
             _ticks[_newest] = tick;
             _poses[_newest] = pose;
             _count = Math.Min(Length, _count + 1);
+        }
+
+        public bool TryNewest(out HitPose pose)
+        {
+            pose = _count > 0 ? _poses[_newest] : default;
+            return _count > 0;
         }
 
         public bool Sample(double tick, out HitPose pose)

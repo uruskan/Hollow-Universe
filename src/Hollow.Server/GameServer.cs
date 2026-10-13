@@ -122,6 +122,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
     public TickStats Ticks { get; } = new();
 
+    /// <summary>Time spent stepping the zone (movement and the game's rules), the rest of a tick being the network's.</summary>
+    public TimeSpan StepTime { get; private set; }
+
     public IReadOnlyCollection<PlayerSession> Players => _sessions.Values;
 
     public bool IsStopping => _stop.IsCancellationRequested;
@@ -254,7 +257,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             presence.Yaw = input.Yaw;
             presence.Pitch = input.Pitch;
         }
+        long stepStarted = Stopwatch.GetTimestamp();
         Zone.Step();
+        StepTime += Stopwatch.GetElapsedTime(stepStarted);
         ReportFalls();
         AfterStep();
 
@@ -577,6 +582,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 state.ActionCount = (byte)(p.ActionCount & 15);
                 state.Action = p.LastAction;
                 state.Sleeping = p.Sleeping && !p.Dead;
+                // G4: a gun aimed down its sights, and what is on it, for others to draw.
+                state.HeldMods = p.CanAct ? Zone.HeldGunLook(p) : (byte)0;
+                state.Aiming = p.CanAct && p.Gun.Item != 0 && !p.Gun.Reloading && character.Actions.Has(ActionButtons.Secondary);
             }
             _netStates[values[i].NetId] = (entity, state);
         }
