@@ -202,7 +202,41 @@ public sealed partial class MockGroundUi : IGroundUi
         }
     }
 
-    public void Use(SlotRef slot)
+    /// <summary>The sample's ACTIONS (GROUND_SYSTEMS.md §7), its own rules: EAT or USE, WEAR or UNEQUIP, LEARN, UNLOAD.</summary>
+    public IReadOnlyList<ItemActionView> Actions(SlotRef slot)
+    {
+        if (!Valid(slot) || Of(slot.Container)[slot.Index] is not { IsEmpty: false } stack)
+        {
+            return Array.Empty<ItemActionView>();
+        }
+        ItemInfo info = Item(stack.Key);
+        var actions = new List<ItemActionView>();
+        if (info.Usable)
+        {
+            actions.Add(new ItemActionView(info.Category == "FOOD" ? "EAT" : "USE", () => Use(slot)));
+        }
+        if (info.Wearable)
+        {
+            bool worn = slot.Container == ContainerId.Wear;
+            actions.Add(new ItemActionView(worn ? "UNEQUIP" : "WEAR", () => Store(slot, worn ? ContainerId.Main : ContainerId.Wear)));
+        }
+        if (stack.Teaches != null)
+        {
+            actions.Add(new ItemActionView("LEARN", () =>
+            {
+                Notice?.Invoke($"You learn to make the {Item(stack.Teaches).Name.ToLowerInvariant()}.");
+                Of(slot.Container)[slot.Index] = Take(stack, 1);
+            }));
+        }
+        if (stack.HasAmmo)
+        {
+            actions.Add(new ItemActionView("UNLOAD", () => Of(slot.Container)[slot.Index] = stack with { Ammo = 0 },
+                stack.Ammo > 0 ? null : "The magazine is empty"));
+        }
+        return actions;
+    }
+
+    private void Use(SlotRef slot)
     {
         if (!Valid(slot))
         {

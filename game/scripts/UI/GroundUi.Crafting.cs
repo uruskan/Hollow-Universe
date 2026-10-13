@@ -110,6 +110,7 @@ public partial class GroundUi
     private void PaintRecipe(Recipe recipe)
     {
         ItemInfo info = Model.Item(recipe.Key);
+        float here = Model.SecondsHere(recipe);
         Rect(791, 65, 702, 489, G.Panel);
         TextIn(info.Name.ToUpperInvariant(), 899, 84, 502, 31, G.Ink, HorizontalAlignment.Center, bold: true);
         Icon(recipe.Key, 809, 75, 65, 65);
@@ -130,15 +131,20 @@ public partial class GroundUi
             Rect(991, 133, 345, 22, near ? new Color(0.31f, 0.44f, 0.18f, 0.72f) : new Color(G.Red, 0.72f));
             TextIn($"{Model.Item(recipe.Station).Name.ToUpperInvariant()} REQUIRED", 991, 133, 345, 16, G.Ink, HorizontalAlignment.Center, bold: true);
         }
-        else if (recipe.Workbench > 0)
+        else if (recipe.Workbench > 0 || here < recipe.Seconds)
         {
+            // The workbench it needs, and how much faster the one in reach makes it (GROUND_SYSTEMS.md §7).
             bool near = Model.Workbench >= recipe.Workbench;
+            string faster = here < recipe.Seconds ? $"WORKBENCH {Model.Workbench}: {Ui.Number(recipe.Seconds / here, "0.#")}× FASTER" : "";
+            string needs = recipe.Workbench > 0 ? $"WORKBENCH LEVEL {recipe.Workbench} REQUIRED" : "";
             Rect(991, 133, 345, 22, near ? new Color(0.31f, 0.44f, 0.18f, 0.72f) : new Color(G.Red, 0.72f));
-            TextIn($"WORKBENCH LEVEL {recipe.Workbench} REQUIRED", 991, 133, 345, 16, G.Ink, HorizontalAlignment.Center, bold: true);
+            TextIn(needs.Length > 0 && faster.Length > 0 ? $"LEVEL {recipe.Workbench} · {faster}" : needs + faster, 991, 133, 345, 16, G.Ink,
+                HorizontalAlignment.Center, bold: true);
         }
+        // The time one takes here, green when a workbench shortens it.
         Rect(1408, 70, 80, 34, G.Panel);
-        Glyph("clock", 1413, 76, 22, G.Ink);
-        Text(Ui.Number(recipe.Seconds, "0.0"), 1438, 70, 25, G.Ink, bold: true);
+        Glyph("clock", 1413, 76, 22, here < recipe.Seconds ? G.Green : G.Ink);
+        Text(Ui.Number(here, "0.0"), 1438, 70, 25, here < recipe.Seconds ? G.Green : G.Ink, bold: true);
         Rect(1425, 108, 63, 32, G.Panel);
         Glyph("yield", 1430, 113, 22, G.Ink);
         Text(recipe.Yield.ToString(CultureInfo.InvariantCulture), 1453, 108, 24, G.Ink, bold: true);

@@ -63,6 +63,7 @@ public sealed partial class Zone
         InitAnimals(content);
         InitTargets();
         InitDamage();
+        InitHeld();
     }
 
     // After movement: GROUND.md §4.2's order.

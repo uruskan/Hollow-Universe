@@ -83,35 +83,32 @@ public sealed partial class Zone
             ref Character c = ref Entities.Get<Character>(entity);
             if (p.Wounded)
             {
-                RefuseGunActions(p, GunResult.NotAlive);
+                RefuseGunActions(p, OutcomeCode.Dead);
                 continue;
             }
             if (Entities.Has<Ships.ShipSeat>(entity))
             {
                 // In a ship's seat (G6): the hands are on the controls.
-                RefuseGunActions(p, GunResult.NotReady);
+                RefuseGunActions(p, OutcomeCode.Lowered);
                 continue;
             }
             ActionInput input = c.Actions;
-            // Taking up another item (or another in the same slot) takes a moment and ends what was going on.
+            // Taking up another item (or another in the same slot) takes a moment and ends what was going on: the held
+            // behaviour of what was in hand says what ends (GROUND_SYSTEMS.md §7); the gun's state follows the hands.
             ushort inSlot = input.HeldSlot < PlayerInventory.BeltSlots ? p.Inventory.Belt[input.HeldSlot].Item : (ushort)0;
             if (input.HeldSlot != p.HeldSlot || inSlot != p.HeldItem)
             {
+                IHeldRules? putAway = HeldRulesOf(content.Item(p.HeldItem));
                 p.HeldSlot = input.HeldSlot;
                 p.HeldItem = inSlot;
                 p.EquipReadyTick = Tick + CharacterTicks.From(content.Survival.EquipSeconds);
-                p.StrikeTick = -1;
-                p.DrawStartTick = -1;
+                putAway?.PutAway(p);
                 EquipGun(p);
             }
-            ItemDef? held = p.Held(content);
-            if (held?.Melee is { } melee)
+            // The item in hand's buttons, by its held behaviour.
+            if (p.Held(content) is { } held)
             {
-                StepMelee(entity, ref c, p, held, melee);
-            }
-            else if (held?.Bow is { } bow)
-            {
-                StepBow(entity, ref c, p, held, bow);
+                HeldRulesOf(held)?.Step(entity, ref c, p, held);
             }
             StepGun(entity, ref c, p);
         }

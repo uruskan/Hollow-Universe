@@ -51,8 +51,8 @@ public sealed class CraftQueue
     /// <summary>
     /// Starts a job: checks the recipe (known from the start, or learnt: <paramref name="known"/>, G7), the workbench
     /// level within reach and the materials for all units, then takes them. <paramref name="workbench"/> is the best
-    /// level within reach; <paramref name="station"/> the station the job is made at (a ship at the vehicle workbench,
-    /// G6), 0 for none.
+    /// level within reach: above the recipe's, the job is faster (<see cref="CraftingSpeed"/>, fixed now);
+    /// <paramref name="station"/> the station the job is made at (a ship at the vehicle workbench, G6), 0 for none.
     /// </summary>
     public Outcome Start(GameContent content, PlayerInventory inventory, int recipeId, int count, int workbench, out uint ticket,
         BlueprintBook? known = null, ulong station = 0)
@@ -84,7 +84,8 @@ public sealed class CraftQueue
             return OutcomeCode.NotEnough;
         }
         ticket = NextTicket++;
-        _jobs.Add(new CraftJob { Ticket = ticket, Recipe = recipe.Id, Count = count, TicksLeft = recipe.UnitTicks, UnitTicks = recipe.UnitTicks, Station = station });
+        int unit = CraftingSpeed.UnitTicks(content, recipe, workbench);
+        _jobs.Add(new CraftJob { Ticket = ticket, Recipe = recipe.Id, Count = count, TicksLeft = unit, UnitTicks = unit, Station = station });
         Revision++;
         return OutcomeCode.Done;
     }

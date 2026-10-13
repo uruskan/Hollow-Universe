@@ -83,6 +83,17 @@
     "NeedsKey": "You need its key",
 
     "Seated": "Not from the seat",
-    "NotEmpty": "Empty it first"
+    "NotEmpty": "Empty it first",
+
+    "NoWeapon": "No gun in hand",
+    "Reloading": "Reloading",
+    "Empty": "The magazine is empty",
+    "Cadence": "Not ready to fire",
+    "NoAmmo": "No rounds for it",
+    "Full": "The magazine is full",
+    "Lowered": "The gun is lowered",
+    "TooLate": "Too late: the connection is slow",
+
+    "Worn": "You're wearing something there already"
   }
 }

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using Hollow.Client.Loading;
 
 namespace HollowUniverse.Ground;
 
@@ -87,6 +88,15 @@ public sealed class ChildServer : IDisposable
             info.ArgumentList.Add(a);
         }
         Process process = Process.Start(info) ?? throw new InvalidOperationException("The server didn't start.");
+        try
+        {
+            // The game loads and warms up beside it while it starts (GROUND.md §4.3.1): the server comes first.
+            process.PriorityClass = ProcessPriorityClass.AboveNormal;
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or PlatformNotSupportedException)
+        {
+            // Not allowed here: it starts at the usual priority.
+        }
         var child = new ChildServer(process, port);
         process.OutputDataReceived += (_, e) => child.Line(e.Data);
         process.ErrorDataReceived += (_, e) => child.Line(e.Data);
@@ -113,6 +123,15 @@ public sealed class ChildServer : IDisposable
             _portTaken = true;
         }
     }
+
+    /// <summary>
+    /// The hosted server's loading stage (GROUND.md §4.3.1, "Starting the world"): done once it listens, or once it found
+    /// another game hosting on the port here (the game joins that one); failed if it stopped while starting. Its progress
+    /// is estimated from the seconds its weight says a start takes.
+    /// </summary>
+    public LoadStage LoadStage() => new(ServerStage, () => _ready || _portTaken, failed: () => _process.HasExited && !_ready && !_portTaken);
+
+    public const string ServerStage = "server";
 
     /// <summary>What the server printed since the last call (the game puts it in its own log).</summary>
     public IEnumerable<string> TakeLines()

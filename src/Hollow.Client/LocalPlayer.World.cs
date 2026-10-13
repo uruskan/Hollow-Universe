@@ -131,8 +131,8 @@ public sealed partial class LocalPlayer
             : OutcomeCode.NotEnough.With(Content.World.Currency?.Id ?? 0);
     }
 
-    /// <summary>Reads a blueprint in the main slots or belt: its recipe is learnt and the item used up.</summary>
-    public uint Learn(ContainerRef from, int slot) => Use(from, slot);
+    /// <summary>Reads a blueprint in the main slots or belt (its LEARN): its recipe is learnt and the item used up.</summary>
+    public uint Learn(ContainerRef from, int slot) => UsePart(from, slot, ItemPart.Blueprint);
 
     public uint CreateTeam() => TeamIntent(TeamAction.Create, default, 0);
 

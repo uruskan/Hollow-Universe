@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Hollow.Client.Audio;
 
@@ -20,6 +21,9 @@ public static class SoundLibrary
     public static SoundCatalogData Data => _data ??= Load();
 
     public static SoundEventData? Find(string key) => Data.Find(key);
+
+    /// <summary>Every file the catalogue's events play (a game loads them ahead, GROUND.md §4.3.1).</summary>
+    public static IReadOnlyList<string> Files => Data.Events.SelectMany(e => e.AllFiles).Distinct(StringComparer.Ordinal).ToList();
 
     /// <summary>A file's stream, loaded once; null (and a warning) when it is missing.</summary>
     public static AudioStream? Stream(string path, bool loop = false)

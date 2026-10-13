@@ -91,6 +91,7 @@ blender -b --factory-startup --python art/fx/build.py   # the effects' textures,
 blender -b --factory-startup --python art/gibs/build.py   # gibs: every model that breaks, fractured into its pieces → game/assets/gibs
                                                           # (GROUND.md §9.4; -- <keys> for some, -- --list for the plan)
 dotnet run --project tests/Hollow.Tests -- Gib            # gibs: everything that can be destroyed has pieces, found as the Destroyed event names it
+dotnet run --project tests/Hollow.Tests -- Loading        # the loading pipeline (GROUND.md §4.3.1): the plan, the bar, the hand-over, steady frames, arrivals, a join
 # The building and door kits into game/assets/building (Blender 5.2.1, D:/GameDev/Tools/blender-5.2.1-windows-x64):
 blender --background --factory-startup --python art/import/building_kit.py [-- twig wood stone metal armoured]
 blender --background --factory-startup --python art/import/door_kit.py
@@ -220,25 +221,34 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,look,foundations`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,look,foundations,held`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
   tree, e.g. `pine-tree`; `look` pictures the rock in hand, free look through Alt and the mouse, and a free foundation
   lifted by the aim; `foundations` checks P0's viewer flags and answers: E held on a fresh code lock's door offers its
-  owner SET CODE first, and a hut's claim device opened through its wall is refused with its line),
+  owner SET CODE first, and a hut's claim device opened through its wall is refused with its line; `held` pictures P3's
+  held items: a gun's slot with its loaded round's icon, its rounds on R held, the AK's, the bag charge's and a blueprint's
+  item panels (information and actions, LEARN), and crafting beside a level 2 workbench, faster),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
-  server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look (Left Alt held:
+  server's tick; then quits), `--load-trace [s]` (GROUND.md §4.3.1: times the start from the process's start to steady
+  play, the server ready, the connection, the world streaming, each loading stage, every frame over 33 ms with what
+  it built, the warm-up, and quits after s seconds, 45 by default; `--load-shot <file>` saves the loading screen once
+  the load is half done; `--arrival-check` teleports the hosting player to the landing site three seconds into play and
+  times the arrival). Starting a game shows the loading screen until every part is ready (§4.3.1). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look (Left Alt held:
   free look, the camera and head turn while the hands do nothing; in the cockpit too); left mouse attack
   (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire; with the building plan: place
   the piece; with the hammer: repair; with a door, a lock or the claim device: fit or place it; with an explosive: throw
   it), right mouse aim or draw (with the plan or the hammer, held: its radial; with a charge: put it on the surface
-  aimed at; with a grenade: lob it); R reload (with a building tool: turn the piece or door); E interact (doors, a code
+  aimed at; with a grenade: lob it); R reload (a gun, tapped: with the loaded kind; held: its rounds and UNLOAD; with a
+  building tool: turn the piece or door); E interact (doors, a code
   lock's keypad, a dud to light; held on a fire or furnace to light it or put it out, on a door or the claim device for
   its options; help a wounded player up; G7: open a crate or recycler, a workbench's tech tree, invite a player close by
-  into the team one leads); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it, the gun's panel takes
-  it off; a blueprint is used like food, and learnt); Q crafting (its TECH TREE tab at a workbench); G the map (a click
+  into the team one leads); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it; the item panel's ACTIONS
+  are the item's own: EAT, USE, WEAR, UNEQUIP, LEARN a blueprint, UNLOAD a gun, REMOVE an attachment, then DROP; a drag
+  released anywhere but a slot drops); Q crafting (its TECH TREE tab at a workbench; a workbench above a recipe's level
+  makes it faster); G the map (a click
   puts a marker down, a right-click takes it off; the team beside it); Enter chat (`/t ` before a line: to the team
   alone); F1 the console (GROUND.md §8.2: CONSOLE, INFO, NET, ITEMS and TOOLS tabs; Tab completes, Up and Down the
   history, Esc or F1 closes); Esc back, then the menu; F3 network graph; the death screen's buttons respawn. At a ship, E opens its hatch, boards, refuels or opens the cargo. Flying (G6): the mouse is the
@@ -247,7 +257,7 @@ Client options (after `--`):
   (`/give rifle`), with the player's rights on any server. A hosted game makes its host the admin.
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
   `heal`, `kill` besides G1's (type `help`; every command of the F1 console is in GROUND.md §8.2: `give <item> [amount]
-  [player]`, `teleport`, `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`, `timescale`,
+  [player]` (`<item>.blueprint`: its blueprint), `teleport`, `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`, `timescale`,
   `ents`, `whereami`, `players`, Rust's names such as `inventory.give`, `global.teleport`, `env.time`; at the server's
   console a command names its player, and the older `give <name> <item> [count]` forms still work); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
   (and `--raid-radius <m>`; servers without a database) builds claimed huts on a ring for raid tests;
@@ -308,10 +318,10 @@ Client options (after `--`):
 | `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3); G4 (§6.3): firearms (`Combat/Firearms.cs`: recoil, spread, cadence, reload, ballistics), bullets and damage (`Zone.Guns.cs`), the wounded state (`Zone.Wounded.cs`); the damage pipeline (§6.4.2: `Combat/Damage.cs`, `Zone.Damage.cs`: one request, one entry point, a receiver per kind of thing in each domain's file, the Destroyed event); G5 (§6.6): explosives, blasts with line of sight, rockets and explosive rounds, raid hits (`Zone.Raid.cs`, `Zone.Blast.cs`, `Raid/`); G6 (§6.7): ships in `Ships/` (`ShipDef`, `ShipState`, `ShipMotor`, `ShipCollider`) and `Zone.Ships.cs`; G7 (§6.8): world props and where they stand (`Zone.World.cs`, `Nature/LootSpots.cs`, `World/WorldObjects.cs`), the recycler, research and tech trees (`Economy/`, `Items/Blueprints.cs`, `Content/World.cs`), teams (`Teams/`), map markers |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay; `Commands/`: the F1 console's command catalogue, parsing and Tab completion (§8.2) |
 | `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread; the building's records (`BuildingCodec`, §6.5); explosives (`ExplosiveCodec`) and queued notifications (§6.6); ships (`ShipCodec`, §6.7); teams and world props' overrides (`TeamCodec`, schema 6, §6.8) |
-| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2); `LocalGun`, the predicted gun and its events for the visual layer (§6.4); `Audio/`: the sound catalogue model, a BS.1770 loudness meter, distance layers, footstep and ambience rules (§4.9); `BuildingReplica`, the building in range and the ghost check, and the building intents on `LocalPlayer` (§6.5); explosives, detonations and raid alerts (`GameClient.Raid.cs`, `LocalPlayer.Raid.cs`, §6.6); ships: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, the ship intents on `LocalPlayer` (§6.7); G7 (§6.8): blueprints and tech trees, teams, map markers, world props (`LocalPlayer.World.cs`, `GameClient.World.cs`), the zone's map and its picture (`Map/ZoneMap.cs`) |
+| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2); `LocalGun`, the predicted gun and its events for the visual layer (§6.4); `Audio/`: the sound catalogue model, a BS.1770 loudness meter, distance layers, footstep and ambience rules (§4.9); `BuildingReplica`, the building in range and the ghost check, and the building intents on `LocalPlayer` (§6.5); explosives, detonations and raid alerts (`GameClient.Raid.cs`, `LocalPlayer.Raid.cs`, §6.6); ships: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, the ship intents on `LocalPlayer` (§6.7); G7 (§6.8): blueprints and tech trees, teams, map markers, world props (`LocalPlayer.World.cs`, `GameClient.World.cs`), the zone's map and its picture (`Map/ZoneMap.cs`); `Loading/`: the loading pipeline (§4.3.1: `LoadingPipeline`, `LoadStage`, `LoadingPlan`, `SteadyFrames`, `QuietStream`) and the client's own stages (`GameClient.Loading.cs`) |
 | `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication (the building's in `GameServer.Building.cs`, ships' in `GameServer.Ships.cs`), login, admin; raiding and the notification service (`GameServer.Raid.cs`, `Notifications/`: raid alerts, GROUND.md §6.6); the world's props, each player's blueprints, team and map, team chat (`GameServer.World.cs`, §6.8); the F1 console's commands, rights, zone clock and spawning (`AdminCommands.cs`, `GameServer.Console.cs`, §8.2) |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
-| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, the radial menu in `GroundUi.Radial.cs` with its glyphs `RadialGlyphs`, menu, the F1 panel in `GroundUi.Console.cs`), the view model `Model/IGroundUi` with `MockGroundUi` (and `IConsoleModel` with `MockConsole`; the radial's contract in `Model/RadialTypes.cs`), `ItemIcons`, and the viewer (`Viewer/`) |
+| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, the radial menu in `GroundUi.Radial.cs` with its glyphs `RadialGlyphs`, menu, the F1 panel in `GroundUi.Console.cs`), the view model `Model/IGroundUi` with `MockGroundUi` (and `IConsoleModel` with `MockConsole`; the radial's contract in `Model/RadialTypes.cs`), `ItemIcons`, the loading screen (`LoadingScreen`, §4.3.1), and the viewer (`Viewer/`) |
 | `game/assets/building` | The building and door kits as GLB (three levels of detail, Godot collision names) and their 2K textures (GROUND.md §6.3) |
 | `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines; the plan's and the hammer's radial sources (`BuildingRadials.cs`), shared with the game |
 | `src/Hollow.Simulation/Animals` | G7's animals (GROUND.md §6.9): `AnimalWorld` (the staggered AI tick, perception, the brain, steering, spawning), `NavGrid` (ground, water, slopes and trunks in 2 m cells, short paths), `AnimalHitboxes`; the zone's side in `Zone.Animals.cs`; the numbers in `game/data/ground/animals.json` |
@@ -321,11 +331,13 @@ Client options (after `--`):
 | `game/data/ground` | The ground game's numbers; `building.json`: pieces, grades, sockets, costs, doors, locks, the claim device |
 | `art/import` | Blender scripts that convert the PSG kits into `game/assets/` |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font; Barlow and Barlow Condensed (SIL OFL 1.1), the ground interface's |
+| `game/assets/loading` | The loading screen's picture of the first world and the boot splash (our own renders, GROUND.md §4.3.1) |
+| `game/scripts/Ground/RenderWarmup.cs`, `GroundWarmup.cs` | The renderer's warm-up (GROUND.md §4.3.1): every library's `WarmItem`s (`ModelWarm`, `CharacterWarm`, `BuildingWarm`, `GibWarm`, `FxWarm`, `AnimalWarm`, `ShipWarm`, beside each library) loaded from the first frame and shown once under the loading screen |
 | `game/scripts/Characters` | Player characters (GROUND.md §4.8): `CharacterView` (third person), `ViewmodelView` (first person), animation graph, IK and aim, ragdoll, wardrobe, held items, the `--view character` viewer |
 | `game/assets/characters` | Player body, clothing and animations (GLB), their textures and JSON facts, built by `art/` |
 | `game/assets/THIRD_PARTY.md` | Every third-party file: source, version, licence, checksum |
 | `art/` | Blender Python scripts that build assets from text: the character body, clothing and held-item tests (character package), and the item and world models: `hollow/` (shared code), `import/` (the kits), `models/` (our own), `build.py`; `art/.cache` is scratch (not committed) |
-| `game/data/ground` | The ground game's data (GROUND.md §7): items, recipes, natural objects, deployables, loot, survival constants, crafting tabs, weapons, building, explosives and raid alerts, the world's economy and progression (`world.json`, G7) (JSON, read by server and client); `sounds.json`, the sound catalogue (client only, §4.9) |
+| `game/data/ground` | The ground game's data (GROUND.md §7): items, recipes, natural objects, deployables, loot, survival constants, crafting tabs, weapons, building, explosives and raid alerts, the world's economy and progression (`world.json`, G7) (JSON, read by server and client); `sounds.json`, the sound catalogue (client only, §4.9); `loading.json`, the loading screen's stages, weights, tips and picture (client only, §4.3.1) |
 | `game/scripts/Audio` | The sound (GROUND.md §4.9): `AudioDirector` (pooled voices, limits, priorities, distance layers, occlusion), `AudioBuses`, `FootstepDriver`, `AmbienceDirector`, `SoundLibrary`, `SoundMeter`, the viewer (`--view sounds`) |
 | `game/assets/audio` | The sound files (Ogg Vorbis, 48 kHz; interface clicks WAV) and `levels.json`, their measurements; built by `art/audio` |
 | `art/audio` | The sound pipeline (GROUND.md §9.2): sources and their checksums, recipes (`events.py`), the build, our 7z reader, sounds made in code, `inspect.py` (waveform and spectrogram pictures) |

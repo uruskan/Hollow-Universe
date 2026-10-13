@@ -36,7 +36,7 @@ public sealed partial class Zone
         p.StrikeTick = -1;
         p.DrawStartTick = -1;
         p.VitalsRevision++;
-        RefuseGunActions(p, Combat.GunResult.NotAlive);
+        RefuseGunActions(p, OutcomeCode.Dead);
         ref Character c = ref Entities.Get<Character>(entity);
         c.State.Stance = Stance.Crawling;
         SyncHealth(ref c, p);

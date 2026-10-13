@@ -206,17 +206,17 @@ public sealed class FightBrain
         }
         if (me.Vitals.IsBleeding && Find(me, c.ItemByKey("bandage").Id) is { } bandage)
         {
-            me.Use(bandage.Which, bandage.Slot);
+            me.UsePart(bandage.Which, bandage.Slot, ItemPart.Consumable);
             return;
         }
         if (me.Vitals.Health < 40 && Find(me, c.ItemByKey("medical-injector").Id) is { } injector)
         {
-            me.Use(injector.Which, injector.Slot);
+            me.UsePart(injector.Which, injector.Slot, ItemPart.Consumable);
             return;
         }
         if (me.Vitals.Calories < 150 && Find(me, c.ItemByKey("roasted-tuber").Id) is { } food)
         {
-            me.Use(food.Which, food.Slot);
+            me.UsePart(food.Which, food.Slot, ItemPart.Consumable);
         }
     }
 

@@ -219,25 +219,6 @@ public enum BuildingRole : byte
     Door,
 }
 
-/// <summary>What the attack and aim buttons do with an item in hand (Rust's hands; <see cref="ItemDef.Hands"/>).</summary>
-public enum HandUse : byte
-{
-    /// <summary>Swings, fires or punches; the aim button aims a gun or draws a bow.</summary>
-    Attack,
-
-    /// <summary>A building tool (<see cref="ItemDef.Building"/>): a click builds, repairs, fits or claims.</summary>
-    Build,
-
-    /// <summary>A deployable: a click places it.</summary>
-    Place,
-
-    /// <summary>Food or medicine: a click uses it.</summary>
-    Use,
-
-    /// <summary>An explosive: a click throws it; the aim button puts it on a surface or lobs it.</summary>
-    Throw,
-}
-
 /// <summary>One kind of item (items.json).</summary>
 public sealed class ItemDef
 {
@@ -298,15 +279,20 @@ public sealed class ItemDef
     /// <summary>An explosive thrown or placed by hand (explosives.json, G5); null for other items.</summary>
     public ThrowableStats? Throwable { get; internal set; }
 
+    /// <summary>Its parts (GROUND_SYSTEMS.md §7): the blocks of its data that give it behaviour, worked out when the data is read.</summary>
+    public ItemParts Parts { get; internal set; }
+
     /// <summary>
-    /// What the hands do with it (the one place that says, from its data): an explosive is thrown, a building tool builds,
-    /// a deployable is placed, food and medicine are used, and everything else attacks.
+    /// What it does in the hands (GROUND_SYSTEMS.md §7): the held behaviour its one part that gives one gives
+    /// (<see cref="HeldPart"/>), else <see cref="HeldUse.None"/>. The client's and the server's handlers are found by it.
     /// </summary>
-    public HandUse Hands => Throwable != null ? HandUse.Throw
-        : Building != BuildingRole.None ? HandUse.Build
-        : Deploys != null ? HandUse.Place
-        : Consume != null ? HandUse.Use
-        : HandUse.Attack;
+    public HeldUse Held { get; internal set; }
+
+    /// <summary>The part that gives it its held behaviour, or null.</summary>
+    public ItemPart? HeldPart { get; internal set; }
+
+    /// <summary>The recipes that take it (what it is a component of), in recipes.json's order.</summary>
+    public IReadOnlyList<Recipe> UsedIn { get; internal set; } = Array.Empty<Recipe>();
 
     public bool HasCondition => MaxCondition > 0;
 

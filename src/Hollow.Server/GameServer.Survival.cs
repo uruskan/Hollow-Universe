@@ -265,10 +265,11 @@ public sealed partial class GameServer
                 DropIntent m = DropIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.DropItem(me, m.From, m.Slot, Amount(m.Amount), Expected(m.Expected)));
             }
-            case UseIntent.TypeId:
+            case ItemActionIntent.TypeId:
             {
-                UseIntent m = UseIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.UseItem(me, m.From, m.Slot, Expected(m.Expected)));
+                ItemActionIntent m = ItemActionIntent.Read(_reader);
+                return !_reader.Failed && Intent(session, m.Seq,
+                    () => Zone.ItemAction(me, m.From, m.Slot, Expected(m.Expected), Amount(m.Action), Amount(m.Arg)));
             }
             case CraftIntent.TypeId:
             {
@@ -340,15 +341,18 @@ public sealed partial class GameServer
                     Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Reload, Slot = m.Slot, Item = Expected(m.Item), Ammo = Expected(m.Ammo),
                 });
             }
+            case UnloadIntent.TypeId:
+            {
+                UnloadIntent m = UnloadIntent.Read(_reader);
+                return !_reader.Failed && GunIntent(session, new GunAction
+                {
+                    Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Unload, Slot = m.Slot, Item = Expected(m.Item),
+                });
+            }
             case AttachIntent.TypeId:
             {
                 AttachIntent m = AttachIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.Attach(me, m.From, m.Slot, m.WeaponIn, m.WeaponSlot, Expected(m.Expected)));
-            }
-            case DetachIntent.TypeId:
-            {
-                DetachIntent m = DetachIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Detach(me, m.WeaponIn, m.WeaponSlot, m.Mod));
             }
             default:
                 return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type) || ReceiveWorldIntent(session, type);
@@ -442,7 +446,7 @@ public sealed partial class GameServer
         session.GunActions++;
         if (!session.SpendGunToken(Zone.Tick, s.GunBurst, s.GunActionsPerSecond))
         {
-            action.Refused = GunResult.RateLimited;
+            action.Refused = OutcomeCode.RateLimited;
             session.GunRateLimited++;
         }
         if (session.Playing)

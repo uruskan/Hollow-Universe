@@ -60,7 +60,7 @@ public static class AnimalTests
         Animal target = herd.Leader!;
         rig.Look(ada, target.Position + rig.Zone.Frame.UpAt(target.Position) * 0.95f);
         rig.Zone.GameEvents.Clear();
-        Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 1), "the shot");
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "the shot");
         float[] before = herd.Members.Select(a => AnimalRig.Flat(a.Position, rig.Ch(ada).State.Position)).ToArray();
         bool hit = false;
         rig.Step(15, () =>
@@ -355,11 +355,11 @@ public static class AnimalTests
         rig.Give(ada, "raw-venison", 1);
         rig.Give(ada, "cooked-venison", 1);
         int raw = Enumerable.Range(0, 24).First(i => p.Inventory.Main[i].Item == c.ItemByKey("raw-venison").Id);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.UseItem(ada, ContainerRef.Main, raw, 0), "eat it raw");
+        Assert.Equal(OutcomeCode.Done, rig.Act(ada, ContainerRef.Main, raw, "eat"), "eat it raw");
         Assert.Near(70, p.Vitals.Health, 0.01, "raw venison costs 10 health");
         Assert.Near(120, p.Vitals.Calories, 0.01, "and gives 20 calories");
         int cooked = Enumerable.Range(0, 24).First(i => p.Inventory.Main[i].Item == c.ItemByKey("cooked-venison").Id);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.UseItem(ada, ContainerRef.Main, cooked, 0), "eat it cooked");
+        Assert.Equal(OutcomeCode.Done, rig.Act(ada, ContainerRef.Main, cooked, "eat"), "eat it cooked");
         Assert.Near(160, p.Vitals.Calories, 0.01, "40 calories");
         Assert.Near(10, p.Vitals.PendingHeal, 0.01, "and 10 health to heal");
 

@@ -48,6 +48,10 @@ public sealed class GameRig : IDisposable
 
     public Player P(Entity e) => Zone.PlayerOf(e)!;
 
+    /// <summary>An inventory action (GROUND_SYSTEMS.md §7) by its key in items.json's list: eat, use, wear, learn, unload, remove.</summary>
+    public Outcome Act(Entity e, ContainerRef from, int slot, string action, int arg = 0, ushort expected = 0) =>
+        Zone.ItemAction(e, from, slot, expected, C.ItemActions[action]!.Id, arg);
+
     public ref Character Ch(Entity e) => ref Zone.Entities.Get<Character>(e);
 
     /// <summary>Steps ticks; the clock follows (33 ms a tick).</summary>
@@ -329,7 +333,7 @@ public static class SurvivalTests
         rig.Step(30 * 3);
         Assert.True(a.Vitals.Health < 78 && a.Vitals.Bleeding > 0, $"bleeding ({a.Vitals.Health:0.0} health, {a.Vitals.Bleeding:0.0} to bleed)");
         rig.Give(ada, "bandage", 1);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.UseItem(ada, ContainerRef.Main, 0, c.ItemByKey("bandage").Id), "bandage");
+        Assert.Equal(OutcomeCode.Done, rig.Act(ada, ContainerRef.Main, 0, "use", expected: c.ItemByKey("bandage").Id), "bandage");
         Assert.Equal(0f, a.Vitals.Bleeding, "stopped");
         float afterBandage = a.Vitals.Health;
         rig.Step(30 * 5);
