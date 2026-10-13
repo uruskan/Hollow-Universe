@@ -293,3 +293,19 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - teams of up to 8;
   - the map with markers.
 - **Next: server performance.** Ships streaming ground as they fly cost the server a lot on the real planet.
+
+## 13 October 2026, morning
+
+- **Integration pass 4 finished** (`ground-integrate`):
+  - the Tin Finch in the game: crafted at the vehicle workbench, it rolls out onto the bay; you board it through the
+    hatch and fly it from the cockpit or the chase camera, with the flight HUD in place of the belt; it hums, burns,
+    boosts, lands and crashes with its own sounds, and a wreck burns;
+  - G7a in the game: the map on G, on the zone's own parchment picture, with markers, teammates, bags and the last
+    death (the death screen draws it too); a workbench's tech tree on E; the recycler's and research table's panels;
+    barrels, crates and recyclers drawn, a running recycler's lamp and hum, a barrel breaking; blueprints learnt by
+    using them; teams, with the invite prompt and teammates' names in green at any distance; notices for blueprints
+    learnt, invites and team changes.
+
+  New pictures in `docs/images/ground/play/`: the ship's recipe, boarding, cockpit, chase camera and landing; a team
+  invite, a teammate far off, the props, a crate, the recycler, a workbench, its tech tree, the research table, the map
+  and the death screen. 145 of 145 tests pass.

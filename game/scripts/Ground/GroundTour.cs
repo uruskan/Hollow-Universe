@@ -28,10 +28,10 @@ namespace HollowUniverse.Ground;
 /// through the game at the landing site that saves one picture per moment (the HUD by berry bushes, picking berries,
 /// the inventory, crafting, the other player, chopping a tree and after, an outcrop, a rifle fired down the sights, a
 /// base being built with the plan's ghost, a finished hut with a code lock and its keypad, a timed charge on its wall
-/// and the blast, a firefight at the hut, the death screen, night by a fire) and
-/// quits; with <c>--tour guest</c>, a second client that dresses in what it is given, takes up its hatchet and
-/// faces the host, and fires a rifle it is given at the nearest building wall. Pictures are 1600 × 900 JPEG at the
-/// window's size.
+/// and the blast, a firefight at the hut, the Tin Finch crafted, boarded, flown and landed, G7's team, props, recycler,
+/// tech tree, research table and map, the death screen, night by a fire) and quits; with <c>--tour guest</c>, a second
+/// client that dresses in what it is given, takes up its hatchet and faces the host, fires a rifle it is given at the
+/// nearest building wall, and takes a team invite. Pictures are 1600 × 900 JPEG at the window's size.
 /// </summary>
 public partial class GroundTour : Node
 {
@@ -1074,6 +1074,16 @@ public partial class GroundTour : Node
     // with a node unlocked, a research table before and after, a blueprint read, and the map with markers and the team.
     private async Task World()
     {
+        // Room in the inventory: what the earlier steps left goes on the ground (the pictures are taken away from it).
+        for (int i = 0; i < Me.Inventory.Main.Size; i++)
+        {
+            if (!Me.Inventory.Main[i].IsEmpty)
+            {
+                Me.Drop(ContainerRef.Main, i, Me.Inventory.Main[i].Count);
+                await Seconds(0.2);
+            }
+        }
+        await Seconds(0.5);
         Admin("give", "stone-hatchet 1");
         Admin("give", "workbench-1 1");
         Admin("give", "research-table 1");
@@ -1101,7 +1111,7 @@ public partial class GroundTour : Node
             Me.CreateTeam();
             await Until(() => Me.Team != null, 5);
         }
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Client.Character.Position);
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Client.Character.Position + Forward() * 25);
         await TeleportTo(spot);
         RemoteEntity? guest = Client.Entities.FirstOrDefault(e => e.Name.Length > 0);
         if (guest != null)

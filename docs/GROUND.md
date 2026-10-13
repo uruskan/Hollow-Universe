@@ -1001,7 +1001,8 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   instead of 99.
 
 **Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 3
-with building, raiding and the effects library in the game, except `menu.jpg`):
+with building, raiding and the effects library in the game, except `menu.jpg`; pass 4 added the ship's and G7's, from
+its `ship` and `world` steps):
 
 | Picture | What it shows |
 |---|---|
@@ -1023,14 +1024,17 @@ with building, raiding and the effects library in the game, except `menu.jpg`):
 | `ship-craft.jpg` | Pass 4: the Tin Finch's recipe at a vehicle workbench (behind the menu): "VEHICLE WORKBENCH REQUIRED" in green, its five makings. |
 | `ship-boarding.jpg` | The Tin Finch rolled out onto the bench's bay (the builder told so in chat), its hatch open: "E BOARD TIN FINCH". |
 | `ship-cockpit.jpg` | The cockpit at 106 m/s, 59 m over the forest, with the flight HUD (speed, height, climb, heading, the lever, flight assist, fuel and hull). |
-| `ship-chase.jpg` | The chase camera hovering near the hut, the lift nozzles burning; the second player on the ground below, watching. |
+| `ship-chase.jpg` | The chase camera hovering 10 m up near the hut, the lift nozzles burning; the second player on the ground just below, watching. |
 | `ship-landed.jpg` | Landed beside the stone hut: "LANDED", and the keys to step out, work the hatch and lock it. |
 | `team-invite.jpg` | Pass 4, G7: a team made ("You made a team…"), the second player looked at: "E INVITE TO TEAM BO". |
 | `teammate.jpg` | "Bo joined the team.": 73 m off among the trees, her name in the team's green with how far. |
+| `loot-props.jpg` | The barrels and the crate nearest the landing site, at a forest edge, seen from the clearest side. |
 | `crate.jpg` | A world crate opened beside the barrels nearest the landing site: salvage, a hammer, cloth, gears. |
 | `recycler.jpg` | A recycler at work: gears and pipes in, salvage and metal fragments out, the batch's progress, TURN OFF. |
+| `recycler-running.jpg` | The recycler running, its green lamp lit on the body's top corner by the hopper: "E OPEN RECYCLER". |
 | `workbench.jpg` | A level 1 workbench placed in the meadow: "E OPEN TECH TREE". |
 | `techtree.jpg` | Its tech tree: the metal hatchet just unlocked ("Blueprint learnt: Metal hatchet."), the pickaxe after it ready for 125 of the 525 salvage. |
+| `research.jpg`, `research-done.jpg` | A research table: a pistol and 200 salvage in, "SERVICE PISTOL: 125 SALVAGE", BEGIN RESEARCH; ten seconds later the pistol's blueprint in its third slot, drawn in blueprint blue, 75 salvage left. |
 | `map.jpg` | The map (G) on the zone's parchment picture: the player, the teammate, a sleeping bag, two markers, the grid; the markers' and the team's panels beside it. |
 | `death.jpg` | The death screen over the zone's map: the body's skull, the sleeping bag beside it and its countdown. |
 | `night.jpg` | Night, by the catalogue's campfire, lit: the effects library's flames, embers and smoke, and its flickering light on the grass; the respawn kit on the belt. |
