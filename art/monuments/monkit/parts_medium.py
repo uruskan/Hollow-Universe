@@ -1603,7 +1603,40 @@ def _weapon_rack(b):
     b.collide_box(Vector((0, 0.05, 1.0)), (1.8, 0.5, 2.0), (0, 0, 0))
 
 
+def _railcar(b):
+    """A 20 m passenger railcar on two bogies: a panelled body (tinted per instance), a band of windows, doors, an
+    arched roof with vents, couplers."""
+    body = (1.0, 1.0, 1.0)
+    L, W = 20.0, 3.0
+    b.box((L, W, 2.9), (0, 0, 2.65), mat=PANEL, tint=body)
+    prof = [(-W / 2, 0.0), (W / 2, 0.0), (W / 2 - 0.15, 0.35), (W / 4, 0.62), (-W / 4, 0.62), (-W / 2 + 0.15, 0.35)]
+    b.extrude([(x, z) for x, z in prof], L, (0, 0, 4.1), (0, 0, 90), mat=PANEL, tint=srgb(0.8, 0.8, 0.78))
+    for side in (-1, 1):
+        y = side * (W / 2 + 0.01)
+        for k in range(8):
+            x = -8.4 + k * 2.4
+            if k in (1, 6):
+                b.box((1.3, 0.04, 2.3), (x, y, 2.35), mat=PAINT, tint=srgb(0.3, 0.32, 0.34), solid=False, vary=0)
+                b.box((0.5, 0.05, 0.9), (x, y, 2.95), mat=GLASS, solid=False, vary=0)
+            else:
+                b.box((1.8, 0.04, 1.0), (x, y, 3.0), mat=GLASS, solid=False, vary=0)
+        b.box((L, 0.03, 0.25), (0, y, 2.2), mat=PAINT, tint=srgb(0.2, 0.22, 0.24), solid=False, vary=0)
+    for x in (-L / 2 - 0.02, L / 2 + 0.02):
+        b.box((0.04, 1.2, 1.4), (x, 0, 2.8), mat=GLASS, solid=False, vary=0)
+        b.box((0.4, 0.3, 0.3), (x + (0.2 if x > 0 else -0.2), 0, 1.1), tint=DARK, solid=False)
+    for x in (-6.5, 6.5):
+        b.box((3.2, 2.4, 0.6), (x, 0, 0.75), tint=DARK)
+        for dx in (-1.0, 1.0):
+            for yy in (-0.72, 0.72):
+                b.cyl(0.42, 0.14, (x + dx, yy, 0.45), (90, 0, 0), tint=srgb(0.3, 0.3, 0.3), sides=12, solid=False)
+    b.box((L - 2.0, 1.6, 0.25), (0, 0, 1.1), tint=DARK, solid=False)
+    for k in range(3):
+        b.box((1.2, 0.8, 0.3), (-6.0 + k * 6.0, 0, 4.85), tint=GREY, solid=False)
+    b.collide_box(Vector((0, 0, 2.6)), (L, W, 3.6), (0, 0, 0))
+
+
 kit.PIECES.update({
+    "railcar": _railcar,
     "bunk": _bunk,
     "gabion-row": _gabion_row,
     "sandbag-run": _sandbag_run,
