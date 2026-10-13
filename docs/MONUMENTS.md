@@ -223,7 +223,7 @@ The huge ones. One per old region at most, each a destination of its own.
 | 52 | **Mass Driver** | 8 km rail, halls 600 m | Up a mountainside | An electromagnetic launch rail climbing a mountain, capacitor halls at its foot, a cradle on the rail | A line of sites; the capacitor halls are a violet monument; restarting it is a server event. *Built: `mass_driver.py` (the halls and the first 1.5 km; the line continues from kit pieces `driver-rail`, `driver-pylon`, `driver-pylon-section`)* |
 | 53 | **Great Dam** | 700 m wide, 180 m tall | Mountain valleys | A concrete arch dam with a powerhouse and spillways, the reservoir behind | Powerhouse (L-size), galleries inside the dam, a crawler on the crest. *Built: `great_dam.py` (crest about 750 m; the valley walls, reservoir and river are drawn only in its look-dev renders)* |
 | 54 | **Arcology** | 600 m base, 400 m tall | Old colony capitals | A ziggurat megablock of the old colony, terraces overgrown | A city in one building: floors of loot, Reclaimer clans by level, the top. *Built: `arcology.py` (ten tiers to 400 m, crown to 525 m, the ruined capital round it)* |
-| 55 | **Ring Fall** | Debris field 10 km | Wherever it fell | A kilometre-long piece of an orbital station lying across the land, debris for kilometres | Ship and station parts; a wreck of wrecks |
+| 55 | **Ring Fall** | Debris field 10 km | Wherever it fell | A kilometre-long piece of an orbital station lying across the land, debris for kilometres | Ship and station parts; a wreck of wrecks. *Built: `ring_fall.py` (fragment 1 km, spoke stump to about 390 m; debris within 2 km)* |
 
 ### 5.6 Wonders (W) — 4
 
