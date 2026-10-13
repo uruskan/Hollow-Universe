@@ -48,7 +48,7 @@ public static class AnimalHitboxes
         }
         float bodyHeight = h - rad * 0.9f;
         Capsule(f + up * bodyHeight - forward * (l * 0.3f), f + up * bodyHeight + forward * (l * 0.22f), rad, HitRegion.Body);
-        Sphere(f + up * (h * 0.92f) + forward * (l * 0.46f), s.HeadRadius, HitRegion.Head);
+        Sphere(f + up * s.HeadUp + forward * s.HeadAhead, s.HeadRadius, HitRegion.Head);
         float legTop = bodyHeight - rad * 0.5f, legRadius = rad * 0.24f;
         foreach (float along in stackalloc[] { l * 0.24f, -l * 0.26f })
         {
@@ -72,6 +72,6 @@ public static class AnimalHitboxes
         (Vector3 forward, _) = CharacterMotor.HorizontalBasis(pose.Yaw, pose.Up);
         return pose.Pose == Pose.Lying
             ? pose.Feet + forward * (s.Length * 0.45f) + pose.Up * s.HeadRadius
-            : pose.Feet + pose.Up * (s.Height * 0.92f) + forward * (s.Length * 0.46f);
+            : pose.Feet + pose.Up * s.HeadUp + forward * s.HeadAhead;
     }
 }

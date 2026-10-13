@@ -515,7 +515,7 @@ public sealed partial class AnimalWorld
     {
         Vector3 up = UpAt(a.Position);
         (Vector3 forward, _) = CharacterMotor.HorizontalBasis(a.Yaw, up);
-        Vector3 mouth = a.Position + forward * (a.Species.Length * 0.45f);
+        Vector3 mouth = a.Position + forward * a.Species.HeadAhead;
         Vector3 d = point - mouth;
         Vector3 flat = d - up * Vector3.Dot(d, up);
         if (flat.Length() > reach || MathF.Abs(Vector3.Dot(d, up)) > 2.2f)

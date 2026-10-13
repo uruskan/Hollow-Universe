@@ -90,6 +90,11 @@ public sealed class AnimalSpecies
 
     public float HeadRadius { get; init; }
 
+    /// <summary>Where its head is at rest: this far ahead of its feet's middle and this high (the model's; hit shapes and bites).</summary>
+    public float HeadAhead { get; init; }
+
+    public float HeadUp { get; init; }
+
     /// <summary>Gaits in metres a second; turning in radians a second; acceleration in m/s².</summary>
     public float WalkSpeed { get; init; }
 
@@ -339,7 +344,7 @@ internal static class AnimalsReader
             JsonElement behaviour = Child(f, e, "behaviour", where);
             JsonElement habitat = Child(f, e, "habitat", where);
             JsonElement corpse = Child(f, e, "harvest", where);
-            f.OnlyKnown(size, where + ".size", "length", "height", "radius", "head");
+            f.OnlyKnown(size, where + ".size", "length", "height", "radius", "head", "headAhead", "headUp");
             f.OnlyKnown(speed, where + ".speed", "walk", "trot", "run", "turn", "accel");
             f.OnlyKnown(sense, where + ".senses", "sight", "cone", "hearing");
             f.OnlyKnown(behaviour, where + ".behaviour", "flee", "calm", "space", "fleeHealth", "chase", "chaseRange", "hunger", "hunt");
@@ -378,6 +383,8 @@ internal static class AnimalsReader
                 Height = f.Number(size, "height", where + ".size"),
                 Radius = f.Number(size, "radius", where + ".size"),
                 HeadRadius = f.Number(size, "head", where + ".size"),
+                HeadAhead = f.Number(size, "headAhead", where + ".size", f.Number(size, "length", where + ".size", 1) * 0.46f),
+                HeadUp = f.Number(size, "headUp", where + ".size", f.Number(size, "height", where + ".size", 1) * 0.92f),
                 WalkSpeed = f.Number(speed, "walk", where + ".speed"),
                 TrotSpeed = f.Number(speed, "trot", where + ".speed"),
                 RunSpeed = f.Number(speed, "run", where + ".speed"),

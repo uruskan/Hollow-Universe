@@ -1,0 +1,65 @@
+{
+  "species": "wolf",
+  "source": "Hollow (art/animals/build_animals.py): our own, metaball anatomy, procedural clips",
+  "clips": {
+    "Idle": {
+      "seconds": 4.0,
+      "loop": true
+    },
+    "Graze": {
+      "seconds": 3.0,
+      "loop": true
+    },
+    "Alert": {
+      "seconds": 2.0,
+      "loop": true
+    },
+    "Threaten": {
+      "seconds": 2.0,
+      "loop": true
+    },
+    "Eat": {
+      "seconds": 2.4,
+      "loop": true
+    },
+    "Walk": {
+      "seconds": 0.9,
+      "loop": true,
+      "speed": 1.5
+    },
+    "Trot": {
+      "seconds": 0.5,
+      "loop": true,
+      "speed": 3.8
+    },
+    "Run": {
+      "seconds": 0.42,
+      "loop": true,
+      "speed": 9.2
+    },
+    "Attack": {
+      "seconds": 0.9,
+      "loop": false,
+      "hit": 0.45
+    },
+    "Hurt": {
+      "seconds": 0.4,
+      "loop": false
+    },
+    "Death": {
+      "seconds": 1.3,
+      "loop": false
+    }
+  },
+  "lods": [
+    5200,
+    1900,
+    645
+  ],
+  "length": 1.68,
+  "height": 0.77,
+  "head": [
+    0.54,
+    0.88
+  ]
+}
