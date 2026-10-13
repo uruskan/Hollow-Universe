@@ -1,0 +1,32 @@
+{
+  "_comment": "The loading screen (GROUND.md §4.3.1): the stages parts of the game register, in the order the screen names them, each with its words, its weight (the seconds it takes on the reference PC, its share of the bar) and its own rule's numbers; the picture, the fades, what counts as arriving somewhere new, and the tips. Client only.",
+  "picture": "res://assets/loading/golden-meadow.jpg",
+  "fadeSeconds": 0.6,
+  "tipSeconds": 8,
+  "arrival": { "metres": 120, "graceSeconds": 0.25 },
+  "stages": [
+    { "key": "server", "title": "Starting the world", "weight": 5.0 },
+    { "key": "connect", "title": "Connecting", "weight": 0.4 },
+    { "key": "world", "title": "Receiving the world", "weight": 0.6, "quietSeconds": 0.5, "mostSeconds": 6 },
+    { "key": "land", "title": "Painting the land", "weight": 1.5, "idleFrames": 10 },
+    { "key": "forest", "title": "Growing the forest", "weight": 3.0, "idleFrames": 10 },
+    { "key": "renderer", "title": "Warming up the renderer", "weight": 3.0, "settleFrames": 10, "perFrame": 12, "loadsAtOnce": 6, "mostSeconds": 40 },
+    { "key": "steady", "title": "Arriving", "weight": 0.75, "seconds": 0.75, "frameMs": 33.4 }
+  ],
+  "tips": [
+    "Hit the X on a tree, or the bright spot on a rock, and you gather faster.",
+    "Tab opens your inventory, Q the crafting menu.",
+    "Hold E on a campfire or a furnace to light it or put it out.",
+    "Put a sleeping bag down: you can wake up there instead of on a beach.",
+    "Hold the right mouse button with the hammer to upgrade what you built.",
+    "A claim device stops strangers building near your base. Keep it stocked, or the base decays.",
+    "Knocked down is not dead yet: a friend can help you up with E before you bleed out.",
+    "Hold Left Alt to look around without turning.",
+    "G opens the map. A click puts a marker down, a right-click takes it off.",
+    "The Tin Finch is built at the vehicle workbench. E opens its hatch.",
+    "F1 opens the console. Type help for its commands.",
+    "Nights are cold. A fire or warmer clothes keep your health up.",
+    "Bandages stop bleeding. Berries and cooked meat keep you fed.",
+    "What you drop lies in a bag for five minutes, then it's gone."
+  ]
+}
