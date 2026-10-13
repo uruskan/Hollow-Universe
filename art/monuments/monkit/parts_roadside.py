@@ -3104,3 +3104,119 @@ def haul_truck(b, at, yaw=0.0, tint=MINE_YELLOW, body_tint=None, tip=0.0, code="
             rod(b, base.lerp(top, 0.5), top, 0.1, tint=srgb(0.8, 0.8, 0.8), sides=10)
         b.collide_box(Vector((0, 0, 1.9)), (4.6, 10.0, 3.6), (0, 0, 0))
     return floor
+
+
+# ------------------------------------------------------------------------------------------------ logistics
+
+RACK_BLUE = srgb(0.18, 0.32, 0.55)
+RACK_ORANGE = srgb(0.86, 0.42, 0.12)
+
+
+def forklift(b, at, yaw=0.0, tint=srgb(0.86, 0.6, 0.12), fork_h=0.1, load=False):
+    """A counterbalance forklift, 3.4 m long: the chassis with its rounded counterweight at the back, four small solid
+    tyres, the seat and controls under an overhead guard of four posts and a grille, the mast with its carriage and
+    forks raised `fork_h` metres at the front (-Y), a pallet on the forks when `load`."""
+    with b.frame(at, (0, 0, yaw)):
+        b.box((1.1, 2.3, 0.7), (0, 0.15, 0.55), mat=PAINT, tint=tint, bevel=0.06)
+        b.cyl(0.55, 1.12, (0, 1.2, 0.85), (0, 90, 0), mat=PAINT, tint=srgb(0.25, 0.25, 0.26), sides=16)
+        b.box((1.12, 0.6, 0.6), (0, 1.15, 0.6), mat=PAINT, tint=srgb(0.25, 0.25, 0.26))
+        for (y, r, w) in ((-0.65, 0.3, 0.24), (0.95, 0.25, 0.2)):
+            for s in (-1, 1):
+                wheel(b, (s * 0.52, y, r), (0, 0, 0), r, w, sides=12)
+        b.box((0.55, 0.5, 0.12), (0, 0.45, 1.05), mat=MATTE, tint=srgb(0.15, 0.15, 0.16), solid=False)
+        b.box((0.55, 0.12, 0.55), (0, 0.72, 1.3), (-12, 0, 0), mat=MATTE, tint=srgb(0.15, 0.15, 0.16), solid=False)
+        b.cyl(0.18, 0.04, (0, -0.15, 1.45), (-55, 0, 0), mat=PAINT, tint=BLACK, sides=12, cap=False, solid=False)
+        b.box((0.08, 0.08, 0.5), (0, -0.25, 1.15), (-30, 0, 0), mat=PAINT, tint=BLACK, solid=False)
+        for (x, y) in ((-0.5, -0.45), (0.5, -0.45), (-0.5, 0.95), (0.5, 0.95)):
+            b.box((0.07, 0.07, 1.25), (x, y, 1.5), mat=PAINT, tint=DARK, solid=False)
+        b.box((1.1, 1.5, 0.05), (0, 0.25, 2.14), mat=PAINT, tint=DARK, solid=False)
+        for k in range(6):
+            b.box((0.04, 1.4, 0.06), (-0.45 + 0.18 * k, 0.25, 2.1), mat=PAINT, tint=DARK, solid=False, vary=0)
+        # The mast at the front, the carriage and forks.
+        for s in (-1, 1):
+            b.box((0.12, 0.14, 2.3), (s * 0.35, -0.95, 1.3), mat=PAINT, tint=DARK)
+        b.box((0.82, 0.12, 0.1), (0, -0.95, 2.4), mat=PAINT, tint=DARK, solid=False)
+        b.cyl(0.05, 1.6, (0, -0.82, 1.0), mat=PAINT, tint=srgb(0.8, 0.8, 0.8), sides=8, solid=False)
+        z = 0.12 + fork_h
+        b.box((0.9, 0.08, 0.6), (0, -1.06, z + 0.32), mat=PAINT, tint=DARK)
+        for s in (-1, 1):
+            b.box((0.12, 1.1, 0.05), (s * 0.3, -1.65, z), mat=PAINT, tint=DARK, solid=False)
+            b.box((0.12, 0.05, 0.5), (s * 0.3, -1.12, z + 0.25), mat=PAINT, tint=DARK, solid=False)
+        if load:
+            b.piece("pallet-boxes", (0, -1.7, z + 0.02), (0, 0, 90))
+        b.box((0.2, 0.06, 0.08), (0.42, 1.68, 0.8), mat=GLOSS, tint=RED, solid=False, vary=0)
+        b.collide_box(Vector((0, 0.15, 1.05)), (1.2, 2.8, 2.1), (0, 0, 0))
+
+
+def rack_row(b, at, yaw, bays=10, levels=3, bay_w=2.7, depth=1.1, beam_h=1.9, fill=0.65, collapsed=None,
+             pallets=True):
+    """A row of pallet racking along X of its frame: upright frames (two posts with zigzag bracing) between bays,
+    orange beams at each level, pallets of cartons (kit pieces) on the beams. `collapsed` (from_bay) leans the
+    rest of the row over and drops its pallets on the floor."""
+    with b.frame(at, (0, 0, yaw)):
+        L = bays * bay_w
+        top = levels * beam_h + 0.6
+        for k in range(bays + 1):
+            x = -L / 2 + bay_w * k
+            lean = 0.0
+            if collapsed is not None and k > collapsed:
+                lean = min(70.0, 18.0 + 12.0 * (k - collapsed))
+            with b.frame((x, 0, 0), (lean, 0, 0)):
+                for y in (-depth / 2, depth / 2):
+                    b.box((0.09, 0.07, top), (0, y, top / 2), mat=PAINT, tint=RACK_BLUE, solid=False, vary=0)
+                    b.box((0.18, 0.16, 0.02), (0, y, 0.01), mat=PAINT, tint=RACK_BLUE, solid=False, vary=0)
+                for j in range(int(top / 0.9)):
+                    z0 = 0.15 + 0.9 * j
+                    rod(b, (0, -depth / 2, z0), (0, depth / 2, z0 + 0.9), 0.018, tint=RACK_BLUE, sides=4)
+            if k < bays and (collapsed is None or k < collapsed):
+                for lv in range(levels):
+                    z = beam_h * (lv + 1) - 0.4 if lv else 0.18
+                    for y in (-depth / 2, depth / 2):
+                        b.box((bay_w - 0.09, 0.05, 0.12), (x + bay_w / 2, y, z), mat=PAINT, tint=RACK_ORANGE,
+                              solid=False, vary=0)
+                    if pallets:
+                        for j in (0, 1):
+                            if b.rng.random() < fill:
+                                b.piece("pallet-boxes", (x + bay_w * (0.27 + 0.46 * j), 0, z + 0.06),
+                                        (0, 0, 90 + b.rng.uniform(-3, 3)))
+            elif k < bays and pallets:
+                for j in range(2):
+                    if b.rng.random() < 0.7:
+                        b.piece("pallet-boxes", (x + bay_w * (0.3 + 0.4 * j) + b.rng.uniform(-0.5, 0.5),
+                                                 depth / 2 + 0.9 + b.rng.uniform(0, 1.2), 0.0),
+                                (b.rng.uniform(-8, 8), b.rng.uniform(-8, 8) + (90 if b.rng.random() < 0.3 else 0),
+                                 b.rng.uniform(0, 360)))
+        b.collide_box(Vector((0, 0, top / 2)), (L if collapsed is None else bay_w * collapsed, depth, top),
+                      (0, 0, 0))
+
+
+def box_trailer(b, at, yaw=0.0, length=13.0, tint=OFFWHITE, band=ORANGE, code="DP-4 112", doors_open=True):
+    """A box semi-trailer: a tall insulated box on a frame, a tandem axle at the rear, landing legs, the rear doors
+    swung open (or shut), livery and codes. Rear toward +Y, the king pin at -Y."""
+    hl = length / 2
+    floor = 1.35
+    h = 2.7
+    with b.frame(at, (0, 0, yaw)):
+        for x in (-0.5, 0.5):
+            b.box((0.16, length - 0.6, 0.3), (x, 0, floor - 0.2), mat=PAINT, tint=DARK)
+        grid_box(b, (2.5, length, h), (0, 0, floor + h / 2), mat=PANEL, tint=tint, step=1.5)
+        b.box((2.52, length, 0.12), (0, 0, floor + 0.06), mat=PAINT, tint=GREY, solid=False)
+        b.box((2.54, length + 0.02, 0.12), (0, 0, floor + h - 0.06), mat=PAINT, tint=GREY, solid=False)
+        for s in (-1, 1):
+            b.box((0.012, length - 1.0, 0.4), (s * 1.257, 0, floor + 0.8), mat=PAINT, tint=band, solid=False, vary=0,
+                  wear=0.5)
+            stencil(b, code, (s * 1.258, -hl + 3.0 if s < 0 else hl - 3.0, floor + 1.7), (0, 0, 90 * s), 0.34, DARK)
+            for y in (hl - 2.6, hl - 1.3):
+                b.piece("wheel-road", (s * 1.06, y, 0.0), (0, 0, 0 if s < 0 else 180))
+            b.box((0.12, 0.12, floor - 0.25), (s * 0.55, -hl + 2.4, (floor - 0.25) / 2 + 0.1), mat=PAINT, tint=GREY,
+                  solid=False)
+        b.box((2.5, 0.12, 0.3), (0, hl + 0.05, 0.9), mat=PAINT, tint=DARK, solid=False)
+        if doors_open:
+            for s, ang in ((-1, -100.0), (1, 100.0)):
+                with b.frame((s * 1.25, hl, floor + 0.05), (0, 0, ang)):
+                    grid_box(b, (1.24, 0.06, h - 0.1), (-s * 0.62, 0.03, (h - 0.1) / 2), mat=PANEL, tint=tint,
+                             step=1.0)
+            b.box((2.3, 0.02, h - 0.2), (0, hl + 0.012, floor + h / 2), mat=MATTE, tint=srgb(0.04, 0.04, 0.04),
+                  solid=False)
+        b.collide_box(Vector((0, 0, floor + h / 2)), (2.5, length, h), (0, 0, 0))
+    return b.world((0, hl - 2.0, floor + 0.1))
