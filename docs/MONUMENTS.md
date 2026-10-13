@@ -222,7 +222,7 @@ The huge ones. One per old region at most, each a destination of its own.
 | 51 | **Deep Bore** | Shaft 1 km across | Mountains of metal-rich worlds | A planetary drill rig over a shaft 1 km across, spiral haul roads down | Descend for ore and the rig's vault; contamination rises with depth. *Built: `deep_bore.py` (headframe crown 520 m; rim, collar and the haul road's top two turns modelled, the pit itself is terrain)* |
 | 52 | **Mass Driver** | 8 km rail, halls 600 m | Up a mountainside | An electromagnetic launch rail climbing a mountain, capacitor halls at its foot, a cradle on the rail | A line of sites; the capacitor halls are a violet monument; restarting it is a server event |
 | 53 | **Great Dam** | 700 m wide, 180 m tall | Mountain valleys | A concrete arch dam with a powerhouse and spillways, the reservoir behind | Powerhouse (L-size), galleries inside the dam, a crawler on the crest. *Built: `great_dam.py` (crest about 750 m; the valley walls, reservoir and river are drawn only in its look-dev renders)* |
-| 54 | **Arcology** | 600 m base, 400 m tall | Old colony capitals | A ziggurat megablock of the old colony, terraces overgrown | A city in one building: floors of loot, Reclaimer clans by level, the top |
+| 54 | **Arcology** | 600 m base, 400 m tall | Old colony capitals | A ziggurat megablock of the old colony, terraces overgrown | A city in one building: floors of loot, Reclaimer clans by level, the top. *Built: `arcology.py` (ten tiers to 400 m, crown to 525 m, the ruined capital round it)* |
 | 55 | **Ring Fall** | Debris field 10 km | Wherever it fell | A kilometre-long piece of an orbital station lying across the land, debris for kilometres | Ship and station parts; a wreck of wrecks |
 
 ### 5.6 Wonders (W) — 4
