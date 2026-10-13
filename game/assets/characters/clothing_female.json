@@ -1,0 +1,156 @@
+{
+  "source": "art/characters/build_clothing.py (our own work)",
+  "meshes": {
+    "knit_cap_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 1308
+    },
+    "knit_cap_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 548
+    },
+    "knit_cap_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 208
+    },
+    "woven_shirt_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 6036
+    },
+    "woven_shirt_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 2535
+    },
+    "woven_shirt_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 964
+    },
+    "woven_trousers_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 3258
+    },
+    "woven_trousers_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 1368
+    },
+    "woven_trousers_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 521
+    },
+    "laced_boots_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 4768
+    },
+    "laced_boots_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 2000
+    },
+    "laced_boots_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 760
+    },
+    "riveted_breastplate_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 9576
+    },
+    "riveted_breastplate_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 4020
+    },
+    "riveted_breastplate_lod2": {
+      "lods": [
+        2
+      ],
+      "triangles": 1510
+    }
+  },
+  "surfaces": {
+    "knit_cap_female": {
+      "detail": "rib",
+      "tiling": 20.54,
+      "detail_strength": 0.75,
+      "roughness": 0.92,
+      "preview": [
+        0.29,
+        0.085,
+        0.065
+      ]
+    },
+    "woven_shirt_female": {
+      "detail": "weave",
+      "tiling": 45.84,
+      "detail_strength": 0.75,
+      "roughness": 0.92,
+      "preview": [
+        0.47,
+        0.43,
+        0.33
+      ]
+    },
+    "woven_trousers_female": {
+      "detail": "twill",
+      "tiling": 44.25,
+      "detail_strength": 0.75,
+      "roughness": 0.92,
+      "preview": [
+        0.17,
+        0.155,
+        0.13
+      ]
+    },
+    "laced_boots_female": {
+      "detail": "leather",
+      "tiling": 13.89,
+      "detail_strength": 0.5,
+      "roughness": 0.6,
+      "specular": 0.4,
+      "preview": [
+        0.17,
+        0.105,
+        0.06
+      ]
+    },
+    "riveted_breastplate_female": {
+      "detail": "metal",
+      "tiling": 7.48,
+      "detail_strength": 0.2,
+      "roughness": 0.36,
+      "metallic": 0.95,
+      "specular": 0.5,
+      "normal_strength": 1.2,
+      "preview": [
+        0.46,
+        0.47,
+        0.48
+      ]
+    }
+  }
+}

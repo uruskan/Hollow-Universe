@@ -397,7 +397,8 @@ disk and a login always reads the last save. Characters are saved on disconnect,
 ### 4.8 Characters
 
 What a player looks like to others and to themselves. Code in `game/scripts/Characters/`, assets in
-`game/assets/characters/` and `game/assets/items/`, built from text by the Blender scripts in `art/` (§9).
+`game/assets/characters/`, built from text by the Blender scripts in `art/characters/` (§9); held items are the item
+models of §9.1.
 
 **The contract.** `CharacterView` (a `Node3D`) draws one player from state alone. The network side feeds it; nothing in it
 knows about the network.
@@ -420,26 +421,53 @@ works in the character's own frame. The ragdoll falls along −`Up` at the momen
 (`pelvis`, `spine_01`…`spine_03`, `neck_01`, `head`, `clavicle_l`, `upperarm_l`, `lowerarm_l`, `hand_l`, three bones per
 finger, `thigh_l`, `calf_l`, `foot_l`, `ball_l`). Rest pose: MakeHuman's A-pose. Levels of detail: about 18,000, 7,000
 and 2,400 triangles for the body; eyes, brows, lashes and short hair (MakeHuman CC0 assets) drop out with distance.
-Players start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric
-surface), so nobody is ever without it.
+A female body (1.61 m, eyes at 1.50 m) is built by the same scripts (`-- --body female`): the same skeleton names, her
+own meshes, clothing cut from her body and clips retargeted onto her rig (`human_female.glb`, `clothing_female.glb`,
+`animations_female.glb`); a character picks its body with `CharacterView.Body` and `ViewmodelView.Body`. Players
+start in plain underwear, which is part of the body (the pelvis region, smoothed and with its own fabric surface, and
+for a woman a crop top cut straight round the chest), so nobody is ever without it. The face blinks every two to six seconds at the nearest level of detail (a
+"blink" shape on the body and lashes from MakeHuman's eyelid-closure expression units); the eyes have a wet clear coat;
+the hair cards blend their thin ends over a depth pre-pass, and a dark hair base painted on the scalp fades into the
+forehead, so the hairline is soft.
 
 **Clothing.** Every body face belongs to one of fourteen regions (face, scalp, neck, collar, chest, belly, pelvis, upper
 arm, forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
 are collapsed in the vertex shader (`hidden_regions`, a per-instance bit mask), so skin never pokes through and costs no
 fragments. Garments carry the same regions, so an inner garment hides its parts under an outer one (trousers tucked
-into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton: cut with
-planes for straight hems and a round neckline, given room by a cross-section envelope (cloth falls straight from the
-chest and below the knee instead of following the body in), folded near the joints, and painted from the body's 3D
-positions (stitched hems, seams, a belt, laces, soles, dirt). The breastplate's front and back plates are smooth,
-mirror-symmetric shells built a hand's breadth over the shirt, on leather straps. The first outfit: knit cap, woven
-shirt, woven trousers, laced boots, riveted breastplate.
+into boots). Garments are single shells built from the body's own surface and skinned to the same skeleton. Each one
+is:
+- cut with planes for straight hems, and along a curved line round the base of the neck for a crew neckline; a ribbed
+  band stands up from it and hugs the neck a finger's width off the skin;
+- given room by a cross-section envelope that makes every cross-section convex, so cloth spans the chest instead of
+  following it and falls straight from the chest and below the knee;
+- skinned with the body's weights blurred over the garment, so loose cloth moves as a whole instead of creasing where
+  the body's weights change;
+- folded near the joints;
+- painted from the body's 3D positions: stitched hems and seams, ribbed collar and cuffs, wrinkles, a belt, laces,
+  soles, dirt.
+
+The breastplate is not cut from the body. It is a riveted cuirass of our own design:
+- front and back plates with a keel down the front, rolled rims and a flared lower edge, standing 25 mm clear of the
+  shirt and rigid on the chest bone (`spine_03`), so they never flex with the chest;
+- two fauld lames over the belly, each flaring out from under the one above;
+- a cap over each shoulder and a lame round each upper arm, fitted to the sleeve by rays cast from the joints;
+- leather straps over the shoulders and round the sides, with brass buckles.
+
+It is built for the silhouette: broad steel shoulders, a keeled chest and a flared skirt read as armour at 20 m.
+
+The first outfit: knit cap, woven shirt, woven trousers, laced boots, riveted breastplate.
 
 **Animation.** One `AnimationTree` graph, shared by all characters (`CharacterAnimator`):
 - speed blends for standing (idle, walk, jog, sprint at 0, 1.25, 2.8 and 5.5 m/s), crouching and swimming, kept in
-  step with Godot's cyclic sync; each loop is stretched so its feet keep up with the ground at its speed;
+  step with Godot's cyclic sync; each loop is stretched so its feet keep up with the ground at its speed. The jog,
+  sprint and crouch walk are also re-timed when they are built: a hand-keyed run's planted foot swept back twice as
+  fast as the body moved, so its stance phases are stretched until the foot sweeps back at the blend point's speed
+  and the swing and flight take the time left (the cycle keeps its length). At the blend speeds the feet don't slide;
 - a fall pose blended in while airborne, a take-off and a landing played as one-shots;
 - held-item layers: the right arm (tool, pistol, rifle) and the left arm with the chest (pistol, rifle);
-- one-shot upper-body actions (tool swing, punch, throw, pistol fire and reload) and flinches.
+- one-shot upper-body actions and flinches: hatchets, picks, hammers and torches chop (UAL2's tree-chopping loop,
+  started at its wind-up a little faster than the clip and faded out after the follow-through, so the blow lands at
+  about the item's strike time), blades slash, the rock comes down overhand; punch, pistol fire and reload.
 
 The clips only run forward; `CharacterPoser`, a `SkeletonModifier3D`, turns the hips towards the direction of travel
 and the chest back to the aim (running backwards plays the loop in reverse), spreads the view pitch over spine, neck and
@@ -448,19 +476,32 @@ each leg reaches the ground found by a ray under its foot).
 
 **First person.** The arms are the body's own mesh with only the forearms and hands drawn (and the worn sleeves), on
 render layer 2, without shadows, with their own field of view (60° by default; `ViewmodelView.Fov` is the player
-setting) and depth pulled towards the near plane so they never clip into walls. Both hands reach the item's grips by IK and take finger poses from clip frames. The item moves
-procedurally: sway, walk bob, sprint pose, swing arc, recoil kick on a spring, aiming down the sights (the sight on the
-camera's centre line), reload (item tilts, the magazine drops out and back, the left hand follows it). Unarmed shows no
-arms, as in Rust.
+setting) and depth pulled towards the near plane so they never clip into walls. Their shoulders sit 10 cm lower and
+6 cm further forward than the body's, so the forearms rise into view from the lower corners, as in Rust (nobody sees
+the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round the
+handle: each joint bends just enough for the next to lie on a circle round the handle, so they close on it without
+passing through. The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
+near plane), with its own relief: a normal map made from the skin texture, fine wrinkles over the finger joints and a
+glossy plate for each nail (`art/characters/skin_maps.py`). The item moves procedurally: sway, walk bob, sprint
+pose, recoil kick on a spring, aiming down the sights (the sight on the camera's centre line). Swings and reloads are
+key poses (`ViewmodelMotion`): a swing turns about the hand, up and back for the wind-up, a beat at the top, then down
+and across fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and
+recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
+works the slide or the charging handle (another jolt) and returns. Unarmed shows no arms, as in Rust.
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
 collide with the world (layer 1), not with each other; gravity is applied along −`Up`.
 
-**Held items in third person.** A tool rides upright in the right hand at the hip, a pistol is held by the clip's
-two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK holds the grips and
-lets go while an action clip plays. Items show one level of detail coarser than the body (a rifle's first-person mesh
-is 21,000 triangles).
+**Held items** are every item the model catalogue gives a held pose (§9.1), loaded through `ModelCatalog` with the
+materials of their import settings, named from items.json (`HeldItems`). Tools and blades are held by the handle and
+swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (spears, food,
+bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip. Aiming down the
+sights puts a gun's eye socket at the camera.
+
+**Held items in third person.** A tool rides upright in the right hand at the hip (the bow in the left), a pistol is
+held by the clip's two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK
+holds the grips and lets go while an action clip plays. Items show one level of detail coarser than the body.
 
 **Cost.** Mesh level by camera distance (to 9 m, 28 m, 450 m; nothing beyond). Animation runs every frame up close,
 every second frame in the middle distance and every fourth far away, staggered across characters; the procedural layer
@@ -478,11 +519,10 @@ Measured on the owner's PC (RTX 2070 Super, 1600 × 900, Forward+, vsync off, tw
 **Viewer.** `--view character` (options in AGENTS.md): cycle outfits, held items and motions, fire every event, die and
 revive, switch to first person, and measure a crowd. Screenshots in `docs/images/ground/character-*.png`.
 
-**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so the shirt still shows
-the chest's shape and can open small dark gaps where it folds hard (sprinting, crouching); there are no real
-wrinkle normal maps yet; the face has no expression or eye movement; hair is MakeHuman's short cut only; the
-third-person swing is a sword clip; first-person reload and swing are procedural curves, not authored animation; the
-female body is not built yet.
+**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so they don't swing or
+drape as the body moves, and their wrinkles are painted, not simulated; the back plate is plainer than the front; the
+face has no expressions or eye movement beyond the blink; hair is MakeHuman's short cut only; first-person reloads move the hand but not
+the magazine (the catalogue's guns are one mesh); the female body's crop top still has a few notched faces at its edges, and her shirt shows the bust a little more than a real shirt would.
 
 ---
 
@@ -1393,10 +1433,10 @@ RustMVP's rules, with Rust's where RustMVP had none:
   2. `art/characters/build_clothing.py`: the garments, shaped from the body and skinned to it → `clothing.glb`,
      `clothing.json` (materials), textures.
   3. `art/characters/build_animations.py`: retargets the UAL clips → `animations.glb`, `animations.json`.
-  4. `art/items/build_items.py`: the held items from the PSG kits, renamed, with grip and sight sockets →
-     `game/assets/items/<id>.glb`.
-  5. `python -I art/lib/import_settings.py` after Godot first sees new files: compressed textures with mipmaps, no
+  4. `python -I art/lib/import_settings.py` after Godot first sees new files: compressed textures with mipmaps, no
      automatic LODs (the scripts make their own), constant animation tracks kept.
+
+  The held items are the item models of §9.1.
 - **Kit FBX files:** centimetres (scale 0.01); `UCX_` collision renamed to Godot's `-col` / `-convcolonly`; use the
   OpenGL normal maps, or flip the green channel of the DirectX ones.
 - **Textures:** 2K by default. The PC has 8 GB of video memory and 16 GB of RAM, and RustMVP ran out of memory on
@@ -1552,8 +1592,15 @@ the reworked icons), `attachments.jpg` (attachments mounted on the rifle and pis
    - Underwear is part of the body and cannot be taken off, as in Rust.
    - In third person a rifle is carried at the right shoulder, pointing where the player looks; with nothing in hand
      the first-person view shows no arms, as in Rust.
-   - Item names: flint axe, flint pick, hand stone, Wren pistol, Kestrel rifle; knit cap, woven shirt, woven
-     trousers, laced boots, riveted breastplate.
+   - Garment names: knit cap, woven shirt, woven trousers, laced boots, riveted breastplate. Held items take their
+     names from items.json.
+   - Armour is rigid and built over the clothes, not cut from the body: plates ride one bone (the chest's), caps and
+     lames ride the collarbones and upper arms. It stands clear of the shirt, so the shirt never shows through.
+   - The riveted breastplate has faulds and shoulder caps although the brief asked only for a breastplate: without
+     them it did not read as armour at 20 m.
+   - The female body comes from the same scripts with her own MakeHuman build, skin, brows and hair (a ponytail),
+     a crop top as underwear and garments cut from her own body; the two bodies share no meshes, only the skeleton's
+     names, the materials of eyes, lashes and underwear, and the animation graph.
 3. **Tech ladder:** Rust's is assumed.
 
 Decisions taken during G1 without the owner, to confirm or overturn:
@@ -1644,14 +1691,10 @@ they merge beside the other packages' items):
   garage doors stand in (marked `standIn`); the metal door is the Starter Kit's sheet-metal door.
 - M3. **Clothing icons come from stand-in garments** (`models/clothing.py`, marked `standIn`); render them again from
   the character package's meshes when they can be posed for the inventory.
-- M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it; the
-  character package's test copy uses 0.62.
+- M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it.
 - M5. **Held items use the character package's frame** (+X forward, palm sockets `grip_r` and `grip_l`, LODs `_lod0`),
-  so its hands can hold any of them. That package also built five test copies of the same kit items
-  (`items/flint_axe.glb` and others, with their own copies of the PSG and Frontier textures in `items/textures`). When
-  both are merged, `HeldItems` should load these models through `ModelCatalog` (stone-hatchet, stone-pickaxe, rock,
-  pistol, rifle) so their materials come from the `.import` files, and the test copies and their textures (about
-  20 MB) can go.
+  so its hands can hold any of them. `HeldItems` loads them through `ModelCatalog`; the character package's test
+  copies of the kit items and their textures are gone.
 - M6. **Dropped deployables shrink** (`drop.scale`: a workbench lies at 0.3, a door at 0.3, a large box at 0.45), like a
   packed kit, rather than appearing full size or as a bag.
 - M7. **Textures are 2K at most and shared:** one PSG atlas for the Starter Kit items and every model of ours, the
