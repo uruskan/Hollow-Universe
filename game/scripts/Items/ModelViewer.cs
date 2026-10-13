@@ -51,7 +51,7 @@ public partial class ModelViewer : Node3D
             GetTree().Quit();
             return;
         }
-        _entries.AddRange(ModelCatalog.Entries.Where(e => e.Files.Count > 0));
+        _entries.AddRange(ModelCatalog.Entries.Where(e => e.Files.Count > 0 && !e.IsKit));
         BuildWorld();
         BuildHud();
         if (Options.TryGetValue("stage", out string? stage))

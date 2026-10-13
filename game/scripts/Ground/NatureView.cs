@@ -327,6 +327,13 @@ public partial class NatureView : Node3D
             if (current.Gone)
             {
                 Cue(look.Depleted, body, o.Up, ground, scale: Math.Clamp(o.Scale, 0.6f, 1.6f));
+                if (look.Depleted?.Gibs == true)
+                {
+                    // Its model breaks into its gibs where it stood, from where the last hit came (GROUND.md §9.4).
+                    var drawn = new Transform3D(Upright(o.Up, o.Yaw).Scaled(Vector3.One * o.Scale), GroundView.ToGodot(o.Position));
+                    HollowUniverse.Gibs.GibDirector.Break(kind.Key, 0, drawn, GroundView.ToGodot(-normal), Hollow.Simulation.Combat.DestroyCause.Melee,
+                        GroundView.ToGodot(o.Up), Client.Zone is { } zone ? (float)(zone.SurfaceGravity * 9.80665) : 0f, o.Id);
+                }
             }
             else if (look.Shake is { } shake)
             {

@@ -52,9 +52,15 @@ public partial class FxViewer
         _measureSeconds = Options.TryGetValue("measure", out string? m) ? double.Parse(m, CultureInfo.InvariantCulture) : 8;
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         RenderingServer.ViewportSetMeasureRenderTime(GetViewport().GetViewportRid(), true);
-        BuildArena();
         _phase = 0;
         _phaseStart = _clock;
+        if (kind == "gibs")
+        {
+            // GROUND.md §9.4: a raid wall and ten barrels breaking at once, gibs (pieces and dust) off and on.
+            StartGibStress();
+            return;
+        }
+        BuildArena();
         GD.Print($"[fx-measure] {kind}: {_shooters.Count} players, warm-up 4 s, then {_measureSeconds:0} s each: effects off, on, off, on");
     }
 
@@ -166,6 +172,11 @@ public partial class FxViewer
                 return;
             }
         }
+        if (_gibStress)
+        {
+            UpdateGibStress();
+            return;
+        }
         FireRound();
     }
 
@@ -176,9 +187,12 @@ public partial class FxViewer
             var sorted = _frameMs.OrderBy(x => x).ToList();
             double p95 = sorted[(int)(sorted.Count * 0.95)];
             _results[_phase] = (_frameMs.Average(), p95, _gpuMs.Average(), _fxUs.Average());
-            GD.Print($"[fx-measure] phase {_phase} ({(EffectsOn ? "effects on" : "effects off")}): {_frameMs.Count} frames, frame {_frameMs.Average():0.00} ms "
-                + $"(95%: {p95:0.00}), GPU {_gpuMs.Average():0.00} ms, director {_fxUs.Average():0} µs, {_shotsThisPhase} shots, "
-                + $"lights {_fx.ActiveLights}, decals {_fx.ActiveDecals}, tracers {_fx.ActiveTracers}");
+            GD.Print(_gibStress
+                ? $"[gibs-measure] phase {_phase} ({(EffectsOn ? "gibs on" : "gibs off")}): {_frameMs.Count} frames, frame {_frameMs.Average():0.00} ms "
+                    + $"(95%: {p95:0.00}), GPU {_gpuMs.Average():0.00} ms, effects {_fxUs.Average():0} µs{GibPhaseLine()}"
+                : $"[fx-measure] phase {_phase} ({(EffectsOn ? "effects on" : "effects off")}): {_frameMs.Count} frames, frame {_frameMs.Average():0.00} ms "
+                    + $"(95%: {p95:0.00}), GPU {_gpuMs.Average():0.00} ms, director {_fxUs.Average():0} µs, {_shotsThisPhase} shots, "
+                    + $"lights {_fx.ActiveLights}, decals {_fx.ActiveDecals}, tracers {_fx.ActiveTracers}");
         }
         _frameMs.Clear();
         _gpuMs.Clear();
@@ -189,6 +203,10 @@ public partial class FxViewer
         if (!EffectsOn)
         {
             _fx.ClearAll();
+        }
+        if (_gibStress)
+        {
+            EndGibPhase();
         }
         if (_phase > 4)
         {
@@ -204,7 +222,8 @@ public partial class FxViewer
         double p95Off = off.Average(r => r.Frame95), p95On = on.Average(r => r.Frame95);
         double gpuOff = off.Average(r => r.Gpu), gpuOn = on.Average(r => r.Gpu);
         double fx = on.Average(r => r.Fx);
-        GD.Print($"[fx-measure] RESULT firefight, 10 players, {_measureSeconds:0} s a phase, vsync off: frame {frameOff:0.00} → {frameOn:0.00} ms "
+        string what = _gibStress ? "[gibs-measure] RESULT a raid wall and ten barrels every 2.5 s" : "[fx-measure] RESULT firefight, 10 players";
+        GD.Print($"{what}, {_measureSeconds:0} s a phase, vsync off: frame {frameOff:0.00} → {frameOn:0.00} ms "
             + $"(+{frameOn - frameOff:0.00} ms; 95th percentile {p95Off:0.00} → {p95On:0.00}), GPU {gpuOff:0.00} → {gpuOn:0.00} ms (+{gpuOn - gpuOff:0.00} ms), "
             + $"director CPU {fx / 1000.0:0.000} ms a frame");
         ReadyForShot = true;

@@ -74,7 +74,7 @@ public partial class GroundUi
         {
             PanelArea(550, 802, 475, 75);
         }
-        if (!inventory && Wheel == null && Model.Death == null && Model.Ammo is HeldAmmo ammo)
+        if (!inventory && Radial == null && Model.Death == null && Model.Ammo is HeldAmmo ammo)
         {
             Text($"{ammo.Loaded:00}  /  {ammo.Reserve}", 885, 763, 27, G.Ink, bold: true);
             if (ammo.Reloading)

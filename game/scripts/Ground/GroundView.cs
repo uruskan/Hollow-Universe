@@ -206,6 +206,8 @@ public partial class GroundView : Node3D
         // The effects library, ready before the first shot or blast; without heat haze, which draws black here (§11).
         FxDirector.Install(this);
         FxDirector.HeatHaze = false;
+        // Things breaking apart (GROUND.md §9.4): every destruction the server reports, one path.
+        AddChild(new GibsView { Name = "Gibs", Client = Client });
         _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build };
         // The F1 panel (GROUND.md §8.2): its console runs the view's own commands here, the rest on the server.
         _settings = ViewSettings.Load();
@@ -381,6 +383,8 @@ public partial class GroundView : Node3D
         }
         var body = new HollowUniverse.Characters.CharacterView { Name = "Body", Position = new Vector3(x + 3, 0, 0) };
         warm.AddChild(body);
+        // Every gib set read now and a piece of each drawn, so a first break never waits on a file or a pipeline.
+        HollowUniverse.Gibs.GibDirector.Warm(camera);
         body.Wear(HollowUniverse.Characters.Wardrobe.All);
         body.Apply(HollowUniverse.Characters.CharacterFrame.Standing(Vector3.Zero, Vector3.Up));
         GetTree().CreateTimer(1.5).Timeout += warm.QueueFree;

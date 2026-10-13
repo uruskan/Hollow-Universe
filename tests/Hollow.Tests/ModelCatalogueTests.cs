@@ -73,6 +73,17 @@ public static class ModelCatalogueTests
                 paths.AddRange(stages.EnumerateArray().Select(s => s.GetString()!));
             }
             Assert.True(paths.Count > 0, $"{key}: no file");
+            if (m.GetProperty("kind").GetString() == "kit")
+            {
+                // A kit (GROUND.md §9.4): the building's or doors' art, drawn by the building package by the kit's own names;
+                // listed for its parts' gibs (GibTests).
+                foreach (string res in paths)
+                {
+                    Assert.True(File.Exists(Local(game, res)), $"{key}: {res} is missing");
+                    files++;
+                }
+                continue;
+            }
             int lods = m.GetProperty("lods").GetInt32();
             bool convex = m.TryGetProperty("collision", out JsonElement col) && col.GetString() == "convex";
             foreach (string res in paths)

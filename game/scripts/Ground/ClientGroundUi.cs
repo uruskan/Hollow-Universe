@@ -55,6 +55,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         me.Died += OnDied;
         client.ChatReceived += OnChat;
         SubscribeWorld(me);
+        Radials = new[] { new RadialBinding(RadialInput.Aim, 0, () => Build?.HeldRadial) };
     }
 
     public void Dispose()
@@ -282,20 +283,14 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public bool StationNear(string station) => C.Deployable(station) is { } def && (Me.StationNear?.Invoke(def) ?? 0) != 0;
 
-    /// <summary>The building in the game (wheels, building rights), set by the ground view.</summary>
+    /// <summary>The building in the game (its radials, building rights), set by the ground view.</summary>
     public BuildView? Build { get; set; }
 
-    public WheelKind? HeldWheel => Build?.Held switch
-    {
-        Hollow.Simulation.Content.BuildingRole.Plan => WheelKind.Plan,
-        Hollow.Simulation.Content.BuildingRole.Hammer => WheelKind.Hammer,
-        _ => null,
-    };
-
-    public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) =>
-        Build == null ? Array.Empty<WheelChoice>() : kind == WheelKind.Plan ? Build.PlanChoices() : Build.HammerChoices();
-
-    public int WheelCurrent(WheelKind kind) => kind == WheelKind.Plan && Build != null ? Build.PlanPiece : -1;
+    /// <summary>
+    /// The radials (GROUND_SYSTEMS.md §4): the right mouse opens the held building tool's (the plan's pieces, the
+    /// hammer's actions). P1 adds E's, P3 R's.
+    /// </summary>
+    public IReadOnlyList<RadialBinding> Radials { get; }
 
     // ---------------------------------------------------------------- events
 
@@ -478,8 +473,6 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             Me.Toggle(Me.LootTarget);
         }
     }
-
-    public void ChooseWheel(WheelKind kind, int index) => Build?.ChooseWheel(kind, index);
 
     public void CloseLoot()
     {

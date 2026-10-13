@@ -1645,7 +1645,7 @@ work, a spent arrow.
   `ABagIsTakenWholeOrOpened`, `SurvivalNetTests.OthersSeeOnlyABag`, and the restart in `EverythingSurvivesARestart`.
 - Pictures (`docs/images/ground/drop/`, the screenshot run's `--tour-steps bags`): `bag.jpg` (five stacks dropped in
   the meadow, one bag and its prompt), `bag-open.jpg` (opened beside the inventory: one row, take only),
-  `bag-model.jpg` (the model, `--view models --model dropped-bag`).
+  `bag-model.jpg` (the model, `--view models --model dropped-bag --yaw -50`).
 
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
 ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
@@ -1909,11 +1909,12 @@ GLBs total 94 MB, nearly all the kit's bevelled finest level.
 
 **The build sandbox** (`--view build`, `game/scripts/Build/`): a local zone on the first world's stand-in surface,
 a walking character (the real movement code), the rules above and their art, and the ground interface's belt and
-wheels through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan`'s answer, green when allowed, red
+radials through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan`'s answer, green when allowed, red
 with the reason. Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; the right mouse button holds the plan's or the
-hammer's wheel (RustMVP's, from §8); the left places, repairs, fits a door or places the device; R turns the piece or
-flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Removed pieces fall
-and sink away, layer after layer. A scene's view is held for screenshots; otherwise the builder stands under it and
+hammer's radial (RustMVP's, §8.4: the game's own sources, `PlanRadial` and `BuildingRadials.Hammer`, acting through the
+rules here); the left places, repairs, fits a door or places the device; R turns the piece or
+flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Pieces that come
+down, are demolished or decay break into their gibs (§9.4), layer after layer. A scene's view is held for screenshots; otherwise the builder stands under it and
 walks. `--build-check` plays a round through the sandbox's own input paths (a free foundation, a wall snapped to its
 edge, the hammer's upgrade and turn, a doorway and a door aimed into its opening, E, then demolishing the foundation
 and watching the rest come down) and quits with exit code 0 when all nine steps pass.
@@ -1921,7 +1922,7 @@ and watching the rest come down) and quits with exit code 0 when all nine steps 
 ```bash
 $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
 # --scene house | ghost-valid | ghost-invalid | stability | stress | empty;  --overlay;  --tool 1–6;  --piece <key>;
-# --wheel plan|hammer;  --from x,y,z --at x,y,z (the camera in the scene's frame);  --finest / --lod n (draw one level)
+# --wheel plan|hammer (the radial open);  --from x,y,z --at x,y,z (the camera in the scene's frame);  --finest / --lod n
 ```
 
 **Rendering.** Pieces are batched into one `MultiMeshInstance3D` per piece, grade and level of detail in each 24 m
@@ -1942,7 +1943,7 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 | A free foundation lifted by a raised aim (L1): the aim half a metre over the ground 3.5 m out, the top 0.6 m up (`--scene empty --tool 1 --piece foundation --from 0,1.8,6 --at 0,0.48,2.5`; in the game, `images/ground/look/game-foundation-lifted.jpg`) | `foundation-lifted.png` |
 | The stability overlay: the house 100 %, the balcony 90, 70, 50, 30, 10 % | `stability.jpg` |
 | The 1,060-piece block with its frame time | `stress.jpg` |
-| The plan's wheel with the rules' pieces and costs | `wheel.jpg` |
+| The plan's radial with the rules' pieces and costs | `wheel.jpg` |
 
 ![The house](images/ground/build/house.jpg)
 
@@ -2215,7 +2216,7 @@ client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.
 | Target | `Target` / `Target` (`TargetNet`) / `Target` | what it was, as a `TargetRef` (GROUND_SYSTEMS.md §3.1, since P0): its family (`Thing`: a deployable or world prop; `Piece`, `Door`, `Cupboard`: the building's; `Ship`; 4 bits on the wire) and ID (a piece, door or claim device by the building's IDs; a deployable or prop as `RemoteThing.Id`; a ship's) |
 | Model key | `Text` / `Key` / `Key` | a deployable's key (deployables.json, its item's model), a prop's key (world.json, models.json kind "world"), a piece's or door's key (building.json), the claim device's item key, a ship's key (ships.json) |
 | Grade | `Grade` / `Grade` / `Grade` | a piece's grade (0 twig … 4 armoured); 0 otherwise |
-| Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's frame piece's (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
+| Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's as drawn: its frame piece's, turned half round when fitted the other way (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
 | Direction | `Velocity` / `Direction*` / `Direction` | the blow's direction of travel (unit; from the blast to the thing for an explosion), zero for a collapse, decay, demolition or crash |
 | Cause | `Cause` / `Cause` / `Cause` | `DestroyCause`: `Melee`, `Bullet`, `Arrow`, `Explosion` (the blow's delivery; a door broken with its frame, or a claim device with its piece, takes the blow's), `Collapse`, `Decay`, `Demolish`, `Crash` |
 | Who, with what | `Player`, `Item` / `Attacker` (net ID), `Item` / `Attacker`, `Item` | the attacking (or demolishing) player, 0 for none or gone; the weapon, tool or explosive's item |
@@ -2223,8 +2224,8 @@ client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.
 What is destroyed: a deployable or world prop at 0 health (an emptied crate going is not); a building piece, door or
 claim device broken by damage, collapsed when what held it went, decayed away or demolished (one picked up is not); a
 ship wrecked by weapons or a crash. The event carries all it takes to draw the thing breaking: the thing itself may be
-gone from the client's lists already, or go a moment later (the building's removal message still makes removed
-pieces fall and sink until the client's break-apart pieces replace that).
+gone from the client's lists already, or go a moment later. The client breaks it into its gibs (§9.4): what the event
+names, by its key and grade; the building's removal message only takes a piece out of what is drawn.
 
 **Against RustMVP's foundation** (`docs/architecture/FOUNDATION.md` §1, §5.6, §6, §7, and the damage plan):
 
@@ -2333,16 +2334,16 @@ closed-form step. Decoding treats the bytes as untrusted: a kind that no longer 
 **In the game (phase 2b, `game/scripts/Ground/BuildView.cs`).** The replica's `BuildingWorld` is drawn by the building
 package's `BuildingRenderer` (batched per kind, grade and 24 m chunk, doors swinging); a held building plan shows
 `GameClient.PlanPiece`'s ghost with `BuildGhost` (green, or red with the reason under the crosshair, `BuildHud`) and
-the right mouse button opens the plan's wheel (the piece) or the hammer's (upgrade to each grade, rotate, demolish),
-both from `ClientGroundUi`; the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
+the right mouse button opens the plan's radial (the piece) or the hammer's (upgrade to each grade, rotate, demolish),
+the held tool's sources by its role in `BuildView` (§8.4); the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
 the doorway aimed through or a held lock on the door aimed at, or places the claim device on a foundation or floor;
 R turns the piece (or the door) a step. E opens and shuts doors (the door's own sound, `world.door-slam` when it
 shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's manner: digits, C, OK; the owner
 also sets a new code), and opens the claim device's store as a loot panel; held E offers a door's or the claim
 device's options (lock, unlock, change the code, cut a key, take the lock, pick up; authorise, deauthorise, clear the
 list, pick up: `OptionsMenu`, chosen with the mouse, let go to do it). Placements not yet answered show where they
-will stand; pieces placed nearby, upgraded (`world.upgrade.<grade>`), demolished and collapsing (`world.collapse`)
-sound and show; the building rights where the player stands show on the HUD.
+will stand; pieces placed nearby and upgraded (`world.upgrade.<grade>`) sound and show, and what is broken, brought down,
+demolished or decays breaks into its gibs (§9.4); the building rights where the player stands show on the HUD.
 
 **Tests:** `BuildingNetTests.PlacingGoesThroughTheServer` (a player without wood is refused, with the reason; a
 foundation and a wall placed through intents show at once, then arrive in every client's copy at exactly the ghost's
@@ -2955,7 +2956,8 @@ numbered from the north, as Rust's) and every label are drawn by the interface, 
   can't be researched, the last blueprint not taken out, the salvage short); running and progress come from `Machine`.
   A blueprint is drawn as the item it teaches, on blueprint blue, and is learnt by using it.
 - Props from the model catalogue by their key; a running recycler's lamp (a small green light on its top) and hum; a
-  barrel rings under blows, and one gone within 40 m broke: its sound and a burst of metal (§11 91); bullets strike
+  barrel rings under blows, and one broken breaks into its gibs (§9.4; until then one gone within 40 m was taken to have
+  broken, §11 91); bullets strike
   metal on barrels, military crates and recyclers. Crates and recyclers open and shut with the box's sounds.
 - Teams: E on a player close by while leading says "INVITE TO TEAM"; the map's panel creates, leaves, promotes, kicks
   and answers invites; chat lines starting `/t ` go to the team and show as [TEAM]. Teammates' names are drawn in the
@@ -3156,6 +3158,7 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
 $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
 # --screen hud | inventory | loot | corpse | furnace | campfire | crafting | death | wheel | hammer | menu
 #          map | techtree | recycler | research   (G7)
+#          options | ammo   (§8.4: the radial on the sample door's options and the pistol's rounds)
 ```
 
 | Screen | Reference (in `D:\GameDev\Projects\RustMVP`) | As built (`docs/images/ground/ui/`) |
@@ -3163,7 +3166,7 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
 | HUD, hotbar, vitals | `docs/evidence/ui-restoration-2026-10-01/hud-final.png`, `logs/ui-polish/hud.png` | `hud.jpg` |
 | Inventory and loot | `docs/evidence/ui-restoration-2026-10-01/inventory-final.png`, `logs/ui-reference-final/inventory.png`, `loot-circle-preview.png` | `inventory.jpg`, `loot.jpg`, `furnace.jpg` |
 | Crafting | `logs/ui-reference-final/crafting.png` | `crafting.jpg` |
-| Building and hammer wheels | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png` | `wheel.jpg`, `hammer.jpg` |
+| The radial menu (§8.4): the plan's, the hammer's, a door's options | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png`, `docs/evidence/building-repair-2026-10-04/door-lock-context.png` | `radial/plan.jpg`, `radial/hammer.jpg`, `radial/options.jpg`, `radial/ammo.jpg` (and the older `wheel.jpg`, `hammer.jpg`) |
 | Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.jpg` |
 | Main menu | `logs/ui-polish/menu.png` | `menu.jpg` |
 | Map (G7) | Rust's map: parchment, a lettered and numbered grid, markers; RustMVP's panels beside it | `map.jpg` |
@@ -3181,7 +3184,7 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
   RustMVP put it and at other sizes it is still whole pixels; fonts and icons are rasterised at their final size.
 - **Anchoring:** the canvas sits centred on the window's bottom edge, so the belt doesn't move when the inventory
   opens. Vitals, statuses and pickups follow the bottom-right corner; chat and notices the bottom-left; the centre dot,
-  prompts and wheels the centre; the inventory and crafting tabs hang from the top edge. The scale is the usual
+  prompts and radials the centre; the inventory and crafting tabs hang from the top edge. The scale is the usual
   `Ui.Scale` (1.0 up to 1080p, ARCHITECTURE.md §15).
 - **Style:** `Ui.Ground` in `Ui.cs`, beside the map styles: RustMVP's palette (ink `#E3DFD6`, panel `(.71,.69,.65)`
   at 17 %, selected blue, health, water, food), its type rule (regular Barlow Medium; bold Barlow SemiBold below 26 px
@@ -3210,16 +3213,16 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
 | Death | `Death`: alive for, killed by (a player or a cause), weapon, distance, place on the map; `Bags`: id, name, cooldown, place on the map. |
 | HUD | `Prompt` (key, action, more options). Events: hit confirmed (head shot), damaged (bearing), gathered (item, amount), crafted (item, amount), notice, chat line. |
-| Wheels | `Wheel(kind)`: the plan's pieces or the hammer's actions in clockwise order (glyph, title, description, cost line, reason it can't be chosen); `WheelCurrent(kind)`. |
-| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `ChooseWheel(kind, i)`, `CloseLoot()`, `Say(text)`. Each is a request; the answer is a changed read, or a notice. |
+| Radials (§8.4) | `Radials`: the held inputs that open a radial menu and what each opens now (`RadialBinding`: the input, its hold time, a function giving an `IRadialSource` or none). A source gives the options in clockwise order (icon: a glyph's name or an item's key; title, description, cost line, the reason it can't be chosen or a warning), the current one, whether twelve o'clock falls between the last and the first, and acts on a choice. |
+| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; a radial's choice is its source's. Each is a request; the answer is a changed read, or a notice. |
 | World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
 
 **In the game:** the ground mode puts `GroundUi` on a `CanvasLayer` with `ClientGroundUi` (game/scripts/Ground) as its
-`Model`, frees the mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the right mouse button
-(with a plan or hammer held, `HeldWheel`) to it. The adapter reads `GameClient.Local`: containers as the server has
+`Model`, frees the mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the inputs its radial bindings
+ask for (the right mouse with a plan or hammer held) to it. The adapter reads `GameClient.Local`: containers as the server has
 them with unanswered intents on top (a sleeper's main, belt and clothing laid out as a body), vitals, the crafting
 queue, the life and the respawn choices; it acts through the intents, and turns the client's events into the HUD's
 moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as notices, chat). Item names,
@@ -3352,7 +3355,7 @@ spills, empties), but it doesn't come back once gone and isn't kept across a res
 RustMVP's rules, with Rust's where RustMVP had none:
 
 - **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
-  inventory, closing any open container; Esc closes the wheel, the inventory or crafting, then opens the menu; 1–6
+  inventory, closing any open container; Esc closes the radial, the inventory or crafting, then opens the menu; 1–6
   select the belt; Enter opens chat; F1 opens and closes the console (§8.2, even from a text field; it may stay open
   over the death screen, but a death closes it). A container opened in the world opens the inventory with it. Left Alt
   held is free look (§4.5): the camera turns, the hands do nothing, and any screen that shows the cursor ends it.
@@ -3378,9 +3381,10 @@ RustMVP's rules, with Rust's where RustMVP had none:
   top; the map with the body and the bags (a ready bag on the map can be clicked); the bags with their cooldowns along
   the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
   names are placed by the `Labeller`, so they never cover each other or a marker.
-- **Wheels:** held right mouse button with the plan or the hammer; release (or click) chooses, Esc cancels. The plan's
-  sectors start at −81° so the top ray falls between the foundation and the triangle roof; the hammer's first sector
-  is centred at twelve o'clock.
+- **Radials (§8.4):** the right mouse held with the plan or the hammer opens its radial at once; a key held for its hold
+  time opens its own (E, R: P1, P3; the viewer's samples). Release (or a left click) chooses; a key let go sooner
+  chooses the current option; Esc or the right mouse cancels. The plan's sectors start at −81° so the top ray falls
+  between the foundation and the triangle roof; every other radial centres its first option at twelve o'clock.
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
   port (HOST SOLO or CONNECT); QUIT.
   The name and address are remembered.
@@ -3407,7 +3411,55 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Commands in chat:** any other line starting with "/" runs as in the F1 console (`/give rifle`), with the player's
   own rights on any server; the answer's first line shows as a notice, and the whole of it in the console's log.
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
-  drop outside and on a panel, split, Q, CRAFT, Tab) against `MockGroundUi` and quits with 0 when all pass.
+  drop outside and on a panel, split, Q, CRAFT, Tab; the plan's radial on the right mouse; the sample door's on E: a
+  tap, a hold, a disabled option, a choice, Esc and the right mouse cancelling) against `MockGroundUi` and quits with 0
+  when all 19 pass.
+
+### 8.4 Radial menu (GROUND_SYSTEMS.md §4, package P5)
+
+One control draws every radial menu, in RustMVP's look at any resolution, and takes a source of options, never a kind
+of menu (decisions Q1–Q9).
+
+| Part | Where | What |
+|---|---|---|
+| Contract | `game/scripts/UI/Model/RadialTypes.cs` (plain C#) | `RadialOption`: icon, title, description, cost line, the reason it can't be chosen, or a warning that doesn't stop it. `RadialIcon`: a glyph's name or an item's key. `IRadialSource`: the options clockwise, the current one, `SplitAtTop`, `Choose(index)`, `Cancel()`. `RadialBinding`: a held input, its hold time, what it opens now. `RadialInput`: aim, interact, reload. `RadialMenu`: a source of options that each carry what choosing them does, listed again whenever read. |
+| Control | `game/scripts/UI/GroundUi.Radial.cs` | The drawing, the pointer's choice, the one way of opening from any binding; `OpenRadial`, `CloseRadial`, `RadialPoint` for the viewer, the sandbox and scripted runs. |
+| Glyphs | `game/scripts/UI/RadialGlyphs.cs` | RustMVP's outlines by name: every building piece under its building.json key, `upgrade`, `rotate`, `demolish`, `door`, `lock`, `unlock`, `keypad`, `pick-up`. |
+| Building sources | `game/scripts/Build/BuildingRadials.cs` | `PlanRadial` (building.json's wheel and the chosen piece) and `BuildingRadials.Hammer` (upgrade to each grade, rotate, demolish, on the piece aimed at), written once: the game's `BuildView` acts through intents, the build sandbox through the rules (`IHammerActions`). |
+| Samples | `game/scripts/UI/Model/MockGroundUi.Radials.cs` | The plan and the hammer, a door with a fresh code lock (E), the pistol's rounds (R). |
+
+**Drawing** (RustMVP's numbers, SBareRoot.cpp): the world behind veiled at 26 % and blurred; an ivory ring 200–300 px
+from the centre; the pointed option's sector in brick red, 197–318; each option's icon at radius 250 (257 and ivory when
+pointed at): a glyph stroked 7.5 % of its size wide, or an item's icon (`ItemIcons`) in a square 2.2 glyph sizes wide;
+in the middle the pointed option's icon large (size 64 at y 345), its title (40 px, smaller down to 22 to fit 355 px)
+at 431, the description (20 to 15 px) at 480, the cost line at 568 and the reason or warning in the warning colour at
+601; the footer names the input held ("RELEASE E TO SELECT   ·   ESC TO CANCEL"). Under 95 px from the centre or beyond
+430 nothing is pointed at, and the source's current option shows.
+
+**Opening.** The view model lists its bindings (`IGroundUi.Radials`). A press of a binding's input over the HUD asks it
+for a source; none, and the input goes on to the game (the right mouse aims a gun). Held for the binding's time (0 for
+the right mouse; 0.35 s for E and R, GROUND_SYSTEMS.md §11), the radial opens with the pointer in the middle. Released,
+the option under the pointer is chosen; a disabled one shows its reason as a notice instead. Let go before the radial
+opened, the press was a tap: the source's current option is chosen (E's primary action, R's reload with the loaded
+round). Esc or the right mouse cancels, and the held input's release then does nothing; a left click chooses; another
+screen, death, or a release the window never saw (it lost focus) cancels.
+
+**In the game** (`ClientGroundUi`): one binding so far, the right mouse, opening `BuildView.HeldRadial`, the held building
+tool's source looked up by its role. P1 adds E's binding (the options on what is aimed at) and P3 R's (a gun's rounds);
+`OptionsMenu`, the held-E list, stays until P1 moves it onto the radial.
+
+**Viewer:** `--screen wheel`, `hammer`, `options` (the sample door, the pointer on LOCK: "Set a code first") and `ammo`;
+interactively, on the HUD, the right mouse opens the held plan's or hammer's radial, E held the door's options, R held
+with the pistol its rounds. `--ui-check` plays the gestures (§8.3).
+
+| View | Picture (`images/ground/ui/radial/`) |
+|---|---|
+| The plan's pieces (RustMVP's `plan-wheel-build4-image-1.png`) | `plan.jpg` |
+| The hammer's actions (`hammer-wheel-build4-image-1.png`) | `hammer.jpg` |
+| A door with a fresh code lock: OPEN DOOR, SET CODE, LOCK disabled until a code is set, PICK UP (`door-lock-context.png`) | `options.jpg` |
+| The pistol's rounds carried, as item icons, and UNLOAD (R; RustMVP had none) | `ammo.jpg` |
+
+![The sample door's options](images/ground/ui/radial/options.jpg)
 
 ---
 
@@ -3499,7 +3551,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
 | `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
-| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a burlap bundle, its corners knotted on top, a leather strap with a buckle cinched round it) |
+| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a canvas-wrapped bundle strapped shut, below) |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
@@ -3565,6 +3617,15 @@ fore grip (`grip_l`), a folding frame sight on the left (`sight`, `eye`), `muzzl
 (+X pointing backwards, for the back blast); class `gun`, so the character package holds it two-handed like the rifle.
 The rockets lie on the ground along their length: an olive warhead with a yellow band, or for `rocket-hv` a slimmer
 pointed one with a blue band, on a motor with four fins.
+
+**The loot bag** (`dropped-bag`, U4; remade on 13 October 2026 to read like the owner's picture of a strapped bundle,
+our own design): 0.42 × 0.32 × 0.30 m, a khaki canvas tarp over a box-like load, wrapped like a parcel. Its ends are
+folded, top flap over bottom, and its hemmed edge with four grommets runs across the front. It wrinkles where the folds
+pull it round the corners and is grimy toward the ground. Two dark leather straps cross over the top and press the cloth
+in, so it pillows between them. Each has an iron buckle: the cross strap's on top, the long strap's on the +x end. Each
+layer is laid on what is already there by casting rays: the folds and the hem on the cloth, the long strap over the
+folds, the cross strap over the long strap. The cloth's texture is laid on as it wraps, over the top and down the front
+and back as one sheet, so no box-projection seam runs along the top's edges. LODs: 6,242, 3,120 and 1,366 triangles.
 
 `ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
 merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
@@ -3714,13 +3775,13 @@ first use, or `FxDirector.Install(parent)`):
 | Arrows in flight, landing | `Tracer("trail.arrow", …)`, `EndTracer`; the impact as for bullets |
 | `Local.HitMarker`, `DamageTaken`, bleeding | `blood.hit` on the victim; while bleeding, `blood.drip` on the ground under them every second or two |
 | A gathering hit (the swing's impact, `ItemsChanged` with `Gather`) | `gather.wood` on trees, `gather.rock` on stone, `gather.sparks` on metal and sulphur ore; `gather.weakspot` too when `WeakSpot` |
-| A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); `gather.node-break` |
+| A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); the outcrop's remnant breaks into its gibs (§9.4) |
 | Timed charge, bag charge, tin grenade, rocket, explosive round going off | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`; a dud `explosion.dud`; while a fuse burns, `Start("fuse.burning", Follow = socket_fuse)` |
 | A rocket fired, in flight | `Muzzle("muzzle.rocket", socket_muzzle, first person)`, `Play("backblast.rocket")` on `socket_exhaust` (+X backwards), `Start("trail.rocket", Follow = the rocket)` |
 | Campfire, furnace lit and out | `Start("fire.campfire"` / `"fire.furnace", Follow = its model)`, `Stop` |
 | A lit torch in hand | `Start("fire.torch", Follow = socket_flame, FirstPerson)` (third person for others) |
 | A player burning (`Vitals.Burning`) | `Start("fire.burning", Follow = the body)` while it burns |
-| A building piece collapsing | `world.collapse` (`Area` the piece's half size, `Tint` the grade's colour) |
+| A building piece collapsing, anything broken | its gibs (§9.4), with the material's dust (`gibs.dust.*`, tinted); `world.collapse` stays in the catalogue |
 | An upgrade with the hammer | `world.upgrade.wood`, `.stone`, `.metal`, `.armoured` over the piece (`Area`) |
 | A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
 | A step on sand (footsteps) | `world.footstep.sand` |
@@ -3744,8 +3805,8 @@ first use, or `FxDirector.Install(parent)`):
 - *Fires:* `ThingsView` starts `fire.campfire` or `fire.furnace` at the model's `socket_fire` while it is lit (the loop
   outlives the model's rebuilds); a torch in hand burns with `fire.torch` on its `socket_flame` (first person with the
   arms; for others on their torch).
-- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades, collapses and doors in
-  `BuildView` (§6.5); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
+- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades and doors in
+  `BuildView` (§6.5), and whatever breaks in `GibsView` (§9.4); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
   place and installs the director with the view.
 - *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`.
 
@@ -3761,6 +3822,7 @@ first use, or `FxDirector.Install(parent)`):
 | explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
 | fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning` (loops) |
 | world | `world.collapse`, `world.upgrade.wood`, `.stone`, `.metal`, `.armoured`, `world.door-slam`, `world.footstep.sand` |
+| gibs | `gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`: the dust of something breaking apart (§9.4), tinted by its material, over its size |
 
 **Assets** (`art/fx/build.py`, about 15 s):
 - *The PSG C4 VFX kit* (`D:\GameDev\Assets\PSG_C4VFX_R01`, made for this project: a Mantaflow simulation rendered by
@@ -3811,6 +3873,123 @@ Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's cont
 
 ![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 
+### 9.4 Gibs: things breaking apart
+
+Nothing that is destroyed just vanishes: it breaks into its own pieces ("gibs", as Rust calls them), which fly from the
+blow, tumble, bounce and settle on the ground, lie there a few seconds, then sink away, with dust in the material's
+colour. The owner's words: "super optimized and efficient and scalable". The network carries only the fact (the damage
+pipeline's Destroyed event, §6.4.2); the pieces are the client's alone.
+
+| Part | Where |
+|---|---|
+| The pieces | `art/gibs/build.py` (Blender 5.2, background) fractures every model whose catalogue entry has `gibs` → `game/assets/gibs/<key>.glb` |
+| What breaks into what | `game/data/ground/models.json`: an entry's `gibs` (its file, its gib material, and for the build: `pieces`, `hollow`, `budget`, `cut`); the building's grades and the doors as kits (`kind: kit`), whose parts are building.json's pieces (a grade's kit names its `grade`) and doors (those drawn from its file) |
+| How pieces fly and go | `game/data/ground/gibs.json`: limits, the integrator's numbers, the pieces' life, materials (bounce, friction, spin, dust, colour, sound), causes (push, spread, lift, spin, dust, a sound) |
+| Dust | fx.json's family `gibs` (`gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`), tinted by the material, over the thing's size |
+| Runtime | `game/scripts/Gibs/`: `GibLibrary` (the sets, found by key and grade), `GibWorld` (the pieces: integrator and drawing), `GibDirector` (the API), `GibCatalog` (gibs.json) |
+| Hookups | `Ground/GibsView.cs` (the Destroyed event), the build sandbox's own building, `NatureView` (an outcrop's look) |
+| Viewer | `Fx/FxViewer.Gibs.cs`: `--view fx --gibs` |
+| Tests | `GibTests.EverythingThatBreaksHasGibs` (`dotnet run --project tests/Hollow.Tests -- Gib`); the event itself is `DamageTests`' |
+
+**What breaks.** Everything the Destroyed event names, and an outcrop used up:
+- deployables (boxes, furnaces, campfires, workbenches, beds and bags, the research table, the vehicle workbench), the
+  claim device, and the barrels (crates and the recycler have gibs too, though the rules never break them);
+- doors, broken or brought down with their doorway;
+- building pieces of every grade, broken by blows, bullets and blasts, brought down when what held them went, decayed
+  or demolished: each breaks where it stands, as Rust's do (no piece falls whole any more);
+- an outcrop's last remnant, when its gather look says so (gather.json `look.depleted.gibs`).
+
+**The pieces** (`blender -b --factory-startup --python art/gibs/build.py [-- keys]`, `-- --list` for the plan; 40 s for
+all; the same bytes on every build):
+1. The source: every part of the model in place (lids shut, a door's leaves on their hinges, the garage door's curtain
+   down), at the finest level of detail within the set's triangle budget (`budget`: 1,200 by default; the building's
+   kits 500, twig 1,000, the doors 800), decimated toward it (to half at most) when even the coarsest is above;
+   coincident vertices welded, so each primitive is one closed island.
+2. A hollow model (`hollow`: the barrels' 4 mm sheet, the recycler's 1 cm) gets an inner wall, so it breaks into sheets.
+3. Seeds spread through the solid: halfway through it under random surface points, picked farthest-first with a little
+   chance, so thin things (walls, floors, doors) are cut right through. As many as 1.5 + 1.6 × its two longest sides in
+   metres, 6 to 12, or `pieces` (the building's parts 9, the barrels 8).
+4. Each island is cut by the seeds' Voronoi cells (bisected by the planes halfway between seeds) and every cut is capped
+   with faces of the material's inside: the island's own atlas tile, planar mapped at the material's texel density (the
+   PSG atlas's tiles at 1 m, the building kit's at 4 m, the tiling rock at 1.1 m), its colour darkened. An island smaller
+   than half a cell goes whole to the cell its middle is in, so bolts, bricks, boards, stones and the campfire's logs stay
+   whole; slivers join their nearest piece.
+5. Each piece is turned into its principal axes and centred on its box (the runtime's contact box fits it); its node
+   keeps where it sat, so the pieces put together are the model again.
+
+A whole model's file holds its pieces as top nodes (`c00`…); a kit's a node per part (a piece's or a door's key) with
+its pieces under it. The pieces use the materials the models do (`psg_surface`, `hollow_rock`…; the build writes
+`building_<grade>.tres` and `door_garage.tres`, the building's art's own textures and settings, for the kits).
+
+| | Files | Pieces | Triangles | Size |
+|---|---|---|---|---|
+| Props, deployables, the claim device, outcrops (22 models; the research table shares the engineering workbench's) | 21 | 143 (6–9 each) | 55,000 | 3.6 MB |
+| The building: 20 pieces in each of 5 grades | 5 | 900 (9 a piece) | 196,000 (stone 20,000 … twig 67,000) | 12.9 MB (1.4–4.5 a grade) |
+| Doors: 7 in 4 kits | 4 | 63 (7 a single door, 10 a double, 12 the garage door) | 26,000 | 1.6 MB |
+| **All** | **30** | **1,106** | **278,000** | **18.1 MB** |
+
+**Found by what the event names.** `GibLibrary.Find(key, grade)`: a whole model answers to its catalogue key at any
+grade (a deployable's, a prop's, the claim device's, an outcrop's); a kit's part to its own key, at the kit's grade (a
+grade's kit) or at any (a door kit). So the one hookup, `GibsView`, breaks whatever arrives
+(`GibDirector.Break(e.Key, e.Grade, where it stood, the blow, the cause, up, gravity)`) and plays the sound the data
+names: the cause's (a collapse's or the hammer's) or the model's own `break` sound (sounds.json), else the material's.
+No code names a kind of thing.
+
+**The runtime** (`GibWorld`): every live piece in one array of 640 (gibs.json `limits.pieces`), claimed round a ring so
+the oldest goes first when it is full; above 75 % full a break keeps only its bigger half of pieces.
+- *Spawn:* each piece where it sat in the model, pushed along the blow (harder on the side it came in), spread from the
+  middle, lifted and spun by the cause (an explosion throws at 4–9 m/s, a collapse lets them drop), the material's dust
+  over the whole thing. Within 70 m of the camera pieces and dust; to 170 m dust alone; beyond, nothing.
+- *Flight:* gravity along the planet's up there, a little drag, spin.
+- *Floor:* a ray down the client's own collision (ground, building, what stands on them; the sandbox's plane in the
+  viewer), once a break, two frames after it (what broke has left the collision by then), shared by its pieces, and
+  again for a piece each metre it travels (16 a frame at most). A piece buried under the floor at its start (a
+  foundation's lower half) lies still and sinks in its turn.
+- *Contact:* the lowest of up to 14 hull points (taken at load along the axes and diagonals) against the floor plane:
+  pushed out, then an impulse with bounce and friction through the piece's box inertia, so it tumbles; asleep once slow
+  for 0.3 s, or after two seconds on the floor.
+- *Life:* at rest 3.5–5.5 s, then it sinks a little over its size and shrinks by a third over 1.6 s; nothing lives
+  more than 14 s.
+- *Drawing:* one `MultiMeshInstance3D` per piece mesh: a wall's 9 pieces are 9 draw calls, ten barrels' 80 pieces 8.
+  A batch's buffer is written in place and handed over in one call when something in it moved; its count and box are
+  told only when they change (the box grows by 3 m when a piece leaves it). Nothing is allocated per frame once the
+  meshes have batches; every set is read, and a piece of each drawn once, while the world opens (`GibDirector.Warm`).
+- Pieces don't collide with each other or sideways with walls (X3).
+
+**The viewer** (`--view fx --gibs`): every model that breaks, in a grid, breaking at once (Space again, C the cause, P
+pause; `--gib-parts wall,doorway,foundation` the building's parts shown); `--gibs raid`, a stone wall blown in and ten
+barrels shot before it; `--gibs <key>[/<part>]`, one close up (`--yaw`, `--distance`); with `--shot`, held `--at <s>`
+after the break (0.6 s by default). `--stress gibs --measure <s>`: the raid scene breaking every 2.5 s, gibs off and on.
+
+```bash
+$GODOT --path game --resolution 1600x900 -- --view fx --gibs --at 0.5 --shot sheet.png
+$GODOT --path game --resolution 1600x900 -- --view fx --gibs building-stone/wall --at 2.5 --yaw 200 --distance 4.5 --shot wall.png
+$GODOT --path game --resolution 1600x900 -- --view fx --stress gibs --measure 6
+```
+
+**Cost** (the owner's PC, RTX 2070 Super, 1600 × 900, vsync off, the game's C# in its usual Debug build, four other
+agents at work on it): a stone wall blown in and ten barrels shot every 2.5 s (89 pieces a time, 267 alive at most, 160 on
+average of which 47 moving), gibs off and on in turn, two phases of each, 8 s a phase:
+
+| | Frame | GPU | The gibs' CPU |
+|---|---|---|---|
+| Gibs off | 2.18 ms | 1.54 ms | |
+| Gibs on (pieces and their dust) | 2.48 ms | 1.75 ms | 0.08 ms a frame on average (0.03 ms of it the buffers handed over, 19 calls); a break's own frame 0.3–0.5 ms |
+| **What they cost** | **+0.30 ms** | **+0.21 ms** | |
+
+An earlier run on a quieter PC measured +0.22 ms (GPU +0.18 ms, the gibs' CPU 0.06 ms). So a raid wall and ten barrels
+breaking cost a quarter of a millisecond a frame, inside the 0.5 ms asked; most of it is drawing the pieces and their
+dust. The slowest frames rose more (95th percentile 2.38 → 3.23 ms): the frames of the breaks themselves, and the PC's
+other work. The explosion's own effect isn't in it (it is the fx library's, §9.3).
+
+Screenshots (`docs/images/ground/gibs/`): `sheet.jpg` (every model breaking: props, deployables, outcrops, doors, each
+grade's wall, doorway and foundation), `raid.jpg` (the raid scene a moment after), `wall.jpg` (a stone wall's pieces at
+rest), `barrel.jpg` and `barrel-rest.jpg` (a barrel broken with the hatchet in the game, in the air and on the ground:
+the tour's world step), `outcrop.jpg` (a metal outcrop mined out, its remnant crumbling: the tour's mine step).
+
+![Every model breaking](images/ground/gibs/sheet.jpg)
+
+
 **Gathering's feedback** (the owner's first playtest: hitting trees and outcrops gave "no feedback other than the
 sound"; decisions H1–H14). What was wrong: the hit effects played, but at a guessed point 1.1 m up on the side facing
 the local player, usually below or beside the crosshair, with chips too small and thrown straight at the camera; the
@@ -3836,7 +4015,7 @@ coming into range replayed its old hits (sounds, effects, even felled trees fall
   (`gather.tree-fall`) and the camera's small shake, lies 2.2 s and sinks; the felling sound starts 0.95 s after the
   hit so its crash (1.45 s into the recording) comes as the trunk lands.
 - **Outcrops** break with a burst and their stage's sound at each stage (Devblog 166 masks the model swap the same way),
-  and with the bigger burst and the last sound when gone; the final crumble into chunks is the gibs package's.
+  and with the last sound when gone, when their remnant crumbles into its gibs (§9.4: `look.depleted.gibs`).
 
 Pictures (`docs/images/ground/gather/`, the tour's `chop` and `mine` steps with `--tour-tree pine-tree`): `chop-x.jpg`,
 `chop-hit.jpg`, `chop-falling.jpg`, `chop-landed.jpg`, `mine-hotspot.jpg`, `mine-stage.jpg`, `outcrop-broken.jpg`.
@@ -4601,10 +4780,11 @@ confirm or overturn (numbered U1 on):
   taken before); one holding more opens in the loot panel as a crate does (`LootKind.Crate`, take only), whose grid
   shows only the rows its stacks fill. Others see only the bag and how many stacks it holds (the prompt's verb needs
   it), never what is in it.
-- U4. **The bag is our own model** (`art/models/deployables.py`, `dropped-bag`): a burlap bundle about 0.42 × 0.34 m and
-  0.3 m high, its corners gathered into a knot with two ears on top, a leather strap cinched round its middle with an
-  iron buckle at the front. Rust's is a squarer grey parcel with straps; only the idea was taken from the owner's
-  picture.
+- U4. **The bag is our own model** (`art/models/deployables.py`, `dropped-bag`, §9.1): a squarish bundle 0.42 × 0.32 m
+  and 0.3 m high, a khaki canvas tarp wrapped round a box-like load, its ends folded in like a parcel's and its hemmed,
+  grommeted edge across the front, two dark leather straps crossing over the top with iron buckles. The first model, a
+  burlap sack knotted at the neck, was remade on 13 October 2026 at the owner's request, to read like their picture of
+  a strapped bundle. Rust's is a grey parcel with straps and a knot; only the idea was taken.
 - U5. **A bag rests on what is under it:** the first solid surface below where it lands (a floor or foundation, a box's
   lid, the ground's own collision; a Jolt ray down from half a metre above, at most 4.5 m), not the terrain under a
   base, where dropped items used to end up. A drop lands 0.7 m ahead of the feet, short of a wall in the way; a broken
@@ -4760,6 +4940,81 @@ without the owner, to confirm or overturn (numbered L1 on):
   field of view and their grip. The pistol's support hand still comes in large from the lower left: unchanged.
 - L10. **The rock swings from the wrist** (its grip's pivot, 8 cm behind and 5 cm below it), so the wind-up raises it
   and the strike brings it down in front, where turning about the hand only turned it in the palm.
+
+Decisions taken for gibs, things breaking apart (§9.4), after the owner's first playtest, without the owner (numbered X1
+on):
+
+- X1. **Gibs are fractured offline from our own models** by one script (`art/gibs/build.py`: Voronoi cells cut by planes,
+  every cut capped with the model's own inside tile), not cut at run time and not modelled by hand: all 30 files rebuild
+  from text in 40 s with the same bytes, and a new model breaks as soon as its catalogue entry says `gibs`.
+- X2. **Gibs come from the damage pipeline's Destroyed event** (§6.4.2, `ground-damage`'s), found by what it names, a key and
+  a grade: no second signal (this package first had its own, dropped at the merge). The building's grades and the doors
+  are kits in models.json (`kind: kit`): a grade's kit names its `grade` and its parts are building.json's pieces by key; a
+  door kit's parts are the doors drawn from its file. The event now gives a door's turn as drawn, half round when it was
+  fitted the other way (it gave its frame's), and one mapping (`BuildingWorld.Removed`) names a removed piece or door for
+  the zone's event and for the build sandbox.
+- X3. **Pieces meet only a floor plane**, sampled down the client's own collision once a break and again each metre a piece
+  travels: no Jolt bodies, no piece against piece, nothing sideways. A piece thrown into a wall passes through it (short and
+  rare); none ever falls through a floor.
+- X4. **Pieces are drawn by one MultiMesh per piece mesh**, its buffer handed over whole when something in it moved: a draw
+  call per piece shape in sight, however many things of that kind break. Considered and left for later: one mesh per set
+  with the pieces' transforms in a texture (a draw call per kind of thing, a texture upload a frame), which needs our own
+  copy of every material's shader.
+- X5. **640 pieces at most** (gibs.json `limits`), the oldest recycled first; above 75 % a break keeps its bigger half; pieces
+  within 70 m of the camera, dust alone to 170 m, nothing beyond. A piece rests 3.5–5.5 s, then sinks and shrinks over 1.6 s
+  (Rust's way); none lives more than 14 s.
+- X6. **The building breaks from the kit's coarsest level** (LOD2, at most halved again, 500 triangles a piece before the cuts;
+  twig's sticks 1,000) **into 9 pieces**: 1.4–4.5 MB a grade. The finer levels made the twig file alone 7.9 MB for pieces
+  seen a few seconds.
+- X7. **Barrels and the recycler are hollow** (an inner wall 4 mm and 1 cm thick), so they break into curved sheets; parts
+  smaller than half a piece (bolts, bricks, boards, stones, the campfire's logs) stay whole.
+- X8. **An outcrop's last remnant crumbles through its gather look** (gather.json `look.depleted.gibs`), not through the
+  Destroyed event: natural objects aren't things the damage pipeline destroys, and the client knows it was used up. The
+  gibs' dust replaces the node-break burst there.
+- X9. **Crates and the recycler have gibs although the rules never break them** (an emptied crate goes quietly, as in Rust);
+  a door that was open breaks from its shut pose (the event's `Open` isn't used).
+- X10. **Sounds come from data**: a cause's own (a collapse's `build.collapse`, the hammer's `build.demolish`), else the
+  model's `break` sound (sounds.json), else its material's (gibs.json). A collapse of twenty pieces plays twenty, one a layer.
+- X11. **The kits' gib materials are files** (`building_<grade>.tres`, `door_garage.tres`, written by the gib build with the
+  building art's textures and settings) beside `BuildingAssets`' materials made in code: the same look, twice described.
+  `BuildingAssets` could load these (it isn't changed here: its instance colour would start tinting collapsing pieces).
+- X12. **The measurement leaves the explosion's own effect out**: the stress breaks the wall with gibs and dust alone, so the
+  number is the gibs'.
+
+Decisions taken for the radial menu (§8.4, GROUND_SYSTEMS.md §4, package P5) without the owner, to confirm or overturn
+(numbered Q1 on):
+
+- Q1. **One radial on sources, not kinds.** `IRadialSource` gives the options and acts on a choice; the radial never knows
+  what opened it. The plan and the hammer are two sources written once for the game and the build sandbox
+  (`PlanRadial`, `BuildingRadials.Hammer`), where each had its own copy and chose the hammer's action by its index. Gone:
+  `WheelKind`, `WheelChoice`, the view model's `HeldWheel`, `Wheel(kind)`, `WheelCurrent(kind)` and `ChooseWheel(kind,
+  i)` in its four implementations, and the plan's special start angle (now `SplitAtTop`, the source's). The held-E
+  `OptionsMenu` stays until P1 moves interaction onto the radial (GROUND_SYSTEMS.md §5), as planned.
+- Q2. **The view model lists its bindings** (`IGroundUi.Radials`: the input, its hold time, what it opens now), and the
+  interface handles every one the same way. The inputs are named as Rust binds them (aim, interact, reload) and mapped
+  to the right mouse, E and R in one table in `GroundUi`, so rebinding one later is a line. A source is asked for only
+  when its input is pressed.
+- Q3. **A tap chooses the current option.** A held key let go before its radial opens chooses the source's current
+  option: E's primary action and R's reload with the loaded round, one rule for both (RustMVP's primary action on E).
+  The current option is also what the middle shows while the pointer rests there: the plan's piece, otherwise the
+  first (RustMVP's wheels).
+- Q4. **Disabled options look like the rest in the ring** (RustMVP's): the middle says why in the warning colour, and
+  choosing one shows the reason as a notice and does nothing (RustMVP's status line). A warning that doesn't disable
+  shows in the same place: the plan's "Not enough wood", where the piece is still chosen and its ghost refuses
+  (RustMVP's).
+- Q5. **The hammer says "Not enough <material>" before choosing** (RustMVP's "Not enough materials"), rather than sending
+  the upgrade for the server to refuse.
+- Q6. **Glyphs by name, not number.** RustMVP's outlines are one table keyed by name: a building piece by its building.json
+  key, the hammer's and the interaction's by what they show (`upgrade`, `rotate`, `demolish`, `door`, `lock`, `unlock`,
+  `keypad`, `pick-up`), so P1's interactions.json can name them; an unknown name draws a plain ring, so it shows. An
+  item's icon (`ItemIcons`) is the other kind of icon, for rounds and other items.
+- Q7. **Counts on the cost line are plain numbers** ("25 x WOOD (2000)", RustMVP's); the game's wheel grouped them by the
+  computer's language settings ("2,000" or "2.000").
+- Q8. **A lost release cancels.** When the window stops seeing the held input down without its release (it lost focus),
+  the radial closes without a choice rather than choosing what the pointer was on.
+- Q9. **The viewer's samples:** on E, a door with a fresh code lock whose owner the player is (OPEN DOOR, SET CODE, LOCK
+  disabled until a code is set, PICK UP the lock, disabled while locked); on R with the pistol, the rounds carried and
+  UNLOAD, with high-velocity pistol rounds added to the sample inventory so there are two kinds. Both open after 0.35 s.
 
 Decisions taken for the shared foundations (GROUND_SYSTEMS.md §3, package P0) without the owner, to confirm or overturn
 (numbered E1 on):

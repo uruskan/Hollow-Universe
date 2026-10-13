@@ -88,6 +88,9 @@ dotnet run --project tests/Hollow.Tests -- Animal   # G7: animals' AI, harvest, 
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit --animals 200   # G7: 200 animals among the bots (GROUND.md §5.10)
 blender -b --factory-startup --python art/animals/build_animals.py [-- deer boar wolf bear] [--preview <png>]   # the animals → game/assets/animals (GROUND.md §6.9)
 blender -b --factory-startup --python art/fx/build.py   # the effects' textures, decals and debris → game/assets/fx (GROUND.md §9.3)
+blender -b --factory-startup --python art/gibs/build.py   # gibs: every model that breaks, fractured into its pieces → game/assets/gibs
+                                                          # (GROUND.md §9.4; -- <keys> for some, -- --list for the plan)
+dotnet run --project tests/Hollow.Tests -- Gib            # gibs: everything that can be destroyed has pieces, found as the Destroyed event names it
 # The building and door kits into game/assets/building (Blender 5.2.1, D:/GameDev/Tools/blender-5.2.1-windows-x64):
 blender --background --factory-startup --python art/import/building_kit.py [-- twig wood stone metal armoured]
 blender --background --factory-startup --python art/import/door_kit.py
@@ -131,6 +134,8 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view sounds --sound ri
 $GODOT --headless --path game -- --view sounds --sound-check   # every sound file loaded and measured in the engine
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png   # effects (GROUND.md §9.3)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --stress firefight --measure 8   # what a firefight's effects cost
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --gibs --at 0.5 --shot gibs.png   # every model breaking (GROUND.md §9.4)
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --stress gibs --measure 6   # what a raid wall and ten barrels breaking cost
 # The ground game's screenshot run (GROUND.md §5.6): a host that takes the pictures, and a second player that joins it.
 # Paths are relative to game/, where Godot runs.
 $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --db /tmp/tour.db --hour 10 --tour ../docs/images/ground/play &
@@ -202,7 +207,10 @@ Client options (after `--`):
   `--shot` caught `--at <s>` after it starts; keys ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
   fx.json); `--sheet <family>` (contact sheet), `--strip <key> --times a,b,c`, `--action <family>` (a scene in use),
   `--stress firefight --measure <s>` (ten players fighting, effects off and on: prints what they cost and quits),
-  `--night`, `--only-batch <name>`.
+  `--night`, `--only-batch <name>`. Gibs (GROUND.md §9.4): `--gibs` (every model that breaks, in a grid, breaking at once;
+  Space again, C the cause, P pause; `--gib-parts a,b` the building's parts shown), `--gibs raid` (a stone wall blown in,
+  ten barrels shot), `--gibs <key>[/<part>]` (one close up, `--yaw`, `--distance`); with `--shot`, held `--at <s>` after
+  the break; `--stress gibs --measure <s>` (the raid every 2.5 s, gibs off and on: prints what they cost and quits).
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
 - Ground (GROUND.md §4.3): `--view ground` alone opens the main menu; `--body male|female` (default: the menu's last
   choice); `--mute` (no sound), `--sound-trace` (print every sound started); `--name <n>` with `--host [--port <n>]` (the
@@ -224,7 +232,7 @@ Client options (after `--`):
   free look, the camera and head turn while the hands do nothing; in the cockpit too); left mouse attack
   (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire; with the building plan: place
   the piece; with the hammer: repair; with a door, a lock or the claim device: fit or place it; with an explosive: throw
-  it), right mouse aim or draw (with the plan or the hammer, held: its wheel; with a charge: put it on the surface
+  it), right mouse aim or draw (with the plan or the hammer, held: its radial; with a charge: put it on the surface
   aimed at; with a grenade: lob it); R reload (with a building tool: turn the piece or door); E interact (doors, a code
   lock's keypad, a dud to light; held on a fire or furnace to light it or put it out, on a door or the claim device for
   its options; help a wounded player up; G7: open a crate or recycler, a workbench's tech tree, invite a player close by
@@ -264,19 +272,21 @@ Client options (after `--`):
 - Build sandbox (GROUND.md §6.3): `--view build`, local, on the first world's stand-in surface. `--scene
   house|ghost-valid|ghost-invalid|stability|stress|empty` (a built base; `stress` measures 300 frames and prints the
   frame time), `--overlay` (stability colours), `--tool 1–6` (plan, hammer, three doors, claim device), `--piece <key>`,
-  `--wheel plan|hammer` (open the wheel), `--from x,y,z --at x,y,z` (the camera in the scene's frame, the empty scene's
+  `--wheel plan|hammer` (open its radial), `--from x,y,z --at x,y,z` (the camera in the scene's frame, the empty scene's
   too: its first foundation's frame, unbuilt; the plan's aim is the camera's), `--finest` or
   `--lod n` (draw one level of detail). Keys: right mouse wheels, left places or repairs, R turns, E doors, F2 the
   stability overlay, F5 an hour of upkeep and decay. `--view build --scene empty --build-check` plays a round of
   building through the sandbox's input (place, snap, upgrade, turn, door, demolish and collapse) and quits with exit
   code 0 when every step passes.
 - Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
-  (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`, and
+  (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`, the
+  radial on other sources, `options` (a door's options, held E) and `ammo` (the pistol's rounds, held R), and
   G7's `map`, `techtree`, `recycler`, `research`, and the F1 panel's `console`, `console-info`, `console-net`,
   `console-items`, `console-tools` on sample data);
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
-  `--view ui --ui-check` drives the inventory and crafting with real input events (drag, middle-drag, split, quick
-  move, drop, craft) and quits with exit code 0 when every check passes.
+  `--view ui --ui-check` drives the inventory, crafting and the radial with real input events (drag, middle-drag,
+  split, quick move, drop, craft; the right mouse on the plan, E tapped, held, chosen and cancelled) and quits with
+  exit code 0 when every check passes.
 - Models (GROUND.md §9.1): `--view models` stands every catalogue model on the ground (`--lineup items|world`,
   `--pitch <deg>`); `--model <key>` shows one on a turntable (`--stage <n>`, `--lod <n>`, `--yaw <deg>` holds it at an
   angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--attach a,b`
@@ -300,9 +310,9 @@ Client options (after `--`):
 | `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2); `LocalGun`, the predicted gun and its events for the visual layer (§6.4); `Audio/`: the sound catalogue model, a BS.1770 loudness meter, distance layers, footstep and ambience rules (§4.9); `BuildingReplica`, the building in range and the ghost check, and the building intents on `LocalPlayer` (§6.5); explosives, detonations and raid alerts (`GameClient.Raid.cs`, `LocalPlayer.Raid.cs`, §6.6); ships: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, the ship intents on `LocalPlayer` (§6.7); G7 (§6.8): blueprints and tech trees, teams, map markers, world props (`LocalPlayer.World.cs`, `GameClient.World.cs`), the zone's map and its picture (`Map/ZoneMap.cs`) |
 | `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication (the building's in `GameServer.Building.cs`, ships' in `GameServer.Ships.cs`), login, admin; raiding and the notification service (`GameServer.Raid.cs`, `Notifications/`: raid alerts, GROUND.md §6.6); the world's props, each player's blueprints, team and map, team chat (`GameServer.World.cs`, §6.8); the F1 console's commands, rights, zone clock and spawning (`AdminCommands.cs`, `GameServer.Console.cs`, §8.2) |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
-| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu, the F1 panel in `GroundUi.Console.cs`), the view model `Model/IGroundUi` with `MockGroundUi` (and `IConsoleModel` with `MockConsole`), `ItemIcons`, and the viewer (`Viewer/`) |
+| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, the radial menu in `GroundUi.Radial.cs` with its glyphs `RadialGlyphs`, menu, the F1 panel in `GroundUi.Console.cs`), the view model `Model/IGroundUi` with `MockGroundUi` (and `IConsoleModel` with `MockConsole`; the radial's contract in `Model/RadialTypes.cs`), `ItemIcons`, and the viewer (`Viewer/`) |
 | `game/assets/building` | The building and door kits as GLB (three levels of detail, Godot collision names) and their 2K textures (GROUND.md §6.3) |
-| `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines and the wheels' view model |
+| `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines; the plan's and the hammer's radial sources (`BuildingRadials.cs`), shared with the game |
 | `src/Hollow.Simulation/Animals` | G7's animals (GROUND.md §6.9): `AnimalWorld` (the staggered AI tick, perception, the brain, steering, spawning), `NavGrid` (ground, water, slopes and trunks in 2 m cells, short paths), `AnimalHitboxes`; the zone's side in `Zone.Animals.cs`; the numbers in `game/data/ground/animals.json` |
 | `game/scripts/Animals` | Animals drawn (GROUND.md §6.9): `AnimalView` (model, clips, footsteps, voice, blood), `AnimalsView` (the seam: `Client` and `Refresh`), the sandbox (`--view animals`) |
 | `art/animals` | `build_animals.py`: the deer, boar, wolf and bear in Blender from text (metaball anatomy, skeleton, clips) → `game/assets/animals` |
@@ -324,6 +334,8 @@ Client options (after `--`):
 | `game/scripts/Items` | Item and world models (GROUND.md §9.1): `ModelCatalog` (reads `data/ground/models.json`), `CatalogItemIcons`, the icon renderer (`--view icons`) and the model viewer (`--view models`) |
 | `game/scripts/Fx` | The effects library (GROUND.md §9.3): `FxDirector` (the API: `Play`, `Impact`, `Muzzle`, `Tracer`, `Start`/`Stop`, `CameraShake`), world particle batches, muzzle flashes, tracers, decals, lights, fire loops, the catalogue (`data/ground/fx.json`) and the viewer (`--view fx`) |
 | `game/assets/fx` | The effects' textures (the PSG C4 VFX kit converted, our own flash atlas, noise and decals), debris meshes and shaders, built by `art/fx/build.py` |
+| `game/scripts/Gibs` | Gibs (GROUND.md §9.4): `GibDirector` (the API: `Break` what the Destroyed event names), `GibWorld` (every piece: integrator, floors, batched drawing), `GibLibrary` (the sets by key and grade), `GibCatalog` (`data/ground/gibs.json`); the hookup is `Ground/GibsView.cs` |
+| `game/assets/gibs`, `art/gibs` | The pieces things break into (one GLB per model or kit, parts by key), built by `art/gibs/build.py` from the models themselves |
 | `game/assets/items`, `game/assets/world` | Item and world models (GLB with LODs, hulls and sockets) and the item icons (`items/icons/128`, `items/icons/256`), built by `art/` |
 | `game/assets/materials`, `game/assets/textures` | The shared Godot materials the models' `.import` files map to, and their textures (2K at most) |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |

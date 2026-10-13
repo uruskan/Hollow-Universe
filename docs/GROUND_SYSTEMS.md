@@ -169,6 +169,24 @@ mouse cancels. The menu takes an options provider, not a kind.
 Opened by: holding E (interaction), the right mouse with the building plan or hammer (as now), holding R with a gun (the
 ammo menu). Replaces `GroundUi.Wheel`'s closed `WheelKind { Plan, Hammer }` and the vertical `OptionsMenu` list.
 
+**As built** (P5, 13 October 2026, `ground-radial`; GROUND.md §8.4, decisions Q1–Q9). The contract is plain C# in
+`game/scripts/UI/Model/RadialTypes.cs`: `IRadialSource` (the options, the current one, `Choose(index)`, `Cancel()`),
+`RadialOption` (an icon, by a glyph's name or an item's key; title, description, cost line; the reason it can't be
+chosen), and `RadialBinding` (a held input, its hold time, what it opens now), listed by the view model in
+`IGroundUi.Radials`. The control is `GroundUi.Radial.cs`; the glyphs are named (`RadialGlyphs`). The plan and the
+hammer are two sources, `PlanRadial` and `BuildingRadials.Hammer`, shared by the game and the build sandbox; `WheelKind`
+and its per-kind code are gone. A tap of a held key chooses the source's current option; a disabled option says why.
+The viewer proves the held keys on samples: E opens a door's options, R with the pistol its rounds (`--screen options`,
+`ammo`), and `--ui-check` plays E's tap, hold, choice and cancels.
+
+For P1: give `ClientGroundUi.Radials` a `RadialBinding(RadialInput.Interact, holdSeconds, open)` whose `open` makes a
+source for what is aimed at at the press (none: E does nothing); its options come from the capabilities' `Offer`, its
+`Current` is the primary verb (a tap does it), `Choose` sends the verb (a verb that needs a code opens the keypad
+first), and the verbs' glyphs are names in interactions.json. Then delete `OptionsMenu` and the hold-E code in
+`GroundView`. For P3: the held behaviour's handler gives the right mouse's and R's sources the same way; the ammo
+radial's options use `RadialIcon.Item` with the round's key, and its `Current` is the loaded round, so a tap of R
+reloads with it.
+
 ## 5. Interaction (package P1)
 
 **Verbs** are an append-only list in `interactions.json`: key, label, glyph, whether it needs a code (the keypad opens

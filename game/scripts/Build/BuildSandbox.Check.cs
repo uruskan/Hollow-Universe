@@ -9,7 +9,7 @@ using Num = System.Numerics;
 namespace HollowUniverse.Build;
 
 // --view build --scene empty --build-check: plays one round of building through the sandbox's own input paths (the aim,
-// the left button, E, the hammer's wheel choices) and quits with exit code 0 when every step did what it should: a
+// the left button, E, the hammer's radial choices) and quits with exit code 0 when every step did what it should: a
 // free foundation, a wall snapped to its edge, the wall upgraded and turned, a doorway with a door that opens, then
 // the foundation demolished and everything on it coming down.
 public partial class BuildSandbox
@@ -38,7 +38,7 @@ public partial class BuildSandbox
             _fixedCamera = new Transform3D(Basis.LookingAt(G(at - eye), G(_zone.Frame.UpAt(eye))), G(eye));
         void Click() => Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true });
         void Press(Key key) => Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = key, Keycode = key, Pressed = true });
-        void Plan(string key) => _model.PlanPiece = _data.Wheel.ToList().FindIndex(p => p.Key == key);
+        void Plan(string key) => _model.Plan.Piece = _data.Wheel.ToList().FindIndex(p => p.Key == key);
         Num.Vector3 Zone(Piece p, Vector3D local) => F(p.Structure.Frame.ToZone(PieceGeometry.ToFrame(p.Pose, local)));
 
         await Frames(5);
@@ -70,17 +70,17 @@ public partial class BuildSandbox
         Piece? wall = _world.AllPieces.FirstOrDefault(p => p.Def.Key == "wall");
         Expect(wall != null && wall.Supporters.Any(l => l.Other == foundation), "a wall snapped to that edge");
 
-        // The hammer: upgrade to stone, then turn it round (the wheel's choices 1 and 4).
+        // The hammer: upgrade to stone, then turn it round (its radial's options 1 and 4).
         if (wall != null)
         {
             _model.SelectBelt(1);
             Aim(eye, Zone(wall, new Vector3D(0.4, 1.4, 0)));
             await Frames(3);
             int yaw = wall.Pose.Yaw;
-            _model.ChooseWheel(WheelKind.Hammer, 1);
-            Expect(wall.Grade == 2, "upgraded to stone through the hammer's wheel");
-            _model.ChooseWheel(WheelKind.Hammer, 4);
-            Expect(wall.Pose.Yaw == PieceGeometry.Wrap(yaw + 6), "turned round through the hammer's wheel");
+            _model.HeldRadial!.Choose(1);
+            Expect(wall.Grade == 2, "upgraded to stone through the hammer's radial");
+            _model.HeldRadial!.Choose(4);
+            Expect(wall.Pose.Yaw == PieceGeometry.Wrap(yaw + 6), "turned round through the hammer's radial");
         }
 
         // A doorway on the far edge, then a door aimed into its opening; E opens it.
@@ -113,7 +113,7 @@ public partial class BuildSandbox
         _model.SelectBelt(1);
         Aim(Zone(foundation, new Vector3D(0.2, 3.2, 0.6)), Zone(foundation, new Vector3D(0.3, 0, 0.3)));
         await Frames(3);
-        _model.ChooseWheel(WheelKind.Hammer, 5);
+        _model.HeldRadial!.Choose(5);
         Expect(foundation.Gone && _world.Collapsing > 0, $"demolished; what stood on it is coming down ({_world.Collapsing} pieces)");
         await ToSignal(GetTree().CreateTimer(1.2), SceneTreeTimer.SignalName.Timeout);
         Expect(_world.PieceCount == 0, "and is gone a moment later");
