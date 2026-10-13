@@ -60,6 +60,10 @@ public sealed class PlaceholderItemIcons : IItemIconProvider
         "<path d=\"M51 65h14l-2 22-12-2Z\" fill=\"#404740\"/><path d=\"M99 53h21v7H99ZM26 84l10 3-2 10-14-5Z\" fill=\"#342f29\"/>" +
         "<path d=\"m12 52-8 24 22-11m46-1h18v22H70Z\" fill=\"#90714c\"/></g>";
 
+    // Three rounds standing: brass cases, the tips in {0} (plain grey, high velocity blue).
+    private const string Rounds = "<g fill=\"#c08a3a\"><path d=\"M34 56h14v44H34Z\"/><path d=\"M57 56h14v44H57Z\"/><path d=\"M80 56h14v44H80Z\"/></g>" +
+        "<g fill=\"{0}\"><path d=\"M34 56c0-14 14-14 14 0Z\"/><path d=\"M57 56c0-14 14-14 14 0Z\"/><path d=\"M80 56c0-14 14-14 14 0Z\"/></g>";
+
     private const string Meat = "<path d=\"M24 70c0-24 30-40 54-34 22 6 30 30 18 46-14 18-60 18-72-12Z\" fill=\"{0}\"/>" +
         "<path d=\"M40 66c10-10 30-14 42-6\" fill=\"none\" stroke=\"{1}\" stroke-width=\"5\"/>" +
         "<path d=\"m92 80 14 14\" stroke=\"#e8e0d0\" stroke-width=\"8\" stroke-linecap=\"round\"/>";
@@ -113,8 +117,8 @@ public sealed class PlaceholderItemIcons : IItemIconProvider
         "pistol" => "<g transform=\"rotate(-20 64 64)\"><path d=\"M24 50h64v14H46l-4 26-14-3 4-23H24Z\" fill=\"#6a706a\"/>" +
             "<path d=\"M30 64h12l-4 26-14-3Z\" fill=\"#5a4636\"/><path d=\"M88 52h8v8h-8ZM26 46h10v4H26Z\" fill=\"#342f29\"/></g>",
         "rifle" => Gun,
-        "ammo.pistol" => "<g fill=\"#c08a3a\"><path d=\"M34 56h14v44H34Z\"/><path d=\"M57 56h14v44H57Z\"/><path d=\"M80 56h14v44H80Z\"/></g>" +
-            "<g fill=\"#a8adb0\"><path d=\"M34 56c0-14 14-14 14 0Z\"/><path d=\"M57 56c0-14 14-14 14 0Z\"/><path d=\"M80 56c0-14 14-14 14 0Z\"/></g>",
+        "ammo.pistol" => string.Format(Rounds, "#a8adb0"),
+        "ammo.pistol.hv" => string.Format(Rounds, "#4f86c6"),
         "box.wooden" => "<g transform=\"translate(14 18) scale(0.8)\">" + Box + "</g>",
         "box.large" => Box,
         "bag.sleeping" => "<path d=\"m20 50 70-16 20 40-70 18Z\" fill=\"#6f7a54\"/><path d=\"m20 50 70-16 6 12-70 16Z\" fill=\"#8c9868\"/>" +

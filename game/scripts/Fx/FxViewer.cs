@@ -52,6 +52,12 @@ public partial class FxViewer : Node3D
         _night = Options.ContainsKey("night");
         BuildWorld();
         BuildHud();
+        if (Options.TryGetValue("gibs", out string? gibs))
+        {
+            _mode = "gibs";
+            StartGibs(gibs);
+            return;
+        }
         if (Options.TryGetValue("sheet", out string? family))
         {
             _mode = "sheet";
@@ -357,6 +363,9 @@ public partial class FxViewer : Node3D
             case "action":
                 UpdateAction(delta);
                 break;
+            case "gibs":
+                UpdateGibs(delta);
+                return;
         }
         _stats.Text = $"{Engine.GetFramesPerSecond():0} fps · fx {_fx.LastFrameMicroseconds:0} µs · lights {_fx.ActiveLights} · decals {_fx.ActiveDecals} · tracers {_fx.ActiveTracers} · loops {_fx.ActiveLoops}";
     }
@@ -416,6 +425,10 @@ public partial class FxViewer : Node3D
     public override void _UnhandledInput(InputEvent e)
     {
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
+        {
+            return;
+        }
+        if (_mode == "gibs" && GibKey(key.Keycode))
         {
             return;
         }
