@@ -5,7 +5,9 @@ using Hollow.Client;
 using Hollow.Core;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Ships;
 using Hollow.Surface;
 using HollowUniverse.Fx;
 using HollowUniverse.Surface;
@@ -47,6 +49,15 @@ public partial class GroundView : Node3D
     private GroundAudio? _audio;
     private BuildView _build = null!;
     private RaidView _raid = null!;
+    private ShipsView _ships = null!;
+    private HollowUniverse.Ships.ShipHud _shipHud = null!;
+    private readonly HollowUniverse.Ships.ShipControls _shipControls = new();
+    private readonly HollowUniverse.Ships.ShipCamera _shipCamera = new();
+    private bool _wasPiloting;
+    private ShipInteraction? _aimedShip;
+
+    // A workbench in reach (G7): E opens its tech tree.
+    private RemoteThing? _aimedBench;
     private double _thrownAt = -10;
     private bool _effectsWarmed;
     private Keypad _keypad = null!;
@@ -172,6 +183,11 @@ public partial class GroundView : Node3D
         layer.AddChild(alerts);
         _raid = new RaidView { Name = "Raid", Client = Client, Alerts = alerts };
         AddChild(_raid);
+        // Ships (G6): every ship drawn and heard; the flight HUD in place of the belt while piloting.
+        _ships = new ShipsView { Name = "Ships", Client = Client };
+        AddChild(_ships);
+        _shipHud = new HollowUniverse.Ships.ShipHud { Name = "ShipHud", Visible = false };
+        layer.AddChild(_shipHud);
         // The effects library, ready before the first shot or blast; without heat haze, which draws black here (§11).
         FxDirector.Install(this);
         FxDirector.HeatHaze = false;
@@ -220,7 +236,8 @@ public partial class GroundView : Node3D
         InventoryBody.Release();
     }
 
-    private System.Threading.Tasks.Task<Image>? _map;
+    // The zone's map picture (G7) is warmed once the zone is known: rendered on a worker thread, or read from the disk.
+    private bool _mapWarm;
 
     // ---------------------------------------------------------------- the world
 
@@ -241,7 +258,6 @@ public partial class GroundView : Node3D
             _world.OpenZone(found.System, found.Body, found.Surface, Client.Frame.Origin, time, zone.RotationTimeScale);
             _camera = _world.Camera;
             _nature.World = _world;
-            _map = ZoneMap.Build(found.Surface, Client.Frame);
         }
         else
         {
@@ -365,7 +381,7 @@ public partial class GroundView : Node3D
             Yaw = _yaw + giveYaw;
             Pitch = _pitch + givePitch;
         }
-        InputFrame input = ReadInput();
+        InputFrame input = ReadInput(delta);
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         Client.Update(delta, input);
@@ -387,7 +403,7 @@ public partial class GroundView : Node3D
         }
         if (_camera == null || !Client.HasCharacter)
         {
-            _overlay.Refresh(_camera, Array.Empty<(Vector3, string, float)>(), status ?? "Arriving...");
+            _overlay.Refresh(_camera, Array.Empty<(Vector3, string, float, bool)>(), status ?? "Arriving...");
             return;
         }
 
@@ -395,31 +411,53 @@ public partial class GroundView : Node3D
         // The effects' numbers are seen at exposure 1 under a sun of 1.3 (their viewer): the camera's exposure divides them,
         // so a blast or a fire looks as bright by day as by night, like everything that glows.
         FxDirector.Brightness = 1.3f / Glow.Exposure;
-        if (_map is { IsCompleted: true } map)
+        // The map (G) and the death screen draw the zone's map: its picture starts as soon as the zone is known.
+        if (!_mapWarm && Client.Map != null)
         {
-            if (map.IsCompletedSuccessfully)
-            {
-                DeathMap.Use(ImageTexture.CreateFromImage(map.Result));
-            }
-            _map = null;
+            _mapWarm = _ui.MapReady;
         }
+        _model.Frame();
         Num.Vector3 feet = Client.RenderPosition;
         Num.Vector3 up = Client.Frame.UpAt(feet);
         Num.Vector3 eye = feet + up * Client.EyeHeight;
         FaceTarget(eye, up);
         Num.Vector3 forward = CharacterMotor.ViewDirection(_yaw, _pitch, up);
-        // The camera carries the recoil's kick on top of the view (the view itself goes to the server clean), and zooms
-        // by the sight's magnification while aimed.
-        (float kickYaw, float kickPitch) = gun.ViewKick;
-        Num.Vector3 look = CharacterMotor.ViewDirection(_yaw + kickYaw, Math.Clamp(_pitch + kickPitch, -MaxPitch, MaxPitch), up);
-        // Blasts shake the camera (the effects library sums them by distance), never the view the player controls.
-        Vector3 shake = FxDirector.CameraShake(ToGodot(eye));
-        _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(look), ToGodot(up)) * Basis.FromEuler(shake), ToGodot(eye));
+        bool piloting = Client.Piloting && Client.OwnShipDef != null;
+        if (piloting != _wasPiloting)
+        {
+            // Boarded or stepped out: the lever back to zero, the chase camera placed afresh.
+            _wasPiloting = piloting;
+            _shipControls.Reset();
+            _shipCamera.Reset();
+        }
+        if (piloting)
+        {
+            // The ship's camera (cockpit or chase, V) on the predicted ship as drawn now; blasts shake it too.
+            ShipState shown = OwnShipShown();
+            (Num.Vector3 from, Num.Vector3 towards, Num.Vector3 camUp) = _shipCamera.Follow(shown, Client.OwnShipDef!,
+                Client.Frame.UpAt(shown.Position), (float)delta, OverGround);
+            eye = from;
+            forward = towards;
+            Vector3 jolt = FxDirector.CameraShake(ToGodot(eye));
+            _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(towards), ToGodot(camUp)) * Basis.FromEuler(jolt), ToGodot(eye));
+            _camera.Fov = _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit ? 74 : 68;
+            _ships.Cockpit = _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit;
+        }
+        else
+        {
+            // The camera carries the recoil's kick on top of the view (the view itself goes to the server clean), and
+            // zooms by the sight's magnification while aimed.
+            (float kickYaw, float kickPitch) = gun.ViewKick;
+            Num.Vector3 look = CharacterMotor.ViewDirection(_yaw + kickYaw, Math.Clamp(_pitch + kickPitch, -MaxPitch, MaxPitch), up);
+            // Blasts shake the camera (the effects library sums them by distance), never the view the player controls.
+            Vector3 shake = FxDirector.CameraShake(ToGodot(eye));
+            _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(look), ToGodot(up)) * Basis.FromEuler(shake), ToGodot(eye));
+            float zoom = gun.Aimed ? Math.Max(1, gun.Zoom) : 1;
+            float fov = 2 * MathF.Atan(MathF.Tan(Mathf.DegToRad(FieldOfView) / 2) / zoom);
+            _camera.Fov = Mathf.MoveToward(_camera.Fov, Mathf.RadToDeg(fov), (float)delta * 240);
+        }
         WarmEffects();
-        float zoom = gun.Aimed ? Math.Max(1, gun.Zoom) : 1;
-        float fov = 2 * MathF.Atan(MathF.Tan(Mathf.DegToRad(FieldOfView) / 2) / zoom);
-        _camera.Fov = Mathf.MoveToward(_camera.Fov, Mathf.RadToDeg(fov), (float)delta * 240);
-        _overlay.Spread = gun.Weapon != null && !gun.Aimed && !Client.Local.IsDead ? gun.Spread : null;
+        _overlay.Spread = gun.Weapon != null && !gun.Aimed && !Client.Local.IsDead && !piloting ? gun.Spread : null;
         _overlay.Fov = _camera.Fov;
         _overlay.ReloadProgress = gun.Reloading ? gun.ReloadProgress : null;
         _overlay.WoundedSeconds = Client.Local.IsWounded ? Math.Max(0, Client.Local.Life.WoundedUntilSeconds - Client.ClockSeconds) : null;
@@ -442,13 +480,18 @@ public partial class GroundView : Node3D
         Time("building", ref t0);
         _raid.Refresh(delta);
         Time("raid", ref t0);
+        _ships.Refresh(delta, _world?.Sky?.Exposure ?? 1);
+        FillShipHud(piloting);
+        Time("ships", ref t0);
         _audio?.Refresh(delta, input.Sprint);
         Time("audio", ref t0);
 
         // What the interact key would act on, and where a held deployable would go.
         LocalPlayer me = Client.Local;
         bool alive = !me.IsDead;
-        _aimed = alive ? Client.Aim(eye, forward) : null;
+        _aimed = alive && !piloting ? Client.Aim(eye, forward) : null;
+        _aimedShip = alive && !piloting ? Client.AimShip(eye, forward) : null;
+        _aimedBench = alive && !piloting && _aimed == null && _aimedShip == null ? AimWorkbench(eye, forward) : null;
         _placeAt = alive && me.HeldItem?.Deploys != null ? Client.AimGround(eye, forward, Client.Content.PlacementReach) : null;
         _firstPerson.PlacementPoint = _placeAt;
         _firstPerson.PlacementYaw = _yaw;
@@ -458,8 +501,12 @@ public partial class GroundView : Node3D
         UpdateInteract(delta);
         _model.Prompt = _aimed is { } aimed
             ? new InteractionPrompt("E", $"{aimed.Verb} {aimed.Name}".ToUpperInvariant(), MoreOptions: IsDevice(aimed))
-            : _build.Prompt();
-        if (_keypad.Visible)
+            : _aimedShip is { } ship
+                ? new InteractionPrompt("E", $"{ship.Verb} {ship.Name}".ToUpperInvariant())
+                : _aimedBench != null
+                    ? new InteractionPrompt("E", "OPEN TECH TREE")
+                    : _build.Prompt();
+        if (_keypad.Visible || piloting)
         {
             _model.Prompt = null;
         }
@@ -496,6 +543,30 @@ public partial class GroundView : Node3D
         _allocatedBefore = allocated;
     }
 
+    // The workbench the view meets within reach, if one with a tech tree (G7, GROUND.md §6.8).
+    private RemoteThing? AimWorkbench(Num.Vector3 eye, Num.Vector3 direction)
+    {
+        float reach = Client.InteractReach, best = float.MaxValue;
+        RemoteThing? found = null;
+        foreach (RemoteThing thing in Client.Things)
+        {
+            if (thing.Kind != Hollow.Simulation.World.StaticKind.Deployable || Num.Vector3.DistanceSquared(thing.Position, eye) > (reach + 2) * (reach + 2) ||
+                thing.Deployable(Client.Content) is not { Workbench: > 0 } def || Client.Content.World.Tree(def.Workbench) == null)
+            {
+                continue;
+            }
+            Num.Vector3 up = Client.Frame.UpAt(thing.Position);
+            (Num.Vector3 right, Num.Vector3 front) = Hollow.Simulation.Combat.Geometry.Axes(up, thing.Yaw);
+            float t = Hollow.Simulation.Combat.Geometry.RayBox(eye, direction, reach, thing.Position + up * def.HalfExtents.Y,
+                def.HalfExtents + new Num.Vector3(0.1f), right, up, front);
+            if (t >= 0 && t < best)
+            {
+                (best, found) = (t, thing);
+            }
+        }
+        return found;
+    }
+
     private bool IsDevice(in Interaction target) =>
         target.Kind == InteractionKind.Open && Client.ThingOf(target.Entity)?.Deployable(Client.Content)?.Device != null;
 
@@ -514,7 +585,7 @@ public partial class GroundView : Node3D
         }
     }
 
-    private InputFrame ReadInput()
+    private InputFrame ReadInput(double delta)
     {
         if (Scripted is { } scripted)
         {
@@ -523,6 +594,18 @@ public partial class GroundView : Node3D
             return scripted;
         }
         var input = new InputFrame { Yaw = _yaw, Pitch = _pitch };
+        if (Client.Piloting)
+        {
+            // Flying (G6): the stick, the lever and the thrusters instead of walking. With the interface open the lever
+            // stays where it was and the stick lets go.
+            bool hands = !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus();
+            input.Ship = hands ? _shipControls.Read(delta) : new ShipInput
+            {
+                Throttle = _shipControls.Throttle,
+                Buttons = _shipControls.AssistOff ? ShipButtons.AssistOff : ShipButtons.None,
+            };
+            return input;
+        }
         // Keys move the character only while the game has the mouse (not in the inventory, crafting, chat or menu).
         if (_ui.WantsCursor || _keypad.Visible || Client.Local.IsDead || !GetWindow().HasFocus())
         {
@@ -553,6 +636,12 @@ public partial class GroundView : Node3D
         {
             return;
         }
+        if (Client.Piloting)
+        {
+            // In the seat E rolls the ship.
+            _interactHeld = -1;
+            return;
+        }
         if (!Input.IsPhysicalKeyPressed(Key.E))
         {
             if (_options.Visible)
@@ -562,6 +651,16 @@ public partial class GroundView : Node3D
             else if (!_interactDone && _aimed is { } tap)
             {
                 Client.Interact(tap);
+            }
+            else if (!_interactDone && _aimedShip is { } ship)
+            {
+                // A ship: its hatch, the seat, the fuel cap or the cargo (which opens like a box).
+                Client.Interact(ship);
+            }
+            else if (!_interactDone && _aimedBench != null)
+            {
+                // A workbench: its tech tree (G7).
+                _ui.OpenTechTree();
             }
             else if (!_interactDone)
             {
@@ -583,6 +682,123 @@ public partial class GroundView : Node3D
         }
     }
 
+    // ---------------------------------------------------------------- flying (G6, GROUND.md §6.7)
+
+    /// <summary>The ship camera (cockpit or chase), for scripted runs.</summary>
+    public HollowUniverse.Ships.ShipCamera ShipCamera => _shipCamera;
+
+    /// <summary>The ships drawn, for scripted runs.</summary>
+    public ShipsView Ships => _ships;
+
+    /// <summary>The pilot's controls (the lever the HUD shows), for scripted runs.</summary>
+    public HollowUniverse.Ships.ShipControls ShipControls => _shipControls;
+
+    // The pilot's input: the mouse moves the stick; Z flight assist, X the lever to zero, V the camera, F step out, H the
+    // hatch, L the lock, J descend from orbit. The rest of the keys (W S A D, Q E, Space C, Shift) are read each frame.
+    private bool Pilot(InputEvent e)
+    {
+        switch (e)
+        {
+            case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
+                _shipControls.Mouse(motion.Relative / Math.Max(HollowUniverse.Common.Ui.Scale, 0.5f));
+                return true;
+            case InputEventMouseButton:
+                return true;
+            case InputEventKey { Pressed: true, Echo: false } key:
+            {
+                if (_shipControls.Key(key))
+                {
+                    return true;
+                }
+                LocalPlayer me = Client.Local;
+                EntityId ship = Client.OwnShipRemote?.Id ?? EntityId.None;
+                switch (key.PhysicalKeycode)
+                {
+                    case Key.V:
+                        _shipCamera.Mode = _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Chase
+                            ? HollowUniverse.Ships.ShipCameraMode.Cockpit : HollowUniverse.Ships.ShipCameraMode.Chase;
+                        _shipCamera.Reset();
+                        return true;
+                    case Key.F:
+                        me.ExitShip();
+                        return true;
+                    case Key.H:
+                        me.ShipHatch(ship);
+                        return true;
+                    case Key.L:
+                        me.LockShip(ship);
+                        return true;
+                    case Key.J:
+                        me.Descend();
+                        return true;
+                    case Key.E or Key.R or Key.Space:
+                        return true;
+                }
+                return false;
+            }
+        }
+        return false;
+    }
+
+    // The ship flown as drawn this frame: its predicted state at the drawn position and turn.
+    private ShipState OwnShipShown()
+    {
+        ShipState shown = Client.OwnShip;
+        shown.Position = Client.OwnShipRenderPosition;
+        shown.Rotation = Client.OwnShipRenderRotation;
+        return shown;
+    }
+
+    // How far a point (zone frame) is above the planet's ground or sea.
+    private float OverGround(Num.Vector3 point)
+    {
+        if (Client.Surface is not { } surface)
+        {
+            return float.MaxValue;
+        }
+        Vector3D body = Client.Frame.ToBody(point);
+        double r = body.Length;
+        double ground = surface.HeightAt(body / r);
+        if (surface.SeaRadius > 0)
+        {
+            ground = Math.Max(ground, surface.SeaRadius - surface.Radius);
+        }
+        return (float)(r - surface.Radius - ground);
+    }
+
+    // The flight HUD in place of the belt, the vitals and the crosshair while piloting (and only over the game, not the
+    // inventory or the menu): speed, height and climb, heading, the lever, fuel and hull, warnings, the keys.
+    private void FillShipHud(bool piloting)
+    {
+        bool show = piloting && _ui.Screen == GroundScreen.Hud;
+        _shipHud.Visible = show;
+        if (!show)
+        {
+            return;
+        }
+        HollowUniverse.Ships.ShipHudData d = _shipHud.Data;
+        ShipDef def = Client.OwnShipDef!;
+        ShipState s = OwnShipShown();
+        d.Def = def;
+        d.State = s;
+        Num.Vector3 up = Client.Frame.UpAt(s.Position);
+        d.Speed = s.Velocity.Length();
+        d.VerticalSpeed = Num.Vector3.Dot(s.Velocity, up);
+        d.Height = (float)(Client.Frame.ToBody(s.Position).Length - (Client.Surface?.Radius ?? 0));
+        d.OverGround = OverGround(s.Origin(def.CentreOfMass));
+        Num.Vector3 f = s.Forward;
+        d.Heading = MathF.Atan2(f.X, -f.Z) * 180 / MathF.PI;
+        d.Throttle = _shipControls.Throttle;
+        d.Stick = _shipControls.Stick;
+        d.AssistOff = _shipControls.AssistOff;
+        d.TimeToGround = d.VerticalSpeed < -0.5f ? d.OverGround / -d.VerticalSpeed : float.PositiveInfinity;
+        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  DESCEND OVER THE SAME SPOT"
+            : s.Has(ShipFlags.Landed) || s.Asleep ? "F  STEP OUT     H  HATCH     L  LOCK" : null;
+        d.Notice = null;
+        d.Hints = $"V {(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit ? "chase" : "cockpit")} camera · Z flight assist · X throttle 0 · Shift boost";
+        _shipHud.Refresh();
+    }
+
     // The code lock's keypad: a code to open the door, or (its owner) a new one.
     private void OpenKeypad(Hollow.Simulation.Building.Door door, bool set)
     {
@@ -595,6 +811,11 @@ public partial class GroundView : Node3D
     {
         if (_ui.WantsCursor || _keypad.Visible)
         {
+            return;
+        }
+        if (Client.Piloting && Pilot(e))
+        {
+            GetViewport().SetInputAsHandled();
             return;
         }
         switch (e)
@@ -654,7 +875,7 @@ public partial class GroundView : Node3D
     public void UseHeld(bool secondary = false)
     {
         LocalPlayer me = Client.Local;
-        if (me.IsDead || me.HeldSlot < 0 || me.HeldItem is not { } item)
+        if (me.IsDead || me.HeldSlot < 0 || me.HeldItem is not { } item || Client.Piloting)
         {
             return;
         }

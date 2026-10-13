@@ -159,6 +159,15 @@ public sealed partial class LocalPlayer
     /// <summary>The best workbench level within reach (from the deployables around), for the crafting menu.</summary>
     public int WorkbenchLevel { get; internal set; }
 
+    /// <summary>
+    /// The station of a kind within reach (its entity ID, 0 for none): a recipe made at one (a ship at the vehicle
+    /// workbench, G6) needs it, as the server's <c>Zone.StationNear</c> does.
+    /// </summary>
+    public Func<Simulation.Content.DeployableDef, ulong>? StationNear { get; internal set; }
+
+    private ulong StationFor(int recipeId) =>
+        Content.Recipe(recipeId)?.Station is { } needs ? StationNear?.Invoke(needs) ?? 0 : 0;
+
     /// <summary>Intents sent and not yet answered.</summary>
     public int PendingCount => _pending.Count;
 
@@ -244,7 +253,7 @@ public sealed partial class LocalPlayer
 
     /// <summary>Starts crafting <paramref name="count"/> of a recipe (by its output item's ID).</summary>
     public uint Craft(int recipeId, int count = 1) =>
-        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints) == ActionResult.Accepted),
+        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints, p.StationFor(recipeId)) == ActionResult.Accepted),
             w => new CraftIntent { Seq = _nextSeq, Recipe = (uint)Math.Max(0, recipeId), Count = (uint)Math.Max(0, count) }.WriteMessage(w));
 
     /// <summary>Whether a recipe could start now (known, bench in reach, materials for <paramref name="count"/>), as the UI shows it.</summary>
@@ -257,6 +266,10 @@ public sealed partial class LocalPlayer
         if (WorkbenchLevel < recipe.Workbench)
         {
             return ActionResult.NeedsWorkbench;
+        }
+        if (recipe.Station is { } needs && (StationNear?.Invoke(needs) ?? 0) == 0)
+        {
+            return ActionResult.NeedsStation;
         }
         if (_craft.Jobs.Count >= CraftQueue.MaxJobs)
         {

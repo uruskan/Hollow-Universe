@@ -14,7 +14,9 @@ namespace HollowUniverse.Ground;
 /// <summary>
 /// Placed and dropped things (GROUND.md §6.1): deployables and dropped stacks from <see cref="GroundModels"/>, a lit
 /// campfire's or furnace's fire (the effects library's), arrows in flight with their trail, and bullets: a tracer for
-/// some, flying the bullet's own path from the gun, and each hit's effect and sound by what it hit (§6.4, §9.3).
+/// some, flying the bullet's own path from the gun, and each hit's effect and sound by what it hit (§6.4, §9.3). The
+/// world's props (G7, §6.8): barrels, crates and recyclers from the model catalogue by their key, a running recycler's
+/// lamp and hum, a barrel's blows and its breaking.
 /// Corpses are <see cref="PeopleView"/>'s ragdolls; rockets are <see cref="RaidView"/>'s.
 /// </summary>
 public partial class ThingsView : Node3D
@@ -22,6 +24,7 @@ public partial class ThingsView : Node3D
     private readonly Dictionary<uint, (Node3D Node, uint Revision)> _things = new();
     private readonly Dictionary<uint, bool> _lit = new();
     private readonly Dictionary<uint, FxHandle> _fires = new();
+    private readonly Dictionary<uint, (PropDef Prop, Num.Vector3 At, float Health)> _props = new();
     private readonly HashSet<ClientProjectile> _loosed = new();
     private readonly HashSet<ClientProjectile> _stopped = new();
     private readonly Dictionary<ClientProjectile, int> _trails = new();
@@ -64,6 +67,7 @@ public partial class ThingsView : Node3D
             _things[thing.NetId] = (node, thing.Revision);
             Sound(thing, node, known);
             Fire(thing, node);
+            Prop(thing, known);
         }
         foreach (uint gone in _things.Keys.Where(k => !seen.Contains(k)).ToList())
         {
@@ -73,6 +77,10 @@ public partial class ThingsView : Node3D
             if (_fires.Remove(gone, out FxHandle fire))
             {
                 FxDirector.Stop(fire, immediate: true);
+            }
+            if (_props.Remove(gone, out (PropDef Prop, Num.Vector3 At, float Health) prop))
+            {
+                Broke(prop.Prop, prop.At);
             }
         }
         UpdateArrows(time);
@@ -87,24 +95,55 @@ public partial class ThingsView : Node3D
             return;
         }
         Vector3 at = GroundView.ToGodot(thing.Position + Client.Frame.UpAt(thing.Position) * 0.3f);
-        if (!known && _since > 3 && Num.Vector3.Distance(thing.Position, Client.Character.Position) < 25)
+        // A world prop isn't placed: one coming back (G7) makes no sound.
+        if (!known && _since > 3 && thing.Kind == StaticKind.Deployable && Num.Vector3.Distance(thing.Position, Client.Character.Position) < 25)
         {
             Sounds.At(Sounds.Item(def.Key, "place") ?? "deploy.place", at);
         }
         bool was = _lit.TryGetValue(thing.NetId, out bool w) && w;
         _lit[thing.NetId] = thing.Lit;
+        // Fires ignite and go out; a recycler or research table (lit while it works, G7) starts and stops.
         if (thing.Lit)
         {
             if (known && !was)
             {
-                Sounds.At(Sounds.Item(def.Key, "ignite"), at);
+                Sounds.At(Sounds.Item(def.Key, "ignite") ?? Sounds.Item(def.Key, "start"), at);
             }
             Sounds.Loop(Sounds.Item(def.Key, "loop"), node);
         }
         else if (known && was)
         {
-            Sounds.At(Sounds.Item(def.Key, "extinguish"), at);
+            Sounds.At(Sounds.Item(def.Key, "extinguish") ?? Sounds.Item(def.Key, "stop") ?? Sounds.Item(def.Key, "done"), at);
         }
+    }
+
+    // A world prop (G7): a barrel rings under blows; remembered, so one gone close by is heard breaking.
+    private void Prop(RemoteThing thing, bool known)
+    {
+        if (thing.Prop(Client.Content) is not { } prop)
+        {
+            return;
+        }
+        float before = _props.TryGetValue(thing.NetId, out (PropDef Prop, Num.Vector3 At, float Health) was) ? was.Health : thing.Health;
+        _props[thing.NetId] = (prop, thing.Position, thing.Health);
+        if (known && thing.Health < before - 1e-4f)
+        {
+            Sounds.At(Sounds.Item(prop.Key, "hit"), GroundView.ToGodot(thing.Position + Client.Frame.UpAt(thing.Position) * 0.5f));
+        }
+    }
+
+    // A barrel gone close by was broken (one leaving the range goes far away; an emptied crate goes quietly): its sound
+    // and a burst of metal.
+    private void Broke(PropDef prop, Num.Vector3 at)
+    {
+        if (!prop.Breakable || !Client.HasCharacter || Num.Vector3.Distance(at, Client.Character.Position) > 40)
+        {
+            return;
+        }
+        Num.Vector3 up = Client.Frame.UpAt(at);
+        Vector3 middle = GroundView.ToGodot(at + up * 0.5f);
+        Sounds.At(Sounds.Item(prop.Key, "break"), middle);
+        FxDirector.Play("impact.bullet.metal", middle, GroundView.ToGodot(up), new FxParams { Scale = 2.4f });
     }
 
     // A lit campfire or furnace burns where its model says (socket_fire): the effects library's fire, which goes on
@@ -112,7 +151,8 @@ public partial class ThingsView : Node3D
     private void Fire(RemoteThing thing, Node3D node)
     {
         bool burning = _fires.TryGetValue(thing.NetId, out FxHandle handle);
-        DeployableDef? def = thing.Lit ? thing.Deployable(Client.Content) : null;
+        // Only what burns fuel has a fire (a recycler or research table at work is lit too, G7).
+        DeployableDef? def = thing.Lit && thing.Deployable(Client.Content) is { Device: not null } burner ? burner : null;
         if (def != null && !burning)
         {
             Node3D? model = node.GetChildCount() > 0 ? node.GetChild(0) as Node3D : null;
@@ -143,6 +183,20 @@ public partial class ThingsView : Node3D
                 }
                 break;
             }
+            case StaticKind.Prop when thing.Prop(Client.Content) is { } prop:
+            {
+                // G7: a barrel, crate or recycler, by its model's key; a running recycler's lamp.
+                Vector3 half = new(prop.Deployable.HalfExtents.X, prop.Deployable.HalfExtents.Y, prop.Deployable.HalfExtents.Z);
+                if (GroundModels.Provider.Deployable(prop.Key, half) is { } model)
+                {
+                    node.AddChild(model);
+                    if (prop.Kind == WorldPropKind.Recycler && thing.Lit)
+                    {
+                        Lamp(node, model);
+                    }
+                }
+                break;
+            }
             case StaticKind.DroppedItem:
             {
                 string key = Client.Content.Item(thing.Look)?.Key ?? "";
@@ -154,6 +208,38 @@ public partial class ThingsView : Node3D
             }
         }
         return node;
+    }
+
+    // A running recycler's lamp (G7): a small green light, glowing as bright by day as by night, with a little light of
+    // its own (seen at night). Where the model's socket_lamp is; the stand-in model has none, so on its body's top front
+    // corner, beside the hopper.
+    private static void Lamp(Node3D node, Node3D model)
+    {
+        Vector3 at = Socket(model, "socket_lamp") ?? model.Transform * new Vector3(-0.62f, 1.28f, 0.4f);
+        var glass = new StandardMaterial3D
+        {
+            AlbedoColor = new Color(0.25f, 0.9f, 0.35f),
+            EmissionEnabled = true,
+            Emission = new Color(0.3f, 1f, 0.4f),
+            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+        };
+        Glow.Track(glass, 1.4f);
+        node.AddChild(new MeshInstance3D
+        {
+            Name = "Lamp",
+            Mesh = new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 12, Rings = 6 },
+            MaterialOverride = glass,
+            Position = at,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+        });
+        node.AddChild(new OmniLight3D
+        {
+            Name = "LampLight",
+            LightColor = new Color(0.4f, 1f, 0.5f),
+            LightEnergy = Glow.FireLight * 0.6f,
+            OmniRange = 4,
+            Position = at + new Vector3(0, 0.12f, 0),
+        });
     }
 
     /// <summary>Where a model's socket is, in the space of the model's parent (null if it has none of that name).</summary>

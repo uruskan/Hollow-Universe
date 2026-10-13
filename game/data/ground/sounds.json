@@ -68,6 +68,7 @@
     "rocket": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
     "rocket-hv": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
     "rifle-ammo-explosive": {"explode": "impact.metal"},
+    "tin-finch": {"engine": "ship.engine", "thrust": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open", "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash", "destroyed": "explosion"},
     "wooden-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
     "metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
     "armoured-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.wood"},
@@ -2156,6 +2157,118 @@
         "res://assets/audio/weapon/debris_01.ogg",
         "res://assets/audio/weapon/debris_02.ogg",
         "res://assets/audio/weapon/debris_03.ogg"
+      ]
+    },
+    {
+      "key": "ship.engine",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 300.0,
+      "priority": 65,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ship/engine_loop.ogg"
+      ]
+    },
+    {
+      "key": "ship.thrust",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 400.0,
+      "priority": 65,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ship/thrust_loop.ogg"
+      ]
+    },
+    {
+      "key": "ship.boost",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 400.0,
+      "priority": 70,
+      "limit": 4,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/boost_01.ogg",
+        "res://assets/audio/ship/boost_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.hatch.open",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 3.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/hatch_open_01.ogg",
+        "res://assets/audio/ship/hatch_open_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.hatch.close",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 3.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/hatch_close_01.ogg",
+        "res://assets/audio/ship/hatch_close_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.touchdown",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/touchdown_01.ogg",
+        "res://assets/audio/ship/touchdown_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.crash",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 150.0,
+      "priority": 75,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/crash_01.ogg",
+        "res://assets/audio/ship/crash_02.ogg"
       ]
     },
     {

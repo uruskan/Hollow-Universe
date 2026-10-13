@@ -1001,7 +1001,8 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   instead of 99.
 
 **Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 3
-with building, raiding and the effects library in the game, except `menu.jpg`):
+with building, raiding and the effects library in the game, except `menu.jpg`; pass 4 added the ship's and G7's, from
+its `ship` and `world` steps):
 
 | Picture | What it shows |
 |---|---|
@@ -1020,7 +1021,22 @@ with building, raiding and the effects library in the game, except `menu.jpg`):
 | `charge.jpg` | A timed charge stuck on the hut's side wall, its lamp lit; another in hand. |
 | `explosion.jpg` | The charge going off: the fireball, debris and the smoke rising over the hut; the raid alert at the top right. |
 | `firefight.jpg` | Firing at the hut from the meadow, in the frame a shot leaves: the muzzle brake's flame out of its ports, the tracer, the holo sight and brake on the rifle; the second player firing beside. |
-| `death.jpg` | The death screen over the map of the real coast. |
+| `ship-craft.jpg` | Pass 4: the Tin Finch's recipe at a vehicle workbench (behind the menu): "VEHICLE WORKBENCH REQUIRED" in green, its five makings. |
+| `ship-boarding.jpg` | The Tin Finch rolled out onto the bench's bay (the builder told so in chat), its hatch open: "E BOARD TIN FINCH". |
+| `ship-cockpit.jpg` | The cockpit at 106 m/s, 59 m over the forest, with the flight HUD (speed, height, climb, heading, the lever, flight assist, fuel and hull). |
+| `ship-chase.jpg` | The chase camera hovering 10 m up near the hut, the lift nozzles burning; the second player on the ground just below, watching. |
+| `ship-landed.jpg` | Landed beside the stone hut: "LANDED", and the keys to step out, work the hatch and lock it. |
+| `team-invite.jpg` | Pass 4, G7: a team made ("You made a team…"), the second player looked at: "E INVITE TO TEAM BO". |
+| `teammate.jpg` | "Bo joined the team.": 73 m off among the trees, her name in the team's green with how far. |
+| `loot-props.jpg` | The barrels and the crate nearest the landing site, at a forest edge, seen from the clearest side. |
+| `crate.jpg` | A world crate opened beside the barrels nearest the landing site: salvage, a hammer, cloth, gears. |
+| `recycler.jpg` | A recycler at work: gears and pipes in, salvage and metal fragments out, the batch's progress, TURN OFF. |
+| `recycler-running.jpg` | The recycler running, its green lamp lit on the body's top corner by the hopper: "E OPEN RECYCLER". |
+| `workbench.jpg` | A level 1 workbench placed in the meadow: "E OPEN TECH TREE". |
+| `techtree.jpg` | Its tech tree: the metal hatchet just unlocked ("Blueprint learnt: Metal hatchet."), the pickaxe after it ready for 125 of the 525 salvage. |
+| `research.jpg`, `research-done.jpg` | A research table: a pistol and 200 salvage in, "SERVICE PISTOL: 125 SALVAGE", BEGIN RESEARCH; ten seconds later the pistol's blueprint in its third slot, drawn in blueprint blue, 75 salvage left. |
+| `map.jpg` | The map (G) on the zone's parchment picture: the player, the teammate, a sleeping bag, two markers, the grid; the markers' and the team's panels beside it. |
+| `death.jpg` | The death screen over the zone's map: the body's skull, the sleeping bag beside it and its countdown. |
 | `night.jpg` | Night, by the catalogue's campfire, lit: the effects library's flames, embers and smoke, and its flickering light on the grass; the respawn kit on the belt. |
 
 **Judgement.** It plays as one game: arrive on a real beach, walk, swim and fall on the planet's ground, gather from
@@ -2241,6 +2257,29 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
 5. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
    `ShipEventKind.Destroyed`.
 
+**Hooked up** (integration pass 4, `game/scripts/Ground/ShipsView.cs` and `GroundView`):
+- Every ship the client knows is drawn by a `ShipView` (`ShipsView`): others at `RemoteShip.Origin` and `Rotation`
+  with their hatch, thrust and flags, the one flown at `OwnShipRenderPosition`/`OwnShipRenderRotation` with the
+  predicted thrust and flags; `ShipView.Exposure` from the sky; hidden in orbit. In the cockpit the own ship's nearest
+  plumes hide (`FromCockpit`).
+- While `Piloting`, `ShipControls.Read` fills `InputFrame.Ship` each frame (with the interface open the lever stays and
+  the stick lets go); the mouse moves the stick; the camera is `ShipCamera.Follow` on the ship as drawn (cockpit or
+  chase, V), with the blasts' shake; `ShipHud` replaces the belt, the vitals and the crosshair (`IGroundUi.Piloting`);
+  the arms draw nothing; F steps out, H works the hatch, L the lock, J descends from orbit; E, R and Space belong to the
+  ship (roll, nothing, rise).
+- On foot, `AimShip` gives the prompt under the crosshair ("E BOARD TIN FINCH", the hatch, "REFUEL", the cargo) after
+  the survival targets; E `Interact`s; the cargo opens in the loot panel like a box; refusals (locked, occupied, not
+  landed, the hatch shut) are toasts.
+- Seated pilots aren't drawn: the character contract (§4.8) has no sitting pose (§11 87).
+- The vehicle workbench is a deployable like any other; the crafting menu shows the Tin Finch's "VEHICLE WORKBENCH
+  REQUIRED" (green within reach) and the client checks the station as the server does (`LocalPlayer.StationNear`);
+  crafted, it rolls out onto the bench's bay, and the builder is told in chat.
+- Sounds (`sounds.json`, built from Kenney's CC0 sci-fi pack by `art/audio/events.py`, `ships()`): `ship.engine` (a
+  hum) and `ship.thrust` (the burn), loops at `socket_engine_audio` turned up with the thrust; `ship.boost` when a boost
+  starts; `ship.hatch.open`/`close`; `ship.touchdown` when it lands moving; `ship.crash` when the hull is hurt as the
+  ship stops short; the wreck's `explosion`. The wreck: `explosion.rocket` (1.6 ×) and `fire.burning` on the hull
+  until it goes. All from the replicated flags, hull and velocity: the server sends no ship events to clients.
+
 ### 6.8 World: economy, progression, teams, the map (G7, part A)
 
 Rust's progression and social layer: salvage (our scrap) from barrels and crates, the recycler, tech trees and research
@@ -2401,7 +2440,32 @@ numbered from the north, as Rust's) and every label are drawn by the interface, 
   `sewing-kit`, `tech-scrap`, `metal-blade`, `sheet-metal`, `sign-plate`, `receiver`, `rifle-frame`), `torn-schematic`,
   `sealed-schematic`, `blueprint` and `research-table` (flat placeholders in `ItemIcons` until then).
 
+**Hooked up** (integration pass 4, `game/scripts/Ground/ClientGroundUi.World.cs`, `ThingsView`, `PeopleView`,
+`GroundOverlay` and `GroundView`):
+- The map (G): its picture (1,024 px) starts rendering on a worker thread as soon as the zone is known, and comes from the
+  disk cache after; the markers through `ToMap`: bags and beds, the last death, the player's markers, teammates (where
+  they are drawn, else where the server last said; dim and marked while asleep, down or dead) and the player with their
+  facing (the ship's nose while flying). A click puts a marker down (`ToZone`), a right-click takes it off. The death
+  screen draws this map, its body and bags placed through `ToMap`; G2's survey picture is gone (§11 94).
+- The tech tree: E on a workbench ("OPEN TECH TREE", Rust's) or the crafting screen's TECH TREE tab opens the tree of
+  the bench level in reach (`WorkbenchLevel`), its nodes known, open or locked (`Knows`, `TechTrees.CanUnlock`);
+  UNLOCK checks `CanUnlock` first and says why not (the salvage, the bench, a node before it). The crafting list holds
+  the recipes known, from the start or learnt, again whenever one is learnt.
+- Crates open in the loot panel (take only), recyclers with their six inputs, six outputs and switch, the research
+  table with its item, salvage and blueprint, its price (`Research.Cost`) and why it can't start (no item, one that
+  can't be researched, the last blueprint not taken out, the salvage short); running and progress come from `Machine`.
+  A blueprint is drawn as the item it teaches, on blueprint blue, and is learnt by using it.
+- Props from the model catalogue by their key; a running recycler's lamp (a small green light on its top) and hum; a
+  barrel rings under blows, and one gone within 40 m broke: its sound and a burst of metal (§11 91); bullets strike
+  metal on barrels, military crates and recyclers. Crates and recyclers open and shut with the box's sounds.
+- Teams: E on a player close by while leading says "INVITE TO TEAM"; the map's panel creates, leaves, promotes, kicks
+  and answers invites; chat lines starting `/t ` go to the team and show as [TEAM]. Teammates' names are drawn in the
+  team's green at any distance and through walls, with how far beyond 40 m (§11 90).
+- Notices (with their sounds): a blueprint learnt, an invite ("answer on the map"), the team made, joined or left,
+  members coming and going, a new leader, and the refusals G7 adds. They wait 3 s after joining (§11 92).
+
 **Bots and the load test**: `WorldBrain` and `loadtest --script world` (§5.9).
+
 
 ---
 
@@ -2526,8 +2590,8 @@ moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as not
 descriptions and stats come from items.json, the crafting tabs from categories.json. Item icons are the model
 catalogue's renders (`CatalogItemIcons`, §9.1); with `--placeholder-icons`, `ItemIconAliases` maps items.json keys
 onto the placeholder drawings. The inventory shows the player's own body in what they wear (`InventoryBody`, through
-`CharacterPreview.Body`), and the death screen the real ground around the landing site, 9.6 by 4 km (`ZoneMap`,
-through `DeathMap.Use`). Pictures of it in play are in §5.4.
+`CharacterPreview.Body`), and the death screen the zone's map (G7: `GameClient.Map`, the map screen's picture, 3.9 km
+across), the body and the bags placed on it through `ZoneMap.ToMap`. Pictures of it in play are in §5.4.
 
 ### 8.2 Behaviour
 
@@ -3439,6 +3503,26 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     point isn't used yet (Rust raises the sight line to it).
 86. **Attaching is a drop and detaching a button** (cheaper than Rust's attachment slots in the item panel): an
     attachment dropped on a gun goes onto it; the gun's panel lists REMOVE <PART> for each one.
+87. **A seated pilot isn't drawn** in the cockpit, others' or one's own: the character contract has no sitting pose
+    (§4.8), and a standing body would stick out of the canopy. A `Seated` stance there would put them in the seat.
+88. **The ships' sounds are made from Kenney's sci-fi pack** (CC0, already a source of the explosions): the Tin Finch
+    hums and burns with its thrust; a ship's crash is told from its hull dropping while its speed changes by more
+    than 3 m/s in a frame (gunfire hurts the hull without the jolt), since the server sends no ship events.
+89. **E on a workbench opens its tech tree** ("OPEN TECH TREE", as Rust's workbench does), and the tree shown is that of
+    the highest bench level in reach (`WorkbenchLevel`): beside a level 2 bench, the level 1 tree needs a level 1 bench.
+90. **Teammates are named at any distance, in the team's green, through walls**; beyond 40 m, where other players'
+    names stop, with how far. Out of range, at the place the server sends twice a second; teammates asleep or dead out
+    there aren't named.
+91. **A running recycler shows a green lamp of ours** at its model's `socket_lamp` (the stand-in model has none, so on
+    its body's top front corner), with a little light seen at night; its hum and a
+    barrel's break are W14's stand-ins, the break with a burst of metal sparks. A barrel that goes within 40 m of the
+    player is taken to have broken (the server sends no prop events; one leaving the range goes at 300 m).
+92. **Notices wait 3 s after joining**: the blueprints and team the server sends at once would otherwise read as news.
+93. **The crafting list shows the recipes known**, from the start or learnt, not the locked ones (Rust can show those
+    under a filter); the tech tree and the research table are where the rest are seen.
+94. **The death screen draws the zone's map**, the map screen's 3.9 km picture, instead of G2's 9.6 by 4 km survey
+    picture. While the picture renders (about a second, on the first run on a machine) the placeholder coast shows under
+    the right places.
 
 
 Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn (numbered S1 on):

@@ -147,7 +147,8 @@ public partial class FirstPersonView : Node3D
     public void Refresh(double delta, in InputFrame input, float yaw, float pitch)
     {
         LocalPlayer me = Client.Local;
-        ItemDef? item = me.IsDead ? null : me.HeldItem;
+        // In a ship's seat the hands are on the stick: nothing held is drawn (G6).
+        ItemDef? item = me.IsDead || Client.Piloting ? null : me.HeldItem;
         string? key = item?.Key;
         if (key != _heldKey)
         {

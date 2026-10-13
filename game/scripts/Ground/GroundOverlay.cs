@@ -96,8 +96,8 @@ public partial class GroundOverlay : Control
         AddChild(_wounded);
     }
 
-    /// <summary>Every frame: the status line, the graph and the names (<paramref name="names"/>: head point, name, distance).</summary>
-    public void Refresh(Camera3D? camera, IEnumerable<(Vector3 Head, string Name, float Distance)> names, string? status)
+    /// <summary>Every frame: the status line, the graph and the names (<paramref name="names"/>: head point, name, distance, teammate).</summary>
+    public void Refresh(Camera3D? camera, IEnumerable<(Vector3 Head, string Name, float Distance, bool Team)> names, string? status)
     {
         _status.Text = status ?? "";
         _status.Visible = status != null;
@@ -133,8 +133,9 @@ public partial class GroundOverlay : Control
         _graph.QueueRedraw();
     }
 
-    // Names above other players, nearest first; each takes a free spot or is left out.
-    private void PlaceNames(Camera3D? camera, IEnumerable<(Vector3 Head, string Name, float Distance)> people)
+    // Names above other players, teammates' first (in the team's green, with how far beyond 40 m), then nearest first;
+    // each takes a free spot or is left out.
+    private void PlaceNames(Camera3D? camera, IEnumerable<(Vector3 Head, string Name, float Distance, bool Team)> people)
     {
         _names.Clear();
         if (camera == null)
@@ -147,19 +148,20 @@ public partial class GroundOverlay : Control
         {
             labeller.Block(_graphCard.GetGlobalRect());
         }
-        var visible = new List<(float Distance, Vector2 Screen, string Name)>();
-        foreach ((Vector3 head, string name, float distance) in people)
+        var visible = new List<(float Distance, Vector2 Screen, string Name, bool Team)>();
+        foreach ((Vector3 head, string name, float distance, bool team) in people)
         {
             if (!camera.IsPositionBehind(head))
             {
-                visible.Add((distance, camera.UnprojectPosition(head), name));
+                visible.Add((distance, camera.UnprojectPosition(head), name, team));
             }
         }
-        visible.Sort((a, b) => a.Distance.CompareTo(b.Distance));
-        foreach ((float distance, Vector2 screen, string name) in visible)
+        visible.Sort((a, b) => a.Team != b.Team ? (a.Team ? -1 : 1) : a.Distance.CompareTo(b.Distance));
+        foreach ((float distance, Vector2 screen, string name, bool team) in visible)
         {
-            var colour = new Color(Ui.Text, distance < 20 ? 1f : 0.7f);
-            var text = new MapOverlay.Text(screen, name, colour, 15, Centred: true, MapLabel.Name);
+            var colour = team ? new Color(Ui.Ground.Green, distance < 120 ? 1f : 0.8f) : new Color(Ui.Text, distance < 20 ? 1f : 0.7f);
+            string label = team && distance >= 40 ? string.Create(CultureInfo.InvariantCulture, $"{name}  {distance:0} m") : name;
+            var text = new MapOverlay.Text(screen, label, colour, 15, Centred: true, MapLabel.Name);
             if (labeller.TryPlace(text))
             {
                 _names.Texts.Add(text);
