@@ -23,7 +23,7 @@ public sealed class BuildSandboxUi : IGroundUi
         ("door.wooden", "Wooden Door", "A single door for a doorway."),
         ("door.armoured", "Armoured Door", "A heavy single door for a doorway."),
         ("door.double", "Sheet Metal Double Door", "A double door for a wall frame."),
-        ("claim", "Claim Device", "Claims a building: only those it lists may build there."),
+        ("claim", "Tool Cupboard", "Claims a building: only those it lists may build there."),
     };
 
     private readonly IBuildingWallet _wallet;

@@ -576,7 +576,7 @@ public sealed partial class MockGroundUi : IGroundUi
         Add("campfire", "Campfire", "ITEMS", 1, "Cooks food and keeps you warm.");
         Add("furnace", "Furnace", "ITEMS", 1, "Smelts ore with wood for fuel.");
         Add("workbench.1", "Workbench Level 1", "ITEMS", 1, "Unlocks level 1 recipes nearby.");
-        Add("claim", "Claim Device", "CONSTRUCTION", 1, "Claims the ground around it for building and holds its upkeep.");
+        Add("claim", "Tool Cupboard", "CONSTRUCTION", 1, "Claims the ground around it for building and holds its upkeep.");
         Add("door.wooden", "Wooden Door", "CONSTRUCTION", 1, "A plain door for a doorway.");
         Add("lock.key", "Key Lock", "CONSTRUCTION", 1, "Locks a door; craft keys to share it.");
         DefineWorldItems();

@@ -60,6 +60,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             new RadialBinding(RadialInput.Aim, 0, () => Build?.HeldRadial),
             new RadialBinding(RadialInput.Interact, client.Content.Interactions.HoldSeconds, OpenInteraction),
         };
+        WarnOfMissingGlyphs(client.Content);
     }
 
     public void Dispose()

@@ -71,6 +71,18 @@ public sealed partial class ClientGroundUi
         return new InteractionPrompt("E", action.ToUpperInvariant(), MoreOptions: menu > 1);
     }
 
+    // A verb whose glyph the radial doesn't have draws a plain ring: said once, at start.
+    private static void WarnOfMissingGlyphs(GameContent content)
+    {
+        foreach (VerbDef verb in content.Interactions.Verbs)
+        {
+            if (!HollowUniverse.UI.RadialGlyphs.Has(verb.Glyph))
+            {
+                Godot.GD.PushWarning($"interactions.json: the verb {verb.Key}'s glyph \"{verb.Glyph}\" isn't in RadialGlyphs");
+            }
+        }
+    }
+
     // E pressed: the options of what is aimed at now, held for the radial (none: E goes to the game).
     private IRadialSource? OpenInteraction() => _aim != null ? new InteractionRadial(this, _aimed) : null;
 

@@ -306,7 +306,7 @@ public static class BuildingTests
         var wallet = new Wallet { Endless = true };
         world.Check(wall, Bo, new Vector3(0, 1.6f, 5), wallet);
         Assert.Equal(OutcomeCode.BuildingBlocked, wall.Outcome.Code, "Bo's wall is refused");
-        Assert.Equal("Building blocked: someone else's claim", Line(wall.Outcome), "with the reason");
+        Assert.Equal("Building blocked: someone else's tool cupboard", Line(wall.Outcome), "with the reason");
         Assert.Equal(Privilege.None, world.PrivilegeAt(Bo, new Vector3(60, 0, 0)), "far away is free");
 
         var far = new Vector3(0, 0, -36);

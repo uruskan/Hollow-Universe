@@ -40,6 +40,7 @@ public partial class GroundView : Node3D
     private GroundCollision _collision = null!;
     private NatureView _nature = null!;
     private ThingsView _things = null!;
+    private ArrowsView _arrows = null!;
     private PeopleView _people = null!;
     private HollowUniverse.Animals.AnimalsView _animals = null!;
     private FirstPersonView _firstPerson = null!;
@@ -169,6 +170,9 @@ public partial class GroundView : Node3D
         AddChild(_nature);
         _things = new ThingsView { Name = "Things", Client = Client };
         AddChild(_things);
+        // Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5), riding what holds them.
+        _arrows = new ArrowsView { Name = "Arrows", Client = Client };
+        AddChild(_arrows);
         _people = new PeopleView { Name = "People", Client = Client };
         AddChild(_people);
         // G7's animals (GROUND.md §6.9): drawn from the client's replicated ones.
@@ -516,6 +520,7 @@ public partial class GroundView : Node3D
         _people.Refresh(delta);
         _animals.Refresh(delta);
         Time("people", ref t0);
+        _arrows.Refresh();
         // What the interact key acts on (GROUND_SYSTEMS.md §5: the one query, the options from the same rules as the
         // server's), and its prompt; the building's lines say what it is (a door, the tool cupboard).
         LocalPlayer me = Client.Local;
