@@ -82,6 +82,10 @@ this is the one closest to an Earth-like place to live.
 
 ## 4. Architecture
 
+The shared systems every feature goes through (naming targets, interaction, placement, held items and their
+information, damage and destruction) and the rule behind them, one system per concern with no special-case paths, are in
+[GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) (proposal of 13 October 2026, for the owner's review).
+
 ### 4.1 Projects
 
 ```
