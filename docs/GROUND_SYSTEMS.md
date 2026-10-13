@@ -349,6 +349,12 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
   `HeldTests.HeldItemsShowFromTheCatalogue`.
 - **Dropping**: a drag released on another slot moves there, on its own slot is put back, and anywhere else (over a
   panel, a button or the world) drops (Rust). `--ui-check` checks the panel and the own slot.
+- **Workbench speed** (`Items/CraftingSpeed.cs`): a job takes its recipe's time times recipes.json's `workbenchSpeed`
+  factor for how many levels the best workbench in reach is above the recipe's (1, ½, ¼: Rust's; the last holds for
+  more), fixed in the job when it starts (it keeps that time if the bench goes); a station's own recipe (the Tin Finch)
+  keeps its time. The server, the client's prediction and the crafting panel use the one rule: the panel's clock shows the
+  time a unit takes here, in green when shorter, and the workbench line says how much faster (`IGroundUi.SecondsHere`);
+  the queue's progress follows each job's own time. Test: `HeldTests.AWorkbenchAboveTheRecipeCraftsFaster`.
 - **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
   lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
   from 100), and `GunUpdate` carries the code in 7 bits.

@@ -1585,8 +1585,9 @@ is the one place that picks the provider:
 §4.2's order: fall damage into the vitals; actions (held item, swings, shots); projectiles and damage; once a second
 survival, natural respawns, the lifetimes of loose things (one step for bags, bodies, duds and carcasses,
 GROUND_SYSTEMS.md §3.7) and loot reach; devices (the burners and machines alone); crafting; then the hit history.
-Players' actions are `Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `UseItem`, `Craft`, `CancelCraft`, `Open`,
-`Close`, `PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of
+Players' actions are `Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `ItemAction` (the inventory's buttons, by
+their handlers: eat, use, wear, take off, learn, unload, remove an attachment; GROUND_SYSTEMS.md §7), `Craft`,
+`CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of
 it or nothing, with a reason (an `Outcome`: one code list for the whole game and the number its line names; the lines
 are in texts.json, GROUND_SYSTEMS.md §3.2). An action on a thing needs the eye within reach of its nearest surface, in
 sight (survival.json `reach`, GROUND_SYSTEMS.md §3.4). Every new persistent thing gets an `EntityId` from the server's allocator.
@@ -1745,7 +1746,7 @@ dropped. A G1 database migrates in place; G1 characters come back with a new lif
 | `Crafting` | Jobs front first: recipe, count, progress of the unit in hand, seconds left, still pending. |
 | `Life`, `IsDead`, `SecondsUntilReady(option)` | Alive or dead; how, by whom; respawn choices (the beach, each bag) and their countdowns. |
 | `HeldSlot`, `HeldItem`, `WorkbenchLevel`, `CanCraft(recipe, count)` | The belt slot in hand (set by the UI; it goes out with every input), the best bench within 4 m, whether a recipe can start. |
-| `MoveItem`, `QuickMove`, `Drop`, `Use`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, uses, crafting, placing, closing), shows at once. |
+| `MoveItem`, `QuickMove`, `Drop`, `ItemAction(from, slot, action, arg)`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, item actions, crafting, placing, closing), shows at once. `ItemActions(from, slot, list)` gives a stack's buttons as the server would judge them, `FirstAction`/`UsePart` a held part's first (a click with food, medicine or a blueprint in hand; GROUND_SYSTEMS.md §7). |
 | `Changed`, `ContainerOpened`, `ContainerClosed`, `HitMarker`, `ItemsChanged`, `DamageTaken`, `CraftFinished`, `IntentAnswered`, `IntentRejected`, `Died`, `Respawned` | Events for the UI. A refused intent has already been rolled back when `IntentRejected` fires. |
 
 Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), the natural objects and their changes
@@ -2040,6 +2041,10 @@ default the kind loaded, else the first kind of its calibre the player has), not
 After 2.4 s the rounds of another kind come out (back into the inventory) and the magazine fills from the inventory, all
 at once (RustMVP: nothing is spent until it completes). Taking another item up cancels it. The magazine (rounds and their
 kind) and the attachments are part of the weapon item, so they go wherever it goes: moved, dropped, into a corpse, saved.
+**Unload** (P3, GROUND_SYSTEMS.md §7) returns the magazine's rounds to the inventory, all or (no room) none, the kind staying
+named: the gun in hand's on its own timeline (an `UnloadIntent` for a tick, refused while equipping or reloading or empty),
+any other by the inventory's UNLOAD (an item action). R tapped reloads with the loaded kind; R held opens the gun's rounds
+(every kind of its calibre carried, with how many, and UNLOAD). A gun's refusals are outcome codes in the one answer list.
 
 **Damage** to a character from a bullet: the gun's damage × the round's × the attachments' × the falloff for the
 distance flown × the gun's multiplier for the part hit (head 2, body 1, limbs 0.5) × (1 − protection), where protection
@@ -2115,8 +2120,9 @@ replays the rest from the server's state, as movement does; on a clean line noth
 | `Local.Gun.TakeCompensation()`, `ObserveLook(dYaw, dPitch)` | Every frame after `GameClient.Update`, in this order (RustMVP's): what to add to the controlled view as the recoil recovers (RustMVP's countersteer credit, so pulling against a spray doesn't drop the aim when it ends); then the mouse's turn of the view since the last frame. Then the camera. |
 | `Local.Gun.ShotFired` (`ShotEvent`: sequence, weapon, round, origin, direction, speed, silenced, aimed) | A shot, at once: muzzle flash, sound, viewmodel kick, the tracer. The direction is the server's to the bit when the prediction holds. |
 | `Local.Gun.ReloadStarted`, `ReloadFinished` (`ReloadEvent`: weapon, round, seconds) | A reload began (at once) and ended. |
-| `Local.Gun.Refused` (`GunRefusal`: sequence, `GunResult`) | The server refused a shot or reload (already rolled back), or a reload couldn't start (no rounds, full). |
-| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.Detach(...)`, `Local.HelpUp(target)` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
+| `Local.Gun.Refused` (`GunRefusal`: sequence, `OutcomeCode`) | The server refused a shot, reload or unload (already rolled back), or one couldn't start (no rounds, full, empty). |
+| `Local.Gun.Unload()`, `Unloaded` (`UnloadEvent`), `InHand(from, slot)` | UNLOAD of the gun in hand on its timeline (predicted at once); the event; whether a slot holds the gun in hand. |
+| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.ItemAction(... "remove" ...)`, `Local.HelpUp(target)` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
 | `Local.HitMarker` (`HitMarkerEvent` + `Downed`), `Local.DamageTaken` (`DamageEvent`: from the shooter's eye, the gun) | Hits landed and taken. |
 | `Local.Life.Wounded`, `WoundedUntilSeconds`, `Local.IsWounded`, `Downed`, `GotUp`; `Local.Vitals.Burning` | Down (crawling, a countdown) and up again; burning. |
 | `GameClient.Projectiles` (`ClientProjectile`: `IsBullet`, `Own`, `Seq`, `Drag`, `Silenced`; `PositionAt`, `DirectionAt` follow drag) | Bullets in flight: our own from the moment we fire (the server's launch then names it), others' from their launch; where each stopped and on what. |
@@ -2132,8 +2138,8 @@ the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
 **As built** (`game/scripts/Ground`): `GroundView`, after the client's update, adds `TakeCompensation` to the view, passes
-the mouse's turn to `ObserveLook` and draws the camera at the view plus `ViewKick`, zooms by `Zoom` while `Aimed` (eased),
-and reloads on R;
+the mouse's turn to `ObserveLook` and draws the camera at the view plus `ViewKick`, zooms by `Zoom` while `Aimed` (eased);
+R is the gun's held control's (GROUND_SYSTEMS.md §7): a tap reloads with the loaded kind, held its rounds' radial;
 `FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle with its muzzle effect, and plays a
 reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
 tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
@@ -2144,7 +2150,8 @@ and hits are the effects library's (§9.3, as hooked up there). Attachments show
 through `ModelCatalog.Attach`: a sight on the rail, a silencer or a brake on the muzzle, the light under the barrel):
 on one's own gun with the arms' layer and materials, from the weapon stack's mods, and on others' from `HeldMods`;
 the muzzle effect then leaves from the far end of a silencer or brake. In the inventory, an attachment dropped on a
-gun goes onto it (`Local.Attach`), and a gun's item panel offers REMOVE for each of its attachments (`Local.Detach`).
+gun goes onto it (`Local.Attach`), and a gun's item panel offers UNLOAD and REMOVE for each of its attachments (item
+actions, GROUND_SYSTEMS.md §7); its slot shows the loaded round's icon at the bottom left.
 Not drawn yet, for want of the character contract (§4.8): others' aiming pose and crawling (the wounded crouch
 instead).
 
@@ -3208,13 +3215,14 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | Items | `Item(key)`: name, description, category, stack size, wearable, usable, INFORMATION stats. Unknown keys get a stand-in. Stacks: key, amount, condition (0–1 or none), loaded rounds (or none). |
 | Containers | `Slots(container)`: main 24, belt 6, clothing 7, and the open container's. A slot is `(container, index)`. |
 | Vitals | Health /100, calories /500, hydration /250 (as RustMVP), body temperature (°C), comfort, bleeding (health per second), wetness, building rights. Cold below 5 °C, hot above 40 °C. |
-| Belt | `ActiveBelt` (−1 for none); `Ammo`: loaded, reserve, reloading. |
+| Belt | `ActiveBelt` (−1 for none); `Ammo`: loaded, reserve, reloading (the held item's control's). A slot's stack: key, amount, condition, a gun's rounds and their kind's key (`Round`, drawn small at the bottom left), a blueprint's item. |
 | Loot | `Loot`: kind, title, slots; for furnaces and campfires also burning, progress and fuel seconds. Slot order per kind: a box any number; a body 0–23 main, 24–29 belt, 30–36 clothing; a furnace 0 fuel, 1–2 input, 3–5 output; a campfire 0 fuel, 1–4 cooking. |
-| Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
+| Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `SecondsHere(recipe)` (a unit's time with the workbench in reach, GROUND_SYSTEMS.md §7), `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
 | Death | `Death`: alive for, killed by (a player or a cause), weapon, distance, place on the map; `Bags`: id, name, cooldown, place on the map. |
 | HUD | `Prompt` (key, action, more options). Events: hit confirmed (head shot), damaged (bearing), gathered (item, amount), crafted (item, amount), notice, chat line. |
 | Radials (§8.4) | `Radials`: the held inputs that open a radial menu and what each opens now (`RadialBinding`: the input, its hold time, a function giving an `IRadialSource` or none). A source gives the options in clockwise order (icon: a glyph's name or an item's key; title, description, cost line, the reason it can't be chosen or a warning), the current one, whether twelve o'clock falls between the last and the first, and acts on a choice. |
-| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; a radial's choice is its source's. Each is a request; the answer is a changed read, or a notice. |
+| Item panel (P3) | `Rows(slot)`: the INFORMATION of a slot's stack (its parts' describers, GROUND_SYSTEMS.md §7); `Actions(slot)`: its ACTIONS besides DROP (label, what it does, why it can't be done now). |
+| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; an item panel's action and a radial's choice are their own. Each is a request; the answer is a changed read, or a notice. |
 | World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
@@ -3363,17 +3371,21 @@ RustMVP's rules, with Rust's where RustMVP had none:
   SPLITTING for stacks). Dragging moves the whole stack; middle-dragging half, with left Shift a third (rounded up);
   dragging the split icon moves the slider's amount. Right-click moves a stack across (into the open container and
   back, or between main and belt). Holding H, each filled slot the pointer rests on for 350 ms moves across once,
-  with a green ring filling meanwhile. Released on another slot a drag merges, swaps or splits; released on a panel
-  it does nothing; released outside every panel it drops the items.
-- **Item actions:** USE (medicine, food), WEAR or UNEQUIP (to the first free clothing or main slot), DROP.
+  with a green ring filling meanwhile. Released on another slot a drag merges, swaps or splits; released on its own
+  slot it is put back; released anywhere else, over a panel, a button or the world, it drops the items (Rust; P3).
+- **Item panel (P3, GROUND_SYSTEMS.md §7):** INFORMATION is what the item's parts say (a gun's damage, fire, magazine,
+  reload, aim cone, range and recoil; an explosive's fuse and how many break each wall; ...), label on the left and value
+  on the right; ACTIONS are what its parts offer (EAT or USE, WEAR or UNEQUIP, LEARN, UNLOAD, REMOVE <attachment>),
+  then DROP; a refused one is muted and says why when clicked.
 - **Quick craft:** what the player can craft now (up to three rows); a click crafts one.
 - **Crafting:** categories with their counts, search, the recipe grid (the mouse wheel scrolls it), the details with
   the workbench badge (green when in reach, red when not), time and yield, ingredients with TOTAL for the amount and
   HAVE (short ones in amber), − / amount / + / the most the player can make / CRAFT, and favourites (kept on this
-  computer). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
+  computer). The time is a unit's here: in green, with how much faster on the workbench line, when a workbench in reach
+  is above the recipe's level (P3). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
   cancels and refunds.
 - **HUD:** the centre dot; the hit marker (red for a head shot); red arcs pointing to where damage came from; the
-  interaction prompt; the belt with the active slot in blue, condition bars and loaded rounds; the ammo counter above
+  interaction prompt; the belt with the active slot in blue, condition bars, loaded rounds and their kind's icon; the ammo counter above
   it; status rows above the vitals (building privilege or blocked, bleeding, cold or hot, wet, comfort); pickups and
   crafts ("+20 Wood") above those, fading after four seconds; chat at the bottom left, fading after twelve; RustMVP's
   one-line notices.
@@ -3382,7 +3394,7 @@ RustMVP's rules, with Rust's where RustMVP had none:
   the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
   names are placed by the `Labeller`, so they never cover each other or a marker.
 - **Radials (§8.4):** the right mouse held with the plan or the hammer opens its radial at once; a key held for its hold
-  time opens its own (E, R: P1, P3; the viewer's samples). Release (or a left click) chooses; a key let go sooner
+  time opens its own (E: P1; R with a gun: its rounds and UNLOAD, P3), each the held item's control's. Release (or a left click) chooses; a key let go sooner
   chooses the current option; Esc or the right mouse cancels. The plan's sectors start at −81° so the top ray falls
   between the foundation and the triangle roof; every other radial centres its first option at twelve o'clock.
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
@@ -3411,9 +3423,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Commands in chat:** any other line starting with "/" runs as in the F1 console (`/give rifle`), with the player's
   own rights on any server; the answer's first line shows as a notice, and the whole of it in the console's log.
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
-  drop outside and on a panel, split, Q, CRAFT, Tab; the plan's radial on the right mouse; the sample door's on E: a
-  tap, a hold, a disabled option, a choice, Esc and the right mouse cancelling) against `MockGroundUi` and quits with 0
-  when all 19 pass.
+  drop outside, on a panel and back on its own slot, split, Q, CRAFT, Tab; the plan's radial on the right mouse; the
+  sample door's on E: a tap, a hold, a disabled option, a choice, Esc and the right mouse cancelling) against
+  `MockGroundUi`, checks every held behaviour has its control, and quits with 0 when all 21 pass.
 
 ### 8.4 Radial menu (GROUND_SYSTEMS.md §4, package P5)
 
@@ -5115,3 +5127,9 @@ owner, to confirm or overturn (numbered V1 on):
   catalogue fields (`held.flame`, `held.pose`, `held.eyeRelief`), and `HeldItems` reads the pose there too (it picked the
   pistol by its key). The placeholder stick for items without a model is gone: every item that does something in sight
   of the hands has a held pose, and a test keeps it so.
+- V11. **The workbench's speed is recipes.json's** (`workbenchSpeed.byLevelsAbove`: 1, 0.5, 0.25), beside the recipes it
+  shortens, rather than in deployables.json (whose placement block P2 rewrites): one level above a recipe's halves it, two
+  or more quarter it, by the best workbench in reach when the job starts. A recipe made at a station of its own (the Tin
+  Finch at the vehicle workbench) isn't shortened by a workbench.
+- V12. **The console's `give` takes `<item>.blueprint`** (a blueprint of that item's recipe), so a blueprint to LEARN can be
+  given; the tour's `held` step uses it.

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using Hollow.Client;
 using Hollow.Simulation;
 using Hollow.Simulation.Combat;
@@ -10,6 +11,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.World;
 
 namespace Hollow.Tests;
 
@@ -316,6 +318,49 @@ public static class HeldTests
             string code = File.ReadAllText(Path.Combine(Fixtures.Root, "game", "scripts", file));
             Assert.True(!System.Text.RegularExpressions.Regex.IsMatch(code, @"Key\s*[!=]=\s*""(torch|rifle|pistol)"""), $"{file} names no item key");
         }
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §7: a workbench above a recipe's level crafts it faster (recipes.json, Rust's: one level above half
+    /// the time, two or more a quarter), a station's own recipe (the Tin Finch) keeps its time, and a job keeps the time it
+    /// started with when the workbench goes.
+    /// </summary>
+    [Test]
+    public static void AWorkbenchAboveTheRecipeCraftsFaster()
+    {
+        GameContent c = ContentFixture.Content;
+        Assert.Equal("1, 0.5, 0.25", string.Join(", ", c.WorkbenchSpeed.Select(x => x.ToString(System.Globalization.CultureInfo.InvariantCulture))), "Rust's speeds");
+        Recipe spear = c.RecipeByKey("wooden-spear")!;
+        Recipe levelOne = c.Recipes.First(r => r.Workbench == 1 && r.Station == null);
+        Recipe ship = c.Recipes.First(r => r.Station != null);
+        Assert.True(spear.Workbench == 0, "a spear needs no workbench");
+        int[] spearTicks = Enumerable.Range(0, 4).Select(level => CraftingSpeed.UnitTicks(c, spear, level)).ToArray();
+        Fixtures.Report($"a wooden spear: {string.Join(", ", spearTicks.Select(t => $"{t / 30.0:0.##} s"))} at workbenches 0-3; {levelOne.Key} (level 1): " +
+            $"{string.Join(", ", Enumerable.Range(1, 3).Select(l => $"{CraftingSpeed.Seconds(c, levelOne, l):0.##} s"))} at 1-3");
+        Assert.True(spearTicks[0] == spear.UnitTicks && Math.Abs(spearTicks[1] - spear.UnitTicks / 2.0) <= 0.5 &&
+            Math.Abs(spearTicks[2] - spear.UnitTicks / 4.0) <= 0.5 && spearTicks[3] == spearTicks[2], "all, a half, a quarter, a quarter");
+        Assert.True(CraftingSpeed.UnitTicks(c, levelOne, 1) == levelOne.UnitTicks && Math.Abs(CraftingSpeed.UnitTicks(c, levelOne, 2) - levelOne.UnitTicks / 2.0) <= 0.5,
+            "a level 1 recipe: all its time at a level 1 workbench, half at a level 2");
+        Assert.Equal(ship.UnitTicks, CraftingSpeed.UnitTicks(c, ship, 3), "a station's recipe keeps its own time");
+
+        // In the zone: a spear started beside a level 2 workbench takes a quarter of its time, even once the bench is gone.
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 30, 30);
+        Player a = rig.P(ada);
+        rig.Give(ada, "wood", 500);
+        var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-2")!, rig.Zone.Settle(new Vector3(31.5f, 0, 30)),
+            rig.Zone.Frame.UpAt(new Vector3(31.5f, 0, 30)), 0, a.Id);
+        rig.Zone.AddStatic(bench);
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Craft(ada, spear.Id, 1, out _), "crafting");
+        Assert.Equal(spearTicks[2], a.Crafting.Jobs[0].UnitTicks, "a quarter of the time");
+        rig.Zone.RemoveStatic(bench);
+        int ticks = 0;
+        while (a.Inventory.Count(c.ItemByKey("wooden-spear")) == 0 && ticks < spear.UnitTicks + 10)
+        {
+            rig.Step();
+            ticks++;
+        }
+        Assert.InRange(spearTicks[2] - 2, spearTicks[2] + 2, ticks, "done at the time it started with");
     }
 
     /// <summary>The player an action acts for, as a test sees them (no effects besides the items).</summary>

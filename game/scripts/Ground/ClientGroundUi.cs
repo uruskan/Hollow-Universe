@@ -232,6 +232,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public int Workbench => Me.WorkbenchLevel;
 
+    public float SecondsHere(UiRecipe recipe) =>
+        C.RecipeByKey(recipe.Key) is { } r ? CraftingSpeed.Seconds(C, r, Me.WorkbenchLevel) : recipe.Seconds;
+
     public int Have(string key) => C.Item(key) is { } def ? Me.Inventory.Count(def) : 0;
 
     public IReadOnlyList<CraftJob> Queue
@@ -241,7 +244,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             _queue.Clear();
             foreach (CraftJobView job in Me.Crafting)
             {
-                _queue.Add(new CraftJob((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.Recipe.Seconds));
+                _queue.Add(new CraftJob((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.UnitSeconds));
             }
             return _queue;
         }

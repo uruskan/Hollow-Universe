@@ -67,6 +67,7 @@ public sealed partial class GameContent
         Survival = loaded.Survival;
         PlacementReach = loaded.PlacementReach;
         PlacementMaxStep = loaded.PlacementMaxStep;
+        WorkbenchSpeed = loaded.WorkbenchSpeed;
         Hash = loaded.Hash;
         Problems = loaded.Problems;
         Texts = loaded.Texts!;
@@ -181,6 +182,12 @@ public sealed partial class GameContent
     public float PlacementReach { get; }
 
     public float PlacementMaxStep { get; }
+
+    /// <summary>
+    /// How much of a recipe's time a job takes by how many levels the best workbench in reach is above the recipe's
+    /// (recipes.json <c>workbenchSpeed</c>, GROUND_SYSTEMS.md §7: Rust's 1, ½, ¼); the last holds for more.
+    /// </summary>
+    public IReadOnlyList<double> WorkbenchSpeed { get; }
 
     /// <summary>A hash of every file's text (line ends normalised): the server and client must have the same.</summary>
     public ulong Hash { get; }
@@ -477,6 +484,7 @@ public sealed partial class GameContent
         public Texts? Texts;
         public CapabilityData? Capabilities;
         public List<global::Hollow.Simulation.Items.ItemActionDef> ItemActions = new();
+        public IReadOnlyList<double> WorkbenchSpeed = new[] { 1.0 };
         public global::Hollow.Simulation.Items.ItemActions? Actions;
         public float PlacementReach = 3f;
         public float PlacementMaxStep = 0.6f;
@@ -773,7 +781,21 @@ public sealed partial class GameContent
 
         private void ReadRecipes()
         {
-            JsonElement root = Root("recipes.json", "recipes");
+            JsonElement root = Root("recipes.json", "workbenchSpeed", "recipes");
+            if (f.TryChild(root, "workbenchSpeed", out JsonElement speed))
+            {
+                const string where = "recipes.json: workbenchSpeed";
+                f.OnlyKnown(speed, where, "note", "byLevelsAbove");
+                var factors = f.List(speed, "byLevelsAbove", where).Select(e => e.ValueKind == JsonValueKind.Number ? e.GetDouble() : double.NaN).ToList();
+                if (factors.Count == 0 || factors[0] != 1 || factors.Any(x => !(x > 0 && x <= 1)) || factors.Zip(factors.Skip(1)).Any(p => p.Second > p.First))
+                {
+                    f.Problem(where, "byLevelsAbove starts at 1 and only falls, every factor in (0, 1]");
+                }
+                else
+                {
+                    loaded.WorkbenchSpeed = factors;
+                }
+            }
             JsonElement[] list = f.List(root, "recipes", "recipes.json");
             for (int i = 0; i < list.Length; i++)
             {

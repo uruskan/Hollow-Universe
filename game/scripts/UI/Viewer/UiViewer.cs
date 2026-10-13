@@ -190,10 +190,11 @@ public partial class UiViewer : Node
         await Drag(Main(20), Point(1300, 150));
         Expect(At(ContainerId.Main, 20).IsEmpty && _model.Have("wood") == 1000, "released outside the panels, a drag drops");
         // GROUND_SYSTEMS.md §7: released anywhere but a slot (the item panel here), a drag drops; on its own slot it is put back.
-        ItemStack onPanel = At(ContainerId.Main, 1);
+        // (The sample's metal ore: the wood stays for the craft below.)
+        ItemStack onPanel = At(ContainerId.Main, 4);
         int had = _model.Have(onPanel.Key);
-        await Drag(Main(1), Point(700, 150));
-        Expect(At(ContainerId.Main, 1).IsEmpty && _model.Have(onPanel.Key) == had - onPanel.Amount, "released on a panel, a drag drops");
+        await Drag(Main(4), Point(700, 150));
+        Expect(At(ContainerId.Main, 4).IsEmpty && _model.Have(onPanel.Key) == had - onPanel.Amount, "released on a panel, a drag drops");
         ItemStack own = At(ContainerId.Main, 2);
         await MoveTo(Main(2));
         await Mouse(Main(2), MouseButton.Left, true);

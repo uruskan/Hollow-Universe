@@ -64,7 +64,7 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("look", Look),
-            ("foundations", Foundations),
+            ("foundations", Foundations), ("held", Held),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -1523,6 +1523,83 @@ public partial class GroundTour : Node
             }
         }
         return best;
+    }
+
+    // P3 (GROUND_SYSTEMS.md §7): the AK's information with its round's icon on its slot, its rounds on R held, the bag
+    // charge's information, a blueprint with its LEARN, and a recipe at a workbench above its level, shorter.
+    private async Task Held()
+    {
+        for (int i = 0; i < Me.Inventory.Main.Size; i++)
+        {
+            if (!Me.Inventory.Main[i].IsEmpty)
+            {
+                Me.Drop(ContainerRef.Main, i, Me.Inventory.Main[i].Count);
+                await Seconds(0.2);
+            }
+        }
+        await Seconds(0.5);
+        foreach (string give in new[] { "rifle 1", "rifle-ammo 60", "rifle-ammo-hv 24", "holo-sight 1", "bag-charge 3", "pistol.blueprint 1",
+                     "workbench-2 1", "wood 300" })
+        {
+            Admin("give", give);
+        }
+        await Until(() => Count("rifle") > 0 && Count("bag-charge") > 0 && Count("workbench-2") > 0 && Count("blueprint") > 0, 8);
+        // The rifle on the belt with its sight, taken up and loaded.
+        MoveToBelt("rifle", 1);
+        await Seconds(0.4);
+        if (SlotOf(Me.Inventory.Main, "holo-sight") is int sight)
+        {
+            Me.Attach(ContainerRef.Main, sight, ContainerRef.Belt, 1);
+            await Seconds(0.4);
+        }
+        Me.HeldSlot = 1;
+        await Until(() => Me.Gun.Ready, 5);
+        Me.Reload();
+        await Until(() => Me.Gun.Loaded > 0 && !Me.Gun.Reloading && Me.Gun.PendingCount == 0, 8);
+        await Seconds(0.6);
+        await Shot("ammo-icon");
+        // R held: the rifle's rounds, the loaded kind in the middle.
+        if (View.Model.HeldRadial?.Invoke(RadialInput.Reload) is { } rounds)
+        {
+            View.Interface.OpenRadial(rounds, RadialInput.Reload);
+            await Seconds(0.5);
+            await Shot("ammo-radial");
+            View.Interface.CloseRadial(apply: false);
+            await Seconds(0.3);
+        }
+        // The inventory: the AK's panel, the bag charge's, the blueprint's.
+        View.Interface.Open(GroundScreen.Inventory);
+        View.Interface.Select(new SlotRef(ContainerId.Belt, 1));
+        await Seconds(0.8);
+        await Shot("ak-info");
+        foreach ((string key, string shot) in new[] { ("bag-charge", "bag-charge-info"), ("blueprint", "blueprint-learn") })
+        {
+            if (SlotOf(Me.Inventory.Main, key) is int slot)
+            {
+                View.Interface.Select(new SlotRef(ContainerId.Main, slot));
+                await Seconds(0.6);
+                await Shot(shot);
+            }
+        }
+        View.Interface.Open(GroundScreen.Hud);
+        await Seconds(0.3);
+        // A level 2 workbench in the open, and a spear (no workbench needed) crafted in a quarter of its time beside it.
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Client.Character.Position);
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = -0.3f;
+        await Settle();
+        if (await PlaceNear("workbench-2", spot, towards, View.Yaw) is { } bench)
+        {
+            Face(bench.Position + Client.Frame.UpAt(bench.Position) * 0.6f);
+            await Until(() => Me.WorkbenchLevel >= 2, 5);
+            View.Interface.Open(GroundScreen.Crafting);
+            View.Interface.SelectRecipe("wooden-spear");
+            await Seconds(1.0);
+            await Shot("crafting-workbench");
+            View.Interface.Open(GroundScreen.Hud);
+            await Seconds(0.3);
+        }
     }
 
     private async Task Death()

@@ -41,8 +41,12 @@ public readonly record struct VitalsView
     public bool IsDehydrated => Hydration <= 0;
 }
 
-/// <summary>A crafting job as the UI shows it: the recipe, units left, and the unit in progress.</summary>
-public readonly record struct CraftJobView(uint Ticket, Recipe Recipe, int Count, float UnitProgress, float SecondsLeft, bool Pending);
+/// <summary>
+/// A crafting job as the UI shows it: the recipe, units left, the unit in progress, and how long a unit takes in this
+/// job (a workbench above the recipe's level shortens it, fixed when it started).
+/// </summary>
+public readonly record struct CraftJobView(uint Ticket, Recipe Recipe, int Count, float UnitProgress, float SecondsLeft, bool Pending,
+    float UnitSeconds = 0);
 
 /// <summary>A place to respawn: a sleeping bag (or the beach, with no bag), ready in some seconds.</summary>
 public readonly record struct RespawnOption(EntityId Bag, Vector2 Position, double ReadyAtSeconds)
@@ -526,7 +530,7 @@ public sealed partial class LocalPlayer
             left = Math.Clamp(left, 0, job.UnitTicks);
             float progress = (float)(1 - left / Math.Max(1, job.UnitTicks));
             float seconds = (float)((left + (double)(job.Count - 1) * job.UnitTicks) / CharacterTicks.Rate);
-            _craftViews.Add(new CraftJobView(job.Ticket, recipe, job.Count, progress, seconds, !fromServer));
+            _craftViews.Add(new CraftJobView(job.Ticket, recipe, job.Count, progress, seconds, !fromServer, job.UnitTicks / (float)CharacterTicks.Rate));
         }
     }
 

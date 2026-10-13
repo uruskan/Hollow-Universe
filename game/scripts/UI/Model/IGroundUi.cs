@@ -76,6 +76,12 @@ public interface IGroundUi
     /// <summary>The level of the workbench in reach, 0 for none.</summary>
     int Workbench { get; }
 
+    /// <summary>
+    /// Seconds one unit of a recipe takes here: its own, shortened by a workbench in reach above its level
+    /// (GROUND_SYSTEMS.md §7). The recipe's own by default.
+    /// </summary>
+    float SecondsHere(Recipe recipe) => recipe.Seconds;
+
     /// <summary>How many of an item the player has (main and belt), for ingredients' HAVE column.</summary>
     int Have(string key);
 
