@@ -68,6 +68,9 @@ public enum HitTarget : byte
 
     /// <summary>A building piece, door or claim device (G3).</summary>
     Building,
+
+    /// <summary>An animal, alive or a corpse (G7, GROUND.md §6.9).</summary>
+    Animal,
 }
 
 /// <summary>

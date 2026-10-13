@@ -184,6 +184,11 @@ public sealed partial class Zone
         source.Set(slot, s);
         ref Character c = ref Entities.Get<Character>(entity);
         SyncHealth(ref c, p);
+        if (consume.Poison > 0)
+        {
+            // G7: raw or burnt meat makes the eater sick.
+            Hurt(entity, p, consume.Poison, "Food poisoning", EntityId.None, "");
+        }
         return ActionResult.Accepted;
     }
 

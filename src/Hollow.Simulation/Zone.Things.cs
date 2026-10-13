@@ -279,6 +279,31 @@ public sealed partial class Zone
             storage.Set(s, input);
             d.CookProgress[s] = 0;
         }
+        // G7: food left on the fire goes on cooking where it lies: cooked meat burns if nobody takes it out (Rust).
+        foreach (int s in device.OutputSlots)
+        {
+            ItemStack output = storage[s];
+            ItemDef? item = content.Item(output.Item);
+            if (item?.Cook is not { Into: { } into } cook || cook.In != device.Cooks)
+            {
+                d.CookProgress[s] = 0;
+                continue;
+            }
+            if (++d.CookProgress[s] < cook.Ticks)
+            {
+                continue;
+            }
+            output.Count--;
+            storage.Set(s, output);
+            if (!PutOutput(storage, device, into))
+            {
+                output.Count++;
+                storage.Set(s, output);
+                d.CookProgress[s] = cook.Ticks; // no room: wait
+                continue;
+            }
+            d.CookProgress[s] = 0;
+        }
     }
 
     // One unit into the device's outputs: onto a stack of it, else an empty output slot.

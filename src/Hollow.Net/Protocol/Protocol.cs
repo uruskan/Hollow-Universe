@@ -6,9 +6,10 @@ public static partial class Protocol
     /// <summary>
     /// Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect. 4: G4, guns and the
     /// wounded (3 is the integration package's); 5: G3, building over the network; 6: G5, raiding (explosives,
-    /// detonations, raid alerts).
+    /// detonations, raid alerts); 8: G7, animals (entities of kind <see cref="EntityKind.Animal"/>, whose snapshot state
+    /// means what <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>).
     /// </summary>
-    public const uint Version = 6;
+    public const uint Version = 8;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -47,6 +48,9 @@ public enum GoodbyeReason : byte
 public enum EntityKind : byte
 {
     Character,
+
+    /// <summary>An animal (G7, GROUND.md §6.9): its <c>Spawn</c> names its species; its state is packed by <see cref="AnimalNet"/>.</summary>
+    Animal,
 }
 
 public enum ChatKind : byte

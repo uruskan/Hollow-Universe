@@ -470,6 +470,12 @@ public sealed partial class Zone
                 break;
             }
         }
+        if (hit.Target == HitTarget.Animal && hit.Animal is { IsDead: false } animal)
+        {
+            // G7: a bullet in an animal, with its falloff and the gun's multiplier for where it hit.
+            float amount = (float)(b.Damage * b.Gun.Falloff(distance) * b.Gun.RegionMultiplier(hit.Region));
+            DamageAnimal(animal, amount, hit.Region, b.Origin, shooter, b.Shooter, b.ShooterName, b.Gun.Item.Id);
+        }
         if (b.Round.Blast is { } burst)
         {
             // An explosive round (G5) bursts where it hit, besides what the bullet did.

@@ -145,6 +145,9 @@ public sealed class ConsumeStats
     public float Heal { get; init; }
 
     public bool StopsBleeding { get; init; }
+
+    /// <summary>Health it costs (raw and burnt meat, G7: Rust's poison), taken as damage when eaten.</summary>
+    public float Poison { get; init; }
 }
 
 /// <summary>Clothing: where it is worn, what it covers and how it protects.</summary>

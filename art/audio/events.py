@@ -904,6 +904,10 @@ ITEMS = {
     "bandage": {"use": "survival.bandage"}, "medical-injector": {"use": "survival.bandage"},
     "red-berries": {"use": "survival.eat"}, "blue-berries": {"use": "survival.eat"},
     "wild-tuber": {"use": "survival.eat"}, "roasted-tuber": {"use": "survival.eat"},
+    # G7 animals (GROUND.md §6.9): meat is eaten like any food; the bone knife and club are swung like the other blades.
+    **{"%s-%s" % (state, meat): {"use": "survival.eat"} for state in ("raw", "cooked", "burnt")
+       for meat in ("venison", "pork", "wolf-meat", "bear-meat")},
+    "bone-knife": MELEE, "bone-club": HEAVY,
     "sleeping-bag": PLACE, "bed": PLACE, "workbench-1": PLACE, "workbench-2": PLACE, "workbench-3": PLACE,
     "vehicle-workbench": PLACE, "engineering-workbench": PLACE, "claim-device": PLACE, "ladder": PLACE,
     "campfire": {"place": "deploy.place", "loop": "campfire.loop", "ignite": "campfire.ignite",
