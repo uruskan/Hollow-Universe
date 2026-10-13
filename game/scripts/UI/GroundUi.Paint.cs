@@ -236,10 +236,11 @@ public partial class GroundUi
 
     /// <summary>
     /// RustMVP's button: a flat fill that lightens under the pointer, and a condensed bold label, centred (or left,
-    /// for menu items and categories). Disabled buttons show their label muted and take no clicks.
+    /// for menu items and categories). Disabled buttons show their label muted and take no clicks; muted ones take them
+    /// (a refused action says why).
     /// </summary>
     private void Button(string label, float x, float y, float w, float h, Action? click, float size = 24, Color? fill = null,
-        bool enabled = true, bool left = false, string? tip = null)
+        bool enabled = true, bool left = false, string? tip = null, bool muted = false)
     {
         Color f = fill ?? G.Panel;
         Rect2 area = Area(x, y, w, h);
@@ -257,7 +258,7 @@ public partial class GroundUi
             float width = font.GetStringSize(label, HorizontalAlignment.Left, -1, px).X;
             float textX = left ? area.Position.X + Ui.Px(14) : area.Position.X + MathF.Floor((area.Size.X - width) / 2);
             _p.DrawString(font, new Vector2(textX, MathF.Round(top + font.GetAscent(px))), label, HorizontalAlignment.Left, -1, px,
-                enabled ? G.Ink : G.Muted);
+                enabled && !muted ? G.Ink : G.Muted);
         }
         if (enabled && click != null)
         {
@@ -273,8 +274,8 @@ public partial class GroundUi
 
     /// <summary>
     /// A slot as RustMVP draws it: a flat square (lighter under the pointer in the inventory, blue when selected or
-    /// active), the icon, the stack count (or a weapon's loaded rounds) at the bottom right, the condition bar on the
-    /// left, and the hover-transfer ring.
+    /// active), the icon, the stack count (or a weapon's loaded rounds) at the bottom right, the loaded round's icon at the
+    /// bottom left, the condition bar on the left, and the hover-transfer ring.
     /// </summary>
     private void Slot(SlotRef slot, ItemStack stack, float x, float y, float size, bool inventory, bool active, bool interactive)
     {
@@ -307,6 +308,12 @@ public partial class GroundUi
             else
             {
                 Icon(stack.Key, x + 3, y + 3, size - 6, size - 6, alpha);
+            }
+            if (stack.Round != null)
+            {
+                // A gun's loaded round, small at the bottom left (its count stays at the bottom right).
+                float round = MathF.Round(size * 0.3f);
+                Icon(stack.Round, x + 4, y + size - round - 3, round, round, alpha);
             }
             string label = stack.Amount > 1 ? Count(stack.Amount) : stack.HasAmmo ? stack.Ammo.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
             if (label.Length > 0)

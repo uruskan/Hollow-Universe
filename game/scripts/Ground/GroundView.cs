@@ -737,7 +737,7 @@ public partial class GroundView : Node3D
                 break;
             case HandUse.Use when click:
                 Sounds.Used(Client.Content, me.Inventory.Belt[me.HeldSlot].Item);
-                me.Use(ContainerRef.Belt, me.HeldSlot);
+                me.UsePart(ContainerRef.Belt, me.HeldSlot, ItemPart.Consumable);
                 break;
             case HandUse.Throw when click || aimClick:
                 Throw(item!, aimClick && !click);

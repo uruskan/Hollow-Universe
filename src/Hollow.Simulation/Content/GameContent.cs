@@ -71,6 +71,7 @@ public sealed partial class GameContent
         Problems = loaded.Problems;
         Texts = loaded.Texts!;
         Capabilities = loaded.Capabilities ?? new CapabilityData(Array.Empty<string>());
+        ItemActions = loaded.Actions ?? global::Hollow.Simulation.Items.ItemActions.Bind(Array.Empty<global::Hollow.Simulation.Items.ItemActionDef>(), new List<string>());
         Building = loaded.Building ?? BuildingData.Parse("{}");
         ClaimDeployable = loaded.ClaimDeployable ?? new DeployableDef { Key = "claim-device", Item = new ItemDef { Key = "claim-device" }, Health = 200, Slots = 24 };
         _byId = new ItemDef?[ushort.MaxValue + 1];
@@ -196,6 +197,12 @@ public sealed partial class GameContent
     /// <summary>The kinds of behaviour world things have, and which have which (capabilities.json, GROUND_SYSTEMS.md §2.1).</summary>
     public CapabilityData Capabilities { get; }
 
+    /// <summary>
+    /// The inventory's buttons (items.json <c>actions</c>, GROUND_SYSTEMS.md §7) and their handlers: what a stack offers
+    /// and doing one, on the server and in the client's prediction.
+    /// </summary>
+    public global::Hollow.Simulation.Items.ItemActions ItemActions { get; }
+
     /// <summary>Everything wrong with the files: empty when they are good. <see cref="Load"/> refuses any.</summary>
     public IReadOnlyList<string> Problems { get; }
 
@@ -301,8 +308,10 @@ public sealed partial class GameContent
         ExplosivesReader.Check(loaded, loaded.Building, problems);
         WorldReader.Check(loaded, problems);
         AnimalsReader.Check(loaded, problems);
-        // Every file linked: each item's parts and its one held behaviour (GROUND_SYSTEMS.md §7).
+        // Every file linked: each item's parts and its one held behaviour, and the inventory's actions bound to their
+        // handlers (GROUND_SYSTEMS.md §7).
         ItemPartTable.Assign(loaded, problems);
+        loaded.Actions = global::Hollow.Simulation.Items.ItemActions.Bind(loaded.ItemActions, problems);
         return new GameContent(loaded);
     }
 
@@ -467,6 +476,8 @@ public sealed partial class GameContent
         public DeployableDef? ClaimDeployable;
         public Texts? Texts;
         public CapabilityData? Capabilities;
+        public List<global::Hollow.Simulation.Items.ItemActionDef> ItemActions = new();
+        public global::Hollow.Simulation.Items.ItemActions? Actions;
         public float PlacementReach = 3f;
         public float PlacementMaxStep = 0.6f;
         public ulong Hash;
@@ -553,7 +564,8 @@ public sealed partial class GameContent
 
         private void ReadItems()
         {
-            JsonElement root = Root("items.json", "items");
+            JsonElement root = Root("items.json", "actions", "items");
+            ReadItemActions(root);
             JsonElement[] list = f.List(root, "items", "items.json");
             // Keys first, so references between items (fuel byproducts, cooking) resolve in any order.
             var drafts = new List<(ItemDef Item, JsonElement Element, string Where)>();
@@ -611,6 +623,17 @@ public sealed partial class GameContent
                 {
                     item.Bow.Ammo = item.Bow.AmmoKeys.Select(k => Resolve(k, where + ".bow.ammo")).OfType<ItemDef>().ToArray();
                 }
+            }
+        }
+
+        // items.json's actions (GROUND_SYSTEMS.md §7): the inventory's buttons, append only (a place is a wire number).
+        private void ReadItemActions(JsonElement root)
+        {
+            foreach ((JsonElement e, int i) in f.List(root, "actions", "items.json").Select((e, i) => (e, i)))
+            {
+                string where = $"items.json: actions[{i}]";
+                f.OnlyKnown(e, where, "key", "label", "note");
+                loaded.ItemActions.Add(new global::Hollow.Simulation.Items.ItemActionDef(i, f.Text(e, "key", where), f.Text(e, "label", where)));
             }
         }
 

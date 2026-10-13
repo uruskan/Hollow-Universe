@@ -25,6 +25,9 @@ public readonly record struct ShotEvent(uint Seq, ItemDef Weapon, ItemDef Round,
 /// <summary>A reload began (predicted, at once) or ended: the gun, the rounds, how long it takes.</summary>
 public readonly record struct ReloadEvent(ItemDef Weapon, ItemDef Round, float Seconds);
 
+/// <summary>The gun in hand was unloaded (predicted, at once): the gun, the rounds that came out and how many.</summary>
+public readonly record struct UnloadEvent(ItemDef Weapon, ItemDef Round, int Rounds);
+
 /// <summary>A shot or reload refused (by the server: its effect has been rolled back; seq 0: by the prediction, before sending).</summary>
 public readonly record struct GunRefusal(uint Seq, OutcomeCode Result);
 
@@ -59,6 +62,7 @@ public sealed class LocalGun
     private uint _refusedSeen;
     private bool _armed = true;
     private bool _wantReload;
+    private bool _wantUnload;
     private ushort _wantAmmo;
     private long _tick;
     private double _renderTick;
@@ -157,6 +161,15 @@ public sealed class LocalGun
         _wantAmmo = ammo?.Id ?? 0;
     }
 
+    /// <summary>UNLOAD the gun in hand (GROUND_SYSTEMS.md §7): its rounds back into the inventory, on its timeline at the next tick.</summary>
+    public void Unload() => _wantUnload = true;
+
+    /// <summary>Whether a slot of the player's holds the gun in hand (whose magazine is this timeline's).</summary>
+    public bool InHand(ContainerRef from, int slot) => Weapon != null && from == ContainerRef.Belt && slot == _state.Slot;
+
+    /// <summary>The magazine was emptied into the inventory (predicted, at once): the gun, the rounds and how many.</summary>
+    public event Action<UnloadEvent>? Unloaded;
+
     /// <summary>
     /// The mouse turned the view by these since the last frame (radians, yaw + to the left; the pitch as it changed after
     /// its clamp): turning against the recoil showing now earns credit, at most that recoil per axis.
@@ -208,6 +221,7 @@ public sealed class LocalGun
         if (gun == null || !canAct || state.IsDead || state.Stance == Stance.Crawling)
         {
             _wantReload = false;
+            _wantUnload = false;
             _armed = true;
             return;
         }
@@ -240,6 +254,34 @@ public sealed class LocalGun
             if (result == OutcomeCode.Done && Send(GunActionKind.Reload, tick, slot, stack.Item, command, ammo, default))
             {
                 ReloadStarted?.Invoke(new ReloadEvent(gun.Item, content.Item(ammo)!, (float)gun.ReloadSeconds));
+                _player.Touch();
+            }
+            else if (result != OutcomeCode.Done)
+            {
+                Refused?.Invoke(new GunRefusal(0, result));
+            }
+        }
+
+        // UNLOAD asked for: the same checks as the server's (taken up, not reloading, something in it, room for it), then the
+        // intent for this tick; the rounds count as the player's again until the server says so.
+        if (_wantUnload)
+        {
+            _wantUnload = false;
+            ItemStack weapon = WeaponStack();
+            OutcomeCode result = FirearmRules.CanUnload(_state, weapon, tick);
+            if (result == OutcomeCode.Done && content.Item(_loadedAmmo) is { } round && !_player.Inventory.Fits(content, ItemStack.Of(round, _loaded)))
+            {
+                result = OutcomeCode.NoSpace;
+            }
+            if (result == OutcomeCode.Done && Send(GunActionKind.Unload, tick, slot, stack.Item, command, 0, default))
+            {
+                int rounds = _loaded;
+                _taken -= rounds;
+                _loaded = 0;
+                if (content.Item(_loadedAmmo) is { } unloaded)
+                {
+                    Unloaded?.Invoke(new UnloadEvent(gun.Item, unloaded, rounds));
+                }
                 _player.Touch();
             }
             else if (result != OutcomeCode.Done)
@@ -307,13 +349,16 @@ public sealed class LocalGun
     private bool Send(GunActionKind kind, uint tick, byte slot, ushort item, InputCommand command, ushort ammo, in ShotContext context)
     {
         uint seq = _nextSeq;
-        bool sent = kind == GunActionKind.Fire
-            ? _player.SendRaw(w => new FireIntent
+        bool sent = kind switch
+        {
+            GunActionKind.Fire => _player.SendRaw(w => new FireIntent
             {
                 Seq = seq, Tick = tick, Slot = slot, Item = item, Yaw = command.Yaw, Pitch = command.Pitch,
                 Aimed = (command.Actions & ActionButtons.Secondary) != 0, ViewDelay = command.ViewDelay,
-            }.WriteMessage(w))
-            : _player.SendRaw(w => new ReloadIntent { Seq = seq, Tick = tick, Slot = slot, Item = item, Ammo = ammo }.WriteMessage(w));
+            }.WriteMessage(w)),
+            GunActionKind.Reload => _player.SendRaw(w => new ReloadIntent { Seq = seq, Tick = tick, Slot = slot, Item = item, Ammo = ammo }.WriteMessage(w)),
+            _ => _player.SendRaw(w => new UnloadIntent { Seq = seq, Tick = tick, Slot = slot, Item = item }.WriteMessage(w)),
+        };
         if (!sent)
         {
             return false;
@@ -395,10 +440,15 @@ public sealed class LocalGun
                     _loaded = weapon.Loaded;
                 }
             }
-            else
+            else if (p.Kind == GunActionKind.Reload)
             {
                 int reserve = Count(p.Ammo) - (p.Ammo == _loadedAmmo ? _taken : 0);
                 FirearmRules.BeginReload(ref _state, weapon, gun, p.Ammo, reserve, p.Tick);
+            }
+            else if (FirearmRules.CanUnload(_state, weapon, p.Tick) == OutcomeCode.Done)
+            {
+                _taken -= _loaded;
+                _loaded = 0;
             }
         }
         if (_state.Reloading && _tick >= _state.ReloadEndTick)

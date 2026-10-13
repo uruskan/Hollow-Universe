@@ -111,22 +111,15 @@ public partial class GroundUi
         PanelArea(545, 80, 492, 370);
         PaintRows(Model.Rows(slot), 194 + content - 109);
 
-        var actions = new List<(string Label, Action Act)>();
-        if (info.Usable)
+        // The stack's own actions (its parts', GROUND_SYSTEMS.md §7), then DROP; a refused one shows muted and says why.
+        IReadOnlyList<ItemActionView> actions = Model.Actions(slot);
+        int count = actions.Count;
+        for (int i = 0; i <= count; i++)
         {
-            actions.Add(("USE", () => Model.Use(slot)));
-        }
-        if (info.Wearable)
-        {
-            bool worn = slot.Container == ContainerId.Wear;
-            actions.Add((worn ? "UNEQUIP" : "WEAR", () => WearOrRemove(slot, worn)));
-        }
-        actions.AddRange(Model.MoreActions(slot));
-        actions.Add(("DROP", () => Model.Drop(slot, StackAt(slot).Amount)));
-        for (int i = 0; i < actions.Count; i++)
-        {
-            (string label, Action act) = actions[i];
-            Button(label, ActionsX, 222 + i * 40, ActionsWidth, 37, act, label.Length > 15 ? 16 : label.Length > 11 ? 19 : 21);
+            ItemActionView action = i < count ? actions[i] : new ItemActionView("DROP", () => Model.Drop(slot, StackAt(slot).Amount));
+            string label = action.Label;
+            Button(label, ActionsX, 222 + i * 40, ActionsWidth, 37, action.Reason is { } why ? () => OnNotice(why) : action.Act,
+                label.Length > 15 ? 16 : label.Length > 11 ? 19 : 21, muted: action.Reason != null);
         }
 
         if (split)
@@ -172,23 +165,6 @@ public partial class GroundUi
             TextIn(rows[i].Value, left + label + 12, y + (size - value) / 2, room, value, rows[i].Positive ? G.Green : G.Short,
                 HorizontalAlignment.Right, bold: true);
         }
-    }
-
-    // WEAR moves to the first free clothing slot; UNEQUIP back to the first free main slot (RustMVP's rule).
-    private void WearOrRemove(SlotRef slot, bool worn)
-    {
-        ContainerId target = worn ? ContainerId.Main : ContainerId.Wear;
-        IReadOnlyList<ItemStack> slots = Model.Slots(target);
-        for (int i = 0; i < slots.Count; i++)
-        {
-            if (slots[i].IsEmpty)
-            {
-                Model.Move(slot, new SlotRef(target, i), 1);
-                _selected = new SlotRef(target, i);
-                return;
-            }
-        }
-        OnNotice("No free slot.");
     }
 
     // ---------------------------------------------------------------- the right column

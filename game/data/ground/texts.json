@@ -89,6 +89,8 @@
     "NoAmmo": "No rounds for it",
     "Full": "The magazine is full",
     "Lowered": "The gun is lowered",
-    "TooLate": "Too late: the connection is slow"
+    "TooLate": "Too late: the connection is slow",
+
+    "Worn": "You're wearing something there already"
   }
 }

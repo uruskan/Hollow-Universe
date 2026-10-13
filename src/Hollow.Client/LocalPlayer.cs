@@ -113,6 +113,36 @@ public sealed partial class LocalPlayer
     {
         Content = content;
         Gun = new LocalGun(this);
+        _actor = new Prediction(this);
+    }
+
+    private readonly Prediction _actor;
+
+    /// <summary>
+    /// The player as the prediction acts for them (GROUND_SYSTEMS.md §7): the inventory and blueprints shown; the gun in
+    /// hand's reload; nothing more (eating's effects and the like are the server's, and come back with its state).
+    /// </summary>
+    private sealed class Prediction(LocalPlayer me) : IItemActor
+    {
+        public GameContent Content => me.Content;
+
+        public PlayerInventory Inventory => me.Inventory;
+
+        public BlueprintBook Blueprints => me.Blueprints;
+
+        public bool Reloading(ContainerRef from, int slot) => from == ContainerRef.Belt && slot == me.Gun.State.Slot && me.Gun.Reloading;
+
+        public void Consumed(ItemDef item)
+        {
+        }
+
+        public void Learned(Recipe recipe)
+        {
+        }
+
+        public void MagazineChanged(ContainerRef from, int slot)
+        {
+        }
     }
 
     /// <summary>Sends a message on the reliable channel (set by the client); false when not connected and playing.</summary>
@@ -252,12 +282,47 @@ public sealed partial class LocalPlayer
             w => new DropIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, Amount = (uint)Math.Max(0, amount), Expected = expected }.WriteMessage(w));
     }
 
-    /// <summary>Eats or uses (bandage, injector) an item in the main slots or belt.</summary>
-    public uint Use(ContainerRef from, int slot)
+    /// <summary>
+    /// An inventory action (GROUND_SYSTEMS.md §7) on a stack in the player's own slots: eat, use, wear, take off, learn,
+    /// unload, take an attachment off (<paramref name="arg"/>: which), by its number in items.json's list. Predicted with
+    /// the server's own rules (<see cref="ItemActions"/>).
+    /// </summary>
+    public uint ItemAction(ContainerRef from, int slot, int action, int arg = 0)
     {
+        // The gun in hand's magazine changes on the gun's own timeline, in order with its shots and reloads (GROUND_SYSTEMS.md
+        // §7): its UNLOAD goes there (no intent number: the gun's update answers it).
+        if (Content.ItemActions[action]?.Key == Simulation.Items.ItemActions.UnloadKey && Gun.InHand(from, slot))
+        {
+            Gun.Unload();
+            return 0;
+        }
         ushort expected = ItemAt(from, slot);
-        return Intend(new Pending(p => p.ApplyUse(from, slot, expected)),
-            w => new UseIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, Expected = expected }.WriteMessage(w));
+        return Intend(new Pending(p => p.Content.ItemActions.Do(p._actor, from, slot, expected, action, arg).Ok),
+            w => new ItemActionIntent
+            {
+                Seq = _nextSeq, From = from, Slot = (byte)slot, Expected = expected, Action = (uint)Math.Max(0, action), Arg = (uint)Math.Max(0, arg),
+            }.WriteMessage(w));
+    }
+
+    /// <summary>The buttons a stack in the player's own slots offers (GROUND_SYSTEMS.md §7), as the server would judge them.</summary>
+    public void ItemActions(ContainerRef from, int slot, List<ItemActionOption> into) => Content.ItemActions.Offer(_actor, from, slot, into);
+
+    /// <summary>
+    /// What a click with an item in hand does when its held behaviour acts through the inventory (eating, learning): its
+    /// part's first button, done; refused with its reason when the button is (0 when nothing was sent).
+    /// </summary>
+    public uint UsePart(ContainerRef from, int slot, ItemPart part)
+    {
+        if (Content.ItemActions.First(_actor, from, slot, part) is not { } option)
+        {
+            return 0;
+        }
+        if (option.Refusal is { } refused)
+        {
+            IntentRejected?.Invoke(new IntentAnswer(0, refused.Code, refused.Detail));
+            return 0;
+        }
+        return ItemAction(from, slot, option.Action.Id, option.Arg);
     }
 
     /// <summary>Starts crafting <paramref name="count"/> of a recipe (by its output item's ID).</summary>
@@ -334,12 +399,6 @@ public sealed partial class LocalPlayer
             w => new AttachIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, WeaponIn = weaponIn, WeaponSlot = (byte)weaponSlot, Expected = expected }.WriteMessage(w));
     }
 
-    /// <summary>Takes the attachment in a slot (sight, muzzle, rail) off the firearm in a slot, into the inventory.</summary>
-    public uint Detach(ContainerRef weaponIn, int weaponSlot, AttachmentSlot mod) =>
-        Intend(new Pending(p => weaponIn is ContainerRef.Main or ContainerRef.Belt &&
-                AttachmentRules.Detach(p.Content, p.Inventory, p.Resolve(weaponIn)!, weaponSlot, mod) == OutcomeCode.Done),
-            w => new DetachIntent { Seq = _nextSeq, WeaponIn = weaponIn, WeaponSlot = (byte)weaponSlot, Mod = mod }.WriteMessage(w));
-
     /// <summary>Helps a wounded player up (the interact key on them, within 2.5 m): <see cref="GameClient.Aim"/> finds them.</summary>
     public uint HelpUp(EntityId target) => Intend(null, w => new HelpUpIntent { Seq = _nextSeq, Target = target.Value }.WriteMessage(w));
 
@@ -405,30 +464,6 @@ public sealed partial class LocalPlayer
             }
         }
         return InventoryRules.QuickMove(Content, source, slot, _targets, expected) == OutcomeCode.Done;
-    }
-
-    private bool ApplyUse(ContainerRef from, int slot, ushort expected)
-    {
-        if (from is not (ContainerRef.Main or ContainerRef.Belt) || Resolve(from) is not { } c || !c.InRange(slot))
-        {
-            return false;
-        }
-        if (Content.World.Blueprint is { } blueprint && c[slot].Item == blueprint.Id)
-        {
-            // G7: reading a blueprint learns it (unless it is known), and uses it up.
-            if (Content.Recipe(c[slot].Condition) is not { } recipe || Blueprints.Knows(recipe) ||
-                InventoryRules.Remove(c, slot, 1, expected, out _) != OutcomeCode.Done)
-            {
-                return false;
-            }
-            Blueprints.Learn(recipe);
-            return true;
-        }
-        if (Content.Item(c[slot].Item)?.Consume == null)
-        {
-            return false;
-        }
-        return InventoryRules.Remove(c, slot, 1, expected, out _) == OutcomeCode.Done;
     }
 
     private bool ApplyClose()

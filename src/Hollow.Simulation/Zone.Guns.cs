@@ -189,6 +189,12 @@ public sealed partial class Zone
         }
         ItemStack weapon = p.Inventory.Belt[p.HeldSlot];
         GameContent content = Content!;
+        if (a.Kind == GunActionKind.Unload)
+        {
+            // UNLOAD in hand (GROUND_SYSTEMS.md §7): the rounds back into the inventory, in order with the shots before it.
+            OutcomeCode can = FirearmRules.CanUnload(p.Gun, weapon, a.Tick);
+            return can != OutcomeCode.Done ? can : FirearmRules.Unload(content, p.Inventory, p.Inventory.Belt, p.HeldSlot).Code;
+        }
         if (a.Kind == GunActionKind.Reload)
         {
             Container[] carried = { p.Inventory.Main, p.Inventory.Belt };
@@ -546,20 +552,6 @@ public sealed partial class Zone
             return OutcomeCode.NotAllowed;
         }
         return AttachmentRules.Attach(Content!, p.Inventory[from], slot, p.Inventory[weaponIn], weaponSlot, expected);
-    }
-
-    /// <summary>Takes an attachment off a firearm in the player's main slots or belt, into the inventory (refused when full).</summary>
-    public Outcome Detach(Entity entity, ContainerRef weaponIn, int weaponSlot, AttachmentSlot modSlot)
-    {
-        if (!Acting(entity, out Player p))
-        {
-            return OutcomeCode.Dead;
-        }
-        if (weaponIn is not (ContainerRef.Main or ContainerRef.Belt))
-        {
-            return OutcomeCode.NotAllowed;
-        }
-        return AttachmentRules.Detach(Content!, p.Inventory, p.Inventory[weaponIn], weaponSlot, modSlot);
     }
 
     /// <summary>

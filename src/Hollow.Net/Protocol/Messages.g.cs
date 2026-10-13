@@ -23,7 +23,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xE74D328698FC7396UL;
+    public const ulong SchemaHash = 0x213B890B31525AEEUL;
 }
 
 partial struct Hello
@@ -1454,36 +1454,6 @@ partial struct DropIntent
     }
 }
 
-partial struct UseIntent
-{
-    public const byte TypeId = 53;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)From, 3);
-        w.WriteBits((uint)Slot, 8);
-        w.WriteVarUInt(Expected);
-    }
-
-    public static UseIntent Read(BitReader r)
-    {
-        var v = new UseIntent();
-        v.Seq = r.ReadVarUInt();
-        v.From = (ContainerRef)r.ReadBits(3);
-        v.Slot = (byte)r.ReadBits(8);
-        v.Expected = r.ReadVarUInt();
-        return v;
-    }
-}
-
 partial struct CraftIntent
 {
     public const byte TypeId = 54;
@@ -2345,36 +2315,6 @@ partial struct AttachIntent
         v.WeaponIn = (ContainerRef)r.ReadBits(3);
         v.WeaponSlot = (byte)r.ReadBits(8);
         v.Expected = r.ReadVarUInt();
-        return v;
-    }
-}
-
-partial struct DetachIntent
-{
-    public const byte TypeId = 65;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)WeaponIn, 3);
-        w.WriteBits((uint)WeaponSlot, 8);
-        w.WriteBits((uint)Mod, 2);
-    }
-
-    public static DetachIntent Read(BitReader r)
-    {
-        var v = new DetachIntent();
-        v.Seq = r.ReadVarUInt();
-        v.WeaponIn = (ContainerRef)r.ReadBits(3);
-        v.WeaponSlot = (byte)r.ReadBits(8);
-        v.Mod = (AttachmentSlot)r.ReadBits(2);
         return v;
     }
 }
@@ -4018,6 +3958,70 @@ partial struct ThingDestroyed
         v.Cause = (DestroyCause)r.ReadBits(3);
         v.Open = r.ReadBool();
         v.Attacker = r.ReadVarUInt();
+        v.Item = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct ItemActionIntent
+{
+    public const byte TypeId = 230;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+        w.WriteVarUInt(Action);
+        w.WriteVarUInt(Arg);
+    }
+
+    public static ItemActionIntent Read(BitReader r)
+    {
+        var v = new ItemActionIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        v.Action = r.ReadVarUInt();
+        v.Arg = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct UnloadIntent
+{
+    public const byte TypeId = 231;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Tick, 32);
+        w.WriteBits((uint)Slot, 3);
+        w.WriteVarUInt(Item);
+    }
+
+    public static UnloadIntent Read(BitReader r)
+    {
+        var v = new UnloadIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Tick = (uint)r.ReadBits(32);
+        v.Slot = (byte)r.ReadBits(3);
         v.Item = r.ReadVarUInt();
         return v;
     }

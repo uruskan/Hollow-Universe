@@ -5092,3 +5092,15 @@ owner, to confirm or overturn (numbered V1 on):
   14 px Barlow, the label on the left and the value right-aligned, its font narrowed to fit, so the AK's eleven rows and
   the bag charge's nine fit (RustMVP's column was 272 wide with 24 px rows and room for nine short ones). An explosive's
   damage to walls and doors reads as how many it takes to break one (from the wall's hard side), Rust's way of reading it.
+- V5. **One handler per inventory action, offered by its part**, P1's Offer-and-do shape: the server does an action only
+  when its handler offers it on that stack, enabled, so a button the panel shows and what the server accepts never
+  disagree. Food is EAT and medicine USE by what it does (calories or water: food), not by its tab; WEAR is refused
+  while something worn covers its layer (the new `Worn` answer, Rust swaps; ours says why). Actions work on the player's
+  own main, belt and clothing slots only.
+- V6. **UNLOAD puts every round back or none** (Rust drops what doesn't fit; ours says "No room for that"), and keeps the
+  round's kind named on the empty gun. **The gun in hand's unload rides the gun's own timeline** (`UnloadIntent`, with its
+  shots and reloads): an item action applied when it arrives could overtake shots still waiting for their tick and leave
+  the prediction's magazine and the server's apart. Any other gun is unloaded by the item action. The only place the
+  client chooses between the two is `LocalPlayer.ItemAction` (the gun in hand's UNLOAD).
+- V7. **Numbers taken in shared spaces:** protocol 17; messages 230 (`ItemActionIntent`) and 231 (`UnloadIntent`); 53
+  and 65 free; outcome codes 100–108; items.json's `actions` list.

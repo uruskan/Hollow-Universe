@@ -381,22 +381,44 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         Me.MoveItem(a, i, b, j, amount);
     }
 
-    /// <summary>A gun's attachments, each to take off (back into the inventory).</summary>
-    public IReadOnlyList<(string Label, Action Act)> MoreActions(SlotRef slot)
+    private readonly List<ItemActionOption> _options = new();
+    private (SlotRef Slot, SimStack Stack, uint Main, uint Belt, uint Wear, uint Known, bool Reloading, IReadOnlyList<ItemActionView>? Views) _actions;
+
+    /// <summary>
+    /// A slot's ACTIONS (GROUND_SYSTEMS.md §7): what its stack's parts offer, judged by the same rules the server uses, each
+    /// sent as an item action (a refused one carries its line). Cached until the stack, the inventory or the gun changes.
+    /// </summary>
+    public IReadOnlyList<ItemActionView> Actions(SlotRef slot)
     {
-        if (Resolve(slot) is not var (c, i) || Own(c, i) is not { } stack || C.Item(stack.Item)?.Firearm == null)
+        if (Resolve(slot) is not var (c, i) || Own(c, i) is not { } stack)
         {
-            return Array.Empty<(string, Action)>();
+            return Array.Empty<ItemActionView>();
         }
-        var actions = new List<(string Label, Action Act)>();
-        foreach (Hollow.Simulation.Content.AttachmentSlot mod in Hollow.Simulation.Combat.GunMods.Slots)
+        PlayerInventory inventory = Me.Inventory;
+        var key = (slot, stack, inventory.Main.Revision, inventory.Belt.Revision, inventory.Wear.Revision, Me.Blueprints.Revision, Me.Gun.Reloading);
+        if (_actions.Views != null && (_actions.Slot, _actions.Stack, _actions.Main, _actions.Belt, _actions.Wear, _actions.Known, _actions.Reloading) == key)
         {
-            if (stack.Mod(mod) is var id and not 0 && C.Item(id) is { } part)
-            {
-                actions.Add(("REMOVE " + part.Name.ToUpperInvariant(), () => Me.Detach(c, i, mod)));
-            }
+            return _actions.Views;
         }
-        return actions;
+        _options.Clear();
+        Me.ItemActions(c, i, _options);
+        var views = new List<ItemActionView>(_options.Count);
+        foreach (ItemActionOption option in _options)
+        {
+            views.Add(new ItemActionView(option.Label, () => Act(c, i, option), option.Refusal is { } refused ? C.Texts.Line(refused) : null));
+        }
+        _actions = (key.slot, key.stack, key.Item3, key.Item4, key.Item5, key.Item6, key.Item7, views);
+        return views;
+    }
+
+    // An action chosen: its sound (the item's own for the action, else its use), then the intent.
+    private void Act(ContainerRef c, int i, ItemActionOption option)
+    {
+        if (Own(c, i) is { } stack && C.Item(stack.Item) is { } item)
+        {
+            Sounds.Flat(Sounds.Item(item.Key, option.Action.Key) ?? Sounds.Item(item.Key, "use"));
+        }
+        Me.ItemAction(c, i, option.Action.Id, option.Arg);
     }
 
     // A stack in one of the player's own containers (main, belt, clothing), if there is one there.
@@ -432,18 +454,6 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         if (Resolve(slot) is var (c, i))
         {
             Me.QuickMove(c, i);
-        }
-    }
-
-    public void Use(SlotRef slot)
-    {
-        if (Resolve(slot) is var (c, i))
-        {
-            if ((c switch { ContainerRef.Main => Me.Inventory.Main, ContainerRef.Belt => Me.Inventory.Belt, _ => null }) is { } own)
-            {
-                Sounds.Used(C, own[i].Item);
-            }
-            Me.Use(c, i);
         }
     }
 
@@ -564,8 +574,11 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             return new UiStack(def.Key, s.Count) { Teaches = C.Recipe(s.Condition)?.Output.Key };
         }
         float condition = def.HasCondition ? Math.Clamp((float)s.Condition / def.MaxCondition, 0, 1) : -1f;
-        // A gun shows the rounds in its magazine on its slot (G4).
-        return new UiStack(def.Key, s.Count, condition, def.Firearm != null ? s.Loaded : -1);
+        // A gun shows the rounds in its magazine on its slot (G4), and their kind's icon (P3).
+        return new UiStack(def.Key, s.Count, condition, def.Firearm != null ? s.Loaded : -1)
+        {
+            Round = def.Firearm != null ? C.Item(s.LoadedAmmo)?.Key : null,
+        };
     }
 
     // The open container's slots as the loot panel lays them out: a sleeper's main, belt and clothing in a body's order.

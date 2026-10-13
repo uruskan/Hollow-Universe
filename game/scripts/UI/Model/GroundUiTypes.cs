@@ -34,6 +34,9 @@ public readonly record struct ItemStack(string Key, int Amount, float Condition 
     /// <summary>A blueprint's item: what it teaches (G7), drawn as that item in blueprint blue; null for anything else.</summary>
     public string? Teaches { get; init; }
 
+    /// <summary>A gun's loaded round (its item key), drawn small at the slot's bottom left (GROUND_SYSTEMS.md §7); null for anything else.</summary>
+    public string? Round { get; init; }
+
     public bool IsEmpty => string.IsNullOrEmpty(Key) || Amount <= 0;
 
     public bool HasCondition => Condition >= 0;
@@ -43,6 +46,12 @@ public readonly record struct ItemStack(string Key, int Amount, float Condition 
 
 /// <summary>A line of the item panel's INFORMATION column, such as "Instant health" and "+5".</summary>
 public sealed record ItemStat(string Label, string Value, bool Positive = true);
+
+/// <summary>
+/// A button of the item panel's ACTIONS (GROUND_SYSTEMS.md §7): its label, what it does, and why it can't be done now
+/// (null: it can; a refused button shows muted, and choosing it says why).
+/// </summary>
+public sealed record ItemActionView(string Label, Action Act, string? Reason = null);
 
 /// <summary>How the interface names and describes an item key.</summary>
 public sealed record ItemInfo(string Key, string Name, string Description, string Category, int StackSize = 1,

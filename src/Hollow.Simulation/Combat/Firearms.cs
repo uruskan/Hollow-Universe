@@ -212,11 +212,12 @@ public struct GunState : IEquatable<GunState>
     public override readonly int GetHashCode() => HashCode.Combine(Slot, Item, NextFire16, Recoil, ReloadEndTick, LastSeq);
 }
 
-/// <summary>What a gun action is: a shot or a reload.</summary>
+/// <summary>What a gun action is: a shot, a reload, or an unload (P3: the gun in hand's magazine out, on its timeline).</summary>
 public enum GunActionKind : byte
 {
     Fire,
     Reload,
+    Unload,
 }
 
 /// <summary>
@@ -452,6 +453,40 @@ public static class FirearmRules
         g.ReloadStartTick = tick;
         g.ReloadEndTick = tick + gun.ReloadTicks;
         g.ReloadAmmo = ammo;
+        return OutcomeCode.Done;
+    }
+
+    /// <summary>
+    /// Whether the gun in hand could be unloaded at a tick (on its own timeline, in order with its shots and reloads): taken
+    /// up, not reloading, and something in it.
+    /// </summary>
+    public static OutcomeCode CanUnload(in GunState g, in ItemStack weapon, long tick) =>
+        tick < g.EquipReadyTick ? OutcomeCode.Cooldown : g.Reloading ? OutcomeCode.Reloading : weapon.Loaded == 0 ? OutcomeCode.Empty : OutcomeCode.Done;
+
+    /// <summary>
+    /// UNLOAD (GROUND_SYSTEMS.md §7): the rounds in the magazine of the firearm in <paramref name="holder"/>'s slot go back
+    /// into the inventory, all of them (refused when they don't fit; Rust drops what doesn't). The kind stays named, so a
+    /// reload loads it again. The same rule on the server and in the client's prediction.
+    /// </summary>
+    public static Outcome Unload(GameContent content, PlayerInventory inventory, Container holder, int slot)
+    {
+        if (!holder.InRange(slot) || content.Item(holder[slot].Item)?.Firearm == null)
+        {
+            return OutcomeCode.NoWeapon;
+        }
+        ItemStack weapon = holder[slot];
+        if (weapon.Loaded == 0 || content.Item(weapon.LoadedAmmo) is not { } round)
+        {
+            return OutcomeCode.Empty;
+        }
+        ItemStack rounds = ItemStack.Of(round, weapon.Loaded);
+        if (!inventory.Fits(content, rounds))
+        {
+            return OutcomeCode.NoSpace;
+        }
+        weapon.Loaded = 0;
+        holder.Set(slot, weapon);
+        inventory.Give(content, rounds);
         return OutcomeCode.Done;
     }
 

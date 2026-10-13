@@ -209,6 +209,11 @@ public enum OutcomeCode : byte
 
     /// <summary>The action is for a tick further back than lag compensation reaches.</summary>
     TooLate = 107,
+
+    // ---------------------------------------------------------------- inventory actions (GROUND_SYSTEMS.md §7)
+
+    /// <summary>Something worn already covers what that would be worn on.</summary>
+    Worn = 108,
 }
 
 /// <summary>

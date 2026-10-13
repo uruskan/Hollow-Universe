@@ -19,8 +19,8 @@ public static partial class Protocol
     /// (<see cref="IntentResult"/>'s code and detail; <c>BuildResult</c> is gone), things named by
     /// <see cref="TargetNet"/> (family, ID, part) and hit kinds by target family, and viewer flags; 17: held items, item
     /// information and inventory actions (GROUND_SYSTEMS.md §7): one item action intent for every inventory button
-    /// (<c>ItemActionIntent</c>; <c>UseIntent</c> and <c>DetachIntent</c> are gone), the gun's unload on its own
-    /// timeline (<c>UnloadIntent</c>) and its answers in the one answer list (<see cref="GunUpdate"/>'s code).
+    /// (<see cref="ItemActionIntent"/>; <c>UseIntent</c> and <c>DetachIntent</c> are gone), the gun's unload on its own
+    /// timeline (<see cref="UnloadIntent"/>) and its answers in the one answer list (<see cref="GunUpdate"/>'s code).
     /// </summary>
     public const uint Version = 17;
 

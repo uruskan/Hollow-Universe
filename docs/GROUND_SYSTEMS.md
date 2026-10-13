@@ -341,6 +341,25 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
   they recycle into; and melee (now with structures and bleeding), bows, arrows, food (now with poison), clothing (now
   where it is worn), fuel and cooking as before. The panel lays the rows out label left, value right, and narrows a long
   value's font until it fits (`IGroundUi.Rows`). Test: `HeldTests.EveryPartIsDescribed`.
+- **Inventory actions** (`Items/ItemActions.cs`): items.json's `actions` list (use, eat, wear, unequip, learn, unload,
+  remove; append only, a place is the wire number, a label may name the item: `REMOVE {item}`) and one handler per
+  action, listed under the part that offers it (`IItemAction`: `Offer` the buttons of it a stack has, enabled or with the
+  refusal; `Do` it). A stack offers what its parts' handlers offer: food EAT and medicine USE, clothing WEAR (refused,
+  `Worn`, while something worn has its layer) and UNEQUIP, a blueprint LEARN (refused once known), a gun UNLOAD (refused
+  while empty or reloading) and REMOVE for each attachment. One `ItemActionIntent { Seq, From, Slot, Expected, Action,
+  Arg }` (message 230) sends any of them; the server (`Zone.ItemAction`) does an action only when its handler offers it on
+  that stack, enabled, and the client predicts it with the same handlers (`LocalPlayer.ItemAction`; `IItemActor` is the
+  player as each side has them: eating's vitals and a learnt blueprint's count are the server's). `UseIntent` (53) and
+  `DetachIntent` (65) are gone, with `Zone.UseItem`, `Zone.Detach`, `LocalPlayer.Use` and `Detach`, the panel's
+  `MoreActions` and its USE and WEAR code. DROP and the split stay the inventory's own. The panel shows what
+  `IGroundUi.Actions` gives, then DROP; a refused button is muted and a click on it says why (as a radial's disabled
+  option). A click with food, medicine or a blueprint in hand does its part's first button (`LocalPlayer.UsePart`). Test:
+  `HeldTests.InventoryActionsComeFromParts`.
+- **Guns.** UNLOAD returns the rounds to the inventory, all or (no room) none; the kind stays named, so R loads it again.
+  The gun in hand's goes on its own timeline (`UnloadIntent`, message 231, a `GunActionKind.Unload` in order with its
+  shots and reloads, predicted by `LocalGun.Unload`); a gun in the main slots or elsewhere on the belt is unloaded by the
+  item action. A gun's slot shows its loaded round's icon at the bottom left (`ItemStack.Round` in the interface's model),
+  the count staying at the bottom right, on the belt, in the inventory and in loot. Test: `HeldTests.UnloadReturnsTheRounds`.
 
 ## 8. Damage and destruction (package P4, built: GROUND.md §6.4.2)
 

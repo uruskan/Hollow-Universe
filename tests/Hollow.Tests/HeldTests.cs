@@ -2,10 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Hollow.Client;
 using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Movement;
+using Hollow.Simulation.Players;
 
 namespace Hollow.Tests;
 
@@ -121,5 +125,199 @@ public static class HeldTests
         book.Learn(pistol);
         Assert.Equal("Yes", Row(ItemRows.Describe(c, blueprint, new ItemStack(blueprint.Id, 1, pistol.Id), book), "Known"), "and that it is known");
         Assert.True(Row(ItemRows.Describe(c, c.ItemByKey("gears")), "Recycles into").Contains("salvage", StringComparison.Ordinal), "a component's salvage");
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §7: the inventory's buttons come from the parts. items.json lists the actions and each has one
+    /// handler; a stack offers what its parts' handlers offer (EAT food, USE medicine, WEAR and UNEQUIP clothing, LEARN a
+    /// blueprint, UNLOAD and REMOVE on a gun), refused ones with why; the server does an action only when its handler
+    /// offers it on that stack, enabled; over the network an action shows at once and the server agrees.
+    /// </summary>
+    [Test]
+    public static void InventoryActionsComeFromParts()
+    {
+        GameContent c = ContentFixture.Content;
+        Assert.Equal("use, eat, wear, unequip, learn, unload, remove", string.Join(", ", c.ItemActions.All.Select(a => a.Key)), "the list");
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 0, 0);
+        Player a = rig.P(ada);
+        rig.Step(2);
+        string Offers(ContainerRef from, int slot)
+        {
+            var options = new List<ItemActionOption>();
+            c.ItemActions.Offer(new TestActor(c, a), from, slot, options);
+            return string.Join(", ", options.Select(o => o.Label + (o.Refusal is { } r ? $" ({r.Code})" : "")));
+        }
+
+        a.Inventory.Main.Set(0, ItemStack.Of(c.ItemByKey("bandage"), 2));
+        a.Inventory.Main.Set(1, ItemStack.Of(c.ItemByKey("cooked-venison"), 1));
+        a.Inventory.Main.Set(2, ItemStack.Of(c.ItemByKey("woven-shirt"), 1));
+        a.Inventory.Main.Set(3, ItemStack.Of(c.ItemByKey("woven-shirt"), 1));
+        Recipe pistol = c.RecipeByKey("pistol")!;
+        a.Inventory.Main.Set(4, Hollow.Simulation.Economy.TechTrees.BlueprintOf(c, pistol));
+        var ak = ItemStack.Of(c.ItemByKey("rifle"), 1);
+        ak.Loaded = 30;
+        ak.LoadedAmmo = c.ItemByKey("rifle-ammo").Id;
+        ak.Sight = c.ItemByKey("holo-sight").Id;
+        a.Inventory.Main.Set(5, ak);
+        a.Inventory.Main.Set(6, ItemStack.Of(c.ItemByKey("rock"), 1));
+        Assert.Equal("USE", Offers(ContainerRef.Main, 0), "medicine is used");
+        Assert.Equal("EAT", Offers(ContainerRef.Main, 1), "food is eaten");
+        Assert.Equal("WEAR", Offers(ContainerRef.Main, 2), "clothing is worn");
+        Assert.Equal("LEARN", Offers(ContainerRef.Main, 4), "a blueprint is learnt");
+        Assert.Equal("UNLOAD, REMOVE HOLO SIGHT", Offers(ContainerRef.Main, 5), "a gun's magazine and sight");
+        Assert.Equal("", Offers(ContainerRef.Main, 6), "a rock offers nothing but DROP (the panel's own)");
+
+        int Act(int slot, string action, int arg = 0, ContainerRef from = ContainerRef.Main) => (int)rig.Act(ada, from, slot, action, arg).Code;
+        a.Vitals.Calories = 100;
+        Assert.Equal((int)OutcomeCode.Done, Act(1, "eat"), "eaten");
+        Assert.True(a.Vitals.Calories > 100 && a.Inventory.Main[1].IsEmpty, "it fed, and it's gone");
+        Assert.Equal((int)OutcomeCode.NotUsable, Act(0, "eat"), "medicine isn't eaten: the handler doesn't offer it");
+        Assert.Equal((int)OutcomeCode.Done, Act(2, "wear"), "worn");
+        Assert.True(a.Inventory.Wear.Slots.ToArray().Any(s => s.Item == c.ItemByKey("woven-shirt").Id), "on");
+        Assert.Equal("WEAR (Worn)", Offers(ContainerRef.Main, 3), "a second shirt: something is worn there already");
+        Assert.Equal((int)OutcomeCode.Worn, Act(3, "wear"), "and refused so");
+        int worn = Enumerable.Range(0, a.Inventory.Wear.Size).First(i => !a.Inventory.Wear[i].IsEmpty);
+        Assert.Equal("UNEQUIP", Offers(ContainerRef.Wear, worn), "worn: taken off");
+        Assert.Equal((int)OutcomeCode.Done, Act(worn, "unequip", from: ContainerRef.Wear), "off");
+        Assert.Equal((int)OutcomeCode.Done, Act(4, "learn"), "learnt");
+        Assert.True(a.Blueprints.Knows(pistol) && a.Inventory.Main[4].IsEmpty, "known, and used up");
+        a.Inventory.Main.Set(4, Hollow.Simulation.Economy.TechTrees.BlueprintOf(c, pistol));
+        Assert.Equal("LEARN (AlreadyKnown)", Offers(ContainerRef.Main, 4), "a known blueprint");
+        Assert.Equal((int)OutcomeCode.Done, Act(5, "unload"), "unloaded");
+        Assert.True(a.Inventory.Main[5].Loaded == 0 && a.Inventory.Count(c.ItemByKey("rifle-ammo")) == 30, "the rounds are back");
+        Assert.Equal("UNLOAD (Empty), REMOVE HOLO SIGHT", Offers(ContainerRef.Main, 5), "nothing to unload");
+        Assert.Equal((int)OutcomeCode.Done, Act(5, "remove", (int)AttachmentSlot.Sight), "the sight off");
+        Assert.True(a.Inventory.Main[5].Sight == 0 && a.Inventory.Count(c.ItemByKey("holo-sight")) == 1, "into the inventory");
+        Assert.Equal((int)OutcomeCode.NotUsable, Act(6, "learn"), "a rock isn't learnt");
+        Assert.Equal((int)OutcomeCode.Invalid, (int)rig.Zone.ItemAction(ada, ContainerRef.Main, 0, 0, 99, 0).Code, "no such action");
+        Assert.Equal((int)OutcomeCode.NotAllowed, Act(0, "use", from: ContainerRef.Loot), "only the player's own slots");
+
+        // Over the network: shown at once, confirmed; a refused one says why.
+        using var net = new LoopbackRig();
+        GameClient bo = net.Join("Bo");
+        net.WaitUntilPlaying();
+        LocalPlayer me = bo.Local;
+        net.Server.Execute("give Bo bandage 2");
+        Loopback.RunUntil(net, () => me.Inventory.Count(c.ItemByKey("bandage")) == 2, "the bandages");
+        int bandage = Enumerable.Range(0, 24).First(i => me.Inventory.Main[i].Item == c.ItemByKey("bandage").Id);
+        var answers = new List<IntentAnswer>();
+        me.IntentAnswered += answers.Add;
+        uint used = me.UsePart(ContainerRef.Main, bandage, ItemPart.Consumable);
+        Assert.Equal(1, me.Inventory.Count(c.ItemByKey("bandage")), "used at once");
+        Loopback.RunUntil(net, () => answers.Any(x => x.Seq == used), "the answer");
+        Assert.True(answers.Single(x => x.Seq == used).Done && me.Inventory.Count(c.ItemByKey("bandage")) == 1 && me.PendingCount == 0, "and confirmed");
+        uint wrong = me.ItemAction(ContainerRef.Main, bandage, c.ItemActions["learn"]!.Id);
+        Loopback.RunUntil(net, () => answers.Any(x => x.Seq == wrong), "the refusal");
+        Assert.Equal(OutcomeCode.NotUsable, answers.Single(x => x.Seq == wrong).Code, "a bandage isn't learnt");
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §7: UNLOAD returns a gun's rounds. The gun in hand's goes on its own timeline (in order with its
+    /// shots and reloads), refused while reloading or empty; over the network it shows at once and the server agrees, and a
+    /// gun in the main slots is unloaded by an item action, predicted and confirmed the same way.
+    /// </summary>
+    [Test]
+    public static void UnloadReturnsTheRounds()
+    {
+        GameContent c = ContentFixture.Content;
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 0, 0);
+        Player a = rig.P(ada);
+        Guns.Arm(rig, ada, "rifle", "rifle-ammo", 30);
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1, GunActionKind.Unload), "queued");
+        rig.Step(2, () => rig.Ch(ada).Actions = new ActionInput { HeldSlot = 0 });
+        Assert.True(a.Inventory.Belt[0].Loaded == 0 && a.Inventory.Count(c.ItemByKey("rifle-ammo")) == 30 && a.GunRefusedSeq != 1,
+            "the magazine out, the rounds in the inventory");
+        Assert.Equal(c.ItemByKey("rifle-ammo").Id, a.Inventory.Belt[0].LoadedAmmo, "the kind stays named, for the next reload");
+        Guns.Queue(rig, ada, 2, GunActionKind.Unload);
+        rig.Step(2, () => rig.Ch(ada).Actions = new ActionInput { HeldSlot = 0 });
+        Assert.True(a.GunRefusedSeq == 2 && a.GunRefused == OutcomeCode.Empty, "nothing to unload");
+        Guns.Queue(rig, ada, 3, GunActionKind.Reload);
+        Guns.Queue(rig, ada, 4, GunActionKind.Unload);
+        rig.Step(2, () => rig.Ch(ada).Actions = new ActionInput { HeldSlot = 0 });
+        Assert.True(a.Gun.Reloading && a.GunRefusedSeq == 4 && a.GunRefused == OutcomeCode.Reloading, "not while reloading");
+
+        // Over the network: in hand on the gun's timeline, and from the main slots by an item action.
+        using var net = new LoopbackRig();
+        GameClient bo = net.Join("Bo");
+        net.WaitUntilPlaying();
+        LocalPlayer me = bo.Local;
+        net.Server.Execute("give Bo rifle 2");
+        net.Server.Execute("give Bo rifle-ammo 60");
+        Loopback.RunUntil(net, () => me.Inventory.Count(c.ItemByKey("rifle")) == 2 && me.Inventory.Count(c.ItemByKey("rifle-ammo")) == 60, "the rifles");
+        int[] rifles = Enumerable.Range(0, 24).Where(i => me.Inventory.Main[i].Item == c.ItemByKey("rifle").Id).ToArray();
+        me.MoveItem(ContainerRef.Main, rifles[0], ContainerRef.Belt, 1);
+        me.HeldSlot = 1;
+        Loopback.RunUntil(net, () => me.Gun.Ready, "the rifle in hand");
+        me.Reload();
+        Loopback.RunUntil(net, () => me.Gun.Loaded == 30 && !me.Gun.Reloading && me.Gun.PendingCount == 0, "loaded", 8);
+        Loopback.RunUntil(net, () => me.Inventory.Count(c.ItemByKey("rifle-ammo")) == 30, "the rounds taken");
+        var unloaded = new List<UnloadEvent>();
+        me.Gun.Unloaded += unloaded.Add;
+        me.ItemAction(ContainerRef.Belt, 1, c.ItemActions["unload"]!.Id);
+        net.Run(0.1, (_, _) => default);
+        Assert.True(me.Gun.Loaded == 0 && unloaded.Count == 1 && unloaded[0].Rounds == 30, "unloaded at once, on the gun's timeline");
+        Loopback.RunUntil(net, () => me.Gun.PendingCount == 0 && me.Inventory.Count(c.ItemByKey("rifle-ammo")) == 60, "the server agrees");
+        int serverLoaded = net.Server.Inspect(sv =>
+        {
+            sv.Zone.TryFindPlayer(bo.EntityId, out _, out Player p);
+            return (int)p.Inventory.Belt[1].Loaded + 1000 * p.Inventory.Count(c.ItemByKey("rifle-ammo"));
+        });
+        Assert.Equal(60_000, serverLoaded, "the server's magazine empty and the rounds back");
+
+        // The other rifle, loaded on the server (as if found loaded), unloaded from the main slots.
+        net.Server.Inspect(sv =>
+        {
+            sv.Zone.TryFindPlayer(bo.EntityId, out _, out Player p);
+            ItemStack spare = p.Inventory.Main[rifles[1]];
+            spare.Loaded = 12;
+            spare.LoadedAmmo = c.ItemByKey("rifle-ammo-hv").Id;
+            p.Inventory.Main.Set(rifles[1], spare);
+            return 0;
+        });
+        Loopback.RunUntil(net, () => me.Inventory.Main[rifles[1]].Loaded == 12, "the spare's magazine");
+        uint seq = me.ItemAction(ContainerRef.Main, rifles[1], c.ItemActions["unload"]!.Id);
+        Assert.True(seq != 0 && me.Inventory.Main[rifles[1]].Loaded == 0 && me.Inventory.Count(c.ItemByKey("rifle-ammo-hv")) == 12, "predicted");
+        Loopback.RunUntil(net, () => me.PendingCount == 0, "answered");
+        Assert.True(me.Inventory.Main[rifles[1]].Loaded == 0 && me.Inventory.Count(c.ItemByKey("rifle-ammo-hv")) == 12, "and confirmed");
+    }
+
+    /// <summary>The player an action acts for, as a test sees them (no effects besides the items).</summary>
+    private sealed class TestActor(GameContent content, Player p) : IItemActor
+    {
+        public GameContent Content => content;
+
+        public PlayerInventory Inventory => p.Inventory;
+
+        public BlueprintBook Blueprints => p.Blueprints;
+
+        public bool Reloading(ContainerRef from, int slot) => false;
+
+        public void Consumed(ItemDef item)
+        {
+        }
+
+        public void Learned(Recipe recipe)
+        {
+        }
+
+        public void MagazineChanged(ContainerRef from, int slot)
+        {
+        }
+    }
+}
+
+/// <summary>Running a loopback game until something happens.</summary>
+public static class Loopback
+{
+    public static void RunUntil(LoopbackRig rig, Func<bool> done, string what, double seconds = 5)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        while (!done())
+        {
+            Assert.True(watch.Elapsed.TotalSeconds < seconds, $"timed out waiting for {what}");
+            rig.Run(0.05, (_, _) => default);
+        }
     }
 }

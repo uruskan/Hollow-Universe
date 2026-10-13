@@ -122,9 +122,12 @@ public interface IGroundUi
     /// <summary>Moves <paramref name="amount"/> of a stack onto another slot: merges, swaps or splits.</summary>
     void Move(SlotRef from, SlotRef to, int amount);
 
-    /// <summary>More of a slot's actions for the item panel, as a label and what it does (a gun's attachments to take
-    /// off); none by default.</summary>
-    IReadOnlyList<(string Label, Action Act)> MoreActions(SlotRef slot) => Array.Empty<(string, Action)>();
+    /// <summary>
+    /// The item panel's ACTIONS for a slot's stack (GROUND_SYSTEMS.md §7), besides DROP (the panel's own): what its parts
+    /// offer (EAT or USE, WEAR or UNEQUIP, LEARN, UNLOAD, REMOVE an attachment), each with why it can't be done now when it
+    /// can't. None by default.
+    /// </summary>
+    IReadOnlyList<ItemActionView> Actions(SlotRef slot) => Array.Empty<ItemActionView>();
 
     /// <summary>Splits <paramref name="amount"/> off a stack into a free slot of the same container.</summary>
     void Split(SlotRef slot, int amount);
@@ -134,9 +137,6 @@ public interface IGroundUi
 
     /// <summary>Moves a stack to the other side: into the open container and back, or between main and belt.</summary>
     void QuickMove(SlotRef slot);
-
-    /// <summary>Uses an item (a bandage, food).</summary>
-    void Use(SlotRef slot);
 
     void Craft(string key, int amount);
 

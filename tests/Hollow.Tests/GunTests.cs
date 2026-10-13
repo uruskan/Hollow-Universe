@@ -424,7 +424,7 @@ public static class GunTests
         ZoneEvent launch = Guns.Launches(rig).Single();
         Assert.True(launch.Flag, "silenced");
         Assert.Near(300 * 0.75, launch.Velocity.Length(), 0.01, "slower");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Detach(ada, ContainerRef.Belt, 0, AttachmentSlot.Muzzle), "off again");
+        Assert.Equal(OutcomeCode.Done, rig.Act(ada, ContainerRef.Belt, 0, "remove", (int)AttachmentSlot.Muzzle), "off again");
         Assert.True(a.Inventory.Belt[0].Muzzle == 0 && a.Inventory.Count(c.ItemByKey("silencer")) == 1, "into the inventory");
         Assert.Equal(13, (int)a.Inventory.Belt[0].Loaded, "the magazine stayed with the gun throughout");
     }
