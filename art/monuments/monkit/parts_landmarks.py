@@ -1030,6 +1030,165 @@ def _hauler_truck(b):
     b.collide_box(Vector((0, 0, 1.9)), (10.6, 2.6, 3.8))
 
 
+# ------------------------------------------------------------------------------------------------ hulls
+
+
+def superellipse(w, h, p=3.6):
+    """A rounded-box cross-section `w` x `h` (|x/a|^p + |z/b|^p = 1): returns (ring(n, y, zc), half_width(dz))."""
+    a, bb = w / 2, h / 2
+
+    def ring(n, y, zc, flat=0.86):
+        pts = []
+        for k in range(n):
+            t = 2 * math.pi * k / n
+            c, s = math.cos(t), math.sin(t)
+            x = math.copysign(abs(c) ** (2 / p), c) * a
+            z = math.copysign(abs(s) ** (2 / p), s) * bb
+            z = max(z, -bb * flat)
+            pts.append((x, y, zc + z))
+        return pts
+
+    def half_width(dz):
+        t = min(1.0, abs(dz) / bb)
+        return a * max(0.0, 1 - t ** p) ** (1 / p)
+    return ring, half_width
+
+
+def hull_loft(b, rings, at=(0, 0, 0), rot=(0, 0, 0), mat=HULL, tint=OFFWHITE, holes=None, cap_start=False,
+              cap_end=False, ragged=(0.0, 0.0), solid=False, wear=0.45):
+    """A hull skin lofted through `rings` (lists of points, the same count each, in order along the hull).
+    `holes(i, j)` -> True leaves the panel between ring i and i+1 at point j out; `ragged` (start, end) metres pulls
+    the first and last rings' points back by random amounts, so a break has a torn edge. Returns the rings used."""
+    n = len(rings[0])
+    rings = [list(r) for r in rings]
+    for which, amount in ((0, ragged[0]), (len(rings) - 1, ragged[1])):
+        if amount <= 0:
+            continue
+        nxt = rings[1] if which == 0 else rings[-2]
+        new = []
+        for j, p in enumerate(rings[which]):
+            q = Vector(nxt[j])
+            pv = Vector(p)
+            d = (q - pv)
+            f = b.rng.random() ** 1.5 * min(0.95, amount / max(d.length, 1e-6))
+            new.append(tuple(pv + d * f))
+        rings[which] = new
+    verts = [v for r in rings for v in r]
+    faces = []
+    for i in range(len(rings) - 1):
+        for j in range(n):
+            if holes and holes(i, j):
+                continue
+            a, c = i * n + j, i * n + (j + 1) % n
+            faces.append([a, c, c + n, a + n])
+    if cap_start:
+        faces.append(list(range(n))[::-1])
+    if cap_end:
+        last = (len(rings) - 1) * n
+        faces.append([last + j for j in range(n)])
+    b.mesh(verts, faces, at, rot, mat=mat, tint=tint, solid=solid, smooth=True, wear=wear, vary=0.02)
+    return rings
+
+
+def bushes(b, centre, radius, count=12, height=(1.5, 5.0), tints=(LEAF, MOSS, srgb(0.28, 0.38, 0.16)), z=0.0,
+           spread_z=0.0):
+    """A clump of growth gone wild: rounded low-poly masses in leaf greens."""
+    for _ in range(count):
+        a = b.rng.random() * math.tau
+        r = radius * math.sqrt(b.rng.random())
+        hgt = height[0] + (height[1] - height[0]) * b.rng.random()
+        w = hgt * b.rng.uniform(1.0, 1.8)
+        rock(b, (centre[0] + math.cos(a) * r, centre[1] + math.sin(a) * r, z + b.rng.uniform(0, spread_z)),
+             (w, w * b.rng.uniform(0.7, 1.1), hgt), (0, 0, b.rng.uniform(0, 360)), tint=b.rng.choice(tints), n=2,
+             rough=0.35, sink=0.15, mat=MATTE, solid=False, smooth=True, wear=0.2)
+
+
+def tree(b, at, height=8.0, crown=None, tint=None, trunk=srgb(0.32, 0.26, 0.2)):
+    """A wild tree: a leaning trunk and a lumpy crown or two."""
+    x, y, z = at
+    crown = crown or height * 0.55
+    with b.frame((x, y, z), (b.rng.uniform(-8, 8), b.rng.uniform(-8, 8), b.rng.uniform(0, 360))):
+        b.cyl(height * 0.035, height * 0.75, (0, 0, height * 0.375), mat=MATTE, tint=trunk, sides=6,
+              radius2=height * 0.02, solid=False)
+        for k in range(2):
+            c = crown * (1.0 - 0.3 * k)
+            rock(b, (b.rng.uniform(-0.15, 0.15) * c, b.rng.uniform(-0.15, 0.15) * c, height * (0.62 + 0.18 * k)),
+                 (c, c * b.rng.uniform(0.8, 1.0), c * 0.7), (0, 0, b.rng.uniform(0, 360)),
+                 tint=tint or b.rng.choice((LEAF, MOSS, srgb(0.26, 0.36, 0.15))), n=2, rough=0.35, sink=0.0,
+                 mat=MATTE, solid=False, smooth=True, wear=0.2)
+
+
+def scrap_wall(b, a, c, height=2.6, tints=(srgb(0.55, 0.5, 0.42), srgb(0.45, 0.47, 0.5), srgb(0.6, 0.35, 0.2))):
+    """A Reclaimer barricade from `a` to `c`: overlapping sheets of corrugated and plate at odd angles, posts."""
+    a, c = Vector(a), Vector(c)
+    d = c - a
+    L = d.length
+    yaw = math.degrees(math.atan2(d.y, d.x))
+    n = max(1, int(L / 1.6))
+    for i in range(n):
+        p = a + d * ((i + 0.5) / n)
+        hh = height * b.rng.uniform(0.75, 1.1)
+        b.box((L / n * 1.25, 0.06, hh), (p.x, p.y, p.z + hh / 2), (b.rng.uniform(-6, 6), 0, yaw + b.rng.uniform(-8, 8)),
+              mat=CORRUGATED if i % 3 else PAINT, tint=b.rng.choice(tints), solid=False, vary=0.1, wear=0.8)
+    for i in range(0, n + 1, 2):
+        p = a + d * (i / n)
+        b.box((0.12, 0.12, height + 0.4), (p.x, p.y, p.z + (height + 0.4) / 2), (0, 0, yaw), mat=RUST, tint=(1, 1, 1),
+              solid=False, vary=0)
+    b.collide_box(Vector(((a + c) / 2).to_tuple()) + Vector((0, 0, height / 2)), (L, 0.3, height), (0, 0, yaw))
+
+
+def tarp(b, at, w, d, h, yaw=0.0, tint=srgb(0.45, 0.5, 0.35)):
+    """A tarp shelter: four poles and a sagging sheet."""
+    x, y, z = at
+    with b.frame((x, y, z), (0, 0, yaw)):
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                hh = h + (0.4 if sy > 0 else 0.0)
+                b.box((0.08, 0.08, hh), (sx * w / 2, sy * d / 2, hh / 2), mat=RUST, tint=(1, 1, 1), solid=False,
+                      vary=0)
+        b.box((w + 0.4, d + 0.4, 0.04), (0, 0, h + 0.2), (math.degrees(math.atan2(0.4, d)), 0, 0), mat=MATTE,
+              tint=tint, solid=False, vary=0.08)
+
+
+def string_lights(b, pts, sag=0.06, every=3.0):
+    """A cable of bulbs strung between points (Reclaimer lighting)."""
+    for a, c in zip(pts, pts[1:]):
+        kit.cable(b, a, c, sag=sag, radius=0.015)
+        a, c = Vector(a), Vector(c)
+        L = (c - a).length
+        n = max(1, int(L / every))
+        for i in range(1, n):
+            t = i / n
+            p = a.lerp(c, t)
+            p.z -= 4 * sag * L * t * (1 - t) + 0.12
+            b.box((0.14, 0.14, 0.18), tuple(p), mat=LAMP, tint=WARM_LAMP, solid=False, vary=0)
+    b.marker("light", tuple(Vector(pts[len(pts) // 2])), colour=[1.0, 0.8, 0.5], range=12.0, flicker=True)
+
+
+def _cryo_rack(b):
+    """Kit piece: a rack of twelve cryo pods in three tiers, 10 x 3.4 x 6 m: capsules with frosted lids, a service
+    spine, cables."""
+    for x in (-5.0, 5.0):
+        for y in (-1.6, 1.6):
+            b.box((0.2, 0.2, 6.0), (x, y, 3.0), mat=PAINT, tint=GREY, solid=False)
+    for tier in range(3):
+        z = 0.6 + tier * 1.9
+        b.box((10.2, 3.4, 0.12), (0, 0, z - 0.1), mat=GRATE, tint=GREY, solid=False, vary=0)
+        for k in range(4):
+            x = -3.75 + k * 2.5
+            b.cyl(0.62, 3.0, (x, 0, z + 0.62), (90, 0, 0), mat=PANEL, tint=OFFWHITE, sides=14, solid=False)
+            b.box((0.9, 2.4, 0.3), (x, 0, z + 1.18), mat=GLASS, solid=False, vary=0)
+            b.box((1.0, 0.25, 0.25), (x, 1.62, z + 0.62), mat=PAINT, tint=TEAL, solid=False, vary=0)
+    b.box((10.0, 0.4, 0.6), (0, 1.8, 5.8), mat=PAINT, tint=DARK, solid=False)
+    for k in range(4):
+        x = -3.75 + k * 2.5
+        b.tube([(x, 1.7, 5.6), (x + 0.3, 1.9, 3.5), (x, 1.75, 1.0)], 0.05, mat=PAINT, tint=BLACK, sides=5)
+    b.collide_box(Vector((0, 0, 3.0)), (10.4, 3.4, 6.0))
+
+
+kit.PIECES["cryo-rack"] = _cryo_rack
+
+
 kit.PIECES["climber-car"] = _climber_car
 kit.PIECES["hauler-truck"] = _hauler_truck
 
