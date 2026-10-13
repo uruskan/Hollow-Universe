@@ -45,6 +45,10 @@ Their worktrees in `D:\GameDev\Projects\Hollow-wt\` can be removed once the owne
   LEARN, dropping over the interface, workbench speed).
 - Later: P7, characters and held items (third-person grips and clipping, Rust's closed grip on the rock, swings whose
   contact meets the server's hit), to plan with the owner.
+- To check once the shared systems are merged (the owner, 13 October 2026): building textures and the plan's ghost looked
+  "super bright, broken" in one of their runs after the first merges (the sandbox rendered them normally afterwards: maybe
+  a half-done import; look again in the game); and free foundations rise too little (today at most the foundation depth,
+  1 m, RustMVP's number; more needs a taller foundation model so nothing floats).
 - Deferred, to ask the owner: building stability. They wrote: "floors can hang out if there's a half wall or something
   that they are snapped to, and in a triangle foundation one wall and one half wall and a triangle floor on top shouldn't
   break when the half wall is broken since that triangle floor would be attached to the wall; however the half wall
