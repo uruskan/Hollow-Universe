@@ -1,4 +1,5 @@
 using Hollow.Simulation;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
@@ -702,4 +703,214 @@ public partial struct GunUpdate
     public double StartYaw;
     public double Bloom;
     [Bits(6)] public ushort RecoilIndex;
+}
+
+// ---------------------------------------------------------------- G3: building intents (client → server, reliable)
+// Each has a sequence number from the same series as G2's intents and is answered with a BuildResult (GROUND.md §6.3).
+
+/// <summary>
+/// Place a piece from the building plan: on a support's socket in an orientation (the server derives the pose), or,
+/// with no support, a foundation on the ground at a point (zone frame) and heading in 15° steps.
+/// </summary>
+[NetMessage(90)]
+public partial struct PlacePieceIntent
+{
+    [VarInt] public uint Seq;
+    public byte Piece;
+    public ulong Support;
+    public byte Socket;
+    public byte Orientation;
+    public float X;
+    public float Y;
+    public float Z;
+    [Bits(5)] public byte Heading;
+}
+
+/// <summary>A hammer action on a piece: upgrade (to a grade), rotate, demolish, repair.</summary>
+[NetMessage(91)]
+public partial struct HammerIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(2)] public HammerAction Action;
+    public ulong Target;
+    [Bits(3)] public byte Grade;
+}
+
+/// <summary>Fit the door in a slot into a frame piece (flipped or not), open or shut a door, or pick one up.</summary>
+[NetMessage(92)]
+public partial struct DoorIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(2)] public DoorAction Action;
+    [Bits(3)] public ContainerRef From;
+    public byte Slot;
+    [VarInt] public uint Expected;
+    public ulong Target;
+    public bool Flip;
+}
+
+/// <summary>A lock on a door: fit one from a slot, set or enter a code, lock, unlock, cut a key, take it off.</summary>
+[NetMessage(93)]
+public partial struct LockIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public LockAction Action;
+    [Bits(3)] public ContainerRef From;
+    public byte Slot;
+    [VarInt] public uint Expected;
+    public ulong Door;
+    [MaxLength(8)] public string Code;
+}
+
+/// <summary>
+/// The claim device: place the one in a slot on a foundation or floor at a point of its top (frame metres, X and Z)
+/// turned by 30° steps; authorise, deauthorise, clear the list; pick it up.
+/// </summary>
+[NetMessage(94)]
+public partial struct ClaimIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public ClaimAction Action;
+    [Bits(3)] public ContainerRef From;
+    public byte Slot;
+    [VarInt] public uint Expected;
+    public ulong Target;
+    public double X;
+    public double Z;
+    [Bits(4)] public byte Yaw;
+}
+
+/// <summary>The answer to a building intent: done (None), or the rules' reason with the player's line.</summary>
+[NetMessage(95)]
+public partial struct BuildResult
+{
+    [VarInt] public uint Seq;
+    [Bits(6)] public Refusal Reason;
+    [MaxLength(96)] public string Text;
+}
+
+// ---------------------------------------------------------------- G3: building replication (server → client, reliable)
+// Pieces, doors and claim devices are static entities (GROUND.md §4.4): sent when their area comes within range,
+// streamed a few hundred bytes a snapshot, then only their changes. Positions are exact doubles in an exact frame,
+// so a client's copy links, solves and collides exactly as the server's does.
+
+/// <summary>A structure frame (a lattice that pieces snap in): origin and axes in the zone frame.</summary>
+[NetStruct]
+public partial struct BuildFrameNet
+{
+    [VarInt] public uint Id;
+    public double OriginX;
+    public double OriginY;
+    public double OriginZ;
+    public double XX;
+    public double XY;
+    public double XZ;
+    public double YX;
+    public double YY;
+    public double YZ;
+    public double ZX;
+    public double ZY;
+    public double ZZ;
+}
+
+/// <summary>Frames the pieces that follow use, each sent once.</summary>
+[NetMessage(96)]
+public partial struct BuildFrames
+{
+    [MaxCount(16)] public BuildFrameNet[] Frames;
+}
+
+/// <summary>
+/// A piece as clients have it: its frame, kind, grade, turn and exact position there; health as a fraction of 65,535;
+/// the server's body ID (prediction meets the same contacts); seconds left to rotate or demolish it; coming down.
+/// </summary>
+[NetStruct]
+public partial struct PieceNet
+{
+    public ulong Id;
+    [VarInt] public uint Frame;
+    public byte Piece;
+    [Bits(3)] public byte Grade;
+    [Bits(4)] public byte Yaw;
+    public double X;
+    public double Y;
+    public double Z;
+    public ushort Health;
+    [VarInt] public uint Body;
+    [VarInt] public uint EditLeft;
+    public bool Collapsing;
+}
+
+/// <summary>New pieces in range, and pieces that changed.</summary>
+[NetMessage(97)]
+public partial struct BuildPieces
+{
+    [MaxCount(64)] public PieceNet[] Pieces;
+}
+
+[NetStruct]
+public partial struct BuildIdNet
+{
+    public ulong Id;
+}
+
+/// <summary>Pieces, doors or claim devices gone: destroyed or taken away, or (not destroyed) out of range.</summary>
+[NetMessage(98)]
+public partial struct BuildRemoved
+{
+    [Bits(2)] public BuildPartKind Kind;
+    public bool Destroyed;
+    [MaxCount(255)] public BuildIdNet[] Ids;
+}
+
+/// <summary>
+/// A door: its frame piece, which door (building.json's order), flipped, open; health as a fraction of 65,535; its
+/// lock, whether locked and whether this player may pass it; its leaves' body IDs.
+/// </summary>
+[NetStruct]
+public partial struct DoorNet
+{
+    public ulong Id;
+    public ulong Frame;
+    public byte Door;
+    public bool Flip;
+    public bool Open;
+    public ushort Health;
+    [Bits(2)] public LockKind Lock;
+    public ulong LockId;
+    public bool Locked;
+    public bool CanUse;
+    [VarInt] public uint Body0;
+    [VarInt] public uint Body1;
+}
+
+[NetMessage(99)]
+public partial struct BuildDoors
+{
+    [MaxCount(32)] public DoorNet[] Doors;
+}
+
+/// <summary>
+/// A claim device: the piece it stands on, where on it (frame metres) and its turn; health as a fraction of 65,535;
+/// whether this player is on its list; its body; how long its store keeps the base from decaying (minutes).
+/// </summary>
+[NetStruct]
+public partial struct ClaimNet
+{
+    public ulong Id;
+    public ulong Support;
+    public double X;
+    public double Y;
+    public double Z;
+    [Bits(4)] public byte Yaw;
+    public ushort Health;
+    public bool Authorised;
+    [VarInt] public uint Body;
+    [VarInt] public uint ProtectedMinutes;
+}
+
+[NetMessage(100)]
+public partial struct BuildClaims
+{
+    [MaxCount(16)] public ClaimNet[] Claims;
 }

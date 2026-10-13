@@ -9,6 +9,7 @@
     { "key": "medical", "name": "Medical" },
     { "key": "food", "name": "Food" },
     { "key": "items", "name": "Items" },
+    { "key": "construction", "name": "Construction" },
     { "key": "vehicles", "name": "Vehicles" }
   ]
 }

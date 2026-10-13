@@ -17,13 +17,14 @@ public sealed class ClaimDevice
     internal readonly List<ulong> AuthorisedList = new();
     internal uint Body;
 
-    internal ClaimDevice(EntityId id, ulong owner, Piece support, Vector3D position, int yaw)
+    internal ClaimDevice(EntityId id, ulong owner, Piece support, Vector3D position, int yaw, double health)
     {
         Id = id;
         Owner = owner;
         Support = support;
         Position = position;
         Yaw = yaw;
+        Health = health;
         AuthorisedList.Add(owner);
     }
 
@@ -48,8 +49,18 @@ public sealed class ClaimDevice
 
     public bool IsAuthorised(ulong player) => AuthorisedList.Contains(player);
 
-    /// <summary>The upkeep store: whole items by material key (the device's container in phase 2).</summary>
-    public Dictionary<string, int> Stock { get; } = new(StringComparer.Ordinal);
+    /// <summary>Its Jolt body's ID.</summary>
+    public uint BodyId => Body;
+
+    /// <summary>
+    /// The upkeep store: whole items by material key. A dictionary of its own until the zone gives the device its
+    /// container (the loot panel's), which then pays the upkeep.
+    /// </summary>
+    public IBuildingWallet Store { get; set; } = new Wallet();
+
+    public double Health { get; internal set; }
+
+    public double LastDamagedAt { get; internal set; } = double.NegativeInfinity;
 
     public (Vector3 Position, Quaternion Rotation) ZoneTransform => Structure.Frame.ToZone(new Pose(Position, Yaw));
 }
@@ -107,8 +118,9 @@ public sealed partial class BuildingWorld
                 }
             }
         }
-        device = new ClaimDevice(_newId(), player, support, position, pose.Yaw);
+        device = new ClaimDevice(_newId(), player, support, position, pose.Yaw, Data.ClaimHealth);
         support.Structure.Claim = device;
+        _claimIds[device.Id] = device;
         if (Physics != null)
         {
             device.Body = Physics.Add(device, Physics.ShapeFor(Data.ClaimItem, parts), zonePosition, zoneRotation);
@@ -124,13 +136,43 @@ public sealed partial class BuildingWorld
             return;
         }
         device.Gone = true;
-        Physics?.Remove(device.Body);
+        _claimIds.Remove(device.Id);
+        Physics?.Remove(device.Body, device);
         Structure structure = device.Support.Structure;
         if (structure.Claim == device)
         {
             structure.Claim = null;
         }
         Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimRemoved, device.Support, Claim: device, Structure: structure));
+    }
+
+    /// <summary>
+    /// Damages a claim device through its protection (building.json's claim: a grade's hard side). At zero it breaks:
+    /// the structure loses its building rights and upkeep, and the zone spills its store.
+    /// </summary>
+    public DamageResult Damage(ClaimDevice device, in DamageHit hit, double now)
+    {
+        if (device.Gone)
+        {
+            return default;
+        }
+        double loss = Resolve(Data.ClaimProtection.Hard, hit, device.Health);
+        if (loss <= 0)
+        {
+            return default;
+        }
+        device.Health -= loss;
+        device.LastDamagedAt = now;
+        bool destroyed = device.Health <= 0;
+        if (destroyed)
+        {
+            RemoveClaim(device);
+        }
+        else
+        {
+            Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimChanged, device.Support, Claim: device, Structure: device.Structure));
+        }
+        return new DamageResult(loss, false, destroyed);
     }
 
     /// <summary>Takes a claim device down (by an authorised player): the structure loses its building rights and upkeep.</summary>
@@ -290,7 +332,7 @@ public sealed partial class BuildingWorld
             {
                 continue;
             }
-            double credit = claim.Stock.GetValueOrDefault(material) - structure.UpkeepDebt.GetValueOrDefault(material);
+            double credit = claim.Store.Count(material) - structure.UpkeepDebt.GetValueOrDefault(material);
             best = Math.Min(best, Math.Max(0, credit) / (perPeriod / period));
         }
         return best;
@@ -307,10 +349,32 @@ public sealed partial class BuildingWorld
     /// </summary>
     public void AdvanceTime(double seconds, double now)
     {
-        if (!(seconds > 0))
+        if (!(seconds > 0) || Mirror)
         {
             return;
         }
+        _advanced.Clear();
+        AdvanceAll(seconds, now);
+        // What decayed or paid upkeep is announced once, after the whole interval.
+        foreach (object changed in _advanced)
+        {
+            switch (changed)
+            {
+                case Piece { Gone: false } p:
+                    Changed?.Invoke(new BuildingEvent(BuildingChange.PieceChanged, p, Structure: p.Structure));
+                    break;
+                case ClaimDevice { Gone: false } c:
+                    Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimChanged, c.Support, Claim: c, Structure: c.Structure));
+                    break;
+            }
+        }
+        _advanced.Clear();
+    }
+
+    private readonly HashSet<object> _advanced = new();
+
+    private void AdvanceAll(double seconds, double now)
+    {
         var queue = new Queue<(Structure Structure, double Seconds)>(_structures.Select(s => (s, seconds)));
         while (queue.Count > 0)
         {
@@ -354,7 +418,7 @@ public sealed partial class BuildingWorld
             foreach ((string material, double rate) in rates)
             {
                 if (rate > 0 && (claim == null ||
-                    claim.Stock.GetValueOrDefault(material) - structure.UpkeepDebt.GetValueOrDefault(material) <= 1e-9))
+                    claim.Store.Count(material) - structure.UpkeepDebt.GetValueOrDefault(material) <= 1e-9))
                 {
                     unpaid.Add(material);
                 }
@@ -369,7 +433,7 @@ public sealed partial class BuildingWorld
                 {
                     if (rate > 0 && Paid(material))
                     {
-                        double credit = claim.Stock.GetValueOrDefault(material) - structure.UpkeepDebt.GetValueOrDefault(material);
+                        double credit = claim.Store.Count(material) - structure.UpkeepDebt.GetValueOrDefault(material);
                         dt = Math.Min(dt, credit / rate);
                     }
                 }
@@ -393,9 +457,12 @@ public sealed partial class BuildingWorld
                         continue;
                     }
                     double debt = structure.UpkeepDebt.GetValueOrDefault(material) + rate * dt;
-                    int stock = claim.Stock.GetValueOrDefault(material);
+                    int stock = claim.Store.Count(material);
                     int whole = (int)Math.Min(stock, Math.Floor(debt + 1e-9));
-                    claim.Stock[material] = stock - whole;
+                    if (whole > 0 && claim.Store.Take(material, whole))
+                    {
+                        _advanced.Add(claim);
+                    }
                     debt -= whole;
                     // Run out: what's left of the debt is rounding.
                     structure.UpkeepDebt[material] = stock - whole <= 0 && debt < 1e-6 ? 0 : Math.Max(0, debt);
@@ -407,6 +474,10 @@ public sealed partial class BuildingWorld
                 if (p.Collapsing || Paid(Data.Grades[p.Grade].Material))
                 {
                     continue;
+                }
+                if (dt > 0)
+                {
+                    _advanced.Add(p);
                 }
                 p.Health -= DecayRate(p) * dt;
                 if (p.Health <= 1e-9 * p.MaxHealth)

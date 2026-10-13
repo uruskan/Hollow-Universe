@@ -197,9 +197,9 @@ public static class WorldCodec
             {
                 ushort item = r.ReadUInt16();
                 var owner = new EntityId(r.ReadUInt64());
-                if (content.Deployable(item) is not { } def)
+                if (content.Deployable(item) is not { } def || def == content.ClaimDeployable)
                 {
-                    return null;
+                    return null; // a claim device is saved with the building
                 }
                 var d = new Deployable(id, def, position, up, yaw, owner)
                 {
@@ -331,7 +331,10 @@ public static class WorldCodec
         {
             return default;
         }
-        var stack = new ItemStack(item, count, def.HasCondition ? (ushort)Math.Clamp((int)condition, 1, def.MaxCondition) : (ushort)0);
+        // A key's condition is the number of the lock it was cut for.
+        ushort kept = def.HasCondition ? (ushort)Math.Clamp((int)condition, 1, def.MaxCondition)
+            : def.Building == BuildingRole.Key ? condition : (ushort)0;
+        var stack = new ItemStack(item, count, kept);
         if (def.Firearm is { } gun)
         {
             if (content.Item(loadedAmmo)?.Bullet is { } round && round.Calibre == gun.Calibre)

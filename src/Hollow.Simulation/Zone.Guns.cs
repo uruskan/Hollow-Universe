@@ -437,6 +437,19 @@ public sealed partial class Zone
                     });
                 }
                 break;
+            case HitTarget.Building:
+            {
+                // A wall stops the bullet; what it takes is its grade's protection against bullets (none from stone up).
+                float lost = DamageBuilding(hit.Building!, Vector3.Normalize(b.Velocity), (float)(b.Damage * b.Gun.Falloff(distance)), projectile: true);
+                if (shooter != null)
+                {
+                    GameEvents.Add(new ZoneEvent
+                    {
+                        Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point, Item = b.Gun.Item.Id,
+                    });
+                }
+                break;
+            }
         }
     }
 

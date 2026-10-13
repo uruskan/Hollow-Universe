@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json;
 using Hollow.Core;
+using BuildingData = Hollow.Simulation.Building.BuildingData;
 
 namespace Hollow.Simulation.Content;
 
@@ -23,7 +24,9 @@ public sealed class GameContent
     public static readonly string[] Files =
     {
         "items.json", "recipes.json", "gather.json", "deployables.json", "loot.json", "survival.json", "categories.json",
-        "weapons.json", "ships.json",
+        "weapons.json",
+        "building.json",
+        "ships.json",
     };
 
     private readonly ItemDef?[] _byId;
@@ -52,6 +55,8 @@ public sealed class GameContent
         PlacementMaxStep = loaded.PlacementMaxStep;
         Hash = loaded.Hash;
         Problems = loaded.Problems;
+        Building = loaded.Building ?? BuildingData.Parse("{}");
+        ClaimDeployable = loaded.ClaimDeployable ?? new DeployableDef { Key = "claim-device", Item = new ItemDef { Key = "claim-device" }, Health = 200, Slots = 24 };
         _byId = new ItemDef?[ushort.MaxValue + 1];
         _byKey = new Dictionary<string, ItemDef>(StringComparer.Ordinal);
         foreach (ItemDef item in Items)
@@ -104,6 +109,12 @@ public sealed class GameContent
     /// <summary>A hash of every file's text (line ends normalised): the server and client must have the same.</summary>
     public ulong Hash { get; }
 
+    /// <summary>The building rules' numbers (building.json, GROUND.md §6.3).</summary>
+    public BuildingData Building { get; }
+
+    /// <summary>The claim device as the zone keeps it: a deployable whose storage is its upkeep store (never placed on the ground).</summary>
+    public DeployableDef ClaimDeployable { get; }
+
     /// <summary>Everything wrong with the files: empty when they are good. <see cref="Load"/> refuses any.</summary>
     public IReadOnlyList<string> Problems { get; }
 
@@ -123,7 +134,8 @@ public sealed class GameContent
 
     public NaturalKind? Natural(string key) => _natural.GetValueOrDefault(key);
 
-    public DeployableDef? Deployable(int itemId) => Item(itemId)?.Deploys;
+    public DeployableDef? Deployable(int itemId) =>
+        Item(itemId) is { } item ? item.Deploys ?? (item == ClaimDeployable.Item ? ClaimDeployable : null) : null;
 
     public DeployableDef? Deployable(string key) => _deployables.GetValueOrDefault(key);
 
@@ -196,8 +208,81 @@ public sealed class GameContent
         loaded.Hash = hash;
         var reader = new ContentReader(new JsonFields(problems), documents, loaded);
         reader.ReadAll();
+        LinkBuilding(texts.GetValueOrDefault("building.json") ?? "", documents["building.json"], loaded, problems);
         Validation.Check(loaded, problems);
         return new GameContent(loaded);
+    }
+
+    // building.json (GROUND.md §6.3) has its own reader; its items are linked here: a door item to its door, and the
+    // building's own item keys (claim device, locks, key, materials) to items that say what they are.
+    private static void LinkBuilding(string text, JsonElement document, Loaded loaded, List<string> problems)
+    {
+        BuildingData data;
+        try
+        {
+            data = BuildingData.Parse(document.ValueKind == JsonValueKind.Object ? text : "{}");
+        }
+        catch (JsonException)
+        {
+            data = BuildingData.Parse("{}");
+        }
+        if (document.ValueKind == JsonValueKind.Object)
+        {
+            problems.AddRange(data.Problems.Select(p => "building.json: " + p));
+        }
+        loaded.Building = data;
+        var byKey = new Dictionary<string, ItemDef>(StringComparer.Ordinal);
+        foreach (ItemDef item in loaded.Items)
+        {
+            byKey.TryAdd(item.Key, item);
+        }
+        foreach (ItemDef item in loaded.Items)
+        {
+            string where = $"items.json: {JsonFields.Quote(item.Key)}";
+            if (item.Building == BuildingRole.Door)
+            {
+                item.Door = item.DoorKey != null ? data.Door(item.DoorKey) : null;
+                if (item.Door == null)
+                {
+                    problems.Add($"{where}.door: no door \"{item.DoorKey}\" in building.json");
+                }
+            }
+            else if (item.DoorKey != null)
+            {
+                problems.Add($"{where}.door: only a door item names a door");
+            }
+        }
+        void Expect(string key, BuildingRole role, string what)
+        {
+            if (!byKey.TryGetValue(key, out ItemDef? item) || item.Building != role)
+            {
+                problems.Add($"building.json: {what} \"{key}\" must be an item with \"building\": \"{role}\"");
+            }
+        }
+        Expect(data.ClaimItem, BuildingRole.Claim, "the claim device");
+        Expect(data.KeyLockItem, BuildingRole.KeyLock, "the key lock");
+        Expect(data.CodeLockItem, BuildingRole.CodeLock, "the code lock");
+        Expect(data.KeyItem, BuildingRole.Key, "the key");
+        foreach (string material in data.Materials)
+        {
+            if (!byKey.ContainsKey(material))
+            {
+                problems.Add($"building.json: material \"{material}\" is not an item");
+            }
+        }
+        if (byKey.TryGetValue(data.ClaimItem, out ItemDef? claim))
+        {
+            loaded.ClaimDeployable = new DeployableDef
+            {
+                Key = data.ClaimItem,
+                Item = claim,
+                Health = (float)data.ClaimHealth,
+                HalfExtents = data.ClaimSize / 2,
+                // The building's own body blocks; the device is placed by the building rules, never on the ground.
+                Solid = false,
+                Slots = data.ClaimSlots,
+            };
+        }
     }
 
     /// <summary>
@@ -243,6 +328,8 @@ public sealed class GameContent
         public List<AttachmentStats> Attachments = new();
         public List<Ships.ShipDef> Ships = new();
         public SurvivalTuning Survival = new();
+        public BuildingData? Building;
+        public DeployableDef? ClaimDeployable;
         public WeakSpot WeakSpot = new(0.3f, 2f);
         public float PlacementReach = 3f;
         public float PlacementMaxStep = 0.6f;
@@ -312,7 +399,7 @@ public sealed class GameContent
                 string key = f.Text(e, "key", $"items.json: items[{i}]");
                 string where = $"items.json: {JsonFields.Quote(key)}";
                 f.OnlyKnown(e, where, "id", "key", "name", "description", "category", "stack", "condition", "melee", "bow", "ammo",
-                    "consume", "wear", "fuel", "cook", "deploys", "ship");
+                    "consume", "wear", "fuel", "cook", "deploys", "building", "door", "ship");
                 int id = f.Integer(e, "id", where);
                 if (id is < 1 or > ushort.MaxValue)
                 {
@@ -335,6 +422,8 @@ public sealed class GameContent
                     Fuel = f.TryChild(e, "fuel", out JsonElement fuel) ? Fuel(fuel, where + ".fuel") : null,
                     Cook = f.TryChild(e, "cook", out JsonElement cook) ? Cook(cook, where + ".cook") : null,
                     DeploysKey = f.Has(e, "deploys") ? f.Text(e, "deploys", where) : null,
+                    Building = f.Has(e, "building") ? Role(f.Text(e, "building", where), where) : BuildingRole.None,
+                    DoorKey = f.Has(e, "door") ? f.Text(e, "door", where) : null,
                     ShipKey = f.Has(e, "ship") ? f.Text(e, "ship", where) : null,
                 };
                 if (!_items.TryAdd(key, item))
@@ -359,6 +448,22 @@ public sealed class GameContent
                     item.Bow.Ammo = item.Bow.AmmoKeys.Select(k => Resolve(k, where + ".bow.ammo")).OfType<ItemDef>().ToArray();
                 }
             }
+        }
+
+        private BuildingRole Role(string text, string where)
+        {
+            switch (text)
+            {
+                case "plan": return BuildingRole.Plan;
+                case "hammer": return BuildingRole.Hammer;
+                case "claim": return BuildingRole.Claim;
+                case "key-lock": return BuildingRole.KeyLock;
+                case "code-lock": return BuildingRole.CodeLock;
+                case "key": return BuildingRole.Key;
+                case "door": return BuildingRole.Door;
+            }
+            f.Problem(where + ".building", $"\"{text}\" is not plan, hammer, claim, key-lock, code-lock, key or door");
+            return BuildingRole.None;
         }
 
         private MeleeStats Melee(JsonElement e, string where)

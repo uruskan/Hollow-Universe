@@ -212,6 +212,13 @@ Godot.
   release package), adds round-trip latency, jitter and loss in both directions; clients and bots take `--lag <ms>`,
   `--jitter <ms>` and `--loss <percent>`.
 
+**Building (G3, §6.5):** pieces, doors and claim devices are static entities, replicated by 64 m area. When an area
+comes within 300 m its pieces are queued for that player, nearest areas first, and go out within 1,200 bytes a
+snapshot (at most about 190 kbit/s while a base streams in); after that only changes travel, removals first (a
+client's copy may give a freed body ID to a new piece). Positions are exact doubles in exact frames and each piece
+carries the server's Jolt body ID, so a client's copy links, solves and collides exactly as the server's. A
+1,074-piece base reaches a player who joins beside it in about 1.9 s (a test).
+
 ### 4.5 Physics and movement
 
 - **Jolt** through JoltPhysicsSharp 2.23 (joltc 1.1), on the server and in the client's prediction. **The G1 spike
@@ -393,6 +400,10 @@ comes back at the same place on the planet whatever zone frame the server uses n
 health. The schema version is SQLite's `user_version`; opening a database migrates it step by step and refuses one
 newer than the build. Every database call runs on one worker thread in the order made, so a tick never waits for the
 disk and a login always reads the last save. Characters are saved on disconnect, every 30 s and on shutdown.
+
+Schema 3 (G3, §6.5) adds the body's building: a row per piece, door (with its lock) and claim device (with its list,
+store and upkeep debt), each a versioned binary record, written only when it changed and deleted when it's gone. The
+zone's record keeps when upkeep and decay were last applied, so loading catches up the time the server was down.
 
 ### 4.8 Characters
 
@@ -799,6 +810,45 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   the ticks the client predicted walking meanwhile are corrected (at most the difference between walking and crawling
   over a round trip).
 
+### 5.4 G3 load test: 100 bots build 100 bases
+
+Measured on the owner's PC on 13 October 2026, with other agents' work and apps using about a third of the CPU. Every
+bot joins with the `build-kit` loot table (a building plan, a hammer, 2,000 wood, 1,000 stone, a wooden door, a code
+lock and a claim device) and runs `--script build` (`BuildBrain`): it walks to a plot of its own (a 10 × 10 grid of
+plots 36 m apart round the origin, since a claim device covers 25 m round itself), picks a spot the rules take from
+where it stands (as a player would: no tree in the way, ground a foundation stands on), places a foundation and a
+second beside it (level or half a storey up), the walls round them with a doorway, floors on top, a wooden door with a
+code lock and a code, upgrades the foundations to stone and the walls to wood, places its claim device, and from then
+on opens and shuts its door every few seconds. Every step goes through the client's building API: checked first with
+the same rules as the ghost, sent as an intent, waited for. Neighbouring plots are 36 m apart, so each bot sees most
+of the bases within its 300 m.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 120 --script build --kit build-kit
+```
+
+| | G3, 100 building bots | G2, 100 survival bots (§5.2) | Target |
+|---|---|---|---|
+| Server tick, average | 7.38 ms | 5.90 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 21.3 / 68.2 ms (5 of 3,602 over 33 ms) | 12.3 / 65.5 ms | ≤ 33 ms |
+| Bandwidth per client, down (with 90 characters in view) | 83.7 kbit/s (87.3 most) | 105 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 23.1 kbit/s | 24 kbit/s | |
+| Snapshots lost / inputs on their tick | 0 % / 100 % | 0 % / 99.85 % | |
+| Prediction: mean / worst error, corrections | 0 / 0 mm, 0 | 0.007 / 183 mm, 6 | |
+
+In the 128 s all 100 bots built their bases: 965 pieces in 100 structures, 97 doors with code locks, 97 claim
+devices; 2,013 building intents done and 44 refused (a neighbour's claim reached, someone in the way), none over the
+budget; 1,364 door toggles. The bots' shared copy held all 965 pieces.
+- **Tick time** grew by about 1.5 ms over G2's for the building, its replication and the doors opening and shutting
+  every few seconds. The upkeep pass every minute finds every base unpaid (the bots stock no claim device), so every
+  piece's health changes at once and goes out to every player within the budget over the next two seconds: the
+  heaviest case. Worst ticks are the PC's (the other work on it, collections); an earlier run (83 bases) with less on
+  the PC measured 6.74 / 17.9 / 59.7 ms.
+- **Down** is lower than G2's because the bots stand at their bases; building costs little once a base has arrived
+  (its changes only). A big base streaming in takes up to 1,200 bytes a snapshot on top (§4.4).
+- **Prediction** stays exact with 965 pieces and 97 doors in the shared prediction physics: the copy's bodies carry
+  the server's IDs, so contacts are the same on both sides.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -1026,9 +1076,11 @@ below for screenshots.
 ![A camp in the demo: a box, a lit campfire, a sleeping bag, a stone hatchet in hand](images/ground/survival-camp.png)
 ### 6.3 Building, claims and doors (G3)
 
-Built in two phases. **Phase 1** (this section): the rules, engine-free and tested, their data, the kit's art and a
-local sandbox that previews placement with the same code. **Phase 2**, after the survival package: network intents,
-persistence, costs taken from the inventory, the claim device's interface.
+Built in phases. **Phase 1** (this section): the rules, engine-free and tested, their data, the kit's art and a local
+sandbox that previews placement with the same code. **Phase 2a** (§6.5): items and recipes, costs taken from the
+inventory, the claim device as a deployable, intents, replication, persistence, the client API and bots. **Phase 2b**,
+after the integration package: the ground mode's hookup (the held plan and hammer, the ghost, the wheels, drawing
+structures from replication).
 
 | Part | Where |
 |---|---|
@@ -1113,6 +1165,7 @@ leaves only the setter authorised; the right code authorises (up to 64); wrong c
 then 30 s; lock, unlock and take off by an authorised player, taking off only when unlocked.
 
 **Claim device** (our tool cupboard): stands on a foundation or floor, one per structure, its owner authorised.
+200 health with wood's protection (hollow-orbit's cupboard); its store is a 24-slot container (§6.5).
 Anyone may authorise at it; only someone on the list may clear it. It covers the points within 16 m of any of its
 structure's pieces or 25 m of itself, so the area grows with the base and ends where the base ends; a player builds,
 upgrades, rotates, demolishes, repairs and fits doors and locks there only if every covering device lists them
@@ -1196,14 +1249,6 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 | The plan's wheel with the rules' pieces and costs | `wheel.jpg` |
 
 ![The house](images/ground/build/house.jpg)
-
-**Phase 2 needs from the survival package:** item definitions for the plan, the hammer, the doors, the key and code
-locks, keys and the claim device; an `IBuildingWallet` over the player's inventory; the claim device as a deployable
-whose container is its upkeep store (`ClaimDevice.Stock` today); its damage routed to `BuildingWorld.Damage` (melee by
-side); the zone calling `BuildingWorld.Tick` each tick and `AdvanceTime` on a slow schedule and once with the elapsed
-time on load; typed intents (place by support, socket and orientation; upgrade, rotate, demolish, repair; doors, locks,
-codes; claims) and the replication of structures, pieces, doors and devices (static, reliable, when they change); body
-IDs replicated with pieces so prediction meets the same contacts; persistence of structures in the body frame.
 
 ### 6.3 Combat as built in G4
 
@@ -1377,6 +1422,99 @@ and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attac
 the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
+### 6.5 Building over the network and saved (G3, phase 2a)
+
+The rules of §6.3 run in the live zone; players build through intents; the building replicates as static entities and
+is saved with the zone. The ground mode's hookup is phase 2b.
+
+| Part | Where |
+|---|---|
+| Items, recipes, kits | `game/data/ground/items.json` (100–110), `recipes.json`, `loot.json` (`build-kit`), `categories.json` (Construction) |
+| In the zone | `src/Hollow.Simulation/Zone.Building.cs`; `Building/ItemWallet.cs`; `Building/BuildingWorld.Replica.cs` (lookups by ID, batches, restoring, the mirror) |
+| Protocol | `src/Hollow.Net/Protocol/Messages.cs` (90–100: intents, `BuildResult`, `BuildFrames`, `BuildPieces`, `BuildRemoved`, `BuildDoors`, `BuildClaims`) |
+| Server | `src/Hollow.Server/GameServer.Building.cs` (intents, replication, loading and saving) |
+| Storage | `src/Hollow.Persistence/BuildingCodec.cs`, schema 3 in `GameDatabase.cs` |
+| Client | `src/Hollow.Client/BuildingReplica.cs`, `GameClient.Building.cs`, `LocalPlayer.Building.cs` |
+| Bots | `tools/Hollow.Bots/BuildBrain.cs` (`--script build`) |
+| Tests | `tests/Hollow.Tests/BuildingNetTests.cs`, `BuildingPersistenceTests.cs` (`-- BuildingNet`, `-- BuildingPersistence`) |
+
+**Items** (`items.json` 100–110, the Construction tab): the building plan, the hammer, the claim device, the key and
+code locks, the key, and the wooden, sheet metal, armoured, sheet metal double and garage doors. An item's
+`"building"` says what it does with the rules; a door names its door in building.json; a key's condition holds the
+number of the lock it was cut for. Recipes, hollow-orbit's and Rust's: plan 20 wood, hammer 100 wood, claim device
+1,000 wood, key lock 75 wood, code lock 100 metal fragments, wooden door 300 wood; sheet metal door 150 fragments
+(workbench 1), double door 200 (1), garage door 300 (2), armoured door 20 refined metal and 100 fragments (3). A key
+costs 75 wood, cut at its lock by the lock's owner. building.json is now read with the rest of the data and is part of
+the content hash (§7).
+
+**In the zone** (`Zone.Building.cs`). The zone owns the `BuildingWorld` on its Jolt world. Each tick it takes down the
+pieces whose collapse is due (nothing at all while none is); every 60 s it applies upkeep and decay in closed form. The
+building's clock is the real one (Unix seconds): edit windows, repair delays, code waits, upkeep and decay run on while
+the server is down. Players act through zone methods that check what they carry and answer with the rules' `Outcome`:
+placing needs a building plan in the main or belt slots, the hammer's actions a hammer; costs are taken through
+`ItemWallet` (a material is the item with its key, taken in slot order, so the client's optimistic copy takes the same
+stacks); a door, lock or claim device comes from the slot the intent names, as the item the client saw there. Fitting
+a door and placing a claim device reach as far as the plan (8 m); opening and shutting, locks and the claim device's
+list need the player within 4.5 m. A picked-up door or lock comes back as its item; a picked-up claim device comes
+back with its store.
+
+**The claim device** is a deployable whose storage is its upkeep store: it replicates and opens like a box (a loot
+panel: anyone there may put in or take out, so a raider takes the upkeep), and its upkeep is paid from those slots.
+Hits on it go through the building rules (`BuildingWorld.Damage`); at zero its store spills on the ground. Swings and
+arrows stop at pieces, doors and claim devices (`HitTarget.Building`): melee does the tool's structure damage as melee
+(a wall's soft side counts), arrows as bullets (stone and up take none).
+
+**Intents** (protocol 3; client to server, reliable, with the sequence numbers and the budget of G2's: 16 at once, 20 a
+second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's ground point and
+heading in 15° steps), `HammerIntent` (upgrade to a grade, rotate, demolish, repair), `DoorIntent` (fit from a slot,
+turned round or not; open or shut; pick up), `LockIntent` (fit from a slot; set a code; enter a code; lock; unlock; cut
+a key; take off) and `ClaimIntent` (place from a slot at a point on a foundation or floor, turned; authorise;
+deauthorise; clear the list; pick up). Each is answered with `BuildResult`: done, or the rules' reason (`Refusal`) and
+the player's line, after that tick's container changes. The server works out every pose itself and checks everything
+again.
+
+**Replication** (§4.4). A piece carries its frame (each frame numbered once for everyone and sent once to a player, 12
+doubles), kind, grade, turn and exact position, health, the server's body ID, the seconds left to turn or demolish it,
+and whether it is coming down. A door carries its frame piece, kind, turn, open or shut, health, its lock's kind,
+whether it's locked and whether this player may pass; a claim device its piece, place and turn, health, whether this
+player is on its list, and how long its store keeps the base. Doors and locks are state: sent again when they change.
+
+**The client** (`Hollow.Client`). `BuildingReplica` keeps a mirror `BuildingWorld`: the same rules answer the ghost's
+questions, but nothing collapses, decays or pays upkeep by itself, and its bodies take the server's IDs. Bots share one
+on their shared ground. The API for the ground mode:
+
+| Member | What |
+|---|---|
+| `GameClient.Building` | The building in range: `Structures`, `AllPieces`, `Doors`, `Claims`, and `Changed` (piece, door and claim events) for drawing |
+| `GameClient.BuildingReplica.StateOf(door)`, `StateOf(claim)` | A door's lock, locked, and whether this player may pass; whether they're on a claim device's list, and its protection in hours |
+| `GameClient.PlanPiece(piece, eye, direction, turns)` | The ghost: the server's own `Plan` on the mirror, with this player's materials and building rights |
+| `GameClient.AimBuilding(eye, direction)` | The piece, door or claim device aimed at |
+| `Local.PlacePiece(plan)`, `Upgrade`, `Rotate`, `Demolish`, `Repair`, `PlaceDoor`, `ToggleDoor`, `PickUpDoor`, `AttachLock`, `SetCode`, `EnterCode`, `Lock`, `Unlock`, `MakeKey`, `RemoveLock`, `PlaceClaim`, `Authorise`, `Deauthorise`, `ClearAuthorised`, `PickUpClaim` | Intents, each returning its sequence number. Optimistic: the materials or the item leave the inventory at once, and a placement is drawn at once (`Local.PendingPieces`) until its piece arrives; a refusal rolls back. |
+| `Local.BuildAnswered`, `Local.BuildRejected`, `Local.Carries(role)` | Answers with the reason and line; whether the player carries a building plan or a hammer |
+| The claim device's store | `Local.Open(device ID)`, then `Local.Loot` like a box |
+
+**Persistence** (schema 3, `BuildingCodec`). A row per piece, door and claim device in the `building` table, each a
+versioned binary record: a piece keeps its structure's frame in the body frame (so it comes back at the same place on
+the planet whatever zone frame the server uses next, and the pieces of one lattice come back in one), its exact pose,
+kind, grade, health, owner, and when it was placed and last damaged; a door its frame piece, kind, turn, open, health
+and lock (a key lock's number; a code lock's code as a hash salted with the lock's ID, and its list); a claim device
+its piece, place, turn, owner, health, list, store and what its structure owes. A save writes only what changed since
+the last (a claim device when its store's slots change) and deletes what is gone; claim devices are no longer saved as
+things. The zone's record keeps when upkeep and decay were last applied: on load the pieces go back in one batch
+(stability solved once), then the doors and claim devices, then the time the server was down is caught up in one
+closed-form step. Decoding treats the bytes as untrusted: a kind that no longer exists is left out.
+
+**Bots** (`--script build`, §5.4) build a small base each through the same API, and the load test reports the building.
+
+**Tests:** `BuildingNetTests.PlacingGoesThroughTheServer` (a player without wood is refused, with the reason; a
+foundation and a wall placed through intents show at once, then arrive in every client's copy at exactly the ghost's
+pose, with the server's stability and body IDs), `CodeLocksKeepStrangersOut` (a door, a code lock, a code; a stranger
+is kept out, waits after a wrong code, gets in with the right one; the claim device keeps him from building),
+`ABigBaseStreamsIn` (1,074 pieces reach a new player in about 1.9 s, and the copy is one structure with the server's
+stability); `BuildingPersistenceTests.ABaseSurvivesARestart` (pieces exactly, doors,
+locks, codes, lists, the claim device and its store) and `DecayCatchesUpOnLoad` (an hour away: an unclaimed wood
+foundation and wall at two thirds, a twig foundation gone).
+
 ---
 
 ## 7. Data
@@ -1390,7 +1528,8 @@ the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from
 
 A test checks that every reference resolves and that every recipe can be made from gatherable resources.
 
-**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (eight since G4),
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (nine since
+G3 phase 2a added building.json),
 resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
 a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
 `game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
@@ -1398,14 +1537,15 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 
 | File | What | Sources |
 |---|---|---|
-| `items.json` | 58 items (43 in G2; G4 adds the pistol and rifle, six kinds of round, five attachments, gunpowder and the metal mask): resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
-| `recipes.json` | 44 recipes (G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows; times ours |
+| `items.json` | 69 items (43 in G2; G4 adds the pistol and rifle, six kinds of round, five attachments, gunpowder and the metal mask; G3 phase 2a the building plan, hammer, claim device, locks, key and doors): resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`, `building` (what it does with the building rules) and `door`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
+| `recipes.json` | 54 recipes (G3: the building plan, hammer, claim device, locks and doors; G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows, the key lock and the double and garage doors; times ours |
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
 | `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
-| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load test's kit. | Rust |
+| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`). | Rust |
 | `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
-| `categories.json` | The crafting tabs. | Rust's grouping |
+| `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
+| `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
 
 The client alone also reads `sounds.json`, the sound catalogue (§4.9); it is not part of the game data's hash.
 
@@ -1985,3 +2125,30 @@ Decisions taken for the sound (§4.9, §9.2) without the owner, to confirm or ov
   one reviewed place.
 - A13. **BigSoundBank's single files** were downloaded into one folder (`Downloads/bigsoundbank`) rather than one folder
   each; every file is checked by its SHA-256 before use.
+
+Decisions taken in G3's phase 2a (§6.5, building over the network), to confirm or overturn:
+
+- B1. **The key is an item of its own** (`door-key`) whose condition holds its lock's number; it has no model yet, so the
+  catalogue lists it with the key lock's model and icon.
+- B2. **No ladder yet:** climbing needs the movement code (and the prediction) to know ladders; it comes with the
+  ground-mode hookup or later.
+- B3. **`double-door` is the sheet metal double door** (Rust's common one); the wooden and armoured doubles stay in
+  building.json for later items. The armoured door's gears and sheet metal (not in the game yet) are metal fragments.
+- B4. **Building needs the tool carried, not held:** placing needs a building plan in the main or belt slots and the
+  hammer's actions a hammer, because an intent can arrive before the input that changes the held slot. Rust needs
+  it in hand.
+- B5. **The claim device has 200 health, 24 slots and wood's protection** (hollow-orbit's tool cupboard); anyone at it
+  may open its store, as in Rust.
+- B6. **The building runs on the real clock**, so its timers and decay run on while the server is down and are caught up
+  on load (Rust decays only while the server runs).
+- B7. **Arrows hit buildings as bullets** and melee as melee, so arrows do nothing to stone and up; a claim device hit
+  through its deployable box takes melee.
+- B8. **Replication budget:** 1,200 bytes of building per player per snapshot (about 190 kbit/s at most while a base
+  streams in), by 64 m areas; positions are exact doubles rather than quantised, so a client's copy links and collides
+  exactly as the server's.
+- B9. **Building results** are their own message (`BuildResult`, the rules' 48 reasons and the line) rather than G2's
+  `IntentResult` (at most 32 reasons).
+- B10. **Saved per part:** a row per piece, door and claim device rather than per structure, because structures merge and
+  split; only what changed is written.
+- B11. **The load test's bots build 36 m apart:** a claim device covers 25 m round itself (with 2.25 m of padding for
+  the hammer), so nearer bases would block each other.

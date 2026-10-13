@@ -1,0 +1,653 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using Hollow.Core;
+using Hollow.Simulation.Building;
+using Hollow.Simulation.Content;
+using Hollow.Simulation.Entities;
+using Hollow.Simulation.Items;
+using Hollow.Simulation.Movement;
+using Hollow.Simulation.Players;
+using Hollow.Simulation.World;
+
+namespace Hollow.Simulation;
+
+/// <summary>What a hammer does to a piece.</summary>
+public enum HammerAction : byte
+{
+    Upgrade,
+    Rotate,
+    Demolish,
+    Repair,
+}
+
+public enum DoorAction : byte
+{
+    /// <summary>Fit the door item in a slot into a doorway or wall frame.</summary>
+    Place,
+    Toggle,
+
+    /// <summary>Take an open, unlocked door back as an item.</summary>
+    PickUp,
+}
+
+public enum LockAction : byte
+{
+    /// <summary>Fit the key or code lock in a slot to a door.</summary>
+    Attach,
+    SetCode,
+    EnterCode,
+    Lock,
+    Unlock,
+
+    /// <summary>Cut a key for a key lock (its owner, for wood).</summary>
+    MakeKey,
+
+    /// <summary>Take the lock off as an item.</summary>
+    Remove,
+}
+
+public enum ClaimAction : byte
+{
+    /// <summary>Place the claim device in a slot on a foundation or floor.</summary>
+    Place,
+    Authorise,
+    Deauthorise,
+    ClearList,
+
+    /// <summary>Take the device back as an item, its store with it.</summary>
+    PickUp,
+}
+
+// Building in a live zone (GROUND.md §6.3, phase 2): the zone's BuildingWorld on its Jolt world, run on the zone's
+// tick (collapses) and on a slow schedule (upkeep and decay, closed form); the player's building actions, each checked
+// against what they carry and answered with the rules' reason; the claim device as a deployable whose storage is its
+// upkeep store; and hits on pieces, doors and devices.
+public sealed partial class Zone
+{
+    private readonly Dictionary<ClaimDevice, Deployable> _claimDeployables = new();
+    private readonly List<int> _keys = new();
+    private double _buildingAdvancedAt = double.NaN;
+
+    /// <summary>The zone's building (null in a G1 zone, without game data).</summary>
+    public BuildingWorld? Building { get; private set; }
+
+    /// <summary>
+    /// The building rules' clock in seconds: the real clock (Unix time), so edit windows, repair delays, code waits,
+    /// and upkeep and decay run on while the server is down.
+    /// </summary>
+    public double BuildingNow => UnixMilliseconds / 1000.0;
+
+    /// <summary>When upkeep and decay were last applied (Unix seconds; NaN before the first tick). Saved; on load the server sets it and catches up.</summary>
+    public double BuildingAdvancedAt
+    {
+        get => _buildingAdvancedAt;
+        set => _buildingAdvancedAt = value;
+    }
+
+    /// <summary>The deployable a claim device is kept as (its storage is the upkeep store), or null.</summary>
+    public Deployable? DeployableOf(ClaimDevice device) => _claimDeployables.GetValueOrDefault(device);
+
+    /// <summary>The claim device a deployable stands for, or null.</summary>
+    public ClaimDevice? ClaimOf(Deployable deployable) => Building?.ClaimOf(deployable.Id) is { } c && DeployableOf(c) == deployable ? c : null;
+
+    private void InitBuilding(GameContent content)
+    {
+        Building = new BuildingWorld(content.Building, Physics, NextId) { Characters = CharacterCapsules };
+        Building.Changed += OnBuildingChanged;
+    }
+
+    // Each tick: collapses due (nothing at all while none is under way). On the slow schedule: upkeep and decay.
+    private void StepBuilding()
+    {
+        BuildingWorld building = Building!;
+        double now = BuildingNow;
+        building.Tick(now);
+        if (double.IsNaN(_buildingAdvancedAt))
+        {
+            _buildingAdvancedAt = now;
+        }
+        else if (now - _buildingAdvancedAt >= building.Data.AdvanceSeconds || now < _buildingAdvancedAt)
+        {
+            AdvanceBuilding();
+        }
+    }
+
+    /// <summary>Applies upkeep and decay from <see cref="BuildingAdvancedAt"/> to now in one closed-form step (and on load, the time the server was down).</summary>
+    public void AdvanceBuilding()
+    {
+        if (Building == null)
+        {
+            return;
+        }
+        double now = BuildingNow;
+        if (!double.IsNaN(_buildingAdvancedAt) && now > _buildingAdvancedAt)
+        {
+            Building.AdvanceTime(now - _buildingAdvancedAt, now);
+        }
+        _buildingAdvancedAt = now;
+    }
+
+    // Who placement and doors must not trap: every living character's standing capsule.
+    private IEnumerable<Capsule> CharacterCapsules()
+    {
+        ComponentPool<Character> characters = Entities.Pool<Character>();
+        for (int i = 0; i < characters.Count; i++)
+        {
+            CharacterState s = characters.Values[i].State;
+            if (!s.IsDead)
+            {
+                yield return new Capsule(s.Position, Frame.UpAt(s.Position), Tuning.Radius, Tuning.StandingHeight);
+            }
+        }
+    }
+
+    // A claim device is also a deployable: replicated and opened like a box, its storage the upkeep store.
+    private void OnBuildingChanged(BuildingEvent e)
+    {
+        switch (e.Change)
+        {
+            case BuildingChange.ClaimAdded when e.Claim is { } claim && !_claimDeployables.ContainsKey(claim):
+            {
+                (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
+                Vector3 up = Frame.UpAt(position);
+                Vector3 along = Vector3.Transform(Vector3.UnitZ, rotation);
+                var d = new Deployable(claim.Id, Content!.ClaimDeployable, position, up, MathF.Atan2(along.X, along.Z), new EntityId(claim.Owner))
+                {
+                    Health = (float)claim.Health,
+                };
+                _claimDeployables.Add(claim, d);
+                AddStatic(d);
+                claim.Store = new ItemWallet(Content, new[] { d.Storage! });
+                break;
+            }
+            case BuildingChange.ClaimChanged when e.Claim is { } claim && _claimDeployables.TryGetValue(claim, out Deployable? d):
+                if (MathF.Abs(d.Health - (float)claim.Health) > 1e-4f)
+                {
+                    d.Health = (float)claim.Health;
+                    d.Revision++;
+                }
+                break;
+            case BuildingChange.ClaimRemoved when e.Claim is { } claim && _claimDeployables.Remove(claim, out Deployable? d):
+                // Its store spills where it stood.
+                if (d.Storage != null)
+                {
+                    for (int i = 0; i < d.Storage.Size; i++)
+                    {
+                        if (!d.Storage[i].IsEmpty)
+                        {
+                            DropAt(d.Position + d.Up * 0.3f, d.Storage[i]);
+                        }
+                    }
+                    d.Storage.Clear();
+                }
+                RemoveStatic(d);
+                break;
+        }
+    }
+
+    // ---------------------------------------------------------------- hits
+
+    /// <summary>The nearest building body along a ray within <paramref name="length"/>: a piece, a door or a claim device, and how far.</summary>
+    public bool TraceBuilding(Vector3 origin, Vector3 direction, float length, out float distance, out object? part)
+    {
+        distance = -1;
+        part = null;
+        if (Building?.Physics is not { } physics || !physics.Ray(origin, direction, length, out RayHit hit, buildingOnly: true))
+        {
+            return false;
+        }
+        part = physics.OwnerOf(hit.Body) switch
+        {
+            DoorLeaf leaf => leaf.Door,
+            { } owner => owner,
+            null => null,
+        };
+        distance = hit.Distance;
+        return part != null;
+    }
+
+    /// <summary>
+    /// Damage to a piece, door or claim device through the building rules (its grade's protection, a wall's soft side):
+    /// melee as melee, arrows and bullets as bullets. Returns the health lost.
+    /// </summary>
+    public float DamageBuilding(object part, Vector3 direction, float amount, bool projectile)
+    {
+        BuildingWorld building = Building!;
+        var hit = projectile ? new DamageHit(direction, Bullet: amount) : new DamageHit(direction, Melee: amount);
+        DamageResult result = part switch
+        {
+            Piece piece => building.Damage(piece, hit, BuildingNow),
+            Door door => building.Damage(door, hit, BuildingNow),
+            ClaimDevice device => building.Damage(device, hit, BuildingNow),
+            _ => default,
+        };
+        return (float)result.Loss;
+    }
+
+    // ---------------------------------------------------------------- the player's building actions
+
+    private Outcome Builder(Entity entity, out Player p, out Vector3 eye)
+    {
+        eye = default;
+        p = PlayerOf(entity)!;
+        if (Building == null || p == null)
+        {
+            return Outcome.Refuse(Refusal.Invalid);
+        }
+        if (!p.IsAwakeAndAlive)
+        {
+            return Outcome.Refuse(Refusal.Dead);
+        }
+        eye = EyeOf(Entities.Get<Character>(entity).State);
+        return Outcome.Done;
+    }
+
+    private bool Carries(Player p, BuildingRole role)
+    {
+        foreach (Container c in p.Inventory.Carried)
+        {
+            for (int i = 0; i < c.Size; i++)
+            {
+                if (!c[i].IsEmpty && Content!.Item(c[i].Item)?.Building == role)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // The numbers of the keys a player carries.
+    private List<int> KeysOf(Player p)
+    {
+        _keys.Clear();
+        foreach (Container c in p.Inventory.Carried)
+        {
+            for (int i = 0; i < c.Size; i++)
+            {
+                if (!c[i].IsEmpty && Content!.Item(c[i].Item)?.Building == BuildingRole.Key)
+                {
+                    _keys.Add(c[i].Condition);
+                }
+            }
+        }
+        return _keys;
+    }
+
+    // The item in a slot of the player's main or belt slots, when it is what the client saw and plays the role asked for.
+    private Outcome Holding(Player p, ContainerRef from, int slot, ushort expected, BuildingRole role, out ItemDef? item)
+    {
+        item = null;
+        if (from is not (ContainerRef.Main or ContainerRef.Belt) || !p.Inventory[from].InRange(slot))
+        {
+            return Outcome.Refuse(Refusal.Invalid);
+        }
+        ItemStack s = p.Inventory[from][slot];
+        if (s.IsEmpty || (expected != 0 && s.Item != expected))
+        {
+            return Outcome.Refuse(Refusal.Stale);
+        }
+        item = Content!.Item(s.Item);
+        if (item?.Building != role && !(role == BuildingRole.KeyLock && item?.Building == BuildingRole.CodeLock))
+        {
+            return Outcome.Refuse(Refusal.Invalid);
+        }
+        return Outcome.Done;
+    }
+
+    private void TakeOne(Player p, ContainerRef from, int slot) => InventoryRules.Remove(p.Inventory[from], slot, 1, 0, out _);
+
+    private void GiveBack(Entity entity, Player p, ItemDef item, int count = 1, ushort condition = 0)
+    {
+        ItemStack stack = condition != 0 ? new ItemStack(item.Id, count, condition) : ItemStack.Of(item, count);
+        int left = p.Inventory.Give(Content!, stack);
+        if (left > 0)
+        {
+            stack.Count = left;
+            Drop(entity, stack);
+        }
+        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = item.Id, Count = count, Reason = GainReason.Refunded });
+    }
+
+    private bool WithinReach(Vector3 eye, Vector3 at) => Vector3.Distance(eye, at) <= Content!.Survival.InteractReach + 1.5f;
+
+    private Vector3 DoorMiddle(Door door)
+    {
+        (Vector3 position, _) = door.Frame.ZoneTransform;
+        return position + Frame.UpAt(position) * 1.2f;
+    }
+
+    /// <summary>
+    /// Places a piece from the building plan (the player must carry one): on a support's socket in an orientation, or a
+    /// foundation on open ground at a point and heading (in 15° steps). The rules check everything again; twig is paid
+    /// from the player's main and belt slots.
+    /// </summary>
+    public Outcome PlacePiece(Entity entity, int pieceId, EntityId supportId, int socket, int orientation, Vector3 point, int headingSteps,
+        out Piece? piece)
+    {
+        piece = null;
+        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
+        if (!ok.Ok)
+        {
+            return ok;
+        }
+        BuildingWorld building = Building!;
+        if (building.Data.Piece(pieceId) is not { } def)
+        {
+            return Outcome.Refuse(Refusal.Invalid);
+        }
+        if (!Carries(p, BuildingRole.Plan))
+        {
+            return Outcome.Refuse(Refusal.NoTool, "You need a building plan");
+        }
+        PlacementPlan? plan;
+        if (!supportId.IsNone)
+        {
+            if (building.PieceOf(supportId) is not { } support)
+            {
+                return Outcome.Refuse(Refusal.Gone);
+            }
+            if (SocketId.FromCode(socket) is not { } at || orientation is < 0 or > 255)
+            {
+                return Outcome.Refuse(Refusal.Invalid);
+            }
+            plan = building.FromIntent(def, support, at, orientation);
+            if (plan == null)
+            {
+                return Outcome.Refuse(Refusal.NoSocket);
+            }
+        }
+        else
+        {
+            if (def.Family != PieceFamily.Foundation || !float.IsFinite(point.X) || !float.IsFinite(point.Y) || !float.IsFinite(point.Z) ||
+                headingSteps is < 0 or >= BuildingWorld.HeadingSteps)
+            {
+                return Outcome.Refuse(Refusal.Invalid);
+            }
+            // The point only says where to look for the ground (across it, near the player); the rules check the
+            // reach to the foundation itself.
+            Vector3 across = point - eye, up = Frame.UpAt(eye);
+            if ((across - up * Vector3.Dot(across, up)).Length() > building.Data.Reach + 1)
+            {
+                return Outcome.Refuse(Refusal.TooFar);
+            }
+            plan = building.FoundationAt(def, point, headingSteps * BuildingWorld.HeadingStep);
+            if (plan == null)
+            {
+                return Outcome.Refuse(Refusal.Floating);
+            }
+        }
+        return building.Place(plan, p.Id.Value, eye, new ItemWallet(Content!, p.Inventory.Carried), BuildingNow, out piece);
+    }
+
+    /// <summary>Upgrades (to <paramref name="grade"/>), turns, demolishes or repairs a piece with the hammer (the player must carry one).</summary>
+    public Outcome Hammer(Entity entity, HammerAction action, EntityId target, int grade)
+    {
+        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
+        if (!ok.Ok)
+        {
+            return ok;
+        }
+        if (!Carries(p, BuildingRole.Hammer))
+        {
+            return Outcome.Refuse(Refusal.NoTool, "You need a hammer");
+        }
+        BuildingWorld building = Building!;
+        if (building.PieceOf(target) is not { } piece)
+        {
+            return Outcome.Refuse(Refusal.Gone);
+        }
+        var wallet = new ItemWallet(Content!, p.Inventory.Carried);
+        return action switch
+        {
+            HammerAction.Upgrade => building.Upgrade(p.Id.Value, piece, grade, wallet, eye),
+            HammerAction.Rotate => building.Rotate(p.Id.Value, piece, eye, BuildingNow),
+            HammerAction.Demolish => building.Demolish(p.Id.Value, piece, eye, BuildingNow),
+            HammerAction.Repair => building.Repair(p.Id.Value, piece, wallet, eye, BuildingNow),
+            _ => Outcome.Refuse(Refusal.Invalid),
+        };
+    }
+
+    /// <summary>
+    /// Doors: fits the door item in a slot into a frame piece (<paramref name="target"/>), turned by
+    /// <paramref name="flip"/>; opens or shuts one (keys carried open key locks); or takes an open, unlocked one back.
+    /// </summary>
+    public Outcome DoorAct(Entity entity, DoorAction action, ContainerRef from, int slot, ushort expected, EntityId target, int flip)
+    {
+        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
+        if (!ok.Ok)
+        {
+            return ok;
+        }
+        BuildingWorld building = Building!;
+        if (action == DoorAction.Place)
+        {
+            Outcome holding = Holding(p, from, slot, expected, BuildingRole.Door, out ItemDef? item);
+            if (!holding.Ok)
+            {
+                return holding;
+            }
+            if (building.PieceOf(target) is not { } frame)
+            {
+                return Outcome.Refuse(Refusal.Gone);
+            }
+            Outcome placed = building.PlaceDoor(p.Id.Value, item!.Door!, frame, flip, eye, out _);
+            if (placed.Ok)
+            {
+                TakeOne(p, from, slot);
+            }
+            return placed;
+        }
+        if (building.DoorOf(target) is not { } door)
+        {
+            return Outcome.Refuse(Refusal.Gone);
+        }
+        if (!WithinReach(eye, DoorMiddle(door)))
+        {
+            return Outcome.Refuse(Refusal.TooFar);
+        }
+        switch (action)
+        {
+            case DoorAction.Toggle:
+                return building.Toggle(p.Id.Value, door, KeysOf(p));
+            case DoorAction.PickUp:
+            {
+                DoorDef def = door.Def;
+                Outcome taken = building.PickUpDoor(p.Id.Value, door);
+                if (taken.Ok && ItemOfDoor(def) is { } item)
+                {
+                    GiveBack(entity, p, item);
+                }
+                return taken;
+            }
+            default:
+                return Outcome.Refuse(Refusal.Invalid);
+        }
+    }
+
+    private ItemDef? ItemOfDoor(DoorDef def)
+    {
+        foreach (ItemDef item in Content!.Items)
+        {
+            if (item.Door == def)
+            {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Locks on a door: fits the key or code lock in a slot; sets a code, enters one, locks, unlocks; cuts a key (the key
+    /// lock's owner, for its price in wood); takes the lock off as an item.
+    /// </summary>
+    public Outcome LockAct(Entity entity, LockAction action, ContainerRef from, int slot, ushort expected, EntityId target, string? code)
+    {
+        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
+        if (!ok.Ok)
+        {
+            return ok;
+        }
+        BuildingWorld building = Building!;
+        if (building.DoorOf(target) is not { } door)
+        {
+            return Outcome.Refuse(Refusal.Gone);
+        }
+        if (!WithinReach(eye, DoorMiddle(door)))
+        {
+            return Outcome.Refuse(Refusal.TooFar);
+        }
+        ulong player = p.Id.Value;
+        switch (action)
+        {
+            case LockAction.Attach:
+            {
+                Outcome holding = Holding(p, from, slot, expected, BuildingRole.KeyLock, out ItemDef? item);
+                if (!holding.Ok)
+                {
+                    return holding;
+                }
+                Outcome attached = item!.Building == BuildingRole.CodeLock
+                    ? building.AttachCodeLock(player, door, out _)
+                    : building.AttachKeyLock(player, door, out _);
+                if (attached.Ok)
+                {
+                    TakeOne(p, from, slot);
+                }
+                return attached;
+            }
+            case LockAction.SetCode:
+                return building.SetCode(player, door, code ?? "");
+            case LockAction.EnterCode:
+                return building.EnterCode(player, door, code ?? "", BuildingNow);
+            case LockAction.Lock:
+                return building.SetLocked(player, door, true, KeysOf(p));
+            case LockAction.Unlock:
+                return building.SetLocked(player, door, false, KeysOf(p));
+            case LockAction.MakeKey:
+            {
+                if (door.Lock is not KeyLock keyLock)
+                {
+                    return Outcome.Refuse(Refusal.NoLock);
+                }
+                if (keyLock.Owner != player)
+                {
+                    return Outcome.Refuse(Refusal.NotOwner);
+                }
+                BuildingData data = building.Data;
+                if (Content!.Item(data.KeyItem) is not { } key)
+                {
+                    return Outcome.Refuse(Refusal.Invalid);
+                }
+                if (!new ItemWallet(Content, p.Inventory.Carried).Take(data.KeyCostMaterial, data.KeyCost))
+                {
+                    return Outcome.Refuse(Refusal.NotEnough, $"A key costs {data.KeyCost} {data.MaterialName(data.KeyCostMaterial).ToLowerInvariant()}");
+                }
+                GiveBack(entity, p, key, 1, (ushort)keyLock.KeyCode);
+                return Outcome.Done;
+            }
+            case LockAction.Remove:
+            {
+                bool coded = door.Lock is CodeLock;
+                Outcome removed = building.RemoveLock(player, door);
+                if (removed.Ok && Content!.Item(coded ? building.Data.CodeLockItem : building.Data.KeyLockItem) is { } item)
+                {
+                    GiveBack(entity, p, item);
+                }
+                return removed;
+            }
+            default:
+                return Outcome.Refuse(Refusal.Invalid);
+        }
+    }
+
+    /// <summary>
+    /// The claim device: places the one in a slot on a foundation or floor (<paramref name="target"/>) at a point of
+    /// its top (<paramref name="localX"/>, <paramref name="localZ"/> in the structure's frame) turned by
+    /// <paramref name="yaw"/> 30° steps; authorises the player, takes them off, clears the list; or picks it up, its
+    /// store into the player's slots.
+    /// </summary>
+    public Outcome ClaimAct(Entity entity, ClaimAction action, ContainerRef from, int slot, ushort expected, EntityId target,
+        double localX, double localZ, int yaw)
+    {
+        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
+        if (!ok.Ok)
+        {
+            return ok;
+        }
+        BuildingWorld building = Building!;
+        ulong player = p.Id.Value;
+        if (action == ClaimAction.Place)
+        {
+            Outcome holding = Holding(p, from, slot, expected, BuildingRole.Claim, out _);
+            if (!holding.Ok)
+            {
+                return holding;
+            }
+            if (building.PieceOf(target) is not { } support)
+            {
+                return Outcome.Refuse(Refusal.Gone);
+            }
+            if (!double.IsFinite(localX) || !double.IsFinite(localZ))
+            {
+                return Outcome.Refuse(Refusal.Invalid);
+            }
+            Vector3 at = BuildingWorld.F(support.Structure.Frame.ToZone(new Vector3D(localX, support.Pose.Position.Y, localZ)));
+            if (Vector3.Distance(eye, at) > building.Data.Reach)
+            {
+                return Outcome.Refuse(Refusal.TooFar);
+            }
+            Outcome placed = building.PlaceClaim(player, support, new Vector3D(localX, 0, localZ), yaw, out _);
+            if (placed.Ok)
+            {
+                TakeOne(p, from, slot);
+            }
+            return placed;
+        }
+        if (building.ClaimOf(target) is not { } device)
+        {
+            return Outcome.Refuse(Refusal.Gone);
+        }
+        (Vector3 position, _) = device.ZoneTransform;
+        if (!WithinReach(eye, position + Frame.UpAt(position) * 0.9f))
+        {
+            return Outcome.Refuse(Refusal.TooFar);
+        }
+        switch (action)
+        {
+            case ClaimAction.Authorise:
+                return building.Authorise(player, device);
+            case ClaimAction.Deauthorise:
+                return building.Deauthorise(player, device);
+            case ClaimAction.ClearList:
+                return building.ClearAuthorised(player, device);
+            case ClaimAction.PickUp:
+            {
+                if (!device.IsAuthorised(player))
+                {
+                    return Outcome.Refuse(Refusal.NotAuthorised);
+                }
+                if (DeployableOf(device)?.Storage is { } store)
+                {
+                    for (int i = 0; i < store.Size; i++)
+                    {
+                        if (!store[i].IsEmpty && Content!.Item(store[i].Item) is { } stored)
+                        {
+                            GiveBack(entity, p, stored, store[i].Count, store[i].Condition);
+                        }
+                    }
+                    store.Clear();
+                }
+                Outcome taken = building.PickUpClaim(player, device);
+                if (taken.Ok && Content!.Item(building.Data.ClaimItem) is { } item)
+                {
+                    GiveBack(entity, p, item);
+                }
+                return taken;
+            }
+            default:
+                return Outcome.Refuse(Refusal.Invalid);
+        }
+    }
+}

@@ -1,5 +1,5 @@
 {
-  "source": "GROUND.md §6.3. Pieces, sockets, grade hit points, costs, stability losses, hammer timings, doors and code locks from RustMVP (docs/architecture/legacy/building_damage.md and unreal/Bare/Source/Bare/Rules/building_rules.hpp, building_geometry.hpp, damage_rules.hpp; the owner's numbers there: hit points 10/200/500/1000/2000). Sizes from PSG_BuildingKit_R01 Reports/dimension_contract.json and PSG_DoorWindowKit_R01 assembly_manifest.json (hinges converted to metres, Y up, outside +Z). Decay times, upkeep and the claim radii are Rust's mechanics as hollow-orbit js/game/construct.js has them; Rust's upkeep brackets. Soft-side and melee transmissions are ours until G5 tunes them. Names are ours. Piece ids are stable (RustMVP's part ids): never reuse one.",
+  "source": "GROUND.md §6.3. Pieces, sockets, grade hit points, costs, stability losses, hammer timings, doors and code locks from RustMVP (docs/architecture/legacy/building_damage.md and unreal/Bare/Source/Bare/Rules/building_rules.hpp, building_geometry.hpp, damage_rules.hpp; the owner's numbers there: hit points 10/200/500/1000/2000). Sizes from PSG_BuildingKit_R01 Reports/dimension_contract.json and PSG_DoorWindowKit_R01 assembly_manifest.json (hinges converted to metres, Y up, outside +Z). Decay times, upkeep and the claim radii are Rust's mechanics as hollow-orbit js/game/construct.js has them; Rust's upkeep brackets. Soft-side and melee transmissions are ours until G5 tunes them. The claim device's health, slots and size are hollow-orbit's tool cupboard's; Rust's key costs 75 wood. Names are ours. Piece ids are stable (RustMVP's part ids): never reuse one.",
 
   "module": {
     "width": 3.0, "storey": 3.0, "halfWall": 1.5, "lowWall": 1.0, "ramp": 0.75,
@@ -169,12 +169,13 @@
 
   "locks": {
     "codeLength": 4, "maxAuthorised": 64, "wrongCodeWait": [1, 5, 5, 5, 30],
-    "keyLock": { "key": "key-lock", "name": "Key Lock" },
+    "keyLock": { "key": "key-lock", "name": "Key Lock", "keyItem": "door-key", "keyCost": { "material": "wood", "amount": 75 } },
     "codeLock": { "key": "code-lock", "name": "Code Lock" }
   },
 
   "claim": {
     "key": "claim-device", "name": "Claim Device", "size": [0.9, 1.8, 0.7],
+    "health": 200, "protection": "wood", "slots": 24, "advanceSeconds": 60,
     "pieceRadius": 16, "deviceRadius": 25, "maxAuthorised": 64,
     "upkeepPeriodHours": 24,
     "upkeepBrackets": [ { "pieces": 15, "fraction": 0.1 }, { "pieces": 50, "fraction": 0.15 }, { "pieces": 125, "fraction": 0.2 }, { "pieces": 0, "fraction": 0.333 } ]

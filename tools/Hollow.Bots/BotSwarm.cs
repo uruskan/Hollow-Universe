@@ -19,11 +19,12 @@ namespace Hollow.Bots;
 /// </summary>
 public sealed class BotSwarm : IDisposable
 {
-    private readonly List<(GameClient Client, BotBrain Brain, SurvivalBrain? Survival, FightBrain? Fight)> _bots = new();
+    private readonly List<(GameClient Client, BotBrain Brain, SurvivalBrain? Survival, FightBrain? Fight, BuildBrain? Build)> _bots = new();
     private readonly ConditionedRelay? _relay;
     private readonly GameContent _content = GameContent.LoadDefault();
     private PhysicsWorld? _ground;
     private NaturalState? _nature;
+    private BuildingReplica? _building;
     private readonly Stopwatch _time = Stopwatch.StartNew();
     private double _last;
 
@@ -42,16 +43,19 @@ public sealed class BotSwarm : IDisposable
                 SharedRelay = _relay,
                 SharedPhysics = SharedGround,
                 SharedNature = SharedNature,
+                SharedBuilding = SharedBuilding,
                 Content = _content,
                 Log = i == 0 ? log : _ => { },
             });
-            if (i == 0)
+            if (i < 3)
             {
                 client.Local.IntentRejected += a => log($"{client.Name}: intent {a.Seq} refused: {a.Result}");
+                client.Local.BuildRejected += a => log($"{client.Name}: building intent {a.Seq} refused: {a.Reason} ({a.Text})");
             }
             client.Connect(host, port);
             _bots.Add((client, new BotBrain(i, script), script == BotScript.Survive ? new SurvivalBrain(i) : null,
-                script == BotScript.Fight ? new FightBrain(i) : null));
+                script == BotScript.Fight ? new FightBrain(i) : null,
+                script == BotScript.Build ? new BuildBrain(i) { Log = i < 3 ? log : null } : null));
         }
     }
 
@@ -64,6 +68,14 @@ public sealed class BotSwarm : IDisposable
     /// <summary>What the fighting bots did: bursts begun, reloads asked for, downed players helped up.</summary>
     public (int Bursts, int Reloads, int Assists) Fights =>
         (_bots.Sum(b => b.Fight?.Bursts ?? 0), _bots.Sum(b => b.Fight?.Reloads ?? 0), _bots.Sum(b => b.Fight?.Assists ?? 0));
+
+    /// <summary>What the building bots did: intents done and refused, door toggles.</summary>
+    public (int Done, int Refused, int Toggles) Building =>
+        (_bots.Sum(b => b.Build?.Done ?? 0), _bots.Sum(b => b.Build?.Refused ?? 0), _bots.Sum(b => b.Build?.Toggles ?? 0));
+
+    /// <summary>How far the building bots got, counted by stage.</summary>
+    public string BuildProgress => string.Join("; ", _bots.Where(b => b.Build != null).GroupBy(b => b.Build!.Progress.Split(',')[0])
+        .Select(g => $"{g.Count()} {g.Key}"));
 
     public int Playing => _bots.Count(b => b.Client.State == ClientState.Playing);
 
@@ -85,6 +97,11 @@ public sealed class BotSwarm : IDisposable
         return _nature;
     }
 
+    // One copy of the building for the shared ground: every bot applies what the server sends it (idempotently), so
+    // the walls are solid in the shared prediction physics.
+    private BuildingReplica SharedBuilding(ZoneSpec spec, ISurface surface, PhysicsWorld physics) =>
+        _building ??= new BuildingReplica(_content.Building, physics, shared: true);
+
     /// <summary>Runs every bot at about 60 frames a second for a while.</summary>
     public void Run(double seconds, Func<bool>? stop = null)
     {
@@ -94,10 +111,11 @@ public sealed class BotSwarm : IDisposable
             double now = _time.Elapsed.TotalSeconds;
             double delta = now - _last;
             _last = now;
-            foreach ((GameClient client, BotBrain brain, SurvivalBrain? survival, FightBrain? fight) in _bots)
+            foreach ((GameClient client, BotBrain brain, SurvivalBrain? survival, FightBrain? fight, BuildBrain? build) in _bots)
             {
                 InputFrame input = !client.HasCharacter ? default
                     : fight != null ? fight.Think(now, delta, client)
+                    : build != null ? build.Think(now, delta, client)
                     : survival != null ? survival.Think(now, delta, client)
                     : brain.Think(now, delta, client.Character.Position);
                 client.Update(delta, input);
@@ -115,10 +133,11 @@ public sealed class BotSwarm : IDisposable
 
     public void Dispose()
     {
-        foreach ((GameClient client, BotBrain _, SurvivalBrain? _, FightBrain? _) in _bots)
+        foreach ((GameClient client, BotBrain _, SurvivalBrain? _, FightBrain? _, BuildBrain? _) in _bots)
         {
             client.Dispose();
         }
+        _building?.Dispose();
         _relay?.Dispose();
         _ground?.Dispose();
     }

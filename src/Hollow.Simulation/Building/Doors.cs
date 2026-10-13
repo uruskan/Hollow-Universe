@@ -66,9 +66,13 @@ public sealed class CodeLock : DoorLock
         AuthorisedList.Add(owner);
     }
 
-    internal string? Code { get; set; }
+    /// <summary>The code, kept only as a hash (salted with the lock's ID); 0 before one is set.</summary>
+    public ulong CodeHash { get; internal set; }
 
-    public bool HasCode => Code != null;
+    public bool HasCode => CodeHash != 0;
+
+    /// <summary>The hash a code is kept as on this lock (never 0).</summary>
+    public ulong HashOf(string code) => Math.Max(1, Hash64.Combine(Hash64.Of(Id.Value, 0xC0DE), Hash64.Of(code)));
 
     public IReadOnlyList<ulong> Authorised => AuthorisedList;
 
@@ -119,6 +123,9 @@ public sealed class Door
 
     public bool Gone { get; internal set; }
 
+    /// <summary>Its leaves' Jolt body IDs.</summary>
+    public IReadOnlyList<uint> BodyIds => Bodies;
+
     /// <summary>
     /// A leaf's pose in the zone, open or shut: the frame's transform, the flip, the hinge from the manifest, then the
     /// leaf's yaw about its hinge.
@@ -147,6 +154,9 @@ internal sealed record DoorLeaf(Door Door, int Index);
 
 public sealed partial class BuildingWorld
 {
+    /// <summary>Key numbers run 1 … this (a key's condition holds its lock's).</summary>
+    public const int MaxKeyCode = ushort.MaxValue;
+
     private readonly Dictionary<object, ConvexPart[]> _leafParts = new();
     private int _nextKeyCode = 1;
 
@@ -206,6 +216,7 @@ public sealed partial class BuildingWorld
             return Outcome.Refuse(Refusal.PlayerInTheWay);
         }
         frame.Door = fitted;
+        _doorIds[fitted.Id] = fitted;
         for (int i = 0; i < def.Leaves.Count; i++)
         {
             AddLeafBody(fitted, i);
@@ -273,14 +284,20 @@ public sealed partial class BuildingWorld
         {
             return Outcome.Refuse(Refusal.SwingBlocked);
         }
-        door.Open = !door.Open;
+        SetOpen(door, !door.Open);
+        return Outcome.Done;
+    }
+
+    // Opens or shuts a door's leaves (their bodies move with them).
+    private void SetOpen(Door door, bool open)
+    {
+        door.Open = open;
         for (int i = 0; i < door.Def.Leaves.Count; i++)
         {
             (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
             Physics?.Move(door.Bodies[i], position, rotation);
         }
         Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
-        return Outcome.Done;
     }
 
     /// <summary>Whether a player can open and shut a door now.</summary>
@@ -318,9 +335,10 @@ public sealed partial class BuildingWorld
             return;
         }
         door.Gone = true;
-        foreach (uint body in door.Bodies)
+        _doorIds.Remove(door.Id);
+        for (int i = 0; i < door.Bodies.Length; i++)
         {
-            Physics?.Remove(body);
+            Physics?.Remove(door.Bodies[i], new DoorLeaf(door, i));
         }
         door.Frame.Door = null;
         door.Lock = null;
@@ -336,7 +354,8 @@ public sealed partial class BuildingWorld
         {
             return ok;
         }
-        keyLock = new KeyLock(_newId(), player, _nextKeyCode++);
+        keyLock = new KeyLock(_newId(), player, _nextKeyCode);
+        _nextKeyCode = _nextKeyCode % MaxKeyCode + 1;
         door.Lock = keyLock;
         Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
         return Outcome.Done;
@@ -397,7 +416,7 @@ public sealed partial class BuildingWorld
         {
             return Outcome.Refuse(Refusal.UnlockItFirst);
         }
-        codeLock.Code = code;
+        codeLock.CodeHash = codeLock.HashOf(code);
         codeLock.Locked = true;
         codeLock.AuthorisedList.Clear();
         codeLock.AuthorisedList.Add(player);
@@ -423,7 +442,7 @@ public sealed partial class BuildingWorld
         {
             return Outcome.Refuse(Refusal.WaitForCode, $"Wait {Math.Ceiling(failed.Until - now):0} s before trying another code");
         }
-        if (ValidCode(code) && code == codeLock.Code)
+        if (ValidCode(code) && codeLock.HashOf(code) == codeLock.CodeHash)
         {
             codeLock.Failures.Remove(player);
             if (!codeLock.IsAuthorised(player))
@@ -433,6 +452,7 @@ public sealed partial class BuildingWorld
                     return Outcome.Refuse(Refusal.ListFull);
                 }
                 codeLock.AuthorisedList.Add(player);
+                Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
             }
             return Outcome.Done;
         }
