@@ -28,7 +28,8 @@ namespace HollowUniverse.Build;
 /// Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; hold the right mouse button for the plan's or the hammer's radial;
 /// left button places, repairs, fits a door or places the device; R turns the piece (or flips the door); E opens and
 /// shuts a door; F2 the stability overlay; F5 one hour of upkeep and decay. Options (after "--"): <c>--scene
-/// house|stability|ghost-valid|ghost-invalid|stress|empty</c>, <c>--overlay</c>, <c>--tool</c> 1–6, <c>--piece key</c>.
+/// house|stability|ghost-valid|ghost-invalid|stress|empty|joints</c> (joints: <c>--tour folder</c>), <c>--overlay</c>,
+/// <c>--tool</c> 1–6, <c>--piece key</c>.
 /// </para>
 /// </summary>
 public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
@@ -53,6 +54,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
     private BuildSandboxUi _model = null!;
     private GroundTerrain _terrain = null!;
     private Camera3D _camera = null!;
+    private CanvasLayer _interface = null!;
     private Entity _player;
     private readonly Wallet _wallet = new() { ["wood"] = 20_000, ["stone"] = 20_000, ["metal-fragments"] = 10_000, ["refined-metal"] = 1_000 };
 
@@ -82,7 +84,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
 
     public override void _Ready()
     {
-        _shot = Options.ContainsKey("shot");
+        _shot = Options.ContainsKey("shot") || Options.ContainsKey("tour");
         // The whole game data: the building's numbers, and the player's lines for its answers (texts.json).
         GameContent content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
         _content = content;
@@ -120,6 +122,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         _model = new BuildSandboxUi(_data, _wallet, BuildingRadials.Hammer(() => _target as Piece, _data, _wallet, () => _clock, this));
         _model.Plan.Changed += () => _turns = 0;
         var layer = new CanvasLayer { Name = "Interface" };
+        _interface = layer;
         AddChild(layer);
         _hud = new BuildHud { Name = "BuildHud" };
         layer.AddChild(_hud);
@@ -168,6 +171,10 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         if (Options.ContainsKey("build-check"))
         {
             RunCheck();
+        }
+        if (_scene == "joints" && Options.TryGetValue("tour", out string? tour))
+        {
+            JointTour(tour);
         }
     }
 
@@ -250,6 +257,12 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             case "empty":
                 // Nothing built: the first foundation's frame only measures --from and --at (a free foundation's ghost).
                 spawn = site + new Num.Vector3(0, 0.5f, 6);
+                break;
+            case "joints":
+                // Every grade's joints (BuildSandbox.Joints.cs); --from and --at are in the twig group's frame.
+                Joints(frame);
+                frame = _jointFrames[0];
+                spawn = F(frame.ToZone(new Vector3D(-6, -0.4, -6)));
                 break;
             case "stress":
             {
@@ -545,7 +558,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         if (_measured == MeasureFrames)
         {
             ulong primitives = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalPrimitivesInFrame);
-            GD.Print($"[build] stress: {_renderer.Pieces} pieces, {_renderer.MultiMeshes} multimeshes, " +
+            GD.Print($"[build] stress: {_renderer.Pieces} pieces ({_renderer.Corners} corner posts), {_renderer.MultiMeshes} multimeshes, " +
                 $"{RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame)} draw calls, {primitives:N0} primitives; " +
                 $"frame {_frameSum / _measured * 1000:0.00} ms average ({_measured / _frameSum:0} fps), {_frameWorst * 1000:0.00} ms worst over {_measured} frames " +
                 $"at {GetViewport().GetVisibleRect().Size}");

@@ -290,8 +290,11 @@ Client options (after `--`):
 - Checks: `--physics-check` runs the physics check inside the client and quits; its line must match the one
   `dotnet run --project tests/Hollow.Tests -- MovementCheck` prints.
 - Build sandbox (GROUND.md §6.3): `--view build`, local, on the first world's stand-in surface. `--scene
-  house|ghost-valid|ghost-invalid|stability|stress|empty` (a built base; `stress` measures 300 frames and prints the
-  frame time), `--overlay` (stability colours), `--tool 1–6` (plan, hammer, three doors, claim device), `--piece <key>`,
+  house|ghost-valid|ghost-invalid|stability|stress|empty|joints` (a built base; `stress` measures 300 frames and prints
+  the frame time; `joints`: every grade's joints side by side, the twig group's frame for `--from`/`--at`, and with
+  `--tour <folder>` (relative to game/) it photographs each grade's nine joints and a walk along a wall's base, counts
+  flickering pixels (three pictures a third of a millimetre apart) and saves their maps, then quits), `--overlay`
+  (stability colours), `--tool 1–6` (plan, hammer, three doors, claim device), `--piece <key>`,
   `--wheel plan|hammer` (open its radial), `--from x,y,z --at x,y,z` (the camera in the scene's frame, the empty scene's
   too: its first foundation's frame, unbuilt; the plan's aim is the camera's), `--finest` or
   `--lod n` (draw one level of detail). Keys: right mouse wheels, left places or repairs, R turns, E doors, F2 the

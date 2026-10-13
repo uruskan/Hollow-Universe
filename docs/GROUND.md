@@ -2030,7 +2030,7 @@ ground.
 
 | File | What |
 |---|---|
-| `building_<grade>.glb` (twig, wood, stone, metal, armoured) | Every piece under its key, with `_LOD1` and `_LOD2` (the kit's three levels) and its hulls as `<key>_colNN-convcolonly` (Godot's convex collision; the game's collision comes from the rules, not these). The kit's 13 families come from its FBX files; the 7 pieces it lacks (low wall, L and U stairs, ramp, steps, square and triangle roofs with their gables) are built by the same script with the kit's own generator (its `MeshBuilder`, tier surfaces and atlas tiles, and the twig revision's `TwigMesh`), so they share its look and texel density. |
+| `building_<grade>.glb` (twig, wood, stone, metal, armoured) | Every piece under its key, with `_LOD1` and `_LOD2` (the kit's three levels; the stone floor frames' `_LOD2` left out, Fit below) and its hulls as `<key>_colNN-convcolonly` (Godot's convex collision; the game's collision comes from the rules, not these), every drawn mesh fitted to its slot (Fit, below). The kit's 13 families come from its FBX files; the 7 pieces it lacks (low wall, L and U stairs, ramp, steps, square and triangle roofs with their gables) are built by the same script with the kit's own generator (its `MeshBuilder`, tier surfaces and atlas tiles, and the twig revision's `TwigMesh`), so they share its look and texel density. Wood, stone, metal and armoured also hold the corner posts, `corner-<angle>-<cm>` (60°, 90°, 120°, 150°; 1, 1.5 and 3 m). |
 | `doors_wood.glb`, `doors_metal.glb`, `doors_armored.glb` | Single and double doors: frame insert and leaves (each leaf's origin is its hinge), with levels and hulls. |
 | `garage_door.glb` | The frame and the skinned curtain with the kit's Open and Close clips. |
 | `window_inserts.glb` | Metal and armoured bars, reinforced glass, horizontal and vertical embrasures (art only in phase 1). |
@@ -2038,7 +2038,81 @@ ground.
 
 Metres, the kits' axes turned into Godot's by the glTF exporter (a wall's outside is +Z, as in the rules). Godot imports
 the GLBs without generating levels of its own (`.import`: `generate_lods=false`) and the textures VRAM-compressed. The
-GLBs total 94 MB, nearly all the kit's bevelled finest level.
+GLBs total 95 MB, nearly all the kit's bevelled finest level.
+
+**Fit** (the owner's "gap between all building elements", 13 October 2026; decisions J1–J9). Every drawn mesh, in every
+grade and level of detail, is fitted to its piece's slot: the module sizes above, which the collision, sockets and
+stability are made from and which never move. One code path in the import does it, `art/import/building_fit.py`, with
+its rule in `building_fit.json` and what it did, face by face, in `building_fit.report.txt`. The causes were measured
+first: every drawn mesh against its slot in 1 cm bins; the faces of two neighbours that lie in one plane, over 37 joints
+of two pieces in each grade (a measuring script run for this change); and the build sandbox's `--scene joints --tour`,
+which photographs every grade's joints and counts the pixels that change when the camera moves a third of a millimetre:
+faces fighting trade places, while edges move a fraction of a pixel.
+
+| Cause | Measured | Seen as |
+|---|---|---|
+| Twig's art stops short of its slot | Slab edges 27–45 mm short in nine bins of ten (the kit's twig revision insets its border branches, deck and poles), their top 9 mm low (the floor frames' 19–28 mm); walls' base 11–31 mm up, top up to 12 mm short, ends 12–37 mm short; the doorway's sticks 2–11 cm off the floor (no rail), the wall frame's head 6 cm over the opening, its jambs a 12 cm post in a 15 cm slot; a spiral's column 15 mm up | Gaps at every twig joint (the owner's picture) |
+| The other grades stop exactly on the slot's faces, so neighbours' faces lie in one plane | A wall's top under a floor's (0.4 m² a wall); a roof's eave beam on a wall's top; two roofs' ridge and eave beams, chained or one turned back over the other (1.5 m²); walls' bases and tops where they meet (190 cm² a face at 90°, 340 at 60°); a wall's end in a floor's side (260 cm²); stairs' stringers and the ramp's deck in the slab's sides. 26.2 m² in all, over the 37 joints of each of the five grades | Flicker (z-fighting): red strips in the flicker maps along floors' edges and wall corners |
+| Walls' square ends | Outer corners miss a column: 15 × 15 cm at 90°, a 26 cm kite at 60° | A dark slot at every outer corner, its shadow speckling |
+| Two levels of detail drawn at once | Levels overlapped by a metre (25.5–26.5 m and 63.5–64.5 m from a batch's middle) | Whole batches fighting at those distances |
+| The kit's coarsest level of the stone slabs | The 45 % decimation sank most of their tiles 14–19 mm into the bed and cut the floor frames' outline 6 cm short | Gaps at a distance |
+| Our landings' bolts | The kit's rim spaces bolts for 3 m edges: up to 76 cm off the U and L stairs' landings | Bolts in the air |
+| Depth precision | Not a cause. The depth buffer is D32F with reverse-Z (measured in Godot 4.7.2 on the owner's RTX 2070 SUPER): faces 0.5 mm apart stay apart at 3–250 m, head on and at 45°. Only exactly coincident faces fought | — |
+
+The rule:
+- **Measure, then map.** Each face of the slot is measured in 1 cm bins: a slab's top and footprint edges; a wall's base,
+  top, ends, and its opening's sides, head and sill; a spiral's column foot and top. A bin's reach is how far past the
+  logical face the mesh gets. Faces something stands on or beside take the reach nine bins in ten get to, so irregular
+  art never leaves a gap; a slab's top and a wall's top take the level most of the face reaches, so what stands on them
+  stays the drawn face. The mesh is then mapped axis by axis through knots, each a measured face moved onto the logical
+  face plus its target: piecewise linear along a wall's x and y, linear along a square slab's x, z and y, and a triangle's
+  footprint by one scale and a shift. No face moves more than 8 cm (a measurement past that is reported, not stretched),
+  and the hulls never move.
+- **Twig overlaps its joints by 8 mm** (slab edges, walls' bases and ends): its crooked, round branches never lie in one
+  plane with a neighbour's, and the overlap keeps their irregularity from opening gaps. The flat-faced grades meet
+  exactly, back to back.
+- **Walls are drawn 3 mm lower**, so their base tucks into what they stand on and a floor's, a roof's or the next wall's
+  face is the drawn one on their top. Within 30 cm of each end their top and base sink up to 4 mm more (their level faces
+  are cut across there so long ones bend), so walls meeting at a corner or a T never share the plane of their tops. Their
+  ends lean 2 cm a metre about the wall's middle (±3 mm at its faces), so a floor's or foundation's side never lies in a
+  wall end's plane. Every wall has the same shape either way round, so stacked walls and walls in line still meet exactly.
+- **Corner posts** (`game/scripts/Build/CornerPosts.cs`, beside the renderer): wherever wall ends meet at a point and an
+  empty angle round it is wider than half a turn, a post shaped for the walls' angle fills the notch, a millimetre inside
+  the walls' faces, as tall as the lower wall and in the higher grade. Drawn only: no collision or health, gone with
+  either wall. Twig gets none: its round end posts close its corners.
+- **Twig's missing parts**, made by the twig revision's own `TwigMesh` at each level's quality: the doorway gets the bottom
+  rail the other twig walls have, either side of its opening; the wall frame gets the reveal the doorway and window have
+  (posts beside its opening and a branch across its head).
+- **Our generated pieces:** the flat-faced grades' roofs have no eave or ridge beam (the deck sits on the wall; the beams
+  lay in the stone wall's backing plane and on each other), twig's eave branch stops a centimetre short of each end, the
+  gables reach a centimetre under the base, and the decks' sides lean 2 cm a metre; stairs, ramps and steps are cut at
+  their base; a landing's rim spaces its bolts over its own edges.
+- **Levels:** the stone slabs' coarsest level is fitted like any other, its top lifted 14–19 mm onto the slot as a whole
+  (what stays uneven is a sixth of a pixel at 64 m, where it starts); the stone floor frames' is left out, so the game
+  draws level 1 there (20–28 more triangles a frame). The renderer shows exactly one level a batch (Rendering, below).
+- **Gibs** (§9.4) are fractured again from the fitted meshes (`art/gibs/build.py -- building-<grade>`), so the pieces put
+  together are still the piece.
+
+After the fit, every one of the 298 drawn meshes reaches its slot (`BuildingFitTests`, which reads the GLBs). Faces
+in one plane over the 185 joints fell from 26.2 m² to 0.10 m². What is left: an armoured foundation's side bolts, which
+reach into the 6 mm slot between two neighbours' panels (91 cm² a seam, unseen inside the slot), and a sliver along the
+line where a roof turned back over another crosses its deck (14–207 cm² a grade). Flicker in the four flat-faced grades'
+36 views of their joints, the same before and after: 47,638 changing pixels before, 12,188 after. Where faces had fought
+it fell by 76–95 % (a floor on walls, a corner, the triangle, the doorway); what is left is the edges' own aliasing, as
+much as in the views that never had such faces. Twig's 42,866 and 41,876 are its thin sticks aliasing. (A third of a
+millimetre is too small a move to show faces fighting at 26 m, where the levels switched; that cause is in the code: the
+old ranges overlapped by a metre.) Draw cost (`--scene stress`, the same view, measured the same day): 400–401 draw calls
+and 16.85 M triangles before, 405–406 and 16.79 M after (the stress block's 12 corner posts are three batches). The frame
+time is unchanged within this PC's swing, another game running beside it: in interleaved runs the old art took 5.7–6.0 ms
+and the new 5.7–6.3, the old renderer 10.7–14.3 ms and the new 8.8–12.8.
+
+| View | Pictures (`images/ground/build/fit/`) |
+|---|---|
+| Each grade's nine joints, before and after: inside a room at a wall's base, outside at its base, two foundations side by side, a floor on walls' tops, the ceiling, an outer corner, a triangle foundation with walls (60°), a doorway with a door, a wall frame with a double door | `<grade>-before.jpg`, `<grade>-after.jpg` |
+| The owner's view: a twig room's floor along its walls, before and after | `twig-wall-inside-before.jpg`, `twig-wall-inside-after.jpg` |
+| A stone corner, before and after | `stone-corner-before.jpg`, `stone-corner-after.jpg` |
+| Where faces fought (red: pixels changing when the camera moves 0.3 mm), metal and armoured, before and after | `metal-flicker-before.jpg`, `metal-flicker-after.jpg`, `armoured-flicker-before.jpg`, `armoured-flicker-after.jpg` |
+| Walking along a twig wall's base 1.7 m out, eight frames, before and after; a stone wall's, after | `walk-twig-before.jpg`, `walk-twig-after.jpg`, `walk-stone-after.jpg` |
 
 **The build sandbox** (`--view build`, `game/scripts/Build/`): a local zone on the first world's stand-in surface,
 a walking character (the real movement code), the rules above and their art, and the ground interface's belt and
@@ -2054,14 +2128,20 @@ and watching the rest come down) and quits with exit code 0 when all nine steps 
 
 ```bash
 $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
-# --scene house | ghost-valid | ghost-invalid | stability | stress | empty;  --overlay;  --tool 1–6;  --piece <key>;
+# --scene house | ghost-valid | ghost-invalid | stability | stress | empty | joints;  --overlay;  --tool 1–6;  --piece <key>;
 # --wheel plan|hammer (the radial open);  --from x,y,z --at x,y,z (the camera in the scene's frame);  --finest / --lod n
+$GODOT --path game --resolution 1600x900 -- --view build --scene joints --tour <folder>
+# every grade's joints (BuildSandbox.Joints.cs): pictures, flicker counts and maps, a walk along a wall's base; then quits
 ```
 
 **Rendering.** Pieces are batched into one `MultiMeshInstance3D` per piece, grade and level of detail in each 24 m
-chunk of the zone; only a batch whose pieces changed is rebuilt. Levels change at 26 m and 64 m, neighbouring levels
-overlapping by a metre (Godot's visibility margins are hysteresis: with them a still camera left whole batches drawn by
-neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows and SSAO on, the 1,060-piece block
+chunk of the zone; only a batch whose pieces changed is rebuilt. Each batch shows exactly one level, chosen every frame by
+the camera's distance to the middle of its bounds (as Godot's visibility ranges measure): levels change at 26 m and 64 m
+with a metre of hysteresis either way (`BuildingRenderer.Level`), so a camera standing at a threshold never flips a batch
+and no batch is ever drawn at two levels, whose faces would fight, or at none. (Godot's own ranges couldn't: with margins
+they are hysteresis per instance, and a batch created inside the band showed no level until the camera crossed it; the
+ranges had overlapped by a metre instead, two levels fighting there.) Corner posts are one batch per post and grade for the
+whole zone. Measured on the owner's PC at 1600 × 900, vsync off, shadows and SSAO on, the 1,060-piece block
 (`--scene stress`: 10 × 10 rooms, three storeys, every grade) in full view:
 
 | | Frame | Draw calls | Triangles |
@@ -3752,8 +3832,9 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
-rifle's LOD1–LOD3, as the character package chose); `UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as
-empties; duplicate faces in some kit LODs dropped; only the OpenGL normal maps used; textures box-filtered to 2K at
+rifle's LOD1–LOD3, as the character package chose; the building kit's pieces then fitted to their slots, §6.3 Fit);
+`UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as empties; duplicate faces in some kit LODs dropped; only
+the OpenGL normal maps used; textures box-filtered to 2K at
 most (the Tin Finch's surface normals and markings to 1K) and written once to `game/assets/textures/<set>/`. Three
 plates of the kit's markings atlas carried Rust's item names (P-250, K-47) or a joke ("fictional game prop");
 `import/relabel_markings.ps1` redraws them as SERVICE PISTOL, FRONTIER RIFLE and TIMED CHARGE with the kit's own
@@ -5489,3 +5570,45 @@ on):
   `standing`; interactions.json;
   survival.json's `arrows` and `lifetimes.arrow`; ships.json's `sockets.cargo` (its `reach` gone); deployables.json's
   `pickup`.
+
+Decisions taken for the building's joints (§6.3, Fit; the owner's "gap between all building elements", 13 October 2026)
+without the owner, to confirm or overturn (numbered J1 on):
+
+- J1. **The drawn mesh is fitted to the slot, never the slot to the art.** Collision, sockets and stability stay the module
+  sizes'; the import measures each drawn mesh face by face (1 cm bins, a percentile for each kind of face) and moves it
+  onto its slot through knots, one code path for every piece, grade and level (`building_fit.py`, its rule in
+  `building_fit.json`, what it did in `building_fit.report.txt`), rather than fit values typed in for each piece: the kit's
+  art is measured again whenever it is imported. RustMVP fitted twig's six slabs by hand with a render-time offset. The
+  building's gibs are fractured again from the fitted meshes.
+- J2. **Twig overlaps its joints by 8 mm** (slab edges, walls' bases and ends; nine bins in ten reach that far), the
+  flat-faced grades meet exactly: round branches crossing never share a plane, while two flat faces past each other
+  would. A twig slab's straw is lifted 9 mm onto the walking surface, which is the collision's top.
+- J3. **Walls are drawn 3 mm lower, up to 4 mm lower still within 30 cm of their ends, and their ends lean 2 cm a metre**
+  (±3 mm). Whatever stands on a wall is then the drawn face on its top, walls meeting at a corner or a T don't share the
+  plane of their tops, and a slab's side doesn't share a wall end's; every wall has the same shape either way round, so
+  stacked walls and walls in line still meet exactly. Raising the slabs instead would have put the walking surface over
+  the collision and left roofs' eaves in walls' tops.
+- J4. **Twig gets the parts its R02 revision left out**, made by that revision's own `TwigMesh`: a bottom rail either
+  side of a doorway's opening (its sticks stood 2–11 cm off the floor), and posts and a head branch round a wall frame's
+  opening (its head stood 6 cm over the double door). The wall frame's 15 cm jambs are still stretched up to 1.4 times
+  across to reach both the opening and the wall's end: fatter posts, no gap.
+- J5. **Corner posts close the notch** walls' square ends leave where they meet at an angle (15 × 15 cm at 90°), drawn by
+  the renderer from where walls end, shaped for the angle, in the higher grade, as tall as the lower wall; drawn only.
+  Mitring the walls instead can't work: one wall mesh meets neighbours at 60°, 90°, 120°, 150° and in line. They are one
+  batch a post and grade for the whole zone: the stress block's 12 posts are three batches, 5 more draw calls (405
+  against 400).
+- J6. **One level of detail a batch, with a metre of hysteresis, chosen by the renderer** rather than Godot's visibility
+  ranges, which had overlapped by a metre (both levels drawn and fighting there) because their margins left a batch
+  created inside the band with no level at all.
+- J7. **The stone floor frames' coarsest level is dropped** (the game draws level 1 there, 20–28 more triangles a
+  frame): the kit's 45 % decimation cut their outline 6 cm short, which no fit can mend. The stone slabs' coarsest level,
+  whose tiles it sank 14–19 mm into the bed, is kept and fitted (lifted as a whole): dropping it too would double their
+  triangles beyond 64 m for an unevenness of a sixth of a pixel there.
+- J8. **Our generated pieces don't overlap their neighbours' planes:** the flat-faced grades' roofs lost their eave and
+  ridge beams (they lay in the wall's top and on each other; the deck sits on the wall), twig's eave branch stops short of
+  the ends, gables reach a centimetre under the base, decks' sides lean 2 cm a metre, stairs are cut at their base, and a
+  landing spaces its bolts over its own edges (they hung up to 76 cm off).
+- J9. **Depth precision is left as it is:** Godot 4.7 renders into a D32F buffer with reverse-Z here, and faces 0.5 mm
+  apart stay apart from 3 to 250 m; only exactly coincident faces fought. The armoured foundations' side bolts, which
+  reach into the 6 mm slot between two neighbours' panels (91 cm² a seam, out of sight), and a roof turned back over
+  another on its high edge (a sliver where the two decks cross) are left.

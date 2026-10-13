@@ -8,8 +8,10 @@ namespace HollowUniverse.Build;
 
 /// <summary>
 /// Draws a <see cref="BuildingWorld"/> (GROUND.md §6.3): pieces batched into one <see cref="MultiMeshInstance3D"/> per
-/// piece kind, grade and level of detail in each 24 m chunk of the zone, so a 1,000-piece base is a few dozen draw calls;
-/// the kit's three levels swap by distance (visibility ranges). Only what changed is rebuilt, when it changes. Doors and
+/// piece kind, grade and level of detail in each 24 m chunk of the zone, so a 1,000-piece base is a few dozen draw calls.
+/// Each batch shows exactly one of the kit's three levels at a time, chosen by the camera's distance with a hysteresis
+/// (<see cref="Level"/>): two levels of one batch drawn together would fight face for face, and a camera standing at a
+/// switching distance must not flip them back and forth. Only what changed is rebuilt, when it changes. Doors and
 /// claim devices are nodes of their own. A piece that goes is simply no longer drawn: one that broke breaks into its gibs
 /// (GROUND.md §9.4, the destruction's own path). The stability overlay recolours every piece by its stability (green
 /// 100 %, through yellow, to red 0 %). Zone metres are Godot's coordinates.
@@ -18,8 +20,12 @@ public partial class BuildingRenderer : Node3D
 {
     private const float Chunk = 24f;
 
-    /// <summary>Where each level of detail stops being drawn (0: never).</summary>
-    private static readonly float[] LodEnd = { 26f, 64f, 0f };
+    /// <summary>Where each level of detail gives way to the next, measured from the camera to the middle of a batch's
+    /// bounds (as Godot's visibility ranges measure).</summary>
+    private static readonly float[] LodEnd = { 26f, 64f };
+
+    /// <summary>How far past a switching distance the camera goes before a batch changes level (either way).</summary>
+    public const float Hysteresis = 1f;
 
     private readonly Dictionary<BatchKey, Batch> _batches = new();
     private readonly Dictionary<Piece, Batch> _of = new();
@@ -28,6 +34,8 @@ public partial class BuildingRenderer : Node3D
     private readonly Dictionary<ClaimDevice, MeshInstance3D> _claims = new();
     private BuildingWorld _world = null!;
     private BuildingAssets _assets = null!;
+    private CornerPosts _corners = null!;
+    private bool _cornersDirty;
     private bool _overlay;
 
     private readonly record struct BatchKey(PieceDef Def, int Grade, int Cx, int Cz);
@@ -37,13 +45,22 @@ public partial class BuildingRenderer : Node3D
         public readonly BatchKey Key = key;
         public readonly List<Piece> Pieces = new();
         public MultiMeshInstance3D[] Lods = Array.Empty<MultiMeshInstance3D>();
+
+        /// <summary>The level shown, -1 until a camera has seen it.</summary>
+        public int Shown = -1;
+
+        /// <summary>The middle of its pieces' bounds, which the camera's distance is measured to.</summary>
+        public Vector3 Middle;
     }
 
     /// <summary>Pieces drawn.</summary>
     public int Pieces => _of.Count;
 
-    /// <summary>Multi-meshes in use (each one draw call per pass when in view).</summary>
-    public int MultiMeshes => _batches.Count * BuildingAssets.Lods;
+    /// <summary>Multi-meshes in use (each one draw call per pass when in view): the pieces' levels and the corner posts.</summary>
+    public int MultiMeshes => _batches.Count * BuildingAssets.Lods + (_corners?.Batches ?? 0);
+
+    /// <summary>Corner posts drawn (<see cref="CornerPosts"/>).</summary>
+    public int Corners => _corners?.Count ?? 0;
 
     /// <summary>Draws every piece at its finest level, at any distance (to compare).</summary>
     public bool FinestOnly { get; set; }
@@ -55,6 +72,8 @@ public partial class BuildingRenderer : Node3D
     {
         _world = world;
         _assets = assets;
+        _corners = new CornerPosts(this, assets);
+        _cornersDirty = true;
         foreach (Piece p in world.AllPieces)
         {
             Add(p);
@@ -89,6 +108,7 @@ public partial class BuildingRenderer : Node3D
                 return;
             }
             _overlay = value;
+            _corners.Hidden = value;
             foreach (Batch b in _batches.Values)
             {
                 foreach (MultiMeshInstance3D m in b.Lods)
@@ -102,6 +122,8 @@ public partial class BuildingRenderer : Node3D
 
     private void OnChanged(BuildingEvent e)
     {
+        // Walls coming, going or changing grade move the corner posts.
+        _cornersDirty |= e.Piece?.Def.Family == PieceFamily.Wall;
         switch (e.Change)
         {
             case BuildingChange.PieceAdded:
@@ -175,10 +197,7 @@ public partial class BuildingRenderer : Node3D
                     Name = $"{piece.Def.Key} g{piece.Grade} lod{lod} {key.Cx},{key.Cz}",
                     Multimesh = mm,
                     MaterialOverride = _overlay ? _assets.Overlay : _assets.Grade(piece.Grade),
-                    // Neighbouring levels overlap by a metre: Godot's margins are hysteresis, and with them a still
-                    // camera can leave a batch between two levels drawn by neither.
-                    VisibilityRangeBegin = OnlyLod >= 0 ? (lod == OnlyLod ? 0 : 100000) : FinestOnly ? (lod == 0 ? 0 : 100000) : lod == 0 ? 0 : LodEnd[lod - 1] - 0.5f,
-                    VisibilityRangeEnd = OnlyLod >= 0 || FinestOnly || LodEnd[lod] == 0 ? 0 : LodEnd[lod] + 0.5f,
+                    Visible = false,
                 };
                 AddChild(instance);
                 batch.Lods[lod] = instance;
@@ -229,6 +248,57 @@ public partial class BuildingRenderer : Node3D
             Rebuild(batch);
         }
         _dirty.Clear();
+        if (_cornersDirty)
+        {
+            _cornersDirty = false;
+            _corners.Update(_world.AllPieces, _world.Data.Width, _overlay);
+        }
+        // The camera in the renderer's own space, where the batches' middles are.
+        Camera3D? eye = GetViewport()?.GetCamera3D();
+        Vector3? camera = eye == null ? null : ToLocal(eye.GlobalPosition);
+        foreach (Batch batch in _batches.Values)
+        {
+            Show(batch, camera);
+        }
+    }
+
+    // One level of a batch visible (none while it is empty): its level for the camera, through the hysteresis.
+    private void Show(Batch batch, Vector3? camera)
+    {
+        int level = OnlyLod >= 0 ? Math.Min(OnlyLod, BuildingAssets.Lods - 1)
+            : FinestOnly ? 0
+            : camera is Vector3 eye ? Level(batch.Shown, eye.DistanceTo(batch.Middle))
+            : Math.Max(batch.Shown, 0);
+        bool any = batch.Pieces.Count > 0;
+        if (level == batch.Shown && batch.Lods[level].Visible == any)
+        {
+            return;
+        }
+        batch.Shown = level;
+        for (int lod = 0; lod < batch.Lods.Length; lod++)
+        {
+            batch.Lods[lod].Visible = any && lod == level;
+        }
+    }
+
+    /// <summary>
+    /// The level a batch shows at a distance, given the one it shows now (-1: none yet, the plain thresholds): it moves to
+    /// a coarser level only <see cref="Hysteresis"/> past a switching distance and back only as far inside it, so a camera
+    /// standing at a threshold never flips it, and every batch always shows exactly one level.
+    /// </summary>
+    public static int Level(int shown, float distance)
+    {
+        int level = Math.Max(shown, 0);
+        float slack = shown < 0 ? 0 : Hysteresis;
+        while (level < LodEnd.Length && distance > LodEnd[level] + slack)
+        {
+            level++;
+        }
+        while (level > 0 && distance < LodEnd[level - 1] - slack)
+        {
+            level--;
+        }
+        return level;
     }
 
     private void Rebuild(Batch batch)
@@ -245,7 +315,10 @@ public partial class BuildingRenderer : Node3D
                 mm.SetInstanceTransform(i, ToGodot(position, rotation));
                 mm.SetInstanceColor(i, _overlay ? StabilityColour(p) : p.Collapsing ? new Color(1f, 0.55f, 0.5f) : Colors.White);
             }
-            instance.Visible = n > 0;
+        }
+        if (n > 0)
+        {
+            batch.Middle = batch.Lods[0].Multimesh.GetAabb().GetCenter();
         }
     }
 

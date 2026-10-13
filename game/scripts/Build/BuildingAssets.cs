@@ -100,7 +100,8 @@ public sealed class BuildingAssets
     {
         for (int g = 0; g < GradeKeys.Length; g++)
         {
-            string? key = _pieces.Keys.Where(k => k.Grade == g && k.Lod == 0).Select(k => k.Key).OrderBy(k => k, StringComparer.Ordinal).FirstOrDefault();
+            string? key = _pieces.Keys.Where(k => k.Grade == g && k.Lod == 0 && _data.Piece(k.Key) != null).Select(k => k.Key)
+                .OrderBy(k => k, StringComparer.Ordinal).FirstOrDefault();
             if (key != null)
             {
                 yield return (g, Enumerable.Range(0, Lods).Select(l => _pieces.GetValueOrDefault((key, g, l)) ?? _pieces[(key, g, 0)]).ToArray());
@@ -191,6 +192,10 @@ public sealed class BuildingAssets
     }
 
     public bool HasArt(PieceDef def, int grade) => _pieces.ContainsKey((def.Key, grade, 0));
+
+    /// <summary>A corner post's mesh in a grade (<see cref="CornerPosts"/>; corner-&lt;angle&gt;-&lt;cm&gt;), or null when the
+    /// grade has none.</summary>
+    public Mesh? Corner(string name, int grade) => _pieces.TryGetValue((name, grade, 0), out Mesh? mesh) ? mesh : null;
 
     /// <summary>A door or window part's mesh (the kit's names: Wood_SingleDoor_Left, Window_MetalBars, …).</summary>
     public Mesh? Part(string name, int lod = 0)

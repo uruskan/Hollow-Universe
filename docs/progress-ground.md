@@ -644,3 +644,27 @@ carries every verb.
   lock and claim intents (messages 92–94 free); the ground is P2's one probe for both (P1's own copy went); the answers
   Seated and NotEmpty moved to 78 and 79, P1's capabilities after P2's `standing`. The tour's code lock and garage door
   go on through P2's ghost.
+
+## 13 October 2026, the building's joints (`ground-fit`)
+
+GROUND.md §6.3 (Fit) and decisions J1–J9. The owner: "Can't you really spot that gap between all building elements? …
+textures/meshes glitching constantly, almost like flickering". Measured, then fixed at each cause:
+
+- **Gaps: twig's art stopped short of its slots** (its slab edges 3–4.5 cm in, their tops 9–28 mm low, walls floating
+  1–3 cm, the doorway's sticks 2–11 cm off the floor). Every drawn mesh of every piece, grade and level is now measured
+  face by face at import and moved onto its slot (`art/import/building_fit.py`); twig overlaps its joints by 8 mm, and its
+  doorway and wall frame got the rail and reveal the other twig walls have.
+- **Flicker: the other grades stopped exactly on their slots,** so neighbours' faces lay in one plane (26.2 m² over 185
+  joints: floors on wall tops, walls' tops and bases at corners and T's, roofs' beams, a wall's end and a floor's side).
+  Walls are drawn 3 mm lower, sinking a little more toward their ends, their ends leaning a little; our roofs and stairs
+  keep out of their neighbours' planes. 0.10 m² is left, out of sight or rare (an armoured foundation's bolts inside the
+  slot between two, a roof turned back over another).
+- **Corners:** walls' square ends left a 15 cm notch at every outer corner; a post shaped for the corner's angle fills it.
+- **Levels of detail:** two levels of a batch were drawn at once over a metre at each switch; now one, with a metre of
+  hysteresis. The stone floor frames' broken coarsest level is dropped. Depth precision was not a cause (D32F, reverse-Z).
+- The building's gibs are fractured again from the fitted art.
+- Pictures (`docs/images/ground/build/fit/`): every grade's nine joints before and after, the flicker maps, a walk along a
+  wall's base. Flicker in the flat-faced grades' joints: 47,638 changing pixels before, 12,188 after (edges' aliasing).
+  The stress block: 400 draw calls before, 405 after (the corner posts); 16.85 M and 16.79 M triangles; frame time
+  within this PC's run-to-run swing (another game was running). One new test (`BuildingFitTests`: 298 meshes fill their
+  slots); 218 of 218 pass; the sandbox's build check passes 9 of 9.
