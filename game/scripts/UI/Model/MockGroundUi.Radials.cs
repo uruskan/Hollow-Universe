@@ -143,7 +143,7 @@ public sealed partial class MockGroundUi
             }
         }
         int loaded = ActiveBelt >= 0 ? Math.Max(0, _belt[ActiveBelt].Ammo) : 0;
-        menu.Add(new RadialOption(RadialIcon.Glyph("pick-up"), "UNLOAD", "Take the rounds out of the magazine",
+        menu.Add(new RadialOption(RadialIcon.Glyph("unload"), "UNLOAD", "Take the rounds out of the magazine",
                 Reason: loaded > 0 ? null : "The magazine is empty"),
             () => Notice?.Invoke(FormattableString.Invariant($"{loaded} rounds unloaded.")));
     }

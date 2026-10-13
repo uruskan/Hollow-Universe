@@ -266,7 +266,7 @@ public partial class GroundUi
         }
     }
 
-    /// <summary>Marks a panel so a drag released on it doesn't drop the item.</summary>
+    /// <summary>Marks a panel: a press on it goes nowhere (a drag released on it drops, as anywhere but a slot).</summary>
     private void PanelArea(float x, float y, float w, float h) => _hits.Add(new Hit(Area(x, y, w, h), HitKind.Panel));
 
     private static string Count(int amount) =>

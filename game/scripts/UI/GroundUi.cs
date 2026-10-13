@@ -34,8 +34,8 @@ public enum GroundScreen
 /// follow the window's edges; the crosshair and wheels its centre.
 /// <para>
 /// Keys: Tab inventory, Q crafting, Esc back or menu, 1–6 belt, Enter chat, H (hold) hover-transfer. In the
-/// inventory: drag to move, middle-drag half (Shift: a third), right-click to quick-move, drag outside the panels to
-/// drop.
+/// inventory: drag to move, middle-drag half (Shift: a third), right-click to quick-move; a drag released anywhere but
+/// a slot drops, and on its own slot is put back (Rust).
 /// </para>
 /// </summary>
 public partial class GroundUi : Control
@@ -535,7 +535,7 @@ public partial class GroundUi : Control
         Map,
     }
 
-    /// <summary>Something under the pointer: a button with its action, a slot, or a panel (so drops don't fall through).</summary>
+    /// <summary>Something under the pointer: a button with its action, a slot, or a panel (so a press on it goes nowhere).</summary>
     private readonly record struct Hit(Rect2 Rect, HitKind Kind, Action? Click = null, SlotRef Slot = default, string? Key = null);
 
     private readonly List<Hit> _hits = new();

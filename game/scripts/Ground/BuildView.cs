@@ -43,7 +43,7 @@ public partial class BuildView : Node3D, IHammerActions
     private Num.Vector3 _eye, _forward;
     private ItemWallet? _wallet;
     private PlanRadial? _planRadial;
-    private Dictionary<BuildingRole, IRadialSource>? _radials;
+    private IRadialSource? _hammer;
 
     public GameClient Client { get; set; } = null!;
 
@@ -63,8 +63,8 @@ public partial class BuildView : Node3D, IHammerActions
     /// <summary>The building plan's radial: its pieces, and the one chosen.</summary>
     public PlanRadial Plan => _planRadial ??= NewPlan();
 
-    /// <summary>The radial the held building tool opens with the right mouse (the plan's pieces, the hammer's actions), or null.</summary>
-    public IRadialSource? HeldRadial => Radials.GetValueOrDefault(Held);
+    /// <summary>The hammer's radial: upgrade, turn or demolish the piece aimed at.</summary>
+    public IRadialSource HammerRadial => _hammer ??= BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this);
 
     /// <summary>What the held item does in building (none: not a building tool).</summary>
     public BuildingRole Held { get; private set; }
@@ -328,14 +328,6 @@ public partial class BuildView : Node3D, IHammerActions
     // ---------------------------------------------------------------- the held tool
 
     private PieceDef ChosenPiece => Plan.Chosen;
-
-    // The building tools' radials by the held tool's role (GROUND_SYSTEMS.md §4): a lookup, written once for the game and
-    // the build sandbox (BuildingRadials).
-    private Dictionary<BuildingRole, IRadialSource> Radials => _radials ??= new()
-    {
-        [BuildingRole.Plan] = Plan,
-        [BuildingRole.Hammer] = BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this),
-    };
 
     // What the player carries, counted as the building rules count it.
     private ItemWallet Wallet => _wallet ??= new ItemWallet(Client.Content, Client.Local.Inventory.Carried);

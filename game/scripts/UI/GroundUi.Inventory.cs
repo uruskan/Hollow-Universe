@@ -385,7 +385,8 @@ public partial class GroundUi
         _splitValue = Math.Clamp((int)MathF.Round(1 + t * (count - 1)), 1, Math.Max(1, count));
     }
 
-    // A drag released on a slot moves there; released on nothing at all (the world behind the panels), it drops.
+    // A drag released on another slot moves there; on its own slot it is put back; anywhere else, over a panel, a button or
+    // the world behind, it drops (Rust; GROUND_SYSTEMS.md §7).
     private void ReleaseInventory(MouseButton button)
     {
         if (_splitTracking && button == MouseButton.Left)
@@ -402,20 +403,17 @@ public partial class GroundUi
         {
             return;
         }
-        Hit? target = HitAt(Pointer);
-        if (target is { Kind: HitKind.Slot } t)
+        if (HitAt(Pointer) is { Kind: HitKind.Slot } target)
         {
-            if (t.Slot != drag.From)
+            if (target.Slot != drag.From)
             {
                 Sound?.Invoke("ui.drop");
-                Model.Move(drag.From, t.Slot, drag.Amount);
+                Model.Move(drag.From, target.Slot, drag.Amount);
             }
+            return;
         }
-        else if (target == null)
-        {
-            Sound?.Invoke("ui.drop");
-            Model.Drop(drag.From, drag.Amount);
-        }
+        Sound?.Invoke("ui.drop");
+        Model.Drop(drag.From, drag.Amount);
     }
 
     // H held: each filled slot the pointer rests on for 350 ms moves across once (RustMVP's hover transfer).

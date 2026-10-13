@@ -55,7 +55,13 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         me.Died += OnDied;
         client.ChatReceived += OnChat;
         SubscribeWorld(me);
-        Radials = new[] { new RadialBinding(RadialInput.Aim, 0, () => Build?.HeldRadial) };
+        // The held item's radials (GROUND_SYSTEMS.md §7): the aim button's at once (the plan's pieces, the hammer's work),
+        // R's after a hold (a gun's rounds; a tap reloads with the current one). Its control says which, or none.
+        Radials = new[]
+        {
+            new RadialBinding(RadialInput.Aim, 0, () => HeldRadial?.Invoke(RadialInput.Aim)),
+            new RadialBinding(RadialInput.Reload, HeldControls.RadialHoldSeconds, () => HeldRadial?.Invoke(RadialInput.Reload)),
+        };
     }
 
     public void Dispose()
@@ -136,9 +142,13 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public int ActiveBelt => Me.HeldSlot;
 
-    public HeldAmmo? Ammo =>
-        Me.Gun.Weapon != null ? new HeldAmmo(Me.Gun.Loaded, Me.Gun.Reserve, Me.Gun.Reloading)
-        : Me.HeldItem?.Bow is { } bow ? new HeldAmmo(0, bow.Ammo.Sum(a => Me.Inventory.Count(a))) : null;
+    public HeldAmmo? Ammo => HeldAmmo?.Invoke();
+
+    /// <summary>The radial a held input opens with the item in hand, from its held control (set by the ground view).</summary>
+    public Func<RadialInput, IRadialSource?>? HeldRadial { get; set; }
+
+    /// <summary>The HUD's ammo counter for the item in hand, from its held control (set by the ground view).</summary>
+    public Func<HeldAmmo?>? HeldAmmo { get; set; }
 
     public LootView? Loot
     {
@@ -287,8 +297,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     public BuildView? Build { get; set; }
 
     /// <summary>
-    /// The radials (GROUND_SYSTEMS.md §4): the right mouse opens the held building tool's (the plan's pieces, the
-    /// hammer's actions). P1 adds E's, P3 R's.
+    /// The radials (GROUND_SYSTEMS.md §4): the held item's on the right mouse (the plan's pieces, the hammer's actions)
+    /// and on R (a gun's rounds), from its held control (§7). P1 adds E's.
     /// </summary>
     public IReadOnlyList<RadialBinding> Radials { get; }
 

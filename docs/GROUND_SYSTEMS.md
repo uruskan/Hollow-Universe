@@ -327,6 +327,28 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
   change, the handler of what was put away ends what was going on; the rest act by intents. An intent a held behaviour
   sends is checked by that behaviour (`Zone.ItemFor`): a throw of something whose held behaviour isn't `Throwable` is
   refused, whatever it is.
+- **Held behaviours on the client** (`game/scripts/Ground/Held/`): one control per `HeldUse` (`IHeldControl`) in a
+  registry the game builds at start (complete, or it doesn't start; `--ui-check` checks it). The ground view asks the item
+  in hand's control what the attack and aim buttons and R do this frame (`Hands`), which radial a held input opens
+  (`Radial`: the aim button's at once, the plan's pieces and the hammer's work; R's after 0.35 s, a gun's rounds), the
+  HUD's ammo counter (`Ammo`), where a placeable's ghost goes (`Aim`) and what the first-person arms do (`Arms`: a melee
+  swing in the server's rhythm, a bow's draw, a gun's attachments). The view's `Hands` switch, its `Throw` and
+  `ItemDef.Hands` (`HandUse`) are gone, and so are `FirstPersonView`'s melee and bow branches and its placeholder stick
+  (every item held in sight has a model; a test checks it). Free look, death and the pilot's seat stop the hands in one
+  place, the view's `HandsFree`, before any control is asked, so no radial of the item opens while Alt is held either.
+  The controls: melee and the bow send the tick's buttons; the firearm sends them too (the predicted gun fires from them),
+  and R opens its rounds (`AmmoRadial`: every round of its calibre carried with how many, then UNLOAD; the current option
+  the round a tap reloads with, the loaded kind while there are more; with none carried the loaded kind shows refused, so
+  a tap says why); a throwable throws, puts a charge on a surface or lobs a grenade; a placer and the planner place and turn
+  through `IPlacement`, P2's system (today `TodaysPlacement` sends each placeable to its old entry point by the part that
+  makes it placeable: a deployable to `LocalPlayer.Place` with its ghost, the plan's piece, doors, locks and the cupboard to
+  `BuildView.Use` and `Rotate`; a ship says it can't be placed yet); the hammer repairs and opens its radial; food,
+  medicine and blueprints do their part's first inventory button (EAT, USE, LEARN). The model catalogue says what was
+  picked by item key: `held.flame` (the torch's fire, `fire.torch`), `held.pose` (`pistol`, `rifle`: the arms' pose and
+  the muzzle's place when a model has none) and `held.eyeRelief` (the rifle's). Test:
+  `HeldTests.HeldItemsShowFromTheCatalogue`.
+- **Dropping**: a drag released on another slot moves there, on its own slot is put back, and anywhere else (over a
+  panel, a button or the world) drops (Rust). `--ui-check` checks the panel and the own slot.
 - **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
   lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
   from 100), and `GunUpdate` carries the code in 7 bits.

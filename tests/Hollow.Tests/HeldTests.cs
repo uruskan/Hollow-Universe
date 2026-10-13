@@ -283,6 +283,41 @@ public static class HeldTests
         Assert.True(me.Inventory.Main[rifles[1]].Loaded == 0 && me.Inventory.Count(c.ItemByKey("rifle-ammo-hv")) == 12, "and confirmed");
     }
 
+    /// <summary>
+    /// GROUND_SYSTEMS.md §7: what first person shows comes from the model catalogue, not from item keys. Every item whose
+    /// held behaviour is shown in the hands has a held pose (no placeholder is drawn any more); every gun names the arms'
+    /// pose (pistol or rifle) the views used to pick by its key; the torch's flame is its catalogue entry's.
+    /// </summary>
+    [Test]
+    public static void HeldItemsShowFromTheCatalogue()
+    {
+        GameContent c = ContentFixture.Content;
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json")));
+        var held = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+        foreach (System.Text.Json.JsonElement m in doc.RootElement.GetProperty("models").EnumerateArray())
+        {
+            if (m.TryGetProperty("held", out System.Text.Json.JsonElement h))
+            {
+                held[m.GetProperty("key").GetString()!] = h;
+            }
+        }
+        HeldUse[] shown = { HeldUse.Melee, HeldUse.Bow, HeldUse.Firearm, HeldUse.Throwable, HeldUse.Planner, HeldUse.Hammer, HeldUse.Consumable };
+        var missing = c.Items.Where(i => shown.Contains(i.Held) && !held.ContainsKey(i.Key)).Select(i => i.Key).ToList();
+        Assert.True(missing.Count == 0, "items held without a held pose: " + string.Join(", ", missing));
+        foreach (ItemDef gun in c.Items.Where(i => i.Held == HeldUse.Firearm))
+        {
+            string pose = held[gun.Key].TryGetProperty("pose", out System.Text.Json.JsonElement p) ? p.GetString() ?? "" : "";
+            Assert.True(pose is "pistol" or "rifle", $"{gun.Key} names the arms' pose ({pose})");
+        }
+        Assert.Equal("fire.torch", held["torch"].GetProperty("flame").GetString(), "the torch burns by its catalogue entry");
+        // No view picks what to draw by an item's key any more.
+        foreach (string file in new[] { "Ground/FirstPersonView.cs", "Characters/HeldItems.cs", "Ground/GroundView.cs" })
+        {
+            string code = File.ReadAllText(Path.Combine(Fixtures.Root, "game", "scripts", file));
+            Assert.True(!System.Text.RegularExpressions.Regex.IsMatch(code, @"Key\s*[!=]=\s*""(torch|rifle|pistol)"""), $"{file} names no item key");
+        }
+    }
+
     /// <summary>The player an action acts for, as a test sees them (no effects besides the items).</summary>
     private sealed class TestActor(GameContent content, Player p) : IItemActor
     {

@@ -307,13 +307,16 @@ public sealed partial class LocalPlayer
     /// <summary>The buttons a stack in the player's own slots offers (GROUND_SYSTEMS.md §7), as the server would judge them.</summary>
     public void ItemActions(ContainerRef from, int slot, List<ItemActionOption> into) => Content.ItemActions.Offer(_actor, from, slot, into);
 
+    /// <summary>The first button one of a stack's parts offers (enabled or with why not), or null.</summary>
+    public ItemActionOption? FirstAction(ContainerRef from, int slot, ItemPart part) => Content.ItemActions.First(_actor, from, slot, part);
+
     /// <summary>
     /// What a click with an item in hand does when its held behaviour acts through the inventory (eating, learning): its
     /// part's first button, done; refused with its reason when the button is (0 when nothing was sent).
     /// </summary>
     public uint UsePart(ContainerRef from, int slot, ItemPart part)
     {
-        if (Content.ItemActions.First(_actor, from, slot, part) is not { } option)
+        if (FirstAction(from, slot, part) is not { } option)
         {
             return 0;
         }

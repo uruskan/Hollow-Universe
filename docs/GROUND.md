@@ -5104,3 +5104,14 @@ owner, to confirm or overturn (numbered V1 on):
   client chooses between the two is `LocalPlayer.ItemAction` (the gun in hand's UNLOAD).
 - V7. **Numbers taken in shared spaces:** protocol 17; messages 230 (`ItemActionIntent`) and 231 (`UnloadIntent`); 53
   and 65 free; outcome codes 100–108; items.json's `actions` list.
+- V8. **The held item's radials are its control's**: the aim button opens the plan's and the hammer's at once (as before),
+  R a gun's rounds after 0.35 s (E's hold time, RustMVP's), and a tap of R reloads with the radial's current option. With
+  nothing that has an R radial in hand, R goes to the hands (the plan and the placers turn). Free look now also keeps the
+  plan's and the hammer's radials shut (L4: the hands do nothing while Alt is held).
+- V9. **Placing goes through one small interface until P2 replaces what is behind it** (`IPlacement`: aim, place, turn).
+  Today's implementation routes by the part that makes the item placeable to the old entry points, a lookup P2 deletes;
+  the Tin Finch's item says "You can't place that here" until then.
+- V10. **First person picks nothing by item key**: the torch's flame, the guns' pose and the rifle's eye relief are
+  catalogue fields (`held.flame`, `held.pose`, `held.eyeRelief`), and `HeldItems` reads the pose there too (it picked the
+  pistol by its key). The placeholder stick for items without a model is gone: every item that does something in sight
+  of the hands has a held pose, and a test keeps it so.
