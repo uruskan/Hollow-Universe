@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
+using Hollow.Persistence;
 using Hollow.Simulation;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
@@ -173,6 +174,67 @@ public sealed partial class GameServer
             return null;
         }
         return new[] { ShipConvert.ToOwn(ship.State, netId, ship.Def.Id) };
+    }
+
+    // ---------------------------------------------------------------- storage
+
+    private readonly HashSet<EntityId> _savedShips = new();
+
+    // The body's ships as they were saved: parked, flying (they fall or hover on), in orbit; their pilots, loaded as
+    // sleepers, go back into their seats.
+    private void LoadShips(ZoneRecord stored)
+    {
+        int loaded = 0;
+        foreach (ShipRecord record in stored.Ships)
+        {
+            _savedShips.Add(record.Id);
+            try
+            {
+                if (Persistence.ShipCodec.Decode(record.Id, record.Data, Content, Zone.Frame) is not { } restored || Zone.Entities.TryFind(record.Id, out _))
+                {
+                    continue;
+                }
+                Ship ship = Zone.AddShip(restored.Ship);
+                Zone.Physics.EnsureGround(ship.State.Position);
+                loaded++;
+                if (!restored.Pilot.IsNone && Zone.Entities.TryFind(restored.Pilot, out Entity pilot) && Zone.PlayerOf(pilot) != null)
+                {
+                    Zone.Reseat(pilot, ship);
+                }
+            }
+            catch (Exception e) when (e is System.IO.EndOfStreamException or System.IO.InvalidDataException or ArgumentException)
+            {
+                Log($"ship {record.Id} doesn't load ({e.Message}); left out");
+            }
+        }
+        if (loaded > 0)
+        {
+            Log($"loaded {loaded} ships");
+        }
+    }
+
+    // Every ship now (they move), and those gone since the last save.
+    private void AddShipsToSave(ZoneSave save)
+    {
+        var current = new HashSet<EntityId>();
+        foreach (Ship ship in Zone.Ships)
+        {
+            if (ship.Destroyed)
+            {
+                continue;
+            }
+            save.Ships.Add(new ShipRecord(ship.Id, Persistence.ShipCodec.Encode(ship, Zone.Frame)));
+            current.Add(ship.Id);
+        }
+        foreach (EntityId id in _savedShips)
+        {
+            if (!current.Contains(id))
+            {
+                save.RemovedShips.Add(id);
+            }
+        }
+        _savedShips.Clear();
+        _savedShips.UnionWith(current);
     }
 
     // ---------------------------------------------------------------- events

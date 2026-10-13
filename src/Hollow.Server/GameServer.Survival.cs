@@ -113,6 +113,7 @@ public sealed partial class GameServer
             IndexOverride(n.ObjectId);
         }
         LoadBuilding(stored);
+        LoadShips(stored);
         Log($"loaded {sleepers} sleepers, {things} things and {stored.Naturals.Count} changed natural objects");
     }
 
@@ -223,6 +224,7 @@ public sealed partial class GameServer
         }
         _naturalsToSave.Clear();
         AddBuildingToSave(save);
+        AddShipsToSave(save);
         return save;
     }
 

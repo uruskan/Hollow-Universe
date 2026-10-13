@@ -1527,6 +1527,7 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
 | Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
 | In the zone | `src/Hollow.Simulation/Zone.Ships.cs`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
+| Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 4 (`ships`) in `GameDatabase.cs`; `GameServer.Ships.cs` loads and saves |
 | Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/GameServer.Ships.cs`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, `LocalPlayer.Ships.cs` |
 | Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly) |
 
@@ -1627,8 +1628,16 @@ returns true, and the parking above is what happens without one.
 - The server's admin gives a player a ship (`ship <name>`: beside them, full, theirs, the hatch open);
   `ServerOptions.ShipOnJoin` gives every new character one (the load test).
 
+**Storage** (schema 4, `ShipCodec`): a row per ship in a `ships` table (step 3 → 4), written with the whole zone every
+30 s, at shutdown and within a second of a death: its kind, owner and lock, its centre of mass, turn and velocity in the
+**body frame** (so it stays where it was on the planet whatever zone frame comes next), hull, fuel, boost timers,
+flags, hatch, pilot, orbit marker and cargo (stacks in G4's form: a gun keeps its magazine). At start the ships come back
+before anyone joins; a pilot (a sleeper) goes back into the seat, and wakes there on logging in. A wrecked ship's row
+goes. Decoding treats the bytes as untrusted (a kind the game lost gives nothing; numbers that aren't are made sane).
+
 | Test | What it shows |
 |---|---|
+| `ShipPersistenceTests.AShipAndItsPilotSurviveARestart` | A locked, damaged, part-fuelled ship with a loaded rifle and metal in its cargo and Ada in the seat comes back the same (0.3 mm off, the same turn); Ada sleeps in the seat, logs in there and flies it; after it is wrecked its row is gone |
 | `ShipNetTests.PredictionMatchesTheServer` | 900 ticks of a recorded flight (lift-off, a turn, boost, flight assist off, pitch, roll, strafe, a landing with the stick moving), the client's predictors on their own ground and trees against the zone: 0 ship ticks and 0 character ticks differ |
 | `ShipNetTests.OthersSeeItFly` | Over loopback: Ada boards the ship the server gave her through the intent, climbs and flies; Bo sees it 28 m up at 45 m/s, piloted, engines on; Ada's prediction is never corrected |
 
