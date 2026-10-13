@@ -232,7 +232,7 @@ Client options (after `--`):
   free look, the camera and head turn while the hands do nothing; in the cockpit too); left mouse attack
   (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire; with the building plan: place
   the piece; with the hammer: repair; with a door, a lock or the claim device: fit or place it; with an explosive: throw
-  it), right mouse aim or draw (with the plan or the hammer, held: its wheel; with a charge: put it on the surface
+  it), right mouse aim or draw (with the plan or the hammer, held: its radial; with a charge: put it on the surface
   aimed at; with a grenade: lob it); R reload (with a building tool: turn the piece or door); E interact (doors, a code
   lock's keypad, a dud to light; held on a fire or furnace to light it or put it out, on a door or the claim device for
   its options; help a wounded player up; G7: open a crate or recycler, a workbench's tech tree, invite a player close by
@@ -272,19 +272,21 @@ Client options (after `--`):
 - Build sandbox (GROUND.md §6.3): `--view build`, local, on the first world's stand-in surface. `--scene
   house|ghost-valid|ghost-invalid|stability|stress|empty` (a built base; `stress` measures 300 frames and prints the
   frame time), `--overlay` (stability colours), `--tool 1–6` (plan, hammer, three doors, claim device), `--piece <key>`,
-  `--wheel plan|hammer` (open the wheel), `--from x,y,z --at x,y,z` (the camera in the scene's frame, the empty scene's
+  `--wheel plan|hammer` (open its radial), `--from x,y,z --at x,y,z` (the camera in the scene's frame, the empty scene's
   too: its first foundation's frame, unbuilt; the plan's aim is the camera's), `--finest` or
   `--lod n` (draw one level of detail). Keys: right mouse wheels, left places or repairs, R turns, E doors, F2 the
   stability overlay, F5 an hour of upkeep and decay. `--view build --scene empty --build-check` plays a round of
   building through the sandbox's input (place, snap, upgrade, turn, door, demolish and collapse) and quits with exit
   code 0 when every step passes.
 - Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
-  (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`, and
+  (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`, the
+  radial on other sources, `options` (a door's options, held E) and `ammo` (the pistol's rounds, held R), and
   G7's `map`, `techtree`, `recycler`, `research`, and the F1 panel's `console`, `console-info`, `console-net`,
   `console-items`, `console-tools` on sample data);
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
-  `--view ui --ui-check` drives the inventory and crafting with real input events (drag, middle-drag, split, quick
-  move, drop, craft) and quits with exit code 0 when every check passes.
+  `--view ui --ui-check` drives the inventory, crafting and the radial with real input events (drag, middle-drag,
+  split, quick move, drop, craft; the right mouse on the plan, E tapped, held, chosen and cancelled) and quits with
+  exit code 0 when every check passes.
 - Models (GROUND.md §9.1): `--view models` stands every catalogue model on the ground (`--lineup items|world`,
   `--pitch <deg>`); `--model <key>` shows one on a turntable (`--stage <n>`, `--lod <n>`, `--yaw <deg>` holds it at an
   angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--attach a,b`
@@ -308,9 +310,9 @@ Client options (after `--`):
 | `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2); `LocalGun`, the predicted gun and its events for the visual layer (§6.4); `Audio/`: the sound catalogue model, a BS.1770 loudness meter, distance layers, footstep and ambience rules (§4.9); `BuildingReplica`, the building in range and the ghost check, and the building intents on `LocalPlayer` (§6.5); explosives, detonations and raid alerts (`GameClient.Raid.cs`, `LocalPlayer.Raid.cs`, §6.6); ships: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, the ship intents on `LocalPlayer` (§6.7); G7 (§6.8): blueprints and tech trees, teams, map markers, world props (`LocalPlayer.World.cs`, `GameClient.World.cs`), the zone's map and its picture (`Map/ZoneMap.cs`) |
 | `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication (the building's in `GameServer.Building.cs`, ships' in `GameServer.Ships.cs`), login, admin; raiding and the notification service (`GameServer.Raid.cs`, `Notifications/`: raid alerts, GROUND.md §6.6); the world's props, each player's blueprints, team and map, team chat (`GameServer.World.cs`, §6.8); the F1 console's commands, rights, zone clock and spawning (`AdminCommands.cs`, `GameServer.Console.cs`, §8.2) |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
-| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu, the F1 panel in `GroundUi.Console.cs`), the view model `Model/IGroundUi` with `MockGroundUi` (and `IConsoleModel` with `MockConsole`), `ItemIcons`, and the viewer (`Viewer/`) |
+| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, the radial menu in `GroundUi.Radial.cs` with its glyphs `RadialGlyphs`, menu, the F1 panel in `GroundUi.Console.cs`), the view model `Model/IGroundUi` with `MockGroundUi` (and `IConsoleModel` with `MockConsole`; the radial's contract in `Model/RadialTypes.cs`), `ItemIcons`, and the viewer (`Viewer/`) |
 | `game/assets/building` | The building and door kits as GLB (three levels of detail, Godot collision names) and their 2K textures (GROUND.md §6.3) |
-| `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines and the wheels' view model |
+| `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines; the plan's and the hammer's radial sources (`BuildingRadials.cs`), shared with the game |
 | `src/Hollow.Simulation/Animals` | G7's animals (GROUND.md §6.9): `AnimalWorld` (the staggered AI tick, perception, the brain, steering, spawning), `NavGrid` (ground, water, slopes and trunks in 2 m cells, short paths), `AnimalHitboxes`; the zone's side in `Zone.Animals.cs`; the numbers in `game/data/ground/animals.json` |
 | `game/scripts/Animals` | Animals drawn (GROUND.md §6.9): `AnimalView` (model, clips, footsteps, voice, blood), `AnimalsView` (the seam: `Client` and `Refresh`), the sandbox (`--view animals`) |
 | `art/animals` | `build_animals.py`: the deer, boar, wolf and bear in Blender from text (metaball anatomy, skeleton, clips) → `game/assets/animals` |

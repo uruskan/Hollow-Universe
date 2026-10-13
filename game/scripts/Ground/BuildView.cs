@@ -18,13 +18,13 @@ namespace HollowUniverse.Ground;
 /// Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's
 /// <see cref="BuildingRenderer"/> (batched per piece kind, grade and chunk), the plan's ghost from
 /// <see cref="GameClient.PlanPiece"/> (green, or red with the reason), the lines under the crosshair and the held tool's
-/// keys (<see cref="BuildHud"/>), the plan's and the hammer's wheels, and what the held tool does: place a piece, repair,
+/// keys (<see cref="BuildHud"/>), the plan's and the hammer's radials, and what the held tool does: place a piece, repair,
 /// upgrade, rotate or demolish one, fit a door or a lock, place the claim device. Doors open and shut with E; a code lock
 /// asks for its code (<see cref="Keypad"/>); held E on a door or the claim device offers its options (lock, change the
 /// code, cut a key, authorise, clear the list, pick up). Pieces placed and upgraded, and doors, sound and show (the
 /// effects library); pieces broken, brought down or demolished break apart through the gibs (<see cref="GibsView"/>).
 /// </summary>
-public partial class BuildView : Node3D
+public partial class BuildView : Node3D, IHammerActions
 {
     private const float DoorReach = 3.5f;
 
@@ -42,6 +42,9 @@ public partial class BuildView : Node3D
     private object? _target;
     private RayHit _hit;
     private Num.Vector3 _eye, _forward;
+    private ItemWallet? _wallet;
+    private PlanRadial? _planRadial;
+    private Dictionary<BuildingRole, IRadialSource>? _radials;
 
     public GameClient Client { get; set; } = null!;
 
@@ -52,7 +55,17 @@ public partial class BuildView : Node3D
     public Action<string>? Say { get; set; }
 
     /// <summary>The plan's chosen piece (an index into the building data's wheel).</summary>
-    public int PlanPiece { get; set; }
+    public int PlanPiece
+    {
+        get => Plan.Piece;
+        set => Plan.Piece = value;
+    }
+
+    /// <summary>The building plan's radial: its pieces, and the one chosen.</summary>
+    public PlanRadial Plan => _planRadial ??= NewPlan();
+
+    /// <summary>The radial the held building tool opens with the right mouse (the plan's pieces, the hammer's actions), or null.</summary>
+    public IRadialSource? HeldRadial => Radials.GetValueOrDefault(Held);
 
     /// <summary>What the held item does in building (none: not a building tool).</summary>
     public BuildingRole Held { get; private set; }
@@ -311,7 +324,31 @@ public partial class BuildView : Node3D
 
     // ---------------------------------------------------------------- the held tool
 
-    private PieceDef ChosenPiece => Data.Wheel[Math.Clamp(PlanPiece, 0, Data.Wheel.Count - 1)];
+    private PieceDef ChosenPiece => Plan.Chosen;
+
+    // The building tools' radials by the held tool's role (GROUND_SYSTEMS.md §4): a lookup, written once for the game and
+    // the build sandbox (BuildingRadials).
+    private Dictionary<BuildingRole, IRadialSource> Radials => _radials ??= new()
+    {
+        [BuildingRole.Plan] = Plan,
+        [BuildingRole.Hammer] = BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this),
+    };
+
+    // What the player carries, counted as the building rules count it.
+    private ItemWallet Wallet => _wallet ??= new ItemWallet(Client.Content, Client.Local.Inventory.Carried);
+
+    private PlanRadial NewPlan()
+    {
+        var plan = new PlanRadial(Data, Wallet);
+        plan.Changed += () => _turns = 0;
+        return plan;
+    }
+
+    void IHammerActions.Upgrade(Piece piece, int grade) => Client.Local.Upgrade(piece, grade);
+
+    void IHammerActions.Rotate(Piece piece) => Client.Local.Rotate(piece);
+
+    void IHammerActions.Demolish(Piece piece) => Client.Local.Demolish(piece);
 
     private void AimPlan()
     {
@@ -337,7 +374,7 @@ public partial class BuildView : Node3D
         Hud.Hints = "LMB BUILD   ·   HOLD RMB SELECT PIECE   ·   R ROTATE";
     }
 
-    private int Owned(string material) => Client.Content.Item(material) is { } def ? Client.Local.Inventory.Count(def) : 0;
+    private int Owned(string material) => Wallet.Count(material);
 
     private string TargetLine(object target) => target switch
     {
@@ -353,69 +390,6 @@ public partial class BuildView : Node3D
     {
         double hours = Client.BuildingReplica?.StateOf(claim).ProtectedHours ?? 0;
         return double.IsInfinity(hours) ? "FOREVER" : hours < 1 ? $"{hours * 60:0} MIN" : $"{hours:0.#} H";
-    }
-
-    /// <summary>The plan's wheel: every piece with its cost in twig and what the player has.</summary>
-    public IReadOnlyList<WheelChoice> PlanChoices()
-    {
-        GradeDef twig = Data.Grades[0];
-        int owned = Owned(twig.Material);
-        string material = Data.MaterialName(twig.Material).ToUpperInvariant();
-        return Data.Wheel.Select(p =>
-        {
-            int cost = Data.CostOf(p, 0);
-            return new WheelChoice(p.Id, p.Name, p.Description, $"{cost} x {material} ({owned:N0})",
-                owned < cost ? $"Not enough {material.ToLowerInvariant()}" : null);
-        }).ToArray();
-    }
-
-    /// <summary>The hammer's wheel for the piece aimed at: upgrade to each grade, rotate, demolish.</summary>
-    public IReadOnlyList<WheelChoice> HammerChoices()
-    {
-        Piece? piece = _target as Piece;
-        var choices = new List<WheelChoice>();
-        const string strength = "Improve this piece's strength";
-        for (int grade = 1; grade < Data.Grades.Count; grade++)
-        {
-            GradeDef g = Data.Grades[grade];
-            string? reason = piece == null ? "Aim at a building piece" : piece.Grade >= grade ? "Already at this grade or stronger" : null;
-            string? cost = piece == null ? null : $"{Data.CostOf(piece.Def, grade)} x {Data.MaterialName(g.Material).ToUpperInvariant()} ({Owned(g.Material):N0})";
-            choices.Add(new WheelChoice(99 + grade, $"UPGRADE TO {g.Name.ToUpperInvariant()}", strength, cost, reason));
-        }
-        bool late = piece != null && Client.ClockSeconds - piece.PlacedAt > Data.EditWindow;
-        choices.Add(new WheelChoice(104, "ROTATE", "Turn this piece around",
-            Reason: piece == null ? "Aim at a building piece" : piece.Def.RotateSteps == 0 ? "This piece can't be rotated" : late ? "The 10 minutes are over" : null));
-        choices.Add(new WheelChoice(105, "DEMOLISH", "Remove this piece and unsupported pieces",
-            Reason: piece == null ? "Aim at a building piece" : late ? "The 10 minutes are over" : null));
-        return choices;
-    }
-
-    /// <summary>A sector chosen on the plan's or the hammer's wheel.</summary>
-    public void ChooseWheel(WheelKind kind, int index)
-    {
-        if (kind == WheelKind.Plan)
-        {
-            PlanPiece = index;
-            _turns = 0;
-            return;
-        }
-        if (_target is not Piece piece)
-        {
-            return;
-        }
-        int grades = Data.Grades.Count - 1;
-        if (index < grades)
-        {
-            Client.Local.Upgrade(piece, index + 1);
-        }
-        else if (index == grades)
-        {
-            Client.Local.Rotate(piece);
-        }
-        else
-        {
-            Client.Local.Demolish(piece);
-        }
     }
 
     /// <summary>R: the next turn of the piece, or a door the other way round.</summary>

@@ -9,9 +9,9 @@ namespace HollowUniverse.Build;
 
 /// <summary>
 /// The ground interface's view model for the build sandbox (GROUND.md §6.3, §8.1): a belt of building tools, the plan's
-/// wheel with the pieces in RustMVP's order and their costs, the hammer's wheel for the piece aimed at, building
-/// rights, the prompt and notices. The sandbox fills in what it knows each frame and answers the wheel's choices.
-/// Everything the sandbox doesn't have (crafting, loot, death) is empty.
+/// radial with the pieces in RustMVP's order and their costs, the hammer's radial for the piece aimed at (both the
+/// game's own, <see cref="BuildingRadials"/>), building rights, the prompt and notices. The sandbox fills in what it
+/// knows each frame. Everything the sandbox doesn't have (crafting, loot, death) is empty.
 /// </summary>
 public sealed class BuildSandboxUi : IGroundUi
 {
@@ -26,16 +26,20 @@ public sealed class BuildSandboxUi : IGroundUi
         ("claim", "Claim Device", "Claims a building: only those it lists may build there."),
     };
 
-    private readonly BuildingData _data;
     private readonly IBuildingWallet _wallet;
     private readonly ItemStack[] _belt;
     private readonly ItemStack[] _main = new ItemStack[24];
     private readonly ItemStack[] _wear = new ItemStack[7];
+    private readonly Dictionary<string, IRadialSource> _radials;
 
-    public BuildSandboxUi(BuildingData data, IBuildingWallet wallet)
+    /// <param name="hammer">The hammer's radial on what the sandbox aims at.</param>
+    public BuildSandboxUi(BuildingData data, IBuildingWallet wallet, IRadialSource hammer)
     {
-        _data = data;
         _wallet = wallet;
+        Plan = new PlanRadial(data, wallet);
+        // The tools' radials by the tool's key (the right mouse opens the held one's).
+        _radials = new Dictionary<string, IRadialSource> { ["plan"] = Plan, ["hammer"] = hammer };
+        Radials = new[] { new RadialBinding(RadialInput.Aim, 0, () => HeldRadial) };
         _belt = Tools.Select(t => new ItemStack(t.Key, 1)).ToArray();
         string[] materials = { "wood", "stones", "metal.fragments", "metal.refined" };
         for (int i = 0; i < materials.Length; i++)
@@ -44,15 +48,13 @@ public sealed class BuildSandboxUi : IGroundUi
         }
     }
 
-    /// <summary>The plan's selected piece (an index into <see cref="BuildingData.Wheel"/>).</summary>
-    public int PlanPiece { get; set; }
+    /// <summary>The plan's radial and its chosen piece (an index into <see cref="BuildingData.Wheel"/>).</summary>
+    public PlanRadial Plan { get; }
 
-    /// <summary>The hammer's wheel for whatever it aims at; set by the sandbox each frame.</summary>
-    public IReadOnlyList<WheelChoice> HammerChoices { get; set; } = Array.Empty<WheelChoice>();
+    /// <summary>The radial the held tool opens with the right mouse (the plan's, the hammer's), or null.</summary>
+    public IRadialSource? HeldRadial => _radials.GetValueOrDefault(Tools[ActiveBelt].Key);
 
-    public event Action<int>? PlanChosen;
-
-    public event Action<int>? HammerChosen;
+    public IReadOnlyList<RadialBinding> Radials { get; }
 
     public event Action<int>? BeltChosen;
 
@@ -120,30 +122,6 @@ public sealed class BuildSandboxUi : IGroundUi
     public IReadOnlyList<RespawnBag> Bags { get; } = Array.Empty<RespawnBag>();
 
     public InteractionPrompt? Prompt { get; set; }
-
-    public WheelKind? HeldWheel => ActiveBelt switch
-    {
-        0 => WheelKind.Plan,
-        1 => WheelKind.Hammer,
-        _ => null,
-    };
-
-    public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) => kind == WheelKind.Plan ? PlanChoices() : HammerChoices;
-
-    public int WheelCurrent(WheelKind kind) => kind == WheelKind.Plan ? PlanPiece : -1;
-
-    private IReadOnlyList<WheelChoice> PlanChoices()
-    {
-        GradeDef twig = _data.Grades[0];
-        int owned = _wallet.Count(twig.Material);
-        string material = _data.MaterialName(twig.Material).ToUpperInvariant();
-        return _data.Wheel.Select(p =>
-        {
-            int cost = _data.CostOf(p, 0);
-            return new WheelChoice(p.Id, p.Name, p.Description, $"{cost} x {material} ({owned:N0})",
-                owned < cost ? $"Not enough {material.ToLowerInvariant()}" : null);
-        }).ToArray();
-    }
 
     /// <summary>Building rights where the player stands, from the rules' answer.</summary>
     public void SetPrivilege(Hollow.Simulation.Building.Privilege privilege) => Vitals = Vitals with
@@ -216,19 +194,6 @@ public sealed class BuildSandboxUi : IGroundUi
 
     public void SetBurning(bool on)
     {
-    }
-
-    public void ChooseWheel(WheelKind kind, int index)
-    {
-        if (kind == WheelKind.Plan)
-        {
-            PlanPiece = index;
-            PlanChosen?.Invoke(index);
-        }
-        else
-        {
-            HammerChosen?.Invoke(index);
-        }
     }
 
     public void CloseLoot()

@@ -55,7 +55,7 @@ public partial class GroundUi
         bool inventory = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.TechTree;
         // Flying, the ship's HUD (drawn by the ground view) has the centre, the belt's and the vitals' places.
         bool flying = Screen == GroundScreen.Hud && Model.Piloting;
-        if (Screen == GroundScreen.Hud && Wheel == null && !flying)
+        if (Screen == GroundScreen.Hud && Radial == null && !flying)
         {
             PaintCentre();
         }
@@ -81,10 +81,7 @@ public partial class GroundUi
         {
             PaintTechTree();
         }
-        if (Wheel is WheelKind kind)
-        {
-            PaintWheel(kind);
-        }
+        PaintRadial();
         PaintToast();
     }
 

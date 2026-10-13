@@ -30,9 +30,6 @@ public sealed class MenuGroundUi : IGroundUi
     public DeathInfo? Death => null;
     public IReadOnlyList<RespawnBag> Bags { get; } = Array.Empty<RespawnBag>();
     public InteractionPrompt? Prompt => null;
-    public WheelKind? HeldWheel => null;
-    public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) => Array.Empty<WheelChoice>();
-    public int WheelCurrent(WheelKind kind) => -1;
 
     public event Action<bool>? HitConfirmed { add { } remove { } }
     public event Action<float>? Damaged { add { } remove { } }
@@ -51,7 +48,6 @@ public sealed class MenuGroundUi : IGroundUi
     public void Respawn(string? bagId) { }
     public void SelectBelt(int index) { }
     public void SetBurning(bool on) { }
-    public void ChooseWheel(WheelKind kind, int index) { }
     public void CloseLoot() { }
     public void Say(string text) { }
 }

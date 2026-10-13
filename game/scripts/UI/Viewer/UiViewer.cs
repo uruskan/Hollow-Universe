@@ -9,12 +9,13 @@ namespace HollowUniverse.UI.Viewer;
 /// <summary>
 /// The interface viewer (<c>--view ui</c>, GROUND.md §8): the ground interface on <see cref="MockGroundUi"/> over a
 /// plain backdrop, opened on one screen for a look or a screenshot. Options (after "--"):
-/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|menu|map|techtree|recycler|research</c>,
+/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
 /// the F1 panel's <c>console|console-info|console-net|console-items|console-tools</c>, and
-/// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, wheel sectors).
+/// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, radial sectors).
 /// Screenshots hold the HUD's moments and the sample's clock still; without <c>--shot</c> the mock runs and every
-/// screen is interactive. <c>--ui-check</c> drives the inventory and crafting with real input events, checks the
-/// results and quits (exit code 0 when every check passes).
+/// screen is interactive (on the HUD the right mouse opens the held plan's or hammer's radial, E held the sample door's
+/// options, R held with the pistol its rounds). <c>--ui-check</c> drives the inventory, crafting and the radial with
+/// real input events, checks the results and quits (exit code 0 when every check passes).
 /// </summary>
 public partial class UiViewer : Node
 {
@@ -48,7 +49,7 @@ public partial class UiViewer : Node
             string[] xy = pointer.Split(',');
             _ui.HoldPointer(new Vector2(float.Parse(xy[0], CultureInfo.InvariantCulture), float.Parse(xy[1], CultureInfo.InvariantCulture)));
         }
-        else if (_shot && screen is not ("wheel" or "plan" or "hammer"))
+        else if (_shot && screen is not ("wheel" or "plan" or "hammer" or "options" or "ammo"))
         {
             // Wherever the real mouse happens to be, nothing in a screenshot is hovered.
             _ui.HoldPointer(new Vector2(-10000, -10000));
@@ -83,13 +84,24 @@ public partial class UiViewer : Node
                 _model.Die();
                 break;
             case "wheel" or "plan":
-                _ui.OpenWheel(WheelKind.Plan);
+                _ui.OpenRadial(_model.PlanRadial, RadialInput.Aim);
                 // Pointing at the second sector, the triangle foundation, as in the reference.
                 _ui.HoldPointer(new Vector2(913, 227));
                 break;
             case "hammer":
-                _ui.OpenWheel(WheelKind.Hammer);
+                _ui.OpenRadial(_model.HammerRadial, RadialInput.Aim);
                 _ui.HoldPointer(new Vector2(800, 190));
+                break;
+            case "options":
+                // The same radial on another source (GROUND_SYSTEMS.md §4): the sample door's options, as E held opens
+                // them; the pointer on LOCK, which says why it can't be chosen yet.
+                _ui.OpenRadial(_model.DoorRadial, RadialInput.Interact);
+                _ui.HoldPointer(new Vector2(800, 690));
+                break;
+            case "ammo":
+                // R held with the pistol: the rounds carried, as item icons; the pointer on the high-velocity ones.
+                _ui.OpenRadial(_model.AmmoRadial, RadialInput.Reload);
+                _ui.HoldPointer(new Vector2(1010, 570));
                 break;
             case "menu":
                 _ui.ShowMenu(inGame: false);
@@ -180,6 +192,42 @@ public partial class UiViewer : Node
         await Key(Godot.Key.Tab);
         Expect(_ui.Screen == GroundScreen.Hud, "Tab closes the screen");
 
+        // The radial (GROUND_SYSTEMS.md §4): the plan's on the right mouse; the sample door's on E held, tapped, chosen,
+        // refused, cancelled by Esc and by the right mouse.
+        await Key(Godot.Key.Key3);
+        Vector2 middle = (_ui.Size / 2).Floor();
+        await Mouse(middle, MouseButton.Right, true);
+        Expect(_ui.Radial == _model.PlanRadial, "the right mouse with the plan in hand opens its radial");
+        await MoveTo(_ui.RadialPoint(8));
+        await Mouse(_ui.RadialPoint(8), MouseButton.Right, false);
+        Expect(_ui.Radial == null && _model.PlanPiece == 8, "released on the wall, the plan takes the wall");
+        await Key(Godot.Key.E);
+        Expect(_ui.Radial == null && _model.Door.Open, "a tap of E does the door's first option (OPEN DOOR)");
+        await HoldRadial(Godot.Key.E);
+        Expect(_ui.Radial == _model.DoorRadial, "E held 0.35 s opens the door's options");
+        await MoveTo(_ui.RadialPoint(2));
+        await Hold(Godot.Key.E, false);
+        Expect(_ui.Radial == null && !_model.Door.Locked, "released on LOCK before a code is set, nothing happens");
+        await HoldRadial(Godot.Key.E);
+        await MoveTo(_ui.RadialPoint(1));
+        await Hold(Godot.Key.E, false);
+        Expect(_model.Door.CodeSet, "released on SET CODE, the code is set");
+        await HoldRadial(Godot.Key.E);
+        await MoveTo(_ui.RadialPoint(2));
+        await Key(Godot.Key.Escape);
+        await Hold(Godot.Key.E, false);
+        Expect(_ui.Radial == null && !_model.Door.Locked && _ui.Screen == GroundScreen.Hud, "Esc closes it, and the release chooses nothing");
+        await HoldRadial(Godot.Key.E);
+        await MoveTo(_ui.RadialPoint(2));
+        await Mouse(_ui.RadialPoint(2), MouseButton.Right, true);
+        await Mouse(_ui.RadialPoint(2), MouseButton.Right, false);
+        await Hold(Godot.Key.E, false);
+        Expect(_ui.Radial == null && !_model.Door.Locked, "the right mouse cancels it too");
+        await HoldRadial(Godot.Key.E);
+        await MoveTo(_ui.RadialPoint(2));
+        await Hold(Godot.Key.E, false);
+        Expect(_model.Door.Locked, "with a code, released on LOCK, the door locks");
+
         GD.Print($"ui-check: {checks - failures.Count}/{checks} passed");
         GetTree().Quit(failures.Count == 0 ? 0 : 1);
     }
@@ -218,6 +266,20 @@ public partial class UiViewer : Node
         await MoveTo(from.Lerp(to, 0.5f));
         await MoveTo(to);
         await Mouse(to, button, false);
+    }
+
+    private async Task Hold(Key key, bool down)
+    {
+        Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = key, Keycode = key, Pressed = down });
+        await Frames();
+    }
+
+    // Holds a key down past the radial's hold time.
+    private async Task HoldRadial(Key key)
+    {
+        await Hold(key, true);
+        await ToSignal(GetTree().CreateTimer(MockGroundUi.HoldSeconds + 0.15), SceneTreeTimer.SignalName.Timeout);
+        await Frames();
     }
 
     private async Task Key(Key key)

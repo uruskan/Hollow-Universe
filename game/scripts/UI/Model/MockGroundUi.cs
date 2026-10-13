@@ -26,7 +26,6 @@ public sealed partial class MockGroundUi : IGroundUi
     private readonly List<CraftJob> _queue = new();
     private readonly List<RespawnBag> _bags = new();
     private int _nextTicket = 1;
-    private int _planPiece = 1;
 
     public MockGroundUi()
     {
@@ -86,17 +85,6 @@ public sealed partial class MockGroundUi : IGroundUi
     public IReadOnlyList<ItemStack> Slots(ContainerId container) => Of(container);
 
     public int Have(string key) => _main.Concat(_belt).Where(s => s.Key == key).Sum(s => s.Amount);
-
-    public WheelKind? HeldWheel => ActiveBelt < 0 ? null : _belt[ActiveBelt].Key switch
-    {
-        "plan" => WheelKind.Plan,
-        "hammer" => WheelKind.Hammer,
-        _ => null,
-    };
-
-    public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) => kind == WheelKind.Plan ? PlanChoices() : HammerChoices();
-
-    public int WheelCurrent(WheelKind kind) => kind == WheelKind.Plan ? _planPiece : -1;
 
     // ---------------------------------------------------------------- events
 
@@ -308,23 +296,6 @@ public sealed partial class MockGroundUi : IGroundUi
         if (Loot is { Kind: ContainerKind.Furnace or ContainerKind.Campfire or ContainerKind.Recycler or ContainerKind.ResearchTable })
         {
             Loot = Loot with { IsOn = on };
-        }
-    }
-
-    public void ChooseWheel(WheelKind kind, int index)
-    {
-        IReadOnlyList<WheelChoice> choices = Wheel(kind);
-        if (index < 0 || index >= choices.Count)
-        {
-            return;
-        }
-        if (kind == WheelKind.Plan)
-        {
-            _planPiece = index;
-        }
-        else if (choices[index].Reason is string reason)
-        {
-            Notice?.Invoke(reason);
         }
     }
 
@@ -598,6 +569,7 @@ public sealed partial class MockGroundUi : IGroundUi
             new ItemStat("Damage", "50"), new ItemStat("Rate of fire", "450 rpm"), new ItemStat("Magazine", "30"));
         Add("arrow.wooden", "Wooden Arrow", "AMMO", 64, "A plain arrow for the hunting bow.");
         Add("ammo.pistol", "Pistol Rounds", "AMMO", 128, "Rounds for pistols.");
+        Add("ammo.pistol.hv", "HV Pistol Rounds", "AMMO", 128, "Faster pistol rounds that drop less.");
         Add("box.wooden", "Wooden Box", "ITEMS", 1, "A small box that holds 12 stacks.");
         Add("box.large", "Large Wooden Box", "ITEMS", 1, "A big box that holds 30 stacks.");
         Add("bag.sleeping", "Sleeping Bag", "ITEMS", 1, "Place it to respawn there after death.");
@@ -649,9 +621,9 @@ public sealed partial class MockGroundUi : IGroundUi
         {
             "wood", "wood", "stones", "stones", "metal.ore", "metal.fragments",
             "sulfur.ore", "cloth", "fat", "scrap", "charcoal", "ammo.pistol",
-            "arrow.wooden", "bow", "bandage", "meat.raw", "syringe",
+            "arrow.wooden", "bow", "bandage", "meat.raw", "syringe", "ammo.pistol.hv",
         };
-        int[] amounts = { 1000, 1000, 1000, 640, 1000, 100, 300, 500, 20, 45, 120, 45, 12, 1, 2, 4, 1 };
+        int[] amounts = { 1000, 1000, 1000, 640, 1000, 100, 300, 500, 20, 45, 120, 45, 12, 1, 2, 4, 1, 30 };
         for (int i = 0; i < keys.Length; i++)
         {
             _main[i] = new ItemStack(keys[i], amounts[i], keys[i] == "bow" ? 0.6f : -1f);
@@ -665,53 +637,5 @@ public sealed partial class MockGroundUi : IGroundUi
         _wear[0] = new ItemStack("hood.cloth", 1, 0.9f);
         _wear[1] = new ItemStack("shirt.cloth", 1, 0.85f);
         _wear[3] = new ItemStack("trousers.cloth", 1, 0.7f);
-    }
-
-    // The plan's pieces in the wheel's clockwise order (RustMVP's, matched to Rust); costs are in wood.
-    private static readonly (int Glyph, string Name, string Description, int Cost)[] PlanPieces =
-    {
-        (0, "Foundation", "A square support for your base.", 50),
-        (1, "Triangle Foundation", "A triangular support for your base.", 25),
-        (16, "Ramp", "A quarter-height sloping access ramp.", 25),
-        (17, "Steps", "Half-height steps attached to a floor.", 25),
-        (2, "Floor", "A square upper floor or ceiling.", 25),
-        (3, "Triangle Floor", "A triangular upper floor or ceiling.", 13),
-        (10, "Floor Frame", "A square frame with an open centre.", 25),
-        (11, "Triangle Floor Frame", "A triangular frame with an open centre.", 13),
-        (4, "Wall", "Enclose your base with a full wall.", 50),
-        (8, "Doorway", "A wall opening for a single door.", 35),
-        (7, "Window", "A wall with a window opening.", 35),
-        (9, "Wall Frame", "An opening for a double door.", 25),
-        (5, "Half Wall", "A wall half the normal height.", 50),
-        (6, "Low Wall", "A low protective wall.", 25),
-        (12, "L Stairs", "A full-height staircase with a corner.", 50),
-        (13, "U Stairs", "A full-height returning staircase.", 50),
-        (14, "Spiral Stairs", "A half-height square spiral staircase.", 50),
-        (15, "Triangle Spiral Stairs", "A half-height triangular spiral staircase.", 25),
-        (18, "Roof", "A sloping square roof section.", 50),
-        (19, "Triangle Roof", "A sloping triangular roof section.", 25),
-    };
-
-    private IReadOnlyList<WheelChoice> PlanChoices()
-    {
-        int wood = Have("wood");
-        return PlanPieces.Select(p => new WheelChoice(p.Glyph, p.Name, p.Description, $"{p.Cost} x WOOD ({wood})",
-            wood < p.Cost ? "Not enough wood" : null)).ToArray();
-    }
-
-    // The hammer aims at a wooden wall: wood is already done, stone and metal are affordable.
-    private IReadOnlyList<WheelChoice> HammerChoices()
-    {
-        const string strength = "Improve this piece's strength";
-        return new[]
-        {
-            new WheelChoice(100, "UPGRADE TO WOOD", strength, $"140 x WOOD ({Have("wood")})", "Already at this grade or stronger"),
-            new WheelChoice(101, "UPGRADE TO STONE", strength, $"210 x STONES ({Have("stones")})"),
-            new WheelChoice(102, "UPGRADE TO METAL", strength, $"140 x METAL FRAGMENTS ({Have("metal.fragments")})",
-                Have("metal.fragments") < 140 ? "Not enough materials" : null),
-            new WheelChoice(103, "UPGRADE TO REFINED METAL", strength, $"18 x REFINED METAL ({Have("metal.refined")})", "Not enough materials"),
-            new WheelChoice(104, "ROTATE", "Turn this piece around"),
-            new WheelChoice(105, "DEMOLISH", "Remove this piece and unsupported pieces"),
-        };
     }
 }
