@@ -326,7 +326,14 @@ public sealed partial class Zone
     /// A respawn (GROUND.md §6): at one of the player's own sleeping bags (<paramref name="bag"/>) once it has cooled
     /// down, or on a random beach point (none), with a rock and a torch.
     /// </summary>
-    public ActionResult Respawn(Entity entity, EntityId bag)
+    public ActionResult Respawn(Entity entity, EntityId bag) => Respawn(entity, bag, null);
+
+    /// <summary>
+    /// A respawn as <see cref="Respawn(Entity, EntityId)"/>, on the beach point <paramref name="beach"/> when it is
+    /// given: the server picks it (<see cref="RespawnPoint"/>) when the player asks, has its ground built on worker
+    /// threads and brings the player in on the tick it is ready (GROUND.md §4.6).
+    /// </summary>
+    public ActionResult Respawn(Entity entity, EntityId bag, Vector3? beach)
     {
         using TickProfile.Scope timed = Profile.Time(ProfileSection.Respawn);
         if (PlayerOf(entity) is not { } p)
@@ -355,8 +362,7 @@ public sealed partial class Zone
             }
             d.ReadyAtUnixMs = UnixMilliseconds + (long)(d.Def.RespawnSeconds * 1000);
             d.Revision++;
-            (Vector3 forward, _) = CharacterMotor.HorizontalBasis(d.Yaw, d.Up);
-            at = Settle(d.Position + forward * 0.3f) + d.Up * 0.05f;
+            at = BagPoint(d);
             yaw = d.Yaw;
         }
         else
@@ -366,7 +372,7 @@ public sealed partial class Zone
                 return ActionResult.Cooldown;
             }
             p.BeachReadyAtUnixMs = UnixMilliseconds + (long)(Content!.Survival.BeachCooldownSeconds * 1000);
-            at = BeachPoint(Hash64.Of(p.Id.Value, (ulong)Tick, 0xBEAC));
+            at = beach ?? BeachPoint(Hash64.Of(p.Id.Value, (ulong)Tick, 0xBEAC));
         }
         StartLife(p);
         ref Character c = ref Entities.Get<Character>(entity);
@@ -377,6 +383,30 @@ public sealed partial class Zone
         Physics.Prefetch(at, 1);
         Physics.EnsureGround(at);
         return ActionResult.Accepted;
+    }
+
+    /// <summary>
+    /// Where a respawn asked for now would bring the player in: in front of the bag, or the beach point this tick
+    /// picks; null if there is no such player or bag (the respawn will be refused).
+    /// </summary>
+    public Vector3? RespawnPoint(Entity entity, EntityId bag)
+    {
+        if (PlayerOf(entity) is not { } p)
+        {
+            return null;
+        }
+        if (bag.IsNone)
+        {
+            return BeachPoint(Hash64.Of(p.Id.Value, (ulong)Tick, 0xBEAC));
+        }
+        return Entities.TryFind(bag, out Entity bagEntity) && StaticOf(bagEntity) is Deployable { Def.IsRespawnPoint: true } d ? BagPoint(d) : null;
+    }
+
+    // In front of a sleeping bag, on the ground.
+    private Vector3 BagPoint(Deployable d)
+    {
+        (Vector3 forward, _) = CharacterMotor.HorizontalBasis(d.Yaw, d.Up);
+        return Settle(d.Position + forward * 0.3f) + d.Up * 0.05f;
     }
 
     /// <summary>A random beach point: the planet's coast (<see cref="Beaches"/>), or on the stand-in ground a ring 15–60 m around the origin.</summary>

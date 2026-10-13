@@ -277,6 +277,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         using (Profile.Time(ProfileSection.Logins))
         {
             FinishLogins();
+            FinishRespawns();
         }
         while (_commands.TryDequeue(out string? command))
         {
@@ -422,16 +423,34 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             {
                 continue;
             }
-            session.Login = null;
             if (!login.IsCompletedSuccessfully)
             {
+                session.Login = null;
                 Kick(session, GoodbyeReason.Unknown, "The server couldn't load your character.");
                 continue;
             }
             (long account, CharacterRecord? record) = login.Result;
+            // The ground where the player comes in is built first, on worker threads (GROUND.md §4.6): the login
+            // waits for it, a second at most, so a crowd joining at once doesn't stall the tick.
+            if (session.ArrivalWait < TickRate && ArrivalPoint(session, record) is { } at && !Zone.Physics.GroundReady(at))
+            {
+                session.ArrivalWait++;
+                continue;
+            }
+            session.Login = null;
             session.AccountId = account;
             Spawn(session, record);
         }
+    }
+
+    // Where Spawn brings a player in: null for a sleeper (its ground is kept), else the stored place or the beach.
+    private Vector3? ArrivalPoint(PlayerSession session, CharacterRecord? record)
+    {
+        if (record != null && Zone.TryFindPlayer(record.Id, out _, out _))
+        {
+            return null;
+        }
+        return record != null && Restorable(record, out Vector3 local) ? local : Arrival(Hash64.Of(session.Name.ToUpperInvariant()));
     }
 
     /// <summary>

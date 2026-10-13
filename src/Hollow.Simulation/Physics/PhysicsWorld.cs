@@ -63,7 +63,7 @@ public sealed class PhysicsWorld : IDisposable
     public static bool IsGroundBody(uint id) => id < TileIdCount;
 
     private readonly Dictionary<(int X, int Z), Tile> _tiles = new();
-    private readonly Dictionary<(int X, int Z), Task<Shape>> _pending = new();
+    private readonly Dictionary<(int X, int Z), TileBuild> _pending = new();
     private readonly List<(int X, int Z)> _expired = new();
     private readonly List<(int X, int Z)> _adopted = new();
     private readonly Dictionary<(PropLayer, ulong), Prop> _props = new();
@@ -150,34 +150,60 @@ public sealed class PhysicsWorld : IDisposable
         {
             for (int x = cx - radius; x <= cx + radius; x++)
             {
-                if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange)
-                {
-                    continue;
-                }
-                if (!_tiles.TryGetValue((x, z), out Tile? tile))
-                {
-                    Shape shape;
-                    using (Profile.Time(ProfileSection.TileWait))
-                    {
-                        if (_pending.Remove((x, z), out Task<Shape>? building))
-                        {
-                            shape = building.Result;
-                        }
-                        else
-                        {
-                            shape = BuildShape(x, z);
-                        }
-                    }
-                    TilesBuiltOnDemand++;
-                    using (Profile.Time(ProfileSection.TileAdd))
-                    {
-                        tile = AddTile(x, z, shape);
-                        Listener?.TileAdded(x, z);
-                    }
-                }
-                tile.LastUsed = _epoch;
+                EnsureTile(x, z);
             }
         }
+    }
+
+    /// <summary>
+    /// Makes sure the ground exists wherever something within <paramref name="reach"/> metres of a point (across the
+    /// zone's tangent plane) could touch it, natural props included (<see cref="PropReach"/>): the tiles a ship's
+    /// queries of this tick can meet, one to four instead of <see cref="EnsureGround"/>'s nine. Marks them in use.
+    /// </summary>
+    public void EnsureGroundAround(Vector3 position, float reach)
+    {
+        AdoptPrefetched();
+        float r = reach + PropReach;
+        (int x0, int z0) = TileOf(new Vector3(position.X - r, 0, position.Z - r));
+        (int x1, int z1) = TileOf(new Vector3(position.X + r, 0, position.Z + r));
+        for (int z = z0; z <= z1; z++)
+        {
+            for (int x = x0; x <= x1; x++)
+            {
+                EnsureTile(x, z);
+            }
+        }
+    }
+
+    /// <summary>
+    /// How far a natural prop's shape reaches across the ground from its base, the point that puts it in a tile: a
+    /// boulder's 0.95 m radius at scale up to 2.45 (gather.json, <c>Scatter</c>) is the most, 2.3 m.
+    /// </summary>
+    public float PropReach { get; set; } = 3f;
+
+    private void EnsureTile(int x, int z)
+    {
+        if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange)
+        {
+            return;
+        }
+        if (!_tiles.TryGetValue((x, z), out Tile? tile))
+        {
+            Shape shape;
+            using (Profile.Time(ProfileSection.TileWait))
+            {
+                // On its way: taken over and built here if no worker has started it yet (it may be queued behind
+                // hundreds of others in a respawn storm), else waited for.
+                shape = _pending.Remove((x, z), out TileBuild? building) ? building.Take()! : BuildShape(x, z);
+            }
+            TilesBuiltOnDemand++;
+            using (Profile.Time(ProfileSection.TileAdd))
+            {
+                tile = AddTile(x, z, shape);
+                Listener?.TileAdded(x, z);
+            }
+        }
+        tile.LastUsed = _epoch;
     }
 
     /// <summary>
@@ -192,52 +218,135 @@ public sealed class PhysicsWorld : IDisposable
         {
             for (int x = cx - radius; x <= cx + radius; x++)
             {
-                if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange || _pending.ContainsKey((x, z)))
-                {
-                    continue;
-                }
-                if (_tiles.TryGetValue((x, z), out Tile? tile))
-                {
-                    // Near someone: keep it.
-                    tile.LastUsed = _epoch;
-                    continue;
-                }
-                (int X, int Z) key = (x, z);
-                ITileListener? listener = Listener;
-                _pending.Add(key, Task.Run(() =>
-                {
-                    listener?.TilePreparing(key.X, key.Z);
-                    return BuildShape(key.X, key.Z);
-                }));
+                PrefetchTile(x, z);
             }
         }
+    }
+
+    /// <summary>
+    /// <see cref="Prefetch"/> for the tiles <see cref="EnsureGroundAround"/> would want at a point: the ground a ship
+    /// will need along its way, built before it gets there.
+    /// </summary>
+    public void PrefetchAround(Vector3 position, float reach)
+    {
+        float r = reach + PropReach;
+        (int x0, int z0) = TileOf(new Vector3(position.X - r, 0, position.Z - r));
+        (int x1, int z1) = TileOf(new Vector3(position.X + r, 0, position.Z + r));
+        for (int z = z0; z <= z1; z++)
+        {
+            for (int x = x0; x <= x1; x++)
+            {
+                PrefetchTile(x, z);
+            }
+        }
+    }
+
+    /// <summary>
+    /// <see cref="PrefetchAround"/> all along a segment: points half a tile apart, each box widened by half that, so
+    /// together they cover every point within <paramref name="reach"/> of the segment.
+    /// </summary>
+    public void PrefetchAlong(Vector3 from, Vector3 to, float reach)
+    {
+        const float step = TileSize / 2;
+        float length = Vector2.Distance(new Vector2(from.X, from.Z), new Vector2(to.X, to.Z));
+        int n = Math.Max(1, (int)MathF.Ceiling(length / step));
+        for (int i = 0; i <= n; i++)
+        {
+            PrefetchAround(Vector3.Lerp(from, to, (float)i / n), reach + step / 2);
+        }
+    }
+
+    /// <summary>
+    /// Whether the ground within <paramref name="radius"/> tiles of a point is ready: in the world, or built and
+    /// waiting to be taken in. What isn't on its way yet is started (<see cref="Prefetch"/>). A respawn or an arrival
+    /// waits for this, so the tick that brings the player in never builds ground itself.
+    /// </summary>
+    public bool GroundReady(Vector3 position, int radius = 1)
+    {
+        Prefetch(position, radius);
+        (int cx, int cz) = TileOf(position);
+        for (int z = cz - radius; z <= cz + radius; z++)
+        {
+            for (int x = cx - radius; x <= cx + radius; x++)
+            {
+                if (x >= -TileRange && x < TileRange && z >= -TileRange && z < TileRange && !_tiles.ContainsKey((x, z)) &&
+                    !(_pending.TryGetValue((x, z), out TileBuild? build) && build.IsBuilt))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private void PrefetchTile(int x, int z)
+    {
+        if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange || _pending.ContainsKey((x, z)))
+        {
+            return;
+        }
+        if (_tiles.TryGetValue((x, z), out Tile? tile))
+        {
+            // Near someone: keep it.
+            tile.LastUsed = _epoch;
+            return;
+        }
+        ITileListener? listener = Listener;
+        _pending.Add((x, z), new TileBuild(() =>
+        {
+            if (_closing)
+            {
+                return null;
+            }
+            listener?.TilePreparing(x, z);
+            return BuildShape(x, z);
+        }));
     }
 
     /// <summary>Tiles a step had to build or wait for itself (none, when prefetching keeps ahead).</summary>
     public int TilesBuiltOnDemand { get; private set; }
 
-    // Adds the tiles whose background build has finished.
+    /// <summary>
+    /// Tiles built ahead taken into the world at most each epoch (tick): a burst of them (a respawn storm, ships
+    /// streaming) is spread over the next ticks. A tile needed now is always taken in.
+    /// </summary>
+    public int AdoptPerEpoch { get; set; } = 8;
+
+    private long _adoptEpoch = -1;
+    private int _adoptedThisEpoch;
+
+    // Adds tiles whose background build has finished, up to the epoch's budget.
     private void AdoptPrefetched()
     {
-        if (_pending.Count == 0)
+        if (_adoptEpoch != _epoch)
+        {
+            _adoptEpoch = _epoch;
+            _adoptedThisEpoch = 0;
+        }
+        if (_pending.Count == 0 || _adoptedThisEpoch >= AdoptPerEpoch)
         {
             return;
         }
         _adopted.Clear();
-        foreach (((int, int) key, Task<Shape> task) in _pending)
+        foreach (((int, int) key, TileBuild build) in _pending)
         {
-            if (task.IsCompleted)
+            if (build.IsBuilt)
             {
                 _adopted.Add(key);
+                if (_adoptedThisEpoch + _adopted.Count >= AdoptPerEpoch)
+                {
+                    break;
+                }
             }
         }
         foreach ((int x, int z) in _adopted)
         {
             using TickProfile.Scope _ = Profile.Time(ProfileSection.TileAdd);
-            _pending.Remove((x, z), out Task<Shape>? task);
-            Tile tile = AddTile(x, z, task!.Result);
+            _pending.Remove((x, z), out TileBuild? build);
+            Tile tile = AddTile(x, z, build!.Take()!);
             tile.LastUsed = _epoch;
             Listener?.TileAdded(x, z);
+            _adoptedThisEpoch++;
         }
     }
 
@@ -534,10 +643,11 @@ public sealed class PhysicsWorld : IDisposable
         {
             return;
         }
-        foreach (Task<Shape> building in _pending.Values)
+        _closing = true;
+        foreach (TileBuild building in _pending.Values)
         {
-            building.Wait();
-            building.Result.Dispose();
+            building.Worker.Wait();
+            building.Take()?.Dispose();
         }
         _pending.Clear();
         lock (JoltRuntime.Gate)
@@ -575,5 +685,30 @@ public sealed class PhysicsWorld : IDisposable
         public readonly BodyID Body = body;
         public readonly Shape Shape = shape;
         public long LastUsed;
+    }
+
+    // Set when the world closes: tile builds not started yet don't start.
+    private volatile bool _closing;
+
+    /// <summary>
+    /// A tile being built ahead: a worker builds it when it gets to it, and a tick that needs it sooner takes it over
+    /// and builds it itself if no worker has started it, rather than wait behind every tile queued before it.
+    /// </summary>
+    private sealed class TileBuild
+    {
+        private readonly Lazy<Shape?> _shape;
+
+        public TileBuild(Func<Shape?> build)
+        {
+            _shape = new Lazy<Shape?>(build, LazyThreadSafetyMode.ExecutionAndPublication);
+            Worker = Task.Run(() => _shape.Value);
+        }
+
+        public Task Worker { get; }
+
+        public bool IsBuilt => _shape.IsValueCreated;
+
+        /// <summary>The shape: built here and now if no worker has started on it, else waited for.</summary>
+        public Shape? Take() => _shape.Value;
     }
 }
