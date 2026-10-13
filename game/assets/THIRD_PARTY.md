@@ -225,3 +225,9 @@ lock's and the charge timer's piezo tones (`art/audio/synth.py`).
 | [3463](https://bigsoundbank.com/s3463.html) | Carrion Crow #3 | https://bigsoundbank.com/UPLOAD/bwf-en/3463.wav (392,316 bytes) | `46bc06fea635eefeafe35751c175dea30b6cd47c03695bbf24b3ecd81cf8ea42` |
 | [3589](https://bigsoundbank.com/s3589.html) | Anvil #1 | https://bigsoundbank.com/UPLOAD/bwf-en/3589.wav (4,727,472 bytes) | `ebc51af2da517a3b3a2e21a7f7be1ce0c5942f3583a0a8702506af87d4ca10c0` |
 | [3590](https://bigsoundbank.com/s3590.html) | Anvil #2 | https://bigsoundbank.com/UPLOAD/bwf-en/3590.wav (3,170,872 bytes) | `62c4aa8d870f3a5a7b94825bd5cbf44261013f430169b589536a4402520367d1` |
+## Effects (`fx/`)
+
+| Path | What | Source | Licence |
+|---|---|---|---|
+| `fx/c4/` | The PSG C4 VFX kit R01, converted by `art/fx/build.py` (GROUND.md §9.3): smoke and fire flipbooks, flash, pressure ring, heat distortion, dust puff, spark, scorch, and the procedural concrete texture of its debris; its concrete shards and metal fragments are in `fx/chunks.glb` | `D:\GameDev\Assets\PSG_C4VFX_R01`: our own kit, made for this project by Blender Python (a Mantaflow simulation rendered by Blender, textures generated in `Source/build_support.py`); no third-party content | Ours |
+| `fx/textures/`, `fx/decals/`, `fx/chunks.glb` (the rest), `fx/shaders/` | The muzzle flash atlas, noise, soft dot, droplet, bullet holes, blood, scuff and debris shapes, painted and modelled by `art/fx/build.py`; the shaders | Ours | Ours |

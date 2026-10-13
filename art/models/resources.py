@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import bmesh  # noqa: E402
-from mathutils import Vector  # noqa: E402
+from mathutils import Vector, noise  # noqa: E402
 
 from hollow import ITEMS, WORLD, script_args  # noqa: E402
 from hollow.build import (BASALT, CANVAS, GLOSSY, GUNMETAL, LEATHER, OCHRE, PARCHMENT, ROCK, RUST, STEEL,  # noqa: E402
@@ -262,6 +262,41 @@ def lamp_oil(key="lamp-oil", seed=23):
     m.export()
 
 
+def gunpowder(key="gunpowder", seed=25):
+    """A heap of black powder on a sheet of brown paper opened out, its corners still turned up, grains spilt around."""
+    m = Model(key, seed=seed)
+    half, n = 0.105, 14
+    bm = bmesh.new()
+    grid = {}
+    for j in range(n + 1):
+        for i in range(n + 1):
+            x, y = -half + 2 * half * i / n, -half + 2 * half * j / n
+            corner = max(0.0, abs(x) / half + abs(y) / half - 1.15)
+            crumple = 0.0016 * noise.noise(Vector((x * 30, y * 30, 1.7)), noise_basis="PERLIN_ORIGINAL")
+            # Turned diagonally so the folded corners point at the viewer and to the sides.
+            c, s = math.cos(0.5), math.sin(0.5)
+            grid[i, j] = bm.verts.new((x * c - y * s, x * s + y * c, 0.0012 + 0.05 * corner ** 1.3 + crumple * (1 + 6 * corner)))
+    for j in range(n):
+        for i in range(n):
+            bm.faces.new((grid[i, j], grid[i + 1, j], grid[i + 1, j + 1], grid[i, j + 1]))
+    bmesh.ops.solidify(bm, geom=list(bm.faces), thickness=0.0009)
+    m.add(bm, tile=PARCHMENT, tint=(0.6, 0.45, 0.31), metres=0.3, vary=0.08, vary_scale=30, sharp=0)
+    heap = m.blob((0.14, 0.12, 0.09), (0.0, 0.0, 0.0012), subdivisions=4, rough=0.05, freq=3.0, flatten=0.0, tile=BASALT,
+                  tint=(0.2, 0.2, 0.21), metres=0.08, vary=0.3, vary_scale=160)
+    for v in heap.data.vertices:
+        # A cone of poured powder: highest in the middle, a soft foot.
+        r = min(1.0, math.hypot(v.co.x / 0.07, v.co.y / 0.06))
+        v.co.z = 0.0012 + max(0.0, v.co.z) * (0.62 * (1 - r ** 1.6) + 0.06)
+    heap.data.update()
+    for i in range(70):
+        a = m.rng.uniform(0, 2 * math.pi)
+        d = m.rng.uniform(0.06, 0.1) * (0.6 + 0.4 * abs(math.cos(a * 1.5)))
+        s_ = m.rng.uniform(0.0025, 0.0055)
+        m.blob((s_, s_, s_ * 0.7), (math.cos(a) * d, math.sin(a) * d, 0.0015 + s_ * 0.25), subdivisions=1, rough=0.3, facets=0.3,
+               tile=BASALT, tint=(0.16, 0.16, 0.17) if i % 4 else (0.28, 0.28, 0.29), metres=0.05)
+    m.export()
+
+
 ALL = {
     "wood": lambda: wood(),
     "stone": lambda: stone(),
@@ -274,6 +309,7 @@ ALL = {
     "charcoal": charcoal,
     "fibre": fibre,
     "lamp-oil": lamp_oil,
+    "gunpowder": gunpowder,
     # World pickups (gather.json): the same piles, bigger.
     "wood-pile": lambda: wood("wood-pile", count=12, scale=1.3, seed=31, folder=WORLD),
     "stone-pile": lambda: stone("stone-pile", count=11, size=0.2, spread=0.26, seed=33, folder=WORLD),

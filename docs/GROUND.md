@@ -1953,14 +1953,15 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
 | `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
 | `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
-| `models/resources.py` | The eleven resources as small piles (their dropped look), and the four world pickups as bigger piles |
+| `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
-| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition, key lock |
-| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate |
+| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
+| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
 | `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
+| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
 rifle's LOD1–LOD3, as the character package chose); `UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as
@@ -2011,7 +2012,18 @@ it, and of the rifle's receiver cover), a silencer's or brake's rear face on `so
 `socket_under` (under the pistol's frame and the rifle's handguard). The rail and under sockets are placed by casting
 rays onto the converted guns' surfaces. `ModelCatalog.Attach(gun, gunKey, attachmentKey)` mounts one; the sights carry
 `socket_eye` for aiming through them. Ammunition types are the boxes with colour bands and painted tips: blue for high
-velocity (`pistol-ammo-hv`, `rifle-ammo-hv`), orange for incendiary (`rifle-ammo-incendiary`).
+velocity (`pistol-ammo-hv`, `rifle-ammo-hv`), orange for incendiary (`pistol-ammo-incendiary`, `rifle-ammo-incendiary`),
+yellow striped black with yellow tips for explosive (`rifle-ammo-explosive`, G5).
+
+**Raid items** (G5, `models/raid.py`, our own designs): the bag charge is a stuffed canvas satchel, two belts, a carry
+loop and an igniter with its fuse cord; the tin grenade a ribbed food tin with nails bound round it under wire and tape
+and a fuse through the lid. Both are held by a palm socket at their middle (`grip_r`, +X out of the front), as the
+timed charge is, and carry `socket_fuse` for the fuse's sparks. The rocket launcher is a 1.1 m painted tube with a
+flared venturi, a canvas heat sleeve where it rests on the shoulder, a pistol grip (`grip_r`, the pivot) and a vertical
+fore grip (`grip_l`), a folding frame sight on the left (`sight`, `eye`), `muzzle` at the front and `exhaust` at the back
+(+X pointing backwards, for the back blast); class `gun`, so the character package holds it two-handed like the rifle.
+The rockets lie on the ground along their length: an olive warhead with a yellow band, or for `rocket-hv` a slimmer
+pointed one with a blue band, on a motor with four fins.
 
 `ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
 merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
@@ -2039,7 +2051,8 @@ has its LODs, hulls, palm sockets and mapped materials, that icons are square RG
 item key (and every item of `items.json` when present) has a model.
 
 Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `icons-g4.jpg` (the bed, the G4 items and
-the reworked icons), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
+the reworked icons), `icons-g5.jpg` (the G5 raid items and the models that replaced the last stand-ins: gunpowder, the
+metal mask, incendiary pistol rounds), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
 `models.jpg` (everything on the ground),
 `items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
 
@@ -2081,6 +2094,157 @@ piezo tones (the code lock's verdicts and the charge's timer). No sound comes fr
 Archives are unpacked into `art/.cache/audio/src` by Python's `zipfile` and our own 7z reader (`art/audio/sevenzip.py`:
 LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. The waveform and
 spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since nobody listened while they were made.
+
+### 9.3 Effects
+
+Every visual effect of the ground game: shots, hits, blood, gathering, blasts, fires and the world's dust. The aim is
+Rust's: punchy and readable, never cartoonish, at a steady frame rate. Presentation only (ARCHITECTURE.md §2): the
+library plays what the game tells it; nothing it does reaches the rules.
+
+| Part | Where |
+|---|---|
+| Library | `game/scripts/Fx/`: `FxDirector` (the API, caps, distance, budget, delays, loops), `FxBatch` (the particle batches), `FxFlashes` (muzzle flashes), `FxTracers`, `FxDecals`, `FxLights`, `FxLoops` (fires, trails, fuses), `FxShake`, `FxCatalog` |
+| Catalogue | `game/data/ground/fx.json`: every effect's layers and numbers (sizes, speeds, lives, cones, colours), caps, cull distances, loops and tracers |
+| Assets | `game/assets/fx/`: `c4/` (the PSG C4 VFX kit converted), `textures/` and `decals/` (ours), `chunks.glb` (debris meshes), `shaders/` |
+| Builder | `art/fx/build.py` (Blender 5.2, background): converts the kit, paints our textures and decals, builds the debris meshes |
+| Viewer | `game/scripts/Fx/FxViewer*.cs`, `FxStage.cs` (`--view fx`) |
+
+**How it draws.**
+- **Particle batches.** Fourteen `GPUParticles3D` cover the whole world, one per kind of particle: `spark`, `ember`,
+  `flash`, `fire`, `dust`, `smoke`, `smoke_hero`, `haze`, `haze_rise`, `ring`, `droplet`, `chunk_stone`, `chunk_wood`,
+  `chunk_metal`. None emits by itself: effects put particles into them with `EmitParticle`, each with its own position,
+  size, velocity, colour, life and random number, and one particle shader (`fx_process.gdshader`) moves them: gravity
+  or buoyancy, drag, slow turbulence, streaks along the velocity, tumbling debris that bounces on the floor and settles.
+  So ten players firing cost one simulation step and one draw call per kind of particle, however many hits there are;
+  a batch's capacity caps what lives at once, and a batch with nothing alive goes idle and costs nothing.
+- **Draw shaders.** Camera-facing billboards (`fx_billboard.gdshaderinc`): lit dust and smoke, rounded, fading into
+  what is behind them (soft particles) and away near the camera; smoke from the C4 kit's flipbook with its normals; the
+  C4 fire flipbook blended premultiplied, so its light adds and its soot darkens; additive flashes and embers; heat
+  haze that bends the screen. Streaks (`fx_streak.gdshaderinc`): sparks that cool from white-yellow to red, droplets of
+  blood, water and sand, never thinner than about a pixel and a half (thinner ones are drawn dimmer instead), so far
+  sparks don't shimmer. Rings lying in a surface. Debris meshes, several shapes in one mesh, one picked per particle.
+- **Muzzle flashes** are cards on the gun's muzzle socket (+X along the barrel) for two or three frames: flames along
+  the barrel, a burst across it, a brake's flames out of its side ports; a card seen edge-on fades out. Each shot picks
+  one of four variants, turns and stretches them. First person draws them with the view model's field of view on its
+  render layer, without shadows, exactly where the gun is drawn; the shot's smoke is moved to where the view model
+  shows the muzzle (`ViewmodelToWorld`).
+- **Tracers** fly the projectile's own path (gravity and drag as `ClientProjectile.PositionAt`), so they meet the
+  impact; the head stops where the projectile stopped and the tail catches up. One MultiMesh draws all of them, never
+  thinner than a pixel and a half.
+- **Fires** (loops) are flame cards stood up along world up and turned to the camera, drawn by a shader from scrolling
+  noise (a tongue of fire hottest at its foot, breaking into licks as it rises), with emitters for embers, smoke and
+  heat haze at their rates, and a flickering light.
+- **Decals** (holes, blood, scuffs, scorch) come from a small pool per texture that keeps its texture (changing a
+  decal's texture makes Godot rebuild its decal atlas, which stalls frames) and fade out; **lights** from a pool of
+  shadowless omni lights that rise and fall; **camera shake** is summed per camera position from each blast's
+  strength, radius and age.
+- **Render layer 20** (`FxDirector.RenderLayer`) holds every effect drawn in the world; decals skip it, so a scorch or
+  a bullet hole never stains the dust over it. Cameras draw all twenty layers by default.
+- **Limits.** Each effect has a cap on how many may play at once (`cap`) and a distance past which it is skipped
+  (`cull`); fewer particles play with distance (all within 20 m, half by 55 m, a quarter past 110 m), debris only within
+  45 m, decals within 70 m; a frame may emit 1,500 particles.
+
+**The API** (`HollowUniverse.Fx`, static, from anywhere; the director puts itself under the scene tree's root on
+first use, or `FxDirector.Install(parent)`):
+
+| Call | What |
+|---|---|
+| `FxDirector.Play(key, position, normal, FxParams p = default)` | A one-shot effect at a point on a surface facing `normal` (up in the open). Returns false when skipped (unknown key, too far, at its cap). |
+| `FxParams` | `Direction` (a bullet's flight, a tree's fall, along a door), `Scale`, `Area` (half extents to spread over, in the frame of the normal and the direction), `Tint`, `Follow` (a node flashes, lights and loops follow), `FirstPerson`, `Floor` (where debris lands), `Duration` (loops), `Seed` |
+| `FxDirector.Impact(surface, position, normal, incoming)` | A bullet's hit on `FxSurface` Dirt, Grass, Sand, Rock, Wood, Metal, Water or Flesh (`impact.bullet.<surface>`) |
+| `FxDirector.Muzzle(key, muzzleSocket, firstPerson)`, `FxDirector.MuzzleKey(weapon, silenced, brake)` | A shot's flash, light, smoke and spark on the gun's muzzle socket |
+| `FxDirector.WantsTracer(shooter, seq)` | Whether a shot draws a tracer: some do, as in Rust (`tracerEvery` in fx.json: every third, per shooter) |
+| `FxDirector.Tracer(key, origin, velocity, gravity, drag)` → id; `FxDirector.EndTracer(id, at)` | A tracer or trail along the projectile's path; where it stopped |
+| `FxDirector.Start(key, position, normal, p)` → `FxHandle`; `Stop(handle)`, `Move(handle, position)` | Loops: fires, torches, burning, rocket trails, fuses; at a point or on `p.Follow`; they fade in and out |
+| `FxDirector.CameraShake(cameraPosition)` | The camera's offset this frame (pitch, yaw, roll in radians): add it to the camera like the gun's `ViewKick`, never to the view the player controls. `FxDirector.Shaken` fires when a shake starts. |
+| `FxDirector.ViewmodelToWorld(point)` | Where a point of the view model appears in the world's projection |
+| `FxSurfaces.Of(GroundMaterial)`, `FxSurfaces.OfGrade(grade)` | The surface of a ground material or a building grade |
+
+**Hook-up list** (the integration package wires these; the library does nothing by itself):
+
+| Game event | Effect |
+|---|---|
+| `Local.Gun.ShotFired` | `Muzzle(MuzzleKey(weapon, silenced, brake), the view model's muzzle socket, true)`; when `WantsTracer(own id, seq)`, `Tracer("tracer.bullet"` or `"tracer.incendiary", origin, direction × speed, gravity, drag)` from `ViewmodelToWorld(muzzle)`, so it leaves the gun where the view model draws it |
+| Others' shots (`RemoteEntity.ActionCount`, `ProjectileLaunch`) | `Muzzle(…, their held gun's muzzle socket, false)`; a tracer as above when `WantsTracer(shooter, seq)` |
+| `GameClient.Projectiles` that are bullets, ending (`EndedAt`, `EndTarget`) | `EndTracer`; `Impact(surface, EndedAt, normal, DirectionAt)`: `Ground` by the ground material there (`FxSurfaces.Of`), `Natural` by the object (tree Wood, outcrop Rock, bush Grass), `Deployable` by its material (Wood or Metal), building pieces by grade (`OfGrade`), water Water, `Character` Flesh (`blood.hit`; `blood.hit.heavy` for a head shot); nothing for `Nothing` |
+| Incendiary rounds' hits | `impact.incendiary`, and `Start("fire.burning", …, Duration = 3)` where they set fire |
+| Explosive rounds' hits | `explosion.ammo` |
+| Arrows in flight, landing | `Tracer("trail.arrow", …)`, `EndTracer`; the impact as for bullets |
+| `Local.HitMarker`, `DamageTaken`, bleeding | `blood.hit` on the victim; while bleeding, `blood.drip` on the ground under them every second or two |
+| A gathering hit (the swing's impact, `ItemsChanged` with `Gather`) | `gather.wood` on trees, `gather.rock` on stone, `gather.sparks` on metal and sulphur ore; `gather.weakspot` too when `WeakSpot` |
+| A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); `gather.node-break` |
+| Timed charge, bag charge, tin grenade, rocket, explosive round going off | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`; a dud `explosion.dud`; while a fuse burns, `Start("fuse.burning", Follow = socket_fuse)` |
+| A rocket fired, in flight | `Muzzle("muzzle.rocket", socket_muzzle, first person)`, `Play("backblast.rocket")` on `socket_exhaust` (+X backwards), `Start("trail.rocket", Follow = the rocket)` |
+| Campfire, furnace lit and out | `Start("fire.campfire"` / `"fire.furnace", Follow = its model)`, `Stop` |
+| A lit torch in hand | `Start("fire.torch", Follow = socket_flame, FirstPerson)` (third person for others) |
+| A player burning (`Vitals.Burning`) | `Start("fire.burning", Follow = the body)` while it burns |
+| A building piece collapsing | `world.collapse` (`Area` the piece's half size, `Tint` the grade's colour) |
+| An upgrade with the hammer | `world.upgrade.wood`, `.stone`, `.metal`, `.armoured` over the piece (`Area`) |
+| A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
+| A step on sand (footsteps) | `world.footstep.sand` |
+| Every frame | the camera: rotation += `FxDirector.CameraShake(camera position)` |
+
+**The effects** (`fx.json`; each has an `about` line there):
+
+| Family | Keys |
+|---|---|
+| muzzle | `muzzle.rifle`, `muzzle.rifle.brake`, `muzzle.pistol`, `muzzle.pistol.brake`, `muzzle.silenced` (no flash, no light, a little smoke), `muzzle.rocket`, `backblast.rocket`; each first or third person |
+| tracer | `tracer.bullet`, `tracer.incendiary`, `trail.arrow`, `trail.rocket` (a loop) |
+| impact | `impact.bullet.dirt`, `.grass`, `.sand`, `.rock`, `.wood`, `.metal`, `.water`, `.flesh`, `impact.incendiary`: debris, dust and a decal where right (holes in wood, rock and metal, a scuff in earth) |
+| blood | `blood.hit`, `blood.hit.heavy` (a short mist and a few drops, restrained), `blood.drip` (a drop and a stain) |
+| gather | `gather.wood`, `gather.rock`, `gather.sparks`, `gather.weakspot`, `gather.tree-fall`, `gather.node-break` |
+| explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
+| fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning` (loops) |
+| world | `world.collapse`, `world.upgrade.wood`, `.stone`, `.metal`, `.armoured`, `world.door-slam`, `world.footstep.sand` |
+
+**Assets** (`art/fx/build.py`, about 15 s):
+- *The PSG C4 VFX kit* (`D:\GameDev\Assets\PSG_C4VFX_R01`, made for this project: a Mantaflow simulation rendered by
+  Blender, and procedural textures), converted to `fx/c4/`: the smoke flipbook (8 × 8, 4K → 2K) and its normals turned
+  to OpenGL's convention, the fire flipbook (4 × 4 HDR EXR → 2K, stored sRGB at 1/1.25 of its value, which the shader
+  multiplies back), flash, pressure ring, heat distortion, dust puff and spark (512 px or less), the scorch mask baked
+  into soot and an ember glow, the concrete texture of its debris; its four concrete shards and two metal fragments
+  (from the kit's `.blend`, in metres) go into the debris meshes.
+- *Ours, procedural:* the muzzle flash atlas (four flames from the side and four bursts down the barrel, painted from
+  noise and a fire colour ramp), tileable noise, a soft dot, a droplet; decals with normal maps: bullet holes in wood
+  (fibres torn along the grain, splinters), rock (a crushed crater with cracks) and metal (a punched hole with a torn
+  bright rim and chipped paint), blood stains, a dirt scuff; debris: rock chips and clods, wood splinters and bark, torn
+  tin.
+
+**The viewer** (`--view fx`): every effect in turn on its station while the camera turns about it. The stations: ground
+of each kind with the planet's own textures, rock, wood, metal and stone walls from the building kit, water, a target
+dummy, the guns, the campfire, furnace and torch. Options: `--fx <key>` (start there; with `--shot`, caught `--at <s>`
+after it starts, its `hero` moment by default), `--sheet <family>` (a contact sheet: every effect of a family in its
+own cell at its hero moment, muzzle flashes in first and third person), `--strip <key> --times a,b,c` (one effect at
+several moments), `--action <family>` (a scene of the family in use), `--stress firefight --measure <s>` (below),
+`--night`, `--only-batch <name>` (tuning), `--spikes` (with `--stress`: print every frame over 12 ms). Keys: ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
+fx.json.
+
+```bash
+$GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png
+$GODOT --path game --resolution 1600x900 -- --view fx --action fire --shot fire.png
+$GODOT --path game --resolution 1600x900 -- --view fx --stress firefight --measure 8
+blender -b --factory-startup --python art/fx/build.py        # the effects' assets (-- c4 | textures | decals | chunks)
+```
+
+**Cost.** `--stress firefight` has ten players (five a side, rifles and a pistol each side) fire bursts across an arena
+of walls, rock and open ground for 8 s at a time with the effects off, on, off and on, about 34 shots a second: every
+shot's muzzle effect (the camera's own in first person), a tracer for every third, its impact after its flight (one in
+eight on a body), and a grenade every six seconds. On the owner's PC (RTX 2070 Super, 1600 × 900, vsync off):
+
+| | Frame, average | Frame, 95th percentile | GPU | The library's CPU time |
+|---|---|---|---|---|
+| Effects off | 2.32 ms | 2.38 ms | 1.72 ms | |
+| Effects on | 2.61 ms | 2.78 ms | 1.97 ms | 0.03 ms (emission and updates) |
+| **What the effects cost** | **+0.29 ms** | +0.40 ms | +0.25 ms | |
+
+So a ten-player firefight's effects cost about 0.3 ms a frame, well inside the 2 ms allowed (an earlier run during
+tuning measured +0.41 ms). The figures are the means of the two halves of a run (`[fx-measure] RESULT` in the log);
+other programs busy on the PC move them by a few tenths and can add stalls to either half.
+
+Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's contact sheet) and `action-<family>.jpg`
+(each family in use), for muzzle, tracer, impact, blood, gather, explosion, fire and world.
+
+![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 
 ---
 
@@ -2231,6 +2395,14 @@ they merge beside the other packages' items):
   bullet tips (blue high velocity, orange incendiary).
 - M10. **First-person poses are placements without arms:** the character package's viewmodel holds items by their palm
   sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback).
+- M11. **The metal mask is our own design** (round eye ports in riveted bezels, a brow band, a slotted grille over the
+  mouth), not Rust's slit-eyed plate. Only the item is modelled here; the worn mask is the character package's.
+- M12. **The G5 raid items are our own designs** (a stuffed satchel with an igniter, a nail-bound food tin with a fuse,
+  a painted tube launcher with a venturi and a heat sleeve). The launcher's class is `gun`, so until the character package
+  gives it a shoulder pose it is held two-handed like the rifle; the thrown charges are held by a palm socket at their
+  middle, like the timed charge.
+- M13. **Explosive rounds are marked yellow striped black** with yellow tips, so the four kinds of round read apart at a
+  glance (plain, blue, orange, hazard stripes).
 
 Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 
@@ -2414,3 +2586,31 @@ Decisions taken during G5 (step "Raid", §6.6) without the owner, to confirm or 
 - R16. **The raid arena runs only without a database** (`--raid-bases`, the load test's huts): the building is saved now,
   so its huts would come back at the next start and be built again over themselves. The admin's `raidbase` builds one
   hut that is saved like any other.
+
+Decisions taken for the effects (§9.3) without the owner, to confirm or overturn (numbered F1 on):
+
+- F1. **One particle system per kind of particle for the whole world**, fed by `EmitParticle`, instead of a particle
+  system per effect: a firefight then costs a dozen dispatches and draws however many hits there are, and nothing has
+  to be pooled or restarted per effect. Particles carry their own size, life and colour, so one batch serves every
+  surface's dust.
+- F2. **Some shots draw a tracer, as in Rust:** every third shot per shooter (`tracerEvery` in fx.json), the same on
+  every client because it follows the shot's sequence number.
+- F3. **The C4 kit's fire flipbook is drawn premultiplied**, its light added and its dark smoky parts covering what is
+  behind, and blasts throw a burst of smaller flipbook fireballs rather than one big billboard: the single billboard
+  read as a flat orange cut-out.
+- F4. **Campfire, furnace, torch and burning flames are drawn by a shader** (scrolling noise shaped into tongues) on a
+  few cards rather than from a flipbook: the C4 kit's fire is a fireball, and a looping fire flipbook of our own would
+  need its own fluid simulation.
+- F5. **Smoke and dust are lit by the scene** (the sun, the sky, fires and flashes), so they darken at night and glow by
+  a fire; they get no backlight term.
+- F6. **Effects draw on render layer 20**, which decals skip: Godot's decals otherwise stain the transparent dust over
+  a scorch. Every camera must keep layer 20 in its cull mask (all cameras do by default).
+- F7. **No collision with the world for particles:** debris bounces on a floor each effect gives (the hit's height on
+  the ground, 1.2 m below a hit on a wall, or `FxParams.Floor`). Godot's particle colliders would need the scene
+  rendered into a height field every frame.
+- F8. **Each decal texture keeps its own pool** (24 decals, 10 for scorch marks): changing a decal's texture made
+  Godot rebuild its decal atlas and stalled frames by up to 30 ms in the firefight.
+- F9. **The camera shake is an offset the camera's owner adds**, like the gun's `ViewKick`; the library owns no
+  camera. A blast shakes within its radius (35 m for the timed charge), most close by.
+- F10. **Blood stays restrained:** a short dark mist and a few drops on a hit, small stains from drips that fade
+  within a minute; no pools or splatter on walls.
