@@ -245,7 +245,7 @@ is renamed the **tool cupboard** (data, interface and code).
 
 **Cost:** client targeting under 0.1 ms a frame; server one lookup, one `Offer`, one ray per intent.
 
-**As built** (P1, 13 October 2026, `ground-p1`; GROUND.md §6.1–§6.8, §8.4, decisions I1–I20).
+**As built** (P1, 13 October 2026, `ground-p1`; GROUND.md §6.1–§6.8, §8.4, decisions I1–I17).
 
 *Verbs* (`game/data/ground/interactions.json`, hashed, append only: an entry's index is its number on the wire): 39, each
 with a key, a label, a glyph (`RadialGlyphs`), a line for the radial, a priority (the ring's order and which primary a
@@ -267,8 +267,8 @@ can be done, else the first primary (the tap says why), else none. New capabilit
 and bushes, bags, arrows), `portable` (deployables.json `pickup`, on all eleven), `station` (`workbench`), `wounded`,
 `character`, `dud`, `arrow`. New answers: `Seated`, `NotEmpty`.
 
-*What a handler knows:* `TargetFacts` (`Targets/Targeting.cs`): its capabilities and viewer flags, name, count, take-only,
-open, busy, at rest, lock and definition, from its family (`TryFacts`) on the server and from the replicas on a client
+*What a handler knows:* `TargetFacts` (`Targets/Targeting.cs`): its capabilities and viewer flags, name, count, whether it is
+a person's (looted, not opened), open, busy, at rest, lock and definition, from its family (`TryFacts`) on the server and from the replicas on a client
 (`GameClient.Targets.cs`, one view per family), so `Offer` runs the same on both. `InteractContext` adds the doer
 (`Doer`: dead, asleep, wounded, seated; in a team, its leader, a full team) and the building (rights at a place), and on
 the server the zone, the player and the thing.
@@ -277,7 +277,9 @@ the server the zone, the player and the thing.
 `Targeting.Aim(views, ray)` keeps the nearest hit of all, as far as the longest verb reaches, past the one looking. The
 shapes are shared so both sides meet the same thing (`AimShapes`: boxes, balls for bags and bodies, capsules for arrows;
 `DoorShapes`, a door's leaves and its opening; `ShipShapes`, the hull and its parts; `NaturalAim`; `BuildingAim`, one
-building ray; `GroundAim`). Walls and animals stop the view and offer nothing. `Zone.Aim`, `GameClient.Aim` and
+building ray; `GroundAim`). A hit says what it is to the view (`AimKind`): something to act on, a backdrop (the ground,
+pieces, trees and rocks, animals: they stop the view and offer nothing) or an open door's opening, through which the view
+goes on: the door is met there only when nothing beyond is to act on. `Zone.Aim`, `GameClient.Aim` and
 `GameClient.AimInteraction` (the target, its facts, its options within each verb's reach, the primary: the prompt's and
 the radial's), 23 µs a frame in the test's fan of views.
 
@@ -290,10 +292,10 @@ station's `unlock` with the recipe in `Arg`, sent to the best bench in reach (`G
 `Refuel` (the seat's hatch, exit, lock and descend stay); `DoorAction` but placing, `LockAction` but fitting,
 `ClaimAction` but placing; the zone's `Open`, `PickUpNatural`, `PickUpItem`, `Toggle`, `Rearm`, `Board`, `RefuelShip`
 and ships.json's `reach`; the client's `Interaction`, `InteractionKind`, `ShipInteraction`, `AimShip`, `AimAtDuds` and the
-intents' methods. Protocol 17.
+intents' methods. Protocol 18 (P3 took 17).
 
-*The interface:* `ClientGroundUi.Interaction.cs`: each frame the prompt ("E  OPEN WOODEN DOOR", the reason when the tap
-can't, the hold hint with more than one option); E's binding makes an `InteractionRadial` of the target at the press,
+*The interface:* `ClientGroundUi.Interaction.cs`: each frame the prompt ("E  OPEN WOODEN DOOR", or the label alone where
+the verb says so: "E  SET CODE"; the reason when the tap can't; the hold hint with more than one option); E's binding makes an `InteractionRadial` of the target at the press,
 read again each frame from where the player is; a code verb asks the keypad first (`GroundView.ShowKeypad(title,
 sends)`), a panel verb opens its panel by name, the loot panel's fire and machine switch finds its verb by `switch`.
 `OptionsMenu`, BuildView's door and cupboard options and GroundView's hold-E chain are gone. A radial no longer stops
@@ -498,7 +500,7 @@ contact frame and point come from the same hit the server computes. To be planne
    request (P4); tree X and node hotspots; loot bags (all merged 13 October 2026); gibs. The Tin Finch's placement waits
    for P2.
 2. **P0** foundations (built 13 October 2026), then **P5** the radial.
-3. **P1** interaction, **P2** placement and **P3** held items, in parallel.
+3. **P1** interaction (built 13 October 2026), **P2** placement and **P3** held items, in parallel.
 4. Merge, then the owner plays.
 
 Every package adds its shared system with engine-free tests, moves every existing path onto it, deletes the old path

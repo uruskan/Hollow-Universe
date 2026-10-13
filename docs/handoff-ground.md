@@ -38,9 +38,9 @@ Their worktrees in `D:\GameDev\Projects\Hollow-wt\` can be removed once the owne
   hotspot on outcrops with hits that read; dropped items in bags.
 - Running: gibs (`ground-gibs`); the bag's model remade as a strapped bundle (`ground-bagart`).
 - By the shared systems the owner approved ([GROUND_SYSTEMS.md](GROUND_SYSTEMS.md)): P0 foundations (`ground-p0`, running)
-  and P5 the radial (`ground-radial`, running), then P1 interaction (hold-E radial, code lock's set code, garage door
-  closing, the cupboard's menu, the rename to tool cupboard, spent arrows that stay stuck and are taken with E, from living
-  bodies too), P2 placement (deployables on foundations and floors, a ghost for every placeable, the Tin Finch from its
+  and P5 the radial (`ground-radial`, running), then P1 interaction (`ground-p1`, built 13 October 2026: hold-E radial,
+  code lock's set code, garage door closing, the cupboard's menu, the rename to tool cupboard on screen, spent arrows that
+  stay stuck and are taken with E, from living bodies too; GROUND_SYSTEMS.md §5, decisions I1–I17), P2 placement (deployables on foundations and floors, a ghost for every placeable, the Tin Finch from its
   item) and P3 held items (information for every item, the ammo icon and hold-R ammo radial, unload, the blueprint's
   LEARN, dropping over the interface, workbench speed).
 - Later: P7, characters and held items (third-person grips and clipping, Rust's closed grip on the rock, swings whose

@@ -1001,7 +1001,7 @@ trees within 30 m, the sea within 1.6 km, how exposed it is) is worked out on a 
 | A swing or strike (own input, a remote entity's swing count) | `ItemEvent(held, "swing")` at the hand |
 | A hit on a tree / an outcrop (the natural object's health drops) | `hitWood` / `hitStone` (`hitOre` on metal) at the impact; `gather.weakspot` with it when the weak spot moved |
 | An outcrop's stage changes; a tree falls | `gather.node.break.1/2/3`; `gather.wood.break` |
-| `PickUpNatural` / `PickUpItem` answered | `gather.berry` (bushes), `gather.plant` (fibre, tubers), `gather.pickup` (piles, drops) |
+| Something picked up with E (`ItemsGained`, picked up: a pickup, a bush, a bag, a spent arrow) | `gather.berry` (bushes), `gather.plant` (fibre, tubers), `gather.pickup` (piles, drops, arrows) |
 | `Use` accepted (food, medicine) | `ItemEvent(item, "use")`, flat |
 | `DamageTaken` / a remote flinch; `Died` | `survival.hurt`; `survival.death` |
 | Cold (`Vitals.Cold` above 0.5) | `survival.cold` every 4–7 s, flat |
@@ -1715,7 +1715,7 @@ survival, natural respawns, the lifetimes of loose things (one step for bags, bo
 GROUND_SYSTEMS.md §3.7) and loot reach; devices (the burners and machines alone); crafting; then the hit history.
 Players' actions are `Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `ItemAction` (the inventory's buttons, by
 their handlers: eat, use, wear, take off, learn, unload, remove an attachment; GROUND_SYSTEMS.md §7), `Craft`,
-`CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of
+`CancelCraft`, `Close`, `Place`, `Respawn`, and since P1 `Interact`, everything the E key does: GROUND_SYSTEMS.md §5), each checking everything and either doing all of
 it or nothing, with a reason (an `Outcome`: one code list for the whole game and the number its line names; the lines
 are in texts.json, GROUND_SYSTEMS.md §3.2). An action on a thing needs the eye within reach of its nearest surface, in
 sight (survival.json `reach`, GROUND_SYSTEMS.md §3.4). Every new persistent thing gets an `EntityId` from the server's allocator.
@@ -1798,8 +1798,9 @@ condition; at none it breaks.
 **The bow**: holding the secondary button draws it (1 s) while there are arrows; the primary button looses one: from the
 eye along the view at 50 m/s, under the planet's surface gravity (9.0 m/s² on the first world; not the characters'
 1.8×), in two steps a tick, for up to 4 s. Holding on draws the next. An arrow 20 m to a chest flies 0.4 s and drops
-0.7 m; loosed flat from eye height it comes down about 30 m out. An arrow that hits the ground, a tree or a deployable
-can be picked up again half the time.
+0.7 m; loosed flat from eye height it comes down about 30 m out. Half the arrows stay whole (items.json `recover`); since
+P1 each of those sticks where it hit, in the ground, a building, a deployable, a tree, an animal or a player, and is taken
+back there with E (GROUND_SYSTEMS.md §5; decision I9).
 
 **Damage to characters**: the weapon's damage × the body part (head 2, body 1, limbs 0.5; RustMVP) × (1 − protection),
 where protection is the sum of what worn items covering that part give against melee or projectiles (at most 0.8).
@@ -1874,13 +1875,13 @@ dropped. A G1 database migrates in place; G1 characters come back with a new lif
 | `Crafting` | Jobs front first: recipe, count, progress of the unit in hand, seconds left, still pending. |
 | `Life`, `IsDead`, `SecondsUntilReady(option)` | Alive or dead; how, by whom; respawn choices (the beach, each bag) and their countdowns. |
 | `HeldSlot`, `HeldItem`, `WorkbenchLevel`, `CanCraft(recipe, count)` | The belt slot in hand (set by the UI; it goes out with every input), the best bench within 4 m, whether a recipe can start. |
-| `MoveItem`, `QuickMove`, `Drop`, `ItemAction(from, slot, action, arg)`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, item actions, crafting, placing, closing), shows at once. `ItemActions(from, slot, list)` gives a stack's buttons as the server would judge them, `FirstAction`/`UsePart` a held part's first (a click with food, medicine or a blueprint in hand; GROUND_SYSTEMS.md §7). |
+| `MoveItem`, `QuickMove`, `Drop`, `ItemAction(from, slot, action, arg)`, `Craft`, `CancelCraft`, `Close`, `Place`, `Respawn`, and `Interact(target, verb, arg, code)` (everything the E key does, GROUND_SYSTEMS.md §5) | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, item actions, crafting, placing, closing), shows at once. `ItemActions(from, slot, list)` gives a stack's buttons as the server would judge them, `FirstAction`/`UsePart` a held part's first (a click with food, medicine or a blueprint in hand; GROUND_SYSTEMS.md §7). |
 | `Changed`, `ContainerOpened`, `ContainerClosed`, `HitMarker`, `ItemsChanged`, `DamageTaken`, `CraftFinished`, `IntentAnswered`, `IntentRejected`, `Died`, `Respawned` | Events for the UI. A refused intent has already been rolled back when `IntentRejected` fires. |
 
 Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), the natural objects and their changes
 (`Nature`, `Natural`, with trees and outcrops solid in the prediction's physics), projectiles in flight
 (`Projectiles`), others' held items, swings, sleep and clothing (`RemoteEntity`), and finds what the interact key would
-act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
+act on and offers there (`AimInteraction(eye, direction)`, GROUND_SYSTEMS.md §5). `InputFrame` gains the attack and aim buttons. Whether a looted
 campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
 
 **Godot** (`game/scripts/Ground`, §4.3): deployables, bags of dropped items and the dead's backpacks from `GroundModels`
@@ -1888,7 +1889,7 @@ campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
 shapes made in code), a lit fire's flame and light at the
 model's `socket_fire` (its real strength next to the sun's: the sky meters the camera a few thousand times brighter by
 night, `Glow`), arrows in flight, the held deployable's own model as a ghost where it would go, and the interact
-prompt; holding E on a fire or furnace lights it or puts it out. A body lies for 150 s in view, then only its backpack
+prompt; holding E opens the options of what is aimed at (a fire's or furnace's light and put out among them, §8.4). A body lies for 150 s in view, then only its backpack
 (`loot-sack`) is drawn; a corpse first seen farther than 80 m is drawn as its backpack at once.
 
 ### 6.3 Building, claims and doors (G3)
@@ -2220,7 +2221,8 @@ asleep. Down:
 - **`GunUpdate`** (to the owner, reliable, whenever the gun changes: an action applied, a reload done, an equip): the
   last action applied and the last refused (with the `GunResult`), the gun, its magazine, and its equip, cadence and
   reload ticks and recoil exactly (doubles), so the client's prediction starts again from exactly there.
-- **Other intents** (the general sequence, answered by `IntentResult`): `AttachIntent`, `DetachIntent`, `HelpUpIntent`.
+- **Other intents** (the general sequence, answered by `IntentResult`): `AttachIntent`; taking an attachment off is an item
+  action (P3), helping a wounded player up the interaction's `help-up` (P1, GROUND_SYSTEMS.md §5).
 - **Slots** carry a firearm's magazine and attachments (`GunNet`, one bit when absent).
 - **Others see** (`CharacterNetState`): aiming, the held gun's attachments (a bit each, weapons.json order), the crawling
   stance (2 bits) and the reload action (3 bits); shots by `ActionCount` as in G2, and each bullet's `ProjectileLaunch`
@@ -2250,12 +2252,12 @@ replays the rest from the server's state, as movement does; on a clean line noth
 | `Local.Gun.ReloadStarted`, `ReloadFinished` (`ReloadEvent`: weapon, round, seconds) | A reload began (at once) and ended. |
 | `Local.Gun.Refused` (`GunRefusal`: sequence, `OutcomeCode`) | The server refused a shot, reload or unload (already rolled back), or one couldn't start (no rounds, full, empty). |
 | `Local.Gun.Unload()`, `Unloaded` (`UnloadEvent`), `InHand(from, slot)` | UNLOAD of the gun in hand on its timeline (predicted at once); the event; whether a slot holds the gun in hand. |
-| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.ItemAction(... "remove" ...)`, `Local.HelpUp(target)` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
+| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.ItemAction(... "remove" ...)`, `Local.Interact(player, "help-up")` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
 | `Local.HitMarker` (`HitMarkerEvent` + `Downed`), `Local.DamageTaken` (`DamageEvent`: from the shooter's eye, the gun) | Hits landed and taken. |
 | `Local.Life.Wounded`, `WoundedUntilSeconds`, `Local.IsWounded`, `Downed`, `GotUp`; `Local.Vitals.Burning` | Down (crawling, a countdown) and up again; burning. |
 | `GameClient.Projectiles` (`ClientProjectile`: `IsBullet`, `Own`, `Seq`, `Drag`, `Silenced`; `PositionAt`, `DirectionAt` follow drag) | Bullets in flight: our own from the moment we fire (the server's launch then names it), others' from their launch; where each stopped and on what. |
 | `RemoteEntity`: `Aiming`, `HeldMods`, `Wounded` (`Stance == Crawling`), `Action == Reload` | Others' guns aimed, their attachments, down, reloading. |
-| `GameClient.Aim` → `InteractionKind.HelpUp`, `Interact` | The interact key on a wounded player helps them up. |
+| `GameClient.AimInteraction` → HELP UP, a tap of E | The interact key on a wounded player helps them up (since P1). |
 
 **What the visual layer does with it** (the Godot work after the integration package): add `ViewKick` to the camera and
 the compensation to the view; zoom the camera by `Zoom` while `Aimed`; on `ShotFired` the muzzle flash (none when
@@ -2307,8 +2309,8 @@ and one receiver class in each domain's own file.
   `DamageAnimal`). The old per-target calls (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
   `DamageBuildingBy`, `DamageShip`, `DamageAnimal`) stay for tests and tools, as one request each.
 - **The receivers** (`IDamageReceiver`, registered once in `Zone.InitDamage`, in the order a ray tests them): each finds
-  its own things along a ray (`Trace` asks each in turn) and within a blast's reach, says whether an arrow that lands in
-  one stays there, and takes requests. Since P0 they are registered by target family, and what a ray met is one
+  its own things along a ray (`Trace` asks each in turn) and within a blast's reach, and takes requests (since P1 an arrow
+  that stays whole sticks in whatever it hit, GROUND_SYSTEMS.md §5, so no receiver says whether it keeps one). Since P0 they are registered by target family, and what a ray met is one
   `TargetRef` (`TraceHit.Target`, a body's bone as its part) rather than a field per kind.
 
 | Receiver | Found by | Defences | Consequences |
@@ -2426,9 +2428,9 @@ arrows stop at pieces, doors and claim devices (the `Piece`, `Door` and `Cupboar
 **Intents** (protocol 3; client to server, reliable, with the sequence numbers and the budget of G2's: 16 at once, 20 a
 second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's point on the aim and
 heading in 15° steps), `HammerIntent` (upgrade to a grade, rotate, demolish, repair), `DoorIntent` (fit from a slot,
-turned round or not; open or shut; pick up), `LockIntent` (fit from a slot; set a code; enter a code; lock; unlock; cut
-a key; take off) and `ClaimIntent` (place from a slot at a point on a foundation or floor, turned; authorise;
-deauthorise; clear the list; pick up). Each is answered with `IntentResult` (since P0; it was `BuildResult`): done, or
+turned round or not), `LockIntent` (fit from a slot) and `ClaimIntent` (place from a slot at a point on a foundation or
+floor, turned). Opening and shutting, picking up, codes, locking, keys, authorising and the list are the interaction's
+verbs since P1 (`InteractIntent`, GROUND_SYSTEMS.md §5). Each is answered with `IntentResult` (since P0; it was `BuildResult`): done, or
 the rules' reason (an `Outcome`, whose line is in texts.json), after that tick's container changes. The server works out every pose itself and checks everything
 again.
 
@@ -2449,9 +2451,9 @@ on their shared ground. The API for the ground mode:
 | `GameClient.BuildingReplica.StateOf(door)`, `StateOf(claim)` | A door's lock and its viewer flags (locked, whether this player may pass, has a code, theirs); a claim device's flags (on its list) and its protection in hours |
 | `GameClient.PlanPiece(piece, eye, direction, turns)` | The ghost: the server's own `Plan` on the mirror, with this player's materials and building rights |
 | `GameClient.AimBuilding(eye, direction)` | The piece, door or claim device aimed at |
-| `Local.PlacePiece(plan)`, `Upgrade`, `Rotate`, `Demolish`, `Repair`, `PlaceDoor`, `ToggleDoor`, `PickUpDoor`, `AttachLock`, `SetCode`, `EnterCode`, `Lock`, `Unlock`, `MakeKey`, `RemoveLock`, `PlaceClaim`, `Authorise`, `Deauthorise`, `ClearAuthorised`, `PickUpClaim` | Intents, each returning its sequence number. Optimistic: the materials or the item leave the inventory at once, and a placement is drawn at once (`Local.PendingPieces`) until its piece arrives; a refusal rolls back. |
+| `Local.PlacePiece(plan)`, `Upgrade`, `Rotate`, `Demolish`, `Repair`, `PlaceDoor`, `AttachLock`, `PlaceClaim`; the rest through `Local.Interact(target, verb, code: …)` (`door-open`, `set-code`, `enter-code`, `code-lock`, `cut-key`, `authorise`, `clear-list`, … GROUND_SYSTEMS.md §5) | Intents, each returning its sequence number. Optimistic: the materials or the item leave the inventory at once, and a placement is drawn at once (`Local.PendingPieces`) until its piece arrives; a refusal rolls back. |
 | `Local.IntentAnswered`, `Local.IntentRejected` (every intent's, since P0), `Local.Carries(role)` | Answers with the reason and its line; whether the player carries a building plan or a hammer |
-| The claim device's store | `Local.Open(device ID)`, then `Local.Loot` like a box |
+| The tool cupboard's store | `Local.Interact(claim.Ref, "open")`, then `Local.Loot` like a box |
 
 **Persistence** (schema 3, `BuildingCodec`). A row per piece, door and claim device in the `building` table, each a
 versioned binary record: a piece keeps its structure's frame in the body frame (so it comes back at the same place on
@@ -2473,10 +2475,10 @@ the right mouse button opens the plan's radial (the piece) or the hammer's (upgr
 the held tool's sources by its role in `BuildView` (§8.4); the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
 the doorway aimed through or a held lock on the door aimed at, or places the claim device on a foundation or floor;
 R turns the piece (or the door) a step. E opens and shuts doors (the door's own sound, `world.door-slam` when it
-shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's manner: digits, C, OK; the owner
-also sets a new code), and opens the claim device's store as a loot panel; held E offers a door's or the claim
-device's options (lock, unlock, change the code, cut a key, take the lock, pick up; authorise, deauthorise, clear the
-list, pick up: `OptionsMenu`, chosen with the mouse, let go to do it). Placements not yet answered show where they
+shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's manner: digits, C, OK; a fresh lock's
+owner sets it first), authorises at the tool cupboard and then opens its store as a loot panel; held E opens the radial
+of a door's, its lock's or the cupboard's options (lock, unlock, change the code, cut a key, take the lock, pick up;
+deauthorise, authorise the team, clear the list, pick up), since P1 one radial for everything (§8.4). Placements not yet answered show where they
 will stand; pieces placed nearby and upgraded (`world.upgrade.<grade>`) sound and show, and what is broken, brought down,
 demolished or decays breaks into its gibs (§9.4); the building rights where the player stands show on the HUD.
 
@@ -2605,7 +2607,8 @@ into a follow-up after the minute), and loots the body; the owner logs in dead t
 
 **Network** (protocol 6, `Messages.cs`):
 - *Intents* (the general sequence, answered by `IntentResult`): `ThrowIntent` (belt slot, item, view, lob), `PlaceChargeIntent`
-  (belt slot, item, view), `RearmIntent` (the explosive). Rockets go through `FireIntent` and `ReloadIntent` (§6.4).
+  (belt slot, item, view); a dud is lit again with the interaction's `relight` (P1; it was `RearmIntent`). Rockets go
+  through `FireIntent` and `ReloadIntent` (§6.4).
 - *Explosives* (`ExplosiveUpdate`, reliable, to everyone within 300 m when one appears and whenever it changes: thrown, bounced,
   stuck, at rest, a dud, lit again, moved with a door): its ID, item, owner, state (flying, resting, stuck), dud, the arc's start
   and velocity at a server tick, the surface's normal, the tick its fuse ends on and the fuse's length. `ExplosiveGone` when one
@@ -2622,7 +2625,7 @@ into a follow-up after the minute), and loots the body; the owner logs in dead t
 | `GameClient.ExplosiveChanged`, `ExplosiveRemoved` | One appeared or changed (a throw's whoosh, a bounce's clink, the stick of a charge, a fizzle when it turns `Dud`, a hiss when lit again), or went without a blast. |
 | `GameClient.Detonated` (`DetonationEvent`: position, normal, radius, item, target, round, owner), `GameClient.Detonations` | An explosion: flash, smoke, debris and dust by the item and radius (a round's small burst, a rocket's, a charge's), a shake and the sound by distance. |
 | `GameClient.Projectiles` | Rockets in flight are projectiles whose `Ammo` is a rocket: draw the rocket with its smoke trail. |
-| `Local.Throw(slot, yaw, pitch, lob)`, `Local.PlaceCharge(slot, yaw, pitch)`, `Local.Rearm(id)` | Intents; the item leaves the belt at once. `GameClient.Aim` → `InteractionKind.Rearm` on a dud ("E: Light Bag charge"), `Interact` lights it. |
+| `Local.Throw(slot, yaw, pitch, lob)`, `Local.PlaceCharge(slot, yaw, pitch)` | Intents; the item leaves the belt at once. On a dud the interact key's prompt says "E  LIGHT BAG CHARGE" and a tap lights it again (`relight`, GROUND_SYSTEMS.md §5). |
 | `Local.RaidAlerts` (`RaidAlertView`: base, where, first and last time, hits, broken, what, item, `WhileAway`), `Local.RaidAlertReceived` | Raid alerts: a notice and a sound when one comes; the list at login for those that waited. |
 | `RemoteEntity.Action == ActionKind.Throw` | Others' throws and placements, to animate. |
 
@@ -2775,10 +2778,10 @@ returns true, and the parking above is what happens without one.
 - **Everyone else** sees ships interpolated 100 ms behind (`RemoteShip`: the turn by slerp), with the hatch, the flags
   (piloted, landed, engines, boost, flight assist off, locked, in orbit, wrecked, asleep) and the thrust for the glow.
   Parked ships are static bodies in the client's own prediction physics too.
-- **Intents** (`ShipIntent`: hatch, board, exit, lock, refuel, descend; the general budget, answered by `IntentResult`).
-  The cargo opens with `OpenIntent` on the ship's ID; `LootState` and the container messages carry it like a box.
-  `GameClient.AimShip` says what the interact key would do at a ship (open or shut the hatch, board, refuel, open the
-  cargo); `Interact` does it.
+- **Intents** (`ShipIntent`: the seat's hatch, exit, lock and descend; the general budget, answered by `IntentResult`).
+  On foot a ship is targeted by its parts (hull, hatch, fuel cap, cargo) and E's verbs act on them (since P1,
+  GROUND_SYSTEMS.md §5): open and shut the hatch, board, refuel, lock and unlock (its owner), open the cargo, which
+  `LootState` and the container messages carry like a box.
 - The server's admin gives a player a ship (`ship <name>`: beside them, full, theirs, the hatch open);
   `ServerOptions.ShipOnJoin` gives every new character one (the load test).
 
@@ -2886,8 +2889,9 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
    `ShipControls.Mouse`, Z and X to `ShipControls.Key`), the camera from `ShipCamera.Follow` on the predicted state, and
    `ShipHud` in place of the belt and crosshair (fill `ShipHudData` as `ShipSandbox.FillHud` does); hide the viewmodel
    and the local body; F `Local.ExitShip()`, H `Local.ShipHatch`, L `Local.LockShip`, J `Local.Descend()`.
-3. On foot: `GameClient.AimShip(eye, direction)` for the prompt under the crosshair, E `Interact` (hatch, board, refuel,
-   cargo, which opens with the box screen); `IntentResult` refusals and `Notice` events as toasts.
+3. On foot: the interact key's one query and options (`GameClient.AimInteraction`, since P1) for the prompt under the
+   crosshair; E's verbs (hatch, board, refuel, cargo, which opens with the box screen); `IntentResult` refusals and
+   `Notice` events as toasts.
 4. Other pilots: a seated character (`Stance.Seated`) drawn sitting at the seat socket, or hidden.
 5. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
    `ShipEventKind.Destroyed`.
@@ -2902,9 +2906,9 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
   chase, V), with the blasts' shake; `ShipHud` replaces the belt, the vitals and the crosshair (`IGroundUi.Piloting`);
   the arms draw nothing; F steps out, H works the hatch, L the lock, J descends from orbit; E, R and Space belong to the
   ship (roll, nothing, rise).
-- On foot, `AimShip` gives the prompt under the crosshair ("E BOARD TIN FINCH", the hatch, "REFUEL", the cargo) after
-  the survival targets; E `Interact`s; the cargo opens in the loot panel like a box; refusals (locked, occupied, not
-  landed, the hatch shut) are toasts.
+- On foot, the prompt under the crosshair is the interaction's ("E  OPEN HATCH", "E  BOARD TIN FINCH", "E  REFUEL TIN
+  FINCH", the cargo) by the part aimed at; a tap of E does it, held E shows the rest; the cargo opens in the loot panel
+  like a box; refusals (locked, seat taken, not landed, the hatch shut) are the radial's reasons and toasts.
 - Seated pilots aren't drawn: the character contract (§4.8) has no sitting pose (§11 87).
 - The vehicle workbench is a deployable like any other; the crafting menu shows the Tin Finch's "VEHICLE WORKBENCH
   REQUIRED" (green within reach) and the client checks the station as the server does (`LocalPlayer.StationNear`);
@@ -3009,10 +3013,11 @@ to 24 characters; one taken off, or all. The map also shows where the player die
 all of it is the player's own, saved with the character.
 
 **Network** (protocol 9, `Messages.cs` 130–145):
-- *Intents* (the general sequence and budget, answered by `IntentResult`): `UnlockIntent` (a node's recipe),
-  `TeamIntent` (create; invite a player; accept or decline a team's invite; leave; kick or promote a member),
-  `MarkerIntent` (place, or take off by index, −1 all). Using a blueprint is G2's `UseIntent`, a recycler's switch and a
-  research's start G2's `ToggleIntent`, "authorise team" an action of `ClaimIntent` and `LockIntent`. New refusals:
+- *Intents* (the general sequence and budget, answered by `IntentResult`): `TeamIntent` (create; accept or decline a
+  team's invite; leave; kick or promote a member), `MarkerIntent` (place, or take off by index, −1 all). Since P1 a tech
+  tree's unlock (the station's `unlock`, the recipe its argument), a team invite (`invite`), a recycler's switch and a
+  research's start (`turn-on`, `turn-off`) and "authorise team" (`authorise-team`, `code-team`) are the interaction's
+  verbs (`InteractIntent`, GROUND_SYSTEMS.md §5); using a blueprint is an item action (P3). New refusals:
   `AlreadyKnown`, `Locked`, `InTeam`, `NotLeader`, `TeamFull`, `NoTeam`, `CantStart`.
 - *Public state*: world props are static things of kind `Prop` (`ThingSpawn`, `ThingUpdate`): a barrel's health, a
   recycler's running (the `Lit` flag), a research table's researching; crates and barrels despawn when gone and spawn
@@ -3034,16 +3039,16 @@ item of nothing is dropped.
 | Member | What |
 |---|---|
 | `Local.Blueprints`, `Local.Knows(recipe)`, `Local.CanCraft` | What the player knows (the server's, with unlocks not yet answered); crafting checks it |
-| `Local.CanUnlock(node)`, `Local.Unlock(recipe)` | A tech tree node: whether it can be unlocked now (known, locked, bench, salvage) and the intent (the salvage leaves and the blueprint is known at once) |
+| `Local.CanUnlock(node)`, `Local.Unlock(bench, recipe)` (`GameClient.BenchNear()`: the bench in reach) | A tech tree node: whether it can be unlocked now (known, locked, bench, salvage) and the intent (the salvage leaves and the blueprint is known at once) |
 | `Content.World.TechTrees`, `.NodeOf(recipe)`, `.Research`, `.Props`, `Economy.Research.Cost(content, recipe)` | The trees (node, cost, nodes before it, depth for the layout), research prices, the props |
 | `Local.Learn(from, slot)` | Reads a blueprint item (`Use`) |
-| `Local.Toggle(id)`, `Local.Machine` (`MachineView`) | A recycler on or off, a research started; the looted machine's running, progress, seconds left and what it researches |
+| `Local.Interact(machine, "turn-on")` / `"turn-off"`, `Local.Machine` (`MachineView`) | A recycler on or off, a research started; the looted machine's running, progress, seconds left and what it researches |
 | `Local.Team` (`TeamView`: members with name, online, leader, me), `Local.LeadsTeam`, `Local.TeamInvites`, `Local.Teammates` (`TeammateView`: position, yaw, awake, asleep, down or dead) | The team, its invites, where teammates are |
-| `Local.CreateTeam()`, `InviteToTeam(player)`, `AcceptInvite(team)`, `DeclineInvite(team)`, `LeaveTeam()`, `KickFromTeam(member)`, `PromoteInTeam(member)`, `GameClient.SendTeamChat(text)` | Team intents and chat (`ChatReceived` gives lines of kind `Team`) |
+| `Local.CreateTeam()`, `Interact(player, "invite")`, `AcceptInvite(team)`, `DeclineInvite(team)`, `LeaveTeam()`, `KickFromTeam(member)`, `PromoteInTeam(member)`, `GameClient.SendTeamChat(text)` | Team intents and chat (`ChatReceived` gives lines of kind `Team`) |
 | `GameClient.IsTeammate(id)` | For name tags (draw teammates' names, through walls) and the map |
 | `Local.Markers`, `Local.PlaceMarker(at, colour, label)`, `Local.RemoveMarker(index)`, `Local.DeathPoint`, `Local.RespawnPoints` | The map's own markers |
 | `GameClient.Props`, `RemoteThing.Prop(content)` | World props in range: barrels, crates, recyclers |
-| `GameClient.Aim` → `InteractionKind.Open` on crates and recyclers, `InviteToTeam` on a player close by (when leading a team) | The interact key |
+| `GameClient.AimInteraction`: OPEN on crates and recyclers, INVITE TO TEAM on a player close by (when leading a team) | The interact key (GROUND_SYSTEMS.md §5) |
 | `GameClient.Map` (`ZoneMap`: `Metres`, `Cells`, `ToMap`, `ToZone`, `GridName`, `CacheKey`, `Render(pixels)`) | The map and its picture |
 | Events: `Local.BlueprintLearned`, `TeamChanged`, `TeamInviteReceived`, `MapChanged` | For notices and sounds |
 
@@ -3522,7 +3527,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
   the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
   names are placed by the `Labeller`, so they never cover each other or a marker.
 - **Radials (§8.4):** the right mouse held with the plan or the hammer opens its radial at once; a key held for its hold
-  time opens its own (E: P1; R with a gun: its rounds and UNLOAD, P3), each the held item's control's. Release (or a left click) chooses; a key let go sooner
+  time opens its own (E: the options of what is aimed at, P1; R with a gun: its rounds and UNLOAD, P3, the held item's
+  control's); a radial takes the pointer, not the keys: the player walks while choosing (I15). Release (or a left click) chooses; a key let go sooner
   chooses the current option; Esc or the right mouse cancels. The plan's sectors start at −81° so the top ray falls
   between the foundation and the triangle roof; every other radial centres its first option at twelve o'clock.
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
@@ -3564,7 +3570,7 @@ of menu (decisions Q1–Q9).
 |---|---|---|
 | Contract | `game/scripts/UI/Model/RadialTypes.cs` (plain C#) | `RadialOption`: icon, title, description, cost line, the reason it can't be chosen, or a warning that doesn't stop it. `RadialIcon`: a glyph's name or an item's key. `IRadialSource`: the options clockwise, the current one, `SplitAtTop`, `Choose(index)`, `Cancel()`. `RadialBinding`: a held input, its hold time, what it opens now. `RadialInput`: aim, interact, reload. `RadialMenu`: a source of options that each carry what choosing them does, listed again whenever read. |
 | Control | `game/scripts/UI/GroundUi.Radial.cs` | The drawing, the pointer's choice, the one way of opening from any binding; `OpenRadial`, `CloseRadial`, `RadialPoint` for the viewer, the sandbox and scripted runs. |
-| Glyphs | `game/scripts/UI/RadialGlyphs.cs` | RustMVP's outlines by name: every building piece under its building.json key, `upgrade`, `rotate`, `demolish`, `door`, `lock`, `unlock`, `keypad`, `pick-up`. |
+| Glyphs | `game/scripts/UI/RadialGlyphs.cs` | RustMVP's outlines by name: every building piece under its building.json key, `upgrade`, `rotate`, `demolish`, `door`, `lock`, `unlock`, `keypad`, `pick-up`; ours in their manner for the rest of interactions.json's verbs (`open`, `loot`, `pick`, `fire`, `put-out`, `power`, `power-off`, `door-shut`, `remove-lock`, `key`, `team`, `authorise`, `deauthorise`, `clear-list`, `tech-tree`, `help-up`, `hatch`, `board`, `fuel`) and P3's `unload`. |
 | Building sources | `game/scripts/Build/BuildingRadials.cs` | `PlanRadial` (building.json's wheel and the chosen piece) and `BuildingRadials.Hammer` (upgrade to each grade, rotate, demolish, on the piece aimed at), written once: the game's `BuildView` acts through intents, the build sandbox through the rules (`IHammerActions`). |
 | Samples | `game/scripts/UI/Model/MockGroundUi.Radials.cs` | The plan and the hammer, a door with a fresh code lock (E), the pistol's rounds (R). |
 
@@ -3584,9 +3590,10 @@ opened, the press was a tap: the source's current option is chosen (E's primary 
 round). Esc or the right mouse cancels, and the held input's release then does nothing; a left click chooses; another
 screen, death, or a release the window never saw (it lost focus) cancels.
 
-**In the game** (`ClientGroundUi`): one binding so far, the right mouse, opening `BuildView.HeldRadial`, the held building
-tool's source looked up by its role. P1 adds E's binding (the options on what is aimed at) and P3 R's (a gun's rounds);
-`OptionsMenu`, the held-E list, stays until P1 moves it onto the radial.
+**In the game** (`ClientGroundUi`): three bindings. The right mouse opens the held item's radial at once (the plan's
+pieces, the hammer's work) and R held a gun's rounds (P3, the held item's control's); E held for interactions.json's
+0.35 s opens the options of what was aimed at when it went down (P1, GROUND_SYSTEMS.md §5: `InteractionRadial`, read
+again every frame from where the player walks), a tap doing the primary one. `OptionsMenu`, the held-E list, is gone.
 
 **Viewer:** `--screen wheel`, `hammer`, `options` (the sample door, the pointer on LOCK: "Set a code first") and `ammo`;
 interactively, on the HUD, the right mouse opens the held plan's or hammer's radial, E held the door's options, R held
@@ -4912,7 +4919,8 @@ confirm or overturn (numbered U1 on):
   stacks of the same item first): the owner's request, built as one service (`Zone.Spill`) that every source calls, a
   drop, a craft, a refund or a gift that doesn't fit, a broken container's contents, a broken research table's work.
   Spent arrows that can be picked up again go into bags too, so one rule holds everywhere (Rust leaves them lying as
-  arrows; say if they should come back). The dead's backpack (a body after 150 s) stays as it was.
+  arrows; say if they should come back). *The owner brought them back on 13 October 2026: since P1 they stick where they
+  hit (GROUND_SYSTEMS.md §5, I9).* The dead's backpack (a body after 150 s) stays as it was.
 - U2. **A bag has 48 slots** (a large box's): whatever one container spills is one bag, as Rust's one pouch, and a whole
   inventory (37 slots) fits. Its time is the dropped items' 300 s of world time, counted from the newest item put in;
   it is take only, as Rust's dropped containers are, and goes once emptied.
@@ -5310,3 +5318,81 @@ overturn (numbered O1 on):
   variants on first use (about 5 ms each); a shader baker (exported games only) or fewer distinct materials would cut it.
 - O16. **`--in-process` hosting still builds its server on the main thread** before the first frame (tests and the screenshot
   run's statistics), so it has no `server` stage.
+
+Decisions taken for interaction (GROUND_SYSTEMS.md §5, package P1) without the owner, to confirm or overturn (numbered I1
+on):
+
+- I1. **Each verb is one handler's, found by its number.** interactions.json lists the verbs (hashed, append only: an
+  entry's index is its number on the wire). A capability's handler names its verbs by key and finds what one does in a
+  table (`VerbActions`), never by testing which verb it was given; the verbs' registry stops the start for a verb without
+  a handler, one with two, or a handler's verb the data lacks. Where two things do alike by different rules, each has
+  its own verb under the same label: a door's, the cupboard's and a deployable's PICK UP (`door-pick-up`,
+  `cupboard-pick-up`, `retrieve`), a key lock's and a code lock's LOCK and UNLOCK.
+- I2. **A tap does the primary option, and priorities are data.** Of the options their handlers mark primary, a tap does
+  the first by priority that can be done, else says why the first can't, else nothing (held E shows them all). So a
+  fresh code lock's owner sets its code before opening the door; a stranger at a coded, locked door enters the code; a
+  stranger at the cupboard authorises, and one on its list opens its store; a workbench opens its tech tree; a player
+  down is helped up (held E loots them); a fire, furnace, recycler or research table opens (held E lights, puts out,
+  turns on or off); a bag of one stack is picked up and one of more opens (held E takes it all).
+- I3. **People are looted, the rest opened**, as the old prompts were: LOOT on a sleeper, a player down or a body
+  ("Ada's body", "Ada (asleep)"), OPEN on boxes, bags, crates, devices, the cupboard and a ship's cargo. A verb may
+  leave the thing's name out of its prompt (`named: false`: SET CODE, ENTER CODE, CHANGE CODE, OPEN TECH TREE, OPEN
+  HATCH, CLOSE HATCH).
+- I4. **Two new answers**, before P3's gun codes (100 on): Seated (73, "Not from the seat"), the gate for one in a
+  ship's seat, and NotEmpty (74, "Empty it first"), a deployable picked up with something in it. The wounded and the
+  dead fail a verb's gates with Dead, as their other actions do.
+- I5. **A panel's verb never reaches the server**: the tech tree is the interface's to open. Its unlocks are the
+  station's `unlock` (not in the radial), the recipe as the verb's number, sent to the best bench in reach
+  (`GameClient.BenchNear`), whose level the server checks as crafting does. `UnlockIntent` (130) is gone.
+- I6. **A team invite is the leader's interact key alone** (on an awake player within `reach.invite` who isn't a
+  teammate; TEAM FULL shown disabled), and ENTER CODE is offered only at a coded, locked door (an unlocked one just
+  opens). `TeamAction.Invite` is gone; accepting, leaving, kicking and promoting stay `TeamIntent`.
+- I7. **Picking up says why not in the radial**: a door without a lock until it is open (OpenItFirst), and a deployable
+  until it is empty (NotEmpty), each only where the player may build (BuildingBlocked); every deployable may be picked
+  up (deployables.json `pickup` on all eleven, GROUND_SYSTEMS.md §11.3). The building's own rules still decide on the
+  server.
+- I8. **A ship is targeted by its parts** (`ShipParts`: hull, hatch, fuel cap, and the cargo while the hatch is open;
+  ships.json `sockets.cargo`), small spheres at their sockets, reached by the one reach rule with each verb's reach:
+  ships.json's `reach` and the ship's slack are gone. At the hull or the hatch E opens the hatch, then boards; at the
+  fuel cap it refuels; the owner locks and unlocks from the radial. The seated pilot's keys stay `ShipIntent` (the
+  hatch, stepping out, the lock, descending).
+- I9. **Spent arrows stick when they stay whole.** items.json's `recover` (the arrow's 0.5: Rust's arrows break now and
+  then) still decides; one that stays sticks in whatever it hit, its tip survival.json's `arrows.depth` (0.1 m) in along
+  its flight, held where it hit as the shooter saw it (a body's bone, a door's leaf). At most `arrows.most` (600) in a
+  zone, the oldest going first; they last `lifetimes.arrow` (300 s) and aren't saved (a restart clears them). When what
+  holds one goes (a tree felled, a box broken, a player dead) it falls to the floor or ground below and lies there along
+  its flight. A dead player's body is the client's ragdoll, with no bones on the server, so arrows don't stay in it, and
+  arrows meet deployables, not bodies on the ground: one shot at a body sticks in the ground under it.
+- I10. **Arrows go to clients in their holder's frame** (`ArrowStates` 211: the holder's `TargetRef` and the tip's pose
+  there, in batches of 64; `ArrowsGone` 212), each player told of those within the relevance radius as they come in and
+  again when one falls; a client places each where its holder is every frame and draws them as one multimesh (the
+  first 512 within 60 m, no shadow). One in the player's own body isn't drawn.
+- I11. **A door's target includes its opening, and an open doorway hides nothing.** A hit along the interact key's ray says
+  what it is to the view: something to act on, a backdrop (the ground, the building's pieces, trees and rocks, animals)
+  or an open door's opening. Through an open doorway the view goes on, and the door is what E meets there only when
+  nothing beyond is to act on: a box just inside or a player down in the doorway are aimed at through it, while the
+  far wall, the floor or nothing leave the door, so a rolled-up garage door is shut by looking through it. A hit on a
+  leaf names the leaf as its part.
+- I12. **Facts, not objects, drive the offers**: what a handler sees of a thing (`TargetFacts`) comes from its family on
+  the server and from the replicas on a client, so a client offers what the server does; things now tell clients their
+  capabilities (`ThingSpawn.Capabilities`, a varint mask). The client leaves out the options whose verb doesn't reach
+  the thing's nearest surface from the eye, which the server would refuse; sight it judges by the one query (walls stop
+  it).
+- I13. **Capability slips fixed on the way**: the machine capability is the recycler's and the research table's alone
+  (P0 gave it to any deployable with slots and no device, which would have offered TURN ON on a box); a world prop
+  without slots holds nothing (a barrel is broken, not opened); the cupboard has its store's `container` (its store
+  opens to anyone there, §6.5).
+- I14. **The prompt**: "E  OPEN WOODEN DOOR" (the primary verb and the thing's name), the reason when the tap can't be
+  done ("E  LOCKED"), only the name when a tap does nothing, and the hold hint when the radial has more than one
+  option. The radial's options carry their verb's glyph (ours in RustMVP's manner where it had none), label and line,
+  and a disabled one its reason; a code verb asks the keypad, titled with the verb's label, before it is sent.
+- I15. **A radial doesn't stop walking** (RustMVP's): a screen (inventory, crafting, map, menu) and chat take the keys; a
+  radial takes the pointer and the mouse buttons only (`GroundUi.TakesKeys`), one rule for E's, R's, the plan's and the
+  hammer's.
+- I16. **The claim device is the Tool Cupboard wherever a player reads it** (items.json, building.json, texts.json, the
+  build sandbox and the mock interface); the code's names stay for the rename after the merges.
+- I17. **Numbers taken in shared spaces:** protocol 18 (P3 took 17); messages 210 (`InteractIntent`), 211
+  (`ArrowStates`) and 212 (`ArrowsGone`); 56, 58, 60, 66, 112 and 130 free; `TargetFamily.Arrow` (11); answers 73 and
+  74; capabilities.json's `pickup`, `portable`, `station`, `wounded`, `character`, `dud` and `arrow`; interactions.json;
+  survival.json's `arrows` and `lifetimes.arrow`; ships.json's `sockets.cargo` (its `reach` gone); deployables.json's
+  `pickup`.
