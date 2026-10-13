@@ -169,7 +169,7 @@ public sealed partial class GameServer : IPlayerPresence
             NormalY = e.Velocity.Y,
             NormalZ = e.Velocity.Z,
             Radius = Math.Clamp(e.Amount, 0, 20),
-            Target = e.Target,
+            Target = e.Target.Family,
             Round = e.Flag,
         }.WriteMessage(_writer);
         float hearing = 2 * _options.RelevanceRadius;

@@ -7,7 +7,7 @@ namespace HollowUniverse.UI;
 /// <summary>
 /// The radial menu's outline glyphs (RustMVP's own perspective outlines, from SBareRoot.cpp), by name: every building
 /// piece under its key in building.json, the hammer's <c>upgrade</c>, <c>rotate</c> and <c>demolish</c>, and the
-/// interaction's <c>door</c>, <c>lock</c>, <c>unlock</c>, <c>keypad</c> and <c>pick-up</c>. Each is a set of polylines in
+/// interaction's <c>door</c>, <c>lock</c>, <c>unlock</c>, <c>keypad</c> and <c>pick-up</c>, and a gun's <c>unload</c>. Each is a set of polylines in
 /// units where the glyph spans about −1 to 1; the radial scales, places and strokes them at their final size, so they
 /// stay crisp at any interface scale. A name the table doesn't know draws a plain ring, so a missing glyph shows.
 /// </summary>
@@ -81,6 +81,10 @@ public static class RadialGlyphs
         Glyph("keypad", keypad.ToArray());
         Glyph("pick-up", S(-.72f, .1f, 0, .5f, .72f, .1f, .72f, .75f, 0, 1f, -.72f, .75f, -.72f, .1f), S(0, .25f, 0, -.9f),
             S(-.35f, -.5f, 0, -.9f, .35f, -.5f));
+
+        // A gun's rounds (GROUND_SYSTEMS.md §7): a magazine with rounds in it, an arrow out of its foot (UNLOAD).
+        Glyph("unload", S(-.42f, -.95f, .3f, -.95f, .42f, .25f, -.3f, .25f, -.42f, -.95f), S(-.25f, -.6f, .2f, -.6f), S(-.2f, -.25f, .25f, -.25f),
+            S(0, .4f, 0, .98f), S(-.28f, .7f, 0, .98f, .28f, .7f));
         return table;
     }
 

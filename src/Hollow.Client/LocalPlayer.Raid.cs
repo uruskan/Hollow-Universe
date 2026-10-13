@@ -48,7 +48,7 @@ public sealed partial class LocalPlayer
     public uint Rearm(EntityId explosive) => Intend(null, w => new RearmIntent { Seq = _nextSeq, Target = explosive.Value }.WriteMessage(w));
 
     private bool TakeThrowable(int slot, ushort expected) =>
-        Content.Item(expected)?.Throwable != null && InventoryRules.Remove(Inventory.Belt, slot, 1, expected, out _) == Simulation.ActionResult.Accepted;
+        Content.Item(expected)?.Throwable != null && InventoryRules.Remove(Inventory.Belt, slot, 1, expected, out _) == Simulation.OutcomeCode.Done;
 
     internal void OnRaidAlert(in RaidAlertNet a, bool whileAway)
     {

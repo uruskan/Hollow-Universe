@@ -17,21 +17,21 @@ public static class InventoryRules
     /// two (only when moving the whole stack). <paramref name="expected"/> is the item the client saw in the source (0:
     /// don't check).
     /// </summary>
-    public static ActionResult Move(GameContent content, Container from, int fromSlot, Container to, int toSlot, int amount, ushort expected = 0)
+    public static Outcome Move(GameContent content, Container from, int fromSlot, Container to, int toSlot, int amount, ushort expected = 0)
     {
         if (!from.InRange(fromSlot) || !to.InRange(toSlot) || amount < 0 || (from == to && fromSlot == toSlot))
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         ItemStack source = from[fromSlot];
         if (source.IsEmpty || (expected != 0 && source.Item != expected) || amount > source.Count)
         {
-            return ActionResult.Stale;
+            return OutcomeCode.Stale;
         }
         ItemDef? item = content.Item(source.Item);
         if (item == null)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         int moving = amount == 0 ? source.Count : amount;
         ItemStack target = to[toSlot];
@@ -40,69 +40,69 @@ public static class InventoryRules
             ItemStack moved = source.WithCount(moving);
             if (!to.Accepts(content, toSlot, moved, from == to ? fromSlot : -1))
             {
-                return ActionResult.NotAllowed;
+                return OutcomeCode.NotAllowed;
             }
             source.Count -= moving;
             from.Set(fromSlot, source);
             to.Set(toSlot, moved);
-            return ActionResult.Accepted;
+            return OutcomeCode.Done;
         }
         if (target.Item == source.Item && target.Condition == source.Condition && item.StackSize > 1)
         {
             int room = item.StackSize - target.Count;
             if (room <= 0)
             {
-                return ActionResult.NoSpace;
+                return OutcomeCode.NoSpace;
             }
             if (!to.Accepts(content, toSlot, new ItemStack(source.Item, Math.Min(item.StackSize, target.Count + 1), source.Condition)))
             {
-                return ActionResult.NotAllowed;
+                return OutcomeCode.NotAllowed;
             }
             int n = Math.Min(room, moving);
             target.Count += n;
             source.Count -= n;
             to.Set(toSlot, target);
             from.Set(fromSlot, source);
-            return ActionResult.Accepted;
+            return OutcomeCode.Done;
         }
         // A different item (or two of a kind that doesn't stack): swap, whole stacks only.
         if (moving != source.Count)
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         if (!to.Accepts(content, toSlot, source, from == to ? fromSlot : toSlot) ||
             !from.Accepts(content, fromSlot, target, from == to ? toSlot : fromSlot))
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         to.Set(toSlot, source);
         from.Set(fromSlot, target);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>
     /// Moves as much of a slot as fits into <paramref name="targets"/>, in order: first onto stacks of the same item,
     /// then into empty slots that take it (Rust's quick move, and how picked-up items land). What doesn't fit stays.
     /// </summary>
-    public static ActionResult QuickMove(GameContent content, Container from, int fromSlot, IReadOnlyList<Container> targets, ushort expected = 0)
+    public static Outcome QuickMove(GameContent content, Container from, int fromSlot, IReadOnlyList<Container> targets, ushort expected = 0)
     {
         if (!from.InRange(fromSlot))
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         ItemStack source = from[fromSlot];
         if (source.IsEmpty || (expected != 0 && source.Item != expected))
         {
-            return ActionResult.Stale;
+            return OutcomeCode.Stale;
         }
         int left = AddTo(content, targets, source, from);
         if (left == source.Count)
         {
-            return ActionResult.NoSpace;
+            return OutcomeCode.NoSpace;
         }
         source.Count = left;
         from.Set(fromSlot, source);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>
@@ -166,23 +166,23 @@ public static class InventoryRules
     }
 
     /// <summary>Takes <paramref name="amount"/> (0: all) out of a slot, for dropping it; the stack taken, or none.</summary>
-    public static ActionResult Remove(Container from, int slot, int amount, ushort expected, out ItemStack taken)
+    public static Outcome Remove(Container from, int slot, int amount, ushort expected, out ItemStack taken)
     {
         taken = default;
         if (!from.InRange(slot) || amount < 0)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         ItemStack source = from[slot];
         if (source.IsEmpty || (expected != 0 && source.Item != expected) || amount > source.Count)
         {
-            return ActionResult.Stale;
+            return OutcomeCode.Stale;
         }
         int n = amount == 0 ? source.Count : amount;
         taken = source.WithCount(n);
         source.Count -= n;
         from.Set(slot, source);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>How many of an item the containers hold.</summary>

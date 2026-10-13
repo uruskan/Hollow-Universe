@@ -366,6 +366,16 @@ public sealed class BuildingData
 
     public string MaterialName(string key) => _materialNames.TryGetValue(key, out string? name) ? name : key;
 
+    /// <summary>
+    /// The item a material is (its ID, for an answer's line: "Not enough wood"), linked when the game data is read
+    /// (<c>GameContent</c>); 0 for building data read on its own.
+    /// </summary>
+    public int MaterialItem(string key) => _materialItems.TryGetValue(key, out int item) ? item : 0;
+
+    internal void LinkMaterial(string key, int item) => _materialItems[key] = item;
+
+    private readonly Dictionary<string, int> _materialItems = new(StringComparer.Ordinal);
+
     /// <summary>A grade by key, or null.</summary>
     public GradeDef? Grade(string key) => Grades.FirstOrDefault(g => g.Key == key);
 

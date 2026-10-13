@@ -9,6 +9,7 @@ using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation;
 
@@ -16,7 +17,8 @@ namespace Hollow.Simulation;
 // inventory, a finished craft, a refund or a gift that doesn't fit, a broken box's, furnace's or barrel's contents, a
 // spent arrow. Spill packs it into the bag lying nearest within survival.json's bag.mergeRadius that has room, else into
 // a new bag where it comes to rest, so what lands together is one bag (Rust's loot bag). A bag is a DroppedContainer:
-// take only, gone once emptied, otherwise droppedItemSeconds after the newest item went in.
+// take only, with the bag's lifetime (survival.json lifetimes.bag, GROUND_SYSTEMS.md §3.7): gone once emptied, otherwise
+// its seconds after the newest item went in.
 public sealed partial class Zone
 {
     /// <summary>A dropped stack lands this far ahead of the character's feet (less before a wall).</summary>
@@ -138,14 +140,14 @@ public sealed partial class Zone
         {
             return null;
         }
-        long until = Tick + (long)(content.Survival.DroppedItemSeconds * CharacterMotor.TickRate);
+        LifetimeRule lifetime = content.Survival.BagLifetime;
         BagsNear(rest, content.Survival.BagMergeRadius, _bagsNear);
         int left = stack.Count;
         DroppedBag? last = null;
         foreach (DroppedBag bag in _bagsNear)
         {
             int before = left;
-            left = Fill(bag, stack.WithCount(left), until);
+            left = Fill(bag, stack.WithCount(left));
             last = left < before ? bag : last;
             if (left == 0)
             {
@@ -155,10 +157,11 @@ public sealed partial class Zone
         while (left > 0)
         {
             EntityId id = NextId();
-            var bag = new DroppedBag(id, content.Survival.BagName, content.Survival.BagSlots, rest, Frame.UpAt(rest), yaw ?? BagYaw(id), until);
+            var bag = new DroppedBag(id, content.Survival.BagName, content.Survival.BagSlots, rest, Frame.UpAt(rest), yaw ?? BagYaw(id), lifetime,
+                Tick + lifetime.Ticks);
             AddStatic(bag);
             int before = left;
-            left = Fill(bag, stack.WithCount(left), until);
+            left = Fill(bag, stack.WithCount(left));
             last = bag;
             if (left == before)
             {
@@ -168,14 +171,15 @@ public sealed partial class Zone
         return last;
     }
 
-    // What fits of a stack goes into a bag (onto stacks of it, then empty slots), and its time starts again. Returns what is left.
-    private int Fill(DroppedBag bag, ItemStack stack, long until)
+    // What fits of a stack goes into a bag (onto stacks of it, then empty slots), and its time starts again (its lifetime
+    // restarts on a deposit). Returns what is left.
+    private int Fill(DroppedBag bag, ItemStack stack)
     {
         _oneBag[0] = bag.Loot;
         int left = InventoryRules.AddTo(Content!, _oneBag, stack, byPlayer: false);
         if (left < stack.Count)
         {
-            bag.DespawnTick = until;
+            Restart(bag, LifetimeRestart.Deposit);
             bag.PublishChanges();
         }
         return left;
@@ -184,14 +188,13 @@ public sealed partial class Zone
     // A bag's turn when nothing gives one (a broken box's contents, an arrow): its own, so bags don't all lie alike.
     private static float BagYaw(EntityId id) => id.Value % 628 / 100f;
 
-    /// <summary>Bags lying within <paramref name="radius"/> of a point, nearest first.</summary>
+    /// <summary>Bags lying within <paramref name="radius"/> of a point, nearest first (looked for among the loose things alone).</summary>
     public void BagsNear(Vector3 point, float radius, List<DroppedBag> into)
     {
         into.Clear();
-        ComponentPool<StaticLink> pool = Entities.Pool<StaticLink>();
-        for (int i = 0; i < pool.Count; i++)
+        foreach (ILifetime thing in _loose)
         {
-            if (pool.Values[i].Object is DroppedBag bag && Vector3.DistanceSquared(bag.Position, point) <= radius * radius)
+            if (thing is DroppedBag bag && Vector3.DistanceSquared(bag.Position, point) <= radius * radius)
             {
                 into.Add(bag);
             }
@@ -199,12 +202,17 @@ public sealed partial class Zone
         into.Sort((a, b) => Vector3.DistanceSquared(a.Position, point).CompareTo(Vector3.DistanceSquared(b.Position, point)));
     }
 
-    // A body or a bag whose last stack its looter took goes at once, and the looter's panel with it.
-    private ActionResult TookFrom(Player p, ActionResult result)
+    // What a looter took from shows others its count (a bag's stacks) at once; a loose thing (a body, a bag) whose last
+    // stack they took goes at once if its lifetime ends it so (GROUND_SYSTEMS.md §3.7), and the looter's panel with it.
+    private Outcome TookFrom(Player p, Outcome result)
     {
-        if (result == ActionResult.Accepted && LootTarget(p).Thing is DroppedContainer { Loot.IsEmpty: true } emptied)
+        if (!result.Ok || LootTarget(p).Thing is not { } looted)
         {
-            RemoveStatic(emptied);
+            return result;
+        }
+        looted.PublishChanges();
+        if (looted is ILifetime loose && EndIfEmptied(loose))
+        {
             p.Looting = EntityId.None;
             p.LootRevision++;
         }

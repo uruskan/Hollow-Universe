@@ -29,7 +29,11 @@ public sealed partial class GameContent
         "building.json", "explosives.json",
         "ships.json", "world.json", "animals.json",
         "surfaces.json",
+        "capabilities.json",
     };
+
+    /// <summary>Files read with the rest but not part of <see cref="Hash"/>: the player's lines (a translation may differ).</summary>
+    public static readonly string[] Unhashed = { Content.Texts.File };
 
     private readonly ItemDef?[] _byId;
     private readonly Dictionary<string, ItemDef> _byKey;
@@ -63,8 +67,12 @@ public sealed partial class GameContent
         Survival = loaded.Survival;
         PlacementReach = loaded.PlacementReach;
         PlacementMaxStep = loaded.PlacementMaxStep;
+        WorkbenchSpeed = loaded.WorkbenchSpeed;
         Hash = loaded.Hash;
         Problems = loaded.Problems;
+        Texts = loaded.Texts!;
+        Capabilities = loaded.Capabilities ?? new CapabilityData(Array.Empty<string>());
+        ItemActions = loaded.Actions ?? global::Hollow.Simulation.Items.ItemActions.Bind(Array.Empty<global::Hollow.Simulation.Items.ItemActionDef>(), new List<string>());
         Building = loaded.Building ?? BuildingData.Parse("{}");
         ClaimDeployable = loaded.ClaimDeployable ?? new DeployableDef { Key = "claim-device", Item = new ItemDef { Key = "claim-device" }, Health = 200, Slots = 24 };
         _byId = new ItemDef?[ushort.MaxValue + 1];
@@ -175,6 +183,12 @@ public sealed partial class GameContent
 
     public float PlacementMaxStep { get; }
 
+    /// <summary>
+    /// How much of a recipe's time a job takes by how many levels the best workbench in reach is above the recipe's
+    /// (recipes.json <c>workbenchSpeed</c>, GROUND_SYSTEMS.md §7: Rust's 1, ½, ¼); the last holds for more.
+    /// </summary>
+    public IReadOnlyList<double> WorkbenchSpeed { get; }
+
     /// <summary>A hash of every file's text (line ends normalised): the server and client must have the same.</summary>
     public ulong Hash { get; }
 
@@ -183,6 +197,18 @@ public sealed partial class GameContent
 
     /// <summary>The claim device as the zone keeps it: a deployable whose storage is its upkeep store (never placed on the ground).</summary>
     public DeployableDef ClaimDeployable { get; }
+
+    /// <summary>The player's lines for every answer (texts.json, GROUND_SYSTEMS.md §3.2).</summary>
+    public Texts Texts { get; }
+
+    /// <summary>The kinds of behaviour world things have, and which have which (capabilities.json, GROUND_SYSTEMS.md §2.1).</summary>
+    public CapabilityData Capabilities { get; }
+
+    /// <summary>
+    /// The inventory's buttons (items.json <c>actions</c>, GROUND_SYSTEMS.md §7) and their handlers: what a stack offers
+    /// and doing one, on the server and in the client's prediction.
+    /// </summary>
+    public global::Hollow.Simulation.Items.ItemActions ItemActions { get; }
 
     /// <summary>Everything wrong with the files: empty when they are good. <see cref="Load"/> refuses any.</summary>
     public IReadOnlyList<string> Problems { get; }
@@ -240,7 +266,7 @@ public sealed partial class GameContent
     public static GameContent Read(string folder)
     {
         var texts = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (string file in Files)
+        foreach (string file in Files.Concat(Unhashed))
         {
             string path = Path.Combine(folder, file);
             texts[file] = File.Exists(path) ? File.ReadAllText(path) : "";
@@ -283,12 +309,47 @@ public sealed partial class GameContent
         loaded.Hash = hash;
         var reader = new ContentReader(new JsonFields(problems), documents, loaded);
         reader.ReadAll();
+        loaded.Texts = ReadTexts(texts.GetValueOrDefault(Content.Texts.File) ?? "", loaded, problems);
         LinkBuilding(texts.GetValueOrDefault("building.json") ?? "", documents["building.json"], loaded, problems);
         Validation.Check(loaded, problems);
         ExplosivesReader.Check(loaded, loaded.Building, problems);
         WorldReader.Check(loaded, problems);
         AnimalsReader.Check(loaded, problems);
+        // Every file linked: each item's parts and its one held behaviour, and the inventory's actions bound to their
+        // handlers (GROUND_SYSTEMS.md §7).
+        ItemPartTable.Assign(loaded, problems);
+        loaded.Actions = global::Hollow.Simulation.Items.ItemActions.Bind(loaded.ItemActions, problems);
         return new GameContent(loaded);
+    }
+
+    // The player's lines (texts.json): read like the rest, outside the hash.
+    private static Texts ReadTexts(string text, Loaded loaded, List<string> problems)
+    {
+        var names = new Dictionary<int, string>();
+        foreach (ItemDef item in loaded.Items)
+        {
+            names.TryAdd(item.Id, item.Name);
+        }
+        string? NameOf(int id) => names.GetValueOrDefault(id);
+        if (text.Length == 0)
+        {
+            problems.Add($"{Content.Texts.File}: missing or empty");
+            return Content.Texts.Read(new JsonFields(problems), default, NameOf);
+        }
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(text, new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+            });
+            return Content.Texts.Read(new JsonFields(problems), document.RootElement.Clone(), NameOf);
+        }
+        catch (JsonException e)
+        {
+            problems.Add($"{Content.Texts.File}: not valid JSON ({e.Message})");
+            return Content.Texts.Read(new JsonFields(problems), default, NameOf);
+        }
     }
 
     // building.json (GROUND.md §6.3) has its own reader; its items are linked here: a door item to its door, and the
@@ -343,7 +404,11 @@ public sealed partial class GameContent
         Expect(data.KeyItem, BuildingRole.Key, "the key");
         foreach (string material in data.Materials)
         {
-            if (!byKey.ContainsKey(material))
+            if (byKey.TryGetValue(material, out ItemDef? item))
+            {
+                data.LinkMaterial(material, item.Id);
+            }
+            else
             {
                 problems.Add($"building.json: material \"{material}\" is not an item");
             }
@@ -416,6 +481,11 @@ public sealed partial class GameContent
         public SurvivalTuning Survival = new();
         public BuildingData? Building;
         public DeployableDef? ClaimDeployable;
+        public Texts? Texts;
+        public CapabilityData? Capabilities;
+        public List<global::Hollow.Simulation.Items.ItemActionDef> ItemActions = new();
+        public IReadOnlyList<double> WorkbenchSpeed = new[] { 1.0 };
+        public global::Hollow.Simulation.Items.ItemActions? Actions;
         public float PlacementReach = 3f;
         public float PlacementMaxStep = 0.6f;
         public ulong Hash;
@@ -430,6 +500,7 @@ public sealed partial class GameContent
 
         public void ReadAll()
         {
+            ReadCapabilities();
             ReadCategories();
             ReadItems();
             ReadRecipes();
@@ -464,6 +535,30 @@ public sealed partial class GameContent
             return null;
         }
 
+        // capabilities.json: the capabilities' keys, in their append-only order (at most 64: a thing's set is one word).
+        private void ReadCapabilities()
+        {
+            const string file = CapabilityData.File;
+            JsonElement root = Root(file, "capabilities");
+            var keys = new List<string>();
+            foreach ((JsonElement e, int i) in f.List(root, "capabilities", file).Select((e, i) => (e, i)))
+            {
+                string where = $"{file}: capabilities[{i}]";
+                f.OnlyKnown(e, where, "key", "note");
+                string key = f.Text(e, "key", where);
+                if (keys.Contains(key))
+                {
+                    f.Problem(where, $"\"{key}\" is in the list twice");
+                }
+                keys.Add(key);
+            }
+            if (keys.Count > Hollow.Simulation.Capabilities.CapabilitySet.Most)
+            {
+                f.Problem(file, $"at most {Hollow.Simulation.Capabilities.CapabilitySet.Most} capabilities");
+            }
+            loaded.Capabilities = new CapabilityData(keys);
+        }
+
         private void ReadCategories()
         {
             JsonElement root = Root("categories.json", "categories");
@@ -477,7 +572,8 @@ public sealed partial class GameContent
 
         private void ReadItems()
         {
-            JsonElement root = Root("items.json", "items");
+            JsonElement root = Root("items.json", "actions", "items");
+            ReadItemActions(root);
             JsonElement[] list = f.List(root, "items", "items.json");
             // Keys first, so references between items (fuel byproducts, cooking) resolve in any order.
             var drafts = new List<(ItemDef Item, JsonElement Element, string Where)>();
@@ -535,6 +631,17 @@ public sealed partial class GameContent
                 {
                     item.Bow.Ammo = item.Bow.AmmoKeys.Select(k => Resolve(k, where + ".bow.ammo")).OfType<ItemDef>().ToArray();
                 }
+            }
+        }
+
+        // items.json's actions (GROUND_SYSTEMS.md §7): the inventory's buttons, append only (a place is a wire number).
+        private void ReadItemActions(JsonElement root)
+        {
+            foreach ((JsonElement e, int i) in f.List(root, "actions", "items.json").Select((e, i) => (e, i)))
+            {
+                string where = $"items.json: actions[{i}]";
+                f.OnlyKnown(e, where, "key", "label", "note");
+                loaded.ItemActions.Add(new global::Hollow.Simulation.Items.ItemActionDef(i, f.Text(e, "key", where), f.Text(e, "label", where)));
             }
         }
 
@@ -674,7 +781,21 @@ public sealed partial class GameContent
 
         private void ReadRecipes()
         {
-            JsonElement root = Root("recipes.json", "recipes");
+            JsonElement root = Root("recipes.json", "workbenchSpeed", "recipes");
+            if (f.TryChild(root, "workbenchSpeed", out JsonElement speed))
+            {
+                const string where = "recipes.json: workbenchSpeed";
+                f.OnlyKnown(speed, where, "note", "byLevelsAbove");
+                var factors = f.List(speed, "byLevelsAbove", where).Select(e => e.ValueKind == JsonValueKind.Number ? e.GetDouble() : double.NaN).ToList();
+                if (factors.Count == 0 || factors[0] != 1 || factors.Any(x => !(x > 0 && x <= 1)) || factors.Zip(factors.Skip(1)).Any(p => p.Second > p.First))
+                {
+                    f.Problem(where, "byLevelsAbove starts at 1 and only falls, every factor in (0, 1]");
+                }
+                else
+                {
+                    loaded.WorkbenchSpeed = factors;
+                }
+            }
             JsonElement[] list = f.List(root, "recipes", "recipes.json");
             for (int i = 0; i < list.Length; i++)
             {
@@ -980,7 +1101,7 @@ public sealed partial class GameContent
         private void ReadSurvival()
         {
             JsonElement root = Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature",
-                "climateStandIn", "combat", "world", "bag", "rateLimits");
+                "climateStandIn", "combat", "world", "bag", "rateLimits", "reach", "lifetimes");
             string w = "survival.json";
             JsonElement Section(string name, params string[] fields)
             {
@@ -1004,11 +1125,34 @@ public sealed partial class GameContent
             JsonElement t = Section("temperature", "comfortable", "coldScale", "coldDamageFrom", "coldDamagePerSecond", "wetCooling", "wetSeconds", "fireWarmsTo");
             JsonElement c = Section("climateStandIn", "meanCelsius", "daySwing", "lapsePerKilometre", "dayLengthSeconds");
             JsonElement k = Section("combat", "head", "body", "limb", "maxRewindSeconds", "equipSeconds");
-            JsonElement o = Section("world", "corpseSeconds", "droppedItemSeconds", "interactReach", "lootReach", "beachCooldownSeconds", "respawnKit");
+            JsonElement o = Section("world", "beachCooldownSeconds", "respawnKit");
+            JsonElement lifetimes = Section("lifetimes", "bag", "body", "dud");
+            LifetimeRule Lifetime(string name)
+            {
+                string where = $"{w}: lifetimes.{name}";
+                if (!f.TryChild(lifetimes, name, out JsonElement e))
+                {
+                    f.Problem(where, "is missing");
+                    return new LifetimeRule(300, LifetimeRestart.None, true);
+                }
+                f.OnlyKnown(e, where, "seconds", "restart", "emptied", "note");
+                string restart = f.Text(e, "restart", where, "none");
+                if (restart is not ("none" or "deposit"))
+                {
+                    f.Problem(where, $"restart \"{restart}\" (known: none, deposit)");
+                }
+                float seconds = f.Number(e, "seconds", where);
+                if (seconds is <= 0 or > 86400)
+                {
+                    f.Problem(where, "seconds 0 … 86400");
+                }
+                return new LifetimeRule(seconds, restart == "deposit" ? LifetimeRestart.Deposit : LifetimeRestart.None, f.Flag(e, "emptied", where, false));
+            }
+            JsonElement reach = Section("reach", "interact", "open", "keepOpen", "help", "invite", "station");
             JsonElement bag = Section("bag", "name", "slots", "mergeRadius");
             JsonElement r = Section("rateLimits", "intentBurst", "intentsPerSecond", "gunBurst", "gunActionsPerSecond");
             JsonElement burning = Section("burning", "damagePerSecond");
-            JsonElement wounded = Section("wounded", "maxDamage", "health", "seconds", "recoverChance", "fedBonus", "helpReach");
+            JsonElement wounded = Section("wounded", "maxDamage", "health", "seconds", "recoverChance", "fedBonus");
             (float Least, float Most) Pair(JsonElement e, string name, string where, float least, float most)
             {
                 if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(name, out JsonElement v))
@@ -1066,13 +1210,18 @@ public sealed partial class GameContent
                 LimbMultiplier = f.Number(k, "limb", w + ": combat"),
                 MaxRewindSeconds = f.Number(k, "maxRewindSeconds", w + ": combat"),
                 EquipSeconds = f.Number(k, "equipSeconds", w + ": combat", 0.3f),
-                CorpseSeconds = f.Number(o, "corpseSeconds", w + ": world"),
-                DroppedItemSeconds = f.Number(o, "droppedItemSeconds", w + ": world"),
+                BagLifetime = Lifetime("bag"),
+                BodyLifetime = Lifetime("body"),
+                DudLifetime = Lifetime("dud"),
                 BagName = f.Text(bag, "name", w + ": bag"),
                 BagSlots = Math.Clamp(f.Integer(bag, "slots", w + ": bag"), 1, 255),
                 BagMergeRadius = f.Number(bag, "mergeRadius", w + ": bag"),
-                InteractReach = f.Number(o, "interactReach", w + ": world"),
-                LootReach = f.Number(o, "lootReach", w + ": world"),
+                InteractReach = f.Number(reach, "interact", w + ": reach"),
+                OpenReach = f.Number(reach, "open", w + ": reach"),
+                KeepOpenReach = f.Number(reach, "keepOpen", w + ": reach"),
+                HelpReach = f.Number(reach, "help", w + ": reach"),
+                InviteReach = f.Number(reach, "invite", w + ": reach"),
+                StationReach = f.Number(reach, "station", w + ": reach"),
                 BeachCooldownSeconds = f.Number(o, "beachCooldownSeconds", w + ": world", 0),
                 RespawnKitKey = f.Text(o, "respawnKit", w + ": world"),
                 IntentBurst = f.Integer(r, "intentBurst", w + ": rateLimits", 16),
@@ -1087,7 +1236,6 @@ public sealed partial class GameContent
                 WoundedSecondsMost = woundedSecondsMost,
                 WoundedRecoverChance = f.Number(wounded, "recoverChance", w + ": wounded"),
                 WoundedFedBonus = f.Number(wounded, "fedBonus", w + ": wounded", 0),
-                HelpReach = f.Number(wounded, "helpReach", w + ": wounded"),
             };
         }
 

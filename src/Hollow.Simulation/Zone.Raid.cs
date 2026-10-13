@@ -13,7 +13,9 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation;
 
@@ -28,9 +30,6 @@ public sealed partial class Zone
     /// <summary>At most this many explosives live in a zone at once (RustMVP allowed 1,000 charges); more are refused.</summary>
     public const int MaxExplosives = 1024;
 
-    /// <summary>A dud nobody lights again goes after this long (world time, ours).</summary>
-    public const double DudSeconds = 600;
-
     /// <summary>A thrown explosive stops bouncing after this many bounces and lies where the last left it.</summary>
     public const int MaxBounces = 12;
 
@@ -44,6 +43,7 @@ public sealed partial class Zone
     private const float FlightStepSeconds = CharacterMotor.DeltaTime / FlightSteps;
 
     private readonly List<LiveExplosive> _explosives = new();
+    private readonly Dictionary<EntityId, LiveExplosive> _explosiveIds = new();
     private readonly Dictionary<object, double> _blastResidue = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<EntityId, long> _nextThrowTick = new();
     private readonly List<Piece> _blastPieces = new();
@@ -59,18 +59,8 @@ public sealed partial class Zone
     /// <summary>What raiding has done so far (the load test reports it).</summary>
     public RaidCounters RaidStats { get; } = new();
 
-    /// <summary>An explosive by its ID, or null.</summary>
-    public LiveExplosive? ExplosiveOf(EntityId id)
-    {
-        foreach (LiveExplosive e in _explosives)
-        {
-            if (e.Id == id && !e.Gone)
-            {
-                return e;
-            }
-        }
-        return null;
-    }
+    /// <summary>An explosive by its ID (the explosives' family's lookup), or null.</summary>
+    public LiveExplosive? ExplosiveOf(EntityId id) => _explosiveIds.TryGetValue(id, out LiveExplosive? e) && !e.Gone ? e : null;
 
     // ---------------------------------------------------------------- the player's actions
 
@@ -79,14 +69,14 @@ public sealed partial class Zone
     /// from in front of the eye, its fuse already burning; a charge sticks to the first surface it touches, a grenade
     /// bounces and comes to rest. The view is the intent's when it is within reach of the player's own (anti-cheat).
     /// </summary>
-    public ActionResult ThrowExplosive(Entity entity, int slot, ushort expected, float yaw, float pitch, bool lob)
+    public Outcome ThrowExplosive(Entity entity, int slot, ushort expected, float yaw, float pitch, bool lob)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
-        ActionResult check = CanThrow(p, slot, expected, out ThrowableStats? stats);
-        if (check != ActionResult.Accepted)
+        Outcome check = CanThrow(p, slot, expected, out ThrowableStats? stats);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
@@ -108,27 +98,27 @@ public sealed partial class Zone
         RaidStats.Thrown++;
         p.ActionCount++;
         p.LastAction = ActionKind.Throw;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>
     /// Places the charge in a belt slot on the surface the view meets within reach (a wall, a door, a floor, a box, the
     /// ground): it sticks there with its fuse burning. No building rights are needed (raiding: RustMVP's rule).
     /// </summary>
-    public ActionResult PlaceCharge(Entity entity, int slot, ushort expected, float yaw, float pitch)
+    public Outcome PlaceCharge(Entity entity, int slot, ushort expected, float yaw, float pitch)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
-        ActionResult check = CanThrow(p, slot, expected, out ThrowableStats? stats);
-        if (check != ActionResult.Accepted)
+        Outcome check = CanThrow(p, slot, expected, out ThrowableStats? stats);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
         if (!stats!.Placeable)
         {
-            return ActionResult.NotUsable;
+            return OutcomeCode.NotUsable;
         }
         ref Character c = ref Entities.Get<Character>(entity);
         (yaw, pitch) = TrustedView(c, yaw, pitch);
@@ -136,7 +126,7 @@ public sealed partial class Zone
         Vector3 direction = CharacterMotor.ViewDirection(yaw, pitch, Frame.UpAt(c.State.Position));
         if (!Sweep(eye, eye + direction * Content!.PlacementReach, 0, out SurfaceHit hit))
         {
-            return ActionResult.OutOfReach;
+            return OutcomeCode.OutOfReach;
         }
         TakeOne(p, slot, stats);
         LiveExplosive e = Spawn(stats, p.Id, p.Name, hit.Point, Vector3.Zero);
@@ -145,59 +135,54 @@ public sealed partial class Zone
         RaidStats.Placed++;
         p.ActionCount++;
         p.LastAction = ActionKind.Throw;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>Lights a dud again (the interact key on it, within reach): a new fuse, which may go out again.</summary>
-    public ActionResult Rearm(Entity entity, EntityId explosive)
+    public Outcome Rearm(Entity entity, EntityId explosive)
     {
         if (!Acting(entity, out Player _))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (ExplosiveOf(explosive) is not { } e)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
         if (!e.Dud)
         {
-            return ActionResult.NotUsable;
+            return OutcomeCode.NotUsable;
         }
-        if (Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), e.Position) > Content!.Survival.InteractReach + 0.5f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), e.Ref, Content!.Survival.InteractReach);
+        if (!reach.Ok)
         {
-            return ActionResult.OutOfReach;
+            return reach;
         }
         Arm(e);
         RaidStats.Rearmed++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    private ActionResult CanThrow(Player p, int slot, ushort expected, out ThrowableStats? stats)
+    // A throw or a placed charge: from the belt, checked by the held behaviour that sends it (GROUND_SYSTEMS.md §7).
+    private Outcome CanThrow(Player p, int slot, ushort expected, out ThrowableStats? stats)
     {
         stats = null;
-        if (slot is < 0 or >= PlayerInventory.BeltSlots)
+        Outcome holding = ItemFor(p, ContainerRef.Belt, slot, expected, HeldUse.Throwable, out ItemDef item);
+        if (!holding.Ok)
         {
-            return ActionResult.Invalid;
+            return holding;
         }
-        ItemStack s = p.Inventory.Belt[slot];
-        if (s.IsEmpty || (expected != 0 && s.Item != expected))
-        {
-            return ActionResult.Stale;
-        }
-        if (Content!.Item(s.Item)?.Throwable is not { } t)
-        {
-            return ActionResult.NotUsable;
-        }
+        ThrowableStats t = item.Throwable!;
         if (Tick < _nextThrowTick.GetValueOrDefault(p.Id))
         {
-            return ActionResult.Cooldown;
+            return OutcomeCode.Cooldown;
         }
         if (_explosives.Count >= MaxExplosives)
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         stats = t;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     private void TakeOne(Player p, int slot, ThrowableStats stats)
@@ -257,7 +242,7 @@ public sealed partial class Zone
 
     private LiveExplosive Spawn(ThrowableStats stats, EntityId owner, string ownerName, Vector3 at, Vector3 velocity)
     {
-        var e = new LiveExplosive(NextId(), stats, owner, ownerName)
+        var e = new LiveExplosive(NextId(), stats, owner, ownerName, Content!.Survival.DudLifetime)
         {
             State = ExplosiveState.Flying,
             Position = at,
@@ -268,6 +253,7 @@ public sealed partial class Zone
             Normal = Frame.UpAt(at),
         };
         _explosives.Add(e);
+        _explosiveIds[e.Id] = e;
         return e;
     }
 
@@ -281,6 +267,10 @@ public sealed partial class Zone
         e.WillDud = dud ?? willDud;
         e.FuseTicks = fuse;
         e.FuseEndTick = Tick + fuse;
+        if (e.Dud)
+        {
+            Unloose(e); // a dud lit again lies loose no longer
+        }
         e.Dud = false;
         e.DespawnTick = -1;
         e.Revision++;
@@ -313,23 +303,39 @@ public sealed partial class Zone
             {
                 if (e.WillDud)
                 {
+                    // It lies there for its lifetime (the zone's one lifetime step ends it) unless someone lights it again.
                     e.Dud = true;
                     e.FuseEndTick = -1;
-                    e.DespawnTick = Tick + CharacterTicks.From(DudSeconds);
+                    e.DespawnTick = Tick + e.Lifetime.Ticks;
                     e.Revision++;
                     RaidStats.Duds++;
+                    Loose(e);
                 }
                 else
                 {
                     Explode(e);
                 }
             }
-            else if (e.Dud && e.DespawnTick >= 0 && Tick >= e.DespawnTick)
+        }
+        for (int i = _explosives.Count - 1; i >= 0; i--)
+        {
+            if (_explosives[i].Gone)
             {
-                e.Gone = true;
+                Release(_explosives[i].Ref);
             }
         }
-        _explosives.RemoveAll(e => e.Gone);
+        for (int i = _explosives.Count - 1; i >= 0; i--)
+        {
+            if (_explosives[i].Gone)
+            {
+                if (_explosives[i].Dud)
+                {
+                    Unloose(_explosives[i]);
+                }
+                _explosiveIds.Remove(_explosives[i].Id);
+                _explosives.RemoveAt(i);
+            }
+        }
         if (Tick % CharacterMotor.TickRate == 0 && _blastResidue.Count > 0)
         {
             foreach (object part in _blastResidue.Keys.Where(Broken).ToList())
@@ -340,12 +346,7 @@ public sealed partial class Zone
         RaidStats.Time += Stopwatch.GetElapsedTime(started);
     }
 
-    private static bool Broken(object part) => part switch
-    {
-        Piece p => p.Gone,
-        Door d => d.Gone,
-        _ => true,
-    };
+    private static bool Broken(object part) => part is not IBuildingPart { Gone: false };
 
     // Two steps a tick under the planet's gravity; a charge sticks where it touches, a grenade bounces off with its
     // restitution and some friction, and rests once slow on ground that is flat enough.
@@ -399,7 +400,7 @@ public sealed partial class Zone
         if (++e.Airborne > MaxAirborneTicks || HeightAboveGround(p) < -0.5f)
         {
             Vector3 ground = Settle(p);
-            Rest(e, new SurfaceHit { Point = ground, Normal = GroundNormal(ground).Normal, Kind = SupportKind.Ground }, ground + Frame.UpAt(ground) * radius);
+            Rest(e, new SurfaceHit { Point = ground, Normal = GroundNormal(ground).Normal, Support = TargetRef.Ground }, ground + Frame.UpAt(ground) * radius);
         }
     }
 
@@ -415,6 +416,8 @@ public sealed partial class Zone
         Lay(e, hit, at);
     }
 
+    // Comes to lie or stick on what it touched (GROUND_SYSTEMS.md §3.6): linked to it where it is, its up the surface's
+    // normal, so it moves with a door's leaf and goes with its support.
     private void Lay(LiveExplosive e, in SurfaceHit hit, Vector3 at)
     {
         e.Position = at;
@@ -424,49 +427,37 @@ public sealed partial class Zone
         e.Normal = hit.Normal;
         e.StateTick = Tick;
         e.Airborne = 0;
-        e.SupportKind = hit.Kind;
-        e.SupportId = hit.Id;
-        e.Support = hit.Thing;
-        e.Leaf = hit.Leaf;
-        if (hit.Thing is Door door)
-        {
-            (Vector3 position, Quaternion rotation) = door.Leaf(hit.Leaf, door.Open);
-            Quaternion inverse = Quaternion.Inverse(rotation);
-            e.SupportLocal = Vector3.Transform(at - position, inverse);
-            e.SupportNormal = Vector3.Transform(hit.Normal, inverse);
-        }
+        e.Link = LinkTo(hit.Support, new TargetPose(at, Geometry.Upright(hit.Normal, 0)));
+        Hold(e.Ref, e.Link.Support);
         e.Revision++;
     }
 
-    // A stuck or resting explosive moves with a door leaf, and falls when what holds it goes.
+    // A stuck or resting explosive follows what holds it when that moves (a door's leaf); when it goes, the support rule
+    // (Zone.Supports.cs) drops it.
     private void Follow(LiveExplosive e)
     {
-        switch (e.Support)
+        if (e.Link.IsNone || !Moves(e.Link.Support) || !TryPose(e.Link, out TargetPose pose))
         {
-            case Piece piece when piece.Gone || piece.Collapsing:
-            case Door { Gone: true }:
-            case Deployable d when d.Health <= 0 || StaticOf(d.Id) != d:
-                Fall(e);
-                return;
-            case Door door:
-            {
-                (Vector3 position, Quaternion rotation) = door.Leaf(e.Leaf, door.Open);
-                Vector3 at = position + Vector3.Transform(e.SupportLocal, rotation);
-                if (Vector3.DistanceSquared(at, e.Position) > 1e-6f)
-                {
-                    e.Position = at;
-                    e.ArcStart = at;
-                    e.Normal = Vector3.Transform(e.SupportNormal, rotation);
-                    e.StateTick = Tick;
-                    e.Revision++;
-                }
-                return;
-            }
+            return;
         }
-        if (e.SupportKind == SupportKind.Natural && Natural != null && Natural.IsDepleted(e.SupportId))
+        if (Vector3.DistanceSquared(pose.Position, e.Position) > 1e-6f)
         {
-            Fall(e);
+            e.Position = pose.Position;
+            e.ArcStart = pose.Position;
+            e.Normal = Vector3.Transform(Vector3.UnitY, pose.Rotation);
+            e.StateTick = Tick;
+            e.Revision++;
         }
+    }
+
+    /// <summary>An explosive whose support went (the explosive capability's consequence): it falls from where it is.</summary>
+    internal void Drop(LiveExplosive e)
+    {
+        if (e.Gone || e.State == ExplosiveState.Flying)
+        {
+            return;
+        }
+        Fall(e);
     }
 
     private void Fall(LiveExplosive e)
@@ -477,9 +468,8 @@ public sealed partial class Zone
         e.ArcStart = e.Position;
         e.ArcVelocity = Vector3.Zero;
         e.StateTick = Tick;
-        e.Support = null;
-        e.SupportKind = SupportKind.Ground;
-        e.SupportId = 0;
+        Release(e.Ref);
+        e.Link = SupportLink.None;
         e.Revision++;
     }
 
@@ -487,15 +477,9 @@ public sealed partial class Zone
     private void Explode(LiveExplosive e)
     {
         e.Gone = true;
-        object? stuckTo = e.State == ExplosiveState.Stuck ? e.Support : null;
-        HitTarget target = e.SupportKind switch
-        {
-            SupportKind.Piece or SupportKind.Door => HitTarget.Building,
-            SupportKind.Deployable => HitTarget.Deployable,
-            SupportKind.Natural => HitTarget.Natural,
-            _ => e.State == ExplosiveState.Flying ? HitTarget.Nothing : HitTarget.Ground,
-        };
-        Blast(e.Stats.Blast, e.Position, e.Normal, stuckTo, target, e.Owner, e.OwnerName, e.Item.Id, e.Id);
+        TargetRef on = e.Link.Support;
+        Release(e.Ref);
+        Blast(e.Stats.Blast, e.Position, e.Normal, e.State == ExplosiveState.Stuck ? on : TargetRef.None, on.Family, e.Owner, e.OwnerName, e.Item.Id, e.Id);
     }
 
     // A rocket or an explosive round goes off a little short of what it hit (so its blast starts outside a wall).
@@ -503,14 +487,7 @@ public sealed partial class Zone
     {
         Vector3 direction = b.Velocity.LengthSquared() > 1e-6f ? Vector3.Normalize(b.Velocity) : -Frame.UpAt(b.Position);
         Vector3 at = hit.Point - direction * 0.05f;
-        object? stuckTo = hit.Target switch
-        {
-            HitTarget.Building => hit.Building,
-            HitTarget.Deployable => hit.Deployable,
-            HitTarget.Ship => hit.Ship,
-            _ => null,
-        };
-        Blast(blast, at, -direction, stuckTo, hit.Target, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
+        Blast(blast, at, -direction, hit.Target, hit.Target.Family, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
     }
 
     // ---------------------------------------------------------------- what a flying explosive meets
@@ -520,10 +497,9 @@ public sealed partial class Zone
         public float Distance;
         public Vector3 Point;
         public Vector3 Normal;
-        public SupportKind Kind;
-        public ulong Id;
-        public object? Thing;
-        public int Leaf;
+
+        /// <summary>What was touched (a door's leaf as its part): what holds the explosive if it sticks or rests there.</summary>
+        public TargetRef Support;
     }
 
     // The first surface a ball of a radius meets from one point to the next: building pieces, doors and claim devices,
@@ -544,28 +520,12 @@ public sealed partial class Zone
             float t = MathF.Max(0, rh.Distance - radius);
             if (t <= length)
             {
-                var hit = new SurfaceHit { Distance = t, Point = rh.Point, Normal = Facing(rh.Normal, direction) };
-                switch (physics.OwnerOf(rh.Body))
+                // A piece, a door's leaf (its part), the claim device: whatever owns the body says how it is named.
+                best = new SurfaceHit
                 {
-                    case Piece piece:
-                        hit.Kind = SupportKind.Piece;
-                        hit.Id = piece.Id.Value;
-                        hit.Thing = piece;
-                        break;
-                    case DoorLeaf leaf:
-                        hit.Kind = SupportKind.Door;
-                        hit.Id = leaf.Door.Id.Value;
-                        hit.Thing = leaf.Door;
-                        hit.Leaf = leaf.Index;
-                        break;
-                    case ClaimDevice claim:
-                        // On the claim device: held by the piece it stands on.
-                        hit.Kind = SupportKind.Piece;
-                        hit.Id = claim.Support.Id.Value;
-                        hit.Thing = claim.Support;
-                        break;
-                }
-                best = hit;
+                    Distance = t, Point = rh.Point, Normal = Facing(rh.Normal, direction),
+                    Support = physics.OwnerOf(rh.Body) is ITargetable owner ? owner.Ref : TargetRef.None,
+                };
             }
         }
 
@@ -588,7 +548,7 @@ public sealed partial class Zone
                 {
                     continue; // touching it and moving away
                 }
-                best = new SurfaceHit { Distance = t, Point = point - normal * radius, Normal = normal, Kind = SupportKind.Deployable, Id = thing.Id.Value, Thing = thing };
+                best = new SurfaceHit { Distance = t, Point = point - normal * radius, Normal = normal, Support = thing.Ref };
                 reach = t;
             }
         }
@@ -627,7 +587,7 @@ public sealed partial class Zone
                 {
                     best = new SurfaceHit
                     {
-                        Distance = t, Point = from + direction * t - normal * radius, Normal = normal, Kind = SupportKind.Natural, Id = o.Id,
+                        Distance = t, Point = from + direction * t - normal * radius, Normal = normal, Support = new TargetRef(TargetFamily.Natural, o.Id),
                     };
                     reach = t;
                 }
@@ -638,7 +598,7 @@ public sealed partial class Zone
         if (ground >= 0 && ground < best.Distance)
         {
             Vector3 point = from + direction * ground;
-            best = new SurfaceHit { Distance = ground, Point = point, Normal = GroundNormal(point).Normal, Kind = SupportKind.Ground };
+            best = new SurfaceHit { Distance = ground, Point = point, Normal = GroundNormal(point).Normal, Support = TargetRef.Ground };
         }
         return best.Distance <= length;
     }
@@ -673,18 +633,14 @@ public sealed partial class Zone
         FuseTicks = e.FuseTicks,
         WillDud = e.WillDud,
         Arms = e.Arms,
-        SupportKind = e.SupportKind,
-        SupportId = e.SupportId,
-        Leaf = e.Leaf,
-        SupportLocal = e.SupportLocal,
-        SupportNormal = e.SupportNormal,
+        Support = e.Link.Support,
         DespawnLeft = e.DespawnTick >= 0 ? Math.Max(0, e.DespawnTick - Tick) : -1,
     };
 
     /// <summary>
     /// Puts back a stored explosive (after the building and the deployables are loaded): its fuse goes on from where it
-    /// was; if what held it is gone, it falls. False when it can't come back (an item the game no longer has, one
-    /// already here).
+    /// was, linked again to what held it where it lies; if that is gone, it falls. False when it can't come back (an item
+    /// the game no longer has, one already here).
     /// </summary>
     public bool RestoreExplosive(ExplosiveSave s)
     {
@@ -693,7 +649,8 @@ public sealed partial class Zone
         {
             return false;
         }
-        var e = new LiveExplosive(s.Id, stats, s.Owner, s.OwnerName)
+        LifetimeRule dudLifetime = Content!.Survival.DudLifetime;
+        var e = new LiveExplosive(s.Id, stats, s.Owner, s.OwnerName, dudLifetime)
         {
             State = s.State,
             Dud = s.Dud,
@@ -707,40 +664,30 @@ public sealed partial class Zone
             FuseTicks = Math.Max(1, s.FuseTicks),
             WillDud = s.WillDud,
             Arms = Math.Max(1, s.Arms),
-            SupportKind = s.SupportKind,
-            SupportId = s.SupportId,
-            Leaf = s.Leaf,
-            SupportLocal = Finite(s.SupportLocal),
-            SupportNormal = Finite(s.SupportNormal),
-            DespawnTick = s.DespawnLeft >= 0 ? Tick + s.DespawnLeft : (s.Dud ? Tick + CharacterTicks.From(DudSeconds) : -1),
+            DespawnTick = s.DespawnLeft >= 0 ? Tick + s.DespawnLeft : (s.Dud ? Tick + dudLifetime.Ticks : -1),
             Revision = 1,
         };
+        _explosives.Add(e);
+        _explosiveIds[e.Id] = e;
+        if (e.Dud)
+        {
+            Loose(e);
+        }
         if (e.State != ExplosiveState.Flying)
         {
-            e.Support = s.SupportKind switch
-            {
-                SupportKind.Piece => Building?.AllPieces.FirstOrDefault(p => p.Id.Value == s.SupportId),
-                SupportKind.Door => Building?.Doors.FirstOrDefault(d => d.Id.Value == s.SupportId && s.Leaf < d.Def.Leaves.Count),
-                SupportKind.Deployable => StaticOf(new EntityId(s.SupportId)) as Deployable,
-                _ => null,
-            };
-            bool held = s.SupportKind switch
-            {
-                SupportKind.Ground => true,
-                SupportKind.Natural => Natural != null && !Natural.IsDepleted(s.SupportId),
-                _ => e.Support != null,
-            };
-            if (!held)
+            // What held it is asked of its family (an ID from storage: untrusted); gone, the explosive falls.
+            e.Link = LinkTo(s.Support, new TargetPose(e.Position, Geometry.Upright(e.Normal, 0)));
+            if (e.Link.IsNone)
             {
                 e.State = ExplosiveState.Flying;
-                e.Support = null;
-                e.SupportKind = SupportKind.Ground;
-                e.SupportId = 0;
                 e.Velocity = Vector3.Zero;
                 e.ArcVelocity = Vector3.Zero;
             }
+            else
+            {
+                Hold(e.Ref, e.Link.Support);
+            }
         }
-        _explosives.Add(e);
         return true;
     }
 

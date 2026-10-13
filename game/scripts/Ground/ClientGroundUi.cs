@@ -55,7 +55,13 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         me.Died += OnDied;
         client.ChatReceived += OnChat;
         SubscribeWorld(me);
-        Radials = new[] { new RadialBinding(RadialInput.Aim, 0, () => Build?.HeldRadial) };
+        // The held item's radials (GROUND_SYSTEMS.md §7): the aim button's at once (the plan's pieces, the hammer's work),
+        // R's after a hold (a gun's rounds; a tap reloads with the current one). Its control says which, or none.
+        Radials = new[]
+        {
+            new RadialBinding(RadialInput.Aim, 0, () => HeldRadial?.Invoke(RadialInput.Aim)),
+            new RadialBinding(RadialInput.Reload, HeldControls.RadialHoldSeconds, () => HeldRadial?.Invoke(RadialInput.Reload)),
+        };
     }
 
     public void Dispose()
@@ -136,9 +142,13 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public int ActiveBelt => Me.HeldSlot;
 
-    public HeldAmmo? Ammo =>
-        Me.Gun.Weapon != null ? new HeldAmmo(Me.Gun.Loaded, Me.Gun.Reserve, Me.Gun.Reloading)
-        : Me.HeldItem?.Bow is { } bow ? new HeldAmmo(0, bow.Ammo.Sum(a => Me.Inventory.Count(a))) : null;
+    public HeldAmmo? Ammo => HeldAmmo?.Invoke();
+
+    /// <summary>The radial a held input opens with the item in hand, from its held control (set by the ground view).</summary>
+    public Func<RadialInput, IRadialSource?>? HeldRadial { get; set; }
+
+    /// <summary>The HUD's ammo counter for the item in hand, from its held control (set by the ground view).</summary>
+    public Func<HeldAmmo?>? HeldAmmo { get; set; }
 
     public LootView? Loot
     {
@@ -222,6 +232,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public int Workbench => Me.WorkbenchLevel;
 
+    public float SecondsHere(UiRecipe recipe) =>
+        C.RecipeByKey(recipe.Key) is { } r ? CraftingSpeed.Seconds(C, r, Me.WorkbenchLevel) : recipe.Seconds;
+
     public int Have(string key) => C.Item(key) is { } def ? Me.Inventory.Count(def) : 0;
 
     public IReadOnlyList<CraftJob> Queue
@@ -231,7 +244,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             _queue.Clear();
             foreach (CraftJobView job in Me.Crafting)
             {
-                _queue.Add(new CraftJob((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.Recipe.Seconds));
+                _queue.Add(new CraftJob((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.UnitSeconds));
             }
             return _queue;
         }
@@ -287,8 +300,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     public BuildView? Build { get; set; }
 
     /// <summary>
-    /// The radials (GROUND_SYSTEMS.md §4): the right mouse opens the held building tool's (the plan's pieces, the
-    /// hammer's actions). P1 adds E's, P3 R's.
+    /// The radials (GROUND_SYSTEMS.md §4): the held item's on the right mouse (the plan's pieces, the hammer's actions)
+    /// and on R (a gun's rounds), from its held control (§7). P1 adds E's.
     /// </summary>
     public IReadOnlyList<RadialBinding> Radials { get; }
 
@@ -311,7 +324,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     private void OnHitMarker(HitMarkerEvent e)
     {
-        if (e.Target == HitTarget.Character)
+        if (e.Target == Hollow.Simulation.Targets.TargetFamily.Character)
         {
             HitConfirmed?.Invoke(e.Region == Hollow.Simulation.Content.HitRegion.Head);
         }
@@ -352,34 +365,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     private void OnCrafted(ItemDef item, int count) => Crafted?.Invoke(item.Key, count);
 
-    private void OnRejected(IntentAnswer answer)
-    {
-        string? text = WorldRefusal(answer) ?? answer.Result switch
-        {
-            ActionResult.NoSpace => "No room for that.",
-            ActionResult.NotEnough => "Not enough resources.",
-            ActionResult.NeedsWorkbench => "Needs a workbench nearby.",
-            ActionResult.QueueFull => "The crafting queue is full.",
-            ActionResult.OutOfReach => "Too far away.",
-            ActionResult.Blocked => "Something is in the way.",
-            ActionResult.TooSteep => "The ground is too steep.",
-            ActionResult.Cooldown => "Not ready yet.",
-            ActionResult.RateLimited => "Slow down.",
-            ActionResult.BadPlacement => "You can't place that here.",
-            ActionResult.NotAllowed => "That doesn't go there.",
-            ActionResult.NotUsable => "You can't use that.",
-            ActionResult.NeedsStation => "Needs a vehicle workbench nearby.",
-            ActionResult.Locked => "It's locked.",
-            ActionResult.Occupied => "Someone is in the seat.",
-            ActionResult.NotLanded => "Land first: you can only step out of a ship at rest.",
-            ActionResult.HatchShut => "Open the hatch first.",
-            _ => null,
-        };
-        if (text != null)
-        {
-            Notice?.Invoke(text);
-        }
-    }
+    // Every refusal, of every intent, the same way (GROUND_SYSTEMS.md §3.2): its line from texts.json as a notice (the
+    // error sound is GroundAudio's, on the same event).
+    private void OnRejected(IntentAnswer answer) => Notice?.Invoke(C.Texts.Line(answer.Outcome));
 
     private void OnDied(LifeView life) => _death = null;
 
@@ -406,22 +394,44 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         Me.MoveItem(a, i, b, j, amount);
     }
 
-    /// <summary>A gun's attachments, each to take off (back into the inventory).</summary>
-    public IReadOnlyList<(string Label, Action Act)> MoreActions(SlotRef slot)
+    private readonly List<ItemActionOption> _options = new();
+    private (SlotRef Slot, SimStack Stack, uint Main, uint Belt, uint Wear, uint Known, bool Reloading, IReadOnlyList<ItemActionView>? Views) _actions;
+
+    /// <summary>
+    /// A slot's ACTIONS (GROUND_SYSTEMS.md §7): what its stack's parts offer, judged by the same rules the server uses, each
+    /// sent as an item action (a refused one carries its line). Cached until the stack, the inventory or the gun changes.
+    /// </summary>
+    public IReadOnlyList<ItemActionView> Actions(SlotRef slot)
     {
-        if (Resolve(slot) is not var (c, i) || Own(c, i) is not { } stack || C.Item(stack.Item)?.Firearm == null)
+        if (Resolve(slot) is not var (c, i) || Own(c, i) is not { } stack)
         {
-            return Array.Empty<(string, Action)>();
+            return Array.Empty<ItemActionView>();
         }
-        var actions = new List<(string Label, Action Act)>();
-        foreach (Hollow.Simulation.Content.AttachmentSlot mod in Hollow.Simulation.Combat.GunMods.Slots)
+        PlayerInventory inventory = Me.Inventory;
+        var key = (slot, stack, inventory.Main.Revision, inventory.Belt.Revision, inventory.Wear.Revision, Me.Blueprints.Revision, Me.Gun.Reloading);
+        if (_actions.Views != null && (_actions.Slot, _actions.Stack, _actions.Main, _actions.Belt, _actions.Wear, _actions.Known, _actions.Reloading) == key)
         {
-            if (stack.Mod(mod) is var id and not 0 && C.Item(id) is { } part)
-            {
-                actions.Add(("REMOVE " + part.Name.ToUpperInvariant(), () => Me.Detach(c, i, mod)));
-            }
+            return _actions.Views;
         }
-        return actions;
+        _options.Clear();
+        Me.ItemActions(c, i, _options);
+        var views = new List<ItemActionView>(_options.Count);
+        foreach (ItemActionOption option in _options)
+        {
+            views.Add(new ItemActionView(option.Label, () => Act(c, i, option), option.Refusal is { } refused ? C.Texts.Line(refused) : null));
+        }
+        _actions = (key.slot, key.stack, key.Item3, key.Item4, key.Item5, key.Item6, key.Item7, views);
+        return views;
+    }
+
+    // An action chosen: its sound (the item's own for the action, else its use), then the intent.
+    private void Act(ContainerRef c, int i, ItemActionOption option)
+    {
+        if (Own(c, i) is { } stack && C.Item(stack.Item) is { } item)
+        {
+            Sounds.Flat(Sounds.Item(item.Key, option.Action.Key) ?? Sounds.Item(item.Key, "use"));
+        }
+        Me.ItemAction(c, i, option.Action.Id, option.Arg);
     }
 
     // A stack in one of the player's own containers (main, belt, clothing), if there is one there.
@@ -457,18 +467,6 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         if (Resolve(slot) is var (c, i))
         {
             Me.QuickMove(c, i);
-        }
-    }
-
-    public void Use(SlotRef slot)
-    {
-        if (Resolve(slot) is var (c, i))
-        {
-            if ((c switch { ContainerRef.Main => Me.Inventory.Main, ContainerRef.Belt => Me.Inventory.Belt, _ => null }) is { } own)
-            {
-                Sounds.Used(C, own[i].Item);
-            }
-            Me.Use(c, i);
         }
     }
 
@@ -526,78 +524,40 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     private string CategoryName(string key) => (C.Categories.FirstOrDefault(c => c.Key == key)?.Name ?? key).ToUpperInvariant();
 
+    // An item kind's name, description, tab and rows (GROUND_SYSTEMS.md §7: a describer per part, ItemRows).
     private ItemInfo Describe(ItemDef d)
     {
         var stats = new List<ItemStat>();
-        string N(float v) => v.ToString(v % 1 == 0 ? "0" : "0.#", CultureInfo.InvariantCulture);
-        if (d.Melee is { } m)
+        foreach (ItemRow row in ItemRows.Describe(C, d))
         {
-            stats.Add(new ItemStat("Damage", N(m.Damage)));
-            if (m.Tree > 0)
-            {
-                stats.Add(new ItemStat("Wood per hit", N(m.Tree), m.Tree >= 20));
-            }
-            if (m.Ore > 0)
-            {
-                stats.Add(new ItemStat("Ore per hit", N(m.Ore), m.Ore >= 20));
-            }
-            stats.Add(new ItemStat("Reach", N(m.Reach) + " m"));
-        }
-        if (d.Bow is { } bow)
-        {
-            stats.Add(new ItemStat("Draw", N(bow.DrawSeconds) + " s"));
-        }
-        if (d.Ammo is { } ammo)
-        {
-            stats.Add(new ItemStat("Damage", N(ammo.Damage)));
-        }
-        if (d.Consume is { } food)
-        {
-            if (food.Calories != 0)
-            {
-                stats.Add(new ItemStat("Calories", (food.Calories > 0 ? "+" : "") + N(food.Calories), food.Calories > 0));
-            }
-            if (food.Hydration != 0)
-            {
-                stats.Add(new ItemStat("Hydration", (food.Hydration > 0 ? "+" : "") + N(food.Hydration), food.Hydration > 0));
-            }
-            if (food.Health != 0)
-            {
-                stats.Add(new ItemStat("Instant health", "+" + N(food.Health)));
-            }
-            if (food.Heal != 0)
-            {
-                stats.Add(new ItemStat("Healing", "+" + N(food.Heal)));
-            }
-            if (food.StopsBleeding)
-            {
-                stats.Add(new ItemStat("Bleeding", "Stops"));
-            }
-        }
-        if (d.Wear is { } wear)
-        {
-            if (wear.Melee > 0)
-            {
-                stats.Add(new ItemStat("Melee protection", N(wear.Melee * 100) + "%"));
-            }
-            if (wear.Projectile > 0)
-            {
-                stats.Add(new ItemStat("Projectile protection", N(wear.Projectile * 100) + "%"));
-            }
-            if (wear.Insulation > 0)
-            {
-                stats.Add(new ItemStat("Warmth", "+" + N(wear.Insulation) + " °C"));
-            }
-        }
-        if (d.Fuel is { } fuel)
-        {
-            stats.Add(new ItemStat("Burns for", N(fuel.Seconds) + " s"));
-        }
-        if (d.Cook is { Into: { } into })
-        {
-            stats.Add(new ItemStat(d.Cook.In == "furnace" ? "Smelts into" : "Cooks into", into.Name));
+            stats.Add(new ItemStat(row.Label, row.Value, row.Positive));
         }
         return new ItemInfo(d.Key, d.Name, d.Description, CategoryName(d.Category), d.StackSize, d.Wear != null, d.Consume != null, stats);
+    }
+
+    private (SlotRef Slot, SimStack Stack, uint Known, IReadOnlyList<ItemStat> Rows) _rows;
+
+    /// <summary>A slot's rows: its kind's and its stack's own (condition, magazine, attachments, what a blueprint teaches).</summary>
+    public IReadOnlyList<ItemStat> Rows(SlotRef slot)
+    {
+        if (Resolve(slot) is not var (c, i) || Me.Resolve(c) is not { } container || !container.InRange(i) || container[i].IsEmpty ||
+            C.Item(container[i].Item) is not { } def)
+        {
+            return Array.Empty<ItemStat>();
+        }
+        SimStack stack = container[i];
+        uint known = Me.Blueprints.Revision;
+        if (_rows.Rows != null && _rows.Slot == slot && _rows.Stack == stack && _rows.Known == known)
+        {
+            return _rows.Rows;
+        }
+        var rows = new List<ItemStat>();
+        foreach (ItemRow row in ItemRows.Describe(C, def, stack, Me.Blueprints))
+        {
+            rows.Add(new ItemStat(row.Label, row.Value, row.Positive));
+        }
+        _rows = (slot, stack, known, rows);
+        return rows;
     }
 
     private IReadOnlyList<UiStack> Of(ContainerRef which, Container container)
@@ -627,8 +587,11 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             return new UiStack(def.Key, s.Count) { Teaches = C.Recipe(s.Condition)?.Output.Key };
         }
         float condition = def.HasCondition ? Math.Clamp((float)s.Condition / def.MaxCondition, 0, 1) : -1f;
-        // A gun shows the rounds in its magazine on its slot (G4).
-        return new UiStack(def.Key, s.Count, condition, def.Firearm != null ? s.Loaded : -1);
+        // A gun shows the rounds in its magazine on its slot (G4), and their kind's icon (P3).
+        return new UiStack(def.Key, s.Count, condition, def.Firearm != null ? s.Loaded : -1)
+        {
+            Round = def.Firearm != null ? C.Item(s.LoadedAmmo)?.Key : null,
+        };
     }
 
     // The open container's slots as the loot panel lays them out: a sleeper's main, belt and clothing in a body's order.

@@ -62,10 +62,13 @@ public partial class GroundView : Node3D
 
     // A workbench in reach (G7): E opens its tech tree.
     private RemoteThing? _aimedBench;
-    private double _thrownAt = -10;
     private RenderWarmup _warmup = null!;
     private System.Collections.Generic.IReadOnlyList<LoadStage> _worldStages = Array.Empty<LoadStage>();
     private bool _greeted;
+
+    // What the item in hand does (GROUND_SYSTEMS.md §7): a control per held behaviour, and what they see.
+    private readonly Hollow.Simulation.Registry<IHeldControl> _held = HeldControls.Create();
+    private HeldContext _hands = null!;
     private Keypad _keypad = null!;
     private OptionsMenu _options = null!;
     private Hollow.Simulation.Building.Door? _keypadDoor;
@@ -90,7 +93,6 @@ public partial class GroundView : Node3D
     // The buttons pressed for the hands since the last frame (Hands acts on them).
     private HandPress _presses;
     private Interaction? _aimed;
-    private Num.Vector3? _placeAt;
     private double _interactHeld = -1;
     private bool _interactDone;
     private bool _faced;
@@ -242,6 +244,10 @@ public partial class GroundView : Node3D
         // Things breaking apart (GROUND.md §9.4): every destruction the server reports, one path.
         AddChild(new GibsView { Name = "Gibs", Client = Client });
         _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build };
+        _hands = new HeldContext { Client = Client, Build = _build, Arms = _firstPerson, Placement = new TodaysPlacement(_build), Say = _model.ShowNotice };
+        // The radials the held item opens (the aim button, R) and the HUD's ammo come from its control.
+        _model.HeldRadial = input => HandsFree() is { } held ? held.Radial(_hands, input) : null;
+        _model.HeldAmmo = () => Holding() is { } held ? held.Ammo(_hands) : null;
         // The F1 panel (GROUND.md §8.2): its console runs the view's own commands here, the rest on the server.
         _settings = ViewSettings.Load();
         _console = new ClientConsole(Client, _settings)
@@ -279,7 +285,7 @@ public partial class GroundView : Node3D
                 _codeSeq = Client.Local.EnterCode(door, code);
             }
         };
-        Client.Local.BuildAnswered += answer =>
+        Client.Local.IntentAnswered += answer =>
         {
             if (answer.Seq == _codeSeq && _codeSeq != 0)
             {
@@ -287,7 +293,6 @@ public partial class GroundView : Node3D
                 _codeSeq = 0;
             }
         };
-        Client.Local.BuildRejected += answer => _model.ShowNotice(answer.Text);
         _overlay.ShowNetGraph = ShowNetGraph;
         InventoryBody.Use(Client);
     }
@@ -536,11 +541,12 @@ public partial class GroundView : Node3D
         _aimed = alive && !piloting ? Client.Aim(eye, forward) : null;
         _aimedShip = alive && !piloting ? Client.AimShip(eye, forward) : null;
         _aimedBench = alive && !piloting && _aimed == null && _aimedShip == null ? AimWorkbench(eye, forward) : null;
-        _placeAt = alive && me.HeldItem?.Hands == HandUse.Place ? Client.AimGround(eye, forward, Client.Content.PlacementReach) : null;
-        _firstPerson.PlacementPoint = _placeAt;
-        _firstPerson.PlacementYaw = _yaw;
+        // Where what is held would be placed (its ghost), by its control.
+        _firstPerson.PlacementPoint = null;
+        Holding()?.Aim(_hands, eye, forward);
         Time("aim", ref t0);
         _firstPerson.Refresh(delta, input, _yaw, _pitch);
+        Holding()?.Arms(_hands, delta, input);
         Time("first person", ref t0);
         UpdateInteract(delta);
         _model.Prompt = _aimed is { } aimed
@@ -675,24 +681,13 @@ public partial class GroundView : Node3D
 
     // ---------------------------------------------------------------- the hands
 
-    /// <summary>Buttons pressed for the hands: attack (left), aim (right), R.</summary>
-    [Flags]
-    private enum HandPress
-    {
-        None = 0,
-        Attack = 1,
-        Aim = 2,
-        Reload = 4,
-    }
-
     /// <summary>
-    /// The hands (Rust's): what the item in hand does this frame with the attack button (left), the aim button (right)
-    /// and R, decided here alone from its use (<see cref="ItemDef.Hands"/>). <paramref name="input"/> comes in with the
-    /// buttons as held and leaves with what the tick sends: a weapon or a tool attacks and aims, R reloading a gun; a
-    /// building tool builds on a click, R turning the piece; a deployable is placed, food or medicine used, an explosive
-    /// thrown, or with the aim button put on a surface or lobbed. Free look (Alt) leaves the hands still: the camera alone
-    /// turns, so nothing is fired, swung, placed, thrown, reloaded or turned (RustMVP: free look never disagrees with the
-    /// aim).
+    /// The hands (Rust's, GROUND_SYSTEMS.md §7): what the item in hand does this frame with the attack button (left), the aim
+    /// button (right) and R is its held behaviour's control's to say (<see cref="IHeldControl"/>, found by the item's
+    /// <see cref="ItemDef.Held"/>). <paramref name="input"/> comes in with the buttons as held and leaves with what the tick
+    /// sends. Free look (Alt), death and the pilot's seat leave the hands still, here alone (<see cref="HandsFree"/>): the
+    /// camera turns, nothing is fired, swung, placed, thrown, reloaded or turned (RustMVP: free look never disagrees with
+    /// the aim), and no radial of the item opens.
     /// </summary>
     private void Hands(ref InputFrame input, HandPress pressed)
     {
@@ -702,65 +697,27 @@ public partial class GroundView : Node3D
             pressed |= HandPress.Attack;
         }
         input.Primary = input.Secondary = input.PrimaryPressed = false;
-        LocalPlayer me = Client.Local;
-        if (_freeLook.Active || me.IsDead || Client.Piloting)
-        {
-            return;
-        }
-        ItemDef? item = me.HeldItem;
-        bool click = (pressed & HandPress.Attack) != 0, aimClick = (pressed & HandPress.Aim) != 0, r = (pressed & HandPress.Reload) != 0;
-        switch (item?.Hands ?? HandUse.Attack)
-        {
-            case HandUse.Attack:
-                input.Primary = attack;
-                input.Secondary = aim;
-                input.PrimaryPressed = click;
-                if (r && me.Gun.Weapon != null)
-                {
-                    me.Gun.Reload();
-                }
-                break;
-            case HandUse.Build:
-                if (click)
-                {
-                    _build.Use();
-                }
-                if (r)
-                {
-                    _build.Rotate();
-                }
-                break;
-            case HandUse.Place when click && _placeAt is { } at:
-                me.Place(ContainerRef.Belt, me.HeldSlot, at, _yaw);
-                break;
-            case HandUse.Use when click:
-                Sounds.Used(Client.Content, me.Inventory.Belt[me.HeldSlot].Item);
-                me.Use(ContainerRef.Belt, me.HeldSlot);
-                break;
-            case HandUse.Throw when click || aimClick:
-                Throw(item!, aimClick && !click);
-                break;
-        }
+        HandsFree()?.Hands(_hands, ref input, new HandButtons(attack, aim, pressed));
     }
 
-    // An explosive: thrown, or (the aim button) put on the surface aimed at within reach, or a grenade lobbed gently.
-    private void Throw(ItemDef item, bool secondary)
+    // The item in hand's control, the context brought up to date; null when nothing that does anything is held, or the
+    // player is dead or flying.
+    private IHeldControl? Holding()
     {
-        ThrowableStats throwable = item.Throwable!;
-        if (Client.ClockSeconds - _thrownAt < throwable.CooldownSeconds)
-        {
-            return;
-        }
-        _thrownAt = Client.ClockSeconds;
         LocalPlayer me = Client.Local;
-        if (secondary && throwable.Placeable)
+        if (me.IsDead || Client.Piloting || me.HeldItem is not { } item || _held.Find((int)item.Held) is not { } control)
         {
-            me.PlaceCharge(me.HeldSlot, _yaw, _pitch);
-            return;
+            return null;
         }
-        me.Throw(me.HeldSlot, _yaw, _pitch, lob: secondary);
-        _firstPerson.Throw(item.Key);
+        _hands.Item = item;
+        _hands.Slot = me.HeldSlot;
+        _hands.Yaw = _yaw;
+        _hands.Pitch = _pitch;
+        return control;
     }
+
+    // The control when the hands may act: not while free looking (the one place free look stops them).
+    private IHeldControl? HandsFree() => _freeLook.Active ? null : Holding();
 
     // E: a tap acts on what is aimed at; held on a fire or furnace, it lights it or puts it out.
     private void UpdateInteract(double delta)

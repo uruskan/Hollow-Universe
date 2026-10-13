@@ -52,7 +52,7 @@ in one place.
    exactly one handler and every handler an entry.
 6. **Budgets.** Each system states its cost per frame (client) and per tick (server) and is measured once.
 
-## 3. Shared foundations (package P0)
+## 3. Shared foundations (package P0, built 13 October 2026: GROUND.md §4.2, decisions E1–E13)
 
 ### 3.1 Target references
 `TargetRef { Family : byte, Id : ulong, Part : byte }` names anything in the zone: a character, an animal, a natural
@@ -64,24 +64,67 @@ Each family registers an `ITargetFamily`: resolve an id, its pose, the nearest p
 still exists, its capabilities, its model key. This replaces the four resolvers and the per-family fields of `TraceHit`.
 Interaction, placement supports, damage receivers and the Destroyed event all use it.
 
+*As built:* `Targets/TargetRef.cs` and `Zone.Targets.cs`. Ten families (`TargetFamily`: `Ground`, `Character`, `Animal`,
+`Natural`, `Thing`, `Piece`, `Door`, `Cupboard`, `Explosive`, `Ship`; `None` names nothing), each one class registered
+once by its number. `Part` 0 is the whole thing and n is part n − 1: a door's leaf, a body's bone in its hit shapes'
+order (`HitShape`, one list the ray test, the nearest point and the bone poses share). Families also say whether their
+things move (§3.6) and take them out of the world (`Remove`, §3.7). Every world thing knows its `Ref`; `Zone.Resolve`,
+`Exists`, `TryPose` and `TryNearest` route by family, and the explosives' scan is a dictionary. The damage receivers are
+registered by family, `TraceHit` carries one `TargetRef`, and `HitTarget` and `DestroyedKind` are gone: the wire
+carries the family in 4 bits (`HitMarker`, `ProjectileEnd`, `Detonation`) and `TargetNet { Family, Id, Part }`
+(`ThingDestroyed`). Test: `FoundationTests.EveryFamilyNamesItsThings`.
+
 ### 3.2 One answer vocabulary
 `ActionResult` and `Refusal` merge into one `Outcome` code list. `IntentResult { Seq, Code, Detail }` answers every
 intent; the texts move to one table in data (`texts.json`), so the interface has one place to look and a later
 translation one file to translate.
+
+*As built:* `Outcome.cs`: `OutcomeCode`, 73 codes with fixed values, append only (7 bits on the wire), and `Outcome
+{ Code, Detail }`, the detail being the one number a line names (an item, seconds, a percentage, a level).
+`ActionResult`, `Refusal`, `BuildResult` (message 95, free) and the building's own answer path are gone; the client
+raises `IntentAnswered` and `IntentRejected` for every intent, and the game shows every refusal through
+`ClientGroundUi.OnRejected` with one error sound. `game/data/ground/texts.json` holds the lines by code name
+(placeholders `{n}`, `{item}`, `{item|word}`), read with the data but not hashed; the content check wants exactly one
+line per code. The gun's shots and reloads keep their own `GunResult` (its prediction rolls back by itself; P3). Test:
+`FoundationTests.EveryAnswerHasALine`.
 
 ### 3.3 Viewer flags
 Every replicated thing carries one `ViewerFlags` byte computed for each viewer by its capabilities: `Mine`, `Authorised`,
 `HasCode`, `Locked`, `CanUse`, `Empty`, `Lit`, `Teammate`. This replaces the four ad hoc flags above and gives the client
 what it needs to offer the right options; it is what the code lock was missing.
 
+*As built:* `game/data/ground/capabilities.json` (hashed, append only, at most 64) lists `owned`, `container`, `burner`,
+`machine`, `door`, `key-lock`, `code-lock`, `cupboard`, `ship`, `lifetime` and `explosive`; each has one handler
+(`Capabilities/Handlers.cs`) in a sealed registry, and the zone won't start while one is missing or extra. A thing's set
+(`CapabilitySet`, a 64-bit mask) comes from its definition's blocks (`CapabilityData.Of`: slots, device, recycler or
+research) or, for what the rules make, capabilities.json's own sets (bags, bodies, doors, the cupboard, ships,
+explosives, duds, carcasses); a door's adds its lock's. `Zone.FlagsFor(target, viewer)` joins every capability's share
+for a viewer (`Viewer`: ID, team, the keys they carry). The byte rides on `ThingSpawn` and `ThingUpdate`, `DoorNet`,
+`ClaimNet` and `ShipNetState.Viewer`; a thing goes again when its contents or the viewer change (a team, a key). A
+door speaks for its lock (Mine: the lock's fitter), so a fresh code lock's owner is offered SET CODE first and LOCK only
+once it has a code (`BuildView.Options`). Tests: `ViewerFlagsComeFromCapabilities`, `ViewerFlagsReachEachPlayer`.
+
 ### 3.4 Reach and sight
 One rule: the distance from the eye to the target's nearest surface, within the verb's or placeable's reach from data
 (defaults: interact 3 m, deployables 3 m, building 8 m, as now), and one line-of-sight ray. This replaces about ten
 scattered slack constants (`+0.3`, `+0.5`, `+1.5`, `+3`, `+4`) and adds the missing sight check to interactions.
 
+*As built:* `Zone.Reach(eye, target, reach, sight)` (`Zone.Reach.cs`): the distance to the target's nearest surface
+(its family's `TryNearest`), and one ray to 0.1 m short of that point that meets no building body but the target's own
+(by ID) and no ground within 0.25 m of it. survival.json's `reach`: interact 3, open 3.5, keepOpen 4.5 (no sight), help
+3, invite 6, station 4 (no sight). Opening, looting and keeping a container open, picking up, lighting, doors, locks,
+the claim device, helping up, lighting a dud again, team invites and a workbench's level all use it; interactions
+through walls are refused, and the client's prompt for things (`GameClient.Aim`) stops at the first building body (a
+thing's own excepted), so it no longer offers what the server would refuse. Placement (deployables 3 m, building 8 m)
+and a ship's parts keep their own until P2 and P1. Test: `FoundationTests.ReachIsToTheNearestSurfaceInSight`.
+
 ### 3.5 Registries
 A small `Registry<THandler>` keyed by the data list's index, filled at start-up, validated against the data. Used by
 every system below.
+
+*As built:* `src/Hollow.Simulation/Registry.cs`: handlers in an array by a data list's index or an enum's number, sealed
+after start-up with its problems named (an entry without a handler, a handler for no entry, two for one). The target
+families, the damage receivers and the capabilities use it.
 
 ### 3.6 Support links
 A world thing may rest on or be stuck in another: a furnace on a foundation, a lock on a door, a charge on a wall, an
@@ -91,11 +134,30 @@ and when its support is destroyed or removed, its dependents go with it by one r
 goes with it; an arrow in a body that is gone falls with the body's loot rules). Placement (§6) creates links;
 interaction (§5) reaches linked things where they are.
 
+*As built:* `Targets/SupportLink.cs` (`Support`, a `TargetRef` whose part names a door's leaf or a body's bone, and the
+pose there) and `Zone.Supports.cs`: `LinkTo`, `TryPose(link)` (where the support or its bone is now), `Hold`, `Release`
+and `DependentsOf`. When a support goes (the Destroyed event; a static thing taken away; a piece, door or claim device
+removed or starting to come down; a tree felled; an animal or a character gone) each dependent meets its own
+capability's consequence (`IDependentCapability.SupportLost`). Explosives are the first dependents: their `SupportKind`
+switch and fields are gone, a charge follows a door's leaf and falls when its support goes, and `ExplosiveCodec`
+version 2 stores the `TargetRef` (version 1 records come back onto one). Placement (P2) and spent arrows add the next.
+Test: `FoundationTests.SupportLinksFollowAndGoWithTheirSupport`.
+
 ### 3.7 Lifetimes
 One despawn rule for every loose thing in the world: a `lifetime` from data (survival.json today: dropped items and bags
 300 s, bodies 300 s, spent arrows), counted on world time (it pauses while the server is down), restarted by what the
 data says restarts it (a bag's newest item), and ended at once when the thing is emptied. One step in the zone runs it
 for every thing that has a lifetime; bags, bodies and arrows don't each keep their own timer code.
+
+*As built:* survival.json's `lifetimes` (bag 300 s, restarted by a deposit; body 300 s; dud 600 s) and a species'
+`corpse` seconds in animals.json for a carcass; all but the dud go at once when emptied. The `lifetime` capability's
+handler decides (`ILifetimeCapability`: over, restart, end) and the thing keeps its state (`ILifetime`: rule, end tick,
+emptied). The zone keeps the loose things in one list, filled as they come (a bag or body added, a charge gone out, an
+animal dead, each restored from storage) and left as they go; one step once a second ends those whose time is up, each
+through its family's `Remove`. Looting a bag or body empty, or harvesting a carcass out, ends it at once. Gone:
+`DroppedContainer.Expired`, `StepDespawns` and its scan of every static thing, the duds' `DudSeconds` timer and the
+animal world's corpse check. The devices' step now looks at the burners and machines alone, `BagsNear` at the loose
+things. Test: `FoundationTests.LifetimesAreOneStepForEveryLooseThing`.
 
 ## 4. One radial menu (package P5, first)
 
@@ -251,14 +313,95 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
 **Replaces:** the chains listed in §1 (input, `BuildView.Use`, `FirstPersonView`, the server's melee/bow chain,
 `Describe`, `MoreActions`), and the `Key == "torch"` and `"rifle"` checks, which become model-catalogue flags.
 
+*As built* (package P3, `ground-p3`; GROUND.md §11, decisions V1 on):
+
+- **Parts.** `ItemPart` (`Content/ItemParts.cs`) names the 21 blocks of data that give an item behaviour: melee, bow,
+  arrow, consumable, wearable, fuel, cookable, deployable, ship, firearm, round, attachment, throwable, plan, hammer,
+  cupboard, lock, key, door, blueprint and component (an ingredient of a recipe, or recycled into salvage). One table
+  (`ItemPartTable`) says where each is declared and which held behaviour it gives; when the data has been read, every
+  item gets its parts (`ItemDef.Parts`), what uses it (`UsedIn`) and its one held behaviour (`ItemDef.Held`, a `HeldUse`,
+  and `HeldPart`). Two parts that would each give one are a problem in the data. Test:
+  `HeldTests.HeldBehaviourComesFromOnePart`.
+- **Held behaviours on the server** (`Zone.Held.cs`): one handler per `HeldUse` in a registry the zone seals at start.
+  The tick asks the item in hand's handler for its buttons (melee swings, the bow drawn and loosed) and, when the hands
+  change, the handler of what was put away ends what was going on; the rest act by intents. An intent a held behaviour
+  sends is checked by that behaviour (`Zone.ItemFor`): a throw of something whose held behaviour isn't `Throwable` is
+  refused, whatever it is.
+- **Held behaviours on the client** (`game/scripts/Ground/Held/`): one control per `HeldUse` (`IHeldControl`) in a
+  registry the game builds at start (complete, or it doesn't start; `--ui-check` checks it). The ground view asks the item
+  in hand's control what the attack and aim buttons and R do this frame (`Hands`), which radial a held input opens
+  (`Radial`: the aim button's at once, the plan's pieces and the hammer's work; R's after 0.35 s, a gun's rounds), the
+  HUD's ammo counter (`Ammo`), where a placeable's ghost goes (`Aim`) and what the first-person arms do (`Arms`: a melee
+  swing in the server's rhythm, a bow's draw, a gun's attachments). The view's `Hands` switch, its `Throw` and
+  `ItemDef.Hands` (`HandUse`) are gone, and so are `FirstPersonView`'s melee and bow branches and its placeholder stick
+  (every item held in sight has a model; a test checks it). Free look, death and the pilot's seat stop the hands in one
+  place, the view's `HandsFree`, before any control is asked, so no radial of the item opens while Alt is held either.
+  The controls: melee and the bow send the tick's buttons; the firearm sends them too (the predicted gun fires from them),
+  and R opens its rounds (`AmmoRadial`: every round of its calibre carried with how many, then UNLOAD; the current option
+  the round a tap reloads with, the loaded kind while there are more; with none carried the loaded kind shows refused, so
+  a tap says why); a throwable throws, puts a charge on a surface or lobs a grenade; a placer and the planner place and turn
+  through `IPlacement`, P2's system (today `TodaysPlacement` sends each placeable to its old entry point by the part that
+  makes it placeable: a deployable to `LocalPlayer.Place` with its ghost, the plan's piece, doors, locks and the cupboard to
+  `BuildView.Use` and `Rotate`; a ship says it can't be placed yet); the hammer repairs and opens its radial; food,
+  medicine and blueprints do their part's first inventory button (EAT, USE, LEARN). The model catalogue says what was
+  picked by item key: `held.flame` (the torch's fire, `fire.torch`), `held.pose` (`pistol`, `rifle`: the arms' pose and
+  the muzzle's place when a model has none) and `held.eyeRelief` (the rifle's). Test:
+  `HeldTests.HeldItemsShowFromTheCatalogue`.
+- **Information** (`Items/ItemRows.cs`): a describer per part in a registry (every part has one, or nothing starts), each
+  adding its rows; an item's information is its parts' rows in order, then its condition. A stack is described with
+  what is its own: a gun's magazine and attachments (which change its numbers), what a blueprint teaches and whether the
+  reader knows it. Guns say their damage, fire (auto or semi, rounds a minute), magazine, reload, aim cone hip and aimed,
+  range and recoil; rounds what fires them, their damage, speed, bleeding, fire and blast; attachments what they fit and
+  change; explosives their fuse and duds, blast, and how many break each grade of wall and each door; deployables their
+  health, slots, workbench level, fuel, cooking, warmth, machine and respawn time; doors, locks, the cupboard, the plan
+  and the hammer their numbers from building.json; ships their hull, fuel and speeds; components what uses them and what
+  they recycle into; and melee (now with structures and bleeding), bows, arrows, food (now with poison), clothing (now
+  where it is worn), fuel and cooking as before. The panel lays the rows out label left, value right, and narrows a long
+  value's font until it fits (`IGroundUi.Rows`). Test: `HeldTests.EveryPartIsDescribed`.
+- **Inventory actions** (`Items/ItemActions.cs`): items.json's `actions` list (use, eat, wear, unequip, learn, unload,
+  remove; append only, a place is the wire number, a label may name the item: `REMOVE {item}`) and one handler per
+  action, listed under the part that offers it (`IItemAction`: `Offer` the buttons of it a stack has, enabled or with the
+  refusal; `Do` it). A stack offers what its parts' handlers offer: food EAT and medicine USE, clothing WEAR (refused,
+  `Worn`, while something worn has its layer) and UNEQUIP, a blueprint LEARN (refused once known), a gun UNLOAD (refused
+  while empty or reloading) and REMOVE for each attachment. One `ItemActionIntent { Seq, From, Slot, Expected, Action,
+  Arg }` (message 230) sends any of them; the server (`Zone.ItemAction`) does an action only when its handler offers it on
+  that stack, enabled, and the client predicts it with the same handlers (`LocalPlayer.ItemAction`; `IItemActor` is the
+  player as each side has them: eating's vitals and a learnt blueprint's count are the server's). `UseIntent` (53) and
+  `DetachIntent` (65) are gone, with `Zone.UseItem`, `Zone.Detach`, `LocalPlayer.Use` and `Detach`, the panel's
+  `MoreActions` and its USE and WEAR code. DROP and the split stay the inventory's own. The panel shows what
+  `IGroundUi.Actions` gives, then DROP; a refused button is muted and a click on it says why (as a radial's disabled
+  option). A click with food, medicine or a blueprint in hand does its part's first button (`LocalPlayer.UsePart`). Test:
+  `HeldTests.InventoryActionsComeFromParts`.
+- **Guns.** UNLOAD returns the rounds to the inventory, all or (no room) none; the kind stays named, so R loads it again.
+  The gun in hand's goes on its own timeline (`UnloadIntent`, message 231, a `GunActionKind.Unload` in order with its
+  shots and reloads, predicted by `LocalGun.Unload`); a gun in the main slots or elsewhere on the belt is unloaded by the
+  item action. A gun's slot shows its loaded round's icon at the bottom left (`ItemStack.Round` in the interface's model),
+  the count staying at the bottom right, on the belt, in the inventory and in loot. Test: `HeldTests.UnloadReturnsTheRounds`.
+- **Dropping**: a drag released on another slot moves there, on its own slot is put back, and anywhere else (over a
+  panel, a button or the world) drops (Rust). `--ui-check` checks the panel and the own slot.
+- **Workbench speed** (`Items/CraftingSpeed.cs`): a job takes its recipe's time times recipes.json's `workbenchSpeed`
+  factor for how many levels the best workbench in reach is above the recipe's (1, ½, ¼: Rust's; the last holds for
+  more), fixed in the job when it starts (it keeps that time if the bench goes); a station's own recipe (the Tin Finch)
+  keeps its time. The server, the client's prediction and the crafting panel use the one rule: the panel's clock shows the
+  time a unit takes here, in green when shorter, and the workbench line says how much faster (`IGroundUi.SecondsHere`);
+  the queue's progress follows each job's own time. Test: `HeldTests.AWorkbenchAboveTheRecipeCraftsFaster`.
+- **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
+  lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
+  from 100), and `GunUpdate` carries the code in 7 bits.
+- **Cost:** the zone's tick does one array lookup per player for the held behaviour; the client one per frame for the
+  control; the item panel's rows and buttons are worked out once per stack and cached until it, the inventory, the
+  blueprints or the gun change; the ammo radial lists the calibre's rounds only while open.
+- **Pictures** (a hosted game, `--tour-steps held`): `docs/images/ground/held/ak-info.jpg`, `bag-charge-info.jpg`,
+  `ammo-icon.jpg`, `ammo-radial.jpg`, `blueprint-learn.jpg`, `crafting-workbench.jpg`. Protocol 17; six tests.
+
 ## 8. Damage and destruction (package P4, built: GROUND.md §6.4.2)
 
 One damage request (who, with what, how delivered, the damage channels, amount, body region, point, direction); a
 registry of receivers by target family, each with its own defences and consequences; every delivery (melee, arrow,
 bullet, blast) calls one entry point; one consequence step emits **Destroyed** `{ Target, model key, pose, direction of
 the blow, cause }` to everyone near. Gibs, effects, sounds and support links listen to it. Built by `ground-damage`
-(GROUND.md §6.4.2, decisions D6–D11): receivers are keyed by `HitTarget` and each finds its own things along a ray and in
-a blast's reach; with P0 their routing moves onto `TargetRef`.
+(GROUND.md §6.4.2, decisions D6–D11): each receiver finds its own things along a ray and in a blast's reach; since P0
+they are registered by target family and name what they hit by `TargetRef` (§3.1).
 
 ## 9. Later: one model for every world thing (package P6)
 
@@ -283,7 +426,7 @@ contact frame and point come from the same hit the server computes. To be planne
 1. Merge the five packages of the first playtest: freelook, hands and foundation height; exact recoil and the damage
    request (P4); tree X and node hotspots; loot bags (all merged 13 October 2026); gibs. The Tin Finch's placement waits
    for P2.
-2. **P0** foundations, then **P5** the radial.
+2. **P0** foundations (built 13 October 2026), then **P5** the radial.
 3. **P1** interaction, **P2** placement and **P3** held items, in parallel.
 4. Merge, then the owner plays.
 

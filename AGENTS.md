@@ -221,12 +221,15 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,look`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,look,foundations,held`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
   tree, e.g. `pine-tree`; `look` pictures the rock in hand, free look through Alt and the mouse, and a free foundation
-  lifted by the aim),
+  lifted by the aim; `foundations` checks P0's viewer flags and answers: E held on a fresh code lock's door offers its
+  owner SET CODE first, and a hut's claim device opened through its wall is refused with its line; `held` pictures P3's
+  held items: a gun's slot with its loaded round's icon, its rounds on R held, the AK's, the bag charge's and a blueprint's
+  item panels (information and actions, LEARN), and crafting beside a level 2 workbench, faster),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits), `--load-trace [s]` (GROUND.md §4.3.1: times the start from the process's start to steady
@@ -238,11 +241,14 @@ Client options (after `--`):
   (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire; with the building plan: place
   the piece; with the hammer: repair; with a door, a lock or the claim device: fit or place it; with an explosive: throw
   it), right mouse aim or draw (with the plan or the hammer, held: its radial; with a charge: put it on the surface
-  aimed at; with a grenade: lob it); R reload (with a building tool: turn the piece or door); E interact (doors, a code
+  aimed at; with a grenade: lob it); R reload (a gun, tapped: with the loaded kind; held: its rounds and UNLOAD; with a
+  building tool: turn the piece or door); E interact (doors, a code
   lock's keypad, a dud to light; held on a fire or furnace to light it or put it out, on a door or the claim device for
   its options; help a wounded player up; G7: open a crate or recycler, a workbench's tech tree, invite a player close by
-  into the team one leads); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it, the gun's panel takes
-  it off; a blueprint is used like food, and learnt); Q crafting (its TECH TREE tab at a workbench); G the map (a click
+  into the team one leads); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it; the item panel's ACTIONS
+  are the item's own: EAT, USE, WEAR, UNEQUIP, LEARN a blueprint, UNLOAD a gun, REMOVE an attachment, then DROP; a drag
+  released anywhere but a slot drops); Q crafting (its TECH TREE tab at a workbench; a workbench above a recipe's level
+  makes it faster); G the map (a click
   puts a marker down, a right-click takes it off; the team beside it); Enter chat (`/t ` before a line: to the team
   alone); F1 the console (GROUND.md §8.2: CONSOLE, INFO, NET, ITEMS and TOOLS tabs; Tab completes, Up and Down the
   history, Esc or F1 closes); Esc back, then the menu; F3 network graph; the death screen's buttons respawn. At a ship, E opens its hatch, boards, refuels or opens the cargo. Flying (G6): the mouse is the
@@ -251,7 +257,7 @@ Client options (after `--`):
   (`/give rifle`), with the player's rights on any server. A hosted game makes its host the admin.
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
   `heal`, `kill` besides G1's (type `help`; every command of the F1 console is in GROUND.md §8.2: `give <item> [amount]
-  [player]`, `teleport`, `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`, `timescale`,
+  [player]` (`<item>.blueprint`: its blueprint), `teleport`, `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`, `timescale`,
   `ents`, `whereami`, `players`, Rust's names such as `inventory.give`, `global.teleport`, `env.time`; at the server's
   console a command names its player, and the older `give <name> <item> [count]` forms still work); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
   (and `--raid-radius <m>`; servers without a database) builds claimed huts on a ring for raid tests;

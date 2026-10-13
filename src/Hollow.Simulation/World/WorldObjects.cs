@@ -3,6 +3,8 @@ using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.World;
 
@@ -25,7 +27,7 @@ public enum StaticKind : byte
 /// nothing per tick until something happens to it; <see cref="Revision"/> rises when what others see changes, so the
 /// server sends it again.
 /// </summary>
-public abstract class WorldObject
+public abstract class WorldObject : ITargetable, IContainerHolder
 {
     protected WorldObject(EntityId id, Vector3 position, Vector3 up, float yaw)
     {
@@ -36,6 +38,9 @@ public abstract class WorldObject
     }
 
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Thing, Id.Value);
 
     public abstract StaticKind Kind { get; }
 
@@ -48,6 +53,21 @@ public abstract class WorldObject
 
     /// <summary>Raised on every change others can see.</summary>
     public uint Revision { get; set; }
+
+    private int _shown;
+
+    /// <summary>
+    /// Raises <see cref="Revision"/> when what others see of its count changed since the last call (a looter took a stack
+    /// out of a bag), so clients hear of it.
+    /// </summary>
+    public void PublishChanges()
+    {
+        if (ShownCount != _shown)
+        {
+            _shown = ShownCount;
+            Revision++;
+        }
+    }
 
     /// <summary>Its storage, if it has any.</summary>
     public virtual Container? Container => null;
@@ -74,13 +94,36 @@ public abstract class WorldObject
     /// deployable, which clients name by its item.
     /// </summary>
     public virtual string Name => "";
+
+    /// <summary>What it is drawn as (the model catalogue's key); empty for a body, which the characters draw.</summary>
+    public virtual string ModelKey => "";
+
+    /// <summary>Its capabilities (GROUND_SYSTEMS.md §2.1): a deployable's from its blocks, a bag's and a body's their kind's.</summary>
+    public abstract CapabilitySet CapabilitiesIn(CapabilityData data);
+
+    /// <summary>
+    /// The nearest point of its bounds to a point (GROUND_SYSTEMS.md §3.4: reach is measured to it): a sphere of
+    /// <see cref="BoundsRadius"/> <see cref="BoundsLift"/> above its base, unless it says otherwise (a deployable's box).
+    /// </summary>
+    public virtual Vector3 Nearest(Vector3 from)
+    {
+        Vector3 centre = Position + Up * BoundsLift;
+        Vector3 off = from - centre;
+        float d = off.Length();
+        return d <= BoundsRadius ? from : centre + off * (BoundsRadius / d);
+    }
+
+    /// <summary>Its bounds as a sphere: how far above its base, and how big (the interact key's picker uses the same).</summary>
+    protected virtual float BoundsLift => 0.15f;
+
+    protected virtual float BoundsRadius => 0.35f;
 }
 
 /// <summary>
 /// A placed object (GROUND.md §6): sleeping bag, campfire, furnace, box, workbench, research table; and (G7) the
 /// world's own props (<see cref="WorldProp"/>), which hits, blasts, opening and replication treat the same way.
 /// </summary>
-public class Deployable : WorldObject
+public class Deployable : WorldObject, IOwned
 {
     public Deployable(EntityId id, DeployableDef def, Vector3 position, Vector3 up, float yaw, EntityId owner)
         : base(id, position, up, yaw)
@@ -116,6 +159,15 @@ public class Deployable : WorldObject
     public override ushort Look => Def.Id;
 
     public override float HealthFraction => Health / Def.Health;
+
+    public override string ModelKey => Def.Key;
+
+    public override CapabilitySet CapabilitiesIn(CapabilityData data) => data.Of(Def);
+
+    ulong IOwned.OwnerId => Owner.Value;
+
+    /// <summary>The nearest point of its box.</summary>
+    public override Vector3 Nearest(Vector3 from) => Combat.Geometry.NearestOnBox(Position, Up, Yaw, Def.HalfExtents, from);
 
     public override bool Burning => Lit;
 
@@ -182,6 +234,8 @@ public sealed class WorldProp : Deployable
 
     public override string Name => Prop.Name;
 
+    public override string ModelKey => Prop.Key;
+
     /// <summary>A barrel's loot is only had by breaking it; a crate and a recycler open like a box.</summary>
     public override Container? Container => Prop.Openable ? Storage : null;
 
@@ -191,17 +245,17 @@ public sealed class WorldProp : Deployable
 
 /// <summary>
 /// A container left lying in the world for a while (Rust's dropped item container): a body (<see cref="Corpse"/>) or a
-/// bag of dropped items (<see cref="DroppedBag"/>). Anyone may take from it, nobody put into it; it goes once emptied,
-/// or when its time is up (world time: it pauses while the server is down).
+/// bag of dropped items (<see cref="DroppedBag"/>). Anyone may take from it, nobody put into it. Its lifetime is its
+/// kind's (survival.json's lifetimes, GROUND_SYSTEMS.md §3.7): it goes when its time is up (world time: it pauses while
+/// the server is down) or once emptied, by the zone's one lifetime step.
 /// </summary>
-public abstract class DroppedContainer : WorldObject
+public abstract class DroppedContainer : WorldObject, ILifetime
 {
-    private int _shown;
-
-    protected DroppedContainer(EntityId id, ContainerKind kind, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
+    protected DroppedContainer(EntityId id, ContainerKind kind, int slots, Vector3 position, Vector3 up, float yaw, LifetimeRule lifetime, long despawnTick)
         : base(id, position, up, yaw)
     {
         Loot = new Container(kind, Math.Max(1, slots));
+        Lifetime = lifetime;
         DespawnTick = despawnTick;
     }
 
@@ -209,24 +263,20 @@ public abstract class DroppedContainer : WorldObject
 
     public override Container? Container => Loot;
 
-    /// <summary>The zone tick it disappears at.</summary>
+    /// <summary>Its kind's lifetime.</summary>
+    public LifetimeRule Lifetime { get; }
+
+    /// <summary>The zone tick its time is up at.</summary>
     public long DespawnTick { get; set; }
 
-    /// <summary>Whether it goes now: emptied, or its time is up.</summary>
-    public bool Expired(long tick) => tick >= DespawnTick || Loot.IsEmpty;
-
-    /// <summary>
-    /// Raises <see cref="WorldObject.Revision"/> when what others see of it changed since the last call (a looter took
-    /// a stack out of a bag), so clients hear of it; the zone calls it once a second.
-    /// </summary>
-    public void PublishChanges()
+    long ILifetime.EndsAt
     {
-        if (ShownCount != _shown)
-        {
-            _shown = ShownCount;
-            Revision++;
-        }
+        get => DespawnTick;
+        set => DespawnTick = value;
     }
+
+    /// <summary>Looted empty.</summary>
+    public bool Emptied => Loot.IsEmpty;
 }
 
 /// <summary>
@@ -236,8 +286,8 @@ public abstract class DroppedContainer : WorldObject
 /// </summary>
 public sealed class DroppedBag : DroppedContainer
 {
-    public DroppedBag(EntityId id, string name, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
-        : base(id, ContainerKind.Crate, slots, position, up, yaw, despawnTick)
+    public DroppedBag(EntityId id, string name, int slots, Vector3 position, Vector3 up, float yaw, LifetimeRule lifetime, long despawnTick)
+        : base(id, ContainerKind.Crate, slots, position, up, yaw, lifetime, despawnTick)
     {
         Name = name;
     }
@@ -249,6 +299,10 @@ public sealed class DroppedBag : DroppedContainer
 
     /// <summary>A bag, whatever is in it.</summary>
     public override ushort Look => 0;
+
+    public override string ModelKey => "dropped-bag";
+
+    public override CapabilitySet CapabilitiesIn(CapabilityData data) => data.Bag;
 
     /// <summary>How many stacks it holds: one is picked up at once, more open like a box.</summary>
     public override int ShownCount
@@ -268,8 +322,8 @@ public sealed class DroppedBag : DroppedContainer
 /// <summary>A dead player's body with everything they carried (GROUND.md §6): anyone may take from it.</summary>
 public sealed class Corpse : DroppedContainer
 {
-    public Corpse(EntityId id, string name, EntityId of, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
-        : base(id, ContainerKind.Corpse, slots, position, up, yaw, despawnTick)
+    public Corpse(EntityId id, string name, EntityId of, int slots, Vector3 position, Vector3 up, float yaw, LifetimeRule lifetime, long despawnTick)
+        : base(id, ContainerKind.Corpse, slots, position, up, yaw, lifetime, despawnTick)
     {
         Name = name;
         Of = of;
@@ -283,6 +337,13 @@ public sealed class Corpse : DroppedContainer
     public EntityId Of { get; }
 
     public override ushort Look => 0;
+
+    public override CapabilitySet CapabilitiesIn(CapabilityData data) => data.Corpse;
+
+    /// <summary>A body lies along the ground: a wider sphere, lower.</summary>
+    protected override float BoundsLift => 0.25f;
+
+    protected override float BoundsRadius => 0.6f;
 }
 
 /// <summary>The entity component linking a static entity to its object.</summary>

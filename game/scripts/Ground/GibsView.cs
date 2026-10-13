@@ -28,7 +28,7 @@ public partial class GibsView : Node
     {
         Num.Vector3 up = Client.Frame.UpAt(e.Position);
         float gravity = Client.Zone is { } zone ? (float)(zone.SurfaceGravity * 9.80665) : 0f;
-        GibBreak broke = GibDirector.Break(e.Key, e.Grade, e.Position, e.Rotation, e.Direction, e.Cause, up, gravity, e.Id.Value);
+        GibBreak broke = GibDirector.Break(e.Key, e.Grade, e.Position, e.Rotation, e.Direction, e.Cause, up, gravity, e.Target.Id);
         if (broke.Shown)
         {
             Sounds.At(broke.CauseSound ?? Sounds.Item(e.Key, "break") ?? broke.MaterialSound, broke.Centre);

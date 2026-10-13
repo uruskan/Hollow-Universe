@@ -36,7 +36,7 @@ public sealed partial class Zone
         p.StrikeTick = -1;
         p.DrawStartTick = -1;
         p.VitalsRevision++;
-        RefuseGunActions(p, Combat.GunResult.NotAlive);
+        RefuseGunActions(p, OutcomeCode.Dead);
         ref Character c = ref Entities.Get<Character>(entity);
         c.State.Stance = Stance.Crawling;
         SyncHealth(ref c, p);
@@ -47,23 +47,23 @@ public sealed partial class Zone
     /// Helps a wounded player up (Rust's assist, with the interact key): within reach, awake and not down oneself. They
     /// get up with the health they have.
     /// </summary>
-    public ActionResult HelpUp(Entity entity, EntityId target)
+    public Outcome HelpUp(Entity entity, EntityId target)
     {
         if (!Acting(entity, out Player _))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (!Entities.TryFind(target, out Entity e) || e == entity || PlayerOf(e) is not { Wounded: true, Dead: false } down)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
-        Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
-        if (Vector3.Distance(eye, Entities.Get<Character>(e).State.Position) > Content!.Survival.HelpReach + 0.5f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), down.Ref, Content!.Survival.HelpReach);
+        if (!reach.Ok)
         {
-            return ActionResult.OutOfReach;
+            return reach;
         }
         GetUp(e, down, Entities.IdOf(entity));
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>Whether a wounded player whose time ran out gets up by themselves (a roll fixed by who and when).</summary>

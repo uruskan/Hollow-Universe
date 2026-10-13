@@ -331,8 +331,8 @@ public static class Program
             $"Bots: {F(7):0} playing, {F(8):0} disconnected"));
         if (r.Length > 18)
         {
-            string refusals = string.Join(", ", Enumerable.Range(1, 15).Where(i => measured.GunResults[i] > 0)
-                .Select(i => $"{(Hollow.Simulation.Combat.GunResult)i} {measured.GunResults[i]}"));
+            string refusals = string.Join(", ", Enumerable.Range(1, measured.GunResults.Length - 1).Where(i => measured.GunResults[i] > 0)
+                .Select(i => $"{(Hollow.Simulation.OutcomeCode)i} {measured.GunResults[i]}"));
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"Guns (bots): {F(15):0} bursts, {F(16):0} reloads asked for, {F(17):0} downed players helped up, {F(18):0} gun actions unanswered at the end; " +
                 $"server: {measured.GunActions} gun actions arrived ({measured.GunLimited} over budget); bullets flown in {measured.BulletMs / Math.Max(1, measured.Ticks + warmup * 30):0.00} ms a tick " +

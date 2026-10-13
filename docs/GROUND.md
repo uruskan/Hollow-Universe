@@ -127,6 +127,13 @@ Godot.
 - **Static entities** (building parts, deployables, boxes) cost nothing per tick until something happens to them.
 - **Natural things** (trees, ore, plants) come from the surface generator. Only changes are stored, such as "this tree
   is cut until T" (ARCHITECTURE.md P1).
+- **Shared foundations** (GROUND_SYSTEMS.md §3, package P0, as built 13 October 2026; decisions E1–E13): anything in the
+  zone is named by a `TargetRef` (family, ID, part) that its family resolves; every intent is answered by one `Outcome`
+  (a code and its detail; the lines in `texts.json`); what a player is told of a thing is one byte of viewer flags made
+  by the thing's capabilities (`capabilities.json`); every action on a thing checks one rule of reach and sight (to its
+  nearest surface, survival.json `reach`); what rests on or sticks in a thing is linked to it and goes with it; one
+  step a second ends every loose thing whose lifetime is up (survival.json `lifetimes`). Handlers live in registries
+  filled at start-up and checked against the data.
 - **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world, its
   origin at the landing site (§3; `--lat`, `--lon` move it), on the planet's real surface (`ZoneSpec.CreateSurface`:
   `PlanetSurface`, one instance per process shared by the server, the prediction and the terrain; `--stand-in` gives
@@ -210,7 +217,8 @@ Godot.
     through `HeldItems`), and the inventory shows the same body. Godot's own physics gets the ground near the player
     for ragdolls and feet (`GroundCollision`).
   - **Interface:** the RustMVP interface (`GroundUi`, §8) over `ClientGroundUi`, names over other players (placed by
-    `Labeller`), F3 for the network graph.
+    `Labeller`), F3 for the network graph. Every refused intent, the building's included, is shown by one path
+    (`ClientGroundUi.OnRejected`: the line from texts.json, and one error sound).
   - **Sound** (`GroundAudio`, §4.9): the audio package's director at the camera, ambience from the place, every
     character's footsteps on the ground under them, and the game's events (gathering, pickups, food and bandages,
     hurt and death, the cold, fires, boxes, placing, swings, the bow and arrows, hit markers, the interface).
@@ -1640,7 +1648,7 @@ the workbench level within 4 m and the materials for every unit, then takes them
 unit every `seconds × 30` ticks; a finished unit goes into the inventory (dropped at the feet if full, as in Rust, rather
 than holding the queue as RustMVP did). Cancelling any job gives back the ingredients of every unit left, the one in
 progress included; what doesn't fit is dropped. At death the queue's ingredients go into the corpse. A workbench counts
-only when the job starts (Rust). Crafting pauses while the player is offline or asleep.
+only when the job starts (Rust), within 4 m of its nearest surface (survival.json `reach.station`). Crafting pauses while the player is offline or asleep.
 
 **Gathering** (`Nature/`). Natural objects come from `INaturalObjects`: objects in a rectangle of the zone's tangent
 plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. `ZoneSpec.CreateNature`
@@ -1703,10 +1711,14 @@ is the one place that picks the provider:
 
 **The zone's game** (`Zone.*.cs`). A zone built with `GameContent` runs the survival game after movement each tick, in
 §4.2's order: fall damage into the vitals; actions (held item, swings, shots); projectiles and damage; once a second
-survival, natural respawns, despawns and loot reach; devices; crafting; then the hit history. Players' actions are
-`Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `UseItem`, `Craft`, `CancelCraft`, `Open`, `Close`,
-`PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of it or
-nothing, with a reason (`ActionResult`). Every new persistent thing gets an `EntityId` from the server's allocator.
+survival, natural respawns, the lifetimes of loose things (one step for bags, bodies, duds and carcasses,
+GROUND_SYSTEMS.md §3.7) and loot reach; devices (the burners and machines alone); crafting; then the hit history.
+Players' actions are `Zone` methods (`MoveItem`, `QuickMove`, `DropItem`, `ItemAction` (the inventory's buttons, by
+their handlers: eat, use, wear, take off, learn, unload, remove an attachment; GROUND_SYSTEMS.md §7), `Craft`,
+`CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Toggle`, `Place`, `Respawn`), each checking everything and either doing all of
+it or nothing, with a reason (an `Outcome`: one code list for the whole game and the number its line names; the lines
+are in texts.json, GROUND_SYSTEMS.md §3.2). An action on a thing needs the eye within reach of its nearest surface, in
+sight (survival.json `reach`, GROUND_SYSTEMS.md §3.4). Every new persistent thing gets an `EntityId` from the server's allocator.
 
 **Survival** (`Zone.Vitals.cs`, once a second, survival.json). Health 0–100, calories 0–500, hydration 0–250; a new life
 starts at 60 / 260 / 160 (hollow-orbit's respawn values).
@@ -1751,13 +1763,13 @@ work, a spent arrow.
 - **Where it rests:** on the first solid surface under the point (a floor or foundation, a box's lid, the ground's own
   collision) within 4.5 m, so a bag dropped in a base lies on its floor; a drop lands 0.7 m ahead of the player's feet,
   short of a wall in the way.
-- **Time:** 300 s of world time (it pauses while the server is down) from the newest item put in; an emptied bag goes at
-  once.
+- **Time:** survival.json's `lifetimes.bag`: 300 s of world time (it pauses while the server is down) from the newest
+  item put in (its lifetime restarts on a deposit); an emptied bag goes at once.
 - **Taking:** the interact key takes a bag of one stack whole (as much as fits); a bag holding more opens in the loot
   panel, take only (a crate's loot), showing only the rows its stacks fill. Others see only the bag and how many stacks
   it holds (for the prompt's verb); its contents go only to whoever opens it.
 - A bag and a body are the same kind of thing (`DroppedContainer`: a container lying for a while, take only, gone when
-  emptied or when its time is up). Bags are saved with the zone's things (their record's version 3; a stack saved
+  emptied or when its lifetime is up, by the zone's one lifetime step, GROUND_SYSTEMS.md §3.7). Bags are saved with the zone's things (their record's version 3; a stack saved
   alone before comes back as a bag of it). Tests: `SurvivalTests.DroppedItemsArePackedIntoBags` and
   `ABagIsTakenWholeOrOpened`, `SurvivalNetTests.OthersSeeOnlyABag`, and the restart in `EverythingSurvivesARestart`.
 - Pictures (`docs/images/ground/drop/`, the screenshot run's `--tour-steps bags`): `bag.jpg` (five stacks dropped in
@@ -1767,7 +1779,7 @@ work, a spent arrow.
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
 ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
 clothing 30–36; the queue's ingredients fill empty main slots, then follow), which anyone may take from but not put into;
-it goes when emptied or after 300 s of world time (Rust's corpse lifetime). The dead player chooses: a random beach point
+it goes when emptied or after 300 s of world time (Rust's corpse lifetime; survival.json `lifetimes.body`). The dead player chooses: a random beach point
 (no wait, as in Rust; survival.json can add one) or one of their own sleeping bags or beds that has cooled down. A new life has
 the spawn vitals, and a rock and a torch on the belt (Rust). The beach points are the real coast's (`Beaches`, §4.2); on the stand-in ground
 "the beach" is a random point 15–60 m from the zone's origin.
@@ -1810,7 +1822,8 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
 - **Intents** (client → server, reliable ordered, each with a sequence number): move, quick move, drop, use, craft,
   cancel craft, open, close, pick up (a natural object, or a bag of dropped items: all of it that fits), place, light or put out, respawn. The
   server applies them as they arrive (at the start of a tick) and answers every one with `IntentResult` (accepted, or
-  the `ActionResult` reason) after that tick's changes have gone out.
+  the reason: an `Outcome` code in 7 bits and its detail; since protocol 16 every intent, the building's too) after
+  that tick's changes have gone out.
 - **Budget** (RustMVP's command budget): 16 at once, 20 a second; every arrival spends one, a bad one too; over it the
   answer is `RateLimited`, and the server counts accepted, refused and rate-limited intents per player.
 - **The player's own state** (reliable, to them alone): their three containers in full at joining, then changed slots
@@ -1824,8 +1837,9 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
   clients draw on their own arc.
 - **Static things** (deployables, bags of dropped items, corpses) are sent once when they come within 300 m
   (`ThingSpawn`; at most 48 new ones per snapshot, so a crowded place streams in), again when they change
-  (`ThingUpdate`: health, a bag's number of stacks, lit, the receiver's own sleeping bag) and `Despawn`ed when gone or
-  out of range (320 m). What is sent of a thing is the thing's own to say (`WorldObject`: its look, health, count,
+  (`ThingUpdate`: health, a bag's number of stacks, and the receiver's viewer flags: lit, theirs, a teammate's, empty,
+  GROUND_SYSTEMS.md §3.3) or when what this player is told of them does, and `Despawn`ed when gone or out of range
+  (320 m). What is sent of a thing is the thing's own to say (`WorldObject`: its look, health, count,
   burning, whose, and its own name: a body's, a bag's, a world prop's); a bag shows no item (protocol 12).
 - **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
   changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens. Since
@@ -1860,7 +1874,7 @@ dropped. A G1 database migrates in place; G1 characters come back with a new lif
 | `Crafting` | Jobs front first: recipe, count, progress of the unit in hand, seconds left, still pending. |
 | `Life`, `IsDead`, `SecondsUntilReady(option)` | Alive or dead; how, by whom; respawn choices (the beach, each bag) and their countdowns. |
 | `HeldSlot`, `HeldItem`, `WorkbenchLevel`, `CanCraft(recipe, count)` | The belt slot in hand (set by the UI; it goes out with every input), the best bench within 4 m, whether a recipe can start. |
-| `MoveItem`, `QuickMove`, `Drop`, `Use`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, uses, crafting, placing, closing), shows at once. |
+| `MoveItem`, `QuickMove`, `Drop`, `ItemAction(from, slot, action, arg)`, `Craft`, `CancelCraft`, `Open`, `Close`, `PickUpNatural`, `PickUpItem`, `Place`, `Toggle`, `Respawn` | Intents. Each returns its sequence number and, where the outcome is known (moves, drops, item actions, crafting, placing, closing), shows at once. `ItemActions(from, slot, list)` gives a stack's buttons as the server would judge them, `FirstAction`/`UsePart` a held part's first (a click with food, medicine or a blueprint in hand; GROUND_SYSTEMS.md §7). |
 | `Changed`, `ContainerOpened`, `ContainerClosed`, `HitMarker`, `ItemsChanged`, `DamageTaken`, `CraftFinished`, `IntentAnswered`, `IntentRejected`, `Died`, `Respawned` | Events for the UI. A refused intent has already been rolled back when `IntentRejected` fires. |
 
 Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), the natural objects and their changes
@@ -1928,7 +1942,7 @@ corners and centre, at most its 1 m depth above the lowest (2 cm inside both). A
 ground allows. The wire sends the point on the aim and the server works the same foundation out from it
 (`BuildingWorld.FoundationAt`).
 
-**Placement checks**, in this order, each refusal with a line for the player (`Refusal`, `Outcome.Text`):
+**Placement checks**, in this order, each refusal with a line for the player (an `OutcomeCode`, its line in texts.json):
 
 | Check | Rule | Refusal |
 |---|---|---|
@@ -1970,7 +1984,9 @@ door needs no rights, only its lock's consent, and its new pose clear of players
 no lock on it. **Key lock** (Rust's): its owner opens it without a key; anyone with a key cut for it (its key code)
 opens it and it stays locked. **Code lock** (RustMVP's, no guest codes): four digits; setting the code locks it and
 leaves only the setter authorised; the right code authorises (up to 64); wrong codes make the player wait 1, 5, 5, 5,
-then 30 s; lock, unlock and take off by an authorised player, taking off only when unlocked.
+then 30 s; lock, unlock and take off by an authorised player, taking off only when unlocked. A fresh lock's owner is
+offered SET CODE first, and LOCK only once it has a code (the door's viewer flags speak for its lock: its fitter's,
+whether it has a code, locked, whether this player is on its list; E7).
 
 **Claim device** (our tool cupboard): stands on a foundation or floor, one per structure, its owner authorised.
 200 health with wood's protection (hollow-orbit's cupboard); its store is a 24-slot container (§6.5).
@@ -2153,6 +2169,10 @@ default the kind loaded, else the first kind of its calibre the player has), not
 After 2.4 s the rounds of another kind come out (back into the inventory) and the magazine fills from the inventory, all
 at once (RustMVP: nothing is spent until it completes). Taking another item up cancels it. The magazine (rounds and their
 kind) and the attachments are part of the weapon item, so they go wherever it goes: moved, dropped, into a corpse, saved.
+**Unload** (P3, GROUND_SYSTEMS.md §7) returns the magazine's rounds to the inventory, all or (no room) none, the kind staying
+named: the gun in hand's on its own timeline (an `UnloadIntent` for a tick, refused while equipping or reloading or empty),
+any other by the inventory's UNLOAD (an item action). R tapped reloads with the loaded kind; R held opens the gun's rounds
+(every kind of its calibre carried, with how many, and UNLOAD). A gun's refusals are outcome codes in the one answer list.
 
 **Damage** to a character from a bullet: the gun's damage × the round's × the attachments' × the falloff for the
 distance flown × the gun's multiplier for the part hit (head 2, body 1, limbs 0.5) × (1 − protection), where protection
@@ -2180,7 +2200,8 @@ asleep. Down:
 - they have 7–12 health and crawl at 0.8 m/s (no jumping or sprinting; the movement step's `Crawling` stance, predicted
   like any other), can't use items, swing, shoot or open anything, and lie down for hit tests;
 - their vitals pause (the timer decides); anyone can loot them, as a sleeper;
-- another player within 2.5 m helps them up with the interact key (an intent): they stand with the health they have;
+- another player whose eye is within 3 m of them, in sight (survival.json `reach.help`, to their nearest surface), helps
+  them up with the interact key (an intent): they stand with the health they have;
 - any more damage that would kill finishes them off;
 - after 40–50 s they get up by themselves with a chance of 20%, up to 45% when fed and watered (Rust's), else they die
   of what downed them, killed by whoever did;
@@ -2203,7 +2224,8 @@ asleep. Down:
 - **Slots** carry a firearm's magazine and attachments (`GunNet`, one bit when absent).
 - **Others see** (`CharacterNetState`): aiming, the held gun's attachments (a bit each, weapons.json order), the crawling
   stance (2 bits) and the reload action (3 bits); shots by `ActionCount` as in G2, and each bullet's `ProjectileLaunch`
-  (now with the shot's sequence and whether silenced) and `ProjectileEnd` (`HitTarget.Nothing` for one spent in the air).
+  (now with the shot's sequence and whether silenced) and `ProjectileEnd` (the target's family, `TargetFamily.None` for
+  one spent in the air).
   Bullets' launches and ends are unreliable (cosmetic and many, ARCHITECTURE.md §11.3); arrows' stay reliable.
 - **The player's own state:** `LifeState` says down and for how long; `VitalsUpdate` carries burning; `HitMarker` says when
   the hit knocked the victim down.
@@ -2226,8 +2248,9 @@ replays the rest from the server's state, as movement does; on a clean line noth
 | `Local.Gun.TakeCompensation()`, `ObserveLook(dYaw, dPitch)` | Every frame after `GameClient.Update`, in this order (RustMVP's): what to add to the controlled view as the recoil recovers (RustMVP's countersteer credit, so pulling against a spray doesn't drop the aim when it ends); then the mouse's turn of the view since the last frame. Then the camera. |
 | `Local.Gun.ShotFired` (`ShotEvent`: sequence, weapon, round, origin, direction, speed, silenced, aimed) | A shot, at once: muzzle flash, sound, viewmodel kick, the tracer. The direction is the server's to the bit when the prediction holds. |
 | `Local.Gun.ReloadStarted`, `ReloadFinished` (`ReloadEvent`: weapon, round, seconds) | A reload began (at once) and ended. |
-| `Local.Gun.Refused` (`GunRefusal`: sequence, `GunResult`) | The server refused a shot or reload (already rolled back), or a reload couldn't start (no rounds, full). |
-| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.Detach(...)`, `Local.HelpUp(target)` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
+| `Local.Gun.Refused` (`GunRefusal`: sequence, `OutcomeCode`) | The server refused a shot, reload or unload (already rolled back), or one couldn't start (no rounds, full, empty). |
+| `Local.Gun.Unload()`, `Unloaded` (`UnloadEvent`), `InHand(from, slot)` | UNLOAD of the gun in hand on its timeline (predicted at once); the event; whether a slot holds the gun in hand. |
+| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.ItemAction(... "remove" ...)`, `Local.HelpUp(target)` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
 | `Local.HitMarker` (`HitMarkerEvent` + `Downed`), `Local.DamageTaken` (`DamageEvent`: from the shooter's eye, the gun) | Hits landed and taken. |
 | `Local.Life.Wounded`, `WoundedUntilSeconds`, `Local.IsWounded`, `Downed`, `GotUp`; `Local.Vitals.Burning` | Down (crawling, a countdown) and up again; burning. |
 | `GameClient.Projectiles` (`ClientProjectile`: `IsBullet`, `Own`, `Seq`, `Drag`, `Silenced`; `PositionAt`, `DirectionAt` follow drag) | Bullets in flight: our own from the moment we fire (the server's launch then names it), others' from their launch; where each stopped and on what. |
@@ -2243,8 +2266,8 @@ the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
 **As built** (`game/scripts/Ground`): `GroundView`, after the client's update, adds `TakeCompensation` to the view, passes
-the mouse's turn to `ObserveLook` and draws the camera at the view plus `ViewKick`, zooms by `Zoom` while `Aimed` (eased),
-and reloads on R;
+the mouse's turn to `ObserveLook` and draws the camera at the view plus `ViewKick`, zooms by `Zoom` while `Aimed` (eased);
+R is the gun's held control's (GROUND_SYSTEMS.md §7): a tap reloads with the loaded kind, held its rounds' radial;
 `FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle with its muzzle effect, and plays a
 reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
 tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
@@ -2255,7 +2278,8 @@ and hits are the effects library's (§9.3, as hooked up there). Attachments show
 through `ModelCatalog.Attach`: a sight on the rail, a silencer or a brake on the muzzle, the light under the barrel):
 on one's own gun with the arms' layer and materials, from the weapon stack's mods, and on others' from `HeldMods`;
 the muzzle effect then leaves from the far end of a silencer or brake. In the inventory, an attachment dropped on a
-gun goes onto it (`Local.Attach`), and a gun's item panel offers REMOVE for each of its attachments (`Local.Detach`).
+gun goes onto it (`Local.Attach`), and a gun's item panel offers UNLOAD and REMOVE for each of its attachments (item
+actions, GROUND_SYSTEMS.md §7); its slot shows the loaded round's icon at the bottom left.
 Not drawn yet, for want of the character contract (§4.8): others' aiming pose and crawling (the wounded crouch
 instead).
 
@@ -2284,7 +2308,8 @@ and one receiver class in each domain's own file.
   `DamageBuildingBy`, `DamageShip`, `DamageAnimal`) stay for tests and tools, as one request each.
 - **The receivers** (`IDamageReceiver`, registered once in `Zone.InitDamage`, in the order a ray tests them): each finds
   its own things along a ray (`Trace` asks each in turn) and within a blast's reach, says whether an arrow that lands in
-  one stays there, and takes requests.
+  one stays there, and takes requests. Since P0 they are registered by target family, and what a ray met is one
+  `TargetRef` (`TraceHit.Target`, a body's bone as its part) rather than a field per kind.
 
 | Receiver | Found by | Defences | Consequences |
 |---|---|---|---|
@@ -2323,9 +2348,7 @@ client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.
 
 | Field | Zone event / message / client | Meaning |
 |---|---|---|
-| Receiver kind | `Target` / `Receiver` / `Receiver` | `HitTarget.Deployable` (deployables and world props), `Building` (pieces, doors, claim devices), `Ship` |
-| What it was | `Part` / `Kind` / `Kind` | `DestroyedKind`: `Deployable`, `Prop`, `Piece`, `Door`, `ClaimDevice`, `Ship`: says what the key names |
-| Entity ID | `Other` / `Id` / `Id` | the thing's `EntityId` (a piece, door or claim device by the building's IDs; a deployable or prop as `RemoteThing.Id`; a ship's) |
+| Target | `Target` / `Target` (`TargetNet`) / `Target` | what it was, as a `TargetRef` (GROUND_SYSTEMS.md §3.1, since P0): its family (`Thing`: a deployable or world prop; `Piece`, `Door`, `Cupboard`: the building's; `Ship`; 4 bits on the wire) and ID (a piece, door or claim device by the building's IDs; a deployable or prop as `RemoteThing.Id`; a ship's) |
 | Model key | `Text` / `Key` / `Key` | a deployable's key (deployables.json, its item's model), a prop's key (world.json, models.json kind "world"), a piece's or door's key (building.json), the claim device's item key, a ship's key (ships.json) |
 | Grade | `Grade` / `Grade` / `Grade` | a piece's grade (0 twig … 4 armoured); 0 otherwise |
 | Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's as drawn: its frame piece's, turned half round when fitted the other way (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
@@ -2366,7 +2389,7 @@ is saved with the zone. The ground mode's hookup is phase 2b.
 |---|---|
 | Items, recipes, kits | `game/data/ground/items.json` (100–110), `recipes.json`, `loot.json` (`build-kit`), `categories.json` (Construction) |
 | In the zone | `src/Hollow.Simulation/Zone.Building.cs`; `Building/ItemWallet.cs`; `Building/BuildingWorld.Replica.cs` (lookups by ID, batches, restoring, the mirror) |
-| Protocol | `src/Hollow.Net/Protocol/Messages.cs` (90–100: intents, `BuildResult`, `BuildFrames`, `BuildPieces`, `BuildRemoved`, `BuildDoors`, `BuildClaims`) |
+| Protocol | `src/Hollow.Net/Protocol/Messages.cs` (90–100: intents, `BuildFrames`, `BuildPieces`, `BuildRemoved`, `BuildDoors`, `BuildClaims`; 95, `BuildResult`, went with P0: `IntentResult` answers building intents) |
 | Server | `src/Hollow.Server/GameServer.Building.cs` (intents, replication, loading and saving) |
 | Storage | `src/Hollow.Persistence/BuildingCodec.cs`, schema 3 in `GameDatabase.cs` |
 | Client | `src/Hollow.Client/BuildingReplica.cs`, `GameClient.Building.cs`, `LocalPlayer.Building.cs` |
@@ -2390,13 +2413,14 @@ placing needs a building plan in the main or belt slots, the hammer's actions a 
 `ItemWallet` (a material is the item with its key, taken in slot order, so the client's optimistic copy takes the same
 stacks); a door, lock or claim device comes from the slot the intent names, as the item the client saw there. Fitting
 a door and placing a claim device reach as far as the plan (8 m); opening and shutting, locks and the claim device's
-list need the player within 4.5 m. A picked-up door or lock comes back as its item; a picked-up claim device comes
+list need the eye within 3.5 m of its nearest surface, in sight (survival.json `reach.open`; it was 4.5 m to the door's
+middle). A picked-up door or lock comes back as its item; a picked-up claim device comes
 back with its store.
 
 **The claim device** is a deployable whose storage is its upkeep store: it replicates and opens like a box (a loot
 panel: anyone there may put in or take out, so a raider takes the upkeep), and its upkeep is paid from those slots.
 Hits on it go through the building rules (`BuildingWorld.Damage`); at zero its store spills on the ground. Swings and
-arrows stop at pieces, doors and claim devices (`HitTarget.Building`): melee does the tool's structure damage as melee
+arrows stop at pieces, doors and claim devices (the `Piece`, `Door` and `Cupboard` families): melee does the tool's structure damage as melee
 (a wall's soft side counts), arrows as bullets (stone and up take none).
 
 **Intents** (protocol 3; client to server, reliable, with the sequence numbers and the budget of G2's: 16 at once, 20 a
@@ -2404,15 +2428,16 @@ second): `PlacePieceIntent` (the piece and its support, socket and orientation, 
 heading in 15° steps), `HammerIntent` (upgrade to a grade, rotate, demolish, repair), `DoorIntent` (fit from a slot,
 turned round or not; open or shut; pick up), `LockIntent` (fit from a slot; set a code; enter a code; lock; unlock; cut
 a key; take off) and `ClaimIntent` (place from a slot at a point on a foundation or floor, turned; authorise;
-deauthorise; clear the list; pick up). Each is answered with `BuildResult`: done, or the rules' reason (`Refusal`) and
-the player's line, after that tick's container changes. The server works out every pose itself and checks everything
+deauthorise; clear the list; pick up). Each is answered with `IntentResult` (since P0; it was `BuildResult`): done, or
+the rules' reason (an `Outcome`, whose line is in texts.json), after that tick's container changes. The server works out every pose itself and checks everything
 again.
 
 **Replication** (§4.4). A piece carries its frame (each frame numbered once for everyone and sent once to a player, 12
 doubles), kind, grade, turn and exact position, health, the server's body ID, the seconds left to turn or demolish it,
 and whether it is coming down. A door carries its frame piece, kind, turn, open or shut, health, its lock's kind,
 whether it's locked and whether this player may pass; a claim device its piece, place and turn, health, whether this
-player is on its list, and how long its store keeps the base. Doors and locks are state: sent again when they change.
+player is on its list, and how long its store keeps the base. Since P0 what is this player's to know of a door or claim
+device is its viewer flags (`DoorNet.Flags`, `ClaimNet.Flags`: Mine, Authorised, HasCode, Locked, CanUse, Teammate). Doors and locks are state: sent again when they change.
 
 **The client** (`Hollow.Client`). `BuildingReplica` keeps a mirror `BuildingWorld`: the same rules answer the ghost's
 questions, but nothing collapses, decays or pays upkeep by itself, and its bodies take the server's IDs. Bots share one
@@ -2421,11 +2446,11 @@ on their shared ground. The API for the ground mode:
 | Member | What |
 |---|---|
 | `GameClient.Building` | The building in range: `Structures`, `AllPieces`, `Doors`, `Claims`, and `Changed` (piece, door and claim events) for drawing |
-| `GameClient.BuildingReplica.StateOf(door)`, `StateOf(claim)` | A door's lock, locked, and whether this player may pass; whether they're on a claim device's list, and its protection in hours |
+| `GameClient.BuildingReplica.StateOf(door)`, `StateOf(claim)` | A door's lock and its viewer flags (locked, whether this player may pass, has a code, theirs); a claim device's flags (on its list) and its protection in hours |
 | `GameClient.PlanPiece(piece, eye, direction, turns)` | The ghost: the server's own `Plan` on the mirror, with this player's materials and building rights |
 | `GameClient.AimBuilding(eye, direction)` | The piece, door or claim device aimed at |
 | `Local.PlacePiece(plan)`, `Upgrade`, `Rotate`, `Demolish`, `Repair`, `PlaceDoor`, `ToggleDoor`, `PickUpDoor`, `AttachLock`, `SetCode`, `EnterCode`, `Lock`, `Unlock`, `MakeKey`, `RemoveLock`, `PlaceClaim`, `Authorise`, `Deauthorise`, `ClearAuthorised`, `PickUpClaim` | Intents, each returning its sequence number. Optimistic: the materials or the item leave the inventory at once, and a placement is drawn at once (`Local.PendingPieces`) until its piece arrives; a refusal rolls back. |
-| `Local.BuildAnswered`, `Local.BuildRejected`, `Local.Carries(role)` | Answers with the reason and line; whether the player carries a building plan or a hammer |
+| `Local.IntentAnswered`, `Local.IntentRejected` (every intent's, since P0), `Local.Carries(role)` | Answers with the reason and its line; whether the player carries a building plan or a hammer |
 | The claim device's store | `Local.Open(device ID)`, then `Local.Loot` like a box |
 
 **Persistence** (schema 3, `BuildingCodec`). A row per piece, door and claim device in the `building` table, each a
@@ -2551,7 +2576,8 @@ collapsed, a felled tree) falls and sticks or rests again.
 
 **Fuses and duds.** A fuse's length and whether it goes out are drawn when it is lit, from a seed of the explosive and how often
 it was lit. A dud lies there, harmless; anyone within reach lights it again with the interact key (a new fuse, which may go out
-again); one left alone goes after 10 minutes.
+again); one left alone goes after 10 minutes (its lifetime, survival.json `lifetimes.dud`, ended by the zone's lifetime
+step).
 
 **Rockets and explosive rounds** are server bullets (§6.3) with a blast: a rocket explodes where it hits (5 cm short of the
 surface, so its blast starts outside a wall) or at the end of its flight; an explosive round does its bullet's damage to a person
@@ -2626,7 +2652,7 @@ way, when, the hits and what broke, for ten seconds with a sound; at login, thos
 under "RAIDED WHILE YOU WERE AWAY", for twenty.
 
 **Persistence.** Charges stuck or lying in the world (duds too, and any still in the air, which fall on) survive a restart: they
-are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`) with their fuse as world time left, which pauses while the
+are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`; version 2 since P0 stores what held it as a `TargetRef`) with their fuse as world time left, which pauses while the
 server is down, and restored after the rest of the world with what they were stuck to; one whose support is gone falls. Rockets
 and rounds in flight are not saved (as bullets). Queued alerts live in `notifications` (schema 4) until handed over.
 
@@ -2635,7 +2661,7 @@ claimed hut in front of a player for playtests.
 
 **Building** is phase 2a's (§6.3, §6.5). A blast goes into `BuildingWorld.Damage`'s explosive channel, so what it
 breaks and brings down replicates and is saved like any other change. Swings, arrows and bullets that stop at a piece,
-door or claim device (`HitTarget.Building`) go to the building's receiver in the damage pipeline (§6.4.2), which damages
+door or claim device (the `Piece`, `Door` or `Cupboard` family) go to the building's receiver in the damage pipeline (§6.4.2), which damages
 through the same rules and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
 building rules, on the analytic ground (§11 R14).
 
@@ -3140,7 +3166,8 @@ set against the player's 5.5 m/s sprint and 100 health. Names are plain words.
   in front, through the armour on the region it hits (a wolf's bite on the legs, the bear's swipe on the chest), and
   makes them bleed.
 
-**Butchering.** A corpse lies 300 s, then goes. Any melee tool takes harvest health off it: the bone knife 30 a hit,
+**Butchering.** A corpse lies its species' corpse seconds (300 s for each; its lifetime, GROUND_SYSTEMS.md §3.7), then
+goes, and at once when harvested out. Any melee tool takes harvest health off it: the bone knife 30 a hit,
 the machete 26, the metal hatchet 24, the stone hatchet 18, a rock 8, the torch 4, others 40 % of their damage; what it
 gives comes out in proportion (a better tool is quicker, not richer, §6.1): a deer is 7 cuts with the bone knife, 25
 blows with a rock.
@@ -3223,8 +3250,9 @@ Animals are not in `Entities` (characters only).
 A test checks that every reference resolves and that every recipe can be made from gatherable resources (since G7, also
 from what the world's barrels and crates give and the recycler's fixed lists turn it into).
 
-**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (thirteen:
-G3 phase 2a added building.json, G5 explosives.json, G6 ships.json, G7 world.json and animals.json),
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (fifteen:
+G3 phase 2a added building.json, G5 explosives.json, G6 ships.json, G7 world.json and animals.json, P0 capabilities.json
+and texts.json; texts.json is left out of the data's hash, so a reworded line or a translation refuses nobody),
 resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
 a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
 `game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
@@ -3237,13 +3265,15 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
 | `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
 | `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`, `raid-kit`, `world-kit`); G7 the world's barrels and crates (`barrel`, `fuel-barrel`, `crate`, `military-crate`), whose `blueprint` entries take a fifth number, the workbench level of the recipe taught. | Rust; hollow-orbit `LOOT` |
-| `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, the bags dropped items lie in (§6.1), reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
+| `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, the lifetimes of loose things (bags, bodies, duds; GROUND_SYSTEMS.md §3.7), the bags dropped items lie in (§6.1), the reaches of actions on things (to the nearest surface, in sight; GROUND_SYSTEMS.md §3.4), action rate limits. | RustMVP, hollow-orbit `player.js` |
 | `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
 | `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
 | `world.json` (G7) | The world's economy and progression (§6.8): the currency (salvage) and the blueprint item; the world props (barrels, crates, the recycler: number, model key, health, size, slots, loot table, respawn); the recycler's slots, pace, share of a recipe and batch; the fixed recycle lists of loot-only components; the research table's slots, time and prices by tier; the three tech trees (node, salvage, the nodes before it); where loot spots are kept (radius, cell, clear ring, chances by kind of place, a cluster's make-up, the landing cluster); the recyclers' points; teams (size, invite time); the map (markers, size, grid). Its checks: props, slots, yields, research slots and prices, trees (a recipe in at most one, at its bench or below, no loops), blueprint loot entries, and that every recipe stays makeable now that loot and the recycler supply parts. | Rust's numbers (scrap, recycler, research, tech tree costs, teams, markers); hollow-orbit `items.js` (`RECYCLE`, `LOOT`, `RESEARCH_COST`, `DEFAULT_KNOWN`) and `devices.js` |
 | `explosives.json` (G5) | The blasts (radius, falloff, splash, damage to people and deployables, one hit's damage to a piece of each grade by side and to a door of each protection), the explosives thrown or placed by hand (fuse, dud chance, sticky or not, throw and lob speeds, bounce, size), and how raid alerts go out (cooldown, how long and how many are kept). §6.6 has the tables. | Rust's raid costs; RustMVP `building_damage.md`; hollow-orbit `construct.js` and `items.js`; ours for fuses' spread, throws and alerts |
 | `animals.json` (G7) | The animals (§6.9): how far noises carry to them (`senses`), the spawn areas (`spawning`), what each tool takes off a corpse (`harvest`), and each species: number, key, name, health, size (with where its head is), walk, trot and run speeds, turn rate and acceleration, sight, cone and hearing, temperament, flee, calm and warning distances, when it runs, chase time and range, hunger, prey, group size and cohesion, its attack (kind, damage, reach, rate, wind-up, bleeding, the region it hits, damage to animals), the biomes and cover it likes, density, steepest slope, respawn, corpse time and what its corpse gives. | The Facepunch wiki for health, yields and populations; ours for the rest |
+| `capabilities.json` (P0) | The kinds of behaviour a world thing may have (GROUND_SYSTEMS.md §2.1, §3.3), append only, its index its number: owned, container, burner, machine, door, key-lock, code-lock, cupboard, ship, lifetime, explosive. Each has one handler; the zone won't start while one lacks it. Which things have which comes from their own blocks (a deployable's slots, device, recycler or research). | ours |
+| `texts.json` (P0) | Every answer's line by its code (GROUND_SYSTEMS.md §3.2), with `{n}`, `{item}` and `{item\|word}` for its detail; not hashed. | ours; RustMVP's building lines |
 
 The client alone also reads `sounds.json`, the sound catalogue (§4.9); it is not part of the game data's hash.
 
@@ -3313,13 +3343,14 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | Items | `Item(key)`: name, description, category, stack size, wearable, usable, INFORMATION stats. Unknown keys get a stand-in. Stacks: key, amount, condition (0–1 or none), loaded rounds (or none). |
 | Containers | `Slots(container)`: main 24, belt 6, clothing 7, and the open container's. A slot is `(container, index)`. |
 | Vitals | Health /100, calories /500, hydration /250 (as RustMVP), body temperature (°C), comfort, bleeding (health per second), wetness, building rights. Cold below 5 °C, hot above 40 °C. |
-| Belt | `ActiveBelt` (−1 for none); `Ammo`: loaded, reserve, reloading. |
+| Belt | `ActiveBelt` (−1 for none); `Ammo`: loaded, reserve, reloading (the held item's control's). A slot's stack: key, amount, condition, a gun's rounds and their kind's key (`Round`, drawn small at the bottom left), a blueprint's item. |
 | Loot | `Loot`: kind, title, slots; for furnaces and campfires also burning, progress and fuel seconds. Slot order per kind: a box any number; a body 0–23 main, 24–29 belt, 30–36 clothing; a furnace 0 fuel, 1–2 input, 3–5 output; a campfire 0 fuel, 1–4 cooking. |
-| Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
+| Crafting | `Categories` (name, count), `Recipes` (result, category, seconds, ingredients, yield, workbench level), `Workbench` in reach, `SecondsHere(recipe)` (a unit's time with the workbench in reach, GROUND_SYSTEMS.md §7), `Have(key)`, `Queue` (ticket, item, count, seconds left, total seconds). |
 | Death | `Death`: alive for, killed by (a player or a cause), weapon, distance, place on the map; `Bags`: id, name, cooldown, place on the map. |
 | HUD | `Prompt` (key, action, more options). Events: hit confirmed (head shot), damaged (bearing), gathered (item, amount), crafted (item, amount), notice, chat line. |
 | Radials (§8.4) | `Radials`: the held inputs that open a radial menu and what each opens now (`RadialBinding`: the input, its hold time, a function giving an `IRadialSource` or none). A source gives the options in clockwise order (icon: a glyph's name or an item's key; title, description, cost line, the reason it can't be chosen or a warning), the current one, whether twelve o'clock falls between the last and the first, and acts on a choice. |
-| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; a radial's choice is its source's. Each is a request; the answer is a changed read, or a notice. |
+| Item panel (P3) | `Rows(slot)`: the INFORMATION of a slot's stack (its parts' describers, GROUND_SYSTEMS.md §7); `Actions(slot)`: its ACTIONS besides DROP (label, what it does, why it can't be done now). |
+| Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; an item panel's action and a radial's choice are their own. Each is a request; the answer is a changed read, or a notice. |
 | World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
@@ -3375,7 +3406,7 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `kill` | `[player]` | everyone (another player: admins) | server | You die where you stand ("Suicide"): your body keeps what you carried and the respawn screen opens, as Rust's F1 kill: to come back at a bag in a base under attack (GAME_DESIGN.md §5). God mode doesn't stop it. |
 | `players` | | everyone | server | Who is on, admins marked, alive, wounded or dead (admins also see pings), and how many sleep in the world. |
 | `whereami` | | everyone | server | Latitude and longitude, the zone position (with the `teleport` that comes back here), height above the sea, map cell, biome, local solar time, the air's temperature. |
-| `give` | `<item> [amount] [player]` | admins | server | Items into an inventory (1–100,000); what doesn't fit drops at the feet (24 stacks at most); "+N" in the pickup feed. |
+| `give` | `<item> [amount] [player]` | admins | server | Items into an inventory (1–100,000); what doesn't fit drops at the feet (24 stacks at most); "+N" in the pickup feed. `<item>.blueprint` gives that item's blueprint (V12). |
 | `kit` | `<loot table> [player]` | admins | server | A loot table's items (loot.json). |
 | `learn` | `<item\|all> [player]` | admins | server | A blueprint, or every one. |
 | `teleport` | `<player>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <x> <z>` | admins | server | To a player (1.5 m east of them), or to a point of the zone on the ground: metres east and south of its origin, or a latitude and longitude (marked N, S, E or W, or with three decimals or more on both and inside the zone). Not out of a ship's seat. |
@@ -3468,17 +3499,21 @@ RustMVP's rules, with Rust's where RustMVP had none:
   SPLITTING for stacks). Dragging moves the whole stack; middle-dragging half, with left Shift a third (rounded up);
   dragging the split icon moves the slider's amount. Right-click moves a stack across (into the open container and
   back, or between main and belt). Holding H, each filled slot the pointer rests on for 350 ms moves across once,
-  with a green ring filling meanwhile. Released on another slot a drag merges, swaps or splits; released on a panel
-  it does nothing; released outside every panel it drops the items.
-- **Item actions:** USE (medicine, food), WEAR or UNEQUIP (to the first free clothing or main slot), DROP.
+  with a green ring filling meanwhile. Released on another slot a drag merges, swaps or splits; released on its own
+  slot it is put back; released anywhere else, over a panel, a button or the world, it drops the items (Rust; P3).
+- **Item panel (P3, GROUND_SYSTEMS.md §7):** INFORMATION is what the item's parts say (a gun's damage, fire, magazine,
+  reload, aim cone, range and recoil; an explosive's fuse and how many break each wall; ...), label on the left and value
+  on the right; ACTIONS are what its parts offer (EAT or USE, WEAR or UNEQUIP, LEARN, UNLOAD, REMOVE <attachment>),
+  then DROP; a refused one is muted and says why when clicked.
 - **Quick craft:** what the player can craft now (up to three rows); a click crafts one.
 - **Crafting:** categories with their counts, search, the recipe grid (the mouse wheel scrolls it), the details with
   the workbench badge (green when in reach, red when not), time and yield, ingredients with TOTAL for the amount and
   HAVE (short ones in amber), − / amount / + / the most the player can make / CRAFT, and favourites (kept on this
-  computer). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
+  computer). The time is a unit's here: in green, with how much faster on the workbench line, when a workbench in reach
+  is above the recipe's level (P3). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
   cancels and refunds.
 - **HUD:** the centre dot; the hit marker (red for a head shot); red arcs pointing to where damage came from; the
-  interaction prompt; the belt with the active slot in blue, condition bars and loaded rounds; the ammo counter above
+  interaction prompt; the belt with the active slot in blue, condition bars, loaded rounds and their kind's icon; the ammo counter above
   it; status rows above the vitals (building privilege or blocked, bleeding, cold or hot, wet, comfort); pickups and
   crafts ("+20 Wood") above those, fading after four seconds; chat at the bottom left, fading after twelve; RustMVP's
   one-line notices.
@@ -3487,7 +3522,7 @@ RustMVP's rules, with Rust's where RustMVP had none:
   the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
   names are placed by the `Labeller`, so they never cover each other or a marker.
 - **Radials (§8.4):** the right mouse held with the plan or the hammer opens its radial at once; a key held for its hold
-  time opens its own (E, R: P1, P3; the viewer's samples). Release (or a left click) chooses; a key let go sooner
+  time opens its own (E: P1; R with a gun: its rounds and UNLOAD, P3), each the held item's control's. Release (or a left click) chooses; a key let go sooner
   chooses the current option; Esc or the right mouse cancels. The plan's sectors start at −81° so the top ray falls
   between the foundation and the triangle roof; every other radial centres its first option at twelve o'clock.
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
@@ -3516,9 +3551,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Commands in chat:** any other line starting with "/" runs as in the F1 console (`/give rifle`), with the player's
   own rights on any server; the answer's first line shows as a notice, and the whole of it in the console's log.
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
-  drop outside and on a panel, split, Q, CRAFT, Tab; the plan's radial on the right mouse; the sample door's on E: a
-  tap, a hold, a disabled option, a choice, Esc and the right mouse cancelling) against `MockGroundUi` and quits with 0
-  when all 19 pass.
+  drop outside, on a panel and back on its own slot, split, Q, CRAFT, Tab; the plan's radial on the right mouse; the
+  sample door's on E: a tap, a hold, a disabled option, a choice, Esc and the right mouse cancelling) against
+  `MockGroundUi`, checks every held behaviour has its control, and quits with 0 when all 21 pass.
 
 ### 8.4 Radial menu (GROUND_SYSTEMS.md §4, package P5)
 
@@ -4448,7 +4483,7 @@ Decisions taken in G3's phase 2a (§6.5, building over the network), to confirm 
   streams in), by 64 m areas; positions are exact doubles rather than quantised, so a client's copy links and collides
   exactly as the server's.
 - B9. **Building results** are their own message (`BuildResult`, the rules' 48 reasons and the line) rather than G2's
-  `IntentResult` (at most 32 reasons).
+  `IntentResult` (at most 32 reasons). *Superseded by E1: one answer for every intent.*
 - B10. **Saved per part:** a row per piece, door and claim device rather than per structure, because structures merge and
   split; only what changed is written.
 - B11. **The load test's bots build 36 m apart:** a claim device covers 25 m round itself (with 2.25 m of padding for
@@ -5120,6 +5155,112 @@ Decisions taken for the radial menu (§8.4, GROUND_SYSTEMS.md §4, package P5) w
 - Q9. **The viewer's samples:** on E, a door with a fresh code lock whose owner the player is (OPEN DOOR, SET CODE, LOCK
   disabled until a code is set, PICK UP the lock, disabled while locked); on R with the pistol, the rounds carried and
   UNLOAD, with high-velocity pistol rounds added to the sample inventory so there are two kinds. Both open after 0.35 s.
+
+Decisions taken for the shared foundations (GROUND_SYSTEMS.md §3, package P0) without the owner, to confirm or overturn
+(numbered E1 on):
+
+- E1. **One answer list for the whole game** (`OutcomeCode`, 73 codes with fixed values, append only; 7 bits on the wire)
+  and one answer (`Outcome { Code, Detail }`), the detail being the one number a line names: an item, seconds, a
+  percentage, a level. Two answers are equal when their codes are. `IntentResult { Seq, Code, Detail }` answers every
+  intent, the building's too; `BuildResult` and the building's own answer path are gone. The gun's shots and reloads
+  keep their own `GunResult`: their prediction rolls back by itself (P3 may fold it in).
+- E2. **texts.json is read with the data but not hashed**: a reworded line or a translation doesn't refuse players with
+  other texts. The content check wants exactly one line per code and only the placeholders an answer fills (`{n}`,
+  `{item}`, `{item|word}`).
+- E3. **Codes that meant two things were split, and four renamed**: the ship's Occupied is SeatTaken, the tech tree's
+  Locked is NeedsEarlierNode, WrongOpening is NeedsDoorway or NeedsWallFrame, a lock's own refusals are NotOnLock and
+  NeedsKey; another's ship lock and another's sleeping bag say NotOwner, a fire without fuel NoFuel; Gone became
+  NotFound, TooFar OutOfReach, HitsObject Blocked. The lines kept their old wording.
+- E4. **One refusal path in the game**: every refused intent shows its line through `ClientGroundUi.OnRejected` and
+  plays the one error sound; the building's refusals had a path of their own and no sound.
+- E5. **Ten target families, the ground among them** (ID 0), so a charge on the terrain or a ray stopped by it is named
+  like anything else. A target's part 0 is the whole thing and part n its part n − 1: a door's leaf, a body's bone in its
+  hit shapes' order; ships' parts come with P1. A dead player is no character: their body is a thing. The claim device is
+  the `Cupboard` family; its box (a deployable) stands for it where the code compares the two by ID.
+- E6. **Reach is to the nearest surface, in sight**, with survival.json's numbers set so players reach about as far as
+  they did (the old checks went to centres and middles with slack): interact 3 m, open 3.5, keep open 4.5, help 3,
+  invite 6, station 4. Keeping a container open and a workbench's level need no sight; the station's reach is from the
+  eye (it was the feet). The sight ray stops 0.1 m short of the surface and ignores the ground within 0.25 m of the
+  thing; any building body but the target's own blocks it. Interactions through walls are refused now: two tests that
+  stood their player behind a wall stand them in sight. The client's prompt for things (`GameClient.Aim`: boxes, bags,
+  bodies, sleepers, duds) stops at the first building body the view meets, a thing's own body excepted (the claim
+  device's box), so it no longer offers through a wall what the server refuses.
+- E7. **Viewer flags ride on things, doors, claim devices and ships** (`ThingSpawn`/`ThingUpdate`, `DoorNet`, `ClaimNet`,
+  `ShipNetState.Viewer`), one byte each. A thing is sent again when its contents change (Empty) or its viewer does (a
+  team joined or left, a key picked up: doors and claim devices go again too). A door has no owner of its own: its Mine
+  is its lock's fitter's, its HasCode, Locked and Authorised its lock's.
+- E8. **Capabilities come from the data's blocks** (every deployable is owned; slots make a container, a device a
+  burner, a recycler or research table a machine) and, for what the rules make, from capabilities.json's own sets (bags,
+  bodies, doors and locks, the cupboard, ships, explosives, duds, carcasses). capabilities.json is hashed: its order
+  numbers what P1 sends.
+- E9. **Explosives are the first support links**: a charge on a door's leaf names the leaf as its part and swings with
+  it; one on the claim device is held by the claim device, not the piece under it; a piece that starts to come down lets
+  go of what it holds at once. `ExplosiveCodec` version 2 stores the `TargetRef`; a version 1 record comes back onto one,
+  its pose worked out again where it lies. No SQL schema step: the record is versioned inside its row.
+- E10. **Duds and carcasses joined the lifetimes**, though the brief named bags and bodies: a dud's 600 s (`DudSeconds`,
+  ours) moved to survival.json's `lifetimes.dud`; a carcass keeps its species' corpse seconds in animals.json (a thing's
+  own definition declares its lifetime; bags, bodies and duds have none, so survival.json holds theirs). All are counted
+  once a second, so a dud or a carcass goes within a second of its time (it went on the exact tick); an emptied bag,
+  body or carcass goes at once. Families take their own things out of the world (`ITargetFamily.Remove`).
+- E11. **No step scans every static thing for these any more**: the zone keeps the working things (burners, machines)
+  and the loose things in lists of their own. A bag a looter takes from tells others its count at once (it was within
+  the second).
+- E12. **Left for the next packages**: a ship's parts keep their reach (`ShipReachSlack`, P1's ship verbs); placement
+  keeps its 3 m and 8 m (P2's rule); the gun keeps its own answers (P3); the client's prompts still pick along the view
+  alone, not by the nearest surface in sight (P1's one `Aim`); the server's replication of things still walks every
+  static thing per snapshot (P6).
+- E13. **Numbers taken in shared spaces:** protocol 16; `IntentResult`'s code 7 bits and its detail a varint; message 95
+  (`BuildResult`) free and no new message IDs (190–199 unused); `TargetNet` (a 4-bit family, the ID, the part);
+  `ShipNetFlags` renumbered without Mine and Locked (10 bits); `ExplosiveCodec` version 2; capabilities.json and
+  texts.json; survival.json's `reach` and `lifetimes` (`world.corpseSeconds` and `droppedItemSeconds` gone).
+
+Decisions taken for held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3) without the
+owner, to confirm or overturn (numbered V1 on):
+
+- V1. **Parts come from the data's blocks, held behaviours from parts.** An item's parts are worked out once, when the
+  data is read, from one table (`ItemPartTable`): the block that declares each, and the held behaviour it gives. A
+  deployable, a door, a lock, the tool cupboard and a ship all give `Placer`: one behaviour (place where the aim is, R
+  turns), whatever is placed. The parts aren't numbered on the wire or in saves, so the list may change.
+- V2. **The gun's state still follows the hands**, outside the held behaviours: its queue of shots, reloads and unloads
+  is stepped for every player every tick (a late action for a gun put away must still be answered), and taking anything
+  up re-equips it. The held behaviours' server side is what they do with the buttons each tick (melee, bow) and what
+  putting them away ends; the others act by intents, each checked by the behaviour that sends it.
+- V3. **The gun's answers are outcome codes from 100 up**, so the codes P1 and P2 add from 73 never meet them. Equipping
+  is `Cooldown` ("Not ready yet"), down or dead is `Dead`; the gun's refusals still roll its prediction back by
+  themselves and aren't shown as notices (a refused shot is a misprediction, not the player's mistake).
+- V4. **The item panel's INFORMATION is wider and its rows closer**: 312 design pixels (ACTIONS 160), rows 17 apart in
+  14 px Barlow, the label on the left and the value right-aligned, its font narrowed to fit, so the AK's eleven rows and
+  the bag charge's nine fit (RustMVP's column was 272 wide with 24 px rows and room for nine short ones). An explosive's
+  damage to walls and doors reads as how many it takes to break one (from the wall's hard side), Rust's way of reading it.
+- V5. **One handler per inventory action, offered by its part**, P1's Offer-and-do shape: the server does an action only
+  when its handler offers it on that stack, enabled, so a button the panel shows and what the server accepts never
+  disagree. Food is EAT and medicine USE by what it does (calories or water: food), not by its tab; WEAR is refused
+  while something worn covers its layer (the new `Worn` answer, Rust swaps; ours says why). Actions work on the player's
+  own main, belt and clothing slots only.
+- V6. **UNLOAD puts every round back or none** (Rust drops what doesn't fit; ours says "No room for that"), and keeps the
+  round's kind named on the empty gun. **The gun in hand's unload rides the gun's own timeline** (`UnloadIntent`, with its
+  shots and reloads): an item action applied when it arrives could overtake shots still waiting for their tick and leave
+  the prediction's magazine and the server's apart. Any other gun is unloaded by the item action. The only place the
+  client chooses between the two is `LocalPlayer.ItemAction` (the gun in hand's UNLOAD).
+- V7. **Numbers taken in shared spaces:** protocol 17; messages 230 (`ItemActionIntent`) and 231 (`UnloadIntent`); 53
+  and 65 free; outcome codes 100–108; items.json's `actions` list.
+- V8. **The held item's radials are its control's**: the aim button opens the plan's and the hammer's at once (as before),
+  R a gun's rounds after 0.35 s (E's hold time, RustMVP's), and a tap of R reloads with the radial's current option. With
+  nothing that has an R radial in hand, R goes to the hands (the plan and the placers turn). Free look now also keeps the
+  plan's and the hammer's radials shut (L4: the hands do nothing while Alt is held).
+- V9. **Placing goes through one small interface until P2 replaces what is behind it** (`IPlacement`: aim, place, turn).
+  Today's implementation routes by the part that makes the item placeable to the old entry points, a lookup P2 deletes;
+  the Tin Finch's item says "You can't place that here" until then.
+- V10. **First person picks nothing by item key**: the torch's flame, the guns' pose and the rifle's eye relief are
+  catalogue fields (`held.flame`, `held.pose`, `held.eyeRelief`), and `HeldItems` reads the pose there too (it picked the
+  pistol by its key). The placeholder stick for items without a model is gone: every item that does something in sight
+  of the hands has a held pose, and a test keeps it so.
+- V11. **The workbench's speed is recipes.json's** (`workbenchSpeed.byLevelsAbove`: 1, 0.5, 0.25), beside the recipes it
+  shortens, rather than in deployables.json (whose placement block P2 rewrites): one level above a recipe's halves it, two
+  or more quarter it, by the best workbench in reach when the job starts. A recipe made at a station of its own (the Tin
+  Finch at the vehicle workbench) isn't shortened by a workbench.
+- V12. **The console's `give` takes `<item>.blueprint`** (a blueprint of that item's recipe), so a blueprint to LEARN can be
+  given; the tour's `held` step uses it.
 
 Decisions taken for the loading screen (§4.3.1, the owner's request of 13 October 2026) without the owner, to confirm or
 overturn (numbered O1 on):

@@ -8,6 +8,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.World;
 using HollowUniverse.Fx;
 using Num = System.Numerics;
+using Hollow.Simulation.Targets;
 
 namespace HollowUniverse.Ground;
 
@@ -298,7 +299,7 @@ public partial class ThingsView : Node3D
             if (p.EndedAt is { } end && _stopped.Add(p))
             {
                 FxDirector.EndTracer(_trails[p], GroundView.ToGodot(end));
-                if (p.EndTarget != HitTarget.Nothing)
+                if (p.EndTarget != TargetFamily.None)
                 {
                     Impact(p, end, bullet: true);
                 }
@@ -370,9 +371,9 @@ public partial class ThingsView : Node3D
                 {
                     FxDirector.EndTracer(trail, GroundView.ToGodot(end));
                 }
-                if (p.EndTarget != HitTarget.Nothing)
+                if (p.EndTarget != TargetFamily.None)
                 {
-                    Sounds.At(p.EndTarget == HitTarget.Character ? "arrow.impact.flesh" : "arrow.impact", GroundView.ToGodot(end));
+                    Sounds.At(p.EndTarget == TargetFamily.Character ? "arrow.impact.flesh" : "arrow.impact", GroundView.ToGodot(end));
                     Impact(p, end, bullet: false);
                 }
             }

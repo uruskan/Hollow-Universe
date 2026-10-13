@@ -46,7 +46,7 @@ public readonly record struct Interaction(InteractionKind Kind, ulong NaturalId,
 // things, natural objects as players changed them, projectiles in flight, and what the interact key would act on.
 public sealed partial class GameClient
 {
-    /// <summary>The interact key reaches this far from the eye (survival.json, plus a little for the aim).</summary>
+    /// <summary>The interact key reaches this far from the eye to a thing's surface (survival.json's reach.interact).</summary>
     public float InteractReach => Content.Survival.InteractReach;
 
     private readonly Dictionary<uint, RemoteThing> _things = new();
@@ -138,18 +138,24 @@ public sealed partial class GameClient
         _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 8);
     }
 
+    // The eye, for the reach of stations: as the server measures it (Zone.EyeOf).
+    private Vector3 StationEye => Character.Position + Frame.UpAt(Character.Position) * EyeHeight;
+
+    // The best workbench level within reach, as the server's Zone.WorkbenchLevel finds it: a bench's nearest surface
+    // within survival.json's reach.station of the eye (GROUND_SYSTEMS.md §3.4).
     private int WorkbenchNear()
     {
         if (!HasCharacter)
         {
             return 0;
         }
-        Vector3 at = Character.Position;
+        Vector3 eye = StationEye;
+        float reach = Content.Survival.StationReach;
         int best = 0;
         foreach (RemoteThing thing in _things.Values)
         {
             if (thing.Deployable(Content) is { Workbench: > 0 } d && d.Workbench > best &&
-                Vector3.Distance(thing.Position + Vector3.UnitY * d.HalfExtents.Y, at) <= Simulation.Zone.WorkbenchReach + d.HalfExtents.X)
+                Vector3.DistanceSquared(Geometry.NearestOnBox(thing.Position, Frame.UpAt(thing.Position), thing.Yaw, d.HalfExtents, eye), eye) <= reach * reach)
             {
                 best = d.Workbench;
             }
@@ -157,15 +163,16 @@ public sealed partial class GameClient
         return best;
     }
 
-    // The nearest deployable of a kind whose centre is within its reach (a workbench's 4 m plus its half width), as the
-    // server's Zone.StationNear finds a ship's vehicle workbench.
+    // The nearest deployable of a kind within a station's reach, as the server's Zone.StationNear finds a ship's vehicle
+    // workbench.
     private ulong StationNear(DeployableDef def)
     {
         if (!HasCharacter)
         {
             return 0;
         }
-        Vector3 at = Character.Position;
+        Vector3 eye = StationEye;
+        float reach = Content.Survival.StationReach;
         ulong best = 0;
         float bestDistance = float.MaxValue;
         foreach (RemoteThing thing in _things.Values)
@@ -174,8 +181,8 @@ public sealed partial class GameClient
             {
                 continue;
             }
-            float distance = Vector3.Distance(thing.Position + Frame.UpAt(thing.Position) * def.HalfExtents.Y, at);
-            if (distance <= Simulation.Zone.WorkbenchReach + def.HalfExtents.X && distance < bestDistance)
+            float distance = Vector3.Distance(Geometry.NearestOnBox(thing.Position, Frame.UpAt(thing.Position), thing.Yaw, def.HalfExtents, eye), eye);
+            if (distance <= reach && distance < bestDistance)
             {
                 (best, bestDistance) = (thing.Id.Value, distance);
             }
@@ -445,15 +452,24 @@ public sealed partial class GameClient
 
     /// <summary>
     /// What the interact key would act on from the eye along a direction: the nearest pickup or berry bush, bag of
-    /// dropped items, box, device, corpse or sleeper within reach (for the prompt, and for bots).
+    /// dropped items, box, device, corpse or sleeper within reach (for the prompt, and for bots). What the view meets of the
+    /// building first hides what lies behind it, as the server's sight rule refuses it (GROUND_SYSTEMS.md §3.4); a thing's
+    /// own body (the claim device's box) doesn't.
     /// </summary>
     public Interaction? Aim(Vector3 eye, Vector3 direction, float? reach = null)
     {
         float range = reach ?? InteractReach;
         Interaction? best = null;
+        float wall = float.PositiveInfinity;
+        ulong wallOf = 0;
+        if (Building?.Physics is { } building && building.Ray(eye, direction, range, out Simulation.Building.RayHit hit, buildingOnly: true))
+        {
+            wall = hit.Distance;
+            wallOf = building.OwnerOf(hit.Body) is Simulation.Targets.ITargetable owner ? owner.Ref.Id : 0;
+        }
         void Consider(float t, InteractionKind kind, ulong natural, EntityId entity, string verb, string name)
         {
-            if (t >= 0 && t <= range && (best == null || t < best.Value.Distance))
+            if (t >= 0 && t <= range && (best == null || t < best.Value.Distance) && (t <= wall || wallOf == entity.Value && wallOf != 0))
             {
                 best = new Interaction(kind, natural, entity, verb, name, t);
             }
@@ -526,7 +542,7 @@ public sealed partial class GameClient
             else if (remote.Wounded)
             {
                 // Down: the interact key helps them up (G4).
-                Consider(Geometry.RaySphere(eye, direction, MathF.Min(range, Content.Survival.HelpReach + 0.5f),
+                Consider(Geometry.RaySphere(eye, direction, MathF.Min(range, Content.Survival.HelpReach),
                     remote.Position + Frame.UpAt(remote.Position) * 0.25f, 0.7f), InteractionKind.HelpUp, 0, remote.Id, "Help up", remote.Name);
             }
             else if (Local.LeadsTeam && !Local.Team!.Has(remote.Id) && Local.Team.Members.Count < Content.World.TeamSize)

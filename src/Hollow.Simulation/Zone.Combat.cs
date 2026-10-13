@@ -11,6 +11,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -31,25 +32,16 @@ public sealed class Projectile
     public float RewindTicks;
 }
 
-/// <summary>What a ray met first.</summary>
+/// <summary>
+/// What a ray met first (GROUND_SYSTEMS.md §3.1): the thing, named by its family and ID (a body's part: the bone hit), the
+/// body part's region, how far along and where. The family's receiver finds the thing itself.
+/// </summary>
 public struct TraceHit
 {
-    public HitTarget Target;
+    public TargetRef Target;
     public float Distance;
     public Vector3 Point;
-    public Entity Character;
     public HitRegion Region;
-    public NaturalObject Natural;
-    public Deployable? Deployable;
-
-    /// <summary>The building piece, door or claim device hit.</summary>
-    public object? Building;
-
-    /// <summary>The ship hit (G6).</summary>
-    public Ships.Ship? Ship;
-
-    /// <summary>The animal hit (alive or a corpse), G7.</summary>
-    public Animals.Animal? Animal;
 
     public readonly bool Hit => Distance >= 0;
 }
@@ -91,35 +83,32 @@ public sealed partial class Zone
             ref Character c = ref Entities.Get<Character>(entity);
             if (p.Wounded)
             {
-                RefuseGunActions(p, GunResult.NotAlive);
+                RefuseGunActions(p, OutcomeCode.Dead);
                 continue;
             }
             if (Entities.Has<Ships.ShipSeat>(entity))
             {
                 // In a ship's seat (G6): the hands are on the controls.
-                RefuseGunActions(p, GunResult.NotReady);
+                RefuseGunActions(p, OutcomeCode.Lowered);
                 continue;
             }
             ActionInput input = c.Actions;
-            // Taking up another item (or another in the same slot) takes a moment and ends what was going on.
+            // Taking up another item (or another in the same slot) takes a moment and ends what was going on: the held
+            // behaviour of what was in hand says what ends (GROUND_SYSTEMS.md §7); the gun's state follows the hands.
             ushort inSlot = input.HeldSlot < PlayerInventory.BeltSlots ? p.Inventory.Belt[input.HeldSlot].Item : (ushort)0;
             if (input.HeldSlot != p.HeldSlot || inSlot != p.HeldItem)
             {
+                IHeldRules? putAway = HeldRulesOf(content.Item(p.HeldItem));
                 p.HeldSlot = input.HeldSlot;
                 p.HeldItem = inSlot;
                 p.EquipReadyTick = Tick + CharacterTicks.From(content.Survival.EquipSeconds);
-                p.StrikeTick = -1;
-                p.DrawStartTick = -1;
+                putAway?.PutAway(p);
                 EquipGun(p);
             }
-            ItemDef? held = p.Held(content);
-            if (held?.Melee is { } melee)
+            // The item in hand's buttons, by its held behaviour.
+            if (p.Held(content) is { } held)
             {
-                StepMelee(entity, ref c, p, held, melee);
-            }
-            else if (held?.Bow is { } bow)
-            {
-                StepBow(entity, ref c, p, held, bow);
+                HeldRulesOf(held)?.Step(entity, ref c, p, held);
             }
             StepGun(entity, ref c, p);
         }
@@ -155,7 +144,7 @@ public sealed partial class Zone
         Vector3 direction = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, up);
         float rewind = Math.Min(c.Actions.ViewDelay / 4f, MaxRewindTicks);
         TraceHit hit = Trace(eye, direction, melee.Reach, SweepRadius, p.Id, Tick - rewind);
-        if (!hit.Hit || hit.Target == HitTarget.Ground)
+        if (!hit.Hit || hit.Target.Family == TargetFamily.Ground)
         {
             return;
         }
@@ -180,7 +169,7 @@ public sealed partial class Zone
             Hit = hit,
             From = eye,
             Direction = direction,
-            Markers = HitTargets.All,
+            Markers = TargetFamilies.All,
         });
         Wear(entity, p, p.HeldSlot);
     }
@@ -195,7 +184,11 @@ public sealed partial class Zone
         {
             return;
         }
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Natural, Flag = result.WeakSpot, Position = result.Point });
+        if (Natural.IsDepleted(o.Id))
+        {
+            SupportGone(new TargetRef(TargetFamily.Natural, o.Id));
+        }
+        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = new TargetRef(TargetFamily.Natural, o.Id), Flag = result.WeakSpot, Position = result.Point });
         Give(entity, p, result.Yield, GainReason.Gathered, result.WeakSpot);
     }
 
@@ -369,9 +362,9 @@ public sealed partial class Zone
             Hit = hit,
             From = pr.Position,
             Direction = Vector3.Normalize(pr.Velocity),
-            Markers = HitTargets.All,
+            Markers = TargetFamilies.All,
         });
-        if (Keeps(hit.Target))
+        if (Keeps(hit.Target.Family))
         {
             return;
         }
@@ -401,9 +394,9 @@ public sealed partial class Zone
             Bleed = bleed,
             Cause = projectile ? "Shot" : "Struck down",
             Direct = true,
-            Hit = new TraceHit { Target = HitTarget.Character, Character = victimEntity, Region = region, Point = from },
+            Hit = new TraceHit { Target = victim.Ref, Region = region, Point = from },
             From = from,
-            Markers = HitTargets.All,
+            Markers = TargetFamilies.All,
         }).Taken;
 
     /// <summary>
@@ -415,7 +408,7 @@ public sealed partial class Zone
     /// </summary>
     private sealed class CharacterReceiver(Zone zone) : IDamageReceiver
     {
-        public HitTarget Kind => HitTarget.Character;
+        public TargetFamily[] Families { get; } = { TargetFamily.Character };
 
         public bool Keeps => true;
 
@@ -431,12 +424,12 @@ public sealed partial class Zone
                 {
                     continue;
                 }
-                if (!zone.TryFindPlayer(id, out Entity e, out Player p) || p.Dead)
+                if (!zone.TryFindPlayer(id, out _, out Player p) || p.Dead)
                 {
                     continue;
                 }
-                float t = Hitboxes.Raycast(pose, ray.Origin, ray.Direction, length, ray.Thickness, out HitRegion region);
-                ray.Consider(ref best, t, HitTarget.Character, new TraceHit { Character = e, Region = region });
+                float t = Hitboxes.Raycast(pose, ray.Origin, ray.Direction, length, ray.Thickness, out HitRegion region, out int shape);
+                ray.Consider(ref best, t, new TargetRef(TargetFamily.Character, id.Value, (byte)(shape + 1)), region);
             }
         }
 
@@ -466,7 +459,7 @@ public sealed partial class Zone
                 {
                     into.Add(new BlastTarget
                     {
-                        Hit = new TraceHit { Target = HitTarget.Character, Character = entity, Region = HitRegion.Body, Point = chest }, Thing = p,
+                        Hit = new TraceHit { Target = p.Ref, Region = HitRegion.Body, Point = chest }, Thing = p,
                         Sight = chest, Sight2 = head, Distance = distance,
                     });
                 }
@@ -475,7 +468,7 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (zone.PlayerOf(r.Hit.Character) is not { } victim)
+            if (!zone.TryFindPlayer(new EntityId(r.Hit.Target.Id), out Entity victimEntity, out Player victim))
             {
                 return default;
             }
@@ -490,7 +483,7 @@ public sealed partial class Zone
             victim.Vitals.Bleeding += amount * r.Bleed;
             victim.Vitals.Burning += r.Burn * (1 - protection);
             // Rust: a projectile to the head kills outright; anything else lethal may knock down instead (G4).
-            float taken = zone.Hurt(r.Hit.Character, victim, amount, r.Cause, r.Attacker, r.AttackerName,
+            float taken = zone.Hurt(victimEntity, victim, amount, r.Cause, r.Attacker, r.AttackerName,
                 canWound: !(r.Channel == DamageType.Bullet && region == HitRegion.Head));
             zone.GameEvents.Add(new ZoneEvent
             {
@@ -545,7 +538,7 @@ public sealed partial class Zone
     /// </summary>
     private sealed class NatureReceiver(Zone zone) : IDamageReceiver
     {
-        public HitTarget Kind => HitTarget.Natural;
+        public TargetFamily[] Families { get; } = { TargetFamily.Natural };
 
         public bool Keeps => false;
 
@@ -575,7 +568,7 @@ public sealed partial class Zone
                     t = Geometry.RaySphere(ray.Origin, ray.Direction, ray.Length, centre, r + ray.Thickness);
                 }
                 // A boulder stops the swing or the arrow like the ground, and gives nothing.
-                ray.Consider(ref best, t, kind.IsHarvested ? HitTarget.Natural : HitTarget.Ground, kind.IsHarvested ? new TraceHit { Natural = o } : new TraceHit());
+                ray.Consider(ref best, t, kind.IsHarvested ? new TargetRef(TargetFamily.Natural, o.Id) : TargetRef.Ground);
             }
         }
 
@@ -585,9 +578,10 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (r.Channel == DamageType.Melee && r.By is { } p && zone.Content!.Item(r.Weapon)?.Melee is { } tool && zone.TryFindPlayer(p.Id, out Entity entity, out _))
+            if (r.Channel == DamageType.Melee && r.By is { } p && zone.Content!.Item(r.Weapon)?.Melee is { } tool && zone.TryFindPlayer(p.Id, out Entity entity, out _) &&
+                zone.Nature!.TryGet(r.Hit.Target.Id, out NaturalObject o))
             {
-                zone.Gather(p, entity, r.Hit.Natural, tool, r.Hit.Point, r.From);
+                zone.Gather(p, entity, o, tool, r.Hit.Point, r.From);
             }
             return default;
         }
@@ -596,7 +590,7 @@ public sealed partial class Zone
     /// <summary>The ground (GROUND.md §6.4.2): it hides all behind it, and takes nothing.</summary>
     private sealed class GroundReceiver(Zone zone) : IDamageReceiver
     {
-        public HitTarget Kind => HitTarget.Ground;
+        public TargetFamily[] Families { get; } = { TargetFamily.Ground };
 
         public bool Keeps => false;
 
@@ -606,7 +600,7 @@ public sealed partial class Zone
             float ground = ray.Bullet ? zone.BulletGroundCrossing(ray.Origin, ray.Direction, length) : zone.GroundCrossing(ray.Origin, ray.Direction, length);
             if (ground >= 0)
             {
-                ray.Consider(ref best, ground, HitTarget.Ground, new TraceHit());
+                ray.Consider(ref best, ground, TargetRef.Ground);
             }
         }
 

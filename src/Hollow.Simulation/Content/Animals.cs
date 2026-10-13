@@ -159,10 +159,16 @@ public sealed class AnimalSpecies
     /// <summary>The steepest ground it walks (radians).</summary>
     public float MaxSlope { get; init; }
 
-    /// <summary>Seconds until a dead one is replaced; seconds a corpse lies before it goes.</summary>
+    /// <summary>Seconds until a dead one is replaced.</summary>
     public float RespawnSeconds { get; init; }
 
-    public float CorpseSeconds { get; init; }
+    /// <summary>
+    /// Its carcass's lifetime (GROUND_SYSTEMS.md §3.7): animals.json corpse seconds of world time, and gone at once when
+    /// harvested out.
+    /// </summary>
+    public LifetimeRule Carcass { get; init; } = new(300, LifetimeRestart.None, true);
+
+    public float CorpseSeconds => Carcass.Seconds;
 
     /// <summary>How much a corpse takes to harvest (a tool's rate a hit), and everything it gives in all.</summary>
     public float HarvestHealth { get; init; }
@@ -412,7 +418,7 @@ internal static class AnimalsReader
                 Wooded = f.Number(habitat, "wooded", where + ".habitat", 1),
                 MaxSlope = f.Number(e, "slope", where, 38) * (MathF.PI / 180),
                 RespawnSeconds = f.Number(e, "respawn", where),
-                CorpseSeconds = f.Number(e, "corpse", where, 300),
+                Carcass = new LifetimeRule(f.Number(e, "corpse", where, 300), LifetimeRestart.None, EndsWhenEmptied: true),
                 HarvestHealth = f.Number(corpse, "health", where + ".harvest"),
             };
             if (f.TryChild(habitat, "biomes", out JsonElement biomes))

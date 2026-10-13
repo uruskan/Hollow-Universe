@@ -115,20 +115,21 @@ public static class BuildingNetTests
         rig.Run(0.5, (_, _) => default);
 
         // Bo has no wood: refused with the reason, nothing taken.
-        var refused = new List<BuildAnswer>();
-        bo.Local.BuildRejected += refused.Add;
+        var refused = new List<IntentAnswer>();
+        bo.Local.IntentRejected += refused.Add;
         Vector3 boEye = Eye(bo);
         Vector3 boGround = bo.Character.Position + new Vector3(3.5f, 0, 0);
         PlacementPlan? boPlan = bo.PlanPiece(Piece(bo, "foundation"), boEye, Vector3.Normalize(boGround - boEye));
-        Assert.True(boPlan is { Valid: false } && boPlan.Outcome.Reason == Refusal.NotEnough, $"Bo's ghost says why ({boPlan})");
+        Assert.True(boPlan is { Valid: false } && boPlan.Outcome.Code == OutcomeCode.NotEnough, $"Bo's ghost says why ({boPlan})");
         uint boSeq = bo.Local.PlacePiece(boPlan!);
         RunUntil(rig, () => refused.Any(a => a.Seq == boSeq), "Bo's refusal");
-        Assert.Equal(Refusal.NotEnough, refused.Single().Reason, "not enough wood");
-        Fixtures.Report($"Bo was told: \"{refused.Single().Text}\"");
+        Assert.Equal(OutcomeCode.NotEnough, refused.Single().Code, "not enough wood");
+        Assert.Equal("Not enough wood", ContentFixture.Content.Texts.Line(refused.Single().Outcome), "names the material");
+        Fixtures.Report($"Bo was told: \"{ContentFixture.Content.Texts.Line(refused.Single().Outcome)}\"");
         Assert.True(bo.Local.PendingPieces.Count == 0 && bo.Building!.PieceCount == 0, "and nothing was built");
 
-        var answers = new List<BuildAnswer>();
-        ada.Local.BuildAnswered += answers.Add;
+        var answers = new List<IntentAnswer>();
+        ada.Local.IntentAnswered += answers.Add;
         Vector3 eye = Eye(ada), up = ada.Frame.UpAt(eye);
         Vector3 ground = ada.Character.Position + new Vector3(3.5f, 0, 0);
         PlacementPlan? plan = ada.PlanPiece(Piece(ada, "foundation"), eye, Vector3.Normalize(ground - eye));
@@ -194,13 +195,13 @@ public static class BuildingNetTests
         Piece doorway = ada.Building!.PieceOf(doorwayId)!;
         Piece floor = ada.Building.AllPieces.Single(p => p.Def.Key == "foundation");
 
-        var answers = new List<BuildAnswer>();
-        ada.Local.BuildAnswered += answers.Add;
+        var answers = new List<IntentAnswer>();
+        ada.Local.IntentAnswered += answers.Add;
         uint Ask(uint seq, string what)
         {
             RunUntil(rig, () => answers.Any(a => a.Seq == seq), what);
-            BuildAnswer answer = answers.Single(a => a.Seq == seq);
-            Assert.True(answer.Done, $"{what}: {answer.Reason} {answer.Text}");
+            IntentAnswer answer = answers.Single(a => a.Seq == seq);
+            Assert.True(answer.Done, $"{what}: {answer.Code} {ContentFixture.Content.Texts.Line(answer.Outcome)}");
             return seq;
         }
         Ask(ada.Local.PlaceDoor(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wooden-door"), doorway), "the door fitted");
@@ -219,6 +220,10 @@ public static class BuildingNetTests
         RunUntil(rig, () => ada.Local.Inventory.Count(ContentFixture.Item("wood")) == 200, "the wood");
         ClaimDevice claim = ada.Building.Claims.Single();
         Assert.True(ada.ThingOf(claim.Id)?.Deployable(ada.Content)?.Slots == 24, "the claim device is a thing with a 24-slot store");
+        // Opened from her floor, in sight of it (since P0 the doorway's wall and its shut door hide it from outside).
+        Vector3 floorMiddle = BuildingWorld.F(floor.Structure.Frame.ToZone(floor.Pose.Position));
+        rig.Server.Execute(FormattableString.Invariant($"teleport Ada {floorMiddle.X:0.00} {floorMiddle.Z:0.00}"));
+        rig.Run(0.6, (_, _) => default);
         ada.Local.Open(claim.Id);
         RunUntil(rig, () => ada.Local.LootKind == Simulation.Items.LootKind.Box && ada.Local.Loot?.Size == 24, "its store open");
         ada.Local.MoveItem(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wood"), ContainerRef.Loot, 0);
@@ -235,21 +240,21 @@ public static class BuildingNetTests
         Vector3 outside = doorAt + outward * 2.2f;
         rig.Server.Execute(FormattableString.Invariant($"teleport Bo {outside.X:0.00} {outside.Z:0.00}"));
         rig.Run(0.6, (_, _) => default);
-        var bos = new List<BuildAnswer>();
-        bo.Local.BuildAnswered += bos.Add;
+        var bos = new List<IntentAnswer>();
+        bo.Local.IntentAnswered += bos.Add;
         Door boDoor = bo.Building!.PieceOf(doorwayId)!.Door!;
         Assert.True(bo.BuildingReplica!.StateOf(boDoor) is { Locked: true, CanUse: false }, "Bo sees a locked door he can't pass");
-        Refusal BoAsks(uint seq, string what)
+        OutcomeCode BoAsks(uint seq, string what)
         {
             RunUntil(rig, () => bos.Any(a => a.Seq == seq), what);
-            return bos.Single(a => a.Seq == seq).Reason;
+            return bos.Single(a => a.Seq == seq).Code;
         }
-        Assert.Equal(Refusal.Locked, BoAsks(bo.Local.ToggleDoor(boDoor), "Bo tries the door"), "locked");
-        Assert.Equal(Refusal.WrongCode, BoAsks(bo.Local.EnterCode(boDoor, "1234"), "a wrong code"), "wrong code");
-        Assert.Equal(Refusal.WaitForCode, BoAsks(bo.Local.EnterCode(boDoor, "4711"), "the right code too soon"), "he must wait");
+        Assert.Equal(OutcomeCode.Locked, BoAsks(bo.Local.ToggleDoor(boDoor), "Bo tries the door"), "locked");
+        Assert.Equal(OutcomeCode.WrongCode, BoAsks(bo.Local.EnterCode(boDoor, "1234"), "a wrong code"), "wrong code");
+        Assert.Equal(OutcomeCode.WaitForCode, BoAsks(bo.Local.EnterCode(boDoor, "4711"), "the right code too soon"), "he must wait");
         rig.Run(1.1, (_, _) => default);
-        Assert.Equal(Refusal.None, BoAsks(bo.Local.EnterCode(boDoor, "4711"), "the right code"), "let in");
-        Assert.Equal(Refusal.None, BoAsks(bo.Local.ToggleDoor(boDoor), "Bo opens the door"), "opened");
+        Assert.Equal(OutcomeCode.Done, BoAsks(bo.Local.EnterCode(boDoor, "4711"), "the right code"), "let in");
+        Assert.Equal(OutcomeCode.Done, BoAsks(bo.Local.ToggleDoor(boDoor), "Bo opens the door"), "opened");
         RunUntil(rig, () => door.Open && boDoor.Open, "the door open on both clients");
         Assert.True(rig.Server.Inspect(sv => sv.Zone.Building!.DoorOf(door.Id)!.Open), "and on the server");
 
@@ -261,8 +266,8 @@ public static class BuildingNetTests
         Vector3 boEye = Eye(bo);
         Vector3 target = far + ada.Frame.UpAt(far) * 0.6f;
         PlacementPlan? wall = bo.PlanPiece(Piece(bo, "wall"), boEye, Vector3.Normalize(target - boEye));
-        Assert.True(wall is { Valid: false } && wall.Outcome.Reason == Refusal.BuildingBlocked, $"Bo's ghost is blocked ({wall})");
-        Assert.Equal(Refusal.BuildingBlocked, BoAsks(bo.Local.PlacePiece(wall!), "Bo builds anyway"), "the server agrees");
+        Assert.True(wall is { Valid: false } && wall.Outcome.Code == OutcomeCode.BuildingBlocked, $"Bo's ghost is blocked ({wall})");
+        Assert.Equal(OutcomeCode.BuildingBlocked, BoAsks(bo.Local.PlacePiece(wall!), "Bo builds anyway"), "the server agrees");
     }
 
     /// <summary>

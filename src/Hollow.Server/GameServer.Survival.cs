@@ -19,6 +19,8 @@ using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 using LiteNetLib;
+using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Server;
 
@@ -263,10 +265,11 @@ public sealed partial class GameServer
                 DropIntent m = DropIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.DropItem(me, m.From, m.Slot, Amount(m.Amount), Expected(m.Expected)));
             }
-            case UseIntent.TypeId:
+            case ItemActionIntent.TypeId:
             {
-                UseIntent m = UseIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.UseItem(me, m.From, m.Slot, Expected(m.Expected)));
+                ItemActionIntent m = ItemActionIntent.Read(_reader);
+                return !_reader.Failed && Intent(session, m.Seq,
+                    () => Zone.ItemAction(me, m.From, m.Slot, Expected(m.Expected), Amount(m.Action), Amount(m.Arg)));
             }
             case CraftIntent.TypeId:
             {
@@ -318,7 +321,7 @@ public sealed partial class GameServer
                 // respawn happens on the tick it is ready (FinishRespawns), on the beach point picked now.
                 if (session.Playing && Zone.RespawnPoint(me, bag) is { } at && !Zone.Physics.GroundReady(at))
                 {
-                    if (TakeIntent(session, out ActionResult refused))
+                    if (TakeIntent(session, out Outcome refused))
                     {
                         _respawns.Add(new PendingRespawn(session, me, m.Seq, bag, at, Zone.Tick));
                     }
@@ -347,15 +350,18 @@ public sealed partial class GameServer
                     Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Reload, Slot = m.Slot, Item = Expected(m.Item), Ammo = Expected(m.Ammo),
                 });
             }
+            case UnloadIntent.TypeId:
+            {
+                UnloadIntent m = UnloadIntent.Read(_reader);
+                return !_reader.Failed && GunIntent(session, new GunAction
+                {
+                    Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Unload, Slot = m.Slot, Item = Expected(m.Item),
+                });
+            }
             case AttachIntent.TypeId:
             {
                 AttachIntent m = AttachIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.Attach(me, m.From, m.Slot, m.WeaponIn, m.WeaponSlot, Expected(m.Expected)));
-            }
-            case DetachIntent.TypeId:
-            {
-                DetachIntent m = DetachIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Detach(me, m.WeaponIn, m.WeaponSlot, m.Mod));
             }
             case HelpUpIntent.TypeId:
             {
@@ -367,34 +373,36 @@ public sealed partial class GameServer
         }
     }
 
-    private bool Intent(PlayerSession session, uint seq, Func<ActionResult> act, bool whileDead = false)
+    // Every intent (GROUND_SYSTEMS.md §3.2): it spends from the player's budget (a bad one too), is applied at once, and is
+    // answered with one IntentResult after this tick's changes (containers) have gone out.
+    private bool Intent(PlayerSession session, uint seq, Func<Outcome> act, bool whileDead = false)
     {
-        Answer(session, seq, TakeIntent(session, out ActionResult refused) ? act() : refused);
+        Answer(session, seq, TakeIntent(session, out Outcome refused) ? act() : refused);
         return true;
     }
 
     // Spends an intent's token: false, and why, if it can't be done at all (over the budget, or not playing).
-    private bool TakeIntent(PlayerSession session, out ActionResult refused)
+    private bool TakeIntent(PlayerSession session, out Outcome refused)
     {
         SurvivalTuning s = Content.Survival;
-        refused = ActionResult.Accepted;
+        refused = OutcomeCode.Done;
         if (!session.SpendIntentToken(Zone.Tick, s.IntentBurst, s.IntentsPerSecond))
         {
-            refused = ActionResult.RateLimited;
+            refused = OutcomeCode.RateLimited;
             session.IntentsRateLimited++;
             return false;
         }
         if (!session.Playing)
         {
-            refused = ActionResult.Dead;
+            refused = OutcomeCode.Dead;
             return false;
         }
         return true;
     }
 
-    private static void Answer(PlayerSession session, uint seq, ActionResult result)
+    private static void Answer(PlayerSession session, uint seq, Outcome result)
     {
-        if (result == ActionResult.Accepted)
+        if (result.Ok)
         {
             session.IntentsAccepted++;
         }
@@ -402,7 +410,7 @@ public sealed partial class GameServer
         {
             session.IntentsRefused++;
         }
-        session.PendingResults.Add(new IntentResult { Seq = seq, Result = result });
+        session.PendingResults.Add(new IntentResult { Seq = seq, Code = result.Code, Detail = (uint)Math.Max(0, result.Detail) });
         session.LastIntentSeq = Math.Max(session.LastIntentSeq, seq);
     }
 
@@ -415,10 +423,10 @@ public sealed partial class GameServer
 
     private readonly List<PendingRespawn> _respawns = new();
 
-    private ActionResult RespawnNow(Entity me, EntityId bag, Vector3? beach)
+    private Outcome RespawnNow(Entity me, EntityId bag, Vector3? beach)
     {
-        ActionResult result = Zone.Respawn(me, bag, beach);
-        if (result == ActionResult.Accepted && _options.KitEveryLife && _options.JoinKit != null &&
+        Outcome result = Zone.Respawn(me, bag, beach);
+        if (result == OutcomeCode.Done && _options.KitEveryLife && _options.JoinKit != null &&
             Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(me) is { } p)
         {
             GiveKit(p, kit);
@@ -452,7 +460,7 @@ public sealed partial class GameServer
         session.GunActions++;
         if (!session.SpendGunToken(Zone.Tick, s.GunBurst, s.GunActionsPerSecond))
         {
-            action.Refused = GunResult.RateLimited;
+            action.Refused = OutcomeCode.RateLimited;
             session.GunRateLimited++;
         }
         if (session.Playing)
@@ -511,7 +519,6 @@ public sealed partial class GameServer
             }
             session.PendingResults.Clear();
         }
-        SendBuildResults();
     }
 
     private void Send(PlayerSession session) => session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
@@ -529,11 +536,11 @@ public sealed partial class GameServer
                 case ZoneEventKind.HitConfirmed when to != null:
                     new HitMarker
                     {
-                        Target = e.Target,
+                        Target = e.Target.Family,
                         Region = e.Region,
                         Damage = Tenths(e.Amount),
-                        Killed = e.Target is HitTarget.Character or HitTarget.Animal && e.Flag,
-                        WeakSpot = e.Target == HitTarget.Natural && e.Flag,
+                        Killed = e.Target.Family is TargetFamily.Character or TargetFamily.Animal && e.Flag,
+                        WeakSpot = e.Target.Family == TargetFamily.Natural && e.Flag,
                         Downed = e.Downed,
                     }.WriteMessage(_writer);
                     Send(to);
@@ -570,7 +577,7 @@ public sealed partial class GameServer
                     SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
                     break;
                 case ZoneEventKind.ProjectileEnded:
-                    new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target }.WriteMessage(_writer);
+                    new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target.Family }.WriteMessage(_writer);
                     SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
                     break;
                 case ZoneEventKind.Notice:
@@ -927,24 +934,31 @@ public sealed partial class GameServer
         {
             uint netId = _thingGrid[index].NetId;
             WorldObject thing = _things[netId];
-            if (session.ThingsSent.TryGetValue(netId, out uint revision))
+            uint contents = thing.Container?.Revision ?? 0;
+            if (session.ThingsSent.TryGetValue(netId, out ThingSent sent))
             {
                 _thingsRelevant.Add(netId);
-                if (revision != thing.Revision)
+                // Sent again when it changed, or when what the player is told of it did (its contents, the viewer).
+                if (sent.Revision != thing.Revision || sent.Contents != contents || session.ViewerChanged)
                 {
-                    session.ThingsSent[netId] = thing.Revision;
-                    (byte health, uint count, ThingFlags flags) = Look(thing, session);
-                    _writer.Reset();
-                    new ThingUpdate { NetId = netId, Health = health, Count = count, Flags = flags }.WriteMessage(_writer);
-                    Send(session);
+                    ViewerFlags flags = Zone.FlagsFor(thing.Ref, session.Viewer);
+                    session.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags);
+                    if (sent.Revision != thing.Revision || flags != sent.Flags)
+                    {
+                        (byte health, uint count) = Look(thing);
+                        _writer.Reset();
+                        new ThingUpdate { NetId = netId, Health = health, Count = count, Flags = flags }.WriteMessage(_writer);
+                        Send(session);
+                    }
                 }
             }
             else if (spawned < ThingSpawnsPerSnapshot)
             {
                 spawned++;
                 _thingsRelevant.Add(netId);
-                session.ThingsSent[netId] = thing.Revision;
-                (byte health, uint count, ThingFlags flags) = Look(thing, session);
+                ViewerFlags flags = Zone.FlagsFor(thing.Ref, session.Viewer);
+                session.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags);
+                (byte health, uint count) = Look(thing);
                 _writer.Reset();
                 new ThingSpawn
                 {
@@ -980,10 +994,9 @@ public sealed partial class GameServer
         Send(session);
     }
 
-    // What a client is told of a thing besides its look: health, a count (a bag's stacks), burning, theirs.
-    private static (byte Health, uint Count, ThingFlags Flags) Look(WorldObject thing, PlayerSession session) =>
-        ((byte)Math.Clamp(Math.Ceiling(thing.HealthFraction * 255), 0, 255), (uint)Math.Max(0, thing.ShownCount),
-            (thing.Burning ? ThingFlags.Lit : ThingFlags.None) | (thing.OwnedBy(session.EntityId) ? ThingFlags.Mine : ThingFlags.None));
+    // What a client is told of a thing besides its look and its viewer flags: health, a count (a bag's stacks).
+    private static (byte Health, uint Count) Look(WorldObject thing) =>
+        ((byte)Math.Clamp(Math.Ceiling(thing.HealthFraction * 255), 0, 255), (uint)Math.Max(0, thing.ShownCount));
 
     private void FinishThings()
     {
@@ -1128,11 +1141,11 @@ public sealed class GameCounters
             case ZoneEventKind.ItemsGained when e.Reason == GainReason.PickedUp:
                 PickedUp += e.Count;
                 break;
-            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Natural:
+            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Natural:
                 GatherHits++;
                 WeakSpotHits += e.Flag ? 1 : 0;
                 break;
-            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Character:
+            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Character:
                 CharacterHits++;
                 Kills += e.Flag ? 1 : 0;
                 Downed += e.Downed ? 1 : 0;
@@ -1140,7 +1153,7 @@ public sealed class GameCounters
             case ZoneEventKind.Recovered:
                 Recovered++;
                 break;
-            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Animal:
+            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Animal:
                 AnimalHits++;
                 AnimalKills += e.Flag ? 1 : 0;
                 break;
@@ -1156,7 +1169,7 @@ public sealed class GameCounters
             case ZoneEventKind.ProjectileLaunched:
                 Arrows++;
                 break;
-            case ZoneEventKind.ProjectileEnded when e.Seq != 0 && e.Target == HitTarget.Character:
+            case ZoneEventKind.ProjectileEnded when e.Seq != 0 && e.Target.Family == TargetFamily.Character:
                 BulletHits++;
                 break;
         }

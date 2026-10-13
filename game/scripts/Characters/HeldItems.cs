@@ -195,12 +195,13 @@ public static class HeldItems
                 Name = items.TryGetValue(entry.Key, out var data) ? data.Name : NameFromKey(entry.Key),
                 SwingTime = data.Swing > 0f ? data.Swing : 0.85f,
                 StrikeTime = data.Strike > 0f ? data.Strike : 0.3f,
-                Kind = entry.Class == "gun" ? (entry.Key == "pistol" ? HeldKind.Pistol : HeldKind.Rifle) : HeldKind.Tool,
+                // The arms' pose is the catalogue's (held.pose: pistol or rifle), a tool's by default.
+                Kind = Enum.TryParse(entry.Held.Pose, ignoreCase: true, out HeldKind pose) ? pose : HeldKind.Tool,
                 Class = entry.Class,
                 Entry = entry,
                 // A rifle's eye socket sits at the cheek weld, where the stock fills the bottom of a first-person
-                // view; the camera goes closer to the rear sight instead.
-                EyeRelief = entry.Class == "gun" && entry.Key != "pistol" ? 0.11f : 0f,
+                // view; the catalogue's eye relief puts the camera closer to the rear sight instead.
+                EyeRelief = entry.Held.EyeRelief,
             };
             _all.Add(model);
             _byId[model.Id] = model;

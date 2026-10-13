@@ -42,7 +42,7 @@
 
     { "key": "torch", "kind": "item", "class": "tool", "file": "res://assets/items/torch.glb", "lods": 3, "collision": "convex",
       "icon": {},
-      "held": { "firstPerson": { "position": [0.31, -0.4, -0.5], "rotation": [-3.4, 126.9, -27.8] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] } },
+      "held": { "firstPerson": { "position": [0.31, -0.4, -0.5], "rotation": [-3.4, 126.9, -27.8] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] }, "flame": "fire.torch" },
       "source": "Hollow (art/models/tools.py)" },
     { "key": "stone-hatchet", "kind": "item", "class": "tool", "file": "res://assets/items/stone-hatchet.glb", "lods": 3, "collision": "convex",
       "icon": {},
@@ -233,12 +233,12 @@
 
     { "key": "pistol", "kind": "item", "class": "gun", "file": "res://assets/items/pistol.glb", "lods": 3, "collision": "convex",
       "icon": {},
-      "held": { "firstPerson": { "position": [0.15, -0.21, -0.34], "rotation": [2.8, 97.5, 1.7] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] }, "offHand": "grip_l" },
+      "held": { "firstPerson": { "position": [0.15, -0.21, -0.34], "rotation": [2.8, 97.5, 1.7] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] }, "offHand": "grip_l", "pose": "pistol" },
       "sockets": { "sight": "socket_rail", "muzzle": "socket_muzzle", "under": "socket_under" },
       "source": "PSG Starter Kit R02: P250" },
     { "key": "rifle", "kind": "item", "class": "gun", "file": "res://assets/items/rifle.glb", "lods": 3, "collision": "convex",
       "icon": {},
-      "held": { "firstPerson": { "position": [0.16, -0.2, -0.3], "rotation": [2.9, 94.1, 1.7] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] }, "offHand": "grip_l" },
+      "held": { "firstPerson": { "position": [0.16, -0.2, -0.3], "rotation": [2.9, 94.1, 1.7] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] }, "offHand": "grip_l", "pose": "rifle", "eyeRelief": 0.11 },
       "sockets": { "sight": "socket_rail", "muzzle": "socket_muzzle", "under": "socket_under" },
       "source": "PSG Frontier AK R05 (static LOD0-2)" },
 
@@ -307,7 +307,7 @@
       "source": "Hollow (art/models/raid.py), G5" },
     { "key": "rocket-launcher", "kind": "item", "class": "gun", "file": "res://assets/items/rocket-launcher.glb", "lods": 3, "collision": "convex",
       "icon": {},
-      "held": { "firstPerson": { "position": [0.19, -0.28, -0.27], "rotation": [2.9, 94.1, 1.7] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] }, "offHand": "grip_l" },
+      "held": { "firstPerson": { "position": [0.19, -0.28, -0.27], "rotation": [2.9, 94.1, 1.7] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] }, "offHand": "grip_l", "pose": "rifle", "eyeRelief": 0.11 },
       "source": "Hollow (art/models/raid.py), G5" },
     { "key": "explosives", "kind": "item", "class": "resource", "file": "res://assets/items/sulphur.glb", "lods": 3, "collision": "convex",
       "icon": { "key": "sulphur" }, "standIn": "G5: sulphur until the assets package models the explosives.", "source": "Stand-in: sulphur" },

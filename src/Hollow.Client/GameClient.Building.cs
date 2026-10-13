@@ -111,15 +111,6 @@ public sealed partial class GameClient
                 }
                 return;
             }
-            case BuildResult.TypeId:
-            {
-                BuildResult m = BuildResult.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    Local.OnBuildResult(m);
-                }
-                return;
-            }
         }
     }
 }

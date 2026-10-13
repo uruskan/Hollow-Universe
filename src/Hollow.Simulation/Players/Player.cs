@@ -5,6 +5,7 @@ using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation.Players;
 
@@ -94,7 +95,7 @@ public enum ActionKind : byte
 /// (alive or dead, awake or asleep). Lives in the zone alongside its <see cref="Character"/>; owned by the zone's
 /// thread.
 /// </summary>
-public sealed class Player
+public sealed class Player : ITargetable
 {
     public Player(EntityId id, string name)
     {
@@ -104,6 +105,9 @@ public sealed class Player
 
     /// <summary>The character's permanent ID (the same across lives).</summary>
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Character, Id.Value);
 
     public string Name { get; }
 
@@ -173,7 +177,7 @@ public sealed class Player
     /// <summary>The last gun action refused, and why (sent with the gun's state).</summary>
     public uint GunRefusedSeq { get; set; }
 
-    public GunResult GunRefused { get; set; }
+    public OutcomeCode GunRefused { get; set; }
 
     // ---------------------------------------------------------------- G4: the wounded state (Rust's)
 

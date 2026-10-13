@@ -11,6 +11,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -56,10 +57,13 @@ public sealed partial class Zone
         Natural = new NaturalState(content, Nature);
         _ = new NaturalBodies(Physics, Natural);
         Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
+        InitThings(content);
         InitBuilding(content);
         InitWorld(content);
         InitAnimals(content);
+        InitTargets();
         InitDamage();
+        InitHeld();
     }
 
     // After movement: GROUND.md §4.2's order.
@@ -77,7 +81,7 @@ public sealed partial class Zone
         {
             StepVitals();
             Natural!.Respawn(UnixMilliseconds);
-            StepDespawns();
+            StepLifetimes();
             StepWorld();
             CheckLoot();
         }
@@ -303,7 +307,7 @@ public sealed partial class Zone
         {
             Vector3 at = Settle(c.State.Position);
             var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
-                at, Frame.UpAt(at), c.Input.Yaw, Tick + (long)(content.Survival.CorpseSeconds * CharacterMotor.TickRate));
+                at, Frame.UpAt(at), c.Input.Yaw, content.Survival.BodyLifetime, Tick + content.Survival.BodyLifetime.Ticks);
             for (int i = 0; i < stacks.Count; i++)
             {
                 corpse.Loot.Set(i, stacks[i]);
@@ -327,6 +331,7 @@ public sealed partial class Zone
         c.State.Velocity = Vector3.Zero;
         c.State.Flags = MoveFlags.Dead;
         History.Forget(p.Id);
+        SupportGone(p.Ref);
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.Died, Player = p.Id, Other = by, Text = cause, Position = c.State.Position });
     }
 
@@ -334,23 +339,23 @@ public sealed partial class Zone
     /// A respawn (GROUND.md §6): at one of the player's own sleeping bags (<paramref name="bag"/>) once it has cooled
     /// down, or on a random beach point (none), with a rock and a torch.
     /// </summary>
-    public ActionResult Respawn(Entity entity, EntityId bag) => Respawn(entity, bag, null);
+    public Outcome Respawn(Entity entity, EntityId bag) => Respawn(entity, bag, null);
 
     /// <summary>
     /// A respawn as <see cref="Respawn(Entity, EntityId)"/>, on the beach point <paramref name="beach"/> when it is
     /// given: the server picks it (<see cref="RespawnPoint"/>) when the player asks, has its ground built on worker
     /// threads and brings the player in on the tick it is ready (GROUND.md §4.6).
     /// </summary>
-    public ActionResult Respawn(Entity entity, EntityId bag, Vector3? beach)
+    public Outcome Respawn(Entity entity, EntityId bag, Vector3? beach)
     {
         using TickProfile.Scope timed = Profile.Time(ProfileSection.Respawn);
         if (PlayerOf(entity) is not { } p)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (!p.Dead)
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         Vector3 at;
         float yaw = 0;
@@ -358,15 +363,15 @@ public sealed partial class Zone
         {
             if (!Entities.TryFind(bag, out Entity bagEntity) || StaticOf(bagEntity) is not Deployable d || !d.Def.IsRespawnPoint)
             {
-                return ActionResult.NotFound;
+                return OutcomeCode.NotFound;
             }
             if (d.Owner != p.Id)
             {
-                return ActionResult.NotAllowed;
+                return OutcomeCode.NotOwner;
             }
             if (UnixMilliseconds < d.ReadyAtUnixMs)
             {
-                return ActionResult.Cooldown;
+                return OutcomeCode.Cooldown;
             }
             d.ReadyAtUnixMs = UnixMilliseconds + (long)(d.Def.RespawnSeconds * 1000);
             d.Revision++;
@@ -377,7 +382,7 @@ public sealed partial class Zone
         {
             if (UnixMilliseconds < p.BeachReadyAtUnixMs)
             {
-                return ActionResult.Cooldown;
+                return OutcomeCode.Cooldown;
             }
             p.BeachReadyAtUnixMs = UnixMilliseconds + (long)(Content!.Survival.BeachCooldownSeconds * 1000);
             at = beach ?? BeachPoint(Hash64.Of(p.Id.Value, (ulong)Tick, 0xBEAC));
@@ -392,7 +397,7 @@ public sealed partial class Zone
         SyncHealth(ref c, p);
         Physics.Prefetch(at, 1);
         Physics.EnsureGround(at);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>

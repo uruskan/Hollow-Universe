@@ -15,9 +15,14 @@ public static partial class Protocol
     /// opens as take-only loot, <c>LootKind.Crate</c>); 13: gathering's feedback (a natural object's change carries its run
     /// of weak-spot hits, how fresh its last hit is and where it met the surface); 14: the damage pipeline's Destroyed
     /// event (<see cref="ThingDestroyed"/>, GROUND.md §6.4.2); 15: free look (Alt), the head's turn from the view in every
-    /// input and in characters' state.
+    /// input and in characters' state; 16: the shared foundations (GROUND_SYSTEMS.md §3): one answer for every intent
+    /// (<see cref="IntentResult"/>'s code and detail; <c>BuildResult</c> is gone), things named by
+    /// <see cref="TargetNet"/> (family, ID, part) and hit kinds by target family, and viewer flags; 17: held items, item
+    /// information and inventory actions (GROUND_SYSTEMS.md §7): one item action intent for every inventory button
+    /// (<see cref="ItemActionIntent"/>; <c>UseIntent</c> and <c>DetachIntent</c> are gone), the gun's unload on its own
+    /// timeline (<see cref="UnloadIntent"/>) and its answers in the one answer list (<see cref="GunUpdate"/>'s code).
     /// </summary>
-    public const uint Version = 15;
+    public const uint Version = 17;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -64,25 +69,24 @@ public enum EntityKind : byte
     Animal,
 }
 
-/// <summary>What a ship's state says it is doing (G6).</summary>
+/// <summary>
+/// What a ship's state says it is doing (G6). Whether it is locked and the receiver's own are its viewer flags
+/// (<c>ShipNetState.Viewer</c>, GROUND_SYSTEMS.md §3.3).
+/// </summary>
 [System.Flags]
 public enum ShipNetFlags : ushort
 {
     None = 0,
     Piloted = 1,
     HatchOpen = 2,
-    Locked = 4,
-
-    /// <summary>The receiving player's own (they built it).</summary>
-    Mine = 8,
-    Landed = 16,
-    Destroyed = 32,
-    InOrbit = 64,
-    Boosting = 128,
-    EnginesOn = 256,
-    AssistOff = 512,
-    Wet = 1024,
-    Asleep = 2048,
+    Landed = 4,
+    Destroyed = 8,
+    InOrbit = 16,
+    Boosting = 32,
+    EnginesOn = 64,
+    AssistOff = 128,
+    Wet = 256,
+    Asleep = 512,
 }
 
 /// <summary>A ship action (<see cref="ShipIntent"/>).</summary>
@@ -122,15 +126,3 @@ public enum TeammateState : byte
     Dead,
 }
 
-/// <summary>What a client sees of a static thing.</summary>
-[System.Flags]
-public enum ThingFlags : byte
-{
-    None = 0,
-
-    /// <summary>A campfire or furnace burning; a recycler running, a research table researching (G7).</summary>
-    Lit = 1,
-
-    /// <summary>The receiving player's own (their sleeping bag).</summary>
-    Mine = 2,
-}

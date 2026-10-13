@@ -54,8 +54,7 @@ public sealed class BotSwarm : IDisposable
             });
             if (i < 3 || Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null)
             {
-                client.Local.IntentRejected += a => log($"{client.Name}: intent {a.Seq} refused: {a.Result}");
-                client.Local.BuildRejected += a => log($"{client.Name}: building intent {a.Seq} refused: {a.Reason} ({a.Text})");
+                client.Local.IntentRejected += a => log($"{client.Name}: intent {a.Seq} refused: {a.Code} ({_content.Texts.Line(a.Outcome)})");
             }
             client.Connect(host, port);
             _bots.Add((client, new BotBrain(i, script), script == BotScript.Survive ? new SurvivalBrain(i) : null,

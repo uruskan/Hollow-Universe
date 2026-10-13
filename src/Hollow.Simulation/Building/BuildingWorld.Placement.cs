@@ -351,11 +351,11 @@ public sealed partial class BuildingWorld
         Pose pose = plan.Pose;
         if (plan.Structure != null && plan.Structure.Count >= Data.MaxPiecesPerBuilding)
         {
-            return Outcome.Refuse(Refusal.TooManyPieces);
+            return OutcomeCode.TooManyPieces;
         }
         if (plan.Support != null && (plan.Support.Gone || plan.Support.Collapsing))
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
 
         // Reach, to the nearest point of the piece's logical surface.
@@ -364,7 +364,7 @@ public sealed partial class BuildingWorld
         double distance = (nearest - eyeLocal).Length;
         if (distance > Data.Reach)
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return OutcomeCode.OutOfReach;
         }
 
         // Sight: nothing else between the eye and that point (a little short of it is fine).
@@ -376,7 +376,7 @@ public sealed partial class BuildingWorld
                 !(blocker.IsGround && piece.Family == PieceFamily.Foundation) &&
                 blocker.Distance < distance - Data.SightTolerance && Vector3.Distance(blocker.Point, target) > Data.SightTolerance)
             {
-                return Outcome.Refuse(Refusal.OutOfSight);
+                return OutcomeCode.OutOfSight;
             }
         }
 
@@ -384,7 +384,7 @@ public sealed partial class BuildingWorld
         (Vector3 zonePosition, Quaternion zoneRotation) = frame.ToZone(pose);
         if (PrivilegeAt(player, zonePosition, Data.ClaimPadding) == Privilege.Blocked)
         {
-            return Outcome.Refuse(Refusal.BuildingBlocked);
+            return OutcomeCode.BuildingBlocked;
         }
 
         // A free spot.
@@ -394,7 +394,7 @@ public sealed partial class BuildingWorld
             {
                 if (s.At(piece, pose) != null)
                 {
-                    return Outcome.Refuse(Refusal.Occupied);
+                    return OutcomeCode.Occupied;
                 }
             }
         }
@@ -420,7 +420,7 @@ public sealed partial class BuildingWorld
         }
         if (CharacterInside(_parts[piece], zonePosition, zoneRotation))
         {
-            return Outcome.Refuse(Refusal.PlayerInTheWay);
+            return OutcomeCode.PlayerInTheWay;
         }
 
         // Stability, and the structures it would join.
@@ -429,11 +429,11 @@ public sealed partial class BuildingWorld
         plan.Stability = stability;
         if (stability < Data.MinimumStability)
         {
-            return Outcome.Refuse(Refusal.Unstable, $"Not stable enough ({stability / 10.0:0.#}%)");
+            return OutcomeCode.Unstable.With((int)Math.Floor(stability / 10.0));
         }
         if (plan.Structure != null && JoinsClaims(piece, frame, pose))
         {
-            return Outcome.Refuse(Refusal.JoinsClaims);
+            return OutcomeCode.JoinsClaims;
         }
 
         // The price: a twig piece's cost in its material.
@@ -443,7 +443,7 @@ public sealed partial class BuildingWorld
             int cost = Data.CostOf(piece, 0);
             if (wallet.Count(twig.Material) < cost)
             {
-                return Outcome.Refuse(Refusal.NotEnough, $"Not enough {Data.MaterialName(twig.Material).ToLowerInvariant()}");
+                return OutcomeCode.NotEnough.With(Data.MaterialItem(twig.Material));
             }
         }
         return Outcome.Done;
@@ -460,16 +460,16 @@ public sealed partial class BuildingWorld
             const float above = 10;
             if (!Physics!.Ray(top + up * above, -up, above + (float)Data.FoundationDepth, out RayHit ground, groundOnly: true))
             {
-                return Outcome.Refuse(Refusal.Floating);
+                return OutcomeCode.Floating;
             }
             double below = ground.Distance - above;
             if (below < Data.FoundationClearance)
             {
-                return Outcome.Refuse(Refusal.Buried);
+                return OutcomeCode.Buried;
             }
             if (Vector3.Dot(ground.Normal, up) < Data.GroundNormalMin)
             {
-                return Outcome.Refuse(Refusal.TooSteep);
+                return OutcomeCode.TooSteep;
             }
         }
         return Outcome.Done;
@@ -490,7 +490,7 @@ public sealed partial class BuildingWorld
                 {
                     continue;
                 }
-                return Outcome.Refuse(Refusal.HitsGround);
+                return OutcomeCode.HitsGround;
             }
             object? owner = Physics.OwnerOf(hit.Body);
             if (owner is Piece other)
@@ -499,13 +499,13 @@ public sealed partial class BuildingWorld
                 {
                     continue;
                 }
-                return Outcome.Refuse(Refusal.HitsPiece);
+                return OutcomeCode.HitsPiece;
             }
             if (owner is DoorLeaf leaf && ignore != null && leaf.Door.Frame == ignore)
             {
                 continue;
             }
-            return Outcome.Refuse(owner is DoorLeaf ? Refusal.HitsPiece : Refusal.HitsObject);
+            return owner is DoorLeaf ? OutcomeCode.HitsPiece : OutcomeCode.Blocked;
         }
         return Outcome.Done;
     }
@@ -607,7 +607,7 @@ public sealed partial class BuildingWorld
         GradeDef twig = Data.Grades[0];
         if (!wallet.Take(twig.Material, Data.CostOf(plan.Piece, 0)))
         {
-            return Outcome.Refuse(Refusal.NotEnough, $"Not enough {Data.MaterialName(twig.Material).ToLowerInvariant()}");
+            return OutcomeCode.NotEnough.With(Data.MaterialItem(twig.Material));
         }
         piece = plan.Structure == null
             ? AddFirst(plan.Frame, plan.Piece, 0, player, now)

@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
@@ -12,55 +13,51 @@ namespace Hollow.Simulation.Animals;
 /// </summary>
 public static class AnimalHitboxes
 {
-    /// <summary>The nearest contact of a thickened ray with an animal at a pose: the distance along it (negative for a miss) and the region.</summary>
-    public static float Raycast(AnimalSpecies s, in HitPose pose, Vector3 origin, Vector3 direction, float length, float thickness, out HitRegion region)
+    /// <summary>
+    /// An animal's shapes at a pose, in a fixed order (standing: body, head, front right, front left, hind right, hind
+    /// left leg; lying: body, head, legs): how many went into <paramref name="into"/>.
+    /// </summary>
+    public static int Shapes(AnimalSpecies s, in HitPose pose, Span<HitShape> into)
     {
-        HitRegion found = HitRegion.None;
-        float best = -1;
         (Vector3 forward, Vector3 right) = CharacterMotor.HorizontalBasis(pose.Yaw, pose.Up);
         Vector3 up = pose.Up, f = pose.Feet;
-        void Sphere(Vector3 centre, float radius, HitRegion r)
-        {
-            float t = Geometry.RaySphere(origin, direction, length, centre, radius + thickness);
-            if (t >= 0 && (best < 0 || t < best))
-            {
-                best = t;
-                found = r;
-            }
-        }
-        void Capsule(Vector3 a, Vector3 b, float radius, HitRegion r)
-        {
-            float t = Geometry.RayCapsule(origin, direction, length, a, b, radius + thickness);
-            if (t >= 0 && (best < 0 || t < best))
-            {
-                best = t;
-                found = r;
-            }
-        }
         float l = s.Length, h = s.Height, rad = s.Radius;
         if (pose.Pose == Pose.Lying)
         {
-            Capsule(f + up * (rad * 0.85f) - forward * (l * 0.3f), f + up * (rad * 0.85f) + forward * (l * 0.25f), rad, HitRegion.Body);
-            Sphere(f + forward * (l * 0.45f) + up * s.HeadRadius, s.HeadRadius, HitRegion.Head);
-            Capsule(f + up * (rad * 0.4f) + right * (rad * 0.8f), f + up * (rad * 0.3f) + right * (rad * 0.8f + h * 0.45f), rad * 0.22f, HitRegion.Limb);
-            region = found;
-            return best;
+            into[0] = new HitShape(f + up * (rad * 0.85f) - forward * (l * 0.3f), f + up * (rad * 0.85f) + forward * (l * 0.25f), rad, HitRegion.Body);
+            Vector3 head = f + forward * (l * 0.45f) + up * s.HeadRadius;
+            into[1] = new HitShape(head, head, s.HeadRadius, HitRegion.Head);
+            into[2] = new HitShape(f + up * (rad * 0.4f) + right * (rad * 0.8f), f + up * (rad * 0.3f) + right * (rad * 0.8f + h * 0.45f), rad * 0.22f,
+                HitRegion.Limb);
+            return 3;
         }
         float bodyHeight = h - rad * 0.9f;
-        Capsule(f + up * bodyHeight - forward * (l * 0.3f), f + up * bodyHeight + forward * (l * 0.22f), rad, HitRegion.Body);
-        Sphere(f + up * s.HeadUp + forward * s.HeadAhead, s.HeadRadius, HitRegion.Head);
+        into[0] = new HitShape(f + up * bodyHeight - forward * (l * 0.3f), f + up * bodyHeight + forward * (l * 0.22f), rad, HitRegion.Body);
+        Vector3 top = f + up * s.HeadUp + forward * s.HeadAhead;
+        into[1] = new HitShape(top, top, s.HeadRadius, HitRegion.Head);
         float legTop = bodyHeight - rad * 0.5f, legRadius = rad * 0.24f;
+        int n = 2;
         foreach (float along in stackalloc[] { l * 0.24f, -l * 0.26f })
         {
             foreach (float side in stackalloc[] { rad * 0.55f, -rad * 0.55f })
             {
                 Vector3 hip = f + forward * along + right * side;
-                Capsule(hip + up * legTop, hip + up * (legRadius + 0.02f), legRadius, HitRegion.Limb);
+                into[n++] = new HitShape(hip + up * legTop, hip + up * (legRadius + 0.02f), legRadius, HitRegion.Limb);
             }
         }
-        region = found;
-        return best;
+        return n;
     }
+
+    /// <summary>The nearest contact of a thickened ray with an animal at a pose: the distance along it (negative for a miss), the region and the shape.</summary>
+    public static float Raycast(AnimalSpecies s, in HitPose pose, Vector3 origin, Vector3 direction, float length, float thickness, out HitRegion region,
+        out int shape)
+    {
+        Span<HitShape> shapes = stackalloc HitShape[Hitboxes.MostShapes];
+        return Hitboxes.Nearest(shapes[..Shapes(s, pose, shapes)], origin, direction, length, thickness, out region, out shape);
+    }
+
+    public static float Raycast(AnimalSpecies s, in HitPose pose, Vector3 origin, Vector3 direction, float length, float thickness, out HitRegion region) =>
+        Raycast(s, pose, origin, direction, length, thickness, out region, out _);
 
     /// <summary>The middle of an animal's body at a pose (what blasts and bites aim at).</summary>
     public static Vector3 Middle(AnimalSpecies s, in HitPose pose) =>

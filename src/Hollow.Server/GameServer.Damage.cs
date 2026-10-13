@@ -13,9 +13,7 @@ public sealed partial class GameServer
         _writer.Reset();
         new ThingDestroyed
         {
-            Receiver = e.Target,
-            Kind = e.Part,
-            Id = e.Other.Value,
+            Target = new TargetNet { Family = e.Target.Family, Id = e.Target.Id, Part = e.Target.Part },
             Key = e.Text is { Length: > 48 } key ? key[..48] : e.Text ?? "",
             Grade = (byte)System.Math.Min(e.Grade, (byte)7),
             X = e.Position.X,
