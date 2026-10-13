@@ -278,7 +278,7 @@ def berm(b, pts, width=2.0, height=0.6, tint=EARTH, mat=CONCRETE, jag=0.25, soli
     for i, q in enumerate(p):
         d = (p[min(i + 1, len(p) - 1)] - p[max(i - 1, 0)])
         side = Vector((-d.y, d.x, 0)).normalized()
-        taper = math.sin(math.pi * (i / (len(p) - 1))) ** 0.6 if len(p) > 2 else 1.0
+        taper = max(0.15, math.sin(math.pi * (i / (len(p) - 1))) ** 0.6) if len(p) > 2 else 1.0
         hh = height * taper * (1 + jag * (b.rng.random() - 0.5) * 2)
         ww = width * (0.5 + 0.5 * taper) * (1 + jag * 0.5 * (b.rng.random() - 0.5))
         rings.append([q + side * (u * ww / 2) + Vector((0, 0, v * hh - 0.05)) for u, v in prof])
@@ -286,9 +286,10 @@ def berm(b, pts, width=2.0, height=0.6, tint=EARTH, mat=CONCRETE, jag=0.25, soli
     verts = [tuple(v) for r in rings for v in r]
     faces = []
     for i in range(len(rings) - 1):
-        for j in range(n - 1):
+        for j in range(n):           # round the whole profile, the flat underside included: a closed solid
             a = i * n + j
-            faces.append([a, a + 1, a + n + 1, a + n])
+            c = i * n + (j + 1) % n
+            faces.append([a, c, c + n, a + n])
     faces.append(list(range(n))[::-1])
     last = (len(rings) - 1) * n
     faces.append([last + j for j in range(n)])
@@ -1695,3 +1696,166 @@ def military_truck(b, at, rot=(0, 0, 0), tint=OLIVE_DRAB, canvas=CANVAS, code="B
             bullet_holes(b, (hw + 0.015, 1.5, deck + 0.9), (0, 0, 90), 3.0, 1.0, count=12)
         bed = b.world((0.0, 1.6, deck + 0.06))
     return bed
+
+
+# ------------------------------------------------------------------------------------------------ ships
+
+HULL_WHITE = srgb(0.84, 0.84, 0.81)
+BURNT = srgb(0.16, 0.13, 0.11)
+
+
+def nacelle(b, at, rot=(0, 0, 0), radius=0.48, length=2.7, tint=HULL_WHITE, band=TEAL, burnt=False):
+    """A small ship's engine pod along +Y of its frame: intake lip at -Y, the can with service panels and a band,
+    a bell nozzle at +Y."""
+    t = BURNT if burnt else tint
+    with b.frame(at, rot):
+        b.cyl(radius, length, (0, 0, 0), (90, 0, 0), mat="M_Mon_Hull", tint=t, sides=18, wear=0.6 if burnt else None)
+        b.cyl(radius * 1.04, 0.16, (0, -length / 2 + 0.08, 0), (90, 0, 0), mat=PAINT, tint=GREY, sides=18,
+              cap=False, solid=False)
+        b.cyl(radius * 0.72, 0.1, (0, -length / 2 - 0.02, 0), (90, 0, 0), mat=MATTE, tint=srgb(0.06, 0.06, 0.06),
+              sides=16, solid=False)
+        b.cyl(radius * 1.01, 0.35, (0, length * 0.12, 0), (90, 0, 0), mat=PAINT, tint=band if not burnt else
+              srgb(0.12, 0.2, 0.2), sides=18, solid=False, vary=0)
+        a = 2 * math.pi / 4 + 0.4         # a service panel's outline on the upper flank
+        with b.frame((math.cos(a) * radius, -0.4, math.sin(a) * radius), (0, math.degrees(-a) + 90.0, 0)):
+            b.box((0.5, 0.62, 0.012), (0, 0, 0.004), mat=PAINT, tint=DARK, solid=False, vary=0)
+        b.lathe([(radius * 0.7, 0.0), (radius * 0.78, 0.25), (radius * 0.98, 0.7), (radius * 1.08, 0.95)],
+                (0, length / 2, 0), (-90, 0, 0), mat=RUST, tint=(1, 1, 1), sides=16, close=False, solid=False)
+        b.cyl(radius * 0.4, 0.3, (0, length / 2 + 0.05, 0), (90, 0, 0), mat=PAINT, tint=DARK, sides=12,
+              solid=False)
+
+
+def skiff(b, at, rot=(0, 0, 0), tint=HULL_WHITE, band=TEAL, stripe=ORANGE, code="SK-4 410", torn=(), canopy_broken=True,
+          hatch=None, panels_missing=0.25, burnt=0.4, skids=(True, True), dorsal=True):
+    """A single-seat utility skiff of the Tin Finch's class, about 6 m long: a boxy cab with a raked two-pane canopy,
+    hull plates over a frame of ribs (`panels_missing` leaves plates out and shows the ribs), two engine nacelles on
+    pylons at the rear quarters (`torn`: "left"/"right" pylons left as stubs), skids, a dorsal tank, livery, a gull-wing
+    hatch on the left (`hatch` degrees open, or None for shut). Nose toward -Y, the skids' underside at z = 0. Returns
+    (seat position, the torn pylons' stub ends) in the monument's frame."""
+    W = 2.5
+    hw = W / 2
+    y_nose, y_tail = -2.6, 2.0
+    z_floor, z_roof = 0.75, 2.75
+    stubs = {}
+    with b.frame(at, rot):
+        # Frame: ribs round the cab every 0.9 m, longerons.
+        prof_y = [y_nose + 0.4, -1.5, -0.6, 0.3, 1.2, y_tail - 0.1]
+        for y in prof_y:
+            ztop = z_roof if y > -1.2 else z_roof - (-1.2 - y) * 0.95
+            pts = [(-hw + 0.08, y, z_floor), (-hw + 0.08, y, ztop - 0.15), (-hw + 0.3, y, ztop - 0.05),
+                   (hw - 0.3, y, ztop - 0.05), (hw - 0.08, y, ztop - 0.15), (hw - 0.08, y, z_floor)]
+            b.tube(pts, 0.05, mat=PAINT, tint=DARK, sides=5, cap=False)
+        for x in (-hw + 0.1, hw - 0.1):
+            b.beam((x, y_nose + 0.3, z_floor + 0.1), (x, y_tail - 0.1, z_floor + 0.1), 0.1, 0.12, mat=PAINT,
+                   tint=DARK)
+        # Floor and belly, the nose block, roof, back wall.
+        b.box((W, y_tail - y_nose - 0.3, 0.12), (0, (y_nose + y_tail) / 2 + 0.15, z_floor), mat="M_Mon_Hull",
+              tint=srgb(0.5, 0.5, 0.48))
+        nose_prof = [(y_nose, z_floor - 0.1), (y_nose + 0.9, z_floor - 0.1), (y_nose + 0.9, z_floor + 0.95),
+                     (y_nose + 0.05, z_floor + 0.75), (y_nose - 0.12, z_floor + 0.3)]
+        with b.frame((0, 0, 0), (0, 0, 90)):
+            b.extrude(nose_prof, W, (0, 0, 0), (0, 0, 0), mat="M_Mon_Hull", tint=tint, bevel=0.03)
+        grid_box(b, (W - 0.1, y_tail + 1.1, 0.08), (0, (y_tail - 1.1) / 2, z_roof), mat="M_Mon_Hull", tint=tint,
+                 step=0.8)
+        grid_box(b, (W - 0.1, 0.08, z_roof - z_floor), (0, y_tail - 0.04, (z_roof + z_floor) / 2), mat="M_Mon_Hull",
+                 tint=tint, step=0.8)
+        # The canopy: a raked frame with two panes (or broken shards) from the nose block to the roof.
+        c0 = Vector((0, y_nose + 0.9 - 0.85, z_floor + 0.95))
+        c1 = Vector((0, -1.1, z_roof))
+        d = c1 - c0
+        ang = math.degrees(math.atan2(d.z, d.y))
+        length = d.length
+        with b.frame(tuple((c0 + c1) / 2), (ang, 0, 0)):
+            for x in (-hw + 0.06, 0.0, hw - 0.06):
+                b.box((0.1, length + 0.1, 0.1), (x, 0, 0), mat=PAINT, tint=DARK)
+            for s in (-1, 1):
+                if canopy_broken and s > 0:
+                    for k in range(4):
+                        b.box((0.3 + 0.2 * b.rng.random(), 0.25 + 0.3 * b.rng.random(), 0.02),
+                              (s * (0.25 + 0.6 * b.rng.random()), (b.rng.random() - 0.5) * length * 0.8, 0.0),
+                              (0, 0, b.rng.uniform(-30, 30)), mat=GLASS, solid=False, vary=0)
+                else:
+                    b.box((hw - 0.12, length - 0.05, 0.02), (s * hw / 2, 0, 0), mat=GLASS, solid=False)
+        # Side walls: plates over the ribs, some missing; a window each side; the hatch on the left.
+        def plates(side):
+            x = side * (hw + 0.01)
+            ys = [y_nose + 0.9, -1.5, -0.6, 0.3, 1.2, y_tail]
+            for y0, y1 in zip(ys, ys[1:]):
+                for z0, z1 in ((z_floor, z_floor + 0.85), (z_floor + 0.85, z_roof)):
+                    top1 = z1
+                    if y0 < -1.1 and z0 > z_floor + 0.5:
+                        continue      # the canopy's side windows go here
+                    if side < 0 and hatch is not None and -1.5 <= y0 < 0.3:
+                        continue      # the hatch opening
+                    if b.rng.random() < panels_missing:
+                        continue
+                    grid_box(b, (0.05, y1 - y0 - 0.02, top1 - z0 - 0.02), (x, (y0 + y1) / 2, (z0 + top1) / 2),
+                             mat="M_Mon_Hull", tint=tint, step=0.7)
+        for side in (-1, 1):
+            plates(side)
+            # Side window under the canopy's edge.
+            b.box((0.03, 1.2, 0.8), (side * (hw + 0.005), -1.75, z_floor + 1.35), (side * 0, 0, 0), mat=GLASS,
+                  solid=False)
+            # Livery: band and stripe on the lower plates, the code, the nose stripe.
+            b.box((0.012, y_tail - y_nose - 1.0, 0.28), (side * (hw + 0.04), 0.0, z_floor + 0.5), mat=PAINT,
+                  tint=band, solid=False, vary=0, wear=0.5)
+            b.box((0.012, y_tail - y_nose - 1.0, 0.06), (side * (hw + 0.04), 0.0, z_floor + 0.3), mat=PAINT,
+                  tint=stripe, solid=False, vary=0, wear=0.5)
+            stencil(b, code, (side * (hw + 0.05), 1.1 if side < 0 else -0.2, z_floor + 1.2), (0, 0, 90 * side), 0.16,
+                    DARK, align="centre")
+        if hatch is not None:
+            with b.frame((-hw - 0.02, -0.6, z_roof - 0.05), (0, -hatch, 0)):
+                grid_box(b, (0.06, 1.8, z_roof - z_floor - 0.15), (0, 0, -(z_roof - z_floor - 0.15) / 2),
+                         mat="M_Mon_Hull", tint=tint, step=0.7)
+                b.box((0.03, 0.9, 0.5), (-0.04, 0.0, -0.6), mat=GLASS, solid=False)
+        # Seat and stick inside.
+        b.box((0.6, 0.6, 0.12), (0, -0.4, z_floor + 0.45), mat=MATTE, tint=srgb(0.25, 0.27, 0.28), solid=False)
+        b.box((0.6, 0.14, 0.85), (0, -0.05, z_floor + 0.9), (-12, 0, 0), mat=MATTE, tint=srgb(0.25, 0.27, 0.28),
+              solid=False)
+        b.box((0.7, 0.35, 0.4), (0, y_nose + 1.2, z_floor + 0.9), (20, 0, 0), mat=PAINT, tint=DARK, solid=False)
+        seat = b.world((0, -0.4, z_floor + 0.55))
+        # Nacelles on pylons at the rear quarters.
+        for side, name in ((-1, "left"), (1, "right")):
+            root = Vector((side * hw, 1.1, z_floor + 0.9))
+            tip = Vector((side * (hw + 0.95), 1.3, z_floor + 0.65))
+            if name in torn:
+                stub = root + (tip - root) * 0.35
+                b.beam(tuple(root), tuple(stub), 0.22, 0.5, mat=PAINT, tint=DARK)
+                for k in range(3):
+                    b.beam(tuple(stub), tuple(stub + Vector((side * 0.25, b.rng.uniform(-0.3, 0.3),
+                                                             b.rng.uniform(-0.3, 0.3)))), 0.04, 0.04, mat=RUST,
+                           tint=(1, 1, 1))
+                stubs[name] = b.world(tuple(stub))
+                continue
+            b.beam(tuple(root), tuple(tip), 0.2, 0.5, mat="M_Mon_Hull", tint=tint)
+            nacelle(b, tuple(tip + Vector((side * 0.3, 0.0, 0.0))), (0, 0, 0), burnt=side > 0 and burnt > 0.3)
+        # Skids on struts.
+        for side, keep in zip((-1, 1), skids):
+            x = side * 1.0
+            if keep:
+                b.tube([(x, y_nose + 0.2, 0.25), (x, y_nose + 0.5, 0.1), (x, y_tail - 0.3, 0.1), (x, y_tail, 0.2)],
+                       0.09, mat=PAINT, tint=GREY, sides=8)
+            else:
+                b.tube([(x, -0.6, 0.1), (x, y_tail - 0.3, 0.1), (x, y_tail, 0.2)], 0.09, mat=PAINT, tint=GREY,
+                       sides=8)
+            for y in (-1.2, 1.0):
+                b.beam((x * 0.7, y, z_floor - 0.05), (x, y, 0.15), 0.08, 0.08, mat=PAINT, tint=DARK)
+        # Dorsal tank, antenna, lamps.
+        if dorsal:
+            b.cyl(0.42, 1.3, (0, 1.0, z_roof + 0.48), (90, 0, 0), mat=PAINT, tint=srgb(0.7, 0.7, 0.68), sides=16)
+            for s in (-1, 1):
+                ball(b, (0, 1.0 + s * 0.65, z_roof + 0.48), 0.42, srgb(0.7, 0.7, 0.68), mat=PAINT, sides=16, rings=6)
+            for y in (0.6, 1.4):
+                b.box((0.9, 0.12, 0.3), (0, y, z_roof + 0.15), mat=PAINT, tint=DARK, solid=False)
+        b.cyl(0.015, 1.2, (0.6, 1.6, z_roof + 0.6), mat=PAINT, tint=BLACK, sides=5, solid=False)
+        for s in (-1, 1):
+            b.box((0.12, 0.06, 0.08), (s * (hw - 0.2), y_nose - 0.08, z_floor + 0.55), mat=GLOSS,
+                  tint=srgb(0.9, 0.9, 0.85), solid=False, vary=0)
+        # Burns: soot over the nose and the right side.
+        if burnt:
+            for k in range(int(6 * burnt) + 1):
+                side = 1 if b.rng.random() < 0.7 else -1
+                b.box((0.02, 0.5 + 0.8 * b.rng.random(), 0.3 + 0.5 * b.rng.random()),
+                      (side * (hw + 0.045), b.rng.uniform(y_nose + 1.0, y_tail - 0.3),
+                       b.rng.uniform(z_floor + 0.3, z_roof - 0.3)), mat=MATTE, tint=SCORCH, solid=False, vary=0.2)
+    return seat, stubs
