@@ -28,6 +28,9 @@ public partial struct Hello
 
     /// <summary>The hash of the client's game data (game/data/ground): both sides must run the same rules.</summary>
     public ulong ContentHash;
+
+    /// <summary>The body the player chose (GROUND.md §4.8): 0 male, 1 female; saved with the character.</summary>
+    public byte Body;
 }
 
 /// <summary>Why a connection was refused or closed (connection reject or disconnect data).</summary>
@@ -49,6 +52,12 @@ public partial struct ZoneInfo
     public ulong SurfaceSeed;
     public double LatitudeDegrees;
     public double LongitudeDegrees;
+
+    /// <summary>The stand-in ground instead of the body's real surface (tests).</summary>
+    public bool StandIn;
+
+    /// <summary>How much faster than real the planet turns for play (GROUND.md §1: 24), counted from J2000.</summary>
+    public float RotationTimeScale;
 }
 
 /// <summary>The server's first message to an accepted client.</summary>
@@ -266,6 +275,9 @@ public partial struct CharacterLook
 {
     [VarInt] public uint NetId;
     [MaxCount(7)] public WornItem[] Wear;
+
+    /// <summary>The character's body: 0 male, 1 female.</summary>
+    public byte Body;
 }
 
 /// <summary>A natural object as players changed it; health 255, not depleted and no weak spot is as new.</summary>

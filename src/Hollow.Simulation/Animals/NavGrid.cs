@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Threading.Tasks;
@@ -78,7 +77,6 @@ public sealed class NavGrid
     private readonly GameContent? _content;
     private readonly Dictionary<(int X, int Z), NavArea> _areas = new();
     private readonly Dictionary<(int X, int Z), Task<NavArea>> _pending = new();
-    private readonly ConcurrentDictionary<ulong, ScatterItem[]> _scatter = new();
     private readonly List<(int X, int Z)> _done = new();
     private long _epoch;
 
@@ -435,7 +433,7 @@ public sealed class NavGrid
                 }
             }
         }
-        // Trunks and rocks: the zone's natural objects, and the planet's own trees and boulders from its scatter.
+        // Trunks and rocks: the zone's natural objects (on the planet, its own scatter's trees and boulders).
         if (_nature != null && _content != null)
         {
             var objects = new List<NaturalObject>();
@@ -445,29 +443,6 @@ public sealed class NavGrid
                 if (_content.Natural(o.Kind) is { IsSolid: true } kind)
                 {
                     Stamp(area, o.Position.X, o.Position.Z, kind.Radius * o.Scale);
-                }
-            }
-        }
-        foreach (TileKey tile in ScatterTiles(x0, z0))
-        {
-            foreach (ScatterItem item in Scatter(tile))
-            {
-                float radius = item.Kind switch
-                {
-                    ScatterKind.Fir or ScatterKind.Pine => 0.32f * item.Scale,
-                    ScatterKind.Birch => 0.22f * item.Scale,
-                    ScatterKind.Broadleaf => 0.45f * item.Scale,
-                    ScatterKind.Rock when item.Scale > 1.0f => 0.55f * item.Scale,
-                    _ => 0,
-                };
-                if (radius <= 0)
-                {
-                    continue;
-                }
-                Vector3 at = _frame.ToLocal(item.Position(_surface.Radius));
-                if (at.X >= x0 - 3 && at.X < x0 + AreaSize + 3 && at.Z >= z0 - 3 && at.Z < z0 + AreaSize + 3)
-                {
-                    Stamp(area, at.X, at.Z, radius);
                 }
             }
         }
@@ -494,72 +469,5 @@ public sealed class NavGrid
                 }
             }
         }
-    }
-
-    // The scatter tiles under an area: the planet's tiles are about 154 m, so its corners and middle find them all.
-    private List<TileKey> ScatterTiles(float x0, float z0)
-    {
-        var tiles = new List<TileKey>();
-        for (int j = 0; j <= 2; j++)
-        {
-            for (int i = 0; i <= 2; i++)
-            {
-                Vector3D direction = _frame.ToBody(x0 + i * AreaSize / 2, 0, z0 + j * AreaSize / 2).Normalized;
-                TileKey tile = TileKey.At(direction, Hollow.Surface.Scatter.Level);
-                if (!tiles.Contains(tile))
-                {
-                    tiles.Add(tile);
-                }
-            }
-        }
-        return tiles;
-    }
-
-    private ScatterItem[] Scatter(TileKey tile) =>
-        _scatter.GetOrAdd(tile.Packed, _ =>
-        {
-            IReadOnlyList<ScatterItem> all = _surface.ScatterFor(tile);
-            var kept = new List<ScatterItem>();
-            foreach (ScatterItem item in all)
-            {
-                if (item.Kind is ScatterKind.Fir or ScatterKind.Pine or ScatterKind.Birch or ScatterKind.Broadleaf ||
-                    (item.Kind == ScatterKind.Rock && item.Scale > 1.0f))
-                {
-                    kept.Add(item);
-                }
-            }
-            return kept.ToArray();
-        });
-
-    /// <summary>Trees a hectare in the scatter of the tiles around a point (the planet's own forests), for habitats.</summary>
-    public float ScatterTreesPerHectare(Vector3 centre, float radius)
-    {
-        int trees = 0;
-        var seen = new HashSet<ulong>();
-        for (int j = -1; j <= 1; j++)
-        {
-            for (int i = -1; i <= 1; i++)
-            {
-                Vector3D direction = _frame.ToBody(centre.X + i * radius * 0.7f, 0, centre.Z + j * radius * 0.7f).Normalized;
-                TileKey tile = TileKey.At(direction, Hollow.Surface.Scatter.Level);
-                if (!seen.Add(tile.Packed))
-                {
-                    continue;
-                }
-                foreach (ScatterItem item in Scatter(tile))
-                {
-                    if (item.Kind is ScatterKind.Fir or ScatterKind.Pine or ScatterKind.Birch or ScatterKind.Broadleaf)
-                    {
-                        Vector3 at = _frame.ToLocal(item.Position(_surface.Radius));
-                        if (MathF.Abs(at.X - centre.X) <= radius && MathF.Abs(at.Z - centre.Z) <= radius)
-                        {
-                            trees++;
-                        }
-                    }
-                }
-            }
-        }
-        float hectares = 4 * radius * radius / 10_000f;
-        return trees / hectares;
     }
 }

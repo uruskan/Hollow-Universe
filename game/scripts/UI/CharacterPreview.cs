@@ -13,6 +13,14 @@ public partial class CharacterPreview : SubViewport
     private Node3D _figure = null!;
     private string _signature = "";
 
+    /// <summary>
+    /// The game's own body for the figure (the character package's), built for the held item key; null keeps the
+    /// wooden mannequin. <see cref="BodyLook"/> names what it wears, so a change of clothes builds it again.
+    /// </summary>
+    public static System.Func<string?, Node3D>? Body { get; set; }
+
+    public static System.Func<string>? BodyLook { get; set; }
+
     public override void _Ready()
     {
         OwnWorld3D = true;
@@ -62,7 +70,7 @@ public partial class CharacterPreview : SubViewport
     /// <summary>Rebuilds the figure for what it holds (an item key, or null).</summary>
     public void Dress(string? held)
     {
-        string signature = held ?? "";
+        string signature = (held ?? "") + "|" + (BodyLook?.Invoke() ?? "");
         if (signature == _signature)
         {
             return;
@@ -71,6 +79,11 @@ public partial class CharacterPreview : SubViewport
         foreach (Node child in _figure.GetChildren())
         {
             child.QueueFree();
+        }
+        if (Body != null)
+        {
+            _figure.AddChild(Body(held));
+            return;
         }
         Color shirt = Wood, trousers = Wood;
         Part(new Vector3(0.43f, 0.62f, 0.27f), new Vector3(0, 1.23f, 0), shirt, true);

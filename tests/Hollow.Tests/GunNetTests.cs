@@ -298,8 +298,10 @@ public static class GunNetTests
         odd.Muzzle = c.ItemByKey("muzzle-brake").Id;
         a.Inventory.Main.Set(3, odd);
         a.Vitals.Burning = 4;
+        a.Body = 1;
 
         Player back = WorldCodec.DecodePlayer(WorldCodec.EncodePlayer(a), a.Id, a.Name, c);
+        Assert.Equal(1, back.Body, "the body chosen");
         Assert.True(back.Inventory.Belt[1] == rifle, $"the rifle as it was: {back.Inventory.Belt[1]}");
         ItemStack pistol = back.Inventory.Main[3];
         Assert.True(pistol.Loaded == 0 && pistol.LoadedAmmo == 0, "rifle rounds don't stay in a pistol");

@@ -19,6 +19,14 @@ public interface ITileListener
     void TileAdded(int x, int z);
 
     void TileRemoved(int x, int z);
+
+    /// <summary>
+    /// A tile is being built ahead on a worker thread: prepare what <see cref="TileAdded"/> will need (pure work
+    /// only, such as generating its natural objects), so the tick that adds it doesn't wait.
+    /// </summary>
+    void TilePreparing(int x, int z)
+    {
+    }
 }
 
 public enum PropKind : byte

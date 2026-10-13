@@ -78,6 +78,9 @@ public sealed class RemoteEntity
     /// <summary>What it wears (item IDs), from the server's look messages.</summary>
     public ushort[] Wear { get; set; } = System.Array.Empty<ushort>();
 
+    /// <summary>Its body: 0 male, 1 female (GROUND.md §4.8).</summary>
+    public byte Body { get; set; }
+
     /// <summary>True once there is anything to draw.</summary>
     public bool HasState => _count > 0;
 

@@ -121,7 +121,7 @@ public sealed class FxTracers
             {
                 fade *= Math.Max(0f, 1f - (age - t.Def.MaxTime) / Math.Max(1e-3f, t.Def.Length));
             }
-            var basis = new Basis(tail - head, new Vector3(t.Def.Width, t.Def.Brightness, t.Def.Opacity * fade), Vector3.Zero);
+            var basis = new Basis(tail - head, new Vector3(t.Def.Width, t.Def.Brightness * FxDirector.Brightness, t.Def.Opacity * fade), Vector3.Zero);
             _multimesh.SetInstanceTransform(count, new Transform3D(basis, head));
             _multimesh.SetInstanceColor(count, t.Tint * t.Def.Color);
             count++;

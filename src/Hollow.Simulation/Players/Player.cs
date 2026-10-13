@@ -115,6 +115,9 @@ public sealed class Player
     /// <summary>Dead: the body became a corpse; waits for a respawn.</summary>
     public bool Dead { get; set; }
 
+    /// <summary>The body the player chose (0 male, 1 female; GROUND.md §4.8): how others see them, nothing more.</summary>
+    public byte Body { get; set; }
+
     /// <summary>Logged off but still in the world: lootable and killable, wakes when the player logs in.</summary>
     public bool Sleeping { get; set; }
 

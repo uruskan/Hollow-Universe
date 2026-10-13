@@ -19,7 +19,7 @@ public sealed class GameRig : IDisposable
 
     public GameRig()
     {
-        ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)!;
+        ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)! with { StandIn = true };
         Zone = new Zone(spec, content: ContentFixture.Content)
         {
             UnixMilliseconds = 1_800_000_000_000,

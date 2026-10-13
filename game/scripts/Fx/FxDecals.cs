@@ -102,7 +102,7 @@ public sealed class FxDecals
             pool.Next = (pool.Next + 1) % pool.Entries.Count;
         }
         Decal d = pick.Decal;
-        d.EmissionEnergy = glow;
+        d.EmissionEnergy = glow * FxDirector.Brightness;
         d.Size = new Vector3(size, depth, size);
         Vector3 n = normal.LengthSquared() > 1e-8f ? normal.Normalized() : Vector3.Up;
         (Vector3 t, Vector3 _) = FxRandom.Frame(n);
@@ -149,7 +149,7 @@ public sealed class FxDecals
                 {
                     // Embers die down over the first seconds.
                     float k = Mathf.Max(0f, 1f - t / 6f);
-                    e.Decal.EmissionEnergy = e.Glow * k * k;
+                    e.Decal.EmissionEnergy = e.Glow * k * k * FxDirector.Brightness;
                 }
             }
         }

@@ -19,7 +19,8 @@ namespace Hollow.Bots;
 /// bandwidth per client and prediction error (GROUND.md §5, measured).</item>
 /// </list>
 /// Both take <c>--script wander|circle|jump|mixed|survive|fight|raid</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>; the load
-/// test takes <c>--kit</c> (a loot table every new character gets; with <c>fight</c> and <c>raid</c>, every new life too). With
+/// test takes <c>--kit</c> (a loot table every new character gets; with <c>fight</c> and <c>raid</c>, every new life too),
+/// <c>--spawn origin|beach</c> (where bots arrive: the landing site, the default, or the beaches) and <c>--stand-in</c>. With
 /// <c>raid</c> the server builds <c>--raid-bases</c> huts (half the bots by default) on a ring of <c>--raid-radius</c> metres,
 /// and each bot raids the next one's hut. <c>--animals &lt;n&gt;</c> puts n animals in herds within 220 m of the origin (G7, GROUND.md §5.6).
 /// </summary>
@@ -39,12 +40,14 @@ public static class Program
             if (words.Contains("loadtest"))
             {
                 return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300),
-                    o.GetValueOrDefault("kit") ?? (script == BotScript.Raid ? "raid-kit" : null), raidBases, raidRadius, (int)Number(o, "animals", 0));
+                    o.GetValueOrDefault("kit") ?? (script == BotScript.Raid ? "raid-kit" : null), raidBases, raidRadius,
+                    o.GetValueOrDefault("spawn", "origin") == "beach", o.ContainsKey("stand-in"), (int)Number(o, "animals", 0));
             }
             if (!o.TryGetValue("server", out string? server))
             {
                 Console.WriteLine("Hollow.Bots --server <host:port> [--count 100] [--duration <s>] [--script mixed] [--lag ms --jitter ms --loss %]\n" +
-                    "Hollow.Bots loadtest [--count 100] [--duration 60] [--warmup 8] [--script mixed] [--lag ms --jitter ms --loss %]");
+                    "Hollow.Bots loadtest [--count 100] [--duration 60] [--warmup 8] [--script mixed] [--lag ms --jitter ms --loss %] " +
+                    "[--spawn origin|beach] [--stand-in]");
                 return 1;
             }
             string[] parts = server.Split(':');
@@ -114,15 +117,18 @@ public static class Program
     /// the bots' own work and garbage collections don't land on the server's ticks), measured after a warm-up.
     /// </summary>
     private static int LoadTest(int count, double duration, double warmup, BotScript script, NetConditions conditions, float relevance, string? kit,
-        int raidBases, float raidRadius, int animals = 0)
+        int raidBases, float raidRadius, bool beaches, bool standIn, int animals = 0)
     {
         Console.WriteLine($"Load test: a server and {count} bots ({script}) in another process, {warmup:0} s warm-up, {duration:0} s measured" +
-            (conditions.IsNone ? "" : $", bots through a relay: {conditions}"));
+            (conditions.IsNone ? "" : $", bots through a relay: {conditions}") +
+            (standIn ? ", on the stand-in ground" : $", on the first world, arriving {(beaches ? "on the beaches" : "at the landing site")}"));
+        // By default everyone arrives at the landing site, so each bot sees all the others (the bandwidth worst case).
         // Fighting bots get their kit with every life, so the firefights go on after the first deaths.
         using var server = new GameServer(new ServerOptions
         {
             Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, KitEveryLife = script is BotScript.Fight or BotScript.Raid,
             RaidBases = script == BotScript.Raid ? raidBases : 0, RaidRadius = raidRadius, Log = _ => { },
+            SpawnAtOrigin = !beaches, StandIn = standIn,
             // G7: a fixed population for the animal load test (none by default, so the earlier measurements compare).
             Animals = false, AnimalPopulation = animals,
         });
