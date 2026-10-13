@@ -170,7 +170,10 @@ public partial class GroundUi
         }
         if (!Triggers[held.Input].Held())
         {
-            CancelRadial();
+            if (!_holdDone)
+            {
+                CancelRadial();
+            }
             _holding = null;
             _holdSource = null;
         }

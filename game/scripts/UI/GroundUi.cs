@@ -457,18 +457,11 @@ public partial class GroundUi : Control
         AcceptEvent();
     }
 
-    // A button while a radial is held or open (its trigger's release, a click that chooses or cancels): the pointer is
-    // where the button was.
+    // A button while a radial is held or open (its trigger's release, a click that chooses or cancels), where it was.
     private bool RadialButton(InputEventMouseButton button)
     {
-        Vector2 before = _pointer;
         _pointer = button.Position;
-        if (RadialEvent(button))
-        {
-            return true;
-        }
-        _pointer = before;
-        return false;
+        return RadialEvent(button);
     }
 
     /// <summary>
