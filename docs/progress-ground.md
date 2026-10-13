@@ -179,3 +179,18 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - flight up to an "orbit reached" ceiling;
   - network prediction, saved parked ships;
   - a `--view ship` sandbox over the real planet.
+- **Integration pass 1 finished** (`ground-integrate`). G1 and G2 play as one game on the real planet:
+  - arriving on real beaches;
+  - felling the surface's own trees, picking berries, mining new stone, metal and sulphur outcrops;
+  - crafting, clothing, fires, melee and bow, death and respawn, sleepers;
+  - real characters and first-person arms;
+  - the RustMVP interface with Rust's keys;
+  - a ×24 day.
+
+  Launch it with `play-ground.cmd` (host), `play-ground.cmd join`, or `play-ground.cmd menu`. Screenshots are in
+  `docs/images/ground/play/`. It runs at 81 fps with 2 players and 50 bots. Integration pass 2 is running now:
+  - merging `ground` in;
+  - the asset catalogue, characters by worn items with a male or female choice, sound;
+  - the gun visual layer;
+  - Host as a separate server process, since hosting in-process stalls on shared garbage collection;
+  - tick profiling.
