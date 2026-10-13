@@ -503,7 +503,10 @@ public sealed partial class GameClient : INetEventListener, IDisposable
                 }
                 break;
             default:
-                ReceiveSurvival(type);
+                if (!ReceiveConsole(type))
+                {
+                    ReceiveSurvival(type);
+                }
                 break;
         }
     }

@@ -198,4 +198,9 @@ public interface IGroundUi
     void SayTeam(string text)
     {
     }
+
+    // ---------------------------------------------------------------- the F1 panel (GROUND.md §8.2)
+
+    /// <summary>The F1 panel's console and tabs; null where there is none (the menu's model), so F1 does nothing.</summary>
+    IConsoleModel? Console => null;
 }

@@ -18,9 +18,12 @@ namespace Hollow.Tests;
 public sealed class LoopbackRig : IDisposable
 {
     /// <summary>A server on the stand-in ground (plain and quick), or on the first world's real surface; no animals unless a test asks for them (G7).</summary>
-    public LoopbackRig(string? database = null, bool planet = false, bool animals = false)
+    public LoopbackRig(string? database = null, bool planet = false, bool animals = false, IReadOnlyCollection<string>? admins = null)
     {
-        Server = new GameServer(new ServerOptions { Port = 0, DatabasePath = database, StandIn = !planet, Animals = animals, Log = _ => { } }, Fixtures.Galaxy);
+        Server = new GameServer(new ServerOptions
+        {
+            Port = 0, DatabasePath = database, StandIn = !planet, Animals = animals, Admins = admins ?? Array.Empty<string>(), Log = _ => { },
+        }, Fixtures.Galaxy);
         Server.StartThread();
     }
 

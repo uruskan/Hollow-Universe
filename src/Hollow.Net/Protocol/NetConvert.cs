@@ -61,6 +61,7 @@ public static class NetConvert
         Stance = s.Stance,
         Health = s.Health,
         Flags = s.Flags,
+        Cheats = s.Cheats,
     };
 
     public static CharacterState FromOwn(in OwnState o) => new()
@@ -70,6 +71,7 @@ public static class NetConvert
         Stance = o.Stance,
         Health = o.Health,
         Flags = o.Flags,
+        Cheats = o.Cheats & (MoveCheats.God | MoveCheats.Noclip),
     };
 
     /// <summary>A character as others see it; the view angles are those of its last input.</summary>

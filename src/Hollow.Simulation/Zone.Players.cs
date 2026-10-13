@@ -235,8 +235,9 @@ public sealed partial class Zone
     /// </summary>
     public float Hurt(Entity entity, Player p, float amount, string cause, EntityId by, string byName, bool canWound = true)
     {
-        if (p.Dead || amount <= 0)
+        if (p.Dead || amount <= 0 || Entities.Get<Character>(entity).State.Has(MoveCheats.God))
         {
+            // An admin's god mode (GROUND.md §8.2): nothing hurts.
             return 0;
         }
         float taken = Math.Min(amount, p.Vitals.Health);
@@ -382,7 +383,9 @@ public sealed partial class Zone
         }
         StartLife(p);
         ref Character c = ref Entities.Get<Character>(entity);
+        MoveCheats cheats = c.State.Cheats; // an admin's god mode and noclip last through a death
         c.State = NewCharacter(at);
+        c.State.Cheats = cheats;
         c.Input = new MoveInput { Yaw = yaw };
         c.Actions = default;
         SyncHealth(ref c, p);

@@ -82,6 +82,28 @@ public sealed class PlayerSession
     /// <summary>Chat budget (RustMVP's command budget, sized for chat): tokens refill at one a second, up to five.</summary>
     public double ChatTokens { get; set; } = 5;
 
+    /// <summary>
+    /// The F1 console's budget (GROUND.md §8.2): ten commands at once, five a second; a line over it is refused with a
+    /// reply, not run.
+    /// </summary>
+    public bool SpendConsoleToken(long tick)
+    {
+        _consoleTokens = Math.Min(10, _consoleTokens + (tick - _consoleTick) * 5.0 / Simulation.Movement.CharacterMotor.TickRate);
+        _consoleTick = tick;
+        if (_consoleTokens < 1)
+        {
+            return false;
+        }
+        _consoleTokens -= 1;
+        return true;
+    }
+
+    private double _consoleTokens = 10;
+    private long _consoleTick;
+
+    /// <summary>Console lines refused for coming too fast.</summary>
+    public long ConsoleRateLimited { get; set; }
+
     public long ChatTick { get; set; }
 
     // ---------------------------------------------------------------- G2: actions and the player's own state

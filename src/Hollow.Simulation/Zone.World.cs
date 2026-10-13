@@ -184,6 +184,12 @@ public sealed partial class Zone
             return;
         }
         _spawnRevisions.Remove(prop);
+        if (_oneOffProps.Remove(prop.Id.Value))
+        {
+            // An admin's (GROUND.md §8.2): gone for good, its spot with it.
+            _spots.Remove(prop.Id.Value);
+            return;
+        }
         _depleted[prop.Id.Value] = UnixMilliseconds + (long)(prop.Prop.RespawnSeconds * 1000);
         if (prop.Prop.Kind == WorldPropKind.Barrel)
         {

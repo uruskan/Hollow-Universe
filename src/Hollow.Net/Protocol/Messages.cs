@@ -160,6 +160,9 @@ public partial struct OwnState
     [Bits(2)] public Stance Stance;
     public byte Health;
     [Bits(4)] public MoveFlags Flags;
+
+    /// <summary>An admin's god mode and noclip (GROUND.md §8.2), which the prediction runs with too.</summary>
+    [Bits(2)] public MoveCheats Cheats;
 }
 
 /// <summary>
@@ -1292,4 +1295,54 @@ public partial struct MachineState
     public byte Progress;
     [VarInt] public uint SecondsLeft;
     [VarInt] public uint Item;
+}
+
+// ---------------------------------------------------------------- the F1 console (GROUND.md §8.2)
+
+/// <summary>A line typed in the F1 console for the server to run as this player (client → server, reliable ordered).</summary>
+[NetMessage(150)]
+public partial struct ConsoleRun
+{
+    [VarInt] public uint Seq;
+    [MaxLength(200)] public string Text;
+}
+
+/// <summary>A line of the server's answer to a console command (its Seq), or a line the server sends by itself (Seq 0).</summary>
+[NetMessage(151)]
+public partial struct ConsoleReply
+{
+    [VarInt] public uint Seq;
+    [Bits(2)] public ConsoleReplyKind Kind;
+    [MaxLength(400)] public string Text;
+}
+
+/// <summary>A player on the server, for the console's lists.</summary>
+[NetStruct]
+public partial struct ServerPlayerNet
+{
+    [MaxLength(32)] public string Name;
+    public bool Admin;
+}
+
+/// <summary>What the console knows of the server: the receiver's rights and who is on (at joining, and when either changes).</summary>
+[NetMessage(152)]
+public partial struct ServerState
+{
+    public bool Admin;
+    [VarInt] public uint MaxPlayers;
+    [MaxCount(256)] public ServerPlayerNet[] Players;
+}
+
+/// <summary>
+/// The zone's day (GROUND.md §8.2): the planet's spin as turns since J2000 at a universe time, and how many times faster
+/// than real it turns from there (0 stops it). An admin's <c>time</c> and <c>timescale</c> change it for this zone alone;
+/// orbits, seasons and universe time stay as they are. Sent at joining and when it changes.
+/// </summary>
+[NetMessage(153)]
+public partial struct ZoneClock
+{
+    public double BaseTime;
+    public double BaseTurns;
+    public double Scale;
+    public bool Overridden;
 }

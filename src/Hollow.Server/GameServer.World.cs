@@ -448,29 +448,9 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- admin
 
-    /// <summary>The world's admin commands (GROUND.md §6.8): false when the line isn't one.</summary>
-    private bool RunWorldCommand(string[] words)
-    {
-        switch (words[0].ToLowerInvariant())
-        {
-            case "learn" when words.Length >= 3:
-                if (Find(words[1]) is { Playing: true } learner && Zone.PlayerOf(learner.Entity) is { } p)
-                {
-                    int before = p.Blueprints.Learnt.Count;
-                    foreach (Recipe r in Content.Recipes.Where(r => !r.Known && (words[2] == "all" || r.Output.Key == words[2])))
-                    {
-                        p.Blueprints.Learn(r);
-                    }
-                    Log($"{learner.Name} learnt {p.Blueprints.Learnt.Count - before} blueprint(s)");
-                }
-                return true;
-            case "world":
-                Log($"world props: {Zone.Props.Count} standing ({Zone.Props.Count(x => x.Prop.Kind == WorldPropKind.Barrel)} barrels, " +
-                    $"{Zone.Props.Count(x => x.Prop.Kind == WorldPropKind.Crate)} crates, {Zone.Props.Count(x => x.Prop.Kind == WorldPropKind.Recycler)} recyclers), " +
-                    $"{(Zone.LootSpots?.Spots.Count ?? 0) - Zone.Props.Count} gone; {Zone.Teams.Count} teams; {Zone.WorldStats}");
-                return true;
-            default:
-                return false;
-        }
-    }
+    /// <summary>What <c>world</c> prints: the world's props, teams and economy (G7).</summary>
+    private string WorldStatus() =>
+        $"world props: {Zone.Props.Count} standing ({Zone.Props.Count(x => x.Prop.Kind == WorldPropKind.Barrel)} barrels, " +
+        $"{Zone.Props.Count(x => x.Prop.Kind == WorldPropKind.Crate)} crates, {Zone.Props.Count(x => x.Prop.Kind == WorldPropKind.Recycler)} recyclers), " +
+        $"{(Zone.LootSpots?.Spots.Count ?? 0) - Zone.Props.Count} gone; {Zone.Teams.Count} teams; {Zone.WorldStats}";
 }

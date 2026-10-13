@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Hollow.Server;
 
@@ -85,6 +86,18 @@ public sealed record ServerOptions
 
     /// <summary>The game's data (game/data/ground); null finds and loads it (GameContent.FindFolder).</summary>
     public Simulation.Content.GameContent? Content { get; init; }
+
+    /// <summary>
+    /// Players allowed the F1 console's admin commands (GROUND.md §8.2), by name: <c>--admin &lt;name&gt;</c> (any number);
+    /// a hosted game names its host.
+    /// </summary>
+    public IReadOnlyCollection<string> Admins { get; init; } = Array.Empty<string>();
+
+    /// <summary>A file of admins' names, one a line (# comments), read at start; <c>admins.txt</c> for the console program.</summary>
+    public string? AdminsFile { get; init; }
+
+    /// <summary>Every player is an admin (<c>--dev</c>: a development server).</summary>
+    public bool EveryoneAdmin { get; init; }
 
     /// <summary>Where the server's lines go (the console, or Godot's output in Host mode).</summary>
     public Action<string> Log { get; init; } = Console.WriteLine;
