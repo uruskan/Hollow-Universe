@@ -29,7 +29,8 @@ namespace HollowUniverse.Ground;
 /// the inventory, crafting, the other player, chopping a tree and after, an outcrop, a rifle fired down the sights, a
 /// base being built with the plan's ghost, a finished hut with a code lock and its keypad, a timed charge on its wall
 /// and the blast, a firefight at the hut, the Tin Finch crafted, boarded, flown and landed, G7's team, props, recycler,
-/// tech tree, research table and map, a bag of dropped items and its loot, the death screen, night by a fire) and quits;
+/// tech tree, research table and map, a bag of dropped items and its loot, the death screen, night by a fire, and P3's
+/// held items: a gun's slot and rounds, the AK's, bag charge's and a blueprint's panels, crafting at a workbench) and quits;
 /// with <c>--tour guest</c>, a second
 /// client that dresses in what it is given, takes up its hatchet and faces the host, fires a rifle it is given at the
 /// nearest building wall, and takes a team invite. Pictures are 1600 × 900 JPEG at the window's size.

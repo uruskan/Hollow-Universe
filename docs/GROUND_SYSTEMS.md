@@ -347,22 +347,6 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
   picked by item key: `held.flame` (the torch's fire, `fire.torch`), `held.pose` (`pistol`, `rifle`: the arms' pose and
   the muzzle's place when a model has none) and `held.eyeRelief` (the rifle's). Test:
   `HeldTests.HeldItemsShowFromTheCatalogue`.
-- **Dropping**: a drag released on another slot moves there, on its own slot is put back, and anywhere else (over a
-  panel, a button or the world) drops (Rust). `--ui-check` checks the panel and the own slot.
-- **Workbench speed** (`Items/CraftingSpeed.cs`): a job takes its recipe's time times recipes.json's `workbenchSpeed`
-  factor for how many levels the best workbench in reach is above the recipe's (1, ½, ¼: Rust's; the last holds for
-  more), fixed in the job when it starts (it keeps that time if the bench goes); a station's own recipe (the Tin Finch)
-  keeps its time. The server, the client's prediction and the crafting panel use the one rule: the panel's clock shows the
-  time a unit takes here, in green when shorter, and the workbench line says how much faster (`IGroundUi.SecondsHere`);
-  the queue's progress follows each job's own time. Test: `HeldTests.AWorkbenchAboveTheRecipeCraftsFaster`.
-- **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
-  lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
-  from 100), and `GunUpdate` carries the code in 7 bits.
-- **Cost:** the zone's tick does one array lookup per player for the held behaviour; the client one per frame for the
-  control; the item panel's rows and buttons are worked out once per stack and cached until it, the inventory, the
-  blueprints or the gun change; the ammo radial lists the calibre's rounds only while open.
-- **Pictures** (a hosted game, `--tour-steps held`): `docs/images/ground/held/ak-info.jpg`, `bag-charge-info.jpg`,
-  `ammo-icon.jpg`, `ammo-radial.jpg`, `blueprint-learn.jpg`, `crafting-workbench.jpg`. Protocol 17; six tests.
 - **Information** (`Items/ItemRows.cs`): a describer per part in a registry (every part has one, or nothing starts), each
   adding its rows; an item's information is its parts' rows in order, then its condition. A stack is described with
   what is its own: a gun's magazine and attachments (which change its numbers), what a blueprint teaches and whether the
@@ -393,6 +377,22 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
   shots and reloads, predicted by `LocalGun.Unload`); a gun in the main slots or elsewhere on the belt is unloaded by the
   item action. A gun's slot shows its loaded round's icon at the bottom left (`ItemStack.Round` in the interface's model),
   the count staying at the bottom right, on the belt, in the inventory and in loot. Test: `HeldTests.UnloadReturnsTheRounds`.
+- **Dropping**: a drag released on another slot moves there, on its own slot is put back, and anywhere else (over a
+  panel, a button or the world) drops (Rust). `--ui-check` checks the panel and the own slot.
+- **Workbench speed** (`Items/CraftingSpeed.cs`): a job takes its recipe's time times recipes.json's `workbenchSpeed`
+  factor for how many levels the best workbench in reach is above the recipe's (1, ½, ¼: Rust's; the last holds for
+  more), fixed in the job when it starts (it keeps that time if the bench goes); a station's own recipe (the Tin Finch)
+  keeps its time. The server, the client's prediction and the crafting panel use the one rule: the panel's clock shows the
+  time a unit takes here, in green when shorter, and the workbench line says how much faster (`IGroundUi.SecondsHere`);
+  the queue's progress follows each job's own time. Test: `HeldTests.AWorkbenchAboveTheRecipeCraftsFaster`.
+- **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
+  lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
+  from 100), and `GunUpdate` carries the code in 7 bits.
+- **Cost:** the zone's tick does one array lookup per player for the held behaviour; the client one per frame for the
+  control; the item panel's rows and buttons are worked out once per stack and cached until it, the inventory, the
+  blueprints or the gun change; the ammo radial lists the calibre's rounds only while open.
+- **Pictures** (a hosted game, `--tour-steps held`): `docs/images/ground/held/ak-info.jpg`, `bag-charge-info.jpg`,
+  `ammo-icon.jpg`, `ammo-radial.jpg`, `blueprint-learn.jpg`, `crafting-workbench.jpg`. Protocol 17; six tests.
 
 ## 8. Damage and destruction (package P4, built: GROUND.md §6.4.2)
 
