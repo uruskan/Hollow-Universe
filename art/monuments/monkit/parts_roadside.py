@@ -17,8 +17,8 @@ from .surfaces import (ASPHALT, CONCRETE, CORRUGATED, GLASS, GLOSS, GRATE, LAMP,
 # ------------------------------------------------------------------------------------------------ colours
 
 GALV = srgb(0.60, 0.62, 0.62)          # galvanised steel: pylons, masts, fences
-EARTH = srgb(0.42, 0.34, 0.25)         # turned soil, crater rims, berms
-EARTH_DARK = srgb(0.28, 0.22, 0.16)
+EARTH = srgb(0.60, 0.46, 0.31)         # turned soil, crater rims, berms (saturated: ground grime greys it)
+EARTH_DARK = srgb(0.42, 0.32, 0.22)
 SCORCH = srgb(0.075, 0.068, 0.06)      # burnt ground, soot
 SOOT = srgb(0.30, 0.27, 0.22)          # the lighter edge of a burn
 WOOD = srgb(0.58, 0.45, 0.30)
@@ -316,6 +316,135 @@ def debris(b, centre, radius, count=8, size=0.8, tint=GREY, mat=PAINT, thick=0.0
         b.box((s, s * (0.3 + 0.5 * b.rng.random()), thick), (cx + math.cos(a) * r, cy + math.sin(a) * r, cz + 0.04),
               (b.rng.uniform(-12, 12), b.rng.uniform(-12, 12), b.rng.uniform(0, 360)), mat=mat, tint=tint,
               solid=solid, vary=0.06)
+
+
+def _wave(a, ph, k=(3, 7), w=(0.6, 0.4)):
+    return w[0] * math.sin(k[0] * a + ph[0]) + w[1] * math.sin(k[1] * a + ph[1])
+
+
+def crater(b, centre, rim_r, rim_h, inner_r=None, outer_r=None, rough=0.3, sectors=32, tint=EARTH, mat=CONCRETE,
+           walk=True):
+    """A crater's rim thrown up round a bowl (the bowl's floor is the ground): a closed ring of earth, ragged in
+    height and radius. `walk` adds collision ramps on both slopes so the rim can be walked over."""
+    cx, cy, cz = centre
+    inner_r = inner_r or rim_r * 0.35
+    outer_r = outer_r or rim_r * 1.45
+    rs = [inner_r, inner_r + (rim_r - inner_r) * 0.45, rim_r * 0.88, rim_r, rim_r + (outer_r - rim_r) * 0.22,
+          rim_r + (outer_r - rim_r) * 0.55, outer_r]
+    hs = [0.01, 0.12, 0.6, 1.0, 0.72, 0.24, 0.0]
+    ph = [b.rng.random() * 6.28 for _ in range(4)]
+    rings = []
+    for j, (r, h) in enumerate(zip(rs, hs)):
+        ring = []
+        for i in range(sectors):
+            a = 2 * math.pi * i / sectors
+            m = 1 + 0.07 * _wave(a, ph[2:], (2, 5))
+            n = max(0.25, 1 + rough * _wave(a, ph[:2]))
+            ring.append((cx + r * m * math.cos(a), cy + r * m * math.sin(a), cz + rim_h * h * n))
+        rings.append(ring)
+    bottom_in = [(x, y, cz - 0.3) for x, y, _ in rings[0]]
+    bottom_out = [(x, y, cz - 0.3) for x, y, _ in rings[-1]]
+    all_rings = [bottom_in] + rings + [bottom_out]
+    verts = [v for ring in all_rings for v in ring]
+    faces = []
+    nr = len(all_rings)
+    for j in range(nr):
+        for i in range(sectors):
+            a = j * sectors + i
+            c = j * sectors + (i + 1) % sectors
+            jn = (j + 1) % nr
+            faces.append([a, c, jn * sectors + (i + 1) % sectors, jn * sectors + i])
+    b.mesh(verts, faces, mat=mat, tint=tint, solid=False, wear=0.8, vary=0.03)
+    if walk:
+        for i in range(0, sectors, 2):
+            a = 2 * math.pi * (i + 1) / sectors
+            arc = 2 * math.pi * rim_r / (sectors / 2) + 0.2
+            for r0, r1 in ((rs[1], rs[3]), (rs[3], rs[5])):
+                h0 = rim_h * hs[rs.index(r0)]
+                h1 = rim_h * hs[rs.index(r1)]
+                run = r1 - r0
+                slope = math.degrees(math.atan2(h1 - h0, run))
+                rm = (r0 + r1) / 2
+                with b.frame((cx + rm * math.cos(a), cy + rm * math.sin(a), cz + (h0 + h1) / 2 - 0.06),
+                             (0, 0, math.degrees(a))):
+                    b.collide_box(Vector((0, 0, 0)), (math.hypot(run, h1 - h0), arc, 0.12), (0, -slope, 0))
+
+
+def drape(b, centre, size, yaw=0.0, height=0.35, folds=5.0, tint=ORANGE, mat=MATTE, cells=(12, 5), part=(0.0, 1.0),
+          seed=None, taper=0.0, bend=0.0):
+    """A heap of cloth lying on the ground (a collapsed canopy, a tarp): a closed slab whose top is a field of folds
+    `height` high, `size` (length, width) metres, turned `yaw` degrees. `part` (v0, v1) keeps a strip of the width,
+    so several strips of different colours can make one striped canopy with a continuous surface. `taper` narrows
+    both ends (a canopy bunched at its skirt and apex), `bend` curves it sideways (metres at the far end)."""
+    cx, cy, cz = centre
+    L, W = size
+    nu, nv = cells
+    ph = [(seed if seed is not None else b.rng.random()) * 6.28 * k for k in (1.0, 1.7, 2.3, 3.1)]
+    v0, v1 = part
+    ca, sa = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+
+    def h(u, v):
+        edge = min(1.0, 5 * min(u, 1 - u), 6 * min(v, 1 - v)) ** 0.6
+        ridge = abs(math.sin(u * math.pi * folds + 1.6 * math.sin(v * 3.1 + ph[0])))
+        lump = 0.5 + 0.5 * math.sin(u * 9.1 + ph[1]) * math.sin(v * 6.7 + ph[2])
+        crumple = 0.5 + 0.5 * math.sin(u * 23.0 + v * 11.0 + ph[3])
+        return cz + 0.02 + height * edge * (0.45 * ridge + 0.35 * lump + 0.2 * crumple)
+
+    def pos(u, v, z):
+        s = 1.0 - taper + taper * math.sin(math.pi * (0.08 + 0.84 * u)) ** 0.7
+        x, y = (u - 0.5) * L, (v - 0.5) * W * s + bend * u * u
+        return (cx + x * ca - y * sa, cy + x * sa + y * ca, z)
+    top, bot = [], []
+    for j in range(nv + 1):
+        v = v0 + (v1 - v0) * j / nv
+        for i in range(nu + 1):
+            u = i / nu
+            top.append(pos(u, v, h(u, v)))
+            bot.append(pos(u, v, cz + 0.005))
+    n = len(top)
+    verts = top + bot
+    faces = []
+    for j in range(nv):
+        for i in range(nu):
+            a = j * (nu + 1) + i
+            faces.append([a, a + 1, a + nu + 2, a + nu + 1])
+            faces.append([n + a, n + a + nu + 1, n + a + nu + 2, n + a + 1])
+    for i in range(nu):
+        a, c = i, i + 1
+        faces.append([a, n + a, n + c, c])
+        a, c = nv * (nu + 1) + i, nv * (nu + 1) + i + 1
+        faces.append([c, n + c, n + a, a])
+    for j in range(nv):
+        a, c = j * (nu + 1), (j + 1) * (nu + 1)
+        faces.append([c, n + c, n + a, a])
+        a, c = j * (nu + 1) + nu, (j + 1) * (nu + 1) + nu
+        faces.append([a, n + a, n + c, c])
+    b.mesh(verts, faces, mat=mat, tint=tint, solid=False, wear=0.5, vary=0.02)
+    return pos
+
+
+def arc_panel(b, radius, a0, a1, z0, z1, thick=0.05, segs=8, mat=PAINT, tint=GREY, solid=False, wear=None):
+    """A curved panel: part of a cylinder of `radius` about the frame's Z axis from angle `a0` to `a1` (degrees,
+    0 = +X) and height `z0` to `z1`, `thick` metres thick inward. One closed primitive."""
+    outer, inner = [], []
+    for k in range(segs + 1):
+        a = math.radians(a0 + (a1 - a0) * k / segs)
+        for z in (z0, z1):
+            outer.append((radius * math.cos(a), radius * math.sin(a), z))
+            inner.append(((radius - thick) * math.cos(a), (radius - thick) * math.sin(a), z))
+    n = len(outer)
+    verts = outer + inner
+    faces = []
+    for k in range(segs):
+        a = 2 * k
+        faces.append([a, a + 2, a + 3, a + 1])
+        faces.append([n + a, n + a + 1, n + a + 3, n + a + 2])
+        faces.append([a, n + a, n + a + 2, a + 2])
+        faces.append([a + 1, a + 3, n + a + 3, n + a + 1])
+    faces.append([0, 1, n + 1, n])
+    last = 2 * segs
+    faces.append([last, n + last, n + last + 1, last + 1])
+    return b.mesh(verts, faces, mat=mat, tint=tint, solid="hull" if solid else False, wear=wear, vary=0.02)
 
 
 # ------------------------------------------------------------------------------------------------ road things
