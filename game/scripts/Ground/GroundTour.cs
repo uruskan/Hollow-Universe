@@ -65,7 +65,7 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("look", Look),
-            ("foundations", Foundations),
+            ("foundations", Foundations), ("interact", Interaction),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -1837,6 +1837,200 @@ public partial class GroundTour : Node
         await Seconds(0.3);
         await Shot("refusal");
     }
+
+    // Interaction in the game (GROUND_SYSTEMS.md §5, P1), through the keys: the prompt on a hut's door with a fresh code lock
+    // and E held there (SET CODE first); the tool cupboard's options inside; arrows shot into the hut's wall, one taken
+    // back with E; an arrow in a deer; a garage door rolled up and shut with E through its opening.
+    private async Task Interaction()
+    {
+        foreach (string gift in new[] { "code-lock 1", "garage-door 1", "building-plan 1", "wood 2000", "bow 1", "arrow 24" })
+        {
+            Admin("give", gift);
+        }
+        await Until(() => Count("code-lock") > 0 && Count("garage-door") > 0 && Count("bow") > 0 && Count("arrow") >= 24 && Count("wood") >= 2000, 5);
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(-70, 0, 30));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = 0;
+        await Seconds(0.6);
+        int doors = Doors().Count();
+        Admin("raidbase", "1");
+        await Until(() => Doors().Count() > doors, 5);
+        await Settle();
+        if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
+        {
+            GD.PushWarning("[tour] no hut");
+            return;
+        }
+        Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
+        Num.Vector3 doorAt = Centre(door.Frame), outward = FlatUnit(Client.Character.Position - doorAt);
+        Num.Vector3 side = FlatUnit(Num.Vector3.Cross(outward, up)), middle = doorAt - outward * 1.5f;
+
+        // The prompt and E held on the door with a fresh code lock: its owner sets the code first.
+        await TeleportTo(doorAt + outward * 2.2f);
+        Face(doorAt + up * 1.1f);
+        await Hold("code-lock", 5);
+        View.UseHeld();
+        await Until(() => Doors().Any(d => d.Lock is CodeLock && Num.Vector3.Distance(Centre(d.Frame), doorAt) < 0.5f), 5);
+        Me.HeldSlot = 5;
+        await Seconds(1.0);
+        GD.Print($"[tour] the door's prompt: {PromptLine()}");
+        await Shot("prompt");
+        Press(Godot.Key.E, true);
+        await Seconds(0.8);
+        await Shot("code-lock");
+        Press(Godot.Key.Escape, true);
+        Press(Godot.Key.Escape, false);
+        Press(Godot.Key.E, false);
+        await Seconds(0.4);
+
+        // Inside: the tool cupboard's options (the hut lists its builder).
+        if (Client.Building?.Claims.OrderBy(c => Num.Vector3.Distance(c.ZoneTransform.Position, middle)).FirstOrDefault() is { } cupboard)
+        {
+            Num.Vector3 at = cupboard.ZoneTransform.Position;
+            await TeleportTo(middle + FlatUnit(middle - at) * 0.6f);
+            Face(at + up * 0.9f);
+            await Seconds(0.8);
+            GD.Print($"[tour] the cupboard's prompt: {PromptLine()}");
+            Press(Godot.Key.E, true);
+            await Seconds(0.8);
+            await Shot("cupboard");
+            Press(Godot.Key.Escape, true);
+            Press(Godot.Key.Escape, false);
+            Press(Godot.Key.E, false);
+            await Seconds(0.4);
+        }
+
+        // Arrows into the hut's side wall from 7 m; one stuck taken back with E.
+        Num.Vector3 wall = middle + side * 1.6f + up * 1.3f;
+        await TeleportTo(middle + side * 8.5f);
+        await Hold("bow", 4);
+        int arrows = Client.Arrows.Count;
+        for (int shot = 0; shot < 4 && Client.Arrows.Count < arrows + 2; shot++)
+        {
+            await Loose(wall + up * (0.25f * shot) - outward * (0.35f * shot - 0.5f));
+        }
+        await Seconds(0.5);
+        GD.Print($"[tour] arrows stuck in the wall: {Client.Arrows.Count - arrows}");
+        if (Client.Arrows.Where(a => a.Placed).OrderBy(a => Num.Vector3.Distance(a.Pose.Position, wall)).FirstOrDefault() is { } stuck)
+        {
+            Num.Vector3 nock = SpentArrowNock(stuck);
+            await TeleportTo(middle + side * 3.3f + outward * 0.4f);
+            Face(nock + (stuck.Pose.Position - nock) * 0.35f);
+            await Seconds(0.8);
+            GD.Print($"[tour] at the arrow: {PromptLine()}");
+            await Shot("arrow-wall");
+            int carried = Count("arrow");
+            Press(Godot.Key.E, true);
+            await Seconds(0.08);
+            Press(Godot.Key.E, false);
+            await Until(() => Count("arrow") > carried, 3);
+            GD.Print($"[tour] tapped E on the arrow: {(Count("arrow") > carried ? "taken back" : "not taken")}");
+            await Seconds(0.3);
+            await Shot("arrow-taken");
+        }
+
+        // A deer 7 m ahead, met by an arrow loosed as it comes (the bow drawn first); it runs with the arrow in it.
+        (spot, towards) = OpenSpot(new Num.Vector3(-40, 0, 70));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = 0;
+        await Settle();
+        for (int attempt = 0; attempt < 4; attempt++)
+        {
+            int before = Client.Arrows.Count;
+            View.Scripted = new InputFrame { Secondary = true };
+            await Seconds(1.1);
+            var known = Client.Animals.Select(a => a.Id).ToHashSet();
+            Command?.Invoke($"spawn deer {Client.Name} 1 7");
+            await Until(() => Client.Animals.Any(a => !known.Contains(a.Id)), 3);
+            if (Client.Animals.FirstOrDefault(a => !known.Contains(a.Id)) is not { } deer)
+            {
+                View.Scripted = null;
+                continue;
+            }
+            Face(deer.Position + Client.Frame.UpAt(deer.Position) * 0.95f);
+            View.Scripted = new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true };
+            await Seconds(0.1);
+            View.Scripted = null;
+            await Until(() => Client.Arrows.Count > before, 1.0);
+            if (Client.Arrows.Count > before)
+            {
+                await Seconds(0.25);
+                GD.Print($"[tour] an arrow in a deer at the {attempt + 1}th try");
+                await Shot("arrow-deer");
+                break;
+            }
+        }
+        View.Scripted = null;
+
+        // A garage door in a wall frame on a foundation, rolled up, shut with a tap of E through its opening.
+        (spot, towards) = OpenSpot(new Num.Vector3(60, 0, 60));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = -0.3f;
+        await Settle();
+        await Hold("building-plan", 5);
+        Num.Vector3 ahead = Forward();
+        if (await PlaceAimed("foundation", p => p.Support == null) is not { } floor)
+        {
+            GD.PushWarning("[tour] no foundation for the garage");
+            return;
+        }
+        Num.Vector3 c1 = Centre(floor);
+        if (await PlaceAimed("wall-frame", p => p.Support == floor && Num.Vector3.Dot(At(p) - c1, ahead) < -1) is not { } frame)
+        {
+            GD.PushWarning("[tour] no wall frame for the garage");
+            return;
+        }
+        Num.Vector3 frameAt = Centre(frame), front = FlatUnit(Client.Character.Position - frameAt);
+        await TeleportTo(frameAt + front * 3.0f);
+        Face(frameAt + up * 1.4f);
+        await Hold("garage-door", 6);
+        View.UseHeld();
+        await Until(() => Doors().Any(d => d.Frame == frame), 5);
+        if (Doors().FirstOrDefault(d => d.Frame == frame) is not { } garage)
+        {
+            GD.PushWarning("[tour] the garage door wasn't fitted");
+            return;
+        }
+        Me.HeldSlot = 6;
+        Me.Interact(garage.Ref, "door-open");
+        await Until(() => garage.Open, 3);
+        await Seconds(1.4);
+        Face(frameAt + up * 1.2f);
+        await Seconds(0.5);
+        GD.Print($"[tour] the open garage door: {PromptLine()}");
+        await Shot("garage-open");
+        Press(Godot.Key.E, true);
+        await Seconds(0.08);
+        Press(Godot.Key.E, false);
+        await Until(() => !garage.Open, 3);
+        await Seconds(0.45);
+        GD.Print($"[tour] tapped E through the opening: the garage door {(garage.Open ? "stayed open" : "is shutting")}");
+        await Shot("garage-closing");
+    }
+
+    // A key pressed or let go, as the player's own.
+    private static void Press(Godot.Key key, bool pressed) =>
+        Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = pressed });
+
+    // The bow drawn a second and loosed at a point.
+    private async Task Loose(Num.Vector3 at)
+    {
+        Face(at);
+        View.Scripted = new InputFrame { Secondary = true };
+        await Seconds(1.1);
+        View.Scripted = new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true };
+        await Seconds(0.1);
+        View.Scripted = null;
+        await Seconds(0.5);
+    }
+
+    private static Num.Vector3 SpentArrowNock(RemoteArrow arrow) => Hollow.Simulation.World.SpentArrow.Shaft(arrow.Pose).Nock;
+
+    // What the interact prompt says now.
+    private string PromptLine() => View.Aimed is { } aim ? $"{aim.Target} {(aim.Primary >= 0 ? Client.Content.Interactions.Verb(aim.Options[aim.Primary].Verb)?.Key : "-")} ({aim.Options.Count} options)" : "nothing";
 
     // ---------------------------------------------------------------- helpers
 
