@@ -198,6 +198,7 @@ public sealed partial class Zone : IDisposable
         {
             character.Body.Dispose();
         }
+        Building?.Dispose();
         Physics.Dispose();
     }
 }

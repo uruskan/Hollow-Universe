@@ -55,6 +55,7 @@ public sealed partial class Zone
         Natural = new NaturalState(content, Nature);
         _ = new NaturalBodies(Physics, Natural);
         Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
+        InitBuilding(content);
     }
 
     // After movement: GROUND.md §4.2's order.
@@ -65,6 +66,7 @@ public sealed partial class Zone
         StepActions();
         StepProjectiles();
         StepBullets();
+        StepExplosives();
         StepWounded();
         if (Tick % CharacterMotor.TickRate == 0)
         {
@@ -75,6 +77,7 @@ public sealed partial class Zone
         }
         StepDevices();
         StepCrafting(content);
+        StepBuilding();
         RecordHistory();
     }
 

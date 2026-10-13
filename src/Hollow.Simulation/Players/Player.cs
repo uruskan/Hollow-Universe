@@ -83,6 +83,9 @@ public enum ActionKind : byte
 
     /// <summary>A gun reload began (G4).</summary>
     Reload,
+
+    /// <summary>An explosive thrown or placed (G5).</summary>
+    Throw,
 }
 
 /// <summary>

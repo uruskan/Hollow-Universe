@@ -31,6 +31,7 @@ public sealed class BuildingPhysics : IDisposable
     private readonly Stack<uint> _free = new();
     private readonly List<CollideShapeResult> _collide = new();
     private readonly OnlyGround _onlyGround = new();
+    private readonly OnlyBuilding _onlyBuilding = new();
     private uint _next = PhysicsWorld.FirstBuildingBody;
     private bool _disposed;
 
@@ -176,14 +177,15 @@ public sealed class BuildingPhysics : IDisposable
         }
     }
 
-    /// <summary>The nearest body along a ray, within <paramref name="length"/> metres; ground only when asked.</summary>
-    public bool Ray(Vector3 origin, Vector3 direction, float length, out RayHit hit, bool groundOnly = false)
+    /// <summary>The nearest body along a ray, within <paramref name="length"/> metres; ground only, or building only, when asked.</summary>
+    public bool Ray(Vector3 origin, Vector3 direction, float length, out RayHit hit, bool groundOnly = false, bool buildingOnly = false)
     {
         hit = default;
         var ray = new Ray(origin, Vector3.Normalize(direction) * length);
         lock (JoltRuntime.Gate)
         {
-            if (!_world.Jolt.NarrowPhaseQuery.CastRay(ray, out RayCastResult result, null, null, groundOnly ? _onlyGround : null))
+            BodyFilter? filter = groundOnly ? _onlyGround : buildingOnly ? _onlyBuilding : null;
+            if (!_world.Jolt.NarrowPhaseQuery.CastRay(ray, out RayCastResult result, null, null, filter))
             {
                 return false;
             }
@@ -222,6 +224,7 @@ public sealed class BuildingPhysics : IDisposable
             }
             _shapes.Clear();
             _onlyGround.Dispose();
+            _onlyBuilding.Dispose();
         }
     }
 
@@ -230,5 +233,14 @@ public sealed class BuildingPhysics : IDisposable
         protected override bool ShouldCollide(BodyID bodyID) => PhysicsWorld.IsGroundBody(bodyID.ID);
 
         protected override bool ShouldCollideLocked(Body body) => body != null && PhysicsWorld.IsGroundBody(body.ID.ID);
+    }
+
+    private sealed class OnlyBuilding : BodyFilter
+    {
+        private static bool IsBuilding(uint id) => id >= PhysicsWorld.FirstBuildingBody && id < PhysicsWorld.FirstBuildingBody + PhysicsWorld.MaxBuildingBodies;
+
+        protected override bool ShouldCollide(BodyID bodyID) => IsBuilding(bodyID.ID);
+
+        protected override bool ShouldCollideLocked(Body body) => body != null && IsBuilding(body.ID.ID);
     }
 }
