@@ -135,3 +135,18 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 
   Sources are CC0 recordings with our own processing, checked by loudness and clipping measurements. The owner's
   ears are still needed.
+- **G4 fight core merged** (`ground-fight`):
+  - the pistol and rifle with RustMVP's definitions and the AK recoil pattern, exactly as given;
+  - three rounds per calibre and five attachments;
+  - server-side bullets with drop, drag and lag compensation;
+  - damage by distance, body part and armour;
+  - Rust's wounded state (down, crawl, help up, bleed out).
+
+  With 100 fighting bots the tick is 8.6 ms on average and each client uses 169 kbit/s. The visuals (muzzle flash,
+  tracers, aiming and the HUD) follow after integration. Three new items have marked stand-in models for now.
+  102 of 102 tests pass.
+- **G5 raid started** (`ground-raid`):
+  - timed charges, bag charges (they can dud), tin grenades, the rocket launcher and rockets, explosive ammo;
+  - damage by grade and side, aiming at Rust's raid costs;
+  - line-of-sight shielding;
+  - raid alerts to owners, online or offline, and offline raids that work.
