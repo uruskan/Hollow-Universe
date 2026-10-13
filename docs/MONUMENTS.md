@@ -202,7 +202,7 @@ crate); **guards**: Reclaimers (people) and Wardens (machines).
 | 44 | **Colony Ruins** | 600 × 500 m | Coasts, river valleys | A ruined prefab town: streets, blocks, a plaza, a clinic, burnt cars | Many low-tier crates; contamination 1–3 by street; Reclaimers. *Built: `colony_ruins.py`* | Rust's radtown |
 | 45 | **Ore Smelter** | 500 × 300 m | Near mines | Crushers, conveyors, blast furnaces, slag heaps, a rail spur | Refined metal makings; cyan room; heat hazard. *Built: `ore_smelter.py`* | — |
 | 46 | **Bucket-Wheel Pit** | 800 m pit, machine 120 m | Ore-rich plains | A huge bucket-wheel excavator in an open pit, its boom over the face | Fill with fuel and it digs (a slow, loud, contested producer of ore); vault crates on the machine. *Built: `bucket_wheel_pit.py`* | Rust's giant excavator |
-| 47 | **Ice Station** | 400 × 300 m | Ice sheets, poles | Domes and masts on stilts, a hangar, snow vehicles | Cyan and violet rooms; cold as the hazard | Rust's arctic research base |
+| 47 | **Ice Station** | 400 × 300 m | Ice sheets, poles | Domes and masts on stilts, a hangar, snow vehicles | Cyan and violet rooms; cold as the hazard. *Built: `ice_station.py`* | Rust's arctic research base |
 
 ### 5.5 Landmarks (X) — 8
 

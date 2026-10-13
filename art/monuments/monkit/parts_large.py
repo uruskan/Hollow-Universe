@@ -1391,6 +1391,28 @@ def _hab_can(b):
     b.collide_box(Vector((0, 0, 2.2)), (9.0, 3.2, 3.2), (0, 0, 0))
 
 
+def _snowcat(b):
+    """A tracked snow vehicle: two wide track units, a cab with big windows in station red, a cargo box behind,
+    a roof rack with lamps."""
+    for y in (-1.6, 1.6):
+        b.box((5.6, 1.1, 1.2), (0, y, 0.7), mat=PAINT, tint=srgb(0.18, 0.18, 0.18), bevel=0.25)
+        for k in range(4):
+            b.cyl(0.42, 1.12, (-1.9 + k * 1.27, y, 0.6), (90, 0, 0), mat=PAINT, tint=DARK, sides=10, solid=False)
+        b.box((5.8, 1.15, 0.12), (0, y, 1.33), mat=RUST, tint=(1, 1, 1), solid=False)
+    b.box((5.0, 2.4, 0.5), (0, 0, 1.5), mat=PAINT, tint=srgb(0.30, 0.30, 0.30))
+    red = srgb(0.72, 0.16, 0.12)
+    b.box((2.2, 2.4, 1.6), (1.3, 0, 2.55), mat=PAINT, tint=red, bevel=0.08)
+    b.box((0.05, 2.1, 0.8), (2.42, 0, 2.85), (0, -12, 0), mat=GLASS, solid=False)
+    for y in (-1.21, 1.21):
+        b.box((1.6, 0.04, 0.7), (1.3, y, 2.9), mat=GLASS, solid=False)
+    b.box((2.6, 2.4, 1.8), (-1.2, 0, 2.65), mat=PAINT, tint=srgb(0.92, 0.92, 0.90), bevel=0.06)
+    b.box((2.6, 0.1, 0.35), (-1.2, -1.22, 3.2), mat=PAINT, tint=ORANGE, solid=False, vary=0)
+    b.box((2.0, 2.2, 0.1), (1.3, 0, 3.45), mat=PAINT, tint=DARK, solid=False)
+    for y in (-0.7, 0.0, 0.7):
+        b.box((0.2, 0.3, 0.2), (2.2, y, 3.6), mat=LAMP, tint=WARM_LAMP, solid=False, vary=0)
+    b.collide_box(Vector((0, 0, 1.6)), (5.8, 4.4, 3.2), (0, 0, 0))
+
+
 kit.PIECES.update({
     "flood-mast": _flood_mast,
     "container-40": _container_40,
@@ -1405,4 +1427,5 @@ kit.PIECES.update({
     "tank-wagon": _tank_wagon,
     "locomotive": _locomotive,
     "hab-can": _hab_can,
+    "snowcat": _snowcat,
 })
