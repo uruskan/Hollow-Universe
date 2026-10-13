@@ -416,14 +416,14 @@ knows about the network.
 
 | Input | Meaning |
 |---|---|
-| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional). |
-| `Trigger(CharacterEvent, direction)` | `Swing` (tool strike or punch), `Fire`, `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`). `Revive()` stands it up again. |
+| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim; `Crawl`: down and wounded, lying or crawling; `Sleep`: asleep, logged off); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional); `Aiming` (a gun raised, the bow drawn and held). |
+| `Trigger(CharacterEvent, direction)` | `Swing` (tool strike, punch, spear thrust), `Fire` (a shot; with the bow, the arrow loosed), `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`), `HelpUp` (helping a wounded player up), `Use` (the item in hand: food is eaten, a bandage wound on, an injector used), `Eat`, `Bandage`, `Inject`. `Revive()` stands it up again. Changing `Stance` from standing to `Crawl` plays the fall; from `Crawl` to standing, getting up. |
 | `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). `Wardrobe.ForItem(itemKey)` gives the garments an items.json key is worn as (every clothing and armour key has one); `Wardrobe.ForItems(keys)` a whole outfit. |
 | `Look` | How the player looks: `Looks.ForPlayer(id, body)` (skin tone, face, hair style and colour, stubble from the ID; the body is the player's choice). Set any time; `ViewmodelView.Look` gives the arms the same skin. |
 
 `ViewmodelView` is the first-person counterpart, a child of the player's camera: `Hold(kind, item)`, `Wear(items)`,
-`Apply(ViewmodelFrame)` every frame (velocity in the camera's frame, look rate, grounded, sprinting, crouching, aiming)
-and `Trigger(Swing | Fire | Reload)`. Its `AimAmount` (0 at the hip, 1 aimed down the sights) lets the owner narrow
+`Look`, `Apply(ViewmodelFrame)` every frame (velocity in the camera's frame, look rate, grounded, sprinting, crouching,
+aiming: down the sights, or the bow drawn) and `Trigger(Swing | Fire | Reload | Use | Eat | Bandage | Inject)`. Its `AimAmount` (0 at the hip, 1 aimed down the sights) lets the owner narrow
 the camera's field of view.
 
 "Up" is given per frame and nothing assumes +Y: the view builds its basis from `Up` and `Yaw`, and everything inside
@@ -521,7 +521,36 @@ painted on the scalp stays, and shows at the hairline as hair would).
 - held-item layers: the right arm (tool, pistol, rifle) and the left arm with the chest (pistol, rifle);
 - one-shot upper-body actions and flinches: hatchets, picks, hammers and torches chop (UAL2's tree-chopping loop,
   started at its wind-up a little faster than the clip and faded out after the follow-through, so the blow lands at
-  about the item's strike time), blades slash, the rock comes down overhand; punch, pistol fire and reload.
+  about the item's strike time), blades slash, the rock comes down overhand; punch, pistol fire and reload; eating
+  (UAL2's Consume: it lifts the left hand, so the food moves to that hand while it eats);
+- lying: the wounded state (`Crawl`) blends lying propped on the forearms, breathing hard, into an elbow crawl at the
+  movement code's 0.8 m/s (each forearm reaches 0.4 m, plants and pulls while the body slides over it, so it keeps
+  still on the ground); asleep (`Sleep`), on the left side with the knees drawn up and the head on the left arm,
+  breathing slowly, eyes shut. The lying clips match the server's lying hit shapes (head 0.78 m ahead, feet 0.95 m
+  behind);
+- whole-body one-shots over everything: the fall (the knees give, the hands go to the body, onto the knees, forward
+  onto the hands, flat), getting up (pushing up, hands and knees, up on one knee with a hand reaching ahead, standing:
+  the same whether helped or not) and helping up (down on one knee, a hand to theirs, a grip, up pulling).
+
+No library has those last clips: they are authored by script (`art/characters/authored.py`, `authored_clips.py`) from
+key poses: the pelvis placed and turned, spine and head turned in rest-aligned axes, hands and feet placed by two-bone
+IK (with where the elbows and knees point and how the hands and feet are turned), finger curls; every value eases
+between keys and the IK is solved each frame, and lying keys are lowered until the skinned body itself touches the
+ground. The female body's are scaled by her hip height.
+
+The procedural layer does what needs the item's own geometry:
+- the bow (`BowRig`): its limbs bend back as it is drawn (a "draw" blend shape made from its own mesh), the string
+  (taken out of the model) runs from each tip to the nock as two cords, and an arrow lies on it. Aiming, the chest turns
+  so the left shoulder leads, the left arm holds the bow out along the aim, canted a little, and the right hand draws the
+  string to the jaw over a second; `Fire` looses it (the hand flicks back, the string snaps straight) and, still aiming,
+  the next is drawn;
+- spears are held in both hands at the hip, point forward; a swing is a thrust: drawn back, driven 0.4 m along the
+  shaft with the chest leaning and turning into it, held, recovered;
+- the rifle's reload (2.4 s, the server's): the rifle rolls over and dips, the left hand goes to the magazine, away to a
+  pouch at the left side and back with a full magazine (drawn in the hand), seats it, works the charging handle and
+  returns; the pistol's (UAL's clip) drops its own magazine out of the grip and seats a full one;
+- bandaging (the left forearm raised across the chest, the bandage wound round it two and a half times and pressed
+  down) and injecting (the injector brought to the left upper arm, pressed, held, taken away).
 
 The clips only run forward; `CharacterPoser`, a `SkeletonModifier3D`, turns the hips towards the direction of travel
 and the chest back to the aim (running backwards plays the loop in reverse), spreads the view pitch over spine, neck and
@@ -541,7 +570,12 @@ pose, recoil kick on a spring, aiming down the sights (the sight on the camera's
 key poses (`ViewmodelMotion`): a swing turns about the hand, up and back for the wind-up, a beat at the top, then down
 and across fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and
 recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
-works the slide or the charging handle (another jolt) and returns. Unarmed shows no arms, as in Rust.
+works the slide or the charging handle (another jolt) and returns; the pistol's magazine (the catalogue's `Magazine`
+part) drops and comes back. The bow is raised upright in front of the left eye and drawn (the string to a little over
+half its third-person draw, so the hand stops in front of the face), an arrow on the string; a shot looses it. A spear
+is thrust along its shaft. Eating brings the food to the mouth for a few bites; bandaging raises the left forearm into
+view and winds the bandage round it; injecting pushes the injector into the raised forearm. Gloves are drawn with the
+forearms. Unarmed shows no arms, as in Rust.
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
@@ -2091,6 +2125,16 @@ on):
   Rust's.
 - C7. **Glove cuffs go under the sleeves** (gloves are an inner layer), so a gloved hand never shows a step at the
   wrist and the sleeve's hem lies over the glove.
+- C8. **The wounded lie face down and crawl on their elbows** (nothing of Rust's own animation was used, and a supine
+  drag would move head first while the player looks the other way); helped up or not, they get up the same way, a
+  hand reaching ahead.
+- C9. **Sleepers lie on their side**, not as a ragdoll: integration should set `Stance = Sleep` instead of triggering a
+  death for a sleeper.
+- C10. **The bow's draw is shown, not simulated**: the limbs bend by a blend shape and the string is two cords. The
+  server sets `Aiming` only for guns today, so another player's bow shows drawn once the server sends aiming for the
+  bow too (a line in GameServer's state, for integration).
+- C11. **The rifle's own magazine stays in place** in a reload (the catalogue's rifle is one mesh); the new magazine is
+  drawn in the hand until it is seated.
 
 Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 

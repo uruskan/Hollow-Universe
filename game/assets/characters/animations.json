@@ -231,6 +231,43 @@
       "frames": 51,
       "length": 1.6667,
       "source": "UAL1/Sitting_Idle_Loop"
+    },
+    "sleep": {
+      "loop": true,
+      "frames": 121,
+      "length": 4.0,
+      "source": "authored (art/characters/authored_clips.py)"
+    },
+    "down_idle": {
+      "loop": true,
+      "frames": 85,
+      "length": 2.8,
+      "source": "authored (art/characters/authored_clips.py)"
+    },
+    "crawl": {
+      "loop": true,
+      "frames": 31,
+      "length": 1.0,
+      "source": "authored (art/characters/authored_clips.py)",
+      "ground_speed": 0.8
+    },
+    "down_fall": {
+      "loop": false,
+      "frames": 35,
+      "length": 1.15,
+      "source": "authored (art/characters/authored_clips.py)"
+    },
+    "get_up": {
+      "loop": false,
+      "frames": 53,
+      "length": 1.75,
+      "source": "authored (art/characters/authored_clips.py)"
+    },
+    "help_up": {
+      "loop": false,
+      "frames": 55,
+      "length": 1.8,
+      "source": "authored (art/characters/authored_clips.py)"
     }
   }
 }

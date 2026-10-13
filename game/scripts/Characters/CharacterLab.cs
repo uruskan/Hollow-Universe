@@ -16,7 +16,7 @@ public partial class CharacterLab : Node3D
     private static readonly string[] Motions =
     {
         "idle", "walk", "jog", "sprint", "crouch", "crouch walk", "strafe left", "strafe right", "back", "jump", "fall",
-        "swim idle", "swim",
+        "swim idle", "swim", "down", "crawl", "sleep",
     };
 
     private readonly Dictionary<string, string> _options;
@@ -122,6 +122,14 @@ public partial class CharacterLab : Node3D
         if (lineup > 0)
         {
             SpawnLineup(lineup);
+        }
+        if (_options.ContainsKey("partner"))
+        {
+            BodyType partnerBody = Option("partner", "male") == "female" && CharacterAssets.Has(BodyType.Female) ? BodyType.Female : BodyType.Male;
+            _partner = new CharacterView { Name = "Partner", Body = partnerBody };
+            AddChild(_partner);
+            _partner.Look = Looks.ForPlayer(_seed + 101, partnerBody);
+            _partner.Wear(Wardrobe.Outfits[(int)Number("partner-outfit", 1) % Wardrobe.Outfits.Count].Items);
         }
         if (_options.ContainsKey("measure"))
         {
@@ -308,8 +316,8 @@ public partial class CharacterLab : Node3D
         Ui.Place(keys, Control.LayoutPreset.BottomLeft);
         root.AddChild(keys);
         HFlowContainer hints = Ui.KeyHints(("O", "outfit"), ("N", "look"), ("I", "item"), ("M", "motion"), ("Q", "swing"), ("F", "fire"),
-            ("R", "reload"), ("H", "hit"), ("K", "die / revive"), ("V", "first person"), ("RMB", "aim"), ("↑|↓", "look"),
-            ("L", "detail"));
+            ("R", "reload"), ("U", "use"), ("G", "help up"), ("H", "hit"), ("K", "die / revive"), ("V", "first person"),
+            ("RMB", "aim / draw"), ("↑|↓", "look"), ("L", "detail"));
         keyContent.AddChild(hints);
         Ui.Size(hints, 560);
     }
@@ -396,6 +404,12 @@ public partial class CharacterLab : Node3D
                 case Key.H:
                     Fire(CharacterEvent.Hit);
                     break;
+                case Key.U:
+                    Fire(CharacterEvent.Use);
+                    break;
+                case Key.G:
+                    Fire(CharacterEvent.HelpUp);
+                    break;
                 case Key.K:
                     if (_character.IsDead)
                     {
@@ -434,6 +448,35 @@ public partial class CharacterLab : Node3D
         {
             _viewmodel.Trigger(e);
         }
+        if (e == CharacterEvent.HelpUp && _partner != null)
+        {
+            // The one helped gets up as the helper takes their hand.
+            _partnerUp = true;
+        }
+    }
+
+    // A second player for the help-up (--partner): down in front of the character, getting up when helped.
+    private CharacterView? _partner;
+    private bool _partnerUp;
+    private float _partnerClock;
+
+    private void UpdatePartner(CharacterFrame main)
+    {
+        if (_partner == null)
+        {
+            return;
+        }
+        if (_partnerUp)
+        {
+            _partnerClock += (float)GetProcessDeltaTime();
+        }
+        // They lie facing the helper, their head towards the helper's feet; up, they stand where they lay.
+        float yaw = main.Yaw + MathF.PI;
+        Vector3 forward = CharacterFrame.Facing(Vector3.Up, main.Yaw);
+        CharacterFrame f = CharacterFrame.Standing(main.Position + forward * (float)Number("partner-distance", 1.55), Vector3.Up, yaw);
+        // Helped up: they start getting up half a second after the helper begins (when the hands meet).
+        f.Stance = _partnerUp && _partnerClock > 0.45f ? CharacterStance.Stand : CharacterStance.Crawl;
+        _partner.Apply(f);
     }
 
     // ---------------------------------------------------------------- frame
@@ -453,16 +496,35 @@ public partial class CharacterLab : Node3D
 
         if (_pendingEvent != null && _elapsed >= _eventAt)
         {
-            Fire(_pendingEvent switch
+            if (_pendingEvent.StartsWith("motion:", StringComparison.Ordinal))
             {
-                "swing" => CharacterEvent.Swing,
-                "fire" => CharacterEvent.Fire,
-                "reload" => CharacterEvent.Reload,
-                "hit" => CharacterEvent.Hit,
-                _ => CharacterEvent.Death,
-            });
+                // A change of motion at a time (e.g. motion:idle from down, to get up).
+                _motion = Math.Max(0, Array.IndexOf(Motions, _pendingEvent[7..].Replace('_', ' ')));
+                if (_partner != null)
+                {
+                    _partnerUp = true;
+                }
+                Refresh();
+            }
+            else
+            {
+                Fire(_pendingEvent switch
+                {
+                    "swing" => CharacterEvent.Swing,
+                    "fire" => CharacterEvent.Fire,
+                    "reload" => CharacterEvent.Reload,
+                    "hit" => CharacterEvent.Hit,
+                    "helpup" => CharacterEvent.HelpUp,
+                    "use" => CharacterEvent.Use,
+                    "eat" => CharacterEvent.Eat,
+                    "bandage" => CharacterEvent.Bandage,
+                    "inject" => CharacterEvent.Inject,
+                    _ => CharacterEvent.Death,
+                });
+            }
             _pendingEvent = null;
         }
+        UpdatePartner(frame);
 
         if (_firstPerson)
         {
@@ -591,7 +653,18 @@ public partial class CharacterLab : Node3D
                 f.Stance = CharacterStance.Swim;
                 f.Velocity = forward * 2f;
                 break;
+            case "down":
+                f.Stance = CharacterStance.Crawl;
+                break;
+            case "crawl":
+                f.Stance = CharacterStance.Crawl;
+                f.Velocity = forward * 0.8f;
+                break;
+            case "sleep":
+                f.Stance = CharacterStance.Sleep;
+                break;
         }
+        f.Aiming = _aiming;
         if (_options.ContainsKey("slope"))
         {
             f.Position = new Vector3(4f, 0.35f, 0f);

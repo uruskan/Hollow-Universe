@@ -37,6 +37,19 @@ public partial class CharacterPoser : SkeletonModifier3D
     /// <summary>Extra rotation applied to the chest after pitch (recoil, flinches), skeleton space.</summary>
     public Quaternion ChestKick = Quaternion.Identity;
 
+    /// <summary>Where the elbows point while the hands reach their targets (relative to the shoulders, skeleton space).</summary>
+    public static readonly Vector3 DefaultRightPole = new(-0.6f, -0.8f, -0.4f), DefaultLeftPole = new(0.6f, -0.8f, -0.4f);
+
+    public Vector3 RightPole = DefaultRightPole;
+    public Vector3 LeftPole = DefaultLeftPole;
+
+    /// <summary>The chest turned about the body's up (radians, anticlockwise from above) over the spine, with the neck
+    /// and head turning back by as much, so the eyes stay on the aim (a bow's stance: the left shoulder leads).</summary>
+    public float TorsoTwist;
+
+    /// <summary>The chest leaned forward (radians) over the spine (a spear's thrust).</summary>
+    public float TorsoLean;
+
     /// <summary>The right hand as the IK left it (skeleton space), for debugging and tests.</summary>
     public Transform3D LastRightHand;
 
@@ -68,6 +81,22 @@ public partial class CharacterPoser : SkeletonModifier3D
             Turn(s, _spine2, new Quaternion(Vector3.Up, -LegYaw * 0.33f));
             Turn(s, _spine3, new Quaternion(Vector3.Up, -LegYaw * 0.33f));
         }
+        if (MathF.Abs(TorsoTwist) > 1e-4f)
+        {
+            Turn(s, _spine1, new Quaternion(Vector3.Up, TorsoTwist * 0.25f));
+            Turn(s, _spine2, new Quaternion(Vector3.Up, TorsoTwist * 0.35f));
+            Turn(s, _spine3, new Quaternion(Vector3.Up, TorsoTwist * 0.4f));
+            Turn(s, _neck, new Quaternion(Vector3.Up, -TorsoTwist * 0.45f));
+            Turn(s, _head, new Quaternion(Vector3.Up, -TorsoTwist * 0.55f));
+        }
+        if (MathF.Abs(TorsoLean) > 1e-4f)
+        {
+            // Leaning forward turns the up (+Y) towards the front (+Z): a rotation about +X (the character's left).
+            Turn(s, _spine1, new Quaternion(Vector3.Right, TorsoLean * 0.3f));
+            Turn(s, _spine2, new Quaternion(Vector3.Right, TorsoLean * 0.35f));
+            Turn(s, _spine3, new Quaternion(Vector3.Right, TorsoLean * 0.35f));
+            Turn(s, _head, new Quaternion(Vector3.Right, -TorsoLean * 0.5f));
+        }
         if (MathF.Abs(Pitch) > 1e-4f)
         {
             // Looking up turns the forward (+Z) towards +Y: a rotation about −X (the character's right).
@@ -89,12 +118,12 @@ public partial class CharacterPoser : SkeletonModifier3D
         }
         if (RightHandWeight > 0.001f)
         {
-            ReachArm(s, _upperR, _lowerR, _handR, RightHand, RightHandWeight, new Vector3(-0.6f, -0.8f, -0.4f));
+            ReachArm(s, _upperR, _lowerR, _handR, RightHand, RightHandWeight, RightPole);
             LastRightHand = s.GetBoneGlobalPose(_handR);
         }
         if (LeftHandWeight > 0.001f)
         {
-            ReachArm(s, _upperL, _lowerL, _handL, LeftHand, LeftHandWeight, new Vector3(0.6f, -0.8f, -0.4f));
+            ReachArm(s, _upperL, _lowerL, _handL, LeftHand, LeftHandWeight, LeftPole);
         }
     }
 

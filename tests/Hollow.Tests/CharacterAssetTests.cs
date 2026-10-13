@@ -20,7 +20,9 @@ public static class CharacterAssetTests
     {
         "idle", "walk", "jog", "sprint", "crouch_idle", "crouch_walk", "swim_idle", "swim", "fall", "jump_start",
         "jump_land", "torch_idle", "pistol_idle", "tool_swing", "chop", "punch_jab", "pistol_fire", "pistol_reload",
-        "throw", "hit_chest", "hit_head",
+        "throw", "hit_chest", "hit_head", "consume",
+        // Authored by script (art/characters/authored_clips.py): asleep, the wounded state, helping up.
+        "sleep", "down_idle", "crawl", "down_fall", "get_up", "help_up",
     };
 
     /// <summary>

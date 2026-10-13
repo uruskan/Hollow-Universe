@@ -1744,7 +1744,7 @@ def paint_gloves(obj, folder, name, m, size=1024):
     """Tight woven fibre, darker and harder-wearing on the palm and the inside of the fingers, a ribbed cuff, seams
     along the fingers, dust worked into the fingertips and creases over the knuckles."""
     mask, pos, nor, _ = G.rasterise(obj, size)
-    base = np.array((0.25, 0.225, 0.19), np.float32)
+    base = np.array((0.34, 0.3, 0.245), np.float32)
     tone = 0.88 + 0.2 * noise3(pos, 14.0, 81) + 0.05 * (noise3(pos, 60.0, 82) - 0.5)
     albedo = base * tone[..., None] * np.ones((size, size, 1), np.float32)
     height = noise3(pos, 140, 83, octaves=2) * 0.25

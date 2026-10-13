@@ -18,7 +18,7 @@ public struct ViewmodelFrame
     public bool Sprinting;
     public bool Crouching;
 
-    /// <summary>Aiming down the sights (guns only).</summary>
+    /// <summary>Aiming down the sights (guns), or drawing the bow and holding it drawn.</summary>
     public bool Aiming;
 }
 
@@ -55,6 +55,16 @@ public partial class ViewmodelView : Node3D
     private float _bobPhase, _bobAmount;
     private float _sprint, _aim, _crouch;
     private float _swing = -1f, _reload = -1f;
+
+    // The bow's draw (0–1), how far it is raised to aim (0–1), and the time since an arrow was loosed; a spear's thrust
+    // (0–1); eating, bandaging or injecting (seconds in).
+    private float _draw, _bowAim, _loose = -1f, _thrust = -1f, _useTime = -1f;
+    private CharacterEvent _use;
+    private BowRig? _bowRig;
+
+    /// <summary>How far the string comes back in first person (of a full draw): the drawing hand stops in front of the
+    /// face instead of behind the camera.</summary>
+    private const float FirstPersonDraw = 0.56f;
     private Vector3 _kick, _kickVelocity;
     private float _slideKick;
     private float _equip = 1f;
@@ -188,10 +198,14 @@ public partial class ViewmodelView : Node3D
             return;
         }
         AddChild(_item);
+        _bowRig = model.LeftHanded ? BowRig.Attach(_item) : null;
+        _draw = _bowAim = 0f;
+        _loose = _thrust = _useTime = -1f;
         PrepareItem(_item);
-        _slide = _item.FindChild("part_slide", true, false) as Node3D;
-        _magazine = _item.FindChild("part_magazine", true, false) as Node3D;
-        _bolt = _item.FindChild("part_bolt", true, false) as Node3D;
+        // The catalogue's guns name their moving parts Slide, Magazine, Bolt (the art package's part_* names too).
+        _slide = (_item.FindChild("part_slide", true, false) ?? _item.FindChild("Slide", true, false)) as Node3D;
+        _magazine = (_item.FindChild("part_magazine", true, false) ?? _item.FindChild("Magazine", true, false)) as Node3D;
+        _bolt = (_item.FindChild("part_bolt", true, false) ?? _item.FindChild("Bolt", true, false)) as Node3D;
         _slideRest = _slide?.Transform ?? Transform3D.Identity;
         _magazineRest = _magazine?.Transform ?? Transform3D.Identity;
         _boltRest = _bolt?.Transform ?? Transform3D.Identity;
@@ -207,6 +221,29 @@ public partial class ViewmodelView : Node3D
         }
         switch (e)
         {
+            case CharacterEvent.Swing when _model.Class == "spear" && _thrust < 0f:
+                _thrust = 0f;
+                break;
+            case CharacterEvent.Fire when _model.LeftHanded:
+                if (_draw > 0.15f)
+                {
+                    _loose = 0f;
+                    _draw = 0f;
+                }
+                break;
+            case CharacterEvent.Use or CharacterEvent.Eat or CharacterEvent.Bandage or CharacterEvent.Inject when _useTime < 0f:
+                _use = e != CharacterEvent.Use ? e : _model.Class switch
+                {
+                    "food" => CharacterEvent.Eat,
+                    "medical" when _model.Id.Contains("injector", StringComparison.Ordinal) => CharacterEvent.Inject,
+                    "medical" => CharacterEvent.Bandage,
+                    _ => CharacterEvent.Use,
+                };
+                if (_use != CharacterEvent.Use)
+                {
+                    _useTime = 0f;
+                }
+                break;
             case CharacterEvent.Swing when _model.Swung && _swing < 0f:
                 _swing = 0f;
                 break;
@@ -333,7 +370,51 @@ public partial class ViewmodelView : Node3D
                 _reload = -1f;
             }
         }
+        if (_model.LeftHanded)
+        {
+            _bowAim = Approach(_bowAim, f.Aiming && _sprint < 0.5f ? 1f : 0f, dt * 3.2f);
+            if (_loose >= 0f)
+            {
+                _loose += dt;
+                if (_loose > 0.55f)
+                {
+                    _loose = -1f;
+                }
+            }
+            if (f.Aiming && _loose < 0f && _bowAim > 0.6f)
+            {
+                _draw = Math.Min(1f, _draw + dt / 0.95f);
+            }
+            else if (!f.Aiming)
+            {
+                _draw = Math.Max(0f, _draw - dt * 2.5f);
+            }
+            _bowRig?.Update(Smooth(_draw) * FirstPersonDraw, f.Aiming && _loose < 0f);
+        }
+        if (_thrust >= 0f)
+        {
+            _thrust += dt / Math.Max(0.5f, _model.SwingTime);
+            if (_thrust >= 1f)
+            {
+                _thrust = -1f;
+            }
+        }
+        if (_useTime >= 0f)
+        {
+            _useTime += dt;
+            if (_useTime >= UseSeconds(_use))
+            {
+                _useTime = -1f;
+            }
+        }
     }
+
+    private static float UseSeconds(CharacterEvent use) => use switch
+    {
+        CharacterEvent.Bandage => 2.3f,
+        CharacterEvent.Inject => 1.4f,
+        _ => 1.3f,
+    };
 
     private static float Approach(float value, float target, float step) =>
         value < target ? Math.Min(target, value + step) : Math.Max(target, value - step);
@@ -381,6 +462,29 @@ public partial class ViewmodelView : Node3D
             // What isn't swung by a handle (spears, the bow, food, bandages, locks, charges) sits where the model
             // catalogue's first-person pose puts its grip.
             place = held.FirstPerson.Transform * grip.AffineInverse();
+        }
+        if (m.LeftHanded && _bowAim > 0f)
+        {
+            // The bow raised to aim: upright (canted a little to the right) in front of the left eye, the arrow on its
+            // shelf pointing at the crosshair from just below and right of it.
+            Vector3 forward = new Vector3(-0.03f, 0.035f, -1f).Normalized();
+            Vector3 up = Vector3.Up.Rotated(forward, -0.2f);
+            up = (up - forward * up.Dot(forward)).Normalized();
+            var bow = new Basis(forward, up, forward.Cross(up));
+            var aimed = new Transform3D(bow, new Vector3(-0.035f, -0.085f, -0.66f) - bow * grip.Origin);
+            float a = Smooth(_bowAim);
+            place = new Transform3D(new Basis(place.Basis.GetRotationQuaternion().Slerp(aimed.Basis.GetRotationQuaternion(), a)),
+                place.Origin.Lerp(aimed.Origin, a));
+        }
+        if (_thrust >= 0f)
+        {
+            // A spear's thrust: drawn back a little, driven forward along the shaft, held, recovered.
+            Vector3 push = ViewmodelMotion.Sample(SpearThrust, _thrust).Turn;
+            place.Origin += place.Basis.X.Normalized() * push.X + new Vector3(0f, push.Y, 0f);
+        }
+        if (_useTime >= 0f)
+        {
+            place = UsePlacement(place, grip);
         }
 
         if (m.Kind is HeldKind.Pistol or HeldKind.Rifle && _aim > 0f)
@@ -447,6 +551,82 @@ public partial class ViewmodelView : Node3D
         return place;
     }
 
+    // A spear's thrust: (push along the shaft, lift) over the swing.
+    private static readonly ViewmodelMotion.Key[] SpearThrust =
+    {
+        new(0f, Vector3.Zero, Vector3.Zero),
+        new(0.24f, new Vector3(-0.08f, 0.01f, 0f), Vector3.Zero),
+        new(0.4f, new Vector3(0.36f, -0.01f, 0f), Vector3.Zero, ViewmodelMotion.Ease.In),
+        new(0.56f, new Vector3(0.33f, -0.005f, 0f), Vector3.Zero, ViewmodelMotion.Ease.Out),
+        new(1f, Vector3.Zero, Vector3.Zero),
+    };
+
+    // Where the left forearm is raised to while bandaging or injecting (camera space): across the bottom of the view.
+    private static readonly Vector3 ForearmWrist = new(0.03f, -0.13f, -0.42f);
+    private static readonly Vector3 ForearmAxis = new Vector3(-1f, -0.35f, 0.45f).Normalized();
+
+    /// <summary>
+    /// The item in hand while it is used: food to the mouth and a few bites; a bandage wound round the raised left
+    /// forearm two and a half times and pressed down; an injector brought to the forearm, pushed in, held and taken
+    /// out.
+    /// </summary>
+    private Transform3D UsePlacement(Transform3D place, Transform3D grip)
+    {
+        float t = _useTime;
+        float seconds = UseSeconds(_use);
+        float k = Smooth(Math.Clamp(t / 0.3f, 0f, 1f)) * (1f - Smooth(Math.Clamp((t - (seconds - 0.3f)) / 0.3f, 0f, 1f)));
+        Transform3D target = place;
+        switch (_use)
+        {
+            case CharacterEvent.Eat:
+            {
+                float chew = MathF.Sin(Math.Max(0f, t - 0.3f) * MathF.Tau * 2.6f) * 0.006f * (t > 0.3f && t < 1.0f ? 1f : 0f);
+                var basis = Basis.FromEuler(new Vector3(0.9f, 0.4f, 0f)) * place.Basis;
+                target = new Transform3D(basis, new Vector3(0.02f, -0.11f + chew, -0.17f) - basis * grip.Origin);
+                break;
+            }
+            case CharacterEvent.Bandage:
+            {
+                Vector3 centre = ForearmWrist + ForearmAxis * 0.07f;
+                Vector3 v = ForearmAxis.Cross(Vector3.Up).Normalized();
+                Vector3 u = v.Cross(ForearmAxis).Normalized();
+                float winding = Smooth(Math.Clamp((t - 0.3f) / 1.45f, 0f, 1f)) * 2.5f * MathF.Tau;
+                float press = Smooth(Math.Clamp((t - 1.75f) / 0.2f, 0f, 1f));
+                Vector3 at = centre + (u * MathF.Cos(winding) + v * MathF.Sin(winding)) * 0.06f * (1f - press) + u * 0.045f * press;
+                var basis = Basis.FromEuler(new Vector3(0f, 0.6f, 0.4f)) * place.Basis;
+                target = new Transform3D(basis, at - basis * grip.Origin);
+                break;
+            }
+            case CharacterEvent.Inject:
+            {
+                Vector3 arm = ForearmWrist + ForearmAxis * 0.09f + new Vector3(0f, 0.02f, 0f);
+                Vector3 needle = new Vector3(-0.55f, -0.35f, -0.4f).Normalized();
+                float push = Smooth(Math.Clamp((t - 0.45f) / 0.08f, 0f, 1f)) * (1f - Smooth(Math.Clamp((t - 0.95f) / 0.15f, 0f, 1f)));
+                Vector3 side = needle.Cross(Vector3.Up).Normalized();
+                var basis = new Basis(needle, side.Cross(needle), side);
+                Transform3D tip = HeldItems.HasSocket(_item!, "tip") ? HeldItems.Socket(_item!, "tip") : new Transform3D(Basis.Identity, new Vector3(0.09f, 0f, 0f));
+                Vector3 tipAt = arm - needle * (0.03f - 0.02f * push);
+                target = new Transform3D(basis, tipAt - basis * tip.Origin);
+                break;
+            }
+        }
+        return place.InterpolateWith(target, k);
+    }
+
+    /// <summary>How far the left forearm is raised into view for a bandage or an injection (0 to 1).</summary>
+    private float ForearmRaised
+    {
+        get
+        {
+            if (_useTime < 0f || _use is not (CharacterEvent.Bandage or CharacterEvent.Inject))
+            {
+                return 0f;
+            }
+            float seconds = UseSeconds(_use);
+            return Smooth(Math.Clamp(_useTime / 0.25f, 0f, 1f)) * (1f - Smooth(Math.Clamp((_useTime - (seconds - 0.25f)) / 0.25f, 0f, 1f)));
+        }
+    }
+
     private void Pose()
     {
         Transform3D item = ItemPlacement();
@@ -461,13 +641,33 @@ public partial class ViewmodelView : Node3D
         Shoulder(_upperL, ShoulderOffsetL, toSkeleton);
         if (_model!.LeftHanded)
         {
-            // The bow: the left hand holds its grip; the right hand stays down out of view.
+            // The bow: the left hand holds its grip; the right hand draws the string from the nock (an arrow on it) while
+            // aiming, and is down out of view otherwise.
             Transform3D gripL1 = item * HeldItems.Socket(_item, "grip_l");
             CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, toSkeleton * HandFrame.HandFor(gripL1,
                 HandFrame.PowerGrip, _gripL), 1f, new Vector3(0.15f, -1f, 0.1f));
             HandPoses.Apply(_skeleton, HandPoses.Grip.Fist, right: false);
-            CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, _skeleton.GetBoneGlobalRest(_handR), 1f,
-                new Vector3(-0.7f, -0.7f, -0.2f));
+            Transform3D rest = _skeleton.GetBoneGlobalRest(_handR);
+            float a = Smooth(_bowAim);
+            if (a > 0.001f && _bowRig != null)
+            {
+                Vector3 nock = item * _bowRig.Nock(Smooth(_draw) * FirstPersonDraw);
+                if (_loose >= 0f)
+                {
+                    // Loosed: the hand flies back past the cheek and opens, then drops away.
+                    float k = MathF.Sin(MathF.Min(1f, _loose / 0.15f) * MathF.PI * 0.5f);
+                    nock += new Vector3(0.05f, -0.02f, 0.06f) * k + new Vector3(0.04f, -0.25f, 0.05f) * Smooth(Math.Clamp((_loose - 0.25f) / 0.3f, 0f, 1f));
+                }
+                Vector3 fingers = item.Basis.X.Normalized();
+                Vector3 thumb = item.Basis.Y.Normalized();
+                var hook = new Transform3D(new Basis(fingers, thumb, fingers.Cross(thumb)), nock);
+                Transform3D drawing = toSkeleton * HandFrame.HandFor(hook, HandFrame.PowerGrip, _gripR);
+                CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, rest.InterpolateWith(drawing, a), 1f,
+                    new Vector3(-0.8f, -0.4f, -0.3f));
+                HandPoses.Apply(_skeleton, _loose >= 0f ? HandPoses.Grip.Relaxed : HandPoses.Grip.Support, right: true);
+                return;
+            }
+            CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, rest, 1f, new Vector3(-0.7f, -0.7f, -0.2f));
             return;
         }
         Transform3D gripR = item * HeldItems.Socket(_item, "grip_r");
@@ -499,6 +699,18 @@ public partial class ViewmodelView : Node3D
             }
             CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, handL, 1f, new Vector3(0.15f, -1f, 0.1f));
             HandPoses.Apply(_skeleton, HandPoses.Grip.Support, right: false);
+        }
+        else if (ForearmRaised > 0f)
+        {
+            // Bandaging or injecting: the left forearm raised across the bottom of the view, palm down.
+            Vector3 fingers = -ForearmAxis;
+            Vector3 side = fingers.Cross(Vector3.Up).Normalized();
+            var palmDown = new Basis(fingers, side.Cross(fingers).Normalized(), side);
+            Transform3D raised = toSkeleton * HandFrame.HandFor(new Transform3D(palmDown, ForearmWrist), HandFrame.PowerGrip, _gripL);
+            Transform3D rest = _skeleton.GetBoneGlobalRest(_handL);
+            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, rest.InterpolateWith(raised, ForearmRaised), 1f,
+                new Vector3(0.7f, -0.7f, 0.1f));
+            HandPoses.Apply(_skeleton, HandPoses.Grip.Relaxed, right: false);
         }
         else
         {
