@@ -3896,7 +3896,8 @@ average of which 47 moving), gibs off and on in turn, two phases of each, 8 s a 
 
 An earlier run on a quieter PC measured +0.22 ms (GPU +0.18 ms, the gibs' CPU 0.06 ms). So a raid wall and ten barrels
 breaking cost a quarter of a millisecond a frame, inside the 0.5 ms asked; most of it is drawing the pieces and their
-dust. The explosion's own effect isn't in it (it is the fx library's, §9.3).
+dust. The slowest frames rose more (95th percentile 2.38 → 3.23 ms): the frames of the breaks themselves, and the PC's
+other work. The explosion's own effect isn't in it (it is the fx library's, §9.3).
 
 Screenshots (`docs/images/ground/gibs/`): `sheet.jpg` (every model breaking: props, deployables, outcrops, doors, each
 grade's wall, doorway and foundation), `raid.jpg` (the raid scene a moment after), `wall.jpg` (a stone wall's pieces at
