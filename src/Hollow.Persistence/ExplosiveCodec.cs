@@ -5,6 +5,7 @@ using System.Text;
 using Hollow.Core;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Persistence;
 
@@ -19,7 +20,8 @@ public static class ExplosiveCodec
     /// <summary>The <c>things.kind</c> of an explosive (after the static things' kinds).</summary>
     public const byte ThingKind = 16;
 
-    public const byte Version = 1;
+    /// <summary>2: what holds it is a TargetRef (family, ID, part); its pose there is worked out again when it comes back.</summary>
+    public const byte Version = 2;
 
     /// <summary>The bytes of an explosive; <paramref name="toBody"/> takes a zone point to the body frame.</summary>
     public static byte[] Encode(ExplosiveSave s, Func<Vector3, Vector3D> toBody)
@@ -43,15 +45,9 @@ public static class ExplosiveCodec
             w.Write(s.FuseTicks);
             w.Write(s.WillDud);
             w.Write(s.Arms);
-            w.Write((byte)s.SupportKind);
-            w.Write(s.SupportId);
-            w.Write(s.Leaf);
-            w.Write(s.SupportLocal.X);
-            w.Write(s.SupportLocal.Y);
-            w.Write(s.SupportLocal.Z);
-            w.Write(s.SupportNormal.X);
-            w.Write(s.SupportNormal.Y);
-            w.Write(s.SupportNormal.Z);
+            w.Write((byte)s.Support.Family);
+            w.Write(s.Support.Id);
+            w.Write(s.Support.Part);
             w.Write(s.DespawnLeft);
         }
         return stream.ToArray();
@@ -77,15 +73,11 @@ public static class ExplosiveCodec
         int fuseTicks = r.ReadInt32();
         bool willDud = r.ReadBoolean();
         int arms = r.ReadInt32();
-        byte support = r.ReadByte();
-        ulong supportId = r.ReadUInt64();
-        int leaf = r.ReadInt32();
-        var local = new Vector3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
-        var localNormal = new Vector3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
+        TargetRef held = version >= 2 ? ReadSupport(r) : ReadSupportV1(r);
         long despawnLeft = r.ReadInt64();
-        if (state > (byte)ExplosiveState.Stuck || support > (byte)SupportKind.Natural)
+        if (state > (byte)ExplosiveState.Stuck)
         {
-            throw new InvalidDataException($"explosive state {state} or support {support} unknown");
+            throw new InvalidDataException($"explosive state {state} unknown");
         }
         return new ExplosiveSave
         {
@@ -102,13 +94,37 @@ public static class ExplosiveCodec
             FuseTicks = fuseTicks,
             WillDud = willDud,
             Arms = arms,
-            SupportKind = (SupportKind)support,
-            SupportId = supportId,
-            Leaf = Math.Clamp(leaf, 0, 8),
-            SupportLocal = local,
-            SupportNormal = localNormal,
+            Support = held,
             DespawnLeft = Math.Max(-1, despawnLeft),
         };
+    }
+
+    // Version 2: what held it, as a TargetRef (the family a number from storage: one no family has is nothing).
+    private static TargetRef ReadSupport(BinaryReader r)
+    {
+        byte family = r.ReadByte();
+        ulong id = r.ReadUInt64();
+        byte part = r.ReadByte();
+        return Enum.IsDefined((TargetFamily)family) ? new TargetRef((TargetFamily)family, id, part) : TargetRef.None;
+    }
+
+    // Version 1 named it by its own kind (the ground, a piece, a door and its leaf, a deployable, a natural object) and kept
+    // its pose on a door's leaf; the pose is worked out again where it lies.
+    private static TargetRef ReadSupportV1(BinaryReader r)
+    {
+        byte kind = r.ReadByte();
+        ulong id = r.ReadUInt64();
+        int leaf = r.ReadInt32();
+        for (int i = 0; i < 6; i++)
+        {
+            r.ReadSingle();
+        }
+        TargetFamily[] families = { TargetFamily.Ground, TargetFamily.Piece, TargetFamily.Door, TargetFamily.Thing, TargetFamily.Natural };
+        if (kind >= families.Length)
+        {
+            throw new InvalidDataException($"explosive support {kind} unknown");
+        }
+        return new TargetRef(families[kind], families[kind] == TargetFamily.Ground ? 0 : id, families[kind] == TargetFamily.Door ? (byte)(Math.Clamp(leaf, 0, 8) + 1) : (byte)0);
     }
 
     private static void Write(BinaryWriter w, Vector3D v)

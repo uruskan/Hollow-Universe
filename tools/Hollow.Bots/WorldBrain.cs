@@ -93,7 +93,7 @@ public sealed class WorldBrain
         if (Trace && !_listening)
         {
             _listening = true;
-            me.IntentRejected += a => Console.WriteLine($"{client.Name}: {_sent.GetValueOrDefault(a.Seq, "?")} refused: {a.Result}");
+            me.IntentRejected += a => Console.WriteLine($"{client.Name}: {_sent.GetValueOrDefault(a.Seq, "?")} refused: {a.Code}");
         }
         if (me.IsDead)
         {

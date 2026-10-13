@@ -10,6 +10,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -149,9 +150,22 @@ public sealed partial class Zone
         }
     }
 
-    // A claim device is also a deployable: replicated and opened like a box, its storage the upkeep store.
+    // A claim device is also a deployable: replicated and opened like a box, its storage the upkeep store. Whatever the
+    // building takes away (or starts to bring down) takes what rests on it or is stuck in it along (GROUND_SYSTEMS.md §3.6).
     private void OnBuildingChanged(BuildingEvent e)
     {
+        switch (e.Change)
+        {
+            case BuildingChange.PieceRemoved or BuildingChange.PieceChanged when e.Piece is { } piece && (piece.Gone || piece.Collapsing):
+                SupportGone(piece.Ref);
+                break;
+            case BuildingChange.DoorRemoved when e.Door is { } door:
+                SupportGone(door.Ref);
+                break;
+            case BuildingChange.ClaimRemoved when e.Claim is { } claim:
+                SupportGone(claim.Ref);
+                break;
+        }
         switch (e.Change)
         {
             case BuildingChange.ClaimAdded when e.Claim is { } claim && !_claimDeployables.ContainsKey(claim):
@@ -178,13 +192,13 @@ public sealed partial class Zone
             // Pieces, doors and claim devices broken, brought down, decayed or demolished: destroyed (GROUND.md §6.4.2), with
             // the blow that broke them (or what went with it, as a door in its frame) or the building's own reason.
             case BuildingChange.PieceRemoved or BuildingChange.DoorRemoved when e.Removal != Removal.Taken && BuildingWorld.Removed(e) is { } gone:
-                Destroyed(HitTarget.Building, gone.Kind, gone.Id, gone.Key, gone.Grade, gone.Position, gone.Rotation, BuildingWorld.CauseOf(e.Removal), gone.Open);
+                Destroyed(gone.Target, gone.Key, gone.Grade, gone.Position, gone.Rotation, BuildingWorld.CauseOf(e.Removal), gone.Open);
                 break;
             case BuildingChange.ClaimRemoved when e.Claim is { } claim && _claimDeployables.Remove(claim, out Deployable? d):
                 if (e.Removal != Removal.Taken)
                 {
                     (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
-                    Destroyed(HitTarget.Building, DestroyedKind.ClaimDevice, claim.Id, Content!.ClaimDeployable.Key, 0, position, rotation, CauseOf(e.Removal));
+                    Destroyed(claim.Ref, Content!.ClaimDeployable.Key, 0, position, rotation, CauseOf(e.Removal));
                 }
                 // Its store spills where it stood, in one bag.
                 RemoveStatic(d);
@@ -255,16 +269,17 @@ public sealed partial class Zone
     /// </summary>
     private sealed class BuildingReceiver(Zone zone) : IDamageReceiver
     {
-        public HitTarget Kind => HitTarget.Building;
+        public TargetFamily[] Families { get; } = { TargetFamily.Piece, TargetFamily.Door, TargetFamily.Cupboard };
 
         public bool Keeps => false;
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             // Walls stop swings, arrows and bullets: only up to the nearest thing found so far.
-            if (zone.Building != null && zone.TraceBuilding(ray.Origin, ray.Direction, ray.Upto(best), out float wall, out object? part))
+            if (zone.Building != null && zone.TraceBuilding(ray.Origin, ray.Direction, ray.Upto(best), out float wall, out object? part) &&
+                part is ITargetable thing)
             {
-                ray.Consider(ref best, wall, HitTarget.Building, new TraceHit { Building = part });
+                ray.Consider(ref best, wall, thing.Ref);
             }
         }
 
@@ -283,7 +298,7 @@ public sealed partial class Zone
                 }
                 Vector3 point = ClosestPoint(building.Data, piece, blast.At);
                 float d = Vector3.Distance(point, blast.At);
-                bool stuck = piece == blast.StuckTo;
+                bool stuck = blast.IsStuckTo(piece.Ref);
                 if (d <= blast.Radius || stuck)
                 {
                     into.Add(Target(piece, point, CentreOf(piece), stuck ? 0 : d, stuck, table: true));
@@ -292,7 +307,7 @@ public sealed partial class Zone
                 {
                     (Vector3 doorPoint, Vector3 _) = ClosestPoint(door, blast.At);
                     float dd = Vector3.Distance(doorPoint, blast.At);
-                    bool onDoor = door == blast.StuckTo;
+                    bool onDoor = blast.IsStuckTo(door.Ref);
                     if (dd <= blast.Radius || onDoor)
                     {
                         into.Add(Target(door, doorPoint, CentreOf(door), onDoor ? 0 : dd, onDoor, table: true));
@@ -310,7 +325,7 @@ public sealed partial class Zone
                 }
                 Vector3 point = ClosestPoint(box, blast.At);
                 float distance = Vector3.Distance(point, blast.At);
-                bool stuck = claim == blast.StuckTo || box == blast.StuckTo;
+                bool stuck = blast.IsStuckTo(claim.Ref) || blast.IsStuckTo(box.Ref);
                 if (distance <= blast.Radius || stuck)
                 {
                     into.Add(Target(claim, point, box.Centre, stuck ? 0 : distance, stuck, table: false));
@@ -318,9 +333,9 @@ public sealed partial class Zone
             }
         }
 
-        private static BlastTarget Target(object part, Vector3 point, Vector3 centre, float distance, bool stuck, bool table) => new()
+        private static BlastTarget Target(IBuildingPart part, Vector3 point, Vector3 centre, float distance, bool stuck, bool table) => new()
         {
-            Hit = new TraceHit { Target = HitTarget.Building, Building = part, Point = point },
+            Hit = new TraceHit { Target = part.Ref, Point = point },
             Thing = part,
             Sight = point,
             Sight2 = centre,
@@ -332,7 +347,7 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (zone.Building is not { } building || r.Hit.Building is not IBuildingPart part || part.Gone || part is Piece { Collapsing: true })
+            if (zone.Building is not { } building || zone.Resolve(r.Hit.Target) is not IBuildingPart part || part.Gone || part is Piece { Collapsing: true })
             {
                 return default;
             }
@@ -407,11 +422,11 @@ public sealed partial class Zone
         p = PlayerOf(entity)!;
         if (Building == null || p == null)
         {
-            return Outcome.Refuse(Refusal.Invalid);
+            return OutcomeCode.Invalid;
         }
         if (!p.IsAwakeAndAlive)
         {
-            return Outcome.Refuse(Refusal.Dead);
+            return OutcomeCode.Dead;
         }
         eye = EyeOf(Entities.Get<Character>(entity).State);
         return Outcome.Done;
@@ -432,7 +447,20 @@ public sealed partial class Zone
         return false;
     }
 
-    // The numbers of the keys a player carries.
+    // The tool of a building role (the building plan, the hammer), for "You need a hammer".
+    private int ToolItem(BuildingRole role)
+    {
+        foreach (ItemDef item in Content!.Items)
+        {
+            if (item.Building == role)
+            {
+                return item.Id;
+            }
+        }
+        return 0;
+    }
+
+    // The numbers of the keys a player carries (the zone's own list, good until the next call).
     private List<int> KeysOf(Player p)
     {
         _keys.Clear();
@@ -455,17 +483,17 @@ public sealed partial class Zone
         item = null;
         if (from is not (ContainerRef.Main or ContainerRef.Belt) || !p.Inventory[from].InRange(slot))
         {
-            return Outcome.Refuse(Refusal.Invalid);
+            return OutcomeCode.Invalid;
         }
         ItemStack s = p.Inventory[from][slot];
         if (s.IsEmpty || (expected != 0 && s.Item != expected))
         {
-            return Outcome.Refuse(Refusal.Stale);
+            return OutcomeCode.Stale;
         }
         item = Content!.Item(s.Item);
         if (item?.Building != role && !(role == BuildingRole.KeyLock && item?.Building == BuildingRole.CodeLock))
         {
-            return Outcome.Refuse(Refusal.Invalid);
+            return OutcomeCode.Invalid;
         }
         return Outcome.Done;
     }
@@ -476,14 +504,6 @@ public sealed partial class Zone
     {
         GiveOrDrop(entity, p, condition != 0 ? new ItemStack(item.Id, count, condition) : ItemStack.Of(item, count));
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = item.Id, Count = count, Reason = GainReason.Refunded });
-    }
-
-    private bool WithinReach(Vector3 eye, Vector3 at) => Vector3.Distance(eye, at) <= Content!.Survival.InteractReach + 1.5f;
-
-    private Vector3 DoorMiddle(Door door)
-    {
-        (Vector3 position, _) = door.Frame.ZoneTransform;
-        return position + Frame.UpAt(position) * 1.2f;
     }
 
     /// <summary>
@@ -503,27 +523,27 @@ public sealed partial class Zone
         BuildingWorld building = Building!;
         if (building.Data.Piece(pieceId) is not { } def)
         {
-            return Outcome.Refuse(Refusal.Invalid);
+            return OutcomeCode.Invalid;
         }
         if (!Carries(p, BuildingRole.Plan))
         {
-            return Outcome.Refuse(Refusal.NoTool, "You need a building plan");
+            return OutcomeCode.NoTool.With(ToolItem(BuildingRole.Plan));
         }
         PlacementPlan? plan;
         if (!supportId.IsNone)
         {
             if (building.PieceOf(supportId) is not { } support)
             {
-                return Outcome.Refuse(Refusal.Gone);
+                return OutcomeCode.NotFound;
             }
             if (SocketId.FromCode(socket) is not { } at || orientation is < 0 or > 255)
             {
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
             }
             plan = building.FromIntent(def, support, at, orientation);
             if (plan == null)
             {
-                return Outcome.Refuse(Refusal.NoSocket);
+                return OutcomeCode.NoSocket;
             }
         }
         else
@@ -531,7 +551,7 @@ public sealed partial class Zone
             if (def.Family != PieceFamily.Foundation || !float.IsFinite(point.X) || !float.IsFinite(point.Y) || !float.IsFinite(point.Z) ||
                 headingSteps is < 0 or >= BuildingWorld.HeadingSteps)
             {
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
             }
             // The point is on the player's aim: where to look for the ground (across it, near the player) and how high
             // the top goes, which the ground under the foundation bounds (FoundationAt); the rules check the reach to
@@ -539,12 +559,12 @@ public sealed partial class Zone
             Vector3 across = point - eye, up = Frame.UpAt(eye);
             if ((across - up * Vector3.Dot(across, up)).Length() > building.Data.Reach + 1)
             {
-                return Outcome.Refuse(Refusal.TooFar);
+                return OutcomeCode.OutOfReach;
             }
             plan = building.FoundationAt(def, point, headingSteps * BuildingWorld.HeadingStep);
             if (plan == null)
             {
-                return Outcome.Refuse(Refusal.Floating);
+                return OutcomeCode.Floating;
             }
         }
         return building.Place(plan, p.Id.Value, eye, new ItemWallet(Content!, p.Inventory.Carried), BuildingNow, out piece);
@@ -560,12 +580,12 @@ public sealed partial class Zone
         }
         if (!Carries(p, BuildingRole.Hammer))
         {
-            return Outcome.Refuse(Refusal.NoTool, "You need a hammer");
+            return OutcomeCode.NoTool.With(ToolItem(BuildingRole.Hammer));
         }
         BuildingWorld building = Building!;
         if (building.PieceOf(target) is not { } piece)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         var wallet = new ItemWallet(Content!, p.Inventory.Carried);
         return action switch
@@ -574,7 +594,7 @@ public sealed partial class Zone
             HammerAction.Rotate => building.Rotate(p.Id.Value, piece, eye, BuildingNow),
             HammerAction.Demolish => Demolish(p, piece, eye),
             HammerAction.Repair => building.Repair(p.Id.Value, piece, wallet, eye, BuildingNow),
-            _ => Outcome.Refuse(Refusal.Invalid),
+            _ => OutcomeCode.Invalid,
         };
     }
 
@@ -599,7 +619,7 @@ public sealed partial class Zone
             }
             if (building.PieceOf(target) is not { } frame)
             {
-                return Outcome.Refuse(Refusal.Gone);
+                return OutcomeCode.NotFound;
             }
             Outcome placed = building.PlaceDoor(p.Id.Value, item!.Door!, frame, flip, eye, out _);
             if (placed.Ok)
@@ -610,11 +630,12 @@ public sealed partial class Zone
         }
         if (building.DoorOf(target) is not { } door)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
-        if (!WithinReach(eye, DoorMiddle(door)))
+        Outcome reach = Reach(eye, door.Ref, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return reach;
         }
         switch (action)
         {
@@ -631,7 +652,7 @@ public sealed partial class Zone
                 return taken;
             }
             default:
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
         }
     }
 
@@ -661,11 +682,12 @@ public sealed partial class Zone
         BuildingWorld building = Building!;
         if (building.DoorOf(target) is not { } door)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
-        if (!WithinReach(eye, DoorMiddle(door)))
+        Outcome reach = Reach(eye, door.Ref, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return reach;
         }
         ulong player = p.Id.Value;
         switch (action)
@@ -698,20 +720,20 @@ public sealed partial class Zone
             {
                 if (door.Lock is not KeyLock keyLock)
                 {
-                    return Outcome.Refuse(Refusal.NoLock);
+                    return OutcomeCode.NoLock;
                 }
                 if (keyLock.Owner != player)
                 {
-                    return Outcome.Refuse(Refusal.NotOwner);
+                    return OutcomeCode.NotOwner;
                 }
                 BuildingData data = building.Data;
                 if (Content!.Item(data.KeyItem) is not { } key)
                 {
-                    return Outcome.Refuse(Refusal.Invalid);
+                    return OutcomeCode.Invalid;
                 }
                 if (!new ItemWallet(Content, p.Inventory.Carried).Take(data.KeyCostMaterial, data.KeyCost))
                 {
-                    return Outcome.Refuse(Refusal.NotEnough, $"A key costs {data.KeyCost} {data.MaterialName(data.KeyCostMaterial).ToLowerInvariant()}");
+                    return OutcomeCode.NotEnough.With(data.MaterialItem(data.KeyCostMaterial));
                 }
                 GiveBack(entity, p, key, 1, (ushort)keyLock.KeyCode);
                 return Outcome.Done;
@@ -729,7 +751,7 @@ public sealed partial class Zone
                 return removed;
             }
             default:
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
         }
     }
 
@@ -758,16 +780,16 @@ public sealed partial class Zone
             }
             if (building.PieceOf(target) is not { } support)
             {
-                return Outcome.Refuse(Refusal.Gone);
+                return OutcomeCode.NotFound;
             }
             if (!double.IsFinite(localX) || !double.IsFinite(localZ))
             {
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
             }
             Vector3 at = BuildingWorld.F(support.Structure.Frame.ToZone(new Vector3D(localX, support.Pose.Position.Y, localZ)));
             if (Vector3.Distance(eye, at) > building.Data.Reach)
             {
-                return Outcome.Refuse(Refusal.TooFar);
+                return OutcomeCode.OutOfReach;
             }
             Outcome placed = building.PlaceClaim(player, support, new Vector3D(localX, 0, localZ), yaw, out _);
             if (placed.Ok)
@@ -778,12 +800,12 @@ public sealed partial class Zone
         }
         if (building.ClaimOf(target) is not { } device)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
-        (Vector3 position, _) = device.ZoneTransform;
-        if (!WithinReach(eye, position + Frame.UpAt(position) * 0.9f))
+        Outcome reach = Reach(eye, device.Ref, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return reach;
         }
         switch (action)
         {
@@ -799,7 +821,7 @@ public sealed partial class Zone
             {
                 if (!device.IsAuthorised(player))
                 {
-                    return Outcome.Refuse(Refusal.NotAuthorised);
+                    return OutcomeCode.NotAuthorised;
                 }
                 if (DeployableOf(device)?.Storage is { } store)
                 {
@@ -820,7 +842,7 @@ public sealed partial class Zone
                 return taken;
             }
             default:
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
         }
     }
 }

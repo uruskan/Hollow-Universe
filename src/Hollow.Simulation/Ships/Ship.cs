@@ -1,6 +1,8 @@
 using System.Numerics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Ships;
 
@@ -9,7 +11,7 @@ namespace Hollow.Simulation.Ships;
 /// owner, fuel and cargo. Owned by the zone's thread. A parked ship (asleep, nobody in the seat) is a static body
 /// characters walk into; a flown one isn't.
 /// </summary>
-public sealed class Ship
+public sealed class Ship : ITargetable, IOwned, IContainerHolder
 {
     /// <summary>The hatch swings open or shut in this many ticks (the model's clip: a second).</summary>
     public const int HatchTicks = 30;
@@ -26,6 +28,9 @@ public sealed class Ship
     }
 
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Ship, Id.Value);
 
     public ShipDef Def { get; }
 
@@ -58,6 +63,10 @@ public sealed class Ship
     public int HatchProgress { get; set; }
 
     public Container Cargo { get; }
+
+    ulong IOwned.OwnerId => Owner.Value;
+
+    Container? IContainerHolder.Container => Cargo;
 
     /// <summary>The static body while parked (0: none).</summary>
     public uint ParkedBody { get; set; }

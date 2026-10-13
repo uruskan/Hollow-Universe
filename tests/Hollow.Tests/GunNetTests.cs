@@ -16,6 +16,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -416,13 +417,13 @@ public static class GunNetTests
             sv.Zone.TryFindPlayer(ada.EntityId, out _, out Player p);
             return (int)p.Inventory.Belt[2].Loaded;
         });
-        Fixtures.Report($"Ada fired {fired}, {markers.Count(m => m.Target == HitTarget.Character)} hit Bo ({string.Join(", ", markers.Select(m => $"{m.Region} {m.Damage:0.#}"))}); " +
+        Fixtures.Report($"Ada fired {fired}, {markers.Count(m => m.Target == TargetFamily.Character)} hit Bo ({string.Join(", ", markers.Select(m => $"{m.Region} {m.Damage:0.#}"))}); " +
             $"Bo took {damage.Sum(d => d.Damage):0.#}; magazine {ada.Local.Gun.Loaded} here, {serverLoaded} on the server; {string.Join(", ", events.Where(e => e.StartsWith("refused", StringComparison.Ordinal)))}");
         Assert.True(!events.Any(e => e.StartsWith("refused", StringComparison.Ordinal)), "nothing refused");
         Assert.Equal(serverLoaded, ada.Local.Gun.Loaded, "the predicted magazine is the server's");
         Assert.Equal(30 - fired, serverLoaded, "every predicted shot was a shot on the server");
         // Bo joined with a new life's 60 health: the second body shot knocks him down.
-        Assert.True(markers.Count(m => m.Target == HitTarget.Character) >= 2 && markers.Last().Downed, "hit markers, the last one 'downed'");
+        Assert.True(markers.Count(m => m.Target == TargetFamily.Character) >= 2 && markers.Last().Downed, "hit markers, the last one 'downed'");
         Assert.True(damage.Count >= 2 && bo.Local.IsWounded, "Bo took the damage and is down");
 
         // Ada helps him up.
@@ -470,7 +471,7 @@ public static class GunNetTests
         Assert.Equal(4f, back.Vitals.Burning, "burning");
 
         // In a corpse (a static thing), through the thing's own record.
-        var corpse = new Corpse(new EntityId(77), "Ada", a.Id, 37, rig.Zone.GroundAt(4, 4), Vector3.UnitY, 0, rig.Zone.Tick + 900);
+        var corpse = new Corpse(new EntityId(77), "Ada", a.Id, 37, rig.Zone.GroundAt(4, 4), Vector3.UnitY, 0, c.Survival.BodyLifetime, rig.Zone.Tick + 900);
         corpse.Loot.Set(5, rifle);
         WorldObject? thing = WorldCodec.DecodeThing(corpse.Id, StaticKind.Corpse,
             WorldCodec.EncodeThing(corpse, rig.Zone.Frame.ToBody(corpse.Position), rig.Zone.Tick), c, rig.Zone.Frame.ToLocal, rig.Zone.Frame.UpAt, rig.Zone.Tick);

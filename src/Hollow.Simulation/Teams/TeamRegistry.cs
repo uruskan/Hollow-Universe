@@ -93,12 +93,12 @@ public sealed class TeamRegistry
     public IReadOnlyList<TeamInvite> InvitesOf(EntityId player) =>
         _invites.TryGetValue(player, out List<TeamInvite>? list) ? list : Array.Empty<TeamInvite>();
 
-    public ActionResult Create(EntityId player, out Team? team)
+    public Outcome Create(EntityId player, out Team? team)
     {
         team = null;
         if (_of.ContainsKey(player))
         {
-            return ActionResult.InTeam;
+            return OutcomeCode.InTeam;
         }
         team = new Team(_newId(), player);
         team.MemberList.Add(player);
@@ -106,31 +106,31 @@ public sealed class TeamRegistry
         _of[player] = team;
         DropInvites(player);
         Touch(team, player);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>The leader invites a player in no team (again: the invite's time starts over).</summary>
-    public ActionResult Invite(EntityId leader, EntityId target, long nowUnixMs)
+    public Outcome Invite(EntityId leader, EntityId target, long nowUnixMs)
     {
         if (!_of.TryGetValue(leader, out Team? team))
         {
-            return ActionResult.NoTeam;
+            return OutcomeCode.NoTeam;
         }
         if (team.Leader != leader)
         {
-            return ActionResult.NotLeader;
+            return OutcomeCode.NotLeader;
         }
         if (target == leader || target.IsNone)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (_of.ContainsKey(target))
         {
-            return ActionResult.InTeam;
+            return OutcomeCode.InTeam;
         }
         if (team.MemberList.Count >= MaxMembers)
         {
-            return ActionResult.TeamFull;
+            return OutcomeCode.TeamFull;
         }
         if (!_invites.TryGetValue(target, out List<TeamInvite>? list))
         {
@@ -140,91 +140,91 @@ public sealed class TeamRegistry
         list.RemoveAll(i => i.Team == team.Id);
         list.Add(new TeamInvite(team.Id, leader, nowUnixMs + (long)(InviteSeconds * 1000)));
         Affected.Add(target);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    public ActionResult Accept(EntityId player, ulong teamId, long nowUnixMs)
+    public Outcome Accept(EntityId player, ulong teamId, long nowUnixMs)
     {
         if (_of.ContainsKey(player))
         {
-            return ActionResult.InTeam;
+            return OutcomeCode.InTeam;
         }
         bool invited = _invites.TryGetValue(player, out List<TeamInvite>? list) &&
             list.Exists(i => i.Team == teamId && i.ExpiresAtUnixMs > nowUnixMs);
         if (!invited || !_teams.TryGetValue(teamId, out Team? team))
         {
-            return ActionResult.NoTeam;
+            return OutcomeCode.NoTeam;
         }
         if (team.MemberList.Count >= MaxMembers)
         {
-            return ActionResult.TeamFull;
+            return OutcomeCode.TeamFull;
         }
         team.MemberList.Add(player);
         _of[player] = team;
         DropInvites(player);
         Touch(team, player);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    public ActionResult Decline(EntityId player, ulong teamId)
+    public Outcome Decline(EntityId player, ulong teamId)
     {
         if (!_invites.TryGetValue(player, out List<TeamInvite>? list) || list.RemoveAll(i => i.Team == teamId) == 0)
         {
-            return ActionResult.NoTeam;
+            return OutcomeCode.NoTeam;
         }
         if (list.Count == 0)
         {
             _invites.Remove(player);
         }
         Affected.Add(player);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    public ActionResult Leave(EntityId player)
+    public Outcome Leave(EntityId player)
     {
         if (!_of.TryGetValue(player, out Team? team))
         {
-            return ActionResult.NoTeam;
+            return OutcomeCode.NoTeam;
         }
         Remove(team, player);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    public ActionResult Kick(EntityId leader, EntityId member)
+    public Outcome Kick(EntityId leader, EntityId member)
     {
         if (!_of.TryGetValue(leader, out Team? team))
         {
-            return ActionResult.NoTeam;
+            return OutcomeCode.NoTeam;
         }
         if (team.Leader != leader)
         {
-            return ActionResult.NotLeader;
+            return OutcomeCode.NotLeader;
         }
         if (member == leader || !team.Has(member))
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         Remove(team, member);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    public ActionResult Promote(EntityId leader, EntityId member)
+    public Outcome Promote(EntityId leader, EntityId member)
     {
         if (!_of.TryGetValue(leader, out Team? team))
         {
-            return ActionResult.NoTeam;
+            return OutcomeCode.NoTeam;
         }
         if (team.Leader != leader)
         {
-            return ActionResult.NotLeader;
+            return OutcomeCode.NotLeader;
         }
         if (member == leader || !team.Has(member))
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         team.Leader = member;
         Touch(team, leader);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>Drops invites that ran out (once a second).</summary>

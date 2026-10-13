@@ -4,6 +4,8 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Raid;
 
@@ -20,36 +22,27 @@ public enum ExplosiveState : byte
     Stuck,
 }
 
-/// <summary>What a stuck or resting explosive is on: it falls when that goes.</summary>
-public enum SupportKind : byte
-{
-    /// <summary>The ground (or nothing: it is flying).</summary>
-    Ground,
-    Piece,
-    Door,
-    Deployable,
-
-    /// <summary>A tree or outcrop (by its natural object ID).</summary>
-    Natural,
-}
-
 /// <summary>
 /// A timed charge, bag charge or tin grenade in the world (GROUND.md §6.6): thrown (it flies, sticks or bounces and comes
 /// to rest) or placed (stuck where it was put), with its fuse burning; a dud lies there until lit again. Simulated on
 /// the server only; clients get its state when it changes (and draw a flight on its arc themselves).
 /// </summary>
-public sealed class LiveExplosive
+public sealed class LiveExplosive : ITargetable, IOwned, ILifetime
 {
-    internal LiveExplosive(EntityId id, ThrowableStats stats, EntityId owner, string ownerName)
+    internal LiveExplosive(EntityId id, ThrowableStats stats, EntityId owner, string ownerName, LifetimeRule dud)
     {
         Id = id;
         Stats = stats;
         Owner = owner;
         OwnerName = ownerName;
+        Lifetime = dud;
     }
 
     /// <summary>A persistent ID (charges survive a restart).</summary>
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Explosive, Id.Value);
 
     public ThrowableStats Stats { get; }
 
@@ -57,6 +50,8 @@ public sealed class LiveExplosive
 
     /// <summary>Who threw or placed it (its blast is theirs).</summary>
     public EntityId Owner { get; }
+
+    ulong IOwned.OwnerId => Owner.Value;
 
     public string OwnerName { get; }
 
@@ -96,23 +91,25 @@ public sealed class LiveExplosive
     /// <summary>How many times it was lit (re-arming a dud lights it again).</summary>
     public int Arms { get; internal set; }
 
-    /// <summary>What it is stuck to or lying on, and that thing's ID.</summary>
-    public SupportKind SupportKind { get; internal set; }
+    /// <summary>
+    /// What it is stuck to or lying on, and where there (GROUND_SYSTEMS.md §3.6): a piece, a door's leaf, the claim device,
+    /// a box, a tree or outcrop, the ground; none while it flies. It moves with a door's leaf, and falls when its support goes.
+    /// </summary>
+    public SupportLink Link { get; internal set; }
 
-    public ulong SupportId { get; internal set; }
-
-    /// <summary>The thing itself (a <c>Piece</c>, <c>Door</c> or <c>Deployable</c>), resolved; null for the ground or a natural object.</summary>
-    public object? Support { get; internal set; }
-
-    /// <summary>A door's leaf it is on, and where on it (the leaf's own frame): it moves with the leaf.</summary>
-    public int Leaf { get; internal set; }
-
-    public Vector3 SupportLocal { get; internal set; }
-
-    public Vector3 SupportNormal { get; internal set; }
-
-    /// <summary>A dud left alone goes after this tick (−1: never).</summary>
+    /// <summary>A dud left alone goes after this tick (−1: never): its lifetime (survival.json lifetimes.dud), while it is one.</summary>
     public long DespawnTick { get; internal set; } = -1;
+
+    /// <summary>A dud's lifetime (GROUND_SYSTEMS.md §3.7): it lies loose only while it is a dud.</summary>
+    public LifetimeRule Lifetime { get; }
+
+    long ILifetime.EndsAt
+    {
+        get => DespawnTick;
+        set => DespawnTick = value;
+    }
+
+    bool ILifetime.Emptied => false;
 
     /// <summary>Raised whenever what clients see changes (state, position, fuse), so the server sends it again.</summary>
     public uint Revision { get; internal set; }
@@ -195,15 +192,8 @@ public sealed record ExplosiveSave
 
     public int Arms { get; init; }
 
-    public SupportKind SupportKind { get; init; }
-
-    public ulong SupportId { get; init; }
-
-    public int Leaf { get; init; }
-
-    public Vector3 SupportLocal { get; init; }
-
-    public Vector3 SupportNormal { get; init; }
+    /// <summary>What held it (none while it flew): it is put back on it, or falls when it is gone.</summary>
+    public TargetRef Support { get; init; }
 
     /// <summary>Ticks until a dud goes (−1: never).</summary>
     public long DespawnLeft { get; init; } = -1;
@@ -212,14 +202,19 @@ public sealed record ExplosiveSave
 /// <summary>What one explosion did, for tests and the load test's counts.</summary>
 public sealed class BlastReport
 {
-    private static readonly int Kinds = (int)Enum.GetValues<HitTarget>().Max() + 1;
+    private static readonly int Kinds = (int)Enum.GetValues<TargetFamily>().Max() + 1;
     private readonly int[] _hit = new int[Kinds];
     private readonly int[] _destroyed = new int[Kinds];
 
-    /// <summary>Things of a kind its blast landed on (building pieces, doors and claim devices are the building's), and those it destroyed or killed.</summary>
-    public int Hit(HitTarget kind) => _hit[(int)kind];
+    /// <summary>Things of a family its blast landed on, and those it destroyed or killed.</summary>
+    public int Hit(TargetFamily family) => _hit[(int)family];
 
-    public int Destroyed(HitTarget kind) => _destroyed[(int)kind];
+    public int Destroyed(TargetFamily family) => _destroyed[(int)family];
+
+    /// <summary>The building's: pieces, doors and the claim device together.</summary>
+    public int HitBuilding => Hit(TargetFamily.Piece) + Hit(TargetFamily.Door) + Hit(TargetFamily.Cupboard);
+
+    public int DestroyedBuilding => Destroyed(TargetFamily.Piece) + Destroyed(TargetFamily.Door) + Destroyed(TargetFamily.Cupboard);
 
     /// <summary>Damage each thing took (by its object: a piece, door, claim device, deployable, ship, animal or player), after its defences.</summary>
     public Dictionary<object, double> Damage { get; } = new();
@@ -227,12 +222,12 @@ public sealed class BlastReport
     /// <summary>Things within the radius that something stood in front of: they took nothing.</summary>
     public List<object> Shielded { get; } = new();
 
-    internal void Count(HitTarget kind, bool destroyed)
+    internal void Count(TargetFamily family, bool destroyed)
     {
-        _hit[(int)kind]++;
+        _hit[(int)family]++;
         if (destroyed)
         {
-            _destroyed[(int)kind]++;
+            _destroyed[(int)family]++;
         }
     }
 }

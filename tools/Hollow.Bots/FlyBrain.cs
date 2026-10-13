@@ -55,7 +55,7 @@ public sealed class FlyBrain
     // On foot: to the hatch of its own ship, open it if it must, and board.
     private InputFrame Walk(double time, GameClient client)
     {
-        RemoteShip? ship = client.Ships.FirstOrDefault(s => s.Has(ShipNetFlags.Mine) && s.Def != null && !s.Has(ShipNetFlags.Destroyed));
+        RemoteShip? ship = client.Ships.FirstOrDefault(s => s.Mine && s.Def != null && !s.Has(ShipNetFlags.Destroyed));
         if (ship == null || client.Local.IsDead)
         {
             if (client.Local.IsDead && time >= _nextIntent)

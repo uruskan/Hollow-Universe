@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using Hollow.Client;
 using Hollow.Core;
+using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
@@ -26,8 +27,6 @@ namespace HollowUniverse.Ground;
 /// </summary>
 public partial class BuildView : Node3D, IHammerActions
 {
-    private const float DoorReach = 3.5f;
-
     private BuildingAssets? _assets;
     private BuildingRenderer? _renderer;
     private BuildGhost? _ghost;
@@ -75,6 +74,9 @@ public partial class BuildView : Node3D, IHammerActions
 
     private BuildingData Data => Client.Content.Building;
 
+    // The player's line for an answer (texts.json).
+    private string Line(Outcome outcome) => Client.Content.Texts.Line(outcome);
+
     /// <summary>Every frame, after the camera: the building drawn, the ghost and the lines for the held tool.</summary>
     public void Refresh(double delta, Num.Vector3 eye, Num.Vector3 forward)
     {
@@ -87,7 +89,8 @@ public partial class BuildView : Node3D, IHammerActions
             return;
         }
         _target = _world.Target(eye, forward, (float)Data.Reach, out _hit);
-        Interactable = _target is Door or ClaimDevice && _hit.Distance < DoorReach ? _target : null;
+        // Doors and the claim device are opened within survival.json's reach.open, as the server checks.
+        Interactable = _target is Door or ClaimDevice && _hit.Distance < Client.Content.Survival.OpenReach ? _target : null;
         LocalPlayer me = Client.Local;
         ItemDef? item = me.IsDead ? null : me.HeldItem;
         Held = item?.Building ?? BuildingRole.None;
@@ -358,12 +361,12 @@ public partial class BuildView : Node3D, IHammerActions
         Hud.Line = $"{piece.Name.ToUpperInvariant()}  ·  {Data.CostOf(piece, 0)} {Data.MaterialName(twig.Material).ToUpperInvariant()} ({Owned(twig.Material):N0})";
         if (_plan == null)
         {
-            Hud.Reason = Outcome.DefaultText(Refusal.NoSocket);
+            Hud.Reason = Line(OutcomeCode.NoSocket);
             Hud.ReasonIsWarning = false;
         }
         else if (!_plan.Valid)
         {
-            Hud.Reason = _plan.Outcome.Text;
+            Hud.Reason = Line(_plan.Outcome);
             Hud.ReasonIsWarning = true;
         }
         else
@@ -410,7 +413,7 @@ public partial class BuildView : Node3D, IHammerActions
                 me.PlacePiece(_plan);
                 break;
             case BuildingRole.Plan:
-                Say?.Invoke(_plan?.Outcome.Text ?? Outcome.DefaultText(Refusal.NoSocket));
+                Say?.Invoke(Line(_plan?.Outcome ?? OutcomeCode.NoSocket));
                 break;
             case BuildingRole.Hammer when _target is Piece piece:
                 me.Repair(piece);
@@ -422,7 +425,7 @@ public partial class BuildView : Node3D, IHammerActions
                 }
                 else
                 {
-                    Say?.Invoke(Outcome.DefaultText(Refusal.NotAnOpening));
+                    Say?.Invoke(Line(OutcomeCode.NotAnOpening));
                 }
                 break;
             case BuildingRole.KeyLock or BuildingRole.CodeLock when _target is Door door:
@@ -534,29 +537,38 @@ public partial class BuildView : Node3D, IHammerActions
         {
             case Door door:
             {
+                // What the server tells this player of the door (GROUND_SYSTEMS.md §3.3): theirs (its lock's fitter), whether
+                // its code lock has a code and lists them, locked, whether they may pass. The full menu is the interaction
+                // package's; this offers what the flags allow, a fresh code lock's code first.
                 DoorState state = Client.BuildingReplica!.StateOf(door);
-                bool mine = door.Owner == Client.EntityId.Value || door.Lock?.Owner == Client.EntityId.Value;
-                if (door.Lock is CodeLock && state.CanUse)
+                if (state.Lock == LockKind.Code && !state.HasCode)
+                {
+                    if (state.Mine && keypad != null)
+                    {
+                        options.Add(("SET CODE", () => keypad(door, true)));
+                    }
+                }
+                else if (state.Lock == LockKind.Code && state.Authorised)
                 {
                     options.Add((state.Locked ? "UNLOCK" : "LOCK", () => { if (state.Locked) { me.Unlock(door); } else { me.Lock(door); } }));
-                    if (mine && keypad != null)
+                    if (!state.Locked && keypad != null)
                     {
                         options.Add(("CHANGE CODE", () => keypad(door, true)));
                     }
                 }
-                if (door.Lock is KeyLock && state.CanUse)
+                if (state.Lock == LockKind.Key && state.CanUse)
                 {
                     options.Add((state.Locked ? "UNLOCK" : "LOCK", () => { if (state.Locked) { me.Unlock(door); } else { me.Lock(door); } }));
-                    if (mine)
+                    if (state.Mine)
                     {
                         options.Add(("CUT A KEY", () => me.MakeKey(door)));
                     }
                 }
-                if (door.Lock != null && mine)
+                if (state.Lock != LockKind.None && !state.Locked && (state.Lock == LockKind.Code ? state.Authorised : state.Mine))
                 {
                     options.Add(("TAKE THE LOCK", () => me.RemoveLock(door)));
                 }
-                if (mine && state.CanUse)
+                if (state.Lock == LockKind.None && state.Mine)
                 {
                     options.Add(("PICK UP DOOR", () => me.PickUpDoor(door)));
                 }

@@ -11,6 +11,7 @@ using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Server;
 
@@ -262,7 +263,7 @@ public sealed partial class GameServer
             case PlacePieceIntent.TypeId:
             {
                 PlacePieceIntent m = PlacePieceIntent.Read(_reader);
-                return !_reader.Failed && BuildIntent(session, m.Seq, () =>
+                return !_reader.Failed && Intent(session, m.Seq, () =>
                 {
                     Outcome placed = Zone.PlacePiece(me, m.Piece, new EntityId(m.Support), m.Socket, m.Orientation, new Vector3(m.X, m.Y, m.Z),
                         m.Heading, out _);
@@ -276,73 +277,28 @@ public sealed partial class GameServer
             case HammerIntent.TypeId:
             {
                 HammerIntent m = HammerIntent.Read(_reader);
-                return !_reader.Failed && BuildIntent(session, m.Seq, () => Zone.Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
             }
             case DoorIntent.TypeId:
             {
                 DoorIntent m = DoorIntent.Read(_reader);
-                return !_reader.Failed && BuildIntent(session, m.Seq,
+                return !_reader.Failed && Intent(session, m.Seq,
                     () => Zone.DoorAct(me, m.Action, m.From, m.Slot, Expected(m.Expected), new EntityId(m.Target), m.Flip ? 1 : 0));
             }
             case LockIntent.TypeId:
             {
                 LockIntent m = LockIntent.Read(_reader);
-                return !_reader.Failed && BuildIntent(session, m.Seq,
+                return !_reader.Failed && Intent(session, m.Seq,
                     () => Zone.LockAct(me, m.Action, m.From, m.Slot, Expected(m.Expected), new EntityId(m.Door), m.Code));
             }
             case ClaimIntent.TypeId:
             {
                 ClaimIntent m = ClaimIntent.Read(_reader);
-                return !_reader.Failed && BuildIntent(session, m.Seq,
+                return !_reader.Failed && Intent(session, m.Seq,
                     () => Zone.ClaimAct(me, m.Action, m.From, m.Slot, Expected(m.Expected), new EntityId(m.Target), m.X, m.Z, m.Yaw));
             }
             default:
                 return ReceiveShipIntent(session, type);
-        }
-    }
-
-    // Like every intent: it spends from the player's budget (a bad one too), is applied at once, and is answered after
-    // this tick's changes (containers) have gone out.
-    private bool BuildIntent(PlayerSession session, uint seq, Func<Outcome> act)
-    {
-        Outcome outcome;
-        if (!session.SpendIntentToken(Zone.Tick, Content.Survival.IntentBurst, Content.Survival.IntentsPerSecond))
-        {
-            outcome = Outcome.Refuse(Refusal.RateLimited);
-            session.IntentsRateLimited++;
-        }
-        else if (!session.Playing)
-        {
-            outcome = Outcome.Refuse(Refusal.Dead);
-        }
-        else
-        {
-            outcome = act();
-        }
-        if (outcome.Ok)
-        {
-            session.IntentsAccepted++;
-        }
-        else
-        {
-            session.IntentsRefused++;
-        }
-        ViewOf(session).Results.Add(new BuildResult { Seq = seq, Reason = outcome.Reason, Text = outcome.Text });
-        session.LastIntentSeq = Math.Max(session.LastIntentSeq, seq);
-        return true;
-    }
-
-    private void SendBuildResults()
-    {
-        foreach ((PlayerSession session, BuildView view) in _buildViews)
-        {
-            foreach (BuildResult result in view.Results)
-            {
-                _writer.Reset();
-                result.WriteMessage(_writer);
-                Send(session);
-            }
-            view.Results.Clear();
         }
     }
 
@@ -388,6 +344,18 @@ public sealed partial class GameServer
             if (view.Sent.Remove(part))
             {
                 Removed(part);
+            }
+        }
+
+        // What this player is told of doors and claim devices changed with them (a team, a key): all they have go again.
+        if (session.ViewerChanged)
+        {
+            foreach (object part in view.Sent)
+            {
+                if (part is Door or ClaimDevice && view.Queued.Add(part))
+                {
+                    view.Updates.Add(part);
+                }
             }
         }
 
@@ -660,8 +628,6 @@ public sealed partial class GameServer
     private DoorNet NetOf(Door d, PlayerSession session)
     {
         BuildingData data = Zone.Building!.Data;
-        bool canUse = Zone.TryFindPlayer(session.EntityId, out _, out var player) &&
-            BuildingWorld.CanUse(session.EntityId.Value, d, KeyCodes(player.Inventory));
         return new DoorNet
         {
             Id = d.Id.Value,
@@ -670,34 +636,12 @@ public sealed partial class GameServer
             Flip = d.Flip != 0,
             Open = d.Open,
             Health = Fraction(d.Health, d.Def.Health),
-            Lock = d.Lock switch
-            {
-                KeyLock => LockKind.Key,
-                CodeLock => LockKind.Code,
-                _ => LockKind.None,
-            },
+            Lock = d.Lock?.Kind ?? LockKind.None,
             LockId = d.Lock?.Id.Value ?? 0,
-            Locked = d.Lock?.Locked == true,
-            CanUse = canUse,
+            Flags = Zone.FlagsFor(d.Ref, session.Viewer),
             Body0 = d.BodyIds.Count > 0 ? d.BodyIds[0] : 0,
             Body1 = d.BodyIds.Count > 1 ? d.BodyIds[1] : 0,
         };
-    }
-
-    private List<int> KeyCodes(PlayerInventory inventory)
-    {
-        var keys = new List<int>();
-        foreach (Container c in inventory.Carried)
-        {
-            for (int i = 0; i < c.Size; i++)
-            {
-                if (!c[i].IsEmpty && Content.Item(c[i].Item)?.Building == Simulation.Content.BuildingRole.Key)
-                {
-                    keys.Add(c[i].Condition);
-                }
-            }
-        }
-        return keys;
     }
 
     private ClaimNet NetOf(ClaimDevice c, PlayerSession session)
@@ -712,7 +656,7 @@ public sealed partial class GameServer
             Z = c.Position.Z,
             Yaw = (byte)c.Yaw,
             Health = Fraction(c.Health, Zone.Building.Data.ClaimHealth),
-            Authorised = c.IsAuthorised(session.EntityId.Value),
+            Flags = Zone.FlagsFor(c.Ref, session.Viewer),
             Body = c.BodyId,
             ProtectedMinutes = double.IsInfinity(protectedSeconds) ? uint.MaxValue : (uint)Math.Clamp(protectedSeconds / 60, 0, uint.MaxValue - 1),
         };
@@ -741,7 +685,5 @@ public sealed partial class GameServer
         public readonly Queue<object> Stream = new();
 
         public readonly HashSet<uint> Frames = new();
-
-        public readonly List<BuildResult> Results = new();
     }
 }

@@ -4,6 +4,8 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Building;
 
@@ -12,7 +14,7 @@ namespace Hollow.Simulation.Building;
 /// authorised to build there, gives that structure an area of building rights, and holds the materials that pay its
 /// upkeep. One per connected structure.
 /// </summary>
-public sealed class ClaimDevice : IBuildingPart
+public sealed class ClaimDevice : IBuildingPart, IOwned
 {
     internal readonly List<ulong> AuthorisedList = new();
     internal uint Body;
@@ -30,8 +32,13 @@ public sealed class ClaimDevice : IBuildingPart
 
     public EntityId Id { get; }
 
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Cupboard, Id.Value);
+
     /// <summary>The player who placed it (authorised from the start).</summary>
     public ulong Owner { get; }
+
+    ulong IOwned.OwnerId => Owner;
 
     /// <summary>The foundation or floor it stands on; it falls with it.</summary>
     public Piece Support { get; }
@@ -82,33 +89,33 @@ public sealed partial class BuildingWorld
         device = null;
         if (support.Gone || support.Collapsing)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!support.Def.IsSlab)
         {
-            return Outcome.Refuse(Refusal.NotOnStructure);
+            return OutcomeCode.NotOnStructure;
         }
         if (support.Structure.Claim != null)
         {
-            return Outcome.Refuse(Refusal.HasClaim);
+            return OutcomeCode.HasClaim;
         }
         var position = new Vector3D(localPoint.X, support.Pose.Position.Y, localPoint.Z);
         Vector3D onPiece = PieceGeometry.ToLocal(support.Pose, position);
         if (PieceGeometry.ClosestOnFootprint(support.Def.Shape, Data.Width, onPiece) is var inside &&
             (inside - new Vector3D(onPiece.X, 0, onPiece.Z)).LengthSquared > 1e-6)
         {
-            return Outcome.Refuse(Refusal.NotOnStructure);
+            return OutcomeCode.NotOnStructure;
         }
         var pose = new Pose(position, PieceGeometry.Wrap(yaw));
         (Vector3 zonePosition, Quaternion zoneRotation) = support.Structure.Frame.ToZone(pose);
         if (PrivilegeAt(player, zonePosition, 0) == Privilege.Blocked)
         {
-            return Outcome.Refuse(Refusal.BuildingBlocked);
+            return OutcomeCode.BuildingBlocked;
         }
         ConvexPart[] parts = { PieceShapes.Claim(Data) };
         if (CharacterInside(parts, zonePosition, zoneRotation))
         {
-            return Outcome.Refuse(Refusal.PlayerInTheWay);
+            return OutcomeCode.PlayerInTheWay;
         }
         if (Physics != null)
         {
@@ -117,7 +124,7 @@ public sealed partial class BuildingWorld
             {
                 if (Physics.OwnerOf(hit.Body) != support)
                 {
-                    return Outcome.Refuse(Refusal.HitsObject);
+                    return OutcomeCode.Blocked;
                 }
             }
         }
@@ -183,11 +190,11 @@ public sealed partial class BuildingWorld
     {
         if (device.Gone)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!device.IsAuthorised(player))
         {
-            return Outcome.Refuse(Refusal.NotAuthorised);
+            return OutcomeCode.NotAuthorised;
         }
         RemoveClaim(device);
         return Outcome.Done;
@@ -198,13 +205,13 @@ public sealed partial class BuildingWorld
     {
         if (device.Gone)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!device.IsAuthorised(player))
         {
             if (device.AuthorisedList.Count >= Data.ClaimMaxAuthorised)
             {
-                return Outcome.Refuse(Refusal.ListFull);
+                return OutcomeCode.ListFull;
             }
             device.AuthorisedList.Add(player);
             Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimChanged, device.Support, Claim: device, Structure: device.Structure));
@@ -227,7 +234,7 @@ public sealed partial class BuildingWorld
     {
         if (!device.IsAuthorised(player))
         {
-            return Outcome.Refuse(Refusal.NotAuthorised);
+            return OutcomeCode.NotAuthorised;
         }
         device.AuthorisedList.Clear();
         Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimChanged, device.Support, Claim: device, Structure: device.Structure));

@@ -25,34 +25,34 @@ public static class ItemTests
         main.Set(2, S("stone", 50));
 
         // A top-up moves what fits and leaves the rest; onto a full stack there's no room.
-        Assert.Equal(ActionResult.Accepted, InventoryRules.Move(C, main, 1, main, 0, 0), "top up");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.Move(C, main, 1, main, 0, 0), "top up");
         Assert.Equal(1000, main[0].Count, "full stack");
         Assert.Equal(200, main[1].Count, "the rest stays");
-        Assert.Equal(ActionResult.NoSpace, InventoryRules.Move(C, main, 1, main, 0, 0), "onto a full stack");
+        Assert.Equal(OutcomeCode.NoSpace, InventoryRules.Move(C, main, 1, main, 0, 0), "onto a full stack");
 
         // Split into an empty slot; more than there is, or the wrong item, is stale; the same slot is malformed.
-        Assert.Equal(ActionResult.Accepted, InventoryRules.Move(C, main, 1, belt, 0, 75), "split");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.Move(C, main, 1, belt, 0, 75), "split");
         Assert.True(main[1].Count == 125 && belt[0].Count == 75, "split counts");
-        Assert.Equal(ActionResult.Stale, InventoryRules.Move(C, main, 1, belt, 1, 126), "more than there is");
-        Assert.Equal(ActionResult.Stale, InventoryRules.Move(C, main, 1, belt, 1, 0, C.ItemByKey("stone").Id), "not the item expected");
-        Assert.Equal(ActionResult.Invalid, InventoryRules.Move(C, main, 1, main, 1, 0), "onto itself");
-        Assert.Equal(ActionResult.Invalid, InventoryRules.Move(C, main, 1, main, 24, 0), "past the end");
-        Assert.Equal(ActionResult.Stale, InventoryRules.Move(C, main, 5, main, 6, 0), "from an empty slot");
+        Assert.Equal(OutcomeCode.Stale, InventoryRules.Move(C, main, 1, belt, 1, 126), "more than there is");
+        Assert.Equal(OutcomeCode.Stale, InventoryRules.Move(C, main, 1, belt, 1, 0, C.ItemByKey("stone").Id), "not the item expected");
+        Assert.Equal(OutcomeCode.Invalid, InventoryRules.Move(C, main, 1, main, 1, 0), "onto itself");
+        Assert.Equal(OutcomeCode.Invalid, InventoryRules.Move(C, main, 1, main, 24, 0), "past the end");
+        Assert.Equal(OutcomeCode.Stale, InventoryRules.Move(C, main, 5, main, 6, 0), "from an empty slot");
 
         // Different items swap, but only whole stacks.
-        Assert.Equal(ActionResult.NotAllowed, InventoryRules.Move(C, main, 2, main, 1, 10), "part of a stack onto another item");
-        Assert.Equal(ActionResult.Accepted, InventoryRules.Move(C, main, 2, main, 1, 0), "swap");
+        Assert.Equal(OutcomeCode.NotAllowed, InventoryRules.Move(C, main, 2, main, 1, 10), "part of a stack onto another item");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.Move(C, main, 2, main, 1, 0), "swap");
         Assert.True(main[1].Item == C.ItemByKey("stone").Id && main[2].Item == C.ItemByKey("wood").Id, "swapped");
 
         // Clothing: only wearables, one per layer; a shirt and a chest plate go together; a worn shirt swaps for another.
         main.Set(3, S("woven-shirt", 1));
         main.Set(4, S("woven-shirt", 1));
         main.Set(5, S("chest-plate", 1));
-        Assert.Equal(ActionResult.NotAllowed, InventoryRules.Move(C, main, 2, wear, 0, 0), "wood isn't worn");
-        Assert.Equal(ActionResult.Accepted, InventoryRules.Move(C, main, 3, wear, 0, 0), "wear a shirt");
-        Assert.Equal(ActionResult.NotAllowed, InventoryRules.Move(C, main, 4, wear, 1, 0), "a second shirt");
-        Assert.Equal(ActionResult.Accepted, InventoryRules.Move(C, main, 5, wear, 1, 0), "a chest plate over it");
-        Assert.Equal(ActionResult.Accepted, InventoryRules.Move(C, main, 4, wear, 0, 0), "swap the worn shirt for another");
+        Assert.Equal(OutcomeCode.NotAllowed, InventoryRules.Move(C, main, 2, wear, 0, 0), "wood isn't worn");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.Move(C, main, 3, wear, 0, 0), "wear a shirt");
+        Assert.Equal(OutcomeCode.NotAllowed, InventoryRules.Move(C, main, 4, wear, 1, 0), "a second shirt");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.Move(C, main, 5, wear, 1, 0), "a chest plate over it");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.Move(C, main, 4, wear, 0, 0), "swap the worn shirt for another");
         Assert.True(!main[4].IsEmpty && main[4].Item == C.ItemByKey("woven-shirt").Id, "the old shirt came back");
         Assert.True(inv.Protection(C, HitRegion.Body, projectile: false) > 0.3f, "body protection adds up");
         Assert.Equal(0f, inv.Protection(C, HitRegion.Head, projectile: false), "nothing on the head");
@@ -60,22 +60,22 @@ public static class ItemTests
         // A furnace takes fuel in its fuel slot, ore in its inputs, nothing in its outputs; a corpse takes nothing.
         var furnace = new Container(ContainerKind.Device, 6, C.Deployable("furnace"));
         main.Set(6, S("metal-ore", 100));
-        Assert.Equal(ActionResult.NotAllowed, InventoryRules.Move(C, main, 6, furnace, 0, 0), "ore isn't fuel");
-        Assert.Equal(ActionResult.NotAllowed, InventoryRules.Move(C, main, 6, furnace, 4, 0), "nothing goes into an output");
-        Assert.Equal(ActionResult.Accepted, InventoryRules.Move(C, main, 6, furnace, 1, 0), "ore into an input");
-        Assert.Equal(ActionResult.Accepted, InventoryRules.QuickMove(C, main, 2, new[] { furnace }), "quick move finds the fuel slot");
+        Assert.Equal(OutcomeCode.NotAllowed, InventoryRules.Move(C, main, 6, furnace, 0, 0), "ore isn't fuel");
+        Assert.Equal(OutcomeCode.NotAllowed, InventoryRules.Move(C, main, 6, furnace, 4, 0), "nothing goes into an output");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.Move(C, main, 6, furnace, 1, 0), "ore into an input");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.QuickMove(C, main, 2, new[] { furnace }), "quick move finds the fuel slot");
         Assert.Equal(C.ItemByKey("wood").Id, furnace[0].Item, "wood in the fuel slot");
         var corpse = new Container(ContainerKind.Corpse, 37);
-        Assert.Equal(ActionResult.NotAllowed, InventoryRules.Move(C, main, 1, corpse, 0, 0), "corpses are take only");
+        Assert.Equal(OutcomeCode.NotAllowed, InventoryRules.Move(C, main, 1, corpse, 0, 0), "corpses are take only");
 
         // Quick move merges onto stacks first, then fills empty slots; what doesn't fit stays.
         var box = new Container(ContainerKind.Box, 2);
         box.Set(0, S("stone", 990));
         box.Set(1, S("rock", 1));
         main.Set(7, S("stone", 30));
-        Assert.Equal(ActionResult.Accepted, InventoryRules.QuickMove(C, main, 7, new[] { box }), "quick move");
+        Assert.Equal(OutcomeCode.Done, InventoryRules.QuickMove(C, main, 7, new[] { box }), "quick move");
         Assert.True(box[0].Count == 1000 && main[7].Count == 20, "topped up, the rest stays");
-        Assert.Equal(ActionResult.NoSpace, InventoryRules.QuickMove(C, main, 7, new[] { box }), "a full box");
+        Assert.Equal(OutcomeCode.NoSpace, InventoryRules.QuickMove(C, main, 7, new[] { box }), "a full box");
 
         // Gains land on stacks, then main, then belt; the overflow is returned; conditioned items never stack.
         var small = new PlayerInventory();
@@ -107,15 +107,15 @@ public static class ItemTests
         inv.Give(C, C.ItemByKey("wood"), 500);
         inv.Give(C, C.ItemByKey("stone"), 300);
         Recipe hatchet = C.Recipe(C.ItemByKey("stone-hatchet").Id)!;
-        Assert.Equal(ActionResult.NotEnough, queue.Start(C, inv, hatchet.Id, 3, 0, out _), "three need 600 wood");
+        Assert.Equal(OutcomeCode.NotEnough, queue.Start(C, inv, hatchet.Id, 3, 0, out _), "three need 600 wood");
         Assert.Equal(500, inv.Count(C.ItemByKey("wood")), "nothing taken");
-        Assert.Equal(ActionResult.Accepted, queue.Start(C, inv, hatchet.Id, 2, 0, out uint ticket), "two");
+        Assert.Equal(OutcomeCode.Done, queue.Start(C, inv, hatchet.Id, 2, 0, out uint ticket), "two");
         Assert.True(inv.Count(C.ItemByKey("wood")) == 100 && inv.Count(C.ItemByKey("stone")) == 100, "ingredients for both taken");
-        Assert.Equal(ActionResult.UnknownRecipe, queue.Start(C, inv, C.ItemByKey("metal-hatchet").Id, 1, 0, out _), "a blueprint to learn first (G7)");
+        Assert.Equal(OutcomeCode.UnknownRecipe, queue.Start(C, inv, C.ItemByKey("metal-hatchet").Id, 1, 0, out _), "a blueprint to learn first (G7)");
         var known = new BlueprintBook();
         known.Learn(C.Recipe(C.ItemByKey("metal-hatchet").Id)!);
-        Assert.Equal(ActionResult.NeedsWorkbench, queue.Start(C, inv, C.ItemByKey("metal-hatchet").Id, 1, 0, out _, known), "then a bench");
-        Assert.Equal(ActionResult.Invalid, queue.Start(C, inv, 9999, 1, 0, out _), "no such recipe");
+        Assert.Equal(OutcomeCode.NeedsWorkbench, queue.Start(C, inv, C.ItemByKey("metal-hatchet").Id, 1, 0, out _, known), "then a bench");
+        Assert.Equal(OutcomeCode.Invalid, queue.Start(C, inv, 9999, 1, 0, out _), "no such recipe");
 
         int unit = hatchet.UnitTicks;
         Assert.Equal(15 * CharacterTicks.Rate, unit, "15 s a hatchet");
@@ -131,18 +131,18 @@ public static class ItemTests
             queue.Advance(C, inv, overflow, finished);
         }
         // Cancel halfway through the second: its ingredients come back whole.
-        Assert.Equal(ActionResult.Accepted, queue.Cancel(C, inv, ticket, overflow), "cancel");
+        Assert.Equal(OutcomeCode.Done, queue.Cancel(C, inv, ticket, overflow), "cancel");
         Assert.True(inv.Count(C.ItemByKey("wood")) == 300 && inv.Count(C.ItemByKey("stone")) == 200 && queue.IsEmpty,
             $"refund of the unit in progress: {inv.Count(C.ItemByKey("wood"))} wood");
-        Assert.Equal(ActionResult.NotFound, queue.Cancel(C, inv, ticket, overflow), "cancelled once");
+        Assert.Equal(OutcomeCode.NotFound, queue.Cancel(C, inv, ticket, overflow), "cancelled once");
 
         // The queue holds eight jobs; a refund into a full inventory overflows instead of vanishing.
         inv.Give(C, C.ItemByKey("stone"), 200);
         for (int i = 0; i < CraftQueue.MaxJobs; i++)
         {
-            Assert.Equal(ActionResult.Accepted, queue.Start(C, inv, C.ItemByKey("rock").Id, 1, 0, out _), $"job {i + 1}");
+            Assert.Equal(OutcomeCode.Done, queue.Start(C, inv, C.ItemByKey("rock").Id, 1, 0, out _), $"job {i + 1}");
         }
-        Assert.Equal(ActionResult.QueueFull, queue.Start(C, inv, C.ItemByKey("rock").Id, 1, 0, out _), "a ninth");
+        Assert.Equal(OutcomeCode.QueueFull, queue.Start(C, inv, C.ItemByKey("rock").Id, 1, 0, out _), "a ninth");
         for (int i = 0; i < PlayerInventory.MainSlots; i++)
         {
             inv.Main.Set(i, S("wood", 1000));
@@ -152,7 +152,7 @@ public static class ItemTests
             inv.Belt.Set(i, S("wood", 1000));
         }
         overflow.Clear();
-        Assert.Equal(ActionResult.Accepted, queue.Cancel(C, inv, queue.Jobs[3].Ticket, overflow), "cancel with no room");
+        Assert.Equal(OutcomeCode.Done, queue.Cancel(C, inv, queue.Jobs[3].Ticket, overflow), "cancel with no room");
         Assert.True(overflow.Count == 1 && overflow[0].Count == 10, "the refund overflows to the ground");
         List<ItemStack> escrow = queue.TakeAll(C);
         Assert.True(escrow.Count == 7 && queue.IsEmpty, "a death takes what the queue held");

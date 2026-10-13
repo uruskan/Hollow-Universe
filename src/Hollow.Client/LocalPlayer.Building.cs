@@ -11,12 +11,6 @@ using Hollow.Simulation.Items;
 
 namespace Hollow.Client;
 
-/// <summary>A building intent's answer: done, or the rules' reason with the player's line.</summary>
-public readonly record struct BuildAnswer(uint Seq, Refusal Reason, string Text)
-{
-    public bool Done => Reason == Refusal.None;
-}
-
 /// <summary>A placement sent and not yet in the replicated building: drawn at once, gone when the piece arrives or is refused.</summary>
 public sealed record PendingPiece(uint Seq, PieceDef Piece, BuildingFrame Frame, Pose Pose)
 {
@@ -27,8 +21,9 @@ public sealed record PendingPiece(uint Seq, PieceDef Piece, BuildingFrame Frame,
 }
 
 // The building intents (GROUND.md §6.3, phase 2). Each returns its sequence number (0 if it couldn't be sent); the
-// answer comes as BuildAnswered (and BuildRejected when refused). Optimistic like every intent: the materials or the
-// item it uses leave the inventory at once, a placement is drawn at once (PendingPieces), and a refusal rolls back.
+// answer comes as every intent's does (IntentAnswered, and IntentRejected when refused). Optimistic like every intent:
+// the materials or the item it uses leave the inventory at once, a placement is drawn at once (PendingPieces), and a
+// refusal rolls back.
 public sealed partial class LocalPlayer
 {
     private readonly List<PendingPiece> _pendingPieces = new();
@@ -38,10 +33,6 @@ public sealed partial class LocalPlayer
 
     /// <summary>Placements on their way: draw them like pieces until they arrive.</summary>
     public IReadOnlyList<PendingPiece> PendingPieces => _pendingPieces;
-
-    public event Action<BuildAnswer>? BuildAnswered;
-
-    public event Action<BuildAnswer>? BuildRejected;
 
     /// <summary>Whether the player carries an item of this building role (a building plan, a hammer) in their main or belt slots.</summary>
     public bool Carries(BuildingRole role)
@@ -183,36 +174,25 @@ public sealed partial class LocalPlayer
 
     private Pending TakingOne(ContainerRef from, int slot, ushort expected) =>
         new(p => from is ContainerRef.Main or ContainerRef.Belt && p.Resolve(from) is { } c &&
-            InventoryRules.Remove(c, slot, 1, expected, out _) == ActionResult.Accepted);
+            InventoryRules.Remove(c, slot, 1, expected, out _) == OutcomeCode.Done);
 
     // ---------------------------------------------------------------- answers
 
-    internal void OnBuildResult(in BuildResult m)
+    // A placement's answer: accepted, it stays drawn until its piece arrives (or a moment more); refused, it goes.
+    private void AnsweredPiece(uint seq, bool done)
     {
-        uint seq = m.Seq;
-        int index = _pending.FindIndex(p => p.Seq == seq);
-        if (index >= 0)
-        {
-            _pending.RemoveAt(index);
-            _dirty = true;
-        }
         int piece = _pendingPieces.FindIndex(p => p.Seq == seq);
-        if (piece >= 0)
+        if (piece < 0)
         {
-            if (m.Reason == Refusal.None)
-            {
-                _pendingPieces[piece].AcceptedAt = ClockSeconds;
-            }
-            else
-            {
-                _pendingPieces.RemoveAt(piece);
-            }
+            return;
         }
-        var answer = new BuildAnswer(m.Seq, m.Reason, m.Text ?? "");
-        BuildAnswered?.Invoke(answer);
-        if (!answer.Done)
+        if (done)
         {
-            BuildRejected?.Invoke(answer);
+            _pendingPieces[piece].AcceptedAt = ClockSeconds;
+        }
+        else
+        {
+            _pendingPieces.RemoveAt(piece);
         }
     }
 

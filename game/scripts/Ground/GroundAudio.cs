@@ -316,7 +316,7 @@ public partial class GroundAudio : Node
 
     private void OnHitMarker(HitMarkerEvent e)
     {
-        if (e.Target != Hollow.Simulation.HitTarget.Character)
+        if (e.Target != Hollow.Simulation.Targets.TargetFamily.Character)
         {
             return;
         }

@@ -123,7 +123,7 @@ public static class WorldNetTests
         RunUntil(rig, () => me.WorkbenchLevel == 1, "the bench in reach");
         int salvage = me.Inventory.Count(c.ItemByKey("salvage"));
         Recipe hatchet = c.Recipe(c.ItemByKey("metal-hatchet").Id)!;
-        Assert.True(!me.Knows(hatchet) && me.CanUnlock(c.World.NodeOf(hatchet.Id)!) == ActionResult.Accepted, "unknown, and can be unlocked");
+        Assert.True(!me.Knows(hatchet) && me.CanUnlock(c.World.NodeOf(hatchet.Id)!) == OutcomeCode.Done, "unknown, and can be unlocked");
         var learnt = new List<Recipe>();
         var refused = new List<IntentAnswer>();
         me.BlueprintLearned += learnt.Add;
@@ -133,7 +133,7 @@ public static class WorldNetTests
         // (The client has its own copy of the game data: recipes compare by ID.)
         RunUntil(rig, () => (learnt.Any(r => r.Id == hatchet.Id) && me.PendingCount == 0) || refused.Count > 0, "the server's word");
         Assert.True(refused.Count == 0, "refused: " + string.Join(", ", refused));
-        Assert.True(me.Knows(hatchet) && me.CanCraft(hatchet) != ActionResult.UnknownRecipe, "known, and crafts");
+        Assert.True(me.Knows(hatchet) && me.CanCraft(hatchet) != OutcomeCode.UnknownRecipe, "known, and crafts");
 
         // A team: made, an invite to a player close by, accepted.
         rig.Server.Execute("teleport Bo Ada");

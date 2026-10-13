@@ -246,7 +246,7 @@ public partial class GroundView : Node3D
                 _codeSeq = Client.Local.EnterCode(door, code);
             }
         };
-        Client.Local.BuildAnswered += answer =>
+        Client.Local.IntentAnswered += answer =>
         {
             if (answer.Seq == _codeSeq && _codeSeq != 0)
             {
@@ -254,7 +254,6 @@ public partial class GroundView : Node3D
                 _codeSeq = 0;
             }
         };
-        Client.Local.BuildRejected += answer => _model.ShowNotice(answer.Text);
         _overlay.ShowNetGraph = ShowNetGraph;
         InventoryBody.Use(Client);
     }

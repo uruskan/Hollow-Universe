@@ -333,8 +333,8 @@ public partial class ShipSandbox : Node3D
         c.State.Position = _zone.Settle(hatch + outward * 1.2f) + _zone.Frame.UpAt(hatch) * 0.05f;
         ship.HatchOpen = true;
         ship.HatchProgress = Ship.HatchTicks;
-        ActionResult result = _zone.Board(_player, ship.Id);
-        if (result != ActionResult.Accepted)
+        Outcome result = _zone.Board(_player, ship.Id);
+        if (result != OutcomeCode.Done)
         {
             GD.PushWarning($"[ship] could not board for the scene: {result}");
         }
@@ -744,8 +744,8 @@ public partial class ShipSandbox : Node3D
                     break;
                 case Godot.Key.F:
                 {
-                    ActionResult r = _zone.ExitShip(_player);
-                    if (r == ActionResult.Accepted)
+                    Outcome r = _zone.ExitShip(_player);
+                    if (r == OutcomeCode.Done)
                     {
                         _controls.Reset();
                         LookFrom(_zone.EyeOf(_zone.Entities.Get<Character>(_player).State), _ship.State.Position);
@@ -753,7 +753,7 @@ public partial class ShipSandbox : Node3D
                     }
                     else
                     {
-                        Notice(r == ActionResult.NotLanded ? "Land first: you can only step out of a ship at rest." : $"Can't step out: {r}");
+                        Notice(r == OutcomeCode.NotLanded ? "Land first: you can only step out of a ship at rest." : $"Can't step out: {r}");
                     }
                     break;
                 }
@@ -784,8 +784,8 @@ public partial class ShipSandbox : Node3D
                 }
                 else
                 {
-                    ActionResult r = _zone.Board(_player, _ship.Id);
-                    if (r == ActionResult.Accepted)
+                    Outcome r = _zone.Board(_player, _ship.Id);
+                    if (r == OutcomeCode.Done)
                     {
                         _controls.Reset();
                         _shipCamera.Reset();
@@ -807,21 +807,13 @@ public partial class ShipSandbox : Node3D
         }
     }
 
-    private void Refused(ActionResult result, string why)
+    private void Refused(Outcome result, string why)
     {
-        if (result == ActionResult.Accepted)
+        if (result == OutcomeCode.Done)
         {
             return;
         }
-        Notice(why.Length > 0 && result is ActionResult.NotLanded or ActionResult.NotAllowed ? why : result switch
-        {
-            ActionResult.OutOfReach => "Too far from the hatch",
-            ActionResult.Locked => "Locked",
-            ActionResult.Occupied => "Someone is in the seat",
-            ActionResult.HatchShut => "The hatch is shut",
-            ActionResult.NotLanded => "Not while it moves",
-            _ => result.ToString(),
-        });
+        Notice(why.Length > 0 && (result == OutcomeCode.NotLanded || result == OutcomeCode.NotAllowed) ? why : _content.Texts.Line(result));
     }
 
     // ---------------------------------------------------------------- frames

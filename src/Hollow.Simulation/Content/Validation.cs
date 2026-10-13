@@ -391,9 +391,14 @@ internal static class Validation
         }
         if (s.WoundMaxDamage < 0 || s.WoundedHealthLeast <= 0 || s.WoundedHealthMost < s.WoundedHealthLeast || s.WoundedHealthMost > s.MaxHealth ||
             s.WoundedSecondsLeast <= 0 || s.WoundedSecondsMost < s.WoundedSecondsLeast || s.WoundedRecoverChance is < 0 or > 1 ||
-            s.WoundedFedBonus is < 0 or > 1 || s.HelpReach <= 0 || s.BurnDamagePerSecond < 0 || s.GunBurst < 1 || s.GunActionsPerSecond <= 0)
+            s.WoundedFedBonus is < 0 or > 1 || s.BurnDamagePerSecond < 0 || s.GunBurst < 1 || s.GunActionsPerSecond <= 0)
         {
-            Problem("survival.json", "wounded: health and seconds [least ≤ most], chances 0 … 1, reach positive; burning and the gun budget positive");
+            Problem("survival.json", "wounded: health and seconds [least ≤ most], chances 0 … 1; burning and the gun budget positive");
+        }
+        if (new[] { s.InteractReach, s.OpenReach, s.HelpReach, s.InviteReach, s.StationReach }.Any(r => r is <= 0 or > 10) ||
+            s.KeepOpenReach < s.OpenReach)
+        {
+            Problem("survival.json", "reach: every reach 0 … 10 m, and keepOpen at least open");
         }
 
         // ---------------------------------------------------------------- every recipe from gatherable resources

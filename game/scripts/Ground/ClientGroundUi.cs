@@ -311,7 +311,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     private void OnHitMarker(HitMarkerEvent e)
     {
-        if (e.Target == HitTarget.Character)
+        if (e.Target == Hollow.Simulation.Targets.TargetFamily.Character)
         {
             HitConfirmed?.Invoke(e.Region == Hollow.Simulation.Content.HitRegion.Head);
         }
@@ -352,34 +352,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     private void OnCrafted(ItemDef item, int count) => Crafted?.Invoke(item.Key, count);
 
-    private void OnRejected(IntentAnswer answer)
-    {
-        string? text = WorldRefusal(answer) ?? answer.Result switch
-        {
-            ActionResult.NoSpace => "No room for that.",
-            ActionResult.NotEnough => "Not enough resources.",
-            ActionResult.NeedsWorkbench => "Needs a workbench nearby.",
-            ActionResult.QueueFull => "The crafting queue is full.",
-            ActionResult.OutOfReach => "Too far away.",
-            ActionResult.Blocked => "Something is in the way.",
-            ActionResult.TooSteep => "The ground is too steep.",
-            ActionResult.Cooldown => "Not ready yet.",
-            ActionResult.RateLimited => "Slow down.",
-            ActionResult.BadPlacement => "You can't place that here.",
-            ActionResult.NotAllowed => "That doesn't go there.",
-            ActionResult.NotUsable => "You can't use that.",
-            ActionResult.NeedsStation => "Needs a vehicle workbench nearby.",
-            ActionResult.Locked => "It's locked.",
-            ActionResult.Occupied => "Someone is in the seat.",
-            ActionResult.NotLanded => "Land first: you can only step out of a ship at rest.",
-            ActionResult.HatchShut => "Open the hatch first.",
-            _ => null,
-        };
-        if (text != null)
-        {
-            Notice?.Invoke(text);
-        }
-    }
+    // Every refusal, of every intent, the same way (GROUND_SYSTEMS.md §3.2): its line from texts.json as a notice (the
+    // error sound is GroundAudio's, on the same event).
+    private void OnRejected(IntentAnswer answer) => Notice?.Invoke(C.Texts.Line(answer.Outcome));
 
     private void OnDied(LifeView life) => _death = null;
 

@@ -54,51 +54,51 @@ public sealed class CraftQueue
     /// level within reach; <paramref name="station"/> the station the job is made at (a ship at the vehicle workbench,
     /// G6), 0 for none.
     /// </summary>
-    public ActionResult Start(GameContent content, PlayerInventory inventory, int recipeId, int count, int workbench, out uint ticket,
+    public Outcome Start(GameContent content, PlayerInventory inventory, int recipeId, int count, int workbench, out uint ticket,
         BlueprintBook? known = null, ulong station = 0)
     {
         ticket = 0;
         Recipe? recipe = content.Recipe(recipeId);
         if (recipe == null || count is < 1 or > MaxCount)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (!recipe.Known && known?.Knows(recipe) != true)
         {
-            return ActionResult.UnknownRecipe;
+            return OutcomeCode.UnknownRecipe;
         }
         if (workbench < recipe.Workbench)
         {
-            return ActionResult.NeedsWorkbench;
+            return OutcomeCode.NeedsWorkbench.With(recipe.Workbench);
         }
         if (recipe.Station != null && station == 0)
         {
-            return ActionResult.NeedsStation;
+            return OutcomeCode.NeedsStation.With(recipe.Station.Item.Id);
         }
         if (_jobs.Count >= MaxJobs)
         {
-            return ActionResult.QueueFull;
+            return OutcomeCode.QueueFull;
         }
         if (!inventory.Take(recipe.Ingredients, count))
         {
-            return ActionResult.NotEnough;
+            return OutcomeCode.NotEnough;
         }
         ticket = NextTicket++;
         _jobs.Add(new CraftJob { Ticket = ticket, Recipe = recipe.Id, Count = count, TicksLeft = recipe.UnitTicks, UnitTicks = recipe.UnitTicks, Station = station });
         Revision++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>
     /// Cancels a job and gives back the ingredients of every unit left (the one in progress included). What doesn't
     /// fit goes into <paramref name="overflow"/> for the caller to drop.
     /// </summary>
-    public ActionResult Cancel(GameContent content, PlayerInventory inventory, uint ticket, List<ItemStack> overflow)
+    public Outcome Cancel(GameContent content, PlayerInventory inventory, uint ticket, List<ItemStack> overflow)
     {
         int index = _jobs.FindIndex(j => j.Ticket == ticket);
         if (index < 0)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
         CraftJob job = _jobs[index];
         _jobs.RemoveAt(index);
@@ -111,7 +111,7 @@ public sealed class CraftQueue
                 Refund(content, inventory, a.Item, a.Count * job.Count, overflow);
             }
         }
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>

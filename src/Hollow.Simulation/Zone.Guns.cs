@@ -9,6 +9,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -410,17 +411,17 @@ public sealed partial class Zone
         BulletTime += System.Diagnostics.Stopwatch.GetElapsedTime(started);
     }
 
-    private void EndBullet(Bullet b, Vector3 at, HitTarget target) =>
+    private void EndBullet(Bullet b, Vector3 at, TargetRef target) =>
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ProjectileEnded, Player = b.Shooter, Projectile = b.Id, Position = at, Target = target, Seq = b.Seq });
 
     // Out of range or time in the air: a bullet just stops; a rocket goes off where it is (G5).
     private void EndFlight(Bullet b)
     {
-        EndBullet(b, b.Position, HitTarget.Nothing);
+        EndBullet(b, b.Position, TargetRef.None);
         if (b.Round.Blast is { } blast && b.Damage <= 0)
         {
             TryFindPlayer(b.Shooter, out _, out Player? shooter);
-            BulletBlast(b, blast, new TraceHit { Point = b.Position, Target = HitTarget.Nothing }, shooter);
+            BulletBlast(b, blast, new TraceHit { Point = b.Position, Target = TargetRef.None }, shooter);
         }
     }
 
@@ -475,7 +476,7 @@ public sealed partial class Zone
             Hit = hit,
             From = b.Origin,
             Direction = b.Velocity.LengthSquared() > 1e-12f ? Vector3.Normalize(b.Velocity) : Vector3.Zero,
-            Markers = HitTargets.All,
+            Markers = TargetFamilies.All,
         };
     }
 
@@ -486,7 +487,7 @@ public sealed partial class Zone
     /// knocks down first (the wounded state). Returns the health taken.
     /// </summary>
     public float ShootCharacter(Entity victimEntity, Player victim, Bullet b, HitRegion region, float distance, Vector3 at, Player? shooter) =>
-        Damage(BulletRequest(b, new TraceHit { Target = HitTarget.Character, Character = victimEntity, Region = region, Point = at }, distance, shooter)).Taken;
+        Damage(BulletRequest(b, new TraceHit { Target = victim.Ref, Region = region, Point = at }, distance, shooter)).Taken;
 
     /// <summary>
     /// Where a bullet's path first goes below the ground, or −1: steps as long as the height above the ground allows
@@ -534,29 +535,29 @@ public sealed partial class Zone
     /// Puts an attachment (from the player's main slots or belt) on a firearm (also in them): into its slot, swapping out
     /// what was there (it goes where the attachment came from). The gun must take it (<see cref="AttachmentRules"/>).
     /// </summary>
-    public ActionResult Attach(Entity entity, ContainerRef from, int slot, ContainerRef weaponIn, int weaponSlot, ushort expected)
+    public Outcome Attach(Entity entity, ContainerRef from, int slot, ContainerRef weaponIn, int weaponSlot, ushort expected)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (from is not (ContainerRef.Main or ContainerRef.Belt) || weaponIn is not (ContainerRef.Main or ContainerRef.Belt))
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         return AttachmentRules.Attach(Content!, p.Inventory[from], slot, p.Inventory[weaponIn], weaponSlot, expected);
     }
 
     /// <summary>Takes an attachment off a firearm in the player's main slots or belt, into the inventory (refused when full).</summary>
-    public ActionResult Detach(Entity entity, ContainerRef weaponIn, int weaponSlot, AttachmentSlot modSlot)
+    public Outcome Detach(Entity entity, ContainerRef weaponIn, int weaponSlot, AttachmentSlot modSlot)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (weaponIn is not (ContainerRef.Main or ContainerRef.Belt))
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         return AttachmentRules.Detach(Content!, p.Inventory, p.Inventory[weaponIn], weaponSlot, modSlot);
     }

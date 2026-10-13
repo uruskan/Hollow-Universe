@@ -8,6 +8,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Surface;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -110,6 +111,7 @@ public sealed partial class Zone : IDisposable
         {
             Entities.Get<Character>(entity).Body.Dispose();
         }
+        SupportGone(new TargetRef(TargetFamily.Character, Entities.IdOf(entity).Value));
         History.Forget(Entities.IdOf(entity));
         Entities.Destroy(entity);
     }

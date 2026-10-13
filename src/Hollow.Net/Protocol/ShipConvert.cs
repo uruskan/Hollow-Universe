@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using Hollow.Net.Bits;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Net.Protocol;
 
@@ -86,13 +87,12 @@ public static class ShipConvert
         };
     }
 
-    /// <summary>A ship as others see it.</summary>
-    public static ShipNetState ToNet(Ship ship, bool mine)
+    /// <summary>A ship as one viewer sees it: its state, and what they are told of it (<paramref name="viewer"/>).</summary>
+    public static ShipNetState ToNet(Ship ship, ViewerFlags viewer)
     {
         ShipState s = ship.State;
         (float yaw, float pitch, float roll) = Angles(s.Rotation);
         ShipNetFlags flags = (ship.Piloted || ship.Autopilot ? ShipNetFlags.Piloted : 0) | (ship.HatchOpen ? ShipNetFlags.HatchOpen : 0)
-            | (ship.Locked ? ShipNetFlags.Locked : 0) | (mine ? ShipNetFlags.Mine : 0)
             | (s.Has(ShipFlags.Landed) ? ShipNetFlags.Landed : 0) | (s.Has(ShipFlags.Destroyed) ? ShipNetFlags.Destroyed : 0)
             | (s.Has(ShipFlags.InOrbit) ? ShipNetFlags.InOrbit : 0) | (s.Has(ShipFlags.Boosting) ? ShipNetFlags.Boosting : 0)
             | (s.Has(ShipFlags.EnginesOn) ? ShipNetFlags.EnginesOn : 0) | (s.Has(ShipFlags.AssistOff) ? ShipNetFlags.AssistOff : 0)
@@ -106,6 +106,7 @@ public static class ShipConvert
             Pitch = Quantize.Angle16(pitch),
             Roll = Quantize.Angle16(roll),
             Flags = flags,
+            Viewer = viewer,
             Hatch = (byte)Math.Clamp(ship.HatchProgress, 0, 31),
             ThrustX = Thrust(s.Thrust.X),
             ThrustY = Thrust(s.Thrust.Y),

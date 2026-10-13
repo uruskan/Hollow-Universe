@@ -1,15 +1,16 @@
 using System;
 using System.Numerics;
 using Hollow.Simulation.Combat;
-using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation.Building;
 
 /// <summary>
-/// A piece or door gone from the building as the Destroyed event names it (GROUND.md §6.4.2, §9.4): what it was, its key
-/// and a piece's grade, where and how it was drawn, and whether a door's leaves were open.
+/// A piece or door gone from the building as the Destroyed event names it (GROUND.md §6.4.2, §9.4): what it was (its
+/// TargetRef, GROUND_SYSTEMS.md §3.1), its key and a piece's grade, where and how it was drawn, and whether a door's leaves
+/// were open.
 /// </summary>
-public readonly record struct RemovedPart(DestroyedKind Kind, EntityId Id, string Key, int Grade, Vector3 Position, Quaternion Rotation, bool Open);
+public readonly record struct RemovedPart(TargetRef Target, string Key, int Grade, Vector3 Position, Quaternion Rotation, bool Open);
 
 // What the building's removals name, for the zone's Destroyed event and for anything that draws them breaking (the build
 // sandbox): one mapping.
@@ -27,7 +28,7 @@ public sealed partial class BuildingWorld
             case BuildingChange.PieceRemoved when e.Piece is { } piece:
             {
                 (Vector3 position, Quaternion rotation) = piece.ZoneTransform;
-                return new RemovedPart(DestroyedKind.Piece, piece.Id, piece.Def.Key, piece.Grade, position, rotation, false);
+                return new RemovedPart(piece.Ref, piece.Def.Key, piece.Grade, position, rotation, false);
             }
             case BuildingChange.DoorRemoved when e.Door is { } door:
             {
@@ -36,7 +37,7 @@ public sealed partial class BuildingWorld
                 {
                     rotation = Quaternion.Normalize(rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI));
                 }
-                return new RemovedPart(DestroyedKind.Door, door.Id, door.Def.Key, 0, position, rotation, door.Open);
+                return new RemovedPart(door.Ref, door.Def.Key, 0, position, rotation, door.Open);
             }
             default:
                 return null;

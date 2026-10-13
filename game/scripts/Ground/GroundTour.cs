@@ -64,6 +64,7 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("look", Look),
+            ("foundations", Foundations),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -868,8 +869,8 @@ public partial class GroundTour : Node
                 Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
                 // Within the placement reach of the eye (3 m).
                 Num.Vector3 at = Client.Character.Position + Forward() * 2.2f;
-                ActionResult? refused = null;
-                void Refused(IntentAnswer answer) => refused = answer.Result;
+                Outcome? refused = null;
+                void Refused(IntentAnswer answer) => refused = answer.Outcome;
                 Me.IntentRejected += Refused;
                 if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Client.AimGround(at + up * 2, -up, 4) is { } ground)
                 {
@@ -1445,8 +1446,8 @@ public partial class GroundTour : Node
     private async Task<RemoteThing?> PlaceNear(string key, Num.Vector3 from, Num.Vector3 towards, float yaw)
     {
         Num.Vector3 up = Client.Frame.UpAt(from);
-        ActionResult refused = ActionResult.Accepted;
-        void Refused(IntentAnswer answer) => refused = answer.Result;
+        Outcome refused = OutcomeCode.Done;
+        void Refused(IntentAnswer answer) => refused = answer.Outcome;
         Me.IntentRejected += Refused;
         try
         {
@@ -1464,9 +1465,9 @@ public partial class GroundTour : Node
                     continue;
                 }
                 var before = Client.Things.Select(t => t.Id).ToHashSet();
-                refused = ActionResult.Accepted;
+                refused = OutcomeCode.Done;
                 Me.Place(ContainerRef.Main, slot, ground, yaw);
-                await Until(() => refused != ActionResult.Accepted ||
+                await Until(() => refused != OutcomeCode.Done ||
                     Client.Things.Any(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key), 5);
                 RemoteThing? placed = Client.Things.FirstOrDefault(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key);
                 if (placed != null)
@@ -1764,6 +1765,75 @@ public partial class GroundTour : Node
         Me.Close();
         View.Interface.Open(GroundScreen.Hud);
         await Seconds(0.3);
+    }
+
+    // The shared foundations in the game (GROUND_SYSTEMS.md §3, P0): a code lock fitted to a hut's door offers its owner SET
+    // CODE first when E is held on the door (the door's viewer flags say the lock is theirs and has no code yet), and a
+    // refused intent shows its line from texts.json: the hut's claim device, opened from outside the wall beside it, is in
+    // reach but out of sight.
+    private async Task Foundations()
+    {
+        Admin("give", "code-lock 1");
+        await Until(() => Count("code-lock") > 0, 5);
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(40, 0, -40));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = 0;
+        await Seconds(0.6);
+        int doors = Doors().Count();
+        Admin("raidbase", "1");
+        await Until(() => Doors().Count() > doors, 5);
+        await Settle();
+        if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
+        {
+            GD.PushWarning("[tour] no hut");
+            return;
+        }
+        Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
+        Num.Vector3 doorAt = Centre(door.Frame), outward = FlatUnit(Client.Character.Position - doorAt);
+        await TeleportTo(doorAt + outward * 2.4f);
+        Face(doorAt + up * 1.1f);
+        await Hold("code-lock", 5);
+        await Seconds(0.4);
+        View.UseHeld();
+        await Until(() => Doors().Any(d => d.Lock is CodeLock && Num.Vector3.Distance(Centre(d.Frame), doorAt) < 0.5f), 5);
+        await Seconds(1.0);
+
+        // E held on the door: what its flags allow, SET CODE first; letting go chooses it (the keypad asks the new code).
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.E, PhysicalKeycode = Key.E, Pressed = true });
+        await Seconds(0.8);
+        await Shot("set-code");
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.E, PhysicalKeycode = Key.E, Pressed = false });
+        await Seconds(0.5);
+        GD.Print($"[tour] E let go on the door: the keypad {(View.Keypad.Visible ? "asks a new code" : "did not open")}");
+        View.Keypad.Close();
+        await Seconds(0.3);
+
+        // The claim device from outside the side wall by it (square to the wall, clear of the corners): in reach, out of
+        // sight, refused with its line.
+        if (Client.Building?.Claims.OrderBy(c => Num.Vector3.Distance(c.ZoneTransform.Position, doorAt)).FirstOrDefault() is not { } claim)
+        {
+            GD.PushWarning("[tour] the hut has no claim device");
+            return;
+        }
+        Num.Vector3 claimAt = claim.ZoneTransform.Position;
+        Num.Vector3 side = FlatUnit(Num.Vector3.Cross(outward, up));
+        if (Num.Vector3.Dot(side, claimAt - (doorAt - outward * 1.5f)) < 0)
+        {
+            side = -side;
+        }
+        await TeleportTo(claimAt + side * 2.0f);
+        Face(claimAt + up * 0.8f);
+        await Seconds(0.6);
+        string? refused = null;
+        void Rejected(IntentAnswer answer) => refused = Client.Content.Texts.Line(answer.Outcome);
+        Me.IntentRejected += Rejected;
+        Me.Open(claim.Id);
+        await Until(() => refused != null, 3);
+        Me.IntentRejected -= Rejected;
+        GD.Print($"[tour] the claim device through its wall: {refused ?? "not refused"}");
+        await Seconds(0.3);
+        await Shot("refusal");
     }
 
     // ---------------------------------------------------------------- helpers

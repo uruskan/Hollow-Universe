@@ -4,6 +4,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Client;
 
@@ -75,7 +76,7 @@ public sealed class ClientExplosive
 /// its blast reaches, of what (the explosive or round: a charge's boom, a rocket's, a round's small burst), on what, and
 /// whose (a character's net ID). <see cref="Explosive"/> is the explosive that went off (none for a rocket or round).
 /// </summary>
-public readonly record struct DetonationEvent(EntityId Explosive, ItemDef? Item, Vector3 Position, Vector3 Normal, float Radius, HitTarget Target,
+public readonly record struct DetonationEvent(EntityId Explosive, ItemDef? Item, Vector3 Position, Vector3 Normal, float Radius, TargetFamily Target,
     bool Round, uint Owner, double ClientSeconds);
 
 /// <summary>
