@@ -1,5 +1,5 @@
 {
-  "source": "Loot tables: a table gives every 'guaranteed' entry, then 'rolls' picks from 'entries' by weight ([item, least, most, weight]). The respawn kit is Rust's (a rock and a torch). Crates and barrels come with monuments (G7); 'supply-crate' is here for admin tests and the bots.",
+  "source": "Loot tables: a table gives every 'guaranteed' entry, then 'rolls' picks from 'entries' by weight ([item, least, most, weight]). The respawn kit is Rust's (a rock and a torch). Crates and barrels come with monuments (G7); 'supply-crate' is here for admin tests and the bots; 'build-kit' is what a building bot needs for its base (G3).",
   "tables": [
     { "key": "respawn-kit", "guaranteed": [["rock", 1, 1], ["torch", 1, 1]] },
     { "key": "supply-crate", "rolls": [2, 4],
@@ -16,6 +16,10 @@
         ["stone-hatchet", 1, 1], ["stone-pickaxe", 1, 1], ["bow", 1, 1], ["stone-spear", 1, 1], ["machete", 1, 1],
         ["campfire", 1, 1], ["sleeping-bag", 1, 1], ["small-box", 1, 1],
         ["woven-hood", 1, 1], ["woven-shirt", 1, 1], ["woven-trousers", 1, 1], ["woven-gloves", 1, 1], ["work-boots", 1, 1], ["chest-plate", 1, 1]
+      ] },
+    { "key": "build-kit", "guaranteed": [
+        ["building-plan", 1, 1], ["hammer", 1, 1], ["wood", 1000, 1000], ["wood", 1000, 1000], ["stone", 1000, 1000],
+        ["wooden-door", 1, 1], ["code-lock", 1, 1], ["claim-device", 1, 1]
       ] }
   ]
 }
