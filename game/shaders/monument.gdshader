@@ -91,8 +91,10 @@ void fragment() {
 	}
 	// The world's object-space position isn't stable under the floating origin, so the variation follows the
 	// camera-independent part of it: the texture's own metres plus the height.
+	// Stains tens of metres across and a finer mottle, so big aprons and walls aren't one flat colour from afar.
 	float n = vnoise(vec3(UV * 0.11, height * 0.07));
-	albedo *= 0.93 + 0.14 * n;
+	float big = vnoise(vec3(UV * 0.03, height * 0.02 + 5.0));
+	albedo *= (0.8 + 0.28 * smoothstep(0.3, 0.7, big)) * (0.95 + 0.1 * n);
 	float g = (1.0 - smoothstep(0.0, grime_height, height)) * (0.2 + 0.55 * wear);
 	albedo = mix(albedo, grime_colour * (0.85 + 0.3 * n), g);
 	rough = clamp(rough + g * 0.25, 0.04, 1.0);

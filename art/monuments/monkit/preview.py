@@ -251,7 +251,27 @@ def surface_material(name):
     for i in range(3):
         nt.links.new(ao.outputs[0], aoc.inputs[i])
     nt.links.new(aoc.outputs[0], shade.inputs[7])
-    nt.links.new(shade.outputs[2], bsdf.inputs["Base Color"])
+    macro_tc = nt.nodes.new("ShaderNodeTexCoord")
+    macro = nt.nodes.new("ShaderNodeTexNoise")
+    macro.inputs["Scale"].default_value = 0.03
+    macro.inputs["Detail"].default_value = 4
+    nt.links.new(macro_tc.outputs["Object"], macro.inputs["Vector"])
+    macro_k = nt.nodes.new("ShaderNodeMapRange")
+    macro_k.inputs["From Min"].default_value = 0.3
+    macro_k.inputs["From Max"].default_value = 0.7
+    macro_k.inputs["To Min"].default_value = 0.8
+    macro_k.inputs["To Max"].default_value = 1.08
+    nt.links.new(macro.outputs["Fac"], macro_k.inputs["Value"])
+    macro_c = nt.nodes.new("ShaderNodeCombineColor")
+    for i in range(3):
+        nt.links.new(macro_k.outputs["Result"], macro_c.inputs[i])
+    varied = nt.nodes.new("ShaderNodeMix")
+    varied.data_type = "RGBA"
+    varied.blend_type = "MULTIPLY"
+    varied.inputs[0].default_value = 1.0
+    nt.links.new(shade.outputs[2], varied.inputs[6])
+    nt.links.new(macro_c.outputs[0], varied.inputs[7])
+    nt.links.new(varied.outputs[2], bsdf.inputs["Base Color"])
     rough = nt.nodes.new("ShaderNodeMath")
     rough.operation = "ADD"
     nt.links.new(sep_orm.outputs[1], rough.inputs[0])
@@ -415,9 +435,32 @@ def _pad_mesh(pad):
     sharp.inputs["From Min"].default_value = 0.35
     sharp.inputs["From Max"].default_value = 0.65
     nt.links.new(add.outputs[0], sharp.inputs["Value"])
+    # A big pad is flattened ground, not paved ground: beyond about 150 m its ground covers only patches (worn tracks
+    # and yards) and the meadow keeps the rest.
+    extent = max(hx, hy) * 2
+    coverage = min(1.0, max(0.3, 150.0 / max(extent, 1.0)))
+    factor = sharp.outputs["Result"]
+    if coverage < 1.0:
+        big = nt.nodes.new("ShaderNodeTexNoise")
+        big.inputs["Scale"].default_value = 0.012
+        big.inputs["Detail"].default_value = 5
+        nt.links.new(tc.outputs["Object"], big.inputs["Vector"])
+        keep = nt.nodes.new("ShaderNodeMapRange")
+        # The noise sits round 0.5 with a spread of about 0.1: this threshold keeps about `coverage` of the pad.
+        threshold = 0.5 + (coverage - 0.5) * 0.25
+        keep.inputs["From Min"].default_value = threshold - 0.03
+        keep.inputs["From Max"].default_value = threshold + 0.03
+        keep.inputs["To Min"].default_value = 1.0
+        keep.inputs["To Max"].default_value = 0.0
+        nt.links.new(big.outputs["Fac"], keep.inputs["Value"])
+        both = nt.nodes.new("ShaderNodeMath")
+        both.operation = "MULTIPLY"
+        nt.links.new(sharp.outputs["Result"], both.inputs[0])
+        nt.links.new(keep.outputs["Result"], both.inputs[1])
+        factor = both.outputs[0]
     mix = nt.nodes.new("ShaderNodeMix")
     mix.data_type = "RGBA"
-    nt.links.new(sharp.outputs["Result"], mix.inputs[0])
+    nt.links.new(factor, mix.inputs[0])
     nt.links.new(meadow, mix.inputs[6])
     nt.links.new(ramp.outputs["Color"], mix.inputs[7])
     nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])

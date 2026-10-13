@@ -117,7 +117,7 @@ def quonset(b, at, rot, w, length, tint=srgb(0.55, 0.58, 0.48), door=True):
         # The shell as an extruded thin arch.
         outer = [(x, z) for x, z in prof]
         inner = [(x * 0.97, (z - 0.2) * 0.97 + 0.2) for x, z in reversed(prof)]
-        b.extrude(outer + inner, length, (0, 0, 0), (0, 0, 90), mat=CORRUGATED, tint=tint, solid="hull")
+        b.extrude(outer + inner, length, (0, 0, 0), (0, 0, 0), mat=CORRUGATED, tint=tint, solid="hull")
         for y in (-length / 2, length / 2):
             b.cyl(r, 0.15, (0, y, 0.2), (90, 0, 0), mat=PAINT, tint=srgb(0.5, 0.52, 0.45), sides=28, radius2=r,
                   cap=True, solid=False)
@@ -576,9 +576,10 @@ def ship_hull(b, at, rot, length=120.0, width=26.0, height=18.0, stations=14, no
         y0 = -length / 2 - width * 0.05
         b.mesh([(0, y0, profile[0][3])] + rings[0], [[0, j + 1, (j + 1) % n + 1] for j in range(n)], mat=HULL,
                tint=tint, solid="hull")
-        # A livery band along the flank, ribs exposed where it broke.
-        for y, w, h, zc in profile[2:-1]:
-            b.box((w + 0.12, 2.2, h * 0.08), (0, y, zc + h * 0.18), mat=PAINT, tint=band, solid=False, vary=0)
+        # Livery hoops painted round the hull every other station; ribs exposed where it broke.
+        for y, w, h, zc in profile[2:-1:2]:
+            hoop = [hull_ring(w * 1.006, h * 1.006, yy, zc, n=n) for yy in (y - 1.1, y + 1.1)]
+            loft(b, hoop, mat=PAINT, tint=band, solid=False, cap_start=False, cap_end=False)
         if broken_at:
             y, w, h, zc = profile[-1]
             for k in range(3):

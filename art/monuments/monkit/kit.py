@@ -558,6 +558,10 @@ def ensure(key):
     levels = []
     for level in range(3):
         meshes = p.build_level(level, names, index)
+        if not meshes:
+            # Nothing of this piece is big enough for the level: it reuses the previous one.
+            levels.append(levels[-1])
+            continue
         # A piece is one chunk.
         me = next(iter(meshes.values()))
         me.name = f"{key}_lod{level}"

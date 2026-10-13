@@ -385,13 +385,27 @@ def occlusion(targets, occluders, samples=24, distance=4.0, floor=0.0):
             n = (nm @ v.normal).normalized()
             t = n.orthogonal().normalized()
             b = n.cross(t)
-            origin = p + n * 0.01
+            origin = p + n * 0.02
             hits = 0.0
             for dx, dy, dz in dirs:
                 ray = t * dx + b * dy + n * dz
-                loc, _, _, dist = tree.ray_cast(origin, ray, distance)
-                if loc is not None:
-                    hits += 1.0 - (dist / distance) ** 2
+                start, left, travelled = origin, distance, 0.0
+                # A hit seen from behind means the ray started inside a solid that touches this one (a plinth under
+                # a wall, a roof on it): walk through such faces and count only the first one met from outside.
+                for _ in range(4):
+                    loc, normal, _, dist = tree.ray_cast(start, ray, left)
+                    if loc is None:
+                        break
+                    if normal.dot(ray) > 0:
+                        start = loc + ray * 0.003
+                        travelled += dist + 0.003
+                        left -= dist + 0.003
+                        if left <= 0:
+                            break
+                        continue
+                    d = travelled + dist
+                    hits += 1.0 - (d / distance) ** 2
+                    break
             values[i] = 1.0 - hits / samples
         result[o] = values
     return result

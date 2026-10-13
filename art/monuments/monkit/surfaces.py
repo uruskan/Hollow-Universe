@@ -92,6 +92,16 @@ def concrete(size, r, form=False):
         lum = lum - joint * 0.12 - hole * 0.35 + (board - 0.5) * 0.04
         height = height - joint * 0.6 - hole * 1.5
         ao = ao - hole * 0.5 - joint * 0.2
+    if not form:
+        # Saw-cut joints along the tile's edges (every 4 m), sealant dark, edges a little chipped.
+        u = (np.arange(size) + 0.5) / size
+        edge = np.minimum(np.minimum(u, 1 - u)[None, :].repeat(size, axis=0),
+                          np.minimum(u, 1 - u)[:, None].repeat(size, axis=1))
+        chip = N.fbm(size, 32, 3, r)
+        joint = N.smooth(0.0022 + (chip - 0.5) * 0.002 - edge, 0.0, 0.0012)
+        lum = lum - joint * 0.16
+        height = height - joint * 1.2
+        ao = ao - joint * 0.35
     warm = (hue - 0.5) * 0.05
     albedo = _rgb(lum, (1.0, 0.985, 0.955))
     albedo[..., 0] += warm - stain * 0.012
