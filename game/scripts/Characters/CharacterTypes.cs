@@ -3,7 +3,6 @@ using Godot;
 
 namespace HollowUniverse.Characters;
 
-/// <summary>How a character stands (GROUND.md §4.8).</summary>
 /// <summary>Which body a character has (GROUND.md §4.8): each has its own meshes, clothing and clips.</summary>
 public enum BodyType
 {
@@ -11,11 +10,19 @@ public enum BodyType
     Female,
 }
 
+/// <summary>How a character stands (GROUND.md §4.8).</summary>
 public enum CharacterStance
 {
     Stand,
     Crouch,
     Swim,
+
+    /// <summary>Down, wounded (the movement code's crawling stance): lying propped on the forearms, crawling when it
+    /// moves. Coming to it from standing plays the fall; leaving it for standing plays getting up.</summary>
+    Crawl,
+
+    /// <summary>Asleep (a player logged off): lying on the side, breathing slowly, eyes shut.</summary>
+    Sleep,
 }
 
 /// <summary>What kind of thing a character holds; picks the upper-body pose and the first-person grip.</summary>
@@ -38,6 +45,22 @@ public enum CharacterEvent
     Hit,
     /// <summary>Dies: the body goes limp (ragdoll), pushed along the direction.</summary>
     Death,
+
+    /// <summary>Helps a wounded player up: down on one knee, a hand to theirs, and up pulling (the one helped plays
+    /// getting up when their stance leaves <see cref="CharacterStance.Crawl"/>).</summary>
+    HelpUp,
+
+    /// <summary>Uses the item in hand: eats food, wraps a bandage, injects (by the item's class), else nothing.</summary>
+    Use,
+
+    /// <summary>Eats (a hand to the mouth), whatever is held.</summary>
+    Eat,
+
+    /// <summary>Wraps a bandage round the forearm.</summary>
+    Bandage,
+
+    /// <summary>Injects into the upper arm.</summary>
+    Inject,
 }
 
 /// <summary>
@@ -72,6 +95,10 @@ public struct CharacterFrame
     public HeldKind Held;
 
     public string? HeldItem;
+
+    /// <summary>Aiming: a gun raised to the eye, a bow drawn and held (a <see cref="CharacterEvent.Fire"/> looses
+    /// it, and while this stays set the next arrow is drawn).</summary>
+    public bool Aiming;
 
     public static CharacterFrame Standing(Vector3 position, Vector3 up, float yaw = 0f) => new()
     {

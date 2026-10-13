@@ -7,11 +7,18 @@
 What it does:
 1. MakeHuman male from MPFB 2 (macro values in hollow_art.MALE), MPFB's "game_engine" skeleton (53 bones, UE-style
    names) and its weights. Rest pose: MakeHuman's A-pose. The animation script retargets every clip onto this rig.
-2. Eyes, eyebrows, eyelashes and short hair from the MakeHuman CC0 system assets, fitted and weighted by MPFB.
-3. Every body face gets a region (hollow_art.REGIONS); clothing hides regions it covers, so nothing pokes through.
-4. Underwear is part of the body: the pelvis region, smoothed, lifted 3 mm and given its own fabric surface.
-5. Levels of detail by collapse decimation: about 18k / 7k / 2.4k triangles for the body.
-6. Saves art/.cache/human_male.blend for the clothing and animation scripts.
+2. Eyes, eyebrows, eyelashes and five hair styles from the MakeHuman CC0 system assets, fitted and weighted by MPFB
+   (hair_<style>_lod0/1). A player's look (GROUND.md §4.8) picks one of them, or none ("buzz": the painted hair base).
+3. Faces: five shape keys on the nearest body (face_1 … face_5) made from MakeHuman's face targets and its race
+   macros, kept to the lower and middle face (nose, cheeks, mouth, jaw, chin), so the eyes, brows, lashes, hair and
+   every garment fit them all. The base face is the sixth.
+4. Skin tone: the light skin texture and a dark one (its painted scalp hair replaced by skin) are blended per player in
+   the shader; a mask texture carries the hair base painted on the scalp and the stubble, coloured per player.
+5. Every body face gets a region (hollow_art.REGIONS); clothing hides regions it covers, so nothing pokes through.
+6. Underwear is part of the body: the pelvis region, smoothed, lifted 3 mm and given its own fabric surface.
+7. Levels of detail by collapse decimation: about 18k / 7k / 2.4k triangles for the body.
+8. Saves art/.cache/human_<body>.blend and human_<body>_faces.npz (the faces' offsets of the full body) for the
+   clothing and animation scripts.
 """
 import math
 import os
@@ -30,7 +37,8 @@ import hollow_art as H  # noqa: E402
 import skin_maps  # noqa: E402
 import surfaces as S  # noqa: E402
 
-# For each part: (target triangles or None for full detail, levels of detail it is drawn at).
+# For each part: (target triangles or None for full detail, levels of detail it is drawn at). Every hair style is
+# drawn as "hair".
 LODS = {
     "body": [(18000, [0]), (7000, [1]), (2400, [2])],
     "eyes": [(None, [0]), (300, [1, 2])],
@@ -42,19 +50,51 @@ PARTS = {
     "eyes": ("Eyes", "eyes/high-poly/high-poly.mhclo"),
     "brows": ("Eyebrows", "eyebrows/eyebrow001/eyebrow001.mhclo"),
     "lashes": ("Eyelashes", "eyelashes/eyelashes01/eyelashes01.mhclo"),
-    "hair": ("Hair", "hair/short02/short02.mhclo"),
 }
-MATERIAL_OF = {"eyes": "eye", "brows": "brow", "lashes": "lash", "hair": "hair"}
+MATERIAL_OF = {"eyes": "eye", "brows": "brow", "lashes": "lash"}
 
-# The two bodies. Their skin, brows and hair have their own materials (the suffix) and textures; eyes, lashes and the
-# underwear's fabric are shared.
+# Face shapes (MakeHuman targets, weight). "race:<name>" is the difference between that race's macro target and the
+# body's own mix, so a face can lean African or Asian without changing anything but the face.
+MALE_FACES = [
+    ("face_1", [("race:african", 0.8), ("nose/nose-flaring-incr", 0.2), ("mouth/mouth-lowerlip-volume-incr", 0.25)]),
+    ("face_2", [("race:asian", 0.85), ("cheek/l-cheek-bones-incr", 0.25), ("cheek/r-cheek-bones-incr", 0.25)]),
+    ("face_3", [("cheek/l-cheek-bones-incr", 0.6), ("cheek/r-cheek-bones-incr", 0.6), ("chin/chin-prominent-incr", 0.5),
+                ("nose/nose-hump-incr", 0.7), ("nose/nose-scale-vert-incr", 0.3), ("cheek/l-cheek-volume-decr", 0.4),
+                ("cheek/r-cheek-volume-decr", 0.4), ("chin/chin-width-decr", 0.2)]),
+    ("face_4", [("cheek/l-cheek-volume-incr", 0.7), ("cheek/r-cheek-volume-incr", 0.7), ("chin/chin-width-incr", 0.5),
+                ("nose/nose-point-up", 0.5), ("nose/nose-scale-horiz-incr", 0.3), ("nose/nose-volume-incr", 0.3),
+                ("mouth/mouth-upperlip-volume-incr", 0.3), ("chin/chin-height-decr", 0.3)]),
+    ("face_5", [("chin/chin-height-incr", 0.6), ("nose/nose-scale-vert-incr", 0.5), ("nose/nose-curve-convex", 0.6),
+                ("nose/nose-point-down", 0.3), ("cheek/l-cheek-inner-decr", 0.5), ("cheek/r-cheek-inner-decr", 0.5),
+                ("mouth/mouth-scale-horiz-decr", 0.3), ("chin/chin-prognathism-incr", 0.2)]),
+]
+FEMALE_FACES = [
+    ("face_1", [("race:african", 0.8), ("mouth/mouth-upperlip-volume-incr", 0.3), ("mouth/mouth-lowerlip-volume-incr", 0.3)]),
+    ("face_2", [("race:asian", 0.85)]),
+    ("face_3", [("cheek/l-cheek-bones-incr", 0.5), ("cheek/r-cheek-bones-incr", 0.5), ("nose/nose-scale-horiz-decr", 0.3),
+                ("nose/nose-point-up", 0.4), ("chin/chin-prominent-incr", 0.3), ("mouth/mouth-upperlip-volume-incr", 0.3)]),
+    ("face_4", [("cheek/l-cheek-volume-incr", 0.6), ("cheek/r-cheek-volume-incr", 0.6), ("chin/chin-width-incr", 0.4),
+                ("nose/nose-volume-incr", 0.3), ("chin/chin-height-decr", 0.3), ("mouth/mouth-scale-horiz-incr", 0.2)]),
+    ("face_5", [("chin/chin-height-incr", 0.4), ("nose/nose-scale-vert-incr", 0.4), ("nose/nose-hump-incr", 0.5),
+                ("cheek/l-cheek-inner-decr", 0.4), ("cheek/r-cheek-inner-decr", 0.4), ("mouth/mouth-scale-horiz-decr", 0.2)]),
+]
+
+# The two bodies. Their skin and brows have their own materials (the suffix) and textures; eyes, lashes, the hair styles
+# and the underwear's fabric are shared. Hair styles are MakeHuman's (hair/<style>/<style>.mhclo); the first is the
+# default look's.
+SKINS = "skins/"
 PROFILES = {
-    "male": {"suffix": "", "macros": "MALE", "targets": "MALE_TARGETS", "stubble": True, "top": False,
-             "skin": "skins/young_caucasian_male/young_lightskinned_male_diffuse.png",
-             "brows": "eyebrows/eyebrow001/eyebrow001", "hair": "hair/short02/short02"},
+    "male": {"suffix": "", "macros": "MALE", "targets": "MALE_TARGETS", "stubble": True, "top": False, "gender": "male",
+             "skin": SKINS + "young_caucasian_male/young_lightskinned_male_diffuse.png",
+             "skin_dark": SKINS + "young_african_male/young_darkskinned_male_diffuse.png",
+             "brows": "eyebrows/eyebrow001/eyebrow001",
+             "hairs": ["short02", "short01", "short03", "short04", "afro01"], "faces": MALE_FACES},
     "female": {"suffix": "_female", "macros": "FEMALE", "targets": "FEMALE_TARGETS", "stubble": False, "top": True,
-               "skin": "skins/young_caucasian_female/young_lightskinned_female_diffuse.png",
-               "brows": "eyebrows/eyebrow006/eyebrow006", "hair": "hair/ponytail01/ponytail01"},
+               "gender": "female",
+               "skin": SKINS + "young_caucasian_female/young_lightskinned_female_diffuse.png",
+               "skin_dark": SKINS + "young_african_female/young_darkskinned_female_diffuse.png",
+               "brows": "eyebrows/eyebrow006/eyebrow006",
+               "hairs": ["ponytail01", "bob01", "bob02", "short03", "afro01"], "faces": FEMALE_FACES},
 }
 
 
@@ -71,18 +111,25 @@ def main():
     rig.name = rig.data.name = "Rig"
     body.name = body.data.name = "body"
     parts = {}
+    data = LocationService.get_user_data()
     for key, (kind, rel) in PARTS.items():
-        if key in ("brows", "hair"):
+        if key == "brows":
             rel = profile[key] + ".mhclo"
-        path = os.path.join(LocationService.get_user_data(), rel)
-        obj = HumanService.add_mhclo_asset(path, body, asset_type=kind, subdiv_levels=0, material_type="MAKESKIN")
+        obj = HumanService.add_mhclo_asset(os.path.join(data, rel), body, asset_type=kind, subdiv_levels=0,
+                                           material_type="MAKESKIN")
         obj.name = obj.data.name = key
         parts[key] = obj
+    for style in profile["hairs"]:
+        obj = HumanService.add_mhclo_asset(os.path.join(data, "hair", style, style + ".mhclo"), body, asset_type="Hair",
+                                           subdiv_levels=0, material_type="MAKESKIN")
+        obj.name = obj.data.name = "hair_" + style
+        parts["hair_" + style] = obj
     H.log("human built:", {k: H.triangles(o) for k, o in parts.items()})
 
     TargetService.bake_targets(body)
     blink = blink_offsets(body, TargetService, LocationService)
     eye_centre = bbox_centre(parts["eyes"])
+    faces = face_offsets(body, rig, parts["eyes"], profile, TargetService, LocationService)
     remove_helpers(body)
     for obj in [body] + list(parts.values()):
         clean(obj, rig)
@@ -96,21 +143,20 @@ def main():
     shape_underwear(body, regions, rig, top)
     assign_body_materials(body, regions, top, profile["suffix"])
     for key, obj in parts.items():
-        set_single_material(obj, MATERIAL_OF[key] + (profile["suffix"] if key in ("brows", "hair") else ""))
+        material = "hair_" + key[5:] if key.startswith("hair_") else MATERIAL_OF[key] + (profile["suffix"] if key == "brows" else "")
+        set_single_material(obj, material)
         H.set_region_uv(obj, [H.REGION["face"]] * len(obj.data.polygons))
 
     skin = "skin_" + which
+    folder = os.path.join(out, "textures")
     textures(out, profile)
-    if profile["stubble"]:
-        stubble(body, eye_centre, os.path.join(out, "textures", skin + "_albedo.png"))
-    scalp(body, eye_centre, os.path.join(out, "textures", skin + "_albedo.png"),
-          hair_colour(os.path.join(out, "textures", "hair%s_albedo.png" % profile["suffix"])))
-    skin_maps.paint(body, os.path.join(out, "textures"), skin)
+    look_textures(body, regions, eye_centre, folder, skin, profile)
+    skin_maps.paint(body, folder, skin)
 
     # Levels of detail.
     lods, levels = {}, {}
     for key, obj in [("body", body)] + list(parts.items()):
-        for target, drawn in LODS[key]:
+        for target, drawn in LODS["hair" if key.startswith("hair_") else key]:
             name = "%s_lod%d" % (key, drawn[0])
             copy = H.duplicate(obj, name)
             levels[name] = drawn
@@ -126,15 +172,20 @@ def main():
     counts = {name: H.triangles(o) for name, o in lods.items()}
     H.log("levels of detail:", counts)
     for name in ("body_lod0", "lashes_lod0"):
-        add_blink(lods[name], blink)
+        add_shape(lods[name], "blink", blink)
+    for face, offsets in faces:
+        add_shape(lods["body_lod0"], face, offsets)
 
-    # The cache keeps the full-resolution body with its regions, for the clothing script.
+    # The cache keeps the full-resolution body with its regions, for the clothing script, and the faces' offsets of
+    # its vertices (the clothing round the face fits every face).
     body.name = "body_source"
     body.hide_render = True
     os.makedirs(H.CACHE, exist_ok=True)
     cache = os.path.join(H.CACHE, "human_%s.blend" % which)
     bpy.ops.wm.save_as_mainfile(filepath=cache, check_existing=False, compress=True)
     H.log("saved", os.path.relpath(cache, H.REPO))
+    np.savez_compressed(os.path.join(H.CACHE, "human_%s_faces.npz" % which),
+                        **{face: shape_offsets(body, offsets) for face, offsets in faces})
 
     H.export_glb(os.path.join(out, "human_%s.glb" % which), [rig] + list(lods.values()), morphs=True)
     bones = {b.name: [round(x, 4) for x in (rig.matrix_world @ b.head_local)] for b in rig.data.bones}
@@ -144,12 +195,87 @@ def main():
         "eye_height_m": round(eye_centre.z, 3),
         "regions": H.REGIONS,
         "meshes": {name: {"lods": levels[name], "triangles": counts[name]} for name in lods},
+        "hair_styles": profile["hairs"],
+        "faces": [face for face, _ in faces],
         "bones": len(rig.data.bones),
         "bone_heads_blender": bones,
     })
     if a.get("preview"):
         import preview
         preview.render(a["preview"], [rig] + [o for n, o in lods.items() if n.endswith("lod0")], out)
+
+
+def face_offsets(body, rig, eyes, profile, TargetService, LocationService):
+    """The face shapes (profile["faces"]), measured on a copy of the body while it still has the base mesh's vertex
+    order: for each, the world positions of the vertices that move and how far. Every target's offset is kept to the
+    lower and middle face: nothing moves round the eyes, on the brows, the forehead, the scalp, the ears or below the
+    jaw, so the eyes, brows, lashes and hair (fitted to the base face) and the garments fit every face."""
+    targets = LocationService.get_mpfb_data("targets")
+    races = ("african", "asian", "caucasian")
+    gender = profile["gender"]
+    needed = sorted({t for _, recipe in profile["faces"] for t, _ in recipe if not t.startswith("race:")})
+    needed += ["macrodetails/%s-%s-young" % (r, gender) for r in races]
+    probe = H.duplicate(body, "face_probe")
+    for i, rel in enumerate(needed):
+        TargetService.load_target(probe, os.path.join(targets, rel + ".target.gz"), weight=1.0, name="face_t%d" % i)
+    keys = probe.data.shape_keys.key_blocks
+    basis = np.array([v.co[:] for v in keys[0].data], np.float64)
+    m = np.array(probe.matrix_world)
+    world = basis @ m[:3, :3].T + m[:3, 3]
+    delta = {}
+    for i, rel in enumerate(needed):
+        kb = keys["face_t%d" % i]
+        delta[rel] = (np.array([v.co[:] for v in kb.data], np.float64) - basis) @ m[:3, :3].T
+    bpy.data.objects.remove(probe)
+
+    # A race's face: its macro target less the body's own mix (the young targets carry most of the age's weight).
+    mix = getattr(H, profile["macros"])["race"]
+    young = 1.0 - max(0.0, getattr(H, profile["macros"])["age"] - 0.5) / 0.5
+    own = sum(mix[r] * delta["macrodetails/%s-%s-young" % (r, gender)] for r in races)
+    for r in races:
+        delta["race:" + r] = young * (delta["macrodetails/%s-%s-young" % (r, gender)] - own)
+
+    # Where faces may change, from the eyes (the eyeballs' centres) and the head bone.
+    e = np.array([v.co[:] for v in eyes.data.vertices], np.float64)
+    me = np.array(eyes.matrix_world)
+    e = e @ me[:3, :3].T + me[:3, 3]
+    left, right = e[e[:, 0] > 0].mean(axis=0), e[e[:, 0] < 0].mean(axis=0)
+    eye_z, eye_y = (left[2] + right[2]) / 2, (left[1] + right[1]) / 2
+    x, y, z = world[:, 0], world[:, 1], world[:, 2]
+    # Only the body's own vertices: the base mesh's helpers (tights, skirt, hair and joint helpers) are deleted later
+    # and some of them move far with the race targets.
+    skin = np.zeros(len(world), bool)
+    group = body.vertex_groups["body"].index
+    for v in body.data.vertices:
+        for g in v.groups:
+            if g.group == group and g.weight > 0.5:
+                skin[v.index] = True
+
+    def ramp(a, b, v):
+        t = np.clip((v - a) / (b - a), 0.0, 1.0)
+        return t * t * (3 - 2 * t)
+    mask = (ramp(0.02, 0.034, np.linalg.norm(world - left, axis=1)) * ramp(0.02, 0.034, np.linalg.norm(world - right, axis=1))
+            * ramp(eye_z + 0.02, eye_z + 0.004, z)          # brows and forehead
+            * ramp(eye_z - 0.145, eye_z - 0.125, z)         # below the jaw
+            * ramp(eye_y + 0.07, eye_y + 0.045, y)          # the back of the head
+            * ramp(0.088, 0.072, np.abs(x))                 # the ears
+            * skin)
+    # The race targets also move the head as a whole (another neck, another height): only the face's own shape is
+    # wanted, so the movement of the band round the eyes and brows is taken out.
+    band = skin & (z > eye_z - 0.01) & (z < eye_z + 0.04) & (np.abs(x) < 0.07) & (y < eye_y + 0.03)
+    for r in races:
+        delta["race:" + r] = delta["race:" + r] - delta["race:" + r][band].mean(axis=0)
+    faces = []
+    for name, recipe in profile["faces"]:
+        d = sum(w * delta[t] for t, w in recipe) * mask[:, None]
+        moving = np.linalg.norm(d, axis=1) > 2e-5
+        lo, hi = world[moving].min(axis=0) - 0.02, world[moving].max(axis=0) + 0.02
+        near = np.all((world > lo) & (world < hi), axis=1) & skin
+        far = int(np.argmax(np.linalg.norm(d, axis=1)))
+        H.log("%s: %d vertices move, up to %.1f mm (at %s)" % (name, int(moving.sum()), np.linalg.norm(d, axis=1).max() * 1000,
+                                                              np.round(world[far] - np.array((0, eye_y, eye_z)), 3)))
+        faces.append((name, (world[near], d[near])))
+    return faces
 
 
 def blink_offsets(body, TargetService, LocationService):
@@ -177,21 +303,19 @@ def blink_offsets(body, TargetService, LocationService):
     return world[near], shift[near]
 
 
-def add_blink(obj, blink):
-    """A "blink" shape key: each vertex moves as the full body's nearest vertices do round the eyes (weighted by
-    inverse distance), so the closure reaches the decimated body and the lashes standing off the lids."""
+def shape_offsets(obj, shape):
+    """World offsets of every vertex of `obj` for a shape measured on the base mesh (world positions, offsets): each
+    vertex moves as the nearest measured vertices do (weighted by inverse distance), so the shape reaches decimated
+    copies of the body and parts standing off it."""
     from mathutils.kdtree import KDTree
-    world, shift = blink
+    world, shift = shape
     tree = KDTree(len(world))
     for i, p in enumerate(world):
         tree.insert(p, i)
     tree.balance()
     lo, hi = world.min(axis=0), world.max(axis=0)
     m = obj.matrix_world
-    inv = m.inverted().to_3x3()
-    obj.shape_key_add(name="Basis", from_mix=False)
-    key = obj.shape_key_add(name="blink", from_mix=False)
-    count = 0
+    result = np.zeros((len(obj.data.vertices), 3), np.float32)
     for v in obj.data.vertices:
         p = m @ v.co
         if not (np.all(np.array(p[:]) > lo) and np.all(np.array(p[:]) < hi)):
@@ -201,39 +325,24 @@ def add_blink(obj, blink):
         if not weights:
             continue
         total = sum(w for w, _ in weights)
-        move = sum((Vector(shift[i]) * w for w, i in weights), Vector()) / total
+        result[v.index] = sum((shift[i] * w for w, i in weights), np.zeros(3)) / total
+    return result
+
+
+def add_shape(obj, name, shape):
+    """A shape key (blink, face_n) moving each vertex as the nearest measured vertices do (shape_offsets)."""
+    offsets = shape_offsets(obj, shape)
+    inv = obj.matrix_world.inverted().to_3x3()
+    if obj.data.shape_keys is None:
+        obj.shape_key_add(name="Basis", from_mix=False)
+    key = obj.shape_key_add(name=name, from_mix=False)
+    count = 0
+    for v in obj.data.vertices:
+        move = Vector(offsets[v.index].tolist())
         if move.length > 1e-5:
             key.data[v.index].co = v.co + inv @ move
             count += 1
-    H.log("blink key on %s: %d vertices" % (obj.name, count))
-
-
-def hair_colour(path):
-    """The average colour of a hair texture where it is opaque."""
-    px, _, _ = H.load_image_pixels(path)
-    alpha = px[..., 3:4]
-    return (px[..., :3] * alpha).sum(axis=(0, 1)) / max(1e-6, float(alpha.sum()))
-
-
-def scalp(body, eye, path, colour=(0.075, 0.052, 0.036)):
-    """Paints a dark hair base over the scalp (the skin shows between the hair cards) that fades out softly into the
-    forehead and temples, with a broken, hair-like edge."""
-    import garment as G
-    px, w, h = H.load_image_pixels(path)
-    img = np.flipud(px[..., :3]).copy()
-    mask, pos, _, _ = G.rasterise(body, w)
-    head = {b.name: b for b in body.parent.data.bones}["head"]
-    centre_y = (body.parent.matrix_world @ head.head_local).y
-    y, z = pos[..., 1], pos[..., 2]
-    # The hairline: above the brows in front, round the temples, low at the nape (like the scalp region's line).
-    t = np.clip((y - (centre_y - 0.11)) / 0.2, 0, 1)
-    line = eye.z + 0.062 - 0.095 * t
-    strands = S.value_noise(w, 300, 51) * 0.6 + S.value_noise(w, 60, 52) * 0.4
-    cover = np.clip((z - line) / 0.022 + (strands - 0.5) * 0.9, 0, 1) * mask
-    hair = np.array(colour, np.float32) * 0.8 * (0.85 + 0.3 * S.value_noise(w, 120, 53))[..., None]
-    img = img * (1 - cover[..., None] * 0.92) + hair * cover[..., None] * 0.92
-    H.save_image(S.to_blender_pixels(np.clip(img, 0, 1)), w, h, path)
-    H.log("scalp painted")
+    H.log("%s key on %s: %d vertices" % (name, obj.name, count))
 
 
 def bbox_centre(obj):
@@ -495,27 +604,74 @@ def set_single_material(obj, name):
 
 # ---------------------------------------------------------------- textures
 
-def stubble(body, eye, path):
-    """Paints a few days' stubble over the jaw, chin and upper lip of the skin texture (not on the lips)."""
+def look_textures(body, regions, eye, folder, stem, profile):
+    """The textures a look needs besides the light skin:
+    - <stem>_dark.png: the dark skin texture, its painted scalp hair replaced by its own skin tone (the hair base and
+      the hair styles are drawn per player);
+    - <stem>_mask.png: R the hair base painted on the scalp (it fades into the forehead with a broken, hair-like
+      edge), G stubble over the jaw, chin and upper lip (not the lips), B the base's strand brightness."""
     import garment as G
-    px, w, h = H.load_image_pixels(path)
-    img = np.flipud(px[..., :3]).copy()
-    mask, pos, _, _ = G.rasterise(body, w)
+    light, w, h = H.load_image_pixels(os.path.join(folder, stem + "_albedo.png"))
+    light = np.flipud(light[..., :3]).copy()
+    dark, _, _ = H.load_image_pixels(os.path.join(folder, stem + "_dark.png"))
+    dark = np.flipud(dark[..., :3]).copy()
+    covered, pos, _, face = G.rasterise(body, w)
+    region = np.where(face >= 0, np.array(regions, np.int32)[np.clip(face, 0, None)], -1)
     head = {b.name: b for b in body.parent.data.bones}["head"]
     centre_y = (body.parent.matrix_world @ head.head_local).y
     x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
-    front = np.clip((centre_y + 0.035 - y) / 0.05, 0, 1)
-    jaw = np.clip(1 - np.abs(z - (eye.z - 0.095)) / 0.05, 0, 1) * front
-    cheek_line = np.clip(((eye.z - 0.045) - z) / 0.02, 0, 1)
-    lips = np.exp(-((x / 0.026) ** 2 + ((z - (eye.z - 0.083)) / 0.009) ** 2)) * (y < centre_y - 0.06)
-    area = np.clip(jaw * cheek_line * 1.6, 0, 1) * (1 - np.clip(lips * 1.5, 0, 1)) * mask
-    dots = (S.value_noise(w, 380, 41) > 0.52).astype(np.float32) * 0.6 + S.value_noise(w, 90, 42) * 0.4
-    shade = 1 - 0.42 * area * (0.55 + 0.45 * dots)
-    tint = np.array((0.95, 0.97, 1.0), np.float32)
-    img = img * (1 - (1 - shade[..., None]) * tint)
-    H.save_image(S.to_blender_pixels(np.clip(img, 0, 1)), w, h, path)
-    H.log("stubble painted")
 
+    # The dark texture's painted hair: far darker than its own cheeks, on the scalp, the temples, round the ears and
+    # at the nape (never round the eyes, the nostrils or the mouth).
+    lum = dark @ np.array((0.3, 0.59, 0.11), np.float32)
+    cheeks = covered & (region == H.REGION["face"]) & (z > eye.z - 0.08) & (z < eye.z - 0.03) & (y < centre_y - 0.06)
+    reference = float(np.median(lum[cheeks]))
+    from_eyes = np.minimum(np.hypot(np.abs(x) - 0.032, z - eye.z), 1.0)
+    head_area = covered & np.isin(region, [H.REGION["face"], H.REGION["scalp"], H.REGION["neck"]])
+    high = (z > eye.z - 0.04) | ((y > centre_y - 0.02) & (z > eye.z - 0.16))
+    hair = head_area & high & (lum < 0.68 * reference) & (from_eyes > 0.03)
+    hair |= covered & (region == H.REGION["scalp"])
+    soft = skin_maps.blur(hair.astype(np.float32), 3)
+    soft = np.clip(soft * 1.6, 0, 1)
+    skin_dark = covered & (region == H.REGION["face"]) & ~hair & (z < eye.z - 0.02)
+    ratio = dark[skin_dark].mean(axis=0) / np.maximum(light[skin_dark].mean(axis=0), 1e-3)
+    dark = dark * (1 - soft[..., None]) + np.clip(light * ratio, 0, 1) * soft[..., None]
+    H.save_image(S.to_blender_pixels(G.bleed(np.clip(dark, 0, 1), covered, 8)), w, h, os.path.join(folder, stem + "_dark.png"))
+    H.log("dark skin: %d hair texels replaced (skin ratio %s)" % (int(hair.sum()), np.round(ratio, 3)))
+
+    # The hair base: the hairline above the brows in front, round the temples, low at the nape (like the scalp
+    # region's line).
+    t = np.clip((y - (centre_y - 0.11)) / 0.2, 0, 1)
+    line = eye.z + 0.062 - 0.095 * t
+    strands = S.value_noise(w, 300, 51) * 0.6 + S.value_noise(w, 60, 52) * 0.4
+    scalp = np.clip((z - line) / 0.022 + (strands - 0.5) * 0.9, 0, 1) * covered
+    shade = S.value_noise(w, 120, 53)
+    beard = np.zeros_like(scalp)
+    if profile["stubble"]:
+        front = np.clip((centre_y + 0.035 - y) / 0.05, 0, 1)
+        jaw = np.clip(1 - np.abs(z - (eye.z - 0.095)) / 0.05, 0, 1) * front
+        cheek_line = np.clip(((eye.z - 0.045) - z) / 0.02, 0, 1)
+        lips = np.exp(-((x / 0.026) ** 2 + ((z - (eye.z - 0.083)) / 0.009) ** 2)) * (y < centre_y - 0.06)
+        area = np.clip(jaw * cheek_line * 1.6, 0, 1) * (1 - np.clip(lips * 1.5, 0, 1)) * covered
+        dots = (S.value_noise(w, 380, 41) > 0.52).astype(np.float32) * 0.6 + S.value_noise(w, 90, 42) * 0.4
+        beard = area * (0.55 + 0.45 * dots)
+    mask = np.stack([scalp, beard, shade], axis=-1).astype(np.float32)
+    H.save_image(S.to_blender_pixels(G.bleed(mask, covered, 8)), w, h, os.path.join(folder, stem + "_mask.png"))
+    H.log("look mask painted")
+
+
+def hair_texture(path, gamma):
+    """Turns a hair or brow texture into its brightness about its own mean (0.5 is the mean, in linear light), so the
+    shader can colour it with any hair colour; alpha is kept."""
+    px, w, h = H.load_image_pixels(path)
+    rgb, alpha = px[..., :3], px[..., 3]
+    linear = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    lum = linear @ np.array((0.2126, 0.7152, 0.0722), np.float32)
+    weight = alpha > 0.5
+    mean = float(lum[weight].mean()) if weight.any() else float(lum.mean())
+    value = np.clip((np.maximum(lum, 1e-5) / max(mean, 1e-5)) ** gamma * 0.5, 0, 1)
+    out = np.stack([value, value, value, alpha], axis=-1).astype(np.float32)
+    H.save_image(out.ravel(), w, h, path)
 
 
 def textures(out, profile=None):
@@ -528,15 +684,25 @@ def textures(out, profile=None):
     which = "female" if suffix else "male"
     copies = {
         "skin_%s_albedo.png" % which: (profile["skin"], 2048),
+        "skin_%s_dark.png" % which: (profile["skin_dark"], 2048),
         "eye_albedo.png": ("eyes/materials/brown_eye.png", 512),
         "brow%s_albedo.png" % suffix: (profile["brows"] + ".png", 512),
         "lash_albedo.png": ("eyelashes/eyelashes01/eyelashes01.png", 512),
-        "hair%s_albedo.png" % suffix: (profile["hair"] + "_diffuse.png", 1024),
     }
-    if os.path.exists(os.path.join(data, profile["hair"] + "_normal.png")):
-        copies["hair%s_normal.png" % suffix] = (profile["hair"] + "_normal.png", 1024)
+    for style in profile["hairs"]:
+        mhmat = os.path.join(data, "hair", style, style + ".mhmat")
+        with open(mhmat, encoding="utf-8") as f:
+            diffuse = next(line.split()[1] for line in f if line.startswith("diffuseTexture"))
+        copies["hair_%s_albedo.png" % style] = ("hair/%s/%s" % (style, diffuse), 1024)
+        normal = diffuse.replace("_diffuse", "_normal")
+        if normal != diffuse and os.path.exists(os.path.join(data, "hair", style, normal)):
+            copies["hair_%s_normal.png" % style] = ("hair/%s/%s" % (style, normal), 1024)
     for name, (rel, size) in copies.items():
         H.resize_image(os.path.join(data, rel), os.path.join(folder, name), size)
+        if name.startswith("hair_") and name.endswith("_albedo.png"):
+            hair_texture(os.path.join(folder, name), 0.6)
+        elif name.startswith("brow"):
+            hair_texture(os.path.join(folder, name), 0.8)
     # Skin detail: fine pores and creases, tiled many times over the body.
     size = 512
     pores = S.value_noise(size, 96, 11, octaves=2) * 0.6 + S.value_noise(size, 24, 12, octaves=2) * 0.4

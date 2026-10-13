@@ -19,15 +19,7 @@ public static class ItemLooks
     public static bool NeedsPlaceholder(ItemDef item) => Held(item.Key) == null && (item.Melee != null || item.Bow != null);
 
     /// <summary>The garment a worn item shows as, or null (no model yet).</summary>
-    public static Wearable? Worn(string key) => key switch
-    {
-        "woven-hood" => Wardrobe.KnitCap,
-        "woven-shirt" => Wardrobe.WovenShirt,
-        "woven-trousers" => Wardrobe.WovenTrousers,
-        "work-boots" => Wardrobe.LacedBoots,
-        "chest-plate" => Wardrobe.RivetedBreastplate,
-        _ => null,
-    };
+    public static Wearable? Worn(string key) => Wardrobe.ForItem(key) is { Count: > 0 } worn ? worn[0] : null;
 
     /// <summary>The garments of worn item IDs.</summary>
     public static List<Wearable> Outfit(GameContent content, IEnumerable<ushort> itemIds)

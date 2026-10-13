@@ -8,9 +8,10 @@ namespace HollowUniverse.Characters;
 /// The animation graph every third-person character shares (GROUND.md §4.8). One <see cref="AnimationNodeBlendTree"/>
 /// resource; each character's <see cref="AnimationTree"/> holds its own parameters.
 /// <code>
-/// stand / crouch / swim speed blends → stance → rate → air (fall) → jump, land
+/// stand / crouch / swim / down (lying, crawling) speed blends, sleep → stance → rate → air (fall) → jump, land
 ///   → hold_r (right arm: tool, pistol, rifle pose) → hold_l (left arm and chest: pistol, rifle pose)
-///   → action (upper body: swing, punch, fire, reload) → hit (upper body flinch) → output
+///   → action (upper body: swing, punch, fire, reload, eat) → hit (upper body flinch)
+///   → body (whole body: falling down, getting up, helping up) → output
 /// </code>
 /// Parameter names are cached <see cref="StringName"/>s: building one from a string every frame for every character
 /// would feed the garbage collector.
@@ -36,6 +37,16 @@ public static class CharacterAnimator
     public static readonly StringName ActionActive = "parameters/action/active";
     public static readonly StringName HitClip = "parameters/hit_clip/transition_request";
     public static readonly StringName Hit = "parameters/hit/request";
+    public static readonly StringName DownSpeed = "parameters/down/blend_position";
+    public static readonly StringName BodyClip = "parameters/body_clip/transition_request";
+    public static readonly StringName Body = "parameters/body/request";
+    public static readonly StringName BodyActive = "parameters/body/active";
+
+    /// <summary>Speeds (m/s) of the wounded blend: lying still, and crawling at the movement code's 0.8 m/s.</summary>
+    public static readonly (string Clip, float Speed)[] DownPoints = { ("down_idle", 0f), ("crawl", 0.8f) };
+
+    /// <summary>Whole-body one-shots: falling down wounded, getting up, helping someone up.</summary>
+    public static readonly string[] BodyClips = { "down_fall", "get_up", "help_up" };
 
     /// <summary>Speeds (m/s) the stand blend places its clips at: the movement code's crouch, walk and sprint.</summary>
     public static readonly (string Clip, float Speed)[] StandPoints = { ("idle", 0f), ("walk", 1.25f), ("jog", 2.8f), ("sprint", 5.5f) };
@@ -54,7 +65,7 @@ public static class CharacterAnimator
     public const float ChopFadeAt = 0.42f;
 
     /// <summary>Clips for one-off actions, by name in the action transition.</summary>
-    public static readonly string[] ActionClips = { "tool_swing", "chop", "punch_jab", "pistol_fire", "pistol_reload", "throw" };
+    public static readonly string[] ActionClips = { "tool_swing", "chop", "punch_jab", "pistol_fire", "pistol_reload", "throw", "consume" };
 
     private static readonly Dictionary<BodyType, AnimationNodeBlendTree> Trees = new();
 
@@ -91,15 +102,23 @@ public static class CharacterAnimator
         t.AddNode("stand", Blend1D(StandPoints), new Vector2(0, 0));
         t.AddNode("crouch", Blend1D(CrouchPoints), new Vector2(0, 150));
         t.AddNode("swim", Blend1D(SwimPoints), new Vector2(0, 300));
+        bool lying = _clips.ContainsKey("down_idle") && _clips.ContainsKey("crawl") && _clips.ContainsKey("sleep");
+        if (lying)
+        {
+            t.AddNode("down", Blend1D(DownPoints), new Vector2(0, 450));
+            t.AddNode("sleep", Clip("sleep"), new Vector2(0, 600));
+        }
         var stance = new AnimationNodeTransition { XfadeTime = 0.22f };
-        foreach (string s in new[] { "stand", "crouch", "swim" })
+        string[] stances = lying ? new[] { "stand", "crouch", "swim", "down", "sleep" } : new[] { "stand", "crouch", "swim" };
+        foreach (string s in stances)
         {
             stance.AddInput(s);
         }
         t.AddNode("stance", stance, new Vector2(250, 150));
-        t.ConnectNode("stance", 0, "stand");
-        t.ConnectNode("stance", 1, "crouch");
-        t.ConnectNode("stance", 2, "swim");
+        for (int i = 0; i < stances.Length; i++)
+        {
+            t.ConnectNode("stance", i, stances[i]);
+        }
         t.AddNode("rate", new AnimationNodeTimeScale(), new Vector2(450, 150));
         t.ConnectNode("rate", 0, "stance");
 
@@ -162,7 +181,22 @@ public static class CharacterAnimator
         t.AddNode("hit", hit, new Vector2(1850, 150));
         t.ConnectNode("hit", 0, "action");
         t.ConnectNode("hit", 1, "hit_clip");
-        t.ConnectNode("output", 0, "hit");
+        // Whole-body one-shots over everything: falling down wounded, getting up, helping up.
+        var bodyClips = Array.FindAll(BodyClips, c => _clips.ContainsKey(c));
+        if (bodyClips.Length == BodyClips.Length)
+        {
+            var bodyClip = new AnimationNodeTransition { XfadeTime = 0f };
+            t.AddNode("body_clip", bodyClip, new Vector2(1850, 300));
+            AddInputs(t, "body_clip", bodyClip, Array.ConvertAll(BodyClips, c => (c, c)));
+            t.AddNode("body", new AnimationNodeOneShot { FadeInTime = 0.12f, FadeOutTime = 0.3f }, new Vector2(2050, 150));
+            t.ConnectNode("body", 0, "hit");
+            t.ConnectNode("body", 1, "body_clip");
+            t.ConnectNode("output", 0, "body");
+        }
+        else
+        {
+            t.ConnectNode("output", 0, "hit");
+        }
         return t;
     }
 

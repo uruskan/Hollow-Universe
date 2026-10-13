@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Godot;
+using Hollow.Core;
 using HollowUniverse.Common;
 
 namespace HollowUniverse.Characters;
@@ -16,16 +17,18 @@ public partial class CharacterLab : Node3D
     private static readonly string[] Motions =
     {
         "idle", "walk", "jog", "sprint", "crouch", "crouch walk", "strafe left", "strafe right", "back", "jump", "fall",
-        "swim idle", "swim",
+        "swim idle", "swim", "down", "crawl", "sleep",
     };
 
     private readonly Dictionary<string, string> _options;
     private CharacterView _character = null!;
     private Camera3D _camera = null!;
     private ViewmodelView _viewmodel = null!;
-    private readonly List<(CharacterView View, float Radius, float Phase, float Speed, HeldKind Held, string Motion)> _crowd = new();
+    private readonly List<(CharacterView View, float Radius, float Phase, float Speed, HeldItemModel? Held, string Motion)> _crowd = new();
 
     private int _outfit;
+    private ulong _seed;
+    private bool _seeded;
     private int _item = -1;
     private int _motion;
     private float _aimPitch;
@@ -40,7 +43,7 @@ public partial class CharacterLab : Node3D
     private bool _dragging;
 
     // Interface.
-    private Label _outfitLabel = null!, _itemLabel = null!, _motionLabel = null!, _lodLabel = null!, _frameLabel = null!;
+    private Label _outfitLabel = null!, _lookLabel = null!, _itemLabel = null!, _motionLabel = null!, _lodLabel = null!, _frameLabel = null!;
     private Control _hud = null!;
 
     // Automation.
@@ -56,20 +59,47 @@ public partial class CharacterLab : Node3D
         Name = "CharacterLab";
     }
 
+    // Everything the viewer shows stands on this: at the origin of its own little world, or on the first world's real
+    // ground in front of the surface view's camera (--on-surface).
+    private Node3D _stage = null!;
+    private HollowUniverse.Surface.SurfaceView? _surface;
+    private Camera3D? _surfaceCamera;
+
     public override void _Ready()
     {
-        BuildWorld();
+        _stage = new Node3D { Name = "Stage" };
+        AddChild(_stage);
+        if (_options.ContainsKey("on-surface"))
+        {
+            OpenSurface();
+        }
+        else
+        {
+            BuildWorld();
+        }
         BodyType body = Option("body", "male") == "female" ? BodyType.Female : BodyType.Male;
         _character = new CharacterView { Name = "Character", Body = body };
-        AddChild(_character);
+        _stage.AddChild(_character);
         _camera = new Camera3D { Name = "Camera", Fov = 50f, Near = 0.03f, Far = 800f, CullMask = 1 | ViewmodelView.RenderLayer };
         AddChild(_camera);
-        _camera.MakeCurrent();
+        // On the surface its own camera draws (its terrain, plants and sky are placed for it), set where the viewer's is.
+        (_surfaceCamera ?? _camera).MakeCurrent();
         _viewmodel = new ViewmodelView { Name = "Viewmodel", Body = body };
         _camera.AddChild(_viewmodel);
         BuildInterface();
 
         _outfit = (int)Number("outfit", 0) % Wardrobe.Outfits.Count;
+        if (_options.TryGetValue("player", out string? player))
+        {
+            _seed = Looks.Hash(player);
+            _seeded = true;
+        }
+        else if (_options.TryGetValue("seed", out string? seed))
+        {
+            _seed = ulong.Parse(seed, CultureInfo.InvariantCulture);
+            _seeded = true;
+        }
+        ApplyLook();
         _motion = Math.Max(0, Array.IndexOf(Motions, Option("motion", "idle").Replace('_', ' ')));
         string item = Option("item", "none");
         _item = item == "none" ? -1 : IndexOfItem(item);
@@ -105,6 +135,19 @@ public partial class CharacterLab : Node3D
         {
             SpawnCrowd(crowd);
         }
+        int lineup = (int)Number("lineup", 0);
+        if (lineup > 0)
+        {
+            SpawnLineup(lineup);
+        }
+        if (_options.ContainsKey("partner"))
+        {
+            BodyType partnerBody = Option("partner", "male") == "female" && CharacterAssets.Has(BodyType.Female) ? BodyType.Female : BodyType.Male;
+            _partner = new CharacterView { Name = "Partner", Body = partnerBody };
+            _stage.AddChild(_partner);
+            _partner.Look = Looks.ForPlayer(_seed + 101, partnerBody);
+            _partner.Wear(Wardrobe.Outfits[(int)Number("partner-outfit", 1) % Wardrobe.Outfits.Count].Items);
+        }
         if (_options.ContainsKey("measure"))
         {
             DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
@@ -126,6 +169,56 @@ public partial class CharacterLab : Node3D
     }
 
     // ---------------------------------------------------------------- world
+
+    /// <summary>
+    /// The first world's surface view (GROUND.md §4.6) at the landing site (or --lat, --lon) and --time, its clock held:
+    /// its sky, sun, moon, exposure and ground light the characters, who stand on a stage on its terrain six metres in
+    /// front of its camera. The viewer's own camera frames them and borrows the surface's environment.
+    /// </summary>
+    private void OpenSurface()
+    {
+        HollowUniverse.App.GalaxyService.Load();
+        var found = Hollow.Surface.FirstWorld.Find(HollowUniverse.App.GalaxyService.Galaxy);
+        if (found == null)
+        {
+            GD.PushError("--on-surface: the first world is not in this universe.");
+            BuildWorld();
+            return;
+        }
+        (Hollow.Galaxy.Systems.StarSystem system, Hollow.Galaxy.Systems.Body planet) = found.Value;
+        var surface = Hollow.Surface.PlanetSurface.For(HollowUniverse.App.GalaxyService.Galaxy, system, planet);
+        double lat = Number("lat", Hollow.Surface.FirstWorld.LandingLatitude);
+        double lon = Number("lon", Hollow.Surface.FirstWorld.LandingLongitude);
+        double time = _options.TryGetValue("time", out string? t)
+            ? UniverseTime.SecondsSinceJ2000(DateTime.Parse(t, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal))
+            : UniverseTime.Now;
+        _surface = new HollowUniverse.Surface.SurfaceView { Name = "Surface" };
+        AddChild(_surface);
+        _surface.SetActive(true);
+        // Flying (above eye height), so it leaves its camera where the viewer puts it.
+        _surface.Open(system, planet, surface, lat, lon, 3, 0, 0, time);
+        _surface.SetTime(time, paused: true);
+        _surface.InterfaceVisible = false;
+        _surfaceCamera = GetViewport().GetCamera3D();
+        if (_surfaceCamera != null)
+        {
+            _surfaceCamera.CullMask |= ViewmodelView.RenderLayer;
+        }
+        // The stage: on the ground six metres north of the camera, upright on the planet.
+        Vector3D origin = Hollow.Surface.ZoneFrame.Direction(lat * DMath.DegToRad, lon * DMath.DegToRad);
+        var frame = new HollowUniverse.Surface.RenderFrame(origin * (surface.Radius + Math.Max(surface.HeightAt(origin), 0)));
+        Vector3D spot = frame.ToBody(new Vector3(0f, 0f, -6f));
+        Vector3D dir = spot.Normalized;
+        double ground = Math.Max(surface.HeightAt(dir), surface.SeaRadius > 0 ? surface.SeaRadius - surface.Radius : double.MinValue);
+        Vector3 at = frame.ToRender(dir * (surface.Radius + ground));
+        Vector3 up = frame.DirectionToRender(dir).Normalized();
+        // Turned so the characters face the sun, --stage-yaw degrees (default 30) to its left: lit from the front and side.
+        Vector3 sun = _surface.Sky?.SunDirection ?? Vector3.Forward;
+        Vector3 flat = sun - up * sun.Dot(up);
+        float yaw = flat.LengthSquared() > 1e-6f ? MathF.Atan2(-flat.X, -flat.Z) : 0f;
+        yaw += Mathf.DegToRad((float)Number("stage-yaw", 30));
+        _stage.Transform = new Transform3D(CharacterFrame.BasisOf(up, yaw), at);
+    }
 
     private void BuildWorld()
     {
@@ -206,26 +299,83 @@ public partial class CharacterLab : Node3D
     private void SpawnCrowd(int count)
     {
         var rng = new RandomNumberGenerator { Seed = 7 };
-        HeldKind[] kinds = { HeldKind.Unarmed, HeldKind.Tool, HeldKind.Pistol, HeldKind.Rifle };
-        string[] motions = { "idle", "walk", "jog", "sprint", "crouch walk", "jog", "walk" };
+        // Bare hands, the default tool, pistol and rifle, a bow (drawn while standing) and a spear.
+        HeldItemModel?[] items =
+        {
+            null, HeldItems.For(HeldKind.Tool, null), HeldItems.For(HeldKind.Pistol, null), HeldItems.For(HeldKind.Rifle, null),
+            ItemById("bow"), ItemById("wooden-spear"),
+        };
+        // Moving, wounded (lying and crawling) and asleep.
+        string[] motions = { "idle", "walk", "jog", "sprint", "crouch walk", "jog", "walk", "crawl", "sleep", "down" };
         for (int i = 0; i < count; i++)
         {
-            var view = new CharacterView { Name = "Crowd" + i };
-            AddChild(view);
+            // Every other one a woman; each with its own look.
+            BodyType body = i % 2 == 1 && CharacterAssets.Has(BodyType.Female) ? BodyType.Female : BodyType.Male;
+            var view = new CharacterView { Name = "Crowd" + i, Body = body };
+            view.Look = Looks.ForPlayer((ulong)(1000 + i * 7919), body);
+            _stage.AddChild(view);
             if (_options.TryGetValue("lod", out string? lod))
             {
                 view.ForcedLod = int.Parse(lod, CultureInfo.InvariantCulture);
             }
             view.Wear(Wardrobe.Outfits[1 + i % (Wardrobe.Outfits.Count - 1)].Items);
-            _crowd.Add((view, 2.5f + (i % 10) * 2.6f, rng.Randf() * MathF.Tau, 0f, kinds[i % kinds.Length], motions[i % motions.Length]));
+            _crowd.Add((view, 2.5f + (i % 10) * 2.6f, rng.Randf() * MathF.Tau, 0f, items[i % items.Length], motions[i % motions.Length]));
         }
     }
+
+    private static HeldItemModel? ItemById(string id)
+    {
+        int index = IndexOfItem(id);
+        return index >= 0 ? HeldItems.All[index] : null;
+    }
+
+    /// <summary>
+    /// A row of players facing the camera (<c>--lineup n</c>): every other one a woman, each with the look of a seed
+    /// from <c>--seed</c> on and an outfit of the list in turn. The viewer's own character steps aside.
+    /// </summary>
+    private void SpawnLineup(int count)
+    {
+        _character.Visible = false;
+        _character.ProcessMode = ProcessModeEnum.Disabled;
+        ulong first = _options.TryGetValue("seed", out string? seed) ? ulong.Parse(seed, CultureInfo.InvariantCulture) : 1;
+        float spacing = (float)Number("spacing", 0.85);
+        for (int i = 0; i < count; i++)
+        {
+            BodyType body = i % 2 == 1 && CharacterAssets.Has(BodyType.Female) ? BodyType.Female : BodyType.Male;
+            var view = new CharacterView { Name = "Lineup" + i, Body = body };
+            _stage.AddChild(view);
+            view.Look = Looks.ForPlayer(first + (ulong)i, body);
+            view.Wear(LineupOutfits[i % LineupOutfits.Length]);
+            // A loose row: staggered a little, each turned a little its own way.
+            float x = (i - (count - 1) * 0.5f) * spacing;
+            float z = MathF.Abs(x) * 0.12f + (i % 2 == 0 ? 0f : 0.3f) + (i % 3 - 1) * 0.08f;
+            float yaw = ((i * 5 + 2) % 7 - 3) * 0.07f;
+            view.Apply(CharacterFrame.Standing(new Vector3(x, 0f, z), Vector3.Up, yaw));
+            _lineup.Add(view);
+        }
+    }
+
+    private readonly List<CharacterView> _lineup = new();
+
+    /// <summary>Outfits the lineup goes through (what players wear in the first hours of a wipe and after).</summary>
+    private static readonly Wearable[][] LineupOutfits =
+    {
+        new[] { Wardrobe.WovenShirt, Wardrobe.WovenTrousers },
+        new[] { Wardrobe.WovenHood, Wardrobe.WovenShirt, Wardrobe.WovenTrousers, Wardrobe.LacedBoots },
+        Array.Empty<Wearable>(),
+        new[] { Wardrobe.KnitCap, Wardrobe.WovenShirt, Wardrobe.WovenTrousers, Wardrobe.LacedBoots },
+        new[] { Wardrobe.WovenTrousers, Wardrobe.LacedBoots, Wardrobe.WovenGloves },
+        new[] { Wardrobe.WovenShirt, Wardrobe.WovenTrousers, Wardrobe.LacedBoots, Wardrobe.RivetedBreastplate, Wardrobe.WovenGloves },
+        new[] { Wardrobe.WovenHood, Wardrobe.MetalMask, Wardrobe.WovenShirt, Wardrobe.WovenTrousers, Wardrobe.LacedBoots, Wardrobe.WovenGloves },
+        new[] { Wardrobe.MetalMask, Wardrobe.WovenShirt, Wardrobe.WovenTrousers, Wardrobe.LacedBoots, Wardrobe.RivetedBreastplate },
+    };
 
     // ---------------------------------------------------------------- interface
 
     private void BuildInterface()
     {
-        var layer = new CanvasLayer();
+        // --hide-ui: the picture alone (for screenshots).
+        var layer = new CanvasLayer { Visible = !_options.ContainsKey("hide-ui") };
         AddChild(layer);
         var root = new Control { Theme = Ui.Theme, MouseFilter = Control.MouseFilterEnum.Ignore };
         root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -240,6 +390,7 @@ public partial class CharacterLab : Node3D
         GridContainer rows = Ui.Rows();
         content.AddChild(rows);
         _outfitLabel = Ui.AddRow(rows, "Outfit", "", numeric: false);
+        _lookLabel = Ui.AddRow(rows, "Look", "", numeric: false);
         _itemLabel = Ui.AddRow(rows, "Holding", "", numeric: false);
         _motionLabel = Ui.AddRow(rows, "Motion", "", numeric: false);
         _lodLabel = Ui.AddRow(rows, "Detail", "", numeric: false);
@@ -249,9 +400,9 @@ public partial class CharacterLab : Node3D
         (PanelContainer keys, VBoxContainer keyContent) = Ui.Card(6);
         Ui.Place(keys, Control.LayoutPreset.BottomLeft);
         root.AddChild(keys);
-        HFlowContainer hints = Ui.KeyHints(("O", "outfit"), ("I", "item"), ("M", "motion"), ("Q", "swing"), ("F", "fire"),
-            ("R", "reload"), ("H", "hit"), ("K", "die / revive"), ("V", "first person"), ("RMB", "aim"), ("↑|↓", "look"),
-            ("L", "detail"));
+        HFlowContainer hints = Ui.KeyHints(("O", "outfit"), ("N", "look"), ("I", "item"), ("M", "motion"), ("Q", "swing"), ("F", "fire"),
+            ("R", "reload"), ("U", "use"), ("G", "help up"), ("H", "hit"), ("K", "die / revive"), ("V", "first person"),
+            ("RMB", "aim / draw"), ("↑|↓", "look"), ("L", "detail"));
         keyContent.AddChild(hints);
         Ui.Size(hints, 560);
     }
@@ -259,8 +410,18 @@ public partial class CharacterLab : Node3D
     private void Refresh()
     {
         _outfitLabel.Text = Wardrobe.Outfits[_outfit].Name;
+        Look look = _character.Look;
+        _lookLabel.Text = (_seeded ? $"#{_seed} · " : "Default · ") +
+            $"{look.SkinName} skin, {look.HairColourName} {(look.Hair == Looks.Buzz ? "buzz cut" : look.Hair)}, face {look.Face}";
         _itemLabel.Text = _item < 0 ? "Nothing" : HeldItems.All[_item].Name;
         _motionLabel.Text = char.ToUpperInvariant(Motions[_motion][0]) + Motions[_motion][1..] + (_firstPerson ? " · first person" : "");
+    }
+
+    private void ApplyLook()
+    {
+        Look look = _seeded ? Looks.ForPlayer(_seed, _character.Body) : Looks.Default(_character.Body);
+        _character.Look = look;
+        _viewmodel.Look = look;
     }
 
     private void ApplyOutfit()
@@ -305,6 +466,11 @@ public partial class CharacterLab : Node3D
                     _outfit = (_outfit + 1) % Wardrobe.Outfits.Count;
                     ApplyOutfit();
                     break;
+                case Key.N:
+                    _seed = key.ShiftPressed ? _seed - 1 : _seed + 1;
+                    _seeded = true;
+                    ApplyLook();
+                    break;
                 case Key.I:
                     _item = _item + 1 >= HeldItems.All.Count ? -1 : _item + 1;
                     break;
@@ -322,6 +488,12 @@ public partial class CharacterLab : Node3D
                     break;
                 case Key.H:
                     Fire(CharacterEvent.Hit);
+                    break;
+                case Key.U:
+                    Fire(CharacterEvent.Use);
+                    break;
+                case Key.G:
+                    Fire(CharacterEvent.HelpUp);
                     break;
                 case Key.K:
                     if (_character.IsDead)
@@ -361,6 +533,35 @@ public partial class CharacterLab : Node3D
         {
             _viewmodel.Trigger(e);
         }
+        if (e == CharacterEvent.HelpUp && _partner != null)
+        {
+            // The one helped gets up as the helper takes their hand.
+            _partnerUp = true;
+        }
+    }
+
+    // A second player for the help-up (--partner): down in front of the character, getting up when helped.
+    private CharacterView? _partner;
+    private bool _partnerUp;
+    private float _partnerClock;
+
+    private void UpdatePartner(CharacterFrame main)
+    {
+        if (_partner == null)
+        {
+            return;
+        }
+        if (_partnerUp)
+        {
+            _partnerClock += (float)GetProcessDeltaTime();
+        }
+        // They lie facing the helper, their head towards the helper's feet; up, they stand where they lay.
+        float yaw = main.Yaw + MathF.PI;
+        Vector3 forward = CharacterFrame.Facing(Vector3.Up, main.Yaw);
+        CharacterFrame f = CharacterFrame.Standing(main.Position + forward * (float)Number("partner-distance", 1.55), Vector3.Up, yaw);
+        // Helped up: they start getting up half a second after the helper begins (when the hands meet).
+        f.Stance = _partnerUp && _partnerClock > 0.45f ? CharacterStance.Stand : CharacterStance.Crawl;
+        _partner.Apply(f);
     }
 
     // ---------------------------------------------------------------- frame
@@ -380,16 +581,35 @@ public partial class CharacterLab : Node3D
 
         if (_pendingEvent != null && _elapsed >= _eventAt)
         {
-            Fire(_pendingEvent switch
+            if (_pendingEvent.StartsWith("motion:", StringComparison.Ordinal))
             {
-                "swing" => CharacterEvent.Swing,
-                "fire" => CharacterEvent.Fire,
-                "reload" => CharacterEvent.Reload,
-                "hit" => CharacterEvent.Hit,
-                _ => CharacterEvent.Death,
-            });
+                // A change of motion at a time (e.g. motion:idle from down, to get up).
+                _motion = Math.Max(0, Array.IndexOf(Motions, _pendingEvent[7..].Replace('_', ' ')));
+                if (_partner != null)
+                {
+                    _partnerUp = true;
+                }
+                Refresh();
+            }
+            else
+            {
+                Fire(_pendingEvent switch
+                {
+                    "swing" => CharacterEvent.Swing,
+                    "fire" => CharacterEvent.Fire,
+                    "reload" => CharacterEvent.Reload,
+                    "hit" => CharacterEvent.Hit,
+                    "helpup" => CharacterEvent.HelpUp,
+                    "use" => CharacterEvent.Use,
+                    "eat" => CharacterEvent.Eat,
+                    "bandage" => CharacterEvent.Bandage,
+                    "inject" => CharacterEvent.Inject,
+                    _ => CharacterEvent.Death,
+                });
+            }
             _pendingEvent = null;
         }
+        UpdatePartner(frame);
 
         if (_firstPerson)
         {
@@ -423,7 +643,7 @@ public partial class CharacterLab : Node3D
         {
             _character.Visible = true;
             _viewmodel.Hold(HeldKind.Unarmed);
-            Vector3 focus = _character.GlobalPosition + Vector3.Up * _height;
+            Vector3 focus = _character.GlobalPosition + _stage.GlobalBasis.Y * _height;
             if (_character.IsDead)
             {
                 // Follow the body, which the ragdoll carries away from where the character stood.
@@ -433,9 +653,14 @@ public partial class CharacterLab : Node3D
                 }
             }
             float yaw = Mathf.DegToRad(_yaw), pitch = Mathf.DegToRad(_pitch);
-            Vector3 offset = new Vector3(MathF.Sin(yaw) * MathF.Cos(pitch), MathF.Sin(pitch), MathF.Cos(yaw) * MathF.Cos(pitch)) * _distance;
+            Vector3 offset = _stage.GlobalBasis * new Vector3(MathF.Sin(yaw) * MathF.Cos(pitch), MathF.Sin(pitch), MathF.Cos(yaw) * MathF.Cos(pitch)) * _distance;
             _camera.Fov = 50f;
-            _camera.LookAtFromPosition(focus + offset, focus, Vector3.Up);
+            _camera.LookAtFromPosition(focus + offset, focus, _stage.GlobalBasis.Y);
+        }
+        if (_surfaceCamera != null)
+        {
+            _surfaceCamera.GlobalTransform = _camera.GlobalTransform;
+            _surfaceCamera.Fov = _camera.Fov;
         }
 
         _lodLabel.Text = _character.ForcedLod >= 0 ? $"Level {_character.ForcedLod} (fixed)" : $"Level {_character.Lod}";
@@ -518,7 +743,18 @@ public partial class CharacterLab : Node3D
                 f.Stance = CharacterStance.Swim;
                 f.Velocity = forward * 2f;
                 break;
+            case "down":
+                f.Stance = CharacterStance.Crawl;
+                break;
+            case "crawl":
+                f.Stance = CharacterStance.Crawl;
+                f.Velocity = forward * 0.8f;
+                break;
+            case "sleep":
+                f.Stance = CharacterStance.Sleep;
+                break;
         }
+        f.Aiming = _aiming;
         if (_options.ContainsKey("slope"))
         {
             f.Position = new Vector3(4f, 0.35f, 0f);
@@ -530,8 +766,8 @@ public partial class CharacterLab : Node3D
     {
         for (int i = 0; i < _crowd.Count; i++)
         {
-            (CharacterView view, float radius, float phase, float _, HeldKind held, string motion) = _crowd[i];
-            float speed = motion switch { "walk" => 1.25f, "jog" => 2.8f, "sprint" => 5.5f, "crouch walk" => 1.3f, _ => 0f };
+            (CharacterView view, float radius, float phase, float _, HeldItemModel? held, string motion) = _crowd[i];
+            float speed = motion switch { "walk" => 1.25f, "jog" => 2.8f, "sprint" => 5.5f, "crouch walk" => 1.3f, "crawl" => 0.8f, _ => 0f };
             phase += speed / radius * dt;
             _crowd[i] = (view, radius, phase, speed, held, motion);
             int row = i / 10, column = i % 10;
@@ -546,9 +782,18 @@ public partial class CharacterLab : Node3D
                 Yaw = speed > 0f ? yaw : phase,
                 Pitch = 0.1f * MathF.Sin(_time + i),
                 Velocity = tangent * speed,
-                Stance = motion == "crouch walk" ? CharacterStance.Crouch : CharacterStance.Stand,
+                Stance = motion switch
+                {
+                    "crouch walk" => CharacterStance.Crouch,
+                    "crawl" or "down" => CharacterStance.Crawl,
+                    "sleep" => CharacterStance.Sleep,
+                    _ => CharacterStance.Stand,
+                },
                 Grounded = true,
-                Held = held,
+                Held = held?.Kind ?? HeldKind.Unarmed,
+                HeldItem = held?.Id,
+                // Standing still with a bow or a gun: drawn, or raised.
+                Aiming = speed == 0f && held != null && (held.Kind is HeldKind.Pistol or HeldKind.Rifle || held.Id == "bow"),
             });
         }
     }

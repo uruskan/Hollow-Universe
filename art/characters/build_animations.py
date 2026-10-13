@@ -1,4 +1,5 @@
-"""Retargets Quaternius' Universal Animation Library clips onto the player skeleton.
+"""Retargets Quaternius' Universal Animation Library clips onto the player skeleton, and bakes the clips authored by
+script (authored_clips.py: asleep, the wounded state, helping up).
 
     blender -b --factory-startup --python art/characters/build_animations.py -- --ual1 <glb> --ual2 <glb>
 
@@ -25,6 +26,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import bpy  # noqa: E402
 from mathutils import Matrix, Quaternion, Vector  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import authored as A  # noqa: E402
+import authored_clips as AC  # noqa: E402
 import hollow_art as H  # noqa: E402
 
 DOWNLOADS = "D:/GameDev/Assets/Downloads"
@@ -64,6 +69,7 @@ CLIPS = {
     "death": ("ual1", "Death01", False),
     "interact": ("ual1", "Interact", False),
     "pick_up": ("ual1", "PickUp_Table", False),
+    # UAL2's Consume lifts the left hand to the mouth: the character moves the food to that hand while it eats.
     "consume": ("ual2", "Consume", False),
     "roll": ("ual1", "Roll", False),
     "carry_walk": ("ual2", "Walk_Carry_Loop", True),
@@ -136,6 +142,23 @@ def main():
         meta[clip] = info
         made.append(action)
 
+    # The clips authored by script (authored_clips.py): lying asleep, the wounded state, helping up.
+    body = bpy.data.objects.get("body_lod0")
+    rig_model = A.Rig(rig, body)
+    scale = rig_model.head("thigh_l").z / 0.953
+    for clip, (length, loops, keys_of, speed) in AC.CLIPS.items():
+        keys, frames = A.bake(rig_model, scaled(keys_of(), scale), scene.render.fps, length, loop=loops)
+        action = bpy.data.actions.new(clip)
+        action.use_fake_user = True
+        write_keys(rig, action, frames, keys)
+        info = {"loop": loops, "frames": len(frames), "length": round(length, 4),
+                "source": "authored (art/characters/authored_clips.py)"}
+        if speed > 0:
+            info["ground_speed"] = round(speed * scale, 3)
+        meta[clip] = info
+        made.append(action)
+        H.log("clip %-14s %3d frames authored" % (clip, len(frames)))
+
     # Only our rig and its actions go into the file.
     for library in sources.values():
         remove_hierarchy(library[0])
@@ -158,6 +181,21 @@ def main():
     })
     if a.get("sheet"):
         contact_sheet(a["sheet"], os.path.join(out, "animations%s.glb" % suffix), list(meta.keys()), meta)
+
+
+def scaled(keys, scale):
+    """Authored keys for a body of another size: positions (the root, IK targets and poles) scale with its hips."""
+    out = []
+    for t, pose in keys:
+        p = dict(pose)
+        if "root" in p:
+            p["root"] = tuple(x * scale for x in p["root"])
+        if "ik" in p:
+            p["ik"] = {k: (None if v is None else dict(v, at=tuple(x * scale for x in v["at"]),
+                                                          pole=tuple(x * scale for x in v["pole"])))
+                       for k, v in p["ik"].items()}
+        out.append((t, p))
+    return out
 
 
 def import_library(path):

@@ -471,13 +471,14 @@ knows about the network.
 
 | Input | Meaning |
 |---|---|
-| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional). |
-| `Trigger(CharacterEvent, direction)` | `Swing` (tool strike or punch), `Fire`, `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`). `Revive()` stands it up again. |
-| `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). |
+| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim; `Crawl`: down and wounded, lying or crawling; `Sleep`: asleep, logged off); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional); `Aiming` (a gun raised, the bow drawn and held). |
+| `Trigger(CharacterEvent, direction)` | `Swing` (tool strike, punch, spear thrust), `Fire` (a shot; with the bow, the arrow loosed), `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`), `HelpUp` (helping a wounded player up), `Use` (the item in hand: food is eaten, a bandage wound on, an injector used), `Eat`, `Bandage`, `Inject`. `Revive()` stands it up again. Changing `Stance` from standing to `Crawl` plays the fall; from `Crawl` to standing, getting up. |
+| `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). `Wardrobe.ForItem(itemKey)` gives the garments an items.json key is worn as (every clothing and armour key has one); `Wardrobe.ForItems(keys)` a whole outfit. |
+| `Look` | How the player looks: `Looks.ForPlayer(id, body)` (skin tone, face, hair style and colour, stubble from the ID; the body is the player's choice). Set any time; `ViewmodelView.Look` gives the arms the same skin. |
 
 `ViewmodelView` is the first-person counterpart, a child of the player's camera: `Hold(kind, item)`, `Wear(items)`,
-`Apply(ViewmodelFrame)` every frame (velocity in the camera's frame, look rate, grounded, sprinting, crouching, aiming)
-and `Trigger(Swing | Fire | Reload)`. Its `AimAmount` (0 at the hip, 1 aimed down the sights) lets the owner narrow
+`Look`, `Apply(ViewmodelFrame)` every frame (velocity in the camera's frame, look rate, grounded, sprinting, crouching,
+aiming: down the sights, or the bow drawn) and `Trigger(Swing | Fire | Reload | Use | Eat | Bandage | Inject)`. Its `AimAmount` (0 at the hip, 1 aimed down the sights) lets the owner narrow
 the camera's field of view.
 
 "Up" is given per frame and nothing assumes +Y: the view builds its basis from `Up` and `Yaw`, and everything inside
@@ -486,7 +487,7 @@ works in the character's own frame. The ragdoll falls along −`Up` at the momen
 **Body.** A MakeHuman adult male (1.78 m, eyes at 1.67 m), MPFB's game-engine skeleton: 53 bones with UE-style names
 (`pelvis`, `spine_01`…`spine_03`, `neck_01`, `head`, `clavicle_l`, `upperarm_l`, `lowerarm_l`, `hand_l`, three bones per
 finger, `thigh_l`, `calf_l`, `foot_l`, `ball_l`). Rest pose: MakeHuman's A-pose. Levels of detail: about 18,000, 7,000
-and 2,400 triangles for the body; eyes, brows, lashes and short hair (MakeHuman CC0 assets) drop out with distance.
+and 2,400 triangles for the body; eyes, brows, lashes and the hair style (MakeHuman CC0 assets) drop out with distance.
 A female body (1.61 m, eyes at 1.50 m) is built by the same scripts (`-- --body female`): the same skeleton names, her
 own meshes, clothing cut from her body and clips retargeted onto her rig (`human_female.glb`, `clothing_female.glb`,
 `animations_female.glb`); a character picks its body with `CharacterView.Body` and `ViewmodelView.Body`. Players
@@ -495,6 +496,24 @@ for a woman a crop top cut straight round the chest), so nobody is ever without 
 "blink" shape on the body and lashes from MakeHuman's eyelid-closure expression units); the eyes have a wet clear coat;
 the hair cards blend their thin ends over a depth pre-pass, and a dark hair base painted on the scalp fades into the
 forehead, so the hairline is soft.
+
+**Looks.** As in Rust, the body is the player's choice and the rest comes from their ID (`Looks.ForPlayer(id, body)`;
+a string ID, such as the account name, through its 64-bit FNV-1a hash), the same on every machine:
+- *skin tone*: ten tones from pale to very dark. The shader blends MakeHuman's light skin texture with its dark one
+  (both bodies have both; the dark one's painted scalp hair is replaced by its own skin when it is built), spread so
+  equal steps look equal, with a tint (rosier, more olive) and less light scattered under darker skin;
+- *face*: six per body, the base face and five shape keys (`face_1` … `face_5`) made by `build_body.py` from MakeHuman's
+  nose, mouth, cheek and chin targets and its African and East Asian race macros (less the body's own mix, and less
+  the head's movement as a whole). They change only the lower and middle face, so the eyes, brows, lashes, every hair
+  style and every garment fit all six; they are drawn at the nearest level of detail;
+- *hair*: five MakeHuman styles per body (men: short02, short01, short03, short04, afro01; women: ponytail01, bob01,
+  bob02, short03, afro01) or a buzz cut (the hair base alone), in one of ten natural colours whose odds follow the
+  skin tone. Hair textures are stored as brightness about their mean, so any style takes any colour; one material
+  per style, the colour an instance uniform (`hair_colour`). The brows take it a little darker, the hair base painted on
+  the scalp and the stubble take it too;
+- *stubble* for men: none, light or heavy (a mask painted by `build_body.py`).
+
+Everything per player is an instance uniform or a blend shape, so the materials stay shared.
 
 **Clothing.** Every body face belongs to one of fourteen regions (face, scalp, neck, collar, chest, belly, pelvis, upper
 arm, forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
@@ -521,7 +540,33 @@ The breastplate is not cut from the body. It is a riveted cuirass of our own des
 
 It is built for the silhouette: broad steel shoulders, a keeled chest and a flared skirt read as armour at 20 m.
 
-The first outfit: knit cap, woven shirt, woven trousers, laced boots, riveted breastplate.
+The hood (`woven-hood`) is not cut from the body either. It is a grid of rays cast out from inside the head and down
+the neck (rows from the crown to below the shoulders, columns all the way round), each as long as the furthest of a
+smoothed head (with every face shape), the mask and the shirt, plus room (22 mm over the head, less at the neck):
+- the face opening is cut out of the grid along a curve that runs level over the forehead, in front of the ears and
+  round under the chin, and its edge is rolled, with soft folds running back from it;
+- under the chin the cloth hangs from the chin instead of following the throat, gathers at the throat and falls in
+  drape folds into a short cape over the base of the neck and the tops of the shoulders: over the shirt, under the
+  breastplate's plates and straps;
+- a soft point stands behind the crown, and the cape's hem is lowest behind.
+
+It is fitted over the mask, so it goes over it. The cape stands 15 mm clear of the shirt and, where it lies over it,
+takes the shirt's own skin weights (blending back to the hood's smoothed ones up the neck), so the two move together
+when the arms come forward and the shirt doesn't come through it.
+
+The metal mask (`metal-mask`) is a beaten shell from the brow to under the chin and round the cheeks to in front of the
+ears, 13 mm clear of every face shape: one eye slit across both eyes, a keel down the welded centre seam, a heavier ridge
+over the brow and a flared lower edge, with a steel band round the back of the head above the ears and a strap over the
+crown riveted to it. It is rigid on the head bone. Its welds, heat tint, rivets, drilled breathing holes and rust are
+painted. Gloves (`woven-gloves`) are a shell 2.5 mm over the hands (thicker on their backs and the fingertips) whose
+cuff runs 5 cm up the forearm under the sleeve; first person draws them.
+
+**The wardrobe** (`Wardrobe`): `ForItem(itemKey)` gives the garments an item is worn as: woven-hood → woven hood,
+woven-shirt → woven shirt, woven-trousers → woven trousers, woven-gloves → woven gloves, work-boots → laced boots,
+chest-plate → riveted breastplate, metal-mask → metal mask (the knit cap stays for the viewer). Layering, from the skin
+out (`Wardrobe.Layer`): trousers and gloves, the shirt, boots, the chest plate, the mask, the hood. An outer garment
+hides the parts of inner ones in the regions it covers completely; the hood and the mask hide the hair (the hair base
+painted on the scalp stays, and shows at the hairline as hair would).
 
 **Animation.** One `AnimationTree` graph, shared by all characters (`CharacterAnimator`):
 - speed blends for standing (idle, walk, jog, sprint at 0, 1.25, 2.8 and 5.5 m/s), crouching and swimming, kept in
@@ -533,7 +578,36 @@ The first outfit: knit cap, woven shirt, woven trousers, laced boots, riveted br
 - held-item layers: the right arm (tool, pistol, rifle) and the left arm with the chest (pistol, rifle);
 - one-shot upper-body actions and flinches: hatchets, picks, hammers and torches chop (UAL2's tree-chopping loop,
   started at its wind-up a little faster than the clip and faded out after the follow-through, so the blow lands at
-  about the item's strike time), blades slash, the rock comes down overhand; punch, pistol fire and reload.
+  about the item's strike time), blades slash, the rock comes down overhand; punch, pistol fire and reload; eating
+  (UAL2's Consume: it lifts the left hand, so the food moves to that hand while it eats);
+- lying: the wounded state (`Crawl`) blends lying propped on the forearms, breathing hard, into an elbow crawl at the
+  movement code's 0.8 m/s (each forearm reaches 0.4 m, plants and pulls while the body slides over it, so it keeps
+  still on the ground); asleep (`Sleep`), on the left side with the knees drawn up and the head on the left arm,
+  breathing slowly, eyes shut. The lying clips match the server's lying hit shapes (head 0.78 m ahead, feet 0.95 m
+  behind);
+- whole-body one-shots over everything: the fall (the knees give, the hands go to the body, onto the knees, forward
+  onto the hands, flat), getting up (pushing up, hands and knees, up on one knee with a hand reaching ahead, standing:
+  the same whether helped or not) and helping up (down on one knee, a hand to theirs, a grip, up pulling).
+
+No library has those last clips: they are authored by script (`art/characters/authored.py`, `authored_clips.py`) from
+key poses: the pelvis placed and turned, spine and head turned in rest-aligned axes, hands and feet placed by two-bone
+IK (with where the elbows and knees point and how the hands and feet are turned), finger curls; every value eases
+between keys and the IK is solved each frame, and lying keys are lowered until the skinned body itself touches the
+ground. The female body's are scaled by her hip height.
+
+The procedural layer does what needs the item's own geometry:
+- the bow (`BowRig`): its limbs bend back as it is drawn (a "draw" blend shape made from its own mesh), the string
+  (taken out of the model) runs from each tip to the nock as two cords, and an arrow lies on it. Aiming, the chest turns
+  so the left shoulder leads, the left arm holds the bow out along the aim, canted a little, and the right hand draws the
+  string to the jaw over a second; `Fire` looses it (the hand flicks back, the string snaps straight) and, still aiming,
+  the next is drawn;
+- spears are held in both hands at the hip, point forward; a swing is a thrust: drawn back, driven 0.4 m along the
+  shaft with the chest leaning and turning into it, held, recovered;
+- the rifle's reload (2.4 s, the server's): the rifle rolls over and dips, the left hand goes to the magazine, away to a
+  pouch at the left side and back with a full magazine (drawn in the hand), seats it, works the charging handle and
+  returns; the pistol's (UAL's clip) drops its own magazine out of the grip and seats a full one;
+- bandaging (the left forearm raised across the chest, the bandage wound round it two and a half times and pressed
+  down) and injecting (the injector brought to the left upper arm, pressed, held, taken away).
 
 The clips only run forward; `CharacterPoser`, a `SkeletonModifier3D`, turns the hips towards the direction of travel
 and the chest back to the aim (running backwards plays the loop in reverse), spreads the view pitch over spine, neck and
@@ -553,7 +627,12 @@ pose, recoil kick on a spring, aiming down the sights (the sight on the camera's
 key poses (`ViewmodelMotion`): a swing turns about the hand, up and back for the wind-up, a beat at the top, then down
 and across fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and
 recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
-works the slide or the charging handle (another jolt) and returns. Unarmed shows no arms, as in Rust.
+works the slide or the charging handle (another jolt) and returns; the pistol's magazine (the catalogue's `Magazine`
+part) drops and comes back. The bow is raised upright in front of the left eye and drawn (the string to a little over
+half its third-person draw, so the hand stops in front of the face), an arrow on the string; a shot looses it. A spear
+is thrust along its shaft. Eating brings the food to the mouth for a few bites; bandaging raises the left forearm into
+view and winds the bandage round it; injecting pushes the injector into the raised forearm. Gloves are drawn with the
+forearms. Unarmed shows no arms, as in Rust.
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
@@ -575,20 +654,41 @@ runs only where it can be seen, foot placement only at the nearest level. Animat
 `StringName`s, so a frame allocates nothing per character.
 
 Measured on the owner's PC (RTX 2070 Super, 1600 × 900, Forward+, vsync off, two other Godot sessions running),
-`--view character --crowd 49 --measure 10`, all 50 characters on screen, moving, mixed outfits and held items:
+`--view character --crowd 49 --measure 10`, all 50 characters on screen, each with their own look (skin, face, hair)
+and one of the eight outfits (hoods, masks, gloves and plates among them), standing, walking, running, crouching,
+lying wounded, crawling and asleep, bare-handed or holding a tool, pistol, rifle (raised), drawn bow or spear:
 
 | Setting | Average frame | 99th percentile | Worst |
 |---|---|---|---|
-| Levels of detail by distance (as shipped) | 5.7 ms (174 fps) | 9.0 ms | 12.7 ms |
-| All 50 forced to full detail, full-rate animation and foot placement | 9.8 ms (102 fps) | 13.8 ms | 35 ms (one hitch) |
+| Levels of detail by distance (as shipped) | 6.5 ms (154 fps) | 11.7 ms | 20.8 ms |
+| All 50 forced to full detail, full-rate animation and foot placement | 14.9 ms (67 fps) | 22.6 ms | 41.6 ms |
 
-**Viewer.** `--view character` (options in AGENTS.md): cycle outfits, held items and motions, fire every event, die and
-revive, switch to first person, and measure a crowd. Screenshots in `docs/images/ground/character-*.png`.
+The other sessions made these noisy (one character alone measured anywhere from 5 to 12 ms). Before the wardrobe and
+looks (plain outfits, one hair style, no lying or bows) the same crowd measured 5.7 ms as shipped and 9.8 ms at full
+detail. On the first world's own ground (`--on-surface`) the 50 characters added 0.5 ms to what the surface view
+alone took on the same busy machine (34.6 against 34.2 ms; that view is 11–12 ms on a quiet one).
 
-**Not good enough yet** (next passes): garments are shells of the body, not simulated cloth, so they don't swing or
-drape as the body moves, and their wrinkles are painted, not simulated; the back plate is plainer than the front; the
-face has no expressions or eye movement beyond the blink; hair is MakeHuman's short cut only; first-person reloads move the hand but not
-the magazine (the catalogue's guns are one mesh); the female body's crop top still has a few notched faces at its edges, and her shirt shows the bust a little more than a real shirt would.
+**Viewer.** `--view character` (options in AGENTS.md): cycle outfits, looks, held items and motions, fire every
+event, help a wounded player up, die and revive, switch to first person, and measure a crowd. `--on-surface` stands
+everything on the first world's ground at the landing site (or `--lat`, `--lon`) at `--time`, lit by its sun, sky and
+exposure, to judge the looks under the ground's own light. Screenshots in `docs/images/ground/character-*.png` and,
+for the wardrobe, looks and new animations, `docs/images/ground/character/`: `crowd.png` (eight players on the
+meadow, mixed bodies, looks and outfits), `hood-mask-gloves.png` (the hood over the mask, gloves and plate),
+`sleeping.png`, `wounded-crawl.png`, `help-up.png`, `bow-drawn.png`, `rifle-reload.png` (third person, the new
+magazine in the hand) and `fp-gloves-rifle.png` (first person, gloves on). The lying ones are on the viewer's own
+flat ground: the meadow's grass hides a body lying in it, as it should.
+
+**Not good enough yet** (next passes), judged against Rust: Rust's players are scanned-quality models with
+sculpted, layered clothing; ours are MakeHuman bodies with garments that are shells of the body, so at arm's length
+they read as a good indie game, not as Rust. In particular: garments aren't simulated cloth, so they don't swing or
+drape as the body moves, and their wrinkles are painted; in the crawl, close up, the shirt still shows through the
+hood's cape at the armpit (the cape follows the shirt, but the shirt itself creases there); the hood's cape is short;
+gloves are plain in first person; the back plate is plainer than the front; faces have no expressions or eye movement
+beyond the blink and the shut eyes of a sleeper; hair is cards from MakeHuman, without Rust's strand detail; the
+sleeper's lower arm lies stretched out palm up; lying bodies stay flat in the character's plane, so on a slope the
+head or feet sink in or float (C12); the rifle's own magazine stays in it during a reload (C11); the bow's string is
+two straight cords; the female body's crop top still has a few notched faces at its edges, and her shirt shows the
+bust a little more than a real shirt would.
 
 ### 4.9 Audio
 
@@ -3242,8 +3342,8 @@ Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's cont
 2a. **Character decisions taken by Claude while the owner is away** (§4.8; the owner may change any of them):
    - The UAL clips are retargeted onto MakeHuman's game-engine skeleton, not the other way round: the body keeps its
      A-pose bind (better shoulders) and the two skeletons already share bone names.
-   - The first headwear is a knit cap rather than a hood: a hood needs cloth folds around the face that a scripted
-     shell does not give yet.
+   - The first headwear was a knit cap rather than a hood; the hood now has its own construction (C5), and the knit
+     cap stays for the viewer.
    - The seven wear slots are head, face, torso, torso armour, legs, hands and feet.
    - Underwear is part of the body and cannot be taken off, as in Rust.
    - In third person a rifle is carried at the right shoulder, pointing where the player looks; with nothing in hand
@@ -3373,6 +3473,43 @@ they merge beside the other packages' items):
   middle, like the timed charge.
 - M13. **Explosive rounds are marked yellow striped black** with yellow tips, so the four kinds of round read apart at a
   glance (plain, blue, orange, hazard stripes).
+
+Decisions taken for the wardrobe, looks and animations (§4.8) without the owner, to confirm or overturn (numbered C1
+on):
+
+- C1. **Looks come from the player's ID**, as in Rust; the body is the player's choice. A string ID (the account name
+  with development logins) is hashed with 64-bit FNV-1a, so a look is the same on every machine and in every session.
+- C2. **Skin tones blend two MakeHuman skins** (the light and dark young adult textures) rather than tinting one, so
+  dark skin keeps its own detail (lighter palms, darker lips); ten tones with small tints and a little jitter.
+- C3. **Hair styles end at the shoulders**: MakeHuman's long01 and braid01 hang down the back, where the shirt and the
+  back plate stand, so they are left out. Five MakeHuman styles a body plus a buzz cut; afro hair is more likely on
+  darker skin, as are the faces that lean African; the face leaning East Asian is more likely on lighter skin.
+- C4. **Faces change only the lower and middle face** (nose, cheeks, mouth, jaw, chin): the hair, brows, eyes and every
+  garment then fit all of them without a fit per face.
+- C5. **The hood is one mesh that fits over the mask**, rather than one cut for each: without a mask it stands a little
+  further off the cheeks than it needs to, which reads as a roomy hood. It has a short cape over the shoulders (under
+  the breastplate) so that it reads as a hood from behind, at 20 m.
+- C6. **The metal mask covers the crown with a band and a strap**, as items.json says ("the face and the crown of the
+  head"), and hides the hair as a helmet would; our own design (one slit, a keeled plate, drilled breathing holes), not
+  Rust's.
+- C7. **Glove cuffs go under the sleeves** (gloves are an inner layer), so a gloved hand never shows a step at the
+  wrist and the sleeve's hem lies over the glove.
+- C8. **The wounded lie face down and crawl on their elbows** (nothing of Rust's own animation was used, and a supine
+  drag would move head first while the player looks the other way); helped up or not, they get up the same way, a
+  hand reaching ahead.
+- C9. **Sleepers lie on their side**, not as a ragdoll: integration should set `Stance = Sleep` instead of triggering a
+  death for a sleeper.
+- C10. **The bow's draw is shown, not simulated**: the limbs bend by a blend shape and the string is two cords. The
+  server sets `Aiming` only for guns today, so another player's bow shows drawn once the server sends aiming for the
+  bow too (a line in GameServer's state, for integration).
+- C11. **The rifle's own magazine stays in place** in a reload (the catalogue's rifle is one mesh); the new magazine is
+  drawn in the hand until it is seated.
+- C12. **Lying poses don't follow the ground's slope**: a wounded or sleeping body lies flat in the plane square to the
+  character's `Up`. Integration could tilt `Up` towards the ground's normal under the body while it lies (the
+  server's lying hit shapes would want the same).
+- C13. **The look under the ground's light is judged with `--on-surface`** (the viewer on the first world's meadow,
+  its sun and sky, auto exposure): skin, hair and cloth were tuned there, not only under the viewer's own sky; the
+  palest skin was made a little warmer, as it read grey in full sun.
 
 Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 

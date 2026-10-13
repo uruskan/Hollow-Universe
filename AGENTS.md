@@ -159,12 +159,23 @@ Client options (after `--`):
   ∓ 6 h), T day speed (1×, 60×, 600×, 3600×), P pause time, H hide the interface, Esc back.
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
-- Character viewer: `--view character`; `--body <male|female>`, `--outfit <0–4>`, `--item <key>` (any item key with a held pose in `data/ground/models.json`, e.g. `stone-hatchet`, `rock`, `pistol`, `rifle`, `bow`),
-  `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim>`,
-  `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death>` with `--event-at <s>`, `--fp` (first person),
+- Character viewer: `--view character`; `--body <male|female>`, `--outfit <0–8>`, `--seed <n>` or `--player <name>` (the
+  look `Looks.ForPlayer` gives that ID; N / Shift+N the next or previous seed), `--lineup <n>` (n players in a row
+  facing the camera, looks from `--seed` on, `--spacing <m>`), `--item <key>` (any item key with a held pose in `data/ground/models.json`, e.g. `stone-hatchet`, `rock`, `pistol`, `rifle`, `bow`),
+  `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim|down|crawl|sleep>`
+  (down and crawl: wounded; sleep: logged off),
+  `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death|helpup|use|eat|bandage|inject|motion:NAME>` with
+  `--event-at <s>` (motion:idle from down plays getting up, motion:down from idle the fall), `--partner <male|female>`
+  (a wounded player in front, who gets up when the character helps; `--partner-outfit <n>`, `--partner-distance <m>`),
+  `--ads` (aim; with the bow, draw), keys U use, G help up, `--fp` (first person),
   `--ads`, `--vm-orbit <yaw,pitch,m>` (look at the first-person hands from another side), `--blink <0–1>` (hold the eyelids), `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
-  `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once;
-  `--crowd <n>` adds n characters and `--measure <s>` prints frame times (vsync off) and quits.
+  `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once; `--hide-ui` (the picture
+  alone); `--on-surface` (everything on the first world's ground and in its light, at the landing site or `--lat`,
+  `--lon`, the clock held at `--time <UTC>`, e.g. `2026-10-12T03:00:00Z`; the characters face the sun, turned
+  `--stage-yaw <deg>` (default 30) to its left; the meadow at `--lat 44.86225 --lon -170.00150 --stage-yaw 50` is
+  clear for the camera);
+  `--crowd <n>` adds n characters (every look, outfit, motion including lying and asleep, and held item including a
+  drawn bow) and `--measure <s>` prints frame times (vsync off) and quits.
 - Sounds (GROUND.md §4.9): `--view sounds` lists every sound event (a click plays it; Space play, W walk away, S stop,
   ↑/↓ the event, A ambience, B biome); `--sound <key>` selects one, `--play` plays it, `--walk` sends the source away
   from the listener (distance layers, arrival delay), `--distance <m>` places it; `--ambience` with `--biome

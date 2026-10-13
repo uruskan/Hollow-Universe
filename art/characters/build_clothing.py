@@ -1,16 +1,18 @@
-"""Builds the first outfit: game/assets/characters/clothing.glb, its textures and clothing.json.
+"""Builds the garments: game/assets/characters/clothing.glb, its textures and clothing.json.
 
     blender -b --factory-startup --python art/characters/build_clothing.py
 
 Needs art/.cache/human_male.blend from build_body.py. Every garment is a shell cut from the body's own surface, so it
 fits, carries the body's weights and regions, and is skinned to the same skeleton:
 
-    knit cap · woven shirt · woven trousers · laced boots · riveted breastplate (plates, shoulder caps, straps, buckles)
+    knit cap · woven shirt · woven trousers · laced boots · woven gloves · riveted breastplate (plates, shoulder caps,
+    straps, buckles) · metal mask (a welded face plate, band and strap) · woven hood (over the shirt and the mask)
 
 Layers, from the skin out (metres off the skin): trousers 6 mm, shirt 10–25 mm (it hangs), boots 12–20 mm. The
 breastplate is not cut from the body: its plates are rigid shells standing 25 mm clear of the shirt. The client hides
 body regions under garments and parts of inner garments under outer ones (GROUND.md §4.8).
 """
+import json
 import math
 import os
 import sys
@@ -45,26 +47,39 @@ def main():
             bpy.data.objects.remove(o)
     marks = Marks(rig)
     marks.female = which == "female"
+    with open(os.path.join(out, "human_%s.json" % which), encoding="utf-8") as f:
+        marks.eye_z = json.load(f)["eye_height_m"]
     textures = os.path.join(out, "textures")
     detail_textures(textures)
 
     shirt = woven_shirt(body, marks)
+    mask = metal_mask(body, marks, which)
     garments = [
         ("knit_cap", knit_cap(body, marks)),
         ("woven_shirt", shirt),
         ("woven_trousers", woven_trousers(body, marks)),
         ("laced_boots", laced_boots(body, marks)),
+        ("woven_gloves", woven_gloves(body, marks)),
+        ("metal_mask", mask),
+        # The hood clears the shirt and the mask, so it goes over both.
+        ("woven_hood", woven_hood(body, marks, which, shirt[0], mask[0])),
         # The plate is shaped over the shirt, so it always clears it.
         ("riveted_breastplate", breastplate(body, marks, shirt[0])),
     ]
     surfaces = {}
     exported = []
     counts = {}
+    shirt_weights = None
     for name, (obj, paint) in garments:
         if obj.get("rigid") is None:
             G.weights_from_body(obj, body)
             if obj.get("weight_smoothing"):
                 G.smooth_weights(obj, int(obj["weight_smoothing"]))
+            if obj.get("weights_over_shirt") is not None and shirt_weights is not None:
+                weights_over(obj, shirt_weights, *[float(x) for x in obj["weights_over_shirt"]])
+            if name == "woven_shirt":
+                # Kept (with its final weights) for what lies over it.
+                shirt_weights = H.duplicate(obj, "shirt_weights")
         else:
             # Armour is skinned part by part as it is built (rigid plates); keep it that way.
             H.limit_and_normalise_weights(obj)
@@ -83,6 +98,8 @@ def main():
             counts[copy.name] = H.triangles(copy)
             exported.append(copy)
         bpy.data.objects.remove(obj)
+    if shirt_weights is not None:
+        bpy.data.objects.remove(shirt_weights)
     H.log("garments:", counts)
     H.export_glb(os.path.join(out, "clothing%s.glb" % suffix), [rig] + exported)
     H.write_json(os.path.join(out, "clothing%s.json" % suffix), {
@@ -114,6 +131,7 @@ class Marks:
         self.head = b["head"][0]
         self.spine_y = (b["spine_01"][0].y + b["spine_03"][0].y + b["spine_03"][1].y) / 3
         self.female = False
+        self.eye_z = self.head.z + 0.04
 
     def head_of(self, bone):
         return self.b[bone][0]
@@ -783,6 +801,605 @@ def shoulder_cap(name, m, side, tree, clearance=0.02, rows=12, cols=14):
     return grid_object("%s_%d" % (name, side), rows, cols, point)
 
 
+# ---------------------------------------------------------------- headwear and gloves
+
+def head_centre(m):
+    """A point inside the skull at eye height on the head bone's line: the mask and the hood are fitted by rays cast
+    out from it."""
+    return Vector((0.0, m.head.y, m.eye_z))
+
+
+def direction(a, e):
+    """Unit direction from the head centre: a radians round from the front (−Y) towards the left (+X), e radians up."""
+    return Vector((math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e), math.sin(e)))
+
+
+def face_union_tree(body, m, which):
+    """A BVH of the body whose face is, at every vertex, the furthest out of all its faces (the base face and the
+    shape keys build_body.py made), so what is fitted to it fits every face."""
+    from mathutils.bvhtree import BVHTree
+    me = body.data
+    co = np.array([v.co[:] for v in me.vertices], np.float64)
+    best = co.copy()
+    path = os.path.join(H.CACHE, "human_%s_faces.npz" % which)
+    if os.path.exists(path):
+        c = np.array(head_centre(m)[:])
+        r = np.linalg.norm(best - c, axis=1)
+        with np.load(path) as faces:
+            for key in faces.files:
+                candidate = co + faces[key]
+                rc = np.linalg.norm(candidate - c, axis=1)
+                take = rc > r
+                best[take] = candidate[take]
+                r[take] = rc[take]
+    return BVHTree.FromPolygons([tuple(v) for v in best], [tuple(p.vertices) for p in me.polygons])
+
+
+def last_hit(tree, origin, direction, reach=0.4):
+    """How far a ray from inside a body goes before it leaves it for good: the last surface it crosses within
+    `reach` (the first may be the inside of the mouth, a nostril or an eye socket)."""
+    travelled, last = 0.0, None
+    o = origin.copy()
+    for _ in range(12):
+        hit, _, _, dist = tree.ray_cast(o, direction, reach - travelled)
+        if hit is None:
+            break
+        travelled += dist + 1e-4
+        last = travelled
+        o = origin + direction * travelled
+    return last
+
+
+def ray_grid(tree, origins, directions, clearance, miss):
+    """Distances from origins along directions to where they leave the surface, plus clearance; a ray that misses
+    takes `miss` (or its neighbour's)."""
+    rows, cols = len(directions), len(directions[0])
+    r = np.full((rows, cols), np.nan)
+    for i in range(rows):
+        for j in range(cols):
+            dist = last_hit(tree, origins[i][j], directions[i][j])
+            if dist is not None:
+                r[i, j] = dist + clearance
+    for _ in range(max(rows, cols)):
+        empty = np.isnan(r)
+        if not empty.any():
+            break
+        p = np.pad(r, 1, mode='edge')
+        near = np.nanmax(np.stack([p[:-2, 1:-1], p[2:, 1:-1], p[1:-1, :-2], p[1:-1, 2:]]), axis=0)
+        r[empty] = near[empty]
+    r[np.isnan(r)] = miss
+    return r
+
+
+def hang_from(p, q, c, slope):
+    """Moves p out from the head's vertical axis so it doesn't draw back from q (above it) by more than `slope`
+    metres per metre of drop."""
+    drop = max(0.0, q.z - p.z)
+    out_q = Vector((q.x - c.x, q.y - c.y, 0.0))
+    if out_q.length < 1e-6:
+        return
+    along = out_q.normalized()
+    want = out_q.length - slope * drop
+    have = Vector((p.x - c.x, p.y - c.y, 0.0)).dot(along)
+    if have < want:
+        p += along * (want - have)
+
+
+def hang(pts, c, start, slope, angles=None):
+    """Cloth and plates fall from what is above them: going down the rows from `start`, a point never draws back
+    towards the head's vertical axis faster than `slope` metres per metre of drop (under the chin the cloth hangs
+    from the chin instead of following the throat in). With `angles` (each point's angle round the axis), a point
+    hangs only from the one above it at about the same angle."""
+    for i in range(max(1, start), len(pts)):
+        for j in range(len(pts[i])):
+            if angles is not None:
+                gap = abs((angles[i][j] - angles[i - 1][j] + math.pi) % math.tau - math.pi)
+                if gap > 0.12:
+                    continue
+            p, q = pts[i][j], pts[i - 1][j]
+            drop = max(0.0, q.z - p.z)
+            out_p = Vector((p.x - c.x, p.y - c.y, 0.0))
+            out_q = Vector((q.x - c.x, q.y - c.y, 0.0))
+            if out_q.length < 1e-6:
+                continue
+            want = out_q.length - slope * drop
+            along = out_q.normalized()
+            have = out_p.dot(along)
+            if have < want:
+                p += along * (want - have)
+
+
+def outward_smooth_rows(raw, passes, closed):
+    """outward_smooth for a grid whose rows close on themselves where `closed` says (the first and last columns are
+    one point): those rows smooth round, and their two end columns end equal."""
+    radii = raw.copy()
+    wrap = np.array(closed)[:, None]
+    for _ in range(passes):
+        p = np.pad(radii, 1, mode='edge')
+        left = np.where(wrap, np.roll(radii, 1, axis=1), p[1:-1, :-2])
+        right = np.where(wrap, np.roll(radii, -1, axis=1), p[1:-1, 2:])
+        # Columns 0 and -1 are the same point on a closed row: their neighbours are columns 1 and -2.
+        left[:, 0] = np.where(wrap[:, 0], radii[:, -2], left[:, 0])
+        right[:, -1] = np.where(wrap[:, 0], radii[:, 1], right[:, -1])
+        radii = np.maximum(raw, (p[:-2, 1:-1] + p[2:, 1:-1] + left + right + 4 * radii) / 8)
+    ends = (radii[:, 0] + radii[:, -1]) / 2
+    radii[:, 0] = np.where(wrap[:, 0], ends, radii[:, 0])
+    radii[:, -1] = np.where(wrap[:, 0], ends, radii[:, -1])
+    return radii
+
+
+def outward_smooth(raw, passes):
+    """Smooths a grid of radii without ever moving inwards (a shell over the surface spans its hollows)."""
+    radii = raw.copy()
+    for _ in range(passes):
+        p = np.pad(radii, 1, mode='edge')
+        radii = np.maximum(raw, (p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2] + p[1:-1, 2:] + 4 * radii) / 8)
+    return radii
+
+
+PART_MASK_PLATE, PART_MASK_BAND = 0, 1
+MASK_SLIT = math.radians(4.2)          # half the eye slit's height (as an angle from the head centre)
+MASK_SLIT_WIDTH = math.radians(52.0)   # the slit runs this far round either side
+
+
+def mask_side(e):
+    """How far round the face plate reaches at a height (radians each side): narrower at the chin, widest over the
+    cheekbones, a little narrower over the brow."""
+    knots = [(-1.08, 0.82), (-0.84, 0.98), (-0.35, 1.3), (0.0, 1.38), (0.75, 1.15)]
+    for (e0, a0), (e1, a1) in zip(knots, knots[1:]):
+        if e <= e1:
+            t = min(1.0, max(0.0, (e - e0) / (e1 - e0)))
+            return a0 + (a1 - a0) * t
+    return knots[-1][1]
+
+
+def metal_mask(body, m, which):
+    """A welded face plate of our own design, worn under the hood: one curved shell from the brow to below the chin,
+    a hand's width round each cheek, standing 13 mm clear of every face; a single eye slit across both eyes; a keel
+    down the welded centre seam and a heavier ridge over the brow; the lower edge flared off the throat. A steel band
+    runs round the back of the head above the ears and a strap over the crown, both riveted to the plate. Rigid on
+    the head bone. Breathing holes, welds, rivets and heat tint are painted (paint_mask)."""
+    tree = face_union_tree(body, m, which)
+    c = head_centre(m)
+    e_low, e_high = -1.08, 0.75
+    rows, cols = 36, 40
+    es = [e_low + (e_high - e_low) * i / rows for i in range(rows + 1)]
+    grid_dirs = [[direction(mask_side(e) * (j / cols * 2 - 1), e) for j in range(cols + 1)] for e in es]
+    raw = ray_grid(tree, [[c] * (cols + 1)] * (rows + 1), grid_dirs, 0.013, 0.13)
+    # Smoothed far more than the face's shape, so the plate is a beaten shell over the nose, not a cast of the face.
+    radii = outward_smooth(raw, 44)
+    far = np.unravel_index(int(np.argmax(radii)), radii.shape)
+    H.log("mask plate: radii %.3f … %.3f m (largest at row %d of %d, column %d)" % (radii.min(), radii.max(), far[0], rows, far[1]))
+
+    def plate_point(i, j):
+        e = es[i]
+        u = j / cols * 2 - 1
+        a = mask_side(e) * u
+        r = radii[i, j]
+        if e < -MASK_SLIT:
+            r += 0.007 * math.exp(-(a / 0.11) ** 2)                       # the keel down the centre seam
+        r += 0.009 * math.exp(-((e - (MASK_SLIT + 0.13)) / 0.07) ** 2) * (1 - smoothstep(0.7, 1.0, abs(u)))   # brow
+        r += 0.013 * max(0.0, (e_low + 0.22 - e) / 0.22) ** 2             # the chin flare
+        edge = min(i, rows - i, j, cols - j)
+        if edge < 2:
+            r += 0.0035 * (1.0, 0.4)[edge]                                # rolled rim
+        return c + direction(a, e) * r
+
+    plate = grid_object("mask_plate", rows, cols, plate_point)
+    # The eye slit: the quads whose middle is within the slit's height and width.
+    bm = bmesh.new()
+    bm.from_mesh(plate.data)
+    doomed = []
+    for f in bm.faces:
+        rel = f.calc_center_median() - c
+        e = math.asin(max(-1.0, min(1.0, rel.z / rel.length)))
+        a = math.atan2(rel.x, -rel.y)
+        if abs(e) < MASK_SLIT and abs(a) < MASK_SLIT_WIDTH:
+            doomed.append(f)
+    bmesh.ops.delete(bm, geom=doomed, context='FACES')
+    bm.to_mesh(plate.data)
+    bm.free()
+
+    # The band round the back of the head, above the ears, from one side of the plate to the other.
+    e_band, half = math.radians(39.0), math.radians(4.5)
+    a0 = mask_side(e_band) - math.radians(10)
+    b_rows, b_cols = 2, 40
+    b_es = [e_band - half + 2 * half * i / b_rows for i in range(b_rows + 1)]
+    b_dirs = [[direction(a0 + (math.tau - 2 * a0) * j / b_cols, e) for j in range(b_cols + 1)] for e in b_es]
+    b_raw = ray_grid(tree, [[c] * (b_cols + 1)] * (b_rows + 1), b_dirs, 0.007, 0.1)
+    b_r = outward_smooth(b_raw, 6)
+    band = grid_object("mask_band", b_rows, b_cols, lambda i, j: c + b_dirs[i][j] * (b_r[i, j] + 0.0012 * (i in (0, b_rows))))
+
+    # The strap over the crown: from the brow plate's top, back over the head to the band behind.
+    s_rows, s_cols, width = 24, 2, 0.026
+    t0, t1 = e_high - math.radians(5), math.radians(158)
+    s_th = [t0 + (t1 - t0) * i / s_rows for i in range(s_rows + 1)]
+    s_orig = [[c + Vector((width * (j / s_cols - 0.5), 0.0, 0.0)) for j in range(s_cols + 1)] for _ in s_th]
+    s_dirs = [[Vector((0.0, -math.cos(t), math.sin(t))) for _ in range(s_cols + 1)] for t in s_th]
+    s_raw = ray_grid(tree, s_orig, s_dirs, 0.0075, 0.1)
+    s_r = outward_smooth(s_raw, 6)
+    strap = grid_object("mask_strap", s_rows, s_cols, lambda i, j: s_orig[i][j] + s_dirs[i][j] * s_r[i, j])
+
+    parts = []
+    for obj, part, thickness in ((plate, PART_MASK_PLATE, 0.0025), (band, PART_MASK_BAND, 0.002), (strap, PART_MASK_BAND, 0.002)):
+        orient(obj, lambda p: c)
+        G.solidify(obj, thickness)
+        attr = obj.data.attributes.get("part") or obj.data.attributes.new("part", 'INT', 'FACE')
+        attr.data.foreach_set("value", [part] * len(obj.data.polygons))
+        weigh(obj, lambda co: {"head": 1.0})
+        parts.append(obj)
+    H.select_only(parts, parts[0])
+    bpy.ops.object.join()
+    obj = parts[0]
+    obj.name = obj.data.name = "metal_mask"
+    for mod in list(obj.modifiers):
+        obj.modifiers.remove(mod)
+    obj.modifiers.new("Armature", 'ARMATURE').object = body.parent
+    obj["rigid"] = True
+    return obj, lambda o, folder, name: paint_mask(o, folder, name, c)
+
+
+def cut_below(obj, height):
+    """Deletes what lies below the curved surface z = height(x, y), cutting exactly along it (G.cut_height's shear
+    trick, the other way up)."""
+    me = obj.data
+    for v in me.vertices:
+        v.co.z -= float(height(v.co.x, v.co.y))
+    G.cut(obj, (0.0, 0.0, 0.0), (0.0, 0.0, 1.0))
+    for v in me.vertices:
+        v.co.z += float(height(v.co.x, v.co.y))
+
+
+def weights_over(obj, under, near, far, z_full, z_none):
+    """Where a loose garment lies over another (the hood's cape over the shirt), it takes that garment's skin weights,
+    so the two move together and keep the gap between them in every pose (with its own, smoothed weights the cape lagged
+    behind the shirt's shoulders when the arms came forward, and the shirt came through). Fully within `near` metres of
+    the other garment and below `z_full`, back to its own weights by `far` metres off it or `z_none` up."""
+    from mathutils.bvhtree import BVHTree
+    tmp = H.duplicate(obj, obj.name + "_over")
+    tmp.vertex_groups.clear()
+    G.weights_from_body(tmp, under)
+
+    def table(o):
+        groups = {g.index: g.name for g in o.vertex_groups if H.is_deform_group(g.name)}
+        rows = [{} for _ in o.data.vertices]
+        for v in o.data.vertices:
+            for e in v.groups:
+                if e.group in groups:
+                    rows[v.index][groups[e.group]] = e.weight
+        return rows
+
+    own, theirs = table(obj), table(tmp)
+    bpy.data.objects.remove(tmp)
+    tree = BVHTree.FromObject(under, bpy.context.evaluated_depsgraph_get(), deform=False)
+
+    def ease(a, b, x):
+        t = min(1.0, max(0.0, (x - a) / (b - a)))
+        return t * t * (3 - 2 * t)
+
+    blended = 0
+    rows = []
+    for v in obj.data.vertices:
+        _, _, _, d = tree.find_nearest(v.co)
+        t = 0.0 if d is None else (1 - ease(near, far, d)) * (1 - ease(z_full, z_none, v.co.z))
+        row = dict(own[v.index])
+        if t > 0:
+            blended += 1
+            names = set(row) | set(theirs[v.index])
+            row = {n: own[v.index].get(n, 0.0) * (1 - t) + theirs[v.index].get(n, 0.0) * t for n in names}
+        rows.append(row)
+    for g in list(obj.vertex_groups):
+        if H.is_deform_group(g.name):
+            obj.vertex_groups.remove(g)
+    for i, row in enumerate(rows):
+        for n, w in row.items():
+            if w > 1e-4:
+                g = obj.vertex_groups.get(n) or obj.vertex_groups.new(name=n)
+                g.add([i], w, 'REPLACE')
+    H.limit_and_normalise_weights(obj)
+    H.log("%s: %d of %d vertices take the weights of %s" % (obj.name, blended, len(rows), under.name))
+
+
+def push_clear(obj, trees, select=None, passes=5):
+    """Moves vertices out along their normals until they stand at least each tree's clearance off its surface (a
+    hood over the shirt, the mask and the skin)."""
+    me = obj.data
+    for _ in range(passes):
+        me.update()
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bm.normal_update()
+        moved = 0
+        for v in bm.verts:
+            if select is not None and not select(v.co):
+                continue
+            push = 0.0
+            for tree, clearance in trees:
+                loc, normal, _, dist = tree.find_nearest(v.co)
+                if loc is None or dist > clearance + 0.03:
+                    continue
+                out = (v.co - loc).dot(normal)
+                if out < clearance:
+                    push = max(push, clearance - out)
+            if push > 0.0:
+                v.co += v.normal * push
+                moved += 1
+        bm.to_mesh(me)
+        bm.free()
+        if moved == 0:
+            break
+
+
+HOOD_OPEN_SIDE = math.radians(60.0)                          # the face opening's half-width at eye height
+HOOD_OPEN_TOP, HOOD_OPEN_BOTTOM = math.radians(29.0), math.radians(-50.0)   # its top and bottom (elevation)
+
+
+def hood_k(a, e):
+    """Where a direction from the head centre (a round from the front, e up) lies against the face opening, a
+    superellipse in those angles: 1 on its edge, less inside. Its top runs nearly level over the forehead, its bottom
+    is round under the chin."""
+    mid = (HOOD_OPEN_TOP + HOOD_OPEN_BOTTOM) / 2
+    half = (HOOD_OPEN_TOP - HOOD_OPEN_BOTTOM) / 2
+    q = (e - mid) / half
+    power = 3.2 if q > 0 else 2.2
+    a = (a + math.pi) % math.tau - math.pi
+    return (abs(a / HOOD_OPEN_SIDE) ** power + abs(q) ** power) ** (1.0 / power)
+
+
+def hood_rim(a, e):
+    """The point on the opening's edge nearest a direction inside it: along the row (round) where the row crosses the
+    opening's sides, else up or down (its top or bottom)."""
+    mid = (HOOD_OPEN_TOP + HOOD_OPEN_BOTTOM) / 2
+    half = (HOOD_OPEN_TOP - HOOD_OPEN_BOTTOM) / 2
+    q = (e - mid) / half
+    a = (a + math.pi) % math.tau - math.pi
+    power = 3.2 if q > 0 else 2.2
+    side = 1.0 - abs(q) ** power
+    if side > 0.05:
+        return math.copysign(HOOD_OPEN_SIDE * side ** (1.0 / power), a), e
+    q2 = 1.0 - min(1.0, abs(a / HOOD_OPEN_SIDE)) ** power
+    return a, mid + math.copysign(half * max(0.0, q2) ** (1.0 / power), q)
+
+
+def smooth_head_tree(body, m, which, passes=30):
+    """A BVH of the body with every face shape's furthest point (face_union_tree's surface), the head and neck
+    smoothed: the ears, nose and lips melt into the head's shape, so rays cast at it give a smooth shell."""
+    from mathutils.bvhtree import BVHTree
+    me = body.data
+    base = np.array([v.co[:] for v in me.vertices], np.float64)
+    co = base.copy()
+    path = os.path.join(H.CACHE, "human_%s_faces.npz" % which)
+    if os.path.exists(path):
+        c = np.array(head_centre(m)[:])
+        r = np.linalg.norm(co - c, axis=1)
+        with np.load(path) as faces:
+            for key in faces.files:
+                candidate = base + faces[key]
+                rc = np.linalg.norm(candidate - c, axis=1)
+                take = rc > r
+                co[take] = candidate[take]
+                r[take] = rc[take]
+    regions = np.zeros(len(me.polygons), np.int32)
+    me.attributes["region"].data.foreach_get("value", regions)
+    head = np.zeros(len(co), bool)
+    for poly in me.polygons:
+        if regions[poly.index] in (R["face"], R["scalp"], R["neck"]):
+            head[list(poly.vertices)] = True
+    edges = np.array([e.vertices[:] for e in me.edges], np.int64)
+    degree = np.maximum(np.bincount(edges.ravel(), minlength=len(co)), 1).astype(np.float64)
+    for _ in range(passes):
+        for lam in (0.5, -0.52):
+            total = np.zeros_like(co)
+            np.add.at(total, edges[:, 0], co[edges[:, 1]])
+            np.add.at(total, edges[:, 1], co[edges[:, 0]])
+            step = (total / degree[:, None] - co) * lam
+            co[head] += step[head]
+    return BVHTree.FromPolygons([tuple(v) for v in co], [tuple(p.vertices) for p in me.polygons])
+
+
+def woven_hood(body, m, which, shirt, mask):
+    """A hood of rough woven cloth, our own cut. It is built round the head as a grid of rays: rows from the crown
+    down to below the shoulders, columns all the way round. Rays leave a line down the middle of the head and neck,
+    and each one's length is the furthest of the smoothed head (every face shape), the mask and the shirt, plus room:
+    22 mm over the head, less at the neck. The face opening, a superellipse seen from the head centre, is cut out of
+    the grid and its edge moved onto the curve. Then: a soft point behind the crown, a rolled edge round the face with
+    soft folds running back from it, the cloth under the chin hanging from the chin instead of following the throat,
+    gathers at the throat, drape folds in the short cape over the base of the neck and the tops of the shoulders
+    (over the shirt, under the breastplate's plates and straps), and a hem along a curve, lowest behind. It clears
+    the mask, so it goes over it."""
+    from mathutils.bvhtree import BVHTree
+    c = head_centre(m)
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    trees = [smooth_head_tree(body, m, which), BVHTree.FromObject(shirt, depsgraph, deform=False)]
+    if mask is not None:
+        trees.append(BVHTree.FromObject(mask, depsgraph, deform=False))
+    hem_front = m.neck.z - 0.055
+
+    def hem_height(x, y):
+        # Lower in front and lowest behind, lying on the shoulders at the sides.
+        return hem_front + 1.7 * np.asarray(x) ** 2 - 0.025 * np.clip((np.asarray(y) - m.head.y) / 0.08, 0, 1)
+
+    rows, cols = 70, 80
+    e_top, e_bottom = math.radians(90.0), math.radians(-86.0)
+    neck_drop = c.z - (hem_front - 0.04)
+
+    def origin(e):
+        # From the head centre down the middle of the neck once the rows are below the chin.
+        return Vector((c.x, c.y + 0.012 * smoothstep(-0.9, -1.5, e), c.z - neck_drop * smoothstep(-0.95, -1.5, e)))
+
+    es = [e_top + (e_bottom - e_top) * (i / rows) for i in range(rows + 1)]
+    angle = [-math.pi + math.tau * j / cols for j in range(cols + 1)]   # the seam behind, the front in the middle
+    raw = np.zeros((rows + 1, cols + 1))
+    for i, e in enumerate(es):
+        o = origin(e)
+        for j, a in enumerate(angle):
+            d = direction(a, e)
+            best = None
+            for tree in trees:
+                hit, _, _, dist = tree.ray_cast(o, d, 0.6)
+                if hit is not None and (best is None or dist > best) and (best is None or dist < best + 0.07):
+                    best = dist
+            raw[i, j] = best if best is not None else np.nan
+    for _ in range(8):
+        empty = np.isnan(raw)
+        if not empty.any():
+            break
+        p = np.pad(raw, 1, mode='edge')
+        raw[empty] = np.nanmax(np.stack([p[:-2, 1:-1], p[2:, 1:-1], p[1:-1, :-2], p[1:-1, 2:]]), axis=0)[empty]
+    raw = np.nan_to_num(raw, nan=0.1)
+    room = np.zeros_like(raw)
+    for i, e in enumerate(es):
+        head = smoothstep(-0.75, -0.25, e)
+        room[i, :] = 0.009 + 0.013 * head + 0.006 * smoothstep(0.2, 1.0, e)
+    radii = outward_smooth_rows(raw + room, 20, [True] * (rows + 1))
+    radii[0, :] = radii[0, :].mean()
+
+    def point(i, j):
+        e, a = es[i], angle[j]
+        o = origin(e)
+        d = direction(a, e)
+        r = radii[i, j]
+        if i == 0:
+            return o + d * r
+        behind = math.cos(a - math.pi) * 0.5 + 0.5
+        # A soft point behind the crown.
+        r += 0.04 * math.exp(-(((a % math.tau) - math.pi) / 0.5) ** 2) * math.exp(-((e - 0.8) / 0.38) ** 2)
+        r += 0.006 * behind * smoothstep(-0.3, 0.6, e)
+        # The face opening's edge: rolled and a little proud, with soft folds running back from it.
+        k = hood_k(a, e)
+        if k > 1.0:
+            from_rim = (k - 1.0) * 0.9
+            r += 0.005 * math.exp(-(from_rim / 0.07) ** 2)
+            zone = math.exp(-((from_rim - 0.16) / 0.11) ** 2)
+            fold = math.atan2(e - (HOOD_OPEN_TOP + HOOD_OPEN_BOTTOM) / 2, a)
+            r += 0.006 * zone * (0.5 + 0.5 * math.sin(fold * 9.0 + 1.2 * math.sin(fold * 3.0))) ** 2
+        # Gathers at the throat.
+        r += 0.005 * smoothstep(-0.9, -1.05, e) * smoothstep(-1.45, -1.15, e) * (0.5 + 0.5 * math.sin(a * 11.0)) ** 2
+        # Drape folds in the cape, growing towards the hem.
+        r += 0.008 * smoothstep(-1.1, -1.5, e) * (0.5 + 0.5 * math.sin(a * 9.0 + 0.8 * math.sin(a * 3.0))) ** 2
+        return o + d * r
+
+    pts = [[point(i, j) for j in range(cols + 1)] for i in range(rows + 1)]
+    # Under the chin and down the throat the cloth hangs from what is above it.
+    start = next(i for i, e in enumerate(es) if e < HOOD_OPEN_BOTTOM + 0.1)
+    hang(pts, c, start=start, slope=0.9)
+    # The hem: each column ends where it crosses the hem's curve; the points below gather there (and are merged).
+    for j in range(cols + 1):
+        for i in range(1, rows + 1):
+            p, q = pts[i][j], pts[i - 1][j]
+            below = p.z - float(hem_height(p.x, p.y))
+            if below < 0.0:
+                above = q.z - float(hem_height(q.x, q.y))
+                t = above / max(1e-9, above - below)
+                end = q.lerp(p, min(1.0, max(0.0, t)))
+                for k in range(i, rows + 1):
+                    pts[k][j] = end.copy()
+                break
+    obj = grid_object("woven_hood", rows, cols, lambda i, j: pts[i][j])
+    # The face opening: the quads whose middle direction is inside the curve go; the edge left is moved onto it.
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.faces.ensure_lookup_table()
+    grid = bm.verts.layers.int.new("grid")
+    for v in bm.verts:
+        v[grid] = v.index
+    # Close the seam behind and the crown's pole, and gather the hem, before looking for the opening's edge.
+    before = len(bm.verts)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=0.0006)
+    bmesh.ops.dissolve_degenerate(bm, dist=0.0006, edges=bm.edges[:])
+    merged = before - len(bm.verts)
+    doomed = []
+    for f in bm.faces:
+        i0 = min(v[grid] // (cols + 1) for v in f.verts)
+        js = [v[grid] % (cols + 1) for v in f.verts]
+        j0 = min(js) if max(js) - min(js) <= 1 else max(js)
+        e_c, a_c = (es[i0] + es[min(rows, i0 + 1)]) / 2, (angle[j0] + angle[min(cols, j0 + 1)]) / 2
+        if hood_k(a_c, e_c) < 1.0:
+            doomed.append(f)
+    bmesh.ops.delete(bm, geom=doomed, context='FACES')
+    bm.verts.ensure_lookup_table()
+    for v in G.boundary_verts(bm):
+        if v.co.z < hem_front + 0.06:
+            continue
+        i, j = v[grid] // (cols + 1), v[grid] % (cols + 1)
+        e, a = es[i], angle[j]
+        a2, e2 = hood_rim(a, e)
+        # A ray of its own along the edge's direction (the grid's origin moves down the neck, so a length doesn't
+        # carry over from another row).
+        o, d = origin(e2), direction(a2, e2)
+        best = None
+        for tree in trees:
+            hit, _, _, dist = tree.ray_cast(o, d, 0.6)
+            if hit is not None and (best is None or dist > best) and (best is None or dist < best + 0.07):
+                best = dist
+        if best is not None:
+            v.co = o + d * (best + 0.009 + 0.013 * smoothstep(-0.75, -0.25, e2) + 0.005)
+    H.log("hood: %d faces cut for the face, %d vertices merged, %d open edges" % (
+        len(doomed), merged, sum(1 for e in bm.edges if e.is_boundary)))
+    bm.to_mesh(obj.data)
+    bm.free()
+    orient(obj, lambda p: Vector((c.x, c.y, p.z)) if p.z < c.z else c)
+    # Clear of the shirt, the skin, every face and the mask, measured square to their surfaces (the rays meet the
+    # shoulders at a slant), then the cape flares a little towards its hem.
+    clear = [(trees[0], 0.017), (trees[1], 0.015)] + ([(trees[2], 0.006)] if mask is not None else [])
+    G.smooth(obj, 6, 0.4)
+    neck_down = lambda co: co.z < m.neck.z + 0.08  # noqa: E731 (the head's rays meet it square; the cape's don't)
+    push_clear(obj, clear, select=neck_down)
+    for v in obj.data.vertices:
+        if v.co.z < m.neck.z + 0.02:
+            out = Vector((v.co.x - c.x, v.co.y - c.y, 0.0))
+            if out.length > 1e-6:
+                v.co += out.normalized() * 0.012 * smoothstep(m.neck.z + 0.02, hem_front - 0.02, v.co.z)
+    G.smooth(obj, 3, 0.4)
+    push_clear(obj, clear, select=neck_down)
+    G.hem(obj, 0.01, bulge=0.003, select=lambda co: co.z > hem_front + 0.06)
+    G.hem(obj, 0.005, bulge=0.002, select=lambda co: co.z <= hem_front + 0.06)
+    inside = 0
+    shirt_tree = trees[1]
+    for v in obj.data.vertices:
+        loc, normal, _, dist = shirt_tree.find_nearest(v.co)
+        if loc is not None and dist < 0.02 and (v.co - loc).dot(normal) < 0.002:
+            inside += 1
+    H.log("hood: %d vertices within 2 mm of the shirt" % inside)
+    obj.data.materials.clear()
+    obj["weight_smoothing"] = 8
+    # The cape over the shoulders moves with the shirt under it; the hood round the head and neck keeps its own.
+    obj["weights_over_shirt"] = [0.045, 0.075, m.neck.z + 0.03, m.neck.z + 0.07]
+    # Darker than the shirt, so the hood reads as its own garment at a distance.
+    colour = (0.255, 0.235, 0.18)
+    return obj, lambda o, folder, name: paint_hood(o, folder, name, colour, m, c, hem_height)
+
+
+def woven_gloves(body, m):
+    """Gloves of tight woven fibre: a shell 2.5 mm over the hands (thicker on the back of the hand and the
+    fingertips), with a cuff that runs 5 cm up the forearm, under the shirt's sleeve. Drawn in first person too."""
+    def near_wrist(c, reach):
+        return any((c - m.head_of("hand" + s)).length < reach for s in ("_l", "_r"))
+
+    def wanted(f, r):
+        c = f.calc_center_median()
+        return r == R["hand"] or (r == R["forearm"] and near_wrist(c, 0.085))
+
+    obj = G.extract(body, "woven_gloves", wanted)
+    for s in ("_l", "_r"):
+        wrist = m.head_of("hand" + s)
+        fore = (wrist - m.head_of("lowerarm" + s)).normalized()
+        G.cut(obj, wrist - fore * 0.052, fore, select=lambda co, w=wrist: (co - w).length < 0.14)
+    G.smooth(obj, 2, 0.3)
+    tips = {s: [m.tail_of(f + "_03" + s) for f in ("thumb", "index", "middle", "ring", "pinky")] for s in ("_l", "_r")}
+
+    def thickness(co, n):
+        side = "_l" if co.x > 0 else "_r"
+        wrist = m.head_of("hand" + side)
+        fore = (wrist - m.head_of("lowerarm" + side)).normalized()
+        along = (co - wrist).dot(fore)
+        tip = min((co - t).length for t in tips[side])
+        return 0.0025 + 0.0012 * math.exp(-(tip / 0.012) ** 2) + 0.001 * smoothstep(0.0, -0.03, along)
+    G.offset(obj, thickness)
+    G.hem(obj, 0.006, bulge=0.0012)
+    return obj, lambda o, folder, name: paint_gloves(o, folder, name, m)
+
+
 # ---------------------------------------------------------------- textures
 
 def noise3(pos, scale, seed, octaves=3):
@@ -1030,6 +1647,205 @@ def paint_metal(obj, folder, name):
     return {"detail": "metal", "tiling": round(G.metres_per_uv(obj) / 0.12, 2), "detail_strength": 0.2,
             "roughness": 0.36, "metallic": 0.95, "specular": 0.5, "normal_strength": 1.2,
             "preview": [0.46, 0.47, 0.48]}
+
+
+def nearest_distance(points, targets, chunk=65536):
+    """Distance from each of many points (N×3) to the nearest of a few targets (M×3), in chunks."""
+    out = np.empty(len(points), np.float32)
+    t = np.asarray(targets, np.float32)
+    for k in range(0, len(points), chunk):
+        p = points[k:k + chunk]
+        d = ((p[:, None, :] - t[None, :, :]) ** 2).sum(axis=2)
+        out[k:k + chunk] = np.sqrt(d.min(axis=1))
+    return out
+
+
+def paint_hood(obj, folder, name, base, m, c, hem_height, size=1024):
+    """Rough woven cloth: a stitched band round the face opening, a stitched hem round the cape, a seam down the back
+    from the point, wrinkles and dirt where hands pull it up."""
+    mask, pos, nor, _ = G.rasterise(obj, size)
+    base = np.array(base, np.float32)
+    tone = 0.88 + 0.22 * noise3(pos, 9.0, 61) + 0.06 * (noise3(pos, 40.0, 62) - 0.5)
+    albedo = np.ones((size, size, 3), np.float32) * base * tone[..., None]
+    height = np.zeros((size, size), np.float32)
+    covered = np.nonzero(mask)
+    # The face opening's edge: distance of each texel from it.
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    rim = [v.co[:] for v in G.boundary_verts(bm) if v.co.z > m.neck.z - 0.0]
+    bm.free()
+    rim_d = np.full(mask.shape, 1.0, np.float32)
+    if rim:
+        rim_d[covered] = nearest_distance(pos[covered], rim)
+    band = (rim_d < 0.02) & mask
+    albedo[band] *= 0.9
+    height += np.clip(1 - np.abs(rim_d - 0.01) / 0.01, 0, 1) * 0.6 * mask
+    along = pos[..., 0] * 60 + pos[..., 1] * 50 + pos[..., 2] * 60
+    for at in (0.005, 0.016):
+        st = G.stitches(along, (rim_d - at) * 1000, 2.2, 0.55) * mask
+        albedo *= (1 - 0.35 * st)[..., None]
+        height -= st * 0.4
+    # The cape's hem.
+    hem_d = pos[..., 2] - hem_height(pos[..., 0], pos[..., 1])
+    low = (hem_d < 0.016) & mask
+    albedo[low] *= 0.9
+    for at in (0.004, 0.012):
+        st = G.stitches(along, (hem_d - at) * 1000, 2.2, 0.55) * mask
+        albedo *= (1 - 0.35 * st)[..., None]
+    # A seam down the back of the head from the point.
+    behind = (pos[..., 1] > c.y + 0.02) & mask
+    seam_d = np.abs(pos[..., 0]) * 1000
+    st = G.stitches(pos[..., 2] * 300, seam_d - 2.5, 2.0, 0.5) * behind + G.stitches(pos[..., 2] * 300, seam_d + 2.5, 2.0, 0.5) * behind
+    albedo *= (1 - 0.3 * np.clip(st, 0, 1))[..., None]
+    height += np.clip(1 - seam_d / 2.0, 0, 1) * 0.6 * behind
+    # Seams where the UV islands meet, wrinkles, dirt.
+    edge = G.edge_distance(mask, 10)
+    height += np.clip(1 - edge / 3.0, 0, 1) * 0.4 * mask
+    wrinkles = (noise3(pos, 26.0, 63, octaves=2) - 0.5) * mask
+    height += wrinkles * 1.2
+    grime = np.clip(1 - rim_d / 0.05, 0, 1) * (0.5 + 0.5 * noise3(pos, 25, 64)) * 0.6 + np.clip(1 - (hem_d / 0.06), 0, 1) * 0.4
+    albedo *= (1 - 0.18 * np.clip(grime, 0, 1))[..., None]
+    save_maps(folder, name, np.clip(albedo, 0, 1), height, mask, strength=1.6)
+    tiling = G.metres_per_uv(obj) / 0.025
+    return {"detail": "weave", "tiling": round(tiling, 2), "detail_strength": 0.85, "roughness": 0.93,
+            "preview": [float(x) for x in base]}
+
+
+def paint_mask(obj, folder, name, c, size=1024):
+    """Scrap steel cut, beaten and welded: a bead with heat tint down the centre seam and where the brow piece meets
+    the cheeks, breathing holes drilled either side of the mouth, rivets round the edges and on the band and strap,
+    grinding marks, rust in the holes and along the edges."""
+    mask, pos, nor, face = G.rasterise(obj, size)
+    parts = np.zeros(len(obj.data.polygons), np.int32)
+    obj.data.attributes["part"].data.foreach_get("value", parts)
+    part = np.where(mask & (face >= 0), parts[np.clip(face, 0, None)], -1)
+    plate = part == PART_MASK_PLATE
+    band = part == PART_MASK_BAND
+    rel = pos - np.array(c[:], np.float32)
+    length = np.maximum(np.linalg.norm(rel, axis=-1), 1e-6)
+    e = np.arcsin(np.clip(rel[..., 2] / length, -1, 1))
+    a = np.arctan2(rel[..., 0], -rel[..., 1])
+    edge = G.edge_distance(mask, 16)
+    hammer = noise3(pos, 60, 71, octaves=2)
+    wear = noise3(pos, 14, 72) * 0.7 + noise3(pos, 45, 73) * 0.3
+    steel = np.array((0.34, 0.345, 0.35), np.float32)
+    albedo = steel * (0.85 + 0.3 * hammer)[..., None] * np.ones((size, size, 1), np.float32)
+    # Grinding marks: fine streaks across the plate.
+    streaks = noise3(pos * np.array((1.0, 1.0, 9.0), np.float32), 160, 74, octaves=1)
+    albedo *= (0.92 + 0.12 * streaks)[..., None]
+    height = hammer * 0.5 + streaks * 0.15
+    rough = np.clip(0.42 + 0.14 * hammer - 0.1 * streaks, 0.2, 1.0)
+    metal = np.full(mask.shape, 0.9, np.float32)
+    # Weld beads with heat tint: down the centre below the slit, and where the brow piece meets the cheeks.
+    r = length
+    d_centre = np.where(e < -MASK_SLIT, np.abs(a) * r, 1.0)
+    d_sides = np.where(np.abs(e) < 0.3, np.abs(np.abs(a) - (MASK_SLIT_WIDTH + 0.06)) * r, 1.0)
+    weld_d = np.minimum(d_centre, d_sides) * plate
+    weld_d = np.where(plate, weld_d, 1.0)
+    bead = np.clip(1 - weld_d / 0.0028, 0, 1)
+    ripple = 0.5 + 0.5 * np.sin((e * r + a * r) * 1500.0)
+    height += bead * (1.0 + 0.4 * ripple)
+    albedo = albedo * (1 - 0.2 * bead[..., None])
+    # Heat tint fading from the weld: brown, blue, then straw at its edge.
+    tint = np.clip(1 - weld_d / 0.016, 0, 1) * plate
+    straw, blue, brown = (np.array(v, np.float32) for v in ((0.52, 0.44, 0.28), (0.24, 0.26, 0.36), (0.33, 0.21, 0.13)))
+    k = tint[..., None]
+    heat = np.where(k < 0.5, straw + (blue - straw) * np.clip(k / 0.5, 0, 1), blue + (brown - blue) * np.clip((k - 0.5) / 0.5, 0, 1))
+    albedo = albedo * (1 - 0.4 * k) + heat * 0.4 * k
+    # Breathing holes either side of the mouth: three rows of four.
+    holes = np.zeros(mask.shape, np.float32)
+    for side in (-1, 1):
+        for row in range(3):
+            for col in range(4):
+                ea = -0.40 - row * 0.065
+                aa = side * (0.26 + col * 0.075 + row * 0.02)
+                d = np.hypot((a - aa) * np.cos(e) * r, (e - ea) * r)
+                holes = np.maximum(holes, np.clip(1 - d / 0.0024, 0, 1) * plate)
+    hole = holes > 0.25
+    ring = (holes > 0.0) & ~hole
+    albedo[hole] = np.array((0.02, 0.018, 0.016), np.float32)
+    height -= holes * 1.5
+    rough[hole] = 1.0
+    metal[hole] = 0.0
+    albedo[ring] *= 1.25
+    # Rivets round the edges of the plate and along the band and strap.
+    line = (plate & (np.abs(edge - 8) < 0.5)) | (band & (np.abs(edge - 5) < 0.5))
+    candidates = pos[line]
+    heads = np.zeros((0, 3), np.float32)
+    for q in candidates[np.lexsort((candidates[:, 1], candidates[:, 0], candidates[:, 2]))]:
+        if len(heads) == 0 or np.min(np.linalg.norm(heads - q, axis=1)) > 0.03:
+            heads = np.vstack([heads, q[None]])
+    dome = np.zeros(mask.shape, np.float32)
+    ys, xs = np.nonzero(plate | band)
+    texels = pos[ys, xs]
+    for hd in heads:
+        d = np.linalg.norm(texels - hd, axis=1)
+        near = d < 0.004
+        dome[ys[near], xs[near]] = np.maximum(dome[ys[near], xs[near]], 1 - d[near] / 0.004)
+    rivet = dome > 0
+    albedo = np.where(rivet[..., None], np.array((0.55, 0.55, 0.53), np.float32) * (0.8 + 0.3 * dome[..., None]), albedo)
+    rough[rivet] = 0.3
+    height += np.sqrt(dome) * 2.0
+    # Rust in the holes, along the edges and in the welds' heat, grime in the hollows.
+    rust = np.clip((noise3(pos, 26, 75) - 0.62) * 4, 0, 1) * np.clip(1 - edge / 10, 0.25, 1)
+    rust = np.clip(rust + np.clip(holes * 2.0, 0, 1) * 0.5 + tint * 0.25 * noise3(pos, 50, 76), 0, 1) * (plate | band)
+    albedo = albedo * (1 - rust[..., None] * 0.7) + np.array((0.32, 0.14, 0.06), np.float32) * rust[..., None] * 0.7
+    metal = np.clip(metal - 0.7 * rust, 0, 1)
+    rough = np.clip(rough + 0.4 * rust, 0, 1)
+    grime = np.clip((wear - 0.55) * 3, 0, 1) * 0.35
+    albedo *= (1 - grime)[..., None]
+    ao = np.clip(0.75 + 0.25 * np.clip(edge / 6, 0, 1), 0, 1)
+    save_maps(folder, name, np.clip(albedo, 0, 1), height, mask, rough=rough, metal=metal, ao=ao, strength=2.5)
+    return {"detail": "metal", "tiling": round(G.metres_per_uv(obj) / 0.1, 2), "detail_strength": 0.25,
+            "roughness": 0.45, "metallic": 0.9, "specular": 0.5, "normal_strength": 1.2, "preview": [0.34, 0.345, 0.35]}
+
+
+def paint_gloves(obj, folder, name, m, size=1024):
+    """Tight woven fibre, darker and harder-wearing on the palm and the inside of the fingers, a ribbed cuff, seams
+    along the fingers, dust worked into the fingertips and creases over the knuckles."""
+    mask, pos, nor, _ = G.rasterise(obj, size)
+    base = np.array((0.34, 0.3, 0.245), np.float32)
+    tone = 0.88 + 0.2 * noise3(pos, 14.0, 81) + 0.05 * (noise3(pos, 60.0, 82) - 0.5)
+    albedo = base * tone[..., None] * np.ones((size, size, 1), np.float32)
+    height = noise3(pos, 140, 83, octaves=2) * 0.25
+    palm = np.zeros(mask.shape, bool)
+    cuff = np.zeros(mask.shape, np.float32)
+    tips = np.zeros(mask.shape, np.float32)
+    for s in ("_l", "_r"):
+        side = (pos[..., 0] > 0) if s == "_l" else (pos[..., 0] < 0)
+        wrist = np.array(m.head_of("hand" + s)[:], np.float32)
+        middle = np.array(m.head_of("middle_01" + s)[:], np.float32)
+        index = np.array(m.head_of("index_01" + s)[:], np.float32)
+        pinky = np.array(m.head_of("pinky_01" + s)[:], np.float32)
+        f = (middle - wrist) / np.linalg.norm(middle - wrist)
+        t = index - pinky
+        t = t - f * (t @ f)
+        t /= np.linalg.norm(t)
+        z = np.cross(f, t)
+        palm_n = -z if s == "_r" else z
+        palm |= side & ((nor @ palm_n) > 0.35)
+        fore = wrist - np.array(m.head_of("lowerarm" + s)[:], np.float32)
+        fore /= np.linalg.norm(fore)
+        along = (pos - wrist) @ fore
+        cuff = np.maximum(cuff, side * np.clip(1 - (along + 0.045) / 0.025, 0, 1))
+        for finger in ("thumb", "index", "middle", "ring", "pinky"):
+            tip = np.array(m.tail_of(finger + "_03" + s)[:], np.float32)
+            tips = np.maximum(tips, side * np.clip(1 - np.linalg.norm(pos - tip, axis=-1) / 0.014, 0, 1))
+    palm &= mask
+    albedo[palm] = (albedo * np.array((0.78, 0.74, 0.7), np.float32))[palm]
+    height += np.where(palm, noise3(pos, 90, 84, octaves=2) * 0.5, 0.0)
+    ribs = 0.5 + 0.5 * np.sin((pos[..., 0] * 0.3 + pos[..., 1] + pos[..., 2]) * 900.0)
+    height += cuff * ribs * 0.8
+    albedo *= (1 - 0.1 * cuff)[..., None]
+    dust = np.array((0.36, 0.33, 0.28), np.float32)
+    albedo = albedo * (1 - 0.4 * tips[..., None]) + dust * 0.4 * tips[..., None]
+    edge = G.edge_distance(mask, 8)
+    seam = np.clip(1 - np.abs(edge - 3) / 1.0, 0, 1) * (edge < 7) * mask
+    albedo *= (1 - 0.25 * seam)[..., None]
+    height += np.clip(1 - edge / 2.5, 0, 1) * 0.5 * mask
+    save_maps(folder, name, np.clip(albedo, 0, 1), height, mask, strength=1.8)
+    return {"detail": "knit", "tiling": round(G.metres_per_uv(obj) / 0.012, 2), "detail_strength": 0.7,
+            "roughness": 0.9, "preview": [float(x) for x in base]}
 
 
 def detail_textures(folder):
