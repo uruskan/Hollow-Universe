@@ -24,6 +24,9 @@ public enum BotScript
 
     /// <summary>Fights with guns: shoots at whoever is in range, reloads, helps the downed up (<see cref="FightBrain"/>, G4).</summary>
     Fight,
+
+    /// <summary>Raids the next bot's hut with charges, grenades, rockets and explosive rounds (<see cref="RaidBrain"/>, G5).</summary>
+    Raid,
 }
 
 /// <summary>

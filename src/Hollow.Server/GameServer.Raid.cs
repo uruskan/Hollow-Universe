@@ -35,7 +35,7 @@ public sealed partial class GameServer : IPlayerPresence
     public NotificationService Notifications => _notifications!;
 
     /// <summary>The raid load test's bases (<see cref="ServerOptions.RaidBases"/>), or null.</summary>
-    internal RaidArena? Arena => _arena;
+    public RaidArena? Arena => _arena;
 
     private void StartRaid()
     {
@@ -312,9 +312,10 @@ public sealed partial class GameServer : IPlayerPresence
 }
 
 /// <summary>
-/// The raid load test's bases (GROUND.md §5.4): stone huts with sheet metal doors on a ring around the zone's origin, hut
-/// <c>i</c> listing the player called <c>{prefix}{i + 1:000}</c> once they join (so raids on it alert them), and kept
-/// standing: whatever a raid broke is put back every 20 s, a hut whose foundation went is built again.
+/// The raid load test's bases (GROUND.md §5.4): stone huts with sheet metal doors on a ring around the zone's origin; the
+/// player called <c>{prefix}{n:000}</c> is listed on hut <c>(n − 1) mod huts</c> once they join (so raids on it alert them;
+/// with half as many huts as bots, two to a hut), and they are kept standing: whatever a raid broke is put back every
+/// 20 s, a hut whose foundation went is built again.
 /// </summary>
 public sealed class RaidArena
 {
@@ -349,14 +350,20 @@ public sealed class RaidArena
     private TestBases.Hut? Build(int i)
     {
         (float x, float z, double heading) = TestBases.Ring(i, _huts.Length, _radius);
-        return TestBases.Build(_zone, _zone.GroundAt(x, z), heading, grade: 2, owner: 0);
+        TestBases.Hut? hut = TestBases.Build(_zone, _zone.GroundAt(x, z), heading, grade: 2, owner: 0);
+        if (hut?.Claim is { } claim)
+        {
+            // Nobody's yet: the bots are listed as they join.
+            _zone.Building!.Deauthorise(0, claim);
+        }
+        return hut;
     }
 
     /// <summary>A player joined: if they are a hut's bot, the hut lists them.</summary>
     public void Joined(Zone zone, string name, EntityId player)
     {
-        if (name.StartsWith(_prefix, StringComparison.Ordinal) && int.TryParse(name[_prefix.Length..], out int n) && n >= 1 && n <= _huts.Length &&
-            _huts[n - 1]?.Claim is { Gone: false } claim)
+        if (name.StartsWith(_prefix, StringComparison.Ordinal) && int.TryParse(name[_prefix.Length..], out int n) && n >= 1 &&
+            _huts[(n - 1) % _huts.Length]?.Claim is { Gone: false } claim)
         {
             zone.Building!.Authorise(player.Value, claim);
         }
@@ -376,7 +383,14 @@ public sealed class RaidArena
             {
                 continue;
             }
-            if (hut == null || !TestBases.Restore(_zone, hut))
+            if (hut != null && TestBases.Restore(_zone, hut))
+            {
+                if (hut.Claim is { } restored)
+                {
+                    _zone.Building!.Deauthorise(0, restored);
+                }
+            }
+            else
             {
                 IReadOnlyList<ulong> listed = hut?.Claim?.Authorised ?? Array.Empty<ulong>();
                 _huts[i] = Build(i);
