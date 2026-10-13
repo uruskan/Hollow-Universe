@@ -2347,3 +2347,267 @@ def pod_car(b, at, rot=(0, 0, 0), tint=srgb(0.62, 0.70, 0.74), wrecked=0.5, door
         for y in (-0.15, 0.75):
             b.box((1.3, 0.5, 0.4), (0, y, z0 + 0.62), mat=MATTE, tint=srgb(0.2, 0.22, 0.24), solid=False)
         b.collide_box(Vector((0, 0, z0 + 0.7)), (w, 3.7, 1.3), (0, 0, 0))
+
+
+# ------------------------------------------------------------------------------------------------ scrap
+
+SCRAP_TINTS = (srgb(0.55, 0.3, 0.2), srgb(0.45, 0.5, 0.52), srgb(0.62, 0.6, 0.55), srgb(0.3, 0.38, 0.45),
+               srgb(0.6, 0.48, 0.2), srgb(0.35, 0.42, 0.3), srgb(0.7, 0.68, 0.64), srgb(0.5, 0.2, 0.15))
+
+
+def track_frame(b, at, length=3.8, height=0.95, width=0.65, tint=DARK, shoes=True):
+    """A crawler track along Y: the frame, the idler and sprocket at the ends, rollers, shoes over the top and ends."""
+    x, y, z = at
+    r = height / 2
+    b.box((width * 0.7, length, height * 0.7), (x, y, z + r), mat=PAINT, tint=tint)
+    for s in (-1, 1):
+        b.cyl(r, width, (x, y + s * length / 2, z + r), (0, 90, 0), mat=PAINT, tint=tint, sides=14)
+        b.cyl(r * 0.45, width + 0.04, (x, y + s * length / 2, z + r), (0, 90, 0), mat=PAINT, tint=GREY, sides=10,
+              solid=False)
+    for k in range(4):
+        b.cyl(0.13, width * 0.8, (x, y - length * 0.35 + length * 0.7 * k / 3, z + 0.16), (0, 90, 0), mat=PAINT,
+              tint=GREY, sides=8, solid=False)
+    if shoes:
+        n = int(length / 0.22)
+        for k in range(n):
+            b.box((width + 0.03, 0.17, 0.05), (x, y - length / 2 + length * (k + 0.5) / n, z + height + 0.02),
+                  mat=PAINT, tint=BLACK, solid=False, vary=0.08)
+            b.box((width + 0.03, 0.17, 0.05), (x, y - length / 2 + length * (k + 0.5) / n, z + 0.02), mat=PAINT,
+                  tint=BLACK, solid=False, vary=0.08)
+
+
+def material_handler(b, at, yaw=0.0, slew=0.0, boom=46.0, stick=72.0, tint=YELLOW, l1=9.5, l2=7.0, drop=1.6):
+    """A crawler material handler with a lifting magnet: tracks, the slewing upper with its counterweight and engine
+    house, a cab raised on a riser with a ladder and rails, the boom (`boom` degrees up) and stick (`stick` degrees
+    down) with their rams, the magnet hanging on chains `drop` metres under the stick. Boom toward -Y."""
+    with b.frame(at, (0, 0, yaw)):
+        for s in (-1, 1):
+            track_frame(b, (s * 1.35, 0, 0), 4.2, 1.0, 0.7)
+        b.box((1.9, 2.3, 0.7), (0, 0, 0.8), mat=PAINT, tint=DARK)
+        b.cyl(1.1, 0.25, (0, 0, 1.27), mat=PAINT, tint=GREY, sides=20)
+        with b.frame((0, 0, 1.4), (0, 0, slew)):
+            grid_box(b, (3.0, 5.0, 0.5), (0, 0.4, 0.25), mat=PAINT, tint=tint, step=1.2)
+            b.box((3.0, 1.1, 1.4), (0, 2.6, 1.2), mat=PAINT, tint=tint, bevel=0.12)
+            stripes(b, (-1.45, 3.16, 0), (1.45, 3.16, 0), 0.5, width=0.3, at_z=1.35, normal=(0, 1, 0))
+            b.box((1.7, 2.3, 1.35), (0.55, 1.0, 1.17), mat=PAINT, tint=tint, bevel=0.05)
+            for k in range(6):
+                b.box((0.02, 1.6, 0.08), (1.41, 1.0, 0.75 + k * 0.14), (0, 0, 0), mat=PAINT, tint=DARK, solid=False,
+                      vary=0)
+            b.cyl(0.08, 1.3, (0.9, 1.6, 2.4), mat=PAINT, tint=DARK, sides=8, solid=False)
+            b.cyl(0.1, 0.18, (0.9, 1.6, 3.1), mat=RUST, tint=(1, 1, 1), sides=8, solid=False)
+            # Cab on its riser at the front left, a ladder, rails round the deck.
+            b.box((0.5, 0.5, 2.5), (-0.95, -0.7, 1.75), mat=PAINT, tint=DARK)
+            cab_z = 3.0
+            grid_box(b, (1.35, 1.65, 1.75), (-0.95, -0.8, cab_z + 0.88), mat=PAINT, tint=tint, step=0.6)
+            b.box((1.45, 1.75, 0.1), (-0.95, -0.8, cab_z + 1.8), mat=PAINT, tint=DARK)
+            for (cx, cy, sx, sy) in ((-0.95, -1.64, 1.1, 0.02), (-1.63, -0.8, 0.02, 1.3), (-0.27, -0.8, 0.02, 1.3)):
+                b.box((sx, sy, 0.9), (cx, cy, cab_z + 1.15), mat=GLASS, solid=False)
+            b.box((1.4, 0.06, 0.06), (-0.95, -1.75, cab_z + 1.6), mat=PAINT, tint=DARK, solid=False)
+            for k in range(6):
+                b.box((0.06, 0.06, 0.4), (-1.6 + 0.26 * k, -1.75, cab_z + 1.4), mat=PAINT, tint=DARK, solid=False,
+                      vary=0)
+            rungs(b, (-1.55, 0.2, 0.5), cab_z - 0.4, width=0.4, rot=(0, 0, 90), rail_tint=tint)
+            from .kit import railing
+            railing(b, (-1.45, 0.6, 0.5), (-1.45, 2.0, 0.5), 1.0, spacing=1.0, tint=tint, toe=False)
+            railing(b, (1.45, -1.6, 0.5), (1.45, 0.0, 0.5), 1.0, spacing=1.0, tint=tint, toe=False)
+            # Boom and stick, their rams; the magnet hanging plumb on chains.
+            foot = (0.35, -1.9, 0.9)
+            with b.frame(foot, (-boom, 0, 0)):
+                b.box((0.7, l1, 0.85), (0, -l1 / 2, 0), mat=PAINT, tint=tint, bevel=0.03)
+                b.box((0.74, l1 * 0.7, 0.06), (0, -l1 * 0.45, 0.44), mat=PAINT, tint=tint, solid=False)
+                b.cyl(0.32, 0.9, (0, 0, 0), (0, 90, 0), mat=PAINT, tint=GREY, sides=12, solid=False)
+                for s in (-1, 1):
+                    b.beam((s * 0.48, -0.4, -1.3), (s * 0.48, -l1 * 0.5, -0.42), 0.2, 0.2, mat=PAINT, tint=GREY)
+                    b.beam((s * 0.48, -0.4, -1.3), (s * 0.48, -l1 * 0.25, -0.9), 0.26, 0.26, mat=PAINT, tint=tint)
+                b.beam((0, -l1 * 0.35, 0.5), (0, -l1 + 0.3, 0.7), 0.24, 0.24, mat=PAINT, tint=tint)
+                b.beam((0, -l1 * 0.55, 0.53), (0, -l1 + 0.3, 0.72), 0.16, 0.16, mat=PAINT, tint=GREY)
+                with b.frame((0, -l1, 0), (boom + stick, 0, 0)):
+                    b.box((0.55, l2, 0.65), (0, -l2 / 2 + 0.4, 0), mat=PAINT, tint=tint, bevel=0.03)
+                    b.cyl(0.3, 0.8, (0, 0, 0), (0, 90, 0), mat=PAINT, tint=GREY, sides=12, solid=False)
+                    with b.frame((0, -l2 + 0.3, 0), (-stick, 0, 0)):
+                        b.box((0.4, 0.3, 0.3), (0, 0, -0.15), mat=PAINT, tint=DARK, solid=False)
+                        for k in range(3):
+                            a = math.radians(120 * k)
+                            b.tube([(0, 0, -0.25), (0.45 * math.cos(a), 0.45 * math.sin(a), -drop + 0.3)], 0.025,
+                                   mat=RUST, tint=(1, 1, 1), sides=4, cap=False)
+                        b.cyl(0.8, 0.42, (0, 0, -drop + 0.05), mat=PAINT, tint=srgb(0.22, 0.22, 0.22), sides=20)
+                        b.lathe([(0.8, 0.0), (0.6, 0.12), (0.25, 0.2), (0.0, 0.22)], (0, 0, -drop + 0.26), mat=PAINT,
+                                tint=srgb(0.22, 0.22, 0.22), sides=20)
+                        b.cyl(0.82, 0.08, (0, 0, -drop - 0.12), mat=PAINT, tint=YELLOW, sides=20, solid=False,
+                              vary=0)
+                        b.tube([(0.2, 0, -drop + 0.45), (0.3, 0.2, -drop + 1.2), (0.1, 0.25, -0.3)], 0.03,
+                               mat=PAINT, tint=BLACK, sides=4, cap=False)
+    b.marker("landmark", (at[0], at[1], at[2] + 12.0), kind_of="magnet-crane")
+
+
+def baler(b, at, yaw=0.0, tint=srgb(0.86, 0.55, 0.12), lid=68.0):
+    """A scrap baler: a ribbed charging box on a steel bed with its lid hinged open on two rams, the main ram's
+    housing and cylinder at one end, the bale door at the other, a power pack with hoses, the operator's stand."""
+    with b.frame(at, (0, 0, yaw)):
+        grid_box(b, (13.5, 4.4, 0.3), (0.5, 0, 0.15), mat=CONCRETE, tint=srgb(0.7, 0.69, 0.66), step=2.0)
+        for x in (-3.5, -1.0, 1.5, 4.0):
+            b.box((0.4, 3.0, 0.5), (x, 0, 0.55), mat=PAINT, tint=DARK)
+        z0 = 0.8
+        L, W, H = 7.6, 2.7, 1.7
+        grid_box(b, (L, W, 0.25), (0, 0, z0 + 0.12), mat=PAINT, tint=tint, step=1.5)
+        for s in (-1, 1):
+            grid_box(b, (L, 0.2, H), (0, s * (W / 2 - 0.1), z0 + 0.25 + H / 2), mat=PAINT, tint=tint, step=1.0)
+            for k in range(9):
+                b.box((0.12, 0.2, H), (-L / 2 + 0.4 + k * (L - 0.8) / 8, s * (W / 2 + 0.08), z0 + 0.25 + H / 2),
+                      mat=PAINT, tint=tint, solid=False)
+            b.box((L, 0.26, 0.16), (0, s * (W / 2 + 0.03), z0 + 0.25 + H + 0.08), mat=PAINT, tint=tint, solid=False)
+        stripes(b, (-L / 2, -W / 2 - 0.2, 0), (L / 2, -W / 2 - 0.2, 0), 0.25, width=0.4, at_z=z0 + 0.3)
+        # The lid, hinged along the far side, open on two rams.
+        with b.frame((0, W / 2, z0 + 0.25 + H + 0.1), (lid, 0, 0)):
+            grid_box(b, (L - 0.1, W, 0.3), (0, -W / 2, 0.15), mat=PAINT, tint=tint, step=1.2)
+            for k in range(5):
+                b.box((0.16, W, 0.25), (-L / 2 + 0.8 + k * (L - 1.6) / 4, -W / 2, 0.42), mat=PAINT, tint=tint,
+                      solid=False)
+        for x in (-2.4, 2.4):
+            b.beam((x, W / 2 + 0.5, z0 + 0.4), (x, W / 2 - 0.4, z0 + H + 1.6), 0.22, 0.22, mat=PAINT, tint=GREY)
+            b.beam((x, W / 2 + 0.5, z0 + 0.4), (x, W / 2 + 0.05, z0 + H + 0.6), 0.3, 0.3, mat=PAINT, tint=tint)
+        # Main ram housing at -X, its cylinder out the back; the bale door at +X with a chute.
+        grid_box(b, (2.2, W + 0.3, H + 1.1), (-L / 2 - 1.1, 0, z0 + (H + 1.1) / 2), mat=PAINT, tint=tint, step=1.0)
+        b.cyl(0.42, 3.2, (-L / 2 - 3.6, 0, z0 + 1.0), (0, 90, 0), mat=PAINT, tint=GREY, sides=16)
+        b.cyl(0.2, 1.0, (-L / 2 - 5.4, 0, z0 + 1.0), (0, 90, 0), mat=PAINT, tint=srgb(0.8, 0.8, 0.8), sides=12,
+              solid=False)
+        b.box((0.6, 1.2, 1.2), (-L / 2 - 5.6, 0, z0 + 0.6), mat=PAINT, tint=DARK)
+        grid_box(b, (0.3, W, H + 0.2), (L / 2 + 0.15, 0, z0 + 0.25 + (H + 0.2) / 2), mat=PAINT, tint=tint, step=1.0)
+        b.box((1.6, W - 0.2, 0.12), (L / 2 + 1.2, 0, z0 - 0.1), (0, 12, 0), mat=PAINT, tint=GREY)
+        # Power pack and hoses; the operator's stand with an awning.
+        with b.frame((-1.5, -W / 2 - 1.9, 0.3), (0, 0, 0)):
+            b.box((2.4, 1.3, 1.4), (0, 0, 0.7), mat=PAINT, tint=srgb(0.32, 0.38, 0.42), bevel=0.04)
+            b.cyl(0.35, 0.9, (-0.6, -0.7, 0.7), (0, 90, 0), mat=PAINT, tint=srgb(0.25, 0.4, 0.5), sides=14)
+            b.box((0.8, 0.6, 0.6), (0.6, -0.6, 1.7), mat=PAINT, tint=GREY, solid=False)
+        for k in range(3):
+            b.tube([(-1.0 + 0.4 * k, -W / 2 - 1.2, 1.3), (-1.0 + 0.5 * k, -W / 2 - 0.6, 1.9),
+                    (-0.6 + 0.6 * k, -W / 2 - 0.15, z0 + 1.2)], 0.04, mat=PAINT, tint=BLACK, sides=5, cap=False)
+        with b.frame((2.5, -W / 2 - 2.0, 0.3), (0, 0, 0)):
+            b.box((1.6, 1.4, 0.8), (0, 0, 0.4), mat=PAINT, tint=DARK)
+            b.box((0.6, 0.4, 1.0), (0.2, -0.3, 1.3), mat=PAINT, tint=LIGHTGREY, bevel=0.02)
+            for x in (-0.75, 0.75):
+                b.box((0.06, 0.06, 2.4), (x, 0.65, 2.0), mat=PAINT, tint=GREY, solid=False)
+            b.box((1.8, 1.6, 0.05), (0, 0.1, 3.2), (-8, 0, 0), mat="M_Mon_Corrugated", tint=srgb(0.6, 0.62, 0.6))
+        return b.world((0, 0, z0 + 0.25))
+
+
+def mound(b, centre, radius, height, tint=srgb(0.5, 0.36, 0.26), rough=0.25, sectors=20, mat=RUST, squash=1.0):
+    """A heap's body: a rounded cone, ragged in radius and height, closed underneath."""
+    cx, cy, cz = centre
+    prof = [(1.0, 0.0), (0.88, 0.22), (0.68, 0.5), (0.45, 0.78), (0.2, 0.96)]
+    ph = [b.rng.random() * 6.28 for _ in range(4)]
+    verts = []
+    for j, (fr, fz) in enumerate(prof):
+        for i in range(sectors):
+            a = 2 * math.pi * i / sectors
+            n = 1 + rough * (0.6 * math.sin(3 * a + ph[0] + j) + 0.4 * math.sin(7 * a + ph[1] - j * 0.7))
+            verts.append((cx + radius * fr * n * math.cos(a), cy + radius * fr * n * squash * math.sin(a),
+                          cz + height * fz * (1 + rough * 0.5 * math.sin(5 * a + ph[2] + j) if j else 1.0)))
+    top = len(verts)
+    verts.append((cx + radius * 0.05, cy, cz + height))
+    faces = []
+    for j in range(len(prof) - 1):
+        for i in range(sectors):
+            a, c = j * sectors + i, j * sectors + (i + 1) % sectors
+            faces.append([a, c, c + sectors, a + sectors])
+    last = (len(prof) - 1) * sectors
+    for i in range(sectors):
+        faces.append([last + i, last + (i + 1) % sectors, top])
+    faces.append(list(range(sectors))[::-1])
+    b.mesh(verts, faces, mat=mat, tint=tint, solid="hull", wear=0.9, vary=0.03)
+
+
+def scrap_heap(b, centre, radius, height, count=30, tints=SCRAP_TINTS):
+    """A heap of mixed scrap: a mound with plates, beams, pipes, drums, wheels and panels thrown over its surface."""
+    mound(b, centre, radius, height)
+    cx, cy, cz = centre
+    for k in range(count):
+        a = b.rng.random() * math.tau
+        f = math.sqrt(b.rng.random()) * 0.95
+        z = cz + height * max(0.0, 1.0 - f ** 1.6) * 0.92
+        p = (cx + math.cos(a) * radius * f, cy + math.sin(a) * radius * f, z)
+        rot = (b.rng.uniform(-35, 35), b.rng.uniform(-35, 35), b.rng.uniform(0, 360))
+        tint = tints[b.rng.randrange(len(tints))]
+        kind = b.rng.random()
+        if kind < 0.35:
+            s = 0.8 + 1.6 * b.rng.random()
+            b.box((s, s * (0.4 + 0.5 * b.rng.random()), 0.04), p, rot, mat=PAINT if b.rng.random() < 0.6 else RUST,
+                  tint=tint, solid=False)
+        elif kind < 0.55:
+            ln = 1.5 + 3.0 * b.rng.random()
+            b.box((0.18, ln, 0.3), p, rot, mat=PAINT if b.rng.random() < 0.5 else RUST, tint=tint, solid=False)
+        elif kind < 0.7:
+            b.cyl(0.1 + 0.15 * b.rng.random(), 1.2 + 2.5 * b.rng.random(), p, (90, rot[1], rot[2]), mat=PAINT,
+                  tint=tint, sides=8, solid=False)
+        elif kind < 0.8:
+            b.cyl(0.29, 0.88, p, rot, mat=PAINT, tint=tint, sides=12, solid=False)
+        elif kind < 0.9:
+            b.cyl(0.42, 0.25, p, (90 + rot[0], rot[1], rot[2]), mat=MATTE, tint=RUBBER, sides=12, solid=False)
+        else:
+            b.box((1.0 + b.rng.random(), 0.8 + 0.6 * b.rng.random(), 0.5 + 0.5 * b.rng.random()), p, rot, mat=PAINT,
+                  tint=tint, solid=False)
+
+
+def flat_car(b, at, yaw=0.0, tint=srgb(0.55, 0.62, 0.66), tilt=(0.0, 0.0), hubs=True):
+    """A car crushed flat for stacking, about half a metre thick: the sills and floor, the cabin folded down onto them
+    (pushed a little off line), the crushed glasshouse as a dark band with shards, wheel wells, lamps at both ends,
+    bumpers, door seams, rust. `hubs` adds the wheel hubs (left out where stacks hide them)."""
+    with b.frame(at, (tilt[0], tilt[1], yaw)):
+        b.box((1.72, 3.66, 0.26), (0, 0, 0.13), mat=PAINT, tint=tint, bevel=0.03)
+        dx = b.rng.uniform(-0.1, 0.1)
+        rz = b.rng.uniform(-5, 5)
+        b.box((1.62, 2.3, 0.08), (dx * 0.5, 0.25, 0.3), (b.rng.uniform(-2, 2), 0, rz * 0.5), mat=MATTE,
+              tint=srgb(0.05, 0.05, 0.05), solid=False, vary=0)
+        b.box((1.5, 1.7, 0.1), (dx, 0.4, 0.38), (b.rng.uniform(-3, 3), b.rng.uniform(-2, 2), rz), mat=PAINT, tint=tint,
+              solid=False)
+        b.box((1.64, 1.0, 0.1), (0, -1.25, 0.31), (b.rng.uniform(-6, 2), 0, 0), mat=PAINT, tint=tint, solid=False)
+        for s in (-1, 1):
+            for y in (-1.15, 1.2):
+                b.box((0.04, 0.62, 0.16), (s * 0.85, y, 0.1), mat=MATTE, tint=srgb(0.03, 0.03, 0.03), solid=False,
+                      vary=0)
+            b.box((0.012, 0.02, 0.24), (s * 0.865, -0.45, 0.14), mat=PAINT, tint=DARK, solid=False, vary=0)
+            b.box((0.012, 0.02, 0.24), (s * 0.865, 0.55, 0.14), mat=PAINT, tint=DARK, solid=False, vary=0)
+            b.box((0.3, 0.03, 0.06), (s * 0.55, -1.835, 0.19), mat=GLOSS, tint=srgb(0.85, 0.85, 0.8), solid=False,
+                  vary=0)
+            b.box((0.28, 0.03, 0.06), (s * 0.55, 1.835, 0.19), mat=GLOSS, tint=RED, solid=False, vary=0)
+        for y in (-1.86, 1.86):
+            b.box((1.76, 0.1, 0.1), (0, y, 0.09), mat=PAINT, tint=DARK, solid=False)
+        for k in range(4):
+            b.box((0.1 + 0.08 * b.rng.random(), 0.05, 0.004), (b.rng.uniform(-0.8, 0.8), b.rng.uniform(-0.5, 1.4),
+                                                               0.345), (0, 0, b.rng.uniform(0, 180)), mat=GLASS,
+                  solid=False, vary=0)
+        for y in ((-1.15, 1.2) if hubs else ()):
+            for s in (-1, 1):
+                b.cyl(0.14, 0.06, (s * 0.84, y, 0.12), (0, 90, 0), mat=PAINT, tint=GREY, sides=8, solid=False)
+        b.box((0.8 + 0.4 * b.rng.random(), 0.9, 0.012), (b.rng.uniform(-0.3, 0.3), b.rng.uniform(-1.4, 0.0), 0.265),
+              mat=RUST, tint=(1, 1, 1), solid=False, vary=0)
+
+
+def bale(b, at, yaw=0.0, tilt=0.0):
+    """A pressed bale of scrap: a block of crushed metal, painted bits and rust."""
+    tint = SCRAP_TINTS[b.rng.randrange(len(SCRAP_TINTS))]
+    with b.frame(at, (tilt, 0, yaw)):
+        b.box((1.1, 1.6, 1.0), (0, 0, 0.5), mat=RUST, tint=(1, 1, 1), bevel=0.05)
+        for k in range(3):
+            b.box((1.12, 0.3 + 0.5 * b.rng.random(), 0.2 + 0.3 * b.rng.random()),
+                  (0, b.rng.uniform(-0.5, 0.5), b.rng.uniform(0.2, 0.8)), mat=PAINT,
+                  tint=SCRAP_TINTS[b.rng.randrange(len(SCRAP_TINTS))], solid=False, vary=0.06)
+        b.box((0.4, 1.62, 0.15), (b.rng.uniform(-0.3, 0.3), 0, b.rng.uniform(0.3, 0.7)), mat=PAINT, tint=tint,
+              solid=False)
+
+
+def _car_flat(b):
+    """A crushed car as a kit piece: painted white so each instance's tint gives its colour (dark parts stay dark)."""
+    flat_car(b, (0, 0, 0), 0.0, tint=(1.0, 1.0, 1.0), hubs=False)
+    b.collide_box(Vector((0, 0, 0.22)), (1.75, 3.75, 0.44), (0, 0, 0))
+
+
+def _car_wreck(b):
+    """A stripped car wreck on its hubs as a kit piece, white for the instance tint."""
+    pod_car(b, (0, 0, 0), (0, 0, 0), tint=(1.0, 1.0, 1.0), wrecked=1.0, wheels=False)
+
+
+# Two crushed shapes (each piece draws its own random folds) and a wreck, for yards of stacked cars.
+kit.PIECES["car-flat"] = _car_flat
+kit.PIECES["car-flat-b"] = _car_flat
+kit.PIECES["car-wreck"] = _car_wreck
