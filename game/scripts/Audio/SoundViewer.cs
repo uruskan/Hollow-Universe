@@ -80,6 +80,11 @@ public partial class SoundViewer : Node3D
         _director.OcclusionTest = (_, _) => false;
         _ambience = new AmbienceDirector { Name = "Ambience", Director = _director };
         AddChild(_ambience);
+        if (Options.ContainsKey("trace"))
+        {
+            _director.Started += (key, layer, distance, db, pitch) => GD.Print(string.Create(CultureInfo.InvariantCulture,
+                $"[sound] {key}{(layer.Length > 0 ? " " + layer : "")} at {distance:0} m, {db:0.0} dB, pitch {pitch:0.00}"));
+        }
         if (Options.ContainsKey("sound-check"))
         {
             CallDeferred(MethodName.SoundCheck);

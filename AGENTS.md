@@ -129,7 +129,8 @@ Client options (after `--`):
   Meadow|Forest|Taiga|Beach|Tundra|Alpine|Desert`, `--hour <h>`, `--wind <0–1>`, `--sea <m>`, `--forest <0–1>`,
   `--altitude <m>`, `--storm <0–1>`. `--sound-check` loads and measures every file in the engine and quits with exit
   code 0 when all agree with the pipeline's measurements; `--play-all` plays every event in turn (layered ones at 1, 50
-  and 600 m) and quits, a smoke test of the director.
+  and 600 m) and quits, a smoke test of the director; `--trace` prints every voice started (layer, distance, dB) and
+  the ambience beds' levels once a second.
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
 - Ground (GROUND.md §4.3): `--view ground --name <n>`, then `--connect host:port` or `--host [--port <n>]` (the
   default: a server in the game); `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad network through a local
