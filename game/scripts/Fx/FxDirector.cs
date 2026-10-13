@@ -587,6 +587,12 @@ public partial class FxDirector : Node3D
                 c = new Color(c.R * k, c.G * k, c.B * k, 1f);
             }
             c.A = _random.Range(layer.Alpha);
+            if (spot.FirstPerson && batch.Orient == FxOrient.Billboard)
+            {
+                // A shot's smoke an arm's length from the eye: smaller and fainter, or it fills the view.
+                size *= 0.55f;
+                c.A *= 0.7f;
+            }
             float parameter = layer.Grow;
             Basis turn = Basis.Identity;
             switch (batch.Orient)

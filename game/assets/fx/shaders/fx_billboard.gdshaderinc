@@ -41,6 +41,7 @@ uniform float soot = 0.55;                   // fire: how much its dark smoky pa
 uniform float vignette = 0.0;                // fades the texture's edges (flat-bottomed clouds turned any way)
 uniform float edge_fade = 0.0;               // fades a margin along the quad's four sides (UV)
 uniform float bulge = 0.65;                  // lit, without normals: a rounded normal
+uniform float albedo_boost = 1.0;            // lit: brightens a texture with its own shading baked in
 uniform vec3 glow_color = vec3(0.0);         // lit: emission while young (smoke lit by its fire)
 uniform float glow_time = 0.0;               // seconds
 
@@ -123,7 +124,7 @@ void fragment() {
 	ALPHA = clamp(cover * soot, 0.0, 1.0);
 #endif
 #ifdef FX_LIT
-	ALBEDO = t.rgb * COLOR.rgb;
+	ALBEDO = min(t.rgb * albedo_boost, vec3(1.0)) * COLOR.rgb;
 	ALPHA = clamp(t.a * v_alpha * soft, 0.0, 1.0);
 #ifdef FX_NORMAL_MAP
 	NORMAL_MAP = mix(texture(normal_tex, v_uv).rgb, texture(normal_tex, v_uv2).rgb, v_blend);

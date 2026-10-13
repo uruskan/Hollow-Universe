@@ -146,7 +146,7 @@ public static class FxBatches
 
         // Hot sparks: streaks along their flight, falling, cooling from white-yellow to red.
         Add("spark", 2048, 2.5f, "fx_spark.gdshader",
-            new() { ["tex"] = FxAssets.Texture("c4/spark.png"), ["intensity"] = 7f, ["cool_color"] = new Color(1f, 0.32f, 0.08f), ["min_pixels"] = 1.3f,
+            new() { ["tex"] = FxAssets.Texture("c4/spark.png"), ["intensity"] = 4.2f, ["cool_color"] = new Color(1f, 0.3f, 0.07f), ["min_pixels"] = 1.3f,
                 ["shrink"] = 0.5f, ["fade_out"] = 0.45f },
             new() { ["gravity"] = 9.0f, ["drag"] = 0.7f, ["align"] = 1, ["stretch"] = 0.011f }, FxOrient.Streak, priority: 3);
         // Embers: small glowing motes rising and wandering.
@@ -168,7 +168,7 @@ public static class FxBatches
         // Dust: the C4 kit's dust puff, lit, rounded, turning slowly as it spreads.
         Add("dust", 2048, 12f, "fx_lit.gdshader",
             new() { ["tex"] = FxAssets.Texture("c4/dust_puff.png"), ["fade_in"] = 0.04f, ["fade_out"] = 0.7f, ["spin"] = 0.25f, ["softness"] = 0.12f,
-                ["growth_power"] = 0.45f, ["near_fade"] = 0.7f, ["vignette"] = 1f },
+                ["growth_power"] = 0.45f, ["near_fade"] = 0.7f, ["vignette"] = 1f, ["albedo_boost"] = 1.45f },
             new() { ["gravity"] = 0.12f, ["drag"] = 2.6f, ["turbulence"] = 0.5f }, priority: 0);
         // Smoke puffs: single late frames of the C4 smoke flipbook, lit with its normals, rising and spreading.
         Add("smoke", 1024, 16f, "fx_smoke.gdshader",

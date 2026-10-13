@@ -379,8 +379,8 @@ def blood_and_scuffs():
             cx, cy = np.cos(a) * dist, np.sin(a) * dist
             drops = np.maximum(drops, smoothstep(rad, rad * 0.6, np.hypot(x - cx, y - cy)))
         cov = np.clip(blob + drops, 0, 1)
-        col = np.ones((size, size, 3)) * np.array([0.24, 0.012, 0.01])
-        col *= (0.75 + 0.35 * n)[..., None]
+        col = np.ones((size, size, 3)) * np.array([0.085, 0.006, 0.005])
+        col *= (0.7 + 0.45 * n)[..., None]
         decal(f"blood_{v}", col, cov * 0.92, cov * 0.4 + n * 0.05, 3.0)
     # A scuff: dark disturbed soil with flecks, soft edged.
     n = noise2(size, size, 12, 640, 4)

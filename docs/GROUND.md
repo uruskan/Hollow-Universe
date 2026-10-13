@@ -1709,16 +1709,18 @@ eight on a body), and a grenade every six seconds. On the owner's PC (RTX 2070 S
 
 | | Frame, average | Frame, 95th percentile | GPU | The library's CPU time |
 |---|---|---|---|---|
-| Effects off | 2.49 ms | 2.78 ms | 1.76 ms | |
-| Effects on | 2.90 ms | 3.33 ms | 2.13 ms | 0.04 ms (emission and updates) |
-| **What the effects cost** | **+0.41 ms** | +0.55 ms | +0.37 ms | |
+| Effects off | 2.32 ms | 2.38 ms | 1.72 ms | |
+| Effects on | 2.61 ms | 2.78 ms | 1.97 ms | 0.03 ms (emission and updates) |
+| **What the effects cost** | **+0.29 ms** | +0.40 ms | +0.25 ms | |
 
-So a ten-player firefight's effects cost about 0.4 ms a frame, a fifth of the 2 ms allowed. The figures are the means
-of the two halves of a run (`[fx-measure] RESULT` in the log); other programs running on the PC move them by a few
-tenths.
+So a ten-player firefight's effects cost about 0.3 ms a frame, well inside the 2 ms allowed (an earlier run during
+tuning measured +0.41 ms). The figures are the means of the two halves of a run (`[fx-measure] RESULT` in the log);
+other programs busy on the PC move them by a few tenths and can add stalls to either half.
 
 Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's contact sheet) and `action-<family>.jpg`
 (each family in use), for muzzle, tracer, impact, blood, gather, explosion, fire and world.
+
+![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 
 ---
 
