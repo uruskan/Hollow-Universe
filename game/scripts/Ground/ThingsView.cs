@@ -293,7 +293,7 @@ public partial class ThingsView : Node3D
         int used = 0;
         foreach (ClientProjectile p in Client.Projectiles)
         {
-            if (!p.IsBullet)
+            if (!p.IsBullet || RaidView.IsRocket(Client, p))
             {
                 continue;
             }

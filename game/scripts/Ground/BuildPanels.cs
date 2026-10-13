@@ -54,7 +54,7 @@ public partial class Keypad : Control
     {
         get
         {
-            float w = Ui.Pxf(300), h = Ui.Pxf(410);
+            float w = Ui.Pxf(300), h = Ui.Pxf(452);
             return new Rect2((Size - new Vector2(w, h)) / 2, new Vector2(w, h)).Snapped();
         }
     }
@@ -99,7 +99,7 @@ public partial class Keypad : Control
             DrawRect(r, fill);
             Text(Keys[i], r.GetCenter() + new Vector2(0, Ui.Pxf(11)), 30, G.Ink, condensed: true, centred: true);
         }
-        Text("ESC TO CLOSE", new Vector2(d.Position.X + Ui.Pxf(26), d.End.Y - Ui.Pxf(16)), 16, G.Muted, condensed: true);
+        Text("ESC TO CLOSE", new Vector2(d.Position.X + Ui.Pxf(26), d.End.Y - Ui.Pxf(18)), 16, G.Muted, condensed: true);
     }
 
     private void Text(string text, Vector2 at, float size, Color colour, bool condensed = false, bool centred = false)

@@ -164,10 +164,9 @@ public partial class BuildView : Node3D
             }
             var holder = new Node3D { Name = "Lock" };
             holder.SetMeta("key", want);
-            // By the free edge, at hand height, on the outside face; the model's front (+X) out of the door.
-            float edge = leaf.Size.X * 0.86f, thickness = MathF.Abs(leaf.Size.Z) / 2 + 0.02f;
+            // By the free edge, at hand height, its back on the outside face (a mounted model faces +Z from its back).
+            float edge = leaf.Size.X * 0.86f, thickness = MathF.Abs(leaf.Size.Z) / 2 + 0.002f;
             holder.Position = new Vector3(edge, 1.05f, thickness);
-            holder.RotationDegrees = new Vector3(0, -90, 0);
             holder.AddChild(model);
             leafNode.AddChild(holder);
         }

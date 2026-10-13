@@ -30,8 +30,33 @@ public sealed class FxBatch
 
     public long EmittedTotal { get; private set; }
 
+    /// <summary>The draw material's HDR multiplier (additive and fire batches; negative: none) and glow colour (lit smoke).</summary>
+    internal float BaseIntensity = -1f;
+
+    internal Color? BaseGlow;
+
+    private readonly Material _draw;
+
+    /// <summary>Scales the draw material's light by <see cref="FxDirector.Brightness"/>.</summary>
+    internal void ApplyBrightness(float brightness)
+    {
+        if (_draw is not ShaderMaterial m)
+        {
+            return;
+        }
+        if (BaseIntensity >= 0)
+        {
+            m.SetShaderParameter("intensity", BaseIntensity * brightness);
+        }
+        if (BaseGlow is Color glow)
+        {
+            m.SetShaderParameter("glow_color", new Color(glow.R * brightness, glow.G * brightness, glow.B * brightness));
+        }
+    }
+
     public FxBatch(string name, int capacity, float lifetime, Mesh mesh, Material draw, ShaderMaterial process, FxOrient orient)
     {
+        _draw = draw;
         Name = name;
         Capacity = capacity;
         Orient = orient;
@@ -140,6 +165,19 @@ public static class FxBatches
                 processMaterial.SetShaderParameter(k, v);
             }
             var batch = new FxBatch(name, capacity, lifetime, mesh ?? quad, drawMaterial, processMaterial, orient);
+            // What glows scales with the director's brightness.
+            if (draw.TryGetValue("intensity", out Variant intensity))
+            {
+                batch.BaseIntensity = (float)intensity;
+            }
+            else if (shader is "fx_add.gdshader" or "fx_spark.gdshader" or "fx_fire.gdshader")
+            {
+                batch.BaseIntensity = 1f;
+            }
+            if (draw.TryGetValue("glow_color", out Variant glow))
+            {
+                batch.BaseGlow = (Color)glow;
+            }
             parent.AddChild(batch.Node);
             batches[name] = batch;
         }

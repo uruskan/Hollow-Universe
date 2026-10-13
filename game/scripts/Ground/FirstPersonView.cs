@@ -66,6 +66,13 @@ public partial class FirstPersonView : Node3D
         }
     }
 
+    /// <summary>An explosive thrown: the arm's overhand motion and the throw's sound.</summary>
+    public void Throw(string itemKey)
+    {
+        _arms.Trigger(CharacterEvent.Swing);
+        Sounds.Flat(Sounds.Item(itemKey, "throw"));
+    }
+
     // Where the muzzle is, near enough for a flash and the start of a tracer: just past the gun's end, lower right at
     // the hip, under the sight when aimed (the arms are drawn over the world, so a flash at the very muzzle would hide
     // behind the gun).

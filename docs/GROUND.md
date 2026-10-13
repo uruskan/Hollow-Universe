@@ -1909,6 +1909,23 @@ debris, a camera shake and a loud, far sound; rockets with a trail; the "Light" 
 at login (base on the map, time, what was hit); pieces showing damage (their health is replicated by phase 2a). Until the sound
 package makes them, `sounds.json` maps the new items to stand-ins (§11 R15).
 
+**In the game** (`game/scripts/Ground/RaidView.cs`). Explosives in range are drawn from the model catalogue at
+`PositionAt(RenderTick)`, with the other players (the arc before a bounce is kept until the drawing reaches it), tumbling
+while they fly and lying on their bottom along `Normal` once stuck or at rest. A timed charge has a lamp on top that blinks
+faster as `FuseSecondsLeft` falls (once a second at first, five times a second at the end) and beeps with it; a bag charge's
+or tin grenade's fuse sputters (`fuse.burning` on its `socket_fuse`) and hisses; a dud does neither (§11 81). Throws,
+sticking, bounces, a fizzle (`explosion.dud`) and lighting again play the item's sounds (`sounds.json` roles `throw`,
+`place`, `bounce`, `fizzle`, `relight`). The controls are Rust's: with an explosive in hand the left button throws it; the
+right button puts a charge on the surface aimed at within 3 m, or lobs a grenade gently; E on a dud lights it ("LIGHT BAG
+CHARGE"); the item's cooldown holds on the client too (§11 84). `Detonated` plays `explosion.timed-charge`, `.bag-charge`,
+`.grenade`, `.rocket` or `.ammo` through the effects library (flash, fireball, smoke, dust along the surface, sparks,
+debris, a scorch mark, a light and the camera's shake, which the ground view adds to the camera every frame) and the
+item's `explode` and `debris` sounds (the blast's near, middle and far layers chosen by distance and delayed by the speed
+of sound). Rockets in flight are the catalogue's rocket, nose first, trailing `trail.rocket`. Raid alerts appear at the
+top right in the interface's manner (`RaidAlertsPanel`): "BASE UNDER ATTACK", what was hit and with what, how far and which
+way, when, the hits and what broke, for ten seconds with a sound; at login, those that waited while the player was away,
+under "RAIDED WHILE YOU WERE AWAY", for twenty.
+
 **Persistence.** Charges stuck or lying in the world (duds too, and any still in the air, which fall on) survive a restart: they
 are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`) with their fuse as world time left, which pauses while the
 server is down, and restored after the rest of the world with what they were stuck to; one whose support is gone falls. Rockets
@@ -2372,6 +2389,7 @@ first use, or `FxDirector.Install(parent)`):
 | `FxDirector.CameraShake(cameraPosition)` | The camera's offset this frame (pitch, yaw, roll in radians): add it to the camera like the gun's `ViewKick`, never to the view the player controls. `FxDirector.Shaken` fires when a shake starts. |
 | `FxDirector.ViewmodelToWorld(point)` | Where a point of the view model appears in the world's projection |
 | `FxSurfaces.Of(GroundMaterial)`, `FxSurfaces.OfGrade(grade)` | The surface of a ground material or a building grade |
+| `FxDirector.Brightness`, `FxDirector.HeatHaze` | What every effect's light is multiplied by (fx.json is seen at exposure 1 under a sun of 1.3: the ground game sets 1.3 ÷ its camera's exposure, §11 82); heat haze on or off (off in the ground game, §11 83) |
 
 **Hook-up list** (the integration package wires these; the library does nothing by itself):
 
@@ -2893,3 +2911,13 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     sooner after 64 changes), since the zone never runs Jolt's update that would do it (§5.5).
 80. **Spare bodies**: four of each body are built while the world opens, and players leaving range give theirs back
     (kept up to eight of each), so coming back into view costs no frame.
+81. **A timed charge blinks; fuses sputter** (Rust's way): the timed charge carries a red lamp that blinks and beeps
+    faster as its fuse runs down; a bag charge and a tin grenade show their burning fuse and hiss instead, with no lamp.
+82. **The effects follow the camera's exposure** (`FxDirector.Brightness` = 1.3 ÷ exposure): fx.json's numbers are seen
+    in its viewer at exposure 1 under a sun of 1.3, and the planet's camera meters about three times that by day and
+    thousands of times by night; so a blast or a fire looks as bright by day as by night, like everything that glows.
+83. **No heat haze in the ground game** (`FxDirector.HeatHaze = false`): the haze draws the screen behind it bent, and
+    in the ground game that copy of the screen reads black around trees and the edges of buildings (not in the effects
+    viewer). Off until the effects package finds why.
+84. **An explosive's cooldown also holds on the client** (1 s for charges, 0.8 s for grenades): a click sooner does
+    nothing, rather than send a throw the server refuses and take the item back.
