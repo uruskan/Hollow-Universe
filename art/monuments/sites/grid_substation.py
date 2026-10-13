@@ -113,6 +113,8 @@ def build(b):
     insulator(b, (2.5, -9.5, 0.2), 1.6, rot=(90, 0, 35), tint=srgb(0.82, 0.82, 0.8))
 
     b.zone("arc", (1.0, 0.0, 2.0), radius=9.0, active="surge", damage=12)
+    # The burnt transformer arcs while the Surge lasts.
+    b.marker("light", (6.0, 3.0, 4.2), colour=[0.55, 0.72, 1.0], range=14.0, active="surge", flicker=True)
     b.zone("no-build", (0, 0, 0), size=(W + 30, D + 30, 30))
     b.meta.update({"tier": "roadside", "landmark": False, "spawn": "line"})
 
@@ -124,4 +126,6 @@ VIEWS = [
     {"name": "gate", "target": (-2, 2, 2.6), "distance": 24, "yaw": 12, "pitch": 3, "lens": 26,
      "people": [((10.5, -16.5, 0), 20.0), ((-9.0, -1.0, 0.08), 160.0)]},
     {"name": "line", "target": (0, 18, 10), "distance": 95, "yaw": 145, "pitch": 12, "lens": 35},
+    {"name": "surge", "target": (0, 0, 3), "distance": 46, "yaw": 34, "pitch": 14, "lens": 30, "sun": (-4.0, 250.0),
+     "lights": True},
 ]

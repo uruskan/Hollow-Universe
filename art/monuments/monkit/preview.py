@@ -422,7 +422,7 @@ def render(path):
 
 
 def stage(builder, ao=True, sun=(28.0, 215.0), people=(), ship=None, pad_colour=(0.20, 0.19, 0.17), fast=False,
-          fog=0.0, ground_size=6000.0):
+          fog=0.0, ground_size=6000.0, lights=False):
     """Puts `builder`'s monument (built after `reset_scene()`) on open ground under the sky with its materials;
     returns its objects."""
     from .builder import occlusion
@@ -452,6 +452,30 @@ def stage(builder, ao=True, sun=(28.0, 215.0), people=(), ship=None, pad_colour=
                 used.add(m.name)
     for name in used:
         surface_material(name)
+    if lights:
+        # The monument powered: a point light at every light marker, its own and its kit pieces' (markers are in the
+        # game frame; back to Blender's).
+        from . import kit
+        found = [(mk, None) for mk in builder.markers]
+        for key, mat, _ in builder.instances:
+            for mk in kit.ensure(key)["piece"].markers:
+                found.append((mk, mat))
+        for mk, mat in found:
+            if mk.get("kind") != "light":
+                continue
+            x, y, z = mk["at"]
+            p = Vector((x, -z, y))
+            if mat is not None:
+                p = mat @ p
+            colour = mk.get("colour", [1.0, 0.85, 0.6])
+            lamp = bpy.data.lights.new("lamp", "POINT")
+            lamp.energy = 900.0 * min(mk.get("range", 18.0), 60.0) / 18.0
+            lamp.color = colour[:3]
+            lamp.shadow_soft_size = 0.3
+            o = bpy.data.objects.new("lamp", lamp)
+            o.location = p
+            bpy.context.scene.collection.objects.link(o)
+        bpy.context.scene.view_settings.exposure = 1.2
     for p in people:
         figure(*p) if isinstance(p[0], (tuple, list)) else figure(p)
     if ship:

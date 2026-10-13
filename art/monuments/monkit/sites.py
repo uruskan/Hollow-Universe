@@ -79,7 +79,7 @@ def main(argv):
                               ship=v.get("ship", getattr(m, "SHIP", None)), fast=fast,
                               fog=v.get("fog", getattr(m, "FOG", 0.0)),
                               ground_size=getattr(m, "GROUND", 6000.0),
-                              ao=getattr(m, "PREVIEW_AO", True))
+                              ao=getattr(m, "PREVIEW_AO", True), lights=v.get("lights", False))
                 preview.camera(v["target"], v["distance"], v["yaw"], v["pitch"], v.get("lens", 35.0))
                 preview.render(preview_dir / f"{key}-{v['name']}{ext}")
         log(f"monument {key} done")

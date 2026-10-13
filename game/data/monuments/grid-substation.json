@@ -1023,6 +1023,23 @@
    "radius": 9.0
   },
   {
+   "kind": "light",
+   "at": [
+    6.0,
+    4.2,
+    -3.0
+   ],
+   "yaw": 0.0,
+   "colour": [
+    0.55,
+    0.72,
+    1.0
+   ],
+   "range": 14.0,
+   "active": "surge",
+   "flicker": true
+  },
+  {
    "kind": "no-build",
    "at": [
     0.0,
