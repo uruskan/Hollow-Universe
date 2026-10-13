@@ -66,6 +66,7 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script world   # G7: bots looting, recycling, researching, in teams (GROUND.md §5.9)
 dotnet run --project tests/Hollow.Tests -- ContentTests   # checks game/data/ground: references, ranges, every recipe makeable
 dotnet run --project tests/Hollow.Tests -- World      # G7: loot, the recycler, tech trees and research, teams, map markers, over the network and a restart
+dotnet run --project tests/Hollow.Tests -- Gather     # gathering: Rust's X and hotspot, the last hit, spots on the drawn surface, hits over the network
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs per generated star system
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
@@ -205,7 +206,9 @@ Client options (after `--`):
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
   with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,death,night,f1`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
-  the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs),
+  the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
+  `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
+  tree, e.g. `pine-tree`),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
@@ -268,6 +271,8 @@ Client options (after `--`):
   angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--attach a,b`
   mounts attachments on a gun, `--upright` shows a held item as held, `--first-person` shows a held item at its
   first-person pose; keys Tab, ←/→, ↑/↓, 0/1/2, A, Space, F, H).
+  `--survey-surfaces res://data/ground/surfaces.json` measures the outcrops' stage models for the weak spot (GROUND.md
+  §6.1; run it whenever those models change) and quits.
   `--view icons --out <dir>` renders every item icon at 128 and 256 px (`--only a,b` for some) and then shows the
   contact sheet, which `--view icons` alone shows too (`--only` limits it). `--placeholder-icons` keeps the interface's vector drawings.
 

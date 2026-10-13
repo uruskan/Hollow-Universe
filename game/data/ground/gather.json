@@ -3,10 +3,10 @@
   "classes": {
     "tree": {
       "rate": "tree",
-      "spot": { "surface": "trunk", "height": [0.7, 2.0], "follow": 0.35, "facing": 50, "radius": 0.25, "step": 0.125, "max": 2.0 },
+      "spot": { "surface": "trunk", "height": [0.7, 2.0], "follow": 0.35, "facing": 35, "radius": 0.25, "step": 0.125, "max": 2.0 },
       "last": { "share": 0.5 },
       "look": {
-        "marker": { "style": "painted-x", "size": 0.38, "depth": 0.5, "colour": [0.62, 0.025, 0.012], "glow": 0.08 },
+        "marker": { "style": "painted-x", "size": 0.42, "depth": 0.5, "colour": [0.82, 0.08, 0.04], "glow": 0.08 },
         "hit": { "fx": "gather.wood", "sound": "gather.wood.hit" },
         "spotHit": { "fx": "gather.x-hit", "sound": "gather.weakspot", "pitchStep": 0.05 },
         "depleted": { "sound": "gather.wood.break", "soundDelay": 0.95 },
@@ -19,7 +19,7 @@
       "spot": { "surface": "measured", "low": 0.4, "facing": 50, "radius": 0.3, "step": 0.5, "max": 3.0 },
       "last": { "share": 0, "bonus": 0.2, "tools": ["stone-pickaxe", "metal-pickaxe"] },
       "look": {
-        "marker": { "style": "hotspot", "size": 0.34, "depth": 0.5, "colour": [1.0, 0.72, 0.38], "glow": 2.2, "pulse": 1.4, "glint": 0.22,
+        "marker": { "style": "hotspot", "size": 0.42, "depth": 0.6, "colour": [1.0, 0.8, 0.45], "glow": 5.0, "pulse": 1.4, "glint": 0.24,
           "sparkle": "gather.hotspot-glint", "sparkleEvery": 0.55 },
         "hit": { "fx": "gather.rock", "sound": "gather.stone.hit" },
         "spotHit": { "fx": "gather.weakspot", "sound": "gather.weakspot", "pitchStep": 0.08 },

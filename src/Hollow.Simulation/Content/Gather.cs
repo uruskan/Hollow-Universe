@@ -78,7 +78,7 @@ public sealed record MarkerLook
 
     public float Depth { get; init; } = 0.4f;
 
-    /// <summary>Its colour (linear RGB).</summary>
+    /// <summary>Its colour, as picked (sRGB, 0 … 1): the paint's, or the glow's.</summary>
     public Vector3 Colour { get; init; } = Vector3.One;
 
     /// <summary>How brightly it glows, as seen whatever the exposure (0: paint).</summary>

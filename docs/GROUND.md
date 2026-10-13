@@ -1140,8 +1140,8 @@ its `ship` and `world` steps):
 | `inventory.jpg` | The inventory: the player's own body in what they wear, the hatchet's panel, quick craft. |
 | `crafting.jpg` | Crafting: the stone hatchet's recipe, two wooden spears in the queue. |
 | `player.jpg` | The second player with the female body, in the knit cap, woven shirt and trousers, laced boots and the riveted cuirass, hatchet in hand, her name above her. |
-| `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
-| `outcrop.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop, and its broken stage after the pickaxe. |
+| `chop-x.jpg`, `chop-hit.jpg`, `chop-falling.jpg`, `chop-landed.jpg`, `chopped.jpg` | A tree (a birch or a broadleaf near, or `--tour-tree <kind>`) with Rust's red X after the first hit, an X hit's burst of chips, paint and sawdust, the tree tipping over, landed in its dust, and gone (§6.1; the pictures in `docs/images/ground/gather/` are of a pine). |
+| `outcrop.jpg`, `mine-hotspot.jpg`, `mine-stage.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop; its hotspot glinting on the rock after the first hit; a stage breaking under hotspot hits; the hotspot on the broken stage (`docs/images/ground/gather/`). |
 | `gun.jpg` | The rifle aimed down its sights in the frame a shot leaves: the effects library's muzzle flame and its light on the gun, 29 of 60 rounds. |
 | `build.jpg` | A base begun in the meadow: two twig foundations and three walls, the building plan in hand, the green ghost of a doorway with its cost and stability under the crosshair. |
 | `keypad.jpg` | The stone hut's sheet metal door with a code lock fitted: its keypad, two digits entered. |
@@ -3622,6 +3622,40 @@ Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's cont
 
 ![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 
+**Gathering's feedback** (the owner's first playtest: hitting trees and outcrops gave "no feedback other than the
+sound"; decisions H1–H14). What was wrong: the hit effects played, but at a guessed point 1.1 m up on the side facing
+the local player, usually below or beside the crosshair, with chips too small and thrown straight at the camera; the
+weak spot was a small orange ball that floated beside broken outcrops; trees paid nothing for falling; and an area
+coming into range replayed its old hits (sounds, effects, even felled trees falling again). Now one view
+(`NatureView`) plays every class's gather.json `look`, with no tree or outcrop branches in the code:
+- **Every fresh hit** (protocol 12, §6.2) plays its look's `hit` cue where the swing met the drawn surface, along that
+  surface's normal, with its debris landing on the ground under the object: chips, bark flakes and sawdust on trees
+  (`gather.wood`), chips and grey dust on stone (`gather.rock`), sparks on metal and sulphur (`gather.sparks`). Seen and
+  heard within 70 m.
+- **The weak spot's marker** (`NatureMarkers`, `MarkerTextures`): a decal pressed onto the drawn surface where the rules
+  put the spot, so the paint follows the trunk's curve and the glow the rock's bumps. Trees: Rust's red X, spray paint
+  0.42 m across with soft overspray, speckles and drips (painted in code, ours), lit like the bark with a faint glow to
+  read in shade. Outcrops: a warm glow on the rock that pulses, a four-pointed glint over it, and a few sparks every
+  half second or so (`gather.hotspot-glint`). At most 8 markers, within 12 m, pooled per style.
+- **A run of weak-spot hits**: the `spotHit` cue (an X: a bigger burst with flecks of red paint, `gather.x-hit`; a
+  hotspot: a flash, sparks and a ring, `gather.weakspot`), its tick rising in pitch with each hit in a row (5% a hit
+  on the X, 8% on the hotspot).
+- **A tree's crown shakes** at each hit (`look.shake`: 0.12 m at its top, settling over 0.7 s): two global shader
+  parameters (`hu_shake_at`, `hu_shake_dir`) sway the plant standing at the struck base in the plants' own shader (a
+  test per vertex; no node swapped).
+- **Felled**: the tree's own model tips away from the blow over 2.4 s, lands with dust and litter along its length
+  (`gather.tree-fall`) and the camera's small shake, lies 2.2 s and sinks; the felling sound starts 0.95 s after the
+  hit so its crash (1.45 s into the recording) comes as the trunk lands.
+- **Outcrops** break with a burst and their stage's sound at each stage (Devblog 166 masks the model swap the same way),
+  and with the bigger burst and the last sound when gone; the final crumble into chunks is the gibs package's.
+
+Pictures (`docs/images/ground/gather/`, the tour's `chop` and `mine` steps with `--tour-tree pine-tree`): `chop-x.jpg`,
+`chop-hit.jpg`, `chop-falling.jpg`, `chop-landed.jpg`, `mine-hotspot.jpg`, `mine-stage.jpg`, `outcrop-broken.jpg`.
+In the tour's run the nature view cost 52 µs a frame on average (changes, markers, falls, shake) and allocated nothing
+on quiet frames but the occasional sparkle effect (67 B a frame on average).
+
+![A pine's X hit: chips, red paint and sawdust](images/ground/gather/chop-hit.jpg)
+
 ---
 
 ## 10. How the work is run
@@ -4391,3 +4425,19 @@ hitting trees and outcrops) without the owner, to confirm or overturn (numbered 
   point where the swing met the drawn surface, for every player in range, not at a guessed spot facing the local player;
   a hit older than a second when sent (an area coming into range) plays nothing. Six bytes more per change, and only
   changed objects travel.
+- H9. **The weak spot's look: Rust's red X on trees, a glowing hotspot on outcrops**, both decals on the drawn surface
+  (our own textures, painted in code: no files from Rust). The X is paint, lit like the bark with a faint glow (0.08)
+  so it reads in shade without shining at night; the hotspot glows at a steady apparent brightness by day and night
+  (divided by the exposure, as other glows are), where Rust's is lit by the sun and hard to see at night.
+- H10. **The X faces the hitter within 35°** (the hotspot within 50°): at 50° it often sat on the trunk's edge as seen.
+- H11. **No new sound files**: the X and the hotspot share the weak-spot tick, rising in pitch with the run; a broken
+  run plays nothing (Rust's "bonus fail" sound has no counterpart here yet); the felling sound is delayed rather than
+  re-cut so its crash meets the landing.
+- H12. **Hits play where they landed for everyone in range**, at the point the server sends, not only one's own: others
+  chopping nearby look the same as oneself. Each hit's effects come with the server's change (a snapshot later than the
+  swing, as before); predicting one's own hits is left for later.
+- H13. **The crown shake follows one tree at a time** (the latest hit): enough for one's own chopping; two players
+  chopping side by side see only the latest tree shake.
+- H14. **Outcrops' physics shapes are unchanged**: an outcrop is still a sphere to walk into and for the swing's thick ray,
+  taller than its broken stages; only the weak spot and the hit's point use the drawn surface. Fitting the physics to the
+  stages is left for later.

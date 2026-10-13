@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text.Json;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Nature;
@@ -313,6 +315,43 @@ public static class GatheringTests
         }
         Fixtures.Report($"{checkedSpots} spots on the measured rock");
         Assert.True(checkedSpots >= 9, "three outcrops, three stages each");
+    }
+
+    /// <summary>
+    /// gather.json's looks (GROUND.md §9.3) name effects fx.json has and sound events sounds.json has, for every stage an
+    /// outcrop can reach: a typo would play nothing.
+    /// </summary>
+    [Test]
+    public static void GatherLooksNameRealEffectsAndSounds()
+    {
+        HashSet<string> Keys(string file, string list) => JsonDocument.Parse(File.ReadAllText(Path.Combine(ContentFixture.Folder, file)))
+            .RootElement.GetProperty(list).EnumerateArray().Select(e => e.GetProperty("key").GetString()!).ToHashSet();
+        HashSet<string> effects = Keys("fx.json", "effects"), sounds = Keys("sounds.json", "events");
+        int named = 0;
+        foreach (NaturalKind kind in C.NaturalKinds.Where(k => k.Gather != null))
+        {
+            GatherLook look = kind.Gather!.Look;
+            foreach (GatherCue? cue in new[] { look.Hit, look.SpotHit, look.Missed, look.Stage, look.Depleted })
+            {
+                if (cue?.Fx is { } fx)
+                {
+                    Assert.True(effects.Contains(fx), $"{kind.Key}: effect {fx}");
+                    named++;
+                }
+                for (int stage = 1; cue?.Sound is { } sound && stage < kind.Stages + 1; stage++)
+                {
+                    string key = sound.Replace("{stage}", stage.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+                    Assert.True(sounds.Contains(key), $"{kind.Key}: sound {key}");
+                    named++;
+                }
+            }
+            foreach (string? fx in new[] { look.Marker?.Sparkle, look.Fall?.Fx })
+            {
+                Assert.True(fx == null || effects.Contains(fx), $"{kind.Key}: effect {fx}");
+            }
+        }
+        Fixtures.Report($"{named} effects and sounds named by the looks");
+        Assert.True(named >= 20, "every harvested kind has its cues");
     }
 
     /// <summary>GROUND.md §4.5: trees and outcrops are solid props in the physics while their tile is; a felled one isn't.</summary>

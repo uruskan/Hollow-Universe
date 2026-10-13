@@ -243,6 +243,7 @@ public partial class GroundMode : Node
             {
                 Name = "Tour", View = _view, Folder = folder, Command = Command,
                 Only = Options.TryGetValue("tour-steps", out string? steps) ? new HashSet<string>(steps.Split(',')) : null,
+                Tree = Options.TryGetValue("tour-tree", out string? tree) ? tree : null,
             };
             AddChild(_tour);
         }

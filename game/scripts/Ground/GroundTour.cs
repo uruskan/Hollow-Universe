@@ -77,6 +77,9 @@ public partial class GroundTour : Node
     /// <summary>Only these steps (names, comma-separated on the command line: <c>--tour-steps hud,player</c>); null: all.</summary>
     public HashSet<string>? Only { get; set; }
 
+    /// <summary>The kind of tree the chop step fells (<c>--tour-tree pine-tree</c>); null: a birch or a broadleaf if near.</summary>
+    public string? Tree { get; set; }
+
     public override void _Process(double delta)
     {
         if (Folder == "guest")
@@ -240,13 +243,14 @@ public partial class GroundTour : Node
         Me.HeldSlot = 2;
     }
 
-    // A tree chopped with the stone hatchet until it falls.
+    // A tree chopped with the stone hatchet until it falls (GROUND.md §6.1): the X after the first hit, a hit on it
+    // bursting, the tree tipping over and landing, and the stump's place empty.
     private async Task Chop()
     {
         Num.Vector3 from = Client.Character.Position;
         NaturalObject? tree = null;
         // A birch or a broadleaf tree in the open if there is one near (lighter to see), else any tree.
-        foreach (string key in new[] { "birch-tree", "broadleaf-tree", "pine-tree", "fir-tree" })
+        foreach (string key in Tree != null ? new[] { Tree } : new[] { "birch-tree", "broadleaf-tree", "pine-tree", "fir-tree" })
         {
             if (Nearest(key, from, 80, open: true) is { } t)
             {
@@ -265,44 +269,63 @@ public partial class GroundTour : Node
         Face(trunk.Position + trunk.Up * 1.3f);
         Me.HeldSlot = 2;
         await Settle();
+        // The first hit: the X appears, facing the player near the hit's height.
+        int wood = Count("wood");
         View.Scripted = new InputFrame { Primary = true };
-        // Aim at the weak spot once it shows (Rust's chopping); two hits in, the picture.
+        await Until(() => Hits(trunk.Id).Seen >= 1, 5);
+        View.Scripted = null;
+        await Seconds(1.0);
+        if (Client.Natural?.WeakSpot(trunk, kind) is { } x)
+        {
+            Face(x);
+        }
+        await Seconds(0.4);
+        await Shot("chop-x");
+        // On the X until it falls: each hit on it pays more (the notice shows the wood); the second one's burst pictured.
+        var log = new List<string>();
+        int seen = Hits(trunk.Id).Seen;
+        bool burst = false;
         double started = Time.GetTicksMsec() / 1000.0;
-        int wood = Count("wood"), hits = 0;
-        bool shot = false;
+        View.Scripted = new InputFrame { Primary = true };
         while (Time.GetTicksMsec() / 1000.0 - started < 60 && Client.Natural?.IsDepleted(trunk.Id) != true)
         {
-            if (Count("wood") > wood)
-            {
-                wood = Count("wood");
-                hits++;
-            }
             if (Client.Natural?.WeakSpot(trunk, kind) is { } spot)
             {
                 Face(spot);
-                if (!shot && hits >= 2)
+            }
+            (int now, int streak, _) = Hits(trunk.Id);
+            if (now != seen)
+            {
+                seen = now;
+                log.Add($"{Count("wood") - wood}{(streak > 0 ? $"(X{streak})" : "")}");
+                wood = Count("wood");
+                if (!burst && streak >= 2)
                 {
-                    await Seconds(0.45);
-                    await Shot("chop");
-                    shot = true;
+                    burst = true;
+                    await Shot("chop-hit", frames: 2);
                 }
             }
-            await Seconds(0.05);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
         View.Scripted = null;
-        if (!shot)
-        {
-            await Shot("chop");
-        }
+        GD.Print($"[tour] chop: wood a hit {string.Join(" ", log)}; felled {Count("wood") - wood}");
+        // It tips away from the blow and lands along the ground.
+        Num.Vector3 away = trunk.Position - Client.Character.Position;
+        away = Num.Vector3.Normalize(away - trunk.Up * Num.Vector3.Dot(away, trunk.Up));
+        Face(trunk.Position + trunk.Up * 3.0f + away * 4.0f);
         await Seconds(2.0);
         await Shot("chop-falling");
-        await Seconds(6.0);
+        Face(trunk.Position + away * 5.0f + trunk.Up * 0.2f);
+        await Seconds(0.75);
+        await Shot("chop-landed");
+        await Seconds(5.0);
         Face(trunk.Position + trunk.Up * 1.5f);
         await Seconds(0.5);
         await Shot("chopped");
     }
 
-    // An outcrop broken with the stone pickaxe down to its last stage.
+    // An outcrop broken with the stone pickaxe down to its last stage (GROUND.md §6.1): the hotspot after the first hit,
+    // a stage breaking, and the hotspot on the broken rock.
     private async Task Mine()
     {
         Num.Vector3 from = Client.Character.Position;
@@ -328,21 +351,64 @@ public partial class GroundTour : Node
         Me.HeldSlot = 3;
         await Seconds(0.5);
         View.Scripted = new InputFrame { Primary = true };
+        await Until(() => Hits(rock.Id).Seen >= 1, 5);
+        View.Scripted = null;
+        await Seconds(0.9);
+        if (Client.Natural?.WeakSpot(rock, kind) is { } hot)
+        {
+            Face(hot);
+        }
+        await Seconds(0.3);
+        await Shot("mine-hotspot");
+        var log = new List<string>();
+        int seen = Hits(rock.Id).Seen, stage = 0;
+        bool broke = false;
         double started = Time.GetTicksMsec() / 1000.0;
-        while (Time.GetTicksMsec() / 1000.0 - started < 40 && Client.Natural!.Stage(rock, kind) < 2 && !Client.Natural.IsDepleted(rock.Id))
+        View.Scripted = new InputFrame { Primary = true };
+        while (Time.GetTicksMsec() / 1000.0 - started < 40 && Hits(rock.Id).Stage < 2 && !Client.Natural!.IsDepleted(rock.Id))
         {
             if (Client.Natural.WeakSpot(rock, kind) is { } spot)
             {
                 Face(spot);
             }
-            await Seconds(0.05);
+            (int now, int streak, int reached) = Hits(rock.Id);
+            if (now != seen)
+            {
+                seen = now;
+                log.Add(streak > 0 ? $"X{streak}" : "-");
+            }
+            if (reached > stage)
+            {
+                stage = reached;
+                if (!broke)
+                {
+                    broke = true;
+                    View.Scripted = null;
+                    Face(rock.Position + rock.Up * 0.5f);
+                    await Shot("mine-stage", frames: 4);
+                    View.Scripted = new InputFrame { Primary = true };
+                }
+            }
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
         View.Scripted = null;
-        await Seconds(0.6);
-        Face(rock.Position + rock.Up * 0.4f);
+        GD.Print($"[tour] mine: {log.Count} hits to stage 2 ({string.Join(" ", log)}); the nature view: {NatureView.CostReport()}");
+        await Seconds(1.0);
+        Face(Client.Natural!.WeakSpot(rock, kind) ?? rock.Position + rock.Up * 0.4f);
         await Seconds(0.3);
         await Shot("outcrop-broken");
         Me.HeldSlot = 2;
+    }
+
+    // How many fresh hits this client has seen on a natural object, the run of weak-spot hits and the stage.
+    private (int Seen, int Streak, int Stage) Hits(ulong id)
+    {
+        if (Client.Natural is not { } state || !state.TryGetOverride(id, out NaturalOverride o) ||
+            !Client.Nature!.TryGet(id, out NaturalObject obj) || Client.Content.Natural(obj.Kind) is not { } kind)
+        {
+            return (0, 0, 0);
+        }
+        return (o.SeenHits, o.Streak, state.Stage(obj, kind));
     }
 
     // A rifle aimed down the sights at a tree 20–60 m off, the moment a shot leaves (G4).
