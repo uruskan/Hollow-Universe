@@ -62,7 +62,7 @@ public partial class GroundTour : Node
         {
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
-            ("world", World), ("death", Death), ("night", Night), ("f1", F1),
+            ("world", World), ("death", Death), ("night", Night), ("f1", F1), ("look", Look),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -383,6 +383,39 @@ public partial class GroundTour : Node
         View.Scripted = null;
         await Seconds(0.6);
         Me.HeldSlot = 2;
+    }
+
+    // ---------------------------------------------------------------- the owner's first playtest: looking and holding
+
+    // The rock held in the right hand; free look (Alt held, the mouse to the right) turning the camera while the arms
+    // keep to the view; and a free foundation lifted by a raised aim (GROUND.md §4.5, §4.8, §6.3).
+    private async Task Look()
+    {
+        Admin("give", "building-plan 1");
+        Admin("give", "wood 600");
+        await Until(() => Count("building-plan") > 0, 5);
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(-40, 0, 30));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = -0.12f;
+        await Settle();
+        await Hold("rock", 0);
+        await Seconds(0.6);
+        await Shot("rock");
+        Input.MouseMode = Input.MouseModeEnum.Captured;
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Alt, PhysicalKeycode = Key.Alt, Pressed = true });
+        await Seconds(0.2);
+        Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(420, -60) });
+        await Seconds(0.3);
+        await Shot("freelook");
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Alt, PhysicalKeycode = Key.Alt, Pressed = false });
+        await Seconds(0.3);
+        await Hold("building-plan", 5);
+        View.Building.PlanPiece = Client.Content.Building.Wheel.ToList().FindIndex(p => p.Key == "foundation");
+        // The aim 3.5 m out half a metre over the ground: the foundation's top stands that high.
+        View.Pitch = -MathF.Atan2(Client.EyeHeight - 0.5f, 3.5f);
+        await Seconds(0.8);
+        await Shot("foundation-lifted");
     }
 
     // ---------------------------------------------------------------- building and raiding (G3, G5)

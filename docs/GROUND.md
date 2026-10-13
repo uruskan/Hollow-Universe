@@ -676,7 +676,9 @@ is thrust along its shaft. Eating brings the food to the mouth for a few bites; 
 view and winds the bandage round it; injecting pushes the injector into the raised forearm. Gloves are drawn with the
 forearms. Unarmed shows no arms, as in Rust. The arms belong to the body: while the player free looks (Alt, §4.5) they
 stay on the view, where everything is aimed, and leave the picture as the head turns away (`FirstPersonView.ArmsTurn`,
-L2).
+L2). Pictures in `images/ground/look/`: the rock before and after (`fp-rock-before.png`, `fp-rock-after.png`, and in the
+game `game-rock.jpg`), every held item (`fp-held-items.jpg`), free look in the game (`game-freelook.jpg`) and a head
+turned as others see it (`head-turned.png`, `--look 75,-15`).
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
@@ -1868,6 +1870,7 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 |---|---|
 | A two-storey house in mixed grades: stone foundations and doorway with a sheet-metal door, metal and wood walls, windows, an open wooden double door, wood floors, U stairs, metal roofs with gables, a twig porch | `images/ground/build/house.jpg` |
 | The plan's ghost, allowed (a foundation beside the house) and refused (a sixth floor off a balcony: "Not stable enough (0%)") | `ghost-valid.jpg`, `ghost-invalid.jpg` |
+| A free foundation lifted by a raised aim (L1): the aim half a metre over the ground 3.5 m out, the top 0.6 m up (`--scene empty --tool 1 --piece foundation --from 0,1.8,6 --at 0,0.48,2.5`; in the game, `images/ground/look/game-foundation-lifted.jpg`) | `foundation-lifted.png` |
 | The stability overlay: the house 100 %, the balcony 90, 70, 50, 30, 10 % | `stability.jpg` |
 | The 1,060-piece block with its frame time | `stress.jpg` |
 | The plan's wheel with the rules' pieces and costs | `wheel.jpg` |
@@ -4373,8 +4376,9 @@ without the owner, to confirm or overturn (numbered L1 on):
   somewhere it won't fire.
 - L3. **Free look rides the existing view state**, not a message of its own: two signed bytes (1.5° steps) beside the
   view in every input (sent with the three repeats, about 8 bytes a packet) and beside the view angles in characters'
-  snapshot state (two bits when nobody looks round). RustMVP's rate limits aren't needed: inputs come once a tick. Its
-  0.8 s of silence is counted in repeated inputs: after 24 ticks without one the server's copy lets go.
+  snapshot state (two bits when nobody looks round; a character sent in full is 16 bits larger, so 300 coming into
+  view at once take 17 snapshots of 600 bytes instead of 16). RustMVP's rate limits aren't needed: inputs come once a
+  tick. Its 0.8 s of silence is counted in repeated inputs: after 24 ticks without one the server's copy lets go.
 - L4. **While Alt is held the hands do nothing at all**: no attack, aiming down the sights or drawing the bow, placing,
   using, throwing, reloading or turning a piece (RustMVP blocked the weapon and the R and left-button actions). E still
   acts on what the view is on, as in RustMVP. The decision lives in one place, `GroundView.Hands`, which reads the item's

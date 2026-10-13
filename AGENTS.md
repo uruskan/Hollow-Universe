@@ -205,9 +205,10 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,death,night,f1`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,death,night,f1,look`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
-  the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs),
+  the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `look`
+  pictures the rock in hand, free look through Alt and the mouse, and a free foundation lifted by the aim),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look (Left Alt held:
@@ -254,7 +255,8 @@ Client options (after `--`):
 - Build sandbox (GROUND.md §6.3): `--view build`, local, on the first world's stand-in surface. `--scene
   house|ghost-valid|ghost-invalid|stability|stress|empty` (a built base; `stress` measures 300 frames and prints the
   frame time), `--overlay` (stability colours), `--tool 1–6` (plan, hammer, three doors, claim device), `--piece <key>`,
-  `--wheel plan|hammer` (open the wheel), `--from x,y,z --at x,y,z` (the camera in the scene's frame), `--finest` or
+  `--wheel plan|hammer` (open the wheel), `--from x,y,z --at x,y,z` (the camera in the scene's frame, the empty scene's
+  too: its first foundation's frame, unbuilt; the plan's aim is the camera's), `--finest` or
   `--lod n` (draw one level of detail). Keys: right mouse wheels, left places or repairs, R turns, E doors, F2 the
   stability overlay, F5 an hour of upkeep and decay. `--view build --scene empty --build-check` plays a round of
   building through the sandbox's input (place, snap, upgrade, turn, door, demolish and collapse) and quits with exit

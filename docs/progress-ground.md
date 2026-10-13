@@ -336,3 +336,25 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   Pictures: `docs/images/ground/play/f1-console.jpg`, `f1-info.jpg`, `f1-net.jpg`, `f1-items.jpg`, `f1-tools.jpg`.
   Protocol 11; the console's tests (parsing, completion, a non-admin refused, give, teleport, spawn, kill and time over
   the network, god and noclip against the prediction) pass with the rest.
+
+## 13 October 2026, the playtest's looking, hands and foundations
+
+- **Free look** (`ground-look`, GROUND.md §4.5, L2–L6): hold Left Alt and the mouse turns the camera and the head, up
+  to 120° either side and within ±85° of level, while the view, the walk and the aim stay put; letting go, or any screen
+  that shows the cursor, turns the camera back at once. The hands do nothing while it lasts (no shots, swings,
+  placing, throwing, reloading or turning a piece): one place now decides what the item in hand does (`GroundView.Hands`,
+  from the item's data, `ItemDef.Hands`). The arms stay with the body, so they slide out of the picture as the head
+  turns. Others see the head turn and ease back (two bytes on every input and on a character's state; the server bounds
+  them and lets go after 0.8 s without input). In the Tin Finch's cockpit Alt turns the pilot's head. Protocol 12.
+- **The rock in hand** (§4.8, L7–L10): it was held like a hatchet handle, the fist closed inside the rock and the palm a
+  pale blob behind it. It now lies in the right hand at the lower right, the fingers round its far side, and swings from
+  the wrist. How a hand holds an item became data (`held.grip` in models.json); the bandage and the grenade are held the
+  same way and food lies on the open palm. A contact sheet of all 40 held items showed food, locks, the plan, charges and
+  spears sitting below the bottom of the picture (their poses were set for a wider view): all are in view now.
+  Pictures: `docs/images/ground/look/fp-rock-before.png`, `fp-rock-after.png`, `game-rock.jpg`, `fp-held-items.jpg`.
+- **Free foundations rise with the aim** (§6.3, L1), as RustMVP's did: within 3.5 m the foundation sits where the aim
+  meets the ground; aimed further, the aim's height 3.5 m out lifts its top, up to its depth over the lowest ground
+  under it, always valid where the slope leaves room. The ghost and the server work it out from the same point.
+  Pictures: `docs/images/ground/build/foundation-lifted.png`, `docs/images/ground/look/game-foundation-lifted.jpg`.
+- Checked once each: the sandbox's build check (9 of 9), the hosted game's new `look` tour step (rock, free look
+  through Alt and the mouse, a lifted foundation) and the character viewer (a head turned, every held item).
