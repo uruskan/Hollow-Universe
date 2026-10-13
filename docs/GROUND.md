@@ -455,7 +455,10 @@ The first outfit: knit cap, woven shirt, woven trousers, laced boots, riveted br
 
 **Animation.** One `AnimationTree` graph, shared by all characters (`CharacterAnimator`):
 - speed blends for standing (idle, walk, jog, sprint at 0, 1.25, 2.8 and 5.5 m/s), crouching and swimming, kept in
-  step with Godot's cyclic sync; each loop is stretched so its feet keep up with the ground at its speed;
+  step with Godot's cyclic sync; each loop is stretched so its feet keep up with the ground at its speed. The jog,
+  sprint and crouch walk are also re-timed when they are built: a hand-keyed run's planted foot swept back twice as
+  fast as the body moved, so its stance phases are stretched until the foot sweeps back at the blend point's speed
+  and the swing and flight take the time left (the cycle keeps its length). At the blend speeds the feet don't slide;
 - a fall pose blended in while airborne, a take-off and a landing played as one-shots;
 - held-item layers: the right arm (tool, pistol, rifle) and the left arm with the chest (pistol, rifle);
 - one-shot upper-body actions and flinches: hatchets, picks, hammers and torches chop (UAL2's tree-chopping loop,
