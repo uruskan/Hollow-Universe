@@ -115,7 +115,8 @@ chosen), and `RadialBinding` (a held input, its hold time, what it opens now), l
 `IGroundUi.Radials`. The control is `GroundUi.Radial.cs`; the glyphs are named (`RadialGlyphs`). The plan and the
 hammer are two sources, `PlanRadial` and `BuildingRadials.Hammer`, shared by the game and the build sandbox; `WheelKind`
 and its per-kind code are gone. A tap of a held key chooses the source's current option; a disabled option says why.
-The viewer proves the E and R bindings on samples (`--screen options`, `ammo`; `--ui-check`).
+The viewer proves the held keys on samples: E opens a door's options, R with the pistol its rounds (`--screen options`,
+`ammo`), and `--ui-check` plays E's tap, hold, choice and cancels.
 
 For P1: give `ClientGroundUi.Radials` a `RadialBinding(RadialInput.Interact, holdSeconds, open)` whose `open` makes a
 source for what is aimed at at the press (none: E does nothing); its options come from the capabilities' `Offer`, its

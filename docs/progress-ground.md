@@ -490,6 +490,7 @@ GROUND_SYSTEMS.md §4; GROUND.md §8.4 and decisions Q1–Q9.
   check now also plays the radial (the plan on the right mouse; E tapped, held, refused, chosen, cancelled by Esc and by
   the right mouse): 19 of 19 pass. The plan's and the hammer's radials look as before. Pictures:
   `docs/images/ground/ui/radial/` (`plan.jpg`, `hammer.jpg`, `options.jpg`, `ammo.jpg`).
-- 178 of 178 tests pass (no engine-free code changed).
+- With `ground` merged, 179 of 179 tests pass (no engine-free code changed) and the build sandbox's check 9 of 9 (its
+  hammer acts through the shared radial).
 - **Next:** P1 moves hold-E onto it (and deletes the vertical options list), P3 adds R's ammo radial; GROUND_SYSTEMS.md
   §4 says how.
