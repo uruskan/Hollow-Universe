@@ -1054,7 +1054,7 @@ public sealed partial class GameContent
         private void ReadSurvival()
         {
             JsonElement root = Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature",
-                "climateStandIn", "combat", "world", "bag", "rateLimits", "reach");
+                "climateStandIn", "combat", "world", "bag", "rateLimits", "reach", "lifetimes");
             string w = "survival.json";
             JsonElement Section(string name, params string[] fields)
             {
@@ -1078,7 +1078,29 @@ public sealed partial class GameContent
             JsonElement t = Section("temperature", "comfortable", "coldScale", "coldDamageFrom", "coldDamagePerSecond", "wetCooling", "wetSeconds", "fireWarmsTo");
             JsonElement c = Section("climateStandIn", "meanCelsius", "daySwing", "lapsePerKilometre", "dayLengthSeconds");
             JsonElement k = Section("combat", "head", "body", "limb", "maxRewindSeconds", "equipSeconds");
-            JsonElement o = Section("world", "corpseSeconds", "droppedItemSeconds", "beachCooldownSeconds", "respawnKit");
+            JsonElement o = Section("world", "beachCooldownSeconds", "respawnKit");
+            JsonElement lifetimes = Section("lifetimes", "bag", "body", "dud");
+            LifetimeRule Lifetime(string name)
+            {
+                string where = $"{w}: lifetimes.{name}";
+                if (!f.TryChild(lifetimes, name, out JsonElement e))
+                {
+                    f.Problem(where, "is missing");
+                    return new LifetimeRule(300, LifetimeRestart.None, true);
+                }
+                f.OnlyKnown(e, where, "seconds", "restart", "emptied", "note");
+                string restart = f.Text(e, "restart", where, "none");
+                if (restart is not ("none" or "deposit"))
+                {
+                    f.Problem(where, $"restart \"{restart}\" (known: none, deposit)");
+                }
+                float seconds = f.Number(e, "seconds", where);
+                if (seconds is <= 0 or > 86400)
+                {
+                    f.Problem(where, "seconds 0 … 86400");
+                }
+                return new LifetimeRule(seconds, restart == "deposit" ? LifetimeRestart.Deposit : LifetimeRestart.None, f.Flag(e, "emptied", where, false));
+            }
             JsonElement reach = Section("reach", "interact", "open", "keepOpen", "help", "invite", "station");
             JsonElement bag = Section("bag", "name", "slots", "mergeRadius");
             JsonElement r = Section("rateLimits", "intentBurst", "intentsPerSecond", "gunBurst", "gunActionsPerSecond");
@@ -1141,8 +1163,9 @@ public sealed partial class GameContent
                 LimbMultiplier = f.Number(k, "limb", w + ": combat"),
                 MaxRewindSeconds = f.Number(k, "maxRewindSeconds", w + ": combat"),
                 EquipSeconds = f.Number(k, "equipSeconds", w + ": combat", 0.3f),
-                CorpseSeconds = f.Number(o, "corpseSeconds", w + ": world"),
-                DroppedItemSeconds = f.Number(o, "droppedItemSeconds", w + ": world"),
+                BagLifetime = Lifetime("bag"),
+                BodyLifetime = Lifetime("body"),
+                DudLifetime = Lifetime("dud"),
                 BagName = f.Text(bag, "name", w + ": bag"),
                 BagSlots = Math.Clamp(f.Integer(bag, "slots", w + ": bag"), 1, 255),
                 BagMergeRadius = f.Number(bag, "mergeRadius", w + ": bag"),

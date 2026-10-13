@@ -38,16 +38,21 @@
     "equipSeconds": 0.3
   },
   "world": {
-    "corpseSeconds": 300, "droppedItemSeconds": 300,
     "beachCooldownSeconds": 0,
     "respawnKit": "respawn-kit"
+  },
+  "lifetimes": {
+    "note": "GROUND_SYSTEMS.md §3.7, one rule for every loose thing: it lies this many seconds of world time (it pauses while the server is down), starts again when its restart happens (deposit: something put in it: a bag's time runs from its newest item), and goes at once when emptied (if it says so). Rust's: dropped items and bodies 300 s; a ship's wreck is a body. Ours: a dud (a charge whose fuse went out) nobody lights again, 600 s. An animal's carcass has its species' (animals.json corpse).",
+    "bag": { "seconds": 300, "restart": "deposit", "emptied": true },
+    "body": { "seconds": 300, "emptied": true },
+    "dud": { "seconds": 600 }
   },
   "reach": {
     "note": "GROUND_SYSTEMS.md §3.4, one rule: from the eye to the target's nearest surface, and one line of sight to it (nothing of the building but the thing and what holds it, nor the ground short of it, in between). interact: picking up, lighting a dud again (Rust's 3 m); open: boxes, devices, machines, sleepers and bodies, doors and their locks, the claim device; keepOpen: an open container closes once its nearest surface is farther (no sight needed); help: helping the wounded up; invite: a team invite, to a player in view; station: a workbench counts for crafting (no sight needed). Measured to the surface, these are what the old checks to centres and middles came to (G2's 3.5 m loot reach plus its 0.5 m slack to a box's centre, the doors' 4.5 m to their middle as the 3.5 m the game offered them at, help 2.5 m plus its 0.5).",
     "interact": 3.0, "open": 3.5, "keepOpen": 4.5, "help": 3.0, "invite": 6.0, "station": 4.0
   },
   "bag": {
-    "note": "Ours (GROUND.md §6.1, decisions U1-U4): everything that lands on the ground lies in a small bag, and what lands within mergeRadius metres of a bag with room goes into it (Rust drops one pouch for a broken box's contents). 48 slots: a large box's, so whatever one container spills fits one bag, and a player's whole inventory (37 slots) too. A bag lasts world.droppedItemSeconds from the newest item put in.",
+    "note": "Ours (GROUND.md §6.1, decisions U1-U4): everything that lands on the ground lies in a small bag, and what lands within mergeRadius metres of a bag with room goes into it (Rust drops one pouch for a broken box's contents). 48 slots: a large box's, so whatever one container spills fits one bag, and a player's whole inventory (37 slots) too. A bag lasts lifetimes.bag from the newest item put in.",
     "name": "Loot bag", "slots": 48, "mergeRadius": 1.5
   },
   "rateLimits": {

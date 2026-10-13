@@ -398,10 +398,7 @@ public sealed partial class Zone
             return OutcomeCode.NoSpace;
         }
         bag.PublishChanges();
-        if (bag.Loot.IsEmpty)
-        {
-            RemoveStatic(bag);
-        }
+        EndIfEmptied(bag);
         return OutcomeCode.Done;
     }
 

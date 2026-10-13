@@ -10,7 +10,7 @@
     { "key": "code-lock", "note": "items.json building CodeLock, fitted to a door. Locked; HasCode once a code is set; Authorised when the viewer is on its list." },
     { "key": "cupboard", "note": "building.json claim: a base's building rights and upkeep. Authorised when the viewer is on its list." },
     { "key": "ship", "note": "ships.json. Locked when its owner locked it." },
-    { "key": "lifetime", "note": "Goes after a while, on world time: survival.json lifetimes (bags of dropped items, bodies)." },
+    { "key": "lifetime", "note": "Goes after a while, on world time, by the zone's one lifetime step (GROUND_SYSTEMS.md §3.7): survival.json lifetimes (bags of dropped items, bodies, a dud), animals.json corpse (an animal's carcass). At once when emptied, if its rule says so." },
     { "key": "explosive", "note": "explosives.json throwables: a charge or grenade with its fuse. Stuck to or lying on a thing, it falls when that goes (GROUND_SYSTEMS.md §3.6)." }
   ]
 }

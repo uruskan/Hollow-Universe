@@ -39,6 +39,8 @@ public sealed class CapabilityData
         Cupboard = Set("cupboard", "owned");
         Ship = Set("ship", "owned", "container");
         Explosive = Set("owned", "explosive");
+        Dud = Set("owned", "explosive", "lifetime");
+        Carcass = Set("lifetime");
     }
 
     /// <summary>The list's keys, by index.</summary>
@@ -71,6 +73,12 @@ public sealed class CapabilityData
     public CapabilitySet Ship { get; }
 
     public CapabilitySet Explosive { get; }
+
+    /// <summary>An explosive whose fuse went out: it lies there for its lifetime unless someone lights it again.</summary>
+    public CapabilitySet Dud { get; }
+
+    /// <summary>An animal's carcass: it goes after its species' time, or once harvested out.</summary>
+    public CapabilitySet Carcass { get; }
 
     /// <summary>A lock's, by its kind (none for none).</summary>
     public CapabilitySet Lock(LockKind kind) => (uint)kind < (uint)_locks.Length ? _locks[(int)kind] : CapabilitySet.Empty;

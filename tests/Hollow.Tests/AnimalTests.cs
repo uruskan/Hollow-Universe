@@ -314,7 +314,7 @@ public static class AnimalTests
         rig3.Zone.DamageAnimal(wolf, 500, HitRegion.Head, rig3.Zone.GroundAt(0, 0), null);
         Assert.Equal(rig3.Zone.Tick + 300 * 30, wolf.DespawnTick, "the corpse's timer");
         wolf.DespawnTick = rig3.Zone.Tick + 5;
-        rig3.Step(10);
+        rig3.Step(40); // the lifetime step runs once a second (GROUND_SYSTEMS.md §3.7)
         Assert.True(wolf.Removed && world.Find(wolf.Id) == null, "gone with its timer");
     }
 

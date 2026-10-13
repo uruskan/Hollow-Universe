@@ -27,14 +27,15 @@ public enum ExplosiveState : byte
 /// to rest) or placed (stuck where it was put), with its fuse burning; a dud lies there until lit again. Simulated on
 /// the server only; clients get its state when it changes (and draw a flight on its arc themselves).
 /// </summary>
-public sealed class LiveExplosive : ITargetable, IOwned
+public sealed class LiveExplosive : ITargetable, IOwned, ILifetime
 {
-    internal LiveExplosive(EntityId id, ThrowableStats stats, EntityId owner, string ownerName)
+    internal LiveExplosive(EntityId id, ThrowableStats stats, EntityId owner, string ownerName, LifetimeRule dud)
     {
         Id = id;
         Stats = stats;
         Owner = owner;
         OwnerName = ownerName;
+        Lifetime = dud;
     }
 
     /// <summary>A persistent ID (charges survive a restart).</summary>
@@ -96,8 +97,19 @@ public sealed class LiveExplosive : ITargetable, IOwned
     /// </summary>
     public SupportLink Link { get; internal set; }
 
-    /// <summary>A dud left alone goes after this tick (−1: never).</summary>
+    /// <summary>A dud left alone goes after this tick (−1: never): its lifetime (survival.json lifetimes.dud), while it is one.</summary>
     public long DespawnTick { get; internal set; } = -1;
+
+    /// <summary>A dud's lifetime (GROUND_SYSTEMS.md §3.7): it lies loose only while it is a dud.</summary>
+    public LifetimeRule Lifetime { get; }
+
+    long ILifetime.EndsAt
+    {
+        get => DespawnTick;
+        set => DespawnTick = value;
+    }
+
+    bool ILifetime.Emptied => false;
 
     /// <summary>Raised whenever what clients see changes (state, position, fuse), so the server sends it again.</summary>
     public uint Revision { get; internal set; }

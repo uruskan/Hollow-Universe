@@ -416,4 +416,64 @@ public static class FoundationTests
         Assert.Equal(new TargetRef(TargetFamily.Door, 0x1234, 2), old.Support, "a door's second leaf, from version 1");
         Fixtures.Report($"the charge swung {Vector3.Distance(shut, on.Position):0.00} m with the leaf; the deer walked {Vector3.Distance(deer.Position, before):0.0} m");
     }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §3.7: lifetimes. One step ends the loose things of every family, each by its rule from data: a
+    /// bag (whose time starts again with each item put in), a body, a dud charge, an animal's carcass; each goes through
+    /// its own family. Emptied, a bag goes at once. Nothing else lies loose.
+    /// </summary>
+    [Test]
+    public static void LifetimesAreOneStepForEveryLooseThing()
+    {
+        using var rig = new GameRig();
+        Zone z = rig.Zone;
+        GameContent c = rig.C;
+        AnimalRig.Animals(rig);
+        Entity ada = rig.Add("Ada", 0, 0);
+        Entity bo = rig.Add("Bo", 6, 0);
+        rig.Step(2);
+        Assert.Equal(0, z.LooseCount, "nothing lies loose");
+
+        // Bags: emptied, one goes at once; another's time starts again with the newest item.
+        DroppedBag near = z.Spill(z.GroundAt(1.2f, 0), ItemStack.Of(c.ItemByKey("stone"), 10))!;
+        Assert.Equal(OutcomeCode.Done, z.PickUpItem(ada, near.Id), "picked up");
+        Assert.True(z.StaticOf(near.Id) == null && z.LooseCount == 0, "emptied, gone at once");
+        DroppedBag bag = z.Spill(z.GroundAt(3, 3), ItemStack.Of(c.ItemByKey("stone"), 10))!;
+        Assert.True(bag.Lifetime == c.Survival.BagLifetime && bag.DespawnTick == z.Tick + c.Survival.BagLifetime.Ticks, "a bag's lifetime, from data");
+        rig.Step(45);
+        z.Spill(bag.Position, ItemStack.Of(c.ItemByKey("wood"), 5));
+        Assert.Equal(z.Tick + c.Survival.BagLifetime.Ticks, bag.DespawnTick, "its time started again with the newest item");
+
+        // A body; a dud; a carcass.
+        rig.Give(bo, "wood", 20);
+        z.Hurt(bo, rig.P(bo), 1000, "Test", EntityId.None, "");
+        Corpse body = z.Statics().OfType<Corpse>().Single();
+        Vector3 ground = z.GroundAt(-3, -3);
+        Vector3 up = z.Frame.UpAt(ground);
+        LiveExplosive dud = z.StickExplosive(c.ItemByKey("timed-charge").Throwable!, ground + up, -up, 3, EntityId.None, "", dud: true)!;
+        for (int i = 0; i < 30 * 60 && !dud.Dud; i++)
+        {
+            rig.Step(1);
+        }
+        Animal deer = AnimalRig.Herd(rig, "deer", 12, 12, 1).Leader!;
+        rig.Step(2);
+        z.DamageAnimal(deer, 1000, HitRegion.Body, z.GroundAt(0, 0), null);
+        int lifetime = c.Capabilities.Index("lifetime");
+        Assert.True(body.Lifetime == c.Survival.BodyLifetime && dud.Dud && dud.Lifetime == c.Survival.DudLifetime && deer.IsDead &&
+            deer.Lifetime == deer.Species.Carcass, "a body's, a dud's and a carcass's, from data");
+        Assert.True(z.Families.Find((int)TargetFamily.Explosive)!.Capabilities(dud.Id.Value).Has(lifetime) &&
+            z.Families.Find((int)TargetFamily.Animal)!.Capabilities(deer.Id.Value).Has(lifetime), "their capabilities say so");
+        Assert.Equal(4, z.LooseCount, "the bag, the body, the dud and the carcass lie loose, nothing else");
+
+        // Their time up, the one step ends each through its family.
+        foreach (ILifetime loose in new ILifetime[] { bag, body, dud, deer })
+        {
+            loose.EndsAt = z.Tick + 5;
+        }
+        rig.Step(40);
+        Assert.True(z.StaticOf(bag.Id) == null && z.StaticOf(body.Id) == null && z.ExplosiveOf(dud.Id) == null && deer.Removed &&
+            z.Animals!.Find(deer.Id) == null, "all four gone");
+        Assert.Equal(0, z.LooseCount, "nothing lies loose");
+        Fixtures.Report($"loose things by family: a bag and a body (things), a dud (explosive), a carcass (animal), ended within a second of their time");
+    }
 }

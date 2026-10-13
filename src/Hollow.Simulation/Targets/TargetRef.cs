@@ -140,6 +140,12 @@ public interface ITargetFamily
 
     /// <summary>Its capabilities now (a door's include its lock's), from its definition's blocks (GROUND_SYSTEMS.md §2.1).</summary>
     Capabilities.CapabilitySet Capabilities(ulong id);
+
+    /// <summary>
+    /// Takes the thing out of the world, as a loose thing's lifetime ends (GROUND_SYSTEMS.md §3.7); false when it isn't
+    /// there, or its family's things don't go that way.
+    /// </summary>
+    bool Remove(ulong id) => false;
 }
 
 /// <summary>A world thing that knows how it is named (<see cref="TargetRef"/>): its family and ID.</summary>

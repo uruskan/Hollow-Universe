@@ -54,6 +54,21 @@ public abstract class WorldObject : ITargetable, IContainerHolder
     /// <summary>Raised on every change others can see.</summary>
     public uint Revision { get; set; }
 
+    private int _shown;
+
+    /// <summary>
+    /// Raises <see cref="Revision"/> when what others see of its count changed since the last call (a looter took a stack
+    /// out of a bag), so clients hear of it.
+    /// </summary>
+    public void PublishChanges()
+    {
+        if (ShownCount != _shown)
+        {
+            _shown = ShownCount;
+            Revision++;
+        }
+    }
+
     /// <summary>Its storage, if it has any.</summary>
     public virtual Container? Container => null;
 
@@ -230,17 +245,17 @@ public sealed class WorldProp : Deployable
 
 /// <summary>
 /// A container left lying in the world for a while (Rust's dropped item container): a body (<see cref="Corpse"/>) or a
-/// bag of dropped items (<see cref="DroppedBag"/>). Anyone may take from it, nobody put into it; it goes once emptied,
-/// or when its time is up (world time: it pauses while the server is down).
+/// bag of dropped items (<see cref="DroppedBag"/>). Anyone may take from it, nobody put into it. Its lifetime is its
+/// kind's (survival.json's lifetimes, GROUND_SYSTEMS.md §3.7): it goes when its time is up (world time: it pauses while
+/// the server is down) or once emptied, by the zone's one lifetime step.
 /// </summary>
-public abstract class DroppedContainer : WorldObject
+public abstract class DroppedContainer : WorldObject, ILifetime
 {
-    private int _shown;
-
-    protected DroppedContainer(EntityId id, ContainerKind kind, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
+    protected DroppedContainer(EntityId id, ContainerKind kind, int slots, Vector3 position, Vector3 up, float yaw, LifetimeRule lifetime, long despawnTick)
         : base(id, position, up, yaw)
     {
         Loot = new Container(kind, Math.Max(1, slots));
+        Lifetime = lifetime;
         DespawnTick = despawnTick;
     }
 
@@ -248,24 +263,20 @@ public abstract class DroppedContainer : WorldObject
 
     public override Container? Container => Loot;
 
-    /// <summary>The zone tick it disappears at.</summary>
+    /// <summary>Its kind's lifetime.</summary>
+    public LifetimeRule Lifetime { get; }
+
+    /// <summary>The zone tick its time is up at.</summary>
     public long DespawnTick { get; set; }
 
-    /// <summary>Whether it goes now: emptied, or its time is up.</summary>
-    public bool Expired(long tick) => tick >= DespawnTick || Loot.IsEmpty;
-
-    /// <summary>
-    /// Raises <see cref="WorldObject.Revision"/> when what others see of it changed since the last call (a looter took
-    /// a stack out of a bag), so clients hear of it; the zone calls it once a second.
-    /// </summary>
-    public void PublishChanges()
+    long ILifetime.EndsAt
     {
-        if (ShownCount != _shown)
-        {
-            _shown = ShownCount;
-            Revision++;
-        }
+        get => DespawnTick;
+        set => DespawnTick = value;
     }
+
+    /// <summary>Looted empty.</summary>
+    public bool Emptied => Loot.IsEmpty;
 }
 
 /// <summary>
@@ -275,8 +286,8 @@ public abstract class DroppedContainer : WorldObject
 /// </summary>
 public sealed class DroppedBag : DroppedContainer
 {
-    public DroppedBag(EntityId id, string name, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
-        : base(id, ContainerKind.Crate, slots, position, up, yaw, despawnTick)
+    public DroppedBag(EntityId id, string name, int slots, Vector3 position, Vector3 up, float yaw, LifetimeRule lifetime, long despawnTick)
+        : base(id, ContainerKind.Crate, slots, position, up, yaw, lifetime, despawnTick)
     {
         Name = name;
     }
@@ -311,8 +322,8 @@ public sealed class DroppedBag : DroppedContainer
 /// <summary>A dead player's body with everything they carried (GROUND.md §6): anyone may take from it.</summary>
 public sealed class Corpse : DroppedContainer
 {
-    public Corpse(EntityId id, string name, EntityId of, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
-        : base(id, ContainerKind.Corpse, slots, position, up, yaw, despawnTick)
+    public Corpse(EntityId id, string name, EntityId of, int slots, Vector3 position, Vector3 up, float yaw, LifetimeRule lifetime, long despawnTick)
+        : base(id, ContainerKind.Corpse, slots, position, up, yaw, lifetime, despawnTick)
     {
         Name = name;
         Of = of;

@@ -471,7 +471,7 @@ public static class GunNetTests
         Assert.Equal(4f, back.Vitals.Burning, "burning");
 
         // In a corpse (a static thing), through the thing's own record.
-        var corpse = new Corpse(new EntityId(77), "Ada", a.Id, 37, rig.Zone.GroundAt(4, 4), Vector3.UnitY, 0, rig.Zone.Tick + 900);
+        var corpse = new Corpse(new EntityId(77), "Ada", a.Id, 37, rig.Zone.GroundAt(4, 4), Vector3.UnitY, 0, c.Survival.BodyLifetime, rig.Zone.Tick + 900);
         corpse.Loot.Set(5, rifle);
         WorldObject? thing = WorldCodec.DecodeThing(corpse.Id, StaticKind.Corpse,
             WorldCodec.EncodeThing(corpse, rig.Zone.Frame.ToBody(corpse.Position), rig.Zone.Tick), c, rig.Zone.Frame.ToLocal, rig.Zone.Frame.UpAt, rig.Zone.Tick);

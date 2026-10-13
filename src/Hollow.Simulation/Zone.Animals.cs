@@ -50,6 +50,10 @@ public sealed partial class Zone : IAnimalHost
         foreach (Animal gone in Animals.Gone)
         {
             SupportGone(gone.Ref);
+            if (gone.IsDead)
+            {
+                Unloose(gone);
+            }
         }
         AnimalTime += Stopwatch.GetElapsedTime(started);
     }
@@ -328,6 +332,7 @@ public sealed partial class Zone : IAnimalHost
             return;
         }
         List<ItemAmount> gained = Animals!.Harvest(corpse, rate);
+        EndIfEmptied(corpse); // harvested out: it goes at once
         GameEvents.Add(new ZoneEvent
         {
             Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = corpse.Id, Target = corpse.Ref, Region = HitRegion.Body, Amount = rate,

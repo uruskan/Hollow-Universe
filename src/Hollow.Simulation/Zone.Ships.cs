@@ -908,8 +908,9 @@ public sealed partial class Zone
         }
         if (stacks.Count > 0 && Content != null)
         {
-            var wreck = new Corpse(NextId(), $"{ship.Def.Name} wreck", ship.Id, stacks.Count, at, up, ShipMotor.YawOf(ship.State.Rotation, up),
-                Tick + (long)(Content!.Survival.CorpseSeconds * CharacterMotor.TickRate));
+            LifetimeRule body = Content!.Survival.BodyLifetime;
+            var wreck = new Corpse(NextId(), $"{ship.Def.Name} wreck", ship.Id, stacks.Count, at, up, ShipMotor.YawOf(ship.State.Rotation, up), body,
+                Tick + body.Ticks);
             for (int i = 0; i < stacks.Count; i++)
             {
                 wreck.Loot.Set(i, stacks[i]);

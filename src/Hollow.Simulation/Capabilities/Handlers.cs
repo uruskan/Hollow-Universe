@@ -21,6 +21,20 @@ public interface IContainerHolder
 }
 
 /// <summary>
+/// A loose thing with a lifetime (GROUND_SYSTEMS.md §3.7), of any family: its kind's rule (survival.json's lifetimes, a
+/// species' carcass), the world tick it goes at (restarted as its rule says), and whether it was emptied (looted or
+/// harvested out: it goes at once, if its rule says so).
+/// </summary>
+public interface ILifetime : ITargetable
+{
+    LifetimeRule Lifetime { get; }
+
+    long EndsAt { get; set; }
+
+    bool Emptied { get; }
+}
+
+/// <summary>
 /// Every capability's handler (GROUND_SYSTEMS.md §2.1, §3.5), in a registry checked against capabilities.json: an entry
 /// without its handler, or a handler without its entry, stops the start. One class each; a new kind of behaviour is one
 /// class here and one line in the data.
@@ -164,11 +178,27 @@ public static class CapabilityHandlers
         }
     }
 
-    /// <summary>Goes after a while (the zone's lifetime step, GROUND_SYSTEMS.md §3.7): nothing to tell a viewer.</summary>
-    private sealed class Lifetime : ICapability
+    /// <summary>
+    /// Goes after a while (GROUND_SYSTEMS.md §3.7): the zone's one lifetime step asks it whether a thing's time is up (or it
+    /// was emptied, when its rule ends it so) and ends it: its family takes it out of the world. Nothing to tell a viewer.
+    /// </summary>
+    private sealed class Lifetime : ICapability, ILifetimeCapability
     {
         public string Key => "lifetime";
 
         public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public bool Over(object thing, long tick) =>
+            thing is ILifetime l && (tick >= l.EndsAt || (l.Lifetime.EndsWhenEmptied && l.Emptied));
+
+        public void Restart(object thing, LifetimeRestart why, long tick)
+        {
+            if (thing is ILifetime l && why != LifetimeRestart.None && l.Lifetime.Restart == why)
+            {
+                l.EndsAt = tick + l.Lifetime.Ticks;
+            }
+        }
+
+        public void End(Zone zone, in TargetRef target, object thing) => zone.RemoveTarget(target);
     }
 }

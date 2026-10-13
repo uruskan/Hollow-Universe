@@ -15,6 +15,7 @@ using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation;
 
@@ -28,9 +29,6 @@ public sealed partial class Zone
 {
     /// <summary>At most this many explosives live in a zone at once (RustMVP allowed 1,000 charges); more are refused.</summary>
     public const int MaxExplosives = 1024;
-
-    /// <summary>A dud nobody lights again goes after this long (world time, ours).</summary>
-    public const double DudSeconds = 600;
 
     /// <summary>A thrown explosive stops bouncing after this many bounces and lies where the last left it.</summary>
     public const int MaxBounces = 12;
@@ -250,7 +248,7 @@ public sealed partial class Zone
 
     private LiveExplosive Spawn(ThrowableStats stats, EntityId owner, string ownerName, Vector3 at, Vector3 velocity)
     {
-        var e = new LiveExplosive(NextId(), stats, owner, ownerName)
+        var e = new LiveExplosive(NextId(), stats, owner, ownerName, Content!.Survival.DudLifetime)
         {
             State = ExplosiveState.Flying,
             Position = at,
@@ -275,6 +273,10 @@ public sealed partial class Zone
         e.WillDud = dud ?? willDud;
         e.FuseTicks = fuse;
         e.FuseEndTick = Tick + fuse;
+        if (e.Dud)
+        {
+            Unloose(e); // a dud lit again lies loose no longer
+        }
         e.Dud = false;
         e.DespawnTick = -1;
         e.Revision++;
@@ -307,20 +309,18 @@ public sealed partial class Zone
             {
                 if (e.WillDud)
                 {
+                    // It lies there for its lifetime (the zone's one lifetime step ends it) unless someone lights it again.
                     e.Dud = true;
                     e.FuseEndTick = -1;
-                    e.DespawnTick = Tick + CharacterTicks.From(DudSeconds);
+                    e.DespawnTick = Tick + e.Lifetime.Ticks;
                     e.Revision++;
                     RaidStats.Duds++;
+                    Loose(e);
                 }
                 else
                 {
                     Explode(e);
                 }
-            }
-            else if (e.Dud && e.DespawnTick >= 0 && Tick >= e.DespawnTick)
-            {
-                e.Gone = true;
             }
         }
         for (int i = _explosives.Count - 1; i >= 0; i--)
@@ -334,6 +334,10 @@ public sealed partial class Zone
         {
             if (_explosives[i].Gone)
             {
+                if (_explosives[i].Dud)
+                {
+                    Unloose(_explosives[i]);
+                }
                 _explosiveIds.Remove(_explosives[i].Id);
                 _explosives.RemoveAt(i);
             }
@@ -651,7 +655,8 @@ public sealed partial class Zone
         {
             return false;
         }
-        var e = new LiveExplosive(s.Id, stats, s.Owner, s.OwnerName)
+        LifetimeRule dudLifetime = Content!.Survival.DudLifetime;
+        var e = new LiveExplosive(s.Id, stats, s.Owner, s.OwnerName, dudLifetime)
         {
             State = s.State,
             Dud = s.Dud,
@@ -665,11 +670,15 @@ public sealed partial class Zone
             FuseTicks = Math.Max(1, s.FuseTicks),
             WillDud = s.WillDud,
             Arms = Math.Max(1, s.Arms),
-            DespawnTick = s.DespawnLeft >= 0 ? Tick + s.DespawnLeft : (s.Dud ? Tick + CharacterTicks.From(DudSeconds) : -1),
+            DespawnTick = s.DespawnLeft >= 0 ? Tick + s.DespawnLeft : (s.Dud ? Tick + dudLifetime.Ticks : -1),
             Revision = 1,
         };
         _explosives.Add(e);
         _explosiveIds[e.Id] = e;
+        if (e.Dud)
+        {
+            Loose(e);
+        }
         if (e.State != ExplosiveState.Flying)
         {
             // What held it is asked of its family (an ID from storage: untrusted); gone, the explosive falls.

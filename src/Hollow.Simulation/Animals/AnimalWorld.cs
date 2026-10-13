@@ -235,6 +235,7 @@ public sealed partial class AnimalWorld
         };
         herd.Members.Add(corpse);
         Add(corpse);
+        _zone.Loose(corpse);
         return corpse;
     }
 
@@ -266,11 +267,7 @@ public sealed partial class AnimalWorld
             }
             if (a.IsDead)
             {
-                if (Tick >= a.DespawnTick || a.HarvestLeft <= 0)
-                {
-                    Remove(a);
-                }
-                continue;
+                continue; // a carcass lies loose: the zone's lifetime step ends it (GROUND_SYSTEMS.md §3.7)
             }
             if (a.Asleep)
             {
@@ -617,7 +614,8 @@ public sealed partial class AnimalWorld
         a.StrikeTick = -1;
         a.Alert = false;
         a.HarvestLeft = a.Species.HarvestHealth;
-        a.DespawnTick = Tick + CharacterTicks.From(a.Species.CorpseSeconds);
+        a.DespawnTick = Tick + a.Species.Carcass.Ticks;
+        _zone.Loose(a);
         a.KilledBy = by.Kind == TargetKind.Player ? by.Id : EntityId.None;
         a.KilledByName = byName;
         Raise(a.Herd, a.Position, null);
@@ -637,7 +635,8 @@ public sealed partial class AnimalWorld
 
     /// <summary>
     /// A tool's hit on a corpse: takes the tool's rate of what is left to harvest and gives the share of the whole yield
-    /// that was, in whole units; the last hit gives the rest and the corpse goes (GROUND.md §6.9, as gathering, §6.1).
+    /// that was, in whole units; the last hit gives the rest (GROUND.md §6.9, as gathering, §6.1), and the carcass, emptied,
+    /// goes by its lifetime's rule (the zone ends it at once, GROUND_SYSTEMS.md §3.7).
     /// </summary>
     internal List<ItemAmount> Harvest(Animal corpse, float rate)
     {
@@ -657,10 +656,6 @@ public sealed partial class AnimalWorld
             }
         }
         corpse.HarvestLeft = after;
-        if (after <= 0)
-        {
-            Remove(corpse);
-        }
         return gained;
     }
 

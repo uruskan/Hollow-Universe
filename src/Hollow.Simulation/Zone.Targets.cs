@@ -90,6 +90,9 @@ public sealed partial class Zone
         return FamilyOf(target.Family)?.TryNearest(target, from, out point) == true;
     }
 
+    /// <summary>Takes a thing out of the world through its family (a loose thing's lifetime ended, GROUND_SYSTEMS.md §3.7).</summary>
+    public bool RemoveTarget(in TargetRef target) => FamilyOf(target.Family)?.Remove(target.Id) == true;
+
     // ---------------------------------------------------------------- the families
 
     /// <summary>The terrain: always there, its pose the zone frame itself (what lies on it keeps its own place).</summary>
@@ -229,7 +232,17 @@ public sealed partial class Zone
 
         public string ModelKey(ulong id) => Find(id)?.Species.Key ?? "";
 
-        public CapabilitySet Capabilities(ulong id) => CapabilitySet.Empty;
+        public CapabilitySet Capabilities(ulong id) => Find(id) is { IsDead: true } ? zone.Content!.Capabilities.Carcass : CapabilitySet.Empty;
+
+        public bool Remove(ulong id)
+        {
+            if (Find(id) is not { } a)
+            {
+                return false;
+            }
+            zone.Animals!.Remove(a);
+            return true;
+        }
 
         private Animal? Find(ulong id) => zone.Animals?.Find(new EntityId(id)) is { Removed: false } a ? a : null;
     }
@@ -336,6 +349,16 @@ public sealed partial class Zone
         public string ModelKey(ulong id) => zone.StaticOf(new EntityId(id))?.ModelKey ?? "";
 
         public CapabilitySet Capabilities(ulong id) => zone.StaticOf(new EntityId(id))?.CapabilitiesIn(zone.Content!.Capabilities) ?? CapabilitySet.Empty;
+
+        public bool Remove(ulong id)
+        {
+            if (zone.StaticOf(new EntityId(id)) is not { } thing)
+            {
+                return false;
+            }
+            zone.RemoveStatic(thing);
+            return true;
+        }
     }
 
     /// <summary>Building pieces (one coming down still stands until it is taken away).</summary>
@@ -502,7 +525,22 @@ public sealed partial class Zone
 
         public string ModelKey(ulong id) => zone.ExplosiveOf(new EntityId(id))?.Item.Key ?? "";
 
-        public CapabilitySet Capabilities(ulong id) => zone.ExplosiveOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Explosive : CapabilitySet.Empty;
+        public CapabilitySet Capabilities(ulong id)
+        {
+            CapabilityData data = zone.Content!.Capabilities;
+            return zone.ExplosiveOf(new EntityId(id)) is { } e ? e.Dud ? data.Dud : data.Explosive : CapabilitySet.Empty;
+        }
+
+        // Gone at once; the explosives' step lets go of it on its next tick (its link, its ID), as for one that went off.
+        public bool Remove(ulong id)
+        {
+            if (zone.ExplosiveOf(new EntityId(id)) is not { Gone: false } e)
+            {
+                return false;
+            }
+            e.Gone = true;
+            return true;
+        }
     }
 
     /// <summary>Ships, wrecks included until they go; found by their hulls.</summary>

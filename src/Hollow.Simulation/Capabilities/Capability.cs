@@ -4,6 +4,7 @@ using System.Numerics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.Teams;
+using Hollow.Simulation.Content;
 
 namespace Hollow.Simulation.Capabilities;
 
@@ -76,6 +77,22 @@ public interface ICapability
 
     /// <summary>What it tells one viewer about a thing (the thing is its family's object, <see cref="ITargetFamily.Resolve"/>).</summary>
     ViewerFlags Flags(object thing, in Viewer viewer);
+}
+
+/// <summary>
+/// The lifetime capability's side (GROUND_SYSTEMS.md §3.7): whether a thing's time is up, starting it again, ending it.
+/// The zone's one lifetime step goes through it for every loose thing.
+/// </summary>
+public interface ILifetimeCapability
+{
+    /// <summary>Its time is up, or it was emptied and its rule ends it so.</summary>
+    bool Over(object thing, long tick);
+
+    /// <summary>Starts its time again if its rule restarts on <paramref name="why"/>.</summary>
+    void Restart(object thing, LifetimeRestart why, long tick);
+
+    /// <summary>It goes from the world.</summary>
+    void End(Zone zone, in TargetRef target, object thing);
 }
 
 /// <summary>

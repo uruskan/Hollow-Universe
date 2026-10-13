@@ -310,7 +310,7 @@ public static class WorldCodec
                     }
                 }
                 var bag = new DroppedBag(id, content.Survival.BagName, Math.Clamp(Math.Max(stacks.Count, content.Survival.BagSlots), 1, 255), position, up, yaw,
-                    tick + Math.Max(0, left));
+                    content.Survival.BagLifetime, tick + Math.Max(0, left));
                 for (int i = 0; i < stacks.Count && i < bag.Loot.Size; i++)
                 {
                     bag.Loot.Set(i, stacks[i]);
@@ -329,7 +329,7 @@ public static class WorldCodec
                 {
                     slots.Add(ReadStack(r, content, version));
                 }
-                var corpse = new Corpse(id, name, of, Math.Max(1, size), position, up, yaw, tick + Math.Max(0, left));
+                var corpse = new Corpse(id, name, of, Math.Max(1, size), position, up, yaw, content.Survival.BodyLifetime, tick + Math.Max(0, left));
                 for (int i = 0; i < slots.Count; i++)
                 {
                     corpse.Loot.Set(i, slots[i]);

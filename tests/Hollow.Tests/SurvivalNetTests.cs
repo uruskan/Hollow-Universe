@@ -243,7 +243,8 @@ public static class SurvivalNetTests
                 sv.Zone.TryFindPlayer(boId, out Entity sleeper, out Player p);
                 Assert.True(p.Sleeping, "Bo sleeps in the world");
                 var at = sv.Zone.Entities.Get<Character>(sleeper).State.Position;
-                var corpse = new Corpse(sv.Zone.NextId(), "Cy", EntityId.None, 37, sv.Zone.Settle(at + new Vector3(3, 0, 0)), Vector3.UnitY, 0, sv.Zone.Tick + 5000);
+                var corpse = new Corpse(sv.Zone.NextId(), "Cy", EntityId.None, 37, sv.Zone.Settle(at + new Vector3(3, 0, 0)), Vector3.UnitY, 0, c.Survival.BodyLifetime,
+                    sv.Zone.Tick + 5000);
                 corpse.Loot.Set(0, ItemStack.Of(c.ItemByKey("bandage"), 2));
                 sv.Zone.AddStatic(corpse);
                 DroppedBag dropped = sv.Zone.Statics().OfType<DroppedBag>().Single();

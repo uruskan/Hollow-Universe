@@ -9,18 +9,23 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation;
 
-// Static things of the survival game (GROUND.md §6): deployables and their devices, dropped items, corpses; their
-// timers, warmth and workbench reach.
+// Static things of the survival game (GROUND.md §6): deployables and their devices, dropped items, corpses; warmth and
+// workbench reach; and the one lifetime step (GROUND_SYSTEMS.md §3.7) for every loose thing of any family (bags, bodies,
+// duds, carcasses). The zone keeps the loose things (those with a lifetime) and the working ones (burners and machines)
+// in lists of their own, so neither the lifetime step nor the devices' step looks at every static thing.
 public sealed partial class Zone
 {
     /// <summary>Side of the cells deployables are indexed by, for placement checks and hit tests.</summary>
     private const float ThingCell = 16f;
 
     private readonly Dictionary<(int X, int Z), List<Deployable>> _deployableCells = new();
-    private readonly List<WorldObject> _expiredThings = new();
+    private readonly List<ILifetime> _loose = new();
+    private readonly List<ILifetime> _over = new();
+    private readonly List<Deployable> _workers = new();
 
     /// <summary>The object of a static entity, or null.</summary>
     public WorldObject? StaticOf(Entity entity) => Entities.Has<StaticLink>(entity) ? Entities.Get<StaticLink>(entity).Object : null;
@@ -32,6 +37,15 @@ public sealed partial class Zone
     {
         Entity entity = Entities.Create(thing.Id);
         Entities.Add(entity, new StaticLink { Object = thing });
+        CapabilitySet capabilities = Content is { } content ? thing.CapabilitiesIn(content.Capabilities) : CapabilitySet.Empty;
+        if (thing is ILifetime loose && capabilities.Has(_lifetimeCapability))
+        {
+            Loose(loose);
+        }
+        if (thing is Deployable worker && (capabilities.Has(_burnerCapability) || capabilities.Has(_machineCapability)))
+        {
+            _workers.Add(worker);
+        }
         if (thing is Deployable d)
         {
             Cell(d.Position).Add(d);
@@ -47,6 +61,14 @@ public sealed partial class Zone
 
     public void RemoveStatic(WorldObject thing)
     {
+        if (thing is ILifetime loose)
+        {
+            Unloose(loose);
+        }
+        if (thing is Deployable worker)
+        {
+            _workers.Remove(worker);
+        }
         if (thing is Deployable d)
         {
             Cell(d.Position).Remove(d);
@@ -266,18 +288,19 @@ public sealed partial class Zone
 
     // Campfires and furnaces (GROUND.md §6): a lit one burns a unit of fuel every fuel.seconds, leaving its by-product
     // (charcoal) in an output slot, and cooks every input slot in parallel into the outputs; it goes out without fuel.
+    // Only the things that can work (the burners and machines) are looked at, not every static thing.
     private void StepDevices()
     {
-        ComponentPool<StaticLink> pool = Entities.Pool<StaticLink>();
-        for (int i = 0; i < pool.Count; i++)
+        for (int i = 0; i < _workers.Count; i++)
         {
-            if (pool.Values[i].Object is Deployable { Lit: true, Def.Device: { } device, Storage: { } storage } d)
+            Deployable d = _workers[i];
+            if (d is { Lit: true, Def.Device: { } device, Storage: { } storage })
             {
                 StepDevice(d, device, storage);
             }
-            else if (pool.Values[i].Object is Deployable { Lit: true, Def.IsMachine: true } machine)
+            else if (d is { Lit: true, Def.IsMachine: true })
             {
-                StepMachine(machine); // G7: a recycler or research table at work
+                StepMachine(d); // G7: a recycler or research table at work
             }
         }
     }
@@ -385,32 +408,68 @@ public sealed partial class Zone
         return false;
     }
 
-    // ---------------------------------------------------------------- timers
+    // ---------------------------------------------------------------- lifetimes (GROUND_SYSTEMS.md §3.7)
 
-    // Bags of dropped items and bodies despawn on world time (it pauses while the server is down), and go once emptied;
-    // a bag a looter took from tells others how many stacks it still holds.
-    private void StepDespawns()
+    private int _lifetimeCapability = -1, _burnerCapability = -1, _machineCapability = -1;
+
+    private void InitThings(GameContent content)
     {
-        _expiredThings.Clear();
-        ComponentPool<StaticLink> pool = Entities.Pool<StaticLink>();
-        for (int i = 0; i < pool.Count; i++)
+        _lifetimeCapability = content.Capabilities.Index("lifetime");
+        _burnerCapability = content.Capabilities.Index("burner");
+        _machineCapability = content.Capabilities.Index("machine");
+    }
+
+    private ILifetimeCapability Lifetimes => (ILifetimeCapability)Capabilities[_lifetimeCapability];
+
+    /// <summary>How many loose things there are (things with a lifetime running), for statistics and tests.</summary>
+    public int LooseCount => _loose.Count;
+
+    /// <summary>
+    /// A thing with a lifetime starts lying loose (a bag or body added, a charge gone out, an animal dead): the lifetime
+    /// step watches it from now until it goes.
+    /// </summary>
+    internal void Loose(ILifetime thing) => _loose.Add(thing);
+
+    /// <summary>It lies loose no longer (gone from the world, or a dud lit again).</summary>
+    internal void Unloose(ILifetime thing) => _loose.Remove(thing);
+
+    // The one lifetime step, once a second, on world time (it pauses while the server is down): every loose thing whose
+    // time is up, or that was emptied when its rule ends it so, goes; its family takes it out of the world.
+    private void StepLifetimes()
+    {
+        if (_loose.Count == 0)
         {
-            if (pool.Values[i].Object is not DroppedContainer dropped)
+            return;
+        }
+        ILifetimeCapability lifetimes = Lifetimes;
+        _over.Clear();
+        foreach (ILifetime thing in _loose)
+        {
+            if (lifetimes.Over(thing, Tick))
             {
-                continue;
-            }
-            if (dropped.Expired(Tick))
-            {
-                _expiredThings.Add(dropped);
-            }
-            else
-            {
-                dropped.PublishChanges();
+                _over.Add(thing);
             }
         }
-        foreach (WorldObject thing in _expiredThings)
+        foreach (ILifetime thing in _over)
         {
-            RemoveStatic(thing);
+            lifetimes.End(this, thing.Ref, thing);
+            Unloose(thing);
         }
+    }
+
+    /// <summary>A loose thing's time starts again if its rule restarts on <paramref name="why"/> (something put in a bag).</summary>
+    private void Restart(ILifetime thing, LifetimeRestart why) => Lifetimes.Restart(thing, why, Tick);
+
+    /// <summary>A loose thing just emptied (looted, harvested out) goes at once if its rule ends it so; true when it went.</summary>
+    private bool EndIfEmptied(ILifetime thing)
+    {
+        ILifetimeCapability lifetimes = Lifetimes;
+        if (!lifetimes.Over(thing, Tick))
+        {
+            return false;
+        }
+        lifetimes.End(this, thing.Ref, thing);
+        Unloose(thing);
+        return true;
     }
 }

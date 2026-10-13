@@ -57,6 +57,7 @@ public sealed partial class Zone
         Natural = new NaturalState(content, Nature);
         _ = new NaturalBodies(Physics, Natural);
         Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
+        InitThings(content);
         InitBuilding(content);
         InitWorld(content);
         InitAnimals(content);
@@ -79,7 +80,7 @@ public sealed partial class Zone
         {
             StepVitals();
             Natural!.Respawn(UnixMilliseconds);
-            StepDespawns();
+            StepLifetimes();
             StepWorld();
             CheckLoot();
         }
@@ -305,7 +306,7 @@ public sealed partial class Zone
         {
             Vector3 at = Settle(c.State.Position);
             var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
-                at, Frame.UpAt(at), c.Input.Yaw, Tick + (long)(content.Survival.CorpseSeconds * CharacterMotor.TickRate));
+                at, Frame.UpAt(at), c.Input.Yaw, content.Survival.BodyLifetime, Tick + content.Survival.BodyLifetime.Ticks);
             for (int i = 0; i < stacks.Count; i++)
             {
                 corpse.Loot.Set(i, stacks[i]);
