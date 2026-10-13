@@ -134,6 +134,8 @@ def surface_material(name):
     set_name, tile, opts = MATERIALS[name]
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     mat.use_nodes = True
+    # As the game draws them: front faces only, so a face wound the wrong way shows here as a hole.
+    mat.use_backface_culling = True
     nt = mat.node_tree
     nt.nodes.clear()
     out = nt.nodes.new("ShaderNodeOutputMaterial")

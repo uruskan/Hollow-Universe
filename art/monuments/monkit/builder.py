@@ -213,7 +213,27 @@ def _mesh_bm(verts, faces):
     return bm
 
 
+def _orient_outward(bm):
+    """A closed part whose faces came out wound inside-out is turned the right way (the game draws front faces
+    only). Open parts (single faces, shells with edges) are left as authored."""
+    if not bm.faces or any(not e.is_manifold for e in bm.edges):
+        return bm
+    vol = 0.0
+    for f in bm.faces:
+        vs = [v.co for v in f.verts]
+        a = vs[0]
+        for b, c in zip(vs[1:], vs[2:]):
+            vol += a.dot(b.cross(c))
+    if vol < 0:
+        bmesh.ops.reverse_faces(bm, faces=list(bm.faces))
+    return bm
+
+
 def _geometry(p, detail, max_edge):
+    return _orient_outward(_raw_geometry(p, detail, max_edge))
+
+
+def _raw_geometry(p, detail, max_edge):
     a = p.args
     k = p.kind
     if k == "box":
