@@ -854,14 +854,15 @@ budget; 1,364 door toggles. The bots' shared copy held all 965 pieces.
 
 ### 5.5 G5 load test: 100 bots raiding
 
-Measured on the owner's PC on 13 October 2026, with other agents' work running on it. The server builds 50 claimed stone
-huts with sheet metal doors on a ring 70 m around the origin (`--raid-bases`, half the bots by default) and lists two bots on
-each as they join; every 20 s it puts back what the raids broke. Every bot gets the `raid-kit` loot table with every life (four
-timed charges, six bag charges, eight tin grenades, a rocket launcher with six rockets and two high-velocity ones, a rifle with
-96 explosive rounds, clothes, bandages, food) and raids the next bot's hut (`--script raid`, `RaidBrain`): a timed charge on the
-door or the doorway beside it, then out of its blast; bag charges and grenades thrown from 5–6 m; rockets from 15 m; bursts of
-explosive rounds from 10 m. It doesn't look at what still stands; it works through its plan.
-All 100 stay within 120 m of the origin, so each sees the 99 others.
+Measured on the owner's PC on 13 October 2026, after merging phase 2a (so the huts are replicated and in every client's
+prediction), with other agents' work running on it. The server builds 50 claimed stone huts with sheet metal doors on a
+ring 70 m around the origin (`--raid-bases`, half the bots by default) and lists two bots on each as they join; every 20 s
+it puts back what the raids broke. Every bot gets the `raid-kit` loot table with every life (four timed charges, six bag
+charges, eight tin grenades, a rocket launcher with six rockets and two high-velocity ones, a rifle with 96 explosive
+rounds, clothes, bandages, food) and raids the next bot's hut (`--script raid`, `RaidBrain`): a timed charge on the door
+or the doorway beside it, then out of its blast; bag charges and grenades thrown from 5–6 m; rockets from 15 m; bursts of
+explosive rounds from 10 m. It doesn't look at what still stands; it works through its plan. All 100 stay within 120 m of
+the origin, so each sees the 99 others.
 
 ```bash
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script raid
@@ -869,24 +870,29 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
 
 | | G5, 100 raiding bots | G4, 100 bots in firefights (§5.3) | Target |
 |---|---|---|---|
-| Server tick, average | 8.03 ms, of which the zone's step 3.95 ms, flying bullets and rockets 1.22 ms and explosives and blasts 0.09 ms | 8.64 ms, of which the zone's step 2.03 ms | ≤ 10 ms typical |
-| Server tick, 99th percentile / worst | 13.5 / 59.5 ms (3 of 1,802 over 33 ms) | 18.5 / 227 ms | ≤ 33 ms |
-| Bandwidth per client, down (99 characters in view) | 135 kbit/s | 169 kbit/s | ≤ 256 kbit/s |
+| Server tick, average | 9.66 ms, of which the zone's step 4.60 ms, flying bullets and rockets 1.41 ms and explosives and blasts 0.12 ms | 8.64 ms, of which the zone's step 2.03 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 30.7 / 100 ms (16 of 1,802 over 33 ms) | 18.5 / 227 ms | ≤ 33 ms |
+| Bandwidth per client, down (99 characters and 50 huts in view) | 157 kbit/s | 169 kbit/s | ≤ 256 kbit/s |
 | Bandwidth per client, up | 22 kbit/s | 23 kbit/s | |
-| Snapshots lost / inputs on their tick | 0 % / 100 % | 0 % / 99.96 % | |
-| Prediction: mean / worst error, corrections | 0.23 / 98 mm, 651 (and 100 respawns) | 0.24 / 307 mm, 525 | |
+| Snapshots lost / inputs on their tick | 0 % / 99.97 % | 0 % / 99.96 % | |
+| Prediction: mean / worst error, corrections | 0.006 / 157 mm, 10 (and 94 respawns) | 0.24 / 307 mm, 525 | |
 
-In the 80 s the bots placed 121 timed charges (36 found something to stick to within reach: the rest met a door or hut already
-blown away), threw 240 bag charges and grenades, fired 228 rockets and 932 bursts of explosive rounds: 2,215 detonations on the
-server (most of them explosive rounds), 42 duds, 45 pieces and 13 doors broken, 45,224 damage to buildings, 567 raid hits on
-claimed huts summed into 31 alerts, 62 deliveries to bots in the game (two owners a hut), 176 huts put back. 108 bots died, most
-in each other's blasts.
-- **Tick time** is G4's: the zone's step is up by the bodies of 300 building pieces the characters move among and by the
-  bullets (explosive rounds every few ticks); explosives and blasts cost under 0.1 ms a tick. The worst ticks are the PC's.
+In the 80 s the bots placed 117 timed charges (96 found a door or wall within reach; the rest met a hut already blown
+open), threw 243 bag charges and grenades, fired 236 rockets and 990 bursts of explosive rounds: 2,425 detonations on the
+server (most of them explosive rounds), 35 duds, 44 pieces and 66 doors broken, 75,058 damage to buildings, 1,925 raid
+hits on claimed huts summed into 105 alerts, 210 deliveries to bots in the game (two owners a hut), 93 huts put back.
+101 bots died, most in each other's blasts.
+- **Tick time:** the zone's step is up on G4's by the bodies of 300 building pieces the characters move among, by the
+  building's changes (what the raids break and the server puts back, replicated) and by the bullets (explosive rounds
+  every few ticks); explosives and blasts cost about 0.1 ms a tick. The PC was busy with other agents' work during the
+  run (the bots' process saw 57 clock jumps, and 57 inputs came late), so the worst ticks are the PC's. A run a few
+  minutes earlier on the same code, except that broken doors and claim devices weren't put back yet (13 doors broken in
+  all), measured 8.46 / 15.8 / 71.0 ms.
 - **Down** is lower than G4's: raiding bots stand still while they place, throw and aim, and explosives' and detonations'
-  messages are few (a detonation is about 30 bytes to everyone within 600 m; an explosive's state about 50 bytes when it changes).
-- **Prediction corrections** come from characters bumping into huts their clients don't have yet (no building replication on
-  this branch) and from blasts knocking them down.
+  messages are few (a detonation is about 30 bytes to everyone within 600 m; an explosive's state about 50 bytes when it
+  changes); the huts' changes come on top.
+- **Prediction** is all but exact: every client has the huts in its prediction physics (phase 2a's replication). Before
+  the merge, characters bumping into huts their clients didn't have made 651 corrections.
 
 ---
 
