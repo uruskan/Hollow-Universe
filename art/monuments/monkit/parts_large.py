@@ -1229,6 +1229,161 @@ def _haul_truck(b):
     b.collide_box(Vector((0, 0, 2.2)), (14.0, 7.6, 4.4), (0, 0, 0))
 
 
+# Rail: the track's rails sit on sleepers on a ballast bed 0.3 m deep, so wheels stand at RAIL_TOP.
+RAIL_TOP = 0.62
+WHEEL_R = 0.46
+
+
+def _track_10(b):
+    """Ten metres of track on the ballast: fifteen concrete sleepers and two rails (standard gauge)."""
+    for k in range(15):
+        x = -5.0 + (k + 0.5) * 10.0 / 15
+        b.box((0.26, 2.5, 0.16), (x, 0, 0.38), mat=CONCRETE, tint=srgb(0.62, 0.60, 0.56), solid=False, vary=0.05)
+    for y in (-0.7535, 0.7535):
+        b.box((10.0, 0.07, 0.16), (0, y, 0.54), mat=RUST, tint=(1, 1, 1), solid=False)
+        b.box((10.0, 0.14, 0.03), (0, y, 0.475), mat=RUST, tint=(1, 1, 1), solid=False)
+
+
+def _bogie(b, x, axles=2):
+    """A two- or three-axle bogie under a wagon at `x`: a frame, wheels on the rails, springs."""
+    zc = RAIL_TOP + WHEEL_R
+    span = 1.8 if axles == 2 else 1.7
+    b.box((span * (axles - 1) + 1.4, 2.0, 0.5), (x, 0, zc + 0.15), mat=PAINT, tint=srgb(0.22, 0.22, 0.22),
+          solid=False)
+    for k in range(axles):
+        ax = x + (k - (axles - 1) / 2) * span
+        for y in (-0.75, 0.75):
+            b.cyl(WHEEL_R, 0.14, (ax, y, zc), (90, 0, 0), mat=RUST, tint=(1, 1, 1), sides=12, solid=False)
+        b.cyl(0.08, 1.7, (ax, 0, zc), (90, 0, 0), mat=PAINT, tint=DARK, sides=6, solid=False)
+    for y in (-1.05, 1.05):
+        b.box((0.5, 0.25, 0.45), (x, y, zc + 0.3), mat=PAINT, tint=YELLOW, solid=False)
+
+
+def _underframe(b, length, z=1.6):
+    b.box((length, 2.7, 0.4), (0, 0, z), mat=PAINT, tint=srgb(0.25, 0.25, 0.25))
+    for s in (-1, 1):
+        b.box((0.5, 0.4, 0.35), (s * (length / 2 + 0.25), 0, z - 0.1), mat=PAINT, tint=DARK, solid=False)
+        for y in (-1.0, 1.0):
+            b.cyl(0.18, 0.6, (s * (length / 2 + 0.3), y, z), (0, 90, 0), mat=PAINT, tint=DARK, sides=8, solid=False)
+
+
+def _boxcar(b):
+    """A covered goods wagon 14 m long: corrugated walls with a sliding door open on both sides (it can be entered),
+    a roof, corner ladders, a brake wheel."""
+    L, W, H = 14.0, 2.9, 2.9
+    z0 = 1.85
+    tint = (1, 1, 1)
+    _bogie(b, -4.8)
+    _bogie(b, 4.8)
+    _underframe(b, L, 1.6)
+    b.box((L, W, 0.12), (0, 0, z0 + 0.06), mat=PAINT, tint=srgb(0.40, 0.36, 0.30))
+    for y in (-W / 2, W / 2):
+        b.box((L / 2 - 1.6, 0.08, H), (-(L / 4 + 0.8), y, z0 + H / 2), mat=CORRUGATED, tint=tint)
+        b.box((L / 2 - 1.6, 0.08, H), (L / 4 + 0.8, y, z0 + H / 2), mat=CORRUGATED, tint=tint)
+        b.box((3.0, 0.1, 0.5), (0, y, z0 + H - 0.25), mat=CORRUGATED, tint=tint)
+        b.box((3.1, 0.08, H - 0.4), (3.0, y * 1.04, z0 + (H - 0.4) / 2 + 0.05), mat=CORRUGATED,
+              tint=srgb(0.85, 0.85, 0.85), solid=False)
+        b.box((3.4, 0.12, 0.12), (1.5, y * 1.07, z0 + H - 0.1), mat=PAINT, tint=DARK, solid=False)
+    for x in (-L / 2, L / 2):
+        b.box((0.08, W, H), (x, 0, z0 + H / 2), mat=CORRUGATED, tint=tint)
+    b.lathe([(W / 2 + 0.05, 0.0), (W / 2 - 0.3, 0.25), (0.0, 0.32)], (0, 0, z0 + H), (0, 0, 0), mat=PAINT, tint=tint,
+            sides=4, solid=False)
+    b.box((L + 0.1, W + 0.1, 0.1), (0, 0, z0 + H + 0.05), mat=PAINT, tint=tint)
+    for x in (-L / 2 - 0.06, L / 2 + 0.06):
+        for k in range(6):
+            b.box((0.05, 0.5, 0.04), (x, W / 2 - 0.35, 1.9 + k * 0.45), mat=PAINT, tint=YELLOW, solid=False, vary=0)
+    b.cyl(0.25, 0.04, (L / 2 + 0.08, -0.6, 3.6), (0, 90, 0), mat=PAINT, tint=DARK, sides=10, solid=False)
+    b.collide_box(Vector((0, 0, 1.0)), (L, 2.6, 0.9), (0, 0, 0))
+
+
+def _flatcar(b):
+    """A flat wagon 14 m long with stakes along its deck (containers go on top as their own pieces)."""
+    L = 14.0
+    _bogie(b, -4.8)
+    _bogie(b, 4.8)
+    _underframe(b, L, 1.6)
+    b.box((L, 2.8, 0.25), (0, 0, 1.93), mat=PAINT, tint=srgb(0.45, 0.40, 0.33))
+    for k in range(6):
+        x = -L / 2 + 1.2 + k * (L - 2.4) / 5
+        for y in (-1.42, 1.42):
+            b.box((0.12, 0.12, 0.5), (x, y, 2.3), mat=PAINT, tint=DARK, solid=False)
+    b.collide_box(Vector((0, 0, 1.0)), (L, 2.6, 0.9), (0, 0, 0))
+
+
+def _hopper_wagon(b):
+    """An open hopper wagon 12 m long: a body with sloped ends and discharge chutes underneath, ribs on the sides."""
+    L = 12.0
+    _bogie(b, -4.0)
+    _bogie(b, 4.0)
+    _underframe(b, L, 1.6)
+    with b.frame((0, 0, 0), (0, 0, 90)):
+        b.extrude([(-1.45, 2.0), (1.45, 2.0), (1.45, 4.3), (-1.45, 4.3)], L - 2.0, (0, 0, 0), (0, 0, 0), mat=PAINT,
+                  tint=srgb(0.55, 0.32, 0.22), bevel=0.03)
+    for s in (-1, 1):
+        b.extrude([(s * (L / 2 - 1.0), 2.0), (s * (L / 2 - 0.1), 4.3), (s * (L / 2 - 1.0), 4.3)][::s], 2.9, (0, 0, 0),
+                  (0, 0, 0), mat=PAINT, tint=srgb(0.55, 0.32, 0.22))
+    for k in range(7):
+        x = -L / 2 + 1.5 + k * (L - 3.0) / 6
+        for y in (-1.5, 1.5):
+            b.box((0.15, 0.1, 2.3), (x, y, 3.15), mat=PAINT, tint=srgb(0.45, 0.26, 0.18), solid=False, vary=0)
+    for x in (-2.0, 2.0):
+        b.cyl(0.9, 0.6, (x, 0, 1.6), mat=PAINT, tint=srgb(0.40, 0.24, 0.16), sides=4, radius2=0.5, solid=False)
+    b.box((L - 1.6, 2.6, 0.2), (0, 0, 4.0), mat=MATTE, tint=srgb(0.30, 0.25, 0.22), solid=False)
+
+
+def _tank_wagon(b):
+    """A tank wagon 13 m long: a cylindrical tank with domed ends, a filler dome, a walkway and ladders."""
+    L = 13.0
+    _bogie(b, -4.4)
+    _bogie(b, 4.4)
+    _underframe(b, L, 1.6)
+    b.cyl(1.45, L - 2.2, (0, 0, 3.35), (0, 90, 0), mat=PAINT, tint=srgb(0.18, 0.19, 0.20), sides=24)
+    for s in (-1, 1):
+        b.lathe([(1.45, 0.0), (1.2, 0.5), (0.6, 0.9), (0.0, 1.0)], (s * (L / 2 - 1.1), 0, 3.35), (0, 90 * s, 0),
+                mat=PAINT, tint=srgb(0.18, 0.19, 0.20), sides=24)
+    b.cyl(0.5, 0.5, (0, 0, 5.0), mat=PAINT, tint=srgb(0.18, 0.19, 0.20), sides=12, solid=False)
+    b.box((2.2, 1.2, 0.06), (0, 0, 4.82), mat=GRATE, tint=GREY, solid=False)
+    b.cyl(1.46, 0.6, (2.5, 0, 3.35), (0, 90, 0), mat=PAINT, tint=ORANGE, sides=24, solid=False, vary=0)
+    for y in (-1.6, 1.6):
+        for k in range(6):
+            b.box((0.4, 0.05, 0.04), (0.0, y, 2.2 + k * 0.45), mat=PAINT, tint=YELLOW, solid=False, vary=0)
+    b.collide_box(Vector((0, 0, 1.0)), (L, 2.6, 0.9), (0, 0, 0))
+
+
+def _locomotive(b):
+    """A diesel road locomotive 18 m long in the yard's yellow and grey: two three-axle bogies, a long hood with
+    louvres and an exhaust, the cab with its windows, a short hood, walkways with rails, striped ends."""
+    L = 18.0
+    body = srgb(0.86, 0.66, 0.14)
+    grey = srgb(0.42, 0.44, 0.46)
+    _bogie(b, -5.6, 3)
+    _bogie(b, 5.6, 3)
+    _underframe(b, L, 1.65)
+    b.box((L - 0.2, 3.0, 0.15), (0, 0, 1.92), mat=GRATE, tint=GREY)
+    b.box((10.5, 2.3, 2.6), (-2.4, 0, 3.3), mat=PAINT, tint=body, bevel=0.08)
+    b.box((10.6, 2.32, 0.6), (-2.4, 0, 2.3), mat=PAINT, tint=grey, solid=False)
+    for k in range(8):
+        for y in (-1.16, 1.16):
+            b.box((0.9, 0.04, 1.2), (-6.8 + k * 1.25, y, 3.4), mat=PAINT, tint=DARK, solid=False, vary=0)
+    b.cyl(0.3, 0.7, (-4.0, 0, 4.9), mat=PAINT, tint=DARK, sides=8, solid=False)
+    for x in (-6.5, 0.5):
+        b.cyl(0.7, 0.2, (x, 0, 4.65), mat=GRATE, tint=GREY, sides=12, solid=False)
+    b.box((3.0, 3.0, 3.1), (4.8, 0, 3.55), mat=PAINT, tint=body, bevel=0.08)
+    b.box((3.1, 3.05, 0.15), (4.8, 0, 5.15), mat=PAINT, tint=grey)
+    b.box((0.04, 2.4, 0.9), (6.31, 0, 4.2), mat=GLASS, solid=False)
+    for y in (-1.51, 1.51):
+        b.box((1.6, 0.04, 0.9), (4.8, y, 4.2), mat=GLASS, solid=False)
+    b.box((2.4, 2.2, 1.6), (7.6, 0, 2.8), mat=PAINT, tint=body, bevel=0.06)
+    for x in (L / 2 - 0.05, -L / 2 + 0.05):
+        stripes(b, (x, -1.4, 0), (x, 1.4, 0), 0.8, width=0.35, at_z=1.5, normal=(1 if x > 0 else -1, 0, 0))
+        b.box((0.1, 0.3, 0.2), (x, -1.1, 2.4), mat=LAMP, tint=WARM_LAMP, solid=False, vary=0)
+        b.box((0.1, 0.3, 0.2), (x, 1.1, 2.4), mat=LAMP, tint=WARM_LAMP, solid=False, vary=0)
+    for y in (-1.45, 1.45):
+        railing(b, (-L / 2 + 0.6, y, 2.0), (3.2, y, 2.0), height=1.0, spacing=2.2, toe=False)
+    b.collide_box(Vector((0, 0, 1.0)), (L, 2.6, 0.9), (0, 0, 0))
+    b.collide_box(Vector((0.0, 0, 3.4)), (16.0, 2.4, 3.2), (0, 0, 0))
+
+
 kit.PIECES.update({
     "flood-mast": _flood_mast,
     "container-40": _container_40,
@@ -1236,4 +1391,10 @@ kit.PIECES.update({
     "wreck-truck": _wreck_truck,
     "main-transformer": _main_transformer,
     "haul-truck": _haul_truck,
+    "track-10": _track_10,
+    "boxcar": _boxcar,
+    "flatcar": _flatcar,
+    "hopper-wagon": _hopper_wagon,
+    "tank-wagon": _tank_wagon,
+    "locomotive": _locomotive,
 })
