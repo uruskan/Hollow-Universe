@@ -13,7 +13,11 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
   `interactions.json`, one targeting query, `InteractIntent`, hold-E radial, stuck arrows), P2 placement
   (`placement.json`, solvers and checks, one ghost, `PlaceIntent`, the Tin Finch from its item), P3 held items (parts,
   information rows, item actions, ammo icon and hold-R radial, drop anywhere, workbench speed), the damage pipeline
-  with the Destroyed event, gibs, the loading screen. **217 tests pass; protocol 19.**
+  with the Destroyed event, gibs, the loading screen, and building pieces fitted to their slots (no gaps or flicker
+  between pieces: `art/import/building_fit.py`, `building_fit.json`). **218 tests pass; protocol 19.**
+- **The repository is on GitHub:** `origin` is https://github.com/uruskan/Hollow-Universe (every branch pushed on
+  13 October 2026; `main` shows the README with a pointer to `ground`). Commit and push work branches there; still
+  never merge into `main` without the owner.
 - Another session works on monuments (G7c) in worktree `D:\GameDev\Projects\Hollow-wt\monuments`, branch
   `ground-monuments`, and fast-forwarded `ground` to it once (486716d). Merge with care; don't rewrite its files.
 - **Left, in order:** the owner's playtest of all of this; the code identifiers' rename from claim device to tool
@@ -36,7 +40,7 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
     (map on G, tech tree from a workbench, recycler, research, teams);
   - effects, sound, characters and assets.
 
-  163/163 tests pass, and the protocol is version 11 (the F1 console is in). Nothing has ever been pushed, and nothing merged into `main`
+  163/163 tests passed then, at protocol version 11 (the F1 console). Nothing of the ground game is merged into `main`
   (that needs the owner).
 - **Play it:** `play-ground.cmd` hosts a game; `play-ground.cmd join` adds a second player; `play-ground.cmd menu`
   opens the main menu. Controls and tour steps are in AGENTS.md.
