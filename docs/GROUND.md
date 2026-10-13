@@ -1247,7 +1247,7 @@ are `Hollow.Simulation` code (`Zone.Raid.cs`; `Raid/`: the explosive entity, rai
 
 | Tests | `dotnet run --project tests/Hollow.Tests -- Raid` |
 |---|---|
-| `RaidTests` | the raid-cost table on every grade, side and door; walls shielding what is behind them; duds lit again; rocket flight and blast; a broken foundation bringing a hut down |
+| `RaidTests` | the raid-cost table on every grade, side and door; thrown explosives bouncing, resting and sticking; walls shielding what is behind them; duds lit again; rocket flight and blast; a broken foundation bringing a hut down |
 | `RaidAlertTests` | alerts to owners online and offline, rate-limited per base; a whole offline raid |
 | `RaidNetTests` | raiding over the network (throw, replication, a dud lit again, detonations, a live alert); charges and alerts surviving a restart |
 
@@ -1274,8 +1274,9 @@ high-velocity rocket, explosive rifle rounds, explosives.
 | `explosives` | the compound charges and rockets are made of | | | | | 50 gunpowder, 3 lamp oil, 10 sulphur, 10 metal fragments (2) |
 
 So a timed charge costs 2,200 sulphur, a rocket 1,400, a bag charge 480 and an explosive round 25, as in Rust. The rocket
-launcher (`weapons.json`) is a firearm of calibre `rocket`: one in the magazine, a 5 s reload, 1 s to take up, no damage of its
-own; it fires through G4's gun pipeline (fire and reload intents, the client's prediction).
+launcher (`weapons.json`; 50 refined metal and 100 metal fragments at workbench 2) is a firearm of calibre `rocket`: one in the
+magazine, a 5 s reload, 1 s to take up, no damage of its own; it fires through G4's gun pipeline (fire and reload intents, the
+client's prediction).
 
 **Raid costs**, how many break each thing, hit on either side (Rust's counts; the test prints the table):
 
@@ -1363,7 +1364,7 @@ the minute) and loots the body; two hours of upkeep and decay pass; the owner lo
 
 | Member | What |
 |---|---|
-| `GameClient.Explosives` (`ClientExplosive`: `Id`, `Item`, `State`, `Dud`, `Normal`, `Burning`, `FuseTicks`; `PositionAt(serverTick)`, `FuseSecondsLeft(serverTick)`), `ExplosiveOf(id)`, `ServerTickNow` | The explosives in range: draw each at `PositionAt(ServerTickNow)` (on its arc while flying), its model by `Item.Key`, oriented by `Normal` when stuck or resting; a blinking light that quickens as `FuseSecondsLeft` falls; no light on a dud. |
+| `GameClient.Explosives` (`ClientExplosive`: `Id`, `Item`, `State`, `Dud`, `Normal`, `Burning`, `FuseTicks`; `PositionAt(serverTick)`, `FuseSecondsLeft(serverTick)`), `ExplosiveOf(id)`, `ServerTickNow` | The explosives in range: draw each at `PositionAt(ServerTickNow)` (on its arc while flying; `RenderTick` keeps it with the other players, 100 ms behind), its model by `Item.Key`, oriented by `Normal` when stuck or resting; a blinking light that quickens as `FuseSecondsLeft` falls; no light on a dud. |
 | `GameClient.ExplosiveChanged`, `ExplosiveRemoved` | One appeared or changed (a throw's whoosh, a bounce's clink, the stick of a charge, a fizzle when it turns `Dud`, a hiss when lit again), or went without a blast. |
 | `GameClient.Detonated` (`DetonationEvent`: position, normal, radius, item, target, round, owner), `GameClient.Detonations` | An explosion: flash, smoke, debris and dust by the item and radius (a round's small burst, a rocket's, a charge's), a shake and the sound by distance. |
 | `GameClient.Projectiles` | Rockets in flight are projectiles whose `Ammo` is a rocket: draw the rocket with its smoke trail. |
