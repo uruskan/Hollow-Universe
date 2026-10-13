@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow map concepts</title>
+<style>
+  @font-face { font-family: "Inter"; src: url("../../game/assets/fonts/Inter/InterVariable.ttf"); font-weight: 100 900; }
+  :root { --bg: #07090c; --card: #10141a; --line: #222a33; --text: #e8edf2; --dim: #8a96a3; --accent: #5ee6c4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Inter", system-ui, sans-serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 40px 24px 64px; }
+  h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .lead { color: var(--dim); margin: 0 0 28px; max-width: 760px; }
+  h2 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 34px 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 18px; }
+  a.card { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+           overflow: hidden; color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
+  a.card:hover, a.card:focus-visible { border-color: var(--accent); transform: translateY(-2px); outline: none; }
+  .card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; background: #0b0e12; }
+  .card .body { padding: 14px 16px 16px; }
+  .card .name { font-weight: 650; font-size: 17px; display: flex; gap: 10px; align-items: baseline; }
+  .card .key { font-size: 12px; color: var(--dim); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; }
+  .card .what { color: var(--text); margin: 4px 0 8px; }
+  .card .try { color: var(--dim); font-size: 13.5px; }
+  .card .try b { color: var(--accent); font-weight: 600; }
+  .old { color: var(--dim); font-size: 14px; }
+  .old a { color: var(--text); }
+  footer { color: var(--dim); font-size: 13px; margin-top: 30px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hollow map concepts</h1>
+  <p class="lead">Click a card to open it; your browser's Back button returns here. Every invention below is the same approved base
+  (B's layout, A's colours and search) with only the way stars and territory are drawn changed. Real stars and planets from
+  Hollow's generator; stations, bases, factions and danger are mock. Keys 1–6 open a concept from this page.</p>
+
+  <h2>The five inventions</h2>
+  <div class="grid">
+    <a class="card" href="concept-transit/index.html" data-key="1">
+      <img src="shots/concept-transit-1-diagram.png" alt="">
+      <div class="body"><div class="name">Transit <span class="key">1</span></div>
+        <div class="what">The neighbourhood as a metro map: stations, jump lines, territory zones.</div>
+        <div class="try">Try: press <b>M</b> to morph between the real map and the diagram; click a station, then Route.</div></div>
+    </a>
+    <a class="card" href="concept-domains/index.html" data-key="2">
+      <img src="shots/concept-domains-2-territory-hover.png" alt="">
+      <div class="body"><div class="name">Domains <span class="key">2</span></div>
+        <div class="what">Every star owns a cell; territories read like countries.</div>
+        <div class="try">Try: move the mouse anywhere (one star is always under it); <b>Tab</b> cycles stars in a cell; zoom in and out.</div></div>
+    </a>
+    <a class="card" href="concept-floors/index.html" data-key="3">
+      <img src="shots/concept-floors-3-picker.png" alt="">
+      <div class="body"><div class="name">Floors <span class="key">3</span></div>
+        <div class="what">Space in 10 ly layers, one flat floor at a time.</div>
+        <div class="try">Try: use the floor picker on the right, or <b>E</b> / <b>Q</b> to go up and down.</div></div>
+    </a>
+    <a class="card" href="concept-lens/index.html" data-key="4">
+      <img src="shots/concept-lens-2-lens-dense.png" alt="">
+      <div class="body"><div class="name">Lens <span class="key">4</span></div>
+        <div class="what">A calm map; a magnifier reveals stars only where you look.</div>
+        <div class="try">Try: move the mouse over dense areas; <b>L</b> locks the lens on a selection; <b>Alt + scroll</b> resizes it.</div></div>
+    </a>
+    <a class="card" href="concept-clusters/index.html" data-key="5">
+      <img src="shots/concept-clusters-1-neighbourhood.png" alt="">
+      <div class="body"><div class="name">Clusters <span class="key">5</span></div>
+        <div class="what">Stars merged into bubbles with counts (still too busy in this version).</div>
+        <div class="try">Try: hover a bubble for its summary, click it to open it.</div></div>
+    </a>
+  </div>
+
+  <h2>The approved base</h2>
+  <div class="grid">
+    <a class="card" href="concept-ab/index.html" data-key="6">
+      <img src="shots/concept-ab-2-neighbourhood.png" alt="">
+      <div class="body"><div class="name">Base (A + B) <span class="key">6</span></div>
+        <div class="what">B's layout and zoom levels with A's colours, search and trip plans.</div>
+        <div class="try">Try: <b>/</b> to search, scroll to change level, <b>V</b> in a system for Simple / Realistic.</div></div>
+    </a>
+  </div>
+
+  <p class="old">Earlier rounds, for reference: <a href="concept-a/index.html">A · Search &amp; Go</a> ·
+    <a href="concept-b/index.html">B · Zoom levels</a></p>
+  <footer>Everything works in the same way in every concept: scroll to zoom, drag to orbit, <b>/</b> to search, Esc to go back.
+    The first launch needs internet once (the 3D library loads from a CDN).</footer>
+</main>
+<script>
+  document.addEventListener('keydown', e => {
+    const card = document.querySelector('a.card[data-key="' + e.key + '"]');
+    if (card && !e.ctrlKey && !e.metaKey && !e.altKey) location.href = card.getAttribute('href');
+  });
+</script>
+</body>
+</html>
