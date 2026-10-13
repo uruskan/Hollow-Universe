@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json;
 using Hollow.Core;
+using Hollow.Simulation.Nature;
 using BuildingData = Hollow.Simulation.Building.BuildingData;
 
 namespace Hollow.Simulation.Content;
@@ -27,6 +28,7 @@ public sealed partial class GameContent
         "weapons.json",
         "building.json", "explosives.json",
         "ships.json", "world.json", "animals.json",
+        "surfaces.json",
     };
 
     private readonly ItemDef?[] _byId;
@@ -59,7 +61,6 @@ public sealed partial class GameContent
         AnimalSpawning = loaded.AnimalSpawning;
         HarvestRates = loaded.HarvestRates;
         Survival = loaded.Survival;
-        WeakSpot = loaded.WeakSpot;
         PlacementReach = loaded.PlacementReach;
         PlacementMaxStep = loaded.PlacementMaxStep;
         Hash = loaded.Hash;
@@ -168,8 +169,6 @@ public sealed partial class GameContent
     }
 
     public SurvivalTuning Survival { get; }
-
-    public WeakSpot WeakSpot { get; }
 
     /// <summary>A deployable is placed at most this far from the eye, on ground at most this far below the aim.</summary>
     public float PlacementReach { get; }
@@ -417,7 +416,6 @@ public sealed partial class GameContent
         public SurvivalTuning Survival = new();
         public BuildingData? Building;
         public DeployableDef? ClaimDeployable;
-        public WeakSpot WeakSpot = new(0.3f, 2f);
         public float PlacementReach = 3f;
         public float PlacementMaxStep = 0.6f;
         public ulong Hash;
@@ -727,19 +725,17 @@ public sealed partial class GameContent
             static IEnumerable<string> ScatterKindNames() => Enum.GetValues<Surface.ScatterKind>().Select(Hyphenated);
             static Surface.ScatterKind? ScatterKindNamed(string name) =>
                 Enum.GetValues<Surface.ScatterKind>().Where(k => Hyphenated(k) == name).Select(k => (Surface.ScatterKind?)k).FirstOrDefault();
-            JsonElement root = Root("gather.json", "weakSpot", "kinds");
-            if (f.TryChild(root, "weakSpot", out JsonElement weak))
-            {
-                f.OnlyKnown(weak, "gather.json: weakSpot", "radius", "bonus");
-                loaded.WeakSpot = new WeakSpot(f.Number(weak, "radius", "gather.json: weakSpot"), f.Number(weak, "bonus", "gather.json: weakSpot"));
-            }
+            JsonElement root = Root("gather.json", "classes", "kinds");
+            // How each class is gathered, and the drawn surfaces the weak spots sit on (GROUND.md §6.1).
+            Dictionary<string, (GatherRules Rules, JsonElement Spot)> classes = GatherReader.Classes(f, root, Resolve);
+            JsonElement surfaces = Root(GatherReader.SurfacesFile, "rings", "directions", "kinds");
             JsonElement[] list = f.List(root, "kinds", "gather.json");
             for (int i = 0; i < list.Length; i++)
             {
                 JsonElement e = list[i];
                 string key = f.Text(e, "key", $"gather.json: kinds[{i}]");
                 string where = $"gather.json: {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "key", "name", "class", "health", "yield", "stages", "respawn", "radius", "height", "standIn", "scatter");
+                f.OnlyKnown(e, where, "key", "name", "class", "health", "yield", "stages", "respawn", "radius", "height", "standIn", "scatter", "look");
                 string className = f.Text(e, "class", where);
                 NaturalClass kind = className switch
                 {
@@ -787,7 +783,7 @@ public sealed partial class GameContent
                     minScale = f.Number(scatter, "minScale", where + ".scatter", 0f);
                 }
                 bool harvested = kind is NaturalClass.Tree or NaturalClass.Node;
-                loaded.Natural.Add(new NaturalKind
+                var natural = new NaturalKind
                 {
                     Index = (ushort)i,
                     Key = key,
@@ -802,7 +798,27 @@ public sealed partial class GameContent
                     StandInPerTile = perTile,
                     ScatterKinds = scatterKinds,
                     ScatterMinScale = minScale,
-                });
+                };
+                if (harvested && classes.TryGetValue(className, out var rules))
+                {
+                    // The class's rules with this kind's own surface, and any parts of the look it replaces.
+                    ISpotSurface? surface = GatherReader.Surface(f, rules.Spot, $"gather.json: classes.{className}.spot", natural, surfaces);
+                    GatherLook look = f.TryChild(e, "look", out JsonElement own) ? GatherReader.Look(f, own, where + ".look", rules.Rules.Look) : rules.Rules.Look;
+                    natural.Gather = rules.Rules with { Spot = rules.Rules.Spot with { Surface = surface! }, Look = look };
+                    if (surface == null)
+                    {
+                        natural.Gather = null;
+                    }
+                }
+                else if (harvested)
+                {
+                    f.Problem(where, $"gather.json has no \"classes\" entry for \"{className}\"");
+                }
+                else if (f.Has(e, "look"))
+                {
+                    f.Problem(where, "only trees and outcrops have a look");
+                }
+                loaded.Natural.Add(natural);
             }
         }
 

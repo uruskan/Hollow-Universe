@@ -345,7 +345,7 @@ public partial class GroundView : Node3D
     {
         var warm = new Node3D { Name = "Warmup", Position = new Vector3(0, 0, -2), Scale = Vector3.One * 0.004f };
         camera.AddChild(warm);
-        warm.AddChild(NatureView.Spot());
+        warm.AddChild(NatureView.Warmup(Client.Content));
         float x = 0;
         foreach (DeployableDef def in Client.Content.Deployables)
         {
@@ -355,11 +355,11 @@ public partial class GroundView : Node3D
                 warm.AddChild(model);
             }
         }
-        foreach (string key in new[] { "stone-node", "metal-node", "sulphur-node" })
+        foreach (NaturalKind kind in Client.Content.NaturalKinds)
         {
-            for (int stage = 0; stage < 3; stage++)
+            for (int stage = 0; kind.Class == NaturalClass.Node && stage < kind.Stages; stage++)
             {
-                if (GroundModels.Provider.Outcrop(key, stage, 0) is { } rock)
+                if (GroundModels.Provider.Outcrop(kind.Key, stage, 0) is { } rock)
                 {
                     rock.Position = new Vector3(x += 3, 0, 0);
                     warm.AddChild(rock);

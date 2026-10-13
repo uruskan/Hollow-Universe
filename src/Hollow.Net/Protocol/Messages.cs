@@ -375,6 +375,17 @@ public partial struct NaturalNet
     [Angle] public ushort WeakSpotYaw;
     public byte WeakSpotLift;
     public bool Depleted;
+
+    /// <summary>Hits on the weak spot in a row (each one's sound rises).</summary>
+    public byte Streak;
+
+    /// <summary>Ticks since the last hit when this was sent (255: long ago, or none): only a fresh hit plays its effects.</summary>
+    public byte HitAge;
+
+    /// <summary>Where the last hit met the drawn surface, from the object's base in 3 cm steps (effects play there).</summary>
+    public sbyte HitX;
+    public sbyte HitY;
+    public sbyte HitZ;
 }
 
 /// <summary>Changes to natural objects near the player (all of an area when it comes into range, then as they happen).</summary>

@@ -1144,8 +1144,8 @@ its `ship` and `world` steps):
 | `inventory.jpg` | The inventory: the player's own body in what they wear, the hatchet's panel, quick craft. |
 | `crafting.jpg` | Crafting: the stone hatchet's recipe, two wooden spears in the queue. |
 | `player.jpg` | The second player with the female body, in the knit cap, woven shirt and trousers, laced boots and the riveted cuirass, hatchet in hand, her name above her. |
-| `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
-| `outcrop.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop, and its broken stage after the pickaxe. |
+| `chop-x.jpg`, `chop-hit.jpg`, `chop-falling.jpg`, `chop-landed.jpg`, `chopped.jpg` | A tree (a birch or a broadleaf near, or `--tour-tree <kind>`) with Rust's red X after the first hit, an X hit's burst of chips, paint and sawdust, the tree tipping over, landed in its dust, and gone (§6.1; the pictures in `docs/images/ground/gather/` are of a pine). |
+| `outcrop.jpg`, `mine-hotspot.jpg`, `mine-stage.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop; its hotspot glinting on the rock after the first hit; a stage breaking under hotspot hits; the hotspot on the broken stage (`docs/images/ground/gather/`). |
 | `gun.jpg` | The rifle aimed down its sights in the frame a shot leaves: the effects library's muzzle flame and its light on the gun, 29 of 60 rounds. |
 | `build.jpg` | A base begun in the meadow: two twig foundations and three walls, the building plan in hand, the green ghost of a doorway with its cost and stability under the crosshair. |
 | `keypad.jpg` | The stone hut's sheet metal door with a code lock fitted: its keypad, two digits entered. |
@@ -1510,16 +1510,39 @@ is the one place that picks the provider:
   outcrops (111 stone, 69 metal, 30 sulphur).
 - **On the stand-in** (tests), `StandInNaturalObjects` places each kind at its density per 64 m tile from a seeded
   stream (deterministic), keeping 9 m around the zone's origin clear.
-- **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's tree or ore rate
-  (items.json) and gives the share of the object's whole yield that health was, in whole units, so the hits add up to
-  exactly the total: a better tool is quicker, not richer. The last hit gives the rest. A 0.94-size pine (206 wood)
-  takes 32 hits with a rock, 13 with a stone hatchet, 9 with a metal one.
-- **The weak spot** (Rust): it shows with the first hit on a tree or outcrop, on the side facing the hitter (within 50°
-  either way), on the trunk at chest height or on the outcrop's upper side. A hit within 0.3 m of it counts double and
-  moves it, again to the hitter's side at a new height. Its direction and height are part of the stored change and
-  are sent to clients, who draw it. (First placed at random around the object, the spot was on the far side half the
-  time: the bots found it on 3 hits in 132; facing the hitter, 91 in 113.)
-- **Outcrops** shrink through three stages as they lose health (drawn by the client).
+- **One rule for every class** (`NaturalState.Hit`): gather.json's `classes` say, per class of natural object, which tool
+  rate it takes, where its weak spot sits and what a hit on it pays, what the last hit pays and how it all shows
+  (`look`, §9.3); a kind may replace parts of the look (metal and sulphur outcrops throw sparks). Each harvested kind
+  carries its own resolved copy (`NaturalKind.Gather`, `GatherRules`).
+- **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's rate (items.json `tree`
+  or `ore`, as the class says) times the weak spot's multiplier, and gives the share of the yield the hits pay that
+  health was worth, in whole units, so everything adds up to exactly the total: a better tool or the weak spot is
+  quicker, not richer. The last hit pays the rest and what the class keeps back for it (`last.share`): **a felled tree
+  pays half its wood as it falls** (Rust, November 2017). With a proper tool the last hit on an outcrop pays **a bonus
+  of 20% of the total on top** (`last.bonus`, `last.tools`: the stone and metal pickaxes; Rust's Devblog 166: not a rock
+  or a bone club). A 0.94-size pine (206 wood) takes 32 hits with a rock, 13 with a stone hatchet, 9 with a metal one,
+  without the X.
+- **The weak spot** (Rust's): it shows with the first hit on a tree or outcrop, on the side facing the hitter (within
+  50° either way). Hits on it in a row pay and take 1 + step × the run, up to a ceiling, and move it to the hitter's
+  side again; a hit anywhere else ends the run and leaves it where it is (Rust: "a miss resets the bonus").
+  - **Trees: Rust's red X** (step 0.125, at most 2: Rust's metal hatchet went 16, 18 … 30 wood a hit against a flat 15).
+    It sits on the trunk (the capsule, kind radius × size, which matches the drawn trunks within a few centimetres) at
+    the height of the hit that placed it, give or take 0.35 m, between 0.7 and 2 m; a hit within 0.25 m of it counts.
+  - **Outcrops: Rust's hotspot** (step 0.5, at most 3: 150%, 200%, 250%, 300%; Devblog 170 and the Facepunch wiki's
+    "Ore nodes"). It sits on the stage model's own top (`MeasuredSurface`: surfaces.json, heights of each stage model
+    measured straight down at 4 rings × 32 directions by `--view models --survey-surfaces`), exactly on a measured
+    point, never lower than 40% of the stage's top, so it is on the rock at every stage (before, it floated beside a
+    broken outcrop); a hit within 0.3 m of it counts. A stone outcrop the size of 1 takes 43 hits with a rock, 16 on
+    the hotspot.
+  - Whether a hit is on the spot is measured where the swing's own line (the eye along the view) **meets the drawn
+    surface** (`ISpotSurface.Meet`: the trunk's cylinder; the outcrop's measured top, marched in 2 cm steps), not where
+    the thick ray first touched the hit shape (an outcrop's sphere stands well above its broken stages). The same
+    point is sent to clients for the hit's effects.
+  - The direction and the second number (a tree: the height; an outcrop: the ring) are part of the stored change and
+    are sent to clients, who draw it where the server tests it. The run and the last hit's point aren't saved. (First
+    placed at random around the object, the spot was on the far side half the time: the bots found it on 3 hits in
+    132; facing the hitter, 91 in 113.)
+- **Outcrops** break through three stages as they lose health (each its own model, drawn by the client).
 - **Pickups** (piles of wood, stone and ore, fibre plants, wild tubers) and **berry bushes** are taken whole with the
   interact key; a pickup is gone, a bush stays bare, until it grows back.
 - **Respawn** on the real clock (Unix milliseconds): trees after 20 minutes, outcrops 10, pickups and bushes 8. Only
@@ -1656,7 +1679,10 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
   out of range (320 m). What is sent of a thing is the thing's own to say (`WorldObject`: its look, health, count,
   burning, whose, and its own name: a body's, a bag's, a world prop's); a bag shows no item (protocol 12).
 - **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
-  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens.
+  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens. Since
+  protocol 13 a change also carries the run of weak-spot hits, where the last hit met the drawn surface (3 cm steps
+  from the base) and how many ticks old that hit was when sent: a client counts a hit as news (`SeenHits`) only when
+  it is at most 30 ticks old, so an area coming into range replays no hits, and no felled tree falls again.
 - **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
 
 **Server** (`GameServer.Survival.cs`). The zone runs with the game data; the server sets its real clock each tick,
@@ -3625,6 +3651,40 @@ Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's cont
 
 ![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 
+**Gathering's feedback** (the owner's first playtest: hitting trees and outcrops gave "no feedback other than the
+sound"; decisions H1–H14). What was wrong: the hit effects played, but at a guessed point 1.1 m up on the side facing
+the local player, usually below or beside the crosshair, with chips too small and thrown straight at the camera; the
+weak spot was a small orange ball that floated beside broken outcrops; trees paid nothing for falling; and an area
+coming into range replayed its old hits (sounds, effects, even felled trees falling again). Now one view
+(`NatureView`) plays every class's gather.json `look`, with no tree or outcrop branches in the code:
+- **Every fresh hit** (protocol 13, §6.2) plays its look's `hit` cue where the swing met the drawn surface, along that
+  surface's normal, with its debris landing on the ground under the object: chips, bark flakes and sawdust on trees
+  (`gather.wood`), chips and grey dust on stone (`gather.rock`), sparks on metal and sulphur (`gather.sparks`). Seen and
+  heard within 70 m.
+- **The weak spot's marker** (`NatureMarkers`, `MarkerTextures`): a decal pressed onto the drawn surface where the rules
+  put the spot, so the paint follows the trunk's curve and the glow the rock's bumps. Trees: Rust's red X, spray paint
+  0.42 m across with soft overspray, speckles and drips (painted in code, ours), lit like the bark with a faint glow to
+  read in shade. Outcrops: a warm glow on the rock that pulses, a four-pointed glint over it, and a few sparks every
+  half second or so (`gather.hotspot-glint`). At most 8 markers, within 12 m, pooled per style.
+- **A run of weak-spot hits**: the `spotHit` cue (an X: a bigger burst with flecks of red paint, `gather.x-hit`; a
+  hotspot: a flash, sparks and a ring, `gather.weakspot`), its tick rising in pitch with each hit in a row (5% a hit
+  on the X, 8% on the hotspot).
+- **A tree's crown shakes** at each hit (`look.shake`: 0.12 m at its top, settling over 0.7 s): two global shader
+  parameters (`hu_shake_at`, `hu_shake_dir`) sway the plant standing at the struck base in the plants' own shader (a
+  test per vertex; no node swapped).
+- **Felled**: the tree's own model tips away from the blow over 2.4 s, lands with dust and litter along its length
+  (`gather.tree-fall`) and the camera's small shake, lies 2.2 s and sinks; the felling sound starts 0.95 s after the
+  hit so its crash (1.45 s into the recording) comes as the trunk lands.
+- **Outcrops** break with a burst and their stage's sound at each stage (Devblog 166 masks the model swap the same way),
+  and with the bigger burst and the last sound when gone; the final crumble into chunks is the gibs package's.
+
+Pictures (`docs/images/ground/gather/`, the tour's `chop` and `mine` steps with `--tour-tree pine-tree`): `chop-x.jpg`,
+`chop-hit.jpg`, `chop-falling.jpg`, `chop-landed.jpg`, `mine-hotspot.jpg`, `mine-stage.jpg`, `outcrop-broken.jpg`.
+In the tour's run the nature view cost 52 µs a frame on average (changes, markers, falls, shake) and allocated nothing
+on quiet frames but the occasional sparkle effect (67 B a frame on average).
+
+![A pine's X hit: chips, red paint and sawdust](images/ground/gather/chop-hit.jpg)
+
 ---
 
 ## 10. How the work is run
@@ -4395,3 +4455,54 @@ confirm or overturn (numbered U1 on):
   `StaticKind.DroppedBag`, formerly `DroppedItem` with the same value, shows no item and counts its stacks); the things'
   record version 3 (`WorldCodec.ThingVersion`; the things table is unchanged, so no SQL schema step); survival.json's
   `bag` section. The model catalogue's `drop.scale` entries went: no item lies as its own model any more.
+
+Decisions taken for gathering's feedback (§6.1, §9.3; the owner's first playtest: "no feedback other than the sound" when
+hitting trees and outcrops) without the owner, to confirm or overturn (numbered H1 on):
+
+- H1. **One rule and one look per class, from data.** gather.json's `classes` hold each class's tool rate, weak spot
+  (where, how close, the multiplier's step and ceiling), last hit (share kept back, bonus and its tools) and look
+  (marker, effects, sounds, fall, shake); kinds replace parts of the look. `NaturalState.Hit` is the one rule, the
+  client's marker and cues read the look: no tree or outcrop branches in the code.
+- H2. **Rust's numbers for the X and the hotspot**: trees 1 + 0.125 per hit on the X in a row, at most 2 (Rust's November
+  2017 update: a metal hatchet's 15 wood rose 16, 18 … 30); outcrops 1 + 0.5 per hit, at most 3 (Devblog 170: 150% up to
+  300%). A miss ends the run and leaves the spot. The spot's multiplier also takes that much more health, as in Rust, so
+  totals don't change.
+- H3. **A felled tree pays half its wood as it falls** (Rust, November 2017), on the felling hit; the hits before pay the
+  other half as they take health. The total is the same as before.
+- H4. **Outcrops have Rust's finishing bonus** (Devblog 166): 20% of each of the outcrop's yields on top for the last hit,
+  only with a pickaxe (gather.json lists the stone and metal pickaxes; rocks, hatchets and the rest get none). It
+  rewards finishing outcrops rather than leaving them half broken, as Rust meant it. Rust's "high-grade ore only in the
+  bonus" isn't taken: ours comes with the hits.
+- H5. **The weak spot sits on the drawn surface, and hits are judged there.** Trees: the trunk capsule (the drawn bark is
+  within a few centimetres, and the X is a decal that paints whatever bark is there). Outcrops: each stage model's top,
+  measured in the game from the models (surfaces.json, regenerated by `--view models --survey-surfaces` when the models
+  change); the spot is always one of the measured points. The physics shapes stay as they were (an outcrop is still a
+  sphere for walking into and for the thick ray): only the gathering rule looks at the drawn surface.
+- H6. **The X follows the hit's height** (Rust: near the hit height), within 0.35 m, in a band 0.7–2 m above the base; the
+  old spot went anywhere from 0.9 to 1.6 m. A hit within 0.25 m of the X counts (the X is 0.38 m wide), 0.3 m for the
+  hotspot.
+- H7. **The run of spot hits and the last hit's point aren't saved**: a restart forgets them, as Rust forgets its bonus
+  level when a node is unloaded.
+- H8. **Protocol 13: a natural object's change says where its last hit landed and how fresh it is.** Effects play at the
+  point where the swing met the drawn surface, for every player in range, not at a guessed spot facing the local player;
+  a hit older than a second when sent (an area coming into range) plays nothing. Six bytes more per change, and only
+  changed objects travel.
+- H9. **The weak spot's look: Rust's red X on trees, a glowing hotspot on outcrops**, both decals on the drawn surface
+  (our own textures, painted in code: no files from Rust). The X is paint, lit like the bark with a faint glow (0.08)
+  so it reads in shade without shining at night; the hotspot glows at a steady apparent brightness by day and night
+  (divided by the exposure, as other glows are), where Rust's is lit by the sun and hard to see at night.
+- H10. **The X faces the hitter within 35°** (the hotspot within 50°): at 50° it often sat on the trunk's edge as seen.
+- H11. **No new sound files**: the X and the hotspot share the weak-spot tick, rising in pitch with the run; a broken
+  run plays nothing (Rust's "bonus fail" sound has no counterpart here yet); the felling sound is delayed rather than
+  re-cut so its crash meets the landing.
+- H12. **Hits play where they landed for everyone in range**, at the point the server sends, not only one's own: others
+  chopping nearby look the same as oneself. Each hit's effects come with the server's change (a snapshot later than the
+  swing, as before); predicting one's own hits is left for later.
+- H13. **The crown shake follows one tree at a time** (the latest hit): enough for one's own chopping; two players
+  chopping side by side see only the latest tree shake.
+- H14. **Outcrops' physics shapes are unchanged**: an outcrop is still a sphere to walk into and for the swing's thick ray,
+  taller than its broken stages; only the weak spot and the hit's point use the drawn surface. Fitting the physics to the
+  stages is left for later.
+- H15. **Numbers taken in shared spaces:** protocol 13 (after the bags' 12: `NaturalNet` gained five fields); no new
+  messages; no save change (the run and the last hit aren't saved); one new data file, `surfaces.json`, in the content
+  hash.

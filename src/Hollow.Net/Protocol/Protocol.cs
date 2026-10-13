@@ -12,9 +12,10 @@ public static partial class Protocol
     /// <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>); 11: the F1 console (its commands and answers, the
     /// server's state for it, the zone's clock, and god and noclip in the player's own state); 12: dropped items lie in
     /// bags (a thing of kind <c>StaticKind.DroppedBag</c> shows no item, its count is how many stacks it holds, and it
-    /// opens as take-only loot, <c>LootKind.Crate</c>).
+    /// opens as take-only loot, <c>LootKind.Crate</c>); 13: gathering's feedback (a natural object's change carries its run
+    /// of weak-spot hits, how fresh its last hit is and where it met the surface).
     /// </summary>
-    public const uint Version = 12;
+    public const uint Version = 13;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

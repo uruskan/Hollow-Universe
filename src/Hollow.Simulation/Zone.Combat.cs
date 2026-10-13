@@ -197,12 +197,15 @@ public sealed partial class Zone
 
     private void Gather(Player p, Entity entity, in NaturalObject o, MeleeStats tool, Vector3 point, Vector3 eye)
     {
-        GatherResult result = Natural!.Hit(o, tool, point, eye, UnixMilliseconds);
+        // The swing's own line (the thick ray may have touched the object off it) and the tool (the last hit's bonus).
+        ref Character c = ref Entities.Get<Character>(entity);
+        Vector3 view = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, Frame.UpAt(c.State.Position));
+        GatherResult result = Natural!.Hit(o, new GatherSwing(p.Held(Content!), tool, point, eye, view, UnixMilliseconds, Tick));
         if (!result.Hit)
         {
             return;
         }
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Natural, Flag = result.WeakSpot, Position = point });
+        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Natural, Flag = result.WeakSpot, Position = result.Point });
         Give(entity, p, result.Yield, GainReason.Gathered, result.WeakSpot);
     }
 

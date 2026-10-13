@@ -279,7 +279,8 @@ public static class ModelCatalog
         return last;
     }
 
-    private static Transform3D RelativeTransform(Node3D root, Node3D node)
+    /// <summary>A node's transform in the space of one of its ancestors.</summary>
+    public static Transform3D RelativeTransform(Node3D root, Node3D node)
     {
         Transform3D t = Transform3D.Identity;
         for (Node? n = node; n != null && n != root; n = n.GetParent())

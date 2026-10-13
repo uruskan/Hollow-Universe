@@ -92,6 +92,55 @@ public static class SurvivalNetTests
     }
 
     /// <summary>
+    /// Gathering's feedback over the network (GROUND.md §6.1, protocol 13): each hit on a tree reaches the client in range
+    /// once, fresh, with where it met the trunk and the run of weak-spot hits; a player who comes along later sees the
+    /// tree as it is, without its old hits (no effects replayed, no felled tree falling again).
+    /// </summary>
+    [Test]
+    public static void GatherHitsReachClientsOnceWhileFresh()
+    {
+        GameContent c = ContentFixture.Content;
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        rig.WaitUntilPlaying();
+        rig.Server.Execute("teleport Ada 0 0");
+        rig.Run(0.5, (_, _) => default);
+        ItemDef hatchet = c.ItemByKey("stone-hatchet");
+        NaturalObject tree = default;
+        Vector3 Hit(bool atSpot) => rig.Server.Inspect(sv =>
+        {
+            NaturalKind kind = c.Natural(tree.Kind)!;
+            Vector3 eye = tree.Position + new Vector3(2, 1.6f, 0), at = tree.Position + tree.Up * 1.3f;
+            if (atSpot && sv.Zone.Natural!.WeakSpotAt(tree, kind) is var (spot, normal))
+            {
+                (eye, at) = (spot + normal * 1.2f, spot);
+            }
+            GatherResult r = sv.Zone.Natural!.Hit(tree, new GatherSwing(hatchet, hatchet.Melee!, at, eye, Vector3.Normalize(at - eye), sv.Zone.UnixMilliseconds, sv.Zone.Tick));
+            Assert.True(r.Hit && r.WeakSpot == atSpot, atSpot ? "on the X" : "a first hit");
+            return r.Point - tree.Position;
+        });
+        tree = rig.Server.Inspect(sv =>
+        {
+            var found = new List<NaturalObject>();
+            sv.Zone.Nature!.Query(-40, -40, 40, 40, found);
+            return found.Where(o => c.Natural(o.Kind)!.Class == NaturalClass.Tree).MinBy(o => o.Position.Length());
+        });
+        Hit(atSpot: false);
+        RunUntil(rig, () => ada.Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.SeenHits == 1, "the first hit");
+        Vector3 point = Hit(atSpot: true);
+        RunUntil(rig, () => ada.Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.SeenHits == 2, "the second");
+        ada.Natural!.TryGetOverride(tree.Id, out NaturalOverride seen);
+        Fixtures.Report($"the X hit met the trunk {point.Length():0.00} m from the base; the client has it {Vector3.Distance(seen.LastHit, point) * 100:0.0} cm off");
+        Assert.True(seen.Streak == 1 && Vector3.Distance(seen.LastHit, point) < 0.05f, "with the run and where it landed");
+        rig.Run(1.5, (_, _) => default);
+        GameClient bo = rig.Join("Bo");
+        rig.WaitUntilPlaying();
+        rig.Server.Execute("teleport Bo 0 0");
+        RunUntil(rig, () => bo.Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.HasWeakSpot, "Bo sees the hit tree");
+        Assert.True(bo.Natural!.TryGetOverride(tree.Id, out NaturalOverride late) && late.SeenHits == 0, "but no hits to play");
+    }
+
+    /// <summary>
     /// GROUND.md §6.1 over the network: another player sees a bag of dropped items as a bag, not what is in it, with how
     /// many stacks it holds; his interact key opens one holding two, and only then do its contents come to him, take
     /// only.

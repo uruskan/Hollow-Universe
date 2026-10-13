@@ -256,6 +256,9 @@ public partial class SurfaceView : Node3D
         Add("hu_texture_offset", V3, Vector3.Zero);
         Add("hu_wind", V4, new Vector4(0.86f, 0, -0.5f, 1));
         Add("hu_lod_clock", T, 0f);
+        // A tool's blow shaking one plant's crown (the ground game's NatureView sets them; GROUND.md §9.3).
+        Add("hu_shake_at", V4, Vector4.Zero);
+        Add("hu_shake_dir", V4, Vector4.Zero);
         var S3 = RenderingServer.GlobalShaderParameterType.Sampler3D;
         _aerial = new AerialTable(air);
         Add("hu_ap_up", V3, Vector3.Up);

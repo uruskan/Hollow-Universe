@@ -365,11 +365,11 @@ public partial class GroundAudio : Node
 public static class Sounds
 {
     /// <summary>An event at a point in render space (nothing when there is no director or no event).</summary>
-    public static void At(string? key, Vector3 position, float db = 0)
+    public static void At(string? key, Vector3 position, float db = 0, float pitch = 1)
     {
         if (key != null)
         {
-            AudioDirector.Instance?.Play(key, position, db);
+            AudioDirector.Instance?.Play(key, position, db, pitch);
         }
     }
 

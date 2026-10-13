@@ -358,3 +358,28 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 - **Not done:** deploying the Tin Finch from its item (the other half of this package) was stopped by the owner's new
   rule: placement (deployables, doors, locks, the claim device, charges, building pieces and the ship) will be one
   system, designed with the owner first. No ship-deploy code was written.
+
+## 13 October 2026, gathering's feedback
+
+- **The owner's playtest: "no feedback other than the sound"** when hitting trees and outcrops (`ground-gather`,
+  GROUND.md §6.1, §9.3, decisions H1–H14). In the real game the effects did play, but at a guessed point 1.1 m up on the
+  side facing the local player, mostly away from the crosshair, with small chips thrown at the camera; the weak spot was
+  a small orange ball that floated beside broken outcrops; a felled tree paid nothing for falling; and walking into an
+  area replayed its old hits, felled trees falling again.
+- **One data-driven rule and look per class**: gather.json's `classes` (tool rate, weak spot, last hit, look; kinds
+  replace parts of the look), read by `NaturalState.Hit` and the client's `NatureView` and `NatureMarkers`.
+- **Trees: Rust's X.** A red painted X (a decal on the bark, our own texture) shows with the first hit, facing the
+  player near the hit's height; hits on it in a row pay and take 1.125, 1.25 … up to 2 times and move it; a miss ends
+  the run and leaves it. The tree's crown shakes at each hit; felled, it tips away, lands in its dust with the crash
+  in time, lies and sinks, and pays half its wood as it falls (Rust, November 2017).
+- **Outcrops: Rust's hotspot.** A warm glow with a pulsing glint and sparks on the rock itself at every stage (the
+  stage models' tops measured by the new `--view models --survey-surfaces` into surfaces.json); hits on it pay 150%,
+  200%, 250%, at most 300%; the outcrop gives the same ore in under half the hits; the last hit with a pickaxe pays 20%
+  more (Devblog 166). Each stage breaks with a burst and its sound.
+- **Every hit plays where it landed**, for everyone in range: protocol 13 sends the point where the swing met the
+  drawn surface, the run of spot hits and how fresh the hit is, so old hits never replay.
+- Checked once in the hosted game (the tour's `chop` and `mine` steps on a pine and a metal outcrop): wood per hit
+  rising with X hits, the felling hit 84 wood, the outcrop at its last stage in 4 hotspot hits. The nature view cost
+  52 µs a frame on average. Pictures: `docs/images/ground/gather/`. 173 of 173 tests pass with `ground` merged (seven
+  new: the X, the hotspot, the fall's share, the pickaxe's bonus, spots on the drawn rock, the looks' references, hits
+  over the network). Protocol 13.

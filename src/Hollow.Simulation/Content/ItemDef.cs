@@ -81,6 +81,9 @@ public sealed class MeleeStats
 
     public float Ore { get; init; }
 
+    /// <summary>The gather rate a class of natural objects takes (gather.json <c>classes.*.rate</c>).</summary>
+    public float Rate(GatherRate rate) => rate == GatherRate.Ore ? Ore : Tree;
+
     /// <summary>Damage to a deployable (boxes, furnaces, bags).</summary>
     public float Structure { get; init; }
 
