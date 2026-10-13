@@ -134,11 +134,12 @@ public partial class GroundUi
             bool worn = slot.Container == ContainerId.Wear;
             actions.Add((worn ? "UNEQUIP" : "WEAR", () => WearOrRemove(slot, worn)));
         }
+        actions.AddRange(Model.MoreActions(slot));
         actions.Add(("DROP", () => Model.Drop(slot, StackAt(slot).Amount)));
         for (int i = 0; i < actions.Count; i++)
         {
             (string label, Action act) = actions[i];
-            Button(label, 827, 221 + i * 46, 200, 42, act, 22);
+            Button(label, 827, 221 + i * 46, 200, 42, act, label.Length > 15 ? 18 : 22);
         }
 
         if (split)

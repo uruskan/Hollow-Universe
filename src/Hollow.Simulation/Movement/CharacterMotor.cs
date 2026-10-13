@@ -67,6 +67,12 @@ public static class CharacterMotor
             state.Flags = MoveFlags.Dead;
             return events;
         }
+        if (state.Stance == Stance.Seated)
+        {
+            // In a ship's seat (G6): the ship moves it, not its legs.
+            state.Flags = MoveFlags.None;
+            return events;
+        }
 
         Vector3 up = context.Frame.UpAt(state.Position);
         body.Restore(state.Position, state.Velocity, up, state.Stance);

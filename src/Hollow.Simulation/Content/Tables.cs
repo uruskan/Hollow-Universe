@@ -28,6 +28,11 @@ public sealed class Recipe
     /// </summary>
     public bool Known { get; internal set; } = true;
 
+    /// <summary>A deployable that must be within reach to start it (G6: ships at the vehicle workbench), or null.</summary>
+    public DeployableDef? Station { get; internal set; }
+
+    public string? StationKey { get; init; }
+
     public ushort Id => Output.Id;
 
     /// <summary>Ticks to make one unit.</summary>
@@ -165,12 +170,28 @@ public sealed class DeployableDef
     /// <summary>A machine with slots that do different things: a campfire or furnace, a recycler, a research table.</summary>
     public bool IsMachine => Device != null || Recycler != null || Research != null;
 
+    /// <summary>Where a ship it builds rolls out (a vehicle workbench, G6), or null.</summary>
+    public BayStats? Bay { get; init; }
+
     /// <summary>The ID on the wire and in saves: its item's.</summary>
     public ushort Id => Item.Id;
 
     public bool IsRespawnPoint => RespawnSeconds > 0;
 
     public override string ToString() => Key;
+}
+
+/// <summary>
+/// A station's bay (deployables.json, G6): where a ship it builds rolls out, in the station's frame (x across, y up, z out
+/// of its front), the half size of the space that must be clear there, and the steepest ground it may stand on.
+/// </summary>
+public sealed class BayStats
+{
+    public Vector3 At { get; init; }
+
+    public Vector3 Clear { get; init; }
+
+    public float MaxSlopeDegrees { get; init; } = 20;
 }
 
 /// <summary>A loot table (loot.json).</summary>

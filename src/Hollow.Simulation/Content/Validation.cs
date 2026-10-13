@@ -54,7 +54,7 @@ internal static class Validation
                 Problem(where, $"stack {item.StackSize} must be 1 … 60000");
             }
             bool single = item.HasCondition || item.Wear != null || item.Melee != null || item.Bow != null || item.Deploys != null ||
-                item.Firearm != null || item.Attachment != null;
+                item.Firearm != null || item.Attachment != null || item.Ship != null;
             if (single && item.StackSize != 1)
             {
                 Problem(where, "tools, weapons, clothing and deployables stack to 1");
@@ -130,6 +130,10 @@ internal static class Validation
             {
                 Problem(where, "an ingredient is its own output");
             }
+            if (r.Output.Ship != null && (r.Station?.Bay == null || r.Amount != 1))
+            {
+                Problem(where, "a ship is made one at a time at a station with a bay to roll out onto (G6)");
+            }
         }
 
         // ---------------------------------------------------------------- natural objects
@@ -190,6 +194,69 @@ internal static class Validation
         if (c.PlacementReach <= 0 || c.PlacementMaxStep <= 0)
         {
             Problem("deployables.json: placement", "reach and maxStep must be positive");
+        }
+        foreach (DeployableDef d in c.Deployables.Where(d => d.Bay != null))
+        {
+            BayStats bay = d.Bay!;
+            if (bay.Clear.X <= 0 || bay.Clear.Y <= 0 || bay.Clear.Z <= 0 || bay.MaxSlopeDegrees is <= 0 or > 45 || bay.At.Length() > 30)
+            {
+                Problem($"deployables.json: \"{d.Key}\".bay", "a clear space of positive size, within 30 m, on ground of 0 … 45°");
+            }
+        }
+
+        // ---------------------------------------------------------------- ships (G6)
+        Duplicates("ships.json", c.Ships.Select(x => x.Key));
+        foreach (Ships.ShipDef ship in c.Ships)
+        {
+            string where = $"ships.json: \"{ship.Key}\"";
+            if (ship.Item.Ship != ship)
+            {
+                Problem(where, $"item \"{ship.Item.Key}\" must say \"ship\": \"{ship.Key}\"");
+            }
+            if (ship.Mass <= 0 || ship.Inertia.X <= 0 || ship.Inertia.Y <= 0 || ship.Inertia.Z <= 0 || ship.Health <= 0)
+            {
+                Problem(where, "mass, inertia and health must be positive");
+            }
+            if (new[] { ship.MainThrust, ship.RetroThrust, ship.LateralThrust, ship.LiftThrust, ship.DownThrust }.Any(t => t <= 0) ||
+                ship.LiftThrust / ship.Mass < 10)
+            {
+                Problem(where, "thrust on every axis; the lift nozzles must carry it at 1 g with some to spare (10 m/s²)");
+            }
+            if (new[] { ship.ForwardSpeed, ship.ReverseSpeed, ship.LateralSpeed, ship.UpSpeed, ship.DownSpeed }.Any(v => v is <= 0 or > 1000) ||
+                ship.BoostSpeed < ship.ForwardSpeed || ship.BoostThrust < 1 || ship.BoostSeconds <= 0 || ship.BoostCooldownSeconds < 0)
+            {
+                Problem(where, "speeds 0 … 1000 m/s, boost at least the forward speed and thrust, a positive boost time");
+            }
+            if (new[] { ship.Pitch, ship.Yaw, ship.Roll }.Any(t => t.MaxRate <= 0 || t.Acceleration <= 0))
+            {
+                Problem(where, "rates: positive rates and accelerations");
+            }
+            if (new[] { ship.DragForward, ship.DragSide, ship.DragTop, ship.TurnDrag }.Any(d => d < 0))
+            {
+                Problem(where, "drag can't be negative");
+            }
+            if (ship.SkidPoints.Count < 3 || ship.SkidStiffness <= 0 || ship.SkidDamping <= 0 || ship.SkidTravel is <= 0 or > 1 ||
+                ship.SkidFriction is < 0 or > 2 || ship.MaxLandingSlope is <= 0 or > 0.8f)
+            {
+                Problem(where, "at least three skid points, positive springs, travel 0 … 1 m, friction 0 … 2, a landing slope up to 45°");
+            }
+            if (ship.CrashSafeSpeed <= 0 || ship.CrashScale <= 0 || ship.CrashPilotShare is < 0 or > 1)
+            {
+                Problem(where, "crash: a positive safe speed and scale, a pilot share of 0 … 1");
+            }
+            if (ship.FuelCapacity <= 0 || ship.FuelIdle < 0 || ship.FuelFull < ship.FuelIdle || ship.FuelBoost < 1)
+            {
+                Problem(where, "fuel: a tank, idle ≤ full burn, boost at least 1");
+            }
+            if (ship.Hull.Count == 0 || ship.Hull.Any(h => h.HalfExtents.X <= 0 || h.HalfExtents.Y <= 0 || h.HalfExtents.Z <= 0))
+            {
+                Problem(where, "hull: boxes of positive size");
+            }
+            if (ship.CargoSlots is < 0 or > 64 || ship.Exits.Count == 0 || ship.Reach <= 0 || ship.Ceiling is < 1000 or > 19000 ||
+                new[] { ship.MeleeDamage, ship.ArrowDamage, ship.BulletDamage, ship.ExplosiveDamage }.Any(m => m is < 0 or > 10))
+            {
+                Problem(where, "cargo 0 … 64 slots, an exit, a reach, a ceiling of 1 … 19 km (inside the zone), damage multipliers 0 … 10");
+            }
         }
 
         // ---------------------------------------------------------------- loot and survival
@@ -338,7 +405,8 @@ internal static class Validation
             var devices = c.Deployables.Where(d => d.Device != null && obtainable.Contains(d.Item)).Select(d => d.Device!).ToList();
             foreach (Recipe r in c.Recipes)
             {
-                if (r.Workbench <= bench && r.Ingredients.All(i => obtainable.Contains(i.Item)))
+                if (r.Workbench <= bench && r.Ingredients.All(i => obtainable.Contains(i.Item)) &&
+                    (r.Station == null || obtainable.Contains(r.Station.Item)))
                 {
                     grew |= obtainable.Add(r.Output);
                 }
@@ -367,6 +435,8 @@ internal static class Validation
             string missing = string.Join(", ", r.Ingredients.Where(i => !obtainable.Contains(i.Item)).Select(i => i.Item.Key));
             Problem($"recipes.json: \"{r.Output.Key}\"", missing.Length > 0
                 ? $"can't be made from gatherable resources (nothing gives {missing})"
+                : r.Station != null && !obtainable.Contains(r.Station.Item)
+                ? $"needs a {r.Station.Key}, which can't be made"
                 : $"needs workbench {r.Workbench}, which can't be made");
         }
     }

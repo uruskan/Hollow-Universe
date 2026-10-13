@@ -9,6 +9,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Surface;
+using HollowUniverse.Fx;
 using HollowUniverse.Surface;
 using HollowUniverse.Surface.Flora;
 using Num = System.Numerics;
@@ -222,7 +223,8 @@ public partial class NatureView : Node3D
     private readonly Dictionary<ulong, (float Health, int Stage, uint Weak, bool Gone)> _was = new();
 
     // A hit on a tree or an outcrop (its health dropped), the weak spot moving, an outcrop breaking a stage, a tree
-    // felled, a bush picked (GROUND.md §4.9).
+    // felled, a bush picked: their sounds (GROUND.md §4.9) and effects (§9.3: chips, bark, dust and sparks thrown
+    // towards the player where the tool bit, a flash on the weak spot, an outcrop breaking up).
     private void Sound(in NaturalObject o, NaturalState state, bool audible)
     {
         if (Client.Content.Natural(o.Kind) is not { } kind || !kind.IsHarvested)
@@ -249,19 +251,36 @@ public partial class NatureView : Node3D
         if (current.Item4 && !(known && before.Gone))
         {
             Sounds.At(tree ? "gather.wood.break" : "gather.node.break.3", at);
+            if (!tree)
+            {
+                FxDirector.Play("gather.node-break", GroundView.ToGodot(o.Position + o.Up * 0.4f * o.Scale), GroundView.ToGodot(o.Up),
+                    new FxParams { Scale = Math.Clamp(o.Scale, 0.6f, 1.6f) });
+            }
             return;
         }
         if (health < prior)
         {
             string hit = tree ? "gather.wood.hit" : kind.Key == "stone-node" ? "gather.stone.hit" : "gather.ore.hit";
             Sounds.At(hit, at);
+            // Where the tool bit: on the side towards the player, at the height of a swing.
+            Num.Vector3 toMe = Client.Character.Position - o.Position;
+            toMe -= o.Up * Num.Vector3.Dot(toMe, o.Up);
+            toMe = toMe.LengthSquared() > 1e-4f ? Num.Vector3.Normalize(toMe) : new Num.Vector3(1, 0, 0);
+            float height = tree ? 1.1f : 0.5f * Math.Max(0.6f, o.Scale);
+            Num.Vector3 bite = o.Position + o.Up * height + toMe * (kind.Radius * o.Scale * (tree ? 1f : 0.8f));
+            Vector3 point = GroundView.ToGodot(bite), facing = GroundView.ToGodot(toMe);
+            string chips = tree ? "gather.wood" : kind.Key is "metal-node" or "sulphur-node" ? "gather.sparks" : "gather.rock";
+            FxDirector.Play(chips, point, facing, new FxParams { Direction = -facing });
             if (current.Item3 != 0 && (!known || before.Weak != current.Item3))
             {
                 Sounds.At("gather.weakspot", at, -2);
+                FxDirector.Play("gather.weakspot", point, facing);
             }
             if (known && current.Item2 > before.Stage)
             {
                 Sounds.At($"gather.node.break.{current.Item2}", at);
+                FxDirector.Play("gather.node-break", GroundView.ToGodot(o.Position + o.Up * 0.4f * o.Scale), GroundView.ToGodot(o.Up),
+                    new FxParams { Scale = 0.6f });
             }
         }
     }
@@ -464,6 +483,9 @@ public partial class NatureView : Node3D
         public Transform3D Base;
         public Vector3 Axis;
         public Vector3 Up;
+        public Vector3 Away;
+        public float Height = 12;
+        public bool Landed;
         public double Time;
     }
 
@@ -488,6 +510,7 @@ public partial class NatureView : Node3D
             Id = o.Id,
             Axis = up.Cross(dir).Normalized(),
             Up = up,
+            Away = dir,
             Base = new Transform3D(Basis.Identity, GroundView.ToGodot(o.Position)),
             Item = Task.Run(() => (ScatterItem?)surface.ScatterFor(tile).FirstOrDefault(i => i.Index == index)),
         });
@@ -518,6 +541,14 @@ public partial class NatureView : Node3D
             float sink = fall.Time > Tip + Lie ? (float)((fall.Time - Tip - Lie) / Sink) : 0;
             Basis turn = new(fall.Axis, angle);
             fall.Instance!.Transform = new Transform3D(turn, fall.Base.Origin - fall.Up * (sink * 1.2f));
+            if (t >= 1 && !fall.Landed)
+            {
+                // The trunk lands: dust and litter along it.
+                fall.Landed = true;
+                float half = fall.Height * 0.45f;
+                FxDirector.Play("gather.tree-fall", fall.Base.Origin + fall.Away * half, fall.Up,
+                    new FxParams { Direction = fall.Away, Area = new Vector3(half, 0.2f, 0.7f) });
+            }
             if (fall.Time > Tip + Lie + Sink)
             {
                 End(i);
@@ -534,6 +565,7 @@ public partial class NatureView : Node3D
         }
         FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
         float scale = item.Scale * species.Scale;
+        fall.Height = Math.Max(2f, variant.Height * scale);
         Vector3 up = World.Frame!.DirectionToRender(item.Direction);
         Vector3 reference = Math.Abs(up.Z) < 0.9f ? Vector3.Back : Vector3.Right;
         Vector3 x = reference.Cross(up).Normalized();

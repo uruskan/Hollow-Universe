@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Hollow.Core;
+using Hollow.Persistence;
 using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
@@ -427,5 +428,44 @@ public static class WorldTests
         Assert.True(a.DeathPoint == null, "not dead yet");
         z.Hurt(ada, a, 1000, "Test", EntityId.None, "");
         Assert.True(a.DeathPoint is { } dp && Vector3.Distance(dp, rig.Ch(ada).State.Position) < 0.01f, "where she died");
+    }
+
+    /// <summary>
+    /// GROUND.md §4.7 with G6 and G7 together: a database at schema 4 migrates through 5 (the ships) to 6 (teams and
+    /// props), and player records of older versions still read (3 without the world's tail, 2 without the body too).
+    /// </summary>
+    [Test]
+    public static void OldDatabasesAndPlayerRecordsStillRead()
+    {
+        using var file = new TempDatabase();
+        using (GameDatabase.Open(file.Path))
+        {
+        }
+        using (var raw = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={file.Path};Pooling=False"))
+        {
+            raw.Open();
+            using var command = raw.CreateCommand();
+            command.CommandText = "DROP TABLE prop_overrides; DROP TABLE teams; DROP TABLE ships; PRAGMA user_version = 4;";
+            command.ExecuteNonQuery();
+        }
+        using (GameDatabase db = GameDatabase.Open(file.Path))
+        {
+            Assert.Equal(GameDatabase.SchemaVersion, db.Version, "migrated to the newest schema");
+            Assert.True(db.ShipCount == 0 && db.TeamCount == 0 && db.PropCount == 0, "through the ships' step and the world's");
+        }
+
+        GameContent c = ContentFixture.Content;
+        var p = new Player(new EntityId(0xA1), "Ada") { Body = 1 };
+        p.Inventory.Main.Set(0, ItemStack.Of(c.ItemByKey("rock"), 1));
+        // Version 4 with no blueprints, markers or death ends in 16 bytes (a count, a count, a flag, a point).
+        byte[] four = WorldCodec.EncodePlayer(p);
+        byte[] three = four[..^16];
+        three[0] = 3;
+        byte[] two = three[..^1];
+        two[0] = 2;
+        Player back3 = WorldCodec.DecodePlayer(three, p.Id, p.Name, c), back2 = WorldCodec.DecodePlayer(two, p.Id, p.Name, c);
+        Assert.True(back3.Body == 1 && back3.Inventory.Main[0] == p.Inventory.Main[0] && back3.Blueprints.Learnt.Count == 0 &&
+                    back3.Markers.Count == 0 && back3.DeathPoint == null, "version 3: as saved, with no world state");
+        Assert.True(back2.Body == 0 && back2.Inventory.Main[0] == p.Inventory.Main[0], "version 2: no body either");
     }
 }

@@ -508,6 +508,7 @@ public sealed partial class Zone
         {
             HitTarget.Building => hit.Building,
             HitTarget.Deployable => hit.Deployable,
+            HitTarget.Ship => hit.Ship,
             _ => null,
         };
         Blast(blast, at, -direction, stuckTo, hit.Target, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);

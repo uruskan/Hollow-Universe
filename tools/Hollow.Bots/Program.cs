@@ -18,7 +18,7 @@ namespace Hollow.Bots;
 /// <item><c>loadtest --count 100 --duration 60</c>: a server in this process plus the bots; prints tick time,
 /// bandwidth per client and prediction error (GROUND.md §5, measured).</item>
 /// </list>
-/// Both take <c>--script wander|circle|jump|mixed|survive|fight|raid|world</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>; the load
+/// Both take <c>--script wander|circle|jump|mixed|survive|fight|raid|fly|world</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>; the load
 /// test takes <c>--kit</c> (a loot table every new character gets; with <c>fight</c> and <c>raid</c>, every new life too),
 /// <c>--spawn origin|beach</c> (where bots arrive: the landing site, the default, or the beaches) and <c>--stand-in</c>. With
 /// <c>raid</c> the server builds <c>--raid-bases</c> huts (half the bots by default) on a ring of <c>--raid-radius</c> metres,
@@ -91,6 +91,7 @@ public static class Program
                 $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)} " +
                 $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building?.PieceCount ?? 0)} " +
                 $"{swarm.Raids.Placed} {swarm.Raids.Thrown} {swarm.Raids.Rockets} {swarm.Raids.Bursts} {swarm.Raids.Alerts} " +
+                $"{swarm.Flights.Boardings} {swarm.Flights.Flying} {swarm.Flights.Seconds:R} {swarm.Flights.Corrections} " +
                 $"{swarm.World.Broken} {swarm.World.Emptied} {swarm.World.Picked} {swarm.World.Recycled} {swarm.World.Researched} {swarm.World.Learnt} {swarm.World.Teamed}"));
             return 0;
         }
@@ -130,6 +131,7 @@ public static class Program
             Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, KitEveryLife = script is BotScript.Fight or BotScript.Raid,
             RaidBases = script == BotScript.Raid ? raidBases : 0, RaidRadius = raidRadius, Log = _ => { },
             SpawnAtOrigin = !beaches, StandIn = standIn,
+            ShipOnJoin = script == BotScript.Fly,
         });
         server.StartThread();
 
@@ -174,13 +176,17 @@ public static class Program
         bots.BeginOutputReadLine();
 
         System.Threading.Thread.Sleep(TimeSpan.FromSeconds(warmup));
-        TimeSpan stepBefore = TimeSpan.Zero, raidBefore = TimeSpan.Zero, worldBefore = TimeSpan.Zero, worldSendBefore = TimeSpan.Zero;
+        TimeSpan stepBefore = TimeSpan.Zero, raidBefore = TimeSpan.Zero, rebuildTimeBefore = TimeSpan.Zero;
+        TimeSpan worldBefore = TimeSpan.Zero, worldSendBefore = TimeSpan.Zero;
+        int rebuildsBefore = 0;
         Dictionary<string, (long Bytes, long Packets, long BytesIn, long PacketsIn, long Applied, long Missing)> before =
             server.Inspect(sv =>
             {
                 sv.Ticks.ResetTotals();
                 stepBefore = sv.StepTime;
                 raidBefore = sv.Zone.RaidStats.Time;
+                rebuildsBefore = sv.Zone.Physics.BroadPhaseRebuilds;
+                rebuildTimeBefore = sv.Zone.Physics.BroadPhaseTime;
                 worldBefore = sv.Zone.WorldStats.Time;
                 worldSendBefore = sv.WorldTime;
                 return sv.Players.ToDictionary(p => p.Name, p => Traffic(p));
@@ -224,6 +230,16 @@ public static class Program
             Refused = sv.Players.Sum(p => p.IntentsRefused),
             Limited = sv.Players.Sum(p => p.IntentsRateLimited),
             OnDemand = sv.Zone.Physics.TilesBuiltOnDemand,
+            Ships = sv.Zone.Ships.Count,
+            ShipsFlying = sv.Zone.Ships.Count(x => !x.State.Asleep && !x.InOrbit),
+            ShipMs = sv.Zone.ShipTime.TotalMilliseconds,
+            ShipSteps = sv.Zone.ShipSteps,
+            ShipIntents = sv.ShipIntentsAccepted,
+            ShipRefused = sv.ShipIntentsRefused,
+            Crashes = sv.ShipCrashes,
+            Rebuilds = sv.Zone.Physics.BroadPhaseRebuilds - rebuildsBefore,
+            RebuildMs = (sv.Zone.Physics.BroadPhaseTime - rebuildTimeBefore).TotalMilliseconds,
+            RebuildWorstMs = sv.Zone.Physics.BroadPhaseWorst.TotalMilliseconds,
             Players = sv.Players.Select(p =>
             {
                 var b = before.GetValueOrDefault(p.Name);
@@ -286,11 +302,11 @@ public static class Program
                 $"(measured part); {measured.Explosives} explosives in the world at the end, {measured.Pieces} building pieces, {measured.Restored} huts put back\n" +
                 $"Alerts: {measured.Alerts}"));
         }
-        if (r.Length > 34 && script == BotScript.World)
+        if (r.Length > 38 && script == BotScript.World)
         {
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"World (bots, whole run): {F(28):0} barrels broken, {F(29):0} crates emptied, {F(30):0} things picked up, " +
-                $"{F(31):0} recycler runs started, {F(32):0} research begun, {F(33):0} blueprints learnt; {F(34):0} bots in teams\n" +
+                $"World (bots, whole run): {F(32):0} barrels broken, {F(33):0} crates emptied, {F(34):0} things picked up, " +
+                $"{F(35):0} recycler runs started, {F(36):0} research begun, {F(37):0} blueprints learnt; {F(38):0} bots in teams\n" +
                 $"World (server, whole run): {measured.World}; {measured.WorldProps} props in the world at the end; " +
                 $"{measured.Teams} teams with {measured.TeamMembers} members; the world's steps {measured.WorldMs / Math.Max(1, measured.Ticks):0.000} ms " +
                 $"and its messages {measured.WorldSendMs / Math.Max(1, measured.Ticks):0.000} ms a tick on average (measured part)"));
@@ -309,6 +325,16 @@ public static class Program
                 $"Building (whole run): {measured.Placed} pieces placed; the world has {measured.Pieces} pieces in {measured.Structures} structures, " +
                 $"{measured.Doors} doors, {measured.Claims} claim devices; bots: {F(19):0} building intents done, {F(20):0} refused, " +
                 $"{F(21):0} door toggles; a bot's copy holds {F(22):0} pieces"));
+        }
+        if (r.Length > 31 && script == BotScript.Fly)
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"Ships (G6): {measured.Ships} in the zone, {measured.ShipsFlying} awake at the end; bots boarded {F(28):0} times, {F(29):0} flying " +
+                $"at the end, {F(30) / Math.Max(1, F(29)):0} s flown each on average; their ships were corrected {F(31):0} times; " +
+                $"server: {measured.ShipIntents} ship intents accepted, {measured.ShipRefused} refused, {measured.Crashes} crashes; ships stepped in " +
+                $"{measured.ShipMs / Math.Max(1, measured.Ticks + warmup * 30):0.00} ms a tick on average ({measured.ShipMs * 1000 / Math.Max(1, measured.ShipSteps):0.0} µs a ship step); " +
+                $"the physics' broadphase was rebuilt {measured.Rebuilds} times while measured, {measured.RebuildMs / Math.Max(1, measured.Rebuilds):0.0} ms each on average " +
+                $"({measured.RebuildMs / Math.Max(1, measured.Ticks):0.00} ms a tick), the longest {measured.RebuildWorstMs:0.0} ms"));
         }
         return F(7) == count ? 0 : 2;
     }

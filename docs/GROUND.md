@@ -454,9 +454,11 @@ zone's record keeps when upkeep and decay were last applied, so loading catches 
 Schema 4 (G5, §6.6) adds a `notifications` table: raid alerts waiting for players who were offline, handed over at
 login. Charges in the world are saved with the zone's things.
 
-Schema 5 (G7, §6.8) adds `teams` (the server's teams, not a body's) and `prop_overrides` (world props as players changed
+Schema 5 (G6, §6.7) adds `ships`: a row per ship, in the body frame, with its pilot.
+
+Schema 6 (G7, §6.8) adds `teams` (the server's teams, not a body's) and `prop_overrides` (world props as players changed
 them: gone until a time, or as left); characters' records keep the blueprints learnt, the map's markers and the last
-death.
+death. A database at schema 4 migrates through 5 (ships) to 6.
 
 ### 4.8 Characters
 
@@ -998,8 +1000,8 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
 - **Down** is lower than on the stand-in: bots seeking trees and outcrops spread out, and each sees about 46 others
   instead of 99.
 
-**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 2
-with the catalogue's models and icons, the female body and the gun layer, except `menu.jpg`):
+**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 3
+with building, raiding and the effects library in the game, except `menu.jpg`):
 
 | Picture | What it shows |
 |---|---|
@@ -1011,9 +1013,15 @@ with the catalogue's models and icons, the female body and the gun layer, except
 | `player.jpg` | The second player with the female body, in the knit cap, woven shirt and trousers, laced boots and the riveted cuirass, hatchet in hand, her name above her. |
 | `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
 | `outcrop.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop, and its broken stage after the pickaxe. |
-| `gun.jpg` | The rifle aimed down its sights the moment a shot leaves: the flash, 28 of 60 rounds. |
+| `gun.jpg` | The rifle aimed down its sights in the frame a shot leaves: the effects library's muzzle flame and its light on the gun, 29 of 60 rounds. |
+| `build.jpg` | A base begun in the meadow: two twig foundations and three walls, the building plan in hand, the green ghost of a doorway with its cost and stability under the crosshair. |
+| `keypad.jpg` | The stone hut's sheet metal door with a code lock fitted: its keypad, two digits entered. |
+| `base.jpg` | The stone hut from outside (the `raidbase` command's), the code lock on the door by its free edge. |
+| `charge.jpg` | A timed charge stuck on the hut's side wall, its lamp lit; another in hand. |
+| `explosion.jpg` | The charge going off: the fireball, debris and the smoke rising over the hut; the raid alert at the top right. |
+| `firefight.jpg` | Firing at the hut from the meadow, in the frame a shot leaves: the muzzle brake's flame out of its ports, the tracer, the holo sight and brake on the rifle; the second player firing beside. |
 | `death.jpg` | The death screen over the map of the real coast. |
-| `night.jpg` | Night, by the catalogue's campfire, lit: the fire's own light on the grass; the respawn kit on the belt. |
+| `night.jpg` | Night, by the catalogue's campfire, lit: the effects library's flames, embers and smoke, and its flickering light on the grass; the respawn kit on the belt. |
 
 **Judgement.** It plays as one game: arrive on a real beach, walk, swim and fall on the planet's ground, gather from
 its own trees, bushes, ferns and outcrops, craft, wear, cook, fight, die, loot bodies and respawn, with another player
@@ -1061,7 +1069,28 @@ ragdoll (40–60 ms, the character package's) and plant rebuilds landing (20–3
 take a spare body (`PeopleView`: four of each body made while the world opens, and those leaving are kept), so only
 new arrivals and corpses build one.
 
-### 5.8 G7 load test: 100 bots living off the world's loot
+### 5.8 Pass 3: building, raiding and the effects in the game
+
+Measured on the owner's PC on 13 October 2026 as in §5.7 (the measuring client hosts, its server in a process of its
+own; a headless second player and 50 survival bots at the landing site; `--measure 20 --expect 45`), now with the
+building drawn, the raid view, the effects library everywhere and attachments. Another agent's game client and bots
+were running on the same PC at the time, so the comparison is rough.
+
+| | Pass 2 (§5.7) | Pass 3 |
+|---|---|---|
+| Frame, average / 99th percentile / worst | 14.6 / 23.2 / 122 ms | 16.7 / 25.0 / 91 ms |
+| GPU, a frame | 10.6 ms | 11.1 ms |
+| Server tick (its own process) | 3.05 ms average | 5.82 ms average, 379 ms the most in the last 10 s |
+
+- The new parts of the ground view cost next to nothing: the building view 0.02 ms a frame, the raid view under
+  0.01 ms; the effects library's own work runs in the engine's process step (a ten-player firefight's effects cost about
+  0.3 ms, §9.3). The ground view's parts as a whole: people 0.96 ms, nature 0.22 ms, overlay 0.20 ms, the client 0.13 ms.
+- The slowest frames are as in pass 2: a new ragdoll and a corpse (60–90 ms, the character package's) and plants
+  redrawn after hits (25–30 ms).
+- The average sits at 60 fps with the GPU at 11.1 ms: the other agent's client was drawing on the same GPU, and the
+  server's tick, doubled, shares the CPU with its bots.
+
+### 5.9 G7 load test: 100 bots living off the world's loot
 
 Measured on the owner's PC on 13 October 2026, with other agents' work on it but in a quiet stretch (71 clock jumps in
 the bots' process, 99.96 % of inputs on their tick). Every bot gets the `world-kit` loot table (a machete, a metal
@@ -1690,16 +1719,19 @@ the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from
 
 **As built** (`game/scripts/Ground`): `GroundView` adds `ViewKick` to the camera, passes the mouse's turn to
 `ObserveLook` and adds `TakeCompensation` to the view, zooms by `Zoom` while `Aimed` (eased), and reloads on R;
-`FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle and flashes it, and plays a reload's
-parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws bullets as tracers (our own
-leaving the muzzle and closing on the shot's line over 50 m) and, where one stops, a puff and the sound of what it hit
-(the nearest natural object's class tells wood from rock; the sea from its depth); `PeopleView` plays others' shots
-(silenced from `HeldMods`) with a flash and their reloads; the HUD's ammo counter and the gun's slot show the
+`FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle with its muzzle effect, and plays a
+reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
+tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
+from `HeldMods`) with their muzzle effect and their reloads; the HUD's ammo counter and the gun's slot show the
 magazine; `GroundOverlay` draws the hip crosshair from `Spread`, a reload's progress under the centre, and the
-wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The flash, tracer and puff
-are plain ones made in code behind `ShotEffects.Provider` (`IShotEffects`) until the effects package lands. Not drawn
-yet, for want of the character contract (§4.8): attachments on guns in hand, others' aiming pose, and crawling (the
-wounded crouch instead).
+wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The muzzle effects, tracers
+and hits are the effects library's (§9.3, as hooked up there). Attachments show on guns in hand (`GunEffects.Dress`
+through `ModelCatalog.Attach`: a sight on the rail, a silencer or a brake on the muzzle, the light under the barrel):
+on one's own gun with the arms' layer and materials, from the weapon stack's mods, and on others' from `HeldMods`;
+the muzzle effect then leaves from the far end of a silencer or brake. In the inventory, an attachment dropped on a
+gun goes onto it (`Local.Attach`), and a gun's item panel offers REMOVE for each of its attachments (`Local.Detach`).
+Not drawn yet, for want of the character contract (§4.8): others' aiming pose and crawling (the wounded crouch
+instead).
 
 ### 6.5 Building over the network and saved (G3, phase 2a)
 
@@ -1784,6 +1816,20 @@ things. The zone's record keeps when upkeep and decay were last applied: on load
 closed-form step. Decoding treats the bytes as untrusted: a kind that no longer exists is left out.
 
 **Bots** (`--script build`, §5.4) build a small base each through the same API, and the load test reports the building.
+
+**In the game (phase 2b, `game/scripts/Ground/BuildView.cs`).** The replica's `BuildingWorld` is drawn by the building
+package's `BuildingRenderer` (batched per kind, grade and 24 m chunk, doors swinging); a held building plan shows
+`GameClient.PlanPiece`'s ghost with `BuildGhost` (green, or red with the reason under the crosshair, `BuildHud`) and
+the right mouse button opens the plan's wheel (the piece) or the hammer's (upgrade to each grade, rotate, demolish),
+both from `ClientGroundUi`; the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
+the doorway aimed through or a held lock on the door aimed at, or places the claim device on a foundation or floor;
+R turns the piece (or the door) a step. E opens and shuts doors (the door's own sound, `world.door-slam` when it
+shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's manner: digits, C, OK; the owner
+also sets a new code), and opens the claim device's store as a loot panel; held E offers a door's or the claim
+device's options (lock, unlock, change the code, cut a key, take the lock, pick up; authorise, deauthorise, clear the
+list, pick up: `OptionsMenu`, chosen with the mouse, let go to do it). Placements not yet answered show where they
+will stand; pieces placed nearby, upgraded (`world.upgrade.<grade>`), demolished and collapsing (`world.collapse`)
+sound and show; the building rights where the player stands show on the HUD.
 
 **Tests:** `BuildingNetTests.PlacingGoesThroughTheServer` (a player without wood is refused, with the reason; a
 foundation and a wall placed through intents show at once, then arrive in every client's copy at exactly the ghost's
@@ -1938,6 +1984,23 @@ debris, a camera shake and a loud, far sound; rockets with a trail; the "Light" 
 at login (base on the map, time, what was hit); pieces showing damage (their health is replicated by phase 2a). Until the sound
 package makes them, `sounds.json` maps the new items to stand-ins (§11 R15).
 
+**In the game** (`game/scripts/Ground/RaidView.cs`). Explosives in range are drawn from the model catalogue at
+`PositionAt(RenderTick)`, with the other players (the arc before a bounce is kept until the drawing reaches it), tumbling
+while they fly and lying on their bottom along `Normal` once stuck or at rest. A timed charge has a lamp on top that blinks
+faster as `FuseSecondsLeft` falls (once a second at first, five times a second at the end) and beeps with it; a bag charge's
+or tin grenade's fuse sputters (`fuse.burning` on its `socket_fuse`) and hisses; a dud does neither (§11 81). Throws,
+sticking, bounces, a fizzle (`explosion.dud`) and lighting again play the item's sounds (`sounds.json` roles `throw`,
+`place`, `bounce`, `fizzle`, `relight`). The controls are Rust's: with an explosive in hand the left button throws it; the
+right button puts a charge on the surface aimed at within 3 m, or lobs a grenade gently; E on a dud lights it ("LIGHT BAG
+CHARGE"); the item's cooldown holds on the client too (§11 84). `Detonated` plays `explosion.timed-charge`, `.bag-charge`,
+`.grenade`, `.rocket` or `.ammo` through the effects library (flash, fireball, smoke, dust along the surface, sparks,
+debris, a scorch mark, a light and the camera's shake, which the ground view adds to the camera every frame) and the
+item's `explode` and `debris` sounds (the blast's near, middle and far layers chosen by distance and delayed by the speed
+of sound). Rockets in flight are the catalogue's rocket, nose first, trailing `trail.rocket`. Raid alerts appear at the
+top right in the interface's manner (`RaidAlertsPanel`): "BASE UNDER ATTACK", what was hit and with what, how far and which
+way, when, the hits and what broke, for ten seconds with a sound; at login, those that waited while the player was away,
+under "RAIDED WHILE YOU WERE AWAY", for twenty.
+
 **Persistence.** Charges stuck or lying in the world (duds too, and any still in the air, which fall on) survive a restart: they
 are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`) with their fuse as world time left, which pauses while the
 server is down, and restored after the rest of the world with what they were stuck to; one whose support is gone falls. Rockets
@@ -1952,6 +2015,232 @@ door or claim device (`HitTarget.Building`) go through `Zone.DamageBuildingBy`, 
 and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
 building rules, on the analytic ground (§11 R14).
 
+### 6.7 Ships (G6)
+
+The starter ship, the **Tin Finch** (§1, `D:\GameDev\Assets\TinFinch_TF01`): built at the **vehicle workbench**, boarded
+through its hatch, flown the Elite way (GAME_DESIGN.md §6) over the first world, landed anywhere, and climbed to a
+ceiling where it reaches orbit. This package is the engine-free core, the network and storage, and the ship's own
+viewer; the ground mode's hookup comes after it (the list at the end).
+
+| Part | Where |
+|---|---|
+| Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
+| Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
+| In the zone | `src/Hollow.Simulation/Zone.Ships.cs`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
+| Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `GameServer.Ships.cs` loads and saves |
+| Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/GameServer.Ships.cs`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, `LocalPlayer.Ships.cs` |
+| Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
+| Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
+
+**The flight model** (`ShipMotor.Step`, one 30 Hz tick, a pure function of the state, the pilot's input and the static
+world, like a character's step, §4.5). Six degrees of freedom in the zone's frame: the centre of mass, a rotation, a
+velocity and a turn rate in the ship's own axes (+Z the nose, +Y up, +X the left side, the model's). Forces: the planet's
+gravity along −up (`ZoneFrame.UpAt`; the planet's own 9.0 m/s², not the characters' 1.8 ×), thrust, and the air's drag,
+½ρv² times a drag area per axis, with the density falling off with height from the planet's surface value (the zone's
+spec carries it: 2.7 kg/m³ at the first world's 2.23 atmospheres, a scale height of 9.4 km). The skiff has no wings:
+it is thrust-borne.
+- **Flight assist** (on by default) holds a velocity in the ship's frame: the throttle's forward speed (reverse below 0),
+  strafe and up/down at their speeds, and the turn rates the stick asks for, as fast as each axis's thrusters allow,
+  counting gravity and drag in. With no input it hovers where it is. Near the ground (30 m) with the throttle closed it
+  eases a descent to 1.5 m/s plus 0.25 m/s per metre of height, so holding "down" lands gently.
+- **Flight assist off:** the controls are thrust and torque; nothing holds the ship up or steady but the air's drag.
+  Speed is capped at the boost's (Elite does too), turns at half again the most rates.
+- **Boost:** 4 s of 1.8 × the main engine's thrust and a 260 m/s target, then 5 s to recharge.
+- **Fuel:** lamp oil, 0.1 a second idling plus up to 0.9 at full thrust, twice that boosting; a dry tank means no thrust.
+- **Skids:** a sprung, damped pad at each of the four wear pads, found by a ray along the ship's down; their friction
+  holds the ship on a slope up to 29° (0.55) and lets it slide off a steeper one. Three pads carrying it with nothing
+  asked of the controls idle the engines: a ship sits on its skids, or slides off what is too steep. It counts as
+  landed on ground up to 25°.
+- **The hull** is six boxes (cabin, engine bay, two tanks, two skids) swept against everything static each substep
+  (Jolt's shape cast: ground tiles, trees, outcrops, deployables, building pieces, parked ships), so nothing tunnels at
+  260 m/s; what it meets takes an impulse, and the skids sweep 12 cm short of the pads so the springs take a landing
+  and the hull a crash. Near the ground a tick is two substeps; above 40 m (plus a second's travel) one, and no queries.
+- **Crash damage:** an impact into anything faster than 6 m/s costs (speed − 6)² × 2.5 of the 750 hull; the pilot takes
+  a tenth of it.
+- **Sleep:** a ship resting a second (landed, slower than 5 cm/s) sleeps and costs nothing until its pilot asks for
+  motion, it is hit or its hatch moves; every two seconds it checks it still has ground under its skids.
+- **The zone's edge:** the ground's tiles end at ±8.2 km, so ships are held inside a ±7.8 km square (G8's zones that
+  follow players lift this).
+
+| The Tin Finch (ships.json) | |
+|---|---|
+| Mass, inertia | 6,000 kg; 16,200 / 16,500 / 8,700 kg·m² (pitch, yaw, roll) about the centre of mass at (0, 1.23, −0.28) |
+| Thrust | main 150 kN (three rear exhausts), retro 90 kN, lateral 45 kN, lift 110 kN (four lift nozzles: 2.0 × its weight), down 40 kN |
+| Flight assist's speeds | forward 160 m/s, reverse 40, lateral 40, up 25, down 20; boost 260 |
+| Turn rates, acceleration | pitch 55°/s, 160°/s²; yaw 35°/s, 100°/s²; roll 110°/s, 320°/s² |
+| Drag areas | forward 2.6 m², side 6.5, top 9.0; turning damped 0.6 /s at sea level |
+| Skids | k = 270 kN/m, c = 24 kN·s/m per pad, 12 cm of travel, friction 0.55 |
+| Hull, fuel, cargo | 750; 500 lamp oil; 12 slots |
+| Measured (`ShipTests`) | hovers on 49 % of its lift; 0 to 150 m/s in 7.5 s; from 160 m/s to a stop with flight assist in 8.4 s and 593 m; with it off, 160 → 127 m/s in 3 s of drag; a 15 m/s sink caught in 1.6 s and 11.5 m; lands and sleeps on 0°, 15° and 24° slopes (up within 1.2° of the ground's normal), slides off 40°; dropped from 1.5 m (3.9 m/s) unhurt, from 6 m (7.8 m/s) 8 hull, from 40 m (26 m/s) wrecked |
+
+**Building one.** The vehicle workbench is a deployable (1,000 health, made at workbench 2 from 800 metal fragments, 40
+refined metal and 300 wood). The Tin Finch's recipe names it as its `station`: the job starts only within crafting reach
+of one (`NeedsStation`), remembers which, and when it is done the ship rolls out onto the bench's bay (4.6 m in front of
+it), never into an inventory. While the bay isn't clear (a box, a tree, a character, another ship, ground over 20°) the
+unit waits, asks again every second and tells its builder once. The recipe's lamp oil is its first tank.
+
+**Boarding.** The hatch opens and shuts in a second (the model's clip); it opens only while the ship is still (landed,
+or slower than 2.5 m/s within 3.5 m of the ground). Boarding needs the hatch open, the seat free and reach of the
+hatch; the hatch shuts behind the pilot. The pilot's character is seated (`Stance.Seated`): it doesn't move by itself,
+the seat carries it, and it is out of the hit history (shots hit the hull). Stepping out needs the ship still; the pilot
+stands at the first clear exit (the hatch's side, the other side, behind, in front), and the hatch opens. A **lock**
+(the owner's toggle) keeps everyone else out of the hatch, the seat and the cargo. **Fuel** goes in at the fuel cap,
+the hatch or from the seat: as much of the player's lamp oil as fits. The **cargo** (12 slots) opens like a box at the
+hatch or from the seat.
+
+**Without a pilot** a ship's engines are off: it rests on its skids, or falls if it was left in the air. A parked ship
+(asleep, nobody in the seat) is a static Jolt body of its hull, from `PhysicsWorld.FirstShipBody` on, so characters walk
+into it; a flown one isn't. A pilot who logs off stays in the seat; the engines then hold the ship where it was, with
+flight assist and no input, until the fuel runs out.
+
+**Damage** goes through the zone's hooks: a swing, an arrow or a bullet that meets the hull (the six boxes, as the ship
+is now: ships aren't rewound like characters) does its damage times the hull's share for the kind (melee 0.25, arrows
+0.1, bullets 0.5, explosives 1: `Zone.DamageShip`). G5's blasts reach hulls too (`Zone.BlastShips`): a hull within a
+blast's radius that it sees takes the blast's damage to deployables with the falloff, the one a rocket hit or a charge
+is stuck to whole (a rocket 1.9 m from the hull takes 178 of the 750; two timed charges on it destroy it); the pilot
+is the cabin's to shelter and takes nothing from the blast itself. At 0 the ship is destroyed: the pilot dies
+in it (killed by whoever hurt it last), and a wreck (a corpse anyone may loot, for 300 s) holds the cargo, half the fuel
+and 300 metal fragments and 20 refined metal. The burning hull stays two seconds for everyone to see, then goes.
+
+**Orbit.** Above the ceiling (15 km over the mean radius; the zone is at most 20 km) the ship reaches orbit: it leaves
+the physics and parks at its orbit marker over the spot it left, the pilot still in the seat. **Descend** brings it back
+250 m under the ceiling over the same spot, level, falling at 40 m/s with flight assist on. The seam for the space layer
+(G8, ARCHITECTURE.md §12): `Zone.OrbitTransfer`, asked first; a handler that takes the ship and its pilot to local space
+returns true, and the parking above is what happens without one.
+
+**Network** (protocol 8, `Messages.cs` 120; `Replication/DeltaChannel.cs`, `GameServer.Ships.cs`, `GameClient.Ships.cs`,
+`ShipPredictor.cs`, `RemoteShip.cs`, `LocalPlayer.Ships.cs`):
+- **Controls** ride in every tick's input while flying (`ShipControls`: stick, throttle lever, strafe and up/down in
+  1/127, boost and flight assist; one bit on foot), and the pilot's client predicts its ship with exactly what the
+  server will apply, as it does its character.
+- **Snapshots** carry ships in a section of their own after the characters (`ShipNetState`: the centre of mass on the
+  1/256 m grid, yaw, pitch and roll in 1/65,536 turn, flags, the hatch, the thrust on each axis, the hull and the kind),
+  each delta-coded against its newest state the client confirmed, with its own priorities, within 35 % of the
+  snapshot's budget. Ships are relevant within 2 km (horizontally): `Spawn` with `EntityKind.Ship`, `Despawn`.
+  (The replication became generic over the state type for this: characters and ships are two `DeltaChannel`s
+  sharing the snapshots' sequence and acknowledgements.)
+- **The pilot's ship exactly** rides in the header (`OwnShipState`) for reconciliation: `ShipPredictor` keeps 4 s of
+  states, replays newer inputs from the server's after a mismatch, and parks in orbit as the zone does; the seated
+  character's prediction puts it at the predicted seat (`Predictor.Seat`), so it matches too.
+- **Everyone else** sees ships interpolated 100 ms behind (`RemoteShip`: the turn by slerp), with the hatch, the flags
+  (piloted, landed, engines, boost, flight assist off, locked, in orbit, wrecked, asleep) and the thrust for the glow.
+  Parked ships are static bodies in the client's own prediction physics too.
+- **Intents** (`ShipIntent`: hatch, board, exit, lock, refuel, descend; the general budget, answered by `IntentResult`).
+  The cargo opens with `OpenIntent` on the ship's ID; `LootState` and the container messages carry it like a box.
+  `GameClient.AimShip` says what the interact key would do at a ship (open or shut the hatch, board, refuel, open the
+  cargo); `Interact` does it.
+- The server's admin gives a player a ship (`ship <name>`: beside them, full, theirs, the hatch open);
+  `ServerOptions.ShipOnJoin` gives every new character one (the load test).
+
+**Storage** (schema 5, `ShipCodec`): a row per ship in a `ships` table (step 4 → 5), written with the whole zone every
+30 s, at shutdown and within a second of a death: its kind, owner and lock, its centre of mass, turn and velocity in the
+**body frame** (so it stays where it was on the planet whatever zone frame comes next), hull, fuel, boost timers,
+flags, hatch, pilot, orbit marker and cargo (stacks in G4's form: a gun keeps its magazine). At start the ships come back
+before anyone joins; a pilot (a sleeper) goes back into the seat, and wakes there on logging in. A wrecked ship's row
+goes. Decoding treats the bytes as untrusted (a kind the game lost gives nothing; numbers that aren't are made sane).
+
+**Bots** (`--script fly`, `tools/Hollow.Bots/FlyBrain.cs`): each joins with a Tin Finch beside it (`ShipOnJoin`),
+walks round to its hatch, boards through the intent and flies loops a few hundred metres across, between 50 and 200 m
+over the ground, boosting now and then and turning home past 900 m. Measured on the owner's PC (13 October 2026), 20
+flying bots, 40 s after a 15 s warm-up, on the first world's own ground since the integration (and, for comparison, on
+the stand-in ground with `--stand-in`, as before it):
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly
+```
+
+| 20 bots flying | The planet's own ground | The stand-in ground |
+|---|---|---|
+| Server tick, average / 99th percentile | 5.6 ms / 44 ms (26 ticks over 33 ms in 40 s) | 2.3 ms / 10.6 ms (one) |
+| Ships stepped | 0.96 ms a tick, 48 µs a ship step (a ship high up costs about 6 µs; one within the near band about 60: two substeps of four skid rays, a sweep and an overlap) | 1.01 ms a tick, 51 µs a step |
+| What the physics holds | 750 ground tiles, 28,700 trees, rocks and bushes | 750 tiles, 9,700 stand-ins |
+| Bandwidth per client, down / up | 59 kbit/s (20 ships in view) / 26 kbit/s | 60 / 26 |
+| Prediction | inputs 99.9 % on their tick; one correction | none |
+
+The ships themselves stay cheap; what the planet's ground costs is the ground the ships stream as they roam: each keeps
+the tiles a second ahead of it, and for ten seconds behind, with the planet's trees in them, and Jolt's broadphase is
+rebuilt after every 64 bodies that come or go (the integration's `PhysicsWorld.OptimizeBroadPhase`): with 30,000 bodies
+that was every third tick at 5.6 ms (2 ms a tick, the longest 26 ms), and tiles built when one wasn't ready in time
+make the rest of the spikes. Runs while other agents' load tests shared the PC measured up to twice these averages.
+Making streamed ground cheaper for fast movers (coarser collision and no trees far under a ship, fewer tiles kept
+behind it, a rebuild that scales with the world) is the next step for whoever takes the server's performance.
+
+What the flying bots found, fixed here: the near-ground band was a second's travel deep (a ship cruising at 150 m
+counted as near and swept the ground every tick), now a quarter second's; the prefetch built 25 tiles round the point a
+second ahead, now 9 (a sweep needs no more), so 20 ships keep about 780 tiles of the planet's ground instead of 970; and
+Jolt's broadphase was never rebuilt (a ray took 5 µs instead of 0.7): found here and by the integration at the same
+time, the merge keeps the integration's rebuild, which parked ships' bodies now count toward. The load test now
+reports the rebuilds.
+
+**The viewer** (`game/scripts/Ships`, presentation only; the host hands it the ship's pose and flags each frame):
+- `ShipView` draws a ship from the catalogue model (`tin-finch`: three levels of detail switching at 60 and 160 m).
+  The hatch swings by sampling the model's own `Hatch_Open` clip at the hatch's progress. Every nozzle in ships.json
+  has a plume (a quad turned about its axis to face the camera) and a glow at its mouth (`ship_exhaust.gdshader`,
+  additive, unlit): the main engine and the two side exhausts grow with forward thrust, the four lift nozzles with up
+  thrust, the two small side thrusters with sideways, braking and down thrust; their length goes as the square root of
+  the thrust, smoothed over 70 ms; a running engine keeps a pilot light; boosting turns the gas blue-white. Plumes and
+  lamps are scaled by the camera's exposure so they read alike by day and night (S15). Nav lights (red on the left pod,
+  green on the right, a white beacon on the spine) and a landing light under the nose burn while the engines run; the
+  lift nozzles light the ground below; the lamps' material is the ship's own, bright with the engines, dim parked.
+- `ShipCamera`: the **cockpit** camera at the model's pilot-camera socket, 4° below the nose line; the **chase** camera
+  12.5 m behind and 3.4 m above, following the heading and half the climb but not the roll, swinging after the ship in
+  turns (its offset is smoothed, never its position, so it never falls behind at 260 m/s) and staying 1.6 m over the
+  ground. V switches them.
+- `ShipControls` (S14): the mouse is a virtual stick that springs back to the middle (a turn follows how fast the mouse
+  moves; the arrows are a keyboard stick); W/S move a throttle lever that stays where it is put (X: zero); A/D slide,
+  Space/C rise and sink, Q/E roll, Shift boosts, Z switches flight assist. In the seat F steps out, H works the hatch, L
+  the lock, J descends from orbit; on foot E opens the hatch and boards.
+- `ShipHud`, in the ground interface's style and design canvas (§8): speed, height over the ground and climb at the
+  bottom with the heading above them; the throttle lever on the left with the speed flight assist will hold; fuel and
+  hull where the vitals sit, with flight assist, boost (time left, or cooling), landed (or "too steep") and orbit stacked
+  above; the stick and a crosshair in the middle; warnings at the top (pull up when the ground is under 4 s away, hull
+  critical, low fuel, the distance to orbit in the last 3 km); the key under the crosshair (step out, descend).
+- **The sandbox** (`--view ship`, `ShipSandbox`): a local zone on the first world's own ground and nature (its trees
+  and rocks are solid where they are drawn; S16), drawn by the integration's driven `SurfaceView` (`OpenZone`: render
+  coordinates are the zone's), with the same rules the server runs, on the play clock (24 × the planet's day; `--hour`
+  picks the hour, half past nine by default). You stand beside your Tin Finch, parked on the bay of a vehicle workbench
+  in the flattest open spot within 90 m of the landing site that nothing of the planet's stands in.
+  `--scene pad|hover|forest|cockpit|slope|ceiling` sets up the pictures below (screenshots hold the scene's camera and
+  pause the zone); `--tour` plays the whole loop through the same keys a player presses and prints what happened.
+
+| Picture (`docs/images/ground/ship/`) | |
+|---|---|
+| `pad.png` | On foot by the ship on the workbench's bay, the hatch open |
+| `hover.png` | Hovering 8 m over the pad under flight assist: the lift nozzles carry 49 % |
+| `forest.png` | The chase camera over the forest at 95 m/s, 58 m up, with the HUD |
+| `cockpit.png` | The cockpit at 55 m/s over the forest edge |
+| `slope.png` | Landed on a 15° hillside (the planet's own slope, found by the scene), leaning 15.5° with it |
+| `ceiling.png` | 14.4 km up, climbing for the ceiling: "orbit in 570 m" |
+
+`--tour`, measured (13 October 2026): walked to the hatch in 0.8 s and opened it in 1.0 s; boarded; 3 s of "up"
+lifted it to 61 m; 0.6 s of W set the lever to three quarters and in 6 s it reached 120 m/s, climbing over a hill
+when the ground came within 45 m; a turn with a boost touched 166 m/s; X and flight assist stopped it from 163 m/s
+in 9.0 s and 761 m (sliding through the turn: at speed a yaw turn outruns the 45 kN of side thrust, as in Elite); held
+"down" sank 46 m in 6.8 s, the landing assist slowing it to touch down at 1.9 m/s with no hull lost on ground
+sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The zone's tick in the client took under
+0.2 ms.
+
+| Test | What it shows |
+|---|---|
+| `ShipPersistenceTests.AShipAndItsPilotSurviveARestart` | A locked, damaged, part-fuelled ship with a loaded rifle and metal in its cargo and Ada in the seat comes back the same (0.3 mm off, the same turn); Ada sleeps in the seat, logs in there and flies it; after it is wrecked its row is gone |
+| `ShipNetTests.PredictionMatchesTheServer` | 900 ticks of a recorded flight (lift-off, a turn, boost, flight assist off, pitch, roll, strafe, a landing with the stick moving), the client's predictors on their own ground and trees against the zone: 0 ship ticks and 0 character ticks differ |
+| `ShipNetTests.OthersSeeItFly` | Over loopback: Ada boards the ship the server gave her through the intent, climbs and flies; Bo sees it 28 m up at 45 m/s, piloted, engines on; Ada's prediction is never corrected |
+| `ShipTests` (four) and `ShipGameTests` (three) | Hovering under flight assist, its braking, landing on slopes, crash damage; boarding and stepping out, the lock, building at the workbench, weapons, G5's blasts (a rocket beside the hull, charges stuck to it, the pilot sheltered) and the wreck (the numbers in the table above) |
+
+**The ground mode's hookup** (after this package; `scripts/Ground` is the integration's):
+1. Draw every `GameClient.Ships` with a `ShipView`: the pivot from `RemoteShip.Origin` and `Rotation`, `Hatch`,
+   `Thrust` and the flags; the pilot's own from `OwnShipRenderPosition`/`OwnShipRenderRotation` with `OwnShip`'s thrust
+   and flags. Set `ShipView.Exposure` from the sky each frame.
+2. While `GameClient.Piloting`: `ShipControls.Read` into `InputFrame.Ship` each tick (mouse motion to
+   `ShipControls.Mouse`, Z and X to `ShipControls.Key`), the camera from `ShipCamera.Follow` on the predicted state, and
+   `ShipHud` in place of the belt and crosshair (fill `ShipHudData` as `ShipSandbox.FillHud` does); hide the viewmodel
+   and the local body; F `Local.ExitShip()`, H `Local.ShipHatch`, L `Local.LockShip`, J `Local.Descend()`.
+3. On foot: `GameClient.AimShip(eye, direction)` for the prompt under the crosshair, E `Interact` (hatch, board, refuel,
+   cargo, which opens with the box screen); `IntentResult` refusals and `Notice` events as toasts.
+4. Other pilots: a seated character (`Stance.Seated`) drawn sitting at the seat socket, or hidden.
+5. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
+   `ShipEventKind.Destroyed`.
+
 ### 6.8 World: economy, progression, teams, the map (G7, part A)
 
 Rust's progression and social layer: salvage (our scrap) from barrels and crates, the recycler, tech trees and research
@@ -1965,7 +2254,7 @@ the server, network, storage and client API follow G2's patterns; the interface'
 | Numbers | `game/data/ground/world.json` (currency, props, recycler, recycle lists, research, tech trees, loot spots, recyclers, teams, map); items 150–171 in `items.json`; `recipes.json`; the world's tables in `loot.json`; the research table in `deployables.json` |
 | Rules | `Content/World.cs` (reader and checks), `Nature/LootSpots.cs` (where props stand), `Economy/Rules.cs` (recycling, research, tech trees), `Items/Blueprints.cs`, `Teams/TeamRegistry.cs`, `Players/MapMarker.cs`, `World/WorldObjects.cs` (`WorldProp`), `Zone.World.cs` |
 | Server | `GameServer.World.cs` (intents, each player's own world state, teammates' positions, team chat, saving, admin `learn` and `world`) |
-| Storage | schema 5: `teams`, `prop_overrides` (`GameDatabase.cs`); `TeamCodec`; `WorldCodec` player records version 4 (blueprints, markers, last death) and `EncodeProp` |
+| Storage | schema 6: `teams`, `prop_overrides` (`GameDatabase.cs`); `TeamCodec`; `WorldCodec` player records version 4 (blueprints, markers, last death) and `EncodeProp` |
 | Client | `LocalPlayer.World.cs`, `GameClient.World.cs`, `Map/ZoneMap.cs` (the map and its picture) |
 | Tests | `tests/Hollow.Tests/WorldTests.cs`, `WorldNetTests.cs` (`dotnet run --project tests/Hollow.Tests -- World`) |
 
@@ -2045,7 +2334,7 @@ a body, and are saved in `teams`.
 to 24 characters; one taken off, or all. The map also shows where the player died last and their sleeping bags and beds;
 all of it is the player's own, saved with the character.
 
-**Network** (protocol 8, `Messages.cs` 130–145):
+**Network** (protocol 9, `Messages.cs` 130–145):
 - *Intents* (the general sequence and budget, answered by `IntentResult`): `UnlockIntent` (a node's recipe),
   `TeamIntent` (create; invite a player; accept or decline a team's invite; leave; kick or promote a member),
   `MarkerIntent` (place, or take off by index, −1 all). Using a blueprint is G2's `UseIntent`, a recycler's switch and a
@@ -2060,10 +2349,11 @@ all of it is the player's own, saved with the character.
   `TeamPositions` (unreliable, twice a second, the newest wins). Team chat: `TeamChatSend` up, `ChatLine` of kind `Team`
   down.
 
-**Storage** (schema 5): `teams` (a row per team: its leader and members, `TeamCodec`) and `prop_overrides` (per body and
-spot: gone until a time, or health, slots and running, `WorldCodec.EncodeProp`), written when changed, deleted when back
-to as generated. Characters' records (version 4) add the blueprints learnt, the markers and the last death's point;
-decoding keeps only recipes the game has and doesn't teach everyone, and a blueprint item of nothing is dropped.
+**Storage** (schema 6, step 5 → 6 after the ships' 4 → 5): `teams` (a row per team: its leader and members, `TeamCodec`)
+and `prop_overrides` (per body and spot: gone until a time, or health, slots and running, `WorldCodec.EncodeProp`),
+written when changed, deleted when back to as generated. Characters' records (version 4) add the blueprints learnt, the
+markers and the last death's point; decoding keeps only recipes the game has and doesn't teach everyone, and a blueprint
+item of nothing is dropped.
 
 **The client API** (`Hollow.Client`):
 
@@ -2111,7 +2401,7 @@ numbered from the north, as Rust's) and every label are drawn by the interface, 
   `sewing-kit`, `tech-scrap`, `metal-blade`, `sheet-metal`, `sign-plate`, `receiver`, `rifle-frame`), `torn-schematic`,
   `sealed-schematic`, `blueprint` and `research-table` (flat placeholders in `ItemIcons` until then).
 
-**Bots and the load test**: `WorldBrain` and `loadtest --script world` (§5.8).
+**Bots and the load test**: `WorldBrain` and `loadtest --script world` (§5.9).
 
 ---
 
@@ -2586,6 +2876,7 @@ first use, or `FxDirector.Install(parent)`):
 | `FxDirector.CameraShake(cameraPosition)` | The camera's offset this frame (pitch, yaw, roll in radians): add it to the camera like the gun's `ViewKick`, never to the view the player controls. `FxDirector.Shaken` fires when a shake starts. |
 | `FxDirector.ViewmodelToWorld(point)` | Where a point of the view model appears in the world's projection |
 | `FxSurfaces.Of(GroundMaterial)`, `FxSurfaces.OfGrade(grade)` | The surface of a ground material or a building grade |
+| `FxDirector.Brightness`, `FxDirector.HeatHaze` | What every effect's light is multiplied by (fx.json is seen at exposure 1 under a sun of 1.3: the ground game sets 1.3 ÷ its camera's exposure, §11 82); heat haze on or off (off in the ground game, §11 83) |
 
 **Hook-up list** (the integration package wires these; the library does nothing by itself):
 
@@ -2610,6 +2901,29 @@ first use, or `FxDirector.Install(parent)`):
 | A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
 | A step on sand (footsteps) | `world.footstep.sand` |
 | Every frame | the camera: rotation += `FxDirector.CameraShake(camera position)` |
+
+**Hooked up in the game** (pass 3):
+- *Shots:* `FirstPersonView.OnShot` plays `Muzzle(GunEffects.MuzzleKey(gun, its attachments), the muzzle of the gun the
+  arms hold (past a silencer or brake), first person)`; `PeopleView.Shot` the same on the gun in the other player's hands,
+  and the launcher's `backblast.rocket` out of `socket_exhaust`. `ThingsView` launches a tracer when `WantsTracer`
+  (`tracer.incendiary` for incendiary rounds) from where the gun is drawn, along the bullet's velocity, gravity and drag,
+  ends it where the bullet stopped and plays the hit: `GunEffects.SurfaceOf` takes the ground's material there
+  (`GroundAudio.MaterialAt`), a natural object's class (tree wood, bush grass, outcrop and boulder rock), the deployable
+  hit (wood, a furnace's stone, the metal workbenches), a building piece's grade or a door (wood or metal), water, or a
+  body (`impact.bullet.flesh`, the blood hit); `impact.incendiary` for incendiary rounds. Arrows fly with `trail.arrow` and
+  hit alike.
+- *Blood:* a hit on another player bleeds (`blood.hit` on the chest along their facing) unless a bullet's blood showed
+  there just now; while the player bleeds, `blood.drip` falls under them every 1.5 s.
+- *Gathering* (`NatureView`): `gather.wood`, `gather.rock` or `gather.sparks` (metal and sulphur ore) where the tool bit,
+  on the side towards the player; `gather.weakspot` when the weak spot moves; `gather.node-break` when an outcrop breaks a
+  stage (smaller) or is used up; `gather.tree-fall` along the trunk where a felled tree lands.
+- *Fires:* `ThingsView` starts `fire.campfire` or `fire.furnace` at the model's `socket_fire` while it is lit (the loop
+  outlives the model's rebuilds); a torch in hand burns with `fire.torch` on its `socket_flame` (first person with the
+  arms; for others on their torch).
+- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades, collapses and doors in
+  `BuildView` (§6.5); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
+  place and installs the director with the view.
+- *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`.
 
 **The effects** (`fx.json`; each has an `about` line there):
 
@@ -3098,16 +3412,84 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     snapshot), for everyone's hits alike, so one's own hit sounds a round trip after the swing; a burst of more than 20
     changes at once is an area coming into range and is silent. A deployable that appears within 25 m once the world
     is in was just placed.
-77. **A muzzle flash is drawn over the gun** (no depth test) for two drawn frames: the arms are drawn over the world,
-    so a flash at the very muzzle would hide behind the barrel. Aimed down the sights, one's own tracer is seen almost
-    end-on, as in life.
-78. **What the character contract can't show yet is left out** rather than drawn around it: attachments on guns in
-    hand, others' aiming pose, crawling (the wounded crouch), sleepers' pose (75). The character package's views would
-    need an attachment list for `Hold`, an aiming flag and a crawling stance.
+77. **One's own tracer leaves where the arms show the muzzle** (`FxDirector.ViewmodelToWorld`), parallel to the
+    bullet's path a hand's breadth off it, and stops where the bullet stopped; the muzzle effect is drawn with the arms
+    (their render layer and field of view). Aimed down the sights, one's own tracer is seen almost end-on, as in life.
+78. **What the character contract can't show yet is left out** rather than drawn around it: others' aiming pose,
+    crawling (the wounded crouch), sleepers' pose (75). The character package's views would need an aiming flag and a
+    crawling stance.
 79. **Jolt's broadphase is rebuilt after bodies change** (`PhysicsWorld.OptimizeBroadPhase`: at most twice a second,
     sooner after 64 changes), since the zone never runs Jolt's update that would do it (§5.5).
 80. **Spare bodies**: four of each body are built while the world opens, and players leaving range give theirs back
     (kept up to eight of each), so coming back into view costs no frame.
+81. **A timed charge blinks; fuses sputter** (Rust's way): the timed charge carries a red lamp that blinks and beeps
+    faster as its fuse runs down; a bag charge and a tin grenade show their burning fuse and hiss instead, with no lamp.
+82. **The effects follow the camera's exposure** (`FxDirector.Brightness` = 1.3 ÷ exposure): fx.json's numbers are seen
+    in its viewer at exposure 1 under a sun of 1.3, and the planet's camera meters about three times that by day and
+    thousands of times by night; so a blast or a fire looks as bright by day as by night, like everything that glows.
+83. **No heat haze in the ground game** (`FxDirector.HeatHaze = false`): the haze draws the screen behind it bent, and
+    in the ground game that copy of the screen reads black around trees and the edges of buildings (not in the effects
+    viewer). Off until the effects package finds why.
+84. **An explosive's cooldown also holds on the client** (1 s for charges, 0.8 s for grenades): a click sooner does
+    nothing, rather than send a throw the server refuses and take the item back.
+85. **Attachments and sockets are found on the held model in the views' trees** (the arms' item node is named by its
+    model, `ViewmodelView.Model.Id`; `CharacterView.HeldModel`): the muzzle, the torch's flame and the attachments
+    mount there, outside the contract of §4.8, until the character package offers a held model and its sockets.
+    Aiming down the sights still looks along the gun's own sights: a holo sight or a scope is drawn but its eye
+    point isn't used yet (Rust raises the sight line to it).
+86. **Attaching is a drop and detaching a button** (cheaper than Rust's attachment slots in the item panel): an
+    attachment dropped on a gun goes onto it; the gun's panel lists REMOVE <PART> for each one.
+
+
+Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn (numbered S1 on):
+
+- S1. **Our own six-degree integrator, not a Jolt rigid body.** A ship's step is a pure function of its state, its
+  pilot's input and the static world, so the pilot's client rewinds and replays it exactly, as it does its character;
+  Jolt's solver keeps contact caches between steps and steps every body together, which a replay can't reproduce. Jolt
+  answers the queries (the skids' rays, the hull's sweeps and overlaps).
+- S2. **A thrust-borne skiff in thick air:** no wings or lift; the first world's 2.23 atmospheres drag it (the density
+  falls off with height), so with flight assist off it coasts down from 160 to 127 m/s in 3 s. Flight assist holds up to
+  160 m/s, boost 260 (a little over Elite's small ships' 220 and 320 would be too fast this low).
+- S3. **Lamp oil is ship fuel** (our low-grade fuel), as Rust's helicopters burn low-grade fuel: a 500-unit tank, 0.1 a
+  second idling to 0.9 at full thrust, twice that boosting (about 9 to 80 minutes of flying a tank).
+- S4. **Ships are built, not carried:** the vehicle workbench builds the Tin Finch onto its bay, never into an inventory
+  (Rust's helicopters stand on a vendor's pad); a finished one waits while the bay is blocked.
+- S5. **The hull:** Rust's minicopter's 750; melee does a quarter of its damage, arrows a tenth, bullets half, explosives
+  all. Ships aren't rewound for hits as characters are (shooters lead them by their ping), and the pilot sits out of
+  the hit history: the cabin takes the shots.
+- S6. **Only a still ship opens its hatch or lets its pilot out** (landed, or under 2.5 m/s within 3.5 m of the ground).
+  There is no ejecting yet. A pilot who logs off stays in the seat and the engines hold the ship where it is.
+- S7. **Orbit is a parked marker until G8:** above 15 km over the mean radius the ship leaves the physics and waits over
+  where it left; Descend brings it back 250 m under the ceiling over the same spot. `Zone.OrbitTransfer` is the seam for
+  the space layer.
+- S8. **The zone's edge holds ships** inside a ±7.8 km square, where the ground's tiles end, until zones follow players
+  (G8): "the other side of the planet" in G6's "done when" needs that, or a hop through orbit.
+- S9. **Flying ships don't collide with characters** (as characters don't with each other, §11 7); a parked ship is a
+  static body everyone walks into.
+- S10. **Crashes:** impacts over 6 m/s cost (speed − 6)² × 2.5 of the hull (a 7.8 m/s drop costs 8, 26 m/s wrecks it); the
+  pilot takes a tenth and is never knocked down in the seat; a pilot in a destroyed ship dies.
+- S11. **Landing:** three pads carrying the ship with nothing asked of the controls idle the engines; it counts as landed
+  on ground up to 25°, and the pads' friction (0.55) holds it up to 29°.
+- S12. **Numbers taken in shared spaces:** protocol 8, `ShipIntent` 120, schema step 4 → 5 (`ships`), `ActionResult`
+  19–23 (needs a station, locked, occupied, not landed, hatch shut), `HitTarget.Ship` 6, physics bodies from
+  `PhysicsWorld.FirstShipBody` (1,024 of them). Whichever branch merges second takes the next free protocol number and
+  schema step (the step's SQL stands alone).
+- S13. **Ships are relevant within 2 km and get up to 35 % of a snapshot's budget** (characters the rest; a 6 m ship
+  2 km away is about ten pixels across at 1600 × 900).
+- S14. **The pilot's keys** are Elite's habits on our ground keys: the mouse turns (pitch and yaw, the owner's own
+  binding; a stick that springs back rather than a pointer to fly toward), Q/E roll, W/S a throttle lever that stays put,
+  A/D and Space/C the thrusters, Shift boost, Z flight assist; E stays the interact key on foot, so in the seat F steps
+  out.
+- S15. **Plumes, lamps and ship lights are scaled by the camera's exposure** (brightness over exposure), not lit
+  physically: a thruster reads as a thruster at noon, and doesn't blind at night.
+- S16. **The ship sandbox is a local zone with the server's rules** on the planet's own ground and nature, drawn by the
+  integration's driven surface view, not a hosted game: it starts in seconds and its scenes set any state. Its scenes
+  look for their spots (a flat clearing, a hillside near 19°, the thickest forest) on the planet and check them clear
+  of the planet's trees and rocks.
+- S17. **The cameras:** the cockpit is the model's pilot-camera socket, looking 4° down; the chase camera follows the
+  heading and half the climb, not the roll (rolling into a turn tilts the ship, not the world).
+- S18. **A pilot's ground is the ship's business:** the zone's ground pass skips seated characters (a pilot at 150 m
+  needs no tiles under it; the ship asks for them when it nears the ground), and a blast leaves a pilot to the cabin.
 
 Decisions taken during G7's part A (step "World": economy, progression, teams, the map; §6.8) without the owner, to
 confirm or overturn (numbered W1 on):
@@ -3157,3 +3539,9 @@ confirm or overturn (numbered W1 on):
   metal components, fibre for rope, cloth and the sewing kit, the building plan for schematics and blueprints, the
   engineering workbench for the research table; box sounds for crates and the recycler's lid, the furnace's for its
   motor, metal impacts for barrels, the crafting clicks for research.
+- W15. **Numbers taken in shared spaces** (G7 merged after G6, so it took the next ones, as S12 asks): protocol 9,
+  messages 130–133 (intents) and 140–145 (state), schema step 5 → 6 (`teams`, `prop_overrides`), player records version
+  4, `ActionResult` 24–29 (already known, in a team, not the leader, team full, no team, can't start) with `Locked` (20)
+  shared with the ship's, `ChatKind.Team`, `StaticKind.Prop`, item IDs 150–171, categories `components` (before the
+  ships' `vehicles`), and `world.json` read after `ships.json`.
+

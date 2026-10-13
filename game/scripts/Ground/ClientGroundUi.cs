@@ -103,10 +103,16 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         get
         {
             VitalsView v = Me.Vitals;
-            if (v != _vitalsFrom)
+            Privilege rights = Build?.PrivilegeHere() switch
+            {
+                Hollow.Simulation.Building.Privilege.Allowed => Privilege.Allowed,
+                Hollow.Simulation.Building.Privilege.Blocked => Privilege.Blocked,
+                _ => Privilege.None,
+            };
+            if (v != _vitalsFrom || rights != _vitals.Building)
             {
                 _vitalsFrom = v;
-                _vitals = new UiVitals(v.Health, v.Calories, v.Hydration, v.Temperature, v.Comfort ? 1 : 0, v.IsBleeding ? 1 : 0, v.Wet ? 1 : 0);
+                _vitals = new UiVitals(v.Health, v.Calories, v.Hydration, v.Temperature, v.Comfort ? 1 : 0, v.IsBleeding ? 1 : 0, v.Wet ? 1 : 0, rights);
             }
             return _vitals;
         }
@@ -157,7 +163,12 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
                     string name = _client.Entities.FirstOrDefault(e => e.Id == Me.LootTarget)?.Name ?? "SLEEPER";
                     return new LootView(UiContainerKind.Corpse, name, LootSlots());
                 default:
-                    return new LootView(UiContainerKind.Box, (thing?.Deployable(C)?.Item.Name ?? "Box").ToUpperInvariant(), LootSlots());
+                {
+                    // The claim device's upkeep store opens like a box (GROUND.md §6.5).
+                    bool claim = thing == null && _client.Building?.Claims.Any(c => c.Id == Me.LootTarget) == true;
+                    string title = claim ? C.Building.ClaimName : thing?.Deployable(C)?.Item.Name ?? "Box";
+                    return new LootView(UiContainerKind.Box, title.ToUpperInvariant(), LootSlots());
+                }
             }
         }
     }
@@ -225,11 +236,20 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    public WheelKind? HeldWheel => null;
+    /// <summary>The building in the game (wheels, building rights), set by the ground view.</summary>
+    public BuildView? Build { get; set; }
 
-    public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) => Array.Empty<WheelChoice>();
+    public WheelKind? HeldWheel => Build?.Held switch
+    {
+        Hollow.Simulation.Content.BuildingRole.Plan => WheelKind.Plan,
+        Hollow.Simulation.Content.BuildingRole.Hammer => WheelKind.Hammer,
+        _ => null,
+    };
 
-    public int WheelCurrent(WheelKind kind) => -1;
+    public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) =>
+        Build == null ? Array.Empty<WheelChoice>() : kind == WheelKind.Plan ? Build.PlanChoices() : Build.HammerChoices();
+
+    public int WheelCurrent(WheelKind kind) => kind == WheelKind.Plan && Build != null ? Build.PlanPiece : -1;
 
     // ---------------------------------------------------------------- events
 
@@ -328,8 +348,38 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         {
             return;
         }
+        // An attachment dropped on a gun goes onto it (Rust's attachment slots, in one drop).
+        if (Own(a, i) is { } part && C.Item(part.Item)?.Attachment != null && Own(b, j) is { } gun && C.Item(gun.Item)?.Firearm != null)
+        {
+            Me.Attach(a, i, b, j);
+            return;
+        }
         Me.MoveItem(a, i, b, j, amount);
     }
+
+    /// <summary>A gun's attachments, each to take off (back into the inventory).</summary>
+    public IReadOnlyList<(string Label, Action Act)> MoreActions(SlotRef slot)
+    {
+        if (Resolve(slot) is not var (c, i) || Own(c, i) is not { } stack || C.Item(stack.Item)?.Firearm == null)
+        {
+            return Array.Empty<(string, Action)>();
+        }
+        var actions = new List<(string Label, Action Act)>();
+        foreach (Hollow.Simulation.Content.AttachmentSlot mod in Hollow.Simulation.Combat.GunMods.Slots)
+        {
+            if (stack.Mod(mod) is var id and not 0 && C.Item(id) is { } part)
+            {
+                actions.Add(("REMOVE " + part.Name.ToUpperInvariant(), () => Me.Detach(c, i, mod)));
+            }
+        }
+        return actions;
+    }
+
+    // A stack in one of the player's own containers (main, belt, clothing), if there is one there.
+    private Hollow.Simulation.Items.ItemStack? Own(ContainerRef container, int index) =>
+        container is ContainerRef.Main or ContainerRef.Belt or ContainerRef.Wear && index >= 0 && index < Me.Inventory[container].Size && !Me.Inventory[container][index].IsEmpty
+            ? Me.Inventory[container][index]
+            : null;
 
     public void Split(SlotRef slot, int amount)
     {
@@ -400,9 +450,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    public void ChooseWheel(WheelKind kind, int index)
-    {
-    }
+    public void ChooseWheel(WheelKind kind, int index) => Build?.ChooseWheel(kind, index);
 
     public void CloseLoot()
     {

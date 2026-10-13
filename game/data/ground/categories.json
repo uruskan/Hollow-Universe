@@ -10,6 +10,7 @@
     { "key": "food", "name": "Food" },
     { "key": "items", "name": "Items" },
     { "key": "construction", "name": "Construction" },
-    { "key": "components", "name": "Components" }
+    { "key": "components", "name": "Components" },
+    { "key": "vehicles", "name": "Vehicles" }
   ]
 }

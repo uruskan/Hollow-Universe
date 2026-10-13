@@ -1,5 +1,5 @@
 {
-  "source": "Hit points and sizes from hollow-orbit js/game/items.js DEPLOY; slots from Rust (boxes 18 and 48; the furnace's fuel, two inputs and three outputs as RustMVP's interface lays them out); the sleeping bag's 300 s cooldown from RustMVP inventory_survival.md §9 (and Rust), the bed's 120 s from hollow-orbit and Rust. Sizes are half extents in metres (x across, y up, z along). Fuel burn and cooking times are on the items. G7: the research table (Rust's item and scrap slots, and one for the blueprint it makes; what it does is in world.json).",
+  "source": "Hit points and sizes from hollow-orbit js/game/items.js DEPLOY; slots from Rust (boxes 18 and 48; the furnace's fuel, two inputs and three outputs as RustMVP's interface lays them out); the sleeping bag's 300 s cooldown from RustMVP inventory_survival.md §9 (and Rust), the bed's 120 s from hollow-orbit and Rust. Sizes are half extents in metres (x across, y up, z along). Fuel burn and cooking times are on the items. G6 (ours): the vehicle workbench's size from its model (PSG Starter Kit); its 'bay' is where a ship it builds rolls out (in its own frame: x across, z out of its front) and the space that must be clear there. G7: the research table (Rust's item and scrap slots, and one for the blueprint it makes; what it does is in world.json).",
   "placement": { "reach": 3.0, "maxStep": 0.6 },
   "deployables": [
     { "key": "sleeping-bag", "item": "sleeping-bag", "health": 60, "size": [0.45, 0.08, 1.0], "maxSlope": 30, "solid": false,
@@ -17,6 +17,8 @@
     { "key": "workbench-1", "item": "workbench-1", "health": 300, "size": [1.0, 0.5, 0.45], "maxSlope": 20, "workbench": 1 },
     { "key": "workbench-2", "item": "workbench-2", "health": 500, "size": [1.1, 0.7, 0.5], "maxSlope": 20, "workbench": 2 },
     { "key": "workbench-3", "item": "workbench-3", "health": 750, "size": [1.3, 1.0, 0.7], "maxSlope": 20, "workbench": 3 },
+    { "key": "vehicle-workbench", "item": "vehicle-workbench", "health": 1000, "size": [1.2, 1.05, 0.6], "maxSlope": 15,
+      "bay": { "at": [0, 0, 4.6], "clear": [1.7, 3.2, 3.3], "maxSlope": 20 } },
     { "key": "research-table", "item": "research-table", "health": 200, "size": [0.75, 0.45, 0.4], "maxSlope": 20, "slots": 3 }
   ]
 }

@@ -62,11 +62,25 @@ public enum ActionResult : byte
     /// <summary>The item can't be used that way (eating a rock).</summary>
     NotUsable,
 
+    /// <summary>The recipe is made at a station (a vehicle workbench, G6) that isn't within reach.</summary>
+    NeedsStation,
+
+    /// <summary>
+    /// Locked: the ship, which only its owner opens (G6); a tech tree node whose nodes before it aren't known yet (G7).
+    /// </summary>
+    Locked,
+
+    /// <summary>Someone is in the ship's seat already (G6).</summary>
+    Occupied,
+
+    /// <summary>Not while the ship is flying (G6): land first.</summary>
+    NotLanded,
+
+    /// <summary>The ship's hatch is shut (G6): open it first.</summary>
+    HatchShut,
+
     /// <summary>G7: the blueprint is known already (learning or unlocking it again).</summary>
     AlreadyKnown,
-
-    /// <summary>G7: a tech tree node whose nodes before it aren't known yet.</summary>
-    Locked,
 
     /// <summary>G7: the player is in a team already (creating or joining another).</summary>
     InTeam,

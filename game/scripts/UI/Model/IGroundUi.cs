@@ -93,6 +93,10 @@ public interface IGroundUi
     /// <summary>Moves <paramref name="amount"/> of a stack onto another slot: merges, swaps or splits.</summary>
     void Move(SlotRef from, SlotRef to, int amount);
 
+    /// <summary>More of a slot's actions for the item panel, as a label and what it does (a gun's attachments to take
+    /// off); none by default.</summary>
+    IReadOnlyList<(string Label, Action Act)> MoreActions(SlotRef slot) => Array.Empty<(string, Action)>();
+
     /// <summary>Splits <paramref name="amount"/> off a stack into a free slot of the same container.</summary>
     void Split(SlotRef slot, int amount);
 

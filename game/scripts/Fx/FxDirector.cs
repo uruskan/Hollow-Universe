@@ -100,6 +100,27 @@ public partial class FxDirector : Node3D
     /// <summary>Particles a frame may emit before further particle layers are skipped.</summary>
     public int FrameBudget { get; set; } = 1500;
 
+    /// <summary>
+    /// Heat haze: the screen bent over blasts and fires (the haze and haze_rise batches). The ground game turns it off,
+    /// where the screen it bends reads black around trees and buildings (GROUND.md §11). On by default.
+    /// </summary>
+    public static bool HeatHaze { get; set; } = true;
+
+    private static float _brightness = 1f;
+    private float _appliedBrightness = 1f;
+
+    /// <summary>
+    /// Multiplies the light of every effect: flashes, fire, sparks, embers, tracers, flames, glowing scorch marks and the
+    /// effects' lights. The numbers in fx.json are seen at exposure 1 under a sun of 1.3 (the viewer); a game whose camera
+    /// meters the light (the ground game, by day and by night) sets this from its exposure, as it does for glowing
+    /// materials. 1 by default.
+    /// </summary>
+    public static float Brightness
+    {
+        get => _brightness;
+        set => _brightness = Math.Clamp(value, 1e-6f, 1000f);
+    }
+
     /// <summary>Fewer particles with distance from the camera (off in the viewer's contact sheets).</summary>
     public bool DistanceLod { get; set; } = true;
 
@@ -550,7 +571,7 @@ public partial class FxDirector : Node3D
             GD.PushWarning($"FxDirector: no batch '{layer.Batch}'.");
             return;
         }
-        if (OnlyBatch != null && OnlyBatch != layer.Batch)
+        if (OnlyBatch != null && OnlyBatch != layer.Batch || !HeatHaze && layer.Batch.StartsWith("haze", StringComparison.Ordinal))
         {
             return;
         }
@@ -728,12 +749,13 @@ public partial class FxDirector : Node3D
         {
             loop.Flames.GlobalTransform = frame;
             loop.Flames.SetInstanceShaderParameter("fx_strength", loop.Strength);
+            loop.Flames.SetInstanceShaderParameter("fx_brightness", def.FlameBrightness * _brightness);
         }
         if (loop.Light != null)
         {
             float t = (float)_time * 9f + loop.FlickerPhase;
             float flicker = 1f + def.LightFlicker * (0.55f * MathF.Sin(t) + 0.3f * MathF.Sin(t * 2.7f + 1.3f) + 0.15f * MathF.Sin(t * 6.1f + 0.4f));
-            loop.Light.LightEnergy = def.LightEnergy * loop.Strength * flicker;
+            loop.Light.LightEnergy = def.LightEnergy * loop.Strength * flicker * _brightness;
             Vector3 jitter = new Vector3(MathF.Sin(t * 1.3f), MathF.Sin(t * 1.7f + 2f), MathF.Sin(t * 1.1f + 4f)) * (0.02f * def.LightFlicker);
             loop.Light.GlobalPosition = frame * (def.LightOffset + jitter);
         }
@@ -782,7 +804,7 @@ public partial class FxDirector : Node3D
     /// <summary>One particle of a loop's emitter (the layer's count is ignored: the rate decides).</summary>
     private void EmitLoopParticle(FxLayer layer, in Spot spot)
     {
-        if (!_batches.TryGetValue(layer.Batch, out FxBatch? batch))
+        if (!_batches.TryGetValue(layer.Batch, out FxBatch? batch) || !HeatHaze && layer.Batch.StartsWith("haze", StringComparison.Ordinal))
         {
             return;
         }
@@ -853,6 +875,14 @@ public partial class FxDirector : Node3D
         {
             FreeLoop(_loops[id]);
             _loops.Remove(id);
+        }
+        if (MathF.Abs(_brightness - _appliedBrightness) > _appliedBrightness * 0.01f)
+        {
+            _appliedBrightness = _brightness;
+            foreach (FxBatch b in _batches.Values)
+            {
+                b.ApplyBrightness(_brightness);
+            }
         }
         _flashes.Update(_time);
         _lights.Update(_time);
