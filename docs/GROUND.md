@@ -1585,6 +1585,9 @@ work, a spent arrow.
   emptied or when its time is up). Bags are saved with the zone's things (their record's version 3; a stack saved
   alone before comes back as a bag of it). Tests: `SurvivalTests.DroppedItemsArePackedIntoBags` and
   `ABagIsTakenWholeOrOpened`, `SurvivalNetTests.OthersSeeOnlyABag`, and the restart in `EverythingSurvivesARestart`.
+- Pictures (`docs/images/ground/drop/`, the screenshot run's `--tour-steps bags`): `bag.jpg` (five stacks dropped in
+  the meadow, one bag and its prompt), `bag-open.jpg` (opened beside the inventory: one row, take only),
+  `bag-model.jpg` (the model, `--view models --model dropped-bag`).
 
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
 ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
