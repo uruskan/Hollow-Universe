@@ -22,6 +22,7 @@ Encoding is bit-exact (no random Ogg serials, no encoder tags), so rebuilding un
 import concurrent.futures
 import hashlib
 import json
+import math
 import os
 import sys
 import threading
@@ -286,6 +287,11 @@ def write_json(path, data, compact_keys=()):
 def write_levels(levels):
     """One line per file, sorted, so diffs stay readable."""
     os.makedirs(os.path.dirname(LEVELS), exist_ok=True)
+    for v in levels.values():
+        for k, x in v.items():
+            # JSON has no infinity: a silent band (no energy above 10 kHz, say) is -120 dB.
+            if isinstance(x, float) and not math.isfinite(x):
+                v[k] = -120.0 if x < 0 else 120.0
     keys = sorted(levels)
     with open(LEVELS, "w", encoding="utf-8", newline="\n") as f:
         f.write("{\n")
@@ -360,7 +366,7 @@ def main(argv):
         if failures:
             print("%d failed" % len(failures))
             return 1
-    write_catalogue(catalogue)
+    write_catalogue(catalogue, events.ITEMS)
     changed = fix_imports(outs)
     if changed:
         print("%d .import files updated: run Godot's import again" % changed)
@@ -391,8 +397,9 @@ def fix_imports(outs):
     return changed
 
 
-def write_catalogue(events_list):
-    """sounds.json: the build owns each event's files and category; every other field is kept as edited."""
+def write_catalogue(events_list, items):
+    """sounds.json: the build owns each event's files and category and the item map; every other field of an event
+    is kept as edited."""
     old = load_json(CATALOGUE, {})
     by_key = {e["key"]: e for e in old.get("events", [])}
     merged = []
@@ -424,8 +431,14 @@ def write_catalogue(events_list):
         "source": old.get("source", "GROUND.md §4.9. Written by art/audio/build.py, which owns each event's files "
                                     "and category; every other field may be tuned by hand and is kept."),
         "categories": {k: {"metric": v[0], "target": v[1], "min": v[2], "max": v[3]} for k, v in CATEGORIES.items()},
+        "items": items,
         "events": merged,
     }
+    keys = {e["key"] for e in merged}
+    for item, roles in items.items():
+        for role, key in roles.items():
+            if key not in keys:
+                raise SystemExit("items: %s %s plays %s, which isn't an event" % (item, role, key))
     write_catalogue_json(data)
 
 
@@ -435,6 +448,11 @@ def write_catalogue_json(data):
     cats = list(data["categories"].items())
     for i, (k, v) in enumerate(cats):
         lines.append('    %s: %s%s' % (json.dumps(k), json.dumps(v), "," if i < len(cats) - 1 else ""))
+    lines.append("  },")
+    lines.append('  "items": {')
+    its = list(data["items"].items())
+    for i, (k, v) in enumerate(its):
+        lines.append('    %s: %s%s' % (json.dumps(k), json.dumps(v), "," if i < len(its) - 1 else ""))
     lines.append("  },")
     lines.append('  "events": [')
     evs = data["events"]

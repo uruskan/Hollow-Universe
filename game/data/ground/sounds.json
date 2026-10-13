@@ -16,6 +16,55 @@
     "ambience": {"metric": "integrated", "target": -30.0, "min": -34.0, "max": -26.0},
     "accent": {"metric": "event", "target": -27.0, "min": -32.0, "max": -22.0}
   },
+  "items": {
+    "rock": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "torch": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "stone-hatchet": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "stone-pickaxe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "metal-hatchet": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "metal-pickaxe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "wooden-spear": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "stone-spear": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "machete": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "bow": {"draw": "bow.draw", "release": "bow.release", "flight": "arrow.flight", "impact": "arrow.impact", "impactFlesh": "arrow.impact.flesh", "hitMarker": "hit.marker", "headshot": "hit.headshot", "kill": "hit.kill"},
+    "arrow": {"flight": "arrow.flight", "impact": "arrow.impact", "impactFlesh": "arrow.impact.flesh", "pickup": "gather.pickup"},
+    "pistol": {"shot": "pistol.shot", "shotSilenced": "pistol.shot.silenced", "magOut": "reload.pistol.magout", "magIn": "reload.pistol.magin", "rack": "reload.pistol.slide", "dryFire": "gun.dryfire", "shell": "gun.shell", "hitMarker": "hit.marker", "headshot": "hit.headshot", "kill": "hit.kill"},
+    "rifle": {"shot": "rifle.shot", "shotSilenced": "rifle.shot.silenced", "magOut": "reload.rifle.magout", "magIn": "reload.rifle.magin", "rack": "reload.rifle.bolt", "dryFire": "gun.dryfire", "shell": "gun.shell", "hitMarker": "hit.marker", "headshot": "hit.headshot", "kill": "hit.kill"},
+    "silencer": {"shotPistol": "pistol.shot.silenced", "shotRifle": "rifle.shot.silenced"},
+    "bandage": {"use": "survival.bandage"},
+    "medical-injector": {"use": "survival.bandage"},
+    "red-berries": {"use": "survival.eat"},
+    "blue-berries": {"use": "survival.eat"},
+    "wild-tuber": {"use": "survival.eat"},
+    "roasted-tuber": {"use": "survival.eat"},
+    "sleeping-bag": {"place": "deploy.place"},
+    "bed": {"place": "deploy.place"},
+    "workbench-1": {"place": "deploy.place"},
+    "workbench-2": {"place": "deploy.place"},
+    "workbench-3": {"place": "deploy.place"},
+    "vehicle-workbench": {"place": "deploy.place"},
+    "engineering-workbench": {"place": "deploy.place"},
+    "claim-device": {"place": "deploy.place"},
+    "ladder": {"place": "deploy.place"},
+    "campfire": {"place": "deploy.place", "loop": "campfire.loop", "ignite": "campfire.ignite", "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
+    "furnace": {"place": "deploy.place", "loop": "furnace.loop", "ignite": "furnace.ignite", "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
+    "small-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
+    "large-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
+    "building-plan": {"placeTwig": "build.place.twig", "placeWood": "build.place.wood", "placeStone": "build.place.stone", "placeMetal": "build.place.metal", "placeArmoured": "build.place.armoured"},
+    "hammer": {"swing": "melee.swing", "upgradeWood": "build.upgrade.wood", "upgradeStone": "build.upgrade.stone", "upgradeMetal": "build.upgrade.metal", "upgradeArmoured": "build.upgrade.armoured", "repair": "build.repair", "demolish": "build.demolish", "collapse": "build.collapse"},
+    "code-lock": {"press": "codelock.beep", "accept": "codelock.accept", "deny": "codelock.deny", "place": "lock.key"},
+    "key-lock": {"turn": "lock.key", "place": "lock.key"},
+    "timed-charge": {"fuse": "explosive.fuse", "beep": "explosive.beep", "explode": "explosion", "debris": "explosion.debris", "place": "deploy.place"},
+    "wooden-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
+    "metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
+    "armoured-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.wood"},
+    "double-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
+    "garage-door": {"open": "door.open.garage", "close": "door.close.garage", "place": "build.place.wood"},
+    "sheet-metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
+    "wooden-double-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
+    "sheet-metal-double-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
+    "armoured-double-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.wood"}
+  },
   "events": [
     {
       "key": "footstep.walk.grass",
@@ -1401,6 +1450,22 @@
       "files": [
         "res://assets/audio/build/door_garage_close_01.ogg",
         "res://assets/audio/build/door_garage_close_02.ogg"
+      ]
+    },
+    {
+      "key": "lock.key",
+      "category": "click",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 15.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/key_lock_01.ogg",
+        "res://assets/audio/build/key_lock_02.ogg"
       ]
     },
     {

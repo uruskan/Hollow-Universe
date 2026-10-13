@@ -208,9 +208,10 @@ def loudness_track(path):
 
 def _num(s):
     try:
-        return float(s)
+        v = float(s)
     except ValueError:
         return -120.0
+    return v if math.isfinite(v) else (-120.0 if v < 0 else 120.0)
 
 
 def measure(path):

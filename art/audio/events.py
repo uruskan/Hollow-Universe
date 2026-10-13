@@ -542,6 +542,11 @@ def building():
         event("door.close.%s" % material, [Out(numbered("build/door_%s_close" % material, k), "foley", segs)
                                            for k, segs in enumerate(shuts)], "SFX", 0.0, maxDistance=50.0)
 
+    # A key lock turning (BigSoundBank's lock recordings).
+    event("lock.key", [Out(numbered("build/key_lock", k), "click", [Seg(bsb(s), 0.0, 1.2, fade_out=0.3)],
+                           fx="highpass=f=200") for k, s in enumerate(("0191", "0037"))],
+          "SFX", 0.0, maxDistance=15.0)
+
     # The code lock: a key press, accepted (two rising tones), refused (a low double buzz).
     keys = bsb("0758")
     presses = hits(keys, 4, min_gap=0.25, max_len=0.25, within_db=6)
@@ -743,9 +748,10 @@ def explosives():
     event("explosive.fuse", [loop("weapon/fuse_loop.ogg", "loop", bsb("1306"), 2.0, 6.0, overlap=1.0,
                                   fx="highpass=f=200,lowpass=f=12000")],
           "SFX", -2.0, unitSize=2.0, maxDistance=20.0, priority=70)
-    event("explosive.beep", [Out("weapon/timer_beep_01.ogg", "click", [Seg(bsb("2254"), 0.1, 0.2)],
-                                 fx="highpass=f=500")], "SFX", -2.0, maxDistance=25.0, priority=70,
-          pitch=[1.0, 1.0], jitter=0.0)
+    # The charge's timer: a piezo beep (made in code; it is electronic anyway).
+    beep = __import__("synth").tones("timer_beep", [(3150.0, 0.0, 0.11)], 0.2)
+    event("explosive.beep", [Out("weapon/timer_beep_01.ogg", "click", [Seg(beep)], fx="highpass=f=500")],
+          "SFX", -2.0, maxDistance=25.0, priority=70, pitch=[1.0, 1.0], jitter=0.0)
     sub = [pack("kenney-sci-fi-sounds", "Audio/lowFrequency_explosion_00%d.ogg" % i) for i in (0, 1)]
     crunch = [pack("kenney-sci-fi-sounds", "Audio/explosionCrunch_00%d.ogg" % i) for i in range(5)]
     near, mid, far, away = bsb("1808"), bsb("1807"), bsb("1806"), bsb("1023")
@@ -831,8 +837,9 @@ def ambience():
                          channels=channels)], "Ambience", 0.0, **kw)
 
     bed("amb.wind.calm", "wind_calm.ogg", calm, 0.0, 40.0, fx="highpass=f=40", overlap=4.0)
+    # A mono recording: the right channel 23 ms later, so the bed is wide rather than in the middle of the head.
     bed("amb.wind.strong", "wind_strong.ogg", bsb("0146"), 10.0, 40.0,
-        fx="highpass=f=110,lowpass=f=9000,equalizer=f=400:t=q:w=1:g=2", overlap=4.0)
+        fx="highpass=f=110,lowpass=f=9000,equalizer=f=400:t=q:w=1:g=2,adelay=delays=0|23", overlap=4.0)
     bed("amb.wind.high", "wind_high.ogg", high, 0.0, 40.0, fx="highpass=f=60", overlap=4.0)
     bed("amb.birds.meadow", "birds_meadow.ogg", bsb("0898"), 8.0, 50.0, fx="highpass=f=320,lowpass=f=14000")
     bed("amb.birds.forest", "birds_forest.ogg", bsb("0100"), 2.0, 48.0, fx="highpass=f=250,lowpass=f=15000")
@@ -854,6 +861,72 @@ def ambience():
     event("amb.crow", [Out(numbered("ambience/crow", k), "accent", [Seg(c, fx="highpass=f=300,lowpass=f=9000")],
                            tail_db=-45) for k, c in enumerate(crows)],
           "Ambience", 0.0, space="3d", unitSize=30.0, maxDistance=400.0, priority=20, limit=1)
+
+
+# ---------------------------------------------------------------- what each item sounds like
+
+MELEE = {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard",
+         "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit",
+         "weakSpot": "gather.weakspot"}
+HEAVY = dict(MELEE, swing="melee.swing.heavy")
+
+
+def gun_roles(kind):
+    return {"shot": "%s.shot" % kind, "shotSilenced": "%s.shot.silenced" % kind,
+            "magOut": "reload.%s.magout" % kind, "magIn": "reload.%s.magin" % kind,
+            "rack": "reload.%s.%s" % (kind, "slide" if kind == "pistol" else "bolt"),
+            "dryFire": "gun.dryfire", "shell": "gun.shell", "hitMarker": "hit.marker", "headshot": "hit.headshot",
+            "kill": "hit.kill"}
+
+
+PLACE = {"place": "deploy.place"}
+DOOR = {"wood": "wood", "metal": "metal", "armoured": "armoured", "garage": "garage"}
+
+
+def door_roles(material):
+    return {"open": "door.open.%s" % material, "close": "door.close.%s" % material, "place": "build.place.wood"}
+
+
+# Item keys (items.json, models.json) and door keys (building.json) → role → event. The ground mode asks
+# SoundCatalogData.ItemEvent(item, role); the tests check every item that needs a sound has its roles.
+ITEMS = {
+    "rock": MELEE, "torch": MELEE, "stone-hatchet": HEAVY, "stone-pickaxe": HEAVY, "metal-hatchet": HEAVY,
+    "metal-pickaxe": HEAVY, "wooden-spear": HEAVY, "stone-spear": HEAVY, "machete": MELEE,
+    "bow": {"draw": "bow.draw", "release": "bow.release", "flight": "arrow.flight", "impact": "arrow.impact",
+            "impactFlesh": "arrow.impact.flesh", "hitMarker": "hit.marker", "headshot": "hit.headshot",
+            "kill": "hit.kill"},
+    "arrow": {"flight": "arrow.flight", "impact": "arrow.impact", "impactFlesh": "arrow.impact.flesh",
+              "pickup": "gather.pickup"},
+    "pistol": gun_roles("pistol"), "rifle": gun_roles("rifle"),
+    "silencer": {"shotPistol": "pistol.shot.silenced", "shotRifle": "rifle.shot.silenced"},
+    "bandage": {"use": "survival.bandage"}, "medical-injector": {"use": "survival.bandage"},
+    "red-berries": {"use": "survival.eat"}, "blue-berries": {"use": "survival.eat"},
+    "wild-tuber": {"use": "survival.eat"}, "roasted-tuber": {"use": "survival.eat"},
+    "sleeping-bag": PLACE, "bed": PLACE, "workbench-1": PLACE, "workbench-2": PLACE, "workbench-3": PLACE,
+    "vehicle-workbench": PLACE, "engineering-workbench": PLACE, "claim-device": PLACE, "ladder": PLACE,
+    "campfire": {"place": "deploy.place", "loop": "campfire.loop", "ignite": "campfire.ignite",
+                 "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
+    "furnace": {"place": "deploy.place", "loop": "furnace.loop", "ignite": "furnace.ignite",
+                "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
+    "small-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
+    "large-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
+    "building-plan": {"placeTwig": "build.place.twig", "placeWood": "build.place.wood",
+                      "placeStone": "build.place.stone", "placeMetal": "build.place.metal",
+                      "placeArmoured": "build.place.armoured"},
+    "hammer": {"swing": "melee.swing", "upgradeWood": "build.upgrade.wood", "upgradeStone": "build.upgrade.stone",
+               "upgradeMetal": "build.upgrade.metal", "upgradeArmoured": "build.upgrade.armoured",
+               "repair": "build.repair", "demolish": "build.demolish", "collapse": "build.collapse"},
+    "code-lock": {"press": "codelock.beep", "accept": "codelock.accept", "deny": "codelock.deny",
+                  "place": "lock.key"},
+    "key-lock": {"turn": "lock.key", "place": "lock.key"},
+    "timed-charge": {"fuse": "explosive.fuse", "beep": "explosive.beep", "explode": "explosion",
+                     "debris": "explosion.debris", "place": "deploy.place"},
+    # Door items (models.json) and door kinds (building.json).
+    "wooden-door": door_roles("wood"), "metal-door": door_roles("metal"), "armoured-door": door_roles("armoured"),
+    "double-door": door_roles("wood"), "garage-door": door_roles("garage"),
+    "sheet-metal-door": door_roles("metal"), "wooden-double-door": door_roles("wood"),
+    "sheet-metal-double-door": door_roles("metal"), "armoured-double-door": door_roles("armoured"),
+}
 
 
 def everything():
