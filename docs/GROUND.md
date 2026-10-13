@@ -994,8 +994,8 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
 - **Down** is lower than on the stand-in: bots seeking trees and outcrops spread out, and each sees about 46 others
   instead of 99.
 
-**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 2
-with the catalogue's models and icons, the female body and the gun layer, except `menu.jpg`):
+**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 3
+with building, raiding and the effects library in the game, except `menu.jpg`):
 
 | Picture | What it shows |
 |---|---|
@@ -1007,9 +1007,15 @@ with the catalogue's models and icons, the female body and the gun layer, except
 | `player.jpg` | The second player with the female body, in the knit cap, woven shirt and trousers, laced boots and the riveted cuirass, hatchet in hand, her name above her. |
 | `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
 | `outcrop.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop, and its broken stage after the pickaxe. |
-| `gun.jpg` | The rifle aimed down its sights the moment a shot leaves: the flash, 28 of 60 rounds. |
+| `gun.jpg` | The rifle aimed down its sights in the frame a shot leaves: the effects library's muzzle flame and its light on the gun, 29 of 60 rounds. |
+| `build.jpg` | A base begun in the meadow: two twig foundations and three walls, the building plan in hand, the green ghost of a doorway with its cost and stability under the crosshair. |
+| `keypad.jpg` | The stone hut's sheet metal door with a code lock fitted: its keypad, two digits entered. |
+| `base.jpg` | The stone hut from outside (the `raidbase` command's), the code lock on the door by its free edge. |
+| `charge.jpg` | A timed charge stuck on the hut's side wall, its lamp lit; another in hand. |
+| `explosion.jpg` | The charge going off: the fireball, debris and the smoke rising over the hut; the raid alert at the top right. |
+| `firefight.jpg` | Firing at the hut from the meadow, in the frame a shot leaves: the muzzle brake's flame out of its ports, the tracer, the holo sight and brake on the rifle; the second player firing beside. |
 | `death.jpg` | The death screen over the map of the real coast. |
-| `night.jpg` | Night, by the catalogue's campfire, lit: the fire's own light on the grass; the respawn kit on the belt. |
+| `night.jpg` | Night, by the catalogue's campfire, lit: the effects library's flames, embers and smoke, and its flickering light on the grass; the respawn kit on the belt. |
 
 **Judgement.** It plays as one game: arrive on a real beach, walk, swim and fall on the planet's ground, gather from
 its own trees, bushes, ferns and outcrops, craft, wear, cook, fight, die, loot bodies and respawn, with another player
@@ -1056,6 +1062,27 @@ The frame now carries the sound and the catalogue's models, and the PC was busie
 ragdoll (40–60 ms, the character package's) and plant rebuilds landing (20–30 ms). Players coming back into range
 take a spare body (`PeopleView`: four of each body made while the world opens, and those leaving are kept), so only
 new arrivals and corpses build one.
+
+### 5.8 Pass 3: building, raiding and the effects in the game
+
+Measured on the owner's PC on 13 October 2026 as in §5.7 (the measuring client hosts, its server in a process of its
+own; a headless second player and 50 survival bots at the landing site; `--measure 20 --expect 45`), now with the
+building drawn, the raid view, the effects library everywhere and attachments. Another agent's game client and bots
+were running on the same PC at the time, so the comparison is rough.
+
+| | Pass 2 (§5.7) | Pass 3 |
+|---|---|---|
+| Frame, average / 99th percentile / worst | 14.6 / 23.2 / 122 ms | 16.7 / 25.0 / 91 ms |
+| GPU, a frame | 10.6 ms | 11.1 ms |
+| Server tick (its own process) | 3.05 ms average | 5.82 ms average, 379 ms the most in the last 10 s |
+
+- The new parts of the ground view cost next to nothing: the building view 0.02 ms a frame, the raid view under
+  0.01 ms; the effects library's own work runs in the engine's process step (a ten-player firefight's effects cost about
+  0.3 ms, §9.3). The ground view's parts as a whole: people 0.96 ms, nature 0.22 ms, overlay 0.20 ms, the client 0.13 ms.
+- The slowest frames are as in pass 2: a new ragdoll and a corpse (60–90 ms, the character package's) and plants
+  redrawn after hits (25–30 ms).
+- The average sits at 60 fps with the GPU at 11.1 ms: the other agent's client was drawing on the same GPU, and the
+  server's tick, doubled, shares the CPU with its bots.
 
 ---
 
@@ -1647,16 +1674,19 @@ the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from
 
 **As built** (`game/scripts/Ground`): `GroundView` adds `ViewKick` to the camera, passes the mouse's turn to
 `ObserveLook` and adds `TakeCompensation` to the view, zooms by `Zoom` while `Aimed` (eased), and reloads on R;
-`FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle and flashes it, and plays a reload's
-parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws bullets as tracers (our own
-leaving the muzzle and closing on the shot's line over 50 m) and, where one stops, a puff and the sound of what it hit
-(the nearest natural object's class tells wood from rock; the sea from its depth); `PeopleView` plays others' shots
-(silenced from `HeldMods`) with a flash and their reloads; the HUD's ammo counter and the gun's slot show the
+`FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle with its muzzle effect, and plays a
+reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
+tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
+from `HeldMods`) with their muzzle effect and their reloads; the HUD's ammo counter and the gun's slot show the
 magazine; `GroundOverlay` draws the hip crosshair from `Spread`, a reload's progress under the centre, and the
-wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The flash, tracer and puff
-are plain ones made in code behind `ShotEffects.Provider` (`IShotEffects`) until the effects package lands. Not drawn
-yet, for want of the character contract (§4.8): attachments on guns in hand, others' aiming pose, and crawling (the
-wounded crouch instead).
+wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The muzzle effects, tracers
+and hits are the effects library's (§9.3, as hooked up there). Attachments show on guns in hand (`GunEffects.Dress`
+through `ModelCatalog.Attach`: a sight on the rail, a silencer or a brake on the muzzle, the light under the barrel):
+on one's own gun with the arms' layer and materials, from the weapon stack's mods, and on others' from `HeldMods`;
+the muzzle effect then leaves from the far end of a silencer or brake. In the inventory, an attachment dropped on a
+gun goes onto it (`Local.Attach`), and a gun's item panel offers REMOVE for each of its attachments (`Local.Detach`).
+Not drawn yet, for want of the character contract (§4.8): others' aiming pose and crawling (the wounded crouch
+instead).
 
 ### 6.5 Building over the network and saved (G3, phase 2a)
 
@@ -1741,6 +1771,20 @@ things. The zone's record keeps when upkeep and decay were last applied: on load
 closed-form step. Decoding treats the bytes as untrusted: a kind that no longer exists is left out.
 
 **Bots** (`--script build`, §5.4) build a small base each through the same API, and the load test reports the building.
+
+**In the game (phase 2b, `game/scripts/Ground/BuildView.cs`).** The replica's `BuildingWorld` is drawn by the building
+package's `BuildingRenderer` (batched per kind, grade and 24 m chunk, doors swinging); a held building plan shows
+`GameClient.PlanPiece`'s ghost with `BuildGhost` (green, or red with the reason under the crosshair, `BuildHud`) and
+the right mouse button opens the plan's wheel (the piece) or the hammer's (upgrade to each grade, rotate, demolish),
+both from `ClientGroundUi`; the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
+the doorway aimed through or a held lock on the door aimed at, or places the claim device on a foundation or floor;
+R turns the piece (or the door) a step. E opens and shuts doors (the door's own sound, `world.door-slam` when it
+shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's manner: digits, C, OK; the owner
+also sets a new code), and opens the claim device's store as a loot panel; held E offers a door's or the claim
+device's options (lock, unlock, change the code, cut a key, take the lock, pick up; authorise, deauthorise, clear the
+list, pick up: `OptionsMenu`, chosen with the mouse, let go to do it). Placements not yet answered show where they
+will stand; pieces placed nearby, upgraded (`world.upgrade.<grade>`), demolished and collapsing (`world.collapse`)
+sound and show; the building rights where the player stands show on the HUD.
 
 **Tests:** `BuildingNetTests.PlacingGoesThroughTheServer` (a player without wood is refused, with the reason; a
 foundation and a wall placed through intents show at once, then arrive in every client's copy at exactly the ghost's
@@ -1894,6 +1938,23 @@ package: `timed-charge`, `bag-charge`, `tin-grenade`, `rocket-launcher`, `rocket
 debris, a camera shake and a loud, far sound; rockets with a trail; the "Light" prompt on duds; the raid-alert notice and the list
 at login (base on the map, time, what was hit); pieces showing damage (their health is replicated by phase 2a). Until the sound
 package makes them, `sounds.json` maps the new items to stand-ins (§11 R15).
+
+**In the game** (`game/scripts/Ground/RaidView.cs`). Explosives in range are drawn from the model catalogue at
+`PositionAt(RenderTick)`, with the other players (the arc before a bounce is kept until the drawing reaches it), tumbling
+while they fly and lying on their bottom along `Normal` once stuck or at rest. A timed charge has a lamp on top that blinks
+faster as `FuseSecondsLeft` falls (once a second at first, five times a second at the end) and beeps with it; a bag charge's
+or tin grenade's fuse sputters (`fuse.burning` on its `socket_fuse`) and hisses; a dud does neither (§11 81). Throws,
+sticking, bounces, a fizzle (`explosion.dud`) and lighting again play the item's sounds (`sounds.json` roles `throw`,
+`place`, `bounce`, `fizzle`, `relight`). The controls are Rust's: with an explosive in hand the left button throws it; the
+right button puts a charge on the surface aimed at within 3 m, or lobs a grenade gently; E on a dud lights it ("LIGHT BAG
+CHARGE"); the item's cooldown holds on the client too (§11 84). `Detonated` plays `explosion.timed-charge`, `.bag-charge`,
+`.grenade`, `.rocket` or `.ammo` through the effects library (flash, fireball, smoke, dust along the surface, sparks,
+debris, a scorch mark, a light and the camera's shake, which the ground view adds to the camera every frame) and the
+item's `explode` and `debris` sounds (the blast's near, middle and far layers chosen by distance and delayed by the speed
+of sound). Rockets in flight are the catalogue's rocket, nose first, trailing `trail.rocket`. Raid alerts appear at the
+top right in the interface's manner (`RaidAlertsPanel`): "BASE UNDER ATTACK", what was hit and with what, how far and which
+way, when, the hits and what broke, for ten seconds with a sound; at login, those that waited while the player was away,
+under "RAIDED WHILE YOU WERE AWAY", for twenty.
 
 **Persistence.** Charges stuck or lying in the world (duds too, and any still in the air, which fall on) survive a restart: they
 are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`) with their fuse as world time left, which pauses while the
@@ -2358,6 +2419,7 @@ first use, or `FxDirector.Install(parent)`):
 | `FxDirector.CameraShake(cameraPosition)` | The camera's offset this frame (pitch, yaw, roll in radians): add it to the camera like the gun's `ViewKick`, never to the view the player controls. `FxDirector.Shaken` fires when a shake starts. |
 | `FxDirector.ViewmodelToWorld(point)` | Where a point of the view model appears in the world's projection |
 | `FxSurfaces.Of(GroundMaterial)`, `FxSurfaces.OfGrade(grade)` | The surface of a ground material or a building grade |
+| `FxDirector.Brightness`, `FxDirector.HeatHaze` | What every effect's light is multiplied by (fx.json is seen at exposure 1 under a sun of 1.3: the ground game sets 1.3 ÷ its camera's exposure, §11 82); heat haze on or off (off in the ground game, §11 83) |
 
 **Hook-up list** (the integration package wires these; the library does nothing by itself):
 
@@ -2382,6 +2444,29 @@ first use, or `FxDirector.Install(parent)`):
 | A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
 | A step on sand (footsteps) | `world.footstep.sand` |
 | Every frame | the camera: rotation += `FxDirector.CameraShake(camera position)` |
+
+**Hooked up in the game** (pass 3):
+- *Shots:* `FirstPersonView.OnShot` plays `Muzzle(GunEffects.MuzzleKey(gun, its attachments), the muzzle of the gun the
+  arms hold (past a silencer or brake), first person)`; `PeopleView.Shot` the same on the gun in the other player's hands,
+  and the launcher's `backblast.rocket` out of `socket_exhaust`. `ThingsView` launches a tracer when `WantsTracer`
+  (`tracer.incendiary` for incendiary rounds) from where the gun is drawn, along the bullet's velocity, gravity and drag,
+  ends it where the bullet stopped and plays the hit: `GunEffects.SurfaceOf` takes the ground's material there
+  (`GroundAudio.MaterialAt`), a natural object's class (tree wood, bush grass, outcrop and boulder rock), the deployable
+  hit (wood, a furnace's stone, the metal workbenches), a building piece's grade or a door (wood or metal), water, or a
+  body (`impact.bullet.flesh`, the blood hit); `impact.incendiary` for incendiary rounds. Arrows fly with `trail.arrow` and
+  hit alike.
+- *Blood:* a hit on another player bleeds (`blood.hit` on the chest along their facing) unless a bullet's blood showed
+  there just now; while the player bleeds, `blood.drip` falls under them every 1.5 s.
+- *Gathering* (`NatureView`): `gather.wood`, `gather.rock` or `gather.sparks` (metal and sulphur ore) where the tool bit,
+  on the side towards the player; `gather.weakspot` when the weak spot moves; `gather.node-break` when an outcrop breaks a
+  stage (smaller) or is used up; `gather.tree-fall` along the trunk where a felled tree lands.
+- *Fires:* `ThingsView` starts `fire.campfire` or `fire.furnace` at the model's `socket_fire` while it is lit (the loop
+  outlives the model's rebuilds); a torch in hand burns with `fire.torch` on its `socket_flame` (first person with the
+  arms; for others on their torch).
+- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades, collapses and doors in
+  `BuildView` (§6.5); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
+  place and installs the director with the view.
+- *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`.
 
 **The effects** (`fx.json`; each has an `about` line there):
 
@@ -2869,13 +2954,30 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     snapshot), for everyone's hits alike, so one's own hit sounds a round trip after the swing; a burst of more than 20
     changes at once is an area coming into range and is silent. A deployable that appears within 25 m once the world
     is in was just placed.
-77. **A muzzle flash is drawn over the gun** (no depth test) for two drawn frames: the arms are drawn over the world,
-    so a flash at the very muzzle would hide behind the barrel. Aimed down the sights, one's own tracer is seen almost
-    end-on, as in life.
-78. **What the character contract can't show yet is left out** rather than drawn around it: attachments on guns in
-    hand, others' aiming pose, crawling (the wounded crouch), sleepers' pose (75). The character package's views would
-    need an attachment list for `Hold`, an aiming flag and a crawling stance.
+77. **One's own tracer leaves where the arms show the muzzle** (`FxDirector.ViewmodelToWorld`), parallel to the
+    bullet's path a hand's breadth off it, and stops where the bullet stopped; the muzzle effect is drawn with the arms
+    (their render layer and field of view). Aimed down the sights, one's own tracer is seen almost end-on, as in life.
+78. **What the character contract can't show yet is left out** rather than drawn around it: others' aiming pose,
+    crawling (the wounded crouch), sleepers' pose (75). The character package's views would need an aiming flag and a
+    crawling stance.
 79. **Jolt's broadphase is rebuilt after bodies change** (`PhysicsWorld.OptimizeBroadPhase`: at most twice a second,
     sooner after 64 changes), since the zone never runs Jolt's update that would do it (§5.5).
 80. **Spare bodies**: four of each body are built while the world opens, and players leaving range give theirs back
     (kept up to eight of each), so coming back into view costs no frame.
+81. **A timed charge blinks; fuses sputter** (Rust's way): the timed charge carries a red lamp that blinks and beeps
+    faster as its fuse runs down; a bag charge and a tin grenade show their burning fuse and hiss instead, with no lamp.
+82. **The effects follow the camera's exposure** (`FxDirector.Brightness` = 1.3 ÷ exposure): fx.json's numbers are seen
+    in its viewer at exposure 1 under a sun of 1.3, and the planet's camera meters about three times that by day and
+    thousands of times by night; so a blast or a fire looks as bright by day as by night, like everything that glows.
+83. **No heat haze in the ground game** (`FxDirector.HeatHaze = false`): the haze draws the screen behind it bent, and
+    in the ground game that copy of the screen reads black around trees and the edges of buildings (not in the effects
+    viewer). Off until the effects package finds why.
+84. **An explosive's cooldown also holds on the client** (1 s for charges, 0.8 s for grenades): a click sooner does
+    nothing, rather than send a throw the server refuses and take the item back.
+85. **Attachments and sockets are found on the held model in the views' trees** (the arms' item node is named by its
+    model, `ViewmodelView.Model.Id`; `CharacterView.HeldModel`): the muzzle, the torch's flame and the attachments
+    mount there, outside the contract of §4.8, until the character package offers a held model and its sockets.
+    Aiming down the sights still looks along the gun's own sights: a holo sight or a scope is drawn but its eye
+    point isn't used yet (Rust raises the sight line to it).
+86. **Attaching is a drop and detaching a button** (cheaper than Rust's attachment slots in the item panel): an
+    attachment dropped on a gun goes onto it; the gun's panel lists REMOVE <PART> for each one.

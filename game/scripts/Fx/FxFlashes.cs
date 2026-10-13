@@ -87,7 +87,7 @@ public sealed class FxFlashes
             _viewmodel.SetShaderParameter("viewmodel_fov", CharacterMaterials.ViewmodelFov);
         }
         m.SetInstanceShaderParameter("fx_variant", (float)Math.Min(3, (int)(random.Next() * 4)));
-        m.SetInstanceShaderParameter("fx_intensity", 1f);
+        m.SetInstanceShaderParameter("fx_intensity", FxDirector.Brightness);
         pick.Start = now;
         pick.Life = Math.Max(0.016f, life);
         pick.Stretch = scale * random.Range(0.85f, 1.2f);
@@ -115,7 +115,7 @@ public sealed class FxFlashes
                 continue;
             }
             // Full on the first frame, then gone fast; it grows a little as it goes.
-            e.Mesh.SetInstanceShaderParameter("fx_intensity", (1f - t) * (1f - t * 0.5f));
+            e.Mesh.SetInstanceShaderParameter("fx_intensity", (1f - t) * (1f - t * 0.5f) * FxDirector.Brightness);
             Place(e, t);
         }
     }

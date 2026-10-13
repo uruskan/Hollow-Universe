@@ -257,3 +257,19 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - raid visuals and alerts;
   - real effects everywhere;
   - attachments on guns in hand.
+- **Integration pass 3 finished** (`ground-integrate`). The merged game started cleanly, hosted and joined. Then:
+  - building in the game: the plan's ghost (green, or red with the reason), the plan's and hammer's wheels, placing,
+    upgrading, turning, demolishing and repairing; doors that open and shut with their sounds; code locks with a keypad
+    in the interface's style; the claim device's store with authorise, deauthorise and clear;
+  - raiding: explosives on their arcs, stuck or lying, a timed charge's lamp blinking faster as it runs down, fuses
+    sputtering; Rust's throw and place; blasts with fireball, smoke, debris, scorch and the camera's shake, heard by
+    distance; rocket trails; raid alerts at the top right, live and at login;
+  - the effects library everywhere: muzzle flames in first and third person, tracers, hits by surface, blood, chips and
+    tree-fall dust, campfire, furnace and torch fires. It now follows the camera's exposure, so effects look alike by day
+    and night; its heat haze is off in the game, where it drew black (GROUND.md §11 83);
+  - attachments on guns in hand, put on by dropping them on the gun and taken off in its panel.
+
+  Hosted play with 2 players and 50 bots: 16.7 ms a frame on average, with another agent's game running on the PC too
+  (GROUND.md §5.8). New pictures in `docs/images/ground/play/`: a base being built, a code lock's keypad, a charge on a
+  wall, the blast, a firefight. Still waiting for the character contract: sleepers, crawling, others' aiming. 124 of
+  124 tests pass.

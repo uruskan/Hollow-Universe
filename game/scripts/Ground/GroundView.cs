@@ -7,6 +7,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Surface;
+using HollowUniverse.Fx;
 using HollowUniverse.Surface;
 using HollowUniverse.UI;
 using HollowUniverse.UI.Model;
@@ -44,6 +45,15 @@ public partial class GroundView : Node3D
     private GroundOverlay _overlay = null!;
     private ClientGroundUi _model = null!;
     private GroundAudio? _audio;
+    private BuildView _build = null!;
+    private RaidView _raid = null!;
+    private double _thrownAt = -10;
+    private bool _effectsWarmed;
+    private Keypad _keypad = null!;
+    private OptionsMenu _options = null!;
+    private Hollow.Simulation.Building.Door? _keypadDoor;
+    private bool _keypadSets;
+    private uint _codeSeq;
     private float _lookDYaw, _lookDPitch;
 
     /// <summary>The camera's field of view when not zoomed (degrees, vertical).</summary>
@@ -100,6 +110,18 @@ public partial class GroundView : Node3D
     /// <summary>The people drawn (scripted runs face them).</summary>
     public PeopleView People => _people;
 
+    /// <summary>The building in the game (scripted runs choose the plan's piece).</summary>
+    public BuildView Building => _build;
+
+    /// <summary>Explosives, blasts and rockets drawn (scripted runs wait for a lamp to light).</summary>
+    public RaidView Raid => _raid;
+
+    /// <summary>The code lock's keypad (scripted runs show and close it).</summary>
+    public Keypad Keypad => _keypad;
+
+    /// <summary>Asks a door's code on the keypad, or a new code from its owner (<paramref name="set"/>).</summary>
+    public void ShowKeypad(Hollow.Simulation.Building.Door door, bool set) => OpenKeypad(door, set);
+
     /// <summary>The view's yaw and pitch (radians, the movement code's convention); scripted runs set them.</summary>
     public float Yaw
     {
@@ -136,15 +158,58 @@ public partial class GroundView : Node3D
         AddChild(_people);
         _firstPerson = new FirstPersonView { Name = "FirstPerson", Client = Client };
         AddChild(_firstPerson);
+        var buildHud = new HollowUniverse.Build.BuildHud { Name = "BuildHud" };
+        _build = new BuildView { Name = "Building", Client = Client, Hud = buildHud };
+        AddChild(_build);
 
         var layer = new CanvasLayer { Name = "Interface" };
         AddChild(layer);
         _overlay = new GroundOverlay { Name = "Overlay", Client = Client };
         layer.AddChild(_overlay);
-        _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command };
+        layer.AddChild(buildHud);
+        // Raiding: explosives, blasts, rockets, and the raid alerts at the top right.
+        var alerts = new RaidAlertsPanel { Name = "RaidAlerts" };
+        layer.AddChild(alerts);
+        _raid = new RaidView { Name = "Raid", Client = Client, Alerts = alerts };
+        AddChild(_raid);
+        // The effects library, ready before the first shot or blast; without heat haze, which draws black here (§11).
+        FxDirector.Install(this);
+        FxDirector.HeatHaze = false;
+        _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build };
+        _build.Say = _model.ShowNotice;
         _ui = new GroundUi { Name = "GroundUi", Model = _model };
         _ui.QuitRequested += () => QuitRequested?.Invoke();
         layer.AddChild(_ui);
+        // The code lock's keypad and the held-E options, over the interface.
+        _options = new OptionsMenu { Name = "Options" };
+        layer.AddChild(_options);
+        _keypad = new Keypad { Name = "Keypad" };
+        layer.AddChild(_keypad);
+        _keypad.Pressed += () => Sounds.Flat("codelock.beep");
+        _keypad.Entered += code =>
+        {
+            if (_keypadDoor is not { } door)
+            {
+                return;
+            }
+            if (_keypadSets)
+            {
+                Client.Local.SetCode(door, code);
+            }
+            else
+            {
+                _codeSeq = Client.Local.EnterCode(door, code);
+            }
+        };
+        Client.Local.BuildAnswered += answer =>
+        {
+            if (answer.Seq == _codeSeq && _codeSeq != 0)
+            {
+                Sounds.Flat(answer.Done ? "codelock.accept" : "codelock.deny");
+                _codeSeq = 0;
+            }
+        };
+        Client.Local.BuildRejected += answer => _model.ShowNotice(answer.Text);
         _overlay.ShowNetGraph = ShowNetGraph;
         InventoryBody.Use(Client);
     }
@@ -200,6 +265,7 @@ public partial class GroundView : Node3D
         _camera.Current = true;
         _firstPerson.Attach(_camera);
         _things.Muzzle = _firstPerson.Muzzle;
+        _things.TheirMuzzle = _people.MuzzleOf;
         Warmup(_camera);
         _people.MakeSpares();
         // Sound: the director listens at the camera (GROUND.md §4.9); --mute leaves it out.
@@ -210,6 +276,25 @@ public partial class GroundView : Node3D
         }
     }
 
+    // The effects' materials drawn once, tiny, two metres ahead, when the camera is first in place (their pipelines are
+    // built the first time they draw, a stall in the middle of a fight otherwise).
+    private void WarmEffects()
+    {
+        if (_effectsWarmed || _camera == null)
+        {
+            return;
+        }
+        _effectsWarmed = true;
+        Vector3 at = _camera.GlobalTransform * new Vector3(0, 0, -2);
+        var tiny = new FxParams { Scale = 0.003f };
+        foreach (string key in new[] { "explosion.timed-charge", "impact.bullet.rock", "impact.bullet.wood", "blood.hit", "gather.sparks" })
+        {
+            FxDirector.Play(key, at, Vector3.Up, tiny);
+        }
+        FxHandle fire = FxDirector.Start("fire.campfire", at, Vector3.Up, tiny);
+        GetTree().CreateTimer(1.5).Timeout += () => FxDirector.Stop(fire, immediate: true);
+    }
+
     // Everything the game may show later, shown once, tiny, while the world opens: each new material makes the
     // renderer build its pipelines the first time it is drawn (a stall of 100 ms or more in the middle of play).
     private void Warmup(Camera3D camera)
@@ -217,7 +302,6 @@ public partial class GroundView : Node3D
         var warm = new Node3D { Name = "Warmup", Position = new Vector3(0, 0, -2), Scale = Vector3.One * 0.004f };
         camera.AddChild(warm);
         warm.AddChild(NatureView.Spot());
-        ThingsView.AddFire(warm, Vector3.Zero, 1);
         float x = 0;
         foreach (DeployableDef def in Client.Content.Deployables)
         {
@@ -308,6 +392,9 @@ public partial class GroundView : Node3D
         }
 
         Glow.Exposure = _world?.Sky?.Exposure ?? 1;
+        // The effects' numbers are seen at exposure 1 under a sun of 1.3 (their viewer): the camera's exposure divides them,
+        // so a blast or a fire looks as bright by day as by night, like everything that glows.
+        FxDirector.Brightness = 1.3f / Glow.Exposure;
         if (_map is { IsCompleted: true } map)
         {
             if (map.IsCompletedSuccessfully)
@@ -325,7 +412,10 @@ public partial class GroundView : Node3D
         // by the sight's magnification while aimed.
         (float kickYaw, float kickPitch) = gun.ViewKick;
         Num.Vector3 look = CharacterMotor.ViewDirection(_yaw + kickYaw, Math.Clamp(_pitch + kickPitch, -MaxPitch, MaxPitch), up);
-        _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(look), ToGodot(up)), ToGodot(eye));
+        // Blasts shake the camera (the effects library sums them by distance), never the view the player controls.
+        Vector3 shake = FxDirector.CameraShake(ToGodot(eye));
+        _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(look), ToGodot(up)) * Basis.FromEuler(shake), ToGodot(eye));
+        WarmEffects();
         float zoom = gun.Aimed ? Math.Max(1, gun.Zoom) : 1;
         float fov = 2 * MathF.Atan(MathF.Tan(Mathf.DegToRad(FieldOfView) / 2) / zoom);
         _camera.Fov = Mathf.MoveToward(_camera.Fov, Mathf.RadToDeg(fov), (float)delta * 240);
@@ -346,6 +436,12 @@ public partial class GroundView : Node3D
         Time("things", ref t0);
         _people.Refresh(delta);
         Time("people", ref t0);
+        _build.Refresh(delta, eye, forward);
+        // The lines under the crosshair give way to the keypad and the options.
+        _build.Hud.Visible = !_keypad.Visible && !_options.Visible;
+        Time("building", ref t0);
+        _raid.Refresh(delta);
+        Time("raid", ref t0);
         _audio?.Refresh(delta, input.Sprint);
         Time("audio", ref t0);
 
@@ -362,7 +458,11 @@ public partial class GroundView : Node3D
         UpdateInteract(delta);
         _model.Prompt = _aimed is { } aimed
             ? new InteractionPrompt("E", $"{aimed.Verb} {aimed.Name}".ToUpperInvariant(), MoreOptions: IsDevice(aimed))
-            : null;
+            : _build.Prompt();
+        if (_keypad.Visible)
+        {
+            _model.Prompt = null;
+        }
         _overlay.Refresh(_camera, _people.Names(ToGodot(eye)), status);
         Time("overlay", ref t0);
     }
@@ -407,7 +507,7 @@ public partial class GroundView : Node3D
         {
             return;
         }
-        Input.MouseModeEnum wanted = playing && !_ui.WantsCursor && GetWindow().HasFocus() ? Input.MouseModeEnum.Captured : Input.MouseModeEnum.Visible;
+        Input.MouseModeEnum wanted = playing && !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus() ? Input.MouseModeEnum.Captured : Input.MouseModeEnum.Visible;
         if (Input.MouseMode != wanted)
         {
             Input.MouseMode = wanted;
@@ -424,7 +524,7 @@ public partial class GroundView : Node3D
         }
         var input = new InputFrame { Yaw = _yaw, Pitch = _pitch };
         // Keys move the character only while the game has the mouse (not in the inventory, crafting, chat or menu).
-        if (_ui.WantsCursor || Client.Local.IsDead || !GetWindow().HasFocus())
+        if (_ui.WantsCursor || _keypad.Visible || Client.Local.IsDead || !GetWindow().HasFocus())
         {
             return input;
         }
@@ -435,10 +535,13 @@ public partial class GroundView : Node3D
         input.Jump = Input.IsPhysicalKeyPressed(Key.Space);
         input.JumpPressed = _jumpPressed;
         ItemDef? held = Client.Local.HeldItem;
-        bool place = held?.Deploys != null, eat = held?.Consume != null;
-        // A deployable in hand is placed, food or medicine used, with the attack button (Rust); otherwise it attacks.
+        // A building tool builds with the attack button (it never swings).
+        bool place = held?.Deploys != null || held?.Building is not (null or Hollow.Simulation.Content.BuildingRole.None) || held?.Throwable != null,
+            eat = held?.Consume != null;
+        // A deployable in hand is placed, food or medicine used, an explosive thrown, with the attack button (Rust);
+        // otherwise it attacks.
         input.Primary = Input.IsMouseButtonPressed(MouseButton.Left) && !place && !eat;
-        input.Secondary = Input.IsMouseButtonPressed(MouseButton.Right);
+        input.Secondary = Input.IsMouseButtonPressed(MouseButton.Right) && held?.Throwable == null;
         input.PrimaryPressed = _primaryPressed && !place && !eat;
         return input;
     }
@@ -452,9 +555,17 @@ public partial class GroundView : Node3D
         }
         if (!Input.IsPhysicalKeyPressed(Key.E))
         {
-            if (!_interactDone && _aimed is { } tap)
+            if (_options.Visible)
+            {
+                _options.Choose();
+            }
+            else if (!_interactDone && _aimed is { } tap)
             {
                 Client.Interact(tap);
+            }
+            else if (!_interactDone)
+            {
+                _build.Interact(OpenKeypad);
             }
             _interactHeld = -1;
             return;
@@ -465,16 +576,34 @@ public partial class GroundView : Node3D
             Client.Local.Toggle(target.Entity);
             _interactDone = true;
         }
+        else if (!_interactDone && _interactHeld >= HoldSeconds && _aimed == null && _build.Interactable is { } building)
+        {
+            _options.Offer(_build.Options(building, OpenKeypad));
+            _interactDone = true;
+        }
+    }
+
+    // The code lock's keypad: a code to open the door, or (its owner) a new one.
+    private void OpenKeypad(Hollow.Simulation.Building.Door door, bool set)
+    {
+        _keypadDoor = door;
+        _keypadSets = set;
+        _keypad.Ask(set ? "NEW CODE" : "ENTER CODE");
     }
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (_ui.WantsCursor)
+        if (_ui.WantsCursor || _keypad.Visible)
         {
             return;
         }
         switch (e)
         {
+            case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured && _options.Visible:
+                // Held E: the mouse picks an option, the view stays.
+                _options.Move(motion.Relative.Y);
+                GetViewport().SetInputAsHandled();
+                break;
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
                 Yaw = _yaw - motion.Relative.X * MouseSensitivity;
                 Pitch = _pitch - motion.Relative.Y * MouseSensitivity;
@@ -486,11 +615,18 @@ public partial class GroundView : Node3D
                 _primaryPressed = true;
                 UseHeld();
                 break;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } when Client.Local.HeldItem?.Throwable != null:
+                UseHeld(secondary: true);
+                break;
             case InputEventKey { Pressed: true, Echo: false } key:
                 switch (key.PhysicalKeycode)
                 {
                     case Key.Space:
                         _jumpPressed = true;
+                        break;
+                    case Key.R when _build.Held != Hollow.Simulation.Content.BuildingRole.None:
+                        _build.Rotate();
+                        GetViewport().SetInputAsHandled();
                         break;
                     case Key.R when Client.Local.Gun.Weapon != null && !Client.Local.IsDead:
                         Client.Local.Gun.Reload();
@@ -510,12 +646,43 @@ public partial class GroundView : Node3D
         }
     }
 
-    /// <summary>The attack button with a deployable in hand places it; with food or medicine, uses it (Rust).</summary>
-    public void UseHeld()
+    /// <summary>
+    /// The attack button with a deployable in hand places it; with food or medicine, uses it; with an explosive, throws
+    /// it (Rust). The aim button (<paramref name="secondary"/>) with an explosive puts a charge on the surface aimed at
+    /// within reach, or lobs a grenade gently.
+    /// </summary>
+    public void UseHeld(bool secondary = false)
     {
         LocalPlayer me = Client.Local;
         if (me.IsDead || me.HeldSlot < 0 || me.HeldItem is not { } item)
         {
+            return;
+        }
+        if (item.Throwable is { } throwable)
+        {
+            if (Client.ClockSeconds - _thrownAt < throwable.CooldownSeconds)
+            {
+                return;
+            }
+            _thrownAt = Client.ClockSeconds;
+            if (secondary && throwable.Placeable)
+            {
+                me.PlaceCharge(me.HeldSlot, _yaw, _pitch);
+            }
+            else
+            {
+                me.Throw(me.HeldSlot, _yaw, _pitch, lob: secondary);
+                _firstPerson.Throw(item.Key);
+            }
+            return;
+        }
+        if (secondary)
+        {
+            return;
+        }
+        if (item.Building != Hollow.Simulation.Content.BuildingRole.None)
+        {
+            _build.Use();
             return;
         }
         if (item.Deploys != null && _placeAt is { } at)

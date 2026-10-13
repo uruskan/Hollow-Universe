@@ -77,7 +77,7 @@ public sealed class FxLights
         pick.Light.GlobalPosition = position;
         pick.Light.LightColor = color;
         pick.Light.OmniRange = range;
-        pick.Light.LightEnergy = attack > 0 ? 0 : energy;
+        pick.Light.LightEnergy = attack > 0 ? 0 : energy * FxDirector.Brightness;
         pick.Light.Visible = true;
         pick.Active = true;
     }
@@ -110,7 +110,7 @@ public sealed class FxLights
                 float u = (t - e.Attack) / Math.Max(1e-4f, e.Duration - e.Attack);
                 k = (1f - u) * (1f - u) * (1f - 0.35f * u);
             }
-            e.Light.LightEnergy = e.Energy * k;
+            e.Light.LightEnergy = e.Energy * k * FxDirector.Brightness;
             if (e.Follow != null && GodotObject.IsInstanceValid(e.Follow))
             {
                 e.Light.GlobalPosition = e.Follow.GlobalPosition + e.Offset;

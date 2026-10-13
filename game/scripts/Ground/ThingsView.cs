@@ -3,35 +3,40 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Hollow.Client;
+using Hollow.Simulation;
 using Hollow.Simulation.Content;
-using Hollow.Simulation.Nature;
 using Hollow.Simulation.World;
+using HollowUniverse.Fx;
 using Num = System.Numerics;
 
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// Placed and dropped things (GROUND.md §6.1): deployables and dropped stacks from <see cref="GroundModels"/> (the
-/// assets catalogue's models once it lands, placeholders until then), a fire's flame and light while it burns, and
-/// arrows in flight. Corpses are <see cref="PeopleView"/>'s ragdolls.
+/// Placed and dropped things (GROUND.md §6.1): deployables and dropped stacks from <see cref="GroundModels"/>, a lit
+/// campfire's or furnace's fire (the effects library's), arrows in flight with their trail, and bullets: a tracer for
+/// some, flying the bullet's own path from the gun, and each hit's effect and sound by what it hit (§6.4, §9.3).
+/// Corpses are <see cref="PeopleView"/>'s ragdolls; rockets are <see cref="RaidView"/>'s.
 /// </summary>
 public partial class ThingsView : Node3D
 {
     private readonly Dictionary<uint, (Node3D Node, uint Revision)> _things = new();
     private readonly Dictionary<uint, bool> _lit = new();
+    private readonly Dictionary<uint, FxHandle> _fires = new();
     private readonly HashSet<ClientProjectile> _loosed = new();
     private readonly HashSet<ClientProjectile> _stopped = new();
-    private readonly List<Node3D> _tracers = new();
-    private readonly Dictionary<ClientProjectile, Vector3> _fromMuzzle = new();
-
-    /// <summary>Where the player's own muzzle is now (render space), so our tracers leave the gun, not the eye.</summary>
-    public Func<Vector3>? Muzzle { get; set; }
+    private readonly Dictionary<ClientProjectile, int> _trails = new();
+    private readonly List<ClientProjectile> _forget = new();
     private double _since;
     private readonly List<MeshInstance3D> _arrows = new();
-    private static StandardMaterial3D? _flame;
     private static StandardMaterial3D? _shaft;
 
     public GameClient Client { get; set; } = null!;
+
+    /// <summary>Where the player's own muzzle is drawn now (render space), so our tracers leave the gun, not the eye.</summary>
+    public Func<Vector3>? Muzzle { get; set; }
+
+    /// <summary>Where another player's muzzle is (by net ID), if they are drawn holding a gun.</summary>
+    public Func<uint, Vector3?>? TheirMuzzle { get; set; }
 
     public void Refresh(double time)
     {
@@ -58,12 +63,17 @@ public partial class ThingsView : Node3D
             AddChild(node);
             _things[thing.NetId] = (node, thing.Revision);
             Sound(thing, node, known);
+            Fire(thing, node);
         }
         foreach (uint gone in _things.Keys.Where(k => !seen.Contains(k)).ToList())
         {
             _things[gone].Node.QueueFree();
             _things.Remove(gone);
             _lit.Remove(gone);
+            if (_fires.Remove(gone, out FxHandle fire))
+            {
+                FxDirector.Stop(fire, immediate: true);
+            }
         }
         UpdateArrows(time);
     }
@@ -97,6 +107,26 @@ public partial class ThingsView : Node3D
         }
     }
 
+    // A lit campfire or furnace burns where its model says (socket_fire): the effects library's fire, which goes on
+    // while the thing's model is rebuilt and fades when it is put out.
+    private void Fire(RemoteThing thing, Node3D node)
+    {
+        bool burning = _fires.TryGetValue(thing.NetId, out FxHandle handle);
+        DeployableDef? def = thing.Lit ? thing.Deployable(Client.Content) : null;
+        if (def != null && !burning)
+        {
+            Node3D? model = node.GetChildCount() > 0 ? node.GetChild(0) as Node3D : null;
+            Vector3 local = model != null && Socket(model, "socket_fire") is { } at ? at : new Vector3(0, 0.12f, 0);
+            Transform3D t = node.Transform;
+            _fires[thing.NetId] = FxDirector.Start(def.Key == "furnace" ? "fire.furnace" : "fire.campfire", t * local, t.Basis.Y.Normalized());
+        }
+        else if (def == null && burning)
+        {
+            FxDirector.Stop(handle);
+            _fires.Remove(thing.NetId);
+        }
+    }
+
     private Node3D Build(RemoteThing thing)
     {
         Num.Vector3 up = Client.Frame.UpAt(thing.Position);
@@ -107,16 +137,9 @@ public partial class ThingsView : Node3D
             case StaticKind.Deployable when thing.Deployable(Client.Content) is { } def:
             {
                 Vector3 half = new(def.HalfExtents.X, def.HalfExtents.Y, def.HalfExtents.Z);
-                Node3D? model = GroundModels.Provider.Deployable(def.Key, half);
-                if (model != null)
+                if (GroundModels.Provider.Deployable(def.Key, half) is { } model)
                 {
                     node.AddChild(model);
-                }
-                if (thing.Lit)
-                {
-                    // Where the model says it burns (socket_fire), else in the middle of its base.
-                    Vector3 fire = model != null && Socket(model, "socket_fire") is { } at ? at : new Vector3(0, 0.12f, 0);
-                    AddFire(node, fire, def.Key == "furnace" ? 0.6f : 1f);
                 }
                 break;
             }
@@ -148,111 +171,11 @@ public partial class ThingsView : Node3D
         return (model.Transform * t).Origin;
     }
 
-    // A flame that flickers and a warm light that throws shadows.
-    public static void AddFire(Node3D parent, Vector3 at, float size)
-    {
-        if (_flame == null)
-        {
-            ImageTexture flame = FlameTexture();
-            _flame = new StandardMaterial3D
-            {
-                // Black albedo: a flame only gives light. Black emission: the texture alone is the flame's colour
-                // (Godot adds the emission colour to the texture's).
-                AlbedoColor = new Color(0, 0, 0, 1),
-                AlbedoTexture = flame,
-                EmissionEnabled = true,
-                Emission = Colors.Black,
-                EmissionTexture = flame,
-                TextureRepeat = false,
-                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                BillboardMode = BaseMaterial3D.BillboardModeEnum.FixedY,
-                DisableReceiveShadows = true,
-                Roughness = 1,
-                MetallicSpecular = 0,
-            };
-            Glow.Track(_flame, 3f);
-        }
-        var fire = new Fire { Position = at, Size = size };
-        for (int i = 0; i < 3; i++)
-        {
-            fire.AddChild(new MeshInstance3D
-            {
-                Mesh = new QuadMesh { Size = new Vector2(0.32f, 0.55f) * size, CenterOffset = new Vector3(0, 0.27f * size, 0) },
-                MaterialOverride = _flame,
-                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                Position = new Vector3((i - 1) * 0.07f * size, 0, (i % 2) * 0.05f),
-            });
-        }
-        fire.AddChild(new OmniLight3D
-        {
-            LightColor = new Color(1f, 0.58f, 0.25f),
-            LightEnergy = Glow.FireLight * size,
-            OmniRange = 14 * size,
-            Position = new Vector3(0, 0.45f * size, 0),
-            DistanceFadeEnabled = true,
-            DistanceFadeBegin = 60,
-            DistanceFadeLength = 20,
-            DistanceFadeShadow = 25,
-            ShadowEnabled = true,
-        });
-        parent.AddChild(fire);
-    }
-
-    // A flame: a tongue of light, white-yellow at the root, orange, then red and gone at the tip (alpha in the shape).
-    private static ImageTexture FlameTexture()
-    {
-        const int W = 64, H = 128;
-        Image image = Image.CreateEmpty(W, H, false, Image.Format.Rgba8);
-        for (int y = 0; y < H; y++)
-        {
-            float v = 1 - (y + 0.5f) / H; // 0 at the root, 1 at the tip
-            float half = 0.5f * MathF.Sin(MathF.PI * MathF.Min(1, v * 1.15f + 0.08f)) * (1 - 0.55f * v);
-            for (int x = 0; x < W; x++)
-            {
-                float u = MathF.Abs((x + 0.5f) / W - 0.5f);
-                float edge = half <= 0 ? 0 : Math.Clamp((half - u) / (half * 0.55f), 0, 1);
-                float a = edge * Math.Clamp((1 - v) * 1.6f, 0, 1) * Math.Clamp(v / 0.1f, 0, 1);
-                var hot = new Color(1f, 0.92f, 0.62f);
-                var warm = new Color(1f, 0.55f, 0.12f);
-                var cool = new Color(0.85f, 0.18f, 0.04f);
-                Color c = v < 0.35f ? hot.Lerp(warm, v / 0.35f) : warm.Lerp(cool, (v - 0.35f) / 0.65f);
-                image.SetPixel(x, y, new Color(c.R, c.G, c.B, a));
-            }
-        }
-        image.GenerateMipmaps();
-        return ImageTexture.CreateFromImage(image);
-    }
-
-    /// <summary>Flickers a fire's flames and light.</summary>
-    private partial class Fire : Node3D
-    {
-        public float Size = 1;
-        private double _time;
-
-        public override void _Process(double delta)
-        {
-            _time += delta;
-            float f = 0.85f + 0.1f * MathF.Sin((float)_time * 13.1f) + 0.06f * MathF.Sin((float)_time * 29.7f + 1.3f);
-            int i = 0;
-            foreach (Node child in GetChildren())
-            {
-                if (child is MeshInstance3D flame)
-                {
-                    flame.Scale = new Vector3(1, f + 0.08f * MathF.Sin((float)_time * 17f + i++ * 2.1f), 1);
-                }
-                else if (child is OmniLight3D light)
-                {
-                    light.LightEnergy = Glow.FireLight * Size * f;
-                }
-            }
-        }
-    }
-
     private void UpdateArrows(double now)
     {
         int used = 0;
         ArrowSounds();
-        Bullets(now);
+        Bullets();
         foreach (ClientProjectile p in Client.Projectiles)
         {
             if (p.IsBullet)
@@ -286,102 +209,75 @@ public partial class ThingsView : Node3D
         }
     }
 
-    // Bullets in flight as tracers (our own leaving the muzzle, closing on the shot's line over 50 m), and where each
-    // stops: a puff and the sound of what it hit (G4, GROUND.md §6.4).
-    private void Bullets(double now)
+    // Bullets in flight: a tracer for some (every third shot of each shooter, as in Rust) flying the bullet's own path
+    // from where the gun is drawn; where each stops, the hit's effect and sound by what it hit (G4, GROUND.md §6.4, §9.3).
+    private void Bullets()
     {
-        int used = 0;
         foreach (ClientProjectile p in Client.Projectiles)
         {
-            if (!p.IsBullet)
+            if (!p.IsBullet || RaidView.IsRocket(Client, p))
             {
                 continue;
             }
-            if (p.EndedAt is { } end)
+            if (!_trails.ContainsKey(p))
             {
-                if (_stopped.Add(p) && p.EndTarget != Hollow.Simulation.HitTarget.Nothing)
+                int tracer = 0;
+                uint shooter = p.Own ? Client.NetId : p.Shooter;
+                if (p.EndedAt == null && FxDirector.WantsTracer(shooter, p.Seq))
                 {
-                    Impact(p, end);
+                    Vector3 from = (p.Own ? Muzzle?.Invoke() : TheirMuzzle?.Invoke(p.Shooter)) ?? GroundView.ToGodot(p.Origin);
+                    string key = Client.Content.Item(p.Ammo)?.Bullet is { Burn: > 0 } ? "tracer.incendiary" : "tracer.bullet";
+                    tracer = FxDirector.Tracer(key, from, GroundView.ToGodot(p.Velocity), GroundView.ToGodot(p.Gravity), p.Drag);
                 }
-                continue;
+                _trails[p] = tracer;
             }
-            if (p.Own && !_fromMuzzle.ContainsKey(p) && Muzzle != null)
+            if (p.EndedAt is { } end && _stopped.Add(p))
             {
-                _fromMuzzle[p] = Muzzle() - GroundView.ToGodot(p.Origin);
+                FxDirector.EndTracer(_trails[p], GroundView.ToGodot(end));
+                if (p.EndTarget != HitTarget.Nothing)
+                {
+                    Impact(p, end, bullet: true);
+                }
             }
-            if (used >= _tracers.Count)
-            {
-                Node3D tracer = ShotEffects.Provider.Tracer();
-                AddChild(tracer);
-                _tracers.Add(tracer);
-            }
-            Num.Vector3 at = p.PositionAt(now);
-            Vector3 d = GroundView.ToGodot(p.DirectionAt(now));
-            Vector3 position = GroundView.ToGodot(at);
-            if (_fromMuzzle.TryGetValue(p, out Vector3 offset))
-            {
-                float travelled = Num.Vector3.Distance(at, p.Origin);
-                position += offset * Math.Max(0, 1 - travelled / 50);
-            }
-            Vector3 side = MathF.Abs(d.Y) > 0.95f ? Vector3.Right : Vector3.Up;
-            _tracers[used].GlobalTransform = new Transform3D(Basis.LookingAt(d, side), position - d * 0.8f);
-            _tracers[used].Visible = true;
-            used++;
         }
-        for (int i = used; i < _tracers.Count; i++)
-        {
-            _tracers[i].Visible = false;
-        }
-        foreach (ClientProjectile gone in _fromMuzzle.Keys.Where(p => p.EndedAt != null || !Client.Projectiles.Contains(p)).ToList())
-        {
-            _fromMuzzle.Remove(gone);
-        }
+        Forget();
     }
 
-    // What a bullet hit, by the sound of it: flesh, a tree's wood, rock, a deployable's planks, the ground or the sea.
-    private void Impact(ClientProjectile p, Num.Vector3 end)
+    // What a bullet or arrow hit: the impact for its surface (wood, rock, metal, earth, grass, sand, water, a body's
+    // blood; an incendiary round's flare), and for a bullet the sound of it.
+    private void Impact(ClientProjectile p, Num.Vector3 end, bool bullet)
     {
-        bool water = GroundAudio.WaterDepth(Client, end) > 0.05;
-        string key = p.EndTarget switch
+        FxSurface surface = GunEffects.SurfaceOf(Client, p, end, out Num.Vector3 n);
+        Vector3 at = GroundView.ToGodot(end), normal = GroundView.ToGodot(n), incoming = GroundView.ToGodot(p.DirectionAt(p.EndedTime));
+        if (bullet && Client.Content.Item(p.Ammo)?.Bullet is { Burn: > 0 } && surface is not (FxSurface.Water or FxSurface.Flesh))
         {
-            Hollow.Simulation.HitTarget.Character => "impact.flesh",
-            Hollow.Simulation.HitTarget.Deployable => "impact.wood",
-            Hollow.Simulation.HitTarget.Natural => NaturalAt(end) == NaturalClass.Tree ? "impact.wood" : "impact.stone",
-            _ => water ? "impact.water" : "impact.dirt",
-        };
-        Vector3 at = GroundView.ToGodot(end);
-        Sounds.At(key, at);
-        ShotEffects.Provider.Impact(this, at, p.EndTarget, water);
-    }
-
-    // The class of the natural object nearest a point within 3 m (a tree, an outcrop, a boulder), if any.
-    private NaturalClass? NaturalAt(Num.Vector3 point)
-    {
-        if (Client.Nature == null)
-        {
-            return null;
+            FxDirector.Play("impact.incendiary", at, normal, new FxParams { Direction = incoming });
         }
-        var near = new List<NaturalObject>();
-        Client.Nature.Query(point.X - 3, point.Z - 3, point.X + 3, point.Z + 3, near);
-        NaturalObject? best = null;
-        float bestDistance = float.MaxValue;
-        foreach (NaturalObject o in near)
+        else
         {
-            float d = Num.Vector3.Distance(o.Position, point);
-            if (d < bestDistance)
+            FxDirector.Impact(surface, at, normal, incoming);
+        }
+        if (surface == FxSurface.Flesh)
+        {
+            GunEffects.NoteFlesh(at, Client.ClockSeconds);
+        }
+        if (bullet)
+        {
+            Sounds.At(surface switch
             {
-                bestDistance = d;
-                best = o;
-            }
+                FxSurface.Flesh => "impact.flesh",
+                FxSurface.Wood => "impact.wood",
+                FxSurface.Metal => "impact.metal",
+                FxSurface.Rock => "impact.stone",
+                FxSurface.Water => "impact.water",
+                _ => "impact.dirt",
+            }, at);
         }
-        return best is { } b ? Client.Content.Natural(b.Kind)?.Class : null;
     }
 
-    // An arrow loosed (the string, its flight), and where it stops (GROUND.md §4.9).
+    // An arrow loosed (the string, its flight, its trail), and where it stops (GROUND.md §4.9).
     private void ArrowSounds()
     {
-        _loosed.RemoveWhere(p => !Client.Projectiles.Contains(p));
-        _stopped.RemoveWhere(p => !Client.Projectiles.Contains(p));
         foreach (ClientProjectile p in Client.Projectiles)
         {
             if (p.IsBullet)
@@ -400,11 +296,41 @@ public partial class ThingsView : Node3D
                     Sounds.At("bow.release", from);
                 }
                 Sounds.At("arrow.flight", from);
+                _trails[p] = p.EndedAt == null
+                    ? FxDirector.Tracer("trail.arrow", from, GroundView.ToGodot(p.Velocity), GroundView.ToGodot(p.Gravity), p.Drag)
+                    : 0;
             }
-            if (p.EndedAt is { } end && _stopped.Add(p) && p.EndTarget != Hollow.Simulation.HitTarget.Nothing)
+            if (p.EndedAt is { } end && _stopped.Add(p))
             {
-                Sounds.At(p.EndTarget == Hollow.Simulation.HitTarget.Character ? "arrow.impact.flesh" : "arrow.impact", GroundView.ToGodot(end));
+                if (_trails.TryGetValue(p, out int trail))
+                {
+                    FxDirector.EndTracer(trail, GroundView.ToGodot(end));
+                }
+                if (p.EndTarget != HitTarget.Nothing)
+                {
+                    Sounds.At(p.EndTarget == HitTarget.Character ? "arrow.impact.flesh" : "arrow.impact", GroundView.ToGodot(end));
+                    Impact(p, end, bullet: false);
+                }
             }
+        }
+    }
+
+    // Projectiles no longer in flight or held at their end are forgotten.
+    private void Forget()
+    {
+        _forget.Clear();
+        foreach (ClientProjectile p in _trails.Keys)
+        {
+            if (!Client.Projectiles.Contains(p))
+            {
+                _forget.Add(p);
+            }
+        }
+        foreach (ClientProjectile p in _forget)
+        {
+            _trails.Remove(p);
+            _stopped.Remove(p);
+            _loosed.Remove(p);
         }
     }
 }
