@@ -232,7 +232,7 @@ public sealed partial class Zone
             }
             facts = new TargetFacts
             {
-                Capabilities = Of(p), Flags = zone.FlagsFor(target, viewer), Name = p.Name, TakeOnly = true,
+                Capabilities = Of(p), Flags = zone.FlagsFor(target, viewer), Name = p.Name, Body = true,
                 Position = zone.Entities.Get<Character>(e).State.Position,
             };
             return true;
@@ -514,7 +514,7 @@ public sealed partial class Zone
             {
                 Capabilities = thing.CapabilitiesIn(zone.Content!.Capabilities), Flags = zone.FlagsFor(target, viewer),
                 Name = thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "", Count = thing.ShownCount,
-                TakeOnly = LootRules.TakeOnly(def), Deployable = def, Position = thing.Position,
+                Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position,
             };
             return true;
         }

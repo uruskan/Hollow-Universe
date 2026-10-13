@@ -74,7 +74,7 @@ public static class WorldNetTests
             string.Join(", ", ada.Props.GroupBy(p => p.Prop(c)!.Name).Select(g => $"{g.Count()} {g.Key}")));
         Assert.Equal(WorldPropKind.Crate, seen.Prop(c)!.Kind, "a crate");
         Assert.True(ada.Physics!.HasProp(PropLayer.Deployable, crate.Value), "solid in her prediction too");
-        me.Interact(new TargetRef(TargetFamily.Thing, crate.Value), "loot");
+        me.Interact(new TargetRef(TargetFamily.Thing, crate.Value), "open");
         RunUntil(rig, () => me.LootTarget == crate && me.Loot != null, "the crate's contents");
         Assert.Equal(LootKind.Crate, me.LootKind, "as a crate");
         Assert.True(!me.LootTakesDeposits, "take only");

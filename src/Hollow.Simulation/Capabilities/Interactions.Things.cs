@@ -47,7 +47,7 @@ internal sealed class VerbActions
 // deployable picked back up, a fire and a machine switched on and off, a workbench's tree.
 public static partial class CapabilityHandlers
 {
-    /// <summary>Holds items: opened (a box, a device, the cupboard's store, a ship's cargo) or looted (a body, a sleeper, a crate, a bag).</summary>
+    /// <summary>Holds items: looted (a body, a sleeper, a player down) or opened (anything else: a box, a bag, a crate, a device, the cupboard's store, a ship's cargo).</summary>
     private sealed partial class Holds : IInteractCapability
     {
         private readonly VerbActions _verbs;
@@ -65,7 +65,7 @@ public static partial class CapabilityHandlers
         // (and those on its list).
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
-            int verb = ctx.Facts.TakeOnly ? _loot : _open;
+            int verb = ctx.Facts.Body ? _loot : _open;
             bool lockedOut = ctx.Has(ViewerFlags.Locked) && !ctx.Has(ViewerFlags.Mine) && !ctx.Has(ViewerFlags.Authorised);
             into.Add(lockedOut ? InteractOption.Cannot(verb, OutcomeCode.Locked, primary: true) : InteractOption.Can(verb, primary: true));
         }

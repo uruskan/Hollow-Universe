@@ -508,7 +508,7 @@ public static class SurvivalTests
         Assert.Equal(OutcomeCode.Done, rig.Zone.DropItem(ada, ContainerRef.Main, 0, 0, 0), "bandages");
         DroppedBag two = rig.Zone.Statics().OfType<DroppedBag>().Single();
         Assert.Equal(2, two.ShownCount, "stone and bandages");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, two.Ref, "loot"), "opened like a box");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, two.Ref, "open"), "opened like a box");
         Assert.Equal(LootKind.Crate, rig.Zone.LootKindOf(rig.P(bo)), "take only, gone once empty");
         Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.MoveItem(bo, ContainerRef.Main, 1, ContainerRef.Loot, 5, 0, 0), "nothing goes in");
         int stone = Enumerable.Range(0, two.Loot.Size).First(i => two.Loot[i].Item == c.ItemByKey("stone").Id);

@@ -164,7 +164,7 @@ public static class WorldTests
         WorldProp crate = NearestProp(rig, WorldPropKind.Crate);
         ulong crateSpot = crate.Id.Value;
         StandBy(rig, ada, crate);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, crate.Ref, "loot"), "a crate opens");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, crate.Ref, "open"), "a crate opens");
         Assert.Equal(Hollow.Simulation.Items.LootKind.Crate, rig.Zone.LootKindOf(rig.P(ada)), "as a crate");
         rig.Give(ada, "wood", 10);
         int wood = SlotOf(rig.P(ada).Inventory.Main, "wood");

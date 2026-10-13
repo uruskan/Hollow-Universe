@@ -222,7 +222,8 @@ public sealed partial class GameClient
             facts = new TargetFacts
             {
                 Capabilities = r.Sleeping ? data.Sleeper : r.Wounded ? data.Down : data.Awake,
-                Flags = c.IsTeammate(r.Id) ? ViewerFlags.Teammate : ViewerFlags.None, Name = r.Name, TakeOnly = true, Position = r.Position,
+                Flags = c.IsTeammate(r.Id) ? ViewerFlags.Teammate : ViewerFlags.None, Name = r.Sleeping ? $"{r.Name} (asleep)" : r.Name, Body = true,
+                Position = r.Position,
             };
             return true;
         }
@@ -354,6 +355,10 @@ public sealed partial class GameClient
         // A thing's box (a deployable or prop) or ball (a bag or body), and its up.
         private (DeployableDef? Def, Vector3 Up) Shape(RemoteThing thing) => (thing.Deployable(c.Content), c.Frame.UpAt(thing.Position));
 
+        // How the prompt names it: its own name (a bag, a prop; a body by whose it is), else its item's.
+        private static string NameOf(RemoteThing thing, DeployableDef? def) =>
+            thing.Kind == StaticKind.Corpse ? $"{thing.Name}'s body" : thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "";
+
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
@@ -405,8 +410,8 @@ public sealed partial class GameClient
             DeployableDef? def = thing.Deployable(c.Content);
             facts = new TargetFacts
             {
-                Capabilities = thing.Capabilities, Flags = thing.Flags, Name = thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "", Count = thing.Count,
-                TakeOnly = Simulation.Items.LootRules.TakeOnly(def), Deployable = def, Position = thing.Position,
+                Capabilities = thing.Capabilities, Flags = thing.Flags, Name = NameOf(thing, def), Count = thing.Count,
+                Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position,
             };
             return true;
         }

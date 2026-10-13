@@ -41,12 +41,6 @@ public static class LootRules
 
     public static bool CanDeposit(LootKind kind) => kind is LootKind.Box or LootKind.Device;
 
-    /// <summary>
-    /// Whether a thing's store is take only (looted rather than opened, GROUND_SYSTEMS.md §5): a world crate (its definition
-    /// says so), and what lies in the world without a definition of its own (a bag of dropped items, a body).
-    /// </summary>
-    public static bool TakeOnly(DeployableDef? def) => def?.TakeOnly ?? true;
-
     public static bool IsLoot(ContainerRef which) => which is ContainerRef.Loot or ContainerRef.LootBelt or ContainerRef.LootWear;
 
     /// <summary>

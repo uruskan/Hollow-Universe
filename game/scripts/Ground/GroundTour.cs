@@ -1309,7 +1309,7 @@ public partial class GroundTour : Node
             await TeleportTo(Away(crate.Position, 1.6f));
             Face(crate.Position + up * 0.3f);
             await Seconds(0.5);
-            Me.Interact(Thing(crate.Id), "loot");
+            Me.Interact(Thing(crate.Id), "open");
             await Until(() => Me.LootKind == LootKind.Crate, 5);
             await Seconds(1.0);
             await Shot("crate");

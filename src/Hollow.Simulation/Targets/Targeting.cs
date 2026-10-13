@@ -54,8 +54,8 @@ public struct TargetFacts
     /// <summary>The stacks a bag of dropped items holds (one is picked up whole at a tap); 0 for anything else.</summary>
     public int Count;
 
-    /// <summary>A container nobody puts into (a body, a sleeper, a crate, a bag): looted rather than opened.</summary>
-    public bool TakeOnly;
+    /// <summary>A person's (a sleeper, a player down, a body): looted, where anything else that holds items is opened.</summary>
+    public bool Body;
 
     /// <summary>Taking from it leaves it where it is (a berry bush is picked bare).</summary>
     public bool Stays;

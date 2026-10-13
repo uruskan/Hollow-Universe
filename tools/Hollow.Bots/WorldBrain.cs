@@ -272,7 +272,7 @@ public sealed class WorldBrain
         if (_phase == 0)
         {
             // Looked into rather than taken whole (a tap takes a bag of one stack): only what is wanted is taken.
-            Note(me.Interact(Interacting.Thing(_target), "loot"), "Loot");
+            Note(me.Interact(Interacting.Thing(_target), "open"), "Open");
             _phase = 1;
             return;
         }

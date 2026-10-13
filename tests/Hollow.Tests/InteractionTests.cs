@@ -447,7 +447,18 @@ public static class InteractionTests
                 Assert.True(offeredThere.SequenceEqual(mine), $"{here.Target}: the client offers {string.Join(", ", mine)}, the server {string.Join(", ", there[i].Options)}");
             }
         }
-        Fixtures.Report($"{met} views met a thing with options, of {families.Count} families ({string.Join(", ", families)})");
+        // A frame's query and options (the prompt's), timed over the fan.
+        var clock = Stopwatch.StartNew();
+        for (int round = 0; round < 10; round++)
+        {
+            foreach (Vector3 view in views)
+            {
+                ada.AimInteraction(eye, view);
+            }
+        }
+        double frame = clock.Elapsed.TotalMilliseconds / (10 * views.Count);
+        Fixtures.Report($"{met} views met a thing with options, of {families.Count} families ({string.Join(", ", families)}); " +
+            $"a frame's query and options {frame * 1000:0} µs");
         Assert.True(families.IsSupersetOf(new[] { TargetFamily.Thing, TargetFamily.Arrow }), "the box, the bag and the arrow among them");
 
         // Ada's tap on the arrow: taken on the server, gone from her client, in her slots.

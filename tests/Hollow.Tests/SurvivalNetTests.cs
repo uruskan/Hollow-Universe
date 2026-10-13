@@ -168,7 +168,7 @@ public static class SurvivalNetTests
         Vector3 eye = bo.Character.Position + bo.Frame.UpAt(bo.Character.Position) * bo.EyeHeight;
         InteractAim? aim = bo.AimInteraction(eye, Vector3.Normalize(bag.Position - eye));
         string? verb = aim is { Primary: >= 0 } ? bo.Content.Interactions.Verb(aim.Options[aim.Primary].Verb)?.Key : null;
-        Assert.True(aim != null && aim.Target.Id == bag.Id.Value && verb == "loot", $"E opens it ({verb} {aim?.Facts.Name})");
+        Assert.True(aim != null && aim.Target.Id == bag.Id.Value && verb == "open", $"E opens it ({verb} {aim?.Facts.Name})");
         bo.Local.Interact(aim!.Target, aim.Options[aim.Primary].Verb);
         RunUntil(rig, () => bo.Local.LootKind == LootKind.Crate && bo.Local.Loot != null, "the bag to open");
         Assert.True(bo.Local.Loot!.Slots.ToArray().Count(s => !s.IsEmpty) == 2 && InventoryRules.Count(new[] { bo.Local.Loot }, ContentFixture.Item("stone").Id) == 50,
