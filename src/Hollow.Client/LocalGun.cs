@@ -48,7 +48,6 @@ public sealed class LocalGun
     private readonly List<Pending> _pending = new();
     private GunState _server = GunState.None;
     private ushort _serverLoaded, _serverLoadedAmmo;
-    private bool _serverKnown;
     private GunState _state = GunState.None;
     private ushort _loaded, _loadedAmmo;
     private int _taken;
@@ -336,7 +335,6 @@ public sealed class LocalGun
         };
         _serverLoaded = (ushort)Math.Min(m.Loaded, ushort.MaxValue);
         _serverLoadedAmmo = (ushort)Math.Min(m.LoadedAmmo, ushort.MaxValue);
-        _serverKnown = true;
         uint applied = m.LastSeq;
         _pending.RemoveAll(p => p.Seq <= applied);
         if (m.Refused != GunResult.Accepted && m.RefusedSeq > _refusedSeen)
@@ -344,7 +342,8 @@ public sealed class LocalGun
             _refusedSeen = m.RefusedSeq;
             Refused?.Invoke(new GunRefusal(m.RefusedSeq, m.Refused));
         }
-        // The server's gun is the one in hand (or it caught up with the equip): start again from its state.
+        // The server's gun is the one in hand: start again from its state. (It may have taken it up a tick or two before
+        // or after we did, when the gun came into the slot: its equip time is the one that counts.)
         if (_server.Slot == _state.Slot && _server.Item == _state.Item)
         {
             Replay();
@@ -417,10 +416,6 @@ public sealed class LocalGun
         (double pitch, double yaw) = _credit.Clear();
         _owed.Pitch += pitch;
         _owed.Yaw += yaw;
-        if (_serverKnown && _server.Slot == _state.Slot && _server.Item == _state.Item && _server.Item != 0)
-        {
-            Replay();
-        }
     }
 
     /// <summary>A new life, or none: nothing in hand, nothing pending.</summary>

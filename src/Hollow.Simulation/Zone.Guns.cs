@@ -58,6 +58,12 @@ public sealed partial class Zone
 
     public const int GunActionLeadTicks = 64;
 
+    /// <summary>
+    /// A shot or reload may be applied this many ticks after its own (1 s: its intent was lost and resent); its hit test
+    /// still looks back at most the rewind limit (0.25 s).
+    /// </summary>
+    public const int GunActionLateTicks = 30;
+
     /// <summary>Bullets fly in this many steps a tick.</summary>
     public const int BulletSteps = 2;
 
@@ -71,12 +77,22 @@ public sealed partial class Zone
     /// <summary>Bullets in flight.</summary>
     public IReadOnlyList<Bullet> Bullets => _bullets;
 
+    /// <summary>Time spent flying bullets so far (the load test reports it), and bullet steps taken.</summary>
+    public TimeSpan BulletTime { get; private set; }
+
+    public long BulletStepsFlown { get; private set; }
+
+    /// <summary>Gun actions answered so far, by result (the load test reports the refusals).</summary>
+    public long[] GunResults { get; } = new long[16];
+
     // ---------------------------------------------------------------- gun actions
 
     /// <summary>
-    /// A shot or reload the player's client asked for (a fire or reload intent), queued for its tick. Returns what it was
-    /// refused for already (it is still answered in order), or <see cref="GunResult.Accepted"/> when it waits for its
-    /// tick; <see cref="GunResult.Stale"/> for one already seen (dropped without an answer).
+    /// A shot or reload the player's client asked for (a fire or reload intent), queued for its tick in sequence order
+    /// (they travel unordered, so a resent one may come after later ones). Returns what it was refused for already (it is
+    /// still answered in order), or <see cref="GunResult.Accepted"/> when it waits for its tick;
+    /// <see cref="GunResult.Stale"/> for one already seen or passed (dropped without an answer: the client's prediction
+    /// starts again from the server's state anyway).
     /// </summary>
     public GunResult QueueGunAction(Entity entity, GunAction action)
     {
@@ -84,8 +100,12 @@ public sealed partial class Zone
         {
             return GunResult.Invalid;
         }
-        uint last = p.GunQueue.Count > 0 ? p.GunQueue[^1].Seq : p.Gun.LastSeq;
-        if (action.Seq <= last)
+        int at = p.GunQueue.Count;
+        while (at > 0 && p.GunQueue[at - 1].Seq > action.Seq)
+        {
+            at--;
+        }
+        if (action.Seq <= p.Gun.LastSeq || (at > 0 && p.GunQueue[at - 1].Seq == action.Seq))
         {
             return GunResult.Stale;
         }
@@ -99,7 +119,7 @@ public sealed partial class Zone
             {
                 action.Refused = GunResult.NotAlive;
             }
-            else if (action.Tick < Tick - (long)Math.Ceiling(MaxRewindTicks))
+            else if (action.Tick < Tick - GunActionLateTicks)
             {
                 action.Refused = GunResult.TooLate;
             }
@@ -114,7 +134,7 @@ public sealed partial class Zone
             Settle(p, action.Seq, action.Refused);
             return action.Refused;
         }
-        p.GunQueue.Add(action);
+        p.GunQueue.Insert(at, action);
         return action.Refused;
     }
 
@@ -139,8 +159,9 @@ public sealed partial class Zone
         }
     }
 
-    private static void Settle(Player p, uint seq, GunResult result)
+    private void Settle(Player p, uint seq, GunResult result)
     {
+        GunResults[(int)result & 15]++;
         p.Gun.LastSeq = Math.Max(p.Gun.LastSeq, seq);
         if (result != GunResult.Accepted)
         {
@@ -160,7 +181,7 @@ public sealed partial class Zone
         {
             return GunResult.Stale;
         }
-        if (a.Tick < Tick - (long)Math.Ceiling(MaxRewindTicks))
+        if (a.Tick < Tick - GunActionLateTicks)
         {
             return GunResult.TooLate;
         }
@@ -263,7 +284,7 @@ public sealed partial class Zone
     }
 
     /// <summary>Answers every waiting action with a refusal (the player went down).</summary>
-    private static void RefuseGunActions(Player p, GunResult result)
+    private void RefuseGunActions(Player p, GunResult result)
     {
         foreach (GunAction a in p.GunQueue)
         {
@@ -330,6 +351,12 @@ public sealed partial class Zone
     // against characters where the shooter saw them, until they hit, fly their range or run out of time.
     private void StepBullets()
     {
+        if (_bullets.Count == 0)
+        {
+            return;
+        }
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        BulletStepsFlown += _bullets.Count * (long)BulletSteps;
         for (int i = _bullets.Count - 1; i >= 0; i--)
         {
             Bullet b = _bullets[i];
@@ -379,6 +406,7 @@ public sealed partial class Zone
                 _bullets.RemoveAt(i);
             }
         }
+        BulletTime += System.Diagnostics.Stopwatch.GetElapsedTime(started);
     }
 
     private void EndBullet(Bullet b, Vector3 at, HitTarget target) =>

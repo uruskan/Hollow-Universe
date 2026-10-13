@@ -122,6 +122,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
     public TickStats Ticks { get; } = new();
 
+    /// <summary>Time spent stepping the zone (movement and the game's rules), the rest of a tick being the network's.</summary>
+    public TimeSpan StepTime { get; private set; }
+
     public IReadOnlyCollection<PlayerSession> Players => _sessions.Values;
 
     public bool IsStopping => _stop.IsCancellationRequested;
@@ -254,7 +257,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             presence.Yaw = input.Yaw;
             presence.Pitch = input.Pitch;
         }
+        long stepStarted = Stopwatch.GetTimestamp();
         Zone.Step();
+        StepTime += Stopwatch.GetElapsedTime(stepStarted);
         ReportFalls();
         AfterStep();
 

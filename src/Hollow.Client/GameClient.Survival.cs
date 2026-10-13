@@ -74,7 +74,13 @@ public sealed partial class GameClient
     /// <summary>Raised when a character's look (clothing) changes or arrives.</summary>
     public event Action<RemoteEntity>? LookChanged;
 
-    private bool SendReliable(Action<BitWriter> write)
+    private bool SendReliable(Action<BitWriter> write) => SendWith(write, DeliveryMethod.ReliableOrdered);
+
+    // Shots and reloads: reliable but unordered, so one lost and resent holds nothing else up (they carry their tick and
+    // sequence; the server puts them in order).
+    private bool SendUnordered(Action<BitWriter> write) => SendWith(write, DeliveryMethod.ReliableUnordered);
+
+    private bool SendWith(Action<BitWriter> write, DeliveryMethod method)
     {
         if (_peer == null || State != ClientState.Playing)
         {
@@ -82,7 +88,7 @@ public sealed partial class GameClient
         }
         _writer.Reset();
         write(_writer);
-        _peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+        _peer.Send(_writer.Data, method);
         return true;
     }
 

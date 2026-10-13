@@ -183,6 +183,12 @@ public sealed partial class Zone
         {
             p.Sleeping = false;
             p.VitalsRevision++;
+            // A new connection numbers its gun actions from 1 again, and takes up what it holds afresh.
+            ResetGun(p);
+            p.Gun.LastSeq = 0;
+            p.GunRefusedSeq = 0;
+            p.HeldSlot = ActionInput.NoSlot;
+            p.HeldItem = 0;
         }
     }
 

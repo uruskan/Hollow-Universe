@@ -133,7 +133,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         };
         _net.StartInManualMode(0);
         Content = options.Content ?? GameContent.LoadDefault();
-        Local = new LocalPlayer(Content) { Send = SendReliable };
+        Local = new LocalPlayer(Content) { Send = SendReliable, SendGun = SendUnordered };
         Local.Gun.ShotFired += OnOwnShot;
     }
 

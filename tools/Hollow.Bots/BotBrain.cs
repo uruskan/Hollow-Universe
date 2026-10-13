@@ -21,6 +21,9 @@ public enum BotScript
 
     /// <summary>Plays the survival game: gathers, picks, crafts, eats, fights now and then (<see cref="SurvivalBrain"/>).</summary>
     Survive,
+
+    /// <summary>Fights with guns: shoots at whoever is in range, reloads, helps the downed up (<see cref="FightBrain"/>, G4).</summary>
+    Fight,
 }
 
 /// <summary>

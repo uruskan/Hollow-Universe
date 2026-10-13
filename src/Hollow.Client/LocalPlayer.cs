@@ -109,6 +109,9 @@ public sealed class LocalPlayer
     /// <summary>Sends a message on the reliable channel (set by the client); false when not connected and playing.</summary>
     internal Func<Action<BitWriter>, bool>? Send { get; set; }
 
+    /// <summary>Sends a gun intent (reliable, unordered: a lost shot holds nothing else up); falls back to <see cref="Send"/>.</summary>
+    internal Func<Action<BitWriter>, bool>? SendGun { get; set; }
+
     public GameContent Content { get; }
 
     // ---------------------------------------------------------------- what the UI reads
@@ -419,7 +422,7 @@ public sealed class LocalPlayer
     }
 
     /// <summary>Sends a message on the reliable channel (the gun's intents); false when not connected and playing.</summary>
-    internal bool SendRaw(Action<BitWriter> write) => Send?.Invoke(write) == true;
+    internal bool SendRaw(Action<BitWriter> write) => (SendGun ?? Send)?.Invoke(write) == true;
 
     /// <summary>Something the UI shows changed (the gun's prediction): rebuild and announce at the next update.</summary>
     internal void Touch() => _dirty = true;

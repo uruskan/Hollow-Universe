@@ -375,7 +375,7 @@ public static class GunTests
         Guns.Queue(rig, ada, ++seq, slot: 1);
         rig.Step();
         Assert.Equal(GunResult.Stale, Result(seq), "not the gun in hand");
-        Assert.Equal(GunResult.TooLate, Guns.Queue(rig, ada, ++seq, tick: rig.Zone.Tick - 20), "a tick long gone");
+        Assert.Equal(GunResult.TooLate, Guns.Queue(rig, ada, ++seq, tick: rig.Zone.Tick - 40), "a tick long gone (over a second)");
         rig.Step();
         Assert.Equal(GunResult.TooLate, Result(seq), "answered in order");
 
