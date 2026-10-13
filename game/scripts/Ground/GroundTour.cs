@@ -398,6 +398,25 @@ public partial class GroundTour : Node
         Face(Client.Natural!.WeakSpot(rock, kind) ?? rock.Position + rock.Up * 0.4f);
         await Seconds(0.3);
         await Shot("outcrop-broken");
+        // Mined out: its remnant crumbles into its gibs (GROUND.md §9.4).
+        View.Scripted = new InputFrame { Primary = true };
+        double mining = Time.GetTicksMsec() / 1000.0;
+        while (Time.GetTicksMsec() / 1000.0 - mining < 40 && !Client.Natural!.IsDepleted(rock.Id))
+        {
+            if (Client.Natural.WeakSpot(rock, kind) is { } spot)
+            {
+                Face(spot);
+            }
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        View.Scripted = null;
+        GD.Print($"[tour] the outcrop {(Client.Natural!.IsDepleted(rock.Id) ? "is mined out" : "still stands")}");
+        if (Client.Natural.IsDepleted(rock.Id))
+        {
+            Face(rock.Position + rock.Up * 0.3f);
+            await Seconds(0.3);
+            await Shot("outcrop-crumble");
+        }
         Me.HeldSlot = 2;
     }
 

@@ -3884,23 +3884,24 @@ $GODOT --path game --resolution 1600x900 -- --view fx --gibs building-stone/wall
 $GODOT --path game --resolution 1600x900 -- --view fx --stress gibs --measure 6
 ```
 
-**Cost** (the owner's PC, RTX 2070 Super, 1600 × 900, vsync off, the game's C# in its usual Debug build): a stone wall
-blown in and ten barrels shot every 2.5 s (89 pieces a time, 267 alive at most, 130 on average of which 50 moving),
-gibs off and on in turn, two phases of each:
+**Cost** (the owner's PC, RTX 2070 Super, 1600 × 900, vsync off, the game's C# in its usual Debug build, four other
+agents at work on it): a stone wall blown in and ten barrels shot every 2.5 s (89 pieces a time, 267 alive at most, 160 on
+average of which 47 moving), gibs off and on in turn, two phases of each, 8 s a phase:
 
 | | Frame | GPU | The gibs' CPU |
 |---|---|---|---|
-| Gibs off | 2.07 ms | 1.51 ms | |
-| Gibs on (pieces and their dust) | 2.29 ms | 1.69 ms | 0.06 ms a frame on average (0.02 ms of it the buffers handed over, 17 calls); a break's own frame 0.3–0.5 ms |
-| **What they cost** | **+0.22 ms** | **+0.18 ms** | |
+| Gibs off | 2.18 ms | 1.54 ms | |
+| Gibs on (pieces and their dust) | 2.48 ms | 1.75 ms | 0.08 ms a frame on average (0.03 ms of it the buffers handed over, 19 calls); a break's own frame 0.3–0.5 ms |
+| **What they cost** | **+0.30 ms** | **+0.21 ms** | |
 
-So a raid wall and ten barrels breaking cost about a fifth of a millisecond a frame, inside the 0.5 ms asked. The
-explosion's own effect isn't in it (it is the fx library's, §9.3).
+An earlier run on a quieter PC measured +0.22 ms (GPU +0.18 ms, the gibs' CPU 0.06 ms). So a raid wall and ten barrels
+breaking cost a quarter of a millisecond a frame, inside the 0.5 ms asked; most of it is drawing the pieces and their
+dust. The explosion's own effect isn't in it (it is the fx library's, §9.3).
 
 Screenshots (`docs/images/ground/gibs/`): `sheet.jpg` (every model breaking: props, deployables, outcrops, doors, each
 grade's wall, doorway and foundation), `raid.jpg` (the raid scene a moment after), `wall.jpg` (a stone wall's pieces at
 rest), `barrel.jpg` and `barrel-rest.jpg` (a barrel broken with the hatchet in the game, in the air and on the ground:
-the tour's world step).
+the tour's world step), `outcrop.jpg` (a metal outcrop mined out, its remnant crumbling: the tour's mine step).
 
 ![Every model breaking](images/ground/gibs/sheet.jpg)
 
