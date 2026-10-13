@@ -27,6 +27,9 @@ public sealed class VerbDef
     /// <summary>What the prompt and the radial say, before the thing's name ("Open", "Set code").</summary>
     public string Label { get; init; } = "";
 
+    /// <summary>Whether the prompt names the thing after the label ("OPEN WOODEN DOOR"; not "SET CODE", "OPEN TECH TREE").</summary>
+    public bool Named { get; init; } = true;
+
     /// <summary>The radial's outline glyph, by name.</summary>
     public string Glyph { get; init; } = "";
 
@@ -141,8 +144,8 @@ internal static class InteractionsReader
         foreach ((JsonElement e, int i) in f.List(root, "verbs", file).Select((e, i) => (e, i)))
         {
             string where = $"{file}: verbs[{i}]";
-            f.OnlyKnown(e, where, "key", "label", "glyph", "description", "priority", "reach", "sight", "code", "panel", "menu", "switch",
-                "alive", "awake", "wounded", "seated", "note");
+            f.OnlyKnown(e, where, "key", "label", "named", "glyph", "description", "priority", "reach", "sight", "code", "panel", "menu",
+                "switch", "alive", "awake", "wounded", "seated", "note");
             string key = f.Text(e, "key", where);
             if (!keys.Add(key))
             {
@@ -154,15 +157,10 @@ internal static class InteractionsReader
                 f.Problem(where, $"reach \"{reachName}\" isn't one of survival.json's ({string.Join(", ", reaches.Keys)})");
             }
             string switchName = f.Text(e, "switch", where, "none");
-            VerbSwitch turns = switchName switch
-            {
-                "on" => VerbSwitch.On,
-                "off" => VerbSwitch.Off,
-                _ => VerbSwitch.None,
-            };
-            if (switchName is not ("none" or "on" or "off"))
+            if (!Enum.TryParse(switchName, ignoreCase: true, out VerbSwitch turns) || !Enum.IsDefined(turns) || char.IsDigit(switchName[0]))
             {
                 f.Problem(where, $"switch \"{switchName}\" (known: on, off)");
+                turns = VerbSwitch.None;
             }
             string panel = f.Text(e, "panel", where, "");
             var verb = new VerbDef
@@ -170,6 +168,7 @@ internal static class InteractionsReader
                 Id = i,
                 Key = key,
                 Label = f.Text(e, "label", where),
+                Named = f.Flag(e, "named", where, true),
                 Glyph = f.Text(e, "glyph", where),
                 Description = f.Text(e, "description", where, ""),
                 Priority = f.Integer(e, "priority", where, 0),

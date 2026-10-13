@@ -133,7 +133,8 @@ public sealed partial class Zone
         public CapabilitySet Capabilities(ulong id) => CapabilitySet.Empty;
 
         // The ground hides what is behind it; it offers nothing.
-        public void Aim(in AimRay ray, ref AimHit best) => ray.Consider(ref best, zone.GroundCrossing(ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground);
+        public void Aim(in AimRay ray, ref AimHit best) =>
+            ray.Consider(ref best, zone.GroundCrossing(ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground, AimKind.Backdrop);
 
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
@@ -329,7 +330,8 @@ public sealed partial class Zone
             {
                 if (!a.Removed)
                 {
-                    ray.Consider(ref best, AnimalHitboxes.Raycast(a.Species, zone.PoseOf(a), ray.Origin, ray.Direction, length, AimShapes.BodyMargin, out _), a.Ref);
+                    ray.Consider(ref best, AnimalHitboxes.Raycast(a.Species, zone.PoseOf(a), ray.Origin, ray.Direction, length, AimShapes.BodyMargin, out _), a.Ref,
+                        AimKind.Backdrop);
                 }
             }
         }

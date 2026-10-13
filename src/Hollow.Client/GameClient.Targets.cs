@@ -156,7 +156,7 @@ public sealed partial class GameClient
         {
             if (c._surface != null && c.Zone != null)
             {
-                ray.Consider(ref best, GroundAim.Crossing(c._surface, c.Frame, ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground);
+                ray.Consider(ref best, GroundAim.Crossing(c._surface, c.Frame, ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground, AimKind.Backdrop);
             }
         }
 
@@ -266,7 +266,7 @@ public sealed partial class GameClient
                 if (a.Species is { } species && Vector3.DistanceSquared(a.Position, ray.Origin) <= (length + 4) * (length + 4))
                 {
                     ray.Consider(ref best, AnimalHitboxes.Raycast(species, c.PoseOf(a), ray.Origin, ray.Direction, length, AimShapes.BodyMargin, out _),
-                        new TargetRef(TargetFamily.Animal, a.Id.Value));
+                        new TargetRef(TargetFamily.Animal, a.Id.Value), AimKind.Backdrop);
                 }
             }
         }

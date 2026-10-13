@@ -127,7 +127,8 @@ public static class InteractionTests
 
     /// <summary>
     /// GROUND_SYSTEMS.md §5, a door is its leaves and its opening: a garage door rolled up into its header is still the
-    /// door aimed at through its opening, and E shuts it from there (it couldn't be closed: the view went through).
+    /// door aimed at through its opening, and E shuts it from there (it couldn't be closed: the view went through); yet
+    /// an open doorway hides nothing behind it to act on (a box just inside).
     /// </summary>
     [Test]
     public static void GarageDoorClosesThroughItsOpening()
@@ -152,6 +153,12 @@ public static class InteractionTests
         Assert.True(open.Target.Family == TargetFamily.Door && open.Target.Id == door.Id.Value, $"through its opening, the door ({open.Target})");
         Assert.True(Vector3.Distance(eye + Vector3.Normalize(middle - eye) * open.Distance, middle) < 1.0f, "met in its opening");
         Assert.Equal("door-close*, door-pick-up", Offer(z, ada, open.Target), "open: E shuts it");
+
+        // The open doorway hides nothing behind it: a box just inside is aimed at through it.
+        Deployable box = Box(rig, 0, 0, rig.P(ada).Id, at: position - outward * 1.0f);
+        Assert.Equal(box.Ref, z.Aim(eye, box.Centre - eye, me).Target, "a box just inside, through the open doorway");
+        z.RemoveStatic(box);
+
         Assert.Equal(OutcomeCode.Done, z.Interact(ada, open.Target, "door-close"), "shut through its opening");
         Assert.True(!door.Open, "shut");
     }

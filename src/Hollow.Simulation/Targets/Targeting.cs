@@ -18,17 +18,30 @@ public readonly record struct AimRay(Vector3 Origin, Vector3 Direction, float Le
     public float Upto(in AimHit best) => best.Hit ? MathF.Min(Length, best.Distance) : Length;
 
     /// <summary>A hit <paramref name="t"/> along the ray (negative: none) replaces the best so far when it is nearer.</summary>
-    public void Consider(ref AimHit best, float t, in TargetRef target)
+    public void Consider(ref AimHit best, float t, in TargetRef target, AimKind kind = AimKind.Thing)
     {
         if (t >= 0 && t <= Length && (!best.Hit || t < best.Distance))
         {
-            best = new AimHit(target, t, Origin + Direction * t);
+            best = new AimHit(target, t, Origin + Direction * t, kind);
         }
     }
 }
 
-/// <summary>What the interact key's ray met first: the thing (its family, ID and part), how far along and where.</summary>
-public readonly record struct AimHit(TargetRef Target, float Distance, Vector3 Point)
+/// <summary>What a hit is to the view along the interact key's ray.</summary>
+public enum AimKind : byte
+{
+    /// <summary>Something E may act on: the view ends there.</summary>
+    Thing,
+
+    /// <summary>What only stops the view (the ground, the building's pieces, trees and rocks, animals): it offers nothing.</summary>
+    Backdrop,
+
+    /// <summary>An open door's opening: the door, unless the view through it meets something beyond to act on.</summary>
+    Opening,
+}
+
+/// <summary>What the interact key's ray met first: the thing (its family, ID and part), how far along, where, and what it is to the view.</summary>
+public readonly record struct AimHit(TargetRef Target, float Distance, Vector3 Point, AimKind Kind = AimKind.Thing)
 {
     public static readonly AimHit None = new(TargetRef.None, -1, default);
 
@@ -227,17 +240,18 @@ public static class NaturalAim
             {
                 continue;
             }
+            // A pickup or bush is taken with E (a little bigger than it is); a tree or a rock only stops the view.
             Combat.HitShape shape = Nature.NaturalShapes.Bounds(o, kind);
-            float grow = kind.IsPicked ? AimShapes.PickupMargin : 0;
-            ray.Consider(ref best, shape.Raycast(ray.Origin, ray.Direction, length, grow), new TargetRef(TargetFamily.Natural, o.Id));
+            (float grow, AimKind aim) = kind.IsPicked ? (AimShapes.PickupMargin, AimKind.Thing) : (0f, AimKind.Backdrop);
+            ray.Consider(ref best, shape.Raycast(ray.Origin, ray.Direction, length, grow), new TargetRef(TargetFamily.Natural, o.Id), aim);
         }
     }
 }
 
 /// <summary>
 /// The building along the interact key's ray, the same on both sides (the client's mirror holds the server's bodies): one
-/// query over every building body (pieces, doors' leaves, the tool cupboard), named by what owns the body; and doorways'
-/// openings, which name their doors.
+/// query over every building body (pieces, doors' leaves, the tool cupboard), named by what owns the body (a piece only
+/// stops the view); and doorways' openings, which name their doors (an open one hides nothing behind it, §5).
 /// </summary>
 public static class BuildingAim
 {
@@ -246,7 +260,7 @@ public static class BuildingAim
         if (building.Physics is { } physics && physics.Ray(ray.Origin, ray.Direction, ray.Upto(best), out RayHit hit, buildingOnly: true) &&
             physics.OwnerOf(hit.Body) is ITargetable owner)
         {
-            ray.Consider(ref best, hit.Distance, owner.Ref);
+            ray.Consider(ref best, hit.Distance, owner.Ref, owner is Piece ? AimKind.Backdrop : AimKind.Thing);
         }
     }
 
@@ -259,7 +273,7 @@ public static class BuildingAim
         {
             if (piece.Door is { Gone: false } door)
             {
-                ray.Consider(ref best, AimShapes.Doorway(within, building.Data, piece), door.Ref);
+                ray.Consider(ref best, AimShapes.Doorway(within, building.Data, piece), door.Ref, door.Open ? AimKind.Opening : AimKind.Thing);
             }
         }
     }
@@ -289,11 +303,28 @@ public static class ShipAim
 /// <summary>
 /// The one targeting query (GROUND_SYSTEMS.md §5): every registered family is asked for its nearest member along the
 /// ray, and the nearest of all is what the interact key acts on, not the first of a list in some order. What blocks the
-/// view (the ground, a wall, a tree) is a family's member too, so nothing is reached through it.
+/// view (the ground, a wall, a tree) is a family's member too, so nothing is reached through it. An open doorway hides
+/// nothing: the view goes on through it, and its door is what E meets there only when nothing beyond it is to act on (a
+/// box just inside, a player down in the doorway are aimed at through it; the far wall, the floor or nothing is not).
 /// </summary>
 public static class Targeting
 {
+    // How far past an opening the view goes on from (clear of its plane).
+    private const float PastOpening = 0.01f;
+
     public static AimHit Aim(IReadOnlyList<ITargetView> families, in AimRay ray)
+    {
+        AimHit best = Nearest(families, ray);
+        if (best.Kind != AimKind.Opening || ray.Length - best.Distance <= PastOpening)
+        {
+            return best;
+        }
+        var beyond = ray with { Origin = best.Point + ray.Direction * PastOpening, Length = ray.Length - best.Distance - PastOpening };
+        AimHit next = Nearest(families, beyond);
+        return next is { Hit: true, Kind: AimKind.Thing } ? next with { Distance = next.Distance + best.Distance + PastOpening } : best;
+    }
+
+    private static AimHit Nearest(IReadOnlyList<ITargetView> families, in AimRay ray)
     {
         AimHit best = AimHit.None;
         for (int i = 0; i < families.Count; i++)

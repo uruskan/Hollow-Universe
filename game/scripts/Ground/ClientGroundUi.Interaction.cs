@@ -52,8 +52,8 @@ public sealed partial class ClientGroundUi
         Prompt = _aim != null ? PromptFor(_aim) : null;
     }
 
-    // "E  OPEN WOODEN DOOR" (its primary verb and the target's name), or the reason it can't be done; just the name when a
-    // tap does nothing; the hold hint when there is more to choose.
+    // "E  OPEN WOODEN DOOR" (its primary verb and the target's name, unless the verb leaves it out: "E  SET CODE"), or the
+    // reason it can't be done; just the name when a tap does nothing; the hold hint when there is more to choose.
     private InteractionPrompt PromptFor(InteractAim aim)
     {
         int menu = 0;
@@ -67,7 +67,7 @@ public sealed partial class ClientGroundUi
             return new InteractionPrompt("E", name.ToUpperInvariant(), MoreOptions: menu > 0);
         }
         InteractOption primary = aim.Options[aim.Primary];
-        string action = primary.Enabled ? $"{verb.Label} {name}" : C.Texts.Line(primary.Reason);
+        string action = !primary.Enabled ? C.Texts.Line(primary.Reason) : verb.Named ? $"{verb.Label} {name}" : verb.Label;
         return new InteractionPrompt("E", action.ToUpperInvariant(), MoreOptions: menu > 1);
     }
 
