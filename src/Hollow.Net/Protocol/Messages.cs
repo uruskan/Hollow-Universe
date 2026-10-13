@@ -242,7 +242,10 @@ public partial struct ShipNetState
     [Angle] public ushort Yaw;
     [Angle] public ushort Pitch;
     [Angle] public ushort Roll;
-    [Bits(12)] public ShipNetFlags Flags;
+    [Bits(10)] public ShipNetFlags Flags;
+
+    /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): theirs, a teammate's, locked.</summary>
+    [Bits(8)] public ViewerFlags Viewer;
     [Bits(5)] public byte Hatch;
     [Signed(8)] public sbyte ThrustX;
     [Signed(8)] public sbyte ThrustY;
@@ -338,20 +341,22 @@ public partial struct ThingSpawn
     /// <summary>Health as a fraction of 255 (deployables); how many stacks a bag holds.</summary>
     public byte Health;
     [VarInt] public uint Count;
-    [Bits(4)] public ThingFlags Flags;
+
+    /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): lit, theirs, empty, a teammate's.</summary>
+    [Bits(8)] public ViewerFlags Flags;
 
     /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
     [MaxLength(32)] public string Name;
 }
 
-/// <summary>A relevant static thing changed: health, flags, count.</summary>
+/// <summary>A relevant static thing changed: health, count, or what the receiver is told of it.</summary>
 [NetMessage(23)]
 public partial struct ThingUpdate
 {
     [VarInt] public uint NetId;
     public byte Health;
     [VarInt] public uint Count;
-    [Bits(4)] public ThingFlags Flags;
+    [Bits(8)] public ViewerFlags Flags;
 }
 
 /// <summary>An item worn (for <see cref="CharacterLook"/>).</summary>
@@ -997,7 +1002,8 @@ public partial struct BuildRemoved
 
 /// <summary>
 /// A door: its frame piece, which door (building.json's order), flipped, open; health as a fraction of 65,535; its
-/// lock, whether locked and whether this player may pass it; its leaves' body IDs.
+/// lock; what this player is told of it (GROUND_SYSTEMS.md §3.3: may pass, locked, its lock's code set, on its list,
+/// theirs); its leaves' body IDs.
 /// </summary>
 [NetStruct]
 public partial struct DoorNet
@@ -1010,8 +1016,7 @@ public partial struct DoorNet
     public ushort Health;
     [Bits(2)] public LockKind Lock;
     public ulong LockId;
-    public bool Locked;
-    public bool CanUse;
+    [Bits(8)] public ViewerFlags Flags;
     [VarInt] public uint Body0;
     [VarInt] public uint Body1;
 }
@@ -1024,7 +1029,8 @@ public partial struct BuildDoors
 
 /// <summary>
 /// A claim device: the piece it stands on, where on it (frame metres) and its turn; health as a fraction of 65,535;
-/// whether this player is on its list; its body; how long its store keeps the base from decaying (minutes).
+/// what this player is told of it (GROUND_SYSTEMS.md §3.3: on its list, theirs); its body; how long its store keeps the
+/// base from decaying (minutes).
 /// </summary>
 [NetStruct]
 public partial struct ClaimNet
@@ -1036,7 +1042,7 @@ public partial struct ClaimNet
     public double Z;
     [Bits(4)] public byte Yaw;
     public ushort Health;
-    public bool Authorised;
+    [Bits(8)] public ViewerFlags Flags;
     [VarInt] public uint Body;
     [VarInt] public uint ProtectedMinutes;
 }

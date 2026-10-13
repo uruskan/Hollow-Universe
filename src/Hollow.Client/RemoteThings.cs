@@ -4,6 +4,7 @@ using Hollow.Net.Protocol;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Client;
 
@@ -38,15 +39,16 @@ public sealed class RemoteThing
     /// <summary>How many stacks a bag holds (one is picked up at once; more open like a box).</summary>
     public int Count { get; set; }
 
-    public ThingFlags Flags { get; set; }
+    /// <summary>What the server tells this player of it (GROUND_SYSTEMS.md §3.3): lit, theirs, empty, a teammate's.</summary>
+    public ViewerFlags Flags { get; set; }
 
     /// <summary>Its own name, as the server gives it: a body's (the dead player's), a bag's, a world prop's; empty for a deployable.</summary>
     public string Name { get; set; } = "";
 
-    public bool Lit => (Flags & ThingFlags.Lit) != 0;
+    public bool Lit => (Flags & ViewerFlags.Lit) != 0;
 
     /// <summary>The receiving player's own (their sleeping bag).</summary>
-    public bool Mine => (Flags & ThingFlags.Mine) != 0;
+    public bool Mine => (Flags & ViewerFlags.Mine) != 0;
 
     /// <summary>Raised when it changes, for views that cache what they built.</summary>
     public uint Revision { get; set; }

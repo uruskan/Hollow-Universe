@@ -585,29 +585,38 @@ public partial class BuildView : Node3D
         {
             case Door door:
             {
+                // What the server tells this player of the door (GROUND_SYSTEMS.md §3.3): theirs (its lock's fitter), whether
+                // its code lock has a code and lists them, locked, whether they may pass. The full menu is the interaction
+                // package's; this offers what the flags allow, a fresh code lock's code first.
                 DoorState state = Client.BuildingReplica!.StateOf(door);
-                bool mine = door.Owner == Client.EntityId.Value || door.Lock?.Owner == Client.EntityId.Value;
-                if (door.Lock is CodeLock && state.CanUse)
+                if (state.Lock == LockKind.Code && !state.HasCode)
+                {
+                    if (state.Mine && keypad != null)
+                    {
+                        options.Add(("SET CODE", () => keypad(door, true)));
+                    }
+                }
+                else if (state.Lock == LockKind.Code && state.Authorised)
                 {
                     options.Add((state.Locked ? "UNLOCK" : "LOCK", () => { if (state.Locked) { me.Unlock(door); } else { me.Lock(door); } }));
-                    if (mine && keypad != null)
+                    if (!state.Locked && keypad != null)
                     {
                         options.Add(("CHANGE CODE", () => keypad(door, true)));
                     }
                 }
-                if (door.Lock is KeyLock && state.CanUse)
+                if (state.Lock == LockKind.Key && state.CanUse)
                 {
                     options.Add((state.Locked ? "UNLOCK" : "LOCK", () => { if (state.Locked) { me.Unlock(door); } else { me.Lock(door); } }));
-                    if (mine)
+                    if (state.Mine)
                     {
                         options.Add(("CUT A KEY", () => me.MakeKey(door)));
                     }
                 }
-                if (door.Lock != null && mine)
+                if (state.Lock != LockKind.None && !state.Locked && (state.Lock == LockKind.Code ? state.Authorised : state.Mine))
                 {
                     options.Add(("TAKE THE LOCK", () => me.RemoveLock(door)));
                 }
-                if (mine && state.CanUse)
+                if (state.Lock == LockKind.None && state.Mine)
                 {
                     options.Add(("PICK UP DOOR", () => me.PickUpDoor(door)));
                 }

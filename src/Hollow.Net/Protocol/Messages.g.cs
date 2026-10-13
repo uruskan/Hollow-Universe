@@ -23,7 +23,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xE85062D1F65BE89AUL;
+    public const ulong SchemaHash = 0x0D9C53CD20319249UL;
 }
 
 partial struct Hello
@@ -427,7 +427,8 @@ partial struct ShipNetState
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Pitch, 16);
         w.WriteBits((uint)Roll, 16);
-        w.WriteBits((uint)Flags, 12);
+        w.WriteBits((uint)Flags, 10);
+        w.WriteBits((uint)Viewer, 8);
         w.WriteBits((uint)Hatch, 5);
         w.WriteSigned(ThrustX, 8);
         w.WriteSigned(ThrustY, 8);
@@ -445,7 +446,8 @@ partial struct ShipNetState
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
         v.Roll = (ushort)r.ReadBits(16);
-        v.Flags = (ShipNetFlags)r.ReadBits(12);
+        v.Flags = (ShipNetFlags)r.ReadBits(10);
+        v.Viewer = (ViewerFlags)r.ReadBits(8);
         v.Hatch = (byte)r.ReadBits(5);
         v.ThrustX = (sbyte)r.ReadSigned(8);
         v.ThrustY = (sbyte)r.ReadSigned(8);
@@ -515,7 +517,16 @@ partial struct ShipNetState
         if (Flags != b.Flags)
         {
             w.WriteBool(true);
-            w.WriteBits((uint)Flags, 12);
+            w.WriteBits((uint)Flags, 10);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Viewer != b.Viewer)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)Viewer, 8);
         }
         else
         {
@@ -606,7 +617,11 @@ partial struct ShipNetState
         }
         if (r.ReadBool())
         {
-            v.Flags = (ShipNetFlags)r.ReadBits(12);
+            v.Flags = (ShipNetFlags)r.ReadBits(10);
+        }
+        if (r.ReadBool())
+        {
+            v.Viewer = (ViewerFlags)r.ReadBits(8);
         }
         if (r.ReadBool())
         {
@@ -635,7 +650,7 @@ partial struct ShipNetState
         return v;
     }
 
-    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Roll == o.Roll && Flags == o.Flags && Hatch == o.Hatch && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind;
+    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Roll == o.Roll && Flags == o.Flags && Viewer == o.Viewer && Hatch == o.Hatch && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in ShipNetState b)
@@ -647,7 +662,8 @@ partial struct ShipNetState
         bits += Yaw == b.Yaw ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Yaw - b.Yaw)));
         bits += Pitch == b.Pitch ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Pitch - b.Pitch)));
         bits += Roll == b.Roll ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Roll - b.Roll)));
-        bits += Flags == b.Flags ? 1 : 13;
+        bits += Flags == b.Flags ? 1 : 11;
+        bits += Viewer == b.Viewer ? 1 : 9;
         bits += Hatch == b.Hatch ? 1 : 6;
         bits += ThrustX == b.ThrustX ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustX - (int)b.ThrustX));
         bits += ThrustY == b.ThrustY ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustY - (int)b.ThrustY));
@@ -658,7 +674,7 @@ partial struct ShipNetState
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 233;
+    public const int FullBits = 239;
 }
 
 partial struct CharacterNetState
@@ -1060,7 +1076,7 @@ partial struct ThingSpawn
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Health, 8);
         w.WriteVarUInt(Count);
-        w.WriteBits((uint)Flags, 4);
+        w.WriteBits((uint)Flags, 8);
         w.WriteString(Name, 32);
     }
 
@@ -1077,7 +1093,7 @@ partial struct ThingSpawn
         v.Yaw = (ushort)r.ReadBits(16);
         v.Health = (byte)r.ReadBits(8);
         v.Count = r.ReadVarUInt();
-        v.Flags = (ThingFlags)r.ReadBits(4);
+        v.Flags = (ViewerFlags)r.ReadBits(8);
         v.Name = r.ReadString(32);
         return v;
     }
@@ -1099,7 +1115,7 @@ partial struct ThingUpdate
         w.WriteVarUInt(NetId);
         w.WriteBits((uint)Health, 8);
         w.WriteVarUInt(Count);
-        w.WriteBits((uint)Flags, 4);
+        w.WriteBits((uint)Flags, 8);
     }
 
     public static ThingUpdate Read(BitReader r)
@@ -1108,7 +1124,7 @@ partial struct ThingUpdate
         v.NetId = r.ReadVarUInt();
         v.Health = (byte)r.ReadBits(8);
         v.Count = r.ReadVarUInt();
-        v.Flags = (ThingFlags)r.ReadBits(4);
+        v.Flags = (ViewerFlags)r.ReadBits(8);
         return v;
     }
 }
@@ -2855,8 +2871,7 @@ partial struct DoorNet
         w.WriteBits((uint)Health, 16);
         w.WriteBits((uint)Lock, 2);
         w.WriteBits64(LockId, 64);
-        w.WriteBool(Locked);
-        w.WriteBool(CanUse);
+        w.WriteBits((uint)Flags, 8);
         w.WriteVarUInt(Body0);
         w.WriteVarUInt(Body1);
     }
@@ -2872,8 +2887,7 @@ partial struct DoorNet
         v.Health = (ushort)r.ReadBits(16);
         v.Lock = (LockKind)r.ReadBits(2);
         v.LockId = r.ReadBits64(64);
-        v.Locked = r.ReadBool();
-        v.CanUse = r.ReadBool();
+        v.Flags = (ViewerFlags)r.ReadBits(8);
         v.Body0 = r.ReadVarUInt();
         v.Body1 = r.ReadVarUInt();
         return v;
@@ -2930,7 +2944,7 @@ partial struct ClaimNet
         w.WriteDouble(Z);
         w.WriteBits((uint)Yaw, 4);
         w.WriteBits((uint)Health, 16);
-        w.WriteBool(Authorised);
+        w.WriteBits((uint)Flags, 8);
         w.WriteVarUInt(Body);
         w.WriteVarUInt(ProtectedMinutes);
     }
@@ -2945,7 +2959,7 @@ partial struct ClaimNet
         v.Z = r.ReadDouble();
         v.Yaw = (byte)r.ReadBits(4);
         v.Health = (ushort)r.ReadBits(16);
-        v.Authorised = r.ReadBool();
+        v.Flags = (ViewerFlags)r.ReadBits(8);
         v.Body = r.ReadVarUInt();
         v.ProtectedMinutes = r.ReadVarUInt();
         return v;

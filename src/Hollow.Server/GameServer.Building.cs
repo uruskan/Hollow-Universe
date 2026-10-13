@@ -11,6 +11,7 @@ using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Server;
 
@@ -346,6 +347,18 @@ public sealed partial class GameServer
             }
         }
 
+        // What this player is told of doors and claim devices changed with them (a team, a key): all they have go again.
+        if (session.ViewerChanged)
+        {
+            foreach (object part in view.Sent)
+            {
+                if (part is Door or ClaimDevice && view.Queued.Add(part))
+                {
+                    view.Updates.Add(part);
+                }
+            }
+        }
+
         // Changed: what this player has, or would get now.
         foreach (object part in _buildChanged)
         {
@@ -615,8 +628,6 @@ public sealed partial class GameServer
     private DoorNet NetOf(Door d, PlayerSession session)
     {
         BuildingData data = Zone.Building!.Data;
-        bool canUse = Zone.TryFindPlayer(session.EntityId, out _, out var player) &&
-            BuildingWorld.CanUse(session.EntityId.Value, d, KeyCodes(player.Inventory));
         return new DoorNet
         {
             Id = d.Id.Value,
@@ -625,34 +636,12 @@ public sealed partial class GameServer
             Flip = d.Flip != 0,
             Open = d.Open,
             Health = Fraction(d.Health, d.Def.Health),
-            Lock = d.Lock switch
-            {
-                KeyLock => LockKind.Key,
-                CodeLock => LockKind.Code,
-                _ => LockKind.None,
-            },
+            Lock = d.Lock?.Kind ?? LockKind.None,
             LockId = d.Lock?.Id.Value ?? 0,
-            Locked = d.Lock?.Locked == true,
-            CanUse = canUse,
+            Flags = Zone.FlagsFor(d.Ref, session.Viewer),
             Body0 = d.BodyIds.Count > 0 ? d.BodyIds[0] : 0,
             Body1 = d.BodyIds.Count > 1 ? d.BodyIds[1] : 0,
         };
-    }
-
-    private List<int> KeyCodes(PlayerInventory inventory)
-    {
-        var keys = new List<int>();
-        foreach (Container c in inventory.Carried)
-        {
-            for (int i = 0; i < c.Size; i++)
-            {
-                if (!c[i].IsEmpty && Content.Item(c[i].Item)?.Building == Simulation.Content.BuildingRole.Key)
-                {
-                    keys.Add(c[i].Condition);
-                }
-            }
-        }
-        return keys;
     }
 
     private ClaimNet NetOf(ClaimDevice c, PlayerSession session)
@@ -667,7 +656,7 @@ public sealed partial class GameServer
             Z = c.Position.Z,
             Yaw = (byte)c.Yaw,
             Health = Fraction(c.Health, Zone.Building.Data.ClaimHealth),
-            Authorised = c.IsAuthorised(session.EntityId.Value),
+            Flags = Zone.FlagsFor(c.Ref, session.Viewer),
             Body = c.BodyId,
             ProtectedMinutes = double.IsInfinity(protectedSeconds) ? uint.MaxValue : (uint)Math.Clamp(protectedSeconds / 60, 0, uint.MaxValue - 1),
         };

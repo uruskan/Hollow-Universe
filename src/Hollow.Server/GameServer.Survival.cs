@@ -20,6 +20,7 @@ using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 using LiteNetLib;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Server;
 
@@ -929,24 +930,31 @@ public sealed partial class GameServer
         {
             uint netId = _thingGrid[index].NetId;
             WorldObject thing = _things[netId];
-            if (session.ThingsSent.TryGetValue(netId, out uint revision))
+            uint contents = thing.Container?.Revision ?? 0;
+            if (session.ThingsSent.TryGetValue(netId, out ThingSent sent))
             {
                 _thingsRelevant.Add(netId);
-                if (revision != thing.Revision)
+                // Sent again when it changed, or when what the player is told of it did (its contents, the viewer).
+                if (sent.Revision != thing.Revision || sent.Contents != contents || session.ViewerChanged)
                 {
-                    session.ThingsSent[netId] = thing.Revision;
-                    (byte health, uint count, ThingFlags flags) = Look(thing, session);
-                    _writer.Reset();
-                    new ThingUpdate { NetId = netId, Health = health, Count = count, Flags = flags }.WriteMessage(_writer);
-                    Send(session);
+                    ViewerFlags flags = Zone.FlagsFor(thing.Ref, session.Viewer);
+                    session.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags);
+                    if (sent.Revision != thing.Revision || flags != sent.Flags)
+                    {
+                        (byte health, uint count) = Look(thing);
+                        _writer.Reset();
+                        new ThingUpdate { NetId = netId, Health = health, Count = count, Flags = flags }.WriteMessage(_writer);
+                        Send(session);
+                    }
                 }
             }
             else if (spawned < ThingSpawnsPerSnapshot)
             {
                 spawned++;
                 _thingsRelevant.Add(netId);
-                session.ThingsSent[netId] = thing.Revision;
-                (byte health, uint count, ThingFlags flags) = Look(thing, session);
+                ViewerFlags flags = Zone.FlagsFor(thing.Ref, session.Viewer);
+                session.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags);
+                (byte health, uint count) = Look(thing);
                 _writer.Reset();
                 new ThingSpawn
                 {
@@ -982,10 +990,9 @@ public sealed partial class GameServer
         Send(session);
     }
 
-    // What a client is told of a thing besides its look: health, a count (a bag's stacks), burning, theirs.
-    private static (byte Health, uint Count, ThingFlags Flags) Look(WorldObject thing, PlayerSession session) =>
-        ((byte)Math.Clamp(Math.Ceiling(thing.HealthFraction * 255), 0, 255), (uint)Math.Max(0, thing.ShownCount),
-            (thing.Burning ? ThingFlags.Lit : ThingFlags.None) | (thing.OwnedBy(session.EntityId) ? ThingFlags.Mine : ThingFlags.None));
+    // What a client is told of a thing besides its look and its viewer flags: health, a count (a bag's stacks).
+    private static (byte Health, uint Count) Look(WorldObject thing) =>
+        ((byte)Math.Clamp(Math.Ceiling(thing.HealthFraction * 255), 0, 255), (uint)Math.Max(0, thing.ShownCount));
 
     private void FinishThings()
     {

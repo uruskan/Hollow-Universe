@@ -23,6 +23,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Surface;
 using LiteNetLib;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Server;
 
@@ -729,6 +730,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             ref Character own = ref Zone.Entities.Get<Character>(session.Entity);
             Vector3 centre = own.State.Position;
+            ViewAs(session);
 
             // Relevance: who this player should hear about now, and the spawns and despawns that changes.
             _grid.Query(centre, session.Relevant, _relevantIndices);
@@ -826,6 +828,26 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
         FinishThings();
         FinishBuilding();
+    }
+
+    // The player as a viewer for this snapshot (GROUND_SYSTEMS.md §3.3), and whether that changed since the last: their
+    // team (and who is in it) and the keys they carry decide what they are told of doors, things and ships.
+    private void ViewAs(PlayerSession session)
+    {
+        if (Zone.Content == null || Zone.PlayerOf(session.Entity) is not { } p)
+        {
+            session.ViewerChanged = false;
+            return;
+        }
+        Viewer viewer = Zone.ViewerOf(p);
+        ulong signature = Hash64.Of(viewer.Id.Value, viewer.Team?.Id ?? 0, viewer.Team?.Revision ?? 0);
+        foreach (int key in viewer.Keys ?? Array.Empty<int>())
+        {
+            signature = Hash64.Combine(signature, (ulong)key);
+        }
+        session.Viewer = viewer;
+        session.ViewerChanged = signature != session.ViewerSignature;
+        session.ViewerSignature = signature;
     }
 
     // ---------------------------------------------------------------- saving and shutting down

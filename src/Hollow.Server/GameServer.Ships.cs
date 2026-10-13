@@ -146,7 +146,7 @@ public sealed partial class GameServer
             _shipCandidates.Add(new ShipCandidate
             {
                 NetId = netId,
-                State = ShipConvert.ToNet(ship, ship.Owner == session.EntityId),
+                State = ShipConvert.ToNet(ship, Zone.FlagsFor(ship.Ref, session.Viewer)),
                 Weight = (moving ? 3f : 0.5f) + 4f * MathF.Max(0f, 1f - distance / ShipRelevanceRadius) + (ship.Pilot == session.EntityId ? 10f : 0f),
             });
         }

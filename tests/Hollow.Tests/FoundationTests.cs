@@ -2,17 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
 using System.Numerics;
+using Hollow.Client;
 using Hollow.Simulation;
 using Hollow.Simulation.Animals;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Nature;
+using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
 
 namespace Hollow.Tests;
@@ -208,5 +213,124 @@ public static class FoundationTests
         Assert.Equal(OutcomeCode.OutOfSight, z.Rearm(ada, dud.Id), "the wall hides the dud");
         Raids.Stand(rig, ada, z.Settle(face + outward * 1.0f));
         Assert.Equal(OutcomeCode.Done, z.Rearm(ada, dud.Id), "lit from in front");
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §3.3: viewer flags, made by each thing's capabilities through their registry. A box is Ada's own,
+    /// her teammate's to Bo once he joins her team, Empty until it holds something; a fire is Lit; a fresh code lock is
+    /// Ada's (she fitted it) with no code; once she sets one it is Locked with a code, Ada on its list and able to pass,
+    /// Bo neither; her ship is hers and Locked to everyone. Every capability in capabilities.json has its handler.
+    /// </summary>
+    [Test]
+    public static void ViewerFlagsComeFromCapabilities()
+    {
+        using var rig = new GameRig();
+        Zone z = rig.Zone;
+        GameContent c = rig.C;
+        Assert.True(CapabilityHandlers.Create(c.Capabilities).Problems.Count == 0 && z.Capabilities.Count == c.Capabilities.Keys.Count,
+            "every capability in the data has its handler");
+        Entity ada = rig.Add("Ada", 0, -4), bo = rig.Add("Bo", 1, -4);
+        Player a = rig.P(ada), b = rig.P(bo);
+        ViewerFlags As(Player p, ITargetable thing) => z.FlagsFor(thing.Ref, z.ViewerOf(p));
+
+        Vector3 at = z.GroundAt(6, 6);
+        var box = new Deployable(z.NextId(), c.Deployable("large-box")!, at, z.Frame.UpAt(at), 0, a.Id);
+        z.AddStatic(box);
+        Assert.Equal(ViewerFlags.Mine | ViewerFlags.Empty, As(a, box), "Ada's empty box, to her");
+        Assert.Equal(ViewerFlags.Empty, As(b, box), "to Bo: empty, not his");
+        box.Storage!.Set(0, ItemStack.Of(c.ItemByKey("wood"), 10));
+        Assert.Equal(ViewerFlags.Mine, As(a, box), "no longer empty");
+        z.TeamAct(ada, TeamAction.Create, EntityId.None, 0);
+        z.TeamAct(ada, TeamAction.Invite, b.Id, 0);
+        z.TeamAct(bo, TeamAction.Accept, EntityId.None, z.Teams.TeamOf(a.Id)!.Id);
+        Assert.Equal(ViewerFlags.Teammate, As(b, box), "to Bo, his teammate's box");
+
+        Vector3 fireAt = z.GroundAt(-6, 6);
+        var fire = new Deployable(z.NextId(), c.Deployable("campfire")!, fireAt, z.Frame.UpAt(fireAt), 0, a.Id) { Lit = true };
+        z.AddStatic(fire);
+        Assert.True(As(b, fire).HasFlag(ViewerFlags.Lit), "a fire burning is Lit to anyone");
+
+        TestBases.Hut hut = Raids.Hut(rig, 0, 12, owner: 99, door: "wooden-door");
+        Door door = hut.Door!;
+        Assert.True(z.Building!.Authorise(a.Id.Value, hut.Claim!).Ok && z.Building.AttachCodeLock(a.Id.Value, door, out _).Ok, "Ada fits a code lock");
+        Assert.Equal(ViewerFlags.Mine | ViewerFlags.CanUse | ViewerFlags.Authorised, As(a, door), "her fresh lock: hers, open, no code yet");
+        Assert.Equal(ViewerFlags.CanUse | ViewerFlags.Teammate, As(b, door), "to Bo: an unlocked door, his teammate's lock");
+        Assert.True(z.Building.SetCode(a.Id.Value, door, "1234").Ok, "she sets a code");
+        Assert.Equal(ViewerFlags.Mine | ViewerFlags.CanUse | ViewerFlags.Authorised | ViewerFlags.HasCode | ViewerFlags.Locked, As(a, door),
+            "locked with a code, Ada on its list and through");
+        Assert.Equal(ViewerFlags.HasCode | ViewerFlags.Locked | ViewerFlags.Teammate, As(b, door), "Bo: locked with a code, not his way");
+        Assert.True(As(b, hut.Claim!) == ViewerFlags.None && z.Building.Authorise(b.Id.Value, hut.Claim!).Ok &&
+            As(b, hut.Claim!) == ViewerFlags.Authorised, "the claim device: Authorised once Bo is on its list");
+
+        Ship ship = z.SpawnShip(c.Ship("tin-finch")!, z.GroundAt(30, 30), 0, a.Id, 10);
+        ship.Locked = true;
+        Assert.Equal(ViewerFlags.Mine | ViewerFlags.Locked | ViewerFlags.Empty, As(a, ship), "Ada's locked ship, its cargo empty");
+        Assert.Equal(ViewerFlags.Teammate | ViewerFlags.Locked | ViewerFlags.Empty, As(b, ship), "to Bo, his teammate's");
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §3.3 over the network: the viewer flags each player gets differ, and change with them. Ada's door
+    /// with a fresh code lock is hers and has no code on her client (the game offers SET CODE), not on Bo's; after the code
+    /// her client shows it locked and hers to pass, Bo's locked to him; her sleeping bag is hers on her client alone, and
+    /// shows as a teammate's on Bo's once he joins her team (sent again when only that changed).
+    /// </summary>
+    [Test]
+    public static void ViewerFlagsReachEachPlayer()
+    {
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        GameClient bo = rig.Join("Bo");
+        rig.WaitUntilPlaying();
+        rig.Server.Execute("teleport Ada 0 0");
+        rig.Server.Execute("teleport Bo 2 -2");
+        rig.Server.Execute("give Ada code-lock 1");
+        void Until(Func<bool> done, string what)
+        {
+            var watch = Stopwatch.StartNew();
+            while (!done())
+            {
+                Assert.True(watch.Elapsed.TotalSeconds < 6, $"timed out waiting for {what}");
+                rig.Run(0.05, (_, _) => default);
+            }
+        }
+        Until(() => ada.Local.Inventory.Count(ContentFixture.Item("code-lock")) == 1, "the lock");
+        ulong adaId = ada.EntityId.Value;
+        (EntityId doorId, EntityId bagId, Vector3 front) = rig.Server.Inspect(sv =>
+        {
+            TestBases.Hut hut = TestBases.Build(sv.Zone, sv.Zone.GroundAt(0, 4), 0, 1, adaId, "wooden-door", claim: false)!;
+            Vector3 bagAt = sv.Zone.GroundAt(-3, -1);
+            var bag = new Deployable(sv.Zone.NextId(), sv.Content.Deployable("sleeping-bag")!, bagAt, sv.Zone.Frame.UpAt(bagAt), 0, new EntityId(adaId));
+            sv.Zone.AddStatic(bag);
+            (Vector3 face, Vector3 outward) = hut.Face(hut.Doorway, height: 0);
+            return (hut.Door!.Id, bag.Id, face + outward * 1.5f);
+        });
+        // Ada in front of the door, in reach and in sight of it.
+        rig.Server.Execute(FormattableString.Invariant($"teleport Ada {front.X:0.00} {front.Z:0.00}"));
+        Until(() => ada.Building!.DoorOf(doorId) != null && bo.Building!.DoorOf(doorId) != null && ada.ThingOf(bagId) != null && bo.ThingOf(bagId) != null,
+            "the door and the bag on both clients");
+        Assert.True(ada.ThingOf(bagId)!.Mine && !bo.ThingOf(bagId)!.Mine, "the bag is Ada's on her client alone");
+        Door adaDoor = ada.Building!.DoorOf(doorId)!, boDoor = bo.Building!.DoorOf(doorId)!;
+        int lockSlot = Enumerable.Range(0, ada.Local.Inventory.Main.Size).First(i => ada.Local.Inventory.Main[i].Item == ContentFixture.Item("code-lock").Id);
+        ada.Local.AttachLock(ContainerRef.Main, lockSlot, adaDoor);
+        Until(() => ada.BuildingReplica!.StateOf(adaDoor).Lock == LockKind.Code && bo.BuildingReplica!.StateOf(boDoor).Lock == LockKind.Code, "the lock on both");
+        DoorState mine = ada.BuildingReplica!.StateOf(adaDoor), his = bo.BuildingReplica!.StateOf(boDoor);
+        Assert.True(mine is { Mine: true, HasCode: false, CanUse: true } && his is { Mine: false, HasCode: false },
+            $"a fresh code lock: Ada's, no code ({mine.Flags}; Bo: {his.Flags})");
+        ada.Local.SetCode(adaDoor, "4711");
+        Until(() => ada.BuildingReplica!.StateOf(adaDoor).HasCode && bo.BuildingReplica!.StateOf(boDoor).HasCode, "the code on both");
+        mine = ada.BuildingReplica!.StateOf(adaDoor);
+        his = bo.BuildingReplica!.StateOf(boDoor);
+        Assert.True(mine is { Locked: true, Authorised: true, CanUse: true } && his is { Locked: true, Authorised: false, CanUse: false },
+            $"locked: Ada passes, Bo doesn't ({mine.Flags}; Bo: {his.Flags})");
+
+        rig.Server.Execute(FormattableString.Invariant($"teleport Bo {front.X + 1.2f:0.00} {front.Z:0.00}"));
+        rig.Run(0.5, (_, _) => default);
+        ada.Local.CreateTeam();
+        Until(() => ada.Local.Team != null, "Ada's team");
+        ada.Local.InviteToTeam(bo.EntityId);
+        Until(() => bo.Local.TeamInvites.Count > 0, "Bo's invite");
+        bo.Local.AcceptInvite(bo.Local.TeamInvites[0].Team);
+        Until(() => bo.ThingOf(bagId)!.Flags.HasFlag(ViewerFlags.Teammate), "Bo told the bag is his teammate's");
+        Fixtures.Report($"Ada's door to her: {mine.Flags}; to Bo: {his.Flags}; her bag to Bo now: {bo.ThingOf(bagId)!.Flags}");
     }
 }
