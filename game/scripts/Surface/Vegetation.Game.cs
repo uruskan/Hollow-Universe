@@ -19,7 +19,7 @@ public sealed partial class Vegetation
 
     /// <summary>
     /// Set by the ground game: the kind to draw a scatter object of a tile as: its own, another (a picked berry bush as
-    /// a plain bush), or <see cref="NotDrawn"/> (felled, picked). Null: everything as generated. Called while meshes are
+    /// the same bush bare), or <see cref="NotDrawn"/> (felled, picked). Null: everything as generated. Called while meshes are
     /// rebuilt, on the main thread; call <see cref="Refresh"/> when an answer changes.
     /// </summary>
     public Func<TileKey, ScatterItem, ScatterKind>? Changes { get; set; }

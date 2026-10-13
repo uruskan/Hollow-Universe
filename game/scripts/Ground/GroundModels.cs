@@ -2,21 +2,23 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Hollow.Core;
+using HollowUniverse.Items;
 using HollowUniverse.Surface.Flora;
 
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// Where the ground game's world models come from (GROUND.md §9): deployables, dropped items and outcrops, by their
-/// data keys. The assets package's model catalogue (<c>data/ground/models.json</c>, its <c>ModelCatalog</c>) will
-/// implement this; until it lands, <see cref="PlaceholderModels"/> builds plain shapes in code. Swap
-/// <see cref="GroundModels.Provider"/> to drop the catalogue in.
+/// Where the ground game's world models come from (GROUND.md §9): deployables, dropped items, outcrops and the dead's
+/// backpacks, by their data keys. <see cref="CatalogModels"/> takes them from the assets package's model catalogue
+/// (<c>data/ground/models.json</c>); <see cref="PlaceholderModels"/> builds plain shapes in code (tests, and anything
+/// the catalogue lacks).
 /// </summary>
 public interface IGroundModels
 {
     /// <summary>
-    /// A new instance of a deployable's model (items.json key), standing on its base at the origin, facing −Z, about
-    /// <paramref name="halfExtents"/> in size; null to draw nothing.
+    /// A new instance of a deployable's model (items.json key), standing on its base at the origin, its front (where it
+    /// is used) toward +Z, about <paramref name="halfExtents"/> in size; null to draw nothing. A <c>socket_fire</c>
+    /// child marks where a lit one burns.
     /// </summary>
     Node3D? Deployable(string key, Vector3 halfExtents);
 
@@ -28,12 +30,69 @@ public interface IGroundModels
     /// 2 m across standing 1.3 m out of the ground, its base at the origin. <paramref name="variant"/> picks a shape.
     /// </summary>
     Node3D? Outcrop(string key, int stage, int variant);
+
+    /// <summary>What a dead player's things lie in once the body is gone (Rust's backpack), its base at the origin.</summary>
+    Node3D? Backpack();
 }
 
-/// <summary>The ground game's model provider (placeholders until the assets catalogue lands).</summary>
+/// <summary>The ground game's model provider: the catalogue's models, with placeholders for what it lacks.</summary>
 public static class GroundModels
 {
     public static IGroundModels Provider { get; set; } = new PlaceholderModels();
+}
+
+/// <summary>
+/// The assets package's models (GROUND.md §9.1) through <see cref="ModelCatalog"/>: deployables as placed (their
+/// sockets kept), dropped stacks as the item's own model at its drop scale lying on the ground (the dropped-item bag
+/// for an item without one), the stone, metal and sulphur outcrops at their three depletion stages, and the dead
+/// body's backpack (<c>loot-sack</c>). Anything the catalogue doesn't have falls back to <see cref="Fallback"/>.
+/// </summary>
+public sealed class CatalogModels(IGroundModels fallback) : IGroundModels
+{
+    public IGroundModels Fallback { get; } = fallback;
+
+    public Node3D? Deployable(string key, Vector3 halfExtents) =>
+        ModelCatalog.Instantiate(key) ?? Fallback.Deployable(key, halfExtents);
+
+    public Node3D? Dropped(string key)
+    {
+        ModelEntry? entry = ModelCatalog.Find(key);
+        Node3D? model = entry != null ? ModelCatalog.Instantiate(key) : null;
+        float scale = entry is { DropScale: > 0 } ? entry.DropScale : 1;
+        if (model == null)
+        {
+            model = ModelCatalog.Instantiate("dropped-bag");
+            scale = 1;
+            if (model == null)
+            {
+                return Fallback.Dropped(key);
+            }
+        }
+        // Items are modelled in the hand's frame (pivot at the grip): lay the model's lowest point on the ground and its
+        // middle over the origin.
+        Aabb box = ModelCatalog.LocalBounds(model, 0);
+        Vector3 centre = box.GetCenter();
+        model.Scale = Vector3.One * scale;
+        model.Position = new Vector3(-centre.X, -box.Position.Y, -centre.Z) * scale;
+        var root = new Node3D { Name = "Dropped " + key };
+        root.AddChild(model);
+        return root;
+    }
+
+    public Node3D? Outcrop(string key, int stage, int variant)
+    {
+        if (ModelCatalog.Instantiate(key, stage) is not { } rock)
+        {
+            return Fallback.Outcrop(key, stage, variant);
+        }
+        // Set a little into the ground, so slopes don't show its base.
+        rock.Position = new Vector3(0, -0.08f, 0);
+        var root = new Node3D { Name = key };
+        root.AddChild(rock);
+        return root;
+    }
+
+    public Node3D? Backpack() => ModelCatalog.Instantiate("loot-sack") ?? Fallback.Backpack();
 }
 
 /// <summary>
@@ -119,6 +178,13 @@ public sealed class PlaceholderModels : IGroundModels
         var root = new Node3D { Name = "Dropped " + key };
         Add(root, Sphere(), new Vector3(0, 0.1f, 0), new Vector3(0.24f, 0.13f, 0.2f), 0, new Color(0.55f, 0.47f, 0.33f));
         Add(root, Cylinder(0.035f, 0.08f), new Vector3(0, 0.24f, 0), Vector3.One, 0, new Color(0.42f, 0.35f, 0.24f));
+        return root;
+    }
+
+    public Node3D? Backpack()
+    {
+        var root = new Node3D { Name = "Backpack" };
+        Add(root, Capsule(0.22f, 0.6f), new Vector3(0, 0.16f, 0), new Vector3(1, 0.55f, 0.8f), 0, new Color(0.30f, 0.28f, 0.22f)).RotationDegrees = new Vector3(90, 0, 0);
         return root;
     }
 

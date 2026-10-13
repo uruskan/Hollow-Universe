@@ -220,6 +220,11 @@ public partial class GroundView : Node3D
         {
             warm.AddChild(dropped);
         }
+        if (GroundModels.Provider.Backpack() is { } bag)
+        {
+            bag.Position = new Vector3(x += 2, 0, 0);
+            warm.AddChild(bag);
+        }
         var body = new HollowUniverse.Characters.CharacterView { Name = "Body", Position = new Vector3(x + 3, 0, 0) };
         warm.AddChild(body);
         body.Wear(HollowUniverse.Characters.Wardrobe.All);

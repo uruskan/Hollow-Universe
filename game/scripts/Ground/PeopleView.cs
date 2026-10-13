@@ -15,7 +15,8 @@ namespace HollowUniverse.Ground;
 /// The other players (GROUND.md §4.8): each a <see cref="CharacterView"/> fed every frame from what the client
 /// replicates (position, up, yaw, pitch, the velocity seen, stance, ground, the item in hand), with their swings and
 /// shots, flinches when hurt, a ragdoll when they die, lying down asleep when logged off, and their clothing. Corpses
-/// are ragdolls too: a player's own body when they died in view, a fresh one when the corpse comes into range later.
+/// are ragdolls too: a player's own body when they died in view, a fresh one when the corpse comes into range later;
+/// after <see cref="BodySeconds"/>, or when first seen far away, only the body's backpack is drawn.
 /// </summary>
 public partial class PeopleView : Node3D
 {
@@ -35,10 +36,18 @@ public partial class PeopleView : Node3D
 
     private sealed class Corpse
     {
-        public CharacterView View = null!;
+        public CharacterView? View;
+        public Node3D? Bag;
         public int Frames;
         public bool Fallen;
+        public double Since;
     }
+
+    /// <summary>How long a body lies in view before only its backpack is left (Rust's corpse turning into a bag).</summary>
+    public const double BodySeconds = 150;
+
+    /// <summary>A corpse first seen farther than this is drawn as its backpack at once (no body to make).</summary>
+    public const float BodyDistance = 80;
 
     private readonly Dictionary<uint, Person> _people = new();
     private readonly Dictionary<uint, Corpse> _corpses = new();
@@ -166,9 +175,10 @@ public partial class PeopleView : Node3D
     }
 
     // Corpses: a dead player's ragdoll becomes their corpse; a corpse that came into range on its own gets a body that
-    // falls where it lies.
+    // falls where it lies; an old or far one is its backpack.
     private void UpdateCorpses()
     {
+        double now = Time.GetTicksMsec() / 1000.0;
         var things = new HashSet<uint>();
         foreach (RemoteThing thing in Client.Things)
         {
@@ -177,18 +187,29 @@ public partial class PeopleView : Node3D
                 continue;
             }
             things.Add(thing.NetId);
-            if (_corpses.ContainsKey(thing.NetId))
+            if (_corpses.TryGetValue(thing.NetId, out Corpse? known))
             {
+                if (known.View != null && now - known.Since > BodySeconds)
+                {
+                    known.View.QueueFree();
+                    known.View = null;
+                    known.Bag = Bag(thing);
+                }
                 continue;
             }
             Vector3 at = GroundView.ToGodot(thing.Position);
+            if (Num.Vector3.Distance(thing.Position, Client.Character.Position) > BodyDistance)
+            {
+                _corpses[thing.NetId] = new Corpse { Bag = Bag(thing), Fallen = true, Since = now };
+                continue;
+            }
             Person? died = _people.Values.FirstOrDefault(p => p.Dead && p.View.GlobalPosition.DistanceTo(at) < 3f && string.Equals(p.Name, thing.Name, StringComparison.Ordinal));
             if (died != null)
             {
                 // Adopt the falling body; the player gets a new one when they come back.
                 uint key = _people.First(kv => kv.Value == died).Key;
                 _people.Remove(key);
-                _corpses[thing.NetId] = new Corpse { View = died.View, Fallen = true };
+                _corpses[thing.NetId] = new Corpse { View = died.View, Fallen = true, Since = now };
                 continue;
             }
             var view = new CharacterView { Name = "Corpse " + thing.Name };
@@ -198,21 +219,35 @@ public partial class PeopleView : Node3D
             view.Wear(ItemLooks.Outfit(Client.Content, wear));
             Num.Vector3 up = Client.Frame.UpAt(thing.Position);
             view.Apply(CharacterFrame.Standing(at, GroundView.ToGodot(up), thing.Yaw));
-            _corpses[thing.NetId] = new Corpse { View = view };
+            _corpses[thing.NetId] = new Corpse { View = view, Since = now };
         }
         foreach ((uint id, Corpse corpse) in _corpses)
         {
             if (!corpse.Fallen && ++corpse.Frames >= 2)
             {
                 corpse.Fallen = true;
-                corpse.View.Trigger(CharacterEvent.Death, Vector3.Zero);
+                corpse.View?.Trigger(CharacterEvent.Death, Vector3.Zero);
                 FrameEvents.Note("corpse");
             }
         }
         foreach (uint gone in _corpses.Keys.Where(k => !things.Contains(k)).ToList())
         {
-            _corpses[gone].View.QueueFree();
+            _corpses[gone].View?.QueueFree();
+            _corpses[gone].Bag?.QueueFree();
             _corpses.Remove(gone);
         }
+    }
+
+    // The backpack a body leaves, where it lies.
+    private Node3D? Bag(RemoteThing thing)
+    {
+        if (GroundModels.Provider.Backpack() is not { } bag)
+        {
+            return null;
+        }
+        Num.Vector3 up = Client.Frame.UpAt(thing.Position);
+        bag.Transform = new Transform3D(NatureView.Upright(up, thing.Yaw), GroundView.ToGodot(thing.Position));
+        AddChild(bag);
+        return bag;
     }
 }

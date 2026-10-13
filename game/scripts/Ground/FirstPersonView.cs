@@ -168,16 +168,47 @@ public partial class FirstPersonView : Node3D
         _torch.Position = rest + new Vector3(0, 0.25f, -0.2f);
     }
 
+    private Node3D? _ghostModel;
+    private string? _ghostKey;
+
+    // Where a held deployable would go: its own model in the ghost's colour (a box if it has none).
     private void UpdateGhost(ItemDef? item)
     {
         if (item?.Deploys is not { } def || PlacementPoint is not { } at)
         {
             _ghost.Visible = false;
+            if (_ghostModel != null)
+            {
+                _ghostModel.Visible = false;
+            }
             return;
         }
         Num.Vector3 up = Client.Frame.UpAt(at);
+        Basis basis = NatureView.Upright(up, PlacementYaw);
+        if (_ghostKey != def.Key)
+        {
+            _ghostKey = def.Key;
+            _ghostModel?.QueueFree();
+            _ghostModel = GroundModels.Provider.Deployable(def.Key, new Vector3(def.HalfExtents.X, def.HalfExtents.Y, def.HalfExtents.Z));
+            if (_ghostModel != null)
+            {
+                foreach (MeshInstance3D mesh in HollowUniverse.Items.ModelCatalog.Meshes(_ghostModel))
+                {
+                    mesh.MaterialOverride = _ghost.MaterialOverride;
+                    mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+                }
+                AddChild(_ghostModel);
+            }
+        }
+        if (_ghostModel != null)
+        {
+            _ghostModel.GlobalTransform = new Transform3D(basis, GroundView.ToGodot(at));
+            _ghostModel.Visible = true;
+            _ghost.Visible = false;
+            return;
+        }
         ((BoxMesh)_ghost.Mesh).Size = new Vector3(def.HalfExtents.X * 2, def.HalfExtents.Y * 2, def.HalfExtents.Z * 2);
-        _ghost.GlobalTransform = new Transform3D(NatureView.Upright(up, PlacementYaw), GroundView.ToGodot(at + up * def.HalfExtents.Y));
+        _ghost.GlobalTransform = new Transform3D(basis, GroundView.ToGodot(at + up * def.HalfExtents.Y));
         _ghost.Visible = true;
     }
 }

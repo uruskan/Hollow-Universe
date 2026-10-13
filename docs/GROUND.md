@@ -178,11 +178,11 @@ Godot.
     sky shows the universe time on the day of play (§1: × 24 from J2000, as the server's climate), so every player
     sees the same time of day. The game places the view's camera at the predicted eye every frame.
   - **Natural objects** as the game changed them (`NatureView`): the surface view asks, per scatter object, which
-    kind to draw (`Vegetation.Changes`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn as a
-    plain bush; their scatter tiles are drawn again when their state changes. A tree felled within 150 m tips over away
-    from the player on its own model and sinks into the ground. Outcrops are drawn by the game, smaller with each
-    depletion stage, from `GroundModels` (placeholders until the assets catalogue lands: the planet's own boulder shape
-    and rock material, with ore-coloured chunks for metal and sulphur). Weak spots glow on what was hit.
+    kind to draw (`Vegetation.Changes`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn bare
+    (the same bush without its berries, `FloraLibrary.BareBerryRed` and `BareBerryBlue`); their scatter tiles are drawn
+    again when their state changes. A tree felled within 150 m tips over away from the player on its own model and
+    sinks into the ground. Outcrops are drawn by the game from `GroundModels`: the model catalogue's stone, metal and
+    sulphur outcrops, one model per depletion stage (§9.1). Weak spots glow on what was hit.
   - **Characters:** other players are the character package's `CharacterView`, fed every frame from the replicated
     state (position, up, yaw, pitch, the velocity seen, stance, ground, the item in hand), with swings and shots,
     flinches when hurt, a ragdoll on death and lying down asleep; corpses are ragdolls (a player's own body if they
@@ -1136,10 +1136,13 @@ Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), 
 act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
 campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
 
-**Godot** (`game/scripts/Ground`, §4.3): deployables and dropped stacks from `GroundModels` (placeholders until the
-assets catalogue lands), a lit fire's flame and light (its real strength next to the sun's: the sky meters the camera
-a few thousand times brighter by night, `Glow`), arrows in flight, a ghost where a held deployable would go, and the
-interact prompt; holding E on a fire or furnace lights it or puts it out.
+**Godot** (`game/scripts/Ground`, §4.3): deployables, dropped stacks and the dead's backpacks from `GroundModels`
+(`CatalogModels`: the model catalogue's, §9.1; a dropped stack is the item's own model at its drop scale, lying on the
+ground, or the dropped-item bag; `--placeholder-models` keeps shapes made in code), a lit fire's flame and light at the
+model's `socket_fire` (its real strength next to the sun's: the sky meters the camera a few thousand times brighter by
+night, `Glow`), arrows in flight, the held deployable's own model as a ghost where it would go, and the interact
+prompt; holding E on a fire or furnace lights it or puts it out. A body lies for 150 s in view, then only its backpack
+(`loot-sack`) is drawn; a corpse first seen farther than 80 m is drawn as its backpack at once.
 
 ### 6.3 Building, claims and doors (G3)
 
@@ -1604,9 +1607,9 @@ when it wants the mouse pointer (`WantsCursor`).
 them with unanswered intents on top (a sleeper's main, belt and clothing laid out as a body), vitals, the crafting
 queue, the life and the respawn choices; it acts through the intents, and turns the client's events into the HUD's
 moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as notices, chat). Item names,
-descriptions and stats come from items.json, the crafting tabs from categories.json. Item icons come from
-`ItemIcons`: until the assets package renders them, `ItemIconAliases` maps items.json keys onto the placeholder
-drawings and adds a few. The inventory shows the player's own body in what they wear (`InventoryBody`, through
+descriptions and stats come from items.json, the crafting tabs from categories.json. Item icons are the model
+catalogue's renders (`CatalogItemIcons`, §9.1); with `--placeholder-icons`, `ItemIconAliases` maps items.json keys
+onto the placeholder drawings. The inventory shows the player's own body in what they wear (`InventoryBody`, through
 `CharacterPreview.Body`), and the death screen the real ground around the landing site, 9.6 by 4 km (`ZoneMap`,
 through `DeathMap.Use`). Pictures of it in play are in §5.4.
 
@@ -2142,12 +2145,17 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     six slots (one fuel, two inputs, three outputs) instead of seven.
 67. **Sleepers lie down as ragdolls**, as the dead do: there is no sleeping pose yet. A corpse that comes into range
     after its player died gets a fresh body (dressed as its player was last seen) that falls where it lies.
-68. **Placeholders behind seams** until the assets package lands: `GroundModels` (deployables, outcrops, dropped
-    items: shapes made in code, the outcrops from the planet's own boulder and rock material), `ItemIconAliases`
-    (items.json keys onto the interface's placeholder drawings), and in first person a plain stick for a torch, a spear
-    or the bow; the woven hood is drawn as the knit cap and gloves not at all.
+68. **The assets come in through seams**: `GroundModels.Provider` (`CatalogModels` over `ModelCatalog`, with
+    `PlaceholderModels` for what it lacks), `ItemIcons.Provider` (the catalogue's `CatalogItemIcons`; `ItemIconAliases`
+    only with `--placeholder-icons`) and `ItemLooks` (held items by their catalogue key through the character
+    package's `HeldItems`).
 69. **Collision tiles keep only their square and 2 m around it** (§4.6): the load test's tick on the planet went from
     13.7 to 11.7 ms; the stand-in's tiles are unchanged.
 70. **`--demo` is replaced by the screenshot run** (`--tour`), which plays the same moments on the real planet.
 71. **The respawn kit goes on the belt** (Rust): a new life starts with the rock and the torch in the hotbar; what is
     gathered, crafted or given still fills the main inventory first.
+72. **A body becomes its backpack after 150 s in view** (Rust's corpse turning into a bag), drawn by the client: the
+    server's corpse is one thing for its 300 s either way. A corpse first seen farther than 80 m is its backpack at once,
+    so a crowd of the dead costs no ragdolls far away.
+73. **A picked berry bush is the same bush without berries**: two draw-only flora kinds (253 and 254, never
+    scattered) built from the berry bushes' own seeds.

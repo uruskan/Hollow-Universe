@@ -54,9 +54,16 @@ public partial class GroundMode : Node
         System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
         // The game's data, the same files the server reads (GROUND.md section 7).
         _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
-        if (ItemIcons.Provider is not ItemIconAliases)
+        // Item icons: the catalogue's renders (Main installs them); with --placeholder-icons, the drawings under
+        // items.json's keys.
+        if (ItemIcons.Provider is not (HollowUniverse.Items.CatalogItemIcons or ItemIconAliases))
         {
             ItemIcons.Provider = new ItemIconAliases(ItemIcons.Provider);
+        }
+        // World models: the catalogue's (GROUND.md §9.1); --placeholder-models keeps the shapes made in code.
+        if (!Options.ContainsKey("placeholder-models") && GroundModels.Provider is not CatalogModels)
+        {
+            GroundModels.Provider = new CatalogModels(new PlaceholderModels());
         }
         string name = Option("name", "Survivor");
         if (Options.TryGetValue("connect", out string? target) && target != "true")

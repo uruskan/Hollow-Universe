@@ -133,11 +133,18 @@ public partial class NatureView : Node3D
         {
             return static (_, item) => item.Kind;
         }
-        return (tile, item) => !gone.Contains(ScatterNaturalObjects.IdOf(tile, item.Index)) ? item.Kind
-            : item.Kind is ScatterKind.BerryRed or ScatterKind.BerryBlue ? ScatterKind.Bush : Vegetation.NotDrawn;
+        return (tile, item) => !gone.Contains(ScatterNaturalObjects.IdOf(tile, item.Index)) ? item.Kind : Picked(item.Kind);
     }
 
-    // Felled trees and picked ferns aren't drawn; a picked berry bush is drawn bare (as a plain bush).
+    // What a felled or picked scatter object is drawn as: a berry bush bare, anything else not at all.
+    private static ScatterKind Picked(ScatterKind kind) => kind switch
+    {
+        ScatterKind.BerryRed => FloraLibrary.BareBerryRed,
+        ScatterKind.BerryBlue => FloraLibrary.BareBerryBlue,
+        _ => Vegetation.NotDrawn,
+    };
+
+    // Felled trees and picked ferns aren't drawn; a picked berry bush is drawn bare.
     private ScatterKind DrawnKind(TileKey tile, ScatterItem item)
     {
         NaturalState? state = Client.Natural;
@@ -154,7 +161,7 @@ public partial class NatureView : Node3D
         {
             return item.Kind;
         }
-        return item.Kind is ScatterKind.BerryRed or ScatterKind.BerryBlue ? ScatterKind.Bush : Vegetation.NotDrawn;
+        return Picked(item.Kind);
     }
 
     // The objects whose state changed since last frame: their scatter tiles are drawn again, felled trees near the

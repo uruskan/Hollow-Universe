@@ -64,13 +64,16 @@ public partial class ThingsView : Node3D
             case StaticKind.Deployable when thing.Deployable(Client.Content) is { } def:
             {
                 Vector3 half = new(def.HalfExtents.X, def.HalfExtents.Y, def.HalfExtents.Z);
-                if (GroundModels.Provider.Deployable(def.Key, half) is { } model)
+                Node3D? model = GroundModels.Provider.Deployable(def.Key, half);
+                if (model != null)
                 {
                     node.AddChild(model);
                 }
                 if (thing.Lit)
                 {
-                    AddFire(node, def.Key == "furnace" ? new Vector3(0, 0.4f, -0.45f) : new Vector3(0, 0.12f, 0), def.Key == "furnace" ? 0.6f : 1f);
+                    // Where the model says it burns (socket_fire), else in the middle of its base.
+                    Vector3 fire = model != null && Socket(model, "socket_fire") is { } at ? at : new Vector3(0, 0.12f, 0);
+                    AddFire(node, fire, def.Key == "furnace" ? 0.6f : 1f);
                 }
                 break;
             }
@@ -85,6 +88,21 @@ public partial class ThingsView : Node3D
             }
         }
         return node;
+    }
+
+    /// <summary>Where a model's socket is, in the space of the model's parent (null if it has none of that name).</summary>
+    public static Vector3? Socket(Node3D model, string name)
+    {
+        if (model.FindChild(name, true, false) is not Node3D socket)
+        {
+            return null;
+        }
+        Transform3D t = Transform3D.Identity;
+        for (Node3D? n = socket; n != null && n != model; n = n.GetParent() as Node3D)
+        {
+            t = n.Transform * t;
+        }
+        return (model.Transform * t).Origin;
     }
 
     // A flame that flickers and a warm light that throws shadows.
