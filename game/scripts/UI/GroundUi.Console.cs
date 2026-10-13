@@ -672,7 +672,10 @@ public partial class GroundUi
         {
             ToolButtonAt(players[i].ToUpperInvariant(), "teleport " + (players[i].Contains(' ', StringComparison.Ordinal) ? $"\"{players[i]}\"" : players[i]), tx + i % 2 * 246, ty + i / 2 * 40, 240, 18);
         }
-        ty += Math.Max(1, (Math.Min(players.Count, 8) + 1) / 2) * 40 + 2;
+        if (players.Count > 0)
+        {
+            ty += (Math.Min(players.Count, 8) + 1) / 2 * 40 + 2;
+        }
         ToolButtonAt("MY MAP MARKER", "tpmarker", tx, ty, 240, 18);
         ty += 58;
         Section("SERVER", tx, ty);
