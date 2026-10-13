@@ -334,22 +334,98 @@ def loot_sack(seed=117):
 
 
 def dropped_bag(seed=119):
+    """Whatever lies on the ground (GROUND.md §6.1, decision U4): a square of burlap wrapped round its load, the corners
+    gathered into a knot on top with two ears standing out of it, and a leather strap cinched round the middle with an
+    iron buckle at the front. About 0.42 x 0.34 m and 0.3 m high. Our own design."""
     m = Model("dropped-bag", WORLD, seed=seed)
-    # A small drawstring sack, tied at the neck.
-    body = m.blob((0.24, 0.22, 0.2), (0, 0, 0.1), subdivisions=4, rough=0.06, freq=2.0, flatten=-0.8, tile=CANVAS,
-                  tint=(0.7, 0.66, 0.56), metres=0.4, vary=0.12, vary_scale=10)
+    burlap = (0.76, 0.65, 0.46)
+    a, b, c = 0.21, 0.17, 0.125  # half sizes of the load
+    belt_z, belt_half = 0.1, 0.019  # the strap: the height of its middle, half its width
+    # The load, its bottom flat on the ground.
+    body = m.blob((2 * a, 2 * b, 2 * c), (0, 0, 0.8 * c - 0.004), subdivisions=4, rough=0.035, freq=2.4, flatten=-0.8,
+                  tile=CANVAS, tint=burlap, metres=0.45, vary=0.16, vary_scale=12)
+    top = max(v.co.z for v in body.data.vertices)
     for v in body.data.vertices:
-        if v.co.z > 0.14:
-            k = (v.co.z - 0.14) / 0.06
-            v.co.x *= 1 - 0.55 * k
-            v.co.y *= 1 - 0.55 * k
-    m.lathe([(0.0, 0.18), (0.045, 0.19), (0.06, 0.23), (0.035, 0.255), (0.0, 0.26)], sides=14, tile=CANVAS, tint=(0.66, 0.62, 0.52),
-            metres=0.2, vary=0.2, vary_scale=30, sharp=0)
-    ring = [(0.038 * math.cos(a), 0.038 * math.sin(a), 0.192) for a in (2 * math.pi * i / 14 for i in range(15))]
-    m.tube(ring, 0.006, sides=6, tile=CANVAS, tint=(0.45, 0.38, 0.28), metres=0.1, cap=False)
-    m.tube([(0.03, -0.02, 0.192), (0.06, -0.06, 0.17), (0.07, -0.09, 0.12)], 0.005, sides=6, tile=CANVAS, tint=(0.45, 0.38, 0.28), metres=0.1)
-    m.socket("use", (0, -0.5, 0.2))
+        p = v.co
+        ang = math.atan2(p.y, p.x)
+        # Gathered toward the knot: the upper part pulls in, folds running up into it.
+        g = max(0.0, (p.z - 0.5 * top) / (0.5 * top))
+        k = (1.0 - 0.5 * g * g) * (1.0 + g * (0.07 * math.sin(7 * ang + 0.8) + 0.035 * math.sin(13 * ang + 2.1)))
+        # Pressed in where the strap runs, so the cloth bulges either side of it.
+        d = abs(p.z - belt_z)
+        if d < 0.045:
+            k *= 1.0 - 0.08 * (1.0 - d / 0.045) ** 2
+        p.x *= k
+        p.y *= k
+    body.data.update()
+
+    bins = 48
+    leather = (0.5, 0.35, 0.23)
+    belt = girth(body, belt_z, belt_half * 1.2, bins)
+    # The strap, following the cloth round; its tongue doubled over it from the buckle at the front (-Y) to one side.
+    m.from_mesh(*band(belt, belt_z, belt_half, -0.002, 0.0055, 0, bins), tile=LEATHER, tint=leather, metres=0.3, vary=0.12,
+                vary_scale=20, sharp=50)
+    front = bins // 4  # the bin facing -Y
+    m.from_mesh(*band(belt, belt_z - 0.001, belt_half * 0.85, 0.005, 0.009, front, front + 5), tile=LEATHER,
+                tint=(0.44, 0.31, 0.2), metres=0.2, vary=0.1, vary_scale=20, sharp=50)
+    # The buckle: an iron frame and its prong, standing on the strap.
+    y = -(belt[front] + 0.008)
+    for dx, dz, w, h in ((-0.024, 0, 0.007, 0.05), (0.024, 0, 0.007, 0.05), (0, -0.022, 0.055, 0.007), (0, 0.022, 0.055, 0.007)):
+        m.box((w, 0.008, h), (dx, y, belt_z + dz), bevel=0.0015, tile=GUNMETAL, tint=(0.62, 0.6, 0.58), metres=0.1)
+    m.box((0.004, 0.006, 0.042), (-0.004, y - 0.003, belt_z), (0, 18, 0), bevel=0.001, tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.05)
+
+    # The knot: the corners gathered and tied, two of them standing up out of it as ears, a cord bound round the neck.
+    knot_z = top * 0.86
+    m.blob((0.085, 0.075, 0.06), (0, 0, knot_z + 0.018), subdivisions=3, rough=0.12, freq=2.6, tile=CANVAS,
+           tint=(0.68, 0.58, 0.41), metres=0.2, vary=0.18, vary_scale=25)
+    for side in (-1, 1):
+        m.blob((0.11, 0.032, 0.07), (side * 0.05, 0.004 * side, knot_z + 0.05), (8 * side, -side * 38, side * 16),
+               subdivisions=3, rough=0.1, freq=2.2, tile=CANVAS, tint=(0.72, 0.62, 0.44), metres=0.2, vary=0.15, vary_scale=25)
+    neck_z = knot_z - 0.012
+    neck = girth(body, neck_z, 0.012, 18)
+    cord = [((neck[i % 18] + 0.004) * math.cos(t), (neck[i % 18] + 0.004) * math.sin(t), neck_z + 0.003 * math.sin(3 * t))
+            for i, t in ((i, (i + 0.5) / 18 * 2 * math.pi - math.pi) for i in range(19))]
+    m.tube(cord, 0.0055, sides=6, tile=CANVAS, tint=(0.42, 0.33, 0.22), metres=0.1, cap=False)
+    m.socket("use", (0, -0.55, 0.25))
     m.export()
+
+
+def girth(body, z, half, bins):
+    """How far a body reaches from its upright axis at height z (within `half`), in `bins` angles from -pi."""
+    radius = [0.0] * bins
+    for v in body.data.vertices:
+        if abs(v.co.z - z) < half:
+            i = int((math.atan2(v.co.y, v.co.x) + math.pi) / (2 * math.pi) * bins) % bins
+            radius[i] = max(radius[i], math.hypot(v.co.x, v.co.y))
+    for _ in range(bins):  # angles no vertex fell in take their neighbours'
+        for i in range(bins):
+            if radius[i] == 0.0:
+                radius[i] = max(radius[i - 1], radius[(i + 1) % bins])
+    return radius
+
+
+def band(radius, z, half, inner, outer, start, end, bins=None):
+    """A strip round a body (vertices and faces): `inner` to `outer` metres off its girth, `half` its width either side
+    of height z; over the bins start..end, or right round when end is the bin count."""
+    bins = bins or len(radius)
+    closed = end - start >= len(radius)
+    count = end - start if closed else end - start + 1
+    verts, faces = [], []
+    for n in range(count):
+        i = (start + n) % len(radius)
+        ang = (i + 0.5) / len(radius) * 2 * math.pi - math.pi
+        for r, h in ((radius[i] + inner, z - half), (radius[i] + outer, z - half), (radius[i] + outer, z + half), (radius[i] + inner, z + half)):
+            verts.append((r * math.cos(ang), r * math.sin(ang), h))
+    for n in range(count if closed else count - 1):
+        a, b = n * 4, (n + 1) % count * 4
+        for k in range(4):
+            q = (k + 1) % 4
+            faces.append((a + k, b + k, b + q, a + q))
+    if not closed:
+        faces.append((0, 3, 2, 1))
+        last = (count - 1) * 4
+        faces.append((last, last + 1, last + 2, last + 3))
+    return verts, faces
 
 
 QUILT_TILE = 9

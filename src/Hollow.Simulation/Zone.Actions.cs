@@ -46,21 +46,15 @@ public sealed partial class Zone
         return default;
     }
 
+    /// <summary>How what a player loots is looted: by its container's kind (a ship's cargo, G6, is a box's), or as a sleeper.</summary>
     public LootKind LootKindOf(Player p)
     {
-        if (LootShip(p) != null)
+        if (LootShip(p) is { } ship)
         {
-            return LootKind.Box; // a ship's cargo (G6)
+            return LootRules.KindOf(ship.Cargo);
         }
         (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
-        return thing switch
-        {
-            WorldProp { Prop.Kind: WorldPropKind.Crate } => LootKind.Crate,
-            Deployable { Def.IsMachine: true } => LootKind.Device,
-            Deployable => LootKind.Box,
-            Corpse => LootKind.Corpse,
-            _ => sleeper != null ? LootKind.Sleeper : LootKind.None,
-        };
+        return thing?.Container is { } container ? LootRules.KindOf(container) : sleeper != null ? LootKind.Sleeper : LootKind.None;
     }
 
     /// <summary>The container an intent names, or null when there is no such open container.</summary>
@@ -110,7 +104,7 @@ public sealed partial class Zone
         {
             return ActionResult.NotAllowed;
         }
-        return InventoryRules.Move(Content!, a, fromSlot, b, toSlot, amount, expected);
+        return TookFrom(p, InventoryRules.Move(Content!, a, fromSlot, b, toSlot, amount, expected));
     }
 
     public ActionResult QuickMove(Entity entity, ContainerRef from, int slot, ushort expected)
@@ -140,10 +134,10 @@ public sealed partial class Zone
                 _targets.Add(target);
             }
         }
-        return InventoryRules.QuickMove(Content, source, slot, _targets, expected);
+        return TookFrom(p, InventoryRules.QuickMove(Content, source, slot, _targets, expected));
     }
 
-    /// <summary>Drops (part of) a stack in front of the player, where it lies until picked up or it despawns.</summary>
+    /// <summary>Drops (part of) a stack in front of the player: into the bag lying there, or a new one (<see cref="Spill(Vector3, ItemStack, float?)"/>).</summary>
     public ActionResult DropItem(Entity entity, ContainerRef from, int slot, int amount, ushort expected)
     {
         if (!Acting(entity, out Player p))
@@ -238,7 +232,7 @@ public sealed partial class Zone
         }
         _refunds.Clear();
         ActionResult result = p.Crafting.Cancel(Content!, p.Inventory, ticket, _refunds);
-        DropAll(entity, _refunds);
+        Drop(entity, _refunds);
         return result;
     }
 
@@ -363,35 +357,46 @@ public sealed partial class Zone
         return ActionResult.Accepted;
     }
 
-    /// <summary>Picks up a dropped item: as much as fits; the rest stays on the ground.</summary>
+    /// <summary>
+    /// Picks up a bag of dropped items with the interact key: everything in it that fits (a bag of one stack is taken
+    /// whole; the client opens one holding more). What doesn't fit stays in the bag; an emptied bag goes.
+    /// </summary>
     public ActionResult PickUpItem(Entity entity, EntityId id)
     {
         if (!Acting(entity, out Player p))
         {
             return ActionResult.Dead;
         }
-        if (StaticOf(id) is not DroppedItem item || item.Stack.IsEmpty)
+        if (StaticOf(id) is not DroppedBag bag || bag.Loot.IsEmpty)
         {
             return ActionResult.NotFound;
         }
         Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
-        if (Vector3.Distance(eye, item.Position) > Content!.Survival.InteractReach + 0.3f)
+        if (Vector3.Distance(eye, bag.Position) > Content!.Survival.InteractReach + 0.3f)
         {
             return ActionResult.OutOfReach;
         }
-        ItemStack stack = item.Stack;
-        int left = p.Inventory.Give(Content, stack);
-        if (left == stack.Count)
+        bool taken = false;
+        for (int i = 0; i < bag.Loot.Size; i++)
+        {
+            ItemStack stack = bag.Loot[i];
+            int left = stack.IsEmpty ? 0 : p.Inventory.Give(Content, stack);
+            if (left == stack.Count)
+            {
+                continue;
+            }
+            GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = stack.Item, Count = stack.Count - left, Reason = GainReason.PickedUp });
+            bag.Loot.Set(i, stack.WithCount(left));
+            taken = true;
+        }
+        if (!taken)
         {
             return ActionResult.NoSpace;
         }
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = stack.Item, Count = stack.Count - left, Reason = GainReason.PickedUp });
-        stack.Count = left;
-        item.Stack = stack;
-        item.Revision++;
-        if (left == 0)
+        bag.PublishChanges();
+        if (bag.Loot.IsEmpty)
         {
-            RemoveStatic(item);
+            RemoveStatic(bag);
         }
         return ActionResult.Accepted;
     }
