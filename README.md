@@ -1,125 +1,191 @@
-# Hollow Universe
+<p align="center">
+  <img src="docs/images/readme/hero.jpg" alt="A meadow at golden hour on Nolcas Peris CQ-SLY 7-0 B 3, the first world">
+</p>
 
-An online survival game in a full-scale Milky Way: Rust-style building, raiding and full-loot PvP on procedural
-planets, with Elite-style ships and travel between about 120 billion star systems. Built with Godot 4 and C#.
+<h1 align="center">HOLLOW UNIVERSE</h1>
 
-This repository is at **milestone M1, the galaxy**. It contains the deterministic galaxy generator, real stars
-near Sol, the galaxy map and the system map. Networking (M2) comes next. See [the milestones](docs/ARCHITECTURE.md#17-milestones).
+<p align="center">
+  <b>Survive on real planets in a full-scale Milky Way.</b><br>
+  Gather, build, raid and fight on worlds made from a living galaxy, then build a ship and leave the ground behind.<br>
+  About 120 billion star systems are waiting.
+</p>
 
-![The galaxy map from outside the disk](docs/images/galaxy.jpg)
+<p align="center">
+  <i>Online survival · full-loot PvP · base building and raiding · ships · a 1:1 galaxy</i><br>
+  <i>Godot 4.7 · C# / .NET 10 · dedicated server · in development (pre-alpha)</i>
+</p>
+
+---
+
+Hollow Universe is an online survival game with the scale of a real galaxy. You arrive on a beach with a rock and a
+torch. You chop trees, mine ore, craft tools and build a base that other players can, and will, try to blow open.
+You learn your rifle's recoil, defend what you've built, and one day you craft a small ship at the vehicle workbench
+and fly it to orbit. Above you is the night sky of a real galaxy, where every star is a place you can go.
+
+It plays like the survival games you already know, on a planet that's a real place and inside a galaxy too big to finish.
+
+## Every star is a place
+
+<p align="center"><img src="docs/images/readme/galaxy.jpg" alt="The Milky Way from outside the disk, on the galaxy map"></p>
+
+- **A 1:1 Milky Way.** A thin, thick and young disk, four spiral arms and a spur, a barred bulge, a nuclear disk and a
+  halo: about **1.2 × 10¹¹ star systems**, generated on demand from one seed. Every system has a permanent address and a
+  name.
+- **Real stars around Sol.** About 100,000 stars from the HYG catalogue keep their real names and places: Sirius,
+  Betelgeuse, Alpha Centauri, Trappist-1.
+- **Whole systems.** Companion stars, planets, moons, rings and belts on orbits that move in real time; planets with
+  climate, oceans, air you can or can't breathe, and life.
+- **The same universe for everyone.** Generation is deterministic to the bit on every machine, so the galaxy needs no
+  download and never disagrees with itself.
 
 | | |
 |---|---|
-| ![Sol's neighbourhood with real stars](docs/images/sol-neighbourhood.jpg) | ![The Galactic Centre](docs/images/galactic-centre.jpg) |
-| ![A generated triple-star system](docs/images/system-map.jpg) | ![The Solar System](docs/images/sol-system.jpg) |
+| ![The stars around Sol, with their real names](docs/images/readme/sol-neighbourhood.jpg) | ![A generated system with a living world](docs/images/readme/system.jpg) |
 
-## What's here
+## Land somewhere real
 
-- **A 1:1 Milky Way.** A density model with a thin, thick and young disk, four spiral arms and a spur, a
-  barred bulge, a nuclear disk and a halo. It holds about 1.2 × 10¹¹ systems, generated on demand from a seed.
-  Every system has a permanent 64-bit address and a name.
-- **Real stars near Sol.** About 100,000 stars from the HYG catalogue, with their real names, replace the
-  generated ones where the catalogue is complete.
-- **Star systems.** Companion stars, planets, moons, rings and belts, on Keplerian orbits that move in real
-  time. Sol uses real orbital data.
-- **Deterministic everywhere.** The same seed gives bit-identical stars and systems on every machine. Tests
-  pin the output with golden hashes.
-- **Galaxy map.** Stars stream in around the focus within a star budget. It shows sector names, a grid,
-  search by any name, and works from 1 ly up to the whole galaxy.
-- **System map.** An orrery with a compressed or true scale, body data and time controls.
-- **A crisp interface at any resolution.** Text, icons and panels are drawn at the screen's real pixel size
-  rather than stretched (see [ARCHITECTURE.md §15](docs/ARCHITECTURE.md#15-client-godot)).
+<p align="center"><img src="docs/images/readme/landing.jpg" alt="The landing site at morning: a meadow at a forest edge above a bay"></p>
 
-## Requirements
+The first world is **Nolcas Peris CQ-SLY 7-0 B 3**, a real planet of the generated galaxy, 331 light years from Sol.
+It's an Earth-like world under an F-type sun, with thick, breathable air that turns distances blue, oceans, forested
+hills, a moon that looks 1.7 times as wide as ours, and a 35-hour day (compressed for play).
 
-- **Godot 4.7.2, .NET edition** (the "Godot Engine - .NET" download, not the standard one).
-- **.NET 10 SDK.**
+- **Terrain to the horizon,** sea and surf, a sky lit by the real sun and moon at the real time.
+- **Forests grown in code:** birches, oaks, spruces, ferns and berry bushes, painted and built procedurally, with
+  shader grass around you that moves in the wind.
+- **At night, the galaxy overhead** is the same galaxy you'll travel through.
 
-## Run it
+| | |
+|---|---|
+| ![The first world at night: the galaxy's band over a meadow](docs/images/readme/night.jpg) | ![From 2 km up: the bay, the forest and the hills](docs/images/readme/from-above.jpg) |
 
-1. Open `game/project.godot` in Godot 4.7.2 .NET. The first time, Godot imports the assets and builds the C#
-   solution.
-2. Press **Play** (F5).
+## Survive. Build. Raid.
+
+| | |
+|---|---|
+| ![A firefight beside a stone base](docs/images/readme/firefight.jpg) | ![A timed charge breaching a stone wall](docs/images/readme/raid.jpg) |
+| ![A stone base with a metal door and a code lock](docs/images/readme/base.jpg) | ![Chopping a tree: hit the X for more wood](docs/images/readme/gather.jpg) |
+
+- **Gather with skill.** Hit the red X on a tree or the glinting hotspot on an ore outcrop and you gather faster.
+  Trees fall, outcrops crack apart stage by stage.
+- **Craft and progress.** Tools, clothing, armour, medicine, workbenches, a tech tree, blueprints, a research table
+  and a recycler that turns salvage into components.
+- **Build bases that hold, until they don't.** Foundations, walls, floors, stairs and roofs in twig, wood, stone,
+  metal and armoured grades, with structural stability, doors, key and code locks, and a tool cupboard for building
+  rights and upkeep. Place furnaces, boxes and beds with a hologram that tells you why something won't fit.
+- **Fight for real.** Bullets fly with drop and drag, aimed by server-side lag compensation. Every gun has a fixed,
+  learnable recoil pattern. Armour covers what it covers. Players go down wounded before they die, and teammates can
+  pick them up.
+- **Raid.** Timed charges, satchel-style bag charges that sometimes fizzle, grenades, rockets and explosive rounds,
+  balanced against every wall grade. Broken walls, doors and boxes burst into pieces.
+- **Full loot.** What you carry, someone can take. Sleepers stay in the world when you log off.
+- **Teams, a map, raid alerts** that reach you even offline, and a Rust-style F1 console.
+
+## Wildlife
+
+<p align="center"><img src="docs/images/readme/wolves.jpg" alt="A wolf pack at the forest edge"></p>
+
+Deer that flee, boar that charge, wolf packs that hunt when they're hungry, and a rare, very large predator. Hunt them
+for meat, hide, bone and fat. Cook your meat, or don't, and live with it.
+
+## Build a ship. Leave.
+
+<p align="center"><img src="docs/images/readme/ship.jpg" alt="The Tin Finch hovering over the forest, seen from the chase camera"></p>
+
+The **Tin Finch** is a one-seat skiff you build at the vehicle workbench. Board it through its hatch and fly it from
+the cockpit or a chase camera, with flight assist, boost and a fuel tank to watch. Land on slopes, hover over the
+trees, and climb to orbit. Ships are the first step toward the rest of the galaxy.
+
+## Built to scale
+
+Hollow is built as a big online game from its first line.
+
+- **A dedicated server** in plain .NET runs each region of a planet at 30 ticks a second, with its own physics (Jolt),
+  and saves the world in SQLite. A hosted game runs the same server on your machine.
+- **Prediction that matches the server.** The client runs the same rules library as the server. Its movement
+  prediction replays to the server's result bit for bit, so corrections are rare even on a bad connection.
+- **Lean networking:** generated serializers, per-client delta snapshots, relevance by distance, and load tests with
+  100 bot players gathering, building, raiding, flying and fighting.
+- **One system per concern.** Interaction, placement, held items, damage and destruction are each built once and
+  driven by data, so new content is a data entry, not new code paths.
+- **Original content.** Every model is our own, made by our own scripts; sounds, textures and fonts are our own or
+  properly licensed (CC0, OFL, Fab), each listed with its source. Nothing comes from another game.
+
+## Where it stands
+
+Hollow Universe is **in development** and not released. What you can play today:
+
+- the galaxy map and system maps of the whole Milky Way;
+- the ground game on the first world, hosted or joined over the network: gathering, crafting, building, raiding, guns,
+  bows and melee, animals, the economy and tech tree, teams, the map, and the Tin Finch.
+
+**Next:**
+- monuments to loot, with guards and radiation;
+- more of each planet, then other planets and the moon through supercruise;
+- travel between star systems with a built-in route autopilot;
+- the galaxy map's new design.
+
+## Play the current build
+
+**Requirements:** Windows, **Godot 4.7.2 .NET** (the "Godot Engine - .NET" download)
+and the **.NET 10 SDK**.
+
+```bat
+play-ground.cmd                 :: build, then host a game on this computer (port 27015)
+play-ground.cmd join [address]  :: build, then join a game as another player (default 127.0.0.1)
+play-ground.cmd menu            :: build, then open the main menu
+```
+
+Set `GODOT` to the Godot executable if it isn't where the script looks. The first launch imports the assets, then the
+loading screen takes you in.
+
+**On foot:** W A S D move · Shift sprint · Ctrl crouch · Space jump · mouse look · hold **Left Alt** to look around ·
+left mouse attack, use or place · right mouse aim (hold with the building plan or hammer for its wheel) · **R**
+reload (hold for the ammo menu) · **E** interact (hold for every option) · 1–6 belt · Tab inventory · Q crafting ·
+G map · Enter chat · F1 console · Esc menu.
+
+**Flying:** the mouse is the stick · W/S throttle · A/D strafe · Space/C up and down · Q/E roll · Shift boost ·
+Z flight assist · V cockpit or chase camera · F step out.
+
+**Galaxy and system maps:** open `game/project.godot` in Godot and press Play. On the galaxy map, left-drag rotates,
+right-drag or W A S D moves, R/F go up and down, the wheel zooms, a click selects a star, a double-click flies to it,
+Enter opens its system, H and G return to Sol and to the whole galaxy, and the search box finds real names ("Sirius",
+"61 Cygni"), generated systems ("Nolcas Peris BF-BA 5-0") and sectors. On the system map, the wheel zooms, a click
+selects a body, Space pauses, `,` and `.` change the time's speed, L switches between compressed and true scale.
 
 From a terminal:
 
 ```bash
-dotnet build HollowUniverse.sln                  # the libraries, the tests and the Godot client's C#
+dotnet build HollowUniverse.sln                  # the libraries, the server, the tests and the Godot client's C#
 dotnet run --project tests/Hollow.Tests          # all engine-free tests
-dotnet run --project tests/Hollow.Tests -- Galaxy   # only tests whose name contains "Galaxy"
+dotnet run --project src/Hollow.Server -- --port 27015   # a dedicated server
 ```
 
-## Controls
+## For developers
 
-**Galaxy map**
+- [AGENTS.md](AGENTS.md): the rules, every command and option, and the repository's layout, for people and AI agents.
+- [docs/handoff-ground.md](docs/handoff-ground.md): where development stands and what comes next.
+- [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+  [docs/GALAXY.md](docs/GALAXY.md), [docs/GROUND.md](docs/GROUND.md) and
+  [docs/GROUND_SYSTEMS.md](docs/GROUND_SYSTEMS.md): the design and how it's built.
 
-| Input | Action |
-|---|---|
-| Left-drag | Rotate |
-| Right-drag, or W A S D | Move |
-| R / F | Move up / down |
-| Mouse wheel | Zoom |
-| Click | Select a star |
-| Double-click | Fly to a star |
-| Enter | Open the selected star's system map |
-| H / G | Back to Sol / the whole galaxy |
-| Esc | Clear the selection and search |
+Nothing in `src/` depends on Godot: the rules, the simulation, the network and the server are plain .NET, shared by the
+server, the client and the test bots.
 
-The search box finds real star names ("Sirius", "Betelgeuse", "61 Cygni", "HD 10700"), generated system
-names ("Nolcas Peris BF-BA 5-0") and sector names ("Nolcas Peris").
-
-**System map**
-
-| Input | Action |
-|---|---|
-| Left-drag | Rotate |
-| Mouse wheel | Zoom |
-| Click / double-click | Select / focus a body |
-| Space | Pause |
-| , / . | Slower / faster time |
-| L | Switch between compressed and true scale |
-| Esc | Back to the galaxy map |
-
-**Anywhere:** Ctrl + plus / Ctrl + minus make the interface larger or smaller, and Ctrl + 0 resets it. The
-interface also follows the window on its own: the same size from 1600 × 900 up to 1080p, larger above that, and
-smaller only to fit a smaller window. Your setting is applied on top (as far as the window has room) and saved
-between sessions.
-
-## Layout
-
-| Path | What |
-|---|---|
-| `src/Hollow.Core` | Double-precision vectors, deterministic maths (`DMath`), hashing, random streams, units, time |
-| `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, the star catalogue, names, star systems |
-| `game/` | The Godot project: galaxy map, system map, user interface, shaders |
-| `tests/Hollow.Tests` | Test runner and tests (no NuGet packages needed) |
-| `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |
-| `tools/Hollow.GeneratorReport` | Measures the generator: speed, contents of generated systems |
-| `docs/` | Design and architecture |
-
-Nothing in `src/` depends on Godot. The future server will use the same libraries.
-
-## Documents
-
-- [GAME_DESIGN.md](docs/GAME_DESIGN.md): what the game is.
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md): how it's built, including networking, zones and persistence.
-- [GALAXY.md](docs/GALAXY.md): the galaxy generator and the maps.
-- [AGENTS.md](AGENTS.md): rules and commands for anyone working on the code, people or AI agents.
-
-## Exporting
-
-The star catalogue is a plain data file, not a Godot resource. When you create an export preset, add
-`data/catalog/*.gz` under **Resources → Filters to export non-resource files/folders**. Without it, the exported
-game logs an error and shows no real stars near Sol.
+**Exporting:** the star catalogue is a plain data file. In an export preset, add `data/catalog/*.gz` under
+**Resources → Filters to export non-resource files/folders**, or the exported game shows no real stars near Sol.
 
 ## Credits and licences
 
-- Star data: the [HYG Database](https://github.com/astronexus/HYG-Database) v4.1 by David Nash (astronexus),
-  licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The converted file
-  `game/data/catalog/hyg41.bin.gz` is shared under the same licence. See
-  [its licence file](game/data/catalog/LICENSE.md) for the changes made.
+- Star data: the [HYG Database](https://github.com/astronexus/HYG-Database) v4.1 by David Nash (astronexus), under
+  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); the converted `game/data/catalog/hyg41.bin.gz` is
+  shared under the same licence ([its licence file](game/data/catalog/LICENSE.md) lists the changes).
 - Real orbital elements of the planets: NASA JPL approximate positions of the planets (J2000).
-- Interface font: [Inter](https://github.com/rsms/inter) by Rasmus Andersson and contributors, under the
-  [SIL Open Font License 1.1](game/assets/fonts/Inter/OFL.txt).
-- Everything else, including sector names and generated content, is original. The code has no licence yet,
-  so all rights are reserved until one is chosen.
+- Fonts: [Inter](https://github.com/rsms/inter) and [Barlow](https://github.com/jpt/barlow), under the SIL Open Font
+  License 1.1.
+- Characters: the [MakeHuman](http://www.makehumancommunity.org/) base mesh and assets (CC0), animations from
+  Quaternius' Universal Animation Library 1 and 2 (CC0), retargeted and dressed by our own scripts.
+- Sounds, textures and other third-party material, each with its source, licence and checksum:
+  [game/assets/THIRD_PARTY.md](game/assets/THIRD_PARTY.md).
+- Everything else, including the generated universe and every model made by the scripts in `art/`, is original. The
+  code has no licence yet, so all rights are reserved until one is chosen.
