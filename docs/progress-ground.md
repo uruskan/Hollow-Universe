@@ -219,3 +219,10 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 
   A firefight costs about 0.3 ms a frame. 120 of 120 tests pass. The effects get wired into the game in the next
   integration pass.
+- **G7b animals started** (`ground-animals`):
+  - deer, boar, wolf packs and a rare bear-like predator, with server-side AI (graze, flee, charge, hunt);
+  - corpses you harvest for meat, hide, bone and fat;
+  - cooking, and lamp oil from fat;
+  - animal sounds, and a `--view animals` sandbox.
+- **Still running:** integration pass 2, the ship (G6), the wardrobe and looks, and G7a (salvage, recycler, tech
+  tree, teams, map).
