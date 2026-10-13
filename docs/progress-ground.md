@@ -194,3 +194,18 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - the gun visual layer;
   - Host as a separate server process, since hosting in-process stalls on shared garbage collection;
   - tick profiling.
+- **Integration pass 2 finished** (`ground-integrate`), with `ground` merged in (assets, G3 phase 1, G4 core,
+  character polish, sound):
+  - the asset catalogue through the integration's seams: deployables, outcrops at their three stages, dropped items,
+    the dead's backpack (a body becomes its backpack after 150 s), held items and icons; a picked berry bush is the same
+    bush, bare;
+  - a male or female body chosen in the main menu, kept with the character and seen by everyone; worn items as the
+    character package's garments;
+  - sound everywhere the game has an event, ambience from the place, footsteps on the ground under each player;
+  - the G4 layer: recoil on the camera, zoom, reload on R, muzzle flash, tracers, impacts, others' shots, the ammo
+    counter, the hip crosshair, the wounded screen and help-up;
+  - hosting runs the dedicated server in a process of its own, and Jolt's broadphase is rebuilt after bodies change:
+    with 100 bots on the planet the tick went from 10.3 to 5.0 ms (GROUND.md §5.5).
+
+  Not done, for want of the character contract: sleeping pose, crawling, others' aiming, attachments on guns in hand.
+  Screenshots retaken in `docs/images/ground/play/` (a female player, a rifle down the sights). 109 of 109 tests pass.

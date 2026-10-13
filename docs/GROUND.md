@@ -899,20 +899,22 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
 - **Down** is lower than on the stand-in: bots seeking trees and outcrops spread out, and each sees about 46 others
   instead of 99.
 
-**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md):
+**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 2
+with the catalogue's models and icons, the female body and the gun layer, except `menu.jpg`):
 
 | Picture | What it shows |
 |---|---|
 | `menu.jpg` | The main menu over the landing site at dusk: PLAY, CONNECT with name, address and port, QUIT. |
-| `hud.jpg` | The HUD in the meadow by the landing site, a red berry bush ahead, the stone hatchet in hand. |
-| `berries.jpg` | The bush picked: bare, "+4 Red berries". |
+| `hud.jpg` | The HUD in the meadow by the landing site, a red berry bush ahead, the stone hatchet in hand, the catalogue's icons on the belt. |
+| `berries.jpg` | The bush picked: the same bush, bare, "+4 Red berries". |
 | `inventory.jpg` | The inventory: the player's own body in what they wear, the hatchet's panel, quick craft. |
 | `crafting.jpg` | Crafting: the stone hatchet's recipe, two wooden spears in the queue. |
-| `player.jpg` | The second player, dressed by the run, hatchet in hand, his name above him. |
+| `player.jpg` | The second player with the female body, in the knit cap, woven shirt and trousers, laced boots and the riveted cuirass, hatchet in hand, her name above her. |
 | `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
-| `outcrop.jpg`, `outcrop-broken.jpg` | A metal outcrop (placeholder lumps on the planet's boulder) and what is left after the pickaxe. |
+| `outcrop.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop, and its broken stage after the pickaxe. |
+| `gun.jpg` | The rifle aimed down its sights the moment a shot leaves: the flash, 28 of 60 rounds. |
 | `death.jpg` | The death screen over the map of the real coast. |
-| `night.jpg` | Night, by a lit campfire: the fire's own light on the grass. |
+| `night.jpg` | Night, by the catalogue's campfire, lit: the fire's own light on the grass; the respawn kit on the belt. |
 
 **Judgement.** It plays as one game: arrive on a real beach, walk, swim and fall on the planet's ground, gather from
 its own trees, bushes, ferns and outcrops, craft, wear, cook, fight, die, loot bodies and respawn, with another player

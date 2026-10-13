@@ -18,7 +18,14 @@ if errorlevel 1 exit /b 1
 rem The hosted game runs the dedicated server in a process of its own: build it for speed too.
 dotnet build src\Hollow.Server -c Release -nologo -v quiet -clp:ErrorsOnly
 if errorlevel 1 exit /b 1
-if not exist "game\.godot\imported" "%GODOT%" --headless --path game --import
+rem Import the assets when any is newer than the last import (a clone, a merge that brought new ones).
+powershell -NoProfile -Command "$s = Get-Item game\.godot\hollow-import.stamp -ErrorAction SilentlyContinue; if ($s -and -not (Get-ChildItem game\assets, game\data -Recurse -File | Where-Object { $_.LastWriteTime -gt $s.LastWriteTime } | Select-Object -First 1)) { exit 0 } else { exit 1 }"
+if errorlevel 1 (
+  echo Importing assets...
+  "%GODOT%" --headless --path game --import
+  if not exist "game\.godot" mkdir "game\.godot"
+  type nul > "game\.godot\hollow-import.stamp"
+)
 if /i "%~1"=="join" goto join
 if /i "%~1"=="menu" goto menu
 if "%PLAYER%"=="" set "PLAYER=Host"

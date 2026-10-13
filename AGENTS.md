@@ -118,11 +118,13 @@ Playing the ground game (Windows, from the repository's root; GROUND.md §4.3):
 ```bat
 play-ground.cmd                 :: build, then host a game on this computer (port 27015)
 play-ground.cmd join [address]  :: build, then join it as a second player (default 127.0.0.1)
-play-ground.cmd menu            :: build, then open the main menu (PLAY, CONNECT, name, QUIT)
+play-ground.cmd menu            :: build, then open the main menu (PLAY, CONNECT, name, body, QUIT)
 ```
 
 `GODOT` names the Godot executable if it isn't at `D:\Godot_v4.7.2-stable_mono_win64\...`, `PLAYER` the name (Host and
-Guest by default); further arguments go to the game.
+Guest by default); further arguments go to the game (`--body female`, `--mute`, ...). Hosting builds the dedicated
+server in Release too and runs it as a process of its own, which stops with the game. A first run after new assets
+arrive imports them (`$GODOT --headless --path game --import`).
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
 `Godot_v4.7.2-stable_mono_win64.exe`); the options are the same.
