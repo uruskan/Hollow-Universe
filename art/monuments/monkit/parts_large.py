@@ -933,6 +933,67 @@ def ribs(b, ring, radius=0.35, inset=(0.8, 2.6, 4.4), axis=(1, 0, 0), mat=RUST, 
             b.tube([tuple(v) for v in run], radius, mat=mat, tint=tint, sides=6, cap=True, solid=False)
 
 
+def skin(b, grid, inward, thick=3.0, mat=CONCRETE, tint_fn=None, keep_fn=None, solid=True, wear=0.55):
+    """A rock or earth surface from a grid of points (rows of the same length): each cell a convex slab `thick`
+    deep along `inward`, so the skin is its own exact collision and gaps (portals) are just cells left out with
+    `keep_fn(i, j)`; `tint_fn(i, j)` colours each cell."""
+    ins = Vector(inward).normalized() * thick
+    for i in range(len(grid) - 1):
+        for j in range(len(grid[0]) - 1):
+            if keep_fn and not keep_fn(i, j):
+                continue
+            outer = [Vector(grid[i][j]), Vector(grid[i][j + 1]), Vector(grid[i + 1][j + 1]), Vector(grid[i + 1][j])]
+            inner = [q + ins for q in outer]
+            mid = sum(outer, Vector()) / 4
+            verts = [tuple(q - mid) for q in outer + inner]
+            faces = [[0, 1, 2, 3], [7, 6, 5, 4], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]]
+            b.mesh(verts, faces, tuple(mid), mat=mat, tint=tint_fn(i, j) if tint_fn else ROCK,
+                   solid="hull" if solid else False, smooth=True, wear=wear)
+
+
+def tunnel(b, a, c, width=5.0, height=4.2, left=(), right=(), wall=0.6, mat=CONCRETE, tint=BW_CONCRETE,
+           ribs=6.0, lamps=15.0, z0=0.0, ends=(False, False)):
+    """A lined tunnel from `a` to `c` (2D, floor at `z0`): floor, walls, ceiling, steel arches every `ribs` metres,
+    lamps along the ceiling, a cable tray and a pipe on the walls. `left`/`right`: openings in the walls as (distance
+    from `a`, width, height); `ends` closes either end with a wall."""
+    a = Vector((a[0], a[1], z0))
+    c = Vector((c[0], c[1], z0))
+    d = c - a
+    length = d.length
+    u = d / length
+    side = Vector((-u.y, u.x, 0))
+    yaw = _yaw(u)
+    m = (a + c) / 2
+    b.box((length, width + 2 * wall, 0.4), (m.x, m.y, z0 - 0.2), (0, 0, yaw), mat=mat, tint=srgb(0.55, 0.55, 0.52))
+    b.box((length, width + 2 * wall, wall), (m.x, m.y, z0 + height + wall / 2), (0, 0, yaw), mat=mat, tint=tint)
+    for sgn, ops in ((1, left), (-1, right)):
+        off = side * sgn * (width / 2 + wall / 2)
+        wall_run(b, a + off, c + off, height, wall, [(s, w, h, 0.0) for s, w, h in ops], z0=z0, mat=mat, tint=tint)
+    for k, closed in enumerate(ends):
+        if closed:
+            p = a if k == 0 else c
+            b.box((wall, width + 2 * wall, height), (p.x, p.y, z0 + height / 2), (0, 0, yaw), mat=mat, tint=tint)
+    if ribs:
+        for k in range(1, int(length / ribs)):
+            p = a + u * (k * ribs)
+            for sgn in (-1, 1):
+                q = p + side * sgn * (width / 2 - 0.12)
+                b.box((0.2, 0.25, height - 0.1), (q.x, q.y, z0 + height / 2), (0, 0, yaw), mat=PAINT, tint=DARK_STEEL,
+                      solid=False, vary=0)
+            b.box((0.2, width - 0.1, 0.25), (p.x, p.y, z0 + height - 0.15), (0, 0, yaw), mat=PAINT, tint=DARK_STEEL,
+                  solid=False, vary=0)
+    if lamps:
+        for k in range(int(length / lamps)):
+            p = a + u * ((k + 0.5) * lamps)
+            lamp(b, (p.x, p.y, z0 + height - 0.3), (90, 0, yaw), colour=WARM_LAMP, size=(0.5, 0.25, 0.12))
+    tray = side * (width / 2 - 0.3)
+    b.box((length, 0.5, 0.08), (m.x + tray.x, m.y + tray.y, z0 + height - 0.8), (0, 0, yaw), mat=GRATE, tint=GREY,
+          solid=False, vary=0)
+    pp = side * -(width / 2 - 0.35)
+    b.tube([tuple(a + pp + UP * (height - 1.0)), tuple(c + pp + UP * (height - 1.0))], 0.18, mat=PAINT,
+           tint=srgb(0.55, 0.45, 0.30), sides=8)
+
+
 # ------------------------------------------------------------------------------------------------ wear and dressing
 
 
