@@ -31,6 +31,9 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary>Half the width of the zone that can have ground, in metres.</summary>
     public const float Extent = TileRange * TileSize;
 
+    /// <summary>A ground tile keeps the surface's triangles this far beyond its square (neighbours overlap by this much).</summary>
+    public const float ClipMargin = 2f;
+
     internal static readonly ObjectLayer StaticLayer = new(0);
     internal static readonly ObjectLayer MovingLayer = new(1);
 
@@ -55,8 +58,7 @@ public sealed class PhysicsWorld : IDisposable
     private readonly List<(int X, int Z)> _expired = new();
     private readonly List<(int X, int Z)> _adopted = new();
     private readonly Dictionary<(PropLayer, ulong), Prop> _props = new();
-    private readonly Stack<uint> _freePropIds = new();
-    private uint _nextPropId = TileIdCount;
+    private readonly bool[] _propIdUsed = new bool[MaxProps];
     private int _tilesBuilt;
     private long _buildTicks;
     private readonly ObjectLayerPairFilterTable _layerPairs;
@@ -171,7 +173,12 @@ public sealed class PhysicsWorld : IDisposable
                     continue;
                 }
                 (int X, int Z) key = (x, z);
-                _pending.Add(key, Task.Run(() => BuildShape(key.X, key.Z)));
+                ITileListener? listener = Listener;
+                _pending.Add(key, Task.Run(() =>
+                {
+                    listener?.TilePreparing(key.X, key.Z);
+                    return BuildShape(key.X, key.Z);
+                }));
             }
         }
     }
@@ -230,6 +237,7 @@ public sealed class PhysicsWorld : IDisposable
                 Listener?.TileRemoved(key.X, key.Z);
                 Tile tile = _tiles[key];
                 bodies.RemoveAndDestroyBody(tile.Body);
+                Interlocked.Increment(ref _bodyChanges);
                 tile.Shape.Dispose();
                 _tiles.Remove(key);
             }
@@ -256,12 +264,37 @@ public sealed class PhysicsWorld : IDisposable
             {
                 vertices[i] = new Vector3(mesh.Positions[3 * i], mesh.Positions[3 * i + 1], mesh.Positions[3 * i + 2]);
             }
+            // Only the triangles over the tile's square and a margin: a surface's grids cover more than the square
+            // (the planet's level-18 tiles overlap it by up to a tile), and neighbours would otherwise hold the same
+            // triangles twice, which every character's contact query pays for.
+            // The square is the tangent plane's, so each vertex is seen from the body's centre on that plane (on a
+            // small body the ground falls away from the plane and its triangles crowd towards the origin).
+            float x0 = x * TileSize - ClipMargin, x1 = (x + 1) * TileSize + ClipMargin;
+            float z0 = z * TileSize - ClipMargin, z1 = (z + 1) * TileSize + ClipMargin;
+            double r0 = Frame.Origin.Length;
+            Vector2 Plane(Vector3 v) => r0 + v.Y > r0 * 0.01 ? new Vector2(v.X, v.Z) * (float)(r0 / (r0 + v.Y)) : new Vector2(v.X, v.Z);
+            int kept = 0;
             for (int t = 0; t < mesh.TriangleCount; t++)
             {
                 int a = mesh.Indices[3 * t], b = mesh.Indices[3 * t + 1], c = mesh.Indices[3 * t + 2];
-                triangles[t] = new IndexedTriangle(a, b, c, 0, 0);
+                Vector2 pa = Plane(vertices[a]), pb = Plane(vertices[b]), pc = Plane(vertices[c]);
+                if (MathF.Max(pa.X, MathF.Max(pb.X, pc.X)) < x0 || MathF.Min(pa.X, MathF.Min(pb.X, pc.X)) > x1 ||
+                    MathF.Max(pa.Y, MathF.Max(pb.Y, pc.Y)) < z0 || MathF.Min(pa.Y, MathF.Min(pb.Y, pc.Y)) > z1)
+                {
+                    continue;
+                }
+                triangles[kept++] = new IndexedTriangle(a, b, c, 0, 0);
             }
-            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount));
+            if (kept == 0)
+            {
+                // Nothing over the square (it can't happen with a surface that covers it): keep everything.
+                for (int t = 0; t < mesh.TriangleCount; t++)
+                {
+                    triangles[t] = new IndexedTriangle(mesh.Indices[3 * t], mesh.Indices[3 * t + 1], mesh.Indices[3 * t + 2], 0, 0);
+                }
+                kept = mesh.TriangleCount;
+            }
+            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, kept));
             shape = settings.Create();
         }
         finally
@@ -274,9 +307,31 @@ public sealed class PhysicsWorld : IDisposable
         return shape;
     }
 
+    private int _bodyChanges;
+    private int _sinceOptimize;
+
+    /// <summary>
+    /// Rebuilds Jolt's broadphase tree after bodies came and went (ground tiles, props). The world never runs Jolt's
+    /// own update, which would keep the tree in shape, and contact queries on a tree grown body by body cost several
+    /// times more. Call with the Jolt lock held, once a tick before characters move; it rebuilds at most twice a second
+    /// (sooner after many changes).
+    /// </summary>
+    public void OptimizeBroadPhase()
+    {
+        _sinceOptimize++;
+        if (_bodyChanges == 0 || (_sinceOptimize < 15 && _bodyChanges < 64))
+        {
+            return;
+        }
+        Jolt.OptimizeBroadPhase();
+        _bodyChanges = 0;
+        _sinceOptimize = 0;
+    }
+
     // Adds a built tile to the physics system, under the tile's own body ID. On the owning thread.
     private Tile AddTile(int x, int z, Shape shape)
     {
+        Interlocked.Increment(ref _bodyChanges);
         var id = new BodyID((uint)((x + TileRange) + (z + TileRange) * 2 * TileRange));
         Tile tile;
         lock (JoltRuntime.Gate)
@@ -315,19 +370,20 @@ public sealed class PhysicsWorld : IDisposable
         {
             return;
         }
-        uint id;
-        if (_freePropIds.Count > 0)
-        {
-            id = _freePropIds.Pop();
-        }
-        else if (_nextPropId < TileIdCount + MaxProps)
-        {
-            id = _nextPropId++;
-        }
-        else
+        // The body ID comes from the key (the next free one after its hash), not from the order props arrive in, so
+        // the server and every client give a prop the same ID whatever else they hold, and Jolt orders contacts
+        // with two props the same way on both sides.
+        if (_props.Count >= MaxProps)
         {
             return; // full: the prop just doesn't collide
         }
+        uint slot = (uint)(Core.Hash64.Of((ulong)layer, key) % MaxProps);
+        while (_propIdUsed[slot])
+        {
+            slot = (slot + 1) % MaxProps;
+        }
+        _propIdUsed[slot] = true;
+        uint id = TileIdCount + slot;
         lock (JoltRuntime.Gate)
         {
             Shape shape = prop.CreateShape();
@@ -338,6 +394,7 @@ public sealed class PhysicsWorld : IDisposable
                 ?? throw new InvalidOperationException($"Jolt refused prop {layer} {key} (body {id}).");
             bodies.AddBody(body.ID, Activation.DontActivate);
             _props.Add((layer, key), new Prop(body.ID, shape, id));
+            Interlocked.Increment(ref _bodyChanges);
         }
     }
 
@@ -351,8 +408,9 @@ public sealed class PhysicsWorld : IDisposable
         {
             Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
             prop.Shape.Dispose();
+            Interlocked.Increment(ref _bodyChanges);
         }
-        _freePropIds.Push(prop.Id);
+        _propIdUsed[prop.Id - TileIdCount] = false;
     }
 
     public void Dispose()
@@ -383,6 +441,7 @@ public sealed class PhysicsWorld : IDisposable
             foreach (Tile tile in _tiles.Values)
             {
                 bodies.RemoveAndDestroyBody(tile.Body);
+                Interlocked.Increment(ref _bodyChanges);
                 tile.Shape.Dispose();
             }
             _tiles.Clear();

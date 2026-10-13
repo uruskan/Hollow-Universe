@@ -20,6 +20,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Surface;
 using LiteNetLib;
 
 namespace Hollow.Server;
@@ -72,8 +73,12 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     {
         _options = options;
         galaxy ??= new Galaxy.Galaxy(options.CataloguePath != null ? Galaxy.StarCatalogue.Load(options.CataloguePath) : null);
-        Spec = ZoneSpec.FirstWorld(galaxy, options.Latitude, options.Longitude)
-            ?? throw new InvalidOperationException("The generator no longer makes the first world (GROUND.md §3).");
+        Spec = (ZoneSpec.FirstWorld(galaxy, options.Latitude, options.Longitude)
+            ?? throw new InvalidOperationException("The generator no longer makes the first world (GROUND.md §3).")) with
+            {
+                StandIn = options.StandIn,
+                RotationTimeScale = options.RotationTimeScale,
+            };
         Content = options.Content ?? GameContent.LoadDefault();
         _ids = new EntityIdAllocator(1, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         Zone = new Zone(Spec, content: Content)
@@ -103,9 +108,27 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             throw new SocketException((int)SocketError.AddressAlreadyInUse);
         }
         Port = _net.LocalPort;
-        // Build the ground around the spawn now (and warm the code up), so the first player's arrival doesn't stall
-        // the tick loop.
-        Zone.Physics.EnsureGround(Zone.SpawnPoint(0), radius: 2);
+        // The real planet (GROUND.md §6.1): its climate follows the sun of the zone's sky, and players arrive and
+        // respawn on its real beaches near the zone.
+        if (Zone.Surface is PlanetSurface planet)
+        {
+            if (Spec.CreateSky() is { } sky)
+            {
+                Zone.Climate = new PlanetClimate(Content.Survival, planet, Zone.Frame, sky);
+            }
+            Beaches = Simulation.Beaches.Find(planet, Zone.Frame);
+            if (Beaches.Points.Count > 0)
+            {
+                Zone.Beaches = salt => Beaches.Pick(salt)!.Value;
+            }
+            Log($"{Beaches.Points.Count} beach points within {Beaches.SearchedRadius / 1000:0} km" +
+                (Beaches.Points.Count > 0 ? $", the nearest {Beaches.Points[0].Length():0} m from the landing site" : ": players arrive at the landing site"));
+        }
+        // Build the ground where players arrive now (and warm the code up), so the first arrival doesn't stall the
+        // tick loop.
+        Vector3 arrival = Arrival(0);
+        Zone.Physics.Prefetch(arrival, radius: 2);
+        Zone.Physics.EnsureGround(arrival, radius: 2);
         LoadWorld();
         StartBuilding();
         StartRaid();
@@ -119,6 +142,16 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     public ZoneSpec Spec { get; }
 
     public Zone Zone { get; }
+
+    /// <summary>The real beaches near the zone where players arrive and respawn (null on the stand-in ground).</summary>
+    public Simulation.Beaches? Beaches { get; }
+
+    /// <summary>
+    /// Where a new character arrives: a beach point picked by <paramref name="salt"/>, as in Rust; at the landing site
+    /// with <see cref="ServerOptions.SpawnAtOrigin"/>, on the stand-in ground, or with no coast near.
+    /// </summary>
+    public Vector3 Arrival(ulong salt) =>
+        !_options.SpawnAtOrigin && Beaches?.Pick(salt) is { } beach ? beach : Zone.SpawnPoint(salt);
 
     /// <summary>The UDP port the server listens on.</summary>
     public int Port { get; }
@@ -336,7 +369,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             return;
         }
         NetPeer peer = request.Accept();
-        var session = new PlayerSession(peer, name);
+        var session = new PlayerSession(peer, name) { Body = Math.Min(hello.Body, (byte)1) };
         session.Login = _persistence != null
             ? _persistence.Login(name)
             : Task.FromResult<(long, CharacterRecord?)>((0, null));
@@ -410,7 +443,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             else
             {
                 id = record?.Id ?? _ids.Next();
-                state = Zone.NewCharacter(Zone.SpawnPoint(Hash64.Of(session.Name.ToUpperInvariant())));
+                state = Zone.NewCharacter(Arrival(Hash64.Of(session.Name.ToUpperInvariant())));
                 how = "new";
             }
             if (Zone.Entities.TryFind(id, out _))
@@ -423,6 +456,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             {
                 GiveKit(fresh, kit);
             }
+        }
+        if (Zone.PlayerOf(entity) is { } chosen)
+        {
+            chosen.Body = session.Body; // the body chosen in the menu, kept with the character
         }
         if (!Zone.Entities.Has<NetPresence>(entity))
         {

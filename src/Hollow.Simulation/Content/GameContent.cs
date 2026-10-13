@@ -644,6 +644,11 @@ public sealed partial class GameContent
 
         private void ReadGather()
         {
+            static string Hyphenated(Surface.ScatterKind k) =>
+                string.Concat(k.ToString().Select((ch, i) => char.IsUpper(ch) && i > 0 ? "-" + char.ToLowerInvariant(ch) : char.ToLowerInvariant(ch).ToString()));
+            static IEnumerable<string> ScatterKindNames() => Enum.GetValues<Surface.ScatterKind>().Select(Hyphenated);
+            static Surface.ScatterKind? ScatterKindNamed(string name) =>
+                Enum.GetValues<Surface.ScatterKind>().Where(k => Hyphenated(k) == name).Select(k => (Surface.ScatterKind?)k).FirstOrDefault();
             JsonElement root = Root("gather.json", "weakSpot", "kinds");
             if (f.TryChild(root, "weakSpot", out JsonElement weak))
             {
@@ -656,7 +661,7 @@ public sealed partial class GameContent
                 JsonElement e = list[i];
                 string key = f.Text(e, "key", $"gather.json: kinds[{i}]");
                 string where = $"gather.json: {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "key", "name", "class", "health", "yield", "stages", "respawn", "radius", "height", "standIn");
+                f.OnlyKnown(e, where, "key", "name", "class", "health", "yield", "stages", "respawn", "radius", "height", "standIn", "scatter");
                 string className = f.Text(e, "class", where);
                 NaturalClass kind = className switch
                 {
@@ -664,11 +669,12 @@ public sealed partial class GameContent
                     "node" => NaturalClass.Node,
                     "pickup" => NaturalClass.Pickup,
                     "bush" => NaturalClass.Bush,
+                    "boulder" => NaturalClass.Boulder,
                     _ => NaturalClass.Pickup,
                 };
-                if (className is not ("tree" or "node" or "pickup" or "bush"))
+                if (className is not ("tree" or "node" or "pickup" or "bush" or "boulder"))
                 {
-                    f.Problem(where, $"class \"{className}\" is not tree, node, pickup or bush");
+                    f.Problem(where, $"class \"{className}\" is not tree, node, pickup, bush or boulder");
                 }
                 var yields = new List<ItemAmount>();
                 foreach (JsonElement y in f.List(e, "yield", where))
@@ -684,6 +690,24 @@ public sealed partial class GameContent
                     f.OnlyKnown(standIn, where + ".standIn", "perTile");
                     perTile = f.Number(standIn, "perTile", where + ".standIn");
                 }
+                var scatterKinds = new List<Surface.ScatterKind>();
+                float minScale = 0;
+                if (f.TryChild(e, "scatter", out JsonElement scatter))
+                {
+                    f.OnlyKnown(scatter, where + ".scatter", "kinds", "minScale");
+                    foreach (string name in f.Texts(scatter, "kinds", where + ".scatter"))
+                    {
+                        if (ScatterKindNamed(name) is { } sk)
+                        {
+                            scatterKinds.Add(sk);
+                        }
+                        else
+                        {
+                            f.Problem(where + ".scatter", $"\"{name}\" is not a scatter kind ({string.Join(", ", ScatterKindNames())})");
+                        }
+                    }
+                    minScale = f.Number(scatter, "minScale", where + ".scatter", 0f);
+                }
                 bool harvested = kind is NaturalClass.Tree or NaturalClass.Node;
                 loaded.Natural.Add(new NaturalKind
                 {
@@ -698,6 +722,8 @@ public sealed partial class GameContent
                     Radius = f.Number(e, "radius", where),
                     Height = f.Number(e, "height", where),
                     StandInPerTile = perTile,
+                    ScatterKinds = scatterKinds,
+                    ScatterMinScale = minScale,
                 });
             }
         }

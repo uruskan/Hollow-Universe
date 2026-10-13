@@ -232,9 +232,10 @@ public sealed partial class Vegetation : Node3D
                 }
             }
         }
+        ApplyNear();
         if (_nearMissing == 0 && (Vector3D.Distance(camera, _nearCentre) > RebuildDistance || _nearDirty))
         {
-            BuildNear(nearTiles, camera);
+            RebuildNear(nearTiles, camera);
         }
         if (_impostors != null)
         {
@@ -343,15 +344,24 @@ public sealed partial class Vegetation : Node3D
     {
         _nearCentre = camera;
         _nearDirty = false;
-        _nearAnchor = _frame.Origin;
-        foreach (LodSet set in _sets.Values)
-        {
-            set.Buffer.Clear();
-        }
-        _nearImpostorBuffer.Clear();
+        PlaceNear(ComputeNear(tiles, camera, _frame.Origin, Clock, (key, item) => DrawnKind(key, item)));
+    }
+
+    // What the near set draws: each variant's buffers per level, and the near impostors.
+    private sealed class NearData
+    {
+        public Vector3D Anchor;
+        public readonly Dictionary<(FloraLibrary.Variant, int), List<float>> Sets = new();
+        public readonly List<float> Impostors = new();
+        public int Count;
+    }
+
+    // Lays out the near set from the scatter around the camera, with each object drawn as `kinds` says. It touches no
+    // node, so the ground game runs it on a worker thread (Vegetation.Game.cs); one runs at a time.
+    private NearData ComputeNear(List<TileKey> tiles, Vector3D camera, Vector3D anchor, float clock, Func<TileKey, ScatterItem, ScatterKind> kinds)
+    {
+        var data = new NearData { Anchor = anchor };
         _rebuild++;
-        float clock = Clock;
-        int count = 0;
         double margin = 2 * RebuildDistance;
         foreach (TileKey key in tiles)
         {
@@ -361,7 +371,7 @@ public sealed partial class Vegetation : Node3D
             }
             foreach (ScatterItem item in items)
             {
-                FloraLibrary.Species? species = _library!.For(item.Kind);
+                FloraLibrary.Species? species = _library!.For(kinds(key, item));
                 if (species == null || species.Variants.Count == 0)
                 {
                     continue;
@@ -394,14 +404,14 @@ public sealed partial class Vegetation : Node3D
                 FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
                 float scale = item.Scale * species.Scale;
                 float sink = item.Kind == ScatterKind.Rock ? -0.12f * scale : -0.05f;
-                Transform3D t = InstanceTransform(item, body, _nearAnchor, scale, sink);
+                Transform3D t = InstanceTransform(item, body, data.Anchor, scale, sink);
                 (float a, float b) = Shade(item);
-                Emit(variant, state.Lod, t, a, b, fading ? state.Since : 0);
+                Emit(data, variant, state.Lod, t, a, b, fading ? state.Since : 0);
                 if (fading)
                 {
-                    Emit(variant, state.From, t, a, b, -state.Since);
+                    Emit(data, variant, state.From, t, a, b, -state.Since);
                 }
-                count++;
+                data.Count++;
             }
         }
         // Forget objects the near set no longer holds.
@@ -417,12 +427,26 @@ public sealed partial class Vegetation : Node3D
         {
             _lods.Remove(id);
         }
-        foreach (LodSet set in _sets.Values)
+        return data;
+    }
+
+    // Puts a laid-out near set in place (main thread).
+    private void PlaceNear(NearData data)
+    {
+        _nearAnchor = data.Anchor;
+        foreach (((FloraLibrary.Variant, int) key, LodSet set) in _sets)
         {
+            set.Buffer.Clear();
+            if (data.Sets.TryGetValue(key, out List<float>? buffer))
+            {
+                set.Buffer.AddRange(buffer);
+            }
             Fill(set);
         }
+        _nearImpostorBuffer.Clear();
+        _nearImpostorBuffer.AddRange(data.Impostors);
         FillNearImpostors();
-        MeshInstances = count;
+        MeshInstances = data.Count;
     }
 
     // Level for an object at distance d, given the level it has (-1: none yet): meshes 0 and 1, impostor 2.
@@ -442,15 +466,19 @@ public sealed partial class Vegetation : Node3D
         return d < n ? 0 : 1;
     }
 
-    private void Emit(FloraLibrary.Variant variant, int lod, Transform3D t, float a, float b, float fade)
+    private static void Emit(NearData data, FloraLibrary.Variant variant, int lod, Transform3D t, float a, float b, float fade)
     {
         if (lod == 2)
         {
-            Append(_nearImpostorBuffer, t, a, variant.ImpostorRow, Pack(variant), fade);
+            Append(data.Impostors, t, a, variant.ImpostorRow, Pack(variant), fade);
         }
         else
         {
-            Append(_sets[(variant, lod)].Buffer, t, a, b, fade, 0);
+            if (!data.Sets.TryGetValue((variant, lod), out List<float>? buffer))
+            {
+                data.Sets[(variant, lod)] = buffer = new List<float>();
+            }
+            Append(buffer, t, a, b, fade, 0);
         }
     }
 
@@ -636,32 +664,7 @@ public sealed partial class Vegetation : Node3D
         {
             return;
         }
-        var buffer = new List<float>();
-        foreach (TileKey key in tiles)
-        {
-            List<ScatterItem>? items = _full.TryGetValue(key.Packed, out var f) ? f : _trees.TryGetValue(key.Packed, out var t) ? t : null;
-            if (items == null)
-            {
-                continue;
-            }
-            foreach (ScatterItem item in items)
-            {
-                FloraLibrary.Species? species = _library!.For(item.Kind);
-                if (species == null || !species.Tree)
-                {
-                    continue;
-                }
-                FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
-                if (variant.ImpostorRow < 0)
-                {
-                    continue;
-                }
-                float scale = item.Scale * species.Scale;
-                Transform3D tr = InstanceTransform(item, item.Position(_surface.Radius), block.Anchor, scale, -0.05f);
-                (float a, _) = Shade(item);
-                Append(buffer, tr, a, variant.ImpostorRow, Pack(variant), 0);
-            }
-        }
+        List<float> buffer = ImpostorBuffer(tiles, block.Anchor, (key, item) => DrawnKind(key, item));
         if (buffer.Count > 0 && !DebugSkip.Contains("impostor"))
         {
             var mm = new MultiMesh
@@ -687,6 +690,39 @@ public sealed partial class Vegetation : Node3D
             AddChild(block.Instance);
         }
         block.Built = true;
+    }
+
+    // A block's tree impostors, each drawn as `kinds` says. It touches no node, so the ground game rebuilds a block
+    // on a worker thread (Vegetation.Game.cs).
+    private List<float> ImpostorBuffer(List<TileKey> tiles, Vector3D anchor, Func<TileKey, ScatterItem, ScatterKind> kinds)
+    {
+        var buffer = new List<float>();
+        foreach (TileKey key in tiles)
+        {
+            List<ScatterItem>? items = _full.TryGetValue(key.Packed, out var f) ? f : _trees.TryGetValue(key.Packed, out var t) ? t : null;
+            if (items == null)
+            {
+                continue;
+            }
+            foreach (ScatterItem item in items)
+            {
+                FloraLibrary.Species? species = _library!.For(kinds(key, item));
+                if (species == null || !species.Tree)
+                {
+                    continue;
+                }
+                FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
+                if (variant.ImpostorRow < 0)
+                {
+                    continue;
+                }
+                float scale = item.Scale * species.Scale;
+                Transform3D tr = InstanceTransform(item, item.Position(_surface.Radius), anchor, scale, -0.05f);
+                (float a, _) = Shade(item);
+                Append(buffer, tr, a, variant.ImpostorRow, Pack(variant), 0);
+            }
+        }
+        return buffer;
     }
 
     /// <summary>Re-anchors everything after the render origin moved.</summary>

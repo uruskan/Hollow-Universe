@@ -21,7 +21,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xADCB112951C8ADA4UL;
+    public const ulong SchemaHash = 0x775AF20733870768UL;
 }
 
 partial struct Hello
@@ -41,6 +41,7 @@ partial struct Hello
         w.WriteBits64(SchemaHash, 64);
         w.WriteString(PlayerName, 32);
         w.WriteBits64(ContentHash, 64);
+        w.WriteBits((uint)Body, 8);
     }
 
     public static Hello Read(BitReader r)
@@ -50,6 +51,7 @@ partial struct Hello
         v.SchemaHash = r.ReadBits64(64);
         v.PlayerName = r.ReadString(32);
         v.ContentHash = r.ReadBits64(64);
+        v.Body = (byte)r.ReadBits(8);
         return v;
     }
 }
@@ -91,6 +93,8 @@ partial struct ZoneInfo
         w.WriteBits64(SurfaceSeed, 64);
         w.WriteDouble(LatitudeDegrees);
         w.WriteDouble(LongitudeDegrees);
+        w.WriteBool(StandIn);
+        w.WriteFloat(RotationTimeScale);
     }
 
     public static ZoneInfo Read(BitReader r)
@@ -103,6 +107,8 @@ partial struct ZoneInfo
         v.SurfaceSeed = r.ReadBits64(64);
         v.LatitudeDegrees = r.ReadDouble();
         v.LongitudeDegrees = r.ReadDouble();
+        v.StandIn = r.ReadBool();
+        v.RotationTimeScale = r.ReadFloat();
         return v;
     }
 }
@@ -738,6 +744,7 @@ partial struct CharacterLook
         {
             Wear![i].Write(w);
         }
+        w.WriteBits((uint)Body, 8);
     }
 
     public static CharacterLook Read(BitReader r)
@@ -755,6 +762,7 @@ partial struct CharacterLook
         {
             v.Wear[i] = WornItem.Read(r);
         }
+        v.Body = (byte)r.ReadBits(8);
         return v;
     }
 }

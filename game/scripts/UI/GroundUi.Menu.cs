@@ -45,6 +45,12 @@ public partial class GroundUi
         Text("JOIN A GAME", 916, 320, 43, G.Ink, bold: true);
         Text("Host one on this computer, or connect to a server.", 916, 383, 23, G.Muted);
         Text("PLAYER NAME", 916, 440, 19, G.Muted, bold: true);
+        Text("BODY", 1306, 440, 19, G.Muted, bold: true);
+        Button(FemaleBody ? "FEMALE" : "MALE", 1306, 468, 144, 45, () =>
+        {
+            FemaleBody = !FemaleBody;
+            SavePreferences();
+        }, 21);
         Text("SERVER ADDRESS", 916, 533, 19, G.Muted, bold: true);
         Text("PORT", 1337, 533, 19, G.Muted, bold: true);
         Button("HOST SOLO", 916, 640, 300, 53, Host, 27, G.Red);

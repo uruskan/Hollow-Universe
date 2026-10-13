@@ -17,9 +17,10 @@ namespace Hollow.Tests;
 /// <summary>An in-process server on a background thread, and clients driven from the test's thread.</summary>
 public sealed class LoopbackRig : IDisposable
 {
-    public LoopbackRig(string? database = null)
+    /// <summary>A server on the stand-in ground (plain and quick), or on the first world's real surface.</summary>
+    public LoopbackRig(string? database = null, bool planet = false)
     {
-        Server = new GameServer(new ServerOptions { Port = 0, DatabasePath = database, Log = _ => { } }, Fixtures.Galaxy);
+        Server = new GameServer(new ServerOptions { Port = 0, DatabasePath = database, StandIn = !planet, Log = _ => { } }, Fixtures.Galaxy);
         Server.StartThread();
     }
 
@@ -97,7 +98,8 @@ public static class MultiplayerTests
     [Test]
     public static void PredictionReplaysToTheServersResult()
     {
-        ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)!;
+        // On the first world's real ground at the landing site: hills, a forest edge's slopes (GROUND.md §3).
+        ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, Surface.FirstWorld.LandingLatitude, Surface.FirstWorld.LandingLongitude)!;
         using var zone = new Zone(spec);
         Entity entity = zone.AddCharacter(new EntityId(7), "server", zone.NewCharacter(zone.SpawnPoint(1)));
         using var predictor = new Predictor(spec, spec.CreateSurface(), null);

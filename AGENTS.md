@@ -45,9 +45,12 @@ dotnet run --project tests/Hollow.Tests          # all engine-free tests
 dotnet run --project tests/Hollow.Tests -- Galaxy   # only tests whose name contains "Galaxy"
 dotnet run --project tests/Hollow.Tests -- MovementCheck   # the physics check (GROUND.md §4.5)
 dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Protocol/Messages.cs: rewrites Messages.g.cs
-dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server (--no-db, --db <path>, --lat, --lon; type help)
+dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server on the first world's landing site (--no-db,
+                                                 # --db <path>, --lat, --lon, --spawn beach|origin, --day-scale <x>,
+                                                 # --stand-in for the old test sphere; type help)
 dotnet run -c Release --project tools/Hollow.Bots -- --server 127.0.0.1:27015 --count 100   # bots (--script, --lag/--jitter/--loss)
-dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60   # server + 100 bots: tick time, bandwidth, prediction
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60   # server + 100 bots at the landing site: tick
+                                                 # time, bandwidth, prediction (--spawn beach, --stand-in)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit   # G2: bots that gather, craft and fight (GROUND.md §5.2)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script fight --kit gunfight-kit   # G4: bots in firefights, a kit every life (GROUND.md §5.3)
 dotnet run --project tests/Hollow.Tests -- Gun        # G4: ballistics, recoil, damage, armour, refusals, client and server agreeing, a gunfight
@@ -66,6 +69,7 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|reli
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
 blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
 dotnet run --project tests/Hollow.Tests -- Building   # the building rules, over the network and saved (GROUND.md §6.3, §6.5)
+blender -b --factory-startup --python art/fx/build.py   # the effects' textures, decals and debris → game/assets/fx (GROUND.md §9.3)
 # The building and door kits into game/assets/building (Blender 5.2.1, D:/GameDev/Tools/blender-5.2.1-windows-x64):
 blender --background --factory-startup --python art/import/building_kit.py [-- twig wood stone metal armoured]
 blender --background --factory-startup --python art/import/door_kit.py
@@ -97,15 +101,37 @@ $GODOT --headless --path game --import       # first run after a clone
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --shot sol.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673 --distance 1100 --shot core.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
-xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --shot ground.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --hour 10 --shot ground.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
-xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --db /tmp/demo.db --demo --shot camp.png
 xvfb-run -a $GODOT --path game -- --view icons --out game/assets/items/icons   # render every item icon (GROUND.md §9.1)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view models --shot models.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view sounds --sound rifle.shot --distance 320 --ambience --shot sounds.png
 $GODOT --headless --path game -- --view sounds --sound-check   # every sound file loaded and measured in the engine
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png   # effects (GROUND.md §9.3)
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --stress firefight --measure 8   # what a firefight's effects cost
+# The ground game's screenshot run (GROUND.md §5.6): a host that takes the pictures, and a second player that joins it.
+# Paths are relative to game/, where Godot runs.
+$GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --db /tmp/tour.db --hour 10 --tour ../docs/images/ground/play &
+$GODOT --path game --resolution 1280x720 -- --view ground --name Bo --connect 127.0.0.1:27015 --hour 10 --tour guest
+# Frame time with a crowd (GROUND.md §5.6): start a server and bots, then measure 20 s once 45 others are in view.
+dotnet run -c Release --project src/Hollow.Server -- --spawn origin &
+dotnet run -c Release --project tools/Hollow.Bots -- --server 127.0.0.1:27015 --count 50 --script survive --duration 150 &
+$GODOT --path game --resolution 1600x900 -- --view ground --name Ada --connect 127.0.0.1:27015 --hour 10 --measure 20 --expect 45
 ```
+
+Playing the ground game (Windows, from the repository's root; GROUND.md §4.3):
+
+```bat
+play-ground.cmd                 :: build, then host a game on this computer (port 27015)
+play-ground.cmd join [address]  :: build, then join it as a second player (default 127.0.0.1)
+play-ground.cmd menu            :: build, then open the main menu (PLAY, CONNECT, name, body, QUIT)
+```
+
+`GODOT` names the Godot executable if it isn't at `D:\Godot_v4.7.2-stable_mono_win64\...`, `PLAYER` the name (Host and
+Guest by default); further arguments go to the game (`--body female`, `--mute`, ...). Hosting builds the dedicated
+server in Release too and runs it as a process of its own, which stops with the game. A first run after new assets
+arrive imports them (`$GODOT --headless --path game --import`).
 
 On Windows or macOS, drop `xvfb-run -a` and run the Godot .NET executable directly (on Windows,
 `Godot_v4.7.2-stable_mono_win64.exe`); the options are the same.
@@ -138,15 +164,28 @@ Client options (after `--`):
   code 0 when all agree with the pipeline's measurements; `--play-all` plays every event in turn (layered ones at 1, 50
   and 600 m) and quits, a smoke test of the director; `--trace` prints every voice started (layer, distance, dB) and
   the ambience beds' levels once a second.
+- Effects (GROUND.md §9.3): `--view fx` plays every effect on its station while the camera turns (`--fx <key>`, with
+  `--shot` caught `--at <s>` after it starts; keys ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
+  fx.json); `--sheet <family>` (contact sheet), `--strip <key> --times a,b,c`, `--action <family>` (a scene in use),
+  `--stress firefight --measure <s>` (ten players fighting, effects off and on: prints what they cost and quits),
+  `--night`, `--only-batch <name>`.
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
-- Ground (GROUND.md §4.3): `--view ground --name <n>`, then `--connect host:port` or `--host [--port <n>]` (the
-  default: a server in the game); `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad network through a local
-  relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once seen, for screenshots).
-  Survival (G2): `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--demo` (host
-  only: a lit campfire, a box and a sleeping bag in view, for screenshots). Keys: 1–6 belt, left mouse use, right
-  mouse aim, E interact, F place, G drop, H eat or bandage, Tab close loot, B respawn on the beach (dead). Chat lines
-  starting with `/` are test commands: `/craft <item> [n]`, `/cancel`, `/put`, `/take`, `/belt`, `/wear`, `/light`,
-  and when hosting `/give <item> [n]`, `/kit <loot table>`.
+- Ground (GROUND.md §4.3): `--view ground` alone opens the main menu; `--body male|female` (default: the menu's last
+  choice); `--mute` (no sound), `--sound-trace` (print every sound started); `--name <n>` with `--host [--port <n>]` (the
+  dedicated server started as a process of its own; `--in-process` runs it on a thread of the game) or
+  `--connect host:port` starts at once. `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad
+  network through a local relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once
+  seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
+  arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
+  universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,death,night` (the screenshot run; `--tour guest` is
+  its second player), `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
+  time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
+  server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
+  (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire), right mouse aim or draw; R
+  reload; E interact (hold it on a fire or furnace to light it or put it out; help a wounded player up); 1–6 belt; Tab inventory; Q crafting; Enter chat; Esc back, then the
+  menu; F3 network graph; the death screen's buttons respawn. Chat lines starting with `/` are test commands when
+  hosting: `/give <item> [n]`, `/kit <loot table>`, `/heal`, `/kill`.
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
   `heal`, `kill` besides G1's (type `help`); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
   (and `--raid-radius <m>`; servers without a database) builds claimed huts on a ring for raid tests;
@@ -205,6 +244,8 @@ Client options (after `--`):
 | `game/scripts/Surface/Flora` | Plants made in code after hollow-orbit's flora: painted atlas and bark (`FloraTextures`, `Painter`), geometry (`FloraGeometry`), species and variants (`FloraLibrary`), impostors baked at start (`ImpostorBaker`) |
 | `game/assets/surface/ground` | The eight ground texture layers (Megascans and Poly Haven, `game/assets/THIRD_PARTY.md`), built by `tools/blender/surface_ground.py` |
 | `game/scripts/Items` | Item and world models (GROUND.md §9.1): `ModelCatalog` (reads `data/ground/models.json`), `CatalogItemIcons`, the icon renderer (`--view icons`) and the model viewer (`--view models`) |
+| `game/scripts/Fx` | The effects library (GROUND.md §9.3): `FxDirector` (the API: `Play`, `Impact`, `Muzzle`, `Tracer`, `Start`/`Stop`, `CameraShake`), world particle batches, muzzle flashes, tracers, decals, lights, fire loops, the catalogue (`data/ground/fx.json`) and the viewer (`--view fx`) |
+| `game/assets/fx` | The effects' textures (the PSG C4 VFX kit converted, our own flash atlas, noise and decals), debris meshes and shaders, built by `art/fx/build.py` |
 | `game/assets/items`, `game/assets/world` | Item and world models (GLB with LODs, hulls and sockets) and the item icons (`items/icons/128`, `items/icons/256`), built by `art/` |
 | `game/assets/materials`, `game/assets/textures` | The shared Godot materials the models' `.import` files map to, and their textures (2K at most) |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |

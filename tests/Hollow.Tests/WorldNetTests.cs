@@ -15,7 +15,7 @@ using Hollow.Simulation.World;
 
 namespace Hollow.Tests;
 
-/// <summary>G7 World over the network and through a restart (GROUND.md §6.8): protocol 7, schema 5.</summary>
+/// <summary>G7 World over the network and through a restart (GROUND.md §6.8): protocol 8, schema 5.</summary>
 public static class WorldNetTests
 {
     private static void RunUntil(LoopbackRig rig, Func<bool> done, string what, double seconds = 6)

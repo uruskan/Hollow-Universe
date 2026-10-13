@@ -30,8 +30,9 @@ public readonly record struct NaturalObject
 }
 
 /// <summary>
-/// Where natural objects are (GROUND.md §4.6): the planet package's scatter will provide them; until then
-/// <see cref="StandInNaturalObjects"/> does. Pure functions of the zone, safe to call from any thread.
+/// Where natural objects are (GROUND.md §6.1): the planet's scatter (<see cref="ScatterNaturalObjects"/>) on a real
+/// surface, <see cref="StandInNaturalObjects"/> on the stand-in. Pure functions of the zone, safe to call from any
+/// thread.
 /// </summary>
 public interface INaturalObjects
 {
@@ -43,6 +44,13 @@ public interface INaturalObjects
 
     /// <summary>The object with an ID (from outside: untrusted, so a made-up one is simply not found).</summary>
     bool TryGet(ulong id, out NaturalObject found);
+
+    /// <summary>
+    /// The object with an ID if it may lie within <paramref name="radius"/> of a point: an untrusted ID that names a
+    /// place far away is refused before any work is done for it (a player's pick-up request).
+    /// </summary>
+    bool TryGetNear(ulong id, Vector3 point, float radius, out NaturalObject found) =>
+        TryGet(id, out found) && Vector3.Distance(found.Position, point) <= radius;
 }
 
 /// <summary>Shapes and derived numbers of natural objects, shared by the server, the client and the physics.</summary>
@@ -56,12 +64,24 @@ public static class NaturalShapes
         return (o.Position + o.Up * radius, o.Position + o.Up * (height - radius), radius);
     }
 
-    /// <summary>An outcrop: a sphere half sunk in the ground.</summary>
+    /// <summary>
+    /// An outcrop: a sphere a third sunk in the ground. A boulder: a sphere mostly buried (its top 0.65 of its radius
+    /// above the ground), as the planet draws its rocks.
+    /// </summary>
     public static (Vector3 Centre, float Radius) Rock(in NaturalObject o, NaturalKind kind)
     {
         float radius = kind.Radius * o.Scale;
-        return (o.Position + o.Up * (radius * 0.35f), radius);
+        float lift = kind.Class == NaturalClass.Boulder ? -0.35f : 0.35f;
+        return (o.Position + o.Up * (radius * lift), radius);
     }
+
+    /// <summary>How far an object rises above the ground (for overlap checks).</summary>
+    public static float Top(in NaturalObject o, NaturalKind kind) => kind.Class switch
+    {
+        NaturalClass.Tree => kind.Height * o.Scale,
+        NaturalClass.Boulder => kind.Radius * o.Scale * 0.65f,
+        _ => kind.Radius * o.Scale * 1.35f,
+    };
 
     /// <summary>Where an interaction aims for a pickup or bush (its middle).</summary>
     public static Vector3 Middle(in NaturalObject o, NaturalKind kind) => o.Position + o.Up * (kind.Height * o.Scale * 0.5f);

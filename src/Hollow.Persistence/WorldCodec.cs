@@ -23,10 +23,10 @@ public static class WorldCodec
 {
     /// <summary>
     /// Raised by hand when a layout changes; decoding reads every older version. 2 (G4): a firearm's magazine and
-    /// attachments in its stack; a character's burning and being down. 3 (G7): the blueprints learnt, the map's
-    /// markers and the last death's point.
+    /// attachments in its stack; a character's burning and being down. 3: the body the player chose. 4 (G7): the
+    /// blueprints learnt, the map's markers and the last death's point.
     /// </summary>
-    public const byte PlayerVersion = 3;
+    public const byte PlayerVersion = 4;
 
     /// <summary>A world prop's stored state (G7, <see cref="EncodeProp"/>).</summary>
     public const byte PropVersion = 1;
@@ -70,7 +70,8 @@ public static class WorldCodec
                 w.Write(job.TicksLeft);
                 w.Write(job.UnitTicks);
             }
-            // 3 (G7): blueprints, markers (zone frame), the last death's point.
+            w.Write(p.Body);
+            // 4 (G7): blueprints, markers (zone frame), the last death's point.
             w.Write((ushort)p.Blueprints.Learnt.Count);
             foreach (ushort recipe in p.Blueprints.Learnt)
             {
@@ -144,6 +145,10 @@ public static class WorldCodec
         }
         p.Crafting.Set(list, nextTicket);
         if (version >= 3)
+        {
+            p.Body = Math.Min(r.ReadByte(), (byte)1);
+        }
+        if (version >= 4)
         {
             int learnt = r.ReadUInt16();
             var recipes = new List<ushort>(learnt);
