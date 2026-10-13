@@ -273,3 +273,23 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   (GROUND.md §5.8). New pictures in `docs/images/ground/play/`: a base being built, a code lock's keypad, a charge on a
   wall, the blast, a firefight. Still waiting for the character contract: sleepers, crawling, others' aiming. 124 of
   124 tests pass.
+- **Integration pass 3 merged:**
+  - building in the game: plan ghost, wheels, place, upgrade, rotate, demolish, repair, doors, code-lock keypad,
+    claim device;
+  - raid visuals: explosives with blinking fuse lamps, fireballs, debris, scorch, shake, rocket trails, raid alerts;
+  - real effects everywhere;
+  - attachments on guns in hand.
+
+  Screenshots: `docs/images/ground/play/build.jpg`, `base.jpg`, `charge.jpg`, `explosion.jpg`, `firefight.jpg`.
+- **G6 ship merged** (`ground-ship`). The Tin Finch is built at the vehicle workbench; you board it through the
+  hatch and fly with flight assist. It hovers, boosts, lands on slopes, takes crash damage and burns fuel, and the
+  pilot's prediction matches the server exactly. There's an orbit marker at 15 km, and a `--view ship` sandbox with a
+  scripted `--tour`. 134 of 134 tests pass. Integration pass 4 is putting the ship into the game now.
+- **G7a world finished** and being merged. It adds:
+  - salvage and components;
+  - barrels and crates on coasts and forest edges;
+  - recyclers;
+  - tech trees and a research table with blueprints;
+  - teams of up to 8;
+  - the map with markers.
+- **Next: server performance.** Ships streaming ground as they fly cost the server a lot on the real planet.
