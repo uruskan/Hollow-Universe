@@ -37,6 +37,8 @@ theme/custom_font="res://assets/fonts/Inter/InterVariable.ttf"
 
 [rendering]
 
+limits/global_shader_variables/buffer_size=1048576
+
 shader_compiler/shader_cache/enabled=true
 rendering_device/pipeline_cache/enable=true
 environment/defaults/default_clear_color=Color(0.004, 0.006, 0.012, 1)

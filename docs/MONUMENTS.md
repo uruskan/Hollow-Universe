@@ -435,7 +435,7 @@ and a normal map, 1024² and seamless, at a fixed size in metres (concrete 4 m, 
 `shaders/monument.gdshader` draws every surface: UVs in metres divided by the set's size; the vertex tint (RGB) and
 baked occlusion (A); grime and splashed dirt near the ground from UV2 (height above the monument's ground, the
 part's wear); a slow variation so long walls don't repeat; per-instance tint for kit pieces and a `lit` switch for
-lamps; cloud shadows and the planet's air in front, as on the terrain, so a tower 20 km away sits in the haze.
+lamps; self-contained, so monuments draw in any view (the viewers, the importer). On a planet (M3) the world view swaps in a variant with the planet's air and cloud shadows, as on the terrain, so a tower 20 km away sits in the haze; the planet's air needs the surface view's global shader values, which only exist while it runs.
 
 ### 8.3 The Builder
 

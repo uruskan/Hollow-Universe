@@ -226,14 +226,6 @@ public partial class MonumentViewer : Node3D
 
     private void Assemble()
     {
-        // The monuments' materials draw the planet's air on a planet; here there is none.
-        foreach (string file in DirAccess.GetFilesAt("res://assets/materials").Where(f => f.StartsWith("monument_") && f.EndsWith(".tres")))
-        {
-            if (ResourceLoader.Load("res://assets/materials/" + file) is ShaderMaterial sm)
-            {
-                sm.SetShaderParameter("use_air", false);
-            }
-        }
         foreach (Monument m in _monuments)
         {
             var node = new Node3D { Name = m.Key, Position = m.Origin };
@@ -244,6 +236,7 @@ public partial class MonumentViewer : Node3D
                 Node3D model = scene.Instantiate<Node3D>();
                 node.AddChild(model);
                 SetRanges(model, m.Lods[0], m.Lods[1], m.Lods[2]);
+                Tint(model, Colors.White);
             }
             foreach (var p in m.Pieces)
             {
@@ -256,18 +249,22 @@ public partial class MonumentViewer : Node3D
                 piece.Quaternion = p.Rot;
                 node.AddChild(piece);
                 SetRanges(piece, PieceLod0, PieceLod1, Math.Max(PieceLod2, m.Lods[2] * 0.5f));
-                if (p.Tint is Color tint)
-                {
-                    foreach (GeometryInstance3D g in Meshes(piece))
-                    {
-                        g.SetInstanceShaderParameter("piece_tint", tint);
-                    }
-                }
+                Tint(piece, p.Tint ?? Colors.White);
             }
             AddPad(node, m);
             AddLabel(node, m);
         }
         UpdateHud();
+    }
+
+    /// <summary>The shader's per-instance tint, set on every mesh (an instance that never sets it reads zero, not the
+    /// shader's default).</summary>
+    private static void Tint(Node root, Color tint)
+    {
+        foreach (GeometryInstance3D g in Meshes(root))
+        {
+            g.SetInstanceShaderParameter("piece_tint", tint);
+        }
     }
 
     private static IEnumerable<GeometryInstance3D> Meshes(Node root)
@@ -351,7 +348,7 @@ public partial class MonumentViewer : Node3D
         bool clockwise = Geometry2D.IsPolygonClockwise(outline);
         for (int i = 0; i < tris.Length; i += 3)
         {
-            int[] order = clockwise ? new[] { 0, 1, 2 } : new[] { 0, 2, 1 };
+            int[] order = clockwise ? new[] { 0, 2, 1 } : new[] { 0, 1, 2 };
             foreach (int k in order)
             {
                 Vector2 p = outline[tris[i + k]];
@@ -416,7 +413,7 @@ public partial class MonumentViewer : Node3D
             FogEnabled = true,
             FogMode = Godot.Environment.FogModeEnum.Exponential,
             FogLightColor = new Color(0.68f, 0.76f, 0.86f),
-            FogDensity = 0.00009f,
+            FogDensity = 0.00003f,
             FogSkyAffect = 0.0f,
             FogAerialPerspective = 0.6f,
         };

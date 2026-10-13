@@ -5,14 +5,28 @@
 // - Vertex colour: RGB the part's tint (stored sRGB by the importer, decoded here), A its baked occlusion.
 // - The height above the monument's ground is the vertex's own height in the model (grime and splashed dirt near
 //   it); wear is the material's.
-// - Per instance: piece_tint (kit pieces placed with a colour), lit (lamps switched by the game: a Surge, power).
-// - A world-space variation of a few per cent so long walls don't repeat; cloud shadows and the planet's air in
-//   front, as on the terrain and plants.
+// - Per instance: piece_tint (kit pieces placed with a colour). Lamps: lit (their material's, switched by power).
+// - A world-space variation of a few per cent so long walls don't repeat.
+// Self-contained, so monuments draw anywhere (the monument viewer, the model viewer). On a planet the world view
+// will swap in a variant with the planet's air and cloud shadows (MONUMENTS.md §10, M3).
 shader_type spatial;
 render_mode cull_back, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
-#include "res://shaders/surface_atmosphere.gdshaderinc"
-#include "res://shaders/surface_clouds.gdshaderinc"
+const float HU_PI = 3.14159265358979;
+
+// Cook-Torrance specular (GGX, Smith-Schlick, Schlick Fresnel with F0 0.04) times the cosine, as the surface's own.
+float hu_specular(vec3 n, vec3 v, vec3 l, float roughness) {
+	float ndl = clamp(dot(n, l), 0.0, 1.0);
+	float ndv = clamp(dot(n, v), 1e-3, 1.0);
+	vec3 h = normalize(v + l);
+	float ndh = clamp(dot(n, h), 0.0, 1.0);
+	float r = roughness * roughness;
+	float d = r * r / (HU_PI * pow(ndh * ndh * (r * r - 1.0) + 1.0, 2.0));
+	float k = r * 0.5;
+	float g = ndl / (ndl * (1.0 - k) + k) * ndv / (ndv * (1.0 - k) + k);
+	float f = 0.04 + 0.96 * pow(1.0 - clamp(dot(h, v), 0.0, 1.0), 5.0);
+	return d * g * f / max(4.0 * ndl * ndv, 1e-3) * ndl;
+}
 
 uniform bool textured = true;
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -28,14 +42,12 @@ uniform float emission_strength = 0.0;
 uniform vec3 grime_colour : source_color = vec3(0.24, 0.205, 0.16);
 uniform float grime_height = 1.8;
 uniform float wear = 0.4;
-uniform bool use_air = true; // off where the planet's air isn't set up (model viewers)
 
 instance uniform vec4 piece_tint = vec4(1.0);
-instance uniform float lit = 1.0;
+uniform float lit = 1.0; // lamps on or off for the whole material (a powered monument draws its own lamp material)
 
 varying vec3 v_world;
 varying float v_height;
-varying float v_cloud;
 
 vec3 srgb_to_linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
@@ -106,23 +118,12 @@ void fragment() {
 	if (emission_strength > 0.0) {
 		EMISSION = tint * emission_strength * lit;
 	}
-	if (use_air) {
-		vec3 c = ALBEDO;
-		vec4 fog;
-		hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, c, fog);
-		ALBEDO = c;
-		FOG = fog;
-		float altitude = hu_camera_altitude + dot(v_world - hu_camera_position, hu_camera_up);
-		v_cloud = hu_cloud_shadow(v_world, altitude);
-	} else {
-		v_cloud = 1.0;
-	}
+
 }
 
 void light() {
 	float ndl = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
-	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
-	float shade = ATTENUATION * cloud;
+	float shade = ATTENUATION;
 	DIFFUSE_LIGHT += LIGHT_COLOR * shade * ndl / HU_PI;
 	SPECULAR_LIGHT += LIGHT_COLOR * shade * hu_specular(NORMAL, VIEW, LIGHT, ROUGHNESS) * (0.4 + METALLIC * 0.6);
 }
