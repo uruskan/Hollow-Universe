@@ -14,9 +14,11 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
   - G4 guns;
   - G5 raiding;
   - G6 Tin Finch flight, which works in the `--view ship` sandbox but isn't yet in the ground mode;
+  - G7a (salvage, recycler, tech tree, research, teams, map), merged at the end of the first session; its UI isn't
+    wired into the ground mode yet (§6.8);
   - effects, sound, characters and assets.
 
-  134/134 tests pass, and the protocol is version 8. Nothing has ever been pushed, and nothing merged into `main`
+  145/145 tests pass, and the protocol is version 9. Nothing has ever been pushed, and nothing merged into `main`
   (that needs the owner).
 - **Play it:** `play-ground.cmd` hosts a game; `play-ground.cmd join` adds a second player; `play-ground.cmd menu`
   opens the main menu. Controls and tour steps are in AGENTS.md.
@@ -27,9 +29,9 @@ Their agents ran in the first session. Whatever they committed is safe; check `g
 
 | Branch | State when the session ended | Next step |
 |---|---|---|
-| `ground-world` (G7a: salvage, recycler, tech tree, research, teams, map) | Finished; 5 commits ahead. It was merging `ground` and renumbering to **protocol 9 and schema step 5→6**, because the ship took protocol 8 and schema 4→5. | If that merge isn't committed, do it: protocol 9, its schema step chained after the ship's, NetGen rerun, both §11 lists kept. Then merge into `ground`. New item keys need models (list in §6.8). |
+| `ground-world` (G7a) | **Merged into `ground`** (protocol 9, schema 6). | Nothing. Integration wires its UI (§6.8), and its new item keys need real models (stand-ins or missing: see §6.8). |
 | `ground-integrate` (pass 4) | Just started: Tin Finch in the ground mode (§6.7 hook-up list), then the G7a UI (§6.8). | Redo pass 4 from the hook-up lists. |
-| `ground-perf` | Just started: server cost of flying ships streaming ground, broadphase rebuilds, respawn hitches. | Profile and fix (targets ≤ 10 ms average and ≤ 33 ms 99th percentile with 100 bots + 20 flying), then GROUND.md §5.9. |
+| `ground-perf` | Just started: server cost of flying ships streaming ground, broadphase rebuilds, respawn hitches. | Profile and fix (targets ≤ 10 ms average and ≤ 33 ms 99th percentile with 100 bots + 20 flying), then GROUND.md §5.10 (§5.9 is G7a's load test). |
 | `ground-wardrobe` | 3 commits ahead: sleeping, wounded, help-up and bow animations, probably more. | Finish: hood, gloves and metal mask worn; per-player looks; then merge. Integration then wires sleepers, crawl and aim pose. |
 | `ground-animals` (G7b) | 4 commits ahead: animals with AI, harvesting, cooking. | Finish and merge; integration then wires `AnimalView`. |
 
