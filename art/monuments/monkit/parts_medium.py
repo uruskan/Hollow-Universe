@@ -1152,6 +1152,59 @@ def power_pole(b, at, height=9.0, arm=1.4, tint=srgb(0.66, 0.65, 0.62), rot=(0, 
     return pts
 
 
+def warden_turret(b, at, yaw=0.0, tint=OFFWHITE, scale=1.0):
+    """A Warden turret head (Seedward automated security): a domed body on a yaw ring, a gun pod each side, a cyan
+    sensor strip across its face (toward -Y of `yaw`)."""
+    k = scale
+    with b.frame(at, (0, 0, yaw)):
+        b.cyl(0.42 * k, 0.3 * k, (0, 0, 0.15 * k), tint=DARK, sides=14, vary=0)
+        b.lathe([(0.0, 0.3 * k), (0.62 * k, 0.3 * k), (0.66 * k, 0.55 * k), (0.52 * k, 0.86 * k), (0.26 * k, 1.0 * k),
+                 (0.0, 1.03 * k)], (0, 0, 0), tint=tint, sides=16, vary=0.02)
+        b.cyl(0.67 * k, 0.08 * k, (0, 0, 0.5 * k), tint=TEAL, sides=16, solid=False, vary=0)
+        for sx in (-1, 1):
+            b.box((0.22 * k, 0.8 * k, 0.3 * k), (sx * 0.66 * k, -0.15 * k, 0.62 * k), tint=DARK, bevel=0.03 * k)
+            b.cyl(0.05 * k, 0.7 * k, (sx * 0.66 * k, -0.85 * k, 0.62 * k), (90, 0, 0), tint=BLACK, sides=8,
+                  solid=False, vary=0)
+            b.cyl(0.08 * k, 0.12 * k, (sx * 0.66 * k, -1.2 * k, 0.62 * k), (90, 0, 0), tint=BLACK, sides=8,
+                  solid=False, vary=0)
+        b.box((0.44 * k, 0.06 * k, 0.09 * k), (0, -0.6 * k, 0.74 * k), (-12, 0, 0), mat=LAMP, tint=CHIP["cyan"],
+              solid=False, vary=0)
+        b.cyl(0.015 * k, 0.6 * k, (0.2 * k, 0.2 * k, 1.25 * k), tint=GREY, sides=4, solid=False, vary=0)
+
+
+def banner(b, at, rot=(0, 0, 0), w=0.9, h=3.0, tint=TARP_RED, emblem=OFFWHITE, kind="ring"):
+    """A cloth banner hanging from a bar (its face toward -Y of `rot`), with the trading clan's emblem."""
+    with b.frame(at, rot):
+        b.cyl(0.025, w + 0.3, (0, 0, 0), (0, 90, 0), tint=DARK, sides=6, solid=False, vary=0)
+        grid = []
+        for j in range(4):
+            v = j / 3
+            row = []
+            for i in range(3):
+                u = i / 2
+                row.append((-w / 2 + w * u, -0.04 * math.sin(math.pi * u) * (1 - v) - 0.02,
+                            -0.05 - h * v - (0.25 if j == 3 and i == 1 else 0.0)))
+            grid.append(row)
+        sheet(b, grid, thick=0.02, tint=tint)
+        mark(b, (0, -0.06, -h * 0.42), (0, 0, 0), w * 0.8, kind, emblem)
+
+
+def flag(b, at, height=8.0, tint=TARP_ORANGE, w=1.8, h=1.1):
+    """A flag on a pole, stirring in the wind."""
+    x, y, z = at
+    b.cyl(0.05, height, (x, y, z + height / 2), tint=GREY, sides=6, solid=False)
+    b.cyl(0.08, 0.1, (x, y, z + height + 0.05), tint=GREY, sides=6, solid=False, vary=0)
+    grid = []
+    for j in range(3):
+        v = j / 2
+        row = []
+        for i in range(5):
+            u = i / 4
+            row.append((x + 0.06 + w * u, y + 0.18 * math.sin(math.pi * 1.5 * u) * u, z + height - 0.1 - h * v - 0.08 * u))
+        grid.append(row)
+    sheet(b, grid, thick=0.015, tint=tint)
+
+
 # ------------------------------------------------------------------------------------------------ preview helpers
 
 
@@ -1295,7 +1348,79 @@ def _fire_barrel(b):
     b.collide_box(Vector((0, 0, 0.45)), (0.6, 0.6, 0.9), (0, 0, 0))
 
 
+def _stall(awning):
+    def make(b):
+        """A market stall: a welded counter with a plank top, shelves of goods behind, a tarp awning on four poles,
+        a sign board, a lamp, side sheets."""
+        rng = b.rng
+        b.box((3.6, 0.8, 1.0), (0, -0.7, 0.5), mat=PAINT, tint=srgb(0.45, 0.47, 0.46))
+        b.box((3.7, 0.95, 0.06), (0, -0.72, 1.03), mat=MATTE, tint=WOOD, solid=False)
+        b.box((3.5, 0.04, 0.8), (0, -1.11, 0.5), mat=CORRUGATED, tint=srgb(0.66, 0.6, 0.52), solid=False)
+        for x in (-1.7, 1.7):
+            b.box((0.06, 0.4, 2.2), (x, 0.7, 1.1), mat=PAINT, tint=DARK, solid=False, vary=0)
+        for z in (0.5, 1.15, 1.8):
+            b.box((3.4, 0.45, 0.04), (0, 0.7, z), mat=MATTE, tint=WOOD, solid=False)
+            x = -1.55
+            while x < 1.5:
+                kind = rng.random()
+                if kind < 0.4:
+                    s_ = rng.uniform(0.2, 0.4)
+                    b.box((s_, 0.32, s_ * 0.8), (x + s_ / 2, 0.7, z + 0.02 + s_ * 0.4), mat=PAINT,
+                          tint=(OLIVE, srgb(0.7, 0.62, 0.45), GREY, ORANGE)[rng.randrange(4)], solid=False, vary=0.1)
+                    x += s_ + 0.05
+                elif kind < 0.75:
+                    for i in range(3):
+                        b.cyl(0.05, 0.22, (x + 0.06 + i * 0.11, 0.7, z + 0.13), mat=PAINT,
+                              tint=(RED, BLUE, YELLOW, OFFWHITE)[rng.randrange(4)], sides=8, solid=False, vary=0.1)
+                    x += 0.36
+                else:
+                    b.cyl(0.04, 0.3, (x + 0.05, 0.7, z + 0.17), mat=GLASS, sides=6, solid=False, vary=0)
+                    x += 0.15
+        for x in (-1.85, 1.85):
+            b.cyl(0.04, 2.5, (x, -1.25, 1.25), tint=GREY, sides=6, solid=False, vary=0)
+            b.cyl(0.04, 2.95, (x, 1.0, 1.475), tint=GREY, sides=6, solid=False, vary=0)
+            b.box((0.04, 2.0, 1.4), (x, 0.0, 0.75), mat=CORRUGATED, tint=srgb(0.58, 0.58, 0.56), solid=False)
+        grid = []
+        for j in range(3):
+            v = j / 2
+            row = []
+            for i in range(5):
+                u = i / 4
+                row.append((-2.05 + 4.1 * u, -1.6 + 2.8 * v, 2.5 + 0.45 * v - 0.12 * math.sin(math.pi * u) - 0.1 *
+                            math.sin(math.pi * v)))
+            grid.append(row)
+        sheet(b, grid, thick=0.03, tint=awning)
+        for i in range(8):
+            b.box((0.5, 0.02, 0.22), (-1.85 + i * 0.53, -1.62, 2.38), mat=MATTE, tint=awning if i % 2 else OFFWHITE,
+                  solid=False, vary=0.04)
+        b.box((1.6, 0.05, 0.45), (0, -1.3, 2.05), mat=PAINT, tint=srgb(0.86, 0.82, 0.7), solid=False)
+        for i in range(4):
+            b.box((0.18, 0.02, 0.24), (-0.5 + i * 0.33, -1.34, 2.06), mat=PAINT, tint=DARK, solid=False, vary=0)
+        b.box((0.16, 0.16, 0.2), (0.0, -0.6, 2.35), mat=LAMP, tint=WARM_LAMP, solid=False, vary=0)
+        b.marker("light", (0.0, -0.6, 2.2), colour=[round(v, 3) for v in WARM_LAMP], range=8.0)
+        b.collide_box(Vector((0, -0.7, 0.5)), (3.6, 0.8, 1.0), (0, 0, 0))
+        b.collide_box(Vector((0, 0.7, 1.1)), (3.5, 0.5, 2.2), (0, 0, 0))
+    return make
+
+
+def _turret_mast(b):
+    """A Warden peacekeeper: a turret head on an 8 m mast with a cable box and a cyan beacon."""
+    b.box((1.4, 1.4, 0.8), (0, 0, 0.4), mat=CONCRETE, tint=CONCRETE_T, bevel=0.03)
+    b.cyl(0.2, 7.6, (0, 0, 4.4), tint=srgb(0.72, 0.74, 0.74), sides=12, radius2=0.15)
+    b.box((0.5, 0.3, 0.7), (0, -0.32, 2.2), tint=OFFWHITE, bevel=0.02)
+    b.box((0.3, 0.02, 0.1), (0, -0.48, 2.4), mat=LAMP, tint=CHIP["cyan"], solid=False, vary=0)
+    b.tube([(0.0, -0.18, 1.85), (0.0, -0.18, 0.8)], 0.03, tint=BLACK, sides=5)
+    b.cyl(0.7, 0.18, (0, 0, 8.1), tint=DARK, sides=12)
+    warden_turret(b, (0, 0, 8.2), 0.0)
+    b.cyl(0.09, 0.2, (0, 0.3, 9.4), mat=LAMP, tint=CHIP["cyan"], sides=8, solid=False, vary=0)
+    b.marker("light", (0, 0.3, 9.5), colour=[round(v, 3) for v in CHIP["cyan"]], range=10.0, blink=2.0)
+
+
 kit.PIECES.update({
+    "vendor-stall-blue": _stall(TARP_BLUE),
+    "vendor-stall-orange": _stall(TARP_ORANGE),
+    "vendor-stall-green": _stall(TARP_GREEN),
+    "turret-mast": _turret_mast,
     "fire-barrel": _fire_barrel,
     "crate-stack": _crate_stack,
     "sack-pallet": _sack_pallet,
