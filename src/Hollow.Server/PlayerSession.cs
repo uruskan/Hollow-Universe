@@ -35,6 +35,9 @@ public sealed class PlayerSession
     /// <summary>The account and stored character, while logging in.</summary>
     public Task<(long AccountId, CharacterRecord? Character)>? Login { get; set; }
 
+    /// <summary>Ticks the login has waited for the ground where the player comes in (GameServer.FinishLogins).</summary>
+    public int ArrivalWait { get; set; }
+
     public long AccountId { get; set; }
 
     public Entity Entity { get; set; } = Entity.None;

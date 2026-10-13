@@ -313,16 +313,22 @@ public sealed partial class GameServer
                     return false;
                 }
                 session.SentDead = null; // the answer comes with fresh respawn choices
-                return Intent(session, m.Seq, () =>
+                var bag = new EntityId(m.Bag);
+                // The ground where the player comes in is built first, on worker threads (GROUND.md §4.6): the
+                // respawn happens on the tick it is ready (FinishRespawns), on the beach point picked now.
+                if (session.Playing && Zone.RespawnPoint(me, bag) is { } at && !Zone.Physics.GroundReady(at))
                 {
-                    ActionResult result = Zone.Respawn(me, new EntityId(m.Bag));
-                    if (result == ActionResult.Accepted && _options.KitEveryLife && _options.JoinKit != null &&
-                        Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(me) is { } p)
+                    if (TakeIntent(session, out ActionResult refused))
                     {
-                        GiveKit(p, kit);
+                        _respawns.Add(new PendingRespawn(session, me, m.Seq, bag, at, Zone.Tick));
                     }
-                    return result;
-                }, whileDead: true);
+                    else
+                    {
+                        Answer(session, m.Seq, refused);
+                    }
+                    return true;
+                }
+                return Intent(session, m.Seq, () => RespawnNow(me, bag, null), whileDead: true);
             }
             case FireIntent.TypeId:
             {
@@ -363,21 +369,31 @@ public sealed partial class GameServer
 
     private bool Intent(PlayerSession session, uint seq, Func<ActionResult> act, bool whileDead = false)
     {
+        Answer(session, seq, TakeIntent(session, out ActionResult refused) ? act() : refused);
+        return true;
+    }
+
+    // Spends an intent's token: false, and why, if it can't be done at all (over the budget, or not playing).
+    private bool TakeIntent(PlayerSession session, out ActionResult refused)
+    {
         SurvivalTuning s = Content.Survival;
-        ActionResult result;
+        refused = ActionResult.Accepted;
         if (!session.SpendIntentToken(Zone.Tick, s.IntentBurst, s.IntentsPerSecond))
         {
-            result = ActionResult.RateLimited;
+            refused = ActionResult.RateLimited;
             session.IntentsRateLimited++;
+            return false;
         }
-        else if (!session.Playing)
+        if (!session.Playing)
         {
-            result = ActionResult.Dead;
+            refused = ActionResult.Dead;
+            return false;
         }
-        else
-        {
-            result = act();
-        }
+        return true;
+    }
+
+    private static void Answer(PlayerSession session, uint seq, ActionResult result)
+    {
         if (result == ActionResult.Accepted)
         {
             session.IntentsAccepted++;
@@ -388,7 +404,45 @@ public sealed partial class GameServer
         }
         session.PendingResults.Add(new IntentResult { Seq = seq, Result = result });
         session.LastIntentSeq = Math.Max(session.LastIntentSeq, seq);
-        return true;
+    }
+
+    // ---------------------------------------------------------------- respawns waiting for their ground
+
+    /// <summary>A respawn waits at most this long for its ground, then builds what is missing itself.</summary>
+    private const int RespawnWaitTicks = TickRate;
+
+    private sealed record PendingRespawn(PlayerSession Session, Entity Player, uint Seq, EntityId Bag, Vector3 At, long Since);
+
+    private readonly List<PendingRespawn> _respawns = new();
+
+    private ActionResult RespawnNow(Entity me, EntityId bag, Vector3? beach)
+    {
+        ActionResult result = Zone.Respawn(me, bag, beach);
+        if (result == ActionResult.Accepted && _options.KitEveryLife && _options.JoinKit != null &&
+            Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(me) is { } p)
+        {
+            GiveKit(p, kit);
+        }
+        return result;
+    }
+
+    // Respawns whose ground is ready (or that waited long enough) happen now, in the order they were asked for.
+    private void FinishRespawns()
+    {
+        for (int i = 0; i < _respawns.Count; i++)
+        {
+            PendingRespawn r = _respawns[i];
+            bool gone = !r.Session.Playing || r.Session.Entity != r.Player;
+            if (!gone && !Zone.Physics.GroundReady(r.At) && Zone.Tick - r.Since < RespawnWaitTicks)
+            {
+                continue;
+            }
+            _respawns.RemoveAt(i--);
+            if (!gone)
+            {
+                Answer(r.Session, r.Seq, RespawnNow(r.Player, r.Bag, r.At));
+            }
+        }
     }
 
     // A shot or reload: from its own budget (a refused one is still answered in order), queued for its tick in the zone.

@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
@@ -158,18 +159,25 @@ public sealed partial class Zone : IDisposable
         ComponentPool<Character> characters = Entities.Pool<Character>();
         // The ground under everyone first, outside Jolt's lock: a tile that has to be built or waited for then
         // doesn't hold up a client predicting in the same process (Host mode).
-        foreach (ref Character character in characters.Values)
+        using (Profile.Time(ProfileSection.CharacterGround))
         {
-            // A pilot's ground is the ship's business (G6: only near it, ShipMotor).
-            if (!character.State.IsDead && character.State.Stance != Stance.Seated)
+            foreach (ref Character character in characters.Values)
             {
-                Physics.EnsureGround(character.State.Position);
-                Physics.Prefetch(character.State.Position);
+                // A pilot's ground is the ship's business (G6: only near it, ShipMotor).
+                if (!character.State.IsDead && character.State.Stance != Stance.Seated)
+                {
+                    Physics.EnsureGround(character.State.Position);
+                    Physics.Prefetch(character.State.Position);
+                }
             }
         }
         lock (JoltRuntime.Gate)
         {
-            Physics.OptimizeBroadPhase();
+            using (Profile.Time(ProfileSection.BroadPhase))
+            {
+                Physics.OptimizeBroadPhase();
+            }
+            TickProfile.Scope movement = Profile.Time(ProfileSection.Movement);
             Span<Character> values = characters.Values;
             ReadOnlySpan<int> slots = characters.Slots;
             for (int i = 0; i < values.Length; i++)
@@ -202,13 +210,28 @@ public sealed partial class Zone : IDisposable
                 }
                 character.Events = CharacterMotor.Step(ref character.State, character.Input, character.Body, Movement);
             }
-            StepShips();
+            movement.Dispose();
+            using (Profile.Time(ProfileSection.Ships))
+            {
+                StepShips();
+            }
         }
-        Physics.ReleaseUnusedGround(GroundKeepTicks);
+        using (Profile.Time(ProfileSection.GroundRelease))
+        {
+            Physics.ReleaseUnusedGround(GroundKeepTicks);
+        }
         if (Content != null)
         {
+            using TickProfile.Scope _ = Profile.Time(ProfileSection.Game);
             StepGame();
         }
+    }
+
+    /// <summary>Times the zone's step and its ground on the server (GROUND.md §5.11); null measures nothing.</summary>
+    public TickProfile? Profile
+    {
+        get => Physics.Profile;
+        set => Physics.Profile = value;
     }
 
     public void Dispose()

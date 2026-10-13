@@ -206,15 +206,19 @@ public static class ShipMotor
         // Contacts are looked for within a quarter second's travel of the ground (a tick's sweep is a thirtieth); the
         // ground's tiles are built ahead on worker threads from further up, so a tick seldom waits for one.
         bool near = collider != null && overGround < NearGround + speed * 0.25f + def.BoundingRadius;
+        // How far this tick's queries reach from the centre of mass: the hull, a tick's travel (and a little more that
+        // thrust may add), the skids' rays. Only ground within it can change the step (GROUND.md §4.6).
+        float reach = Reach(def, speed);
         if (collider != null && overGround < 3 * NearGround + speed * 2)
         {
-            // The tiles under where it will be in a second, built on worker threads before the near band needs them; one
-            // tile round that point covers a sweep (the planet's tiles carry its trees, so fewer is cheaper to keep).
-            collider.World.Prefetch(s.Position + s.Velocity, radius: 1);
+            // The ground along the next second and a half of its way, built on worker threads before the near band
+            // needs it: a corridor as wide as the hull's reach, not the 3 × 3 tiles round a point.
+            collider.World.PrefetchAlong(s.Position, s.Position + s.Velocity * PrefetchSeconds, reach);
         }
         if (near)
         {
-            collider!.World.EnsureGround(s.Position);
+            // Only the tiles this tick's queries can meet: one to four.
+            collider!.World.EnsureGroundAround(s.Position, reach);
         }
         int steps = near ? 2 : 1;
         float h = dt / steps;
@@ -444,10 +448,20 @@ public static class ShipMotor
         return volume;
     }
 
+    /// <summary>The ground a ship's prefetch builds ahead covers this much of its way.</summary>
+    public const float PrefetchSeconds = 1.5f;
+
+    /// <summary>
+    /// How far a tick's queries reach from a ship's centre of mass at a speed: its bounding sphere, the tick's travel
+    /// with 2 m/s more than it has (what thrust and gravity can add in a tick), the skids' rays and half a metre.
+    /// </summary>
+    public static float Reach(ShipDef def, float speed) =>
+        def.BoundingRadius + (speed + 2f) * CharacterMotor.DeltaTime + SkidProbe + def.SkidTravel + 0.5f;
+
     /// <summary>Whether the skids still find ground below (a sleeping ship checks now and then).</summary>
     private static bool Supported(in ShipState s, ShipDef def, in ShipContext ctx, uint ignoreBody)
     {
-        ctx.Collider!.World.EnsureGround(s.Position);
+        ctx.Collider!.World.EnsureGroundAround(s.Position, Reach(def, 0));
         Vector3 down = -Vector3.Transform(Vector3.UnitY, s.Rotation);
         int touching = 0;
         foreach (Vector3 pad in def.SkidPoints)

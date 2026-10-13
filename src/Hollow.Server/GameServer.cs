@@ -17,6 +17,7 @@ using Hollow.Net.Transport;
 using Hollow.Persistence;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
@@ -134,6 +135,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         StartRaid();
         StartWorld();
         StartAnimals();
+        Zone.Profile = Profile;
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
         Log($"{options.Name}: zone on {Spec}, port {Port}, " +
@@ -175,6 +177,12 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     public void Run()
     {
         TimerResolution.Begin();
+        // The tick can't wait for a blocking full collection (GROUND.md §5.11): full collections run in the background
+        // while it ticks, as in the game's own process.
+        System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+        // The tick before the work it starts on other threads (ground tiles built ahead) and before the rest of a busy
+        // PC: with other work on it, its 99th percentile halved (GROUND.md §5.11).
+        Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
         try
         {
             long period = Stopwatch.Frequency / TickRate;
@@ -267,9 +275,19 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     /// <summary>One tick: receive, log players in, step the zone, replicate, save, send.</summary>
     public void Tick()
     {
+        TimeSpan gcBefore = GC.GetTotalPauseDuration();
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        TickProfile.Scope whole = Profile.Time(ProfileSection.Tick);
         Zone.UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        _net.PollEvents();
-        FinishLogins();
+        using (Profile.Time(ProfileSection.Receive))
+        {
+            _net.PollEvents();
+        }
+        using (Profile.Time(ProfileSection.Logins))
+        {
+            FinishLogins();
+            FinishRespawns();
+        }
         while (_commands.TryDequeue(out string? command))
         {
             RunCommand(command);
@@ -296,29 +314,45 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             ApplyShipInput(session, input);
         }
         long stepStarted = Stopwatch.GetTimestamp();
-        Zone.Step();
+        using (Profile.Time(ProfileSection.Step))
+        {
+            Zone.Step();
+        }
         StepTime += Stopwatch.GetElapsedTime(stepStarted);
         ReportFalls();
-        AfterStep();
-        AfterAnimals();
+        using (Profile.Time(ProfileSection.AfterStep))
+        {
+            AfterStep();
+            AfterAnimals();
+        }
 
         _snapshotAccumulator += (double)Protocol.SnapshotRate / TickRate;
         if (_snapshotAccumulator >= 1)
         {
             _snapshotAccumulator -= 1;
+            using TickProfile.Scope _ = Profile.Time(ProfileSection.Replicate);
             Replicate();
         }
         if (_persistence != null && (Stopwatch.GetElapsedTime(_lastSave).TotalSeconds >= _options.SaveIntervalSeconds ||
             (_deathToSave && Stopwatch.GetElapsedTime(_lastDeathSave).TotalSeconds >= 1)))
         {
+            using TickProfile.Scope _ = Profile.Time(ProfileSection.Save);
             _lastSave = _lastDeathSave = Stopwatch.GetTimestamp();
             _deathToSave = false;
             SaveAll();
         }
-        long now = Stopwatch.GetTimestamp();
-        _net.ManualUpdate((float)((now - _lastNetUpdate) * 1000.0 / Stopwatch.Frequency));
-        _lastNetUpdate = now;
+        using (Profile.Time(ProfileSection.Send))
+        {
+            long now = Stopwatch.GetTimestamp();
+            _net.ManualUpdate((float)((now - _lastNetUpdate) * 1000.0 / Stopwatch.Frequency));
+            _lastNetUpdate = now;
+        }
+        whole.Dispose();
+        Profile.EndTick((GC.GetTotalPauseDuration() - gcBefore).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocatedBefore);
     }
+
+    /// <summary>Where the ticks go (GROUND.md §5.11): the load test prints it.</summary>
+    public TickProfile Profile { get; } = new();
 
     private void ReportFalls()
     {
@@ -399,16 +433,34 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             {
                 continue;
             }
-            session.Login = null;
             if (!login.IsCompletedSuccessfully)
             {
+                session.Login = null;
                 Kick(session, GoodbyeReason.Unknown, "The server couldn't load your character.");
                 continue;
             }
             (long account, CharacterRecord? record) = login.Result;
+            // The ground where the player comes in is built first, on worker threads (GROUND.md §4.6): the login
+            // waits for it, a second at most, so a crowd joining at once doesn't stall the tick.
+            if (session.ArrivalWait < TickRate && ArrivalPoint(session, record) is { } at && !Zone.Physics.GroundReady(at))
+            {
+                session.ArrivalWait++;
+                continue;
+            }
+            session.Login = null;
             session.AccountId = account;
             Spawn(session, record);
         }
+    }
+
+    // Where Spawn brings a player in: null for a sleeper (its ground is kept), else the stored place or the beach.
+    private Vector3? ArrivalPoint(PlayerSession session, CharacterRecord? record)
+    {
+        if (record != null && Zone.TryFindPlayer(record.Id, out _, out _))
+        {
+            return null;
+        }
+        return record != null && Restorable(record, out Vector3 local) ? local : Arrival(Hash64.Of(session.Name.ToUpperInvariant()));
     }
 
     /// <summary>
@@ -455,7 +507,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             entity = Zone.AddPlayer(id, session.Name, state, player);
             Zone.Entities.Get<Character>(entity).Input.Yaw = yaw;
-            if (how == "new" && _options.ShipOnJoin)
+            if (how == "new" && (_options.ShipOnJoin || _options.ShipOnJoinFor?.Invoke(session.Name) == true))
             {
                 _shipOnJoin.Add(session);
             }
@@ -729,16 +781,28 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 OwnShip = OwnShip(session)!,
             };
             ReplicateShips(session, centre);
-            int budget = Math.Min(Protocol.SnapshotByteBudget, session.Peer.GetMaxSinglePacketSize(DeliveryMethod.Sequenced));
-            _writer.Reset();
-            session.Snapshots.Write(_writer, header, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_candidates),
-                System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_shipCandidates), budget);
-            session.Peer.Send(_writer.Data, DeliveryMethod.Sequenced);
+            using (Profile.Time(ProfileSection.ReplicateSnapshots))
+            {
+                int budget = Math.Min(Protocol.SnapshotByteBudget, session.Peer.GetMaxSinglePacketSize(DeliveryMethod.Sequenced));
+                _writer.Reset();
+                session.Snapshots.Write(_writer, header, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_candidates),
+                    System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_shipCandidates), budget);
+                session.Peer.Send(_writer.Data, DeliveryMethod.Sequenced);
+            }
 
-            ReplicateThings(session, centre);
-            ReplicateNature(session, centre);
-            ReplicateBuilding(session, centre);
-            ReplicateExplosives(session, centre);
+            using (Profile.Time(ProfileSection.ReplicateThings))
+            {
+                ReplicateThings(session, centre);
+            }
+            using (Profile.Time(ProfileSection.ReplicateNature))
+            {
+                ReplicateNature(session, centre);
+            }
+            using (Profile.Time(ProfileSection.ReplicateBuilding))
+            {
+                ReplicateBuilding(session, centre);
+                ReplicateExplosives(session, centre);
+            }
         }
         FinishThings();
         FinishBuilding();

@@ -53,6 +53,9 @@ public sealed record ServerOptions
     /// <summary>Every new character gets a Tin Finch beside them, full and theirs (the G6 load test's pilots).</summary>
     public bool ShipOnJoin { get; init; }
 
+    /// <summary>New characters with these names get one too (a load test where some bots fly and the rest walk).</summary>
+    public Func<string, bool>? ShipOnJoinFor { get; init; }
+
     /// <summary>
     /// G5's raid load test: this many claimed stone huts on a ring of <see cref="RaidRadius"/> metres around the zone's
     /// origin, hut i listing the player called <see cref="RaidBasePrefix"/> + (i + 1) as three digits, kept standing.

@@ -38,7 +38,7 @@ public sealed class ScatterNaturalObjects : INaturalObjects
     private readonly PlanetSurface _surface;
     private readonly ZoneFrame _frame;
     private readonly (NaturalKind Kind, float MinScale)?[] _kinds = new (NaturalKind, float)?[256];
-    private readonly ConcurrentDictionary<ulong, TileObjects> _tiles = new();
+    private readonly ConcurrentDictionary<ulong, Lazy<TileObjects>> _tiles = new();
     private readonly double _tileEdge;
     private long _clock;
 
@@ -65,6 +65,11 @@ public sealed class ScatterNaturalObjects : INaturalObjects
 
     /// <summary>Scatter tiles generated and kept now.</summary>
     public int CachedTiles => _tiles.Count;
+
+    /// <summary>Scatter tiles generated so far (again after leaving the cache too), for statistics.</summary>
+    public int Generated => Volatile.Read(ref _generated);
+
+    private int _generated;
 
     /// <summary>The ID of a scatter object of a tile.</summary>
     public static ulong IdOf(TileKey tile, int index)
@@ -116,11 +121,12 @@ public sealed class ScatterNaturalObjects : INaturalObjects
     public bool TryGetCached(ulong id, out NaturalObject found)
     {
         found = default;
-        if (Decode(id) is not var (tile, _) || !_tiles.TryGetValue(tile.Packed, out TileObjects? objects) || !objects.ById.TryGetValue(id, out int at))
+        if (Decode(id) is not var (tile, _) || !_tiles.TryGetValue(tile.Packed, out Lazy<TileObjects>? entry) || !entry.IsValueCreated ||
+            !entry.Value.ById.TryGetValue(id, out int at))
         {
             return false;
         }
-        found = objects.Objects[at];
+        found = entry.Value.Objects[at];
         return true;
     }
 
@@ -174,7 +180,10 @@ public sealed class ScatterNaturalObjects : INaturalObjects
     private TileObjects Tile(TileKey key)
     {
         long now = Interlocked.Increment(ref _clock);
-        TileObjects objects = _tiles.GetOrAdd(key.Packed, _ => Generate(key));
+        // One thread makes a tile; others asking for it meanwhile wait for it rather than make it again (tiles built
+        // ahead on several workers often share scatter tiles).
+        TileObjects objects = _tiles.GetOrAdd(key.Packed, static (packed, self) => new Lazy<TileObjects>(
+            () => self.Generate(TileKey.FromPacked(packed)!.Value), LazyThreadSafetyMode.ExecutionAndPublication), this).Value;
         objects.LastUsed = now;
         if (_tiles.Count > MaxTiles)
         {
@@ -187,9 +196,10 @@ public sealed class ScatterNaturalObjects : INaturalObjects
     private void Trim()
     {
         var all = new List<(long Used, ulong Key)>();
-        foreach (KeyValuePair<ulong, TileObjects> pair in _tiles)
+        foreach (KeyValuePair<ulong, Lazy<TileObjects>> pair in _tiles)
         {
-            all.Add((pair.Value.LastUsed, pair.Key));
+            // One still being made counts as just used.
+            all.Add((pair.Value.IsValueCreated ? pair.Value.Value.LastUsed : long.MaxValue, pair.Key));
         }
         all.Sort();
         for (int i = 0; i < all.Count - MaxTiles * 3 / 4; i++)
@@ -200,6 +210,7 @@ public sealed class ScatterNaturalObjects : INaturalObjects
 
     private TileObjects Generate(TileKey key)
     {
+        Interlocked.Increment(ref _generated);
         IReadOnlyList<ScatterItem> items = Scatter.ForTile(_surface, key);
         var objects = new List<NaturalObject>();
         var byId = new Dictionary<ulong, int>();

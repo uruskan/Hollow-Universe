@@ -34,6 +34,8 @@ public static class Program
         int count = (int)Number(o, "count", 100);
         int raidBases = (int)Number(o, "raid-bases", script == BotScript.Raid ? Math.Max(1, count / 2) : 0);
         float raidRadius = (float)Number(o, "raid-radius", 70);
+        // --fly n: the first n bots fly (each gets a ship), the rest play --script (GROUND.md §5.11).
+        int fly = (int)Number(o, "fly", script == BotScript.Fly ? count : 0);
         TimerResolution.Begin();
         try
         {
@@ -41,19 +43,20 @@ public static class Program
             {
                 return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300),
                     o.GetValueOrDefault("kit") ?? (script == BotScript.Raid ? "raid-kit" : script == BotScript.World ? "world-kit" : null), raidBases, raidRadius,
-                    o.GetValueOrDefault("spawn", "origin") == "beach", o.ContainsKey("stand-in"), (int)Number(o, "animals", 0));
+                    o.GetValueOrDefault("spawn", "origin") == "beach", o.ContainsKey("stand-in"), fly, Number(o, "storm", 0),
+                    (int)Number(o, "animals", 0));
             }
             if (!o.TryGetValue("server", out string? server))
             {
                 Console.WriteLine("Hollow.Bots --server <host:port> [--count 100] [--duration <s>] [--script mixed] [--lag ms --jitter ms --loss %]\n" +
                     "Hollow.Bots loadtest [--count 100] [--duration 60] [--warmup 8] [--script mixed] [--lag ms --jitter ms --loss %] " +
-                    "[--spawn origin|beach] [--stand-in]");
+                    "[--spawn origin|beach] [--stand-in] [--fly n] [--storm s]");
                 return 1;
             }
             string[] parts = server.Split(':');
             int port = parts.Length > 1 ? int.Parse(parts[1], CultureInfo.InvariantCulture) : Net.Protocol.Protocol.DefaultPort;
             return Play(parts[0], port, count, Number(o, "duration", double.PositiveInfinity), script, conditions,
-                o.GetValueOrDefault("prefix", "bot"), Number(o, "report-after", -1), raidBases, raidRadius);
+                o.GetValueOrDefault("prefix", "bot"), Number(o, "report-after", -1), raidBases, raidRadius, fly);
         }
         finally
         {
@@ -62,10 +65,10 @@ public static class Program
     }
 
     private static int Play(string host, int port, int count, double duration, BotScript script, NetConditions conditions,
-        string prefix, double reportAfter, int raidBases, float raidRadius)
+        string prefix, double reportAfter, int raidBases, float raidRadius, int fly)
     {
         Console.WriteLine($"{count} bots ({script}) joining {host}:{port}" + (conditions.IsNone ? "" : $", {conditions}"));
-        using var swarm = new BotSwarm(host, port, count, script, conditions, prefix, Console.WriteLine, raidBases, raidRadius);
+        using var swarm = new BotSwarm(host, port, count, script, conditions, prefix, Console.WriteLine, raidBases, raidRadius, fly);
         bool stop = false;
         Console.CancelKeyPress += (_, e) =>
         {
@@ -119,7 +122,7 @@ public static class Program
     /// the bots' own work and garbage collections don't land on the server's ticks), measured after a warm-up.
     /// </summary>
     private static int LoadTest(int count, double duration, double warmup, BotScript script, NetConditions conditions, float relevance, string? kit,
-        int raidBases, float raidRadius, bool beaches, bool standIn, int animals = 0)
+        int raidBases, float raidRadius, bool beaches, bool standIn, int fly, double storm, int animals = 0)
     {
         Console.WriteLine($"Load test: a server and {count} bots ({script}) in another process, {warmup:0} s warm-up, {duration:0} s measured" +
             (conditions.IsNone ? "" : $", bots through a relay: {conditions}") +
@@ -132,6 +135,7 @@ public static class Program
             RaidBases = script == BotScript.Raid ? raidBases : 0, RaidRadius = raidRadius, Log = _ => { },
             SpawnAtOrigin = !beaches, StandIn = standIn,
             ShipOnJoin = script == BotScript.Fly,
+            ShipOnJoinFor = fly > 0 ? name => name.StartsWith("bot", StringComparison.Ordinal) && int.TryParse(name.AsSpan(3), out int n) && n <= fly : null,
             // G7: a fixed population for the animal load test (none by default, so the earlier measurements compare).
             Animals = false, AnimalPopulation = animals,
         });
@@ -157,6 +161,7 @@ public static class Program
             "--jitter", conditions.JitterMs.ToString(CultureInfo.InvariantCulture),
             "--loss", conditions.LossPercent.ToString(CultureInfo.InvariantCulture),
             "--raid-bases", raidBases.ToString(CultureInfo.InvariantCulture), "--raid-radius", raidRadius.ToString(CultureInfo.InvariantCulture),
+            "--fly", fly.ToString(CultureInfo.InvariantCulture),
         };
         foreach (string arg in childArgs)
         {
@@ -187,6 +192,7 @@ public static class Program
             server.Inspect(sv =>
             {
                 sv.Ticks.ResetTotals();
+                sv.Profile.Reset();
                 stepBefore = sv.StepTime;
                 raidBefore = sv.Zone.RaidStats.Time;
                 rebuildsBefore = sv.Zone.Physics.BroadPhaseRebuilds;
@@ -198,9 +204,37 @@ public static class Program
                 return sv.Players.ToDictionary(p => p.Name, p => Traffic(p));
             });
         string countersBefore = server.Inspect(sv => sv.Counters.ToString());
-        System.Threading.Thread.Sleep(TimeSpan.FromSeconds(duration));
+        (int Gen0, int Gen1, int Gen2, TimeSpan Paused, long Allocated) gcBefore =
+            (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2), GC.GetTotalPauseDuration(), GC.GetTotalAllocatedBytes());
+        int storms = 0;
+        if (storm > 0)
+        {
+            // Respawn storms (GROUND.md §5.11): every bot killed at once, every few seconds; each respawns on a beach.
+            var clock = Stopwatch.StartNew();
+            while (clock.Elapsed.TotalSeconds + storm <= duration)
+            {
+                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(storm));
+                foreach (string name in server.Inspect(sv => sv.Players.Where(p => p.Playing).Select(p => p.Name).ToList()))
+                {
+                    server.Execute($"kill {name}");
+                }
+                storms++;
+            }
+            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(Math.Max(0, duration - clock.Elapsed.TotalSeconds)));
+        }
+        else
+        {
+            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(duration));
+        }
+        (int Gen0, int Gen1, int Gen2, TimeSpan Paused, long Allocated) gcAfter =
+            (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2), GC.GetTotalPauseDuration(), GC.GetTotalAllocatedBytes());
         var measured = server.Inspect(sv => new
         {
+            Profile = sv.Profile.Report(),
+            Respawns = sv.Profile.Calls(Hollow.Simulation.Diagnostics.ProfileSection.Respawn),
+            BodiesMade = sv.Zone.Physics.BodiesMade,
+            BodiesReused = sv.Zone.Physics.BodiesReused,
+            Scatter = sv.Zone.Nature is Hollow.Simulation.Nature.ScatterNaturalObjects scatter ? $"; {scatter.CachedTiles} scatter tiles cached, {scatter.Generated} made in the whole run" : "",
             Ticks = sv.Ticks.Ticks,
             StepMs = (sv.StepTime - stepBefore).TotalMilliseconds,
             Average = sv.Ticks.TotalAverageMs,
@@ -345,7 +379,7 @@ public static class Program
                 $"{measured.Doors} doors, {measured.Claims} claim devices; bots: {F(19):0} building intents done, {F(20):0} refused, " +
                 $"{F(21):0} door toggles; a bot's copy holds {F(22):0} pieces"));
         }
-        if (r.Length > 31 && script == BotScript.Fly)
+        if (r.Length > 31 && fly > 0)
         {
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"Ships (G6): {measured.Ships} in the zone, {measured.ShipsFlying} awake at the end; bots boarded {F(28):0} times, {F(29):0} flying " +
@@ -355,6 +389,14 @@ public static class Program
                 $"the physics' broadphase was rebuilt {measured.Rebuilds} times while measured, {measured.RebuildMs / Math.Max(1, measured.Rebuilds):0.0} ms each on average " +
                 $"({measured.RebuildMs / Math.Max(1, measured.Ticks):0.00} ms a tick), the longest {measured.RebuildWorstMs:0.0} ms"));
         }
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"Ground: {measured.Tiles} tiles and {measured.Props} props in the physics at the end (bodies made {measured.BodiesMade}, put back {measured.BodiesReused}, whole run); " +
+            $"{measured.Respawns} respawns ({storms} storms){measured.Scatter}"));
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"Garbage collections in the server's process while measured: {gcAfter.Gen0 - gcBefore.Gen0} gen0, {gcAfter.Gen1 - gcBefore.Gen1} gen1, " +
+            $"{gcAfter.Gen2 - gcBefore.Gen2} gen2, {(gcAfter.Paused - gcBefore.Paused).TotalMilliseconds:0} ms paused in all; " +
+            $"{(gcAfter.Allocated - gcBefore.Allocated) / 1048576.0:0} MB allocated ({(gcAfter.Allocated - gcBefore.Allocated) / 1024.0 / Math.Max(1, measured.Ticks):0} KB a tick)"));
+        Console.Write(measured.Profile);
         return F(7) == count ? 0 : 2;
     }
 

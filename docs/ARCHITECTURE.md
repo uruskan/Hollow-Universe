@@ -261,6 +261,10 @@ cross-boundary events. This is what lets zones move to other processes later (P7
 - **Client**: the same physics library runs a small local copy of the nearby collision world, so the
   player's own character and ship are predicted with exactly the server's code. Godot's built-in physics
   is only for cosmetics (debris, ragdolls).
+- **Streaming** (both sides, the same code): the ground and its natural objects exist only where something can
+  touch them (a character's surroundings, what a ship's queries can reach this tick), built ahead on worker threads
+  and taken in a few a tick; Jolt bodies are kept once made and the broadphase is updated incrementally, so the
+  world's churn costs little (GROUND.md §4.5).
 
 ### 10.4 Elapsed time (nothing ticks while unloaded)
 

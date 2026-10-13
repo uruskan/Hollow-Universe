@@ -32,7 +32,7 @@ public sealed class BotSwarm : IDisposable
     private double _last;
 
     public BotSwarm(string host, int port, int count, BotScript script, NetConditions conditions, string prefix, Action<string> log,
-        int raidBases = 0, float raidRadius = 70)
+        int raidBases = 0, float raidRadius = 70, int fly = 0)
     {
         if (!conditions.IsNone)
         {
@@ -62,7 +62,7 @@ public sealed class BotSwarm : IDisposable
                 script == BotScript.Fight ? new FightBrain(i) : null,
                 script == BotScript.Build ? new BuildBrain(i) { Log = i < 3 ? log : null } : null,
                 script == BotScript.Raid ? new RaidBrain(i, raidBases, raidRadius) : null));
-            if (script == BotScript.Fly)
+            if (script == BotScript.Fly || i < fly)
             {
                 _pilots.Add(client, new FlyBrain(i));
             }
@@ -132,6 +132,23 @@ public sealed class BotSwarm : IDisposable
     private BuildingReplica SharedBuilding(ZoneSpec spec, ISurface surface, PhysicsWorld physics) =>
         _building ??= new BuildingReplica(_content.Building, physics, shared: true);
 
+    private readonly Dictionary<GameClient, double> _respawnAsked = new();
+
+    // A walking bot (wander, circle, jump): dead (the load test's respawn storms), it respawns after a second or two.
+    private InputFrame Wander(BotBrain brain, double now, double delta, GameClient client)
+    {
+        if (!client.Local.IsDead)
+        {
+            return brain.Think(now, delta, client.Character.Position);
+        }
+        if (now >= _respawnAsked.GetValueOrDefault(client) + 2)
+        {
+            _respawnAsked[client] = now;
+            client.Local.Respawn();
+        }
+        return default;
+    }
+
     /// <summary>Runs every bot at about 60 frames a second for a while.</summary>
     public void Run(double seconds, Func<bool>? stop = null)
     {
@@ -150,7 +167,7 @@ public sealed class BotSwarm : IDisposable
                     : fight != null ? fight.Think(now, delta, client)
                     : build != null ? build.Think(now, delta, client)
                     : survival != null ? survival.Think(now, delta, client)
-                    : brain.Think(now, delta, client.Character.Position);
+                    : Wander(brain, now, delta, client);
                 client.Update(delta, input);
             }
             if (_ground != null)

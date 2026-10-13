@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Surface;
 using JoltPhysicsSharp;
 
@@ -62,7 +63,7 @@ public sealed class PhysicsWorld : IDisposable
     public static bool IsGroundBody(uint id) => id < TileIdCount;
 
     private readonly Dictionary<(int X, int Z), Tile> _tiles = new();
-    private readonly Dictionary<(int X, int Z), Task<Shape>> _pending = new();
+    private readonly Dictionary<(int X, int Z), TileBuild> _pending = new();
     private readonly List<(int X, int Z)> _expired = new();
     private readonly List<(int X, int Z)> _adopted = new();
     private readonly Dictionary<(PropLayer, ulong), Prop> _props = new();
@@ -75,6 +76,14 @@ public sealed class PhysicsWorld : IDisposable
     private long _epoch;
     private bool _disposed;
 
+    // Jolt gives a body the ID asked for (CreateBodyWithID) by walking its list of free IDs, and with the IDs this world
+    // uses (tiles by grid position, props by hash: far apart) that walk cost 20–60 µs a body, so a tile's trees took
+    // 2–3 ms to add (GROUND.md §5.11). So a body, once made, is kept: taken out of the world it leaves the broadphase
+    // and is parked on a tiny shared shape; put back, it takes its new shape and pose exactly as a new body would.
+    private const byte NoBody = 0, ParkedBody = 1, BodyInWorld = 2;
+    private readonly byte[] _bodies = new byte[FirstShipBody + MaxShipBodies];
+    private readonly Shape _parked;
+
     public PhysicsWorld(ISurface surface, ZoneFrame frame)
     {
         Surface = surface;
@@ -82,6 +91,10 @@ public sealed class PhysicsWorld : IDisposable
         JoltRuntime.EnsureInitialised();
         lock (JoltRuntime.Gate)
         {
+            using (var parked = new SphereShapeSettings(0.01f))
+            {
+                _parked = parked.Create();
+            }
             _layerPairs = new ObjectLayerPairFilterTable(2);
             _layerPairs.EnableCollision(StaticLayer, MovingLayer);
             _layerPairs.EnableCollision(MovingLayer, MovingLayer);
@@ -109,6 +122,9 @@ public sealed class PhysicsWorld : IDisposable
 
     internal PhysicsSystem Jolt { get; }
 
+    /// <summary>Times the ground's work on the owning thread (the server's tick; null in a client's prediction).</summary>
+    public TickProfile? Profile { get; set; }
+
     /// <summary>Ground tiles currently in the world.</summary>
     public int TileCount => _tiles.Count;
 
@@ -134,28 +150,60 @@ public sealed class PhysicsWorld : IDisposable
         {
             for (int x = cx - radius; x <= cx + radius; x++)
             {
-                if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange)
-                {
-                    continue;
-                }
-                if (!_tiles.TryGetValue((x, z), out Tile? tile))
-                {
-                    Shape shape;
-                    if (_pending.Remove((x, z), out Task<Shape>? building))
-                    {
-                        shape = building.Result;
-                    }
-                    else
-                    {
-                        shape = BuildShape(x, z);
-                    }
-                    TilesBuiltOnDemand++;
-                    tile = AddTile(x, z, shape);
-                    Listener?.TileAdded(x, z);
-                }
-                tile.LastUsed = _epoch;
+                EnsureTile(x, z);
             }
         }
+    }
+
+    /// <summary>
+    /// Makes sure the ground exists wherever something within <paramref name="reach"/> metres of a point (across the
+    /// zone's tangent plane) could touch it, natural props included (<see cref="PropReach"/>): the tiles a ship's
+    /// queries of this tick can meet, one to four instead of <see cref="EnsureGround"/>'s nine. Marks them in use.
+    /// </summary>
+    public void EnsureGroundAround(Vector3 position, float reach)
+    {
+        AdoptPrefetched();
+        float r = reach + PropReach;
+        (int x0, int z0) = TileOf(new Vector3(position.X - r, 0, position.Z - r));
+        (int x1, int z1) = TileOf(new Vector3(position.X + r, 0, position.Z + r));
+        for (int z = z0; z <= z1; z++)
+        {
+            for (int x = x0; x <= x1; x++)
+            {
+                EnsureTile(x, z);
+            }
+        }
+    }
+
+    /// <summary>
+    /// How far a natural prop's shape reaches across the ground from its base, the point that puts it in a tile: a
+    /// boulder's 0.95 m radius at scale up to 2.45 (gather.json, <c>Scatter</c>) is the most, 2.3 m.
+    /// </summary>
+    public float PropReach { get; set; } = 3f;
+
+    private void EnsureTile(int x, int z)
+    {
+        if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange)
+        {
+            return;
+        }
+        if (!_tiles.TryGetValue((x, z), out Tile? tile))
+        {
+            Shape shape;
+            using (Profile.Time(ProfileSection.TileWait))
+            {
+                // On its way: taken over and built here if no worker has started it yet (it may be queued behind
+                // hundreds of others in a respawn storm), else waited for.
+                shape = _pending.Remove((x, z), out TileBuild? building) ? building.Take()! : BuildShape(x, z);
+            }
+            TilesBuiltOnDemand++;
+            using (Profile.Time(ProfileSection.TileAdd))
+            {
+                tile = AddTile(x, z, shape);
+                Listener?.TileAdded(x, z);
+            }
+        }
+        tile.LastUsed = _epoch;
     }
 
     /// <summary>
@@ -165,56 +213,149 @@ public sealed class PhysicsWorld : IDisposable
     /// </summary>
     public void Prefetch(Vector3 position, int radius = 2)
     {
+        using TickProfile.Scope timed = Profile.Time(ProfileSection.Prefetch);
         (int cx, int cz) = TileOf(position);
         for (int z = cz - radius; z <= cz + radius; z++)
         {
             for (int x = cx - radius; x <= cx + radius; x++)
             {
-                if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange || _pending.ContainsKey((x, z)))
-                {
-                    continue;
-                }
-                if (_tiles.TryGetValue((x, z), out Tile? tile))
-                {
-                    // Near someone: keep it.
-                    tile.LastUsed = _epoch;
-                    continue;
-                }
-                (int X, int Z) key = (x, z);
-                ITileListener? listener = Listener;
-                _pending.Add(key, Task.Run(() =>
-                {
-                    listener?.TilePreparing(key.X, key.Z);
-                    return BuildShape(key.X, key.Z);
-                }));
+                PrefetchTile(x, z);
             }
         }
+    }
+
+    /// <summary>
+    /// <see cref="Prefetch"/> for the tiles <see cref="EnsureGroundAround"/> would want at a point: the ground a ship
+    /// will need along its way, built before it gets there.
+    /// </summary>
+    public void PrefetchAround(Vector3 position, float reach)
+    {
+        float r = reach + PropReach;
+        (int x0, int z0) = TileOf(new Vector3(position.X - r, 0, position.Z - r));
+        (int x1, int z1) = TileOf(new Vector3(position.X + r, 0, position.Z + r));
+        for (int z = z0; z <= z1; z++)
+        {
+            for (int x = x0; x <= x1; x++)
+            {
+                PrefetchTile(x, z);
+            }
+        }
+    }
+
+    /// <summary>
+    /// <see cref="PrefetchAround"/> all along a segment: points half a tile apart, each box widened by half that, so
+    /// together they cover every point within <paramref name="reach"/> of the segment.
+    /// </summary>
+    public void PrefetchAlong(Vector3 from, Vector3 to, float reach)
+    {
+        using TickProfile.Scope timed = Profile.Time(ProfileSection.Prefetch);
+        const float step = TileSize / 2;
+        float length = Vector2.Distance(new Vector2(from.X, from.Z), new Vector2(to.X, to.Z));
+        int n = Math.Max(1, (int)MathF.Ceiling(length / step));
+        for (int i = 0; i <= n; i++)
+        {
+            PrefetchAround(Vector3.Lerp(from, to, (float)i / n), reach + step / 2);
+        }
+    }
+
+    /// <summary>
+    /// Whether the ground within <paramref name="radius"/> tiles of a point is ready: in the world, or built and
+    /// waiting to be taken in. What isn't on its way yet is started (<see cref="Prefetch"/>). A respawn or an arrival
+    /// waits for this, so the tick that brings the player in never builds ground itself.
+    /// </summary>
+    public bool GroundReady(Vector3 position, int radius = 1)
+    {
+        Prefetch(position, radius);
+        (int cx, int cz) = TileOf(position);
+        for (int z = cz - radius; z <= cz + radius; z++)
+        {
+            for (int x = cx - radius; x <= cx + radius; x++)
+            {
+                if (x >= -TileRange && x < TileRange && z >= -TileRange && z < TileRange && !_tiles.ContainsKey((x, z)) &&
+                    !(_pending.TryGetValue((x, z), out TileBuild? build) && build.IsBuilt))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private void PrefetchTile(int x, int z)
+    {
+        if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange || _pending.ContainsKey((x, z)))
+        {
+            return;
+        }
+        if (_tiles.TryGetValue((x, z), out Tile? tile))
+        {
+            // Near someone: keep it.
+            tile.LastUsed = _epoch;
+            return;
+        }
+        StartBuild(x, z);
+    }
+
+    // Apart from PrefetchTile: a lambda capturing x and z there would allocate its closure on every call (every
+    // character asks for 25 tiles a tick), not only for a tile that is started.
+    private void StartBuild(int x, int z)
+    {
+        ITileListener? listener = Listener;
+        _pending.Add((x, z), new TileBuild(() =>
+        {
+            if (_closing)
+            {
+                return null;
+            }
+            listener?.TilePreparing(x, z);
+            return BuildShape(x, z);
+        }));
     }
 
     /// <summary>Tiles a step had to build or wait for itself (none, when prefetching keeps ahead).</summary>
     public int TilesBuiltOnDemand { get; private set; }
 
-    // Adds the tiles whose background build has finished.
+    /// <summary>
+    /// Tiles built ahead taken into the world at most each epoch (tick): a burst of them (a respawn storm, ships
+    /// streaming) is spread over the next ticks. A tile needed now is always taken in.
+    /// </summary>
+    public int AdoptPerEpoch { get; set; } = 8;
+
+    private long _adoptEpoch = -1;
+    private int _adoptedThisEpoch;
+
+    // Adds tiles whose background build has finished, up to the epoch's budget.
     private void AdoptPrefetched()
     {
-        if (_pending.Count == 0)
+        if (_adoptEpoch != _epoch)
+        {
+            _adoptEpoch = _epoch;
+            _adoptedThisEpoch = 0;
+        }
+        if (_pending.Count == 0 || _adoptedThisEpoch >= AdoptPerEpoch)
         {
             return;
         }
         _adopted.Clear();
-        foreach (((int, int) key, Task<Shape> task) in _pending)
+        foreach (((int, int) key, TileBuild build) in _pending)
         {
-            if (task.IsCompleted)
+            if (build.IsBuilt)
             {
                 _adopted.Add(key);
+                if (_adoptedThisEpoch + _adopted.Count >= AdoptPerEpoch)
+                {
+                    break;
+                }
             }
         }
         foreach ((int x, int z) in _adopted)
         {
-            _pending.Remove((x, z), out Task<Shape>? task);
-            Tile tile = AddTile(x, z, task!.Result);
+            using TickProfile.Scope _ = Profile.Time(ProfileSection.TileAdd);
+            _pending.Remove((x, z), out TileBuild? build);
+            Tile tile = AddTile(x, z, build!.Take()!);
             tile.LastUsed = _epoch;
             Listener?.TileAdded(x, z);
+            _adoptedThisEpoch++;
         }
     }
 
@@ -242,13 +383,12 @@ public sealed class PhysicsWorld : IDisposable
         }
         lock (JoltRuntime.Gate)
         {
-            BodyInterface bodies = Jolt.BodyInterface;
             foreach ((int X, int Z) key in _expired)
             {
+                using TickProfile.Scope _ = Profile.Time(ProfileSection.TileRemove);
                 Listener?.TileRemoved(key.X, key.Z);
                 Tile tile = _tiles[key];
-                bodies.RemoveAndDestroyBody(tile.Body);
-                Interlocked.Increment(ref _bodyChanges);
+                RemoveStaticBody(tile.Body.ID);
                 tile.Shape.Dispose();
                 _tiles.Remove(key);
             }
@@ -264,8 +404,8 @@ public sealed class PhysicsWorld : IDisposable
     private Shape BuildShape(int x, int z)
     {
         long start = Stopwatch.GetTimestamp();
-        TriangleMesh mesh = TileMesh(x, z);
-        // Pooled: these are large-object-heap sized, and tiles come and go all the time.
+        // Pooled, as the arrays below: these are large-object-heap sized, and tiles come and go all the time.
+        using PooledTriangles mesh = Surface.GroundCollisionPooled(Frame, (x + 0.5) * TileSize, (z + 0.5) * TileSize, TileSize);
         Vector3[] vertices = ArrayPool<Vector3>.Shared.Rent(mesh.VertexCount);
         IndexedTriangle[] triangles = ArrayPool<IndexedTriangle>.Shared.Rent(mesh.TriangleCount);
         Shape shape;
@@ -319,53 +459,102 @@ public sealed class PhysicsWorld : IDisposable
     }
 
     private int _bodyChanges;
-    private int _sinceOptimize;
 
     /// <summary>
-    /// Rebuilds Jolt's broadphase tree after bodies came and went (ground tiles, props). The world never runs Jolt's
-    /// own update, which would keep the tree in shape, and contact queries on a tree grown body by body cost several
-    /// times more. Call with the Jolt lock held, once a tick before characters move; it rebuilds at most twice a second
-    /// (sooner after many changes).
+    /// Keeps Jolt's broadphase tree in shape after bodies came and went (ground tiles, props, building, parked ships):
+    /// a tree grown body by body makes every contact query walk all that was added since. The world never steps Jolt
+    /// (characters and ships move by queries), so this runs the broadphase part of Jolt's update alone (an update with
+    /// no time step does nothing else): it rebuilds only the parts of the tree that changed, as Jolt does for a
+    /// streaming world, in about 0.1–0.3 ms where a whole rebuild took 5–10 ms with 30,000 bodies (GROUND.md §5.11).
+    /// Queries find the same bodies whatever the tree's shape. Call with the Jolt lock held, once a tick before
+    /// characters move.
     /// </summary>
     public void OptimizeBroadPhase()
     {
-        _sinceOptimize++;
-        if (_bodyChanges == 0 || (_sinceOptimize < 15 && _bodyChanges < 64))
+        if (_bodyChanges == 0)
         {
             return;
         }
         long started = Stopwatch.GetTimestamp();
-        Jolt.OptimizeBroadPhase();
+        Jolt.Update(0f, 1, JoltRuntime.Jobs);
         TimeSpan took = Stopwatch.GetElapsedTime(started);
         BroadPhaseTime += took;
         BroadPhaseWorst = took > BroadPhaseWorst ? took : BroadPhaseWorst;
         BroadPhaseRebuilds++;
         _bodyChanges = 0;
-        _sinceOptimize = 0;
     }
 
-    /// <summary>Broadphase rebuilds so far, their time in all and the longest (the load tests' statistics).</summary>
+    /// <summary>Broadphase updates so far, their time in all and the longest (the load tests' statistics).</summary>
     public int BroadPhaseRebuilds { get; private set; }
 
     public TimeSpan BroadPhaseTime { get; private set; }
 
     public TimeSpan BroadPhaseWorst { get; private set; }
 
+    /// <summary>
+    /// Puts a static body into the world under an ID: made the first time, afterwards the same body taken out of its
+    /// parking (see <see cref="_bodies"/>). Ground tiles, props, building pieces and parked ships all come in here.
+    /// </summary>
+    internal void AddStaticBody(uint id, Shape shape, Vector3 position, Quaternion rotation)
+    {
+        lock (JoltRuntime.Gate)
+        {
+            var bodyId = new BodyID(id);
+            BodyInterface bodies = Jolt.BodyInterface;
+            switch (_bodies[id])
+            {
+                case NoBody:
+                {
+                    using var creation = new BodyCreationSettings(shape, position, rotation, MotionType.Static, StaticLayer);
+                    _ = bodies.CreateBodyWithID(bodyId, creation) ?? throw new InvalidOperationException($"Jolt refused body {id}.");
+                    BodiesMade++;
+                    break;
+                }
+                case ParkedBody:
+                    // The shape first: the pose then puts its centre of mass where a new body's would be.
+                    bodies.SetShape(bodyId, shape, false, Activation.DontActivate);
+                    bodies.SetPositionAndRotation(bodyId, position, rotation, Activation.DontActivate);
+                    BodiesReused++;
+                    break;
+                default:
+                    throw new InvalidOperationException($"Body {id} is in the world already.");
+            }
+            bodies.AddBody(bodyId, Activation.DontActivate);
+            _bodies[id] = BodyInWorld;
+            _bodyChanges++;
+        }
+    }
+
+    /// <summary>Bodies made in Jolt so far, and bodies put back from their parking (statistics, tests).</summary>
+    public int BodiesMade { get; private set; }
+
+    public int BodiesReused { get; private set; }
+
+    /// <summary>Takes a static body out of the world; it stays made, parked, for the next body under its ID.</summary>
+    internal void RemoveStaticBody(uint id)
+    {
+        if (_disposed || _bodies[id] != BodyInWorld)
+        {
+            return;
+        }
+        lock (JoltRuntime.Gate)
+        {
+            var bodyId = new BodyID(id);
+            BodyInterface bodies = Jolt.BodyInterface;
+            bodies.RemoveBody(bodyId);
+            // Lets go of its shape (the owner disposes its own handle).
+            bodies.SetShape(bodyId, _parked, false, Activation.DontActivate);
+            _bodies[id] = ParkedBody;
+            _bodyChanges++;
+        }
+    }
+
     // Adds a built tile to the physics system, under the tile's own body ID. On the owning thread.
     private Tile AddTile(int x, int z, Shape shape)
     {
-        Interlocked.Increment(ref _bodyChanges);
         var id = new BodyID((uint)((x + TileRange) + (z + TileRange) * 2 * TileRange));
-        Tile tile;
-        lock (JoltRuntime.Gate)
-        {
-            using var creation = new BodyCreationSettings(shape, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer);
-            BodyInterface bodies = Jolt.BodyInterface;
-            Body body = bodies.CreateBodyWithID(id, creation)
-                ?? throw new InvalidOperationException($"Jolt refused ground tile {x},{z} (body {id.ID}).");
-            bodies.AddBody(body.ID, Activation.DontActivate);
-            tile = new Tile(body.ID, shape);
-        }
+        AddStaticBody(id.ID, shape, Vector3.Zero, Quaternion.Identity);
+        var tile = new Tile(id, shape);
         _tiles.Add((x, z), tile);
         return tile;
     }
@@ -409,15 +598,37 @@ public sealed class PhysicsWorld : IDisposable
         uint id = TileIdCount + slot;
         lock (JoltRuntime.Gate)
         {
+            if (!_propBodiesMade && MakePropBodiesAhead)
+            {
+                MakePropBodies();
+            }
             Shape shape = prop.CreateShape();
-            using var creation = new BodyCreationSettings(shape, prop.Centre, prop.Rotation, MotionType.Static, StaticLayer);
-            BodyInterface bodies = Jolt.BodyInterface;
-            var bodyId = new BodyID(id);
-            Body body = bodies.CreateBodyWithID(bodyId, creation)
-                ?? throw new InvalidOperationException($"Jolt refused prop {layer} {key} (body {id}).");
-            bodies.AddBody(body.ID, Activation.DontActivate);
-            _props.Add((layer, key), new Prop(body.ID, shape, id));
-            Interlocked.Increment(ref _bodyChanges);
+            AddStaticBody(id, shape, prop.Centre, prop.Rotation);
+            _props.Add((layer, key), new Prop(new BodyID(id), shape, id));
+        }
+    }
+
+    private bool _propBodiesMade;
+
+    /// <summary>Whether the first prop makes every prop body ahead (see <see cref="MakePropBodies"/>); tests compare without.</summary>
+    internal bool MakePropBodiesAhead { get; set; } = true;
+
+    // Props' IDs are spread over their whole range by hash, so even a prop's first body would walk Jolt's free list.
+    // With the first prop, every prop body is made at once, parked, from the top of the range down: each new ID is
+    // then at the head of the list (65,536 bodies, 9 MB, 20–50 ms once). Ground tiles and building pieces are made as
+    // they come (a tile walks the tiles' part of the list the first time, at most about 30 µs).
+    private void MakePropBodies()
+    {
+        _propBodiesMade = true;
+        using var creation = new BodyCreationSettings(_parked, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer);
+        BodyInterface bodies = Jolt.BodyInterface;
+        for (uint id = TileIdCount + MaxProps - 1; id >= TileIdCount; id--)
+        {
+            if (_bodies[id] == NoBody)
+            {
+                _ = bodies.CreateBodyWithID(new BodyID(id), creation) ?? throw new InvalidOperationException($"Jolt refused body {id}.");
+                _bodies[id] = ParkedBody;
+            }
         }
     }
 
@@ -429,9 +640,8 @@ public sealed class PhysicsWorld : IDisposable
         }
         lock (JoltRuntime.Gate)
         {
-            Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
+            RemoveStaticBody(prop.Id);
             prop.Shape.Dispose();
-            Interlocked.Increment(ref _bodyChanges);
         }
         _propIdUsed[prop.Id - TileIdCount] = false;
     }
@@ -442,32 +652,29 @@ public sealed class PhysicsWorld : IDisposable
         {
             return;
         }
-        _disposed = true;
-        lock (JoltRuntime.Gate)
+        _closing = true;
+        foreach (TileBuild building in _pending.Values)
         {
-            foreach (Prop prop in _props.Values)
-            {
-                Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
-                prop.Shape.Dispose();
-            }
-            _props.Clear();
-        }
-        foreach (Task<Shape> building in _pending.Values)
-        {
-            building.Wait();
-            building.Result.Dispose();
+            building.Worker.Wait();
+            building.Take()?.Dispose();
         }
         _pending.Clear();
         lock (JoltRuntime.Gate)
         {
-            BodyInterface bodies = Jolt.BodyInterface;
+            // Jolt frees every body still made (in the world or parked) with the physics system, and with them their
+            // hold on the shapes; the shapes' own handles go here.
+            _disposed = true;
+            foreach (Prop prop in _props.Values)
+            {
+                prop.Shape.Dispose();
+            }
+            _props.Clear();
             foreach (Tile tile in _tiles.Values)
             {
-                bodies.RemoveAndDestroyBody(tile.Body);
-                Interlocked.Increment(ref _bodyChanges);
                 tile.Shape.Dispose();
             }
             _tiles.Clear();
+            _parked.Dispose();
             Jolt.Dispose();
             _objectVsBroadPhase.Dispose();
             _broadPhaseLayers.Dispose();
@@ -487,5 +694,30 @@ public sealed class PhysicsWorld : IDisposable
         public readonly BodyID Body = body;
         public readonly Shape Shape = shape;
         public long LastUsed;
+    }
+
+    // Set when the world closes: tile builds not started yet don't start.
+    private volatile bool _closing;
+
+    /// <summary>
+    /// A tile being built ahead: a worker builds it when it gets to it, and a tick that needs it sooner takes it over
+    /// and builds it itself if no worker has started it, rather than wait behind every tile queued before it.
+    /// </summary>
+    private sealed class TileBuild
+    {
+        private readonly Lazy<Shape?> _shape;
+
+        public TileBuild(Func<Shape?> build)
+        {
+            _shape = new Lazy<Shape?>(build, LazyThreadSafetyMode.ExecutionAndPublication);
+            Worker = Task.Run(() => _shape.Value);
+        }
+
+        public Task Worker { get; }
+
+        public bool IsBuilt => _shape.IsValueCreated;
+
+        /// <summary>The shape: built here and now if no worker has started on it, else waited for.</summary>
+        public Shape? Take() => _shape.Value;
     }
 }
