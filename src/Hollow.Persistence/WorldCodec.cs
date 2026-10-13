@@ -179,9 +179,9 @@ public static class WorldCodec
             {
                 ushort item = r.ReadUInt16();
                 var owner = new EntityId(r.ReadUInt64());
-                if (content.Deployable(item) is not { } def)
+                if (content.Deployable(item) is not { } def || def == content.ClaimDeployable)
                 {
-                    return null;
+                    return null; // a claim device is saved with the building
                 }
                 var d = new Deployable(id, def, position, up, yaw, owner)
                 {

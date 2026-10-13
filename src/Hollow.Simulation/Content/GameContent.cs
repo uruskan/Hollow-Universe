@@ -116,7 +116,8 @@ public sealed class GameContent
 
     public NaturalKind? Natural(string key) => _natural.GetValueOrDefault(key);
 
-    public DeployableDef? Deployable(int itemId) => Item(itemId)?.Deploys;
+    public DeployableDef? Deployable(int itemId) =>
+        Item(itemId) is { } item ? item.Deploys ?? (item == ClaimDeployable.Item ? ClaimDeployable : null) : null;
 
     public DeployableDef? Deployable(string key) => _deployables.GetValueOrDefault(key);
 

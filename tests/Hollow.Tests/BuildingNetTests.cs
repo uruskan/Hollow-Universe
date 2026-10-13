@@ -214,6 +214,19 @@ public static class BuildingNetTests
             floor.Pose.Position.Z + 0.8), "the claim device placed");
         RunUntil(rig, () => bo.Building!.Claims.Any(), "the claim device on Bo's client");
 
+        // Its store opens like a box, and takes the wood that pays its upkeep.
+        rig.Server.Execute("give Ada wood 200");
+        RunUntil(rig, () => ada.Local.Inventory.Count(ContentFixture.Item("wood")) == 200, "the wood");
+        ClaimDevice claim = ada.Building.Claims.Single();
+        Assert.True(ada.ThingOf(claim.Id)?.Deployable(ada.Content)?.Slots == 24, "the claim device is a thing with a 24-slot store");
+        ada.Local.Open(claim.Id);
+        RunUntil(rig, () => ada.Local.LootKind == Simulation.Items.LootKind.Box && ada.Local.Loot?.Size == 24, "its store open");
+        ada.Local.MoveItem(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wood"), ContainerRef.Loot, 0);
+        RunUntil(rig, () => rig.Server.Inspect(sv => InventoryRules.Count(new[] { sv.Zone.DeployableOf(sv.Zone.Building!.ClaimOf(claim.Id)!)!.Storage! },
+            ContentFixture.Item("wood").Id)) == 200, "the wood in the store");
+        Assert.True(rig.Server.Inspect(sv => sv.Zone.Building!.ProtectedSeconds(sv.Zone.Building.ClaimOf(claim.Id)!.Structure)) > 0, "paying its upkeep");
+        ada.Local.Close();
+
         // Bo: locked out; a wrong code makes him wait; the right one lets him in. Ada steps out of the door's way.
         rig.Server.Execute("teleport Ada 5 -1");
         (Vector3 doorAt, _) = doorway.ZoneTransform;
