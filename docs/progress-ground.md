@@ -500,5 +500,5 @@ GROUND_SYSTEMS.md §4; GROUND.md §8.4 and decisions Q1–Q9.
 - **The bag dropped items lie in** (`dropped-bag`, GROUND.md §9.1, U4) now reads like the owner's picture: a strapped
   bundle, not a sack. Only the idea was taken; the design is our own. A khaki canvas tarp is wrapped round a box-like
   load, its ends folded like a parcel's and a grommeted hem across the front, with two crossed leather straps and iron
-  buckles. 0.42 × 0.32 × 0.30 m; LODs of 6,242, 3,120 and 1,366 triangles. No game code changed; 178 of 178 tests
-  pass. Pictures: `docs/images/ground/drop/bag-model.jpg`, `bag.jpg`, `bag-open.jpg`.
+  buckles. 0.42 × 0.32 × 0.30 m; LODs of 6,242, 3,120 and 1,366 triangles. No game code changed; with `ground`
+  merged, 179 of 179 tests pass. Pictures: `docs/images/ground/drop/bag-model.jpg`, `bag.jpg`, `bag-open.jpg`.
