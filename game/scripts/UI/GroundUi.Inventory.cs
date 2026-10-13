@@ -276,6 +276,9 @@ public partial class GroundUi
                 bottom = y + 266;
                 break;
             }
+            case ContainerKind.Recycler or ContainerKind.ResearchTable:
+                bottom = PaintMachine(loot, y, (i, x, top, size) => Cell(i, x, top, size));
+                break;
             default:
                 for (int i = 0; i < slots.Count; i++)
                 {
@@ -372,6 +375,7 @@ public partial class GroundUi
             UpdateSplit();
         }
         PanMap();
+        DragMap();
     }
 
     private void UpdateSplit()

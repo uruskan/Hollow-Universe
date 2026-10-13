@@ -9,7 +9,7 @@ namespace HollowUniverse.UI.Viewer;
 /// <summary>
 /// The interface viewer (<c>--view ui</c>, GROUND.md §8): the ground interface on <see cref="MockGroundUi"/> over a
 /// plain backdrop, opened on one screen for a look or a screenshot. Options (after "--"):
-/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|menu</c>, and
+/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|menu|map|techtree|recycler|research</c>, and
 /// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, wheel sectors).
 /// Screenshots hold the HUD's moments and the sample's clock still; without <c>--shot</c> the mock runs and every
 /// screen is interactive. <c>--ui-check</c> drives the inventory and crafting with real input events, checks the
@@ -20,7 +20,7 @@ public partial class UiViewer : Node
     public Dictionary<string, string> Options { get; set; } = new();
 
     /// <summary>For automated screenshots: fonts, icons and the character have had a few frames to settle.</summary>
-    public bool ReadyForShot => _frames > 12;
+    public bool ReadyForShot => _frames > 12 && _ui.MapReady;
 
     private MockGroundUi _model = null!;
     private GroundUi _ui = null!;
@@ -92,6 +92,26 @@ public partial class UiViewer : Node
                 break;
             case "menu":
                 _ui.ShowMenu(inGame: false);
+                break;
+            case "map":
+                // G7: the map with markers, teammates and the team panel.
+                _model.WorldSample();
+                _ui.Open(GroundScreen.Map);
+                break;
+            case "techtree":
+                _model.WorldSample();
+                _ui.SelectTechNode("metal-pickaxe");
+                _ui.OpenTechTree();
+                break;
+            case "recycler":
+                _model.OpenMachine(ContainerKind.Recycler);
+                _ui.Open(GroundScreen.Inventory);
+                _ui.Select(new SlotRef(ContainerId.Loot, 2));
+                break;
+            case "research":
+                _model.OpenMachine(ContainerKind.ResearchTable);
+                _ui.Open(GroundScreen.Inventory);
+                _ui.Select(new SlotRef(ContainerId.Loot, 2));
                 break;
             default:
                 _model.HudSample();

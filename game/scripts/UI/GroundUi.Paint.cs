@@ -38,8 +38,12 @@ public partial class GroundUi
             case GroundScreen.Death:
                 PaintDeath();
                 return;
+            case GroundScreen.Map:
+                PaintMap();
+                PaintToast();
+                return;
         }
-        bool inventory = Screen is GroundScreen.Inventory or GroundScreen.Crafting;
+        bool inventory = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.TechTree;
         if (Screen == GroundScreen.Hud && Wheel == null)
         {
             PaintCentre();
@@ -58,6 +62,10 @@ public partial class GroundUi
         else if (Screen == GroundScreen.Crafting)
         {
             PaintCrafting();
+        }
+        else if (Screen == GroundScreen.TechTree)
+        {
+            PaintTechTree();
         }
         if (Wheel is WheelKind kind)
         {
@@ -273,7 +281,14 @@ public partial class GroundUi
         {
             bool dragged = _drag is { Moving: true } d && d.From == slot;
             float alpha = dragged ? 0.35f : 1f;
-            if (inventory)
+            float inset = inventory ? 7 : 3;
+            if (stack.Teaches != null)
+            {
+                // G7: a blueprint is the item it teaches, on blueprint blue.
+                Rect(x + inset - 2, y + inset - 2, size - 2 * inset + 4, size - 2 * inset + 4, new Color(0.18f, 0.36f, 0.62f, 0.75f));
+                Icon(stack.Teaches, x + inset, y + inset, size - 2 * inset, size - 2 * inset, alpha * 0.9f);
+            }
+            else if (inventory)
             {
                 Icon(stack.Key, x + 7, y + 5, size - 14, size - 12, alpha);
             }

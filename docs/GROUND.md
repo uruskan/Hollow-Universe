@@ -2106,6 +2106,7 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
 ```bash
 $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
 # --screen hud | inventory | loot | corpse | furnace | campfire | crafting | death | wheel | hammer | menu
+#          map | techtree | recycler | research   (G7)
 ```
 
 | Screen | Reference (in `D:\GameDev\Projects\RustMVP`) | As built (`docs/images/ground/ui/`) |
@@ -2116,6 +2117,9 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
 | Building and hammer wheels | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png` | `wheel.jpg`, `hammer.jpg` |
 | Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.jpg` |
 | Main menu | `logs/ui-polish/menu.png` | `menu.jpg` |
+| Map (G7) | Rust's map: parchment, a lettered and numbered grid, markers; RustMVP's panels beside it | `map.jpg` |
+| Tech tree (G7) | Rust's workbench tech tree, drawn with RustMVP's slots and buttons | `techtree.jpg` |
+| Recycler and research table (G7) | Rust's loot panels for them, in the furnace's manner | `recycler.jpg`, `research.jpg` |
 | Other scales | | `crafting-720p.jpg` (scale 0.8), `inventory-1440p.jpg` (scale 1.3125) |
 | Specification | `docs/architecture/legacy/weapons_character_ui.md` | |
 
@@ -2159,6 +2163,7 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | HUD | `Prompt` (key, action, more options). Events: hit confirmed (head shot), damaged (bearing), gathered (item, amount), crafted (item, amount), notice, chat line. |
 | Wheels | `Wheel(kind)`: the plan's pieces or the hammer's actions in clockwise order (glyph, title, description, cost line, reason it can't be chosen); `WheelCurrent(kind)`. |
 | Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `ChooseWheel(kind, i)`, `CloseLoot()`, `Say(text)`. Each is a request; the answer is a changed read, or a notice. |
+| World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
@@ -2210,6 +2215,23 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
   port (HOST SOLO or CONNECT); QUIT.
   The name and address are remembered.
+- **Map (G7):** G opens and closes it (Esc closes it). The zone's map (§6.8: heights, sea and beach, hill shading,
+  contours, the grid in 150 m cells lettered across and numbered down) fills a square on the left, following the
+  player until dragged; the wheel zooms. Markers: the player (an arrow with their facing), teammates (dim offline),
+  the last death, bags and beds, and the player's own (up to five, numbered, in six colours); names placed by the
+  `Labeller`. A click puts a marker down in the chosen colour, a right-click on one takes it off. Beside the map: the
+  cell the player is in, FOLLOWING YOU, the markers with their cells (× removes, CLEAR ALL), the team (LEAD and KICK
+  for its leader, LEAVE TEAM, or CREATE TEAM) and the invites (ACCEPT, DECLINE, seconds left). The keys sit at the
+  panel's foot. The death screen draws the same map, with the zone's cells, when the model has one.
+- **Tech tree (G7):** the crafting screen's TECH TREE tab, when a workbench is in reach (the game also opens it at a
+  workbench). Each subtree takes as many columns as it has leaves, its root above them; a node is the item's slot with
+  its salvage on a strip below it, green and ticked once known, blueprint blue and dim while locked; lines from the
+  nodes before it turn green once those are known. The chosen node on the right: the item, its description, why it
+  can't be unlocked yet (or READY TO UNLOCK) and UNLOCK · N SALVAGE.
+- **Machines (G7):** a recycler shows INPUT and OUTPUT rows, the progress of the batch and TURN ON or OFF (no fuel); a
+  research table the item, the salvage and the blueprint with arrows between, the price or the reason it can't start,
+  and BEGIN RESEARCH. A blueprint is drawn as the item it teaches on blueprint blue. A world crate is a box's grid.
+- **Team chat (G7):** "/t " or "/team " before a line sends it to the team; team lines are green, marked [TEAM].
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
   drop outside and on a panel, split, Q, CRAFT, Tab) against `MockGroundUi` and quits with 0 when all pass.
 

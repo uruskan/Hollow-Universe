@@ -201,7 +201,8 @@ Client options (after `--`):
   building through the sandbox's input (place, snap, upgrade, turn, door, demolish and collapse) and quits with exit
   code 0 when every step passes.
 - Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
-  (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`);
+  (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`, and
+  G7's `map`, `techtree`, `recycler`, `research`);
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
   `--view ui --ui-check` drives the inventory and crafting with real input events (drag, middle-drag, split, quick
   move, drop, craft) and quits with exit code 0 when every check passes.
