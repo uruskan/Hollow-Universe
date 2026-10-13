@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Hollow.Simulation.Diagnostics;
 
-/// <summary>The parts of a server tick that <see cref="TickProfile"/> times (GROUND.md §5.9).</summary>
+/// <summary>The parts of a server tick that <see cref="TickProfile"/> times (GROUND.md §5.10).</summary>
 public enum ProfileSection
 {
     /// <summary>The whole tick.</summary>
@@ -14,7 +14,7 @@ public enum ProfileSection
     /// <summary>Receiving: the network's events, inputs and intents.</summary>
     Receive,
 
-    /// <summary>Logins finished and characters spawned.</summary>
+    /// <summary>Logins finished and characters spawned; respawns that waited for their ground.</summary>
     Logins,
 
     /// <summary>The zone's step.</summary>
@@ -88,7 +88,7 @@ public enum ProfileSection
 }
 
 /// <summary>
-/// Where a server's ticks go (GROUND.md §5.9): time per <see cref="ProfileSection"/> on the tick's thread, totals since
+/// Where a server's ticks go (GROUND.md §5.10): time per <see cref="ProfileSection"/> on the tick's thread, totals since
 /// <see cref="Reset"/>, each section's longest tick, and what the slow ticks spent theirs on, garbage collections
 /// included. Sections nest (a tile added during movement counts in both), so the report lists them as a tree. One
 /// thread; a null profile measures nothing.
@@ -203,7 +203,7 @@ public sealed class TickProfile
 
     public long Calls(ProfileSection section) => _calls[(int)section];
 
-    /// <summary>The table of GROUND.md §5.9: per section, its average and longest tick, calls a tick, and its share of the slow ticks.</summary>
+    /// <summary>The table of GROUND.md §5.10: per section, its average and longest tick, calls a tick, and its share of the slow ticks.</summary>
     public string Report()
     {
         var b = new StringBuilder();
@@ -267,6 +267,7 @@ public sealed class TickProfile
         ProfileSection.CharacterGround => "ground (characters)",
         ProfileSection.BroadPhase => "broadphase",
         ProfileSection.GroundRelease => "ground released",
+        ProfileSection.Logins => "logins, respawns",
         ProfileSection.AfterStep => "after the step",
         ProfileSection.ReplicateSnapshots => "snapshots",
         ProfileSection.ReplicateThings => "things",

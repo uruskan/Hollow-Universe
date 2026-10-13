@@ -464,7 +464,7 @@ public sealed class PlanetSurface : ISurface
     public PooledTriangles GroundCollisionPooled(in ZoneFrame frame, double centreX, double centreZ, double size) =>
         TileMesh.CollisionPooled(this, frame, centreX, centreZ, size, CollisionLevel, TileCells, _collisionHeights);
 
-    // The collision grids' heights, shared by neighbouring physics tiles (GROUND.md §5.9): 4,096 grids, 36 MB at most.
+    // The collision grids' heights, shared by neighbouring physics tiles (GROUND.md §5.10): 4,096 grids, 36 MB at most.
     private readonly GridHeights _collisionHeights = new(4096);
 
     public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>

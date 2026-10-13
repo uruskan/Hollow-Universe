@@ -175,7 +175,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     public void Run()
     {
         TimerResolution.Begin();
-        // The tick can't wait for a blocking full collection (GROUND.md §5.9): full collections run in the background
+        // The tick can't wait for a blocking full collection (GROUND.md §5.10): full collections run in the background
         // while it ticks, as in the game's own process.
         System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
         try
@@ -345,7 +345,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         Profile.EndTick((GC.GetTotalPauseDuration() - gcBefore).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocatedBefore);
     }
 
-    /// <summary>Where the ticks go (GROUND.md §5.9): the load test prints it.</summary>
+    /// <summary>Where the ticks go (GROUND.md §5.10): the load test prints it.</summary>
     public TickProfile Profile { get; } = new();
 
     private void ReportFalls()

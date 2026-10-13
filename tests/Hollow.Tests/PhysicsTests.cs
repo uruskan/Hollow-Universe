@@ -25,7 +25,7 @@ public static class PhysicsTests
     }
 
     /// <summary>
-    /// GROUND.md §5.9: a body taken out of the world is kept and put back for the next body under its ID. A character
+    /// GROUND.md §5.10: a body taken out of the world is kept and put back for the next body under its ID. A character
     /// walking the movement check's script through a grove of trees and boulders meets exactly the same world, bit
     /// for bit, whether the ground and props are new or came back from their parking (after other props had them),
     /// and whatever the broadphase went through.

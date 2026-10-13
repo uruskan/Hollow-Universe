@@ -34,7 +34,7 @@ public static class Program
         int count = (int)Number(o, "count", 100);
         int raidBases = (int)Number(o, "raid-bases", script == BotScript.Raid ? Math.Max(1, count / 2) : 0);
         float raidRadius = (float)Number(o, "raid-radius", 70);
-        // --fly n: the first n bots fly (each gets a ship), the rest play --script (GROUND.md §5.9).
+        // --fly n: the first n bots fly (each gets a ship), the rest play --script (GROUND.md §5.10).
         int fly = (int)Number(o, "fly", script == BotScript.Fly ? count : 0);
         TimerResolution.Begin();
         try
@@ -198,7 +198,7 @@ public static class Program
         int storms = 0;
         if (storm > 0)
         {
-            // Respawn storms (GROUND.md §5.9): every bot killed at once, every few seconds; each respawns on a beach.
+            // Respawn storms (GROUND.md §5.10): every bot killed at once, every few seconds; each respawns on a beach.
             var clock = Stopwatch.StartNew();
             while (clock.Elapsed.TotalSeconds + storm <= duration)
             {

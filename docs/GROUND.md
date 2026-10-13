@@ -128,7 +128,9 @@ Godot.
   `PlanetSurface`, one instance per process shared by the server, the prediction and the terrain; `--stand-in` gives
   tests the old hilly sphere). Each tick: receive, finish logins, run admin commands, give every character its input
   for this tick, step the zone, send snapshots (20 a second), save every 30 s, send. Tick time is measured (average,
-  99th percentile, maximum).
+  99th percentile, maximum) and profiled by part (`TickProfile`: time, calls and garbage per part, the slow ticks'
+  parts, the collections that paused ticks; the load test prints it, §5.10). The tick runs with .NET's sustained
+  low-latency collector, as the game does.
   - **Arrival:** a new character arrives on a random one of the zone's beach points, as in Rust (`Beaches`: up to 24
     points of sandy shore 0.5–3.5 m above the sea with the water within 30 m, at least 45 m apart, nearest to the
     origin first; at the landing site they lie 0.3–0.8 km away). `--spawn origin` puts arrivals at the landing site
@@ -138,7 +140,10 @@ Godot.
     `say <text>`, `save`, `quit`. Ctrl+C or `quit` saves everyone, says goodbye to every client and stops.
   - **Host mode:** the game runs the same `GameServer` on a background thread for solo play (`--host`); other
     clients can join it on the same port.
-  - Ground near the spawn is built at start, so the first arrival doesn't stall the tick.
+  - Ground near the spawn is built at start, so the first arrival doesn't stall the tick. A respawn or a login waits
+    for the ground where the player comes in: the point is picked when the player asks (the beach as of that tick),
+    its tiles are built on worker threads, and the player comes in, and the respawn intent is answered, on the tick
+    they are ready (a second at most; §4.5, §5.10).
 
 ### 4.3 Client
 
@@ -296,6 +301,24 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   sides. A tile's Jolt body ID follows from its grid position (Jolt orders contacts by body ID), so tiles agree where
   they meet whatever else each side holds. Tiles exist within ±8.2 km of the zone's origin. Building parts are boxes
   and convex hulls from data. Deployables and natural objects use simple shapes.
+- **Streaming the ground** (`PhysicsWorld`, §5.10), the same code on the server and in every client's prediction, so
+  both meet the same ground wherever a query can reach:
+  - *Who asks:* a character on foot needs the 3 × 3 tiles round it and builds 5 × 5 ahead; a ship needs only the
+    tiles its queries of the tick can reach (its bounding sphere, a tick's travel, the skids' rays and the widest
+    natural prop's 3 m: one to four tiles, `EnsureGroundAround`) and builds ahead a corridor that wide along the next
+    1.5 s of its way (`PrefetchAlong`); a respawn or a login waits for its 3 × 3 (`GroundReady`, §4.2). A tile with
+    its trees and outcrops comes and goes as one.
+  - *Built on worker threads*, from the planet's pooled collision with neighbouring tiles sharing their grids'
+    heights (§4.6); taken into the world at most 8 a tick. A tile needed now that is still queued is built by the
+    tick itself rather than waited for behind the others (a respawn storm queues hundreds); one a worker is building
+    is waited for. A tile nobody marked for 10 s goes.
+  - *Bodies are kept once made:* Jolt gives a body the ID asked for by walking its list of free IDs, which cost
+    50–70 µs a body with this world's scattered IDs, so a body taken out of the world is parked (out of the
+    broadphase, on a tiny shared shape) and put back with its new shape and pose, exactly as a new one (a test). The
+    first prop makes all 65,536 prop bodies ahead (10 MB, 20–50 ms once), each then at the head of Jolt's list.
+  - *The broadphase is kept in shape* by the broadphase part of Jolt's own update (an update with no time step does
+    nothing else; the world is never stepped): only what changed is rebuilt, 0.1–0.4 ms a tick, where a whole
+    rebuild took 5–10 ms with 30,000 bodies. Queries find the same bodies whatever the tree's shape.
 - Godot's own physics is used only for cosmetic things: ragdolls and debris.
 
 ### 4.6 Planet surface
@@ -315,7 +338,10 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   client draws near the player (`GroundCollision`; a test checks it). Of the grids under a 64 m physics tile, the
   physics keeps the triangles over the tile's square and 2 m around it, seen from the planet's centre
   (`PhysicsWorld.ClipMargin`): the grids overlap the square by up to one of theirs, and the same ground twice costs
-  every contact query.
+  every contact query. The physics takes the triangles in pooled arrays (`GroundCollisionPooled`, the same to the
+  bit, a test), and the planet keeps the heights of the last 4,096 grids it sampled for them (`GridHeights`, 36 MB
+  at most): a 64 m tile's nine grids are mostly its neighbours', so a tile costs a worker 16 ms and 63 KB of garbage
+  instead of 42 ms and 600 KB (§5.10).
 - **Height**, in layers:
   - *Plates:* 14–20 plates (Voronoi on the sphere, seen through a warped direction so their edges bend), each
     continental or oceanic with its own Euler pole. Every plate near a point weighs in softly, and each boundary's
@@ -1083,6 +1109,123 @@ were running on the same PC at the time, so the comparison is rough.
   redrawn after hits (25–30 ms).
 - The average sits at 60 fps with the GPU at 11.1 ms: the other agent's client was drawing on the same GPU, and the
   server's tick, doubled, shares the CPU with its bots.
+
+### 5.10 Server performance on the real planet
+
+Measured on the owner's PC (12 threads, 16 GB) on 13 October 2026 on the first world's own ground, from `ground` after
+pass 3 and G6, the server in the load test's process and the bots in a child process (§5.1). Other agents' work
+shared the PC all along: a Rust build on three cores, a disk-wide search on one, their builds and load tests (another
+package's load test ran beside some of the final runs); the memory in use reached 91 % at times, where .NET's
+collector starts working harder, and the disk ran full once. So the final runs alternate the old build and the new
+one, scenario by scenario, twice over, and the tables give both runs.
+
+```bash
+# 100 walking bots (wander, circle and jump) at the landing site
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 40 --warmup 15
+# the hardest case: 20 bots flying Tin Finches and 80 walking
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --fly 20 --duration 40 --warmup 15
+# 20 flying bots alone (§6.7)
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --script fly --duration 40 --warmup 15
+# 100 bots raiding 50 huts (§5.5)
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --script raid --duration 40 --warmup 20
+# respawn storms: every bot killed at once every 12 s, each respawning on one of the 24 beach points 0.3-0.8 km away
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 40 --warmup 15 --storm 12
+```
+
+New in the load test: `--fly n` (the first n bots fly, each given a ship, the rest play `--script`), `--storm s`, the
+ground's tiles and props and Jolt bodies made and put back, the scatter tiles made, the server process's collections
+and garbage, and **the profile** (`TickProfile`, `src/Hollow.Simulation/Diagnostics`): for each part of the tick its
+average and longest time, calls a tick, its time in the slow ticks (33.3 ms or more) and the garbage it makes on the
+tick's thread; across the parts, the ground's own work (tiles built or waited for on the tick, tiles and props added
+and removed, nature looked up, ground asked for ahead, respawns); and the collections that paused ticks, by kind.
+No sampling profiler ships offline with the SDK (`dotnet-trace` isn't installed), so the profile is timing scopes.
+
+**Where the time went** with 20 flying and 80 walking bots (first runs; ms a tick on average, the longest tick in
+brackets; in slow ticks: ms in each of them):
+
+| Part of the tick | Before | Before, in its 58 slow ticks | After (no slow ticks) |
+|---|---|---|---|
+| The whole tick | 10.77 (99.0) | 46.9 | 6.10 (32.8) |
+| Receiving | 0.70 (20.6) | 1.3 | 0.67 (22.6) |
+| The zone's step | 6.15 (93.4) | 40.7 | 1.66 (18.3) |
+| – the ground under characters (tiles taken in, with their trees) | 2.49 (56.6) | 22.5 | 0.23 (16.1) |
+| – the broadphase | 1.70 (55.1) | 5.9 | 0.22 (1.6) |
+| – movement (80 walkers) | 1.02 (14.8) | 1.3 | 0.98 (6.8) |
+| – ships (their ground included) | 0.84 (78.8) | 10.9 | 0.14 (4.6) |
+| – the game's rules | 0.05 | 0.0 | 0.05 |
+| Replication (20 a second) | 3.18 (20.5) | 3.8 | 3.07 (20.0): snapshots 1.70, nature 0.16 |
+| Sending | 0.64 (16.0) | 1.0 | 0.59 (7.5) |
+| Across them: tiles added (1.1 a tick) | 2.80 (56.6) | 27.6 | 0.17 (3.8) |
+| – their props added (37 a tile) | 2.60 (54.9) | 26.3 | 0.09 (3.3) |
+| Across them: tiles built or waited for on the tick | 0.27 (56.3) | 5.5 | 0 |
+| Garbage, the whole process | 1,005 KB a tick; 99 gen0, 34 gen1, 14 gen2 in 40 s | | 209 KB (82 on the tick's thread); 29, 10, 2 |
+
+**What was found, and fixed:**
+1. **Adding a prop cost 50–70 µs.** Jolt gives a body the ID asked for by walking its list of free IDs, and this
+   world's IDs are far apart (tiles by grid position, props by hash over 65,536 slots), so a tile's 37 trees took
+   2.6 ms and a few tiles arriving together made most slow ticks. Bodies are now kept once made (P1): taken out of the
+   world a body is parked, put back it takes its new shape and pose exactly as a new one (`PhysicsTests.
+   KeptBodiesCollideAsNewOnes` walks the movement check's script through a grove of new and of reused bodies to the same
+   bits), and the first prop makes all prop bodies ahead from the top of the range down, where each is the list's head.
+   Props: 2.6–3.5 → 0.09 ms a tick.
+2. **The broadphase rebuild** (`OptimizeBroadPhase`, 5.4 ms every third tick with 30,000 bodies) is replaced by the
+   broadphase part of Jolt's own update, which rebuilds only what changed (P2): 1.7–2.0 → 0.2 ms a tick, the longest
+   1.6–2.9 ms, queries as fast as after a whole rebuild.
+3. **Ships asked for 3 × 3 tiles** round them and a second ahead, and built tiles on the tick when they turned. Now
+   only the tiles this tick's queries can reach (one to four) and a corridor that wide along 1.5 s of their way (P3):
+   no tile built on the tick in any run, ships 0.8 → 0.14 ms a tick, 620–690 tiles and 23,000–26,000 props held
+   instead of 780–820 and 28,000. Their prediction stayed exact (no correction while the PC kept the inputs on time;
+   `ShipNetTests`).
+4. **A respawn built its ground on the tick:** nine tiles waited for, one respawn after another, so a storm of 100
+   took a tick of 1.1–1.25 s, and a raid's respawns 0.3–0.5 s. Respawns and logins now wait for their ground, built
+   on worker threads, and happen on the tick it is ready (P4); a tile needed now that is still queued is built by the
+   tick rather than waited for behind hundreds (P5).
+5. **Garbage, 1 MB a tick:** building a ground tile made 600 KB, most of it large-object arrays (gen2 collections),
+   and `Prefetch` allocated a closure for every tile it looked at (a lambda capturing x and z: 94 KB a tick with 100
+   characters). Collision now comes in pooled arrays (`ISurface.GroundCollisionPooled`, the same to the bit), the
+   closure is only made for a tile that is started, a tile's props are remembered so it leaves without asking the
+   scatter, and the tick runs with the sustained low-latency collector (P8).
+6. **A tile cost a worker 42 ms**, mostly heights its neighbours had already sampled: the planet keeps the heights of
+   recent collision grids (P7), 16 ms and 63 KB a tile.
+
+**Before and after**, the old build and the new one alternating, twice: the server's tick in ms, average / 99th
+percentile / worst, then the ticks over 33.3 ms of 1,200; in brackets the clock jumps in the bots' process where there
+were any (the PC too busy to keep the bots on time, which lands on the server's worst ticks too). Target: ≤ 10 ms
+typical and ≤ 33 ms at the 99th percentile.
+
+| Scenario | Before | After | Garbage a tick, before → after |
+|---|---|---|---|
+| 100 walking | 5.93 / 27.9 / 133, 10 (71); 5.73 / 18.4 / 70.6, 5 | 5.25 / 11.9 / 31.7, 0; 5.39 / 11.1 / 41.5, 1 | 185 → 74 KB |
+| **20 flying, 80 walking** | 10.77 / 53.6 / 99.0, 58; 12.47 / 63.6 / 145, 80 | **6.10 / 13.8 / 32.8, 0; 6.15 / 13.6 / 21.5, 0** | 1,005–1,074 → 208 KB |
+| 20 flying alone | 6.95 / 57.8 / 160, 57; 9.03 / 75.6 / 288, 65 (66) | 1.31 / 4.1 / 13.2, 0 (56); 2.32 / 28.5 / 216, 10 (155) | 941–1,014 → 137–150 KB |
+| 100 raiding | 11.41 / 88.9 / 359, 34 (1,108); 8.57 / 34.0 / 516, 13 (682) | 9.30 / 39.0 / 74.8, 18 (797); 6.84 / 16.9 / 37.6, 4 (403) | 405–409 → 193–197 KB |
+| Respawn storms (3 × 100) | 6.25 / 22.7 / 1,139, 5 (200); 6.07 / 11.6 / 1,244, 3 (251) | 4.94 / 14.4 / 81.8, 5 (449); 4.71 / 12.4 / 80.2, 2 (394) | 297–330 → 117–138 KB |
+
+- **The hardest case meets the target** in both runs, with no tick over budget: from 11.6 to 6.1 ms on average and
+  from 54–64 to 14 ms at the 99th percentile. The zone's step went from 6.2–7.4 to 1.6 ms; what is left is mostly
+  replication (3.1 ms) and movement (1.0 ms).
+- **20 flying bots alone** cost 1.3 ms a tick on a quiet PC (§6.7 measured 5.6 ms and 44 ms at the 99th
+  percentile); the second run had the PC's memory at 92 % and lost ticks to it.
+- **The raid** ran on a busy PC both times (another package's load test beside it); the respawns' ground, the worst
+  ticks before (0.3–0.5 s), no longer stalls a tick, and the rest is the raid's own work (its bullets and blasts,
+  1.7 ms a tick) and replication.
+- **Respawn storms** no longer stall the server for 1.1–1.25 s: the 300 respawns of a run cost 0.02 ms a tick in all.
+  The worst tick left in each run (80 ms) is a respawned character walking onto a tile still queued (below).
+
+**What is left:**
+- **Replication** is now the largest part of the tick: 2–3 ms a tick (snapshots 1.0–1.7 ms, then every player's
+  relevance, things and nature), all on the tick's thread. Each player's snapshot is independent of the others', so
+  writing them on worker threads is the next step if 200 players in one zone (ARCHITECTURE.md §10.1) need it.
+- **Movement** costs about 1 ms a tick for 100 characters: Jolt's character queries, already cheap.
+- **The worst ticks left are the PC's:** with the other work on it, a tick now and then loses 20–120 ms to the
+  operating system or to a collection slowed by memory at 90 %; the profile finds them spread over unrelated parts
+  (a send, one player's building, one tile's props). On a quiet PC the same runs had no slow tick.
+- **Respawn storms** still lose a tick about once a storm, in its first seconds, when a respawned character walks
+  onto a tile of its 5 × 5 still queued behind the other beaches' tiles: the tick builds it itself with its scatter
+  tiles, 70–120 ms in these runs. Building ahead nearest first (a priority queue of tile builds instead of the thread
+  pool's first-come order) would remove these.
+- **The client's prediction** runs the same code: its first prop makes the 65,536 prop bodies (10 MB, 20–50 ms
+  once, while the world opens), and its ships ask for the same ground as the server's.
 
 ---
 
@@ -2118,7 +2261,8 @@ rebuilt after every 64 bodies that come or go (the integration's `PhysicsWorld.O
 that was every third tick at 5.6 ms (2 ms a tick, the longest 26 ms), and tiles built when one wasn't ready in time
 make the rest of the spikes. Runs while other agents' load tests shared the PC measured up to twice these averages.
 Making streamed ground cheaper for fast movers (coarser collision and no trees far under a ship, fewer tiles kept
-behind it, a rebuild that scales with the world) is the next step for whoever takes the server's performance.
+behind it, a rebuild that scales with the world) is the next step for whoever takes the server's performance (done
+in §5.10: bodies kept once made, the broadphase updated incrementally, ships asking only for the ground in reach).
 
 What the flying bots found, fixed here: the near-ground band was a second's travel deep (a ship cruising at 150 m
 counted as near and swept the ground every tick), now a quarter second's; the prefetch built 25 tiles round the point a
@@ -3187,7 +3331,8 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     crawling (the wounded crouch), sleepers' pose (75). The character package's views would need an aiming flag and a
     crawling stance.
 79. **Jolt's broadphase is rebuilt after bodies change** (`PhysicsWorld.OptimizeBroadPhase`: at most twice a second,
-    sooner after 64 changes), since the zone never runs Jolt's update that would do it (§5.5).
+    sooner after 64 changes), since the zone never runs Jolt's update that would do it (§5.5). Now kept in shape by
+    the broadphase part of Jolt's update instead (P2).
 80. **Spare bodies**: four of each body are built while the world opens, and players leaving range give theirs back
     (kept up to eight of each), so coming back into view costs no frame.
 81. **A timed charge blinks; fuses sputter** (Rust's way): the timed charge carries a red lamp that blinks and beeps
@@ -3259,3 +3404,29 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
 - S18. **A pilot's ground is the ship's business:** the zone's ground pass skips seated characters (a pilot at 150 m
   needs no tiles under it; the ship asks for them when it nears the ground), and a blast leaves a pilot to the cabin.
 
+
+Decisions taken for the server's performance (§5.10) without the owner, to confirm or overturn (numbered P1 on):
+
+- P1. **Jolt bodies are kept once made.** Taking a body out of the world parks it (out of the broadphase, on a tiny
+  shared shape) instead of destroying it, and the first prop makes all 65,536 prop bodies ahead: Jolt's walk of its
+  free IDs made every new body cost 50–70 µs with this world's scattered IDs. It costs 10 MB and 20–50 ms once,
+  on the server and in every client's prediction world; a put-back body is exactly a new one (a test).
+- P2. **The broadphase is kept in shape by Jolt's own update with no time step**, which rebuilds only what changed,
+  every tick something did (replaces decision 79's whole rebuilds). The world is still never stepped.
+- P3. **A ship asks for the ground its queries can reach this tick** (one to four tiles) and builds ahead a corridor
+  that wide along the next 1.5 s of its way. Trees and outcrops still come with their tile rather than being streamed
+  on their own by height: with kept bodies they cost about 3 µs each to add, and a ship low enough to need the
+  ground can be among the trees within a second.
+- P4. **A respawn or a login waits for its ground, up to a second.** The point is picked when the player asks (the
+  beach as of that tick, the bag's spot), its tiles are built on worker threads, and the respawn happens, and its
+  intent is answered, on the tick they are ready: one to a few ticks later than before, unseen behind the death
+  screen. Past a second it builds what is missing itself, as before.
+- P5. **At most 8 tiles built ahead are taken into the world a tick**; a tile needed now is always taken in, and if
+  it is still queued, built by the tick itself rather than waited for behind the queue.
+- P6. **Ground tiles still stay 10 s after nobody marks them**, ships' corridors included: with bodies kept a tile's
+  coming and going is cheap, and ships flying loops come back over the same ground.
+- P7. **The planet keeps the heights of the last 4,096 collision grids** (36 MB at most) for neighbouring tiles.
+- P8. **The server ticks with .NET's sustained low-latency collector**, as the game does: no blocking full
+  collections while it runs.
+- P9. **The load test's walking bots now respawn when dead** (the storms of §5.10); before, a mixed bot that died
+  stayed dead.
