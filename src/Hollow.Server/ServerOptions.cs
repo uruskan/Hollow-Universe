@@ -41,6 +41,9 @@ public sealed record ServerOptions
     /// <summary>Gives <see cref="JoinKit"/> with every new life too, not only to new characters (the G4 load test's firefights).</summary>
     public bool KitEveryLife { get; init; }
 
+    /// <summary>Every new character gets a Tin Finch beside them, full and theirs (the G6 load test's pilots).</summary>
+    public bool ShipOnJoin { get; init; }
+
     /// <summary>The game's data (game/data/ground); null finds and loads it (GameContent.FindFolder).</summary>
     public Simulation.Content.GameContent? Content { get; init; }
 

@@ -60,6 +60,9 @@ public sealed class PlayerSession
     /// <summary>Entities this player has been told about (Spawn sent, no Despawn since).</summary>
     public HashSet<uint> Relevant { get; } = new();
 
+    /// <summary>The ships (net IDs) this player hears about (G6).</summary>
+    public HashSet<uint> ShipsRelevant { get; } = new();
+
     // ---------------------------------------------------------------- statistics
 
     public long InputsApplied { get; private set; }

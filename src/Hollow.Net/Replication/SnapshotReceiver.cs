@@ -7,7 +7,7 @@ namespace Hollow.Net.Replication;
 /// <summary>
 /// The client's half of snapshot replication (<see cref="SnapshotSender"/>): decodes snapshots against the ones it
 /// kept, and builds the acknowledgement it sends back with every input packet. A snapshot that can't be decoded
-/// completely is dropped and not acknowledged, so the server never builds on it.
+/// completely (its characters or its ships, G6) is dropped and not acknowledged, so the server never builds on it.
 /// </summary>
 public sealed class SnapshotReceiver
 {
@@ -19,17 +19,11 @@ public sealed class SnapshotReceiver
     /// <summary>A gap of more snapshots than this (over 8 minutes) is nonsense too.</summary>
     public const uint MaxSequenceJump = 10_000;
 
-    private readonly Dictionary<uint, CharacterNetState>[] _kept = new Dictionary<uint, CharacterNetState>[History];
-    private readonly uint[] _keptSequence = new uint[History];
+    private readonly DeltaKeeper<CharacterNetState> _characters = new();
+    private readonly DeltaKeeper<ShipNetState> _ships = new();
     private readonly List<(uint NetId, CharacterNetState State)> _decoded = new();
-
-    public SnapshotReceiver()
-    {
-        for (int i = 0; i < History; i++)
-        {
-            _kept[i] = new Dictionary<uint, CharacterNetState>();
-        }
-    }
+    private readonly List<(uint NetId, ShipNetState State)> _decodedShips = new();
+    private readonly List<(uint NetId, ShipNetState State)> _discardShips = new();
 
     /// <summary>The newest snapshot decoded (0 before the first).</summary>
     public uint LatestSequence { get; private set; }
@@ -44,11 +38,17 @@ public sealed class SnapshotReceiver
 
     /// <summary>
     /// Decodes a snapshot whose type byte was already read. On success fills <paramref name="entities"/> (ascending net
-    /// ID) and returns true; on failure returns false and changes nothing.
+    /// ID) and returns true; on failure returns false and changes nothing. Its ships are read and dropped.
     /// </summary>
-    public bool TryRead(BitReader r, out SnapshotHeader header, List<(uint NetId, CharacterNetState State)> entities)
+    public bool TryRead(BitReader r, out SnapshotHeader header, List<(uint NetId, CharacterNetState State)> entities) =>
+        TryRead(r, out header, entities, _discardShips);
+
+    /// <summary>Decodes a snapshot with its ships (G6), all or nothing.</summary>
+    public bool TryRead(BitReader r, out SnapshotHeader header, List<(uint NetId, CharacterNetState State)> entities,
+        List<(uint NetId, ShipNetState State)> ships)
     {
         entities.Clear();
+        ships.Clear();
         header = SnapshotHeader.Read(r);
         if (r.Failed || header.Sequence == 0 || header.EntityCount > MaxEntities)
         {
@@ -66,52 +66,23 @@ public sealed class SnapshotReceiver
             Undecodable++;
             return false;
         }
-        _decoded.Clear();
-        uint netId = 0;
-        for (int i = 0; i < header.EntityCount; i++)
+        if (!_characters.Read(r, header.Sequence, header.EntityCount, _decoded))
         {
-            int gap = r.ReadDelta();
-            uint age = r.ReadBits(6);
-            if (gap <= 0 || r.Failed)
-            {
-                Undecodable++;
-                return false;
-            }
-            netId += (uint)gap;
-            CharacterNetState state;
-            if (age == 0)
-            {
-                state = CharacterNetState.Read(r);
-            }
-            else
-            {
-                uint baseSequence = header.Sequence - age;
-                int slot = (int)(baseSequence % History);
-                if (age >= header.Sequence || _keptSequence[slot] != baseSequence || !_kept[slot].TryGetValue(netId, out CharacterNetState baseline))
-                {
-                    Undecodable++;
-                    return false;
-                }
-                state = CharacterNetState.ReadDelta(r, baseline);
-            }
-            if (r.Failed)
-            {
-                Undecodable++;
-                return false;
-            }
-            _decoded.Add((netId, state));
+            Undecodable++;
+            return false;
+        }
+        uint shipCount = r.ReadVarUInt();
+        if (r.Failed || shipCount > MaxEntities || !_ships.Read(r, header.Sequence, shipCount, _decodedShips))
+        {
+            Undecodable++;
+            return false;
         }
 
         // Keep it, for later snapshots to build on, and acknowledge it.
-        int keep = (int)(header.Sequence % History);
-        _keptSequence[keep] = header.Sequence;
-        Dictionary<uint, CharacterNetState> kept = _kept[keep];
-        kept.Clear();
-        foreach ((uint id, CharacterNetState state) in _decoded)
-        {
-            kept[id] = state;
-            entities.Add((id, state));
-        }
+        _characters.Keep(header.Sequence, _decoded);
+        _ships.Keep(header.Sequence, _decodedShips);
+        entities.AddRange(_decoded);
+        ships.AddRange(_decodedShips);
         if (LatestSequence == 0)
         {
             AckBits = 0;

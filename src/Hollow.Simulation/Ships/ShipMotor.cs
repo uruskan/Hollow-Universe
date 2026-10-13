@@ -584,6 +584,21 @@ public static class ShipMotor
         }
     }
 
+    /// <summary>
+    /// A ship that crossed its ceiling parked at its orbit marker (GROUND.md §6.7): out of the physics, still. The zone does
+    /// this when no transfer takes it, and a pilot's prediction does the same.
+    /// </summary>
+    public static void ParkInOrbit(ref ShipState s)
+    {
+        s.Flags |= ShipFlags.InOrbit;
+        s.Flags &= ~(ShipFlags.EnginesOn | ShipFlags.Boosting | ShipFlags.Landed | ShipFlags.Touching);
+        s.Velocity = Vector3.Zero;
+        s.AngularVelocity = Vector3.Zero;
+        s.Thrust = Vector3.Zero;
+        s.BoostTicks = 0;
+        s.RestTicks = 0;
+    }
+
     // ---------------------------------------------------------------- frames and helpers
 
     /// <summary>

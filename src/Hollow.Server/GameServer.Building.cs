@@ -297,7 +297,7 @@ public sealed partial class GameServer
                     () => Zone.ClaimAct(me, m.Action, m.From, m.Slot, Expected(m.Expected), new EntityId(m.Target), m.X, m.Z, m.Yaw));
             }
             default:
-                return false;
+                return ReceiveShipIntent(session, type);
         }
     }
 

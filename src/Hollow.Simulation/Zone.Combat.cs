@@ -90,6 +90,12 @@ public sealed partial class Zone
                 RefuseGunActions(p, GunResult.NotAlive);
                 continue;
             }
+            if (Entities.Has<Ships.ShipSeat>(entity))
+            {
+                // In a ship's seat (G6): the hands are on the controls.
+                RefuseGunActions(p, GunResult.NotReady);
+                continue;
+            }
             ActionInput input = c.Actions;
             // Taking up another item (or another in the same slot) takes a moment and ends what was going on.
             ushort inSlot = input.HeldSlot < PlayerInventory.BeltSlots ? p.Inventory.Belt[input.HeldSlot].Item : (ushort)0;

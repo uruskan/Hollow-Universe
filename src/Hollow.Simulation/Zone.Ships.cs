@@ -186,7 +186,7 @@ public sealed partial class Zone
                     Hurt(pilotEntity, pilot, ship.Events.CrashDamage * ship.Def.CrashPilotShare, "Crashed", EntityId.None, "", canWound: false);
                 }
             }
-            if (ship.Events.ReachedCeiling && ship.Piloted && !ship.Destroyed)
+            if (ship.Events.ReachedCeiling && (ship.Piloted || ship.Autopilot) && !ship.Destroyed)
             {
                 EnterOrbit(ship);
             }
@@ -675,12 +675,7 @@ public sealed partial class Zone
             return;
         }
         ship.OrbitAnchor = ship.State.Position;
-        ship.State.Flags |= ShipFlags.InOrbit;
-        ship.State.Flags &= ~(ShipFlags.EnginesOn | ShipFlags.Boosting | ShipFlags.Landed);
-        ship.State.Velocity = Vector3.Zero;
-        ship.State.AngularVelocity = Vector3.Zero;
-        ship.State.Thrust = Vector3.Zero;
-        ship.State.BoostTicks = 0;
+        ShipMotor.ParkInOrbit(ref ship.State);
         ShipEvents.Add(new ShipEvent(ShipEventKind.Orbit, ship, 1, ship.Pilot));
     }
 

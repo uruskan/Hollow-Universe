@@ -5,6 +5,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Ships;
 using Hollow.Simulation.World;
 
 namespace Hollow.Net.Protocol;
@@ -97,6 +98,24 @@ public partial struct InputCommand
 
     /// <summary>Quarter ticks between this input's tick and the tick the player was drawing others at (lag compensation).</summary>
     public byte ViewDelay;
+
+    /// <summary>A pilot's controls (G6): one entry while flying a ship, none on foot (a bit).</summary>
+    [MaxCount(1)] public ShipControls[] Ship;
+}
+
+/// <summary>One tick of a pilot's controls (G6), each −127 … 127: stick, throttle lever, strafe, up and down.</summary>
+[NetStruct]
+public partial struct ShipControls
+{
+    [Signed(8)] public sbyte Pitch;
+    [Signed(8)] public sbyte Yaw;
+    [Signed(8)] public sbyte Roll;
+    [Signed(8)] public sbyte Throttle;
+    [Signed(8)] public sbyte Strafe;
+    [Signed(8)] public sbyte Vertical;
+
+    /// <summary>Boost held, flight assist off.</summary>
+    [Bits(2)] public ShipButtons Buttons;
 }
 
 /// <summary>
@@ -155,6 +174,61 @@ public partial struct SnapshotHeader
     public ushort EchoHold;
 
     [VarInt] public uint EntityCount;
+
+    /// <summary>The ship the player flies (G6), exactly, after <c>OwnTick</c>: one entry while in a seat, none on foot.</summary>
+    [MaxCount(1)] public OwnShipState[] OwnShip;
+}
+
+/// <summary>The ship the player flies, exactly as the server has it, for its prediction's reconciliation (G6).</summary>
+[NetStruct]
+public partial struct OwnShipState
+{
+    [VarInt] public uint NetId;
+
+    /// <summary>Its kind (the ship's item).</summary>
+    [VarInt] public uint Kind;
+    public float PositionX;
+    public float PositionY;
+    public float PositionZ;
+    public float RotationX;
+    public float RotationY;
+    public float RotationZ;
+    public float RotationW;
+    public float VelocityX;
+    public float VelocityY;
+    public float VelocityZ;
+    public float SpinX;
+    public float SpinY;
+    public float SpinZ;
+    public float Health;
+    public float Fuel;
+    public ushort BoostTicks;
+    public ushort CooldownTicks;
+    public ushort RestTicks;
+    [Bits(9)] public ShipFlags Flags;
+}
+
+/// <summary>
+/// A ship as everyone sees it (G6): position on a 1/256 m grid, its turn as yaw, pitch and roll (about the zone's +Y,
+/// then its own x, then its own z), what it is doing, its hatch, its engines' output (±127 = ±2 of each axis's thrust,
+/// boost above 1), its hull (of 255) and its kind (the item).
+/// </summary>
+[NetState]
+public partial struct ShipNetState
+{
+    [Signed(32)] public int X;
+    [Signed(32)] public int Y;
+    [Signed(32)] public int Z;
+    [Angle] public ushort Yaw;
+    [Angle] public ushort Pitch;
+    [Angle] public ushort Roll;
+    [Bits(12)] public ShipNetFlags Flags;
+    [Bits(5)] public byte Hatch;
+    [Signed(8)] public sbyte ThrustX;
+    [Signed(8)] public sbyte ThrustY;
+    [Signed(8)] public sbyte ThrustZ;
+    public byte Health;
+    [VarInt] public uint Kind;
 }
 
 /// <summary>A character as other players see it: position on a 1/256 m grid, view angles, what it's doing.</summary>
@@ -450,6 +524,18 @@ public partial struct IntentResult
 {
     [VarInt] public uint Seq;
     [Bits(5)] public ActionResult Result;
+}
+
+/// <summary>
+/// A ship action (G6, client → server, reliable ordered, the general intent sequence and budget, answered by
+/// <see cref="IntentResult"/>): the hatch, boarding, stepping out, the lock, refuelling, descending from orbit.
+/// </summary>
+[NetMessage(120)]
+public partial struct ShipIntent
+{
+    [VarInt] public uint Seq;
+    public ulong Ship;
+    [Bits(3)] public ShipAction Action;
 }
 
 /// <summary>A firearm's magazine and attachments (G4), carried by its slot.</summary>

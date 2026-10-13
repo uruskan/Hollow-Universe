@@ -1527,7 +1527,8 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
 | Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
 | In the zone | `src/Hollow.Simulation/Zone.Ships.cs`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
-| Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game) |
+| Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/GameServer.Ships.cs`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, `LocalPlayer.Ships.cs` |
+| Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly) |
 
 **The flight model** (`ShipMotor.Step`, one 30 Hz tick, a pure function of the state, the pilot's input and the static
 world, like a character's step, §4.5). Six degrees of freedom in the zone's frame: the centre of mass, a rotation, a
@@ -1601,6 +1602,35 @@ the physics and parks at its orbit marker over the spot it left, the pilot still
 250 m under the ceiling over the same spot, level, falling at 40 m/s with flight assist on. The seam for the space layer
 (G8, ARCHITECTURE.md §12): `Zone.OrbitTransfer`, asked first; a handler that takes the ship and its pilot to local space
 returns true, and the parking above is what happens without one.
+
+**Network** (protocol 6, `Messages.cs` 120; `Replication/DeltaChannel.cs`, `GameServer.Ships.cs`, `GameClient.Ships.cs`,
+`ShipPredictor.cs`, `RemoteShip.cs`, `LocalPlayer.Ships.cs`):
+- **Controls** ride in every tick's input while flying (`ShipControls`: stick, throttle lever, strafe and up/down in
+  1/127, boost and flight assist; one bit on foot), and the pilot's client predicts its ship with exactly what the
+  server will apply, as it does its character.
+- **Snapshots** carry ships in a section of their own after the characters (`ShipNetState`: the centre of mass on the
+  1/256 m grid, yaw, pitch and roll in 1/65,536 turn, flags, the hatch, the thrust on each axis, the hull and the kind),
+  each delta-coded against its newest state the client confirmed, with its own priorities, within 35 % of the
+  snapshot's budget. Ships are relevant within 2 km (horizontally): `Spawn` with `EntityKind.Ship`, `Despawn`.
+  (The replication became generic over the state type for this: characters and ships are two `DeltaChannel`s
+  sharing the snapshots' sequence and acknowledgements.)
+- **The pilot's ship exactly** rides in the header (`OwnShipState`) for reconciliation: `ShipPredictor` keeps 4 s of
+  states, replays newer inputs from the server's after a mismatch, and parks in orbit as the zone does; the seated
+  character's prediction puts it at the predicted seat (`Predictor.Seat`), so it matches too.
+- **Everyone else** sees ships interpolated 100 ms behind (`RemoteShip`: the turn by slerp), with the hatch, the flags
+  (piloted, landed, engines, boost, flight assist off, locked, in orbit, wrecked, asleep) and the thrust for the glow.
+  Parked ships are static bodies in the client's own prediction physics too.
+- **Intents** (`ShipIntent`: hatch, board, exit, lock, refuel, descend; the general budget, answered by `IntentResult`).
+  The cargo opens with `OpenIntent` on the ship's ID; `LootState` and the container messages carry it like a box.
+  `GameClient.AimShip` says what the interact key would do at a ship (open or shut the hatch, board, refuel, open the
+  cargo); `Interact` does it.
+- The server's admin gives a player a ship (`ship <name>`: beside them, full, theirs, the hatch open);
+  `ServerOptions.ShipOnJoin` gives every new character one (the load test).
+
+| Test | What it shows |
+|---|---|
+| `ShipNetTests.PredictionMatchesTheServer` | 900 ticks of a recorded flight (lift-off, a turn, boost, flight assist off, pitch, roll, strafe, a landing with the stick moving), the client's predictors on their own ground and trees against the zone: 0 ship ticks and 0 character ticks differ |
+| `ShipNetTests.OthersSeeItFly` | Over loopback: Ada boards the ship the server gave her through the intent, climbs and flies; Bo sees it 28 m up at 45 m/s, piloted, engines on; Ada's prediction is never corrected |
 
 ---
 
@@ -2259,7 +2289,7 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
 - S6. **Only a still ship opens its hatch or lets its pilot out** (landed, or under 2.5 m/s within 3.5 m of the ground).
   There is no ejecting yet. A pilot who logs off stays in the seat and the engines hold the ship where it is.
 - S7. **Orbit is a parked marker until G8:** above 15 km over the mean radius the ship leaves the physics and waits over
-  where it left; Descend brings it back 250 m under the ceiling over the same spot.  is the seam for
+  where it left; Descend brings it back 250 m under the ceiling over the same spot. `Zone.OrbitTransfer` is the seam for
   the space layer.
 - S8. **The zone's edge holds ships** inside a ±7.8 km square, where the ground's tiles end, until zones follow players
   (G8): "the other side of the planet" in G6's "done when" needs that, or a hop through orbit.
