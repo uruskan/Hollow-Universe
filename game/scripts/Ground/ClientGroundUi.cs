@@ -103,10 +103,16 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         get
         {
             VitalsView v = Me.Vitals;
-            if (v != _vitalsFrom)
+            Privilege rights = Build?.PrivilegeHere() switch
+            {
+                Hollow.Simulation.Building.Privilege.Allowed => Privilege.Allowed,
+                Hollow.Simulation.Building.Privilege.Blocked => Privilege.Blocked,
+                _ => Privilege.None,
+            };
+            if (v != _vitalsFrom || rights != _vitals.Building)
             {
                 _vitalsFrom = v;
-                _vitals = new UiVitals(v.Health, v.Calories, v.Hydration, v.Temperature, v.Comfort ? 1 : 0, v.IsBleeding ? 1 : 0, v.Wet ? 1 : 0);
+                _vitals = new UiVitals(v.Health, v.Calories, v.Hydration, v.Temperature, v.Comfort ? 1 : 0, v.IsBleeding ? 1 : 0, v.Wet ? 1 : 0, rights);
             }
             return _vitals;
         }
@@ -157,7 +163,12 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
                     string name = _client.Entities.FirstOrDefault(e => e.Id == Me.LootTarget)?.Name ?? "SLEEPER";
                     return new LootView(UiContainerKind.Corpse, name, LootSlots());
                 default:
-                    return new LootView(UiContainerKind.Box, (thing?.Deployable(C)?.Item.Name ?? "Box").ToUpperInvariant(), LootSlots());
+                {
+                    // The claim device's upkeep store opens like a box (GROUND.md §6.5).
+                    bool claim = thing == null && _client.Building?.Claims.Any(c => c.Id == Me.LootTarget) == true;
+                    string title = claim ? C.Building.ClaimName : thing?.Deployable(C)?.Item.Name ?? "Box";
+                    return new LootView(UiContainerKind.Box, title.ToUpperInvariant(), LootSlots());
+                }
             }
         }
     }
@@ -225,11 +236,20 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    public WheelKind? HeldWheel => null;
+    /// <summary>The building in the game (wheels, building rights), set by the ground view.</summary>
+    public BuildView? Build { get; set; }
 
-    public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) => Array.Empty<WheelChoice>();
+    public WheelKind? HeldWheel => Build?.Held switch
+    {
+        Hollow.Simulation.Content.BuildingRole.Plan => WheelKind.Plan,
+        Hollow.Simulation.Content.BuildingRole.Hammer => WheelKind.Hammer,
+        _ => null,
+    };
 
-    public int WheelCurrent(WheelKind kind) => -1;
+    public IReadOnlyList<WheelChoice> Wheel(WheelKind kind) =>
+        Build == null ? Array.Empty<WheelChoice>() : kind == WheelKind.Plan ? Build.PlanChoices() : Build.HammerChoices();
+
+    public int WheelCurrent(WheelKind kind) => kind == WheelKind.Plan && Build != null ? Build.PlanPiece : -1;
 
     // ---------------------------------------------------------------- events
 
@@ -400,9 +420,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    public void ChooseWheel(WheelKind kind, int index)
-    {
-    }
+    public void ChooseWheel(WheelKind kind, int index) => Build?.ChooseWheel(kind, index);
 
     public void CloseLoot()
     {

@@ -1742,6 +1742,20 @@ closed-form step. Decoding treats the bytes as untrusted: a kind that no longer 
 
 **Bots** (`--script build`, §5.4) build a small base each through the same API, and the load test reports the building.
 
+**In the game (phase 2b, `game/scripts/Ground/BuildView.cs`).** The replica's `BuildingWorld` is drawn by the building
+package's `BuildingRenderer` (batched per kind, grade and 24 m chunk, doors swinging); a held building plan shows
+`GameClient.PlanPiece`'s ghost with `BuildGhost` (green, or red with the reason under the crosshair, `BuildHud`) and
+the right mouse button opens the plan's wheel (the piece) or the hammer's (upgrade to each grade, rotate, demolish),
+both from `ClientGroundUi`; the left button places (`Local.PlacePiece`), repairs with the hammer, fits a held door in
+the doorway aimed through or a held lock on the door aimed at, or places the claim device on a foundation or floor;
+R turns the piece (or the door) a step. E opens and shuts doors (the door's own sound, `world.door-slam` when it
+shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's manner: digits, C, OK; the owner
+also sets a new code), and opens the claim device's store as a loot panel; held E offers a door's or the claim
+device's options (lock, unlock, change the code, cut a key, take the lock, pick up; authorise, deauthorise, clear the
+list, pick up: `OptionsMenu`, chosen with the mouse, let go to do it). Placements not yet answered show where they
+will stand; pieces placed nearby, upgraded (`world.upgrade.<grade>`), demolished and collapsing (`world.collapse`)
+sound and show; the building rights where the player stands show on the HUD.
+
 **Tests:** `BuildingNetTests.PlacingGoesThroughTheServer` (a player without wood is refused, with the reason; a
 foundation and a wall placed through intents show at once, then arrive in every client's copy at exactly the ghost's
 pose, with the server's stability and body IDs), `CodeLocksKeepStrangersOut` (a door, a code lock, a code; a stranger
