@@ -216,14 +216,14 @@ The huge ones. One per old region at most, each a destination of its own.
 
 | # | Monument | Size | Where | What | Holds and does |
 |---|---|---|---|---|---|
-| 48 | **Atmosphere Processor** | Works 1.3 km across, tower 860 m | Plains and plateaus of colonised worlds | A terraforming tower on four 330 m buttresses, intake halls at its foot, galleries every 150 m, an elevator spine, a crown of red lamps. A walled works round it | The climb: a vertical dungeon to the crown, with rest galleries; contamination 4 inside; vault crates at the top; the crown reveals every site within 100 km. *Built: `atmosphere_processor.py`* |
+| 48 | **Atmosphere Processor** | Works 1.3 km across, tower 860 m | Plains and plateaus of colonised worlds | A terraforming tower on four 330 m buttresses, intake halls at its foot, galleries every 150 m, an elevator spine, a crown of red lamps. A walled works round it | The climb: a vertical dungeon to the crown, with rest galleries; contamination 4 inside; vault crates at the top; the crown reveals every site within 100 km. *Built: `atmosphere_processor.py` (crown of emitter vanes and a mast to 1,005 m)* |
 | 49 | **Tether Anchor** | Station 1.2 km, cable 40+ km | Equator (elevators need it) | A space elevator's ground station; its snapped tether lies across the land for tens of kilometres, buildings crushed under it | The station (L-size inside) and the cable itself: a line of sites along it; climbing the stump. *Built: `tether_anchor.py` (stump 470 m; the cable laid from kit pieces `tether-segment` and `tether-segment-torn`)* |
 | 50 | **Grounded Colony Ship** | 2.4 km, three pieces | Plains, deserts | A colony ship that came down in the Quiet, broken in three, a furrow kilometres long | A dungeon of decks and holds (cryo bays, farms, the bridge); only source of the best schematics. *Built: `colony_ship.py` (pieces 640, 960 and 690 m; hull 150-170 m tall; radiator sails to 230 m)* |
 | 51 | **Deep Bore** | Shaft 1 km across | Mountains of metal-rich worlds | A planetary drill rig over a shaft 1 km across, spiral haul roads down | Descend for ore and the rig's vault; contamination rises with depth. *Built: `deep_bore.py` (headframe crown 520 m; rim, collar and the haul road's top two turns modelled, the pit itself is terrain)* |
 | 52 | **Mass Driver** | 8 km rail, halls 600 m | Up a mountainside | An electromagnetic launch rail climbing a mountain, capacitor halls at its foot, a cradle on the rail | A line of sites; the capacitor halls are a violet monument; restarting it is a server event. *Built: `mass_driver.py` (the halls and the first 1.5 km; the line continues from kit pieces `driver-rail`, `driver-pylon`, `driver-pylon-section`)* |
 | 53 | **Great Dam** | 700 m wide, 180 m tall | Mountain valleys | A concrete arch dam with a powerhouse and spillways, the reservoir behind | Powerhouse (L-size), galleries inside the dam, a crawler on the crest. *Built: `great_dam.py` (crest about 750 m; the valley walls, reservoir and river are drawn only in its look-dev renders)* |
 | 54 | **Arcology** | 600 m base, 400 m tall | Old colony capitals | A ziggurat megablock of the old colony, terraces overgrown | A city in one building: floors of loot, Reclaimer clans by level, the top. *Built: `arcology.py` (ten tiers to 400 m, crown to 525 m, the ruined capital round it)* |
-| 55 | **Ring Fall** | Debris field 10 km | Wherever it fell | A kilometre-long piece of an orbital station lying across the land, debris for kilometres | Ship and station parts; a wreck of wrecks. *Built: `ring_fall.py` (fragment 1 km, spoke stump to about 390 m; debris within 2 km)* |
+| 55 | **Ring Fall** | Debris field 10 km | Wherever it fell | A kilometre-long piece of an orbital station lying across the land, debris for kilometres | Ship and station parts; a wreck of wrecks. *Built: `ring_fall.py` (fragment 1 km; the stump of a spoke stands to about 510 m; debris within 2 km)* |
 
 ### 5.6 Wonders (W) — 4
 
@@ -447,7 +447,10 @@ zones (`zone`: radiation with a level, safe, no-build, arc) and its pad (`set_pa
   zones and the pad. `game/data/monuments/kit/<piece>.json`: each piece's collision and markers.
 
 The grid substation exports 417 primitives and 12 pieces: 21,410 triangles at level 0, 2.0 MB; the Atmosphere
-Processor 6,182 primitives, 120,352 triangles, 15.5 MB. **Open**: how the models ship. A catalogue of 66 at a few MB
+Processor 13,653 primitives, 310,628 triangles, 33.8 MB. The landmarks stay under 600,000 triangles at level 0
+each; those with lines (the Tether Anchor's cable, the Mass Driver's rail) build only their first kilometres and
+list in their JSON (`line`) the kit pieces, spacing and profile the game uses to lay the rest. **Open**: how the
+models ship. A catalogue of 66 at a few MB
 each is too much to commit as GLB, so the GLBs are rebuilt from the scripts and not committed for now. The likely
 answer (M6): the JSON already lists every primitive, so the game can build the meshes itself from it (a few hundred
 KB per monument), with per-site variation for free; only the kit pieces stay GLB.
