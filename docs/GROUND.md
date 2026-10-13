@@ -1652,7 +1652,10 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
   most 48 new ones per snapshot, so a crowded place streams in), again when they change (`ThingUpdate`: health, count,
   lit, the receiver's own bag) and `Despawn`ed when gone or out of range (320 m).
 - **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
-  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens.
+  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens. Since
+  protocol 12 a change also carries the run of weak-spot hits, where the last hit met the drawn surface (3 cm steps
+  from the base) and how many ticks old that hit was when sent: a client counts a hit as news (`SeenHits`) only when
+  it is at most 30 ticks old, so an area coming into range replays no hits, and no felled tree falls again.
 - **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
 
 **Server** (`GameServer.Survival.cs`). The zone runs with the game data; the server sets its real clock each tick,
@@ -4384,3 +4387,7 @@ hitting trees and outcrops) without the owner, to confirm or overturn (numbered 
   hotspot.
 - H7. **The run of spot hits and the last hit's point aren't saved**: a restart forgets them, as Rust forgets its bonus
   level when a node is unloaded.
+- H8. **Protocol 12: a natural object's change says where its last hit landed and how fresh it is.** Effects play at the
+  point where the swing met the drawn surface, for every player in range, not at a guessed spot facing the local player;
+  a hit older than a second when sent (an area coming into range) plays nothing. Six bytes more per change, and only
+  changed objects travel.

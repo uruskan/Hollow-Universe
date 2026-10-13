@@ -418,6 +418,9 @@ public sealed partial class GameClient
         }
     }
 
+    /// <summary>A natural object's last hit at most this many ticks old when sent is news: the views play its effects.</summary>
+    public const int FreshHitTicks = 30;
+
     private void ApplyNatural(in NaturalNet n)
     {
         if (n.Health == 255 && !n.Depleted && !n.HasWeakSpot)
@@ -430,9 +433,12 @@ public sealed partial class GameClient
         {
             max = NaturalShapes.MaxHealth(o, kind);
         }
+        // A fresh hit counts one more for the views (its effects); an old one (an area coming into range) doesn't.
+        byte seen = Natural!.TryGetOverride(n.Id, out NaturalOverride was) ? was.SeenHits : (byte)0;
         Natural!.Apply(n.Id, new NaturalOverride
         {
             Health = n.Health / 255f * max, HasWeakSpot = n.HasWeakSpot, WeakSpotYaw = n.WeakSpotYaw, WeakSpotLift = n.WeakSpotLift, Depleted = n.Depleted,
+            Streak = n.Streak, LastHit = n.HitOffset, SeenHits = n.HitAge <= FreshHitTicks ? (byte)(seen + 1) : seen,
         });
     }
 

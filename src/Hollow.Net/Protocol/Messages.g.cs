@@ -22,7 +22,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xDFE5143E621761C1UL;
+    public const ulong SchemaHash = 0xBB3898DC9E04646DUL;
 }
 
 partial struct Hello
@@ -1144,6 +1144,11 @@ partial struct NaturalNet
         w.WriteBits((uint)WeakSpotYaw, 16);
         w.WriteBits((uint)WeakSpotLift, 8);
         w.WriteBool(Depleted);
+        w.WriteBits((uint)Streak, 8);
+        w.WriteBits((uint)HitAge, 8);
+        w.WriteSigned(HitX, 8);
+        w.WriteSigned(HitY, 8);
+        w.WriteSigned(HitZ, 8);
     }
 
     public static NaturalNet Read(BitReader r)
@@ -1155,6 +1160,11 @@ partial struct NaturalNet
         v.WeakSpotYaw = (ushort)r.ReadBits(16);
         v.WeakSpotLift = (byte)r.ReadBits(8);
         v.Depleted = r.ReadBool();
+        v.Streak = (byte)r.ReadBits(8);
+        v.HitAge = (byte)r.ReadBits(8);
+        v.HitX = (sbyte)r.ReadSigned(8);
+        v.HitY = (sbyte)r.ReadSigned(8);
+        v.HitZ = (sbyte)r.ReadSigned(8);
         return v;
     }
 }

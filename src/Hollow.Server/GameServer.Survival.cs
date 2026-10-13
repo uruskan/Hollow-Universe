@@ -1081,10 +1081,15 @@ public sealed partial class GameServer
         {
             float max = kind.IsHarvested ? NaturalShapes.MaxHealth(obj, kind) : 1;
             byte health = kind.IsHarvested ? (byte)Math.Clamp(Math.Round(o.Health / max * 255), 0, 255) : (byte)(o.Depleted ? 0 : 255);
-            return new NaturalNet
+            // How fresh the last hit is when this goes out (an area coming into range sends old hits: no effects for them).
+            long age = o.LastHitTick > 0 ? Zone.Tick - o.LastHitTick : long.MaxValue;
+            var net = new NaturalNet
             {
                 Id = id, Health = health, HasWeakSpot = o.HasWeakSpot, WeakSpotYaw = o.WeakSpotYaw, WeakSpotLift = o.WeakSpotLift, Depleted = o.Depleted,
+                Streak = o.Streak, HitAge = (byte)Math.Clamp(age, 0, NaturalNet.OldHit),
             };
+            net.SetHitOffset(o.LastHit);
+            return net;
         }
         return new NaturalNet { Id = id, Health = 255 };
     }
