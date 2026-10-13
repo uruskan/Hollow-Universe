@@ -118,6 +118,20 @@ def plate(b, at, rot=(0, 0, 0), size=(0.6, 0.4), tint=YELLOW, border=None, text=
             stencil(b, text, (0, -0.0045, -th / 2), (0, 0, 0), th, text_tint, align="centre")
 
 
+# ------------------------------------------------------------------------------------------------ panels
+
+
+def grid_box(b, size, at=(0, 0, 0), rot=(0, 0, 0), step=0.9, mat=PANEL, tint=OFFWHITE, solid=True, wear=None,
+             vary=0.03):
+    """A box whose faces are cut into cells about `step` metres across, so the occlusion baked per vertex has points
+    inside big flat faces (walls, doors, hull plates) however coarse the site's max_edge is. Made by the builder's own
+    box code, added as a mesh primitive (its collision: the hull, i.e. the box)."""
+    from .builder import _box_bm, _canonical
+    verts, faces = _canonical(_box_bm(tuple(size), 0.0, 0, step))
+    return b.mesh([tuple(v) for v in verts], faces, at, rot, mat=mat, tint=tint, solid="hull" if solid else False,
+                  wear=wear, vary=vary, smooth=False)
+
+
 # ------------------------------------------------------------------------------------------------ steel
 
 
@@ -532,3 +546,197 @@ def _wheel_road(b):
 
 
 kit.PIECES["wheel-road"] = _wheel_road
+
+
+# ------------------------------------------------------------------------------------------------ huts and masts
+
+
+def prefab_hut(b, at, rot=(0, 0, 0), w=3.6, d=2.6, h=2.6, tint=OFFWHITE, band=TEAL, door=ORANGE, door_open=65.0,
+               door_x=None, code=None, louvre=True, ac=True, lamp_on=True, floor=0.3, roof_tint=LIGHTGREY,
+               windows=0, mat=PANEL):
+    """A Seedward prefab cabin (relay huts, sheds, booths, site offices): composite walls on a steel skid, rounded
+    corners, a band of livery, a 2.3 m door in the front (-Y) wall swung open, louvres in the left wall, an air
+    conditioner on the right wall, a lamp over the door, optional windows in the back wall. Hollow (loot goes
+    inside). Returns the floor's centre in the monument's frame."""
+    t = 0.08
+    hw, hd = w / 2, d / 2
+    dx = (hw - 0.85) if door_x is None else door_x
+    dw, dh = 1.0, 2.3
+    with b.frame(at, rot):
+        for x in (-hw + 0.3, hw - 0.3):
+            b.box((0.16, d + 0.2, 0.2), (x, 0, 0.1), mat=PAINT, tint=DARK)
+        b.box((w, d, 0.1), (0, 0, floor - 0.05), mat=PAINT, tint=GREY)
+        z0 = floor
+        e = 0.13       # walls stop at the corner posts
+
+        def wall(a, c, fixed, along_x):
+            """A wall from `a` to `c` along X (or Y) at `fixed` on the other axis."""
+            if along_x:
+                grid_box(b, (c - a, t, h - 0.02), ((a + c) / 2, fixed, z0 + h / 2), mat=mat, tint=tint)
+            else:
+                grid_box(b, (t, c - a, h - 0.02), (fixed, (a + c) / 2, z0 + h / 2), mat=mat, tint=tint)
+
+        # Walls: back, left, right, and the front around the door.
+        wall(-hw + e, hw - e, hd - t / 2, True)
+        wall(-hd + e, hd - e, -hw + t / 2, False)
+        wall(-hd + e, hd - e, hw - t / 2, False)
+        left = (dx - dw / 2) - (-hw + e)
+        right = (hw - e) - (dx + dw / 2)
+        if left > 0.02:
+            wall(-hw + e, dx - dw / 2, -hd + t / 2, True)
+        if right > 0.02:
+            wall(dx + dw / 2, hw - e, -hd + t / 2, True)
+        b.box((dw, t, h - dh), (dx, -hd + t / 2, z0 + dh + (h - dh) / 2), mat=mat, tint=tint)
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                b.cyl(0.09, h, (sx * (hw - 0.04), sy * (hd - 0.04), z0 + h / 2), mat=mat, tint=tint, sides=10,
+                      solid=False)
+        # Roof with a drip edge.
+        b.box((w + 0.24, d + 0.24, 0.12), (0, 0, z0 + h + 0.06), mat=PAINT, tint=roof_tint)
+        b.box((w + 0.28, d + 0.28, 0.05), (0, 0, z0 + h + 0.015), mat=PAINT, tint=DARK, solid=False)
+        # Livery band round the walls (split at the door).
+        bz = z0 + h * 0.66
+        b.box((w - 0.1, 0.012, 0.2), (0, hd + 0.006, bz), mat=PAINT, tint=band, solid=False, vary=0, wear=0.5)
+        for sx in (-1, 1):
+            b.box((0.012, d - 0.1, 0.2), (sx * (hw + 0.006), 0, bz), mat=PAINT, tint=band, solid=False, vary=0,
+                  wear=0.5)
+        if left > 0.02:
+            b.box((left, 0.012, 0.2), (-hw + e + left / 2, -hd - 0.006, bz), mat=PAINT, tint=band, solid=False,
+                  vary=0, wear=0.5)
+        if right > 0.02:
+            b.box((right, 0.012, 0.2), (hw - e - right / 2, -hd - 0.006, bz), mat=PAINT, tint=band, solid=False,
+                  vary=0, wear=0.5)
+        # Door frame, the leaf swung out on its hinge (at the door's right edge), a step.
+        for s in (-1, 1):
+            b.box((0.06, 0.1, dh), (dx + s * (dw / 2 + 0.03), -hd - 0.01, z0 + dh / 2), mat=PAINT, tint=DARK,
+                  solid=False)
+        b.box((dw + 0.12, 0.1, 0.06), (dx, -hd - 0.01, z0 + dh + 0.03), mat=PAINT, tint=DARK, solid=False)
+        with b.frame((dx + dw / 2, -hd - 0.02, z0), (0, 0, door_open)):
+            b.box((dw - 0.02, 0.05, dh - 0.02), (-dw / 2, -0.025, dh / 2), mat=PAINT, tint=door)
+            b.box((0.04, 0.06, 0.14), (-dw + 0.12, -0.07, 1.05), mat=PAINT, tint=GREY, solid=False)
+            b.box((dw - 0.2, 0.012, 0.25), (-dw / 2, -0.056, 1.7), mat=PAINT, tint=SIGN_WHITE, solid=False, vary=0)
+        b.box((dw + 0.3, 0.6, 0.18), (dx, -hd - 0.32, floor - 0.12), mat=PAINT, tint=GREY)
+        b.marker("door", (dx, -hd - 0.6, 0.0), kind_of="hut")
+        if code:
+            stencil(b, code, (-hw + 0.25, -hd - 0.01, z0 + h * 0.4), (0, 0, 0), 0.22, DARK)
+        if louvre:
+            with b.frame((-hw - 0.01, 0.2, z0 + h * 0.5), (0, 0, 0)):
+                b.box((0.04, 0.7, 0.7), (0, 0, 0), mat=PAINT, tint=GREY, solid=False)
+                for k in range(6):
+                    b.box((0.08, 0.64, 0.025), (-0.04, 0, -0.3 + k * 0.12), (0, 40, 0), mat=PAINT, tint=GREY,
+                          solid=False, vary=0)
+        if ac:
+            with b.frame((hw + 0.26, 0.1, z0 + 0.9), (0, 0, 0)):
+                b.box((0.45, 0.9, 0.7), (0, 0, 0), mat=PAINT, tint=LIGHTGREY, bevel=0.02)
+                b.cyl(0.26, 0.02, (0.23, 0, 0.02), (0, 90, 0), mat=PAINT, tint=DARK, sides=14, solid=False)
+                for k in range(4):
+                    b.box((0.02, 0.5, 0.02), (0.24, 0, -0.12 + k * 0.08), mat=PAINT, tint=GREY, solid=False, vary=0)
+                b.tube([(-0.2, 0.3, 0.38), (-0.2, 0.3, 0.6), (-0.26, 0.3, 0.6)], 0.02, tint=DARK, sides=5)
+        if lamp_on:
+            from .kit import lamp
+            lamp(b, (dx, -hd - 0.2, z0 + dh + 0.3), (-25, 0, 0), size=(0.3, 0.16, 0.14))
+        for k in range(windows):
+            x = -hw + (k + 1) * w / (windows + 1)
+            b.box((0.9, 0.03, 0.7), (x, hd + 0.01, z0 + 1.5), mat=GLASS, solid=False)
+            b.box((1.0, 0.04, 0.06), (x, hd + 0.02, z0 + 1.88), mat=PAINT, tint=DARK, solid=False)
+            b.box((1.0, 0.04, 0.06), (x, hd + 0.02, z0 + 1.12), mat=PAINT, tint=DARK, solid=False)
+        centre = b.world((0, 0.2, floor))
+    return centre
+
+
+def rungs(b, at, height, width=0.42, rot=(0, 0, 0), spacing=0.32, tint=GREY, rail_tint=YELLOW, marker=True):
+    """A plain fixed ladder for long climbs (masts, towers), light on triangles: two rails and the rungs as a single
+    primitive, facing -Y of `rot`; a climb marker at its foot."""
+    with b.frame(at, rot):
+        for x in (-width / 2, width / 2):
+            b.box((0.05, 0.025, height + 1.0), (x, 0, (height + 1.0) / 2), mat=PAINT, tint=rail_tint, solid=False,
+                  vary=0)
+        verts, faces = [], []
+        n = int(height / spacing)
+        for i in range(n):
+            z = spacing * (i + 0.5)
+            _box_into(verts, faces, (-width / 2, -0.012, z - 0.012), (width / 2, 0.012, z + 0.012))
+        b.mesh(verts, faces, mat=PAINT, tint=tint, solid=False, vary=0, smooth=False)
+        if marker:
+            b.marker("ladder", (0, -0.35, 0), height=round(height, 2))
+
+
+def tri_mast(b, at, height, face=1.4, bay=1.9, bands=(ORANGE, OFFWHITE), band_h=7.5, leg_r=0.055,
+             member=0.045, skip=0.0, orient=0.0):
+    """A guyed lattice mast of triangular section (face `face` m): tube legs, girts and zigzag diagonals, painted in
+    alternating aviation bands from the top down. Returns corner(z, i), a leg's position at height z."""
+    rc = face / math.sqrt(3)
+    angs = [math.radians(a + orient) for a in (270, 30, 150)]
+
+    def corner(z, i):
+        return Vector((at[0] + rc * math.cos(angs[i]), at[1] + rc * math.sin(angs[i]), at[2] + z))
+
+    def tint_at(z):
+        k = int((height - z) / band_h)
+        return bands[k % len(bands)]
+
+    z = 0.0
+    while z < height - 1e-3:
+        z1 = min(height, (math.floor(z / band_h + 1e-6) + 1) * band_h)
+        for i in range(3):
+            c0, c1 = corner(z, i), corner(z1, i)
+            b.cyl(leg_r, z1 - z, (c0.x, c0.y, (c0.z + c1.z) / 2), mat=PAINT, tint=tint_at(z + 0.01), sides=6,
+                  cap=False, solid=True, vary=0)
+        z = z1
+    n = int(height / bay)
+    for k in range(n + 1):
+        zz = min(height, k * bay)
+        for i in range(3):
+            if 0 < k < n and b.rng.random() < skip * 0.4:
+                continue
+            b.beam(corner(zz, i), corner(zz, (i + 1) % 3), member, member, mat=PAINT, tint=tint_at(zz + 0.01))
+        if k < n:
+            z2 = min(height, zz + bay)
+            for i in range(3):
+                if b.rng.random() < skip:
+                    continue
+                if k % 2 == 0:
+                    a, c = corner(zz, i), corner(z2, (i + 1) % 3)
+                else:
+                    a, c = corner(zz, (i + 1) % 3), corner(z2, i)
+                b.beam(a, c, member * 0.85, member * 0.85, mat=PAINT, tint=tint_at(zz + bay * 0.5))
+    return corner
+
+
+def microwave_dish(b, at, yaw=0.0, radius=0.6, pitch=0.0, cover=True, tint=LIGHTGREY, arm=0.0):
+    """A microwave link antenna: a drum shroud with a flat radome (or the bare reflector when `cover` is False),
+    facing -Y of its frame, a back housing, and a mounting arm `arm` metres back toward the mast."""
+    with b.frame(at, (pitch, 0, yaw)):
+        depth = radius * 0.6
+        b.cyl(radius, depth, (0, 0, 0), (90, 0, 0), mat=PAINT, tint=tint, sides=20, cap=not cover)
+        if cover:
+            b.cyl(radius * 1.01, 0.05, (0, -depth / 2 - 0.02, 0), (90, 0, 0), mat=MATTE, tint=SIGN_WHITE, sides=20,
+                  solid=False)
+            b.cyl(radius * 1.03, 0.04, (0, -depth / 2 + 0.03, 0), (90, 0, 0), mat=PAINT, tint=GREY, sides=20,
+                  solid=False, vary=0)
+        else:
+            prof = [(radius * 0.97 * k / 6, -depth / 2 + depth * 0.8 * (k / 6) ** 2) for k in range(7)]
+            b.lathe(prof, (0, 0, 0), (90, 0, 0), mat=PAINT, tint=SIGN_WHITE, sides=20, close=False, solid=False)
+            b.cyl(0.03, depth * 0.9, (0, -depth * 0.2, 0), (90, 0, 0), mat=PAINT, tint=GREY, sides=6, solid=False)
+        b.box((radius * 0.7, depth * 0.6, radius * 0.7), (0, depth * 0.75, 0), mat=PAINT, tint=GREY, solid=False)
+        if arm > 0:
+            for x in (-radius * 0.3, radius * 0.3):
+                b.beam((x, depth * 0.9, 0), (x * 0.3, depth + arm, 0), 0.05, 0.05, mat=PAINT, tint=GREY)
+
+
+def guy_anchor(b, at, toward):
+    """A guy anchor: a concrete block half in the ground, a steel plate and turnbuckles leaning toward the guys'
+    attachment points `toward` (a list of points). Returns the point where the guys meet the anchor."""
+    x, y, z = at
+    d = Vector((toward[0][0] - x, toward[0][1] - y, 0)).normalized()
+    yaw = math.degrees(math.atan2(d.y, d.x))
+    b.box((2.4, 1.4, 0.9), (x, y, 0.2), (0, 0, yaw), mat=CONCRETE, tint=srgb(0.86, 0.85, 0.82), bevel=0.04)
+    top = Vector((x, y, 0.75)) + d * 0.3
+    b.beam((x - d.x * 0.3, y - d.y * 0.3, 0.6), top, 0.18, 0.04, mat=PAINT, tint=GALV)
+    for t in toward:
+        dirn = (Vector(t) - top).normalized()
+        a = top + dirn * 0.25
+        c = top + dirn * 1.1
+        rot = tuple(math.degrees(v) for v in dirn.to_track_quat("Z", "Y").to_euler())
+        b.cyl(0.035, (c - a).length, tuple((a + c) / 2), rot, mat=PAINT, tint=GALV, sides=6, solid=False, vary=0)
+    return top
