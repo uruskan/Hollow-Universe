@@ -1,0 +1,35 @@
+{
+  "source": "GROUND.md §6.6 (G5, raiding). Raid costs are Rust's well-known tables, which the owner allows: how many of each explosive break each grade of wall (timed charge 1/2/4/8 for wood, stone, metal, armoured; rockets 2/4/8/15; bag charges 3/10/23/46; tin grenades 13/46/112/223; explosive rounds 49/185/400/799) and each door (timed charge 1/1/2/2 for wooden, sheet metal, garage and armoured; rockets 1/2/3/4; bag charges 2/4/9/12; explosive rounds 19/63/150/200). The damage of one hit is set so those counts come out on our hit points (RustMVP's 10/200/500/1000/2000; doors 200/250/600/1000), so against wood (200, Rust's 250) and the armoured door (1000, Rust's 800) it differs from Rust's while the counts match. Damage is kept to the fraction, so a grenade's 8.99 against metal takes 112, not 100. Explosives hurt both sides of a wall alike (Rust); a grade may give [hard, soft] to tune that. The tin grenade's doors and the high-velocity rocket are ours, in proportion. Radii, falloff (full within 40% of the radius, nothing at it), the 30% splash on other pieces in sight and shielding by what is in the way are hollow-orbit's (js/game/construct.js explode, js/game/items.js EXPLOSIVE), as are the flesh damage of the charge, rocket and bag; the timed charge's 10 s fuse is RustMVP's and Rust's; the bag charge's 6-12 s fuse and one-in-five dud, and the grenade's, are Rust's in kind. Deployable damage, throws, bounces and the alerts' timing are ours.",
+
+  "alerts": { "cooldownSeconds": 60, "keepDays": 7, "maxQueued": 50 },
+
+  "blasts": [
+    { "key": "timed-charge", "radius": 4.0, "inner": 0.4, "splash": 0.3, "flesh": 275, "deployable": 550,
+      "pieces": { "twig": 500, "wood": 275, "stone": 275, "metal": 275, "armoured": 275 },
+      "doors": { "wood": 275, "metal": 310, "armoured": 550 } },
+    { "key": "rocket", "radius": 3.0, "inner": 0.4, "splash": 0.3, "flesh": 210, "deployable": 300,
+      "pieces": { "twig": 500, "wood": 137.5, "stone": 137.5, "metal": 137.5, "armoured": 137.5 },
+      "doors": { "wood": 250, "metal": 220, "armoured": 275 } },
+    { "key": "rocket-hv", "radius": 2.0, "inner": 0.4, "splash": 0.3, "flesh": 175, "deployable": 120,
+      "pieces": { "twig": 500, "wood": 52, "stone": 45, "metal": 45, "armoured": 45 },
+      "doors": { "wood": 80, "metal": 70, "armoured": 90 } },
+    { "key": "bag-charge", "radius": 3.0, "inner": 0.4, "splash": 0.3, "flesh": 120, "deployable": 150,
+      "pieces": { "twig": 500, "wood": 75, "stone": 51, "metal": 44, "armoured": 44 },
+      "doors": { "wood": 110, "metal": 70, "armoured": 85 } },
+    { "key": "tin-grenade", "radius": 3.5, "inner": 0.4, "splash": 0.3, "flesh": 60, "deployable": 40,
+      "pieces": { "twig": 50, "wood": 16, "stone": 11, "metal": 8.99, "armoured": 8.99 },
+      "doors": { "wood": 21, "metal": 14, "armoured": 18 } },
+    { "key": "rifle-ammo-explosive", "radius": 0.6, "inner": 0.4, "splash": 0, "flesh": 4, "deployable": 4,
+      "pieces": { "twig": 10, "wood": 4.12, "stone": 2.71, "metal": 2.505, "armoured": 2.505 },
+      "doors": { "wood": 10.6, "metal": 4.01, "armoured": 5.01 } }
+  ],
+
+  "throwables": [
+    { "item": "timed-charge", "blast": "timed-charge", "fuse": [10, 10], "dud": 0, "sticky": true, "place": true,
+      "throw": 9, "lob": 4, "cooldown": 1.0, "bounce": 0.2, "radius": 0.08 },
+    { "item": "bag-charge", "blast": "bag-charge", "fuse": [6, 12], "dud": 0.2, "sticky": true, "place": true,
+      "throw": 9, "lob": 4, "cooldown": 1.0, "bounce": 0.2, "radius": 0.12 },
+    { "item": "tin-grenade", "blast": "tin-grenade", "fuse": [3.5, 4.5], "dud": 0.15, "sticky": false, "place": false,
+      "throw": 15, "lob": 6, "cooldown": 0.8, "bounce": 0.35, "radius": 0.06 }
+  ]
+}

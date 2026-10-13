@@ -11,6 +11,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Raid;
 using Hollow.Simulation.World;
 using Hollow.Simulation;
 
@@ -19,7 +20,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x72734C5FE4FFE692UL;
+    public const ulong SchemaHash = 0x8E4FE9A958F6320BUL;
 }
 
 partial struct Hello
@@ -2541,6 +2542,320 @@ partial struct BuildClaims
         for (int i = 0; i < countClaims; i++)
         {
             v.Claims[i] = ClaimNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ThrowIntent
+{
+    public const byte TypeId = 110;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Slot, 3);
+        w.WriteVarUInt(Expected);
+        w.WriteBits((uint)Yaw, 16);
+        w.WriteBits((uint)Pitch, 16);
+        w.WriteBool(Lob);
+    }
+
+    public static ThrowIntent Read(BitReader r)
+    {
+        var v = new ThrowIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Slot = (byte)r.ReadBits(3);
+        v.Expected = r.ReadVarUInt();
+        v.Yaw = (ushort)r.ReadBits(16);
+        v.Pitch = (ushort)r.ReadBits(16);
+        v.Lob = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct PlaceChargeIntent
+{
+    public const byte TypeId = 111;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Slot, 3);
+        w.WriteVarUInt(Expected);
+        w.WriteBits((uint)Yaw, 16);
+        w.WriteBits((uint)Pitch, 16);
+    }
+
+    public static PlaceChargeIntent Read(BitReader r)
+    {
+        var v = new PlaceChargeIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Slot = (byte)r.ReadBits(3);
+        v.Expected = r.ReadVarUInt();
+        v.Yaw = (ushort)r.ReadBits(16);
+        v.Pitch = (ushort)r.ReadBits(16);
+        return v;
+    }
+}
+
+partial struct RearmIntent
+{
+    public const byte TypeId = 112;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits64(Target, 64);
+    }
+
+    public static RearmIntent Read(BitReader r)
+    {
+        var v = new RearmIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Target = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct ExplosiveUpdate
+{
+    public const byte TypeId = 113;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteVarUInt(Item);
+        w.WriteVarUInt(Owner);
+        w.WriteBits((uint)State, 2);
+        w.WriteBool(Dud);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteFloat(VelocityX);
+        w.WriteFloat(VelocityY);
+        w.WriteFloat(VelocityZ);
+        w.WriteQuantized(NormalX, -1f, 1f, 12);
+        w.WriteQuantized(NormalY, -1f, 1f, 12);
+        w.WriteQuantized(NormalZ, -1f, 1f, 12);
+        w.WriteBits((uint)StateTick, 32);
+        w.WriteBits((uint)FuseEndTick, 32);
+        w.WriteVarUInt(FuseTicks);
+    }
+
+    public static ExplosiveUpdate Read(BitReader r)
+    {
+        var v = new ExplosiveUpdate();
+        v.Id = r.ReadBits64(64);
+        v.Item = r.ReadVarUInt();
+        v.Owner = r.ReadVarUInt();
+        v.State = (ExplosiveState)r.ReadBits(2);
+        v.Dud = r.ReadBool();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.VelocityX = r.ReadFloat();
+        v.VelocityY = r.ReadFloat();
+        v.VelocityZ = r.ReadFloat();
+        v.NormalX = r.ReadQuantized(-1f, 1f, 12);
+        v.NormalY = r.ReadQuantized(-1f, 1f, 12);
+        v.NormalZ = r.ReadQuantized(-1f, 1f, 12);
+        v.StateTick = (uint)r.ReadBits(32);
+        v.FuseEndTick = (uint)r.ReadBits(32);
+        v.FuseTicks = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct ExplosiveGone
+{
+    public const byte TypeId = 114;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+    }
+
+    public static ExplosiveGone Read(BitReader r)
+    {
+        var v = new ExplosiveGone();
+        v.Id = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct Detonation
+{
+    public const byte TypeId = 115;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteVarUInt(Item);
+        w.WriteVarUInt(Owner);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteQuantized(NormalX, -1f, 1f, 12);
+        w.WriteQuantized(NormalY, -1f, 1f, 12);
+        w.WriteQuantized(NormalZ, -1f, 1f, 12);
+        w.WriteQuantized(Radius, 0f, 20f, 10);
+        w.WriteBits((uint)Target, 3);
+        w.WriteBool(Round);
+    }
+
+    public static Detonation Read(BitReader r)
+    {
+        var v = new Detonation();
+        v.Id = r.ReadBits64(64);
+        v.Item = r.ReadVarUInt();
+        v.Owner = r.ReadVarUInt();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.NormalX = r.ReadQuantized(-1f, 1f, 12);
+        v.NormalY = r.ReadQuantized(-1f, 1f, 12);
+        v.NormalZ = r.ReadQuantized(-1f, 1f, 12);
+        v.Radius = r.ReadQuantized(0f, 20f, 10);
+        v.Target = (HitTarget)r.ReadBits(3);
+        v.Round = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct RaidAlertNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Base, 64);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteVarULong(FirstUnixMs);
+        w.WriteVarULong(LastUnixMs);
+        w.WriteVarUInt(Hits);
+        w.WriteVarUInt(Destroyed);
+        w.WriteString(What, 160);
+        w.WriteVarUInt(Item);
+    }
+
+    public static RaidAlertNet Read(BitReader r)
+    {
+        var v = new RaidAlertNet();
+        v.Base = r.ReadBits64(64);
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.FirstUnixMs = r.ReadVarULong();
+        v.LastUnixMs = r.ReadVarULong();
+        v.Hits = r.ReadVarUInt();
+        v.Destroyed = r.ReadVarUInt();
+        v.What = r.ReadString(160);
+        v.Item = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct RaidAlertMessage
+{
+    public const byte TypeId = 116;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        Alert.Write(w);
+    }
+
+    public static RaidAlertMessage Read(BitReader r)
+    {
+        var v = new RaidAlertMessage();
+        v.Alert = RaidAlertNet.Read(r);
+        return v;
+    }
+}
+
+partial struct RaidAlertList
+{
+    public const byte TypeId = 117;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countAlerts = Alerts == null ? 0 : Math.Min(Alerts.Length, 64);
+        w.WriteBits((uint)countAlerts, 7);
+        for (int i = 0; i < countAlerts; i++)
+        {
+            Alerts![i].Write(w);
+        }
+    }
+
+    public static RaidAlertList Read(BitReader r)
+    {
+        var v = new RaidAlertList();
+        int countAlerts = (int)r.ReadBits(7);
+        if (countAlerts > 64)
+        {
+            r.Fail();
+            countAlerts = 0;
+        }
+        v.Alerts = new RaidAlertNet[countAlerts];
+        for (int i = 0; i < countAlerts; i++)
+        {
+            v.Alerts[i] = RaidAlertNet.Read(r);
         }
         return v;
     }

@@ -1,5 +1,5 @@
 {
-  "source": "GROUND.md §6.3. Every field RustMVP's weapon definitions have (unreal/Bare/Source/Bare/Rules/weapon_definition.hpp: the Service Pistol, ID 28, and the AK, ID 30) is used exactly: magazines, fire mode and interval, reload and equip times, muzzle speed, gravity (980 cm/s², here 1.0 x the planet's), range, lifetime, damage and the head/body/limb multipliers, hip and aimed spread with bloom, the recoil (a straight kick for the pistol, the 30-step AK pattern for the rifle, its limits, kick, hold and recovery), and the aimed field of view (65° at 90°: 1.57x). Where RustMVP has nothing: damage falloff, the spread when moving, airborne or crouched, and the recoil when aimed or crouched are hollow-orbit's (js/game/combat.js: falloff, _spread, _kick); the random part of each kick is hollow-orbit's too, drawn from a seed both sides know. Drag, the rounds' modifiers, burning and the attachments are ours, in the direction of Rust's. Angles in degrees (recoil yaw + is to the right), times in seconds, distances in metres.",
+  "source": "GROUND.md §6.3. Every field RustMVP's weapon definitions have (unreal/Bare/Source/Bare/Rules/weapon_definition.hpp: the Service Pistol, ID 28, and the AK, ID 30) is used exactly: magazines, fire mode and interval, reload and equip times, muzzle speed, gravity (980 cm/s², here 1.0 x the planet's), range, lifetime, damage and the head/body/limb multipliers, hip and aimed spread with bloom, the recoil (a straight kick for the pistol, the 30-step AK pattern for the rifle, its limits, kick, hold and recovery), and the aimed field of view (65° at 90°: 1.57x). Where RustMVP has nothing: damage falloff, the spread when moving, airborne or crouched, and the recoil when aimed or crouched are hollow-orbit's (js/game/combat.js: falloff, _spread, _kick); the random part of each kick is hollow-orbit's too, drawn from a seed both sides know. Drag, the rounds' modifiers, burning and the attachments are ours, in the direction of Rust's. G5 adds the rocket launcher and its two rockets and explosive rifle rounds (ours in the direction of Rust's; their speeds in Rust's ratios); a round with a \"blast\" explodes where it stops, with that blast of explosives.json. Angles in degrees (recoil yaw + is to the right), times in seconds, distances in metres.",
   "weapons": [
     {
       "item": "pistol",
@@ -90,6 +90,35 @@
       },
       "zoom": 1.57,
       "attachments": ["holo-sight", "scope", "silencer", "weapon-light", "muzzle-brake"]
+    },
+    {
+      "item": "rocket-launcher",
+      "note": "G5, ours in the direction of Rust's: one rocket at a time, a slow reload, rockets that fly 18 m/s and fall a little (Rust's rockets are slow and drop); no damage of its own: the rocket's blast (explosives.json) does it all.",
+      "calibre": "rocket",
+      "magazine": 1,
+      "fire": "semi",
+      "interval": 1.0,
+      "reload": 5.0,
+      "equip": 1.0,
+      "speed": 18,
+      "drag": 0,
+      "gravity": 0.15,
+      "range": 200,
+      "lifetime": 5,
+      "damage": 0,
+      "falloff": [0, 0, 1],
+      "head": 1.0, "body": 1.0, "limb": 1.0,
+      "spread": {
+        "hip": 1.0, "aimed": 0.25, "bloom": 0, "maxBloom": 0, "bloomRecovery": 0,
+        "moving": 1.0, "movingAimed": 0.5, "airborne": 2.0, "crouched": 0.9
+      },
+      "recoil": {
+        "mode": "vertical", "pitch": 6.0, "pitchJitter": 0.1, "yawJitter": 1.0,
+        "pitchLimit": 30, "yawLimit": 30, "reset": 0.4, "kick": 0.1, "recoveryDelay": 0.3, "recovery": 0.3,
+        "aimed": 0.8, "crouched": 0.85
+      },
+      "zoom": 1.3,
+      "attachments": []
     }
   ],
   "ammo": [
@@ -102,7 +131,14 @@
     { "item": "rifle-ammo-hv", "calibre": "rifle", "damage": 0.85, "speed": 1.2, "bleed": 0.25, "burn": 0, "structure": 0.15,
       "note": "Rust's high-velocity rifle rounds fly 450 m/s against 375." },
     { "item": "rifle-ammo-incendiary", "calibre": "rifle", "damage": 0.85, "speed": 0.6, "bleed": 0.1, "burn": 6, "structure": 0.5,
-      "note": "Rust's incendiary rifle rounds fly 225 m/s against 375." }
+      "note": "Rust's incendiary rifle rounds fly 225 m/s against 375." },
+    { "item": "rifle-ammo-explosive", "calibre": "rifle", "damage": 0.6, "speed": 0.6, "bleed": 0.1, "burn": 0, "structure": 0,
+      "blast": "rifle-ammo-explosive",
+      "note": "G5: Rust's explosive rifle rounds fly 225 m/s against 375 and hit people softer; each bursts where it lands (explosives.json), which is all the damage it does to walls, doors and deployables." },
+    { "item": "rocket", "calibre": "rocket", "damage": 1.0, "speed": 1.0, "bleed": 0, "burn": 0, "structure": 0,
+      "blast": "rocket", "note": "G5: explodes where it hits, or at the end of its flight." },
+    { "item": "rocket-hv", "calibre": "rocket", "damage": 1.0, "speed": 2.22, "bleed": 0, "burn": 0, "structure": 0,
+      "blast": "rocket-hv", "note": "G5: Rust's high-velocity rocket flies about 40 m/s against 18, with a smaller blast that does little to buildings." }
   ],
   "attachments": [
     { "item": "holo-sight", "slot": "sight", "zoom": 2.0, "aimedSpread": 0.7 },

@@ -19,7 +19,8 @@ namespace Hollow.Bots;
 /// </summary>
 public sealed class BotSwarm : IDisposable
 {
-    private readonly List<(GameClient Client, BotBrain Brain, SurvivalBrain? Survival, FightBrain? Fight, BuildBrain? Build)> _bots = new();
+    private readonly List<(GameClient Client, BotBrain Brain, SurvivalBrain? Survival, FightBrain? Fight, BuildBrain? Build, RaidBrain? Raid)> _bots =
+        new();
     private readonly ConditionedRelay? _relay;
     private readonly GameContent _content = GameContent.LoadDefault();
     private PhysicsWorld? _ground;
@@ -28,7 +29,8 @@ public sealed class BotSwarm : IDisposable
     private readonly Stopwatch _time = Stopwatch.StartNew();
     private double _last;
 
-    public BotSwarm(string host, int port, int count, BotScript script, NetConditions conditions, string prefix, Action<string> log)
+    public BotSwarm(string host, int port, int count, BotScript script, NetConditions conditions, string prefix, Action<string> log,
+        int raidBases = 0, float raidRadius = 70)
     {
         if (!conditions.IsNone)
         {
@@ -47,7 +49,7 @@ public sealed class BotSwarm : IDisposable
                 Content = _content,
                 Log = i == 0 ? log : _ => { },
             });
-            if (i < 3)
+            if (i < 3 || Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null)
             {
                 client.Local.IntentRejected += a => log($"{client.Name}: intent {a.Seq} refused: {a.Result}");
                 client.Local.BuildRejected += a => log($"{client.Name}: building intent {a.Seq} refused: {a.Reason} ({a.Text})");
@@ -55,7 +57,8 @@ public sealed class BotSwarm : IDisposable
             client.Connect(host, port);
             _bots.Add((client, new BotBrain(i, script), script == BotScript.Survive ? new SurvivalBrain(i) : null,
                 script == BotScript.Fight ? new FightBrain(i) : null,
-                script == BotScript.Build ? new BuildBrain(i) { Log = i < 3 ? log : null } : null));
+                script == BotScript.Build ? new BuildBrain(i) { Log = i < 3 ? log : null } : null,
+                script == BotScript.Raid ? new RaidBrain(i, raidBases, raidRadius) : null));
         }
     }
 
@@ -76,6 +79,11 @@ public sealed class BotSwarm : IDisposable
     /// <summary>How far the building bots got, counted by stage.</summary>
     public string BuildProgress => string.Join("; ", _bots.Where(b => b.Build != null).GroupBy(b => b.Build!.Progress.Split(',')[0])
         .Select(g => $"{g.Count()} {g.Key}"));
+
+    /// <summary>What the raiding bots did: charges placed, things thrown, rockets, bursts of explosive rounds; raid alerts heard.</summary>
+    public (int Placed, int Thrown, int Rockets, int Bursts, int Alerts) Raids =>
+        (_bots.Sum(b => b.Raid?.Placed ?? 0), _bots.Sum(b => b.Raid?.Thrown ?? 0), _bots.Sum(b => b.Raid?.Rockets ?? 0),
+            _bots.Sum(b => b.Raid?.Bursts ?? 0), _bots.Sum(b => b.Client.Local.RaidAlerts.Count));
 
     public int Playing => _bots.Count(b => b.Client.State == ClientState.Playing);
 
@@ -111,9 +119,10 @@ public sealed class BotSwarm : IDisposable
             double now = _time.Elapsed.TotalSeconds;
             double delta = now - _last;
             _last = now;
-            foreach ((GameClient client, BotBrain brain, SurvivalBrain? survival, FightBrain? fight, BuildBrain? build) in _bots)
+            foreach ((GameClient client, BotBrain brain, SurvivalBrain? survival, FightBrain? fight, BuildBrain? build, RaidBrain? raid) in _bots)
             {
                 InputFrame input = !client.HasCharacter ? default
+                    : raid != null ? raid.Think(now, delta, client)
                     : fight != null ? fight.Think(now, delta, client)
                     : build != null ? build.Think(now, delta, client)
                     : survival != null ? survival.Think(now, delta, client)
@@ -133,7 +142,7 @@ public sealed class BotSwarm : IDisposable
 
     public void Dispose()
     {
-        foreach ((GameClient client, BotBrain _, SurvivalBrain? _, FightBrain? _, BuildBrain? _) in _bots)
+        foreach ((GameClient client, BotBrain _, SurvivalBrain? _, FightBrain? _, BuildBrain? _, RaidBrain? _) in _bots)
         {
             client.Dispose();
         }

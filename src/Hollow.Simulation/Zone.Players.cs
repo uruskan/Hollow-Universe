@@ -66,6 +66,7 @@ public sealed partial class Zone
         StepActions();
         StepProjectiles();
         StepBullets();
+        StepExplosives();
         StepWounded();
         if (Tick % CharacterMotor.TickRate == 0)
         {

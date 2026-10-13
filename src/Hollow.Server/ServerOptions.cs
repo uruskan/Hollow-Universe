@@ -41,6 +41,19 @@ public sealed record ServerOptions
     /// <summary>Gives <see cref="JoinKit"/> with every new life too, not only to new characters (the G4 load test's firefights).</summary>
     public bool KitEveryLife { get; init; }
 
+    /// <summary>
+    /// G5's raid load test: this many claimed stone huts on a ring of <see cref="RaidRadius"/> metres around the zone's
+    /// origin, hut i listing the player called <see cref="RaidBasePrefix"/> + (i + 1) as three digits, kept standing.
+    /// </summary>
+    public int RaidBases { get; init; }
+
+    public float RaidRadius { get; init; } = 70f;
+
+    public string RaidBasePrefix { get; init; } = "bot";
+
+    /// <summary>Where raid alerts for players offline are pushed (a phone app, later); null: nowhere.</summary>
+    public Notifications.IPushChannel? Push { get; init; }
+
     /// <summary>The game's data (game/data/ground); null finds and loads it (GameContent.FindFolder).</summary>
     public Simulation.Content.GameContent? Content { get; init; }
 

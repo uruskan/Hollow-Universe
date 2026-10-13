@@ -129,7 +129,7 @@ public sealed class ZoneSave
 public sealed class GameDatabase : IDisposable
 {
     /// <summary>The schema this build writes. Each step up is a migration in <see cref="Migrations"/>.</summary>
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
 
     private static readonly string[] Migrations =
     {
@@ -200,6 +200,17 @@ public sealed class GameDatabase : IDisposable
             saved_at INTEGER NOT NULL
         );
         CREATE INDEX building_body ON building(system_address, body_path);
+        """,
+        // 3 → 4 (G5): notifications waiting for players who were offline (raid alerts), oldest first.
+        """
+        CREATE TABLE notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player INTEGER NOT NULL,
+            kind INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            data BLOB NOT NULL
+        );
+        CREATE INDEX notifications_player ON notifications(player, id);
         """,
     };
 
@@ -572,6 +583,67 @@ public sealed class GameDatabase : IDisposable
         }
         transaction.Commit();
     }
+
+    /// <summary>
+    /// Queues a notification for a player (G5: a raid alert while they were offline), keeping at most <paramref name="keep"/>
+    /// of theirs (the oldest go).
+    /// </summary>
+    public void QueueNotification(ulong player, byte kind, long createdAt, byte[] data, int keep)
+    {
+        using SqliteTransaction transaction = _connection.BeginTransaction();
+        using (SqliteCommand insert = _connection.CreateCommand())
+        {
+            insert.Transaction = transaction;
+            insert.CommandText = "INSERT INTO notifications (player, kind, created_at, data) VALUES ($player, $kind, $at, $data)";
+            insert.Parameters.AddWithValue("$player", unchecked((long)player));
+            insert.Parameters.AddWithValue("$kind", (long)kind);
+            insert.Parameters.AddWithValue("$at", createdAt);
+            insert.Parameters.AddWithValue("$data", data);
+            insert.ExecuteNonQuery();
+        }
+        using (SqliteCommand trim = _connection.CreateCommand())
+        {
+            trim.Transaction = transaction;
+            trim.CommandText = """
+                DELETE FROM notifications WHERE player = $player AND id NOT IN
+                    (SELECT id FROM notifications WHERE player = $player ORDER BY id DESC LIMIT $keep)
+                """;
+            trim.Parameters.AddWithValue("$player", unchecked((long)player));
+            trim.Parameters.AddWithValue("$keep", (long)Math.Max(1, keep));
+            trim.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    /// <summary>A player's waiting notifications made at or after <paramref name="since"/>, oldest first; all of theirs are deleted.</summary>
+    public List<(byte Kind, long CreatedAt, byte[] Data)> TakeNotifications(ulong player, long since)
+    {
+        var result = new List<(byte, long, byte[])>();
+        using SqliteTransaction transaction = _connection.BeginTransaction();
+        using (SqliteCommand select = _connection.CreateCommand())
+        {
+            select.Transaction = transaction;
+            select.CommandText = "SELECT kind, created_at, data FROM notifications WHERE player = $player AND created_at >= $since ORDER BY id";
+            select.Parameters.AddWithValue("$player", unchecked((long)player));
+            select.Parameters.AddWithValue("$since", since);
+            using SqliteDataReader reader = select.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(((byte)reader.GetInt64(0), reader.GetInt64(1), (byte[])reader.GetValue(2)));
+            }
+        }
+        using (SqliteCommand delete = _connection.CreateCommand())
+        {
+            delete.Transaction = transaction;
+            delete.CommandText = "DELETE FROM notifications WHERE player = $player";
+            delete.Parameters.AddWithValue("$player", unchecked((long)player));
+            delete.ExecuteNonQuery();
+        }
+        transaction.Commit();
+        return result;
+    }
+
+    public int NotificationCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM notifications"), CultureInfo.InvariantCulture);
 
     public int CharacterCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM characters"), CultureInfo.InvariantCulture);
 

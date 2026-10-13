@@ -33,6 +33,14 @@ public enum ZoneEventKind : byte
 
     /// <summary>To a player: they got up again (<see cref="ZoneEvent.Other"/>: who helped them up, or none).</summary>
     Recovered,
+
+    /// <summary>
+    /// To everyone near (G5): an explosion at <see cref="ZoneEvent.Position"/>, of <see cref="ZoneEvent.Item"/> (the
+    /// explosive or round), radius <see cref="ZoneEvent.Amount"/>, facing <see cref="ZoneEvent.Velocity"/> (the surface's
+    /// normal), on <see cref="ZoneEvent.Target"/>; <see cref="ZoneEvent.Other"/> is the explosive that went off (none for a
+    /// rocket or round, whose <see cref="ZoneEvent.Flag"/> is set for a round). <see cref="ZoneEvent.Player"/>: whose.
+    /// </summary>
+    Detonated,
 }
 
 /// <summary>Why items arrived, for the UI's notifications.</summary>

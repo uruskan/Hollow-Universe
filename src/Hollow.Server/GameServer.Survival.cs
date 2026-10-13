@@ -89,6 +89,10 @@ public sealed partial class GameServer
         }
         foreach (ThingRecord t in stored.Things)
         {
+            if (StoredExplosive(t))
+            {
+                continue;
+            }
             try
             {
                 WorldObject? thing = WorldCodec.DecodeThing(t.Id, (StaticKind)t.Kind, t.Data, Content, Zone.Frame.ToLocal, Zone.Frame.UpAt, Zone.Tick);
@@ -113,6 +117,7 @@ public sealed partial class GameServer
             IndexOverride(n.ObjectId);
         }
         LoadBuilding(stored);
+        RestoreExplosives();
         Log($"loaded {sleepers} sleepers, {things} things and {stored.Naturals.Count} changed natural objects");
     }
 
@@ -200,6 +205,7 @@ public sealed partial class GameServer
             });
             current.Add(thing.Id);
         }
+        AddExplosivesToSave(save, current);
         foreach (EntityId id in _savedThings)
         {
             if (!current.Contains(id))
@@ -345,7 +351,7 @@ public sealed partial class GameServer
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.HelpUp(me, new EntityId(m.Target)));
             }
             default:
-                return ReceiveBuildIntent(session, type);
+                return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type);
         }
     }
 
@@ -424,6 +430,7 @@ public sealed partial class GameServer
         }
         natural.Changed.Clear();
         RouteEvents();
+        AfterRaid();
         foreach (PlayerSession session in _sessions.Values)
         {
             if (session.Playing && Zone.PlayerOf(session.Entity) is { } p)
@@ -509,6 +516,9 @@ public sealed partial class GameServer
                     break;
                 case ZoneEventKind.Recovered:
                     Log($"{NameOf(e.Player)} is up again" + (e.Other.IsNone ? "" : $", helped by {NameOf(e.Other)}"));
+                    break;
+                case ZoneEventKind.Detonated:
+                    SendDetonation(e);
                     break;
             }
         }

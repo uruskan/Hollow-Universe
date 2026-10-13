@@ -265,6 +265,8 @@ public sealed class ItemDef
     public string? DoorKey { get; init; }
 
     public Building.DoorDef? Door { get; internal set; }
+    /// <summary>An explosive thrown or placed by hand (explosives.json, G5); null for other items.</summary>
+    public ThrowableStats? Throwable { get; internal set; }
 
     public bool HasCondition => MaxCondition > 0;
 

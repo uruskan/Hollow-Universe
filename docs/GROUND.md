@@ -405,6 +405,9 @@ Schema 3 (G3, §6.5) adds the body's building: a row per piece, door (with its l
 store and upkeep debt), each a versioned binary record, written only when it changed and deleted when it's gone. The
 zone's record keeps when upkeep and decay were last applied, so loading catches up the time the server was down.
 
+Schema 4 (G5, §6.6) adds a `notifications` table: raid alerts waiting for players who were offline, handed over at
+login. Charges in the world are saved with the zone's things.
+
 ### 4.8 Characters
 
 What a player looks like to others and to themselves. Code in `game/scripts/Characters/`, assets in
@@ -848,6 +851,48 @@ budget; 1,364 door toggles. The bots' shared copy held all 965 pieces.
   (its changes only). A big base streaming in takes up to 1,200 bytes a snapshot on top (§4.4).
 - **Prediction** stays exact with 965 pieces and 97 doors in the shared prediction physics: the copy's bodies carry
   the server's IDs, so contacts are the same on both sides.
+
+### 5.5 G5 load test: 100 bots raiding
+
+Measured on the owner's PC on 13 October 2026, after merging phase 2a (so the huts are replicated and in every client's
+prediction), with other agents' work running on it. The server builds 50 claimed stone huts with sheet metal doors on a
+ring 70 m around the origin (`--raid-bases`, half the bots by default) and lists two bots on each as they join; every 20 s
+it puts back what the raids broke. Every bot gets the `raid-kit` loot table with every life (four timed charges, six bag
+charges, eight tin grenades, a rocket launcher with six rockets and two high-velocity ones, a rifle with 96 explosive
+rounds, clothes, bandages, food) and raids the next bot's hut (`--script raid`, `RaidBrain`): a timed charge on the door
+or the doorway beside it, then out of its blast; bag charges and grenades thrown from 5–6 m; rockets from 15 m; bursts of
+explosive rounds from 10 m. It doesn't look at what still stands; it works through its plan. All 100 stay within 120 m of
+the origin, so each sees the 99 others.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script raid
+```
+
+| | G5, 100 raiding bots | G4, 100 bots in firefights (§5.3) | Target |
+|---|---|---|---|
+| Server tick, average | 9.66 ms, of which the zone's step 4.60 ms, flying bullets and rockets 1.41 ms and explosives and blasts 0.12 ms | 8.64 ms, of which the zone's step 2.03 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 30.7 / 100 ms (16 of 1,802 over 33 ms) | 18.5 / 227 ms | ≤ 33 ms |
+| Bandwidth per client, down (99 characters and 50 huts in view) | 157 kbit/s | 169 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 22 kbit/s | 23 kbit/s | |
+| Snapshots lost / inputs on their tick | 0 % / 99.97 % | 0 % / 99.96 % | |
+| Prediction: mean / worst error, corrections | 0.006 / 157 mm, 10 (and 94 respawns) | 0.24 / 307 mm, 525 | |
+
+In the 80 s the bots placed 117 timed charges (96 found a door or wall within reach; the rest met a hut already blown
+open), threw 243 bag charges and grenades, fired 236 rockets and 990 bursts of explosive rounds: 2,425 detonations on the
+server (most of them explosive rounds), 35 duds, 44 pieces and 66 doors broken, 75,058 damage to buildings, 1,925 raid
+hits on claimed huts summed into 105 alerts, 210 deliveries to bots in the game (two owners a hut), 93 huts put back.
+101 bots died, most in each other's blasts.
+- **Tick time:** the zone's step is up on G4's by the bodies of 300 building pieces the characters move among, by the
+  building's changes (what the raids break and the server puts back, replicated) and by the bullets (explosive rounds
+  every few ticks); explosives and blasts cost about 0.1 ms a tick. The PC was busy with other agents' work during the
+  run (the bots' process saw 57 clock jumps, and 57 inputs came late), so the worst ticks are the PC's. A run a few
+  minutes earlier on the same code, except that broken doors and claim devices weren't put back yet (13 doors broken in
+  all), measured 8.46 / 15.8 / 71.0 ms.
+- **Down** is lower than G4's: raiding bots stand still while they place, throw and aim, and explosives' and detonations'
+  messages are few (a detonation is about 30 bytes to everyone within 600 m; an explosive's state about 50 bytes when it
+  changes); the huts' changes come on top.
+- **Prediction** is all but exact: every client has the huts in its prediction physics (phase 2a's replication). Before
+  the merge, characters bumping into huts their clients didn't have made 651 corrections.
 
 ---
 
@@ -1515,6 +1560,164 @@ stability); `BuildingPersistenceTests.ABaseSurvivesARestart` (pieces exactly, do
 locks, codes, lists, the claim device and its store) and `DecayCatchesUpOnLoad` (an hour away: an unclaimed wood
 foundation and wall at two thirds, a twig foundation gone).
 
+### 6.6 Raiding (G5)
+
+Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids. The rules
+are `Hollow.Simulation` code (`Zone.Raid.cs`, `Zone.Blast.cs`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
+`explosives.json` and `weapons.json`; the server's side is `GameServer.Raid.cs` and the notification service
+`Hollow.Server/Notifications`; the client's `GameClient.Raid.cs`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
+
+| Tests | `dotnet run --project tests/Hollow.Tests -- Raid` |
+|---|---|
+| `RaidTests` | the raid-cost table on every grade, side and door; thrown explosives bouncing, resting and sticking; walls shielding what is behind them; duds lit again; rocket flight and blast; a broken foundation bringing a hut down |
+| `RaidAlertTests` | alerts to owners online and offline, rate-limited per base; a whole offline raid |
+| `RaidNetTests` | raiding over the network (throw, replication, a dud lit again, detonations, a live alert); charges and alerts surviving a restart |
+
+**Sources.** The owner allows Rust's numbers. Rust's well-known raid tables give how many of each explosive break each grade and
+door (the targets below). RustMVP's `docs/architecture/legacy/building_damage.md` gave the timed charge (C4: 250 explosive damage,
+a 10 s fuse, stuck to the piece or door it is placed on, no building rights needed, 1/1/2/4/8 to break twig to armoured) and
+`unreal/Bare/Source/Bare/Rules/damage_rules.hpp` the resolver (channels summed, rounded up once). hollow-orbit's
+`js/game/construct.js` (`explode`) and `js/game/items.js` (`EXPLOSIVE`) gave the blast: a radius, full damage within 40% of it,
+the piece hit taking the table's damage and others in sight 30% of it, shielding by what stands between, and its per-tier damage
+(275 for a charge, 137.5 for a rocket, a satchel's 100/50/44/44), which reach Rust's counts. Recipes and workbench levels are
+Rust's. Names are ours: timed charge (C4-like), bag charge (satchel-like), tin grenade (beancan-like), rocket launcher, rocket,
+high-velocity rocket, explosive rifle rounds, explosives.
+
+**The explosives** (`explosives.json`, `weapons.json`):
+
+| Item | Used | Fuse, dud | Blast radius | People (at the centre) | Deployables | Recipe (workbench) |
+|---|---|---|---|---|---|---|
+| `timed-charge` | placed (3 m) or thrown (9 m/s), sticks | 10 s, never | 4 m | 275 | 550 | 20 explosives, 5 fibre, 2 refined metal (3) |
+| `bag-charge` | placed or thrown, sticks | 6–12 s, 1 in 5 | 3 m | 120 | 150 | 4 tin grenades, 20 fibre (1) |
+| `tin-grenade` | thrown (15 m/s) or lobbed (6 m/s), bounces | 3.5–4.5 s, 3 in 20 | 3.5 m | 60 | 40 | 60 gunpowder, 20 metal fragments (1) |
+| `rocket` (`rocket-launcher`) | fired, 18 m/s, falls a little | explodes where it hits, or after 5 s | 3 m | 210 | 300 | 10 explosives, 150 gunpowder, 2 refined metal (2) |
+| `rocket-hv` | fired, 40 m/s | as the rocket | 2 m | 175 | 120 | 100 gunpowder, 1 refined metal (2) |
+| `rifle-ammo-explosive` | the rifle's rounds (×0.6 damage, ×0.6 speed) | bursts where it lands | 0.6 m | 4 | 4 | 10 metal fragments, 20 gunpowder, 10 sulphur → 2 (3) |
+| `explosives` | the compound charges and rockets are made of | | | | | 50 gunpowder, 3 lamp oil, 10 sulphur, 10 metal fragments (2) |
+
+So a timed charge costs 2,200 sulphur, a rocket 1,400, a bag charge 480 and an explosive round 25, as in Rust. The rocket
+launcher (`weapons.json`; 50 refined metal and 100 metal fragments at workbench 2) is a firearm of calibre `rocket`: one in the
+magazine, a 5 s reload, 1 s to take up, no damage of its own; it fires through G4's gun pipeline (fire and reload intents, the
+client's prediction).
+
+**Raid costs**, how many break each thing, hit on either side (Rust's counts; the test prints the table):
+
+| | twig | wood | stone | metal | armoured | wooden door | sheet metal door | garage door | armoured door |
+|---|---|---|---|---|---|---|---|---|---|
+| Timed charge | 1 | 1 | 2 | 4 | 8 | 1 | 1 | 2 | 2 |
+| Rocket | 1 | 2 | 4 | 8 | 15 | 1 | 2 | 3 | 4 |
+| Bag charge | 1 | 3 | 10 | 23 | 46 | 2 | 4 | 9 | 12 |
+| Tin grenade | 1 | 13 | 46 | 112 | 223 | 10 | 18 | 43 | 56 |
+| Explosive rounds | 1 | 49 | 185 | 400 | 799 | 19 | 63 | 150 | 200 |
+| High-velocity rocket (ours) | 1 | 4 | 12 | 23 | 45 | 3 | 4 | 9 | 12 |
+
+The damage of one hit against each grade and door protection is in `explosives.json`, set so these counts come out on our hit
+points (twig 10, wood 200, stone 500, metal 1,000, armoured 2,000; doors 200, 250, 600, 1,000): a charge does 275 to a wall of any
+grade but twig, a rocket 137.5, a bag charge 75/51/44/44, a grenade 16/11/8.99/8.99, an explosive round 4.12/2.71/2.505/2.505.
+The building rules take whole points (RustMVP's resolver rounds every hit up), so the blast keeps the fractions of a point and
+carries them to the next hit on the same piece: a grenade's 8.99 against metal takes 112, not 100. The damage goes in through
+`BuildingWorld.Damage`'s explosive channel, whose transmissions in `building.json` stay 1: the tables here own the numbers.
+
+**A blast** (`Zone.Blast`): everything within its radius is looked at before anything is damaged (a wall that breaks still
+shields what was behind it).
+- *Building pieces and doors* in sight take the table's damage for their grade (their protection's, for a door) and side, times
+  the falloff (full within 40% of the radius, nothing at it). The one the explosive is stuck to (or the rocket or round hit) takes
+  it whole; with nothing stuck, the nearest one in sight counts as hit; every other takes 30% (hollow-orbit's splash). A piece is
+  in sight when a ray from the blast to its nearest point or its middle meets no other piece, door or claim device, and no
+  ground; behind a wall, a floor or a door, nothing.
+- *Deployables* in sight take the blast's deployable damage with the falloff; one broken spills what it held. A
+  claim device takes it through the building rules' explosive channel, as part of the raid on its base.
+- *Characters* in sight (chest or head; sleepers and the downed lying) take the blast's damage with the falloff, less what they
+  wear on the body against projectiles; a lethal blast may knock down (G4's rule: not at 75 or more). Sleepers are killable.
+- A piece broken comes down through the building rules: what it held collapses layer by layer (§6.3).
+- A claimed structure hit is a *raid hit* for the notification service (below).
+
+**Sides.** Explosives hurt both sides of a wall alike, as in Rust; `explosives.json` takes `[hard, soft]` for a grade to tune that.
+The soft side matters for blows (§6.3, §11 36): a stone wall takes 5% of a pickaxe's blow on its hard side, all of it on its soft
+side; a stranger soft-siding a claimed wall raises a raid alert too.
+
+**Throwing and placing** (intents, from a belt slot): a throw leaves a hand's length in front of the eye along the view (the
+intent's, when it is within 0.6 rad of the view the server has for the player, else the server's: no throwing behind one's back)
+with the throw's or the lob's speed plus half the player's velocity, its fuse already lit. It flies under the planet's gravity in
+two steps a tick; a charge sticks to the first surface it touches (a piece, a door's leaf, a box, a tree or outcrop, the ground);
+a grenade bounces (restitution 0.35, 30% of its sliding speed lost) and rests once slow on ground flat enough. Thrown things
+pass through characters. A charge can also be placed on the surface the view meets within 3 m. One throw or placement a second
+(0.8 s for grenades); at most 1,024 explosives in a zone. A charge on a door moves with its leaf; one whose support goes (broken,
+collapsed, a felled tree) falls and sticks or rests again.
+
+**Fuses and duds.** A fuse's length and whether it goes out are drawn when it is lit, from a seed of the explosive and how often
+it was lit. A dud lies there, harmless; anyone within reach lights it again with the interact key (a new fuse, which may go out
+again); one left alone goes after 10 minutes.
+
+**Rockets and explosive rounds** are server bullets (§6.3) with a blast: a rocket explodes where it hits (5 cm short of the
+surface, so its blast starts outside a wall) or at the end of its flight; an explosive round does its bullet's damage to a person
+and bursts where it lands, which is all it does to buildings.
+
+**Raid alerts** (the notification service, ARCHITECTURE.md §14: `INotificationService`, implemented by `NotificationService`).
+- A claimed structure hurt by any explosive, or by a blow, arrow or bullet of someone its claim device doesn't list, is a raid
+  hit: the base (its claim device's ID and place), everyone the device lists at that moment, what was hit and broken, with what,
+  when. Decay is not a raid.
+- *Rate-limited per base:* the first hit sends an alert at once; hits within the next minute are summed (hits, pieces broken,
+  what, first and last time) into one alert sent when the minute is over.
+- *Online* players (playing now) get it in the game (`RaidAlertMessage`). *Offline* ones (logged off: a sleeper, or not in the
+  zone) get it queued (the database's `notifications` table; in memory without one), at most 50 each, kept 7 days, and handed
+  over at login (`RaidAlertList`), listed with the base, the time and what was hit.
+- *Push later:* every alert queued for someone offline also goes to an `IPushChannel` (none yet), where a phone app's push will
+  plug in.
+
+**Offline raids** (ARCHITECTURE.md §10.4: they are live). The zone runs whether the owners are there or not: their sleepers lie
+where they logged off and die to blasts and bullets like anyone (into a lootable corpse), upkeep is taken from the claim device's
+store and unpaid pieces decay on the zone's slow schedule (every minute, in closed form), and the alerts wait for them.
+`RaidAlertTests.AWholeOfflineRaid` walks through one: the owner logs off asleep in a stone hut with a sheet metal door; two hours
+pass (upkeep paid from the claim device, an unclaimed twig foundation nearby decayed away, the hut whole); a raider breaks the
+door with a timed charge (alert queued), kills the sleeper with a second one inside, which breaks the claim device too (summed
+into a follow-up after the minute), and loots the body; the owner logs in dead to two alerts.
+
+**Network** (protocol 6, `Messages.cs`):
+- *Intents* (the general sequence, answered by `IntentResult`): `ThrowIntent` (belt slot, item, view, lob), `PlaceChargeIntent`
+  (belt slot, item, view), `RearmIntent` (the explosive). Rockets go through `FireIntent` and `ReloadIntent` (§6.4).
+- *Explosives* (`ExplosiveUpdate`, reliable, to everyone within 300 m when one appears and whenever it changes: thrown, bounced,
+  stuck, at rest, a dud, lit again, moved with a door): its ID, item, owner, state (flying, resting, stuck), dud, the arc's start
+  and velocity at a server tick, the surface's normal, the tick its fuse ends on and the fuse's length. `ExplosiveGone` when one
+  leaves range or goes without a blast.
+- *Detonations* (`Detonation`, reliable to everyone within 600 m; an explosive round's unreliable): position, normal, radius, the
+  item (explosive or round), what it was on, whose, and the explosive's ID (none for a rocket or round).
+- *Alerts:* `RaidAlertMessage` (one, live) and `RaidAlertList` (those that waited, at login).
+
+**The client API for the visual layer and sound:**
+
+| Member | What |
+|---|---|
+| `GameClient.Explosives` (`ClientExplosive`: `Id`, `Item`, `State`, `Dud`, `Normal`, `Burning`, `FuseTicks`; `PositionAt(serverTick)`, `FuseSecondsLeft(serverTick)`), `ExplosiveOf(id)`, `ServerTickNow` | The explosives in range: draw each at `PositionAt(ServerTickNow)` (on its arc while flying; `RenderTick` keeps it with the other players, 100 ms behind), its model by `Item.Key`, oriented by `Normal` when stuck or resting; a blinking light that quickens as `FuseSecondsLeft` falls; no light on a dud. |
+| `GameClient.ExplosiveChanged`, `ExplosiveRemoved` | One appeared or changed (a throw's whoosh, a bounce's clink, the stick of a charge, a fizzle when it turns `Dud`, a hiss when lit again), or went without a blast. |
+| `GameClient.Detonated` (`DetonationEvent`: position, normal, radius, item, target, round, owner), `GameClient.Detonations` | An explosion: flash, smoke, debris and dust by the item and radius (a round's small burst, a rocket's, a charge's), a shake and the sound by distance. |
+| `GameClient.Projectiles` | Rockets in flight are projectiles whose `Ammo` is a rocket: draw the rocket with its smoke trail. |
+| `Local.Throw(slot, yaw, pitch, lob)`, `Local.PlaceCharge(slot, yaw, pitch)`, `Local.Rearm(id)` | Intents; the item leaves the belt at once. `GameClient.Aim` → `InteractionKind.Rearm` on a dud ("E: Light Bag charge"), `Interact` lights it. |
+| `Local.RaidAlerts` (`RaidAlertView`: base, where, first and last time, hits, broken, what, item, `WhileAway`), `Local.RaidAlertReceived` | Raid alerts: a notice and a sound when one comes; the list at login for those that waited. |
+| `RemoteEntity.Action == ActionKind.Throw` | Others' throws and placements, to animate. |
+
+**What the visual layer does with it** (the Godot work after the integration package): models for the new items (the assets
+package: `timed-charge`, `bag-charge`, `tin-grenade`, `rocket-launcher`, `rocket`, `rocket-hv`, `rifle-ammo-explosive`, and
+`explosives`); explosives drawn and blinking, with throw, bounce, stick, fizzle and relight sounds; the throw and place animations
+(held item, left mouse throws, right mouse lobs or places: the controls are the integration's); detonations with flash, smoke,
+debris, a camera shake and a loud, far sound; rockets with a trail; the "Light" prompt on duds; the raid-alert notice and the list
+at login (base on the map, time, what was hit); pieces showing damage (their health is replicated by phase 2a). Until the sound
+package makes them, `sounds.json` maps the new items to stand-ins (§11 R15).
+
+**Persistence.** Charges stuck or lying in the world (duds too, and any still in the air, which fall on) survive a restart: they
+are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`) with their fuse as world time left, which pauses while the
+server is down, and restored after the rest of the world with what they were stuck to; one whose support is gone falls. Rockets
+and rounds in flight are not saved (as bullets). Queued alerts live in `notifications` (schema 4) until handed over.
+
+**Bots and the load test:** `RaidBrain` and `loadtest --script raid` (§5.5); the admin's `raidbase <name> [grade]` builds a
+claimed hut in front of a player for playtests.
+
+**Building** is phase 2a's (§6.3, §6.5). A blast goes into `BuildingWorld.Damage`'s explosive channel, so what it
+breaks and brings down replicates and is saved like any other change. Swings, arrows and bullets that stop at a piece,
+door or claim device (`HitTarget.Building`) go through `Zone.DamageBuildingBy`, which damages through the same rules
+and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
+building rules, on the analytic ground (§11 R14).
+
 ---
 
 ## 7. Data
@@ -1528,8 +1731,8 @@ foundation and wall at two thirds, a twig foundation gone).
 
 A test checks that every reference resolves and that every recipe can be made from gatherable resources.
 
-**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (nine since
-G3 phase 2a added building.json),
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (ten:
+G3 phase 2a added building.json, G5 explosives.json),
 resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
 a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
 `game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
@@ -1537,15 +1740,16 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 
 | File | What | Sources |
 |---|---|---|
-| `items.json` | 69 items (43 in G2; G4 adds the pistol and rifle, six kinds of round, five attachments, gunpowder and the metal mask; G3 phase 2a the building plan, hammer, claim device, locks, key and doors): resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`, `building` (what it does with the building rules) and `door`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
-| `recipes.json` | 54 recipes (G3: the building plan, hammer, claim device, locks and doors; G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows, the key lock and the double and garage doors; times ours |
+| `items.json` | 77 items (43 in G2; G4 adds the pistol and rifle, six kinds of round, five attachments, gunpowder and the metal mask; G3 phase 2a the building plan, hammer, claim device, locks, key and doors; G5 the explosives, timed and bag charges, the tin grenade, the rocket launcher, two rockets and explosive rifle rounds, ids 120–127): resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`, `building` (what it does with the building rules) and `door`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
+| `recipes.json` | 62 recipes (G3: the building plan, hammer, claim device, locks and doors; G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask; G5: Rust's raiding recipes): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows, the key lock, the double and garage doors and raiding; times ours |
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
 | `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
-| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`). | Rust |
+| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`, `raid-kit`). | Rust |
 | `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
 | `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
 | `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
+| `explosives.json` (G5) | The blasts (radius, falloff, splash, damage to people and deployables, one hit's damage to a piece of each grade by side and to a door of each protection), the explosives thrown or placed by hand (fuse, dud chance, sticky or not, throw and lob speeds, bounce, size), and how raid alerts go out (cooldown, how long and how many are kept). §6.6 has the tables. | Rust's raid costs; RustMVP `building_damage.md`; hollow-orbit `construct.js` and `items.js`; ours for fuses' spread, throws and alerts |
 
 The client alone also reads `sounds.json`, the sound catalogue (§4.9); it is not part of the game data's hash.
 
@@ -2152,3 +2356,61 @@ Decisions taken in G3's phase 2a (§6.5, building over the network), to confirm 
   split; only what changed is written.
 - B11. **The load test's bots build 36 m apart:** a claim device covers 25 m round itself (with 2.25 m of padding for
   the hammer), so nearer bases would block each other.
+
+Decisions taken during G5 (step "Raid", §6.6) without the owner, to confirm or overturn (numbered R1 on):
+
+- R1. **Raid costs are Rust's counts on our hit points.** One hit's damage per grade and door is set so Rust's counts come
+  out on RustMVP's hit points (wood 200 against Rust's 250, the armoured door 1,000 against 800); the blast keeps
+  fractions of a point from hit to hit, since the building resolver rounds every hit up. The tin grenade's doors and the
+  high-velocity rocket are ours, in proportion.
+- R2. **Explosives ignore the side** of a wall (Rust); the data can give a grade [hard, soft]. G5 leaves the melee
+  soft-side numbers of decision 36 as they are.
+- R3. **The blast is hollow-orbit's:** the piece stuck to or hit takes the table whole, the nearest in sight counts as
+  hit when nothing is stuck, other pieces in sight take 30% with the falloff (full within 40% of the radius). Rust's
+  stuck charges hurt only their piece; here a charge's neighbours in sight take a share too.
+- R4. **Line of sight:** building pieces, doors, claim devices and the ground block a blast; deployables, trees and
+  characters don't. Everything is looked at before anything is damaged, so a wall that breaks still shields what was
+  behind it.
+- R5. **Fuses and duds:** timed charge 10 s, never a dud (RustMVP, Rust); bag charge 6–12 s with one in five a dud, tin
+  grenade 3.5–4.5 s with three in twenty (Rust's in kind; exact Rust numbers not on record). Anyone within reach lights a
+  dud again, any number of times; a dud left alone goes after 10 minutes of world time (ours).
+- R6. **Throwing:** from any belt slot (not only the one in hand), at 9 m/s for charges and 15 m/s for grenades, or a
+  lob; the view is the intent's when within 0.6 rad of the server's (anti-cheat); one a second (grenades 0.8 s); thrown
+  things pass through people; charges stick to anything static; grenades bounce (restitution 0.35) and rest. Placing
+  reaches 3 m (the deployables' reach; RustMVP had 6 m) and needs no building rights (RustMVP). At most 1,024 explosives
+  in a zone (RustMVP: 1,000 charges).
+- R7. **The rocket launcher is a firearm** of its own calibre, so rockets use G4's fire and reload intents and the
+  client's gun prediction (the task's "fire rocket" intent is `FireIntent`); a rocket flies 18 m/s with 0.15× the
+  planet's gravity for 5 s and explodes on contact or at the end; the high-velocity one 2.22× faster with a small blast.
+  Its 5 s reload and 1 s equip are ours.
+- R8. **Explosive rifle rounds** do ×0.6 damage at ×0.6 speed (Rust's speed ratio) and burst (0.6 m); the burst is all
+  they do to buildings and deployables.
+- R9. **Blasts on people** use what is worn on the body against projectiles (armour has no explosion protection yet); a
+  lethal blast may knock down unless it does 75 or more.
+- R10. **Recipes are Rust's** with stand-ins for what doesn't exist yet: fibre for cloth, rope and the stash, refined
+  metal for tech trash and pipes, lamp oil for low-grade fuel. Rust's intermediate "explosives" is a new item key
+  (`explosives`, id 120).
+- R11. **Raid alerts:** to everyone the claim device lists at the hit; for any explosive damage to a claimed piece, door
+  or claim device, and blows or shots by someone it doesn't list; not for decay. One a minute per base, the hits in
+  between summed into the next; queued alerts kept 7 days, 50 a player; a push channel is a seam with nothing behind it.
+  The base is its claim device's ID; its place is in the zone's frame (a moved zone would show it elsewhere).
+- R12. **Charges survive a restart** with their fuse left as world time (it pauses while the server is down, like a
+  fire's fuel, while the building's own timers run on the real clock, B6), rather than being defused on load; one whose
+  support is gone falls. Saved as things (`things.kind` 16), not a table of their own. Queued alerts are a
+  `notifications` table: schema 4, after phase 2a's `building` table at 3.
+- R13. **Hits on buildings go through `Zone.DamageBuildingBy`:** phase 2a's swings, arrows and bullets that stop at a
+  piece, door or claim device (`HitTarget.Building`) are kept and take the same building rules; the one call adds the
+  raid alert for a stranger's hit. A claim device in a blast takes the blast's damage to deployables (with the falloff,
+  no splash share) through the explosive channel, as part of the raid; blows and shots on its box stay phase 2a's (B7).
+- R14. **Test bases and explosives use the analytic ground:** `TestBases` takes a foundation's frame from the surface
+  itself, and explosives' flight and lines of sight take the ground from it too, because Jolt's rays straight down onto
+  the ground tiles' meshes missed about a third of the time here (phase 2a found the seam between two tiles and tries
+  again a millimetre aside in `FoundationAt`). Rays against building hulls never missed in 13,000 tries.
+- R15. **Stand-in models and sounds** for the new items until the assets and sound packages make them: the timed charge
+  for the bag charge and grenade, the rifle for the launcher, rifle rounds for rockets, incendiary rounds for explosive
+  ones, sulphur for explosives; in `sounds.json` (and `art/audio/events.py`) the charge's fuse and explosion for every
+  explosive, a swing for a throw, a fire going out for a dud and a fire lit for lighting it again, a metal impact for a
+  grenade's bounce and an explosive round's burst, the rifle's sounds for the launcher and an arrow's flight for a rocket.
+- R16. **The raid arena runs only without a database** (`--raid-bases`, the load test's huts): the building is saved now,
+  so its huts would come back at the next start and be built again over themselves. The admin's `raidbase` builds one
+  hut that is saved like any other.

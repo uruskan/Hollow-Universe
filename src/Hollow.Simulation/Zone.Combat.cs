@@ -158,7 +158,7 @@ public sealed partial class Zone
                 break;
             case HitTarget.Building:
             {
-                float lost = DamageBuilding(hit.Building!, direction, melee.Structure, projectile: false);
+                float lost = DamageBuildingBy(hit.Building!, direction, melee.Structure, projectile: false, p, item.Id);
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
                 break;
             }
@@ -347,7 +347,7 @@ public sealed partial class Zone
                 break;
             case HitTarget.Building:
             {
-                float lost = DamageBuilding(hit.Building!, Vector3.Normalize(pr.Velocity), pr.Damage * ammo.Structure, projectile: true);
+                float lost = DamageBuildingBy(hit.Building!, Vector3.Normalize(pr.Velocity), pr.Damage * ammo.Structure, projectile: true, shooter, pr.Ammo.Id);
                 if (shooter != null)
                 {
                     GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
@@ -469,7 +469,7 @@ public sealed partial class Zone
             Consider(t, HitTarget.Deployable, ref candidate);
         }
 
-        // Building pieces, doors and claim devices: walls stop swings and arrows.
+        // Building pieces, doors and claim devices: walls stop swings, arrows and bullets.
         if (Building != null && TraceBuilding(origin, direction, best.Distance >= 0 ? best.Distance : length, out float wall, out object? part))
         {
             var candidate = new TraceHit { Building = part };

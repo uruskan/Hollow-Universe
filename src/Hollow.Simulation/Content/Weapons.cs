@@ -215,6 +215,11 @@ public sealed class BulletStats
     /// <summary>Fraction of the damage a deployable takes.</summary>
     public double Structure { get; init; }
 
+    /// <summary>G5: the blast it explodes with where it stops (explosives.json), by key and resolved; null for plain rounds.</summary>
+    public string? BlastKey { get; init; }
+
+    public BlastStats? Blast { get; internal set; }
+
     public override string ToString() => Item.Key;
 }
 
