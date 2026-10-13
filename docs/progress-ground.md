@@ -163,3 +163,19 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - muzzle flashes, tracers, impacts and decals per surface, blood, gathering chips;
   - explosions from the PSG C4 flipbooks, and fire;
   - real models for the three stand-ins and the G5 explosives and launcher.
+- **Sound merged** (`ground-audio`):
+  - 463 files for 138 events, about 13 MB, all CC0 with our own processing;
+  - footsteps per ground type, gathering, building, doors, guns with near, mid and far layers, explosions, Rust-like
+    interface clicks;
+  - ambience by biome and time of day;
+  - an audio system and the `--view sounds` viewer.
+
+  Every file was checked by measurement. Gunshot loudness, silenced shots and the generated wind beds need the owner's
+  ears. The sounds aren't wired into the ground mode yet. 105 of 105 tests pass.
+- **G6 ship started** (`ground-ship`), with the Tin Finch:
+  - crafted at the vehicle workbench;
+  - hatch and seat, flight assist, hover, landing on its skids;
+  - first-person cockpit and chase camera;
+  - flight up to an "orbit reached" ceiling;
+  - network prediction, saved parked ships;
+  - a `--view ship` sandbox over the real planet.
