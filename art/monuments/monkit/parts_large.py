@@ -887,6 +887,52 @@ def cooling_shell(b, at, height=120.0, base=42.0, waist=26.0, top=29.0, thick=0.
     return radius
 
 
+def panel_loft(b, rings, thick=0.6, mat=HULL, tint_fn=None, keep_fn=None, solid=True, ground=-1.0):
+    """Hull plating lofted through `rings` (closed loops of points in the current frame, all the same count): one
+    convex slab per panel, `thick` deep toward its ring's centre, so each plate is its own collision hull. Each panel
+    takes `tint_fn(i, j)` and is left out where `keep_fn(i, j)` is False (holes, a ragged break); panels wholly
+    below `ground` (monument frame) are skipped."""
+    n = len(rings[0])
+    centres = [sum((Vector(p) for p in ring), Vector()) / n for ring in rings]
+    for i in range(len(rings) - 1):
+        for j in range(n):
+            if keep_fn and not keep_fn(i, j):
+                continue
+            outer = [Vector(rings[i][j]), Vector(rings[i][(j + 1) % n]), Vector(rings[i + 1][(j + 1) % n]),
+                     Vector(rings[i + 1][j])]
+            if ground is not None and max(b.world(q).z for q in outer) < ground:
+                continue
+            cs = (centres[i], centres[i], centres[i + 1], centres[i + 1])
+            inner = []
+            for q, c in zip(outer, cs):
+                d = c - q
+                inner.append(q + d.normalized() * min(thick, d.length * 0.5))
+            mid = sum(outer, Vector()) / 4
+            verts = [tuple(q - mid) for q in outer + inner]
+            faces = [[0, 1, 2, 3], [7, 6, 5, 4], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]]
+            tint = tint_fn(i, j) if tint_fn else OFFWHITE
+            b.mesh(verts, faces, tuple(mid), mat=mat, tint=tint, solid="hull" if solid else False, smooth=False)
+
+
+def ribs(b, ring, radius=0.35, inset=(0.8, 2.6, 4.4), axis=(1, 0, 0), mat=RUST, tint=(1, 1, 1), gaps=0.15):
+    """Exposed frames where a hull broke: tubes following `ring` (a closed loop), repeated at the `inset`
+    distances back along -`axis`, some lengths missing."""
+    ax = Vector(axis).normalized()
+    pts = [Vector(p) for p in ring]
+    n = len(pts)
+    for d in inset:
+        run = []
+        for j in range(n + 1):
+            q = pts[j % n] - ax * d
+            if b.rng.random() < gaps and len(run) > 1:
+                b.tube([tuple(v) for v in run], radius, mat=mat, tint=tint, sides=6, cap=True, solid=False)
+                run = []
+                continue
+            run.append(q)
+        if len(run) > 1:
+            b.tube([tuple(v) for v in run], radius, mat=mat, tint=tint, sides=6, cap=True, solid=False)
+
+
 # ------------------------------------------------------------------------------------------------ wear and dressing
 
 
@@ -951,7 +997,7 @@ SEGMENTS = {
     "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd", "6": "afgedc", "7": "abc",
     "8": "abcdefg", "9": "abcdfg", "A": "abcefg", "B": "fgecd", "C": "afed", "D": "bcdeg", "E": "afged", "F": "afge",
     "H": "fbgec", "L": "fed", "P": "abfge", "U": "fedcb", "S": "afgcd", "-": "g", "O": "abcdef", "R": "eg",
-    "T": "fged", "N": "ceg", "Y": "fgbcd", "J": "bcde", "G": "afedc", "I": "bc", " ": "",
+    "T": "fged", "N": "ceg", "Y": "fgbcd", "J": "bcde", "G": "afedc", "I": "bc", "V": "fedcb", " ": "",
 }
 
 
