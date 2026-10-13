@@ -1118,6 +1118,73 @@ def _pallet(b, boxes=True):
 kit.PIECES["pallet-boxes"] = lambda b: _pallet(b, True)
 
 
+# ------------------------------------------------------------------------------------------------ tanks
+
+
+def storage_tank(b, at, radius, height, tint=OFFWHITE, band=None, roof="cone", ladder_at=None, code=None,
+                 code_at=0.0, rings=True, mat=PAINT, rail=True, legs=0.0):
+    """A vertical storage tank built so its baked occlusion stays clean: an open-topped shell (no vertex shared with
+    a cap), a roof that starts a hair above it with its own rim angle, weld rings, a livery band, a stencilled code,
+    a caged ladder at angle `ladder_at` (degrees, 0 = +X) with a short rail at the top. On `legs` metres of steel
+    when given. Returns the roof's top height."""
+    x, y, z0 = at
+    z = z0 + legs
+    sides = 40 if radius > 3 else 28
+    if legs:
+        for k in range(4):
+            a = math.radians(45 + 90 * k)
+            b.box((0.3, 0.3, legs), (x + math.cos(a) * radius * 0.75, y + math.sin(a) * radius * 0.75, z0 + legs / 2),
+                  mat=PAINT, tint=DARK)
+        b.cyl(radius, 0.12, (x, y, z + 0.06), mat=PAINT, tint=DARK, sides=sides)
+    b.cyl(radius, height, (x, y, z + height / 2), mat=mat, tint=tint, sides=sides, cap=False)
+    b.cyl(radius - 0.05, 0.05, (x, y, z + 0.03), mat=PAINT, tint=DARK, sides=sides, solid=False)
+    if rings:
+        n = max(1, int(height / 2.4))
+        for i in range(1, n):
+            b.cyl(radius + 0.012, 0.05, (x, y, z + height * i / n), mat=mat, tint=tint, sides=sides, solid=False,
+                  vary=0)
+    if band:
+        b.cyl(radius + 0.008, min(0.6, height * 0.14), (x, y, z + height * 0.7), mat=PAINT, tint=band, sides=sides,
+              solid=False, vary=0)
+    b.cyl(radius + 0.06, 0.1, (x, y, z + height - 0.03), mat=PAINT, tint=GREY, sides=sides, cap=False, solid=False)
+    top = z + height + 0.02
+    if roof == "cone":
+        rise = radius * 0.2
+        b.lathe([(radius + 0.04, 0.0), (radius * 0.55, rise * 0.5), (0.35, rise), (0.0, rise)], (x, y, top), mat=mat,
+                tint=tint, sides=sides)
+        roof_top = top + rise
+    elif roof == "dome":
+        rise = radius * 0.32
+        prof = [(radius + 0.03, 0.0)] + [(radius * math.cos(t), rise * math.sin(t))
+                                         for t in (0.25, 0.55, 0.85, 1.15, 1.4)] + [(0.0, rise)]
+        b.lathe(prof, (x, y, top), mat=mat, tint=tint, sides=sides)
+        roof_top = top + rise
+    else:
+        b.cyl(radius + 0.04, 0.08, (x, y, top + 0.04), mat=mat, tint=tint, sides=sides)
+        roof_top = top + 0.08
+    b.cyl(0.3, 0.3, (x, y, roof_top + 0.1), mat=PAINT, tint=GREY, sides=12, solid=False)
+    b.cyl(0.36, 0.06, (x, y, roof_top + 0.28), mat=PAINT, tint=GREY, sides=12, solid=False)
+    if code:
+        a = math.radians(code_at)
+        cx, cy = x + math.cos(a) * (radius + 0.005), y + math.sin(a) * (radius + 0.005)
+        stencil(b, code, (cx, cy, z + height * 0.42), (0, 0, code_at + 90.0), min(0.6, radius * 0.22), DARK,
+                align="centre")
+    if ladder_at is not None:
+        from .kit import ladder
+        a = math.radians(ladder_at)
+        lx, ly = x + math.cos(a) * (radius + 0.28), y + math.sin(a) * (radius + 0.28)
+        ladder(b, (lx, ly, z0), legs + height, (0, 0, ladder_at - 90.0 + 180.0), cage=True)
+        if rail:
+            from .kit import railing
+            pts = []
+            for k in range(9):
+                t = a - math.radians(28) + math.radians(56) * k / 8
+                pts.append((x + math.cos(t) * (radius - 0.12), y + math.sin(t) * (radius - 0.12), top + 0.05))
+            for p, q in zip(pts, pts[1:]):
+                railing(b, p, q, 1.0, spacing=2.0, toe=False)
+    return roof_top
+
+
 # ------------------------------------------------------------------------------------------------ crawler, tanker
 
 
