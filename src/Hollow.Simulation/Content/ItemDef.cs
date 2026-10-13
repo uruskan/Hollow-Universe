@@ -81,6 +81,9 @@ public sealed class MeleeStats
 
     public float Ore { get; init; }
 
+    /// <summary>The gather rate a class of natural objects takes (gather.json <c>classes.*.rate</c>).</summary>
+    public float Rate(GatherRate rate) => rate == GatherRate.Ore ? Ore : Tree;
+
     /// <summary>Damage to a deployable (boxes, furnaces, bags).</summary>
     public float Structure { get; init; }
 
@@ -275,6 +278,21 @@ public sealed class ItemDef
     public Building.DoorDef? Door { get; internal set; }
     /// <summary>An explosive thrown or placed by hand (explosives.json, G5); null for other items.</summary>
     public ThrowableStats? Throwable { get; internal set; }
+
+    /// <summary>Its parts (GROUND_SYSTEMS.md §7): the blocks of its data that give it behaviour, worked out when the data is read.</summary>
+    public ItemParts Parts { get; internal set; }
+
+    /// <summary>
+    /// What it does in the hands (GROUND_SYSTEMS.md §7): the held behaviour its one part that gives one gives
+    /// (<see cref="HeldPart"/>), else <see cref="HeldUse.None"/>. The client's and the server's handlers are found by it.
+    /// </summary>
+    public HeldUse Held { get; internal set; }
+
+    /// <summary>The part that gives it its held behaviour, or null.</summary>
+    public ItemPart? HeldPart { get; internal set; }
+
+    /// <summary>The recipes that take it (what it is a component of), in recipes.json's order.</summary>
+    public IReadOnlyList<Recipe> UsedIn { get; internal set; } = Array.Empty<Recipe>();
 
     public bool HasCondition => MaxCondition > 0;
 

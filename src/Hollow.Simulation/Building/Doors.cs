@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Building;
 
@@ -21,6 +23,9 @@ public abstract class DoorLock
     public ulong Owner { get; }
 
     public bool Locked { get; internal set; }
+
+    /// <summary>What kind of lock it is (what replication and capabilities go by).</summary>
+    public abstract LockKind Kind { get; }
 }
 
 /// <summary>
@@ -36,6 +41,8 @@ public sealed class KeyLock : DoorLock
 
     /// <summary>The number its keys carry.</summary>
     public int KeyCode { get; }
+
+    public override LockKind Kind => LockKind.Key;
 
     public bool CanUse(ulong player, IReadOnlyCollection<int>? keys) => !Locked || player == Owner || (keys != null && Contains(keys, KeyCode));
 
@@ -71,6 +78,8 @@ public sealed class CodeLock : DoorLock
 
     public bool HasCode => CodeHash != 0;
 
+    public override LockKind Kind => LockKind.Code;
+
     /// <summary>The hash a code is kept as on this lock (never 0).</summary>
     public ulong HashOf(string code) => Math.Max(1, Hash64.Combine(Hash64.Of(Id.Value, 0xC0DE), Hash64.Of(code)));
 
@@ -86,7 +95,7 @@ public sealed class CodeLock : DoorLock
 /// upgraded. Its leaves swing on the hinges from the kit's assembly manifest; open or shut they collide, so an open
 /// door still blocks (RustMVP's rule).
 /// </summary>
-public sealed class Door
+public sealed class Door : IBuildingPart, IOwned
 {
     internal uint[] Bodies;
 
@@ -103,6 +112,9 @@ public sealed class Door
 
     public EntityId Id { get; }
 
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Door, Id.Value);
+
     public DoorDef Def { get; }
 
     /// <summary>The doorway or wall frame it's fitted into.</summary>
@@ -113,6 +125,9 @@ public sealed class Door
 
     public ulong Owner { get; }
 
+    /// <summary>Whose it is to a viewer (GROUND_SYSTEMS.md §3.3): its lock's fitter while it has a lock, else who fitted the door.</summary>
+    ulong IOwned.OwnerId => Lock?.Owner ?? Owner;
+
     public bool Open { get; internal set; }
 
     public double Health { get; internal set; }
@@ -122,6 +137,9 @@ public sealed class Door
     public DoorLock? Lock { get; internal set; }
 
     public bool Gone { get; internal set; }
+
+    /// <summary>The claim device of its frame's structure, or null.</summary>
+    public ClaimDevice? Base => Frame.Structure?.Claim;
 
     /// <summary>Its leaves' Jolt body IDs.</summary>
     public IReadOnlyList<uint> BodyIds => Bodies;
@@ -149,8 +167,11 @@ public sealed class Door
     public override string ToString() => $"{Def.Key} in {Frame.Def.Key} #{Frame.Handle} ({(Open ? "open" : "shut")})";
 }
 
-/// <summary>The owner of a door leaf's body.</summary>
-internal sealed record DoorLeaf(Door Door, int Index);
+/// <summary>The owner of a door leaf's body: the door's leaf (its part, <see cref="TargetRef.Part"/>).</summary>
+internal sealed record DoorLeaf(Door Door, int Index) : ITargetable
+{
+    public TargetRef Ref => Door.Ref with { Part = (byte)(Index + 1) };
+}
 
 public sealed partial class BuildingWorld
 {
@@ -187,33 +208,33 @@ public sealed partial class BuildingWorld
         door = null;
         if (frame.Gone || frame.Collapsing)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (frame.Def.Opening is not (Opening.Door or Opening.Double))
         {
-            return Outcome.Refuse(Refusal.NotAnOpening);
+            return OutcomeCode.NotAnOpening;
         }
         if (frame.Def.Opening != def.Opening)
         {
-            return Outcome.Refuse(Refusal.WrongOpening, def.Opening == Opening.Door ? "This door needs a doorway" : "This door needs a wall frame");
+            return def.Opening == Opening.Door ? OutcomeCode.NeedsDoorway : OutcomeCode.NeedsWallFrame;
         }
         if (frame.Door != null)
         {
-            return Outcome.Refuse(Refusal.HasDoor);
+            return OutcomeCode.HasDoor;
         }
         (Vector3 position, _) = frame.ZoneTransform;
         if (PrivilegeAt(player, position, 0) == Privilege.Blocked)
         {
-            return Outcome.Refuse(Refusal.BuildingBlocked);
+            return OutcomeCode.BuildingBlocked;
         }
         if (Vector3.Distance(eye, position + Up(position) * 1.2f) > Data.Reach)
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return OutcomeCode.OutOfReach;
         }
         var fitted = new Door(_newId(), def, frame, flip & 1, player);
         if (LeavesBlocked(fitted, open: false))
         {
-            return Outcome.Refuse(Refusal.PlayerInTheWay);
+            return OutcomeCode.PlayerInTheWay;
         }
         frame.Door = fitted;
         _doorIds[fitted.Id] = fitted;
@@ -274,15 +295,15 @@ public sealed partial class BuildingWorld
     {
         if (door.Gone)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!CanUse(player, door, keys))
         {
-            return Outcome.Refuse(Refusal.Locked);
+            return OutcomeCode.Locked;
         }
         if (LeavesBlocked(door, !door.Open))
         {
-            return Outcome.Refuse(Refusal.SwingBlocked);
+            return OutcomeCode.SwingBlocked;
         }
         SetOpen(door, !door.Open);
         return Outcome.Done;
@@ -314,21 +335,21 @@ public sealed partial class BuildingWorld
     {
         if (door.Gone)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (door.Lock != null)
         {
-            return Outcome.Refuse(Refusal.RemoveLockFirst);
+            return OutcomeCode.RemoveLockFirst;
         }
         if (!door.Open)
         {
-            return Outcome.Refuse(Refusal.OpenItFirst);
+            return OutcomeCode.OpenItFirst;
         }
         RemoveDoor(door);
         return Outcome.Done;
     }
 
-    internal void RemoveDoor(Door door)
+    internal void RemoveDoor(Door door, Removal reason = Removal.Taken)
     {
         if (door.Gone)
         {
@@ -342,7 +363,7 @@ public sealed partial class BuildingWorld
         }
         door.Frame.Door = null;
         door.Lock = null;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorRemoved, door.Frame, door, Structure: door.Frame.Structure));
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorRemoved, door.Frame, door, Structure: door.Frame.Structure, Removal: reason));
     }
 
     /// <summary>Fits a key lock (unlocked) to a door without one; needs building rights at the door.</summary>
@@ -380,16 +401,16 @@ public sealed partial class BuildingWorld
     {
         if (door.Gone)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (door.Lock != null)
         {
-            return Outcome.Refuse(Refusal.HasLock);
+            return OutcomeCode.HasLock;
         }
         (Vector3 position, _) = door.Frame.ZoneTransform;
         if (PrivilegeAt(player, position, 0) == Privilege.Blocked)
         {
-            return Outcome.Refuse(Refusal.BuildingBlocked);
+            return OutcomeCode.BuildingBlocked;
         }
         return Outcome.Done;
     }
@@ -402,19 +423,19 @@ public sealed partial class BuildingWorld
     {
         if (door.Lock is not CodeLock codeLock)
         {
-            return Outcome.Refuse(Refusal.NoLock);
+            return OutcomeCode.NoLock;
         }
         if (!ValidCode(code))
         {
-            return Outcome.Refuse(Refusal.BadCode);
+            return OutcomeCode.BadCode;
         }
         if (!codeLock.IsAuthorised(player))
         {
-            return Outcome.Refuse(Refusal.NotAuthorised, "You aren't authorised on this lock");
+            return OutcomeCode.NotOnLock;
         }
         if (codeLock.Locked)
         {
-            return Outcome.Refuse(Refusal.UnlockItFirst);
+            return OutcomeCode.UnlockItFirst;
         }
         codeLock.CodeHash = codeLock.HashOf(code);
         codeLock.Locked = true;
@@ -432,15 +453,15 @@ public sealed partial class BuildingWorld
     {
         if (door.Lock is not CodeLock codeLock)
         {
-            return Outcome.Refuse(Refusal.NoLock);
+            return OutcomeCode.NoLock;
         }
         if (!codeLock.HasCode)
         {
-            return Outcome.Refuse(Refusal.NoCode);
+            return OutcomeCode.NoCode;
         }
         if (codeLock.Failures.TryGetValue(player, out (int Failures, double Until) failed) && now < failed.Until)
         {
-            return Outcome.Refuse(Refusal.WaitForCode, $"Wait {Math.Ceiling(failed.Until - now):0} s before trying another code");
+            return OutcomeCode.WaitForCode.With((int)Math.Ceiling(failed.Until - now));
         }
         if (ValidCode(code) && codeLock.HashOf(code) == codeLock.CodeHash)
         {
@@ -449,7 +470,7 @@ public sealed partial class BuildingWorld
             {
                 if (codeLock.AuthorisedList.Count >= Data.LockMaxAuthorised)
                 {
-                    return Outcome.Refuse(Refusal.ListFull);
+                    return OutcomeCode.ListFull;
                 }
                 codeLock.AuthorisedList.Add(player);
                 Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
@@ -459,7 +480,7 @@ public sealed partial class BuildingWorld
         int failures = Math.Min(failed.Failures + 1, 100);
         double wait = Data.WrongCodeWait[Math.Min(failures, Data.WrongCodeWait.Count) - 1];
         codeLock.Failures[player] = (failures, now + wait);
-        return Outcome.Refuse(Refusal.WrongCode);
+        return OutcomeCode.WrongCode;
     }
 
     /// <summary>
@@ -470,11 +491,11 @@ public sealed partial class BuildingWorld
     {
         if (door.Lock is not CodeLock codeLock)
         {
-            return Outcome.Refuse(Refusal.NoLock);
+            return OutcomeCode.NoLock;
         }
         if (!codeLock.IsAuthorised(player))
         {
-            return Outcome.Refuse(Refusal.NotAuthorised, "You aren't authorised on this lock");
+            return OutcomeCode.NotOnLock;
         }
         bool changed = false, full = false;
         foreach (ulong member in members)
@@ -495,7 +516,7 @@ public sealed partial class BuildingWorld
         {
             Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
         }
-        return full && !changed ? Outcome.Refuse(Refusal.ListFull) : Outcome.Done;
+        return full && !changed ? OutcomeCode.ListFull : Outcome.Done;
     }
 
     /// <summary>Locks a lock: a code lock by an authorised player once it has a code; a key lock by its owner or a key holder.</summary>
@@ -506,21 +527,21 @@ public sealed partial class BuildingWorld
             case CodeLock codeLock:
                 if (!codeLock.IsAuthorised(player))
                 {
-                    return Outcome.Refuse(Refusal.NotAuthorised, "You aren't authorised on this lock");
+                    return OutcomeCode.NotOnLock;
                 }
                 if (locked && !codeLock.HasCode)
                 {
-                    return Outcome.Refuse(Refusal.NoCode);
+                    return OutcomeCode.NoCode;
                 }
                 break;
             case KeyLock keyLock:
                 if (player != keyLock.Owner && (keys == null || !HasKey(keys, keyLock.KeyCode)))
                 {
-                    return Outcome.Refuse(Refusal.NotAuthorised, "You need its key");
+                    return OutcomeCode.NeedsKey;
                 }
                 break;
             default:
-                return Outcome.Refuse(Refusal.NoLock);
+                return OutcomeCode.NoLock;
         }
         door.Lock.Locked = locked;
         Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
@@ -533,14 +554,14 @@ public sealed partial class BuildingWorld
         switch (door.Lock)
         {
             case null:
-                return Outcome.Refuse(Refusal.NoLock);
+                return OutcomeCode.NoLock;
             case CodeLock codeLock when !codeLock.IsAuthorised(player):
             case KeyLock keyLock when keyLock.Owner != player:
-                return Outcome.Refuse(Refusal.NotAuthorised, "Only someone it knows can take it off");
+                return OutcomeCode.NotOnLock;
         }
         if (door.Lock.Locked)
         {
-            return Outcome.Refuse(Refusal.UnlockItFirst);
+            return OutcomeCode.UnlockItFirst;
         }
         door.Lock = null;
         Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
@@ -564,7 +585,7 @@ public sealed partial class BuildingWorld
         bool destroyed = door.Health <= 0;
         if (destroyed)
         {
-            RemoveDoor(door);
+            RemoveDoor(door, Removal.Destroyed);
         }
         else
         {

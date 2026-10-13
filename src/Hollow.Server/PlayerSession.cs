@@ -6,6 +6,8 @@ using Hollow.Net.Replication;
 using Hollow.Persistence;
 using Hollow.Simulation.Entities;
 using LiteNetLib;
+using Hollow.Simulation.Capabilities;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Server;
 
@@ -197,7 +199,18 @@ public sealed class PlayerSession
     public bool? SentDead { get; set; }
 
     /// <summary>Static things this player was told about, by net ID, with the revision sent.</summary>
-    public Dictionary<uint, uint> ThingsSent { get; } = new();
+    public Dictionary<uint, ThingSent> ThingsSent { get; } = new();
+
+    /// <summary>
+    /// The player as a viewer this snapshot (GROUND_SYSTEMS.md §3.3: their ID, team and keys), and whether that changed
+    /// since the last (a team joined or left, a key picked up or dropped): then the viewer flags of everything they were
+    /// sent are worked out again.
+    /// </summary>
+    public Viewer Viewer { get; set; }
+
+    public ulong ViewerSignature { get; set; }
+
+    public bool ViewerChanged { get; set; }
 
     /// <summary>What each relevant character was last told to wear (a hash of the items).</summary>
     public Dictionary<uint, ulong> LooksSent { get; } = new();
@@ -239,7 +252,15 @@ public sealed class PlayerSession
         _margins.Enqueue((serverTick, margin));
     }
 
-    /// <summary>The input for a tick: the one received for it, or the last one again (without its jump press).</summary>
+    /// <summary>Ticks of repeated input after which the head's free look turns back (RustMVP's 0.8 s of silence).</summary>
+    private const int LookTimeoutTicks = (int)(Simulation.Movement.FreeLook.TimeoutSeconds * Simulation.Movement.CharacterMotor.TickRate);
+
+    private int _repeated;
+
+    /// <summary>
+    /// The input for a tick: the one received for it, or the last one again (without its jump press, and after
+    /// <see cref="Simulation.Movement.FreeLook.TimeoutSeconds"/> of that without its free look).
+    /// </summary>
     public InputCommand InputFor(uint tick)
     {
         LastSimulatedTick = tick;
@@ -247,12 +268,17 @@ public sealed class PlayerSession
         {
             LastInput = _inputs[tick % InputRing];
             InputsApplied++;
+            _repeated = 0;
         }
         else
         {
             InputCommand repeated = LastInput;
             repeated.Buttons &= ~Simulation.Movement.MoveButtons.JumpPressed;
             repeated.Actions &= ~Simulation.Players.ActionButtons.PrimaryPressed;
+            if (++_repeated > LookTimeoutTicks)
+            {
+                repeated.LookYaw = repeated.LookPitch = 0;
+            }
             LastInput = repeated;
             InputsMissing++;
         }
@@ -282,3 +308,6 @@ public sealed class PlayerSession
         return least == int.MaxValue ? sbyte.MinValue : (sbyte)Math.Clamp(least, -127, 127);
     }
 }
+
+/// <summary>What a player was last sent of a static thing: its revision, its contents' revision, what they were told of it.</summary>
+public readonly record struct ThingSent(uint Revision, uint Contents, ViewerFlags Flags);

@@ -88,7 +88,7 @@ public static class BuildingPersistenceTests
                 Assert.True(door is { Open: true, Lock: CodeLock { Locked: true } }, "the metal door open, its lock locked");
                 var code = (CodeLock)door.Lock!;
                 Assert.True(code.IsAuthorised(Ada) && code.IsAuthorised(Bo) && code.Authorised.Count == 2, "Ada and Bo let in");
-                Assert.Equal(Refusal.WrongCode, b.EnterCode(0x300, door, "1357", z.BuildingNow).Reason, "a wrong code is wrong");
+                Assert.Equal(OutcomeCode.WrongCode, b.EnterCode(0x300, door, "1357", z.BuildingNow).Code, "a wrong code is wrong");
                 Assert.True(b.EnterCode(0x400, door, "2468", z.BuildingNow).Ok, "the code is the same");
                 Door other = b.DoorOf(keyDoor)!;
                 Assert.True(other.Lock is KeyLock { Locked: true } k && k.KeyCode == keyCode, "the key lock locked, with its number");

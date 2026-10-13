@@ -12,15 +12,17 @@ namespace HollowUniverse.Ground;
 
 /// <summary>
 /// The local player in first person (GROUND.md §4.8): the character package's <see cref="ViewmodelView"/> holding the
-/// active belt item's model (the arms in the worn sleeves), swinging with the server's rhythm while the attack is
-/// held; a plain placeholder for items without a model yet; a shot's muzzle effect and a lit torch's flame (the effects
-/// library, drawn with the arms); blood dripping while bleeding; and a ghost where a held deployable would go.
+/// active belt item's model (the arms in the worn sleeves) in the pose its catalogue entry gives; a shot's muzzle effect
+/// and the flame the catalogue gives a burning item (the effects library, drawn with the arms); blood dripping while
+/// bleeding; and a ghost where a held deployable would go. What the arms do with the item (a swing in the server's
+/// rhythm, a bow drawn, a gun dressed, a throw) is its held control's (GROUND_SYSTEMS.md §7), through <see cref="Swing"/>,
+/// <see cref="Throw"/> and <see cref="DressGun"/>.
 /// </summary>
 public partial class FirstPersonView : Node3D
 {
+    private Node3D _body = null!;
     private ViewmodelView _arms = null!;
-    private Node3D _placeholder = null!;
-    private MeshInstance3D _stick = null!;
+    private HeldKind _heldKind;
     private FxHandle _flame;
     private Node3D? _flameSocket;
     private double _drip;
@@ -28,10 +30,7 @@ public partial class FirstPersonView : Node3D
     private Camera3D _camera = null!;
     private string? _heldKey;
     private int _wearRevision = -1;
-    private double _swing = -1;
     private double _sinceEquip;
-    private float _draw;
-    private bool _drawing;
     private float _lastYaw, _lastPitch;
 
     public GameClient Client { get; set; } = null!;
@@ -40,6 +39,12 @@ public partial class FirstPersonView : Node3D
     public Num.Vector3? PlacementPoint { get; set; }
 
     public float PlacementYaw { get; set; }
+
+    /// <summary>
+    /// The aim seen from the camera (the camera's basis inverted, times the aim's): identity, unless free look (Alt) has
+    /// turned the camera away. The arms belong to the body, so they stay on the aim and leave the view as the head turns.
+    /// </summary>
+    public Basis ArmsTurn { get; set; } = Basis.Identity;
 
     public override void _Ready()
     {
@@ -70,7 +75,7 @@ public partial class FirstPersonView : Node3D
         }
         else
         {
-            Vector3 forward = -_camera.GlobalBasis.Z;
+            Vector3 forward = -_body.GlobalBasis.Z;
             FxDirector.Play(key, Muzzle(), forward, new FxParams { Direction = forward, FirstPerson = true });
         }
     }
@@ -80,6 +85,28 @@ public partial class FirstPersonView : Node3D
     {
         _arms.Trigger(CharacterEvent.Swing);
         Sounds.Flat(Sounds.Item(itemKey, "throw"));
+    }
+
+    /// <summary>A swing of the item in hand: the arms' motion and its sound.</summary>
+    public void Swing(ItemDef item)
+    {
+        _arms.Trigger(CharacterEvent.Swing);
+        Sounds.Flat(Sounds.Item(item.Key, "swing") ?? "melee.swing");
+    }
+
+    /// <summary>Counts every change of what is in hand (a held control starts afresh when it changes).</summary>
+    public int Equipped { get; private set; }
+
+    /// <summary>Seconds since what is in hand was taken up.</summary>
+    public double SinceEquip => _sinceEquip;
+
+    /// <summary>The gun in hand's attachments as its stack has them (sight, muzzle part, light), drawn with the arms.</summary>
+    public void DressGun()
+    {
+        if (HeldModel is { } gun)
+        {
+            GunEffects.Dress(Client.Content, gun, _arms.Model!.Id, Client.Local.Gun.Mods.Bits, ForArms);
+        }
     }
 
     /// <summary>The model in hand as the arms draw it (the catalogue's, named by its model), if any.</summary>
@@ -94,10 +121,11 @@ public partial class FirstPersonView : Node3D
         {
             return FxDirector.ViewmodelToWorld(end.GlobalPosition);
         }
-        bool rifle = Client.Local.HeldItem?.Key == "rifle";
+        // A rifle's (its catalogue pose) is further out than a pistol's.
+        bool rifle = _heldKind == HeldKind.Rifle;
         float aim = _arms.AimAmount;
         Vector3 local = new Vector3(0.14f, -0.12f, -(rifle ? 1.0f : 0.6f)).Lerp(new Vector3(0, -0.05f, -(rifle ? 1.05f : 0.6f)), aim);
-        return _camera.GlobalTransform * local;
+        return _body.GlobalTransform * local;
     }
 
     // A reload: the arms play it, and its parts sound as they come (magazine out, in, the slide or bolt).
@@ -112,22 +140,14 @@ public partial class FirstPersonView : Node3D
         rack.Timeout += () => Sounds.Flat(Sounds.Item(key, "rack"));
     }
 
-    /// <summary>Puts the arms on the player's camera.</summary>
+    /// <summary>Puts the arms on the player's camera (on the aim, <see cref="ArmsTurn"/>).</summary>
     public void Attach(Camera3D camera)
     {
         _camera = camera;
+        _body = new Node3D { Name = "Arms" };
+        camera.AddChild(_body);
         _arms = new ViewmodelView { Name = "Viewmodel", Body = (BodyType)Client.Body };
-        camera.AddChild(_arms);
-        _placeholder = new Node3D { Name = "HeldPlaceholder", Visible = false };
-        _stick = new MeshInstance3D
-        {
-            Mesh = new BoxMesh { Size = new Vector3(0.05f, 0.05f, 0.5f) },
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.45f, 0.33f, 0.21f), Roughness = 0.8f },
-            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-            Layers = ViewmodelView.RenderLayer,
-        };
-        _placeholder.AddChild(_stick);
-        camera.AddChild(_placeholder);
+        _body.AddChild(_arms);
         _ghost = new MeshInstance3D
         {
             Name = "PlacementGhost",
@@ -143,7 +163,7 @@ public partial class FirstPersonView : Node3D
         AddChild(_ghost);
     }
 
-    /// <summary>Every frame, after the camera is placed: what is held, how it moves, swings, and the placement ghost.</summary>
+    /// <summary>Every frame, after the camera is placed: what is held, how the arms move, and the placement ghost.</summary>
     public void Refresh(double delta, in InputFrame input, float yaw, float pitch)
     {
         LocalPlayer me = Client.Local;
@@ -154,21 +174,18 @@ public partial class FirstPersonView : Node3D
         {
             _heldKey = key;
             _sinceEquip = 0;
-            _swing = -1;
+            Equipped++;
             (HeldKind kind, string? model) = key != null && ItemLooks.Held(key) is { } held ? held : (HeldKind.Unarmed, (string?)null);
+            _heldKind = kind;
             _arms.Hold(kind, model);
         }
         _sinceEquip += delta;
         DressArms();
-        // The gun's attachments as its stack has them (sight, muzzle part, light), drawn with the arms.
-        if (item?.Firearm != null && HeldModel is { } gun)
-        {
-            GunEffects.Dress(Client.Content, gun, _arms.Model!.Id, Client.Local.Gun.Mods.Bits, ForArms);
-        }
 
-        // Motion of the arms: velocity in the camera's frame, how fast the view turns.
+        // Motion of the arms: velocity in their own frame (the aim's), how fast the view turns.
+        _body.Basis = ArmsTurn;
         CharacterState state = Client.Character;
-        Basis view = _camera.GlobalBasis;
+        Basis view = _body.GlobalBasis;
         Vector3 v = GroundView.ToGodot(state.Velocity);
         float dt = (float)Math.Max(delta, 1e-4);
         var rate = new Vector2(Mathf.AngleDifference(_lastYaw, yaw) / dt, (pitch - _lastPitch) / dt);
@@ -184,49 +201,17 @@ public partial class FirstPersonView : Node3D
             Crouching = state.Stance == Stance.Crouching,
             Aiming = Client.Local.Gun.Aimed,
         });
-
-        // Swings follow the server's rhythm: one every swing time while the attack is held, once the item is ready.
-        bool swingNow = false;
-        if (item?.Melee is { } melee && _sinceEquip > 0.3)
-        {
-            if (_swing < 0 && input.Primary)
-            {
-                _swing = 0;
-                swingNow = true;
-            }
-            else if (_swing >= 0)
-            {
-                _swing += delta;
-                if (_swing >= melee.SwingSeconds)
-                {
-                    _swing = input.Primary ? 0 : -1;
-                    swingNow = input.Primary;
-                }
-            }
-        }
-        if (swingNow)
-        {
-            _arms.Trigger(CharacterEvent.Swing);
-            Sounds.Flat(Sounds.Item(item!.Key, "swing") ?? "melee.swing");
-        }
-        // The bow's string drawn.
-        bool drawing = item?.Bow != null && input.Secondary && !me.IsDead;
-        if (drawing && !_drawing)
-        {
-            Sounds.Flat(Sounds.Item(item!.Key, "draw") ?? "bow.draw");
-        }
-        _drawing = drawing;
-        UpdatePlaceholder(item, delta, input);
-        UpdateTorch(item);
+        UpdateFlame(item);
         Bleed(delta);
         UpdateGhost(item);
     }
 
-    // A torch in hand burns: the effects library's flame on its flame socket, drawn with the arms; its light is the
-    // flame's.
-    private void UpdateTorch(ItemDef? item)
+    // An item whose catalogue entry gives it a flame (models.json held.flame: the torch) burns in hand: that effect on its
+    // flame socket, drawn with the arms; its light is the flame's.
+    private void UpdateFlame(ItemDef? item)
     {
-        Node3D? socket = item?.Key == "torch" ? GunEffects.Socket(HeldModel, "flame") : null;
+        string? effect = item != null ? HollowUniverse.Items.ModelCatalog.Find(item.Key)?.Held?.Flame : null;
+        Node3D? socket = effect != null ? GunEffects.Socket(HeldModel, "flame") : null;
         if (socket == _flameSocket)
         {
             return;
@@ -239,7 +224,7 @@ public partial class FirstPersonView : Node3D
         _flameSocket = socket;
         if (socket != null)
         {
-            _flame = FxDirector.Start("fire.torch", socket.GlobalPosition, Vector3.Up, new FxParams { Follow = socket, FirstPerson = true });
+            _flame = FxDirector.Start(effect!, socket.GlobalPosition, Vector3.Up, new FxParams { Follow = socket, FirstPerson = true });
         }
     }
 
@@ -292,28 +277,6 @@ public partial class FirstPersonView : Node3D
         }
         _wearRevision = revision;
         _arms.Wear(ItemLooks.Outfit(Client.Content, Client.Local.Inventory.Wear.Slots.ToArray().Select(s => s.Item)));
-    }
-
-    // Items with no model of their own yet: a plain stick (a torch with its flame, a spear, a bow) that swings.
-    private void UpdatePlaceholder(ItemDef? item, double delta, in InputFrame input)
-    {
-        bool show = item != null && ItemLooks.NeedsPlaceholder(item);
-        _placeholder.Visible = show;
-        if (!show)
-        {
-            return;
-        }
-        float length = item!.Melee?.Reach > 2 ? 1.1f : item.Bow != null ? 0.9f : 0.45f;
-        ((BoxMesh)_stick.Mesh).Size = new Vector3(0.045f, 0.045f, length);
-        _draw = Mathf.MoveToward(_draw, item.Bow != null && input.Secondary ? 1 : 0, (float)delta * 2.5f);
-        float swing = 0;
-        if (_swing >= 0 && item.Melee is { } melee)
-        {
-            float t = (float)(_swing / melee.SwingSeconds);
-            swing = t < 0.35f ? t / 0.35f : Math.Max(0, 1 - (t - 0.35f) / 0.65f);
-        }
-        Vector3 rest = new(0.3f - 0.2f * _draw, -0.3f + 0.1f * _draw, -0.5f - 0.1f * _draw);
-        _placeholder.Transform = new Transform3D(Basis.FromEuler(new Vector3(-0.35f - 1.2f * swing, 0.15f, 0)), rest + new Vector3(-0.05f * swing, 0.05f * swing, -0.15f * swing));
     }
 
     private Node3D? _ghostModel;

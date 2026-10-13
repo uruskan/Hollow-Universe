@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Godot;
 using Hollow.Client;
+using Hollow.Client.Loading;
 using Hollow.Core;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
@@ -61,8 +62,13 @@ public partial class GroundView : Node3D
 
     // A workbench in reach (G7): E opens its tech tree.
     private RemoteThing? _aimedBench;
-    private double _thrownAt = -10;
-    private bool _effectsWarmed;
+    private RenderWarmup _warmup = null!;
+    private System.Collections.Generic.IReadOnlyList<LoadStage> _worldStages = Array.Empty<LoadStage>();
+    private bool _greeted;
+
+    // What the item in hand does (GROUND_SYSTEMS.md §7): a control per held behaviour, and what they see.
+    private readonly Hollow.Simulation.Registry<IHeldControl> _held = HeldControls.Create();
+    private HeldContext _hands = null!;
     private Keypad _keypad = null!;
     private OptionsMenu _options = null!;
     private Hollow.Simulation.Building.Door? _keypadDoor;
@@ -78,17 +84,36 @@ public partial class GroundView : Node3D
     private ClientConsole _console = null!;
     private float _yaw;
     private float _pitch;
+
+    // Free look (Alt, GROUND.md §4.5): the camera's and the head's turn from the view.
+    private FreeLook _freeLook;
     private bool _viewRestored;
     private bool _jumpPressed;
-    private bool _primaryPressed;
+
+    // The buttons pressed for the hands since the last frame (Hands acts on them).
+    private HandPress _presses;
     private Interaction? _aimed;
-    private Num.Vector3? _placeAt;
     private double _interactHeld = -1;
     private bool _interactDone;
     private bool _faced;
     private bool _menuAfterDisconnect;
 
     public GameClient Client { get; set; } = null!;
+
+    /// <summary>
+    /// The game's loading pipeline (GROUND.md §4.3.1): the view registers its stages (the world's, the renderer's
+    /// warm-up, the steady frames) and holds input, the interface and the camera's turning until it hands play over.
+    /// </summary>
+    public LoadingPipeline? Loading { get; set; }
+
+    // A load is running: the player's input, the interface and mouse look wait.
+    private bool Blocked => Loading?.Blocking == true;
+
+    /// <summary>Whether the loading screen shows over the view, fading included (set by the game that owns the screen).</summary>
+    public Func<bool>? Covered { get; set; }
+
+    /// <summary>A load runs or its screen still shows: scripted runs wait before a picture.</summary>
+    public bool LoadingShown => Blocked || (Covered?.Invoke() ?? false);
 
     /// <summary>The port of the server this game hosts, if it hosts one.</summary>
     public int? HostedPort { get; set; }
@@ -122,8 +147,11 @@ public partial class GroundView : Node3D
     /// <summary>The camera, once the world is open.</summary>
     public Camera3D? Camera => _camera;
 
-    /// <summary>The surface view, once the world is open.</summary>
+    /// <summary>The surface view (opened once the server says where the zone is).</summary>
     public SurfaceView? World => _world;
+
+    /// <summary>The renderer's warm-up (the start's timeline reports it).</summary>
+    public RenderWarmup Warmup => _warmup;
 
     /// <summary>The people drawn (scripted runs face them).</summary>
     public PeopleView People => _people;
@@ -162,10 +190,22 @@ public partial class GroundView : Node3D
     /// <summary>Playing, the world drawn around the player, and the player to face (if any) in view.</summary>
     public bool ReadyForShot =>
         Client.State == ClientState.Playing && Client.HasCharacter && (_world?.IsReady ?? _flat?.IsSettled ?? false) &&
-        (FaceName == null || _faced);
+        !LoadingShown && (FaceName == null || _faced);
 
     public override void _Ready()
     {
+        // The world's view (GROUND.md §4.6) exists from the start, so its loading stages are known; it opens once the
+        // server says where the zone is. The renderer's warm-up starts loading every file the game can draw now.
+        LoadingPlan plan = Loading?.Plan ?? LoadingPlan.Empty;
+        _world = new SurfaceView { Name = "World", Driven = true };
+        AddChild(_world);
+        _world.InterfaceVisible = false;
+        _warmup = new RenderWarmup(GroundWarmup.Items(Client.Content), plan.Stage(RenderWarmup.Key)) { Name = "Warmup" };
+        AddChild(_warmup);
+        _worldStages = _world.LoadStages(plan);
+        Loading?.Add(_worldStages);
+        Loading?.Add(_warmup.Stage());
+        Loading?.Add(SteadyFrames.Stage(plan));
         _collision = new GroundCollision { Name = "GroundCollision" };
         AddChild(_collision);
         _nature = new NatureView { Name = "Nature", Client = Client };
@@ -201,7 +241,13 @@ public partial class GroundView : Node3D
         // The effects library, ready before the first shot or blast; without heat haze, which draws black here (§11).
         FxDirector.Install(this);
         FxDirector.HeatHaze = false;
+        // Things breaking apart (GROUND.md §9.4): every destruction the server reports, one path.
+        AddChild(new GibsView { Name = "Gibs", Client = Client });
         _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build };
+        _hands = new HeldContext { Client = Client, Build = _build, Arms = _firstPerson, Placement = new TodaysPlacement(_build), Say = _model.ShowNotice };
+        // The radials the held item opens (the aim button, R) and the HUD's ammo come from its control.
+        _model.HeldRadial = input => HandsFree() is { } held ? held.Radial(_hands, input) : null;
+        _model.HeldAmmo = () => Holding() is { } held ? held.Ammo(_hands) : null;
         // The F1 panel (GROUND.md §8.2): its console runs the view's own commands here, the rest on the server.
         _settings = ViewSettings.Load();
         _console = new ClientConsole(Client, _settings)
@@ -239,7 +285,7 @@ public partial class GroundView : Node3D
                 _codeSeq = Client.Local.EnterCode(door, code);
             }
         };
-        Client.Local.BuildAnswered += answer =>
+        Client.Local.IntentAnswered += answer =>
         {
             if (answer.Seq == _codeSeq && _codeSeq != 0)
             {
@@ -247,7 +293,6 @@ public partial class GroundView : Node3D
                 _codeSeq = 0;
             }
         };
-        Client.Local.BuildRejected += answer => _model.ShowNotice(answer.Text);
         _overlay.ShowNetGraph = ShowNetGraph;
         InventoryBody.Use(Client);
     }
@@ -274,11 +319,9 @@ public partial class GroundView : Node3D
             return;
         }
         double time = TimeOverride ?? UniverseTime.Now;
-        if (Client.Surface is PlanetSurface && PlanetSurfaces.Find(zone.SystemAddress, zone.BodyPath) is { } found)
+        long lap = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (_world != null && Client.Surface is PlanetSurface && PlanetSurfaces.Find(zone.SystemAddress, zone.BodyPath) is { } found)
         {
-            _world = new SurfaceView { Name = "World", Driven = true };
-            AddChild(_world);
-            MoveChild(_world, 0);
             _world.OpenZone(found.System, found.Body, found.Surface, Client.Frame.Origin, time, zone.RotationTimeScale);
             if (Client.Day is { } day)
             {
@@ -289,6 +332,16 @@ public partial class GroundView : Node3D
         }
         else
         {
+            // The stand-in's flat ground (tests): no surface view, nor its stages, to wait for.
+            if (_world != null)
+            {
+                foreach (LoadStage stage in _worldStages)
+                {
+                    Loading?.Remove(stage);
+                }
+                _world.QueueFree();
+                _world = null;
+            }
             _flat = new GroundTerrain { Name = "Terrain" };
             AddChild(_flat);
             _camera = new Camera3D { Name = "Camera", Far = 4000 };
@@ -304,82 +357,24 @@ public partial class GroundView : Node3D
             });
             AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-40, 140, 0), ShadowEnabled = true });
         }
+        Time("open: the world view", ref lap);
         _camera.Fov = FieldOfView;
         _camera.Near = 0.05f;
         _camera.Current = true;
         _firstPerson.Attach(_camera);
         _things.Muzzle = _firstPerson.Muzzle;
         _things.TheirMuzzle = _people.MuzzleOf;
-        Warmup(_camera);
+        _warmup.Begin(_camera);
+        Time("open: the arms", ref lap);
         _people.MakeSpares();
+        Time("open: spare bodies", ref lap);
         // Sound: the director listens at the camera (GROUND.md §4.9); --mute leaves it out.
         if (!Muted)
         {
             _audio = new GroundAudio { Name = "Audio", Client = Client, Camera = _camera, World = _world, Trace = SoundTrace };
             AddChild(_audio);
         }
-    }
-
-    // The effects' materials drawn once, tiny, two metres ahead, when the camera is first in place (their pipelines are
-    // built the first time they draw, a stall in the middle of a fight otherwise).
-    private void WarmEffects()
-    {
-        if (_effectsWarmed || _camera == null)
-        {
-            return;
-        }
-        _effectsWarmed = true;
-        Vector3 at = _camera.GlobalTransform * new Vector3(0, 0, -2);
-        var tiny = new FxParams { Scale = 0.003f };
-        foreach (string key in new[] { "explosion.timed-charge", "impact.bullet.rock", "impact.bullet.wood", "blood.hit", "gather.sparks" })
-        {
-            FxDirector.Play(key, at, Vector3.Up, tiny);
-        }
-        FxHandle fire = FxDirector.Start("fire.campfire", at, Vector3.Up, tiny);
-        GetTree().CreateTimer(1.5).Timeout += () => FxDirector.Stop(fire, immediate: true);
-    }
-
-    // Everything the game may show later, shown once, tiny, while the world opens: each new material makes the
-    // renderer build its pipelines the first time it is drawn (a stall of 100 ms or more in the middle of play).
-    private void Warmup(Camera3D camera)
-    {
-        var warm = new Node3D { Name = "Warmup", Position = new Vector3(0, 0, -2), Scale = Vector3.One * 0.004f };
-        camera.AddChild(warm);
-        warm.AddChild(NatureView.Spot());
-        float x = 0;
-        foreach (DeployableDef def in Client.Content.Deployables)
-        {
-            if (GroundModels.Provider.Deployable(def.Key, new Vector3(def.HalfExtents.X, def.HalfExtents.Y, def.HalfExtents.Z)) is { } model)
-            {
-                model.Position = new Vector3(x += 2, 0, 0);
-                warm.AddChild(model);
-            }
-        }
-        foreach (string key in new[] { "stone-node", "metal-node", "sulphur-node" })
-        {
-            for (int stage = 0; stage < 3; stage++)
-            {
-                if (GroundModels.Provider.Outcrop(key, stage, 0) is { } rock)
-                {
-                    rock.Position = new Vector3(x += 3, 0, 0);
-                    warm.AddChild(rock);
-                }
-            }
-        }
-        if (GroundModels.Provider.Dropped("wood") is { } dropped)
-        {
-            warm.AddChild(dropped);
-        }
-        if (GroundModels.Provider.Backpack() is { } bag)
-        {
-            bag.Position = new Vector3(x += 2, 0, 0);
-            warm.AddChild(bag);
-        }
-        var body = new HollowUniverse.Characters.CharacterView { Name = "Body", Position = new Vector3(x + 3, 0, 0) };
-        warm.AddChild(body);
-        body.Wear(HollowUniverse.Characters.Wardrobe.All);
-        body.Apply(HollowUniverse.Characters.CharacterFrame.Standing(Vector3.Zero, Vector3.Up));
-        GetTree().CreateTimer(1.5).Timeout += warm.QueueFree;
+        Time("open: the sound", ref lap);
     }
 
     // ---------------------------------------------------------------- frame
@@ -397,25 +392,41 @@ public partial class GroundView : Node3D
         {
             OpenWorld();
         }
-        UpdateMouse(playing);
-        // The gun's recoil (G4, GROUND.md §6.4): the mouse's turn this frame goes to the recoil's countersteer, and what
-        // the recovering recoil gives back is added to the view the player controls.
+        UpdateMouse(playing && !Blocked);
+        if (_world != null)
+        {
+            _world.Hurry = Blocked;
+        }
+        if (playing && !Blocked && !_greeted)
+        {
+            // Play is the player's: the interface (drawn all along under the loading screen) greets them now.
+            _greeted = true;
+            _ui.Greet();
+        }
+        // Free look while Alt is held and the game has the mouse (on foot, or in the cockpit): letting go, or the cursor
+        // showing (inventory, crafting, map, menu, chat, keypad), turns the camera back to the view at once.
+        _freeLook.Hold(Input.IsPhysicalKeyPressed(Key.Alt) && Input.MouseMode == Input.MouseModeEnum.Captured &&
+            (!Client.Piloting || _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit));
+        InputFrame input = ReadInput(delta);
+        Hands(ref input, _presses);
+        _presses = HandPress.None;
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        Client.Update(delta, input);
+        Time("client", ref t0);
+        // The gun's recoil (G4, GROUND.md §6.4), in RustMVP's order once the frame's ticks have run: what the recovering
+        // recoil gives back of the player's countersteer goes onto the view they control (up to the moment the camera
+        // shows), then the mouse's turn since the last frame earns credit against the recoil showing now.
         LocalGun gun = Client.Local.Gun;
-        gun.ObserveLook(_lookDYaw, _lookDPitch);
-        _lookDYaw = _lookDPitch = 0;
         (float giveYaw, float givePitch) = gun.TakeCompensation();
         if (giveYaw != 0 || givePitch != 0)
         {
             Yaw = _yaw + giveYaw;
             Pitch = _pitch + givePitch;
         }
-        InputFrame input = ReadInput(delta);
-        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-        _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
-        Client.Update(delta, input);
-        Time("client", ref t0);
+        gun.ObserveLook(_lookDYaw, _lookDPitch);
+        _lookDYaw = _lookDPitch = 0;
         _jumpPressed = false;
-        _primaryPressed = false;
         string? status = Client.State switch
         {
             ClientState.Playing => null,
@@ -447,6 +458,8 @@ public partial class GroundView : Node3D
         }
         _model.Frame();
         Num.Vector3 feet = Client.RenderPosition;
+        // A respawn or a far teleport on foot is an arrival: the land, plants and things around stream again (§4.3.1).
+        Loading?.Follow(feet.X, feet.Y, feet.Z, arrivals: !Client.Piloting);
         Num.Vector3 up = Client.Frame.UpAt(feet);
         Num.Vector3 eye = feet + up * Client.EyeHeight;
         FaceTarget(eye, up);
@@ -468,7 +481,9 @@ public partial class GroundView : Node3D
             eye = from;
             forward = towards;
             Vector3 jolt = FxDirector.CameraShake(ToGodot(eye));
-            _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(towards), ToGodot(camUp)) * Basis.FromEuler(jolt), ToGodot(eye));
+            // In the cockpit, free look turns the pilot's head about the seat (the stick keeps the mouse otherwise).
+            Basis head = Basis.FromEuler(new Vector3(_freeLook.Pitch, _freeLook.Yaw, 0));
+            _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(towards), ToGodot(camUp)) * head * Basis.FromEuler(jolt), ToGodot(eye));
             _camera.Fov = _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit ? 74 : 68;
             _ships.Cockpit = _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit;
         }
@@ -477,15 +492,19 @@ public partial class GroundView : Node3D
             // The camera carries the recoil's kick on top of the view (the view itself goes to the server clean), and
             // zooms by the sight's magnification while aimed.
             (float kickYaw, float kickPitch) = gun.ViewKick;
-            Num.Vector3 look = CharacterMotor.ViewDirection(_yaw + kickYaw, Math.Clamp(_pitch + kickPitch, -MaxPitch, MaxPitch), up);
+            float aimPitch = Math.Clamp(_pitch + kickPitch, -MaxPitch, MaxPitch);
+            Basis aim = Basis.LookingAt(ToGodot(CharacterMotor.ViewDirection(_yaw + kickYaw, aimPitch, up)), ToGodot(up));
+            // Free look turns the camera from the aim; the arms belong to the body and stay on the aim (§4.8).
+            Basis view = Basis.LookingAt(ToGodot(CharacterMotor.ViewDirection(_yaw + kickYaw + _freeLook.Yaw,
+                Math.Clamp(aimPitch + _freeLook.Pitch, -MaxPitch, MaxPitch), up)), ToGodot(up));
+            _firstPerson.ArmsTurn = view.Inverse() * aim;
             // Blasts shake the camera (the effects library sums them by distance), never the view the player controls.
             Vector3 shake = FxDirector.CameraShake(ToGodot(eye));
-            _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(look), ToGodot(up)) * Basis.FromEuler(shake), ToGodot(eye));
+            _camera.GlobalTransform = new Transform3D(view * Basis.FromEuler(shake), ToGodot(eye));
             float zoom = gun.Aimed ? Math.Max(1, gun.Zoom) : 1;
             float fov = 2 * MathF.Atan(MathF.Tan(Mathf.DegToRad(FieldOfView) / 2) / zoom);
             _camera.Fov = Mathf.MoveToward(_camera.Fov, Mathf.RadToDeg(fov), (float)delta * 240);
         }
-        WarmEffects();
         _overlay.Spread = gun.Weapon != null && !gun.Aimed && !Client.Local.IsDead && !piloting ? gun.Spread : null;
         _overlay.Fov = _camera.Fov;
         _overlay.ReloadProgress = gun.Reloading ? gun.ReloadProgress : null;
@@ -522,11 +541,12 @@ public partial class GroundView : Node3D
         _aimed = alive && !piloting ? Client.Aim(eye, forward) : null;
         _aimedShip = alive && !piloting ? Client.AimShip(eye, forward) : null;
         _aimedBench = alive && !piloting && _aimed == null && _aimedShip == null ? AimWorkbench(eye, forward) : null;
-        _placeAt = alive && me.HeldItem?.Deploys != null ? Client.AimGround(eye, forward, Client.Content.PlacementReach) : null;
-        _firstPerson.PlacementPoint = _placeAt;
-        _firstPerson.PlacementYaw = _yaw;
+        // Where what is held would be placed (its ghost), by its control.
+        _firstPerson.PlacementPoint = null;
+        Holding()?.Aim(_hands, eye, forward);
         Time("aim", ref t0);
         _firstPerson.Refresh(delta, input, _yaw, _pitch);
+        Holding()?.Arms(_hands, delta, input);
         Time("first person", ref t0);
         UpdateInteract(delta);
         _model.Prompt = _aimed is { } aimed
@@ -615,6 +635,8 @@ public partial class GroundView : Node3D
         }
     }
 
+    // The devices this frame: the view (and free look), the movement keys, and the attack and aim buttons as held
+    // (what they do with the item in hand is the hands', below).
     private InputFrame ReadInput(double delta)
     {
         if (Scripted is { } scripted)
@@ -623,7 +645,12 @@ public partial class GroundView : Node3D
             scripted.Pitch = _pitch;
             return scripted;
         }
-        var input = new InputFrame { Yaw = _yaw, Pitch = _pitch };
+        var input = new InputFrame { Yaw = _yaw, Pitch = _pitch, LookYaw = _freeLook.Yaw, LookPitch = _freeLook.Pitch };
+        if (Blocked)
+        {
+            // Loading: the character stands as it arrived.
+            return input;
+        }
         if (Client.Piloting)
         {
             // Flying (G6): the stick, the lever and the thrusters instead of walking. With the interface open the lever
@@ -647,17 +674,50 @@ public partial class GroundView : Node3D
         input.Crouch = Input.IsPhysicalKeyPressed(Key.Ctrl);
         input.Jump = Input.IsPhysicalKeyPressed(Key.Space);
         input.JumpPressed = _jumpPressed;
-        ItemDef? held = Client.Local.HeldItem;
-        // A building tool builds with the attack button (it never swings).
-        bool place = held?.Deploys != null || held?.Building is not (null or Hollow.Simulation.Content.BuildingRole.None) || held?.Throwable != null,
-            eat = held?.Consume != null;
-        // A deployable in hand is placed, food or medicine used, an explosive thrown, with the attack button (Rust);
-        // otherwise it attacks.
-        input.Primary = Input.IsMouseButtonPressed(MouseButton.Left) && !place && !eat;
-        input.Secondary = Input.IsMouseButtonPressed(MouseButton.Right) && held?.Throwable == null;
-        input.PrimaryPressed = _primaryPressed && !place && !eat;
+        input.Primary = Input.IsMouseButtonPressed(MouseButton.Left);
+        input.Secondary = Input.IsMouseButtonPressed(MouseButton.Right);
         return input;
     }
+
+    // ---------------------------------------------------------------- the hands
+
+    /// <summary>
+    /// The hands (Rust's, GROUND_SYSTEMS.md §7): what the item in hand does this frame with the attack button (left), the aim
+    /// button (right) and R is its held behaviour's control's to say (<see cref="IHeldControl"/>, found by the item's
+    /// <see cref="ItemDef.Held"/>). <paramref name="input"/> comes in with the buttons as held and leaves with what the tick
+    /// sends. Free look (Alt), death and the pilot's seat leave the hands still, here alone (<see cref="HandsFree"/>): the
+    /// camera turns, nothing is fired, swung, placed, thrown, reloaded or turned (RustMVP: free look never disagrees with
+    /// the aim), and no radial of the item opens.
+    /// </summary>
+    private void Hands(ref InputFrame input, HandPress pressed)
+    {
+        bool attack = input.Primary, aim = input.Secondary;
+        if (input.PrimaryPressed)
+        {
+            pressed |= HandPress.Attack;
+        }
+        input.Primary = input.Secondary = input.PrimaryPressed = false;
+        HandsFree()?.Hands(_hands, ref input, new HandButtons(attack, aim, pressed));
+    }
+
+    // The item in hand's control, the context brought up to date; null when nothing that does anything is held, or the
+    // player is dead or flying.
+    private IHeldControl? Holding()
+    {
+        LocalPlayer me = Client.Local;
+        if (me.IsDead || Client.Piloting || me.HeldItem is not { } item || _held.Find((int)item.Held) is not { } control)
+        {
+            return null;
+        }
+        _hands.Item = item;
+        _hands.Slot = me.HeldSlot;
+        _hands.Yaw = _yaw;
+        _hands.Pitch = _pitch;
+        return control;
+    }
+
+    // The control when the hands may act: not while free looking (the one place free look stops them).
+    private IHeldControl? HandsFree() => _freeLook.Active ? null : Holding();
 
     // E: a tap acts on what is aimed at; held on a fire or furnace, it lights it or puts it out.
     private void UpdateInteract(double delta)
@@ -729,6 +789,10 @@ public partial class GroundView : Node3D
     {
         switch (e)
         {
+            case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured && _freeLook.Active:
+                // Free look in the cockpit: the head turns about the seat, the stick lets go.
+                _freeLook.Turn(-motion.Relative.X * MouseSensitivity, -motion.Relative.Y * MouseSensitivity, 0);
+                return true;
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
                 _shipControls.Mouse(motion.Relative / Math.Max(HollowUniverse.Common.Ui.Scale, 0.5f));
                 return true;
@@ -839,7 +903,7 @@ public partial class GroundView : Node3D
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (_ui.WantsCursor || _keypad.Visible)
+        if (_ui.WantsCursor || _keypad.Visible || Blocked)
         {
             return;
         }
@@ -856,18 +920,30 @@ public partial class GroundView : Node3D
                 GetViewport().SetInputAsHandled();
                 break;
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
-                Yaw = _yaw - motion.Relative.X * MouseSensitivity;
-                Pitch = _pitch - motion.Relative.Y * MouseSensitivity;
-                _lookDYaw -= motion.Relative.X * MouseSensitivity;
-                _lookDPitch -= motion.Relative.Y * MouseSensitivity;
+            {
+                float yaw = -motion.Relative.X * MouseSensitivity, pitch = -motion.Relative.Y * MouseSensitivity;
+                if (_freeLook.Active)
+                {
+                    // Free look: the camera alone turns; the view, the aim and the recoil's countersteer never see it.
+                    _freeLook.Turn(yaw, pitch, _pitch);
+                }
+                else
+                {
+                    // The recoil's countersteer counts the view's change: the pitch as it moved within its clamp (RustMVP).
+                    float pitchBefore = _pitch;
+                    Yaw = _yaw + yaw;
+                    Pitch = _pitch + pitch;
+                    _lookDYaw += yaw;
+                    _lookDPitch += _pitch - pitchBefore;
+                }
                 GetViewport().SetInputAsHandled();
                 break;
+            }
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }:
-                _primaryPressed = true;
-                UseHeld();
+                _presses |= HandPress.Attack;
                 break;
-            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } when Client.Local.HeldItem?.Throwable != null:
-                UseHeld(secondary: true);
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }:
+                _presses |= HandPress.Aim;
                 break;
             case InputEventKey { Pressed: true, Echo: false } key:
                 switch (key.PhysicalKeycode)
@@ -875,12 +951,8 @@ public partial class GroundView : Node3D
                     case Key.Space:
                         _jumpPressed = true;
                         break;
-                    case Key.R when _build.Held != Hollow.Simulation.Content.BuildingRole.None:
-                        _build.Rotate();
-                        GetViewport().SetInputAsHandled();
-                        break;
-                    case Key.R when Client.Local.Gun.Weapon != null && !Client.Local.IsDead:
-                        Client.Local.Gun.Reload();
+                    case Key.R:
+                        _presses |= HandPress.Reload;
                         GetViewport().SetInputAsHandled();
                         break;
                     case Key.E when !Client.Local.IsDead:
@@ -898,54 +970,10 @@ public partial class GroundView : Node3D
     }
 
     /// <summary>
-    /// The attack button with a deployable in hand places it; with food or medicine, uses it; with an explosive, throws
-    /// it (Rust). The aim button (<paramref name="secondary"/>) with an explosive puts a charge on the surface aimed at
-    /// within reach, or lobs a grenade gently.
+    /// A press of the attack button (or, <paramref name="secondary"/>, the aim button) for the item in hand, as if
+    /// clicked: the hands act on it this frame (scripted runs use it).
     /// </summary>
-    public void UseHeld(bool secondary = false)
-    {
-        LocalPlayer me = Client.Local;
-        if (me.IsDead || me.HeldSlot < 0 || me.HeldItem is not { } item || Client.Piloting)
-        {
-            return;
-        }
-        if (item.Throwable is { } throwable)
-        {
-            if (Client.ClockSeconds - _thrownAt < throwable.CooldownSeconds)
-            {
-                return;
-            }
-            _thrownAt = Client.ClockSeconds;
-            if (secondary && throwable.Placeable)
-            {
-                me.PlaceCharge(me.HeldSlot, _yaw, _pitch);
-            }
-            else
-            {
-                me.Throw(me.HeldSlot, _yaw, _pitch, lob: secondary);
-                _firstPerson.Throw(item.Key);
-            }
-            return;
-        }
-        if (secondary)
-        {
-            return;
-        }
-        if (item.Building != Hollow.Simulation.Content.BuildingRole.None)
-        {
-            _build.Use();
-            return;
-        }
-        if (item.Deploys != null && _placeAt is { } at)
-        {
-            me.Place(ContainerRef.Belt, me.HeldSlot, at, _yaw);
-        }
-        else if (item.Consume != null)
-        {
-            Sounds.Used(Client.Content, me.Inventory.Belt[me.HeldSlot].Item);
-            me.Use(ContainerRef.Belt, me.HeldSlot);
-        }
-    }
+    public void UseHeld(bool secondary = false) => _presses |= secondary ? HandPress.Aim : HandPress.Attack;
 
     // Chat lines starting with '/' are console commands (GROUND.md §8.2): "/give rifle" runs as "give rifle" does in
     // the F1 console, with the player's own rights; the answer's first line shows on the HUD.

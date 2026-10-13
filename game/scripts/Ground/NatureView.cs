@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -19,9 +20,11 @@ namespace HollowUniverse.Ground;
 /// <summary>
 /// The natural objects as the game changed them (GROUND.md §6.1). The surface view draws the planet's trees, bushes,
 /// ferns and rocks; this tells it which ones are gone (felled, picked) or bare (a picked berry bush), redraws their
-/// scatter tiles when that changes, lets a felled tree fall, and draws what the surface view doesn't: the outcrops,
-/// smaller with each depletion stage (<see cref="GroundModels"/>), and the weak spots of the trees and outcrops near
-/// the player.
+/// scatter tiles when that changes, and draws what the surface view doesn't: the outcrops at their depletion stage
+/// (<see cref="GroundModels"/>), the weak spots near the player (<see cref="NatureMarkers"/>), and gathering's feedback.
+/// Every hit plays its kind's look from gather.json where it met the drawn surface (effects, sounds, a run of weak-spot
+/// hits rising in pitch, a stage breaking, the crown shaking), and a felled tree near the player tips over, lands and
+/// goes. Nothing here knows trees from outcrops: the look says what to do.
 /// </summary>
 public partial class NatureView : Node3D
 {
@@ -31,44 +34,74 @@ public partial class NatureView : Node3D
     /// <summary>Trees felled within this distance fall; farther ones just go.</summary>
     private const float FallDistance = 150;
 
+    /// <summary>Hits are seen and heard within this distance.</summary>
+    private const float CueDistance = 70;
+
+    /// <summary>Weak spots are drawn within this distance of the player.</summary>
+    private const float MarkerDistance = 12;
+
     private readonly Dictionary<(int X, int Z), List<(ulong Id, Node3D Node, int Stage)>> _outcrops = new();
     private readonly List<NaturalObject> _scratch = new();
-    private readonly List<MeshInstance3D> _spots = new();
     private readonly List<TreeFall> _falls = new();
     private readonly HashSet<ulong> _falling = new();
+    private readonly HashSet<(int, int)> _changedTiles = new();
+    private readonly HashSet<ulong> _spotted = new();
+    private readonly List<PendingSound> _pending = new();
+    private NatureMarkers _markers = null!;
     private (int X, int Z) _centre = (int.MinValue, 0);
     private uint _revision = uint.MaxValue;
-    private static StandardMaterial3D? _spotMaterial;
-
-    /// <summary>A weak spot's glowing mark (also shown once while the world opens, so its shader is ready).</summary>
-    public static MeshInstance3D Spot()
-    {
-        if (_spotMaterial == null)
-        {
-            _spotMaterial = new StandardMaterial3D
-            {
-                AlbedoColor = Colors.Black,
-                EmissionEnabled = true,
-                Emission = new Color(1f, 0.45f, 0.1f),
-                DisableReceiveShadows = true,
-                Roughness = 1,
-                MetallicSpecular = 0,
-            };
-            Glow.Track(_spotMaterial, 2.5f);
-        }
-        return new MeshInstance3D
-        {
-            Mesh = new SphereMesh { Radius = 0.07f, Height = 0.14f, RadialSegments = 12, Rings = 6 },
-            MaterialOverride = _spotMaterial,
-            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-        };
-    }
+    private uint _markedRevision = uint.MaxValue;
+    private Num.Vector3 _markedAt = new(float.MaxValue);
+    private Num.Vector3 _scannedAt = new(float.MaxValue);
     private bool _hooked;
+
+    private readonly record struct PendingSound(double At, string Key, Vector3 Position);
 
     public GameClient Client { get; set; } = null!;
 
     /// <summary>The surface view whose plants this changes.</summary>
     public SurfaceView World { get; set; } = null!;
+
+    public override void _Ready()
+    {
+        _markers = new NatureMarkers { Name = "Markers" };
+        AddChild(_markers);
+        foreach (NaturalKind kind in Client.Content.NaturalKinds)
+        {
+            if (kind.Gather?.Look.Marker is { } look)
+            {
+                _markers.Prepare(look);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The weak spots' markers of every kind, shown once while the world opens (their decals' textures enter the decal
+    /// atlas and their pipelines are built then, not in the middle of play).
+    /// </summary>
+    public static Node3D Warmup(GameContent content)
+    {
+        var markers = new NatureMarkers { Name = "Markers" };
+        foreach (NaturalKind kind in content.NaturalKinds)
+        {
+            if (kind.Gather?.Look.Marker is { } look)
+            {
+                markers.Prepare(look);
+            }
+        }
+        markers.RevealForWarmup();
+        return markers;
+    }
+
+    private static double Now => Time.GetTicksMsec() / 1000.0;
+
+    private static long _costTicks, _costBytes, _costFrames, _quietFrames, _quietBytes;
+
+    /// <summary>What <see cref="Refresh"/> has cost so far: mean time a frame, and bytes allocated a frame in all and on
+    /// frames when nothing natural changed (the steady state: none expected).</summary>
+    public static string CostReport() => _costFrames == 0 ? "no frames" : string.Create(CultureInfo.InvariantCulture,
+        $"{_costTicks * 1e6 / System.Diagnostics.Stopwatch.Frequency / _costFrames:0} µs a frame over {_costFrames} frames, " +
+        $"{(double)_costBytes / _costFrames:0} B allocated a frame ({(_quietFrames > 0 ? (double)_quietBytes / _quietFrames : 0):0} B on {_quietFrames} quiet frames)");
 
     /// <summary>Where the player is (feet), for what is drawn near them.</summary>
     public void Refresh(Num.Vector3 feet, double delta)
@@ -77,17 +110,35 @@ public partial class NatureView : Node3D
         {
             return;
         }
+        long bytes = GC.GetAllocatedBytesForCurrentThread(), start = System.Diagnostics.Stopwatch.GetTimestamp();
+        bool quiet = Client.Natural.Revision == _revision;
+        RefreshNow(feet, delta);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - bytes;
+        _costTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;
+        _costBytes += allocated;
+        _costFrames++;
+        if (quiet && _falls.Count == 0)
+        {
+            _quietFrames++;
+            _quietBytes += allocated;
+        }
+    }
+
+    private void RefreshNow(Num.Vector3 feet, double delta)
+    {
         long t = System.Diagnostics.Stopwatch.GetTimestamp();
         Hook();
-        HashSet<(int, int)> changed = TakeChanges(feet);
+        TakeChanges(feet);
         Lap("changes", ref t);
         RedrawPlants();
         Lap("redraw", ref t);
-        UpdateOutcrops(feet, changed);
+        UpdateOutcrops(feet, _changedTiles);
         Lap("outcrops", ref t);
-        UpdateSpots(feet);
-        Lap("spots", ref t);
+        UpdateMarkers(feet);
+        Lap("markers", ref t);
         UpdateFalls(delta);
+        UpdateShake();
+        PlayPending();
         Lap("falls", ref t);
     }
 
@@ -165,19 +216,17 @@ public partial class NatureView : Node3D
         return Picked(item.Kind);
     }
 
-    // The objects whose state changed since last frame: their scatter tiles are drawn again, felled trees near the
-    // player fall, and the 64 m tiles of outcrops that changed are rebuilt.
-    private HashSet<(int, int)> TakeChanges(Num.Vector3 feet)
+    // The objects whose state changed since last frame: their hits play, their scatter tiles are drawn again, felled
+    // trees near the player fall, and the 64 m tiles of outcrops that changed are rebuilt (into _changedTiles).
+    private void TakeChanges(Num.Vector3 feet)
     {
-        var tiles = new HashSet<(int, int)>();
+        _changedTiles.Clear();
         NaturalState state = Client.Natural!;
         if (state.Revision == _revision)
         {
-            return tiles;
+            return;
         }
         _revision = state.Revision;
-        // Many at once is an area coming into range, not things being hit: those make no sound.
-        bool audible = state.Changed.Count <= 20;
         foreach (ulong id in state.Changed)
         {
             // The ID names the scatter tile and kind: no generating a far tile on this thread just to look at it.
@@ -187,21 +236,17 @@ public partial class NatureView : Node3D
             }
             Num.Vector3 centre = Client.Frame.ToLocal(tile.Centre * Client.Surface!.Radius);
             float distance = Num.Vector2.Distance(new Num.Vector2(centre.X, centre.Z), new Num.Vector2(feet.X, feet.Z));
-            bool tree = (ScatterKind)(index >> 24) is ScatterKind.Fir or ScatterKind.Pine or ScatterKind.Birch or ScatterKind.Broadleaf;
+            bool tree = World.Plants?.Library?.For((ScatterKind)(index >> 24)) is { Tree: true };
             bool falls = false;
             if (distance < FallDistance + 60 && Cached(id, out NaturalObject o))
             {
-                tiles.Add(PhysicsWorld.TileOf(o.Position));
+                _changedTiles.Add(PhysicsWorld.TileOf(o.Position));
                 distance = Num.Vector3.Distance(o.Position, feet);
-                if (distance < 70)
-                {
-                    Sound(o, state, audible);
-                }
-                falls = tree && state.IsDepleted(id) && distance < FallDistance && !_falling.Contains(id);
-                if (falls)
-                {
-                    StartFall(o, tile, feet);
-                }
+                falls = React(o, tile, distance);
+            }
+            else
+            {
+                _spotted.Remove(id);
             }
             // The plants near the camera (within 300 m) are drawn again at once for what is within reach or starts
             // to fall, otherwise every five seconds for everything that changed meanwhile (others gathering).
@@ -216,71 +261,133 @@ public partial class NatureView : Node3D
             }
         }
         state.Changed.Clear();
-        return tiles;
     }
 
-    // What each object near the player was when last seen (health, stage, weak spot, gone), so a change can sound.
-    private readonly Dictionary<ulong, (float Health, int Stage, uint Weak, bool Gone)> _was = new();
+    // What each object near the player was when last seen, so a change shows what happened to it.
+    private readonly record struct Seen(float Health, int Stage, byte Hits, byte Streak, bool Gone);
 
-    // A hit on a tree or an outcrop (its health dropped), the weak spot moving, an outcrop breaking a stage, a tree
-    // felled, a bush picked: their sounds (GROUND.md §4.9) and effects (§9.3: chips, bark, dust and sparks thrown
-    // towards the player where the tool bit, a flash on the weak spot, an outcrop breaking up).
-    private void Sound(in NaturalObject o, NaturalState state, bool audible)
+    private readonly Dictionary<ulong, Seen> _was = new();
+
+    // An object changed: its look's cues for what happened (GROUND.md §9.3: a fresh hit where it met the surface, a run
+    // of weak-spot hits or its end, a stage reached, gone), its weak spot kept track of, a felled tree near the player
+    // falling. Returns whether it starts to fall.
+    private bool React(in NaturalObject o, TileKey tile, float distance)
     {
-        if (Client.Content.Natural(o.Kind) is not { } kind || !kind.IsHarvested)
+        NaturalState state = Client.Natural!;
+        if (Client.Content.Natural(o.Kind) is not { Gather: { } rules } kind)
         {
-            return;
+            return false;
         }
-        state.TryGetOverride(o.Id, out NaturalOverride now);
-        bool has = state.TryGetOverride(o.Id, out _);
-        float health = has ? now.Health : float.MaxValue;
-        var current = (health, state.Stage(o, kind), has ? now.PackedWeakSpot : 0u, has && now.Depleted);
-        bool known = _was.TryGetValue(o.Id, out var before);
+        bool has = state.TryGetOverride(o.Id, out NaturalOverride now);
+        var current = new Seen(has ? now.Health : float.MaxValue, state.Stage(o, kind), has ? now.SeenHits : (byte)0,
+            has ? now.Streak : (byte)0, has && now.Depleted);
+        bool known = _was.TryGetValue(o.Id, out Seen before);
+        if (!known)
+        {
+            before = new Seen(float.MaxValue, 0, 0, 0, false);
+            if (_was.Count > 4000)
+            {
+                _was.Clear();
+            }
+        }
         _was[o.Id] = current;
-        if (_was.Count > 4000)
+        if (has && now.HasWeakSpot && !now.Depleted)
         {
-            _was.Clear();
+            _spotted.Add(o.Id);
         }
-        if (!audible)
+        else
+        {
+            _spotted.Remove(o.Id);
+        }
+        // Only a fresh hit plays: an area coming into range sends old changes (GameClient.FreshHitTicks).
+        if (current.Hits == before.Hits)
+        {
+            return false;
+        }
+        GatherLook look = rules.Look;
+        Num.Vector3 point = o.Position + now.LastHit;
+        Num.Vector3 normal = rules.Spot.Surface.NormalAt(o, kind, current.Stage, point);
+        float ground = GroundView.ToGodot(o.Position).Y;
+        if (distance < CueDistance)
+        {
+            Cue(look.Hit, point, normal, ground);
+            if (current.Streak > 0)
+            {
+                Cue(look.SpotHit, point, normal, ground, 1 + (look.SpotHit?.PitchStep ?? 0) * (current.Streak - 1));
+            }
+            else if (before.Streak > 0)
+            {
+                Cue(look.Missed, point, normal, ground);
+            }
+            Num.Vector3 body = o.Position + o.Up * (0.3f * kind.Height * o.Scale);
+            if (known && current.Stage > before.Stage && !current.Gone)
+            {
+                Cue(look.Stage, body, o.Up, ground, scale: Math.Clamp(o.Scale, 0.6f, 1.6f), stage: current.Stage);
+            }
+            if (current.Gone)
+            {
+                Cue(look.Depleted, body, o.Up, ground, scale: Math.Clamp(o.Scale, 0.6f, 1.6f));
+                if (look.Depleted?.Gibs == true)
+                {
+                    // Its model breaks into its gibs where it stood, from where the last hit came (GROUND.md §9.4).
+                    var drawn = new Transform3D(Upright(o.Up, o.Yaw).Scaled(Vector3.One * o.Scale), GroundView.ToGodot(o.Position));
+                    HollowUniverse.Gibs.GibDirector.Break(kind.Key, 0, drawn, GroundView.ToGodot(-normal), Hollow.Simulation.Combat.DestroyCause.Melee,
+                        GroundView.ToGodot(o.Up), Client.Zone is { } zone ? (float)(zone.SurfaceGravity * 9.80665) : 0f, o.Id);
+                }
+            }
+            else if (look.Shake is { } shake)
+            {
+                Shake(o, shake, -normal);
+            }
+        }
+        // A look that falls: the object's own plant model tips over (StartFall finds it in its scatter tile).
+        if (current.Gone && !before.Gone && look.Fall is { } fall && distance < FallDistance && !_falling.Contains(o.Id))
+        {
+            StartFall(o, tile, -normal, fall);
+            return true;
+        }
+        return false;
+    }
+
+    // One cue of a look: its effect (debris landing on the ground under the object) and its sound, at a point.
+    private void Cue(GatherCue? cue, Num.Vector3 at, Num.Vector3 normal, float ground, float pitch = 1, float scale = 1, int stage = -1)
+    {
+        if (cue == null)
         {
             return;
         }
-        float prior = known ? before.Health : float.MaxValue;
-        bool tree = kind.Class == NaturalClass.Tree;
-        Vector3 at = GroundView.ToGodot(o.Position + o.Up * (tree ? 1.3f : 0.7f) * Math.Max(0.6f, o.Scale));
-        if (current.Item4 && !(known && before.Gone))
+        Vector3 point = GroundView.ToGodot(at), n = GroundView.ToGodot(normal);
+        if (cue.Fx != null)
         {
-            Sounds.At(tree ? "gather.wood.break" : "gather.node.break.3", at);
-            if (!tree)
-            {
-                FxDirector.Play("gather.node-break", GroundView.ToGodot(o.Position + o.Up * 0.4f * o.Scale), GroundView.ToGodot(o.Up),
-                    new FxParams { Scale = Math.Clamp(o.Scale, 0.6f, 1.6f) });
-            }
+            FxDirector.Play(cue.Fx, point, n, new FxParams { Scale = cue.FxScale * scale, Floor = ground + 0.02f });
+        }
+        if (cue.Sound == null)
+        {
             return;
         }
-        if (health < prior)
+        // "{stage}" names the stage reached (an outcrop breaking up has a sound for each); made only when it happens.
+        string key = stage >= 0 && cue.Sound.Contains("{stage}", StringComparison.Ordinal)
+            ? cue.Sound.Replace("{stage}", stage.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+            : cue.Sound;
+        if (cue.SoundDelay > 0)
         {
-            string hit = tree ? "gather.wood.hit" : kind.Key == "stone-node" ? "gather.stone.hit" : "gather.ore.hit";
-            Sounds.At(hit, at);
-            // Where the tool bit: on the side towards the player, at the height of a swing.
-            Num.Vector3 toMe = Client.Character.Position - o.Position;
-            toMe -= o.Up * Num.Vector3.Dot(toMe, o.Up);
-            toMe = toMe.LengthSquared() > 1e-4f ? Num.Vector3.Normalize(toMe) : new Num.Vector3(1, 0, 0);
-            float height = tree ? 1.1f : 0.5f * Math.Max(0.6f, o.Scale);
-            Num.Vector3 bite = o.Position + o.Up * height + toMe * (kind.Radius * o.Scale * (tree ? 1f : 0.8f));
-            Vector3 point = GroundView.ToGodot(bite), facing = GroundView.ToGodot(toMe);
-            string chips = tree ? "gather.wood" : kind.Key is "metal-node" or "sulphur-node" ? "gather.sparks" : "gather.rock";
-            FxDirector.Play(chips, point, facing, new FxParams { Direction = -facing });
-            if (current.Item3 != 0 && (!known || before.Weak != current.Item3))
+            _pending.Add(new PendingSound(Now + cue.SoundDelay, key, point));
+        }
+        else
+        {
+            Sounds.At(key, point, 0, pitch);
+        }
+    }
+
+    private void PlayPending()
+    {
+        double now = Now;
+        for (int i = _pending.Count - 1; i >= 0; i--)
+        {
+            if (_pending[i].At <= now)
             {
-                Sounds.At("gather.weakspot", at, -2);
-                FxDirector.Play("gather.weakspot", point, facing);
-            }
-            if (known && current.Item2 > before.Stage)
-            {
-                Sounds.At($"gather.node.break.{current.Item2}", at);
-                FxDirector.Play("gather.node-break", GroundView.ToGodot(o.Position + o.Up * 0.4f * o.Scale), GroundView.ToGodot(o.Up),
-                    new FxParams { Scale = 0.6f });
+                Sounds.At(_pending[i].Key, _pending[i].Position);
+                _pending.RemoveAt(i);
             }
         }
     }
@@ -305,8 +412,20 @@ public partial class NatureView : Node3D
 
     private static void Schedule(Dictionary<ulong, double> pending, ulong tile, double after)
     {
-        double due = Time.GetTicksMsec() / 1000.0 + after;
+        double due = Now + after;
         pending[tile] = pending.TryGetValue(tile, out double was) ? Math.Min(was, due) : due;
+    }
+
+    private static bool Due(Dictionary<ulong, double> pending, double now)
+    {
+        foreach (double at in pending.Values)
+        {
+            if (at <= now)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Redrawing the plants rebuilds every mesh near the camera (10–15 ms on a worker thread), so every tile waiting is
@@ -323,8 +442,8 @@ public partial class NatureView : Node3D
             _nearBuilds = plants.NearBuilds;
             FrameEvents.Note("plants in place");
         }
-        double now = Time.GetTicksMsec() / 1000.0;
-        if (_nearRedraw.Count > 0 && _nearRedraw.Values.Min() <= now)
+        double now = Now;
+        if (_nearRedraw.Count > 0 && Due(_nearRedraw, now))
         {
             foreach (ulong packed in _nearRedraw.Keys)
             {
@@ -333,7 +452,7 @@ public partial class NatureView : Node3D
             _nearRedraw.Clear();
             FrameEvents.Note("plants redrawn");
         }
-        if (_blockRedraw.Count > 0 && _blockRedraw.Values.Min() <= now)
+        if (_blockRedraw.Count > 0 && Due(_blockRedraw, now))
         {
             foreach (ulong packed in _blockRedraw.Keys)
             {
@@ -428,49 +547,89 @@ public partial class NatureView : Node3D
         FrameEvents.Note("outcrops");
     }
 
-    /// <summary>A basis with +Y along <paramref name="up"/>, turned by <paramref name="yaw"/>.</summary>
+    /// <summary>
+    /// A basis with +Y along <paramref name="up"/>, turned by <paramref name="yaw"/>: the frame models of natural objects
+    /// are drawn in (<see cref="SpotFrames.ModelFrame"/>: X right, Y up, Z back), which the rules measure them in too.
+    /// </summary>
     public static Basis Upright(Num.Vector3 up, float yaw)
     {
-        (Num.Vector3 forward, _) = Hollow.Simulation.Movement.CharacterMotor.HorizontalBasis(yaw, up);
-        return Basis.LookingAt(GroundView.ToGodot(forward), GroundView.ToGodot(up));
+        (Num.Vector3 x, Num.Vector3 y, Num.Vector3 z) = SpotFrames.ModelFrame(new NaturalObject { Up = up, Yaw = yaw });
+        return new Basis(GroundView.ToGodot(x), GroundView.ToGodot(y), GroundView.ToGodot(z));
     }
 
     // ---------------------------------------------------------------- weak spots
 
-    // Rust's weak spot: a glowing mark on the trees and outcrops within reach once they have been hit.
-    private void UpdateSpots(Num.Vector3 feet)
+    // The weak spots near the player, drawn where the rules put them (their look's marker). The set is gathered again
+    // when the natural state changes or the player has moved; the markers pulse and sparkle every frame.
+    private void UpdateMarkers(Num.Vector3 feet)
     {
-        int used = 0;
-        _scratch.Clear();
-        Client.Nature!.Query(feet.X - 6, feet.Z - 6, feet.X + 6, feet.Z + 6, _scratch);
-        foreach (NaturalObject o in _scratch)
+        NaturalState state = Client.Natural!;
+        if (Num.Vector3.DistanceSquared(feet, _scannedAt) > 16 * 16)
         {
-            if (used >= 8 || Client.Content.Natural(o.Kind) is not { IsHarvested: true } kind || Client.Natural!.WeakSpot(o, kind) is not { } weak)
+            // Every spot in the zone's changes now and then: those met on the way, which changed before they were near.
+            _scannedAt = feet;
+            _spotted.Clear();
+            foreach (KeyValuePair<ulong, NaturalOverride> o in state.Overrides)
             {
-                continue;
+                if (o.Value.HasWeakSpot && !o.Value.Depleted)
+                {
+                    _spotted.Add(o.Key);
+                }
             }
-            if (used >= _spots.Count)
-            {
-                MeshInstance3D spot = Spot();
-                AddChild(spot);
-                _spots.Add(spot);
-            }
-            // Just outside the bark or the stone, where the drawn surface is.
-            Num.Vector3 outward = weak - o.Position;
-            outward -= o.Up * Num.Vector3.Dot(outward, o.Up);
-            if (kind.Class != NaturalClass.Tree)
-            {
-                outward = weak - NaturalShapes.Rock(o, kind).Centre;
-            }
-            Num.Vector3 shown = outward.LengthSquared() > 1e-6f ? weak + Num.Vector3.Normalize(outward) * 0.08f : weak;
-            _spots[used].Position = GroundView.ToGodot(shown);
-            _spots[used].Visible = true;
-            used++;
+            _markedRevision = uint.MaxValue;
         }
-        for (int i = used; i < _spots.Count; i++)
+        if (state.Revision != _markedRevision || Num.Vector3.DistanceSquared(feet, _markedAt) > 0.25f)
         {
-            _spots[i].Visible = false;
+            _markedRevision = state.Revision;
+            _markedAt = feet;
+            _markers.Begin();
+            foreach (ulong id in _spotted)
+            {
+                if (!Cached(id, out NaturalObject o) || Num.Vector3.DistanceSquared(o.Position, feet) > MarkerDistance * MarkerDistance ||
+                    Client.Content.Natural(o.Kind) is not { Gather.Look.Marker: { } look } kind || state.WeakSpotAt(o, kind) is not { } spot)
+                {
+                    continue;
+                }
+                _markers.Show(look, GroundView.ToGodot(spot.Point), GroundView.ToGodot(spot.Normal), GroundView.ToGodot(o.Up), o.Id);
+            }
         }
+        _markers.Animate(Now);
+    }
+
+    // ---------------------------------------------------------------- a crown shaken by a blow
+
+    private static readonly StringName ShakeAt = "hu_shake_at", ShakeWay = "hu_shake_dir";
+    private ShakeLook? _shake;
+    private double _shakeStart;
+    private Vector4 _shakeAt;
+    private Vector3 _shakeWay;
+
+    // The plants' shader sways the plant standing at a point (global uniforms hu_shake_at, hu_shake_dir): the struck
+    // tree's crown shakes away from the blow and settles, at no cost but a test per vertex.
+    private void Shake(in NaturalObject o, ShakeLook shake, Num.Vector3 away)
+    {
+        Vector3 at = GroundView.ToGodot(o.Position);
+        _shake = shake;
+        _shakeStart = Now;
+        _shakeAt = new Vector4(at.X, at.Y, at.Z, shake.Metres);
+        _shakeWay = GroundView.ToGodot(away).Normalized();
+    }
+
+    private void UpdateShake()
+    {
+        if (_shake == null)
+        {
+            return;
+        }
+        float age = (float)(Now - _shakeStart);
+        if (age > _shake.Seconds)
+        {
+            _shake = null;
+            RenderingServer.GlobalShaderParameterSet(ShakeAt, Vector4.Zero);
+            return;
+        }
+        RenderingServer.GlobalShaderParameterSet(ShakeAt, _shakeAt);
+        RenderingServer.GlobalShaderParameterSet(ShakeWay, new Vector4(_shakeWay.X, _shakeWay.Y, _shakeWay.Z, age));
     }
 
     // ---------------------------------------------------------------- a tree falls
@@ -478,6 +637,7 @@ public partial class NatureView : Node3D
     private sealed class TreeFall
     {
         public ulong Id;
+        public FallLook Look = null!;
         public MultiMeshInstance3D? Instance;
         public Task<ScatterItem?>? Item;
         public Transform3D Base;
@@ -489,8 +649,8 @@ public partial class NatureView : Node3D
         public double Time;
     }
 
-    // The tree's own model (its species and variant, from its scatter item) tips over away from the player.
-    private void StartFall(NaturalObject o, TileKey tile, Num.Vector3 feet)
+    // The tree's own model (its species and variant, from its scatter item) tips over away from the blow.
+    private void StartFall(in NaturalObject o, TileKey tile, Num.Vector3 away, FallLook look)
     {
         if (World.Surface is not { } surface)
         {
@@ -498,7 +658,6 @@ public partial class NatureView : Node3D
         }
         _falling.Add(o.Id);
         (TileKey _, int index) = ScatterNaturalObjects.Decode(o.Id)!.Value;
-        Num.Vector3 away = o.Position - feet;
         away -= o.Up * Num.Vector3.Dot(away, o.Up);
         if (away.LengthSquared() < 0.01f)
         {
@@ -508,6 +667,7 @@ public partial class NatureView : Node3D
         _falls.Add(new TreeFall
         {
             Id = o.Id,
+            Look = look,
             Axis = up.Cross(dir).Normalized(),
             Up = up,
             Away = dir,
@@ -535,10 +695,10 @@ public partial class NatureView : Node3D
             }
             fall.Time += delta;
             // Slowly at first, then faster, as a hinged trunk does; it lies a moment, then sinks away.
-            const double Tip = 2.4, Lie = 2.2, Sink = 1.6;
-            float t = (float)Math.Min(fall.Time / Tip, 1);
+            FallLook look = fall.Look;
+            float t = (float)Math.Min(fall.Time / look.Tip, 1);
             float angle = 1.45f * t * t * t;
-            float sink = fall.Time > Tip + Lie ? (float)((fall.Time - Tip - Lie) / Sink) : 0;
+            float sink = fall.Time > look.Tip + look.Lie ? (float)((fall.Time - look.Tip - look.Lie) / look.Sink) : 0;
             Basis turn = new(fall.Axis, angle);
             fall.Instance!.Transform = new Transform3D(turn, fall.Base.Origin - fall.Up * (sink * 1.2f));
             if (t >= 1 && !fall.Landed)
@@ -546,10 +706,13 @@ public partial class NatureView : Node3D
                 // The trunk lands: dust and litter along it.
                 fall.Landed = true;
                 float half = fall.Height * 0.45f;
-                FxDirector.Play("gather.tree-fall", fall.Base.Origin + fall.Away * half, fall.Up,
-                    new FxParams { Direction = fall.Away, Area = new Vector3(half, 0.2f, 0.7f) });
+                if (look.Fx != null)
+                {
+                    FxDirector.Play(look.Fx, fall.Base.Origin + fall.Away * half, fall.Up,
+                        new FxParams { Direction = fall.Away, Area = new Vector3(half, 0.2f, 0.7f) });
+                }
             }
-            if (fall.Time > Tip + Lie + Sink)
+            if (fall.Time > look.Tip + look.Lie + look.Sink)
             {
                 End(i);
             }

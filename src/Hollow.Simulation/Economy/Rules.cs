@@ -72,24 +72,24 @@ public static class Research
 /// <summary>The tech trees' rules (GROUND.md §6.8, Rust's): a node is unlocked for its salvage at a workbench of its level, once one of the nodes before it is known.</summary>
 public static class TechTrees
 {
-    public static ActionResult CanUnlock(TechNode node, BlueprintBook known)
+    public static Outcome CanUnlock(TechNode node, BlueprintBook known)
     {
         if (known.Knows(node.Recipe))
         {
-            return ActionResult.AlreadyKnown;
+            return OutcomeCode.AlreadyKnown;
         }
         if (node.After.Count == 0)
         {
-            return ActionResult.Accepted;
+            return OutcomeCode.Done;
         }
         foreach (TechNode before in node.After)
         {
             if (known.Knows(before.Recipe))
             {
-                return ActionResult.Accepted;
+                return OutcomeCode.Done;
             }
         }
-        return ActionResult.Locked;
+        return OutcomeCode.NeedsEarlierNode;
     }
 
     /// <summary>The blueprint item for a recipe (its condition holds the recipe).</summary>

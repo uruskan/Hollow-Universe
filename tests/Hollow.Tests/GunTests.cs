@@ -10,6 +10,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Tests;
 
@@ -33,7 +34,7 @@ public static class Guns
     }
 
     /// <summary>Queues a shot for the coming tick with the character's view as it is (or a reload); returns the queue's answer.</summary>
-    public static GunResult Queue(GameRig rig, Entity e, uint seq, GunActionKind kind = GunActionKind.Fire, bool aimed = false, byte viewDelay = 0,
+    public static OutcomeCode Queue(GameRig rig, Entity e, uint seq, GunActionKind kind = GunActionKind.Fire, bool aimed = false, byte viewDelay = 0,
         long? tick = null, byte slot = 0, ushort ammo = 0)
     {
         ref Character c = ref rig.Ch(e);
@@ -126,7 +127,7 @@ public static class GunTests
         Guns.Arm(rig, ada, "rifle", "rifle-ammo", 30);
         rig.Ch(ada).Input.Pitch = 70 * MathF.PI / 180;
         rig.Zone.GameEvents.Clear();
-        Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 1), "queued");
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "queued");
         rig.Step();
         ZoneEvent launch = Guns.Launches(rig).Single();
         rig.Step(11);
@@ -172,10 +173,10 @@ public static class GunTests
             rig.Step(2);
             rig.Look(ada, seen);
             rig.Zone.GameEvents.Clear();
-            Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 1, aimed: true, viewDelay: viewDelay), "queued");
+            Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1, aimed: true, viewDelay: viewDelay), "queued");
             rig.Step(3);
             float taken = rig.Zone.GameEvents.Where(x => x.Kind == ZoneEventKind.DamageTaken && x.Player == b.Id).Sum(x => x.Amount);
-            bool marker = rig.Zone.GameEvents.Any(x => x.Kind == ZoneEventKind.HitConfirmed && x.Player == rig.P(ada).Id && x.Target == HitTarget.Character);
+            bool marker = rig.Zone.GameEvents.Any(x => x.Kind == ZoneEventKind.HitConfirmed && x.Player == rig.P(ada).Id && x.Target.Family == TargetFamily.Character);
             Fixtures.Report($"view delay {viewDelay / 4.0:0} ticks: Bo took {taken:0.0}; hit marker {marker}");
             if (viewDelay > 0)
             {
@@ -190,10 +191,10 @@ public static class GunTests
     }
 
     /// <summary>
-    /// GROUND.md §6.3, recoil: the rifle's 30 shots follow RustMVP's AK pattern step by step (its pitch exactly, its yaw
-    /// within the random part); aimed and crouched the step is smaller (×0.78, ×0.85); a pause of 0.4 s starts the pattern
-    /// again; 0.2 s after the last shot the view comes back over 0.08 s. Every bullet leaves along the view plus the recoil
-    /// before its own kick, within the spread.
+    /// GROUND.md §6.4, recoil: the rifle's 30 shots follow RustMVP's AK pattern step by step, exactly (no random part);
+    /// aimed and crouched the step is the same (RustMVP: aiming narrows the spread only); a pause of 0.4 s starts the
+    /// pattern again; 0.2 s after the last shot the view comes back over 0.08 s. Every bullet leaves along the view plus the
+    /// recoil before its own kick, within the spread.
     /// </summary>
     [Test]
     public static void RecoilFollowsThePattern()
@@ -210,15 +211,15 @@ public static class GunTests
         for (int shot = 0; shot < 30; shot++)
         {
             rig.Zone.GameEvents.Clear();
-            Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, ++seq), $"shot {shot + 1} queued");
+            Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, ++seq), $"shot {shot + 1} queued");
             RecoilSample before = Recoil.Sample(a.Gun.Recoil, rifle, rig.Zone.Tick + 1);
             rig.Step();
-            Assert.Equal(GunResult.Accepted, a.GunRefusedSeq == seq ? a.GunRefused : GunResult.Accepted, $"shot {shot + 1}");
+            Assert.Equal(OutcomeCode.Done, a.GunRefusedSeq == seq ? a.GunRefused : OutcomeCode.Done, $"shot {shot + 1}");
             ZoneEvent launch = Guns.Launches(rig).Single();
             pitchSum += rifle.Recoil.Pattern[shot].Pitch;
             yawSum += rifle.Recoil.Pattern[shot].Yaw;
             Assert.Near(pitchSum, a.Gun.Recoil.Pitch, 1e-9, $"pitch after shot {shot + 1}");
-            Assert.Near(yawSum, a.Gun.Recoil.Yaw, 0.06 * (shot + 1) + 1e-9, $"yaw after shot {shot + 1}");
+            Assert.Near(yawSum, a.Gun.Recoil.Yaw, 1e-9, $"yaw after shot {shot + 1}");
             // The bullet: the view plus the recoil before this shot's kick, within the hip spread and bloom.
             Vector3 up = rig.Zone.Frame.UpAt(launch.Position);
             Vector3 aim = CharacterMotor.ViewDirection(
@@ -236,12 +237,13 @@ public static class GunTests
         Assert.True(Recoil.Sample(a.Gun.Recoil, rifle, last + 7.5).Pitch is > 0 and < 20, "on its way back");
         Assert.Equal(0.0, Recoil.Sample(a.Gun.Recoil, rifle, last + 9).Pitch, "all of it back after 0.28 s");
 
-        // Aimed and crouched: the first step is smaller; after a pause the pattern starts again.
+        // Aimed and crouched: the same first step; after a pause the pattern starts again.
         rig.P(ada).Inventory.Belt.Set(0, rig.P(ada).Inventory.Belt[0] with { Loaded = 30 });
         rig.Step(20, () => rig.Ch(ada).Input.Buttons = MoveButtons.Crouch);
-        Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, ++seq, aimed: true), "queued");
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, ++seq, aimed: true), "queued");
         rig.Step(1, () => rig.Ch(ada).Input.Buttons = MoveButtons.Crouch);
-        Assert.Near(rifle.Recoil.Pattern[0].Pitch * 0.78 * 0.85, a.Gun.Recoil.Pitch, 1e-9, "first step, aimed and crouched");
+        Assert.Equal(rifle.Recoil.Pattern[0].Pitch, a.Gun.Recoil.Pitch, "first step, aimed and crouched: RustMVP's, unscaled");
+        Assert.Equal(rifle.Recoil.Pattern[0].Yaw, a.Gun.Recoil.Yaw, "and its yaw");
         Assert.Equal(1, (int)a.Gun.Recoil.Index, "the pattern started again");
     }
 
@@ -297,7 +299,7 @@ public static class GunTests
         {
             rig.Give(bo, key, 1);
             int slot = Enumerable.Range(0, 24).First(i => b.Inventory.Main[i].Item == c.ItemByKey(key).Id);
-            Assert.Equal(ActionResult.Accepted, rig.Zone.QuickMove(bo, ContainerRef.Main, slot, 0), $"wear the {key}");
+            Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(bo, ContainerRef.Main, slot, 0), $"wear the {key}");
         }
         float body = Hit(HitRegion.Body), head = Hit(HitRegion.Head), limb = Hit(HitRegion.Limb);
         Fixtures.Report($"body {bareBody:0.0} → {body:0.00} (chest plate and shirt), head {bareHead:0.0} → {head:0.0} (metal mask), limb {limb:0.00} (shirt sleeves)");
@@ -320,43 +322,43 @@ public static class GunTests
         Player a = rig.P(ada);
         Guns.Arm(rig, ada, "pistol", "pistol-ammo", 2);
         uint seq = 0;
-        GunResult Result(uint s) => a.Gun.LastSeq >= s && a.GunRefusedSeq == s ? a.GunRefused : a.Gun.LastSeq >= s ? GunResult.Accepted : (GunResult)255;
+        OutcomeCode Result(uint s) => a.Gun.LastSeq >= s && a.GunRefusedSeq == s ? a.GunRefused : a.Gun.LastSeq >= s ? OutcomeCode.Done : (OutcomeCode)255;
 
         // The pistol fires every 4.5 ticks: a shot the next tick is too soon.
         Guns.Queue(rig, ada, ++seq);
         rig.Step();
-        Assert.Equal(GunResult.Accepted, Result(seq), "the first shot");
+        Assert.Equal(OutcomeCode.Done, Result(seq), "the first shot");
         Guns.Queue(rig, ada, ++seq);
         rig.Step();
-        Assert.Equal(GunResult.Cadence, Result(seq), "too soon");
+        Assert.Equal(OutcomeCode.Cadence, Result(seq), "too soon");
         Assert.Equal(1, (int)a.Inventory.Belt[0].Loaded, "a refused shot takes no round");
         rig.Step(4);
         Guns.Queue(rig, ada, ++seq);
         rig.Step();
-        Assert.Equal(GunResult.Accepted, Result(seq), "the second shot");
+        Assert.Equal(OutcomeCode.Done, Result(seq), "the second shot");
         rig.Step(5);
         Guns.Queue(rig, ada, ++seq);
         rig.Step();
-        Assert.Equal(GunResult.Empty, Result(seq), "the magazine is empty");
+        Assert.Equal(OutcomeCode.Empty, Result(seq), "the magazine is empty");
 
         // Reloading: none to reload with, then rounds; nothing fires meanwhile; full afterwards.
         Guns.Queue(rig, ada, ++seq, GunActionKind.Reload);
         rig.Step();
-        Assert.Equal(GunResult.NoReserve, Result(seq), "no rounds");
+        Assert.Equal(OutcomeCode.NoAmmo, Result(seq), "no rounds");
         rig.Give(ada, "pistol-ammo", 40);
         Guns.Queue(rig, ada, ++seq, GunActionKind.Reload);
         rig.Step();
-        Assert.Equal(GunResult.Accepted, Result(seq), "a reload");
+        Assert.Equal(OutcomeCode.Done, Result(seq), "a reload");
         Assert.True(a.Gun.Reloading, "reloading");
         Guns.Queue(rig, ada, ++seq);
         rig.Step();
-        Assert.Equal(GunResult.Reloading, Result(seq), "can't fire while reloading");
+        Assert.Equal(OutcomeCode.Reloading, Result(seq), "can't fire while reloading");
         rig.Step(71);
         Assert.Equal(15, (int)a.Inventory.Belt[0].Loaded, "full after 2.4 s");
         Assert.Equal(25, a.Inventory.Count(c.ItemByKey("pistol-ammo")), "the rounds came from the inventory");
         Guns.Queue(rig, ada, ++seq, GunActionKind.Reload);
         rig.Step();
-        Assert.Equal(GunResult.Full, Result(seq), "already full");
+        Assert.Equal(OutcomeCode.Full, Result(seq), "already full");
 
         // Another kind of round: the loaded ones come back out.
         rig.Give(ada, "pistol-ammo-hv", 20);
@@ -369,23 +371,23 @@ public static class GunTests
         rig.Step(5, () => rig.Ch(ada).Input = rig.Ch(ada).Input with { Forward = 1, Buttons = MoveButtons.Sprint });
         Guns.Queue(rig, ada, ++seq);
         rig.Step(1, () => rig.Ch(ada).Input = rig.Ch(ada).Input with { Forward = 1, Buttons = MoveButtons.Sprint });
-        Assert.Equal(GunResult.NotReady, Result(seq), "not while sprinting");
+        Assert.Equal(OutcomeCode.Lowered, Result(seq), "not while sprinting");
         rig.Ch(ada).Input = rig.Ch(ada).Input with { Forward = 0, Buttons = MoveButtons.None };
         rig.Step(10);
         Guns.Queue(rig, ada, ++seq, slot: 1);
         rig.Step();
-        Assert.Equal(GunResult.Stale, Result(seq), "not the gun in hand");
-        Assert.Equal(GunResult.TooLate, Guns.Queue(rig, ada, ++seq, tick: rig.Zone.Tick - 40), "a tick long gone (over a second)");
+        Assert.Equal(OutcomeCode.Stale, Result(seq), "not the gun in hand");
+        Assert.Equal(OutcomeCode.TooLate, Guns.Queue(rig, ada, ++seq, tick: rig.Zone.Tick - 40), "a tick long gone (over a second)");
         rig.Step();
-        Assert.Equal(GunResult.TooLate, Result(seq), "answered in order");
+        Assert.Equal(OutcomeCode.TooLate, Result(seq), "answered in order");
 
         // Taking the gun up again takes its 0.5 s.
         rig.Step(2, () => rig.Ch(ada).Actions = new ActionInput { HeldSlot = 1 });
         rig.Step(2, () => rig.Ch(ada).Actions = new ActionInput { HeldSlot = 0 });
         Guns.Queue(rig, ada, ++seq);
         rig.Step();
-        Assert.Equal(GunResult.Equipping, Result(seq), "still taking it up");
-        Assert.Equal(GunResult.Stale, Guns.Queue(rig, ada, seq), "a repeated sequence number is dropped");
+        Assert.Equal(OutcomeCode.Cooldown, Result(seq), "still taking it up");
+        Assert.Equal(OutcomeCode.Stale, Guns.Queue(rig, ada, seq), "a repeated sequence number is dropped");
     }
 
     /// <summary>
@@ -405,15 +407,15 @@ public static class GunTests
             rig.Give(ada, key, 1);
         }
         int Slot(string key) => Enumerable.Range(0, 24).First(i => a.Inventory.Main[i].Item == c.ItemByKey(key).Id);
-        Assert.Equal(ActionResult.NotAllowed, rig.Zone.Attach(ada, ContainerRef.Main, Slot("scope"), ContainerRef.Belt, 0, 0), "the pistol takes no scope");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Attach(ada, ContainerRef.Main, Slot("muzzle-brake"), ContainerRef.Belt, 0, 0), "a muzzle brake on");
+        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.Attach(ada, ContainerRef.Main, Slot("scope"), ContainerRef.Belt, 0, 0), "the pistol takes no scope");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Attach(ada, ContainerRef.Main, Slot("muzzle-brake"), ContainerRef.Belt, 0, 0), "a muzzle brake on");
         Assert.Equal(c.ItemByKey("muzzle-brake").Id, a.Inventory.Belt[0].Muzzle, "on the muzzle");
         Guns.Queue(rig, ada, 1);
         rig.Step();
         Assert.Near(c.ItemByKey("pistol").Firearm!.Recoil.PitchPerShot * 0.5, a.Gun.Recoil.Pitch, 0.5 * 3 * 0.12 + 1e-9, "half the kick");
 
         int silencer = Slot("silencer");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Attach(ada, ContainerRef.Main, silencer, ContainerRef.Belt, 0, 0), "a silencer swaps it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Attach(ada, ContainerRef.Main, silencer, ContainerRef.Belt, 0, 0), "a silencer swaps it");
         Assert.Equal(c.ItemByKey("muzzle-brake").Id, a.Inventory.Main[silencer].Item, "the brake back where the silencer was");
         rig.Zone.GameEvents.Clear();
         rig.Step(5);
@@ -422,7 +424,7 @@ public static class GunTests
         ZoneEvent launch = Guns.Launches(rig).Single();
         Assert.True(launch.Flag, "silenced");
         Assert.Near(300 * 0.75, launch.Velocity.Length(), 0.01, "slower");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Detach(ada, ContainerRef.Belt, 0, AttachmentSlot.Muzzle), "off again");
+        Assert.Equal(OutcomeCode.Done, rig.Act(ada, ContainerRef.Belt, 0, "remove", (int)AttachmentSlot.Muzzle), "off again");
         Assert.True(a.Inventory.Belt[0].Muzzle == 0 && a.Inventory.Count(c.ItemByKey("silencer")) == 1, "into the inventory");
         Assert.Equal(13, (int)a.Inventory.Belt[0].Loaded, "the magazine stayed with the gun throughout");
     }

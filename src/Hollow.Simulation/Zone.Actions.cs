@@ -9,11 +9,12 @@ using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
 // Players' actions (ARCHITECTURE.md §11.4: intents): every one checks everything against the server's state and
-// either does all it says or nothing, with the reason (ActionResult). The server calls these as intents arrive.
+// either does all it says or nothing, with the reason (Outcome). The server calls these as intents arrive.
 public sealed partial class Zone
 {
     private readonly List<ItemStack> _refunds = new();
@@ -46,21 +47,15 @@ public sealed partial class Zone
         return default;
     }
 
+    /// <summary>How what a player loots is looted: by its container's kind (a ship's cargo, G6, is a box's), or as a sleeper.</summary>
     public LootKind LootKindOf(Player p)
     {
-        if (LootShip(p) != null)
+        if (LootShip(p) is { } ship)
         {
-            return LootKind.Box; // a ship's cargo (G6)
+            return LootRules.KindOf(ship.Cargo);
         }
         (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
-        return thing switch
-        {
-            WorldProp { Prop.Kind: WorldPropKind.Crate } => LootKind.Crate,
-            Deployable { Def.IsMachine: true } => LootKind.Device,
-            Deployable => LootKind.Box,
-            Corpse => LootKind.Corpse,
-            _ => sleeper != null ? LootKind.Sleeper : LootKind.None,
-        };
+        return thing?.Container is { } container ? LootRules.KindOf(container) : sleeper != null ? LootKind.Sleeper : LootKind.None;
     }
 
     /// <summary>The container an intent names, or null when there is no such open container.</summary>
@@ -95,42 +90,42 @@ public sealed partial class Zone
         return null;
     }
 
-    public ActionResult MoveItem(Entity entity, ContainerRef from, int fromSlot, ContainerRef to, int toSlot, int amount, ushort expected)
+    public Outcome MoveItem(Entity entity, ContainerRef from, int fromSlot, ContainerRef to, int toSlot, int amount, ushort expected)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         Container? a = Resolve(p, from), b = Resolve(p, to);
         if (a == null || b == null)
         {
-            return ActionResult.NotOpen;
+            return OutcomeCode.NotOpen;
         }
         if (LootRules.IsLoot(to) && !LootRules.IsLoot(from) && !LootRules.CanDeposit(LootKindOf(p)))
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
-        return InventoryRules.Move(Content!, a, fromSlot, b, toSlot, amount, expected);
+        return TookFrom(p, InventoryRules.Move(Content!, a, fromSlot, b, toSlot, amount, expected));
     }
 
-    public ActionResult QuickMove(Entity entity, ContainerRef from, int slot, ushort expected)
+    public Outcome QuickMove(Entity entity, ContainerRef from, int slot, ushort expected)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         Container? source = Resolve(p, from);
         if (source == null)
         {
-            return ActionResult.NotOpen;
+            return OutcomeCode.NotOpen;
         }
         if (!source.InRange(slot))
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (Content!.Item(source[slot].Item) is not { } item)
         {
-            return ActionResult.Stale;
+            return OutcomeCode.Stale;
         }
         _targets.Clear();
         foreach (ContainerRef r in LootRules.QuickTargets(from, item, LootKindOf(p)))
@@ -140,82 +135,89 @@ public sealed partial class Zone
                 _targets.Add(target);
             }
         }
-        return InventoryRules.QuickMove(Content, source, slot, _targets, expected);
+        return TookFrom(p, InventoryRules.QuickMove(Content, source, slot, _targets, expected));
     }
 
-    /// <summary>Drops (part of) a stack in front of the player, where it lies until picked up or it despawns.</summary>
-    public ActionResult DropItem(Entity entity, ContainerRef from, int slot, int amount, ushort expected)
+    /// <summary>Drops (part of) a stack in front of the player: into the bag lying there, or a new one (<see cref="Spill(Vector3, ItemStack, float?)"/>).</summary>
+    public Outcome DropItem(Entity entity, ContainerRef from, int slot, int amount, ushort expected)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         Container? source = Resolve(p, from);
         if (source == null)
         {
-            return ActionResult.NotOpen;
+            return OutcomeCode.NotOpen;
         }
-        ActionResult result = InventoryRules.Remove(source, slot, amount, expected, out ItemStack taken);
-        if (result == ActionResult.Accepted)
+        Outcome result = InventoryRules.Remove(source, slot, amount, expected, out ItemStack taken);
+        if (result == OutcomeCode.Done)
         {
             Drop(entity, taken);
         }
         return result;
     }
 
-    /// <summary>Eats food or uses a medical item from the player's own slots.</summary>
-    public ActionResult UseItem(Entity entity, ContainerRef from, int slot, ushort expected)
+    /// <summary>
+    /// An inventory action (GROUND_SYSTEMS.md §7) on a stack in the player's own slots: eat, use, wear, take off, learn,
+    /// unload, take an attachment off, by its number in items.json's list (and its argument: which attachment). The
+    /// action's handler checks it is offered on that stack and does it, as the client predicted it.
+    /// </summary>
+    public Outcome ItemAction(Entity entity, ContainerRef from, int slot, ushort expected, int action, int arg)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
-        if (from is not (ContainerRef.Main or ContainerRef.Belt))
+        return Content!.ItemActions.Do(new PlayerActor(this, entity, p), from, slot, expected, action, arg);
+    }
+
+    /// <summary>The player an item action acts for, as the zone has them: eating feeds them, learning counts, the gun in hand hears of its magazine.</summary>
+    private sealed class PlayerActor(Zone zone, Entity entity, Player p) : IItemActor
+    {
+        public GameContent Content => zone.Content!;
+
+        public PlayerInventory Inventory => p.Inventory;
+
+        public BlueprintBook Blueprints => p.Blueprints;
+
+        public bool Reloading(ContainerRef from, int slot) => from == ContainerRef.Belt && slot == p.HeldSlot && p.Gun.Reloading;
+
+        public void Consumed(ItemDef item)
         {
-            return ActionResult.NotAllowed;
+            ConsumeStats consume = item.Consume!;
+            Consume(p, consume, Content.Survival);
+            ref Character c = ref zone.Entities.Get<Character>(entity);
+            SyncHealth(ref c, p);
+            if (consume.Poison > 0)
+            {
+                // G7: raw or burnt meat makes the eater sick.
+                zone.Hurt(entity, p, consume.Poison, "Food poisoning", EntityId.None, "");
+            }
         }
-        Container source = p.Inventory[from];
-        if (!source.InRange(slot))
+
+        public void Learned(Recipe recipe) => zone.WorldStats.Learned++;
+
+        public void MagazineChanged(ContainerRef from, int slot)
         {
-            return ActionResult.Invalid;
+            if (from == ContainerRef.Belt && slot == p.HeldSlot)
+            {
+                p.GunRevision++;
+            }
         }
-        ItemStack s = source[slot];
-        if (s.IsEmpty || (expected != 0 && s.Item != expected))
-        {
-            return ActionResult.Stale;
-        }
-        if (Content!.World.Blueprint is { } blueprint && s.Item == blueprint.Id)
-        {
-            return LearnBlueprint(p, source, slot, s); // G7: reading a blueprint learns it
-        }
-        if (Content.Item(s.Item)?.Consume is not { } consume)
-        {
-            return ActionResult.NotUsable;
-        }
-        Consume(p, consume, Content.Survival);
-        s.Count--;
-        source.Set(slot, s);
-        ref Character c = ref Entities.Get<Character>(entity);
-        SyncHealth(ref c, p);
-        if (consume.Poison > 0)
-        {
-            // G7: raw or burnt meat makes the eater sick.
-            Hurt(entity, p, consume.Poison, "Food poisoning", EntityId.None, "");
-        }
-        return ActionResult.Accepted;
     }
 
     // ---------------------------------------------------------------- crafting
 
     /// <summary>Starts crafting <paramref name="count"/> of a recipe (its output item's ID).</summary>
-    public ActionResult Craft(Entity entity, int recipe, int count, out uint ticket)
+    public Outcome Craft(Entity entity, int recipe, int count, out uint ticket)
     {
         ticket = 0;
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
-        Vector3 at = Entities.Get<Character>(entity).State.Position;
+        Vector3 at = EyeOf(Entities.Get<Character>(entity).State);
         int bench = WorkbenchLevel(at);
         ulong station = 0;
         if (Content!.Recipe(recipe) is { Station: { } needs })
@@ -223,76 +225,77 @@ public sealed partial class Zone
             // Made at a station (a ship at the vehicle workbench, G6): the nearest within reach builds it.
             if (StationNear(at, needs) is not { } found)
             {
-                return ActionResult.NeedsStation;
+                return OutcomeCode.NeedsStation.With(needs.Item.Id);
             }
             station = found.Id.Value;
         }
         return p.Crafting.Start(Content!, p.Inventory, recipe, count, bench, out ticket, p.Blueprints, station);
     }
 
-    public ActionResult CancelCraft(Entity entity, uint ticket)
+    public Outcome CancelCraft(Entity entity, uint ticket)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         _refunds.Clear();
-        ActionResult result = p.Crafting.Cancel(Content!, p.Inventory, ticket, _refunds);
-        DropAll(entity, _refunds);
+        Outcome result = p.Crafting.Cancel(Content!, p.Inventory, ticket, _refunds);
+        Drop(entity, _refunds);
         return result;
     }
 
     // ---------------------------------------------------------------- looting
 
     /// <summary>Opens a box, device, corpse or sleeper within reach (GROUND.md §6).</summary>
-    public ActionResult Open(Entity entity, EntityId target)
+    public Outcome Open(Entity entity, EntityId target)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (target == p.Id || !Entities.TryFind(target, out Entity e))
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
         if (ShipOf(e) is { Destroyed: false } ship)
         {
             return OpenShip(entity, p, ship); // its cargo (G6)
         }
-        Vector3 at;
+        TargetRef looted;
         if (StaticOf(e) is { Container: not null } thing)
         {
-            at = thing is Deployable d ? d.Centre : thing.Position;
+            looted = thing.Ref;
         }
         else if (PlayerOf(e) is { Dead: false } other && (other.Sleeping || other.Wounded))
         {
-            at = Entities.Get<Character>(e).State.Position;
+            looted = other.Ref;
         }
         else
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
-        if (Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), at) > Content!.Survival.LootReach + 0.5f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), looted, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return ActionResult.OutOfReach;
+            return reach;
         }
         p.Looting = target;
         p.LootRevision++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    public ActionResult Close(Entity entity)
+    public Outcome Close(Entity entity)
     {
         if (PlayerOf(entity) is not { } p)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (!p.Looting.IsNone)
         {
             p.Looting = EntityId.None;
             p.LootRevision++;
         }
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // Looting ends when the thing is gone or the looter walks away.
@@ -316,13 +319,13 @@ public sealed partial class Zone
                 }
                 continue;
             }
-            (WorldObject? thing, Player? sleeper, Entity e) = LootTarget(p);
+            (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
             bool keep = (thing != null || sleeper != null) && p.IsAwakeAndAlive;
             if (keep)
             {
-                Vector3 at = thing is Deployable d ? d.Centre : thing?.Position ?? Entities.Get<Character>(e).State.Position;
+                // Open while its nearest surface is within reach (walking round it is no reason to close).
                 Vector3 eye = EyeOf(Entities.Get<Character>(Entities.AtSlot(players.Slots[i])).State);
-                keep = Vector3.Distance(eye, at) <= Content!.Survival.LootReach + 1.5f;
+                keep = Reach(eye, thing?.Ref ?? sleeper!.Ref, Content!.Survival.KeepOpenReach, sight: false).Ok;
             }
             if (!keep)
             {
@@ -335,90 +338,100 @@ public sealed partial class Zone
     // ---------------------------------------------------------------- picking up
 
     /// <summary>Picks a pickup or berry bush with the interact key (GROUND.md §6).</summary>
-    public ActionResult PickUpNatural(Entity entity, ulong id)
+    public Outcome PickUpNatural(Entity entity, ulong id)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
+        // (An untrusted ID naming a place far away is refused before its tile is made: the biggest objects are 4 m across.)
         if (!Nature!.TryGetNear(id, eye, Content!.Survival.InteractReach + 4, out NaturalObject o) || Content.Natural(o.Kind) is not { } kind)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
         if (!kind.IsPicked)
         {
-            return ActionResult.NotUsable;
+            return OutcomeCode.NotUsable;
         }
         if (Natural!.IsDepleted(id))
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
-        if (Vector3.Distance(eye, NaturalShapes.Middle(o, kind)) > Content.Survival.InteractReach + kind.Radius * o.Scale)
+        Outcome reach = Reach(eye, new TargetRef(TargetFamily.Natural, id), Content.Survival.InteractReach);
+        if (!reach.Ok)
         {
-            return ActionResult.OutOfReach;
+            return reach;
         }
         GatherResult result = Natural.Pick(o, UnixMilliseconds);
         Give(entity, p, result.Yield, GainReason.PickedUp);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    /// <summary>Picks up a dropped item: as much as fits; the rest stays on the ground.</summary>
-    public ActionResult PickUpItem(Entity entity, EntityId id)
+    /// <summary>
+    /// Picks up a bag of dropped items with the interact key: everything in it that fits (a bag of one stack is taken
+    /// whole; the client opens one holding more). What doesn't fit stays in the bag; an emptied bag goes.
+    /// </summary>
+    public Outcome PickUpItem(Entity entity, EntityId id)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
-        if (StaticOf(id) is not DroppedItem item || item.Stack.IsEmpty)
+        if (StaticOf(id) is not DroppedBag bag || bag.Loot.IsEmpty)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
-        Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
-        if (Vector3.Distance(eye, item.Position) > Content!.Survival.InteractReach + 0.3f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), bag.Ref, Content!.Survival.InteractReach);
+        if (!reach.Ok)
         {
-            return ActionResult.OutOfReach;
+            return reach;
         }
-        ItemStack stack = item.Stack;
-        int left = p.Inventory.Give(Content, stack);
-        if (left == stack.Count)
+        bool taken = false;
+        for (int i = 0; i < bag.Loot.Size; i++)
         {
-            return ActionResult.NoSpace;
+            ItemStack stack = bag.Loot[i];
+            int left = stack.IsEmpty ? 0 : p.Inventory.Give(Content, stack);
+            if (left == stack.Count)
+            {
+                continue;
+            }
+            GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = stack.Item, Count = stack.Count - left, Reason = GainReason.PickedUp });
+            bag.Loot.Set(i, stack.WithCount(left));
+            taken = true;
         }
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = stack.Item, Count = stack.Count - left, Reason = GainReason.PickedUp });
-        stack.Count = left;
-        item.Stack = stack;
-        item.Revision++;
-        if (left == 0)
+        if (!taken)
         {
-            RemoveStatic(item);
+            return OutcomeCode.NoSpace;
         }
-        return ActionResult.Accepted;
+        bag.PublishChanges();
+        EndIfEmptied(bag);
+        return OutcomeCode.Done;
     }
 
     // ---------------------------------------------------------------- devices
 
     /// <summary>Lights or puts out a campfire or furnace (it needs fuel to light).</summary>
-    public ActionResult Toggle(Entity entity, EntityId id)
+    public Outcome Toggle(Entity entity, EntityId id)
     {
         if (!Acting(entity, out Player _))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (StaticOf(id) is Deployable { Def.Device: null, Def.IsMachine: true, Storage: not null } machine)
         {
             // G7: a recycler (on or off) or a research table (start).
-            return Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), machine.Centre) > Content!.Survival.LootReach + 0.5f
-                ? ActionResult.OutOfReach
-                : ToggleMachine(machine);
+            Outcome near = Reach(EyeOf(Entities.Get<Character>(entity).State), machine.Ref, Content!.Survival.OpenReach);
+            return near.Ok ? ToggleMachine(machine) : near;
         }
         if (StaticOf(id) is not Deployable { Def.Device: not null, Storage: { } storage } d)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
-        if (Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), d.Centre) > Content!.Survival.LootReach + 0.5f)
+        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), d.Ref, Content!.Survival.OpenReach);
+        if (!reach.Ok)
         {
-            return ActionResult.OutOfReach;
+            return reach;
         }
         if (!d.Lit)
         {
@@ -429,13 +442,13 @@ public sealed partial class Zone
             }
             if (!fuel)
             {
-                return ActionResult.NotEnough;
+                return OutcomeCode.NoFuel;
             }
         }
         d.Lit = !d.Lit;
         d.BurnTicksLeft = 0;
         d.Revision++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // ---------------------------------------------------------------- placing
@@ -444,32 +457,32 @@ public sealed partial class Zone
     /// Places the deployable in a slot at a point on the ground (GROUND.md §6): within reach, on ground no steeper than
     /// it allows, not under water, overlapping no deployable, tree, outcrop or character.
     /// </summary>
-    public ActionResult Place(Entity entity, ContainerRef from, int slot, ushort expected, Vector3 target, float yaw)
+    public Outcome Place(Entity entity, ContainerRef from, int slot, ushort expected, Vector3 target, float yaw)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (from is not (ContainerRef.Main or ContainerRef.Belt))
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         Container source = p.Inventory[from];
         if (!source.InRange(slot) || !float.IsFinite(target.X) || !float.IsFinite(target.Y) || !float.IsFinite(target.Z) || !float.IsFinite(yaw))
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         ItemStack s = source[slot];
         if (s.IsEmpty || (expected != 0 && s.Item != expected))
         {
-            return ActionResult.Stale;
+            return OutcomeCode.Stale;
         }
         if (Content!.Item(s.Item)?.Deploys is not { } def)
         {
-            return ActionResult.NotUsable;
+            return OutcomeCode.NotUsable;
         }
-        ActionResult check = CanPlace(EyeOf(Entities.Get<Character>(entity).State), def, target, yaw, out Vector3 ground);
-        if (check != ActionResult.Accepted)
+        Outcome check = CanPlace(EyeOf(Entities.Get<Character>(entity).State), def, target, yaw, out Vector3 ground);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
@@ -481,34 +494,34 @@ public sealed partial class Zone
             placed.ReadyAtUnixMs = UnixMilliseconds + (long)(def.RespawnSeconds * 1000);
         }
         AddStatic(placed);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>The placement checks alone (the client runs them too, to tint its preview); the ground point found.</summary>
-    public ActionResult CanPlace(Vector3 eye, DeployableDef def, Vector3 target, float yaw, out Vector3 ground)
+    public Outcome CanPlace(Vector3 eye, DeployableDef def, Vector3 target, float yaw, out Vector3 ground)
     {
         ground = Settle(target);
         if (Vector3.Distance(eye, target) > Content!.PlacementReach + 0.25f)
         {
-            return ActionResult.OutOfReach;
+            return OutcomeCode.OutOfReach;
         }
         if (MathF.Abs(target.X) > PhysicsWorld.Extent - PhysicsWorld.TileSize || MathF.Abs(target.Z) > PhysicsWorld.Extent - PhysicsWorld.TileSize)
         {
-            return ActionResult.BadPlacement;
+            return OutcomeCode.BadPlacement;
         }
         Vector3 up = Frame.UpAt(ground);
         if (MathF.Abs(Vector3.Dot(target - ground, up)) > Content.PlacementMaxStep)
         {
-            return ActionResult.BadPlacement;
+            return OutcomeCode.BadPlacement;
         }
         if (Surface.SeaRadius > 0 && Frame.ToBody(ground).Length < Surface.SeaRadius + 0.05)
         {
-            return ActionResult.BadPlacement;
+            return OutcomeCode.BadPlacement;
         }
         (_, float slope) = GroundNormal(ground);
         if (slope > def.MaxSlopeDegrees * MathF.PI / 180)
         {
-            return ActionResult.TooSteep;
+            return OutcomeCode.TooSteep;
         }
         Vector3 centre = ground + up * def.HalfExtents.Y;
         _near.Clear();
@@ -517,7 +530,7 @@ public sealed partial class Zone
         {
             if (Geometry.BoxesOverlap(centre, def.HalfExtents, yaw, other.Centre, other.Def.HalfExtents, other.Yaw, up))
             {
-                return ActionResult.Blocked;
+                return OutcomeCode.Blocked;
             }
         }
         _traceNature.Clear();
@@ -529,7 +542,7 @@ public sealed partial class Zone
                 float radius = kind.Radius * o.Scale, height = NaturalShapes.Top(o, kind);
                 if (Geometry.BoxCylinderOverlap(centre, def.HalfExtents, yaw, o.Position, radius, height, up))
                 {
-                    return ActionResult.Blocked;
+                    return OutcomeCode.Blocked;
                 }
             }
         }
@@ -539,9 +552,9 @@ public sealed partial class Zone
             ref Character c = ref characters.Values[i];
             if (!c.State.IsDead && Geometry.BoxCylinderOverlap(centre, def.HalfExtents, yaw, c.State.Position, Tuning.Radius, Tuning.StandingHeight, up))
             {
-                return ActionResult.Blocked;
+                return OutcomeCode.Blocked;
             }
         }
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 }

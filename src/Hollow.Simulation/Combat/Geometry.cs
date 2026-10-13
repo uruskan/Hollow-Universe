@@ -123,11 +123,38 @@ public static class Geometry
         return Vector3.DistanceSquared(p, a + ab * t);
     }
 
+    /// <summary>
+    /// The point of a box standing on <paramref name="basePoint"/> (its bottom's middle) along <paramref name="up"/>, turned by
+    /// <paramref name="yaw"/>, nearest to a point (the point itself when inside): a deployable's bounds, on the server and the
+    /// client alike.
+    /// </summary>
+    public static Vector3 NearestOnBox(Vector3 basePoint, Vector3 up, float yaw, Vector3 half, Vector3 point)
+    {
+        (Vector3 right, Vector3 forward) = Axes(up, yaw);
+        Vector3 centre = basePoint + up * half.Y;
+        Vector3 local = point - centre;
+        float x = Math.Clamp(Vector3.Dot(local, right), -half.X, half.X);
+        float y = Math.Clamp(Vector3.Dot(local, up), -half.Y, half.Y);
+        float z = Math.Clamp(Vector3.Dot(local, forward), -half.Z, half.Z);
+        return centre + right * x + up * y + forward * z;
+    }
+
     /// <summary>The axes of something standing along <paramref name="up"/> and turned by <paramref name="yaw"/> about it.</summary>
     public static (Vector3 Right, Vector3 Forward) Axes(Vector3 up, float yaw)
     {
         (Vector3 forward, Vector3 right) = Movement.CharacterMotor.HorizontalBasis(yaw, up);
         return (right, forward);
+    }
+
+    /// <summary>
+    /// The turn a thing standing along <paramref name="up"/> (a unit vector) at <paramref name="yaw"/> is drawn with, as
+    /// the client draws deployables and props: X to its right, Y along up, −Z along its forward.
+    /// </summary>
+    public static Quaternion Upright(Vector3 up, float yaw)
+    {
+        (Vector3 forward, Vector3 right) = Movement.CharacterMotor.HorizontalBasis(yaw, up);
+        var rows = new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0, -forward.X, -forward.Y, -forward.Z, 0, 0, 0, 0, 1);
+        return Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(rows));
     }
 
     /// <summary>Whether two boxes standing on the same "up" overlap, by separating axes in the horizontal plane and along up.</summary>

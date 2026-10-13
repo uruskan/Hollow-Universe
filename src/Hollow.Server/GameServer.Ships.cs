@@ -61,7 +61,7 @@ public sealed partial class GameServer
         var target = new EntityId(m.Ship);
         return Intent(session, m.Seq, () =>
         {
-            ActionResult result = m.Action switch
+            Outcome result = m.Action switch
             {
                 ShipAction.Hatch => Zone.ShipHatch(me, target),
                 ShipAction.Board => Zone.Board(me, target),
@@ -69,9 +69,9 @@ public sealed partial class GameServer
                 ShipAction.Lock => Zone.LockShip(me, target),
                 ShipAction.Refuel => Zone.RefuelShip(me, target),
                 ShipAction.Descend => Zone.Descend(me),
-                _ => ActionResult.Invalid,
+                _ => OutcomeCode.Invalid,
             };
-            if (result == ActionResult.Accepted)
+            if (result == OutcomeCode.Done)
             {
                 ShipIntentsAccepted++;
             }
@@ -146,7 +146,7 @@ public sealed partial class GameServer
             _shipCandidates.Add(new ShipCandidate
             {
                 NetId = netId,
-                State = ShipConvert.ToNet(ship, ship.Owner == session.EntityId),
+                State = ShipConvert.ToNet(ship, Zone.FlagsFor(ship.Ref, session.Viewer)),
                 Weight = (moving ? 3f : 0.5f) + 4f * MathF.Max(0f, 1f - distance / ShipRelevanceRadius) + (ship.Pilot == session.EntityId ? 10f : 0f),
             });
         }

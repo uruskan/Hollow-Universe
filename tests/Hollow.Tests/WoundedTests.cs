@@ -38,8 +38,8 @@ public static class WoundedTests
         Assert.Equal(Stance.Crawling, rig.Ch(bo).State.Stance, "crawling");
         Assert.InRange(rig.Zone.Tick + s.WoundedSecondsLeast * 30 - 1, rig.Zone.Tick + s.WoundedSecondsMost * 30 + 1, b.WoundedUntilTick, "40-50 s");
         Assert.True(rig.Zone.GameEvents.Any(e => e.Kind == ZoneEventKind.HitConfirmed && e.Player == a.Id && e.Downed), "Ada's marker says downed");
-        Assert.Equal(ActionResult.Dead, rig.Zone.Craft(bo, c.ItemByKey("campfire").Id, 1, out _), "the wounded can't act");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Open(ada, b.Id), "the wounded can be looted");
+        Assert.Equal(OutcomeCode.Dead, rig.Zone.Craft(bo, c.ItemByKey("campfire").Id, 1, out _), "the wounded can't act");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, b.Id), "the wounded can be looted");
         rig.Zone.Close(ada);
 
         // Crawling: slow, no jumping, the stance kept.
@@ -53,11 +53,11 @@ public static class WoundedTests
         // Helped up by Ada (within reach), back on his feet with the health he had.
         float downHealth = b.Vitals.Health;
         rig.Zone.Teleport(ada, rig.Ch(bo).State.Position + new Vector3(1, 0, 0));
-        Assert.Equal(ActionResult.Accepted, rig.Zone.HelpUp(ada, b.Id), "help up");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.HelpUp(ada, b.Id), "help up");
         Assert.True(!b.Wounded && !b.Dead && b.Vitals.Health == downHealth, "up again");
         rig.Step(2, () => rig.Ch(bo).Input = default);
         Assert.Equal(Stance.Standing, rig.Ch(bo).State.Stance, "standing where there is room");
-        Assert.Equal(ActionResult.NotFound, rig.Zone.HelpUp(ada, b.Id), "nobody to help now");
+        Assert.Equal(OutcomeCode.NotFound, rig.Zone.HelpUp(ada, b.Id), "nobody to help now");
 
         // Finished off: down again, and one more hit kills.
         b.Vitals.Health = 10;

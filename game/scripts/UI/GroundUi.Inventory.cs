@@ -101,45 +101,25 @@ public partial class GroundUi
         Rect(552, 116, 475, 76, G.Panel);
         Paragraph(info.Description, 567, 127, 368, 17, G.Ink, 3);
         Icon(stack.Key, 950, 121, 70, 66);
-        Rect(552, 194, 272, content - 109, G.Panel);
-        Rect(827, 194, 200, content - 109, G.Panel);
-        Rect(552, 194, 272, 25, G.Panel);
-        Rect(827, 194, 200, 25, G.Panel);
+        // INFORMATION (the describers' rows, GROUND_SYSTEMS.md §7) and ACTIONS side by side.
+        Rect(552, 194, InfoWidth, content - 109, G.Panel);
+        Rect(ActionsX, 194, ActionsWidth, content - 109, G.Panel);
+        Rect(552, 194, InfoWidth, 25, G.Panel);
+        Rect(ActionsX, 194, ActionsWidth, 25, G.Panel);
         Text("INFORMATION", 558, 194, 17, G.Ink, bold: true);
-        Text("ACTIONS", 833, 194, 17, G.Ink, bold: true);
+        Text("ACTIONS", ActionsX + 6, 194, 17, G.Ink, bold: true);
         PanelArea(545, 80, 492, 370);
+        PaintRows(Model.Rows(slot), 194 + content - 109);
 
-        var stats = new List<ItemStat>(info.Stats);
-        if (stack.HasCondition)
+        // The stack's own actions (its parts', GROUND_SYSTEMS.md §7), then DROP; a refused one shows muted and says why.
+        IReadOnlyList<ItemActionView> actions = Model.Actions(slot);
+        int count = actions.Count;
+        for (int i = 0; i <= count; i++)
         {
-            stats.Add(new ItemStat("Condition", Ui.Number(stack.Condition * 100, "N0") + "%", stack.Condition >= 0.25f));
-        }
-        if (stack.HasAmmo)
-        {
-            stats.Add(new ItemStat("Loaded", stack.Ammo.ToString(CultureInfo.InvariantCulture)));
-        }
-        for (int i = 0; i < stats.Count && 225 + i * 24 < 194 + content - 109 - 20; i++)
-        {
-            TextIn(stats[i].Label, 470, 225 + i * 24, 186, 15, G.Ink, HorizontalAlignment.Right, bold: true);
-            Text(stats[i].Value, 688, 225 + i * 24, 16, stats[i].Positive ? G.Green : G.Short, bold: true);
-        }
-
-        var actions = new List<(string Label, Action Act)>();
-        if (info.Usable)
-        {
-            actions.Add(("USE", () => Model.Use(slot)));
-        }
-        if (info.Wearable)
-        {
-            bool worn = slot.Container == ContainerId.Wear;
-            actions.Add((worn ? "UNEQUIP" : "WEAR", () => WearOrRemove(slot, worn)));
-        }
-        actions.AddRange(Model.MoreActions(slot));
-        actions.Add(("DROP", () => Model.Drop(slot, StackAt(slot).Amount)));
-        for (int i = 0; i < actions.Count; i++)
-        {
-            (string label, Action act) = actions[i];
-            Button(label, 827, 221 + i * 46, 200, 42, act, label.Length > 15 ? 18 : 22);
+            ItemActionView action = i < count ? actions[i] : new ItemActionView("DROP", () => Model.Drop(slot, StackAt(slot).Amount));
+            string label = action.Label;
+            Button(label, ActionsX, 222 + i * 40, ActionsWidth, 37, action.Reason is { } why ? () => OnNotice(why) : action.Act,
+                label.Length > 15 ? 16 : label.Length > 11 ? 19 : 21, muted: action.Reason != null);
         }
 
         if (split)
@@ -165,21 +145,26 @@ public partial class GroundUi
         }
     }
 
-    // WEAR moves to the first free clothing slot; UNEQUIP back to the first free main slot (RustMVP's rule).
-    private void WearOrRemove(SlotRef slot, bool worn)
+    // The INFORMATION column's width and the ACTIONS column's place and width (design pixels).
+    private const float InfoWidth = 312, ActionsX = 867, ActionsWidth = 160;
+
+    // The rows of the INFORMATION column, as many as fit above `bottom`: the label on the left, the value on the right in
+    // green (good news) or amber, its font narrowed until the two fit side by side.
+    private void PaintRows(IReadOnlyList<ItemStat> rows, float bottom)
     {
-        ContainerId target = worn ? ContainerId.Main : ContainerId.Wear;
-        IReadOnlyList<ItemStack> slots = Model.Slots(target);
-        for (int i = 0; i < slots.Count; i++)
+        const float step = 17, size = 14, left = 560, right = 552 + InfoWidth - 8;
+        for (int i = 0; i < rows.Count && 224 + (i + 1) * step <= bottom - 2; i++)
         {
-            if (slots[i].IsEmpty)
+            float y = 224 + i * step;
+            float label = Text(rows[i].Label, left, y, size, G.Ink, bold: true);
+            float room = right - left - label - 12, value = size;
+            while (value > 10 && Measure(rows[i].Value, value, bold: true) > room)
             {
-                Model.Move(slot, new SlotRef(target, i), 1);
-                _selected = new SlotRef(target, i);
-                return;
+                value--;
             }
+            TextIn(rows[i].Value, left + label + 12, y + (size - value) / 2, room, value, rows[i].Positive ? G.Green : G.Short,
+                HorizontalAlignment.Right, bold: true);
         }
-        OnNotice("No free slot.");
     }
 
     // ---------------------------------------------------------------- the right column
@@ -212,12 +197,9 @@ public partial class GroundUi
     private void PaintLoot(LootView loot)
     {
         IReadOnlyList<ItemStack> slots = loot.Slots;
-        float y = loot.Kind switch
-        {
-            ContainerKind.Corpse => 70,
-            ContainerKind.Box when slots.Count > 36 => 70,
-            _ => 191,
-        };
+        // A take-only grid (a crate, a bag of dropped items) shows the rows its stacks fill: nothing goes into the rest.
+        int cells = loot.Kind == ContainerKind.Crate ? FilledRows(slots) * 6 : slots.Count;
+        float y = loot.Kind == ContainerKind.Corpse || cells > 36 ? 70 : 191;
         Section("LOOT", 1040, y);
         Rect(1040, y + 34, 475, 27, G.Panel);
         Text(loot.Title.ToUpperInvariant(), 1050, y + 34, 16, G.Ink, bold: true);
@@ -281,14 +263,25 @@ public partial class GroundUi
                 bottom = PaintMachine(loot, y, (i, x, top, size) => Cell(i, x, top, size));
                 break;
             default:
-                for (int i = 0; i < slots.Count; i++)
+                for (int i = 0; i < cells; i++)
                 {
                     Cell(i, 1040 + i % 6 * 80, y + 67 + i / 6 * 80);
                 }
-                bottom = y + 67 + (slots.Count + 5) / 6 * 80;
+                bottom = y + 67 + (cells + 5) / 6 * 80;
                 break;
         }
         PanelArea(1037, y - 4, 483, bottom - y + 8);
+    }
+
+    // Rows of six down to the last filled slot (at least one).
+    private static int FilledRows(IReadOnlyList<ItemStack> slots)
+    {
+        int last = -1;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            last = slots[i].IsEmpty ? last : i;
+        }
+        return Math.Max(1, last / 6 + 1);
     }
 
     private static string Minutes(float seconds)
@@ -392,7 +385,8 @@ public partial class GroundUi
         _splitValue = Math.Clamp((int)MathF.Round(1 + t * (count - 1)), 1, Math.Max(1, count));
     }
 
-    // A drag released on a slot moves there; released on nothing at all (the world behind the panels), it drops.
+    // A drag released on another slot moves there; on its own slot it is put back; anywhere else, over a panel, a button or
+    // the world behind, it drops (Rust; GROUND_SYSTEMS.md §7).
     private void ReleaseInventory(MouseButton button)
     {
         if (_splitTracking && button == MouseButton.Left)
@@ -409,20 +403,17 @@ public partial class GroundUi
         {
             return;
         }
-        Hit? target = HitAt(Pointer);
-        if (target is { Kind: HitKind.Slot } t)
+        if (HitAt(Pointer) is { Kind: HitKind.Slot } target)
         {
-            if (t.Slot != drag.From)
+            if (target.Slot != drag.From)
             {
                 Sound?.Invoke("ui.drop");
-                Model.Move(drag.From, t.Slot, drag.Amount);
+                Model.Move(drag.From, target.Slot, drag.Amount);
             }
+            return;
         }
-        else if (target == null)
-        {
-            Sound?.Invoke("ui.drop");
-            Model.Drop(drag.From, drag.Amount);
-        }
+        Sound?.Invoke("ui.drop");
+        Model.Drop(drag.From, drag.Amount);
     }
 
     // H held: each filled slot the pointer rests on for 350 ms moves across once (RustMVP's hover transfer).

@@ -45,6 +45,15 @@ public sealed class ShipDef
 
     public float ExplosiveDamage { get; init; }
 
+    /// <summary>The hull's share of a blow by how it came (its defence in the damage pipeline, GROUND.md §6.4.2).</summary>
+    public float Share(Combat.DamageDelivery delivery) => delivery switch
+    {
+        Combat.DamageDelivery.Arrow => ArrowDamage,
+        Combat.DamageDelivery.Bullet => BulletDamage,
+        Combat.DamageDelivery.Blast => ExplosiveDamage,
+        _ => MeleeDamage,
+    };
+
     /// <summary>Thrust along each axis: forward (main engine), back (retro), sideways, up (lift nozzles), down.</summary>
     public float MainThrust { get; init; }
 

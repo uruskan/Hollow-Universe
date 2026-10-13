@@ -18,6 +18,10 @@ public partial class SurfaceView : Node3D
     private const double RebaseDistance = 1500;
     private const string SettingsPath = "user://settings.cfg";
 
+    /// <summary>The ground's texture layers, colour and normals (a game loads them ahead, GROUND.md §4.3.1).</summary>
+    public static readonly string[] GroundTextures =
+        { "res://assets/surface/ground/ground_albedo.webp", "res://assets/surface/ground/ground_normal.webp" };
+
     private Camera3D _camera = null!;
     private Godot.Environment _environment = null!;
     private ShaderMaterial _skyMaterial = null!;
@@ -159,16 +163,18 @@ public partial class SurfaceView : Node3D
     public void Open(StarSystem system, Body planet, PlanetSurface surface, double latitude, double longitude, double altitude,
         double yaw, double pitch, double time)
     {
+        _openTimes.Clear();
+        _lapAt = System.Diagnostics.Stopwatch.GetTimestamp();
         _system = system;
         _planet = planet;
         _surface = surface;
         _time = time;
         _yaw = yaw;
         _pitch = pitch;
-        _air = AtmosphereModel.For(planet);
-        _air.Build();
+        _air = AtmosphereModel.Take(planet);
         _sky = new SurfaceSky(system, planet, _air);
         _sky.Ephemeris.SetRotationTimeScale(RotationTimeScale, time);
+        Lap("air");
 
         Vector3D direction = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
         double ground = Math.Max(surface.HeightAt(direction), 0);
@@ -178,10 +184,11 @@ public partial class SurfaceView : Node3D
         ApplyCameraRotation();
 
         SetupGlobals();
+        Lap("globals");
         SetupEnvironment();
         _terrainMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_terrain.gdshader") };
-        _groundAlbedo = GD.Load<TextureLayered>("res://assets/surface/ground/ground_albedo.webp");
-        _groundNormal = GD.Load<TextureLayered>("res://assets/surface/ground/ground_normal.webp");
+        _groundAlbedo = GD.Load<TextureLayered>(GroundTextures[0]);
+        _groundNormal = GD.Load<TextureLayered>(GroundTextures[1]);
         _terrainMaterial.SetShaderParameter("albedo_array", _groundAlbedo);
         _terrainMaterial.SetShaderParameter("normal_array", _groundNormal);
         _terrainMaterial.SetShaderParameter("macro_noise", _noise);
@@ -193,6 +200,7 @@ public partial class SurfaceView : Node3D
             water = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_water.gdshader") };
             water.SetShaderParameter("wave_normals", NoiseTextures.WaveNormals(11));
         }
+        Lap("materials");
         _terrain.Setup(surface, _frame, _terrainMaterial, water);
         _vegetation?.QueueFree();
         _vegetation = new Vegetation { Name = "Vegetation" };
@@ -202,7 +210,23 @@ public partial class SurfaceView : Node3D
         _grass = null;
         _idleFrames = 0;
         _firstFrame = true;
+        Lap("terrain and plants");
         UpdateWorld(0);
+        Lap("first update");
+    }
+
+    private readonly System.Text.StringBuilder _openTimes = new();
+    private long _lapAt;
+
+    /// <summary>What the last <see cref="Open"/> spent its time on (milliseconds by part), for the start's timeline.</summary>
+    public string OpenTimes => _openTimes.ToString();
+
+    private void Lap(string what)
+    {
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        double ms = (now - _lapAt) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        _openTimes.Append(_openTimes.Length > 0 ? ", " : "").Append(what).Append(' ').Append(ms.ToString("0", System.Globalization.CultureInfo.InvariantCulture)).Append(" ms");
+        _lapAt = now;
     }
 
     // ---------------------------------------------------------------- set-up
@@ -256,6 +280,9 @@ public partial class SurfaceView : Node3D
         Add("hu_texture_offset", V3, Vector3.Zero);
         Add("hu_wind", V4, new Vector4(0.86f, 0, -0.5f, 1));
         Add("hu_lod_clock", T, 0f);
+        // A tool's blow shaking one plant's crown (the ground game's NatureView sets them; GROUND.md §9.3).
+        Add("hu_shake_at", V4, Vector4.Zero);
+        Add("hu_shake_dir", V4, Vector4.Zero);
         var S3 = RenderingServer.GlobalShaderParameterType.Sampler3D;
         _aerial = new AerialTable(air);
         Add("hu_ap_up", V3, Vector3.Up);

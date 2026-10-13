@@ -1,6 +1,8 @@
 using System.Numerics;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -43,6 +45,18 @@ public enum ZoneEventKind : byte
     Detonated,
     /// <summary>To a player: a line to read (<see cref="ZoneEvent.Text"/>), such as a built ship waiting for room (G6).</summary>
     Notice,
+
+    /// <summary>
+    /// To everyone near (GROUND.md §6.4.2): something was destroyed: a deployable or world prop broken, a building piece,
+    /// door or claim device broken, brought down, decayed or demolished, a ship wrecked. <see cref="ZoneEvent.Target"/> names
+    /// it (its family and ID), <see cref="ZoneEvent.Text"/> is its model key (a piece's with <see cref="ZoneEvent.Grade"/>);
+    /// <see cref="ZoneEvent.Position"/> and <see cref="ZoneEvent.Rotation"/> where it stood (zone frame, as it is drawn: a
+    /// door's are its frame piece's, with <see cref="ZoneEvent.Flag"/> set when it was open);
+    /// <see cref="ZoneEvent.Velocity"/> the blow's direction (zero for a collapse, decay or demolition);
+    /// <see cref="ZoneEvent.Cause"/> what did it; <see cref="ZoneEvent.Player"/> who and <see cref="ZoneEvent.Item"/> with what.
+    /// Made in one place, <c>Zone.Destroyed</c>.
+    /// </summary>
+    Destroyed,
 }
 
 /// <summary>Why items arrived, for the UI's notifications.</summary>
@@ -55,27 +69,6 @@ public enum GainReason : byte
     Refunded,
     Broke,
     Used,
-}
-
-/// <summary>What was hit, for hit markers.</summary>
-public enum HitTarget : byte
-{
-    Character,
-    Natural,
-    Deployable,
-    Ground,
-
-    /// <summary>Nothing: a projectile that ran out of range or time in the air.</summary>
-    Nothing,
-
-    /// <summary>A building piece, door or claim device (G3).</summary>
-    Building,
-
-    /// <summary>A ship's hull (G6; 6, as G5 may take 5's neighbours).</summary>
-    Ship = 6,
-
-    /// <summary>An animal, alive or a corpse (G7, GROUND.md §6.9).</summary>
-    Animal = 7,
 }
 
 /// <summary>
@@ -93,7 +86,11 @@ public struct ZoneEvent
     /// <summary>The other side: the victim, the attacker, the object hit.</summary>
     public EntityId Other;
 
-    public HitTarget Target;
+    /// <summary>
+    /// What was hit, landed on, was on or was destroyed (GROUND_SYSTEMS.md §3.1): its family, ID and part (a body's bone);
+    /// only the family where the ID doesn't matter (a projectile's end, what an explosion was on).
+    /// </summary>
+    public TargetRef Target;
     public HitRegion Region;
     public GainReason Reason;
 
@@ -114,4 +111,12 @@ public struct ZoneEvent
     public Vector3 Velocity;
     public uint Projectile;
     public string? Text;
+
+    /// <summary>A destroyed thing's turn as it was drawn (<see cref="ZoneEventKind.Destroyed"/>).</summary>
+    public Quaternion Rotation;
+
+    /// <summary>What destroyed it, and a piece's grade (<see cref="ZoneEventKind.Destroyed"/>).</summary>
+    public DestroyCause Cause;
+
+    public byte Grade;
 }

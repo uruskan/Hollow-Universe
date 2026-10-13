@@ -31,7 +31,8 @@ public readonly record struct RecoilStep(double Pitch, double Yaw);
 /// <summary>
 /// How a firearm's view kicks and recovers (weapons.json <c>recoil</c>; RustMVP weapon_definition.hpp and
 /// weapon_rules.hpp): a step a shot, applied over <see cref="KickSeconds"/>, held for <see cref="RecoveryDelaySeconds"/>
-/// after the last shot, then returned whole over <see cref="RecoverySeconds"/>. Degrees and seconds.
+/// after the last shot, then returned whole over <see cref="RecoverySeconds"/>. Degrees and seconds. Fixed and repeatable
+/// as RustMVP's (GROUND.md §6.4): no random part, the same aimed or crouched; only a muzzle attachment scales it.
 /// </summary>
 public sealed class RecoilStats
 {
@@ -42,12 +43,6 @@ public sealed class RecoilStats
 
     /// <summary>The steps, in order (pattern mode); the last repeats.</summary>
     public IReadOnlyList<RecoilStep> Pattern { get; init; } = Array.Empty<RecoilStep>();
-
-    /// <summary>A shot's step is scaled by 1 ± this (from the shot's seed).</summary>
-    public double PitchJitter { get; init; }
-
-    /// <summary>Degrees either way added to a shot's step (from the shot's seed).</summary>
-    public double YawJitter { get; init; }
 
     public double PitchLimit { get; init; }
 
@@ -61,11 +56,6 @@ public sealed class RecoilStats
     public double RecoveryDelaySeconds { get; init; }
 
     public double RecoverySeconds { get; init; }
-
-    /// <summary>The kick is scaled by this while aiming down the sights, and by <see cref="Crouched"/> while crouching.</summary>
-    public double Aimed { get; init; } = 1;
-
-    public double Crouched { get; init; } = 1;
 }
 
 /// <summary>

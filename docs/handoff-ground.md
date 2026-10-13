@@ -32,6 +32,31 @@ Every work package is merged into `ground` (the first session ended with nothing
 
 Their worktrees in `D:\GameDev\Projects\Hollow-wt\` can be removed once the owner is happy (`git worktree remove`).
 
+**The owner's first playtest (13 October 2026) and where each finding stands:**
+- Done and merged into `ground`: Left Alt free look; the hands on held items (the rock and 40 others); free-foundation height
+  by aim; the AK and pistol recoil exactly RustMVP's; one damage pipeline with the Destroyed event; Rust's X on trees and
+  hotspot on outcrops with hits that read; dropped items in bags.
+- Running: gibs (`ground-gibs`); the bag's model remade as a strapped bundle (`ground-bagart`).
+- By the shared systems the owner approved ([GROUND_SYSTEMS.md](GROUND_SYSTEMS.md)): P0 foundations (`ground-p0`, running)
+  and P5 the radial (`ground-radial`, running), then P1 interaction (hold-E radial, code lock's set code, garage door
+  closing, the cupboard's menu, the rename to tool cupboard, spent arrows that stay stuck and are taken with E, from living
+  bodies too), P2 placement (deployables on foundations and floors, a ghost for every placeable, the Tin Finch from its
+  item) and P3 held items (information for every item, the ammo icon and hold-R ammo radial, unload, the blueprint's
+  LEARN, dropping over the interface, workbench speed).
+- Later: P7, characters and held items (third-person grips and clipping, Rust's closed grip on the rock, swings whose
+  contact meets the server's hit), to plan with the owner.
+- To check once the shared systems are merged (the owner, 13 October 2026): building textures and the plan's ghost looked
+  "super bright, broken" in one of their runs after the first merges (the sandbox rendered them normally afterwards: maybe
+  a half-done import; look again in the game); and free foundations rise too little (today at most the foundation depth,
+  1 m, RustMVP's number; more needs a taller foundation model so nothing floats).
+- Deferred, to ask the owner: building stability. They wrote: "floors can hang out if there's a half wall or something
+  that they are snapped to, and in a triangle foundation one wall and one half wall and a triangle floor on top shouldn't
+  break when the half wall is broken since that triangle floor would be attached to the wall; however the half wall
+  allows it to be built." Today a piece is linked only to pieces whose sockets it sits on exactly
+  (`BuildingWorld.Link`, `Supports`), never to pieces it merely touches; a floor on a half wall sits at 1.5 m, against the
+  full wall's face, while a full wall's floor socket is at its top (3 m). Ask whether the floor meant is at half-wall
+  height against the wall (then touching would have to count as support) or at the full wall's top.
+
 **First jobs for the next session:**
 1. **Owner's playtest findings first.** The owner is testing the whole build and will report problems.
 2. **Finish the wardrobe hookup:**

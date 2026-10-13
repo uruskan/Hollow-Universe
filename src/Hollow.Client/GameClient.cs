@@ -39,6 +39,13 @@ public struct InputFrame
     public float Yaw;
     public float Pitch;
 
+    /// <summary>
+    /// Free look (Alt, <see cref="FreeLook"/>): the camera's and the head's turn from the view, in radians. Others see the
+    /// head turn; the view above stays the aim and the movement's.
+    /// </summary>
+    public float LookYaw;
+    public float LookPitch;
+
     public bool Jump;
     public bool Crouch;
     public bool Sprint;
@@ -349,6 +356,9 @@ public sealed partial class GameClient : INetEventListener, IDisposable
             Pitch = frame.Pitch,
             Buttons = buttons,
         }, actions);
+        // Free look rides with the view, for others to see the head turn (the prediction never uses it).
+        command.LookYaw = NetConvert.ToLook(frame.LookYaw, FreeLook.MaxYaw);
+        command.LookPitch = NetConvert.ToLook(frame.LookPitch, FreeLook.MaxPitch);
         if (Piloting)
         {
             // G6: the pilot's controls ride in the input; the ship is predicted first, as the server steps it, so the

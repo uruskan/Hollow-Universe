@@ -4,12 +4,13 @@ using Hollow.Net.Protocol;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Client;
 
 /// <summary>
-/// A static thing as this client knows it (GROUND.md §6): a deployable, a dropped item or a corpse, sent reliably when
-/// it comes into range and again when it changes. Nothing to interpolate: it stands still.
+/// A static thing as this client knows it (GROUND.md §6): a deployable, a bag of dropped items or a corpse, sent reliably
+/// when it comes into range and again when it changes. Nothing to interpolate: it stands still.
 /// </summary>
 public sealed class RemoteThing
 {
@@ -24,7 +25,7 @@ public sealed class RemoteThing
 
     public StaticKind Kind { get; set; }
 
-    /// <summary>A deployable's or dropped item's item (0 for a corpse).</summary>
+    /// <summary>A deployable's item, a world prop's number (0 for a corpse or a bag: a bag's contents show only when opened).</summary>
     public ushort Look { get; set; }
 
     /// <summary>Its base on the ground (zone frame) and turn about up.</summary>
@@ -35,18 +36,19 @@ public sealed class RemoteThing
     /// <summary>Health as a fraction (deployables).</summary>
     public float Health { get; set; } = 1;
 
-    /// <summary>A dropped stack's count.</summary>
+    /// <summary>How many stacks a bag holds (one is picked up at once; more open like a box).</summary>
     public int Count { get; set; }
 
-    public ThingFlags Flags { get; set; }
+    /// <summary>What the server tells this player of it (GROUND_SYSTEMS.md §3.3): lit, theirs, empty, a teammate's.</summary>
+    public ViewerFlags Flags { get; set; }
 
-    /// <summary>A corpse's name.</summary>
+    /// <summary>Its own name, as the server gives it: a body's (the dead player's), a bag's, a world prop's; empty for a deployable.</summary>
     public string Name { get; set; } = "";
 
-    public bool Lit => (Flags & ThingFlags.Lit) != 0;
+    public bool Lit => (Flags & ViewerFlags.Lit) != 0;
 
     /// <summary>The receiving player's own (their sleeping bag).</summary>
-    public bool Mine => (Flags & ThingFlags.Mine) != 0;
+    public bool Mine => (Flags & ViewerFlags.Mine) != 0;
 
     /// <summary>Raised when it changes, for views that cache what they built.</summary>
     public uint Revision { get; set; }
@@ -105,7 +107,8 @@ public sealed class ClientProjectile
 
     public double EndedTime { get; set; }
 
-    public Simulation.HitTarget EndTarget { get; set; }
+    /// <summary>The family of what it stopped on (none: out of range or time).</summary>
+    public Simulation.Targets.TargetFamily EndTarget { get; set; }
 
     /// <summary>Where it is drawn at a time on the client's clock: on its arc, held at its end once stopped.</summary>
     public Vector3 PositionAt(double time)

@@ -116,22 +116,23 @@ public sealed partial class LocalPlayer
         Intend(new Pending(p => p.ApplyUnlock(recipeId)), w => new UnlockIntent { Seq = _nextSeq, Recipe = (uint)Math.Max(0, recipeId) }.WriteMessage(w));
 
     /// <summary>Whether a tech tree node can be unlocked now (as the server will judge it), and why not.</summary>
-    public ActionResult CanUnlock(TechNode node)
+    public Outcome CanUnlock(TechNode node)
     {
-        ActionResult can = TechTrees.CanUnlock(node, Blueprints);
-        if (can != ActionResult.Accepted)
+        Outcome can = TechTrees.CanUnlock(node, Blueprints);
+        if (can != OutcomeCode.Done)
         {
             return can;
         }
         if (WorkbenchLevel < node.Tier)
         {
-            return ActionResult.NeedsWorkbench;
+            return OutcomeCode.NeedsWorkbench.With(node.Tier);
         }
-        return Content.World.Currency is { } salvage && Inventory.Count(salvage) >= node.Cost ? ActionResult.Accepted : ActionResult.NotEnough;
+        return Content.World.Currency is { } salvage && Inventory.Count(salvage) >= node.Cost ? OutcomeCode.Done
+            : OutcomeCode.NotEnough.With(Content.World.Currency?.Id ?? 0);
     }
 
-    /// <summary>Reads a blueprint in the main slots or belt: its recipe is learnt and the item used up.</summary>
-    public uint Learn(ContainerRef from, int slot) => Use(from, slot);
+    /// <summary>Reads a blueprint in the main slots or belt (its LEARN): its recipe is learnt and the item used up.</summary>
+    public uint Learn(ContainerRef from, int slot) => UsePart(from, slot, ItemPart.Blueprint);
 
     public uint CreateTeam() => TeamIntent(TeamAction.Create, default, 0);
 
@@ -168,7 +169,7 @@ public sealed partial class LocalPlayer
     // An unlock shows at once: the salvage leaves and the blueprint is known.
     private bool ApplyUnlock(int recipeId)
     {
-        if (Content.World.NodeOf(recipeId) is not { } node || CanUnlock(node) != ActionResult.Accepted ||
+        if (Content.World.NodeOf(recipeId) is not { } node || CanUnlock(node) != OutcomeCode.Done ||
             !InventoryRules.Take(Inventory.Carried, Content.World.Currency!.Id, node.Cost))
         {
             return false;

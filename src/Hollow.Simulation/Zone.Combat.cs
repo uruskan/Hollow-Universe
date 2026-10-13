@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Core;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -10,6 +11,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -30,25 +32,16 @@ public sealed class Projectile
     public float RewindTicks;
 }
 
-/// <summary>What a ray met first.</summary>
+/// <summary>
+/// What a ray met first (GROUND_SYSTEMS.md §3.1): the thing, named by its family and ID (a body's part: the bone hit), the
+/// body part's region, how far along and where. The family's receiver finds the thing itself.
+/// </summary>
 public struct TraceHit
 {
-    public HitTarget Target;
+    public TargetRef Target;
     public float Distance;
     public Vector3 Point;
-    public Entity Character;
     public HitRegion Region;
-    public NaturalObject Natural;
-    public Deployable? Deployable;
-
-    /// <summary>The building piece, door or claim device hit.</summary>
-    public object? Building;
-
-    /// <summary>The ship hit (G6).</summary>
-    public Ships.Ship? Ship;
-
-    /// <summary>The animal hit (alive or a corpse), G7.</summary>
-    public Animals.Animal? Animal;
 
     public readonly bool Hit => Distance >= 0;
 }
@@ -90,35 +83,32 @@ public sealed partial class Zone
             ref Character c = ref Entities.Get<Character>(entity);
             if (p.Wounded)
             {
-                RefuseGunActions(p, GunResult.NotAlive);
+                RefuseGunActions(p, OutcomeCode.Dead);
                 continue;
             }
             if (Entities.Has<Ships.ShipSeat>(entity))
             {
                 // In a ship's seat (G6): the hands are on the controls.
-                RefuseGunActions(p, GunResult.NotReady);
+                RefuseGunActions(p, OutcomeCode.Lowered);
                 continue;
             }
             ActionInput input = c.Actions;
-            // Taking up another item (or another in the same slot) takes a moment and ends what was going on.
+            // Taking up another item (or another in the same slot) takes a moment and ends what was going on: the held
+            // behaviour of what was in hand says what ends (GROUND_SYSTEMS.md §7); the gun's state follows the hands.
             ushort inSlot = input.HeldSlot < PlayerInventory.BeltSlots ? p.Inventory.Belt[input.HeldSlot].Item : (ushort)0;
             if (input.HeldSlot != p.HeldSlot || inSlot != p.HeldItem)
             {
+                IHeldRules? putAway = HeldRulesOf(content.Item(p.HeldItem));
                 p.HeldSlot = input.HeldSlot;
                 p.HeldItem = inSlot;
                 p.EquipReadyTick = Tick + CharacterTicks.From(content.Survival.EquipSeconds);
-                p.StrikeTick = -1;
-                p.DrawStartTick = -1;
+                putAway?.PutAway(p);
                 EquipGun(p);
             }
-            ItemDef? held = p.Held(content);
-            if (held?.Melee is { } melee)
+            // The item in hand's buttons, by its held behaviour.
+            if (p.Held(content) is { } held)
             {
-                StepMelee(entity, ref c, p, held, melee);
-            }
-            else if (held?.Bow is { } bow)
-            {
-                StepBow(entity, ref c, p, held, bow);
+                HeldRulesOf(held)?.Step(entity, ref c, p, held);
             }
             StepGun(entity, ref c, p);
         }
@@ -140,7 +130,12 @@ public sealed partial class Zone
         }
     }
 
-    /// <summary>The swing lands: a thick ray from the eye along the view, out to the tool's reach.</summary>
+    /// <summary>
+    /// The swing lands: a thick ray from the eye along the view, out to the tool's reach; whatever it meets first (but the
+    /// ground) takes a melee blow through the damage pipeline (GROUND.md §6.4.2): its damage to flesh (by the body part),
+    /// its structure damage to deployables and the building, its damage to hulls; trees and outcrops are gathered, a
+    /// corpse butchered.
+    /// </summary>
     private void Strike(Entity entity, ref Character c, Player p, ItemDef item, MeleeStats melee)
     {
         GameContent content = Content!;
@@ -149,60 +144,51 @@ public sealed partial class Zone
         Vector3 direction = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, up);
         float rewind = Math.Min(c.Actions.ViewDelay / 4f, MaxRewindTicks);
         TraceHit hit = Trace(eye, direction, melee.Reach, SweepRadius, p.Id, Tick - rewind);
-        if (!hit.Hit || hit.Target == HitTarget.Ground)
+        if (!hit.Hit || hit.Target.Family == TargetFamily.Ground)
         {
             return;
         }
-        switch (hit.Target)
+        Damage(new DamageRequest
         {
-            case HitTarget.Character:
-                if (PlayerOf(hit.Character) is { } victim)
-                {
-                    DamageCharacter(hit.Character, victim, melee.Damage, hit.Region, projectile: false, melee.Bleed, p, eye, item.Id);
-                }
-                break;
-            case HitTarget.Natural:
-                Gather(p, entity, hit.Natural, melee, hit.Point, eye);
-                break;
-            case HitTarget.Deployable:
-                DamageDeployable(hit.Deployable!, melee.Structure);
-                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = hit.Deployable!.Id, Target = HitTarget.Deployable, Amount = melee.Structure, Position = hit.Point });
-                break;
-            case HitTarget.Building:
+            By = p,
+            Attacker = p.Id,
+            AttackerName = p.Name,
+            Weapon = item.Id,
+            Delivery = DamageDelivery.Melee,
+            Channel = DamageType.Melee,
+            Amounts = new DamageAmounts
             {
-                float lost = DamageBuildingBy(hit.Building!, direction, melee.Structure, projectile: false, p, item.Id);
-                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
-                break;
-            }
-            case HitTarget.Ship:
-            {
-                float lost = DamageShip(hit.Ship!, melee.Damage, ShipDamage.Melee, p);
-                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = hit.Ship!.Id, Target = HitTarget.Ship, Amount = lost, Position = hit.Point });
-                break;
-            }
-            case HitTarget.Animal when hit.Animal is { } animal:
-                // G7: a blow on an animal; a tool on a corpse harvests it (GROUND.md §6.9).
-                if (animal.IsDead)
-                {
-                    HarvestAnimal(p, entity, animal, item, hit.Point);
-                }
-                else
-                {
-                    DamageAnimal(animal, melee.Damage * content.Survival.RegionMultiplier(hit.Region), hit.Region, eye, p, p.Id, p.Name, item.Id);
-                }
-                break;
-        }
+                Flesh = melee.Damage * content.Survival.RegionMultiplier(hit.Region),
+                Structure = melee.Structure,
+                Building = melee.Structure,
+                Hull = melee.Damage,
+            },
+            Bleed = melee.Bleed,
+            Cause = "Struck down",
+            Direct = true,
+            Hit = hit,
+            From = eye,
+            Direction = direction,
+            Markers = TargetFamilies.All,
+        });
         Wear(entity, p, p.HeldSlot);
     }
 
     private void Gather(Player p, Entity entity, in NaturalObject o, MeleeStats tool, Vector3 point, Vector3 eye)
     {
-        GatherResult result = Natural!.Hit(o, tool, point, eye, UnixMilliseconds);
+        // The swing's own line (the thick ray may have touched the object off it) and the tool (the last hit's bonus).
+        ref Character c = ref Entities.Get<Character>(entity);
+        Vector3 view = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, Frame.UpAt(c.State.Position));
+        GatherResult result = Natural!.Hit(o, new GatherSwing(p.Held(Content!), tool, point, eye, view, UnixMilliseconds, Tick));
         if (!result.Hit)
         {
             return;
         }
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Natural, Flag = result.WeakSpot, Position = point });
+        if (Natural.IsDepleted(o.Id))
+        {
+            SupportGone(new TargetRef(TargetFamily.Natural, o.Id));
+        }
+        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = new TargetRef(TargetFamily.Natural, o.Id), Flag = result.WeakSpot, Position = result.Point });
         Give(entity, p, result.Yield, GainReason.Gathered, result.WeakSpot);
     }
 
@@ -211,13 +197,7 @@ public sealed partial class Zone
     {
         foreach (ItemAmount a in items)
         {
-            int left = p.Inventory.Give(Content!, a.Item, a.Count);
-            while (left > 0)
-            {
-                int n = Math.Min(left, a.Item.StackSize);
-                Drop(entity, ItemStack.Of(a.Item, n));
-                left -= n;
-            }
+            GiveOrDrop(entity, p, ItemStack.Of(a.Item, a.Count));
             GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = a.Item.Id, Count = a.Count, Reason = reason, Flag = flag });
         }
     }
@@ -354,206 +334,164 @@ public sealed partial class Zone
         }
     }
 
+    // An arrow stops at what it met: an arrow request through the damage pipeline (GROUND.md §6.4.2); one in a body or a
+    // hull stays there, one elsewhere is often left where it landed.
     private void ProjectileHit(Projectile pr, in TraceHit hit)
     {
         AmmoStats ammo = pr.Ammo.Ammo!;
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ProjectileEnded, Player = pr.Shooter, Projectile = pr.Id, Position = hit.Point, Target = hit.Target });
         TryFindPlayer(pr.Shooter, out _, out Player? shooter);
-        switch (hit.Target)
+        Damage(new DamageRequest
         {
-            case HitTarget.Character:
-                if (PlayerOf(hit.Character) is { } victim)
-                {
-                    DamageCharacter(hit.Character, victim, pr.Damage, hit.Region, projectile: true, ammo.Bleed, shooter, pr.Position, pr.Ammo.Id);
-                }
-                return;
-            case HitTarget.Deployable:
-                DamageDeployable(hit.Deployable!, pr.Damage * ammo.Structure);
-                if (shooter != null)
-                {
-                    GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = hit.Deployable!.Id, Target = HitTarget.Deployable, Amount = pr.Damage * ammo.Structure, Position = hit.Point });
-                }
-                break;
-            case HitTarget.Building:
+            By = shooter,
+            Attacker = shooter?.Id ?? EntityId.None,
+            AttackerName = shooter?.Name ?? pr.ShooterName,
+            Weapon = pr.Ammo.Id,
+            Delivery = DamageDelivery.Arrow,
+            Channel = DamageType.Bullet,
+            Amounts = new DamageAmounts
             {
-                float lost = DamageBuildingBy(hit.Building!, Vector3.Normalize(pr.Velocity), pr.Damage * ammo.Structure, projectile: true, shooter, pr.Ammo.Id);
-                if (shooter != null)
-                {
-                    GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
-                }
-                break;
-            }
-            case HitTarget.Ship:
-            {
-                float lost = DamageShip(hit.Ship!, pr.Damage, ShipDamage.Arrow, shooter);
-                if (shooter != null)
-                {
-                    GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = hit.Ship!.Id, Target = HitTarget.Ship, Amount = lost, Position = hit.Point });
-                }
-                return; // an arrow on a hull is lost
-            }
-            case HitTarget.Animal when hit.Animal is { } animal:
-                // G7: an arrow in an animal stays in it; one in a corpse is lost too.
-                if (!animal.IsDead)
-                {
-                    DamageAnimal(animal, pr.Damage * Content!.Survival.RegionMultiplier(hit.Region), hit.Region, pr.Position, shooter, pr.Shooter,
-                        pr.ShooterName, pr.Ammo.Id);
-                }
-                return;
+                Flesh = pr.Damage * Content!.Survival.RegionMultiplier(hit.Region),
+                Structure = pr.Damage * ammo.Structure,
+                Building = pr.Damage * ammo.Structure,
+                Hull = pr.Damage,
+            },
+            Bleed = ammo.Bleed,
+            Cause = "Shot",
+            Direct = true,
+            Hit = hit,
+            From = pr.Position,
+            Direction = Vector3.Normalize(pr.Velocity),
+            Markers = TargetFamilies.All,
+        });
+        if (Keeps(hit.Target.Family))
+        {
+            return;
         }
-        // A miss often leaves the arrow where it landed.
+        // A miss often leaves the arrow where it landed (in a bag, with others that landed close by).
         var rng = new Rng(Hash64.Of(pr.Id, (ulong)Tick, 0xA770));
         if (rng.NextDouble() < ammo.Recover)
         {
-            DropAt(hit.Point - Vector3.Normalize(pr.Velocity) * 0.1f, ItemStack.Of(pr.Ammo, 1));
+            Spill(hit.Point - Vector3.Normalize(pr.Velocity) * 0.1f, ItemStack.Of(pr.Ammo, 1));
         }
     }
 
     /// <summary>
-    /// Damage to a character from an attack: the body part's multiplier, then what is worn there takes its share
-    /// (survival.json, items.json); bleeding starts in proportion. Tells the victim and the attacker.
+    /// Damage to a character from a blow or an arrow (tests): a request through the characters' receiver, with the body
+    /// part's multiplier (survival.json), then what is worn there takes its share (items.json); bleeding starts in
+    /// proportion. Tells the victim and the attacker. Returns the health taken.
     /// </summary>
     public float DamageCharacter(Entity victimEntity, Player victim, float damage, HitRegion region, bool projectile, float bleed,
-        Player? attacker, Vector3 from, ushort weapon)
-    {
-        GameContent content = Content!;
-        float amount = damage * content.Survival.RegionMultiplier(region) * (1 - victim.Inventory.Protection(content, region, projectile));
-        if (amount <= 0 || victim.Dead)
+        Player? attacker, Vector3 from, ushort weapon) => Damage(new DamageRequest
         {
-            return 0;
-        }
-        victim.Vitals.Bleeding += amount * bleed;
-        bool wasDown = victim.Wounded;
-        // Rust: a projectile to the head kills outright; anything else lethal may knock down instead (G4).
-        float taken = Hurt(victimEntity, victim, amount, projectile ? "Shot" : "Struck down", attacker?.Id ?? EntityId.None, attacker?.Name ?? "",
-            canWound: !(projectile && region == HitRegion.Head));
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.DamageTaken, Player = victim.Id, Other = attacker?.Id ?? EntityId.None, Amount = amount, Region = region, Position = from, Item = weapon });
-        if (attacker != null)
-        {
-            GameEvents.Add(new ZoneEvent
-            {
-                Kind = ZoneEventKind.HitConfirmed, Player = attacker.Id, Other = victim.Id, Target = HitTarget.Character, Region = region,
-                Amount = amount, Flag = victim.Dead, Downed = victim.Wounded && !wasDown, Position = from, Item = weapon,
-            });
-        }
-        return taken;
-    }
+            By = attacker,
+            Attacker = attacker?.Id ?? EntityId.None,
+            AttackerName = attacker?.Name ?? "",
+            Weapon = weapon,
+            Delivery = projectile ? DamageDelivery.Arrow : DamageDelivery.Melee,
+            Channel = projectile ? DamageType.Bullet : DamageType.Melee,
+            Amounts = new DamageAmounts { Flesh = damage * Content!.Survival.RegionMultiplier(region) },
+            Bleed = bleed,
+            Cause = projectile ? "Shot" : "Struck down",
+            Direct = true,
+            Hit = new TraceHit { Target = victim.Ref, Region = region, Point = from },
+            From = from,
+            Markers = TargetFamilies.All,
+        }).Taken;
 
     /// <summary>
-    /// The first thing a ray (thickened by <paramref name="thickness"/>) meets: a character as it was at
-    /// <paramref name="viewTick"/> (interpolated from the history), a tree or outcrop, a deployable, or the ground.
-    /// <paramref name="ignore"/> is the attacker.
+    /// The characters' receiver (GROUND.md §6.4.2): players and sleepers, found where the attacker saw them (the hit
+    /// history, lag compensation) by their hit shapes, and by chest and head in a blast's reach. Its defences: what is
+    /// worn on the part hit (items.json, against blows or against projectiles and blasts). Its consequences: health (a
+    /// lethal hit may knock down instead, except a projectile to the head), bleeding and burning, the victim's damage
+    /// indicator.
     /// </summary>
-    public TraceHit Trace(Vector3 origin, Vector3 direction, float length, float thickness, EntityId ignore, double viewTick, bool bullet = false)
+    private sealed class CharacterReceiver(Zone zone) : IDamageReceiver
     {
-        var best = new TraceHit { Distance = -1 };
-        void Consider(float t, HitTarget target, ref TraceHit candidate)
+        public TargetFamily[] Families { get; } = { TargetFamily.Character };
+
+        public bool Keeps => true;
+
+        public void Raycast(in RayQuery ray, ref TraceHit best)
         {
-            if (t >= 0 && (best.Distance < 0 || t < best.Distance))
+            // Characters, where the attacker saw them (those nowhere near now are skipped before their history is looked up).
+            float length = ray.Length;
+            foreach (EntityId id in zone.History.Characters)
             {
-                candidate.Distance = t;
-                candidate.Target = target;
-                candidate.Point = origin + direction * t;
-                best = candidate;
+                if (id == ray.Ignore || (zone.History.TryNewest(id, out Vector3 now) && Vector3.DistanceSquared(now, ray.Origin) > (length + 8f) * (length + 8f)) ||
+                    !zone.History.Sample(id, ray.ViewTick, out HitPose pose) ||
+                    Vector3.DistanceSquared(pose.Feet, ray.Origin) > (length + 2.5f) * (length + 2.5f))
+                {
+                    continue;
+                }
+                if (!zone.TryFindPlayer(id, out _, out Player p) || p.Dead)
+                {
+                    continue;
+                }
+                float t = Hitboxes.Raycast(pose, ray.Origin, ray.Direction, length, ray.Thickness, out HitRegion region, out int shape);
+                ray.Consider(ref best, t, new TargetRef(TargetFamily.Character, id.Value, (byte)(shape + 1)), region);
             }
         }
 
-        // Characters, where the attacker saw them (those nowhere near now are skipped before their history is looked up).
-        foreach (EntityId id in History.Characters)
+        public void InReach(in BlastQuery blast, List<BlastTarget> into)
         {
-            if (id == ignore || (History.TryNewest(id, out Vector3 now) && Vector3.DistanceSquared(now, origin) > (length + 8f) * (length + 8f)) ||
-                !History.Sample(id, viewTick, out HitPose pose) ||
-                Vector3.DistanceSquared(pose.Feet, origin) > (length + 2.5f) * (length + 2.5f))
+            // A sleeper and the downed lie; a pilot is the ship's cabin's to protect (G6).
+            ComponentPool<PlayerLink> players = zone.Entities.Pool<PlayerLink>();
+            for (int i = 0; i < players.Count; i++)
             {
-                continue;
+                Player p = players.Values[i].Player;
+                if (p.Dead)
+                {
+                    continue;
+                }
+                Entity entity = zone.Entities.AtSlot(players.Slots[i]);
+                CharacterState s = zone.Entities.Get<Character>(entity).State;
+                if (s.Stance == Stance.Seated)
+                {
+                    continue;
+                }
+                Vector3 up = zone.Frame.UpAt(s.Position);
+                bool lying = p.Sleeping || p.Wounded;
+                Vector3 chest = s.Position + up * (lying ? 0.25f : s.Stance == Stance.Crouching ? 0.7f : 1.15f);
+                Vector3 head = s.Position + up * (lying ? 0.3f : s.Stance == Stance.Crouching ? 1.0f : 1.6f);
+                float distance = MathF.Max(0, MathF.Min(Vector3.Distance(chest, blast.At), Vector3.Distance(head, blast.At)) - 0.3f);
+                if (distance <= blast.Radius)
+                {
+                    into.Add(new BlastTarget
+                    {
+                        Hit = new TraceHit { Target = p.Ref, Region = HitRegion.Body, Point = chest }, Thing = p,
+                        Sight = chest, Sight2 = head, Distance = distance,
+                    });
+                }
             }
-            if (!TryFindPlayer(id, out Entity e, out Player p) || p.Dead)
-            {
-                continue;
-            }
-            float t = Hitboxes.Raycast(pose, origin, direction, length, thickness, out HitRegion region);
-            var candidate = new TraceHit { Character = e, Region = region };
-            Consider(t, HitTarget.Character, ref candidate);
         }
 
-        // Animals (G7), where the attacker saw them; corpses as they lie.
-        if (Animals != null && TraceAnimal(origin, direction, length, thickness, viewTick, out float animalAt, out Animals.Animal? animal, out HitRegion animalRegion))
+        public DamageOutcome Receive(in DamageRequest r)
         {
-            var candidate = new TraceHit { Animal = animal, Region = animalRegion };
-            Consider(animalAt, HitTarget.Animal, ref candidate);
-        }
-
-        // Trees and outcrops.
-        Vector3 end = origin + direction * length;
-        float margin = 3f;
-        _traceNature.Clear();
-        Nature!.Query(MathF.Min(origin.X, end.X) - margin, MathF.Min(origin.Z, end.Z) - margin,
-            MathF.Max(origin.X, end.X) + margin, MathF.Max(origin.Z, end.Z) + margin, _traceNature);
-        foreach (NaturalObject o in _traceNature)
-        {
-            NaturalKind? kind = Content!.Natural(o.Kind);
-            if (kind == null || !kind.IsSolid || Natural!.IsDepleted(o.Id))
+            if (!zone.TryFindPlayer(new EntityId(r.Hit.Target.Id), out Entity victimEntity, out Player victim))
             {
-                continue;
+                return default;
             }
-            float t;
-            if (kind.Class == NaturalClass.Tree)
+            HitRegion region = r.Hit.Region;
+            float protection = victim.Inventory.Protection(zone.Content!, region, projectile: r.Channel != DamageType.Melee);
+            float amount = r.Amounts.Flesh * (1 - protection);
+            if (amount <= 0 || victim.Dead)
             {
-                (Vector3 a, Vector3 b, float r) = NaturalShapes.Trunk(o, kind);
-                t = Geometry.RayCapsule(origin, direction, length, a, b, r + thickness);
+                return default;
             }
-            else
+            bool wasDown = victim.Wounded;
+            victim.Vitals.Bleeding += amount * r.Bleed;
+            victim.Vitals.Burning += r.Burn * (1 - protection);
+            // Rust: a projectile to the head kills outright; anything else lethal may knock down instead (G4).
+            float taken = zone.Hurt(victimEntity, victim, amount, r.Cause, r.Attacker, r.AttackerName,
+                canWound: !(r.Channel == DamageType.Bullet && region == HitRegion.Head));
+            zone.GameEvents.Add(new ZoneEvent
             {
-                (Vector3 centre, float r) = NaturalShapes.Rock(o, kind);
-                t = Geometry.RaySphere(origin, direction, length, centre, r + thickness);
-            }
-            if (!kind.IsHarvested)
-            {
-                // A boulder: stops the swing or the arrow like the ground, and gives nothing.
-                var stone = new TraceHit();
-                Consider(t, HitTarget.Ground, ref stone);
-                continue;
-            }
-            var candidate = new TraceHit { Natural = o };
-            Consider(t, HitTarget.Natural, ref candidate);
+                Kind = ZoneEventKind.DamageTaken, Player = victim.Id, Other = r.ByAnimal?.Id ?? r.Attacker, Amount = amount, Region = region, Position = r.From,
+                Item = r.Weapon,
+            });
+            return new DamageOutcome(true, amount, taken, victim.Dead, victim.Wounded && !wasDown, victim.Id);
         }
-
-        // Deployables.
-        _traceThings.Clear();
-        DeployablesNear((origin + end) / 2, length / 2 + 2f, _traceThings);
-        foreach (Deployable d in _traceThings)
-        {
-            (Vector3 right, Vector3 forward) = Geometry.Axes(d.Up, d.Yaw);
-            float t = Geometry.RayBox(origin, direction, length, d.Centre, d.Def.HalfExtents + new Vector3(thickness), right, d.Up, forward);
-            var candidate = new TraceHit { Deployable = d };
-            Consider(t, HitTarget.Deployable, ref candidate);
-        }
-
-        // Ships' hulls (G6), as they are now.
-        if (_ships.Count > 0)
-        {
-            float t = TraceShips(origin, direction, length, thickness, out Ships.Ship? ship);
-            var candidate = new TraceHit { Ship = ship };
-            Consider(t, HitTarget.Ship, ref candidate);
-        }
-
-        // Building pieces, doors and claim devices: walls stop swings, arrows and bullets.
-        if (Building != null && TraceBuilding(origin, direction, best.Distance >= 0 ? best.Distance : length, out float wall, out object? part))
-        {
-            var candidate = new TraceHit { Building = part };
-            Consider(wall, HitTarget.Building, ref candidate);
-        }
-
-        // The ground, which hides all behind it.
-        float ground = bullet
-            ? BulletGroundCrossing(origin, direction, best.Distance >= 0 ? best.Distance : length)
-            : GroundCrossing(origin, direction, best.Distance >= 0 ? best.Distance : length);
-        if (ground >= 0)
-        {
-            var candidate = new TraceHit();
-            Consider(ground, HitTarget.Ground, ref candidate);
-        }
-        return best;
     }
 
     /// <summary>Where a ray first goes below the ground (within <paramref name="length"/>), or −1.</summary>
@@ -591,5 +529,85 @@ public sealed partial class Zone
             t0 = t1;
         }
         return -1;
+    }
+
+    /// <summary>
+    /// Trees, outcrops and boulders (GROUND.md §6.4.2): found by their trunks and rocks along a ray (a boulder stops a
+    /// swing or an arrow like the ground and gives nothing); blasts pass them by. A blow of a tool gathers (the gathering
+    /// rules, §6.1, which confirm the hit with its weak spot); arrows and bullets do nothing to them.
+    /// </summary>
+    private sealed class NatureReceiver(Zone zone) : IDamageReceiver
+    {
+        public TargetFamily[] Families { get; } = { TargetFamily.Natural };
+
+        public bool Keeps => false;
+
+        public void Raycast(in RayQuery ray, ref TraceHit best)
+        {
+            Vector3 end = ray.Origin + ray.Direction * ray.Length;
+            float margin = 3f;
+            zone._traceNature.Clear();
+            zone.Nature!.Query(MathF.Min(ray.Origin.X, end.X) - margin, MathF.Min(ray.Origin.Z, end.Z) - margin,
+                MathF.Max(ray.Origin.X, end.X) + margin, MathF.Max(ray.Origin.Z, end.Z) + margin, zone._traceNature);
+            foreach (NaturalObject o in zone._traceNature)
+            {
+                NaturalKind? kind = zone.Content!.Natural(o.Kind);
+                if (kind == null || !kind.IsSolid || zone.Natural!.IsDepleted(o.Id))
+                {
+                    continue;
+                }
+                float t;
+                if (kind.Class == NaturalClass.Tree)
+                {
+                    (Vector3 a, Vector3 b, float r) = NaturalShapes.Trunk(o, kind);
+                    t = Geometry.RayCapsule(ray.Origin, ray.Direction, ray.Length, a, b, r + ray.Thickness);
+                }
+                else
+                {
+                    (Vector3 centre, float r) = NaturalShapes.Rock(o, kind);
+                    t = Geometry.RaySphere(ray.Origin, ray.Direction, ray.Length, centre, r + ray.Thickness);
+                }
+                // A boulder stops the swing or the arrow like the ground, and gives nothing.
+                ray.Consider(ref best, t, kind.IsHarvested ? new TargetRef(TargetFamily.Natural, o.Id) : TargetRef.Ground);
+            }
+        }
+
+        public void InReach(in BlastQuery blast, List<BlastTarget> into)
+        {
+        }
+
+        public DamageOutcome Receive(in DamageRequest r)
+        {
+            if (r.Channel == DamageType.Melee && r.By is { } p && zone.Content!.Item(r.Weapon)?.Melee is { } tool && zone.TryFindPlayer(p.Id, out Entity entity, out _) &&
+                zone.Nature!.TryGet(r.Hit.Target.Id, out NaturalObject o))
+            {
+                zone.Gather(p, entity, o, tool, r.Hit.Point, r.From);
+            }
+            return default;
+        }
+    }
+
+    /// <summary>The ground (GROUND.md §6.4.2): it hides all behind it, and takes nothing.</summary>
+    private sealed class GroundReceiver(Zone zone) : IDamageReceiver
+    {
+        public TargetFamily[] Families { get; } = { TargetFamily.Ground };
+
+        public bool Keeps => false;
+
+        public void Raycast(in RayQuery ray, ref TraceHit best)
+        {
+            float length = ray.Upto(best);
+            float ground = ray.Bullet ? zone.BulletGroundCrossing(ray.Origin, ray.Direction, length) : zone.GroundCrossing(ray.Origin, ray.Direction, length);
+            if (ground >= 0)
+            {
+                ray.Consider(ref best, ground, TargetRef.Ground);
+            }
+        }
+
+        public void InReach(in BlastQuery blast, List<BlastTarget> into)
+        {
+        }
+
+        public DamageOutcome Receive(in DamageRequest r) => default;
     }
 }

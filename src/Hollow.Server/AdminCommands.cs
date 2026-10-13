@@ -304,27 +304,41 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- inventory
 
-    // give <item> [amount] [player], or the older give <player> <item> [amount].
+    // An item key, or "<item>.blueprint": a blueprint of that item's recipe (G7's blueprint item, its condition naming the
+    // recipe; P3 needed one to show its LEARN).
+    private Simulation.Items.ItemStack? Giveable(string key)
+    {
+        const string suffix = ".blueprint";
+        if (Content.Item(key) is { } item)
+        {
+            return Simulation.Items.ItemStack.Of(item, 1);
+        }
+        return key.EndsWith(suffix, StringComparison.Ordinal) && Content.World.Blueprint != null && Content.RecipeByKey(key[..^suffix.Length]) is { } recipe
+            ? Simulation.Economy.TechTrees.BlueprintOf(Content, recipe)
+            : null;
+    }
+
+    // give <item> [amount] [player], or the older give <player> <item> [amount]; <item>.blueprint gives its blueprint.
     private void Give(CommandContext ctx, IReadOnlyList<string> args)
     {
         if (args.Count == 0)
         {
-            ctx.Error("Usage: give <item> [amount] [player] (find <text> lists item keys)");
+            ctx.Error("Usage: give <item> [amount] [player] (find <text> lists item keys; <item>.blueprint its blueprint)");
             return;
         }
-        ItemDef? item = Content.Item(args[0]);
+        Simulation.Items.ItemStack? giving = Giveable(args[0]);
         PlayerSession? whom;
         int count = 1;
-        if (item == null && args.Count >= 2 && Content.Item(args[1]) is { } older && Target(ctx, args[0], quiet: true) is { } named)
+        if (giving == null && args.Count >= 2 && Giveable(args[1]) is { } older && Target(ctx, args[0], quiet: true) is { } named)
         {
-            item = older;
+            giving = older;
             whom = named;
             if (args.Count > 2 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int n))
             {
                 count = n;
             }
         }
-        else if (item == null)
+        else if (giving == null)
         {
             ctx.Error($"No item called '{args[0]}' (find {args[0]} lists those like it).");
             return;
@@ -344,16 +358,14 @@ public sealed partial class GameServer
             return;
         }
         count = Math.Clamp(count, 1, 100_000);
-        int left = p.Inventory.Give(Content, item, count);
-        int given = count - left, dropped = 0;
-        // What doesn't fit drops at their feet, as a finished craft does (two dozen stacks at most).
-        for (int stacks = 0; left > 0 && stacks < 24; stacks++)
-        {
-            int stack = Math.Min(left, Math.Max(1, item.StackSize));
-            Zone.Drop(whom!.Entity, Simulation.Items.ItemStack.Of(item, stack));
-            left -= stack;
-            dropped += stack;
-        }
+        Simulation.Items.ItemStack stack = giving.Value;
+        ItemDef item = Content.Item(stack.Item)!;
+        int left = p.Inventory.Give(Content, stack.WithCount(count));
+        int given = count - left;
+        // What doesn't fit drops at their feet, in a bag as a finished craft's does (two dozen stacks at most).
+        int dropped = Math.Min(left, 24 * Math.Max(1, item.StackSize));
+        Zone.Drop(whom!.Entity, stack.WithCount(dropped));
+        left -= dropped;
         if (given > 0)
         {
             // The pickup feed's "+N" for the receiver.

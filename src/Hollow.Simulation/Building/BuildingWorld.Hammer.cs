@@ -34,13 +34,13 @@ public sealed partial class BuildingWorld
         }
         if (grade <= piece.Grade || grade >= Data.Grades.Count)
         {
-            return Outcome.Refuse(Refusal.NotHigherGrade);
+            return OutcomeCode.NotHigherGrade;
         }
         GradeDef to = Data.Grades[grade];
         int cost = Data.CostOf(piece.Def, grade);
         if (wallet.Count(to.Material) < cost || !wallet.Take(to.Material, cost))
         {
-            return Outcome.Refuse(Refusal.NotEnough, $"Not enough {Data.MaterialName(to.Material).ToLowerInvariant()}");
+            return OutcomeCode.NotEnough.With(Data.MaterialItem(to.Material));
         }
         double fraction = piece.Health / piece.MaxHealth;
         piece.Grade = grade;
@@ -62,15 +62,15 @@ public sealed partial class BuildingWorld
         }
         if (piece.Def.RotateSteps == 0)
         {
-            return Outcome.Refuse(Refusal.CannotRotate);
+            return OutcomeCode.CannotRotate;
         }
         if (now - piece.PlacedAt > Data.EditWindow)
         {
-            return Outcome.Refuse(Refusal.EditWindowOver);
+            return OutcomeCode.EditWindowOver;
         }
         if (piece.Door != null)
         {
-            return Outcome.Refuse(Refusal.DoorInTheWay);
+            return OutcomeCode.DoorInTheWay;
         }
         Pose before = piece.Pose;
         var after = new Pose(before.Position, PieceGeometry.Wrap(before.Yaw + piece.Def.RotateSteps));
@@ -86,7 +86,7 @@ public sealed partial class BuildingWorld
         }
         if (CharacterInside(_parts[piece.Def], position, rotation))
         {
-            return Outcome.Refuse(Refusal.PlayerInTheWay);
+            return OutcomeCode.PlayerInTheWay;
         }
         // Relink at the new yaw; undo if it wouldn't stand.
         Unlink(piece);
@@ -99,7 +99,7 @@ public sealed partial class BuildingWorld
             piece.Pose = before;
             Link(piece);
             Solve(piece.Structure);
-            return Outcome.Refuse(Refusal.Unstable);
+            return OutcomeCode.Unstable;
         }
         Physics?.Move(piece.Body, position, rotation);
         Changed?.Invoke(new BuildingEvent(BuildingChange.PieceChanged, piece, Structure: piece.Structure));
@@ -116,9 +116,9 @@ public sealed partial class BuildingWorld
         }
         if (now - piece.PlacedAt > Data.EditWindow)
         {
-            return Outcome.Refuse(Refusal.EditWindowOver);
+            return OutcomeCode.EditWindowOver;
         }
-        Remove(piece, now);
+        Remove(piece, now, reason: Removal.Demolished);
         return Outcome.Done;
     }
 
@@ -137,19 +137,19 @@ public sealed partial class BuildingWorld
         double max = piece.MaxHealth;
         if (piece.Health >= max)
         {
-            return Outcome.Refuse(Refusal.FullHealth);
+            return OutcomeCode.FullHealth;
         }
         double wait = piece.LastDamagedAt + Data.RepairDelay - now;
         if (wait > 0)
         {
-            return Outcome.Refuse(Refusal.RecentlyDamaged, $"Recently damaged: repair in {Math.Ceiling(wait):0} s");
+            return OutcomeCode.RecentlyDamaged.With((int)Math.Ceiling(wait));
         }
         double restored = Math.Min(Data.RepairPerHit, max - piece.Health);
         GradeDef grade = Data.Grades[piece.Grade];
         int cost = RepairCost(Data.CostOf(piece.Def, piece.Grade), restored, max);
         if (wallet.Count(grade.Material) < cost || !wallet.Take(grade.Material, cost))
         {
-            return Outcome.Refuse(Refusal.NotEnough, $"Not enough {Data.MaterialName(grade.Material).ToLowerInvariant()}");
+            return OutcomeCode.NotEnough.With(Data.MaterialItem(grade.Material));
         }
         piece.Health = Math.Min(max, piece.Health + restored);
         Changed?.Invoke(new BuildingEvent(BuildingChange.PieceChanged, piece, Structure: piece.Structure));
@@ -171,18 +171,18 @@ public sealed partial class BuildingWorld
     {
         if (piece.Gone || piece.Collapsing)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         (Vector3 position, _) = piece.ZoneTransform;
         if (PrivilegeAt(player, position, Data.ClaimPadding) == Privilege.Blocked)
         {
-            return Outcome.Refuse(Refusal.BuildingBlocked);
+            return OutcomeCode.BuildingBlocked;
         }
         BuildingFrame frame = piece.Structure.Frame;
         Vector3D eyeLocal = frame.ToLocal(D(eye));
         if ((PieceGeometry.ClosestPoint(Data, piece.Def, piece.Pose, eyeLocal) - eyeLocal).Length > Data.Reach)
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return OutcomeCode.OutOfReach;
         }
         return Outcome.Done;
     }
@@ -226,7 +226,7 @@ public sealed partial class BuildingWorld
         bool destroyed = piece.Health <= 0;
         if (destroyed)
         {
-            Remove(piece, now);
+            Remove(piece, now, reason: Removal.Destroyed);
         }
         else
         {
@@ -234,6 +234,15 @@ public sealed partial class BuildingWorld
         }
         return new DamageResult(loss, soft, destroyed);
     }
+
+    /// <summary>Damages a piece, door or claim device, whichever it is (the zone's building receiver).</summary>
+    public DamageResult Damage(IBuildingPart part, in DamageHit hit, double now) => part switch
+    {
+        Piece piece => Damage(piece, hit, now),
+        Door door => Damage(door, hit, now),
+        ClaimDevice device => Damage(device, hit, now),
+        _ => default,
+    };
 
     /// <summary>Whether an attack in this zone direction comes from the wall's soft side (it travels toward +Z, from the inside).</summary>
     public static bool SoftSide(Piece wall, Vector3 direction)

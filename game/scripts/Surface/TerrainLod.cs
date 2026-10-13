@@ -128,7 +128,7 @@ public sealed partial class TerrainLod : Node3D
     {
         _camera = camera;
         int uploads = 0;
-        while (uploads < MeshesPerFrame && _done.TryDequeue(out Job? job))
+        while (uploads < (Hurry ? HurriedMeshesPerFrame : MeshesPerFrame) && _done.TryDequeue(out Job? job))
         {
             Interlocked.Decrement(ref _pending);
             if (job.Cancelled || job.Node.Data == null || job.Node.Job != job)

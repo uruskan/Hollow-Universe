@@ -34,8 +34,8 @@ public enum GroundScreen
 /// follow the window's edges; the crosshair and wheels its centre.
 /// <para>
 /// Keys: Tab inventory, Q crafting, Esc back or menu, 1–6 belt, Enter chat, H (hold) hover-transfer. In the
-/// inventory: drag to move, middle-drag half (Shift: a third), right-click to quick-move, drag outside the panels to
-/// drop.
+/// inventory: drag to move, middle-drag half (Shift: a third), right-click to quick-move; a drag released anywhere but
+/// a slot drops, and on its own slot is put back (Rust).
 /// </para>
 /// </summary>
 public partial class GroundUi : Control
@@ -45,14 +45,11 @@ public partial class GroundUi : Control
 
     public GroundScreen Screen { get; private set; } = GroundScreen.Hud;
 
-    /// <summary>The open radial wheel, if any.</summary>
-    public WheelKind? Wheel { get; private set; }
-
     /// <summary>Hit markers, damage, pickups and chat stay on screen (for screenshots).</summary>
     public bool HoldEffects { get; set; }
 
     /// <summary>Whether the game should free the mouse pointer.</summary>
-    public bool WantsCursor => Screen != GroundScreen.Hud || Wheel != null || IsChatting;
+    public bool WantsCursor => Screen != GroundScreen.Hud || Radial != null || IsChatting;
 
     public bool IsChatting => _chat != null && _chat.Visible;
 
@@ -158,9 +155,10 @@ public partial class GroundUi : Control
         Resized += Layout;
         Ui.ScaleChanged += Layout;
         Open(Screen);
-        // RustMVP's greeting on entering the game.
-        OnNotice("TAB  Inventory     Q  Crafting     E  Interact");
     }
+
+    /// <summary>RustMVP's greeting on entering the game (the game calls it when play is the player's).</summary>
+    public void Greet() => OnNotice("TAB  Inventory     Q  Crafting     E  Interact");
 
     public override void _ExitTree()
     {
@@ -203,7 +201,7 @@ public partial class GroundUi : Control
             _hoverStarted.Clear();
         }
         Screen = screen;
-        Wheel = null;
+        CancelRadial();
         if (screen != GroundScreen.Hud)
         {
             CloseChat();
@@ -221,29 +219,6 @@ public partial class GroundUi : Control
 
     /// <summary>Q: opens crafting; pressed again it returns to the inventory.</summary>
     public void ToggleCrafting() => Open(Screen == GroundScreen.Crafting ? GroundScreen.Inventory : GroundScreen.Crafting);
-
-    /// <summary>Opens a radial wheel over the HUD (the plan's or the hammer's; held right mouse button in the game).</summary>
-    public void OpenWheel(WheelKind kind)
-    {
-        Open(GroundScreen.Hud);
-        Wheel = kind;
-        Layout();
-    }
-
-    /// <summary>Closes the wheel, applying the sector under the pointer when <paramref name="apply"/> is set.</summary>
-    public void CloseWheel(bool apply)
-    {
-        if (Wheel is WheelKind kind && apply)
-        {
-            int choice = WheelSelection(kind);
-            if (choice >= 0)
-            {
-                Model.ChooseWheel(kind, choice);
-            }
-        }
-        Wheel = null;
-        Layout();
-    }
 
     /// <summary>The menu, as at startup (<paramref name="inGame"/> false: the connect panel is open) or as a pause menu.</summary>
     public void ShowMenu(bool inGame)
@@ -311,7 +286,7 @@ public partial class GroundUi : Control
         bool console = Screen == GroundScreen.Console;
         Place(_consoleInput, console && _consoleTab == ConsoleTab.Console, TopFrame, 70, 698, 1484, 44);
         Place(_itemSearch, console && _consoleTab == ConsoleTab.Items, TopFrame, 300, 88, 440, 38);
-        bool wheel = Wheel != null && Screen == GroundScreen.Hud, menu = Screen == GroundScreen.Menu;
+        bool wheel = Radial != null && Screen == GroundScreen.Hud, menu = Screen == GroundScreen.Menu;
         _blur.Visible = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.Menu or GroundScreen.TechTree || wheel;
         _blurMaterial.SetShaderParameter("blur", wheel ? 1.6f : menu ? 3.2f : 2.5f);
         // RustMVP: the inventory darkens the blurred world by 14 %; a wheel only blurs it (its own 26 % veil is painted).
@@ -371,6 +346,7 @@ public partial class GroundUi : Control
         {
             Open(GroundScreen.Inventory);
         }
+        UpdateRadial();
         if (Screen == GroundScreen.Inventory)
         {
             HoverTransfer();
@@ -406,19 +382,11 @@ public partial class GroundUi : Control
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right } mouse)
+        // A radial's held input (the right mouse with a building tool; E and R when a binding asks for them) and the keys
+        // and buttons that end an open radial.
+        if (RadialEvent(e))
         {
-            if (mouse.Pressed && Screen == GroundScreen.Hud && Wheel == null && !IsChatting && Model.HeldWheel is WheelKind held)
-            {
-                OpenWheel(held);
-                GetViewport().WarpMouse((Size / 2).Floor());
-                GetViewport().SetInputAsHandled();
-            }
-            else if (!mouse.Pressed && Wheel != null)
-            {
-                CloseWheel(true);
-                GetViewport().SetInputAsHandled();
-            }
+            GetViewport().SetInputAsHandled();
             return;
         }
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
@@ -428,10 +396,7 @@ public partial class GroundUi : Control
         bool handled = true;
         switch (key.PhysicalKeycode)
         {
-            case Key.Escape when Wheel != null:
-                CloseWheel(false);
-                break;
-            case Key.G when Screen is GroundScreen.Hud or GroundScreen.Map && Wheel == null:
+            case Key.G when Screen is GroundScreen.Hud or GroundScreen.Map && Radial == null:
                 ToggleMap();
                 break;
             case Key.Escape when Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.Map or GroundScreen.TechTree:
@@ -446,7 +411,7 @@ public partial class GroundUi : Control
             case Key.Q when Screen is GroundScreen.Hud or GroundScreen.Inventory or GroundScreen.Crafting:
                 ToggleCrafting();
                 break;
-            case Key.Enter or Key.KpEnter when Screen == GroundScreen.Hud && Wheel == null:
+            case Key.Enter or Key.KpEnter when Screen == GroundScreen.Hud && Radial == null:
                 OpenChat();
                 break;
             case >= Key.Key1 and <= Key.Key6 when Screen is GroundScreen.Hud or GroundScreen.Inventory:
@@ -475,6 +440,8 @@ public partial class GroundUi : Control
                 _pointerDesign = null;
                 PointerMoved();
                 break;
+            case InputEventMouseButton button when RadialButton(button):
+                break;
             case InputEventMouseButton { Pressed: true } press:
                 _pointer = press.Position;
                 _pointerDesign = null;
@@ -491,9 +458,16 @@ public partial class GroundUi : Control
         AcceptEvent();
     }
 
+    // A button while a radial is held or open (its trigger's release, a click that chooses or cancels), where it was.
+    private bool RadialButton(InputEventMouseButton button)
+    {
+        _pointer = button.Position;
+        return RadialEvent(button);
+    }
+
     /// <summary>
     /// The pointer in screen pixels, or the held design point (for screenshots): on the centred frame over the HUD
-    /// and wheels, on the canvas elsewhere.
+    /// and radials, on the canvas elsewhere.
     /// </summary>
     private Vector2 Pointer => _pointerDesign is Vector2 design
         ? (Screen == GroundScreen.Hud ? CentreFrame : CanvasFrame) + design * Ui.Scale
@@ -506,18 +480,6 @@ public partial class GroundUi : Control
             if (!ZoomMap(button == MouseButton.WheelUp ? -1 : 1) && !ScrollConsole(button == MouseButton.WheelDown ? 1 : -1))
             {
                 ScrollRecipes(button == MouseButton.WheelDown ? 1 : -1);
-            }
-            return;
-        }
-        if (Wheel != null)
-        {
-            if (button == MouseButton.Left)
-            {
-                CloseWheel(true);
-            }
-            else if (button == MouseButton.Right)
-            {
-                CloseWheel(false);
             }
             return;
         }
@@ -559,11 +521,6 @@ public partial class GroundUi : Control
         {
             ReleaseMap(button);
         }
-        if (Wheel != null && button == MouseButton.Right)
-        {
-            CloseWheel(true);
-            return;
-        }
         ReleaseInventory(button);
     }
 
@@ -579,7 +536,7 @@ public partial class GroundUi : Control
         Map,
     }
 
-    /// <summary>Something under the pointer: a button with its action, a slot, or a panel (so drops don't fall through).</summary>
+    /// <summary>Something under the pointer: a button with its action, a slot, or a panel (so a press on it goes nowhere).</summary>
     private readonly record struct Hit(Rect2 Rect, HitKind Kind, Action? Click = null, SlotRef Slot = default, string? Key = null);
 
     private readonly List<Hit> _hits = new();

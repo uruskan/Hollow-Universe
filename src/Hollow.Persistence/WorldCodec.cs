@@ -30,7 +30,13 @@ public static class WorldCodec
 
     /// <summary>A world prop's stored state (G7, <see cref="EncodeProp"/>).</summary>
     public const byte PropVersion = 1;
-    public const byte ThingVersion = 2;
+
+    /// <summary>
+    /// A static thing's record; decoding reads every older version. 2 (G4): a firearm's magazine and attachments in its
+    /// stacks. 3: dropped items lie in bags (GROUND.md §6.1): a bag's slots instead of one stack (an older dropped stack
+    /// comes back as a bag of it).
+    /// </summary>
+    public const byte ThingVersion = 3;
 
     // ---------------------------------------------------------------- characters
 
@@ -214,9 +220,9 @@ public static class WorldCodec
                         WriteContainer(w, d.Storage);
                     }
                     break;
-                case DroppedItem item:
-                    WriteStack(w, item.Stack);
-                    w.Write(Math.Max(0, item.DespawnTick - tick));
+                case DroppedBag bag:
+                    w.Write(Math.Max(0, bag.DespawnTick - tick));
+                    WriteContainer(w, bag.Loot);
                     break;
                 case Corpse corpse:
                     w.Write(corpse.Name);
@@ -284,11 +290,33 @@ public static class WorldCodec
                 }
                 return d;
             }
-            case StaticKind.DroppedItem:
+            case StaticKind.DroppedBag:
             {
-                ItemStack stack = ReadStack(r, content, version);
-                long left = r.ReadInt64();
-                return stack.IsEmpty ? null : new DroppedItem(id, stack, position, up, yaw, tick + Math.Max(0, left));
+                // Before version 3 a dropped stack lay alone: it comes back as a bag of it.
+                var stacks = new List<ItemStack>();
+                long left;
+                if (version < 3)
+                {
+                    stacks.Add(ReadStack(r, content, version));
+                    left = r.ReadInt64();
+                }
+                else
+                {
+                    left = r.ReadInt64();
+                    int size = r.ReadUInt16();
+                    for (int i = 0; i < size; i++)
+                    {
+                        stacks.Add(ReadStack(r, content, version));
+                    }
+                }
+                var bag = new DroppedBag(id, content.Survival.BagName, Math.Clamp(Math.Max(stacks.Count, content.Survival.BagSlots), 1, 255), position, up, yaw,
+                    content.Survival.BagLifetime, tick + Math.Max(0, left));
+                for (int i = 0; i < stacks.Count && i < bag.Loot.Size; i++)
+                {
+                    bag.Loot.Set(i, stacks[i]);
+                }
+                bag.Loot.ClearDirty();
+                return bag.Loot.IsEmpty ? null : bag;
             }
             case StaticKind.Corpse:
             {
@@ -301,7 +329,7 @@ public static class WorldCodec
                 {
                     slots.Add(ReadStack(r, content, version));
                 }
-                var corpse = new Corpse(id, name, of, Math.Max(1, size), position, up, yaw, tick + Math.Max(0, left));
+                var corpse = new Corpse(id, name, of, Math.Max(1, size), position, up, yaw, content.Survival.BodyLifetime, tick + Math.Max(0, left));
                 for (int i = 0; i < slots.Count; i++)
                 {
                     corpse.Loot.Set(i, slots[i]);

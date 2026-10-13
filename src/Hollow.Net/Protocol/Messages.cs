@@ -9,6 +9,7 @@ using Hollow.Simulation.Ships;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Net.Protocol;
 
@@ -97,6 +98,12 @@ public partial struct InputCommand
     [Angle] public ushort Yaw;
 
     [Angle] public ushort Pitch;
+
+    /// <summary>Free look (Alt): the head's turn from the view, in <see cref="NetConvert.LookStep"/>s (cosmetic: the
+    /// view above is the aim and the movement's).</summary>
+    [Signed(8)] public sbyte LookYaw;
+
+    [Signed(8)] public sbyte LookPitch;
 
     [Bits(4)] public MoveButtons Buttons;
 
@@ -235,7 +242,10 @@ public partial struct ShipNetState
     [Angle] public ushort Yaw;
     [Angle] public ushort Pitch;
     [Angle] public ushort Roll;
-    [Bits(12)] public ShipNetFlags Flags;
+    [Bits(10)] public ShipNetFlags Flags;
+
+    /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): theirs, a teammate's, locked.</summary>
+    [Bits(8)] public ViewerFlags Viewer;
     [Bits(5)] public byte Hatch;
     [Signed(8)] public sbyte ThrustX;
     [Signed(8)] public sbyte ThrustY;
@@ -253,6 +263,10 @@ public partial struct CharacterNetState
     [Signed(32)] public int Z;
     [Angle] public ushort Yaw;
     [Angle] public ushort Pitch;
+
+    /// <summary>Free look (Alt): where the head looks from the view, in <see cref="NetConvert.LookStep"/>s (drawn only).</summary>
+    [Signed(8)] public sbyte LookYaw;
+    [Signed(8)] public sbyte LookPitch;
     [Bits(4)] public MoveFlags Flags;
     [Bits(2)] public Stance Stance;
     public byte Health;
@@ -307,7 +321,7 @@ public partial struct ChatLine
 
 // ---------------------------------------------------------------- G2: static things, clothing, nature, projectiles
 
-/// <summary>A static thing became relevant: a deployable, a dropped item or a corpse, with all a client draws of it.</summary>
+/// <summary>A static thing became relevant: a deployable, a bag of dropped items or a corpse, with all a client draws of it.</summary>
 [NetMessage(22)]
 public partial struct ThingSpawn
 {
@@ -315,7 +329,7 @@ public partial struct ThingSpawn
     public ulong EntityId;
     [Bits(2)] public StaticKind Kind;
 
-    /// <summary>What it looks like: a deployable's item or a dropped stack's item (0 for a corpse).</summary>
+    /// <summary>What it looks like: a deployable's item, a world prop's number; 0 for a corpse or a bag (what a bag holds goes only to whoever opens it).</summary>
     [VarInt] public uint Look;
 
     /// <summary>Its base on the ground, in the zone frame, and its turn about up.</summary>
@@ -324,23 +338,25 @@ public partial struct ThingSpawn
     public float Z;
     [Angle] public ushort Yaw;
 
-    /// <summary>Health as a fraction of 255 (deployables), the count of a dropped stack.</summary>
+    /// <summary>Health as a fraction of 255 (deployables); how many stacks a bag holds.</summary>
     public byte Health;
     [VarInt] public uint Count;
-    [Bits(4)] public ThingFlags Flags;
 
-    /// <summary>A corpse's name.</summary>
+    /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): lit, theirs, empty, a teammate's.</summary>
+    [Bits(8)] public ViewerFlags Flags;
+
+    /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
     [MaxLength(32)] public string Name;
 }
 
-/// <summary>A relevant static thing changed: health, flags, count.</summary>
+/// <summary>A relevant static thing changed: health, count, or what the receiver is told of it.</summary>
 [NetMessage(23)]
 public partial struct ThingUpdate
 {
     [VarInt] public uint NetId;
     public byte Health;
     [VarInt] public uint Count;
-    [Bits(4)] public ThingFlags Flags;
+    [Bits(8)] public ViewerFlags Flags;
 }
 
 /// <summary>An item worn (for <see cref="CharacterLook"/>).</summary>
@@ -375,6 +391,17 @@ public partial struct NaturalNet
     [Angle] public ushort WeakSpotYaw;
     public byte WeakSpotLift;
     public bool Depleted;
+
+    /// <summary>Hits on the weak spot in a row (each one's sound rises).</summary>
+    public byte Streak;
+
+    /// <summary>Ticks since the last hit when this was sent (255: long ago, or none): only a fresh hit plays its effects.</summary>
+    public byte HitAge;
+
+    /// <summary>Where the last hit met the drawn surface, from the object's base in 3 cm steps (effects play there).</summary>
+    public sbyte HitX;
+    public sbyte HitY;
+    public sbyte HitZ;
 }
 
 /// <summary>Changes to natural objects near the player (all of an area when it comes into range, then as they happen).</summary>
@@ -403,7 +430,7 @@ public partial struct ProjectileLaunch
     public bool Silenced;
 }
 
-/// <summary>A projectile stopped, at a point, on something (nothing: out of range or time in the air).</summary>
+/// <summary>A projectile stopped, at a point, on a thing of a family (none: out of range or time in the air).</summary>
 [NetMessage(42)]
 public partial struct ProjectileEnd
 {
@@ -411,7 +438,16 @@ public partial struct ProjectileEnd
     public float X;
     public float Y;
     public float Z;
-    [Bits(3)] public HitTarget Target;
+    [Bits(4)] public TargetFamily Target;
+}
+
+/// <summary>A thing named on the wire (GROUND_SYSTEMS.md §3.1): its family, its ID, and a part of it (0: the whole).</summary>
+[NetStruct]
+public partial struct TargetNet
+{
+    [Bits(4)] public TargetFamily Family;
+    public ulong Id;
+    public byte Part;
 }
 
 // ---------------------------------------------------------------- G2: intents (client → server, reliable ordered)
@@ -450,16 +486,6 @@ public partial struct DropIntent
     [Bits(3)] public ContainerRef From;
     public byte Slot;
     [VarInt] public uint Amount;
-    [VarInt] public uint Expected;
-}
-
-/// <summary>Eat or use a consumable.</summary>
-[NetMessage(53)]
-public partial struct UseIntent
-{
-    [VarInt] public uint Seq;
-    [Bits(3)] public ContainerRef From;
-    public byte Slot;
     [VarInt] public uint Expected;
 }
 
@@ -534,12 +560,16 @@ public partial struct RespawnIntent
 
 // ---------------------------------------------------------------- G2: the player's own state (server → owner, reliable)
 
-/// <summary>The answer to an intent: accepted, or why not. Sent after the changes it made.</summary>
+/// <summary>
+/// The answer to every intent (GROUND_SYSTEMS.md §3.2): done, or the code of why not, and the number its line names (an
+/// item, seconds, a percentage; 0 for none). Sent after the changes it made.
+/// </summary>
 [NetMessage(70)]
 public partial struct IntentResult
 {
     [VarInt] public uint Seq;
-    [Bits(5)] public ActionResult Result;
+    [Bits(7)] public OutcomeCode Code;
+    [VarInt] public uint Detail;
 }
 
 /// <summary>
@@ -653,7 +683,7 @@ public partial struct CraftQueueState
 [NetMessage(76)]
 public partial struct HitMarker
 {
-    [Bits(3)] public HitTarget Target;
+    [Bits(4)] public TargetFamily Target;
     [Bits(2)] public HitRegion Region;
     [VarInt] public uint Damage;
     public bool Killed;
@@ -760,16 +790,6 @@ public partial struct AttachIntent
     [VarInt] public uint Expected;
 }
 
-/// <summary>Take the attachment in a slot (sight, muzzle, rail) off a firearm, into the inventory.</summary>
-[NetMessage(65)]
-public partial struct DetachIntent
-{
-    [VarInt] public uint Seq;
-    [Bits(3)] public ContainerRef WeaponIn;
-    public byte WeaponSlot;
-    [Bits(2)] public AttachmentSlot Mod;
-}
-
 /// <summary>Help a wounded player up (the interact key on them).</summary>
 [NetMessage(66)]
 public partial struct HelpUpIntent
@@ -788,7 +808,7 @@ public partial struct GunUpdate
 {
     [VarInt] public uint LastSeq;
     [VarInt] public uint RefusedSeq;
-    [Bits(4)] public GunResult Refused;
+    [Bits(7)] public OutcomeCode Refused;
     [Bits(3)] public byte Slot;
     [VarInt] public uint Item;
     [VarInt] public uint Loaded;
@@ -812,7 +832,7 @@ public partial struct GunUpdate
 }
 
 // ---------------------------------------------------------------- G3: building intents (client → server, reliable)
-// Each has a sequence number from the same series as G2's intents and is answered with a BuildResult (GROUND.md §6.3).
+// Each has a sequence number from the same series as G2's intents and is answered with an IntentResult (GROUND.md §6.3).
 
 /// <summary>
 /// Place a piece from the building plan: on a support's socket in an orientation (the server derives the pose), or,
@@ -884,15 +904,6 @@ public partial struct ClaimIntent
     public double X;
     public double Z;
     [Bits(4)] public byte Yaw;
-}
-
-/// <summary>The answer to a building intent: done (None), or the rules' reason with the player's line.</summary>
-[NetMessage(95)]
-public partial struct BuildResult
-{
-    [VarInt] public uint Seq;
-    [Bits(6)] public Refusal Reason;
-    [MaxLength(96)] public string Text;
 }
 
 // ---------------------------------------------------------------- G3: building replication (server → client, reliable)
@@ -971,7 +982,8 @@ public partial struct BuildRemoved
 
 /// <summary>
 /// A door: its frame piece, which door (building.json's order), flipped, open; health as a fraction of 65,535; its
-/// lock, whether locked and whether this player may pass it; its leaves' body IDs.
+/// lock; what this player is told of it (GROUND_SYSTEMS.md §3.3: may pass, locked, its lock's code set, on its list,
+/// theirs); its leaves' body IDs.
 /// </summary>
 [NetStruct]
 public partial struct DoorNet
@@ -984,8 +996,7 @@ public partial struct DoorNet
     public ushort Health;
     [Bits(2)] public LockKind Lock;
     public ulong LockId;
-    public bool Locked;
-    public bool CanUse;
+    [Bits(8)] public ViewerFlags Flags;
     [VarInt] public uint Body0;
     [VarInt] public uint Body1;
 }
@@ -998,7 +1009,8 @@ public partial struct BuildDoors
 
 /// <summary>
 /// A claim device: the piece it stands on, where on it (frame metres) and its turn; health as a fraction of 65,535;
-/// whether this player is on its list; its body; how long its store keeps the base from decaying (minutes).
+/// what this player is told of it (GROUND_SYSTEMS.md §3.3: on its list, theirs); its body; how long its store keeps the
+/// base from decaying (minutes).
 /// </summary>
 [NetStruct]
 public partial struct ClaimNet
@@ -1010,7 +1022,7 @@ public partial struct ClaimNet
     public double Z;
     [Bits(4)] public byte Yaw;
     public ushort Health;
-    public bool Authorised;
+    [Bits(8)] public ViewerFlags Flags;
     [VarInt] public uint Body;
     [VarInt] public uint ProtectedMinutes;
 }
@@ -1107,7 +1119,7 @@ public partial struct Detonation
     [Quantize(-1, 1, 12)] public float NormalY;
     [Quantize(-1, 1, 12)] public float NormalZ;
     [Quantize(0, 20, 10)] public float Radius;
-    [Bits(3)] public HitTarget Target;
+    [Bits(4)] public TargetFamily Target;
     public bool Round;
 }
 
@@ -1345,4 +1357,68 @@ public partial struct ZoneClock
     public double BaseTurns;
     public double Scale;
     public bool Overridden;
+}
+
+// ---------------------------------------------------------------- destruction (GROUND.md §6.4.2)
+
+/// <summary>
+/// Something was destroyed (to everyone within range, reliable): a deployable or world prop broken, a building piece, door
+/// or claim device broken, brought down, decayed or demolished, a ship wrecked. What it was (the thing: its family and ID;
+/// its model key and a piece's grade), where it stood as it was drawn (zone frame; a door's frame piece's, open or not),
+/// the blow's direction (zero for a collapse, decay or demolition), what did it, who (a character's net ID, 0 if none or
+/// gone) and with what (an item).
+/// </summary>
+[NetMessage(165)]
+public partial struct ThingDestroyed
+{
+    public TargetNet Target;
+    [MaxLength(48)] public string Key;
+    [Bits(3)] public byte Grade;
+    public float X;
+    public float Y;
+    public float Z;
+    [Quantize(-1, 1, 16)] public float RotationX;
+    [Quantize(-1, 1, 16)] public float RotationY;
+    [Quantize(-1, 1, 16)] public float RotationZ;
+    [Quantize(-1, 1, 16)] public float RotationW;
+    [Quantize(-1, 1, 12)] public float DirectionX;
+    [Quantize(-1, 1, 12)] public float DirectionY;
+    [Quantize(-1, 1, 12)] public float DirectionZ;
+    [Bits(3)] public DestroyCause Cause;
+    public bool Open;
+    [VarInt] public uint Attacker;
+    [VarInt] public uint Item;
+}
+
+// ---------------------------------------------------------------- P3: held items and inventory actions (GROUND_SYSTEMS.md §7)
+
+/// <summary>
+/// A button of the item panel's ACTIONS on a stack in the player's own slots (client → server, the general sequence and
+/// budget, answered by <see cref="IntentResult"/>): its action's number in items.json's list (eat, use, wear, take off,
+/// learn, unload, take an attachment off) and its argument (which attachment). Replaces <c>UseIntent</c> and
+/// <c>DetachIntent</c>.
+/// </summary>
+[NetMessage(230)]
+public partial struct ItemActionIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public ContainerRef From;
+    public byte Slot;
+    [VarInt] public uint Expected;
+    [VarInt] public uint Action;
+    [VarInt] public uint Arg;
+}
+
+/// <summary>
+/// UNLOAD of the gun in hand (client → server, the gun's channel and sequence, like <see cref="ReloadIntent"/>): its rounds
+/// back into the inventory on that tick, in order with the gun's shots and reloads (GROUND_SYSTEMS.md §7). A gun elsewhere
+/// is unloaded by an <see cref="ItemActionIntent"/>.
+/// </summary>
+[NetMessage(231)]
+public partial struct UnloadIntent
+{
+    [VarInt] public uint Seq;
+    public uint Tick;
+    [Bits(3)] public byte Slot;
+    [VarInt] public uint Item;
 }

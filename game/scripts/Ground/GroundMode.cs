@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Godot;
 using Hollow.Client;
+using Hollow.Client.Loading;
 using Hollow.Core;
 using Hollow.Net.Protocol;
 using Hollow.Net.Transport;
@@ -56,6 +57,8 @@ public partial class GroundMode : Node
 
     public override void _Ready()
     {
+        StartLoadTrace();
+        Prefetch();
         // A game: no blocking full collections in the middle of play where they can be avoided.
         System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
         // The game's data, the same files the server reads (GROUND.md section 7).
@@ -151,6 +154,7 @@ public partial class GroundMode : Node
     // Hosts (host null) or joins a game and shows it.
     private void Start(string name, string? host, int port)
     {
+        LoadingPipeline loading = BeginLoading();
         string database = Options.TryGetValue("db", out string? dbOption) && dbOption != "true" ? dbOption : ProjectSettings.GlobalizePath("user://hollow-host.db");
         bool connectNow = true;
         if (host == null && !Options.ContainsKey("in-process"))
@@ -161,6 +165,7 @@ public partial class GroundMode : Node
             {
                 _child = ChildServer.Start(dll, repository, port, System.IO.Path.GetFullPath(database), $"{name}'s game",
                     Option("spawn", "beach") == "origin", admin: name);
+                loading.Add(_child.LoadStage());
                 host = "127.0.0.1";
                 connectNow = false;
                 _connectWhenReady = (host, port);
@@ -207,6 +212,7 @@ public partial class GroundMode : Node
             Content = _content,
             Log = line => GD.Print("[client] " + line),
         });
+        loading.Add(_client.LoadStages(loading.Plan));
         if (connectNow)
         {
             _client.Connect(host, port);
@@ -215,6 +221,7 @@ public partial class GroundMode : Node
         {
             Name = "GroundView",
             Client = _client,
+            Loading = loading,
             HostedPort = _server?.Port ?? _child?.Port,
             FaceName = Options.TryGetValue("face", out string? face) ? face : null,
             ShowNetGraph = Options.ContainsKey("netgraph"),
@@ -243,9 +250,11 @@ public partial class GroundMode : Node
             {
                 Name = "Tour", View = _view, Folder = folder, Command = Command,
                 Only = Options.TryGetValue("tour-steps", out string? steps) ? new HashSet<string>(steps.Split(',')) : null,
+                Tree = Options.TryGetValue("tour-tree", out string? tree) ? tree : null,
             };
             AddChild(_tour);
         }
+        ShowLoading(_server != null || _child != null ? $"{name}'s game, on this computer" : $"{host}:{port}");
     }
 
     // An admin command to the game hosted here (null when joined elsewhere).
@@ -265,6 +274,7 @@ public partial class GroundMode : Node
 
     public override void _Process(double delta)
     {
+        UpdateLoading();
         if (_child == null)
         {
             return;
@@ -302,6 +312,7 @@ public partial class GroundMode : Node
 
     private void Stop()
     {
+        EndLoading();
         _tour?.QueueFree();
         _tour = null;
         _view?.QueueFree();

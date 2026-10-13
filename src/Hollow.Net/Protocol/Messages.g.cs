@@ -13,6 +13,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
 using Hollow.Simulation;
@@ -22,7 +23,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xDFE5143E621761C1UL;
+    public const ulong SchemaHash = 0x213B890B31525AEEUL;
 }
 
 partial struct Hello
@@ -166,6 +167,8 @@ partial struct InputCommand
         w.WriteSigned(Right, 8);
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Pitch, 16);
+        w.WriteSigned(LookYaw, 8);
+        w.WriteSigned(LookPitch, 8);
         w.WriteBits((uint)Buttons, 4);
         w.WriteBits((uint)Held, 3);
         w.WriteBits((uint)Actions, 3);
@@ -185,6 +188,8 @@ partial struct InputCommand
         v.Right = (sbyte)r.ReadSigned(8);
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
+        v.LookYaw = (sbyte)r.ReadSigned(8);
+        v.LookPitch = (sbyte)r.ReadSigned(8);
         v.Buttons = (MoveButtons)r.ReadBits(4);
         v.Held = (byte)r.ReadBits(3);
         v.Actions = (ActionButtons)r.ReadBits(3);
@@ -422,7 +427,8 @@ partial struct ShipNetState
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Pitch, 16);
         w.WriteBits((uint)Roll, 16);
-        w.WriteBits((uint)Flags, 12);
+        w.WriteBits((uint)Flags, 10);
+        w.WriteBits((uint)Viewer, 8);
         w.WriteBits((uint)Hatch, 5);
         w.WriteSigned(ThrustX, 8);
         w.WriteSigned(ThrustY, 8);
@@ -440,7 +446,8 @@ partial struct ShipNetState
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
         v.Roll = (ushort)r.ReadBits(16);
-        v.Flags = (ShipNetFlags)r.ReadBits(12);
+        v.Flags = (ShipNetFlags)r.ReadBits(10);
+        v.Viewer = (ViewerFlags)r.ReadBits(8);
         v.Hatch = (byte)r.ReadBits(5);
         v.ThrustX = (sbyte)r.ReadSigned(8);
         v.ThrustY = (sbyte)r.ReadSigned(8);
@@ -510,7 +517,16 @@ partial struct ShipNetState
         if (Flags != b.Flags)
         {
             w.WriteBool(true);
-            w.WriteBits((uint)Flags, 12);
+            w.WriteBits((uint)Flags, 10);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Viewer != b.Viewer)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)Viewer, 8);
         }
         else
         {
@@ -601,7 +617,11 @@ partial struct ShipNetState
         }
         if (r.ReadBool())
         {
-            v.Flags = (ShipNetFlags)r.ReadBits(12);
+            v.Flags = (ShipNetFlags)r.ReadBits(10);
+        }
+        if (r.ReadBool())
+        {
+            v.Viewer = (ViewerFlags)r.ReadBits(8);
         }
         if (r.ReadBool())
         {
@@ -630,7 +650,7 @@ partial struct ShipNetState
         return v;
     }
 
-    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Roll == o.Roll && Flags == o.Flags && Hatch == o.Hatch && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind;
+    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Roll == o.Roll && Flags == o.Flags && Viewer == o.Viewer && Hatch == o.Hatch && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in ShipNetState b)
@@ -642,7 +662,8 @@ partial struct ShipNetState
         bits += Yaw == b.Yaw ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Yaw - b.Yaw)));
         bits += Pitch == b.Pitch ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Pitch - b.Pitch)));
         bits += Roll == b.Roll ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Roll - b.Roll)));
-        bits += Flags == b.Flags ? 1 : 13;
+        bits += Flags == b.Flags ? 1 : 11;
+        bits += Viewer == b.Viewer ? 1 : 9;
         bits += Hatch == b.Hatch ? 1 : 6;
         bits += ThrustX == b.ThrustX ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustX - (int)b.ThrustX));
         bits += ThrustY == b.ThrustY ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustY - (int)b.ThrustY));
@@ -653,7 +674,7 @@ partial struct ShipNetState
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 233;
+    public const int FullBits = 239;
 }
 
 partial struct CharacterNetState
@@ -665,6 +686,8 @@ partial struct CharacterNetState
         w.WriteSigned(Z, 32);
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Pitch, 16);
+        w.WriteSigned(LookYaw, 8);
+        w.WriteSigned(LookPitch, 8);
         w.WriteBits((uint)Flags, 4);
         w.WriteBits((uint)Stance, 2);
         w.WriteBits((uint)Health, 8);
@@ -684,6 +707,8 @@ partial struct CharacterNetState
         v.Z = (int)r.ReadSigned(32);
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
+        v.LookYaw = (sbyte)r.ReadSigned(8);
+        v.LookPitch = (sbyte)r.ReadSigned(8);
         v.Flags = (MoveFlags)r.ReadBits(4);
         v.Stance = (Stance)r.ReadBits(2);
         v.Health = (byte)r.ReadBits(8);
@@ -739,6 +764,24 @@ partial struct CharacterNetState
         {
             w.WriteBool(true);
             w.WriteDelta((short)unchecked((ushort)(Pitch - b.Pitch)));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (LookYaw != b.LookYaw)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)LookYaw - (int)b.LookYaw));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (LookPitch != b.LookPitch)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)LookPitch - (int)b.LookPitch));
         }
         else
         {
@@ -836,6 +879,14 @@ partial struct CharacterNetState
         }
         if (r.ReadBool())
         {
+            v.LookYaw = unchecked((sbyte)((int)b.LookYaw + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.LookPitch = unchecked((sbyte)((int)b.LookPitch + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
             v.Flags = (MoveFlags)r.ReadBits(4);
         }
         if (r.ReadBool())
@@ -867,7 +918,7 @@ partial struct CharacterNetState
         return v;
     }
 
-    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping && Aiming == o.Aiming && HeldMods == o.HeldMods;
+    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && LookYaw == o.LookYaw && LookPitch == o.LookPitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping && Aiming == o.Aiming && HeldMods == o.HeldMods;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in CharacterNetState b)
@@ -878,6 +929,8 @@ partial struct CharacterNetState
         bits += Z == b.Z ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)Z - (int)b.Z));
         bits += Yaw == b.Yaw ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Yaw - b.Yaw)));
         bits += Pitch == b.Pitch ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Pitch - b.Pitch)));
+        bits += LookYaw == b.LookYaw ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)LookYaw - (int)b.LookYaw));
+        bits += LookPitch == b.LookPitch ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)LookPitch - (int)b.LookPitch));
         bits += Flags == b.Flags ? 1 : 5;
         bits += Stance == b.Stance ? 1 : 3;
         bits += Health == b.Health ? 1 : 9;
@@ -891,7 +944,7 @@ partial struct CharacterNetState
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 175;
+    public const int FullBits = 191;
 }
 
 partial struct Spawn
@@ -1023,7 +1076,7 @@ partial struct ThingSpawn
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Health, 8);
         w.WriteVarUInt(Count);
-        w.WriteBits((uint)Flags, 4);
+        w.WriteBits((uint)Flags, 8);
         w.WriteString(Name, 32);
     }
 
@@ -1040,7 +1093,7 @@ partial struct ThingSpawn
         v.Yaw = (ushort)r.ReadBits(16);
         v.Health = (byte)r.ReadBits(8);
         v.Count = r.ReadVarUInt();
-        v.Flags = (ThingFlags)r.ReadBits(4);
+        v.Flags = (ViewerFlags)r.ReadBits(8);
         v.Name = r.ReadString(32);
         return v;
     }
@@ -1062,7 +1115,7 @@ partial struct ThingUpdate
         w.WriteVarUInt(NetId);
         w.WriteBits((uint)Health, 8);
         w.WriteVarUInt(Count);
-        w.WriteBits((uint)Flags, 4);
+        w.WriteBits((uint)Flags, 8);
     }
 
     public static ThingUpdate Read(BitReader r)
@@ -1071,7 +1124,7 @@ partial struct ThingUpdate
         v.NetId = r.ReadVarUInt();
         v.Health = (byte)r.ReadBits(8);
         v.Count = r.ReadVarUInt();
-        v.Flags = (ThingFlags)r.ReadBits(4);
+        v.Flags = (ViewerFlags)r.ReadBits(8);
         return v;
     }
 }
@@ -1144,6 +1197,11 @@ partial struct NaturalNet
         w.WriteBits((uint)WeakSpotYaw, 16);
         w.WriteBits((uint)WeakSpotLift, 8);
         w.WriteBool(Depleted);
+        w.WriteBits((uint)Streak, 8);
+        w.WriteBits((uint)HitAge, 8);
+        w.WriteSigned(HitX, 8);
+        w.WriteSigned(HitY, 8);
+        w.WriteSigned(HitZ, 8);
     }
 
     public static NaturalNet Read(BitReader r)
@@ -1155,6 +1213,11 @@ partial struct NaturalNet
         v.WeakSpotYaw = (ushort)r.ReadBits(16);
         v.WeakSpotLift = (byte)r.ReadBits(8);
         v.Depleted = r.ReadBool();
+        v.Streak = (byte)r.ReadBits(8);
+        v.HitAge = (byte)r.ReadBits(8);
+        v.HitX = (sbyte)r.ReadSigned(8);
+        v.HitY = (sbyte)r.ReadSigned(8);
+        v.HitZ = (sbyte)r.ReadSigned(8);
         return v;
     }
 }
@@ -1259,7 +1322,7 @@ partial struct ProjectileEnd
         w.WriteFloat(X);
         w.WriteFloat(Y);
         w.WriteFloat(Z);
-        w.WriteBits((uint)Target, 3);
+        w.WriteBits((uint)Target, 4);
     }
 
     public static ProjectileEnd Read(BitReader r)
@@ -1269,7 +1332,26 @@ partial struct ProjectileEnd
         v.X = r.ReadFloat();
         v.Y = r.ReadFloat();
         v.Z = r.ReadFloat();
-        v.Target = (HitTarget)r.ReadBits(3);
+        v.Target = (TargetFamily)r.ReadBits(4);
+        return v;
+    }
+}
+
+partial struct TargetNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Family, 4);
+        w.WriteBits64(Id, 64);
+        w.WriteBits((uint)Part, 8);
+    }
+
+    public static TargetNet Read(BitReader r)
+    {
+        var v = new TargetNet();
+        v.Family = (TargetFamily)r.ReadBits(4);
+        v.Id = r.ReadBits64(64);
+        v.Part = (byte)r.ReadBits(8);
         return v;
     }
 }
@@ -1367,36 +1449,6 @@ partial struct DropIntent
         v.From = (ContainerRef)r.ReadBits(3);
         v.Slot = (byte)r.ReadBits(8);
         v.Amount = r.ReadVarUInt();
-        v.Expected = r.ReadVarUInt();
-        return v;
-    }
-}
-
-partial struct UseIntent
-{
-    public const byte TypeId = 53;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)From, 3);
-        w.WriteBits((uint)Slot, 8);
-        w.WriteVarUInt(Expected);
-    }
-
-    public static UseIntent Read(BitReader r)
-    {
-        var v = new UseIntent();
-        v.Seq = r.ReadVarUInt();
-        v.From = (ContainerRef)r.ReadBits(3);
-        v.Slot = (byte)r.ReadBits(8);
         v.Expected = r.ReadVarUInt();
         return v;
     }
@@ -1638,14 +1690,16 @@ partial struct IntentResult
     public readonly void Write(BitWriter w)
     {
         w.WriteVarUInt(Seq);
-        w.WriteBits((uint)Result, 5);
+        w.WriteBits((uint)Code, 7);
+        w.WriteVarUInt(Detail);
     }
 
     public static IntentResult Read(BitReader r)
     {
         var v = new IntentResult();
         v.Seq = r.ReadVarUInt();
-        v.Result = (ActionResult)r.ReadBits(5);
+        v.Code = (OutcomeCode)r.ReadBits(7);
+        v.Detail = r.ReadVarUInt();
         return v;
     }
 }
@@ -1978,7 +2032,7 @@ partial struct HitMarker
 
     public readonly void Write(BitWriter w)
     {
-        w.WriteBits((uint)Target, 3);
+        w.WriteBits((uint)Target, 4);
         w.WriteBits((uint)Region, 2);
         w.WriteVarUInt(Damage);
         w.WriteBool(Killed);
@@ -1989,7 +2043,7 @@ partial struct HitMarker
     public static HitMarker Read(BitReader r)
     {
         var v = new HitMarker();
-        v.Target = (HitTarget)r.ReadBits(3);
+        v.Target = (TargetFamily)r.ReadBits(4);
         v.Region = (HitRegion)r.ReadBits(2);
         v.Damage = r.ReadVarUInt();
         v.Killed = r.ReadBool();
@@ -2265,36 +2319,6 @@ partial struct AttachIntent
     }
 }
 
-partial struct DetachIntent
-{
-    public const byte TypeId = 65;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)WeaponIn, 3);
-        w.WriteBits((uint)WeaponSlot, 8);
-        w.WriteBits((uint)Mod, 2);
-    }
-
-    public static DetachIntent Read(BitReader r)
-    {
-        var v = new DetachIntent();
-        v.Seq = r.ReadVarUInt();
-        v.WeaponIn = (ContainerRef)r.ReadBits(3);
-        v.WeaponSlot = (byte)r.ReadBits(8);
-        v.Mod = (AttachmentSlot)r.ReadBits(2);
-        return v;
-    }
-}
-
 partial struct HelpUpIntent
 {
     public const byte TypeId = 66;
@@ -2336,7 +2360,7 @@ partial struct GunUpdate
     {
         w.WriteVarUInt(LastSeq);
         w.WriteVarUInt(RefusedSeq);
-        w.WriteBits((uint)Refused, 4);
+        w.WriteBits((uint)Refused, 7);
         w.WriteBits((uint)Slot, 3);
         w.WriteVarUInt(Item);
         w.WriteVarUInt(Loaded);
@@ -2360,7 +2384,7 @@ partial struct GunUpdate
         var v = new GunUpdate();
         v.LastSeq = r.ReadVarUInt();
         v.RefusedSeq = r.ReadVarUInt();
-        v.Refused = (GunResult)r.ReadBits(4);
+        v.Refused = (OutcomeCode)r.ReadBits(7);
         v.Slot = (byte)r.ReadBits(3);
         v.Item = r.ReadVarUInt();
         v.Loaded = r.ReadVarUInt();
@@ -2559,34 +2583,6 @@ partial struct ClaimIntent
         v.X = r.ReadDouble();
         v.Z = r.ReadDouble();
         v.Yaw = (byte)r.ReadBits(4);
-        return v;
-    }
-}
-
-partial struct BuildResult
-{
-    public const byte TypeId = 95;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)Reason, 6);
-        w.WriteString(Text, 96);
-    }
-
-    public static BuildResult Read(BitReader r)
-    {
-        var v = new BuildResult();
-        v.Seq = r.ReadVarUInt();
-        v.Reason = (Refusal)r.ReadBits(6);
-        v.Text = r.ReadString(96);
         return v;
     }
 }
@@ -2815,8 +2811,7 @@ partial struct DoorNet
         w.WriteBits((uint)Health, 16);
         w.WriteBits((uint)Lock, 2);
         w.WriteBits64(LockId, 64);
-        w.WriteBool(Locked);
-        w.WriteBool(CanUse);
+        w.WriteBits((uint)Flags, 8);
         w.WriteVarUInt(Body0);
         w.WriteVarUInt(Body1);
     }
@@ -2832,8 +2827,7 @@ partial struct DoorNet
         v.Health = (ushort)r.ReadBits(16);
         v.Lock = (LockKind)r.ReadBits(2);
         v.LockId = r.ReadBits64(64);
-        v.Locked = r.ReadBool();
-        v.CanUse = r.ReadBool();
+        v.Flags = (ViewerFlags)r.ReadBits(8);
         v.Body0 = r.ReadVarUInt();
         v.Body1 = r.ReadVarUInt();
         return v;
@@ -2890,7 +2884,7 @@ partial struct ClaimNet
         w.WriteDouble(Z);
         w.WriteBits((uint)Yaw, 4);
         w.WriteBits((uint)Health, 16);
-        w.WriteBool(Authorised);
+        w.WriteBits((uint)Flags, 8);
         w.WriteVarUInt(Body);
         w.WriteVarUInt(ProtectedMinutes);
     }
@@ -2905,7 +2899,7 @@ partial struct ClaimNet
         v.Z = r.ReadDouble();
         v.Yaw = (byte)r.ReadBits(4);
         v.Health = (ushort)r.ReadBits(16);
-        v.Authorised = r.ReadBool();
+        v.Flags = (ViewerFlags)r.ReadBits(8);
         v.Body = r.ReadVarUInt();
         v.ProtectedMinutes = r.ReadVarUInt();
         return v;
@@ -3146,7 +3140,7 @@ partial struct Detonation
         w.WriteQuantized(NormalY, -1f, 1f, 12);
         w.WriteQuantized(NormalZ, -1f, 1f, 12);
         w.WriteQuantized(Radius, 0f, 20f, 10);
-        w.WriteBits((uint)Target, 3);
+        w.WriteBits((uint)Target, 4);
         w.WriteBool(Round);
     }
 
@@ -3163,7 +3157,7 @@ partial struct Detonation
         v.NormalY = r.ReadQuantized(-1f, 1f, 12);
         v.NormalZ = r.ReadQuantized(-1f, 1f, 12);
         v.Radius = r.ReadQuantized(0f, 20f, 10);
-        v.Target = (HitTarget)r.ReadBits(3);
+        v.Target = (TargetFamily)r.ReadBits(4);
         v.Round = r.ReadBool();
         return v;
     }
@@ -3909,6 +3903,126 @@ partial struct ZoneClock
         v.BaseTurns = r.ReadDouble();
         v.Scale = r.ReadDouble();
         v.Overridden = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct ThingDestroyed
+{
+    public const byte TypeId = 165;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        Target.Write(w);
+        w.WriteString(Key, 48);
+        w.WriteBits((uint)Grade, 3);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteQuantized(RotationX, -1f, 1f, 16);
+        w.WriteQuantized(RotationY, -1f, 1f, 16);
+        w.WriteQuantized(RotationZ, -1f, 1f, 16);
+        w.WriteQuantized(RotationW, -1f, 1f, 16);
+        w.WriteQuantized(DirectionX, -1f, 1f, 12);
+        w.WriteQuantized(DirectionY, -1f, 1f, 12);
+        w.WriteQuantized(DirectionZ, -1f, 1f, 12);
+        w.WriteBits((uint)Cause, 3);
+        w.WriteBool(Open);
+        w.WriteVarUInt(Attacker);
+        w.WriteVarUInt(Item);
+    }
+
+    public static ThingDestroyed Read(BitReader r)
+    {
+        var v = new ThingDestroyed();
+        v.Target = TargetNet.Read(r);
+        v.Key = r.ReadString(48);
+        v.Grade = (byte)r.ReadBits(3);
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.RotationX = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationY = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationZ = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationW = r.ReadQuantized(-1f, 1f, 16);
+        v.DirectionX = r.ReadQuantized(-1f, 1f, 12);
+        v.DirectionY = r.ReadQuantized(-1f, 1f, 12);
+        v.DirectionZ = r.ReadQuantized(-1f, 1f, 12);
+        v.Cause = (DestroyCause)r.ReadBits(3);
+        v.Open = r.ReadBool();
+        v.Attacker = r.ReadVarUInt();
+        v.Item = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct ItemActionIntent
+{
+    public const byte TypeId = 230;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteVarUInt(Expected);
+        w.WriteVarUInt(Action);
+        w.WriteVarUInt(Arg);
+    }
+
+    public static ItemActionIntent Read(BitReader r)
+    {
+        var v = new ItemActionIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        v.Action = r.ReadVarUInt();
+        v.Arg = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct UnloadIntent
+{
+    public const byte TypeId = 231;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Tick, 32);
+        w.WriteBits((uint)Slot, 3);
+        w.WriteVarUInt(Item);
+    }
+
+    public static UnloadIntent Read(BitReader r)
+    {
+        var v = new UnloadIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Tick = (uint)r.ReadBits(32);
+        v.Slot = (byte)r.ReadBits(3);
+        v.Item = r.ReadVarUInt();
         return v;
     }
 }

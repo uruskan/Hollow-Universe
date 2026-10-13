@@ -25,6 +25,14 @@ public partial class CharacterPoser : SkeletonModifier3D
     /// <summary>How much of the pitch the spine takes (the rest goes to neck and head): more when aiming a gun.</summary>
     public float SpinePitchShare = 0.45f;
 
+    /// <summary>
+    /// Free look: the neck and head turned further than the view, radians (yaw about the body's up, to the left; pitch
+    /// up), on top of everything else; the neck takes two fifths, the head the rest (RustMVP's split).
+    /// </summary>
+    public float LookYaw;
+
+    public float LookPitch;
+
     /// <summary>Hand targets in skeleton space with their weights (0 = leave the clip alone).</summary>
     public Transform3D RightHand;
     public Transform3D LeftHand;
@@ -107,6 +115,12 @@ public partial class CharacterPoser : SkeletonModifier3D
             Turn(s, _spine3, new Quaternion(right, Pitch * spine * 0.38f));
             Turn(s, _neck, new Quaternion(right, Pitch * (1 - spine) * 0.4f));
             Turn(s, _head, new Quaternion(right, Pitch * (1 - spine) * 0.6f));
+        }
+        if (MathF.Abs(LookYaw) > 1e-4f || MathF.Abs(LookPitch) > 1e-4f)
+        {
+            // Free look: the head pitched, then turned about the body's up, so it looks along the turned view.
+            Turn(s, _neck, new Quaternion(Vector3.Up, LookYaw * 0.4f) * new Quaternion(Vector3.Left, LookPitch * 0.4f));
+            Turn(s, _head, new Quaternion(Vector3.Up, LookYaw * 0.6f) * new Quaternion(Vector3.Left, LookPitch * 0.6f));
         }
         if (!ChestKick.IsEqualApprox(Quaternion.Identity))
         {

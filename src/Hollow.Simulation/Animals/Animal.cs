@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Targets;
+using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation.Animals;
 
@@ -150,10 +152,10 @@ public sealed class Herd
 
 /// <summary>
 /// One animal (GROUND.md §6.9): where it is and which way it faces, how fast it goes, its health, what it is doing and
-/// why, its herd, its attack in progress, and after death its corpse. Server state: animals are never stored, except a
-/// corpse while its timer runs.
+/// why, its herd, its attack in progress, and after death its corpse, a loose thing with its species' lifetime
+/// (GROUND_SYSTEMS.md §3.7). Server state: animals are never stored, except a corpse while its lifetime runs.
 /// </summary>
-public sealed class Animal
+public sealed class Animal : ITargetable, ILifetime
 {
     public Animal(EntityId id, AnimalSpecies species, Herd herd, Vector3 position, float yaw, ulong seed)
     {
@@ -169,6 +171,9 @@ public sealed class Animal
     }
 
     public EntityId Id { get; }
+
+    /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
+    public TargetRef Ref => new(TargetFamily.Animal, Id.Value);
 
     public AnimalSpecies Species { get; }
 
@@ -283,6 +288,18 @@ public sealed class Animal
     public float HarvestLeft { get; internal set; }
 
     public long DespawnTick { get; internal set; }
+
+    /// <summary>Its carcass's lifetime (its species').</summary>
+    public LifetimeRule Lifetime => Species.Carcass;
+
+    long ILifetime.EndsAt
+    {
+        get => DespawnTick;
+        set => DespawnTick = value;
+    }
+
+    /// <summary>A carcass harvested out.</summary>
+    bool ILifetime.Emptied => HarvestLeft <= 0;
 
     public EntityId KilledBy { get; internal set; }
 

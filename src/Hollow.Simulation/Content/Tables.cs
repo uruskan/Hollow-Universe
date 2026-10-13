@@ -110,6 +110,12 @@ public sealed class NaturalKind
 
     public float ScatterMinScale { get; init; }
 
+    /// <summary>
+    /// How it is gathered (gather.json <c>classes</c> of its class, with its own drawn surface and look): the tool rate
+    /// it takes, its weak spot, what the last hit pays, how it shows. Null for what isn't hit for resources.
+    /// </summary>
+    public GatherRules? Gather { get; internal set; }
+
     public bool IsHarvested => Class is NaturalClass.Tree or NaturalClass.Node;
 
     public bool IsPicked => Class is NaturalClass.Pickup or NaturalClass.Bush;
@@ -119,9 +125,6 @@ public sealed class NaturalKind
 
     public override string ToString() => Key;
 }
-
-/// <summary>Rust's weak spot on trees and outcrops (gather.json).</summary>
-public readonly record struct WeakSpot(float Radius, float Bonus);
 
 /// <summary>A device's slots and what it does (deployables.json, <c>device</c>).</summary>
 public sealed class DeviceStats
@@ -355,10 +358,40 @@ public sealed class SurvivalTuning
     public float MaxRewindSeconds { get; init; } = 0.25f;
     public float EquipSeconds { get; init; } = 0.3f;
 
-    public float CorpseSeconds { get; init; } = 300;
-    public float DroppedItemSeconds { get; init; } = 300;
+    /// <summary>
+    /// How long loose things lie (survival.json's <c>lifetimes</c>, GROUND_SYSTEMS.md §3.7): a bag of dropped items (from
+    /// the newest item put in), a body (a dead player's, a ship's wreck).
+    /// </summary>
+    public LifetimeRule BagLifetime { get; init; } = new(300, LifetimeRestart.Deposit, true);
+
+    public LifetimeRule BodyLifetime { get; init; } = new(300, LifetimeRestart.None, true);
+
+    /// <summary>A dud (a charge whose fuse went out) nobody lights again.</summary>
+    public LifetimeRule DudLifetime { get; init; } = new(600, LifetimeRestart.None, false);
+
+    /// <summary>
+    /// Bags of dropped items (GROUND.md §6.1): what they are called, their slots, and how near a bag (metres) loose
+    /// items must land to go into it rather than into a bag of their own.
+    /// </summary>
+    public string BagName { get; init; } = "Loot bag";
+    public int BagSlots { get; init; } = 48;
+    public float BagMergeRadius { get; init; } = 1.5f;
+    /// <summary>
+    /// The reaches (GROUND_SYSTEMS.md §3.4, survival.json's <c>reach</c>), each from the eye to the target's nearest
+    /// surface (<c>Zone.Reach</c>): picking up and lighting a dud; opening, lighting, doors, locks and the claim device; an
+    /// open container closes beyond <see cref="KeepOpenReach"/>; helping the wounded up; a team invite; a workbench's level.
+    /// </summary>
     public float InteractReach { get; init; } = 3;
-    public float LootReach { get; init; } = 3.5f;
+
+    public float OpenReach { get; init; } = 3.5f;
+
+    public float KeepOpenReach { get; init; } = 4.5f;
+
+    public float HelpReach { get; init; } = 3f;
+
+    public float InviteReach { get; init; } = 6f;
+
+    public float StationReach { get; init; } = 4f;
     public float BeachCooldownSeconds { get; init; }
     public string RespawnKitKey { get; init; } = "respawn-kit";
 
@@ -386,7 +419,6 @@ public sealed class SurvivalTuning
     public float WoundedSecondsMost { get; init; } = 50;
     public float WoundedRecoverChance { get; init; } = 0.2f;
     public float WoundedFedBonus { get; init; } = 0.25f;
-    public float HelpReach { get; init; } = 2.5f;
 
     public float RegionMultiplier(HitRegion region) => region switch
     {
@@ -394,4 +426,22 @@ public sealed class SurvivalTuning
         HitRegion.Limb => LimbMultiplier,
         _ => BodyMultiplier,
     };
+}
+
+/// <summary>What starts a loose thing's time again (GROUND_SYSTEMS.md §3.7).</summary>
+public enum LifetimeRestart : byte
+{
+    None,
+
+    /// <summary>Something put in it (a bag's time runs from its newest item).</summary>
+    Deposit,
+}
+
+/// <summary>
+/// How long a kind of loose thing lies in the world (GROUND_SYSTEMS.md §3.7, survival.json's <c>lifetimes</c>): seconds of
+/// world time (paused while the server is down), what starts it again, and whether it goes at once when emptied.
+/// </summary>
+public sealed record LifetimeRule(float Seconds, LifetimeRestart Restart, bool EndsWhenEmptied)
+{
+    public long Ticks => CharacterTicks.From(Seconds);
 }

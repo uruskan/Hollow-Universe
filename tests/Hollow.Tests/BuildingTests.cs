@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using Hollow.Core;
+using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Physics;
@@ -17,8 +18,11 @@ public static class BuildingTests
 {
     private const ulong Ada = 1, Bo = 2;
 
-    private static readonly Lazy<BuildingData> DataLazy = new(() =>
-        BuildingData.Load(Path.Combine(Fixtures.Root, "game", "data", "ground", "building.json")));
+    // The player's line for an answer (texts.json, GROUND_SYSTEMS.md §3.2).
+    private static string Line(Outcome outcome) => ContentFixture.Content.Texts.Line(outcome);
+
+    // building.json as the game reads it: with its materials linked to their items, for the answers' lines.
+    private static readonly Lazy<BuildingData> DataLazy = new(() => ContentFixture.Content.Building);
 
     private static BuildingData Data => DataLazy.Value;
 
@@ -154,12 +158,12 @@ public static class BuildingTests
         Piece spiral = On(world, First(world, x: 30), Centre, "stairs-spiral");
         Piece landing = On(world, spiral, Top, "floor");
         Fixtures.Report($"foundation {f.StabilityPercent}%, walls {walls.Select(w => w.StabilityPercent).Min()}%, ceiling {ceiling.StabilityPercent}%, " +
-            $"reaching out {string.Join(" ", values.Select(v => v / 10.0 + "%"))}, then {fifth.Outcome.Text}; spiral {spiral.StabilityPercent}%, landing {landing.StabilityPercent}%");
+            $"reaching out {string.Join(" ", values.Select(v => v / 10.0 + "%"))}, then {Line(fifth.Outcome)}; spiral {spiral.StabilityPercent}%, landing {landing.StabilityPercent}%");
         Assert.Equal(1000, f.Stability, "foundation");
         Assert.True(walls.All(w => w.Stability == 1000), "walls keep full stability");
         Assert.Equal(900, ceiling.Stability, "floor on the walls");
         Assert.Equal("900,700,500,300,100", string.Join(",", values), "floors reaching out");
-        Assert.Equal(Refusal.Unstable, fifth.Outcome.Reason, "the next floor can't stand");
+        Assert.Equal(OutcomeCode.Unstable, fifth.Outcome.Code, "the next floor can't stand");
         Assert.Equal(900, spiral.Stability, "spiral on a foundation's centre");
         Assert.Equal(800, landing.Stability, "landing on the spiral");
         Assert.Equal(4, ceiling.Supporters.Count(l => l.Other.Def.Family == PieceFamily.Wall), "the ceiling rests on all four walls");
@@ -257,16 +261,16 @@ public static class BuildingTests
         Assert.True(world.Upgrade(Ada, wall, 2, wallet, eye).Ok, "wood to stone");
         Assert.Near(250, wall.Health, 1e-9, "half health stays half");
         Assert.Equal(700, wallet["stone"], "paid 300 stone");
-        Assert.Equal(Refusal.NotHigherGrade, world.Upgrade(Ada, wall, 1, wallet, eye).Reason, "no downgrade");
-        Assert.Equal(Refusal.NotEnough, world.Upgrade(Ada, wall, 4, wallet, eye).Reason, "no refined metal");
+        Assert.Equal(OutcomeCode.NotHigherGrade, world.Upgrade(Ada, wall, 1, wallet, eye).Code, "no downgrade");
+        Assert.Equal(OutcomeCode.NotEnough, world.Upgrade(Ada, wall, 4, wallet, eye).Code, "no refined metal");
 
         Assert.True(world.Rotate(Ada, wall, eye, now: 599).Ok, "rotate inside the window");
         Assert.Equal(6, wall.Pose.Yaw, "the wall turned its soft side round");
-        Assert.Equal(Refusal.EditWindowOver, world.Rotate(Ada, wall, eye, now: 600.5).Reason, "too late to rotate");
-        Assert.Equal(Refusal.CannotRotate, world.Rotate(Ada, f, eye, now: 1).Reason, "foundations don't rotate");
+        Assert.Equal(OutcomeCode.EditWindowOver, world.Rotate(Ada, wall, eye, now: 600.5).Code, "too late to rotate");
+        Assert.Equal(OutcomeCode.CannotRotate, world.Rotate(Ada, f, eye, now: 1).Code, "foundations don't rotate");
 
         Piece side = On(world, f, Edge(1), "wall", now: 0);
-        Assert.Equal(Refusal.EditWindowOver, world.Demolish(Ada, side, eye, now: 600.001).Reason, "too late to demolish");
+        Assert.Equal(OutcomeCode.EditWindowOver, world.Demolish(Ada, side, eye, now: 600.001).Code, "too late to demolish");
         Piece other = On(world, f, Edge(2), "wall", now: 0);
         Assert.True(world.Demolish(Ada, other, eye, now: 600).Ok, "demolish at exactly 10 minutes");
 
@@ -274,13 +278,13 @@ public static class BuildingTests
         world.Damage(wall, new DamageHit(new Vector3(0, 0, -1), Explosive: 100), now: 1000);
         Assert.Near(400, wall.Health, 1e-9, "damaged to 400");
         Outcome early = world.Repair(Ada, wall, wallet, eye, now: 1010);
-        Assert.Equal(Refusal.RecentlyDamaged, early.Reason, "repair waits");
-        Assert.Equal("Recently damaged: repair in 20 s", early.Text, "and says how long");
+        Assert.Equal(OutcomeCode.RecentlyDamaged, early.Code, "repair waits");
+        Assert.Equal("Recently damaged: repair in 20 s", Line(early), "and says how long");
         int stone = wallet["stone"];
         Assert.True(world.Repair(Ada, wall, wallet, eye, now: 1030).Ok, "repair after 30 s");
         Assert.Near(500, wall.Health, 1e-9, "+100");
         Assert.Equal(12, stone - wallet["stone"], "12 stone (RustMVP)");
-        Assert.Equal(Refusal.FullHealth, world.Repair(Ada, wall, wallet, eye, now: 1031).Reason, "nothing to repair");
+        Assert.Equal(OutcomeCode.FullHealth, world.Repair(Ada, wall, wallet, eye, now: 1031).Code, "nothing to repair");
     }
 
     /// <summary>
@@ -294,15 +298,15 @@ public static class BuildingTests
         Piece f = First(world);
         Assert.Equal(Privilege.None, world.PrivilegeAt(Bo, new Vector3(5, 0, 0)), "no device: anyone builds");
         Assert.True(world.PlaceClaim(Ada, f, new Vector3D(0.5, 0, 0.5), 0, out ClaimDevice? device).Ok, "device placed");
-        Assert.Equal(Refusal.HasClaim, world.PlaceClaim(Ada, f, Vector3D.Zero, 0, out _).Reason, "one per structure");
+        Assert.Equal(OutcomeCode.HasClaim, world.PlaceClaim(Ada, f, Vector3D.Zero, 0, out _).Code, "one per structure");
         Assert.Equal(Privilege.Allowed, world.PrivilegeAt(Ada, new Vector3(5, 0, 0)), "its owner may build");
         Assert.Equal(Privilege.Blocked, world.PrivilegeAt(Bo, new Vector3(5, 0, 0)), "a stranger may not");
 
         PlacementPlan wall = world.FromIntent(P("wall"), f, Edge(0), 0)!;
         var wallet = new Wallet { Endless = true };
         world.Check(wall, Bo, new Vector3(0, 1.6f, 5), wallet);
-        Assert.Equal(Refusal.BuildingBlocked, wall.Outcome.Reason, "Bo's wall is refused");
-        Assert.Equal("Building blocked: someone else's claim", wall.Outcome.Text, "with the reason");
+        Assert.Equal(OutcomeCode.BuildingBlocked, wall.Outcome.Code, "Bo's wall is refused");
+        Assert.Equal("Building blocked: someone else's claim", Line(wall.Outcome), "with the reason");
         Assert.Equal(Privilege.None, world.PrivilegeAt(Bo, new Vector3(60, 0, 0)), "far away is free");
 
         var far = new Vector3(0, 0, -36);
@@ -317,7 +321,7 @@ public static class BuildingTests
         Assert.True(world.Authorise(Bo, device!).Ok, "Bo authorises at the device");
         world.Check(wall, Bo, new Vector3(0, 1.6f, 5), wallet);
         Assert.True(wall.Valid, "now Bo may build: " + wall.Outcome);
-        Assert.Equal(Refusal.NotAuthorised, world.ClearAuthorised(3, device!).Reason, "a stranger can't clear the list");
+        Assert.Equal(OutcomeCode.NotAuthorised, world.ClearAuthorised(3, device!).Code, "a stranger can't clear the list");
         Assert.True(world.ClearAuthorised(Ada, device!).Ok, "Ada clears the list");
         Assert.Equal(Privilege.Blocked, world.PrivilegeAt(Bo, new Vector3(5, 0, 0)), "Bo is blocked again");
         Assert.Equal(Privilege.Blocked, world.PrivilegeAt(Ada, new Vector3(5, 0, 0)), "and so is Ada, until she authorises again");
@@ -400,11 +404,11 @@ public static class BuildingTests
         Piece wall = On(world, f, Edge(2), "wall");
         Vector3 eye = new(0, 1.6f, 4);
         DoorDef wooden = Data.Door("wooden-door")!, doubleDoor = Data.Door("wooden-double-door")!;
-        Assert.Equal(Refusal.WrongOpening, world.PlaceDoor(Ada, doubleDoor, doorway, 0, eye, out _).Reason, "a double door needs a wall frame");
-        Assert.Equal(Refusal.NotAnOpening, world.PlaceDoor(Ada, wooden, wall, 0, eye, out _).Reason, "not in a plain wall");
+        Assert.Equal(OutcomeCode.NeedsWallFrame, world.PlaceDoor(Ada, doubleDoor, doorway, 0, eye, out _).Code, "a double door needs a wall frame");
+        Assert.Equal(OutcomeCode.NotAnOpening, world.PlaceDoor(Ada, wooden, wall, 0, eye, out _).Code, "not in a plain wall");
         Assert.True(world.PlaceDoor(Ada, wooden, doorway, 0, eye, out Door? door).Ok, "door fitted");
         Assert.True(world.PlaceDoor(Ada, doubleDoor, frame, 1, eye, out Door? wide).Ok, "double door fitted, turned round");
-        Assert.Equal(Refusal.HasDoor, world.PlaceDoor(Ada, wooden, doorway, 0, eye, out _).Reason, "one door per opening");
+        Assert.Equal(OutcomeCode.HasDoor, world.PlaceDoor(Ada, wooden, doorway, 0, eye, out _).Code, "one door per opening");
 
         (Vector3 _, Quaternion shut) = door!.Leaf(0, open: false);
         (Vector3 _, Quaternion open) = door.Leaf(0, open: true);
@@ -416,27 +420,27 @@ public static class BuildingTests
 
         Assert.True(world.AttachKeyLock(Ada, door, out KeyLock? key).Ok, "key lock fitted");
         Assert.True(world.SetLocked(Ada, door, true).Ok, "Ada locks it");
-        Assert.Equal(Refusal.Locked, world.Toggle(Bo, door).Reason, "Bo is locked out");
+        Assert.Equal(OutcomeCode.Locked, world.Toggle(Bo, door).Code, "Bo is locked out");
         Assert.True(world.Toggle(Bo, door, new[] { key!.KeyCode }).Ok, "with the key Bo gets in");
         Assert.True(key.Locked, "and it stays locked");
         Assert.True(world.Toggle(Ada, door).Ok, "its owner needs no key");
-        Assert.Equal(Refusal.Locked, world.Toggle(Bo, door, new[] { key.KeyCode + 1 }).Reason, "another lock's key doesn't fit");
-        Assert.Equal(Refusal.UnlockItFirst, world.RemoveLock(Ada, door).Reason, "unlock before taking it off");
+        Assert.Equal(OutcomeCode.Locked, world.Toggle(Bo, door, new[] { key.KeyCode + 1 }).Code, "another lock's key doesn't fit");
+        Assert.Equal(OutcomeCode.UnlockItFirst, world.RemoveLock(Ada, door).Code, "unlock before taking it off");
         world.SetLocked(Ada, door, false);
         Assert.True(world.RemoveLock(Ada, door).Ok, "key lock off");
 
         Assert.True(world.AttachCodeLock(Ada, door, out CodeLock? code).Ok, "code lock fitted");
-        Assert.Equal(Refusal.NoCode, world.SetLocked(Ada, door, true).Reason, "no code yet");
-        Assert.Equal(Refusal.BadCode, world.SetCode(Ada, door, "12a4").Reason, "four digits");
+        Assert.Equal(OutcomeCode.NoCode, world.SetLocked(Ada, door, true).Code, "no code yet");
+        Assert.Equal(OutcomeCode.BadCode, world.SetCode(Ada, door, "12a4").Code, "four digits");
         Assert.True(world.SetCode(Ada, door, "1234").Ok && code!.Locked, "setting the code locks it");
-        Assert.Equal(Refusal.Locked, world.Toggle(Bo, door).Reason, "Bo is locked out");
-        Assert.Equal(Refusal.WrongCode, world.EnterCode(Bo, door, "0000", now: 10).Reason, "a wrong code");
+        Assert.Equal(OutcomeCode.Locked, world.Toggle(Bo, door).Code, "Bo is locked out");
+        Assert.Equal(OutcomeCode.WrongCode, world.EnterCode(Bo, door, "0000", now: 10).Code, "a wrong code");
         Outcome wait = world.EnterCode(Bo, door, "1234", now: 10.5);
-        Assert.Equal(Refusal.WaitForCode, wait.Reason, "then a wait: " + wait.Text);
+        Assert.Equal(OutcomeCode.WaitForCode, wait.Code, "then a wait: " + Line(wait));
         Assert.True(world.EnterCode(Bo, door, "1234", now: 11).Ok, "the right code after the wait");
         Assert.True(world.Toggle(Bo, door).Ok, "Bo is authorised now");
-        Assert.True(world.SetCode(Bo, door, "9999").Reason == Refusal.UnlockItFirst, "changing the code needs it unlocked");
-        Assert.True(world.PickUpDoor(Ada, wide!).Reason == Refusal.OpenItFirst, "a shut door can't be picked up");
+        Assert.True(world.SetCode(Bo, door, "9999").Code == OutcomeCode.UnlockItFirst, "changing the code needs it unlocked");
+        Assert.True(world.PickUpDoor(Ada, wide!).Code == OutcomeCode.OpenItFirst, "a shut door can't be picked up");
         world.Toggle(Ada, wide!);
         Assert.True(world.PickUpDoor(Ada, wide!).Ok && frame.Door == null, "open, with no lock: picked up");
 
@@ -543,13 +547,13 @@ public static class BuildingTests
         world.Characters = () => players;
         var wallet = new Wallet { ["wood"] = 10_000 };
         var refusals = new List<string>();
-        void Expect(Refusal reason, PlacementPlan? plan, Vector3 eye, IBuildingWallet? purse = null)
+        void Expect(OutcomeCode reason, PlacementPlan? plan, Vector3 eye, IBuildingWallet? purse = null)
         {
             Assert.True(plan != null, $"a plan for {reason}");
             world.Check(plan!, Ada, eye, purse ?? wallet);
-            Assert.Equal(reason, plan!.Outcome.Reason, $"{plan.Piece.Key}: {plan.Outcome.Text}");
-            Assert.True(plan.Outcome.Text.Length > 0, "a line for the player");
-            refusals.Add(plan.Outcome.Text);
+            Assert.Equal(reason, plan!.Outcome.Code, $"{plan.Piece.Key}: {Line(plan.Outcome)}");
+            Assert.True(Line(plan.Outcome).Length > 0, "a line for the player");
+            refusals.Add(Line(plan.Outcome));
         }
 
         // A free foundation where the player looks, 3 m ahead on the flat.
@@ -569,42 +573,105 @@ public static class BuildingTests
         Assert.True(wallPlan != null && wallPlan.Valid && wallPlan.Socket == Edge(1), "the wall snaps to the edge aimed at: " + wallPlan);
         world.Place(wallPlan!, Ada, eye, wallet, now: 1, out Piece? eastWall);
 
-        Expect(Refusal.Occupied, world.FromIntent(P("wall"), f, Edge(1), 1), eye);
-        Expect(Refusal.TooFar, world.FromIntent(P("wall"), f, Edge(3), 0), fPosition + new Vector3(-20, 1.6f, 0));
+        Expect(OutcomeCode.Occupied, world.FromIntent(P("wall"), f, Edge(1), 1), eye);
+        Expect(OutcomeCode.OutOfReach, world.FromIntent(P("wall"), f, Edge(3), 0), fPosition + new Vector3(-20, 1.6f, 0));
         Vector3 behind = fPosition + new Vector3(4.5f, 1.6f, 0);
-        Expect(Refusal.OutOfSight, world.FromIntent(P("wall"), f, Edge(3), 0), behind);
+        Expect(OutcomeCode.OutOfSight, world.FromIntent(P("wall"), f, Edge(3), 0), behind);
 
         // East of x = 12 the ground drops 3 m: a foundation there would float; one half a storey down on the flat would be buried.
         Piece f2 = world.Add(f.Structure, P("foundation"), 0, world.FromIntent(P("foundation"), f, Facing(f, -1, 0), 0)!.Pose, Ada, 2);
         Piece east1 = world.Add(f.Structure, P("foundation"), 0, world.FromIntent(P("foundation"), f, Facing(f, 1, 0), 0)!.Pose, Ada, 2);
         PlacementPlan? overCliff = world.FromIntent(P("foundation"), east1, Facing(east1, 1, 0), 0);
-        Expect(Refusal.Floating, overCliff, ZoneOf(overCliff!) + new Vector3(-3, 1.6f, 0));
+        Expect(OutcomeCode.Floating, overCliff, ZoneOf(overCliff!) + new Vector3(-3, 1.6f, 0));
         PlacementPlan? sunk = world.FromIntent(P("foundation"), f2, new SocketId(SocketKind.EdgeDown, Facing(f2, 0, -1).Edge), 0);
-        Expect(Refusal.Buried, sunk, ZoneOf(sunk!) + new Vector3(0, 3, -3));
+        Expect(OutcomeCode.Buried, sunk, ZoneOf(sunk!) + new Vector3(0, 3, -3));
 
         // A floor out from a foundation's edge lies in the ground; a foundation of another frame overlapping this one cuts into it.
         PlacementPlan? lowFloor = world.FromIntent(P("floor"), f2, Facing(f2, 0, 1), 0);
-        Expect(Refusal.HitsGround, lowFloor, ZoneOf(lowFloor!) + new Vector3(0, 1.6f, 3));
+        Expect(OutcomeCode.HitsGround, lowFloor, ZoneOf(lowFloor!) + new Vector3(0, 1.6f, 3));
         var skew = new PlacementPlan
         {
             Piece = P("foundation"),
             Frame = BuildingFrame.At(new Vector3D(fPosition.X + 1.5, fPosition.Y, fPosition.Z - 1.5), Vector3D.UnitY, 0.4),
             Pose = new Pose(Vector3D.Zero, 0),
         };
-        Expect(Refusal.HitsPiece, skew, eye);
+        Expect(OutcomeCode.HitsPiece, skew, eye);
 
         // Someone standing on the edge where a wall would go.
         PlacementPlan? southWall = world.FromIntent(P("wall"), f, Edge(0), 0);
         players.Add(new Capsule(ZoneOf(southWall!) + new Vector3(0, 0.05f, -0.2f), Vector3.UnitY, 0.32f, 1.76f));
-        Expect(Refusal.PlayerInTheWay, southWall, eye);
+        Expect(OutcomeCode.PlayerInTheWay, southWall, eye);
         players.Clear();
-        Expect(Refusal.NotEnough, southWall, eye, new Wallet());
-        Assert.Equal("Not enough wood", southWall!.Outcome.Text, "names the material");
+        Expect(OutcomeCode.NotEnough, southWall, eye, new Wallet());
+        Assert.Equal("Not enough wood", Line(southWall!.Outcome), "names the material");
         world.Check(southWall, Ada, eye, wallet);
         Assert.True(southWall.Valid, "with the player gone and wood paid, the wall fits: " + southWall.Outcome);
         Assert.True(world.Plan(Ada, P("wall"), eye, new Vector3(0, 1, 0), 0, wallet, now: 3) == null, "a wall aimed at the sky: nothing to place");
         Fixtures.Report(string.Join(" | ", refusals));
         Assert.Equal(eastWall!.Body != 0, true, "pieces have bodies");
+    }
+
+    /// <summary>A ground that rises <c>slope</c> metres a metre eastward (in the zone's frame at 0°, 0°), level north and south.</summary>
+    private sealed class RampSurface : ISurface
+    {
+        private readonly ZoneFrame _frame;
+        private readonly double _slope;
+
+        public RampSurface(double radius, double slope)
+        {
+            Radius = radius;
+            _slope = slope;
+            _frame = new ZoneFrame(ZoneFrame.Direction(0, 0) * radius);
+        }
+
+        public double Radius { get; }
+
+        public double SeaRadius => 0;
+
+        public double HeightAt(Vector3D direction) => _frame.ToLocal(direction * Radius).X * _slope;
+
+        public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
+            SphereSurface.GridCollision(this, frame, centreX, centreZ, size, spacing: 1.0);
+    }
+
+    /// <summary>
+    /// RustMVP's free foundation on a slope: aimed at the ground within 3.5 m it sits as low as the ground under its corners
+    /// allows; aimed further it stays 3.5 m out and the aim's height there lifts its top, up to its depth above the lowest
+    /// ground, always valid. The server's recomputation from the plan's point gives the same foundation.
+    /// </summary>
+    [Test]
+    public static void FreeFoundationRisesWithTheAim()
+    {
+        const double slope = 0.08;
+        var surface = new RampSurface(6_435_000, slope);
+        ZoneFrame zone = ZoneFrame.At(surface, 0, 0);
+        using var physics = new PhysicsWorld(surface, zone);
+        physics.EnsureGround(Vector3.Zero, 1);
+        ulong next = 0;
+        using var world = new BuildingWorld(Data, physics, () => new EntityId(++next));
+        var wallet = new Wallet { ["wood"] = 10_000 };
+        // Standing where the ground is at zero height, looking north along the level line of the slope.
+        Vector3 eye = new(0, 1.6f, 4);
+        double rise = slope * Data.Width / 2, clearance = Data.FoundationClearance, depth = Data.FoundationDepth;
+        double lowest = rise + clearance, highest = depth - rise;
+        double Top(Vector3 aim, string what)
+        {
+            PlacementPlan? plan = world.Plan(Ada, P("foundation"), eye, aim, 0, wallet, now: 0);
+            Assert.True(plan != null && plan.Support == null && plan.Valid, $"{what}: a valid free foundation, not {plan}");
+            PlacementPlan again = world.FoundationAt(P("foundation"), plan!.Point, plan.HeadingSteps * BuildingWorld.HeadingStep)!;
+            Assert.True(again.Frame.Equals(plan.Frame), $"{what}: the server's foundation from the plan's point is the ghost's");
+            double top = plan.Frame.Origin.Y;
+            Fixtures.Report($"{what}: top {top:0.000} m over the ground at its centre");
+            return top;
+        }
+
+        // At the ground 3 m ahead: as low as the uphill corners allow.
+        Assert.InRange(lowest, lowest + 0.03, Top(new Vector3(0, -1.6f, -3), "aimed at the ground"), "the lowest top the slope allows");
+        // A little higher: 3.5 m out, the aim 0.5 m over the ground there.
+        Assert.Near(0.5 + clearance, Top(new Vector3(0, -1.1f, -3.5f), "aimed a little higher"), 0.01, "the top follows the aim");
+        // Higher still, and at the sky: held at the depth over the downhill corners.
+        Assert.InRange(highest - 0.03, highest, Top(new Vector3(0, -0.3f, -3.5f), "aimed higher"), "the top stops at the foundation's depth");
+        Assert.InRange(highest - 0.03, highest, Top(new Vector3(0, 0.5f, -3.5f), "aimed at the sky"), "the same at the sky");
     }
 
     private static Vector3 BuildingWorld_F(Vector3D v) => new((float)v.X, (float)v.Y, (float)v.Z);

@@ -5,14 +5,33 @@ using Hollow.Net.Protocol;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Physics;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Client;
 
-/// <summary>What a client knows of a door beyond its geometry: its lock and whether this player may pass it.</summary>
-public readonly record struct DoorState(LockKind Lock, bool Locked, bool CanUse);
+/// <summary>
+/// What a client knows of a door beyond its geometry: its lock, and what the server tells this player of it
+/// (GROUND_SYSTEMS.md §3.3): whether they may pass it, whether it is locked, whether its code lock has a code and lists them,
+/// whether it is theirs (they fitted its lock, or the door when it has none).
+/// </summary>
+public readonly record struct DoorState(LockKind Lock, ViewerFlags Flags)
+{
+    public bool Locked => (Flags & ViewerFlags.Locked) != 0;
 
-/// <summary>What a client knows of a claim device: whether this player is on its list, and how long its store keeps the base.</summary>
-public readonly record struct ClaimState(bool Authorised, double ProtectedHours);
+    public bool CanUse => (Flags & ViewerFlags.CanUse) != 0;
+
+    public bool HasCode => (Flags & ViewerFlags.HasCode) != 0;
+
+    public bool Authorised => (Flags & ViewerFlags.Authorised) != 0;
+
+    public bool Mine => (Flags & ViewerFlags.Mine) != 0;
+}
+
+/// <summary>What a client knows of a claim device: what the server tells this player of it (on its list, theirs), and how long its store keeps the base.</summary>
+public readonly record struct ClaimState(ViewerFlags Flags, double ProtectedHours)
+{
+    public bool Authorised => (Flags & ViewerFlags.Authorised) != 0;
+}
 
 /// <summary>
 /// A client's copy of the server's building (GROUND.md §6.3, phase 2): a <see cref="BuildingWorld"/> in mirror mode
@@ -157,8 +176,9 @@ public sealed class BuildingReplica : IDisposable
             {
                 continue;
             }
-            World.ApplyLock(door, d.Lock, new EntityId(d.LockId), d.Locked);
-            _doors[id] = new DoorState(d.Lock, d.Locked, d.CanUse);
+            var state = new DoorState(d.Lock, d.Flags);
+            World.ApplyLock(door, d.Lock, new EntityId(d.LockId), state.Locked);
+            _doors[id] = state;
         }
     }
 
@@ -170,18 +190,19 @@ public sealed class BuildingReplica : IDisposable
             var id = new EntityId(c.Id);
             double health = c.Health / 65535.0 * World.Data.ClaimHealth;
             ClaimDevice? device = World.ClaimOf(id);
+            var state = new ClaimState(c.Flags, c.ProtectedMinutes == uint.MaxValue ? double.PositiveInfinity : c.ProtectedMinutes / 60.0);
             if (device != null)
             {
-                World.Apply(device, health, me, c.Authorised);
+                World.Apply(device, health, me, state.Authorised);
             }
             else if (World.PieceOf(new EntityId(c.Support)) is { } support && double.IsFinite(c.X) && double.IsFinite(c.Y) && double.IsFinite(c.Z))
             {
                 device = World.RestoreClaim(id, 0, support, new Vector3D(c.X, c.Y, c.Z), c.Yaw, health,
-                    c.Authorised ? new[] { me } : Array.Empty<ulong>(), c.Body);
+                    state.Authorised ? new[] { me } : Array.Empty<ulong>(), c.Body);
             }
             if (device != null)
             {
-                _claims[id] = new ClaimState(c.Authorised, c.ProtectedMinutes == uint.MaxValue ? double.PositiveInfinity : c.ProtectedMinutes / 60.0);
+                _claims[id] = state;
             }
         }
     }

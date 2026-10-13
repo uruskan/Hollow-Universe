@@ -37,6 +37,28 @@ public sealed class HeldItemModel
 
     /// <summary>Swung like a hatchet: held by a handle at the hip, head forward (tools and blades).</summary>
     public bool Swung => Kind == HeldKind.Tool && Class is "tool" or "blade" && Id != "building-plan" && !LeftHanded;
+
+    /// <summary>
+    /// Placed in first person by its handle at the hip: a swung tool held by a handle. One whose catalogue entry gives a
+    /// grip of its own (a rock, in the palm) sits where its first-person pose puts that grip, as unswung items do.
+    /// </summary>
+    public bool HeldByHandle => Swung && Entry.Held?.Grip == null;
+
+    /// <summary>
+    /// How the first-person right hand's fingers sit: on a gun's grip, the trigger finger out; open under what a
+    /// catalogue grip of radius 0 lays on the palm (food); else closed round it (a handle, a rock).
+    /// </summary>
+    public HandPoses.Grip Fingers => Kind is HeldKind.Pistol or HeldKind.Rifle ? HandPoses.Grip.Pistol
+        : Entry.Held?.Grip is { Radius: <= 0f } ? HandPoses.Grip.Relaxed : HandPoses.Grip.Fist;
+
+    /// <summary>The radius the right hand's fingers close round: the catalogue's grip (a rock's girth), else a handle's.</summary>
+    public float GripRadius => Entry.Held?.Grip is { Radius: > 0f } grip ? grip.Radius : HandPoses.DefaultRadius(Fingers);
+
+    /// <summary>How far out from the palm what is held sits: the catalogue's seat, else its radius (a handle's 1.8 cm).</summary>
+    public float GripSeat => Entry.Held?.Grip is { } grip ? grip.Seat ?? Math.Max(grip.Radius, 0f) : HandPoses.HandleSeat;
+
+    /// <summary>Where a first-person swing turns about, from the grip (camera space): the hand, or the catalogue's pivot.</summary>
+    public Vector3 SwingPivot => Entry.Held?.Grip?.Pivot ?? Vector3.Zero;
 }
 
 /// <summary>
@@ -114,6 +136,44 @@ public static class HeldItems
 
     public static bool HasSocket(Node3D item, string name) => item.FindChild("socket_" + name, true, false) != null;
 
+    /// <summary>
+    /// Where and how the holding hand closes on an item (item space): a frame in the grip frame's terms (fingers along
+    /// X, thumb along Y; <see cref="HandFrame"/>) whose origin is on the axis the fingers close round (or, for an open
+    /// hand, the item's middle). From the catalogue's grip (<see cref="GripInfo"/>: a rock's, food's), else the palm
+    /// socket's own frame (a handle's).
+    /// </summary>
+    public static Transform3D Grip(Node3D item, HeldItemModel model)
+    {
+        if (model.Entry.Held?.Grip is not { } grip)
+        {
+            return Socket(item, model.LeftHanded ? "grip_l" : "grip_r");
+        }
+        Vector3 fingers = grip.Fingers.Normalized();
+        Vector3 thumb = (grip.Thumb - fingers * grip.Thumb.Dot(fingers)).Normalized();
+        return new Transform3D(new Basis(fingers, thumb, fingers.Cross(thumb)), grip.At ?? Middle(item));
+    }
+
+    // The middle of an item's most detailed meshes (item space).
+    private static Vector3 Middle(Node3D item)
+    {
+        Aabb? box = null;
+        foreach (MeshInstance3D mesh in ModelCatalog.Meshes(item))
+        {
+            if (!mesh.Name.ToString().EndsWith("_lod0", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            Transform3D t = Transform3D.Identity;
+            for (Node3D? n = mesh; n != null && n != item; n = n.GetParent() as Node3D)
+            {
+                t = n.Transform * t;
+            }
+            Aabb b = t * mesh.GetAabb();
+            box = box is { } a ? a.Merge(b) : b;
+        }
+        return box?.GetCenter() ?? Vector3.Zero;
+    }
+
     private static void Load()
     {
         if (_all != null)
@@ -135,12 +195,13 @@ public static class HeldItems
                 Name = items.TryGetValue(entry.Key, out var data) ? data.Name : NameFromKey(entry.Key),
                 SwingTime = data.Swing > 0f ? data.Swing : 0.85f,
                 StrikeTime = data.Strike > 0f ? data.Strike : 0.3f,
-                Kind = entry.Class == "gun" ? (entry.Key == "pistol" ? HeldKind.Pistol : HeldKind.Rifle) : HeldKind.Tool,
+                // The arms' pose is the catalogue's (held.pose: pistol or rifle), a tool's by default.
+                Kind = Enum.TryParse(entry.Held.Pose, ignoreCase: true, out HeldKind pose) ? pose : HeldKind.Tool,
                 Class = entry.Class,
                 Entry = entry,
                 // A rifle's eye socket sits at the cheek weld, where the stock fills the bottom of a first-person
-                // view; the camera goes closer to the rear sight instead.
-                EyeRelief = entry.Class == "gun" && entry.Key != "pistol" ? 0.11f : 0f,
+                // view; the catalogue's eye relief puts the camera closer to the rear sight instead.
+                EyeRelief = entry.Held.EyeRelief,
             };
             _all.Add(model);
             _byId[model.Id] = model;

@@ -83,7 +83,7 @@ public sealed class BuildBrain
         if (!_subscribed)
         {
             _subscribed = true;
-            me.BuildAnswered += a =>
+            me.IntentAnswered += a =>
             {
                 if (a.Seq == _waiting)
                 {
@@ -283,8 +283,11 @@ public sealed class BuildBrain
     private static bool SiteWorks(GameClient client, Vector3 site, out PlacementPlan? plan)
     {
         BuildingWorld building = client.Building!;
-        // The ground is looked for from the height of the bot's feet (the plot's own height is unknown).
+        // On the plot's ground, looked for from above the bot's feet (the plot's own height is unknown), so the
+        // foundation's top is the lowest the ground allows: a point above the ground lifts it, as a raised aim does.
         site.Y = client.Character.Position.Y;
+        Vector3 up = client.Frame.UpAt(site);
+        site = client.AimGround(site + up * 6, -up, 14) ?? site;
         plan = building.FoundationAt(client.Content.Building.Piece("foundation")!, site, 0);
         if (plan == null)
         {

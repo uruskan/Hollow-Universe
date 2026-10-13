@@ -17,6 +17,7 @@ using HollowUniverse.Common;
 using HollowUniverse.Fx;
 using HollowUniverse.Surface;
 using Num = System.Numerics;
+using Hollow.Simulation.Targets;
 
 namespace HollowUniverse.Animals;
 
@@ -275,7 +276,7 @@ public partial class AnimalSandbox : Node3D
         _zone.Step();
         foreach (ZoneEvent e in _zone.GameEvents)
         {
-            if (e.Kind == ZoneEventKind.HitConfirmed && e.Target == HitTarget.Animal && _audio != null)
+            if (e.Kind == ZoneEventKind.HitConfirmed && e.Target.Family == TargetFamily.Animal && _audio != null)
             {
                 _audio.Play("melee.hit.flesh", ToRender(e.Position));
             }

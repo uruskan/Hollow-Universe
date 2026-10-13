@@ -84,6 +84,14 @@ public struct CharacterFrame
     /// <summary>View pitch, radians; positive looks up.</summary>
     public float Pitch;
 
+    /// <summary>
+    /// Free look (Alt): where the head looks from the view, radians (yaw about <see cref="Up"/>, to the left; pitch up).
+    /// Only the neck and head follow it, easing there and back; the body, the arms and what they hold keep to the view.
+    /// </summary>
+    public float LookYaw;
+
+    public float LookPitch;
+
     /// <summary>Metres per second.</summary>
     public Vector3 Velocity;
 

@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using Hollow.Client;
 using Hollow.Core;
+using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
@@ -18,16 +19,14 @@ namespace HollowUniverse.Ground;
 /// Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's
 /// <see cref="BuildingRenderer"/> (batched per piece kind, grade and chunk), the plan's ghost from
 /// <see cref="GameClient.PlanPiece"/> (green, or red with the reason), the lines under the crosshair and the held tool's
-/// keys (<see cref="BuildHud"/>), the plan's and the hammer's wheels, and what the held tool does: place a piece, repair,
+/// keys (<see cref="BuildHud"/>), the plan's and the hammer's radials, and what the held tool does: place a piece, repair,
 /// upgrade, rotate or demolish one, fit a door or a lock, place the claim device. Doors open and shut with E; a code lock
 /// asks for its code (<see cref="Keypad"/>); held E on a door or the claim device offers its options (lock, change the
-/// code, cut a key, authorise, clear the list, pick up). Pieces placed, upgraded, demolished and collapsing, and doors,
-/// sound and show (the effects library).
+/// code, cut a key, authorise, clear the list, pick up). Pieces placed and upgraded, and doors, sound and show (the
+/// effects library); pieces broken, brought down or demolished break apart through the gibs (<see cref="GibsView"/>).
 /// </summary>
-public partial class BuildView : Node3D
+public partial class BuildView : Node3D, IHammerActions
 {
-    private const float DoorReach = 3.5f;
-
     private BuildingAssets? _assets;
     private BuildingRenderer? _renderer;
     private BuildGhost? _ghost;
@@ -42,6 +41,9 @@ public partial class BuildView : Node3D
     private object? _target;
     private RayHit _hit;
     private Num.Vector3 _eye, _forward;
+    private ItemWallet? _wallet;
+    private PlanRadial? _planRadial;
+    private IRadialSource? _hammer;
 
     public GameClient Client { get; set; } = null!;
 
@@ -52,7 +54,17 @@ public partial class BuildView : Node3D
     public Action<string>? Say { get; set; }
 
     /// <summary>The plan's chosen piece (an index into the building data's wheel).</summary>
-    public int PlanPiece { get; set; }
+    public int PlanPiece
+    {
+        get => Plan.Piece;
+        set => Plan.Piece = value;
+    }
+
+    /// <summary>The building plan's radial: its pieces, and the one chosen.</summary>
+    public PlanRadial Plan => _planRadial ??= NewPlan();
+
+    /// <summary>The hammer's radial: upgrade, turn or demolish the piece aimed at.</summary>
+    public IRadialSource HammerRadial => _hammer ??= BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this);
 
     /// <summary>What the held item does in building (none: not a building tool).</summary>
     public BuildingRole Held { get; private set; }
@@ -61,6 +73,9 @@ public partial class BuildView : Node3D
     public object? Interactable { get; private set; }
 
     private BuildingData Data => Client.Content.Building;
+
+    // The player's line for an answer (texts.json).
+    private string Line(Outcome outcome) => Client.Content.Texts.Line(outcome);
 
     /// <summary>Every frame, after the camera: the building drawn, the ghost and the lines for the held tool.</summary>
     public void Refresh(double delta, Num.Vector3 eye, Num.Vector3 forward)
@@ -74,7 +89,8 @@ public partial class BuildView : Node3D
             return;
         }
         _target = _world.Target(eye, forward, (float)Data.Reach, out _hit);
-        Interactable = _target is Door or ClaimDevice && _hit.Distance < DoorReach ? _target : null;
+        // Doors and the claim device are opened within survival.json's reach.open, as the server checks.
+        Interactable = _target is Door or ClaimDevice && _hit.Distance < Client.Content.Survival.OpenReach ? _target : null;
         LocalPlayer me = Client.Local;
         ItemDef? item = me.IsDead ? null : me.HeldItem;
         Held = item?.Building ?? BuildingRole.None;
@@ -206,8 +222,8 @@ public partial class BuildView : Node3D
         }
     }
 
-    // What happens to the building sounds and shows: a piece placed (once the world is in), upgraded, demolished or
-    // collapsing; a door opened or shut.
+    // What happens to the building sounds and shows: a piece placed (once the world is in) or upgraded; a door opened or
+    // shut. (What breaks is the gibs' own path, GibsView.)
     private void OnChanged(BuildingEvent e)
     {
         bool near(Num.Vector3 at) => Num.Vector3.Distance(at, Client.Character.Position) < 60;
@@ -236,22 +252,8 @@ public partial class BuildView : Node3D
                 break;
             }
             case BuildingChange.PieceRemoved when e.Piece is { } removed:
-            {
                 _grades.Remove(removed);
-                (Num.Vector3 at, _) = removed.ZoneTransform;
-                if (!near(at))
-                {
-                    break;
-                }
-                bool fell = removed.Collapsing || removed.Health <= 0;
-                Sounds.At(fell ? "build.collapse" : "build.demolish", GroundView.ToGodot(at));
-                FxDirector.Play("world.collapse", GroundView.ToGodot(at), Up(at), new FxParams
-                {
-                    Area = HalfSize(removed),
-                    Tint = GradeTint(removed.Grade),
-                });
                 break;
-            }
             case BuildingChange.DoorAdded when e.Door is { } fitted:
                 _open[fitted] = fitted.Open;
                 break;
@@ -287,14 +289,6 @@ public partial class BuildView : Node3D
     private Vector3 HalfSize(Piece piece) => piece.Def.IsSlab
         ? new Vector3(1.5f, 0.15f, 1.5f)
         : new Vector3(1.5f, (float)piece.Def.Height / 2, 0.15f);
-
-    private static Color GradeTint(int grade) => grade switch
-    {
-        0 => new Color(0.75f, 0.62f, 0.42f),
-        1 => new Color(0.62f, 0.48f, 0.32f),
-        2 => new Color(0.62f, 0.6f, 0.56f),
-        _ => new Color(0.48f, 0.5f, 0.52f),
-    };
 
     // Placements not yet answered, drawn where they will stand.
     private void DrawPending()
@@ -333,7 +327,23 @@ public partial class BuildView : Node3D
 
     // ---------------------------------------------------------------- the held tool
 
-    private PieceDef ChosenPiece => Data.Wheel[Math.Clamp(PlanPiece, 0, Data.Wheel.Count - 1)];
+    private PieceDef ChosenPiece => Plan.Chosen;
+
+    // What the player carries, counted as the building rules count it.
+    private ItemWallet Wallet => _wallet ??= new ItemWallet(Client.Content, Client.Local.Inventory.Carried);
+
+    private PlanRadial NewPlan()
+    {
+        var plan = new PlanRadial(Data, Wallet);
+        plan.Changed += () => _turns = 0;
+        return plan;
+    }
+
+    void IHammerActions.Upgrade(Piece piece, int grade) => Client.Local.Upgrade(piece, grade);
+
+    void IHammerActions.Rotate(Piece piece) => Client.Local.Rotate(piece);
+
+    void IHammerActions.Demolish(Piece piece) => Client.Local.Demolish(piece);
 
     private void AimPlan()
     {
@@ -343,12 +353,12 @@ public partial class BuildView : Node3D
         Hud.Line = $"{piece.Name.ToUpperInvariant()}  ·  {Data.CostOf(piece, 0)} {Data.MaterialName(twig.Material).ToUpperInvariant()} ({Owned(twig.Material):N0})";
         if (_plan == null)
         {
-            Hud.Reason = Outcome.DefaultText(Refusal.NoSocket);
+            Hud.Reason = Line(OutcomeCode.NoSocket);
             Hud.ReasonIsWarning = false;
         }
         else if (!_plan.Valid)
         {
-            Hud.Reason = _plan.Outcome.Text;
+            Hud.Reason = Line(_plan.Outcome);
             Hud.ReasonIsWarning = true;
         }
         else
@@ -359,7 +369,7 @@ public partial class BuildView : Node3D
         Hud.Hints = "LMB BUILD   ·   HOLD RMB SELECT PIECE   ·   R ROTATE";
     }
 
-    private int Owned(string material) => Client.Content.Item(material) is { } def ? Client.Local.Inventory.Count(def) : 0;
+    private int Owned(string material) => Wallet.Count(material);
 
     private string TargetLine(object target) => target switch
     {
@@ -375,69 +385,6 @@ public partial class BuildView : Node3D
     {
         double hours = Client.BuildingReplica?.StateOf(claim).ProtectedHours ?? 0;
         return double.IsInfinity(hours) ? "FOREVER" : hours < 1 ? $"{hours * 60:0} MIN" : $"{hours:0.#} H";
-    }
-
-    /// <summary>The plan's wheel: every piece with its cost in twig and what the player has.</summary>
-    public IReadOnlyList<WheelChoice> PlanChoices()
-    {
-        GradeDef twig = Data.Grades[0];
-        int owned = Owned(twig.Material);
-        string material = Data.MaterialName(twig.Material).ToUpperInvariant();
-        return Data.Wheel.Select(p =>
-        {
-            int cost = Data.CostOf(p, 0);
-            return new WheelChoice(p.Id, p.Name, p.Description, $"{cost} x {material} ({owned:N0})",
-                owned < cost ? $"Not enough {material.ToLowerInvariant()}" : null);
-        }).ToArray();
-    }
-
-    /// <summary>The hammer's wheel for the piece aimed at: upgrade to each grade, rotate, demolish.</summary>
-    public IReadOnlyList<WheelChoice> HammerChoices()
-    {
-        Piece? piece = _target as Piece;
-        var choices = new List<WheelChoice>();
-        const string strength = "Improve this piece's strength";
-        for (int grade = 1; grade < Data.Grades.Count; grade++)
-        {
-            GradeDef g = Data.Grades[grade];
-            string? reason = piece == null ? "Aim at a building piece" : piece.Grade >= grade ? "Already at this grade or stronger" : null;
-            string? cost = piece == null ? null : $"{Data.CostOf(piece.Def, grade)} x {Data.MaterialName(g.Material).ToUpperInvariant()} ({Owned(g.Material):N0})";
-            choices.Add(new WheelChoice(99 + grade, $"UPGRADE TO {g.Name.ToUpperInvariant()}", strength, cost, reason));
-        }
-        bool late = piece != null && Client.ClockSeconds - piece.PlacedAt > Data.EditWindow;
-        choices.Add(new WheelChoice(104, "ROTATE", "Turn this piece around",
-            Reason: piece == null ? "Aim at a building piece" : piece.Def.RotateSteps == 0 ? "This piece can't be rotated" : late ? "The 10 minutes are over" : null));
-        choices.Add(new WheelChoice(105, "DEMOLISH", "Remove this piece and unsupported pieces",
-            Reason: piece == null ? "Aim at a building piece" : late ? "The 10 minutes are over" : null));
-        return choices;
-    }
-
-    /// <summary>A sector chosen on the plan's or the hammer's wheel.</summary>
-    public void ChooseWheel(WheelKind kind, int index)
-    {
-        if (kind == WheelKind.Plan)
-        {
-            PlanPiece = index;
-            _turns = 0;
-            return;
-        }
-        if (_target is not Piece piece)
-        {
-            return;
-        }
-        int grades = Data.Grades.Count - 1;
-        if (index < grades)
-        {
-            Client.Local.Upgrade(piece, index + 1);
-        }
-        else if (index == grades)
-        {
-            Client.Local.Rotate(piece);
-        }
-        else
-        {
-            Client.Local.Demolish(piece);
-        }
     }
 
     /// <summary>R: the next turn of the piece, or a door the other way round.</summary>
@@ -458,7 +405,7 @@ public partial class BuildView : Node3D
                 me.PlacePiece(_plan);
                 break;
             case BuildingRole.Plan:
-                Say?.Invoke(_plan?.Outcome.Text ?? Outcome.DefaultText(Refusal.NoSocket));
+                Say?.Invoke(Line(_plan?.Outcome ?? OutcomeCode.NoSocket));
                 break;
             case BuildingRole.Hammer when _target is Piece piece:
                 me.Repair(piece);
@@ -470,7 +417,7 @@ public partial class BuildView : Node3D
                 }
                 else
                 {
-                    Say?.Invoke(Outcome.DefaultText(Refusal.NotAnOpening));
+                    Say?.Invoke(Line(OutcomeCode.NotAnOpening));
                 }
                 break;
             case BuildingRole.KeyLock or BuildingRole.CodeLock when _target is Door door:
@@ -582,29 +529,38 @@ public partial class BuildView : Node3D
         {
             case Door door:
             {
+                // What the server tells this player of the door (GROUND_SYSTEMS.md §3.3): theirs (its lock's fitter), whether
+                // its code lock has a code and lists them, locked, whether they may pass. The full menu is the interaction
+                // package's; this offers what the flags allow, a fresh code lock's code first.
                 DoorState state = Client.BuildingReplica!.StateOf(door);
-                bool mine = door.Owner == Client.EntityId.Value || door.Lock?.Owner == Client.EntityId.Value;
-                if (door.Lock is CodeLock && state.CanUse)
+                if (state.Lock == LockKind.Code && !state.HasCode)
+                {
+                    if (state.Mine && keypad != null)
+                    {
+                        options.Add(("SET CODE", () => keypad(door, true)));
+                    }
+                }
+                else if (state.Lock == LockKind.Code && state.Authorised)
                 {
                     options.Add((state.Locked ? "UNLOCK" : "LOCK", () => { if (state.Locked) { me.Unlock(door); } else { me.Lock(door); } }));
-                    if (mine && keypad != null)
+                    if (!state.Locked && keypad != null)
                     {
                         options.Add(("CHANGE CODE", () => keypad(door, true)));
                     }
                 }
-                if (door.Lock is KeyLock && state.CanUse)
+                if (state.Lock == LockKind.Key && state.CanUse)
                 {
                     options.Add((state.Locked ? "UNLOCK" : "LOCK", () => { if (state.Locked) { me.Unlock(door); } else { me.Lock(door); } }));
-                    if (mine)
+                    if (state.Mine)
                     {
                         options.Add(("CUT A KEY", () => me.MakeKey(door)));
                     }
                 }
-                if (door.Lock != null && mine)
+                if (state.Lock != LockKind.None && !state.Locked && (state.Lock == LockKind.Code ? state.Authorised : state.Mine))
                 {
                     options.Add(("TAKE THE LOCK", () => me.RemoveLock(door)));
                 }
-                if (mine && state.CanUse)
+                if (state.Lock == LockKind.None && state.Mine)
                 {
                     options.Add(("PICK UP DOOR", () => me.PickUpDoor(door)));
                 }

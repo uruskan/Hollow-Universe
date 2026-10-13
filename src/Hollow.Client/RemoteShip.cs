@@ -3,6 +3,7 @@ using System.Numerics;
 using Hollow.Net.Protocol;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Client;
 
@@ -57,6 +58,14 @@ public sealed class RemoteShip
     public Vector3 Thrust { get; private set; }
 
     public ShipNetFlags Flags { get; private set; }
+
+    /// <summary>What the server tells this player of it (GROUND_SYSTEMS.md §3.3): theirs, a teammate's, locked.</summary>
+    public ViewerFlags Viewer { get; private set; }
+
+    /// <summary>This player's own (they built it).</summary>
+    public bool Mine => (Viewer & ViewerFlags.Mine) != 0;
+
+    public bool Locked => (Viewer & ViewerFlags.Locked) != 0;
 
     /// <summary>The hatch's swing, 0 shut … 1 open.</summary>
     public float Hatch { get; private set; }
@@ -141,6 +150,7 @@ public sealed class RemoteShip
         Thrust = Vector3.Lerp(ShipConvert.ThrustOf(sa), ShipConvert.ThrustOf(sb), Math.Clamp(t, 0, 1));
         ShipNetState discrete = t < 0.5f ? sa : sb;
         Flags = discrete.Flags;
+        Viewer = discrete.Viewer;
         Hatch = (sa.Hatch + (sb.Hatch - sa.Hatch) * Math.Clamp(t, 0, 1)) / Ship.HatchTicks;
         Health = discrete.Health / 255f;
     }

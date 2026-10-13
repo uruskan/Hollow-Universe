@@ -14,6 +14,10 @@ render_mode cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_g
 
 global uniform vec3 hu_texture_offset;
 global uniform vec4 hu_wind; // xyz: direction the wind blows toward (render space, unit); w: strength (1 = a breeze)
+// A tool's blow (GROUND.md §9.3): the plant standing at xyz (render space) sways w metres at its top, away along
+// hu_shake_dir.xyz, settling over the seconds since the blow (hu_shake_dir.w). w = 0: none.
+global uniform vec4 hu_shake_at;
+global uniform vec4 hu_shake_dir;
 
 uniform int mode = 0; // 0 leaves, 1 bark, 2 berries
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -62,6 +66,17 @@ void vertex() {
 		vec3 v = VERTEX + wl * bend * wind_params.x;
 		float flutter = CUSTOM0.y * sin(TIME * 7.3 + ph * 4.0 + dot(VERTEX, vec3(2.1, 1.7, 2.3))) * gust * hu_wind.w;
 		v += NORMAL * flutter * wind_params.z / sqrt(s2);
+		if (hu_shake_at.w > 0.0) {
+			vec3 off = origin - hu_shake_at.xyz;
+			if (dot(off, off) < 0.16) {
+				float age = hu_shake_dir.w;
+				float sway = hu_shake_at.w * exp(-age * 5.5) * sin(age * 24.0);
+				vec3 push = vec3(dot(m[0], hu_shake_dir.xyz), dot(m[1], hu_shake_dir.xyz), dot(m[2], hu_shake_dir.xyz)) / s2;
+				v += push * CUSTOM0.x * sway;
+				// The leaves shiver with it.
+				v += NORMAL * CUSTOM0.y * sway * 0.25 * sin(age * 41.0 + dot(VERTEX, vec3(3.1, 2.3, 2.7))) / sqrt(s2);
+			}
+		}
 		VERTEX = v * size;
 	}
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;

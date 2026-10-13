@@ -237,12 +237,12 @@ public sealed class SurvivalBrain
         }
         if (me.Vitals.IsBleeding && Slot(me, c, "bandage") is { } bandage)
         {
-            me.Use(bandage.Which, bandage.Slot);
+            me.UsePart(bandage.Which, bandage.Slot, ItemPart.Consumable);
             return;
         }
         if (me.Vitals.Calories < 200 && (Slot(me, c, "roasted-tuber") ?? Slot(me, c, "red-berries") ?? Slot(me, c, "blue-berries") ?? Slot(me, c, "wild-tuber")) is { } food)
         {
-            me.Use(food.Which, food.Slot);
+            me.UsePart(food.Which, food.Slot, ItemPart.Consumable);
             return;
         }
         if (me.Crafting.Count == 0)
@@ -256,7 +256,7 @@ public sealed class SurvivalBrain
                     "arrow" => me.Inventory.Count(c.ItemByKey(want)) < 10,
                     _ => me.Inventory.Count(c.ItemByKey(want)) == 0,
                 };
-                if (missing && me.CanCraft(recipe) == Hollow.Simulation.ActionResult.Accepted)
+                if (missing && me.CanCraft(recipe) == Hollow.Simulation.OutcomeCode.Done)
                 {
                     me.Craft(recipe.Id);
                     Crafts++;
@@ -265,7 +265,7 @@ public sealed class SurvivalBrain
             }
             // Keep the queue busy now and then, as players do.
             Recipe spare = c.Recipe(c.ItemByKey(_rng.Chance(0.5) ? "arrow" : "torch").Id)!;
-            if (_rng.Chance(0.3) && me.CanCraft(spare, 2) == Hollow.Simulation.ActionResult.Accepted)
+            if (_rng.Chance(0.3) && me.CanCraft(spare, 2) == Hollow.Simulation.OutcomeCode.Done)
             {
                 me.Craft(spare.Id, 2);
                 Crafts++;

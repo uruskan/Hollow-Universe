@@ -39,6 +39,25 @@ public sealed class AtmosphereModel
     private float[] _transmittance = Array.Empty<float>();
     private float[] _multiScattering = Array.Empty<float>();
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Body, System.Threading.Tasks.Task<AtmosphereModel>> Ahead = new();
+
+    /// <summary>
+    /// Starts computing a planet's air on a worker thread, for the next view that opens it (a game does it while its server
+    /// starts, GROUND.md §4.3.1).
+    /// </summary>
+    public static void Prepare(Body planet) => Ahead.GetOrAdd(planet, p => System.Threading.Tasks.Task.Run(() => Built(p)));
+
+    /// <summary>A planet's air with its tables computed: the one prepared ahead (waiting for it if need be), or a new one.</summary>
+    public static AtmosphereModel Take(Body planet) =>
+        Ahead.TryRemove(planet, out System.Threading.Tasks.Task<AtmosphereModel>? ahead) ? ahead.Result : Built(planet);
+
+    private static AtmosphereModel Built(Body planet)
+    {
+        AtmosphereModel air = For(planet);
+        air.Build();
+        return air;
+    }
+
     /// <summary>The air of a planet from its physical state: denser and taller with more pressure, lower gravity, more heat.</summary>
     public static AtmosphereModel For(Body planet)
     {

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HollowUniverse.UI.Model;
 
 /// <summary>
-/// The ground game's view model (GROUND.md §8): everything the HUD, inventory, crafting, death and wheel screens show,
+/// The ground game's view model (GROUND.md §8): everything the HUD, inventory, crafting, death and radial screens show,
 /// and every action they take, as plain calls. The interface never talks to the network; an adapter over the client
 /// API implements this, and <see cref="MockGroundUi"/> fakes it with sample data.
 /// <para>
@@ -21,6 +21,31 @@ public interface IGroundUi
 
     /// <summary>Name, description, category, stack size and stats of an item key. Unknown keys get a stand-in.</summary>
     ItemInfo Item(string key);
+
+    /// <summary>
+    /// The item panel's INFORMATION for a slot's stack (GROUND_SYSTEMS.md §7): its kind's rows and its own (condition, a
+    /// gun's magazine and attachments, what a blueprint teaches). By default the kind's stats, the condition and the rounds.
+    /// </summary>
+    IReadOnlyList<ItemStat> Rows(SlotRef slot)
+    {
+        IReadOnlyList<ItemStack> slots = Slots(slot.Container);
+        ItemStack stack = slot.Index >= 0 && slot.Index < slots.Count ? slots[slot.Index] : default;
+        if (stack.IsEmpty)
+        {
+            return Array.Empty<ItemStat>();
+        }
+        var rows = new List<ItemStat>(Item(stack.Key).Stats);
+        if (stack.HasCondition)
+        {
+            rows.Add(new ItemStat("Condition", MathF.Round(stack.Condition * 100).ToString(System.Globalization.CultureInfo.InvariantCulture) + "%",
+                stack.Condition >= 0.25f));
+        }
+        if (stack.HasAmmo)
+        {
+            rows.Add(new ItemStat("Loaded", stack.Ammo.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        return rows;
+    }
 
     Vitals Vitals { get; }
 
@@ -51,6 +76,12 @@ public interface IGroundUi
     /// <summary>The level of the workbench in reach, 0 for none.</summary>
     int Workbench { get; }
 
+    /// <summary>
+    /// Seconds one unit of a recipe takes here: its own, shortened by a workbench in reach above its level
+    /// (GROUND_SYSTEMS.md §7). The recipe's own by default.
+    /// </summary>
+    float SecondsHere(Recipe recipe) => recipe.Seconds;
+
     /// <summary>How many of an item the player has (main and belt), for ingredients' HAVE column.</summary>
     int Have(string key);
 
@@ -66,14 +97,12 @@ public interface IGroundUi
     /// <summary>What pressing the interaction key would do now, or null.</summary>
     InteractionPrompt? Prompt { get; }
 
-    /// <summary>The wheel the held item opens with the right mouse button (the plan's, the hammer's), or null.</summary>
-    WheelKind? HeldWheel { get; }
-
-    /// <summary>A wheel's sectors, in clockwise order.</summary>
-    IReadOnlyList<WheelChoice> Wheel(WheelKind kind);
-
-    /// <summary>The sector to show when the pointer is in the middle: the plan's selected piece, or −1.</summary>
-    int WheelCurrent(WheelKind kind);
+    /// <summary>
+    /// The held inputs that open a radial menu and what each opens now (GROUND_SYSTEMS.md §4): the right mouse with the
+    /// building plan or the hammer in hand, E on what is aimed at (P1), R with a gun (P3). The interface handles every
+    /// binding the same way; none by default.
+    /// </summary>
+    IReadOnlyList<RadialBinding> Radials => Array.Empty<RadialBinding>();
 
     // ---------------------------------------------------------------- events (the HUD's moments)
 
@@ -99,9 +128,12 @@ public interface IGroundUi
     /// <summary>Moves <paramref name="amount"/> of a stack onto another slot: merges, swaps or splits.</summary>
     void Move(SlotRef from, SlotRef to, int amount);
 
-    /// <summary>More of a slot's actions for the item panel, as a label and what it does (a gun's attachments to take
-    /// off); none by default.</summary>
-    IReadOnlyList<(string Label, Action Act)> MoreActions(SlotRef slot) => Array.Empty<(string, Action)>();
+    /// <summary>
+    /// The item panel's ACTIONS for a slot's stack (GROUND_SYSTEMS.md §7), besides DROP (the panel's own): what its parts
+    /// offer (EAT or USE, WEAR or UNEQUIP, LEARN, UNLOAD, REMOVE an attachment), each with why it can't be done now when it
+    /// can't. None by default.
+    /// </summary>
+    IReadOnlyList<ItemActionView> Actions(SlotRef slot) => Array.Empty<ItemActionView>();
 
     /// <summary>Splits <paramref name="amount"/> off a stack into a free slot of the same container.</summary>
     void Split(SlotRef slot, int amount);
@@ -111,9 +143,6 @@ public interface IGroundUi
 
     /// <summary>Moves a stack to the other side: into the open container and back, or between main and belt.</summary>
     void QuickMove(SlotRef slot);
-
-    /// <summary>Uses an item (a bandage, food).</summary>
-    void Use(SlotRef slot);
 
     void Craft(string key, int amount);
 
@@ -126,9 +155,6 @@ public interface IGroundUi
 
     /// <summary>Lights or puts out the open furnace or campfire.</summary>
     void SetBurning(bool on);
-
-    /// <summary>Applies a wheel's sector (selects a piece, upgrades, demolishes).</summary>
-    void ChooseWheel(WheelKind kind, int index);
 
     /// <summary>The player closed the loot panel.</summary>
     void CloseLoot();

@@ -93,7 +93,7 @@ public sealed class WorldBrain
         if (Trace && !_listening)
         {
             _listening = true;
-            me.IntentRejected += a => Console.WriteLine($"{client.Name}: {_sent.GetValueOrDefault(a.Seq, "?")} refused: {a.Result}");
+            me.IntentRejected += a => Console.WriteLine($"{client.Name}: {_sent.GetValueOrDefault(a.Seq, "?")} refused: {a.Code}");
         }
         if (me.IsDead)
         {
@@ -109,7 +109,7 @@ public sealed class WorldBrain
         {
             return input;
         }
-        if (time >= _nextChore && me.PendingCount == 0 && _goal is not (Goal.Recycle or Goal.Research or Goal.Crate))
+        if (time >= _nextChore && me.PendingCount == 0 && _goal is not (Goal.Recycle or Goal.Research or Goal.Crate or Goal.Pick))
         {
             _nextChore = time + _rng.Range(1, 2);
             Chores(client, me);
@@ -149,22 +149,7 @@ public sealed class WorldBrain
                 Crate(ref input, time, delta, client, me, feet, eye, up);
                 break;
             case Goal.Pick:
-                if (client.ThingOf(_target) is not { Kind: StaticKind.DroppedItem } item)
-                {
-                    Picked += _hit ? 1 : 0;
-                    Done();
-                    break;
-                }
-                if (Steer(ref input, time, feet, item.Position, 0.9f, delta))
-                {
-                    Look(ref input, eye, item.Position, up);
-                    if (time >= _nextStep && me.PendingCount == 0)
-                    {
-                        _nextStep = time + 0.4;
-                        Note(me.PickUpItem(_target), "PickUpItem");
-                        _hit = true;
-                    }
-                }
+                PickFromBag(ref input, time, delta, client, me, feet, eye, up);
                 break;
             case Goal.Recycle:
                 Recycle(ref input, time, delta, client, me, feet, eye, up);
@@ -187,8 +172,9 @@ public sealed class WorldBrain
     {
         GameContent c = client.Content;
         Vector3 feet = client.Character.Position;
+        // A bag shows what it holds only once opened: every bag near is worth one look.
         RemoteThing? near = client.Things
-            .Where(t => t.Kind == StaticKind.DroppedItem && !_skip.Contains(t.Id) && Wanted(c, t.Look) && Vector3.Distance(t.Position, feet) < 12)
+            .Where(t => t.Kind == StaticKind.DroppedBag && !_skip.Contains(t.Id) && Vector3.Distance(t.Position, feet) < 12)
             .OrderBy(t => Vector3.Distance(t.Position, feet)).FirstOrDefault();
         if (near != null)
         {
@@ -248,7 +234,7 @@ public sealed class WorldBrain
         {
             _skip.Add(_target);
         }
-        if (_goal is Goal.Crate or Goal.Recycle or Goal.Research && me.Loot != null)
+        if (_goal is Goal.Crate or Goal.Pick or Goal.Recycle or Goal.Research && me.Loot != null)
         {
             Note(me.Close(), "Close");
         }
@@ -256,6 +242,54 @@ public sealed class WorldBrain
         {
             _researched = true;
         }
+        Done();
+    }
+
+    // At a bag of dropped items (what it holds shows only once it is open): opens it, takes what is wanted a stack at a
+    // time, then closes it and leaves the rest (perhaps the bot's own junk) alone. A bag emptied goes by itself.
+    private void PickFromBag(ref InputFrame input, double time, double delta, GameClient client, LocalPlayer me, Vector3 feet, Vector3 eye, Vector3 up)
+    {
+        if (client.ThingOf(_target) is not { Kind: StaticKind.DroppedBag } bag)
+        {
+            Picked += _hit ? 1 : 0;
+            if (me.Loot != null)
+            {
+                Note(me.Close(), "Close");
+            }
+            Done();
+            return;
+        }
+        if (!Steer(ref input, time, feet, bag.Position, 0.9f, delta))
+        {
+            return;
+        }
+        Look(ref input, eye, bag.Position, up);
+        if (time < _nextStep || me.PendingCount > 0)
+        {
+            return;
+        }
+        _nextStep = time + 0.25;
+        if (_phase == 0)
+        {
+            Note(me.Open(_target), "Open");
+            _phase = 1;
+            return;
+        }
+        if (me.LootTarget != _target || me.Loot is not { } contents)
+        {
+            return;
+        }
+        GameContent c = client.Content;
+        int slot = Enumerable.Range(0, contents.Size).FirstOrDefault(i => !contents[i].IsEmpty && Wanted(c, contents[i].Item), -1);
+        if (slot >= 0)
+        {
+            Note(me.QuickMove(ContainerRef.Loot, slot), "QuickMove");
+            _hit = true;
+            return;
+        }
+        Note(me.Close(), "Close");
+        _skip.Add(_target);
+        Picked += _hit ? 1 : 0;
         Done();
     }
 
