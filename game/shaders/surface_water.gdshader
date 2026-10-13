@@ -1,6 +1,7 @@
 // The sea (GROUND.md §4.6): a surface at sea level on the terrain's own tile grid. Wind waves (Gerstner swell near
 // the camera, tiling normal maps everywhere), the sky and sun reflected with Fresnel, the sea floor seen through
-// water that absorbs red first, turquoise shallows, foam on the shore, cloud shadows, and the air in front of it.
+// water that absorbs red first, turquoise shallows, surf lines rolling in over the shallows, a swash of foam on the
+// sand, cloud shadows, and the air in front of it.
 shader_type spatial;
 render_mode cull_back, depth_draw_always, diffuse_burley, specular_schlick_ggx;
 
@@ -107,6 +108,20 @@ void fragment() {
 	float foam_noise = texture(wave_normals, p / 3.1 + vec2(0.02, 0.0) * TIME).b;
 	float foam = (1.0 - smoothstep(0.05, 0.9, path)) * smoothstep(0.35, 0.75, foam_noise + 0.25 * sin(TIME * 1.3 + p.x * 0.15));
 	foam = max(foam, (1.0 - smoothstep(0.0, 0.25, path)) * 0.6);
+	// Surf: lines of breaking waves along the depth contours, rolling in toward the beach and fading as they
+	// spread; broken up by the ripples, never closer than a few metres from each other.
+	float depth = max(v_floor, 0.0);
+	float surf_zone = smoothstep(0.08, 0.35, depth) * (1.0 - smoothstep(0.9, 2.8, depth)) * (1.0 - smoothstep(150.0, 600.0, dist));
+	float broken = texture(wave_normals, p / 23.0 + vec2(0.003, 0.001) * TIME).b;
+	float phase = depth * 0.95 + TIME * 0.13 + broken * 0.7;
+	float f = fract(phase);
+	float crest = smoothstep(0.0, 0.03, f) * (1.0 - smoothstep(0.03, 0.2, f));
+	float lace = smoothstep(0.42, 0.75, texture(wave_normals, p / 4.7 - vec2(0.0, 0.05) * TIME).b + crest * 0.25);
+	float runs = smoothstep(0.35, 0.6, broken);
+	foam = max(foam, crest * lace * runs * surf_zone * 0.85);
+	// The swash: a thin sheet of foam running up the sand and back.
+	float swash = 1.0 - smoothstep(0.0, 0.1 + 0.08 * sin(TIME * 0.7 + p.x * 0.05 + p.y * 0.03), depth);
+	foam = max(foam, swash * smoothstep(0.3, 0.6, foam_noise) * 0.8 * (1.0 - smoothstep(80.0, 300.0, dist)));
 
 	ALBEDO = vec3(0.85) * foam;
 	EMISSION = body * (1.0 - fresnel) * (1.0 - foam);

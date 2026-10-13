@@ -185,6 +185,8 @@ public partial class SurfaceView : Node3D
         _terrainMaterial.SetShaderParameter("albedo_array", _groundAlbedo);
         _terrainMaterial.SetShaderParameter("normal_array", _groundNormal);
         _terrainMaterial.SetShaderParameter("macro_noise", _noise);
+        _canopy ??= NoiseTextures.Canopy(13);
+        _terrainMaterial.SetShaderParameter("canopy_texture", _canopy);
         ShaderMaterial? water = null;
         if (surface.SeaRadius > 0)
         {
@@ -207,6 +209,7 @@ public partial class SurfaceView : Node3D
 
     private static bool _globals;
     private ImageTexture? _noise;
+    private ImageTexture? _canopy;
     private AerialTable? _aerial;
 
     private void SetupGlobals()
@@ -252,6 +255,7 @@ public partial class SurfaceView : Node3D
         Add("hu_cloud_layer", V2, new Vector2(1600, 2900));
         Add("hu_texture_offset", V3, Vector3.Zero);
         Add("hu_wind", V4, new Vector4(0.86f, 0, -0.5f, 1));
+        Add("hu_lod_clock", T, 0f);
         var S3 = RenderingServer.GlobalShaderParameterType.Sampler3D;
         _aerial = new AerialTable(air);
         Add("hu_ap_up", V3, Vector3.Up);
@@ -283,9 +287,10 @@ public partial class SurfaceView : Node3D
             GlowIntensity = 0.35f,
             GlowBloom = 0.02f,
             GlowHdrThreshold = 1.4f,
-            SsaoEnabled = true,
-            SsaoRadius = 1.2f,
-            SsaoIntensity = 1.4f,
+            SsaoEnabled = OS.GetEnvironment("HU_NO_SSAO").Length == 0,
+            // Gentle: on dense grass and leaf cards strong SSAO turns everything in shade black.
+            SsaoRadius = 0.7f,
+            SsaoIntensity = 0.6f,
         };
         // The camera carries its own environment: the maps' WorldEnvironment nodes stay in the tree.
         _environment = environment;

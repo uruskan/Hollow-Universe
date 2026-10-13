@@ -28,6 +28,9 @@ public enum InteractionKind : byte
 
     /// <summary>A sleeping player: loot them.</summary>
     LootSleeper,
+
+    /// <summary>A wounded player: help them up (G4).</summary>
+    HelpUp,
 }
 
 /// <summary>Something within reach the interact key acts on, and how to say so ("E: Pick up Wood pile").</summary>
@@ -71,7 +74,13 @@ public sealed partial class GameClient
     /// <summary>Raised when a character's look (clothing) changes or arrives.</summary>
     public event Action<RemoteEntity>? LookChanged;
 
-    private bool SendReliable(Action<BitWriter> write)
+    private bool SendReliable(Action<BitWriter> write) => SendWith(write, DeliveryMethod.ReliableOrdered);
+
+    // Shots and reloads: reliable but unordered, so one lost and resent holds nothing else up (they carry their tick and
+    // sequence; the server puts them in order).
+    private bool SendUnordered(Action<BitWriter> write) => SendWith(write, DeliveryMethod.ReliableUnordered);
+
+    private bool SendWith(Action<BitWriter> write, DeliveryMethod method)
     {
         if (_peer == null || State != ClientState.Playing)
         {
@@ -79,7 +88,7 @@ public sealed partial class GameClient
         }
         _writer.Reset();
         write(_writer);
-        _peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+        _peer.Send(_writer.Data, method);
         return true;
     }
 
@@ -217,7 +226,14 @@ public sealed partial class GameClient
                 }
                 var origin = new Vector3(m.X, m.Y, m.Z);
                 ItemDef? ammo = Content.Item((int)Math.Min(m.Ammo, ushort.MaxValue));
-                float gravity = (float)(Zone.SurfaceGravity * 9.80665) * (ammo?.Ammo?.Gravity ?? 1);
+                if (m.Seq != 0 && m.Shooter == NetId && _projectiles.FirstOrDefault(p => p.Own && p.Seq == m.Seq && p.Id == 0) is { } mine)
+                {
+                    // Our own shot, drawn since we fired it: now it has the server's ID (its end will name it).
+                    mine.Id = m.Id;
+                    return;
+                }
+                FirearmStats? gun = ammo?.Bullet is { } round ? Content.Firearms.FirstOrDefault(g => g.Calibre == round.Calibre) : null;
+                float gravity = (float)(Zone.SurfaceGravity * 9.80665) * (float)(ammo?.Ammo?.Gravity ?? gun?.Gravity ?? 1);
                 _projectiles.Add(new ClientProjectile
                 {
                     Id = m.Id,
@@ -226,6 +242,9 @@ public sealed partial class GameClient
                     Origin = origin,
                     Velocity = new Vector3(m.VelocityX, m.VelocityY, m.VelocityZ),
                     Gravity = -Frame.UpAt(origin) * gravity,
+                    Drag = (float)(gun?.Drag ?? 0),
+                    Seq = m.Seq,
+                    Silenced = m.Silenced,
                     LaunchedAt = ClockSeconds,
                 });
                 return;
@@ -332,6 +351,15 @@ public sealed partial class GameClient
                 }
                 return;
             }
+            case GunUpdate.TypeId:
+            {
+                GunUpdate m = GunUpdate.Read(_reader);
+                if (!_reader.Failed)
+                {
+                    Local.Gun.OnUpdate(m);
+                }
+                return;
+            }
             case LifeState.TypeId:
             {
                 LifeState m = LifeState.Read(_reader);
@@ -420,12 +448,21 @@ public sealed partial class GameClient
         }
         foreach (RemoteEntity remote in _remotes.Values)
         {
-            if (!remote.Spawned || !remote.HasState || !remote.Sleeping || (remote.Flags & Simulation.Movement.MoveFlags.Dead) != 0)
+            if (!remote.Spawned || !remote.HasState || (remote.Flags & Simulation.Movement.MoveFlags.Dead) != 0)
             {
                 continue;
             }
-            Consider(Geometry.RaySphere(eye, direction, range, remote.Position + Frame.UpAt(remote.Position) * 0.25f, 0.7f),
-                InteractionKind.LootSleeper, 0, remote.Id, "Loot", $"{remote.Name} (asleep)");
+            if (remote.Sleeping)
+            {
+                Consider(Geometry.RaySphere(eye, direction, range, remote.Position + Frame.UpAt(remote.Position) * 0.25f, 0.7f),
+                    InteractionKind.LootSleeper, 0, remote.Id, "Loot", $"{remote.Name} (asleep)");
+            }
+            else if (remote.Wounded)
+            {
+                // Down: the interact key helps them up (G4).
+                Consider(Geometry.RaySphere(eye, direction, MathF.Min(range, Content.Survival.HelpReach + 0.5f),
+                    remote.Position + Frame.UpAt(remote.Position) * 0.25f, 0.7f), InteractionKind.HelpUp, 0, remote.Id, "Help up", remote.Name);
+            }
         }
         return best;
     }
@@ -480,11 +517,35 @@ public sealed partial class GameClient
         }
     }
 
-    /// <summary>Acts on what <see cref="Aim"/> found: picks, picks up or opens it. Returns the intent's sequence number.</summary>
+    /// <summary>Acts on what <see cref="Aim"/> found: picks, picks up, opens or helps up. Returns the intent's sequence number.</summary>
     public uint Interact(in Interaction target) => target.Kind switch
     {
         InteractionKind.PickNatural => Local.PickUpNatural(target.NaturalId),
         InteractionKind.PickItem => Local.PickUpItem(target.Entity),
+        InteractionKind.HelpUp => Local.HelpUp(target.Entity),
         _ => Local.Open(target.Entity),
     };
+
+    // Our own shot: drawn at once, from the eye along the predicted direction (the server's ProjectileLaunch then names it).
+    private void OnOwnShot(ShotEvent shot)
+    {
+        if (Zone == null)
+        {
+            return;
+        }
+        FirearmStats gun = shot.Weapon.Firearm!;
+        _projectiles.Add(new ClientProjectile
+        {
+            Shooter = NetId,
+            Ammo = shot.Round.Id,
+            Origin = shot.Origin,
+            Velocity = shot.Direction * shot.Speed,
+            Gravity = -Frame.UpAt(shot.Origin) * (float)(Zone.SurfaceGravity * 9.80665 * gun.Gravity),
+            Drag = (float)gun.Drag,
+            Seq = shot.Seq,
+            Own = true,
+            Silenced = shot.Silenced,
+            LaunchedAt = ClockSeconds,
+        });
+    }
 }

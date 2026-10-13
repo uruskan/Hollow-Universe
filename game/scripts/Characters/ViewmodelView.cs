@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using HollowUniverse.Items;
 
 namespace HollowUniverse.Characters;
 
@@ -70,21 +71,27 @@ public partial class ViewmodelView : Node3D
 
     public HeldItemModel? Model => _model;
 
+    /// <summary>Whose arms these are; set it before the view enters the tree.</summary>
+    public BodyType Body { get; set; } = BodyType.Male;
+
+    private BodyAssets _assets = null!;
+
     public override void _Ready()
     {
-        CharacterAssets.Load();
+        _assets = CharacterAssets.For(Body);
         _rig = new Node3D { Name = "Rig" };
         AddChild(_rig);
-        _skeleton = CharacterAssets.NewSkeleton();
+        _skeleton = _assets.NewSkeleton();
         _skeleton.ModifierCallbackModeProcess = Skeleton3D.ModifierCallbackModeProcessEnum.Manual;
         _rig.AddChild(_skeleton);
         // The camera sits at the eyes: the body faces +Z, the camera looks along −Z.
         int head = _skeleton.FindBone("head");
-        Vector3 eye = new(0f, CharacterAssets.EyeHeight, _skeleton.GetBoneGlobalRest(head).Origin.Z + 0.09f);
+        Vector3 eye = new(0f, _assets.EyeHeight, _skeleton.GetBoneGlobalRest(head).Origin.Z + 0.09f);
         _rig.Transform = new Transform3D(new Basis(Vector3.Up, MathF.PI), Vector3.Zero) * new Transform3D(Basis.Identity, -eye);
-        MeshPart body = CharacterAssets.Part("body_lod0")!;
+        MeshPart body = _assets.Part("body_lod0")!;
         _arms.Add(Instance(body));
-        _gripR = HandFrame.Measure(_skeleton, right: true);
+        // In first person the fist closes tightly, so the handle sits further into the palm, across its crease.
+        _gripR = HandFrame.Measure(_skeleton, right: true, along: HandPoses.FistAlong, lift: HandPoses.FistLift);
         _gripL = HandFrame.Measure(_skeleton, right: false);
         _upperR = _skeleton.FindBone("upperarm_r");
         _lowerR = _skeleton.FindBone("lowerarm_r");
@@ -131,7 +138,7 @@ public partial class ViewmodelView : Node3D
         _worn.AddRange(items);
         foreach (Wearable w in _worn)
         {
-            MeshPart? part = w.OnArms ? CharacterAssets.Part(w.Mesh + "_lod0") : null;
+            MeshPart? part = w.OnArms ? _assets.Part(w.Mesh + "_lod0") : null;
             if (part != null)
             {
                 _sleeves.Add((Instance(part), w));
@@ -184,7 +191,7 @@ public partial class ViewmodelView : Node3D
         }
         switch (e)
         {
-            case CharacterEvent.Swing when _model.Kind == HeldKind.Tool && _swing < 0f:
+            case CharacterEvent.Swing when _model.Swung && _swing < 0f:
                 _swing = 0f;
                 break;
             case CharacterEvent.Fire when _model.Kind is HeldKind.Pistol or HeldKind.Rifle:
@@ -296,7 +303,7 @@ public partial class ViewmodelView : Node3D
 
         if (_swing >= 0f)
         {
-            _swing += dt / 0.62f;
+            _swing += dt / Math.Max(0.3f, _model.SwingTime);
             if (_swing >= 1f)
             {
                 _swing = -1f;
@@ -323,13 +330,13 @@ public partial class ViewmodelView : Node3D
         HeldItemModel m = _model!;
         // Item axes (+X barrel or blade, +Y up) to camera axes (−Z forward, +Y up).
         var toCamera = new Basis(new Vector3(0, 0, -1), new Vector3(0, 1, 0), new Vector3(1, 0, 0));
-        Transform3D grip = HeldItems.Socket(_item!, "grip_r");
+        Transform3D grip = HeldItems.Socket(_item!, m.LeftHanded ? "grip_l" : "grip_r");
         Vector3 hip;
         Basis hipTurn;
         switch (m.Kind)
         {
             case HeldKind.Pistol:
-                hip = new Vector3(0.075f, -0.175f, -0.4f);
+                hip = new Vector3(0.06f, -0.17f, -0.36f);
                 hipTurn = Basis.FromEuler(new Vector3(0.03f, 0.05f, 0f));
                 break;
             case HeldKind.Rifle:
@@ -338,7 +345,7 @@ public partial class ViewmodelView : Node3D
                 break;
             default:
                 // Tool: the handle rises from the right hand, leaning forward and in; the blade faces forward.
-                hip = new Vector3(0.27f, -0.24f, -0.46f);
+                hip = new Vector3(0.235f, -0.195f, -0.42f);
                 hipTurn = Basis.Identity;
                 break;
         }
@@ -353,13 +360,21 @@ public partial class ViewmodelView : Node3D
         }
         Vector3 origin = hip - basis * grip.Origin;
         var place = new Transform3D(basis, origin);
+        if (m.Kind == HeldKind.Tool && !m.Swung && m.Entry.Held is HeldInfo held)
+        {
+            // What isn't swung by a handle (spears, the bow, food, bandages, locks, charges) sits where the model
+            // catalogue's first-person pose puts its grip.
+            place = held.FirstPerson.Transform * grip.AffineInverse();
+        }
 
         if (m.Kind is HeldKind.Pistol or HeldKind.Rifle && _aim > 0f)
         {
-            // Sights on the camera's centre line, at the item's eye relief.
-            Transform3D sight = HeldItems.Socket(_item!, "sight");
+            // Sights on the camera's centre line: the model's eye socket at the camera, or the sight at the item's
+            // eye relief.
             Basis aimBasis = toCamera;
-            Vector3 aimOrigin = new Vector3(0, 0, -m.EyeRelief) - aimBasis * sight.Origin;
+            Vector3 aimOrigin = m.EyeRelief <= 0f && HeldItems.HasSocket(_item!, "eye")
+                ? -(aimBasis * HeldItems.Socket(_item!, "eye").Origin)
+                : new Vector3(0, 0, -Math.Max(m.EyeRelief, 0.1f)) - aimBasis * HeldItems.Socket(_item!, "sight").Origin;
             float a = Smooth(_aim);
             place = new Transform3D(
                 new Basis(place.Basis.GetRotationQuaternion().Slerp(aimBasis.GetRotationQuaternion(), a)),
@@ -383,14 +398,14 @@ public partial class ViewmodelView : Node3D
             place = new Transform3D(lower * place.Basis, pivot + lower * (place.Origin - pivot) + new Vector3(-0.04f, -0.05f, 0.03f) * s);
         }
 
-        // Swing: wind up, strike down and across, recover.
+        // Swing: up and back over the shoulder, a beat, down and across to land at the item's strike time, a jolt on
+        // the impact, follow through and back (ViewmodelMotion).
         if (_swing >= 0f)
         {
-            float t = _swing;
-            float wind = t < 0.3f ? Smooth(t / 0.3f) : t < 0.48f ? 1f - Smooth((t - 0.3f) / 0.18f) * 1.9f : -0.9f + Smooth((t - 0.48f) / 0.52f) * 0.9f;
-            Basis arc = Basis.FromEuler(new Vector3(0.95f * wind, -0.25f * wind, -0.35f * wind));
-            Vector3 shoulder = new(0.18f, -0.18f, 0.02f);
-            place = new Transform3D(arc * place.Basis, shoulder + arc * (place.Origin - shoulder) + new Vector3(0f, 0.04f * Math.Max(0f, wind), 0f));
+            (Vector3 turn, Vector3 offset) = ViewmodelMotion.Swing(_swing, m.StrikeTime / Math.Max(0.3f, m.SwingTime), m.SwingTime);
+            Basis arc = Basis.FromEuler(turn);
+            Vector3 hand = place * grip.Origin;
+            place = new Transform3D(arc * place.Basis, hand + arc * (place.Origin - hand) + offset);
         }
 
         // Recoil kick: back and up.
@@ -400,12 +415,13 @@ public partial class ViewmodelView : Node3D
             place = new Transform3D(up * place.Basis, place.Origin + new Vector3(0f, _kick.Y * 0.004f, _kick.Z * 0.012f));
         }
 
-        // Reload: tilt the item and bring it down a little.
+        // Reload: tilt in, magazine out and in (a jolt as it seats), work the slide or handle (a jolt), back.
         if (_reload >= 0f)
         {
-            float r = MathF.Sin(MathF.Min(1f, _reload * 1.15f) * MathF.PI);
-            Basis tilt = Basis.FromEuler(new Vector3(0.25f * r, 0.25f * r, 0.55f * r));
-            place = new Transform3D(tilt * place.Basis, place.Origin + new Vector3(-0.03f, -0.05f, 0.02f) * r);
+            (Vector3 turn, Vector3 offset) = ViewmodelMotion.Reload(_reload);
+            Basis tilt = Basis.FromEuler(turn);
+            Vector3 pivot = place * grip.Origin;
+            place = new Transform3D(tilt * place.Basis, pivot + tilt * (place.Origin - pivot) + offset);
         }
 
         // Equip: rise into view; crouch: a touch lower.
@@ -421,12 +437,27 @@ public partial class ViewmodelView : Node3D
         _item!.Transform = item;
         AnimateParts();
 
-        // Hands onto the grips (camera space → skeleton space).
+        // Hands onto the grips (camera space → skeleton space), from shoulders set lower and further forward than the
+        // body's, so the forearms rise into view from the lower corners as in Rust (only forearms and hands are drawn;
+        // nobody sees the shoulders move).
         Transform3D toSkeleton = (_rig.Transform * _skeleton.Transform).AffineInverse();
+        Shoulder(_upperR, ShoulderOffsetR, toSkeleton);
+        Shoulder(_upperL, ShoulderOffsetL, toSkeleton);
+        if (_model!.LeftHanded)
+        {
+            // The bow: the left hand holds its grip; the right hand stays down out of view.
+            Transform3D gripL1 = item * HeldItems.Socket(_item, "grip_l");
+            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, toSkeleton * HandFrame.HandFor(gripL1,
+                HandFrame.PowerGrip, _gripL), 1f, new Vector3(0.15f, -1f, 0.1f));
+            HandPoses.Apply(_skeleton, HandPoses.Grip.Fist, right: false);
+            CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, _skeleton.GetBoneGlobalRest(_handR), 1f,
+                new Vector3(-0.7f, -0.7f, -0.2f));
+            return;
+        }
         Transform3D gripR = item * HeldItems.Socket(_item, "grip_r");
         Transform3D handR = toSkeleton * HandFrame.HandFor(gripR, HandFrame.PowerGrip, _gripR);
         CharacterPoser.ReachArm(_skeleton, _upperR, _lowerR, _handR, handR, 1f, new Vector3(-0.7f, -0.7f, -0.1f));
-        HandPoses.Apply(_skeleton, _model!.Kind == HeldKind.Tool ? HandPoses.Grip.Fist : HandPoses.Grip.Pistol, right: true);
+        HandPoses.Apply(_skeleton, _model.Kind == HeldKind.Tool ? HandPoses.Grip.Fist : HandPoses.Grip.Pistol, right: true);
         bool twoHands = _model.Kind is HeldKind.Pistol or HeldKind.Rifle && HeldItems.HasSocket(_item, "grip_l");
         if (twoHands)
         {
@@ -435,13 +466,22 @@ public partial class ViewmodelView : Node3D
             Transform3D handL = toSkeleton * HandFrame.HandFor(gripL, support, _gripL);
             if (_reload >= 0f)
             {
-                // To the magazine and back.
-                float t = MathF.Sin(MathF.Min(1f, _reload * 1.1f) * MathF.PI);
-                Transform3D mag = item * (_magazine != null ? _magazine.Transform : HeldItems.Socket(_item, "grip_l"));
-                Vector3 to = toSkeleton * (mag.Origin + new Vector3(0f, -0.12f, 0.02f));
-                handL.Origin = handL.Origin.Lerp(to, t);
+                // The support hand goes to the magazine well, away below the gun for a new magazine, back up to seat
+                // it, then to the slide (pistol) or the charging handle (rifle) and pulls it, then back to its grip.
+                Vector4 w = ViewmodelMotion.ReloadHand(_reload);
+                bool pistol = _model.Kind == HeldKind.Pistol;
+                Vector3 right = HeldItems.Socket(_item, "grip_r").Origin;
+                Vector3 left = HeldItems.Socket(_item, "grip_l").Origin;
+                Vector3 well = pistol ? right + new Vector3(-0.01f, -0.1f, 0f) : (right + left) * 0.5f + new Vector3(0f, -0.1f, 0f);
+                Vector3 away = well + new Vector3(-0.06f, -0.22f, -0.08f);
+                Vector3 work = pistol
+                    ? HeldItems.Socket(_item, "sight").Origin + new Vector3(0.02f, -0.012f, 0f)
+                    : right + new Vector3(0.12f, 0.07f, 0.045f);
+                Vector3 pull = new Vector3(-0.2f, 0f, 0f) * Math.Max(0f, w.W - 1f);
+                Vector3 at = left * w.X + well * w.Y + away * w.Z + (work + pull) * Math.Min(1f, w.W);
+                handL = toSkeleton * HandFrame.HandFor(new Transform3D(gripL.Basis, item * at), support, _gripL);
             }
-            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, handL, 1f, new Vector3(0.35f, -1f, -0.1f));
+            CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, handL, 1f, new Vector3(0.15f, -1f, 0.1f));
             HandPoses.Apply(_skeleton, HandPoses.Grip.Support, right: false);
         }
         else
@@ -450,6 +490,17 @@ public partial class ViewmodelView : Node3D
             Transform3D rest = _skeleton.GetBoneGlobalRest(_handL);
             CharacterPoser.ReachArm(_skeleton, _upperL, _lowerL, _handL, rest, 1f, new Vector3(0.7f, -0.7f, -0.2f));
         }
+    }
+
+    // Where the first-person shoulders sit relative to the body's, in camera space (x right, y up, z back).
+    private static readonly Vector3 ShoulderOffsetR = new(-0.03f, -0.1f, -0.06f);
+    private static readonly Vector3 ShoulderOffsetL = new(0.1f, -0.12f, -0.08f);
+
+    private void Shoulder(int upper, Vector3 offset, Transform3D toSkeleton)
+    {
+        Transform3D parent = _skeleton.GetBoneGlobalPose(_skeleton.GetBoneParent(upper));
+        Vector3 target = _skeleton.GetBoneGlobalPose(upper).Origin + toSkeleton.Basis * offset;
+        _skeleton.SetBonePosePosition(upper, parent.AffineInverse() * target);
     }
 
     private void AnimateParts()

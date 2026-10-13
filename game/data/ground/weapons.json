@@ -1,0 +1,114 @@
+{
+  "source": "GROUND.md §6.3. Every field RustMVP's weapon definitions have (unreal/Bare/Source/Bare/Rules/weapon_definition.hpp: the Service Pistol, ID 28, and the AK, ID 30) is used exactly: magazines, fire mode and interval, reload and equip times, muzzle speed, gravity (980 cm/s², here 1.0 x the planet's), range, lifetime, damage and the head/body/limb multipliers, hip and aimed spread with bloom, the recoil (a straight kick for the pistol, the 30-step AK pattern for the rifle, its limits, kick, hold and recovery), and the aimed field of view (65° at 90°: 1.57x). Where RustMVP has nothing: damage falloff, the spread when moving, airborne or crouched, and the recoil when aimed or crouched are hollow-orbit's (js/game/combat.js: falloff, _spread, _kick); the random part of each kick is hollow-orbit's too, drawn from a seed both sides know. Drag, the rounds' modifiers, burning and the attachments are ours, in the direction of Rust's. Angles in degrees (recoil yaw + is to the right), times in seconds, distances in metres.",
+  "weapons": [
+    {
+      "item": "pistol",
+      "note": "RustMVP's Service Pistol: semi-automatic, 15 rounds, 0.15 s (400 a minute), a straight 3° kick a shot.",
+      "calibre": "pistol",
+      "magazine": 15,
+      "fire": "semi",
+      "interval": 0.15,
+      "reload": 2.4,
+      "equip": 0.5,
+      "speed": 300,
+      "drag": 0.4,
+      "gravity": 1.0,
+      "range": 200,
+      "lifetime": 3,
+      "damage": 35,
+      "falloff": [70, 200, 0.45],
+      "head": 2.0, "body": 1.0, "limb": 0.5,
+      "spread": {
+        "hip": 1.5, "aimed": 0.25, "bloom": 0.25, "maxBloom": 2, "bloomRecovery": 3,
+        "moving": 1.7, "movingAimed": 0.5, "airborne": 2.4, "crouched": 0.8
+      },
+      "recoil": {
+        "mode": "vertical", "pitch": 3.0, "pitchJitter": 0.12, "yawJitter": 0.66,
+        "pitchLimit": 30, "yawLimit": 30, "reset": 0.4, "kick": 0.1, "recoveryDelay": 0.2, "recovery": 0.08,
+        "aimed": 0.78, "crouched": 0.85
+      },
+      "zoom": 1.57,
+      "attachments": ["holo-sight", "silencer", "weapon-light", "muzzle-brake"]
+    },
+    {
+      "item": "rifle",
+      "note": "RustMVP's AK: automatic, 30 rounds, 60/450 s (450 a minute), the dated community table of the AK's pattern (commit 4aeb580, 2022-03-14) as adjacent steps, pitch = -dy and yaw = dx; the 30th step is zero (RustMVP's tail).",
+      "calibre": "rifle",
+      "magazine": 30,
+      "fire": "auto",
+      "interval": 0.13333333333333333,
+      "reload": 2.4,
+      "equip": 0.5,
+      "speed": 300,
+      "drag": 0.3,
+      "gravity": 1.0,
+      "range": 200,
+      "lifetime": 3,
+      "damage": 35,
+      "falloff": [70, 200, 0.45],
+      "head": 2.0, "body": 1.0, "limb": 0.5,
+      "spread": {
+        "hip": 1.5, "aimed": 0.25, "bloom": 0.25, "maxBloom": 2, "bloomRecovery": 3,
+        "moving": 1.7, "movingAimed": 0.5, "airborne": 2.4, "crouched": 0.8
+      },
+      "recoil": {
+        "mode": "pattern", "pitchJitter": 0, "yawJitter": 0.06,
+        "pattern": [
+          [2.0039412840665776, 1.3907062632285214],
+          [1.8402343933382719, -0.21427281298767298],
+          [1.6725104999104285, 2.2107372958765161],
+          [1.5007696037830449, 1.6998784390479109],
+          [1.325011704956121, 0.0071399016641837676],
+          [1.1452368034296629, -0.66817628567461007],
+          [0.96144489920366105, -1.1755575891729588],
+          [0.77363599227812507, -1.5150040088308705],
+          [0.58181008265304435, -1.6865155446483175],
+          [0.38596717032842776, -1.690092196625355],
+          [0.39656918818123721, -1.5257339647619452],
+          [0.73364163125193471, -1.1934408490580615],
+          [1.0005021642627554, -0.69321284951379258],
+          [1.1897515132876766, -0.03710641498063616],
+          [1.3013896783266912, 0.60073507788054314],
+          [1.3354166593797778, 1.107362001442084],
+          [1.291832456447036, 1.4829678993272495],
+          [1.1706370695283077, 1.7275527715360539],
+          [0.97183049862372428, 1.8411166180683551],
+          [0.69541274373327511, 1.8236594389243521],
+          [0.34138380485687492, 1.6751812341039169],
+          [0.19884701724947718, 1.3956820036070638],
+          [0.5561177790664118, 0.9851617474339065],
+          [0.83749108060398925, 0.44362046558411805],
+          [1.0259563507613301, -0.48016300232275455],
+          [1.1215135895375816, -1.4484332933548103],
+          [1.1241627969330104, -1.9464271868680498],
+          [1.0339039729482025, -1.9734331041072437],
+          [0.85073711758209214, -1.5294510450660255],
+          [0, 0]
+        ],
+        "pitchLimit": 60, "yawLimit": 60, "reset": 0.4, "kick": 0.1, "recoveryDelay": 0.2, "recovery": 0.08,
+        "aimed": 0.78, "crouched": 0.85
+      },
+      "zoom": 1.57,
+      "attachments": ["holo-sight", "scope", "silencer", "weapon-light", "muzzle-brake"]
+    }
+  ],
+  "ammo": [
+    { "item": "pistol-ammo", "calibre": "pistol", "damage": 1.0, "speed": 1.0, "bleed": 0.25, "burn": 0, "structure": 0.15 },
+    { "item": "pistol-ammo-hv", "calibre": "pistol", "damage": 0.85, "speed": 1.33, "bleed": 0.25, "burn": 0, "structure": 0.15,
+      "note": "Rust's high-velocity pistol rounds fly 400 m/s against 300." },
+    { "item": "pistol-ammo-incendiary", "calibre": "pistol", "damage": 0.85, "speed": 0.75, "bleed": 0.1, "burn": 6, "structure": 0.5,
+      "note": "Rust's incendiary pistol rounds fly 225 m/s against 300." },
+    { "item": "rifle-ammo", "calibre": "rifle", "damage": 1.0, "speed": 1.0, "bleed": 0.25, "burn": 0, "structure": 0.15 },
+    { "item": "rifle-ammo-hv", "calibre": "rifle", "damage": 0.85, "speed": 1.2, "bleed": 0.25, "burn": 0, "structure": 0.15,
+      "note": "Rust's high-velocity rifle rounds fly 450 m/s against 375." },
+    { "item": "rifle-ammo-incendiary", "calibre": "rifle", "damage": 0.85, "speed": 0.6, "bleed": 0.1, "burn": 6, "structure": 0.5,
+      "note": "Rust's incendiary rifle rounds fly 225 m/s against 375." }
+  ],
+  "attachments": [
+    { "item": "holo-sight", "slot": "sight", "zoom": 2.0, "aimedSpread": 0.7 },
+    { "item": "scope", "slot": "sight", "zoom": 4.0, "aimedSpread": 0.6 },
+    { "item": "silencer", "slot": "muzzle", "recoil": 0.8, "hipSpread": 0.7, "aimedSpread": 0.7, "speed": 0.75, "damage": 0.85, "silenced": true },
+    { "item": "weapon-light", "slot": "rail", "light": true },
+    { "item": "muzzle-brake", "slot": "muzzle", "recoil": 0.5, "hipSpread": 1.5, "aimedSpread": 1.5, "damage": 0.8 }
+  ]
+}

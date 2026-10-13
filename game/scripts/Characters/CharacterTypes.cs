@@ -4,6 +4,13 @@ using Godot;
 namespace HollowUniverse.Characters;
 
 /// <summary>How a character stands (GROUND.md §4.8).</summary>
+/// <summary>Which body a character has (GROUND.md §4.8): each has its own meshes, clothing and clips.</summary>
+public enum BodyType
+{
+    Male,
+    Female,
+}
+
 public enum CharacterStance
 {
     Stand,

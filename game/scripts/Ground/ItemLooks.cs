@@ -5,23 +5,15 @@ using HollowUniverse.Characters;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// How items look on a character (GROUND.md §4.8): which held model and pose an items.json key takes in the hands,
-/// and which garment a worn item is. The character package's models stand in where an item has none of its own yet
-/// (a metal hatchet is held as the flint axe); items without any (a torch, a bow, a spear) are drawn by the ground
-/// game's own placeholders in first person and as an empty hand in third.
+/// How items look on a character (GROUND.md §4.8): the held model and pose an items.json key takes in the hands (the
+/// model catalogue's held poses, through the character package's <see cref="HeldItems"/>), and which garment a worn
+/// item is. Items without a held model are drawn by the ground game's own placeholders in first person and as an empty
+/// hand in third.
 /// </summary>
 public static class ItemLooks
 {
     /// <summary>The held model of an item key, and the pose it takes; null when the hands show nothing.</summary>
-    public static (HeldKind Kind, string? Model)? Held(string key) => key switch
-    {
-        "rock" => (HeldKind.Tool, HeldItems.HandStone.Id),
-        "stone-hatchet" or "metal-hatchet" => (HeldKind.Tool, HeldItems.FlintAxe.Id),
-        "stone-pickaxe" or "metal-pickaxe" => (HeldKind.Tool, HeldItems.FlintPick.Id),
-        "pistol" => (HeldKind.Pistol, HeldItems.WrenPistol.Id),
-        "rifle" => (HeldKind.Rifle, HeldItems.KestrelRifle.Id),
-        _ => null,
-    };
+    public static (HeldKind Kind, string? Model)? Held(string key) => HeldItems.Find(key) is { } model ? (model.Kind, model.Id) : null;
 
     /// <summary>Whether an item in hand needs the ground game's own first-person placeholder (it has no model).</summary>
     public static bool NeedsPlaceholder(ItemDef item) => Held(item.Key) == null && (item.Melee != null || item.Bow != null);

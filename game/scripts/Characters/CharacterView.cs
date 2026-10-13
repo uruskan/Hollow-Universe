@@ -44,9 +44,10 @@ public partial class CharacterView : Node3D
     private float _recoil;
     private float _hold = 1f;
     private float _reload = -1f;
+    private float _actionFade = -1f;
 
     // Held item.
-    private BoneAttachment3D _handR = null!;
+    private BoneAttachment3D _handR = null!, _handL = null!;
     private Node3D _carry = null!;
     private Node3D? _item;
     private HeldItemModel? _itemModel;
@@ -57,6 +58,14 @@ public partial class CharacterView : Node3D
 
     /// <summary>Forces a level of detail (0–2) regardless of distance; −1 picks by distance.</summary>
     public int ForcedLod { get; set; } = -1;
+
+    /// <summary>Which body this character has; set it before the view enters the tree.</summary>
+    public BodyType Body { get; set; } = BodyType.Male;
+
+    private BodyAssets _assets = null!;
+
+    /// <summary>Holds the eyelids at this closure (0 open, 1 shut) instead of blinking now and then; −1 blinks.</summary>
+    public float BlinkOverride { get; set; } = -1f;
 
     /// <summary>Feet placement on the ground below (needs Godot physics colliders); on by default.</summary>
     public bool FootPlacement { get; set; } = true;
@@ -76,14 +85,14 @@ public partial class CharacterView : Node3D
 
     public override void _Ready()
     {
-        CharacterAssets.Load();
+        _assets = CharacterAssets.For(Body);
         // The art faces +Z; the view's forward is −Z.
         _model = new Node3D { Name = "Model", RotationDegrees = new Vector3(0, 180, 0) };
         AddChild(_model);
-        _skeleton = CharacterAssets.NewSkeleton();
+        _skeleton = _assets.NewSkeleton();
         _skeleton.ModifierCallbackModeProcess = Skeleton3D.ModifierCallbackModeProcessEnum.Manual;
         _model.AddChild(_skeleton);
-        foreach (MeshPart part in CharacterAssets.Meshes.Values)
+        foreach (MeshPart part in _assets.Meshes.Values)
         {
             if (!IsBodyPart(part.Name))
             {
@@ -91,11 +100,19 @@ public partial class CharacterView : Node3D
             }
             MeshInstance3D mi = Instance(part);
             _meshes.Add((mi, part.Lods, part.Name.StartsWith("body", StringComparison.Ordinal)));
+            int shape = mi.FindBlendShapeByName("blink");
+            if (shape >= 0)
+            {
+                _blinkers.Add((mi, shape));
+            }
         }
+        _nextBlink = 1f + (float)(GD.Randf() * 4.0);
         _poser = new CharacterPoser { Name = "Poser" };
         _skeleton.AddChild(_poser);
         _handR = new BoneAttachment3D { Name = "HandR", BoneName = "hand_r" };
         _skeleton.AddChild(_handR);
+        _handL = new BoneAttachment3D { Name = "HandL", BoneName = "hand_l" };
+        _skeleton.AddChild(_handL);
         _carry = new Node3D { Name = "Carry" };
         _skeleton.AddChild(_carry);
         _gripR = HandFrame.Measure(_skeleton, right: true);
@@ -104,11 +121,11 @@ public partial class CharacterView : Node3D
         _tree = new AnimationTree
         {
             Name = "Animation",
-            TreeRoot = CharacterAnimator.Tree,
+            TreeRoot = CharacterAnimator.TreeFor(_assets),
             CallbackModeProcess = AnimationMixer.AnimationCallbackModeProcess.Manual,
             RootNode = new NodePath(".."),
         };
-        _tree.AddAnimationLibrary("", CharacterAssets.Library);
+        _tree.AddAnimationLibrary("", _assets.Library);
         _model.AddChild(_tree);
         _tree.Active = true;
         ApplyRegions();
@@ -167,7 +184,7 @@ public partial class CharacterView : Node3D
         {
             for (int level = 0; level < 3; level++)
             {
-                MeshPart? part = CharacterAssets.Part(w.Mesh + "_lod" + level);
+                MeshPart? part = _assets.Part(w.Mesh + "_lod" + level);
                 if (part == null)
                 {
                     continue;
@@ -192,7 +209,9 @@ public partial class CharacterView : Node3D
             case CharacterEvent.Swing:
                 PlayAction(_held switch
                 {
-                    HeldKind.Tool => _itemModel == HeldItems.HandStone ? "throw" : "tool_swing",
+                    HeldKind.Tool when _itemModel?.LeftHanded == true => "",
+                    // Hatchets, picks, hammers and torches chop; blades slash; the rock is brought down overhand.
+                    HeldKind.Tool => _itemModel?.Id == "rock" ? "throw" : _itemModel?.Class == "blade" ? "tool_swing" : "chop",
                     HeldKind.Unarmed => "punch_jab",
                     _ => "",
                 });
@@ -240,6 +259,8 @@ public partial class CharacterView : Node3D
         }
         _tree.Set(CharacterAnimator.ActionClip, clip);
         _tree.Set(CharacterAnimator.Action, (int)AnimationNodeOneShot.OneShotRequest.Fire);
+        // The chop is cut from a loop: it ends after its follow-through.
+        _actionFade = clip == "chop" ? CharacterAnimator.ChopFadeAt : -1f;
     }
 
     private void Die(Vector3 direction)
@@ -286,6 +307,10 @@ public partial class CharacterView : Node3D
         }
         float dt = (float)_pending;
         _pending = 0;
+        if (lod == 0)
+        {
+            Blink(dt);
+        }
         Animate(dt, lod);
         _tree.Advance(dt);
         _skeleton.Advance(dt);
@@ -310,6 +335,44 @@ public partial class CharacterView : Node3D
             }
         }
         return 3;
+    }
+
+    // The eyelids (the nearest level of detail carries a "blink" shape): every two to six seconds, shut in 70 ms and
+    // open again in 130 ms; now and then twice.
+    private readonly List<(MeshInstance3D Mesh, int Shape)> _blinkers = new();
+    private float _nextBlink, _blinkClock = -1f;
+
+    private void Blink(float dt)
+    {
+        float closure;
+        if (BlinkOverride >= 0f)
+        {
+            closure = Math.Clamp(BlinkOverride, 0f, 1f);
+        }
+        else
+        {
+            _nextBlink -= dt;
+            if (_nextBlink <= 0f && _blinkClock < 0f)
+            {
+                _blinkClock = 0f;
+                _nextBlink = GD.Randf() < 0.15f ? 0.3f : 2f + (float)(GD.Randf() * 4.0);
+            }
+            closure = 0f;
+            if (_blinkClock >= 0f)
+            {
+                _blinkClock += dt;
+                closure = _blinkClock < 0.07f ? _blinkClock / 0.07f : 1f - (_blinkClock - 0.07f) / 0.13f;
+                if (_blinkClock >= 0.2f)
+                {
+                    _blinkClock = -1f;
+                    closure = 0f;
+                }
+            }
+        }
+        foreach ((MeshInstance3D mesh, int shape) in _blinkers)
+        {
+            mesh.SetBlendShapeValue(shape, Math.Clamp(closure, 0f, 1f));
+        }
     }
 
     private void SetLod(int lod)
@@ -473,7 +536,8 @@ public partial class CharacterView : Node3D
                 _tree.Set(CharacterAnimator.HeldLeft, _held.ToString().ToLowerInvariant());
             }
         }
-        float wantR = _held == HeldKind.Unarmed ? 0f : 1f;
+        bool leftHanded = _itemModel?.LeftHanded == true;
+        float wantR = _held == HeldKind.Unarmed || leftHanded ? 0f : 1f;
         float wantL = _held is HeldKind.Pistol or HeldKind.Rifle ? 1f : 0f;
         _holdR += (wantR - _holdR) * Math.Min(1f, dt * 8f);
         _holdL += (wantL - _holdL) * Math.Min(1f, dt * 8f);
@@ -481,6 +545,14 @@ public partial class CharacterView : Node3D
         _tree.Set(CharacterAnimator.HoldLeft, _holdL);
 
         _recoil = Math.Max(0f, _recoil - dt * 7f);
+        if (_actionFade >= 0f)
+        {
+            _actionFade -= dt;
+            if (_actionFade < 0f)
+            {
+                _tree.Set(CharacterAnimator.Action, (int)AnimationNodeOneShot.OneShotRequest.FadeOut);
+            }
+        }
         if (_reload >= 0f)
         {
             _reload += dt / 2.2f;
@@ -499,7 +571,7 @@ public partial class CharacterView : Node3D
         }
         else if (_held == HeldKind.Tool && _item != null)
         {
-            CarryTool();
+            CarryTool(leftHanded);
         }
         else
         {
@@ -508,17 +580,19 @@ public partial class CharacterView : Node3D
         }
     }
 
-    /// <summary>A tool rides upright in the right hand at the hip, blade forward.</summary>
-    private void CarryTool()
+    /// <summary>A tool rides upright in the right hand at the hip, blade forward (a bow in the left hand).</summary>
+    private void CarryTool(bool left)
     {
-        float hip = _skeleton.GetBoneGlobalRest(_skeleton.FindBone("thigh_r")).Origin.Y;
+        float hip = _skeleton.GetBoneGlobalRest(_skeleton.FindBone(left ? "thigh_l" : "thigh_r")).Origin.Y;
         // Skeleton space: forward +Z, right −X. Item axes: +X blade, +Y handle up.
         var grip = new Transform3D(
             new Basis(Vector3.Left, -0.5f) * new Basis(new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(-1, 0, 0)),
-            new Vector3(-0.25f, hip + 0.08f, 0.2f));
-        _poser.RightHand = HandFrame.HandFor(grip, HandFrame.PowerGrip, _gripR);
-        _poser.RightHandWeight = Smooth(_hold);
-        _poser.LeftHandWeight = 0f;
+            new Vector3(left ? 0.25f : -0.25f, hip + 0.08f, 0.2f));
+        Transform3D hand = HandFrame.HandFor(grip, HandFrame.PowerGrip, left ? _gripL : _gripR);
+        _poser.RightHand = hand;
+        _poser.LeftHand = hand;
+        _poser.RightHandWeight = left ? 0f : Smooth(_hold);
+        _poser.LeftHandWeight = left ? Smooth(_hold) : 0f;
     }
 
     private static float Smooth(float t) => t * t * (3f - 2f * t);
@@ -545,14 +619,13 @@ public partial class CharacterView : Node3D
             _carry.AddChild(_item);
             return;
         }
-        // Held in the right hand: the grip socket in the palm.
-        _handR.AddChild(_item);
-        Transform3D grip = HeldItems.Socket(_item, "grip_r");
-        Transform3D handRest = _skeleton.GetBoneGlobalRest(_skeleton.FindBone("hand_r"));
-        // Where the hand bone would be holding the item, in item space; the item sits at its inverse from the bone.
-        Transform3D handInItem = HandFrame.HandFor(grip, HandFrame.PowerGrip, _gripR);
+        // Held in one hand (the right, or the left for a bow): its grip socket in the palm. Where the hand bone would
+        // be holding the item, in item space; the item sits at its inverse from the bone.
+        bool left = model.LeftHanded;
+        (left ? _handL : _handR).AddChild(_item);
+        Transform3D grip = HeldItems.Socket(_item, left ? "grip_l" : "grip_r");
+        Transform3D handInItem = HandFrame.HandFor(grip, HandFrame.PowerGrip, left ? _gripL : _gripR);
         _item.Transform = handInItem.AffineInverse();
-        _ = handRest;
     }
 
     /// <summary>

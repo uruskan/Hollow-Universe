@@ -101,6 +101,42 @@ public sealed class PlayerSession
 
     private bool _budgetStarted;
 
+    /// <summary>
+    /// The gun budget (RustMVP's weapon budget, survival.json <c>gunBurst</c>, <c>gunActionsPerSecond</c>): shots and
+    /// reloads spend from their own bucket, so a firefight never starves the inventory's intents.
+    /// </summary>
+    public bool SpendGunToken(long tick, int burst, float perSecond)
+    {
+        if (!_gunBudgetStarted)
+        {
+            _gunBudgetStarted = true;
+            _gunTokens = burst;
+            _gunTick = tick;
+        }
+        _gunTokens = Math.Min(burst, _gunTokens + (tick - _gunTick) * (double)perSecond / Simulation.Movement.CharacterMotor.TickRate);
+        _gunTick = tick;
+        if (_gunTokens < 1)
+        {
+            return false;
+        }
+        _gunTokens -= 1;
+        return true;
+    }
+
+    private bool _gunBudgetStarted;
+    private double _gunTokens;
+    private long _gunTick;
+
+    /// <summary>Gun actions (shots and reloads) that arrived, those refused for the budget, and the gun state last sent.</summary>
+    public long GunActions { get; set; }
+
+    public long GunRateLimited { get; set; }
+
+    public uint SentGun { get; set; } = uint.MaxValue;
+
+    /// <summary>Whether the player was down (wounded) when their life was last sent.</summary>
+    public bool? SentWounded { get; set; }
+
     public double IntentTokens { get; private set; }
 
     public long IntentTick { get; private set; }

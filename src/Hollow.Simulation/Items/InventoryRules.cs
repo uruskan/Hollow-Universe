@@ -37,7 +37,7 @@ public static class InventoryRules
         ItemStack target = to[toSlot];
         if (target.IsEmpty)
         {
-            var moved = new ItemStack(source.Item, moving, source.Condition);
+            ItemStack moved = source.WithCount(moving);
             if (!to.Accepts(content, toSlot, moved, from == to ? fromSlot : -1))
             {
                 return ActionResult.NotAllowed;
@@ -152,7 +152,7 @@ public static class InventoryRules
                 {
                     continue;
                 }
-                var part = new ItemStack(stack.Item, Math.Min(item.StackSize, left), stack.Condition);
+                ItemStack part = stack.WithCount(Math.Min(item.StackSize, left));
                 if (c.Accepts(content, i, part))
                 {
                     c.Set(i, part);
@@ -177,7 +177,7 @@ public static class InventoryRules
             return ActionResult.Stale;
         }
         int n = amount == 0 ? source.Count : amount;
-        taken = new ItemStack(source.Item, n, source.Condition);
+        taken = source.WithCount(n);
         source.Count -= n;
         from.Set(slot, source);
         return ActionResult.Accepted;

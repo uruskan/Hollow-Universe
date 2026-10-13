@@ -21,6 +21,8 @@ uniform int debug_view = 0;
 uniform vec3 blade_mean = vec3(0.5, 0.63, 0.34);      // mean linear colour of the painted grass blades
 uniform float grass_layer_luminance = 0.1;            // mean luminance of the grass layer's texture
 uniform vec2 canopy_fade = vec2(1600.0, 2200.0);      // where far forests become the ground's colour
+uniform sampler2D canopy_texture : filter_linear_mipmap_anisotropic, repeat_enable; // crowns: height, kind, slope
+uniform float canopy_tile = 150.0;                    // metres covered by the crown texture
 
 // Metres covered by one repeat of each layer (the scans' own sizes), and their roughness.
 const float layer_size[8] = { 4.0, 3.0, 2.0, 2.4, 4.0, 4.0, 2.0, 4.0 };
@@ -155,7 +157,13 @@ void fragment() {
 			}
 		}
 		if (i == 1) {
-			c *= vec3(1.12, 0.9, 0.62); // forest litter: warmer than the scan, which reads grey under a blue sky
+			// Forest floor: brown leaf litter and needles over dark humus, with cushions of moss in patches.
+			vec4 m4 = texture(macro_noise, wp / 9.0 + vec2(0.57, 0.19));
+			float lum1 = dot(c, vec3(0.2126, 0.7152, 0.0722));
+			vec3 litter = c * vec3(1.12, 0.94, 0.7) * (0.8 + 0.4 * m4.r);
+			float moss = smoothstep(0.6, 0.8, m4.g + (macro2.b - 0.5) * 0.35);
+			vec3 moss_colour = vec3(0.05, 0.085, 0.02) * clamp(lum1 / 0.09, 0.5, 1.7);
+			c = mix(litter, moss_colour, moss * 0.85);
 		}
 		if (i == 0) {
 			// The grass layer takes the blades' colour: its texture only gives the detail.
@@ -165,6 +173,14 @@ void fragment() {
 		}
 		colours[i] = c;
 		normals[i] = vec2((t.r * 2.0 - 1.0) * normal_sign.x, (t.g * 2.0 - 1.0) * normal_sign.y);
+		if (i == 5) {
+			// Beach sand: lighter and warmer than the scan, with wind ripples across it near by.
+			colours[i] *= vec3(1.5, 1.42, 1.25);
+			vec2 rd = normalize(vec2(0.86, -0.5));
+			float rp = dot(wp, rd) / 0.045 + texture(macro_noise, wp / 3.0).r * 14.0 + texture(macro_noise, wp / 11.0).g * 20.0;
+			float ripple_mask = smoothstep(0.35, 0.65, texture(macro_noise, wp / 17.0 + vec2(0.3, 0.6)).b);
+			normals[i] += rd * cos(rp) * 0.12 * ripple_mask * (1.0 - smoothstep(4.0, 14.0, dist));
+		}
 		heights[i] = t.b;
 		best = max(best, w[i] * 1.6 + t.b);
 	}
@@ -198,25 +214,58 @@ void fragment() {
 	float others = 1.0 - clamp(w[0], 0.0, 1.0);
 	albedo *= mix(1.0, 0.82 + 0.36 * macro.r, others);
 	albedo = mix(albedo, albedo * vec3(1.06, 1.0, 0.9), macro.b * others);
-	// Far forests: the trees have gone, their canopy colours the ground (as in hollow-orbit).
-	float canopy = smoothstep(canopy_fade.x, canopy_fade.y, dist) * smoothstep(0.15, 0.6, v_climate.a) * (1.0 - cliff) * (1.0 - w[6]);
-	vec3 canopy_colour = vec3(0.030, 0.050, 0.022) * (0.75 + 0.5 * macro2.r) * (0.85 + 0.3 * macro.b);
-	albedo = mix(albedo, canopy_colour, canopy * 0.92);
+	// Far forests: where the trees' impostors end, the canopy is drawn on the ground: crowns (a tiling crown map with
+	// its own slopes, lit by the sun below), dark gaps between them, and crisp, irregular forest edges with a shadow
+	// line along the open side.
+	float edge_noise = texture(macro_noise, wp / 97.0 + vec2(0.17, 0.53)).g * 0.6 + texture(macro_noise, wp / 23.0 + vec2(0.61, 0.07)).b * 0.4;
+	float cover = v_climate.a + (edge_noise - 0.5) * 0.4;
+	float forest = smoothstep(0.4, 0.5, cover);
+	vec3 to_point = v_world - CAMERA_POSITION_WORLD;
+	float along_ground = length(to_point - up * dot(to_point, up));
+	float far_fade = smoothstep(canopy_fade.x, canopy_fade.y, along_ground);
+	// Seen steeply from the air, impostors are thin slivers: the forest below is drawn as canopy there too.
+	float steep = smoothstep(0.45, 0.75, -dot(to_point, up) / max(length(to_point), 1.0)) * smoothstep(250.0, 500.0, dist);
+	far_fade = max(far_fade, steep);
+	float canopy = far_fade * forest * (1.0 - cliff) * (1.0 - w[6]);
+	vec4 crowns = texture(canopy_texture, wp / canopy_tile);
+	// Groves at a larger scale, so the canopy keeps its texture where single crowns blur together.
+	vec4 groves = texture(canopy_texture, wp / (canopy_tile * 6.0) + vec2(0.37, 0.11));
+	// Stands of one kind (as the scatter grows them): dark conifers, lighter broadleaf and birch.
+	float stand = smoothstep(0.42, 0.62, texture(macro_noise, wp / 700.0 + vec2(0.21, 0.87)).r + (crowns.g - 0.5) * 0.15);
+	vec3 conifer = vec3(0.02, 0.036, 0.018);
+	vec3 broad = vec3(0.05, 0.08, 0.024);
+	vec3 crown_colour = mix(conifer, broad, stand) * (0.8 + 0.4 * crowns.g);
+	float crown_cover = smoothstep(0.02, 0.25, crowns.r) * (0.55 + 0.45 * smoothstep(0.05, 0.5, groves.r));
+	vec3 canopy_colour = mix(vec3(0.007, 0.011, 0.006), crown_colour * (0.8 + 0.4 * groves.r), crown_cover) * (0.85 + 0.3 * macro.b);
+	albedo = mix(albedo, canopy_colour, canopy);
 	rough = mix(rough, 0.95, canopy);
+	float edge_shadow = far_fade * (1.0 - forest) * smoothstep(0.25, 0.4, cover) * (1.0 - cliff);
+	albedo *= 1.0 - 0.45 * edge_shadow;
 	// Wet sand and stones at the waterline.
+	// Wet sand: dark and glossy below the wave line, and a band the swash keeps wet, wider and narrower in time;
+	// thin lines of foam left where the waves ran out.
 	float wet = 1.0 - smoothstep(0.1, 0.9, v_height);
-	albedo *= 1.0 - 0.38 * wet;
-	rough = mix(rough, 0.35, wet);
+	float swash = 1.0 - smoothstep(0.0, 0.4 + 0.15 * sin(TIME * 0.7 + wp.x * 0.05 + wp.y * 0.03), v_height);
+	wet = max(wet * 0.7, swash);
+	albedo *= 1.0 - 0.45 * wet;
+	rough = mix(rough, 0.16, wet);
+	float residue = smoothstep(0.92, 1.0, sin(v_height * 38.0 + texture(macro_noise, wp / 3.0).g * 7.0)) * smoothstep(0.15, 0.3, v_height)
+		* (1.0 - smoothstep(0.45, 0.7, v_height)) * w[5] * (1.0 - smoothstep(20.0, 60.0, dist));
+	albedo = mix(albedo, vec3(0.6, 0.6, 0.58), residue * 0.6);
 
 	// Normal: the materials' bumps on the geometric normal (fading with distance).
 	vec3 tangent = normalize(cross(up, vec3(0.0, 0.0, 1.0)));
 	vec3 bitangent = normalize(cross(tangent, up));
 	float strength = normal_strength * (1.0 - smoothstep(60.0, 400.0, dist) * 0.8);
 	vec3 n = normalize(n_geo + (tangent * nrm.x + bitangent * nrm.y) * strength);
+	vec2 crown_slope = (crowns.ba - 0.5) * 2.0 + (groves.ba - 0.5) * 1.2;
+	n = normalize(n + (tangent * crown_slope.x + bitangent * crown_slope.y) * 1.6 * canopy);
 
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
-	AO = mix(0.55, 1.0, smoothstep(0.05, 0.6, height));
+	// Under the trees near by, the canopy keeps much of the sky's light off the ground (the sun's flecks stay).
+	float canopy_ao = 1.0 - 0.38 * smoothstep(0.2, 0.8, v_climate.a) * (1.0 - smoothstep(250.0, 600.0, dist));
+	AO = mix(0.55, 1.0, smoothstep(0.05, 0.6, height)) * canopy_ao;
 	AO_LIGHT_AFFECT = 0.25;
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 

@@ -17,7 +17,8 @@ public static class CharacterMaterials
     /// <summary>The material of a surface; <paramref name="viewmodel"/> picks the first-person variant.</summary>
     public static Material Create(string surface, bool viewmodel) => viewmodel ? ForViewmodel(Create(surface, false)) : surface switch
     {
-        "skin" => Skin(),
+        "skin" => Skin("skin_male"),
+        "skin_female" => Skin("skin_female"),
         "underwear" => Cloth(new Color(0.105f, 0.11f, 0.125f), "knit_normal.png", 46f, 0.7f, 0.86f),
         "eye" => new StandardMaterial3D
         {
@@ -28,10 +29,15 @@ public static class CharacterMaterials
             AlphaScissorThreshold = 0.5f,
             Roughness = 0.18f,
             MetallicSpecular = 0.5f,
+            // A wet eye: a sharp highlight over the iris and white.
+            ClearcoatEnabled = true,
+            Clearcoat = 1f,
+            ClearcoatRoughness = 0.02f,
             TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
         },
-        "brow" or "lash" => Cards(surface + "_albedo.png", null, 0.75f, surface == "lash" ? 0.35f : 0.3f),
-        "hair" => Cards("hair_albedo.png", "hair_normal.png", 0.55f, 0.3f, BaseMaterial3D.CullModeEnum.Back),
+        "brow" or "lash" or "brow_female" => Cards(surface + "_albedo.png", null, 0.75f, surface == "lash" ? 0.35f : 0.3f),
+        "hair" or "hair_female" => Cards(surface + "_albedo.png", Exists(surface + "_normal.png") ? surface + "_normal.png" : null,
+            0.55f, 0.3f, BaseMaterial3D.CullModeEnum.Back, blended: true),
         _ => Garment(surface),
     };
 
@@ -68,6 +74,12 @@ public static class CharacterMaterials
             string path = sm.Shader.ResourcePath.Replace(".gdshader", "_viewmodel.gdshader");
             sm.Shader = GD.Load<Shader>(path);
             sm.SetShaderParameter("viewmodel_fov", ViewmodelFov);
+            if (path.Contains("character_skin", System.StringComparison.Ordinal))
+            {
+                // Seen from a hand's length away: finer, fainter pores.
+                sm.SetShaderParameter("detail_tiling", 46f);
+                sm.SetShaderParameter("detail_strength", 0.22f);
+            }
         }
         else if (copy is BaseMaterial3D bm)
         {
@@ -79,21 +91,30 @@ public static class CharacterMaterials
         return copy;
     }
 
-    private static ShaderMaterial Skin()
+    private static ShaderMaterial Skin(string stem)
     {
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/character_skin.gdshader") };
-        m.SetShaderParameter("albedo_texture", Texture("skin_male_albedo.png"));
+        m.SetShaderParameter("albedo_texture", Texture(stem + "_albedo.png"));
         m.SetShaderParameter("detail_normal", Texture("skin_detail_normal.png"));
+        if (Exists(stem + "_normal.png"))
+        {
+            m.SetShaderParameter("normal_texture", Texture(stem + "_normal.png"));
+        }
+        else
+        {
+            m.SetShaderParameter("normal_strength", 0f);
+        }
         return m;
     }
 
     private static StandardMaterial3D Cards(string albedo, string? normal, float roughness, float threshold,
-        BaseMaterial3D.CullModeEnum cull = BaseMaterial3D.CullModeEnum.Disabled)
+        BaseMaterial3D.CullModeEnum cull = BaseMaterial3D.CullModeEnum.Disabled, bool blended = false)
     {
         var m = new StandardMaterial3D
         {
             AlbedoTexture = Texture(albedo),
-            Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor,
+            // Hair blends its thin ends over a depth pre-pass of its solid middle, so the hairline is soft, not cut.
+            Transparency = blended ? BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass : BaseMaterial3D.TransparencyEnum.AlphaScissor,
             AlphaScissorThreshold = threshold,
             AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage,
             CullMode = cull,
@@ -163,10 +184,15 @@ public static class CharacterMaterials
         if (_garments == null)
         {
             _garments = new Dictionary<string, JsonElement>();
-            string path = CharacterAssets.Folder + "clothing.json";
-            if (FileAccess.FileExists(path))
+            // Each body's garments have their own surfaces (the female's end in "_female").
+            foreach (string file in new[] { "clothing.json", "clothing_female.json" })
             {
-                JsonDocument doc = JsonDocument.Parse(FileAccess.GetFileAsString(path));
+                string path = CharacterAssets.Folder + file;
+                if (!FileAccess.FileExists(path))
+                {
+                    continue;
+                }
+                using JsonDocument doc = JsonDocument.Parse(FileAccess.GetFileAsString(path));
                 if (doc.RootElement.TryGetProperty("surfaces", out JsonElement surfaces))
                 {
                     foreach (JsonProperty p in surfaces.EnumerateObject())

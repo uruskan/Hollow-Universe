@@ -3,8 +3,11 @@ namespace Hollow.Net.Protocol;
 /// <summary>Constants of the ground game's protocol (GROUND.md §4.4).</summary>
 public static partial class Protocol
 {
-    /// <summary>Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect.</summary>
-    public const uint Version = 3;
+    /// <summary>
+    /// Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect. 3: the zone on the
+    /// real planet (stand-in flag, day scale); 4: G4, guns and the wounded; 5: both together.
+    /// </summary>
+    public const uint Version = 5;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

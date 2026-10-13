@@ -79,28 +79,118 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   50 characters take 5.7 ms a frame. The clothing, the first-person hands and the melee swing aren't at the Rust bar
   yet, so the same agent is on a polish pass now. That pass also replaces the capsule players in the ground mode with
   real characters. 58 of 58 tests pass.
+- **G2 survival merged** (`ground-survive`):
+  - data: 43 items, 29 recipes, 13 natural kinds including the berry bushes, and 9 deployables;
+  - containers, crafting, gathering with the weak spot, vitals, corpses, sleepers, and melee and bow with lag
+    compensation;
+  - SQLite schema 2.
 
-## 13 October 2026, early morning
+  With 100 survival bots the tick is 5.9 ms on average and each client uses 105 kbit/s.
+- **The first world's surface merged** (`ground-planet`), with the landing site at 44.87° N, 170.00° W:
+  - terrain out to the horizon, thick-air sky, the real sun and moon, stars, clouds and sea;
+  - plants generated in code in hollow-orbit's style, including the berry bushes;
+  - GPU shader grass.
 
-- **G1 and G2 joined into one game on the first world** (`ground-integrate`):
-  - The server's zone is the planet's own ground at the landing site. New characters and the dead arrive on its real
-    beaches. The air follows the planet's climate and a day 24 times faster than real.
-  - Trees, bushes, ferns and boulders are the surface's own plants, with the same IDs on the server and the client.
-    Stone, metal and sulphur outcrops are new scatter kinds; nothing that was generated before moved.
-  - The client draws the planet package's world, the character package's bodies and first-person arms, and the RustMVP
-    interface over the real client, with Rust's keys. A felled tree falls and is gone; a picked bush is bare.
-  - `play-ground.cmd` builds and hosts a game; `play-ground.cmd join` joins one on 127.0.0.1; `--view ground` alone
-    opens the main menu.
-- **Measured** (GROUND.md §5.3), with 2 players and 50 bots at the landing site:
+  A frame takes 11 ms at the landing site. Screenshots: `docs/images/ground/a_landing_morning.jpg` to `g_2km.jpg`.
+  A polish pass is running on the forest floor, bark, firs, night, coast and the view from altitude.
+- **Integration started** (`ground-integrate`): the real planet on the server and client, natural objects from the
+  planet's scatter (felling trees, picking berries, ore outcrops), the real UI bound to the client, real characters
+  instead of capsules, a main menu, and a `play-ground.cmd` launcher. 79 of 79 tests pass on `ground`.
+- **Planet polish merged:** forest floor litter, natural bark, fuller firs, smooth LOD fades, far forest canopy, a
+  better night sky, surf and wet sand. All six Megascans Fab listings were checked: Standard License, none
+  Unreal-only. Screenshots in `docs/images/ground/`.
+- **G4 fight started** (`ground-fight`): firearms with server-side ballistics and lag compensation, Rust's AK recoil
+  pattern from RustMVP (deterministic on client and server), aiming down sights, attachments, ammo types, armour and
+  the wounded state. Engine-free for now; the visuals follow after integration.
+- **Assets merged** (`ground-assets`):
+  - 72 catalogued models: converted kit items, the Frontier rifle, the Tin Finch with its hatch, and our own piles,
+    tools, supplies, deployables and outcrops (our own design rather than the kit's Rust-like nodes);
+  - 124 item icons in a Rust-like product-shot style (`docs/images/ground/assets/icons.jpg`).
 
-  | Measure | Result |
-  |---|---|
-  | Frame, dedicated server | 12.3 ms average (81 fps), 16.7 ms at the 99th percentile |
-  | Frame, hosted | 12.7 ms average (79 fps), 19.0 ms at the 99th percentile |
-  | Server tick, 51 players | 6.8 ms average |
-  | Server tick, 100 survival bots (load test) | 11.7 ms average, 16.8 ms at the 99th percentile |
+  The bed is a marked stand-in until its model is made. The assets agent is now making the bed, the G4
+  attachments and ammo variants, icon fixes and world props.
+- **G3 building, phase 1 merged** (`ground-build`):
+  - 20 pieces in 5 grades, 7 doors, locks, and the claim device with upkeep and decay;
+  - stability and collapse, and hammer actions;
+  - the building and door kits converted;
+  - a `--view build` sandbox (screenshot `docs/images/ground/build/house.jpg`).
 
-- **Pictures:** `docs/images/ground/play/` (HUD, berries, inventory, crafting, the other player, a tree chopped and
-  gone, an outcrop, death, night by a fire, the menu).
-- **Placeholders** wait for the assets package behind small seams: outcrops, deployables, dropped items, some held
-  items and item icons. 83 of 83 tests pass.
+  A 1,060-piece base draws in about 5 ms. In the merge I fixed a physics body ID clash between survival's props and
+  buildings. Phase 2a is now running: building over the network, saves, inventory costs, the claim-device store and
+  bots that build. 91 of 91 tests pass.
+- **Assets pass 2 merged:**
+  - a real bed (replacing the stand-in);
+  - holo sight, scope, silencer, weapon light and muzzle brake, mounting on the guns' sockets;
+  - high-velocity and incendiary ammo boxes;
+  - better icons for the spears, arrows and tubers;
+  - first-person item placements;
+  - loot barrels, crates and a recycler for G7.
+
+  91 of 91 tests pass.
+- **Sound started** (`ground-audio`):
+  - a catalogue of every sound event: footsteps per ground material, gathering, building, doors, weapons with
+    near/far layers, explosions, Rust-like UI clicks, and ambience by biome and time of day;
+  - an audio system with pooled 3D voices, distance layering, buses and occlusion;
+  - an audition viewer.
+
+  Sources are CC0 recordings with our own processing, checked by loudness and clipping measurements. The owner's
+  ears are still needed.
+- **G4 fight core merged** (`ground-fight`):
+  - the pistol and rifle with RustMVP's definitions and the AK recoil pattern, exactly as given;
+  - three rounds per calibre and five attachments;
+  - server-side bullets with drop, drag and lag compensation;
+  - damage by distance, body part and armour;
+  - Rust's wounded state (down, crawl, help up, bleed out).
+
+  With 100 fighting bots the tick is 8.6 ms on average and each client uses 169 kbit/s. The visuals (muzzle flash,
+  tracers, aiming and the HUD) follow after integration. Three new items have marked stand-in models for now.
+  102 of 102 tests pass.
+- **G5 raid started** (`ground-raid`):
+  - timed charges, bag charges (they can dud), tin grenades, the rocket launcher and rockets, explosive ammo;
+  - damage by grade and side, aiming at Rust's raid costs;
+  - line-of-sight shielding;
+  - raid alerts to owners, online or offline, and offline raids that work.
+- **Character polish merged:**
+  - a proper crew-neck shirt with no skin showing in any pose;
+  - a riveted cuirass of our own design that reads as armour from a distance;
+  - natural first-person hands and grips;
+  - a real chop for tools, and weighty swings and reloads;
+  - blinking, ragdoll joint limits, no foot sliding;
+  - a female body.
+
+  Held items load from the shared catalogue. 102 of 102 tests pass.
+- **Effects and the last item models started** (`ground-fx`):
+  - muzzle flashes, tracers, impacts and decals per surface, blood, gathering chips;
+  - explosions from the PSG C4 flipbooks, and fire;
+  - real models for the three stand-ins and the G5 explosives and launcher.
+- **Sound merged** (`ground-audio`):
+  - 463 files for 138 events, about 13 MB, all CC0 with our own processing;
+  - footsteps per ground type, gathering, building, doors, guns with near, mid and far layers, explosions, Rust-like
+    interface clicks;
+  - ambience by biome and time of day;
+  - an audio system and the `--view sounds` viewer.
+
+  Every file was checked by measurement. Gunshot loudness, silenced shots and the generated wind beds need the owner's
+  ears. The sounds aren't wired into the ground mode yet. 105 of 105 tests pass.
+- **G6 ship started** (`ground-ship`), with the Tin Finch:
+  - crafted at the vehicle workbench;
+  - hatch and seat, flight assist, hover, landing on its skids;
+  - first-person cockpit and chase camera;
+  - flight up to an "orbit reached" ceiling;
+  - network prediction, saved parked ships;
+  - a `--view ship` sandbox over the real planet.
+- **Integration pass 1 finished** (`ground-integrate`). G1 and G2 play as one game on the real planet:
+  - arriving on real beaches;
+  - felling the surface's own trees, picking berries, mining new stone, metal and sulphur outcrops;
+  - crafting, clothing, fires, melee and bow, death and respawn, sleepers;
+  - real characters and first-person arms;
+  - the RustMVP interface with Rust's keys;
+  - a ×24 day.
+
+  Launch it with `play-ground.cmd` (host), `play-ground.cmd join`, or `play-ground.cmd menu`. Screenshots are in
+  `docs/images/ground/play/`. It runs at 81 fps with 2 players and 50 bots. Integration pass 2 is running now:
+  - merging `ground` in;
+  - the asset catalogue, characters by worn items with a male or female choice, sound;
+  - the gun visual layer;
+  - Host as a separate server process, since hosting in-process stalls on shared garbage collection;
+  - tick profiling.

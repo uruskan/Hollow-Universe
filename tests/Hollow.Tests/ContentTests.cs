@@ -42,6 +42,18 @@ public static class ContentTests
             Assert.True(content.Item(key) != null, $"item {key}");
         }
         Assert.True(content.Natural("red-berry-bush")?.Class == NaturalClass.Bush && content.Natural("blue-berry-bush") != null, "berry bushes");
+        // G4: the guns, every kind of round, the attachments; the rifle's recoil is RustMVP's AK pattern, whose 29 steps
+        // add up to 29.3677° up and 0.6145° right (weapons_character_ui.md §1.1).
+        FirearmStats rifle = content.ItemByKey("rifle").Firearm!, pistol = content.ItemByKey("pistol").Firearm!;
+        Assert.True(rifle.Mode == FireMode.Auto && rifle.Magazine == 30 && pistol.Mode == FireMode.Semi && pistol.Magazine == 15, "the two guns");
+        Assert.Equal(64, rifle.IntervalSixteenths, "450 rounds a minute: a shot every 4 ticks");
+        Assert.Equal(72, pistol.IntervalSixteenths, "400 rounds a minute: a shot every 4.5 ticks");
+        Assert.Equal("rifle-ammo,rifle-ammo-hv,rifle-ammo-incendiary", string.Join(",", rifle.Ammo.Select(a => a.Key)), "the rifle's rounds");
+        Assert.Equal("pistol-ammo,pistol-ammo-hv,pistol-ammo-incendiary", string.Join(",", pistol.Ammo.Select(a => a.Key)), "the pistol's rounds");
+        Assert.Equal("holo-sight,scope,silencer,weapon-light,muzzle-brake", string.Join(",", rifle.Attachments.Select(a => a.Key)), "the rifle's attachments");
+        Assert.Equal(30, rifle.Recoil.Pattern.Count, "30 steps");
+        Assert.Near(29.3677, rifle.Recoil.Pattern.Take(29).Sum(s => s.Pitch), 1e-3, "the pattern's pitch");
+        Assert.Near(0.6145, rifle.Recoil.Pattern.Take(29).Sum(s => s.Yaw), 1e-3, "the pattern's yaw");
         Assert.True(content.Deployable("furnace")?.Device?.Cooks == "furnace", "the furnace smelts");
         Assert.Equal(1, content.Recipe(content.ItemByKey("stone-spear").Id)!.Ingredients.Count(i => i.Item.Key == "wooden-spear"),
             "recipes may need other crafted items");

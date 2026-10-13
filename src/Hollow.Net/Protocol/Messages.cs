@@ -1,4 +1,5 @@
 using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
@@ -128,7 +129,7 @@ public partial struct OwnState
     public float VelocityX;
     public float VelocityY;
     public float VelocityZ;
-    [Bits(1)] public Stance Stance;
+    [Bits(2)] public Stance Stance;
     public byte Health;
     [Bits(4)] public MoveFlags Flags;
 }
@@ -167,16 +168,20 @@ public partial struct CharacterNetState
     [Angle] public ushort Yaw;
     [Angle] public ushort Pitch;
     [Bits(4)] public MoveFlags Flags;
-    [Bits(1)] public Stance Stance;
+    [Bits(2)] public Stance Stance;
     public byte Health;
 
-    /// <summary>The item in hand (0: none), a count of swings and shots (others animate each) and the last kind.</summary>
+    /// <summary>The item in hand (0: none), a count of swings, shots and reloads (others animate each) and the last kind.</summary>
     public ushort Held;
     [Bits(4)] public byte ActionCount;
-    [Bits(2)] public ActionKind Action;
+    [Bits(3)] public ActionKind Action;
 
     /// <summary>Logged off and asleep in the world.</summary>
     public bool Sleeping;
+
+    /// <summary>G4: aiming a gun down its sights, and the held gun's attachments (bit i: weapons.json's attachment i).</summary>
+    public bool Aiming;
+    public byte HeldMods;
 }
 
 // ---------------------------------------------------------------- reliable events
@@ -303,9 +308,13 @@ public partial struct ProjectileLaunch
     public float VelocityX;
     public float VelocityY;
     public float VelocityZ;
+
+    /// <summary>A bullet's shot: the shooter's gun action (their client already drew it), and whether silenced. 0 for arrows.</summary>
+    [VarInt] public uint Seq;
+    public bool Silenced;
 }
 
-/// <summary>A projectile stopped, at a point, on something.</summary>
+/// <summary>A projectile stopped, at a point, on something (nothing: out of range or time in the air).</summary>
 [NetMessage(42)]
 public partial struct ProjectileEnd
 {
@@ -313,7 +322,7 @@ public partial struct ProjectileEnd
     public float X;
     public float Y;
     public float Z;
-    [Bits(2)] public HitTarget Target;
+    [Bits(3)] public HitTarget Target;
 }
 
 // ---------------------------------------------------------------- G2: intents (client → server, reliable ordered)
@@ -444,6 +453,17 @@ public partial struct IntentResult
     [Bits(5)] public ActionResult Result;
 }
 
+/// <summary>A firearm's magazine and attachments (G4), carried by its slot.</summary>
+[NetStruct]
+public partial struct GunNet
+{
+    [VarInt] public uint Loaded;
+    [VarInt] public uint LoadedAmmo;
+    [VarInt] public uint Sight;
+    [VarInt] public uint Muzzle;
+    [VarInt] public uint Rail;
+}
+
 /// <summary>One slot of a container.</summary>
 [NetStruct]
 public partial struct SlotNet
@@ -452,6 +472,9 @@ public partial struct SlotNet
     [VarInt] public uint Item;
     [VarInt] public uint Count;
     [VarInt] public uint Condition;
+
+    /// <summary>A firearm's magazine and attachments: one entry, or none for every other item.</summary>
+    [MaxCount(1)] public GunNet[] Gun;
 }
 
 /// <summary>A whole container (the player's own at joining, a loot container when it opens): its size and every filled slot.</summary>
@@ -493,9 +516,10 @@ public partial struct VitalsUpdate
     [VarInt] public uint Hydration;
     [Signed(8)] public sbyte Temperature;
 
-    /// <summary>Health still to bleed away and to heal, in whole points.</summary>
+    /// <summary>Health still to bleed away, to heal and (G4) to burn, in whole points.</summary>
     public byte Bleeding;
     public byte Healing;
+    public byte Burning;
 
     /// <summary>How cold (0 … 255), near a fire, wet.</summary>
     public byte Cold;
@@ -528,11 +552,14 @@ public partial struct CraftQueueState
 [NetMessage(76)]
 public partial struct HitMarker
 {
-    [Bits(2)] public HitTarget Target;
+    [Bits(3)] public HitTarget Target;
     [Bits(2)] public HitRegion Region;
     [VarInt] public uint Damage;
     public bool Killed;
     public bool WeakSpot;
+
+    /// <summary>The hit knocked the player down (G4).</summary>
+    public bool Downed;
 }
 
 /// <summary>Items gained or lost and why (gathered, picked up, crafted; a tool broke), for notifications.</summary>
@@ -579,8 +606,106 @@ public partial struct BagNet
 public partial struct LifeState
 {
     public bool Dead;
+
+    /// <summary>Down (wounded, G4): how long until they get up or die, unless helped up first.</summary>
+    public bool Wounded;
+    [VarInt] public uint WoundedSeconds;
     [MaxLength(64)] public string Cause;
     [MaxLength(32)] public string KilledBy;
     [VarInt] public uint BeachReadySeconds;
     [MaxCount(32)] public BagNet[] Bags;
+}
+
+// ---------------------------------------------------------------- G4: guns and the wounded (GROUND.md §6.3, §6.4)
+
+/// <summary>
+/// A shot the client fired on one of its ticks (client → server, reliable ordered): its gun action sequence number,
+/// the gun (belt slot and item), the view the player controlled (without recoil), whether aimed, and how far behind
+/// its tick the player saw others. The server applies it on that tick; the client never says what it hit.
+/// </summary>
+[NetMessage(62)]
+public partial struct FireIntent
+{
+    [VarInt] public uint Seq;
+    public uint Tick;
+    [Bits(3)] public byte Slot;
+    [VarInt] public uint Item;
+    [Angle] public ushort Yaw;
+    [Angle] public ushort Pitch;
+    public bool Aimed;
+    public byte ViewDelay;
+}
+
+/// <summary>A reload begun on a tick (its gun action sequence number): which rounds (0: the loaded kind, else any).</summary>
+[NetMessage(63)]
+public partial struct ReloadIntent
+{
+    [VarInt] public uint Seq;
+    public uint Tick;
+    [Bits(3)] public byte Slot;
+    [VarInt] public uint Item;
+    [VarInt] public uint Ammo;
+}
+
+/// <summary>Put an attachment (from a slot) on a firearm (in another slot) of the player's main slots or belt.</summary>
+[NetMessage(64)]
+public partial struct AttachIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public ContainerRef From;
+    public byte Slot;
+    [Bits(3)] public ContainerRef WeaponIn;
+    public byte WeaponSlot;
+    [VarInt] public uint Expected;
+}
+
+/// <summary>Take the attachment in a slot (sight, muzzle, rail) off a firearm, into the inventory.</summary>
+[NetMessage(65)]
+public partial struct DetachIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public ContainerRef WeaponIn;
+    public byte WeaponSlot;
+    [Bits(2)] public AttachmentSlot Mod;
+}
+
+/// <summary>Help a wounded player up (the interact key on them).</summary>
+[NetMessage(66)]
+public partial struct HelpUpIntent
+{
+    [VarInt] public uint Seq;
+    public ulong Target;
+}
+
+/// <summary>
+/// The gun in the player's hand as the server has it (to the owner, reliable, when it changes: each shot or reload
+/// applied, a reload done, an equip): the last gun action applied and the last refused (and why), the gun and its
+/// magazine, and its cadence, recoil and reload in ticks, so the client's prediction starts again from exactly there.
+/// </summary>
+[NetMessage(81)]
+public partial struct GunUpdate
+{
+    [VarInt] public uint LastSeq;
+    [VarInt] public uint RefusedSeq;
+    [Bits(4)] public GunResult Refused;
+    [Bits(3)] public byte Slot;
+    [VarInt] public uint Item;
+    [VarInt] public uint Loaded;
+    [VarInt] public uint LoadedAmmo;
+    [VarInt] public ulong EquipReadyTick;
+    [VarInt] public ulong NextFire16;
+
+    /// <summary>A reload under way (end 0: none).</summary>
+    [VarInt] public ulong ReloadStartTick;
+    [VarInt] public ulong ReloadEndTick;
+    [VarInt] public uint ReloadAmmo;
+
+    /// <summary>The recoil exactly (degrees), at the last shot (tick 0: none yet).</summary>
+    [VarInt] public ulong ShotTick;
+    public double RecoilPitch;
+    public double RecoilYaw;
+    public double StartPitch;
+    public double StartYaw;
+    public double Bloom;
+    [Bits(6)] public ushort RecoilIndex;
 }

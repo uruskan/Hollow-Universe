@@ -15,21 +15,23 @@ namespace HollowUniverse.Surface;
 /// scatter: the same objects the server will know by tile and index. Each species has seeded variants built in code
 /// (<see cref="FloraLibrary"/>) with two meshes; near the camera every object is drawn with the first, farther with the
 /// second, grouped per variant into MultiMeshes rebuilt as the camera moves. Trees then become impostors (eight baked
-/// views), batched per block of scatter tiles, out to <see cref="ImpostorEnd"/>; smaller things shrink into the ground
-/// at the end of their range. Shaders pick each instance's level by its own distance and cross-fade.
+/// views): those of the near set with it, farther ones batched per block of scatter tiles, out to
+/// <see cref="ImpostorEnd"/>; smaller things shrink into the ground at the end of their range. Each object keeps its
+/// level between rebuilds (with some hysteresis); when it changes, the old and new levels cross-fade for a fraction of
+/// a second, so no tree stands half-dithered at a boundary.
 /// </summary>
 public sealed partial class Vegetation : Node3D
 {
-    public const float ImpostorStart = 230; // trees' shadow meshes end here
-    public const float TreeNear = 58;       // trees' full meshes end here, impostors begin
+    public const float ImpostorStart = 170; // trees' second meshes end here, impostors begin
+    public const float TreeNear = 50;       // trees' full meshes end here
     public const float ImpostorEnd = 2200;
-    private const float FadeWidth = 6;
+    private const float NearImpostorEnd = 290; // the near set's impostors hand over to the far blocks here
     private const double NearSetRadius = 300;
     private const double RebuildDistance = 8;
     private const int BlockLevel = Scatter.Level - 3; // eight scatter tiles a side
 
     // One MultiMesh: a variant of a species at one level of detail.
-    private sealed class Set
+    private sealed class LodSet
     {
         public FloraLibrary.Species Species = null!;
         public FloraLibrary.Variant Variant = null!;
@@ -52,7 +54,26 @@ public sealed partial class Vegetation : Node3D
     private TextureLayered _groundNormal = null!;
     private Task<FloraLibrary.Data>? _data;
     private FloraLibrary? _library;
-    private readonly Dictionary<(FloraLibrary.Variant, int), Set> _sets = new();
+    private readonly Dictionary<(FloraLibrary.Variant, int), LodSet> _sets = new();
+    private readonly List<float> _nearImpostorBuffer = new();
+    private MultiMeshInstance3D? _nearImpostors;
+
+    // Each object's level (0, 1, 2 = impostor), the level it is leaving and since when (the LOD clock), and the rebuild
+    // that last saw it.
+    private struct LodState
+    {
+        public byte Lod;
+        public byte From;
+        public float Since;
+        public int Seen;
+    }
+
+    private readonly Dictionary<(ulong Tile, int Index), LodState> _lods = new();
+    private int _rebuild;
+    private ulong _startUsec;
+
+    // Seconds since the view opened, plus one (zero means "no fade" in the instance data).
+    private float Clock => (float)((Time.GetTicksUsec() - _startUsec) / 1e6) + 1;
     private ImpostorBaker? _baker;
     private ShaderMaterial? _impostors;
     private ArrayMesh _quad = null!;
@@ -93,6 +114,7 @@ public sealed partial class Vegetation : Node3D
         _groundAlbedo = groundAlbedo;
         _groundNormal = groundNormal;
         _quad = BuildQuad();
+        _startUsec = Time.GetTicksUsec();
         int seed = (int)(surface.Seed & 0x7FFFFFFF);
         _data = Task.Run(() => FloraLibrary.Build(seed));
         for (int i = 0; i < 2; i++)
@@ -135,7 +157,7 @@ public sealed partial class Vegetation : Node3D
             {
                 for (int lod = 0; lod < 2; lod++)
                 {
-                    _sets[(v, lod)] = new Set { Species = s, Variant = v, Lod = lod };
+                    _sets[(v, lod)] = new LodSet { Species = s, Variant = v, Lod = lod };
                 }
             }
         }
@@ -153,7 +175,6 @@ public sealed partial class Vegetation : Node3D
         material.SetShaderParameter("normal_atlas", result.Normal);
         material.SetShaderParameter("rows", (float)result.Rows);
         material.SetShaderParameter("views", (float)ImpostorBaker.Views);
-        material.SetShaderParameter("fade_in", new Vector2(TreeNear - FadeWidth, TreeNear));
         material.SetShaderParameter("fade_out", ImpostorEnd);
         _impostors = material;
         _baker.QueueFree();
@@ -182,6 +203,7 @@ public sealed partial class Vegetation : Node3D
         {
             return;
         }
+        RenderingServer.GlobalShaderParameterSet("hu_lod_clock", Clock);
         double edge = TileKey.EdgeLength(Scatter.Level, _surface.Radius);
         Vector3D up = camera.Normalized;
         Vector3D ground = up * _surface.Radius;
@@ -255,7 +277,7 @@ public sealed partial class Vegetation : Node3D
             bool impostor = lod == 2 && species.Tree;
             if (impostor)
             {
-                Append(buffer, t, 0.5f, variant.ImpostorRow, variant.Extent, variant.Height);
+                Append(buffer, t, 0.5f, variant.ImpostorRow, Pack(variant), 0);
             }
             else
             {
@@ -277,7 +299,6 @@ public sealed partial class Vegetation : Node3D
             if (impostor)
             {
                 mmi.Multimesh.CustomAabb = new Aabb(new Vector3(-50, -50, -50), new Vector3(100, 100, 100));
-                _impostors!.SetShaderParameter("fade_in", new Vector2(0, 0));
             }
             AddChild(mmi);
         }
@@ -323,12 +344,24 @@ public sealed partial class Vegetation : Node3D
     {
         _nearCentre = camera;
         _nearDirty = false;
-        _nearAnchor = _frame.Origin;
-        foreach (Set set in _sets.Values)
-        {
-            set.Buffer.Clear();
-        }
-        int count = 0;
+        PlaceNear(ComputeNear(tiles, camera, _frame.Origin, Clock, (key, item) => DrawnKind(key, item)));
+    }
+
+    // What the near set draws: each variant's buffers per level, and the near impostors.
+    private sealed class NearData
+    {
+        public Vector3D Anchor;
+        public readonly Dictionary<(FloraLibrary.Variant, int), List<float>> Sets = new();
+        public readonly List<float> Impostors = new();
+        public int Count;
+    }
+
+    // Lays out the near set from the scatter around the camera, with each object drawn as `kinds` says. It touches no
+    // node, so the ground game runs it on a worker thread (Vegetation.Game.cs); one runs at a time.
+    private NearData ComputeNear(List<TileKey> tiles, Vector3D camera, Vector3D anchor, float clock, Func<TileKey, ScatterItem, ScatterKind> kinds)
+    {
+        var data = new NearData { Anchor = anchor };
+        _rebuild++;
         double margin = 2 * RebuildDistance;
         foreach (TileKey key in tiles)
         {
@@ -338,40 +371,153 @@ public sealed partial class Vegetation : Node3D
             }
             foreach (ScatterItem item in items)
             {
-                FloraLibrary.Species? species = _library!.For(DrawnKind(key, item));
+                FloraLibrary.Species? species = _library!.For(kinds(key, item));
                 if (species == null || species.Variants.Count == 0)
                 {
                     continue;
                 }
                 Vector3D body = item.Position(_surface.Radius);
                 double d = Vector3D.Distance(body, camera);
-                FloraLibrary.Bands bands = species.Bands;
-                if (d > bands.Far + margin)
+                bool tree = species.Tree && _impostors != null;
+                if (d > (tree ? NearImpostorEnd : species.Bands.Far) + margin)
                 {
                     continue;
                 }
+                // The object's level, held between rebuilds with some hysteresis; a change starts a cross-fade.
+                var id = (key.Packed, item.Index);
+                bool known = _lods.TryGetValue(id, out LodState state);
+                int lod = Level(species, tree, d, known ? state.Lod : -1);
+                if (!known)
+                {
+                    state = new LodState { Lod = (byte)lod, From = (byte)lod, Since = -1 };
+                }
+                else if (state.Lod != lod)
+                {
+                    state.From = state.Lod;
+                    state.Lod = (byte)lod;
+                    state.Since = clock;
+                }
+                state.Seen = _rebuild;
+                _lods[id] = state;
+                bool fading = state.From != state.Lod && clock - state.Since < 0.5f;
+
                 FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
                 float scale = item.Scale * species.Scale;
                 float sink = item.Kind == ScatterKind.Rock ? -0.12f * scale : -0.05f;
-                Transform3D t = InstanceTransform(item, body, _nearAnchor, scale, sink);
+                Transform3D t = InstanceTransform(item, body, data.Anchor, scale, sink);
                 (float a, float b) = Shade(item);
-                // Each level only holds what it may draw before the next rebuild: the shader still picks per instance.
-                if (d < bands.Near + margin)
+                Emit(data, variant, state.Lod, t, a, b, fading ? state.Since : 0);
+                if (fading)
                 {
-                    Append(_sets[(variant, 0)].Buffer, t, a, b, 0, 0);
+                    Emit(data, variant, state.From, t, a, b, -state.Since);
                 }
-                if (d > bands.Near - FadeWidth - margin)
-                {
-                    Append(_sets[(variant, 1)].Buffer, t, a, b, 0, 0);
-                }
-                count++;
+                data.Count++;
             }
         }
-        foreach (Set set in _sets.Values)
+        // Forget objects the near set no longer holds.
+        var gone = new List<(ulong, int)>();
+        foreach ((var id, LodState state) in _lods)
         {
+            if (state.Seen != _rebuild)
+            {
+                gone.Add(id);
+            }
+        }
+        foreach (var id in gone)
+        {
+            _lods.Remove(id);
+        }
+        return data;
+    }
+
+    // Puts a laid-out near set in place (main thread).
+    private void PlaceNear(NearData data)
+    {
+        _nearAnchor = data.Anchor;
+        foreach (((FloraLibrary.Variant, int) key, LodSet set) in _sets)
+        {
+            set.Buffer.Clear();
+            if (data.Sets.TryGetValue(key, out List<float>? buffer))
+            {
+                set.Buffer.AddRange(buffer);
+            }
             Fill(set);
         }
-        MeshInstances = count;
+        _nearImpostorBuffer.Clear();
+        _nearImpostorBuffer.AddRange(data.Impostors);
+        FillNearImpostors();
+        MeshInstances = data.Count;
+    }
+
+    // Level for an object at distance d, given the level it has (-1: none yet): meshes 0 and 1, impostor 2.
+    private static int Level(FloraLibrary.Species species, bool tree, double d, int previous)
+    {
+        if (tree)
+        {
+            double near = TreeNear + (previous == 0 ? 3 : -3);
+            if (d < near)
+            {
+                return 0;
+            }
+            double mid = ImpostorStart + (previous is 0 or 1 ? 6 : -6);
+            return d < mid ? 1 : 2;
+        }
+        double n = species.Bands.Near + (previous == 0 ? 2 : -2);
+        return d < n ? 0 : 1;
+    }
+
+    private static void Emit(NearData data, FloraLibrary.Variant variant, int lod, Transform3D t, float a, float b, float fade)
+    {
+        if (lod == 2)
+        {
+            Append(data.Impostors, t, a, variant.ImpostorRow, Pack(variant), fade);
+        }
+        else
+        {
+            if (!data.Sets.TryGetValue((variant, lod), out List<float>? buffer))
+            {
+                data.Sets[(variant, lod)] = buffer = new List<float>();
+            }
+            Append(buffer, t, a, b, fade, 0);
+        }
+    }
+
+    // An impostor's extent and height in one float: floor(extent * 100) + height / 100 (metres).
+    private static float Pack(FloraLibrary.Variant v) => MathF.Floor(v.Extent * 100) + Math.Clamp(v.Height, 0, 99.9f) / 100;
+
+    private void FillNearImpostors()
+    {
+        int n = _nearImpostorBuffer.Count / 16;
+        if (_impostors == null || n == 0 || DebugSkip.Contains("impostor"))
+        {
+            if (_nearImpostors != null)
+            {
+                _nearImpostors.Visible = false;
+            }
+            return;
+        }
+        if (_nearImpostors == null)
+        {
+            _nearImpostors = new MultiMeshInstance3D
+            {
+                Multimesh = new MultiMesh
+                {
+                    TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                    UseCustomData = true,
+                    Mesh = _quad,
+                    CustomAabb = new Aabb(new Vector3(-400, -400, -400), new Vector3(800, 800, 800)),
+                },
+                MaterialOverride = _impostors,
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                GIMode = GeometryInstance3D.GIModeEnum.Disabled,
+            };
+            _nearImpostors.SetInstanceShaderParameter("cut", new Vector2(0, NearImpostorEnd));
+            AddChild(_nearImpostors);
+        }
+        _nearImpostors.Multimesh.InstanceCount = n;
+        _nearImpostors.Multimesh.Buffer = _nearImpostorBuffer.ToArray();
+        _nearImpostors.Transform = new Transform3D(Basis.Identity, _frame.ToRender(_nearAnchor));
+        _nearImpostors.Visible = true;
     }
 
     // Two stable random numbers per object, for its colour.
@@ -384,7 +530,7 @@ public sealed partial class Vegetation : Node3D
     // Look-dev: HU_VEG_SKIP=lod0,lod1,impostor leaves those levels out.
     private static readonly string DebugSkip = OS.GetEnvironment("HU_VEG_SKIP");
 
-    private void Fill(Set set)
+    private void Fill(LodSet set)
     {
         int n = set.Buffer.Count / 16;
         if (DebugSkip.Contains("lod" + set.Lod))
@@ -402,7 +548,7 @@ public sealed partial class Vegetation : Node3D
         if (set.Instance == null)
         {
             FloraLibrary.Bands b = set.Species.Bands;
-            bool lastLevel = set.Lod == 1;
+            bool shrinks = set.Lod == 1 && !b.Impostor;
             set.Instance = new MultiMeshInstance3D
             {
                 Multimesh = new MultiMesh
@@ -411,18 +557,12 @@ public sealed partial class Vegetation : Node3D
                     UseCustomData = true,
                     Mesh = set.Lod == 0 ? set.Variant.Lod0 : set.Variant.Lod1,
                 },
-                // Trees: the second mesh only casts shadows, out to where impostors take over drawing it.
-                CastShadow = set.Lod == 0 ? GeometryInstance3D.ShadowCastingSetting.On
-                    : set.Species.Tree ? GeometryInstance3D.ShadowCastingSetting.ShadowsOnly : GeometryInstance3D.ShadowCastingSetting.Off,
+                CastShadow = set.Lod == 0 || set.Species.Tree ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off,
                 GIMode = GeometryInstance3D.GIModeEnum.Disabled,
             };
-            Vector4 band = set.Lod == 0
-                ? new Vector4(0, 0, b.Near - FadeWidth, b.Near)
-                : b.Impostor
-                    ? new Vector4(b.Near - FadeWidth, b.Near, ImpostorStart, ImpostorStart + 20)
-                    : new Vector4(b.Near - FadeWidth, b.Near, b.Far * 0.82f, b.Far);
-            set.Instance.SetInstanceShaderParameter("lod_band", band);
-            set.Instance.SetInstanceShaderParameter("shrink", lastLevel && !b.Impostor ? 1.0f : 0.0f);
+            // Levels change by cross-fades over time; only the last level of small things shrinks away with distance.
+            set.Instance.SetInstanceShaderParameter("lod_band", shrinks ? new Vector4(0, 0, b.Far * 0.82f, b.Far) : new Vector4(0, 0, 1e6f, 2e6f));
+            set.Instance.SetInstanceShaderParameter("shrink", shrinks ? 1.0f : 0.0f);
             AddChild(set.Instance);
         }
         set.Instance.Multimesh.InstanceCount = n;
@@ -524,32 +664,7 @@ public sealed partial class Vegetation : Node3D
         {
             return;
         }
-        var buffer = new List<float>();
-        foreach (TileKey key in tiles)
-        {
-            List<ScatterItem>? items = _full.TryGetValue(key.Packed, out var f) ? f : _trees.TryGetValue(key.Packed, out var t) ? t : null;
-            if (items == null)
-            {
-                continue;
-            }
-            foreach (ScatterItem item in items)
-            {
-                FloraLibrary.Species? species = _library!.For(DrawnKind(key, item));
-                if (species == null || !species.Tree)
-                {
-                    continue;
-                }
-                FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
-                if (variant.ImpostorRow < 0)
-                {
-                    continue;
-                }
-                float scale = item.Scale * species.Scale;
-                Transform3D tr = InstanceTransform(item, item.Position(_surface.Radius), block.Anchor, scale, -0.05f);
-                (float a, _) = Shade(item);
-                Append(buffer, tr, a, variant.ImpostorRow, variant.Extent, variant.Height);
-            }
-        }
+        List<float> buffer = ImpostorBuffer(tiles, block.Anchor, (key, item) => DrawnKind(key, item));
         if (buffer.Count > 0 && !DebugSkip.Contains("impostor"))
         {
             var mm = new MultiMesh
@@ -571,20 +686,58 @@ public sealed partial class Vegetation : Node3D
                 GIMode = GeometryInstance3D.GIModeEnum.Disabled,
                 Transform = new Transform3D(Basis.Identity, _frame.ToRender(block.Anchor)),
             };
+            block.Instance.SetInstanceShaderParameter("cut", new Vector2(NearImpostorEnd, 1e9f));
             AddChild(block.Instance);
         }
         block.Built = true;
     }
 
+    // A block's tree impostors, each drawn as `kinds` says. It touches no node, so the ground game rebuilds a block
+    // on a worker thread (Vegetation.Game.cs).
+    private List<float> ImpostorBuffer(List<TileKey> tiles, Vector3D anchor, Func<TileKey, ScatterItem, ScatterKind> kinds)
+    {
+        var buffer = new List<float>();
+        foreach (TileKey key in tiles)
+        {
+            List<ScatterItem>? items = _full.TryGetValue(key.Packed, out var f) ? f : _trees.TryGetValue(key.Packed, out var t) ? t : null;
+            if (items == null)
+            {
+                continue;
+            }
+            foreach (ScatterItem item in items)
+            {
+                FloraLibrary.Species? species = _library!.For(kinds(key, item));
+                if (species == null || !species.Tree)
+                {
+                    continue;
+                }
+                FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
+                if (variant.ImpostorRow < 0)
+                {
+                    continue;
+                }
+                float scale = item.Scale * species.Scale;
+                Transform3D tr = InstanceTransform(item, item.Position(_surface.Radius), anchor, scale, -0.05f);
+                (float a, _) = Shade(item);
+                Append(buffer, tr, a, variant.ImpostorRow, Pack(variant), 0);
+            }
+        }
+        return buffer;
+    }
+
     /// <summary>Re-anchors everything after the render origin moved.</summary>
     public void Reanchor()
     {
-        foreach (Set set in _sets.Values)
+        foreach (LodSet set in _sets.Values)
         {
             if (set.Instance != null)
             {
                 set.Instance.Transform = new Transform3D(Basis.Identity, _frame.ToRender(_nearAnchor));
             }
+        }
+        if (_nearImpostors != null)
+        {
+            _nearImpostors.Transform = new Transform3D(Basis.Identity, _frame.ToRender(_nearAnchor));
         }
         foreach (Block block in _blocks.Values)
         {

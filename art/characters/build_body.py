@@ -1,7 +1,8 @@
-"""Builds the player body: game/assets/characters/human_male.glb, its textures and human_male.json.
+"""Builds a player body: game/assets/characters/human_<body>.glb, its textures and human_<body>.json.
 
     set BLENDER_USER_RESOURCES=D:\\GameDev\\Tools\\blender-hollow-config
-    blender -b --factory-startup --python art/characters/build_body.py
+    blender -b --factory-startup --python art/characters/build_body.py                    # the male
+    blender -b --factory-startup --python art/characters/build_body.py -- --body female   # the female
 
 What it does:
 1. MakeHuman male from MPFB 2 (macro values in hollow_art.MALE), MPFB's "game_engine" skeleton (53 bones, UE-style
@@ -18,6 +19,7 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bmesh  # noqa: E402
 import bpy  # noqa: E402
@@ -25,6 +27,7 @@ import numpy as np  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 import hollow_art as H  # noqa: E402
+import skin_maps  # noqa: E402
 import surfaces as S  # noqa: E402
 
 # For each part: (target triangles or None for full detail, levels of detail it is drawn at).
@@ -43,6 +46,17 @@ PARTS = {
 }
 MATERIAL_OF = {"eyes": "eye", "brows": "brow", "lashes": "lash", "hair": "hair"}
 
+# The two bodies. Their skin, brows and hair have their own materials (the suffix) and textures; eyes, lashes and the
+# underwear's fabric are shared.
+PROFILES = {
+    "male": {"suffix": "", "macros": "MALE", "targets": "MALE_TARGETS", "stubble": True, "top": False,
+             "skin": "skins/young_caucasian_male/young_lightskinned_male_diffuse.png",
+             "brows": "eyebrows/eyebrow001/eyebrow001", "hair": "hair/short02/short02"},
+    "female": {"suffix": "_female", "macros": "FEMALE", "targets": "FEMALE_TARGETS", "stubble": False, "top": True,
+               "skin": "skins/young_caucasian_female/young_lightskinned_female_diffuse.png",
+               "brows": "eyebrows/eyebrow006/eyebrow006", "hair": "hair/ponytail01/ponytail01"},
+}
+
 
 def main():
     a = H.args()
@@ -51,11 +65,15 @@ def main():
     H.enable_mpfb()
     HumanService, TargetService, LocationService = H.mpfb()
 
-    body, rig = H.make_male()
+    which = a.get("body", "male")
+    profile = PROFILES[which]
+    body, rig = H.make_human(getattr(H, profile["macros"]), getattr(H, profile["targets"]))
     rig.name = rig.data.name = "Rig"
     body.name = body.data.name = "body"
     parts = {}
     for key, (kind, rel) in PARTS.items():
+        if key in ("brows", "hair"):
+            rel = profile[key] + ".mhclo"
         path = os.path.join(LocationService.get_user_data(), rel)
         obj = HumanService.add_mhclo_asset(path, body, asset_type=kind, subdiv_levels=0, material_type="MAKESKIN")
         obj.name = obj.data.name = key
@@ -63,22 +81,31 @@ def main():
     H.log("human built:", {k: H.triangles(o) for k, o in parts.items()})
 
     TargetService.bake_targets(body)
+    blink = blink_offsets(body, TargetService, LocationService)
     eye_centre = bbox_centre(parts["eyes"])
     remove_helpers(body)
     for obj in [body] + list(parts.values()):
         clean(obj, rig)
 
-    cut_underwear_edges(body, rig, eye_centre)
+    # A crop top runs from under the bust to above it; its edges are cut straight like the briefs'.
+    top_band = bust_band(body, rig, eye_centre) if profile["top"] else ()
+    cut_underwear_edges(body, rig, eye_centre, top_band)
     regions = classify(body, rig, eye_centre)
     write_regions(body, regions)
-    shape_underwear(body, regions, rig)
-    assign_body_materials(body, regions)
+    top = crop_top(body, regions, top_band) if profile["top"] else set()
+    shape_underwear(body, regions, rig, top)
+    assign_body_materials(body, regions, top, profile["suffix"])
     for key, obj in parts.items():
-        set_single_material(obj, MATERIAL_OF[key])
+        set_single_material(obj, MATERIAL_OF[key] + (profile["suffix"] if key in ("brows", "hair") else ""))
         H.set_region_uv(obj, [H.REGION["face"]] * len(obj.data.polygons))
 
-    textures(out)
-    stubble(body, eye_centre, os.path.join(out, "textures", "skin_male_albedo.png"))
+    skin = "skin_" + which
+    textures(out, profile)
+    if profile["stubble"]:
+        stubble(body, eye_centre, os.path.join(out, "textures", skin + "_albedo.png"))
+    scalp(body, eye_centre, os.path.join(out, "textures", skin + "_albedo.png"),
+          hair_colour(os.path.join(out, "textures", "hair%s_albedo.png" % profile["suffix"])))
+    skin_maps.paint(body, os.path.join(out, "textures"), skin)
 
     # Levels of detail.
     lods, levels = {}, {}
@@ -98,18 +125,20 @@ def main():
         bpy.data.objects.remove(obj) if key != "body" else None
     counts = {name: H.triangles(o) for name, o in lods.items()}
     H.log("levels of detail:", counts)
+    for name in ("body_lod0", "lashes_lod0"):
+        add_blink(lods[name], blink)
 
     # The cache keeps the full-resolution body with its regions, for the clothing script.
     body.name = "body_source"
     body.hide_render = True
     os.makedirs(H.CACHE, exist_ok=True)
-    cache = os.path.join(H.CACHE, "human_male.blend")
+    cache = os.path.join(H.CACHE, "human_%s.blend" % which)
     bpy.ops.wm.save_as_mainfile(filepath=cache, check_existing=False, compress=True)
     H.log("saved", os.path.relpath(cache, H.REPO))
 
-    H.export_glb(os.path.join(out, "human_male.glb"), [rig] + list(lods.values()))
+    H.export_glb(os.path.join(out, "human_%s.glb" % which), [rig] + list(lods.values()), morphs=True)
     bones = {b.name: [round(x, 4) for x in (rig.matrix_world @ b.head_local)] for b in rig.data.bones}
-    H.write_json(os.path.join(out, "human_male.json"), {
+    H.write_json(os.path.join(out, "human_%s.json" % which), {
         "source": "MakeHuman (MPFB 2.0.17, CC0 base mesh and system assets), art/characters/build_body.py",
         "height_m": round(body.dimensions.z, 3),
         "eye_height_m": round(eye_centre.z, 3),
@@ -121,6 +150,90 @@ def main():
     if a.get("preview"):
         import preview
         preview.render(a["preview"], [rig] + [o for n, o in lods.items() if n.endswith("lod0")], out)
+
+
+def blink_offsets(body, TargetService, LocationService):
+    """The closed-eyelid shape of MakeHuman's expression units (both eyes), measured on a copy of the body while it
+    still has the base mesh's vertex order: world positions and how far each moves (only the vertices that do)."""
+    probe = H.duplicate(body, "blink_probe")
+    units = os.path.join(LocationService.get_mpfb_data("targets"), "expression", "units", "caucasian")
+    for side in ("left", "right"):
+        TargetService.load_target(probe, os.path.join(units, "eye-%s-closure.target.gz" % side), weight=1.0,
+                                  name="blink_" + side)
+    keys = probe.data.shape_keys.key_blocks
+    basis = np.array([v.co[:] for v in keys[0].data], np.float64)
+    moved = np.zeros_like(basis)
+    for kb in keys[1:]:
+        moved += np.array([v.co[:] for v in kb.data], np.float64) - basis
+    m = np.array(probe.matrix_world)
+    world = basis @ m[:3, :3].T + m[:3, 3]
+    shift = moved @ m[:3, :3].T
+    moving = np.linalg.norm(shift, axis=1) > 1e-5
+    # Keep the still vertices round the eyes too, so the movement can be interpolated (it fades to nothing).
+    lo, hi = world[moving].min(axis=0) - 0.02, world[moving].max(axis=0) + 0.02
+    near = np.all((world > lo) & (world < hi), axis=1)
+    bpy.data.objects.remove(probe)
+    H.log("blink: %d vertices move, up to %.1f mm" % (int(moving.sum()), np.linalg.norm(shift, axis=1).max() * 1000))
+    return world[near], shift[near]
+
+
+def add_blink(obj, blink):
+    """A "blink" shape key: each vertex moves as the full body's nearest vertices do round the eyes (weighted by
+    inverse distance), so the closure reaches the decimated body and the lashes standing off the lids."""
+    from mathutils.kdtree import KDTree
+    world, shift = blink
+    tree = KDTree(len(world))
+    for i, p in enumerate(world):
+        tree.insert(p, i)
+    tree.balance()
+    lo, hi = world.min(axis=0), world.max(axis=0)
+    m = obj.matrix_world
+    inv = m.inverted().to_3x3()
+    obj.shape_key_add(name="Basis", from_mix=False)
+    key = obj.shape_key_add(name="blink", from_mix=False)
+    count = 0
+    for v in obj.data.vertices:
+        p = m @ v.co
+        if not (np.all(np.array(p[:]) > lo) and np.all(np.array(p[:]) < hi)):
+            continue
+        found = tree.find_n(p, 4)
+        weights = [(1.0 / max(dist, 1e-4) ** 2, index) for _, index, dist in found if dist < 0.012]
+        if not weights:
+            continue
+        total = sum(w for w, _ in weights)
+        move = sum((Vector(shift[i]) * w for w, i in weights), Vector()) / total
+        if move.length > 1e-5:
+            key.data[v.index].co = v.co + inv @ move
+            count += 1
+    H.log("blink key on %s: %d vertices" % (obj.name, count))
+
+
+def hair_colour(path):
+    """The average colour of a hair texture where it is opaque."""
+    px, _, _ = H.load_image_pixels(path)
+    alpha = px[..., 3:4]
+    return (px[..., :3] * alpha).sum(axis=(0, 1)) / max(1e-6, float(alpha.sum()))
+
+
+def scalp(body, eye, path, colour=(0.075, 0.052, 0.036)):
+    """Paints a dark hair base over the scalp (the skin shows between the hair cards) that fades out softly into the
+    forehead and temples, with a broken, hair-like edge."""
+    import garment as G
+    px, w, h = H.load_image_pixels(path)
+    img = np.flipud(px[..., :3]).copy()
+    mask, pos, _, _ = G.rasterise(body, w)
+    head = {b.name: b for b in body.parent.data.bones}["head"]
+    centre_y = (body.parent.matrix_world @ head.head_local).y
+    y, z = pos[..., 1], pos[..., 2]
+    # The hairline: above the brows in front, round the temples, low at the nape (like the scalp region's line).
+    t = np.clip((y - (centre_y - 0.11)) / 0.2, 0, 1)
+    line = eye.z + 0.062 - 0.095 * t
+    strands = S.value_noise(w, 300, 51) * 0.6 + S.value_noise(w, 60, 52) * 0.4
+    cover = np.clip((z - line) / 0.022 + (strands - 0.5) * 0.9, 0, 1) * mask
+    hair = np.array(colour, np.float32) * 0.8 * (0.85 + 0.3 * S.value_noise(w, 120, 53))[..., None]
+    img = img * (1 - cover[..., None] * 0.92) + hair * cover[..., None] * 0.92
+    H.save_image(S.to_blender_pixels(np.clip(img, 0, 1)), w, h, path)
+    H.log("scalp painted")
 
 
 def bbox_centre(obj):
@@ -180,7 +293,7 @@ def landmarks(rig, eye_centre):
     }
 
 
-def cut_underwear_edges(body, rig, eye_centre):
+def cut_underwear_edges(body, rig, eye_centre, extra=()):
     """Cuts the body along the waistband and leg openings, so the underwear's edges are straight lines rather than
     the zigzag of the mesh's faces. Arms are left alone (the hands hang beside the hips)."""
     marks = landmarks(rig, eye_centre)
@@ -191,13 +304,17 @@ def cut_underwear_edges(body, rig, eye_centre):
     bm.from_mesh(me)
     deform = bm.verts.layers.deform.active
     before = len(bm.verts)
-    for z in (marks["waist"], marks["leg"]):
-        def on_arm(v):
+    for z in (marks["waist"], marks["leg"]) + tuple(extra):
+        # The crop top's edges run over the upper chest, whose skin follows the collarbones: only the arm proper is
+        # left alone there.
+        limbs = arm if z in (marks["waist"], marks["leg"]) else arm[:-1]
+
+        def on_arm(v, limbs=limbs):
             groups = v[deform]
             if not groups:
                 return False
             g = max(groups.keys(), key=lambda k: groups[k])
-            return names.get(g, "").startswith(arm)
+            return names.get(g, "").startswith(limbs)
         faces = [f for f in bm.faces
                  if min(v.co.z for v in f.verts) <= z <= max(v.co.z for v in f.verts) and not any(on_arm(v) for v in f.verts)]
         edges = {e for f in faces for e in f.edges}
@@ -295,8 +412,31 @@ def write_regions_from_attribute(obj):
     H.set_region_uv(obj, values)
 
 
-def shape_underwear(body, regions, rig):
-    """Smooths the pelvis region (no anatomy under the briefs), lifts it off the skin and adds a waistband."""
+def bust_band(body, rig, eye_centre):
+    """Heights of a crop top's lower and upper edges: under and above the bust's fullest point (the most forward
+    point of the chest; the front is −Y)."""
+    marks = landmarks(rig, eye_centre)
+    torso = [v.co for v in body.data.vertices
+             if abs(v.co.x) < 0.12 and marks["waist"] + 0.12 < v.co.z < marks["collar"]]
+    bust = min(torso, key=lambda co: co.y).z
+    return (bust - 0.08, bust + 0.1)
+
+
+def crop_top(body, regions, band):
+    """The faces of a woman's crop top: the trunk between the band's two heights, all round (whatever region the
+    faces fell in there, except the arms)."""
+    me = body.data
+    arms = {H.REGION["upper_arm"], H.REGION["forearm"], H.REGION["hand"]}
+    low, high = band
+    faces = {p.index for p in me.polygons if regions[p.index] not in arms and low < p.center.z < high
+             and abs(p.center.x) < 0.2}
+    H.log("crop top: %d faces, %.2f to %.2f m" % (len(faces), low, high))
+    return faces
+
+
+def shape_underwear(body, regions, rig, top=frozenset()):
+    """Smooths the pelvis region (no anatomy under the briefs) and any crop top, lifts them off the skin and adds a
+    waistband."""
     me = body.data
     pelvis = H.REGION["pelvis"]
     marks_waist = landmarks(rig, Vector())["waist"]
@@ -307,10 +447,10 @@ def shape_underwear(body, regions, rig):
     bm.faces.ensure_lookup_table()
     inside, edge = set(), set()
     for v in bm.verts:
-        rs = {regions[f.index] for f in v.link_faces}
-        if rs == {pelvis}:
+        under = {regions[f.index] == pelvis or f.index in top for f in v.link_faces}
+        if under == {True}:
             inside.add(v.index)
-        elif pelvis in rs:
+        elif True in under:
             edge.add(v.index)
     for _ in range(6):
         moved = {}
@@ -335,13 +475,13 @@ def shape_underwear(body, regions, rig):
     bm.free()
 
 
-def assign_body_materials(body, regions):
+def assign_body_materials(body, regions, top=frozenset(), suffix=""):
     me = body.data
-    me.materials.append(material("skin"))
+    me.materials.append(material("skin" + suffix))
     me.materials.append(material("underwear"))
     pelvis = H.REGION["pelvis"]
     for poly in me.polygons:
-        poly.material_index = 1 if regions[poly.index] == pelvis else 0
+        poly.material_index = 1 if regions[poly.index] == pelvis or poly.index in top else 0
 
 
 def material(name):
@@ -378,19 +518,23 @@ def stubble(body, eye, path):
 
 
 
-def textures(out):
+def textures(out, profile=None):
+    profile = profile or PROFILES["male"]
     _, _, LocationService = H.mpfb()
     data = LocationService.get_user_data()
     folder = os.path.join(out, "textures")
     os.makedirs(folder, exist_ok=True)
+    suffix = profile["suffix"]
+    which = "female" if suffix else "male"
     copies = {
-        "skin_male_albedo.png": ("skins/young_caucasian_male/young_lightskinned_male_diffuse.png", 2048),
+        "skin_%s_albedo.png" % which: (profile["skin"], 2048),
         "eye_albedo.png": ("eyes/materials/brown_eye.png", 512),
-        "brow_albedo.png": ("eyebrows/eyebrow001/eyebrow001.png", 512),
+        "brow%s_albedo.png" % suffix: (profile["brows"] + ".png", 512),
         "lash_albedo.png": ("eyelashes/eyelashes01/eyelashes01.png", 512),
-        "hair_albedo.png": ("hair/short02/short02_diffuse.png", 1024),
-        "hair_normal.png": ("hair/short02/short02_normal.png", 1024),
+        "hair%s_albedo.png" % suffix: (profile["hair"] + "_diffuse.png", 1024),
     }
+    if os.path.exists(os.path.join(data, profile["hair"] + "_normal.png")):
+        copies["hair%s_normal.png" % suffix] = (profile["hair"] + "_normal.png", 1024)
     for name, (rel, size) in copies.items():
         H.resize_image(os.path.join(data, rel), os.path.join(folder, name), size)
     # Skin detail: fine pores and creases, tiled many times over the body.

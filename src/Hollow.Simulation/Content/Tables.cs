@@ -263,6 +263,29 @@ public sealed class SurvivalTuning
     public int IntentBurst { get; init; } = 16;
     public float IntentsPerSecond { get; init; } = 20;
 
+    /// <summary>Shots and reloads have their own budget (RustMVP's weapon budget: 20 at once, 30 a second).</summary>
+    public int GunBurst { get; init; } = 20;
+    public float GunActionsPerSecond { get; init; } = 30;
+
+    /// <summary>Health set burning (incendiary rounds) is lost at this rate (G4).</summary>
+    public float BurnDamagePerSecond { get; init; } = 2;
+
+    /// <summary>
+    /// The wounded state (G4, Rust's): a lethal hit smaller than <see cref="WoundMaxDamage"/> knocks the player down with
+    /// <see cref="WoundedHealthLeast"/> … <see cref="WoundedHealthMost"/> health for <see cref="WoundedSecondsLeast"/> …
+    /// <see cref="WoundedSecondsMost"/> seconds; then they get up by themselves with <see cref="WoundedRecoverChance"/>
+    /// (plus up to <see cref="WoundedFedBonus"/> when fed and watered) or die. Others help them up within
+    /// <see cref="HelpReach"/>.
+    /// </summary>
+    public float WoundMaxDamage { get; init; } = 75;
+    public float WoundedHealthLeast { get; init; } = 7;
+    public float WoundedHealthMost { get; init; } = 12;
+    public float WoundedSecondsLeast { get; init; } = 40;
+    public float WoundedSecondsMost { get; init; } = 50;
+    public float WoundedRecoverChance { get; init; } = 0.2f;
+    public float WoundedFedBonus { get; init; } = 0.25f;
+    public float HelpReach { get; init; } = 2.5f;
+
     public float RegionMultiplier(HitRegion region) => region switch
     {
         HitRegion.Head => HeadMultiplier,

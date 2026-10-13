@@ -22,7 +22,7 @@ public sealed partial class Zone
     private bool Acting(Entity entity, out Player p)
     {
         p = PlayerOf(entity)!;
-        return p is { IsAwakeAndAlive: true };
+        return p is { CanAct: true };
     }
 
     // ---------------------------------------------------------------- containers
@@ -38,8 +38,9 @@ public sealed partial class Zone
         {
             return (thing, null, e);
         }
-        if (PlayerOf(e) is { Sleeping: true, Dead: false } sleeper)
+        if (PlayerOf(e) is { Dead: false } sleeper && (sleeper.Sleeping || sleeper.Wounded))
         {
+            // A sleeper, or a player down (Rust lets the wounded be looted too).
             return (null, sleeper, e);
         }
         return default;
@@ -230,7 +231,7 @@ public sealed partial class Zone
         {
             at = thing is Deployable d ? d.Centre : thing.Position;
         }
-        else if (PlayerOf(e) is { Sleeping: true, Dead: false })
+        else if (PlayerOf(e) is { Dead: false } other && (other.Sleeping || other.Wounded))
         {
             at = Entities.Get<Character>(e).State.Position;
         }

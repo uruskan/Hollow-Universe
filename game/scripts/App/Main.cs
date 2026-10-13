@@ -5,9 +5,12 @@ using Godot;
 using Hollow.Core;
 using Hollow.Galaxy;
 using Hollow.Galaxy.Systems;
+using HollowUniverse.Audio;
+using HollowUniverse.Build;
 using HollowUniverse.GalaxyMap;
 using HollowUniverse.Ground;
 using HollowUniverse.Surface;
+using HollowUniverse.Items;
 using HollowUniverse.SystemMap;
 using HollowUniverse.UI.Viewer;
 
@@ -29,7 +32,11 @@ public partial class Main : Node
     private bool _rescaled;
     private UiScaler _scaler = null!;
     private GroundMode? _ground;
+    private BuildSandbox? _build;
     private UiViewer? _ui;
+    private IconRenderer? _icons;
+    private ModelViewer? _models;
+    private SoundViewer? _sounds;
 
     public override void _Ready()
     {
@@ -46,11 +53,37 @@ public partial class Main : Node
             _scaler.Override = (float)Number("ui-scale", 1);
         }
         AddChild(_scaler);
+        // Item icons rendered from the models (GROUND.md §9); --placeholder-icons keeps the vector drawings.
+        if (!_options.ContainsKey("placeholder-icons"))
+        {
+            CatalogItemIcons.Install();
+        }
+        if (Option("view", "galaxy") == "icons")
+        {
+            // Renders the item icons (--out <dir>) and shows them all on one sheet (GROUND.md §9).
+            _icons = new IconRenderer { Name = "Icons", Options = _options };
+            AddChild(_icons);
+            return;
+        }
+        if (Option("view", "galaxy") == "models")
+        {
+            // Every catalogue model on the ground, or one on a turntable (GROUND.md §9).
+            _models = new ModelViewer { Name = "Models", Options = _options };
+            AddChild(_models);
+            return;
+        }
         if (Option("view", "galaxy") == "ui")
         {
             // The ground game's interface on sample data (GROUND.md §8): --screen hud|inventory|crafting|...
             _ui = new UiViewer { Name = "UiViewer", Options = _options };
             AddChild(_ui);
+            return;
+        }
+        if (Option("view", "galaxy") == "sounds")
+        {
+            // The audition viewer (GROUND.md §4.9): every sound event, a source walking away, the ambience.
+            _sounds = new SoundViewer { Name = "Sounds", Options = _options };
+            AddChild(_sounds);
             return;
         }
         if (Option("view", "") == "character")
@@ -66,6 +99,13 @@ public partial class Main : Node
             // The ground game (GROUND.md §4.3): its own view; the maps aren't built.
             _ground = new GroundMode { Name = "Ground", Options = _options };
             AddChild(_ground);
+            return;
+        }
+        if (Option("view", "galaxy") == "build")
+        {
+            // The build sandbox (GROUND.md §6.3): the building rules and their art in a local zone.
+            _build = new BuildSandbox { Name = "Build", Options = _options };
+            AddChild(_build);
             return;
         }
 
@@ -214,7 +254,8 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        if (_options.ContainsKey("trace") && _ground == null && _ui == null)
+        if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _build == null
+            && _sounds == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -243,6 +284,9 @@ public partial class Main : Node
         }
         double wait = Number("wait", 2);
         bool ready = _ui != null ? _ui.ReadyForShot : _ground != null ? _ground.ReadyForShot
+            : _build != null ? _build.ReadyForShot
+            : _sounds != null ? _sounds.ReadyForShot
+            : _icons != null ? _icons.ReadyForShot : _models != null ? _models.ReadyForShot
             : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady
             : _surfaceView.Visible ? _surfaceView.IsReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))

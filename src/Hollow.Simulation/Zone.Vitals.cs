@@ -20,21 +20,23 @@ public sealed partial class Zone
         for (int i = 0; i < players.Count; i++)
         {
             Player p = players.Values[i].Player;
-            if (!p.IsAwakeAndAlive)
+            if (!p.IsAwakeAndAlive || p.Wounded)
             {
+                // Sleepers and the wounded are left as they are (the wounded's timer decides).
                 continue;
             }
             Entity entity = Entities.AtSlot(players.Slots[i]);
             ref Character c = ref Entities.Get<Character>(entity);
             ref Vitals v = ref p.Vitals;
-            (int health, int calories, int hydration, int temperature, bool bleeding) before =
-                ((int)Math.Ceiling(v.Health), (int)v.Calories, (int)v.Hydration, (int)Math.Round(v.Temperature), v.Bleeding > 0);
+            (int health, int calories, int hydration, int temperature, bool bleeding, bool burning) before =
+                ((int)Math.Ceiling(v.Health), (int)v.Calories, (int)v.Hydration, (int)Math.Round(v.Temperature), v.Bleeding > 0, v.Burning > 0);
 
             // Temperature felt: the air, warmed by a fire nearby (up to a comfortable level), less when wet; clothing
             // keeps the cold off.
             if ((c.State.Flags & MoveFlags.Swimming) != 0)
             {
                 v.WetSeconds = s.WetSeconds;
+                v.Burning = 0;
             }
             else
             {
@@ -61,9 +63,18 @@ public sealed partial class Zone
             }
             v.Health = Math.Min(s.MaxHealth, v.Health + heal);
 
-            // Harm: bleeding, starvation, thirst, cold.
+            // Harm: bleeding, burning, starvation, thirst, cold. Cold and fire kill outright (Rust wounds for the rest).
             float harm = 0;
             string cause = "";
+            bool outright = false;
+            if (v.Burning > 0)
+            {
+                float burned = Math.Min(v.Burning, s.BurnDamagePerSecond);
+                v.Burning = Math.Max(0, v.Burning - burned);
+                harm += burned;
+                cause = "Burned";
+                outright = true;
+            }
             if (v.Bleeding > 0)
             {
                 float bled = Math.Min(v.Bleeding, s.BleedDamagePerSecond);
@@ -85,16 +96,17 @@ public sealed partial class Zone
             {
                 harm += s.ColdDamagePerSecond * v.Cold;
                 cause = "Froze";
+                outright = true;
             }
             if (harm > 0)
             {
-                Hurt(entity, p, harm, cause, EntityId.None, "");
+                Hurt(entity, p, harm, cause, EntityId.None, "", canWound: !outright);
             }
             else
             {
                 SyncHealth(ref c, p);
             }
-            if (before != ((int)Math.Ceiling(v.Health), (int)v.Calories, (int)v.Hydration, (int)Math.Round(v.Temperature), v.Bleeding > 0))
+            if (before != ((int)Math.Ceiling(v.Health), (int)v.Calories, (int)v.Hydration, (int)Math.Round(v.Temperature), v.Bleeding > 0, v.Burning > 0))
             {
                 p.VitalsRevision++;
             }

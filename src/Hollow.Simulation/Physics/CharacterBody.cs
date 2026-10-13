@@ -69,7 +69,8 @@ public sealed class CharacterBody : IDisposable
         if (stance != _stance)
         {
             // Forced: the state says this is the capsule (no room check).
-            _character.SetShape(0f, stance == Stance.Crouching ? _crouching! : _standing!, float.MaxValue, PhysicsWorld.MovingLayer, _world.Jolt);
+            // A crawling character keeps the crouched capsule (its hit shapes lie down; its body needn't).
+            _character.SetShape(0f, stance == Stance.Standing ? _standing! : _crouching!, float.MaxValue, PhysicsWorld.MovingLayer, _world.Jolt);
             _stance = stance;
         }
         _character.RefreshContacts(PhysicsWorld.MovingLayer, _world.Jolt);
@@ -82,7 +83,7 @@ public sealed class CharacterBody : IDisposable
         {
             return true;
         }
-        Shape shape = stance == Stance.Crouching ? _crouching! : _standing!;
+        Shape shape = stance == Stance.Standing ? _standing! : _crouching!;
         // Allow the padding's worth of overlap, so standing up on uneven ground isn't refused for nothing.
         if (!_character.SetShape(deltaTime, shape, 1.5f * _character.CharacterPadding, PhysicsWorld.MovingLayer, _world.Jolt))
         {
