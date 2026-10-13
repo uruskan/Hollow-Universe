@@ -22,7 +22,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x27F9CE6FAF01F69AUL;
+    public const ulong SchemaHash = 0xDFE5143E621761C1UL;
 }
 
 partial struct Hello
@@ -291,6 +291,7 @@ partial struct OwnState
         w.WriteBits((uint)Stance, 2);
         w.WriteBits((uint)Health, 8);
         w.WriteBits((uint)Flags, 4);
+        w.WriteBits((uint)Cheats, 2);
     }
 
     public static OwnState Read(BitReader r)
@@ -305,6 +306,7 @@ partial struct OwnState
         v.Stance = (Stance)r.ReadBits(2);
         v.Health = (byte)r.ReadBits(8);
         v.Flags = (MoveFlags)r.ReadBits(4);
+        v.Cheats = (MoveCheats)r.ReadBits(2);
         return v;
     }
 }
@@ -3763,6 +3765,150 @@ partial struct MachineState
         v.Progress = (byte)r.ReadBits(8);
         v.SecondsLeft = r.ReadVarUInt();
         v.Item = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct ConsoleRun
+{
+    public const byte TypeId = 150;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteString(Text, 200);
+    }
+
+    public static ConsoleRun Read(BitReader r)
+    {
+        var v = new ConsoleRun();
+        v.Seq = r.ReadVarUInt();
+        v.Text = r.ReadString(200);
+        return v;
+    }
+}
+
+partial struct ConsoleReply
+{
+    public const byte TypeId = 151;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Kind, 2);
+        w.WriteString(Text, 400);
+    }
+
+    public static ConsoleReply Read(BitReader r)
+    {
+        var v = new ConsoleReply();
+        v.Seq = r.ReadVarUInt();
+        v.Kind = (ConsoleReplyKind)r.ReadBits(2);
+        v.Text = r.ReadString(400);
+        return v;
+    }
+}
+
+partial struct ServerPlayerNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteString(Name, 32);
+        w.WriteBool(Admin);
+    }
+
+    public static ServerPlayerNet Read(BitReader r)
+    {
+        var v = new ServerPlayerNet();
+        v.Name = r.ReadString(32);
+        v.Admin = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct ServerState
+{
+    public const byte TypeId = 152;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBool(Admin);
+        w.WriteVarUInt(MaxPlayers);
+        int countPlayers = Players == null ? 0 : Math.Min(Players.Length, 256);
+        w.WriteBits((uint)countPlayers, 9);
+        for (int i = 0; i < countPlayers; i++)
+        {
+            Players![i].Write(w);
+        }
+    }
+
+    public static ServerState Read(BitReader r)
+    {
+        var v = new ServerState();
+        v.Admin = r.ReadBool();
+        v.MaxPlayers = r.ReadVarUInt();
+        int countPlayers = (int)r.ReadBits(9);
+        if (countPlayers > 256)
+        {
+            r.Fail();
+            countPlayers = 0;
+        }
+        v.Players = new ServerPlayerNet[countPlayers];
+        for (int i = 0; i < countPlayers; i++)
+        {
+            v.Players[i] = ServerPlayerNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ZoneClock
+{
+    public const byte TypeId = 153;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteDouble(BaseTime);
+        w.WriteDouble(BaseTurns);
+        w.WriteDouble(Scale);
+        w.WriteBool(Overridden);
+    }
+
+    public static ZoneClock Read(BitReader r)
+    {
+        var v = new ZoneClock();
+        v.BaseTime = r.ReadDouble();
+        v.BaseTurns = r.ReadDouble();
+        v.Scale = r.ReadDouble();
+        v.Overridden = r.ReadBool();
         return v;
     }
 }

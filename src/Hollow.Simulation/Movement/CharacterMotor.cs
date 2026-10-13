@@ -73,6 +73,11 @@ public static class CharacterMotor
             state.Flags = MoveFlags.None;
             return events;
         }
+        if (state.Has(MoveCheats.Noclip))
+        {
+            Fly(ref state, input, context);
+            return events;
+        }
 
         Vector3 up = context.Frame.UpAt(state.Position);
         body.Restore(state.Position, state.Velocity, up, state.Stance);
@@ -169,7 +174,7 @@ public static class CharacterMotor
             {
                 float speed = -requestedUp;
                 events.LandingSpeed = speed;
-                if (speed > tuning.SafeLandingSpeed)
+                if (speed > tuning.SafeLandingSpeed && !state.Has(MoveCheats.God))
                 {
                     float fraction = (speed - tuning.SafeLandingSpeed) / (tuning.LethalScaleSpeed - tuning.SafeLandingSpeed);
                     events.FallDamage = (int)MathF.Ceiling(fraction * tuning.FallDamageScale);
@@ -185,6 +190,38 @@ public static class CharacterMotor
             | (sprinting && wishLength > 0f ? MoveFlags.Sprinting : MoveFlags.None)
             | (state.IsDead ? MoveFlags.Dead : MoveFlags.None);
         return events;
+    }
+
+    /// <summary>Noclip's speed (m/s), and with sprint held (GROUND.md §8.2).</summary>
+    public const float NoclipSpeed = 10f;
+
+    public const float NoclipFastSpeed = 40f;
+
+    // Noclip (an admin's, GROUND.md §8.2): flies along the view through the ground and everything on it, W and S along
+    // the view, A and D sideways, Space up and Ctrl down along the local up; no gravity, no collision, no fall damage.
+    // It stays within the zone's ground (and 20 km of its height), where the zone has tiles to come down on.
+    private static void Fly(ref CharacterState state, in MoveInput input, in MoveContext context)
+    {
+        Vector3 up = context.Frame.UpAt(state.Position);
+        (Vector3 forward, Vector3 right) = HorizontalBasis(input.Yaw, up);
+        Vector3 view = forward * (float)DMath.Cos(input.Pitch) + up * (float)DMath.Sin(input.Pitch);
+        float vertical = (input.Has(MoveButtons.Jump) ? 1f : 0f) - (input.Has(MoveButtons.Crouch) ? 1f : 0f);
+        Vector3 wish = view * Math.Clamp(input.Forward, -1f, 1f) + right * Math.Clamp(input.Right, -1f, 1f) + up * vertical;
+        float length = wish.Length();
+        if (length > 1f)
+        {
+            wish /= length;
+        }
+        state.Velocity = wish * (input.Has(MoveButtons.Sprint) ? NoclipFastSpeed : NoclipSpeed);
+        float reach = PhysicsWorld.Extent - PhysicsWorld.TileSize;
+        Vector3 next = state.Position + state.Velocity * DeltaTime;
+        state.Position = new Vector3(Math.Clamp(next.X, -reach, reach), Math.Clamp(next.Y, -20_000f, 20_000f), Math.Clamp(next.Z, -reach, reach));
+        if (state.Stance == Stance.Crouching)
+        {
+            // Ctrl sinks rather than crouches.
+            state.Stance = Stance.Standing;
+        }
+        state.Flags = MoveFlags.None;
     }
 
     /// <summary>

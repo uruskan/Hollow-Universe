@@ -189,22 +189,4 @@ public sealed partial class GameServer
             $"{animals.Areas.Count(a => a.Active)} areas out; {perTick:0.000} ms a tick on animals; {Zone.AnimalAttacks} attacks landed, " +
             $"{Zone.AnimalsKilled} killed");
     }
-
-    /// <summary>The <c>spawn</c> command: a herd of a species in front of a player.</summary>
-    private void SpawnAnimals(string[] words)
-    {
-        if (Zone.Animals is not { } animals || words.Length < 3 || Content.Animal(words[1]) is not { } species || Find(words[2]) is not { Playing: true } near)
-        {
-            Log("spawn <species: " + string.Join("|", Content.Animals.Select(s => s.Key)) + "> <playing name> [count] [metres ahead]");
-            return;
-        }
-        int count = words.Length > 3 && int.TryParse(words[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
-            ? Math.Clamp(n, 1, 12) : species.GroupMost;
-        float ahead = words.Length > 4 && TryNumber(words[4], out float m) ? Math.Clamp(m, 2, 200) : 25;
-        ref Character c = ref Zone.Entities.Get<Character>(near.Entity);
-        Vector3 up = Zone.Frame.UpAt(c.State.Position);
-        Vector3 at = c.State.Position + Simulation.Movement.CharacterMotor.ViewDirection(c.Input.Yaw, 0, up) * ahead;
-        animals.AddSlot(species, Zone.GroundAt(at.X, at.Z), count);
-        Log($"{count} {species.Name.ToLowerInvariant()} {ahead:0} m in front of {near.Name}");
-    }
 }

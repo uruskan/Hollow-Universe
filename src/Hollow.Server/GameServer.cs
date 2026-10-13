@@ -111,11 +111,13 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         Port = _net.LocalPort;
         // The real planet (GROUND.md §6.1): its climate follows the sun of the zone's sky, and players arrive and
         // respawn on its real beaches near the zone.
+        // The zone's sky: its spin is the zone's clock (GROUND.md §8.2: admins set it), which the climate follows.
+        _sky = Spec.CreateSky();
         if (Zone.Surface is PlanetSurface planet)
         {
-            if (Spec.CreateSky() is { } sky)
+            if (_sky != null)
             {
-                Zone.Climate = new PlanetClimate(Content.Survival, planet, Zone.Frame, sky);
+                Zone.Climate = new PlanetClimate(Content.Survival, planet, Zone.Frame, _sky);
             }
             Beaches = Simulation.Beaches.Find(planet, Zone.Frame);
             if (Beaches.Points.Count > 0)
@@ -130,6 +132,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         Vector3 arrival = Arrival(0);
         Zone.Physics.Prefetch(arrival, radius: 2);
         Zone.Physics.EnsureGround(arrival, radius: 2);
+        LoadAdmins();
         LoadWorld();
         StartBuilding();
         StartRaid();
@@ -548,7 +551,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             Pitch = Quantize.Angle16(pitch),
         }.WriteMessage(_writer);
         session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
-        Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.Entities.Get<Character>(entity).State.Position)}");
+        // The F1 console's view (GROUND.md §8.2): the zone's clock for this player, who is on for everyone.
+        SendClock(session);
+        SendServerStateToAll();
+        Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.Entities.Get<Character>(entity).State.Position)}" +
+            (IsAdmin(session) ? " (admin)" : ""));
         if (_shipOnJoin.Remove(session))
         {
             GiveShip(session);
@@ -592,6 +599,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             session.Entity = Entity.None;
         }
+        SendServerStateToAll();
         Log($"{session.Name} left ({info.Reason})");
     }
 
@@ -625,6 +633,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 {
                     session.ReceiveInputs(input, (uint)Zone.Tick + 1, Zone.Tick);
                 }
+                break;
+            case ConsoleRun.TypeId:
+                ReceiveConsole(session);
                 break;
             case ChatSend.TypeId:
                 ChatSend chat = ChatSend.Read(_reader);

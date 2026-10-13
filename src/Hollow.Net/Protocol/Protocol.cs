@@ -9,9 +9,10 @@ public static partial class Protocol
     /// integration package's 3 + 4 together); 6: G5, raiding (explosives, detonations, raid alerts); 7: all of them
     /// together on the real planet; 8: G6, ships; 9: G7, the world (world props, blueprints and tech trees, teams, the
     /// map); 10: G7, animals (entities of kind <see cref="EntityKind.Animal"/>, whose snapshot state means what
-    /// <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>).
+    /// <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>); 11: the F1 console (its commands and answers, the
+    /// server's state for it, the zone's clock, and god and noclip in the player's own state).
     /// </summary>
-    public const uint Version = 10;
+    public const uint Version = 11;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -88,6 +89,14 @@ public enum ShipAction : byte
     Lock,
     Refuel,
     Descend,
+}
+
+/// <summary>What a line of the console's answer is (GROUND.md §8.2): plain output, a refusal or error, or something done.</summary>
+public enum ConsoleReplyKind : byte
+{
+    Output,
+    Error,
+    Success,
 }
 
 public enum ChatKind : byte

@@ -23,6 +23,8 @@ public partial class GroundOverlay : Control
     private Crosshair _cross = null!;
     private ColorRect _wounded = null!;
     private Label _woundedLine = null!;
+    private Label _fps = null!;
+    private double _fpsTimer;
 
     public GameClient Client { get; set; } = null!;
 
@@ -37,6 +39,9 @@ public partial class GroundOverlay : Control
 
     /// <summary>A reload's progress (0–1) under the centre; null when not reloading.</summary>
     public float? ReloadProgress { get; set; }
+
+    /// <summary>The frame rate at the top left (the console's <c>fps</c>, GROUND.md §8.2).</summary>
+    public bool ShowFps { get; set; }
 
     public bool ShowNetGraph
     {
@@ -77,6 +82,13 @@ public partial class GroundOverlay : Control
         Ui.Place(_status, LayoutPreset.Center);
         AddChild(_status);
 
+        _fps = Ui.Label("", TextStyle.Caption);
+        _fps.AddThemeConstantOverride("outline_size", Ui.Px(4));
+        _fps.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.75f));
+        Ui.Place(_fps, LayoutPreset.TopLeft, 10);
+        _fps.Visible = false;
+        AddChild(_fps);
+
         _cross = new Crosshair { MouseFilter = MouseFilterEnum.Ignore };
         _cross.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(_cross);
@@ -114,6 +126,14 @@ public partial class GroundOverlay : Control
         if (_graphCard.Visible)
         {
             UpdateNetGraph();
+        }
+        _fps.Visible = ShowFps;
+        _fpsTimer -= GetProcessDeltaTime();
+        if (ShowFps && _fpsTimer <= 0)
+        {
+            _fpsTimer = 0.25;
+            double fps = Engine.GetFramesPerSecond();
+            _fps.Text = string.Create(CultureInfo.InvariantCulture, $"{fps:0} fps  {(fps > 0 ? 1000 / fps : 0):0.0} ms");
         }
         PlaceNames(camera, names);
     }

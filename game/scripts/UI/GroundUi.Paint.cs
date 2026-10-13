@@ -42,6 +42,15 @@ public partial class GroundUi
                 PaintMap();
                 PaintToast();
                 return;
+            case GroundScreen.Console:
+                // The F1 panel hangs from the top; the belt stays in sight below it (what is given lands there).
+                if (Model.Death == null && !Model.Piloting)
+                {
+                    PaintBelt(false);
+                }
+                PaintConsoleScreen();
+                PaintToast();
+                return;
         }
         bool inventory = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.TechTree;
         // Flying, the ship's HUD (drawn by the ground view) has the centre, the belt's and the vitals' places.

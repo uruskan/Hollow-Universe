@@ -60,6 +60,63 @@ public sealed class SkyEphemeris
     }
 
     /// <summary>
+    /// The spin as it is set: turns since J2000 at <c>Time</c> (seconds since J2000), and how many times faster than
+    /// real it turns from there (GROUND.md §8.2: the zone's clock, which the server sends to its clients).
+    /// </summary>
+    public (double Time, double Turns, double Scale) Spin => (_baseTime, _baseTurns, _scale);
+
+    /// <summary>Turns since J2000 at a time (seconds since J2000), as the spin is set.</summary>
+    public double TurnsAt(double t) => Turns(t);
+
+    /// <summary>
+    /// Sets the spin outright (a server's zone clock, GROUND.md §8.2): <paramref name="turns"/> since J2000 at
+    /// <paramref name="time"/>, turning <paramref name="scale"/> times faster than real from there; 0 stops it.
+    /// </summary>
+    public void SetSpin(double time, double turns, double scale)
+    {
+        if (!(scale >= 0) || double.IsInfinity(scale) || !double.IsFinite(time) || !double.IsFinite(turns))
+        {
+            throw new ArgumentOutOfRangeException(nameof(scale));
+        }
+        _baseTime = time;
+        _baseTurns = turns;
+        _scale = scale;
+    }
+
+    /// <summary>
+    /// Turns the planet, from time <paramref name="t"/> on and at the speed it has, so that it is
+    /// <paramref name="hours"/> o'clock local solar time at a direction (an admin's <c>time</c>, GROUND.md §8.2). Only
+    /// the spin moves: the orbits, the seasons and the universe's time stay as they are.
+    /// </summary>
+    public void SetLocalSolarHours(Vector3D surfaceDirection, int sunIndex, double t, double hours)
+    {
+        double turns = Turns(t), scale = _scale;
+        // How far an hour of the planet's clock turns it, measured: a solar day is not quite a turn, and a retrograde
+        // spin runs the other way.
+        double before = LocalSolarHours(surfaceDirection, sunIndex, t);
+        SetSpin(t, turns + 1.0 / 24, scale);
+        double perTurn = WrapHours(LocalSolarHours(surfaceDirection, sunIndex, t) - before) * 24;
+        if (Math.Abs(perTurn) < 1)
+        {
+            perTurn = Planet.RotationPeriod < 0 ? -24 : 24;
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            SetSpin(t, turns, scale);
+            double error = WrapHours(hours - LocalSolarHours(surfaceDirection, sunIndex, t));
+            if (Math.Abs(error) < 1e-7)
+            {
+                return;
+            }
+            turns += error / perTurn;
+        }
+        SetSpin(t, turns, scale);
+    }
+
+    // An hour difference in [−12, 12).
+    private static double WrapHours(double h) => h - 24 * Math.Floor((h + 12) / 24);
+
+    /// <summary>
     /// Keeps the spin in step with a jump of the clock by <paramref name="delta"/> seconds: the planet turns by that
     /// much real time whatever the scale, so a jump of an hour is an hour on its clock.
     /// </summary>

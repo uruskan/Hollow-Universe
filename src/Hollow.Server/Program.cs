@@ -20,7 +20,8 @@ public static class Program
         {
             Console.WriteLine("Hollow.Server options: --port <n> --name <text> --db <path> | --no-db --lat <deg> --lon <deg> " +
                 "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --raid-bases <n> --raid-radius <m> --day-scale <x> --spawn beach|origin --stand-in --parent <pid> " +
-                "--no-animals --animals <n> --animal-radius <m>\nCommands:\n" +
+                "--no-animals --animals <n> --animal-radius <m> --admin <name> (as often as wanted) --admins <file> (admins.txt) " +
+                "--dev (everyone is an admin)\nCommands:\n" +
                 GameServer.CommandHelp);
             return 0;
         }
@@ -44,6 +45,11 @@ public static class Program
             AnimalPopulation = (int)Number(o, "animals", 0),
             AnimalRadius = (float)Number(o, "animal-radius", 220),
             ReadConsole = true,
+            // The F1 console's admins (GROUND.md §8.2): --admin <name> as often as wanted, the names in admins.txt (or
+            // --admins <file>), or with --dev everyone.
+            Admins = AllValues(args, "admin"),
+            AdminsFile = System.IO.Path.GetFullPath(o.GetValueOrDefault("admins", "admins.txt")),
+            EveryoneAdmin = o.ContainsKey("dev"),
         };
         using var server = new GameServer(options);
         Console.CancelKeyPress += (_, e) =>
@@ -110,6 +116,25 @@ public static class Program
             }
         }
         return options;
+    }
+
+    // Every value of an option given more than once ("--admin Ada --admin Bo").
+    private static List<string> AllValues(string[] args, string key)
+    {
+        var values = new List<string>();
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (string.Equals(args[i], "--" + key, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length &&
+                !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+            {
+                values.Add(args[++i]);
+            }
+            else if (args[i].StartsWith($"--{key}=", StringComparison.OrdinalIgnoreCase))
+            {
+                values.Add(args[i][(key.Length + 3)..]);
+            }
+        }
+        return values;
     }
 
     private static double Number(Dictionary<string, string> o, string key, double fallback) =>

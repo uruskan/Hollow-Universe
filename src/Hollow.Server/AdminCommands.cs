@@ -1,178 +1,505 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Numerics;
 using System.Text;
+using Hollow.Net.Commands;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
+using Hollow.Simulation.Content;
+using Hollow.Simulation.Entities;
+using Hollow.Simulation.Players;
 using LiteNetLib;
 
 namespace Hollow.Server;
 
+/// <summary>
+/// Who runs a console command and where its answer goes (GROUND.md §8.2): a player through the F1 console (their own
+/// rights, "me" the default target, the answer back to them), or the server's own console (all rights, no "me", the
+/// answer in the log).
+/// </summary>
+public sealed class CommandContext
+{
+    /// <summary>The player who typed it; null for the server's console and the hosting game's own calls.</summary>
+    public PlayerSession? Caller { get; init; }
+
+    public bool Admin { get; init; }
+
+    /// <summary>Where each line of the answer goes.</summary>
+    public Action<ConsoleReplyKind, string> Reply { get; init; } = (_, _) => { };
+
+    public void Out(string line) => Reply(ConsoleReplyKind.Output, line);
+
+    public void Done(string line) => Reply(ConsoleReplyKind.Success, line);
+
+    public void Error(string line) => Reply(ConsoleReplyKind.Error, line);
+}
+
+// The console's commands (GROUND.md §8.2) for the server's own console and every player's F1 console: who may run
+// what, who a command means, and the commands that change inventories and health. The rest are in
+// GameServer.Console.cs.
 public sealed partial class GameServer
 {
-    /// <summary>The admin commands (GROUND.md §4.2): what <c>help</c> prints.</summary>
-    public const string CommandHelp =
-        "status                        players, tick time, bandwidth\n" +
-        "kick <name> [reason]          disconnect a player\n" +
-        "teleport <name> <x> <z>       move a player to a point of the zone (metres east, south)\n" +
-        "teleport <name> <other>       move a player next to another\n" +
-        "say <text>                    a server line in everyone's chat\n" +
-        "give <name> <item> [count]    items into a player's inventory (item keys as in items.json)\n" +
-        "kit <name> <loot table>       a loot table's items (loot.json), e.g. supply-crate\n" +
-        "heal <name>                   full health, food and water, no bleeding\n" +
-        "kill <name>                   a player dies (a corpse with their things)\n" +
-        "ship <name>                   a Tin Finch beside a player, full and theirs, its hatch open\n" +
-        "raidbase <name> [grade]       a claimed hut 8 m in front of a player, listing them (grade 0-4, stone by default)\n" +
-        "learn <name> <item|all>       a player learns a blueprint (G7), or every one\n" +
-        "world                         the world's props, teams and economy (G7)\n" +
-        "animals                       how many animals, of each kind, what they cost\n" +
-        "spawn <species> <name> [n] [m] a herd of deer, boar, wolf or bear m metres (25) in front of a player\n" +
-        "save                          save the world now\n" +
-        "quit                          save everyone and stop";
+    /// <summary>The commands (GROUND.md §8.2) as <c>help</c> at the server's console prints them.</summary>
+    public static string CommandHelp { get; } = BuildHelp();
 
-    private void RunCommand(string line)
+    private static string BuildHelp()
     {
-        string[] words = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (words.Length == 0)
+        var text = new StringBuilder();
+        foreach (ConsoleCommandDef c in ConsoleCatalog.All.Where(c => c.Side == CommandSide.Server))
+        {
+            for (int i = 0; i < c.Usage.Length; i++)
+            {
+                text.Append(CultureInfo.InvariantCulture, $"{c.Usage[i],-36}{(i == 0 ? c.Help : "")}\n");
+            }
+        }
+        text.Append(CultureInfo.InvariantCulture, $"{"quit",-36}Saves everyone and stops the server.\n");
+        text.Append("Here a command names its player: \"give rifle 1 Ada\" (or the older \"give Ada rifle 1\").");
+        return text.ToString();
+    }
+
+    // The server's own console (standard input, and the hosting game's calls): every right, the answer in the log.
+    private CommandContext ServerConsole => _serverConsole ??= new CommandContext { Admin = true, Reply = (_, line) => Log(line) };
+
+    private CommandContext? _serverConsole;
+
+    private void RunCommand(string line) => RunCommand(line, ServerConsole);
+
+    /// <summary>Runs a console line for whoever typed it (GROUND.md §8.2), checking their rights.</summary>
+    private void RunCommand(string line, CommandContext ctx)
+    {
+        (ConsoleCommandDef? command, string typed, IReadOnlyList<string> args) = ConsoleCatalog.Parse(line);
+        if (typed.Length == 0)
         {
             return;
         }
-        switch (words[0].ToLowerInvariant())
+        if (ctx.Caller == null && typed.ToLowerInvariant() is "quit" or "stop" or "exit")
         {
-            case "help":
-            case "?":
+            RequestStop();
+            return;
+        }
+        if (command == null)
+        {
+            ctx.Error($"Unknown command '{typed}' (help lists them, find searches them).");
+            return;
+        }
+        if (command.Side == CommandSide.Client)
+        {
+            if (ctx.Caller == null && command.Name == "help")
+            {
                 Log(CommandHelp);
+            }
+            else
+            {
+                ctx.Error($"'{command.Name}' runs in the game, not on the server.");
+            }
+            return;
+        }
+        if (command.Admin && !ctx.Admin)
+        {
+            ctx.Error($"'{command.Name}' needs admin rights on this server, which you don't have.");
+            return;
+        }
+        switch (command.Name)
+        {
+            case "give":
+                Give(ctx, args);
                 break;
-            case "status":
-                Log(Status());
+            case "kit":
+                Kit(ctx, args);
                 break;
-            case "kick" when words.Length >= 2:
-                if (Find(words[1]) is { } kicked)
-                {
-                    string reason = words.Length > 2 ? string.Join(' ', words.Skip(2)) : "Kicked by an admin.";
-                    Kick(kicked, GoodbyeReason.Kicked, reason);
-                    Log($"kicked {kicked.Name}: {reason}");
-                }
+            case "learn":
+                Learn(ctx, args);
                 break;
-            case "teleport" when words.Length == 3:
-                if (Find(words[1]) is { Playing: true } mover && Find(words[2]) is { Playing: true } target)
-                {
-                    Vector3 to = Zone.Entities.Get<Character>(target.Entity).State.Position;
-                    Vector3 beside = Zone.GroundAt(to.X + 1.5f, to.Z);
-                    Zone.Teleport(mover.Entity, beside + Zone.Frame.UpAt(beside) * 0.05f);
-                    Log($"teleported {mover.Name} to {target.Name}");
-                }
+            case "teleport":
+                Teleport(ctx, args);
                 break;
-            case "teleport" when words.Length == 4:
-                if (Find(words[1]) is { Playing: true } moved && TryNumber(words[2], out float x) && TryNumber(words[3], out float z))
-                {
-                    Vector3 ground = Zone.GroundAt(x, z);
-                    Zone.Teleport(moved.Entity, ground + Zone.Frame.UpAt(ground) * 0.05f);
-                    Log($"teleported {moved.Name} to {x:0.#}, {z:0.#}");
-                }
+            case "tp2me":
+                BringToMe(ctx, args);
                 break;
-            case "say" when words.Length >= 2:
-                string text = line.Trim()[4..].Trim();
-                Log($"[server] {text}");
-                Broadcast(new ChatLine { Kind = ChatKind.Server, From = "Server", Text = text });
-                break;
-            case "give" when words.Length >= 3:
-                if (Find(words[1]) is { Playing: true } taker && Content.Item(words[2]) is { } item &&
-                    Zone.PlayerOf(taker.Entity) is { Dead: false } receiver)
-                {
-                    int count = words.Length > 3 && int.TryParse(words[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? Math.Clamp(n, 1, 100_000) : 1;
-                    int left = receiver.Inventory.Give(Content, item, count);
-                    Log($"gave {taker.Name} {count - left} {item.Name}" + (left > 0 ? $" ({left} didn't fit)" : ""));
-                }
-                else
-                {
-                    Log("give <playing name> <item key> [count]");
-                }
-                break;
-            case "kit" when words.Length >= 3:
-                if (Find(words[1]) is { Playing: true } kitted && Content.Loot(words[2]) is { } table &&
-                    Zone.PlayerOf(kitted.Entity) is { Dead: false } owner)
-                {
-                    GiveKit(owner, table);
-                    Log($"gave {kitted.Name} the {table.Key} kit");
-                }
-                else
-                {
-                    Log("kit <playing name> <loot table key>");
-                }
-                break;
-            case "heal" when words.Length >= 2:
-                if (Find(words[1]) is { Playing: true } healed && Zone.PlayerOf(healed.Entity) is { Dead: false } patient)
-                {
-                    patient.Vitals.Health = Content.Survival.MaxHealth;
-                    patient.Vitals.Calories = Content.Survival.MaxCalories;
-                    patient.Vitals.Hydration = Content.Survival.MaxHydration;
-                    patient.Vitals.Bleeding = 0;
-                    patient.VitalsRevision++;
-                    Zone.Entities.Get<Character>(healed.Entity).State.Health = (byte)Content.Survival.MaxHealth;
-                    Log($"healed {healed.Name}");
-                }
-                break;
-            case "kill" when words.Length >= 2:
-                if (Find(words[1]) is { Playing: true } victim && Zone.PlayerOf(victim.Entity) is { Dead: false } dying)
-                {
-                    Zone.Hurt(victim.Entity, dying, 100_000, "Killed by an admin", Simulation.Entities.EntityId.None, "");
-                    Log($"killed {victim.Name}");
-                }
-                break;
-            case "ship" when words.Length >= 2:
-                if (Find(words[1]) is { Playing: true } pilot)
-                {
-                    Log(GiveShip(pilot) is { } given ? $"a {given.Def.Name} for {pilot.Name} ({given.Id})" : $"no room for a ship beside {pilot.Name}");
-                }
-                break;
-            case "raidbase" when words.Length >= 2:
-                if (Find(words[1]) is { Playing: true } builder && Zone.PlayerOf(builder.Entity) is { } owner2)
-                {
-                    int grade = words.Length > 2 && int.TryParse(words[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int g) ? Math.Clamp(g, 0, 4) : 2;
-                    ref Character c = ref Zone.Entities.Get<Character>(builder.Entity);
-                    Vector3 up = Zone.Frame.UpAt(c.State.Position);
-                    Vector3 ahead = c.State.Position + Simulation.Movement.CharacterMotor.ViewDirection(c.Input.Yaw, 0, up) * 8;
-                    // The doorway faces the player.
-                    Simulation.Raid.TestBases.Hut? hut = Simulation.Raid.TestBases.Build(Zone, Zone.GroundAt(ahead.X, ahead.Z),
-                        Math.Atan2(c.State.Position.X - ahead.X, c.State.Position.Z - ahead.Z), grade, owner2.Id.Value);
-                    Log(hut != null ? $"built a {Content.Building.Grades[grade].Name.ToLowerInvariant()} hut for {builder.Name}" : "no ground there");
-                }
-                break;
-            case "animals":
-                Log(AnimalStatus());
+            case "tpmarker":
+                TeleportToMarker(ctx, args);
                 break;
             case "spawn":
-                SpawnAnimals(words);
+                SpawnCommand(ctx, args);
+                break;
+            case "heal":
+                Heal(ctx, args);
+                break;
+            case "kill":
+                Kill(ctx, args);
+                break;
+            case "god":
+                Cheat(ctx, args, Simulation.Movement.MoveCheats.God, "God mode");
+                break;
+            case "noclip":
+                Cheat(ctx, args, Simulation.Movement.MoveCheats.Noclip, "Noclip");
+                break;
+            case "time":
+                Time(ctx, args);
+                break;
+            case "timescale":
+                TimeScale(ctx, args);
+                break;
+            case "players":
+                ListPlayers(ctx);
+                break;
+            case "whereami":
+                WhereAmI(ctx);
+                break;
+            case "status":
+                foreach (string row in Status().Split('\n'))
+                {
+                    ctx.Out(row);
+                }
+                break;
+            case "kick" when args.Count >= 1:
+                if (Target(ctx, args[0]) is { } kicked)
+                {
+                    string reason = args.Count > 1 ? string.Join(' ', args.Skip(1)) : "Kicked by an admin.";
+                    Kick(kicked, GoodbyeReason.Kicked, reason);
+                    Log($"kicked {kicked.Name}: {reason}");
+                    if (ctx.Caller != null)
+                    {
+                        ctx.Done($"Kicked {kicked.Name}: {reason}");
+                    }
+                }
+                break;
+            case "say" when args.Count >= 1:
+                string text = string.Join(' ', args);
+                Log($"[server] {text}");
+                Broadcast(new ChatLine { Kind = ChatKind.Server, From = "Server", Text = text });
+                if (ctx.Caller != null)
+                {
+                    ctx.Done($"Said: {text}");
+                }
                 break;
             case "save":
                 SaveAll();
-                Log("saving the world");
+                ctx.Done("Saving the world.");
                 break;
-            case "quit":
-            case "stop":
-            case "exit":
-                RequestStop();
+            case "ents":
+                CountEntities(ctx);
+                break;
+            case "clearinv":
+                ClearInventory(ctx, args);
+                break;
+            case "ship":
+                if (TargetOrMe(ctx, args, 0) is { } pilot && Alive(ctx, pilot, out _))
+                {
+                    if (GiveShip(pilot) is { } given)
+                    {
+                        ctx.Done($"A {given.Def.Name} for {pilot.Name} ({given.Id}), beside them, fuelled, its hatch open.");
+                    }
+                    else
+                    {
+                        ctx.Error($"No room for a ship beside {pilot.Name}.");
+                    }
+                }
+                break;
+            case "raidbase":
+                RaidBase(ctx, args);
+                break;
+            case "admin" when args.Count >= 1:
+                SetAdmin(ctx, string.Join(' ', args), true);
+                break;
+            case "unadmin" when args.Count >= 1:
+                SetAdmin(ctx, string.Join(' ', args), false);
+                break;
+            case "world":
+                ctx.Out(WorldStatus());
+                break;
+            case "animals":
+                ctx.Out(AnimalStatus());
                 break;
             default:
-                if (!RunWorldCommand(words))
-                {
-                    Log($"unknown command '{line.Trim()}' (help lists them)");
-                }
+                Usage(ctx, command);
                 break;
         }
     }
 
-    private PlayerSession? Find(string name)
+    private static void Usage(CommandContext ctx, ConsoleCommandDef command) =>
+        ctx.Error("Usage: " + string.Join("  |  ", command.Usage));
+
+    // ---------------------------------------------------------------- players: who a command means
+
+    /// <summary>
+    /// A connected player by name: exactly (any case), else the one whose name starts with it, else the one whose name
+    /// holds it. Says why not when none or several fit (unless <paramref name="quiet"/>).
+    /// </summary>
+    private PlayerSession? Target(CommandContext ctx, string name, bool quiet = false)
     {
-        PlayerSession? session = _sessions.Values.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+        PlayerSession[] all = _sessions.Values.ToArray();
+        PlayerSession? exact = all.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (exact != null)
+        {
+            return exact;
+        }
+        foreach (Func<PlayerSession, bool> fits in new Func<PlayerSession, bool>[]
+                 {
+                     s => s.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase),
+                     s => s.Name.Contains(name, StringComparison.OrdinalIgnoreCase),
+                 })
+        {
+            PlayerSession[] found = all.Where(fits).ToArray();
+            if (found.Length == 1)
+            {
+                return found[0];
+            }
+            if (found.Length > 1)
+            {
+                if (!quiet)
+                {
+                    ctx.Error($"'{name}' could be {string.Join(", ", found.Select(s => s.Name))}.");
+                }
+                return null;
+            }
+        }
+        if (!quiet)
+        {
+            ctx.Error($"No player called '{name}' is on.");
+        }
+        return null;
+    }
+
+    /// <summary>The player named from <paramref name="index"/> on, or the caller when no name is given there.</summary>
+    private PlayerSession? TargetOrMe(CommandContext ctx, IReadOnlyList<string> args, int index)
+    {
+        if (index < args.Count)
+        {
+            return Target(ctx, string.Join(' ', args.Skip(index)));
+        }
+        if (ctx.Caller == null)
+        {
+            ctx.Error("Name a player: the server's console has no 'me'.");
+        }
+        return ctx.Caller;
+    }
+
+    /// <summary>A player in the world and alive, and their survival state; says why not otherwise.</summary>
+    private bool Alive(CommandContext ctx, PlayerSession? session, out Player player)
+    {
+        player = null!;
         if (session == null)
         {
-            Log($"no player called {name}");
+            return false;
         }
-        return session;
+        if (!session.Playing || Zone.PlayerOf(session.Entity) is not { } p)
+        {
+            ctx.Error($"{session.Name} isn't in the world yet.");
+            return false;
+        }
+        if (p.Dead)
+        {
+            ctx.Error($"{(IsMe(ctx, session) ? "You are" : session.Name + " is")} dead: respawn first.");
+            return false;
+        }
+        player = p;
+        return true;
     }
+
+    private static bool IsMe(CommandContext ctx, PlayerSession session) => ctx.Caller == session;
+
+    private static string Whom(CommandContext ctx, PlayerSession session) => IsMe(ctx, session) ? "you" : session.Name;
+
+    // ---------------------------------------------------------------- inventory
+
+    // give <item> [amount] [player], or the older give <player> <item> [amount].
+    private void Give(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        if (args.Count == 0)
+        {
+            ctx.Error("Usage: give <item> [amount] [player] (find <text> lists item keys)");
+            return;
+        }
+        ItemDef? item = Content.Item(args[0]);
+        PlayerSession? whom;
+        int count = 1;
+        if (item == null && args.Count >= 2 && Content.Item(args[1]) is { } older && Target(ctx, args[0], quiet: true) is { } named)
+        {
+            item = older;
+            whom = named;
+            if (args.Count > 2 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int n))
+            {
+                count = n;
+            }
+        }
+        else if (item == null)
+        {
+            ctx.Error($"No item called '{args[0]}' (find {args[0]} lists those like it).");
+            return;
+        }
+        else
+        {
+            int playerAt = 1;
+            if (args.Count > 1 && int.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int n))
+            {
+                count = n;
+                playerAt = 2;
+            }
+            whom = TargetOrMe(ctx, args, playerAt);
+        }
+        if (!Alive(ctx, whom, out Player p))
+        {
+            return;
+        }
+        count = Math.Clamp(count, 1, 100_000);
+        int left = p.Inventory.Give(Content, item, count);
+        int given = count - left, dropped = 0;
+        // What doesn't fit drops at their feet, as a finished craft does (two dozen stacks at most).
+        for (int stacks = 0; left > 0 && stacks < 24; stacks++)
+        {
+            int stack = Math.Min(left, Math.Max(1, item.StackSize));
+            Zone.Drop(whom!.Entity, Simulation.Items.ItemStack.Of(item, stack));
+            left -= stack;
+            dropped += stack;
+        }
+        if (given > 0)
+        {
+            // The pickup feed's "+N" for the receiver.
+            Zone.GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = item.Id, Count = given, Reason = GainReason.Looted });
+        }
+        ctx.Done($"Gave {Whom(ctx, whom!)} {given + dropped} {item.Name}" + (dropped > 0 ? $" ({dropped} on the ground: no room)" : "") +
+            (left > 0 ? $"; {left} more didn't fit" : "") + ".");
+    }
+
+    // kit <loot table> [player], or the older kit <player> <table>.
+    private void Kit(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        if (args.Count == 0)
+        {
+            ctx.Error("Usage: kit <loot table> [player]: " + string.Join(", ", Content.LootTables.Select(t => t.Key)));
+            return;
+        }
+        LootTable? table = Content.Loot(args[0]);
+        PlayerSession? whom;
+        if (table == null && args.Count >= 2 && Content.Loot(args[1]) is { } older)
+        {
+            table = older;
+            whom = Target(ctx, args[0]);
+        }
+        else if (table == null)
+        {
+            ctx.Error($"No loot table called '{args[0]}': " + string.Join(", ", Content.LootTables.Select(t => t.Key)));
+            return;
+        }
+        else
+        {
+            whom = TargetOrMe(ctx, args, 1);
+        }
+        if (Alive(ctx, whom, out Player p))
+        {
+            GiveKit(p, table);
+            ctx.Done($"Gave {Whom(ctx, whom!)} the {table.Key} kit.");
+        }
+    }
+
+    // learn <item|all> [player], or the older learn <player> <item|all>.
+    private void Learn(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        if (args.Count == 0)
+        {
+            ctx.Error("Usage: learn <item|all> [player]");
+            return;
+        }
+        bool Teaches(string key) => key == "all" || Content.Recipes.Any(r => r.Output.Key == key);
+        string what = args[0];
+        PlayerSession? whom;
+        if (!Teaches(what) && args.Count >= 2 && Teaches(args[1]))
+        {
+            what = args[1];
+            whom = Target(ctx, args[0]);
+        }
+        else if (!Teaches(what))
+        {
+            ctx.Error($"No recipe makes '{what}'.");
+            return;
+        }
+        else
+        {
+            whom = TargetOrMe(ctx, args, 1);
+        }
+        if (whom == null || !whom.Playing || Zone.PlayerOf(whom.Entity) is not { } p)
+        {
+            return;
+        }
+        int before = p.Blueprints.Learnt.Count;
+        foreach (Recipe r in Content.Recipes.Where(r => !r.Known && (what == "all" || r.Output.Key == what)))
+        {
+            p.Blueprints.Learn(r);
+        }
+        int learnt = p.Blueprints.Learnt.Count - before;
+        string who = IsMe(ctx, whom) ? "You" : whom.Name;
+        if (learnt > 0)
+        {
+            ctx.Done($"{who} learnt {learnt} blueprint{(learnt == 1 ? "" : "s")}.");
+        }
+        else
+        {
+            ctx.Out($"{who} knew {(what == "all" ? "every blueprint" : "that one")} already.");
+        }
+    }
+
+    private void ClearInventory(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        PlayerSession? whom = TargetOrMe(ctx, args, 0);
+        if (Alive(ctx, whom, out Player p))
+        {
+            p.Inventory.Clear();
+            ctx.Done($"Emptied {(IsMe(ctx, whom!) ? "your" : whom!.Name + "'s")} inventory.");
+        }
+    }
+
+    // ---------------------------------------------------------------- health
+
+    private void Heal(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        PlayerSession? whom = TargetOrMe(ctx, args, 0);
+        if (!Alive(ctx, whom, out Player p))
+        {
+            return;
+        }
+        p.Vitals.Health = Content.Survival.MaxHealth;
+        p.Vitals.Calories = Content.Survival.MaxCalories;
+        p.Vitals.Hydration = Content.Survival.MaxHydration;
+        p.Vitals.Bleeding = 0;
+        p.Vitals.Burning = 0;
+        p.VitalsRevision++;
+        Zone.Entities.Get<Character>(whom!.Entity).State.Health = (byte)Content.Survival.MaxHealth;
+        ctx.Done($"Healed {Whom(ctx, whom)}: full health, food and water.");
+    }
+
+    // kill: anyone, themselves (Rust's F1 kill: the respawn screen, a bag in a base under attack; GAME_DESIGN.md §5);
+    // kill <player>: admins only.
+    private void Kill(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        PlayerSession? whom;
+        if (args.Count > 0)
+        {
+            string name = string.Join(' ', args);
+            if (!ctx.Admin && (ctx.Caller == null || Target(ctx, name, quiet: true) != ctx.Caller))
+            {
+                ctx.Error("Killing another player needs admin rights; 'kill' alone kills you.");
+                return;
+            }
+            whom = Target(ctx, name);
+        }
+        else
+        {
+            whom = TargetOrMe(ctx, args, 0);
+        }
+        if (!Alive(ctx, whom, out Player p))
+        {
+            return;
+        }
+        bool me = IsMe(ctx, whom!);
+        // Straight to death (not knocked down), whatever god mode says: the body keeps what was carried.
+        Zone.Die(whom!.Entity, p, me ? "Suicide" : "Killed by an admin", EntityId.None, "");
+        Log($"{whom.Name} died: {(me ? "killed themselves (console)" : "killed by an admin")}");
+        ctx.Done(me ? "You died. Choose where to respawn." : $"Killed {whom.Name}.");
+    }
+
+    // ---------------------------------------------------------------- the server
 
     /// <summary>What <c>status</c> prints.</summary>
     public string Status()
@@ -195,5 +522,5 @@ public sealed partial class GameServer
     }
 
     private static bool TryNumber(string text, out float value) =>
-        float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+        float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && float.IsFinite(value);
 }

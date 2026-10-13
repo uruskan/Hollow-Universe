@@ -62,7 +62,7 @@ public partial class GroundTour : Node
         {
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
-            ("world", World), ("death", Death), ("night", Night),
+            ("world", World), ("death", Death), ("night", Night), ("f1", F1),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -1513,6 +1513,89 @@ public partial class GroundTour : Node
             Me.HeldSlot = held;
             _guestDressed = true;
         }
+    }
+
+    // The F1 panel (GROUND.md §8.2), checked once in the real game: the host is the game's admin; its console runs help,
+    // give, spawn, teleport, noclip and time over the network as a player's would; then a picture of each tab.
+    private async Task F1()
+    {
+        int checks = 0, failed = 0;
+        void Check(bool ok, string what)
+        {
+            checks++;
+            failed += ok ? 0 : 1;
+            GD.Print($"[tour] f1 check: {(ok ? "ok  " : "FAIL")} {what}");
+        }
+        ClientConsole console = View.Console;
+        GroundUi ui = View.Interface;
+        await Until(() => Client.IsAdmin, 10);
+        Check(Client.IsAdmin, "the host is the game's admin");
+        // Nothing hovered in the pictures, wherever the real mouse is.
+        ui.HoldPointer(new Vector2(-10000, -10000));
+        if (ui.Screen != GroundScreen.Console)
+        {
+            ui.ToggleConsole();
+        }
+        ui.ConsoleTab = ConsoleTab.Console;
+        await Seconds(0.3);
+        Check(ui.Screen == GroundScreen.Console, "F1 opens the panel");
+
+        console.Submit("help");
+        await Seconds(0.3);
+        Check(console.Lines.Any(l => l.Text.StartsWith("give <item>", StringComparison.Ordinal)), "help lists the admin commands");
+        int rifles = Count("rifle");
+        console.Submit("give rifle");
+        await Until(() => Count("rifle") > rifles, 5);
+        Check(Count("rifle") > rifles, "give rifle: a rifle in the inventory");
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(40, 0, 30));
+        console.Submit(string.Create(CultureInfo.InvariantCulture, $"teleport {spot.X:0.0} {spot.Z:0.0}"));
+        await Until(() => new Num.Vector2(Client.Character.Position.X - spot.X, Client.Character.Position.Z - spot.Z).Length() < 1.5f, 5);
+        Check(new Num.Vector2(Client.Character.Position.X - spot.X, Client.Character.Position.Z - spot.Z).Length() < 1.5f, "teleport: there");
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        await Settle();
+        int wolves = Client.Animals.Count(a => a.SpeciesKey == "wolf" && !a.Dead);
+        console.Submit("spawn wolf 2");
+        await Until(() => Client.Animals.Count(a => a.SpeciesKey == "wolf" && !a.Dead) >= wolves + 2, 8);
+        Check(Client.Animals.Count(a => a.SpeciesKey == "wolf" && !a.Dead) >= wolves + 2, "spawn wolf 2: two wolves in front");
+        console.Submit("noclip");
+        await Until(() => (Client.Cheats & MoveCheats.Noclip) != 0, 5);
+        Check((Client.Cheats & MoveCheats.Noclip) != 0, "noclip: on in the prediction");
+        float before = Client.Character.Position.Y;
+        long corrections = Client.Stats.Corrections;
+        View.Scripted = new InputFrame { Jump = true };
+        await Seconds(0.5);
+        View.Scripted = null;
+        await Seconds(0.2);
+        Check(Client.Character.Position.Y - before > 3, $"noclip: rose {Client.Character.Position.Y - before:0.0} m, {Client.Stats.Corrections - corrections} corrections");
+        console.Submit("noclip");
+        await Until(() => (Client.Cheats & MoveCheats.Noclip) == 0, 5);
+        await Seconds(1.5);
+        Check((Client.Cheats & MoveCheats.Noclip) == 0 && (Client.Character.Flags & MoveFlags.OnGround) != 0, "noclip off: back on the ground");
+        console.Submit("time 21");
+        await Until(() => Client.Day is { Overridden: true }, 5);
+        await Seconds(0.3);
+        double hours = View.World?.Sky?.LocalHours ?? -1;
+        Check(Math.Abs(hours - 21) < 0.3, $"time 21: the sky says {hours:0.00} h");
+        // Day again for the pictures.
+        console.Submit("time 10");
+        await Seconds(1.0);
+        await Settle();
+        await Shot("f1-console");
+        ui.ConsoleTab = ConsoleTab.Info;
+        await Seconds(0.5);
+        await Shot("f1-info");
+        ui.ConsoleTab = ConsoleTab.Net;
+        await Seconds(0.5);
+        await Shot("f1-net");
+        ui.ConsoleTab = ConsoleTab.Items;
+        ui.SelectConsoleItem("rifle");
+        await Seconds(0.6);
+        await Shot("f1-items");
+        console.Run("ents");
+        ui.ConsoleTab = ConsoleTab.Tools;
+        await Seconds(1.0);
+        await Shot("f1-tools");
+        GD.Print($"[tour] f1: {checks - failed} of {checks} checks passed");
     }
 
     // ---------------------------------------------------------------- helpers
