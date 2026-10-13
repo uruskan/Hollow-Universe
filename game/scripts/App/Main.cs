@@ -6,6 +6,7 @@ using Hollow.Core;
 using Hollow.Galaxy;
 using Hollow.Galaxy.Systems;
 using HollowUniverse.Build;
+using HollowUniverse.Fx;
 using HollowUniverse.GalaxyMap;
 using HollowUniverse.Ground;
 using HollowUniverse.Surface;
@@ -35,6 +36,7 @@ public partial class Main : Node
     private UiViewer? _ui;
     private IconRenderer? _icons;
     private ModelViewer? _models;
+    private FxViewer? _fx;
 
     public override void _Ready()
     {
@@ -68,6 +70,13 @@ public partial class Main : Node
             // Every catalogue model on the ground, or one on a turntable (GROUND.md §9).
             _models = new ModelViewer { Name = "Models", Options = _options };
             AddChild(_models);
+            return;
+        }
+        if (Option("view", "galaxy") == "fx")
+        {
+            // The effects library on its stations, contact sheets, scenes and the firefight measurement (GROUND.md §9.3).
+            _fx = new FxViewer { Name = "Fx", Options = _options };
+            AddChild(_fx);
             return;
         }
         if (Option("view", "galaxy") == "ui")
@@ -245,7 +254,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _build == null)
+        if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _build == null && _fx == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -276,6 +285,7 @@ public partial class Main : Node
         bool ready = _ui != null ? _ui.ReadyForShot : _ground != null ? _ground.ReadyForShot
             : _build != null ? _build.ReadyForShot
             : _icons != null ? _icons.ReadyForShot : _models != null ? _models.ReadyForShot
+            : _fx != null ? _fx.ReadyForShot
             : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady
             : _surfaceView.Visible ? _surfaceView.IsReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
