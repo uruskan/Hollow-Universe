@@ -13,7 +13,7 @@ from mathutils import Matrix, Vector
 from . import kit
 from .kit import (BLACK, CONCRETE_T, DARK, GREY, LIGHTGREY, OFFWHITE, ORANGE, RED_LAMP, TEAL, WARM_LAMP, YELLOW,
                   ladder, lamp, railing, srgb, stairs)
-from .surfaces import (ASPHALT, CONCRETE, CORRUGATED, FORMWORK, GLASS, GRATE, HULL, LAMP, MATTE, PAINT, PANEL,
+from .surfaces import (ASPHALT, CONCRETE, CORRUGATED, FORMWORK, GLASS, GLOSS, GRATE, HULL, LAMP, MATTE, PAINT, PANEL,
                        RUST)
 
 # Colours the landmarks add to the kit's (sRGB, stored linear).
@@ -1210,6 +1210,95 @@ def _ore_hauler(b):
 
 
 kit.PIECES["ore-hauler"] = _ore_hauler
+
+
+# ------------------------------------------------------------------------------------------------ the mass driver
+
+DRIVER_SEGMENT = 60.0     # length of one laid rail piece
+DRIVER_DEPTH = 7.0        # the guideway girder's depth under the track
+DRIVER_PYLON = 30.0       # height of the pylon head piece
+DRIVER_SECTION = 20.0     # height of one stacked pylon section
+
+
+def _driver_rail(b):
+    """Kit piece: 60 m of the mass driver's guideway, along X from -30 to +30, its track's top at z = 0: a box
+    girder 14 m wide, guide rails and the coil channel on top, four coil hoops round the cradle's path, busbars and
+    a walkway with a rail along one side. Laid end to end on `driver-pylon` heads, each piece pitched to the line."""
+    half = DRIVER_SEGMENT / 2
+    b.box((DRIVER_SEGMENT - 0.2, 14.0, DRIVER_DEPTH), (0, 0, -DRIVER_DEPTH / 2), mat=PANEL, tint=OFFWHITE)
+    b.box((DRIVER_SEGMENT - 0.2, 14.2, 1.0), (0, 0, -DRIVER_DEPTH * 0.55), mat=PAINT, tint=ORANGE, solid=False,
+          vary=0)
+    b.box((DRIVER_SEGMENT - 0.2, 14.3, 0.4), (0, 0, -DRIVER_DEPTH + 0.2), mat=PAINT, tint=DARK, solid=False, vary=0)
+    for y in (-3.2, 3.2):
+        b.box((DRIVER_SEGMENT, 1.2, 1.4), (0, y, 0.7), mat=PAINT, tint=STEEL)
+    b.box((DRIVER_SEGMENT, 3.0, 0.8), (0, 0, 0.4), mat=PAINT, tint=srgb(0.55, 0.32, 0.18), solid=False)
+    for k in range(4):
+        x = -half + 7.5 + k * 15.0
+        b.lathe([(9.0, -1.2), (10.4, -0.8), (10.4, 0.8), (9.0, 1.2), (8.6, 1.2), (8.6, -1.2), (9.0, -1.2)],
+                (x, 0, 5.0), (0, 90, 0), mat=PAINT, tint=srgb(0.26, 0.27, 0.28), sides=32, close=False, solid=False)
+        b.lathe([(10.45, -0.5), (10.6, 0.0), (10.45, 0.5)], (x, 0, 5.0), (0, 90, 0), mat=PAINT,
+                tint=srgb(0.72, 0.42, 0.2), sides=32, close=False, solid=False)
+        for s in (-1, 1):
+            b.box((1.6, 2.0, 5.5), (x, s * 9.0, 0.6), mat=PAINT, tint=DARK, solid=False)
+        b.box((1.4, 1.4, 1.0), (x, 0, 15.6), mat=PAINT, tint=DARK, solid=False)
+    for z in (-1.5, -4.0):
+        b.cyl(0.55, DRIVER_SEGMENT, (0, 7.6, z), (0, 90, 0), mat=PAINT, tint=srgb(0.6, 0.38, 0.2), sides=10,
+              solid=False)
+    b.box((DRIVER_SEGMENT, 1.6, 0.2), (0, -7.9, -0.1), mat=GRATE, tint=GREY, solid=False, vary=0)
+    railing(b, (-half, -8.6, 0.0), (half, -8.6, 0.0), 1.1, spacing=2.5, toe=False)
+    for x in (-half + 15.0, half - 15.0):
+        lamp(b, (x, -8.5, 2.6), (-30, 0, 90), size=(0.4, 0.25, 0.15))
+    b.collide_box(Vector((0, 0, -DRIVER_DEPTH / 2 + 0.7)), (DRIVER_SEGMENT, 14.0, DRIVER_DEPTH + 1.4))
+
+
+def _driver_pylon(b):
+    """Kit piece: a pylon head for the mass driver, 30 m from its bearing (z = 0, under the girder) down: a portal
+    of two concrete legs splayed toward the ground, a crosshead with bearings, struts, a ladder. Stack
+    `driver-pylon-section` pieces under it to reach the ground."""
+    b.box((22.0, 6.0, 4.0), (0, 0, -2.0), mat=FORMWORK, tint=CONCRETE_T)
+    for s in (-1, 1):
+        b.box((3.0, 4.0, 1.2), (0, s * 6.0, 0.4), mat=PAINT, tint=DARK, solid=False)
+    for x in (-8.0, 8.0):
+        b.box((4.0, 4.0, DRIVER_PYLON - 4.0), (x, 0, -4.0 - (DRIVER_PYLON - 4.0) / 2), mat=FORMWORK, tint=CONCRETE_T)
+        b.box((4.3, 4.3, 1.0), (x, 0, -9.0), mat=PAINT, tint=ORANGE, solid=False, vary=0)
+    b.box((12.0, 3.0, 3.0), (0, 0, -18.0), mat=FORMWORK, tint=CONCRETE_T)
+    b.beam((-6.0, 0, -16.5), (6.0, 0, -6.0), 1.2, 1.2, mat=PAINT, tint=STEEL)
+    b.beam((6.0, 0, -16.5), (-6.0, 0, -6.0), 1.2, 1.2, mat=PAINT, tint=STEEL)
+    ladder(b, (10.2, 0, -DRIVER_PYLON), DRIVER_PYLON - 4.0, (0, 0, 90), cage=True)
+    b.box((2.0, 2.0, 1.0), (-8.0, 2.6, -6.0), mat=LAMP, tint=RED_LAMP, solid=False, vary=0)
+
+
+def _driver_pylon_section(b):
+    """Kit piece: 20 m more of a pylon's two legs (from z = 0 down), with a tie beam: stacked under a
+    `driver-pylon` until it meets the ground."""
+    for x in (-8.0, 8.0):
+        b.box((4.0, 4.0, DRIVER_SECTION), (x, 0, -DRIVER_SECTION / 2), mat=FORMWORK, tint=CONCRETE_T)
+    b.box((12.0, 2.6, 2.6), (0, 0, -DRIVER_SECTION / 2), mat=FORMWORK, tint=CONCRETE_T)
+    ladder(b, (10.2, 0, -DRIVER_SECTION), DRIVER_SECTION, (0, 0, 90), cage=True)
+
+
+def _capacitor_bank(b):
+    """Kit piece: a capacitor bank on its skid, 12 x 5 m: eight tall cans, busbars over them, a disconnect, the
+    hazard marking round it."""
+    b.box((12.0, 5.0, 0.6), (0, 0, 0.3), mat=CONCRETE, tint=CONCRETE_T)
+    for i in range(4):
+        for j in range(2):
+            x, y = -4.5 + i * 3.0, -1.2 + j * 2.4
+            b.cyl(1.0, 5.0, (x, y, 3.1), mat=PAINT, tint=srgb(0.56, 0.6, 0.62), sides=16, solid=False)
+            b.cyl(1.05, 0.3, (x, y, 5.7), mat=PAINT, tint=DARK, sides=16, solid=False, vary=0)
+            b.cyl(0.2, 0.8, (x, y, 6.2), mat=GLOSS, tint=srgb(0.55, 0.3, 0.2), sides=8, solid=False)
+    for y in (-1.2, 1.2):
+        b.box((11.0, 0.25, 0.25), (0, y, 6.7), mat=PAINT, tint=srgb(0.7, 0.42, 0.2), solid=False)
+    b.box((1.2, 1.0, 2.0), (5.8, 0, 1.6), mat=PAINT, tint=LIGHTGREY, solid=False, bevel=0.03)
+    for x in (-6.2, 6.2):
+        b.box((0.1, 5.4, 0.15), (x, 0, 0.66), mat=PAINT, tint=YELLOW, solid=False, vary=0)
+    b.collide_box(Vector((0, 0, 3.0)), (12.0, 5.0, 6.0))
+
+
+kit.PIECES["driver-rail"] = _driver_rail
+kit.PIECES["driver-pylon"] = _driver_pylon
+kit.PIECES["driver-pylon-section"] = _driver_pylon_section
+kit.PIECES["capacitor-bank"] = _capacitor_bank
 
 
 kit.PIECES["climber-car"] = _climber_car
