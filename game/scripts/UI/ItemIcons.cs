@@ -132,6 +132,23 @@ public sealed class PlaceholderItemIcons : IItemIconProvider
             "<path d=\"M50 32h28M50 52h28M50 72h28M50 92h28\" stroke=\"#6e5236\" stroke-width=\"4\"/><path d=\"M78 62h6v8h-6Z\" fill=\"#c9c2ae\"/>",
         "lock.key" => "<path d=\"M42 58h44v42H42Z\" fill=\"#9a9a90\"/><path d=\"M50 58V44c0-18 28-18 28 0v14\" fill=\"none\" stroke=\"#6c6c64\" stroke-width=\"7\"/>" +
             "<path d=\"M60 72h8v14h-8Z\" fill=\"#3c3c38\"/>",
+        // G7: salvage, components, schematics, the blueprint and the research table (our own shapes, until rendered).
+        "salvage" => "<path d=\"m18 82 30-30 24 10-8 34-34 4Z\" fill=\"#7d8078\"/><path d=\"m56 40 34 6 14 28-26 18-16-20Z\" fill=\"#9c7a52\"/><path d=\"m48 52 24 10\" stroke=\"#5a5c56\" stroke-width=\"5\"/><circle cx=\"86\" cy=\"94\" r=\"12\" fill=\"#a8aaa2\"/><circle cx=\"86\" cy=\"94\" r=\"5\" fill=\"#5f625b\"/><path d=\"M30 40c6-8 16-8 22 0s16 8 22 0\" fill=\"none\" stroke=\"#c49a5c\" stroke-width=\"5\"/>",
+        "gears" => "<path d=\"M64 22l8 0 3 12 10 4 10-7 6 6-7 10 4 10 12 3v8l-12 3-4 10 7 10-6 6-10-7-10 4-3 12h-8l-3-12-10-4-10 7-6-6 7-10-4-10-12-3v-8l12-3 4-10-7-10 6-6 10 7 10-4Z\" fill=\"#8f938c\"/><circle cx=\"68\" cy=\"64\" r=\"16\" fill=\"#4f534d\"/><circle cx=\"68\" cy=\"64\" r=\"8\" fill=\"#b8bbb2\"/>",
+        "springs" => "<path d=\"M40 30h48M40 98h48\" stroke=\"#6c706a\" stroke-width=\"7\" stroke-linecap=\"round\"/><path d=\"M42 38l44 8-44 8 44 8-44 8 44 8-44 8 44 8\" fill=\"none\" stroke=\"#b5b8ae\" stroke-width=\"6\" stroke-linejoin=\"round\"/>",
+        "metal-pipe" => "<path d=\"m26 88 62-62 14 14-62 62Z\" fill=\"#8d918a\"/><path d=\"m26 88 62-62 4 4-62 62Z\" fill=\"#b9bcb4\"/><ellipse cx=\"95\" cy=\"33\" rx=\"10\" ry=\"5\" transform=\"rotate(-45 95 33)\" fill=\"#3c3f3a\"/>",
+        "rope" => "<ellipse cx=\"64\" cy=\"66\" rx=\"40\" ry=\"30\" fill=\"none\" stroke=\"#a88d5c\" stroke-width=\"12\"/><ellipse cx=\"64\" cy=\"66\" rx=\"26\" ry=\"18\" fill=\"none\" stroke=\"#c4aa76\" stroke-width=\"10\"/><path d=\"M98 80c8 10 10 22 4 30\" fill=\"none\" stroke=\"#a88d5c\" stroke-width=\"9\"/>",
+        "sewing-kit" => "<path d=\"M24 46h80v54H24Z\" fill=\"#8d6a4a\"/><path d=\"M24 46h80v12H24Z\" fill=\"#a8835e\"/><path d=\"M40 70h22v18H40Z\" fill=\"#c9c2ae\"/><path d=\"m74 66 22 26\" stroke=\"#d6d8d0\" stroke-width=\"4\"/><path d=\"M80 64c10 4 12 14 4 20\" fill=\"none\" stroke=\"#c24a3a\" stroke-width=\"3\"/>",
+        "tech-scrap" => "<path d=\"m22 40 76-12 10 56-76 14Z\" fill=\"#3f6a4a\"/><path d=\"M40 52h20v16H40Zm34-6h16v12H74Z\" fill=\"#2c2f2c\"/><path d=\"M34 80h56M60 60v22M52 42l4 12\" stroke=\"#c7a54a\" stroke-width=\"3\"/><circle cx=\"86\" cy=\"74\" r=\"5\" fill=\"#b8b8b0\"/>",
+        "metal-blade" => "<path d=\"M22 92 96 26l10 10-62 70Z\" fill=\"#c2c6be\"/><path d=\"M22 92 96 26l3 3-74 66Z\" fill=\"#e2e5de\"/><path d=\"M30 84l8 8M44 72l8 8M58 58l8 8M72 44l8 8\" stroke=\"#7d817a\" stroke-width=\"3\"/>",
+        "sheet-metal" => "<path d=\"m18 54 70-26 24 40-70 28Z\" fill=\"#9a9e96\"/><path d=\"m18 54 70-26 4 6-70 26Z\" fill=\"#c4c7bf\"/><path d=\"m26 74 64-24M34 86l64-24\" stroke=\"#7a7e77\" stroke-width=\"2\"/>",
+        "sign-plate" => "<path d=\"M24 34h80v56H24Z\" fill=\"#d7c25a\"/><path d=\"M24 34h80v56H24Z\" fill=\"none\" stroke=\"#5c5644\" stroke-width=\"5\"/><path d=\"m36 82 16-36 16 36M74 46l18 36\" stroke=\"#3a3830\" stroke-width=\"7\"/><path d=\"M60 90v26\" stroke=\"#6c6c64\" stroke-width=\"7\"/>",
+        "receiver" => "<g transform=\"rotate(-18 64 64)\"><path d=\"M20 52h78v18H54l-6 24-14-3 5-21H20Z\" fill=\"#6b716a\"/><path d=\"M28 56h64v6H28Z\" fill=\"#8c938b\"/><path d=\"M98 54h12v10H98Z\" fill=\"#3c403b\"/></g>",
+        "rifle-frame" => "<g transform=\"rotate(-20 64 64)\"><path d=\"M14 52h70v16H50l-4 22-12-3 3-19H14Z\" fill=\"#6b716a\"/><path d=\"M84 50h28l4 22-32-4Z\" fill=\"#8a6a44\"/><path d=\"M58 68h12l-2 22-12-2Z\" fill=\"#3c403b\"/></g>",
+        "torn-schematic" => "<path d=\"m24 28 72-4 8 74-28 8-6-14-16 12-28-4Z\" fill=\"#cfd8de\"/><path d=\"M36 44h48M36 58h40M36 72h30\" stroke=\"#4b6f96\" stroke-width=\"4\"/><path d=\"m60 88 8-18 10 10\" fill=\"none\" stroke=\"#4b6f96\" stroke-width=\"3\"/>",
+        "sealed-schematic" => "<path d=\"M26 26h76v80H26Z\" fill=\"#7a6a4c\"/><path d=\"M34 34h60v64H34Z\" fill=\"#cfd8de\"/><path d=\"M42 48h44M42 62h36M42 76h28\" stroke=\"#4b6f96\" stroke-width=\"4\"/><circle cx=\"82\" cy=\"88\" r=\"10\" fill=\"#b8402e\"/>",
+        "blueprint" => "<path d=\"M22 26h84v78H22Z\" fill=\"#2f5f96\"/><path d=\"M30 34h68v62H30Z\" fill=\"none\" stroke=\"#9fc2e8\" stroke-width=\"3\"/><path d=\"M42 50h44M42 64h36M42 78h28\" stroke=\"#d8e8f8\" stroke-width=\"4\"/><circle cx=\"84\" cy=\"82\" r=\"8\" fill=\"none\" stroke=\"#d8e8f8\" stroke-width=\"3\"/>",
+        "research-table" => "<path d=\"m16 54 72-20 26 22-72 22Z\" fill=\"#7d6a52\"/><path d=\"M22 60v42m24-26v38m58-46v36\" stroke=\"#5a5c58\" stroke-width=\"8\"/><path d=\"M58 30v18M50 30h16\" stroke=\"#9a9d96\" stroke-width=\"5\"/><circle cx=\"58\" cy=\"26\" r=\"7\" fill=\"#e8d27a\"/><path d=\"M70 44h22v10H70Z\" fill=\"#2f5f96\"/>",
         _ => "<path d=\"m28 37 28-15 48 27-10 46-46 8-27-36Z\" fill=\"#7f8273\"/>" +
             "<path d=\"m36 45 27-13 29 20-11 28-27 5-22-18Z\" fill=\"none\" stroke=\"#b0ad91\" stroke-width=\"9\"/>",
     };
@@ -186,6 +203,9 @@ public static class GroundGlyphs
         "skull" => "<path d=\"M16 4C9 4 5 9 5 15c0 4 2 6 4 7v4h14v-4c2-1 4-3 4-7 0-6-4-11-11-11Zm-5 10a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm10 0a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z\" fill-rule=\"evenodd\"/>",
         "bag" => "<path d=\"M6 10h20l2 16H4Z\"/><path d=\"M11 10V8a5 5 0 0 1 10 0v2\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"2.6\"/>",
         "person" => "<circle cx=\"16\" cy=\"10\" r=\"6\"/><path d=\"M4 30c0-8 5-12 12-12s12 4 12 12Z\"/>",
+        // G7: the map's bed, a known tech tree node.
+        "bed" => "<path d=\"M3 14h4v4h20a3 3 0 0 1 3 3v6h-4v-3H7v3H3Z\"/><path d=\"M8 12h8a2 2 0 0 1 2 2v3H8Z\"/>",
+        "check" => $"<path d=\"M6 17l7 7 13-15\" {Line}/>",
         _ => "<circle cx=\"16\" cy=\"16\" r=\"6\"/>",
     };
 }

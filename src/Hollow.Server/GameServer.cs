@@ -133,6 +133,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         LoadWorld();
         StartBuilding();
         StartRaid();
+        StartWorld();
         Zone.Profile = Profile;
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();

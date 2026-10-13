@@ -1,5 +1,5 @@
 {
-  "source": "The crafting menu's tabs, in order (Rust's grouping, our labels).",
+  "source": "The crafting menu's tabs, in order (Rust's grouping, our labels). G7: components (salvaged parts and what is made of fibre).",
   "categories": [
     { "key": "resources", "name": "Resources" },
     { "key": "tools", "name": "Tools" },
@@ -10,6 +10,7 @@
     { "key": "food", "name": "Food" },
     { "key": "items", "name": "Items" },
     { "key": "construction", "name": "Construction" },
+    { "key": "components", "name": "Components" },
     { "key": "vehicles", "name": "Vehicles" }
   ]
 }

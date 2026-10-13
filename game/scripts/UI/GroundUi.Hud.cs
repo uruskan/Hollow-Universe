@@ -202,13 +202,13 @@ public partial class GroundUi
             }
             Vector2 top = At(20, bottom - (row + 1) * lineHeight);
             var baseline = new Vector2(top.X, MathF.Round(top.Y + font.GetAscent(px)));
-            string name = line.FromServer ? "" : line.From + ": ";
+            string name = line.FromServer ? "" : (line.Team ? "[TEAM] " : "") + line.From + ": ";
             Color shadow = new(0, 0, 0, 0.45f * alpha);
             int outline = Ui.Px(3);
             _p.DrawStringOutline(font, baseline, name + line.Text, HorizontalAlignment.Left, -1, px, outline, shadow);
             if (name.Length > 0)
             {
-                _p.DrawString(font, baseline, name, HorizontalAlignment.Left, -1, px, new Color(0.56f, 0.77f, 0.95f, alpha));
+                _p.DrawString(font, baseline, name, HorizontalAlignment.Left, -1, px, line.Team ? new Color(G.Green, alpha) : new Color(0.56f, 0.77f, 0.95f, alpha));
                 baseline.X += font.GetStringSize(name, HorizontalAlignment.Left, -1, px).X;
             }
             _p.DrawString(font, baseline, line.Text, HorizontalAlignment.Left, -1, px, new Color(line.FromServer ? G.Star : G.Ink, alpha));

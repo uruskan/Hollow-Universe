@@ -65,7 +65,9 @@ public enum ActionResult : byte
     /// <summary>The recipe is made at a station (a vehicle workbench, G6) that isn't within reach.</summary>
     NeedsStation,
 
-    /// <summary>The ship is locked (G6): only its owner opens it.</summary>
+    /// <summary>
+    /// Locked: the ship, which only its owner opens (G6); a tech tree node whose nodes before it aren't known yet (G7).
+    /// </summary>
     Locked,
 
     /// <summary>Someone is in the ship's seat already (G6).</summary>
@@ -76,4 +78,22 @@ public enum ActionResult : byte
 
     /// <summary>The ship's hatch is shut (G6): open it first.</summary>
     HatchShut,
+
+    /// <summary>G7: the blueprint is known already (learning or unlocking it again).</summary>
+    AlreadyKnown,
+
+    /// <summary>G7: the player is in a team already (creating or joining another).</summary>
+    InTeam,
+
+    /// <summary>G7: only the team's leader may (invite, kick, promote).</summary>
+    NotLeader,
+
+    /// <summary>G7: the team has its eight members.</summary>
+    TeamFull,
+
+    /// <summary>G7: no such team, invite or member (or the invite ran out).</summary>
+    NoTeam,
+
+    /// <summary>G7: the machine can't start now (a recycler with nothing to take apart, a research table without an item or salvage).</summary>
+    CantStart,
 }

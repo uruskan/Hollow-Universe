@@ -9,7 +9,7 @@ namespace HollowUniverse.UI.Model;
 /// containers to open, sleeping bags, and simple local rules for moving, splitting, crafting and respawning. The
 /// viewer (<c>--view ui</c>) and the interface's own tests run on it; the game uses the adapter over the client API.
 /// </summary>
-public sealed class MockGroundUi : IGroundUi
+public sealed partial class MockGroundUi : IGroundUi
 {
     private static readonly string[] CategoryOrder =
     {
@@ -298,7 +298,7 @@ public sealed class MockGroundUi : IGroundUi
 
     public void SetBurning(bool on)
     {
-        if (Loot is { Kind: ContainerKind.Furnace or ContainerKind.Campfire })
+        if (Loot is { Kind: ContainerKind.Furnace or ContainerKind.Campfire or ContainerKind.Recycler or ContainerKind.ResearchTable })
         {
             Loot = Loot with { IsOn = on };
         }
@@ -600,6 +600,7 @@ public sealed class MockGroundUi : IGroundUi
         Add("claim", "Claim Device", "CONSTRUCTION", 1, "Claims the ground around it for building and holds its upkeep.");
         Add("door.wooden", "Wooden Door", "CONSTRUCTION", 1, "A plain door for a doorway.");
         Add("lock.key", "Key Lock", "CONSTRUCTION", 1, "Locks a door; craft keys to share it.");
+        DefineWorldItems();
     }
 
     private void DefineRecipes()

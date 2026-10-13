@@ -31,6 +31,9 @@ public readonly record struct SlotRef(ContainerId Container, int Index);
 /// </summary>
 public readonly record struct ItemStack(string Key, int Amount, float Condition = -1f, int Ammo = -1)
 {
+    /// <summary>A blueprint's item: what it teaches (G7), drawn as that item in blueprint blue; null for anything else.</summary>
+    public string? Teaches { get; init; }
+
     public bool IsEmpty => string.IsNullOrEmpty(Key) || Amount <= 0;
 
     public bool HasCondition => Condition >= 0;
@@ -59,6 +62,15 @@ public enum ContainerKind : byte
     Corpse,
     Furnace,
     Campfire,
+
+    /// <summary>G7: a recycler, 0–5 input and 6–11 output.</summary>
+    Recycler,
+
+    /// <summary>G7: a research table, 0 the item, 1 salvage, 2 the blueprint.</summary>
+    ResearchTable,
+
+    /// <summary>G7: a world crate, take only.</summary>
+    Crate,
 }
 
 /// <summary>The container the player has open.</summary>
@@ -72,6 +84,13 @@ public sealed record LootView(ContainerKind Kind, string Title, IReadOnlyList<It
 
     /// <summary>Furnace or campfire: seconds the fuel lasts.</summary>
     public float FuelSeconds { get; init; }
+
+    /// <summary>Research table: the item being researched (or about to be), the salvage it costs, and why it can't start (null: it can).</summary>
+    public string? Researching { get; init; }
+
+    public int Cost { get; init; }
+
+    public string? Reason { get; init; }
 }
 
 /// <summary>Building rights where the player stands.</summary>
@@ -125,7 +144,11 @@ public sealed record DeathInfo(float AliveSeconds, string KilledBy, string? Weap
 public sealed record InteractionPrompt(string Key, string Action, bool MoreOptions = false);
 
 /// <summary>A chat message.</summary>
-public sealed record ChatLine(string From, string Text, bool FromServer = false);
+public sealed record ChatLine(string From, string Text, bool FromServer = false)
+{
+    /// <summary>A line to the player's team alone (G7).</summary>
+    public bool Team { get; init; }
+}
 
 /// <summary>The radial wheels: the building plan's pieces and the hammer's actions.</summary>
 public enum WheelKind : byte
