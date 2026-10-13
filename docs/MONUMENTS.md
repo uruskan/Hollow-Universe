@@ -199,16 +199,16 @@ crate); **guards**: Reclaimers (people) and Wardens (machines).
 
 | # | Monument | Size | Where | What | Holds and does | Like |
 |---|---|---|---|---|---|---|
-| 38 | **Fusion Plant** | 600 × 400 m, towers 120 m | Rivers, coasts | Reactor hall, turbine hall, two cooling towers, switchyard, chimney | Violet room; contamination 3–4 near the core; recycler | Rust's power plant |
-| 39 | **Launch Complex** | 700 × 500 m, tower 140 m | Flat plains, coasts | A rocket on its service tower, an assembly hall, a propellant farm, a bunker | Vault crates at the top of the tower; contamination 3; a **Sentinel Crawler** patrols (§7.3) | Rust's launch site |
-| 40 | **Freight Yard** | 700 × 300 m | On rail lines | Rail yard with gantry cranes, sheds, wagons, a signal tower, an engine shed | Cyan room; crates in wagons; recycler | Rust's train yard |
-| 41 | **Water Works** | 400 × 300 m | Rivers | Settling basins, filter halls, pump houses, a water tower | Cyan room; recycler | Rust's water treatment plant |
-| 42 | **Mountain Redoubt** | 300 m front, tunnels 600 m deep | Cliffs | A Bulwark fortress cut into a cliff: gun ports, blast doors, tunnels, a command bunker | Heavy Reclaimers inside; military and vault crates; violet room | Rust's military tunnels |
-| 43 | **Frigate Wreck** | 420 m, two halves | Plains, deserts, seabeds | A Bulwark frigate broken in two, half-buried, burnt; halves 300 m apart | Ship parts (only source of some); Reclaimers nest inside; contamination 2 in the drive section | Dune's named shipwrecks |
-| 44 | **Colony Ruins** | 600 × 500 m | Coasts, river valleys | A ruined prefab town: streets, blocks, a plaza, a clinic, burnt cars | Many low-tier crates; contamination 1–3 by street; Reclaimers | Rust's radtown |
-| 45 | **Ore Smelter** | 500 × 300 m | Near mines | Crushers, conveyors, blast furnaces, slag heaps, a rail spur | Refined metal makings; cyan room; heat hazard | — |
-| 46 | **Bucket-Wheel Pit** | 800 m pit, machine 120 m | Ore-rich plains | A huge bucket-wheel excavator in an open pit, its boom over the face | Fill with fuel and it digs (a slow, loud, contested producer of ore); vault crates on the machine | Rust's giant excavator |
-| 47 | **Ice Station** | 400 × 300 m | Ice sheets, poles | Domes and masts on stilts, a hangar, snow vehicles | Cyan and violet rooms; cold as the hazard | Rust's arctic research base |
+| 38 | **Fusion Plant** | 600 × 400 m, towers 120 m | Rivers, coasts | Reactor hall, turbine hall, two cooling towers, switchyard, chimney | Violet room; contamination 3–4 near the core; recycler. *Built: `fusion_plant.py`* | Rust's power plant |
+| 39 | **Launch Complex** | 700 × 500 m, tower 140 m | Flat plains, coasts | A rocket on its service tower, an assembly hall, a propellant farm, a bunker | Vault crates at the top of the tower; contamination 3; a **Sentinel Crawler** patrols (§7.3). *Built: `launch_complex.py`* | Rust's launch site |
+| 40 | **Freight Yard** | 700 × 300 m | On rail lines | Rail yard with gantry cranes, sheds, wagons, a signal tower, an engine shed | Cyan room; crates in wagons; recycler. *Built: `freight_yard.py`* | Rust's train yard |
+| 41 | **Water Works** | 400 × 300 m | Rivers | Settling basins, filter halls, pump houses, a water tower | Cyan room; recycler. *Built: `water_works.py`* | Rust's water treatment plant |
+| 42 | **Mountain Redoubt** | 300 m front, tunnels 600 m deep | Cliffs | A Bulwark fortress cut into a cliff: gun ports, blast doors, tunnels, a command bunker | Heavy Reclaimers inside; military and vault crates; violet room. *Built: `mountain_redoubt.py`* | Rust's military tunnels |
+| 43 | **Frigate Wreck** | 420 m, two halves | Plains, deserts, seabeds | A Bulwark frigate broken in two, half-buried, burnt; halves 300 m apart | Ship parts (only source of some); Reclaimers nest inside; contamination 2 in the drive section. *Built: `frigate_wreck.py`* | Dune's named shipwrecks |
+| 44 | **Colony Ruins** | 600 × 500 m | Coasts, river valleys | A ruined prefab town: streets, blocks, a plaza, a clinic, burnt cars | Many low-tier crates; contamination 1–3 by street; Reclaimers. *Built: `colony_ruins.py`* | Rust's radtown |
+| 45 | **Ore Smelter** | 500 × 300 m | Near mines | Crushers, conveyors, blast furnaces, slag heaps, a rail spur | Refined metal makings; cyan room; heat hazard. *Built: `ore_smelter.py`* | — |
+| 46 | **Bucket-Wheel Pit** | 800 m pit, machine 120 m | Ore-rich plains | A huge bucket-wheel excavator in an open pit, its boom over the face | Fill with fuel and it digs (a slow, loud, contested producer of ore); vault crates on the machine. *Built: `bucket_wheel_pit.py`* | Rust's giant excavator |
+| 47 | **Ice Station** | 400 × 300 m | Ice sheets, poles | Domes and masts on stilts, a hangar, snow vehicles | Cyan and violet rooms; cold as the hazard. *Built: `ice_station.py`* | Rust's arctic research base |
 
 ### 5.5 Landmarks (X) — 8
 

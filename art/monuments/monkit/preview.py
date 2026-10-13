@@ -397,7 +397,8 @@ def camera(target, distance, yaw, pitch, lens=35.0, name="cam"):
         sc.collection.objects.link(cam)
         sc.camera = cam
     cam.data.lens = lens
-    cam.data.clip_start = 0.1
+    # Near clip with the distance: a fixed 0.1 m makes the pad z-fight with the ground in far views.
+    cam.data.clip_start = max(0.1, distance * 0.005)
     cam.data.clip_end = 60000
     y, p = math.radians(yaw), math.radians(pitch)
     t = Vector(target)
