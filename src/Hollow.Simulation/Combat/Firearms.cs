@@ -87,8 +87,9 @@ public readonly record struct RecoilSample(double Pitch, double Yaw, double Bloo
 /// RustMVP's recoil (weapon_rules.hpp <c>sample_recoil</c>, <c>apply_recoil_shot</c>) on the zone's ticks. A shot
 /// samples where the view is, then adds one step (the pattern's next, or the straight kick) towards a new target, which
 /// the view reaches over the kick time; after the hold the whole of it returns over the recovery time, along a
-/// smoothstep. The step is scaled (aimed, crouched, attachments) and gets a random part from the shot's seed, which the
-/// server and the shooter's client both know, so both compute the same.
+/// smoothstep. Fixed and repeatable, as the owner chose for RustMVP: no random part, the same aimed, crouched or moving;
+/// only a muzzle attachment scales the step (Rust's brake and silencer). The server and the shooter's client run the
+/// same function on the same ticks, so both compute the same, bit for bit.
 /// </summary>
 public static class Recoil
 {
@@ -136,10 +137,10 @@ public static class Recoil
     }
 
     /// <summary>
-    /// A shot at <paramref name="tick"/>: the new recoil. <paramref name="scale"/> multiplies the step (aimed, crouched,
-    /// a muzzle brake); <paramref name="rng"/> gives its random part (two draws, always).
+    /// A shot at <paramref name="tick"/>: the new recoil (RustMVP <c>apply_recoil_shot</c>). <paramref name="scale"/>
+    /// multiplies the step: the gun's attachments (a muzzle brake, a silencer), 1 without.
     /// </summary>
-    public static RecoilState Kick(in RecoilState s, FirearmStats gun, long tick, double scale, ref Rng rng)
+    public static RecoilState Kick(in RecoilState s, FirearmStats gun, long tick, double scale = 1)
     {
         RecoilStats r = gun.Recoil;
         RecoilSample now = Sample(s, gun, tick);
@@ -156,10 +157,8 @@ public static class Recoil
         {
             step = new RecoilStep(r.PitchPerShot, 0);
         }
-        double pitchJitter = 1 + (rng.NextDouble() * 2 - 1) * r.PitchJitter;
-        double yawJitter = (rng.NextDouble() * 2 - 1) * r.YawJitter;
-        double stepPitch = step.Pitch * pitchJitter * scale;
-        double stepYaw = (step.Yaw + yawJitter) * scale;
+        double stepPitch = step.Pitch * scale;
+        double stepYaw = step.Yaw * scale;
         // A kick still under way (legal cadence never allows it, but keep its target rather than where it had got to).
         bool unfinished = since < r.KickSeconds;
         double basePitch = unfinished ? s.Pitch : now.Pitch;
@@ -321,7 +320,7 @@ public static class FirearmRules
     /// <summary>The steepest view an input can carry (NetConvert clamps there).</summary>
     public const float MaxViewPitch = 1.5534f;
 
-    /// <summary>The seed of a shot's random parts (spread, then the kick's): its shooter and sequence number.</summary>
+    /// <summary>The seed of a shot's random part (the point in its spread cone): its shooter and sequence number.</summary>
     public static ulong ShotSeed(EntityId shooter, uint seq) => Hash64.Of(shooter.Value, seq, 0x5407_5EED);
 
     /// <summary>
@@ -391,8 +390,7 @@ public static class FirearmRules
         long from = now16 - 16 < g.NextFire16 ? g.NextFire16 : now16;
         g.NextFire16 = from + gun.IntervalSixteenths;
         weapon.Loaded--;
-        double scale = (ctx.Aimed ? gun.Recoil.Aimed : 1) * (ctx.Crouched ? gun.Recoil.Crouched : 1) * mods.Recoil;
-        g.Recoil = Recoil.Kick(g.Recoil, gun, ctx.Tick, scale, ref rng);
+        g.Recoil = Recoil.Kick(g.Recoil, gun, ctx.Tick, mods.Recoil);
         shot = new Shot(ctx.Eye, direction, (float)speed, (float)damage, (float)spread, recoil, round, mods);
         return GunResult.Accepted;
     }

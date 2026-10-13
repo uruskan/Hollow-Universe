@@ -190,10 +190,10 @@ public static class GunTests
     }
 
     /// <summary>
-    /// GROUND.md §6.3, recoil: the rifle's 30 shots follow RustMVP's AK pattern step by step (its pitch exactly, its yaw
-    /// within the random part); aimed and crouched the step is smaller (×0.78, ×0.85); a pause of 0.4 s starts the pattern
-    /// again; 0.2 s after the last shot the view comes back over 0.08 s. Every bullet leaves along the view plus the recoil
-    /// before its own kick, within the spread.
+    /// GROUND.md §6.4, recoil: the rifle's 30 shots follow RustMVP's AK pattern step by step, exactly (no random part);
+    /// aimed and crouched the step is the same (RustMVP: aiming narrows the spread only); a pause of 0.4 s starts the
+    /// pattern again; 0.2 s after the last shot the view comes back over 0.08 s. Every bullet leaves along the view plus the
+    /// recoil before its own kick, within the spread.
     /// </summary>
     [Test]
     public static void RecoilFollowsThePattern()
@@ -218,7 +218,7 @@ public static class GunTests
             pitchSum += rifle.Recoil.Pattern[shot].Pitch;
             yawSum += rifle.Recoil.Pattern[shot].Yaw;
             Assert.Near(pitchSum, a.Gun.Recoil.Pitch, 1e-9, $"pitch after shot {shot + 1}");
-            Assert.Near(yawSum, a.Gun.Recoil.Yaw, 0.06 * (shot + 1) + 1e-9, $"yaw after shot {shot + 1}");
+            Assert.Near(yawSum, a.Gun.Recoil.Yaw, 1e-9, $"yaw after shot {shot + 1}");
             // The bullet: the view plus the recoil before this shot's kick, within the hip spread and bloom.
             Vector3 up = rig.Zone.Frame.UpAt(launch.Position);
             Vector3 aim = CharacterMotor.ViewDirection(
@@ -236,12 +236,13 @@ public static class GunTests
         Assert.True(Recoil.Sample(a.Gun.Recoil, rifle, last + 7.5).Pitch is > 0 and < 20, "on its way back");
         Assert.Equal(0.0, Recoil.Sample(a.Gun.Recoil, rifle, last + 9).Pitch, "all of it back after 0.28 s");
 
-        // Aimed and crouched: the first step is smaller; after a pause the pattern starts again.
+        // Aimed and crouched: the same first step; after a pause the pattern starts again.
         rig.P(ada).Inventory.Belt.Set(0, rig.P(ada).Inventory.Belt[0] with { Loaded = 30 });
         rig.Step(20, () => rig.Ch(ada).Input.Buttons = MoveButtons.Crouch);
         Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, ++seq, aimed: true), "queued");
         rig.Step(1, () => rig.Ch(ada).Input.Buttons = MoveButtons.Crouch);
-        Assert.Near(rifle.Recoil.Pattern[0].Pitch * 0.78 * 0.85, a.Gun.Recoil.Pitch, 1e-9, "first step, aimed and crouched");
+        Assert.Equal(rifle.Recoil.Pattern[0].Pitch, a.Gun.Recoil.Pitch, "first step, aimed and crouched: RustMVP's, unscaled");
+        Assert.Equal(rifle.Recoil.Pattern[0].Yaw, a.Gun.Recoil.Yaw, "and its yaw");
         Assert.Equal(1, (int)a.Gun.Recoil.Index, "the pattern started again");
     }
 

@@ -1870,10 +1870,10 @@ state. The rules are `Hollow.Simulation` code shared by the server and the shoot
 | Damage; head, body, limb | 35; ×2, ×1, ×0.5 | the same | RustMVP |
 | Falloff | full to 70 m, then down to ×0.45 at 200 m | the same | hollow-orbit `falloff` (full to 35% of the range) |
 | Spread (cone half-angle) | 1.5° at the hip, 0.25° aimed, +0.25° bloom a shot (at most 2°, fading 3° a second) | the same | RustMVP |
-| Spread moving, airborne, crouched | +170% at the hip and +50% aimed at full sprinting speed (in proportion below), ×2.4 in the air, ×0.8 crouched | the same | hollow-orbit `_spread` |
-| Recoil | a straight 3° kick a shot, × (1 ± 0.12), ±0.66° sideways; limits 30°/30° | the AK pattern, 30 steps (adding up to 29.37° up, 0.61° right), ±0.06° sideways a step; limits 60°/60°; starts again after 0.4 s | RustMVP (the steps, limits, reset); hollow-orbit `_kick` (the random part) |
+| Spread moving, airborne, crouched | +170% at the hip and +50% aimed at full sprinting speed (in proportion below), ×2.4 in the air, ×0.8 crouched | the same | ours, from hollow-orbit `_spread` (aim cone, not recoil; RustMVP has none, D3) |
+| Recoil | a straight 3° kick a shot, nothing sideways; limits 30°/30° | the AK pattern, 30 steps (adding up to 29.37° up, 0.61° right; the 30th is zero and repeats); limits 60°/60°; starts again after 0.4 s | RustMVP, exactly (D1) |
 | Kick, hold, recovery | applied over 0.1 s; held 0.2 s after the last shot; all of it back over 0.08 s (smoothstep) | the same | RustMVP |
-| Recoil aimed, crouched | ×0.78, ×0.85 | the same | hollow-orbit `_kick` |
+| Recoil aimed, crouched, moving | the same: nothing random, nothing scaled (aiming narrows the spread only) | the same | RustMVP (D1) |
 | Aimed zoom | 1.57× (65° at 90°) | the same | RustMVP |
 | Attachments | holo sight, silencer, weapon light, muzzle brake | all five | ours |
 | Condition | 200 shots | 300 shots | hollow-orbit `dur` |
@@ -1909,7 +1909,7 @@ magazine; not while sprinting or swimming; a view no input can have is refused. 
 - **Where it goes:** the view (the input's, without recoil) plus the recoil before this shot's kick, plus a point in the
   spread cone; never steeper than 85°. The cone: hip or aimed (attachments scale it), wider moving, in the air, narrower
   crouched, plus the bloom left.
-- **Randomness** (the cone's point, the kick's random part) comes from a seed both sides know: the shooter and the shot's
+- **Randomness** (the cone's point; the recoil has none) comes from a seed both sides know: the shooter and the shot's
   sequence number. So the server and the shooter's client compute the same direction and recoil, bit for bit
   (`GunNetTests` replays a recorded input stream through both).
 - **The gun moves on:** the cadence deadline (RustMVP: a deadline crossed since the previous tick carries over, so 4.5
@@ -1921,13 +1921,23 @@ magazine; not while sprinting or swimming; a view no input can have is refused. 
   they are now), after 200 m, or after 3 s. Its ground test steps as far as its height allows (the ground rises at most
   51°), so a bullet high up costs few samples.
 
-**Recoil, Rust's way** (RustMVP `sample_recoil`, `apply_recoil_shot`). Each shot samples where the view is, then adds one
-step (the pattern's next, or the straight kick), scaled aimed (×0.78), crouched (×0.85) and by attachments, towards a new
-target the view reaches over 0.1 s. The pattern starts again after 0.4 s without a shot and holds its last step. 0.2 s
-after the last shot the whole of it returns over 0.08 s. The recoil is an offset on the camera; the view the player
-controls (and sends) stays clean, and the server adds the recoil itself, so a client can't leave it out. The player pulls
-against it with the mouse; as it recovers, what they pulled is given back to their view (RustMVP's countersteer credit,
-`RecoilCompensation` on the client), so letting go of the trigger doesn't drop the aim by what they compensated.
+**Recoil, RustMVP's exactly** (`sample_recoil`, `apply_recoil_shot`, `recoil_compensation.hpp`; the owner chose fixed,
+repeatable, learnable patterns per weapon, D1). Each shot samples where the view is, then adds one step (the pattern's
+next, or the pistol's straight 3° kick) towards a new target the view reaches over 0.1 s, linearly. Nothing random, and
+the same aimed, crouched or moving (aiming narrows the spread only); a muzzle attachment alone scales the step (brake
+×0.5, silencer ×0.8, Rust's). The pattern starts again after 0.4 s without a shot (its cursor, not the recoil still
+showing) and repeats its last step, the AK's zero. 0.2 s after the last shot the whole of it returns over 0.08 s along a
+smoothstep, however big the burst. So a 30-round AK spray puts the view before each shot exactly on RustMVP's table, the
+dated community table its steps come from (`GunNetTests.AkSprayMatchesRustMvpTable`, client and server alike), ending
+29.37° up and 0.61° right. The recoil is an offset on the camera; the view the player controls (and sends) stays clean,
+and the server adds the recoil itself, so a client can't leave it out. The player pulls against it with the mouse; as it
+recovers, what they pulled is given back to their view (RustMVP's countersteer credit, `RecoilCompensation` on the
+client), so letting go of the trigger doesn't drop the aim by what they compensated. Each frame, after the client's
+ticks, in RustMVP's order: the credit owed up to now goes onto the view, then the mouse's turn since the last frame (the
+pitch as it moved within its clamp) earns credit against the recoil showing now, then the camera is the view plus the
+recoil sampled now, nothing smoothed or scaled (field of view and sensitivity leave the angles alone). A shot settles the
+credit owed up to it before its kick starts afresh, and a correction from the server settles the old prediction before
+rebasing on the new, as RustMVP's client does.
 
 **Reload** is an intent for a tick, with a timer: equip time, not already reloading, the gun takes those rounds (by
 default the kind loaded, else the first kind of its calibre the player has), not full of them, some in the inventory.
@@ -2004,7 +2014,7 @@ replays the rest from the server's state, as movement does; on a clean line noth
 |---|---|
 | `Local.Gun`: `Weapon`, `Loaded`, `LoadedAmmo`, `Reserve`, `Reloading`, `ReloadProgress`, `Ready`, `Aimed`, `Zoom`, `Mods`, `Spread`, `PendingCount` | The gun in hand as predicted: its numbers (or null), the magazine and its rounds, rounds a reload would load, a reload's progress (0–1), equipped, aimed down the sights, the aimed magnification (the camera: fov′ = 2·atan(tan(fov/2)/zoom)), its attachments (silenced, light), the spread cone now (degrees, for the crosshair). |
 | `Local.Gun.ViewKick` | The recoil's offset of the camera now (yaw, pitch in radians; yaw + is to the left): add it to the camera every frame, never to the view the player controls. |
-| `Local.Gun.ObserveLook(dYaw, dPitch)`, `TakeCompensation()` | Every frame: the mouse's turn of the view; then what to add to the controlled view as the recoil recovers (RustMVP's countersteer credit, so pulling against a spray doesn't drop the aim when it ends). |
+| `Local.Gun.TakeCompensation()`, `ObserveLook(dYaw, dPitch)` | Every frame after `GameClient.Update`, in this order (RustMVP's): what to add to the controlled view as the recoil recovers (RustMVP's countersteer credit, so pulling against a spray doesn't drop the aim when it ends); then the mouse's turn of the view since the last frame. Then the camera. |
 | `Local.Gun.ShotFired` (`ShotEvent`: sequence, weapon, round, origin, direction, speed, silenced, aimed) | A shot, at once: muzzle flash, sound, viewmodel kick, the tracer. The direction is the server's to the bit when the prediction holds. |
 | `Local.Gun.ReloadStarted`, `ReloadFinished` (`ReloadEvent`: weapon, round, seconds) | A reload began (at once) and ended. |
 | `Local.Gun.Refused` (`GunRefusal`: sequence, `GunResult`) | The server refused a shot or reload (already rolled back), or a reload couldn't start (no rounds, full). |
@@ -2023,8 +2033,9 @@ and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attac
 the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
-**As built** (`game/scripts/Ground`): `GroundView` adds `ViewKick` to the camera, passes the mouse's turn to
-`ObserveLook` and adds `TakeCompensation` to the view, zooms by `Zoom` while `Aimed` (eased), and reloads on R;
+**As built** (`game/scripts/Ground`): `GroundView`, after the client's update, adds `TakeCompensation` to the view, passes
+the mouse's turn to `ObserveLook` and draws the camera at the view plus `ViewKick`, zooms by `Zoom` while `Aimed` (eased),
+and reloads on R;
 `FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle with its muzzle effect, and plays a
 reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
 tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
@@ -3828,10 +3839,12 @@ Decisions taken during G4 (step "Fight") without the owner, to confirm or overtu
 47. **Recoil is RustMVP's**: an offset on the camera that recovers fully 0.2 s after the last shot, with its countersteer
     credit, rather than Rust's, where the view itself moves and stays; the task asked for recovery, and the server adds
     the recoil itself, so leaving it out client-side gains nothing. Each kick has a random part from a seed both sides
-    know (hollow-orbit's sizes: ±12% and ±0.66° for the pistol, ±0.06° for the rifle's pattern).
+    know (hollow-orbit's sizes: ±12% and ±0.66° for the pistol, ±0.06° for the rifle's pattern). *The random part is gone
+    since D1: the recoil is RustMVP's exactly.*
 48. **Aiming and crouching** scale the kick (×0.78, ×0.85) and the spread (moving +170% at the hip, +50% aimed; ×2.4 in
     the air, ×0.8 crouched) as hollow-orbit does. RustMVP blocked shots in the air; Rust and hollow-orbit allow them, so
-    we do, with the airborne spread. Shots are blocked sprinting (RustMVP) and swimming.
+    we do, with the airborne spread. Shots are blocked sprinting (RustMVP) and swimming. *The kick's scaling is gone since
+    D1; the spread's stays (D3).*
 49. **Shots are intents for a tick**, applied on that tick; the server takes the shot's aim flag from the intent (RustMVP
     likewise trusts the aim state of a validated intent) and checks the view's range, the gun in hand, equip, reload,
     cadence and magazine. A late intent (resent after a loss) is applied as of its tick from where the shooter was, and
@@ -4333,3 +4346,28 @@ Decisions taken for the F1 console (§8.2) without the owner, to confirm or over
   was built), for bug reports; an exported game would show only the build time.
 - K15. **Numbers taken in shared spaces:** protocol 11, messages 150–153, two bits for the cheats in `OwnState`. Whichever
   branch merges second takes the next free protocol number.
+
+Decisions taken for the recoil and the damage code after the owner's first playtest (§6.4, §6.4.2) without the owner, to
+confirm or overturn (numbered D1 on):
+
+- D1. **The recoil is RustMVP's exactly**, as the owner chose for RustMVP: fixed, repeatable, learnable patterns per
+  weapon. No random part (decision 47's hollow-orbit jitter, ±12% and ±0.66° on the pistol, ±0.06° on the AK, is gone)
+  and the same kick aimed, crouched or moving (48's ×0.78 and ×0.85 are gone; RustMVP's aiming narrows the spread only).
+  The muzzle attachments still scale the step (brake ×0.5, silencer ×0.8), as Rust's do. Checked field by field against
+  `weapon_definition.hpp` and `weapon_rules.hpp`: the 30 steps and their order, 0.1 s kick, 0.2 s hold, 0.08 s
+  smoothstep return of the whole, the cursor's reset after 0.4 s (not the recoil showing), the held zero tail, the limits
+  (30°/30°, 60°/60°), 60/450 s cadence and sampling before the kick all were already RustMVP's. A test pins a 30-round
+  spray to RustMVP's table on the client and the server.
+- D2. **The rocket launcher's recoil stays ours** (a straight 6° kick, held 0.3 s and returned over 0.3 s; RustMVP has no
+  launcher) but follows the same rule: nothing random, nothing scaled aimed or crouched.
+- D3. **The spread's changes moving, airborne and crouched stay**, as ours (hollow-orbit's `_spread`): they widen or
+  narrow the aim cone, not the recoil. RustMVP has none (hip or aimed plus bloom, and no shots in the air).
+- D4. **The recoil belongs to the gun in hand**: taking another item up starts afresh. RustMVP keeps recoil and bloom on
+  the weapon instance through quick swaps; with the 0.5 s equip outlasting the 0.4 s reset and 0.28 s recovery, the
+  only difference is up to 0.5° less bloom on the first shot after swapping straight back (and the camera's leftover
+  kick going at the swap). Keeping it per item would need item instance IDs and their recoil in `GunUpdate`.
+- D5. **The countersteer credit runs in RustMVP's order**: each frame after the client's ticks, the credit owed up to the
+  camera's moment goes onto the view, then the mouse's turn (its pitch as clamped) earns credit against the recoil showing
+  then, then the camera; a shot settles what is owed before its kick, and a correction settles the old prediction before
+  rebasing. Before, the credit came a frame after the camera (the aim dipped while a heavily compensated spray
+  recovered) and a shot or correction during the recovery kept what it should have given back.
