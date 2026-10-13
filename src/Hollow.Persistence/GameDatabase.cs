@@ -74,6 +74,12 @@ public sealed record ThingRecord
     public byte[] Data { get; init; } = Array.Empty<byte>();
 }
 
+/// <summary>A stored team (G7): its ID and <see cref="TeamCodec"/>'s bytes.</summary>
+public readonly record struct TeamRecord(ulong Id, byte[] Data);
+
+/// <summary>A stored world prop's state (G7): its spot and <see cref="WorldCodec.EncodeProp"/>'s bytes (only changes are stored).</summary>
+public readonly record struct PropRecord(ulong Spot, byte[] Data);
+
 /// <summary>A stored change to a natural object (ARCHITECTURE.md §7: only overrides are stored).</summary>
 public readonly record struct NaturalRecord(ulong ObjectId, float Health, uint WeakSpot, bool Depleted, long RespawnAtUnixMilliseconds);
 
@@ -91,6 +97,12 @@ public sealed class ZoneRecord
 
     /// <summary>The zone's own state (world time) from the last save, or null.</summary>
     public byte[]? Meta { get; set; }
+
+    /// <summary>Every team (G7): teams belong to the server, not to a body.</summary>
+    public List<TeamRecord> Teams { get; } = new();
+
+    /// <summary>The body's world props that players changed: gone until a time, or as they left them (G7).</summary>
+    public List<PropRecord> Props { get; } = new();
 }
 
 /// <summary>A save of a zone in one transaction: what changed and what went.</summary>
@@ -118,6 +130,16 @@ public sealed class ZoneSave
     public List<EntityId> RemovedBuilding { get; } = new();
 
     public byte[]? Meta { get; set; }
+
+    /// <summary>Teams made or changed, and those that ended (G7).</summary>
+    public List<TeamRecord> Teams { get; } = new();
+
+    public List<ulong> RemovedTeams { get; } = new();
+
+    /// <summary>World props' states, and spots back to as generated (their rows go), G7.</summary>
+    public List<PropRecord> Props { get; } = new();
+
+    public List<ulong> RemovedProps { get; } = new();
 }
 
 /// <summary>
@@ -129,7 +151,7 @@ public sealed class ZoneSave
 public sealed class GameDatabase : IDisposable
 {
     /// <summary>The schema this build writes. Each step up is a migration in <see cref="Migrations"/>.</summary>
-    public const int SchemaVersion = 4;
+    public const int SchemaVersion = 5;
 
     private static readonly string[] Migrations =
     {
@@ -211,6 +233,21 @@ public sealed class GameDatabase : IDisposable
             data BLOB NOT NULL
         );
         CREATE INDEX notifications_player ON notifications(player, id);
+        """,
+        // 4 → 5 (G7): teams (the server's, not a body's), and world props as players changed them (overrides, like nature's).
+        """
+        CREATE TABLE teams (
+            id INTEGER PRIMARY KEY,
+            data BLOB NOT NULL,
+            saved_at INTEGER NOT NULL
+        );
+        CREATE TABLE prop_overrides (
+            system_address INTEGER NOT NULL,
+            body_path INTEGER NOT NULL,
+            prop_id INTEGER NOT NULL,
+            data BLOB NOT NULL,
+            PRIMARY KEY (system_address, body_path, prop_id)
+        );
         """,
     };
 
@@ -442,6 +479,26 @@ public sealed class GameDatabase : IDisposable
         }
         using (SqliteCommand command = _connection.CreateCommand())
         {
+            command.CommandText = "SELECT id, data FROM teams ORDER BY id";
+            using SqliteDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                zone.Teams.Add(new TeamRecord(unchecked((ulong)reader.GetInt64(0)), (byte[])reader.GetValue(1)));
+            }
+        }
+        using (SqliteCommand command = _connection.CreateCommand())
+        {
+            command.CommandText = "SELECT prop_id, data FROM prop_overrides WHERE system_address = $system AND body_path = $body ORDER BY prop_id";
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            using SqliteDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                zone.Props.Add(new PropRecord(unchecked((ulong)reader.GetInt64(0)), (byte[])reader.GetValue(1)));
+            }
+        }
+        using (SqliteCommand command = _connection.CreateCommand())
+        {
             command.CommandText = "SELECT data FROM zones WHERE system_address = $system AND body_path = $body";
             command.Parameters.AddWithValue("$system", system);
             command.Parameters.AddWithValue("$body", body);
@@ -568,6 +625,69 @@ public sealed class GameDatabase : IDisposable
                 command.ExecuteNonQuery();
             }
         }
+        if (save.Teams.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO teams (id, data, saved_at) VALUES ($id, $data, $saved)
+                ON CONFLICT(id) DO UPDATE SET data = excluded.data, saved_at = excluded.saved_at
+                """;
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            SqliteParameter data = command.Parameters.Add("$data", SqliteType.Blob);
+            command.Parameters.AddWithValue("$saved", save.SavedAtUnixMilliseconds);
+            foreach (TeamRecord t in save.Teams)
+            {
+                id.Value = unchecked((long)t.Id);
+                data.Value = t.Data;
+                command.ExecuteNonQuery();
+            }
+        }
+        if (save.RemovedTeams.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM teams WHERE id = $id";
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            foreach (ulong removed in save.RemovedTeams)
+            {
+                id.Value = unchecked((long)removed);
+                command.ExecuteNonQuery();
+            }
+        }
+        if (save.Props.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO prop_overrides (system_address, body_path, prop_id, data) VALUES ($system, $body, $id, $data)
+                ON CONFLICT(system_address, body_path, prop_id) DO UPDATE SET data = excluded.data
+                """;
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            SqliteParameter data = command.Parameters.Add("$data", SqliteType.Blob);
+            foreach (PropRecord p in save.Props)
+            {
+                id.Value = unchecked((long)p.Spot);
+                data.Value = p.Data;
+                command.ExecuteNonQuery();
+            }
+        }
+        if (save.RemovedProps.Count > 0)
+        {
+            using SqliteCommand command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM prop_overrides WHERE system_address = $system AND body_path = $body AND prop_id = $id";
+            command.Parameters.AddWithValue("$system", system);
+            command.Parameters.AddWithValue("$body", body);
+            SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
+            foreach (ulong removed in save.RemovedProps)
+            {
+                id.Value = unchecked((long)removed);
+                command.ExecuteNonQuery();
+            }
+        }
         using (SqliteCommand command = _connection.CreateCommand())
         {
             command.Transaction = transaction;
@@ -650,6 +770,10 @@ public sealed class GameDatabase : IDisposable
     public int ThingCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM things"), CultureInfo.InvariantCulture);
 
     public int BuildingCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM building"), CultureInfo.InvariantCulture);
+
+    public int TeamCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM teams"), CultureInfo.InvariantCulture);
+
+    public int PropCount => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM prop_overrides"), CultureInfo.InvariantCulture);
 
     private void Execute(string sql, SqliteTransaction? transaction = null)
     {

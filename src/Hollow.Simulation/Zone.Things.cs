@@ -41,6 +41,7 @@ public sealed partial class Zone
             {
                 Physics.AddProp(PropLayer.Deployable, d.Id.Value, PropShape.Box(d.Centre, d.Def.HalfExtents, d.Up, d.Yaw));
             }
+            RespawnPointChanged(d);
         }
         thing.Revision++;
         return entity;
@@ -56,6 +57,10 @@ public sealed partial class Zone
         if (Entities.TryFind(thing.Id, out Entity entity))
         {
             Entities.Destroy(entity);
+        }
+        if (thing is Deployable gone)
+        {
+            RespawnPointChanged(gone);
         }
     }
 
@@ -184,9 +189,9 @@ public sealed partial class Zone
     /// <summary>Damage to a deployable (melee, arrows; raiding later): at 0 it breaks and its contents spill.</summary>
     public void DamageDeployable(Deployable d, float amount)
     {
-        if (amount <= 0 || d.Health <= 0)
+        if (amount <= 0 || d.Health <= 0 || d is WorldProp { Prop.Breakable: false })
         {
-            return;
+            return; // crates and recyclers can't be broken (Rust's)
         }
         if (ClaimOf(d) is { } claim)
         {
@@ -210,7 +215,12 @@ public sealed partial class Zone
                 }
             }
         }
+        SpillResearch(d);
         RemoveStatic(d);
+        if (d is WorldProp prop)
+        {
+            PropGone(prop); // a barrel's loot lies on the ground; the barrel comes back on its timer (G7)
+        }
     }
 
     // Campfires and furnaces (GROUND.md §6): a lit one burns a unit of fuel every fuel.seconds, leaving its by-product
@@ -223,6 +233,10 @@ public sealed partial class Zone
             if (pool.Values[i].Object is Deployable { Lit: true, Def.Device: { } device, Storage: { } storage } d)
             {
                 StepDevice(d, device, storage);
+            }
+            else if (pool.Values[i].Object is Deployable { Lit: true, Def.IsMachine: true } machine)
+            {
+                StepMachine(machine); // G7: a recycler or research table at work
             }
         }
     }

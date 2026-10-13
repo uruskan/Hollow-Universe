@@ -45,6 +45,9 @@ public enum LockAction : byte
 
     /// <summary>Take the lock off as an item.</summary>
     Remove,
+
+    /// <summary>G7: put the player's team on the code lock's list (Rust's "authorise team").</summary>
+    AuthoriseTeam,
 }
 
 public enum ClaimAction : byte
@@ -57,6 +60,9 @@ public enum ClaimAction : byte
 
     /// <summary>Take the device back as an item, its store with it.</summary>
     PickUp,
+
+    /// <summary>G7: put the player and their whole team on the device's list (Rust's "authorise team").</summary>
+    AuthoriseTeam,
 }
 
 // Building in a live zone (GROUND.md §6.3, phase 2): the zone's BuildingWorld on its Jolt world, run on the zone's
@@ -547,6 +553,8 @@ public sealed partial class Zone
                 GiveBack(entity, p, key, 1, (ushort)keyLock.KeyCode);
                 return Outcome.Done;
             }
+            case LockAction.AuthoriseTeam:
+                return building.AuthoriseOnLock(player, door, TeamOf(p));
             case LockAction.Remove:
             {
                 bool coded = door.Lock is CodeLock;
@@ -622,6 +630,8 @@ public sealed partial class Zone
                 return building.Deauthorise(player, device);
             case ClaimAction.ClearList:
                 return building.ClearAuthorised(player, device);
+            case ClaimAction.AuthoriseTeam:
+                return AuthoriseTeam(player, device, TeamOf(p));
             case ClaimAction.PickUp:
             {
                 if (!device.IsAuthorised(player))

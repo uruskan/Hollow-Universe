@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -184,6 +185,20 @@ public sealed class Player
     public EntityId WoundedBy { get; set; }
 
     public string WoundedByName { get; set; } = "";
+
+    // ---------------------------------------------------------------- G7: progression and the map (GROUND.md §6.8)
+
+    /// <summary>Blueprints learnt (tech trees, research, blueprint items); they last through death, as in Rust.</summary>
+    public BlueprintBook Blueprints { get; } = new();
+
+    /// <summary>Markers the player put on the map (at most world.json's <c>map.markers</c>), zone frame.</summary>
+    public List<MapMarker> Markers { get; } = new();
+
+    /// <summary>Where the player died last (zone frame), for the map; null before any death.</summary>
+    public Vector3? DeathPoint { get; set; }
+
+    /// <summary>Raised when the markers, the death point or the player's sleeping bags and beds change (the server sends them).</summary>
+    public uint MapRevision { get; set; }
 
     public bool IsAwakeAndAlive => !Dead && !Sleeping;
 

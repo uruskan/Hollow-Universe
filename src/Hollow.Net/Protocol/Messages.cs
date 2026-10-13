@@ -6,6 +6,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
 
 namespace Hollow.Net.Protocol;
@@ -1034,4 +1035,160 @@ public partial struct RaidAlertMessage
 public partial struct RaidAlertList
 {
     [MaxCount(64)] public RaidAlertNet[] Alerts;
+}
+
+// ---------------------------------------------------------------- G7: the world (GROUND.md §6.8)
+// Intents (client → server, the general sequence, answered by IntentResult). A blueprint is learnt with UseIntent, a
+// recycler or research table started with ToggleIntent, "authorise team" is ClaimIntent's and LockIntent's.
+
+/// <summary>Unlock a tech tree node (its recipe) at a workbench of its level within reach, for its salvage.</summary>
+[NetMessage(130)]
+public partial struct UnlockIntent
+{
+    [VarInt] public uint Seq;
+    [VarInt] public uint Recipe;
+}
+
+/// <summary>A team action: create; invite a player near by (Target); accept or decline a team's invite (Team); leave; kick or promote a member (Target).</summary>
+[NetMessage(131)]
+public partial struct TeamIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public TeamAction Action;
+    public ulong Target;
+    public ulong Team;
+}
+
+/// <summary>A chat line to the player's team alone.</summary>
+[NetMessage(132)]
+public partial struct TeamChatSend
+{
+    [MaxLength(200)] public string Text;
+}
+
+/// <summary>Put a marker on the map (a point of the zone frame, a colour, a label), or take one off (Index; −1: all).</summary>
+[NetMessage(133)]
+public partial struct MarkerIntent
+{
+    [VarInt] public uint Seq;
+    public bool Remove;
+    [Signed(8)] public sbyte Index;
+    public float X;
+    public float Z;
+    [Bits(3)] public byte Colour;
+    [MaxLength(24)] public string Label;
+}
+
+// The player's own (server → owner, reliable unless said otherwise).
+
+/// <summary>A recipe (its output item's ID).</summary>
+[NetStruct]
+public partial struct RecipeNet
+{
+    [VarInt] public uint Recipe;
+}
+
+/// <summary>Every blueprint the player has learnt, when that changes (and at joining).</summary>
+[NetMessage(140)]
+public partial struct BlueprintList
+{
+    [VarInt] public uint LastSeq;
+    [MaxCount(1024)] public RecipeNet[] Recipes;
+}
+
+[NetStruct]
+public partial struct TeamMemberNet
+{
+    public ulong Id;
+    [MaxLength(32)] public string Name;
+    public bool Online;
+}
+
+/// <summary>The player's team (Team 0: none): its leader and its members, oldest first.</summary>
+[NetMessage(141)]
+public partial struct TeamState
+{
+    [VarInt] public uint LastSeq;
+    public ulong Team;
+    public ulong Leader;
+    [MaxCount(16)] public TeamMemberNet[] Members;
+}
+
+[NetStruct]
+public partial struct TeamInviteNet
+{
+    public ulong Team;
+    [MaxLength(32)] public string From;
+    [VarInt] public uint Seconds;
+}
+
+/// <summary>The team invites waiting for the player (when they change).</summary>
+[NetMessage(142)]
+public partial struct TeamInvites
+{
+    [MaxCount(16)] public TeamInviteNet[] Invites;
+}
+
+/// <summary>A teammate where they are (zone frame), facing, and how they are.</summary>
+[NetStruct]
+public partial struct TeammateNet
+{
+    public ulong Id;
+    public float X;
+    public float Y;
+    public float Z;
+    [Angle] public ushort Yaw;
+    [Bits(2)] public TeammateState State;
+}
+
+/// <summary>Where the player's teammates are (unreliable, twice a second; the newest Sequence wins), for the map and name tags beyond range.</summary>
+[NetMessage(143)]
+public partial struct TeamPositions
+{
+    public uint Sequence;
+    [MaxCount(16)] public TeammateNet[] Members;
+}
+
+[NetStruct]
+public partial struct MarkerNet
+{
+    public float X;
+    public float Y;
+    public float Z;
+    [Bits(3)] public byte Colour;
+    [MaxLength(24)] public string Label;
+}
+
+[NetStruct]
+public partial struct RespawnPointNet
+{
+    public ulong Id;
+    public float X;
+    public float Y;
+    public float Z;
+    public bool Bed;
+}
+
+/// <summary>What the player's map shows of their own: their markers, where they died last, their sleeping bags and beds.</summary>
+[NetMessage(144)]
+public partial struct MapState
+{
+    [VarInt] public uint LastSeq;
+    [MaxCount(8)] public MarkerNet[] Markers;
+    public bool HasDeath;
+    public float DeathX;
+    public float DeathY;
+    public float DeathZ;
+    [MaxCount(64)] public RespawnPointNet[] Points;
+}
+
+/// <summary>The recycler or research table the player is looting: running, how far through (0 … 255), seconds left, what it researches.</summary>
+[NetMessage(145)]
+public partial struct MachineState
+{
+    public ulong Target;
+    public bool Running;
+    public byte Progress;
+    [VarInt] public uint SecondsLeft;
+    [VarInt] public uint Item;
 }

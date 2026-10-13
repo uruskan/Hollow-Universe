@@ -25,7 +25,7 @@ public sealed partial class GameContent
     {
         "items.json", "recipes.json", "gather.json", "deployables.json", "loot.json", "survival.json", "categories.json",
         "weapons.json",
-        "building.json", "explosives.json",
+        "building.json", "explosives.json", "world.json",
     };
 
     private readonly ItemDef?[] _byId;
@@ -49,6 +49,7 @@ public sealed partial class GameContent
         Blasts = loaded.Blasts;
         Throwables = loaded.Throwables;
         RaidAlerts = loaded.RaidAlerts;
+        World = loaded.World ?? new WorldData();
         Survival = loaded.Survival;
         WeakSpot = loaded.WeakSpot;
         PlacementReach = loaded.PlacementReach;
@@ -99,6 +100,12 @@ public sealed partial class GameContent
     public IReadOnlyList<ThrowableStats> Throwables { get; }
 
     public RaidAlertSettings RaidAlerts { get; }
+
+    /// <summary>G7 (world.json): salvage, world props and their loot, the recycler, research, tech trees, teams and the map.</summary>
+    public WorldData World { get; }
+
+    /// <summary>A world prop by its number (what clients see a thing of kind Prop as), or null.</summary>
+    public PropDef? Prop(int id) => World.Prop(id);
 
     /// <summary>A blast by key, or null.</summary>
     public BlastStats? Blast(string key)
@@ -222,6 +229,7 @@ public sealed partial class GameContent
         LinkBuilding(texts.GetValueOrDefault("building.json") ?? "", documents["building.json"], loaded, problems);
         Validation.Check(loaded, problems);
         ExplosivesReader.Check(loaded, loaded.Building, problems);
+        WorldReader.Check(loaded, problems);
         return new GameContent(loaded);
     }
 
@@ -341,6 +349,7 @@ public sealed partial class GameContent
         public List<BlastStats> Blasts = new();
         public List<ThrowableStats> Throwables = new();
         public RaidAlertSettings RaidAlerts = new();
+        public WorldData? World;
         public SurvivalTuning Survival = new();
         public BuildingData? Building;
         public DeployableDef? ClaimDeployable;
@@ -368,6 +377,7 @@ public sealed partial class GameContent
             ReadSurvival();
             ReadWeapons();
             ExplosivesReader.Read(f, files[ExplosivesReader.File], loaded, Resolve);
+            WorldReader.Read(f, files[WorldReader.File], loaded, Resolve);
         }
 
         private JsonElement Root(string file, params string[] fields)
@@ -800,9 +810,10 @@ public sealed partial class GameContent
                 var entries = new List<LootTable.Entry>();
                 foreach (JsonElement g in f.List(e, "entries", where, required: false))
                 {
-                    if (f.Tuple(g, where + ".entries", 3, out string item, out double[] v) && Resolve(item, where + ".entries") is { } def)
+                    // A fifth number makes it a blueprint of that workbench level (G7, world.json).
+                    if (f.Tuple(g, where + ".entries", 3, out string item, out double[] v, optional: 1) && Resolve(item, where + ".entries") is { } def)
                     {
-                        entries.Add(new LootTable.Entry(def, (int)v[0], (int)v[1], v[2]));
+                        entries.Add(new LootTable.Entry(def, (int)v[0], (int)v[1], v[2], g.GetArrayLength() == 5 ? (int)v[3] : -1));
                     }
                 }
                 int[] rolls = f.Integers(e, "rolls", where);

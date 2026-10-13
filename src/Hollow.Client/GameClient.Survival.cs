@@ -34,6 +34,9 @@ public enum InteractionKind : byte
 
     /// <summary>A dud explosive: light it again (G5).</summary>
     Rearm,
+
+    /// <summary>A player close by, awake: invite them to the team the player leads (G7).</summary>
+    InviteToTeam,
 }
 
 /// <summary>Something within reach the interact key acts on, and how to say so ("E: Pick up Wood pile").</summary>
@@ -299,7 +302,7 @@ public sealed partial class GameClient
                 if (!_reader.Failed)
                 {
                     DeployableDef? device = ThingOf(new EntityId(m.Target))?.Deployable(Content);
-                    Local.OnLoot(m, device?.Device != null ? device : null);
+                    Local.OnLoot(m, device is { IsMachine: true } ? device : null);
                 }
                 return;
             }
@@ -377,7 +380,7 @@ public sealed partial class GameClient
                 return;
             }
             default:
-                if (!ReceiveRaid(type))
+                if (!ReceiveRaid(type) && !ReceiveWorld(type))
                 {
                     ReceiveBuilding(type);
                 }
@@ -448,6 +451,16 @@ public sealed partial class GameClient
                     Consider(Geometry.RaySphere(eye, direction, range, thing.Position + Frame.UpAt(thing.Position) * 0.25f, 0.6f),
                         InteractionKind.Open, 0, thing.Id, "Loot", $"{thing.Name}'s body");
                     break;
+                case StaticKind.Prop when thing.Prop(Content) is { Openable: true } prop:
+                {
+                    // G7: a crate or recycler opens; a barrel is broken instead.
+                    DeployableDef d = prop.Deployable;
+                    Vector3 up = Frame.UpAt(thing.Position);
+                    (Vector3 right, Vector3 forward) = Geometry.Axes(up, thing.Yaw);
+                    float t = Geometry.RayBox(eye, direction, range, thing.Position + up * d.HalfExtents.Y, d.HalfExtents + new Vector3(0.1f), right, up, forward);
+                    Consider(t, InteractionKind.Open, 0, thing.Id, "Open", prop.Name);
+                    break;
+                }
                 case StaticKind.Deployable when thing.Deployable(Content) is { } d && (d.Slots > 0):
                 {
                     Vector3 up = Frame.UpAt(thing.Position);
@@ -474,6 +487,12 @@ public sealed partial class GameClient
                 // Down: the interact key helps them up (G4).
                 Consider(Geometry.RaySphere(eye, direction, MathF.Min(range, Content.Survival.HelpReach + 0.5f),
                     remote.Position + Frame.UpAt(remote.Position) * 0.25f, 0.7f), InteractionKind.HelpUp, 0, remote.Id, "Help up", remote.Name);
+            }
+            else if (Local.LeadsTeam && !Local.Team!.Has(remote.Id) && Local.Team.Members.Count < Content.World.TeamSize)
+            {
+                // G7: the leader invites a player close by (Rust's).
+                Consider(Geometry.RaySphere(eye, direction, range, remote.Position + Frame.UpAt(remote.Position) * 1.1f, 0.5f),
+                    InteractionKind.InviteToTeam, 0, remote.Id, "Invite to team", remote.Name);
             }
         }
         AimAtDuds(eye, direction, range, (t, id, name) => Consider(t, InteractionKind.Rearm, 0, id, "Light", name));
@@ -537,6 +556,7 @@ public sealed partial class GameClient
         InteractionKind.PickItem => Local.PickUpItem(target.Entity),
         InteractionKind.HelpUp => Local.HelpUp(target.Entity),
         InteractionKind.Rearm => Local.Rearm(target.Entity),
+        InteractionKind.InviteToTeam => Local.InviteToTeam(target.Entity),
         _ => Local.Open(target.Entity),
     };
 

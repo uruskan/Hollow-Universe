@@ -23,6 +23,8 @@ public sealed partial class GameServer
         "heal <name>                   full health, food and water, no bleeding\n" +
         "kill <name>                   a player dies (a corpse with their things)\n" +
         "raidbase <name> [grade]       a claimed hut 8 m in front of a player, listing them (grade 0-4, stone by default)\n" +
+        "learn <name> <item|all>       a player learns a blueprint (G7), or every one\n" +
+        "world                         the world's props, teams and economy (G7)\n" +
         "save                          save the world now\n" +
         "quit                          save everyone and stop";
 
@@ -139,7 +141,10 @@ public sealed partial class GameServer
                 RequestStop();
                 break;
             default:
-                Log($"unknown command '{line.Trim()}' (help lists them)");
+                if (!RunWorldCommand(words))
+                {
+                    Log($"unknown command '{line.Trim()}' (help lists them)");
+                }
                 break;
         }
     }

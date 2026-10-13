@@ -109,6 +109,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         LoadWorld();
         StartBuilding();
         StartRaid();
+        StartWorld();
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
         Log($"{options.Name}: zone on {Spec}, port {Port}, " +

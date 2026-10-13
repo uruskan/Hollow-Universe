@@ -23,9 +23,13 @@ public static class WorldCodec
 {
     /// <summary>
     /// Raised by hand when a layout changes; decoding reads every older version. 2 (G4): a firearm's magazine and
-    /// attachments in its stack; a character's burning and being down.
+    /// attachments in its stack; a character's burning and being down. 3 (G7): the blueprints learnt, the map's
+    /// markers and the last death's point.
     /// </summary>
-    public const byte PlayerVersion = 2;
+    public const byte PlayerVersion = 3;
+
+    /// <summary>A world prop's stored state (G7, <see cref="EncodeProp"/>).</summary>
+    public const byte PropVersion = 1;
     public const byte ThingVersion = 2;
 
     // ---------------------------------------------------------------- characters
@@ -66,6 +70,26 @@ public static class WorldCodec
                 w.Write(job.TicksLeft);
                 w.Write(job.UnitTicks);
             }
+            // 3 (G7): blueprints, markers (zone frame), the last death's point.
+            w.Write((ushort)p.Blueprints.Learnt.Count);
+            foreach (ushort recipe in p.Blueprints.Learnt)
+            {
+                w.Write(recipe);
+            }
+            w.Write((byte)p.Markers.Count);
+            foreach (MapMarker m in p.Markers)
+            {
+                w.Write(m.Position.X);
+                w.Write(m.Position.Y);
+                w.Write(m.Position.Z);
+                w.Write(m.Colour);
+                w.Write(m.Label);
+            }
+            w.Write(p.DeathPoint.HasValue);
+            Vector3 death = p.DeathPoint ?? Vector3.Zero;
+            w.Write(death.X);
+            w.Write(death.Y);
+            w.Write(death.Z);
         }
         return stream.ToArray();
     }
@@ -119,6 +143,31 @@ public static class WorldCodec
             }
         }
         p.Crafting.Set(list, nextTicket);
+        if (version >= 3)
+        {
+            int learnt = r.ReadUInt16();
+            var recipes = new List<ushort>(learnt);
+            for (int i = 0; i < learnt; i++)
+            {
+                recipes.Add(r.ReadUInt16());
+            }
+            // Only recipes the game has and doesn't teach everyone from the start (untrusted).
+            p.Blueprints.Set(content, recipes);
+            int markers = r.ReadByte();
+            for (int i = 0; i < markers; i++)
+            {
+                var at = new Vector3(Finite(r.ReadSingle()), Finite(r.ReadSingle()), Finite(r.ReadSingle()));
+                byte colour = r.ReadByte();
+                string label = r.ReadString();
+                if (p.Markers.Count < content.World.MaxMarkers && colour < MapMarker.Colours)
+                {
+                    p.Markers.Add(new MapMarker(at, colour, label.Length > MapMarker.MaxLabel ? label[..MapMarker.MaxLabel] : label));
+                }
+            }
+            bool died = r.ReadBoolean();
+            var point = new Vector3(Finite(r.ReadSingle()), Finite(r.ReadSingle()), Finite(r.ReadSingle()));
+            p.DeathPoint = died ? point : null;
+        }
         if (p.Dead)
         {
             p.Vitals = default;
@@ -259,6 +308,62 @@ public static class WorldCodec
         }
     }
 
+    // ---------------------------------------------------------------- world props (G7)
+
+    /// <summary>A world prop's stored state: gone until a time, or its health, slots and whether it runs.</summary>
+    public static byte[] EncodeProp(Simulation.PropOverride o)
+    {
+        using var stream = new MemoryStream();
+        using (var w = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
+        {
+            w.Write(PropVersion);
+            w.Write(o.RespawnAtUnixMs);
+            w.Write(o.Health);
+            w.Write(o.Lit);
+            w.Write(o.BurnTicksLeft);
+            w.Write(o.Contents != null);
+            if (o.Contents != null)
+            {
+                w.Write((ushort)o.Contents.Length);
+                foreach (ItemStack stack in o.Contents)
+                {
+                    WriteStack(w, stack);
+                }
+            }
+        }
+        return stream.ToArray();
+    }
+
+    /// <summary>A world prop's stored state from its bytes (untrusted: items the game no longer has come back empty).</summary>
+    public static Simulation.PropOverride DecodeProp(byte[] data, GameContent content)
+    {
+        using var r = new BinaryReader(new MemoryStream(data), Encoding.UTF8);
+        byte version = r.ReadByte();
+        if (version is < 1 or > PropVersion)
+        {
+            throw new InvalidDataException($"prop version {version}; this build reads up to {PropVersion}");
+        }
+        long respawn = r.ReadInt64();
+        float health = Finite(r.ReadSingle());
+        bool lit = r.ReadBoolean();
+        int burn = r.ReadInt32();
+        ItemStack[]? contents = null;
+        if (r.ReadBoolean())
+        {
+            int size = r.ReadUInt16();
+            contents = new ItemStack[Math.Min(size, 64)];
+            for (int i = 0; i < size; i++)
+            {
+                ItemStack stack = ReadStack(r, content, ThingVersion);
+                if (i < contents.Length)
+                {
+                    contents[i] = stack;
+                }
+            }
+        }
+        return new Simulation.PropOverride { RespawnAtUnixMs = Math.Max(0, respawn), Health = health, Lit = lit, BurnTicksLeft = Math.Max(0, burn), Contents = contents };
+    }
+
     // ---------------------------------------------------------------- containers
 
     private static void WriteContainer(BinaryWriter w, Container c)
@@ -331,9 +436,14 @@ public static class WorldCodec
         {
             return default;
         }
-        // A key's condition is the number of the lock it was cut for.
+        // A key's condition is the number of the lock it was cut for; a blueprint's, the recipe it teaches (G7).
         ushort kept = def.HasCondition ? (ushort)Math.Clamp((int)condition, 1, def.MaxCondition)
-            : def.Building == BuildingRole.Key ? condition : (ushort)0;
+            : def.Building == BuildingRole.Key ? condition
+            : def == content.World.Blueprint ? condition : (ushort)0;
+        if (def == content.World.Blueprint && content.Recipe(kept) is not { Known: false })
+        {
+            return default; // a blueprint of nothing the game teaches
+        }
         var stack = new ItemStack(item, count, kept);
         if (def.Firearm is { } gun)
         {

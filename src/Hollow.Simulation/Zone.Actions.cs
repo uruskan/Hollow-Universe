@@ -51,7 +51,8 @@ public sealed partial class Zone
         (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
         return thing switch
         {
-            Deployable { Def.Device: not null } => LootKind.Device,
+            WorldProp { Prop.Kind: WorldPropKind.Crate } => LootKind.Crate,
+            Deployable { Def.IsMachine: true } => LootKind.Device,
             Deployable => LootKind.Box,
             Corpse => LootKind.Corpse,
             _ => sleeper != null ? LootKind.Sleeper : LootKind.None,
@@ -175,7 +176,11 @@ public sealed partial class Zone
         {
             return ActionResult.Stale;
         }
-        if (Content!.Item(s.Item)?.Consume is not { } consume)
+        if (Content!.World.Blueprint is { } blueprint && s.Item == blueprint.Id)
+        {
+            return LearnBlueprint(p, source, slot, s); // G7: reading a blueprint learns it
+        }
+        if (Content.Item(s.Item)?.Consume is not { } consume)
         {
             return ActionResult.NotUsable;
         }
@@ -198,7 +203,7 @@ public sealed partial class Zone
             return ActionResult.Dead;
         }
         int bench = WorkbenchLevel(Entities.Get<Character>(entity).State.Position);
-        return p.Crafting.Start(Content!, p.Inventory, recipe, count, bench, out ticket);
+        return p.Crafting.Start(Content!, p.Inventory, recipe, count, bench, out ticket, p.Blueprints);
     }
 
     public ActionResult CancelCraft(Entity entity, uint ticket)
@@ -361,6 +366,13 @@ public sealed partial class Zone
         if (!Acting(entity, out Player _))
         {
             return ActionResult.Dead;
+        }
+        if (StaticOf(id) is Deployable { Def.Device: null, Def.IsMachine: true, Storage: not null } machine)
+        {
+            // G7: a recycler (on or off) or a research table (start).
+            return Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), machine.Centre) > Content!.Survival.LootReach + 0.5f
+                ? ActionResult.OutOfReach
+                : ToggleMachine(machine);
         }
         if (StaticOf(id) is not Deployable { Def.Device: not null, Storage: { } storage } d)
         {

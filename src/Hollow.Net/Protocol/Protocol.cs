@@ -6,9 +6,9 @@ public static partial class Protocol
     /// <summary>
     /// Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect. 4: G4, guns and the
     /// wounded (3 is the integration package's); 5: G3, building over the network; 6: G5, raiding (explosives,
-    /// detonations, raid alerts).
+    /// detonations, raid alerts); 7: G7, the world (world props, blueprints and tech trees, teams, the map).
     /// </summary>
-    public const uint Version = 6;
+    public const uint Version = 7;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -53,6 +53,18 @@ public enum ChatKind : byte
 {
     Player,
     Server,
+
+    /// <summary>G7: a line to the sender's team alone.</summary>
+    Team,
+}
+
+/// <summary>How a teammate is (G7): up and about, asleep (logged off), down (wounded) or dead.</summary>
+public enum TeammateState : byte
+{
+    Awake,
+    Asleep,
+    Down,
+    Dead,
 }
 
 /// <summary>What a client sees of a static thing.</summary>
@@ -61,7 +73,7 @@ public enum ThingFlags : byte
 {
     None = 0,
 
-    /// <summary>A campfire or furnace burning.</summary>
+    /// <summary>A campfire or furnace burning; a recycler running, a research table researching (G7).</summary>
     Lit = 1,
 
     /// <summary>The receiving player's own (their sleeping bag).</summary>

@@ -22,8 +22,11 @@ public sealed class Recipe
 
     public IReadOnlyList<ItemAmount> Ingredients { get; init; } = Array.Empty<ItemAmount>();
 
-    /// <summary>Known from the start (the tech tree of G7 will hide some).</summary>
-    public bool Known { get; init; } = true;
+    /// <summary>
+    /// Known from the start (Rust's default blueprints): a recipe in no tech tree (world.json, G7), unless recipes.json
+    /// says <c>"known": false</c>. The rest are learnt: unlocked in a tech tree, researched, or from a blueprint.
+    /// </summary>
+    public bool Known { get; internal set; } = true;
 
     public ushort Id => Output.Id;
 
@@ -139,6 +142,18 @@ public sealed class DeployableDef
     /// <summary>The workbench level it gives within reach (0: not a workbench).</summary>
     public int Workbench { get; init; }
 
+    /// <summary>Its storage is take only (a world crate, G7).</summary>
+    public bool TakeOnly { get; init; }
+
+    /// <summary>A recycler (G7): its input and output slots and pace (world.json); null for anything else.</summary>
+    public RecyclerStats? Recycler { get; internal set; }
+
+    /// <summary>A research table (G7): its item and salvage slots and costs (world.json); null for anything else.</summary>
+    public ResearchStats? Research { get; internal set; }
+
+    /// <summary>A machine with slots that do different things: a campfire or furnace, a recycler, a research table.</summary>
+    public bool IsMachine => Device != null || Recycler != null || Research != null;
+
     /// <summary>The ID on the wire and in saves: its item's.</summary>
     public ushort Id => Item.Id;
 
@@ -150,7 +165,8 @@ public sealed class DeployableDef
 /// <summary>A loot table (loot.json).</summary>
 public sealed class LootTable
 {
-    public readonly record struct Entry(ItemDef Item, int Least, int Most, double Weight);
+    /// <summary>One line of a table; <paramref name="Tier"/> ≥ 0 makes it a blueprint of that workbench level (G7).</summary>
+    public readonly record struct Entry(ItemDef Item, int Least, int Most, double Weight, int Tier = -1);
 
     public string Key { get; init; } = "";
 
@@ -162,13 +178,68 @@ public sealed class LootTable
 
     public IReadOnlyList<Entry> Entries { get; init; } = Array.Empty<Entry>();
 
-    /// <summary>The items it gives, from a seeded stream (deterministic for a seed).</summary>
+    /// <summary>The items it gives, from a seeded stream (deterministic for a seed). Blueprints are left out (see <see cref="RollStacks"/>).</summary>
     public List<ItemAmount> Roll(ref Rng rng)
     {
         var result = new List<ItemAmount>();
         foreach (Entry e in Guaranteed)
         {
-            result.Add(new ItemAmount(e.Item, e.Least + rng.NextInt(e.Most - e.Least + 1)));
+            if (e.Tier < 0)
+            {
+                result.Add(new ItemAmount(e.Item, e.Least + rng.NextInt(e.Most - e.Least + 1)));
+            }
+        }
+        if (Entries.Count > 0)
+        {
+            int rolls = LeastRolls + rng.NextInt(MostRolls - LeastRolls + 1);
+            Span<double> weights = stackalloc double[Entries.Count];
+            for (int i = 0; i < Entries.Count; i++)
+            {
+                weights[i] = Entries[i].Weight;
+            }
+            for (int r = 0; r < rolls; r++)
+            {
+                int pick = rng.PickWeighted(weights);
+                if (pick >= 0 && Entries[pick].Tier < 0)
+                {
+                    Entry e = Entries[pick];
+                    result.Add(new ItemAmount(e.Item, e.Least + rng.NextInt(e.Most - e.Least + 1)));
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// What it gives as stacks (the world's barrels and crates, G7): each roll a stack no bigger than the item's stack
+    /// size, and a blueprint entry a blueprint of a recipe drawn from its workbench level's pool (world.json), its
+    /// condition holding the recipe. Deterministic for a seed.
+    /// </summary>
+    public List<Items.ItemStack> RollStacks(ref Rng rng, GameContent content)
+    {
+        var result = new List<Items.ItemStack>();
+        void Add(Entry e, ref Rng r)
+        {
+            int count = e.Least + r.NextInt(e.Most - e.Least + 1);
+            if (e.Tier >= 0)
+            {
+                IReadOnlyList<Recipe> pool = content.World.BlueprintPool(e.Tier);
+                if (pool.Count > 0)
+                {
+                    result.Add(new Items.ItemStack(e.Item.Id, 1, pool[r.NextInt(pool.Count)].Id));
+                }
+                return;
+            }
+            while (count > 0)
+            {
+                int n = Math.Min(count, e.Item.StackSize);
+                result.Add(Items.ItemStack.Of(e.Item, n));
+                count -= n;
+            }
+        }
+        foreach (Entry e in Guaranteed)
+        {
+            Add(e, ref rng);
         }
         if (Entries.Count > 0)
         {
@@ -183,8 +254,7 @@ public sealed class LootTable
                 int pick = rng.PickWeighted(weights);
                 if (pick >= 0)
                 {
-                    Entry e = Entries[pick];
-                    result.Add(new ItemAmount(e.Item, e.Least + rng.NextInt(e.Most - e.Least + 1)));
+                    Add(Entries[pick], ref rng);
                 }
             }
         }

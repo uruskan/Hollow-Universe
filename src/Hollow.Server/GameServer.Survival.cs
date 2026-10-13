@@ -118,6 +118,7 @@ public sealed partial class GameServer
         }
         LoadBuilding(stored);
         RestoreExplosives();
+        LoadWorldState(stored);
         Log($"loaded {sleepers} sleepers, {things} things and {stored.Naturals.Count} changed natural objects");
     }
 
@@ -229,6 +230,7 @@ public sealed partial class GameServer
         }
         _naturalsToSave.Clear();
         AddBuildingToSave(save);
+        AddWorldToSave(save);
         return save;
     }
 
@@ -351,7 +353,7 @@ public sealed partial class GameServer
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.HelpUp(me, new EntityId(m.Target)));
             }
             default:
-                return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type);
+                return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type) || ReceiveWorldIntent(session, type);
         }
     }
 
@@ -431,6 +433,7 @@ public sealed partial class GameServer
         natural.Changed.Clear();
         RouteEvents();
         AfterRaid();
+        AfterWorld();
         foreach (PlayerSession session in _sessions.Values)
         {
             if (session.Playing && Zone.PlayerOf(session.Entity) is { } p)

@@ -12,6 +12,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
 using Hollow.Simulation;
 
@@ -20,7 +21,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x8E4FE9A958F6320BUL;
+    public const ulong SchemaHash = 0xADCB112951C8ADA4UL;
 }
 
 partial struct Hello
@@ -2857,6 +2858,510 @@ partial struct RaidAlertList
         {
             v.Alerts[i] = RaidAlertNet.Read(r);
         }
+        return v;
+    }
+}
+
+partial struct UnlockIntent
+{
+    public const byte TypeId = 130;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteVarUInt(Recipe);
+    }
+
+    public static UnlockIntent Read(BitReader r)
+    {
+        var v = new UnlockIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Recipe = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct TeamIntent
+{
+    public const byte TypeId = 131;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Action, 3);
+        w.WriteBits64(Target, 64);
+        w.WriteBits64(Team, 64);
+    }
+
+    public static TeamIntent Read(BitReader r)
+    {
+        var v = new TeamIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Action = (TeamAction)r.ReadBits(3);
+        v.Target = r.ReadBits64(64);
+        v.Team = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct TeamChatSend
+{
+    public const byte TypeId = 132;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteString(Text, 200);
+    }
+
+    public static TeamChatSend Read(BitReader r)
+    {
+        var v = new TeamChatSend();
+        v.Text = r.ReadString(200);
+        return v;
+    }
+}
+
+partial struct MarkerIntent
+{
+    public const byte TypeId = 133;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBool(Remove);
+        w.WriteSigned(Index, 8);
+        w.WriteFloat(X);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)Colour, 3);
+        w.WriteString(Label, 24);
+    }
+
+    public static MarkerIntent Read(BitReader r)
+    {
+        var v = new MarkerIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Remove = r.ReadBool();
+        v.Index = (sbyte)r.ReadSigned(8);
+        v.X = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Colour = (byte)r.ReadBits(3);
+        v.Label = r.ReadString(24);
+        return v;
+    }
+}
+
+partial struct RecipeNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Recipe);
+    }
+
+    public static RecipeNet Read(BitReader r)
+    {
+        var v = new RecipeNet();
+        v.Recipe = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct BlueprintList
+{
+    public const byte TypeId = 140;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(LastSeq);
+        int countRecipes = Recipes == null ? 0 : Math.Min(Recipes.Length, 1024);
+        w.WriteBits((uint)countRecipes, 11);
+        for (int i = 0; i < countRecipes; i++)
+        {
+            Recipes![i].Write(w);
+        }
+    }
+
+    public static BlueprintList Read(BitReader r)
+    {
+        var v = new BlueprintList();
+        v.LastSeq = r.ReadVarUInt();
+        int countRecipes = (int)r.ReadBits(11);
+        if (countRecipes > 1024)
+        {
+            r.Fail();
+            countRecipes = 0;
+        }
+        v.Recipes = new RecipeNet[countRecipes];
+        for (int i = 0; i < countRecipes; i++)
+        {
+            v.Recipes[i] = RecipeNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct TeamMemberNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteString(Name, 32);
+        w.WriteBool(Online);
+    }
+
+    public static TeamMemberNet Read(BitReader r)
+    {
+        var v = new TeamMemberNet();
+        v.Id = r.ReadBits64(64);
+        v.Name = r.ReadString(32);
+        v.Online = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct TeamState
+{
+    public const byte TypeId = 141;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(LastSeq);
+        w.WriteBits64(Team, 64);
+        w.WriteBits64(Leader, 64);
+        int countMembers = Members == null ? 0 : Math.Min(Members.Length, 16);
+        w.WriteBits((uint)countMembers, 5);
+        for (int i = 0; i < countMembers; i++)
+        {
+            Members![i].Write(w);
+        }
+    }
+
+    public static TeamState Read(BitReader r)
+    {
+        var v = new TeamState();
+        v.LastSeq = r.ReadVarUInt();
+        v.Team = r.ReadBits64(64);
+        v.Leader = r.ReadBits64(64);
+        int countMembers = (int)r.ReadBits(5);
+        if (countMembers > 16)
+        {
+            r.Fail();
+            countMembers = 0;
+        }
+        v.Members = new TeamMemberNet[countMembers];
+        for (int i = 0; i < countMembers; i++)
+        {
+            v.Members[i] = TeamMemberNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct TeamInviteNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Team, 64);
+        w.WriteString(From, 32);
+        w.WriteVarUInt(Seconds);
+    }
+
+    public static TeamInviteNet Read(BitReader r)
+    {
+        var v = new TeamInviteNet();
+        v.Team = r.ReadBits64(64);
+        v.From = r.ReadString(32);
+        v.Seconds = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct TeamInvites
+{
+    public const byte TypeId = 142;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countInvites = Invites == null ? 0 : Math.Min(Invites.Length, 16);
+        w.WriteBits((uint)countInvites, 5);
+        for (int i = 0; i < countInvites; i++)
+        {
+            Invites![i].Write(w);
+        }
+    }
+
+    public static TeamInvites Read(BitReader r)
+    {
+        var v = new TeamInvites();
+        int countInvites = (int)r.ReadBits(5);
+        if (countInvites > 16)
+        {
+            r.Fail();
+            countInvites = 0;
+        }
+        v.Invites = new TeamInviteNet[countInvites];
+        for (int i = 0; i < countInvites; i++)
+        {
+            v.Invites[i] = TeamInviteNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct TeammateNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)Yaw, 16);
+        w.WriteBits((uint)State, 2);
+    }
+
+    public static TeammateNet Read(BitReader r)
+    {
+        var v = new TeammateNet();
+        v.Id = r.ReadBits64(64);
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Yaw = (ushort)r.ReadBits(16);
+        v.State = (TeammateState)r.ReadBits(2);
+        return v;
+    }
+}
+
+partial struct TeamPositions
+{
+    public const byte TypeId = 143;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Sequence, 32);
+        int countMembers = Members == null ? 0 : Math.Min(Members.Length, 16);
+        w.WriteBits((uint)countMembers, 5);
+        for (int i = 0; i < countMembers; i++)
+        {
+            Members![i].Write(w);
+        }
+    }
+
+    public static TeamPositions Read(BitReader r)
+    {
+        var v = new TeamPositions();
+        v.Sequence = (uint)r.ReadBits(32);
+        int countMembers = (int)r.ReadBits(5);
+        if (countMembers > 16)
+        {
+            r.Fail();
+            countMembers = 0;
+        }
+        v.Members = new TeammateNet[countMembers];
+        for (int i = 0; i < countMembers; i++)
+        {
+            v.Members[i] = TeammateNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct MarkerNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)Colour, 3);
+        w.WriteString(Label, 24);
+    }
+
+    public static MarkerNet Read(BitReader r)
+    {
+        var v = new MarkerNet();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Colour = (byte)r.ReadBits(3);
+        v.Label = r.ReadString(24);
+        return v;
+    }
+}
+
+partial struct RespawnPointNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBool(Bed);
+    }
+
+    public static RespawnPointNet Read(BitReader r)
+    {
+        var v = new RespawnPointNet();
+        v.Id = r.ReadBits64(64);
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.Bed = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct MapState
+{
+    public const byte TypeId = 144;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(LastSeq);
+        int countMarkers = Markers == null ? 0 : Math.Min(Markers.Length, 8);
+        w.WriteBits((uint)countMarkers, 4);
+        for (int i = 0; i < countMarkers; i++)
+        {
+            Markers![i].Write(w);
+        }
+        w.WriteBool(HasDeath);
+        w.WriteFloat(DeathX);
+        w.WriteFloat(DeathY);
+        w.WriteFloat(DeathZ);
+        int countPoints = Points == null ? 0 : Math.Min(Points.Length, 64);
+        w.WriteBits((uint)countPoints, 7);
+        for (int i = 0; i < countPoints; i++)
+        {
+            Points![i].Write(w);
+        }
+    }
+
+    public static MapState Read(BitReader r)
+    {
+        var v = new MapState();
+        v.LastSeq = r.ReadVarUInt();
+        int countMarkers = (int)r.ReadBits(4);
+        if (countMarkers > 8)
+        {
+            r.Fail();
+            countMarkers = 0;
+        }
+        v.Markers = new MarkerNet[countMarkers];
+        for (int i = 0; i < countMarkers; i++)
+        {
+            v.Markers[i] = MarkerNet.Read(r);
+        }
+        v.HasDeath = r.ReadBool();
+        v.DeathX = r.ReadFloat();
+        v.DeathY = r.ReadFloat();
+        v.DeathZ = r.ReadFloat();
+        int countPoints = (int)r.ReadBits(7);
+        if (countPoints > 64)
+        {
+            r.Fail();
+            countPoints = 0;
+        }
+        v.Points = new RespawnPointNet[countPoints];
+        for (int i = 0; i < countPoints; i++)
+        {
+            v.Points[i] = RespawnPointNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct MachineState
+{
+    public const byte TypeId = 145;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Target, 64);
+        w.WriteBool(Running);
+        w.WriteBits((uint)Progress, 8);
+        w.WriteVarUInt(SecondsLeft);
+        w.WriteVarUInt(Item);
+    }
+
+    public static MachineState Read(BitReader r)
+    {
+        var v = new MachineState();
+        v.Target = r.ReadBits64(64);
+        v.Running = r.ReadBool();
+        v.Progress = (byte)r.ReadBits(8);
+        v.SecondsLeft = r.ReadVarUInt();
+        v.Item = r.ReadVarUInt();
         return v;
     }
 }
