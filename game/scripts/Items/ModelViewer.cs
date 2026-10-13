@@ -16,7 +16,8 @@ namespace HollowUniverse.Items;
 /// screenshot), <c>--zoom f</c> (the turntable camera's distance, 1 fits the model), <c>--anim name</c> (play one of
 /// the model's clips; H plays the next), <c>--attach a,b</c> (mount attachments on a gun), <c>--upright</c> (a held
 /// item as it is held, not lying down), <c>--first-person</c>,
-/// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera).
+/// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera). <c>--survey-surfaces &lt;path&gt;</c> measures the
+/// outcrops' drawn surfaces for the rules (<see cref="SurfaceSurvey"/>) and quits.
 /// </summary>
 public partial class ModelViewer : Node3D
 {
@@ -44,6 +45,12 @@ public partial class ModelViewer : Node3D
 
     public override void _Ready()
     {
+        if (Options.TryGetValue("survey-surfaces", out string? survey))
+        {
+            SurfaceSurvey.Write(survey);
+            GetTree().Quit();
+            return;
+        }
         _entries.AddRange(ModelCatalog.Entries.Where(e => e.Files.Count > 0));
         BuildWorld();
         BuildHud();

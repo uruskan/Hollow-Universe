@@ -110,6 +110,12 @@ public sealed class NaturalKind
 
     public float ScatterMinScale { get; init; }
 
+    /// <summary>
+    /// How it is gathered (gather.json <c>classes</c> of its class, with its own drawn surface and look): the tool rate
+    /// it takes, its weak spot, what the last hit pays, how it shows. Null for what isn't hit for resources.
+    /// </summary>
+    public GatherRules? Gather { get; internal set; }
+
     public bool IsHarvested => Class is NaturalClass.Tree or NaturalClass.Node;
 
     public bool IsPicked => Class is NaturalClass.Pickup or NaturalClass.Bush;
@@ -119,9 +125,6 @@ public sealed class NaturalKind
 
     public override string ToString() => Key;
 }
-
-/// <summary>Rust's weak spot on trees and outcrops (gather.json).</summary>
-public readonly record struct WeakSpot(float Radius, float Bonus);
 
 /// <summary>A device's slots and what it does (deployables.json, <c>device</c>).</summary>
 public sealed class DeviceStats
