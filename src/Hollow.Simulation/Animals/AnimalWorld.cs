@@ -205,7 +205,8 @@ public sealed partial class AnimalWorld
     private EntityId NewId() => _zone.NextId();
 
     /// <summary>A corpse as stored (GROUND.md §6.9: corpses survive a restart while their timer runs).</summary>
-    public Animal RestoreCorpse(EntityId id, AnimalSpecies species, Vector3 position, float yaw, float harvestLeft, long despawnTick)
+    public Animal RestoreCorpse(EntityId id, AnimalSpecies species, Vector3 position, float yaw, float harvestLeft, long despawnTick,
+        string killedByName = "")
     {
         var herd = new Herd(species, position, 0);
         var corpse = new Animal(id, species, herd, position, yaw, Hash64.Of(_seed, id.Value))
@@ -215,6 +216,7 @@ public sealed partial class AnimalWorld
             Health = 0,
             HarvestLeft = Math.Clamp(harvestLeft, 0.01f, species.HarvestHealth),
             DespawnTick = despawnTick,
+            KilledByName = killedByName,
         };
         herd.Members.Add(corpse);
         Add(corpse);

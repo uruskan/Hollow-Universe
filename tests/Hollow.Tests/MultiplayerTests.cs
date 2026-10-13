@@ -17,9 +17,10 @@ namespace Hollow.Tests;
 /// <summary>An in-process server on a background thread, and clients driven from the test's thread.</summary>
 public sealed class LoopbackRig : IDisposable
 {
-    public LoopbackRig(string? database = null)
+    public LoopbackRig(string? database = null, bool animals = false)
     {
-        Server = new GameServer(new ServerOptions { Port = 0, DatabasePath = database, Log = _ => { } }, Fixtures.Galaxy);
+        // A quiet world: no animals unless a test asks for them (G7).
+        Server = new GameServer(new ServerOptions { Port = 0, DatabasePath = database, Animals = animals, Log = _ => { } }, Fixtures.Galaxy);
         Server.StartThread();
     }
 

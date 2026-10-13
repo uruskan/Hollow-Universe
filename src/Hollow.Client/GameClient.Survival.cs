@@ -460,7 +460,7 @@ public sealed partial class GameClient
         }
         foreach (RemoteEntity remote in _remotes.Values)
         {
-            if (!remote.Spawned || !remote.HasState || (remote.Flags & Simulation.Movement.MoveFlags.Dead) != 0)
+            if (!remote.Spawned || !remote.HasState || remote.Kind != EntityKind.Character || (remote.Flags & Simulation.Movement.MoveFlags.Dead) != 0)
             {
                 continue;
             }

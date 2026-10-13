@@ -80,6 +80,16 @@ public sealed class SnapshotSender
         }
     }
 
+    // A delta with nothing changed: a bit a field.
+    private static readonly int UnchangedBits = default(CharacterNetState).DeltaBits(default);
+
+    /// <summary>
+    /// Whether the client has confirmed exactly this state of an entity, so a snapshot need not carry it (G7: animals
+    /// standing still are left out until they move).
+    /// </summary>
+    public bool Holds(uint netId, in CharacterNetState state) =>
+        _baselines.TryGetValue(netId, out (uint Sequence, CharacterNetState State) b) && state.DeltaBits(b.State) <= UnchangedBits;
+
     /// <summary>An entity stopped being relevant to this client: its next state goes in full.</summary>
     public void Forget(uint netId)
     {

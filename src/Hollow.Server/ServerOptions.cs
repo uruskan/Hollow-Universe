@@ -51,6 +51,17 @@ public sealed record ServerOptions
 
     public string RaidBasePrefix { get; init; } = "bot";
 
+    /// <summary>
+    /// Animals live in the zone's spawn areas and come and go with the players (G7, GROUND.md §6.9). Off for tests that
+    /// want a quiet world.
+    /// </summary>
+    public bool Animals { get; init; } = true;
+
+    /// <summary>The animal load test's population: this many animals in herds within <see cref="AnimalRadius"/> metres of the origin, always out.</summary>
+    public int AnimalPopulation { get; init; }
+
+    public float AnimalRadius { get; init; } = 220f;
+
     /// <summary>Where raid alerts for players offline are pushed (a phone app, later); null: nowhere.</summary>
     public Notifications.IPushChannel? Push { get; init; }
 

@@ -198,10 +198,13 @@ public sealed partial class GameClient : INetEventListener, IDisposable
 
     // ---------------------------------------------------------------- everyone else
 
-    /// <summary>Entities this client was told about (spawned), interpolated for drawing.</summary>
-    public IEnumerable<RemoteEntity> Entities => _remotes.Values.Where(r => r.Spawned && r.HasState);
+    /// <summary>
+    /// Characters this client was told about (spawned), interpolated for drawing. Animals (G7) are entities too, listed
+    /// apart in <see cref="Animals"/>.
+    /// </summary>
+    public IEnumerable<RemoteEntity> Entities => _remotes.Values.Where(r => r.Spawned && r.HasState && r.Kind == EntityKind.Character);
 
-    public int EntityCount => _remotes.Values.Count(r => r.Spawned);
+    public int EntityCount => _remotes.Values.Count(r => r.Spawned && r.Kind == EntityKind.Character);
 
     /// <summary>The server tick remote entities are drawn at.</summary>
     public double RenderTick => _remoteClock - Protocol.InterpolationDelaySeconds * TickRate;
@@ -286,6 +289,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
                     remote.Sample(renderTick);
                 }
                 PruneStale();
+                UpdateAnimals(delta);
             }
             UpdateSurvival();
         }
