@@ -32,7 +32,7 @@ Their agents ran in the first session. Whatever they committed is safe; check `g
 | `ground-world` (G7a) | **Merged into `ground`** (protocol 9, schema 6). | Nothing. Integration wires its UI (§6.8), and its new item keys need real models (stand-ins or missing: see §6.8). |
 | `ground-integrate` (pass 4) | Just started: Tin Finch in the ground mode (§6.7 hook-up list), then the G7a UI (§6.8). | Redo pass 4 from the hook-up lists. |
 | `ground-perf` | Just started: server cost of flying ships streaming ground, broadphase rebuilds, respawn hitches. | Profile and fix (targets ≤ 10 ms average and ≤ 33 ms 99th percentile with 100 bots + 20 flying), then GROUND.md §5.10 (§5.9 is G7a's load test). |
-| `ground-wardrobe` | 3 commits ahead: sleeping, wounded, help-up and bow animations, probably more. | Finish: hood, gloves and metal mask worn; per-player looks; then merge. Integration then wires sleepers, crawl and aim pose. |
+| `ground-wardrobe` | **Finished** (0cf21c5…1bb9d9d, 110 tests on its older base): every clothing and armour item wearable (hood, metal mask, gloves…), looks from the player ID (skin, face, hair), sleep, wounded and crawl, help-up, spear, bow, third-person reloads, eat, bandage, inject. APIs: `Wardrobe.ForItem(s)`, `Looks.ForPlayer(id, body)`, stances `Crawl` and `Sleep`, `CharacterFrame.Aiming`. | Merge `ground` into it first (it is behind), then merge. Integration sets `Stance = Sleep` for sleepers and sends `Aiming` for bows (C9, C10). |
 | `ground-animals` (G7b) | 4 commits ahead: animals with AI, harvesting, cooking. | Finish and merge; integration then wires `AnimalView`. |
 
 ## What's left after that
