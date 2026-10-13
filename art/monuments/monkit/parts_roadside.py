@@ -1116,3 +1116,251 @@ def _pallet(b, boxes=True):
 
 
 kit.PIECES["pallet-boxes"] = lambda b: _pallet(b, True)
+
+
+# ------------------------------------------------------------------------------------------------ crawler, tanker
+
+
+def jerry_can(b, at, yaw=0.0, tint=srgb(0.62, 0.16, 0.10), lying=False):
+    """A 20-litre fuel can, standing or on its side."""
+    x, y, z = at
+    rot = (0, 0, yaw) if not lying else (90, 0, yaw)
+    with b.frame((x, y, z + (0.08 if lying else 0)), rot):
+        b.box((0.17, 0.35, 0.47), (0, 0, 0.235), mat=PAINT, tint=tint, bevel=0.015, solid=False)
+        b.box((0.04, 0.12, 0.06), (0, -0.08, 0.5), mat=PAINT, tint=tint, solid=False)
+        b.cyl(0.025, 0.06, (0, 0.11, 0.49), (-35, 0, 0), mat=PAINT, tint=GREY, sides=6, solid=False)
+
+
+def toolbox(b, at, yaw=0.0, tint=RED, open_lid=False):
+    """A steel toolbox with a handle (lid open or shut)."""
+    with b.frame(at, (0, 0, yaw)):
+        b.box((0.55, 0.25, 0.24), (0, 0, 0.12), mat=PAINT, tint=tint, solid=False)
+        if open_lid:
+            b.box((0.55, 0.25, 0.03), (0, 0.22, 0.32), (70, 0, 0), mat=PAINT, tint=tint, solid=False)
+        else:
+            b.box((0.4, 0.03, 0.03), (0, 0, 0.3), mat=PAINT, tint=DARK, solid=False)
+
+
+def _wheel_crawler(b):
+    """A crawler's road wheel: a 1.6 m flotation tyre with chunky staggered lugs on a deep steel rim with twelve wheel
+    nuts. On the ground with its axle along X, outer face toward -X."""
+    r, w = 0.8, 0.62
+    hw = w / 2
+    prof = [(0.42, -hw + 0.02), (0.5, -hw - 0.015), (0.66, -hw - 0.03), (0.75, -hw + 0.0), (0.77, -hw + 0.06),
+            (0.77, hw - 0.06), (0.75, hw), (0.66, hw + 0.03), (0.5, hw + 0.015), (0.42, hw - 0.02)]
+    with b.frame((0, 0, r), (0, 90, 0)):
+        b.lathe(prof, (0, 0, 0), mat=MATTE, tint=RUBBER, sides=32, close=False, solid="hull", wear=0.6)
+        for k in range(22):
+            a = 2 * math.pi * k / 22
+            for s in (-1, 1):
+                if (k % 2 == 0) == (s > 0):
+                    continue
+                c = Vector((math.cos(a) * 0.785, math.sin(a) * 0.785, s * hw * 0.45))
+                b.box((0.09, 0.2, hw * 0.95), tuple(c), (0, 0, math.degrees(a)), mat=MATTE, tint=RUBBER,
+                      solid=False, vary=0)
+        b.cyl(0.425, w - 0.06, (0, 0, 0), mat=PAINT, tint=srgb(0.32, 0.33, 0.33), sides=20, solid=False)
+        b.lathe([(0.42, 0.0), (0.33, -0.08), (0.2, -0.1), (0.18, -0.16), (0.0, -0.17)], (0, 0, -hw + 0.04),
+                mat=PAINT, tint=srgb(0.82, 0.8, 0.76), sides=20, close=False, solid=False)
+        for k in range(12):
+            a = 2 * math.pi * k / 12
+            b.cyl(0.024, 0.05, (math.cos(a) * 0.15, math.sin(a) * 0.15, -hw - 0.12), mat=PAINT, tint=GREY, sides=6,
+                  solid=False, vary=0)
+        b.cyl(0.09, 0.08, (0, 0, -hw - 0.14), mat=PAINT, tint=GREY, sides=12, solid=False)
+
+
+kit.PIECES["wheel-crawler"] = _wheel_crawler
+
+
+def crawler(b, at, rot=(0, 0, 0), tint=OFFWHITE, band=ORANGE, stripe=TEAL, code="CR-09", missing=(), door_open=72.0,
+            lights=True):
+    """A Seedward six-wheeled overland crawler: a high tub on trailing arms, a hollow cab with a raked windscreen and
+    a door (right side) swung open over its steps, a long hab module behind with a roof rack, a light bar, a winch,
+    fenders, livery. Front toward -Y. `missing`: wheel indices (0..5, front left, front right, ...) taken off.
+    Returns (cab floor centre, hitch point) in the monument's frame."""
+    W, floor = 2.9, 1.78
+    hw = W / 2
+    axles = (-4.2, -0.4, 3.3)
+    with b.frame(at, rot):
+        # Tub, trailing arms, struts, wheels.
+        b.box((2.5, 11.0, 0.62), (0, 0.1, floor - 0.33), mat=PAINT, tint=srgb(0.27, 0.28, 0.28))
+        b.box((2.7, 11.3, 0.12), (0, 0.1, floor - 0.04), mat=PAINT, tint=DARK)
+        for i, y in enumerate(axles):
+            for s in (-1, 1):
+                k = 2 * i + (0 if s < 0 else 1)
+                b.beam((s * 1.15, y + 0.9, floor - 0.45), (s * 1.38, y, 0.82), 0.16, 0.2, mat=PAINT, tint=DARK)
+                b.cyl(0.06, 0.8, (s * 1.25, y - 0.35, 1.3), (12 * s, 0, 0), mat=PAINT, tint=YELLOW, sides=8,
+                      solid=False)
+                if k in missing:
+                    b.cyl(0.3, 0.06, (s * 1.62, y, 0.8), (0, 90, 0), mat=RUST, tint=(1, 1, 1), sides=16, solid=False)
+                    b.cyl(0.14, 0.18, (s * 1.7, y, 0.8), (0, 90, 0), mat=PAINT, tint=GREY, sides=12, solid=False)
+                    for j in range(8):
+                        a = 2 * math.pi * j / 8
+                        b.cyl(0.02, 0.09, (s * 1.67, y + math.cos(a) * 0.17, 0.8 + math.sin(a) * 0.17),
+                              (0, 90, 0), mat=PAINT, tint=GREY, sides=6, solid=False, vary=0)
+                else:
+                    b.piece("wheel-crawler", (s * 1.75, y, 0), (0, 0, 0 if s < 0 else 180))
+                # Fender over the wheel.
+                with b.frame((s * 1.75, y, 0.8), (0, 90, 0)):
+                    arc_panel(b, 1.0, 100.0, 260.0, -0.36, 0.36,
+                                      0.04, 8, mat=PAINT, tint=srgb(0.3, 0.31, 0.3))
+        # The cab: floor, nose, roof, walls, raked windscreen between its pillars, the door.
+        y0, y1 = -5.85, -2.2
+        b.box((W, y1 - y0, 0.1), (0, (y0 + y1) / 2, floor + 0.05), mat=PAINT, tint=GREY)
+        b.box((W, 0.5, 0.62), (0, y0 + 0.2, floor + 0.36), mat=PANEL, tint=tint)
+        roof_y0 = -4.95
+        grid_box(b, (W, y1 - roof_y0, 0.1), (0, (roof_y0 + y1) / 2, floor + 1.95), mat=PANEL, tint=tint)
+        ws = math.degrees(math.atan2(roof_y0 - (y0 + 0.05), 1.95 - 0.67))
+        with b.frame((0, y0 + 0.05, floor + 0.67), (-ws, 0, 0)):
+            length = math.hypot(roof_y0 - (y0 + 0.05), 1.95 - 0.67)
+            b.box((W - 0.3, 0.03, length), (0, 0, length / 2), mat=GLASS, solid=False)
+            for s in (-1, 1):
+                b.box((0.14, 0.1, length + 0.1), (s * (hw - 0.07), 0, length / 2), mat=PANEL, tint=tint)
+        b.box((W - 0.1, 0.4, 0.3), (0, y0 + 0.75, floor + 0.85), mat=PAINT, tint=DARK, solid=False)   # dash
+        door0, door1 = -3.2, -2.25
+        f0, f1 = floor + 0.05, floor + 1.95
+
+        def side(points, x):
+            """A cab side wall: an outline in (y, z), 6 cm thick at x."""
+            with b.frame((x, 0, 0), (0, 0, 90)):
+                b.extrude(points, 0.06, (0, 0, 0), (0, 0, 0), mat=PANEL, tint=tint)
+
+        for s in (-1, 1):
+            wx = s * (hw - 0.03)
+            if s < 0:
+                side([(y0 + 0.05, f0), (y1, f0), (y1, f1), (roof_y0, f1), (y0 + 0.05, floor + 0.67)], wx)
+                b.box((0.03, 1.4, 0.8), (wx - 0.03, -3.5, floor + 1.35), mat=GLASS, solid=False)
+            else:
+                side([(y0 + 0.05, f0), (door0, f0), (door0, f1), (roof_y0, f1), (y0 + 0.05, floor + 0.67)], wx)
+                side([(door1, f0), (y1, f0), (y1, f1), (door1, f1)], wx)
+                b.box((0.03, 0.9, 0.7), (wx + 0.03, -3.9, floor + 1.35), mat=GLASS, solid=False)
+                with b.frame((wx + 0.03, door0, floor + 0.05), (0, 0, -door_open)):
+                    grid_box(b, (0.06, door1 - door0 - 0.04, 1.85), (0.03, (door1 - door0) / 2, 0.95), mat=PANEL,
+                             tint=tint)
+                    b.box((0.03, 0.7, 0.6), (0.07, (door1 - door0) / 2, 1.35), mat=GLASS, solid=False)
+                    b.box((0.012, door1 - door0 - 0.1, 0.24), (0.065, (door1 - door0) / 2, 0.75), mat=PAINT,
+                          tint=band, solid=False, vary=0)
+                from .kit import stairs
+                stairs(b, (wx + 1.12, (door0 + door1) / 2, 0), (0, 0, 90), 0.8, floor + 0.05, 1.1, tint=GREY,
+                       rails=False)
+        grid_box(b, (W - 0.12, 0.06, 1.9), (0, y1 - 0.03, floor + 1.0), mat=PANEL, tint=tint)
+        for x in (-0.6, 0.6):           # seats
+            b.box((0.55, 0.55, 0.45), (x, -4.6, floor + 0.32), mat=MATTE, tint=srgb(0.2, 0.22, 0.24), solid=False)
+            b.box((0.55, 0.12, 0.7), (x, -4.25, floor + 0.85), (-10, 0, 0), mat=MATTE, tint=srgb(0.2, 0.22, 0.24),
+                  solid=False)
+        cab_floor = b.world((0.0, -3.4, floor + 0.1))
+        # The hab module: a long box with windows, a sliding door half open, a rear door and ladder.
+        hy0, hy1 = -2.2, 5.75
+        hh = 2.05
+        grid_box(b, (W, hy1 - hy0, hh), (0, (hy0 + hy1) / 2, floor + hh / 2), mat=PANEL, tint=tint, step=1.0)
+        for s in (-1, 1):
+            for k, y in enumerate((-1.2, 1.0, 3.6)):
+                if s > 0 and k == 1:
+                    continue
+                b.box((0.03, 1.1, 0.6), (s * (hw + 0.012), y, floor + 1.35), mat=GLASS, solid=False)
+            b.box((0.012, hy1 - hy0 - 0.3, 0.36), (s * (hw + 0.008), (hy0 + hy1) / 2, floor + 0.62), mat=PAINT,
+                  tint=band, solid=False, vary=0, wear=0.5)
+            b.box((0.012, hy1 - hy0 - 0.3, 0.07), (s * (hw + 0.008), (hy0 + hy1) / 2, floor + 0.36), mat=PAINT,
+                  tint=stripe, solid=False, vary=0, wear=0.5)
+            stencil(b, code, (s * (hw + 0.015), 2.4 if s < 0 else 4.3, floor + 1.0), (0, 0, 90 * s), 0.3, DARK)
+        # Sliding door (right side), slid back and open: a dark doorway, the leaf over the wall.
+        b.box((0.03, 1.2, 1.9), (hw + 0.012, 1.0, floor + 0.97), mat=MATTE, tint=srgb(0.03, 0.03, 0.035),
+              solid=False, vary=0)
+        b.box((0.05, 1.25, 1.95), (hw + 0.06, 2.15, floor + 0.99), mat=PANEL, tint=tint, solid=False)
+        b.box((0.04, 0.04, 2.0), (hw + 0.09, 1.55, floor + 1.0), mat=PAINT, tint=DARK, solid=False)
+        # Front: bumper, winch, lamps; light bar and antenna on the roof; rear ladder and hitch.
+        b.box((W + 0.1, 0.35, 0.42), (0, y0 - 0.15, 1.22), mat=PAINT, tint=DARK, bevel=0.03)
+        b.cyl(0.17, 0.9, (0, y0 - 0.38, 1.22), (0, 90, 0), mat=PAINT, tint=GREY, sides=14, solid=False)
+        b.cyl(0.19, 0.12, (-0.5, y0 - 0.38, 1.22), (0, 90, 0), mat=PAINT, tint=YELLOW, sides=14, solid=False)
+        b.cyl(0.19, 0.12, (0.5, y0 - 0.38, 1.22), (0, 90, 0), mat=PAINT, tint=YELLOW, sides=14, solid=False)
+        b.box((0.12, 0.2, 0.12), (0, y0 - 0.62, 1.12), mat=PAINT, tint=YELLOW, solid=False)
+        for s in (-1, 1):
+            b.box((0.42, 0.06, 0.2), (s * 0.95, y0 - 0.02, floor + 0.45), mat=GLOSS, tint=srgb(0.9, 0.9, 0.85),
+                  solid=False, vary=0)
+        b.box((2.2, 0.25, 0.14), (0, roof_y0 + 0.3, floor + 2.1), mat=PAINT, tint=DARK, solid=False)
+        if lights:
+            from .kit import lamp
+            for x in (-0.75, -0.25, 0.25, 0.75):
+                lamp(b, (x, roof_y0 + 0.22, floor + 2.26), (-12, 0, 0), size=(0.36, 0.18, 0.2))
+        b.cyl(0.02, 3.0, (0.9, 4.8, floor + hh + 1.5), mat=PAINT, tint=BLACK, sides=5, solid=False)
+        # Roof rack with cargo cases, cans and a bundle under a tarp.
+        top = floor + hh
+        for y in (-1.8, 1.0, 3.8):
+            b.box((W - 0.2, 0.06, 0.06), (0, y, top + 0.22), mat=PAINT, tint=GREY, solid=False)
+        for s in (-1, 1):
+            b.box((0.06, 6.0, 0.06), (s * (hw - 0.15), 1.0, top + 0.22), mat=PAINT, tint=GREY, solid=False)
+            for y in (-1.8, 1.0, 3.8):
+                b.box((0.05, 0.05, 0.22), (s * (hw - 0.15), y, top + 0.11), mat=PAINT, tint=GREY, solid=False)
+        b.box((1.0, 0.7, 0.45), (-0.6, -1.0, top + 0.47), mat=PAINT, tint=srgb(0.3, 0.35, 0.3), solid=False)
+        b.box((0.8, 0.6, 0.4), (0.6, -0.9, top + 0.45), mat=PAINT, tint=ORANGE, solid=False)
+        drape(b, (0.0, 2.6, top + 0.24), (2.2, 2.0), 90.0, 0.4, 3.0, TARP_GREEN, cells=(8, 6))
+        for k in range(3):
+            jerry_can(b, (-0.9 + 0.25 * k, 4.6, top + 0.25), 90.0)
+        # Rear: ladder up to the rack, the hitch.
+        for s in (-1, 1):
+            b.box((0.05, 0.05, top + 0.2 - 0.6), (s * 0.25 - 0.6, hy1 + 0.06, (top + 0.8) / 2), mat=PAINT,
+                  tint=GREY, solid=False)
+        for k in range(int((top - 0.6) / 0.3)):
+            b.box((0.5, 0.04, 0.04), (-0.6, hy1 + 0.06, 0.7 + k * 0.3), mat=PAINT, tint=GREY, solid=False, vary=0)
+        b.marker("ladder", (-0.6, hy1 + 0.4, 0.0), height=round(top, 2))
+        b.box((0.2, 0.9, 0.2), (0, hy1 + 0.4, 0.95), mat=PAINT, tint=DARK)
+        hitch = b.world((0, hy1 + 0.85, 0.95))
+    return cab_floor, hitch
+
+
+def tanker_trailer(b, at, rot=(0, 0, 0), tint=OFFWHITE, band=ORANGE, code="F-3", length=6.0, radius=1.05):
+    """A two-axle fuel tanker trailer: drawbar toward -Y, a round tank on saddles with a walkway, hatches and a
+    ladder, a valve cabinet and hose reel at the rear. Returns the tank's rear valve position (fuel loot goes
+    there) in the monument's frame."""
+    zc = 1.25 + radius
+    hl = length / 2
+    with b.frame(at, rot):
+        for x in (-0.5, 0.5):
+            b.box((0.14, length + 0.4, 0.24), (x, 0.2, 1.12), mat=PAINT, tint=DARK)
+            b.beam((x, -hl + 0.2, 1.1), (0, -hl - 1.6, 0.95), 0.1, 0.12, mat=PAINT, tint=DARK)
+        b.box((0.18, 0.3, 0.14), (0, -hl - 1.7, 0.95), mat=PAINT, tint=GREY, solid=False)
+        wheel(b, (0.3, -hl - 0.8, 0.14), (0, 0, 0), 0.14, 0.08, sides=10)
+        b.cyl(0.045, 0.85, (0.3, -hl - 0.8, 0.6), mat=PAINT, tint=GREY, sides=8, solid=False)
+        for y in (hl - 2.0, hl - 0.8):
+            b.cyl(0.06, 2.0, (0, y, 0.54), (0, 90, 0), mat=PAINT, tint=DARK, sides=8, solid=False)
+            for s in (-1, 1):
+                b.piece("wheel-road", (s * 1.06, y, 0), (0, 0, 0 if s < 0 else 180))
+        for s in (-1, 1):
+            b.box((0.42, 2.6, 0.05), (s * 1.06, hl - 1.4, 1.18), mat=PAINT, tint=DARK, solid=False)
+        # The tank: shell, domed ends, saddles, bands.
+        b.cyl(radius, length, (0, 0.2, zc), (90, 0, 0), mat=PAINT, tint=tint, sides=28)
+        for s in (-1, 1):
+            b.lathe([(radius, 0.0), (radius * 0.9, 0.18), (radius * 0.6, 0.3), (0.0, 0.34)],
+                    (0, 0.2 + s * hl, zc), (-90 * s, 0, 0), mat=PAINT, tint=tint, sides=28)
+        for y in (-hl + 0.8, 0.2, hl - 0.4):
+            b.box((1.6, 0.25, 0.5), (0, y, 1.42), mat=PAINT, tint=DARK, solid=False)
+            b.cyl(radius + 0.02, 0.12, (0, y, zc), (90, 0, 0), mat=PAINT, tint=DARK, sides=28, solid=False, vary=0)
+        b.cyl(radius + 0.012, 0.6, (0, -0.8, zc), (90, 0, 0), mat=PAINT, tint=band, sides=28, solid=False, vary=0)
+        for s in (-1, 1):
+            stencil(b, code, (s * (radius + 0.02), 1.4 if s < 0 else -1.0 + 0.0, zc - 0.15), (0, 0, 90 * s), 0.34,
+                    DARK, align="left")
+            plate(b, (s * (radius + 0.03), 2.4, zc + 0.1), (0, 0, 90 * s), (0.4, 0.3), ORANGE, BLACK, "33",
+                  text_h=0.12)
+        # Walkway, rails, hatches, the ladder at the rear.
+        b.box((0.6, length - 0.8, 0.05), (0, 0.2, zc + radius + 0.06), mat=GRATE, tint=GREY, solid=True, vary=0)
+        for y in (-1.5, 0.4, 2.2):
+            b.cyl(0.25, 0.14, (0, y, zc + radius + 0.12), mat=PAINT, tint=GREY, sides=14, solid=False)
+        for s in (-1, 1):
+            b.box((0.04, length - 1.0, 0.04), (s * 0.35, 0.2, zc + radius + 1.0), mat=PAINT, tint=YELLOW,
+                  solid=False)
+            for y in (-hl + 0.7, 0.2, hl - 0.6):
+                b.box((0.04, 0.04, 0.95), (s * 0.35, y, zc + radius + 0.55), mat=PAINT, tint=YELLOW, solid=False)
+        for k in range(int((zc + radius - 0.4) / 0.3)):
+            b.box((0.45, 0.04, 0.04), (0.45, hl + 0.55, 0.5 + k * 0.3), mat=PAINT, tint=GREY, solid=False, vary=0)
+        for x in (0.22, 0.68):
+            b.box((0.05, 0.05, zc + radius), (x, hl + 0.55, (zc + radius) / 2), mat=PAINT, tint=GREY, solid=False)
+        b.marker("ladder", (0.45, hl + 0.9, 0.0), height=round(zc + radius, 2))
+        # Rear cabinet with valves and a hose reel.
+        b.box((1.4, 0.5, 0.7), (-0.4, hl + 0.35, 1.0), mat=PAINT, tint=GREY, solid=False)
+        for x in (-0.8, -0.4, 0.0):
+            b.cyl(0.07, 0.2, (x, hl + 0.65, 1.05), (90, 0, 0), mat=PAINT, tint=YELLOW, sides=10, solid=False)
+        b.cyl(0.35, 0.3, (-0.4, hl + 0.7, 1.75), (0, 90, 0), mat=PAINT, tint=RED, sides=14, solid=False)
+        b.cyl(0.28, 0.32, (-0.4, hl + 0.7, 1.75), (0, 90, 0), mat=PAINT, tint=BLACK, sides=14, solid=False)
+        for s in (-1, 1):
+            b.box((0.2, 0.04, 0.1), (s * 0.9, hl + 0.62, 0.85), mat=GLOSS, tint=RED, solid=False, vary=0)
+        valve = b.world((-0.4, hl + 1.1, 0.0))
+    return valve
