@@ -9,6 +9,7 @@ using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
 using Hollow.Persistence;
 using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -294,7 +295,48 @@ public sealed partial class GameServer
                     return false;
                 }
                 session.SentDead = null; // the answer comes with fresh respawn choices
-                return Intent(session, m.Seq, () => Zone.Respawn(me, new EntityId(m.Bag)), whileDead: true);
+                return Intent(session, m.Seq, () =>
+                {
+                    ActionResult result = Zone.Respawn(me, new EntityId(m.Bag));
+                    if (result == ActionResult.Accepted && _options.KitEveryLife && _options.JoinKit != null &&
+                        Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(me) is { } p)
+                    {
+                        GiveKit(p, kit);
+                    }
+                    return result;
+                }, whileDead: true);
+            }
+            case FireIntent.TypeId:
+            {
+                FireIntent m = FireIntent.Read(_reader);
+                return !_reader.Failed && GunIntent(session, new GunAction
+                {
+                    Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = Expected(m.Item),
+                    Yaw = Quantize.FromAngle16(m.Yaw), Pitch = Quantize.FromAngle16(m.Pitch), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
+                });
+            }
+            case ReloadIntent.TypeId:
+            {
+                ReloadIntent m = ReloadIntent.Read(_reader);
+                return !_reader.Failed && GunIntent(session, new GunAction
+                {
+                    Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Reload, Slot = m.Slot, Item = Expected(m.Item), Ammo = Expected(m.Ammo),
+                });
+            }
+            case AttachIntent.TypeId:
+            {
+                AttachIntent m = AttachIntent.Read(_reader);
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Attach(me, m.From, m.Slot, m.WeaponIn, m.WeaponSlot, Expected(m.Expected)));
+            }
+            case DetachIntent.TypeId:
+            {
+                DetachIntent m = DetachIntent.Read(_reader);
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Detach(me, m.WeaponIn, m.WeaponSlot, m.Mod));
+            }
+            case HelpUpIntent.TypeId:
+            {
+                HelpUpIntent m = HelpUpIntent.Read(_reader);
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.HelpUp(me, new EntityId(m.Target)));
             }
             default:
                 return false;
@@ -328,6 +370,23 @@ public sealed partial class GameServer
         }
         session.PendingResults.Add(new IntentResult { Seq = seq, Result = result });
         session.LastIntentSeq = Math.Max(session.LastIntentSeq, seq);
+        return true;
+    }
+
+    // A shot or reload: from its own budget (a refused one is still answered in order), queued for its tick in the zone.
+    private bool GunIntent(PlayerSession session, GunAction action)
+    {
+        SurvivalTuning s = Content.Survival;
+        session.GunActions++;
+        if (!session.SpendGunToken(Zone.Tick, s.GunBurst, s.GunActionsPerSecond))
+        {
+            action.Refused = GunResult.RateLimited;
+            session.GunRateLimited++;
+        }
+        if (session.Playing)
+        {
+            Zone.QueueGunAction(session.Entity, action);
+        }
         return true;
     }
 
@@ -399,6 +458,7 @@ public sealed partial class GameServer
                         Damage = Tenths(e.Amount),
                         Killed = e.Target == HitTarget.Character && e.Flag,
                         WeakSpot = e.Target == HitTarget.Natural && e.Flag,
+                        Downed = e.Downed,
                     }.WriteMessage(_writer);
                     Send(to);
                     break;
@@ -428,13 +488,20 @@ public sealed partial class GameServer
                     new ProjectileLaunch
                     {
                         Id = e.Projectile, Shooter = shooter, Ammo = e.Item, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z,
-                        VelocityX = e.Velocity.X, VelocityY = e.Velocity.Y, VelocityZ = e.Velocity.Z,
+                        VelocityX = e.Velocity.X, VelocityY = e.Velocity.Y, VelocityZ = e.Velocity.Z, Seq = e.Seq, Silenced = e.Flag && e.Seq != 0,
                     }.WriteMessage(_writer);
-                    SendNear(e.Position);
+                    // Bullets are cosmetic to others and many: unreliable (ARCHITECTURE.md §11.3); arrows stay reliable.
+                    SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
                     break;
                 case ZoneEventKind.ProjectileEnded:
                     new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target }.WriteMessage(_writer);
-                    SendNear(e.Position);
+                    SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
+                    break;
+                case ZoneEventKind.Wounded:
+                    Log($"{NameOf(e.Player)} is down: {e.Text}" + (e.Other.IsNone ? "" : $", by {NameOf(e.Other)}"));
+                    break;
+                case ZoneEventKind.Recovered:
+                    Log($"{NameOf(e.Player)} is up again" + (e.Other.IsNone ? "" : $", helped by {NameOf(e.Other)}"));
                     break;
             }
         }
@@ -443,14 +510,14 @@ public sealed partial class GameServer
 
     private string NameOf(EntityId id) => Zone.TryFindPlayer(id, out _, out Player p) ? p.Name : id.ToString();
 
-    private void SendNear(Vector3 point)
+    private void SendNear(Vector3 point, DeliveryMethod method = DeliveryMethod.ReliableOrdered)
     {
         float radius = _options.RelevanceRadius;
         foreach (PlayerSession session in _sessions.Values)
         {
             if (session.Playing && Vector3.DistanceSquared(Zone.Entities.Get<Character>(session.Entity).State.Position, point) <= radius * radius)
             {
-                Send(session);
+                session.Peer.Send(_writer.Data, method);
             }
         }
     }
@@ -498,6 +565,7 @@ public sealed partial class GameServer
                 Temperature = (sbyte)Math.Clamp(Math.Round(v.Temperature), -127, 127),
                 Bleeding = (byte)Math.Clamp(Math.Ceiling(v.Bleeding), 0, 255),
                 Healing = (byte)Math.Clamp(Math.Ceiling(v.PendingHeal), 0, 255),
+                Burning = (byte)Math.Clamp(Math.Ceiling(v.Burning), 0, 255),
                 Cold = (byte)Math.Clamp(v.Cold * 255, 0, 255),
                 Comfort = v.Comfort,
                 Wet = v.WetSeconds > 0,
@@ -517,11 +585,49 @@ public sealed partial class GameServer
             new CraftQueueState { LastSeq = session.LastIntentSeq, ServerTick = (uint)Zone.Tick, NextTicket = p.Crafting.NextTicket, Jobs = jobs }.WriteMessage(_writer);
             Send(session);
         }
-        if (session.SentDead != p.Dead)
+        if (session.SentDead != p.Dead || session.SentWounded != p.Wounded)
         {
             session.SentDead = p.Dead;
+            session.SentWounded = p.Wounded;
             SendLife(session, p);
         }
+        if (p.GunRevision != session.SentGun)
+        {
+            session.SentGun = p.GunRevision;
+            SendGun(session, p);
+        }
+    }
+
+    // The gun in hand as the server has it, after the last action it applied: the client starts its prediction again here.
+    private void SendGun(PlayerSession session, Player p)
+    {
+        GunState g = p.Gun;
+        ItemStack weapon = g.Slot < PlayerInventory.BeltSlots ? p.Inventory.Belt[g.Slot] : default;
+        bool held = g.Item != 0 && weapon.Item == g.Item;
+        _writer.Reset();
+        new GunUpdate
+        {
+            LastSeq = g.LastSeq,
+            RefusedSeq = p.GunRefusedSeq,
+            Refused = p.GunRefused,
+            Slot = g.Slot,
+            Item = g.Item,
+            Loaded = held ? weapon.Loaded : 0u,
+            LoadedAmmo = held ? weapon.LoadedAmmo : 0u,
+            EquipReadyTick = (ulong)Math.Max(0, g.EquipReadyTick),
+            NextFire16 = (ulong)Math.Max(0, g.NextFire16),
+            ReloadStartTick = g.Reloading ? (ulong)Math.Max(0, g.ReloadStartTick) : 0,
+            ReloadEndTick = g.Reloading ? (ulong)Math.Max(1, g.ReloadEndTick) : 0,
+            ReloadAmmo = g.ReloadAmmo,
+            ShotTick = g.Recoil.ShotTick < 0 ? 0 : (ulong)Math.Max(1, g.Recoil.ShotTick),
+            RecoilPitch = g.Recoil.Pitch,
+            RecoilYaw = g.Recoil.Yaw,
+            StartPitch = g.Recoil.StartPitch,
+            StartYaw = g.Recoil.StartYaw,
+            Bloom = g.Recoil.Bloom,
+            RecoilIndex = (ushort)Math.Min((int)g.Recoil.Index, 63),
+        }.WriteMessage(_writer);
+        Send(session);
     }
 
     private void SendLife(PlayerSession session, Player p)
@@ -547,6 +653,8 @@ public sealed partial class GameServer
         new LifeState
         {
             Dead = p.Dead,
+            Wounded = p.Wounded && !p.Dead,
+            WoundedSeconds = p.Wounded ? (uint)Math.Max(0, Math.Ceiling((p.WoundedUntilTick - Zone.Tick) / (double)TickRate)) : 0,
             Cause = p.Dead ? p.DeathCause : "",
             KilledBy = p.Dead ? p.KilledBy : "",
             BeachReadySeconds = (uint)Math.Max(0, Math.Ceiling((p.BeachReadyAtUnixMs - Zone.UnixMilliseconds) / 1000.0)),
@@ -573,7 +681,11 @@ public sealed partial class GameServer
     private static SlotNet Slot(Container container, int index)
     {
         ItemStack s = container[index];
-        return new SlotNet { Index = (byte)index, Item = s.Item, Count = (uint)Math.Max(0, s.Count), Condition = s.Condition };
+        return new SlotNet
+        {
+            Index = (byte)index, Item = s.Item, Count = (uint)Math.Max(0, s.Count), Condition = s.Condition,
+            Gun = s.HasWeaponState ? new[] { new GunNet { Loaded = s.Loaded, LoadedAmmo = s.LoadedAmmo, Sight = s.Sight, Muzzle = s.Muzzle, Rail = s.Rail } } : null!,
+        };
     }
 
     // Changed slots go to everyone who sees the container: its owner, and whoever is looting it.
@@ -901,6 +1013,12 @@ public sealed class GameCounters
     public long Deaths { get; private set; }
     public long Arrows { get; private set; }
 
+    /// <summary>G4: bullets fired, their hits on characters, players knocked down and up again.</summary>
+    public long Shots { get; private set; }
+    public long BulletHits { get; private set; }
+    public long Downed { get; private set; }
+    public long Recovered { get; private set; }
+
     public void Count(in ZoneEvent e)
     {
         switch (e.Kind)
@@ -918,6 +1036,10 @@ public sealed class GameCounters
             case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Character:
                 CharacterHits++;
                 Kills += e.Flag ? 1 : 0;
+                Downed += e.Downed ? 1 : 0;
+                break;
+            case ZoneEventKind.Recovered:
+                Recovered++;
                 break;
             case ZoneEventKind.CraftFinished:
                 Crafted += e.Count;
@@ -925,13 +1047,20 @@ public sealed class GameCounters
             case ZoneEventKind.Died:
                 Deaths++;
                 break;
+            case ZoneEventKind.ProjectileLaunched when e.Seq != 0:
+                Shots++;
+                break;
             case ZoneEventKind.ProjectileLaunched:
                 Arrows++;
+                break;
+            case ZoneEventKind.ProjectileEnded when e.Seq != 0 && e.Target == HitTarget.Character:
+                BulletHits++;
                 break;
         }
     }
 
     public override string ToString() =>
         $"{GatherHits} gathering hits ({WeakSpotHits} on the weak spot) for {Gathered} items, {PickedUp} items picked up, " +
-        $"{Crafted} crafted, {Arrows} arrows, {CharacterHits} hits on players, {Kills} kills, {Deaths} deaths";
+        $"{Crafted} crafted, {Arrows} arrows, {Shots} shots ({BulletHits} hit someone), {CharacterHits} hits on players, {Kills} kills, " +
+        $"{Downed} knocked down ({Recovered} up again), {Deaths} deaths";
 }

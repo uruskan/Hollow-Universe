@@ -857,7 +857,8 @@ no input can have is refused. Then:
   spread cone; never steeper than 85°. The cone: hip or aimed (attachments scale it), wider moving, in the air, narrower
   crouched, plus the bloom left.
 - **Randomness** (the cone's point, the kick's random part) comes from a seed both sides know: the shooter and the shot's
-  sequence number. So the server and the shooter's client compute the same direction and recoil, bit for bit.
+  sequence number. So the server and the shooter's client compute the same direction and recoil, bit for bit
+  (`GunNetTests` replays a recorded input stream through both).
 - **The gun moves on:** the cadence deadline (RustMVP: a deadline crossed since the previous tick carries over, so 4.5
   ticks average out; a pause restarts it), a round out of the magazine, one point of condition (a gun that breaks gives
   back its rounds and attachments), the kick.
@@ -912,6 +913,60 @@ asleep. Down:
 - after 40–50 s they get up by themselves with a chance of 20%, up to 45% when fed and watered (Rust's), else they die
   of what downed them, killed by whoever did;
 - logging off while down is death.
+
+### 6.4 Network, persistence and the client API (G4)
+
+**Protocol** (version 4, `Messages.cs`):
+- **Shots and reloads** are intents for a tick: `FireIntent` (the gun action's sequence number, the client's tick, the
+  gun's belt slot and item, the view as that tick's input carries it, aimed, the view delay) and `ReloadIntent`
+  (sequence, tick, gun, rounds). They have their own sequence and budget (RustMVP's weapon budget: 20 at once, 30 a
+  second, a refused one still answered in order). The server queues them for their tick and applies them then, in order;
+  a late one (resent after a loss) as of its tick, refused when older than the rewind limit.
+- **`GunUpdate`** (to the owner, reliable, whenever the gun changes: an action applied, a reload done, an equip): the
+  last action applied and the last refused (with the `GunResult`), the gun, its magazine, and its equip, cadence and
+  reload ticks and recoil exactly (doubles), so the client's prediction starts again from exactly there.
+- **Other intents** (the general sequence, answered by `IntentResult`): `AttachIntent`, `DetachIntent`, `HelpUpIntent`.
+- **Slots** carry a firearm's magazine and attachments (`GunNet`, one bit when absent).
+- **Others see** (`CharacterNetState`): aiming, the held gun's attachments (a bit each, weapons.json order), the crawling
+  stance (2 bits) and the reload action (3 bits); shots by `ActionCount` as in G2, and each bullet's `ProjectileLaunch`
+  (now with the shot's sequence and whether silenced) and `ProjectileEnd` (`HitTarget.Nothing` for one spent in the air).
+  Bullets' launches and ends are unreliable (cosmetic and many, ARCHITECTURE.md §11.3); arrows' stay reliable.
+- **The player's own state:** `LifeState` says down and for how long; `VitalsUpdate` carries burning; `HitMarker` says when
+  the hit knocked the victim down.
+
+**Persistence** (records version 2, `WorldCodec`): stacks carry a firearm's magazine and attachments, decoded as untrusted
+(rounds of another calibre and attachments the gun doesn't take are dropped, the magazine clamped to its size);
+characters keep burning and whether they were down; one saved down (a server stopped meanwhile) comes back dead, into a
+corpse, killed by whoever downed them.
+
+**The client** (`Hollow.Client`). `Local.Gun` (`LocalGun`) predicts the gun in hand with the server's rules: every tick,
+after movement, it takes up what is in hand, ends a reload that is due, starts one asked for, and fires if the trigger
+says so (RustMVP's `TriggerState`: a press, even one released before the tick, or a hold; automatic repeats; a tap that
+comes too early is lost), sending the intent for that tick. A `GunUpdate` drops the actions it covers and the prediction
+replays the rest from the server's state, as movement does; on a clean line nothing is ever corrected (`GunNetTests`).
+
+| Member | What |
+|---|---|
+| `Local.Gun`: `Weapon`, `Loaded`, `LoadedAmmo`, `Reserve`, `Reloading`, `ReloadProgress`, `Ready`, `Aimed`, `Zoom`, `Mods`, `Spread`, `PendingCount` | The gun in hand as predicted: its numbers (or null), the magazine and its rounds, rounds a reload would load, a reload's progress (0–1), equipped, aimed down the sights, the aimed magnification (the camera: fov′ = 2·atan(tan(fov/2)/zoom)), its attachments (silenced, light), the spread cone now (degrees, for the crosshair). |
+| `Local.Gun.ViewKick` | The recoil's offset of the camera now (yaw, pitch in radians; yaw + is to the left): add it to the camera every frame, never to the view the player controls. |
+| `Local.Gun.ObserveLook(dYaw, dPitch)`, `TakeCompensation()` | Every frame: the mouse's turn of the view; then what to add to the controlled view as the recoil recovers (RustMVP's countersteer credit, so pulling against a spray doesn't drop the aim when it ends). |
+| `Local.Gun.ShotFired` (`ShotEvent`: sequence, weapon, round, origin, direction, speed, silenced, aimed) | A shot, at once: muzzle flash, sound, viewmodel kick, the tracer. The direction is the server's to the bit when the prediction holds. |
+| `Local.Gun.ReloadStarted`, `ReloadFinished` (`ReloadEvent`: weapon, round, seconds) | A reload began (at once) and ended. |
+| `Local.Gun.Refused` (`GunRefusal`: sequence, `GunResult`) | The server refused a shot or reload (already rolled back), or a reload couldn't start (no rounds, full). |
+| `Local.Reload(ammo)`, `Local.Attach(...)`, `Local.Detach(...)`, `Local.HelpUp(target)` | Intents: reload (with a kind of round, or the loaded kind), put an attachment on a gun or take it off (shown at once), help a wounded player up. |
+| `Local.HitMarker` (`HitMarkerEvent` + `Downed`), `Local.DamageTaken` (`DamageEvent`: from the shooter's eye, the gun) | Hits landed and taken. |
+| `Local.Life.Wounded`, `WoundedUntilSeconds`, `Local.IsWounded`, `Downed`, `GotUp`; `Local.Vitals.Burning` | Down (crawling, a countdown) and up again; burning. |
+| `GameClient.Projectiles` (`ClientProjectile`: `IsBullet`, `Own`, `Seq`, `Drag`, `Silenced`; `PositionAt`, `DirectionAt` follow drag) | Bullets in flight: our own from the moment we fire (the server's launch then names it), others' from their launch; where each stopped and on what. |
+| `RemoteEntity`: `Aiming`, `HeldMods`, `Wounded` (`Stance == Crawling`), `Action == Reload` | Others' guns aimed, their attachments, down, reloading. |
+| `GameClient.Aim` → `InteractionKind.HelpUp`, `Interact` | The interact key on a wounded player helps them up. |
+
+**What the visual layer does with it** (the Godot work after the integration package): add `ViewKick` to the camera and
+the compensation to the view; zoom the camera by `Zoom` while `Aimed`; on `ShotFired` the muzzle flash (none when
+silenced), the sound, the viewmodel's kick and a tracer from the muzzle to the shot's line; draw `Projectiles` that are
+bullets as tracers and their impacts by `EndTarget` (nothing for `Nothing`); others' shots and reloads from `ActionCount`
+and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attachments (and a light cone) from `HeldMods`;
+the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
+(head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
 ---
 

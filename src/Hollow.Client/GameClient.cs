@@ -134,6 +134,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _net.StartInManualMode(0);
         Content = options.Content ?? GameContent.LoadDefault();
         Local = new LocalPlayer(Content) { Send = SendReliable };
+        Local.Gun.ShotFired += OnOwnShot;
     }
 
     public ClientState State { get; private set; }
@@ -269,6 +270,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
                 _tickClock = _nextTick;
             }
             UpdateRender(delta);
+            Local.Gun.Render(_tickClock);
             if (_remoteClockStarted)
             {
                 _remoteClock += delta * TickRate;
@@ -333,6 +335,11 @@ public sealed partial class GameClient : INetEventListener, IDisposable
             _predictor.Predict(tick);
         }
         _predictor.EndTick();
+        if (_predictor.HasState)
+        {
+            // G4: the gun in hand fires (or reloads) on this tick's predicted state, and sends its intent for this tick.
+            Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frame, _predictor.Tuning, EntityId, !Local.IsDead && !Local.IsWounded);
+        }
 
         // The packet: this tick's input and the three before it, and which snapshots arrived.
         for (int i = _sent.Length - 1; i > 0; i--)
@@ -384,7 +391,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         }
         RenderPosition = position + _smoothing;
         MovementTuning tuning = _predictor.Tuning;
-        float eye = current.Stance == Stance.Crouching ? tuning.CrouchingEyeHeight : tuning.StandingEyeHeight;
+        float eye = tuning.EyeHeight(current.Stance);
         _eyeHeight += (eye - _eyeHeight) * (float)(1 - Math.Exp(-delta * tuning.EyeHeightRate));
     }
 

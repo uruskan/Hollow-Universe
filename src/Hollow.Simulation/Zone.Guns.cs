@@ -492,7 +492,7 @@ public sealed partial class Zone
 
     /// <summary>
     /// Puts an attachment (from the player's main slots or belt) on a firearm (also in them): into its slot, swapping out
-    /// what was there (it goes where the attachment came from). The gun must take it.
+    /// what was there (it goes where the attachment came from). The gun must take it (<see cref="AttachmentRules"/>).
     /// </summary>
     public ActionResult Attach(Entity entity, ContainerRef from, int slot, ContainerRef weaponIn, int weaponSlot, ushort expected)
     {
@@ -504,35 +504,7 @@ public sealed partial class Zone
         {
             return ActionResult.NotAllowed;
         }
-        Container source = p.Inventory[from], holder = p.Inventory[weaponIn];
-        if (!source.InRange(slot) || !holder.InRange(weaponSlot) || (source == holder && slot == weaponSlot))
-        {
-            return ActionResult.Invalid;
-        }
-        ItemStack part = source[slot];
-        if (part.IsEmpty || (expected != 0 && part.Item != expected))
-        {
-            return ActionResult.Stale;
-        }
-        ItemStack weapon = holder[weaponSlot];
-        if (Content!.Item(part.Item)?.Attachment is not { } attachment || Content.Item(weapon.Item)?.Firearm is not { } gun)
-        {
-            return ActionResult.NotUsable;
-        }
-        if (!gun.Takes(attachment.Item))
-        {
-            return ActionResult.NotAllowed;
-        }
-        ushort old = weapon.Mod(attachment.Slot);
-        weapon.SetMod(attachment.Slot, part.Item);
-        part.Count--;
-        source.Set(slot, part);
-        holder.Set(weaponSlot, weapon);
-        if (old != 0 && Content.Item(old) is { } previous)
-        {
-            source.Set(slot, ItemStack.Of(previous, 1));
-        }
-        return ActionResult.Accepted;
+        return AttachmentRules.Attach(Content!, p.Inventory[from], slot, p.Inventory[weaponIn], weaponSlot, expected);
     }
 
     /// <summary>Takes an attachment off a firearm in the player's main slots or belt, into the inventory (refused when full).</summary>
@@ -546,25 +518,7 @@ public sealed partial class Zone
         {
             return ActionResult.NotAllowed;
         }
-        Container holder = p.Inventory[weaponIn];
-        if (!holder.InRange(weaponSlot) || modSlot > AttachmentSlot.Rail)
-        {
-            return ActionResult.Invalid;
-        }
-        ItemStack weapon = holder[weaponSlot];
-        ushort mod = weapon.Mod(modSlot);
-        if (Content!.Item(weapon.Item)?.Firearm == null || mod == 0 || Content.Item(mod) is not { } part)
-        {
-            return ActionResult.Stale;
-        }
-        if (!p.Inventory.Fits(Content, ItemStack.Of(part, 1)))
-        {
-            return ActionResult.NoSpace;
-        }
-        weapon.SetMod(modSlot, 0);
-        holder.Set(weaponSlot, weapon);
-        p.Inventory.Give(Content, ItemStack.Of(part, 1));
-        return ActionResult.Accepted;
+        return AttachmentRules.Detach(Content!, p.Inventory, p.Inventory[weaponIn], weaponSlot, modSlot);
     }
 
     /// <summary>A gun that broke gives back its rounds and its attachments.</summary>

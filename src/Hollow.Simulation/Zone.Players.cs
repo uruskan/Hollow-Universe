@@ -113,6 +113,12 @@ public sealed partial class Zone
             c.State.Health = 0;
             c.State.Flags = MoveFlags.Dead;
         }
+        else if (player.Wounded)
+        {
+            // Saved while down (a server stopped): the player was gone meanwhile, and a wounded player who is gone dies.
+            player.Wounded = false;
+            Die(entity, player, player.WoundedCause.Length > 0 ? player.WoundedCause : "Bled out", player.WoundedBy, player.WoundedByName);
+        }
         else
         {
             SyncHealth(ref c, player);

@@ -5,6 +5,7 @@
 #nullable enable
 using System;
 using Hollow.Net.Bits;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
@@ -17,7 +18,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x4CC6D9E9ACCEBB6CUL;
+    public const ulong SchemaHash = 0x5494943B96F35264UL;
 }
 
 partial struct Hello
@@ -229,7 +230,7 @@ partial struct OwnState
         w.WriteFloat(VelocityX);
         w.WriteFloat(VelocityY);
         w.WriteFloat(VelocityZ);
-        w.WriteBits((uint)Stance, 1);
+        w.WriteBits((uint)Stance, 2);
         w.WriteBits((uint)Health, 8);
         w.WriteBits((uint)Flags, 4);
     }
@@ -243,7 +244,7 @@ partial struct OwnState
         v.VelocityX = r.ReadFloat();
         v.VelocityY = r.ReadFloat();
         v.VelocityZ = r.ReadFloat();
-        v.Stance = (Stance)r.ReadBits(1);
+        v.Stance = (Stance)r.ReadBits(2);
         v.Health = (byte)r.ReadBits(8);
         v.Flags = (MoveFlags)r.ReadBits(4);
         return v;
@@ -289,12 +290,14 @@ partial struct CharacterNetState
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Pitch, 16);
         w.WriteBits((uint)Flags, 4);
-        w.WriteBits((uint)Stance, 1);
+        w.WriteBits((uint)Stance, 2);
         w.WriteBits((uint)Health, 8);
         w.WriteBits((uint)Held, 16);
         w.WriteBits((uint)ActionCount, 4);
-        w.WriteBits((uint)Action, 2);
+        w.WriteBits((uint)Action, 3);
         w.WriteBool(Sleeping);
+        w.WriteBool(Aiming);
+        w.WriteBits((uint)HeldMods, 8);
     }
 
     public static CharacterNetState Read(BitReader r)
@@ -306,12 +309,14 @@ partial struct CharacterNetState
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
         v.Flags = (MoveFlags)r.ReadBits(4);
-        v.Stance = (Stance)r.ReadBits(1);
+        v.Stance = (Stance)r.ReadBits(2);
         v.Health = (byte)r.ReadBits(8);
         v.Held = (ushort)r.ReadBits(16);
         v.ActionCount = (byte)r.ReadBits(4);
-        v.Action = (ActionKind)r.ReadBits(2);
+        v.Action = (ActionKind)r.ReadBits(3);
         v.Sleeping = r.ReadBool();
+        v.Aiming = r.ReadBool();
+        v.HeldMods = (byte)r.ReadBits(8);
         return v;
     }
 
@@ -375,7 +380,7 @@ partial struct CharacterNetState
         if (Stance != b.Stance)
         {
             w.WriteBool(true);
-            w.WriteBits((uint)Stance, 1);
+            w.WriteBits((uint)Stance, 2);
         }
         else
         {
@@ -411,13 +416,23 @@ partial struct CharacterNetState
         if (Action != b.Action)
         {
             w.WriteBool(true);
-            w.WriteBits((uint)Action, 2);
+            w.WriteBits((uint)Action, 3);
         }
         else
         {
             w.WriteBool(false);
         }
         w.WriteBool(Sleeping);
+        w.WriteBool(Aiming);
+        if (HeldMods != b.HeldMods)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)HeldMods, 8);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
     }
 
     public static CharacterNetState ReadDelta(BitReader r, in CharacterNetState b)
@@ -449,7 +464,7 @@ partial struct CharacterNetState
         }
         if (r.ReadBool())
         {
-            v.Stance = (Stance)r.ReadBits(1);
+            v.Stance = (Stance)r.ReadBits(2);
         }
         if (r.ReadBool())
         {
@@ -465,13 +480,18 @@ partial struct CharacterNetState
         }
         if (r.ReadBool())
         {
-            v.Action = (ActionKind)r.ReadBits(2);
+            v.Action = (ActionKind)r.ReadBits(3);
         }
         v.Sleeping = r.ReadBool();
+        v.Aiming = r.ReadBool();
+        if (r.ReadBool())
+        {
+            v.HeldMods = (byte)r.ReadBits(8);
+        }
         return v;
     }
 
-    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping;
+    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping && Aiming == o.Aiming && HeldMods == o.HeldMods;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in CharacterNetState b)
@@ -483,17 +503,19 @@ partial struct CharacterNetState
         bits += Yaw == b.Yaw ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Yaw - b.Yaw)));
         bits += Pitch == b.Pitch ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Pitch - b.Pitch)));
         bits += Flags == b.Flags ? 1 : 5;
-        bits += Stance == b.Stance ? 1 : 2;
+        bits += Stance == b.Stance ? 1 : 3;
         bits += Health == b.Health ? 1 : 9;
         bits += Held == b.Held ? 1 : 17;
         bits += ActionCount == b.ActionCount ? 1 : 5;
-        bits += Action == b.Action ? 1 : 3;
+        bits += Action == b.Action ? 1 : 4;
         bits += 1;
+        bits += 1;
+        bits += HeldMods == b.HeldMods ? 1 : 9;
         return bits;
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 164;
+    public const int FullBits = 175;
 }
 
 partial struct Spawn
@@ -820,6 +842,8 @@ partial struct ProjectileLaunch
         w.WriteFloat(VelocityX);
         w.WriteFloat(VelocityY);
         w.WriteFloat(VelocityZ);
+        w.WriteVarUInt(Seq);
+        w.WriteBool(Silenced);
     }
 
     public static ProjectileLaunch Read(BitReader r)
@@ -834,6 +858,8 @@ partial struct ProjectileLaunch
         v.VelocityX = r.ReadFloat();
         v.VelocityY = r.ReadFloat();
         v.VelocityZ = r.ReadFloat();
+        v.Seq = r.ReadVarUInt();
+        v.Silenced = r.ReadBool();
         return v;
     }
 }
@@ -855,7 +881,7 @@ partial struct ProjectileEnd
         w.WriteFloat(X);
         w.WriteFloat(Y);
         w.WriteFloat(Z);
-        w.WriteBits((uint)Target, 2);
+        w.WriteBits((uint)Target, 3);
     }
 
     public static ProjectileEnd Read(BitReader r)
@@ -865,7 +891,7 @@ partial struct ProjectileEnd
         v.X = r.ReadFloat();
         v.Y = r.ReadFloat();
         v.Z = r.ReadFloat();
-        v.Target = (HitTarget)r.ReadBits(2);
+        v.Target = (HitTarget)r.ReadBits(3);
         return v;
     }
 }
@@ -1246,6 +1272,29 @@ partial struct IntentResult
     }
 }
 
+partial struct GunNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Loaded);
+        w.WriteVarUInt(LoadedAmmo);
+        w.WriteVarUInt(Sight);
+        w.WriteVarUInt(Muzzle);
+        w.WriteVarUInt(Rail);
+    }
+
+    public static GunNet Read(BitReader r)
+    {
+        var v = new GunNet();
+        v.Loaded = r.ReadVarUInt();
+        v.LoadedAmmo = r.ReadVarUInt();
+        v.Sight = r.ReadVarUInt();
+        v.Muzzle = r.ReadVarUInt();
+        v.Rail = r.ReadVarUInt();
+        return v;
+    }
+}
+
 partial struct SlotNet
 {
     public readonly void Write(BitWriter w)
@@ -1254,6 +1303,12 @@ partial struct SlotNet
         w.WriteVarUInt(Item);
         w.WriteVarUInt(Count);
         w.WriteVarUInt(Condition);
+        int countGun = Gun == null ? 0 : Math.Min(Gun.Length, 1);
+        w.WriteBits((uint)countGun, 1);
+        for (int i = 0; i < countGun; i++)
+        {
+            Gun![i].Write(w);
+        }
     }
 
     public static SlotNet Read(BitReader r)
@@ -1263,6 +1318,17 @@ partial struct SlotNet
         v.Item = r.ReadVarUInt();
         v.Count = r.ReadVarUInt();
         v.Condition = r.ReadVarUInt();
+        int countGun = (int)r.ReadBits(1);
+        if (countGun > 1)
+        {
+            r.Fail();
+            countGun = 0;
+        }
+        v.Gun = new GunNet[countGun];
+        for (int i = 0; i < countGun; i++)
+        {
+            v.Gun[i] = GunNet.Read(r);
+        }
         return v;
     }
 }
@@ -1402,6 +1468,7 @@ partial struct VitalsUpdate
         w.WriteSigned(Temperature, 8);
         w.WriteBits((uint)Bleeding, 8);
         w.WriteBits((uint)Healing, 8);
+        w.WriteBits((uint)Burning, 8);
         w.WriteBits((uint)Cold, 8);
         w.WriteBool(Comfort);
         w.WriteBool(Wet);
@@ -1416,6 +1483,7 @@ partial struct VitalsUpdate
         v.Temperature = (sbyte)r.ReadSigned(8);
         v.Bleeding = (byte)r.ReadBits(8);
         v.Healing = (byte)r.ReadBits(8);
+        v.Burning = (byte)r.ReadBits(8);
         v.Cold = (byte)r.ReadBits(8);
         v.Comfort = r.ReadBool();
         v.Wet = r.ReadBool();
@@ -1504,21 +1572,23 @@ partial struct HitMarker
 
     public readonly void Write(BitWriter w)
     {
-        w.WriteBits((uint)Target, 2);
+        w.WriteBits((uint)Target, 3);
         w.WriteBits((uint)Region, 2);
         w.WriteVarUInt(Damage);
         w.WriteBool(Killed);
         w.WriteBool(WeakSpot);
+        w.WriteBool(Downed);
     }
 
     public static HitMarker Read(BitReader r)
     {
         var v = new HitMarker();
-        v.Target = (HitTarget)r.ReadBits(2);
+        v.Target = (HitTarget)r.ReadBits(3);
         v.Region = (HitRegion)r.ReadBits(2);
         v.Damage = r.ReadVarUInt();
         v.Killed = r.ReadBool();
         v.WeakSpot = r.ReadBool();
+        v.Downed = r.ReadBool();
         return v;
     }
 }
@@ -1648,6 +1718,8 @@ partial struct LifeState
     public readonly void Write(BitWriter w)
     {
         w.WriteBool(Dead);
+        w.WriteBool(Wounded);
+        w.WriteVarUInt(WoundedSeconds);
         w.WriteString(Cause, 64);
         w.WriteString(KilledBy, 32);
         w.WriteVarUInt(BeachReadySeconds);
@@ -1663,6 +1735,8 @@ partial struct LifeState
     {
         var v = new LifeState();
         v.Dead = r.ReadBool();
+        v.Wounded = r.ReadBool();
+        v.WoundedSeconds = r.ReadVarUInt();
         v.Cause = r.ReadString(64);
         v.KilledBy = r.ReadString(32);
         v.BeachReadySeconds = r.ReadVarUInt();
@@ -1677,6 +1751,226 @@ partial struct LifeState
         {
             v.Bags[i] = BagNet.Read(r);
         }
+        return v;
+    }
+}
+
+partial struct FireIntent
+{
+    public const byte TypeId = 62;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Tick, 32);
+        w.WriteBits((uint)Slot, 3);
+        w.WriteVarUInt(Item);
+        w.WriteBits((uint)Yaw, 16);
+        w.WriteBits((uint)Pitch, 16);
+        w.WriteBool(Aimed);
+        w.WriteBits((uint)ViewDelay, 8);
+    }
+
+    public static FireIntent Read(BitReader r)
+    {
+        var v = new FireIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Tick = (uint)r.ReadBits(32);
+        v.Slot = (byte)r.ReadBits(3);
+        v.Item = r.ReadVarUInt();
+        v.Yaw = (ushort)r.ReadBits(16);
+        v.Pitch = (ushort)r.ReadBits(16);
+        v.Aimed = r.ReadBool();
+        v.ViewDelay = (byte)r.ReadBits(8);
+        return v;
+    }
+}
+
+partial struct ReloadIntent
+{
+    public const byte TypeId = 63;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)Tick, 32);
+        w.WriteBits((uint)Slot, 3);
+        w.WriteVarUInt(Item);
+        w.WriteVarUInt(Ammo);
+    }
+
+    public static ReloadIntent Read(BitReader r)
+    {
+        var v = new ReloadIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Tick = (uint)r.ReadBits(32);
+        v.Slot = (byte)r.ReadBits(3);
+        v.Item = r.ReadVarUInt();
+        v.Ammo = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct AttachIntent
+{
+    public const byte TypeId = 64;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+        w.WriteBits((uint)WeaponIn, 3);
+        w.WriteBits((uint)WeaponSlot, 8);
+        w.WriteVarUInt(Expected);
+    }
+
+    public static AttachIntent Read(BitReader r)
+    {
+        var v = new AttachIntent();
+        v.Seq = r.ReadVarUInt();
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
+        v.WeaponIn = (ContainerRef)r.ReadBits(3);
+        v.WeaponSlot = (byte)r.ReadBits(8);
+        v.Expected = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct DetachIntent
+{
+    public const byte TypeId = 65;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits((uint)WeaponIn, 3);
+        w.WriteBits((uint)WeaponSlot, 8);
+        w.WriteBits((uint)Mod, 2);
+    }
+
+    public static DetachIntent Read(BitReader r)
+    {
+        var v = new DetachIntent();
+        v.Seq = r.ReadVarUInt();
+        v.WeaponIn = (ContainerRef)r.ReadBits(3);
+        v.WeaponSlot = (byte)r.ReadBits(8);
+        v.Mod = (AttachmentSlot)r.ReadBits(2);
+        return v;
+    }
+}
+
+partial struct HelpUpIntent
+{
+    public const byte TypeId = 66;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits64(Target, 64);
+    }
+
+    public static HelpUpIntent Read(BitReader r)
+    {
+        var v = new HelpUpIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Target = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct GunUpdate
+{
+    public const byte TypeId = 81;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(LastSeq);
+        w.WriteVarUInt(RefusedSeq);
+        w.WriteBits((uint)Refused, 4);
+        w.WriteBits((uint)Slot, 3);
+        w.WriteVarUInt(Item);
+        w.WriteVarUInt(Loaded);
+        w.WriteVarUInt(LoadedAmmo);
+        w.WriteVarULong(EquipReadyTick);
+        w.WriteVarULong(NextFire16);
+        w.WriteVarULong(ReloadStartTick);
+        w.WriteVarULong(ReloadEndTick);
+        w.WriteVarUInt(ReloadAmmo);
+        w.WriteVarULong(ShotTick);
+        w.WriteDouble(RecoilPitch);
+        w.WriteDouble(RecoilYaw);
+        w.WriteDouble(StartPitch);
+        w.WriteDouble(StartYaw);
+        w.WriteDouble(Bloom);
+        w.WriteBits((uint)RecoilIndex, 6);
+    }
+
+    public static GunUpdate Read(BitReader r)
+    {
+        var v = new GunUpdate();
+        v.LastSeq = r.ReadVarUInt();
+        v.RefusedSeq = r.ReadVarUInt();
+        v.Refused = (GunResult)r.ReadBits(4);
+        v.Slot = (byte)r.ReadBits(3);
+        v.Item = r.ReadVarUInt();
+        v.Loaded = r.ReadVarUInt();
+        v.LoadedAmmo = r.ReadVarUInt();
+        v.EquipReadyTick = r.ReadVarULong();
+        v.NextFire16 = r.ReadVarULong();
+        v.ReloadStartTick = r.ReadVarULong();
+        v.ReloadEndTick = r.ReadVarULong();
+        v.ReloadAmmo = r.ReadVarUInt();
+        v.ShotTick = r.ReadVarULong();
+        v.RecoilPitch = r.ReadDouble();
+        v.RecoilYaw = r.ReadDouble();
+        v.StartPitch = r.ReadDouble();
+        v.StartYaw = r.ReadDouble();
+        v.Bloom = r.ReadDouble();
+        v.RecoilIndex = (ushort)r.ReadBits(6);
         return v;
     }
 }

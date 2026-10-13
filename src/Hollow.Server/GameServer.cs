@@ -577,6 +577,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 state.ActionCount = (byte)(p.ActionCount & 15);
                 state.Action = p.LastAction;
                 state.Sleeping = p.Sleeping && !p.Dead;
+                // G4: a gun aimed down its sights, and what is on it, for others to draw.
+                state.HeldMods = p.CanAct ? Zone.HeldGunLook(p) : (byte)0;
+                state.Aiming = p.CanAct && p.Gun.Item != 0 && !p.Gun.Reloading && character.Actions.Has(ActionButtons.Secondary);
             }
             _netStates[values[i].NetId] = (entity, state);
         }

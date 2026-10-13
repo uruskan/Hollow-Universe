@@ -38,6 +38,9 @@ public sealed record ServerOptions
     /// <summary>A loot table every new character also gets (the load test's full inventories); null: none.</summary>
     public string? JoinKit { get; init; }
 
+    /// <summary>Gives <see cref="JoinKit"/> with every new life too, not only to new characters (the G4 load test's firefights).</summary>
+    public bool KitEveryLife { get; init; }
+
     /// <summary>The game's data (game/data/ground); null finds and loads it (GameContent.FindFolder).</summary>
     public Simulation.Content.GameContent? Content { get; init; }
 
