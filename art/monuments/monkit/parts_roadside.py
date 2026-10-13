@@ -3003,3 +3003,104 @@ def lobster_pot(b, at, yaw=0.0):
         with b.frame((0, 0, 0.05), (0, 90, 0)):
             arc_panel(b, 0.25, 90.0, 270.0, -0.32, 0.32, 0.01, 4, mat=CHAINLINK, tint=srgb(0.3, 0.45, 0.4))
         b.collide_box(Vector((0, 0, 0.2)), (0.7, 0.5, 0.4), (0, 0, 0))
+
+
+# ------------------------------------------------------------------------------------------------ mining
+
+MINE_YELLOW = srgb(0.90, 0.66, 0.12)
+
+
+def _wheel_haul(b):
+    """A haul truck's wheel: a 2.1 m earthmover tyre with deep chevron lugs on a deep dished rim with a ring of
+    nuts. On the ground, axle along X, outer face toward -X."""
+    r, w = 1.05, 0.78
+    hw = w / 2
+    prof = [(0.56, -hw + 0.03), (0.66, -hw - 0.02), (0.88, -hw - 0.04), (1.0, -hw + 0.02), (1.02, -hw + 0.1),
+            (1.02, hw - 0.1), (1.0, hw - 0.02), (0.88, hw + 0.04), (0.66, hw + 0.02), (0.56, hw - 0.03)]
+    with b.frame((0, 0, r), (0, 90, 0)):
+        b.lathe(prof, (0, 0, 0), mat=MATTE, tint=RUBBER, sides=36, close=False, solid="hull", wear=0.6)
+        for k in range(26):
+            a = 2 * math.pi * k / 26
+            for s in (-1, 1):
+                c = Vector((math.cos(a) * 1.035, math.sin(a) * 1.035, s * hw * 0.42))
+                b.box((0.07, 0.22, hw * 0.92), tuple(c), (0, s * 18.0, math.degrees(a)), mat=MATTE, tint=RUBBER,
+                      solid=False, vary=0)
+        b.cyl(0.57, w - 0.06, (0, 0, 0), mat=PAINT, tint=MINE_YELLOW, sides=24, solid=False)
+        b.lathe([(0.56, 0.0), (0.42, -0.1), (0.25, -0.13), (0.22, -0.2), (0.0, -0.21)], (0, 0, -hw + 0.05),
+                mat=PAINT, tint=MINE_YELLOW, sides=24, close=False, solid=False)
+        for k in range(16):
+            a = 2 * math.pi * k / 16
+            b.cyl(0.03, 0.06, (math.cos(a) * 0.36, math.sin(a) * 0.36, -hw - 0.09), mat=PAINT, tint=GREY, sides=6,
+                  solid=False, vary=0)
+        b.cyl(0.16, 0.12, (0, 0, -hw - 0.18), mat=PAINT, tint=DARK, sides=12, solid=False)
+
+
+kit.PIECES["wheel-haul"] = _wheel_haul
+
+
+def haul_truck(b, at, yaw=0.0, tint=MINE_YELLOW, body_tint=None, tip=0.0, code="HT 06"):
+    """A rigid mining haul truck, about 10 m long and 4.6 m wide: two axles on 2.1 m tyres (twin at the rear), a
+    deck over the engine with the offset cab on the left, a ladder up the front, the radiator grille between the
+    front wheels; the dump body with its canopy over the cab, tipped `tip` degrees on its hinge by two hoist rams.
+    Front toward -Y. Returns the body's floor centre in the monument's frame."""
+    body_tint = body_tint or srgb(0.62, 0.5, 0.28)
+    with b.frame(at, (0, 0, yaw)):
+        # Frame rails, axles, wheels.
+        for x in (-0.7, 0.7):
+            b.box((0.35, 8.6, 0.8), (x, 0.3, 1.5), mat=PAINT, tint=DARK)
+        for y, twin in ((-3.0, False), (2.6, True)):
+            b.box((2.6, 0.7, 0.7), (0, y, 1.05), mat=PAINT, tint=DARK)
+            for s in (-1, 1):
+                b.piece("wheel-haul", (s * 1.65, y, 0.0), (0, 0, 0 if s < 0 else 180))
+                if twin:
+                    b.piece("wheel-haul", (s * 0.85, y, 0.0), (0, 0, 0 if s < 0 else 180))
+        # The front: bumper, grille, the deck over the engine, the cab on the left, the ladder, rails.
+        b.box((4.4, 0.5, 0.7), (0, -4.6, 1.3), mat=PAINT, tint=tint, bevel=0.05)
+        b.box((2.0, 0.4, 1.6), (0, -4.15, 2.3), mat=PAINT, tint=DARK)
+        for k in range(8):
+            b.box((1.8, 0.05, 0.05), (0, -4.37, 1.65 + 0.18 * k), mat=PAINT, tint=GREY, solid=False, vary=0)
+        grid_box(b, (4.6, 1.9, 0.2), (0, -3.55, 3.2), mat=PAINT, tint=tint, step=1.2)
+        grid_box(b, (2.2, 1.8, 1.6), (0, -3.3, 2.3), mat=PAINT, tint=tint, step=1.0)
+        cab = (-1.5, -3.4, 3.3)
+        grid_box(b, (1.4, 1.9, 1.9), (cab[0], cab[1], cab[2] + 0.95), mat=PAINT, tint=tint, step=0.7)
+        b.box((1.5, 2.0, 0.1), (cab[0], cab[1], cab[2] + 1.95), mat=PAINT, tint=DARK)
+        b.box((1.2, 0.02, 0.9), (cab[0], cab[1] - 0.96, cab[2] + 1.25), mat=GLASS, solid=False)
+        b.box((0.02, 1.4, 0.8), (cab[0] - 0.71, cab[1], cab[2] + 1.25), mat=GLASS, solid=False)
+        b.box((0.02, 1.4, 0.8), (cab[0] + 0.71, cab[1], cab[2] + 1.25), mat=GLASS, solid=False)
+        from .kit import railing, stairs
+        for (a, c) in (((-2.25, -4.45, 3.3), (2.25, -4.45, 3.3)), ((2.25, -4.45, 3.3), (2.25, -2.0, 3.3))):
+            railing(b, a, c, 1.0, spacing=1.0, tint=YELLOW, toe=False)
+        stairs(b, (1.0, -5.1, 0.6), (0, 0, 180), 0.6, 2.7, 1.9, tint=GREY, rails=True)
+        for s in (-1, 1):
+            b.box((0.3, 0.06, 0.18), (s * 1.8, -4.86, 1.55), mat=GLOSS, tint=srgb(0.9, 0.9, 0.85), solid=False,
+                  vary=0)
+            b.box((0.5, 0.7, 0.05), (s * 1.75, -3.0, 2.32), mat=PAINT, tint=DARK, solid=False)
+        b.cyl(0.12, 1.2, (1.4, -2.2, 4.0), mat=PAINT, tint=DARK, sides=8, solid=False)
+        b.cyl(0.6, 1.8, (1.75, -1.2, 2.0), (90, 0, 0), mat=PAINT, tint=DARK, sides=14)
+        stencil(b, code, (-2.31, -3.2, 2.7), (0, 0, -90), 0.3, DARK)
+        # The dump body on its hinge at the rear, the hoist rams, the canopy over the cab.
+        hinge = Vector((0, 4.4, 2.0))
+        with b.frame(tuple(hinge), (-tip, 0, 0)):
+            grid_box(b, (4.5, 6.6, 0.25), (0, -3.4, 0.35), mat=PAINT, tint=body_tint, step=1.2)
+            for s in (-1, 1):
+                b.extrude([(-6.7, 0.35), (-0.2, 0.35), (0.0, 1.0), (-0.2, 2.4), (-6.7, 2.4)], 0.18,
+                          (s * 2.2, 0, 0), (0, 0, 90), mat=PAINT, tint=body_tint, solid="hull")
+                for k in range(5):
+                    b.box((0.12, 0.2, 2.0), (s * 2.32, -6.0 + 1.3 * k, 1.4), mat=PAINT, tint=body_tint, solid=False)
+                b.box((0.14, 6.6, 0.25), (s * 2.32, -3.4, 2.4), mat=PAINT, tint=body_tint, solid=False)
+            grid_box(b, (4.5, 0.2, 3.25), (0, -6.7, 1.98), mat=PAINT, tint=body_tint, step=1.0)
+            grid_box(b, (4.7, 2.6, 0.18), (0, -7.9, 3.6), mat=PAINT, tint=body_tint, step=1.2)
+            b.box((4.7, 0.2, 0.6), (0, -9.1, 3.35), mat=PAINT, tint=body_tint, solid=False)
+            for s in (-1, 1):
+                b.beam((s * 2.2, -6.7, 2.4), (s * 2.3, -8.9, 3.5), 0.15, 0.2, mat=PAINT, tint=body_tint)
+            b.mesh([(-2.3, -0.2, 0.35), (2.3, -0.2, 0.35), (2.3, 0.4, 1.4), (-2.3, 0.4, 1.4)], [[0, 1, 2, 3]],
+                   mat=PAINT, tint=body_tint, solid=False)
+            floor = b.world((0, -3.4, 0.5))
+        for s in (-1, 1):
+            base = Vector((s * 1.1, 0.0, 1.6))
+            top = hinge + Vector((0, -3.6 * math.cos(math.radians(tip)), -0.2 + 3.6 * math.sin(math.radians(tip))))
+            top.x = s * 1.1
+            rod(b, base, base.lerp(top, 0.55), 0.16, tint=DARK, sides=10)
+            rod(b, base.lerp(top, 0.5), top, 0.1, tint=srgb(0.8, 0.8, 0.8), sides=10)
+        b.collide_box(Vector((0, 0, 1.9)), (4.6, 10.0, 3.6), (0, 0, 0))
+    return floor
