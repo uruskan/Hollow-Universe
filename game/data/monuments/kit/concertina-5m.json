@@ -1,0 +1,37 @@
+{
+ "key": "concertina-5m",
+ "model": "res://assets/monuments/kit/concertina-5m.glb",
+ "collision": [
+  {
+   "box": [
+    0.0,
+    0.45,
+    -0.0
+   ],
+   "half": [
+    2.5,
+    0.45,
+    0.45
+   ],
+   "rot": [
+    1.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  }
+ ],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -2.6,
+   -1.95,
+   -2.4031
+  ],
+  "max": [
+   2.3,
+   2.85,
+   2.3969
+  ]
+ }
+}

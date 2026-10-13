@@ -1431,3 +1431,267 @@ def tanker_trailer(b, at, rot=(0, 0, 0), tint=OFFWHITE, band=ORANGE, code="F-3",
             b.box((0.2, 0.04, 0.1), (s * 0.9, hl + 0.62, 0.85), mat=GLOSS, tint=RED, solid=False, vary=0)
         valve = b.world((-0.4, hl + 1.1, 0.0))
     return valve
+
+
+# ------------------------------------------------------------------------------------------------ Bulwark
+
+SANDBAG = srgb(0.56, 0.51, 0.39)
+OLIVE_DRAB = srgb(0.36, 0.40, 0.26)
+
+
+def _sandbags_2m(b):
+    """A 2 m run of sandbags six rows high (a metre of cover), staggered and battered, along X."""
+    for row in range(6):
+        inset = row * 0.025
+        bags = ((-0.66, 0.62), (0.0, 0.62), (0.66, 0.62)) if row % 2 == 0 else \
+            ((-0.84, 0.3), (-0.34, 0.62), (0.32, 0.62), (0.84, 0.3))
+        for x, w in bags:
+            b.box((w, 0.4 - inset, 0.17), (x, 0, 0.085 + row * 0.158), (0, 0, b.rng.uniform(-5, 5)), mat=MATTE,
+                  tint=SANDBAG, bevel=0.05, solid=False, vary=0.1, wear=0.6)
+    # A core inside the bags: hidden up close, it is what the farthest level keeps (it drops parts under 1 m).
+    b.box((1.96, 0.26, 0.85), (0, 0, 0.43), mat=MATTE, tint=SANDBAG, solid=False, vary=0, wear=0.6)
+    b.collide_box(Vector((0, 0, 0.5)), (2.0, 0.42, 1.0), (0, 0, 0))
+
+
+def _concertina_5m(b):
+    """Five metres of concertina wire along X on two angle pickets: a helix of razor wire 0.9 m across."""
+    r, pitch, per = 0.45, 0.32, 10
+    turns = int(5.0 / pitch)
+    pts = []
+    for i in range(turns * per + 1):
+        a = 2 * math.pi * i / per
+        x = -2.5 + pitch * i / per
+        pts.append((x, r * math.cos(a) * (1 + 0.05 * math.sin(i * 1.7)), r + r * math.sin(a)))
+    b.tube(pts, 0.007, mat=PAINT, tint=srgb(0.55, 0.56, 0.57), sides=4, cap=False, solid=False)
+    for x in (-2.0, 1.0):
+        b.box((0.05, 0.05, 1.2), (x, 0.1, 0.5), mat=RUST, tint=(1, 1, 1), solid=False)
+    b.collide_box(Vector((0, 0, 0.45)), (5.0, 0.9, 0.9), (0, 0, 0))
+
+
+kit.PIECES["sandbags-2m"] = _sandbags_2m
+kit.PIECES["concertina-5m"] = _concertina_5m
+
+
+def bullet_holes(b, at, rot, w, h, count=12, size=0.025, tint=srgb(0.05, 0.05, 0.05)):
+    """Bullet holes on a surface: dark pits (with a bright ring of bare metal) scattered over `w` x `h` metres of the
+    surface at `at` facing -Y of `rot`, clustered as from bursts."""
+    with b.frame(at, rot):
+        verts, faces = [], []
+        bursts = max(1, count // 5)
+        centres = [((b.rng.random() - 0.5) * w * 0.8, (b.rng.random() - 0.5) * h * 0.8) for _ in range(bursts)]
+        for k in range(count):
+            cx, cz = centres[k % bursts]
+            x = max(-w / 2, min(w / 2, cx + b.rng.gauss(0, w * 0.12)))
+            z = max(-h / 2, min(h / 2, cz + b.rng.gauss(0, h * 0.12)))
+            s = size * (0.7 + 0.6 * b.rng.random())
+            _box_into(verts, faces, (x - s, -0.006, z - s), (x + s, 0.0, z + s))
+        b.mesh(verts, faces, mat=MATTE, tint=tint, solid=False, vary=0, smooth=False)
+
+
+def ammo_box(b, at, yaw=0.0, tint=OLIVE_DRAB, lid_open=False):
+    """A steel ammunition box with a carry handle and a stencilled lot number."""
+    with b.frame(at, (0, 0, yaw)):
+        b.box((0.3, 0.16, 0.2), (0, 0, 0.1), mat=PAINT, tint=tint, solid=False)
+        if lid_open:
+            b.box((0.3, 0.02, 0.17), (0, 0.09, 0.28), (-20, 0, 0), mat=PAINT, tint=tint, solid=False)
+        else:
+            b.box((0.31, 0.17, 0.03), (0, 0, 0.21), mat=PAINT, tint=tint, solid=False)
+            b.box((0.12, 0.03, 0.02), (0, 0, 0.235), mat=PAINT, tint=DARK, solid=False)
+        stencil(b, "7.6", (0, -0.081, 0.06), (0, 0, 0), 0.05, srgb(0.9, 0.85, 0.3), align="centre")
+
+
+def boom_barrier(b, at, yaw=0.0, length=6.5, raised=0.0, broken=False):
+    """A road boom: a post with a counterweighted pivot, a red and white arm across the road (along the frame's +X)
+    resting on a fork post; `raised` degrees lifts it, `broken` snaps it halfway and drops the end."""
+    with b.frame(at, (0, 0, yaw)):
+        b.box((0.7, 0.7, 0.3), (0, 0, 0.1), mat=CONCRETE, tint=srgb(0.7, 0.7, 0.67))
+        b.box((0.35, 0.35, 1.05), (0, 0, 0.75), mat=PAINT, tint=OLIVE_DRAB, bevel=0.02)
+        b.box((0.36, 0.36, 0.12), (0, 0, 1.0), mat=PAINT, tint=YELLOW, solid=False, vary=0)
+        with b.frame((0, 0, 1.1), (0, -raised, 0)):
+            b.cyl(0.07, 0.5, (0, 0, 0), (90, 0, 0), mat=PAINT, tint=GREY, sides=10, solid=False)
+            b.box((0.7, 0.3, 0.35), (-0.55, 0, 0), mat=PAINT, tint=DARK)
+            seg = 0.5
+            n = int(length / seg)
+            end = n if not broken else n // 2
+            for k in range(end):
+                b.box((seg, 0.1, 0.12), (0.25 + seg * (k + 0.5), 0, 0), mat=PAINT, tint=RED if k % 2 else SIGN_WHITE,
+                      solid=False, vary=0, wear=0.55)
+        if broken:
+            # The far half fell and lies against the fork post.
+            x0 = 0.25 + seg * (n // 2)
+            with b.frame((x0 + 0.2, 0.1, 0.08), (0, -6, 4)):
+                for k in range(n - n // 2):
+                    b.box((seg, 0.1, 0.12), (seg * (k + 0.5), 0, 0), mat=PAINT, tint=RED if (k + n // 2) % 2 else
+                          SIGN_WHITE, solid=False, vary=0, wear=0.6)
+        # Fork rest at the far side.
+        b.box((0.12, 0.12, 1.0), (length + 0.1, 0, 0.5), mat=PAINT, tint=OLIVE_DRAB)
+        for y in (-0.1, 0.1):
+            b.box((0.04, 0.04, 0.2), (length + 0.1, y, 1.08), mat=PAINT, tint=YELLOW, solid=False)
+        if raised < 30 and not broken:
+            b.collide_box(Vector((length / 2 + 0.3, 0, 1.1)), (length, 0.12, 0.14), (0, 0, 0))
+
+
+def guard_booth(b, at, rot=(0, 0, 0), w=2.6, d=2.2, h=2.7, tint=BULWARK_GREY, trim=OLIVE_DRAB):
+    """A Bulwark guard booth: armoured concrete walls with a band of firing slits on three sides, a heavy roof slab
+    with a drip edge, a 2.3 m steel door in the back (+Y) wall, a desk with a radio inside. Returns the floor's
+    centre in the monument's frame."""
+    t = 0.25
+    hw, hd = w / 2, d / 2
+    sill, slit = 1.15, 0.3
+    with b.frame(at, rot):
+        b.box((w + 0.3, d + 0.3, 0.2), (0, 0, 0.1), mat=CONCRETE, tint=srgb(0.7, 0.7, 0.67))
+        z0 = 0.2
+        # Lower walls all round, upper walls above the slits; posts at the corners hold the roof.
+        for (cx, cy, sx, sy, side) in ((0, -hd + t / 2, w, t, "f"), (-hw + t / 2, 0, t, d - 2 * t, "l"),
+                                       (hw - t / 2, 0, t, d - 2 * t, "r")):
+            grid_box(b, (sx, sy, sill), (cx, cy, z0 + sill / 2), mat=CONCRETE, tint=tint, step=0.8)
+            grid_box(b, (sx, sy, h - sill - slit), (cx, cy, z0 + sill + slit + (h - sill - slit) / 2), mat=CONCRETE,
+                     tint=tint, step=0.8)
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                b.box((t, t, slit), (sx * (hw - t / 2), sy * (hd - t / 2), z0 + sill + slit / 2), mat=CONCRETE,
+                      tint=tint)
+        # Glass in the slits (some shot out), a steel frame.
+        for (cx, cy, sx, sy) in ((0, -hd + 0.05, w - 2 * t, 0.03), (-hw + 0.05, 0, 0.03, d - 2 * t),
+                                 (hw - 0.05, 0, 0.03, d - 2 * t)):
+            if b.rng.random() < 0.6:
+                b.box((sx, sy, slit - 0.04), (cx, cy, z0 + sill + slit / 2), mat=GLASS, solid=False)
+        # Back wall with the door opening (door open, swung out).
+        dw = 0.9
+        dx = hw - t - dw / 2 - 0.15
+        left = (dx - dw / 2) - (-hw)
+        grid_box(b, (left, t, h), (-hw + left / 2, hd - t / 2, z0 + h / 2), mat=CONCRETE, tint=tint, step=0.8)
+        right = hw - (dx + dw / 2)
+        if right > 0.02:
+            b.box((right, t, h), (hw - right / 2, hd - t / 2, z0 + h / 2), mat=CONCRETE, tint=tint)
+        b.box((dw, t, h - 2.3), (dx, hd - t / 2, z0 + 2.3 + (h - 2.3) / 2), mat=CONCRETE, tint=tint)
+        with b.frame((dx + dw / 2, hd + 0.02, z0), (0, 0, -100.0)):
+            grid_box(b, (dw, 0.06, 2.28), (-dw / 2, 0.03, 1.14), mat=PAINT, tint=trim, step=0.8)
+            b.box((0.04, 0.06, 0.14), (-dw + 0.1, 0.09, 1.05), mat=PAINT, tint=GREY, solid=False)
+        b.marker("door", (dx, hd + 0.6, 0.0), kind_of="booth")
+        # Roof slab with a drip edge, a vent and an antenna.
+        b.box((w + 0.5, d + 0.5, 0.22), (0, 0, z0 + h + 0.11), mat=CONCRETE, tint=tint)
+        b.box((w + 0.56, d + 0.56, 0.06), (0, 0, z0 + h + 0.02), mat=PAINT, tint=trim, solid=False)
+        b.cyl(0.12, 0.3, (-0.6, 0.4, z0 + h + 0.37), mat=PAINT, tint=GREY, sides=10, solid=False)
+        b.cyl(0.015, 2.4, (0.8, 0.6, z0 + h + 1.4), mat=PAINT, tint=BLACK, sides=5, solid=False)
+        # Inside: a desk under the front slits, a radio, a chair.
+        b.box((w - 2 * t - 0.1, 0.6, 0.06), (0, -hd + t + 0.3, z0 + 0.95), mat=PAINT, tint=srgb(0.35, 0.36, 0.33),
+              solid=False)
+        b.box((0.06, 0.55, 0.92), (-hw + t + 0.1, -hd + t + 0.3, z0 + 0.46), mat=PAINT, tint=DARK, solid=False)
+        b.box((0.4, 0.25, 0.22), (-0.4, -hd + t + 0.3, z0 + 1.09), mat=PAINT, tint=OLIVE_DRAB, solid=False)
+        b.box((0.3, 0.02, 0.1), (-0.4, -hd + t + 0.17, z0 + 1.12), mat=PAINT, tint=DARK, solid=False)
+        b.box((0.45, 0.45, 0.05), (0.3, 0.0, z0 + 0.46), mat=PAINT, tint=DARK, solid=False)
+        for x in (0.1, 0.5):
+            for y in (-0.2, 0.2):
+                b.box((0.03, 0.03, 0.45), (x, y, z0 + 0.22), mat=PAINT, tint=DARK, solid=False, vary=0)
+        centre = b.world((0.0, 0.25, z0))
+    return centre
+
+
+def military_truck(b, at, rot=(0, 0, 0), tint=OLIVE_DRAB, canvas=CANVAS, code="BW 3-118", shot=True, torn=0.25,
+                   flat=(), cab_open=True):
+    """A Bulwark six-wheeled troop truck: a bonneted cab, a cargo bed with drop sides and a canvas tilt on hoops
+    (`torn` leaves part of the canvas gone), spare wheel, jerry cans, a ring mount over the cab. Front toward -Y.
+    `shot` riddles it with bullet holes and breaks the windscreen; `flat`: wheel indices (0..5) with flat tyres.
+    Returns the bed's floor centre in the monument's frame."""
+    hw = 1.2
+    deck = 1.35
+    with b.frame(at, rot):
+        for x in (-0.48, 0.48):
+            b.box((0.18, 7.0, 0.28), (x, 0.0, 0.98), mat=PAINT, tint=DARK)
+        for i, y in enumerate((-2.55, 1.35, 2.75)):
+            b.cyl(0.07, 1.9, (0, y, 0.54), (0, 90, 0), mat=PAINT, tint=DARK, sides=8, solid=False)
+            for s in (-1, 1):
+                k = 2 * i + (0 if s < 0 else 1)
+                sink = 0.07 if k in flat else 0.0
+                b.piece("wheel-road", (s * 1.0, y, -sink), (0, 0, 0 if s < 0 else 180))
+        # Bonnet and front wings.
+        prof = [(-3.7, 1.15), (-2.05, 1.15), (-2.05, 2.05), (-3.55, 1.95), (-3.72, 1.8)]
+        with b.frame((0, 0, 0), (0, 0, 90)):
+            b.extrude(prof, 1.3, (0, 0, 0), (0, 0, 0), mat=PAINT, tint=tint, bevel=0.03)
+        for s in (-1, 1):
+            b.box((0.5, 1.6, 0.06), (s * 0.95, -2.75, 1.65), mat=PAINT, tint=tint)
+            b.box((0.5, 0.06, 0.5), (s * 0.95, -3.55, 1.4), mat=PAINT, tint=tint, solid=False)
+            b.cyl(0.13, 0.08, (s * 0.95, -3.6, 1.82), (90, 0, 0), mat=PAINT, tint=DARK, sides=12, solid=False)
+            b.cyl(0.1, 0.02, (s * 0.95, -3.645, 1.82), (90, 0, 0), mat=GLOSS, tint=srgb(0.8, 0.8, 0.75), sides=12,
+                  solid=False, vary=0)
+        b.box((1.1, 0.04, 0.7), (0, -3.73, 1.55), mat=PAINT, tint=DARK, solid=False)
+        for k in range(7):
+            b.box((0.05, 0.05, 0.62), (-0.42 + 0.14 * k, -3.76, 1.55), mat=PAINT, tint=tint, solid=False, vary=0)
+        b.box((2.3, 0.22, 0.25), (0, -3.85, 1.0), mat=PAINT, tint=DARK, bevel=0.02)
+        for s in (-1, 1):
+            b.box((0.12, 0.2, 0.18), (s * 0.7, -3.99, 1.0), mat=PAINT, tint=YELLOW, solid=False)
+        # Cab: walls and roof, windscreen panes, doors with windows, the ring mount.
+        c0, c1 = -2.05, -0.5
+        grid_box(b, (2.3, c1 - c0, 0.08), (0, (c0 + c1) / 2, 2.95), mat=PAINT, tint=tint, step=0.8)
+        grid_box(b, (2.3, 0.08, 1.8), (0, c1 - 0.04, 2.05), mat=PAINT, tint=tint, step=0.8)
+        b.box((2.3, c1 - c0, 0.1), (0, (c0 + c1) / 2, 1.2), mat=PAINT, tint=DARK)
+        for x in (-1.12, 0.0, 1.12):
+            b.box((0.08, 0.08, 0.9), (x, c0 + 0.04, 2.5), (-6, 0, 0), mat=PAINT, tint=tint, solid=False)
+        b.box((2.3, 0.08, 0.16), (0, c0 + 0.04, 2.0), mat=PAINT, tint=tint, solid=False)
+        for x in (-0.56, 0.56):
+            if shot and x > 0:
+                b.box((1.02, 0.02, 0.8), (x, c0 + 0.03, 2.48), (-6, 0, 0), mat=MATTE, tint=srgb(0.03, 0.03, 0.03),
+                      solid=False)
+                for k in range(5):
+                    b.box((0.25, 0.01, 0.1), (x + b.rng.uniform(-0.4, 0.4), c0 + 0.02, 2.2 + b.rng.uniform(0, 0.5)),
+                          (-6, b.rng.uniform(-40, 40), 0), mat=GLASS, solid=False, vary=0)
+            else:
+                b.box((1.02, 0.02, 0.8), (x, c0 + 0.03, 2.48), (-6, 0, 0), mat=GLASS, solid=False)
+        for s in (-1, 1):
+            wx = s * (hw - 0.04)
+            if s > 0 and cab_open:
+                with b.frame((wx, c0 + 0.1, 1.25), (0, 0, -65)):
+                    grid_box(b, (0.06, 1.2, 1.1), (0.03, 0.6, 0.55), mat=PAINT, tint=tint, step=0.8)
+                    b.box((0.03, 0.8, 0.5), (0.05, 0.55, 1.4), mat=GLASS, solid=False)
+                    b.box((0.06, 0.08, 0.5), (0.03, 1.15, 1.4), mat=PAINT, tint=tint, solid=False)
+                b.box((0.08, 0.3, 1.7), (wx, c1 - 0.15, 2.05), mat=PAINT, tint=tint)
+            else:
+                grid_box(b, (0.08, c1 - c0, 1.1), (wx, (c0 + c1) / 2, 1.8), mat=PAINT, tint=tint, step=0.8)
+                b.box((0.03, 0.9, 0.55), (wx + s * 0.02, (c0 + c1) / 2 - 0.1, 2.6), mat=GLASS, solid=False)
+                for y in (c0 + 0.05, c1 - 0.05):
+                    b.box((0.08, 0.1, 0.65), (wx, y, 2.6), mat=PAINT, tint=tint, solid=False)
+            b.box((0.4, 0.4, 0.05), (s * 1.0, (c0 + c1) / 2, 0.8), mat=GRATE, tint=GREY, solid=False, vary=0)
+            stencil(b, code, (s * (hw + 0.005), -1.6 if s < 0 else -0.95, 1.55), (0, 0, 90 * s), 0.14,
+                    srgb(0.85, 0.82, 0.7))
+        b.cyl(0.42, 0.06, (0.4, -1.3, 3.06), mat=PAINT, tint=DARK, sides=16, cap=False, solid=False)
+        b.cyl(0.04, 0.2, (0.4, -0.88, 3.0), mat=PAINT, tint=DARK, sides=6, solid=False)
+        # Cargo bed with drop sides, a spare wheel and can rack behind the cab.
+        y0, y1 = -0.35, 3.45
+        b.box((2.4, y1 - y0, 0.1), (0, (y0 + y1) / 2, deck), mat=PAINT, tint=srgb(0.4, 0.35, 0.27))
+        for s in (-1, 1):
+            grid_box(b, (0.05, y1 - y0, 0.55), (s * 1.2, (y0 + y1) / 2, deck + 0.3), mat=PAINT, tint=tint, step=0.9)
+        grid_box(b, (2.4, 0.05, 0.55), (0, y1, deck + 0.3), mat=PAINT, tint=tint, step=0.9)
+        grid_box(b, (2.4, 0.05, 0.9), (0, y0, deck + 0.5), mat=PAINT, tint=tint, step=0.9)
+        b.piece("wheel-road", (0.0, y0 - 0.17, 1.55), (90, 0, 90))
+        # Canvas tilt: hoops, and the canvas over them, its rear part torn away.
+        hoops = (y0 + 0.05, 0.9, 2.2, y1 - 0.05)
+        top = deck + 0.6
+        r = 1.18
+        for y in hoops:
+            pts = [(r * math.cos(math.pi * k / 10), y, top + 1.0 * math.sin(math.pi * k / 10) + 0.0)
+                   for k in range(11)]
+            pts = [(-r, y, deck + 0.55)] + pts[::-1] + [(r, y, deck + 0.55)]
+            pts = [(x, y_, z) for x, y_, z in pts]
+            b.tube(pts, 0.025, mat=PAINT, tint=DARK, sides=5, cap=False)
+        cover = y1 - (y1 - y0) * torn
+        outline = []
+        for k in range(13):
+            a = math.pi * k / 12
+            outline.append(((r + 0.03) * math.cos(a), top + 1.03 * math.sin(a)))
+        outline = [(r + 0.03, deck + 0.55)] + outline + [(-r - 0.03, deck + 0.55)]
+        inner = [(x * 0.97, deck + 0.55 + (z - deck - 0.55) * 0.97) for x, z in outline[::-1]]
+        with b.frame((0, (y0 + cover) / 2, 0), (0, 0, 0)):
+            b.extrude(outline + inner, cover - y0, (0, 0, 0), (0, 0, 0), mat=MATTE, tint=canvas, solid="hull")
+        if torn > 0:
+            for k in range(4):
+                a = math.pi * (0.15 + 0.2 * k)
+                b.box((0.5, 0.02, 0.6 + 0.3 * b.rng.random()),
+                      ((r + 0.02) * math.cos(a), cover + 0.15, top + 1.0 * math.sin(a) - 0.25),
+                      (b.rng.uniform(-15, 15), 0, 0), mat=MATTE, tint=canvas, solid=False)
+        if shot:
+            bullet_holes(b, (hw + 0.012, -1.3, 1.9), (0, 0, 90), 1.4, 1.2, count=14)
+            bullet_holes(b, (0.0, -3.66, 1.7), (0, 0, 0), 1.0, 0.6, count=6)
+            bullet_holes(b, (hw + 0.015, 1.5, deck + 0.9), (0, 0, 90), 3.0, 1.0, count=12)
+        bed = b.world((0.0, 1.6, deck + 0.06))
+    return bed
