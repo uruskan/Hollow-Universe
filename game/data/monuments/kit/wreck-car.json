@@ -1,0 +1,37 @@
+{
+ "key": "wreck-car",
+ "model": "res://assets/monuments/kit/wreck-car.glb",
+ "collision": [
+  {
+   "box": [
+    0.0,
+    0.55,
+    -0.0
+   ],
+   "half": [
+    2.15,
+    0.325,
+    0.875
+   ],
+   "rot": [
+    1.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  }
+ ],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -2.15,
+   -1.6,
+   -2.15
+  ],
+  "max": [
+   2.8,
+   2.7,
+   2.15
+  ]
+ }
+}
