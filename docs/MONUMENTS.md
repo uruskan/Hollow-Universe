@@ -193,7 +193,7 @@ crate); **guards**: Reclaimers (people) and Wardens (machines).
 
 | # | Monument | Size | Where | What | Holds and does | Like |
 |---|---|---|---|---|---|---|
-| 38 | **Fusion Plant** | 600 × 400 m, towers 120 m | Rivers, coasts | Reactor hall, turbine hall, two cooling towers, switchyard, chimney | Violet room; contamination 3–4 near the core; recycler | Rust's power plant |
+| 38 | **Fusion Plant** | 600 × 400 m, towers 120 m | Rivers, coasts | Reactor hall, turbine hall, two cooling towers, switchyard, chimney | Violet room; contamination 3–4 near the core; recycler. *Built: `fusion_plant.py`* | Rust's power plant |
 | 39 | **Launch Complex** | 700 × 500 m, tower 140 m | Flat plains, coasts | A rocket on its service tower, an assembly hall, a propellant farm, a bunker | Vault crates at the top of the tower; contamination 3; a **Sentinel Crawler** patrols (§7.3). *Built: `launch_complex.py`* | Rust's launch site |
 | 40 | **Freight Yard** | 700 × 300 m | On rail lines | Rail yard with gantry cranes, sheds, wagons, a signal tower, an engine shed | Cyan room; crates in wagons; recycler | Rust's train yard |
 | 41 | **Water Works** | 400 × 300 m | Rivers | Settling basins, filter halls, pump houses, a water tower | Cyan room; recycler | Rust's water treatment plant |

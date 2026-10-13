@@ -675,10 +675,12 @@ def block(b, x0, x1, y0, y1, h, slope=None, z0=0.0, mat=CONCRETE, tint=CONCRETE_
     `slope[side]` metres at the foot ('w', 'e', 's', 'n'; 0 = vertical)."""
     s = slope or {}
     bw, be, bs, bn = s.get("w", 0.0), s.get("e", 0.0), s.get("s", 0.0), s.get("n", 0.0)
+    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
     verts = [(x0 - bw, y0 - bs, z0), (x1 + be, y0 - bs, z0), (x1 + be, y1 + bn, z0), (x0 - bw, y1 + bn, z0),
              (x0, y0, z0 + h), (x1, y0, z0 + h), (x1, y1, z0 + h), (x0, y1, z0 + h)]
+    verts = [(vx - mx, vy - my, vz) for vx, vy, vz in verts]
     faces = [[0, 3, 2, 1], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]
-    return b.mesh(verts, faces, mat=mat, tint=tint, solid=solid, smooth=False, wear=wear)
+    return b.mesh(verts, faces, (mx, my, 0.0), mat=mat, tint=tint, solid=solid, smooth=False, wear=wear)
 
 
 def ramp(b, a, c, width, za, zc, mat=CONCRETE, tint=CONCRETE_T, wear=None):
@@ -692,8 +694,10 @@ def ramp(b, a, c, width, za, zc, mat=CONCRETE, tint=CONCRETE_T, wear=None):
             q = p + side * s
             verts += [(q.x, q.y, 0.0), (q.x, q.y, max(zt, 0.02))]
     # 0 a-l bottom, 1 a-l top, 2 a-r bottom, 3 a-r top, 4 c-l bottom, 5 c-l top, 6 c-r bottom, 7 c-r top
+    m = (a + c) / 2
+    verts = [(vx - m.x, vy - m.y, vz) for vx, vy, vz in verts]
     faces = [[0, 2, 6, 4], [1, 5, 7, 3], [0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6]]
-    return b.mesh(verts, faces, mat=mat, tint=tint, solid="hull", smooth=False, wear=wear)
+    return b.mesh(verts, faces, (m.x, m.y, 0.0), mat=mat, tint=tint, solid="hull", smooth=False, wear=wear)
 
 
 def rock(b, centre, size, seed=1, rough=0.35, freq=1.7, rings=9, sides=14, mat=CONCRETE, tint=ROCK, solid="hull",
@@ -712,7 +716,7 @@ def rock(b, centre, size, seed=1, rough=0.35, freq=1.7, rings=9, sides=14, mat=C
     def place(dx, dy, dz):
         k = disp(dx, dy, dz)
         z = cz + dz * rz * k * (1 - squash * max(0.0, dz))
-        return (cx + dx * rx * k, cy + dy * ry * k, max(ground, z))
+        return (dx * rx * k, dy * ry * k, max(ground, z) - cz)
 
     verts.append(place(0, 0, 1))
     for i in range(1, rings):
@@ -739,7 +743,148 @@ def rock(b, centre, size, seed=1, rough=0.35, freq=1.7, rings=9, sides=14, mat=C
     base = 1 + (rings - 2) * sides
     for j in range(sides):
         faces.append([base + j, last, base + (j + 1) % sides])
-    return b.mesh(verts, faces, mat=mat, tint=tint, solid=solid, smooth=True, wear=wear)
+    return b.mesh(verts, faces, (cx, cy, cz), mat=mat, tint=tint, solid=solid, smooth=True, wear=wear)
+
+
+def arc_wall(b, centre, r, a0, a1, z0, z1, thick=0.6, seg_deg=6.0, piece_deg=15.0, mat=PANEL, tint=OFFWHITE,
+             solid=True, wear=None):
+    """A curved wall on a circle of radius `r` (its outer face) round `centre`, from angle `a0` to `a1` (degrees)
+    and from `z0` to `z1`, built in pieces of at most `piece_deg` so each piece's convex hull hugs the wall."""
+    cx, cy = centre[0], centre[1]
+    total = a1 - a0
+    if total <= 0.01 or z1 - z0 <= 0.01:
+        return
+    pieces = max(1, int(math.ceil(total / piece_deg - 1e-6)))
+    for k in range(pieces):
+        b0 = a0 + total * k / pieces
+        b1 = a0 + total * (k + 1) / pieces
+        n = max(1, int(math.ceil((b1 - b0) / seg_deg - 1e-6)))
+        am = math.radians((b0 + b1) / 2)
+        ox, oy = cx + math.cos(am) * r, cy + math.sin(am) * r
+        verts = []
+        for i in range(n + 1):
+            a = math.radians(b0 + (b1 - b0) * i / n)
+            for rr in (r, r - thick):
+                for zz in (z0, z1):
+                    verts.append((cx + math.cos(a) * rr - ox, cy + math.sin(a) * rr - oy, zz))
+        faces = []
+        for i in range(n):
+            o, q = i * 4, (i + 1) * 4
+            faces += [[o, q, q + 1, o + 1], [o + 2, o + 3, q + 3, q + 2], [o + 1, q + 1, q + 3, o + 3],
+                      [o, o + 2, q + 2, q]]
+        faces += [[0, 1, 3, 2], [n * 4, n * 4 + 2, n * 4 + 3, n * 4 + 1]]
+        b.mesh(verts, faces, (ox, oy, 0.0), mat=mat, tint=tint, solid="hull" if solid else False, smooth=True,
+               wear=wear)
+
+
+def drum(b, centre, r, z0, z1, openings=(), thick=0.8, mat=PANEL, tint=OFFWHITE, wear=None):
+    """A round building's wall with openings: each (angle in degrees, width in metres, height)."""
+    ops = sorted(openings)
+    if not ops:
+        arc_wall(b, centre, r, 0.0, 360.0, z0, z1, thick, mat=mat, tint=tint, wear=wear)
+        return
+    for k, (ang, w, h) in enumerate(ops):
+        half = math.degrees(w / 2 / r)
+        nxt_ang, nxt_w, _ = ops[(k + 1) % len(ops)]
+        nxt_half = math.degrees(nxt_w / 2 / r)
+        start = ang + half
+        end = nxt_ang - nxt_half + (360.0 if k == len(ops) - 1 else 0.0)
+        arc_wall(b, centre, r, start, end, z0, z1, thick, mat=mat, tint=tint, wear=wear)
+        arc_wall(b, centre, r, ang - half, ang + half, z0 + h, z1, thick, mat=mat, tint=tint, wear=wear)
+
+
+def cooling_shell(b, at, height=120.0, base=42.0, waist=26.0, top=29.0, thick=0.5, sides=56, rings=20,
+                  breach=None, legs=36, tint=CONCRETE_T, stain=srgb(0.42, 0.41, 0.38), seed=1):
+    """A hyperboloid cooling tower: a concrete shell `thick` deep on a ring of diagonal legs, its basin, a stained
+    band under the rim. `breach` = (angle in degrees, half width in degrees, depth in metres) bites a jagged gap out
+    of the rim (the shell's broken edges are closed). Returns the shell's radius function (of height 0..1)."""
+    x, y, z = at
+    leg_h = height * 0.08
+
+    def radius(t):
+        tw = 0.72
+        if t < tw:
+            k = t / tw
+            return waist + (base - waist) * (1 - k) ** 2
+        k = (t - tw) / (1 - tw)
+        return waist + (top - waist) * k ** 2
+
+    zs = [leg_h + (height - leg_h) * i / rings for i in range(rings + 1)]
+    rs = [radius(i / rings) for i in range(rings + 1)]
+    keep = [[True] * sides for _ in range(rings)]
+    if breach:
+        ac, hw, depth = math.radians(breach[0]), math.radians(breach[1]), breach[2]
+        for j in range(sides):
+            a = 2 * math.pi * (j + 0.5) / sides
+            dist = abs(math.atan2(math.sin(a - ac), math.cos(a - ac)))
+            if dist >= hw:
+                continue
+            jag = 0.65 + 0.7 * vnoise(j * 0.9, 0.0, 0.0, seed)
+            d = depth * (1 - (dist / hw) ** 1.6) * jag
+            for i in range(rings):
+                if zs[i + 1] > height - d:
+                    keep[i][j] = False
+
+    def shell(ring0, ring1, off, shade, outer_only=False):
+        verts = []
+        for i in range(ring0, ring1 + 1):
+            for j in range(sides):
+                a = 2 * math.pi * j / sides
+                for rr in (rs[i] + off, rs[i] - thick):
+                    verts.append((math.cos(a) * rr, math.sin(a) * rr, zs[i]))
+
+        def vi(i, j, inner):
+            return ((i - ring0) * sides + (j % sides)) * 2 + (1 if inner else 0)
+
+        faces = []
+        for i in range(ring0, ring1):
+            for j in range(sides):
+                if not keep[i][j]:
+                    continue
+                faces.append([vi(i, j, 0), vi(i, j + 1, 0), vi(i + 1, j + 1, 0), vi(i + 1, j, 0)])
+                if outer_only:
+                    continue
+                faces.append([vi(i, j, 1), vi(i + 1, j, 1), vi(i + 1, j + 1, 1), vi(i, j + 1, 1)])
+                # Closing faces where the shell ends: the rim, the foot, the breach's edges.
+                if i == ring1 - 1 or not keep[i + 1][j]:
+                    faces.append([vi(i + 1, j, 0), vi(i + 1, j + 1, 0), vi(i + 1, j + 1, 1), vi(i + 1, j, 1)])
+                if i == ring0 or not keep[i - 1][j]:
+                    faces.append([vi(i, j, 0), vi(i, j, 1), vi(i, j + 1, 1), vi(i, j + 1, 0)])
+                if not keep[i][(j - 1) % sides]:
+                    faces.append([vi(i, j, 0), vi(i + 1, j, 0), vi(i + 1, j, 1), vi(i, j, 1)])
+                if not keep[i][(j + 1) % sides]:
+                    faces.append([vi(i, j + 1, 0), vi(i, j + 1, 1), vi(i + 1, j + 1, 1), vi(i + 1, j + 1, 0)])
+        used = sorted({v for f in faces for v in f})
+        remap = {v: k for k, v in enumerate(used)}
+        return b.mesh([verts[v] for v in used], [[remap[v] for v in f] for f in faces], (x, y, z), mat=CONCRETE,
+                      tint=shade, solid=False, smooth=True)
+
+    shell(0, rings, 0.0, tint)
+    if stain:
+        # A darker skin on the top rings (weathered concrete under the rim), outer side only.
+        shell(rings - max(1, rings // 7), rings, 0.04, stain, outer_only=True)
+    for i in range(legs):
+        a = 2 * math.pi * i / legs
+        a2 = a + 2 * math.pi / legs
+        r0 = base
+        b.beam((x + math.cos(a) * r0, y + math.sin(a) * r0, z),
+               (x + math.cos(a2) * (r0 - 0.5), y + math.sin(a2) * (r0 - 0.5), z + leg_h + 0.2), 0.6, 0.6,
+               mat=CONCRETE, tint=tint, solid=True)
+        b.beam((x + math.cos(a2) * r0, y + math.sin(a2) * r0, z),
+               (x + math.cos(a) * (r0 - 0.5), y + math.sin(a) * (r0 - 0.5), z + leg_h + 0.2), 0.6, 0.6,
+               mat=CONCRETE, tint=tint, solid=True)
+    # The basin: a floor and a low ring wall round it.
+    b.cyl(base - 1.0, 0.5, (x, y, z + 0.25), mat=CONCRETE, tint=srgb(0.45, 0.46, 0.44), sides=48)
+    arc_wall(b, (x, y), base + 2.5, 0.0, 360.0, z, z + 1.4, thick=0.5, piece_deg=20.0, mat=CONCRETE,
+             tint=CONCRETE_T)
+    # Collision for the shell's lower part: thin boxes round it (the legs carry the rest).
+    for k in range(24):
+        a = 2 * math.pi * (k + 0.5) / 24
+        rr = radius(0.15) - thick / 2
+        b.collide_box((x + math.cos(a) * rr, y + math.sin(a) * rr, z + leg_h + 10.0),
+                      (2 * math.pi * rr / 24, thick, 20.0), (0, 0, math.degrees(a) + 90))
+    b.marker("landmark", (x, y, z + height), kind_of="cooling-tower")
+    return radius
 
 
 # ------------------------------------------------------------------------------------------------ wear and dressing
@@ -919,9 +1064,43 @@ def _wreck_truck(b):
     b.collide_box(Vector((0.2, 0, 1.4)), (8.2, 2.5, 2.8), (0, 0, 0))
 
 
+def _main_transformer(b):
+    """A generator step-up transformer: a tank 7 m long on a bunded plinth, radiator banks with fans on both sides,
+    three tall bushings and three short ones, a conservator on a frame, a control cabinet."""
+    w, d, h = 7.0, 4.0, 4.6
+    body = srgb(0.55, 0.58, 0.56)
+    b.box((10.0, 8.0, 0.5), (0, 0, 0.25), mat=CONCRETE, tint=CONCRETE_T, bevel=0.04)
+    for x in (-5.0, 5.0):
+        b.box((0.3, 8.0, 0.9), (x, 0, 0.7), mat=CONCRETE, tint=CONCRETE_T, solid=False)
+    b.box((w, d, h), (0, 0, 0.5 + h / 2), mat=PAINT, tint=body, bevel=0.06)
+    b.box((w + 0.2, d + 0.2, 0.2), (0, 0, 0.5 + h + 0.1), mat=PAINT, tint=body)
+    for side in (-1, 1):
+        for i in range(12):
+            x = -w / 2 + 0.4 + i * (w - 0.8) / 11
+            b.box((0.08, 1.2, h * 0.8), (x, side * (d / 2 + 0.75), 0.5 + h * 0.48), mat=PAINT, tint=body,
+                  solid=False, vary=0)
+        for x in (-2.2, 0.0, 2.2):
+            b.cyl(0.55, 0.3, (x, side * (d / 2 + 1.5), 0.5 + h * 0.45), (90, 0, 0), mat=PAINT, tint=DARK, sides=14,
+                  solid=False)
+        b.box((w - 0.4, 0.2, 0.2), (0, side * (d / 2 + 0.75), 0.5 + h * 0.9), mat=PAINT, tint=body, solid=False)
+    top = 0.5 + h + 0.2
+    for i in range(3):
+        x = -2.0 + 2.0 * i
+        b.cyl(0.25, 0.4, (x, -0.8, top + 0.2), mat=PAINT, tint=GREY, sides=12, solid=False)
+        kit.insulator(b, (x, -0.8, top + 0.4), 3.0, tint=srgb(0.55, 0.30, 0.20))
+        b.cyl(0.09, 0.3, (x, -0.8, top + 3.55), mat=PAINT, tint=LIGHTGREY, sides=8, solid=False)
+        kit.insulator(b, (x * 0.8, 0.9, top), 1.0, discs=4, tint=srgb(0.55, 0.30, 0.20))
+    for x in (-2.6, 2.6):
+        b.box((0.14, 0.14, 2.2), (x, 1.6, top + 1.1), mat=PAINT, tint=GREY, solid=False)
+    b.cyl(0.8, 5.0, (0, 1.6, top + 2.6), (0, 90, 0), mat=PAINT, tint=body, sides=20)
+    b.box((1.0, 0.5, 1.6), (w / 2 - 0.6, -d / 2 - 0.3, 1.5), mat=PAINT, tint=LIGHTGREY, bevel=0.03)
+    b.box((0.8, 0.02, 0.15), (w / 2 - 0.6, -d / 2 - 0.56, 2.0), mat=PAINT, tint=YELLOW, solid=False, vary=0)
+
+
 kit.PIECES.update({
     "flood-mast": _flood_mast,
     "container-40": _container_40,
     "wreck-car": _wreck_car,
     "wreck-truck": _wreck_truck,
+    "main-transformer": _main_transformer,
 })
