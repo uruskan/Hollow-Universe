@@ -1,4 +1,3 @@
-using Hollow.Simulation.Placement;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +9,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Physics;
+using Hollow.Simulation.Placement;
 using Hollow.Surface;
 
 namespace Hollow.Tests;

@@ -101,8 +101,11 @@ public abstract class PlaceableKind
     /// <summary>Its footprint when its rule gives none (a deployable's size, the claim device's, a ship's hull).</summary>
     internal virtual Footprint OwnFootprint(object definition) => Footprint.Point;
 
-    /// <summary>The turn it is drawn with, standing along <paramref name="up"/> at a yaw (the characters' convention).</summary>
-    public virtual Quaternion Orient(Vector3 up, float yaw) => Geometry.Upright(up, yaw);
+    /// <summary>
+    /// The turn a candidate is drawn and made with, once its rotation has turned it: standing along its up at its yaw
+    /// (the characters' convention) unless its kind says otherwise.
+    /// </summary>
+    public virtual Quaternion Orient(PlacementCandidate c) => Geometry.Upright(c.Up, c.Yaw);
 
     /// <summary>Its own rules, after the shared checks (a piece's stability, a door's opening, one lock to a door).</summary>
     public virtual Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) => Outcome.Done;
@@ -174,6 +177,9 @@ internal sealed class PieceKind : PlaceableKind
 
     internal override JsonElement Own(string key, PlacementSources sources) => sources.Own("building.json", "pieces", "key", key);
 
+    // As its plan lays it: the socket's orientation, or a free foundation's heading.
+    public override Quaternion Orient(PlacementCandidate c) => c.Detail is PlacementPlan plan ? plan.ZoneTransform.Rotation : base.Orient(c);
+
     public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
         c.Detail is PlacementPlan plan && world.Building is { } building ? building.CheckBuilding(plan, ctx.Player, ctx.Wallet) : OutcomeCode.NoSocket;
 
@@ -192,6 +198,12 @@ internal sealed class DoorKind : PlaceableKind
             : null;
 
     internal override JsonElement Own(string key, PlacementSources sources) => sources.Own("building.json", "doors", "key", key);
+
+    // As its frame stands, turned round when its variant (R's flip) says so.
+    public override Quaternion Orient(PlacementCandidate c) =>
+        c.Detail is Piece frame
+            ? Quaternion.Normalize(frame.ZoneTransform.Rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, (c.Variant & 1) * MathF.PI))
+            : base.Orient(c);
 
     public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
         c.Detail is Piece frame && world.Building is { } building ? building.CanFitDoor((DoorDef)c.Placeable.Definition, frame, c.Variant) : OutcomeCode.NotAnOpening;
@@ -214,6 +226,9 @@ internal sealed class LockPlacement : PlaceableKind
 
     internal override JsonElement Own(string key, PlacementSources sources) =>
         sources.Building.Lock(key) is { } def ? sources.OwnAt("building.json", "locks", def.Field) : default;
+
+    // As it sits at its spot on the door's first leaf.
+    public override Quaternion Orient(PlacementCandidate c) => c.Detail is Door door ? door.LockSpot.Rotation : base.Orient(c);
 
     public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
         c.Detail is Door door ? door.Lock != null ? OutcomeCode.HasLock : Outcome.Done : OutcomeCode.NotFound;
@@ -271,8 +286,9 @@ internal sealed class ChargeKind : PlaceableKind
     internal override JsonElement Own(string key, PlacementSources sources) => sources.Own("explosives.json", "throwables", "item", key);
 
     // Lying on its bottom along the surface's normal, as the raid view draws one stuck (its yaw doesn't matter).
-    public override Quaternion Orient(Vector3 up, float yaw)
+    public override Quaternion Orient(PlacementCandidate c)
     {
+        Vector3 up = c.Up;
         Vector3 side = MathF.Abs(up.Y) > 0.9f ? -Vector3.UnitZ : Vector3.UnitY;
         Vector3 x = Vector3.Normalize(Vector3.Cross(side, up));
         Vector3 z = Vector3.Cross(x, up);
@@ -297,7 +313,7 @@ internal sealed class ShipKind : PlaceableKind
     internal override Footprint OwnFootprint(object definition) => new HullFootprint((ShipDef)definition);
 
     // The nose (+Z) along the yaw, as a ship stands (ShipMotor's).
-    public override Quaternion Orient(Vector3 up, float yaw) => ShipMotor.Orientation(up, yaw);
+    public override Quaternion Orient(PlacementCandidate c) => ShipMotor.Orientation(c.Up, c.Yaw);
 
     public override Outcome Put(IPlacementSite site, ulong player, PlacementCandidate c) => site.PutShip(player, (ShipDef)c.Placeable.Definition, c);
 }

@@ -22,16 +22,16 @@
   },
   "kinds": {
     "deployable": { "limits": { "structure": 20 } },
-    "piece": { "solver": "socket", "surfaces": ["any"], "support": "centre", "maxSlope": 90, "water": true, "rotation": "support", "reach": 8, "sight": 0.35, "padding": 2.25 },
+    "piece": { "solver": "socket", "surfaces": ["any"], "support": "centre", "maxSlope": 90, "water": true, "rotation": "fixed", "reach": 8, "sight": 0.35, "padding": 2.25 },
     "door": { "solver": "opening", "surfaces": ["opening"], "support": "centre", "maxSlope": 90, "water": true, "rotation": "flip", "turn": 180, "reach": 8, "sight": 0.35 },
-    "lock": { "solver": "attach", "surfaces": ["door"], "support": "centre", "maxSlope": 90, "water": true, "rotation": "support", "reach": 3.5 },
+    "lock": { "solver": "attach", "surfaces": ["door"], "support": "centre", "maxSlope": 90, "water": true, "rotation": "fixed", "reach": 3.5 },
     "cupboard": { "surfaces": ["floor"], "rotation": "support", "reach": 8, "sight": 0.35, "limits": { "structure": 1 } },
     "charge": { "solver": "sweep", "surfaces": ["any"], "support": "centre", "maxSlope": 180, "water": true, "align": "normal", "privilege": "ignored", "sight": 0.1 },
     "ship": { "footprint": "hull", "supportStep": 0.4 }
   },
   "pieceSurfaces": { "foundation": "floor", "floor": "floor", "stairs": "floor", "wall": "wall", "roof": "roof" },
   "solvers": ["free", "socket", "opening", "attach", "sweep"],
-  "rotations": ["free", "steps", "support", "flip"],
+  "rotations": ["free", "steps", "support", "flip", "fixed"],
   "checks": ["reach", "surface", "step", "slope", "water", "overlap", "support", "sight", "privilege", "limits", "own"],
   "placeables": [
     { "kind": "deployable", "key": "sleeping-bag" },

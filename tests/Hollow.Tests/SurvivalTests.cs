@@ -1,4 +1,3 @@
-using Hollow.Simulation.Placement;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,6 +7,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Placement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
@@ -19,13 +19,12 @@ public sealed class GameRig : IDisposable
 {
     private long _ids = 1;
 
-    public GameRig()
+    /// <summary>The zone on the first world's stand-in ground, or on a surface the test makes for the zone's spec (one with a sea).</summary>
+    public GameRig(Func<ZoneSpec, Hollow.Surface.ISurface>? surface = null)
     {
         ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)! with { StandIn = true };
-        Zone = new Zone(spec, content: ContentFixture.Content)
-        {
-            UnixMilliseconds = 1_800_000_000_000,
-        };
+        Zone = surface == null ? new Zone(spec, content: ContentFixture.Content) : new Zone(surface(spec), spec, content: ContentFixture.Content);
+        Zone.UnixMilliseconds = 1_800_000_000_000;
         Zone.NewEntityId = () => new EntityId(0x100_0000 + (ulong)_ids++);
     }
 

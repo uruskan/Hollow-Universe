@@ -42,11 +42,18 @@ internal static class Solvers
 
     public static bool Finite(Vector3 v) => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
 
-    /// <summary>The rule's rotation handler, then the drawn turn and the nearest point of the footprint.</summary>
-    public static void Finish(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c)
+    /// <summary>The client: the rule's rotation turns a candidate by the aim (the view, R's presses), then its kind orients it.</summary>
+    public static void Turn(PlacementWorld world, in PlacementContext ctx, in PlacementAim aim, PlacementCandidate c)
     {
-        c.Rotation = c.Placeable.Kind.Orient(c.Up, c.Yaw);
-        c.Nearest = c.Placeable.Footprint.NearestTo(c, ctx.Eye);
+        world.Data.Handlers.Rotation(ctx.Rule).Turn(world, ctx, aim, c);
+        c.Rotation = c.Placeable.Kind.Orient(c);
+    }
+
+    /// <summary>The server: the rule's rotation turns a candidate as the claim says (what the rule allows of it), then its kind orients it.</summary>
+    public static void Turn(PlacementWorld world, in PlacementContext ctx, in PlacementClaim claim, PlacementCandidate c)
+    {
+        world.Data.Handlers.Rotation(ctx.Rule).Settle(world, ctx, claim, c);
+        c.Rotation = c.Placeable.Kind.Orient(c);
     }
 
     public static Vector3 F(Vector3D v) => new((float)v.X, (float)v.Y, (float)v.Z);
@@ -74,8 +81,8 @@ internal sealed class FreeSolver : IPlacementSolver
         // Under a ceiling the floor is looked for from just under it, never on the storey above.
         bool ceiling = Vector3.Dot(hit.Normal, world.Frame.UpAt(hit.Point)) < -0.2f;
         PlacementCandidate c = Under(world, ctx, hit.Point - aim.Direction * 0.02f, hit.Point, ceiling ? 0.02f : ctx.Rule.MaxStep);
-        world.Data.Handlers.Rotation(ctx.Rule).Turn(world, ctx, aim, c);
-        Solvers.Finish(world, ctx, c);
+        Solvers.Turn(world, ctx, aim, c);
+        c.Nearest = c.Placeable.Footprint.NearestTo(c, ctx.Eye);
         into.Add(c);
     }
 
@@ -92,8 +99,8 @@ internal sealed class FreeSolver : IPlacementSolver
             refused = c.Support.IsNone ? OutcomeCode.BadPlacement : OutcomeCode.Misplaced;
             return null;
         }
-        world.Data.Handlers.Rotation(ctx.Rule).Settle(world, ctx, claim, c);
-        Solvers.Finish(world, ctx, c);
+        Solvers.Turn(world, ctx, claim, c);
+        c.Nearest = c.Placeable.Footprint.NearestTo(c, ctx.Eye);
         refused = Outcome.Done;
         return c;
     }
@@ -147,7 +154,9 @@ internal sealed class SocketSolver : IPlacementSolver
         building.Candidates((PieceDef)ctx.Placeable.Definition, ctx.Eye, aim.Direction, aim.Turns, plans);
         foreach (PlacementPlan plan in plans)
         {
-            into.Add(Of(world, ctx, plan));
+            PlacementCandidate c = Of(world, ctx, plan);
+            Solvers.Turn(world, ctx, aim, c);
+            into.Add(c);
         }
     }
 
@@ -195,6 +204,7 @@ internal sealed class SocketSolver : IPlacementSolver
             refused = OutcomeCode.Misplaced;
             return null;
         }
+        Solvers.Turn(world, ctx, claim, c);
         refused = Outcome.Done;
         return c;
     }
@@ -234,7 +244,9 @@ internal sealed class OpeningSolver : IPlacementSolver
     {
         if (world.Building?.OpeningAimed(ctx.Eye, aim.Direction, ctx.Rule.Reach + Solvers.AimSlack) is { } frame)
         {
-            into.Add(Of(world, ctx, frame, aim.Turns & 1));
+            PlacementCandidate c = Of(world, ctx, frame);
+            Solvers.Turn(world, ctx, aim, c);
+            into.Add(c);
         }
     }
 
@@ -245,17 +257,18 @@ internal sealed class OpeningSolver : IPlacementSolver
         {
             return null;
         }
-        PlacementCandidate c = Of(world, ctx, frame, claim.Variant & 1);
+        PlacementCandidate c = Of(world, ctx, frame);
         if (!Solvers.Agrees(ctx, c.Position, claim.Position))
         {
             refused = OutcomeCode.Misplaced;
             return null;
         }
+        Solvers.Turn(world, ctx, claim, c);
         refused = Outcome.Done;
         return c;
     }
 
-    private static PlacementCandidate Of(PlacementWorld world, in PlacementContext ctx, Piece frame, int flip)
+    private static PlacementCandidate Of(PlacementWorld world, in PlacementContext ctx, Piece frame)
     {
         (Vector3 position, Quaternion rotation) = frame.ZoneTransform;
         BuildingFrame structure = frame.Structure.Frame;
@@ -264,12 +277,11 @@ internal sealed class OpeningSolver : IPlacementSolver
         return new PlacementCandidate(ctx.Placeable)
         {
             Position = position,
-            Rotation = Quaternion.Normalize(rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, flip * MathF.PI)),
+            Rotation = rotation,
             Up = up,
             Normal = up,
             Support = frame.Ref,
             Surface = PlacementSurfaces.Opening,
-            Variant = flip,
             Nearest = Solvers.F(structure.ToZone(PieceGeometry.ClosestPoint(world.Building!.Data, frame.Def, frame.Pose, eyeLocal))),
             Detail = frame,
         };
@@ -287,7 +299,9 @@ internal sealed class AttachSolver : IPlacementSolver
     {
         if (world.Building?.Target(ctx.Eye, aim.Direction, ctx.Rule.Reach + Solvers.AimSlack, out _) is Door door)
         {
-            into.Add(Of(ctx, door));
+            PlacementCandidate c = Of(ctx, door);
+            Solvers.Turn(world, ctx, aim, c);
+            into.Add(c);
         }
     }
 
@@ -304,6 +318,7 @@ internal sealed class AttachSolver : IPlacementSolver
             refused = OutcomeCode.Misplaced;
             return null;
         }
+        Solvers.Turn(world, ctx, claim, c);
         refused = Outcome.Done;
         return c;
     }
@@ -344,9 +359,7 @@ internal sealed class SweepSolver : IPlacementSolver
             return;
         }
         PlacementCandidate c = Of(world, ctx, hit);
-        world.Data.Handlers.Rotation(ctx.Rule).Turn(world, ctx, aim, c);
-        Solvers.Finish(world, ctx, c);
-        c.Nearest = hit.Point;
+        Solvers.Turn(world, ctx, aim, c);
         into.Add(c);
     }
 
@@ -373,9 +386,7 @@ internal sealed class SweepSolver : IPlacementSolver
         {
             return null;
         }
-        world.Data.Handlers.Rotation(ctx.Rule).Settle(world, ctx, claim, c);
-        Solvers.Finish(world, ctx, c);
-        c.Nearest = hit.Point;
+        Solvers.Turn(world, ctx, claim, c);
         refused = Outcome.Done;
         return c;
     }
@@ -383,6 +394,7 @@ internal sealed class SweepSolver : IPlacementSolver
     private static PlacementCandidate Of(PlacementWorld world, in PlacementContext ctx, in PlacementHit hit) => new(ctx.Placeable)
     {
         Position = hit.Point + hit.Normal * Zone.StuckOffset,
+        Nearest = hit.Point,
         Normal = hit.Normal,
         Up = ctx.Rule.Align == AlignMode.Normal ? hit.Normal : world.Frame.UpAt(hit.Point),
         Support = hit.Target,

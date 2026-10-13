@@ -54,7 +54,7 @@ public enum PrivilegeMode : byte
 /// <c>placement</c> block over that. The solver, rotation and checks it names are handlers found by name; every check reads
 /// what it needs here, so a check that has nothing to say for a rule passes.
 /// </summary>
-public sealed class PlacementRule
+public sealed record PlacementRule
 {
     /// <summary>The surfaces it may stand on or be fitted to.</summary>
     public PlacementSurfaces Surfaces { get; init; } = PlacementSurfaces.Terrain | PlacementSurfaces.Floor;

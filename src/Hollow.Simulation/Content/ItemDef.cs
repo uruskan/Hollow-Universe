@@ -306,11 +306,11 @@ public sealed class ItemDef
 
     /// <summary>
     /// What the hands do with it (the one place that says, from its data): an explosive is thrown, a building tool builds,
-    /// a deployable is placed, food and medicine are used, and everything else attacks.
+    /// what places something (a deployable, a ship) is placed, food and medicine are used, and everything else attacks.
     /// </summary>
     public HandUse Hands => Throwable != null ? HandUse.Throw
         : Building != BuildingRole.None ? HandUse.Build
-        : Deploys != null ? HandUse.Place
+        : Places != null ? HandUse.Place
         : Consume != null ? HandUse.Use
         : HandUse.Attack;
 

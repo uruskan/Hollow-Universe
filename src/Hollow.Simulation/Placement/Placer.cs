@@ -53,10 +53,7 @@ public sealed class PlacementHandlers
         var checkRegistry = Fill(new Registry<IPlacementCheck>("placement checks", checks), Placement.Checks.All, c => c.Name);
         var kindRegistry = Fill(new Registry<PlaceableKind>("placeable kinds", kinds), Placement.Kinds.All, k => k.Name);
         int before = problems.Count;
-        foreach (string problem in solverRegistry.Problems.Concat(rotationRegistry.Problems).Concat(checkRegistry.Problems).Concat(kindRegistry.Problems))
-        {
-            problems.Add($"{PlacementData.File}: {problem}");
-        }
+        problems.AddRange(solverRegistry.Problems.Concat(rotationRegistry.Problems).Concat(checkRegistry.Problems).Concat(kindRegistry.Problems));
         if (problems.Count > before)
         {
             return null;

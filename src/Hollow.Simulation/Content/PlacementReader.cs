@@ -67,6 +67,12 @@ internal static class PlacementReader
         {
             f.Problem(file, problem);
         }
+        if (handlers == null)
+        {
+            // Nothing below can be read until the names are right (every placeable would say so again).
+            loaded.Placement = PlacementData.Empty;
+            return;
+        }
 
         var pieceSurfaces = new Dictionary<PieceFamily, PlacementSurfaces>();
         if (f.TryChild(root, "pieceSurfaces", out JsonElement families))
@@ -101,7 +107,7 @@ internal static class PlacementReader
             {
                 f.Problem(where, "is listed twice");
             }
-            if (handlers?.Kinds.Find(handlers.Kinds.IndexOf(kindName)) is not { } kind)
+            if (handlers.Kinds.Find(handlers.Kinds.IndexOf(kindName)) is not { } kind)
             {
                 f.Problem(where, $"no kind \"{kindName}\" in \"kinds\"");
                 placeables.Add(Unknown(i, key));
@@ -147,11 +153,7 @@ internal static class PlacementReader
                 f.Problem(where, "nothing places it: no item is used up placing it, and no tool needed");
             }
         }
-        loaded.Placement = new PlacementData(placeables, solvers, rotations, checks, kindBlocks.Keys.ToArray(), pieceSurfaces);
-        if (handlers != null)
-        {
-            loaded.Placement.Handlers = handlers;
-        }
+        loaded.Placement = new PlacementData(placeables, solvers, rotations, checks, kindBlocks.Keys.ToArray(), pieceSurfaces) { Handlers = handlers };
         Complete(f, loaded);
         // The building's reach (the hammer's too), sight slack and claim padding are the piece rule's.
         if (loaded.Placement.Placeables.FirstOrDefault(p => p.Kind.Name == "piece") is { } piece)
