@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -174,7 +175,26 @@ public sealed partial class Zone
                     d.Revision++;
                 }
                 break;
+            // Pieces, doors and claim devices broken, brought down, decayed or demolished: destroyed (GROUND.md §6.4.2), with
+            // the blow that broke them (or what went with it, as a door in its frame) or the building's own reason.
+            case BuildingChange.PieceRemoved when e.Piece is { } piece && e.Removal != Removal.Taken:
+            {
+                (Vector3 position, Quaternion rotation) = piece.ZoneTransform;
+                Destroyed(HitTarget.Building, DestroyedKind.Piece, piece.Id, piece.Def.Key, piece.Grade, position, rotation, CauseOf(e.Removal));
+                break;
+            }
+            case BuildingChange.DoorRemoved when e.Door is { } door && e.Removal != Removal.Taken:
+            {
+                (Vector3 position, Quaternion rotation) = door.Frame.ZoneTransform;
+                Destroyed(HitTarget.Building, DestroyedKind.Door, door.Id, door.Def.Key, 0, position, rotation, CauseOf(e.Removal), door.Open);
+                break;
+            }
             case BuildingChange.ClaimRemoved when e.Claim is { } claim && _claimDeployables.Remove(claim, out Deployable? d):
+                if (e.Removal != Removal.Taken)
+                {
+                    (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
+                    Destroyed(HitTarget.Building, DestroyedKind.ClaimDevice, claim.Id, Content!.ClaimDeployable.Key, 0, position, rotation, CauseOf(e.Removal));
+                }
                 // Its store spills where it stood, in one bag.
                 RemoveStatic(d);
                 if (d.Storage != null)
@@ -208,20 +228,190 @@ public sealed partial class Zone
 
     /// <summary>
     /// Damage to a piece, door or claim device through the building rules (its grade's protection, a wall's soft side):
-    /// melee as melee, arrows and bullets as bullets. Returns the health lost.
+    /// melee as melee, arrows and bullets as bullets. Returns the health lost. The building receiver's resolver for
+    /// blows; called on its own (tests), what it breaks is reported destroyed by a blow of that kind.
     /// </summary>
     public float DamageBuilding(object part, Vector3 direction, float amount, bool projectile)
     {
         BuildingWorld building = Building!;
         var hit = projectile ? new DamageHit(direction, Bullet: amount) : new DamageHit(direction, Melee: amount);
-        DamageResult result = part switch
+        Blow outer = _blow;
+        if (!outer.Active)
         {
-            Piece piece => building.Damage(piece, hit, BuildingNow),
-            Door door => building.Damage(door, hit, BuildingNow),
-            ClaimDevice device => building.Damage(device, hit, BuildingNow),
-            _ => default,
+            _blow = new Blow { Active = true, Cause = projectile ? DestroyCause.Bullet : DestroyCause.Melee, Direction = direction };
+        }
+        try
+        {
+            return part is IBuildingPart p ? (float)building.Damage(p, hit, BuildingNow).Loss : 0;
+        }
+        finally
+        {
+            _blow = outer;
+        }
+    }
+
+    // The building's own reasons for taking a piece away (destroyed: the blow's).
+    private static DestroyCause? CauseOf(Removal removal) => removal switch
+    {
+        Removal.Collapsed => DestroyCause.Collapse,
+        Removal.Decayed => DestroyCause.Decay,
+        Removal.Demolished => DestroyCause.Demolish,
+        _ => null,
+    };
+
+    /// <summary>
+    /// The building's receiver (GROUND.md §6.4.2): pieces, doors and claim devices, found by their bodies along a ray and
+    /// by their nearest points in a blast's reach (a claim device by its deployable's box). Its defences are the building
+    /// rules' (a grade's or door's protection by channel, a wall's soft side, whole points); a blast brings the explosive's
+    /// own table by grade and door, whole on the piece it hit and a splash share on the rest, its fractions of a point
+    /// carried to the next hit. Its consequences are the building rules' (breaking, what it held collapsing: reported
+    /// destroyed by <see cref="OnBuildingChanged"/>) and raid hits: any explosive on a claimed base, or a blow, arrow or
+    /// bullet that took something off one whose claim device doesn't list the attacker.
+    /// </summary>
+    private sealed class BuildingReceiver(Zone zone) : IDamageReceiver
+    {
+        public HitTarget Kind => HitTarget.Building;
+
+        public bool Keeps => false;
+
+        public void Raycast(in RayQuery ray, ref TraceHit best)
+        {
+            // Walls stop swings, arrows and bullets: only up to the nearest thing found so far.
+            if (zone.Building != null && zone.TraceBuilding(ray.Origin, ray.Direction, ray.Upto(best), out float wall, out object? part))
+            {
+                ray.Consider(ref best, wall, HitTarget.Building, new TraceHit { Building = part });
+            }
+        }
+
+        public void InReach(in BlastQuery blast, List<BlastTarget> into)
+        {
+            if (zone.Building is not { } building)
+            {
+                return;
+            }
+            building.PiecesNear(blast.At, blast.At, blast.Radius + 3.6f, zone._blastPieces);
+            foreach (Piece piece in zone._blastPieces)
+            {
+                if (piece.Gone || piece.Collapsing)
+                {
+                    continue;
+                }
+                Vector3 point = ClosestPoint(building.Data, piece, blast.At);
+                float d = Vector3.Distance(point, blast.At);
+                bool stuck = piece == blast.StuckTo;
+                if (d <= blast.Radius || stuck)
+                {
+                    into.Add(Target(piece, point, CentreOf(piece), stuck ? 0 : d, stuck, table: true));
+                }
+                if (piece.Door is { Gone: false } door)
+                {
+                    (Vector3 doorPoint, Vector3 _) = ClosestPoint(door, blast.At);
+                    float dd = Vector3.Distance(doorPoint, blast.At);
+                    bool onDoor = door == blast.StuckTo;
+                    if (dd <= blast.Radius || onDoor)
+                    {
+                        into.Add(Target(door, doorPoint, CentreOf(door), onDoor ? 0 : dd, onDoor, table: true));
+                    }
+                }
+            }
+            // Claim devices by their deployable boxes: their bodies are what hides them, their health the building rules'.
+            zone._blastThings.Clear();
+            zone.DeployablesNear(blast.At, blast.Radius + 2f, zone._blastThings);
+            foreach (Deployable box in zone._blastThings)
+            {
+                if (box.Health <= 0 || zone.ClaimOf(box) is not { } claim)
+                {
+                    continue;
+                }
+                Vector3 point = ClosestPoint(box, blast.At);
+                float distance = Vector3.Distance(point, blast.At);
+                bool stuck = claim == blast.StuckTo || box == blast.StuckTo;
+                if (distance <= blast.Radius || stuck)
+                {
+                    into.Add(Target(claim, point, box.Centre, stuck ? 0 : distance, stuck, table: false));
+                }
+            }
+        }
+
+        private static BlastTarget Target(object part, Vector3 point, Vector3 centre, float distance, bool stuck, bool table) => new()
+        {
+            Hit = new TraceHit { Target = HitTarget.Building, Building = part, Point = point },
+            Thing = part,
+            Sight = point,
+            Sight2 = centre,
+            Self = part,
+            Distance = distance,
+            Stuck = stuck,
+            Table = table,
         };
-        return (float)result.Loss;
+
+        public DamageOutcome Receive(in DamageRequest r)
+        {
+            if (zone.Building is not { } building || r.Hit.Building is not IBuildingPart part || part.Gone || part is Piece { Collapsing: true })
+            {
+                return default;
+            }
+            ClaimDevice? claim = part.Base;
+            bool explosive = r.Channel == DamageType.Explosive;
+            double amount = r.Amounts.Building;
+            if (r.Blast is { } table && part is Piece or Door)
+            {
+                // The explosive's own table for the grade (and side) or the door: whole on the piece it hit, a splash share on the rest.
+                double share = r.Falloff * (r.Direct ? 1 : table.Splash);
+                if (share <= 0)
+                {
+                    return default;
+                }
+                amount = part is Piece p
+                    ? table.Piece(building.Data.Grades[p.Grade].Key, p.Def.Family == PieceFamily.Wall && BuildingWorld.SoftSide(p, r.Direction)) * share
+                    : table.Door(((Door)part).Def.Protection.Key) * share;
+            }
+            else if (explosive && amount <= 0)
+            {
+                return default;
+            }
+            (double lost, bool destroyed) = explosive
+                ? zone.DamageStructure(part, amount, r.Direction, zone.BuildingNow)
+                : (zone.DamageBuilding(part, r.Direction, (float)amount, projectile: r.Channel != DamageType.Melee), part.Gone);
+            zone.RaidStats.StructureDamage += (long)Math.Round(lost);
+            if (destroyed)
+            {
+                if (part is Piece)
+                {
+                    zone.RaidStats.PiecesDestroyed++;
+                }
+                else if (part is Door)
+                {
+                    zone.RaidStats.DoorsDestroyed++;
+                }
+            }
+            if (claim != null && (explosive || (lost > 0 && (r.By == null || !claim.IsAuthorised(r.By.Id.Value)))))
+            {
+                // A raid hit: a blast's are summed per base over the blast, a blow's alerts at once.
+                RaidTallies raids = r.Raids ?? new RaidTallies();
+                raids.Add(claim, zone.RaidName(part), destroyed, r.Direct);
+                if (r.Raids == null)
+                {
+                    raids.Report(zone, r.By?.Id ?? EntityId.None, r.By?.Name ?? "", r.Weapon);
+                }
+            }
+            return new DamageOutcome(true, (float)lost, (float)lost, destroyed, false, part.Id);
+        }
+    }
+
+    // A demolition by a player with the hammer: what comes down is reported as theirs.
+    private Outcome Demolish(Player p, Piece piece, Vector3 eye)
+    {
+        Blow outer = _blow;
+        _blow = new Blow { Active = true, Cause = DestroyCause.Demolish, Attacker = p.Id };
+        try
+        {
+            return Building!.Demolish(p.Id.Value, piece, eye, BuildingNow);
+        }
+        finally
+        {
+            _blow = outer;
+        }
     }
 
     // ---------------------------------------------------------------- the player's building actions
@@ -396,7 +586,7 @@ public sealed partial class Zone
         {
             HammerAction.Upgrade => building.Upgrade(p.Id.Value, piece, grade, wallet, eye),
             HammerAction.Rotate => building.Rotate(p.Id.Value, piece, eye, BuildingNow),
-            HammerAction.Demolish => building.Demolish(p.Id.Value, piece, eye, BuildingNow),
+            HammerAction.Demolish => Demolish(p, piece, eye),
             HammerAction.Repair => building.Repair(p.Id.Value, piece, wallet, eye, BuildingNow),
             _ => Outcome.Refuse(Refusal.Invalid),
         };

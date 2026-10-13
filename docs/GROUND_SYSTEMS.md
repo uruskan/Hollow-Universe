@@ -214,13 +214,14 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
 **Replaces:** the chains listed in §1 (input, `BuildView.Use`, `FirstPersonView`, the server's melee/bow chain,
 `Describe`, `MoreActions`), and the `Key == "torch"` and `"rifle"` checks, which become model-catalogue flags.
 
-## 8. Damage and destruction (package P4, being built)
+## 8. Damage and destruction (package P4, built: GROUND.md §6.4.2)
 
 One damage request (who, with what, how delivered, the damage channels, amount, body region, point, direction); a
 registry of receivers by target family, each with its own defences and consequences; every delivery (melee, arrow,
 bullet, blast) calls one entry point; one consequence step emits **Destroyed** `{ Target, model key, pose, direction of
-the blow, cause }` to everyone near. Gibs, effects, sounds and support links listen to it. The `ground-damage` package is
-building this now; at merge its target routing moves onto `TargetRef`.
+the blow, cause }` to everyone near. Gibs, effects, sounds and support links listen to it. Built by `ground-damage`
+(GROUND.md §6.4.2, decisions D6–D11): receivers are keyed by `HitTarget` and each finds its own things along a ray and in
+a blast's reach; with P0 their routing moves onto `TargetRef`.
 
 ## 9. Later: one model for every world thing (package P6)
 

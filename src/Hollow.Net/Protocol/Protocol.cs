@@ -13,9 +13,10 @@ public static partial class Protocol
     /// server's state for it, the zone's clock, and god and noclip in the player's own state); 12: dropped items lie in
     /// bags (a thing of kind <c>StaticKind.DroppedBag</c> shows no item, its count is how many stacks it holds, and it
     /// opens as take-only loot, <c>LootKind.Crate</c>); 13: gathering's feedback (a natural object's change carries its run
-    /// of weak-spot hits, how fresh its last hit is and where it met the surface).
+    /// of weak-spot hits, how fresh its last hit is and where it met the surface); 14: the damage pipeline's Destroyed
+    /// event (<see cref="ThingDestroyed"/>, GROUND.md §6.4.2).
     /// </summary>
-    public const uint Version = 13;
+    public const uint Version = 14;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

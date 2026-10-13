@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using DamageType = Hollow.Simulation.Building.DamageType;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -434,60 +435,7 @@ public sealed partial class Zone
             BulletBlast(b, rocket, hit, shooter);
             return;
         }
-        switch (hit.Target)
-        {
-            case HitTarget.Character:
-                if (PlayerOf(hit.Character) is { } victim)
-                {
-                    ShootCharacter(hit.Character, victim, b, hit.Region, distance, hit.Point, shooter);
-                }
-                break;
-            case HitTarget.Deployable:
-                float structure = (float)(b.Damage * b.Gun.Falloff(distance) * b.Round.Structure);
-                DamageDeployable(hit.Deployable!, structure);
-                if (shooter != null)
-                {
-                    GameEvents.Add(new ZoneEvent
-                    {
-                        Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = hit.Deployable!.Id, Target = HitTarget.Deployable, Amount = structure,
-                        Position = hit.Point, Item = b.Gun.Item.Id,
-                    });
-                }
-                break;
-            case HitTarget.Ship:
-            {
-                float lost = DamageShip(hit.Ship!, (float)(b.Damage * b.Gun.Falloff(distance)), ShipDamage.Bullet, shooter);
-                if (shooter != null)
-                {
-                    GameEvents.Add(new ZoneEvent
-                    {
-                        Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = hit.Ship!.Id, Target = HitTarget.Ship, Amount = lost, Position = hit.Point, Item = b.Gun.Item.Id,
-                    });
-                }
-                break;
-            }
-            case HitTarget.Building:
-            {
-                // A wall stops the bullet; what it takes is its grade's protection against bullets (none from stone up). An explosive
-                // round's burst (below) is all it does to buildings, so Rust's counts hold (GROUND.md §6.6).
-                float amount = b.Round.Blast != null ? 0 : (float)(b.Damage * b.Gun.Falloff(distance));
-                float lost = amount > 0 ? DamageBuildingBy(hit.Building!, Vector3.Normalize(b.Velocity), amount, projectile: true, shooter, b.Gun.Item.Id) : 0;
-                if (shooter != null)
-                {
-                    GameEvents.Add(new ZoneEvent
-                    {
-                        Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point, Item = b.Gun.Item.Id,
-                    });
-                }
-                break;
-            }
-        }
-        if (hit.Target == HitTarget.Animal && hit.Animal is { IsDead: false } animal)
-        {
-            // G7: a bullet in an animal, with its falloff and the gun's multiplier for where it hit.
-            float amount = (float)(b.Damage * b.Gun.Falloff(distance) * b.Gun.RegionMultiplier(hit.Region));
-            DamageAnimal(animal, amount, hit.Region, b.Origin, shooter, b.Shooter, b.ShooterName, b.Gun.Item.Id);
-        }
+        Damage(BulletRequest(b, hit, distance, shooter));
         if (b.Round.Blast is { } burst)
         {
             // An explosive round (G5) bursts where it hit, besides what the bullet did.
@@ -496,40 +444,49 @@ public sealed partial class Zone
     }
 
     /// <summary>
-    /// A bullet in a character (GROUND.md §6.3): the gun's damage (times the round's and the attachments') falls off with
-    /// the distance flown, is scaled for the body part (the gun's head, body and limb multipliers) and reduced by what is
-    /// worn there against projectiles; the round may start bleeding and set the victim burning. A shot to the head that
-    /// would kill, kills; any other knocks down first (the wounded state). Returns the health taken.
+    /// A bullet's damage request (GROUND.md §6.4, §6.4.2): the gun's damage (times the round's and the attachments')
+    /// falling off with the distance flown; to flesh scaled for the body part by the gun's head, body and limb multipliers
+    /// (armour is the receiver's), with the round's bleeding and burning; to deployables the round's share for
+    /// structures; to buildings all of it through the bullet channel (none for an explosive round: its burst is all it does
+    /// to buildings, so Rust's counts hold); to hulls all of it.
     /// </summary>
-    public float ShootCharacter(Entity victimEntity, Player victim, Bullet b, HitRegion region, float distance, Vector3 at, Player? shooter)
+    private static DamageRequest BulletRequest(Bullet b, in TraceHit hit, float distance, Player? shooter)
     {
-        GameContent content = Content!;
-        float protection = victim.Inventory.Protection(content, region, projectile: true);
-        float amount = (float)(b.Damage * b.Gun.Falloff(distance) * b.Gun.RegionMultiplier(region)) * (1 - protection);
-        if (amount <= 0 || victim.Dead)
+        double falloff = b.Gun.Falloff(distance);
+        return new DamageRequest
         {
-            return 0;
-        }
-        bool wasDown = victim.Wounded;
-        victim.Vitals.Bleeding += amount * (float)b.Round.Bleed;
-        victim.Vitals.Burning += (float)b.Round.Burn * (1 - protection);
-        float taken = Hurt(victimEntity, victim, amount, "Shot", shooter?.Id ?? EntityId.None, shooter?.Name ?? b.ShooterName,
-            canWound: region != HitRegion.Head);
-        GameEvents.Add(new ZoneEvent
-        {
-            Kind = ZoneEventKind.DamageTaken, Player = victim.Id, Other = shooter?.Id ?? EntityId.None, Amount = amount, Region = region,
-            Position = b.Origin, Item = b.Gun.Item.Id,
-        });
-        if (shooter != null)
-        {
-            GameEvents.Add(new ZoneEvent
+            By = shooter,
+            Attacker = shooter?.Id ?? EntityId.None,
+            AttackerName = shooter?.Name ?? b.ShooterName,
+            Weapon = b.Gun.Item.Id,
+            Delivery = DamageDelivery.Bullet,
+            Channel = DamageType.Bullet,
+            Amounts = new DamageAmounts
             {
-                Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = victim.Id, Target = HitTarget.Character, Region = region,
-                Amount = amount, Flag = victim.Dead, Downed = victim.Wounded && !wasDown, Position = at, Item = b.Gun.Item.Id,
-            });
-        }
-        return taken;
+                Flesh = (float)(b.Damage * falloff * b.Gun.RegionMultiplier(hit.Region)),
+                Structure = (float)(b.Damage * falloff * b.Round.Structure),
+                Building = b.Round.Blast != null ? 0 : (float)(b.Damage * falloff),
+                Hull = (float)(b.Damage * falloff),
+            },
+            Bleed = (float)b.Round.Bleed,
+            Burn = (float)b.Round.Burn,
+            Cause = "Shot",
+            Direct = true,
+            Hit = hit,
+            From = b.Origin,
+            Direction = b.Velocity.LengthSquared() > 1e-12f ? Vector3.Normalize(b.Velocity) : Vector3.Zero,
+            Markers = HitTargets.All,
+        };
     }
+
+    /// <summary>
+    /// A bullet in a character (GROUND.md §6.4; tests): its request through the characters' receiver. The damage falls
+    /// off with the distance flown, is scaled for the body part and reduced by what is worn there against projectiles;
+    /// the round may start bleeding and set the victim burning. A shot to the head that would kill, kills; any other
+    /// knocks down first (the wounded state). Returns the health taken.
+    /// </summary>
+    public float ShootCharacter(Entity victimEntity, Player victim, Bullet b, HitRegion region, float distance, Vector3 at, Player? shooter) =>
+        Damage(BulletRequest(b, new TraceHit { Target = HitTarget.Character, Character = victimEntity, Region = region, Point = at }, distance, shooter)).Taken;
 
     /// <summary>
     /// Where a bullet's path first goes below the ground, or −1: steps as long as the height above the ground allows

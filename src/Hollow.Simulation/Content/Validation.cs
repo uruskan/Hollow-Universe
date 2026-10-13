@@ -331,9 +331,9 @@ internal static class Validation
             }
             RecoilStats r = g.Recoil;
             if (r.PitchLimit is < 0 or > 85 || r.YawLimit is < 0 or > 180 || r.KickSeconds < 0 || r.KickSeconds > g.IntervalSeconds ||
-                r.RecoveryDelaySeconds < 0 || r.RecoverySeconds < 0 || r.PitchJitter is < 0 or >= 1 || r.YawJitter < 0 || r.Aimed < 0 || r.Crouched < 0)
+                r.RecoveryDelaySeconds < 0 || r.RecoverySeconds < 0)
             {
-                Problem(where, "recoil: limits up to 85° and 180°, the kick no longer than the interval, nothing negative, pitch jitter under 1");
+                Problem(where, "recoil: limits up to 85° and 180°, the kick no longer than the interval, nothing negative");
             }
             if (r.Mode == RecoilMode.Vertical && (r.PitchPerShot < 0 || r.PitchPerShot > r.PitchLimit))
             {

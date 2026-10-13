@@ -59,6 +59,7 @@ public sealed partial class Zone
         InitBuilding(content);
         InitWorld(content);
         InitAnimals(content);
+        InitDamage();
     }
 
     // After movement: GROUND.md §4.2's order.

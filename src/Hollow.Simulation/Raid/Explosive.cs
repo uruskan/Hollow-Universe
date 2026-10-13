@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -211,26 +212,29 @@ public sealed record ExplosiveSave
 /// <summary>What one explosion did, for tests and the load test's counts.</summary>
 public sealed class BlastReport
 {
-    public int PiecesHit { get; internal set; }
+    private static readonly int Kinds = (int)Enum.GetValues<HitTarget>().Max() + 1;
+    private readonly int[] _hit = new int[Kinds];
+    private readonly int[] _destroyed = new int[Kinds];
 
-    public int PiecesDestroyed { get; internal set; }
+    /// <summary>Things of a kind its blast landed on (building pieces, doors and claim devices are the building's), and those it destroyed or killed.</summary>
+    public int Hit(HitTarget kind) => _hit[(int)kind];
 
-    public int DoorsHit { get; internal set; }
+    public int Destroyed(HitTarget kind) => _destroyed[(int)kind];
 
-    public int DoorsDestroyed { get; internal set; }
-
-    public int DeployablesHit { get; internal set; }
-
-    public int CharactersHit { get; internal set; }
-
-    /// <summary>Ships whose hull it reached (G6).</summary>
-    public int ShipsHit { get; internal set; }
-
-    /// <summary>Damage dealt to each piece, door, deployable or character (by its object), after the falloff, splash and armour.</summary>
+    /// <summary>Damage each thing took (by its object: a piece, door, claim device, deployable, ship, animal or player), after its defences.</summary>
     public Dictionary<object, double> Damage { get; } = new();
 
     /// <summary>Things within the radius that something stood in front of: they took nothing.</summary>
     public List<object> Shielded { get; } = new();
+
+    internal void Count(HitTarget kind, bool destroyed)
+    {
+        _hit[(int)kind]++;
+        if (destroyed)
+        {
+            _destroyed[(int)kind]++;
+        }
+    }
 }
 
 /// <summary>Counts of the raiding game (the load test reports them).</summary>

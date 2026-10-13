@@ -1357,3 +1357,36 @@ public partial struct ZoneClock
     public double Scale;
     public bool Overridden;
 }
+
+// ---------------------------------------------------------------- destruction (GROUND.md §6.4.2)
+
+/// <summary>
+/// Something was destroyed (to everyone within range, reliable): a deployable or world prop broken, a building piece, door
+/// or claim device broken, brought down, decayed or demolished, a ship wrecked. What it was (the receiver's kind and the
+/// kind of thing, its entity ID, its model key and a piece's grade), where it stood as it was drawn (zone frame; a door's
+/// frame piece's, open or not), the blow's direction (zero for a collapse, decay or demolition), what did it, who (a
+/// character's net ID, 0 if none or gone) and with what (an item).
+/// </summary>
+[NetMessage(165)]
+public partial struct ThingDestroyed
+{
+    [Bits(3)] public HitTarget Receiver;
+    [Bits(3)] public DestroyedKind Kind;
+    public ulong Id;
+    [MaxLength(48)] public string Key;
+    [Bits(3)] public byte Grade;
+    public float X;
+    public float Y;
+    public float Z;
+    [Quantize(-1, 1, 16)] public float RotationX;
+    [Quantize(-1, 1, 16)] public float RotationY;
+    [Quantize(-1, 1, 16)] public float RotationZ;
+    [Quantize(-1, 1, 16)] public float RotationW;
+    [Quantize(-1, 1, 12)] public float DirectionX;
+    [Quantize(-1, 1, 12)] public float DirectionY;
+    [Quantize(-1, 1, 12)] public float DirectionZ;
+    [Bits(3)] public DestroyCause Cause;
+    public bool Open;
+    [VarInt] public uint Attacker;
+    [VarInt] public uint Item;
+}

@@ -398,22 +398,23 @@ public partial class GroundView : Node3D
             OpenWorld();
         }
         UpdateMouse(playing);
-        // The gun's recoil (G4, GROUND.md §6.4): the mouse's turn this frame goes to the recoil's countersteer, and what
-        // the recovering recoil gives back is added to the view the player controls.
+        InputFrame input = ReadInput(delta);
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        Client.Update(delta, input);
+        Time("client", ref t0);
+        // The gun's recoil (G4, GROUND.md §6.4), in RustMVP's order once the frame's ticks have run: what the recovering
+        // recoil gives back of the player's countersteer goes onto the view they control (up to the moment the camera
+        // shows), then the mouse's turn since the last frame earns credit against the recoil showing now.
         LocalGun gun = Client.Local.Gun;
-        gun.ObserveLook(_lookDYaw, _lookDPitch);
-        _lookDYaw = _lookDPitch = 0;
         (float giveYaw, float givePitch) = gun.TakeCompensation();
         if (giveYaw != 0 || givePitch != 0)
         {
             Yaw = _yaw + giveYaw;
             Pitch = _pitch + givePitch;
         }
-        InputFrame input = ReadInput(delta);
-        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-        _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
-        Client.Update(delta, input);
-        Time("client", ref t0);
+        gun.ObserveLook(_lookDYaw, _lookDPitch);
+        _lookDYaw = _lookDPitch = 0;
         _jumpPressed = false;
         _primaryPressed = false;
         string? status = Client.State switch
@@ -856,12 +857,16 @@ public partial class GroundView : Node3D
                 GetViewport().SetInputAsHandled();
                 break;
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
+            {
+                // The recoil's countersteer counts the view's change: the pitch as it moved within its clamp (RustMVP).
+                float pitchBefore = _pitch;
                 Yaw = _yaw - motion.Relative.X * MouseSensitivity;
                 Pitch = _pitch - motion.Relative.Y * MouseSensitivity;
                 _lookDYaw -= motion.Relative.X * MouseSensitivity;
-                _lookDPitch -= motion.Relative.Y * MouseSensitivity;
+                _lookDPitch += _pitch - pitchBefore;
                 GetViewport().SetInputAsHandled();
                 break;
+            }
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }:
                 _primaryPressed = true;
                 UseHeld();

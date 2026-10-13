@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using Hollow.Client;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 using Hollow.Persistence;
@@ -160,6 +161,166 @@ public static class GunNetTests
             };
         }).ToArray(),
     };
+
+    // RustMVP's AK table (its docs/evidence/ak-playtest-2026-10-01/old-rust-ak-angular-reference.json, the dated community
+    // table its pattern's steps were taken from): where the view is before each of the 30 shots, in degrees; x to the
+    // right, y down (pitch = −y).
+    private static readonly double[] AkTableX =
+    {
+        0.0, 1.3907062632285214, 1.1764334502408484, 3.3871707461173646, 5.0870491851652755, 5.094189086829459, 4.426012801154849,
+        3.2504552119818904, 1.7354512031510199, 0.04893565850270232, -1.6411565381226527, -3.166890502884598, -4.360331351942659,
+        -5.053544201456452, -5.090650616437088, -4.489915538556545, -3.382553537114461, -1.8995856377872116, -0.17203286625115766,
+        1.6690837518171975, 3.4927431907415496, 5.1679244248454665, 6.56360642845253, 7.548768175886437, 7.992388641470555,
+        7.5122256391478, 6.06379234579299, 4.11736515892494, 2.1439320548176966, 0.6144810097516711,
+    };
+
+    private static readonly double[] AkTableY =
+    {
+        -0.0, -2.0039412840665776, -3.8441756774048494, -5.516686177315278, -7.017455781098323, -8.342467486054444, -9.487704289484107,
+        -10.449149188687768, -11.222785180965893, -11.804595263618937, -12.190562433947365, -12.587131622128602, -13.320773253380537,
+        -14.321275417643292, -15.511026930930969, -16.81241660925766, -18.147833268637438, -19.439665725084474, -20.61030279461278,
+        -21.582133293236506, -22.27754603696978, -22.618929841826656, -22.817776859076133, -23.373894638142545, -24.211385718746534,
+        -25.237342069507864, -26.358855659045446, -27.483018455978456, -28.51692242892666, -29.36765954650875,
+    };
+
+    /// <summary>
+    /// GROUND.md §6.4, the AK exactly RustMVP's: two 30-round sprays, standing at the hip and then aimed and crouched, put
+    /// the view where RustMVP's table does before every shot (its 30 cumulative points), nothing random and nothing scaled,
+    /// on the client's prediction (its recoil, and the camera's kick at the shot) and on the server alike, to the bit;
+    /// 4 ticks apart (450 a minute); after the 30th shot the view holds the table's last point (the pattern's zero tail).
+    /// </summary>
+    [Test]
+    public static void AkSprayMatchesRustMvpTable()
+    {
+        using var rig = new GameRig();
+        GameContent c = rig.C;
+        Entity ada = rig.Add("Ada", 0, 0);
+        Player p = rig.P(ada);
+        rig.Ch(ada).State.Health = 100;
+        ItemStack rifle = ItemStack.Of(c.ItemByKey("rifle"), 1);
+        rifle.Loaded = 30;
+        rifle.LoadedAmmo = c.ItemByKey("rifle-ammo").Id;
+        p.Inventory.Belt.Set(0, rifle);
+        rig.Give(ada, "rifle-ammo", 30);
+
+        using var predictor = new Predictor(rig.Zone.Spec, rig.Zone.Spec.CreateSurface(), null);
+        uint start = (uint)rig.Zone.Tick;
+        predictor.Reset(start, rig.Ch(ada).State, start);
+        var sent = new List<byte[]>();
+        var local = new LocalPlayer(c)
+        {
+            Send = write =>
+            {
+                var w = new BitWriter(256);
+                write(w);
+                sent.Add(w.ToArray());
+                return true;
+            },
+        };
+        local.OnContents(Contents(ContainerRef.Belt, p.Inventory.Belt));
+        local.OnContents(Contents(ContainerRef.Main, p.Inventory.Main));
+        local.Update();
+        var shots = new List<ShotEvent>();
+        local.Gun.ShotFired += shots.Add;
+
+        // The first spray as soon as the rifle is up; then a reload; the second spray aimed and crouched, once crouched.
+        var sprays = new[] { new List<uint>(), new List<uint>() };
+        int spray = 0;
+        uint secondFrom = uint.MaxValue;
+        double worst = 0;
+        for (uint tick = start + 1; tick <= start + 400 && sprays[1].Count < 30; tick++)
+        {
+            int t = (int)(tick - start);
+            if (spray == 0 && sprays[0].Count == 30)
+            {
+                if (local.Gun.Loaded == 0 && !local.Gun.Reloading)
+                {
+                    local.Reload();
+                }
+                else if (local.Gun.Loaded == 30 && !local.Gun.Reloading)
+                {
+                    spray = 1;
+                    secondFrom = tick + 10;
+                }
+            }
+            bool fire = spray == 0 ? sprays[0].Count < 30 : tick >= secondFrom;
+            var move = new MoveInput { Yaw = 0.4f, Pitch = 0.05f, Buttons = spray == 1 ? MoveButtons.Crouch : MoveButtons.None };
+            var actions = new ActionInput
+            {
+                HeldSlot = 0,
+                Buttons = (fire ? ActionButtons.Primary : ActionButtons.None) | (spray == 1 ? ActionButtons.Secondary : ActionButtons.None),
+            };
+            InputCommand command = NetConvert.ToCommand(move, actions);
+            predictor.RecordInput(tick, command);
+            predictor.Predict(tick);
+            int before = shots.Count;
+            local.Gun.Tick(tick, command, predictor.Latest, predictor.Frame, predictor.Tuning, p.Id, canAct: true);
+            foreach (byte[] packet in sent)
+            {
+                var r = new BitReader(packet);
+                uint type = r.ReadBits(8);
+                if (type == FireIntent.TypeId)
+                {
+                    FireIntent m = FireIntent.Read(r);
+                    rig.Zone.QueueGunAction(ada, new GunAction
+                    {
+                        Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = (ushort)m.Item,
+                        Yaw = Quantize.FromAngle16(m.Yaw), Pitch = Quantize.FromAngle16(m.Pitch), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
+                    });
+                }
+                else if (type == ReloadIntent.TypeId)
+                {
+                    ReloadIntent m = ReloadIntent.Read(r);
+                    rig.Zone.QueueGunAction(ada, new GunAction
+                    {
+                        Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Reload, Slot = m.Slot, Item = (ushort)m.Item, Ammo = (ushort)m.Ammo,
+                    });
+                }
+            }
+            sent.Clear();
+            ref Character ch = ref rig.Ch(ada);
+            ch.Input = NetConvert.ToMoveInput(command);
+            ch.Actions = NetConvert.ToActions(command);
+            rig.Zone.GameEvents.Clear();
+            rig.Step();
+            Assert.True(local.Gun.State.Recoil.Equals(p.Gun.Recoil), $"tick {t}: the client's recoil is the server's, to the bit");
+            List<ZoneEvent> fired = Guns.Launches(rig);
+            Assert.Equal(fired.Count, shots.Count - before, $"tick {t}: shots on both sides");
+            if (fired.Count == 0)
+            {
+                continue;
+            }
+            int k = sprays[spray].Count;
+            sprays[spray].Add(tick);
+            Assert.True(shots[^1].Aimed == (spray == 1) && (spray == 0) == (rig.Ch(ada).State.Stance == Stance.Standing),
+                $"spray {spray + 1}, shot {k + 1}: at the hip standing, then aimed and crouched");
+            // Before the shot's own kick the view was at the table's point k: the recoil's start, the same on both sides
+            // (checked above), and the camera at the shot's tick.
+            RecoilState after = p.Gun.Recoil;
+            double pitch = -AkTableY[k], yaw = AkTableX[k];
+            worst = Math.Max(worst, Math.Max(Math.Abs(after.StartPitch - pitch), Math.Abs(after.StartYaw - yaw)));
+            Assert.Near(pitch, after.StartPitch, 1e-9, $"spray {spray + 1}, shot {k + 1}: pitch before the kick");
+            Assert.Near(yaw, after.StartYaw, 1e-9, $"spray {spray + 1}, shot {k + 1}: yaw before the kick");
+            local.Gun.Render(tick);
+            (float kickYaw, float kickPitch) = local.Gun.ViewKick;
+            Assert.Near(pitch * DMath.DegToRad, kickPitch, 1e-6, $"spray {spray + 1}, shot {k + 1}: the camera's pitch");
+            Assert.Near(-yaw * DMath.DegToRad, kickYaw, 1e-6, $"spray {spray + 1}, shot {k + 1}: the camera's yaw (+ is left)");
+            if (k > 0)
+            {
+                Assert.Equal(4L, (long)(tick - sprays[spray][k - 1]), $"spray {spray + 1}, shot {k + 1}: 450 a minute, 4 ticks apart");
+            }
+            if (k == 29)
+            {
+                Assert.Near(-AkTableY[29], after.Pitch, 1e-9, $"spray {spray + 1}: the view ends on the table's last point, pitch");
+                Assert.Near(AkTableX[29], after.Yaw, 1e-9, $"spray {spray + 1}: and yaw (the pattern's last step is zero)");
+            }
+        }
+        Assert.Equal(30, sprays[0].Count, "the first spray: 30 shots");
+        Assert.Equal(30, sprays[1].Count, "the second spray, aimed and crouched: 30 shots");
+        Assert.True(p.GunRefusedSeq == 0, $"the server refused nothing ({p.GunRefused})");
+        Fixtures.Report($"two 30-round sprays (hip; aimed and crouched): every view before a shot on RustMVP's table within {worst:0.0e0}°, " +
+            $"client and server to the bit; it ends {-AkTableY[29]:0.000}° up, {AkTableX[29]:0.000}° right");
+    }
 
     private static void RunUntil(LoopbackRig rig, Func<bool> done, string what, Func<GameClient, double, InputFrame> input, double seconds = 8)
     {

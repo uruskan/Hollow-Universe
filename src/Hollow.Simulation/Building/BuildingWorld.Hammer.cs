@@ -118,7 +118,7 @@ public sealed partial class BuildingWorld
         {
             return Outcome.Refuse(Refusal.EditWindowOver);
         }
-        Remove(piece, now);
+        Remove(piece, now, reason: Removal.Demolished);
         return Outcome.Done;
     }
 
@@ -226,7 +226,7 @@ public sealed partial class BuildingWorld
         bool destroyed = piece.Health <= 0;
         if (destroyed)
         {
-            Remove(piece, now);
+            Remove(piece, now, reason: Removal.Destroyed);
         }
         else
         {
@@ -234,6 +234,15 @@ public sealed partial class BuildingWorld
         }
         return new DamageResult(loss, soft, destroyed);
     }
+
+    /// <summary>Damages a piece, door or claim device, whichever it is (the zone's building receiver).</summary>
+    public DamageResult Damage(IBuildingPart part, in DamageHit hit, double now) => part switch
+    {
+        Piece piece => Damage(piece, hit, now),
+        Door door => Damage(door, hit, now),
+        ClaimDevice device => Damage(device, hit, now),
+        _ => default,
+    };
 
     /// <summary>Whether an attack in this zone direction comes from the wall's soft side (it travels toward +Z, from the inside).</summary>
     public static bool SoftSide(Piece wall, Vector3 direction)

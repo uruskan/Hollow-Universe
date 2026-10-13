@@ -1278,8 +1278,7 @@ public sealed partial class GameContent
                 f.Problem(where, "is missing");
                 return new RecoilStats();
             }
-            f.OnlyKnown(e, where, "mode", "pitch", "pattern", "pitchJitter", "yawJitter", "pitchLimit", "yawLimit", "reset", "kick",
-                "recoveryDelay", "recovery", "aimed", "crouched", "note");
+            f.OnlyKnown(e, where, "mode", "pitch", "pattern", "pitchLimit", "yawLimit", "reset", "kick", "recoveryDelay", "recovery", "note");
             string mode = f.Text(e, "mode", where);
             if (mode is not ("vertical" or "pattern"))
             {
@@ -1307,16 +1306,12 @@ public sealed partial class GameContent
                 Mode = pattern ? RecoilMode.Pattern : RecoilMode.Vertical,
                 PitchPerShot = pattern ? 0 : f.Double(e, "pitch", where),
                 Pattern = steps,
-                PitchJitter = f.Double(e, "pitchJitter", where, 0),
-                YawJitter = f.Double(e, "yawJitter", where, 0),
                 PitchLimit = f.Double(e, "pitchLimit", where),
                 YawLimit = f.Double(e, "yawLimit", where),
                 ResetSeconds = f.Double(e, "reset", where, pattern ? null : 0.4),
                 KickSeconds = f.Double(e, "kick", where),
                 RecoveryDelaySeconds = f.Double(e, "recoveryDelay", where),
                 RecoverySeconds = f.Double(e, "recovery", where),
-                Aimed = f.Double(e, "aimed", where, 1),
-                Crouched = f.Double(e, "crouched", where, 1),
             };
         }
 
