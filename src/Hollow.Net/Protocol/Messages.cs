@@ -828,7 +828,7 @@ public partial struct GunUpdate
 {
     [VarInt] public uint LastSeq;
     [VarInt] public uint RefusedSeq;
-    [Bits(4)] public GunResult Refused;
+    [Bits(7)] public OutcomeCode Refused;
     [Bits(3)] public byte Slot;
     [VarInt] public uint Item;
     [VarInt] public uint Loaded;

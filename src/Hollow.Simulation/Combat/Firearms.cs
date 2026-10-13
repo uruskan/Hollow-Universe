@@ -8,50 +8,6 @@ using Hollow.Simulation.Movement;
 
 namespace Hollow.Simulation.Combat;
 
-/// <summary>What a gun action came to (RustMVP's <c>WeaponResult</c>, and ours from <see cref="NotReady"/>). At most 16.</summary>
-public enum GunResult : byte
-{
-    Accepted,
-
-    /// <summary>Malformed: a view no one can have, rounds the gun doesn't take.</summary>
-    Invalid,
-
-    /// <summary>No firearm in that belt slot.</summary>
-    NoWeapon,
-
-    /// <summary>The gun in hand isn't the one the action named (it was put away or swapped).</summary>
-    Stale,
-
-    Reloading,
-
-    /// <summary>The magazine is empty.</summary>
-    Empty,
-
-    /// <summary>Faster than the gun fires.</summary>
-    Cadence,
-
-    /// <summary>No rounds to reload with.</summary>
-    NoReserve,
-
-    /// <summary>The magazine is full of that kind already.</summary>
-    Full,
-
-    /// <summary>Dead, down (wounded) or asleep.</summary>
-    NotAlive,
-
-    /// <summary>The gun was taken up too recently (equip time).</summary>
-    Equipping,
-
-    /// <summary>Sprinting or swimming: the gun is lowered.</summary>
-    NotReady,
-
-    /// <summary>The action is for a tick further back than lag compensation reaches, or too far ahead.</summary>
-    TooLate,
-
-    /// <summary>Over the player's gun budget.</summary>
-    RateLimited,
-}
-
 /// <summary>
 /// The recoil of the gun in hand (RustMVP weapon_rules.hpp <c>RecoilState</c>): the target the view is kicked to, where
 /// the kick towards it started, the bloom at the last shot, when that shot was (a tick), and the pattern's next step.
@@ -281,8 +237,8 @@ public struct GunAction
     public byte ViewDelay;
     public ushort Ammo;
 
-    /// <summary>Refused already when it arrived (over budget, too old): applied as that when its turn comes.</summary>
-    public GunResult Refused;
+    /// <summary>Refused already when it arrived (over budget, too old): answered so when its turn comes (Done: not refused).</summary>
+    public OutcomeCode Refused;
 }
 
 /// <summary>What the shooter's body was doing at a shot (from the movement state of that tick).</summary>
@@ -343,39 +299,39 @@ public static class FirearmRules
     }
 
     /// <summary>Whether a shot could leave at a tick (RustMVP: equip, reload, cadence, then the magazine).</summary>
-    public static GunResult CanFire(in GunState g, in ItemStack weapon, FirearmStats gun, long tick)
+    public static OutcomeCode CanFire(in GunState g, in ItemStack weapon, FirearmStats gun, long tick)
     {
         if (tick < g.EquipReadyTick)
         {
-            return GunResult.Equipping;
+            return OutcomeCode.Cooldown;
         }
         if (g.Reloading)
         {
-            return GunResult.Reloading;
+            return OutcomeCode.Reloading;
         }
         if (tick * 16 < g.NextFire16)
         {
-            return GunResult.Cadence;
+            return OutcomeCode.Cadence;
         }
-        return weapon.Loaded == 0 ? GunResult.Empty : GunResult.Accepted;
+        return weapon.Loaded == 0 ? OutcomeCode.Empty : OutcomeCode.Done;
     }
 
     /// <summary>
     /// A shot: checks it, then works out where it goes (the view, the recoil before this shot's kick, a spread cone
     /// drawn from the shot's seed), and moves the gun on (cadence, a round out of the magazine, the kick).
     /// </summary>
-    public static GunResult Fire(ref GunState g, ref ItemStack weapon, GameContent content, FirearmStats gun, in ShotContext ctx, out Shot shot)
+    public static OutcomeCode Fire(ref GunState g, ref ItemStack weapon, GameContent content, FirearmStats gun, in ShotContext ctx, out Shot shot)
     {
         shot = default;
-        GunResult check = CanFire(g, weapon, gun, ctx.Tick);
-        if (check != GunResult.Accepted)
+        OutcomeCode check = CanFire(g, weapon, gun, ctx.Tick);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
         if (!(Math.Abs(ctx.Pitch) <= MaxViewPitch) || !float.IsFinite(ctx.Yaw) ||
             content.Item(weapon.LoadedAmmo) is not { Bullet: { } bullet } round || bullet.Calibre != gun.Calibre)
         {
-            return GunResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         GunMods mods = GunMods.Of(content, weapon, gun);
         var rng = new Rng(ShotSeed(ctx.Shooter, ctx.Seq));
@@ -392,7 +348,7 @@ public static class FirearmRules
         weapon.Loaded--;
         g.Recoil = Recoil.Kick(g.Recoil, gun, ctx.Tick, mods.Recoil);
         shot = new Shot(ctx.Eye, direction, (float)speed, (float)damage, (float)spread, recoil, round, mods);
-        return GunResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>
@@ -466,19 +422,19 @@ public static class FirearmRules
     }
 
     /// <summary>Starts a reload of <paramref name="ammo"/> (RustMVP <c>begin_reload</c>: equip, reloading, full, reserve).</summary>
-    public static GunResult BeginReload(ref GunState g, in ItemStack weapon, FirearmStats gun, ushort ammo, int reserve, long tick)
+    public static OutcomeCode BeginReload(ref GunState g, in ItemStack weapon, FirearmStats gun, ushort ammo, int reserve, long tick)
     {
         if (tick < g.EquipReadyTick)
         {
-            return GunResult.Equipping;
+            return OutcomeCode.Cooldown;
         }
         if (g.Reloading)
         {
-            return GunResult.Reloading;
+            return OutcomeCode.Reloading;
         }
         if (ammo == 0 || reserve <= 0)
         {
-            return GunResult.NoReserve;
+            return OutcomeCode.NoAmmo;
         }
         bool takes = false;
         foreach (ItemDef a in gun.Ammo)
@@ -487,16 +443,16 @@ public static class FirearmRules
         }
         if (!takes)
         {
-            return GunResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (weapon.LoadedAmmo == ammo && weapon.Loaded >= gun.Magazine)
         {
-            return GunResult.Full;
+            return OutcomeCode.Full;
         }
         g.ReloadStartTick = tick;
         g.ReloadEndTick = tick + gun.ReloadTicks;
         g.ReloadAmmo = ammo;
-        return GunResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>

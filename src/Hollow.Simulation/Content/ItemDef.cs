@@ -298,6 +298,21 @@ public sealed class ItemDef
     /// <summary>An explosive thrown or placed by hand (explosives.json, G5); null for other items.</summary>
     public ThrowableStats? Throwable { get; internal set; }
 
+    /// <summary>Its parts (GROUND_SYSTEMS.md §7): the blocks of its data that give it behaviour, worked out when the data is read.</summary>
+    public ItemParts Parts { get; internal set; }
+
+    /// <summary>
+    /// What it does in the hands (GROUND_SYSTEMS.md §7): the held behaviour its one part that gives one gives
+    /// (<see cref="HeldPart"/>), else <see cref="HeldUse.None"/>. The client's and the server's handlers are found by it.
+    /// </summary>
+    public HeldUse Held { get; internal set; }
+
+    /// <summary>The part that gives it its held behaviour, or null.</summary>
+    public ItemPart? HeldPart { get; internal set; }
+
+    /// <summary>The recipes that take it (what it is a component of), in recipes.json's order.</summary>
+    public IReadOnlyList<Recipe> UsedIn { get; internal set; } = Array.Empty<Recipe>();
+
     /// <summary>
     /// What the hands do with it (the one place that says, from its data): an explosive is thrown, a building tool builds,
     /// a deployable is placed, food and medicine are used, and everything else attacks.

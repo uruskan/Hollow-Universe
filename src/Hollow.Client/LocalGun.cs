@@ -4,6 +4,7 @@ using System.Numerics;
 using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
+using Hollow.Simulation;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -24,8 +25,8 @@ public readonly record struct ShotEvent(uint Seq, ItemDef Weapon, ItemDef Round,
 /// <summary>A reload began (predicted, at once) or ended: the gun, the rounds, how long it takes.</summary>
 public readonly record struct ReloadEvent(ItemDef Weapon, ItemDef Round, float Seconds);
 
-/// <summary>A shot or reload the server refused: its effect has been rolled back.</summary>
-public readonly record struct GunRefusal(uint Seq, GunResult Result);
+/// <summary>A shot or reload refused (by the server: its effect has been rolled back; seq 0: by the prediction, before sending).</summary>
+public readonly record struct GunRefusal(uint Seq, OutcomeCode Result);
 
 /// <summary>
 /// The gun in the local player's hand (GROUND.md §6.4), predicted with the server's own rules (<see cref="FirearmRules"/>):
@@ -235,13 +236,13 @@ public sealed class LocalGun
             ItemStack weapon = WeaponStack();
             ushort ammo = FirearmRules.ReloadAmmo(weapon, gun, _wantAmmo, Count);
             int reserve = ammo == 0 ? 0 : Count(ammo) - (ammo == _loadedAmmo ? _taken : 0);
-            GunResult result = FirearmRules.BeginReload(ref _state, weapon, gun, ammo, reserve, tick);
-            if (result == GunResult.Accepted && Send(GunActionKind.Reload, tick, slot, stack.Item, command, ammo, default))
+            OutcomeCode result = FirearmRules.BeginReload(ref _state, weapon, gun, ammo, reserve, tick);
+            if (result == OutcomeCode.Done && Send(GunActionKind.Reload, tick, slot, stack.Item, command, ammo, default))
             {
                 ReloadStarted?.Invoke(new ReloadEvent(gun.Item, content.Item(ammo)!, (float)gun.ReloadSeconds));
                 _player.Touch();
             }
-            else if (result != GunResult.Accepted)
+            else if (result != OutcomeCode.Done)
             {
                 Refused?.Invoke(new GunRefusal(0, result));
             }
@@ -258,7 +259,7 @@ public sealed class LocalGun
         }
         bool trigger = (pressed || held) && _armed;
         if (!trigger || (state.Flags & (MoveFlags.Sprinting | MoveFlags.Swimming)) != 0 ||
-            FirearmRules.CanFire(_state, WeaponStack(), gun, tick) != GunResult.Accepted)
+            FirearmRules.CanFire(_state, WeaponStack(), gun, tick) != OutcomeCode.Done)
         {
             return;
         }
@@ -278,7 +279,7 @@ public sealed class LocalGun
         };
         GunState before = _state;
         ItemStack shotWeapon = WeaponStack();
-        if (FirearmRules.Fire(ref _state, ref shotWeapon, content, gun, context, out Shot shot) != GunResult.Accepted)
+        if (FirearmRules.Fire(ref _state, ref shotWeapon, content, gun, context, out Shot shot) != OutcomeCode.Done)
         {
             return;
         }
@@ -346,7 +347,7 @@ public sealed class LocalGun
         _serverLoadedAmmo = (ushort)Math.Min(m.LoadedAmmo, ushort.MaxValue);
         uint applied = m.LastSeq;
         _pending.RemoveAll(p => p.Seq <= applied);
-        if (m.Refused != GunResult.Accepted && m.RefusedSeq > _refusedSeen)
+        if (m.Refused != OutcomeCode.Done && m.RefusedSeq > _refusedSeen)
         {
             _refusedSeen = m.RefusedSeq;
             Refused?.Invoke(new GunRefusal(m.RefusedSeq, m.Refused));
@@ -389,7 +390,7 @@ public sealed class LocalGun
             ItemStack weapon = WeaponStack();
             if (p.Kind == GunActionKind.Fire)
             {
-                if (FirearmRules.Fire(ref _state, ref weapon, _player.Content, gun, p.Context, out _) == GunResult.Accepted)
+                if (FirearmRules.Fire(ref _state, ref weapon, _player.Content, gun, p.Context, out _) == OutcomeCode.Done)
                 {
                     _loaded = weapon.Loaded;
                 }

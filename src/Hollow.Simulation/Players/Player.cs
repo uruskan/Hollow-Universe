@@ -177,7 +177,7 @@ public sealed class Player : ITargetable
     /// <summary>The last gun action refused, and why (sent with the gun's state).</summary>
     public uint GunRefusedSeq { get; set; }
 
-    public GunResult GunRefused { get; set; }
+    public OutcomeCode GunRefused { get; set; }
 
     // ---------------------------------------------------------------- G4: the wounded state (Rust's)
 

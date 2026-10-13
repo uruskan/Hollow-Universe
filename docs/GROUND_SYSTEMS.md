@@ -313,6 +313,24 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
 **Replaces:** the chains listed in §1 (input, `BuildView.Use`, `FirstPersonView`, the server's melee/bow chain,
 `Describe`, `MoreActions`), and the `Key == "torch"` and `"rifle"` checks, which become model-catalogue flags.
 
+*As built* (package P3, `ground-p3`; GROUND.md §11, decisions V1 on):
+
+- **Parts.** `ItemPart` (`Content/ItemParts.cs`) names the 21 blocks of data that give an item behaviour: melee, bow,
+  arrow, consumable, wearable, fuel, cookable, deployable, ship, firearm, round, attachment, throwable, plan, hammer,
+  cupboard, lock, key, door, blueprint and component (an ingredient of a recipe, or recycled into salvage). One table
+  (`ItemPartTable`) says where each is declared and which held behaviour it gives; when the data has been read, every
+  item gets its parts (`ItemDef.Parts`), what uses it (`UsedIn`) and its one held behaviour (`ItemDef.Held`, a `HeldUse`,
+  and `HeldPart`). Two parts that would each give one are a problem in the data. Test:
+  `HeldTests.HeldBehaviourComesFromOnePart`.
+- **Held behaviours on the server** (`Zone.Held.cs`): one handler per `HeldUse` in a registry the zone seals at start.
+  The tick asks the item in hand's handler for its buttons (melee swings, the bow drawn and loosed) and, when the hands
+  change, the handler of what was put away ends what was going on; the rest act by intents. An intent a held behaviour
+  sends is checked by that behaviour (`Zone.ItemFor`): a throw of something whose held behaviour isn't `Throwable` is
+  refused, whatever it is.
+- **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
+  lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
+  from 100), and `GunUpdate` carries the code in 7 bits.
+
 ## 8. Damage and destruction (package P4, built: GROUND.md §6.4.2)
 
 One damage request (who, with what, how delivered, the damage channels, amount, body region, point, direction); a

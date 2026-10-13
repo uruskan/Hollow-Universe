@@ -182,6 +182,33 @@ public enum OutcomeCode : byte
 
     /// <summary>A key lock, without its key.</summary>
     NeedsKey = 72,
+
+    // ---------------------------------------------------------------- guns (G4; their own GunResult until P3 folded it in)
+    // Numbered from 100, so codes the other packages of GROUND_SYSTEMS.md add beside these never meet them.
+
+    /// <summary>No firearm in that slot (or in hand).</summary>
+    NoWeapon = 100,
+
+    /// <summary>The gun is reloading.</summary>
+    Reloading = 101,
+
+    /// <summary>The magazine is empty.</summary>
+    Empty = 102,
+
+    /// <summary>Faster than the gun fires.</summary>
+    Cadence = 103,
+
+    /// <summary>No rounds the gun takes to load.</summary>
+    NoAmmo = 104,
+
+    /// <summary>The magazine is full of that kind already.</summary>
+    Full = 105,
+
+    /// <summary>Sprinting, swimming or seated: the gun is lowered.</summary>
+    Lowered = 106,
+
+    /// <summary>The action is for a tick further back than lag compensation reaches.</summary>
+    TooLate = 107,
 }
 
 /// <summary>

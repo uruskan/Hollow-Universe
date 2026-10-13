@@ -84,23 +84,23 @@ public sealed partial class Zone
 
     public long BulletStepsFlown { get; private set; }
 
-    /// <summary>Gun actions answered so far, by result (the load test reports the refusals).</summary>
-    public long[] GunResults { get; } = new long[16];
+    /// <summary>Gun actions answered so far, by answer code (the load test reports the refusals).</summary>
+    public long[] GunResults { get; } = new long[128];
 
     // ---------------------------------------------------------------- gun actions
 
     /// <summary>
     /// A shot or reload the player's client asked for (a fire or reload intent), queued for its tick in sequence order
     /// (they travel unordered, so a resent one may come after later ones). Returns what it was refused for already (it is
-    /// still answered in order), or <see cref="GunResult.Accepted"/> when it waits for its tick;
-    /// <see cref="GunResult.Stale"/> for one already seen or passed (dropped without an answer: the client's prediction
+    /// still answered in order), or <see cref="OutcomeCode.Done"/> when it waits for its tick;
+    /// <see cref="OutcomeCode.Stale"/> for one already seen or passed (dropped without an answer: the client's prediction
     /// starts again from the server's state anyway).
     /// </summary>
-    public GunResult QueueGunAction(Entity entity, GunAction action)
+    public OutcomeCode QueueGunAction(Entity entity, GunAction action)
     {
         if (PlayerOf(entity) is not { } p)
         {
-            return GunResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         int at = p.GunQueue.Count;
         while (at > 0 && p.GunQueue[at - 1].Seq > action.Seq)
@@ -109,28 +109,28 @@ public sealed partial class Zone
         }
         if (action.Seq <= p.Gun.LastSeq || (at > 0 && p.GunQueue[at - 1].Seq == action.Seq))
         {
-            return GunResult.Stale;
+            return OutcomeCode.Stale;
         }
         if (p.GunQueue.Count >= MaxQueuedGunActions)
         {
-            return GunResult.RateLimited;
+            return OutcomeCode.RateLimited;
         }
-        if (action.Refused == GunResult.Accepted)
+        if (action.Refused == OutcomeCode.Done)
         {
             if (!p.CanAct)
             {
-                action.Refused = GunResult.NotAlive;
+                action.Refused = OutcomeCode.Dead;
             }
             else if (action.Tick < Tick - GunActionLateTicks)
             {
-                action.Refused = GunResult.TooLate;
+                action.Refused = OutcomeCode.TooLate;
             }
             else if (action.Tick > Tick + GunActionLeadTicks)
             {
-                action.Refused = GunResult.Invalid;
+                action.Refused = OutcomeCode.Invalid;
             }
         }
-        if (action.Refused != GunResult.Accepted && p.GunQueue.Count == 0)
+        if (action.Refused != OutcomeCode.Done && p.GunQueue.Count == 0)
         {
             // Nothing before it: answered now (the dead and the sleeping don't step their guns).
             Settle(p, action.Seq, action.Refused);
@@ -151,21 +151,21 @@ public sealed partial class Zone
         while (p.GunQueue.Count > 0)
         {
             GunAction a = p.GunQueue[0];
-            if (a.Refused == GunResult.Accepted && a.Tick > Tick)
+            if (a.Refused == OutcomeCode.Done && a.Tick > Tick)
             {
                 break;
             }
             p.GunQueue.RemoveAt(0);
-            GunResult result = a.Refused != GunResult.Accepted ? a.Refused : ApplyGunAction(entity, ref c, p, gun, a);
+            OutcomeCode result = a.Refused != OutcomeCode.Done ? a.Refused : ApplyGunAction(entity, ref c, p, gun, a);
             Settle(p, a.Seq, result);
         }
     }
 
-    private void Settle(Player p, uint seq, GunResult result)
+    private void Settle(Player p, uint seq, OutcomeCode result)
     {
-        GunResults[(int)result & 15]++;
+        GunResults[(int)result & 127]++;
         p.Gun.LastSeq = Math.Max(p.Gun.LastSeq, seq);
-        if (result != GunResult.Accepted)
+        if (result != OutcomeCode.Done)
         {
             p.GunRefusedSeq = seq;
             p.GunRefused = result;
@@ -173,19 +173,19 @@ public sealed partial class Zone
         p.GunRevision++;
     }
 
-    private GunResult ApplyGunAction(Entity entity, ref Character c, Player p, FirearmStats? gun, in GunAction a)
+    private OutcomeCode ApplyGunAction(Entity entity, ref Character c, Player p, FirearmStats? gun, in GunAction a)
     {
         if (gun == null)
         {
-            return GunResult.NoWeapon;
+            return OutcomeCode.NoWeapon;
         }
         if (a.Slot != p.HeldSlot || a.Item != p.HeldItem)
         {
-            return GunResult.Stale;
+            return OutcomeCode.Stale;
         }
         if (a.Tick < Tick - GunActionLateTicks)
         {
-            return GunResult.TooLate;
+            return OutcomeCode.TooLate;
         }
         ItemStack weapon = p.Inventory.Belt[p.HeldSlot];
         GameContent content = Content!;
@@ -193,8 +193,8 @@ public sealed partial class Zone
         {
             Container[] carried = { p.Inventory.Main, p.Inventory.Belt };
             ushort ammo = FirearmRules.ReloadAmmo(weapon, gun, a.Ammo, id => InventoryRules.Count(carried, id));
-            GunResult reload = FirearmRules.BeginReload(ref p.Gun, weapon, gun, ammo, ammo == 0 ? 0 : InventoryRules.Count(carried, ammo), a.Tick);
-            if (reload == GunResult.Accepted)
+            OutcomeCode reload = FirearmRules.BeginReload(ref p.Gun, weapon, gun, ammo, ammo == 0 ? 0 : InventoryRules.Count(carried, ammo), a.Tick);
+            if (reload == OutcomeCode.Done)
             {
                 p.ActionCount++;
                 p.LastAction = ActionKind.Reload;
@@ -203,7 +203,7 @@ public sealed partial class Zone
         }
         if ((c.State.Flags & (MoveFlags.Sprinting | MoveFlags.Swimming)) != 0)
         {
-            return GunResult.NotReady;
+            return OutcomeCode.Lowered;
         }
         // On its tick the shot leaves from where the shooter is; a late one (its intent was resent) from where they were.
         Vector3 up = Frame.UpAt(c.State.Position);
@@ -227,8 +227,8 @@ public sealed partial class Zone
             Crouched = c.State.Stance == Stance.Crouching,
             Airborne = (c.State.Flags & (MoveFlags.OnGround | MoveFlags.Swimming)) == 0,
         };
-        GunResult result = FirearmRules.Fire(ref p.Gun, ref weapon, content, gun, context, out Shot shot);
-        if (result != GunResult.Accepted)
+        OutcomeCode result = FirearmRules.Fire(ref p.Gun, ref weapon, content, gun, context, out Shot shot);
+        if (result != OutcomeCode.Done)
         {
             return result;
         }
@@ -237,7 +237,7 @@ public sealed partial class Zone
         p.ActionCount++;
         p.LastAction = ActionKind.Shoot;
         Wear(entity, p, p.HeldSlot);
-        return GunResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // The end of a reload: other rounds out (back into the inventory), the magazine filled from the reserve.
@@ -286,7 +286,7 @@ public sealed partial class Zone
     }
 
     /// <summary>Answers every waiting action with a refusal (the player went down).</summary>
-    private void RefuseGunActions(Player p, GunResult result)
+    private void RefuseGunActions(Player p, OutcomeCode result)
     {
         foreach (GunAction a in p.GunQueue)
         {

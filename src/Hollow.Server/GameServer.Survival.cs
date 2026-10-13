@@ -456,7 +456,7 @@ public sealed partial class GameServer
         session.GunActions++;
         if (!session.SpendGunToken(Zone.Tick, s.GunBurst, s.GunActionsPerSecond))
         {
-            action.Refused = GunResult.RateLimited;
+            action.Refused = OutcomeCode.RateLimited;
             session.GunRateLimited++;
         }
         if (session.Playing)

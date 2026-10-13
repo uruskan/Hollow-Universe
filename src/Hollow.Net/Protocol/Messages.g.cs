@@ -23,7 +23,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x0D9C53CD20319249UL;
+    public const ulong SchemaHash = 0xE74D328698FC7396UL;
 }
 
 partial struct Hello
@@ -2420,7 +2420,7 @@ partial struct GunUpdate
     {
         w.WriteVarUInt(LastSeq);
         w.WriteVarUInt(RefusedSeq);
-        w.WriteBits((uint)Refused, 4);
+        w.WriteBits((uint)Refused, 7);
         w.WriteBits((uint)Slot, 3);
         w.WriteVarUInt(Item);
         w.WriteVarUInt(Loaded);
@@ -2444,7 +2444,7 @@ partial struct GunUpdate
         var v = new GunUpdate();
         v.LastSeq = r.ReadVarUInt();
         v.RefusedSeq = r.ReadVarUInt();
-        v.Refused = (GunResult)r.ReadBits(4);
+        v.Refused = (OutcomeCode)r.ReadBits(7);
         v.Slot = (byte)r.ReadBits(3);
         v.Item = r.ReadVarUInt();
         v.Loaded = r.ReadVarUInt();

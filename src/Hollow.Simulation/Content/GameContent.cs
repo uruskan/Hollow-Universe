@@ -301,6 +301,8 @@ public sealed partial class GameContent
         ExplosivesReader.Check(loaded, loaded.Building, problems);
         WorldReader.Check(loaded, problems);
         AnimalsReader.Check(loaded, problems);
+        // Every file linked: each item's parts and its one held behaviour (GROUND_SYSTEMS.md §7).
+        ItemPartTable.Assign(loaded, problems);
         return new GameContent(loaded);
     }
 

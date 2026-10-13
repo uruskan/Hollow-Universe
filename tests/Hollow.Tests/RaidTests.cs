@@ -376,23 +376,23 @@ public static class RaidTests
         rig.Give(ada, "rocket-hv", 1);
         rig.Step(20);
         rig.Look(ada, face);
-        Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 1), "fired");
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "fired");
         float boBefore = rig.P(bo).Vitals.Health;
         int flight = Raids.StepUntil(rig, () => rig.Zone.RaidStats.Detonations == 1, 90, "the rocket's blast");
         Assert.InRange(31, 40, flight, "20 m at 18 m/s: about 34 ticks");
         Assert.True(east.Health is 362 or 363, $"the wall lost 137 or 138 ({east.Health})");
         Assert.True(rig.P(bo).Vitals.Health < boBefore, "Bo beside the impact was hurt");
-        Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 2), "queued");
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 2), "queued");
         rig.Step();
-        Assert.Equal(GunResult.Empty, rig.P(ada).GunRefused, "one rocket at a time");
+        Assert.Equal(OutcomeCode.Empty, rig.P(ada).GunRefused, "one rocket at a time");
 
         // Reload with the high-velocity rocket: 5 s; it flies twice as fast and does little to stone.
-        Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 3, GunActionKind.Reload, ammo: c.ItemByKey("rocket-hv").Id), "reloading");
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 3, GunActionKind.Reload, ammo: c.ItemByKey("rocket-hv").Id), "reloading");
         rig.Step(151);
         Assert.Equal(1, (int)rig.P(ada).Inventory.Belt[0].Loaded, "loaded after 5 s");
         double before = east.Health;
         rig.Look(ada, face);
-        Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 4), "fired the high-velocity rocket");
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 4), "fired the high-velocity rocket");
         int fast = Raids.StepUntil(rig, () => rig.Zone.RaidStats.Detonations == 2, 60, "the high-velocity rocket's blast");
         Assert.InRange(13, 18, fast, "20 m at 40 m/s: about 15 ticks");
         Assert.Equal(before - 45, east.Health, "45 against stone");

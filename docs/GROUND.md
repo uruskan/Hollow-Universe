@@ -5073,3 +5073,18 @@ Decisions taken for the shared foundations (GROUND_SYSTEMS.md §3, package P0) w
   (`BuildResult`) free and no new message IDs (190–199 unused); `TargetNet` (a 4-bit family, the ID, the part);
   `ShipNetFlags` renumbered without Mine and Locked (10 bits); `ExplosiveCodec` version 2; capabilities.json and
   texts.json; survival.json's `reach` and `lifetimes` (`world.corpseSeconds` and `droppedItemSeconds` gone).
+
+Decisions taken for held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3) without the
+owner, to confirm or overturn (numbered V1 on):
+
+- V1. **Parts come from the data's blocks, held behaviours from parts.** An item's parts are worked out once, when the
+  data is read, from one table (`ItemPartTable`): the block that declares each, and the held behaviour it gives. A
+  deployable, a door, a lock, the tool cupboard and a ship all give `Placer`: one behaviour (place where the aim is, R
+  turns), whatever is placed. The parts aren't numbered on the wire or in saves, so the list may change.
+- V2. **The gun's state still follows the hands**, outside the held behaviours: its queue of shots, reloads and unloads
+  is stepped for every player every tick (a late action for a gun put away must still be answered), and taking anything
+  up re-equips it. The held behaviours' server side is what they do with the buttons each tick (melee, bow) and what
+  putting them away ends; the others act by intents, each checked by the behaviour that sends it.
+- V3. **The gun's answers are outcome codes from 100 up**, so the codes P1 and P2 add from 73 never meet them. Equipping
+  is `Cooldown` ("Not ready yet"), down or dead is `Dead`; the gun's refusals still roll its prediction back by
+  themselves and aren't shown as notices (a refused shot is a misprediction, not the player's mistake).

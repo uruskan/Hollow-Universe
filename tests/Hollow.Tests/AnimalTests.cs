@@ -60,7 +60,7 @@ public static class AnimalTests
         Animal target = herd.Leader!;
         rig.Look(ada, target.Position + rig.Zone.Frame.UpAt(target.Position) * 0.95f);
         rig.Zone.GameEvents.Clear();
-        Assert.Equal(GunResult.Accepted, Guns.Queue(rig, ada, 1), "the shot");
+        Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "the shot");
         float[] before = herd.Members.Select(a => AnimalRig.Flat(a.Position, rig.Ch(ada).State.Position)).ToArray();
         bool hit = false;
         rig.Step(15, () =>
