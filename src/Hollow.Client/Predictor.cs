@@ -156,6 +156,7 @@ public sealed class Predictor : IDisposable
         _world.Prefetch(state.Position);
         lock (JoltRuntime.Gate)
         {
+            _world.OptimizeBroadPhase();
             CharacterMotor.Step(ref state, NetConvert.ToMoveInput(command), _body, _context);
         }
     }

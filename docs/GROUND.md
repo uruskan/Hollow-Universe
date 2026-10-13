@@ -920,6 +920,46 @@ in view, by day and night, at 60 fps. What doesn't look finished yet: outcrops, 
 items are placeholders (§11, decision 68), bodies and sleepers fall as ragdolls with no sleeping pose, and a new body
 costs a frame.
 
+### 5.5 Pass 2: the host's server in its own process, and the planet's tick
+
+Measured on the owner's PC on 13 October 2026 with other agents' load tests running on it at the same time (8 % of
+inputs missed their tick in some runs for that reason), after G3 phase 1, G4, the assets, the sound and the character
+polish were merged.
+
+**The server's tick on the planet** (the load test of §5.4, 100 survival bots, 40 s; `--duration 40`):
+
+| | Before | After | Target |
+|---|---|---|---|
+| Server tick, average | 10.26 ms, of which the zone's step 6.18 ms | 5.04 ms, of which the zone's step 1.21 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 20.4 / 96.7 ms (7 of 1,202 over 33 ms) | 13.1 / 93.3 ms (3 of 1,202 over 33 ms) | ≤ 33 ms |
+| Prediction: mean / worst error, corrections | 0.033 / 187 mm, 67 in 80,000 | 0.089 / 259 mm, 125 in 80,460 | |
+| Bandwidth per client, down / up | 104.9 / 21.9 kbit/s | 105.3 / 22.1 kbit/s | ≤ 256 kbit/s |
+
+- **Where the time went** (a profile of the tick, per tick on average): the characters' movement 6.3–7.0 ms, nearly
+  all of it in Jolt's character queries (refreshing contacts 2.0 ms, the extended update 4.9 ms), against 1.4 ms on the
+  stand-in; replication 2.5–3.0 ms; receiving 0.7–1.0 ms; sending 0.6 ms; the ground's upkeep 0.2 ms (and 100 KB of
+  allocations a tick, from streaming tiles and their natural objects); everything G2 and G4 add, under 0.2 ms.
+- **The cause**: the zone never runs Jolt's own update (characters are moved by queries), and that update is what keeps
+  the broadphase tree in shape; on the planet 4,000–5,000 props and 170 ground tiles come and go one body at a time, so
+  every query walked a tree grown that way. `PhysicsWorld.OptimizeBroadPhase` now rebuilds it after bodies change (at
+  most twice a second, sooner after 64 changes), on the server and in every client's prediction: movement went from
+  7.0 to 1.1 ms (contacts 0.46 ms, the update 0.55 ms). The worst ticks left are a respawn's ground built on the spot
+  (nine tiles at about 10 ms each) and garbage collections.
+- Prediction stays exact on a clean line (the physics check's hash is unchanged); the corrections above come with the
+  inputs that missed their tick on a loaded PC (the runs before the change had 148 and 176).
+
+**Hosted play** (2 players and 50 bots at the landing site, as §5.4):
+
+| | In the game's process (pass 1) | In its own process (pass 2) |
+|---|---|---|
+| Server tick | 8.5 ms average, 72 ms 99th percentile, 234 ms worst | 3.05 ms average, 114 ms the most in the last 10 s |
+| Frame, average / 99th percentile / worst | 12.7 / 19.0 / 139 ms | 14.6 / 23.2 / 122 ms |
+
+The frame now carries the sound and the catalogue's models, and the PC was busier; the slowest frames left are a new
+ragdoll (40–60 ms, the character package's) and plant rebuilds landing (20–30 ms). Players coming back into range
+take a spare body (`PeopleView`: four of each body made while the world opens, and those leaving are kept), so only
+new arrivals and corpses build one.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -2204,3 +2244,7 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
 78. **What the character contract can't show yet is left out** rather than drawn around it: attachments on guns in
     hand, others' aiming pose, crawling (the wounded crouch), sleepers' pose (75). The character package's views would
     need an attachment list for `Hold`, an aiming flag and a crawling stance.
+79. **Jolt's broadphase is rebuilt after bodies change** (`PhysicsWorld.OptimizeBroadPhase`: at most twice a second,
+    sooner after 64 changes), since the zone never runs Jolt's update that would do it (§5.5).
+80. **Spare bodies**: four of each body are built while the world opens, and players leaving range give theirs back
+    (kept up to eight of each), so coming back into view costs no frame.

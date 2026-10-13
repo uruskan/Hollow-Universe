@@ -237,6 +237,7 @@ public sealed class PhysicsWorld : IDisposable
                 Listener?.TileRemoved(key.X, key.Z);
                 Tile tile = _tiles[key];
                 bodies.RemoveAndDestroyBody(tile.Body);
+                Interlocked.Increment(ref _bodyChanges);
                 tile.Shape.Dispose();
                 _tiles.Remove(key);
             }
@@ -306,9 +307,31 @@ public sealed class PhysicsWorld : IDisposable
         return shape;
     }
 
+    private int _bodyChanges;
+    private int _sinceOptimize;
+
+    /// <summary>
+    /// Rebuilds Jolt's broadphase tree after bodies came and went (ground tiles, props). The world never runs Jolt's
+    /// own update, which would keep the tree in shape, and contact queries on a tree grown body by body cost several
+    /// times more. Call with the Jolt lock held, once a tick before characters move; it rebuilds at most twice a second
+    /// (sooner after many changes).
+    /// </summary>
+    public void OptimizeBroadPhase()
+    {
+        _sinceOptimize++;
+        if (_bodyChanges == 0 || (_sinceOptimize < 15 && _bodyChanges < 64))
+        {
+            return;
+        }
+        Jolt.OptimizeBroadPhase();
+        _bodyChanges = 0;
+        _sinceOptimize = 0;
+    }
+
     // Adds a built tile to the physics system, under the tile's own body ID. On the owning thread.
     private Tile AddTile(int x, int z, Shape shape)
     {
+        Interlocked.Increment(ref _bodyChanges);
         var id = new BodyID((uint)((x + TileRange) + (z + TileRange) * 2 * TileRange));
         Tile tile;
         lock (JoltRuntime.Gate)
@@ -371,6 +394,7 @@ public sealed class PhysicsWorld : IDisposable
                 ?? throw new InvalidOperationException($"Jolt refused prop {layer} {key} (body {id}).");
             bodies.AddBody(body.ID, Activation.DontActivate);
             _props.Add((layer, key), new Prop(body.ID, shape, id));
+            Interlocked.Increment(ref _bodyChanges);
         }
     }
 
@@ -384,6 +408,7 @@ public sealed class PhysicsWorld : IDisposable
         {
             Jolt.BodyInterface.RemoveAndDestroyBody(prop.Body);
             prop.Shape.Dispose();
+            Interlocked.Increment(ref _bodyChanges);
         }
         _propIdUsed[prop.Id - TileIdCount] = false;
     }
@@ -416,6 +441,7 @@ public sealed class PhysicsWorld : IDisposable
             foreach (Tile tile in _tiles.Values)
             {
                 bodies.RemoveAndDestroyBody(tile.Body);
+                Interlocked.Increment(ref _bodyChanges);
                 tile.Shape.Dispose();
             }
             _tiles.Clear();

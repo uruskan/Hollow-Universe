@@ -168,6 +168,7 @@ public sealed partial class Zone : IDisposable
         }
         lock (JoltRuntime.Gate)
         {
+            Physics.OptimizeBroadPhase();
             Span<Character> values = characters.Values;
             ReadOnlySpan<int> slots = characters.Slots;
             for (int i = 0; i < values.Length; i++)

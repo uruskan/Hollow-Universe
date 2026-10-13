@@ -201,6 +201,7 @@ public partial class GroundView : Node3D
         _firstPerson.Attach(_camera);
         _things.Muzzle = _firstPerson.Muzzle;
         Warmup(_camera);
+        _people.MakeSpares();
         // Sound: the director listens at the camera (GROUND.md §4.9); --mute leaves it out.
         if (!Muted)
         {
@@ -228,10 +229,13 @@ public partial class GroundView : Node3D
         }
         foreach (string key in new[] { "stone-node", "metal-node", "sulphur-node" })
         {
-            if (GroundModels.Provider.Outcrop(key, 1, 0) is { } rock)
+            for (int stage = 0; stage < 3; stage++)
             {
-                rock.Position = new Vector3(x += 3, 0, 0);
-                warm.AddChild(rock);
+                if (GroundModels.Provider.Outcrop(key, stage, 0) is { } rock)
+                {
+                    rock.Position = new Vector3(x += 3, 0, 0);
+                    warm.AddChild(rock);
+                }
             }
         }
         if (GroundModels.Provider.Dropped("wood") is { } dropped)

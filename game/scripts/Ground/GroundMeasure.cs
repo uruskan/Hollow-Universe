@@ -67,8 +67,14 @@ public partial class GroundMeasure : Node
         GetParent().CallDeferred(Node.MethodName.AddChild, _late);
     }
 
+    private bool _done;
+
     public override void _Process(double delta)
     {
+        if (_done)
+        {
+            return;
+        }
         GameClient client = View.Client;
         if (!_started)
         {
@@ -142,10 +148,13 @@ public partial class GroundMeasure : Node
             $"{(GC.GetAllocatedBytesForCurrentThread() - _allocatedHere) / Seconds / 1e6:0.0} MB/s on the main thread, of which the ground view's parts (KB a frame): " +
             string.Join(", ", View.Allocations.Select(p => $"{p.Key} {p.Value / 1024.0 / _frames.Count:0.0}")) +
             $"; process phase {_late!.Phase / 1024.0 / _frames.Count:0.0} KB a frame, the rest {_early!.Bytes / 1024.0 / _frames.Count:0.0} KB");
-        if (Server == null)
+        if (Server == null && Command != null)
         {
-            // A server in its own process prints its tick (the game's log shows it as "[server] tick ...").
-            Command?.Invoke("status");
+            // A server in its own process prints its tick (the game's log shows it as "[server] tick ..."): wait for it.
+            Command("status");
+            _done = true;
+            GetTree().CreateTimer(1.0).Timeout += () => GetTree().Quit();
+            return;
         }
         if (Server != null)
         {

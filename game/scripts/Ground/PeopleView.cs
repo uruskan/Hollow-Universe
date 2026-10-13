@@ -87,11 +87,66 @@ public partial class PeopleView : Node3D
         }
     }
 
+    // Bodies kept for players who come into range: making one costs a frame (the character package builds its meshes
+    // and animation graph), so those who leave give theirs back, and a few of each body are made while the world opens.
+    private readonly Dictionary<BodyType, Stack<CharacterView>> _spare = new();
+
+    /// <summary>Spare bodies made while the world opens, per body type.</summary>
+    public const int SpareBodies = 4;
+
+    /// <summary>Makes the spare bodies (call while the world opens: each costs tens of milliseconds).</summary>
+    public void MakeSpares()
+    {
+        foreach (BodyType body in new[] { BodyType.Male, BodyType.Female })
+        {
+            Stack<CharacterView> spare = Spare(body);
+            while (spare.Count < SpareBodies)
+            {
+                var view = new CharacterView { Name = "Spare", Body = body, Visible = false };
+                AddChild(view);
+                spare.Push(view);
+            }
+        }
+    }
+
+    private Stack<CharacterView> Spare(BodyType body)
+    {
+        if (!_spare.TryGetValue(body, out Stack<CharacterView>? stack))
+        {
+            _spare[body] = stack = new Stack<CharacterView>();
+        }
+        return stack;
+    }
+
     private CharacterView NewView(RemoteEntity entity)
     {
-        var view = new CharacterView { Name = "Player " + entity.Name, Body = (BodyType)entity.Body };
+        var body = (BodyType)entity.Body;
+        if (Spare(body).TryPop(out CharacterView? kept))
+        {
+            kept.Name = "Player " + entity.Name;
+            kept.Visible = true;
+            return kept;
+        }
+        var view = new CharacterView { Name = "Player " + entity.Name, Body = body };
         AddChild(view);
         return view;
+    }
+
+    // A body back to the spares (standing again if it fell), or freed when there are enough.
+    private void Release(CharacterView view)
+    {
+        Stack<CharacterView> spare = Spare(view.Body);
+        if (spare.Count >= 2 * SpareBodies || !IsInstanceValid(view))
+        {
+            view.QueueFree();
+            return;
+        }
+        if (view.IsDead)
+        {
+            view.Revive();
+        }
+        view.Visible = false;
+        spare.Push(view);
     }
 
     public void Refresh(double delta)
@@ -119,7 +174,7 @@ public partial class PeopleView : Node3D
         }
         foreach (uint gone in _people.Keys.Where(k => !_seen.Contains(k)).ToList())
         {
-            _people[gone].View.QueueFree();
+            Release(_people[gone].View);
             _people[gone].Feet?.QueueFree();
             _people.Remove(gone);
         }
@@ -131,7 +186,7 @@ public partial class PeopleView : Node3D
         if (p.Body != e.Body && !p.Down)
         {
             // Another body: a new view (a view's body is chosen when it is made), dressed as before.
-            p.View.QueueFree();
+            Release(p.View);
             p.View = NewView(e);
             p.View.Wear(ItemLooks.Outfit(Client.Content, p.Wear));
             p.Body = e.Body;
