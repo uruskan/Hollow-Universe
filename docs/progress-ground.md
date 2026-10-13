@@ -579,7 +579,8 @@ GROUND.md §4.3.1; decisions O1–O16.
   level of detail, both bodies in every garment and as first-person arms, every held item in first person, every grade
   and door of the building and the plan's ghost, every gib set, every effect of fx.json, the animals, the Tin Finch with
   its engines lit. Their files load from the first frame (6 at a time, kept for the game, sounds too). In play after the
-  hand-over: no pipeline built and no frame over 33 ms.
+  hand-over no pipeline is built; no frame went over 33 ms (with Godot's caches emptied, two in two minutes: 46 and
+  118 ms).
 - **Faster where it was blocking:** the impostor atlas on a worker, the planet's air and surface prepared while the server
   starts, the terrain putting more tiles a frame behind the screen, the hosted server at a higher priority, the game's
   C# optimized in Debug builds.
@@ -589,4 +590,4 @@ GROUND.md §4.3.1; decisions O1–O16.
 - Left: the world's opening still holds one frame for about 6 s under the screen (shader variants of the world and the
   characters); opening the world while a hosted server starts would hide more of it, but it needs the zone predicted
   and was not done. `--load-trace` (with `--load-shot`, `--arrival-check`) measures a start.
-- Seven new tests (`LoadingTests`); 186 of 186 pass.
+- Seven new tests (`LoadingTests`); with `ground` merged (P0, P3), 199 of 199 pass.
