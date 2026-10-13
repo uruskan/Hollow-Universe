@@ -67,6 +67,7 @@ public sealed class PhysicsWorld : IDisposable
     private readonly List<(int X, int Z)> _expired = new();
     private readonly List<(int X, int Z)> _adopted = new();
     private readonly Dictionary<(PropLayer, ulong), Prop> _props = new();
+    private readonly Dictionary<uint, (PropLayer Layer, ulong Key)> _propOf = new();
     private readonly bool[] _propIdUsed = new bool[MaxProps];
     private int _tilesBuilt;
     private long _buildTicks;
@@ -572,6 +573,18 @@ public sealed class PhysicsWorld : IDisposable
 
     public bool HasProp(PropLayer layer, ulong key) => _props.ContainsKey((layer, key));
 
+    /// <summary>The prop a body belongs to (a tree's or a deployable's), by its layer and key; false for any other body.</summary>
+    public bool TryPropOf(uint body, out PropLayer layer, out ulong key)
+    {
+        if (_propOf.TryGetValue(body, out (PropLayer Layer, ulong Key) prop))
+        {
+            (layer, key) = prop;
+            return true;
+        }
+        (layer, key) = (default, 0);
+        return false;
+    }
+
     /// <summary>
     /// Adds a static prop (a tree, an outcrop, a box) under a key; nothing if the key is there already. Its body ID
     /// comes after the ground tiles', so a tile is always ordered before a prop in Jolt's contact lists.
@@ -605,6 +618,7 @@ public sealed class PhysicsWorld : IDisposable
             Shape shape = prop.CreateShape();
             AddStaticBody(id, shape, prop.Centre, prop.Rotation);
             _props.Add((layer, key), new Prop(new BodyID(id), shape, id));
+            _propOf[id] = (layer, key);
         }
     }
 
@@ -644,6 +658,7 @@ public sealed class PhysicsWorld : IDisposable
             prop.Shape.Dispose();
         }
         _propIdUsed[prop.Id - TileIdCount] = false;
+        _propOf.Remove(prop.Id);
     }
 
     public void Dispose()

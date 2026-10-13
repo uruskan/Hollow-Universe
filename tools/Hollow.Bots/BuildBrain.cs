@@ -4,7 +4,9 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Client;
 using Hollow.Core;
+using Hollow.Simulation;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Placement;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Nature;
@@ -170,7 +172,7 @@ public sealed class BuildBrain
                     _sentAt = time;
                     break;
                 }
-                Send(me.PlacePiece(plan), time);
+                Send(PlacePiece(client, plan), time);
                 break;
             case Stage.Approach:
                 if (Steer(ref input, feet, stand, 0.8f, delta) || Stuck(time, feet, stand))
@@ -287,14 +289,34 @@ public sealed class BuildBrain
         // foundation's top is the lowest the ground allows: a point above the ground lifts it, as a raised aim does.
         site.Y = client.Character.Position.Y;
         Vector3 up = client.Frame.UpAt(site);
-        site = client.AimGround(site + up * 6, -up, 14) ?? site;
-        plan = building.FoundationAt(client.Content.Building.Piece("foundation")!, site, 0);
-        if (plan == null)
+        site = client.Ground?.Settle(site) ?? site;
+        PieceDef foundation = client.Content.Building.Piece("foundation")!;
+        plan = building.FoundationAt(foundation, site, 0);
+        // The server's own verdict on it (the placement pipeline, GROUND_SYSTEMS.md §6).
+        return plan != null && client.Content.Placement.Of(foundation) is { } placeable && client.Settle(placeable, plan.Claim, out _) != null;
+    }
+
+    // Places a piece the building rules planned, through the placement intent, paid from the plan's slot.
+    private static uint PlacePiece(GameClient client, PlacementPlan plan) =>
+        client.Content.Placement.Of(plan.Piece) is { } placeable && client.Settle(placeable, plan.Claim, out _) is { } ghost
+            ? client.Local.Place(ghost, ContainerRef.Main, SlotOf(client, "building-plan"))
+            : 0;
+
+    // Places what an item places where a claim says (a door in its doorway, a lock on its door, the claim device on its
+    // foundation), the server's verdict checked first; logs a refusal.
+    private uint PlaceItem(GameClient client, string item, in PlacementClaim claim)
+    {
+        if (client.Content.ItemByKey(item).Places is not { } placeable)
         {
-            return false;
+            return 0;
         }
-        building.Check(plan, client.EntityId.Value, Eye(client), new ItemWallet(client.Content, client.Local.Inventory.Carried));
-        return plan.Valid;
+        if (client.Settle(placeable, claim, out Outcome refused) is not { } ghost)
+        {
+            Refused++;
+            Log?.Invoke($"{client.Name}: {item} refused: {refused}");
+            return 0;
+        }
+        return client.Local.Place(ghost, ContainerRef.Main, SlotOf(client, item));
     }
 
     // The rest of the base, as steps that wait for what they stand on (uint.MaxValue: not yet).
@@ -308,23 +330,27 @@ public sealed class BuildBrain
         uint PlaceFirst(GameClient c, IEnumerable<PlacementPlan?> candidates)
         {
             PlacementPlan? refused = null;
+            Outcome why = Outcome.Done;
             foreach (PlacementPlan? plan in candidates)
             {
-                if (plan == null)
+                if (plan == null || c.Content.Placement.Of(plan.Piece) is not { } placeable)
                 {
                     continue;
                 }
-                c.Building!.Check(plan, c.EntityId.Value, Eye(c), new ItemWallet(c.Content, c.Local.Inventory.Carried));
-                if (plan.Valid)
+                // The server's own verdict (the placement pipeline, GROUND_SYSTEMS.md §6), then the intent.
+                if (c.Settle(placeable, plan.Claim, out Outcome refusal) is { } ghost)
                 {
-                    return c.Local.PlacePiece(plan);
+                    return c.Local.Place(ghost, ContainerRef.Main, SlotOf(c, "building-plan"));
                 }
-                refused ??= plan;
+                if (refused == null)
+                {
+                    (refused, why) = (plan, refusal);
+                }
             }
             if (refused != null)
             {
                 Refused++;
-                Log?.Invoke($"{c.Name}: {refused}");
+                Log?.Invoke($"{c.Name}: {refused.Piece.Key}: {why}");
             }
             return 0;
         }
@@ -418,9 +444,11 @@ public sealed class BuildBrain
         });
         // The door, its lock and code.
         _tasks.Enqueue(c => c.Local.Inventory.Count(c.Content.ItemByKey("wooden-door")) > 0 && _doorway != null
-            ? c.Local.PlaceDoor(ContainerRef.Main, SlotOf(c, "wooden-door"), _doorway) : 0);
+            ? PlaceItem(c, "wooden-door", new PlacementClaim(_doorway.Ref, 0, _doorway.ZoneTransform.Position, 0, 0)) : 0);
         _tasks.Enqueue(c => _doorway == null ? 0 : _doorway.Door is { } door
-            ? c.Local.Inventory.Count(c.Content.ItemByKey("code-lock")) > 0 ? c.Local.AttachLock(ContainerRef.Main, SlotOf(c, "code-lock"), door) : 0
+            ? c.Local.Inventory.Count(c.Content.ItemByKey("code-lock")) > 0
+                ? PlaceItem(c, "code-lock", new PlacementClaim(door.Ref with { Part = 1 }, 0, door.LockSpot.Position, 0, 0))
+                : 0
             : NotYet);
         _tasks.Enqueue(c => _doorway == null ? 0 : _doorway.Door is { Lock: CodeLock } door ? c.Local.SetCode(door, "1357") : NotYet);
         // Upgrades: the foundations to stone, the walls to wood.
@@ -438,8 +466,13 @@ public sealed class BuildBrain
         }
         // Last, the claim device in the middle of the first foundation.
         _tasks.Enqueue(c => c.Local.Inventory.Count(c.Content.ItemByKey("claim-device")) > 0 && _f1 != null
-            ? c.Local.PlaceClaim(ContainerRef.Main, SlotOf(c, "claim-device"), _f1, _f1.Pose.Position.X - 0.4, _f1.Pose.Position.Z + 0.4) : 0);
+            ? PlaceItem(c, "claim-device", new PlacementClaim(_f1.Ref, 0,
+                Zone(_f1.Structure.Frame.ToZone(new Vector3D(_f1.Pose.Position.X - 0.4, _f1.Pose.Position.Y, _f1.Pose.Position.Z + 0.4))), 0,
+                _f1.Pose.Yaw))
+            : 0);
     }
+
+    private static Vector3 Zone(Vector3D v) => new((float)v.X, (float)v.Y, (float)v.Z);
 
     private static int SlotOf(GameClient client, string key)
     {

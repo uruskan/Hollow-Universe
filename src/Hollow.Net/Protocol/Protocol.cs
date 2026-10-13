@@ -20,9 +20,11 @@ public static partial class Protocol
     /// <see cref="TargetNet"/> (family, ID, part) and hit kinds by target family, and viewer flags; 17: held items, item
     /// information and inventory actions (GROUND_SYSTEMS.md §7): one item action intent for every inventory button
     /// (<see cref="ItemActionIntent"/>; <c>UseIntent</c> and <c>DetachIntent</c> are gone), the gun's unload on its own
-    /// timeline (<see cref="UnloadIntent"/>) and its answers in the one answer list (<see cref="GunUpdate"/>'s code).
+    /// timeline (<see cref="UnloadIntent"/>) and its answers in the one answer list (<see cref="GunUpdate"/>'s code); 18:
+    /// placing anything is one <see cref="PlaceIntent"/> (GROUND_SYSTEMS.md §6: the deployables', pieces', charges' and
+    /// doors', locks' and the claim device's own placing gone), and a thing says what it stands on (<see cref="ThingSpawn"/>).
     /// </summary>
-    public const uint Version = 17;
+    public const uint Version = 18;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

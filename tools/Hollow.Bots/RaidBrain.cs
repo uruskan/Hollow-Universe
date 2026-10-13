@@ -126,7 +126,10 @@ public sealed class RaidBrain
         {
             case ChargeSlot:
                 me.HeldSlot = ChargeSlot;
-                if (me.PlaceCharge(ChargeSlot, input.Yaw, input.Pitch) != 0)
+                // On the surface the view meets, as the ghost shows it (GROUND_SYSTEMS.md §6).
+                if (me.Inventory.Belt[ChargeSlot] is { IsEmpty: false } charge && client.Content.Item(charge.Item)?.Places is { } placeable &&
+                    client.Plan(placeable, eye, CharacterMotor.ViewDirection(input.Yaw, input.Pitch, up), input.Yaw) is { Valid: true } ghost &&
+                    me.Place(ghost, ContainerRef.Belt, ChargeSlot) != 0)
                 {
                     Placed++;
                 }
@@ -236,9 +239,7 @@ public sealed class RaidBrain
     // The ground's height under a point (the client's own surface).
     private static float Ground(GameClient client, float x, float z)
     {
-        Vector3 up = client.Frame.UpAt(new Vector3(x, 0, z));
-        Vector3? hit = client.AimGround(new Vector3(x, 0, z) + up * 60, -up, 120);
-        return hit?.Y ?? client.Character.Position.Y;
+        return client.Ground?.Settle(new Vector3(x, 0, z)).Y ?? client.Character.Position.Y;
     }
 
     private bool Steer(ref InputFrame input, Vector3 feet, Vector3 to, float reach, double delta)

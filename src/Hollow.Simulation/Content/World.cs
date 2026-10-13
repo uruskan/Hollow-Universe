@@ -339,7 +339,6 @@ internal static class WorldReader
                 Item = new ItemDef { Id = prop.Id, Key = key, Name = name, Category = "world" },
                 Health = f.Number(e, "health", where, 1000),
                 HalfExtents = half,
-                MaxSlopeDegrees = 60,
                 Solid = true,
                 Slots = f.Integer(e, "slots", where, 0),
                 TakeOnly = prop.Kind == WorldPropKind.Crate,

@@ -9,6 +9,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Persistence;
 
@@ -34,9 +35,9 @@ public static class WorldCodec
     /// <summary>
     /// A static thing's record; decoding reads every older version. 2 (G4): a firearm's magazine and attachments in its
     /// stacks. 3: dropped items lie in bags (GROUND.md §6.1): a bag's slots instead of one stack (an older dropped stack
-    /// comes back as a bag of it).
+    /// comes back as a bag of it). 4 (P2, GROUND_SYSTEMS.md §6): what a deployable stands on (a piece's family and ID).
     /// </summary>
-    public const byte ThingVersion = 3;
+    public const byte ThingVersion = 4;
 
     // ---------------------------------------------------------------- characters
 
@@ -219,6 +220,8 @@ public static class WorldCodec
                     {
                         WriteContainer(w, d.Storage);
                     }
+                    w.Write((byte)d.Support.Family);
+                    w.Write(d.Support.Id);
                     break;
                 case DroppedBag bag:
                     w.Write(Math.Max(0, bag.DespawnTick - tick));
@@ -287,6 +290,13 @@ public static class WorldCodec
                     {
                         ReadContainer(r, new Container(ContainerKind.Box, 1024), content, version);
                     }
+                }
+                if (version >= 4)
+                {
+                    // What it stands on (untrusted: the zone holds it to it, and lets it go if that doesn't come back).
+                    byte family = r.ReadByte();
+                    ulong support = r.ReadUInt64();
+                    d.Support = family == (byte)TargetFamily.Piece && support != 0 ? new TargetRef(TargetFamily.Piece, support) : TargetRef.None;
                 }
                 return d;
             }

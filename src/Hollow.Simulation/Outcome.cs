@@ -183,6 +183,23 @@ public enum OutcomeCode : byte
     /// <summary>A key lock, without its key.</summary>
     NeedsKey = 72,
 
+    // ---------------------------------------------------------------- placing (P2, GROUND_SYSTEMS.md §6)
+
+    /// <summary>The server worked the placement out again and it doesn't agree with the client's (something moved).</summary>
+    Misplaced = 73,
+
+    /// <summary>A corner of its footprint stands over nothing (RustMVP's: every corner supported).</summary>
+    Overhangs = 74,
+
+    /// <summary>The structure holds as many of its kind as it may: <see cref="Outcome.Detail"/> is its item.</summary>
+    StructureFull = 75,
+
+    /// <summary>The player has placed as many of it as they may: <see cref="Outcome.Detail"/> is its item.</summary>
+    TooMany = 76,
+
+    /// <summary>In the sea, or too near its surface.</summary>
+    InWater = 77,
+
     // ---------------------------------------------------------------- guns (G4; their own GunResult until P3 folded it in)
     // Numbered from 100, so codes the other packages of GROUND_SYSTEMS.md add beside these never meet them.
 

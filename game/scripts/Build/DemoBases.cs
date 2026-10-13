@@ -122,8 +122,8 @@ public static class DemoBases
         On(world, h.Porch, Facing(h.Porch, -1, 0.6), "low-wall", 0);
 
         // Doors and the claim device.
-        world.PlaceDoor(Owner, world.Data.Door("sheet-metal-door")!, doorway, 0, Eye(world, doorway), out _);
-        world.PlaceDoor(Owner, world.Data.Door("wooden-double-door")!, westF, 1, Eye(world, westF), out _);
+        world.PlaceDoor(Owner, world.Data.Door("sheet-metal-door")!, doorway, 0, out _);
+        world.PlaceDoor(Owner, world.Data.Door("wooden-double-door")!, westF, 1, out _);
         world.PlaceClaim(Owner, h.F, h.F.Pose.Position + new Vector3D(0.6, 0, -0.7), 0, out ClaimDevice? claim);
         if (claim != null)
         {

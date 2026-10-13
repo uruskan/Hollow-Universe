@@ -243,7 +243,7 @@ is renamed the **tool cupboard** (data, interface and code).
 
 **Cost:** client targeting under 0.1 ms a frame; server one lookup, one `Offer`, one ray per intent.
 
-## 6. Placement (package P2)
+## 6. Placement (package P2, built 13 October 2026: GROUND.md §6.10, decisions Z1–Z12)
 
 **A rule per placeable**, declared in data next to the thing (defaults in one `placement` block):
 
@@ -260,28 +260,100 @@ is renamed the **tool cupboard** (data, interface and code).
 | `privilege` | `needed` (authorised where a cupboard covers), `blocked` (refused in others' cover), `ignored` (charges) |
 | `limits` | per structure (Rust: 20 deployables, one cupboard), per player (sleeping bags) |
 
+*As built:* `game/data/ground/placement.json` (hashed): `defaults`, one block per kind (`deployable`, `piece`, `door`,
+`lock`, `cupboard`, `charge`, `ship`) and the append-only `placeables` list, whose index is the wire's number: 42
+entries (11 deployables, 20 building pieces, 5 doors, 2 locks, the claim device, 2 charges, the Tin Finch). A
+placeable's rule (`PlacementRule`) is the defaults, its kind's block over them and the `placement` block next to its
+definition over that (deployables.json, building.json's pieces, doors, locks and claim, explosives.json's throwables,
+ships.json), read by one reader (`Content/PlacementReader.cs`). Beyond the table: `supportStep` (15 cm, RustMVP's),
+`turn` (R's step), `sight` (the slack the sight ray may end short), `padding` (claims reaching further, the building's
+2.25 m) and `tolerance` (0.3 m). `pieceSurfaces` names what each family of piece offers what stands on it: foundations,
+floors and stairs a `floor`, walls a `wall`, roofs a `roof`. Every item that places something knows its placeable
+(`ItemDef.Places`); a piece has the building plan as its tool and its twig as its price. The content check refuses a
+placeable that names nothing, a deployable, door, lock, charge or ship left out of the list, and a name without its
+handler (one problem each, not one per placeable).
+
 **Solvers and checks** are registered by name. A solver turns the aim into a candidate (pose, support, socket); a fixed
 pipeline of data-configured checks (reach, sight, surface and support, slope and step, water, overlap, privilege,
 limits) gives the verdict and its reason; the building solver adds its own checks (stability, sockets). The client runs
 it every frame for the ghost against its replicated world (terrain, the building mirror, things' boxes, characters,
 claims); the server runs it again and accepts only a pose within a small tolerance of its own (RustMVP's rule).
 
+*As built:* `src/Hollow.Simulation/Placement/`. **Solvers** (`Solvers.cs`): `free` (the first body the aim meets, then
+straight down from a little above it to what it would stand on within the step; under a ceiling, from just under it),
+`socket` (the building's own scoring of every compatible socket near the aim, or a free foundation), `opening` (the
+doorway or wall frame the aim passes through), `attach` (the door aimed at, at its lock spot) and `sweep` (the
+explosives' own sweep to the first surface). **Rotations** (`Rotations.cs`): `free` (the view's yaw plus R's turns),
+`steps`, `support` (square to the piece under it, in its 30° steps), `flip` (a door's side) and `fixed` (as the solver
+found it: a piece's orientation on its socket, which R cycles, or a lock's spot). **Checks** (`Checks.cs`), in
+placement.json's order: reach (to the footprint's nearest point), surface, step, slope, water, overlap, support (every
+corner within 15 cm of an allowed surface facing up), sight, privilege, limits, and `own` (the kind's: a piece's
+building checks, a door's opening, one lock to a door, the claim device on a slab). **Kinds** (`Kinds.cs`) say what a
+key names in the data, their own rules, how a candidate is drawn turned, what counts against a limit, and, on the
+server, what placing one makes (`Put` through `IPlacementSite`: the zone, or the build sandbox's building alone).
+**Footprints** (`Footprint.cs`): a box lifted 2 cm (a deployable's or the claim device's size), a ship's hull (its boxes
+from ships.json, through `ShipCollider`), or a point. All four lists are sealed registries (`PlacementHandlers`) keyed
+by placement.json's lists. The pipeline is `Placer`: `Plan` (the client's ghost: each candidate through the checks, the
+first that passes, else the best with its reason), `Settle` (the server: the solver works the claim out again, takes it
+only within the rule's tolerance of its own, then the checks) and `Check`. Both run over a `PlacementWorld`: the zone's
+(`Zone.Placement`) or a client's (`GameClient.Placement`: its prediction physics with the ground, trees, rocks and solid
+deployables, its building mirror, the things, characters and ships it was sent, what stands on what), whose rays name
+what they meet by its owner (`TargetRef`) and the surface it offers. Reach, sight and building rights moved out of the
+building's rules into the pipeline; the building keeps stability, sockets, collisions and the price. Tests:
+`PlacementTests` (nine, one a rule).
+
 **One ghost:** the thing's catalogue model in a hologram material, one colour when it fits and red when not, with the
 reason under the crosshair (the building plan's line), and a pending look until the server's answer arrives. R turns it
 by its rule. Building pieces keep their batched ghost mesh in the same material.
+
+*As built:* `game/scripts/Ground/PlacementView.cs` is the one controller, behind the held controls' `IPlacement` (§7:
+the placer's, the planner's and a charge's), whatever is held: every frame the held item's control aims it and it asks
+`GameClient.Plan` for the item's placeable (or the plan's piece), a click sends what the ghost shows (`Local.Place`), R
+turns it; with nothing aimed in a frame there is no ghost. `PlacementGhost` draws it in one hologram material
+(`shaders/placement_ghost.gdshader`: unshaded, divided by the camera's exposure, a rim and faint lines), pale blue when
+it fits and red when not, the line under the crosshair saying why (`BuildHud`); its model comes by the kind's name (a
+piece's kit mesh, a door's frame and leaves), else the model catalogue's by the placeable's key (deployables, locks, the
+claim device, charges, the Tin Finch). Sent placements are drawn breathing in a pale colour (`Local.PendingPlacements`)
+until the answer, half a second more once accepted. The build sandbox uses the same ghost and pipeline. `BuildGhost` and
+the hand's ground aim (`AimGround`) are gone.
 
 **Wire:** one `PlaceIntent { Seq, From, Slot, Expected, Placeable, Support, Socket, Pose, Variant }`, replacing
 PlaceIntent, PlacePieceIntent, DoorIntent.Place, LockIntent.Attach, ClaimIntent.Place and PlaceChargeIntent. Throwing
 stays its own action and keeps the shared sweep for sticking.
 
+*As built:* message 220 (protocol 18): the slot that pays and the item seen there, the placeable's number, the support
+(`TargetNet`), the socket's code, the pose (`PoseNet`: a point in the zone frame and a 16-bit yaw) and the variant (a
+piece's orientation or a free foundation's heading, a door's side, a turn in the support's steps), answered by
+`IntentResult`. Messages 59, 90 and 111 are free; `DoorIntent`, `LockIntent` and `ClaimIntent` lost their placing
+actions. The server's handler (`GameServer.Placement.cs`) is one call, `Zone.Place(entity, PlaceRequest)`: the slot must
+hold the placeable's item (or its tool), the solver settles the claim, every check passes, the kind puts it, then the
+item or the materials are taken. The client takes the price at once and rolls it back on a refusal.
+
 **Support links:** what stands on a piece is linked to it, and goes when the piece goes (Rust).
+
+*As built:* a deployable placed on a piece keeps the piece as its `Support` and is held by it (§3.6); the `standing`
+capability (every deployable) breaks it when the piece goes, its contents spilling in one bag. The link is saved (the
+thing record's version 4: no SQL schema step) and settled once the building is back after a restart; a thing whose piece
+didn't come back breaks. `ThingSpawn` carries it, so a client counts what stands on a structure as the server does.
+Doors and locks are the building's parts; charges already were (§3.6).
 
 **Fixes:** furnaces, boxes, campfires and bags stand on foundations and floors; every placeable has a ghost with a
 verdict, the garage door, locks, the cupboard, charges and the Tin Finch included; one reach, sight, water and privilege
 rule; the Tin Finch is placed from its item (`ships.json` gets a placement rule with the hull as its footprint, and the
 ship family's placement handler calls `SpawnShip`).
 
+*As built:* all of them (the pictures in GROUND.md §6.10). A deployable stands on the ground or the top of a foundation,
+floor or stairs' landing (not a wall, a roof or another thing), every corner held; the claim device on a slab, one to a
+structure. The Tin Finch's item places it within 12 m, its skids on the ground or a slab's top no steeper than 20°,
+dry, its hull clear, with ships.json's `fuel.placed` (50 of lamp oil, its recipe's first tank); the vehicle workbench
+still rolls a built one out onto its bay. The Tin Finch's item is held as a placer (its ship part's held behaviour,
+§7), so in the belt it shows its ghost and the attack button places it.
+
 **Cost:** client solve and ghost under 0.2 ms a frame.
+
+*As built:* measured by `PlacementTests.AThingGoesWithTheFoundationItStandsOn` on the loopback client: 32 µs a frame for
+a furnace's ghost, 80 µs for a wall's on a foundation's sockets; a refused piece tries up to eight sockets with the
+building's full checks (about 0.45 ms, as before P2). The server's verdict is one settle and the same checks per intent.
 
 ## 7. Held items, item information, inventory actions (package P3)
 
@@ -340,9 +412,8 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
   and R opens its rounds (`AmmoRadial`: every round of its calibre carried with how many, then UNLOAD; the current option
   the round a tap reloads with, the loaded kind while there are more; with none carried the loaded kind shows refused, so
   a tap says why); a throwable throws, puts a charge on a surface or lobs a grenade; a placer and the planner place and turn
-  through `IPlacement`, P2's system (today `TodaysPlacement` sends each placeable to its old entry point by the part that
-  makes it placeable: a deployable to `LocalPlayer.Place` with its ghost, the plan's piece, doors, locks and the cupboard to
-  `BuildView.Use` and `Rotate`; a ship says it can't be placed yet); the hammer repairs and opens its radial; food,
+  through `IPlacement`, P2's system (since P2 merged, `PlacementView`, §6: the ghost of whatever is held, a charge's too,
+  and one `PlaceIntent`); the hammer repairs and opens its radial; food,
   medicine and blueprints do their part's first inventory button (EAT, USE, LEARN). The model catalogue says what was
   picked by item key: `held.flame` (the torch's fire, `fire.torch`), `held.pose` (`pistol`, `rifle`: the arms' pose and
   the muzzle's place when a model has none) and `held.eyeRelief` (the rifle's). Test:
@@ -424,10 +495,10 @@ contact frame and point come from the same hit the server computes. To be planne
 ## 10. Order of work
 
 1. Merge the five packages of the first playtest: freelook, hands and foundation height; exact recoil and the damage
-   request (P4); tree X and node hotspots; loot bags (all merged 13 October 2026); gibs. The Tin Finch's placement waits
-   for P2.
+   request (P4); tree X and node hotspots; loot bags (all merged 13 October 2026); gibs. The Tin Finch's placement came
+   with P2.
 2. **P0** foundations (built 13 October 2026), then **P5** the radial.
-3. **P1** interaction, **P2** placement and **P3** held items, in parallel.
+3. **P1** interaction, **P2** placement (built 13 October 2026) and **P3** held items, in parallel.
 4. Merge, then the owner plays.
 
 Every package adds its shared system with engine-free tests, moves every existing path onto it, deletes the old path

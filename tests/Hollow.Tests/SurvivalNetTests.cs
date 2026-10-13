@@ -212,8 +212,13 @@ public static class SurvivalNetTests
             // Ada: a box with wood in it, a bag, a craft half done, a dropped stone; a tree she hit.
             Vector3 feet = ada.Character.Position;
             Vector3 boxAt = feet + new Vector3(1.6f, 0, 1.2f), bagAt = feet + new Vector3(-1.5f, 0, 1.5f);
-            ada.Local.Place(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "small-box"), boxAt, 0);
-            ada.Local.Place(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "sleeping-bag"), bagAt, 0);
+            // Each where its ghost shows it on the ground (GROUND_SYSTEMS.md §6).
+            foreach ((string key, Vector3 at) in new[] { ("small-box", boxAt), ("sleeping-bag", bagAt) })
+            {
+                Simulation.Placement.PlacementCandidate? ghost = ada.PlanAt(c.ItemByKey(key).Places!, ada.Ground!.Value.Settle(at), 0);
+                Assert.True(ghost is { Valid: true }, $"the {key}'s ghost fits ({ghost})");
+                ada.Local.Place(ghost!, ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, key));
+            }
             RunUntil(rig, () => ada.Things.Count(t => t.Kind == StaticKind.Deployable) == 2, "both placed");
             RemoteThing box = ada.Things.Single(t => t.Look == c.ItemByKey("small-box").Id);
             ada.Local.Open(box.Id);

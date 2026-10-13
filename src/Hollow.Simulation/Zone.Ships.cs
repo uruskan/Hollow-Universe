@@ -12,6 +12,7 @@ using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Placement;
 
 namespace Hollow.Simulation;
 
@@ -326,60 +327,15 @@ public sealed partial class Zone
         return best;
     }
 
-    /// <summary>Whether a ship would stand at a point without overlapping anything but the ground, a character or another ship.</summary>
-    public bool ShipSpaceClear(ShipDef def, Vector3 ground, float yaw)
-    {
-        Vector3 up = Frame.UpAt(ground);
-        ShipState probe = ShipMotor.Standing(def, ground + up * 0.05f, up, yaw);
-        Span<ShipContact> contacts = stackalloc ShipContact[4];
-        int found;
-        lock (JoltRuntime.Gate)
-        {
-            Physics.EnsureGround(ground);
-            found = ShipCollider.Overlaps(def, probe.Position, probe.Rotation, ShipCollider.NoBody, contacts);
-        }
-        for (int i = 0; i < found; i++)
-        {
-            // The ground may poke into the hull a little on bumpy ground; anything else (a box, a tree, a wall) blocks.
-            if (!PhysicsWorld.IsGroundBody(contacts[i].Body) || contacts[i].Depth > 0.25f)
-            {
-                return false;
-            }
-        }
-        float reach = def.BoundingRadius + 0.5f;
-        ComponentPool<Character> characters = Entities.Pool<Character>();
-        foreach (Character c in characters.Values)
-        {
-            if (!c.State.IsDead && Vector3.DistanceSquared(c.State.Position, probe.Position) < reach * reach &&
-                InsideHull(def, probe, c.State.Position + up * 0.9f, 0.4f))
-            {
-                return false;
-            }
-        }
-        foreach (Ship other in _ships)
-        {
-            if (!other.Destroyed && Vector3.Distance(other.State.Position, probe.Position) < other.Def.BoundingRadius + def.BoundingRadius - 0.5f)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
+    private readonly List<Capsule> _hullCharacters = new();
+    private readonly List<PlacedShip> _hullShips = new();
 
-    // Whether a point (with a margin) is inside one of a ship's hull boxes.
-    private static bool InsideHull(ShipDef def, in ShipState state, Vector3 point, float margin)
-    {
-        Vector3 local = Vector3.Transform(point - state.Position, Quaternion.Conjugate(state.Rotation)) + def.CentreOfMass;
-        foreach (HullBox box in def.Hull)
-        {
-            Vector3 d = Vector3.Abs(local - box.Centre) - box.HalfExtents - new Vector3(margin);
-            if (d.X <= 0 && d.Y <= 0 && d.Z <= 0)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+    /// <summary>
+    /// Whether a ship would stand at a point without overlapping anything but the ground, a character or another ship: the
+    /// placement system's hull footprint (GROUND_SYSTEMS.md §6), as when one is placed from its item.
+    /// </summary>
+    public bool ShipSpaceClear(ShipDef def, Vector3 ground, float yaw) =>
+        HullFootprint.Clear(Placement, def, ground, yaw, _hullCharacters, _hullShips).Ok;
 
     // ---------------------------------------------------------------- the hatch, the seat, the lock, the fuel
 
@@ -568,7 +524,7 @@ public sealed partial class Zone
                 }
                 Physics.EnsureGround(ground);
                 Vector3 feet = ground + up * 0.05f;
-                if (InsideHull(ship.Def, ship.State, feet + up * 0.9f, 0.35f) || !CapsuleClear(feet, up))
+                if (HullFootprint.Inside(ship.Def, ship.State.Position, ship.State.Rotation, feet + up * 0.9f, 0.35f) || !CapsuleClear(feet, up))
                 {
                     continue;
                 }

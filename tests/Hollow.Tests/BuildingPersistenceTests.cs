@@ -50,12 +50,11 @@ public static class BuildingPersistenceTests
                 BuildingNetTests.On(z, wall, new SocketId(SocketKind.Top, 0), "floor", Ada, orientation: 0, grade: 0);
                 b.Damage(wall, new DamageHit(Vector3.UnitX, Melee: 60), now);
                 Vector3 eye = BuildingWorld.F(f.Structure.Frame.ToZone(new Vector3D(0, 1.6, 0)));
-                Assert.True(b.PlaceDoor(Ada, b.Data.Door("sheet-metal-door")!, doorway, 1, eye, out Door? door).Ok, "the metal door");
+                Assert.True(b.PlaceDoor(Ada, b.Data.Door("sheet-metal-door")!, doorway, 1, out Door? door).Ok, "the metal door");
                 Assert.True(b.AttachCodeLock(Ada, door!, out _).Ok && b.SetCode(Ada, door!, "2468").Ok, "its code lock");
                 Assert.True(b.EnterCode(Bo, door!, "2468", now).Ok, "Bo let in");
                 Assert.True(b.Toggle(Bo, door!).Ok, "and the door open");
-                Assert.True(b.PlaceDoor(Ada, b.Data.Door("wooden-door")!, second, 0, BuildingWorld.F(f2.Structure.Frame.ToZone(new Vector3D(3, 1.6, 0))),
-                    out Door? other).Ok, "the wooden door");
+                Assert.True(b.PlaceDoor(Ada, b.Data.Door("wooden-door")!, second, 0, out Door? other).Ok, "the wooden door");
                 Assert.True(b.AttachKeyLock(Ada, other!, out KeyLock? key).Ok, "its key lock");
                 Assert.True(b.SetLocked(Ada, other!, true).Ok, "locked");
                 Assert.True(b.PlaceClaim(Ada, f, new Vector3D(0.6, 0, 0.6), 2, out ClaimDevice? claim).Ok, "the claim device");

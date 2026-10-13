@@ -277,10 +277,11 @@ public sealed class SurvivalBrain
             Vector3 feet = client.Character.Position;
             Vector3 up = client.Frame.UpAt(feet);
             (Vector3 forward, _) = CharacterMotor.HorizontalBasis(_yaw, up);
-            Vector3? at = client.AimGround(feet + up * 2 + forward * 2.2f, -up, 4);
-            if (at != null)
+            // Where its ghost goes, aimed at the ground ahead (GROUND_SYSTEMS.md §6).
+            if (client.Ground?.Settle(feet + forward * 2.2f) is { } at && c.ItemByKey("campfire").Places is { } placeable &&
+                client.PlanAt(placeable, at, _yaw) is { Valid: true } ghost)
             {
-                me.Place(fire.Which, fire.Slot, at.Value, _yaw);
+                me.Place(ghost, fire.Which, fire.Slot);
                 _campfire = true;
             }
         }

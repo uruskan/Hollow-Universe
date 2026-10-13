@@ -8,8 +8,8 @@ namespace HollowUniverse.Build;
 
 /// <summary>
 /// The building's part of the renderer's warm-up (GROUND.md §4.3.1): every grade's material on its pieces' levels of
-/// detail, batched as <see cref="BuildingRenderer"/> batches them; the plan's ghost; every door and window part; the
-/// garage door.
+/// detail, batched as <see cref="BuildingRenderer"/> batches them; the placement ghost's hologram; every door and window
+/// part; the garage door.
 /// </summary>
 public static class BuildingWarm
 {
@@ -38,10 +38,11 @@ public static class BuildingWarm
             }
             if (ghostMesh != null)
             {
-                // The plan's ghost shows a piece's middle level in its own materials.
-                var ghost = new BuildGhost { Name = "Ghost", Assets = assets, Position = new Vector3(x + 4, 0, 0) };
+                // The placement ghost shows a piece's middle level in its hologram (GROUND_SYSTEMS.md §6).
+                MeshInstance3D ghost = HollowUniverse.Ground.PlacementGhost.Warmup(ghostMesh);
+                ghost.Name = "Ghost";
+                ghost.Position = new Vector3(x + 4, 0, 0);
                 group.AddChild(ghost);
-                ghost.ShowForWarmup(ghostMesh);
             }
             return group;
         });
