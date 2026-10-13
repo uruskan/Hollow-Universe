@@ -461,6 +461,9 @@ public sealed class PlanetSurface : ISurface
 
     // ---------------------------------------------------------------- collision
 
+    public PooledTriangles GroundCollisionPooled(in ZoneFrame frame, double centreX, double centreZ, double size) =>
+        TileMesh.CollisionPooled(this, frame, centreX, centreZ, size, CollisionLevel, TileCells);
+
     public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
         TileMesh.Collision(this, frame, centreX, centreZ, size, CollisionLevel, TileCells);
 

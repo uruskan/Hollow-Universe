@@ -223,6 +223,7 @@ public static class Program
             Respawns = sv.Profile.Calls(Hollow.Simulation.Diagnostics.ProfileSection.Respawn),
             BodiesMade = sv.Zone.Physics.BodiesMade,
             BodiesReused = sv.Zone.Physics.BodiesReused,
+            Scatter = sv.Zone.Nature is Hollow.Simulation.Nature.ScatterNaturalObjects scatter ? $"; {scatter.CachedTiles} scatter tiles cached, {scatter.Generated} made in the whole run" : "",
             Ticks = sv.Ticks.Ticks,
             StepMs = (sv.StepTime - stepBefore).TotalMilliseconds,
             Average = sv.Ticks.TotalAverageMs,
@@ -351,7 +352,7 @@ public static class Program
         }
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"Ground: {measured.Tiles} tiles and {measured.Props} props in the physics at the end (bodies made {measured.BodiesMade}, put back {measured.BodiesReused}, whole run); " +
-            $"{measured.Respawns} respawns ({storms} storms)"));
+            $"{measured.Respawns} respawns ({storms} storms){measured.Scatter}"));
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"Garbage collections in the server's process while measured: {gcAfter.Gen0 - gcBefore.Gen0} gen0, {gcAfter.Gen1 - gcBefore.Gen1} gen1, " +
             $"{gcAfter.Gen2 - gcBefore.Gen2} gen2, {(gcAfter.Paused - gcBefore.Paused).TotalMilliseconds:0} ms paused in all; " +

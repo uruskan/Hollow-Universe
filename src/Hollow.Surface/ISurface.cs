@@ -31,6 +31,13 @@ public interface ISurface
     /// </summary>
     TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size);
 
+    /// <summary>
+    /// <see cref="GroundCollision"/>'s triangles, the same to the bit, perhaps in pooled arrays (the physics builds
+    /// tiles all the time); dispose the result. Surfaces that don't override it hand over their mesh's own arrays.
+    /// </summary>
+    PooledTriangles GroundCollisionPooled(in ZoneFrame frame, double centreX, double centreZ, double size) =>
+        PooledTriangles.Of(GroundCollision(frame, centreX, centreZ, size));
+
     /// <summary>The biome at a unit direction (stand-in surfaces: grassland).</summary>
     Biome BiomeAt(Vector3D direction) => Biome.Grassland;
 
@@ -65,4 +72,44 @@ public sealed class TriangleMesh
 
     public int VertexCount => Positions.Length / 3;
     public int TriangleCount => Indices.Length / 3;
+}
+
+/// <summary>
+/// Triangles as <see cref="TriangleMesh"/>, in arrays that may be rented from the shared pools and be longer than
+/// the counts (<see cref="ISurface.GroundCollisionPooled"/>): dispose to give them back.
+/// </summary>
+public sealed class PooledTriangles : IDisposable
+{
+    private readonly bool _rented;
+
+    public PooledTriangles(float[] positions, int[] indices, int vertexCount, int triangleCount, bool rented)
+    {
+        Positions = positions;
+        Indices = indices;
+        VertexCount = vertexCount;
+        TriangleCount = triangleCount;
+        _rented = rented;
+    }
+
+    /// <summary>A mesh's own arrays (nothing to give back).</summary>
+    public static PooledTriangles Of(TriangleMesh mesh) => new(mesh.Positions, mesh.Indices, mesh.VertexCount, mesh.TriangleCount, false);
+
+    /// <summary>x, y, z of each vertex in turn; the first <see cref="VertexCount"/> count.</summary>
+    public float[] Positions { get; }
+
+    /// <summary>Three vertex indices per triangle; the first <see cref="TriangleCount"/> count.</summary>
+    public int[] Indices { get; }
+
+    public int VertexCount { get; }
+
+    public int TriangleCount { get; }
+
+    public void Dispose()
+    {
+        if (_rented)
+        {
+            System.Buffers.ArrayPool<float>.Shared.Return(Positions);
+            System.Buffers.ArrayPool<int>.Shared.Return(Indices);
+        }
+    }
 }

@@ -213,6 +213,7 @@ public sealed class PhysicsWorld : IDisposable
     /// </summary>
     public void Prefetch(Vector3 position, int radius = 2)
     {
+        using TickProfile.Scope timed = Profile.Time(ProfileSection.Prefetch);
         (int cx, int cz) = TileOf(position);
         for (int z = cz - radius; z <= cz + radius; z++)
         {
@@ -247,6 +248,7 @@ public sealed class PhysicsWorld : IDisposable
     /// </summary>
     public void PrefetchAlong(Vector3 from, Vector3 to, float reach)
     {
+        using TickProfile.Scope timed = Profile.Time(ProfileSection.Prefetch);
         const float step = TileSize / 2;
         float length = Vector2.Distance(new Vector2(from.X, from.Z), new Vector2(to.X, to.Z));
         int n = Math.Max(1, (int)MathF.Ceiling(length / step));
@@ -291,6 +293,13 @@ public sealed class PhysicsWorld : IDisposable
             tile.LastUsed = _epoch;
             return;
         }
+        StartBuild(x, z);
+    }
+
+    // Apart from PrefetchTile: a lambda capturing x and z there would allocate its closure on every call (every
+    // character asks for 25 tiles a tick), not only for a tile that is started.
+    private void StartBuild(int x, int z)
+    {
         ITileListener? listener = Listener;
         _pending.Add((x, z), new TileBuild(() =>
         {
@@ -395,8 +404,8 @@ public sealed class PhysicsWorld : IDisposable
     private Shape BuildShape(int x, int z)
     {
         long start = Stopwatch.GetTimestamp();
-        TriangleMesh mesh = TileMesh(x, z);
-        // Pooled: these are large-object-heap sized, and tiles come and go all the time.
+        // Pooled, as the arrays below: these are large-object-heap sized, and tiles come and go all the time.
+        using PooledTriangles mesh = Surface.GroundCollisionPooled(Frame, (x + 0.5) * TileSize, (z + 0.5) * TileSize, TileSize);
         Vector3[] vertices = ArrayPool<Vector3>.Shared.Rent(mesh.VertexCount);
         IndexedTriangle[] triangles = ArrayPool<IndexedTriangle>.Shared.Rent(mesh.TriangleCount);
         Shape shape;

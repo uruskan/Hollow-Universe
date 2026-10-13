@@ -1,4 +1,6 @@
 using System;
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Hollow.Core;
 
@@ -231,20 +233,51 @@ public static class TileMesh
     {
         List<TileKey> tiles = TilesCovering(surface, frame, centreX, centreZ, size, level);
         int n = cells + 1;
-        int[] gridIndices = Indices(cells);
         var positions = new float[tiles.Count * n * n * 3];
-        var indices = new int[tiles.Count * gridIndices.Length];
+        var indices = new int[tiles.Count * cells * cells * 6];
+        WriteCollision(surface, frame, tiles, cells, positions, indices);
+        return new TriangleMesh(positions, indices);
+    }
+
+    /// <summary>
+    /// <see cref="Collision"/>'s triangles, the same to the bit, in arrays rented from the shared pools: the physics
+    /// builds ground tiles all the time, and each made 600 KB of garbage, most of it large-object arrays that bring on
+    /// full collections (GROUND.md §5.9). Dispose the result to give them back.
+    /// </summary>
+    public static PooledTriangles CollisionPooled(ISurface surface, in ZoneFrame frame, double centreX, double centreZ, double size,
+        int level, int cells)
+    {
+        List<TileKey> tiles = TilesCovering(surface, frame, centreX, centreZ, size, level);
+        int n = cells + 1;
+        int vertices = tiles.Count * n * n, indexCount = tiles.Count * cells * cells * 6;
+        float[] positions = ArrayPool<float>.Shared.Rent(vertices * 3);
+        int[] indices = ArrayPool<int>.Shared.Rent(indexCount);
+        WriteCollision(surface, frame, tiles, cells, positions, indices);
+        return new PooledTriangles(positions, indices, vertices, indexCount / 3, rented: true);
+    }
+
+    private static readonly ConcurrentDictionary<int, int[]> IndexCache = new();
+
+    // Every grid's vertices in the zone's frame (as Positions computes them) and its triangles, one grid after another.
+    private static void WriteCollision(ISurface surface, in ZoneFrame frame, List<TileKey> tiles, int cells, float[] positions, int[] indices)
+    {
+        int n = cells + 1;
+        int[] gridIndices = IndexCache.GetOrAdd(cells, Indices);
         for (int t = 0; t < tiles.Count; t++)
         {
-            Vector3D[] points = Positions(surface, tiles[t], cells);
+            TileKey key = tiles[t];
             int baseVertex = t * n * n;
-            for (int v = 0; v < points.Length; v++)
+            for (int j = 0; j < n; j++)
             {
-                var local = frame.ToLocal(points[v]);
-                int k = (baseVertex + v) * 3;
-                positions[k] = local.X;
-                positions[k + 1] = local.Y;
-                positions[k + 2] = local.Z;
+                for (int i = 0; i < n; i++)
+                {
+                    Vector3D d = Direction(key, cells, i, j);
+                    var local = frame.ToLocal(d * (surface.Radius + surface.HeightAt(d)));
+                    int k = (baseVertex + j * n + i) * 3;
+                    positions[k] = local.X;
+                    positions[k + 1] = local.Y;
+                    positions[k + 2] = local.Z;
+                }
             }
             int baseIndex = t * gridIndices.Length;
             for (int i = 0; i < gridIndices.Length; i++)
@@ -252,7 +285,6 @@ public static class TileMesh
                 indices[baseIndex + i] = baseVertex + gridIndices[i];
             }
         }
-        return new TriangleMesh(positions, indices);
     }
 
     /// <summary>The tiles of a level that a square of a zone's tangent plane touches, in a fixed order.</summary>

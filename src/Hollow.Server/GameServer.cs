@@ -175,6 +175,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     public void Run()
     {
         TimerResolution.Begin();
+        // The tick can't wait for a blocking full collection (GROUND.md §5.9): full collections run in the background
+        // while it ticks, as in the game's own process.
+        System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
         try
         {
             long period = Stopwatch.Frequency / TickRate;
@@ -268,6 +271,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     public void Tick()
     {
         TimeSpan gcBefore = GC.GetTotalPauseDuration();
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         TickProfile.Scope whole = Profile.Time(ProfileSection.Tick);
         Zone.UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         using (Profile.Time(ProfileSection.Receive))
@@ -338,7 +342,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             _lastNetUpdate = now;
         }
         whole.Dispose();
-        Profile.EndTick((GC.GetTotalPauseDuration() - gcBefore).TotalMilliseconds);
+        Profile.EndTick((GC.GetTotalPauseDuration() - gcBefore).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocatedBefore);
     }
 
     /// <summary>Where the ticks go (GROUND.md §5.9): the load test prints it.</summary>
@@ -769,16 +773,28 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 OwnShip = OwnShip(session)!,
             };
             ReplicateShips(session, centre);
-            int budget = Math.Min(Protocol.SnapshotByteBudget, session.Peer.GetMaxSinglePacketSize(DeliveryMethod.Sequenced));
-            _writer.Reset();
-            session.Snapshots.Write(_writer, header, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_candidates),
-                System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_shipCandidates), budget);
-            session.Peer.Send(_writer.Data, DeliveryMethod.Sequenced);
+            using (Profile.Time(ProfileSection.ReplicateSnapshots))
+            {
+                int budget = Math.Min(Protocol.SnapshotByteBudget, session.Peer.GetMaxSinglePacketSize(DeliveryMethod.Sequenced));
+                _writer.Reset();
+                session.Snapshots.Write(_writer, header, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_candidates),
+                    System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_shipCandidates), budget);
+                session.Peer.Send(_writer.Data, DeliveryMethod.Sequenced);
+            }
 
-            ReplicateThings(session, centre);
-            ReplicateNature(session, centre);
-            ReplicateBuilding(session, centre);
-            ReplicateExplosives(session, centre);
+            using (Profile.Time(ProfileSection.ReplicateThings))
+            {
+                ReplicateThings(session, centre);
+            }
+            using (Profile.Time(ProfileSection.ReplicateNature))
+            {
+                ReplicateNature(session, centre);
+            }
+            using (Profile.Time(ProfileSection.ReplicateBuilding))
+            {
+                ReplicateBuilding(session, centre);
+                ReplicateExplosives(session, centre);
+            }
         }
         FinishThings();
         FinishBuilding();
