@@ -2059,8 +2059,7 @@ def hab_pod(b, at, rot=(0, 0, 0), length=7.0, radius=1.8, legs=0.5, tint=OFFWHIT
             a = a0 + (a1 - a0) * k / 18
             arc.append((rw * math.cos(a), zc + rw * math.sin(a)))
         door_outline = arc + [(-jamb, top), (jamb, top)]
-        with b.frame((hl - 0.05, 0, 0), (0, 0, 90)):
-            b.extrude(door_outline, 0.08, (0, 0, 0), (0, 0, 0), mat=PANEL, tint=tint, solid="hull")
+        end_wall(b, (hl - 0.05, 0, 0), 90.0, door_outline, door=(-jamb, jamb, top), tint=tint, thick=0.08)
         with b.frame((hl - 0.05, 0, 0), (0, 0, 0)):
             for y in (-jamb - 0.04, jamb + 0.04):
                 b.box((0.14, 0.08, top - zf), (0.04, y, (zf + top) / 2), mat=PAINT, tint=DARK, solid=False)
@@ -2626,3 +2625,266 @@ def _car_wreck(b):
 kit.PIECES["car-flat"] = _car_flat
 kit.PIECES["car-flat-b"] = _car_flat
 kit.PIECES["car-wreck"] = _car_wreck
+
+
+# ------------------------------------------------------------------------------------------------ farm
+
+BARN_RED = srgb(0.52, 0.2, 0.14)
+STRAW = srgb(0.78, 0.66, 0.38)
+WRAP_GREEN = srgb(0.36, 0.48, 0.32)
+TRACTOR_TEAL = srgb(0.22, 0.46, 0.44)
+
+
+def end_wall(b, at, yaw, outline, door=None, mat=PANEL, tint=OFFWHITE, thick=0.1):
+    """A flat end wall in the plane through `at` turned `yaw` degrees (its face toward -Y at yaw 0): `outline` in
+    (across, up) metres; `door` (x0, x1, top) is a notch from the bottom edge. Drawn as one extrusion but collided as
+    boxes round the opening, so the door stays passable."""
+    with b.frame(at, (0, 0, yaw)):
+        b.extrude(outline, thick, (0, 0, 0), (0, 0, 0), mat=mat, tint=tint, solid=False)
+        xs = [p[0] for p in outline]
+        zs = [p[1] for p in outline]
+        x0, x1, z1 = min(xs), max(xs), max(zs)
+        if door:
+            d0, d1, top = door
+            for a, c in ((x0, d0), (d1, x1)):
+                if c - a > 0.05:
+                    b.collide_box(Vector(((a + c) / 2, 0, z1 / 2)), (c - a, thick, z1), (0, 0, 0))
+            b.collide_box(Vector(((d0 + d1) / 2, 0, (top + z1) / 2)), (d1 - d0, thick, z1 - top), (0, 0, 0))
+        else:
+            b.collide_box(Vector(((x0 + x1) / 2, 0, z1 / 2)), (x1 - x0, thick, z1), (0, 0, 0))
+
+
+def arch_barn(b, at, rot=(0, 0, 0), radius=6.0, length=24.0, tint=srgb(0.62, 0.66, 0.6), rib=DARK, end_tint=OFFWHITE,
+              door_w=5.0, door_h=4.6, slid=2.6):
+    """A colonist's prefab arched barn you can walk into: corrugated arch panels on ribs along X over a slab, an end
+    wall at +X with a wide opening and its two sliding doors pushed aside, an end wall at -X with a person door and a
+    window. Returns the floor's centre in the monument's frame."""
+    r, L = radius, length
+    hl = L / 2
+    with b.frame(at, rot):
+        grid_box(b, (L + 0.6, 2 * r + 0.6, 0.2), (0, 0, 0.1), mat=CONCRETE, tint=srgb(0.7, 0.69, 0.66), step=3.0)
+        with b.frame((0, 0, 0.2), (0, 90, 0)):
+            for k in range(9):
+                a0, a1 = 90.0 + 20.0 * k, 90.0 + 20.0 * (k + 1)
+                if k == 6:          # one strip of sheeting torn away over the far end
+                    arc_panel(b, r, a0 + 0.3, a1 - 0.3, -hl + 0.02, hl * 0.2, 0.05, 2, mat=CORRUGATED, tint=tint,
+                              solid=True)
+                    continue
+                arc_panel(b, r, a0 + 0.3, a1 - 0.3, -hl + 0.02, hl - 0.02, 0.05, 2, mat=CORRUGATED, tint=tint,
+                          solid=True)
+        for k in range(int(L / 3.0) + 1):
+            x = -hl + 0.15 + (L - 0.3) * k / int(L / 3.0)
+            pts = [(x, (r + 0.05) * math.cos(math.radians(a)), 0.2 + (r + 0.05) * math.sin(math.radians(a)))
+                   for a in range(0, 181, 15)]
+            b.tube(pts, 0.06, mat=PAINT, tint=rib, sides=5, cap=False)
+        # +X end: a wide opening, the doors slid aside on their track.
+        jamb = door_w / 2
+        top = 0.2 + door_h
+        outline = [(r, 0.2), (jamb, 0.2), (jamb, top), (-jamb, top), (-jamb, 0.2), (-r, 0.2)] + \
+            [(r * math.cos(math.pi * k / 16), 0.2 + r * math.sin(math.pi * k / 16)) for k in range(15, 0, -1)]
+        end_wall(b, (hl - 0.05, 0, 0), 90.0, outline, door=(-jamb, jamb, top), tint=end_tint)
+        b.box((0.12, 2 * r - 0.4, 0.14), (hl + 0.05, 0, top + 0.3), mat=PAINT, tint=DARK, solid=False)
+        for s in (-1, 1):
+            grid_box(b, (0.08, door_w / 2 + 0.1, door_h), (hl + 0.14, s * (jamb + slid - door_w / 4), 0.2 + door_h / 2),
+                     mat=CORRUGATED, tint=srgb(0.55, 0.58, 0.55), step=1.2)
+            b.box((0.1, door_w / 2 + 0.1, 0.12), (hl + 0.16, s * (jamb + slid - door_w / 4), 0.2 + door_h * 0.5),
+                  mat=PAINT, tint=DARK, solid=False)
+        b.marker("door", (hl + 1.2, 0, 0.2), kind_of="barn")
+        # -X end: closed, a person door and a window.
+        outline2 = [(r, 0.2), (0.5, 0.2), (0.5, 2.5), (-0.5, 2.5), (-0.5, 0.2), (-r, 0.2)] + \
+            [(r * math.cos(math.pi * k / 16), 0.2 + r * math.sin(math.pi * k / 16)) for k in range(15, 0, -1)]
+        end_wall(b, (-hl + 0.05, 0, 0), -90.0, outline2, door=(-0.5, 0.5, 2.5), tint=end_tint)
+        with b.frame((-hl - 0.02, -0.5, 0.2), (0, 0, 110.0)):
+            b.box((0.05, 1.0, 2.28), (0, 0.5, 1.14), mat=PAINT, tint=TEAL, solid=False)
+        b.box((0.06, 1.4, 0.9), (-hl - 0.03, 2.4, 3.2), mat=GLASS, solid=False)
+        b.box((0.07, 1.5, 1.0), (-hl - 0.025, 2.4, 3.2), mat=PAINT, tint=DARK, solid=False)
+        centre = b.world((0, 0, 0.2))
+    return centre
+
+
+def greenhouse(b, at, rot=(0, 0, 0), w=8.0, l=20.0, eave=2.6, ridge=4.2, broken=0.3, beds=True):
+    """A gable glasshouse along X: aluminium frames every 2.5 m on a kerb, glass panes in every bay (some gone, one
+    hanging), a sliding door at +X; inside, raised beds run wild, and one plant has grown out through the roof."""
+    hw, hl = w / 2, l / 2
+    n = int(round(l / 2.5))
+    with b.frame(at, rot):
+        b.box((l + 0.3, w + 0.3, 0.3), (0, 0, 0.15), mat=CONCRETE, tint=srgb(0.72, 0.71, 0.68))
+        z0 = 0.3
+        for k in range(n + 1):
+            x = -hl + l * k / n
+            for s in (-1, 1):
+                b.box((0.07, 0.09, eave), (x, s * hw, z0 + eave / 2), mat=PAINT, tint=ALU, solid=False, vary=0)
+                b.beam((x, s * hw, z0 + eave), (x, 0, z0 + ridge), 0.07, 0.09, mat=PAINT, tint=ALU)
+            b.box((0.05, w, 0.05), (x, 0, z0 + eave), mat=PAINT, tint=ALU, solid=False, vary=0)
+        for s in (-1, 1):
+            b.box((l, 0.09, 0.09), (0, s * hw, z0 + eave), mat=PAINT, tint=ALU, solid=False, vary=0)
+            b.box((l, 0.06, 0.06), (0, s * hw, z0 + 1.0), mat=PAINT, tint=ALU, solid=False, vary=0)
+        b.box((l, 0.1, 0.1), (0, 0, z0 + ridge), mat=PAINT, tint=ALU, solid=False, vary=0)
+        roof_len = math.hypot(hw, ridge - eave)
+        ang = math.degrees(math.atan2(ridge - eave, hw))
+        holes = []
+        for k in range(n):
+            x = -hl + l * (k + 0.5) / n
+            bw = l / n - 0.08
+            for s in (-1, 1):
+                for (zc, hh) in ((z0 + 0.5, 0.95), (z0 + 1.0 + (eave - 1.0) / 2, eave - 1.05)):
+                    if b.rng.random() < broken:
+                        continue
+                    b.box((bw, 0.01, hh), (x, s * hw, zc), mat=GLASS, solid=False)
+                if b.rng.random() < broken:
+                    holes.append((x, s))
+                    continue
+                with b.frame((x, s * hw / 2, z0 + (eave + ridge) / 2), (-s * ang, 0, 0)):
+                    b.box((bw, roof_len - 0.05, 0.01), (0, 0, 0), (0, 0, 0), mat=GLASS, solid=False)
+        for s in (-1, 1):
+            b.collide_box(Vector((0, s * hw, z0 + eave / 2)), (l, 0.1, eave), (0, 0, 0))
+        # Gable ends: glass with a sliding door at +X.
+        gable = [(-hw, 0.0), (hw, 0.0), (hw, eave), (0.0, ridge), (-hw, eave)]
+        with b.frame((-hl, 0, z0), (0, 0, 90)):
+            b.extrude(gable, 0.01, (0, 0, 0), (0, 0, 0), mat=GLASS, solid=False)
+        b.collide_box(Vector((-hl, 0, z0 + eave / 2)), (0.1, w, eave), (0, 0, 0))
+        with b.frame((hl, 0, z0), (0, 0, 90)):
+            b.extrude([(-hw, eave), (hw, eave), (0.0, ridge)], 0.01, (0, 0, 0), (0, 0, 0), mat=GLASS, solid=False)
+            for x0, x1 in ((-hw, -0.8), (0.8, hw)):
+                b.box((x1 - x0, 0.01, eave), ((x0 + x1) / 2, 0, eave / 2), mat=GLASS, solid=False)
+            b.box((1.6, 0.04, 2.25), (1.5, -0.08, 1.13), mat=PAINT, tint=ALU, solid=False)
+            b.box((1.5, 0.01, 2.15), (1.5, -0.1, 1.13), mat=GLASS, solid=False)
+        for (y0, y1) in ((-hw, -0.8), (0.8, hw)):
+            b.collide_box(Vector((hl, (y0 + y1) / 2, z0 + eave / 2)), (0.1, y1 - y0, eave), (0, 0, 0))
+        b.marker("door", (hl + 0.8, 0, 0.3), kind_of="greenhouse")
+        # Raised beds run wild; one plant through a roof hole; a pane hanging off the frame.
+        if beds:
+            for y in (-2.4, 0.0, 2.4):
+                if abs(y) < 0.1:
+                    continue
+                b.box((l - 2.0, 1.2, 0.45), (0, y, z0 + 0.225), mat=PAINT, tint=WOOD_GREY)
+                b.box((l - 2.2, 1.0, 0.05), (0, y, z0 + 0.45), mat=CONCRETE, tint=SOIL, solid=False)
+                for j in range(int((l - 2.0) / 2.3)):
+                    xx = -hl + 1.8 + j * 2.3 + b.rng.uniform(-0.3, 0.3)
+                    bush(b, (xx, y + b.rng.uniform(-0.2, 0.2), z0 + 0.45), 0.5 + 0.5 * b.rng.random(),
+                         LEAF if b.rng.random() < 0.6 else LEAF_DRY, lumps=2)
+            if holes:
+                hx, hs = holes[0]
+                for k in range(4):
+                    bush(b, (hx + b.rng.uniform(-0.5, 0.5), hs * hw * 0.5, z0 + 0.8 + 0.9 * k), 1.0, LEAF, lumps=3)
+        with b.frame((-hl + l * 1.5 / n, -hw - 0.1, z0 + eave - 0.1), (-58, 6, 0)):
+            b.box((l / n - 0.1, 0.01, eave - 1.1), (0, 0, -(eave - 1.1) / 2), mat=GLASS, solid=False)
+
+
+def tractor(b, at, yaw=0.0, tint=TRACTOR_TEAL):
+    """A compact colonist tractor: lugged rear wheels (the crawler wheel piece), small steered front wheels, the
+    engine hood and grille, fenders and seat under a rollover frame with a canopy, an exhaust stack, a rear hitch and
+    front weights. Front toward -Y."""
+    with b.frame(at, (0, 0, yaw)):
+        for s in (-1, 1):
+            b.piece("wheel-crawler", (s * 0.98, 0.7, 0.0), (0, 0, 0 if s < 0 else 180))
+            wheel(b, (s * 0.82, -1.45, 0.42), (0, 0, 0), 0.42, 0.26, sides=14)
+        b.box((0.62, 2.7, 0.45), (0, -0.3, 0.72), mat=PAINT, tint=DARK)
+        b.cyl(0.06, 1.7, (0, -1.45, 0.42), (0, 90, 0), mat=PAINT, tint=DARK, sides=8, solid=False)
+        b.box((0.82, 1.55, 0.7), (0, -0.95, 1.33), mat=PAINT, tint=tint, bevel=0.07)
+        b.box((0.72, 0.06, 0.55), (0, -1.74, 1.3), mat=PAINT, tint=DARK, solid=False)
+        for k in range(4):
+            b.box((0.66, 0.02, 0.04), (0, -1.775, 1.12 + 0.12 * k), mat=PAINT, tint=GREY, solid=False, vary=0)
+        for s in (-1, 1):
+            b.box((0.14, 0.04, 0.1), (s * 0.3, -1.75, 1.55), mat=GLOSS, tint=srgb(0.9, 0.9, 0.85), solid=False,
+                  vary=0)
+            b.box((0.56, 1.35, 0.06), (s * 0.98, 0.7, 1.68), mat=PAINT, tint=tint)
+            b.box((0.06, 1.35, 0.5), (s * 0.68, 0.7, 1.42), mat=PAINT, tint=tint, solid=False)
+        b.box((0.9, 0.9, 0.1), (0, 0.6, 1.25), mat=PAINT, tint=DARK)
+        b.box((0.5, 0.45, 0.12), (0, 0.65, 1.42), mat=MATTE, tint=srgb(0.15, 0.15, 0.16), solid=False)
+        b.box((0.5, 0.1, 0.5), (0, 0.9, 1.7), (-10, 0, 0), mat=MATTE, tint=srgb(0.15, 0.15, 0.16), solid=False)
+        b.cyl(0.03, 0.6, (0, 0.05, 1.6), (-30, 0, 0), mat=PAINT, tint=DARK, sides=6, solid=False)
+        pts = [(0.2 * math.cos(2 * math.pi * k / 12), 0.12 + 0.2 * math.sin(2 * math.pi * k / 12) * 0.5,
+                1.88 + 0.2 * math.sin(2 * math.pi * k / 12) * 0.87) for k in range(13)]
+        b.tube(pts, 0.015, mat=PAINT, tint=DARK, sides=4, cap=False)
+        for (x, y) in ((-0.62, 1.25), (0.62, 1.25), (-0.62, 0.05), (0.62, 0.05)):
+            b.box((0.07, 0.07, 1.2), (x, y, 2.3), mat=PAINT, tint=DARK, solid=False)
+        b.box((1.5, 1.55, 0.08), (0, 0.65, 2.92), mat=PAINT, tint=tint, bevel=0.02)
+        b.cyl(0.05, 1.3, (0.32, -1.35, 2.2), mat=PAINT, tint=DARK, sides=8, solid=False)
+        b.cyl(0.06, 0.12, (0.32, -1.35, 2.88), mat=RUST, tint=(1, 1, 1), sides=8, solid=False)
+        for s in (-1, 1):
+            b.beam((s * 0.3, 1.2, 0.6), (s * 0.35, 1.9, 0.5), 0.06, 0.06, mat=PAINT, tint=DARK)
+        b.beam((0, 1.25, 1.1), (0, 1.9, 0.8), 0.05, 0.05, mat=PAINT, tint=DARK)
+        for k in range(4):
+            b.box((0.7, 0.12, 0.3), (0, -1.86 - 0.13 * k, 0.75), mat=PAINT, tint=DARK, solid=False)
+        stencil(b, "C-7", (0.415, -1.0, 1.4), (0, 0, 90), 0.18, OFFWHITE)
+        b.collide_box(Vector((0, -0.2, 1.1)), (2.0, 3.6, 2.2), (0, 0, 0))
+
+
+def round_bale(b, at, yaw=0.0, tint=WRAP_GREEN, lying=True):
+    """A round bale in its wrap, on its side (or on end)."""
+    x, y, z = at
+    rot = (0, 90, yaw) if lying else (0, 0, yaw)
+    lift = 0.75 if lying else 0.6
+    with b.frame((x, y, z + lift), rot):
+        b.cyl(0.75, 1.2, (0, 0, 0), mat=MATTE, tint=tint, sides=16, solid=True)
+        for s in (-1, 1):
+            b.cyl(0.6, 0.02, (0, 0, s * 0.6), mat=MATTE, tint=STRAW, sides=16, solid=False, vary=0.05)
+
+
+def wind_pump(b, at, yaw=0.0, height=9.5, vane_text="PLOT 12"):
+    """A farm wind pump: a lattice tower on four footings, a small platform, the multi-bladed wheel on its head
+    facing -Y, the tail vane, the pump rod down to the stand at the foot; a stock tank and a trough beside it."""
+    x, y, z = at
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            b.box((0.5, 0.5, 0.4), (x + sx * 1.3, y + sy * 1.3, 0.1), mat=CONCRETE, tint=srgb(0.75, 0.74, 0.71))
+    with b.frame((x, y, 0.3), (0, 0, 0)):
+        lattice(b, 0.0, height - 0.3, 2.6, 0.7, 4, member=0.08, tint=GALV, solid=True)
+    b.box((1.4, 1.4, 0.05), (x, y, height - 1.0), mat=GRATE, tint=GREY, solid=False, vary=0)
+    rungs(b, (x, y - 0.75, 0.3), height - 1.3, width=0.36, rail_tint=GALV)
+    with b.frame((x, y, height + 0.2), (0, 0, yaw)):
+        b.box((0.5, 0.7, 0.5), (0, 0.1, 0), mat=PAINT, tint=DARK)
+        b.cyl(0.08, 0.6, (0, -0.4, 0), (90, 0, 0), mat=PAINT, tint=GREY, sides=8, solid=False)
+        with b.frame((0, -0.75, 0), (0, 0, 0)):
+            for rr in (0.8, 1.9):
+                pts = [(rr * math.cos(2 * math.pi * k / 24), 0.0, rr * math.sin(2 * math.pi * k / 24))
+                       for k in range(25)]
+                b.tube(pts, 0.025, mat=PAINT, tint=GALV, sides=4, cap=False)
+            for k in range(18):
+                a = 2 * math.pi * k / 18
+                with b.frame((1.35 * math.cos(a), 0, 1.35 * math.sin(a)), (0, -math.degrees(a), 0)):
+                    b.box((1.1, 0.012, 0.3), (0, 0, 0), (0, 0, 22), mat=PAINT, tint=GALV, solid=False, vary=0)
+            for k in range(6):
+                a = 2 * math.pi * k / 6
+                b.beam((0, 0, 0), (1.9 * math.cos(a), 0, 1.9 * math.sin(a)), 0.03, 0.03, mat=PAINT, tint=GREY)
+        b.box((0.06, 2.4, 0.06), (0, 1.4, 0.05), mat=PAINT, tint=GREY, solid=False)
+        b.extrude([(0.0, -0.3), (1.6, -0.6), (1.6, 0.9), (0.0, 0.4)], 0.03, (0, 2.0, 0.0), (0, 0, 90),
+                  mat=PAINT, tint=OFFWHITE, solid=False)
+        stencil(b, vane_text, (-0.02, 2.75, -0.05), (0, 0, -90), 0.2, RED, align="centre", jitter=0.6)
+    b.cyl(0.03, height - 0.5, (x, y, 0.3 + (height - 0.5) / 2), mat=PAINT, tint=srgb(0.7, 0.7, 0.7), sides=5,
+          solid=False)
+    b.box((0.5, 0.5, 0.7), (x, y, 0.65), mat=PAINT, tint=srgb(0.32, 0.4, 0.36))
+    b.cyl(0.06, 0.4, (x + 0.4, y, 0.9), (0, 90, 0), mat=PAINT, tint=srgb(0.32, 0.4, 0.36), sides=8, solid=False)
+    tx, ty = x + 4.2, y + 0.5
+    b.cyl(2.4, 0.9, (tx, ty, 0.45), mat=CORRUGATED, tint=srgb(0.66, 0.68, 0.68), sides=28, cap=False)
+    b.cyl(2.35, 0.04, (tx, ty, 0.72), mat=GLOSS, tint=srgb(0.12, 0.17, 0.18), sides=28, solid=False)
+    b.cyl(2.35, 0.04, (tx, ty, 0.04), mat=CONCRETE, tint=srgb(0.6, 0.6, 0.58), sides=28, solid=False)
+    b.tube([(x + 0.4, y, 0.9), (x + 1.5, y + 0.3, 1.1), (tx - 2.2, ty, 1.05)], 0.05, mat=PAINT, tint=GALV, sides=6)
+    b.collide_box(Vector((tx, ty, 0.45)), (4.6, 4.6, 0.9), (0, 0, 0))
+    b.marker("landmark", (x, y, height + 2.0), kind_of="wind-pump")
+
+
+def post_rail(b, pts, height=1.25, post=2.4, tint=WOOD_GREY, rails=3, missing=0.08):
+    """A timber post-and-rail fence along `pts`: square posts, rails between them, a few rails down."""
+    p = [Vector((q[0], q[1], 0)) for q in pts]
+    for a, c in zip(p, p[1:]):
+        d = c - a
+        n = max(1, int(math.ceil(d.length / post)))
+        for k in range(n + 1):
+            q = a + d * (k / n)
+            b.box((0.12, 0.12, height + 0.1), (q.x, q.y, (height + 0.1) / 2),
+                  (b.rng.uniform(-2, 2), b.rng.uniform(-2, 2), math.degrees(math.atan2(d.y, d.x))), mat=PAINT,
+                  tint=tint, solid=False, vary=0.06)
+        for k in range(n):
+            q0, q1 = a + d * (k / n), a + d * ((k + 1) / n)
+            for j in range(rails):
+                z = 0.35 + (height - 0.45) * j / max(1, rails - 1)
+                if b.rng.random() < missing:
+                    if b.rng.random() < 0.5:
+                        b.beam((q0.x, q0.y, z), (q1.x, q1.y, 0.08), 0.05, 0.11, mat=PAINT, tint=tint)
+                    continue
+                b.beam((q0.x, q0.y, z), (q1.x, q1.y, z), 0.05, 0.11, mat=PAINT, tint=tint)
+        mid = (a + c) / 2
+        b.collide_box(Vector((mid.x, mid.y, height / 2)), (d.length, 0.12, height),
+                      (0, 0, math.degrees(math.atan2(d.y, d.x))))
