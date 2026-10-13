@@ -1,5 +1,5 @@
 {
-  "source": "Ingredients: hollow-orbit js/game/items.js, Rust's where it has the item (spears, bow, arrows); the bed's rope is fibre here. Scrap is left out of the workbenches until it has a source (G7). Times are ours, between hollow-orbit's and Rust's. Every recipe is known from the start until the tech tree (G7).",
+  "source": "Ingredients: hollow-orbit js/game/items.js, Rust's where it has the item (spears, bow, arrows); the bed's rope is fibre here. Scrap is left out of the workbenches until it has a source (G7). Times are ours, between hollow-orbit's and Rust's. Every recipe is known from the start until the tech tree (G7). Building items (G3): hollow-orbit's plan, hammer, claim device (its tool cupboard), wooden and sheet metal doors and code lock; Rust's key lock, double and garage doors and workbench levels; gears and sheet metal aren't in the game yet, so the armoured door's are metal fragments.",
   "recipes": [
     { "output": "rock", "seconds": 5, "ingredients": [["stone", 10]] },
     { "output": "torch", "seconds": 5, "ingredients": [["wood", 30], ["fibre", 1]] },
@@ -33,6 +33,16 @@
     { "output": "large-box", "seconds": 20, "ingredients": [["wood", 250], ["metal-fragments", 50]] },
     { "output": "workbench-1", "seconds": 30, "ingredients": [["wood", 500], ["metal-fragments", 100]] },
     { "output": "workbench-2", "seconds": 45, "workbench": 1, "ingredients": [["metal-fragments", 500], ["refined-metal", 20]] },
-    { "output": "workbench-3", "seconds": 60, "workbench": 2, "ingredients": [["metal-fragments", 1000], ["refined-metal", 100]] }
+    { "output": "workbench-3", "seconds": 60, "workbench": 2, "ingredients": [["metal-fragments", 1000], ["refined-metal", 100]] },
+    { "output": "building-plan", "seconds": 5, "ingredients": [["wood", 20]] },
+    { "output": "hammer", "seconds": 10, "ingredients": [["wood", 100]] },
+    { "output": "claim-device", "seconds": 30, "ingredients": [["wood", 1000]] },
+    { "output": "key-lock", "seconds": 10, "ingredients": [["wood", 75]] },
+    { "output": "code-lock", "seconds": 10, "ingredients": [["metal-fragments", 100]] },
+    { "output": "wooden-door", "seconds": 15, "ingredients": [["wood", 300]] },
+    { "output": "metal-door", "seconds": 20, "workbench": 1, "ingredients": [["metal-fragments", 150]] },
+    { "output": "double-door", "seconds": 30, "workbench": 1, "ingredients": [["metal-fragments", 200]] },
+    { "output": "garage-door", "seconds": 30, "workbench": 2, "ingredients": [["metal-fragments", 300]] },
+    { "output": "armoured-door", "seconds": 45, "workbench": 3, "ingredients": [["refined-metal", 20], ["metal-fragments", 100]] }
   ]
 }

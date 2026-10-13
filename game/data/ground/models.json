@@ -128,6 +128,9 @@
       "icon": { "view": [32, 12, 0] },
       "held": { "firstPerson": { "position": [0.2, -0.26, -0.4], "rotation": [0, 0, 0] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] } },
       "drop": { "scale": 1 }, "source": "Hollow (art/models/supplies.py)" },
+    { "key": "door-key", "kind": "item", "class": "lock", "file": "res://assets/items/key-lock.glb", "lods": 3, "collision": "convex",
+      "icon": { "key": "key-lock" }, "drop": { "scale": 0.6 },
+      "standIn": "The key lock's model until a key has one of its own (GROUND.md §11).", "source": "Hollow (art/models/supplies.py)" },
 
     { "key": "pistol", "kind": "item", "class": "gun", "file": "res://assets/items/pistol.glb", "lods": 3, "collision": "convex",
       "icon": {},
