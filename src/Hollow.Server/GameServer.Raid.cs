@@ -17,7 +17,7 @@ using LiteNetLib;
 
 namespace Hollow.Server;
 
-// Raiding on the server (GROUND.md §6.6, G5): throw, place and re-arm intents; explosives replicated to everyone in range
+// Raiding on the server (GROUND.md §6.6, G5): throw and place intents (a dud is lit again by a verb); explosives replicated to everyone in range
 // with their arc and fuse; detonations to everyone within hearing; claimed bases hurt by raids handed to the notification
 // service, which alerts the players they list in the game, or queues the alert for those offline and hands it over when
 // they log in; charges saved with their fuse left; and the raid load test's bases.
@@ -63,11 +63,6 @@ public sealed partial class GameServer : IPlayerPresence
                 ThrowIntent m = ThrowIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq,
                     () => Zone.ThrowExplosive(me, m.Slot, Expected(m.Expected), Quantize.FromAngle16(m.Yaw), Quantize.FromAngle16(m.Pitch), m.Lob));
-            }
-            case RearmIntent.TypeId:
-            {
-                RearmIntent m = RearmIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Rearm(me, new EntityId(m.Target)));
             }
             default:
                 return false;

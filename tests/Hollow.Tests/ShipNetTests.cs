@@ -4,6 +4,7 @@ using System.Numerics;
 using Hollow.Client;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
@@ -67,7 +68,7 @@ public static class ShipNetTests
         zone.PlayerOf(ada)!.Vitals.Health = 100;
         ship.HatchOpen = true;
         ship.HatchProgress = Ship.HatchTicks;
-        Assert.Equal(OutcomeCode.Done, zone.Board(ada, ship.Id), "boards");
+        Assert.Equal(OutcomeCode.Done, zone.Interact(ada, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board"), "boards");
         rig.Step(2);
 
         // The client: its own ground and trees, the character's predictor (which records the inputs) and the ship's.
@@ -149,7 +150,7 @@ public static class ShipNetTests
         Vector3 at = hatch + out_ * 1.6f;
         rig.Server.Execute(FormattableString.Invariant($"teleport Ada {at.X} {at.Z}"));
         rig.Run(0.5, (_, _) => default);
-        ada.Local.Board(ship.Id);
+        ada.Local.Interact(new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board");
         rig.Run(0.5, (_, _) => default);
         Assert.True(ada.Piloting, "Ada flies the ship (her client predicts it)");
         long corrections = ada.Stats.ShipCorrections;

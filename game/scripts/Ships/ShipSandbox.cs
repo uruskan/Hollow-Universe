@@ -8,9 +8,11 @@ using Hollow.Galaxy.Systems;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Interaction;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 using Hollow.Surface;
 using HollowUniverse.App;
@@ -55,6 +57,12 @@ public partial class ShipSandbox : Node3D
     private ShipHud _hud = null!;
     private readonly ShipControls _controls = new();
     private readonly ShipCamera _shipCamera = new();
+    private readonly List<InteractOption> _options = new();
+
+    // The ship's parts as the interact key names them (GROUND_SYSTEMS.md §5).
+    private TargetRef Hatch => new(TargetFamily.Ship, _ship.Id.Value, ShipParts.Hatch);
+
+    private TargetRef FuelCap => new(TargetFamily.Ship, _ship.Id.Value, ShipParts.FuelCap);
 
     private Num.Vector3 _pad;
     private float _padYaw;
@@ -333,7 +341,7 @@ public partial class ShipSandbox : Node3D
         c.State.Position = _zone.Settle(hatch + outward * 1.2f) + _zone.Frame.UpAt(hatch) * 0.05f;
         ship.HatchOpen = true;
         ship.HatchProgress = Ship.HatchTicks;
-        Outcome result = _zone.Board(_player, ship.Id);
+        Outcome result = _zone.Interact(_player, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board");
         if (result != OutcomeCode.Done)
         {
             GD.PushWarning($"[ship] could not board for the scene: {result}");
@@ -648,24 +656,27 @@ public partial class ShipSandbox : Node3D
         _hud.Refresh();
     }
 
+    // What a tap of E does at the hatch, within its reach (the interaction's own rules, the zone being local here).
     private string? FootPrompt()
     {
-        if (!_zone.Ships.Contains(_ship) || _ship.Destroyed)
+        if (!_zone.Ships.Contains(_ship) || _ship.Destroyed || !_zone.Options(_player, Hatch, _options))
         {
             return null;
         }
-        CharacterState state = _zone.Entities.Get<Character>(_player).State;
-        Num.Vector3 eye = _zone.EyeOf(state);
-        if (Num.Vector3.Distance(eye, _ship.PointOf(_ship.Def.Hatch)) > _ship.Def.Reach + 0.3f)
+        Num.Vector3 eye = _zone.EyeOf(_zone.Entities.Get<Character>(_player).State);
+        if (!_zone.Reach(eye, Hatch, _zone.Content!.Survival.InteractReach).Ok || InteractionRules.Primary(_options) is not (>= 0 and var primary))
         {
             return null;
         }
-        if (_ship.Locked && _zone.PlayerOf(_player)!.Id != _ship.Owner)
-        {
-            return "LOCKED";
-        }
-        return _ship.HatchOpen ? "E  BOARD     G  SHUT THE HATCH" : "E  OPEN THE HATCH";
+        InteractOption tap = _options[primary];
+        return tap.Enabled ? $"E  {_zone.Content.Interactions.Verb(tap.Verb)!.Label.ToUpperInvariant()}" : _zone.Content.Texts.Line(tap.Reason).ToUpperInvariant();
     }
+
+    // A tap of E at the hatch: its primary option (open the hatch, or board).
+    private Outcome TapHatch() =>
+        _zone.Options(_player, Hatch, _options) && InteractionRules.Primary(_options) is >= 0 and var primary
+            ? _zone.Interact(_player, Hatch, _options[primary].Verb)
+            : OutcomeCode.NotUsable;
 
     private void Notice(string text)
     {
@@ -778,31 +789,24 @@ public partial class ShipSandbox : Node3D
                 break;
             case Godot.Key.E:
             {
-                if (!_ship.HatchOpen)
+                Outcome r = TapHatch();
+                if (r == OutcomeCode.Done && _zone.SeatOf(_player) == _ship)
                 {
-                    Refused(_zone.ShipHatch(_player, _ship.Id), "");
+                    _controls.Reset();
+                    _shipCamera.Reset();
                 }
-                else
-                {
-                    Outcome r = _zone.Board(_player, _ship.Id);
-                    if (r == OutcomeCode.Done)
-                    {
-                        _controls.Reset();
-                        _shipCamera.Reset();
-                    }
-                    Refused(r, "");
-                }
+                Refused(r, "");
                 break;
             }
             case Godot.Key.G:
-                Refused(_zone.ShipHatch(_player, _ship.Id), "");
+                Refused(_zone.Interact(_player, Hatch, "hatch-close"), "");
                 break;
             case Godot.Key.L:
-                Refused(_zone.LockShip(_player, _ship.Id), "");
+                Refused(_zone.Interact(_player, Hatch, _ship.Locked ? "ship-unlock" : "ship-lock"), "");
                 Notice(_ship.Locked ? "Locked" : "Unlocked");
                 break;
             case Godot.Key.R:
-                Refused(_zone.RefuelShip(_player, _ship.Id), "");
+                Refused(_zone.Interact(_player, FuelCap, "refuel"), "");
                 break;
         }
     }

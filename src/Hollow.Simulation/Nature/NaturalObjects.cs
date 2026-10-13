@@ -86,6 +86,26 @@ public static class NaturalShapes
     /// <summary>Where an interaction aims for a pickup or bush (its middle).</summary>
     public static Vector3 Middle(in NaturalObject o, NaturalKind kind) => o.Position + o.Up * (kind.Height * o.Scale * 0.5f);
 
+    /// <summary>
+    /// The space an object takes, as one shape (reach is measured to it, the interact key aims at it): a tree's trunk, an
+    /// outcrop's or boulder's rock, a pickup's or bush's ball round its middle.
+    /// </summary>
+    public static Combat.HitShape Bounds(in NaturalObject o, NaturalKind kind)
+    {
+        if (kind.Class == NaturalClass.Tree)
+        {
+            (Vector3 a, Vector3 b, float r) = Trunk(o, kind);
+            return new Combat.HitShape(a, b, r, Content.HitRegion.Body);
+        }
+        if (kind.IsHarvested || kind.Class == NaturalClass.Boulder)
+        {
+            (Vector3 centre, float r) = Rock(o, kind);
+            return new Combat.HitShape(centre, centre, r, Content.HitRegion.Body);
+        }
+        Vector3 middle = Middle(o, kind);
+        return new Combat.HitShape(middle, middle, kind.Radius * o.Scale, Content.HitRegion.Body);
+    }
+
     /// <summary>Full health of an object (trees and outcrops).</summary>
     public static float MaxHealth(in NaturalObject o, NaturalKind kind) => kind.Health * o.Scale;
 

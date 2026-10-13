@@ -148,7 +148,7 @@ public static class SurvivalTests
         Assert.Equal(OutcomeCode.Dead, rig.Zone.MoveItem(ada, ContainerRef.Main, 0, ContainerRef.Main, 1, 0, 0), "the dead can't act");
 
         // Bo loots it: takes, can't put in.
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(bo, corpse.Id), "open the corpse");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, corpse.Ref, "loot"), "open the corpse");
         Assert.Equal(LootKind.Corpse, rig.Zone.LootKindOf(rig.P(bo)), "a corpse");
         int woodSlot = Enumerable.Range(0, corpse.Loot.Size).First(i => corpse.Loot[i].Item == c.ItemByKey("wood").Id);
         Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(bo, ContainerRef.Loot, woodSlot, c.ItemByKey("wood").Id), "take the wood");
@@ -199,7 +199,7 @@ public static class SurvivalTests
         Assert.Equal(calories, a.Vitals.Calories, "a sleeper doesn't get hungry");
         Assert.Equal(OutcomeCode.Dead, rig.Zone.Craft(ada, c.ItemByKey("rock").Id, 1, out _), "a sleeper doesn't act");
 
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(bo, a.Id), "Bo loots the sleeper");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, a.Ref, "loot"), "Bo loots the sleeper");
         Assert.Equal(LootKind.Sleeper, rig.Zone.LootKindOf(rig.P(bo)), "a sleeper");
         Assert.Equal(OutcomeCode.Done, rig.Zone.MoveItem(bo, ContainerRef.Loot, 0, ContainerRef.Main, 5, 100, c.ItemByKey("metal-fragments").Id), "takes some");
         Assert.Equal(200, a.Inventory.Count(c.ItemByKey("metal-fragments")), "taken from the sleeper");
@@ -394,11 +394,11 @@ public static class SurvivalTests
         int fire = Enumerable.Range(0, 24).First(k => a.Inventory.Main[k].Item == c.ItemByKey("campfire").Id);
         Assert.Equal(OutcomeCode.Done, rig.Place(ada, fire, fireAt, 0), "a campfire");
         Deployable campfire = rig.Zone.Statics().OfType<Deployable>().Single();
-        Assert.Equal(OutcomeCode.NoFuel, rig.Zone.Toggle(ada, campfire.Id), "no fuel, no fire");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, campfire.Id), "open it");
+        Assert.Equal(OutcomeCode.NoFuel, rig.Zone.Interact(ada, campfire.Ref, "light"), "no fuel, no fire");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, campfire.Ref, "open"), "open it");
         int wood = Enumerable.Range(0, 24).First(k => a.Inventory.Main[k].Item == c.ItemByKey("wood").Id);
         Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Main, wood, 0), "wood in");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Toggle(ada, campfire.Id), "lit");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, campfire.Ref, "light"), "lit");
         rig.Step(30 * 2);
         Assert.True(a.Vitals.Comfort && a.Vitals.Cold == 0, $"warm by the fire ({a.Vitals.Temperature:0} °C)");
         Fixtures.Report($"-25 °C air: bare {bare:0.00} cold, dressed {a.Vitals.Cold:0.00} by the fire at {a.Vitals.Temperature:0} °C felt");
@@ -438,11 +438,11 @@ public static class SurvivalTests
         Assert.True(rig.Zone.Physics.HasProp(Hollow.Simulation.Physics.PropLayer.Deployable, furnace.Id.Value), "solid");
 
         // Smelting: wood to the fuel slot, ore to the inputs (quick move sorts them), light it.
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, furnace.Id), "open the furnace");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, furnace.Ref, "open"), "open the furnace");
         Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Main, 2, 0), "wood in");
         Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Main, 3, 0), "ore in");
         Assert.True(furnace.Storage![0].Item == c.ItemByKey("wood").Id && furnace.Storage[1].Item == c.ItemByKey("metal-ore").Id, "sorted into their slots");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Toggle(ada, furnace.Id), "lit");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, furnace.Ref, "light"), "lit");
         rig.Step(30 * 9);
         int fragments = InventoryRules.Count(new[] { furnace.Storage }, c.ItemByKey("metal-fragments").Id);
         int charcoal = InventoryRules.Count(new[] { furnace.Storage }, c.ItemByKey("charcoal").Id);
@@ -459,7 +459,7 @@ public static class SurvivalTests
         // The bag: picked up again, or gone after its time.
         rig.Zone.Teleport(ada, spilled.Position + spilled.Up * 0.05f);
         int before = a.Inventory.Stacks().Sum(s => s.Count);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.PickUpItem(ada, spilled.Id), "picked up");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, spilled.Ref, "pick-up"), "picked up");
         Assert.True(a.Inventory.Stacks().Sum(s => s.Count) > before && rig.Zone.StaticOf(spilled.Id) == null, "in the inventory, gone from the ground");
         Assert.Equal(OutcomeCode.Done, rig.Zone.DropItem(ada, ContainerRef.Main, 1, 0, 0), "dropped");
         DroppedBag mine = rig.Zone.Statics().OfType<DroppedBag>().Single();
@@ -533,7 +533,7 @@ public static class SurvivalTests
         Assert.Equal(OutcomeCode.Done, rig.Zone.DropItem(ada, ContainerRef.Main, 0, 0, 0), "the wood");
         DroppedBag one = rig.Zone.Statics().OfType<DroppedBag>().Single();
         rig.Look(bo, one.Position);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.PickUpItem(bo, one.Id), "one stack: taken whole");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, one.Ref, "pick-up"), "one stack: taken whole");
         Assert.True(rig.P(bo).Inventory.Count(c.ItemByKey("wood")) == 300 && rig.Zone.StaticOf(one.Id) == null, "Bo has it, the bag is gone");
 
         Assert.Equal(OutcomeCode.Done, rig.Zone.DropItem(ada, ContainerRef.Main, 1, 60, 0), "stone");
@@ -543,7 +543,7 @@ public static class SurvivalTests
         Assert.Equal(OutcomeCode.Done, rig.Zone.DropItem(ada, ContainerRef.Main, 0, 0, 0), "bandages");
         DroppedBag two = rig.Zone.Statics().OfType<DroppedBag>().Single();
         Assert.Equal(2, two.ShownCount, "stone and bandages");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(bo, two.Id), "opened like a box");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, two.Ref, "open"), "opened like a box");
         Assert.Equal(LootKind.Crate, rig.Zone.LootKindOf(rig.P(bo)), "take only, gone once empty");
         Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.MoveItem(bo, ContainerRef.Main, 1, ContainerRef.Loot, 5, 0, 0), "nothing goes in");
         int stone = Enumerable.Range(0, two.Loot.Size).First(i => two.Loot[i].Item == c.ItemByKey("stone").Id);

@@ -271,7 +271,8 @@ public sealed class WorldBrain
         _nextStep = time + 0.25;
         if (_phase == 0)
         {
-            Note(me.Open(_target), "Open");
+            // Looked into rather than taken whole (a tap takes a bag of one stack): only what is wanted is taken.
+            Note(me.Interact(Interacting.Thing(_target), "open"), "Open");
             _phase = 1;
             return;
         }
@@ -318,7 +319,7 @@ public sealed class WorldBrain
         _nextStep = time + 0.25;
         if (_phase == 0)
         {
-            Note(me.Open(_target), "Open");
+            Note(Interacting.Tap(client, Interacting.Thing(_target)), "Open");
             _phase = 1;
             return;
         }
@@ -363,7 +364,7 @@ public sealed class WorldBrain
         switch (_phase)
         {
             case 0:
-                Note(me.Open(_target), "Open");
+                Note(Interacting.Tap(client, Interacting.Thing(_target)), "Open");
                 _phase = 1;
                 return;
             case 1 when me.LootTarget != _target || me.Loot == null:
@@ -384,7 +385,7 @@ public sealed class WorldBrain
             case 2:
                 if (me.Machine is { Running: false } && inputs.Any(i => !me.Loot![i].IsEmpty))
                 {
-                    Note(me.Toggle(_target), "Toggle");
+                    Note(me.Interact(Interacting.Thing(_target), "turn-on"), "Turn on");
                     Recycled++;
                 }
                 _phase = 3;
@@ -467,7 +468,7 @@ public sealed class WorldBrain
         switch (_phase)
         {
             case 2:
-                Note(me.Open(_target), "Open");
+                Note(Interacting.Tap(client, Interacting.Thing(_target)), "Open");
                 _phase = 3;
                 return;
             case 3 when me.LootTarget != _target || me.Loot == null:
@@ -493,7 +494,7 @@ public sealed class WorldBrain
                 return;
             }
             case 5:
-                Note(me.Toggle(_target), "Toggle");
+                Note(me.Interact(Interacting.Thing(_target), "turn-on"), "Turn on");
                 Researched++;
                 _phase = 6;
                 return;
@@ -563,7 +564,7 @@ public sealed class WorldBrain
             if (other != null)
             {
                 _invited.Add(other.Id);
-                Note(me.InviteToTeam(other.Id), "InviteToTeam");
+                Note(me.Interact(Interacting.Character(other.Id), "invite"), "Invite");
                 return;
             }
         }

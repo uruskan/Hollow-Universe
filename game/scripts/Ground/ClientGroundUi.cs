@@ -56,12 +56,15 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         client.ChatReceived += OnChat;
         SubscribeWorld(me);
         // The held item's radials (GROUND_SYSTEMS.md §7): the aim button's at once (the plan's pieces, the hammer's work),
-        // R's after a hold (a gun's rounds; a tap reloads with the current one). Its control says which, or none.
+        // R's after a hold (a gun's rounds; a tap reloads with the current one). Its control says which, or none. E's
+        // (§5): the options of what is aimed at, after interactions.json's hold; a tap does the primary one.
         Radials = new[]
         {
             new RadialBinding(RadialInput.Aim, 0, () => HeldRadial?.Invoke(RadialInput.Aim)),
             new RadialBinding(RadialInput.Reload, HeldControls.RadialHoldSeconds, () => HeldRadial?.Invoke(RadialInput.Reload)),
+            new RadialBinding(RadialInput.Interact, client.Content.Interactions.HoldSeconds, OpenInteraction),
         };
+        WarnOfMissingGlyphs(client.Content);
     }
 
     public void Dispose()
@@ -84,7 +87,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     /// <summary>The camera's yaw (radians, the movement code's convention), for the bearing of damage.</summary>
     public Func<float> ViewYaw { get; set; } = () => 0;
 
-    /// <summary>What the interact key would act on now (set by the view every frame).</summary>
+    /// <summary>What the interact key acts on now, as the prompt says it (set every frame by <see cref="Aim"/>; none over the keypad).</summary>
     public InteractionPrompt? Prompt { get; set; }
 
     /// <summary>Console commands typed in chat (lines starting with '/'); null sends them as chat.</summary>
@@ -488,14 +491,6 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     }
 
     public void SelectBelt(int index) => Me.HeldSlot = index == Me.HeldSlot ? -1 : Math.Clamp(index, -1, PlayerInventory.BeltSlots - 1);
-
-    public void SetBurning(bool on)
-    {
-        if (Me.LootKind == LootKind.Device && _client.ThingOf(Me.LootTarget) is { } thing && thing.Lit != on)
-        {
-            Me.Toggle(Me.LootTarget);
-        }
-    }
 
     public void CloseLoot()
     {

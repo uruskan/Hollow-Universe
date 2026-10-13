@@ -8,8 +8,8 @@ using Hollow.Simulation.Items;
 
 namespace Hollow.Client;
 
-// The player's raiding (GROUND.md §6.6, G5): throwing and placing explosives, lighting a dud again, and the raid alerts
-// of the bases they are authorised on.
+// The player's raiding (GROUND.md §6.6, G5): throwing and placing explosives, and the raid alerts of the bases they are
+// authorised on (a dud is lit again with a verb, Interact).
 public sealed partial class LocalPlayer
 {
     private readonly List<RaidAlertView> _raidAlerts = new();
@@ -33,9 +33,6 @@ public sealed partial class LocalPlayer
             Seq = _nextSeq, Slot = (byte)Math.Clamp(slot, 0, 7), Expected = expected, Yaw = Quantize.Angle16(yaw), Pitch = Quantize.Angle16(pitch), Lob = lob,
         }.WriteMessage(w));
     }
-
-    /// <summary>Lights a dud again (the interact key on it: <see cref="GameClient.Aim"/> finds it).</summary>
-    public uint Rearm(EntityId explosive) => Intend(null, w => new RearmIntent { Seq = _nextSeq, Target = explosive.Value }.WriteMessage(w));
 
     private bool TakeThrowable(int slot, ushort expected) =>
         Content.Item(expected)?.Throwable != null && InventoryRules.Remove(Inventory.Belt, slot, 1, expected, out _) == Simulation.OutcomeCode.Done;

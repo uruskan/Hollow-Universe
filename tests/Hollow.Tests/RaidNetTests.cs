@@ -99,9 +99,10 @@ public static class RaidNetTests
             rig.Server.Execute($"teleport Bo {at.X + outward.X * 1.5f} {at.Z + outward.Z * 1.5f}");
             rig.Run(0.5, (_, _) => default);
             Vector3 eye = bo.Character.Position + up * bo.EyeHeight;
-            Interaction? target = bo.Aim(eye, Vector3.Normalize(at - eye));
-            Assert.True(target is { Kind: InteractionKind.Rearm }, $"the dud is the interact key's target ({target?.Kind})");
-            bo.Interact(target!.Value);
+            InteractAim? target = bo.AimInteraction(eye, Vector3.Normalize(at - eye));
+            Assert.True(target is { Primary: >= 0 } && target.Target.Id == grenade.Id.Value &&
+                bo.Content.Interactions.Verb(target.Options[target.Primary].Verb)?.Key == "relight", $"the dud is the interact key's target ({target?.Target})");
+            bo.Local.Interact(target!.Target, target.Options[target.Primary].Verb);
             RunUntil(rig, () => bo.ExplosiveOf(grenade.Id) is { Dud: false, Burning: true }, "the grenade lit again", 3);
             rig.Server.Execute($"teleport Bo {at.X + outward.X * 9} {at.Z + outward.Z * 9}");
         }

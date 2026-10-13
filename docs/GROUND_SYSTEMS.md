@@ -64,9 +64,9 @@ Each family registers an `ITargetFamily`: resolve an id, its pose, the nearest p
 still exists, its capabilities, its model key. This replaces the four resolvers and the per-family fields of `TraceHit`.
 Interaction, placement supports, damage receivers and the Destroyed event all use it.
 
-*As built:* `Targets/TargetRef.cs` and `Zone.Targets.cs`. Ten families (`TargetFamily`: `Ground`, `Character`, `Animal`,
-`Natural`, `Thing`, `Piece`, `Door`, `Cupboard`, `Explosive`, `Ship`; `None` names nothing), each one class registered
-once by its number. `Part` 0 is the whole thing and n is part n − 1: a door's leaf, a body's bone in its hit shapes'
+*As built:* `Targets/TargetRef.cs` and `Zone.Targets.cs`. Eleven families (`TargetFamily`: `Ground`, `Character`, `Animal`,
+`Natural`, `Thing`, `Piece`, `Door`, `Cupboard`, `Explosive`, `Ship`, and P1's `Arrow`; `None` names nothing), each one
+class registered once by its number. `Part` 0 is the whole thing and n is part n − 1: a door's leaf, a body's bone in its hit shapes'
 order (`HitShape`, one list the ray test, the nearest point and the bone poses share). Families also say whether their
 things move (§3.6) and take them out of the world (`Remove`, §3.7). Every world thing knows its `Ref`; `Zone.Resolve`,
 `Exists`, `TryPose` and `TryNearest` route by family, and the explosives' scan is a dictionary. The damage receivers are
@@ -94,7 +94,8 @@ Every replicated thing carries one `ViewerFlags` byte computed for each viewer b
 what it needs to offer the right options; it is what the code lock was missing.
 
 *As built:* `game/data/ground/capabilities.json` (hashed, append only, at most 64) lists `owned`, `container`, `burner`,
-`machine`, `door`, `key-lock`, `code-lock`, `cupboard`, `ship`, `lifetime` and `explosive`; each has one handler
+`machine`, `door`, `key-lock`, `code-lock`, `cupboard`, `ship`, `lifetime` and `explosive` (P1 appends `pickup`,
+`portable`, `station`, `wounded`, `character`, `dud` and `arrow`, §5); each has one handler
 (`Capabilities/Handlers.cs`) in a sealed registry, and the zone won't start while one is missing or extra. A thing's set
 (`CapabilitySet`, a 64-bit mask) comes from its definition's blocks (`CapabilityData.Of`: slots, device, recycler or
 research) or, for what the rules make, capabilities.json's own sets (bags, bodies, doors, the cupboard, ships,
@@ -102,7 +103,7 @@ explosives, duds, carcasses); a door's adds its lock's. `Zone.FlagsFor(target, v
 for a viewer (`Viewer`: ID, team, the keys they carry). The byte rides on `ThingSpawn` and `ThingUpdate`, `DoorNet`,
 `ClaimNet` and `ShipNetState.Viewer`; a thing goes again when its contents or the viewer change (a team, a key). A
 door speaks for its lock (Mine: the lock's fitter), so a fresh code lock's owner is offered SET CODE first and LOCK only
-once it has a code (`BuildView.Options`). Tests: `ViewerFlagsComeFromCapabilities`, `ViewerFlagsReachEachPlayer`.
+once it has a code (the code lock's handler, §5). Tests: `ViewerFlagsComeFromCapabilities`, `ViewerFlagsReachEachPlayer`.
 
 ### 3.4 Reach and sight
 One rule: the distance from the eye to the target's nearest surface, within the verb's or placeable's reach from data
@@ -114,9 +115,9 @@ scattered slack constants (`+0.3`, `+0.5`, `+1.5`, `+3`, `+4`) and adds the miss
 (by ID) and no ground within 0.25 m of it. survival.json's `reach`: interact 3, open 3.5, keepOpen 4.5 (no sight), help
 3, invite 6, station 4 (no sight). Opening, looting and keeping a container open, picking up, lighting, doors, locks,
 the claim device, helping up, lighting a dud again, team invites and a workbench's level all use it; interactions
-through walls are refused, and the client's prompt for things (`GameClient.Aim`) stops at the first building body (a
-thing's own excepted), so it no longer offers what the server would refuse. Placement (deployables 3 m, building 8 m)
-and a ship's parts keep their own until P2 and P1. Test: `FoundationTests.ReachIsToTheNearestSurfaceInSight`.
+through walls are refused, and the client's one targeting query (§5) meets walls, so it no longer offers what the server
+would refuse. Every verb names its reach (interactions.json, §5); a ship's parts use it since P1. Placement (deployables
+3 m, building 8 m) keeps its own until P2. Test: `FoundationTests.ReachIsToTheNearestSurfaceInSight`.
 
 ### 3.5 Registries
 A small `Registry<THandler>` keyed by the data list's index, filled at start-up, validated against the data. Used by
@@ -140,8 +141,9 @@ and `DependentsOf`. When a support goes (the Destroyed event; a static thing tak
 removed or starting to come down; a tree felled; an animal or a character gone) each dependent meets its own
 capability's consequence (`IDependentCapability.SupportLost`). Explosives are the first dependents: their `SupportKind`
 switch and fields are gone, a charge follows a door's leaf and falls when its support goes, and `ExplosiveCodec`
-version 2 stores the `TargetRef` (version 1 records come back onto one). Placement (P2) and spent arrows add the next.
-Test: `FoundationTests.SupportLinksFollowAndGoWithTheirSupport`.
+version 2 stores the `TargetRef` (version 1 records come back onto one). Spent arrows are the second (P1, §5): one rides a
+body's bone and falls to the ground when its holder goes. Placement (P2) adds the next. Test:
+`FoundationTests.SupportLinksFollowAndGoWithTheirSupport`.
 
 ### 3.7 Lifetimes
 One despawn rule for every loose thing in the world: a `lifetime` from data (survival.json today: dropped items and bags
@@ -149,8 +151,8 @@ One despawn rule for every loose thing in the world: a `lifetime` from data (sur
 data says restarts it (a bag's newest item), and ended at once when the thing is emptied. One step in the zone runs it
 for every thing that has a lifetime; bags, bodies and arrows don't each keep their own timer code.
 
-*As built:* survival.json's `lifetimes` (bag 300 s, restarted by a deposit; body 300 s; dud 600 s) and a species'
-`corpse` seconds in animals.json for a carcass; all but the dud go at once when emptied. The `lifetime` capability's
+*As built:* survival.json's `lifetimes` (bag 300 s, restarted by a deposit; body 300 s; dud 600 s; P1's spent arrow
+300 s) and a species' `corpse` seconds in animals.json for a carcass; all but the dud go at once when emptied. The `lifetime` capability's
 handler decides (`ILifetimeCapability`: over, restart, end) and the thing keeps its state (`ILifetime`: rule, end tick,
 emptied). The zone keeps the loose things in one list, filled as they come (a bag or body added, a charge gone out, an
 animal dead, each restored from storage) and left as they go; one step once a second ends those whose time is up, each
@@ -180,11 +182,11 @@ and its per-kind code are gone. A tap of a held key chooses the source's current
 The viewer proves the held keys on samples: E opens a door's options, R with the pistol its rounds (`--screen options`,
 `ammo`), and `--ui-check` plays E's tap, hold, choice and cancels.
 
-For P1: give `ClientGroundUi.Radials` a `RadialBinding(RadialInput.Interact, holdSeconds, open)` whose `open` makes a
-source for what is aimed at at the press (none: E does nothing); its options come from the capabilities' `Offer`, its
-`Current` is the primary verb (a tap does it), `Choose` sends the verb (a verb that needs a code opens the keypad
-first), and the verbs' glyphs are names in interactions.json. Then delete `OptionsMenu` and the hold-E code in
-`GroundView`. For P3: the held behaviour's handler gives the right mouse's and R's sources the same way; the ammo
+For P1 (done, §5): `ClientGroundUi.Radials` has a `RadialBinding(RadialInput.Interact, holdSeconds, open)` whose `open`
+makes a source for what is aimed at at the press (none: E goes to the game); its options come from the capabilities'
+`Offer`, its `Current` is the primary verb (a tap does it), `Choose` sends the verb (a verb that needs a code opens the
+keypad first), and the verbs' glyphs are names in interactions.json. `OptionsMenu` and the hold-E code in `GroundView`
+are gone. For P3: the held behaviour's handler gives the right mouse's and R's sources the same way; the ammo
 radial's options use `RadialIcon.Item` with the round's key, and its `Current` is the loaded round, so a tap of R
 reloads with it.
 
@@ -242,6 +244,77 @@ must contain the verb, enabled → `Do` → `IntentResult`.
 is renamed the **tool cupboard** (data, interface and code).
 
 **Cost:** client targeting under 0.1 ms a frame; server one lookup, one `Offer`, one ray per intent.
+
+**As built** (P1, 13 October 2026, `ground-p1`; GROUND.md §6.1–§6.8, §8.4, decisions I1–I17).
+
+*Verbs* (`game/data/ground/interactions.json`, hashed, append only: an entry's index is its number on the wire): 39, each
+with a key, a label, a glyph (`RadialGlyphs`), a line for the radial, a priority (the ring's order and which primary a
+tap does), a reach by name from survival.json's (interact by default), whether it needs sight, a code, a panel (the
+tech tree), whether it is in the radial, a device switch (on, off), and its gates (alive and awake unless it says not;
+the wounded and the seated only where it allows). Doors, locks, the cupboard and deployables each have their own verbs
+where they are done differently (`door-pick-up`, `cupboard-pick-up`, `retrieve`; `key-lock`, `code-lock`), with the same
+labels. Read by `Content/Interactions.cs` (`VerbDef`, `InteractionData`).
+
+*Handlers:* a capability with verbs implements `IInteractCapability { Verbs, Offer, Do }` (`Interaction/Interaction.cs`);
+the handlers are in `Capabilities/Interactions.Things.cs` (container: open or loot; pickup: pick up, pick; portable:
+retrieve; burner: light, put out; machine: turn on, off; station: tech tree, unlock), `Interactions.Building.cs` (door,
+key lock, code lock, cupboard) and `Interactions.World.cs` (wounded: help up; character: invite; dud: light; ship: hatch,
+board, refuel, lock; arrow: falls when its holder goes). Each names its verbs by key and finds what one does in a table
+by number (`VerbActions`), never by testing which it was given. `InteractionRules` gives every verb its one handler in a
+sealed registry (a verb without one, one with two, or a handler's verb the data lacks stop the start), and makes a
+target's options: every capability's offer, each verb's gates, ranked by priority; `Primary` is the first primary that
+can be done, else the first primary (the tap says why), else none. New capabilities: `pickup` (gather.json's pickups
+and bushes, bags, arrows), `portable` (deployables.json `pickup`, on all eleven), `station` (`workbench`), `wounded`,
+`character`, `dud`, `arrow` (after P2's `standing`). New answers: `Seated` and `NotEmpty` (78, 79).
+
+*What a handler knows:* `TargetFacts` (`Targets/Targeting.cs`): its capabilities and viewer flags, name, count, whether it is
+a person's (looted, not opened), open, busy, at rest, lock and definition, from its family (`TryFacts`) on the server and from the replicas on a client
+(`GameClient.Targets.cs`, one view per family), so `Offer` runs the same on both. `InteractContext` adds the doer
+(`Doer`: dead, asleep, wounded, seated; in a team, its leader, a full team) and the building (rights at a place), and on
+the server the zone, the player and the thing.
+
+*Targeting:* every family is an `ITargetView` (`TryPose`, `TryNearest`, `Aim`, `TryFacts`; `ITargetFamily` extends it), and
+`Targeting.Aim(views, ray)` keeps the nearest hit of all, as far as the longest verb reaches, past the one looking. The
+shapes are shared so both sides meet the same thing (`AimShapes`: boxes, balls for bags and bodies, capsules for arrows;
+`DoorShapes`, a door's leaves and its opening; `ShipShapes`, the hull and its parts; `NaturalAim`; `BuildingAim`, one
+building ray; the ground by P2's `GroundProbe`, shared with placing). A hit says what it is to the view (`AimKind`): something to act on, a backdrop (the ground,
+pieces, trees and rocks, animals: they stop the view and offer nothing) or an open door's opening, through which the view
+goes on: the door is met there only when nothing beyond is to act on. `Zone.Aim`, `GameClient.Aim` and
+`GameClient.AimInteraction` (the target, its facts, its options within each verb's reach, the primary: the prompt's and
+the radial's), 23 µs a frame in the test's fan of views.
+
+*The intent:* `InteractIntent` (210) `{ Seq, Target, Verb, Arg, Code }`, sent by `LocalPlayer.Interact(target, verb, arg,
+code)`; on the server `Zone.Interact` (`Zone.Interaction.cs`): a verb it knows, the gates, a panel's verb refused (the
+interface's own), the target, `Zone.Reach` with the verb's reach and sight, the offer holding the verb enabled (else
+`NotUsable`, or the offer's reason), the handler's `Do`; answered by `IntentResult`. The tech tree's unlock is the
+station's `unlock` with the recipe in `Arg`, sent to the best bench in reach (`GameClient.BenchNear`). Deleted: messages
+56 (Open), 58 (PickUp), 60 (Toggle), 66 (HelpUp), 112 (Rearm), 130 (Unlock); `TeamAction.Invite`; `ShipAction.Board` and
+`Refuel` (the seat's hatch, exit, lock and descend stay); the door, lock and claim intents (92–94: P2 took their
+placing); the zone's `Open`, `PickUpNatural`, `PickUpItem`, `Toggle`, `Rearm`, `Board`, `RefuelShip`
+and ships.json's `reach`; the client's `Interaction`, `InteractionKind`, `ShipInteraction`, `AimShip`, `AimAtDuds` and the
+intents' methods. Protocol 19 (P3 took 17, P2 18).
+
+*The interface:* `ClientGroundUi.Interaction.cs`: each frame the prompt ("E  OPEN WOODEN DOOR", or the label alone where
+the verb says so: "E  SET CODE"; the reason when the tap can't; the hold hint with more than one option); E's binding makes an `InteractionRadial` of the target at the press,
+read again each frame from where the player is; a code verb asks the keypad first (`GroundView.ShowKeypad(title,
+sends)`), a panel verb opens its panel by name, the loot panel's fire and machine switch finds its verb by `switch`.
+`OptionsMenu`, BuildView's door and cupboard options and GroundView's hold-E chain are gone. A radial no longer stops
+walking (`GroundUi.TakesKeys`: screens and chat take the keys, a radial only the pointer and buttons). The claim device
+is called the Tool Cupboard wherever a player reads it (code names stay until the rename).
+
+*Spent arrows* (`Zone.Arrows.cs`, `World/SpentArrow.cs`): an arrow that stays whole (items.json `recover`, 0.5) sticks in
+what it hit, its tip survival.json's `arrows.depth` (0.1 m) in along its flight, linked to it where the shooter saw it
+(a body's bone, a door's leaf, a piece, a deployable, a tree, the ground); at most `arrows.most` (600) in a zone, the
+oldest going first; `lifetimes.arrow` 300 s; not saved. When its holder goes (a tree felled, a box broken, a player
+dead) it falls to the floor or ground below. Picked up with E (the pickup capability) whole into the slots, from the
+living too. The server tells each player those in range (`ArrowStates` 211, in their holder's frame, again when one
+falls; `ArrowsGone` 212); a client places each where its holder is every frame (`GameClient.Arrows`) and `ArrowsView`
+draws them with the arrow's model as one multimesh (one draw call, no shadow, 512 within 60 m).
+
+Tests (`InteractionTests`): every verb has exactly one handler; the one query meets the nearest thing; the garage door
+shuts through its opening; one intent passes gates, reach and the offer; a fresh code lock sets its code first; the
+cupboard authorises, then opens; deployables are picked up empty where one may build; spent arrows stick, ride and are
+taken back; a client aims and offers as the server. The old intents' tests use `Interact`, asserting the same.
 
 ## 6. Placement (package P2, built 13 October 2026: GROUND.md §6.10, decisions Z1–Z12)
 
@@ -325,7 +398,7 @@ stays its own action and keeps the shared sweep for sticking.
 (`TargetNet`), the socket's code, the pose (`PoseNet`: a point in the zone frame and a 16-bit yaw) and the variant (a
 piece's orientation or a free foundation's heading, a door's side, a turn in the support's steps), answered by
 `IntentResult`. Messages 59, 90 and 111 are free; `DoorIntent`, `LockIntent` and `ClaimIntent` lost their placing
-actions. The server's handler (`GameServer.Placement.cs`) is one call, `Zone.Place(entity, PlaceRequest)`: the slot must
+actions (and, with P1's verbs, everything else: 92–94 are free too, §5). The server's handler (`GameServer.Placement.cs`) is one call, `Zone.Place(entity, PlaceRequest)`: the slot must
 hold the placeable's item (or its tool), the solver settles the claim, every check passes, the kind puts it, then the
 item or the materials are taken. The client takes the price at once and rolls it back on a refusal.
 
@@ -498,7 +571,7 @@ contact frame and point come from the same hit the server computes. To be planne
    request (P4); tree X and node hotspots; loot bags (all merged 13 October 2026); gibs. The Tin Finch's placement came
    with P2.
 2. **P0** foundations (built 13 October 2026), then **P5** the radial.
-3. **P1** interaction, **P2** placement (built 13 October 2026) and **P3** held items, in parallel.
+3. **P1** interaction (built 13 October 2026), **P2** placement (built 13 October 2026) and **P3** held items, in parallel.
 4. Merge, then the owner plays.
 
 Every package adds its shared system with engine-free tests, moves every existing path onto it, deletes the old path

@@ -415,12 +415,20 @@ public sealed partial class Zone
     }
 
     /// <summary>
-    /// The switch of a recycler (on or off: it needs no fuel) or research table (starts a research: the item in its
-    /// item slot and the salvage its tier costs are taken, and a blueprint of it comes out after Rust's 10 s).
+    /// The switch of a recycler (on or off: it needs no fuel) or research table (on starts a research: the item in its
+    /// item slot and the salvage its tier costs are taken, and a blueprint of it comes out after Rust's 10 s), the machine
+    /// capability's verbs (GROUND_SYSTEMS.md §5).
     /// </summary>
-    private Outcome ToggleMachine(Deployable d)
+    internal Outcome SwitchMachine(Deployable d, bool on)
     {
-        Container storage = d.Storage!;
+        if (d.Storage is not { } storage)
+        {
+            return OutcomeCode.NotFound;
+        }
+        if (d.Lit == on)
+        {
+            return Outcome.Done;
+        }
         GameContent content = Content!;
         if (d.Def.Recycler is { } recycler)
         {
@@ -499,15 +507,12 @@ public sealed partial class Zone
     // ---------------------------------------------------------------- blueprints and the tech trees
 
     /// <summary>
-    /// Unlocks a tech tree node (Rust's): at a workbench of its level within reach, once one of the nodes before it is
-    /// known, for its salvage from the player's main and belt slots. The blueprint is learnt at once.
+    /// Unlocks a tech tree node (Rust's; the station capability's verb, its recipe the verb's argument): at a workbench of
+    /// its level within reach, once one of the nodes before it is known, for its salvage from the player's main and belt
+    /// slots. The blueprint is learnt at once.
     /// </summary>
-    public Outcome Unlock(Entity entity, int recipeId)
+    internal Outcome UnlockNode(Entity entity, Player p, int recipeId)
     {
-        if (!Acting(entity, out Player p))
-        {
-            return OutcomeCode.Dead;
-        }
         GameContent content = Content!;
         if (content.World.NodeOf(recipeId) is not { } node)
         {
@@ -534,7 +539,10 @@ public sealed partial class Zone
     // Using a blueprint item learns its recipe (it is used up), unless that is known already.
     // ---------------------------------------------------------------- teams
 
-    /// <summary>Team actions (Rust's): create, invite a player near by, accept or decline an invite, leave, and the leader's kick and promote.</summary>
+    /// <summary>
+    /// Team actions (Rust's): create, accept or decline an invite, leave, and the leader's kick and promote. An invite is
+    /// a verb on the player invited (the character capability's, GROUND_SYSTEMS.md §5): <see cref="Invite"/>.
+    /// </summary>
     public Outcome TeamAct(Entity entity, TeamAction action, EntityId target, ulong team)
     {
         if (PlayerOf(entity) is not { } p || p.Sleeping)
@@ -545,20 +553,6 @@ public sealed partial class Zone
         {
             case TeamAction.Create:
                 return Teams.Create(p.Id, out _);
-            case TeamAction.Invite:
-            {
-                // A player in sight, as Rust's invite by looking at them: awake, alive and near.
-                if (!TryFindPlayer(target, out Entity other, out Player invited) || !invited.IsAwakeAndAlive)
-                {
-                    return OutcomeCode.NotFound;
-                }
-                Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), invited.Ref, Content!.Survival.InviteReach);
-                if (!reach.Ok)
-                {
-                    return reach;
-                }
-                return Teams.Invite(p.Id, invited.Id, UnixMilliseconds);
-            }
             case TeamAction.Accept:
                 return Teams.Accept(p.Id, team, UnixMilliseconds);
             case TeamAction.Decline:
@@ -574,8 +568,12 @@ public sealed partial class Zone
         }
     }
 
+    /// <summary>A team's leader invites a player close by into it (Rust's invite by looking at them, in reach and sight).</summary>
+    internal Outcome Invite(Player leader, Player invited) =>
+        invited.IsAwakeAndAlive ? Teams.Invite(leader.Id, invited.Id, UnixMilliseconds) : OutcomeCode.NotFound;
+
     // The player and their teammates (the player alone when in no team), for "authorise team".
-    private List<ulong> TeamOf(Player p)
+    internal List<ulong> TeamOf(Player p)
     {
         _teamIds.Clear();
         _teamIds.Add(p.Id.Value);
@@ -593,7 +591,7 @@ public sealed partial class Zone
     }
 
     // "Authorise team" on a claim device: the player and every teammate onto its list (anyone may authorise there, as in Rust).
-    private Outcome AuthoriseTeam(ulong player, ClaimDevice device, List<ulong> members)
+    internal Outcome AuthoriseTeam(ulong player, ClaimDevice device, List<ulong> members)
     {
         BuildingWorld building = Building!;
         Outcome first = building.Authorise(player, device);

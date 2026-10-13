@@ -256,9 +256,6 @@ public sealed partial class Zone : IAnimalHost
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Animal };
 
-        /// <summary>An arrow in an animal stays in it; one in a corpse is lost too.</summary>
-        public bool Keeps => true;
-
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             if (zone.Animals != null && zone.TraceAnimal(ray.Origin, ray.Direction, ray.Length, ray.Thickness, ray.ViewTick, out float at, out Animal? animal,

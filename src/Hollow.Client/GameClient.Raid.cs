@@ -129,18 +129,4 @@ public sealed partial class GameClient
                 return false;
         }
     }
-
-    /// <summary>A dud within reach of the eye along a direction, for the interact key (light it again).</summary>
-    private void AimAtDuds(Vector3 eye, Vector3 direction, float range, Action<float, EntityId, string> consider)
-    {
-        foreach (ClientExplosive e in _explosives.Values)
-        {
-            if (!e.Dud || Vector3.DistanceSquared(e.ArcStart, eye) > (range + 1) * (range + 1))
-            {
-                continue;
-            }
-            float t = Simulation.Combat.Geometry.RaySphere(eye, direction, range, e.PositionAt(ServerTickNow), 0.35f);
-            consider(t, e.Id, e.Item.Name);
-        }
-    }
 }

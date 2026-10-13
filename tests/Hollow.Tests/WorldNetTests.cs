@@ -7,6 +7,7 @@ using Hollow.Client;
 using Hollow.Net.Protocol;
 using Hollow.Server;
 using Hollow.Simulation;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -73,7 +74,7 @@ public static class WorldNetTests
             string.Join(", ", ada.Props.GroupBy(p => p.Prop(c)!.Name).Select(g => $"{g.Count()} {g.Key}")));
         Assert.Equal(WorldPropKind.Crate, seen.Prop(c)!.Kind, "a crate");
         Assert.True(ada.Physics!.HasProp(PropLayer.Deployable, crate.Value), "solid in her prediction too");
-        me.Open(crate);
+        me.Interact(new TargetRef(TargetFamily.Thing, crate.Value), "open");
         RunUntil(rig, () => me.LootTarget == crate && me.Loot != null, "the crate's contents");
         Assert.Equal(LootKind.Crate, me.LootKind, "as a crate");
         Assert.True(!me.LootTakesDeposits, "take only");
@@ -101,10 +102,10 @@ public static class WorldNetTests
         rig.Server.Execute("give Ada gears 2");
         RunUntil(rig, () => ada.ThingOf(recycler) != null && me.Inventory.Count(c.ItemByKey("gears")) == 2 &&
             me.Inventory.Count(c.ItemByKey("salvage")) == 0, "the recycler and the gears");
-        me.Open(recycler);
+        me.Interact(new TargetRef(TargetFamily.Thing, recycler.Value), "open");
         RunUntil(rig, () => me.LootTarget == recycler && me.Loot != null, "the recycler open");
         me.MoveItem(ContainerRef.Main, SlotOf(me.Inventory.Main, "gears"), ContainerRef.Loot, 0);
-        me.Toggle(recycler);
+        me.Interact(new TargetRef(TargetFamily.Thing, recycler.Value), "turn-on");
         RunUntil(rig, () => me.Machine is { Running: true }, "it to run");
         // The thing's lamp comes with the things' own updates, not always in the same packet as the machine's state.
         RunUntil(rig, () => ada.ThingOf(recycler)!.Lit, "others to see it running", 2);
@@ -129,7 +130,7 @@ public static class WorldNetTests
         var refused = new List<IntentAnswer>();
         me.BlueprintLearned += learnt.Add;
         me.IntentRejected += refused.Add;
-        me.Unlock(hatchet.Id);
+        me.Unlock(ada.BenchNear(), hatchet.Id);
         Assert.True(me.Knows(hatchet) && me.Inventory.Count(c.ItemByKey("salvage")) == salvage - 75, "shown at once");
         // (The client has its own copy of the game data: recipes compare by ID.)
         RunUntil(rig, () => (learnt.Any(r => r.Id == hatchet.Id) && me.PendingCount == 0) || refused.Count > 0, "the server's word");
@@ -145,7 +146,7 @@ public static class WorldNetTests
         var invites = new List<TeamInviteView>();
         bo.Local.TeamInviteReceived += invites.Add;
         RemoteEntity boSeen = ada.Entities.First(e => e.Name == "Bo");
-        me.InviteToTeam(boSeen.Id);
+        me.Interact(new TargetRef(TargetFamily.Character, boSeen.Id.Value), "invite");
         RunUntil(rig, () => invites.Count == 1 && bo.Local.TeamInvites.Count == 1, "Bo's invite");
         Assert.Equal("Ada", invites[0].From, "from Ada");
         bo.Local.AcceptInvite(invites[0].Team);
@@ -200,7 +201,7 @@ public static class WorldNetTests
             ada.Local.PlaceMarker(new Vector3(-150, 0, 80), 4, "lake");
             ada.Local.CreateTeam();
             RunUntil(rig, () => ada.Local.LeadsTeam && ada.Local.Markers.Count == 1 && ada.Entities.Any(e => e.Name == "Bo"), "a team and a marker");
-            ada.Local.InviteToTeam(bo.EntityId);
+            ada.Local.Interact(new TargetRef(TargetFamily.Character, bo.EntityId.Value), "invite");
             RunUntil(rig, () => bo.Local.TeamInvites.Count == 1, "the invite");
             bo.Local.AcceptInvite(bo.Local.TeamInvites[0].Team);
             RunUntil(rig, () => ada.Local.Team?.Members.Count == 2, "Bo in");

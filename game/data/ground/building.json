@@ -174,7 +174,7 @@
   },
 
   "claim": {
-    "key": "claim-device", "name": "Claim Device", "size": [0.9, 1.8, 0.7],
+    "key": "claim-device", "name": "Tool Cupboard", "size": [0.9, 1.8, 0.7],
     "health": 200, "protection": "wood", "slots": 24, "advanceSeconds": 60,
     "pieceRadius": 16, "deviceRadius": 25, "maxAuthorised": 64,
     "upkeepPeriodHours": 24,

@@ -245,6 +245,10 @@ public sealed class WorldProp : Deployable
     /// <summary>A barrel's loot is only had by breaking it; a crate and a recycler open like a box.</summary>
     public override Container? Container => Prop.Openable ? Storage : null;
 
+    /// <summary>A barrel holds its loot but isn't opened: it has no container's capability.</summary>
+    public override CapabilitySet CapabilitiesIn(CapabilityData data) =>
+        Prop.Openable ? base.CapabilitiesIn(data) : base.CapabilitiesIn(data).Without(data.Set("container"));
+
     /// <summary>Whether players changed it since it spawned (looted, damaged, used): then it is stored.</summary>
     public bool Touched { get; set; }
 }

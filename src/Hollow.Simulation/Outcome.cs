@@ -200,6 +200,14 @@ public enum OutcomeCode : byte
     /// <summary>In the sea, or too near its surface.</summary>
     InWater = 77,
 
+    // ---------------------------------------------------------------- interaction (GROUND_SYSTEMS.md §5)
+
+    /// <summary>Not from a ship's seat: the verb's gates keep the seated out.</summary>
+    Seated = 78,
+
+    /// <summary>It holds something: empty it before picking it up.</summary>
+    NotEmpty = 79,
+
     // ---------------------------------------------------------------- guns (G4; their own GunResult until P3 folded it in)
     // Numbered from 100, so codes the other packages of GROUND_SYSTEMS.md add beside these never meet them.
 

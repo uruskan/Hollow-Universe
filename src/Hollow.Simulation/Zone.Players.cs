@@ -83,6 +83,7 @@ public sealed partial class Zone
             StepVitals();
             Natural!.Respawn(UnixMilliseconds);
             StepLifetimes();
+            NoteArrowPoses();
             StepWorld();
             CheckLoot();
         }

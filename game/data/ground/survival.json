@@ -42,10 +42,15 @@
     "respawnKit": "respawn-kit"
   },
   "lifetimes": {
-    "note": "GROUND_SYSTEMS.md §3.7, one rule for every loose thing: it lies this many seconds of world time (it pauses while the server is down), starts again when its restart happens (deposit: something put in it: a bag's time runs from its newest item), and goes at once when emptied (if it says so). Rust's: dropped items and bodies 300 s; a ship's wreck is a body. Ours: a dud (a charge whose fuse went out) nobody lights again, 600 s. An animal's carcass has its species' (animals.json corpse).",
+    "note": "GROUND_SYSTEMS.md §3.7, one rule for every loose thing: it lies this many seconds of world time (it pauses while the server is down), starts again when its restart happens (deposit: something put in it: a bag's time runs from its newest item), and goes at once when emptied (if it says so). Rust's: dropped items and bodies 300 s; a ship's wreck is a body. Ours: a dud (a charge whose fuse went out) nobody lights again, 600 s; a spent arrow stuck where it hit, 300 s (Rust's dropped items'). An animal's carcass has its species' (animals.json corpse).",
     "bag": { "seconds": 300, "restart": "deposit", "emptied": true },
     "body": { "seconds": 300, "emptied": true },
-    "dud": { "seconds": 600 }
+    "dud": { "seconds": 600 },
+    "arrow": { "seconds": 300 }
+  },
+  "arrows": {
+    "note": "Ours (GROUND_SYSTEMS.md §5, the owner's spent arrows): an arrow that stays whole on a hit (items.json ammo recover) sticks where it hit, depth metres of its tip in, held by what it hit (a support link: a bone of a body it rides on), and is taken back with E. At most most of them in a zone: the oldest goes first.",
+    "most": 600, "depth": 0.1
   },
   "reach": {
     "note": "GROUND_SYSTEMS.md §3.4, one rule: from the eye to the target's nearest surface, and one line of sight to it (nothing of the building but the thing and what holds it, nor the ground short of it, in between). interact: picking up, lighting a dud again (Rust's 3 m); open: boxes, devices, machines, sleepers and bodies, doors and their locks, the claim device; keepOpen: an open container closes once its nearest surface is farther (no sight needed); help: helping the wounded up; invite: a team invite, to a player in view; station: a workbench counts for crafting (no sight needed). Measured to the surface, these are what the old checks to centres and middles came to (G2's 3.5 m loot reach plus its 0.5 m slack to a box's centre, the doors' 4.5 m to their middle as the 3.5 m the game offered them at, help 2.5 m plus its 0.5).",

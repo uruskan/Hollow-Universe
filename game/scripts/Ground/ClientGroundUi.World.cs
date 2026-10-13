@@ -213,7 +213,7 @@ public sealed partial class ClientGroundUi
             Notice?.Invoke(C.Texts.Line(can));
             return;
         }
-        Me.Unlock(node.Recipe.Id);
+        Me.Unlock(_client.BenchNear(), node.Recipe.Id);
     }
 
     // What the player has learnt, as one number (the same set gives the same number, in any order).

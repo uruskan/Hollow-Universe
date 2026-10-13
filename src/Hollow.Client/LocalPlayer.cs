@@ -364,20 +364,8 @@ public sealed partial class LocalPlayer
         Intend(new Pending(p => p._craft.Cancel(p.Content, p.Inventory, ticket, p._scratch) == OutcomeCode.Done),
             w => new CancelCraftIntent { Seq = _nextSeq, Ticket = ticket }.WriteMessage(w));
 
-    /// <summary>Opens a box, device, corpse or sleeper (its entity ID); the contents arrive with <see cref="ContainerOpened"/>.</summary>
-    public uint Open(EntityId target) => Intend(null, w => new OpenIntent { Seq = _nextSeq, Target = target.Value }.WriteMessage(w));
-
     /// <summary>Closes the loot at once (the server agrees).</summary>
     public uint Close() => Intend(new Pending(p => p.ApplyClose()), w => new CloseIntent { Seq = _nextSeq }.WriteMessage(w));
-
-    /// <summary>Picks a pickup or berry bush (a natural object's ID).</summary>
-    public uint PickUpNatural(ulong naturalId) => Intend(null, w => new PickUpIntent { Seq = _nextSeq, Natural = true, Target = naturalId }.WriteMessage(w));
-
-    /// <summary>Picks up a bag of dropped items (its entity ID): everything in it that fits.</summary>
-    public uint PickUpItem(EntityId item) => Intend(null, w => new PickUpIntent { Seq = _nextSeq, Natural = false, Target = item.Value }.WriteMessage(w));
-
-    /// <summary>Lights or puts out a campfire or furnace.</summary>
-    public uint Toggle(EntityId device) => Intend(null, w => new ToggleIntent { Seq = _nextSeq, Target = device.Value }.WriteMessage(w));
 
     /// <summary>Respawns at one of the player's sleeping bags, or on the beach (no bag).</summary>
     public uint Respawn(EntityId bag = default) => Intend(null, w => new RespawnIntent { Seq = _nextSeq, Bag = bag.Value }.WriteMessage(w));
@@ -393,9 +381,6 @@ public sealed partial class LocalPlayer
                 AttachmentRules.Attach(p.Content, p.Resolve(from)!, slot, p.Resolve(weaponIn)!, weaponSlot, expected) == OutcomeCode.Done),
             w => new AttachIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, WeaponIn = weaponIn, WeaponSlot = (byte)weaponSlot, Expected = expected }.WriteMessage(w));
     }
-
-    /// <summary>Helps a wounded player up (the interact key on them, within 2.5 m): <see cref="GameClient.Aim"/> finds them.</summary>
-    public uint HelpUp(EntityId target) => Intend(null, w => new HelpUpIntent { Seq = _nextSeq, Target = target.Value }.WriteMessage(w));
 
     /// <summary>The container an intent would name (the UI's view of it).</summary>
     public Container? Resolve(ContainerRef which) => which switch

@@ -201,7 +201,7 @@ public static class RaidAlertTests
         // Bo loots. The base's minute passes.
         Raids.Stand(rig, bo, body.Position);
         rig.Step(2);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(bo, body.Id), "Bo opens her body");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, body.Ref, "loot"), "Bo opens her body");
         rig.Zone.UnixMilliseconds = before + 61_000;
         Route(rig, service);
         Assert.Equal(2, store.Count, "the follow-up alert queued");
@@ -212,7 +212,7 @@ public static class RaidAlertTests
         Assert.Equal(2, alerts.Count, "two alerts");
         Assert.True(alerts.All(a => a.Base == claim.Id), "both for her base");
         Assert.True(alerts[0].What.StartsWith("Sheet Metal Door broken", StringComparison.Ordinal), $"the first: {alerts[0].What}");
-        Assert.True(alerts[1].What.StartsWith("Claim device broken", StringComparison.Ordinal) && alerts[1].FirstUnixMs >= alerts[0].LastUnixMs,
+        Assert.True(alerts[1].What.StartsWith("Tool Cupboard broken", StringComparison.Ordinal) && alerts[1].FirstUnixMs >= alerts[0].LastUnixMs,
             $"the second: {alerts[1].What}");
         Assert.True(rig.P(ada).Dead, "she logs in dead");
         Fixtures.Report($"Ada's alerts: {string.Join("; ", alerts.Select(a => $"{DateTimeOffset.FromUnixTimeMilliseconds(a.LastUnixMs):HH:mm:ss} {a.What} ({a.Hits} hits)"))}; " +

@@ -222,7 +222,7 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,look,foundations,held,place`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,look,foundations,held,place,interact`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
@@ -233,7 +233,10 @@ Client options (after `--`):
   item panels (information and actions, LEARN), and crafting beside a level 2 workbench, faster; `place` pictures P2's
   one placement ghost, as in `docs/images/ground/place` (`--tour ../docs/images/ground/place --tour-steps place`): a
   furnace fitting on a foundation and refused against a doorway's post, a garage door in a doorway, the claim device, a
-  code lock on a hut's door, a timed charge on its wall, the Tin Finch's hologram and the ship placed),
+  code lock on a hut's door, a timed charge on its wall, the Tin Finch's hologram and the ship placed; `interact`
+  pictures P1's interaction through the keys: the prompt and E held on a fresh code lock's door (SET CODE first), the
+  tool cupboard's options, arrows stuck in a wall (one taken back with E) and in a deer, and a garage door shut through
+  its opening),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits), `--load-trace [s]` (GROUND.md §4.3.1: times the start from the process's start to steady
@@ -242,15 +245,16 @@ Client options (after `--`):
   the load is half done; `--arrival-check` teleports the hosting player to the landing site three seconds into play and
   times the arrival). Starting a game shows the loading screen until every part is ready (§4.3.1). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look (Left Alt held:
   free look, the camera and head turn while the hands do nothing; in the cockpit too); left mouse attack
-  (with anything that places, a deployable, the Tin Finch's item, the building plan's piece, a door, a lock or the claim
-  device: place it where its ghost shows, pale blue when it fits, red with the reason when not; with food or medicine:
+  (with anything that places, a deployable, the Tin Finch's item, the building plan's piece, a door, a lock or the tool
+  cupboard: place it where its ghost shows, pale blue when it fits, red with the reason when not; with food or medicine:
   use it; with a gun: fire; with the hammer: repair; with an explosive: throw it), right mouse aim or draw (with the
   plan or the hammer, held: its radial; with a charge: put it where its ghost shows; with a grenade: lob it); R reload
   (a gun, tapped: with the loaded kind; held: its rounds and UNLOAD; with something to place: turn it by its rule, a
-  piece's facing, a door's side); E interact (doors, a code
-  lock's keypad, a dud to light; held on a fire or furnace to light it or put it out, on a door or the claim device for
-  its options; help a wounded player up; G7: open a crate or recycler, a workbench's tech tree, invite a player close by
-  into the team one leads); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it; the item panel's ACTIONS
+  piece's facing, a door's side); E interact, a tap doing what the prompt says and held 0.35 s the radial of
+  everything the thing aimed at offers, the player walking on meanwhile (GROUND_SYSTEMS.md §5: doors, a code lock's
+  keypad, the tool cupboard, a dud to light, a fire or furnace, a crate or recycler, a workbench's tech tree, a player
+  down to help up, a player close by to invite into the team one leads, a ship's hatch, seat and tank, spent arrows to
+  take back, a deployable to pick up); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it; the item panel's ACTIONS
   are the item's own: EAT, USE, WEAR, UNEQUIP, LEARN a blueprint, UNLOAD a gun, REMOVE an attachment, then DROP; a drag
   released anywhere but a slot drops); Q crafting (its TECH TREE tab at a workbench; a workbench above a recipe's level
   makes it faster); G the map (a click

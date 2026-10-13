@@ -9,6 +9,7 @@ using Hollow.Client;
 using Hollow.Core;
 using Hollow.Server;
 using Hollow.Simulation;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
@@ -66,7 +67,7 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("look", Look),
-            ("foundations", Foundations), ("held", Held), ("place", Place),
+            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -178,9 +179,9 @@ public partial class GroundTour : Node
         await TeleportTo(Away(b.Position, 1.7f));
         Face(b.Position + b.Up * 0.5f);
         await Seconds(1.0);
-        if (View.Aimed is { Kind: InteractionKind.PickNatural } aimed)
+        if (View.Aimed is { Target.Family: TargetFamily.Natural })
         {
-            Client.Interact(aimed);
+            TapAimed();
         }
         await Until(() => Client.Natural?.IsDepleted(b.Id) == true, 3);
         await Seconds(0.4);
@@ -577,10 +578,10 @@ public partial class GroundTour : Node
         View.UseHeld();
         await Until(() => Doors().Any(d => d.Lock is CodeLock), 5);
         Door locked = Doors().FirstOrDefault(d => d.Lock is CodeLock) ?? door;
-        Me.SetCode(locked, "2580");
+        Me.Interact(locked.Ref, "set-code", code: "2580");
         await Seconds(0.6);
         // The keypad, two digits in.
-        View.ShowKeypad(locked, set: false);
+        View.ShowKeypad("ENTER CODE");
         foreach (Key digit in new[] { Key.Key2, Key.Key5 })
         {
             Input.ParseInputEvent(new InputEventKey { Keycode = digit, PhysicalKeycode = digit, Pressed = true });
@@ -796,18 +797,19 @@ public partial class GroundTour : Node
         await TeleportTo(hatch + side * 2.4f);
         Face(hatch);
         await Seconds(0.6);
+        var atHatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, Hollow.Simulation.Ships.ShipParts.Hatch);
         if (!ship.Has(Hollow.Net.Protocol.ShipNetFlags.HatchOpen))
         {
-            Me.ShipHatch(ship.Id);
+            Me.Interact(atHatch, "hatch-open");
             await Until(() => ship.Hatch > 0.95f, 4);
         }
         // The tank filled with the lamp oil left over from the recipe.
-        Me.RefuelShip(ship.Id);
+        Me.Interact(atHatch with { Part = Hollow.Simulation.Ships.ShipParts.FuelCap }, "refuel");
         await Seconds(0.5);
         Face(ship.PointOf(def.Hatch));
         await Seconds(0.4);
         await Shot("ship-boarding");
-        Me.Board(ship.Id);
+        Me.Interact(atHatch, "board");
         await Until(() => Client.Piloting, 5);
         await Seconds(0.8);
         // Up and out over the forest, from the cockpit.
@@ -1259,16 +1261,16 @@ public partial class GroundTour : Node
                 Face(there.Position + Client.Frame.UpAt(there.Position) * 1.1f);
             }
             await Settle();
-            await Until(() => View.Aimed?.Kind == InteractionKind.InviteToTeam, 5);
+            await Until(() => AimedVerb() == "invite", 5);
             await Seconds(0.5);
             await Shot("team-invite");
-            if (View.Aimed is { Kind: InteractionKind.InviteToTeam } invite)
+            if (AimedVerb() == "invite")
             {
-                Client.Interact(invite);
+                TapAimed();
             }
             else
             {
-                Me.InviteToTeam(guest.Id);
+                Me.Interact(new TargetRef(TargetFamily.Character, guest.Id.Value), "invite");
             }
             await Until(() => Me.Team?.Members.Count >= 2, 15);
             GD.Print($"[tour] team: {string.Join(", ", Me.Team?.Members.Select(m => m.Name) ?? Array.Empty<string>())}");
@@ -1320,7 +1322,7 @@ public partial class GroundTour : Node
             await TeleportTo(Away(crate.Position, 1.6f));
             Face(crate.Position + up * 0.3f);
             await Seconds(0.5);
-            Me.Open(crate.Id);
+            Me.Interact(Thing(crate.Id), "open");
             await Until(() => Me.LootKind == LootKind.Crate, 5);
             await Seconds(1.0);
             await Shot("crate");
@@ -1344,7 +1346,7 @@ public partial class GroundTour : Node
             await TeleportTo(Away(recycler.Position, 2.4f));
             Face(middle);
             await Settle();
-            Me.Open(recycler.Id);
+            Me.Interact(Thing(recycler.Id), "open");
             await Until(() => Me.LootKind == LootKind.Device, 5);
             if (SlotOf(Me.Inventory.Main, "gears") is int gears)
             {
@@ -1356,7 +1358,7 @@ public partial class GroundTour : Node
                 Me.MoveItem(ContainerRef.Main, pipes, ContainerRef.Loot, 1);
                 await Seconds(0.4);
             }
-            Me.Toggle(recycler.Id);
+            Me.Interact(Thing(recycler.Id), "turn-on");
             await Until(() => Me.Machine?.Running == true, 5);
             await Seconds(6.5);
             await Shot("recycler");
@@ -1405,7 +1407,7 @@ public partial class GroundTour : Node
             // The research table: a pistol and salvage in, the price; then the blueprint out, and read.
             await TeleportTo(side);
             Face(table.Position + Client.Frame.UpAt(table.Position) * 0.8f);
-            Me.Open(table.Id);
+            Me.Interact(Thing(table.Id), "open");
             await Until(() => Me.LootKind == LootKind.Device, 5);
             if (SlotOf(Me.Inventory.Main, "pistol") is int pistol)
             {
@@ -1419,7 +1421,7 @@ public partial class GroundTour : Node
             }
             await Seconds(0.8);
             await Shot("research");
-            Me.Toggle(table.Id);
+            Me.Interact(Thing(table.Id), "turn-on");
             await Until(() => Me.Loot is { Size: > 2 } slots && !slots[2].IsEmpty, 15);
             await Seconds(0.8);
             await Shot("research-done");
@@ -1648,14 +1650,14 @@ public partial class GroundTour : Node
             Me.Place(ghost, ContainerRef.Main, fire);
             await Until(() => Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "campfire"), 5);
             RemoteThing campfire = Client.Things.First(t => t.Deployable(Client.Content)?.Key == "campfire");
-            Me.Open(campfire.Id);
+            Me.Interact(Thing(campfire.Id), "open");
             await Until(() => Me.LootKind == LootKind.Device, 5);
             if (SlotOf(Me.Inventory.Main, "wood") is int wood)
             {
                 Me.MoveItem(ContainerRef.Main, wood, ContainerRef.Loot, 0, 60);
                 await Seconds(0.5);
             }
-            Me.Toggle(campfire.Id);
+            Me.Interact(Thing(campfire.Id), "light");
             await Seconds(0.5);
             Me.Close();
             View.Interface.Open(GroundScreen.Hud);
@@ -1849,9 +1851,9 @@ public partial class GroundTour : Node
         Face(bag.Position + Client.Frame.UpAt(bag.Position) * 0.15f);
         await Seconds(1.0);
         await Shot("bag");
-        if (View.Aimed is { Kind: InteractionKind.Open } aimed)
+        if (View.Aimed is { Target.Family: TargetFamily.Thing })
         {
-            Client.Interact(aimed);
+            TapAimed();
         }
         await Until(() => Me.LootKind == LootKind.Crate && Me.Loot != null, 4);
         await Seconds(1.0);
@@ -1922,7 +1924,7 @@ public partial class GroundTour : Node
         string? refused = null;
         void Rejected(IntentAnswer answer) => refused = Client.Content.Texts.Line(answer.Outcome);
         Me.IntentRejected += Rejected;
-        Me.Open(claim.Id);
+        Me.Interact(claim.Ref, "open");
         await Until(() => refused != null, 3);
         Me.IntentRejected -= Rejected;
         GD.Print($"[tour] the claim device through its wall: {refused ?? "not refused"}");
@@ -2046,9 +2048,232 @@ public partial class GroundTour : Node
         GD.Print($"[tour] place: the Tin Finch {(Client.Ships.Count() > ships ? "placed" : "not placed")}");
     }
 
+    // Interaction in the game (GROUND_SYSTEMS.md §5, P1), through the keys: the prompt on a hut's door with a fresh code lock
+    // and E held there (SET CODE first); the tool cupboard's options inside; arrows shot into the hut's wall, one taken
+    // back with E; an arrow in a deer; a garage door rolled up and shut with E through its opening.
+    private async Task Interaction()
+    {
+        foreach (string gift in new[] { "code-lock 1", "garage-door 1", "building-plan 1", "wood 2000", "bow 1", "arrow 24" })
+        {
+            Admin("give", gift);
+        }
+        await Until(() => Count("code-lock") > 0 && Count("garage-door") > 0 && Count("bow") > 0 && Count("arrow") >= 24 && Count("wood") >= 2000, 5);
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(-70, 0, 30));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = 0;
+        await Seconds(0.6);
+        int doors = Doors().Count();
+        Admin("raidbase", "1");
+        await Until(() => Doors().Count() > doors, 5);
+        await Settle();
+        if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
+        {
+            GD.PushWarning("[tour] no hut");
+            return;
+        }
+        Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
+        Num.Vector3 doorAt = Centre(door.Frame), outward = FlatUnit(Client.Character.Position - doorAt);
+        Num.Vector3 side = FlatUnit(Num.Vector3.Cross(outward, up)), middle = doorAt - outward * 1.5f;
+
+        // The prompt and E held on the door with a fresh code lock: its owner sets the code first.
+        await TeleportTo(doorAt + outward * 2.2f);
+        await Hold("code-lock", 5);
+        Face(door.LockSpot.Position);
+        await Seconds(0.4);
+        View.UseHeld();
+        await Until(() => Doors().Any(d => d.Lock is CodeLock && Num.Vector3.Distance(Centre(d.Frame), doorAt) < 0.5f), 5);
+        Me.HeldSlot = 5;
+        Face(doorAt + up * 1.1f);
+        await Seconds(1.0);
+        GD.Print($"[tour] the door's prompt: {PromptLine()}");
+        await Shot("prompt");
+        Press(Godot.Key.E, true);
+        await Seconds(0.8);
+        await Shot("code-lock");
+        Press(Godot.Key.Escape, true);
+        Press(Godot.Key.Escape, false);
+        Press(Godot.Key.E, false);
+        await Seconds(0.4);
+
+        // Inside: the tool cupboard's options (the hut lists its builder).
+        if (Client.Building?.Claims.OrderBy(c => Num.Vector3.Distance(c.ZoneTransform.Position, middle)).FirstOrDefault() is { } cupboard)
+        {
+            Num.Vector3 at = cupboard.ZoneTransform.Position;
+            await TeleportTo(middle + FlatUnit(middle - at) * 0.6f);
+            Face(at + up * 0.9f);
+            await Seconds(0.8);
+            GD.Print($"[tour] the cupboard's prompt: {PromptLine()}");
+            Press(Godot.Key.E, true);
+            await Seconds(0.8);
+            await Shot("cupboard");
+            Press(Godot.Key.Escape, true);
+            Press(Godot.Key.Escape, false);
+            Press(Godot.Key.E, false);
+            await Seconds(0.4);
+        }
+
+        // Arrows into the hut's side wall from 7 m; one stuck taken back with E.
+        Num.Vector3 wall = middle + side * 1.6f + up * 1.3f;
+        await TeleportTo(middle + side * 8.5f);
+        await Hold("bow", 4);
+        int arrows = Client.Arrows.Count;
+        for (int shot = 0; shot < 4 && Client.Arrows.Count < arrows + 2; shot++)
+        {
+            await Loose(wall + up * (0.25f * shot) - outward * (0.35f * shot - 0.5f));
+        }
+        await Seconds(0.5);
+        GD.Print($"[tour] arrows stuck in the wall: {Client.Arrows.Count - arrows}");
+        if (Client.Arrows.Where(a => a.Placed).OrderBy(a => Num.Vector3.Distance(a.Pose.Position, wall)).FirstOrDefault() is { } stuck)
+        {
+            Num.Vector3 nock = SpentArrowNock(stuck);
+            await TeleportTo(middle + side * 3.3f + outward * 0.4f);
+            Face(nock + (stuck.Pose.Position - nock) * 0.35f);
+            await Seconds(0.8);
+            GD.Print($"[tour] at the arrow: {PromptLine()}");
+            await Shot("arrow-wall");
+            int carried = Count("arrow");
+            Press(Godot.Key.E, true);
+            await Seconds(0.08);
+            Press(Godot.Key.E, false);
+            await Until(() => Count("arrow") > carried, 3);
+            GD.Print($"[tour] tapped E on the arrow: {(Count("arrow") > carried ? "taken back" : "not taken")}");
+            await Seconds(0.3);
+            await Shot("arrow-taken");
+        }
+
+        // A deer 5 m ahead, met by an arrow loosed as it comes (the bow drawn first, then put away so it hides nothing); the
+        // arrow turns with the deer as it turns to run.
+        (spot, towards) = OpenSpot(new Num.Vector3(-40, 0, 70));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = 0;
+        await Settle();
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            await Hold("bow", 4);
+            int before = Client.Arrows.Count;
+            View.Scripted = new InputFrame { Secondary = true };
+            await Seconds(1.1);
+            var known = Client.Animals.Select(a => a.Id).ToHashSet();
+            Command?.Invoke($"spawn deer {Client.Name} 1 6");
+            await Until(() => Client.Animals.Any(a => !known.Contains(a.Id)), 3);
+            if (Client.Animals.FirstOrDefault(a => !known.Contains(a.Id)) is not { } deer)
+            {
+                View.Scripted = null;
+                continue;
+            }
+            // At the deer's nearest hit shape, a little into it.
+            Num.Vector3 eye = Client.Character.Position + Client.Frame.UpAt(Client.Character.Position) * Client.EyeHeight;
+            Num.Vector3 aim = deer.Position + Client.Frame.UpAt(deer.Position) * 0.9f;
+            if (Client.TargetViewOf(TargetFamily.Animal) is { } animals && animals.TryNearest(new TargetRef(TargetFamily.Animal, deer.Id.Value), eye, out Num.Vector3 near))
+            {
+                aim = near + Num.Vector3.Normalize(near - eye) * 0.08f;
+            }
+            Face(aim);
+            View.Scripted = new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true };
+            await Seconds(0.1);
+            View.Scripted = null;
+            Me.HeldSlot = 5;
+            await Until(() => Client.Arrows.Count > before, 1.0);
+            GD.Print($"[tour] the deer, try {attempt + 1}: {(Client.Arrows.Count > before ? "an arrow stuck" : "no arrow stuck")} ({(deer.HurtCount > 0 ? "hit" : "not hit")})");
+            if (Client.Arrows.Count > before)
+            {
+                await Seconds(0.3);
+                await Shot("arrow-deer");
+                break;
+            }
+        }
+        View.Scripted = null;
+
+        // A garage door in a wall frame on a foundation, rolled up, shut with a tap of E through its opening.
+        (spot, towards) = OpenSpot(new Num.Vector3(60, 0, 60));
+        await TeleportTo(spot);
+        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.Pitch = -0.3f;
+        await Settle();
+        await Hold("building-plan", 5);
+        Num.Vector3 ahead = Forward();
+        if (await PlaceAimed("foundation", p => p.Support == null) is not { } floor)
+        {
+            GD.PushWarning("[tour] no foundation for the garage");
+            return;
+        }
+        Num.Vector3 c1 = Centre(floor);
+        if (await PlaceAimed("wall-frame", p => p.Support == floor && Num.Vector3.Dot(At(p) - c1, ahead) < -1) is not { } frame)
+        {
+            GD.PushWarning("[tour] no wall frame for the garage");
+            return;
+        }
+        Num.Vector3 frameAt = Centre(frame), front = FlatUnit(Client.Character.Position - frameAt);
+        await TeleportTo(frameAt + front * 3.0f);
+        Face(frameAt + up * 1.4f);
+        await Hold("garage-door", 5);
+        await Seconds(0.4);
+        View.UseHeld();
+        await Until(() => Doors().Any(d => d.Frame == frame), 5);
+        if (Doors().FirstOrDefault(d => d.Frame == frame) is not { } garage)
+        {
+            GD.PushWarning("[tour] the garage door wasn't fitted");
+            return;
+        }
+        Me.HeldSlot = 5;
+        Me.Interact(garage.Ref, "door-open");
+        await Until(() => garage.Open, 3);
+        await Seconds(1.4);
+        Face(frameAt + up * 1.2f);
+        await Seconds(0.5);
+        GD.Print($"[tour] the open garage door: {PromptLine()}");
+        await Shot("garage-open");
+        Press(Godot.Key.E, true);
+        await Seconds(0.08);
+        Press(Godot.Key.E, false);
+        await Until(() => !garage.Open, 3);
+        // The curtain unrolls over three seconds (the kit's animation): halfway down.
+        await Seconds(1.5);
+        GD.Print($"[tour] tapped E through the opening: the garage door {(garage.Open ? "stayed open" : "is shutting")}");
+        await Shot("garage-closing");
+    }
+
+    // A key pressed or let go, as the player's own.
+    private static void Press(Godot.Key key, bool pressed) =>
+        Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = pressed });
+
+    // The bow drawn a second and loosed at a point.
+    private async Task Loose(Num.Vector3 at)
+    {
+        Face(at);
+        View.Scripted = new InputFrame { Secondary = true };
+        await Seconds(1.1);
+        View.Scripted = new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true };
+        await Seconds(0.1);
+        View.Scripted = null;
+        await Seconds(0.5);
+    }
+
+    private static Num.Vector3 SpentArrowNock(RemoteArrow arrow) => Hollow.Simulation.World.SpentArrow.Shaft(arrow.Pose).Nock;
+
+    // What the interact prompt says now.
+    private string PromptLine() => View.Aimed is { } aim ? $"{aim.Target} {(aim.Primary >= 0 ? Client.Content.Interactions.Verb(aim.Options[aim.Primary].Verb)?.Key : "-")} ({aim.Options.Count} options)" : "nothing";
+
     // ---------------------------------------------------------------- helpers
 
     private void Admin(string command, string args) => Command?.Invoke($"{command} {Client.Name} {args}".Trim());
+
+    private static TargetRef Thing(Hollow.Simulation.Entities.EntityId id) => new(TargetFamily.Thing, id.Value);
+
+    // The verb a tap of E would do now (the prompt's), by its key; null for none.
+    private string? AimedVerb() =>
+        View.Aimed is { Primary: >= 0 } aim ? Client.Content.Interactions.Verb(aim.Options[aim.Primary].Verb)?.Key : null;
+
+    // A tap of E now, as the player's: the aimed thing's primary verb.
+    private void TapAimed()
+    {
+        if (View.Aimed is { Primary: >= 0 } aim)
+        {
+            Me.Interact(aim.Target, aim.Options[aim.Primary].Verb);
+        }
+    }
 
     // What an item places (placement.json), or null.
     private Hollow.Simulation.Placement.Placeable? Placeable(string itemKey) => Client.Content.Item(itemKey)?.Places;

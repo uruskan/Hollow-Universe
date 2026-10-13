@@ -44,25 +44,16 @@ public sealed partial class Zone
     }
 
     /// <summary>
-    /// Helps a wounded player up (Rust's assist, with the interact key): within reach, awake and not down oneself. They
-    /// get up with the health they have.
+    /// Helps a wounded player up (Rust's assist: the wounded capability's verb, GROUND_SYSTEMS.md §5). They get up with the
+    /// health they have.
     /// </summary>
-    public Outcome HelpUp(Entity entity, EntityId target)
+    internal Outcome HelpUp(Entity helper, Player down)
     {
-        if (!Acting(entity, out Player _))
-        {
-            return OutcomeCode.Dead;
-        }
-        if (!Entities.TryFind(target, out Entity e) || e == entity || PlayerOf(e) is not { Wounded: true, Dead: false } down)
+        if (!down.Wounded || down.Dead || !TryFindPlayer(down.Id, out Entity e, out _) || e == helper)
         {
             return OutcomeCode.NotFound;
         }
-        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), down.Ref, Content!.Survival.HelpReach);
-        if (!reach.Ok)
-        {
-            return reach;
-        }
-        GetUp(e, down, Entities.IdOf(entity));
+        GetUp(e, down, Entities.IdOf(helper));
         return OutcomeCode.Done;
     }
 

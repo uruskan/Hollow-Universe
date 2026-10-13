@@ -166,9 +166,10 @@ public static class SurvivalNetTests
         Assert.True(bo.Local.Loot == null, "nothing of its contents yet");
 
         Vector3 eye = bo.Character.Position + bo.Frame.UpAt(bo.Character.Position) * bo.EyeHeight;
-        Interaction? aim = bo.Aim(eye, Vector3.Normalize(bag.Position - eye));
-        Assert.True(aim is { Kind: InteractionKind.Open } && aim.Value.Entity == bag.Id, $"E opens it ({aim?.Verb} {aim?.Name})");
-        bo.Interact(aim!.Value);
+        InteractAim? aim = bo.AimInteraction(eye, Vector3.Normalize(bag.Position - eye));
+        string? verb = aim is { Primary: >= 0 } ? bo.Content.Interactions.Verb(aim.Options[aim.Primary].Verb)?.Key : null;
+        Assert.True(aim != null && aim.Target.Id == bag.Id.Value && verb == "open", $"E opens it ({verb} {aim?.Facts.Name})");
+        bo.Local.Interact(aim!.Target, aim.Options[aim.Primary].Verb);
         RunUntil(rig, () => bo.Local.LootKind == LootKind.Crate && bo.Local.Loot != null, "the bag to open");
         Assert.True(bo.Local.Loot!.Slots.ToArray().Count(s => !s.IsEmpty) == 2 && InventoryRules.Count(new[] { bo.Local.Loot }, ContentFixture.Item("stone").Id) == 50,
             "its two stacks, to Bo alone");
@@ -221,7 +222,7 @@ public static class SurvivalNetTests
             }
             RunUntil(rig, () => ada.Things.Count(t => t.Kind == StaticKind.Deployable) == 2, "both placed");
             RemoteThing box = ada.Things.Single(t => t.Look == c.ItemByKey("small-box").Id);
-            ada.Local.Open(box.Id);
+            ada.Local.Interact(new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Thing, box.Id.Value), "open");
             RunUntil(rig, () => ada.Local.LootKind == LootKind.Box && ada.Local.Loot != null, "the box open");
             ada.Local.MoveItem(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wood"), ContainerRef.Loot, 5, 250);
             ada.Local.Craft(c.ItemByKey("stone-hatchet").Id);

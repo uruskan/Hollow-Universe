@@ -49,9 +49,6 @@ public readonly record struct ShipEvent(ShipEventKind Kind, Ship Ship, float Amo
 // crashes, wrecked when the hull goes, parked in orbit above the ceiling.
 public sealed partial class Zone
 {
-    /// <summary>A ship's hatch and fuel cap are reached within its reach of the eye (ships.json) plus this.</summary>
-    private const float ShipReachSlack = 0.5f;
-
     /// <summary>A pilot may step out (and others open the hatch) only this slow, and this near the ground (or on the sea).</summary>
     public const float ExitSpeed = 2.5f;
 
@@ -338,13 +335,11 @@ public sealed partial class Zone
         HullFootprint.Clear(Placement, def, ground, yaw, _hullCharacters, _hullShips).Ok;
 
     // ---------------------------------------------------------------- the hatch, the seat, the lock, the fuel
+    // On foot these are verbs (GROUND_SYSTEMS.md §5: the ship capability offers them by part, the interaction's one path
+    // checks reach and sight to the part); from the seat, the pilot's keys (ShipIntent).
 
-    // Within reach of a point of a ship: its hatch (boarding, the hatch, the lock, the cargo) or its fuel cap.
-    private bool InShipReach(Entity entity, Ship ship, Vector3 local) =>
-        !ship.InOrbit && Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), ship.PointOf(local)) <= ship.Def.Reach + ShipReachSlack;
-
-    // A ship is still enough to open its hatch, step out or reach in: barely moving, near the ground or on the sea.
-    private bool ShipStill(Ship ship)
+    /// <summary>A ship is still enough to open its hatch, step out or reach in: barely moving, near the ground or on the sea.</summary>
+    internal bool ShipStill(Ship ship)
     {
         if (ship.State.Has(ShipFlags.Landed) || ship.State.Asleep)
         {
@@ -353,38 +348,37 @@ public sealed partial class Zone
         return ship.State.Velocity.Length() <= ExitSpeed && (HeightAboveGround(ship.Origin) <= ExitHeight || ship.State.Has(ShipFlags.Wet));
     }
 
-    // The ship a player acts on from beside it (at its hatch) or from its seat; why not otherwise.
-    private Outcome ReachShip(Entity entity, EntityId target, out Player p, out Ship ship, out bool inside)
+    // The ship a pilot acts on from its seat (the pilot's keys).
+    private Outcome Seated(Entity entity, EntityId target, out Player p, out Ship ship)
     {
         ship = null!;
-        inside = false;
-        if (!Acting(entity, out p))
+        p = PlayerOf(entity)!;
+        if (p is not { CanAct: true })
         {
             return OutcomeCode.Dead;
         }
-        if (ShipOf(target) is not { Destroyed: false } found)
+        if (SeatOf(entity) is not { Destroyed: false } seat || seat.Id != target)
         {
-            return OutcomeCode.NotFound;
+            return OutcomeCode.NotAllowed;
         }
-        ship = found;
-        Ship? seat = SeatOf(entity);
-        inside = seat == ship;
-        if (inside)
-        {
-            return OutcomeCode.Done;
-        }
-        return seat == null && InShipReach(entity, ship, ship.Def.Hatch) ? OutcomeCode.Done : OutcomeCode.OutOfReach;
+        ship = seat;
+        return Outcome.Done;
     }
 
-    /// <summary>Opens or shuts a ship's hatch (the interact key at it, or the pilot's): opened only when still, and a locked one only by its owner.</summary>
+    /// <summary>The pilot's H: opens or shuts the hatch from the seat (opened only when still).</summary>
     public Outcome ShipHatch(Entity entity, EntityId target)
     {
-        Outcome check = ReachShip(entity, target, out Player p, out Ship ship, out bool inside);
-        if (check != OutcomeCode.Done)
-        {
-            return check;
-        }
-        if (!ship.HatchOpen)
+        Outcome check = Seated(entity, target, out Player p, out Ship ship);
+        return check.Ok ? SetHatch(p, ship, !ship.HatchOpen, inside: true) : check;
+    }
+
+    /// <summary>
+    /// Opens or shuts a ship's hatch (a verb at it, or the pilot's key): opened only when still, and a locked one only by
+    /// its owner from outside.
+    /// </summary>
+    internal Outcome SetHatch(Player p, Ship ship, bool open, bool inside = false)
+    {
+        if (open && !ship.HatchOpen)
         {
             if (!ShipStill(ship))
             {
@@ -395,20 +389,18 @@ public sealed partial class Zone
                 return OutcomeCode.Locked;
             }
         }
-        ship.HatchOpen = !ship.HatchOpen;
-        WakeShip(ship);
+        if (ship.HatchOpen != open)
+        {
+            ship.HatchOpen = open;
+            WakeShip(ship);
+        }
         return OutcomeCode.Done;
     }
 
-    /// <summary>Climbs into the seat through the open hatch; the hatch shuts behind the pilot.</summary>
-    public Outcome Board(Entity entity, EntityId target)
+    /// <summary>Climbs into the seat through the open hatch (the verb at it); the hatch shuts behind the pilot.</summary>
+    internal Outcome BoardShip(Entity entity, Player p, Ship ship)
     {
-        Outcome check = ReachShip(entity, target, out Player p, out Ship ship, out bool inside);
-        if (check != OutcomeCode.Done)
-        {
-            return check;
-        }
-        if (inside)
+        if (SeatOf(entity) != null)
         {
             return OutcomeCode.NotAllowed;
         }
@@ -556,36 +548,32 @@ public sealed partial class Zone
         return true;
     }
 
-    /// <summary>Locks or unlocks a ship (its owner, beside it or in the seat).</summary>
+    /// <summary>The pilot's L: locks or unlocks their ship from the seat.</summary>
     public Outcome LockShip(Entity entity, EntityId target)
     {
-        Outcome check = ReachShip(entity, target, out Player p, out Ship ship, out _);
-        if (check != OutcomeCode.Done)
-        {
-            return check;
-        }
+        Outcome check = Seated(entity, target, out Player p, out Ship ship);
+        return check.Ok ? SetShipLock(p, ship, !ship.Locked) : check;
+    }
+
+    /// <summary>Locks or unlocks a ship: its owner alone.</summary>
+    internal Outcome SetShipLock(Player p, Ship ship, bool locked)
+    {
         if (p.Id != ship.Owner)
         {
             return OutcomeCode.NotOwner;
         }
-        ship.Locked = !ship.Locked;
-        ship.Revision++;
+        if (ship.Locked != locked)
+        {
+            ship.Locked = locked;
+            ship.Revision++;
+        }
         return OutcomeCode.Done;
     }
 
-    /// <summary>Fills a ship's tank from the player's lamp oil (main slots, then belt), as much as fits: at the fuel cap, the hatch or in the seat.</summary>
-    public Outcome RefuelShip(Entity entity, EntityId target)
+    /// <summary>Fills a ship's tank from the player's lamp oil (main slots, then belt), as much as fits.</summary>
+    internal Outcome Refuel(Player p, Ship ship)
     {
-        Outcome check = ReachShip(entity, target, out Player p, out Ship ship, out _);
-        if (check == OutcomeCode.OutOfReach && ship != null && SeatOf(entity) == null && InShipReach(entity, ship, ship.Def.FuelCap))
-        {
-            check = OutcomeCode.Done;
-        }
-        if (check != OutcomeCode.Done)
-        {
-            return check;
-        }
-        int room = (int)MathF.Floor(ship!.Def.FuelCapacity - ship.State.Fuel);
+        int room = (int)MathF.Floor(ship.Def.FuelCapacity - ship.State.Fuel);
         if (room <= 0)
         {
             return OutcomeCode.NoSpace;
@@ -606,26 +594,12 @@ public sealed partial class Zone
     /// <summary>The ship whose cargo a player has open, or null.</summary>
     public Ship? LootShip(Player p) => p.Looting.IsNone ? null : ShipOf(p.Looting) is { Destroyed: false } ship ? ship : null;
 
-    // Opening a ship's cargo (Open on its ID): at the hatch while it is still, or from the seat; not if locked to them.
-    private Outcome OpenShip(Entity entity, Player p, Ship ship)
-    {
-        bool inside = SeatOf(entity) == ship;
-        if (!inside && (SeatOf(entity) != null || !InShipReach(entity, ship, ship.Def.Hatch) || !ShipStill(ship)))
-        {
-            return OutcomeCode.OutOfReach;
-        }
-        if (ship.Locked && p.Id != ship.Owner && !inside)
-        {
-            return OutcomeCode.Locked;
-        }
-        p.Looting = ship.Id;
-        p.LootRevision++;
-        return OutcomeCode.Done;
-    }
-
-    // Whether a player looting a ship's cargo may go on (CheckLoot, once a second).
+    // Whether a player looting a ship's cargo may go on (CheckLoot, once a second): from its seat, or beside it while it is
+    // at rest, the cargo within the reach that keeps a container open (GROUND_SYSTEMS.md §3.4).
     private bool StillAtShip(Entity entity, Ship ship) =>
-        SeatOf(entity) == ship || (InShipReach(entity, ship, ship.Def.Hatch) && ShipStill(ship));
+        SeatOf(entity) == ship || (!ship.InOrbit && ShipStill(ship) &&
+            Reach(EyeOf(Entities.Get<Character>(entity).State), new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Cargo), Content!.Survival.KeepOpenReach,
+                sight: false).Ok);
 
     // ---------------------------------------------------------------- orbit (GROUND.md §6.7: the seam for G8)
 
@@ -680,9 +654,6 @@ public sealed partial class Zone
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Ship };
 
-        /// <summary>An arrow on a hull is lost.</summary>
-        public bool Keeps => true;
-
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             if (zone._ships.Count > 0)
@@ -732,25 +703,7 @@ public sealed partial class Zone
     }
 
     /// <summary>The point of a ship's hull (its boxes) nearest to a point.</summary>
-    public static Vector3 ShipClosestPoint(Ship ship, Vector3 at)
-    {
-        ShipDef def = ship.Def;
-        Quaternion q = ship.State.Rotation;
-        Vector3 local = Vector3.Transform(at - ship.State.Position, Quaternion.Conjugate(q)) + def.CentreOfMass;
-        Vector3 best = local;
-        float nearest = float.MaxValue;
-        foreach (HullBox box in def.Hull)
-        {
-            Vector3 p = Vector3.Clamp(local, box.Centre - box.HalfExtents, box.Centre + box.HalfExtents);
-            float d = Vector3.DistanceSquared(p, local);
-            if (d < nearest)
-            {
-                nearest = d;
-                best = p;
-            }
-        }
-        return ship.PointOf(best);
-    }
+    public static Vector3 ShipClosestPoint(Ship ship, Vector3 at) => ShipShapes.NearestOnHull(ship.Def, ship.State.Position, ship.State.Rotation, at);
 
     /// <summary>
     /// Damage to a ship's hull from a weapon of a kind (tests): a request through the ships' receiver, with no hit marker.

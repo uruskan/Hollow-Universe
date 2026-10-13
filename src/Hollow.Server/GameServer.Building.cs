@@ -265,21 +265,6 @@ public sealed partial class GameServer
                 HammerIntent m = HammerIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
             }
-            case DoorIntent.TypeId:
-            {
-                DoorIntent m = DoorIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.DoorAct(me, m.Action, new EntityId(m.Target)));
-            }
-            case LockIntent.TypeId:
-            {
-                LockIntent m = LockIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.LockAct(me, m.Action, new EntityId(m.Door), m.Code));
-            }
-            case ClaimIntent.TypeId:
-            {
-                ClaimIntent m = ClaimIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.ClaimAct(me, m.Action, new EntityId(m.Target)));
-            }
             default:
                 return ReceiveShipIntent(session, type);
         }

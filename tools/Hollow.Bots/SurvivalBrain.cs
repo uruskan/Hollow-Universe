@@ -100,9 +100,10 @@ public sealed class SurvivalBrain
                     {
                         input.Primary = true;
                     }
-                    else if (client.Aim(eye, Vector3.Normalize(aim - eye)) is { Kind: InteractionKind.PickNatural } pick)
+                    else if (client.AimInteraction(eye, Vector3.Normalize(aim - eye)) is { Primary: >= 0 } pick &&
+                        pick.Target.Family == Hollow.Simulation.Targets.TargetFamily.Natural)
                     {
-                        client.Interact(pick);
+                        client.Local.Interact(pick.Target, pick.Options[pick.Primary].Verb);
                         Picks++;
                         _goal = Goal.Wander;
                     }

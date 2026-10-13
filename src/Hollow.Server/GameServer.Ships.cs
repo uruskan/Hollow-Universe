@@ -64,10 +64,8 @@ public sealed partial class GameServer
             Outcome result = m.Action switch
             {
                 ShipAction.Hatch => Zone.ShipHatch(me, target),
-                ShipAction.Board => Zone.Board(me, target),
                 ShipAction.Exit => Zone.ExitShip(me),
                 ShipAction.Lock => Zone.LockShip(me, target),
-                ShipAction.Refuel => Zone.RefuelShip(me, target),
                 ShipAction.Descend => Zone.Descend(me),
                 _ => OutcomeCode.Invalid,
             };

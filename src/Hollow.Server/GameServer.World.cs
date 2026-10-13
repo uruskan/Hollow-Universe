@@ -105,11 +105,6 @@ public sealed partial class GameServer
         Entity me = session.Entity;
         switch (type)
         {
-            case UnlockIntent.TypeId:
-            {
-                UnlockIntent m = UnlockIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Unlock(me, Amount(m.Recipe)));
-            }
             case TeamIntent.TypeId:
             {
                 TeamIntent m = TeamIntent.Read(_reader);

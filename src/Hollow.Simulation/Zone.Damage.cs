@@ -76,9 +76,6 @@ public sealed partial class Zone
         /// <summary>The families it is the damage side of.</summary>
         TargetFamily[] Families { get; }
 
-        /// <summary>A projectile that lands in one of its things stays there (an arrow in a body or a hull is lost); elsewhere it may be picked up again.</summary>
-        bool Keeps { get; }
-
         /// <summary>The nearest of its things along the ray, into <paramref name="best"/> if nearer than what is there.</summary>
         void Raycast(in RayQuery ray, ref TraceHit best);
 
@@ -120,9 +117,6 @@ public sealed partial class Zone
         }
         _receiverOrder.Add(receiver);
     }
-
-    /// <summary>Whether a projectile that hit a thing of this family stays in it (it can't be picked up again).</summary>
-    private bool Keeps(TargetFamily family) => _receivers.Find((int)family)?.Keeps == true;
 
     /// <summary>
     /// The first thing a ray (thickened by <paramref name="thickness"/>) meets: a character as it was at

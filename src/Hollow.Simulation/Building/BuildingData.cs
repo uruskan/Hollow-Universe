@@ -334,7 +334,7 @@ public sealed class BuildingData
     // ---------------------------------------------------------------- claim device
 
     public string ClaimItem { get; private set; } = "claim-device";
-    public string ClaimName { get; private set; } = "Claim Device";
+    public string ClaimName { get; private set; } = "Tool Cupboard";
 
     /// <summary>The device's box: width, height, depth in metres.</summary>
     public System.Numerics.Vector3 ClaimSize { get; private set; } = new(0.9f, 1.8f, 0.7f);
@@ -719,7 +719,7 @@ public sealed class BuildingData
     {
         JsonElement c = r.Object(root, "claim");
         ClaimItem = r.Text(c, "key", "claim-device");
-        ClaimName = r.Text(c, "name", "Claim Device");
+        ClaimName = r.Text(c, "name", "Tool Cupboard");
         ClaimSize = r.Vector(c, "size");
         ClaimPieceRadius = r.Number(c, "pieceRadius", 16);
         ClaimDeviceRadius = r.Number(c, "deviceRadius", 25);

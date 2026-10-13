@@ -109,11 +109,11 @@ public sealed partial class LocalPlayer
     // ---------------------------------------------------------------- intents
 
     /// <summary>
-    /// Unlocks a tech tree node (its recipe) at a workbench of its level within reach, for its salvage: the blueprint
-    /// is known and the salvage gone at once (rolled back if the server says no).
+    /// Unlocks a tech tree node (its recipe) at a workbench of its level within reach (the bench's verb, the recipe its
+    /// argument), for its salvage: the blueprint is known and the salvage gone at once (rolled back if the server says no).
     /// </summary>
-    public uint Unlock(int recipeId) =>
-        Intend(new Pending(p => p.ApplyUnlock(recipeId)), w => new UnlockIntent { Seq = _nextSeq, Recipe = (uint)Math.Max(0, recipeId) }.WriteMessage(w));
+    public uint Unlock(in Simulation.Targets.TargetRef bench, int recipeId) =>
+        Interact(bench, Content.Interactions.Index("unlock"), (uint)Math.Max(0, recipeId), null, new Pending(p => p.ApplyUnlock(recipeId)));
 
     /// <summary>Whether a tech tree node can be unlocked now (as the server will judge it), and why not.</summary>
     public Outcome CanUnlock(TechNode node)
@@ -136,8 +136,6 @@ public sealed partial class LocalPlayer
 
     public uint CreateTeam() => TeamIntent(TeamAction.Create, default, 0);
 
-    /// <summary>Invites a player close by (the interact key on them: <see cref="GameClient.Aim"/>), as the team's leader.</summary>
-    public uint InviteToTeam(EntityId player) => TeamIntent(TeamAction.Invite, player, 0);
 
     public uint AcceptInvite(ulong team) => TeamIntent(TeamAction.Accept, default, team);
 

@@ -144,7 +144,10 @@ public sealed class ShipDef
 
     public IReadOnlyList<HullBox> Hull { get; init; } = Array.Empty<HullBox>();
 
-    /// <summary>The pilot's seat (where the seated character's feet go), the pilot's eye, the hatch's middle, the fuel cap.</summary>
+    /// <summary>
+    /// The pilot's seat (where the seated character's feet go), the pilot's eye, the hatch's middle, the fuel cap, the
+    /// cargo (reached through the open hatch).
+    /// </summary>
     public Vector3 Seat { get; init; }
 
     public Vector3 Eye { get; init; }
@@ -152,6 +155,17 @@ public sealed class ShipDef
     public Vector3 Hatch { get; init; }
 
     public Vector3 FuelCap { get; init; }
+
+    public Vector3 Cargo { get; init; }
+
+    private Vector3[]? _parts;
+
+    /// <summary>A part's point (<see cref="ShipParts"/>, by its number): the hatch, the fuel cap, the cargo; the centre for the hull.</summary>
+    public Vector3 PartPoint(byte part)
+    {
+        _parts ??= new[] { CentreOfMass, Hatch, FuelCap, Cargo };
+        return part < _parts.Length ? _parts[part] : CentreOfMass;
+    }
 
     /// <summary>Where a pilot steps out, in order of preference (on the ground below each point).</summary>
     public IReadOnlyList<Vector3> Exits { get; init; } = Array.Empty<Vector3>();
@@ -164,9 +178,6 @@ public sealed class ShipDef
     public IReadOnlyList<Vector3> LiftNozzles { get; init; } = Array.Empty<Vector3>();
 
     public IReadOnlyList<Vector3> RcsNozzles { get; init; } = Array.Empty<Vector3>();
-
-    /// <summary>The hatch, the seat, the fuel cap and the cargo are reached within this distance of the eye.</summary>
-    public float Reach { get; init; }
 
     /// <summary>Above this height over the planet's mean radius the ship reaches orbit (GROUND.md §6.6).</summary>
     public float Ceiling { get; init; }
@@ -208,4 +219,22 @@ public sealed class ShipDef
     }
 
     public override string ToString() => Key;
+}
+
+/// <summary>
+/// A ship's parts as targets (GROUND_SYSTEMS.md §3.1, §5): <see cref="Targets.TargetRef.Part"/> names one. The hull is the
+/// whole ship; the hatch is where it is boarded, opened and locked; the fuel cap where it is refuelled; the cargo is reached
+/// through the open hatch.
+/// </summary>
+public static class ShipParts
+{
+    public const byte Hull = 0, Hatch = 1, FuelCap = 2, Cargo = 3;
+
+    /// <summary>The parts the interact key looks for, after the hull.</summary>
+    public const byte Count = 4;
+
+    // How near a part the aim must pass, by its number: the hatch's frame, the cap, the cargo's opening.
+    private static readonly float[] Radii = { 0, 0.7f, 0.45f, 0.45f };
+
+    public static float Radius(byte part) => part < Radii.Length ? Radii[part] : 0;
 }

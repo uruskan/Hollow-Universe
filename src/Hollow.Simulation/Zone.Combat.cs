@@ -334,8 +334,8 @@ public sealed partial class Zone
         }
     }
 
-    // An arrow stops at what it met: an arrow request through the damage pipeline (GROUND.md §6.4.2); one in a body or a
-    // hull stays there, one elsewhere is often left where it landed.
+    // An arrow stops at what it met: an arrow request through the damage pipeline (GROUND.md §6.4.2); one that stays whole
+    // sticks where it hit, in whatever it hit, a living body too (GROUND_SYSTEMS.md §5, Zone.Arrows.cs).
     private void ProjectileHit(Projectile pr, in TraceHit hit)
     {
         AmmoStats ammo = pr.Ammo.Ammo!;
@@ -364,15 +364,11 @@ public sealed partial class Zone
             Direction = Vector3.Normalize(pr.Velocity),
             Markers = TargetFamilies.All,
         });
-        if (Keeps(hit.Target.Family))
-        {
-            return;
-        }
-        // A miss often leaves the arrow where it landed (in a bag, with others that landed close by).
+        // It stays whole as often as its ammo says (Rust's arrows break now and then), and then sticks.
         var rng = new Rng(Hash64.Of(pr.Id, (ulong)Tick, 0xA770));
         if (rng.NextDouble() < ammo.Recover)
         {
-            Spill(hit.Point - Vector3.Normalize(pr.Velocity) * 0.1f, ItemStack.Of(pr.Ammo, 1));
+            StickArrow(pr, hit);
         }
     }
 
@@ -409,8 +405,6 @@ public sealed partial class Zone
     private sealed class CharacterReceiver(Zone zone) : IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Character };
-
-        public bool Keeps => true;
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
@@ -506,8 +500,6 @@ public sealed partial class Zone
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Natural };
 
-        public bool Keeps => false;
-
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             Vector3 end = ray.Origin + ray.Direction * ray.Length;
@@ -557,8 +549,6 @@ public sealed partial class Zone
     private sealed class GroundReceiver(Zone zone) : IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Ground };
-
-        public bool Keeps => false;
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {

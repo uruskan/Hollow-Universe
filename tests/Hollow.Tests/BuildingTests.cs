@@ -354,7 +354,7 @@ public static class BuildingTests
         PlacementWorld placing = Placing(world);
         Outcome blocked = Verdict(placing, wall, Bo, new Vector3(0, 1.6f, 5), wallet);
         Assert.Equal(OutcomeCode.BuildingBlocked, blocked.Code, "Bo's wall is refused");
-        Assert.Equal("Building blocked: someone else's claim", Line(blocked), "with the reason");
+        Assert.Equal("Building blocked: someone else's tool cupboard", Line(blocked), "with the reason");
         Assert.Equal(Privilege.None, world.PrivilegeAt(Bo, new Vector3(60, 0, 0)), "far away is free");
 
         var far = new Vector3(0, 0, -36);

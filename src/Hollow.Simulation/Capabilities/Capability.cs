@@ -28,6 +28,8 @@ public readonly record struct CapabilitySet(ulong Bits)
 
     public CapabilitySet With(CapabilitySet other) => new(Bits | other.Bits);
 
+    public CapabilitySet Without(CapabilitySet other) => new(Bits & ~other.Bits);
+
     /// <summary>The indices in the set, lowest first, without allocating.</summary>
     public Enumerator GetEnumerator() => new(Bits);
 

@@ -229,7 +229,7 @@ public static class BuildingNetTests
         RunUntil(rig, () => doorway.Door != null && bo.Building!.PieceOf(doorwayId)?.Door != null, "the door on both clients");
         Door door = doorway.Door!;
         Ask(PlaceItem(ada, "code-lock", door.LockSpot.Position), "the code lock fitted");
-        Ask(ada.Local.SetCode(door, "4711"), "the code set");
+        Ask(ada.Local.Interact(door.Ref, "set-code", code: "4711"), "the code set");
         RunUntil(rig, () => ada.BuildingReplica!.StateOf(door) is { Lock: LockKind.Code, Locked: true, CanUse: true }, "locked, and Ada may pass");
         // The claim device placed from her floor, in sight of it (the doorway's wall and its shut door hide the floor from
         // outside), beside her.
@@ -245,7 +245,7 @@ public static class BuildingNetTests
         RunUntil(rig, () => ada.Local.Inventory.Count(ContentFixture.Item("wood")) == 200, "the wood");
         ClaimDevice claim = ada.Building.Claims.Single();
         Assert.True(ada.ThingOf(claim.Id)?.Deployable(ada.Content)?.Slots == 24, "the claim device is a thing with a 24-slot store");
-        ada.Local.Open(claim.Id);
+        ada.Local.Interact(claim.Ref, "open");
         RunUntil(rig, () => ada.Local.LootKind == Simulation.Items.LootKind.Box && ada.Local.Loot?.Size == 24, "its store open");
         ada.Local.MoveItem(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wood"), ContainerRef.Loot, 0);
         RunUntil(rig, () => rig.Server.Inspect(sv => InventoryRules.Count(new[] { sv.Zone.DeployableOf(sv.Zone.Building!.ClaimOf(claim.Id)!)!.Storage! },
@@ -270,12 +270,12 @@ public static class BuildingNetTests
             RunUntil(rig, () => bos.Any(a => a.Seq == seq), what);
             return bos.Single(a => a.Seq == seq).Code;
         }
-        Assert.Equal(OutcomeCode.Locked, BoAsks(bo.Local.ToggleDoor(boDoor), "Bo tries the door"), "locked");
-        Assert.Equal(OutcomeCode.WrongCode, BoAsks(bo.Local.EnterCode(boDoor, "1234"), "a wrong code"), "wrong code");
-        Assert.Equal(OutcomeCode.WaitForCode, BoAsks(bo.Local.EnterCode(boDoor, "4711"), "the right code too soon"), "he must wait");
+        Assert.Equal(OutcomeCode.Locked, BoAsks(bo.Local.Interact(boDoor.Ref, "door-open"), "Bo tries the door"), "locked");
+        Assert.Equal(OutcomeCode.WrongCode, BoAsks(bo.Local.Interact(boDoor.Ref, "enter-code", code: "1234"), "a wrong code"), "wrong code");
+        Assert.Equal(OutcomeCode.WaitForCode, BoAsks(bo.Local.Interact(boDoor.Ref, "enter-code", code: "4711"), "the right code too soon"), "he must wait");
         rig.Run(1.1, (_, _) => default);
-        Assert.Equal(OutcomeCode.Done, BoAsks(bo.Local.EnterCode(boDoor, "4711"), "the right code"), "let in");
-        Assert.Equal(OutcomeCode.Done, BoAsks(bo.Local.ToggleDoor(boDoor), "Bo opens the door"), "opened");
+        Assert.Equal(OutcomeCode.Done, BoAsks(bo.Local.Interact(boDoor.Ref, "enter-code", code: "4711"), "the right code"), "let in");
+        Assert.Equal(OutcomeCode.Done, BoAsks(bo.Local.Interact(boDoor.Ref, "door-open"), "Bo opens the door"), "opened");
         RunUntil(rig, () => door.Open && boDoor.Open, "the door open on both clients");
         Assert.True(rig.Server.Inspect(sv => sv.Zone.Building!.DoorOf(door.Id)!.Open), "and on the server");
 

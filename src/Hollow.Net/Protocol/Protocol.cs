@@ -22,9 +22,13 @@ public static partial class Protocol
     /// (<see cref="ItemActionIntent"/>; <c>UseIntent</c> and <c>DetachIntent</c> are gone), the gun's unload on its own
     /// timeline (<see cref="UnloadIntent"/>) and its answers in the one answer list (<see cref="GunUpdate"/>'s code); 18:
     /// placing anything is one <see cref="PlaceIntent"/> (GROUND_SYSTEMS.md §6: the deployables', pieces', charges' and
-    /// doors', locks' and the claim device's own placing gone), and a thing says what it stands on (<see cref="ThingSpawn"/>).
+    /// doors', locks' and the claim device's own placing gone), and a thing says what it stands on (<see cref="ThingSpawn"/>); 19:
+    /// interaction (GROUND_SYSTEMS.md §5): one <see cref="InteractIntent"/> for every verb (Open, PickUp, Toggle, HelpUp,
+    /// Rearm and Unlock gone; with 18's placing, nothing is left of Door, Lock and Claim; Team doesn't invite, Ship is the
+    /// pilot's keys alone), spent arrows (<see cref="ArrowStates"/>, <see cref="ArrowsGone"/>, the Arrow target family), a
+    /// thing's capabilities.
     /// </summary>
-    public const uint Version = 18;
+    public const uint Version = 19;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -91,14 +95,12 @@ public enum ShipNetFlags : ushort
     Asleep = 512,
 }
 
-/// <summary>A ship action (<see cref="ShipIntent"/>).</summary>
+/// <summary>A pilot's key in the seat (<see cref="ShipIntent"/>); on foot a ship's hatch, seat, tank and lock are verbs.</summary>
 public enum ShipAction : byte
 {
     Hatch,
-    Board,
     Exit,
     Lock,
-    Refuel,
     Descend,
 }
 

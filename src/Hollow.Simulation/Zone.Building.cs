@@ -23,44 +23,6 @@ public enum HammerAction : byte
     Repair,
 }
 
-public enum DoorAction : byte
-{
-    Toggle,
-
-    /// <summary>Take an open, unlocked door back as an item.</summary>
-    PickUp,
-}
-
-public enum LockAction : byte
-{
-    SetCode,
-    EnterCode,
-    Lock,
-    Unlock,
-
-    /// <summary>Cut a key for a key lock (its owner, for wood).</summary>
-    MakeKey,
-
-    /// <summary>Take the lock off as an item.</summary>
-    Remove,
-
-    /// <summary>G7: put the player's team on the code lock's list (Rust's "authorise team").</summary>
-    AuthoriseTeam,
-}
-
-public enum ClaimAction : byte
-{
-    Authorise,
-    Deauthorise,
-    ClearList,
-
-    /// <summary>Take the device back as an item, its store with it.</summary>
-    PickUp,
-
-    /// <summary>G7: put the player and their whole team on the device's list (Rust's "authorise team").</summary>
-    AuthoriseTeam,
-}
-
 // Building in a live zone (GROUND.md §6.3, phase 2): the zone's BuildingWorld on its Jolt world, run on the zone's
 // tick (collapses) and on a slow schedule (upkeep and decay, closed form); the player's building actions, each checked
 // against what they carry and answered with the rules' reason; the claim device as a deployable whose storage is its
@@ -265,15 +227,14 @@ public sealed partial class Zone
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Piece, TargetFamily.Door, TargetFamily.Cupboard };
 
-        public bool Keeps => false;
-
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
-            // Walls stop swings, arrows and bullets: only up to the nearest thing found so far.
-            if (zone.Building != null && zone.TraceBuilding(ray.Origin, ray.Direction, ray.Upto(best), out float wall, out object? part) &&
-                part is ITargetable thing)
+            // Walls stop swings, arrows and bullets: only up to the nearest thing found so far. What owns the body names it
+            // (a door's leaf as its part: an arrow stuck in it swings with it).
+            if (zone.Building?.Physics is { } physics && physics.Ray(ray.Origin, ray.Direction, ray.Upto(best), out RayHit hit, buildingOnly: true) &&
+                physics.OwnerOf(hit.Body) is ITargetable owner)
             {
-                ray.Consider(ref best, wall, thing.Ref);
+                ray.Consider(ref best, hit.Distance, owner.Ref);
             }
         }
 
@@ -455,7 +416,7 @@ public sealed partial class Zone
     }
 
     // The numbers of the keys a player carries (the zone's own list, good until the next call).
-    private List<int> KeysOf(Player p)
+    internal List<int> KeysOf(Player p)
     {
         _keys.Clear();
         foreach (Container c in p.Inventory.Carried)
@@ -505,44 +466,16 @@ public sealed partial class Zone
         };
     }
 
-    /// <summary>
-    /// Doors: opens or shuts one (keys carried open key locks), or takes an open, unlocked one back. Fitting one is the
-    /// placement pipeline's (GROUND_SYSTEMS.md §6).
-    /// </summary>
-    public Outcome DoorAct(Entity entity, DoorAction action, EntityId target)
+    /// <summary>An open door without a lock taken back as its item (the door capability's verb, GROUND_SYSTEMS.md §5).</summary>
+    internal Outcome TakeDoor(Entity entity, Player p, Door door)
     {
-        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
-        if (!ok.Ok)
+        DoorDef def = door.Def;
+        Outcome taken = Building!.PickUpDoor(p.Id.Value, door);
+        if (taken.Ok && ItemOfDoor(def) is { } item)
         {
-            return ok;
+            GiveBack(entity, p, item);
         }
-        BuildingWorld building = Building!;
-        if (building.DoorOf(target) is not { } door)
-        {
-            return OutcomeCode.NotFound;
-        }
-        Outcome reach = Reach(eye, door.Ref, Content!.Survival.OpenReach);
-        if (!reach.Ok)
-        {
-            return reach;
-        }
-        switch (action)
-        {
-            case DoorAction.Toggle:
-                return building.Toggle(p.Id.Value, door, KeysOf(p));
-            case DoorAction.PickUp:
-            {
-                DoorDef def = door.Def;
-                Outcome taken = building.PickUpDoor(p.Id.Value, door);
-                if (taken.Ok && ItemOfDoor(def) is { } item)
-                {
-                    GiveBack(entity, p, item);
-                }
-                return taken;
-            }
-            default:
-                return OutcomeCode.Invalid;
-        }
+        return taken;
     }
 
     private ItemDef? ItemOfDoor(DoorDef def)
@@ -557,135 +490,68 @@ public sealed partial class Zone
         return null;
     }
 
-    /// <summary>
-    /// Locks on a door: sets a code, enters one, locks, unlocks; cuts a key (the key lock's owner, for its price in wood);
-    /// takes the lock off as an item. Fitting one is the placement pipeline's (GROUND_SYSTEMS.md §6).
-    /// </summary>
-    public Outcome LockAct(Entity entity, LockAction action, EntityId target, string? code)
+    /// <summary>A key cut for a key lock, by its owner for its price in wood (the key lock capability's verb).</summary>
+    internal Outcome CutKey(Entity entity, Player p, Door door)
     {
-        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
-        if (!ok.Ok)
+        if (door.Lock is not KeyLock keyLock)
         {
-            return ok;
+            return OutcomeCode.NoLock;
         }
-        BuildingWorld building = Building!;
-        if (building.DoorOf(target) is not { } door)
+        if (keyLock.Owner != p.Id.Value)
         {
-            return OutcomeCode.NotFound;
+            return OutcomeCode.NotOwner;
         }
-        Outcome reach = Reach(eye, door.Ref, Content!.Survival.OpenReach);
-        if (!reach.Ok)
+        BuildingData data = Building!.Data;
+        if (Content!.Item(data.KeyItem) is not { } key)
         {
-            return reach;
+            return OutcomeCode.Invalid;
         }
-        ulong player = p.Id.Value;
-        switch (action)
+        if (!new ItemWallet(Content, p.Inventory.Carried).Take(data.KeyCostMaterial, data.KeyCost))
         {
-            case LockAction.SetCode:
-                return building.SetCode(player, door, code ?? "");
-            case LockAction.EnterCode:
-                return building.EnterCode(player, door, code ?? "", BuildingNow);
-            case LockAction.Lock:
-                return building.SetLocked(player, door, true, KeysOf(p));
-            case LockAction.Unlock:
-                return building.SetLocked(player, door, false, KeysOf(p));
-            case LockAction.MakeKey:
-            {
-                if (door.Lock is not KeyLock keyLock)
-                {
-                    return OutcomeCode.NoLock;
-                }
-                if (keyLock.Owner != player)
-                {
-                    return OutcomeCode.NotOwner;
-                }
-                BuildingData data = building.Data;
-                if (Content!.Item(data.KeyItem) is not { } key)
-                {
-                    return OutcomeCode.Invalid;
-                }
-                if (!new ItemWallet(Content, p.Inventory.Carried).Take(data.KeyCostMaterial, data.KeyCost))
-                {
-                    return OutcomeCode.NotEnough.With(data.MaterialItem(data.KeyCostMaterial));
-                }
-                GiveBack(entity, p, key, 1, (ushort)keyLock.KeyCode);
-                return Outcome.Done;
-            }
-            case LockAction.AuthoriseTeam:
-                return building.AuthoriseOnLock(player, door, TeamOf(p));
-            case LockAction.Remove:
-            {
-                bool coded = door.Lock is CodeLock;
-                Outcome removed = building.RemoveLock(player, door);
-                if (removed.Ok && Content!.Item(coded ? building.Data.CodeLockItem : building.Data.KeyLockItem) is { } item)
-                {
-                    GiveBack(entity, p, item);
-                }
-                return removed;
-            }
-            default:
-                return OutcomeCode.Invalid;
+            return OutcomeCode.NotEnough.With(data.MaterialItem(data.KeyCostMaterial));
         }
+        GiveBack(entity, p, key, 1, (ushort)keyLock.KeyCode);
+        return Outcome.Done;
     }
 
-    /// <summary>
-    /// The claim device: authorises the player, takes them off, clears the list; or picks it up, its store into the
-    /// player's slots. Placing one is the placement pipeline's (GROUND_SYSTEMS.md §6).
-    /// </summary>
-    public Outcome ClaimAct(Entity entity, ClaimAction action, EntityId target)
+    /// <summary>A lock taken off its door as its item, unlocked (the lock capabilities' verb).</summary>
+    internal Outcome TakeLock(Entity entity, Player p, Door door)
     {
-        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
-        if (!ok.Ok)
+        BuildingWorld building = Building!;
+        bool coded = door.Lock is CodeLock;
+        Outcome removed = building.RemoveLock(p.Id.Value, door);
+        if (removed.Ok && Content!.Item(coded ? building.Data.CodeLockItem : building.Data.KeyLockItem) is { } item)
         {
-            return ok;
+            GiveBack(entity, p, item);
         }
+        return removed;
+    }
+
+    /// <summary>The tool cupboard picked up by one on its list, its store into their slots (the cupboard capability's verb).</summary>
+    internal Outcome TakeClaim(Entity entity, Player p, ClaimDevice device)
+    {
         BuildingWorld building = Building!;
         ulong player = p.Id.Value;
-        if (building.ClaimOf(target) is not { } device)
+        if (!device.IsAuthorised(player))
         {
-            return OutcomeCode.NotFound;
+            return OutcomeCode.NotAuthorised;
         }
-        Outcome reach = Reach(eye, device.Ref, Content!.Survival.OpenReach);
-        if (!reach.Ok)
+        if (DeployableOf(device)?.Storage is { } store)
         {
-            return reach;
-        }
-        switch (action)
-        {
-            case ClaimAction.Authorise:
-                return building.Authorise(player, device);
-            case ClaimAction.Deauthorise:
-                return building.Deauthorise(player, device);
-            case ClaimAction.ClearList:
-                return building.ClearAuthorised(player, device);
-            case ClaimAction.AuthoriseTeam:
-                return AuthoriseTeam(player, device, TeamOf(p));
-            case ClaimAction.PickUp:
+            for (int i = 0; i < store.Size; i++)
             {
-                if (!device.IsAuthorised(player))
+                if (!store[i].IsEmpty && Content!.Item(store[i].Item) is { } stored)
                 {
-                    return OutcomeCode.NotAuthorised;
+                    GiveBack(entity, p, stored, store[i].Count, store[i].Condition);
                 }
-                if (DeployableOf(device)?.Storage is { } store)
-                {
-                    for (int i = 0; i < store.Size; i++)
-                    {
-                        if (!store[i].IsEmpty && Content!.Item(store[i].Item) is { } stored)
-                        {
-                            GiveBack(entity, p, stored, store[i].Count, store[i].Condition);
-                        }
-                    }
-                    store.Clear();
-                }
-                Outcome taken = building.PickUpClaim(player, device);
-                if (taken.Ok && Content!.Item(building.Data.ClaimItem) is { } item)
-                {
-                    GiveBack(entity, p, item);
-                }
-                return taken;
             }
-            default:
-                return OutcomeCode.Invalid;
+            store.Clear();
         }
+        Outcome taken = building.PickUpClaim(player, device);
+        if (taken.Ok && Content!.Item(building.Data.ClaimItem) is { } item)
+        {
+            GiveBack(entity, p, item);
+        }
+        return taken;
     }
 }

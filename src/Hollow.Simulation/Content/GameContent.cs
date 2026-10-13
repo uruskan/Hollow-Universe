@@ -30,6 +30,7 @@ public sealed partial class GameContent
         "ships.json", "world.json", "animals.json",
         "surfaces.json",
         "capabilities.json",
+        Content.InteractionData.File,
         "placement.json",
     };
 
@@ -71,6 +72,7 @@ public sealed partial class GameContent
         Problems = loaded.Problems;
         Texts = loaded.Texts!;
         Capabilities = loaded.Capabilities ?? new CapabilityData(Array.Empty<string>());
+        Interactions = loaded.Interactions ?? new InteractionData(Array.Empty<VerbDef>(), 0.35f);
         Placement = loaded.Placement ?? Simulation.Placement.PlacementData.Empty;
         ItemActions = loaded.Actions ?? global::Hollow.Simulation.Items.ItemActions.Bind(Array.Empty<global::Hollow.Simulation.Items.ItemActionDef>(), new List<string>());
         Building = loaded.Building ?? BuildingData.Parse("{}");
@@ -198,6 +200,9 @@ public sealed partial class GameContent
 
     /// <summary>The kinds of behaviour world things have, and which have which (capabilities.json, GROUND_SYSTEMS.md §2.1).</summary>
     public CapabilityData Capabilities { get; }
+
+    /// <summary>The interaction verbs (interactions.json, GROUND_SYSTEMS.md §5): what the E key can do, by number and key.</summary>
+    public InteractionData Interactions { get; }
 
     /// <summary>Everything that can be placed and its rule, by the wire's numbers, and the pipeline's handlers (placement.json, GROUND_SYSTEMS.md §6).</summary>
     public Simulation.Placement.PlacementData Placement { get; }
@@ -482,6 +487,7 @@ public sealed partial class GameContent
         public DeployableDef? ClaimDeployable;
         public Texts? Texts;
         public CapabilityData? Capabilities;
+        public InteractionData? Interactions;
         public Simulation.Placement.PlacementData? Placement;
         public List<global::Hollow.Simulation.Items.ItemActionDef> ItemActions = new();
         public IReadOnlyList<double> WorkbenchSpeed = new[] { 1.0 };
@@ -506,6 +512,7 @@ public sealed partial class GameContent
             ReadDeployables();
             ReadLoot();
             ReadSurvival();
+            InteractionsReader.Read(f, files[InteractionData.File], loaded);
             ReadWeapons();
             ExplosivesReader.Read(f, files[ExplosivesReader.File], loaded, Resolve);
             ReadShips();
@@ -950,7 +957,7 @@ public sealed partial class GameContent
                 JsonElement e = list[i];
                 string key = f.Text(e, "key", $"deployables.json: deployables[{i}]");
                 string where = $"deployables.json: {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "key", "item", "health", "size", "placement", "solid", "respawn", "slots", "device", "workbench", "bay");
+                f.OnlyKnown(e, where, "key", "item", "health", "size", "placement", "solid", "respawn", "slots", "device", "workbench", "bay", "pickup");
                 ItemDef? item = Resolve(f.Text(e, "item", where), where + ".item");
                 JsonElement[] size = f.List(e, "size", where);
                 Vector3 half = Vector3.Zero;
@@ -1012,6 +1019,7 @@ public sealed partial class GameContent
                     Device = device,
                     Workbench = f.Integer(e, "workbench", where, 0),
                     Bay = bay,
+                    Pickup = f.Flag(e, "pickup", where, false),
                 };
                 loaded.Deployables.Add(def);
             }
@@ -1092,7 +1100,7 @@ public sealed partial class GameContent
         private void ReadSurvival()
         {
             JsonElement root = Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature",
-                "climateStandIn", "combat", "world", "bag", "rateLimits", "reach", "lifetimes");
+                "climateStandIn", "combat", "world", "bag", "rateLimits", "reach", "lifetimes", "arrows");
             string w = "survival.json";
             JsonElement Section(string name, params string[] fields)
             {
@@ -1117,7 +1125,7 @@ public sealed partial class GameContent
             JsonElement c = Section("climateStandIn", "meanCelsius", "daySwing", "lapsePerKilometre", "dayLengthSeconds");
             JsonElement k = Section("combat", "head", "body", "limb", "maxRewindSeconds", "equipSeconds");
             JsonElement o = Section("world", "beachCooldownSeconds", "respawnKit");
-            JsonElement lifetimes = Section("lifetimes", "bag", "body", "dud");
+            JsonElement lifetimes = Section("lifetimes", "bag", "body", "dud", "arrow");
             LifetimeRule Lifetime(string name)
             {
                 string where = $"{w}: lifetimes.{name}";
@@ -1140,6 +1148,7 @@ public sealed partial class GameContent
                 return new LifetimeRule(seconds, restart == "deposit" ? LifetimeRestart.Deposit : LifetimeRestart.None, f.Flag(e, "emptied", where, false));
             }
             JsonElement reach = Section("reach", "interact", "open", "keepOpen", "help", "invite", "station");
+            JsonElement arrows = Section("arrows", "most", "depth");
             JsonElement bag = Section("bag", "name", "slots", "mergeRadius");
             JsonElement r = Section("rateLimits", "intentBurst", "intentsPerSecond", "gunBurst", "gunActionsPerSecond");
             JsonElement burning = Section("burning", "damagePerSecond");
@@ -1204,6 +1213,9 @@ public sealed partial class GameContent
                 BagLifetime = Lifetime("bag"),
                 BodyLifetime = Lifetime("body"),
                 DudLifetime = Lifetime("dud"),
+                ArrowLifetime = Lifetime("arrow"),
+                ArrowsMost = Math.Clamp(f.Integer(arrows, "most", w + ": arrows"), 0, 65536),
+                ArrowDepth = Math.Clamp(f.Number(arrows, "depth", w + ": arrows"), 0, 0.5f),
                 BagName = f.Text(bag, "name", w + ": bag"),
                 BagSlots = Math.Clamp(f.Integer(bag, "slots", w + ": bag"), 1, 255),
                 BagMergeRadius = f.Number(bag, "mergeRadius", w + ": bag"),
@@ -1509,7 +1521,7 @@ public sealed partial class GameContent
                 string key = f.Text(e, "key", $"ships.json: ships[{i}]");
                 string where = $"ships.json: {JsonFields.Quote(key)}";
                 f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
-                    "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "reach", "ceiling", "wreck", "placement");
+                    "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "ceiling", "wreck", "placement");
                 ItemDef? item = Resolve(f.Text(e, "item", where), where + ".item");
                 var blocks = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
                 foreach (string name in new[] { "damage", "thrust", "speed", "boost", "rates", "drag", "landing", "skids", "crash", "fuel", "sockets", "nozzles" })
@@ -1540,7 +1552,7 @@ public sealed partial class GameContent
                 f.OnlyKnown(skids, where + ".skids", "points", "stiffness", "damping", "travel", "friction");
                 f.OnlyKnown(crash, where + ".crash", "safe", "scale", "pilot");
                 f.OnlyKnown(fuel, where + ".fuel", "item", "capacity", "idle", "full", "boost", "placed");
-                f.OnlyKnown(sockets, where + ".sockets", "seat", "eye", "hatch", "fuel", "exits");
+                f.OnlyKnown(sockets, where + ".sockets", "seat", "eye", "hatch", "fuel", "cargo", "exits");
                 f.OnlyKnown(nozzles, where + ".nozzles", "main", "aux", "lift", "rcs");
                 var hull = new List<Ships.HullBox>();
                 foreach (JsonElement h in f.List(e, "hull", where))
@@ -1623,12 +1635,12 @@ public sealed partial class GameContent
                     Eye = Vector(sockets, "eye", where + ".sockets"),
                     Hatch = Vector(sockets, "hatch", where + ".sockets"),
                     FuelCap = Vector(sockets, "fuel", where + ".sockets"),
+                    Cargo = Vector(sockets, "cargo", where + ".sockets"),
                     Exits = Vectors(sockets, "exits", where + ".sockets"),
                     MainNozzles = Vectors(nozzles, "main", where + ".nozzles", required: false),
                     AuxNozzles = Vectors(nozzles, "aux", where + ".nozzles", required: false),
                     LiftNozzles = Vectors(nozzles, "lift", where + ".nozzles", required: false),
                     RcsNozzles = Vectors(nozzles, "rcs", where + ".nozzles", required: false),
-                    Reach = f.Number(e, "reach", where, 2.4f),
                     Ceiling = f.Number(e, "ceiling", where),
                     Wreck = wreck,
                 };

@@ -5,11 +5,12 @@ using Godot;
 namespace HollowUniverse.UI;
 
 /// <summary>
-/// The radial menu's outline glyphs (RustMVP's own perspective outlines, from SBareRoot.cpp), by name: every building
-/// piece under its key in building.json, the hammer's <c>upgrade</c>, <c>rotate</c> and <c>demolish</c>, and the
-/// interaction's <c>door</c>, <c>lock</c>, <c>unlock</c>, <c>keypad</c> and <c>pick-up</c>, and a gun's <c>unload</c>. Each is a set of polylines in
-/// units where the glyph spans about −1 to 1; the radial scales, places and strokes them at their final size, so they
-/// stay crisp at any interface scale. A name the table doesn't know draws a plain ring, so a missing glyph shows.
+/// The radial menu's outline glyphs (RustMVP's own perspective outlines, from SBareRoot.cpp, and ours in their manner), by
+/// name: every building piece under its key in building.json, the hammer's <c>upgrade</c>, <c>rotate</c> and
+/// <c>demolish</c>, every glyph interactions.json's verbs name (GROUND_SYSTEMS.md §5), and a gun's <c>unload</c> (§7). Each
+/// is a set of polylines in units where the glyph spans about −1 to 1 (y down); the radial scales, places and strokes them
+/// at their final size, so they stay crisp at any interface scale. A name the table doesn't know draws a plain ring, so a
+/// missing glyph shows (and the interface warns of a verb's at start).
 /// </summary>
 public static class RadialGlyphs
 {
@@ -82,6 +83,39 @@ public static class RadialGlyphs
         Glyph("pick-up", S(-.72f, .1f, 0, .5f, .72f, .1f, .72f, .75f, 0, 1f, -.72f, .75f, -.72f, .1f), S(0, .25f, 0, -.9f),
             S(-.35f, -.5f, 0, -.9f, .35f, -.5f));
 
+        // Ours, for the rest of the verbs (interactions.json): a box with its lid up, a sack, a sprig with berries, a flame
+        // (struck through: put out), the power sign (struck through: off), a shut door, a padlock coming off, a key, two
+        // people, one ticked and one crossed, a list crossed out, a tree of nodes, a figure helped up, a round hatch, a
+        // seat with an arrow into it, a drop of fuel.
+        Glyph("open", S(-.65f, 0, .65f, 0, .65f, .75f, -.65f, .75f, -.65f, 0), S(-.65f, .3f, .65f, .3f),
+            S(-.65f, 0, .27f, -.77f, .17f, -.89f, -.75f, -.12f, -.65f, 0));
+        Glyph("loot", S(-.25f, -.55f, -.6f, -.1f, -.7f, .45f, -.45f, .8f, .45f, .8f, .7f, .45f, .6f, -.1f, .25f, -.55f),
+            S(-.25f, -.55f, -.38f, -.85f, .38f, -.85f, .25f, -.55f), S(-.32f, -.66f, .32f, -.66f));
+        Glyph("pick", S(0, .85f, 0, -.15f), S(0, .3f, -.45f, -.2f), S(0, .1f, .45f, -.3f), Circle(-.52f, -.4f, .17f), Circle(.52f, -.5f, .17f),
+            Circle(0, -.38f, .17f));
+        Vector2[] flame = S(0, -.9f, .45f, -.3f, .55f, .2f, .35f, .65f, 0, .8f, -.35f, .65f, -.55f, .2f, -.35f, -.25f, -.2f, .05f, -.05f, -.45f, 0, -.9f);
+        Glyph("fire", flame, S(0, .1f, .2f, .35f, .1f, .6f, -.1f, .6f, -.2f, .35f, 0, .1f));
+        Glyph("put-out", flame, S(-.8f, .8f, .8f, -.8f));
+        Vector2[][] power = { Arc(0, .1f, .65f, -50, 230), S(0, -.85f, 0, .05f) };
+        Glyph("power", power);
+        Glyph("power-off", [.. power, S(-.85f, .85f, .85f, -.85f)]);
+        Glyph("door-shut", S(-.65f, .8f, -.65f, -.8f, .6f, -.8f, .6f, .8f), S(-.5f, .8f, -.5f, -.65f, .45f, -.65f, .45f, .8f), S(.22f, .08f, .32f, .08f));
+        Glyph("remove-lock", [.. Move(Padlock(-.3f), .7f, -.3f, .1f), S(.62f, -.45f, .62f, .55f), S(.4f, .3f, .62f, .6f, .84f, .3f)]);
+        Glyph("key", Circle(-.5f, 0, .32f), S(-.18f, 0, .85f, 0), S(.55f, 0, .55f, .28f), S(.75f, 0, .75f, .34f));
+        Glyph("team", Circle(-.38f, -.38f, .22f), Circle(.38f, -.38f, .22f), Arc(-.38f, .55f, .42f, 180, 360), Arc(.38f, .55f, .42f, 180, 360));
+        Vector2[][] person = { Circle(-.28f, -.4f, .26f), Arc(-.28f, .55f, .5f, 180, 360) };
+        Glyph("authorise", [.. person, S(.3f, .12f, .5f, .38f, .88f, -.15f)]);
+        Glyph("deauthorise", [.. person, S(.38f, -.08f, .82f, .36f), S(.82f, -.08f, .38f, .36f)]);
+        Glyph("clear-list", S(-.62f, -.8f, .42f, -.8f, .42f, .8f, -.62f, .8f, -.62f, -.8f), S(-.4f, -.45f, .2f, -.45f), S(-.4f, -.1f, .2f, -.1f),
+            S(-.4f, .25f, 0, .25f), S(.22f, .32f, .8f, .9f), S(.8f, .32f, .22f, .9f));
+        Glyph("tech-tree", Circle(0, -.62f, .18f), Circle(-.55f, .12f, .18f), Circle(.55f, .12f, .18f), Circle(-.55f, .75f, .15f), Circle(.55f, .75f, .15f),
+            S(-.1f, -.47f, -.45f, -.03f), S(.1f, -.47f, .45f, -.03f), S(-.55f, .3f, -.55f, .6f), S(.55f, .3f, .55f, .6f));
+        Glyph("help-up", Circle(-.4f, -.25f, .2f), S(-.4f, -.05f, -.4f, .45f), S(-.4f, .45f, -.65f, .85f), S(-.4f, .45f, -.15f, .85f),
+            S(-.75f, .1f, -.05f, .1f), S(.5f, .8f, .5f, -.6f), S(.25f, -.3f, .5f, -.65f, .75f, -.3f));
+        Glyph("hatch", Circle(0, 0, .78f), Circle(0, 0, .3f), S(-.3f, 0, -.62f, 0), S(.3f, 0, .62f, 0), S(0, -.3f, 0, -.62f), S(0, .3f, 0, .62f));
+        Glyph("board", S(-.15f, -.85f, -.15f, .25f, .7f, .25f), S(.6f, .25f, .6f, .85f), S(-.15f, .25f, -.15f, .85f), S(-.95f, -.2f, -.42f, -.2f),
+            S(-.6f, -.38f, -.42f, -.2f, -.6f, -.02f));
+        Glyph("fuel", S(0, -.85f, .45f, -.15f, .55f, .25f, .4f, .6f, 0, .8f, -.4f, .6f, -.55f, .25f, -.45f, -.15f, 0, -.85f), S(.18f, .2f, .26f, .45f, .12f, .6f));
         // A gun's rounds (GROUND_SYSTEMS.md §7): a magazine with rounds in it, an arrow out of its foot (UNLOAD).
         Glyph("unload", S(-.42f, -.95f, .3f, -.95f, .42f, .25f, -.3f, .25f, -.42f, -.95f), S(-.25f, -.6f, .2f, -.6f), S(-.2f, -.25f, .25f, -.25f),
             S(0, .4f, 0, .98f), S(-.28f, .7f, 0, .98f, .28f, .7f));
@@ -118,6 +152,37 @@ public static class RadialGlyphs
         S(-.4f, -.05f, -.4f, -.65f, .35f, -.65f, .35f, shackle),
         S(0, .25f, 0, .5f),
     };
+
+    // A circle round a point, as a closed polyline.
+    private static Vector2[] Circle(float x, float y, float radius) => Arc(x, y, radius, 0, 360);
+
+    // An arc round a point from one angle to another, in degrees (0 along +x, 90 down the glyph).
+    private static Vector2[] Arc(float x, float y, float radius, float from, float to)
+    {
+        int segments = Math.Max(4, (int)MathF.Ceiling(MathF.Abs(to - from) / 15));
+        var points = new Vector2[segments + 1];
+        for (int i = 0; i <= segments; i++)
+        {
+            float a = (from + (to - from) * i / segments) * MathF.PI / 180;
+            points[i] = new Vector2(x + MathF.Cos(a) * radius, y + MathF.Sin(a) * radius);
+        }
+        return points;
+    }
+
+    // Strokes scaled about the glyph's middle and moved.
+    private static Vector2[][] Move(Vector2[][] strokes, float scale, float dx, float dy)
+    {
+        var moved = new Vector2[strokes.Length][];
+        for (int s = 0; s < strokes.Length; s++)
+        {
+            moved[s] = new Vector2[strokes[s].Length];
+            for (int i = 0; i < strokes[s].Length; i++)
+            {
+                moved[s][i] = strokes[s][i] * scale + new Vector2(dx, dy);
+            }
+        }
+        return moved;
+    }
 
     private static Vector2[] Ring(float radius)
     {

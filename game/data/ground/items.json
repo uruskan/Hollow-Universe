@@ -180,7 +180,7 @@
     { "id": 101, "key": "hammer", "name": "Hammer", "category": "construction",
       "description": "Upgrades, repairs, turns and demolishes building pieces. Hold the right mouse button for the choices.",
       "building": "hammer" },
-    { "id": 102, "key": "claim-device", "name": "Claim device", "category": "construction",
+    { "id": 102, "key": "claim-device", "name": "Tool Cupboard", "category": "construction",
       "description": "Claims the land around a building: only those it lists may build there. Keep it stocked to pay the upkeep.",
       "building": "claim" },
     { "id": 103, "key": "key-lock", "name": "Key lock", "category": "construction", "stack": 10,
