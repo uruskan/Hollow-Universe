@@ -1,0 +1,37 @@
+{
+ "key": "sandbags-2m",
+ "model": "res://assets/monuments/kit/sandbags-2m.glb",
+ "collision": [
+  {
+   "box": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "half": [
+    1.0,
+    0.5,
+    0.21
+   ],
+   "rot": [
+    1.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  }
+ ],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -1.0275,
+   -0.55,
+   -0.98
+  ],
+  "max": [
+   1.0275,
+   1.41,
+   0.98
+  ]
+ }
+}

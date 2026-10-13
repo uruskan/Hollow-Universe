@@ -69,8 +69,9 @@ def shed(b, at, rot, w, d, h, roof="gable", pitch=12.0, tint=LIGHTGREY, frame_ti
             for y in (-d / 2 - 0.15, d / 2 + 0.15):
                 if (y < 0 and "front" in open_sides) or (y > 0 and "back" in open_sides):
                     continue
+                # A lone face keeps its winding: the front gable faces -Y, the back one must face +Y.
                 b.mesh([(-w / 2 - 0.15, y, h + 0.25), (w / 2 + 0.15, y, h + 0.25), (0, y, h + 0.25 + rise)],
-                       [[0, 1, 2]], mat=cladding, tint=tint, solid="hull")
+                       [[0, 1, 2] if y < 0 else [0, 2, 1]], mat=cladding, tint=tint, solid="hull")
         # Roof sheets in strips (some missing when ruined), skylights.
         strips = max(2, int(round(w / 1.5)))
         for k in range(strips):

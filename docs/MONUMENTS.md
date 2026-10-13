@@ -148,35 +148,35 @@ crate); **guards**: Reclaimers (people) and Wardens (machines).
 | # | Monument | Size | Where | What | Holds and does | Like |
 |---|---|---|---|---|---|---|
 | 1 | **Grid Substation** | 40 × 28 m | On old power lines, every few km | A fenced switchyard: two transformers behind a blast wall (one burnt out), breakers, a gantry taking the line in from a pylon, a control house, lamp posts | Barrels, two crates, a locker that opens during a **Surge** (§6). Arcing hazard while powered. *Built: `grid_substation.py`* | Rust's power substations |
-| 2 | **Toppled Pylon** | 60 × 20 m | On power lines | A transmission tower fallen across the road, cables snaking through the grass, a line crew's trailer and drum | Copper wire and cable reels to salvage, a crate in the trailer | Roadside junk |
-| 3 | **Relay Mast** | 30 m round, 60 m tall | Hilltops, ridges | A guyed lattice mast with dishes, an equipment hut, a fence | Tech scrap, a chance of an amber chip; climbing the mast reveals the zone's sites on the map | — |
-| 4 | **Drop Pod** | 12 m crater | Anywhere open | A supply pod half-buried in a scorched crater, its petals open | One military crate. Also an event (§6.2) | Rust's airdrop |
-| 5 | **Container Spill** | 40 × 15 m | Roads | A hauler on its side and its freight containers strewn along the verge, some burst | Crates and barrels in and around the containers | Roadside junk |
-| 6 | **Stalled Crawler** | 25 × 8 m | Roads, tracks | A six-wheeled crawler and trailer, abandoned mid-route, doors open | Fuel, salvage, a crate in the cab | — |
-| 7 | **Survey Marker** | 10 m | Peaks, plains | A survey tripod with a solar panel and a sealed cache box | Map reveal for the area; a small cache once per cycle | — |
-| 8 | **Wellhead** | 20 m | Plains, deserts | A pump jack nodding over a well, a tank, a pipe to the road | Refill water (or lamp oil on oil worlds), barrels | Rust's water wells |
-| 9 | **Checkpoint** | 30 × 20 m | Roads into regions | A barrier, a guard booth, sandbag walls, a watchtower, a shot-up truck | Military crate, ammo; sometimes Reclaimers | Rust's roadside military |
-| 10 | **Bunker Hatch** | 8 m pad | Anywhere | A sealed hatch on a concrete pad with a vent | A cell opens it: a small underground room with a crate and a chance of a cyan chip | — |
-| 11 | **Crashed Skiff** | 15 m | Anywhere | A wrecked single-seat ship like the Tin Finch, nose in the dirt | Ship parts, a crate. Also an event (§6.1) | Dune's small crashed ships |
-| 12 | **Valve Station** | 25 × 15 m | On pipelines | A valve house where the pipeline surfaces, handwheels, a pig launcher | Pipes, gears, lamp oil | — |
-| 13 | **Weather Station** | 15 m | Open ground, coasts | An instrument mast, screens, a solar shed | Tech scrap; predicts storms on the map | — |
-| 14 | **Hab Pods** | 20 m | Forest edges, valleys | Two or three colonists' prefab pods, a tarp, a fire pit, a garden gone wild | Food, cloth, a crate, sometimes a bed | Rust's abandoned cabins |
+| 2 | **Toppled Pylon** | 60 × 20 m | On power lines | A transmission tower fallen across the road, cables snaking through the grass, a line crew's trailer and drum | Copper wire and cable reels to salvage, a crate in the trailer. *Built: `toppled_pylon.py`* | Roadside junk |
+| 3 | **Relay Mast** | 30 m round, 60 m tall | Hilltops, ridges | A guyed lattice mast with dishes, an equipment hut, a fence | Tech scrap, a chance of an amber chip; climbing the mast reveals the zone's sites on the map. *Built: `relay_mast.py`* | — |
+| 4 | **Drop Pod** | 12 m crater | Anywhere open | A supply pod half-buried in a scorched crater, its petals open | One military crate. Also an event (§6.2). *Built: `drop_pod.py`* | Rust's airdrop |
+| 5 | **Container Spill** | 40 × 15 m | Roads | A hauler on its side and its freight containers strewn along the verge, some burst | Crates and barrels in and around the containers. *Built: `container_spill.py`* | Roadside junk |
+| 6 | **Stalled Crawler** | 25 × 8 m | Roads, tracks | A six-wheeled crawler and trailer, abandoned mid-route, doors open | Fuel, salvage, a crate in the cab. *Built: `stalled_crawler.py`* | — |
+| 7 | **Survey Marker** | 10 m | Peaks, plains | A survey tripod with a solar panel and a sealed cache box | Map reveal for the area; a small cache once per cycle. *Built: `survey_marker.py`* | — |
+| 8 | **Wellhead** | 20 m | Plains, deserts | A pump jack nodding over a well, a tank, a pipe to the road | Refill water (or lamp oil on oil worlds), barrels. *Built: `wellhead.py`* | Rust's water wells |
+| 9 | **Checkpoint** | 30 × 20 m | Roads into regions | A barrier, a guard booth, sandbag walls, a watchtower, a shot-up truck | Military crate, ammo; sometimes Reclaimers. *Built: `checkpoint.py`* | Rust's roadside military |
+| 10 | **Bunker Hatch** | 8 m pad | Anywhere | A sealed hatch on a concrete pad with a vent | A cell opens it: a small underground room with a crate and a chance of a cyan chip. *Built: `bunker_hatch.py`* | — |
+| 11 | **Crashed Skiff** | 15 m | Anywhere | A wrecked single-seat ship like the Tin Finch, nose in the dirt | Ship parts, a crate. Also an event (§6.1). *Built: `crashed_skiff.py`* | Dune's small crashed ships |
+| 12 | **Valve Station** | 25 × 15 m | On pipelines | A valve house where the pipeline surfaces, handwheels, a pig launcher | Pipes, gears, lamp oil. *Built: `valve_station.py`* | — |
+| 13 | **Weather Station** | 15 m | Open ground, coasts | An instrument mast, screens, a solar shed | Tech scrap; predicts storms on the map. *Built: `weather_station.py`* | — |
+| 14 | **Hab Pods** | 20 m | Forest edges, valleys | Two or three colonists' prefab pods, a tarp, a fire pit, a garden gone wild | Food, cloth, a crate, sometimes a bed. *Built: `hab_pods.py`* | Rust's abandoned cabins |
 
 ### 5.2 Small (S) — 11
 
 | # | Monument | Size | Where | What | Holds and does | Like |
 |---|---|---|---|---|---|---|
-| 15 | **Fuel Depot** | 70 × 50 m | Road junctions | A canopy over pumps, a shop, two buried tanks with vent stacks, a tanker trailer | Crates, barrels, an amber chip spawn, a **recycler** | Rust's gas station |
-| 16 | **Scrapyard** | 120 × 90 m | Near towns | Piles of wrecked vehicles and hulls, a magnet crane, a crusher, a shed | Salvage piles; the crusher turns vehicles into metal; recycler | Rust's junkyard |
-| 17 | **Water Tower** | 60 × 40 m | Towns, farms | An elevated tank on a frame, a pump house, pipes | Water, barrels, a ladder climb to a crate | — |
-| 18 | **Homestead** | 120 × 80 m | Farmland, grassland | A colonist farm: two barns, a silo row, a greenhouse, a hab, a wind turbine, fences | Food, seeds, cloth; animals nearby; a stable vendor in the safe variant | Rust's ranch and barn |
-| 19 | **Fishing Wharf** | 100 × 60 m | Sheltered coasts | Piers on piles, boathouses, net sheds, a crane | Boats (later); the safe variant has a boat vendor | Rust's fishing villages |
-| 20 | **Strip Mine** (stone, metal, sulphur) | 150 × 120 m | Hills, ore-rich ground | A stepped pit with a fuel-powered digger rig, a hopper, a conveyor to an output bin | Fill with fuel to produce ore over time; contested by design | Rust's quarries |
-| 21 | **Coast Beacon** | 40 m, 45 m tall | Headlands | A beacon tower with its lamp still turning, the keeper's house, a fog horn | A climb to a military crate at the top, an amber chip spawn | Rust's lighthouse |
-| 22 | **Supply Depot** | 80 × 60 m | Towns, roads | A logistics warehouse with racks and loading docks, a forklift | Crates on racks, an amber chip spawn, recycler | Rust's supermarket |
-| 23 | **Shuttle Wreck** | 60 × 40 m | Anywhere | A 40 m shuttle crash-landed on its belly, one wing torn off, a furrow behind it | Ship parts, two crates, a sealed crate in the hold | — |
-| 24 | **Field Clinic** | 60 × 50 m | Near towns | Prefab wards and tents, a container lab, a helipad | Medical supplies; a medical vendor in rare safe variants | — |
-| 25 | **Mining Camp** | 90 × 70 m | Mountains | A shaft headframe over a tunnel, ore bins, workers' huts, a winch house | Ore, gears, an amber chip spawn, recycler | Rust's mining outpost |
+| 15 | **Fuel Depot** | 70 × 50 m | Road junctions | A canopy over pumps, a shop, two buried tanks with vent stacks, a tanker trailer | Crates, barrels, an amber chip spawn, a **recycler**. *Built: `fuel_depot.py`* | Rust's gas station |
+| 16 | **Scrapyard** | 120 × 90 m | Near towns | Piles of wrecked vehicles and hulls, a magnet crane, a crusher, a shed | Salvage piles; the crusher turns vehicles into metal; recycler. *Built: `scrapyard.py`* | Rust's junkyard |
+| 17 | **Water Tower** | 60 × 40 m | Towns, farms | An elevated tank on a frame, a pump house, pipes | Water, barrels, a ladder climb to a crate. *Built: `water_tower.py`* | — |
+| 18 | **Homestead** | 120 × 80 m | Farmland, grassland | A colonist farm: two barns, a silo row, a greenhouse, a hab, a wind turbine, fences | Food, seeds, cloth; animals nearby; a stable vendor in the safe variant. *Built: `homestead.py`* | Rust's ranch and barn |
+| 19 | **Fishing Wharf** | 100 × 60 m | Sheltered coasts | Piers on piles, boathouses, net sheds, a crane | Boats (later); the safe variant has a boat vendor. *Built: `fishing_wharf.py`* | Rust's fishing villages |
+| 20 | **Strip Mine** (stone, metal, sulphur) | 150 × 120 m | Hills, ore-rich ground | A stepped pit with a fuel-powered digger rig, a hopper, a conveyor to an output bin | Fill with fuel to produce ore over time; contested by design. *Built: `strip_mine_stone.py`, `strip_mine_metal.py`, `strip_mine_sulphur.py` (shared design in `_strip_mine.py`)* | Rust's quarries |
+| 21 | **Coast Beacon** | 40 m, 45 m tall | Headlands | A beacon tower with its lamp still turning, the keeper's house, a fog horn | A climb to a military crate at the top, an amber chip spawn. *Built: `coast_beacon.py`* | Rust's lighthouse |
+| 22 | **Supply Depot** | 80 × 60 m | Towns, roads | A logistics warehouse with racks and loading docks, a forklift | Crates on racks, an amber chip spawn, recycler. *Built: `supply_depot.py`* | Rust's supermarket |
+| 23 | **Shuttle Wreck** | 60 × 40 m | Anywhere | A 40 m shuttle crash-landed on its belly, one wing torn off, a furrow behind it | Ship parts, two crates, a sealed crate in the hold. *Built: `shuttle_wreck.py`* | — |
+| 24 | **Field Clinic** | 60 × 50 m | Near towns | Prefab wards and tents, a container lab, a helipad | Medical supplies; a medical vendor in rare safe variants. *Built: `field_clinic.py`* | — |
+| 25 | **Mining Camp** | 90 × 70 m | Mountains | A shaft headframe over a tunnel, ore bins, workers' huts, a winch house | Ore, gears, an amber chip spawn, recycler. *Built: `mining_camp.py`* | Rust's mining outpost |
 
 ### 5.3 Medium (M) — 12
 
