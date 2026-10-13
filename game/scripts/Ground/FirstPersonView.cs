@@ -28,6 +28,7 @@ public partial class FirstPersonView : Node3D
     private double _swing = -1;
     private double _sinceEquip;
     private float _draw;
+    private bool _drawing;
     private float _lastYaw, _lastPitch;
 
     public GameClient Client { get; set; } = null!;
@@ -128,7 +129,15 @@ public partial class FirstPersonView : Node3D
         if (swingNow)
         {
             _arms.Trigger(CharacterEvent.Swing);
+            Sounds.Flat(Sounds.Item(item!.Key, "swing") ?? "melee.swing");
         }
+        // The bow's string drawn.
+        bool drawing = item?.Bow != null && input.Secondary && !me.IsDead;
+        if (drawing && !_drawing)
+        {
+            Sounds.Flat(Sounds.Item(item!.Key, "draw") ?? "bow.draw");
+        }
+        _drawing = drawing;
         UpdatePlaceholder(item, delta, input);
         UpdateGhost(item);
     }

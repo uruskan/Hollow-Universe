@@ -43,6 +43,7 @@ public partial class GroundView : Node3D
     private GroundUi _ui = null!;
     private GroundOverlay _overlay = null!;
     private ClientGroundUi _model = null!;
+    private GroundAudio? _audio;
     private float _yaw;
     private float _pitch;
     private bool _viewRestored;
@@ -64,6 +65,12 @@ public partial class GroundView : Node3D
     public string? FaceName { get; set; }
 
     public bool ShowNetGraph { get; set; }
+
+    /// <summary>No sound (--mute: tests, measuring runs side by side).</summary>
+    public bool Muted { get; set; }
+
+    /// <summary>Prints every sound started (--sound-trace).</summary>
+    public bool SoundTrace { get; set; }
 
     /// <summary>Runs an admin command on the server this game hosts (null when it joined another).</summary>
     public Func<string, bool>? HostCommand { get; set; }
@@ -189,6 +196,12 @@ public partial class GroundView : Node3D
         _camera.Current = true;
         _firstPerson.Attach(_camera);
         Warmup(_camera);
+        // Sound: the director listens at the camera (GROUND.md §4.9); --mute leaves it out.
+        if (!Muted)
+        {
+            _audio = new GroundAudio { Name = "Audio", Client = Client, Camera = _camera, World = _world, Trace = SoundTrace };
+            AddChild(_audio);
+        }
     }
 
     // Everything the game may show later, shown once, tiny, while the world opens: each new material makes the
@@ -302,6 +315,8 @@ public partial class GroundView : Node3D
         Time("things", ref t0);
         _people.Refresh(delta);
         Time("people", ref t0);
+        _audio?.Refresh(delta, input.Sprint);
+        Time("audio", ref t0);
 
         // What the interact key would act on, and where a held deployable would go.
         LocalPlayer me = Client.Local;
@@ -472,6 +487,7 @@ public partial class GroundView : Node3D
         }
         else if (item.Consume != null)
         {
+            Sounds.Used(Client.Content, me.Inventory.Belt[me.HeldSlot].Item);
             me.Use(ContainerRef.Belt, me.HeldSlot);
         }
     }

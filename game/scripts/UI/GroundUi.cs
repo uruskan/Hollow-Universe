@@ -55,6 +55,15 @@ public partial class GroundUi : Control
 
     public event Action? QuitRequested;
 
+    /// <summary>
+    /// Set by the game to play the interface's sounds (GROUND.md §4.9): called with an event key ("ui.click",
+    /// "ui.hover", "ui.drag", "ui.drop", "ui.inventory.open", "ui.inventory.close").
+    /// </summary>
+    public static Action<string>? Sound { get; set; }
+
+    private Rect2? _hoverButton;
+    private Rect2? _hoverButtonLast;
+
     private const double HoverSeconds = 0.35;
 
     private ColorRect _blur = null!;
@@ -165,6 +174,11 @@ public partial class GroundUi : Control
         }
         if (screen != Screen)
         {
+            bool open = screen is GroundScreen.Inventory or GroundScreen.Crafting, was = Screen is GroundScreen.Inventory or GroundScreen.Crafting;
+            if (open != was)
+            {
+                Sound?.Invoke(open ? "ui.inventory.open" : "ui.inventory.close");
+            }
             _drag = null;
             _splitTracking = false;
             _hoverDone.Clear();
@@ -490,6 +504,7 @@ public partial class GroundUi : Control
         }
         if (button == MouseButton.Left && h.Click != null)
         {
+            Sound?.Invoke("ui.click");
             h.Click();
         }
     }

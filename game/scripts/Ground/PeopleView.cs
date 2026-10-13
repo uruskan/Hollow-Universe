@@ -6,6 +6,8 @@ using Hollow.Client;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Client.Audio;
+using HollowUniverse.Audio;
 using HollowUniverse.Characters;
 using Num = System.Numerics;
 
@@ -33,6 +35,9 @@ public partial class PeopleView : Node3D
         public string Name = "";
         public ushort[] Wear = Array.Empty<ushort>();
         public byte Body;
+        public FootstepDriver? Feet;
+        public FootSurface Surface = FootSurface.Grass;
+        public Num.Vector3 SurfaceAt = new(float.MaxValue);
     }
 
     private sealed class Corpse
@@ -114,6 +119,7 @@ public partial class PeopleView : Node3D
         foreach (uint gone in _people.Keys.Where(k => !_seen.Contains(k)).ToList())
         {
             _people[gone].View.QueueFree();
+            _people[gone].Feet?.QueueFree();
             _people.Remove(gone);
         }
         UpdateCorpses();
@@ -159,9 +165,18 @@ public partial class PeopleView : Node3D
         }
         bool dead = (e.Flags & MoveFlags.Dead) != 0;
         bool down = dead || e.Sleeping;
+        Vector3 head = GroundView.ToGodot(e.Position + up * 1.5f);
+        if (!down)
+        {
+            Steps(p, e, up, swimming, dt);
+        }
         if (down != p.Down)
         {
             p.Down = down;
+            if (dead)
+            {
+                Sounds.At("survival.death", head);
+            }
             if (down)
             {
                 // Dead: pushed back from where they faced; asleep: they just lie down.
@@ -180,14 +195,53 @@ public partial class PeopleView : Node3D
             if (e.ActionCount != p.Actions)
             {
                 p.View.Trigger(e.Action == ActionKind.Shoot ? CharacterEvent.Fire : CharacterEvent.Swing);
+                string? heldKey = e.Held != 0 ? Client.Content.Item(e.Held)?.Key : null;
+                if (e.Action == ActionKind.Swing)
+                {
+                    Sounds.At(heldKey != null ? Sounds.Item(heldKey, "swing") ?? "melee.swing" : "melee.swing", head);
+                }
+                else if (e.Action == ActionKind.Draw)
+                {
+                    Sounds.At("bow.draw", head);
+                }
             }
             if (e.Health < p.Health && e.Health > 0)
             {
                 p.View.Trigger(CharacterEvent.Hit, -CharacterFrame.Facing(GroundView.ToGodot(up), e.Yaw));
+                Sounds.At("survival.hurt", head);
             }
         }
         p.Actions = e.ActionCount;
         p.Health = e.Health;
+    }
+
+    // Their footsteps, at their feet, on the ground under them (looked up again every 4 m).
+    private void Steps(Person p, RemoteEntity e, Num.Vector3 up, bool swimming, float dt)
+    {
+        if (p.Feet == null)
+        {
+            p.Feet = new FootstepDriver { Name = "Feet " + e.Name };
+            AddChild(p.Feet);
+        }
+        if (Num.Vector3.Distance(e.Position, p.SurfaceAt) > 4)
+        {
+            p.SurfaceAt = e.Position;
+            p.Surface = GroundAudio.SurfaceAt(Client, e.Position);
+        }
+        Vector3 upG = GroundView.ToGodot(up);
+        float vertical = p.Velocity.Dot(upG);
+        float speed = (p.Velocity - upG * vertical).Length();
+        p.Feet.Update(dt, new FootInput
+        {
+            Speed = speed,
+            VerticalSpeed = vertical,
+            Grounded = (e.Flags & MoveFlags.OnGround) != 0,
+            Crouching = e.Stance is Stance.Crouching or Stance.Crawling,
+            Swimming = swimming,
+            Sprinting = speed > 4.5f,
+            Surface = p.Surface,
+            WaterDepth = GroundAudio.WaterDepth(Client, e.Position),
+        }, GroundView.ToGodot(e.Position));
     }
 
     // Corpses: a dead player's ragdoll becomes their corpse; a corpse that came into range on its own gets a body that

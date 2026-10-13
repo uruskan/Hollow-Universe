@@ -195,6 +195,9 @@ Godot.
     for ragdolls and feet (`GroundCollision`).
   - **Interface:** the RustMVP interface (`GroundUi`, §8) over `ClientGroundUi`, names over other players (placed by
     `Labeller`), F3 for the network graph.
+  - **Sound** (`GroundAudio`, §4.9): the audio package's director at the camera, ambience from the place, every
+    character's footsteps on the ground under them, and the game's events (gathering, pickups, food and bandages,
+    hurt and death, the cold, fires, boxes, placing, swings, the bow and arrows, hit markers, the interface).
   - **Steady frames** (measured with `--measure`, §5.4): everything the game may show is drawn once, tiny, while the
     world opens, so the renderer never builds a pipeline in play (`GroundView.Warmup`); the plants near the camera are
     rebuilt on a worker thread with the game's changes frozen when it starts (`Vegetation.ChangesSnapshot`), and so
@@ -566,7 +569,7 @@ the magazine (the catalogue's guns are one mesh); the female body's crop top sti
 ### 4.9 Audio
 
 Rust's sound is the bar: grounded, punchy, readable, nothing cartoonish. Built in the `ground-audio` package from CC0
-recordings (§9.2); the ground mode and the surface view still have to call it (the hook-up list below).
+recordings (§9.2); the ground mode calls it (`GroundAudio` and the views, the hook-up list below).
 
 | Part | Where |
 |---|---|
@@ -666,7 +669,12 @@ agree with the pipeline.
 
 ![The audition viewer: the rifle at 320 m (mid 98 %, far 45 %, arriving after 933 ms) and a forest morning](images/ground/audio/sounds.jpg)
 
-**How to hook it up** (the ground mode and the surface view own these; nothing below is wired yet):
+**How it is hooked up** (`game/scripts/Ground`: `GroundAudio` owns the director, the ambience, the player's feet and
+the client's events; the views play what they draw through `Sounds`; `--mute` leaves sound out, `--sound-trace`
+prints every sound started). Wired: everything below except building, doors and locks (G3's network phase), guns
+(the G4 layer, §6.4) and explosives (G5), which come with their packages' hook-ups. The listener's place (biome,
+trees within 30 m, the sea within 1.6 km, how exposed it is) is worked out on a worker every 3 s; the wind is a calm
+0.3 until there is weather.
 1. At start: add one `AudioDirector` (set `OcclusionMask` to the world and building layers) and one `AmbienceDirector`;
    `SoundLibrary.Preload` the footsteps and the held items' events.
 2. Each frame, the player's `FootstepDriver { Local = true }.Update(dt, FootInput, feet)` from the predicted character
@@ -2168,3 +2176,7 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     character (player state version 3), so others see it while the player sleeps. A third of the bots are female.
 75. **Sleepers stay ragdolls**: the character package's clips include a death fall and a sitting idle, but its
     contract (§4.8) has no lying pose to ask for; a `Sleep` event or a lying stance there would replace the ragdoll.
+76. **Hits on trees and outcrops sound when their state changes** (the natural object's health, stage or weak spot in a
+    snapshot), for everyone's hits alike, so one's own hit sounds a round trip after the swing; a burst of more than 20
+    changes at once is an area coming into range and is silent. A deployable that appears within 25 m once the world
+    is in was just placed.

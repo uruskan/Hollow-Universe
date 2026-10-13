@@ -17,6 +17,10 @@ namespace HollowUniverse.Ground;
 public partial class ThingsView : Node3D
 {
     private readonly Dictionary<uint, (Node3D Node, uint Revision)> _things = new();
+    private readonly Dictionary<uint, bool> _lit = new();
+    private readonly HashSet<ClientProjectile> _loosed = new();
+    private readonly HashSet<ClientProjectile> _stopped = new();
+    private double _since;
     private readonly List<MeshInstance3D> _arrows = new();
     private static StandardMaterial3D? _flame;
     private static StandardMaterial3D? _shaft;
@@ -25,6 +29,7 @@ public partial class ThingsView : Node3D
 
     public void Refresh(double time)
     {
+        _since += GetProcessDeltaTime();
         var seen = new HashSet<uint>();
         foreach (RemoteThing thing in Client.Things)
         {
@@ -33,7 +38,8 @@ public partial class ThingsView : Node3D
                 continue;
             }
             seen.Add(thing.NetId);
-            if (_things.TryGetValue(thing.NetId, out (Node3D Node, uint Revision) existing))
+            bool known = _things.TryGetValue(thing.NetId, out (Node3D Node, uint Revision) existing);
+            if (known)
             {
                 if (existing.Revision == thing.Revision)
                 {
@@ -45,13 +51,44 @@ public partial class ThingsView : Node3D
             FrameEvents.Note("thing " + thing.Kind);
             AddChild(node);
             _things[thing.NetId] = (node, thing.Revision);
+            Sound(thing, node, known);
         }
         foreach (uint gone in _things.Keys.Where(k => !seen.Contains(k)).ToList())
         {
             _things[gone].Node.QueueFree();
             _things.Remove(gone);
+            _lit.Remove(gone);
         }
         UpdateArrows(time);
+    }
+
+    // A deployable placed near the player (one that appears close by once the world is in), a fire lit or put out;
+    // a lit fire crackles on its node (GROUND.md §4.9).
+    private void Sound(RemoteThing thing, Node3D node, bool known)
+    {
+        if (thing.Deployable(Client.Content) is not { } def)
+        {
+            return;
+        }
+        Vector3 at = GroundView.ToGodot(thing.Position + Client.Frame.UpAt(thing.Position) * 0.3f);
+        if (!known && _since > 3 && Num.Vector3.Distance(thing.Position, Client.Character.Position) < 25)
+        {
+            Sounds.At(Sounds.Item(def.Key, "place") ?? "deploy.place", at);
+        }
+        bool was = _lit.TryGetValue(thing.NetId, out bool w) && w;
+        _lit[thing.NetId] = thing.Lit;
+        if (thing.Lit)
+        {
+            if (known && !was)
+            {
+                Sounds.At(Sounds.Item(def.Key, "ignite"), at);
+            }
+            Sounds.Loop(Sounds.Item(def.Key, "loop"), node);
+        }
+        else if (known && was)
+        {
+            Sounds.At(Sounds.Item(def.Key, "extinguish"), at);
+        }
     }
 
     private Node3D Build(RemoteThing thing)
@@ -208,6 +245,7 @@ public partial class ThingsView : Node3D
     private void UpdateArrows(double now)
     {
         int used = 0;
+        ArrowSounds();
         foreach (ClientProjectile p in Client.Projectiles)
         {
             if (used >= _arrows.Count)
@@ -234,6 +272,37 @@ public partial class ThingsView : Node3D
         for (int i = used; i < _arrows.Count; i++)
         {
             _arrows[i].Visible = false;
+        }
+    }
+
+    // An arrow loosed (the string, its flight), and where it stops (GROUND.md §4.9).
+    private void ArrowSounds()
+    {
+        _loosed.RemoveWhere(p => !Client.Projectiles.Contains(p));
+        _stopped.RemoveWhere(p => !Client.Projectiles.Contains(p));
+        foreach (ClientProjectile p in Client.Projectiles)
+        {
+            if (p.IsBullet)
+            {
+                continue;
+            }
+            if (_loosed.Add(p))
+            {
+                Vector3 from = GroundView.ToGodot(p.Origin);
+                if (p.Own)
+                {
+                    Sounds.Flat("bow.release");
+                }
+                else
+                {
+                    Sounds.At("bow.release", from);
+                }
+                Sounds.At("arrow.flight", from);
+            }
+            if (p.EndedAt is { } end && _stopped.Add(p) && p.EndTarget != Hollow.Simulation.HitTarget.Nothing)
+            {
+                Sounds.At(p.EndTarget == Hollow.Simulation.HitTarget.Character ? "arrow.impact.flesh" : "arrow.impact", GroundView.ToGodot(end));
+            }
         }
     }
 }

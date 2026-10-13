@@ -363,6 +363,10 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
     {
         if (Resolve(slot) is var (c, i))
         {
+            if ((c switch { ContainerRef.Main => Me.Inventory.Main, ContainerRef.Belt => Me.Inventory.Belt, _ => null }) is { } own)
+            {
+                Sounds.Used(C, own[i].Item);
+            }
             Me.Use(c, i);
         }
     }
@@ -371,6 +375,7 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
     {
         if (C.Item(key) is { } def)
         {
+            Sounds.Flat("ui.craft.start");
             Me.Craft(def.Id, amount);
         }
     }

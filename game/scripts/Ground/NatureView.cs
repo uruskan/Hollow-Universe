@@ -175,6 +175,8 @@ public partial class NatureView : Node3D
             return tiles;
         }
         _revision = state.Revision;
+        // Many at once is an area coming into range, not things being hit: those make no sound.
+        bool audible = state.Changed.Count <= 20;
         foreach (ulong id in state.Changed)
         {
             // The ID names the scatter tile and kind: no generating a far tile on this thread just to look at it.
@@ -190,6 +192,10 @@ public partial class NatureView : Node3D
             {
                 tiles.Add(PhysicsWorld.TileOf(o.Position));
                 distance = Num.Vector3.Distance(o.Position, feet);
+                if (distance < 70)
+                {
+                    Sound(o, state, audible);
+                }
                 falls = tree && state.IsDepleted(id) && distance < FallDistance && !_falling.Contains(id);
                 if (falls)
                 {
@@ -210,6 +216,54 @@ public partial class NatureView : Node3D
         }
         state.Changed.Clear();
         return tiles;
+    }
+
+    // What each object near the player was when last seen (health, stage, weak spot, gone), so a change can sound.
+    private readonly Dictionary<ulong, (float Health, int Stage, uint Weak, bool Gone)> _was = new();
+
+    // A hit on a tree or an outcrop (its health dropped), the weak spot moving, an outcrop breaking a stage, a tree
+    // felled, a bush picked (GROUND.md §4.9).
+    private void Sound(in NaturalObject o, NaturalState state, bool audible)
+    {
+        if (Client.Content.Natural(o.Kind) is not { } kind || !kind.IsHarvested)
+        {
+            return;
+        }
+        state.TryGetOverride(o.Id, out NaturalOverride now);
+        bool has = state.TryGetOverride(o.Id, out _);
+        float health = has ? now.Health : float.MaxValue;
+        var current = (health, state.Stage(o, kind), has ? now.PackedWeakSpot : 0u, has && now.Depleted);
+        bool known = _was.TryGetValue(o.Id, out var before);
+        _was[o.Id] = current;
+        if (_was.Count > 4000)
+        {
+            _was.Clear();
+        }
+        if (!audible)
+        {
+            return;
+        }
+        float prior = known ? before.Health : float.MaxValue;
+        bool tree = kind.Class == NaturalClass.Tree;
+        Vector3 at = GroundView.ToGodot(o.Position + o.Up * (tree ? 1.3f : 0.7f) * Math.Max(0.6f, o.Scale));
+        if (current.Item4 && !(known && before.Gone))
+        {
+            Sounds.At(tree ? "gather.wood.break" : "gather.node.break.3", at);
+            return;
+        }
+        if (health < prior)
+        {
+            string hit = tree ? "gather.wood.hit" : kind.Key == "stone-node" ? "gather.stone.hit" : "gather.ore.hit";
+            Sounds.At(hit, at);
+            if (current.Item3 != 0 && (!known || before.Weak != current.Item3))
+            {
+                Sounds.At("gather.weakspot", at, -2);
+            }
+            if (known && current.Item2 > before.Stage)
+            {
+                Sounds.At($"gather.node.break.{current.Item2}", at);
+            }
+        }
     }
 
     // An object whose scatter tile is generated already (those around the player are, for the prediction's physics):

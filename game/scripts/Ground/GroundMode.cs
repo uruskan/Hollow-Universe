@@ -191,6 +191,8 @@ public partial class GroundMode : Node
             HostedPort = _server?.Port,
             FaceName = Options.TryGetValue("face", out string? face) ? face : null,
             ShowNetGraph = Options.ContainsKey("netgraph"),
+            Muted = Options.ContainsKey("mute"),
+            SoundTrace = Options.ContainsKey("sound-trace"),
             HostCommand = _server == null ? null : command =>
             {
                 _server.Execute(command);
