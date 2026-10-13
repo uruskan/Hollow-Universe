@@ -47,6 +47,10 @@ public sealed partial class Zone : IAnimalHost
         Observe();
         Listen();
         Animals.Step();
+        foreach (Animal gone in Animals.Gone)
+        {
+            SupportGone(gone.Ref);
+        }
         AnimalTime += Stopwatch.GetElapsedTime(started);
     }
 

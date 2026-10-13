@@ -202,8 +202,8 @@ public static class RaidTests
         Raids.StepUntil(rig, () => grenade.State != ExplosiveState.Flying, 90, "the grenade coming to rest");
         float height = rig.Zone.HeightAboveGround(grenade.Position);
         Assert.True(grenade.Bounces >= 2, $"it bounced off the box and the ground ({grenade.Bounces})");
-        Assert.True(grenade.State == ExplosiveState.Resting && (height < 0.3f || grenade.Support == box),
-            $"resting on the ground or the box ({grenade.State} on {grenade.SupportKind}, {height:0.00} m up)");
+        Assert.True(grenade.State == ExplosiveState.Resting && (height < 0.3f || grenade.Link.Support.Whole == box.Ref),
+            $"resting on the ground or the box ({grenade.State} on {grenade.Link.Support}, {height:0.00} m up)");
         Fixtures.Report($"the grenade bounced {grenade.Bounces} time(s) and lies {Vector3.Distance(grenade.Position, box.Centre):0.0} m from the box, {height:0.00} m up");
 
         rig.Step(30);
@@ -212,7 +212,7 @@ public static class RaidTests
         Assert.Equal(OutcomeCode.Done, rig.Zone.ThrowExplosive(ada, 1, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch, lob: false), "the charge");
         LiveExplosive charge = rig.Zone.Explosives.Single(e => e.Item.Key == "timed-charge");
         Raids.StepUntil(rig, () => charge.State != ExplosiveState.Flying, 30, "the charge landing");
-        Assert.True(charge.State == ExplosiveState.Stuck && charge.Support == box, $"stuck to the box ({charge.State} on {charge.SupportKind})");
+        Assert.True(charge.State == ExplosiveState.Stuck && charge.Link.Support.Whole == box.Ref, $"stuck to the box ({charge.State} on {charge.Link.Support})");
         Raids.Stand(rig, ada, rig.Zone.GroundAt(0, 15));
         Raids.StepUntil(rig, () => charge.Gone, 320, "the charge going off");
         Assert.True(box.Health <= 0, "the box broke");
@@ -253,7 +253,7 @@ public static class RaidTests
         ref Character ch = ref rig.Ch(ada);
         Assert.Equal(OutcomeCode.Done, rig.Zone.PlaceCharge(ada, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "placed");
         LiveExplosive charge = rig.Zone.Explosives.Single();
-        Assert.True(charge.State == ExplosiveState.Stuck && charge.Support == north, $"stuck to the north wall ({charge.State}, {charge.Support})");
+        Assert.True(charge.State == ExplosiveState.Stuck && charge.Link.Support.Whole == north.Ref, $"stuck to the north wall ({charge.State}, {charge.Link.Support})");
         Assert.True(rig.P(ada).Inventory.Belt[0].IsEmpty, "the charge left the belt");
         Assert.Equal(OutcomeCode.Stale, rig.Zone.PlaceCharge(ada, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "nothing more to place");
         Assert.Equal(300, charge.FuseTicks, "a ten-second fuse");
@@ -282,7 +282,7 @@ public static class RaidTests
         LiveExplosive grenade = rig.Zone.SpawnExplosive(c.ItemByKey("tin-grenade").Throwable!, hut.ToZone(new(0.4, 0.3, 0.6)), Vector3.Zero,
             EntityId.None, "", dud: false);
         Raids.StepUntil(rig, () => grenade.State != ExplosiveState.Flying, 30, "the grenade landing");
-        Assert.True(grenade.State == ExplosiveState.Resting && grenade.Support == hut.Foundation, $"resting on the floor ({grenade.State} on {grenade.SupportKind})");
+        Assert.True(grenade.State == ExplosiveState.Resting && grenade.Link.Support.Whole == hut.Foundation.Ref, $"resting on the floor ({grenade.State} on {grenade.Link.Support})");
         float before = rig.P(sleeper).Vitals.Health;
         Raids.StepUntil(rig, () => grenade.Gone, 200, "the grenade going off");
         Assert.True(rig.P(sleeper).Vitals.Health < before, $"the sleeper inside was hurt ({before} → {rig.P(sleeper).Vitals.Health})");
@@ -314,7 +314,7 @@ public static class RaidTests
         Assert.Equal(OutcomeCode.Cooldown, rig.Zone.ThrowExplosive(ada, 0, bag, ch.Input.Yaw, ch.Input.Pitch, lob: false), "one a second");
         LiveExplosive thrown = rig.Zone.Explosives.Single();
         Raids.StepUntil(rig, () => thrown.State != ExplosiveState.Flying, 30, "the bag charge landing");
-        Assert.True(thrown.State == ExplosiveState.Stuck && thrown.Support == east, $"stuck to the east wall ({thrown.State} on {thrown.Support})");
+        Assert.True(thrown.State == ExplosiveState.Stuck && thrown.Link.Support.Whole == east.Ref, $"stuck to the east wall ({thrown.State} on {thrown.Link.Support})");
         Assert.InRange(6 * 30, 12 * 30, thrown.FuseTicks, "a 6–12 s fuse");
         Assert.Equal(OutcomeCode.NotUsable, rig.Zone.Rearm(ada, thrown.Id), "a burning fuse can't be lit again");
         Raids.StepUntil(rig, () => thrown.Gone || thrown.Dud, 12 * 30 + 2, "the thrown charge");
@@ -414,18 +414,18 @@ public static class RaidTests
         Vector3 up = rig.Zone.Frame.UpAt(hut.Inside);
         (Vector3 face, Vector3 outward) = hut.Face(hut.Walls[3], height: 2.0);
         LiveExplosive dud = rig.Zone.StickExplosive(c.ItemByKey("bag-charge").Throwable!, face + outward, -outward, 2, EntityId.None, "", dud: true)!;
-        Assert.True(dud.Support == hut.Walls[3], "a dud on the west wall");
+        Assert.True(dud.Link.Support.Whole == hut.Walls[3].Ref, "a dud on the west wall");
         for (int i = 0; i < 2; i++)
         {
             rig.Zone.StickExplosive(charge, hut.Inside + up * 1.5f + new Vector3(0.3f * i, 0, 0), -up, 2, EntityId.None, "");
         }
-        Assert.True(rig.Zone.Explosives.Count(e => e.Support == hut.Foundation) == 2, "two charges on the floor");
+        Assert.True(rig.Zone.Explosives.Count(e => e.Link.Support.Whole == hut.Foundation.Ref) == 2, "two charges on the floor");
         Raids.StepUntil(rig, () => hut.Foundation.Gone, 320, "the foundation breaking");
         int fell = Raids.StepUntil(rig, () => hut.Walls.All(w => w.Gone) && hut.Roof!.Gone && rig.Zone.Building!.Collapsing == 0, 60, "the collapse");
         Assert.True(hut.Door!.Gone && hut.Claim!.Gone, "the door and the claim device went with their pieces");
         Assert.True(fell >= 4, $"layer by layer, not all at once ({fell} ticks)");
         Raids.StepUntil(rig, () => dud.State != ExplosiveState.Flying, 90, "the dud falling");
-        Assert.True(dud.SupportKind == SupportKind.Ground, $"the dud on the ground ({dud.State} on {dud.SupportKind})");
+        Assert.True(dud.Link.Support.Family == TargetFamily.Ground, $"the dud on the ground ({dud.State} on {dud.Link.Support})");
         Assert.True(Vector3.Dot(dud.Position - rig.Zone.Settle(dud.Position), up) < 0.3f, "lying on the ground");
         Fixtures.Report($"the hut came down {fell} ticks after its foundation broke");
     }

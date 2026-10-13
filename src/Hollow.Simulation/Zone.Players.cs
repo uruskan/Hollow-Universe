@@ -11,6 +11,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -328,6 +329,7 @@ public sealed partial class Zone
         c.State.Velocity = Vector3.Zero;
         c.State.Flags = MoveFlags.Dead;
         History.Forget(p.Id);
+        SupportGone(p.Ref);
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.Died, Player = p.Id, Other = by, Text = cause, Position = c.State.Position });
     }
 

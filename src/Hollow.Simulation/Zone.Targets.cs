@@ -97,6 +97,8 @@ public sealed partial class Zone
     {
         public TargetFamily Family => TargetFamily.Ground;
 
+        public bool Moves => false;
+
         public bool Exists(ulong id) => id == 0;
 
         public object? Resolve(ulong id) => null;
@@ -122,6 +124,8 @@ public sealed partial class Zone
     private sealed class CharacterTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Character;
+
+        public bool Moves => true;
 
         public bool Exists(ulong id) => zone.TryFindPlayer(new EntityId(id), out _, out Player p) && !p.Dead;
 
@@ -186,6 +190,8 @@ public sealed partial class Zone
     {
         public TargetFamily Family => TargetFamily.Animal;
 
+        public bool Moves => true;
+
         public bool Exists(ulong id) => Find(id) != null;
 
         public object? Resolve(ulong id) => Find(id);
@@ -232,6 +238,8 @@ public sealed partial class Zone
     private sealed class NaturalTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Natural;
+
+        public bool Moves => false;
 
         public bool Exists(ulong id) => Find(id, out _, out _);
 
@@ -297,6 +305,8 @@ public sealed partial class Zone
     {
         public TargetFamily Family => TargetFamily.Thing;
 
+        public bool Moves => false;
+
         public bool Exists(ulong id) => zone.StaticOf(new EntityId(id)) != null;
 
         public object? Resolve(ulong id) => zone.StaticOf(new EntityId(id));
@@ -332,6 +342,8 @@ public sealed partial class Zone
     private sealed class PieceTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Piece;
+
+        public bool Moves => false;
 
         public bool Exists(ulong id) => Find(id) != null;
 
@@ -371,6 +383,8 @@ public sealed partial class Zone
     private sealed class DoorTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Door;
+
+        public bool Moves => true;
 
         public bool Exists(ulong id) => Find(id) != null;
 
@@ -417,6 +431,8 @@ public sealed partial class Zone
     {
         public TargetFamily Family => TargetFamily.Cupboard;
 
+        public bool Moves => false;
+
         public bool Exists(ulong id) => Find(id) != null;
 
         public object? Resolve(ulong id) => Find(id);
@@ -456,6 +472,8 @@ public sealed partial class Zone
     {
         public TargetFamily Family => TargetFamily.Explosive;
 
+        public bool Moves => true;
+
         public bool Exists(ulong id) => zone.ExplosiveOf(new EntityId(id)) != null;
 
         public object? Resolve(ulong id) => zone.ExplosiveOf(new EntityId(id));
@@ -491,6 +509,8 @@ public sealed partial class Zone
     private sealed class ShipTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Ship;
+
+        public bool Moves => true;
 
         public bool Exists(ulong id) => zone.ShipOf(new EntityId(id)) != null;
 

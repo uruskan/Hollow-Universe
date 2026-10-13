@@ -150,9 +150,22 @@ public sealed partial class Zone
         }
     }
 
-    // A claim device is also a deployable: replicated and opened like a box, its storage the upkeep store.
+    // A claim device is also a deployable: replicated and opened like a box, its storage the upkeep store. Whatever the
+    // building takes away (or starts to bring down) takes what rests on it or is stuck in it along (GROUND_SYSTEMS.md §3.6).
     private void OnBuildingChanged(BuildingEvent e)
     {
+        switch (e.Change)
+        {
+            case BuildingChange.PieceRemoved or BuildingChange.PieceChanged when e.Piece is { } piece && (piece.Gone || piece.Collapsing):
+                SupportGone(piece.Ref);
+                break;
+            case BuildingChange.DoorRemoved when e.Door is { } door:
+                SupportGone(door.Ref);
+                break;
+            case BuildingChange.ClaimRemoved when e.Claim is { } claim:
+                SupportGone(claim.Ref);
+                break;
+        }
         switch (e.Change)
         {
             case BuildingChange.ClaimAdded when e.Claim is { } claim && !_claimDeployables.ContainsKey(claim):

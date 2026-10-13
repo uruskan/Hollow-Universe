@@ -4,6 +4,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Raid;
 
 namespace Hollow.Simulation.Capabilities;
 
@@ -33,7 +34,7 @@ public static class CapabilityHandlers
         foreach (ICapability handler in new ICapability[]
                  {
                      new Owned(), new Holds(), new Burner(), new Machine(), new DoorCapability(), new KeyLockCapability(), new CodeLockCapability(),
-                     new CupboardCapability(), new ShipCapability(), new Lifetime(),
+                     new CupboardCapability(), new ShipCapability(), new Lifetime(), new ExplosiveCapability(),
                  })
         {
             registry.Add(handler.Key, handler);
@@ -145,6 +146,22 @@ public static class CapabilityHandlers
         public string Key => "ship";
 
         public ViewerFlags Flags(object thing, in Viewer viewer) => thing is Ship { Locked: true } ? ViewerFlags.Locked : ViewerFlags.None;
+    }
+
+    /// <summary>A charge or grenade with its fuse: when what it is stuck to or lies on goes, it falls (and its fuse burns on).</summary>
+    private sealed class ExplosiveCapability : ICapability, IDependentCapability
+    {
+        public string Key => "explosive";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public void SupportLost(Zone zone, in TargetRef dependent, object thing)
+        {
+            if (thing is LiveExplosive e)
+            {
+                zone.Drop(e);
+            }
+        }
     }
 
     /// <summary>Goes after a while (the zone's lifetime step, GROUND_SYSTEMS.md §3.7): nothing to tell a viewer.</summary>

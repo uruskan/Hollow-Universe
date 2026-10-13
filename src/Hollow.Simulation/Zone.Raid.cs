@@ -327,6 +327,13 @@ public sealed partial class Zone
         {
             if (_explosives[i].Gone)
             {
+                Release(_explosives[i].Ref);
+            }
+        }
+        for (int i = _explosives.Count - 1; i >= 0; i--)
+        {
+            if (_explosives[i].Gone)
+            {
                 _explosiveIds.Remove(_explosives[i].Id);
                 _explosives.RemoveAt(i);
             }
@@ -395,7 +402,7 @@ public sealed partial class Zone
         if (++e.Airborne > MaxAirborneTicks || HeightAboveGround(p) < -0.5f)
         {
             Vector3 ground = Settle(p);
-            Rest(e, new SurfaceHit { Point = ground, Normal = GroundNormal(ground).Normal, Kind = SupportKind.Ground }, ground + Frame.UpAt(ground) * radius);
+            Rest(e, new SurfaceHit { Point = ground, Normal = GroundNormal(ground).Normal, Support = TargetRef.Ground }, ground + Frame.UpAt(ground) * radius);
         }
     }
 
@@ -411,6 +418,8 @@ public sealed partial class Zone
         Lay(e, hit, at);
     }
 
+    // Comes to lie or stick on what it touched (GROUND_SYSTEMS.md §3.6): linked to it where it is, its up the surface's
+    // normal, so it moves with a door's leaf and goes with its support.
     private void Lay(LiveExplosive e, in SurfaceHit hit, Vector3 at)
     {
         e.Position = at;
@@ -420,49 +429,37 @@ public sealed partial class Zone
         e.Normal = hit.Normal;
         e.StateTick = Tick;
         e.Airborne = 0;
-        e.SupportKind = hit.Kind;
-        e.SupportId = hit.Id;
-        e.Support = hit.Thing;
-        e.Leaf = hit.Leaf;
-        if (hit.Thing is Door door)
-        {
-            (Vector3 position, Quaternion rotation) = door.Leaf(hit.Leaf, door.Open);
-            Quaternion inverse = Quaternion.Inverse(rotation);
-            e.SupportLocal = Vector3.Transform(at - position, inverse);
-            e.SupportNormal = Vector3.Transform(hit.Normal, inverse);
-        }
+        e.Link = LinkTo(hit.Support, new TargetPose(at, Geometry.Upright(hit.Normal, 0)));
+        Hold(e.Ref, e.Link.Support);
         e.Revision++;
     }
 
-    // A stuck or resting explosive moves with a door leaf, and falls when what holds it goes.
+    // A stuck or resting explosive follows what holds it when that moves (a door's leaf); when it goes, the support rule
+    // (Zone.Supports.cs) drops it.
     private void Follow(LiveExplosive e)
     {
-        switch (e.Support)
+        if (e.Link.IsNone || !Moves(e.Link.Support) || !TryPose(e.Link, out TargetPose pose))
         {
-            case Piece piece when piece.Gone || piece.Collapsing:
-            case Door { Gone: true }:
-            case Deployable d when d.Health <= 0 || StaticOf(d.Id) != d:
-                Fall(e);
-                return;
-            case Door door:
-            {
-                (Vector3 position, Quaternion rotation) = door.Leaf(e.Leaf, door.Open);
-                Vector3 at = position + Vector3.Transform(e.SupportLocal, rotation);
-                if (Vector3.DistanceSquared(at, e.Position) > 1e-6f)
-                {
-                    e.Position = at;
-                    e.ArcStart = at;
-                    e.Normal = Vector3.Transform(e.SupportNormal, rotation);
-                    e.StateTick = Tick;
-                    e.Revision++;
-                }
-                return;
-            }
+            return;
         }
-        if (e.SupportKind == SupportKind.Natural && Natural != null && Natural.IsDepleted(e.SupportId))
+        if (Vector3.DistanceSquared(pose.Position, e.Position) > 1e-6f)
         {
-            Fall(e);
+            e.Position = pose.Position;
+            e.ArcStart = pose.Position;
+            e.Normal = Vector3.Transform(Vector3.UnitY, pose.Rotation);
+            e.StateTick = Tick;
+            e.Revision++;
         }
+    }
+
+    /// <summary>An explosive whose support went (the explosive capability's consequence): it falls from where it is.</summary>
+    internal void Drop(LiveExplosive e)
+    {
+        if (e.Gone || e.State == ExplosiveState.Flying)
+        {
+            return;
+        }
+        Fall(e);
     }
 
     private void Fall(LiveExplosive e)
@@ -473,24 +470,17 @@ public sealed partial class Zone
         e.ArcStart = e.Position;
         e.ArcVelocity = Vector3.Zero;
         e.StateTick = Tick;
-        e.Support = null;
-        e.SupportKind = SupportKind.Ground;
-        e.SupportId = 0;
+        Release(e.Ref);
+        e.Link = SupportLink.None;
         e.Revision++;
     }
-
-    /// <summary>What an explosive is stuck to or lies on (none while it flies).</summary>
-    internal TargetRef SupportOf(LiveExplosive e) =>
-        e.State == ExplosiveState.Flying ? TargetRef.None
-        : e.Support is ITargetable thing ? thing.Ref
-        : e.SupportKind == SupportKind.Natural ? new TargetRef(TargetFamily.Natural, e.SupportId)
-        : TargetRef.Ground;
 
     // A fuse burnt down: the blast, from where it is; what it is stuck to takes the table's damage whole.
     private void Explode(LiveExplosive e)
     {
         e.Gone = true;
-        TargetRef on = SupportOf(e);
+        TargetRef on = e.Link.Support;
+        Release(e.Ref);
         Blast(e.Stats.Blast, e.Position, e.Normal, e.State == ExplosiveState.Stuck ? on : TargetRef.None, on.Family, e.Owner, e.OwnerName, e.Item.Id, e.Id);
     }
 
@@ -509,10 +499,9 @@ public sealed partial class Zone
         public float Distance;
         public Vector3 Point;
         public Vector3 Normal;
-        public SupportKind Kind;
-        public ulong Id;
-        public object? Thing;
-        public int Leaf;
+
+        /// <summary>What was touched (a door's leaf as its part): what holds the explosive if it sticks or rests there.</summary>
+        public TargetRef Support;
     }
 
     // The first surface a ball of a radius meets from one point to the next: building pieces, doors and claim devices,
@@ -533,28 +522,12 @@ public sealed partial class Zone
             float t = MathF.Max(0, rh.Distance - radius);
             if (t <= length)
             {
-                var hit = new SurfaceHit { Distance = t, Point = rh.Point, Normal = Facing(rh.Normal, direction) };
-                switch (physics.OwnerOf(rh.Body))
+                // A piece, a door's leaf (its part), the claim device: whatever owns the body says how it is named.
+                best = new SurfaceHit
                 {
-                    case Piece piece:
-                        hit.Kind = SupportKind.Piece;
-                        hit.Id = piece.Id.Value;
-                        hit.Thing = piece;
-                        break;
-                    case DoorLeaf leaf:
-                        hit.Kind = SupportKind.Door;
-                        hit.Id = leaf.Door.Id.Value;
-                        hit.Thing = leaf.Door;
-                        hit.Leaf = leaf.Index;
-                        break;
-                    case ClaimDevice claim:
-                        // On the claim device: held by the piece it stands on.
-                        hit.Kind = SupportKind.Piece;
-                        hit.Id = claim.Support.Id.Value;
-                        hit.Thing = claim.Support;
-                        break;
-                }
-                best = hit;
+                    Distance = t, Point = rh.Point, Normal = Facing(rh.Normal, direction),
+                    Support = physics.OwnerOf(rh.Body) is ITargetable owner ? owner.Ref : TargetRef.None,
+                };
             }
         }
 
@@ -577,7 +550,7 @@ public sealed partial class Zone
                 {
                     continue; // touching it and moving away
                 }
-                best = new SurfaceHit { Distance = t, Point = point - normal * radius, Normal = normal, Kind = SupportKind.Deployable, Id = thing.Id.Value, Thing = thing };
+                best = new SurfaceHit { Distance = t, Point = point - normal * radius, Normal = normal, Support = thing.Ref };
                 reach = t;
             }
         }
@@ -616,7 +589,7 @@ public sealed partial class Zone
                 {
                     best = new SurfaceHit
                     {
-                        Distance = t, Point = from + direction * t - normal * radius, Normal = normal, Kind = SupportKind.Natural, Id = o.Id,
+                        Distance = t, Point = from + direction * t - normal * radius, Normal = normal, Support = new TargetRef(TargetFamily.Natural, o.Id),
                     };
                     reach = t;
                 }
@@ -627,7 +600,7 @@ public sealed partial class Zone
         if (ground >= 0 && ground < best.Distance)
         {
             Vector3 point = from + direction * ground;
-            best = new SurfaceHit { Distance = ground, Point = point, Normal = GroundNormal(point).Normal, Kind = SupportKind.Ground };
+            best = new SurfaceHit { Distance = ground, Point = point, Normal = GroundNormal(point).Normal, Support = TargetRef.Ground };
         }
         return best.Distance <= length;
     }
@@ -662,18 +635,14 @@ public sealed partial class Zone
         FuseTicks = e.FuseTicks,
         WillDud = e.WillDud,
         Arms = e.Arms,
-        SupportKind = e.SupportKind,
-        SupportId = e.SupportId,
-        Leaf = e.Leaf,
-        SupportLocal = e.SupportLocal,
-        SupportNormal = e.SupportNormal,
+        Support = e.Link.Support,
         DespawnLeft = e.DespawnTick >= 0 ? Math.Max(0, e.DespawnTick - Tick) : -1,
     };
 
     /// <summary>
     /// Puts back a stored explosive (after the building and the deployables are loaded): its fuse goes on from where it
-    /// was; if what held it is gone, it falls. False when it can't come back (an item the game no longer has, one
-    /// already here).
+    /// was, linked again to what held it where it lies; if that is gone, it falls. False when it can't come back (an item
+    /// the game no longer has, one already here).
     /// </summary>
     public bool RestoreExplosive(ExplosiveSave s)
     {
@@ -696,41 +665,26 @@ public sealed partial class Zone
             FuseTicks = Math.Max(1, s.FuseTicks),
             WillDud = s.WillDud,
             Arms = Math.Max(1, s.Arms),
-            SupportKind = s.SupportKind,
-            SupportId = s.SupportId,
-            Leaf = s.Leaf,
-            SupportLocal = Finite(s.SupportLocal),
-            SupportNormal = Finite(s.SupportNormal),
             DespawnTick = s.DespawnLeft >= 0 ? Tick + s.DespawnLeft : (s.Dud ? Tick + CharacterTicks.From(DudSeconds) : -1),
             Revision = 1,
         };
+        _explosives.Add(e);
+        _explosiveIds[e.Id] = e;
         if (e.State != ExplosiveState.Flying)
         {
-            e.Support = s.SupportKind switch
-            {
-                SupportKind.Piece => Building?.AllPieces.FirstOrDefault(p => p.Id.Value == s.SupportId),
-                SupportKind.Door => Building?.Doors.FirstOrDefault(d => d.Id.Value == s.SupportId && s.Leaf < d.Def.Leaves.Count),
-                SupportKind.Deployable => StaticOf(new EntityId(s.SupportId)) as Deployable,
-                _ => null,
-            };
-            bool held = s.SupportKind switch
-            {
-                SupportKind.Ground => true,
-                SupportKind.Natural => Natural != null && !Natural.IsDepleted(s.SupportId),
-                _ => e.Support != null,
-            };
-            if (!held)
+            // What held it is asked of its family (an ID from storage: untrusted); gone, the explosive falls.
+            e.Link = LinkTo(s.Support, new TargetPose(e.Position, Geometry.Upright(e.Normal, 0)));
+            if (e.Link.IsNone)
             {
                 e.State = ExplosiveState.Flying;
-                e.Support = null;
-                e.SupportKind = SupportKind.Ground;
-                e.SupportId = 0;
                 e.Velocity = Vector3.Zero;
                 e.ArcVelocity = Vector3.Zero;
             }
+            else
+            {
+                Hold(e.Ref, e.Link.Support);
+            }
         }
-        _explosives.Add(e);
-        _explosiveIds[e.Id] = e;
         return true;
     }
 

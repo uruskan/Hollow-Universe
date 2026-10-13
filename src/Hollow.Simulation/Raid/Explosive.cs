@@ -22,19 +22,6 @@ public enum ExplosiveState : byte
     Stuck,
 }
 
-/// <summary>What a stuck or resting explosive is on: it falls when that goes.</summary>
-public enum SupportKind : byte
-{
-    /// <summary>The ground (or nothing: it is flying).</summary>
-    Ground,
-    Piece,
-    Door,
-    Deployable,
-
-    /// <summary>A tree or outcrop (by its natural object ID).</summary>
-    Natural,
-}
-
 /// <summary>
 /// A timed charge, bag charge or tin grenade in the world (GROUND.md §6.6): thrown (it flies, sticks or bounces and comes
 /// to rest) or placed (stuck where it was put), with its fuse burning; a dud lies there until lit again. Simulated on
@@ -103,20 +90,11 @@ public sealed class LiveExplosive : ITargetable, IOwned
     /// <summary>How many times it was lit (re-arming a dud lights it again).</summary>
     public int Arms { get; internal set; }
 
-    /// <summary>What it is stuck to or lying on, and that thing's ID.</summary>
-    public SupportKind SupportKind { get; internal set; }
-
-    public ulong SupportId { get; internal set; }
-
-    /// <summary>The thing itself (a <c>Piece</c>, <c>Door</c> or <c>Deployable</c>), resolved; null for the ground or a natural object.</summary>
-    public object? Support { get; internal set; }
-
-    /// <summary>A door's leaf it is on, and where on it (the leaf's own frame): it moves with the leaf.</summary>
-    public int Leaf { get; internal set; }
-
-    public Vector3 SupportLocal { get; internal set; }
-
-    public Vector3 SupportNormal { get; internal set; }
+    /// <summary>
+    /// What it is stuck to or lying on, and where there (GROUND_SYSTEMS.md §3.6): a piece, a door's leaf, the claim device,
+    /// a box, a tree or outcrop, the ground; none while it flies. It moves with a door's leaf, and falls when its support goes.
+    /// </summary>
+    public SupportLink Link { get; internal set; }
 
     /// <summary>A dud left alone goes after this tick (−1: never).</summary>
     public long DespawnTick { get; internal set; } = -1;
@@ -202,15 +180,8 @@ public sealed record ExplosiveSave
 
     public int Arms { get; init; }
 
-    public SupportKind SupportKind { get; init; }
-
-    public ulong SupportId { get; init; }
-
-    public int Leaf { get; init; }
-
-    public Vector3 SupportLocal { get; init; }
-
-    public Vector3 SupportNormal { get; init; }
+    /// <summary>What held it (none while it flew): it is put back on it, or falls when it is gone.</summary>
+    public TargetRef Support { get; init; }
 
     /// <summary>Ticks until a dud goes (−1: never).</summary>
     public long DespawnLeft { get; init; } = -1;

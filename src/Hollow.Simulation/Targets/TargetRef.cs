@@ -120,6 +120,9 @@ public interface ITargetFamily
 {
     TargetFamily Family { get; }
 
+    /// <summary>Whether its things move (bodies, doors' leaves, ships): what rests on them follows (GROUND_SYSTEMS.md §3.6).</summary>
+    bool Moves { get; }
+
     /// <summary>Whether the thing is still in the world (a broken, removed, felled, dead or gone one isn't).</summary>
     bool Exists(ulong id);
 

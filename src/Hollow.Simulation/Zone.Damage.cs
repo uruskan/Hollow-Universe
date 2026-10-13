@@ -223,6 +223,8 @@ public sealed partial class Zone
             Item = blow.Active ? blow.Weapon : (ushort)0,
             Flag = open,
         });
+        // What rested on it or was stuck in it goes with it (GROUND_SYSTEMS.md §3.6).
+        SupportGone(target);
     }
 
     // ---------------------------------------------------------------- the blast

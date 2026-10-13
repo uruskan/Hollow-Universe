@@ -187,6 +187,10 @@ public sealed partial class Zone
         {
             return;
         }
+        if (Natural.IsDepleted(o.Id))
+        {
+            SupportGone(new TargetRef(TargetFamily.Natural, o.Id));
+        }
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = new TargetRef(TargetFamily.Natural, o.Id), Flag = result.WeakSpot, Position = result.Point });
         Give(entity, p, result.Yield, GainReason.Gathered, result.WeakSpot);
     }

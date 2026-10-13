@@ -153,7 +153,7 @@ public static class RaidNetTests
                 Vector3 ground = z.GroundAt(-6, -6);
                 LiveExplosive charge = z.StickExplosive(c.ItemByKey("timed-charge").Throwable!, ground + z.Frame.UpAt(ground) * 2, -z.Frame.UpAt(ground), 3,
                     EntityId.None, "Bo")!;
-                Assert.True(bag.Support == box && charge.SupportKind == SupportKind.Ground, "stuck to the box and the ground");
+                Assert.True(bag.Link.Support.Whole == box.Ref && charge.Link.Support.Family == TargetFamily.Ground, "stuck to the box and the ground");
                 // A raid on Ada's hut while she is away.
                 Assert.True(z.TryFindPlayer(adaId, out _, out Player owner) && owner.Sleeping, "Ada asleep");
                 TestBases.Hut hut = TestBases.Build(z, z.GroundAt(0, 6), 0, 2, owner.Id.Value)!;
@@ -175,8 +175,8 @@ public static class RaidNetTests
                 Assert.True(charge != null && bag != null, "both charges are back");
                 long left = charge!.FuseEndTick - z.Tick;
                 Assert.InRange(chargeLeft - 60, chargeLeft, left, "the timed charge's fuse goes on from where it was");
-                Assert.True(charge.State == ExplosiveState.Stuck && charge.SupportKind == SupportKind.Ground && charge.Burning, "stuck to the ground, burning");
-                Assert.True(bag!.State == ExplosiveState.Stuck && bag.Support is Deployable { } held && held.Id == boxId, "the bag charge on its box");
+                Assert.True(charge.State == ExplosiveState.Stuck && charge.Link.Support.Family == TargetFamily.Ground && charge.Burning, "stuck to the ground, burning");
+                Assert.True(bag!.State == ExplosiveState.Stuck && bag.Link.Support == new TargetRef(TargetFamily.Thing, boxId.Value), "the bag charge on its box");
                 Assert.True(bag.WillDud && bag.Burning, "still going to fizzle");
                 return $"timed charge {left / 30.0:0.0} s left (was {chargeLeft / 30.0:0.0} s)";
             });

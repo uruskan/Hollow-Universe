@@ -60,6 +60,7 @@ public sealed partial class Zone
         {
             RespawnPointChanged(gone);
         }
+        SupportGone(thing.Ref);
     }
 
     /// <summary>Every static object, for saving and replication.</summary>

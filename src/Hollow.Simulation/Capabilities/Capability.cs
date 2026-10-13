@@ -77,3 +77,12 @@ public interface ICapability
     /// <summary>What it tells one viewer about a thing (the thing is its family's object, <see cref="ITargetFamily.Resolve"/>).</summary>
     ViewerFlags Flags(object thing, in Viewer viewer);
 }
+
+/// <summary>
+/// A capability of things that rest on or stick in others (GROUND_SYSTEMS.md §3.6): what becomes of one when what holds
+/// it goes (an explosive falls; the interaction and placement packages add a spent arrow and a deployable on a floor).
+/// </summary>
+public interface IDependentCapability
+{
+    void SupportLost(Zone zone, in TargetRef dependent, object thing);
+}

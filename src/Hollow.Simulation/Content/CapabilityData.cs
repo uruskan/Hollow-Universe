@@ -38,7 +38,7 @@ public sealed class CapabilityData
         _locks[(int)LockKind.Code] = Set("code-lock");
         Cupboard = Set("cupboard", "owned");
         Ship = Set("ship", "owned", "container");
-        Explosive = Set("owned");
+        Explosive = Set("owned", "explosive");
     }
 
     /// <summary>The list's keys, by index.</summary>

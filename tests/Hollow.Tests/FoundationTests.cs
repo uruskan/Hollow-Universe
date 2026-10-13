@@ -5,6 +5,8 @@ using System.Linq;
 using System.Diagnostics;
 using System.Numerics;
 using Hollow.Client;
+using Hollow.Core;
+using Hollow.Persistence;
 using Hollow.Simulation;
 using Hollow.Simulation.Animals;
 using Hollow.Simulation.Building;
@@ -332,5 +334,86 @@ public static class FoundationTests
         bo.Local.AcceptInvite(bo.Local.TeamInvites[0].Team);
         Until(() => bo.ThingOf(bagId)!.Flags.HasFlag(ViewerFlags.Teammate), "Bo told the bag is his teammate's");
         Fixtures.Report($"Ada's door to her: {mine.Flags}; to Bo: {his.Flags}; her bag to Bo now: {bo.ThingOf(bagId)!.Flags}");
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §3.6: support links. A charge stuck on a door is linked to the door's leaf (its part): it swings
+    /// with the leaf as the door opens, the door lists it as resting on it, and when the door breaks it goes with it by its
+    /// own capability's consequence (it falls). A link to a body names a bone and rides on it as the deer walks. An explosive
+    /// saved by the last version (its support named by kind) comes back onto a TargetRef.
+    /// </summary>
+    [Test]
+    public static void SupportLinksFollowAndGoWithTheirSupport()
+    {
+        using var rig = new GameRig();
+        Zone z = rig.Zone;
+        GameContent c = rig.C;
+        TestBases.Hut hut = Raids.Hut(rig, 0, 0, door: "wooden-door");
+        Door door = hut.Door!;
+        (Vector3 face, Vector3 outward) = hut.Face(hut.Doorway, height: 1.1, along: 0.25);
+        LiveExplosive charge = z.StickExplosive(c.ItemByKey("timed-charge").Throwable!, face + outward * 1.5f, -outward, 3, EntityId.None, "", dud: true)!;
+        Assert.True(charge.State == ExplosiveState.Stuck && charge.Link.Support.Whole == door.Ref && charge.Link.Support.Part > 0,
+            $"stuck to a leaf of the door ({charge.Link.Support})");
+        Assert.True(z.DependentsOf(door.Ref).Contains(charge.Ref), "the door lists it as resting on it");
+        Vector3 shut = charge.Position;
+        Assert.True(z.Building!.Toggle(1, door).Ok, "the door opens");
+        rig.Step(1);
+        Assert.True(Vector3.Distance(charge.Position, shut) > 0.2f && charge.State == ExplosiveState.Stuck, "the charge swung with the leaf");
+        Assert.True(z.TryPose(charge.Link, out TargetPose on) && Vector3.Distance(on.Position, charge.Position) < 1e-3f, "where its link says");
+        z.DamageBuilding(door, Vector3.UnitZ, 1_000_000, projectile: false);
+        Assert.True(door.Gone && charge.State == ExplosiveState.Flying && charge.Link.IsNone && z.DependentsOf(door.Ref).Count == 0,
+            "the door broke, and the charge went with it: it falls");
+
+        // A body's bone: a link to the deer's head rides on it as the deer walks away.
+        Herd herd = AnimalRig.Herd(rig, "deer", 20, 20, 1, 3);
+        Animal deer = herd.Members[0];
+        var head = deer.Ref with { Part = 2 };
+        Assert.True(z.TryPose(head, out TargetPose bone), "the deer's head");
+        SupportLink link = z.LinkTo(head, new TargetPose(bone.Position + z.Frame.UpAt(bone.Position) * 0.1f, bone.Rotation));
+        Vector3 before = deer.Position;
+        z.Animals!.Nav.Synchronous = true;
+        for (int i = 0; i < 600 && Vector3.Distance(deer.Position, before) < 1.5f; i++)
+        {
+            rig.Step(1);
+            if (i % 60 == 0)
+            {
+                z.Animals.Hurt(deer, 0.01f, deer.Position + new Vector3(5, 0, 0), default, "");
+            }
+        }
+        Assert.True(Vector3.Distance(deer.Position, before) >= 1.5f, "the deer walked off");
+        Assert.True(z.TryPose(head, out TargetPose moved) && z.TryPose(link, out TargetPose rider) &&
+            Vector3.Distance(rider.Position, moved.Position + Vector3.Transform(link.Position, moved.Rotation)) < 1e-3f &&
+            Vector3.Distance(rider.Position, moved.Position) < 0.2f, "what is linked to its head is still at its head");
+
+        // A charge saved by version 1 (on a door's second leaf) names its support by a TargetRef now.
+        using var bytes = new MemoryStream();
+        using (var w = new BinaryWriter(bytes, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            w.Write((byte)1);
+            w.Write(c.ItemByKey("timed-charge").Id);
+            w.Write(0UL);
+            w.Write("Ada");
+            w.Write((byte)ExplosiveState.Stuck);
+            w.Write(false);
+            for (int i = 0; i < 9; i++)
+            {
+                w.Write(1.0);
+            }
+            w.Write(30L);
+            w.Write(300);
+            w.Write(false);
+            w.Write(1);
+            w.Write((byte)2);
+            w.Write(0x1234UL);
+            w.Write(1);
+            for (int i = 0; i < 6; i++)
+            {
+                w.Write(0f);
+            }
+            w.Write(-1L);
+        }
+        ExplosiveSave old = ExplosiveCodec.Decode(new EntityId(7), bytes.ToArray(), v => new Vector3((float)v.X, (float)v.Y, (float)v.Z));
+        Assert.Equal(new TargetRef(TargetFamily.Door, 0x1234, 2), old.Support, "a door's second leaf, from version 1");
+        Fixtures.Report($"the charge swung {Vector3.Distance(shut, on.Position):0.00} m with the leaf; the deer walked {Vector3.Distance(deer.Position, before):0.0} m");
     }
 }
