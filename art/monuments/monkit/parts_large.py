@@ -1384,6 +1384,13 @@ def _locomotive(b):
     b.collide_box(Vector((0.0, 0, 3.4)), (16.0, 2.4, 3.2), (0, 0, 0))
 
 
+def _hab_can(b):
+    """A colonist's prefab hab can, 8 m long on short legs, with windows, a hatch and a livery band."""
+    from .structures import hab_module
+    hab_module(b, (0, 0, 0), (0, 0, 0), length=8.0, radius=1.6, tint=CREAM, band=ORANGE, windows=True, legs=0.6)
+    b.collide_box(Vector((0, 0, 2.2)), (9.0, 3.2, 3.2), (0, 0, 0))
+
+
 kit.PIECES.update({
     "flood-mast": _flood_mast,
     "container-40": _container_40,
@@ -1397,4 +1404,5 @@ kit.PIECES.update({
     "hopper-wagon": _hopper_wagon,
     "tank-wagon": _tank_wagon,
     "locomotive": _locomotive,
+    "hab-can": _hab_can,
 })
