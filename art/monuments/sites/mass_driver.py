@@ -27,14 +27,14 @@ BUILDER = {"chunk": 160.0, "max_edge": 14.0, "lod_min": (0.0, 2.0, 14.0)}
 LODS = [450.0, 2800.0, 80000.0]
 
 Y0 = -220.0             # where the rail begins, inside the breech house
-LINE = 6400.0           # the whole line's run (to the muzzle above the summit)
+LINE = 7700.0           # the whole line's run (to the muzzle above the summit): about 8 km of rail
 BUILT = 1500.0          # how much of it this site lays
 CONC = srgb(0.72, 0.71, 0.68)
 
 
 def rail_z(s):
     """Height of the track's top at run s (metres north of its start)."""
-    return 8.0 + 0.03 * s + 1400.0 * (max(0.0, s) / LINE) ** 1.9
+    return 8.0 + 0.03 * s + 1300.0 * (max(0.0, s) / LINE) ** 1.9
 
 
 def smooth(t):
@@ -44,14 +44,14 @@ def smooth(t):
 
 def mountain(x, y, seed=23):
     """The preview mountain the line climbs: a long spur rising to a summit about 1300 m up, rough and ridged."""
-    t = (y - 300.0) / 5800.0
+    t = (y - 300.0) / 7000.0
     ridge = 1300.0 * smooth(t) ** 1.5 * (1.0 if t <= 1.0 else max(0.0, 1.0 - (t - 1.0) * 3.0))
     spread = 1400.0 + 0.25 * max(0.0, y)
     fall = 1.0 - smooth(abs(x + 120.0 * math.sin(y / 900.0)) / spread)
     n = (P.fbm(x / 400.0, y / 400.0, 0.5, seed, 4) - 0.5) * 220.0 * smooth(t * 3.0)
     side = 260.0 * smooth((y + 400.0) / 2500.0) * (1.0 - smooth(abs(abs(x) - 1900.0) / 900.0))
     z = ridge * fall + n * fall + side * smooth(t * 2.0)
-    return max(0.0, z) * smooth((7600.0 - y) / 900.0)
+    return max(0.0, z) * smooth((8900.0 - y) / 900.0)
 
 
 def line_points(s_end, step=P.DRIVER_SEGMENT):
@@ -244,7 +244,7 @@ def compound(b):
 
 def scenery(b, pts_built):
     """Look-dev only: the mountain, and the rest of the line laid on up to the muzzle above its summit."""
-    x0, x1, y0, y1, step = -4000.0, 4000.0, 200.0, 7600.0, 100.0
+    x0, x1, y0, y1, step = -4000.0, 4000.0, 200.0, 8900.0, 100.0
     nx, ny = int((x1 - x0) / step), int((y1 - y0) / step)
     hs = [[mountain(x0 + i * step, y0 + j * step) for i in range(nx + 1)] for j in range(ny + 1)]
     groups = {"rock": ([], []), "grass": ([], []), "snow": ([], [])}
@@ -298,7 +298,7 @@ def build(b):
                             "segment": P.DRIVER_SEGMENT, "pylon": P.DRIVER_PYLON, "section": P.DRIVER_SECTION,
                             "end": [0.0, round(z, 2), round(-(Y0 + s), 2)], "heading": 0.0,
                             "continues_m": round(LINE - s, 1),
-                            "profile": "track height 8 + 0.03 s + 1400 (s / 6400)^1.9 m at run s from the breech"}})
+                            "profile": "track height 8 + 0.03 s + 1300 (s / 7700)^1.9 m at run s from the breech"}})
     if not kit.EXPORT["enabled"]:
         scenery(b, pts)
 
@@ -308,7 +308,7 @@ FOG = 0.00008
 GROUND = 90000.0
 PREVIEW_AO = False
 VIEWS = [
-    {"name": "far", "target": (0, 2700, 560), "distance": 11000, "yaw": 42, "pitch": 3.4, "lens": 55,
+    {"name": "far", "target": (0, 3300, 560), "distance": 13000, "yaw": 42, "pitch": 3.2, "lens": 55,
      "fog": 0.00005},
     {"name": "overview", "target": (0, 350, 60), "distance": 2300, "yaw": -38, "pitch": 22, "lens": 30,
      "fog": 0.00004},
