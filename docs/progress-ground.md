@@ -212,3 +212,10 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 
   With 100 raiding bots the tick is 9.7 ms on average and each client uses 157 kbit/s. Models, sounds and visuals
   for raiding come with the effects package and the next integration pass. 120 of 120 tests pass.
+- **Effects merged** (`ground-fx`):
+  - 45 effects: muzzle flashes, tracers, impacts and decals per surface, blood, gathering chips;
+  - explosions from the PSG C4 VFX kit, fire, world dust;
+  - real models for the raid items and the earlier stand-ins.
+
+  A firefight costs about 0.3 ms a frame. 120 of 120 tests pass. The effects get wired into the game in the next
+  integration pass.
