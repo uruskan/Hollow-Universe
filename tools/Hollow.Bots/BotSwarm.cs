@@ -68,6 +68,10 @@ public sealed class BotSwarm : IDisposable
     public (int Done, int Refused, int Toggles) Building =>
         (_bots.Sum(b => b.Build?.Done ?? 0), _bots.Sum(b => b.Build?.Refused ?? 0), _bots.Sum(b => b.Build?.Toggles ?? 0));
 
+    /// <summary>How far the building bots got, counted by stage.</summary>
+    public string BuildProgress => string.Join("; ", _bots.Where(b => b.Build != null).GroupBy(b => b.Build!.Progress.Split(',')[0])
+        .Select(g => $"{g.Count()} {g.Key}"));
+
     public int Playing => _bots.Count(b => b.Client.State == ClientState.Playing);
 
     public int Disconnected => _bots.Count(b => b.Client.State == ClientState.Disconnected);

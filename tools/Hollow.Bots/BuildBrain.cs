@@ -7,12 +7,13 @@ using Hollow.Core;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Nature;
 
 namespace Hollow.Bots;
 
 /// <summary>
 /// A bot that builds a small base (GROUND.md §5.3) through the client's building API, as a player would: it walks to a
-/// plot of its own (a 10 × 10 grid of plots 31 m apart round the zone's origin), places a foundation on the ground and
+/// plot of its own (a 10 × 10 grid of plots 36 m apart round the zone's origin), places a foundation on the ground and
 /// a second beside it, walls round them with a doorway, two floors on top, fits a wooden door with a code lock and sets
 /// the code, upgrades the foundations to stone and the walls to wood, and places its claim device; then it opens and
 /// shuts its door now and then. Each step is checked with the same rules first (the ghost), sent as an intent and
@@ -21,18 +22,20 @@ namespace Hollow.Bots;
 public sealed class BuildBrain
 {
     /// <summary>
-    /// Plots are this far apart: a claim device covers 16 m round every piece and 25 m round itself, so a neighbour
-    /// nearer than about 30 m couldn't finish.
+    /// Plots are this far apart: a claim device covers 16 m round every piece and 25 m round itself (with 2.25 m of
+    /// padding for the hammer), so a neighbour's base must end more than 27 m from it.
     /// </summary>
-    public const float PlotSpacing = 31f;
+    public const float PlotSpacing = 36f;
 
     private enum Stage
     {
         WaitForKit,
         Walk,
         Foundation,
+        Approach,
         Build,
         Done,
+        GaveUp,
     }
 
     private readonly Rng _rng;
@@ -44,6 +47,9 @@ public sealed class BuildBrain
     private double _nextTask;
     private double _nextToggle;
     private double _taskSince;
+    private Vector3 _walkFrom = new(float.NaN);
+    private float _closest;
+    private double _progressAt;
     private int _tries;
     private bool _answered;
     private bool _subscribed;
@@ -63,6 +69,9 @@ public sealed class BuildBrain
     public int Done { get; private set; }
 
     public int Refused { get; private set; }
+
+    /// <summary>Where the bot is in building its base (for diagnostics).</summary>
+    public string Progress => $"{_stage}, {_tries} tries, {_tasks.Count} steps left";
 
     /// <summary>Doors opened or shut once the base stands.</summary>
     public int Toggles { get; private set; }
@@ -102,12 +111,19 @@ public sealed class BuildBrain
             case Stage.WaitForKit:
                 if (me.Carries(BuildingRole.Plan) && me.Carries(BuildingRole.Hammer) && me.Inventory.Count(client.Content.ItemByKey("wood")) > 0)
                 {
+                    _site = ClearSite(client, _site);
                     _stage = Stage.Walk;
                 }
                 break;
             case Stage.Walk:
-                if (Steer(ref input, feet, stand, 0.6f, delta) || time - _sentAt > 40)
+                if (Steer(ref input, feet, stand, 0.6f, delta))
                 {
+                    _stage = Stage.Foundation;
+                }
+                else if (Stuck(time, feet, stand))
+                {
+                    // Stuck behind a tree or a rock: the base goes near where the bot stands.
+                    _site = feet - new Vector3(1.5f, 0, -3.5f);
                     _stage = Stage.Foundation;
                 }
                 break;
@@ -119,38 +135,49 @@ public sealed class BuildBrain
                 _f1 ??= client.Building.AllPieces.FirstOrDefault(p => p.Def.Family == PieceFamily.Foundation && Flat(p.ZoneTransform.Position - _site) < 1.5f);
                 if (_f1 != null)
                 {
-                    _stage = Stage.Build;
-                    Plan(client);
+                    // Where the bot stands to build the rest: south of the base's middle.
+                    _site = _f1.ZoneTransform.Position;
+                    _stage = Stage.Approach;
                     break;
                 }
                 if (_waiting != 0 && _answered && time - _sentAt < 1.5)
                 {
                     break; // placed: wait for it to arrive
                 }
-                if (_tries >= 4)
+                if (_tries >= 6)
                 {
-                    _stage = Stage.Done;
+                    _stage = Stage.GaveUp;
                     break;
                 }
                 _tries++;
-                Vector3 eye = Eye(client);
-                PieceDef foundation = client.Content.Building.Piece("foundation")!;
-                PlacementPlan? plan = client.Building.FoundationAt(foundation, _site, 0);
-                if (plan != null)
+                // Judged from here, on the ground around: the first spot near the plot, or near where the bot stands,
+                // where the rules take a foundation now.
+                PlacementPlan? plan = null;
+                foreach (Vector3 spot in ClearSpots(client, _site, 2).Concat(ClearSpots(client, feet - new Vector3(1.5f, 0, -3.5f), 2)))
                 {
-                    client.Building.Check(plan, client.EntityId.Value, eye, new ItemWallet(client.Content, me.Inventory.Carried));
+                    if (SiteWorks(client, spot, out PlacementPlan? works))
+                    {
+                        _site = spot;
+                        plan = works;
+                        break;
+                    }
                 }
-                if (plan is not { Valid: true })
+                if (plan == null)
                 {
-                    Log?.Invoke($"{client.Name}: first foundation {(plan?.ToString() ?? "has no ground")}");
-                    // A tree or someone in the way: the plot moves a little.
-                    _site += new Vector3(0, 0, 4);
+                    Log?.Invoke($"{client.Name}: no spot for the base near {_site}");
+                    _site = ClearSite(client, _site + new Vector3(0, 0, 10));
                     _stage = Stage.Walk;
                     _sentAt = time;
-                    Refused++;
                     break;
                 }
                 Send(me.PlacePiece(plan), time);
+                break;
+            case Stage.Approach:
+                if (Steer(ref input, feet, stand, 0.8f, delta) || Stuck(time, feet, stand))
+                {
+                    _stage = Stage.Build;
+                    Plan(client);
+                }
                 break;
             case Stage.Build:
                 if (time < _nextTask || !Answered(time))
@@ -205,7 +232,67 @@ public sealed class BuildBrain
 
     private static float Flat(Vector3 v) => new Vector2(v.X, v.Z).Length();
 
+    // No closer to where it walks for four seconds.
+    private bool Stuck(double time, Vector3 feet, Vector3 to)
+    {
+        float left = Flat(to - feet);
+        if (_walkFrom != to)
+        {
+            _walkFrom = to;
+            _closest = left;
+            _progressAt = time;
+        }
+        if (left < _closest - 0.5f)
+        {
+            _closest = left;
+            _progressAt = time;
+        }
+        return time - _progressAt > 4;
+    }
+
     private static Vector3 Eye(GameClient client) => client.Character.Position + client.Frame.UpAt(client.Character.Position) * client.EyeHeight;
+
+    // Spots near a point, nearest first, with no tree or outcrop where the base and the bot's standing place go.
+    private static IEnumerable<Vector3> ClearSpots(GameClient client, Vector3 around, int rings)
+    {
+        if (client.Nature is not { } nature || client.Natural is not { } state)
+        {
+            yield return around;
+            yield break;
+        }
+        var found = new List<NaturalObject>();
+        for (int ring = 0; ring < rings; ring++)
+        {
+            for (int k = 0; k < (ring == 0 ? 1 : 8); k++)
+            {
+                double angle = k * Math.PI / 4;
+                Vector3 site = around + new Vector3((float)(ring * 4 * Math.Cos(angle)), 0, (float)(ring * 4 * Math.Sin(angle)));
+                found.Clear();
+                nature.Query(site.X - 4, site.Z - 6, site.X + 7, site.Z + 4, found);
+                if (!found.Any(o => client.Content.Natural(o.Kind) is { IsSolid: true } && !state.IsDepleted(o.Id)))
+                {
+                    yield return site;
+                }
+            }
+        }
+    }
+
+    private static Vector3 ClearSite(GameClient client, Vector3 plot) => ClearSpots(client, plot, 6).DefaultIfEmpty(plot).First();
+
+    // Whether the rules would take a foundation on the ground here, placed from where the bot stands now.
+    private static bool SiteWorks(GameClient client, Vector3 site, out PlacementPlan? plan)
+    {
+        BuildingWorld building = client.Building!;
+        // The ground is looked for from the height of the bot's feet (the plot's own height is unknown).
+        site.Y = client.Character.Position.Y;
+        plan = building.FoundationAt(client.Content.Building.Piece("foundation")!, site, 0);
+        if (plan == null)
+        {
+            return false;
+        }
+        building.Check(plan, client.EntityId.Value, Eye(client), new ItemWallet(client.Content, client.Local.Inventory.Carried));
+        return plan.Valid;
+    }
 
     // The rest of the base, as steps that wait for what they stand on (uint.MaxValue: not yet).
     private void Plan(GameClient client)
@@ -213,83 +300,135 @@ public sealed class BuildBrain
         BuildingData data = client.Content.Building;
         const uint NotYet = uint.MaxValue;
         var walls = new List<Piece>();
-        uint Place(GameClient c, Func<Piece?> support, SocketId socket, string key, Func<PlacementPlan, bool>? pick = null)
+        var shared = new List<Vector3D>();
+        // The first allowed placement among some candidates, sent; 0 when none is.
+        uint PlaceFirst(GameClient c, IEnumerable<PlacementPlan?> candidates)
         {
-            if (support() is not { Gone: false } on)
+            PlacementPlan? refused = null;
+            foreach (PlacementPlan? plan in candidates)
             {
-                return NotYet;
-            }
-            PieceDef def = data.Piece(key)!;
-            PlacementPlan? plan = null;
-            int orientations = PieceGeometry.Orientations(on.Def, socket, def);
-            for (int o = 0; o < Math.Max(1, orientations) && plan == null; o++)
-            {
-                PlacementPlan? candidate = c.Building!.FromIntent(def, on, socket, o);
-                if (candidate != null && (pick == null || pick(candidate)))
+                if (plan == null)
                 {
-                    plan = candidate;
+                    continue;
                 }
+                c.Building!.Check(plan, c.EntityId.Value, Eye(c), new ItemWallet(c.Content, c.Local.Inventory.Carried));
+                if (plan.Valid)
+                {
+                    return c.Local.PlacePiece(plan);
+                }
+                refused ??= plan;
             }
-            if (plan == null)
-            {
-                return 0;
-            }
-            c.Building!.Check(plan, c.EntityId.Value, Eye(c), new ItemWallet(c.Content, c.Local.Inventory.Carried));
-            if (!plan.Valid)
+            if (refused != null)
             {
                 Refused++;
-                Log?.Invoke($"{c.Name}: {plan}");
-                return 0;
+                Log?.Invoke($"{c.Name}: {refused}");
             }
-            return c.Local.PlacePiece(plan);
+            return 0;
+        }
+        IEnumerable<PlacementPlan?> Orientations(GameClient c, Piece on, SocketId socket, string key)
+        {
+            PieceDef def = data.Piece(key)!;
+            int count = Math.Max(1, PieceGeometry.Orientations(on.Def, socket, def));
+            for (int o = 0; o < count; o++)
+            {
+                yield return c.Building!.FromIntent(def, on, socket, o);
+            }
         }
         Piece? Found(GameClient c, Func<Piece, bool> what) => c.Building!.AllPieces.FirstOrDefault(p => p.Structure == _f1!.Structure && what(p));
         static bool Near(Pose a, Vector3D at) => Math.Abs(a.Position.X - at.X) < 0.2 && Math.Abs(a.Position.Z - at.Z) < 0.2;
 
-        _tasks.Enqueue(c => Place(c, () => _f1, Facing(_f1!, 1, 0), "foundation"));
+        // The second foundation beside the first: east, west or north (never south, where the bot stands), level or
+        // half a storey up where the ground rises.
+        _tasks.Enqueue(c =>
+        {
+            var candidates = new List<PlacementPlan?>();
+            foreach ((double x, double z) in new[] { (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0) })
+            {
+                SocketId edge = Facing(_f1!, x, z);
+                candidates.AddRange(Orientations(c, _f1!, edge, "foundation"));
+                candidates.AddRange(Orientations(c, _f1!, new SocketId(SocketKind.EdgeUp, edge.Edge), "foundation"));
+            }
+            return PlaceFirst(c, candidates);
+        });
         _tasks.Enqueue(c =>
         {
             _f2 = Found(c, p => p.Def.Family == PieceFamily.Foundation && p != _f1);
-            return _f2 != null ? 0 : NotYet;
+            if (_f2 == null)
+            {
+                return NotYet;
+            }
+            // The edge the two share takes no wall.
+            shared.Add((_f1!.Pose.Position + _f2.Pose.Position) / 2);
+            return 0;
         });
-        // Walls round the two: the doorway on the first's south side, facing the bot.
-        (Func<Piece?> On, double X, double Z, string Key)[] sides =
+        // Walls round each foundation but on the edge they share, the far sides first and the near (south) side last,
+        // so nothing built stands between the bot and the next; the floors go on before the south side closes. The
+        // first foundation's south wall is the doorway.
+        void Wall(double x, double z)
         {
-            (() => _f1, -1, 0, "wall"), (() => _f1, 0, 1, "wall"), (() => _f1, 0, -1, "doorway"),
-            (() => _f2, 1, 0, "wall"), (() => _f2, 0, 1, "wall"), (() => _f2, 0, -1, "wall"),
-        };
-        foreach ((Func<Piece?> on, double x, double z, string key) in sides)
-        {
-            _tasks.Enqueue(c => on() is { } slab ? Place(c, on, Facing(slab, x, z), key) : NotYet);
+            foreach (Func<Piece?> slab in new Func<Piece?>[] { () => _f1, () => _f2 })
+            {
+                _tasks.Enqueue(c =>
+                {
+                    if (slab() is not { } s)
+                    {
+                        return 0;
+                    }
+                    int edge = Facing(s, x, z).Edge;
+                    PlacementPlan? wall = c.Building!.FromIntent(data.Piece("wall")!, s, new SocketId(SocketKind.Edge, edge), 0);
+                    if (wall == null || shared.Any(m => Math.Abs(m.X - wall.Pose.Position.X) < 0.3 && Math.Abs(m.Z - wall.Pose.Position.Z) < 0.3) ||
+                        Found(c, p => p.Def.Family == PieceFamily.Wall && Near(p.Pose, wall.Pose.Position) && Math.Abs(p.Pose.Position.Y - wall.Pose.Position.Y) < 0.5) != null)
+                    {
+                        return 0;
+                    }
+                    bool door = s == _f1 && z < 0;
+                    return PlaceFirst(c, Orientations(c, s, new SocketId(SocketKind.Edge, edge), door ? "doorway" : "wall"));
+                });
+            }
         }
-        _tasks.Enqueue(c =>
-        {
-            _doorway = Found(c, p => p.Def.Key == "doorway");
-            walls.Clear();
-            walls.AddRange(c.Building!.AllPieces.Where(p => p.Structure == _f1!.Structure && p.Def.Key == "wall"));
-            return _doorway != null ? 0 : NotYet;
-        });
-        // A floor over each foundation, on its north wall.
+        Wall(0, 1);
+        Wall(-1, 0);
+        Wall(1, 0);
+        // A floor over each foundation, on one of its walls.
         foreach (Func<Piece?> slab in new Func<Piece?>[] { () => _f1, () => _f2 })
         {
             _tasks.Enqueue(c =>
             {
-                Piece? s = slab();
-                Piece? north = s == null ? null : walls.FirstOrDefault(w => Near(w.Pose, s.Pose.Position + new Vector3D(0, 0, 1.5)));
-                return north == null ? 0 : Place(c, () => north, new SocketId(SocketKind.Top, 0), "floor", p => Near(p.Pose, s!.Pose.Position));
+                if (slab() is not { } s)
+                {
+                    return 0;
+                }
+                var candidates = new List<PlacementPlan?>();
+                foreach (Piece wall in c.Building!.AllPieces.Where(p => p.Structure == s.Structure && p.Def.Family == PieceFamily.Wall &&
+                    Math.Abs(p.Pose.Position.Y - s.Pose.Position.Y) < 0.5 && (p.Pose.Position - s.Pose.Position).LengthSquared < 2.5 * 2.5))
+                {
+                    candidates.AddRange(Orientations(c, wall, new SocketId(SocketKind.Top, 0), "floor").Where(p => p != null && Near(p.Pose, s.Pose.Position)));
+                }
+                return candidates.Count == 0 ? NotYet : PlaceFirst(c, candidates);
             });
         }
+        Wall(0, -1);
+        _tasks.Enqueue(c =>
+        {
+            _doorway = Found(c, p => p.Def.Key == "doorway");
+            return _doorway != null ? 0 : NotYet;
+        });
         // The door, its lock and code.
         _tasks.Enqueue(c => c.Local.Inventory.Count(c.Content.ItemByKey("wooden-door")) > 0 && _doorway != null
             ? c.Local.PlaceDoor(ContainerRef.Main, SlotOf(c, "wooden-door"), _doorway) : 0);
-        _tasks.Enqueue(c => _doorway?.Door is { } door
+        _tasks.Enqueue(c => _doorway == null ? 0 : _doorway.Door is { } door
             ? c.Local.Inventory.Count(c.Content.ItemByKey("code-lock")) > 0 ? c.Local.AttachLock(ContainerRef.Main, SlotOf(c, "code-lock"), door) : 0
             : NotYet);
-        _tasks.Enqueue(c => _doorway?.Door is { Lock: CodeLock } door ? c.Local.SetCode(door, "1357") : NotYet);
+        _tasks.Enqueue(c => _doorway == null ? 0 : _doorway.Door is { Lock: CodeLock } door ? c.Local.SetCode(door, "1357") : NotYet);
         // Upgrades: the foundations to stone, the walls to wood.
-        _tasks.Enqueue(c => _f1 != null ? c.Local.Upgrade(_f1, 2) : 0);
+        _tasks.Enqueue(c =>
+        {
+            walls.Clear();
+            walls.AddRange(c.Building!.AllPieces.Where(p => p.Structure == _f1!.Structure && p.Def.Key == "wall"));
+            return _f1 != null ? c.Local.Upgrade(_f1, 2) : 0;
+        });
         _tasks.Enqueue(c => _f2 != null ? c.Local.Upgrade(_f2, 2) : 0);
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
         {
             int n = i;
             _tasks.Enqueue(c => n < walls.Count ? c.Local.Upgrade(walls[n], 1) : 0);

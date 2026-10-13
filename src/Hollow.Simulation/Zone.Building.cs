@@ -365,7 +365,10 @@ public sealed partial class Zone
             {
                 return Outcome.Refuse(Refusal.Invalid);
             }
-            if (Vector3.Distance(eye, point) > building.Data.Reach + 1)
+            // The point only says where to look for the ground (across it, near the player); the rules check the
+            // reach to the foundation itself.
+            Vector3 across = point - eye, up = Frame.UpAt(eye);
+            if ((across - up * Vector3.Dot(across, up)).Length() > building.Data.Reach + 1)
             {
                 return Outcome.Refuse(Refusal.TooFar);
             }

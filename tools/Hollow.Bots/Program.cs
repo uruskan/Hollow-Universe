@@ -83,6 +83,7 @@ public static class Program
                 $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building?.PieceCount ?? 0)}"));
             return 0;
         }
+        Console.CancelKeyPress += (_, _) => Console.WriteLine(swarm.BuildProgress);
         while (!stop && elapsed < duration)
         {
             double step = Math.Min(5, duration - elapsed);
@@ -93,6 +94,10 @@ public static class Program
                 $"{elapsed,5:0} s: {swarm.Playing} playing, {swarm.Disconnected} disconnected; per bot {clients.Average(c => c.Stats.KilobitsIn):0.0} kbit/s in, " +
                 $"{clients.Average(c => c.Stats.KilobitsOut):0.0} out, {clients.Average(c => c.Stats.SnapshotsPerSecond):0.0} snapshots/s, " +
                 $"round trip {clients.Average(c => c.Stats.RoundTripMs):0} ms, prediction error {clients.Average(c => c.Stats.PredictionErrorMean) * 1000:0.00} mm"));
+        }
+        if (script == BotScript.Build)
+        {
+            Console.WriteLine($"Building bots: {swarm.BuildProgress}");
         }
         return 0;
     }
