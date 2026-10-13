@@ -516,6 +516,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         StartShips();
         NetId = welcome.NetId;
         EntityId = new EntityId(welcome.EntityId);
+        Local.EntityId = EntityId;
         ServerName = welcome.ServerName;
         InitialYaw = Quantize.FromAngle16(welcome.Yaw);
         InitialPitch = Quantize.FromAngle16(welcome.Pitch);

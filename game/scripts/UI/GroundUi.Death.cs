@@ -120,7 +120,9 @@ public partial class GroundUi
 
     private void PaintDeathMap(Rect2 area, DeathInfo? death)
     {
-        Texture2D picture = DeathMap.Texture;
+        // G7: the zone's parchment map when the model has it (the map screen's), else the survey picture.
+        MapView? view = Model.Map;
+        Texture2D picture = MapTexture(view) ?? DeathMap.Texture;
         var size = new Vector2(area.Size.X * 1.6f, area.Size.X * 1.6f * picture.GetHeight() / picture.GetWidth());
         size.Y = Math.Max(size.Y, area.Size.Y);
         Vector2 focus = death != null ? new Vector2(death.MapX, death.MapY) : new Vector2(0.5f, 0.5f);
@@ -133,8 +135,9 @@ public partial class GroundUi
         _p.DrawTextureRectRegion(picture, area, new Rect2((area.Position - origin) / size * texture, area.Size / size * texture));
         _hits.Add(new Hit(area, HitKind.Map));
 
-        // Grid lines and labels every 230 design pixels of the map, lettered across and numbered down.
-        float cell = Ui.Px(230);
+        // Grid lines and labels every 230 design pixels of the map (the zone map's own cells when it is drawn), lettered
+        // across and numbered down.
+        float cell = view != null && picture != DeathMap.Texture ? size.X / view.Cells : Ui.Px(230);
         var line = new Color(0.1f, 0.1f, 0.1f, 0.35f);
         int first = (int)MathF.Floor((area.Position.X - origin.X) / cell), top = (int)MathF.Floor((area.Position.Y - origin.Y) / cell);
         for (int column = first; origin.X + column * cell < area.End.X; column++)

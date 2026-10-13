@@ -63,6 +63,9 @@ public sealed record ServerOptions
 
     public string RaidBasePrefix { get; init; } = "bot";
 
+    /// <summary>G7: the world's barrels, crates and recyclers stand in the zone (GROUND.md §6.8).</summary>
+    public bool World { get; init; } = true;
+
     /// <summary>Where raid alerts for players offline are pushed (a phone app, later); null: nowhere.</summary>
     public Notifications.IPushChannel? Push { get; init; }
 

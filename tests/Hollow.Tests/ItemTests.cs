@@ -111,7 +111,10 @@ public static class ItemTests
         Assert.Equal(500, inv.Count(C.ItemByKey("wood")), "nothing taken");
         Assert.Equal(ActionResult.Accepted, queue.Start(C, inv, hatchet.Id, 2, 0, out uint ticket), "two");
         Assert.True(inv.Count(C.ItemByKey("wood")) == 100 && inv.Count(C.ItemByKey("stone")) == 100, "ingredients for both taken");
-        Assert.Equal(ActionResult.NeedsWorkbench, queue.Start(C, inv, C.ItemByKey("metal-hatchet").Id, 1, 0, out _), "needs a bench");
+        Assert.Equal(ActionResult.UnknownRecipe, queue.Start(C, inv, C.ItemByKey("metal-hatchet").Id, 1, 0, out _), "a blueprint to learn first (G7)");
+        var known = new BlueprintBook();
+        known.Learn(C.Recipe(C.ItemByKey("metal-hatchet").Id)!);
+        Assert.Equal(ActionResult.NeedsWorkbench, queue.Start(C, inv, C.ItemByKey("metal-hatchet").Id, 1, 0, out _, known), "then a bench");
         Assert.Equal(ActionResult.Invalid, queue.Start(C, inv, 9999, 1, 0, out _), "no such recipe");
 
         int unit = hatchet.UnitTicks;

@@ -15,6 +15,12 @@ public enum GroundScreen
     Crafting,
     Death,
     Menu,
+
+    /// <summary>G7: the zone's map with the markers and the team (G, as in Rust).</summary>
+    Map,
+
+    /// <summary>G7: the tech tree of the workbench in reach.</summary>
+    TechTree,
 }
 
 /// <summary>
@@ -123,7 +129,15 @@ public partial class GroundUi : Control
         _chat.PlaceholderText = "Say something";
         _chat.TextSubmitted += text =>
         {
-            Model.Say(text);
+            // G7: "/t " (or "/team ") says it to the team alone.
+            if (text.StartsWith("/t ", StringComparison.OrdinalIgnoreCase) || text.StartsWith("/team ", StringComparison.OrdinalIgnoreCase))
+            {
+                Model.SayTeam(text[(text.IndexOf(' ') + 1)..].Trim());
+            }
+            else
+            {
+                Model.Say(text);
+            }
             CloseChat();
         };
         LoadPreferences();
@@ -291,7 +305,7 @@ public partial class GroundUi : Control
         Place(_port, entry, LeftFrame, 1333, 561, 118, 45);
         Place(_chat, _chat.Visible, LeftFrame, 20, 806, 440, 32);
         bool wheel = Wheel != null && Screen == GroundScreen.Hud, menu = Screen == GroundScreen.Menu;
-        _blur.Visible = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.Menu || wheel;
+        _blur.Visible = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.Menu or GroundScreen.TechTree || wheel;
         _blurMaterial.SetShaderParameter("blur", wheel ? 1.6f : menu ? 3.2f : 2.5f);
         // RustMVP: the inventory darkens the blurred world by 14 %; a wheel only blurs it (its own 26 % veil is painted).
         _blurMaterial.SetShaderParameter("dim", wheel ? 1f : menu ? 0.42f : 0.86f);
@@ -403,7 +417,10 @@ public partial class GroundUi : Control
             case Key.Escape when Wheel != null:
                 CloseWheel(false);
                 break;
-            case Key.Escape when Screen is GroundScreen.Inventory or GroundScreen.Crafting:
+            case Key.G when Screen is GroundScreen.Hud or GroundScreen.Map && Wheel == null:
+                ToggleMap();
+                break;
+            case Key.Escape when Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.Map or GroundScreen.TechTree:
                 Open(GroundScreen.Hud);
                 break;
             case Key.Escape when Screen is GroundScreen.Hud or GroundScreen.Death:
@@ -472,7 +489,10 @@ public partial class GroundUi : Control
     {
         if (button is MouseButton.WheelUp or MouseButton.WheelDown)
         {
-            ScrollRecipes(button == MouseButton.WheelDown ? 1 : -1);
+            if (!ZoomMap(button == MouseButton.WheelUp ? -1 : 1))
+            {
+                ScrollRecipes(button == MouseButton.WheelDown ? 1 : -1);
+            }
             return;
         }
         if (Wheel != null)
@@ -497,6 +517,11 @@ public partial class GroundUi : Control
             PressInventory(h, button);
             return;
         }
+        if (h.Kind == HitKind.Map && Screen == GroundScreen.Map)
+        {
+            PressMap(button);
+            return;
+        }
         if (h.Kind == HitKind.Map && button == MouseButton.Left)
         {
             GrabMap(true);
@@ -514,6 +539,10 @@ public partial class GroundUi : Control
         if (button == MouseButton.Left)
         {
             GrabMap(false);
+        }
+        if (Screen == GroundScreen.Map)
+        {
+            ReleaseMap(button);
         }
         if (Wheel != null && button == MouseButton.Right)
         {

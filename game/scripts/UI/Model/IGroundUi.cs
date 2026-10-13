@@ -128,4 +128,68 @@ public interface IGroundUi
     void CloseLoot();
 
     void Say(string text);
+
+    // ---------------------------------------------------------------- G7: the map, tech trees, teams (GROUND.md §6.8)
+    // Default members, so a model that doesn't have these yet (the build sandbox's, the menu's) keeps compiling.
+
+    /// <summary>The zone's map picture, or null (the map screen then says it isn't ready).</summary>
+    MapView? Map => null;
+
+    /// <summary>What the map shows: the player, teammates, the last death, bags and beds, the player's markers.</summary>
+    IReadOnlyList<MapMarkerView> MapMarkers => Array.Empty<MapMarkerView>();
+
+    /// <summary>How many markers the player may put down.</summary>
+    int MaxMarkers => 5;
+
+    /// <summary>Puts a marker on the map at a point (0–1 across and down) with a colour (0–5) and a label.</summary>
+    void PlaceMarker(float x, float y, int colour, string label)
+    {
+    }
+
+    /// <summary>Takes one of the player's markers off the map (its index; −1: all).</summary>
+    void RemoveMarker(int index)
+    {
+    }
+
+    /// <summary>The tech tree of the workbench in reach, or null.</summary>
+    TechTreeView? TechTree => null;
+
+    /// <summary>Unlocks a tech tree node (its item key) for its salvage.</summary>
+    void Unlock(string key)
+    {
+    }
+
+    /// <summary>The player's team, or null; the invites waiting for them.</summary>
+    TeamInfo? Team => null;
+
+    IReadOnlyList<TeamInviteInfo> TeamInvites => Array.Empty<TeamInviteInfo>();
+
+    void CreateTeam()
+    {
+    }
+
+    void LeaveTeam()
+    {
+    }
+
+    void AcceptInvite(string team)
+    {
+    }
+
+    void DeclineInvite(string team)
+    {
+    }
+
+    void KickFromTeam(string member)
+    {
+    }
+
+    void PromoteInTeam(string member)
+    {
+    }
+
+    /// <summary>Says a line to the player's team alone.</summary>
+    void SayTeam(string text)
+    {
+    }
 }
