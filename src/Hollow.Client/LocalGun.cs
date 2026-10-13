@@ -36,9 +36,12 @@ public readonly record struct GunRefusal(uint Seq, GunResult Result);
 /// ever corrected.
 /// <para>
 /// <b>The camera and the mouse.</b> Recoil is an offset on the camera, never on the view the player controls (which goes
-/// to the server clean; the server adds the recoil itself). Each frame: add <see cref="ViewKick"/> to the camera; pass
-/// the mouse's turn to <see cref="ObserveLook"/> and add what <see cref="TakeCompensation"/> returns to the controlled
-/// view, so when the recoil recovers, what the player pulled against it is given back (RustMVP's countersteer credit).
+/// to the server clean; the server adds the recoil itself). Each frame, after <see cref="GameClient.Update"/> (RustMVP's
+/// order: settle the recoil, then the mouse, then the camera): add what <see cref="TakeCompensation"/> returns to the
+/// controlled view, so when the recoil recovers, what the player pulled against it is given back (RustMVP's countersteer
+/// credit); pass the mouse's turn since the last frame to <see cref="ObserveLook"/>; then draw the camera at the
+/// controlled view plus <see cref="ViewKick"/>, exactly (no smoothing, no scale: field of view and sensitivity don't
+/// change recoil angles).
 /// </para>
 /// Call from the thread that calls <see cref="GameClient.Update"/>.
 /// </summary>
@@ -153,7 +156,10 @@ public sealed class LocalGun
         _wantAmmo = ammo?.Id ?? 0;
     }
 
-    /// <summary>The mouse turned the view this frame by these (radians, yaw + to the left): it earns credit against the recoil.</summary>
+    /// <summary>
+    /// The mouse turned the view by these since the last frame (radians, yaw + to the left; the pitch as it changed after
+    /// its clamp): turning against the recoil showing now earns credit, at most that recoil per axis.
+    /// </summary>
     public void ObserveLook(float deltaYaw, float deltaPitch)
     {
         if (Weapon is not { } gun)
@@ -164,14 +170,15 @@ public sealed class LocalGun
         _credit.Observe(deltaPitch * DMath.RadToDeg, -deltaYaw * DMath.RadToDeg, r.Pitch, r.Yaw);
     }
 
-    /// <summary>What to add to the controlled view this frame (radians) as the recoil the player pulled against recovers.</summary>
+    /// <summary>
+    /// What to add to the controlled view this frame (radians) as the recoil the player pulled against recovers, up to the
+    /// render tick the camera's <see cref="ViewKick"/> is sampled at (so the two agree in the same frame).
+    /// </summary>
     public (float Yaw, float Pitch) TakeCompensation()
     {
         if (Weapon is { } gun)
         {
-            (double pitch, double yaw) = _credit.Recover(Recoil.Retained(_state.Recoil, gun, _renderTick));
-            _owed.Pitch += pitch;
-            _owed.Yaw += yaw;
+            Owe(_credit.Recover(Recoil.Retained(_state.Recoil, gun, _renderTick)));
         }
         (double p, double y) = _owed;
         _owed = default;
@@ -285,6 +292,8 @@ public sealed class LocalGun
         {
             _armed = false;
         }
+        // RustMVP: the credit the recovering recoil owes up to this shot is given back before the new kick starts afresh.
+        Owe(_credit.Recover(Recoil.Retained(before.Recoil, gun, tick)));
         _credit.BeginKick();
         _player.Touch();
         ShotFired?.Invoke(new ShotEvent(context.Seq, gun.Item, shot.Round, shot.Origin, shot.Direction, shot.Speed, shot.Mods.Silenced, aim));
@@ -355,6 +364,12 @@ public sealed class LocalGun
     private void Replay()
     {
         FirearmStats? gun = _player.Content.Item(_state.Item)?.Firearm;
+        if (gun != null)
+        {
+            // RustMVP RebuildLocalRecoil: first settle what the old prediction owes up to now, so the rebase neither
+            // replays the mouse nor gives credit back twice.
+            Owe(_credit.Recover(Recoil.Retained(_state.Recoil, gun, _renderTick)));
+        }
         uint next = _state.LastSeq;
         _state = _server;
         _state.LastSeq = Math.Max(next, _server.LastSeq);
@@ -389,9 +404,7 @@ public sealed class LocalGun
         {
             FinishReload(gun);
         }
-        (double pitch, double yaw) = _credit.Rebase(Recoil.Retained(_state.Recoil, gun, _renderTick));
-        _owed.Pitch += pitch;
-        _owed.Yaw += yaw;
+        Owe(_credit.Rebase(Recoil.Retained(_state.Recoil, gun, _renderTick)));
     }
 
     private void FinishReload(FirearmStats gun)
@@ -413,9 +426,14 @@ public sealed class LocalGun
         _loadedAmmo = stack.LoadedAmmo;
         _taken = 0;
         _armed = true;
-        (double pitch, double yaw) = _credit.Clear();
-        _owed.Pitch += pitch;
-        _owed.Yaw += yaw;
+        Owe(_credit.Clear());
+    }
+
+    // Credit the recoil gave back, for the next TakeCompensation.
+    private void Owe((double Pitch, double Yaw) released)
+    {
+        _owed.Pitch += released.Pitch;
+        _owed.Yaw += released.Yaw;
     }
 
     /// <summary>A new life, or none: nothing in hand, nothing pending.</summary>

@@ -86,7 +86,7 @@ public sealed class CodeLock : DoorLock
 /// upgraded. Its leaves swing on the hinges from the kit's assembly manifest; open or shut they collide, so an open
 /// door still blocks (RustMVP's rule).
 /// </summary>
-public sealed class Door
+public sealed class Door : IBuildingPart
 {
     internal uint[] Bodies;
 
@@ -122,6 +122,9 @@ public sealed class Door
     public DoorLock? Lock { get; internal set; }
 
     public bool Gone { get; internal set; }
+
+    /// <summary>The claim device of its frame's structure, or null.</summary>
+    public ClaimDevice? Base => Frame.Structure?.Claim;
 
     /// <summary>Its leaves' Jolt body IDs.</summary>
     public IReadOnlyList<uint> BodyIds => Bodies;
@@ -328,7 +331,7 @@ public sealed partial class BuildingWorld
         return Outcome.Done;
     }
 
-    internal void RemoveDoor(Door door)
+    internal void RemoveDoor(Door door, Removal reason = Removal.Taken)
     {
         if (door.Gone)
         {
@@ -342,7 +345,7 @@ public sealed partial class BuildingWorld
         }
         door.Frame.Door = null;
         door.Lock = null;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorRemoved, door.Frame, door, Structure: door.Frame.Structure, Removal: _removal));
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorRemoved, door.Frame, door, Structure: door.Frame.Structure, Removal: reason));
     }
 
     /// <summary>Fits a key lock (unlocked) to a door without one; needs building rights at the door.</summary>
@@ -564,10 +567,7 @@ public sealed partial class BuildingWorld
         bool destroyed = door.Health <= 0;
         if (destroyed)
         {
-            using (Removing(BuildingRemoval.Destroyed))
-            {
-                RemoveDoor(door);
-            }
+            RemoveDoor(door, Removal.Destroyed);
         }
         else
         {

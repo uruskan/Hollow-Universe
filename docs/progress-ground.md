@@ -336,3 +336,111 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   Pictures: `docs/images/ground/play/f1-console.jpg`, `f1-info.jpg`, `f1-net.jpg`, `f1-items.jpg`, `f1-tools.jpg`.
   Protocol 11; the console's tests (parsing, completion, a non-admin refused, give, teleport, spawn, kill and time over
   the network, god and noclip against the prediction) pass with the rest.
+
+## 13 October 2026, dropped items lie in bags (owner's playtest)
+
+- **Bags** (`ground-drop`, GROUND.md §6.1, decisions U1–U7), for the owner's finding that a dropped Tin Finch lay on the
+  ground as a full-size ship. Everything that lands on the ground now lies in a small bag: one function
+  (`Zone.Spill`) packs whatever lands within 1.5 m of a bag with room into it, else starts a bag where it comes to rest,
+  and every source calls it: drops, crafts, refunds and gifts that don't fit, broken boxes, furnaces, barrels and claim
+  devices, a broken research table's work, spent arrows. A bag has 48 slots, lasts 300 s from its newest item, rests on
+  the floor it lands on (not the terrain under a base) and goes once emptied; E takes a bag of one stack whole and opens
+  one holding more (take only, the rows it fills). Others see only a bag and its number of stacks.
+- **Our own model** (`dropped-bag`): a burlap sack gathered into a neck with a wound cord, two corners standing out of
+  the knot, a leather strap with a buckle round its belly. Pictures: `docs/images/ground/drop/bag.jpg`, `bag-open.jpg`,
+  `bag-model.jpg` (new screenshot step `--tour-steps bags`).
+- **Shared code made generic on the way:** bodies and bags are one `DroppedContainer`; what clients are told of a thing
+  (health, count, burning, whose, name) is the thing's own; how a container is looted follows its kind; the copies of
+  "give, drop the rest" are one `GiveOrDrop`. Bots open the bags they find and take what they want.
+- Protocol 12, the things' record version 3 (old dropped stacks load as bags; no SQL step), survival.json's `bag`;
+  models.json's unused `drop.scale` went. 166 of 166 tests pass (three new: packing, taking or opening, and what
+  another player sees over the network).
+- **Not done:** deploying the Tin Finch from its item (the other half of this package) was stopped by the owner's new
+  rule: placement (deployables, doors, locks, the claim device, charges, building pieces and the ship) will be one
+  system, designed with the owner first. No ship-deploy code was written.
+
+## 13 October 2026, gathering's feedback
+
+- **The owner's playtest: "no feedback other than the sound"** when hitting trees and outcrops (`ground-gather`,
+  GROUND.md §6.1, §9.3, decisions H1–H14). In the real game the effects did play, but at a guessed point 1.1 m up on the
+  side facing the local player, mostly away from the crosshair, with small chips thrown at the camera; the weak spot was
+  a small orange ball that floated beside broken outcrops; a felled tree paid nothing for falling; and walking into an
+  area replayed its old hits, felled trees falling again.
+- **One data-driven rule and look per class**: gather.json's `classes` (tool rate, weak spot, last hit, look; kinds
+  replace parts of the look), read by `NaturalState.Hit` and the client's `NatureView` and `NatureMarkers`.
+- **Trees: Rust's X.** A red painted X (a decal on the bark, our own texture) shows with the first hit, facing the
+  player near the hit's height; hits on it in a row pay and take 1.125, 1.25 … up to 2 times and move it; a miss ends
+  the run and leaves it. The tree's crown shakes at each hit; felled, it tips away, lands in its dust with the crash
+  in time, lies and sinks, and pays half its wood as it falls (Rust, November 2017).
+- **Outcrops: Rust's hotspot.** A warm glow with a pulsing glint and sparks on the rock itself at every stage (the
+  stage models' tops measured by the new `--view models --survey-surfaces` into surfaces.json); hits on it pay 150%,
+  200%, 250%, at most 300%; the outcrop gives the same ore in under half the hits; the last hit with a pickaxe pays 20%
+  more (Devblog 166). Each stage breaks with a burst and its sound.
+- **Every hit plays where it landed**, for everyone in range: protocol 13 sends the point where the swing met the
+  drawn surface, the run of spot hits and how fresh the hit is, so old hits never replay.
+- Checked once in the hosted game (the tour's `chop` and `mine` steps on a pine and a metal outcrop): wood per hit
+  rising with X hits, the felling hit 84 wood, the outcrop at its last stage in 4 hotspot hits. The nature view cost
+  52 µs a frame on average. Pictures: `docs/images/ground/gather/`. 173 of 173 tests pass with `ground` merged (seven
+  new: the X, the hotspot, the fall's share, the pickaxe's bonus, spots on the drawn rock, the looks' references, hits
+  over the network). Protocol 13.
+
+## 13 October 2026, the recoil and the damage code (`ground-damage`)
+
+After the owner's first playtest: "the AK doesn't use the recoil pattern exactly from RustMVP", and is the weapon and
+damage code as modular as RustMVP's foundation planned?
+
+- **The recoil is RustMVP's exactly** (GROUND.md §6.4, D1–D5). Checked field by field against RustMVP's
+  `weapon_definition.hpp`, `weapon_rules.hpp` and `recoil_compensation.hpp`. Two things were ours, both gone:
+  - a random part on every kick (hollow-orbit's ±12% and ±0.66° on the pistol, ±0.06° a step on the AK);
+  - a smaller kick aimed (×0.78) and crouched (×0.85). RustMVP's aiming narrows the spread only.
+
+  The 30 steps, their order, the 0.1 s kick, 0.2 s hold, 0.08 s smoothstep return, the reset after 0.4 s, the limits,
+  the zero tail, the 60/450 s cadence and sampling before the kick were already RustMVP's. The countersteer credit now
+  runs in RustMVP's order each frame (settle, mouse, camera; before, it came a frame late), and a shot or a correction
+  settles it first. The rocket launcher keeps its own kick, deterministic too; muzzle attachments still scale it.
+  A new test sprays the AK twice (at the hip; aimed and crouched): every view before a shot is on RustMVP's table, on
+  the client's prediction and the server, to the bit.
+- **One damage pipeline** (GROUND.md §6.4.2, D6–D11), RustMVP's plan and the owner's rule (no switch that grows with
+  every new target):
+  - every delivery (swing, arrow, bullet, blast, an animal's attack) builds one request and calls `Zone.Damage`;
+  - each kind of thing is a receiver, registered in one place, that finds its own things along a ray and in a blast and
+    applies its own defences and consequences;
+  - a new damageable thing is one receiver and one line.
+
+  Every number stayed the same: no test changed for it.
+- **The Destroyed event**: whatever breaks, collapses, decays, is demolished or wrecked is reported once, from one
+  place, with its kind, ID, model key (a piece's grade), where it stood, the blow's direction, the cause, who and with
+  what. It reaches clients in range as `GameClient.Destroyed` (message 165, protocol 14), for the break-apart pieces
+  `ground-gibs` is making. The building rules now say why they took a piece away.
+- **The audit** against RustMVP's FOUNDATION.md and damage plan is in GROUND.md §6.4.2: what is done, what is ours on
+  purpose (engine-free rules shared by server and client instead of Unreal and GAS), what is left (one channel an
+  attack, environmental damage straight to health, no armour wear or penetration, the network's message dispatch).
+- Load tests before and after, back to back on the same busy PC: gunfight tick 6.35 → 5.49 ms on average, raid 7.17
+  → 7.75 ms with a fifth more bullets in the second run; a bullet's step 29.0 → 27.4 µs and 16.6 → 16.5 µs, blasts 0.095
+  → 0.087 ms a tick. No regression beyond the PC's noise (four other agents were working on it).
+- No Godot run: nothing drawn changed (the camera's recoil angles are computed in the same frame, in a new order). 166
+  tests pass: the 163 that existed (the recoil test updated for D1) and three new.
+
+## 13 October 2026, the playtest's looking, hands and foundations
+
+- **Free look** (`ground-look`, GROUND.md §4.5, L2–L6): hold Left Alt and the mouse turns the camera and the head, up
+  to 120° either side and within ±85° of level, while the view, the walk and the aim stay put; letting go, or any screen
+  that shows the cursor, turns the camera back at once. The hands do nothing while it lasts (no shots, swings,
+  placing, throwing, reloading or turning a piece): one place now decides what the item in hand does (`GroundView.Hands`,
+  from the item's data, `ItemDef.Hands`). The arms stay with the body, so they slide out of the picture as the head
+  turns. Others see the head turn and ease back (two bytes on every input and on a character's state; the server bounds
+  them and lets go after 0.8 s without input). In the Tin Finch's cockpit Alt turns the pilot's head. Protocol 15.
+- **The rock in hand** (§4.8, L7–L10): it was held like a hatchet handle, the fist closed inside the rock and the palm a
+  pale blob behind it. It now lies in the right hand at the lower right, the fingers round its far side, and swings from
+  the wrist. How a hand holds an item became data (`held.grip` in models.json); the bandage and the grenade are held the
+  same way and food lies on the open palm. A contact sheet of all 40 held items showed food, locks, the plan, charges and
+  spears sitting below the bottom of the picture (their poses were set for a wider view): all are in view now.
+  Pictures: `docs/images/ground/look/fp-rock-before.png`, `fp-rock-after.png`, `game-rock.jpg`, `fp-held-items.jpg`.
+- **Free foundations rise with the aim** (§6.3, L1), as RustMVP's did: within 3.5 m the foundation sits where the aim
+  meets the ground; aimed further, the aim's height 3.5 m out lifts its top, up to its depth over the lowest ground
+  under it, always valid where the slope leaves room. The ghost and the server work it out from the same point.
+  Pictures: `docs/images/ground/build/foundation-lifted.png`, `docs/images/ground/look/game-foundation-lifted.jpg`.
+- Checked once each: the sandbox's build check (9 of 9), the hosted game's new `look` tour step (rock, free look
+  through Alt and the mouse, a lifted foundation) and the character viewer (a head turned, every held item). New
+  tests: free look over the network, free foundations on a slope, the catalogue's grips; with `ground` merged (protocol
+  13 after the bags' 12), 168 of 168 tests pass.

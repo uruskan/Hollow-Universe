@@ -47,20 +47,53 @@ public sealed class GibSet
 }
 
 /// <summary>
-/// The gib sets (GROUND.md §9.4) by model key and part, from the files the model catalogue names
-/// (<c>models.json</c>: an entry's <c>gibs</c>): a whole model's pieces are its file's top nodes, a kit's are grouped
-/// under a node per part. Files load once (threaded when asked ahead by <see cref="Request"/>) and are read on the main
-/// thread the first time a set is wanted, or all at once by <see cref="Prepare"/> while a world opens.
+/// The gib sets (GROUND.md §9.4), found by what the Destroyed event names: a key and a grade. A whole model answers to its
+/// catalogue key at any grade (a deployable's, a prop's, the claim device's, an outcrop's); a kit's part to its own key
+/// (a building piece's, a door's), at the kit's grade when it has one (a grade's kit) or at any (a door kit). All from the
+/// files the model catalogue names (<c>models.json</c>: an entry's <c>gibs</c>): a whole model's pieces are its file's top
+/// nodes, a kit's are grouped under a node per part. Files load once (threaded when asked ahead by <see cref="Request"/>)
+/// and are read on the main thread the first time a set is wanted, or all at once by <see cref="Prepare"/>.
 /// </summary>
 public static class GibLibrary
 {
     private static readonly Dictionary<string, Dictionary<string, GibSet>> _files = new(StringComparer.Ordinal);
     private static readonly HashSet<string> _requested = new(StringComparer.Ordinal);
+    private static readonly Dictionary<(string Key, int Grade), GibSet?> _found = new();
 
     /// <summary>The 14 directions the hull points are taken along: the axes and the diagonals.</summary>
     private static readonly Vector3[] Directions = BuildDirections();
 
-    /// <summary>The set a model breaks into (<paramref name="part"/>: a kit's part, empty for a whole model), or null if it has none.</summary>
+    /// <summary>
+    /// The set something breaks into, by the key and grade the Destroyed event names it with (a grade matters only to a
+    /// grade's kit), or null when it has none.
+    /// </summary>
+    public static GibSet? Find(string key, int grade)
+    {
+        if (_found.TryGetValue((key, grade), out GibSet? known))
+        {
+            return known;
+        }
+        GibSet? set = null;
+        if (ModelCatalog.Find(key) is { Gibs: { } whole } entry && !entry.IsKit)
+        {
+            Read(whole).TryGetValue("", out set);
+        }
+        foreach (ModelEntry e in ModelCatalog.Entries)
+        {
+            if (set != null)
+            {
+                break;
+            }
+            if (e.IsKit && e.Gibs is { } kit && (kit.Grade == null || kit.Grade == grade))
+            {
+                Read(kit).TryGetValue(key, out set);
+            }
+        }
+        _found[(key, grade)] = set;
+        return set;
+    }
+
+    /// <summary>The set of a catalogue entry itself (<paramref name="part"/>: a kit's part, empty for a whole model).</summary>
     public static GibSet? Get(string model, string part)
     {
         if (ModelCatalog.Find(model) is not { Gibs: { } gibs })

@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using Hollow.Core;
+using Hollow.Simulation.Building;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
-using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.World;
 
@@ -146,85 +146,117 @@ public sealed partial class Zone
         return best;
     }
 
-    // ---------------------------------------------------------------- dropped items
-
-    /// <summary>
-    /// Drops a stack in front of a character: it lands on the ground there (GROUND.md §6) and stays until picked up or
-    /// <c>droppedItemSeconds</c> pass.
-    /// </summary>
-    public DroppedItem Drop(Entity by, ItemStack stack)
-    {
-        ref Character c = ref Entities.Get<Character>(by);
-        Vector3 up = Frame.UpAt(c.State.Position);
-        (Vector3 forward, Vector3 right) = CharacterMotor.HorizontalBasis(c.Input.Yaw, up);
-        // A little scatter so several drops don't stack on one point.
-        var rng = new Rng(Hash64.Of((ulong)Tick, (ulong)_localIds, 0xD0));
-        Vector3 at = c.State.Position + forward * 0.7f + right * (float)rng.Range(-0.25, 0.25);
-        return DropAt(at, stack, c.Input.Yaw);
-    }
-
-    /// <summary>A stack lying on the ground at a point.</summary>
-    public DroppedItem DropAt(Vector3 point, ItemStack stack, float yaw = 0)
-    {
-        Vector3 ground = Settle(point);
-        var item = new DroppedItem(NextId(), stack, ground, Frame.UpAt(ground), yaw,
-            Tick + (long)(Content!.Survival.DroppedItemSeconds * CharacterMotor.TickRate));
-        AddStatic(item);
-        return item;
-    }
-
-    private void DropAll(Entity by, List<ItemStack> stacks)
-    {
-        foreach (ItemStack s in stacks)
-        {
-            if (!s.IsEmpty)
-            {
-                Drop(by, s);
-            }
-        }
-    }
-
     // ---------------------------------------------------------------- deployables
 
     /// <summary>
-    /// Damage to a deployable (melee, arrows, bullets, blasts): at 0 it breaks, its contents spill and it is reported
-    /// destroyed by <paramref name="blow"/> (GROUND.md §9.4).
+    /// Damage to a deployable (tests, the admin's tools): a blow of <paramref name="amount"/> through the deployables'
+    /// receiver, with no hit marker; at 0 it breaks and its contents spill, in one bag.
     /// </summary>
-    public void DamageDeployable(Deployable d, float amount, in Blow blow = default)
+    public void DamageDeployable(Deployable d, float amount) => Damage(new DamageRequest
+    {
+        AttackerName = "",
+        Delivery = DamageDelivery.Melee,
+        Channel = DamageType.Melee,
+        Amounts = new DamageAmounts { Structure = amount },
+        Direct = true,
+        Hit = new TraceHit { Target = HitTarget.Deployable, Deployable = d, Point = d.Centre },
+        Markers = HitTargets.None,
+    });
+
+    /// <summary>
+    /// The deployables' receiver (GROUND.md §6.4.2): placed things and the world's props, found by their boxes. No
+    /// defences but this: crates and recyclers can't be broken (Rust's). Every blow takes its structure damage off their
+    /// health (a claim device's box passes it to the building rules); at 0 one breaks: what it held spills in one bag,
+    /// a research table gives back its work, a barrel goes until its respawn, and it is reported destroyed.
+    /// </summary>
+    private sealed class DeployableReceiver(Zone zone) : IDamageReceiver
+    {
+        public HitTarget Kind => HitTarget.Deployable;
+
+        public bool Keeps => false;
+
+        public void Raycast(in RayQuery ray, ref TraceHit best)
+        {
+            Vector3 end = ray.Origin + ray.Direction * ray.Length;
+            zone._traceThings.Clear();
+            zone.DeployablesNear((ray.Origin + end) / 2, ray.Length / 2 + 2f, zone._traceThings);
+            foreach (Deployable d in zone._traceThings)
+            {
+                (Vector3 right, Vector3 forward) = Geometry.Axes(d.Up, d.Yaw);
+                float t = Geometry.RayBox(ray.Origin, ray.Direction, ray.Length, d.Centre, d.Def.HalfExtents + new Vector3(ray.Thickness), right, d.Up, forward);
+                ray.Consider(ref best, t, HitTarget.Deployable, new TraceHit { Deployable = d });
+            }
+        }
+
+        public void InReach(in BlastQuery blast, List<BlastTarget> into)
+        {
+            zone._blastThings.Clear();
+            zone.DeployablesNear(blast.At, blast.Radius + 2f, zone._blastThings);
+            foreach (Deployable d in zone._blastThings)
+            {
+                // A claim device's box is the building's (its receiver finds it).
+                if (d.Health <= 0 || zone.ClaimOf(d) != null)
+                {
+                    continue;
+                }
+                Vector3 point = ClosestPoint(d, blast.At);
+                float distance = Vector3.Distance(point, blast.At);
+                bool stuck = d == blast.StuckTo;
+                if (distance <= blast.Radius || stuck)
+                {
+                    into.Add(new BlastTarget
+                    {
+                        Hit = new TraceHit { Target = HitTarget.Deployable, Deployable = d, Point = point }, Thing = d, Sight = point, Sight2 = d.Centre,
+                        Self = d, Distance = stuck ? 0 : distance, Stuck = stuck,
+                    });
+                }
+            }
+        }
+
+        public DamageOutcome Receive(in DamageRequest r)
+        {
+            Deployable d = r.Hit.Deployable!;
+            float amount = r.Amounts.Structure;
+            float before = d.Health;
+            bool broke = zone.HurtDeployable(d, amount);
+            return new DamageOutcome(true, amount, Math.Max(0, before - Math.Max(0, d.Health)), broke, false, d.Id);
+        }
+    }
+
+    // The deployables' consequences: true when it broke.
+    private bool HurtDeployable(Deployable d, float amount)
     {
         if (amount <= 0 || d.Health <= 0 || d is WorldProp { Prop.Breakable: false })
         {
-            return; // crates and recyclers can't be broken (Rust's)
+            return false; // crates and recyclers can't be broken (Rust's)
         }
         if (ClaimOf(d) is { } claim)
         {
             // A claim device takes its damage through the building rules (Zone.Building.cs).
-            DamageBuilding(claim, blow.Direction, amount, projectile: false, blow);
-            return;
+            DamageBuilding(claim, Vector3.Zero, amount, projectile: false);
+            return false;
         }
         d.Health -= amount;
         d.Revision++;
         if (d.Health > 0)
         {
-            return;
+            return false;
         }
+        // Its body goes first, so what it held comes to rest where it stood (on the floor under a box, not its lid).
+        RemoveStatic(d);
+        Vector3 at = d.Position + d.Up * 0.3f;
         if (d.Storage != null)
         {
-            for (int i = 0; i < d.Storage.Size; i++)
-            {
-                if (!d.Storage[i].IsEmpty)
-                {
-                    DropAt(d.Position + d.Up * 0.3f, d.Storage[i]);
-                }
-            }
+            Spill(at, d.Storage, d.Yaw);
         }
-        SpillResearch(d);
-        ReportDestroyed(HitTarget.Deployable, d.Id, d.Model, blow);
-        RemoveStatic(d);
+        SpillResearch(d, at);
         if (d is WorldProp prop)
         {
             PropGone(prop); // a barrel's loot lies on the ground; the barrel comes back on its timer (G7)
         }
+        Destroyed(HitTarget.Deployable, d is WorldProp ? DestroyedKind.Prop : DestroyedKind.Deployable, d.Id, d is WorldProp p ? p.Prop.Key : d.Def.Key, 0,
+            d.Position, Geometry.Upright(Frame.UpAt(d.Position), d.Yaw));
+        return true;
     }
 
     // Campfires and furnaces (GROUND.md §6): a lit one burns a unit of fuel every fuel.seconds, leaving its by-product
@@ -350,21 +382,25 @@ public sealed partial class Zone
 
     // ---------------------------------------------------------------- timers
 
-    // Dropped items and corpses despawn on world time (it pauses while the server is down); empty corpses go at once.
+    // Bags of dropped items and bodies despawn on world time (it pauses while the server is down), and go once emptied;
+    // a bag a looter took from tells others how many stacks it still holds.
     private void StepDespawns()
     {
         _expiredThings.Clear();
         ComponentPool<StaticLink> pool = Entities.Pool<StaticLink>();
         for (int i = 0; i < pool.Count; i++)
         {
-            switch (pool.Values[i].Object)
+            if (pool.Values[i].Object is not DroppedContainer dropped)
             {
-                case DroppedItem item when Tick >= item.DespawnTick || item.Stack.IsEmpty:
-                    _expiredThings.Add(item);
-                    break;
-                case Corpse corpse when Tick >= corpse.DespawnTick || corpse.Loot.IsEmpty:
-                    _expiredThings.Add(corpse);
-                    break;
+                continue;
+            }
+            if (dropped.Expired(Tick))
+            {
+                _expiredThings.Add(dropped);
+            }
+            else
+            {
+                dropped.PublishChanges();
             }
         }
         foreach (WorldObject thing in _expiredThings)

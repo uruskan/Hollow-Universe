@@ -151,7 +151,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             switch (Me.LootKind)
             {
                 case LootKind.Crate:
-                    return new LootView(UiContainerKind.Crate, (thing?.Prop(C)?.Name ?? "Crate").ToUpperInvariant(), LootSlots());
+                    // Take only: a world crate or a bag of dropped items, by the name the server gives it.
+                    return new LootView(UiContainerKind.Crate, (thing?.Name ?? "").ToUpperInvariant(), LootSlots());
                 case LootKind.Device when thing?.Deployable(C)?.Recycler != null:
                     return Recycler(thing!);
                 case LootKind.Device when thing?.Deployable(C) is { Research: { } research } table:

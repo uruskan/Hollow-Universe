@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using Godot;
-using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 
 namespace HollowUniverse.Gibs;
 
@@ -23,7 +23,7 @@ public static class GibCatalog
 
     private static bool _loaded;
     private static readonly Dictionary<string, GibMaterial> _materials = new(StringComparer.Ordinal);
-    private static readonly GibCause[] _causes = new GibCause[8];
+    private static readonly GibCause[] _causes = new GibCause[Enum.GetValues<DestroyCause>().Length];
     private static readonly GibMaterial Fallback = new("default", 0.2f, 0.6f, 1f, "gibs.dust.stone", new Color(0.6f, 0.58f, 0.54f), null);
 
     /// <summary>Pieces alive at once; the oldest go first.</summary>

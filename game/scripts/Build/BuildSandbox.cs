@@ -166,15 +166,18 @@ public partial class BuildSandbox : Node3D
 
     private void BreakApart(BuildingEvent e)
     {
-        if (_world.Removed(e) is not { } gone || Blow.Of(e.Removal, default) is not { } blow)
+        if (e.Removal == Removal.Taken || BuildingWorld.Removed(e) is not { } gone)
         {
             return;
         }
-        Num.Vector3 up = _zone.Frame.UpAt(gone.Model.Position);
-        HollowUniverse.Gibs.GibBreak broke = HollowUniverse.Gibs.GibDirector.Break(gone.Model, blow.Direction, blow.Cause, up, (float)(_zone.Spec.SurfaceGravity * 9.80665), gone.Id.Value);
+        // The sandbox has no blows: what breaks here comes down, is demolished or decays (a break by damage counts as a blow).
+        Hollow.Simulation.Combat.DestroyCause cause = BuildingWorld.CauseOf(e.Removal) ?? Hollow.Simulation.Combat.DestroyCause.Melee;
+        Num.Vector3 up = _zone.Frame.UpAt(gone.Position);
+        HollowUniverse.Gibs.GibBreak broke = HollowUniverse.Gibs.GibDirector.Break(gone.Key, gone.Grade, gone.Position, gone.Rotation, Num.Vector3.Zero,
+            cause, up, (float)(_zone.Spec.SurfaceGravity * 9.80665), gone.Id.Value);
         if (broke.Shown)
         {
-            Sounds.At(broke.CauseSound ?? Sounds.Item(gone.Model.Model, "break") ?? broke.MaterialSound, broke.Centre);
+            Sounds.At(broke.CauseSound ?? Sounds.Item(gone.Key, "break") ?? broke.MaterialSound, broke.Centre);
         }
     }
 
@@ -228,7 +231,7 @@ public partial class BuildSandbox : Node3D
         _scene = Options.TryGetValue("scene", out string? s) ? s : "house";
         PlacementPlan? first = _world.FoundationAt(_data.Piece("foundation")!, site, 0.35);
         Num.Vector3 spawn = site + new Num.Vector3(2, 0.5f, 12);
-        if (first == null || _scene == "empty")
+        if (first == null)
         {
             AddPlayer(site + new Num.Vector3(0, 0.5f, 6));
             return;
@@ -236,6 +239,10 @@ public partial class BuildSandbox : Node3D
         BuildingFrame frame = first.Frame;
         switch (_scene)
         {
+            case "empty":
+                // Nothing built: the first foundation's frame only measures --from and --at (a free foundation's ghost).
+                spawn = site + new Num.Vector3(0, 0.5f, 6);
+                break;
             case "stress":
             {
                 int count = DemoBases.Block(_world, first);

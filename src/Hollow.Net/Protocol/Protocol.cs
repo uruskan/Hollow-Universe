@@ -10,10 +10,14 @@ public static partial class Protocol
     /// together on the real planet; 8: G6, ships; 9: G7, the world (world props, blueprints and tech trees, teams, the
     /// map); 10: G7, animals (entities of kind <see cref="EntityKind.Animal"/>, whose snapshot state means what
     /// <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>); 11: the F1 console (its commands and answers, the
-    /// server's state for it, the zone's clock, and god and noclip in the player's own state); 12: things breaking apart
-    /// (<c>Destruction</c>: the model that broke, where, the blow and its cause, GROUND.md §9.4).
+    /// server's state for it, the zone's clock, and god and noclip in the player's own state); 12: dropped items lie in
+    /// bags (a thing of kind <c>StaticKind.DroppedBag</c> shows no item, its count is how many stacks it holds, and it
+    /// opens as take-only loot, <c>LootKind.Crate</c>); 13: gathering's feedback (a natural object's change carries its run
+    /// of weak-spot hits, how fresh its last hit is and where it met the surface); 14: the damage pipeline's Destroyed
+    /// event (<see cref="ThingDestroyed"/>, GROUND.md §6.4.2); 15: free look (Alt), the head's turn from the view in every
+    /// input and in characters' state.
     /// </summary>
-    public const uint Version = 12;
+    public const uint Version = 15;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

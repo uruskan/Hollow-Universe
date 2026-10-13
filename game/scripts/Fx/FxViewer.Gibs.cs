@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Godot;
-using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using HollowUniverse.Gibs;
 using HollowUniverse.Items;
 
@@ -162,7 +162,7 @@ public partial class FxViewer
             Vector3 toward = at * set.Bounds.GetCenter() - from;
             toward.Y = 0;
             DestroyCause cause = _gibRaid ? c.Part == "wall" ? DestroyCause.Explosion : DestroyCause.Bullet : _gibCause;
-            GibBreak broke = GibDirector.Break(c.Model, c.Part, at, toward.Normalized(), cause, Vector3.Up, 0, (ulong)(c.At.X * 131 + c.At.Z * 17 + 7));
+            GibBreak broke = GibDirector.Break(set, at, toward.Normalized(), cause, Vector3.Up, 0, (ulong)(c.At.X * 131 + c.At.Z * 17 + 7));
             if (c.Shown != null)
             {
                 c.Shown.Visible = !broke.Shown;

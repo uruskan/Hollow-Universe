@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json;
 using Hollow.Core;
+using Hollow.Simulation.Nature;
 using BuildingData = Hollow.Simulation.Building.BuildingData;
 
 namespace Hollow.Simulation.Content;
@@ -27,6 +28,7 @@ public sealed partial class GameContent
         "weapons.json",
         "building.json", "explosives.json",
         "ships.json", "world.json", "animals.json",
+        "surfaces.json",
     };
 
     private readonly ItemDef?[] _byId;
@@ -59,7 +61,6 @@ public sealed partial class GameContent
         AnimalSpawning = loaded.AnimalSpawning;
         HarvestRates = loaded.HarvestRates;
         Survival = loaded.Survival;
-        WeakSpot = loaded.WeakSpot;
         PlacementReach = loaded.PlacementReach;
         PlacementMaxStep = loaded.PlacementMaxStep;
         Hash = loaded.Hash;
@@ -168,8 +169,6 @@ public sealed partial class GameContent
     }
 
     public SurvivalTuning Survival { get; }
-
-    public WeakSpot WeakSpot { get; }
 
     /// <summary>A deployable is placed at most this far from the eye, on ground at most this far below the aim.</summary>
     public float PlacementReach { get; }
@@ -417,7 +416,6 @@ public sealed partial class GameContent
         public SurvivalTuning Survival = new();
         public BuildingData? Building;
         public DeployableDef? ClaimDeployable;
-        public WeakSpot WeakSpot = new(0.3f, 2f);
         public float PlacementReach = 3f;
         public float PlacementMaxStep = 0.6f;
         public ulong Hash;
@@ -727,19 +725,17 @@ public sealed partial class GameContent
             static IEnumerable<string> ScatterKindNames() => Enum.GetValues<Surface.ScatterKind>().Select(Hyphenated);
             static Surface.ScatterKind? ScatterKindNamed(string name) =>
                 Enum.GetValues<Surface.ScatterKind>().Where(k => Hyphenated(k) == name).Select(k => (Surface.ScatterKind?)k).FirstOrDefault();
-            JsonElement root = Root("gather.json", "weakSpot", "kinds");
-            if (f.TryChild(root, "weakSpot", out JsonElement weak))
-            {
-                f.OnlyKnown(weak, "gather.json: weakSpot", "radius", "bonus");
-                loaded.WeakSpot = new WeakSpot(f.Number(weak, "radius", "gather.json: weakSpot"), f.Number(weak, "bonus", "gather.json: weakSpot"));
-            }
+            JsonElement root = Root("gather.json", "classes", "kinds");
+            // How each class is gathered, and the drawn surfaces the weak spots sit on (GROUND.md §6.1).
+            Dictionary<string, (GatherRules Rules, JsonElement Spot)> classes = GatherReader.Classes(f, root, Resolve);
+            JsonElement surfaces = Root(GatherReader.SurfacesFile, "rings", "directions", "kinds");
             JsonElement[] list = f.List(root, "kinds", "gather.json");
             for (int i = 0; i < list.Length; i++)
             {
                 JsonElement e = list[i];
                 string key = f.Text(e, "key", $"gather.json: kinds[{i}]");
                 string where = $"gather.json: {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "key", "name", "class", "health", "yield", "stages", "respawn", "radius", "height", "standIn", "scatter");
+                f.OnlyKnown(e, where, "key", "name", "class", "health", "yield", "stages", "respawn", "radius", "height", "standIn", "scatter", "look");
                 string className = f.Text(e, "class", where);
                 NaturalClass kind = className switch
                 {
@@ -787,7 +783,7 @@ public sealed partial class GameContent
                     minScale = f.Number(scatter, "minScale", where + ".scatter", 0f);
                 }
                 bool harvested = kind is NaturalClass.Tree or NaturalClass.Node;
-                loaded.Natural.Add(new NaturalKind
+                var natural = new NaturalKind
                 {
                     Index = (ushort)i,
                     Key = key,
@@ -802,7 +798,27 @@ public sealed partial class GameContent
                     StandInPerTile = perTile,
                     ScatterKinds = scatterKinds,
                     ScatterMinScale = minScale,
-                });
+                };
+                if (harvested && classes.TryGetValue(className, out var rules))
+                {
+                    // The class's rules with this kind's own surface, and any parts of the look it replaces.
+                    ISpotSurface? surface = GatherReader.Surface(f, rules.Spot, $"gather.json: classes.{className}.spot", natural, surfaces);
+                    GatherLook look = f.TryChild(e, "look", out JsonElement own) ? GatherReader.Look(f, own, where + ".look", rules.Rules.Look) : rules.Rules.Look;
+                    natural.Gather = rules.Rules with { Spot = rules.Rules.Spot with { Surface = surface! }, Look = look };
+                    if (surface == null)
+                    {
+                        natural.Gather = null;
+                    }
+                }
+                else if (harvested)
+                {
+                    f.Problem(where, $"gather.json has no \"classes\" entry for \"{className}\"");
+                }
+                else if (f.Has(e, "look"))
+                {
+                    f.Problem(where, "only trees and outcrops have a look");
+                }
+                loaded.Natural.Add(natural);
             }
         }
 
@@ -964,7 +980,7 @@ public sealed partial class GameContent
         private void ReadSurvival()
         {
             JsonElement root = Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature",
-                "climateStandIn", "combat", "world", "rateLimits");
+                "climateStandIn", "combat", "world", "bag", "rateLimits");
             string w = "survival.json";
             JsonElement Section(string name, params string[] fields)
             {
@@ -989,6 +1005,7 @@ public sealed partial class GameContent
             JsonElement c = Section("climateStandIn", "meanCelsius", "daySwing", "lapsePerKilometre", "dayLengthSeconds");
             JsonElement k = Section("combat", "head", "body", "limb", "maxRewindSeconds", "equipSeconds");
             JsonElement o = Section("world", "corpseSeconds", "droppedItemSeconds", "interactReach", "lootReach", "beachCooldownSeconds", "respawnKit");
+            JsonElement bag = Section("bag", "name", "slots", "mergeRadius");
             JsonElement r = Section("rateLimits", "intentBurst", "intentsPerSecond", "gunBurst", "gunActionsPerSecond");
             JsonElement burning = Section("burning", "damagePerSecond");
             JsonElement wounded = Section("wounded", "maxDamage", "health", "seconds", "recoverChance", "fedBonus", "helpReach");
@@ -1051,6 +1068,9 @@ public sealed partial class GameContent
                 EquipSeconds = f.Number(k, "equipSeconds", w + ": combat", 0.3f),
                 CorpseSeconds = f.Number(o, "corpseSeconds", w + ": world"),
                 DroppedItemSeconds = f.Number(o, "droppedItemSeconds", w + ": world"),
+                BagName = f.Text(bag, "name", w + ": bag"),
+                BagSlots = Math.Clamp(f.Integer(bag, "slots", w + ": bag"), 1, 255),
+                BagMergeRadius = f.Number(bag, "mergeRadius", w + ": bag"),
                 InteractReach = f.Number(o, "interactReach", w + ": world"),
                 LootReach = f.Number(o, "lootReach", w + ": world"),
                 BeachCooldownSeconds = f.Number(o, "beachCooldownSeconds", w + ": world", 0),
@@ -1258,8 +1278,7 @@ public sealed partial class GameContent
                 f.Problem(where, "is missing");
                 return new RecoilStats();
             }
-            f.OnlyKnown(e, where, "mode", "pitch", "pattern", "pitchJitter", "yawJitter", "pitchLimit", "yawLimit", "reset", "kick",
-                "recoveryDelay", "recovery", "aimed", "crouched", "note");
+            f.OnlyKnown(e, where, "mode", "pitch", "pattern", "pitchLimit", "yawLimit", "reset", "kick", "recoveryDelay", "recovery", "note");
             string mode = f.Text(e, "mode", where);
             if (mode is not ("vertical" or "pattern"))
             {
@@ -1287,16 +1306,12 @@ public sealed partial class GameContent
                 Mode = pattern ? RecoilMode.Pattern : RecoilMode.Vertical,
                 PitchPerShot = pattern ? 0 : f.Double(e, "pitch", where),
                 Pattern = steps,
-                PitchJitter = f.Double(e, "pitchJitter", where, 0),
-                YawJitter = f.Double(e, "yawJitter", where, 0),
                 PitchLimit = f.Double(e, "pitchLimit", where),
                 YawLimit = f.Double(e, "yawLimit", where),
                 ResetSeconds = f.Double(e, "reset", where, pattern ? null : 0.4),
                 KickSeconds = f.Double(e, "kick", where),
                 RecoveryDelaySeconds = f.Double(e, "recoveryDelay", where),
                 RecoverySeconds = f.Double(e, "recovery", where),
-                Aimed = f.Double(e, "aimed", where, 1),
-                Crouched = f.Double(e, "crouched", where, 1),
             };
         }
 

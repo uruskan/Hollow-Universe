@@ -12,7 +12,7 @@ namespace Hollow.Simulation.Building;
 /// authorised to build there, gives that structure an area of building rights, and holds the materials that pay its
 /// upkeep. One per connected structure.
 /// </summary>
-public sealed class ClaimDevice
+public sealed class ClaimDevice : IBuildingPart
 {
     internal readonly List<ulong> AuthorisedList = new();
     internal uint Body;
@@ -44,6 +44,9 @@ public sealed class ClaimDevice
     public int Yaw { get; }
 
     public bool Gone { get; internal set; }
+
+    /// <summary>A claim device is its own base.</summary>
+    public ClaimDevice? Base => this;
 
     public IReadOnlyList<ulong> Authorised => AuthorisedList;
 
@@ -129,7 +132,7 @@ public sealed partial class BuildingWorld
         return Outcome.Done;
     }
 
-    internal void RemoveClaim(ClaimDevice device)
+    internal void RemoveClaim(ClaimDevice device, Removal reason = Removal.Taken)
     {
         if (device.Gone)
         {
@@ -143,7 +146,7 @@ public sealed partial class BuildingWorld
         {
             structure.Claim = null;
         }
-        Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimRemoved, device.Support, Claim: device, Structure: structure, Removal: _removal));
+        Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimRemoved, device.Support, Claim: device, Structure: structure, Removal: reason));
     }
 
     /// <summary>
@@ -166,10 +169,7 @@ public sealed partial class BuildingWorld
         bool destroyed = device.Health <= 0;
         if (destroyed)
         {
-            using (Removing(BuildingRemoval.Destroyed))
-            {
-                RemoveClaim(device);
-            }
+            RemoveClaim(device, Removal.Destroyed);
         }
         else
         {
@@ -495,10 +495,7 @@ public sealed partial class BuildingWorld
                 foreach (Piece p in dead)
                 {
                     p.Health = 0;
-                    using (Removing(BuildingRemoval.Decayed))
-                    {
-                        Remove(p, now + t, immediate: true);
-                    }
+                    Remove(p, now + t, immediate: true, Removal.Decayed);
                 }
                 if (_nextStructure != known)
                 {

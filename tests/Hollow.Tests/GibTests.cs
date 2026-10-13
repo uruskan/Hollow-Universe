@@ -1,27 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Hollow.Client;
-using Hollow.Simulation;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
-using Hollow.Simulation.Entities;
-using Hollow.Simulation.Players;
-using Hollow.Simulation.Raid;
-using Hollow.Simulation.World;
 
 namespace Hollow.Tests;
 
 /// <summary>
 /// Gibs (GROUND.md §9.4): everything that can be destroyed has pieces to break into, declared beside its model in the
-/// catalogue and built by art/gibs/build.py; the zone reports every destruction once, as the model that stood there and
-/// the blow; and the fact reaches the clients near.
+/// catalogue and built by art/gibs/build.py, found by what the damage pipeline's Destroyed event names it with (its key and
+/// a piece's grade; DamageTests checks the event itself).
 /// </summary>
 public static class GibTests
 {
@@ -63,9 +56,11 @@ public static class GibTests
             }
         }
 
-        // Every set: its file, its pieces, its materials.
-        var sets = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        int pieces = 0;
+        // Every set: its file, its pieces, its materials; indexed as the runtime finds them (GibLibrary.Find): a whole model
+        // by its key at any grade, a kit's part by its key at the kit's grade (a grade's kit) or any (a door kit).
+        var whole = new HashSet<string>(StringComparer.Ordinal);
+        var parts = new HashSet<(string Key, int Grade)>();
+        int sets = 0, pieces = 0;
         long triangles = 0, bytes = 0;
         var files = new HashSet<string>(StringComparer.Ordinal);
         foreach (JsonElement m in models.RootElement.GetProperty("models").EnumerateArray())
@@ -81,8 +76,20 @@ public static class GibTests
             string path = Path.Combine(game, res["res://".Length..].Replace('/', Path.DirectorySeparatorChar));
             Assert.True(File.Exists(path), $"{key}: {res} is missing");
             bool kit = m.GetProperty("kind").GetString() == "kit";
-            (HashSet<string> parts, int count, long tris) = ReadSet(game, key, path, kit);
-            sets[key] = parts;
+            (HashSet<string> named, int count, long tris) = ReadSet(game, key, path, kit);
+            int grade = g.TryGetProperty("grade", out JsonElement gg) ? gg.GetInt32() : -1;
+            if (kit)
+            {
+                foreach (string part in named)
+                {
+                    Assert.True(parts.Add((part, grade)), $"{key}: {part} at grade {grade} is in two kits");
+                }
+            }
+            else
+            {
+                whole.Add(key);
+            }
+            sets += kit ? named.Count : 1;
             if (files.Add(path))
             {
                 pieces += count;
@@ -90,35 +97,37 @@ public static class GibTests
                 bytes += new FileInfo(path).Length;
             }
         }
+        bool Breaks(string key, int grade) => whole.Contains(key) || parts.Contains((key, grade)) || parts.Contains((key, -1));
 
-        // What can be destroyed, all of it.
+        // What can be destroyed (the Destroyed event's kinds, and an outcrop used up), all of it.
         GameContent c = ContentFixture.Content;
         foreach (DeployableDef d in c.Deployables)
         {
-            Assert.True(sets.ContainsKey(d.Key), $"deployable {d.Key} has no gibs");
+            Assert.True(Breaks(d.Key, 0), $"deployable {d.Key} has no gibs");
         }
         foreach (PropDef p in c.World.Props.Where(p => p.Breakable))
         {
-            Assert.True(sets.ContainsKey(p.Key), $"prop {p.Key} has no gibs");
+            Assert.True(Breaks(p.Key, 0), $"prop {p.Key} has no gibs");
         }
-        Assert.True(sets.ContainsKey(c.Building.ClaimItem), "the claim device has no gibs");
+        Assert.True(Breaks(c.Building.ClaimItem, 0), "the claim device has no gibs");
         foreach (GradeDef grade in c.Building.Grades)
         {
-            Assert.True(sets.TryGetValue(grade.Model, out HashSet<string>? parts), $"grade {grade.Key}: no gib set {grade.Model}");
             foreach (PieceDef piece in c.Building.Pieces)
             {
-                Assert.True(parts!.Contains(piece.Key), $"{grade.Model}: no pieces for {piece.Key}");
+                Assert.True(Breaks(piece.Key, grade.Index), $"{grade.Key} {piece.Key} has no gibs");
             }
         }
         foreach (DoorDef door in c.Building.Doors)
         {
-            Assert.True(sets.TryGetValue(door.Model, out HashSet<string>? parts) && parts.Contains(door.Key), $"door {door.Key}: no gibs in {door.Model}");
+            Assert.True(Breaks(door.Key, 0), $"door {door.Key} has no gibs");
         }
-        foreach (NaturalKind kind in c.NaturalKinds.Where(k => k.Class == NaturalClass.Node))
+        foreach (NaturalKind kind in c.NaturalKinds.Where(k => k.Gather?.Look.Depleted?.Gibs == true))
         {
-            Assert.True(sets.ContainsKey(kind.Key), $"outcrop {kind.Key} has no gibs");
+            Assert.True(Breaks(kind.Key, 0), $"{kind.Key} crumbles into gibs (gather.json) but has none");
         }
-        Fixtures.Report($"{sets.Count} gib sets in {files.Count} files: {pieces} pieces, {triangles:N0} triangles, {bytes / 1e6:0.0} MB");
+        Assert.True(c.NaturalKinds.Count(k => k.Class == NaturalClass.Node && k.Gather?.Look.Depleted?.Gibs == true) >= 3,
+            "the outcrops' last remnants crumble");
+        Fixtures.Report($"{sets} gib sets in {files.Count} files: {pieces} pieces, {triangles:N0} triangles, {bytes / 1e6:0.0} MB");
     }
 
     // A gib file: no images, its materials mapped, 2–16 pieces per part (a kit's parts are its top nodes, a whole model's
@@ -190,108 +199,5 @@ public static class GibTests
             Assert.True(File.Exists(Path.Combine(game, res["res://".Length..].Replace('/', Path.DirectorySeparatorChar))), $"{key}: {res} is missing");
         }
         return (parts, count, tris);
-    }
-
-    /// <summary>
-    /// The zone reports each destruction once, as the model that stood there and the blow: a barrel broken by a blow; a
-    /// stone hut whose foundation is blown up (the foundation and the claim device on it by the blast, then the walls, the
-    /// door and the roof brought down); a wooden hut's claim device picked up (nothing broke) and a wall demolished.
-    /// </summary>
-    [Test]
-    public static void BrokenThingsAreReportedOnce()
-    {
-        using var rig = new GameRig();
-        Zone z = rig.Zone;
-        GameContent c = rig.C;
-        Entity ada = rig.Add("Ada", 0, -10);
-        Player a = rig.P(ada);
-        z.GameEvents.Clear();
-
-        WorldProp barrel = z.SpawnProp(c.World.Prop("loot-barrel-1")!, z.GroundAt(4, 0), 0.6f);
-        z.DamageDeployable(barrel, 1000, Blow.Along(DestroyCause.Melee, new Vector3(1, 0, 0), a.Id));
-        ZoneEvent broken = Single(z, e => e.Other == barrel.Id);
-        Assert.True(broken.Target == HitTarget.Deployable && broken.Model.Model == "loot-barrel-1" && broken.Model.Part == "" &&
-            broken.Cause == DestroyCause.Melee && broken.Player == a.Id && Vector3.Distance(broken.Model.Position, barrel.Position) < 1e-4f,
-            $"the barrel: {broken.Model} by {broken.Cause}");
-        Quaternion expected = ModelPlacement.Upright(barrel.Up, barrel.Yaw);
-        Assert.True(MathF.Abs(Quaternion.Dot(expected, broken.Model.Rotation)) > 0.9999f, "turned as it stood");
-
-        TestBases.Hut stone = TestBases.Build(z, z.GroundAt(-8, 6), 0, 2, a.Id.Value)!;
-        Door door = stone.Door!;
-        ClaimDevice claim = stone.Claim!;
-        int pieces = z.Building!.AllPieces.Count();
-        z.DamageBuilding(stone.Foundation, -Vector3.UnitY, 100_000, projectile: false, Blow.Along(DestroyCause.Explosion, -Vector3.UnitY, a.Id));
-        rig.Step(90);
-        ZoneEvent foundation = Single(z, e => e.Other == stone.Foundation.Id);
-        Assert.True(foundation.Model.Model == "building-stone" && foundation.Model.Part == "foundation" && foundation.Cause == DestroyCause.Explosion,
-            $"the foundation: {foundation.Model.Model}/{foundation.Model.Part} by {foundation.Cause}");
-        ZoneEvent device = Single(z, e => e.Other == claim.Id);
-        Assert.True(device.Model.Model == c.Building.ClaimItem && device.Cause == DestroyCause.Explosion, $"the claim device: {device.Model.Model} by {device.Cause}");
-        foreach (Piece wall in stone.Walls)
-        {
-            ZoneEvent fell = Single(z, e => e.Other == wall.Id);
-            Assert.True(fell.Model.Model == "building-stone" && fell.Model.Part == wall.Def.Key && fell.Cause == DestroyCause.Collapse,
-                $"{wall.Def.Key}: {fell.Model.Part} by {fell.Cause}");
-        }
-        ZoneEvent leaf = Single(z, e => e.Other == door.Id);
-        Assert.True(leaf.Model.Model == door.Def.Model && leaf.Model.Part == door.Def.Key && leaf.Cause == DestroyCause.Collapse,
-            $"the door: {leaf.Model.Model}/{leaf.Model.Part} by {leaf.Cause}");
-        int reported = z.GameEvents.Count(e => e.Kind == ZoneEventKind.Destroyed);
-
-        TestBases.Hut wood = TestBases.Build(z, z.GroundAt(10, 8), 0, 1, a.Id.Value)!;
-        z.GameEvents.Clear();
-        Assert.True(z.Building.PickUpClaim(a.Id.Value, wood.Claim!).Ok, "the claim device picked up");
-        Piece demolished = wood.Walls[2];
-        (Vector3 at, _) = demolished.ZoneTransform;
-        Assert.True(z.Building.Demolish(a.Id.Value, demolished, at + Vector3.UnitY * 1.5f, z.BuildingNow).Ok, "a wall demolished");
-        rig.Step(30);
-        ZoneEvent hammered = Single(z, e => e.Other == demolished.Id);
-        Assert.True(hammered.Model.Model == "building-wood" && hammered.Model.Part == demolished.Def.Key && hammered.Cause == DestroyCause.Demolish,
-            $"the demolished wall: {hammered.Model.Model}/{hammered.Model.Part} by {hammered.Cause}");
-        Assert.True(!z.GameEvents.Any(e => e.Kind == ZoneEventKind.Destroyed && e.Other == wood.Claim!.Id), "nothing broke when it was picked up");
-        Fixtures.Report($"a barrel, then a stone hut of {pieces} pieces blown at its foundation: {reported} things broke apart; " +
-            $"a wooden hut's claim device picked up (not broken), a wall demolished");
-    }
-
-    private static ZoneEvent Single(Zone z, Func<ZoneEvent, bool> which)
-    {
-        var found = z.GameEvents.Where(e => e.Kind == ZoneEventKind.Destroyed && which(e)).ToList();
-        Assert.Equal(1, found.Count, "reported once");
-        return found[0];
-    }
-
-    /// <summary>The fact over the network: a barrel broken on the server reaches another client as the model that stood there.</summary>
-    [Test]
-    public static void BreakingReachesTheClients()
-    {
-        using var rig = new LoopbackRig();
-        GameContent c = ContentFixture.Content;
-        GameClient ada = rig.Join("Ada");
-        GameClient bo = rig.Join("Bo");
-        rig.WaitUntilPlaying();
-        rig.Server.Execute("teleport Ada 0 -6");
-        rig.Server.Execute("teleport Bo 0 6");
-        rig.Run(0.5, (_, _) => default);
-        var seen = new List<DestructionEvent>();
-        bo.Destroyed += seen.Add;
-        (EntityId id, Vector3 at, Quaternion turn) = rig.Server.Inspect(sv =>
-        {
-            Assert.True(sv.Zone.TryFindPlayer(ada.EntityId, out _, out Player a), "Ada's character");
-            WorldProp prop = sv.Zone.SpawnProp(c.World.Prop("loot-barrel-2")!, sv.Zone.GroundAt(3, 0), 1.1f);
-            sv.Zone.DamageDeployable(prop, 1000, Blow.Along(DestroyCause.Bullet, new Vector3(0, 0, 1), a.Id));
-            return (prop.Id, prop.Position, prop.Model.Rotation);
-        });
-        var watch = Stopwatch.StartNew();
-        while (seen.Count == 0)
-        {
-            Assert.True(watch.Elapsed.TotalSeconds < 5, "the destruction reaches Bo");
-            rig.Run(0.05, (_, _) => default);
-        }
-        DestructionEvent e = seen.Single();
-        Assert.True(e.Id == id && e.Receiver == HitTarget.Deployable && e.Model.Model == "loot-barrel-2" && e.Cause == DestroyCause.Bullet,
-            $"what broke: {e.Model.Model} ({e.Receiver}) by {e.Cause}");
-        Assert.True(Vector3.Distance(e.Model.Position, at) < 0.001f && MathF.Abs(Quaternion.Dot(e.Model.Rotation, turn)) > 0.9999f &&
-            Vector3.Distance(e.Blow, new Vector3(0, 0, 1)) < 0.01f, "where, how it stood and the blow");
-        Fixtures.Report($"{e.Model.Model} broken on the server by a bullet reached Bo's client as the model that stood there, turned and hit as it was");
     }
 }

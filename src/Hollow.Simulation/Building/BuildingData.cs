@@ -159,9 +159,6 @@ public sealed class GradeDef
 
     public string Key { get; init; } = "";
 
-    /// <summary>The model catalogue's key of this grade's kit (its pieces are parts of it): what the client draws and breaks.</summary>
-    public string Model { get; init; } = "";
-
     public string Name { get; init; } = "";
 
     /// <summary>Item key paid for placing (twig), upgrading to, repairing and keeping up this grade.</summary>
@@ -198,9 +195,6 @@ public sealed class LeafDef
 public sealed class DoorDef
 {
     public string Key { get; init; } = "";
-
-    /// <summary>The model catalogue's key of the kit the door is drawn from (the door is a part of it, by its key).</summary>
-    public string Model { get; init; } = "";
 
     public string Name { get; init; } = "";
 
@@ -494,7 +488,6 @@ public sealed class BuildingData
             {
                 Index = index,
                 Key = r.Text(g, "key", ""),
-                Model = r.Text(g, "model", ""),
                 Name = r.Text(g, "name", ""),
                 Material = r.Text(g, "material", ""),
                 Health = r.Number(g, "health", 1),
@@ -649,7 +642,6 @@ public sealed class BuildingData
             var door = new DoorDef
             {
                 Key = key,
-                Model = r.Text(d, "model", ""),
                 Name = r.Text(d, "name", key),
                 Opening = r.Text(d, "opening", "door") == "double" ? Opening.Double : Opening.Door,
                 Health = r.Number(d, "health", 100),

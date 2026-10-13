@@ -112,6 +112,10 @@ public static class ModelCatalogueTests
                     {
                         Assert.True(nodes.Contains("socket_" + off.GetString()), $"{key}: no socket_{off.GetString()} for the other hand");
                     }
+                    if (held.TryGetProperty("grip", out JsonElement grip))
+                    {
+                        CheckGrip(key, grip);
+                    }
                 }
                 // A gun's attachment sockets are nodes of its file.
                 if (m.TryGetProperty("sockets", out JsonElement sockets))
@@ -187,6 +191,30 @@ public static class ModelCatalogueTests
             ? mats.EnumerateArray().Select(mm => mm.GetProperty("name").GetString()!).ToList()
             : new List<string>();
         return (nodes, materials);
+    }
+
+    /// <summary>
+    /// A held item's own grip (GROUND.md §4.8): fingers and thumb are two directions far from parallel (the hand's frame
+    /// is made from them), and what the hand closes round, how far it sits from the palm and where a swing turns are
+    /// within a hand's size.
+    /// </summary>
+    private static void CheckGrip(string key, JsonElement grip)
+    {
+        static double[] Vec(JsonElement g, string name, double[] fallback) =>
+            g.TryGetProperty(name, out JsonElement v) ? v.EnumerateArray().Select(e => e.GetDouble()).ToArray() : fallback;
+        static double Length(double[] v) => Math.Sqrt(v.Sum(c => c * c));
+        double[] fingers = Vec(grip, "fingers", new[] { 1.0, 0, 0 }), thumb = Vec(grip, "thumb", new[] { 0.0, 1, 0 });
+        Assert.True(fingers.Length == 3 && thumb.Length == 3 && Length(fingers) > 0.5 && Length(thumb) > 0.5, $"{key}: grip fingers and thumb are directions");
+        double cos = Math.Abs(fingers.Zip(thumb, (a, b) => a * b).Sum()) / (Length(fingers) * Length(thumb));
+        Assert.True(cos < 0.5, $"{key}: grip fingers and thumb are nearly parallel");
+        double radius = grip.TryGetProperty("radius", out JsonElement r) ? r.GetDouble() : 0.018;
+        Assert.InRange(0, 0.07, radius, $"{key}: grip radius (0: an open hand)");
+        if (grip.TryGetProperty("seat", out JsonElement seat))
+        {
+            Assert.InRange(0, 0.07, seat.GetDouble(), $"{key}: grip seat");
+        }
+        Assert.InRange(0, 0.4, Length(Vec(grip, "pivot", new double[3])), $"{key}: swing pivot");
+        Assert.InRange(0, 0.3, Length(Vec(grip, "at", new double[3])), $"{key}: grip point");
     }
 
     /// <summary>The GLB's .import maps every material to a shared .tres that exists.</summary>

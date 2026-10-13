@@ -51,6 +51,11 @@ public sealed class RemoteEntity
 
     public float Pitch { get; private set; }
 
+    /// <summary>Free look (Alt): where its head looks from the view, radians (yaw to the left, pitch up); drawn only.</summary>
+    public float LookYaw { get; private set; }
+
+    public float LookPitch { get; private set; }
+
     public MoveFlags Flags { get; private set; }
 
     public Stance Stance { get; private set; }
@@ -149,6 +154,10 @@ public sealed class RemoteEntity
         Position = Vector3.Lerp(NetConvert.PositionOf(a), NetConvert.PositionOf(b), t);
         Yaw = Quantize.FromAngle16(a.Yaw) + t * Quantize.FromAngle16((ushort)(b.Yaw - a.Yaw));
         Pitch = Quantize.FromAngle16(a.Pitch) + t * Quantize.FromAngle16((ushort)(b.Pitch - a.Pitch));
+        // The head's turn is blended, never carried on past the newest state.
+        float look = Math.Clamp(t, 0f, 1f);
+        LookYaw = NetConvert.FromLook(a.LookYaw) + look * (NetConvert.FromLook(b.LookYaw) - NetConvert.FromLook(a.LookYaw));
+        LookPitch = NetConvert.FromLook(a.LookPitch) + look * (NetConvert.FromLook(b.LookPitch) - NetConvert.FromLook(a.LookPitch));
         Flags = discrete.Flags;
         Stance = discrete.Stance;
         Health = discrete.Health;

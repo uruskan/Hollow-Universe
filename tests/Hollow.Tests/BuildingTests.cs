@@ -607,5 +607,68 @@ public static class BuildingTests
         Assert.Equal(eastWall!.Body != 0, true, "pieces have bodies");
     }
 
+    /// <summary>A ground that rises <c>slope</c> metres a metre eastward (in the zone's frame at 0°, 0°), level north and south.</summary>
+    private sealed class RampSurface : ISurface
+    {
+        private readonly ZoneFrame _frame;
+        private readonly double _slope;
+
+        public RampSurface(double radius, double slope)
+        {
+            Radius = radius;
+            _slope = slope;
+            _frame = new ZoneFrame(ZoneFrame.Direction(0, 0) * radius);
+        }
+
+        public double Radius { get; }
+
+        public double SeaRadius => 0;
+
+        public double HeightAt(Vector3D direction) => _frame.ToLocal(direction * Radius).X * _slope;
+
+        public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
+            SphereSurface.GridCollision(this, frame, centreX, centreZ, size, spacing: 1.0);
+    }
+
+    /// <summary>
+    /// RustMVP's free foundation on a slope: aimed at the ground within 3.5 m it sits as low as the ground under its corners
+    /// allows; aimed further it stays 3.5 m out and the aim's height there lifts its top, up to its depth above the lowest
+    /// ground, always valid. The server's recomputation from the plan's point gives the same foundation.
+    /// </summary>
+    [Test]
+    public static void FreeFoundationRisesWithTheAim()
+    {
+        const double slope = 0.08;
+        var surface = new RampSurface(6_435_000, slope);
+        ZoneFrame zone = ZoneFrame.At(surface, 0, 0);
+        using var physics = new PhysicsWorld(surface, zone);
+        physics.EnsureGround(Vector3.Zero, 1);
+        ulong next = 0;
+        using var world = new BuildingWorld(Data, physics, () => new EntityId(++next));
+        var wallet = new Wallet { ["wood"] = 10_000 };
+        // Standing where the ground is at zero height, looking north along the level line of the slope.
+        Vector3 eye = new(0, 1.6f, 4);
+        double rise = slope * Data.Width / 2, clearance = Data.FoundationClearance, depth = Data.FoundationDepth;
+        double lowest = rise + clearance, highest = depth - rise;
+        double Top(Vector3 aim, string what)
+        {
+            PlacementPlan? plan = world.Plan(Ada, P("foundation"), eye, aim, 0, wallet, now: 0);
+            Assert.True(plan != null && plan.Support == null && plan.Valid, $"{what}: a valid free foundation, not {plan}");
+            PlacementPlan again = world.FoundationAt(P("foundation"), plan!.Point, plan.HeadingSteps * BuildingWorld.HeadingStep)!;
+            Assert.True(again.Frame.Equals(plan.Frame), $"{what}: the server's foundation from the plan's point is the ghost's");
+            double top = plan.Frame.Origin.Y;
+            Fixtures.Report($"{what}: top {top:0.000} m over the ground at its centre");
+            return top;
+        }
+
+        // At the ground 3 m ahead: as low as the uphill corners allow.
+        Assert.InRange(lowest, lowest + 0.03, Top(new Vector3(0, -1.6f, -3), "aimed at the ground"), "the lowest top the slope allows");
+        // A little higher: 3.5 m out, the aim 0.5 m over the ground there.
+        Assert.Near(0.5 + clearance, Top(new Vector3(0, -1.1f, -3.5f), "aimed a little higher"), 0.01, "the top follows the aim");
+        // Higher still, and at the sky: held at the depth over the downhill corners.
+        Assert.InRange(highest - 0.03, highest, Top(new Vector3(0, -0.3f, -3.5f), "aimed higher"), "the top stops at the foundation's depth");
+        Assert.InRange(highest - 0.03, highest, Top(new Vector3(0, 0.5f, -3.5f), "aimed at the sky"), "the same at the sky");
+    }
+
     private static Vector3 BuildingWorld_F(Vector3D v) => new((float)v.X, (float)v.Y, (float)v.Z);
 }

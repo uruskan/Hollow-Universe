@@ -164,10 +164,21 @@ internal static class Validation
             {
                 Problem(where, "respawn, radius and height must be positive");
             }
-        }
-        if (c.WeakSpot.Radius <= 0 || c.WeakSpot.Bonus < 1)
-        {
-            Problem("gather.json: weakSpot", "radius must be positive and the bonus at least 1");
+            if (k.Gather is { } g)
+            {
+                if (g.Spot.Radius <= 0 || g.Spot.Step < 0 || g.Spot.Max < 1 || g.Spot.FacingDegrees is < 0 or > 180)
+                {
+                    Problem(where, "the weak spot's radius must be positive, its step at least 0, its ceiling at least 1, its facing 0 … 180°");
+                }
+                if (g.Last.Share is < 0 or >= 1 || g.Last.Bonus < 0)
+                {
+                    Problem(where, "the last hit's share must be 0 … under 1 and its bonus at least 0");
+                }
+                if (g.Look.Marker is { } m && (m.Style.Length == 0 || m.Size <= 0 || m.Depth <= 0 || m.SparkleEvery <= 0))
+                {
+                    Problem(where, "the marker needs a style, a size, a depth and a sparkle interval");
+                }
+            }
         }
 
         // ---------------------------------------------------------------- deployables
@@ -320,9 +331,9 @@ internal static class Validation
             }
             RecoilStats r = g.Recoil;
             if (r.PitchLimit is < 0 or > 85 || r.YawLimit is < 0 or > 180 || r.KickSeconds < 0 || r.KickSeconds > g.IntervalSeconds ||
-                r.RecoveryDelaySeconds < 0 || r.RecoverySeconds < 0 || r.PitchJitter is < 0 or >= 1 || r.YawJitter < 0 || r.Aimed < 0 || r.Crouched < 0)
+                r.RecoveryDelaySeconds < 0 || r.RecoverySeconds < 0)
             {
-                Problem(where, "recoil: limits up to 85° and 180°, the kick no longer than the interval, nothing negative, pitch jitter under 1");
+                Problem(where, "recoil: limits up to 85° and 180°, the kick no longer than the interval, nothing negative");
             }
             if (r.Mode == RecoilMode.Vertical && (r.PitchPerShot < 0 || r.PitchPerShot > r.PitchLimit))
             {

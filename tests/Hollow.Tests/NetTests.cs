@@ -182,8 +182,9 @@ public static class NetTests
             .Select(i => new SnapshotCandidate { NetId = 1 + (uint)i * 50_000, State = new CharacterNetState { X = i * 1000, Health = 100 }, Weight = 1 })
             .ToArray();
         var seen = new HashSet<uint>();
-        // 300 entities at about 21 a snapshot (a G2 character state is 164 bits in full): all within 16.
-        for (int round = 0; round < 16; round++)
+        // 300 entities at about 19 a snapshot (a character's state is 191 bits in full since free look): all within 18.
+        int rounds = 0;
+        for (int round = 0; round < 18 && seen.Count < crowd.Length; round++, rounds++)
         {
             writer.Reset();
             sender.Write(writer, new SnapshotHeader(), crowd, 600);
@@ -195,7 +196,7 @@ public static class NetTests
             decoded.ForEach(d => seen.Add(d.NetId));
             sender.Acknowledge(receiver.LatestSequence, receiver.AckBits);
         }
-        Fixtures.Report($"{sender.LastWritten} of {crowd.Length} entities per 600-byte snapshot; all {seen.Count} sent within 16 snapshots");
+        Fixtures.Report($"{sender.LastWritten} of {crowd.Length} entities in the last 600-byte snapshot; {seen.Count} sent within {rounds} snapshots");
         Assert.Equal(crowd.Length, seen.Count, "priority reaches everyone");
     }
 

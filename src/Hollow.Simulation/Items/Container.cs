@@ -113,7 +113,7 @@ public enum ContainerKind : byte
     /// <summary>A machine: a campfire or furnace (fuel, input and output slots, <see cref="DeviceStats"/>); a recycler or research table (G7).</summary>
     Device,
 
-    /// <summary>A world crate (G7): take only.</summary>
+    /// <summary>Take only, gone once empty: a world crate (G7), a bag of dropped items (GROUND.md §6.1).</summary>
     Crate,
 }
 

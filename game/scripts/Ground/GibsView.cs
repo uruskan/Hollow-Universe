@@ -7,9 +7,9 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// Things breaking apart in the ground game (GROUND.md §9.4): every destruction the server reports
-/// (<see cref="GameClient.Destroyed"/>) breaks the model that stood there into its gibs, whatever it was (a barrel, a box,
-/// a door, a wall, a rock), with the sound the data names; the pieces land on the client's own collision (ground,
+/// Things breaking apart in the ground game (GROUND.md §9.4): whatever the damage pipeline's Destroyed event names
+/// (<see cref="GameClient.Destroyed"/>, §6.4.2) breaks into its gibs where it stood, by its key and grade, whatever it was
+/// (a barrel, a box, a door, a wall), with the sound the data names; the pieces land on the client's own collision (ground,
 /// building, what stands on them). The one path from the fact to the pieces.
 /// </summary>
 public partial class GibsView : Node
@@ -24,14 +24,14 @@ public partial class GibsView : Node
 
     public override void _ExitTree() => Client.Destroyed -= OnDestroyed;
 
-    private void OnDestroyed(DestructionEvent e)
+    private void OnDestroyed(DestroyedEvent e)
     {
-        Num.Vector3 up = Client.Frame.UpAt(e.Model.Position);
+        Num.Vector3 up = Client.Frame.UpAt(e.Position);
         float gravity = Client.Zone is { } zone ? (float)(zone.SurfaceGravity * 9.80665) : 0f;
-        GibBreak broke = GibDirector.Break(e.Model, e.Blow, e.Cause, up, gravity, e.Id.Value);
+        GibBreak broke = GibDirector.Break(e.Key, e.Grade, e.Position, e.Rotation, e.Direction, e.Cause, up, gravity, e.Id.Value);
         if (broke.Shown)
         {
-            Sounds.At(broke.CauseSound ?? Sounds.Item(e.Model.Model, "break") ?? broke.MaterialSound, broke.Centre);
+            Sounds.At(broke.CauseSound ?? Sounds.Item(e.Key, "break") ?? broke.MaterialSound, broke.Centre);
         }
     }
 

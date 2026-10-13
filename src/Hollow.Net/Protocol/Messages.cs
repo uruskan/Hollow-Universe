@@ -98,6 +98,12 @@ public partial struct InputCommand
 
     [Angle] public ushort Pitch;
 
+    /// <summary>Free look (Alt): the head's turn from the view, in <see cref="NetConvert.LookStep"/>s (cosmetic: the
+    /// view above is the aim and the movement's).</summary>
+    [Signed(8)] public sbyte LookYaw;
+
+    [Signed(8)] public sbyte LookPitch;
+
     [Bits(4)] public MoveButtons Buttons;
 
     /// <summary>The belt slot in hand (0 … 5; 7: none).</summary>
@@ -253,6 +259,10 @@ public partial struct CharacterNetState
     [Signed(32)] public int Z;
     [Angle] public ushort Yaw;
     [Angle] public ushort Pitch;
+
+    /// <summary>Free look (Alt): where the head looks from the view, in <see cref="NetConvert.LookStep"/>s (drawn only).</summary>
+    [Signed(8)] public sbyte LookYaw;
+    [Signed(8)] public sbyte LookPitch;
     [Bits(4)] public MoveFlags Flags;
     [Bits(2)] public Stance Stance;
     public byte Health;
@@ -307,7 +317,7 @@ public partial struct ChatLine
 
 // ---------------------------------------------------------------- G2: static things, clothing, nature, projectiles
 
-/// <summary>A static thing became relevant: a deployable, a dropped item or a corpse, with all a client draws of it.</summary>
+/// <summary>A static thing became relevant: a deployable, a bag of dropped items or a corpse, with all a client draws of it.</summary>
 [NetMessage(22)]
 public partial struct ThingSpawn
 {
@@ -315,7 +325,7 @@ public partial struct ThingSpawn
     public ulong EntityId;
     [Bits(2)] public StaticKind Kind;
 
-    /// <summary>What it looks like: a deployable's item or a dropped stack's item (0 for a corpse).</summary>
+    /// <summary>What it looks like: a deployable's item, a world prop's number; 0 for a corpse or a bag (what a bag holds goes only to whoever opens it).</summary>
     [VarInt] public uint Look;
 
     /// <summary>Its base on the ground, in the zone frame, and its turn about up.</summary>
@@ -324,12 +334,12 @@ public partial struct ThingSpawn
     public float Z;
     [Angle] public ushort Yaw;
 
-    /// <summary>Health as a fraction of 255 (deployables), the count of a dropped stack.</summary>
+    /// <summary>Health as a fraction of 255 (deployables); how many stacks a bag holds.</summary>
     public byte Health;
     [VarInt] public uint Count;
     [Bits(4)] public ThingFlags Flags;
 
-    /// <summary>A corpse's name.</summary>
+    /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
     [MaxLength(32)] public string Name;
 }
 
@@ -375,6 +385,17 @@ public partial struct NaturalNet
     [Angle] public ushort WeakSpotYaw;
     public byte WeakSpotLift;
     public bool Depleted;
+
+    /// <summary>Hits on the weak spot in a row (each one's sound rises).</summary>
+    public byte Streak;
+
+    /// <summary>Ticks since the last hit when this was sent (255: long ago, or none): only a fresh hit plays its effects.</summary>
+    public byte HitAge;
+
+    /// <summary>Where the last hit met the drawn surface, from the object's base in 3 cm steps (effects play there).</summary>
+    public sbyte HitX;
+    public sbyte HitY;
+    public sbyte HitZ;
 }
 
 /// <summary>Changes to natural objects near the player (all of an area when it comes into range, then as they happen).</summary>
@@ -1347,30 +1368,35 @@ public partial struct ZoneClock
     public bool Overridden;
 }
 
-// ---------------------------------------------------------------- gibs: things breaking apart (GROUND.md §9.4)
+// ---------------------------------------------------------------- destruction (GROUND.md §6.4.2)
 
 /// <summary>
-/// Something broke (to everyone near, reliable): what kind of thing and which, its model in the catalogue as it stood (the
-/// key, and the part of a kit: a building piece's or a door's key), its place in the zone frame, turn and size, the blow's
-/// direction (zero for none) and what broke it. The client breaks the model into its gibs; nothing else travels.
+/// Something was destroyed (to everyone within range, reliable): a deployable or world prop broken, a building piece, door
+/// or claim device broken, brought down, decayed or demolished, a ship wrecked. What it was (the receiver's kind and the
+/// kind of thing, its entity ID, its model key and a piece's grade), where it stood as it was drawn (zone frame; a door's
+/// frame piece's, open or not), the blow's direction (zero for a collapse, decay or demolition), what did it, who (a
+/// character's net ID, 0 if none or gone) and with what (an item).
 /// </summary>
-[NetMessage(175)]
-public partial struct Destruction
+[NetMessage(165)]
+public partial struct ThingDestroyed
 {
     [Bits(3)] public HitTarget Receiver;
+    [Bits(3)] public DestroyedKind Kind;
     public ulong Id;
-    [MaxLength(48)] public string Model;
-    [MaxLength(48)] public string Part;
+    [MaxLength(48)] public string Key;
+    [Bits(3)] public byte Grade;
     public float X;
     public float Y;
     public float Z;
-    [Quantize(-1, 1, 14)] public float RotationX;
-    [Quantize(-1, 1, 14)] public float RotationY;
-    [Quantize(-1, 1, 14)] public float RotationZ;
-    [Quantize(-1, 1, 14)] public float RotationW;
-    [Quantize(0, 8, 12)] public float Scale;
-    [Quantize(-1, 1, 10)] public float BlowX;
-    [Quantize(-1, 1, 10)] public float BlowY;
-    [Quantize(-1, 1, 10)] public float BlowZ;
+    [Quantize(-1, 1, 16)] public float RotationX;
+    [Quantize(-1, 1, 16)] public float RotationY;
+    [Quantize(-1, 1, 16)] public float RotationZ;
+    [Quantize(-1, 1, 16)] public float RotationW;
+    [Quantize(-1, 1, 12)] public float DirectionX;
+    [Quantize(-1, 1, 12)] public float DirectionY;
+    [Quantize(-1, 1, 12)] public float DirectionZ;
     [Bits(3)] public DestroyCause Cause;
+    public bool Open;
+    [VarInt] public uint Attacker;
+    [VarInt] public uint Item;
 }

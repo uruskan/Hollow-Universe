@@ -5,8 +5,8 @@
     blender -b --factory-startup --python art/gibs/build.py -- --list               # what would be built, and from what
 
 What it reads: game/data/ground/models.json, every entry with a "gibs" object (its GLB, and options: "pieces",
-"hollow", "budget"); for a kit entry ("kind": "kit"), building.json names its parts: a grade's kit holds every piece
-(the grade whose "model" is the kit's key), a door kit every door whose "model" is the kit's key.
+"hollow", "budget", "cut"); for a kit entry ("kind": "kit"), building.json names its parts: a grade's kit ("grade": the
+grade's index) holds every piece by its key, a door kit every door whose frame and leaves are meshes of its file.
 What it writes: the gib file named by the entry (game/assets/gibs/<key>.glb) and its .import, which maps every material
 to the shared Godot material the model itself uses; and once, the building grades' and the garage door's materials
 (game/assets/materials/building_<grade>.tres, door_garage.tres), the same the building's art is drawn with.
@@ -91,6 +91,13 @@ def res_to_path(res):
     return GAME / res[len("res://"):]
 
 
+def glb_nodes(path):
+    """The node names of a GLB, from its JSON chunk."""
+    data = Path(path).read_bytes()
+    length = int.from_bytes(data[12:16], "little")
+    return {n.get("name", "") for n in json.loads(data[20:20 + length])["nodes"]}
+
+
 def gib_sets():
     """Every gib file to build: (key, gibs options, source file, parts), parts = [(part name, [source specs])]."""
     models = json.loads((DATA / "models.json").read_text(encoding="utf-8"))["models"]
@@ -105,13 +112,16 @@ def gib_sets():
             continue
         # An outcrop breaks at its last stage, a remnant.
         source = res_to_path(files[-1])
-        if m.get("kind") == "kit":
+        if m.get("kind") == "kit" and "grade" in gibs:
+            # A grade's kit: every piece, by its key (the destroyed event names a piece by its key and grade).
+            parts = [(p["key"], [("piece", p["key"])]) for p in building["pieces"]]
+        elif m.get("kind") == "kit":
+            # A door kit: every door drawn from it (its frame insert and leaves are meshes of this file), by the door's key.
+            meshes = glb_nodes(source)
             parts = []
-            for grade in building["grades"]:
-                if grade.get("model") == m["key"]:
-                    parts += [(p["key"], [("piece", p["key"])]) for p in building["pieces"]]
             for door in building["doors"]:
-                if door.get("model") == m["key"]:
+                names = [door.get("frameMesh", "")] + [leaf["mesh"] for leaf in door["leaves"]]
+                if all(n in meshes for n in names if n):
                     specs = [("door-frame", door["frameMesh"])] if door.get("frameMesh") else []
                     specs += [("door-leaf", leaf["mesh"], leaf["hinge"]) for leaf in door["leaves"]]
                     parts.append((door["key"], specs))

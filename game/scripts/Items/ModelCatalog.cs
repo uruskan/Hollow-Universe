@@ -17,15 +17,28 @@ public readonly record struct Pose(Vector3 Position, Vector3 RotationDegrees)
 /// <summary>
 /// How an item sits in a hand (GROUND.md §9): its pivot is the grip of <see cref="Hand"/> ("right", or "left" for the
 /// bow). <see cref="FirstPerson"/> places the grip in camera space; <see cref="ThirdPerson"/> places the item on the
-/// hand's attach point; <see cref="OffHand"/> names the socket the other hand holds, if any.
+/// hand's attach point; <see cref="OffHand"/> names the socket the other hand holds, if any; <see cref="Grip"/> says how
+/// the hand closes on it, if not as on a handle.
 /// </summary>
-public sealed record HeldInfo(Pose FirstPerson, Pose ThirdPerson, string? OffHand, string Hand);
+public sealed record HeldInfo(Pose FirstPerson, Pose ThirdPerson, string? OffHand, string Hand, GripInfo? Grip = null);
+
+/// <summary>
+/// How the first-person hand holds an item (GROUND.md §4.8), in the item's frame: which way the fingers run from the
+/// knuckles and the thumb points (the axis the fingers close round runs along the thumb); the radius they close round
+/// (0: the hand stays open, the item lying on it); how far out from the palm that axis, or the item's middle, sits
+/// (<see cref="Seat"/>; null: the radius); and a point on that axis (<see cref="At"/>; null: the item's middle). Without
+/// one an item is held as by a handle: fingers along +X, thumb along +Y, round the grip socket, 1.8 cm.
+/// <see cref="Pivot"/> is where a swing turns about, from the grip in camera space (metres: right, up, back): zero turns
+/// it about the hand, as a handle swings; a rock in the palm swings from the wrist.
+/// </summary>
+public sealed record GripInfo(Vector3 Fingers, Vector3 Thumb, float Radius, float? Seat, Vector3? At, Vector3 Pivot);
 
 /// <summary>
 /// What a model breaks into (GROUND.md §9.4): its gib file (pieces fractured by <c>art/gibs/build.py</c>; a kit's are
-/// grouped by part) and the gib material (<c>gibs.json</c>) its pieces bounce, dust and sound as.
+/// grouped by part, a building piece's or a door's key), the gib material (<c>gibs.json</c>) its pieces bounce, dust and
+/// sound as, and for a grade's kit the grade its parts are (building.json's order: the Destroyed event's grade).
 /// </summary>
-public sealed record GibsInfo(string File, string Material);
+public sealed record GibsInfo(string File, string Material, int? Grade);
 
 /// <summary>One model of <c>data/ground/models.json</c>: an item key or a world-object kind.</summary>
 public sealed record ModelEntry(
@@ -40,7 +53,6 @@ public sealed record ModelEntry(
     float IconCrop,
     int IconBundle,
     HeldInfo? Held,
-    float DropScale,
     float[]? LodDistances,
     string Source,
     string? StandIn,
@@ -69,7 +81,7 @@ public enum ModelUse
 }
 
 /// <summary>
-/// The model catalogue (GROUND.md §9): which GLB, icon, grip, drop scale, LODs and collision each item key and
+/// The model catalogue (GROUND.md §9): which GLB, icon, grip, LODs and collision each item key and
 /// world-object kind has. Read from <c>res://data/ground/models.json</c> once.
 /// </summary>
 public static class ModelCatalog
@@ -290,7 +302,8 @@ public static class ModelCatalog
         return last;
     }
 
-    private static Transform3D RelativeTransform(Node3D root, Node3D node)
+    /// <summary>A node's transform in the space of one of its ancestors.</summary>
+    public static Transform3D RelativeTransform(Node3D root, Node3D node)
     {
         Transform3D t = Transform3D.Identity;
         for (Node? n = node; n != null && n != root; n = n.GetParent())
@@ -429,7 +442,8 @@ public static class ModelCatalog
         {
             held = new HeldInfo(PoseOf(h, "firstPerson"), PoseOf(h, "thirdPerson"),
                 h.TryGetProperty("offHand", out JsonElement off) ? off.GetString() : null,
-                h.TryGetProperty("hand", out JsonElement hand) ? hand.GetString() ?? "right" : "right");
+                h.TryGetProperty("hand", out JsonElement hand) ? hand.GetString() ?? "right" : "right",
+                h.TryGetProperty("grip", out JsonElement grip) ? GripOf(grip) : null);
         }
         float[]? lodDistances = null;
         if (m.TryGetProperty("lodDistances", out JsonElement ld))
@@ -453,7 +467,6 @@ public static class ModelCatalog
             iconCrop,
             iconBundle,
             held,
-            m.TryGetProperty("drop", out JsonElement drop) && drop.TryGetProperty("scale", out JsonElement ds) ? ds.GetSingle() : 1f,
             lodDistances,
             m.TryGetProperty("source", out JsonElement src) ? src.GetString() ?? "" : "",
             // A stand-in names why it is one; some entries only say true.
@@ -462,7 +475,8 @@ public static class ModelCatalog
             m.TryGetProperty("slot", out JsonElement slot) ? slot.GetString() : null,
             SocketsOf(m),
             m.TryGetProperty("gibs", out JsonElement gibs) && gibs.TryGetProperty("file", out JsonElement gibFile)
-                ? new GibsInfo(gibFile.GetString()!, gibs.TryGetProperty("material", out JsonElement gm) ? gm.GetString() ?? "" : "")
+                ? new GibsInfo(gibFile.GetString()!, gibs.TryGetProperty("material", out JsonElement gm) ? gm.GetString() ?? "" : "",
+                    gibs.TryGetProperty("grade", out JsonElement gg) && gg.ValueKind == JsonValueKind.Number ? gg.GetInt32() : null)
                 : null);
     }
 
@@ -489,6 +503,14 @@ public static class ModelCatalog
             p.TryGetProperty("position", out JsonElement pos) ? Vec(pos) : Vector3.Zero,
             p.TryGetProperty("rotation", out JsonElement rot) ? Vec(rot) : Vector3.Zero);
     }
+
+    private static GripInfo GripOf(JsonElement g) => new(
+        g.TryGetProperty("fingers", out JsonElement f) ? Vec(f) : Vector3.Right,
+        g.TryGetProperty("thumb", out JsonElement t) ? Vec(t) : Vector3.Up,
+        g.TryGetProperty("radius", out JsonElement r) ? r.GetSingle() : 0.018f,
+        g.TryGetProperty("seat", out JsonElement seat) ? seat.GetSingle() : (float?)null,
+        g.TryGetProperty("at", out JsonElement at) ? Vec(at) : (Vector3?)null,
+        g.TryGetProperty("pivot", out JsonElement pivot) ? Vec(pivot) : Vector3.Zero);
 
     private static Vector3 Vec(JsonElement a) => new(a[0].GetSingle(), a[1].GetSingle(), a[2].GetSingle());
 }

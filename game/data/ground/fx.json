@@ -220,10 +220,22 @@
     { "key": "gather.wood", "family": "gather", "about": "A tool biting into a tree: wood chips and bark flying off, sawdust.", "cap": 16, "cull": 80,
       "duration": 1.5, "hero": 0.08, "stage": "wood",
       "layers": [
-        { "batch": "chunk_wood", "count": [9, 14], "size": [0.025, 0.06], "speed": [2.5, 5], "life": [2, 3.5], "dir": "normal", "cone": 55,
+        { "batch": "chunk_wood", "count": [10, 15], "size": [0.03, 0.07], "speed": [2, 4.5], "life": [2, 3.5], "dir": "normal", "cone": 65,
           "offset": 0.03, "color": [1, 1, 1], "vary": 0.12 },
-        { "batch": "dust", "count": [2, 4], "size": [0.25, 0.4], "grow": 2.2, "life": [1.0, 1.6], "speed": [1.0, 2.4], "dir": "normal", "cone": 40,
-          "offset": 0.08, "color": [0.62, 0.52, 0.38], "alpha": [0.45, 0.65] }
+        { "batch": "chunk_wood", "count": [3, 5], "size": [0.04, 0.08], "speed": [1.5, 3], "life": [2, 3.5], "dir": "normal", "cone": 70,
+          "offset": 0.03, "color": [0.55, 0.47, 0.42], "vary": 0.1 },
+        { "batch": "dust", "count": [3, 4], "size": [0.3, 0.5], "grow": 2.2, "life": [1.0, 1.6], "speed": [0.8, 2.0], "dir": "normal", "cone": 45,
+          "offset": 0.08, "color": [0.64, 0.54, 0.4], "alpha": [0.5, 0.7] }
+      ] },
+    { "key": "gather.x-hit", "family": "gather", "about": "A hit on a tree's painted X: a bigger burst of chips and splinters, flecks of the red paint, a puff of sawdust.",
+      "cap": 8, "cull": 80, "duration": 1.5, "hero": 0.06, "stage": "wood",
+      "layers": [
+        { "batch": "chunk_wood", "count": [14, 20], "size": [0.03, 0.08], "speed": [3, 6], "life": [2, 3.5], "dir": "normal", "cone": 60,
+          "offset": 0.03, "color": [1, 1, 1], "vary": 0.12 },
+        { "batch": "chunk_wood", "count": [4, 7], "size": [0.015, 0.03], "speed": [2, 4], "life": [1.5, 2.5], "dir": "normal", "cone": 70,
+          "offset": 0.02, "color": [1.0, 0.16, 0.1] },
+        { "batch": "dust", "count": [3, 4], "size": [0.35, 0.5], "grow": 2.4, "life": [0.9, 1.4], "speed": [1.2, 2.6], "dir": "normal", "cone": 40,
+          "offset": 0.08, "color": [0.68, 0.57, 0.42], "alpha": [0.55, 0.75] }
       ] },
     { "key": "gather.rock", "family": "gather", "about": "A tool on stone: chips and grey dust.", "cap": 16, "cull": 80, "duration": 1.5, "hero": 0.07,
       "stage": "rock",
@@ -254,6 +266,13 @@
         { "batch": "spark", "count": [10, 14], "size": [0.03, 0.06], "width": 0.004, "speed": [2, 5], "life": [0.2, 0.4], "dir": "normal", "cone": 80,
           "color": [1.0, 0.662, 0.338] },
         { "batch": "ring", "count": 1, "size": [0.08, 0.08], "grow": 6, "life": 0.3, "color": [1.0, 0.98, 0.9], "alpha": [0.7, 0.7] }
+      ] },
+    { "key": "gather.hotspot-glint", "family": "gather", "about": "An ore hotspot glinting now and then: a few tiny sparks and a twinkle.",
+      "cap": 16, "cull": 25, "duration": 0.4, "hero": 0.05, "stage": "rock",
+      "layers": [
+        { "batch": "spark", "count": [1, 3], "size": [0.015, 0.03], "width": 0.002, "speed": [0.4, 1.2], "life": [0.15, 0.35], "dir": "normal",
+          "cone": 70, "color": [1.0, 0.86, 0.6] },
+        { "batch": "flash", "count": 1, "size": [0.06, 0.09], "life": 0.07, "offset": 0.02, "color": [1.0, 0.92, 0.75] }
       ] },
     { "key": "gather.tree-fall", "family": "gather",
       "about": "A felled tree landing: a long low cloud of dust and litter along the trunk (Direction: the fall; Area: half its length).", "cap": 4,

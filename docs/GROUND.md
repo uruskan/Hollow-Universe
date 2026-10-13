@@ -82,6 +82,10 @@ this is the one closest to an Earth-like place to live.
 
 ## 4. Architecture
 
+The shared systems every feature goes through (naming targets, interaction, placement, held items and their
+information, damage and destruction) and the rule behind them, one system per concern with no special-case paths, are in
+[GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) (proposal of 13 October 2026, for the owner's review).
+
 ### 4.1 Projects
 
 ```
@@ -159,7 +163,8 @@ Godot.
     and are confirmed or rejected by the server.
 - **Godot** draws that world and nothing else: a surface mode with a floating origin, terrain from Hollow.Surface,
   entity views pooled by type, a first-person camera and viewmodel, third-person characters, UI and audio.
-  Mouse look is applied every frame, never held back by the tick.
+  Mouse look is applied every frame, never held back by the tick. Held Left Alt is free look (RustMVP's, §4.5): the
+  mouse turns the camera and the head, not the view.
 - **Bots** are Hollow.Client with scripted input. Tests run the server and bots headless.
 - **As built in G1** (`src/Hollow.Client`, no Godot): `GameClient.Update(delta, input)` every frame receives, runs
   the ticks that are due (each predicts and sends its input) and advances what is drawn.
@@ -243,14 +248,15 @@ Godot.
   server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. The first lead
   comes from the connect handshake's round trip.
 - **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, yaw and pitch in 1/65,536 of a turn,
-  buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the snapshot acknowledgements and
-  a client timestamp for measuring the round trip. Only four losses in a row lose an input. The server applies each
-  tick's input on that tick; without one it repeats the last (without the jump press) and counts a miss.
+  the head's free look in 1.5° steps, a byte each way, buttons: jump held, jump pressed this tick, crouch, sprint) and
+  the three before it, the snapshot acknowledgements and a client timestamp for measuring the round trip. Only four
+  losses in a row lose an input. The server applies each tick's input on that tick; without one it repeats the last
+  (without the jump press, and after 0.8 s without the free look) and counts a miss.
 - **Snapshots:** 20 a second per client (every 1.5 ticks on average). The header has the sequence, the server tick,
   the input margin, the player's own character exactly (floats, for reconciliation) with its tick, and the echo. Then
   the relevant entities, each delta-coded against its newest state the client confirmed (acknowledged by sequence and
   32 bits), highest accumulated priority first, within 1,600 bytes and the path's MTU. Remote positions are on a
-  1/256 m grid.
+  1/256 m grid; a character's view angles come with its head's free look (two bits while nobody looks round).
 - **Relevance:** a 64 m grid; an entity becomes relevant within 300 m (reliable `Spawn`) and stops beyond 320 m
   (`Despawn`). Everyone's own character is always theirs.
 - **Bad network:** `ConditionedRelay`, a local UDP relay below LiteNetLib (whose own simulation is compiled out of its
@@ -299,6 +305,15 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   - **Swimming** where `ISurface.SeaRadius` > 0: a character swims once the water reaches 65 % of its height (Rust's
     threshold), steers in the view direction (look down to dive), rises with jump and sinks with crouch, and floats
     at 75 % depth otherwise. 2.0 m/s, 3.0 m/s with sprint. Landing in water never hurts.
+- **Free look** (Left Alt held; RustMVP's, `FreeLook`): the mouse turns the camera and the head instead of the view,
+  up to 120° either side of it, the pitch so the camera stays within ±85°. The view (the input's yaw and pitch) stays
+  the movement's basis and the aim of every shot, swing, placement and throw, so a free look never disagrees with them:
+  while Alt is held the hands do nothing (`GroundView.Hands`, the one place that decides what the held item does), and
+  the recoil's countersteer never sees the mouse. Letting go, or the cursor showing (inventory, crafting, map, menu,
+  chat, keypad), turns the camera back to the view at once. The turn rides each input to the server (1.5° steps, a
+  byte each way; the prediction ignores it) and the character's state to everyone else, whose views turn the neck and
+  head and ease them back (§4.8). The server bounds it (yaw ±120°, pitch ±170°, RustMVP's) and, after 0.8 s without
+  the player's input, lets it go. In the Tin Finch's cockpit the same keys turn the pilot's head about the seat.
 - **Collision:** the ground is static mesh tiles of 64 m built from `ISurface.GroundCollision`, identical on both
   sides. A tile's Jolt body ID follows from its grid position (Jolt orders contacts by body ID), so tiles agree where
   they meet whatever else each side holds. Tiles exist within ±8.2 km of the zone's origin. Building parts are boxes
@@ -499,7 +514,7 @@ knows about the network.
 
 | Input | Meaning |
 |---|---|
-| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim; `Crawl`: down and wounded, lying or crawling; `Sleep`: asleep, logged off); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional); `Aiming` (a gun raised, the bow drawn and held). |
+| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `LookYaw` and `LookPitch` (free look, §4.5: the neck and head turn that much further, easing there and back at RustMVP's rate 14, the head at most 95° from the chest and nodding at most 65° from it; asleep, never); `Velocity` (m/s); `Stance` (stand, crouch, swim; `Crawl`: down and wounded, lying or crawling; `Sleep`: asleep, logged off); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional); `Aiming` (a gun raised, the bow drawn and held). |
 | `Trigger(CharacterEvent, direction)` | `Swing` (tool strike, punch, spear thrust), `Fire` (a shot; with the bow, the arrow loosed), `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`), `HelpUp` (helping a wounded player up), `Use` (the item in hand: food is eaten, a bandage wound on, an injector used), `Eat`, `Bandage`, `Inject`. `Revive()` stands it up again. Changing `Stance` from standing to `Crawl` plays the fall; from `Crawl` to standing, getting up. |
 | `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). `Wardrobe.ForItem(itemKey)` gives the garments an items.json key is worn as (every clothing and armour key has one); `Wardrobe.ForItems(keys)` a whole outfit. |
 | `Look` | How the player looks: `Looks.ForPlayer(id, body)` (skin tone, face, hair style and colour, stubble from the ID; the body is the player's choice). Set any time; `ViewmodelView.Look` gives the arms the same skin. |
@@ -646,21 +661,28 @@ each leg reaches the ground found by a ray under its foot).
 render layer 2, without shadows, with their own field of view (60° by default; `ViewmodelView.Fov` is the player
 setting) and depth pulled towards the near plane so they never clip into walls. Their shoulders sit 10 cm lower and
 6 cm further forward than the body's, so the forearms rise into view from the lower corners, as in Rust (nobody sees
-the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round the
-handle: each joint bends just enough for the next to lie on a circle round the handle, so they close on it without
-passing through. The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
+the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round what
+they hold: each joint bends just enough for the next to lie on a circle round it, so they close on it without passing
+through, a 1.8 cm handle or, from the catalogue's grip (§9.1, L8), a rock's 4 cm girth with the thumb opening as it
+thickens; an open hand (grip radius 0) lets food lie on the palm, its fingers lightly curled. The rock, the bandage
+and the tin grenade are cradled in the right hand, the palm up and to the left and the fingers round their far side,
+and food lies on the open palm the same way (L7). The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
 near plane), with its own relief: a normal map made from the skin texture, fine wrinkles over the finger joints and a
 glossy plate for each nail (`art/characters/skin_maps.py`). The item moves procedurally: sway, walk bob, sprint
 pose, recoil kick on a spring, aiming down the sights (the sight on the camera's centre line). Swings and reloads are
-key poses (`ViewmodelMotion`): a swing turns about the hand, up and back for the wind-up, a beat at the top, then down
-and across fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and
-recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
+key poses (`ViewmodelMotion`): a swing turns about the hand (the rock about the wrist, its grip's pivot, so it rises
+and comes down instead of turning in the palm), up and back for the wind-up, a beat at the top, then down and across
+fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
 works the slide or the charging handle (another jolt) and returns; the pistol's magazine (the catalogue's `Magazine`
 part) drops and comes back. The bow is raised upright in front of the left eye and drawn (the string to a little over
 half its third-person draw, so the hand stops in front of the face), an arrow on the string; a shot looses it. A spear
 is thrust along its shaft. Eating brings the food to the mouth for a few bites; bandaging raises the left forearm into
 view and winds the bandage round it; injecting pushes the injector into the raised forearm. Gloves are drawn with the
-forearms. Unarmed shows no arms, as in Rust.
+forearms. Unarmed shows no arms, as in Rust. The arms belong to the body: while the player free looks (Alt, §4.5) they
+stay on the view, where everything is aimed, and leave the picture as the head turns away (`FirstPersonView.ArmsTurn`,
+L2). Pictures in `images/ground/look/`: the rock before and after (`fp-rock-before.png`, `fp-rock-after.png`, and in the
+game `game-rock.jpg`), every held item (`fp-held-items.jpg`), free look in the game (`game-freelook.jpg`) and a head
+turned as others see it (`head-turned.png`, `--look 75,-15`).
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
@@ -668,9 +690,11 @@ collide with the world (layer 1), not with each other; gravity is applied along 
 
 **Held items** are every item the model catalogue gives a held pose (§9.1), loaded through `ModelCatalog` with the
 materials of their import settings, named from items.json (`HeldItems`). Tools and blades are held by the handle and
-swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (spears, food,
-bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip. Aiming down the
-sights puts a gun's eye socket at the camera.
+swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (the rock, spears,
+food, bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip (its own
+grip, or its palm socket), the poses set for the arms' 60° view (L9). Aiming down the sights puts a gun's eye socket at
+the camera. `--view character --fp-sheet <png>` pictures every held item in first person on one sheet
+(`images/ground/look/fp-held-items.jpg`).
 
 **Held items in third person.** A tool rides upright in the right hand at the hip (the bow in the left), a pistol is
 held by the clip's two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK
@@ -1140,8 +1164,8 @@ its `ship` and `world` steps):
 | `inventory.jpg` | The inventory: the player's own body in what they wear, the hatchet's panel, quick craft. |
 | `crafting.jpg` | Crafting: the stone hatchet's recipe, two wooden spears in the queue. |
 | `player.jpg` | The second player with the female body, in the knit cap, woven shirt and trousers, laced boots and the riveted cuirass, hatchet in hand, her name above her. |
-| `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
-| `outcrop.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop, and its broken stage after the pickaxe. |
+| `chop-x.jpg`, `chop-hit.jpg`, `chop-falling.jpg`, `chop-landed.jpg`, `chopped.jpg` | A tree (a birch or a broadleaf near, or `--tour-tree <kind>`) with Rust's red X after the first hit, an X hit's burst of chips, paint and sawdust, the tree tipping over, landed in its dust, and gone (§6.1; the pictures in `docs/images/ground/gather/` are of a pine). |
+| `outcrop.jpg`, `mine-hotspot.jpg`, `mine-stage.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop; its hotspot glinting on the rock after the first hit; a stage breaking under hotspot hits; the hotspot on the broken stage (`docs/images/ground/gather/`). |
 | `gun.jpg` | The rifle aimed down its sights in the frame a shot leaves: the effects library's muzzle flame and its light on the gun, 29 of 60 rounds. |
 | `build.jpg` | A base begun in the meadow: two twig foundations and three walls, the building plan in hand, the green ghost of a doorway with its cost and stability under the crosshair. |
 | `keypad.jpg` | The stone hut's sheet metal door with a code lock fitted: its keypad, two digits entered. |
@@ -1506,16 +1530,39 @@ is the one place that picks the provider:
   outcrops (111 stone, 69 metal, 30 sulphur).
 - **On the stand-in** (tests), `StandInNaturalObjects` places each kind at its density per 64 m tile from a seeded
   stream (deterministic), keeping 9 m around the zone's origin clear.
-- **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's tree or ore rate
-  (items.json) and gives the share of the object's whole yield that health was, in whole units, so the hits add up to
-  exactly the total: a better tool is quicker, not richer. The last hit gives the rest. A 0.94-size pine (206 wood)
-  takes 32 hits with a rock, 13 with a stone hatchet, 9 with a metal one.
-- **The weak spot** (Rust): it shows with the first hit on a tree or outcrop, on the side facing the hitter (within 50°
-  either way), on the trunk at chest height or on the outcrop's upper side. A hit within 0.3 m of it counts double and
-  moves it, again to the hitter's side at a new height. Its direction and height are part of the stored change and
-  are sent to clients, who draw it. (First placed at random around the object, the spot was on the far side half the
-  time: the bots found it on 3 hits in 132; facing the hitter, 91 in 113.)
-- **Outcrops** shrink through three stages as they lose health (drawn by the client).
+- **One rule for every class** (`NaturalState.Hit`): gather.json's `classes` say, per class of natural object, which tool
+  rate it takes, where its weak spot sits and what a hit on it pays, what the last hit pays and how it all shows
+  (`look`, §9.3); a kind may replace parts of the look (metal and sulphur outcrops throw sparks). Each harvested kind
+  carries its own resolved copy (`NaturalKind.Gather`, `GatherRules`).
+- **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's rate (items.json `tree`
+  or `ore`, as the class says) times the weak spot's multiplier, and gives the share of the yield the hits pay that
+  health was worth, in whole units, so everything adds up to exactly the total: a better tool or the weak spot is
+  quicker, not richer. The last hit pays the rest and what the class keeps back for it (`last.share`): **a felled tree
+  pays half its wood as it falls** (Rust, November 2017). With a proper tool the last hit on an outcrop pays **a bonus
+  of 20% of the total on top** (`last.bonus`, `last.tools`: the stone and metal pickaxes; Rust's Devblog 166: not a rock
+  or a bone club). A 0.94-size pine (206 wood) takes 32 hits with a rock, 13 with a stone hatchet, 9 with a metal one,
+  without the X.
+- **The weak spot** (Rust's): it shows with the first hit on a tree or outcrop, on the side facing the hitter (within
+  50° either way). Hits on it in a row pay and take 1 + step × the run, up to a ceiling, and move it to the hitter's
+  side again; a hit anywhere else ends the run and leaves it where it is (Rust: "a miss resets the bonus").
+  - **Trees: Rust's red X** (step 0.125, at most 2: Rust's metal hatchet went 16, 18 … 30 wood a hit against a flat 15).
+    It sits on the trunk (the capsule, kind radius × size, which matches the drawn trunks within a few centimetres) at
+    the height of the hit that placed it, give or take 0.35 m, between 0.7 and 2 m; a hit within 0.25 m of it counts.
+  - **Outcrops: Rust's hotspot** (step 0.5, at most 3: 150%, 200%, 250%, 300%; Devblog 170 and the Facepunch wiki's
+    "Ore nodes"). It sits on the stage model's own top (`MeasuredSurface`: surfaces.json, heights of each stage model
+    measured straight down at 4 rings × 32 directions by `--view models --survey-surfaces`), exactly on a measured
+    point, never lower than 40% of the stage's top, so it is on the rock at every stage (before, it floated beside a
+    broken outcrop); a hit within 0.3 m of it counts. A stone outcrop the size of 1 takes 43 hits with a rock, 16 on
+    the hotspot.
+  - Whether a hit is on the spot is measured where the swing's own line (the eye along the view) **meets the drawn
+    surface** (`ISpotSurface.Meet`: the trunk's cylinder; the outcrop's measured top, marched in 2 cm steps), not where
+    the thick ray first touched the hit shape (an outcrop's sphere stands well above its broken stages). The same
+    point is sent to clients for the hit's effects.
+  - The direction and the second number (a tree: the height; an outcrop: the ring) are part of the stored change and
+    are sent to clients, who draw it where the server tests it. The run and the last hit's point aren't saved. (First
+    placed at random around the object, the spot was on the far side half the time: the bots found it on 3 hits in
+    132; facing the hitter, 91 in 113.)
+- **Outcrops** break through three stages as they lose health (each its own model, drawn by the client).
 - **Pickups** (piles of wood, stone and ore, fibre plants, wild tubers) and **berry bushes** are taken whole with the
   interact key; a pickup is gone, a bush stays bare, until it grows back.
 - **Respawn** on the real clock (Unix milliseconds): trees after 20 minutes, outcrops 10, pickups and bushes 8. Only
@@ -1555,7 +1602,8 @@ starts at 60 / 260 / 160 (hollow-orbit's respawn values).
 snapped to the ground below (at most 0.6 m off), refused under water, outside the zone, on ground steeper than the
 item allows (20–30°), or overlapping another deployable, a tree, an outcrop or a character (blocked). Boxes, furnaces and
 workbenches are solid Jolt boxes on both sides; sleeping bags and campfires are not. Every deployable has hit points;
-melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground.
+melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground, in
+one bag.
 - **Sleeping bag and bed**: respawn points for their owner only, with a cooldown from placing and after each use (bag
   300 s, bed 120 s; real clock, as in RustMVP, so it runs while the server is down). A bed needs workbench 1.
 - **Campfire and furnace**: lit by hand when they have fuel; a lit one burns a unit of fuel every `fuel.seconds` (wood:
@@ -1565,8 +1613,28 @@ melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks an
 - **Workbenches**: a level counts for crafting within 4 m.
 - **Boxes**: 18 and 48 slots.
 
-**Dropped items**: a drop lands on the ground in front of the player, lies there for 300 s of world time (it pauses
-while the server is down) and is picked up with the interact key, as much as fits.
+**Dropped items lie in bags** (U1–U6; `Zone.Spill.cs`, survival.json's `bag`). Everything that lands on the ground goes
+through one function, `Zone.Spill`, whatever sends it there: a drop from the inventory, a finished craft, a refund or an
+admin's gift that doesn't fit, a broken box's, furnace's, barrel's or claim device's contents, a broken research table's
+work, a spent arrow.
+- **Packing:** it goes into the nearest bag within 1.5 m that has room, onto stacks of the same item first, then empty
+  slots; farther off, or what a full bag can't take, starts a new bag where it comes to rest. So what lands together is
+  one bag: a broken large box's 48 stacks, or a whole inventory (37 slots), fill one 48-slot bag (Rust drops one pouch).
+- **Where it rests:** on the first solid surface under the point (a floor or foundation, a box's lid, the ground's own
+  collision) within 4.5 m, so a bag dropped in a base lies on its floor; a drop lands 0.7 m ahead of the player's feet,
+  short of a wall in the way.
+- **Time:** 300 s of world time (it pauses while the server is down) from the newest item put in; an emptied bag goes at
+  once.
+- **Taking:** the interact key takes a bag of one stack whole (as much as fits); a bag holding more opens in the loot
+  panel, take only (a crate's loot), showing only the rows its stacks fill. Others see only the bag and how many stacks
+  it holds (for the prompt's verb); its contents go only to whoever opens it.
+- A bag and a body are the same kind of thing (`DroppedContainer`: a container lying for a while, take only, gone when
+  emptied or when its time is up). Bags are saved with the zone's things (their record's version 3; a stack saved
+  alone before comes back as a bag of it). Tests: `SurvivalTests.DroppedItemsArePackedIntoBags` and
+  `ABagIsTakenWholeOrOpened`, `SurvivalNetTests.OthersSeeOnlyABag`, and the restart in `EverythingSurvivesARestart`.
+- Pictures (`docs/images/ground/drop/`, the screenshot run's `--tour-steps bags`): `bag.jpg` (five stacks dropped in
+  the meadow, one bag and its prompt), `bag-open.jpg` (opened beside the inventory: one row, take only),
+  `bag-model.jpg` (the model, `--view models --model dropped-bag`).
 
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
 ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
@@ -1583,8 +1651,9 @@ wakes them where they lie; a player killed while away logs in dead and chooses a
 **Melee** (`Zone.Combat.cs`). The held item comes from the belt slot each input names; taking an item up takes 0.3 s.
 While the primary button is held a melee item swings every `swing` seconds and strikes `strike` seconds after the swing
 starts: a ray from the eye along that tick's view, thickened to 0.15 m, out to the item's reach (1.6–2.4 m). The first
-thing it meets takes the hit: a character (damage), a tree or outcrop (gathering), a deployable (`structure` damage), or
-the ground (nothing). Every hit costs the tool a point of condition; at none it breaks.
+thing it meets takes the hit, as a melee request through the damage pipeline (§6.4.2): a character (damage), a tree or
+outcrop (gathering), a deployable (`structure` damage), or the ground (nothing). Every hit costs the tool a point of
+condition; at none it breaks.
 
 **The bow**: holding the secondary button draws it (1 s) while there are arrows; the primary button looses one: from the
 eye along the view at 50 m/s, under the planet's surface gravity (9.0 m/s² on the first world; not the characters'
@@ -1611,7 +1680,7 @@ refused (`ContentMismatch`). Each tick's input also carries the belt slot in han
 pressed is latched like jump) and the view delay in quarter ticks (lag compensation). A character's snapshot state
 adds the item in hand, a 4-bit count of swings and shots with the last kind (others animate each), and asleep.
 - **Intents** (client → server, reliable ordered, each with a sequence number): move, quick move, drop, use, craft,
-  cancel craft, open, close, pick up (a natural object or a dropped item), place, light or put out, respawn. The
+  cancel craft, open, close, pick up (a natural object, or a bag of dropped items: all of it that fits), place, light or put out, respawn. The
   server applies them as they arrive (at the start of a tick) and answers every one with `IntentResult` (accepted, or
   the `ActionResult` reason) after that tick's changes have gone out.
 - **Budget** (RustMVP's command budget): 16 at once, 20 a second; every arrival spends one, a bad one too; over it the
@@ -1625,11 +1694,16 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
 - **Events** (reliable, to whom they concern): hit markers, items gained or lost and why, damage taken (amount, body
   part, from where, with what), a craft finished; projectiles loosed and stopped (to everyone within 300 m), which
   clients draw on their own arc.
-- **Static things** (deployables, dropped items, corpses) are sent once when they come within 300 m (`ThingSpawn`; at
-  most 48 new ones per snapshot, so a crowded place streams in), again when they change (`ThingUpdate`: health, count,
-  lit, the receiver's own bag) and `Despawn`ed when gone or out of range (320 m).
+- **Static things** (deployables, bags of dropped items, corpses) are sent once when they come within 300 m
+  (`ThingSpawn`; at most 48 new ones per snapshot, so a crowded place streams in), again when they change
+  (`ThingUpdate`: health, a bag's number of stacks, lit, the receiver's own sleeping bag) and `Despawn`ed when gone or
+  out of range (320 m). What is sent of a thing is the thing's own to say (`WorldObject`: its look, health, count,
+  burning, whose, and its own name: a body's, a bag's, a world prop's); a bag shows no item (protocol 12).
 - **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
-  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens.
+  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens. Since
+  protocol 13 a change also carries the run of weak-spot hits, where the last hit met the drawn surface (3 cm steps
+  from the base) and how many ticks old that hit was when sent: a client counts a hit as news (`SeenHits`) only when
+  it is at most 30 ticks old, so an area coming into range replays no hits, and no felled tree falls again.
 - **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
 
 **Server** (`GameServer.Survival.cs`). The zone runs with the game data; the server sets its real clock each tick,
@@ -1667,9 +1741,9 @@ Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), 
 act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
 campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
 
-**Godot** (`game/scripts/Ground`, §4.3): deployables, dropped stacks and the dead's backpacks from `GroundModels`
-(`CatalogModels`: the model catalogue's, §9.1; a dropped stack is the item's own model at its drop scale, lying on the
-ground, or the dropped-item bag; `--placeholder-models` keeps shapes made in code), a lit fire's flame and light at the
+**Godot** (`game/scripts/Ground`, §4.3): deployables, bags of dropped items and the dead's backpacks from `GroundModels`
+(`CatalogModels`: the model catalogue's, §9.1; a bag is `dropped-bag` whatever it holds; `--placeholder-models` keeps
+shapes made in code), a lit fire's flame and light at the
 model's `socket_fire` (its real strength next to the sun's: the sky meters the camera a few thousand times brighter by
 night, `Glow`), arrows in flight, the held deployable's own model as a ghost where it would go, and the interact
 prompt; holding E on a fire or furnace lights it or puts it out. A body lies for 150 s in view, then only its backpack
@@ -1718,8 +1792,13 @@ square and triangle, closes its shared edge exactly under a turned parent.
 scored by how near the aim passes (a floor by its whole footprint, so a ceiling can be chosen by aiming anywhere on it),
 how far it is from what the aim hits, and how close its facing is to the one asked for (a wall's hard side away from
 the player, stairs and roofs rising away; R turns it). The best eight are checked and the first allowed wins; if none
-is, the best shows with its reason. With no socket near, a foundation goes on the ground: along the aim, at most 3.5 m
-across, its top 5 cm above the highest ground under it.
+is, the best shows with its reason. With no socket near, a foundation goes on the ground (RustMVP's free foundation,
+L1): where the aim meets the ground, at most 3.5 m across; aimed further, it stays 3.5 m out and the aim's height there
+lifts its top, so raising the view raises the foundation continuously within its depth. The top is that height plus the
+5 cm clearance, held where the ground check below allows it: at least the clearance above the highest ground under its
+corners and centre, at most its 1 m depth above the lowest (2 cm inside both). Aimed at the ground it sits as low as the
+ground allows. The wire sends the point on the aim and the server works the same foundation out from it
+(`BuildingWorld.FoundationAt`).
 
 **Placement checks**, in this order, each refusal with a line for the player (`Refusal`, `Outcome.Text`):
 
@@ -1818,8 +1897,8 @@ a walking character (the real movement code), the rules above and their art, and
 wheels through a view model (`BuildSandboxUi`). The ghost is `BuildingWorld.Plan`'s answer, green when allowed, red
 with the reason. Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; the right mouse button holds the plan's or the
 hammer's wheel (RustMVP's, from §8); the left places, repairs, fits a door or places the device; R turns the piece or
-flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Removed pieces fall
-and sink away, layer after layer. A scene's view is held for screenshots; otherwise the builder stands under it and
+flips a door; E opens and shuts a door; F2 the stability overlay; F5 an hour of upkeep and decay. Pieces that come
+down, are demolished or decay break into their gibs (§9.4), layer after layer. A scene's view is held for screenshots; otherwise the builder stands under it and
 walks. `--build-check` plays a round through the sandbox's own input paths (a free foundation, a wall snapped to its
 edge, the hammer's upgrade and turn, a doorway and a door aimed into its opening, E, then demolishing the foundation
 and watching the rest come down) and quits with exit code 0 when all nine steps pass.
@@ -1845,6 +1924,7 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 |---|---|
 | A two-storey house in mixed grades: stone foundations and doorway with a sheet-metal door, metal and wood walls, windows, an open wooden double door, wood floors, U stairs, metal roofs with gables, a twig porch | `images/ground/build/house.jpg` |
 | The plan's ghost, allowed (a foundation beside the house) and refused (a sixth floor off a balcony: "Not stable enough (0%)") | `ghost-valid.jpg`, `ghost-invalid.jpg` |
+| A free foundation lifted by a raised aim (L1): the aim half a metre over the ground 3.5 m out, the top 0.6 m up (`--scene empty --tool 1 --piece foundation --from 0,1.8,6 --at 0,0.48,2.5`; in the game, `images/ground/look/game-foundation-lifted.jpg`) | `foundation-lifted.png` |
 | The stability overlay: the house 100 %, the balcony 90, 70, 50, 30, 10 % | `stability.jpg` |
 | The 1,060-piece block with its frame time | `stress.jpg` |
 | The plan's wheel with the rules' pieces and costs | `wheel.jpg` |
@@ -1870,10 +1950,10 @@ state. The rules are `Hollow.Simulation` code shared by the server and the shoot
 | Damage; head, body, limb | 35; ×2, ×1, ×0.5 | the same | RustMVP |
 | Falloff | full to 70 m, then down to ×0.45 at 200 m | the same | hollow-orbit `falloff` (full to 35% of the range) |
 | Spread (cone half-angle) | 1.5° at the hip, 0.25° aimed, +0.25° bloom a shot (at most 2°, fading 3° a second) | the same | RustMVP |
-| Spread moving, airborne, crouched | +170% at the hip and +50% aimed at full sprinting speed (in proportion below), ×2.4 in the air, ×0.8 crouched | the same | hollow-orbit `_spread` |
-| Recoil | a straight 3° kick a shot, × (1 ± 0.12), ±0.66° sideways; limits 30°/30° | the AK pattern, 30 steps (adding up to 29.37° up, 0.61° right), ±0.06° sideways a step; limits 60°/60°; starts again after 0.4 s | RustMVP (the steps, limits, reset); hollow-orbit `_kick` (the random part) |
+| Spread moving, airborne, crouched | +170% at the hip and +50% aimed at full sprinting speed (in proportion below), ×2.4 in the air, ×0.8 crouched | the same | ours, from hollow-orbit `_spread` (aim cone, not recoil; RustMVP has none, D3) |
+| Recoil | a straight 3° kick a shot, nothing sideways; limits 30°/30° | the AK pattern, 30 steps (adding up to 29.37° up, 0.61° right; the 30th is zero and repeats); limits 60°/60°; starts again after 0.4 s | RustMVP, exactly (D1) |
 | Kick, hold, recovery | applied over 0.1 s; held 0.2 s after the last shot; all of it back over 0.08 s (smoothstep) | the same | RustMVP |
-| Recoil aimed, crouched | ×0.78, ×0.85 | the same | hollow-orbit `_kick` |
+| Recoil aimed, crouched, moving | the same: nothing random, nothing scaled (aiming narrows the spread only) | the same | RustMVP (D1) |
 | Aimed zoom | 1.57× (65° at 90°) | the same | RustMVP |
 | Attachments | holo sight, silencer, weapon light, muzzle brake | all five | ours |
 | Condition | 200 shots | 300 shots | hollow-orbit `dur` |
@@ -1909,7 +1989,7 @@ magazine; not while sprinting or swimming; a view no input can have is refused. 
 - **Where it goes:** the view (the input's, without recoil) plus the recoil before this shot's kick, plus a point in the
   spread cone; never steeper than 85°. The cone: hip or aimed (attachments scale it), wider moving, in the air, narrower
   crouched, plus the bloom left.
-- **Randomness** (the cone's point, the kick's random part) comes from a seed both sides know: the shooter and the shot's
+- **Randomness** (the cone's point; the recoil has none) comes from a seed both sides know: the shooter and the shot's
   sequence number. So the server and the shooter's client compute the same direction and recoil, bit for bit
   (`GunNetTests` replays a recorded input stream through both).
 - **The gun moves on:** the cadence deadline (RustMVP: a deadline crossed since the previous tick carries over, so 4.5
@@ -1921,13 +2001,23 @@ magazine; not while sprinting or swimming; a view no input can have is refused. 
   they are now), after 200 m, or after 3 s. Its ground test steps as far as its height allows (the ground rises at most
   51°), so a bullet high up costs few samples.
 
-**Recoil, Rust's way** (RustMVP `sample_recoil`, `apply_recoil_shot`). Each shot samples where the view is, then adds one
-step (the pattern's next, or the straight kick), scaled aimed (×0.78), crouched (×0.85) and by attachments, towards a new
-target the view reaches over 0.1 s. The pattern starts again after 0.4 s without a shot and holds its last step. 0.2 s
-after the last shot the whole of it returns over 0.08 s. The recoil is an offset on the camera; the view the player
-controls (and sends) stays clean, and the server adds the recoil itself, so a client can't leave it out. The player pulls
-against it with the mouse; as it recovers, what they pulled is given back to their view (RustMVP's countersteer credit,
-`RecoilCompensation` on the client), so letting go of the trigger doesn't drop the aim by what they compensated.
+**Recoil, RustMVP's exactly** (`sample_recoil`, `apply_recoil_shot`, `recoil_compensation.hpp`; the owner chose fixed,
+repeatable, learnable patterns per weapon, D1). Each shot samples where the view is, then adds one step (the pattern's
+next, or the pistol's straight 3° kick) towards a new target the view reaches over 0.1 s, linearly. Nothing random, and
+the same aimed, crouched or moving (aiming narrows the spread only); a muzzle attachment alone scales the step (brake
+×0.5, silencer ×0.8, Rust's). The pattern starts again after 0.4 s without a shot (its cursor, not the recoil still
+showing) and repeats its last step, the AK's zero. 0.2 s after the last shot the whole of it returns over 0.08 s along a
+smoothstep, however big the burst. So a 30-round AK spray puts the view before each shot exactly on RustMVP's table, the
+dated community table its steps come from (`GunNetTests.AkSprayMatchesRustMvpTable`, client and server alike), ending
+29.37° up and 0.61° right. The recoil is an offset on the camera; the view the player controls (and sends) stays clean,
+and the server adds the recoil itself, so a client can't leave it out. The player pulls against it with the mouse; as it
+recovers, what they pulled is given back to their view (RustMVP's countersteer credit, `RecoilCompensation` on the
+client), so letting go of the trigger doesn't drop the aim by what they compensated. Each frame, after the client's
+ticks, in RustMVP's order: the credit owed up to now goes onto the view, then the mouse's turn since the last frame (the
+pitch as it moved within its clamp) earns credit against the recoil showing now, then the camera is the view plus the
+recoil sampled now, nothing smoothed or scaled (field of view and sensitivity leave the angles alone). A shot settles the
+credit owed up to it before its kick starts afresh, and a correction from the server settles the old prediction before
+rebasing on the new, as RustMVP's client does.
 
 **Reload** is an intent for a tick, with a timer: equip time, not already reloading, the gun takes those rounds (by
 default the kind loaded, else the first kind of its calibre the player has), not full of them, some in the inventory.
@@ -2004,7 +2094,7 @@ replays the rest from the server's state, as movement does; on a clean line noth
 |---|---|
 | `Local.Gun`: `Weapon`, `Loaded`, `LoadedAmmo`, `Reserve`, `Reloading`, `ReloadProgress`, `Ready`, `Aimed`, `Zoom`, `Mods`, `Spread`, `PendingCount` | The gun in hand as predicted: its numbers (or null), the magazine and its rounds, rounds a reload would load, a reload's progress (0–1), equipped, aimed down the sights, the aimed magnification (the camera: fov′ = 2·atan(tan(fov/2)/zoom)), its attachments (silenced, light), the spread cone now (degrees, for the crosshair). |
 | `Local.Gun.ViewKick` | The recoil's offset of the camera now (yaw, pitch in radians; yaw + is to the left): add it to the camera every frame, never to the view the player controls. |
-| `Local.Gun.ObserveLook(dYaw, dPitch)`, `TakeCompensation()` | Every frame: the mouse's turn of the view; then what to add to the controlled view as the recoil recovers (RustMVP's countersteer credit, so pulling against a spray doesn't drop the aim when it ends). |
+| `Local.Gun.TakeCompensation()`, `ObserveLook(dYaw, dPitch)` | Every frame after `GameClient.Update`, in this order (RustMVP's): what to add to the controlled view as the recoil recovers (RustMVP's countersteer credit, so pulling against a spray doesn't drop the aim when it ends); then the mouse's turn of the view since the last frame. Then the camera. |
 | `Local.Gun.ShotFired` (`ShotEvent`: sequence, weapon, round, origin, direction, speed, silenced, aimed) | A shot, at once: muzzle flash, sound, viewmodel kick, the tracer. The direction is the server's to the bit when the prediction holds. |
 | `Local.Gun.ReloadStarted`, `ReloadFinished` (`ReloadEvent`: weapon, round, seconds) | A reload began (at once) and ended. |
 | `Local.Gun.Refused` (`GunRefusal`: sequence, `GunResult`) | The server refused a shot or reload (already rolled back), or a reload couldn't start (no rounds, full). |
@@ -2023,8 +2113,9 @@ and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attac
 the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
-**As built** (`game/scripts/Ground`): `GroundView` adds `ViewKick` to the camera, passes the mouse's turn to
-`ObserveLook` and adds `TakeCompensation` to the view, zooms by `Zoom` while `Aimed` (eased), and reloads on R;
+**As built** (`game/scripts/Ground`): `GroundView`, after the client's update, adds `TakeCompensation` to the view, passes
+the mouse's turn to `ObserveLook` and draws the camera at the view plus `ViewKick`, zooms by `Zoom` while `Aimed` (eased),
+and reloads on R;
 `FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle with its muzzle effect, and plays a
 reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
 tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
@@ -2038,6 +2129,104 @@ the muzzle effect then leaves from the far end of a silencer or brake. In the in
 gun goes onto it (`Local.Attach`), and a gun's item panel offers REMOVE for each of its attachments (`Local.Detach`).
 Not drawn yet, for want of the character contract (§4.8): others' aiming pose and crawling (the wounded crouch
 instead).
+
+### 6.4.2 Damage: one pipeline, after RustMVP's plan
+
+Every way of hurting something goes through one pipeline, as RustMVP's damage plan (`docs/damage_architecture.md`) laid
+it out: damage source → delivery → receiver (its defences) → resolver → consequences. The code is
+`Combat/Damage.cs` (the types), `Zone.Damage.cs` (the entry point, the registry, `Trace`, `Blast` and the Destroyed event)
+and one receiver class in each domain's own file.
+
+- **The request** (`DamageRequest`), built by every delivery: who (`By`, the attacking player while in the zone;
+  `Attacker` and `AttackerName`, who is blamed, kept when they've left; `ByAnimal`) and with what (`Weapon`, an item);
+  how it came (`Delivery`: melee, arrow, bullet, blast, bite) and the kind of damage (`Channel`: the building rules'
+  melee, bullet or explosive, which armour and grades resist); what each kind of thing takes before its own defences
+  (`Amounts`: flesh, already scaled for the body part; structure, for deployables; building, through the channel; hull);
+  bleeding and burning; how a character dies of it; a blast's own table by grade and door, its falloff, and whether this
+  is the thing hit (`Direct`) or splash; what it met (`Hit`: the kind, the thing, the body part, the point), from where,
+  which way; and which kinds give the attacker a hit marker.
+- **One entry point**, `Zone.Damage(in DamageRequest)`: the receiver registered for the thing's kind applies its
+  defences, then its consequences, and answers with a `DamageOutcome` (landed, dealt after defences, health taken,
+  killed or broken, knocked down, the victim); the shared step after it gives the attacker their hit marker.
+- **The deliveries** build the request from their own data and know nothing of the receivers: a swing (`Strike`), an
+  arrow (`ProjectileHit`), a bullet (`BulletRequest`), a blast (`Blast`: each receiver lists its things in reach, all are
+  looked at before anything is damaged, each in sight gets its own request), an animal's attack (`AnimalAttacksPlayer`,
+  `DamageAnimal`). The old per-target calls (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
+  `DamageBuildingBy`, `DamageShip`, `DamageAnimal`) stay for tests and tools, as one request each.
+- **The receivers** (`IDamageReceiver`, registered once in `Zone.InitDamage`, in the order a ray tests them): each finds
+  its own things along a ray (`Trace` asks each in turn) and within a blast's reach, says whether an arrow that lands in
+  one stays there, and takes requests.
+
+| Receiver | Found by | Defences | Consequences |
+|---|---|---|---|
+| Characters (`Zone.Combat.cs`) | hit shapes where the attacker saw them (lag compensation); chest and head in a blast | what is worn on the part hit, against blows or against projectiles and blasts | health (a lethal hit may knock down, not a projectile to the head), bleeding, burning, the victim's damage indicator |
+| Animals (`Zone.Animals.cs`) | their hit shapes and history; their middle in a blast | none | health, a flinch, turning on the attacker or running, the kill; a tool's blow on a corpse butchers it |
+| Trees and outcrops (`Zone.Combat.cs`) | trunks and rocks (a boulder stops a ray like the ground) | — | a tool's blow gathers (§6.1's code, unchanged); arrows and bullets do nothing |
+| Deployables and props (`Zone.Things.cs`) | their boxes | crates and recyclers can't be broken | health; at 0 its contents spill in one bag (§6.1), a research table gives back its work, a barrel goes until its respawn; destroyed |
+| The building (`Zone.Building.cs`) | pieces, doors and claim devices by their bodies; by nearest point in a blast (a claim device by its box) | a grade's or door's protection by channel, a wall's soft side, whole points; a blast's own table by grade and door, whole on the piece hit and a splash share on the rest, fractions carried to the next hit | the building rules' (breaking, collapse), raid hits (any explosive on a claimed base; a blow, arrow or bullet that took something off one whose claim doesn't list the attacker) |
+| Ships (`Zone.Ships.cs`) | hull boxes; nearest point in a blast | the hull's share by delivery (ships.json) | hull health, last attacker; at 0 a wreck (the pilot dies, loot); destroyed |
+| The ground (`Zone.Combat.cs`) | the surface (a bullet's test steps by height) | — | — (it hides what is behind it) |
+
+**A new damageable thing** (a vehicle, a monument's door) is one class implementing `IDamageReceiver` (how to find it
+along a ray and in a blast's reach, its defences, its consequences) and one `Register` line; no delivery changes. A new
+delivery (a flamethrower, a vehicle's impact) builds requests and calls `Damage`; no receiver changes. Within the
+building, pieces, doors and claim devices share `IBuildingPart` (ID, gone, the claim device of their base) and one
+`BuildingWorld.Damage`.
+
+**Cost.** The gunfight and raid load tests (§5.3, §5.5), the code before and after run back to back on the owner's PC
+while four other agents worked (so slower than §5's): gunfight tick 6.35 ms before and 5.49 ms after on average (99th
+percentile 16.2 and 12.2 ms), a bullet's step 29.0 and 27.4 µs; raid 7.17 and 7.75 ms (15.4 and 21.7 ms) with a fifth
+more bullets in the second run, a bullet's step 16.6 and 16.5 µs, explosives and blasts 0.095 and 0.087 ms a tick. No
+change beyond the PC's noise.
+
+**What changed in behaviour** (numbers did not: every test that existed passes unchanged; the gunfight and raid load
+tests below): hit markers now say where the blow landed and with what for every kind (they said the attacker's eye for
+blows and arrows on characters, the animal's middle for animals; only character markers are shown, and the position
+only places what animals hear); a blast looks at everything in its reach before damaging anything (ships and animals
+were looked at after the building's damage, so a wall the blast broke didn't shield them); the raid counters
+(`RaidStats`) count blows on buildings too; a blast's report counts by kind of thing (`Hit`, `Destroyed`); an archer who
+left keeps their name on a kill (D7, D8, D10).
+
+**The Destroyed event.** One place makes it (`Zone.Destroyed`): the receivers' consequences end there when the thing
+broke, and so do the building's own removals and a ship's crash. It is `ZoneEventKind.Destroyed` in the zone and
+`ThingDestroyed` (message 165, reliable, protocol 14) to every client within the relevance radius of where it stood; the
+client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.Destructions` (the last two seconds).
+
+| Field | Zone event / message / client | Meaning |
+|---|---|---|
+| Receiver kind | `Target` / `Receiver` / `Receiver` | `HitTarget.Deployable` (deployables and world props), `Building` (pieces, doors, claim devices), `Ship` |
+| What it was | `Part` / `Kind` / `Kind` | `DestroyedKind`: `Deployable`, `Prop`, `Piece`, `Door`, `ClaimDevice`, `Ship`: says what the key names |
+| Entity ID | `Other` / `Id` / `Id` | the thing's `EntityId` (a piece, door or claim device by the building's IDs; a deployable or prop as `RemoteThing.Id`; a ship's) |
+| Model key | `Text` / `Key` / `Key` | a deployable's key (deployables.json, its item's model), a prop's key (world.json, models.json kind "world"), a piece's or door's key (building.json), the claim device's item key, a ship's key (ships.json) |
+| Grade | `Grade` / `Grade` / `Grade` | a piece's grade (0 twig … 4 armoured); 0 otherwise |
+| Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's as drawn: its frame piece's, turned half round when fitted the other way (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
+| Direction | `Velocity` / `Direction*` / `Direction` | the blow's direction of travel (unit; from the blast to the thing for an explosion), zero for a collapse, decay, demolition or crash |
+| Cause | `Cause` / `Cause` / `Cause` | `DestroyCause`: `Melee`, `Bullet`, `Arrow`, `Explosion` (the blow's delivery; a door broken with its frame, or a claim device with its piece, takes the blow's), `Collapse`, `Decay`, `Demolish`, `Crash` |
+| Who, with what | `Player`, `Item` / `Attacker` (net ID), `Item` / `Attacker`, `Item` | the attacking (or demolishing) player, 0 for none or gone; the weapon, tool or explosive's item |
+
+What is destroyed: a deployable or world prop at 0 health (an emptied crate going is not); a building piece, door or
+claim device broken by damage, collapsed when what held it went, decayed away or demolished (one picked up is not); a
+ship wrecked by weapons or a crash. The event carries all it takes to draw the thing breaking: the thing itself may be
+gone from the client's lists already, or go a moment later. The client breaks it into its gibs (§9.4): what the event
+names, by its key and grade; the building's removal message only takes a piece out of what is drawn.
+
+**Against RustMVP's foundation** (`docs/architecture/FOUNDATION.md` §1, §5.6, §6, §7, and the damage plan):
+
+| RustMVP | Hollow | |
+|---|---|---|
+| §1.1 Engine first (Unreal's systems before our own) | Rules in engine-free C# shared by server, client and bots (§2's lesson); Godot draws | deliberately different |
+| §1.2 Server authority, client prediction, typed intents | Typed intents, server checks everything; the client predicts movement, the gun (cadence, magazine, recoil exactly as the server) and building | done |
+| §1.3 Data, not code; no magic item IDs | Every number in `game/data/ground` (weapons, items and armour, explosives and raid tables, building grades, ships' hull shares, animals); no item-name special cases in the rules | done |
+| §1.4 Scale by design | Static things cost nothing per tick, change-driven and delta replication, relevance grids; measured by the load tests (§5) | done |
+| §5.6 Combat: typed weapon intents, server ballistics, bounded lag compensation, recoil rules; weapon state on the item; one damage request for every receiver | All of it; the magazine and attachments live on the weapon item, the recoil on the gun in hand (D4); one request and receiver registry (this section) | done |
+| §6 Data: items as definitions with fragments; "new behaviour = new fragment, not new switch statements" | Items are JSON definitions with typed sections (melee, bow, firearm, throwable, wear, deployable…), the same idea; the zone still picks the held item's action by section (`StepActions`) | mostly |
+| §7 Damage through GAS (request → effect → armour execution → health; death a tag and an event) | Request → receiver (armour) → `Hurt` (health; `Die` or `Wound` the one place) and events; no GAS (no Unreal) | done, our way |
+| Damage plan: source → delivery → receiver → resolver → consequence owner; one request/result; type apart from delivery; armour by coverage and channel; no weapon-name cases in receivers | As above; armour covers body regions per item, by channel (blows, projectiles and blasts) | done |
+
+Left over: an attack carries one channel (an incendiary round's burning is an effect, not a heat channel); fall damage,
+cold, hunger and crashes hurt characters directly (`Hurt`) rather than through a request; armour doesn't wear when hit;
+no penetration; durable damage outcomes are the 30-second saves (deaths at once), not RustMVP's journal; the server's
+event dispatch and the client's message dispatch are still switch chains.
 
 ### 6.5 Building over the network and saved (G3, phase 2a)
 
@@ -2082,7 +2271,7 @@ arrows stop at pieces, doors and claim devices (`HitTarget.Building`): melee doe
 (a wall's soft side counts), arrows as bullets (stone and up take none).
 
 **Intents** (protocol 3; client to server, reliable, with the sequence numbers and the budget of G2's: 16 at once, 20 a
-second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's ground point and
+second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's point on the aim and
 heading in 15° steps), `HammerIntent` (upgrade to a grade, rotate, demolish, repair), `DoorIntent` (fit from a slot,
 turned round or not; open or shut; pick up), `LockIntent` (fit from a slot; set a code; enter a code; lock; unlock; cut
 a key; take off) and `ClaimIntent` (place from a slot at a point on a foundation or floor, turned; authorise;
@@ -2134,8 +2323,8 @@ shuts), asks a code lock's code on its keypad (`Keypad`, the RustMVP interface's
 also sets a new code), and opens the claim device's store as a loot panel; held E offers a door's or the claim
 device's options (lock, unlock, change the code, cut a key, take the lock, pick up; authorise, deauthorise, clear the
 list, pick up: `OptionsMenu`, chosen with the mouse, let go to do it). Placements not yet answered show where they
-will stand; pieces placed nearby, upgraded (`world.upgrade.<grade>`), demolished and collapsing (`world.collapse`)
-sound and show; the building rights where the player stands show on the HUD.
+will stand; pieces placed nearby and upgraded (`world.upgrade.<grade>`) sound and show, and what is broken, brought down,
+demolished or decays breaks into its gibs (§9.4); the building rights where the player stands show on the HUD.
 
 **Tests:** `BuildingNetTests.PlacingGoesThroughTheServer` (a player without wood is refused, with the reason; a
 foundation and a wall placed through intents show at once, then arrive in every client's copy at exactly the ghost's
@@ -2317,8 +2506,8 @@ claimed hut in front of a player for playtests.
 
 **Building** is phase 2a's (§6.3, §6.5). A blast goes into `BuildingWorld.Damage`'s explosive channel, so what it
 breaks and brings down replicates and is saved like any other change. Swings, arrows and bullets that stop at a piece,
-door or claim device (`HitTarget.Building`) go through `Zone.DamageBuildingBy`, which damages through the same rules
-and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
+door or claim device (`HitTarget.Building`) go to the building's receiver in the damage pipeline (§6.4.2), which damages
+through the same rules and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
 building rules, on the analytic ground (§11 R14).
 
 ### 6.7 Ships (G6)
@@ -2747,7 +2936,8 @@ numbered from the north, as Rust's) and every label are drawn by the interface, 
   can't be researched, the last blueprint not taken out, the salvage short); running and progress come from `Machine`.
   A blueprint is drawn as the item it teaches, on blueprint blue, and is learnt by using it.
 - Props from the model catalogue by their key; a running recycler's lamp (a small green light on its top) and hum; a
-  barrel rings under blows, and one gone within 40 m broke: its sound and a burst of metal (§11 91); bullets strike
+  barrel rings under blows, and one broken breaks into its gibs (§9.4; until then one gone within 40 m was taken to have
+  broken, §11 91); bullets strike
   metal on barrels, military crates and recyclers. Crates and recyclers open and shut with the box's sounds.
 - Teams: E on a player close by while leading says "INVITE TO TEAM"; the map's panel creates, leaves, promotes, kicks
   and answers invites; chat lines starting `/t ` go to the team and show as [TEAM]. Teammates' names are drawn in the
@@ -2918,7 +3108,7 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
 | `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
 | `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`, `raid-kit`, `world-kit`); G7 the world's barrels and crates (`barrel`, `fuel-barrel`, `crate`, `military-crate`), whose `blueprint` entries take a fifth number, the workbench level of the recipe taught. | Rust; hollow-orbit `LOOT` |
-| `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
+| `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, the bags dropped items lie in (§6.1), reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
 | `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
 | `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
@@ -3071,7 +3261,7 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `kick` | `<player> [reason]` | admins | server | Disconnects a player. |
 | `say` | `<text>` | admins | server | A server line in everyone's chat. |
 | `save` | | admins | server | Saves the world now. |
-| `ents` | | admins | server | Counts: players and characters (asleep, dead, wounded), animals by species, deployables, world props, dropped items, bodies, building pieces, doors, claims, ships, explosives, changed natural objects, ground tiles, net entities. |
+| `ents` | | admins | server | Counts: players and characters (asleep, dead, wounded), animals by species, deployables, world props, loot bags, bodies, building pieces, doors, claims, ships, explosives, changed natural objects, ground tiles, net entities. |
 | `clearinv` | `[player]` | admins | server | Empties an inventory: main, belt and clothing. |
 | `ship` | `[player]` | admins | server | A Tin Finch beside a player, theirs, fuelled, its hatch open (as `spawn tin-finch`). |
 | `raidbase` | `[grade] [player]` | admins | server | A claimed hut 8 m in front, listing the player (`twig`, `wood`, `stone`, `metal`, `armoured` or 0–4; stone by default). |
@@ -3142,7 +3332,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
   inventory, closing any open container; Esc closes the wheel, the inventory or crafting, then opens the menu; 1–6
   select the belt; Enter opens chat; F1 opens and closes the console (§8.2, even from a text field; it may stay open
-  over the death screen, but a death closes it). A container opened in the world opens the inventory with it.
+  over the death screen, but a death closes it). A container opened in the world opens the inventory with it. Left Alt
+  held is free look (§4.5): the camera turns, the hands do nothing, and any screen that shows the cursor ends it.
 - **Inventory:** a click selects a slot and shows the item panel (name, description, INFORMATION, ACTIONS, and
   SPLITTING for stacks). Dragging moves the whole stack; middle-dragging half, with left Shift a third (rounded up);
   dragging the split icon moves the slider's amount. Right-click moves a stack across (into the open container and
@@ -3187,6 +3378,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Machines (G7):** a recycler shows INPUT and OUTPUT rows, the progress of the batch and TURN ON or OFF (no fuel); a
   research table the item, the salvage and the blueprint with arrows between, the price or the reason it can't start,
   and BEGIN RESEARCH. A blueprint is drawn as the item it teaches on blueprint blue. A world crate is a box's grid.
+- **Bags of dropped items (U3):** a bag opens as a crate does, titled LOOT BAG: a box's grid, take only, showing only
+  the rows its stacks fill (a crate's grid does the same). The prompt says E PICK UP LOOT BAG for a bag of one stack
+  (taken whole) and E OPEN LOOT BAG for one holding more.
 - **Team chat (G7):** "/t " or "/team " before a line sends it to the team; team lines are green, marked [TEAM].
 - **Commands in chat:** any other line starting with "/" runs as in the F1 console (`/give rifle`), with the player's
   own rights on any server; the answer's first line shows as a notice, and the whole of it in the console's log.
@@ -3283,7 +3477,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
 | `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
-| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
+| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a burlap bundle, its corners knotted on top, a leather strap with a buckle cinched round it) |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
@@ -3325,8 +3519,7 @@ recipe (Windows: System.Drawing and Consolas).
 | `lods`, `lodDistances` | Levels of detail in the file; switch distances (metres: LOD1, LOD2, gone; 0 = never), by default from the model's size |
 | `collision` | `convex`: hulls in the file |
 | `icon` | Present when the item has an icon; `view` is the icon camera's yaw, pitch and roll (degrees) when the class default isn't right; `key` borrows another item's icon |
-| `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) when no arms are drawn; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow |
-| `drop` | `scale`: how big it lies on the ground when dropped (big deployables shrink to a kit) |
+| `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) for an item not held by a handle, its rotation the holding hand's (fingers along X, thumb along Y), in the arms' 60° view; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow; `grip` (optional, L8): how the first-person hand holds it, in the item's frame: `fingers` and `thumb` (directions; the fingers close round an axis along the thumb), `radius` (what they close round; 0: an open hand), `seat` (how far out from the palm that axis or the item's middle sits; default the radius), `at` (a point on the axis; default the item's middle) and `pivot` (where a swing turns, from the grip in camera space; default the hand). Without it the palm socket is the grip and a handle's 1.8 cm what the fist closes round |
 | `standIn` | A note when the model is a stand-in to replace |
 | `slot` | Attachments: the gun slot they mount on, `sight`, `muzzle` or `under` |
 | `sockets` | Guns: each slot's socket node (`sight` → `socket_rail`, `muzzle` → `socket_muzzle`, `under` → `socket_under`) |
@@ -3499,13 +3692,13 @@ first use, or `FxDirector.Install(parent)`):
 | Arrows in flight, landing | `Tracer("trail.arrow", …)`, `EndTracer`; the impact as for bullets |
 | `Local.HitMarker`, `DamageTaken`, bleeding | `blood.hit` on the victim; while bleeding, `blood.drip` on the ground under them every second or two |
 | A gathering hit (the swing's impact, `ItemsChanged` with `Gather`) | `gather.wood` on trees, `gather.rock` on stone, `gather.sparks` on metal and sulphur ore; `gather.weakspot` too when `WeakSpot` |
-| A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); `gather.node-break` |
+| A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); the outcrop's remnant breaks into its gibs (§9.4) |
 | Timed charge, bag charge, tin grenade, rocket, explosive round going off | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`; a dud `explosion.dud`; while a fuse burns, `Start("fuse.burning", Follow = socket_fuse)` |
 | A rocket fired, in flight | `Muzzle("muzzle.rocket", socket_muzzle, first person)`, `Play("backblast.rocket")` on `socket_exhaust` (+X backwards), `Start("trail.rocket", Follow = the rocket)` |
 | Campfire, furnace lit and out | `Start("fire.campfire"` / `"fire.furnace", Follow = its model)`, `Stop` |
 | A lit torch in hand | `Start("fire.torch", Follow = socket_flame, FirstPerson)` (third person for others) |
 | A player burning (`Vitals.Burning`) | `Start("fire.burning", Follow = the body)` while it burns |
-| A building piece collapsing | `world.collapse` (`Area` the piece's half size, `Tint` the grade's colour) |
+| A building piece collapsing, anything broken | its gibs (§9.4), with the material's dust (`gibs.dust.*`, tinted); `world.collapse` stays in the catalogue |
 | An upgrade with the hammer | `world.upgrade.wood`, `.stone`, `.metal`, `.armoured` over the piece (`Area`) |
 | A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
 | A step on sand (footsteps) | `world.footstep.sand` |
@@ -3529,8 +3722,8 @@ first use, or `FxDirector.Install(parent)`):
 - *Fires:* `ThingsView` starts `fire.campfire` or `fire.furnace` at the model's `socket_fire` while it is lit (the loop
   outlives the model's rebuilds); a torch in hand burns with `fire.torch` on its `socket_flame` (first person with the
   arms; for others on their torch).
-- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades, collapses and doors in
-  `BuildView` (§6.5); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
+- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades and doors in
+  `BuildView` (§6.5), and whatever breaks in `GibsView` (§9.4); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
   place and installs the director with the view.
 - *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`.
 
@@ -3546,6 +3739,7 @@ first use, or `FxDirector.Install(parent)`):
 | explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
 | fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning` (loops) |
 | world | `world.collapse`, `world.upgrade.wood`, `.stone`, `.metal`, `.armoured`, `world.door-slam`, `world.footstep.sand` |
+| gibs | `gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`: the dust of something breaking apart (§9.4), tinted by its material, over its size |
 
 **Assets** (`art/fx/build.py`, about 15 s):
 - *The PSG C4 VFX kit* (`D:\GameDev\Assets\PSG_C4VFX_R01`, made for this project: a Mantaflow simulation rendered by
@@ -3598,50 +3792,152 @@ Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's cont
 
 ### 9.4 Gibs: things breaking apart
 
-Barrels, boxes, furnaces, workbenches, beds, the claim device, doors, building pieces of every grade and an outcrop's
-last remnant don't vanish when they are destroyed: they break into their own pieces, which fly from the blow, tumble,
-bounce, settle and sink away after a few seconds, with dust in the material's colour, as Rust's gibs do. The owner's
-words: "super optimized and efficient and scalable". The network carries only the fact that something broke.
+Nothing that is destroyed just vanishes: it breaks into its own pieces ("gibs", as Rust calls them), which fly from the
+blow, tumble, bounce and settle on the ground, lie there a few seconds, then sink away, with dust in the material's
+colour. The owner's words: "super optimized and efficient and scalable". The network carries only the fact (the damage
+pipeline's Destroyed event, §6.4.2); the pieces are the client's alone.
 
 | Part | Where |
 |---|---|
-| Pieces | `art/gibs/build.py` (Blender 5.2, background): every model with `gibs` in `models.json` fractured into `game/assets/gibs/<key>.glb` |
-| Which model breaks into what | `game/data/ground/models.json`: an entry's `gibs` (its file, its material, options); kits (`kind: kit`) for the building's grades and the doors, whose parts are building.json's pieces and doors |
-| How pieces fly and go | `game/data/ground/gibs.json`: limits, the integrator's numbers, the pieces' life, materials (bounce, friction, spin, dust, sound), causes (push, spread, lift, spin) |
-| Dust | `fx.json`'s family `gibs` (`gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`), tinted by the material |
-| The fact | `ZoneEventKind.Destroyed`, raised only by `Zone.ReportDestroyed` (`Zone.Destroyed.cs`); the `Destruction` message (175); `GameClient.Destroyed` |
-| Tests | `tests/Hollow.Tests/GibTests.cs` (`dotnet run --project tests/Hollow.Tests -- Gib`) |
+| The pieces | `art/gibs/build.py` (Blender 5.2, background) fractures every model whose catalogue entry has `gibs` → `game/assets/gibs/<key>.glb` |
+| What breaks into what | `game/data/ground/models.json`: an entry's `gibs` (its file, its gib material, and for the build: `pieces`, `hollow`, `budget`, `cut`); the building's grades and the doors as kits (`kind: kit`), whose parts are building.json's pieces (a grade's kit names its `grade`) and doors (those drawn from its file) |
+| How pieces fly and go | `game/data/ground/gibs.json`: limits, the integrator's numbers, the pieces' life, materials (bounce, friction, spin, dust, colour, sound), causes (push, spread, lift, spin, dust, a sound) |
+| Dust | fx.json's family `gibs` (`gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`), tinted by the material, over the thing's size |
+| Runtime | `game/scripts/Gibs/`: `GibLibrary` (the sets, found by key and grade), `GibWorld` (the pieces: integrator and drawing), `GibDirector` (the API), `GibCatalog` (gibs.json) |
+| Hookups | `Ground/GibsView.cs` (the Destroyed event), the build sandbox's own building, `NatureView` (an outcrop's look) |
+| Viewer | `Fx/FxViewer.Gibs.cs`: `--view fx --gibs` |
+| Tests | `GibTests.EverythingThatBreaksHasGibs` (`dotnet run --project tests/Hollow.Tests -- Gib`); the event itself is `DamageTests`' |
 
-**The pieces** (`art/gibs/build.py`; `-- <keys>` for some, `-- --list` for the plan):
+**What breaks.** Everything the Destroyed event names, and an outcrop used up:
+- deployables (boxes, furnaces, campfires, workbenches, beds and bags, the research table, the vehicle workbench), the
+  claim device, and the barrels (crates and the recycler have gibs too, though the rules never break them);
+- doors, broken or brought down with their doorway;
+- building pieces of every grade, broken by blows, bullets and blasts, brought down when what held them went, decayed
+  or demolished: each breaks where it stands, as Rust's do (no piece falls whole any more);
+- an outcrop's last remnant, when its gather look says so (gather.json `look.depleted.gibs`).
+
+**The pieces** (`blender -b --factory-startup --python art/gibs/build.py [-- keys]`, `-- --list` for the plan; 40 s for
+all; the same bytes on every build):
+1. The source: every part of the model in place (lids shut, a door's leaves on their hinges, the garage door's curtain
+   down), at the finest level of detail within the set's triangle budget (`budget`: 1,200 by default; the building's
+   kits 500, twig 1,000, the doors 800), decimated toward it (to half at most) when even the coarsest is above;
+   coincident vertices welded, so each primitive is one closed island.
+2. A hollow model (`hollow`: the barrels' 4 mm sheet, the recycler's 1 cm) gets an inner wall, so it breaks into sheets.
+3. Seeds spread through the solid: halfway through it under random surface points, picked farthest-first with a little
+   chance, so thin things (walls, floors, doors) are cut right through. As many as 1.5 + 1.6 × its two longest sides in
+   metres, 6 to 12, or `pieces` (the building's parts 9, the barrels 8).
+4. Each island is cut by the seeds' Voronoi cells (bisected by the planes halfway between seeds) and every cut is capped
+   with faces of the material's inside: the island's own atlas tile, planar mapped at the material's texel density (the
+   PSG atlas's tiles at 1 m, the building kit's at 4 m, the tiling rock at 1.1 m), its colour darkened. An island smaller
+   than half a cell goes whole to the cell its middle is in, so bolts, bricks, boards, stones and the campfire's logs stay
+   whole; slivers join their nearest piece.
+5. Each piece is turned into its principal axes and centred on its box (the runtime's contact box fits it); its node
+   keeps where it sat, so the pieces put together are the model again.
+
+A whole model's file holds its pieces as top nodes (`c00`…); a kit's a node per part (a piece's or a door's key) with
+its pieces under it. The pieces use the materials the models do (`psg_surface`, `hollow_rock`…; the build writes
+`building_<grade>.tres` and `door_garage.tres`, the building's art's own textures and settings, for the kits).
+
+| | Files | Pieces | Triangles | Size |
+|---|---|---|---|---|
+| Props, deployables, the claim device, outcrops (22 models; the research table shares the engineering workbench's) | 21 | 143 (6–9 each) | 55,000 | 3.6 MB |
+| The building: 20 pieces in each of 5 grades | 5 | 900 (9 a piece) | 196,000 (stone 20,000 … twig 67,000) | 12.9 MB (1.4–4.5 a grade) |
+| Doors: 7 in 4 kits | 4 | 63 (7 a single door, 10 a double, 12 the garage door) | 26,000 | 1.6 MB |
+| **All** | **30** | **1,106** | **278,000** | **18.1 MB** |
+
+**Found by what the event names.** `GibLibrary.Find(key, grade)`: a whole model answers to its catalogue key at any
+grade (a deployable's, a prop's, the claim device's, an outcrop's); a kit's part to its own key, at the kit's grade (a
+grade's kit) or at any (a door kit). So the one hookup, `GibsView`, breaks whatever arrives
+(`GibDirector.Break(e.Key, e.Grade, where it stood, the blow, the cause, up, gravity)`) and plays the sound the data
+names: the cause's (a collapse's or the hammer's) or the model's own `break` sound (sounds.json), else the material's.
+No code names a kind of thing.
+
+**The runtime** (`GibWorld`): every live piece in one array of 640 (gibs.json `limits.pieces`), claimed round a ring so
+the oldest goes first when it is full; above 75 % full a break keeps only its bigger half of pieces.
+- *Spawn:* each piece where it sat in the model, pushed along the blow (harder on the side it came in), spread from the
+  middle, lifted and spun by the cause (an explosion throws at 4–9 m/s, a collapse lets them drop), the material's dust
+  over the whole thing. Within 70 m of the camera pieces and dust; to 170 m dust alone; beyond, nothing.
+- *Flight:* gravity along the planet's up there, a little drag, spin.
+- *Floor:* a ray down the client's own collision (ground, building, what stands on them; the sandbox's plane in the
+  viewer), once a break, two frames after it (what broke has left the collision by then), shared by its pieces, and
+  again for a piece each metre it travels (16 a frame at most). A piece buried under the floor at its start (a
+  foundation's lower half) lies still and sinks in its turn.
+- *Contact:* the lowest of up to 14 hull points (taken at load along the axes and diagonals) against the floor plane:
+  pushed out, then an impulse with bounce and friction through the piece's box inertia, so it tumbles; asleep once slow
+  for 0.3 s, or after two seconds on the floor.
+- *Life:* at rest 3.5–5.5 s, then it sinks a little over its size and shrinks by a third over 1.6 s; nothing lives
+  more than 14 s.
+- *Drawing:* one `MultiMeshInstance3D` per piece mesh: a wall's 9 pieces are 9 draw calls, ten barrels' 80 pieces 8.
+  A batch's buffer is written in place and handed over in one call when something in it moved; its count and box are
+  told only when they change (the box grows by 3 m when a piece leaves it). Nothing is allocated per frame once the
+  meshes have batches; every set is read, and a piece of each drawn once, while the world opens (`GibDirector.Warm`).
+- Pieces don't collide with each other or sideways with walls (X3).
+
+**The viewer** (`--view fx --gibs`): every model that breaks, in a grid, breaking at once (Space again, C the cause, P
+pause; `--gib-parts wall,doorway,foundation` the building's parts shown); `--gibs raid`, a stone wall blown in and ten
+barrels shot before it; `--gibs <key>[/<part>]`, one close up (`--yaw`, `--distance`); with `--shot`, held `--at <s>`
+after the break (0.6 s by default). `--stress gibs --measure <s>`: the raid scene breaking every 2.5 s, gibs off and on.
 
 ```bash
-blender -b --factory-startup --python art/gibs/build.py        # every set (about 40 s)
+$GODOT --path game --resolution 1600x900 -- --view fx --gibs --at 0.5 --shot sheet.png
+$GODOT --path game --resolution 1600x900 -- --view fx --gibs building-stone/wall --at 2.5 --yaw 200 --distance 4.5 --shot wall.png
+$GODOT --path game --resolution 1600x900 -- --view fx --stress gibs --measure 6
 ```
 
-1. The source: every part of the model in place (lids shut, a door's leaves on their hinges), at the finest level of
-   detail within the set's triangle budget (`budget`, 1,200 by default), decimated toward it (to half at most) when even
-   the coarsest is above, coincident vertices welded so each primitive is one closed island.
-2. A hollow model (`hollow`: metres; the barrels, the recycler) gets an inner wall, so its pieces are sheets.
-3. Seeds spread through the solid (halfway through it under random surface points, picked farthest-first with a little
-   chance): 1.5 + 1.6 × its two longest sides in metres, 6 to 12, or `pieces`.
-4. Each island is cut by the seeds' Voronoi cells, every cut capped with faces of the material's inside (the island's own
-   atlas tile, planar mapped at the material's texel density, its colour darkened). An island smaller than half a cell
-   goes whole to the cell its middle is in, so bolts, bricks, boards and stones stay whole. Slivers join their neighbour.
-5. Each piece lies in its principal axes (so the game's contact box fits it); its node keeps where it sat, so the pieces
-   put together are the model again.
+**Cost** (the owner's PC, RTX 2070 Super, 1600 × 900, vsync off, the game's C# in its usual Debug build): a stone wall
+blown in and ten barrels shot every 2.5 s (89 pieces a time, 267 alive at most, 130 on average of which 50 moving),
+gibs off and on in turn, two phases of each:
 
-A whole model's file holds its pieces as top nodes (`c00`…); a kit's holds a node per part (a piece's or a door's key)
-with its pieces under it. Pieces use the shared materials the models use (`psg_surface`, `hollow_rock`, …; the build
-writes `building_<grade>.tres` and `door_garage.tres` for the kits' parts).
+| | Frame | GPU | The gibs' CPU |
+|---|---|---|---|
+| Gibs off | 2.07 ms | 1.51 ms | |
+| Gibs on (pieces and their dust) | 2.29 ms | 1.69 ms | 0.06 ms a frame on average (0.02 ms of it the buffers handed over, 17 calls); a break's own frame 0.3–0.5 ms |
+| **What they cost** | **+0.22 ms** | **+0.18 ms** | |
 
-**The fact** (`Zone.Destroyed.cs`). Every destruction is reported once, through one method, `Zone.ReportDestroyed`, as
-`ZoneEventKind.Destroyed`: what kind of thing broke (`HitTarget`: deployable, building, natural) and which, its model as it
-stood (`ModelPlacement`: the catalogue key, the kit's part, its place, turn and size), the blow's direction and its cause
-(`DestroyCause`: melee, bullet, arrow, explosion, collapse, decay, demolish, fire), and by whom. Deployables and props
-report where they break (`DamageDeployable`); the building world says why a piece, door or claim device left it
-(`BuildingEvent.Removal`: taken, destroyed, collapsed, decayed, demolished), so a door or claim device picked up breaks
-nothing, while a door in a doorway brought down breaks with it; an outcrop used up reports its kind's model. The server
-sends `Destruction` (175, reliable) to everyone near; `GameClient.Destroyed` and `Destructions` give it to the visual layer.
+So a raid wall and ten barrels breaking cost about a fifth of a millisecond a frame, inside the 0.5 ms asked. The
+explosion's own effect isn't in it (it is the fx library's, §9.3).
+
+Screenshots (`docs/images/ground/gibs/`): `sheet.jpg` (every model breaking: props, deployables, outcrops, doors, each
+grade's wall, doorway and foundation), `raid.jpg` (the raid scene a moment after), `wall.jpg` (a stone wall's pieces at
+rest), `barrel.jpg` and `barrel-rest.jpg` (a barrel broken with the hatchet in the game, in the air and on the ground:
+the tour's world step).
+
+![Every model breaking](images/ground/gibs/sheet.jpg)
+
+
+**Gathering's feedback** (the owner's first playtest: hitting trees and outcrops gave "no feedback other than the
+sound"; decisions H1–H14). What was wrong: the hit effects played, but at a guessed point 1.1 m up on the side facing
+the local player, usually below or beside the crosshair, with chips too small and thrown straight at the camera; the
+weak spot was a small orange ball that floated beside broken outcrops; trees paid nothing for falling; and an area
+coming into range replayed its old hits (sounds, effects, even felled trees falling again). Now one view
+(`NatureView`) plays every class's gather.json `look`, with no tree or outcrop branches in the code:
+- **Every fresh hit** (protocol 13, §6.2) plays its look's `hit` cue where the swing met the drawn surface, along that
+  surface's normal, with its debris landing on the ground under the object: chips, bark flakes and sawdust on trees
+  (`gather.wood`), chips and grey dust on stone (`gather.rock`), sparks on metal and sulphur (`gather.sparks`). Seen and
+  heard within 70 m.
+- **The weak spot's marker** (`NatureMarkers`, `MarkerTextures`): a decal pressed onto the drawn surface where the rules
+  put the spot, so the paint follows the trunk's curve and the glow the rock's bumps. Trees: Rust's red X, spray paint
+  0.42 m across with soft overspray, speckles and drips (painted in code, ours), lit like the bark with a faint glow to
+  read in shade. Outcrops: a warm glow on the rock that pulses, a four-pointed glint over it, and a few sparks every
+  half second or so (`gather.hotspot-glint`). At most 8 markers, within 12 m, pooled per style.
+- **A run of weak-spot hits**: the `spotHit` cue (an X: a bigger burst with flecks of red paint, `gather.x-hit`; a
+  hotspot: a flash, sparks and a ring, `gather.weakspot`), its tick rising in pitch with each hit in a row (5% a hit
+  on the X, 8% on the hotspot).
+- **A tree's crown shakes** at each hit (`look.shake`: 0.12 m at its top, settling over 0.7 s): two global shader
+  parameters (`hu_shake_at`, `hu_shake_dir`) sway the plant standing at the struck base in the plants' own shader (a
+  test per vertex; no node swapped).
+- **Felled**: the tree's own model tips away from the blow over 2.4 s, lands with dust and litter along its length
+  (`gather.tree-fall`) and the camera's small shake, lies 2.2 s and sinks; the felling sound starts 0.95 s after the
+  hit so its crash (1.45 s into the recording) comes as the trunk lands.
+- **Outcrops** break with a burst and their stage's sound at each stage (Devblog 166 masks the model swap the same way),
+  and with the last sound when gone, when their remnant crumbles into its gibs (§9.4: `look.depleted.gibs`).
+
+Pictures (`docs/images/ground/gather/`, the tour's `chop` and `mine` steps with `--tour-tree pine-tree`): `chop-x.jpg`,
+`chop-hit.jpg`, `chop-falling.jpg`, `chop-landed.jpg`, `mine-hotspot.jpg`, `mine-stage.jpg`, `outcrop-broken.jpg`.
+In the tour's run the nature view cost 52 µs a frame on average (changes, markers, falls, shake) and allocated nothing
+on quiet frames but the occasional sparkle effect (67 B a frame on average).
+
+![A pine's X hit: chips, red paint and sawdust](images/ground/gather/chop-hit.jpg)
 
 ---
 
@@ -3793,7 +4089,8 @@ they merge beside the other packages' items):
   and sits large on the pistol, as in Rust. Ammunition types are told apart by a colour band on the box and painted
   bullet tips (blue high velocity, orange incendiary).
 - M10. **First-person poses are placements without arms:** the character package's viewmodel holds items by their palm
-  sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback).
+  sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback). *Replaced by L9: the arms
+  place everything not held by a handle at its first-person pose, and the viewer shows it as they do.*
 - M11. **The metal mask is our own design** (round eye ports in riveted bezels, a brow band, a slotted grille over the
   mouth), not Rust's slit-eyed plate. Only the item is modelled here; the worn mask is the character package's.
 - M12. **The G5 raid items are our own designs** (a stuffed satchel with an igniter, a nail-bound food tin with a fuse,
@@ -3875,10 +4172,12 @@ Decisions taken during G4 (step "Fight") without the owner, to confirm or overtu
 47. **Recoil is RustMVP's**: an offset on the camera that recovers fully 0.2 s after the last shot, with its countersteer
     credit, rather than Rust's, where the view itself moves and stays; the task asked for recovery, and the server adds
     the recoil itself, so leaving it out client-side gains nothing. Each kick has a random part from a seed both sides
-    know (hollow-orbit's sizes: ±12% and ±0.66° for the pistol, ±0.06° for the rifle's pattern).
+    know (hollow-orbit's sizes: ±12% and ±0.66° for the pistol, ±0.06° for the rifle's pattern). *The random part is gone
+    since D1: the recoil is RustMVP's exactly.*
 48. **Aiming and crouching** scale the kick (×0.78, ×0.85) and the spread (moving +170% at the hip, +50% aimed; ×2.4 in
     the air, ×0.8 crouched) as hollow-orbit does. RustMVP blocked shots in the air; Rust and hollow-orbit allow them, so
-    we do, with the airborne spread. Shots are blocked sprinting (RustMVP) and swimming.
+    we do, with the airborne spread. Shots are blocked sprinting (RustMVP) and swimming. *The kick's scaling is gone since
+    D1; the spread's stays (D3).*
 49. **Shots are intents for a tick**, applied on that tick; the server takes the shot's aim flag from the intent (RustMVP
     likewise trusts the aim state of a validated intent) and checks the view's range, the gun in hand, equip, reload,
     cadence and magazine. A late intent (resent after a loss) is applied as of its tick from where the shooter was, and
@@ -4380,3 +4679,218 @@ Decisions taken for the F1 console (§8.2) without the owner, to confirm or over
   was built), for bug reports; an exported game would show only the build time.
 - K15. **Numbers taken in shared spaces:** protocol 11, messages 150–153, two bits for the cheats in `OwnState`. Whichever
   branch merges second takes the next free protocol number.
+
+Decisions taken for the owner's first playtest, dropped items (§6.1, package `ground-drop`), without the owner, to
+confirm or overturn (numbered U1 on):
+
+- U1. **Everything on the ground lies in a bag**, and what lands within 1.5 m of a bag with room goes into it (onto
+  stacks of the same item first): the owner's request, built as one service (`Zone.Spill`) that every source calls, a
+  drop, a craft, a refund or a gift that doesn't fit, a broken container's contents, a broken research table's work.
+  Spent arrows that can be picked up again go into bags too, so one rule holds everywhere (Rust leaves them lying as
+  arrows; say if they should come back). The dead's backpack (a body after 150 s) stays as it was.
+- U2. **A bag has 48 slots** (a large box's): whatever one container spills is one bag, as Rust's one pouch, and a whole
+  inventory (37 slots) fits. Its time is the dropped items' 300 s of world time, counted from the newest item put in;
+  it is take only, as Rust's dropped containers are, and goes once emptied.
+- U3. **One stack is taken, more are opened:** the interact key takes a bag of one stack whole (as dropped items were
+  taken before); one holding more opens in the loot panel as a crate does (`LootKind.Crate`, take only), whose grid
+  shows only the rows its stacks fill. Others see only the bag and how many stacks it holds (the prompt's verb needs
+  it), never what is in it.
+- U4. **The bag is our own model** (`art/models/deployables.py`, `dropped-bag`): a burlap bundle about 0.42 × 0.34 m and
+  0.3 m high, its corners gathered into a knot with two ears on top, a leather strap cinched round its middle with an
+  iron buckle at the front. Rust's is a squarer grey parcel with straps; only the idea was taken from the owner's
+  picture.
+- U5. **A bag rests on what is under it:** the first solid surface below where it lands (a floor or foundation, a box's
+  lid, the ground's own collision; a Jolt ray down from half a metre above, at most 4.5 m), not the terrain under a
+  base, where dropped items used to end up. A drop lands 0.7 m ahead of the feet, short of a wall in the way; a broken
+  box's body goes before its contents spill, so they lie where it stood.
+- U6. **Bodies and bags are one kind of thing** (`DroppedContainer`: a container lying for a while, take only, gone when
+  emptied or when its time is up), so an emptied body now goes at once too, rather than within the second. What clients
+  are told of a thing (health, count, burning, whose, its name) is the thing's own to say (`WorldObject`'s virtual
+  members; a world prop now sends its name, which titles a crate's loot as it does a bag's), and how a container is
+  looted follows its kind (`LootRules.KindOf`): three switches and tests over object types replaced.
+- U7. **Numbers taken in shared spaces:** protocol 12 (a change of meaning, not of layout: a thing of kind
+  `StaticKind.DroppedBag`, formerly `DroppedItem` with the same value, shows no item and counts its stacks); the things'
+  record version 3 (`WorldCodec.ThingVersion`; the things table is unchanged, so no SQL schema step); survival.json's
+  `bag` section. The model catalogue's `drop.scale` entries went: no item lies as its own model any more.
+
+Decisions taken for gathering's feedback (§6.1, §9.3; the owner's first playtest: "no feedback other than the sound" when
+hitting trees and outcrops) without the owner, to confirm or overturn (numbered H1 on):
+
+- H1. **One rule and one look per class, from data.** gather.json's `classes` hold each class's tool rate, weak spot
+  (where, how close, the multiplier's step and ceiling), last hit (share kept back, bonus and its tools) and look
+  (marker, effects, sounds, fall, shake); kinds replace parts of the look. `NaturalState.Hit` is the one rule, the
+  client's marker and cues read the look: no tree or outcrop branches in the code.
+- H2. **Rust's numbers for the X and the hotspot**: trees 1 + 0.125 per hit on the X in a row, at most 2 (Rust's November
+  2017 update: a metal hatchet's 15 wood rose 16, 18 … 30); outcrops 1 + 0.5 per hit, at most 3 (Devblog 170: 150% up to
+  300%). A miss ends the run and leaves the spot. The spot's multiplier also takes that much more health, as in Rust, so
+  totals don't change.
+- H3. **A felled tree pays half its wood as it falls** (Rust, November 2017), on the felling hit; the hits before pay the
+  other half as they take health. The total is the same as before.
+- H4. **Outcrops have Rust's finishing bonus** (Devblog 166): 20% of each of the outcrop's yields on top for the last hit,
+  only with a pickaxe (gather.json lists the stone and metal pickaxes; rocks, hatchets and the rest get none). It
+  rewards finishing outcrops rather than leaving them half broken, as Rust meant it. Rust's "high-grade ore only in the
+  bonus" isn't taken: ours comes with the hits.
+- H5. **The weak spot sits on the drawn surface, and hits are judged there.** Trees: the trunk capsule (the drawn bark is
+  within a few centimetres, and the X is a decal that paints whatever bark is there). Outcrops: each stage model's top,
+  measured in the game from the models (surfaces.json, regenerated by `--view models --survey-surfaces` when the models
+  change); the spot is always one of the measured points. The physics shapes stay as they were (an outcrop is still a
+  sphere for walking into and for the thick ray): only the gathering rule looks at the drawn surface.
+- H6. **The X follows the hit's height** (Rust: near the hit height), within 0.35 m, in a band 0.7–2 m above the base; the
+  old spot went anywhere from 0.9 to 1.6 m. A hit within 0.25 m of the X counts (the X is 0.38 m wide), 0.3 m for the
+  hotspot.
+- H7. **The run of spot hits and the last hit's point aren't saved**: a restart forgets them, as Rust forgets its bonus
+  level when a node is unloaded.
+- H8. **Protocol 13: a natural object's change says where its last hit landed and how fresh it is.** Effects play at the
+  point where the swing met the drawn surface, for every player in range, not at a guessed spot facing the local player;
+  a hit older than a second when sent (an area coming into range) plays nothing. Six bytes more per change, and only
+  changed objects travel.
+- H9. **The weak spot's look: Rust's red X on trees, a glowing hotspot on outcrops**, both decals on the drawn surface
+  (our own textures, painted in code: no files from Rust). The X is paint, lit like the bark with a faint glow (0.08)
+  so it reads in shade without shining at night; the hotspot glows at a steady apparent brightness by day and night
+  (divided by the exposure, as other glows are), where Rust's is lit by the sun and hard to see at night.
+- H10. **The X faces the hitter within 35°** (the hotspot within 50°): at 50° it often sat on the trunk's edge as seen.
+- H11. **No new sound files**: the X and the hotspot share the weak-spot tick, rising in pitch with the run; a broken
+  run plays nothing (Rust's "bonus fail" sound has no counterpart here yet); the felling sound is delayed rather than
+  re-cut so its crash meets the landing.
+- H12. **Hits play where they landed for everyone in range**, at the point the server sends, not only one's own: others
+  chopping nearby look the same as oneself. Each hit's effects come with the server's change (a snapshot later than the
+  swing, as before); predicting one's own hits is left for later.
+- H13. **The crown shake follows one tree at a time** (the latest hit): enough for one's own chopping; two players
+  chopping side by side see only the latest tree shake.
+- H14. **Outcrops' physics shapes are unchanged**: an outcrop is still a sphere to walk into and for the swing's thick ray,
+  taller than its broken stages; only the weak spot and the hit's point use the drawn surface. Fitting the physics to the
+  stages is left for later.
+- H15. **Numbers taken in shared spaces:** protocol 13 (after the bags' 12: `NaturalNet` gained five fields); no new
+  messages; no save change (the run and the last hit aren't saved); one new data file, `surfaces.json`, in the content
+  hash.
+
+Decisions taken for the recoil and the damage code after the owner's first playtest (§6.4, §6.4.2) without the owner, to
+confirm or overturn (numbered D1 on):
+
+- D1. **The recoil is RustMVP's exactly**, as the owner chose for RustMVP: fixed, repeatable, learnable patterns per
+  weapon. No random part (decision 47's hollow-orbit jitter, ±12% and ±0.66° on the pistol, ±0.06° on the AK, is gone)
+  and the same kick aimed, crouched or moving (48's ×0.78 and ×0.85 are gone; RustMVP's aiming narrows the spread only).
+  The muzzle attachments still scale the step (brake ×0.5, silencer ×0.8), as Rust's do. Checked field by field against
+  `weapon_definition.hpp` and `weapon_rules.hpp`: the 30 steps and their order, 0.1 s kick, 0.2 s hold, 0.08 s
+  smoothstep return of the whole, the cursor's reset after 0.4 s (not the recoil showing), the held zero tail, the limits
+  (30°/30°, 60°/60°), 60/450 s cadence and sampling before the kick all were already RustMVP's. A test pins a 30-round
+  spray to RustMVP's table on the client and the server.
+- D2. **The rocket launcher's recoil stays ours** (a straight 6° kick, held 0.3 s and returned over 0.3 s; RustMVP has no
+  launcher) but follows the same rule: nothing random, nothing scaled aimed or crouched.
+- D3. **The spread's changes moving, airborne and crouched stay**, as ours (hollow-orbit's `_spread`): they widen or
+  narrow the aim cone, not the recoil. RustMVP has none (hip or aimed plus bloom, and no shots in the air).
+- D4. **The recoil belongs to the gun in hand**: taking another item up starts afresh. RustMVP keeps recoil and bloom on
+  the weapon instance through quick swaps; with the 0.5 s equip outlasting the 0.4 s reset and 0.28 s recovery, the
+  only difference is up to 0.5° less bloom on the first shot after swapping straight back (and the camera's leftover
+  kick going at the swap). Keeping it per item would need item instance IDs and their recoil in `GunUpdate`.
+- D5. **The countersteer credit runs in RustMVP's order**: each frame after the client's ticks, the credit owed up to the
+  camera's moment goes onto the view, then the mouse's turn (its pitch as clamped) earns credit against the recoil showing
+  then, then the camera; a shot settles what is owed before its kick, and a correction settles the old prediction before
+  rebasing. Before, the credit came a frame after the camera (the aim dipped while a heavily compensated spray
+  recovered) and a shot or correction during the recovery kept what it should have given back.
+- D6. **One damage pipeline, receivers in a registry** (§6.4.2; RustMVP's plan and the owner's rule of 13 October: modular,
+  data-driven, no switch that grows with every target): every delivery builds one `DamageRequest` and calls
+  `Zone.Damage`; each kind of thing is one `IDamageReceiver`, registered once, which finds its own things along a ray and
+  in a blast's reach and applies its own defences and consequences. The amounts a blow brings are kept by class of thing
+  (flesh, structure, building, hull) and filled by each delivery from its data, so every number stayed what it was; the
+  kind of damage is the building rules' channel, apart from the delivery.
+- D7. **Hit markers are made in one place**, the same for every kind of thing: where the blow landed (blows and arrows
+  on characters said the attacker's eye, animals their middle) and with what; none for hurting oneself; a blast's only
+  for characters, animals and hulls (as before: the walls and boxes it breaks are seen and heard instead). Gathering
+  and butchering keep their own markers (the weak spot).
+- D8. **A blast looks at everything in its reach before damaging anything**, ships and animals too (they were looked at
+  after the building's damage, so a wall the blast broke didn't shield them), then damages in the receivers' order
+  (characters, animals, deployables, ships, then the building's pieces, doors and claim devices), which nothing in the
+  rules depends on; a piece counts for the raid alert of the base it belongs to as the blast reaches it.
+- D9. **The Destroyed event** (§6.4.2) is made in one place from the receivers' consequences and the building's own
+  removals: the building rules now say why they took a piece, door or claim device away (`Removal`), the zone adds the
+  blow. Things taken away whole (a door or claim device picked up, an emptied crate, a piece removed by a test) are not
+  destroyed. Reliable, to the clients within the relevance radius of where it stood; protocol 14 (13 went to gathering), message 165.
+- D10. **Small normalisations that came with it**: the raid counters count every hit on a building (blows too; the
+  load test's raids are all explosives, so its numbers didn't move); a blast's report counts by kind of thing; an arrow
+  whose archer left keeps their name on what it does, as a bullet did.
+- D11. **The per-target calls stay** for tests and tools (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
+  `DamageBuildingBy`, `DamageShip`, `DamageAnimal`, and `DamageBuilding`, the building receiver's resolver), each one
+  request into the pipeline now, so the tests that used them pass unchanged.
+
+Decisions taken for the owner's first playtest findings on looking, holding and free foundations (`ground-look`)
+without the owner, to confirm or overturn (numbered L1 on):
+
+- L1. **A free foundation's top follows the aim, as RustMVP's did** (§6.3): within 3.5 m it sits where the aim meets the
+  ground; beyond, the aim's height 3.5 m out lifts it. Its top is held between the highest ground under its corners and
+  centre plus the clearance and the lowest plus its depth, rather than RustMVP's limits at the centre alone, so whatever
+  the aim, a slope that leaves room gives a foundation the ground check accepts. Only a hit on the ground stops the aim's
+  distance (RustMVP: anything but a building piece), as Hollow's free foundation did before.
+- L2. **In first person the arms keep to the view while the player free looks**: they belong to the body, which keeps
+  facing and aiming where it did, so they leave the picture as the head turns away and are back in place the moment Alt
+  is let go. No source says what Rust's do (its viewmodel may turn with the camera); ours never show a weapon pointing
+  somewhere it won't fire.
+- L3. **Free look rides the existing view state**, not a message of its own: two signed bytes (1.5° steps) beside the
+  view in every input (sent with the three repeats, about 8 bytes a packet) and beside the view angles in characters'
+  snapshot state (two bits when nobody looks round; a character sent in full is 16 bits larger, so 300 coming into
+  view at once take 17 snapshots of 600 bytes instead of 16). RustMVP's rate limits aren't needed: inputs come once a
+  tick. Its 0.8 s of silence is counted in repeated inputs: after 24 ticks without one the server's copy lets go.
+- L4. **While Alt is held the hands do nothing at all**: no attack, aiming down the sights or drawing the bow, placing,
+  using, throwing, reloading or turning a piece (RustMVP blocked the weapon and the R and left-button actions). E still
+  acts on what the view is on, as in RustMVP. The decision lives in one place, `GroundView.Hands`, which reads the item's
+  use from its data (`ItemDef.Hands`: throw, build, place, use or attack); the left and right buttons and R only record
+  presses for it.
+- L5. **Free look also works in the Tin Finch's cockpit** (the head turns about the seat while the stick lets go); in
+  the chase camera Alt does nothing. A seated pilot isn't drawn (decision 87), so nobody sees that head turn.
+- L6. **Protocol 15** (free look in inputs and characters' state; 12, 13 and 14 went to the bags, gathering and the damage pipeline); no message IDs were needed
+  from 160–164.
+- L7. **The rock is cradled, not gripped like a handle** (the owner's "hand looks weird holding the rock": the fist
+  closed on a 1.8 cm handle inside the rock, the palm a pale blob behind it): in the right hand at the lower right, the
+  palm up and to the left, the fingers round its far side, the forearm from the lower right corner. Of the four holds
+  tried (side grip, from above, as a handle, the cradle) the cradle read best; Rust's own pose had no reference to
+  check against. The bandage and the tin grenade are held the same way; food lies on the open palm.
+- L8. **How a hand holds an item is catalogue data** (`held.grip` in models.json: the hand's frame, the radius closed
+  round, the seat, the point, the swing's pivot), read by the one grip code for every item (`HeldItems.Grip`,
+  `HandPoses`); tools and blades without one keep the handle rule. No item key is named in code.
+- L9. **First-person poses are set for the arms' 60° view** (`ViewmodelView.Fov`): the poses had been set in the 75°
+  model viewer, so food, the bandage, locks, the building plan, charges, the grenade and spears sat at or below the
+  bottom of the picture with their hands out of sight; the food and the rest are re-posed, the others moved to where the
+  viewer showed them (positions scaled by tan 30° / tan 37.5°). The model viewer's first-person view now uses the arms'
+  field of view and their grip. The pistol's support hand still comes in large from the lower left: unchanged.
+- L10. **The rock swings from the wrist** (its grip's pivot, 8 cm behind and 5 cm below it), so the wind-up raises it
+  and the strike brings it down in front, where turning about the hand only turned it in the palm.
+
+Decisions taken for gibs, things breaking apart (§9.4), after the owner's first playtest, without the owner (numbered X1
+on):
+
+- X1. **Gibs are fractured offline from our own models** by one script (`art/gibs/build.py`: Voronoi cells cut by planes,
+  every cut capped with the model's own inside tile), not cut at run time and not modelled by hand: all 30 files rebuild
+  from text in 40 s with the same bytes, and a new model breaks as soon as its catalogue entry says `gibs`.
+- X2. **Gibs come from the damage pipeline's Destroyed event** (§6.4.2, `ground-damage`'s), found by what it names, a key and
+  a grade: no second signal (this package first had its own, dropped at the merge). The building's grades and the doors
+  are kits in models.json (`kind: kit`): a grade's kit names its `grade` and its parts are building.json's pieces by key; a
+  door kit's parts are the doors drawn from its file. The event now gives a door's turn as drawn, half round when it was
+  fitted the other way (it gave its frame's), and one mapping (`BuildingWorld.Removed`) names a removed piece or door for
+  the zone's event and for the build sandbox.
+- X3. **Pieces meet only a floor plane**, sampled down the client's own collision once a break and again each metre a piece
+  travels: no Jolt bodies, no piece against piece, nothing sideways. A piece thrown into a wall passes through it (short and
+  rare); none ever falls through a floor.
+- X4. **Pieces are drawn by one MultiMesh per piece mesh**, its buffer handed over whole when something in it moved: a draw
+  call per piece shape in sight, however many things of that kind break. Considered and left for later: one mesh per set
+  with the pieces' transforms in a texture (a draw call per kind of thing, a texture upload a frame), which needs our own
+  copy of every material's shader.
+- X5. **640 pieces at most** (gibs.json `limits`), the oldest recycled first; above 75 % a break keeps its bigger half; pieces
+  within 70 m of the camera, dust alone to 170 m, nothing beyond. A piece rests 3.5–5.5 s, then sinks and shrinks over 1.6 s
+  (Rust's way); none lives more than 14 s.
+- X6. **The building breaks from the kit's coarsest level** (LOD2, at most halved again, 500 triangles a piece before the cuts;
+  twig's sticks 1,000) **into 9 pieces**: 1.4–4.5 MB a grade. The finer levels made the twig file alone 7.9 MB for pieces
+  seen a few seconds.
+- X7. **Barrels and the recycler are hollow** (an inner wall 4 mm and 1 cm thick), so they break into curved sheets; parts
+  smaller than half a piece (bolts, bricks, boards, stones, the campfire's logs) stay whole.
+- X8. **An outcrop's last remnant crumbles through its gather look** (gather.json `look.depleted.gibs`), not through the
+  Destroyed event: natural objects aren't things the damage pipeline destroys, and the client knows it was used up. The
+  gibs' dust replaces the node-break burst there.
+- X9. **Crates and the recycler have gibs although the rules never break them** (an emptied crate goes quietly, as in Rust);
+  a door that was open breaks from its shut pose (the event's `Open` isn't used).
+- X10. **Sounds come from data**: a cause's own (a collapse's `build.collapse`, the hammer's `build.demolish`), else the
+  model's `break` sound (sounds.json), else its material's (gibs.json). A collapse of twenty pieces plays twenty, one a layer.
+- X11. **The kits' gib materials are files** (`building_<grade>.tres`, `door_garage.tres`, written by the gib build with the
+  building art's textures and settings) beside `BuildingAssets`' materials made in code: the same look, twice described.
+  `BuildingAssets` could load these (it isn't changed here: its instance colour would start tinting collapsing pieces).
+- X12. **The measurement leaves the explosion's own effect out**: the stress breaks the wall with gibs and dust alone, so the
+  number is the gibs'.

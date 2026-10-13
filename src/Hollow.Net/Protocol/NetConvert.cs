@@ -74,18 +74,39 @@ public static class NetConvert
         Cheats = o.Cheats & (MoveCheats.God | MoveCheats.Noclip),
     };
 
-    /// <summary>A character as others see it; the view angles are those of its last input.</summary>
-    public static CharacterNetState ToNet(in CharacterState s, ushort yaw, ushort pitch) => new()
+    /// <summary>
+    /// A character as others see it; the view angles and the head's free look are those of its last input (the free
+    /// look bounded again: the input is untrusted).
+    /// </summary>
+    public static CharacterNetState ToNet(in CharacterState s, ushort yaw, ushort pitch, sbyte lookYaw = 0, sbyte lookPitch = 0) => new()
     {
         X = Quantize.Fixed(s.Position.X, Quantize.PositionScale),
         Y = Quantize.Fixed(s.Position.Y, Quantize.PositionScale),
         Z = Quantize.Fixed(s.Position.Z, Quantize.PositionScale),
         Yaw = yaw,
         Pitch = pitch,
+        LookYaw = BoundLook(lookYaw, FreeLook.MaxYaw),
+        LookPitch = BoundLook(lookPitch, FreeLook.MaxPitch),
         Flags = s.Flags,
         Stance = s.Stance,
         Health = s.Health,
     };
+
+    /// <summary>Free look on the wire (inputs and characters' state): steps of 1.5°, so a byte holds ±190°.</summary>
+    public const float LookStep = 1.5f * MathF.PI / 180f;
+
+    /// <summary>A free look turn (radians) in steps, within ±<paramref name="limit"/>.</summary>
+    public static sbyte ToLook(float radians, float limit) =>
+        float.IsFinite(radians) ? BoundLook((sbyte)Math.Clamp(Math.Round(radians / LookStep, MidpointRounding.ToEven), -127, 127), limit) : (sbyte)0;
+
+    public static float FromLook(sbyte steps) => steps * LookStep;
+
+    /// <summary>A received turn held within ±<paramref name="limit"/> (RustMVP's server: yaw 120°, pitch 170°).</summary>
+    public static sbyte BoundLook(sbyte steps, float limit)
+    {
+        int most = (int)(limit / LookStep + 1e-3f);
+        return (sbyte)Math.Clamp((int)steps, -most, most);
+    }
 
     public static Vector3 PositionOf(in CharacterNetState s) => new(
         Quantize.FromFixed(s.X, Quantize.PositionScale),

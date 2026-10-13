@@ -20,10 +20,10 @@ public enum InteractionKind : byte
     /// <summary>A pickup or berry bush: pick it.</summary>
     PickNatural,
 
-    /// <summary>A dropped item: pick it up.</summary>
+    /// <summary>A bag of dropped items holding one stack: take it.</summary>
     PickItem,
 
-    /// <summary>A box, device or corpse: open it.</summary>
+    /// <summary>A box, device, corpse or a bag holding more than one stack: open it.</summary>
     Open,
 
     /// <summary>A sleeping player: loot them.</summary>
@@ -66,7 +66,7 @@ public sealed partial class GameClient
 
     public NaturalState? Natural { get; private set; }
 
-    /// <summary>Static things in range: deployables, dropped items, corpses.</summary>
+    /// <summary>Static things in range: deployables, bags of dropped items, corpses.</summary>
     public IEnumerable<RemoteThing> Things => _things.Values;
 
     public RemoteThing? ThingOf(EntityId id) => _thingsById.GetValueOrDefault(id);
@@ -133,7 +133,7 @@ public sealed partial class GameClient
         Local.Update();
         Local.UpdateBuilding();
         UpdateRaid();
-        UpdateDestructions();
+        UpdateDestroyed();
         double now = ClockSeconds;
         _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 8);
     }
@@ -411,13 +411,16 @@ public sealed partial class GameClient
                 return;
             }
             default:
-                if (!ReceiveRaid(type) && !ReceiveWorld(type) && !ReceiveDestruction(type))
+                if (!ReceiveRaid(type) && !ReceiveWorld(type) && !ReceiveDestroyed(type))
                 {
                     ReceiveBuilding(type);
                 }
                 return;
         }
     }
+
+    /// <summary>A natural object's last hit at most this many ticks old when sent is news: the views play its effects.</summary>
+    public const int FreshHitTicks = 30;
 
     private void ApplyNatural(in NaturalNet n)
     {
@@ -431,15 +434,18 @@ public sealed partial class GameClient
         {
             max = NaturalShapes.MaxHealth(o, kind);
         }
+        // A fresh hit counts one more for the views (its effects); an old one (an area coming into range) doesn't.
+        byte seen = Natural!.TryGetOverride(n.Id, out NaturalOverride was) ? was.SeenHits : (byte)0;
         Natural!.Apply(n.Id, new NaturalOverride
         {
             Health = n.Health / 255f * max, HasWeakSpot = n.HasWeakSpot, WeakSpotYaw = n.WeakSpotYaw, WeakSpotLift = n.WeakSpotLift, Depleted = n.Depleted,
+            Streak = n.Streak, LastHit = n.HitOffset, SeenHits = n.HitAge <= FreshHitTicks ? (byte)(seen + 1) : seen,
         });
     }
 
     /// <summary>
-    /// What the interact key would act on from the eye along a direction: the nearest pickup or berry bush, dropped
-    /// item, box, device, corpse or sleeper within reach (for the prompt, and for bots).
+    /// What the interact key would act on from the eye along a direction: the nearest pickup or berry bush, bag of
+    /// dropped items, box, device, corpse or sleeper within reach (for the prompt, and for bots).
     /// </summary>
     public Interaction? Aim(Vector3 eye, Vector3 direction, float? reach = null)
     {
@@ -474,10 +480,14 @@ public sealed partial class GameClient
             }
             switch (thing.Kind)
             {
-                case StaticKind.DroppedItem:
-                    Consider(Geometry.RaySphere(eye, direction, range, thing.Position + Frame.UpAt(thing.Position) * 0.1f, 0.35f),
-                        InteractionKind.PickItem, 0, thing.Id, "Pick up", $"{Content.Item(thing.Look)?.Name ?? "item"} ×{thing.Count}");
+                case StaticKind.DroppedBag:
+                {
+                    // A bag of one stack is taken at once; one holding more opens like a box (GROUND.md §6.1).
+                    bool open = thing.Count > 1;
+                    Consider(Geometry.RaySphere(eye, direction, range, thing.Position + Frame.UpAt(thing.Position) * 0.15f, 0.35f),
+                        open ? InteractionKind.Open : InteractionKind.PickItem, 0, thing.Id, open ? "Open" : "Pick up", thing.Name);
                     break;
+                }
                 case StaticKind.Corpse:
                     Consider(Geometry.RaySphere(eye, direction, range, thing.Position + Frame.UpAt(thing.Position) * 0.25f, 0.6f),
                         InteractionKind.Open, 0, thing.Id, "Loot", $"{thing.Name}'s body");

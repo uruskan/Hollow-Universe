@@ -10,7 +10,10 @@ namespace Hollow.Simulation.World;
 public enum StaticKind : byte
 {
     Deployable,
-    DroppedItem,
+
+    /// <summary>A bag of items lying on the ground (<see cref="DroppedBag"/>, GROUND.md §6.1).</summary>
+    DroppedBag,
+
     Corpse,
 
     /// <summary>A world prop (G7): a barrel, a crate or a recycler the world places (<see cref="WorldProp"/>).</summary>
@@ -18,9 +21,9 @@ public enum StaticKind : byte
 }
 
 /// <summary>
-/// A static entity of the zone (ARCHITECTURE.md §10.2): a deployable, a dropped item or a corpse. It costs nothing per
-/// tick until something happens to it; <see cref="Revision"/> rises when what others see changes, so the server sends
-/// it again.
+/// A static entity of the zone (ARCHITECTURE.md §10.2): a deployable, a bag of dropped items or a corpse. It costs
+/// nothing per tick until something happens to it; <see cref="Revision"/> rises when what others see changes, so the
+/// server sends it again.
 /// </summary>
 public abstract class WorldObject
 {
@@ -49,8 +52,28 @@ public abstract class WorldObject
     /// <summary>Its storage, if it has any.</summary>
     public virtual Container? Container => null;
 
-    /// <summary>The thing others see it as: an item ID (a deployable's item, a dropped stack's item; 0 for a corpse).</summary>
+    /// <summary>The thing others see it as: a deployable's item, a prop's number; 0 for a corpse or a bag.</summary>
     public abstract ushort Look { get; }
+
+    // What every client is told of it besides its look (GROUND.md §6.2: ThingSpawn, ThingUpdate).
+
+    /// <summary>Its health as a fraction of the most it has (1 for what can't be hurt).</summary>
+    public virtual float HealthFraction => 1;
+
+    /// <summary>A number others see: how many stacks a bag holds (0 for the rest).</summary>
+    public virtual int ShownCount => 0;
+
+    /// <summary>A device burning or at work.</summary>
+    public virtual bool Burning => false;
+
+    /// <summary>Whether a player owns it (a sleeping bag is its owner's alone to respawn at).</summary>
+    public virtual bool OwnedBy(EntityId player) => false;
+
+    /// <summary>
+    /// Its own name, shown on prompts and loot panels: a body's (the dead player's), a bag's, a world prop's; empty for a
+    /// deployable, which clients name by its item.
+    /// </summary>
+    public virtual string Name => "";
 }
 
 /// <summary>
@@ -92,6 +115,12 @@ public class Deployable : WorldObject
 
     public override ushort Look => Def.Id;
 
+    public override float HealthFraction => Health / Def.Health;
+
+    public override bool Burning => Lit;
+
+    public override bool OwnedBy(EntityId player) => Owner == player;
+
     /// <summary>A device burning its fuel.</summary>
     public bool Lit { get; set; }
 
@@ -106,9 +135,6 @@ public class Deployable : WorldObject
 
     /// <summary>Where a box stands: its centre (the base is on the ground).</summary>
     public Vector3 Centre => Position + Up * Def.HalfExtents.Y;
-
-    /// <summary>Its model in the catalogue (its item's key; a prop's own) as it stands (GROUND.md §9.4).</summary>
-    public ModelPlacement Model => new(Def.Key, "", Position, ModelPlacement.Upright(Up, Yaw));
 
     /// <summary>A research table's work under way (G7): the item being taken apart (0: none; kept in its first cook slot, so it is saved).</summary>
     public ushort ResearchItem
@@ -154,6 +180,8 @@ public sealed class WorldProp : Deployable
 
     public override StaticKind Kind => StaticKind.Prop;
 
+    public override string Name => Prop.Name;
+
     /// <summary>A barrel's loot is only had by breaking it; a crate and a recycler open like a box.</summary>
     public override Container? Container => Prop.Openable ? Storage : null;
 
@@ -161,50 +189,98 @@ public sealed class WorldProp : Deployable
     public bool Touched { get; set; }
 }
 
-/// <summary>An item dropped in the world (GROUND.md §6): picked up with the interact key, gone after a while.</summary>
-public sealed class DroppedItem : WorldObject
+/// <summary>
+/// A container left lying in the world for a while (Rust's dropped item container): a body (<see cref="Corpse"/>) or a
+/// bag of dropped items (<see cref="DroppedBag"/>). Anyone may take from it, nobody put into it; it goes once emptied,
+/// or when its time is up (world time: it pauses while the server is down).
+/// </summary>
+public abstract class DroppedContainer : WorldObject
 {
-    public DroppedItem(EntityId id, ItemStack stack, Vector3 position, Vector3 up, float yaw, long despawnTick)
+    private int _shown;
+
+    protected DroppedContainer(EntityId id, ContainerKind kind, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
         : base(id, position, up, yaw)
     {
-        Stack = stack;
+        Loot = new Container(kind, Math.Max(1, slots));
         DespawnTick = despawnTick;
     }
-
-    public override StaticKind Kind => StaticKind.DroppedItem;
-
-    public ItemStack Stack { get; set; }
-
-    /// <summary>The zone tick it disappears at (world time: it pauses while the server is down).</summary>
-    public long DespawnTick { get; set; }
-
-    public override ushort Look => Stack.Item;
-}
-
-/// <summary>A dead player's body with everything they carried (GROUND.md §6): anyone may take from it.</summary>
-public sealed class Corpse : WorldObject
-{
-    public Corpse(EntityId id, string name, EntityId of, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
-        : base(id, position, up, yaw)
-    {
-        Name = name;
-        Of = of;
-        Loot = new Container(ContainerKind.Corpse, Math.Max(1, slots));
-        DespawnTick = despawnTick;
-    }
-
-    public override StaticKind Kind => StaticKind.Corpse;
-
-    /// <summary>Whose body it was.</summary>
-    public string Name { get; }
-
-    public EntityId Of { get; }
 
     public Container Loot { get; }
 
     public override Container? Container => Loot;
 
+    /// <summary>The zone tick it disappears at.</summary>
     public long DespawnTick { get; set; }
+
+    /// <summary>Whether it goes now: emptied, or its time is up.</summary>
+    public bool Expired(long tick) => tick >= DespawnTick || Loot.IsEmpty;
+
+    /// <summary>
+    /// Raises <see cref="WorldObject.Revision"/> when what others see of it changed since the last call (a looter took
+    /// a stack out of a bag), so clients hear of it; the zone calls it once a second.
+    /// </summary>
+    public void PublishChanges()
+    {
+        if (ShownCount != _shown)
+        {
+            _shown = ShownCount;
+            Revision++;
+        }
+    }
+}
+
+/// <summary>
+/// Items lying on the ground (GROUND.md §6.1): everything dropped, spilled or left over within a bag's reach is packed
+/// into one small bag (<c>Zone.Spill</c>, survival.json's <c>bag</c>). Others see only the bag and how many stacks it
+/// holds; what they are goes only to whoever opens it. It lasts <c>droppedItemSeconds</c> from the newest item put in.
+/// </summary>
+public sealed class DroppedBag : DroppedContainer
+{
+    public DroppedBag(EntityId id, string name, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
+        : base(id, ContainerKind.Crate, slots, position, up, yaw, despawnTick)
+    {
+        Name = name;
+    }
+
+    public override StaticKind Kind => StaticKind.DroppedBag;
+
+    /// <summary>What bags are called (survival.json's <c>bag.name</c>).</summary>
+    public override string Name { get; }
+
+    /// <summary>A bag, whatever is in it.</summary>
+    public override ushort Look => 0;
+
+    /// <summary>How many stacks it holds: one is picked up at once, more open like a box.</summary>
+    public override int ShownCount
+    {
+        get
+        {
+            int stacks = 0;
+            foreach (ItemStack s in Loot.Slots)
+            {
+                stacks += s.IsEmpty ? 0 : 1;
+            }
+            return stacks;
+        }
+    }
+}
+
+/// <summary>A dead player's body with everything they carried (GROUND.md §6): anyone may take from it.</summary>
+public sealed class Corpse : DroppedContainer
+{
+    public Corpse(EntityId id, string name, EntityId of, int slots, Vector3 position, Vector3 up, float yaw, long despawnTick)
+        : base(id, ContainerKind.Corpse, slots, position, up, yaw, despawnTick)
+    {
+        Name = name;
+        Of = of;
+    }
+
+    public override StaticKind Kind => StaticKind.Corpse;
+
+    /// <summary>Whose body it was.</summary>
+    public override string Name { get; }
+
+    public EntityId Of { get; }
 
     public override ushort Look => 0;
 }

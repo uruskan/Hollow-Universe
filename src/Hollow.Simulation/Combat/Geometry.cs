@@ -130,6 +130,17 @@ public static class Geometry
         return (right, forward);
     }
 
+    /// <summary>
+    /// The turn a thing standing along <paramref name="up"/> (a unit vector) at <paramref name="yaw"/> is drawn with, as
+    /// the client draws deployables and props: X to its right, Y along up, −Z along its forward.
+    /// </summary>
+    public static Quaternion Upright(Vector3 up, float yaw)
+    {
+        (Vector3 forward, Vector3 right) = Movement.CharacterMotor.HorizontalBasis(yaw, up);
+        var rows = new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0, -forward.X, -forward.Y, -forward.Z, 0, 0, 0, 0, 1);
+        return Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(rows));
+    }
+
     /// <summary>Whether two boxes standing on the same "up" overlap, by separating axes in the horizontal plane and along up.</summary>
     public static bool BoxesOverlap(Vector3 centreA, Vector3 halfA, float yawA, Vector3 centreB, Vector3 halfB, float yawB, Vector3 up)
     {
