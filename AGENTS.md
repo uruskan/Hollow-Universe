@@ -163,12 +163,12 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,death,night` (the screenshot run; `--tour guest` is
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,death,night` (the screenshot run; `--tour guest` is
   its second player), `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
-  (with a deployable in hand: place it; with food or medicine: use it), right mouse aim or draw; E interact (hold it on
-  a fire or furnace to light it or put it out); 1–6 belt; Tab inventory; Q crafting; Enter chat; Esc back, then the
+  (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire), right mouse aim or draw; R
+  reload; E interact (hold it on a fire or furnace to light it or put it out; help a wounded player up); 1–6 belt; Tab inventory; Q crafting; Enter chat; Esc back, then the
   menu; F3 network graph; the death screen's buttons respawn. Chat lines starting with `/` are test commands when
   hosting: `/give <item> [n]`, `/kit <loot table>`, `/heal`, `/kill`.
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,

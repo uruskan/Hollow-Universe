@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using Hollow.Client;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Nature;
 using Hollow.Simulation.World;
 using Num = System.Numerics;
 
@@ -20,6 +21,11 @@ public partial class ThingsView : Node3D
     private readonly Dictionary<uint, bool> _lit = new();
     private readonly HashSet<ClientProjectile> _loosed = new();
     private readonly HashSet<ClientProjectile> _stopped = new();
+    private readonly List<Node3D> _tracers = new();
+    private readonly Dictionary<ClientProjectile, Vector3> _fromMuzzle = new();
+
+    /// <summary>Where the player's own muzzle is now (render space), so our tracers leave the gun, not the eye.</summary>
+    public Func<Vector3>? Muzzle { get; set; }
     private double _since;
     private readonly List<MeshInstance3D> _arrows = new();
     private static StandardMaterial3D? _flame;
@@ -246,8 +252,13 @@ public partial class ThingsView : Node3D
     {
         int used = 0;
         ArrowSounds();
+        Bullets(now);
         foreach (ClientProjectile p in Client.Projectiles)
         {
+            if (p.IsBullet)
+            {
+                continue;
+            }
             if (used >= _arrows.Count)
             {
                 _shaft ??= new StandardMaterial3D { AlbedoColor = new Color(0.62f, 0.52f, 0.36f), Roughness = 0.8f };
@@ -273,6 +284,97 @@ public partial class ThingsView : Node3D
         {
             _arrows[i].Visible = false;
         }
+    }
+
+    // Bullets in flight as tracers (our own leaving the muzzle, closing on the shot's line over 50 m), and where each
+    // stops: a puff and the sound of what it hit (G4, GROUND.md §6.4).
+    private void Bullets(double now)
+    {
+        int used = 0;
+        foreach (ClientProjectile p in Client.Projectiles)
+        {
+            if (!p.IsBullet)
+            {
+                continue;
+            }
+            if (p.EndedAt is { } end)
+            {
+                if (_stopped.Add(p) && p.EndTarget != Hollow.Simulation.HitTarget.Nothing)
+                {
+                    Impact(p, end);
+                }
+                continue;
+            }
+            if (p.Own && !_fromMuzzle.ContainsKey(p) && Muzzle != null)
+            {
+                _fromMuzzle[p] = Muzzle() - GroundView.ToGodot(p.Origin);
+            }
+            if (used >= _tracers.Count)
+            {
+                Node3D tracer = ShotEffects.Provider.Tracer();
+                AddChild(tracer);
+                _tracers.Add(tracer);
+            }
+            Num.Vector3 at = p.PositionAt(now);
+            Vector3 d = GroundView.ToGodot(p.DirectionAt(now));
+            Vector3 position = GroundView.ToGodot(at);
+            if (_fromMuzzle.TryGetValue(p, out Vector3 offset))
+            {
+                float travelled = Num.Vector3.Distance(at, p.Origin);
+                position += offset * Math.Max(0, 1 - travelled / 50);
+            }
+            Vector3 side = MathF.Abs(d.Y) > 0.95f ? Vector3.Right : Vector3.Up;
+            _tracers[used].GlobalTransform = new Transform3D(Basis.LookingAt(d, side), position - d * 0.8f);
+            _tracers[used].Visible = true;
+            used++;
+        }
+        for (int i = used; i < _tracers.Count; i++)
+        {
+            _tracers[i].Visible = false;
+        }
+        foreach (ClientProjectile gone in _fromMuzzle.Keys.Where(p => p.EndedAt != null || !Client.Projectiles.Contains(p)).ToList())
+        {
+            _fromMuzzle.Remove(gone);
+        }
+    }
+
+    // What a bullet hit, by the sound of it: flesh, a tree's wood, rock, a deployable's planks, the ground or the sea.
+    private void Impact(ClientProjectile p, Num.Vector3 end)
+    {
+        bool water = GroundAudio.WaterDepth(Client, end) > 0.05;
+        string key = p.EndTarget switch
+        {
+            Hollow.Simulation.HitTarget.Character => "impact.flesh",
+            Hollow.Simulation.HitTarget.Deployable => "impact.wood",
+            Hollow.Simulation.HitTarget.Natural => NaturalAt(end) == NaturalClass.Tree ? "impact.wood" : "impact.stone",
+            _ => water ? "impact.water" : "impact.dirt",
+        };
+        Vector3 at = GroundView.ToGodot(end);
+        Sounds.At(key, at);
+        ShotEffects.Provider.Impact(this, at, p.EndTarget, water);
+    }
+
+    // The class of the natural object nearest a point within 3 m (a tree, an outcrop, a boulder), if any.
+    private NaturalClass? NaturalAt(Num.Vector3 point)
+    {
+        if (Client.Nature == null)
+        {
+            return null;
+        }
+        var near = new List<NaturalObject>();
+        Client.Nature.Query(point.X - 3, point.Z - 3, point.X + 3, point.Z + 3, near);
+        NaturalObject? best = null;
+        float bestDistance = float.MaxValue;
+        foreach (NaturalObject o in near)
+        {
+            float d = Num.Vector3.Distance(o.Position, point);
+            if (d < bestDistance)
+            {
+                bestDistance = d;
+                best = o;
+            }
+        }
+        return best is { } b ? Client.Content.Natural(b.Kind)?.Class : null;
     }
 
     // An arrow loosed (the string, its flight), and where it stops (GROUND.md §4.9).

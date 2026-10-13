@@ -44,6 +44,10 @@ public partial class GroundView : Node3D
     private GroundOverlay _overlay = null!;
     private ClientGroundUi _model = null!;
     private GroundAudio? _audio;
+    private float _lookDYaw, _lookDPitch;
+
+    /// <summary>The camera's field of view when not zoomed (degrees, vertical).</summary>
+    public const float FieldOfView = 75;
     private float _yaw;
     private float _pitch;
     private bool _viewRestored;
@@ -191,10 +195,11 @@ public partial class GroundView : Node3D
             });
             AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-40, 140, 0), ShadowEnabled = true });
         }
-        _camera.Fov = 75;
+        _camera.Fov = FieldOfView;
         _camera.Near = 0.05f;
         _camera.Current = true;
         _firstPerson.Attach(_camera);
+        _things.Muzzle = _firstPerson.Muzzle;
         Warmup(_camera);
         // Sound: the director listens at the camera (GROUND.md §4.9); --mute leaves it out.
         if (!Muted)
@@ -261,6 +266,17 @@ public partial class GroundView : Node3D
             OpenWorld();
         }
         UpdateMouse(playing);
+        // The gun's recoil (G4, GROUND.md §6.4): the mouse's turn this frame goes to the recoil's countersteer, and what
+        // the recovering recoil gives back is added to the view the player controls.
+        LocalGun gun = Client.Local.Gun;
+        gun.ObserveLook(_lookDYaw, _lookDPitch);
+        _lookDYaw = _lookDPitch = 0;
+        (float giveYaw, float givePitch) = gun.TakeCompensation();
+        if (giveYaw != 0 || givePitch != 0)
+        {
+            Yaw = _yaw + giveYaw;
+            Pitch = _pitch + givePitch;
+        }
         InputFrame input = ReadInput();
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
@@ -301,7 +317,18 @@ public partial class GroundView : Node3D
         Num.Vector3 eye = feet + up * Client.EyeHeight;
         FaceTarget(eye, up);
         Num.Vector3 forward = CharacterMotor.ViewDirection(_yaw, _pitch, up);
-        _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(forward), ToGodot(up)), ToGodot(eye));
+        // The camera carries the recoil's kick on top of the view (the view itself goes to the server clean), and zooms
+        // by the sight's magnification while aimed.
+        (float kickYaw, float kickPitch) = gun.ViewKick;
+        Num.Vector3 look = CharacterMotor.ViewDirection(_yaw + kickYaw, Math.Clamp(_pitch + kickPitch, -MaxPitch, MaxPitch), up);
+        _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(look), ToGodot(up)), ToGodot(eye));
+        float zoom = gun.Aimed ? Math.Max(1, gun.Zoom) : 1;
+        float fov = 2 * MathF.Atan(MathF.Tan(Mathf.DegToRad(FieldOfView) / 2) / zoom);
+        _camera.Fov = Mathf.MoveToward(_camera.Fov, Mathf.RadToDeg(fov), (float)delta * 240);
+        _overlay.Spread = gun.Weapon != null && !gun.Aimed && !Client.Local.IsDead ? gun.Spread : null;
+        _overlay.Fov = _camera.Fov;
+        _overlay.ReloadProgress = gun.Reloading ? gun.ReloadProgress : null;
+        _overlay.WoundedSeconds = Client.Local.IsWounded ? Math.Max(0, Client.Local.Life.WoundedUntilSeconds - Client.ClockSeconds) : null;
 
         if (Client.Physics != null)
         {
@@ -447,6 +474,8 @@ public partial class GroundView : Node3D
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
                 Yaw = _yaw - motion.Relative.X * MouseSensitivity;
                 Pitch = _pitch - motion.Relative.Y * MouseSensitivity;
+                _lookDYaw -= motion.Relative.X * MouseSensitivity;
+                _lookDPitch -= motion.Relative.Y * MouseSensitivity;
                 GetViewport().SetInputAsHandled();
                 break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }:
@@ -458,6 +487,10 @@ public partial class GroundView : Node3D
                 {
                     case Key.Space:
                         _jumpPressed = true;
+                        break;
+                    case Key.R when Client.Local.Gun.Weapon != null && !Client.Local.IsDead:
+                        Client.Local.Gun.Reload();
+                        GetViewport().SetInputAsHandled();
                         break;
                     case Key.E when !Client.Local.IsDead:
                         _interactHeld = 0;

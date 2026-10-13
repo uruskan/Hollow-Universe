@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Hollow.Client;
+using Hollow.Simulation.Content;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
@@ -151,7 +152,8 @@ public partial class PeopleView : Node3D
             Yaw = e.Yaw,
             Pitch = e.Pitch,
             Velocity = p.Velocity,
-            Stance = swimming ? CharacterStance.Swim : e.Stance == Stance.Crouching ? CharacterStance.Crouch : CharacterStance.Stand,
+            // Crawling (down, G4) has no pose in the character contract yet: crouched is the nearest.
+            Stance = swimming ? CharacterStance.Swim : e.Stance is Stance.Crouching or Stance.Crawling ? CharacterStance.Crouch : CharacterStance.Stand,
             Grounded = (e.Flags & MoveFlags.OnGround) != 0 || swimming,
             Held = kind,
             HeldItem = model,
@@ -194,15 +196,30 @@ public partial class PeopleView : Node3D
         {
             if (e.ActionCount != p.Actions)
             {
-                p.View.Trigger(e.Action == ActionKind.Shoot ? CharacterEvent.Fire : CharacterEvent.Swing);
-                string? heldKey = e.Held != 0 ? Client.Content.Item(e.Held)?.Key : null;
-                if (e.Action == ActionKind.Swing)
+                ItemDef? heldItem = e.Held != 0 ? Client.Content.Item(e.Held) : null;
+                switch (e.Action)
                 {
-                    Sounds.At(heldKey != null ? Sounds.Item(heldKey, "swing") ?? "melee.swing" : "melee.swing", head);
-                }
-                else if (e.Action == ActionKind.Draw)
-                {
-                    Sounds.At("bow.draw", head);
+                    case ActionKind.Shoot:
+                        p.View.Trigger(CharacterEvent.Fire);
+                        if (heldItem?.Firearm != null)
+                        {
+                            Shot(e, heldItem, up);
+                        }
+                        break;
+                    case ActionKind.Reload:
+                        p.View.Trigger(CharacterEvent.Reload);
+                        if (heldItem?.Firearm is { } gun)
+                        {
+                            ReloadSounds(heldItem.Key, (float)gun.ReloadSeconds, head);
+                        }
+                        break;
+                    case ActionKind.Draw:
+                        Sounds.At("bow.draw", head);
+                        break;
+                    default:
+                        p.View.Trigger(CharacterEvent.Swing);
+                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "swing") ?? "melee.swing" : "melee.swing", head);
+                        break;
                 }
             }
             if (e.Health < p.Health && e.Health > 0)
@@ -213,6 +230,35 @@ public partial class PeopleView : Node3D
         }
         p.Actions = e.ActionCount;
         p.Health = e.Health;
+    }
+
+    private int _silencers = -1;
+
+    // Another player's shot (G4): the gun's sound at its muzzle (layered by distance, arriving at the speed of sound)
+    // and, unless silenced, a flash.
+    private void Shot(RemoteEntity e, ItemDef gun, Num.Vector3 up)
+    {
+        if (_silencers < 0)
+        {
+            _silencers = Client.Content.Items.Where(i => i.Attachment is { Silenced: true }).Aggregate(0, (m, i) => m | 1 << i.Attachment!.Index);
+        }
+        bool silenced = (e.HeldMods & _silencers) != 0;
+        Num.Vector3 eye = e.Position + up * (e.Stance == Stance.Crouching ? 1.0f : 1.55f);
+        Num.Vector3 muzzle = eye + CharacterMotor.ViewDirection(e.Yaw, e.Pitch, up) * 0.75f;
+        Vector3 at = GroundView.ToGodot(muzzle);
+        Sounds.At(Sounds.Item(gun.Key, silenced ? "shotSilenced" : "shot"), at);
+        if (!silenced)
+        {
+            ShotEffects.Provider.MuzzleFlash(this, at, GroundView.ToGodot(CharacterMotor.ViewDirection(e.Yaw, e.Pitch, up)));
+        }
+    }
+
+    // A reload's parts as they come: magazine out, in, the slide or bolt.
+    private void ReloadSounds(string gun, float seconds, Vector3 at)
+    {
+        Sounds.At(Sounds.Item(gun, "magOut"), at);
+        GetTree().CreateTimer(seconds * 0.55).Timeout += () => Sounds.At(Sounds.Item(gun, "magIn"), at);
+        GetTree().CreateTimer(seconds * 0.85).Timeout += () => Sounds.At(Sounds.Item(gun, "rack"), at);
     }
 
     // Their footsteps, at their feet, on the ground under them (looked up again every 4 m).

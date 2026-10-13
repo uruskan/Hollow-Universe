@@ -125,7 +125,9 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
 
     public int ActiveBelt => Me.HeldSlot;
 
-    public HeldAmmo? Ammo => Me.HeldItem?.Bow is { } bow ? new HeldAmmo(0, bow.Ammo.Sum(a => Me.Inventory.Count(a))) : null;
+    public HeldAmmo? Ammo =>
+        Me.Gun.Weapon != null ? new HeldAmmo(Me.Gun.Loaded, Me.Gun.Reserve, Me.Gun.Reloading)
+        : Me.HeldItem?.Bow is { } bow ? new HeldAmmo(0, bow.Ammo.Sum(a => Me.Inventory.Count(a))) : null;
 
     public LootView? Loot
     {
@@ -525,7 +527,8 @@ public sealed class ClientGroundUi : IGroundUi, IDisposable
             return default;
         }
         float condition = def.HasCondition ? Math.Clamp((float)s.Condition / def.MaxCondition, 0, 1) : -1f;
-        return new UiStack(def.Key, s.Count, condition);
+        // A gun shows the rounds in its magazine on its slot (G4).
+        return new UiStack(def.Key, s.Count, condition, def.Firearm != null ? s.Loaded : -1);
     }
 
     // The open container's slots as the loot panel lays them out: a sleeper's main, belt and clothing in a body's order.

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Godot;
@@ -8,8 +9,9 @@ namespace HollowUniverse.Ground;
 
 /// <summary>
 /// What the ground game shows besides the RustMVP interface: other players' names over their heads (placed by
-/// <see cref="Labeller"/>, nearest first, never overlapping), the network graph (F3), and a line while connecting or
-/// after the connection is lost. Built with <see cref="Ui"/>.
+/// <see cref="Labeller"/>, nearest first, never overlapping), the network graph (F3), a line while connecting or after
+/// the connection is lost, a gun's crosshair at the hip (its spread cone), and the wounded screen with its countdown
+/// (G4). Built with <see cref="Ui"/>.
 /// </summary>
 public partial class GroundOverlay : Control
 {
@@ -18,8 +20,23 @@ public partial class GroundOverlay : Control
     private NetGraph _graph = null!;
     private MapOverlay _names = null!;
     private Label _status = null!;
+    private Crosshair _cross = null!;
+    private ColorRect _wounded = null!;
+    private Label _woundedLine = null!;
 
     public GameClient Client { get; set; } = null!;
+
+    /// <summary>A gun's spread cone at the hip (degrees) for the crosshair; null shows none.</summary>
+    public float? Spread { get; set; }
+
+    /// <summary>The camera's vertical field of view (degrees), to size the crosshair.</summary>
+    public float Fov { get; set; } = 75;
+
+    /// <summary>Seconds left to bleed out while down; null when not wounded.</summary>
+    public double? WoundedSeconds { get; set; }
+
+    /// <summary>A reload's progress (0–1) under the centre; null when not reloading.</summary>
+    public float? ReloadProgress { get; set; }
 
     public bool ShowNetGraph
     {
@@ -59,6 +76,24 @@ public partial class GroundOverlay : Control
         _status.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.7f));
         Ui.Place(_status, LayoutPreset.Center);
         AddChild(_status);
+
+        _cross = new Crosshair { MouseFilter = MouseFilterEnum.Ignore };
+        _cross.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(_cross);
+
+        // Down: the world dims to a dark red, and the countdown (Rust's wounded screen).
+        _wounded = new ColorRect { Color = new Color(0.22f, 0.02f, 0.02f, 0.45f), MouseFilter = MouseFilterEnum.Ignore, Visible = false };
+        _wounded.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var column = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        column.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        Label title = Ui.Label("WOUNDED", TextStyle.Title);
+        title.HorizontalAlignment = HorizontalAlignment.Center;
+        _woundedLine = Ui.Label("", TextStyle.Body);
+        _woundedLine.HorizontalAlignment = HorizontalAlignment.Center;
+        column.AddChild(title);
+        column.AddChild(_woundedLine);
+        _wounded.AddChild(column);
+        AddChild(_wounded);
     }
 
     /// <summary>Every frame: the status line, the graph and the names (<paramref name="names"/>: head point, name, distance).</summary>
@@ -66,6 +101,16 @@ public partial class GroundOverlay : Control
     {
         _status.Text = status ?? "";
         _status.Visible = status != null;
+        _cross.Spread = Spread;
+        _cross.Fov = Fov;
+        _cross.Reload = ReloadProgress;
+        _cross.QueueRedraw();
+        _wounded.Visible = WoundedSeconds != null;
+        if (WoundedSeconds is { } left)
+        {
+            _woundedLine.Text = string.Create(CultureInfo.InvariantCulture,
+                $"You will bleed out in {Math.Ceiling(left):0} s. Crawl to cover; another player can help you up.");
+        }
         if (_graphCard.Visible)
         {
             UpdateNetGraph();
@@ -121,5 +166,38 @@ public partial class GroundOverlay : Control
             }
         }
         _names.QueueRedraw();
+    }
+
+    // A gun's crosshair at the hip: four ticks around the centre, as far out as the spread cone reaches on screen.
+    private sealed partial class Crosshair : Control
+    {
+        public float? Spread;
+        public float Fov = 75;
+        public float? Reload;
+
+        public override void _Draw()
+        {
+            Vector2 centre = Size / 2;
+            if (Reload is { } progress)
+            {
+                // A thin bar under the centre fills as the reload goes.
+                var bar = new Rect2((centre + new Vector2(-Ui.Pxf(40), Ui.Pxf(28))).Round(), new Vector2(Ui.Px(80), Math.Max(2, Ui.Px(4))));
+                DrawRect(bar, new Color(0, 0, 0, 0.45f));
+                DrawRect(new Rect2(bar.Position, new Vector2(MathF.Round(bar.Size.X * Math.Clamp(progress, 0, 1)), bar.Size.Y)), Ui.Text);
+            }
+            if (Spread is not { } spread)
+            {
+                return;
+            }
+            float radius = MathF.Tan(Mathf.DegToRad(spread) / 2) / MathF.Tan(Mathf.DegToRad(Fov) / 2) * Size.Y / 2;
+            float gap = Math.Max(radius, Ui.Pxf(5)), length = Ui.Pxf(8), width = Math.Max(1, Ui.Px(2));
+            var shade = new Color(0, 0, 0, 0.45f);
+            foreach (Vector2 d in new[] { Vector2.Up, Vector2.Down, Vector2.Left, Vector2.Right })
+            {
+                Vector2 from = (centre + d * gap).Round(), to = (centre + d * (gap + length)).Round();
+                DrawLine(from + Vector2.One, to + Vector2.One, shade, width);
+                DrawLine(from, to, Ui.Text, width);
+            }
+        }
     }
 }

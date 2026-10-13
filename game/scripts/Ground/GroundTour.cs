@@ -20,7 +20,8 @@ namespace HollowUniverse.Ground;
 /// <summary>
 /// The scripted screenshot run of the ground game (GROUND.md §5, <c>--tour &lt;folder&gt;</c>): on the host, a walk
 /// through the game at the landing site that saves one picture per moment (the HUD by berry bushes, picking berries,
-/// the inventory, crafting, the other player, chopping a tree and after, the death screen, night by a fire) and
+/// the inventory, crafting, the other player, chopping a tree and after, an outcrop, a rifle fired down the sights,
+/// the death screen, night by a fire) and
 /// quits; with <c>--tour guest</c>, a second client that dresses in what it is given, takes up its hatchet and
 /// faces the host. Pictures are 1600 × 900 JPEG at the window's size.
 /// </summary>
@@ -52,7 +53,7 @@ public partial class GroundTour : Node
         var all = new (string Name, Func<Task> Step)[]
         {
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
-            ("chop", Chop), ("mine", Mine), ("death", Death), ("night", Night),
+            ("chop", Chop), ("mine", Mine), ("gun", Gun), ("death", Death), ("night", Night),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -204,7 +205,7 @@ public partial class GroundTour : Node
             return;
         }
         _guestName = guest.Name;
-        foreach (string item in new[] { "woven-shirt 1", "woven-trousers 1", "work-boots 1", "chest-plate 1", "stone-hatchet 1" })
+        foreach (string item in new[] { "woven-hood 1", "woven-shirt 1", "woven-trousers 1", "work-boots 1", "chest-plate 1", "stone-hatchet 1" })
         {
             Server?.Execute($"give {_guestName} {item}");
         }
@@ -335,6 +336,42 @@ public partial class GroundTour : Node
         Me.HeldSlot = 2;
     }
 
+    // A rifle aimed down the sights at a tree 20–60 m off, the moment a shot leaves (G4).
+    private async Task Gun()
+    {
+        Admin("give", "rifle 1");
+        Admin("give", "rifle-ammo 90");
+        await Until(() => Count("rifle") > 0 && Count("rifle-ammo") > 0, 5);
+        MoveToBelt("rifle", 5);
+        await Seconds(0.4);
+        Me.HeldSlot = 5;
+        await Until(() => Me.Gun.Ready, 3);
+        Me.Gun.Reload();
+        await Until(() => Me.Gun.Loaded > 0 && !Me.Gun.Reloading, 8);
+        Num.Vector3 from = Client.Character.Position;
+        foreach (string key in new[] { "fir-tree", "pine-tree", "broadleaf-tree", "birch-tree" })
+        {
+            if (Nearest(key, from, 60, open: true) is { } t && Num.Vector3.Distance(t.Position, from) > 20)
+            {
+                Face(t.Position + t.Up * 2.0f);
+                break;
+            }
+        }
+        await Settle();
+        bool fired = false;
+        void Fired(ShotEvent _) => fired = true;
+        Me.Gun.ShotFired += Fired;
+        View.Scripted = new InputFrame { Secondary = true };
+        await Seconds(0.9);
+        View.Scripted = new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true };
+        await Until(() => fired, 3);
+        await Shot("gun", frames: 0);
+        Me.Gun.ShotFired -= Fired;
+        View.Scripted = null;
+        await Seconds(0.6);
+        Me.HeldSlot = 2;
+    }
+
     private async Task Death()
     {
         Admin("kill", "");
@@ -412,7 +449,7 @@ public partial class GroundTour : Node
         {
             return;
         }
-        foreach (string wear in new[] { "woven-shirt", "woven-trousers", "work-boots", "chest-plate" })
+        foreach (string wear in new[] { "woven-hood", "woven-shirt", "woven-trousers", "work-boots", "chest-plate" })
         {
             if (SlotOf(Me.Inventory.Main, wear) is int slot)
             {
@@ -549,9 +586,9 @@ public partial class GroundTour : Node
 
     private async Task Seconds(double seconds) => await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
 
-    private async Task Shot(string name)
+    private async Task Shot(string name, int frames = 3)
     {
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < frames; i++)
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }

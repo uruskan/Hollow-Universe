@@ -38,6 +38,57 @@ public partial class FirstPersonView : Node3D
 
     public float PlacementYaw { get; set; }
 
+    public override void _Ready()
+    {
+        Client.Local.Gun.ShotFired += OnShot;
+        Client.Local.Gun.ReloadStarted += OnReload;
+    }
+
+    public override void _ExitTree()
+    {
+        Client.Local.Gun.ShotFired -= OnShot;
+        Client.Local.Gun.ReloadStarted -= OnReload;
+    }
+
+    // A shot of our own, at once (predicted): the arms kick, the gun sounds, the muzzle flashes (G4, GROUND.md §6.4).
+    private void OnShot(ShotEvent shot)
+    {
+        if (_camera == null)
+        {
+            return;
+        }
+        _arms.Trigger(CharacterEvent.Fire);
+        Vector3 muzzle = Muzzle();
+        Sounds.At(Sounds.Item(shot.Weapon.Key, shot.Silenced ? "shotSilenced" : "shot"), muzzle);
+        if (!shot.Silenced)
+        {
+            ShotEffects.Provider.MuzzleFlash(this, muzzle, -_camera.GlobalBasis.Z);
+        }
+    }
+
+    // Where the muzzle is, near enough for a flash and the start of a tracer: just past the gun's end, lower right at
+    // the hip, under the sight when aimed (the arms are drawn over the world, so a flash at the very muzzle would hide
+    // behind the gun).
+    public Vector3 Muzzle()
+    {
+        bool rifle = Client.Local.HeldItem?.Key == "rifle";
+        float aim = _arms.AimAmount;
+        Vector3 local = new Vector3(0.14f, -0.12f, -(rifle ? 1.0f : 0.6f)).Lerp(new Vector3(0, -0.05f, -(rifle ? 1.05f : 0.6f)), aim);
+        return _camera.GlobalTransform * local;
+    }
+
+    // A reload: the arms play it, and its parts sound as they come (magazine out, in, the slide or bolt).
+    private void OnReload(ReloadEvent reload)
+    {
+        _arms.Trigger(CharacterEvent.Reload);
+        string key = reload.Weapon.Key;
+        Sounds.Flat(Sounds.Item(key, "magOut"));
+        SceneTreeTimer magIn = GetTree().CreateTimer(reload.Seconds * 0.55);
+        magIn.Timeout += () => Sounds.Flat(Sounds.Item(key, "magIn"));
+        SceneTreeTimer rack = GetTree().CreateTimer(reload.Seconds * 0.85);
+        rack.Timeout += () => Sounds.Flat(Sounds.Item(key, "rack"));
+    }
+
     /// <summary>Puts the arms on the player's camera.</summary>
     public void Attach(Camera3D camera)
     {
@@ -104,7 +155,7 @@ public partial class FirstPersonView : Node3D
             Grounded = grounded,
             Sprinting = (state.Flags & MoveFlags.Sprinting) != 0,
             Crouching = state.Stance == Stance.Crouching,
-            Aiming = input.Secondary && item != null && ItemLooks.Held(item.Key) is { Kind: HeldKind.Pistol or HeldKind.Rifle },
+            Aiming = Client.Local.Gun.Aimed,
         });
 
         // Swings follow the server's rhythm: one every swing time while the attack is held, once the item is ready.

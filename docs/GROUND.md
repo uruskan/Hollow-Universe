@@ -1509,6 +1509,19 @@ and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attac
 the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
+**As built** (`game/scripts/Ground`): `GroundView` adds `ViewKick` to the camera, passes the mouse's turn to
+`ObserveLook` and adds `TakeCompensation` to the view, zooms by `Zoom` while `Aimed` (eased), and reloads on R;
+`FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle and flashes it, and plays a reload's
+parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws bullets as tracers (our own
+leaving the muzzle and closing on the shot's line over 50 m) and, where one stops, a puff and the sound of what it hit
+(the nearest natural object's class tells wood from rock; the sea from its depth); `PeopleView` plays others' shots
+(silenced from `HeldMods`) with a flash and their reloads; the HUD's ammo counter and the gun's slot show the
+magazine; `GroundOverlay` draws the hip crosshair from `Spread`, a reload's progress under the centre, and the
+wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The flash, tracer and puff
+are plain ones made in code behind `ShotEffects.Provider` (`IShotEffects`) until the effects package lands. Not drawn
+yet, for want of the character contract (§4.8): attachments on guns in hand, others' aiming pose, and crawling (the
+wounded crouch instead).
+
 ---
 
 ## 7. Data
@@ -2180,3 +2193,9 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     snapshot), for everyone's hits alike, so one's own hit sounds a round trip after the swing; a burst of more than 20
     changes at once is an area coming into range and is silent. A deployable that appears within 25 m once the world
     is in was just placed.
+77. **A muzzle flash is drawn over the gun** (no depth test) for two drawn frames: the arms are drawn over the world,
+    so a flash at the very muzzle would hide behind the barrel. Aimed down the sights, one's own tracer is seen almost
+    end-on, as in life.
+78. **What the character contract can't show yet is left out** rather than drawn around it: attachments on guns in
+    hand, others' aiming pose, crawling (the wounded crouch), sleepers' pose (75). The character package's views would
+    need an attachment list for `Hold`, an aiming flag and a crawling stance.
