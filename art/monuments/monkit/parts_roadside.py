@@ -11,8 +11,8 @@ import math
 from mathutils import Matrix, Vector
 
 from . import kit
-from .kit import (BLACK, DARK, GREY, LIGHTGREY, OFFWHITE, ORANGE, RED, TEAL, YELLOW, srgb, stripes)
-from .surfaces import (ASPHALT, CONCRETE, CORRUGATED, GLASS, GLOSS, GRATE, LAMP, MATTE, PAINT, PANEL, RUST)
+from .kit import (BLACK, DARK, GREY, LIGHTGREY, OFFWHITE, ORANGE, RED, TEAL, WARM_LAMP, YELLOW, srgb, stripes)
+from .surfaces import (ASPHALT, CHAINLINK, CONCRETE, CORRUGATED, GLASS, GLOSS, GRATE, LAMP, MATTE, PAINT, PANEL, RUST)
 
 # ------------------------------------------------------------------------------------------------ colours
 
@@ -2888,3 +2888,118 @@ def post_rail(b, pts, height=1.25, post=2.4, tint=WOOD_GREY, rails=3, missing=0.
         mid = (a + c) / 2
         b.collide_box(Vector((mid.x, mid.y, height / 2)), (d.length, 0.12, height),
                       (0, 0, math.degrees(math.atan2(d.y, d.x))))
+
+
+# ------------------------------------------------------------------------------------------------ harbour
+
+def bollard(b, at, tint=srgb(0.18, 0.18, 0.19)):
+    """A cast mooring bollard: a waisted post with a cap, bolted down."""
+    x, y, z = at
+    b.lathe([(0.0, 0.0), (0.24, 0.0), (0.2, 0.08), (0.16, 0.35), (0.19, 0.5), (0.26, 0.55), (0.26, 0.62),
+             (0.0, 0.64)], (x, y, z), mat=PAINT, tint=tint, sides=12, solid="hull")
+
+
+def fishing_boat(b, at, yaw=0.0, length=10.0, width=3.4, tint=srgb(0.2, 0.34, 0.5), band=OFFWHITE, name="KESTREL",
+                 roll=0.0, pitch=0.0, sink=0.0, wheelhouse=True, gantry=True):
+    """A small fishing boat floating with its waterline at z = 0 of its frame (bow toward -Y): a lofted round-bilge
+    hull with a rising sheer and a transom, a white sheer strake and the name at the bow, the wheelhouse forward with
+    windows and a mast and boom, a gantry and net drum at the stern, tyre fenders. `sink` lowers it (half-sunk)."""
+    L, hw = length, width / 2
+    draft = 1.2
+    rings = []
+    for i in range(13):
+        t = i / 12
+        w = hw * (math.sin(math.pi / 2 * min(1.0, t / 0.5)) ** 0.8 if t < 0.5 else 1.0 - 0.1 * (t - 0.5) / 0.5)
+        w = max(0.05, w)
+        s = 1.1 + 0.6 * (1 - t) ** 2
+        k = -draft + (1.2 * (1 - t / 0.2) if t < 0.2 else 0.0)
+        y = -L / 2 + L * t
+        rings.append([(-w, y, s), (-w * 0.98, y, k + 0.75 * draft), (-w * 0.62, y, k + 0.18 * draft), (0.0, y, k),
+                      (w * 0.62, y, k + 0.18 * draft), (w * 0.98, y, k + 0.75 * draft), (w, y, s)])
+    with b.frame(at, (pitch, roll, yaw)):
+        with b.frame((0, 0, -sink), (0, 0, 0)):
+            from .structures import loft
+            loft(b, rings, mat=PAINT, tint=tint, solid="hull", wear=0.6)
+            # Sheer strake and rubbing strip, the name, the deck's bulwark rail.
+            for s_ in (-1, 1):
+                pts = [(s_ * (abs(r[0][0]) + 0.012), r[0][1], r[0][2] + 0.08) for r in rings[1:]]
+                b.tube(pts, 0.1, mat=PAINT, tint=band, sides=6, cap=False)
+                pts2 = [(s_ * (abs(r[0][0]) + 0.02), r[0][1], r[0][2] - 0.45) for r in rings[2:]]
+                b.tube(pts2, 0.05, mat=PAINT, tint=DARK, sides=5, cap=False)
+                stencil(b, name, (s_ * (abs(rings[2][0][0]) + 0.03), -L / 2 + L * 2 / 12 + 0.3, rings[2][0][2] - 0.75),
+                        (0, 0, 90 * s_), 0.24, band, align="centre")
+                for k in range(3):
+                    yy = -L * 0.1 + L * 0.2 * k
+                    b.cyl(0.32, 0.22, (s_ * (hw + 0.12), yy, 0.75), (0, 90, 0), mat=MATTE, tint=RUBBER, sides=10,
+                          cap=True, solid=False)
+            if wheelhouse:
+                wy = -L * 0.08
+                ws = 1.1 + 0.6 * (1 - 0.42) ** 2
+                grid_box(b, (2.2, 2.4, 2.0), (0, wy, ws + 1.0), mat=PAINT, tint=OFFWHITE, step=0.8)
+                b.box((2.4, 2.6, 0.1), (0, wy, ws + 2.05), mat=PAINT, tint=tint)
+                b.box((2.0, 0.02, 0.7), (0, wy - 1.21, ws + 1.4), (-10, 0, 0), mat=GLASS, solid=False)
+                for s_ in (-1, 1):
+                    b.box((0.02, 1.4, 0.6), (s_ * 1.11, wy - 0.2, ws + 1.4), mat=GLASS, solid=False)
+                b.box((0.7, 0.04, 1.8), (0.6, wy + 1.21, ws + 0.9), mat=PAINT, tint=DARK, solid=False)
+                b.cyl(0.07, 5.0, (0, wy + 0.4, ws + 4.6), mat=PAINT, tint=OFFWHITE, sides=8, solid=False)
+                b.box((1.4, 0.06, 0.06), (0, wy + 0.4, ws + 5.4), mat=PAINT, tint=OFFWHITE, solid=False)
+                b.beam((0, wy + 0.5, ws + 2.6), (0, wy + 4.0, ws + 1.4), 0.08, 0.08, mat=PAINT, tint=OFFWHITE)
+                b.box((0.18, 0.18, 0.16), (0, wy + 0.4, ws + 7.1), mat=LAMP, tint=WARM_LAMP, solid=False)
+                for s_ in (-1, 1):
+                    b.box((0.12, 0.1, 0.1), (s_ * 0.7, wy + 0.4, ws + 5.5), mat=GLOSS, tint=RED if s_ < 0 else
+                          srgb(0.2, 0.7, 0.3), solid=False, vary=0)
+                ball(b, (1.12, wy + 0.6, ws + 1.3), 0.3, ORANGE, mat=GLOSS, sides=10, rings=5)
+            if gantry:
+                gy = L / 2 - 0.6
+                for s_ in (-1, 1):
+                    b.beam((s_ * (hw - 0.25), gy, 1.15), (s_ * (hw - 0.6), gy - 0.4, 4.2), 0.14, 0.14, mat=PAINT,
+                           tint=YELLOW)
+                b.box((2.0, 0.16, 0.16), (0, gy - 0.4, 4.2), mat=PAINT, tint=YELLOW, solid=False)
+                b.cyl(0.6, 1.8, (0, gy - 1.6, 1.85), (0, 90, 0), mat=PAINT, tint=srgb(0.25, 0.4, 0.3), sides=14)
+                b.cyl(0.66, 0.06, (0.95, gy - 1.6, 1.85), (0, 90, 0), mat=PAINT, tint=DARK, sides=14, solid=False)
+                b.cyl(0.66, 0.06, (-0.95, gy - 1.6, 1.85), (0, 90, 0), mat=PAINT, tint=DARK, sides=14, solid=False)
+                b.cyl(0.62, 1.7, (0, gy - 1.6, 1.85), (0, 90, 0), mat=MATTE, tint=srgb(0.2, 0.3, 0.25), sides=14,
+                      solid=False)
+
+
+
+
+def pedestal_crane(b, at, yaw=0.0, jib=14.0, luff=38.0, drop=6.0, tint=srgb(0.85, 0.6, 0.15)):
+    """A quayside pedestal crane: a steel column on a plinth, the slewing house with its cab and counterweight, a
+    lattice jib luffed `luff` degrees up toward -Y, its stays, and the hook block `drop` metres under the jib tip."""
+    with b.frame(at, (0, 0, yaw)):
+        b.cyl(1.1, 0.5, (0, 0, 0.25), mat=CONCRETE, tint=srgb(0.72, 0.71, 0.68), sides=16)
+        b.cyl(0.6, 3.6, (0, 0, 2.3), mat=PAINT, tint=tint, sides=16)
+        b.cyl(0.9, 0.3, (0, 0, 4.25), mat=PAINT, tint=GREY, sides=16)
+        grid_box(b, (2.4, 3.2, 1.9), (0, 0.6, 5.35), mat=PAINT, tint=tint, step=0.8)
+        b.box((2.5, 1.2, 1.5), (0, 2.6, 5.1), mat=PAINT, tint=DARK, bevel=0.06)
+        stripes(b, (-1.25, 3.21, 0), (1.25, 3.21, 0), 0.6, width=0.3, at_z=4.6, normal=(0, 1, 0))
+        b.box((1.2, 0.02, 0.8), (-0.5, -1.01, 5.6), mat=GLASS, solid=False)
+        b.box((0.02, 1.0, 0.8), (-1.21, -0.3, 5.6), mat=GLASS, solid=False)
+        rungs(b, (1.25, 0.8, 0.5), 3.9, width=0.4, rot=(0, 0, -90), rail_tint=tint)
+        foot = Vector((0, -0.9, 4.8))
+        e = math.radians(luff)
+        with b.frame(tuple(foot), (90 - luff, 0, 0)):
+            lattice(b, 0.0, jib, 1.0, 0.5, max(4, int(jib / 1.8)), member=0.07, tint=tint, solid=True)
+        tip = foot + Vector((0, -math.cos(e), math.sin(e))) * jib
+        apex = Vector((0, 0.6, 7.6))
+        b.box((0.3, 0.3, 1.6), (0, 0.6, 6.8), mat=PAINT, tint=tint)
+        for s_ in (-0.15, 0.15):
+            rod(b, apex + Vector((s_, 0, 0)), tip + Vector((s_, 0, 0.2)), 0.02, tint=GREY, sides=4)
+        rod(b, tip, tip - Vector((0, 0, drop)), 0.02, tint=BLACK, sides=4)
+        b.box((0.4, 0.3, 0.5), tuple(tip - Vector((0, 0, drop + 0.25))), mat=PAINT, tint=YELLOW, solid=False)
+        b.tube([tuple(tip - Vector((0, 0, drop + 0.5))), tuple(tip - Vector((0.1, 0, drop + 0.75))),
+                tuple(tip - Vector((0, 0, drop + 0.9)))], 0.04, mat=PAINT, tint=DARK, sides=5, cap=False)
+    b.marker("landmark", (at[0], at[1], at[2] + 4.8 + jib * math.sin(math.radians(luff))), kind_of="crane")
+
+
+def lobster_pot(b, at, yaw=0.0):
+    """A D-shaped creel: a weighted base, three hoops, mesh over them, a float line."""
+    with b.frame(at, (0, 0, yaw)):
+        b.box((0.7, 0.5, 0.05), (0, 0, 0.025), mat=PAINT, tint=srgb(0.3, 0.25, 0.2), solid=False)
+        for x in (-0.3, 0.0, 0.3):
+            pts = [(x, 0.25 * math.cos(math.pi * k / 6), 0.05 + 0.32 * math.sin(math.pi * k / 6)) for k in range(7)]
+            b.tube(pts, 0.012, mat=PAINT, tint=DARK, sides=4, cap=False)
+        with b.frame((0, 0, 0.05), (0, 90, 0)):
+            arc_panel(b, 0.25, 90.0, 270.0, -0.32, 0.32, 0.01, 4, mat=CHAINLINK, tint=srgb(0.3, 0.45, 0.4))
+        b.collide_box(Vector((0, 0, 0.2)), (0.7, 0.5, 0.4), (0, 0, 0))
