@@ -2091,6 +2091,26 @@ shoreline, and paper grain, stains and a darker edge. Deterministic (Hash64 nois
 so the game caches it on disk under `ZoneMap.CacheKey`. The grid (26 × 26 cells of 150 m, lettered A–Z from the west and
 numbered from the north, as Rust's) and every label are drawn by the interface, crisp at any scale.
 
+**What the visual layer does with it** (the Godot work after this package; the screens are built, §8):
+- `ClientGroundUi` implements `IGroundUi`'s G7 members from `GameClient.Local` and `GameClient.Map`: `Map` (the
+  `ZoneMap`'s cache key, `Render`, metres and cells), `MapMarkers` in the map's 0–1 frame (`ToMap`): the player with their
+  yaw, `Teammates`, `DeathPoint`, `RespawnPoints` (bed or bag), `Markers`; `PlaceMarker` and `RemoveMarker` through
+  `ToZone`; `TechTree` from `Content.World.Tree(WorkbenchLevel)` with `Knows` and `CanUnlock` for the states; `Team` and
+  `TeamInvites`; the loot kinds `Recycler`, `ResearchTable` and `Crate` with `Machine` (`IsOn`, `Progress`,
+  `Researching`, `Cost`, `Reason`); a blueprint stack's `Teaches` (the key of `Content.Recipe(condition).Output`); team
+  chat lines. Once `Map` is given, the death screen draws that map, so the death's and the bags' places must be in its
+  frame too (`ToMap`), not the old survey picture's.
+- Open the tech tree at a workbench (`GroundUi.OpenTechTree`; the crafting screen has a TECH TREE tab too). G opens the
+  map (`GroundUi` handles it).
+- Draw the props from the model catalogue by their key (`loot-barrel-1`, `loot-barrel-2`, `loot-crate`,
+  `military-crate`, `recycler`: stand-ins now), the recycler's light and hum while it runs (`Lit`), sounds for a barrel
+  breaking, a crate opening and a blueprint learnt (`sounds.json` has stand-in roles).
+- Teammates' name tags (`IsTeammate`: through walls, as Rust's), and an "Invite to team" prompt on a player within 6 m
+  while leading a team; notices for invites, team changes and blueprints learnt.
+- Icons and models for the new items: `salvage`, the components (`gears`, `springs`, `metal-pipe`, `rope`, `cloth`,
+  `sewing-kit`, `tech-scrap`, `metal-blade`, `sheet-metal`, `sign-plate`, `receiver`, `rifle-frame`), `torn-schematic`,
+  `sealed-schematic`, `blueprint` and `research-table` (flat placeholders in `ItemIcons` until then).
+
 **Bots and the load test**: `WorldBrain` and `loadtest --script world` (§5.8).
 
 ---
