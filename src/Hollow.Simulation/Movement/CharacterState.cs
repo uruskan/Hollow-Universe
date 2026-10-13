@@ -11,6 +11,9 @@ public enum Stance : byte
 
     /// <summary>Down and crawling (wounded, G4): slow, no jumping or sprinting; only the server sets and clears it.</summary>
     Crawling,
+
+    /// <summary>In a ship's seat (G6): it doesn't move by itself; the ship carries it (only the server sets and clears it).</summary>
+    Seated,
 }
 
 /// <summary>Buttons of one tick of input.</summary>

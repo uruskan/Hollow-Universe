@@ -26,6 +26,7 @@ public sealed partial class GameContent
         "items.json", "recipes.json", "gather.json", "deployables.json", "loot.json", "survival.json", "categories.json",
         "weapons.json",
         "building.json", "explosives.json",
+        "ships.json",
     };
 
     private readonly ItemDef?[] _byId;
@@ -34,6 +35,7 @@ public sealed partial class GameContent
     private readonly Dictionary<string, NaturalKind> _natural;
     private readonly Dictionary<string, DeployableDef> _deployables;
     private readonly Dictionary<string, LootTable> _loot;
+    private readonly Dictionary<string, Ships.ShipDef> _ships;
 
     private GameContent(Loaded loaded)
     {
@@ -46,6 +48,7 @@ public sealed partial class GameContent
         Firearms = loaded.Firearms;
         Bullets = loaded.Bullets;
         Attachments = loaded.Attachments;
+        Ships = loaded.Ships;
         Blasts = loaded.Blasts;
         Throwables = loaded.Throwables;
         RaidAlerts = loaded.RaidAlerts;
@@ -72,6 +75,7 @@ public sealed partial class GameContent
         _natural = NaturalKinds.GroupBy(k => k.Key).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         _deployables = Deployables.GroupBy(d => d.Key).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         _loot = LootTables.GroupBy(t => t.Key).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        _ships = Ships.GroupBy(t => t.Key).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
     }
 
     public IReadOnlyList<ItemDef> Items { get; }
@@ -93,6 +97,8 @@ public sealed partial class GameContent
 
     public IReadOnlyList<AttachmentStats> Attachments { get; }
 
+    /// <summary>The kinds of ship (ships.json, G6); each also hangs off its item.</summary>
+    public IReadOnlyList<Ships.ShipDef> Ships { get; }
     /// <summary>G5 (explosives.json): every blast, the explosives thrown or placed by hand, and how raid alerts go out.</summary>
     public IReadOnlyList<BlastStats> Blasts { get; }
 
@@ -156,6 +162,11 @@ public sealed partial class GameContent
     public DeployableDef? Deployable(string key) => _deployables.GetValueOrDefault(key);
 
     public LootTable? Loot(string key) => _loot.GetValueOrDefault(key);
+
+    public Ships.ShipDef? Ship(string key) => _ships.GetValueOrDefault(key);
+
+    /// <summary>The ship kind an item ID names (untrusted: null when it isn't one).</summary>
+    public Ships.ShipDef? Ship(int itemId) => Item(itemId)?.Ship;
 
     private static ushort? AsId(int value) => value is > 0 and <= ushort.MaxValue ? (ushort)value : null;
 
@@ -338,6 +349,7 @@ public sealed partial class GameContent
         public List<FirearmStats> Firearms = new();
         public List<BulletStats> Bullets = new();
         public List<AttachmentStats> Attachments = new();
+        public List<Ships.ShipDef> Ships = new();
         public List<BlastStats> Blasts = new();
         public List<ThrowableStats> Throwables = new();
         public RaidAlertSettings RaidAlerts = new();
@@ -368,6 +380,7 @@ public sealed partial class GameContent
             ReadSurvival();
             ReadWeapons();
             ExplosivesReader.Read(f, files[ExplosivesReader.File], loaded, Resolve);
+            ReadShips();
         }
 
         private JsonElement Root(string file, params string[] fields)
@@ -413,7 +426,7 @@ public sealed partial class GameContent
                 string key = f.Text(e, "key", $"items.json: items[{i}]");
                 string where = $"items.json: {JsonFields.Quote(key)}";
                 f.OnlyKnown(e, where, "id", "key", "name", "description", "category", "stack", "condition", "melee", "bow", "ammo",
-                    "consume", "wear", "fuel", "cook", "deploys", "building", "door");
+                    "consume", "wear", "fuel", "cook", "deploys", "building", "door", "ship");
                 int id = f.Integer(e, "id", where);
                 if (id is < 1 or > ushort.MaxValue)
                 {
@@ -438,6 +451,7 @@ public sealed partial class GameContent
                     DeploysKey = f.Has(e, "deploys") ? f.Text(e, "deploys", where) : null,
                     Building = f.Has(e, "building") ? Role(f.Text(e, "building", where), where) : BuildingRole.None,
                     DoorKey = f.Has(e, "door") ? f.Text(e, "door", where) : null,
+                    ShipKey = f.Has(e, "ship") ? f.Text(e, "ship", where) : null,
                 };
                 if (!_items.TryAdd(key, item))
                 {
@@ -605,7 +619,7 @@ public sealed partial class GameContent
                 JsonElement e = list[i];
                 string output = f.Text(e, "output", $"recipes.json: recipes[{i}]");
                 string where = $"recipes.json: {JsonFields.Quote(output)}";
-                f.OnlyKnown(e, where, "output", "amount", "seconds", "workbench", "ingredients", "known");
+                f.OnlyKnown(e, where, "output", "amount", "seconds", "workbench", "ingredients", "known", "station");
                 ItemDef? item = Resolve(output, where);
                 var ingredients = new List<ItemAmount>();
                 foreach (JsonElement ingredient in f.List(e, "ingredients", where))
@@ -628,6 +642,7 @@ public sealed partial class GameContent
                     Workbench = f.Integer(e, "workbench", where, 0),
                     Ingredients = ingredients,
                     Known = f.Flag(e, "known", where, true),
+                    StationKey = f.Has(e, "station") ? f.Text(e, "station", where) : null,
                 });
             }
         }
@@ -733,7 +748,7 @@ public sealed partial class GameContent
                 JsonElement e = list[i];
                 string key = f.Text(e, "key", $"deployables.json: deployables[{i}]");
                 string where = $"deployables.json: {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "key", "item", "health", "size", "maxSlope", "solid", "respawn", "slots", "device", "workbench");
+                f.OnlyKnown(e, where, "key", "item", "health", "size", "maxSlope", "solid", "respawn", "slots", "device", "workbench", "bay");
                 ItemDef? item = Resolve(f.Text(e, "item", where), where + ".item");
                 JsonElement[] size = f.List(e, "size", where);
                 Vector3 half = Vector3.Zero;
@@ -767,6 +782,18 @@ public sealed partial class GameContent
                         WarmthCelsius = celsius,
                     };
                 }
+                BayStats? bay = null;
+                if (f.TryChild(e, "bay", out JsonElement b))
+                {
+                    string bw = where + ".bay";
+                    f.OnlyKnown(b, bw, "at", "clear", "maxSlope");
+                    bay = new BayStats
+                    {
+                        At = Vector(b, "at", bw),
+                        Clear = Vector(b, "clear", bw),
+                        MaxSlopeDegrees = f.Number(b, "maxSlope", bw, 20),
+                    };
+                }
                 if (item == null)
                 {
                     continue;
@@ -783,8 +810,21 @@ public sealed partial class GameContent
                     Slots = f.Integer(e, "slots", where, 0),
                     Device = device,
                     Workbench = f.Integer(e, "workbench", where, 0),
+                    Bay = bay,
                 };
                 loaded.Deployables.Add(def);
+            }
+            foreach (Recipe recipe in loaded.Recipes)
+            {
+                if (recipe.StationKey == null)
+                {
+                    continue;
+                }
+                recipe.Station = loaded.Deployables.FirstOrDefault(d => d.Key == recipe.StationKey);
+                if (recipe.Station == null)
+                {
+                    f.Problem($"recipes.json: {JsonFields.Quote(recipe.Output.Key)}.station", $"no deployable \"{recipe.StationKey}\"");
+                }
             }
             foreach (ItemDef item in loaded.Items)
             {
@@ -1184,6 +1224,205 @@ public sealed partial class GameContent
                 Aimed = f.Double(e, "aimed", where, 1),
                 Crouched = f.Double(e, "crouched", where, 1),
             };
+        }
+
+        // ---------------------------------------------------------------- ships (G6)
+
+        private Vector3 Vector(JsonElement o, string name, string where)
+        {
+            JsonElement[] v = f.List(o, name, where);
+            if (v.Length == 3 && v.All(x => x.ValueKind == JsonValueKind.Number))
+            {
+                return new Vector3((float)v[0].GetDouble(), (float)v[1].GetDouble(), (float)v[2].GetDouble());
+            }
+            if (f.Has(o, name))
+            {
+                f.Problem(where, $"\"{name}\" must be three numbers");
+            }
+            return Vector3.Zero;
+        }
+
+        private Vector3[] Vectors(JsonElement o, string name, string where, bool required = true)
+        {
+            var result = new List<Vector3>();
+            foreach (JsonElement v in f.List(o, name, where, required))
+            {
+                if (v.ValueKind == JsonValueKind.Array && v.GetArrayLength() == 3 && v.EnumerateArray().All(x => x.ValueKind == JsonValueKind.Number))
+                {
+                    result.Add(new Vector3((float)v[0].GetDouble(), (float)v[1].GetDouble(), (float)v[2].GetDouble()));
+                }
+                else
+                {
+                    f.Problem(where, $"each of \"{name}\" is three numbers");
+                }
+            }
+            return result.ToArray();
+        }
+
+        private Ships.TurnAxis Turn(JsonElement o, string name, string where)
+        {
+            JsonElement[] v = f.List(o, name, where);
+            if (v.Length == 2 && v.All(x => x.ValueKind == JsonValueKind.Number))
+            {
+                const float degrees = MathF.PI / 180;
+                return new Ships.TurnAxis((float)v[0].GetDouble() * degrees, (float)v[1].GetDouble() * degrees);
+            }
+            f.Problem(where, $"\"{name}\" is [most rate °/s, acceleration °/s²]");
+            return default;
+        }
+
+        private void ReadShips()
+        {
+            JsonElement root = Root("ships.json", "ships");
+            JsonElement[] list = f.List(root, "ships", "ships.json");
+            for (int i = 0; i < list.Length; i++)
+            {
+                JsonElement e = list[i];
+                string key = f.Text(e, "key", $"ships.json: ships[{i}]");
+                string where = $"ships.json: {JsonFields.Quote(key)}";
+                f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
+                    "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "reach", "ceiling", "wreck");
+                ItemDef? item = Resolve(f.Text(e, "item", where), where + ".item");
+                var blocks = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                foreach (string name in new[] { "damage", "thrust", "speed", "boost", "rates", "drag", "landing", "skids", "crash", "fuel", "sockets", "nozzles" })
+                {
+                    if (f.TryChild(e, name, out JsonElement child) && child.ValueKind == JsonValueKind.Object)
+                    {
+                        blocks[name] = child;
+                    }
+                    else
+                    {
+                        f.Problem(where, $"needs \"{name}\" (an object)");
+                    }
+                }
+                if (blocks.Count < 12)
+                {
+                    continue;
+                }
+                JsonElement damage = blocks["damage"], thrust = blocks["thrust"], speed = blocks["speed"], boost = blocks["boost"];
+                JsonElement rates = blocks["rates"], drag = blocks["drag"], landing = blocks["landing"], skids = blocks["skids"];
+                JsonElement crash = blocks["crash"], fuel = blocks["fuel"], sockets = blocks["sockets"], nozzles = blocks["nozzles"];
+                f.OnlyKnown(damage, where + ".damage", "melee", "arrow", "bullet", "explosive");
+                f.OnlyKnown(thrust, where + ".thrust", "main", "retro", "lateral", "lift", "down");
+                f.OnlyKnown(speed, where + ".speed", "forward", "reverse", "lateral", "up", "down");
+                f.OnlyKnown(boost, where + ".boost", "thrust", "speed", "seconds", "cooldown");
+                f.OnlyKnown(rates, where + ".rates", "pitch", "yaw", "roll");
+                f.OnlyKnown(drag, where + ".drag", "forward", "side", "top", "turn");
+                f.OnlyKnown(landing, where + ".landing", "maxSlope", "assist");
+                f.OnlyKnown(skids, where + ".skids", "points", "stiffness", "damping", "travel", "friction");
+                f.OnlyKnown(crash, where + ".crash", "safe", "scale", "pilot");
+                f.OnlyKnown(fuel, where + ".fuel", "item", "capacity", "idle", "full", "boost");
+                f.OnlyKnown(sockets, where + ".sockets", "seat", "eye", "hatch", "fuel", "exits");
+                f.OnlyKnown(nozzles, where + ".nozzles", "main", "aux", "lift", "rcs");
+                var hull = new List<Ships.HullBox>();
+                foreach (JsonElement h in f.List(e, "hull", where))
+                {
+                    f.OnlyKnown(h, where + ".hull", "centre", "size", "skid");
+                    hull.Add(new Ships.HullBox(Vector(h, "centre", where + ".hull"), Vector(h, "size", where + ".hull"), f.Flag(h, "skid", where + ".hull", false)));
+                }
+                var wreck = new List<ItemAmount>();
+                foreach (JsonElement w in f.List(e, "wreck", where, required: false))
+                {
+                    if (f.Tuple(w, where + ".wreck", 1, out string wreckKey, out double[] values) && Resolve(wreckKey, where + ".wreck") is { } wreckItem)
+                    {
+                        wreck.Add(new ItemAmount(wreckItem, (int)values[0]));
+                    }
+                }
+                float[] assist = f.List(landing, "assist", where + ".landing").Where(x => x.ValueKind == JsonValueKind.Number)
+                    .Select(x => (float)x.GetDouble()).ToArray();
+                if (assist.Length != 2)
+                {
+                    f.Problem(where + ".landing", "\"assist\" is [least descent m/s, descent per metre of height]");
+                }
+                ItemDef? fuelItem = Resolve(f.Text(fuel, "item", where + ".fuel"), where + ".fuel.item");
+                if (item == null || fuelItem == null)
+                {
+                    continue;
+                }
+                var def = new Ships.ShipDef
+                {
+                    Key = key,
+                    Item = item,
+                    Mass = f.Number(e, "mass", where),
+                    Inertia = Vector(e, "inertia", where),
+                    CentreOfMass = Vector(e, "centreOfMass", where),
+                    Health = f.Number(e, "health", where),
+                    MeleeDamage = f.Number(damage, "melee", where + ".damage"),
+                    ArrowDamage = f.Number(damage, "arrow", where + ".damage"),
+                    BulletDamage = f.Number(damage, "bullet", where + ".damage"),
+                    ExplosiveDamage = f.Number(damage, "explosive", where + ".damage"),
+                    MainThrust = f.Number(thrust, "main", where + ".thrust"),
+                    RetroThrust = f.Number(thrust, "retro", where + ".thrust"),
+                    LateralThrust = f.Number(thrust, "lateral", where + ".thrust"),
+                    LiftThrust = f.Number(thrust, "lift", where + ".thrust"),
+                    DownThrust = f.Number(thrust, "down", where + ".thrust"),
+                    ForwardSpeed = f.Number(speed, "forward", where + ".speed"),
+                    ReverseSpeed = f.Number(speed, "reverse", where + ".speed"),
+                    LateralSpeed = f.Number(speed, "lateral", where + ".speed"),
+                    UpSpeed = f.Number(speed, "up", where + ".speed"),
+                    DownSpeed = f.Number(speed, "down", where + ".speed"),
+                    BoostThrust = f.Number(boost, "thrust", where + ".boost"),
+                    BoostSpeed = f.Number(boost, "speed", where + ".boost"),
+                    BoostSeconds = f.Number(boost, "seconds", where + ".boost"),
+                    BoostCooldownSeconds = f.Number(boost, "cooldown", where + ".boost"),
+                    Pitch = Turn(rates, "pitch", where + ".rates"),
+                    Yaw = Turn(rates, "yaw", where + ".rates"),
+                    Roll = Turn(rates, "roll", where + ".rates"),
+                    DragForward = f.Number(drag, "forward", where + ".drag"),
+                    DragSide = f.Number(drag, "side", where + ".drag"),
+                    DragTop = f.Number(drag, "top", where + ".drag"),
+                    TurnDrag = f.Number(drag, "turn", where + ".drag"),
+                    MaxLandingSlope = f.Number(landing, "maxSlope", where + ".landing") * MathF.PI / 180,
+                    LandingDescent = assist.Length == 2 ? assist[0] : 1.5f,
+                    LandingDescentPerMetre = assist.Length == 2 ? assist[1] : 0.25f,
+                    SkidPoints = Vectors(skids, "points", where + ".skids"),
+                    SkidStiffness = f.Number(skids, "stiffness", where + ".skids"),
+                    SkidDamping = f.Number(skids, "damping", where + ".skids"),
+                    SkidTravel = f.Number(skids, "travel", where + ".skids"),
+                    SkidFriction = f.Number(skids, "friction", where + ".skids"),
+                    CrashSafeSpeed = f.Number(crash, "safe", where + ".crash"),
+                    CrashScale = f.Number(crash, "scale", where + ".crash"),
+                    CrashPilotShare = f.Number(crash, "pilot", where + ".crash", 0),
+                    Fuel = fuelItem,
+                    FuelCapacity = f.Number(fuel, "capacity", where + ".fuel"),
+                    FuelIdle = f.Number(fuel, "idle", where + ".fuel"),
+                    FuelFull = f.Number(fuel, "full", where + ".fuel"),
+                    FuelBoost = f.Number(fuel, "boost", where + ".fuel", 1),
+                    CargoSlots = f.Integer(e, "cargo", where, 0),
+                    Hull = hull,
+                    Seat = Vector(sockets, "seat", where + ".sockets"),
+                    Eye = Vector(sockets, "eye", where + ".sockets"),
+                    Hatch = Vector(sockets, "hatch", where + ".sockets"),
+                    FuelCap = Vector(sockets, "fuel", where + ".sockets"),
+                    Exits = Vectors(sockets, "exits", where + ".sockets"),
+                    MainNozzles = Vectors(nozzles, "main", where + ".nozzles", required: false),
+                    AuxNozzles = Vectors(nozzles, "aux", where + ".nozzles", required: false),
+                    LiftNozzles = Vectors(nozzles, "lift", where + ".nozzles", required: false),
+                    RcsNozzles = Vectors(nozzles, "rcs", where + ".nozzles", required: false),
+                    Reach = f.Number(e, "reach", where, 2.4f),
+                    Ceiling = f.Number(e, "ceiling", where),
+                    Wreck = wreck,
+                };
+                def.ComputeBounds();
+                loaded.Ships.Add(def);
+            }
+            foreach (ItemDef item in loaded.Items)
+            {
+                if (item.ShipKey == null)
+                {
+                    continue;
+                }
+                Ships.ShipDef? def = loaded.Ships.FirstOrDefault(s => s.Key == item.ShipKey);
+                if (def == null)
+                {
+                    f.Problem($"items.json: {JsonFields.Quote(item.Key)}.ship", $"no ship \"{item.ShipKey}\" in ships.json");
+                }
+                else if (def.Item != item)
+                {
+                    f.Problem($"ships.json: {JsonFields.Quote(def.Key)}", $"its item is \"{def.Item.Key}\", but \"{item.Key}\" says it is that ship");
+                }
+                item.Ship = def;
+            }
         }
     }
 

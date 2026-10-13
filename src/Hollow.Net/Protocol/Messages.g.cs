@@ -12,6 +12,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Ships;
 using Hollow.Simulation.World;
 using Hollow.Simulation;
 
@@ -20,7 +21,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x8AF387D21E9EE2CFUL;
+    public const ulong SchemaHash = 0x2269BE57BAAC157DUL;
 }
 
 partial struct Hello
@@ -94,6 +95,8 @@ partial struct ZoneInfo
         w.WriteDouble(LongitudeDegrees);
         w.WriteBool(StandIn);
         w.WriteFloat(RotationTimeScale);
+        w.WriteFloat(AirDensity);
+        w.WriteFloat(AirScaleHeight);
     }
 
     public static ZoneInfo Read(BitReader r)
@@ -108,6 +111,8 @@ partial struct ZoneInfo
         v.LongitudeDegrees = r.ReadDouble();
         v.StandIn = r.ReadBool();
         v.RotationTimeScale = r.ReadFloat();
+        v.AirDensity = r.ReadFloat();
+        v.AirScaleHeight = r.ReadFloat();
         return v;
     }
 }
@@ -164,6 +169,12 @@ partial struct InputCommand
         w.WriteBits((uint)Held, 3);
         w.WriteBits((uint)Actions, 3);
         w.WriteBits((uint)ViewDelay, 8);
+        int countShip = Ship == null ? 0 : Math.Min(Ship.Length, 1);
+        w.WriteBits((uint)countShip, 1);
+        for (int i = 0; i < countShip; i++)
+        {
+            Ship![i].Write(w);
+        }
     }
 
     public static InputCommand Read(BitReader r)
@@ -177,6 +188,44 @@ partial struct InputCommand
         v.Held = (byte)r.ReadBits(3);
         v.Actions = (ActionButtons)r.ReadBits(3);
         v.ViewDelay = (byte)r.ReadBits(8);
+        int countShip = (int)r.ReadBits(1);
+        if (countShip > 1)
+        {
+            r.Fail();
+            countShip = 0;
+        }
+        v.Ship = new ShipControls[countShip];
+        for (int i = 0; i < countShip; i++)
+        {
+            v.Ship[i] = ShipControls.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ShipControls
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteSigned(Pitch, 8);
+        w.WriteSigned(Yaw, 8);
+        w.WriteSigned(Roll, 8);
+        w.WriteSigned(Throttle, 8);
+        w.WriteSigned(Strafe, 8);
+        w.WriteSigned(Vertical, 8);
+        w.WriteBits((uint)Buttons, 2);
+    }
+
+    public static ShipControls Read(BitReader r)
+    {
+        var v = new ShipControls();
+        v.Pitch = (sbyte)r.ReadSigned(8);
+        v.Yaw = (sbyte)r.ReadSigned(8);
+        v.Roll = (sbyte)r.ReadSigned(8);
+        v.Throttle = (sbyte)r.ReadSigned(8);
+        v.Strafe = (sbyte)r.ReadSigned(8);
+        v.Vertical = (sbyte)r.ReadSigned(8);
+        v.Buttons = (ShipButtons)r.ReadBits(2);
         return v;
     }
 }
@@ -271,6 +320,12 @@ partial struct SnapshotHeader
         w.WriteBits((uint)EchoTime, 16);
         w.WriteBits((uint)EchoHold, 16);
         w.WriteVarUInt(EntityCount);
+        int countOwnShip = OwnShip == null ? 0 : Math.Min(OwnShip.Length, 1);
+        w.WriteBits((uint)countOwnShip, 1);
+        for (int i = 0; i < countOwnShip; i++)
+        {
+            OwnShip![i].Write(w);
+        }
     }
 
     public static SnapshotHeader Read(BitReader r)
@@ -284,8 +339,318 @@ partial struct SnapshotHeader
         v.EchoTime = (ushort)r.ReadBits(16);
         v.EchoHold = (ushort)r.ReadBits(16);
         v.EntityCount = r.ReadVarUInt();
+        int countOwnShip = (int)r.ReadBits(1);
+        if (countOwnShip > 1)
+        {
+            r.Fail();
+            countOwnShip = 0;
+        }
+        v.OwnShip = new OwnShipState[countOwnShip];
+        for (int i = 0; i < countOwnShip; i++)
+        {
+            v.OwnShip[i] = OwnShipState.Read(r);
+        }
         return v;
     }
+}
+
+partial struct OwnShipState
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(NetId);
+        w.WriteVarUInt(Kind);
+        w.WriteFloat(PositionX);
+        w.WriteFloat(PositionY);
+        w.WriteFloat(PositionZ);
+        w.WriteFloat(RotationX);
+        w.WriteFloat(RotationY);
+        w.WriteFloat(RotationZ);
+        w.WriteFloat(RotationW);
+        w.WriteFloat(VelocityX);
+        w.WriteFloat(VelocityY);
+        w.WriteFloat(VelocityZ);
+        w.WriteFloat(SpinX);
+        w.WriteFloat(SpinY);
+        w.WriteFloat(SpinZ);
+        w.WriteFloat(Health);
+        w.WriteFloat(Fuel);
+        w.WriteBits((uint)BoostTicks, 16);
+        w.WriteBits((uint)CooldownTicks, 16);
+        w.WriteBits((uint)RestTicks, 16);
+        w.WriteBits((uint)Flags, 9);
+    }
+
+    public static OwnShipState Read(BitReader r)
+    {
+        var v = new OwnShipState();
+        v.NetId = r.ReadVarUInt();
+        v.Kind = r.ReadVarUInt();
+        v.PositionX = r.ReadFloat();
+        v.PositionY = r.ReadFloat();
+        v.PositionZ = r.ReadFloat();
+        v.RotationX = r.ReadFloat();
+        v.RotationY = r.ReadFloat();
+        v.RotationZ = r.ReadFloat();
+        v.RotationW = r.ReadFloat();
+        v.VelocityX = r.ReadFloat();
+        v.VelocityY = r.ReadFloat();
+        v.VelocityZ = r.ReadFloat();
+        v.SpinX = r.ReadFloat();
+        v.SpinY = r.ReadFloat();
+        v.SpinZ = r.ReadFloat();
+        v.Health = r.ReadFloat();
+        v.Fuel = r.ReadFloat();
+        v.BoostTicks = (ushort)r.ReadBits(16);
+        v.CooldownTicks = (ushort)r.ReadBits(16);
+        v.RestTicks = (ushort)r.ReadBits(16);
+        v.Flags = (ShipFlags)r.ReadBits(9);
+        return v;
+    }
+}
+
+partial struct ShipNetState
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteSigned(X, 32);
+        w.WriteSigned(Y, 32);
+        w.WriteSigned(Z, 32);
+        w.WriteBits((uint)Yaw, 16);
+        w.WriteBits((uint)Pitch, 16);
+        w.WriteBits((uint)Roll, 16);
+        w.WriteBits((uint)Flags, 12);
+        w.WriteBits((uint)Hatch, 5);
+        w.WriteSigned(ThrustX, 8);
+        w.WriteSigned(ThrustY, 8);
+        w.WriteSigned(ThrustZ, 8);
+        w.WriteBits((uint)Health, 8);
+        w.WriteVarUInt(Kind);
+    }
+
+    public static ShipNetState Read(BitReader r)
+    {
+        var v = new ShipNetState();
+        v.X = (int)r.ReadSigned(32);
+        v.Y = (int)r.ReadSigned(32);
+        v.Z = (int)r.ReadSigned(32);
+        v.Yaw = (ushort)r.ReadBits(16);
+        v.Pitch = (ushort)r.ReadBits(16);
+        v.Roll = (ushort)r.ReadBits(16);
+        v.Flags = (ShipNetFlags)r.ReadBits(12);
+        v.Hatch = (byte)r.ReadBits(5);
+        v.ThrustX = (sbyte)r.ReadSigned(8);
+        v.ThrustY = (sbyte)r.ReadSigned(8);
+        v.ThrustZ = (sbyte)r.ReadSigned(8);
+        v.Health = (byte)r.ReadBits(8);
+        v.Kind = r.ReadVarUInt();
+        return v;
+    }
+
+    /// <summary>Only what differs from <paramref name="b"/>: a bit per field, then the change.</summary>
+    public readonly void WriteDelta(BitWriter w, in ShipNetState b)
+    {
+        if (X != b.X)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)X - (int)b.X));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Y != b.Y)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)Y - (int)b.Y));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Z != b.Z)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)Z - (int)b.Z));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Yaw != b.Yaw)
+        {
+            w.WriteBool(true);
+            w.WriteDelta((short)unchecked((ushort)(Yaw - b.Yaw)));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Pitch != b.Pitch)
+        {
+            w.WriteBool(true);
+            w.WriteDelta((short)unchecked((ushort)(Pitch - b.Pitch)));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Roll != b.Roll)
+        {
+            w.WriteBool(true);
+            w.WriteDelta((short)unchecked((ushort)(Roll - b.Roll)));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Flags != b.Flags)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)Flags, 12);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Hatch != b.Hatch)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)Hatch, 5);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (ThrustX != b.ThrustX)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)ThrustX - (int)b.ThrustX));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (ThrustY != b.ThrustY)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)ThrustY - (int)b.ThrustY));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (ThrustZ != b.ThrustZ)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)ThrustZ - (int)b.ThrustZ));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Health != b.Health)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)Health, 8);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (Kind != b.Kind)
+        {
+            w.WriteBool(true);
+            w.WriteVarUInt(Kind);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+    }
+
+    public static ShipNetState ReadDelta(BitReader r, in ShipNetState b)
+    {
+        var v = b;
+        if (r.ReadBool())
+        {
+            v.X = unchecked((int)((int)b.X + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.Y = unchecked((int)((int)b.Y + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.Z = unchecked((int)((int)b.Z + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.Yaw = unchecked((ushort)(b.Yaw + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.Pitch = unchecked((ushort)(b.Pitch + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.Roll = unchecked((ushort)(b.Roll + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.Flags = (ShipNetFlags)r.ReadBits(12);
+        }
+        if (r.ReadBool())
+        {
+            v.Hatch = (byte)r.ReadBits(5);
+        }
+        if (r.ReadBool())
+        {
+            v.ThrustX = unchecked((sbyte)((int)b.ThrustX + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.ThrustY = unchecked((sbyte)((int)b.ThrustY + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.ThrustZ = unchecked((sbyte)((int)b.ThrustZ + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.Health = (byte)r.ReadBits(8);
+        }
+        if (r.ReadBool())
+        {
+            v.Kind = r.ReadVarUInt();
+        }
+        return v;
+    }
+
+    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Roll == o.Roll && Flags == o.Flags && Hatch == o.Hatch && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind;
+
+    /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
+    public readonly int DeltaBits(in ShipNetState b)
+    {
+        int bits = 0;
+        bits += X == b.X ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)X - (int)b.X));
+        bits += Y == b.Y ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)Y - (int)b.Y));
+        bits += Z == b.Z ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)Z - (int)b.Z));
+        bits += Yaw == b.Yaw ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Yaw - b.Yaw)));
+        bits += Pitch == b.Pitch ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Pitch - b.Pitch)));
+        bits += Roll == b.Roll ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Roll - b.Roll)));
+        bits += Flags == b.Flags ? 1 : 13;
+        bits += Hatch == b.Hatch ? 1 : 6;
+        bits += ThrustX == b.ThrustX ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustX - (int)b.ThrustX));
+        bits += ThrustY == b.ThrustY ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustY - (int)b.ThrustY));
+        bits += ThrustZ == b.ThrustZ ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustZ - (int)b.ThrustZ));
+        bits += Health == b.Health ? 1 : 9;
+        bits += Kind == b.Kind ? 1 : 41;
+        return bits;
+    }
+
+    /// <summary>The bits <see cref="Write"/> takes.</summary>
+    public const int FullBits = 233;
 }
 
 partial struct CharacterNetState
@@ -1278,6 +1643,34 @@ partial struct IntentResult
         var v = new IntentResult();
         v.Seq = r.ReadVarUInt();
         v.Result = (ActionResult)r.ReadBits(5);
+        return v;
+    }
+}
+
+partial struct ShipIntent
+{
+    public const byte TypeId = 120;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteBits64(Ship, 64);
+        w.WriteBits((uint)Action, 3);
+    }
+
+    public static ShipIntent Read(BitReader r)
+    {
+        var v = new ShipIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Ship = r.ReadBits64(64);
+        v.Action = (ShipAction)r.ReadBits(3);
         return v;
     }
 }

@@ -20,6 +20,9 @@ public struct CraftJob
     public int TicksLeft;
 
     public int UnitTicks;
+
+    /// <summary>The station it is made at (a vehicle workbench's entity ID, G6), or 0.</summary>
+    public ulong Station;
 }
 
 /// <summary>
@@ -49,7 +52,8 @@ public sealed class CraftQueue
     /// Starts a job: checks the recipe, the workbench level within reach and the materials for all units, then takes
     /// them. <paramref name="workbench"/> is the best level within reach.
     /// </summary>
-    public ActionResult Start(GameContent content, PlayerInventory inventory, int recipeId, int count, int workbench, out uint ticket)
+    public ActionResult Start(GameContent content, PlayerInventory inventory, int recipeId, int count, int workbench, out uint ticket,
+        ulong station = 0)
     {
         ticket = 0;
         Recipe? recipe = content.Recipe(recipeId);
@@ -65,6 +69,10 @@ public sealed class CraftQueue
         {
             return ActionResult.NeedsWorkbench;
         }
+        if (recipe.Station != null && station == 0)
+        {
+            return ActionResult.NeedsStation;
+        }
         if (_jobs.Count >= MaxJobs)
         {
             return ActionResult.QueueFull;
@@ -74,7 +82,7 @@ public sealed class CraftQueue
             return ActionResult.NotEnough;
         }
         ticket = NextTicket++;
-        _jobs.Add(new CraftJob { Ticket = ticket, Recipe = recipe.Id, Count = count, TicksLeft = recipe.UnitTicks, UnitTicks = recipe.UnitTicks });
+        _jobs.Add(new CraftJob { Ticket = ticket, Recipe = recipe.Id, Count = count, TicksLeft = recipe.UnitTicks, UnitTicks = recipe.UnitTicks, Station = station });
         Revision++;
         return ActionResult.Accepted;
     }
@@ -106,9 +114,12 @@ public sealed class CraftQueue
 
     /// <summary>
     /// One tick of crafting: the front job's unit advances; when it is done its output goes into the inventory (what
-    /// doesn't fit into <paramref name="overflow"/>) and is reported in <paramref name="finished"/>.
+    /// doesn't fit into <paramref name="overflow"/>) and is reported in <paramref name="finished"/>. A ship (G6) never goes
+    /// into an inventory: <paramref name="deliver"/> rolls it out at its station, or says to wait (it asks again a second
+    /// later).
     /// </summary>
-    public void Advance(GameContent content, PlayerInventory inventory, List<ItemStack> overflow, List<ItemAmount> finished)
+    public void Advance(GameContent content, PlayerInventory inventory, List<ItemStack> overflow, List<ItemAmount> finished,
+        Func<Recipe, ulong, bool>? deliver = null)
     {
         if (_jobs.Count == 0)
         {
@@ -121,7 +132,17 @@ public sealed class CraftQueue
             return;
         }
         Recipe? recipe = content.Recipe(job.Recipe);
-        if (recipe != null)
+        if (recipe?.Output.Ship != null)
+        {
+            if (deliver == null || !deliver(recipe, job.Station))
+            {
+                job.TicksLeft = Movement.CharacterMotor.TickRate;
+                _jobs[0] = job;
+                return;
+            }
+            finished.Add(new ItemAmount(recipe.Output, recipe.Amount));
+        }
+        else if (recipe != null)
         {
             int left = inventory.Give(content, recipe.Output, recipe.Amount);
             if (left > 0)

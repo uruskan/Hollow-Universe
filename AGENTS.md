@@ -68,6 +68,8 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|reli
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
 blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
 dotnet run --project tests/Hollow.Tests -- Building   # the building rules, over the network and saved (GROUND.md §6.3, §6.5)
+dotnet run --project tests/Hollow.Tests -- Ship   # G6: the Tin Finch's flight, boarding, building, prediction, storage (GROUND.md §6.7)
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly   # G6: bots that board their ships and fly loops
 blender -b --factory-startup --python art/fx/build.py   # the effects' textures, decals and debris → game/assets/fx (GROUND.md §9.3)
 # The building and door kits into game/assets/building (Blender 5.2.1, D:/GameDev/Tools/blender-5.2.1-windows-x64):
 blender --background --factory-startup --python art/import/building_kit.py [-- twig wood stone metal armoured]
@@ -105,6 +107,8 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inven
 xvfb-run -a $GODOT --path game -- --view icons --out game/assets/items/icons   # render every item icon (GROUND.md §9.1)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view models --shot models.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --scene forest --shot forest.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --tour   # the whole flying loop through the keys; exit code 0 when it lands and steps out
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view sounds --sound rifle.shot --distance 320 --ambience --shot sounds.png
 $GODOT --headless --path game -- --view sounds --sound-check   # every sound file loaded and measured in the engine
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png   # effects (GROUND.md §9.3)
@@ -194,6 +198,14 @@ Client options (after `--`):
   `heal`, `kill` besides G1's (type `help`). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
   (and `--raid-radius <m>`; servers without a database) builds claimed huts on a ring for raid tests;
   `raidbase <name> [grade]` builds one in front of a player, listing them.
+  `ship <name>` sets a Tin Finch down beside a player, theirs and fuelled (G6).
+- Ship sandbox (GROUND.md §6.7): `--view ship`, local, on the first world's real surface: you start beside your Tin
+  Finch on a vehicle workbench's bay. `--scene pad|hover|forest|cockpit|slope|ceiling` (screenshots hold the scene's
+  camera), `--hour <h>` (the play clock's hour at the landing site; 9.5 by default) or `--time <UTC>`, `--trace` (the ship's speed, height, attitude and thrust once a second), `--tour` (plays the
+  loop through the keys and prints the measurements). Keys on foot: W A S D, mouse look, E hatch and board, G shut the
+  hatch, L lock, R refuel. In the seat: the mouse is the stick, W/S throttle lever (X zero), A/D strafe, Space/C up and
+  down, Q/E roll, arrows a keyboard stick, Shift boost, Z flight assist, V cockpit or chase camera, F step out, H hatch,
+  L lock, J descend from orbit; Esc frees the mouse.
 - Checks: `--physics-check` runs the physics check inside the client and quits; its line must match the one
   `dotnet run --project tests/Hollow.Tests -- MovementCheck` prints.
 - Build sandbox (GROUND.md §6.3): `--view build`, local, on the first world's stand-in surface. `--scene
@@ -224,15 +236,16 @@ Client options (after `--`):
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, `PlanetSurface` (plates, climate, biomes), cube-sphere tiles, collision, scatter, `SkyEphemeris`, the stand-in `SphereSurface`, `FirstWorld` |
-| `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3); G4 (§6.3): firearms (`Combat/Firearms.cs`: recoil, spread, cadence, reload, ballistics), bullets and damage (`Zone.Guns.cs`), the wounded state (`Zone.Wounded.cs`); G5 (§6.6): explosives, blasts with line of sight, rockets and explosive rounds, raid hits (`Zone.Raid.cs`, `Zone.Blast.cs`, `Raid/`) |
+| `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3); G4 (§6.3): firearms (`Combat/Firearms.cs`: recoil, spread, cadence, reload, ballistics), bullets and damage (`Zone.Guns.cs`), the wounded state (`Zone.Wounded.cs`); G5 (§6.6): explosives, blasts with line of sight, rockets and explosive rounds, raid hits (`Zone.Raid.cs`, `Zone.Blast.cs`, `Raid/`); G6 (§6.7): ships in `Ships/` (`ShipDef`, `ShipState`, `ShipMotor`, `ShipCollider`) and `Zone.Ships.cs` |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
-| `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread; the building's records (`BuildingCodec`, §6.5); explosives (`ExplosiveCodec`) and queued notifications (§6.6) |
-| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2); `LocalGun`, the predicted gun and its events for the visual layer (§6.4); `Audio/`: the sound catalogue model, a BS.1770 loudness meter, distance layers, footstep and ambience rules (§4.9); `BuildingReplica`, the building in range and the ghost check, and the building intents on `LocalPlayer` (§6.5); explosives, detonations and raid alerts (`GameClient.Raid.cs`, `LocalPlayer.Raid.cs`, §6.6) |
-| `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication (the building's in `GameServer.Building.cs`), login, admin; raiding and the notification service (`GameServer.Raid.cs`, `Notifications/`: raid alerts, GROUND.md §6.6) |
+| `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread; the building's records (`BuildingCodec`, §6.5); explosives (`ExplosiveCodec`) and queued notifications (§6.6); ships (`ShipCodec`, §6.7) |
+| `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2); `LocalGun`, the predicted gun and its events for the visual layer (§6.4); `Audio/`: the sound catalogue model, a BS.1770 loudness meter, distance layers, footstep and ambience rules (§4.9); `BuildingReplica`, the building in range and the ghost check, and the building intents on `LocalPlayer` (§6.5); explosives, detonations and raid alerts (`GameClient.Raid.cs`, `LocalPlayer.Raid.cs`, §6.6); ships: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, the ship intents on `LocalPlayer` (§6.7) |
+| `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication (the building's in `GameServer.Building.cs`, ships' in `GameServer.Ships.cs`), login, admin; raiding and the notification service (`GameServer.Raid.cs`, `Notifications/`: raid alerts, GROUND.md §6.6) |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
 | `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
 | `game/assets/building` | The building and door kits as GLB (three levels of detail, Godot collision names) and their 2K textures (GROUND.md §6.3) |
 | `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines and the wheels' view model |
+| `game/scripts/Ships` | Ships drawn and flown (GROUND.md §6.7): `ShipView` (model, plumes, lights, hatch), `ShipCamera`, `ShipControls`, `ShipHud`, the ship sandbox (`--view ship`, `--tour`) |
 | `game/data/ground` | The ground game's numbers; `building.json`: pieces, grades, sockets, costs, doors, locks, the claim device |
 | `art/import` | Blender scripts that convert the PSG kits into `game/assets/` |
 | `game/assets/fonts` | Inter (SIL OFL 1.1), the interface font; Barlow and Barlow Condensed (SIL OFL 1.1), the ground interface's |

@@ -130,27 +130,49 @@ public sealed class Predictor : IDisposable
         return error;
     }
 
-    private void Step(uint tick, ref CharacterState state)
+    /// <summary>
+    /// Where the seat of the ship the character sits in is after a tick, and how fast it goes (G6: the ship's
+    /// prediction); null when unknown (the seated character then stays where it was).
+    /// </summary>
+    public Func<uint, (Vector3 Position, Vector3 Velocity)?>? Seat { get; set; }
+
+    /// <summary>
+    /// The input a tick runs with. Ticks skipped when the clock moved forward have none: the server repeats the last
+    /// input it had (without its jump press), so prediction repeats the last one recorded before.
+    /// </summary>
+    public InputCommand CommandFor(uint tick)
     {
-        // The input for the tick. Ticks skipped when the clock moved forward have none: the server repeats the last
-        // input it had (without its jump press), so prediction repeats the last one recorded before.
         InputCommand command = default;
         if (_inputTicks[tick % History] == tick)
         {
-            command = _inputs[tick % History];
+            return _inputs[tick % History];
         }
-        else
+        for (uint back = 1; back < History && back < tick; back++)
         {
-            for (uint back = 1; back < History && back < tick; back++)
+            if (_inputTicks[(tick - back) % History] == tick - back)
             {
-                if (_inputTicks[(tick - back) % History] == tick - back)
-                {
-                    command = _inputs[(tick - back) % History];
-                    break;
-                }
+                command = _inputs[(tick - back) % History];
+                break;
             }
-            command.Buttons &= ~MoveButtons.JumpPressed;
         }
+        command.Buttons &= ~MoveButtons.JumpPressed;
+        return command;
+    }
+
+    private void Step(uint tick, ref CharacterState state)
+    {
+        if (state.Stance == Stance.Seated && !state.IsDead)
+        {
+            // In a ship's seat (G6): the ship carries the character, as the server's zone does after the ship moves.
+            if (Seat?.Invoke(tick) is { } seat)
+            {
+                state.Position = seat.Position;
+                state.Velocity = seat.Velocity;
+            }
+            state.Flags = MoveFlags.None;
+            return;
+        }
+        InputCommand command = CommandFor(tick);
         // The ground first, outside Jolt's lock (a tile being built doesn't hold up a server in the same process).
         _world.EnsureGround(state.Position);
         _world.Prefetch(state.Position);

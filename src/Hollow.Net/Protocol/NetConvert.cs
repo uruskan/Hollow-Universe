@@ -101,6 +101,8 @@ public static class NetConvert
         LongitudeDegrees = spec.LongitudeDegrees,
         StandIn = spec.StandIn,
         RotationTimeScale = (float)spec.RotationTimeScale,
+        AirDensity = (float)spec.AirDensity,
+        AirScaleHeight = (float)spec.AirScaleHeight,
     };
 
     public static ZoneSpec FromInfo(in ZoneInfo info) => new()
@@ -114,6 +116,8 @@ public static class NetConvert
         LongitudeDegrees = info.LongitudeDegrees,
         StandIn = info.StandIn,
         RotationTimeScale = info.RotationTimeScale > 0 && float.IsFinite(info.RotationTimeScale) ? info.RotationTimeScale : 1,
+        AirDensity = info.AirDensity,
+        AirScaleHeight = info.AirScaleHeight,
     };
 
     private static sbyte Axis(float value) => (sbyte)Math.Round(Math.Clamp(value, -1f, 1f) * 127f, MidpointRounding.ToEven);

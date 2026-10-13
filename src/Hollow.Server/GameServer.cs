@@ -291,6 +291,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(session.Entity);
             presence.Yaw = input.Yaw;
             presence.Pitch = input.Pitch;
+            ApplyShipInput(session, input);
         }
         long stepStarted = Stopwatch.GetTimestamp();
         Zone.Step();
@@ -451,6 +452,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             entity = Zone.AddPlayer(id, session.Name, state, player);
             Zone.Entities.Get<Character>(entity).Input.Yaw = yaw;
+            if (how == "new" && _options.ShipOnJoin)
+            {
+                _shipOnJoin.Add(session);
+            }
             if (how == "new" && _options.JoinKit != null && Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(entity) is { } fresh)
             {
                 GiveKit(fresh, kit);
@@ -489,8 +494,14 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }.WriteMessage(_writer);
         session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
         Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.Entities.Get<Character>(entity).State.Position)}");
+        if (_shipOnJoin.Remove(session))
+        {
+            GiveShip(session);
+        }
         QueueAlertDelivery(session);
     }
+
+    private readonly HashSet<PlayerSession> _shipOnJoin = new();
 
     // A stored character comes back where it was if that is on this zone's body and within its ground.
     private bool Restorable(CharacterRecord record, out Vector3 local)
@@ -498,7 +509,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         local = Zone.Frame.ToLocal(new Vector3D(record.BodyX, record.BodyY, record.BodyZ));
         float reach = Simulation.Physics.PhysicsWorld.Extent - 2 * Simulation.Physics.PhysicsWorld.TileSize;
         return record.SystemAddress == Spec.SystemAddress && record.BodyPath == Spec.BodyPath &&
-            MathF.Abs(local.X) < reach && MathF.Abs(local.Z) < reach && MathF.Abs(local.Y) < 5000;
+            MathF.Abs(local.X) < reach && MathF.Abs(local.Z) < reach &&
+            // A pilot may be high up, in orbit even (G6): their ship's seat brings them back.
+            MathF.Abs(local.Y) < (record.Stance == (byte)Stance.Seated ? 25_000 : 5000);
     }
 
     public void OnPeerConnected(NetPeer peer)
@@ -629,6 +642,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             _netStates[values[i].NetId] = (entity, state);
         }
         PrepareThings();
+        PrepareShips();
         PrepareExplosives();
 
         foreach (PlayerSession session in _sessions.Values)
@@ -707,10 +721,13 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 Own = NetConvert.ToOwn(own.State),
                 EchoTime = session.EchoTime,
                 EchoHold = (ushort)Math.Min(ushort.MaxValue, Stopwatch.GetElapsedTime(session.EchoReceived).TotalMilliseconds),
+                OwnShip = OwnShip(session)!,
             };
+            ReplicateShips(session, centre);
             int budget = Math.Min(Protocol.SnapshotByteBudget, session.Peer.GetMaxSinglePacketSize(DeliveryMethod.Sequenced));
             _writer.Reset();
-            session.Snapshots.Write(_writer, header, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_candidates), budget);
+            session.Snapshots.Write(_writer, header, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_candidates),
+                System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_shipCandidates), budget);
             session.Peer.Send(_writer.Data, DeliveryMethod.Sequenced);
 
             ReplicateThings(session, centre);

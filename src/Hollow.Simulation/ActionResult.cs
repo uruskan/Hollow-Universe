@@ -61,4 +61,19 @@ public enum ActionResult : byte
 
     /// <summary>The item can't be used that way (eating a rock).</summary>
     NotUsable,
+
+    /// <summary>The recipe is made at a station (a vehicle workbench, G6) that isn't within reach.</summary>
+    NeedsStation,
+
+    /// <summary>The ship is locked (G6): only its owner opens it.</summary>
+    Locked,
+
+    /// <summary>Someone is in the ship's seat already (G6).</summary>
+    Occupied,
+
+    /// <summary>Not while the ship is flying (G6): land first.</summary>
+    NotLanded,
+
+    /// <summary>The ship's hatch is shut (G6): open it first.</summary>
+    HatchShut,
 }

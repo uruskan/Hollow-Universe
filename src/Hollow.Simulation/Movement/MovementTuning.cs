@@ -29,11 +29,15 @@ public sealed record MovementTuning
     /// <summary>A crawling (wounded) character's eye, near the ground (ours).</summary>
     public float CrawlingEyeHeight { get; init; } = 0.45f;
 
+    /// <summary>A seated pilot's eye above the seat (the Tin Finch's eye socket over its seat, G6).</summary>
+    public float SeatedEyeHeight { get; init; } = 0.90f;
+
     /// <summary>The eye's height above the feet in a stance.</summary>
     public float EyeHeight(Stance stance) => stance switch
     {
         Stance.Crouching => CrouchingEyeHeight,
         Stance.Crawling => CrawlingEyeHeight,
+        Stance.Seated => SeatedEyeHeight,
         _ => StandingEyeHeight,
     };
 

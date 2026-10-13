@@ -1970,6 +1970,232 @@ door or claim device (`HitTarget.Building`) go through `Zone.DamageBuildingBy`, 
 and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
 building rules, on the analytic ground (§11 R14).
 
+### 6.7 Ships (G6)
+
+The starter ship, the **Tin Finch** (§1, `D:\GameDev\Assets\TinFinch_TF01`): built at the **vehicle workbench**, boarded
+through its hatch, flown the Elite way (GAME_DESIGN.md §6) over the first world, landed anywhere, and climbed to a
+ceiling where it reaches orbit. This package is the engine-free core, the network and storage, and the ship's own
+viewer; the ground mode's hookup comes after it (the list at the end).
+
+| Part | Where |
+|---|---|
+| Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
+| Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
+| In the zone | `src/Hollow.Simulation/Zone.Ships.cs`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
+| Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `GameServer.Ships.cs` loads and saves |
+| Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/GameServer.Ships.cs`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, `LocalPlayer.Ships.cs` |
+| Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
+| Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
+
+**The flight model** (`ShipMotor.Step`, one 30 Hz tick, a pure function of the state, the pilot's input and the static
+world, like a character's step, §4.5). Six degrees of freedom in the zone's frame: the centre of mass, a rotation, a
+velocity and a turn rate in the ship's own axes (+Z the nose, +Y up, +X the left side, the model's). Forces: the planet's
+gravity along −up (`ZoneFrame.UpAt`; the planet's own 9.0 m/s², not the characters' 1.8 ×), thrust, and the air's drag,
+½ρv² times a drag area per axis, with the density falling off with height from the planet's surface value (the zone's
+spec carries it: 2.7 kg/m³ at the first world's 2.23 atmospheres, a scale height of 9.4 km). The skiff has no wings:
+it is thrust-borne.
+- **Flight assist** (on by default) holds a velocity in the ship's frame: the throttle's forward speed (reverse below 0),
+  strafe and up/down at their speeds, and the turn rates the stick asks for, as fast as each axis's thrusters allow,
+  counting gravity and drag in. With no input it hovers where it is. Near the ground (30 m) with the throttle closed it
+  eases a descent to 1.5 m/s plus 0.25 m/s per metre of height, so holding "down" lands gently.
+- **Flight assist off:** the controls are thrust and torque; nothing holds the ship up or steady but the air's drag.
+  Speed is capped at the boost's (Elite does too), turns at half again the most rates.
+- **Boost:** 4 s of 1.8 × the main engine's thrust and a 260 m/s target, then 5 s to recharge.
+- **Fuel:** lamp oil, 0.1 a second idling plus up to 0.9 at full thrust, twice that boosting; a dry tank means no thrust.
+- **Skids:** a sprung, damped pad at each of the four wear pads, found by a ray along the ship's down; their friction
+  holds the ship on a slope up to 29° (0.55) and lets it slide off a steeper one. Three pads carrying it with nothing
+  asked of the controls idle the engines: a ship sits on its skids, or slides off what is too steep. It counts as
+  landed on ground up to 25°.
+- **The hull** is six boxes (cabin, engine bay, two tanks, two skids) swept against everything static each substep
+  (Jolt's shape cast: ground tiles, trees, outcrops, deployables, building pieces, parked ships), so nothing tunnels at
+  260 m/s; what it meets takes an impulse, and the skids sweep 12 cm short of the pads so the springs take a landing
+  and the hull a crash. Near the ground a tick is two substeps; above 40 m (plus a second's travel) one, and no queries.
+- **Crash damage:** an impact into anything faster than 6 m/s costs (speed − 6)² × 2.5 of the 750 hull; the pilot takes
+  a tenth of it.
+- **Sleep:** a ship resting a second (landed, slower than 5 cm/s) sleeps and costs nothing until its pilot asks for
+  motion, it is hit or its hatch moves; every two seconds it checks it still has ground under its skids.
+- **The zone's edge:** the ground's tiles end at ±8.2 km, so ships are held inside a ±7.8 km square (G8's zones that
+  follow players lift this).
+
+| The Tin Finch (ships.json) | |
+|---|---|
+| Mass, inertia | 6,000 kg; 16,200 / 16,500 / 8,700 kg·m² (pitch, yaw, roll) about the centre of mass at (0, 1.23, −0.28) |
+| Thrust | main 150 kN (three rear exhausts), retro 90 kN, lateral 45 kN, lift 110 kN (four lift nozzles: 2.0 × its weight), down 40 kN |
+| Flight assist's speeds | forward 160 m/s, reverse 40, lateral 40, up 25, down 20; boost 260 |
+| Turn rates, acceleration | pitch 55°/s, 160°/s²; yaw 35°/s, 100°/s²; roll 110°/s, 320°/s² |
+| Drag areas | forward 2.6 m², side 6.5, top 9.0; turning damped 0.6 /s at sea level |
+| Skids | k = 270 kN/m, c = 24 kN·s/m per pad, 12 cm of travel, friction 0.55 |
+| Hull, fuel, cargo | 750; 500 lamp oil; 12 slots |
+| Measured (`ShipTests`) | hovers on 49 % of its lift; 0 to 150 m/s in 7.5 s; from 160 m/s to a stop with flight assist in 8.4 s and 593 m; with it off, 160 → 127 m/s in 3 s of drag; a 15 m/s sink caught in 1.6 s and 11.5 m; lands and sleeps on 0°, 15° and 24° slopes (up within 1.2° of the ground's normal), slides off 40°; dropped from 1.5 m (3.9 m/s) unhurt, from 6 m (7.8 m/s) 8 hull, from 40 m (26 m/s) wrecked |
+
+**Building one.** The vehicle workbench is a deployable (1,000 health, made at workbench 2 from 800 metal fragments, 40
+refined metal and 300 wood). The Tin Finch's recipe names it as its `station`: the job starts only within crafting reach
+of one (`NeedsStation`), remembers which, and when it is done the ship rolls out onto the bench's bay (4.6 m in front of
+it), never into an inventory. While the bay isn't clear (a box, a tree, a character, another ship, ground over 20°) the
+unit waits, asks again every second and tells its builder once. The recipe's lamp oil is its first tank.
+
+**Boarding.** The hatch opens and shuts in a second (the model's clip); it opens only while the ship is still (landed,
+or slower than 2.5 m/s within 3.5 m of the ground). Boarding needs the hatch open, the seat free and reach of the
+hatch; the hatch shuts behind the pilot. The pilot's character is seated (`Stance.Seated`): it doesn't move by itself,
+the seat carries it, and it is out of the hit history (shots hit the hull). Stepping out needs the ship still; the pilot
+stands at the first clear exit (the hatch's side, the other side, behind, in front), and the hatch opens. A **lock**
+(the owner's toggle) keeps everyone else out of the hatch, the seat and the cargo. **Fuel** goes in at the fuel cap,
+the hatch or from the seat: as much of the player's lamp oil as fits. The **cargo** (12 slots) opens like a box at the
+hatch or from the seat.
+
+**Without a pilot** a ship's engines are off: it rests on its skids, or falls if it was left in the air. A parked ship
+(asleep, nobody in the seat) is a static Jolt body of its hull, from `PhysicsWorld.FirstShipBody` on, so characters walk
+into it; a flown one isn't. A pilot who logs off stays in the seat; the engines then hold the ship where it was, with
+flight assist and no input, until the fuel runs out.
+
+**Damage** goes through the zone's hooks: a swing, an arrow or a bullet that meets the hull (the six boxes, as the ship
+is now: ships aren't rewound like characters) does its damage times the hull's share for the kind (melee 0.25, arrows
+0.1, bullets 0.5, explosives 1: `Zone.DamageShip`). G5's blasts reach hulls too (`Zone.BlastShips`): a hull within a
+blast's radius that it sees takes the blast's damage to deployables with the falloff, the one a rocket hit or a charge
+is stuck to whole (a rocket 1.9 m from the hull takes 178 of the 750; two timed charges on it destroy it); the pilot
+is the cabin's to shelter and takes nothing from the blast itself. At 0 the ship is destroyed: the pilot dies
+in it (killed by whoever hurt it last), and a wreck (a corpse anyone may loot, for 300 s) holds the cargo, half the fuel
+and 300 metal fragments and 20 refined metal. The burning hull stays two seconds for everyone to see, then goes.
+
+**Orbit.** Above the ceiling (15 km over the mean radius; the zone is at most 20 km) the ship reaches orbit: it leaves
+the physics and parks at its orbit marker over the spot it left, the pilot still in the seat. **Descend** brings it back
+250 m under the ceiling over the same spot, level, falling at 40 m/s with flight assist on. The seam for the space layer
+(G8, ARCHITECTURE.md §12): `Zone.OrbitTransfer`, asked first; a handler that takes the ship and its pilot to local space
+returns true, and the parking above is what happens without one.
+
+**Network** (protocol 8, `Messages.cs` 120; `Replication/DeltaChannel.cs`, `GameServer.Ships.cs`, `GameClient.Ships.cs`,
+`ShipPredictor.cs`, `RemoteShip.cs`, `LocalPlayer.Ships.cs`):
+- **Controls** ride in every tick's input while flying (`ShipControls`: stick, throttle lever, strafe and up/down in
+  1/127, boost and flight assist; one bit on foot), and the pilot's client predicts its ship with exactly what the
+  server will apply, as it does its character.
+- **Snapshots** carry ships in a section of their own after the characters (`ShipNetState`: the centre of mass on the
+  1/256 m grid, yaw, pitch and roll in 1/65,536 turn, flags, the hatch, the thrust on each axis, the hull and the kind),
+  each delta-coded against its newest state the client confirmed, with its own priorities, within 35 % of the
+  snapshot's budget. Ships are relevant within 2 km (horizontally): `Spawn` with `EntityKind.Ship`, `Despawn`.
+  (The replication became generic over the state type for this: characters and ships are two `DeltaChannel`s
+  sharing the snapshots' sequence and acknowledgements.)
+- **The pilot's ship exactly** rides in the header (`OwnShipState`) for reconciliation: `ShipPredictor` keeps 4 s of
+  states, replays newer inputs from the server's after a mismatch, and parks in orbit as the zone does; the seated
+  character's prediction puts it at the predicted seat (`Predictor.Seat`), so it matches too.
+- **Everyone else** sees ships interpolated 100 ms behind (`RemoteShip`: the turn by slerp), with the hatch, the flags
+  (piloted, landed, engines, boost, flight assist off, locked, in orbit, wrecked, asleep) and the thrust for the glow.
+  Parked ships are static bodies in the client's own prediction physics too.
+- **Intents** (`ShipIntent`: hatch, board, exit, lock, refuel, descend; the general budget, answered by `IntentResult`).
+  The cargo opens with `OpenIntent` on the ship's ID; `LootState` and the container messages carry it like a box.
+  `GameClient.AimShip` says what the interact key would do at a ship (open or shut the hatch, board, refuel, open the
+  cargo); `Interact` does it.
+- The server's admin gives a player a ship (`ship <name>`: beside them, full, theirs, the hatch open);
+  `ServerOptions.ShipOnJoin` gives every new character one (the load test).
+
+**Storage** (schema 5, `ShipCodec`): a row per ship in a `ships` table (step 4 → 5), written with the whole zone every
+30 s, at shutdown and within a second of a death: its kind, owner and lock, its centre of mass, turn and velocity in the
+**body frame** (so it stays where it was on the planet whatever zone frame comes next), hull, fuel, boost timers,
+flags, hatch, pilot, orbit marker and cargo (stacks in G4's form: a gun keeps its magazine). At start the ships come back
+before anyone joins; a pilot (a sleeper) goes back into the seat, and wakes there on logging in. A wrecked ship's row
+goes. Decoding treats the bytes as untrusted (a kind the game lost gives nothing; numbers that aren't are made sane).
+
+**Bots** (`--script fly`, `tools/Hollow.Bots/FlyBrain.cs`): each joins with a Tin Finch beside it (`ShipOnJoin`),
+walks round to its hatch, boards through the intent and flies loops a few hundred metres across, between 50 and 200 m
+over the ground, boosting now and then and turning home past 900 m. Measured on the owner's PC (13 October 2026), 20
+flying bots, 40 s after a 15 s warm-up, on the first world's own ground since the integration (and, for comparison, on
+the stand-in ground with `--stand-in`, as before it):
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly
+```
+
+| 20 bots flying | The planet's own ground | The stand-in ground |
+|---|---|---|
+| Server tick, average / 99th percentile | 5.6 ms / 44 ms (26 ticks over 33 ms in 40 s) | 2.3 ms / 10.6 ms (one) |
+| Ships stepped | 0.96 ms a tick, 48 µs a ship step (a ship high up costs about 6 µs; one within the near band about 60: two substeps of four skid rays, a sweep and an overlap) | 1.01 ms a tick, 51 µs a step |
+| What the physics holds | 750 ground tiles, 28,700 trees, rocks and bushes | 750 tiles, 9,700 stand-ins |
+| Bandwidth per client, down / up | 59 kbit/s (20 ships in view) / 26 kbit/s | 60 / 26 |
+| Prediction | inputs 99.9 % on their tick; one correction | none |
+
+The ships themselves stay cheap; what the planet's ground costs is the ground the ships stream as they roam: each keeps
+the tiles a second ahead of it, and for ten seconds behind, with the planet's trees in them, and Jolt's broadphase is
+rebuilt after every 64 bodies that come or go (the integration's `PhysicsWorld.OptimizeBroadPhase`): with 30,000 bodies
+that was every third tick at 5.6 ms (2 ms a tick, the longest 26 ms), and tiles built when one wasn't ready in time
+make the rest of the spikes. Runs while other agents' load tests shared the PC measured up to twice these averages.
+Making streamed ground cheaper for fast movers (coarser collision and no trees far under a ship, fewer tiles kept
+behind it, a rebuild that scales with the world) is the next step for whoever takes the server's performance.
+
+What the flying bots found, fixed here: the near-ground band was a second's travel deep (a ship cruising at 150 m
+counted as near and swept the ground every tick), now a quarter second's; the prefetch built 25 tiles round the point a
+second ahead, now 9 (a sweep needs no more), so 20 ships keep about 780 tiles of the planet's ground instead of 970; and
+Jolt's broadphase was never rebuilt (a ray took 5 µs instead of 0.7): found here and by the integration at the same
+time, the merge keeps the integration's rebuild, which parked ships' bodies now count toward. The load test now
+reports the rebuilds.
+
+**The viewer** (`game/scripts/Ships`, presentation only; the host hands it the ship's pose and flags each frame):
+- `ShipView` draws a ship from the catalogue model (`tin-finch`: three levels of detail switching at 60 and 160 m).
+  The hatch swings by sampling the model's own `Hatch_Open` clip at the hatch's progress. Every nozzle in ships.json
+  has a plume (a quad turned about its axis to face the camera) and a glow at its mouth (`ship_exhaust.gdshader`,
+  additive, unlit): the main engine and the two side exhausts grow with forward thrust, the four lift nozzles with up
+  thrust, the two small side thrusters with sideways, braking and down thrust; their length goes as the square root of
+  the thrust, smoothed over 70 ms; a running engine keeps a pilot light; boosting turns the gas blue-white. Plumes and
+  lamps are scaled by the camera's exposure so they read alike by day and night (S15). Nav lights (red on the left pod,
+  green on the right, a white beacon on the spine) and a landing light under the nose burn while the engines run; the
+  lift nozzles light the ground below; the lamps' material is the ship's own, bright with the engines, dim parked.
+- `ShipCamera`: the **cockpit** camera at the model's pilot-camera socket, 4° below the nose line; the **chase** camera
+  12.5 m behind and 3.4 m above, following the heading and half the climb but not the roll, swinging after the ship in
+  turns (its offset is smoothed, never its position, so it never falls behind at 260 m/s) and staying 1.6 m over the
+  ground. V switches them.
+- `ShipControls` (S14): the mouse is a virtual stick that springs back to the middle (a turn follows how fast the mouse
+  moves; the arrows are a keyboard stick); W/S move a throttle lever that stays where it is put (X: zero); A/D slide,
+  Space/C rise and sink, Q/E roll, Shift boosts, Z switches flight assist. In the seat F steps out, H works the hatch, L
+  the lock, J descends from orbit; on foot E opens the hatch and boards.
+- `ShipHud`, in the ground interface's style and design canvas (§8): speed, height over the ground and climb at the
+  bottom with the heading above them; the throttle lever on the left with the speed flight assist will hold; fuel and
+  hull where the vitals sit, with flight assist, boost (time left, or cooling), landed (or "too steep") and orbit stacked
+  above; the stick and a crosshair in the middle; warnings at the top (pull up when the ground is under 4 s away, hull
+  critical, low fuel, the distance to orbit in the last 3 km); the key under the crosshair (step out, descend).
+- **The sandbox** (`--view ship`, `ShipSandbox`): a local zone on the first world's own ground and nature (its trees
+  and rocks are solid where they are drawn; S16), drawn by the integration's driven `SurfaceView` (`OpenZone`: render
+  coordinates are the zone's), with the same rules the server runs, on the play clock (24 × the planet's day; `--hour`
+  picks the hour, half past nine by default). You stand beside your Tin Finch, parked on the bay of a vehicle workbench
+  in the flattest open spot within 90 m of the landing site that nothing of the planet's stands in.
+  `--scene pad|hover|forest|cockpit|slope|ceiling` sets up the pictures below (screenshots hold the scene's camera and
+  pause the zone); `--tour` plays the whole loop through the same keys a player presses and prints what happened.
+
+| Picture (`docs/images/ground/ship/`) | |
+|---|---|
+| `pad.png` | On foot by the ship on the workbench's bay, the hatch open |
+| `hover.png` | Hovering 8 m over the pad under flight assist: the lift nozzles carry 49 % |
+| `forest.png` | The chase camera over the forest at 95 m/s, 58 m up, with the HUD |
+| `cockpit.png` | The cockpit at 55 m/s over the forest edge |
+| `slope.png` | Landed on a 15° hillside (the planet's own slope, found by the scene), leaning 15.5° with it |
+| `ceiling.png` | 14.4 km up, climbing for the ceiling: "orbit in 570 m" |
+
+`--tour`, measured (13 October 2026): walked to the hatch in 0.8 s and opened it in 1.0 s; boarded; 3 s of "up"
+lifted it to 61 m; 0.6 s of W set the lever to three quarters and in 6 s it reached 120 m/s, climbing over a hill
+when the ground came within 45 m; a turn with a boost touched 166 m/s; X and flight assist stopped it from 163 m/s
+in 9.0 s and 761 m (sliding through the turn: at speed a yaw turn outruns the 45 kN of side thrust, as in Elite); held
+"down" sank 46 m in 6.8 s, the landing assist slowing it to touch down at 1.9 m/s with no hull lost on ground
+sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The zone's tick in the client took under
+0.2 ms.
+
+| Test | What it shows |
+|---|---|
+| `ShipPersistenceTests.AShipAndItsPilotSurviveARestart` | A locked, damaged, part-fuelled ship with a loaded rifle and metal in its cargo and Ada in the seat comes back the same (0.3 mm off, the same turn); Ada sleeps in the seat, logs in there and flies it; after it is wrecked its row is gone |
+| `ShipNetTests.PredictionMatchesTheServer` | 900 ticks of a recorded flight (lift-off, a turn, boost, flight assist off, pitch, roll, strafe, a landing with the stick moving), the client's predictors on their own ground and trees against the zone: 0 ship ticks and 0 character ticks differ |
+| `ShipNetTests.OthersSeeItFly` | Over loopback: Ada boards the ship the server gave her through the intent, climbs and flies; Bo sees it 28 m up at 45 m/s, piloted, engines on; Ada's prediction is never corrected |
+| `ShipTests` (four) and `ShipGameTests` (three) | Hovering under flight assist, its braking, landing on slopes, crash damage; boarding and stepping out, the lock, building at the workbench, weapons, G5's blasts (a rocket beside the hull, charges stuck to it, the pilot sheltered) and the wreck (the numbers in the table above) |
+
+**The ground mode's hookup** (after this package; `scripts/Ground` is the integration's):
+1. Draw every `GameClient.Ships` with a `ShipView`: the pivot from `RemoteShip.Origin` and `Rotation`, `Hatch`,
+   `Thrust` and the flags; the pilot's own from `OwnShipRenderPosition`/`OwnShipRenderRotation` with `OwnShip`'s thrust
+   and flags. Set `ShipView.Exposure` from the sky each frame.
+2. While `GameClient.Piloting`: `ShipControls.Read` into `InputFrame.Ship` each tick (mouse motion to
+   `ShipControls.Mouse`, Z and X to `ShipControls.Key`), the camera from `ShipCamera.Follow` on the predicted state, and
+   `ShipHud` in place of the belt and crosshair (fill `ShipHudData` as `ShipSandbox.FillHud` does); hide the viewmodel
+   and the local body; F `Local.ExitShip()`, H `Local.ShipHatch`, L `Local.LockShip`, J `Local.Descend()`.
+3. On foot: `GameClient.AimShip(eye, direction)` for the prompt under the crosshair, E `Interact` (hatch, board, refuel,
+   cargo, which opens with the box screen); `IntentResult` refusals and `Notice` events as toasts.
+4. Other pilots: a seated character (`Stance.Seated`) drawn sitting at the seat socket, or hidden.
+5. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
+   `ShipEventKind.Destroyed`.
+
 ---
 
 ## 7. Data
@@ -2981,3 +3207,55 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     point isn't used yet (Rust raises the sight line to it).
 86. **Attaching is a drop and detaching a button** (cheaper than Rust's attachment slots in the item panel): an
     attachment dropped on a gun goes onto it; the gun's panel lists REMOVE <PART> for each one.
+
+
+Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn (numbered S1 on):
+
+- S1. **Our own six-degree integrator, not a Jolt rigid body.** A ship's step is a pure function of its state, its
+  pilot's input and the static world, so the pilot's client rewinds and replays it exactly, as it does its character;
+  Jolt's solver keeps contact caches between steps and steps every body together, which a replay can't reproduce. Jolt
+  answers the queries (the skids' rays, the hull's sweeps and overlaps).
+- S2. **A thrust-borne skiff in thick air:** no wings or lift; the first world's 2.23 atmospheres drag it (the density
+  falls off with height), so with flight assist off it coasts down from 160 to 127 m/s in 3 s. Flight assist holds up to
+  160 m/s, boost 260 (a little over Elite's small ships' 220 and 320 would be too fast this low).
+- S3. **Lamp oil is ship fuel** (our low-grade fuel), as Rust's helicopters burn low-grade fuel: a 500-unit tank, 0.1 a
+  second idling to 0.9 at full thrust, twice that boosting (about 9 to 80 minutes of flying a tank).
+- S4. **Ships are built, not carried:** the vehicle workbench builds the Tin Finch onto its bay, never into an inventory
+  (Rust's helicopters stand on a vendor's pad); a finished one waits while the bay is blocked.
+- S5. **The hull:** Rust's minicopter's 750; melee does a quarter of its damage, arrows a tenth, bullets half, explosives
+  all. Ships aren't rewound for hits as characters are (shooters lead them by their ping), and the pilot sits out of
+  the hit history: the cabin takes the shots.
+- S6. **Only a still ship opens its hatch or lets its pilot out** (landed, or under 2.5 m/s within 3.5 m of the ground).
+  There is no ejecting yet. A pilot who logs off stays in the seat and the engines hold the ship where it is.
+- S7. **Orbit is a parked marker until G8:** above 15 km over the mean radius the ship leaves the physics and waits over
+  where it left; Descend brings it back 250 m under the ceiling over the same spot. `Zone.OrbitTransfer` is the seam for
+  the space layer.
+- S8. **The zone's edge holds ships** inside a ±7.8 km square, where the ground's tiles end, until zones follow players
+  (G8): "the other side of the planet" in G6's "done when" needs that, or a hop through orbit.
+- S9. **Flying ships don't collide with characters** (as characters don't with each other, §11 7); a parked ship is a
+  static body everyone walks into.
+- S10. **Crashes:** impacts over 6 m/s cost (speed − 6)² × 2.5 of the hull (a 7.8 m/s drop costs 8, 26 m/s wrecks it); the
+  pilot takes a tenth and is never knocked down in the seat; a pilot in a destroyed ship dies.
+- S11. **Landing:** three pads carrying the ship with nothing asked of the controls idle the engines; it counts as landed
+  on ground up to 25°, and the pads' friction (0.55) holds it up to 29°.
+- S12. **Numbers taken in shared spaces:** protocol 8, `ShipIntent` 120, schema step 4 → 5 (`ships`), `ActionResult`
+  19–23 (needs a station, locked, occupied, not landed, hatch shut), `HitTarget.Ship` 6, physics bodies from
+  `PhysicsWorld.FirstShipBody` (1,024 of them). Whichever branch merges second takes the next free protocol number and
+  schema step (the step's SQL stands alone).
+- S13. **Ships are relevant within 2 km and get up to 35 % of a snapshot's budget** (characters the rest; a 6 m ship
+  2 km away is about ten pixels across at 1600 × 900).
+- S14. **The pilot's keys** are Elite's habits on our ground keys: the mouse turns (pitch and yaw, the owner's own
+  binding; a stick that springs back rather than a pointer to fly toward), Q/E roll, W/S a throttle lever that stays put,
+  A/D and Space/C the thrusters, Shift boost, Z flight assist; E stays the interact key on foot, so in the seat F steps
+  out.
+- S15. **Plumes, lamps and ship lights are scaled by the camera's exposure** (brightness over exposure), not lit
+  physically: a thruster reads as a thruster at noon, and doesn't blind at night.
+- S16. **The ship sandbox is a local zone with the server's rules** on the planet's own ground and nature, drawn by the
+  integration's driven surface view, not a hosted game: it starts in seconds and its scenes set any state. Its scenes
+  look for their spots (a flat clearing, a hillside near 19°, the thickest forest) on the planet and check them clear
+  of the planet's trees and rocks.
+- S17. **The cameras:** the cockpit is the model's pilot-camera socket, looking 4° down; the chase camera follows the
+  heading and half the climb, not the roll (rolling into a turn tilts the ship, not the world).
+- S18. **A pilot's ground is the ship's business:** the zone's ground pass skips seated characters (a pilot at 150 m
+  needs no tiles under it; the ship asks for them when it nears the ground), and a blast leaves a pilot to the cabin.
+

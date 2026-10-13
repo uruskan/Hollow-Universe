@@ -41,6 +41,8 @@ public enum ZoneEventKind : byte
     /// rocket or round, whose <see cref="ZoneEvent.Flag"/> is set for a round). <see cref="ZoneEvent.Player"/>: whose.
     /// </summary>
     Detonated,
+    /// <summary>To a player: a line to read (<see cref="ZoneEvent.Text"/>), such as a built ship waiting for room (G6).</summary>
+    Notice,
 }
 
 /// <summary>Why items arrived, for the UI's notifications.</summary>
@@ -68,6 +70,9 @@ public enum HitTarget : byte
 
     /// <summary>A building piece, door or claim device (G3).</summary>
     Building,
+
+    /// <summary>A ship's hull (G6; 6, as G5 may take 5's neighbours).</summary>
+    Ship = 6,
 }
 
 /// <summary>

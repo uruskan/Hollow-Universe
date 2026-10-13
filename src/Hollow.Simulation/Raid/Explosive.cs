@@ -223,6 +223,9 @@ public sealed class BlastReport
 
     public int CharactersHit { get; internal set; }
 
+    /// <summary>Ships whose hull it reached (G6).</summary>
+    public int ShipsHit { get; internal set; }
+
     /// <summary>Damage dealt to each piece, door, deployable or character (by its object), after the falloff, splash and armour.</summary>
     public Dictionary<object, double> Damage { get; } = new();
 

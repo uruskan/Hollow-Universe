@@ -66,6 +66,9 @@ public sealed class ClientStats
 
     public long ClockJumps { get; internal set; }
 
+    /// <summary>Times the ship flown was corrected (G6): its prediction differed from the server's state for a tick.</summary>
+    public long ShipCorrections { get; internal set; }
+
     // ---------------------------------------------------------------- histories for the graph
 
     public float[] RoundTripHistory { get; } = new float[HistoryLength];
@@ -128,6 +131,7 @@ public sealed class ClientStats
         PredictionErrorTotal = 0;
         PredictionErrorWorst = 0;
         ClockJumps = 0;
+        ShipCorrections = 0;
     }
 
     /// <summary>Average prediction error since the start or <see cref="ResetTotals"/>.</summary>

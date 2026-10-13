@@ -1,0 +1,199 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using Hollow.Simulation.Content;
+
+namespace Hollow.Simulation.Ships;
+
+/// <summary>One box of a ship's hull, in the ship's frame: its centre and half extents.</summary>
+public readonly record struct HullBox(Vector3 Centre, Vector3 HalfExtents, bool Skid);
+
+/// <summary>Per-axis turning: the most rate flight assist asks for, and the thrusters' angular acceleration (radians).</summary>
+public readonly record struct TurnAxis(float MaxRate, float Acceleration);
+
+/// <summary>
+/// A kind of ship (ships.json, GROUND.md §6.6): its flight model, hull, skids, fuel, cargo and sockets. Every vector is
+/// in the ship's own frame, the model's: +Z the nose, +Y up, +X the left side, metres from the pivot (on the ground,
+/// between the skids). Forces in newtons, speeds in m/s, angles in radians (degrees in the file).
+/// </summary>
+public sealed class ShipDef
+{
+    public string Key { get; init; } = "";
+
+    /// <summary>The item the ship is crafted as (its ID names the kind on the wire and in saves).</summary>
+    public ItemDef Item { get; init; } = null!;
+
+    public ushort Id => Item.Id;
+
+    public string Name => Item.Name;
+
+    public float Mass { get; init; }
+
+    /// <summary>Moments of inertia about the ship's x (pitch), y (yaw) and z (roll) axes through the centre of mass.</summary>
+    public Vector3 Inertia { get; init; }
+
+    public Vector3 CentreOfMass { get; init; }
+
+    public float Health { get; init; }
+
+    /// <summary>Hull damage taken per point of a weapon's damage, by kind.</summary>
+    public float MeleeDamage { get; init; }
+
+    public float ArrowDamage { get; init; }
+
+    public float BulletDamage { get; init; }
+
+    public float ExplosiveDamage { get; init; }
+
+    /// <summary>Thrust along each axis: forward (main engine), back (retro), sideways, up (lift nozzles), down.</summary>
+    public float MainThrust { get; init; }
+
+    public float RetroThrust { get; init; }
+
+    public float LateralThrust { get; init; }
+
+    public float LiftThrust { get; init; }
+
+    public float DownThrust { get; init; }
+
+    /// <summary>What flight assist holds at full stick or throttle.</summary>
+    public float ForwardSpeed { get; init; }
+
+    public float ReverseSpeed { get; init; }
+
+    public float LateralSpeed { get; init; }
+
+    public float UpSpeed { get; init; }
+
+    public float DownSpeed { get; init; }
+
+    /// <summary>Boost: the main engine's thrust times this, flight assist's cap raised to <see cref="BoostSpeed"/>.</summary>
+    public float BoostThrust { get; init; } = 1;
+
+    public float BoostSpeed { get; init; }
+
+    public float BoostSeconds { get; init; }
+
+    public float BoostCooldownSeconds { get; init; }
+
+    public TurnAxis Pitch { get; init; }
+
+    public TurnAxis Yaw { get; init; }
+
+    public TurnAxis Roll { get; init; }
+
+    /// <summary>Drag areas (Cd × m²) facing forward, sideways and from above; and the turning damping at sea-level air (1/s).</summary>
+    public float DragForward { get; init; }
+
+    public float DragSide { get; init; }
+
+    public float DragTop { get; init; }
+
+    public float TurnDrag { get; init; }
+
+    /// <summary>The steepest ground the ship rests on as landed.</summary>
+    public float MaxLandingSlope { get; init; }
+
+    /// <summary>Flight assist's landing descent near the ground: at least this many m/s, plus this much per metre of height.</summary>
+    public float LandingDescent { get; init; } = 1.5f;
+
+    public float LandingDescentPerMetre { get; init; } = 0.25f;
+
+    /// <summary>The skids' contact points (the pads' undersides), springs and friction.</summary>
+    public IReadOnlyList<Vector3> SkidPoints { get; init; } = Array.Empty<Vector3>();
+
+    public float SkidStiffness { get; init; }
+
+    public float SkidDamping { get; init; }
+
+    public float SkidTravel { get; init; }
+
+    public float SkidFriction { get; init; }
+
+    /// <summary>Crash damage: impacts slower than this do none; above, (speed − safe)² × scale; the pilot takes this share.</summary>
+    public float CrashSafeSpeed { get; init; }
+
+    public float CrashScale { get; init; }
+
+    public float CrashPilotShare { get; init; }
+
+    /// <summary>The fuel (an item), the tank, and units burnt a second at idle and at full thrust; boost burns this many times more.</summary>
+    public ItemDef Fuel { get; init; } = null!;
+
+    public float FuelCapacity { get; init; }
+
+    public float FuelIdle { get; init; }
+
+    public float FuelFull { get; init; }
+
+    public float FuelBoost { get; init; } = 1;
+
+    public int CargoSlots { get; init; }
+
+    public IReadOnlyList<HullBox> Hull { get; init; } = Array.Empty<HullBox>();
+
+    /// <summary>The pilot's seat (where the seated character's feet go), the pilot's eye, the hatch's middle, the fuel cap.</summary>
+    public Vector3 Seat { get; init; }
+
+    public Vector3 Eye { get; init; }
+
+    public Vector3 Hatch { get; init; }
+
+    public Vector3 FuelCap { get; init; }
+
+    /// <summary>Where a pilot steps out, in order of preference (on the ground below each point).</summary>
+    public IReadOnlyList<Vector3> Exits { get; init; } = Array.Empty<Vector3>();
+
+    /// <summary>Exhausts and nozzles, for the client's glow (presentation only).</summary>
+    public IReadOnlyList<Vector3> MainNozzles { get; init; } = Array.Empty<Vector3>();
+
+    public IReadOnlyList<Vector3> AuxNozzles { get; init; } = Array.Empty<Vector3>();
+
+    public IReadOnlyList<Vector3> LiftNozzles { get; init; } = Array.Empty<Vector3>();
+
+    public IReadOnlyList<Vector3> RcsNozzles { get; init; } = Array.Empty<Vector3>();
+
+    /// <summary>The hatch, the seat, the fuel cap and the cargo are reached within this distance of the eye.</summary>
+    public float Reach { get; init; }
+
+    /// <summary>Above this height over the planet's mean radius the ship reaches orbit (GROUND.md §6.6).</summary>
+    public float Ceiling { get; init; }
+
+    /// <summary>What a destroyed ship leaves in its wreck besides its cargo and fuel.</summary>
+    public IReadOnlyList<ItemAmount> Wreck { get; init; } = Array.Empty<ItemAmount>();
+
+    /// <summary>The hull's extent: the half size of the box holding every hull box (for quick tests).</summary>
+    public Vector3 BoundsCentre { get; internal set; }
+
+    public Vector3 BoundsHalf { get; internal set; }
+
+    /// <summary>A sphere about the centre of mass holding the whole hull.</summary>
+    public float BoundingRadius { get; internal set; }
+
+    internal void ComputeBounds()
+    {
+        if (Hull.Count == 0)
+        {
+            return;
+        }
+        Vector3 min = new(float.MaxValue), max = new(float.MinValue);
+        float radius = 0;
+        foreach (HullBox box in Hull)
+        {
+            min = Vector3.Min(min, box.Centre - box.HalfExtents);
+            max = Vector3.Max(max, box.Centre + box.HalfExtents);
+            radius = MathF.Max(radius, Vector3.Distance(box.Centre, CentreOfMass) + box.HalfExtents.Length());
+        }
+        foreach (Vector3 p in SkidPoints)
+        {
+            min = Vector3.Min(min, p);
+            max = Vector3.Max(max, p);
+            radius = MathF.Max(radius, Vector3.Distance(p, CentreOfMass));
+        }
+        BoundsCentre = (min + max) / 2;
+        BoundsHalf = (max - min) / 2;
+        BoundingRadius = radius;
+    }
+
+    public override string ToString() => Key;
+}

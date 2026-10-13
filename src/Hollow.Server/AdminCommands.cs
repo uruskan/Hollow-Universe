@@ -22,6 +22,7 @@ public sealed partial class GameServer
         "kit <name> <loot table>       a loot table's items (loot.json), e.g. supply-crate\n" +
         "heal <name>                   full health, food and water, no bleeding\n" +
         "kill <name>                   a player dies (a corpse with their things)\n" +
+        "ship <name>                   a Tin Finch beside a player, full and theirs, its hatch open\n" +
         "raidbase <name> [grade]       a claimed hut 8 m in front of a player, listing them (grade 0-4, stone by default)\n" +
         "save                          save the world now\n" +
         "quit                          save everyone and stop";
@@ -114,6 +115,12 @@ public sealed partial class GameServer
                 {
                     Zone.Hurt(victim.Entity, dying, 100_000, "Killed by an admin", Simulation.Entities.EntityId.None, "");
                     Log($"killed {victim.Name}");
+                }
+                break;
+            case "ship" when words.Length >= 2:
+                if (Find(words[1]) is { Playing: true } pilot)
+                {
+                    Log(GiveShip(pilot) is { } given ? $"a {given.Def.Name} for {pilot.Name} ({given.Id})" : $"no room for a ship beside {pilot.Name}");
                 }
                 break;
             case "raidbase" when words.Length >= 2:

@@ -266,7 +266,7 @@ public static class WorldCodec
 
     // ---------------------------------------------------------------- containers
 
-    private static void WriteContainer(BinaryWriter w, Container c)
+    internal static void WriteContainer(BinaryWriter w, Container c)
     {
         w.Write((ushort)c.Size);
         for (int i = 0; i < c.Size; i++)
@@ -275,7 +275,7 @@ public static class WorldCodec
         }
     }
 
-    private static void ReadContainer(BinaryReader r, Container into, GameContent content, byte version)
+    internal static void ReadContainer(BinaryReader r, Container into, GameContent content, byte version)
     {
         int size = r.ReadUInt16();
         for (int i = 0; i < size; i++)

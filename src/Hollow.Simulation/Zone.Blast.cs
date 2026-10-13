@@ -114,6 +114,10 @@ public sealed partial class Zone
             }
             Entity entity = Entities.AtSlot(players.Slots[i]);
             CharacterState s = Entities.Get<Character>(entity).State;
+            if (s.Stance == Stance.Seated)
+            {
+                continue; // a pilot (G6): the ship's cabin takes the blast (below)
+            }
             Vector3 up = Frame.UpAt(s.Position);
             bool lying = p.Sleeping || p.Wounded;
             Vector3 chest = s.Position + up * (lying ? 0.25f : s.Stance == Stance.Crouching ? 0.7f : 1.15f);
@@ -265,6 +269,7 @@ public sealed partial class Zone
 
         // Characters: the blast's damage on the body, less what is worn there against projectiles.
         TryFindPlayer(attacker, out _, out Player? by);
+        BlastShips(blast, at, stuckTo, item, by, report);
         foreach ((Entity entity, Player p, float distance) in people)
         {
             float protection = p.Inventory.Protection(content, HitRegion.Body, projectile: true);
@@ -410,6 +415,9 @@ public sealed partial class Zone
     // ---------------------------------------------------------------- what a blast sees
 
     // Nothing of the building (but the target itself) nor the ground between a blast and a point.
+    /// <summary>Whether a blast sees a point: no building piece or door and no ground in between (G6: ships' hulls).</summary>
+    private bool BlastSees(Vector3 from, Vector3 to) => Visible(from, to, null);
+
     private bool Visible(Vector3 from, Vector3 to, object? target)
     {
         Vector3 d = to - from;
