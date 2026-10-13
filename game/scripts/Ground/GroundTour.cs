@@ -28,8 +28,8 @@ namespace HollowUniverse.Ground;
 /// base being built with the plan's ghost, a finished hut with a code lock and its keypad, a timed charge on its wall
 /// and the blast, a firefight at the hut, the death screen, night by a fire) and
 /// quits; with <c>--tour guest</c>, a second client that dresses in what it is given, takes up its hatchet and
-/// faces the host, and fires a rifle where the host's server line "tour:fire x y z" says. Pictures are 1600 × 900 JPEG
-/// at the window's size.
+/// faces the host, and fires a rifle it is given at the nearest building wall. Pictures are 1600 × 900 JPEG at the
+/// window's size.
 /// </summary>
 public partial class GroundTour : Node
 {
@@ -53,7 +53,6 @@ public partial class GroundTour : Node
     {
         if (Folder == "guest")
         {
-            Client.ChatReceived += OnChat;
             return;
         }
         Directory.CreateDirectory(Folder);
@@ -366,14 +365,18 @@ public partial class GroundTour : Node
             }
         }
         await Settle();
-        bool fired = false;
-        void Fired(ShotEvent _) => fired = true;
+        // The picture is the frame the shot leaves in (its muzzle effect lasts 50 ms, a frame or two).
+        Task? capture = null;
+        void Fired(ShotEvent _) => capture ??= Shot("gun", frames: 0);
         Me.Gun.ShotFired += Fired;
         View.Scripted = new InputFrame { Secondary = true };
         await Seconds(0.9);
         View.Scripted = new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true };
-        await Until(() => fired, 3);
-        await Shot("gun", frames: 0);
+        await Until(() => capture != null, 3);
+        if (capture != null)
+        {
+            await capture;
+        }
         Me.Gun.ShotFired -= Fired;
         View.Scripted = null;
         await Seconds(0.6);
@@ -521,8 +524,9 @@ public partial class GroundTour : Node
         await Seconds(1.0);
     }
 
-    // A firefight at the stone hut: the host and the guest (if in) firing rifles at its side wall from the meadow, in
-    // bursts, the picture taken while a tracer is in the air (G4 with the effects library).
+    // A firefight at the stone hut: the host's rifle with a holo sight and a muzzle brake, the guest's (if in) with a
+    // holo sight and a light, both firing at its side wall from the meadow in bursts; the picture is taken as one of
+    // the host's shots leaves with a tracer (G4 with the effects library, attachments on guns in hand).
     private async Task Firefight()
     {
         if (_hut is not { } hut)
@@ -531,7 +535,9 @@ public partial class GroundTour : Node
         }
         Admin("give", "rifle 1");
         Admin("give", "rifle-ammo 150");
-        await Until(() => Count("rifle") > 0 && Count("rifle-ammo") > 0, 5);
+        Admin("give", "holo-sight 1");
+        Admin("give", "muzzle-brake 1");
+        await Until(() => Count("rifle") > 0 && Count("rifle-ammo") > 0 && Count("muzzle-brake") > 0, 5);
         Num.Vector3 up = Client.Frame.UpAt(hut.Door);
         Num.Vector3 centre = hut.Door - hut.Outward * 1.5f;
         Piece? wall = Client.Building?.AllPieces.Where(p => p.Def.Key == "wall")
@@ -541,106 +547,138 @@ public partial class GroundTour : Node
             return;
         }
         Num.Vector3 wallAt = Centre(wall), normal = FlatUnit(wallAt - centre);
-        Num.Vector3 side = Num.Vector3.Normalize(Num.Vector3.Cross(normal, up));
-        Num.Vector3 stand = wallAt + normal * 22f - side * 2f;
+        Num.Vector3 left = Num.Vector3.Normalize(Num.Vector3.Cross(normal, up));
+        Num.Vector3 stand = wallAt + normal * 13f + left * 1.5f;
         Num.Vector3 target = wallAt + normal * 0.2f + up * 1.3f;
         await Until(() => Client.Entities.Any(e => e.Name.Length > 0), 30);
-        string? guest = Client.Entities.FirstOrDefault(e => e.Name.Length > 0)?.Name;
-        if (guest != null)
+        if (Client.Entities.FirstOrDefault(e => e.Name.Length > 0)?.Name is { } guest)
         {
-            // The guest ahead and to the right, in view, firing at the same wall.
-            Num.Vector3 at = stand - normal * 7f + side * 5.5f;
-            Command?.Invoke($"give {guest} rifle 1");
-            Command?.Invoke($"give {guest} rifle-ammo 150");
+            // The guest ahead and to the right, in view; it fires at the wall nearest it once it has a loaded rifle.
+            Num.Vector3 at = wallAt + normal * 8f - left * 3f;
+            foreach (string item in new[] { "rifle 1", "rifle-ammo 150", "holo-sight 1", "weapon-light 1" })
+            {
+                Command?.Invoke($"give {guest} {item}");
+            }
             Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {guest} {at.X:0.00} {at.Z:0.00}"));
         }
         await TeleportTo(stand);
         Face(target);
         await Hold("rifle", 5);
+        if (SlotOf(Me.Inventory.Belt, "rifle") is int gun)
+        {
+            foreach (string part in new[] { "holo-sight", "muzzle-brake" })
+            {
+                if (SlotOf(Me.Inventory.Main, part) is int from)
+                {
+                    Me.Attach(ContainerRef.Main, from, ContainerRef.Belt, gun);
+                    await Seconds(0.3);
+                }
+            }
+        }
         await Until(() => Me.Gun.Ready, 3);
         Me.Gun.Reload();
         await Until(() => Me.Gun.Loaded > 0 && !Me.Gun.Reloading, 8);
         await Settle();
-        if (guest != null)
+        // The picture is the frame a shot with a tracer leaves in, once the wall has taken a few hits.
+        Task? capture = null;
+        bool armed = false;
+        void Fired(ShotEvent shot)
         {
-            Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"say tour:fire {target.X:0.00} {target.Y:0.00} {target.Z:0.00}"));
-            await Seconds(1.5);
+            if (armed && capture == null && FxDirector.WantsTracer(Client.NetId, shot.Seq))
+            {
+                capture = Shot("firefight", frames: 0);
+            }
         }
-        for (int burst = 0; burst < 4; burst++)
+        Me.Gun.ShotFired += Fired;
+        double started = Time.GetTicksMsec() / 1000.0;
+        for (int burst = 0; burst < 8 && capture == null; burst++)
         {
             double until = Time.GetTicksMsec() / 1000.0 + 0.45;
             View.Scripted = new InputFrame { Primary = true, PrimaryPressed = true };
-            while (Time.GetTicksMsec() / 1000.0 < until)
+            armed = Time.GetTicksMsec() / 1000.0 - started > 1.2;
+            while (Time.GetTicksMsec() / 1000.0 < until && capture == null)
             {
                 Face(target);
-                if (burst == 3 && FxDirector.Instance.ActiveTracers > 0)
-                {
-                    await Shot("firefight", frames: 0);
-                    break;
-                }
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             }
             View.Scripted = null;
             await Seconds(0.35);
         }
+        Me.Gun.ShotFired -= Fired;
+        if (capture != null)
+        {
+            await capture;
+        }
         await Seconds(0.5);
         Me.HeldSlot = 2;
     }
 
-    // The guest's part of the firefight: the server line "tour:fire x y z" from the host's run.
-    private Num.Vector3? _fireAt;
-    private double _fireUntil;
+    // The guest's part of the firefight: a rifle it is given goes on the belt with its attachments, into its hands and
+    // is loaded; then it fires in bursts for eight seconds at the building wall nearest it.
+    private double _guestFiring = -1;
 
-    private void OnChat(Hollow.Net.Protocol.ChatLine line)
-    {
-        string[] w = (line.Text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (w.Length == 4 && w[0] == "tour:fire" && float.TryParse(w[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) &&
-            float.TryParse(w[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float y) &&
-            float.TryParse(w[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float z))
-        {
-            _fireAt = new Num.Vector3(x, y, z);
-            _fireUntil = Time.GetTicksMsec() / 1000.0 + 4.5;
-        }
-    }
-
-    // A rifle given to the guest: on the belt, in hand, loaded; it fires in bursts while told to.
     private bool GuestRifle()
     {
         double now = Time.GetTicksMsec() / 1000.0;
-        if (_fireAt is { } aim && now < _fireUntil && SlotOf(Me.Inventory.Belt, "rifle") is int held && Me.HeldSlot == held)
+        if (_guestFiring > 0 && now - _guestFiring < 8 && SlotOf(Me.Inventory.Belt, "rifle") is int held && Me.HeldSlot == held &&
+            NearestWall() is { } aim)
         {
             Face(aim);
             bool on = (now % 0.8) < 0.45 && Me.Gun.Loaded > 0;
             View.Scripted = new InputFrame { Primary = on, PrimaryPressed = on };
+            if (Me.Gun.Loaded == 0 && !Me.Gun.Reloading)
+            {
+                Me.Gun.Reload();
+            }
             return true;
         }
         if (View.Scripted != null)
         {
             View.Scripted = null;
         }
-        if (Me.PendingCount > 0)
+        if (Me.PendingCount > 0 || _guestFiring > 0)
         {
-            return false;
+            return _guestFiring > 0 && now - _guestFiring < 8;
         }
         if (SlotOf(Me.Inventory.Main, "rifle") is int rifle)
         {
             Me.MoveItem(ContainerRef.Main, rifle, ContainerRef.Belt, 3);
             return true;
         }
-        if (SlotOf(Me.Inventory.Belt, "rifle") is int belt)
+        if (SlotOf(Me.Inventory.Belt, "rifle") is not int belt)
         {
-            if (Me.HeldSlot != belt)
+            return false;
+        }
+        foreach (string part in new[] { "holo-sight", "weapon-light" })
+        {
+            if (SlotOf(Me.Inventory.Main, part) is int from)
             {
-                Me.HeldSlot = belt;
+                Me.Attach(ContainerRef.Main, from, ContainerRef.Belt, belt);
                 return true;
             }
-            if (Me.Gun.Ready && Me.Gun.Loaded == 0 && !Me.Gun.Reloading && Count("rifle-ammo") > 0)
-            {
-                Me.Gun.Reload();
-            }
-            return _fireAt != null && now < _fireUntil;
         }
-        return false;
+        if (Me.HeldSlot != belt)
+        {
+            Me.HeldSlot = belt;
+            return true;
+        }
+        if (Me.Gun.Ready && Me.Gun.Loaded == 0 && !Me.Gun.Reloading && Count("rifle-ammo") > 0)
+        {
+            Me.Gun.Reload();
+        }
+        else if (Me.Gun.Loaded > 0 && !Me.Gun.Reloading)
+        {
+            _guestFiring = now;
+        }
+        return true;
+    }
+
+    // The middle of the building wall nearest the player, at chest height.
+    private Num.Vector3? NearestWall()
+    {
+        Num.Vector3 me = Client.Character.Position;
+        Piece? wall = Client.Building?.AllPieces.Where(p => p.Def.Key == "wall").OrderBy(p => Num.Vector3.Distance(Centre(p), me)).FirstOrDefault();
+        return wall != null ? Centre(wall) + Client.Frame.UpAt(me) * 1.3f : null;
     }
 
     private IEnumerable<Door> Doors() =>

@@ -221,6 +221,11 @@ public partial class PeopleView : Node3D
             Held = kind,
             HeldItem = model,
         });
+        if (model != null && e.Held != 0 && Client.Content.Item(e.Held)?.Firearm != null && p.View.HeldModel is { } theirGun)
+        {
+            // Their gun's attachments (HeldMods), on the model in their hands.
+            GunEffects.Dress(Client.Content, theirGun, model, e.HeldMods);
+        }
         if (p.Frames < 3)
         {
             // Let it take a pose before anything happens to it.

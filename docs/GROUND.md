@@ -1653,8 +1653,13 @@ tracers and, where each stops, the hit's effect and sound by what it hit; `Peopl
 from `HeldMods`) with their muzzle effect and their reloads; the HUD's ammo counter and the gun's slot show the
 magazine; `GroundOverlay` draws the hip crosshair from `Spread`, a reload's progress under the centre, and the
 wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The muzzle effects, tracers
-and hits are the effects library's (§9.3, as hooked up there). Not drawn yet, for want of the character contract
-(§4.8): others' aiming pose and crawling (the wounded crouch instead).
+and hits are the effects library's (§9.3, as hooked up there). Attachments show on guns in hand (`GunEffects.Dress`
+through `ModelCatalog.Attach`: a sight on the rail, a silencer or a brake on the muzzle, the light under the barrel):
+on one's own gun with the arms' layer and materials, from the weapon stack's mods, and on others' from `HeldMods`;
+the muzzle effect then leaves from the far end of a silencer or brake. In the inventory, an attachment dropped on a
+gun goes onto it (`Local.Attach`), and a gun's item panel offers REMOVE for each of its attachments (`Local.Detach`).
+Not drawn yet, for want of the character contract (§4.8): others' aiming pose and crawling (the wounded crouch
+instead).
 
 ### 6.5 Building over the network and saved (G3, phase 2a)
 
@@ -2925,9 +2930,9 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
 77. **One's own tracer leaves where the arms show the muzzle** (`FxDirector.ViewmodelToWorld`), parallel to the
     bullet's path a hand's breadth off it, and stops where the bullet stopped; the muzzle effect is drawn with the arms
     (their render layer and field of view). Aimed down the sights, one's own tracer is seen almost end-on, as in life.
-78. **What the character contract can't show yet is left out** rather than drawn around it: attachments on guns in
-    hand, others' aiming pose, crawling (the wounded crouch), sleepers' pose (75). The character package's views would
-    need an attachment list for `Hold`, an aiming flag and a crawling stance.
+78. **What the character contract can't show yet is left out** rather than drawn around it: others' aiming pose,
+    crawling (the wounded crouch), sleepers' pose (75). The character package's views would need an aiming flag and a
+    crawling stance.
 79. **Jolt's broadphase is rebuilt after bodies change** (`PhysicsWorld.OptimizeBroadPhase`: at most twice a second,
     sooner after 64 changes), since the zone never runs Jolt's update that would do it (§5.5).
 80. **Spare bodies**: four of each body are built while the world opens, and players leaving range give theirs back
@@ -2942,3 +2947,10 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     viewer). Off until the effects package finds why.
 84. **An explosive's cooldown also holds on the client** (1 s for charges, 0.8 s for grenades): a click sooner does
     nothing, rather than send a throw the server refuses and take the item back.
+85. **Attachments and sockets are found on the held model in the views' trees** (the arms' item node is named by its
+    model, `ViewmodelView.Model.Id`; `CharacterView.HeldModel`): the muzzle, the torch's flame and the attachments
+    mount there, outside the contract of §4.8, until the character package offers a held model and its sockets.
+    Aiming down the sights still looks along the gun's own sights: a holo sight or a scope is drawn but its eye
+    point isn't used yet (Rust raises the sight line to it).
+86. **Attaching is a drop and detaching a button** (cheaper than Rust's attachment slots in the item panel): an
+    attachment dropped on a gun goes onto it; the gun's panel lists REMOVE <PART> for each one.

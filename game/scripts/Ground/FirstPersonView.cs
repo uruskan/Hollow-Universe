@@ -159,6 +159,11 @@ public partial class FirstPersonView : Node3D
         }
         _sinceEquip += delta;
         DressArms();
+        // The gun's attachments as its stack has them (sight, muzzle part, light), drawn with the arms.
+        if (item?.Firearm != null && HeldModel is { } gun)
+        {
+            GunEffects.Dress(Client.Content, gun, _arms.Model!.Id, Client.Local.Gun.Mods.Bits, ForArms);
+        }
 
         // Motion of the arms: velocity in the camera's frame, how fast the view turns.
         CharacterState state = Client.Character;
@@ -248,6 +253,33 @@ public partial class FirstPersonView : Node3D
         _drip = 1.5;
         Num.Vector3 feet = Client.RenderPosition;
         FxDirector.Play("blood.drip", GroundView.ToGodot(feet), GroundView.ToGodot(Client.Frame.UpAt(feet)));
+    }
+
+    private static readonly System.Collections.Generic.Dictionary<Material, Material> ArmsMaterials = new();
+
+    // An attachment readied as the arms ready their item: their render layer, no shadow, the arms' field of view in
+    // its materials, only its most detailed mesh.
+    private static void ForArms(Node3D part)
+    {
+        HollowUniverse.Items.ModelCatalog.ForceLod(part, 0);
+        foreach (MeshInstance3D mesh in HollowUniverse.Items.ModelCatalog.Meshes(part))
+        {
+            mesh.Layers = ViewmodelView.RenderLayer;
+            mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+            mesh.ExtraCullMargin = 2f;
+            for (int i = 0; i < mesh.GetSurfaceOverrideMaterialCount(); i++)
+            {
+                if (mesh.GetActiveMaterial(i) is { } m)
+                {
+                    if (!ArmsMaterials.TryGetValue(m, out Material? arms))
+                    {
+                        arms = CharacterMaterials.ForViewmodel(m);
+                        ArmsMaterials[m] = arms;
+                    }
+                    mesh.SetSurfaceOverrideMaterial(i, arms);
+                }
+            }
+        }
     }
 
     private void DressArms()
