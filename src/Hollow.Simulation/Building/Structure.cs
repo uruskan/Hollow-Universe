@@ -87,7 +87,7 @@ public readonly record struct Link(Piece Other, int Loss);
 /// One building piece: what it is, its grade and health, where it sits in its structure's frame, when it was placed and
 /// last damaged, and its stability. A static entity: nothing about it runs per tick (ARCHITECTURE.md §10.2).
 /// </summary>
-public sealed class Piece
+public sealed class Piece : IBuildingPart
 {
     internal readonly List<Link> SupportedBy = new();
     internal readonly List<Link> Supports = new();
@@ -138,6 +138,9 @@ public sealed class Piece
 
     /// <summary>Removed from the world.</summary>
     public bool Gone { get; internal set; }
+
+    /// <summary>The claim device of its structure, or null.</summary>
+    public ClaimDevice? Base => Structure?.Claim;
 
     internal uint Body;
 

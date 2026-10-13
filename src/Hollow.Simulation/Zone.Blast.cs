@@ -21,7 +21,7 @@ public sealed partial class Zone
     // once, RustMVP's resolver), so the parts of a point are carried to the next hit; Rust's raid counts come out exactly
     // (a grenade's 8.99 against metal takes 112, not 100). The table's explosive damage goes in through the explosive
     // channel.
-    private (double Lost, bool Destroyed) DamageStructure(object part, double amount, Vector3 direction, double now)
+    private (double Lost, bool Destroyed) DamageStructure(IBuildingPart part, double amount, Vector3 direction, double now)
     {
         BuildingWorld building = Building!;
         double total = _blastResidue.GetValueOrDefault(part) + amount;
@@ -31,14 +31,7 @@ public sealed partial class Zone
         {
             return (0, false);
         }
-        var hit = new DamageHit(direction, Explosive: whole);
-        DamageResult result = part switch
-        {
-            Piece piece => building.Damage(piece, hit, now),
-            Door door => building.Damage(door, hit, now),
-            ClaimDevice device => building.Damage(device, hit, now),
-            _ => default,
-        };
+        DamageResult result = building.Damage(part, new DamageHit(direction, Explosive: whole), now);
         if (result.Destroyed)
         {
             _blastResidue.Remove(part);

@@ -336,3 +336,40 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   Pictures: `docs/images/ground/play/f1-console.jpg`, `f1-info.jpg`, `f1-net.jpg`, `f1-items.jpg`, `f1-tools.jpg`.
   Protocol 11; the console's tests (parsing, completion, a non-admin refused, give, teleport, spawn, kill and time over
   the network, god and noclip against the prediction) pass with the rest.
+
+## 13 October 2026, the recoil and the damage code (`ground-damage`)
+
+After the owner's first playtest: "the AK doesn't use the recoil pattern exactly from RustMVP", and is the weapon and
+damage code as modular as RustMVP's foundation planned?
+
+- **The recoil is RustMVP's exactly** (GROUND.md §6.4, D1–D5). Checked field by field against RustMVP's
+  `weapon_definition.hpp`, `weapon_rules.hpp` and `recoil_compensation.hpp`. Two things were ours, both gone:
+  - a random part on every kick (hollow-orbit's ±12% and ±0.66° on the pistol, ±0.06° a step on the AK);
+  - a smaller kick aimed (×0.78) and crouched (×0.85). RustMVP's aiming narrows the spread only.
+
+  The 30 steps, their order, the 0.1 s kick, 0.2 s hold, 0.08 s smoothstep return, the reset after 0.4 s, the limits,
+  the zero tail, the 60/450 s cadence and sampling before the kick were already RustMVP's. The countersteer credit now
+  runs in RustMVP's order each frame (settle, mouse, camera; before, it came a frame late), and a shot or a correction
+  settles it first. The rocket launcher keeps its own kick, deterministic too; muzzle attachments still scale it.
+  A new test sprays the AK twice (at the hip; aimed and crouched): every view before a shot is on RustMVP's table, on
+  the client's prediction and the server, to the bit.
+- **One damage pipeline** (GROUND.md §6.4.2, D6–D11), RustMVP's plan and the owner's rule (no switch that grows with
+  every new target):
+  - every delivery (swing, arrow, bullet, blast, an animal's attack) builds one request and calls `Zone.Damage`;
+  - each kind of thing is a receiver, registered in one place, that finds its own things along a ray and in a blast and
+    applies its own defences and consequences;
+  - a new damageable thing is one receiver and one line.
+
+  Every number stayed the same: no test changed for it.
+- **The Destroyed event**: whatever breaks, collapses, decays, is demolished or wrecked is reported once, from one
+  place, with its kind, ID, model key (a piece's grade), where it stood, the blow's direction, the cause, who and with
+  what. It reaches clients in range as `GameClient.Destroyed` (message 165, protocol 12), for the break-apart pieces
+  `ground-gibs` is making. The building rules now say why they took a piece away.
+- **The audit** against RustMVP's FOUNDATION.md and damage plan is in GROUND.md §6.4.2: what is done, what is ours on
+  purpose (engine-free rules shared by server and client instead of Unreal and GAS), what is left (one channel an
+  attack, environmental damage straight to health, no armour wear or penetration, the network's message dispatch).
+- Load tests before and after, back to back on the same busy PC: gunfight tick 6.35 → 5.49 ms on average, raid 7.17
+  → 7.75 ms with a fifth more bullets in the second run; a bullet's step 29.0 → 27.4 µs and 16.6 → 16.5 µs, blasts 0.095
+  → 0.087 ms a tick. No regression beyond the PC's noise (four other agents were working on it).
+- No Godot run: nothing drawn changed (the camera's recoil angles are computed in the same frame, in a new order). 166
+  tests pass: the 163 that existed (the recoil test updated for D1) and three new.

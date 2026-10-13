@@ -220,6 +220,21 @@ public readonly record struct BuildingEvent(BuildingChange Change, Piece? Piece 
     Structure? Structure = null, Removal Removal = Removal.Taken);
 
 /// <summary>
+/// A piece, a door or a claim device: what blows, blasts and raid alerts take alike (the zone's building receiver,
+/// GROUND.md §6.4.2).
+/// </summary>
+public interface IBuildingPart
+{
+    Entities.EntityId Id { get; }
+
+    /// <summary>Taken out of the building (broken, collapsed, decayed, demolished or picked up).</summary>
+    bool Gone { get; }
+
+    /// <summary>The claim device of the base it belongs to (a claim device is its own), or null when unclaimed.</summary>
+    ClaimDevice? Base { get; }
+}
+
+/// <summary>
 /// Why the building rules took a piece, door or claim device away (on the removed events): destroyed, collapsed, decayed
 /// and demolished are the zone's Destroyed event (GROUND.md §6.4.2); taken is not (picked up, or a client's copy
 /// following the server).

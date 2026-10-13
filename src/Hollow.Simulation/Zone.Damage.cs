@@ -18,14 +18,14 @@ namespace Hollow.Simulation;
 internal readonly record struct RayQuery(Vector3 Origin, Vector3 Direction, float Length, float Thickness, EntityId Ignore, double ViewTick, bool Bullet)
 {
     /// <summary>Puts a candidate at <paramref name="t"/> along the ray into <paramref name="best"/> when nearer (a tie keeps the first found).</summary>
-    public void Consider(ref TraceHit best, float t, HitTarget target, TraceHit candidate)
+    public void Consider(ref TraceHit best, float t, HitTarget target, in TraceHit candidate)
     {
         if (t >= 0 && (best.Distance < 0 || t < best.Distance))
         {
-            candidate.Distance = t;
-            candidate.Target = target;
-            candidate.Point = Origin + Direction * t;
             best = candidate;
+            best.Distance = t;
+            best.Target = target;
+            best.Point = Origin + Direction * t;
         }
     }
 

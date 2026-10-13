@@ -2090,7 +2090,15 @@ and one receiver class in each domain's own file.
 
 **A new damageable thing** (a vehicle, a monument's door) is one class implementing `IDamageReceiver` (how to find it
 along a ray and in a blast's reach, its defences, its consequences) and one `Register` line; no delivery changes. A new
-delivery (a flamethrower, a vehicle's impact) builds requests and calls `Damage`; no receiver changes.
+delivery (a flamethrower, a vehicle's impact) builds requests and calls `Damage`; no receiver changes. Within the
+building, pieces, doors and claim devices share `IBuildingPart` (ID, gone, the claim device of their base) and one
+`BuildingWorld.Damage`.
+
+**Cost.** The gunfight and raid load tests (§5.3, §5.5), the code before and after run back to back on the owner's PC
+while four other agents worked (so slower than §5's): gunfight tick 6.35 ms before and 5.49 ms after on average (99th
+percentile 16.2 and 12.2 ms), a bullet's step 29.0 and 27.4 µs; raid 7.17 and 7.75 ms (15.4 and 21.7 ms) with a fifth
+more bullets in the second run, a bullet's step 16.6 and 16.5 µs, explosives and blasts 0.095 and 0.087 ms a tick. No
+change beyond the PC's noise.
 
 **What changed in behaviour** (numbers did not: every test that existed passes unchanged; the gunfight and raid load
 tests below): hit markers now say where the blow landed and with what for every kind (they said the attacker's eye for

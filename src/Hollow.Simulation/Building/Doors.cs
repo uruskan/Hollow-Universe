@@ -86,7 +86,7 @@ public sealed class CodeLock : DoorLock
 /// upgraded. Its leaves swing on the hinges from the kit's assembly manifest; open or shut they collide, so an open
 /// door still blocks (RustMVP's rule).
 /// </summary>
-public sealed class Door
+public sealed class Door : IBuildingPart
 {
     internal uint[] Bodies;
 
@@ -122,6 +122,9 @@ public sealed class Door
     public DoorLock? Lock { get; internal set; }
 
     public bool Gone { get; internal set; }
+
+    /// <summary>The claim device of its frame's structure, or null.</summary>
+    public ClaimDevice? Base => Frame.Structure?.Claim;
 
     /// <summary>Its leaves' Jolt body IDs.</summary>
     public IReadOnlyList<uint> BodyIds => Bodies;

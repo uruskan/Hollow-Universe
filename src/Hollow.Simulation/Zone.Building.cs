@@ -249,14 +249,7 @@ public sealed partial class Zone
         }
         try
         {
-            DamageResult result = part switch
-            {
-                Piece piece => building.Damage(piece, hit, BuildingNow),
-                Door door => building.Damage(door, hit, BuildingNow),
-                ClaimDevice device => building.Damage(device, hit, BuildingNow),
-                _ => default,
-            };
-            return (float)result.Loss;
+            return part is IBuildingPart p ? (float)building.Damage(p, hit, BuildingNow).Loss : 0;
         }
         finally
         {
@@ -361,18 +354,11 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            object? part = r.Hit.Building;
-            if (zone.Building is not { } building || part == null || Gone(part) || part is Piece { Collapsing: true })
+            if (zone.Building is not { } building || r.Hit.Building is not IBuildingPart part || part.Gone || part is Piece { Collapsing: true })
             {
                 return default;
             }
-            ClaimDevice? claim = part switch
-            {
-                Piece piece => piece.Structure?.Claim,
-                Door door => door.Frame.Structure?.Claim,
-                ClaimDevice device => device,
-                _ => null,
-            };
+            ClaimDevice? claim = part.Base;
             bool explosive = r.Channel == DamageType.Explosive;
             double amount = r.Amounts.Building;
             if (r.Blast is { } table && part is Piece or Door)
@@ -393,7 +379,7 @@ public sealed partial class Zone
             }
             (double lost, bool destroyed) = explosive
                 ? zone.DamageStructure(part, amount, r.Direction, zone.BuildingNow)
-                : (zone.DamageBuilding(part, r.Direction, (float)amount, projectile: r.Channel != DamageType.Melee), Gone(part));
+                : (zone.DamageBuilding(part, r.Direction, (float)amount, projectile: r.Channel != DamageType.Melee), part.Gone);
             zone.RaidStats.StructureDamage += (long)Math.Round(lost);
             if (destroyed)
             {
@@ -416,18 +402,8 @@ public sealed partial class Zone
                     raids.Report(zone, r.By?.Id ?? EntityId.None, r.By?.Name ?? "", r.Weapon);
                 }
             }
-            return new DamageOutcome(true, (float)lost, (float)lost, destroyed, false, IdOf(part));
+            return new DamageOutcome(true, (float)lost, (float)lost, destroyed, false, part.Id);
         }
-
-        private static bool Gone(object part) => part is Piece { Gone: true } or Door { Gone: true } or ClaimDevice { Gone: true };
-
-        private static EntityId IdOf(object part) => part switch
-        {
-            Piece piece => piece.Id,
-            Door door => door.Id,
-            ClaimDevice device => device.Id,
-            _ => EntityId.None,
-        };
     }
 
     // A demolition by a player with the hammer: what comes down is reported as theirs.
