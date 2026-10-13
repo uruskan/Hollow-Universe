@@ -477,16 +477,32 @@ skips spots near players and building pieces and announces what fires.
 
 ## 10. How monuments run in the game (Proposal)
 
+Monuments bring **no code paths of their own** (the owner's rule of 13 October 2026: one shared, data-driven system
+per concern, behaviour from capabilities in the data, no chains of special cases). Everything a monument holds is
+data that the ground game's shared systems already handle or will:
+
+| Monument data | Becomes | Through |
+|---|---|---|
+| Collision primitives (boxes, cylinders, hulls) | Static bodies | The same path as building pieces and props (a physics ID range for monuments) |
+| A marker `loot` with a `table` | A world object of the kind the table names (barrel, crate, military crate...) | The world-object registry: kinds and their capabilities in `world.json` (lootable, breakable, respawns) |
+| `door` with `chip` / `cell` | A door world object with a lock capability (chip tier, cell powered) | The shared interaction system (hold-E) |
+| `locker`, `recycler`, `vendor`, `research-table`, `workbench` | World objects of those kinds | Their capabilities, as for player-placed ones |
+| `ladder`, `light` | Climb volumes, lamps switched by power and states | Movement; the client's lights |
+| `guard`, `patrol`, `turret` | Spawn points for the guard system (M5) | The NPC system, when it exists |
+| Zones (`radiation`, `safe`, `no-build`, `arc`) | Area effects with their capability | One zone system: contamination dose, safe-zone rules, the claim device's build check |
+| The pad | Terrain height and material, cleared plants | `PlanetSurface` (§9.3) |
+
 | Part | What |
 |---|---|
-| Surface (`Hollow.Surface`) | `MonumentSites`: sites per tile and tier, pads, lines; `PlanetSurface.Sample` blends pads; materials and vegetation cleared |
+| Surface (`Hollow.Surface`) | `MonumentSites`: sites per tile and tier, pads, lines; `PlanetSurface.Sample` blends pads; materials and vegetation cleared. The kinds' pad shapes and placement rules are compiled into the code from the JSON by a tool (as `Hollow.NetGen` does for messages), so generation never depends on a data file loading (ARCHITECTURE.md §8.6) |
 | Data (`game/data/monuments`) | Each monument's JSON (§8.3) and `kit/*.json`; a table of kinds per tier and history |
-| Simulation (`Hollow.Simulation`) | `World/Monuments.cs`: static bodies from the JSON's collision near players (a physics ID range of their own); markers become world props (crates and barrels with their tables, lockers, doors with chip readers, recyclers); zones (contamination, safe, no-build) |
-| Server | Event scheduling (§9.4), guards (later), the safe zones' rules, what players changed (`prop_overrides` already covers looted crates) |
-| Client (`game/scripts/Ground`) | `MonumentsView`: loads a monument's GLB and its kit pieces when it comes within its farthest level's distance, places them in the zone frame, switches levels by distance, lights at night; the map names monuments |
-| Network | Monuments are generated on both sides, so only their props' state crosses the wire, as world props do now |
+| Simulation (`Hollow.Simulation`) | Monument sites near players become static bodies and world objects through the shared systems above; a site's objects are named by the site's ID and the marker's index, so nothing is stored until a player changes one |
+| Server | Event scheduling (§9.4) and guards (M5), through the same systems |
+| Client (`game/scripts/Ground`) | One view that draws monuments: a monument's GLB and kit pieces when within its farthest level's distance, placed in the zone frame, levels by distance, lights at night; the map names monuments |
+| Network | Monuments are generated on both sides, so only their objects' state crosses the wire, as for world props now |
 
----
+M3 starts when the owner has approved this document, and after the ground game's shared world-object work it
+depends on.
 
 ## 11. Steps
 
