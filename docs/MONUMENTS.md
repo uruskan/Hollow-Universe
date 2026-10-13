@@ -25,7 +25,7 @@ designed here but not built. None is in the game yet (§11, M3).
 | Rarity | By encounter rate, not by count: something small every few minutes on foot, a roadside site near every landing, a large monument on most colonised worlds, a landmark every few systems, wonders only through leads (§4). | Proposal |
 | Where | A pure function of the planet (seed, body, history and terrain), so every server and client agrees without storing anything (§9). Only what players change is stored. | Decided (ARCHITECTURE.md §7–8) |
 | Random sites | Events (crashes, drops, surges, quakes...) come from a hash of the place and a time window, so they are deterministic too and the server stays authoritative (§6). | Proposal |
-| Lore | The ruins of the Seedward Authority, whose automated fleets prepared thousands of worlds for colonists before the Quiet cut the relays three centuries ago (§3). | Proposal |
+| Lore | The ruins of a great human civilisation that spread across the galaxy and vanished; nobody knows why (§3, LORE.md). | Decided |
 | Build | Blender scripts in `art/monuments` build every monument from a shared kit and its own geometry, at three levels of detail, with collision and gameplay markers, into GLB and JSON (§8). | Proposal |
 
 ---
@@ -44,7 +44,7 @@ Monuments are where the ground game's progression lives (GAME_DESIGN.md pillar 4
    recycling, rumours (§5.4).
 5. **Reasons to travel.** Landmarks and wonders hold what home doesn't: unique blueprints, ship parts, rare materials.
    They are worth a flight to another planet or system (GAME_DESIGN.md §7, "special loot").
-6. **The world's history.** Every ruin says who was here and what went wrong (§3), so worlds differ.
+6. **The world's past.** Every ruin shows what it was and how it fell (LORE.md §6), so worlds differ.
 
 What each source taught us (§13 has the research):
 
@@ -57,34 +57,12 @@ What each source taught us (§13 has the research):
 
 ---
 
-## 3. Lore: why the galaxy is full of ruins (Proposal)
+## 3. Lore
 
-The game is named Hollow for a reason: the galaxy players fly into is full of what someone else left.
-
-- **The Seedward Authority** sent automated seeder fleets ahead of its colonists, to thousands of worlds within a few
-  thousand light-years of Sol. The seeders built what colonists would need: power grids, survey relays, landing
-  fields, mines, water works, terraforming towers, research stations, and on the best worlds whole colony towns.
-- **The Quiet.** About three centuries ago the relay network went silent. Nobody knows why. Colony fleets stopped
-  coming; the colonies that existed starved or scattered; ships in transit fell or drifted. The machines kept running
-  until they broke, and some still run.
-- **Wardens** are Seedward's automated security: turrets, drones, tracked crawlers and gunships that still guard what
-  they were told to guard. They are the monuments' machines (Rust's scientists and its armoured patrols, in kind).
-- **Reclaimers** are the descendants of stranded colonists: scavenger clans who strip the ruins, wear what protects
-  them from the contamination, and fight anyone who competes. They are the monuments' people. One clan keeps a neutral
-  market (§5.4).
-- **The Bulwark** was Seedward's military arm: garrisons, redoubts, launch sites and the warships that fell.
-- **Players** are the second wave, arriving on their own with Tin Finches and nothing else.
-
-**Visual families**, so a ruin says who built it:
-
-| Family | Look | Where |
-|---|---|---|
-| Seedward civil | Off-white and pale grey plating, safety orange and deep teal bands, rounded corners, stencilled codes, big louvres | Grids, relays, water, power, terraforming, labs |
-| Seedward industrial | Concrete (board-formed), painted steel frames, corrugated cladding, yellow rails, hazard stripes | Mines, smelters, yards, ports |
-| Bulwark | Olive and grey, armoured concrete, gun ports, revetments, sandbags | Garrisons, redoubts, launch complexes, warships |
-| Colonist | Prefab hab cans, domes and greenhouses, solar fields, wind turbines, hand-painted signs | Homesteads, colony towns, camps |
-| Reclaimer | Scrap walls, tarps, welded sheet, graffiti, lights strung on cables | Their camps, and their work at every ruin |
-| Ships | Panelled hull plating, ribs and decks exposed where it broke, burnt patches | Wrecks of every size |
+The lore is [LORE.md](LORE.md): a great human civilisation spread across the galaxy and vanished, nobody knows why,
+and the monuments are what it left. No factions, no history, no aliens. LORE.md §5 says who guards the monuments
+(Reclaimers, people; Wardens, machines) and §6 gives the visual families, so a ruin says what it was. The history
+this section first proposed (Seedward, the Quiet, the Bulwark) is retired (LORE.md §7).
 
 ---
 
@@ -131,8 +109,8 @@ Each landable body gets a **history** from its physical state (GALAXY.md §10.3)
 | **Industrial** | Metal-rich rocky worlds, big moons | Mines, smelters, bores, mass drivers, yards; few towns |
 | **Outpost** | Any landable body near a settled system | Roadside and small sites, a landing field, a relay, crash sites |
 | **Research** | Ice worlds, odd chemistry, near neutron stars and white dwarfs | Research outposts, ice stations, uplinks, anomalies |
-| **Fortress** | Rare; worlds the Bulwark held | Garrisons, redoubts, launch complexes, warship wrecks |
-| **Battlefield** | Rare; where the Quiet turned to war | Wrecks everywhere, craters, ruined towns, heavy contamination |
+| **Fortress** | Rare; worlds the old military held | Garrisons, redoubts, launch complexes, warship wrecks |
+| **Battlefield** | Rare; worlds that ended in fighting | Wrecks everywhere, craters, ruined towns, heavy contamination |
 | **Untouched** | Most of the galaxy | Only natural sites, crash sites and events |
 
 This is how GAME_DESIGN.md's rule "rare monuments depend on the type of star and planet" works.
@@ -197,7 +175,7 @@ crate); **guards**: Reclaimers (people) and Wardens (machines).
 | 33 | **Landing Field** | 400 × 250 m | Flat ground | Pads, two hangars, a control tower, a fuel farm, a crashed lander | Ship parts and fuel; cyan room in the tower *Built: `landing_field.py`* | Rust's airfield |
 | 34 | **Drainage Works** | 150 × 100 m (and under) | Below towns | A pumping station over storm drains; a parkour route through the drains | An amber-chip puzzle underground; recycler *Built: `drainage_works.py`* | Rust's sewer branch |
 | 35 | **Detention Block** | 220 × 220 m | Remote | A walled penal compound, cell blocks, guard towers, a yard | Reclaimers; cells as loot rooms; violet room in the warden's office *Built: `detention_block.py`* | — |
-| 36 | **Reclaimer Camp** (safe) | 200 × 150 m | Swamps, forests | The clans' market in a scrap-walled ruin: stalls, a gambling wheel, a bar | Safe zone; trades, gambling, a recycler; hostile to the hostile (§7.4) *Built: `reclaimer_camp.py`* | Rust's bandit camp |
+| 36 | **Reclaimer Camp** (safe) | 200 × 150 m | Swamps, forests | A Reclaimers' market in a scrap-walled ruin: stalls, a gambling wheel, a bar | Safe zone; trades, gambling, a recycler; hostile to the hostile (§7.4) *Built: `reclaimer_camp.py`* | Rust's bandit camp |
 | 37 | **Exchange** (safe) | 250 × 200 m | Near the landing site of each zone | A repurposed depot under Warden turrets that enforce the peace | Safe zone; vendors, recycler, research table, workbench, drone market (later) *Built: `exchange.py`* | Rust's outpost |
 
 ### 5.4 Large (L) — 10
@@ -208,8 +186,8 @@ crate); **guards**: Reclaimers (people) and Wardens (machines).
 | 39 | **Launch Complex** | 700 × 500 m, tower 140 m | Flat plains, coasts | A rocket on its service tower, an assembly hall, a propellant farm, a bunker | Vault crates at the top of the tower; contamination 3; a **Sentinel Crawler** patrols (§7.3). *Built: `launch_complex.py`* | Rust's launch site |
 | 40 | **Freight Yard** | 700 × 300 m | On rail lines | Rail yard with gantry cranes, sheds, wagons, a signal tower, an engine shed | Cyan room; crates in wagons; recycler. *Built: `freight_yard.py`* | Rust's train yard |
 | 41 | **Water Works** | 400 × 300 m | Rivers | Settling basins, filter halls, pump houses, a water tower | Cyan room; recycler. *Built: `water_works.py`* | Rust's water treatment plant |
-| 42 | **Mountain Redoubt** | 300 m front, tunnels 600 m deep | Cliffs | A Bulwark fortress cut into a cliff: gun ports, blast doors, tunnels, a command bunker | Heavy Reclaimers inside; military and vault crates; violet room. *Built: `mountain_redoubt.py`* | Rust's military tunnels |
-| 43 | **Frigate Wreck** | 420 m hull in two halves (240 and 180 m), 93 m tall; site 700 × 260 m | Plains, deserts, seabeds | A Bulwark frigate broken in two, half-buried, burnt; halves 300 m apart | Ship parts (only source of some); Reclaimers nest inside; contamination 2 in the drive section. *Built: `frigate_wreck.py`* | Dune's named shipwrecks |
+| 42 | **Mountain Redoubt** | 300 m front, tunnels 600 m deep | Cliffs | An old military fortress cut into a cliff: gun ports, blast doors, tunnels, a command bunker | Heavy Reclaimers inside; military and vault crates; violet room. *Built: `mountain_redoubt.py`* | Rust's military tunnels |
+| 43 | **Frigate Wreck** | 420 m hull in two halves (240 and 180 m), 93 m tall; site 700 × 260 m | Plains, deserts, seabeds | An old warship broken in two, half-buried, burnt; halves 300 m apart | Ship parts (only source of some); Reclaimers nest inside; contamination 2 in the drive section. *Built: `frigate_wreck.py`* | Dune's named shipwrecks |
 | 44 | **Colony Ruins** | 600 × 500 m | Coasts, river valleys | A ruined prefab town: streets, blocks, a plaza, a clinic, burnt cars | Many low-tier crates; contamination 1–3 by street; Reclaimers. *Built: `colony_ruins.py`* | Rust's radtown |
 | 45 | **Ore Smelter** | 500 × 300 m | Near mines | Crushers, conveyors, blast furnaces, slag heaps, a rail spur | Refined metal makings; cyan room; heat hazard. *Built: `ore_smelter.py`* | — |
 | 46 | **Bucket-Wheel Pit** | 800 m pit, machine 120 m | Ore-rich plains | A huge bucket-wheel excavator in an open pit, its boom over the face | Fill with fuel and it digs (a slow, loud, contested producer of ore); vault crates on the machine. *Built: `bucket_wheel_pit.py`* | Rust's giant excavator |
@@ -223,21 +201,21 @@ The huge ones. One per old region at most, each a destination of its own.
 |---|---|---|---|---|---|
 | 48 | **Atmosphere Processor** | Works 1.3 km across, tower 860 m | Plains and plateaus of colonised worlds | A terraforming tower on four 330 m buttresses, intake halls at its foot, galleries every 150 m, an elevator spine, a crown of red lamps. A walled works round it | The climb: a vertical dungeon to the crown, with rest galleries; contamination 4 inside; vault crates at the top; the crown reveals every site within 100 km. *Built: `atmosphere_processor.py` (crown of emitter vanes and a mast to 1,005 m)* |
 | 49 | **Tether Anchor** | Station 1.2 km, cable 40+ km | Equator (elevators need it) | A space elevator's ground station; its snapped tether lies across the land for tens of kilometres, buildings crushed under it | The station (L-size inside) and the cable itself: a line of sites along it; climbing the stump. *Built: `tether_anchor.py` (stump 470 m; the cable laid from kit pieces `tether-segment` and `tether-segment-torn`)* |
-| 50 | **Grounded Colony Ship** | 2.4 km, three pieces | Plains, deserts | A colony ship that came down in the Quiet, broken in three, a furrow kilometres long | A dungeon of decks and holds (cryo bays, farms, the bridge); only source of the best schematics. *Built: `colony_ship.py` (pieces 640, 960 and 690 m; hull 150-170 m tall; radiator sails to 230 m)* |
+| 50 | **Grounded Colony Ship** | 2.4 km, three pieces | Plains, deserts | A colony ship that came down at the end, broken in three, a furrow kilometres long | A dungeon of decks and holds (cryo bays, farms, the bridge); only source of the best schematics. *Built: `colony_ship.py` (pieces 640, 960 and 690 m; hull 150-170 m tall; radiator sails to 230 m)* |
 | 51 | **Deep Bore** | Shaft 1 km across | Mountains of metal-rich worlds | A planetary drill rig over a shaft 1 km across, spiral haul roads down | Descend for ore and the rig's vault; contamination rises with depth. *Built: `deep_bore.py` (headframe crown 520 m; rim, collar and the haul road's top two turns modelled, the pit itself is terrain)* |
 | 52 | **Mass Driver** | 8 km rail, halls 600 m | Up a mountainside | An electromagnetic launch rail climbing a mountain, capacitor halls at its foot, a cradle on the rail | A line of sites; the capacitor halls are a violet monument; restarting it is a server event. *Built: `mass_driver.py` (the halls and the first 1.5 km; the line continues from kit pieces `driver-rail`, `driver-pylon`, `driver-pylon-section`)* |
 | 53 | **Great Dam** | 700 m wide, 180 m tall | Mountain valleys | A concrete arch dam with a powerhouse and spillways, the reservoir behind | Powerhouse (L-size), galleries inside the dam, a crawler on the crest. *Built: `great_dam.py` (crest about 750 m; the valley walls, reservoir and river are drawn only in its look-dev renders)* |
-| 54 | **Arcology** | 600 m base, 400 m tall | Old colony capitals | A ziggurat megablock of the old colony, terraces overgrown | A city in one building: floors of loot, Reclaimer clans by level, the top. *Built: `arcology.py` (ten tiers to 400 m, crown to 525 m, the ruined capital round it)* |
+| 54 | **Arcology** | 600 m base, 400 m tall | Old colony capitals | A ziggurat megablock of the old colony, terraces overgrown | A city in one building: floors of loot, Reclaimers by level, the top. *Built: `arcology.py` (ten tiers to 400 m, crown to 525 m, the ruined capital round it)* |
 | 55 | **Ring Fall** | Debris field 10 km | Wherever it fell | A kilometre-long piece of an orbital station lying across the land, debris for kilometres | Ship and station parts; a wreck of wrecks. *Built: `ring_fall.py` (fragment 1 km; the stump of a spoke stands to about 510 m; debris within 2 km)* |
 
 ### 5.6 Wonders (W) — 4
 
 | # | Monument | What |
 |---|---|---|
-| 56 | **The Vault** | A sealed Seedward archive in a mountain, one per colonised world at most. Its door takes a set of tokens from the planet's landmarks; inside, the best loot of the planet and blueprints found nowhere else. |
+| 56 | **The Vault** | A sealed archive of the old civilisation in a mountain, one per colonised world at most. Its door takes a set of tokens from the planet's landmarks; inside, the best loot of the planet and blueprints found nowhere else. |
 | 57 | **Command Spire** | The administrative citadel of an old colony: the place its last records are kept. Logs here point to wonders on other worlds (leads, §7.8). |
-| 58 | **Quiet Beacon** | A relay that still transmits after three centuries. Reaching it reveals every monument on the planet's map; the signal can be heard from orbit. |
-| 59 | **Anomaly** | Something the Seedward didn't build. **Open**: whether the game has anything not human. |
+| 58 | **Quiet Beacon** | A relay that still transmits. Reaching it reveals every monument on the planet's map; the signal can be heard from orbit. |
+| 59 | **Anomaly** | Something nobody can explain. Nothing in the game is alien (LORE.md §2), so it is the old civilisation's own work, such as a failed experiment, or it goes. **Open** (LORE.md §8). |
 
 ### 5.7 Orbital (O) — 5
 
@@ -346,7 +324,7 @@ closing) and a **weapon** (contaminated water players can use against raiders).
 |---|---|---|
 | **Reclaimers** | Human scavengers in hazard gear with guns; patrol and hold rooms; respawn | Medium and large sites, wrecks, ruins |
 | **Reclaimer heavies** | Armoured, with heavy weapons | Redoubts, wrecks, sealed-crate events |
-| **Warden turrets** | Automated guns on posts and walls | Seedward sites; the Exchange (peacekeepers) |
+| **Warden turrets** | Automated guns on posts and walls | Old civil and industrial sites; the Exchange (peacekeepers) |
 | **Warden drones** | Flying, light | Research outposts, landmarks |
 | **Sentinel Crawler** | A tracked armoured Warden with a cannon and rockets | Launch Complex, landmarks |
 | **Warden Gunship** | A flying gunship | Patrols (E3) |
@@ -384,7 +362,7 @@ somewhere in the region. Leads are items, so they can be traded.
 
 ### 7.9 The old grid
 
-The Seedward's power grid is a system of its own, after Rust's 2026 grid: a goal a whole server cares about, and the
+The old civilisation's power grid is a system of its own, after Rust's 2026 grid: a goal a whole server cares about, and the
 reason the leftover substations matter.
 
 - **Sources:** a region's Fusion Plant (or Great Dam) can be restarted: heavy cells into its reactor hall, a sequence of
@@ -394,7 +372,7 @@ reason the leftover substations matter.
   again, cutting everything beyond.
 - **What power does:** lamps light at powered monuments (the sky line of a region shows who holds the grid); extra loot
   rooms open (one per medium and large site, behind powered doors); recyclers there run faster; lifts and cranes work
-  (the tower climbs get shorter); Wardens wake at powered Seedward sites. Players can also draw power from a powered
+  (the tower climbs get shorter); Wardens wake at powered old sites. Players can also draw power from a powered
   line for their bases.
 - **Surges** (E5) are the grid waking on its own for a few minutes somewhere, which is how players find out the grid
   exists.
@@ -584,8 +562,9 @@ depends on.
 
 ## 12. Open questions
 
-1. The names (Seedward, the Quiet, Wardens, Reclaimers, chips) are proposals; the owner may rename anything.
-2. Is there anything not human in the galaxy (§5.6, the Anomaly)?
+1. The names (Wardens, Reclaimers, chips) are proposals; the owner may rename anything. Seedward, the Quiet and the
+   Bulwark are retired (LORE.md §7).
+2. Nothing in the galaxy is not human (LORE.md, decided 13 October 2026); what the Anomaly becomes is open (§5.6).
 3. Planet epochs that re-roll buried sites (§6): wanted, and how long a cycle?
 4. Do safe zones exist on every colonised world, or only near the starting region?
 5. The exact component families per monument family (§7.7).

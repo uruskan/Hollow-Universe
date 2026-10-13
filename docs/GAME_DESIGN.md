@@ -25,6 +25,10 @@ Think of Elite Dangerous's galaxy and flight, with the ground game of Rust: base
 full-loot PvP. Add the planets and exploration of No Man's Sky and Astroneer, and crafting progression like
 Dune: Awakening.
 
+The setting is as simple as Rust's (Decided, [LORE.md](LORE.md)): a great human civilisation spread across the
+galaxy and vanished, nobody knows why, and the monuments are what it left. Nobody knows who the players are. No
+factions, no aliens, no magic; technology is Rust's a step further, built from scrap.
+
 ---
 
 ## 2. Pillars
@@ -60,7 +64,7 @@ Dune: Awakening.
 | Travel inside a system | Supercruise between bodies; drop to normal space near a target. | Decided |
 | Planets | Procedural spherical planets you can land on, with biomes on worlds that have atmospheres. | Decided |
 | Which bodies are landable | Every body with a solid surface of rock or ice (not giants or global oceans). Its physical state (air, temperature, gravity, life) and hazards (GALAXY.md §10.3) decide what it takes to survive there. | Proposal |
-| Where players start | A populated region around Sol (like Elite's bubble). | Proposal |
+| Where players start | Around Sol. Nothing there is alive any more, as nowhere is (LORE.md §2). | Proposal |
 | Rarity | Rare resources and monuments depend on the type of star and planet (for example, rich metals on metal-rich worlds, exotic materials near neutron stars). They're spread across the whole galaxy, not concentrated in a few systems. | Decided |
 | Monuments | Special sites on certain planets that hold special loot and are dangerous to run. | Decided |
 | Universe time | Real time: planets orbit and rotate continuously, the same for everyone. Whether rotation is compressed so days on the ground are short enough to play is open (GROUND.md §11). | Proposal |
