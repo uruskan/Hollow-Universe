@@ -137,9 +137,11 @@ public sealed partial class Zone
         if (Content.Loot(s.RespawnKitKey) is { } kit)
         {
             var rng = new Rng(Hash64.Of(p.Id.Value, (ulong)Tick));
+            // On the belt, as in Rust: a new life starts with the rock and the torch in the hotbar.
+            var beltFirst = new[] { p.Inventory.Belt, p.Inventory.Main };
             foreach (ItemAmount a in kit.Roll(ref rng))
             {
-                p.Inventory.Give(Content, a.Item, a.Count);
+                InventoryRules.AddTo(Content, beltFirst, ItemStack.Of(a.Item, a.Count));
             }
         }
     }

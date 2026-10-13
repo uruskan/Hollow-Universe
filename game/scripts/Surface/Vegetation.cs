@@ -210,9 +210,10 @@ public sealed partial class Vegetation : Node3D
                 }
             }
         }
+        ApplyNear();
         if (_nearMissing == 0 && (Vector3D.Distance(camera, _nearCentre) > RebuildDistance || _nearDirty))
         {
-            BuildNear(nearTiles, camera);
+            RebuildNear(nearTiles, camera);
         }
         if (_impostors != null)
         {

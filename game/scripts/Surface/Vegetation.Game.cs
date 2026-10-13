@@ -29,6 +29,127 @@ public sealed partial class Vegetation
     private ScatterKind DrawnKind(TileKey tile, in ScatterItem item) => Changes == null ? item.Kind : Changes(tile, item);
 
     /// <summary>
+    /// Set by the ground game: the meshes near the camera are then rebuilt on a worker thread (10–15 ms of work every
+    /// 8 m walked and whenever the game changes a plant), and the old ones show until the new are ready. It returns
+    /// <see cref="Changes"/> frozen as they are when a rebuild starts: a function safe to call from another thread.
+    /// Null: rebuilt on the main thread, as the planet viewer does.
+    /// </summary>
+    public Func<Func<TileKey, ScatterItem, ScatterKind>>? ChangesSnapshot { get; set; }
+
+    /// <summary>How many times the meshes near the camera were put in place (the game notes it when measuring).</summary>
+    public int NearBuilds { get; private set; }
+
+    private Task<NearData>? _nearJob;
+
+    private sealed record NearData(Vector3D Anchor, Dictionary<(FloraLibrary.Variant, int), float[]> Buffers, int Count);
+
+    private void RebuildNear(List<TileKey> tiles, Vector3D camera)
+    {
+        if (ChangesSnapshot == null)
+        {
+            BuildNear(tiles, camera);
+            NearBuilds++;
+            return;
+        }
+        if (_nearJob != null)
+        {
+            return; // one at a time: what asked for this one is still there when it lands
+        }
+        _nearCentre = camera;
+        _nearDirty = false;
+        Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();
+        var list = new List<TileKey>(tiles);
+        Vector3D anchor = _frame.Origin;
+        _nearJob = Task.Run(() => NearBuffers(list, camera, anchor, kinds));
+    }
+
+    // Puts a finished worker build in place (on the main thread: the upload of the buffers).
+    private void ApplyNear()
+    {
+        if (_nearJob is not { IsCompleted: true } job)
+        {
+            return;
+        }
+        _nearJob = null;
+        if (!job.IsCompletedSuccessfully)
+        {
+            _nearDirty = true;
+            return;
+        }
+        NearData data = job.Result;
+        _nearAnchor = data.Anchor;
+        foreach (((FloraLibrary.Variant, int) key, Set set) in _sets)
+        {
+            set.Buffer.Clear();
+            if (data.Buffers.TryGetValue(key, out float[]? buffer))
+            {
+                set.Buffer.AddRange(buffer);
+            }
+            Fill(set);
+        }
+        MeshInstances = data.Count;
+        NearBuilds++;
+    }
+
+    // On a worker: what BuildNear lays out, into buffers of its own.
+    private NearData NearBuffers(List<TileKey> tiles, Vector3D camera, Vector3D anchor, Func<TileKey, ScatterItem, ScatterKind> kinds)
+    {
+        var buffers = new Dictionary<(FloraLibrary.Variant, int), List<float>>();
+        List<float> Buffer(FloraLibrary.Variant variant, int lod)
+        {
+            if (!buffers.TryGetValue((variant, lod), out List<float>? b))
+            {
+                buffers[(variant, lod)] = b = new List<float>();
+            }
+            return b;
+        }
+        int count = 0;
+        double margin = 2 * RebuildDistance;
+        foreach (TileKey key in tiles)
+        {
+            if (!_full.TryGetValue(key.Packed, out List<ScatterItem>? items))
+            {
+                continue;
+            }
+            foreach (ScatterItem item in items)
+            {
+                FloraLibrary.Species? species = _library!.For(kinds(key, item));
+                if (species == null || species.Variants.Count == 0)
+                {
+                    continue;
+                }
+                Vector3D body = item.Position(_surface.Radius);
+                double d = Vector3D.Distance(body, camera);
+                FloraLibrary.Bands bands = species.Bands;
+                if (d > bands.Far + margin)
+                {
+                    continue;
+                }
+                FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
+                float scale = item.Scale * species.Scale;
+                float sink = item.Kind == ScatterKind.Rock ? -0.12f * scale : -0.05f;
+                Transform3D t = InstanceTransform(item, body, anchor, scale, sink);
+                (float a, float b) = Shade(item);
+                if (d < bands.Near + margin)
+                {
+                    Append(Buffer(variant, 0), t, a, b, 0, 0);
+                }
+                if (d > bands.Near - FadeWidth - margin)
+                {
+                    Append(Buffer(variant, 1), t, a, b, 0, 0);
+                }
+                count++;
+            }
+        }
+        var arrays = new Dictionary<(FloraLibrary.Variant, int), float[]>(buffers.Count);
+        foreach (((FloraLibrary.Variant, int) key, List<float> b) in buffers)
+        {
+            arrays[key] = b.ToArray();
+        }
+        return new NearData(anchor, arrays, count);
+    }
+
+    /// <summary>
     /// Draws a scatter tile again after the game changed its objects: the meshes near the camera (<paramref name="near"/>,
     /// at the next update), and its impostor block (<paramref name="trees"/>: impostors are trees only). A block of
     /// twenty to thirty thousand impostors takes 30–50 ms to build, so a built one is rebuilt on a worker thread and

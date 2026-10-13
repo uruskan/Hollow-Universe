@@ -32,7 +32,7 @@ public partial class GroundTour : Node
 
     public GroundView View { get; set; } = null!;
 
-    /// <summary>Where the pictures go, or "guest" for the second client's part.</summary>
+    /// <summary>Where the pictures go (relative to game/, where Godot runs), or "guest" for the second client's part.</summary>
     public string Folder { get; set; } = "";
 
     /// <summary>The hosted server (admin commands), or null when joined.</summary>

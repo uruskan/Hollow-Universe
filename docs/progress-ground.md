@@ -79,3 +79,28 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   50 characters take 5.7 ms a frame. The clothing, the first-person hands and the melee swing aren't at the Rust bar
   yet, so the same agent is on a polish pass now. That pass also replaces the capsule players in the ground mode with
   real characters. 58 of 58 tests pass.
+
+## 13 October 2026, early morning
+
+- **G1 and G2 joined into one game on the first world** (`ground-integrate`):
+  - The server's zone is the planet's own ground at the landing site. New characters and the dead arrive on its real
+    beaches. The air follows the planet's climate and a day 24 times faster than real.
+  - Trees, bushes, ferns and boulders are the surface's own plants, with the same IDs on the server and the client.
+    Stone, metal and sulphur outcrops are new scatter kinds; nothing that was generated before moved.
+  - The client draws the planet package's world, the character package's bodies and first-person arms, and the RustMVP
+    interface over the real client, with Rust's keys. A felled tree falls and is gone; a picked bush is bare.
+  - `play-ground.cmd` builds and hosts a game; `play-ground.cmd join` joins one on 127.0.0.1; `--view ground` alone
+    opens the main menu.
+- **Measured** (GROUND.md §5.3), with 2 players and 50 bots at the landing site:
+
+  | Measure | Result |
+  |---|---|
+  | Frame, dedicated server | 12.3 ms average (81 fps), 16.7 ms at the 99th percentile |
+  | Frame, hosted | 12.7 ms average (79 fps), 19.0 ms at the 99th percentile |
+  | Server tick, 51 players | 6.8 ms average |
+  | Server tick, 100 survival bots (load test) | 11.7 ms average, 16.8 ms at the 99th percentile |
+
+- **Pictures:** `docs/images/ground/play/` (HUD, berries, inventory, crafting, the other player, a tree chopped and
+  gone, an outcrop, death, night by a fire, the menu).
+- **Placeholders** wait for the assets package behind small seams: outcrops, deployables, dropped items, some held
+  items and item icons. 83 of 83 tests pass.

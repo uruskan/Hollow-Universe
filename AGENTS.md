@@ -86,9 +86,14 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --position=-26,-21,26673
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view system --focus "Alpha Centauri" --shot acen.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --hour 10 --shot ground.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
-# The ground game's screenshot run (GROUND.md §5): a host that takes the pictures, and a second player that joins it.
-$GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --db /tmp/tour.db --hour 10 --tour docs/images/ground/play &
+# The ground game's screenshot run (GROUND.md §5.3): a host that takes the pictures, and a second player that joins it.
+# Paths are relative to game/, where Godot runs.
+$GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --spawn origin --db /tmp/tour.db --hour 10 --tour ../docs/images/ground/play &
 $GODOT --path game --resolution 1280x720 -- --view ground --name Bo --connect 127.0.0.1:27015 --hour 10 --tour guest
+# Frame time with a crowd (GROUND.md §5.3): start a server and bots, then measure 20 s once 45 others are in view.
+dotnet run -c Release --project src/Hollow.Server -- --spawn origin &
+dotnet run -c Release --project tools/Hollow.Bots -- --server 127.0.0.1:27015 --count 50 --script survive --duration 150 &
+$GODOT --path game --resolution 1600x900 -- --view ground --name Ada --connect 127.0.0.1:27015 --hour 10 --measure 20 --expect 45
 ```
 
 Playing the ground game (Windows, from the repository's root; GROUND.md §4.3):
@@ -133,7 +138,9 @@ Client options (after `--`):
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
   with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,death,night` (the screenshot run; `--tour guest` is
-  its second player). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
+  its second player), `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
+  time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
+  server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
   (with a deployable in hand: place it; with food or medicine: use it), right mouse aim or draw; E interact (hold it on
   a fire or furnace to light it or put it out); 1–6 belt; Tab inventory; Q crafting; Enter chat; Esc back, then the
   menu; F3 network graph; the death screen's buttons respawn. Chat lines starting with `/` are test commands when

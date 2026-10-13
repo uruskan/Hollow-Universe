@@ -95,11 +95,14 @@ public partial class ThingsView : Node3D
             ImageTexture flame = FlameTexture();
             _flame = new StandardMaterial3D
             {
+                // Black albedo: a flame only gives light. Black emission: the texture alone is the flame's colour
+                // (Godot adds the emission colour to the texture's).
                 AlbedoColor = new Color(0, 0, 0, 1),
                 AlbedoTexture = flame,
                 EmissionEnabled = true,
-                Emission = Colors.White,
+                Emission = Colors.Black,
                 EmissionTexture = flame,
+                TextureRepeat = false,
                 Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
                 BillboardMode = BaseMaterial3D.BillboardModeEnum.FixedY,
                 DisableReceiveShadows = true,
@@ -147,7 +150,7 @@ public partial class ThingsView : Node3D
             {
                 float u = MathF.Abs((x + 0.5f) / W - 0.5f);
                 float edge = half <= 0 ? 0 : Math.Clamp((half - u) / (half * 0.55f), 0, 1);
-                float a = edge * Math.Clamp((1 - v) * 1.6f, 0, 1);
+                float a = edge * Math.Clamp((1 - v) * 1.6f, 0, 1) * Math.Clamp(v / 0.1f, 0, 1);
                 var hot = new Color(1f, 0.92f, 0.62f);
                 var warm = new Color(1f, 0.55f, 0.12f);
                 var cool = new Color(0.85f, 0.18f, 0.04f);

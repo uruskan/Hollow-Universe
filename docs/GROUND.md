@@ -188,6 +188,12 @@ Godot.
     near the player for ragdolls and feet (`GroundCollision`).
   - **Interface:** the RustMVP interface (`GroundUi`, §8) over `ClientGroundUi`, names over other players (placed by
     `Labeller`), F3 for the network graph.
+  - **Steady frames** (measured with `--measure`, §5.3): everything the game may show is drawn once, tiny, while the
+    world opens, so the renderer never builds a pipeline in play (`GroundView.Warmup`); the plants near the camera are
+    rebuilt on a worker thread with the game's changes frozen when it starts (`Vegetation.ChangesSnapshot`), and so
+    are tree impostor blocks; changes farther than 25 m wait up to five seconds to be drawn together; scatter objects
+    are only looked up in tiles already generated (`ScatterNaturalObjects.TryGetCached`); the game runs with .NET's
+    sustained low-latency collector. A lost connection returns to the menu.
 
 ### 4.4 Network
 
@@ -284,7 +290,10 @@ Godot.
 - **Tile grids:** 32 × 32 cells, each quad split along the same diagonal at every level. Vertices also carry their
   position on the parent's grid, so the client morphs between levels without popping, plus eight ground-material
   weights and the climate. **Collision is built from the level-18 grids** (1.2 m spacing), exactly the vertices the
-  client draws near the player (`GroundCollision`; a test checks it).
+  client draws near the player (`GroundCollision`; a test checks it). Of the grids under a 64 m physics tile, the
+  physics keeps the triangles over the tile's square and 2 m around it, seen from the planet's centre
+  (`PhysicsWorld.ClipMargin`): the grids overlap the square by up to one of theirs, and the same ground twice costs
+  every contact query.
 - **Height**, in layers:
   - *Plates:* 14–20 plates (Voronoi on the sphere, seen through a warped direction so their edges bend), each
     continental or oceanic with its own Euler pole. Every plate near a point weighs in softly, and each boundary's
@@ -582,6 +591,76 @@ refused, none over budget). The world ended with 227 things (corpses, campfires,
 - **Prediction** stays exact while characters walk among solid trees, outcrops and deployables; the few corrections
   are at props, and respawns (more than 2 m) are counted apart.
 
+### 5.3 G1 and G2 as one game on the first world
+
+Measured on the owner's PC (RTX 2070 Super, 12 threads) on 13 October 2026, with other agents' builds, servers and
+bots running on it at the same time, so the worst frames and ticks vary from run to run.
+
+**Frame time** at the landing site, 1600 × 900, vsync off: the player, a second player (a headless client) and 50
+survival bots, all within 120 m, the player looking at them (`--measure 20 --expect 45`: 20 s once at least 45 others
+are in view; AGENTS.md has the commands).
+
+| | Alone, looking over the meadow | 2 players and 50 bots, dedicated server | 2 players and 50 bots, hosted (server in the game) | Target |
+|---|---|---|---|---|
+| Frame, average | 13.7 ms (73 fps) | 12.3 ms (81 fps) | 12.7 ms (79 fps) | 16.7 ms (60 fps) |
+| Frame, 99th percentile / worst | 16.7 / 28.6 ms | 16.7 / 53 ms | 19.0 / 139 ms | |
+| GPU | 12.7 ms | 10.3 ms | 10.2 ms | |
+| Server tick | 0.2 ms | 6.8 ms average, 8.5 ms most in the last 10 s | 8.5 ms average, 72 ms 99th percentile, 234 ms worst (8 of 592 over 33 ms) | ≤ 10 ms typical, ≤ 33 ms |
+
+- **60 fps is met** with others in view, hosted or not; with the dedicated server 99 % of frames make it. The GPU draws the terrain, sea, sky, about 4,000 plant meshes,
+  414,000 tree impostors, 45,000 grass tufts and the characters; looking at the crowd it has less of the meadow to
+  draw than alone.
+- **The worst frame** of each run is the first one after the player turns to the crowd (the first sight of fifty
+  bodies); in play the slowest frames are 20–33 ms: a garbage collection, or the body of a new corpse (a ragdoll, about
+  40 ms to make).
+- **Before the near plants were rebuilt on a worker thread** (§4.3), every change others made to the plants within
+  25 m, and every 8 m walked, cost the frame 10–15 ms: 14.6 ms average and 28 ms at the 99th percentile with the
+  dedicated server, 17.0 and 30 ms hosted.
+- **Hosting costs the server, not the frame**: the server in the game's process shares its garbage collections, so its
+  ticks stall when the game collects (decision 37). For a crowd, run the dedicated server.
+
+**Server tick on the planet** (load test, 100 survival bots with full inventories, as §5.2; 40 s measured):
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 40 --script survive --kit load-test-kit
+```
+
+| | The first world | Stand-in (§5.2) | Target |
+|---|---|---|---|
+| Server tick, average | 11.7 ms | 5.9 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 16.8 / 127 ms (6 of 1,202 over 33 ms) | 12.3 / 65.5 ms | ≤ 33 ms |
+| Ground tiles | 189 (73 built on demand) | | |
+| Prediction: mean / worst error, corrections | 0.06 / 243 mm, 75 in 80,100 | 0.007 / 183 mm, 6 | |
+| Bandwidth per client, down / up (60 s run, before clipping) | 62.5 / 21.0 kbit/s | 105 / 24 kbit/s | ≤ 256 kbit/s |
+
+- **The planet costs twice the stand-in**, nearly all of it in movement: characters' contact queries against the
+  planet's ground and its solid props (trees, outcrops, boulders: about 5,000 around the bots). Keeping only each
+  collision tile's own square (§4.6) took the average from 13.7 to 11.7 ms; it is above the 10 ms typical target with
+  100 players in one place, and well within budget for the 51 of the frame-time run.
+- **Down** is lower than on the stand-in: bots seeking trees and outcrops spread out, and each sees about 46 others
+  instead of 99.
+
+**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md):
+
+| Picture | What it shows |
+|---|---|
+| `menu.jpg` | The main menu over the landing site at dusk: PLAY, CONNECT with name, address and port, QUIT. |
+| `hud.jpg` | The HUD in the meadow by the landing site, a red berry bush ahead, the stone hatchet in hand. |
+| `berries.jpg` | The bush picked: bare, "+4 Red berries". |
+| `inventory.jpg` | The inventory: the player's own body in what they wear, the hatchet's panel, quick craft. |
+| `crafting.jpg` | Crafting: the stone hatchet's recipe, two wooden spears in the queue. |
+| `player.jpg` | The second player, dressed by the run, hatchet in hand, his name above him. |
+| `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
+| `outcrop.jpg`, `outcrop-broken.jpg` | A metal outcrop (placeholder lumps on the planet's boulder) and what is left after the pickaxe. |
+| `death.jpg` | The death screen over the map of the real coast. |
+| `night.jpg` | Night, by a lit campfire: the fire's own light on the grass. |
+
+**Judgement.** It plays as one game: arrive on a real beach, walk, swim and fall on the planet's ground, gather from
+its own trees, bushes, ferns and outcrops, craft, wear, cook, fight, die, loot bodies and respawn, with another player
+in view, by day and night, at 60 fps. What doesn't look finished yet: outcrops, deployables, dropped items and some held
+items are placeholders (§11, decision 42), bodies and sleepers fall as ragdolls with no sleeping pose, and a new body
+costs a frame.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -716,10 +795,11 @@ melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks an
 while the server is down) and is picked up with the interact key, as much as fits.
 
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
-ingredients, go into a corpse where the player fell (any number of slots), which anyone may take from but not put into;
+ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
+clothing 30–36; the queue's ingredients fill empty main slots, then follow), which anyone may take from but not put into;
 it goes when emptied or after 300 s of world time (Rust's corpse lifetime). The dead player chooses: a random beach point
 (no wait, as in Rust; survival.json can add one) or one of their own sleeping bags or beds that has cooled down. A new life has
-the spawn vitals, a rock and a torch. The beach points are the real coast's (`Beaches`, §4.2); on the stand-in ground
+the spawn vitals, and a rock and a torch on the belt (Rust). The beach points are the real coast's (`Beaches`, §4.2); on the stand-in ground
 "the beach" is a random point 15–60 m from the zone's origin.
 
 **Sleepers**: a player who logs off stays where they were, asleep (lying hit shapes), lootable and killable; looting a
@@ -926,7 +1006,7 @@ descriptions and stats come from items.json, the crafting tabs from categories.j
 `ItemIcons`: until the assets package renders them, `ItemIconAliases` maps items.json keys onto the placeholder
 drawings and adds a few. The inventory shows the player's own body in what they wear (`InventoryBody`, through
 `CharacterPreview.Body`), and the death screen the real ground around the landing site, 9.6 by 4 km (`ZoneMap`,
-through `DeathMap.Use`).
+through `DeathMap.Use`). Pictures of it in play are in §5.3.
 
 ### 8.2 Behaviour
 
@@ -1151,3 +1231,27 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
 35. **The stand-in stays for tests**: the old hilly sphere and its natural objects (`ZoneSpec.StandIn`,
     `ServerOptions.StandIn`) keep the network and survival tests plain and quick; the game, the dedicated server and
     the load test run on the planet.
+36. **Rust's hands**: the attack button places a held deployable and uses held food or medicine (Rust), so F, G and H
+    are gone; a tap of E acts, holding E on a fire or furnace lights it or puts it out (Rust's "more options"); the death
+    screen's buttons respawn (B is gone); Esc closes what is open, then opens the menu.
+37. **The host's server runs in the game's process** (as G1 built it), so a hosted game with many players shares its
+    garbage collections and CPU with the client (§5.3): fine for a few friends, a dedicated server for crowds.
+38. **Fires are lit with their real strength** next to the sun (about 5 lux at 2 m): invisible by day, as in life, and
+    the light of the camp by night, when the eye-like exposure is thousands of times higher. Glowing things (flames,
+    weak spots) are divided by the exposure, so they look as bright by day as by night.
+39. **What others change in the plants is drawn in batches**: within 25 m of the player at once, farther away every
+    5 s, tree impostors every 10 s; each is a rebuild of 10–15 ms on a worker thread while the old meshes show. A felled
+    tree tips over on its own model only within 150 m.
+40. **A body keeps its layout** (main, belt, clothing) as the loot panel shows one, and the furnace has the interface's
+    six slots (one fuel, two inputs, three outputs) instead of seven.
+41. **Sleepers lie down as ragdolls**, as the dead do: there is no sleeping pose yet. A corpse that comes into range
+    after its player died gets a fresh body (dressed as its player was last seen) that falls where it lies.
+42. **Placeholders behind seams** until the assets package lands: `GroundModels` (deployables, outcrops, dropped
+    items: shapes made in code, the outcrops from the planet's own boulder and rock material), `ItemIconAliases`
+    (items.json keys onto the interface's placeholder drawings), and in first person a plain stick for a torch, a spear
+    or the bow; the woven hood is drawn as the knit cap and gloves not at all.
+43. **Collision tiles keep only their square and 2 m around it** (§4.6): the load test's tick on the planet went from
+    13.7 to 11.7 ms; the stand-in's tiles are unchanged.
+44. **`--demo` is replaced by the screenshot run** (`--tour`), which plays the same moments on the real planet.
+45. **The respawn kit goes on the belt** (Rust): a new life starts with the rock and the torch in the hotbar; what is
+    gathered, crafted or given still fills the main inventory first.

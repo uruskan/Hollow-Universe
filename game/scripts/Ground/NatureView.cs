@@ -111,6 +111,30 @@ public partial class NatureView : Node3D
         }
         _hooked = true;
         plants.Changes = DrawnKind;
+        plants.ChangesSnapshot = FrozenKinds;
+    }
+
+    // What DrawnKind answers, frozen for a rebuild of the near plants on a worker thread: the objects the server says
+    // are gone (felled, picked) as they are now.
+    private Func<TileKey, ScatterItem, ScatterKind> FrozenKinds()
+    {
+        var gone = new HashSet<ulong>(_falling);
+        if (Client.Natural is { } state)
+        {
+            foreach (KeyValuePair<ulong, NaturalOverride> o in state.Overrides)
+            {
+                if (o.Value.Depleted)
+                {
+                    gone.Add(o.Key);
+                }
+            }
+        }
+        if (gone.Count == 0)
+        {
+            return static (_, item) => item.Kind;
+        }
+        return (tile, item) => !gone.Contains(ScatterNaturalObjects.IdOf(tile, item.Index)) ? item.Kind
+            : item.Kind is ScatterKind.BerryRed or ScatterKind.BerryBlue ? ScatterKind.Bush : Vegetation.NotDrawn;
     }
 
     // Felled trees and picked ferns aren't drawn; a picked berry bush is drawn bare (as a plain bush).
@@ -197,6 +221,7 @@ public partial class NatureView : Node3D
 
     private readonly Dictionary<ulong, double> _nearRedraw = new();
     private readonly Dictionary<ulong, double> _blockRedraw = new();
+    private int _nearBuilds;
 
     private static void Schedule(Dictionary<ulong, double> pending, ulong tile, double after)
     {
@@ -204,8 +229,8 @@ public partial class NatureView : Node3D
         pending[tile] = pending.TryGetValue(tile, out double was) ? Math.Min(was, due) : due;
     }
 
-    // Redrawing the plants rebuilds every mesh near the camera (about 10 ms), so every tile waiting is redrawn in one
-    // go once the first is due; impostor blocks likewise.
+    // Redrawing the plants rebuilds every mesh near the camera (10–15 ms on a worker thread), so every tile waiting is
+    // redrawn in one go once the first is due; impostor blocks likewise.
     private void RedrawPlants()
     {
         if (World.Plants is not { } plants)
@@ -213,6 +238,11 @@ public partial class NatureView : Node3D
             return;
         }
         plants.ApplyRefreshes();
+        if (plants.NearBuilds != _nearBuilds)
+        {
+            _nearBuilds = plants.NearBuilds;
+            FrameEvents.Note("plants in place");
+        }
         double now = Time.GetTicksMsec() / 1000.0;
         if (_nearRedraw.Count > 0 && _nearRedraw.Values.Min() <= now)
         {
