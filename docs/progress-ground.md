@@ -150,3 +150,16 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - damage by grade and side, aiming at Rust's raid costs;
   - line-of-sight shielding;
   - raid alerts to owners, online or offline, and offline raids that work.
+- **Character polish merged:**
+  - a proper crew-neck shirt with no skin showing in any pose;
+  - a riveted cuirass of our own design that reads as armour from a distance;
+  - natural first-person hands and grips;
+  - a real chop for tools, and weighty swings and reloads;
+  - blinking, ragdoll joint limits, no foot sliding;
+  - a female body.
+
+  Held items load from the shared catalogue. 102 of 102 tests pass.
+- **Effects and the last item models started** (`ground-fx`):
+  - muzzle flashes, tracers, impacts and decals per surface, blood, gathering chips;
+  - explosions from the PSG C4 flipbooks, and fire;
+  - real models for the three stand-ins and the G5 explosives and launcher.
