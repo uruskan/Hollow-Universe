@@ -72,6 +72,18 @@ public sealed class PersistenceWorker : IDisposable
     /// <summary>Things written so far.</summary>
     public long ThingsSaved { get; private set; }
 
+    /// <summary>Queues a notification for a player who is offline (G5: a raid alert), keeping at most <paramref name="keep"/> of theirs.</summary>
+    public Task QueueNotification(ulong player, byte kind, long createdAt, byte[] data, int keep) =>
+        Enqueue(db =>
+        {
+            db.QueueNotification(player, kind, createdAt, data, keep);
+            return true;
+        });
+
+    /// <summary>A player's waiting notifications (made at or after <paramref name="since"/>), taken from the queue: at login.</summary>
+    public Task<List<(byte Kind, long CreatedAt, byte[] Data)>> TakeNotifications(ulong player, long since) =>
+        Enqueue(db => db.TakeNotifications(player, since));
+
     /// <summary>Completes once everything queued before it is written.</summary>
     public Task Flush() => Enqueue(_ => true);
 

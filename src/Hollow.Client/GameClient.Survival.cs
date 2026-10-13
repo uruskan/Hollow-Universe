@@ -31,6 +31,9 @@ public enum InteractionKind : byte
 
     /// <summary>A wounded player: help them up (G4).</summary>
     HelpUp,
+
+    /// <summary>A dud explosive: light it again (G5).</summary>
+    Rearm,
 }
 
 /// <summary>Something within reach the interact key acts on, and how to say so ("E: Pick up Wood pile").</summary>
@@ -123,6 +126,7 @@ public sealed partial class GameClient
         Local.ClockSeconds = ClockSeconds;
         Local.WorkbenchLevel = WorkbenchNear();
         Local.Update();
+        UpdateRaid();
         double now = ClockSeconds;
         _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 8);
     }
@@ -370,6 +374,9 @@ public sealed partial class GameClient
                 }
                 return;
             }
+            default:
+                ReceiveRaid(type);
+                return;
         }
     }
 
@@ -464,6 +471,7 @@ public sealed partial class GameClient
                     remote.Position + Frame.UpAt(remote.Position) * 0.25f, 0.7f), InteractionKind.HelpUp, 0, remote.Id, "Help up", remote.Name);
             }
         }
+        AimAtDuds(eye, direction, range, (t, id, name) => Consider(t, InteractionKind.Rearm, 0, id, "Light", name));
         return best;
     }
 
@@ -523,6 +531,7 @@ public sealed partial class GameClient
         InteractionKind.PickNatural => Local.PickUpNatural(target.NaturalId),
         InteractionKind.PickItem => Local.PickUpItem(target.Entity),
         InteractionKind.HelpUp => Local.HelpUp(target.Entity),
+        InteractionKind.Rearm => Local.Rearm(target.Entity),
         _ => Local.Open(target.Entity),
     };
 

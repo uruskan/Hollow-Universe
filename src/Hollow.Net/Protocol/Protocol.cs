@@ -5,9 +5,9 @@ public static partial class Protocol
 {
     /// <summary>
     /// Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect. 4: G4, guns and the
-    /// wounded (3 is the integration package's).
+    /// wounded (3 is the integration package's). 5: G5, raiding (explosives, detonations, raid alerts).
     /// </summary>
-    public const uint Version = 4;
+    public const uint Version = 5;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

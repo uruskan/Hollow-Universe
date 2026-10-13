@@ -102,7 +102,7 @@ public static class RaidTests
             var soft = new int[counts.Length];
             // A fresh armoured foundation for each explosive: the splash it takes adds up over the trials.
             (float x, float z, double heading) = TestBases.Ring(spot++, walls.Length, 5.5f);
-            Piece foundation = world.AddFirst(world.FoundationAt(data.Piece("foundation")!, Ground(rig, x, z), heading)!.Frame, data.Piece("foundation")!, 4, 1, 0);
+            Piece foundation = world.AddFirst(TestBases.FrameOver(rig.Zone, data, data.Piece("foundation")!, Ground(rig, x, z), heading), data.Piece("foundation")!, 4, 1, 0);
             for (int g = 0; g < data.Grades.Count; g++)
             {
                 for (int side = 0; side < 2; side++)
@@ -141,7 +141,7 @@ public static class RaidTests
 
         // Blows care about the side: a stone wall takes 5% of a melee hit on its hard side and all of it on its soft side.
         (float fx, float fz, double fh) = TestBases.Ring(0, 1, 0);
-        Piece stone = On(world, world.AddFirst(world.FoundationAt(data.Piece("foundation")!, Ground(rig, fx, fz), fh)!.Frame, data.Piece("foundation")!, 2, 1, 0),
+        Piece stone = On(world, world.AddFirst(TestBases.FrameOver(rig.Zone, data, data.Piece("foundation")!, Ground(rig, fx, fz), fh), data.Piece("foundation")!, 2, 1, 0),
             new SocketId(SocketKind.Edge, 0), "wall", 2);
         Vector3 inward = -Vector3.Transform(Vector3.UnitZ, stone.ZoneTransform.Rotation);
         Assert.Equal(1f, rig.Zone.DamageBuilding(stone, inward, 10, projectile: false), "a 10-point blow on the hard side does ⌈0.5⌉");

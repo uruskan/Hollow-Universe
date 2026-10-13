@@ -86,12 +86,8 @@ public static class TestBases
         BuildingData data = world.Data;
         zone.Physics.EnsureGround(at);
         PieceDef foundationDef = data.Piece("foundation")!;
-        if (world.FoundationAt(foundationDef, at, heading) is not { } plan)
-        {
-            return null;
-        }
         double now = zone.BuildingNow;
-        Piece foundation = world.AddFirst(plan.Frame, foundationDef, grade, owner, now);
+        Piece foundation = world.AddFirst(FrameOver(zone, data, foundationDef, at, heading), foundationDef, grade, owner, now);
         var walls = new Piece[4];
         string[] keys = { "doorway", "wall", "wall", "wall" };
         for (int e = 0; e < 4; e++)
@@ -162,6 +158,27 @@ public static class TestBases
         // (south, +Z of the zone). Pointing it at the origin, (−x, −z): sin(h) = −x/r, cos(h) = −z/r.
         double heading = DMath.Atan2(-x, -z);
         return (x, z, heading);
+    }
+
+    /// <summary>
+    /// A foundation's frame over a zone point: up the planet's there, its top just above the highest ground under its
+    /// corners and centre (as the placement rules put it), from the surface itself rather than the collision tiles (Jolt's
+    /// rays straight down onto the tiles' meshes miss now and then; GROUND.md §11).
+    /// </summary>
+    public static BuildingFrame FrameOver(Zone zone, BuildingData data, PieceDef foundation, Vector3 at, double heading)
+    {
+        Vector3 ground = zone.GroundAt(at.X, at.Z);
+        Vector3 up = zone.Frame.UpAt(ground);
+        var upD = new Vector3D(up.X, up.Y, up.Z);
+        BuildingFrame probe = BuildingFrame.At(new Vector3D(ground.X, ground.Y, ground.Z), upD, heading);
+        double highest = 0;
+        var samples = new List<Vector3D>(PieceGeometry.Footprint(foundation.Shape, data.Width)) { Vector3D.Zero };
+        foreach (Vector3D sample in samples)
+        {
+            Vector3D p = probe.ToZone(sample);
+            highest = Math.Max(highest, -zone.HeightAboveGround(new Vector3((float)p.X, (float)p.Y, (float)p.Z)));
+        }
+        return BuildingFrame.At(probe.Origin + upD * (highest + data.FoundationClearance + 0.02), upD, heading);
     }
 
     private static void FitDoor(BuildingWorld world, Hut hut)

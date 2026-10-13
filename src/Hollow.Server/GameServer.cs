@@ -107,6 +107,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         // the tick loop.
         Zone.Physics.EnsureGround(Zone.SpawnPoint(0), radius: 2);
         LoadWorld();
+        StartRaid();
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
         Log($"{options.Name}: zone on {Spec}, port {Port}, " +
@@ -450,6 +451,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }.WriteMessage(_writer);
         session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
         Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.Entities.Get<Character>(entity).State.Position)}");
+        QueueAlertDelivery(session);
     }
 
     // A stored character comes back where it was if that is on this zone's body and within its ground.
@@ -589,6 +591,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             _netStates[values[i].NetId] = (entity, state);
         }
         PrepareThings();
+        PrepareExplosives();
 
         foreach (PlayerSession session in _sessions.Values)
         {
@@ -674,6 +677,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
             ReplicateThings(session, centre);
             ReplicateNature(session, centre);
+            ReplicateExplosives(session, centre);
         }
         FinishThings();
     }
