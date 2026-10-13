@@ -129,8 +129,8 @@ Godot.
   tests the old hilly sphere). Each tick: receive, finish logins, run admin commands, give every character its input
   for this tick, step the zone, send snapshots (20 a second), save every 30 s, send. Tick time is measured (average,
   99th percentile, maximum) and profiled by part (`TickProfile`: time, calls and garbage per part, the slow ticks'
-  parts, the collections that paused ticks; the load test prints it, §5.10). The tick runs with .NET's sustained
-  low-latency collector, as the game does.
+  parts, the collections that paused ticks; the load test prints it, §5.10). The tick runs above normal priority and
+  with .NET's sustained low-latency collector, as the game does.
   - **Arrival:** a new character arrives on a random one of the zone's beach points, as in Rust (`Beaches`: up to 24
     points of sandy shore 0.5–3.5 m above the sea with the water within 30 m, at least 45 m apart, nearest to the
     origin first; at the landing site they lie 0.3–0.8 km away). `--spawn origin` puts arrivals at the landing site
@@ -1257,6 +1257,16 @@ typical and ≤ 33 ms at the 99th percentile.
 - **Respawn storms** no longer stall the server for 1.1–1.25 s: the 300 respawns of a run cost 0.02 ms a tick in all.
   The worst tick left in each run (80 ms) is a respawned character walking onto a tile still queued (below).
 
+**On a busier PC**, after merging G7a (Elite Dangerous and another package's tests running beside, the memory in use
+at 88–97 %), the hardest case measured 8.3–8.6 ms and 37–46 ms at the 99th percentile, and the build before the merge
+the same (8.5 and 37.5 ms): the PC's, not the code's. Its tick then went above normal priority (P10), measured
+alternating with and without:
+
+| 20 flying, 80 walking, busy PC | Run 1 | Run 2 |
+|---|---|---|
+| Normal priority | 6.63 / 15.4 / 39.9 ms, 1 over (memory 97 %) | 9.58 / 30.6 / 73.6 ms, 8 over (96 %) |
+| Above normal | 5.81 / 10.8 / 18.3 ms, 0 over (88 %) | 7.28 / 13.2 / 20.2 ms, 0 over (94 %) |
+
 **What is left:**
 - **Replication** is now the largest part of the tick: 2–3 ms a tick (snapshots 1.0–1.7 ms, then every player's
   relevance, things and nature), all on the tick's thread. Each player's snapshot is independent of the others', so
@@ -1264,7 +1274,9 @@ typical and ≤ 33 ms at the 99th percentile.
 - **Movement** costs about 1 ms a tick for 100 characters: Jolt's character queries, already cheap.
 - **The worst ticks left are the PC's:** with the other work on it, a tick now and then loses 20–120 ms to the
   operating system or to a collection slowed by memory at 90 %; the profile finds them spread over unrelated parts
-  (a send, one player's building, one tile's props). On a quiet PC the same runs had no slow tick.
+  (a send, one player's building, one tile's props). On a quiet PC the same runs had no slow tick; above normal
+  priority (P10) keeps most of them away, but a PC short of memory still makes the collector stop everything for
+  tens of milliseconds now and then.
 - **Respawn storms** still lose a tick about once a storm, in its first seconds, when a respawned character walks
   onto a tile of its 5 × 5 still queued behind the other beaches' tiles: the tick builds it itself with its scatter
   tiles, 70–120 ms in these runs. Building ahead nearest first (a priority queue of tile builds instead of the thread
@@ -3712,6 +3724,9 @@ Decisions taken for the server's performance (§5.10) without the owner, to conf
   coming and going is cheap, and ships flying loops come back over the same ground.
 - P7. **The planet keeps the heights of the last 4,096 collision grids** (36 MB at most) for neighbouring tiles.
 - P8. **The server ticks with .NET's sustained low-latency collector**, as the game does: no blocking full
-  collections while it runs.
+  collections while it runs, unless the PC runs short of memory.
 - P9. **The load test's walking bots now respawn when dead** (the storms of §5.10); before, a mixed bot that died
   stayed dead.
+- P10. **The server's tick runs above normal priority**, before the ground tiles it has built on worker threads and
+  before the rest of the PC's ordinary work. Its tick takes 5–10 ms of every 33, so nothing else starves; on the busy
+  PC of §5.10 its 99th percentile went from 15–31 ms to 11–13 ms.

@@ -179,6 +179,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         // The tick can't wait for a blocking full collection (GROUND.md §5.10): full collections run in the background
         // while it ticks, as in the game's own process.
         System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
+        // The tick before the work it starts on other threads (ground tiles built ahead) and before the rest of a busy
+        // PC: with other work on it, its 99th percentile halved (GROUND.md §5.10).
+        Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
         try
         {
             long period = Stopwatch.Frequency / TickRate;
