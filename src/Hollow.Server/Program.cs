@@ -19,7 +19,8 @@ public static class Program
         if (o.ContainsKey("help"))
         {
             Console.WriteLine("Hollow.Server options: --port <n> --name <text> --db <path> | --no-db --lat <deg> --lon <deg> " +
-                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --raid-bases <n> --raid-radius <m> --day-scale <x> --spawn beach|origin --stand-in --parent <pid>\nCommands:\n" +
+                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --raid-bases <n> --raid-radius <m> --day-scale <x> --spawn beach|origin --stand-in --parent <pid> " +
+                "--no-animals --animals <n> --animal-radius <m>\nCommands:\n" +
                 GameServer.CommandHelp);
             return 0;
         }
@@ -39,6 +40,9 @@ public static class Program
             JoinKit = o.GetValueOrDefault("kit"),
             RaidBases = (int)Number(o, "raid-bases", 0),
             RaidRadius = (float)Number(o, "raid-radius", 70),
+            Animals = !o.ContainsKey("no-animals"),
+            AnimalPopulation = (int)Number(o, "animals", 0),
+            AnimalRadius = (float)Number(o, "animal-radius", 220),
             ReadConsole = true,
         };
         using var server = new GameServer(options);

@@ -74,6 +74,14 @@ internal sealed class DeltaChannel<T> where T : struct, INetState<T>
     /// <summary>Entities chosen for the snapshot being written.</summary>
     public int Chosen => _chosen.Count;
 
+    /// <summary>The state of an entity the client has confirmed (G7: animals at rest are left out while they hold it).</summary>
+    public bool TryGetBaseline(uint netId, out T state)
+    {
+        bool found = _baselines.TryGetValue(netId, out (uint Sequence, T State) b);
+        state = b.State;
+        return found;
+    }
+
     public void Forget(uint netId)
     {
         _baselines.Remove(netId);

@@ -175,7 +175,8 @@ public partial class GroundUi
             return;
         }
         int pw = Ui.Px(w), ph = Ui.Px(h), side = Math.Min(pw, ph);
-        Texture2D? texture = ItemIcons.Get(key, side);
+        // By the item's key (a recipe's key names its item: G7's second ways to make one).
+        Texture2D? texture = ItemIcons.Get(Model.Item(key).Key, side);
         if (texture == null)
         {
             return;

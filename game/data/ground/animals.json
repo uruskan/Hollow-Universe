@@ -1,0 +1,82 @@
+{
+  "source": "GROUND.md §6.9. Rust's animals are the target. From the Facepunch Rust wiki (read 13 October 2026): health (wolf 100; deer and boar 150, as Rust's stag and pig; bear 400) and what a corpse gives (deer 4 meat, 50 leather, 50 bone fragments, 10 fat; pig 8 pork, 20 leather, 50 bone fragments, 40 fat; wolf 5 meat, 75 leather, 40 bone fragments, 10 fat; bear 20 meat, 100 leather, 150 bone fragments, 100 fat; their cloth is left out, hide stands for leather). Population in animals a square kilometre of land that suits them, from Rust's server settings (stag 3, boar 5, wolf 2, bear 2) raised for a zone a few kilometres across (Rust's maps are bigger and its animals roam): deer 12, boars 8, wolves 4, and the bear, the rare apex, 1.2; a player usually has a herd or two within reach (GROUND.md §11 N3). Speeds, senses, bites and charges are ours (the wiki has none), set against the player's 5.5 m/s sprint and 100 health: a deer outruns everything, wolves and bears outrun a sprinting player, a boar nearly does. Names are plain words.",
+  "senses": {
+    "note": "How far noises carry, in metres, before a species' hearing; a crouching player is seen at 55% of the range, one standing still at 80%; anything within 5 m is noticed whichever way an animal faces.",
+    "noise": { "sprint": 28, "walk": 10, "crouch": 3, "swim": 12, "gunshot": 180, "silenced": 45, "bow": 14, "melee": 18, "gather": 30, "explosion": 400 },
+    "crouchSight": 0.55, "stillSight": 0.8, "near": 5
+  },
+  "spawning": {
+    "note": "Spawn areas of 256 m: out while a player is within 380 m, gone 30 s after the last left beyond 560 m. Animals appear at least 70 m from every player.",
+    "area": 256, "activate": 380, "deactivate": 560, "linger": 30, "awayFromPlayers": 70, "max": 600
+  },
+  "harvest": {
+    "note": "Harvest health a hit takes from a corpse: the bone knife is the butcher's tool (Rust's), hatchets and the machete are good, a rock is poor; other melee items take 40% of their damage. As with gathering, a better tool is quicker, not richer (GROUND.md §6.1).",
+    "default": 0.4,
+    "tools": { "bone-knife": 30, "machete": 26, "metal-hatchet": 24, "stone-hatchet": 18, "rock": 8, "torch": 4 }
+  },
+  "species": [
+    {
+      "id": 1, "key": "deer", "name": "Deer",
+      "note": "A grazer in herds: it watches what it notices, runs from people within 30 m, from gunshots and from wolves and bears, and the whole herd runs with it. It never fights.",
+      "health": 150,
+      "size": { "length": 1.73, "height": 1.08, "radius": 0.2, "head": 0.15, "headAhead": 0.66, "headUp": 1.45 },
+      "speed": { "walk": 1.4, "trot": 3.8, "run": 10.5, "turn": 280, "accel": 9 },
+      "senses": { "sight": 55, "cone": 310, "hearing": 1.4 },
+      "temperament": "flee",
+      "behaviour": { "flee": 30, "calm": 75, "space": 0, "fleeHealth": 1, "chase": 0, "chaseRange": 0, "hunger": 0 },
+      "group": [2, 5], "cohesion": 14, "prey": true,
+      "habitat": { "biomes": { "Grassland": 1.0, "Shrubland": 0.7, "Savanna": 0.7, "TemperateForest": 0.8, "BorealForest": 0.6, "Tundra": 0.3 },
+        "open": 1.0, "wooded": 0.55 },
+      "density": 12, "slope": 40, "respawn": 300, "corpse": 300,
+      "harvest": { "health": 200, "yield": [["raw-venison", 4], ["hide", 50], ["bone-fragments", 50], ["animal-fat", 10]] }
+    },
+    {
+      "id": 2, "key": "boar", "name": "Boar",
+      "note": "Roots about alone or in twos and threes and leaves people be, but snorts at anyone closer than 4.5 m and charges them, and charges whoever hurts it for up to 9 s and 45 m. Gunfire sends it off; badly hurt it runs.",
+      "health": 150,
+      "size": { "length": 1.63, "height": 0.82, "radius": 0.27, "head": 0.16, "headAhead": 0.66, "headUp": 0.53 },
+      "speed": { "walk": 1.2, "trot": 3.2, "run": 6.6, "turn": 220, "accel": 8 },
+      "senses": { "sight": 25, "cone": 260, "hearing": 0.9 },
+      "temperament": "defend",
+      "behaviour": { "flee": 0, "calm": 40, "space": 4.5, "fleeHealth": 0.2, "chase": 9, "chaseRange": 45, "hunger": 0 },
+      "group": [1, 3], "cohesion": 9, "prey": true,
+      "attack": { "kind": "charge", "damage": 16, "reach": 1.5, "rate": 1.6, "windup": 0.35, "bleed": 0.4, "region": "limb", "animals": 16 },
+      "habitat": { "biomes": { "TemperateForest": 1.0, "BorealForest": 0.6, "TropicalForest": 0.8, "Grassland": 0.6, "Shrubland": 0.6, "Savanna": 0.4 },
+        "open": 0.5, "wooded": 1.0 },
+      "density": 8, "slope": 36, "respawn": 360, "corpse": 300,
+      "harvest": { "health": 200, "yield": [["raw-pork", 8], ["hide", 20], ["bone-fragments", 50], ["animal-fat", 40]] }
+    },
+    {
+      "id": 3, "key": "wolf", "name": "Wolf",
+      "note": "Hunts in packs of two to four when hungry (hunger fills in about four minutes): people it notices, deer and boars. It stalks at a trot from afar, runs in close, bites two at a time while the rest circle. Fed, it growls at anyone within 7 m before it bites. Badly hurt it runs; it gives up a chase after 25 s without getting close, or 160 m from where it began.",
+      "health": 100,
+      "size": { "length": 1.4, "height": 0.82, "radius": 0.15, "head": 0.12, "headAhead": 0.6, "headUp": 0.88 },
+      "speed": { "walk": 1.5, "trot": 3.8, "run": 9.2, "turn": 300, "accel": 10 },
+      "senses": { "sight": 60, "cone": 270, "hearing": 1.2 },
+      "temperament": "hunt",
+      "behaviour": { "flee": 0, "calm": 60, "space": 7, "fleeHealth": 0.3, "chase": 25, "chaseRange": 160, "hunger": 0.004, "hunt": 0.55 },
+      "group": [2, 4], "cohesion": 14,
+      "attack": { "kind": "bite", "damage": 12, "reach": 1.6, "rate": 1.4, "windup": 0.45, "bleed": 0.5, "region": "limb", "animals": 22 },
+      "habitat": { "biomes": { "BorealForest": 1.0, "TemperateForest": 0.8, "Tundra": 0.8, "Grassland": 0.5, "Shrubland": 0.4, "Alpine": 0.3 },
+        "open": 0.6, "wooded": 1.0 },
+      "density": 4, "slope": 42, "respawn": 600, "corpse": 300,
+      "harvest": { "health": 150, "yield": [["raw-wolf-meat", 5], ["hide", 75], ["bone-fragments", 40], ["animal-fat", 10]] }
+    },
+    {
+      "id": 4, "key": "bear", "name": "Bear",
+      "note": "The rare apex: alone, slow to anger but deadly. Anyone within 15 m gets a warning (it rears and roars), then a charge; it turns on whoever hurts it; it hunts only when very hungry. Its swipes land a body blow that armour on the chest softens. It gives up after 15 s or 70 m.",
+      "health": 400,
+      "size": { "length": 2.1, "height": 1.17, "radius": 0.36, "head": 0.2, "headAhead": 0.88, "headUp": 0.95 },
+      "speed": { "walk": 1.3, "trot": 3.2, "run": 8.2, "turn": 160, "accel": 6 },
+      "senses": { "sight": 35, "cone": 240, "hearing": 1.0 },
+      "temperament": "hunt",
+      "behaviour": { "flee": 0, "calm": 50, "space": 15, "fleeHealth": 0.12, "chase": 15, "chaseRange": 70, "hunger": 0.0015, "hunt": 0.8 },
+      "group": [1, 1], "cohesion": 10,
+      "attack": { "kind": "swipe", "damage": 30, "reach": 2.0, "rate": 1.9, "windup": 0.6, "bleed": 0.35, "region": "body", "animals": 45 },
+      "habitat": { "biomes": { "BorealForest": 1.0, "TemperateForest": 0.9, "Tundra": 0.4, "Alpine": 0.3, "Grassland": 0.25 },
+        "open": 0.25, "wooded": 1.0 },
+      "density": 1.2, "slope": 38, "respawn": 900, "corpse": 300,
+      "harvest": { "health": 600, "yield": [["raw-bear-meat", 20], ["hide", 100], ["bone-fragments", 150], ["animal-fat", 100]] }
+    }
+  ]
+}

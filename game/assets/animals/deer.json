@@ -1,0 +1,65 @@
+{
+  "species": "deer",
+  "source": "Hollow (art/animals/build_animals.py): our own, metaball anatomy, procedural clips",
+  "clips": {
+    "Idle": {
+      "seconds": 4.0,
+      "loop": true
+    },
+    "Graze": {
+      "seconds": 3.0,
+      "loop": true
+    },
+    "Alert": {
+      "seconds": 2.0,
+      "loop": true
+    },
+    "Threaten": {
+      "seconds": 2.0,
+      "loop": true
+    },
+    "Eat": {
+      "seconds": 2.4,
+      "loop": true
+    },
+    "Walk": {
+      "seconds": 1.05,
+      "loop": true,
+      "speed": 1.4
+    },
+    "Trot": {
+      "seconds": 0.62,
+      "loop": true,
+      "speed": 3.8
+    },
+    "Run": {
+      "seconds": 0.52,
+      "loop": true,
+      "speed": 10.5
+    },
+    "Attack": {
+      "seconds": 0.9,
+      "loop": false,
+      "hit": 0.45
+    },
+    "Hurt": {
+      "seconds": 0.4,
+      "loop": false
+    },
+    "Death": {
+      "seconds": 1.3,
+      "loop": false
+    }
+  },
+  "lods": [
+    5200,
+    1900,
+    643
+  ],
+  "length": 1.73,
+  "height": 1.03,
+  "head": [
+    0.6,
+    1.47
+  ]
+}

@@ -899,6 +899,68 @@ def ambience():
           "Ambience", 0.0, space="3d", unitSize=30.0, maxDistance=400.0, priority=20, limit=1)
 
 
+# ---------------------------------------------------------------- animals (G7, GROUND.md §6.9)
+
+def animals():
+    """The animals' voices (made in code: animal_voices.py) and footsteps (the grass steps, faster and lighter for
+    hooves, softer for paws, heavier for the bear), one event per species and role: animal.<species>.<role>."""
+    voices = __import__("animal_voices")
+    made = voices.everything()
+    hooves = voices.hooves()
+    falls = [bsb(s) for s in ("2452", "2453", "2454", "2455")]
+    vfx = "highpass=f=60,lowpass=f=12000"
+    # How far each role carries (metres: full loudness within unitSize, silent past maxDistance), its loudness and
+    # how many may sound at once.
+    reach = {"call": (8.0, 140.0, -3.0, 3), "alarm": (10.0, 160.0, 0.0, 3), "threat": (8.0, 110.0, 0.0, 3),
+             "attack": (6.0, 80.0, 0.0, 4), "hurt": (8.0, 110.0, 0.0, 4), "death": (8.0, 120.0, 0.0, 3)}
+    far = {("wolf", "call"): (40.0, 900.0, 2.0, 2), ("bear", "threat"): (14.0, 240.0, 2.0, 2),
+           ("boar", "call"): (4.0, 45.0, -6.0, 3), ("bear", "call"): (6.0, 70.0, -3.0, 2)}
+    ir = __import__("synth").outdoor_ir("ir_outdoor")
+    for key, roles in made.items():
+        for role in ("call", "alarm", "threat", "attack", "hurt", "death"):
+            if role not in roles:
+                continue
+            outs = []
+            for k, wav in enumerate(roles[role]):
+                segs = [Seg(wav, fx=vfx)]
+                if role == "call" and key == "wolf":
+                    # A howl carries: the open air's tail under it.
+                    segs = [Seg(wav, fx=vfx, ir=ir, wet=0.35, dry=1.0)]
+                if role == "attack" and key == "wolf":
+                    segs.append(Seg(roles["snap"][k % len(roles["snap"])], gain=-4, at=0.3))
+                if role == "threat" and key == "bear":
+                    segs.append(Seg(roles["pop"][k % len(roles["pop"])], gain=-8, at=0.05))
+                    segs.append(Seg(roles["pop"][(k + 1) % len(roles["pop"])], gain=-10, at=0.22))
+                if role == "death":
+                    # The body going down at the end of the cry, heavier for the bigger animals.
+                    pitch = {"deer": 0.95, "boar": 0.9, "wolf": 1.0, "bear": 0.7}[key]
+                    segs.append(Seg(falls[k % len(falls)], gain=-5, pitch=pitch, at=0.55, fx="highpass=f=40"))
+                outs.append(Out(numbered("animals/%s_%s" % (key, role), k), "voice", segs, tail_db=-46, max_fade=0.3))
+            unit, distance, volume, limit = far.get((key, role), reach[role])
+            event("animal.%s.%s" % (key, role), outs, "SFX", volume, unitSize=unit, maxDistance=distance,
+                  priority=55 if role in ("call",) else 65, limit=limit, pitch=[0.95, 1.05], jitter=1.5)
+
+    # Footsteps: the grass recordings sped up for the lighter animals (a hoof's tock on top), slowed for the bear.
+    g1, g2 = bsb("1253"), bsb("0854")
+    grass = [(g1, e) for e in steps(g1, 4, min_sep=0.6, max_len=0.55)] +             [(g2, e) for e in steps(g2, 3, min_sep=0.6, max_len=0.5)]
+    soft = "highshelf=f=7000:g=-6"
+    paws = "lowpass=f=3200,highpass=f=80"
+    sets = {
+        "deer": [[seg_of(s, e, pitch=1.35, fx=soft), Seg(hooves["deer"][k % 4], gain=-14, fx="highpass=f=400")]
+                 for k, (s, e) in enumerate(grass[:6])],
+        "boar": [[seg_of(s, e, pitch=1.5, fx=soft), Seg(hooves["boar"][k % 4], gain=-16, fx="highpass=f=400")]
+                 for k, (s, e) in enumerate(grass[:6])],
+        "wolf": [[seg_of(s, e, pitch=1.2, fx=paws)] for s, e in grass[:6]],
+        "bear": [[seg_of(s, e, pitch=0.78, fx=soft), thump(-6, i=k)] for k, (s, e) in enumerate(grass[:6])],
+    }
+    volume = {"deer": -2.0, "boar": -3.0, "wolf": -7.0, "bear": 2.0}
+    reach_steps = {"deer": 30.0, "boar": 28.0, "wolf": 20.0, "bear": 40.0}
+    for key, variants in sets.items():
+        event("animal.%s.step" % key, [Out(numbered("animals/%s_step" % key, i), "footstep", segs, fx=STEP_FX)
+                                       for i, segs in enumerate(variants)],
+              "Footsteps", volume[key], maxDistance=reach_steps[key])
+
+
 # ---------------------------------------------------------------- what each item sounds like
 
 MELEE = {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard",
@@ -938,6 +1000,10 @@ ITEMS = {
     "bandage": {"use": "survival.bandage"}, "medical-injector": {"use": "survival.bandage"},
     "red-berries": {"use": "survival.eat"}, "blue-berries": {"use": "survival.eat"},
     "wild-tuber": {"use": "survival.eat"}, "roasted-tuber": {"use": "survival.eat"},
+    # G7 animals (GROUND.md §6.9): meat is eaten like any food; the bone knife and club are swung like the other blades.
+    **{"%s-%s" % (state, meat): {"use": "survival.eat"} for state in ("raw", "cooked", "burnt")
+       for meat in ("venison", "pork", "wolf-meat", "bear-meat")},
+    "bone-knife": MELEE, "bone-club": HEAVY,
     "sleeping-bag": PLACE, "bed": PLACE, "workbench-1": PLACE, "workbench-2": PLACE, "workbench-3": PLACE,
     "vehicle-workbench": PLACE, "engineering-workbench": PLACE, "claim-device": PLACE, "ladder": PLACE,
     "campfire": {"place": "deploy.place", "loop": "campfire.loop", "ignite": "campfire.ignite",
@@ -1003,4 +1069,5 @@ def everything():
     ships()
     interface()
     ambience()
+    animals()
     return list(OUTS), list(EVENTS)

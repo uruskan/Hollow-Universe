@@ -8,9 +8,10 @@ public static partial class Protocol
     /// real planet (stand-in flag, day scale); 4: G4, guns and the wounded; 5: G3, building over the network (and the
     /// integration package's 3 + 4 together); 6: G5, raiding (explosives, detonations, raid alerts); 7: all of them
     /// together on the real planet; 8: G6, ships; 9: G7, the world (world props, blueprints and tech trees, teams, the
-    /// map).
+    /// map); 10: G7, animals (entities of kind <see cref="EntityKind.Animal"/>, whose snapshot state means what
+    /// <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>).
     /// </summary>
-    public const uint Version = 9;
+    public const uint Version = 10;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -52,6 +53,9 @@ public enum EntityKind : byte
 
     /// <summary>A ship (G6): its state rides in the snapshots' ship section.</summary>
     Ship,
+
+    /// <summary>An animal (G7, GROUND.md §6.9): its <c>Spawn</c> names its species; its state is packed by <see cref="AnimalNet"/>.</summary>
+    Animal,
 }
 
 /// <summary>What a ship's state says it is doing (G6).</summary>

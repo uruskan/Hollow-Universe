@@ -22,7 +22,7 @@ namespace Hollow.Bots;
 /// test takes <c>--kit</c> (a loot table every new character gets; with <c>fight</c> and <c>raid</c>, every new life too),
 /// <c>--spawn origin|beach</c> (where bots arrive: the landing site, the default, or the beaches) and <c>--stand-in</c>. With
 /// <c>raid</c> the server builds <c>--raid-bases</c> huts (half the bots by default) on a ring of <c>--raid-radius</c> metres,
-/// and each bot raids the next one's hut.
+/// and each bot raids the next one's hut. <c>--animals &lt;n&gt;</c> puts n animals in herds within 220 m of the origin (G7, GROUND.md §5.6).
 /// </summary>
 public static class Program
 {
@@ -41,7 +41,7 @@ public static class Program
             {
                 return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300),
                     o.GetValueOrDefault("kit") ?? (script == BotScript.Raid ? "raid-kit" : script == BotScript.World ? "world-kit" : null), raidBases, raidRadius,
-                    o.GetValueOrDefault("spawn", "origin") == "beach", o.ContainsKey("stand-in"));
+                    o.GetValueOrDefault("spawn", "origin") == "beach", o.ContainsKey("stand-in"), (int)Number(o, "animals", 0));
             }
             if (!o.TryGetValue("server", out string? server))
             {
@@ -119,7 +119,7 @@ public static class Program
     /// the bots' own work and garbage collections don't land on the server's ticks), measured after a warm-up.
     /// </summary>
     private static int LoadTest(int count, double duration, double warmup, BotScript script, NetConditions conditions, float relevance, string? kit,
-        int raidBases, float raidRadius, bool beaches, bool standIn)
+        int raidBases, float raidRadius, bool beaches, bool standIn, int animals = 0)
     {
         Console.WriteLine($"Load test: a server and {count} bots ({script}) in another process, {warmup:0} s warm-up, {duration:0} s measured" +
             (conditions.IsNone ? "" : $", bots through a relay: {conditions}") +
@@ -132,6 +132,8 @@ public static class Program
             RaidBases = script == BotScript.Raid ? raidBases : 0, RaidRadius = raidRadius, Log = _ => { },
             SpawnAtOrigin = !beaches, StandIn = standIn,
             ShipOnJoin = script == BotScript.Fly,
+            // G7: a fixed population for the animal load test (none by default, so the earlier measurements compare).
+            Animals = false, AnimalPopulation = animals,
         });
         server.StartThread();
 
@@ -179,6 +181,8 @@ public static class Program
         TimeSpan stepBefore = TimeSpan.Zero, raidBefore = TimeSpan.Zero, rebuildTimeBefore = TimeSpan.Zero;
         TimeSpan worldBefore = TimeSpan.Zero, worldSendBefore = TimeSpan.Zero;
         int rebuildsBefore = 0;
+        TimeSpan animalBefore = TimeSpan.Zero;
+        long thinksBefore = 0;
         Dictionary<string, (long Bytes, long Packets, long BytesIn, long PacketsIn, long Applied, long Missing)> before =
             server.Inspect(sv =>
             {
@@ -189,6 +193,8 @@ public static class Program
                 rebuildTimeBefore = sv.Zone.Physics.BroadPhaseTime;
                 worldBefore = sv.Zone.WorldStats.Time;
                 worldSendBefore = sv.WorldTime;
+                animalBefore = sv.Zone.AnimalTime;
+                thinksBefore = sv.Zone.Animals?.Thinks ?? 0;
                 return sv.Players.ToDictionary(p => p.Name, p => Traffic(p));
             });
         string countersBefore = server.Inspect(sv => sv.Counters.ToString());
@@ -240,6 +246,12 @@ public static class Program
             Rebuilds = sv.Zone.Physics.BroadPhaseRebuilds - rebuildsBefore,
             RebuildMs = (sv.Zone.Physics.BroadPhaseTime - rebuildTimeBefore).TotalMilliseconds,
             RebuildWorstMs = sv.Zone.Physics.BroadPhaseWorst.TotalMilliseconds,
+            AnimalMs = (sv.Zone.AnimalTime - animalBefore).TotalMilliseconds,
+            Animals = sv.Zone.Animals?.Count ?? 0,
+            AnimalsAwake = sv.Zone.Animals?.Awake ?? 0,
+            AnimalsDead = sv.Zone.Animals?.All.Count(a => a.IsDead) ?? 0,
+            Thinks = (sv.Zone.Animals?.Thinks ?? 0) - thinksBefore,
+            AnimalStatus = sv.AnimalStatus(),
             Players = sv.Players.Select(p =>
             {
                 var b = before.GetValueOrDefault(p.Name);
@@ -318,6 +330,13 @@ public static class Program
                 $"{(r.Length > 14 ? F(14) : 0):0} teleports (respawns, not counted as prediction errors)\n" +
                 $"Intents: {measured.Intents} accepted, {measured.Refused} refused ({measured.Limited} over budget); " +
                 $"{measured.Things} things in the world, {measured.Props} solid props in the physics"));
+        }
+        if (animals > 0)
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"Animals: {measured.Animals} at the end ({measured.AnimalsAwake} awake, {measured.AnimalsDead} corpses); their AI, movement and population " +
+                $"{measured.AnimalMs / Math.Max(1, measured.Ticks):0.000} ms a tick on average ({measured.AnimalMs * 1000 / Math.Max(1, measured.Ticks) / Math.Max(1, measured.Animals):0.0} µs an animal); " +
+                $"{measured.Thinks / duration / Math.Max(1, measured.Animals):0.0} thinks an animal a second\n{measured.AnimalStatus}"));
         }
         if (r.Length > 22)
         {

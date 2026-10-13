@@ -73,6 +73,9 @@ public enum HitTarget : byte
 
     /// <summary>A ship's hull (G6; 6, as G5 may take 5's neighbours).</summary>
     Ship = 6,
+
+    /// <summary>An animal, alive or a corpse (G7, GROUND.md §6.9).</summary>
+    Animal = 7,
 }
 
 /// <summary>

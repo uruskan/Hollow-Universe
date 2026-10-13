@@ -26,6 +26,8 @@ public sealed partial class GameServer
         "raidbase <name> [grade]       a claimed hut 8 m in front of a player, listing them (grade 0-4, stone by default)\n" +
         "learn <name> <item|all>       a player learns a blueprint (G7), or every one\n" +
         "world                         the world's props, teams and economy (G7)\n" +
+        "animals                       how many animals, of each kind, what they cost\n" +
+        "spawn <species> <name> [n] [m] a herd of deer, boar, wolf or bear m metres (25) in front of a player\n" +
         "save                          save the world now\n" +
         "quit                          save everyone and stop";
 
@@ -137,6 +139,12 @@ public sealed partial class GameServer
                         Math.Atan2(c.State.Position.X - ahead.X, c.State.Position.Z - ahead.Z), grade, owner2.Id.Value);
                     Log(hut != null ? $"built a {Content.Building.Grades[grade].Name.ToLowerInvariant()} hut for {builder.Name}" : "no ground there");
                 }
+                break;
+            case "animals":
+                Log(AnimalStatus());
+                break;
+            case "spawn":
+                SpawnAnimals(words);
                 break;
             case "save":
                 SaveAll();

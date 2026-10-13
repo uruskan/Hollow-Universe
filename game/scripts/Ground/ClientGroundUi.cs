@@ -91,7 +91,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     {
         if (!_items.TryGetValue(key, out ItemInfo? info))
         {
-            info = C.Item(key) is { } def ? Describe(def) : new ItemInfo(key, key, "", "OTHER");
+            info = C.Item(key) is { } def ? Describe(def)
+                : C.RecipeByKey(key) is { } other ? Describe(other.Output) with { Name = $"{other.Output.Name} (from {other.Ingredients[0].Item.Name.ToLowerInvariant()})" }
+                : new ItemInfo(key, key, "", "OTHER");
             _items[key] = info;
         }
         return info;
@@ -209,7 +211,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         _categories = new[] { new CraftCategory("FAVOURITE", 0), new CraftCategory("COMMON", 0) }
             .Concat(c.Categories.Select(cat => new CraftCategory(cat.Name.ToUpperInvariant(), c.Recipes.Count(r => Me.Knows(r) && r.Output.Category == cat.Key))))
             .ToArray();
-        _recipes = c.Recipes.Where(Me.Knows).Select(r => new UiRecipe(r.Output.Key, CategoryName(r.Output.Category), r.Seconds,
+        _recipes = c.Recipes.Where(Me.Knows).Select(r => new UiRecipe(r.Key, CategoryName(r.Output.Category), r.Seconds,
             r.Ingredients.Select(i => new Ingredient(i.Item.Key, i.Count)).ToArray(), r.Amount, r.Workbench, r.Station?.Key)).ToArray();
     }
 
@@ -224,7 +226,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             _queue.Clear();
             foreach (CraftJobView job in Me.Crafting)
             {
-                _queue.Add(new CraftJob((int)job.Ticket, job.Recipe.Output.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.Recipe.Seconds));
+                _queue.Add(new CraftJob((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.Recipe.Seconds));
             }
             return _queue;
         }
@@ -473,10 +475,10 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void Craft(string key, int amount)
     {
-        if (C.Item(key) is { } def)
+        if (C.RecipeByKey(key) is { } recipe)
         {
             Sounds.Flat("ui.craft.start");
-            Me.Craft(def.Id, amount);
+            Me.Craft(recipe.Id, amount);
         }
     }
 

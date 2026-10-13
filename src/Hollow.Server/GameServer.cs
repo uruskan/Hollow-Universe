@@ -133,6 +133,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         StartBuilding();
         StartRaid();
         StartWorld();
+        StartAnimals();
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
         Log($"{options.Name}: zone on {Spec}, port {Port}, " +
@@ -299,6 +300,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         StepTime += Stopwatch.GetElapsedTime(stepStarted);
         ReportFalls();
         AfterStep();
+        AfterAnimals();
 
         _snapshotAccumulator += (double)Protocol.SnapshotRate / TickRate;
         if (_snapshotAccumulator >= 1)
@@ -642,6 +644,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             _netStates[values[i].NetId] = (entity, state);
         }
+        PrepareAnimals();
         PrepareThings();
         PrepareShips();
         PrepareExplosives();
@@ -695,16 +698,17 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 if (session.Relevant.Add(netId))
                 {
                     _writer.Reset();
-                    new Spawn
-                    {
-                        NetId = netId,
-                        EntityId = Zone.Entities.IdOf(entity).Value,
-                        Kind = EntityKind.Character,
-                        Name = Zone.Entities.Get<Named>(entity).Name,
-                    }.WriteMessage(_writer);
+                    SpawnOf(netId, entity).WriteMessage(_writer);
                     session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
                 }
-                SendLook(session, netId, entity);
+                if (!IsAnimal(netId))
+                {
+                    SendLook(session, netId, entity);
+                }
+                else if (AnimalAtRest(session, netId, state))
+                {
+                    continue;
+                }
                 float distance = Vector3.Distance(position, centre);
                 _candidates.Add(new SnapshotCandidate
                 {
