@@ -293,7 +293,10 @@ public static class WorldCodec
         {
             return default;
         }
-        return new ItemStack(item, count, def.HasCondition ? (ushort)Math.Clamp((int)condition, 1, def.MaxCondition) : (ushort)0);
+        // A key's condition is the number of the lock it was cut for.
+        ushort kept = def.HasCondition ? (ushort)Math.Clamp((int)condition, 1, def.MaxCondition)
+            : def.Building == BuildingRole.Key ? condition : (ushort)0;
+        return new ItemStack(item, count, kept);
     }
 
     private static float Finite(float value) => float.IsFinite(value) ? value : 0;

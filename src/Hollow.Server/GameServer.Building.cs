@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Net.Protocol;
+using Hollow.Persistence;
 using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
@@ -41,14 +43,141 @@ public sealed partial class GameServer
     private readonly List<ClaimNet> _claimBatch = new();
     private readonly List<BuildFrameNet> _frameBatch = new();
     private readonly List<BuildIdNet>[] _removedBatch = { new(), new(), new() };
+    private readonly HashSet<object> _buildDirty = new();
+    private readonly HashSet<EntityId> _buildDeleted = new();
+    private readonly Dictionary<ClaimDevice, uint> _storeRevisions = new();
     private uint _nextFrameId = 1;
+    private bool _buildingStarted;
 
     /// <summary>Pieces placed and building intents answered, for the load test.</summary>
     public long PiecesPlaced { get; private set; }
 
     private void StartBuilding()
     {
-        Zone.Building!.Changed += OnBuildingChanged;
+        if (!_buildingStarted)
+        {
+            _buildingStarted = true;
+            Zone.Building!.Changed += OnBuildingChanged;
+        }
+    }
+
+    // ---------------------------------------------------------------- loading and saving (GROUND.md §4.7)
+
+    // The body's building as it was saved: pieces (stability solved once), doors and locks, claim devices with their
+    // stores; then upkeep and decay are caught up for the time the server was down, in one closed-form step.
+    private void LoadBuilding(ZoneRecord stored)
+    {
+        StartBuilding();
+        BuildingWorld b = Zone.Building!;
+        int pieces = 0, doors = 0, claims = 0, lost = 0;
+        bool Try(BuildingRecord record, Func<bool> restore)
+        {
+            try
+            {
+                if (restore())
+                {
+                    return true;
+                }
+            }
+            catch (Exception e) when (e is EndOfStreamException or InvalidDataException or ArgumentException)
+            {
+                Log($"building {record.Kind} {record.Id} doesn't load ({e.Message}); left out");
+            }
+            _buildDeleted.Add(record.Id);
+            lost++;
+            return false;
+        }
+        b.BeginBatch();
+        foreach (BuildingRecord record in stored.Building.Where(r => r.Kind == BuildPartKind.Piece))
+        {
+            pieces += Try(record, () => BuildingCodec.RestorePiece(b, record.Id, record.Data, Zone.Frame) != null) ? 1 : 0;
+        }
+        b.EndBatch(Zone.BuildingNow);
+        foreach (BuildingRecord record in stored.Building.Where(r => r.Kind == BuildPartKind.Door))
+        {
+            doors += Try(record, () => BuildingCodec.RestoreDoor(b, record.Id, record.Data) != null) ? 1 : 0;
+        }
+        foreach (BuildingRecord record in stored.Building.Where(r => r.Kind == BuildPartKind.Claim))
+        {
+            claims += Try(record, () => RestoreClaim(record)) ? 1 : 0;
+        }
+        _buildDirty.Clear();
+        foreach (ClaimDevice c in b.Claims)
+        {
+            if (Zone.DeployableOf(c)?.Storage is { } store)
+            {
+                _storeRevisions[c] = store.Revision;
+            }
+        }
+        double advancedAt = BuildingCodec.DecodeZone(stored.Meta);
+        double away = double.IsNaN(advancedAt) ? 0 : Math.Max(0, Zone.BuildingNow - advancedAt);
+        Zone.BuildingAdvancedAt = advancedAt;
+        Zone.AdvanceBuilding();
+        Log($"loaded the building: {pieces} pieces, {doors} doors, {claims} claim devices ({lost} left out); " +
+            $"{away / 3600:0.0} h of upkeep and decay caught up, {b.PieceCount} pieces stand");
+    }
+
+    private bool RestoreClaim(BuildingRecord record)
+    {
+        BuildingWorld b = Zone.Building!;
+        StoredClaim stored = BuildingCodec.DecodeClaim(record.Id, record.Data, Content);
+        ClaimRecord c = stored.Claim;
+        if (b.PieceOf(c.Support) is not { } support ||
+            b.RestoreClaim(record.Id, c.Owner, support, c.Position, c.Yaw, c.Health, c.Authorised) is not { } device)
+        {
+            return false;
+        }
+        if (Zone.DeployableOf(device)?.Storage is { } store)
+        {
+            for (int i = 0; i < stored.Store.Count && i < store.Size; i++)
+            {
+                store.Set(i, stored.Store[i]);
+            }
+            store.ClearDirty();
+        }
+        foreach ((string material, double debt) in stored.Debt)
+        {
+            b.RestoreDebt(device.Structure, material, debt);
+        }
+        return true;
+    }
+
+    // What changed since the last save (only that is written), what is gone, and when upkeep was last applied.
+    private void AddBuildingToSave(ZoneSave save)
+    {
+        BuildingWorld b = Zone.Building!;
+        foreach (ClaimDevice c in b.Claims)
+        {
+            if (Zone.DeployableOf(c)?.Storage is { } store && (!_storeRevisions.TryGetValue(c, out uint revision) || revision != store.Revision))
+            {
+                _storeRevisions[c] = store.Revision;
+                _buildDirty.Add(c);
+            }
+        }
+        foreach (object part in _buildDirty)
+        {
+            switch (part)
+            {
+                case Piece { Gone: false } p:
+                    save.Building.Add(new BuildingRecord(p.Id, BuildPartKind.Piece, BuildingCodec.EncodePiece(p, Zone.Frame)));
+                    break;
+                case Door { Gone: false } d:
+                    save.Building.Add(new BuildingRecord(d.Id, BuildPartKind.Door, BuildingCodec.EncodeDoor(d)));
+                    break;
+                case ClaimDevice { Gone: false } c:
+                    save.Building.Add(new BuildingRecord(c.Id, BuildPartKind.Claim,
+                        BuildingCodec.EncodeClaim(c, Zone.DeployableOf(c)?.Storage, b.DebtOf(c.Structure))));
+                    break;
+            }
+        }
+        save.RemovedBuilding.AddRange(_buildDeleted);
+        _buildDirty.Clear();
+        _buildDeleted.Clear();
+        foreach (ClaimDevice gone in _storeRevisions.Keys.Where(c => c.Gone).ToList())
+        {
+            _storeRevisions.Remove(gone);
+        }
+        save.Meta = BuildingCodec.EncodeZone(Zone.BuildingAdvancedAt);
     }
 
     private static (int X, int Z) BuildCell(Vector3 p) => ((int)MathF.Floor(p.X / BuildCellSize), (int)MathF.Floor(p.Z / BuildCellSize));
@@ -62,6 +191,7 @@ public sealed partial class GameServer
         {
             case BuildingChange.PieceAdded when e.Piece is { } piece:
             {
+                _buildDirty.Add(piece);
                 (int, int) cell = CellOf(piece);
                 if (!_buildCells.TryGetValue(cell, out List<Piece>? list))
                 {
@@ -74,6 +204,7 @@ public sealed partial class GameServer
             }
             case BuildingChange.PieceRemoved when e.Piece is { } piece:
             {
+                Deleted(piece, piece.Id);
                 (int, int) cell = CellOf(piece);
                 if (_buildCells.TryGetValue(cell, out List<Piece>? list))
                 {
@@ -93,22 +224,31 @@ public sealed partial class GameServer
                 Changed(door);
                 break;
             case BuildingChange.DoorRemoved when e.Door is { } door:
+                Deleted(door, door.Id);
                 _buildRemoved.Add((door, true));
                 break;
             case BuildingChange.ClaimAdded or BuildingChange.ClaimChanged when e.Claim is { } claim:
                 Changed(claim);
                 break;
             case BuildingChange.ClaimRemoved when e.Claim is { } claim:
+                Deleted(claim, claim.Id);
                 _buildRemoved.Add((claim, true));
                 break;
         }
 
         void Changed(object part)
         {
+            _buildDirty.Add(part);
             if (_buildChangedSet.Add(part))
             {
                 _buildChanged.Add(part);
             }
+        }
+
+        void Deleted(object part, EntityId id)
+        {
+            _buildDirty.Remove(part);
+            _buildDeleted.Add(id);
         }
     }
 
