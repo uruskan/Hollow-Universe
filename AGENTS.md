@@ -8,6 +8,8 @@ Read first, in this order:
 3. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
 4. [docs/GROUND.md](docs/GROUND.md): the Rust-style ground game, if you touch planet surfaces, the server, the
    network or anything players do on foot.
+5. [docs/handoff-ground.md](docs/handoff-ground.md) and [docs/progress-ground.md](docs/progress-ground.md): where the
+   ground game stands, what to do next, how merges between work packages go, and what happened so far.
 
 ## Rules
 

@@ -18,22 +18,32 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
     (map on G, tech tree from a workbench, recycler, research, teams);
   - effects, sound, characters and assets.
 
-  157/157 tests pass, and the protocol is version 10. Nothing has ever been pushed, and nothing merged into `main`
+  158/158 tests pass, and the protocol is version 10. Nothing has ever been pushed, and nothing merged into `main`
   (that needs the owner).
 - **Play it:** `play-ground.cmd` hosts a game; `play-ground.cmd join` adds a second player; `play-ground.cmd menu`
   opens the main menu. Controls and tour steps are in AGENTS.md.
 
-## Unfinished branches (each in `D:\GameDev\Projects\Hollow-wt\<branch>`)
+## Branches
 
-Their agents ran in the first session. Whatever they committed is safe; check `git log ground..<branch>`.
+Every work package is merged into `ground` (the first session ended with nothing pending):
+- `ground-net`, `-planet`, `-character`, `-survive`, `-ui`, `-assets`, `-build`, `-fight`, `-audio`, `-raid`,
+  `-fx`, `-ship`, `-world`, `-animals`, `-wardrobe` and `-perf`;
+- `ground-integrate`, passes 1–4.
 
-| Branch | State when the session ended | Next step |
-|---|---|---|
-| `ground-world` (G7a) | **Merged into `ground`** (protocol 9, schema 6). | Nothing. Integration wires its UI (§6.8), and its new item keys need real models (stand-ins or missing: see §6.8). |
-| `ground-integrate` | **Pass 4 merged** (Tin Finch and G7a UI in the game). | Next pass: wire the wardrobe (Wardrobe/Looks APIs, Sleep stance for sleepers, Aiming for bows) and the animals (`AnimalView`) once they're merged; fix the over-bright night bloom on some glowing models. |
-| `ground-perf` | Just started: server cost of flying ships streaming ground, broadphase rebuilds, respawn hitches. | Profile and fix (targets ≤ 10 ms average and ≤ 33 ms 99th percentile with 100 bots + 20 flying), then GROUND.md §5.10 (§5.9 is G7a's load test). |
-| `ground-wardrobe` | **Finished** (0cf21c5…1bb9d9d, 110 tests on its older base): every clothing and armour item wearable (hood, metal mask, gloves…), looks from the player ID (skin, face, hair), sleep, wounded and crawl, help-up, spear, bow, third-person reloads, eat, bandage, inject. APIs: `Wardrobe.ForItem(s)`, `Looks.ForPlayer(id, body)`, stances `Crawl` and `Sleep`, `CharacterFrame.Aiming`. | Merge `ground` into it first (it is behind), then merge. Integration sets `Stance = Sleep` for sleepers and sends `Aiming` for bows (C9, C10). |
-| `ground-animals` (G7b) | **Merged** (protocol 10): deer, boar, wolves, bear; AI, harvest, cooking; `AnimalsView` already in `GroundView`. | Polish later: foot IK and gaits, ragdolls, voices by ear, spawn density at the landing site (about 20 around a player). |
+Their worktrees in `D:\GameDev\Projects\Hollow-wt\` can be removed once the owner is happy (`git worktree remove`).
+
+**First jobs for the next session:**
+1. **Owner's playtest findings first.** The owner is testing the whole build and will report problems.
+2. **Finish the wardrobe hookup:**
+   - `Looks.ForPlayer(id, body)` for every remote player and the inventory preview;
+   - `Stance = Sleep` for sleepers, and `Crawl` for the wounded;
+   - `CharacterFrame.Aiming` for bows;
+   - the new events: `HelpUp`, `Eat`, `Bandage`, `Inject`.
+
+   `ItemLooks.Worn` already uses `Wardrobe.ForItem`.
+3. **Night bloom:** some glowing models bloom too much at night (the weapon light, perhaps).
+4. **Server performance:** next is parallel snapshot writing, since replication takes about 3 ms a tick
+   (GROUND.md §5.11).
 
 ## What's left after that
 
