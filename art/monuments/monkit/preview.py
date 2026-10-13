@@ -527,8 +527,9 @@ def camera(target, distance, yaw, pitch, lens=35.0, name="cam"):
         sc.collection.objects.link(cam)
         sc.camera = cam
     cam.data.lens = lens
-    # Near clip with the distance: a fixed 0.1 m makes the pad z-fight with the ground in far views.
-    cam.data.clip_start = max(0.1, distance * 0.005)
+    # The near plane follows the view's distance: a fixed 0.1 m leaves metres of depth resolution at landmark
+    # distances, and everything near the ground (pad, roads, paving) fights with the ground plane.
+    cam.data.clip_start = max(0.1, distance * 0.002)
     cam.data.clip_end = 60000
     y, p = math.radians(yaw), math.radians(pitch)
     t = Vector(target)

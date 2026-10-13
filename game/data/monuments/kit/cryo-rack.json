@@ -1,0 +1,37 @@
+{
+ "key": "cryo-rack",
+ "model": "res://assets/monuments/kit/cryo-rack.glb",
+ "collision": [
+  {
+   "box": [
+    0.0,
+    3.0,
+    -0.0
+   ],
+   "half": [
+    5.2,
+    3.0,
+    1.7
+   ],
+   "rot": [
+    1.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  }
+ ],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -8.0,
+   -4.6,
+   -6.8
+  ],
+  "max": [
+   8.0,
+   10.8,
+   5.1
+  ]
+ }
+}
