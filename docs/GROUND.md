@@ -222,12 +222,139 @@ Godot.
   - **Sound** (`GroundAudio`, §4.9): the audio package's director at the camera, ambience from the place, every
     character's footsteps on the ground under them, and the game's events (gathering, pickups, food and bandages,
     hurt and death, the cold, fires, boxes, placing, swings, the bow and arrows, hit markers, the interface).
-  - **Steady frames** (measured with `--measure`, §5.4): everything the game may show is drawn once, tiny, while the
-    world opens, so the renderer never builds a pipeline in play (`GroundView.Warmup`); the plants near the camera are
-    rebuilt on a worker thread with the game's changes frozen when it starts (`Vegetation.ChangesSnapshot`), and so
-    are tree impostor blocks; changes farther than 25 m wait up to five seconds to be drawn together; scatter objects
-    are only looked up in tiles already generated (`ScatterNaturalObjects.TryGetCached`); the game runs with .NET's
-    sustained low-latency collector. A lost connection returns to the menu.
+  - **Steady frames** (measured with `--measure`, §5.4): everything the game may show is drawn once, tiny, under the
+    loading screen, so the renderer never builds a pipeline in play (the renderer's warm-up, §4.3.1); the plants near
+    the camera are rebuilt on a worker thread with the game's changes frozen when it starts
+    (`Vegetation.ChangesSnapshot`), and so are tree impostor blocks; changes farther than 25 m wait up to five seconds
+    to be drawn together; scatter objects are only looked up in tiles already generated
+    (`ScatterNaturalObjects.TryGetCached`); the game runs with .NET's sustained low-latency collector. A lost
+    connection returns to the menu.
+  - **Loading** (§4.3.1): one loading pipeline and one loading screen; play starts when every part is ready.
+
+### 4.3.1 Loading: one pipeline, one screen
+
+The owner, 13 October 2026: "Every time the game loads there's some time before it's actually playable and actually
+looks good. Is it shaders compiling? Maybe we need a proper loading screen like Rust's, so when the game finally opens
+it's playable right away instead of waiting for the world to become playable." Built the same day (`ground-loading`,
+decisions O1–O16).
+
+**The start, measured** (`--load-trace`, below): the timeline from launch to steady play of a hosted game
+(`play-ground.cmd`'s command line, the owner's database, 1600 × 900, Ryzen 5 3600, RTX 2070 Super). Before, play was
+the player's from the moment the character arrived, in a world still opening: the window froze for 8.8 s, then twice
+for 2.7 s, then stuttered for two more seconds.
+
+| Seconds since the process started | Before | After, first launch (Godot's caches empty) | After, second launch |
+|---|---|---|---|
+| The ground mode starts (engine, .NET, the galaxy) | 2.4 | 3.3 | 2.6 |
+| First frame (until then Godot's logo; now the loading picture) | 3.6 | 5.2 | 4.2 |
+| The hosted server ready; connected | 6.1; 6.2 | 7.5; 7.6 | 6.3; 6.3 |
+| Welcomed, the character placed (before: play began here) | 7.2 | 8.5 | 7.3 |
+| The world's things received (the last one) | 7.2 | 8.5 | 7.3 |
+| The world view opened (the frame it froze) | 16.0 (8.8 s) | 18.0 (9.5 s, under the screen) | 13.3 (6.0 s, under the screen) |
+| The land at full detail | 24.5 | 23.7 | 18.0 |
+| The plants and grass, impostors baked | 22.3 | 25.6 | 19.4 |
+| The renderer warmed (every model, garment, grade, gib, effect drawn) | (part of the 8.8 s) | 24.8 | 18.4 |
+| Play handed over, after 0.75 s of steady frames | 7.2, in a world opening | 26.4 | 20.1 |
+| First steady second (no frame over 33 ms) | 24.1 | 25.5 | 19.3 |
+| Frames over 33 ms once the character was placed | 21 in play: 8.8 s, 2.7 s, 2.7 s, 1.0 s, 0.7 s, then 40–140 ms | 44 under the screen; 2 in the next two minutes of play (46, 118 ms) | 54 under the screen; none in play |
+| Pipelines built after the character was placed | 142 surface, 22 mesh, 2 draw: all in play | 178 surface, 2 draw: all under the screen, none in play | the same |
+
+An arrival in the second launch (`--arrival-check`, a teleport of 826 m): input held at once, the short screen from
+0.25 s, play again after 1.05 s (the world's things 0.63 s, the land 0.95 s, the forest 1.05 s), no slow frame after.
+
+Where the time went before: the frozen 8.8 s were the world view's opening (1.9 s), the old warm-up, the spare bodies,
+the sound and every view's first look (about 2.2 s, much of it reading files) and, in the draw, about 4.5 s of Godot
+loading the variants of every material's shader on its first use (some 930 variants from the shader cache, about 5 ms
+each). The two 2.7 s freezes were the impostor atlas's dilation and mipmaps on the main thread. The client's own
+welcome (the planet, the prediction world) took 0.8–1 s.
+
+What remains: the frame the world opens in is still frozen for 6 s, under the screen: 2 s of the main thread (the
+world view 0.9 s, the arms and spare bodies 0.7 s, the sound 0.1 s, the views' first look) and about 4 s of Godot
+loading the variants of the shaders of the world and the characters as they are first drawn. The client's welcome
+takes 0.8 s. The warm-up then shows everything else while the land and plants stream (about 200 ms a frame for each
+held item's first-person materials). Godot's caches empty cost the first launch about 6 s more. Tried and left: showing
+the warm-up from the first frame on a stage of its own, to load those shaders while the server starts; a single
+character's first draw then held the main thread 4–6 s just as the server became ready, and play came 3–5 s later.
+
+**The pipeline** (`src/Hollow.Client/Loading`, engine-free; `LoadingTests`): a `LoadingPipeline` per game, in which
+each part registers the `LoadStage` it owns: a key, its measure (done, progress, failed) and when it takes part
+(`LoadScope.Start`, once; `LoadScope.Arrival`, also whenever the player arrives somewhere new). The stages' words,
+their weights (the seconds each takes on this PC, which are also their shares of the bar) and their rules' numbers are
+data: `game/data/ground/loading.json` (`LoadingPlan`, with the tips, the picture, the fades and what an arrival is).
+Updated once a frame with the frame's wall-clock time, the pipeline measures every stage taking part, keeps done stages
+done and progress from going back, names the first stage not done (in the plan's order) and hands play over the moment
+all are done; a failed stage (the server stopped, the connection was refused) ends the load, and the game shows the
+menu as before. Neither the screen nor the hand-over knows which parts exist.
+
+| Stage | Title | Registered by | Done when | Scope |
+|---|---|---|---|---|
+| `server` | Starting the world | `ChildServer.LoadStage` (hosting) | it printed "Ready." (or another game hosts on the port, which is joined instead); progress estimated from its weight | start |
+| `connect` | Connecting | `GameClient.LoadStages` | the character is placed (connecting, joined, welcomed, placed) | start |
+| `world` | Receiving the world | `GameClient.LoadStages` | nothing new (things, building pieces, natural states) for 0.5 s since the character arrived (`QuietStream`; 6 s at most) | arrival |
+| `land` | Painting the land | `SurfaceView.LoadStages` | the terrain idle for 10 frames (progress: the finest level drawn) | arrival |
+| `forest` | Growing the forest | `SurfaceView.LoadStages` | the plants (library, impostor bake, scatter) and the grass idle for 10 frames | arrival |
+| `renderer` | Warming up the renderer | `RenderWarmup.Stage` (the ground view) | everything shown, then 10 frames without a pipeline built (40 s at most) | start |
+| `steady` | Arriving | `SteadyFrames.Stage` (the ground view) | 0.75 s of frames each under 33.4 ms, counted once every other stage is done | start |
+
+A joined game (`play-ground.cmd join`) has no `server` stage; `--in-process` builds its server before the first frame
+(O16).
+
+**The screen** (`game/scripts/UI/LoadingScreen.cs`, a canvas layer over everything): a picture of the first world filling
+the window (the golden meadow, look-dev view (b) rendered at 2560 × 1421, `game/assets/loading/golden-meadow.jpg`,
+cropped to the window's shape), RustMVP's title block (the red rule, HOLLOW in Barlow Condensed, where the game goes),
+the current stage's words, one bar for the whole load with its percentage (RustMVP's grey panel, the done part in ink,
+a red edge that breathes while loading) and a tip from `loading.json`, changed every 8 s. It is painted on the
+1600 × 900 design canvas with `Ui.Px` and fonts at their final size, so it is crisp at any window size and interface
+scale. While a load runs it takes every input event; when play is handed over it fades out over 0.6 s. The boot splash
+is the same picture (`splash.png`: Godot's splash takes PNG only), so the game looks like itself from its first moment
+(O9). Mid-load: `docs/images/ground/loading/loading-screen.jpg`.
+
+**The hand-over** (`GroundView`): until the pipeline hands over, the character stands as it arrived (no input is read),
+the mouse stays free, and mouse look and the game's keys do nothing; the camera is at the player's eye, so the world
+streams and is drawn where play begins. The interface is drawn all along under the screen (its first draw is never at
+the hand-over) and greets the player when play starts. Screenshots and scripted runs wait for the screen to go
+(`GroundView.LoadingShown`).
+
+**Arrivals** (O6): a respawn or a far teleport moves the player more than 120 m at once. The pipeline (`Follow`, fed the
+player's feet every frame; flying, the place is only kept) then runs the arrival's stages again (`world`, `land`,
+`forest`) and holds input; if they aren't done within 0.25 s the screen fades in, without the title block and the tip,
+and fades out when they are.
+
+**The renderer's warm-up** (`game/scripts/Ground/RenderWarmup.cs`; O7, O8, O10): every library lists what it can draw
+as `WarmItem`s (`game/scripts/Common/WarmItem.cs`: the files it is made of, how to show it once), read from its own
+catalogue: `ModelWarm` (every model of models.json at every stage, all its levels of detail at once), `CharacterWarm`
+(each body as others see it and as first-person arms, wearing every garment of the wardrobe in as few outfits as the
+slots allow; every held item as the first person draws it), `BuildingWarm` (every grade's material on its pieces'
+levels of detail, batched as the building is; the plan's ghost; every door and window part; the garage door),
+`GibWarm` (a piece of every gib set), `FxWarm` (every effect of fx.json, played tiny: one-shots, loops, tracers, muzzle
+flashes both ways), `AnimalWarm`, `ShipWarm` (engines running and boosting), the weak spots' markers, and files read
+without being drawn (the ground's textures, every sound of sounds.json). `GroundWarmup` puts the sources together, one
+line each; new content in a catalogue needs no code. The files are asked of Godot's loader threads from the first
+frame, 6 at a time, what the world's opening reads first, and are kept for the game, so nothing waits on a file in play
+(1.2 GB of video memory, 0.4 GB of memory in all). Once the world is open every item is shown once, tiny, two metres
+before the camera, up to 12 a frame within 12 ms; the stage is done after 10 frames without a pipeline built.
+`--load-trace` counts no pipeline built in play after the hand-over.
+
+**Off the main thread** (O11–O14): the impostor atlas's dilation and mipmaps run on a worker; the planet's air tables and
+the first world's surface are computed on workers while the server starts (`AtmosphereModel.Prepare` and `Take`,
+`GroundMode.Prefetch`); behind the screen the terrain puts up to 64 finished tiles a frame in place (10 in play); the
+hosted server runs above normal priority; the game's C# is compiled optimized in its Debug build, as Hollow.Surface's
+was.
+
+**Caches** (O15): `rendering/shader_compiler/shader_cache/enabled` and `rendering/rendering_device/pipeline_cache/enable`
+are on (set in project.godot; they are Godot's defaults) and persist in the project's user folder
+(`%APPDATA%\Godot\app_userdata\Hollow Universe\shader_cache`, 60 MB, and `vulkan\pipelines.*.cache`, 76 MiB, loaded
+at start: "Startup PSO cache" in the verbose log), shared by every worktree of the project. None of the runs measured
+here compiled a shader from source. What every launch still pays is Godot loading the cached variants of each
+material's shader the first time it is drawn (about 5 ms each, thousands for the game's materials); the warm-up puts
+all of it under the screen.
+
+**Measuring a start:** `--load-trace [seconds]` prints the timeline since the process started (the server ready, the
+connection, the world's opening and streaming, each stage done, play handed over), every frame over 33 ms with its
+process time, garbage collection, JIT and the pipelines built in it, the pipelines built after spawning and in play,
+the ground view's slowest parts, the warm-up's costliest items and the memory, then quits; `--load-shot <file>` saves
+the screen once the load is half done; `--arrival-check` teleports the hosting player to the landing site three
+seconds into play and times the arrival.
 
 ### 4.4 Network
 
@@ -470,7 +597,8 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   Screenshots pause at `--time`.
 - **Speed** (1600 × 900, RTX 2070 Super, vsync on): 11–12 ms a frame (85–89 fps) at the landing site with 3,300
   plant meshes, 414,000 impostors and 45,000 grass tufts; 13–15 ms (65–73 fps) inside dense forest; 7 ms from 2 km.
-  Opening the view takes about 4 s (tiles, the painted atlas and the plants, then the impostor bake).
+  Opening the view takes about 4 s (tiles, the painted atlas and the plants, then the impostor bake); in the game it
+  happens under the loading screen (§4.3.1).
 - **Look-dev commands** for the views in §3 (add `--shot <file> --hide-ui` to save them):
   - (a) `--view surface --alt 1.7 --yaw 60 --pitch -2 --time 2026-10-12T03:00:00Z`;
   - (b) `--view surface --lat 44.86225 --lon -170.00150 --alt 1.7 --yaw 280 --pitch 0 --time 2026-10-12T15:50:00Z`;
@@ -5133,3 +5261,52 @@ owner, to confirm or overturn (numbered V1 on):
   Finch at the vehicle workbench) isn't shortened by a workbench.
 - V12. **The console's `give` takes `<item>.blueprint`** (a blueprint of that item's recipe), so a blueprint to LEARN can be
   given; the tour's `held` step uses it.
+
+Decisions taken for the loading screen (§4.3.1, the owner's request of 13 October 2026) without the owner, to confirm or
+overturn (numbered O1 on):
+
+- O1. **One pipeline, stages registered by their owners.** The hosted server's process, the client, the surface view, the
+  renderer's warm-up and the frames each register the stage they own (a key and a measure); the stages' words, weights and
+  their rules' numbers are data (`loading.json`). The screen draws the pipeline's total and current stage, the game asks
+  it whether play may start, and neither knows which parts exist. The world's stages are registered by the surface view,
+  which the ground view now makes at its start (it opens once the zone is known), so the bar knows every stage from the
+  first frame.
+- O2. **Weights are the seconds a stage takes on this PC**, measured, so the bar moves at an even pace; a stage without a
+  measure of its own (the server's start) is estimated from its weight, at most to 95 %; a stage's progress never goes
+  back, so neither does the bar.
+- O3. **Play waits for every stage**: no input is read, the mouse stays free, mouse look and keys do nothing, and the
+  character stands where it arrived. The interface is drawn all along under the screen (its first draw would otherwise be
+  the first frame of play) and greets the player at the hand-over, rather than at its start, unseen.
+- O4. **The last stage is 0.75 s of steady frames** (each under 33.4 ms, the measurements' budget), counted only once
+  every other stage is done: streaming and warming end with a quiet world, and play starts on smooth frames.
+- O5. **The world's things are in when nothing new came for 0.5 s** after the character arrived (6 s at most in a place
+  that never goes quiet). The server sends its backlog a part every snapshot while there is one, so no message or
+  protocol change was needed.
+- O6. **Arrivals:** a move of more than 120 m at once on foot (a respawn, a teleport) runs the arrival's stages again
+  (the world's things, the land, the forest) and holds input; the screen comes back only if they take longer than 0.25 s,
+  without its title block and tip. Flying never counts (a long frame at a boosting Tin Finch's 260 m/s isn't an arrival),
+  and the place is kept while flying, so stepping out far from where the flight began isn't one either.
+- O7. **The warm-up loads every file the libraries list from the first frame, 6 at a time, and keeps them** for the
+  game (1.2 GB of video memory, 0.4 GB of memory in all): nothing the game draws or plays later waits on a file. It
+  shows each item once the world is open, not before: the first draw of a material loads its shader's variants (about
+  4 s for the characters' alone), and doing that before the welcome kept the main thread from seeing the server ready
+  (tried: the game handed play over 3–5 s later).
+- O8. **Held items are warmed in first person too.** Each item's first-person copy of its materials is a shader of its
+  own: about 30 more shaders to load under the screen, where each would otherwise cost about 200 ms the first time the
+  item is equipped.
+- O9. **The picture is our first world's golden meadow** (look-dev view (b), rendered at 2560 × 1421), and the boot splash
+  shows it too (a 1600-wide PNG, 3 MB: Godot's splash takes PNG only), so from the first moment the window is the game.
+- O10. **Files load in the order the world's opening reads them** (the ground's textures, the bodies, the building's art,
+  then the catalogue), the 563 sound files last.
+- O11. **The hosted server's process runs above normal priority** (its tick already did, P10): the game loading beside it
+  doesn't slow its start.
+- O12. **The game's C# is compiled optimized in Debug builds**, which Godot runs, as Hollow.Surface's already was: the
+  air's tables, the flora's painting, the impostors' atlas and the warm-up run several times faster.
+- O13. **The impostor atlas's dilation and mipmaps run on a worker** (two frozen 2.7 s before); the first world's surface and
+  air tables are computed on workers while the server starts.
+- O14. **Behind the screen the terrain puts up to 64 finished tiles a frame in place** (10 in play): nobody sees the frames.
+- O15. **Shader and pipeline caches stay Godot's** (on, in the project's user folder, shared by every worktree). They
+  work: no shader was compiled from source in the runs measured. What remains on every launch is loading cached shader
+  variants on first use (about 5 ms each); a shader baker (exported games only) or fewer distinct materials would cut it.
+- O16. **`--in-process` hosting still builds its server on the main thread** before the first frame (tests and the screenshot
+  run's statistics), so it has no `server` stage.

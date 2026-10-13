@@ -3,6 +3,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>HollowUniverse</RootNamespace>
+    <!-- Godot runs the Debug build: the game's own work (the air's tables, the flora's painting, the impostors' atlas,
+         the warm-up) is optimized there too, as Hollow.Surface's is (GROUND.md §4.3.1). -->
+    <Optimize>true</Optimize>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../src/Hollow.Core/Hollow.Core.csproj" />
