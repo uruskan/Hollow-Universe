@@ -11,7 +11,7 @@ import math
 from mathutils import Matrix, Vector
 
 from . import kit
-from .kit import (BLACK, DARK, GREY, LIGHTGREY, OFFWHITE, ORANGE, RED, TEAL, YELLOW, srgb)
+from .kit import (BLACK, DARK, GREY, LIGHTGREY, OFFWHITE, ORANGE, RED, TEAL, YELLOW, srgb, stripes)
 from .surfaces import (ASPHALT, CONCRETE, CORRUGATED, GLASS, GLOSS, GRATE, LAMP, MATTE, PAINT, PANEL, RUST)
 
 # ------------------------------------------------------------------------------------------------ colours
@@ -34,6 +34,8 @@ ROCK = srgb(0.52, 0.50, 0.47)
 COPPER = srgb(0.72, 0.42, 0.25)
 ALU = srgb(0.74, 0.75, 0.76)           # bare aluminium: ladders, trim
 SIGN_WHITE = srgb(0.92, 0.91, 0.88)
+RUST_RED = srgb(0.50, 0.21, 0.13)      # container red
+CONTAINER_BLUE = srgb(0.20, 0.32, 0.46)
 
 # ------------------------------------------------------------------------------------------------ stencilled codes
 
@@ -869,3 +871,248 @@ def guy_anchor(b, at, toward):
         rot = tuple(math.degrees(v) for v in dirn.to_track_quat("Z", "Y").to_euler())
         b.cyl(0.035, (c - a).length, tuple((a + c) / 2), rot, mat=PAINT, tint=GALV, sides=6, solid=False, vary=0)
     return top
+
+
+# ------------------------------------------------------------------------------------------------ trucks and freight
+
+C20 = (6.06, 2.44, 2.59)      # a 20-foot container, as the kit's container-20 piece
+
+
+def hauler(b, at, rot=(0, 0, 0), tint=OFFWHITE, band=ORANGE, stripe=TEAL, code="HX-214", broken=0.3, mirrors=True,
+           lights=True, frame_tint=DARK):
+    """A Seedward cab-over hauler (tractor unit): ladder chassis on three axles, a tall cab with a raked windscreen
+    and rounded corners, livery band and codes, fuel tanks, exhaust stack and intake, a catwalk and the fifth wheel.
+    Front toward -Y of its frame, the ground at z = 0. `broken` (0..1) leaves windows out. Returns the fifth
+    wheel's position (where a trailer's king pin goes) in the monument's frame."""
+    with b.frame(at, rot):
+        # Chassis, engine, axles and wheels.
+        for x in (-0.45, 0.45):
+            b.box((0.2, 7.3, 0.3), (x, -0.05, 0.95), mat=PAINT, tint=frame_tint)
+        for y in (-3.0, -1.0, 0.6, 3.4):
+            b.box((0.7, 0.12, 0.18), (0, y, 0.95), mat=PAINT, tint=frame_tint, solid=False)
+        b.box((1.0, 1.7, 0.8), (0, -2.55, 0.95), mat=PAINT, tint=srgb(0.25, 0.25, 0.26))
+        for y in (-2.6, 1.6, 2.95):
+            b.cyl(0.07, 1.8, (0, y, 0.54), (0, 90, 0), mat=PAINT, tint=frame_tint, sides=8, solid=False)
+            for s in (-1, 1):
+                b.piece("wheel-road", (s * 1.06, y, 0), (0, 0, 0 if s < 0 else 180))
+        # The cab: a side profile extruded across, rounded corners at the front.
+        prof = [(-3.62, 1.15), (-1.35, 1.15), (-1.35, 3.62), (-3.25, 3.62), (-3.5, 3.45), (-3.66, 2.4), (-3.7, 1.35)]
+        with b.frame((0, 0, 0), (0, 0, 90)):
+            b.extrude(prof, 2.46, (0, 0, 0), (0, 0, 0), mat=PANEL, tint=tint, bevel=0.06)
+        for s in (-1, 1):
+            b.cyl(0.11, 2.2, (s * 1.13, -3.58, 2.35), mat=PANEL, tint=tint, sides=10, solid=False)
+        b.box((2.5, 0.3, 0.12), (0, -3.42, 3.66), (12, 0, 0), mat=PAINT, tint=frame_tint, solid=False)
+        # Glass: windscreen and door windows, some panes gone.
+        if b.rng.random() > broken:
+            b.box((2.12, 0.03, 1.0), (0, -3.59, 2.95), (-9.0, 0, 0), mat=GLASS, solid=False)
+        else:
+            b.box((2.12, 0.03, 1.0), (0, -3.55, 2.95), (-9.0, 0, 0), mat=MATTE, tint=srgb(0.05, 0.05, 0.05),
+                  solid=False)
+        for s in (-1, 1):
+            if b.rng.random() > broken:
+                b.box((0.03, 1.0, 0.75), (s * 1.245, -2.75, 2.95), mat=GLASS, solid=False)
+            else:
+                b.box((0.03, 1.0, 0.75), (s * 1.235, -2.75, 2.95), mat=MATTE, tint=srgb(0.04, 0.04, 0.04),
+                      solid=False)
+            # Door seams, handle, steps, the band, the code.
+            for y in (-3.4, -2.05):
+                b.box((0.02, 0.03, 2.2), (s * 1.24, y, 2.3), mat=PAINT, tint=frame_tint, solid=False, vary=0)
+            b.box((0.04, 0.2, 0.04), (s * 1.26, -2.25, 2.35), mat=PAINT, tint=GREY, solid=False)
+            for z in (0.62, 1.02):
+                b.box((0.32, 0.55, 0.05), (s * 1.08, -2.75, z), mat=GRATE, tint=GREY, solid=False, vary=0)
+            b.box((0.012, 2.25, 0.32), (s * 1.236, -2.48, 2.05), mat=PAINT, tint=band, solid=False, vary=0, wear=0.5)
+            b.box((0.012, 2.25, 0.06), (s * 1.236, -2.48, 1.82), mat=PAINT, tint=stripe, solid=False, vary=0,
+                  wear=0.5)
+            stencil(b, code, (s * 1.25, -2.6 if s < 0 else -3.52, 1.45), (0, 0, 90 * s), 0.2, DARK)
+            if mirrors:
+                b.beam((s * 1.2, -3.35, 2.9), (s * 1.55, -3.45, 3.05), 0.04, 0.04, mat=PAINT, tint=frame_tint)
+                b.box((0.07, 0.24, 0.48), (s * 1.6, -3.45, 2.95), mat=PAINT, tint=frame_tint, solid=False)
+        b.box((2.3, 0.012, 0.32), (0, -3.712, 2.05), mat=PAINT, tint=band, solid=False, vary=0, wear=0.5)
+        # Grille, bumper, lamps.
+        b.box((1.8, 0.05, 0.62), (0, -3.72, 1.55), mat=PAINT, tint=frame_tint, solid=False)
+        for k in range(5):
+            b.box((1.7, 0.03, 0.04), (0, -3.75, 1.3 + k * 0.12), mat=PAINT, tint=GREY, solid=False, vary=0)
+        b.box((2.5, 0.3, 0.38), (0, -3.82, 0.95), mat=PAINT, tint=frame_tint, bevel=0.03)
+        for s in (-1, 1):
+            b.box((0.36, 0.05, 0.16), (s * 0.85, -3.75, 1.85), mat=GLOSS, tint=srgb(0.9, 0.9, 0.85), solid=False,
+                  vary=0)
+            b.box((0.16, 0.05, 0.1), (s * 1.1, -3.98, 1.0), mat=GLOSS, tint=srgb(1.0, 0.6, 0.1), solid=False, vary=0)
+        if lights:
+            for x in (-0.5, 0.5):
+                b.box((0.18, 0.12, 0.1), (x, -3.2, 3.72), mat=LAMP, tint=AMBER, solid=False, vary=0)
+            b.marker("light", (0, -3.2, 3.9), colour=[round(c, 3) for c in AMBER], range=14.0, blink=0.7)
+        # Behind the cab: stack and intake, catwalk, fuel tanks, the fifth wheel, mudguards, rear lamps.
+        b.cyl(0.09, 2.7, (0.95, -1.18, 2.75), mat=PAINT, tint=GREY, sides=10, solid=False)
+        b.cyl(0.1, 0.25, (0.95, -1.18, 4.15), mat=RUST, tint=(1, 1, 1), sides=10, solid=False)
+        b.box((0.4, 0.35, 1.4), (-0.95, -1.15, 2.4), mat=PAINT, tint=tint, bevel=0.03, solid=False)
+        b.box((1.6, 1.3, 0.05), (0, -0.55, 1.26), mat=GRATE, tint=GREY, solid=False, vary=0)
+        for s in (-1, 1):
+            b.cyl(0.32, 1.35, (s * 0.95, -0.4, 0.78), (90, 0, 0), mat=PAINT, tint=ALU, sides=14)
+            for y in (-0.85, 0.05):
+                b.cyl(0.335, 0.05, (s * 0.95, y, 0.78), (90, 0, 0), mat=PAINT, tint=frame_tint, sides=14,
+                      solid=False, vary=0)
+            b.box((0.42, 2.5, 0.05), (s * 1.06, 2.28, 1.18), mat=PAINT, tint=frame_tint, solid=False)
+            b.box((0.2, 0.04, 0.1), (s * 0.9, 3.7, 1.1), mat=GLOSS, tint=RED, solid=False, vary=0)
+        b.box((1.1, 1.1, 0.14), (0, 2.1, 1.2), mat=PAINT, tint=GREY)
+        b.box((0.16, 0.5, 0.15), (0, 2.45, 1.22), mat=PAINT, tint=frame_tint, solid=False)
+        fifth = b.world((0, 2.1, 1.28))
+    return fifth
+
+
+def skel_trailer(b, at, rot=(0, 0, 0), length=12.4, tint=srgb(0.32, 0.33, 0.34), legs_down=True):
+    """A skeletal container trailer: two main beams, cross members, a gooseneck with the king pin at the front
+    (-Y), landing legs, a tandem axle at the rear, twistlocks for two 20-foot containers. Returns the deck height."""
+    deck = 1.38
+    hl = length / 2
+    with b.frame(at, rot):
+        for x in (-0.5, 0.5):
+            b.box((0.16, length - 0.4, 0.38), (x, 0.2, deck - 0.19), mat=PAINT, tint=tint)
+        b.box((1.2, 2.0, 0.22), (0, -hl + 1.0, deck - 0.11), mat=PAINT, tint=tint)
+        b.cyl(0.06, 0.12, (0, -hl + 0.9, deck - 0.28), mat=PAINT, tint=GREY, sides=8, solid=False)
+        for k in range(9):
+            y = -hl + 1.5 + k * (length - 2.0) / 8
+            b.box((2.44, 0.1, 0.14), (0, y, deck - 0.07), mat=PAINT, tint=tint, solid=False)
+        for y in (-hl + 0.15, 0.0, hl - 0.15):
+            for s in (-1, 1):
+                b.box((0.16, 0.16, 0.12), (s * 1.12, y, deck + 0.02), mat=PAINT, tint=GREY, solid=False)
+        if legs_down:
+            for s in (-1, 1):
+                b.box((0.12, 0.12, deck - 0.2), (s * 0.55, -hl + 2.6, (deck - 0.2) / 2 + 0.1), mat=PAINT, tint=GREY)
+                b.box((0.3, 0.3, 0.05), (s * 0.55, -hl + 2.6, 0.04), mat=PAINT, tint=GREY, solid=False)
+            b.beam((-0.55, -hl + 2.6, 0.4), (0.55, -hl + 2.6, 0.9), 0.05, 0.05, mat=PAINT, tint=GREY)
+        for y in (hl - 2.4, hl - 1.1):
+            b.cyl(0.07, 2.0, (0, y, 0.54), (0, 90, 0), mat=PAINT, tint=DARK, sides=8, solid=False)
+            for s in (-1, 1):
+                b.piece("wheel-road", (s * 1.06, y, 0), (0, 0, 0 if s < 0 else 180))
+                b.box((0.42, 1.1, 0.05), (s * 1.06, y, 1.16), mat=PAINT, tint=DARK, solid=False)
+        b.box((2.44, 0.12, 0.25), (0, hl - 0.05, 0.75), mat=PAINT, tint=DARK, solid=False)
+        for s in (-1, 1):
+            b.box((0.25, 0.05, 0.12), (s * 0.9, hl + 0.02, 0.75), mat=GLOSS, tint=RED, solid=False, vary=0)
+        stripes(b, (-1.2, hl + 0.02, 0), (1.2, hl + 0.02, 0), 0.12, width=0.2, colours=(RED, SIGN_WHITE),
+                at_z=0.88, normal=(0, 1, 0))
+    return deck
+
+
+def container_open(b, at, rot=(0, 0, 0), tint=RUST_RED, doors=(100.0, 170.0), torn=True, floor_tint=WOOD):
+    """A 20-foot container burst open (the kit piece's twin, with an inside): corrugated walls, posts and rails, a
+    timber floor, its doors (at +X) swung open and, when `torn`, a side wall split open and peeled out. Returns the
+    floor's centre in the monument's frame."""
+    w, d, h = C20
+    hw, hd = w / 2, d / 2
+    with b.frame(at, rot):
+        b.box((w - 0.1, d - 0.1, 0.12), (0, 0, 0.06), mat=PAINT, tint=floor_tint)
+        # The back wall and the roof; the -Y side either whole or split, the +Y side whole.
+        grid_box(b, (0.05, d - 0.2, h - 0.25), (-hw + 0.06, 0, h / 2), mat=CORRUGATED, tint=tint, step=1.2)
+        grid_box(b, (w - 0.2, d - 0.06, 0.05), (0, 0, h - 0.04), mat=CORRUGATED, tint=tint, step=1.2)
+        grid_box(b, (w - 0.2, 0.05, h - 0.25), (0, hd - 0.03, h / 2), mat=CORRUGATED, tint=tint, step=1.2)
+        if torn:
+            grid_box(b, (2.4, 0.05, h - 0.25), (-hw + 1.3, -hd + 0.03, h / 2), mat=CORRUGATED, tint=tint, step=1.2)
+            grid_box(b, (1.2, 0.05, h - 0.25), (hw - 0.7, -hd + 0.03, h / 2), mat=CORRUGATED, tint=tint, step=1.2)
+            with b.frame((-hw + 2.5, -hd + 0.03, 0.15), (0, 0, -55.0)):
+                grid_box(b, (1.3, 0.05, h - 0.5), (0.65, 0, (h - 0.5) / 2), mat=CORRUGATED, tint=tint, step=1.2)
+            with b.frame((hw - 1.3, -hd + 0.03, 0.4), (14.0, 0, 62.0)):
+                grid_box(b, (1.0, 0.05, h - 0.9), (-0.5, 0, (h - 0.9) / 2), mat=CORRUGATED, tint=tint, step=1.2)
+        else:
+            grid_box(b, (w - 0.2, 0.05, h - 0.25), (0, -hd + 0.03, h / 2), mat=CORRUGATED, tint=tint, step=1.2)
+        for x in (-hw + 0.07, hw - 0.07):
+            for y in (-hd + 0.07, hd - 0.07):
+                b.box((0.15, 0.15, h), (x, y, h / 2), mat=PAINT, tint=tint, solid=False)
+        for z in (0.08, h - 0.08):
+            for y in (-hd + 0.06, hd - 0.06):
+                b.box((w, 0.13, 0.16), (0, y, z), mat=PAINT, tint=tint, solid=False)
+            b.box((0.13, d, 0.16), (-hw + 0.06, 0, z), mat=PAINT, tint=tint, solid=False)
+            b.box((0.13, d, 0.16), (hw - 0.06, 0, z), mat=PAINT, tint=tint, solid=False)
+        # Doors at +X, each half the width, hinged at the corners, with lock bars.
+        for s, ang in ((-1, -doors[0]), (1, doors[1])):
+            with b.frame((hw, s * (hd - 0.05), 0.1), (0, 0, ang)):
+                grid_box(b, (0.05, hd - 0.06, h - 0.3), (0.03, -s * (hd / 2), (h - 0.2) / 2), mat=CORRUGATED,
+                         tint=tint, step=1.2)
+                for yy in (0.3, 0.75):
+                    b.cyl(0.022, h - 0.35, (0.08, -s * yy, (h - 0.2) / 2), mat=PAINT, tint=GREY, sides=6,
+                          solid=False, vary=0)
+        stencil(b, "SW 40 117", (-hw + 0.4, hd + 0.005, h - 0.55), (0, 0, 180), 0.22, SIGN_WHITE)
+        centre = b.world((0, 0, 0.12))
+    return centre
+
+
+def guard_rail(b, pts, gap=None, bent=None, tint=GALV):
+    """A W-beam crash barrier on posts along the polyline `pts` (x, y), facing -Y of each segment's direction.
+    `gap` (a0, a1): the distance along it where the rail is torn away; `bent` (a0, a1): where it is pushed over."""
+    p = [Vector((q[0], q[1], 0)) for q in pts]
+    run = 0.0
+    for a, c in zip(p, p[1:]):
+        d = c - a
+        length = d.length
+        n = max(1, int(length / 2.0))
+        yaw = math.degrees(math.atan2(d.y, d.x))
+        side = Vector((-d.y, d.x, 0)).normalized()
+        for k in range(n):
+            s0, s1 = run + length * k / n, run + length * (k + 1) / n
+            q0, q1 = a + d * (k / n), a + d * ((k + 1) / n)
+            mid = (q0 + q1) / 2
+            if gap and gap[0] < (s0 + s1) / 2 < gap[1]:
+                continue
+            lean = 0.0
+            if bent and bent[0] < (s0 + s1) / 2 < bent[1]:
+                lean = 35.0 + 30.0 * b.rng.random()
+            with b.frame((q0.x, q0.y, 0), (0, 0, yaw)):
+                with b.frame((0, 0, 0), (lean, 0, 0)):
+                    b.box((0.1, 0.16, 1.0), (0, -0.1, 0.42), mat=PAINT, tint=tint, solid=lean == 0)
+            with b.frame((mid.x, mid.y, 0), (0, 0, yaw)):
+                with b.frame((0, 0, 0.0), (lean, 0, 0)):
+                    b.box((length / n + 0.05, 0.08, 0.32), (0, 0.02, 0.68), mat=PAINT, tint=tint, solid=False)
+                    b.box((length / n + 0.05, 0.1, 0.06), (0, 0.05, 0.68), mat=PAINT, tint=tint, solid=False)
+            if not lean:
+                b.collide_box(mid + Vector((0, 0, 0.45)), (length / n, 0.12, 0.9), (0, 0, yaw))
+        run += length
+
+
+def ribbon(b, pts, width=0.3, z=0.0, tint=SCORCH, mat=MATTE, step=1.0):
+    """A thin strip lying on a surface along a smooth curve through `pts` (x, y): tyre marks, paint lines."""
+    curve = spline([Vector((q[0], q[1], 0)) for q in pts], step)
+    left, right = [], []
+    for i, q in enumerate(curve):
+        d = curve[min(i + 1, len(curve) - 1)] - curve[max(i - 1, 0)]
+        s = Vector((-d.y, d.x, 0)).normalized() * (width / 2)
+        left.append((q + s).to_tuple())
+        right.append((q - s).to_tuple())
+    n = len(curve)
+    verts = [(x, y, z + 0.004) for x, y, _ in left] + [(x, y, z + 0.004) for x, y, _ in right]
+    verts += [(x, y, z) for x, y, _ in left] + [(x, y, z) for x, y, _ in right]
+    faces = []
+    for i in range(n - 1):
+        faces.append([i, i + 1, n + i + 1, n + i])
+        faces.append([2 * n + i, 3 * n + i, 3 * n + i + 1, 2 * n + i + 1])
+        faces.append([i, 2 * n + i, 2 * n + i + 1, i + 1])
+        faces.append([n + i, n + i + 1, 3 * n + i + 1, 3 * n + i])
+    faces.append([0, n, 3 * n, 2 * n])
+    faces.append([n - 1, 3 * n - 1, 4 * n - 1, 2 * n - 1])
+    b.mesh(verts, faces, mat=mat, tint=tint, solid=False, vary=0, smooth=False)
+
+
+def _pallet(b, boxes=True):
+    """A timber pallet, with or without a load of cartons strapped on."""
+    b.box((1.2, 1.0, 0.03), (0, 0, 0.135), mat=PAINT, tint=WOOD)
+    for y in (-0.42, 0.0, 0.42):
+        b.box((1.2, 0.1, 0.09), (0, y, 0.075), mat=PAINT, tint=WOOD, solid=False)
+    for x in (-0.5, 0.0, 0.5):
+        b.box((0.1, 1.0, 0.02), (x, 0, 0.02), mat=PAINT, tint=WOOD, solid=False)
+    if boxes:
+        k = 0
+        for z in range(3):
+            for x in (-0.3, 0.3):
+                for y in (-0.25, 0.25):
+                    k += 1
+                    b.box((0.56, 0.46, 0.33), (x + 0.01 * (k % 3 - 1), y, 0.15 + 0.165 + z * 0.34),
+                          (0, 0, 2.0 * (k % 3 - 1)), mat=MATTE,
+                          tint=(srgb(0.62, 0.5, 0.34), srgb(0.56, 0.45, 0.31))[k % 2], solid=False, vary=0.05)
+        for x in (-0.3, 0.3):
+            b.box((0.04, 1.0, 0.012), (x, 0, 1.18), mat=PAINT, tint=srgb(0.2, 0.4, 0.6), solid=False, vary=0)
+            for y in (-0.5, 0.5):
+                b.box((0.04, 0.012, 1.03), (x, y, 0.665), mat=PAINT, tint=srgb(0.2, 0.4, 0.6), solid=False, vary=0)
+        b.collide_box(Vector((0, 0, 0.6)), (1.2, 1.0, 1.2), (0, 0, 0))
+    else:
+        b.collide_box(Vector((0, 0, 0.08)), (1.2, 1.0, 0.15), (0, 0, 0))
+
+
+kit.PIECES["pallet-boxes"] = lambda b: _pallet(b, True)
