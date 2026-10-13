@@ -202,3 +202,13 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   With 100 bots building 100 bases the tick is 7.4 ms on average and each client uses 84 kbit/s. A 1,074-piece
   base streams to a newcomer in 1.9 s. The ground-mode hookup (held plan and hammer, ghost, wheels, drawing
   structures) follows the running integration pass. 110 of 110 tests pass.
+- **G5 raid core merged** (`ground-raid`):
+  - explosives that are thrown, lobbed, placed and stick; bag charges can dud and be relit;
+  - the rocket launcher, and explosive rifle rounds;
+  - blasts with shielding, matching Rust's raid counts exactly;
+  - collapse;
+  - raid alerts, in game or waiting until login;
+  - offline raids that work.
+
+  With 100 raiding bots the tick is 9.7 ms on average and each client uses 157 kbit/s. Models, sounds and visuals
+  for raiding come with the effects package and the next integration pass. 120 of 120 tests pass.
