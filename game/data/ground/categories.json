@@ -8,6 +8,7 @@
     { "key": "clothing", "name": "Clothing" },
     { "key": "medical", "name": "Medical" },
     { "key": "food", "name": "Food" },
-    { "key": "items", "name": "Items" }
+    { "key": "items", "name": "Items" },
+    { "key": "vehicles", "name": "Vehicles" }
   ]
 }

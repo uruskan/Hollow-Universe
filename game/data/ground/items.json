@@ -1,5 +1,5 @@
 {
-  "source": "GROUND.md §6-7. Numbers from hollow-orbit js/game/items.js (tool damage and gather rates, clothing protection, consumables, stack sizes) and RustMVP inventory_survival.md (stack sizes); arrows, bow, spears and berries use Rust's numbers. G4: firearms, rounds and attachments get their numbers from weapons.json (their stack of 128 and the guns' magazines from RustMVP, condition per shot from hollow-orbit's dur: pistol 200, rifle 300); the metal mask is hollow-orbit's metal_facemask (50% against shots and blows to the head). Names are ours. IDs are stable: never reuse a retired one (saves and the wire use them).",
+  "source": "GROUND.md §6-7. Numbers from hollow-orbit js/game/items.js (tool damage and gather rates, clothing protection, consumables, stack sizes) and RustMVP inventory_survival.md (stack sizes); arrows, bow, spears and berries use Rust's numbers. G6: the vehicle workbench and the Tin Finch, a ship (ships.json) rather than something carried. G4: firearms, rounds and attachments get their numbers from weapons.json (their stack of 128 and the guns' magazines from RustMVP, condition per shot from hollow-orbit's dur: pistol 200, rifle 300); the metal mask is hollow-orbit's metal_facemask (50% against shots and blows to the head). Names are ours. IDs are stable: never reuse a retired one (saves and the wire use them).",
   "items": [
     { "id": 1, "key": "wood", "name": "Wood", "category": "resources", "stack": 1000,
       "description": "Chopped from trees. Builds, crafts and burns.",
@@ -163,6 +163,13 @@
       "deploys": "workbench-2" },
     { "id": 77, "key": "workbench-3", "name": "Workbench, level 3", "category": "items",
       "description": "Crafts level 3 items within 4 metres of it.",
-      "deploys": "workbench-3" }
+      "deploys": "workbench-3" },
+
+    { "id": 140, "key": "vehicle-workbench", "name": "Vehicle workbench", "category": "items",
+      "description": "A heavy bench with a hoist and a parts rack. Builds ships; a finished one rolls out onto the ground in front of it.",
+      "deploys": "vehicle-workbench" },
+    { "id": 141, "key": "tin-finch", "name": "Tin Finch", "category": "vehicles",
+      "description": "A one-seat salvage skiff: a pressure cabin, three rear exhausts and four lift nozzles. Burns lamp oil. Built at a vehicle workbench.",
+      "ship": "tin-finch" }
   ]
 }

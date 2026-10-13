@@ -47,6 +47,14 @@ public sealed class PhysicsWorld : IDisposable
 
     public const int MaxBuildingBodies = 16384;
 
+    /// <summary>
+    /// Body IDs from here on belong to ships parked on the ground (<c>Ships/ShipCollider</c>, G6), at most
+    /// <see cref="MaxShipBodies"/> of them; everything above comes first.
+    /// </summary>
+    public const int FirstShipBody = FirstBuildingBody + MaxBuildingBodies;
+
+    public const int MaxShipBodies = 1024;
+
     /// <summary>Whether a body is a ground tile.</summary>
     public static bool IsGroundBody(uint id) => id < TileIdCount;
 
@@ -82,7 +90,7 @@ public sealed class PhysicsWorld : IDisposable
             Jolt = new PhysicsSystem(new PhysicsSystemSettings
             {
                 // Ground tile IDs take the bottom of the range (see the class remarks); later bodies take the rest.
-                MaxBodies = FirstBuildingBody + MaxBuildingBodies,
+                MaxBodies = FirstShipBody + MaxShipBodies,
                 MaxBodyPairs = 4096,
                 MaxContactConstraints = 4096,
                 NumBodyMutexes = 0,
