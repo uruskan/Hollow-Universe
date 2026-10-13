@@ -247,12 +247,15 @@ public partial class ModelViewer : Node3D
         }
     }
 
-    /// <summary>The held item as the player sees it: at its catalogue pose in front of a 75 degree camera.</summary>
+    /// <summary>
+    /// The held item as the player sees it: its grip at its catalogue pose (as the arms hold it, GROUND.md §4.8) in front
+    /// of a camera with the arms' field of view.
+    /// </summary>
     private void ShowFirstPerson()
     {
         ModelEntry entry = _entries[_index];
         Node3D? model = entry.Held == null ? null : ModelCatalog.Instantiate(entry.Key);
-        _camera.Fov = 75;
+        _camera.Fov = HollowUniverse.Characters.CharacterMaterials.ViewmodelFov;
         _camera.Position = new Vector3(0, 1.6f, 0);
         _camera.Rotation = Vector3.Zero;
         if (model == null)
@@ -261,7 +264,9 @@ public partial class ModelViewer : Node3D
         }
         Mount(entry, model);
         ModelCatalog.ForceLod(model, 0);
-        model.Transform = entry.Held!.FirstPerson.Transform;
+        Transform3D grip = HollowUniverse.Characters.HeldItems.Find(entry.Key) is { } held
+            ? HollowUniverse.Characters.HeldItems.Grip(model, held) : Transform3D.Identity;
+        model.Transform = entry.Held!.FirstPerson.Transform * grip.AffineInverse();
         _camera.AddChild(model);
     }
 

@@ -32,6 +32,9 @@ public partial class CharacterLab : Node3D
     private int _item = -1;
     private int _motion;
     private float _aimPitch;
+
+    // --look yaw,pitch (degrees): the head's free look (Alt), as another player would see it.
+    private Vector2 _look;
     private bool _firstPerson;
     private bool _aiming;
     private Vector3? _viewmodelOrbit;
@@ -104,6 +107,12 @@ public partial class CharacterLab : Node3D
         string item = Option("item", "none");
         _item = item == "none" ? -1 : IndexOfItem(item);
         _aimPitch = Mathf.DegToRad((float)Number("aim", 0));
+        if (_options.TryGetValue("look", out string? look))
+        {
+            string[] v = look.Split(',');
+            _look = new Vector2(Mathf.DegToRad(float.Parse(v[0], CultureInfo.InvariantCulture)),
+                v.Length > 1 ? Mathf.DegToRad(float.Parse(v[1], CultureInfo.InvariantCulture)) : 0f);
+        }
         _yaw = (float)Number("yaw", _yaw);
         _pitch = (float)Number("pitch", _pitch);
         _distance = (float)Number("distance", _distance);
@@ -154,6 +163,54 @@ public partial class CharacterLab : Node3D
         }
         ApplyOutfit();
         Refresh();
+        if (_options.TryGetValue("fp-sheet", out string? sheet))
+        {
+            SheetOfHeldItems(sheet);
+        }
+    }
+
+    /// <summary>
+    /// --fp-sheet &lt;png&gt;: every held item in first person (or those <c>--only a,b</c> names), a tile each in the
+    /// catalogue's order (six to a row), saved as one picture; then quits. The lower right of each frame, where the hands
+    /// are (<c>--full</c>: the whole frame).
+    /// </summary>
+    private async void SheetOfHeldItems(string path)
+    {
+        _firstPerson = true;
+        const int columns = 6;
+        var tile = new Vector2I(480, 270);
+        var items = new List<int>();
+        string[]? only = _options.TryGetValue("only", out string? keys) ? keys.Split(',') : null;
+        for (int i = 0; i < HeldItems.All.Count; i++)
+        {
+            if (only == null || Array.IndexOf(only, HeldItems.All[i].Id) >= 0)
+            {
+                items.Add(i);
+            }
+        }
+        int count = items.Count, rows = Math.Max(1, (count + columns - 1) / columns);
+        Image sheet = Image.CreateEmpty(Math.Min(count, columns) * tile.X, rows * tile.Y, false, Image.Format.Rgba8);
+        await ToSignal(GetTree().CreateTimer(1.5), SceneTreeTimer.SignalName.Timeout);
+        for (int n = 0; n < count; n++)
+        {
+            int i = items[n];
+            _item = i;
+            Refresh();
+            await ToSignal(GetTree().CreateTimer(0.6), SceneTreeTimer.SignalName.Timeout);
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            Image frame = GetViewport().GetTexture().GetImage();
+            Vector2I size = frame.GetSize();
+            // The right two thirds and lower two thirds of the frame: the hands and what they hold (--full: all of it).
+            Rect2I crop = _options.ContainsKey("full") ? new Rect2I(Vector2I.Zero, size) : new Rect2I(size.X / 3, size.Y / 3, size.X * 2 / 3, size.Y * 2 / 3);
+            Image part = frame.GetRegion(crop);
+            part.Resize(tile.X, tile.Y, Image.Interpolation.Lanczos);
+            part.Convert(Image.Format.Rgba8);
+            sheet.BlitRect(part, new Rect2I(Vector2I.Zero, tile), new Vector2I(n % columns * tile.X, n / columns * tile.Y));
+            GD.Print($"[sheet] {n}: {HeldItems.All[i].Id}");
+        }
+        Error error = Save(sheet, path);
+        GD.Print(error == Error.Ok ? $"Saved the sheet {path}" : $"Could not save {path}: {error}");
+        GetTree().Quit(error == Error.Ok ? 0 : 1);
     }
 
     private static int IndexOfItem(string id)
@@ -573,6 +630,8 @@ public partial class CharacterLab : Node3D
         _elapsed += delta;
         CharacterFrame frame = MotionFrame(Motions[_motion], _time, dt);
         frame.Pitch = _aimPitch;
+        frame.LookYaw = _look.X;
+        frame.LookPitch = _look.Y;
         HeldItemModel? held = _item >= 0 ? HeldItems.All[_item] : null;
         frame.Held = held?.Kind ?? HeldKind.Unarmed;
         frame.HeldItem = held?.Id;
@@ -858,10 +917,14 @@ public partial class CharacterLab : Node3D
         }
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         Image image = GetViewport().GetTexture().GetImage();
-        Error error = image.SavePng(path);
+        Error error = Save(image, path);
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
         GetTree().Quit(error == Error.Ok ? 0 : 1);
     }
+
+    // A picture as PNG, or as JPEG when the path says .jpg (smaller, for the docs).
+    private static Error Save(Image image, string path) =>
+        path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? image.SaveJpg(path, 0.88f) : image.SavePng(path);
 
     private string Option(string key, string fallback) => _options.TryGetValue(key, out string? v) ? v : fallback;
 

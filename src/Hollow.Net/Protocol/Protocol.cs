@@ -14,9 +14,10 @@ public static partial class Protocol
     /// bags (a thing of kind <c>StaticKind.DroppedBag</c> shows no item, its count is how many stacks it holds, and it
     /// opens as take-only loot, <c>LootKind.Crate</c>); 13: gathering's feedback (a natural object's change carries its run
     /// of weak-spot hits, how fresh its last hit is and where it met the surface); 14: the damage pipeline's Destroyed
-    /// event (<see cref="ThingDestroyed"/>, GROUND.md §6.4.2).
+    /// event (<see cref="ThingDestroyed"/>, GROUND.md §6.4.2); 15: free look (Alt), the head's turn from the view in every
+    /// input and in characters' state.
     /// </summary>
-    public const uint Version = 14;
+    public const uint Version = 15;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

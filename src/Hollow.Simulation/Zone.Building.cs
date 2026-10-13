@@ -548,8 +548,9 @@ public sealed partial class Zone
             {
                 return Outcome.Refuse(Refusal.Invalid);
             }
-            // The point only says where to look for the ground (across it, near the player); the rules check the
-            // reach to the foundation itself.
+            // The point is on the player's aim: where to look for the ground (across it, near the player) and how high
+            // the top goes, which the ground under the foundation bounds (FoundationAt); the rules check the reach to
+            // the foundation itself.
             Vector3 across = point - eye, up = Frame.UpAt(eye);
             if ((across - up * Vector3.Dot(across, up)).Length() > building.Data.Reach + 1)
             {

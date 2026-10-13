@@ -196,7 +196,7 @@ public partial class BuildSandbox : Node3D
         _scene = Options.TryGetValue("scene", out string? s) ? s : "house";
         PlacementPlan? first = _world.FoundationAt(_data.Piece("foundation")!, site, 0.35);
         Num.Vector3 spawn = site + new Num.Vector3(2, 0.5f, 12);
-        if (first == null || _scene == "empty")
+        if (first == null)
         {
             AddPlayer(site + new Num.Vector3(0, 0.5f, 6));
             return;
@@ -204,6 +204,10 @@ public partial class BuildSandbox : Node3D
         BuildingFrame frame = first.Frame;
         switch (_scene)
         {
+            case "empty":
+                // Nothing built: the first foundation's frame only measures --from and --at (a free foundation's ghost).
+                spawn = site + new Num.Vector3(0, 0.5f, 6);
+                break;
             case "stress":
             {
                 int count = DemoBases.Block(_world, first);

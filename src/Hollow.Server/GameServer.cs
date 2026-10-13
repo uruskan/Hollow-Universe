@@ -26,12 +26,16 @@ using LiteNetLib;
 
 namespace Hollow.Server;
 
-/// <summary>The server's part of a networked entity: its net ID, view angles and owner.</summary>
+/// <summary>The server's part of a networked entity: its net ID, view angles (with the head's free look) and owner.</summary>
 public struct NetPresence
 {
     public uint NetId;
     public ushort Yaw;
     public ushort Pitch;
+
+    /// <summary>Free look (Alt), as the last input had it: drawn by others only (GROUND.md §4.5).</summary>
+    public sbyte LookYaw;
+    public sbyte LookPitch;
     public PlayerSession? Owner;
 }
 
@@ -314,6 +318,8 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(session.Entity);
             presence.Yaw = input.Yaw;
             presence.Pitch = input.Pitch;
+            presence.LookYaw = input.LookYaw;
+            presence.LookPitch = input.LookPitch;
             ApplyShipInput(session, input);
         }
         long stepStarted = Stopwatch.GetTimestamp();
@@ -694,10 +700,13 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             Entity entity = Zone.Entities.AtSlot(slots[i]);
             ref Character character = ref Zone.Entities.Get<Character>(entity);
             _grid.Add(values[i].NetId, character.State.Position);
-            CharacterNetState state = NetConvert.ToNet(character.State, values[i].Yaw, values[i].Pitch);
+            CharacterNetState state = NetConvert.ToNet(character.State, values[i].Yaw, values[i].Pitch, values[i].LookYaw, values[i].LookPitch);
             if (Zone.PlayerOf(entity) is { } p)
             {
                 state.Held = p.IsAwakeAndAlive ? p.HeldItem : (ushort)0;
+                // Only an awake player's head looks around (a sleeper sends nothing more, a body nothing at all).
+                state.LookYaw = p.IsAwakeAndAlive ? state.LookYaw : (sbyte)0;
+                state.LookPitch = p.IsAwakeAndAlive ? state.LookPitch : (sbyte)0;
                 state.ActionCount = (byte)(p.ActionCount & 15);
                 state.Action = p.LastAction;
                 state.Sleeping = p.Sleeping && !p.Dead;

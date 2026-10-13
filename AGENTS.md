@@ -176,10 +176,12 @@ Client options (after `--`):
   facing the camera, looks from `--seed` on, `--spacing <m>`), `--item <key>` (any item key with a held pose in `data/ground/models.json`, e.g. `stone-hatchet`, `rock`, `pistol`, `rifle`, `bow`),
   `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim|down|crawl|sleep>`
   (down and crawl: wounded; sleep: logged off),
-  `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death|helpup|use|eat|bandage|inject|motion:NAME>` with
+  `--aim <deg>` (view pitch), `--look <yaw,pitch>` (degrees: the head's free look, as others see it),
+  `--event <swing|fire|reload|hit|death|helpup|use|eat|bandage|inject|motion:NAME>` with
   `--event-at <s>` (motion:idle from down plays getting up, motion:down from idle the fall), `--partner <male|female>`
   (a wounded player in front, who gets up when the character helps; `--partner-outfit <n>`, `--partner-distance <m>`),
-  `--ads` (aim; with the bow, draw), keys U use, G help up, `--fp` (first person),
+  `--ads` (aim; with the bow, draw), keys U use, G help up, `--fp` (first person), `--fp-sheet <png|jpg>` (every held
+  item in first person on one sheet, then quits; `--only a,b` some, `--full` the whole frame),
   `--ads`, `--vm-orbit <yaw,pitch,m>` (look at the first-person hands from another side), `--blink <0–1>` (hold the eyelids), `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,
   `--distance`, `--height`; `--debug` prints the character's meshes and hand IK once; `--hide-ui` (the picture
   alone); `--on-surface` (everything on the first world's ground and in its light, at the landing site or `--lat`,
@@ -210,14 +212,16 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,look`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
-  tree, e.g. `pine-tree`),
+  tree, e.g. `pine-tree`; `look` pictures the rock in hand, free look through Alt and the mouse, and a free foundation
+  lifted by the aim),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
-  server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
+  server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look (Left Alt held:
+  free look, the camera and head turn while the hands do nothing; in the cockpit too); left mouse attack
   (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire; with the building plan: place
   the piece; with the hammer: repair; with a door, a lock or the claim device: fit or place it; with an explosive: throw
   it), right mouse aim or draw (with the plan or the hammer, held: its wheel; with a charge: put it on the surface
@@ -260,7 +264,8 @@ Client options (after `--`):
 - Build sandbox (GROUND.md §6.3): `--view build`, local, on the first world's stand-in surface. `--scene
   house|ghost-valid|ghost-invalid|stability|stress|empty` (a built base; `stress` measures 300 frames and prints the
   frame time), `--overlay` (stability colours), `--tool 1–6` (plan, hammer, three doors, claim device), `--piece <key>`,
-  `--wheel plan|hammer` (open the wheel), `--from x,y,z --at x,y,z` (the camera in the scene's frame), `--finest` or
+  `--wheel plan|hammer` (open the wheel), `--from x,y,z --at x,y,z` (the camera in the scene's frame, the empty scene's
+  too: its first foundation's frame, unbuilt; the plan's aim is the camera's), `--finest` or
   `--lod n` (draw one level of detail). Keys: right mouse wheels, left places or repairs, R turns, E doors, F2 the
   stability overlay, F5 an hour of upkeep and decay. `--view build --scene empty --build-check` plays a round of
   building through the sandbox's input (place, snap, upgrade, turn, door, demolish and collapse) and quits with exit

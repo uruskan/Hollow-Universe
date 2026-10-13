@@ -163,7 +163,8 @@ Godot.
     and are confirmed or rejected by the server.
 - **Godot** draws that world and nothing else: a surface mode with a floating origin, terrain from Hollow.Surface,
   entity views pooled by type, a first-person camera and viewmodel, third-person characters, UI and audio.
-  Mouse look is applied every frame, never held back by the tick.
+  Mouse look is applied every frame, never held back by the tick. Held Left Alt is free look (RustMVP's, §4.5): the
+  mouse turns the camera and the head, not the view.
 - **Bots** are Hollow.Client with scripted input. Tests run the server and bots headless.
 - **As built in G1** (`src/Hollow.Client`, no Godot): `GameClient.Update(delta, input)` every frame receives, runs
   the ticks that are due (each predicts and sends its input) and advances what is drawn.
@@ -247,14 +248,15 @@ Godot.
   server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. The first lead
   comes from the connect handshake's round trip.
 - **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, yaw and pitch in 1/65,536 of a turn,
-  buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the snapshot acknowledgements and
-  a client timestamp for measuring the round trip. Only four losses in a row lose an input. The server applies each
-  tick's input on that tick; without one it repeats the last (without the jump press) and counts a miss.
+  the head's free look in 1.5° steps, a byte each way, buttons: jump held, jump pressed this tick, crouch, sprint) and
+  the three before it, the snapshot acknowledgements and a client timestamp for measuring the round trip. Only four
+  losses in a row lose an input. The server applies each tick's input on that tick; without one it repeats the last
+  (without the jump press, and after 0.8 s without the free look) and counts a miss.
 - **Snapshots:** 20 a second per client (every 1.5 ticks on average). The header has the sequence, the server tick,
   the input margin, the player's own character exactly (floats, for reconciliation) with its tick, and the echo. Then
   the relevant entities, each delta-coded against its newest state the client confirmed (acknowledged by sequence and
   32 bits), highest accumulated priority first, within 1,600 bytes and the path's MTU. Remote positions are on a
-  1/256 m grid.
+  1/256 m grid; a character's view angles come with its head's free look (two bits while nobody looks round).
 - **Relevance:** a 64 m grid; an entity becomes relevant within 300 m (reliable `Spawn`) and stops beyond 320 m
   (`Despawn`). Everyone's own character is always theirs.
 - **Bad network:** `ConditionedRelay`, a local UDP relay below LiteNetLib (whose own simulation is compiled out of its
@@ -303,6 +305,15 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   - **Swimming** where `ISurface.SeaRadius` > 0: a character swims once the water reaches 65 % of its height (Rust's
     threshold), steers in the view direction (look down to dive), rises with jump and sinks with crouch, and floats
     at 75 % depth otherwise. 2.0 m/s, 3.0 m/s with sprint. Landing in water never hurts.
+- **Free look** (Left Alt held; RustMVP's, `FreeLook`): the mouse turns the camera and the head instead of the view,
+  up to 120° either side of it, the pitch so the camera stays within ±85°. The view (the input's yaw and pitch) stays
+  the movement's basis and the aim of every shot, swing, placement and throw, so a free look never disagrees with them:
+  while Alt is held the hands do nothing (`GroundView.Hands`, the one place that decides what the held item does), and
+  the recoil's countersteer never sees the mouse. Letting go, or the cursor showing (inventory, crafting, map, menu,
+  chat, keypad), turns the camera back to the view at once. The turn rides each input to the server (1.5° steps, a
+  byte each way; the prediction ignores it) and the character's state to everyone else, whose views turn the neck and
+  head and ease them back (§4.8). The server bounds it (yaw ±120°, pitch ±170°, RustMVP's) and, after 0.8 s without
+  the player's input, lets it go. In the Tin Finch's cockpit the same keys turn the pilot's head about the seat.
 - **Collision:** the ground is static mesh tiles of 64 m built from `ISurface.GroundCollision`, identical on both
   sides. A tile's Jolt body ID follows from its grid position (Jolt orders contacts by body ID), so tiles agree where
   they meet whatever else each side holds. Tiles exist within ±8.2 km of the zone's origin. Building parts are boxes
@@ -503,7 +514,7 @@ knows about the network.
 
 | Input | Meaning |
 |---|---|
-| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim; `Crawl`: down and wounded, lying or crawling; `Sleep`: asleep, logged off); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional); `Aiming` (a gun raised, the bow drawn and held). |
+| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `LookYaw` and `LookPitch` (free look, §4.5: the neck and head turn that much further, easing there and back at RustMVP's rate 14, the head at most 95° from the chest and nodding at most 65° from it; asleep, never); `Velocity` (m/s); `Stance` (stand, crouch, swim; `Crawl`: down and wounded, lying or crawling; `Sleep`: asleep, logged off); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional); `Aiming` (a gun raised, the bow drawn and held). |
 | `Trigger(CharacterEvent, direction)` | `Swing` (tool strike, punch, spear thrust), `Fire` (a shot; with the bow, the arrow loosed), `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`), `HelpUp` (helping a wounded player up), `Use` (the item in hand: food is eaten, a bandage wound on, an injector used), `Eat`, `Bandage`, `Inject`. `Revive()` stands it up again. Changing `Stance` from standing to `Crawl` plays the fall; from `Crawl` to standing, getting up. |
 | `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). `Wardrobe.ForItem(itemKey)` gives the garments an items.json key is worn as (every clothing and armour key has one); `Wardrobe.ForItems(keys)` a whole outfit. |
 | `Look` | How the player looks: `Looks.ForPlayer(id, body)` (skin tone, face, hair style and colour, stubble from the ID; the body is the player's choice). Set any time; `ViewmodelView.Look` gives the arms the same skin. |
@@ -650,21 +661,28 @@ each leg reaches the ground found by a ray under its foot).
 render layer 2, without shadows, with their own field of view (60° by default; `ViewmodelView.Fov` is the player
 setting) and depth pulled towards the near plane so they never clip into walls. Their shoulders sit 10 cm lower and
 6 cm further forward than the body's, so the forearms rise into view from the lower corners, as in Rust (nobody sees
-the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round the
-handle: each joint bends just enough for the next to lie on a circle round the handle, so they close on it without
-passing through. The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
+the shoulders). Both hands reach the item's grips by IK. The fingers of a fist or a pistol grip are wrapped round what
+they hold: each joint bends just enough for the next to lie on a circle round it, so they close on it without passing
+through, a 1.8 cm handle or, from the catalogue's grip (§9.1, L8), a rock's 4 cm girth with the thumb opening as it
+thickens; an open hand (grip radius 0) lets food lie on the palm, its fingers lightly curled. The rock, the bandage
+and the tin grenade are cradled in the right hand, the palm up and to the left and the fingers round their far side,
+and food lies on the open palm the same way (L7). The skin is the body's, without screen-space scattering (which smears whatever sits that close to the
 near plane), with its own relief: a normal map made from the skin texture, fine wrinkles over the finger joints and a
 glossy plate for each nail (`art/characters/skin_maps.py`). The item moves procedurally: sway, walk bob, sprint
 pose, recoil kick on a spring, aiming down the sights (the sight on the camera's centre line). Swings and reloads are
-key poses (`ViewmodelMotion`): a swing turns about the hand, up and back for the wind-up, a beat at the top, then down
-and across fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and
-recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
+key poses (`ViewmodelMotion`): a swing turns about the hand (the rock about the wrist, its grip's pivot, so it rises
+and comes down instead of turning in the palm), up and back for the wind-up, a beat at the top, then down and across
+fast enough to land at the item's strike time (items.json), a damped jolt on the impact, follow-through and recovery; a reload tilts the gun in, the support hand takes the magazine out and away, seats a new one (the gun jolts),
 works the slide or the charging handle (another jolt) and returns; the pistol's magazine (the catalogue's `Magazine`
 part) drops and comes back. The bow is raised upright in front of the left eye and drawn (the string to a little over
 half its third-person draw, so the hand stops in front of the face), an arrow on the string; a shot looses it. A spear
 is thrust along its shaft. Eating brings the food to the mouth for a few bites; bandaging raises the left forearm into
 view and winds the bandage round it; injecting pushes the injector into the raised forearm. Gloves are drawn with the
-forearms. Unarmed shows no arms, as in Rust.
+forearms. Unarmed shows no arms, as in Rust. The arms belong to the body: while the player free looks (Alt, §4.5) they
+stay on the view, where everything is aimed, and leave the picture as the head turns away (`FirstPersonView.ArmsTurn`,
+L2). Pictures in `images/ground/look/`: the rock before and after (`fp-rock-before.png`, `fp-rock-after.png`, and in the
+game `game-rock.jpg`), every held item (`fp-held-items.jpg`), free look in the game (`game-freelook.jpg`) and a head
+turned as others see it (`head-turned.png`, `--look 75,-15`).
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
@@ -672,9 +690,11 @@ collide with the world (layer 1), not with each other; gravity is applied along 
 
 **Held items** are every item the model catalogue gives a held pose (§9.1), loaded through `ModelCatalog` with the
 materials of their import settings, named from items.json (`HeldItems`). Tools and blades are held by the handle and
-swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (spears, food,
-bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip. Aiming down the
-sights puts a gun's eye socket at the camera.
+swung; guns are held as pistols or rifles; the bow is held in the left hand; whatever else is held (the rock, spears,
+food, bandages, locks, charges) sits in first person where the catalogue's first-person pose puts its grip (its own
+grip, or its palm socket), the poses set for the arms' 60° view (L9). Aiming down the sights puts a gun's eye socket at
+the camera. `--view character --fp-sheet <png>` pictures every held item in first person on one sheet
+(`images/ground/look/fp-held-items.jpg`).
 
 **Held items in third person.** A tool rides upright in the right hand at the hip (the bow in the left), a pistol is
 held by the clip's two-handed pose, a rifle is carried at the right shoulder pointing where the player looks; arm IK
@@ -1772,8 +1792,13 @@ square and triangle, closes its shared edge exactly under a turned parent.
 scored by how near the aim passes (a floor by its whole footprint, so a ceiling can be chosen by aiming anywhere on it),
 how far it is from what the aim hits, and how close its facing is to the one asked for (a wall's hard side away from
 the player, stairs and roofs rising away; R turns it). The best eight are checked and the first allowed wins; if none
-is, the best shows with its reason. With no socket near, a foundation goes on the ground: along the aim, at most 3.5 m
-across, its top 5 cm above the highest ground under it.
+is, the best shows with its reason. With no socket near, a foundation goes on the ground (RustMVP's free foundation,
+L1): where the aim meets the ground, at most 3.5 m across; aimed further, it stays 3.5 m out and the aim's height there
+lifts its top, so raising the view raises the foundation continuously within its depth. The top is that height plus the
+5 cm clearance, held where the ground check below allows it: at least the clearance above the highest ground under its
+corners and centre, at most its 1 m depth above the lowest (2 cm inside both). Aimed at the ground it sits as low as the
+ground allows. The wire sends the point on the aim and the server works the same foundation out from it
+(`BuildingWorld.FoundationAt`).
 
 **Placement checks**, in this order, each refusal with a line for the player (`Refusal`, `Outcome.Text`):
 
@@ -1899,6 +1924,7 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 |---|---|
 | A two-storey house in mixed grades: stone foundations and doorway with a sheet-metal door, metal and wood walls, windows, an open wooden double door, wood floors, U stairs, metal roofs with gables, a twig porch | `images/ground/build/house.jpg` |
 | The plan's ghost, allowed (a foundation beside the house) and refused (a sixth floor off a balcony: "Not stable enough (0%)") | `ghost-valid.jpg`, `ghost-invalid.jpg` |
+| A free foundation lifted by a raised aim (L1): the aim half a metre over the ground 3.5 m out, the top 0.6 m up (`--scene empty --tool 1 --piece foundation --from 0,1.8,6 --at 0,0.48,2.5`; in the game, `images/ground/look/game-foundation-lifted.jpg`) | `foundation-lifted.png` |
 | The stability overlay: the house 100 %, the balcony 90, 70, 50, 30, 10 % | `stability.jpg` |
 | The 1,060-piece block with its frame time | `stress.jpg` |
 | The plan's wheel with the rules' pieces and costs | `wheel.jpg` |
@@ -2245,7 +2271,7 @@ arrows stop at pieces, doors and claim devices (`HitTarget.Building`): melee doe
 (a wall's soft side counts), arrows as bullets (stone and up take none).
 
 **Intents** (protocol 3; client to server, reliable, with the sequence numbers and the budget of G2's: 16 at once, 20 a
-second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's ground point and
+second): `PlacePieceIntent` (the piece and its support, socket and orientation, or a free foundation's point on the aim and
 heading in 15° steps), `HammerIntent` (upgrade to a grade, rotate, demolish, repair), `DoorIntent` (fit from a slot,
 turned round or not; open or shut; pick up), `LockIntent` (fit from a slot; set a code; enter a code; lock; unlock; cut
 a key; take off) and `ClaimIntent` (place from a slot at a point on a foundation or floor, turned; authorise;
@@ -3305,7 +3331,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
   inventory, closing any open container; Esc closes the wheel, the inventory or crafting, then opens the menu; 1–6
   select the belt; Enter opens chat; F1 opens and closes the console (§8.2, even from a text field; it may stay open
-  over the death screen, but a death closes it). A container opened in the world opens the inventory with it.
+  over the death screen, but a death closes it). A container opened in the world opens the inventory with it. Left Alt
+  held is free look (§4.5): the camera turns, the hands do nothing, and any screen that shows the cursor ends it.
 - **Inventory:** a click selects a slot and shows the item panel (name, description, INFORMATION, ACTIONS, and
   SPLITTING for stacks). Dragging moves the whole stack; middle-dragging half, with left Shift a third (rounded up);
   dragging the split icon moves the slider's amount. Right-click moves a stack across (into the open container and
@@ -3491,7 +3518,7 @@ recipe (Windows: System.Drawing and Consolas).
 | `lods`, `lodDistances` | Levels of detail in the file; switch distances (metres: LOD1, LOD2, gone; 0 = never), by default from the model's size |
 | `collision` | `convex`: hulls in the file |
 | `icon` | Present when the item has an icon; `view` is the icon camera's yaw, pitch and roll (degrees) when the class default isn't right; `key` borrows another item's icon |
-| `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) when no arms are drawn; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow |
+| `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) for an item not held by a handle, its rotation the holding hand's (fingers along X, thumb along Y), in the arms' 60° view; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow; `grip` (optional, L8): how the first-person hand holds it, in the item's frame: `fingers` and `thumb` (directions; the fingers close round an axis along the thumb), `radius` (what they close round; 0: an open hand), `seat` (how far out from the palm that axis or the item's middle sits; default the radius), `at` (a point on the axis; default the item's middle) and `pivot` (where a swing turns, from the grip in camera space; default the hand). Without it the palm socket is the grip and a handle's 1.8 cm what the fist closes round |
 | `standIn` | A note when the model is a stand-in to replace |
 | `slot` | Attachments: the gun slot they mount on, `sight`, `muzzle` or `under` |
 | `sockets` | Guns: each slot's socket node (`sight` → `socket_rail`, `muzzle` → `socket_muzzle`, `under` → `socket_under`) |
@@ -3945,7 +3972,8 @@ they merge beside the other packages' items):
   and sits large on the pistol, as in Rust. Ammunition types are told apart by a colour band on the box and painted
   bullet tips (blue high velocity, orange incendiary).
 - M10. **First-person poses are placements without arms:** the character package's viewmodel holds items by their palm
-  sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback).
+  sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback). *Replaced by L9: the arms
+  place everything not held by a handle at its first-person pose, and the viewer shows it as they do.*
 - M11. **The metal mask is our own design** (round eye ports in riveted bezels, a brow band, a slotted grille over the
   mouth), not Rust's slit-eyed plate. Only the item is modelled here; the worn mask is the character package's.
 - M12. **The G5 raid items are our own designs** (a stuffed satchel with an igniter, a nail-bound food tin with a fuse,
@@ -4667,3 +4695,45 @@ confirm or overturn (numbered D1 on):
 - D11. **The per-target calls stay** for tests and tools (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
   `DamageBuildingBy`, `DamageShip`, `DamageAnimal`, and `DamageBuilding`, the building receiver's resolver), each one
   request into the pipeline now, so the tests that used them pass unchanged.
+
+Decisions taken for the owner's first playtest findings on looking, holding and free foundations (`ground-look`)
+without the owner, to confirm or overturn (numbered L1 on):
+
+- L1. **A free foundation's top follows the aim, as RustMVP's did** (§6.3): within 3.5 m it sits where the aim meets the
+  ground; beyond, the aim's height 3.5 m out lifts it. Its top is held between the highest ground under its corners and
+  centre plus the clearance and the lowest plus its depth, rather than RustMVP's limits at the centre alone, so whatever
+  the aim, a slope that leaves room gives a foundation the ground check accepts. Only a hit on the ground stops the aim's
+  distance (RustMVP: anything but a building piece), as Hollow's free foundation did before.
+- L2. **In first person the arms keep to the view while the player free looks**: they belong to the body, which keeps
+  facing and aiming where it did, so they leave the picture as the head turns away and are back in place the moment Alt
+  is let go. No source says what Rust's do (its viewmodel may turn with the camera); ours never show a weapon pointing
+  somewhere it won't fire.
+- L3. **Free look rides the existing view state**, not a message of its own: two signed bytes (1.5° steps) beside the
+  view in every input (sent with the three repeats, about 8 bytes a packet) and beside the view angles in characters'
+  snapshot state (two bits when nobody looks round; a character sent in full is 16 bits larger, so 300 coming into
+  view at once take 17 snapshots of 600 bytes instead of 16). RustMVP's rate limits aren't needed: inputs come once a
+  tick. Its 0.8 s of silence is counted in repeated inputs: after 24 ticks without one the server's copy lets go.
+- L4. **While Alt is held the hands do nothing at all**: no attack, aiming down the sights or drawing the bow, placing,
+  using, throwing, reloading or turning a piece (RustMVP blocked the weapon and the R and left-button actions). E still
+  acts on what the view is on, as in RustMVP. The decision lives in one place, `GroundView.Hands`, which reads the item's
+  use from its data (`ItemDef.Hands`: throw, build, place, use or attack); the left and right buttons and R only record
+  presses for it.
+- L5. **Free look also works in the Tin Finch's cockpit** (the head turns about the seat while the stick lets go); in
+  the chase camera Alt does nothing. A seated pilot isn't drawn (decision 87), so nobody sees that head turn.
+- L6. **Protocol 15** (free look in inputs and characters' state; 12, 13 and 14 went to the bags, gathering and the damage pipeline); no message IDs were needed
+  from 160–164.
+- L7. **The rock is cradled, not gripped like a handle** (the owner's "hand looks weird holding the rock": the fist
+  closed on a 1.8 cm handle inside the rock, the palm a pale blob behind it): in the right hand at the lower right, the
+  palm up and to the left, the fingers round its far side, the forearm from the lower right corner. Of the four holds
+  tried (side grip, from above, as a handle, the cradle) the cradle read best; Rust's own pose had no reference to
+  check against. The bandage and the tin grenade are held the same way; food lies on the open palm.
+- L8. **How a hand holds an item is catalogue data** (`held.grip` in models.json: the hand's frame, the radius closed
+  round, the seat, the point, the swing's pivot), read by the one grip code for every item (`HeldItems.Grip`,
+  `HandPoses`); tools and blades without one keep the handle rule. No item key is named in code.
+- L9. **First-person poses are set for the arms' 60° view** (`ViewmodelView.Fov`): the poses had been set in the 75°
+  model viewer, so food, the bandage, locks, the building plan, charges, the grenade and spears sat at or below the
+  bottom of the picture with their hands out of sight; the food and the rest are re-posed, the others moved to where the
+  viewer showed them (positions scaled by tan 30° / tan 37.5°). The model viewer's first-person view now uses the arms'
+  field of view and their grip. The pistol's support hand still comes in large from the lower left: unchanged.
+- L10. **The rock swings from the wrist** (its grip's pivot, 8 cm behind and 5 cm below it), so the wind-up raises it
+  and the strike brings it down in front, where turning about the hand only turned it in the palm.

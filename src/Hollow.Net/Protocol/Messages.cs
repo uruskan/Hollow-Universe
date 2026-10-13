@@ -98,6 +98,12 @@ public partial struct InputCommand
 
     [Angle] public ushort Pitch;
 
+    /// <summary>Free look (Alt): the head's turn from the view, in <see cref="NetConvert.LookStep"/>s (cosmetic: the
+    /// view above is the aim and the movement's).</summary>
+    [Signed(8)] public sbyte LookYaw;
+
+    [Signed(8)] public sbyte LookPitch;
+
     [Bits(4)] public MoveButtons Buttons;
 
     /// <summary>The belt slot in hand (0 … 5; 7: none).</summary>
@@ -253,6 +259,10 @@ public partial struct CharacterNetState
     [Signed(32)] public int Z;
     [Angle] public ushort Yaw;
     [Angle] public ushort Pitch;
+
+    /// <summary>Free look (Alt): where the head looks from the view, in <see cref="NetConvert.LookStep"/>s (drawn only).</summary>
+    [Signed(8)] public sbyte LookYaw;
+    [Signed(8)] public sbyte LookPitch;
     [Bits(4)] public MoveFlags Flags;
     [Bits(2)] public Stance Stance;
     public byte Health;
