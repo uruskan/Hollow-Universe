@@ -80,6 +80,17 @@
     "NotOnStructure": "Place it on a foundation or a floor",
     "ListFull": "The list is full",
     "NotOnLock": "You aren't authorised on this lock",
-    "NeedsKey": "You need its key"
+    "NeedsKey": "You need its key",
+
+    "NoWeapon": "No gun in hand",
+    "Reloading": "Reloading",
+    "Empty": "The magazine is empty",
+    "Cadence": "Not ready to fire",
+    "NoAmmo": "No rounds for it",
+    "Full": "The magazine is full",
+    "Lowered": "The gun is lowered",
+    "TooLate": "Too late: the connection is slow",
+
+    "Worn": "You're wearing something there already"
   }
 }

@@ -532,19 +532,6 @@ public sealed partial class Zone
     }
 
     // Using a blueprint item learns its recipe (it is used up), unless that is known already.
-    private Outcome LearnBlueprint(Player p, Container source, int slot, ItemStack stack)
-    {
-        if (Content!.Recipe(stack.Condition) is not { } recipe || p.Blueprints.Knows(recipe))
-        {
-            return OutcomeCode.AlreadyKnown;
-        }
-        p.Blueprints.Learn(recipe);
-        stack.Count--;
-        source.Set(slot, stack);
-        WorldStats.Learned++;
-        return OutcomeCode.Done;
-    }
-
     // ---------------------------------------------------------------- teams
 
     /// <summary>Team actions (Rust's): create, invite a player near by, accept or decline an invite, leave, and the leader's kick and promote.</summary>

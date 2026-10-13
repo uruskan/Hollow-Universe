@@ -18,9 +18,12 @@ public readonly record struct Pose(Vector3 Position, Vector3 RotationDegrees)
 /// How an item sits in a hand (GROUND.md §9): its pivot is the grip of <see cref="Hand"/> ("right", or "left" for the
 /// bow). <see cref="FirstPerson"/> places the grip in camera space; <see cref="ThirdPerson"/> places the item on the
 /// hand's attach point; <see cref="OffHand"/> names the socket the other hand holds, if any; <see cref="Grip"/> says how
-/// the hand closes on it, if not as on a handle.
+/// the hand closes on it, if not as on a handle. <see cref="Pose"/> is the arms' pose for it (<c>pistol</c> or
+/// <c>rifle</c>; a tool's by default), <see cref="EyeRelief"/> how far the eye sits from its sight aimed down it (metres;
+/// 0: at its eye socket), <see cref="Flame"/> the effect that burns on its flame socket while it is held (the torch's).
 /// </summary>
-public sealed record HeldInfo(Pose FirstPerson, Pose ThirdPerson, string? OffHand, string Hand, GripInfo? Grip = null);
+public sealed record HeldInfo(Pose FirstPerson, Pose ThirdPerson, string? OffHand, string Hand, GripInfo? Grip = null,
+    string? Pose = null, float EyeRelief = 0, string? Flame = null);
 
 /// <summary>
 /// How the first-person hand holds an item (GROUND.md §4.8), in the item's frame: which way the fingers run from the
@@ -443,7 +446,10 @@ public static class ModelCatalog
             held = new HeldInfo(PoseOf(h, "firstPerson"), PoseOf(h, "thirdPerson"),
                 h.TryGetProperty("offHand", out JsonElement off) ? off.GetString() : null,
                 h.TryGetProperty("hand", out JsonElement hand) ? hand.GetString() ?? "right" : "right",
-                h.TryGetProperty("grip", out JsonElement grip) ? GripOf(grip) : null);
+                h.TryGetProperty("grip", out JsonElement grip) ? GripOf(grip) : null,
+                h.TryGetProperty("pose", out JsonElement pose) ? pose.GetString() : null,
+                h.TryGetProperty("eyeRelief", out JsonElement relief) ? relief.GetSingle() : 0,
+                h.TryGetProperty("flame", out JsonElement flame) ? flame.GetString() : null);
         }
         float[]? lodDistances = null;
         if (m.TryGetProperty("lodDistances", out JsonElement ld))

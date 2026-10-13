@@ -527,3 +527,31 @@ placement (P2) and held-item (P3) packages build on. The playtest's code-lock de
 - Checked once in a hosted game (`--tour-steps foundations`): `docs/images/ground/p0/set-code.jpg` (SET CODE first on a
   fresh code lock) and `refusal.jpg` (the cupboard opened through its wall: "Something is in the way"). Protocol 16;
   decisions E1–E13 in GROUND.md §11. Seven new tests; with `ground` merged, 186 of 186 pass.
+
+## 13 October 2026, held items, item information and inventory actions (P3, `ground-p3`)
+
+The third package of [GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) (§7), after the owner's rule: what an item does in the hands,
+what it says about itself and what its inventory buttons are now come from its parts, each part's behaviour one handler in
+a registry; nothing asks what kind of item it is.
+
+- **What the player sees:** every item's panel says what it is. The AK: damage, auto at 450 rounds a minute, magazine,
+  reload, aim cone at the hip and aimed, range, recoil, what is loaded and fitted. The bag charge (the owner's example):
+  its fuse and duds, blast, and how many break each wall and door. Rounds, attachments, deployables, doors, locks, the
+  cupboard, the plan, the hammer, ships, blueprints and components too; melee, food and clothing say more.
+- **Actions:** the panel's buttons are the item's own: EAT food, USE medicine, WEAR and UNEQUIP clothing, LEARN a
+  blueprint (it had none), UNLOAD a gun, REMOVE each attachment, then DROP; a refused one is muted and says why. One
+  `ItemActionIntent` replaced `UseIntent` and `DetachIntent`; the server does an action only when its handler offers it,
+  and the client predicts it with the same handlers.
+- **Guns:** a gun's slot shows its loaded round's icon at the bottom left. R tapped reloads with the loaded kind; held,
+  it opens the gun's rounds (every kind of its calibre carried, with how many) and UNLOAD. Unloading the gun in hand
+  rides the gun's own timeline. The gun's answers joined the one answer list.
+- **Dropping:** a drag released anywhere but a slot drops, over panels and buttons too; on its own slot it is put back.
+- **Workbench speed:** a workbench one level above a recipe's halves its time, two or more quarter it (recipes.json),
+  fixed when the job starts; the crafting panel shows the time here.
+- **Underneath:** `ItemPart` and one table give every item its parts and its one held behaviour (two are refused when the
+  data is read); the zone's tick asks the held item's handler, and the client's hands ask its control (mouse, R, the
+  radials, the HUD's ammo, the arms). First person picks nothing by item key any more: the torch's flame and the guns'
+  pose are model catalogue fields. The console's `give` takes `<item>.blueprint`.
+- Pictures from a hosted game (`--tour-steps held`): `docs/images/ground/held/ak-info.jpg`, `bag-charge-info.jpg`,
+  `ammo-icon.jpg`, `ammo-radial.jpg`, `blueprint-learn.jpg`, `crafting-workbench.jpg`. `--ui-check` passes 21 of 21.
+  Protocol 17; decisions V1–V12 in GROUND.md §11. Six new tests; 192 of 192 pass.
