@@ -211,12 +211,34 @@ public sealed class PhysicsWorld : IDisposable
         }
     }
 
+    /// <summary>Bodies added one by one leave Jolt's broadphase tree unbalanced; past this many it is rebuilt.</summary>
+    public const int OptimizeAfterBodies = 16;
+
+    private int _addedSinceOptimize;
+
+    /// <summary>Times the broadphase was rebuilt (statistics).</summary>
+    public int BroadPhaseOptimizations { get; private set; }
+
+    /// <summary>A body was added (a tile, a prop, a building piece or a parked ship): the broadphase wants rebuilding soon.</summary>
+    internal void NoteBodyAdded() => _addedSinceOptimize++;
+
     /// <summary>
     /// Starts a new epoch and removes tiles nobody marked in the last <paramref name="keepEpochs"/> epochs. Call once a
-    /// tick (server) or frame (client), after the <see cref="EnsureGround"/> calls of the previous one.
+    /// tick (server) or frame (client), after the <see cref="EnsureGround"/> calls of the previous one. Rebuilds the
+    /// broadphase when many bodies came since it was last built (G6: a ray against hundreds of tiles added one by one
+    /// took 5 µs instead of 0.7; queries find the same bodies either way).
     /// </summary>
     public void ReleaseUnusedGround(int keepEpochs)
     {
+        if (_addedSinceOptimize >= OptimizeAfterBodies)
+        {
+            _addedSinceOptimize = 0;
+            BroadPhaseOptimizations++;
+            lock (JoltRuntime.Gate)
+            {
+                Jolt.OptimizeBroadPhase();
+            }
+        }
         _epoch++;
         _expired.Clear();
         foreach (((int, int) key, Tile tile) in _tiles)
@@ -296,6 +318,7 @@ public sealed class PhysicsWorld : IDisposable
             bodies.AddBody(body.ID, Activation.DontActivate);
             tile = new Tile(body.ID, shape);
         }
+        _addedSinceOptimize++;
         _tiles.Add((x, z), tile);
         return tile;
     }
@@ -347,6 +370,7 @@ public sealed class PhysicsWorld : IDisposable
             bodies.AddBody(body.ID, Activation.DontActivate);
             _props.Add((layer, key), new Prop(body.ID, shape, id));
         }
+        _addedSinceOptimize++;
     }
 
     public void RemoveProp(PropLayer layer, ulong key)

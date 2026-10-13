@@ -181,8 +181,23 @@ public sealed class ShipCollider : IDisposable
         _collides.Clear();
         _world.Jolt.NarrowPhaseQuery.CollideShape(shape, scale, com, settings, offset, CollisionCollectorType.AllHit, _collides, null, null, _filter, null);
         int count = 0;
-        // The deepest first, so a full list keeps what matters.
-        _collides.Sort(static (a, b) => b.PenetrationDepth.CompareTo(a.PenetrationDepth));
+        // The deepest first, so a full list keeps what matters; ties in a fixed order (by body, then place), so the
+        // server and a pilot's prediction resolve them alike whatever order Jolt met them in.
+        _collides.Sort(static (a, b) =>
+        {
+            int c = b.PenetrationDepth.CompareTo(a.PenetrationDepth);
+            if (c != 0)
+            {
+                return c;
+            }
+            c = a.BodyID2.ID.CompareTo(b.BodyID2.ID);
+            if (c != 0)
+            {
+                return c;
+            }
+            c = a.ContactPointOn2.X.CompareTo(b.ContactPointOn2.X);
+            return c != 0 ? c : a.ContactPointOn2.Z.CompareTo(b.ContactPointOn2.Z) is var z && z != 0 ? z : a.ContactPointOn2.Y.CompareTo(b.ContactPointOn2.Y);
+        });
         foreach (CollideShapeResult c in _collides)
         {
             if (count >= into.Length)
@@ -229,6 +244,7 @@ public sealed class ShipCollider : IDisposable
             ?? throw new InvalidOperationException($"Jolt refused ship body {id}.");
         bodies.AddBody(body.ID, Activation.DontActivate);
         _bodies.Add(id);
+        _world.NoteBodyAdded();
         return id;
     }
 

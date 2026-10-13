@@ -136,6 +136,7 @@ public sealed partial class Zone
         {
             return;
         }
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
         ShipContext context = ShipContext;
         _shipsGone.Clear();
         foreach (Ship ship in _ships)
@@ -177,6 +178,7 @@ public sealed partial class Zone
                 ship.ParkedBody = 0;
             }
             ship.Events = ShipMotor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
+            ShipSteps++;
             StepHatch(ship);
             if (ship.Events.CrashDamage > 0)
             {
@@ -213,7 +215,13 @@ public sealed partial class Zone
         {
             RemoveShip(gone);
         }
+        ShipTime += System.Diagnostics.Stopwatch.GetElapsedTime(started);
     }
+
+    /// <summary>Time spent stepping ships, and ship steps taken (sleeping ones included), for the load test.</summary>
+    public TimeSpan ShipTime { get; private set; }
+
+    public long ShipSteps { get; private set; }
 
     private static void StepHatch(Ship ship)
     {

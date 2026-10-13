@@ -295,20 +295,24 @@ public sealed partial class GameServer
         ShipDef def = Content.Ships[0];
         Vector3 feet = Zone.Entities.Get<Character>(session.Entity).State.Position;
         Vector3 up = Zone.Frame.UpAt(feet);
-        // Beside the player, its hatch toward them: try a few spots round them.
-        for (int i = 0; i < 12; i++)
+        // Beside the player, its hatch (its right side) toward them: rings of spots round them, nearest first.
+        (Vector3 north, Vector3 east) = CharacterMotor.HorizontalBasis(0, up);
+        foreach (float distance in new[] { 6f, 9f, 12f, 16f, 22f })
         {
-            float angle = i * MathF.PI / 6;
-            (Vector3 north, Vector3 east) = CharacterMotor.HorizontalBasis(0, up);
-            Vector3 at = feet + (north * MathF.Cos(angle) + east * MathF.Sin(angle)) * 5f;
-            Vector3 ground = Zone.Settle(at);
-            float yaw = MathF.Atan2(MathF.Sin(angle), MathF.Cos(angle)) + MathF.PI / 2;
-            if (Zone.ShipSpaceClear(def, ground, yaw))
+            for (int i = 0; i < 12; i++)
             {
-                Ship ship = Zone.SpawnShip(def, ground, yaw, session.EntityId, def.FuelCapacity);
-                ship.HatchOpen = true;
-                ship.HatchProgress = Ship.HatchTicks;
-                return ship;
+                float angle = i * MathF.PI / 6 + distance;
+                Vector3 at = feet + (north * MathF.Cos(angle) + east * MathF.Sin(angle)) * distance;
+                Vector3 ground = Zone.Settle(at);
+                // The ship's right is (cos yaw, −sin yaw) east and north... in the characters' yaw: point it back at the player.
+                float yaw = MathF.Atan2(-MathF.Cos(angle), -MathF.Sin(angle));
+                if (Zone.ShipSpaceClear(def, ground, yaw))
+                {
+                    Ship ship = Zone.SpawnShip(def, ground, yaw, session.EntityId, def.FuelCapacity);
+                    ship.HatchOpen = true;
+                    ship.HatchProgress = Ship.HatchTicks;
+                    return ship;
+                }
             }
         }
         return null;

@@ -20,6 +20,7 @@ namespace Hollow.Bots;
 public sealed class BotSwarm : IDisposable
 {
     private readonly List<(GameClient Client, BotBrain Brain, SurvivalBrain? Survival, FightBrain? Fight, BuildBrain? Build)> _bots = new();
+    private readonly System.Collections.Generic.Dictionary<GameClient, FlyBrain> _pilots = new();
     private readonly ConditionedRelay? _relay;
     private readonly GameContent _content = GameContent.LoadDefault();
     private PhysicsWorld? _ground;
@@ -56,6 +57,10 @@ public sealed class BotSwarm : IDisposable
             _bots.Add((client, new BotBrain(i, script), script == BotScript.Survive ? new SurvivalBrain(i) : null,
                 script == BotScript.Fight ? new FightBrain(i) : null,
                 script == BotScript.Build ? new BuildBrain(i) { Log = i < 3 ? log : null } : null));
+            if (script == BotScript.Fly)
+            {
+                _pilots.Add(client, new FlyBrain(i));
+            }
         }
     }
 
@@ -76,6 +81,11 @@ public sealed class BotSwarm : IDisposable
     /// <summary>How far the building bots got, counted by stage.</summary>
     public string BuildProgress => string.Join("; ", _bots.Where(b => b.Build != null).GroupBy(b => b.Build!.Progress.Split(',')[0])
         .Select(g => $"{g.Count()} {g.Key}"));
+
+    /// <summary>What the flying bots did: boardings, bots flying now, seconds flown in all, their ships' corrections (G6).</summary>
+    public (int Boardings, int Flying, double Seconds, long Corrections) Flights =>
+        (_pilots.Values.Sum(p => p.Boardings), _pilots.Keys.Count(c => c.Piloting), _pilots.Values.Sum(p => p.Airborne),
+            _pilots.Keys.Sum(c => c.Stats.ShipCorrections));
 
     public int Playing => _bots.Count(b => b.Client.State == ClientState.Playing);
 
@@ -114,6 +124,7 @@ public sealed class BotSwarm : IDisposable
             foreach ((GameClient client, BotBrain brain, SurvivalBrain? survival, FightBrain? fight, BuildBrain? build) in _bots)
             {
                 InputFrame input = !client.HasCharacter ? default
+                    : _pilots.TryGetValue(client, out FlyBrain? pilot) ? pilot.Think(now, delta, client)
                     : fight != null ? fight.Think(now, delta, client)
                     : build != null ? build.Think(now, delta, client)
                     : survival != null ? survival.Think(now, delta, client)

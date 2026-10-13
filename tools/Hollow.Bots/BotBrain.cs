@@ -27,6 +27,9 @@ public enum BotScript
 
     /// <summary>Builds a small base with a door, a code lock and a claim device, then uses its door (<see cref="BuildBrain"/>).</summary>
     Build,
+
+    /// <summary>Boards the Tin Finch the server gave it and flies loops (<see cref="FlyBrain"/>, G6).</summary>
+    Fly,
 }
 
 /// <summary>

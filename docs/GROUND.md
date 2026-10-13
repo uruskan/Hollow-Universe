@@ -1635,6 +1635,28 @@ flags, hatch, pilot, orbit marker and cargo (stacks in G4's form: a gun keeps it
 before anyone joins; a pilot (a sleeper) goes back into the seat, and wakes there on logging in. A wrecked ship's row
 goes. Decoding treats the bytes as untrusted (a kind the game lost gives nothing; numbers that aren't are made sane).
 
+**Bots** (`--script fly`, `tools/Hollow.Bots/FlyBrain.cs`): each joins with a Tin Finch beside it (`ShipOnJoin`),
+walks round to its hatch, boards through the intent and flies loops a few hundred metres across, between 50 and 200 m
+over the ground, boosting now and then and turning home past 900 m. Measured on the owner's PC with other agents' work
+running (13 October 2026), 20 flying bots, 40 s after a 15 s warm-up:
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly
+```
+
+| | 20 bots flying |
+|---|---|
+| Server tick, average / 99th percentile | 2.38 ms / 17.6 ms (one tick over 33 ms) |
+| Ships stepped | 1.16 ms a tick, 58 µs a ship step on average (a ship high up costs about 6 µs; one within 40 m of the ground about 66 µs: two substeps of four skid rays, a sweep and an overlap) |
+| Bandwidth per client, down / up | 60 kbit/s (20 ships in view) / 26 kbit/s |
+| Prediction | ships and characters never corrected; inputs 100 % on their tick |
+
+Two things the flying bots found, fixed here: the near-ground band was a second's travel deep (a ship cruising at 150 m
+counted as near and swept the ground every tick), now a quarter second's; and Jolt's broadphase was never rebuilt, so
+after hundreds of ground tiles had come and gone a ray took 5 µs instead of 0.7 (60 µs on the loaded server).
+`PhysicsWorld.ReleaseUnusedGround` now rebuilds it once 16 bodies have come since the last time (queries find the same
+bodies either way; the movement check's hash is unchanged).
+
 | Test | What it shows |
 |---|---|
 | `ShipPersistenceTests.AShipAndItsPilotSurviveARestart` | A locked, damaged, part-fuelled ship with a loaded rifle and metal in its cargo and Ada in the seat comes back the same (0.3 mm off, the same turn); Ada sleeps in the seat, logs in there and flies it; after it is wrecked its row is gone |

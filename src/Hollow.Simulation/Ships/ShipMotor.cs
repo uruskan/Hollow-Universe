@@ -203,11 +203,16 @@ public static class ShipMotor
         // ---------------------------------------------------------------- substeps
         ShipCollider? collider = ctx.Collider;
         float speed = s.Velocity.Length();
-        bool near = collider != null && overGround < NearGround + speed + def.BoundingRadius;
+        // Contacts are looked for within a quarter second's travel of the ground (a tick's sweep is a thirtieth); the
+        // ground's tiles are built ahead on worker threads from further up, so a tick seldom waits for one.
+        bool near = collider != null && overGround < NearGround + speed * 0.25f + def.BoundingRadius;
+        if (collider != null && overGround < 3 * NearGround + speed * 2)
+        {
+            collider.World.Prefetch(s.Position + s.Velocity, radius: 2);
+        }
         if (near)
         {
             collider!.World.EnsureGround(s.Position);
-            collider.World.Prefetch(s.Position + s.Velocity, radius: 1);
         }
         int steps = near ? 2 : 1;
         float h = dt / steps;

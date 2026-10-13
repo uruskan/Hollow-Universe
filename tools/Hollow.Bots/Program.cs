@@ -82,7 +82,8 @@ public static class Program
                 $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
                 $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights} {all.Sum(c => c.Stats.Teleports)} " +
                 $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)} " +
-                $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building?.PieceCount ?? 0)}"));
+                $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building?.PieceCount ?? 0)} " +
+                $"{swarm.Flights.Boardings} {swarm.Flights.Flying} {swarm.Flights.Seconds:R} {swarm.Flights.Corrections}"));
             return 0;
         }
         Console.CancelKeyPress += (_, _) => Console.WriteLine(swarm.BuildProgress);
@@ -115,7 +116,8 @@ public static class Program
         // Fighting bots get their kit with every life, so the firefights go on after the first deaths.
         using var server = new GameServer(new ServerOptions
         {
-            Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, KitEveryLife = script == BotScript.Fight, Log = _ => { },
+            Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, KitEveryLife = script == BotScript.Fight,
+            ShipOnJoin = script == BotScript.Fly, Log = _ => { },
         });
         server.StartThread();
 
@@ -191,6 +193,13 @@ public static class Program
             Refused = sv.Players.Sum(p => p.IntentsRefused),
             Limited = sv.Players.Sum(p => p.IntentsRateLimited),
             OnDemand = sv.Zone.Physics.TilesBuiltOnDemand,
+            Ships = sv.Zone.Ships.Count,
+            ShipsFlying = sv.Zone.Ships.Count(x => !x.State.Asleep && !x.InOrbit),
+            ShipMs = sv.Zone.ShipTime.TotalMilliseconds,
+            ShipSteps = sv.Zone.ShipSteps,
+            ShipIntents = sv.ShipIntentsAccepted,
+            ShipRefused = sv.ShipIntentsRefused,
+            Crashes = sv.ShipCrashes,
             Players = sv.Players.Select(p =>
             {
                 var b = before.GetValueOrDefault(p.Name);
@@ -258,6 +267,14 @@ public static class Program
                 $"Building (whole run): {measured.Placed} pieces placed; the world has {measured.Pieces} pieces in {measured.Structures} structures, " +
                 $"{measured.Doors} doors, {measured.Claims} claim devices; bots: {F(19):0} building intents done, {F(20):0} refused, " +
                 $"{F(21):0} door toggles; a bot's copy holds {F(22):0} pieces"));
+        }
+        if (r.Length > 26)
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"Ships (G6): {measured.Ships} in the zone, {measured.ShipsFlying} awake at the end; bots boarded {F(23):0} times, {F(24):0} flying " +
+                $"at the end, {F(25) / Math.Max(1, F(24)):0} s flown each on average; their ships were corrected {F(26):0} times; " +
+                $"server: {measured.ShipIntents} ship intents accepted, {measured.ShipRefused} refused, {measured.Crashes} crashes; ships stepped in " +
+                $"{measured.ShipMs / Math.Max(1, measured.Ticks + warmup * 30):0.00} ms a tick on average ({measured.ShipMs * 1000 / Math.Max(1, measured.ShipSteps):0.0} µs a ship step)"));
         }
         return F(7) == count ? 0 : 2;
     }
