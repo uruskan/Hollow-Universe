@@ -365,6 +365,7 @@ public partial class GroundUi
         if (_drag is { Moving: false } drag && drag.Origin.DistanceTo(Pointer) > Ui.Pxf(5))
         {
             drag.Moving = true;
+            Sound?.Invoke("ui.drag");
         }
         if (_splitTracking)
         {
@@ -407,11 +408,13 @@ public partial class GroundUi
         {
             if (t.Slot != drag.From)
             {
+                Sound?.Invoke("ui.drop");
                 Model.Move(drag.From, t.Slot, drag.Amount);
             }
         }
         else if (target == null)
         {
+            Sound?.Invoke("ui.drop");
             Model.Drop(drag.From, drag.Amount);
         }
     }

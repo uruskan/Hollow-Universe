@@ -62,6 +62,18 @@ public enum ScatterKind : byte
 
     /// <summary>Bushes with blue berries (food).</summary>
     BerryBlue = 8,
+
+    // Gameplay kinds (GROUND.md §6.1): placed by the scatter like the plants, drawn by the ground game, not by the
+    // surface view. New kinds only ever go at the end; existing numbers never change (they are part of every ID).
+
+    /// <summary>A stone outcrop (broken for stone).</summary>
+    StoneOutcrop = 9,
+
+    /// <summary>A metal-ore outcrop.</summary>
+    MetalOutcrop = 10,
+
+    /// <summary>A sulphur-ore outcrop.</summary>
+    SulphurOutcrop = 11,
 }
 
 /// <summary>The climate at a point: what the biome, materials and plants are picked from.</summary>

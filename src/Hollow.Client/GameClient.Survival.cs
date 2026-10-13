@@ -207,6 +207,7 @@ public sealed partial class GameClient
                 {
                     RemoteEntity remote = Remote(m.NetId);
                     remote.Wear = (m.Wear ?? Array.Empty<WornItem>()).Select(w => (ushort)Math.Min(w.Item, ushort.MaxValue)).ToArray();
+                    remote.Body = Math.Min(m.Body, (byte)1);
                     LookChanged?.Invoke(remote);
                 }
                 return;

@@ -321,7 +321,7 @@ public partial class SurfaceView : Node3D
         PlanetSurface surface = _surface!;
         // Keep the render origin under the camera.
         Vector3 cam = _camera.Position;
-        if (new Vector2(cam.X, cam.Z).Length() > RebaseDistance)
+        if (!Driven && new Vector2(cam.X, cam.Z).Length() > RebaseDistance)
         {
             Vector3D body = frame.ToBody(cam);
             Vector3D dir = body.Normalized;
@@ -393,7 +393,7 @@ public partial class SurfaceView : Node3D
 
     private void Fly(float delta)
     {
-        if (_frame == null || _surface == null)
+        if (_frame == null || _surface == null || Driven)
         {
             return;
         }
@@ -428,7 +428,7 @@ public partial class SurfaceView : Node3D
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (!Visible)
+        if (!Visible || Driven)
         {
             return;
         }

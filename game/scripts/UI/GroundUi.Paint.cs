@@ -18,6 +18,18 @@ public partial class GroundUi
     {
         _p = painter;
         _hits.Clear();
+        _hoverButton = null;
+        PaintScreen();
+        // The pointer came onto another button: a quiet tick (the sound has its own cooldown).
+        if (_hoverButton is { } over && over != _hoverButtonLast)
+        {
+            Sound?.Invoke("ui.hover");
+        }
+        _hoverButtonLast = _hoverButton;
+    }
+
+    private void PaintScreen()
+    {
         switch (Screen)
         {
             case GroundScreen.Menu:
@@ -212,6 +224,10 @@ public partial class GroundUi
         Color f = fill ?? G.Panel;
         Rect2 area = Area(x, y, w, h);
         bool hover = enabled && click != null && Under(area);
+        if (hover)
+        {
+            _hoverButton = area;
+        }
         _p.DrawRect(area, hover ? new Color(f.R + 0.06f, f.G + 0.06f, f.B + 0.06f, Math.Max(0.22f, f.A)) : f);
         if (label.Length > 0)
         {

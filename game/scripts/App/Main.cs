@@ -278,7 +278,7 @@ public partial class Main : Node
                 GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0}ms stars={_galaxyMap.Stars.LoadedStars} blocks={_galaxyMap.Stars.LoadedBlocks} pending={_galaxyMap.Stars.PendingBlocks} glow={_galaxyMap.IsGlowReady} sky={_galaxyMap.SkyBrightness:0.0} {_galaxyMap.TimingDebug} crowd {_galaxyMap.CrowdingDebug}");
             }
         }
-        if (!_options.TryGetValue("shot", out string? path) || _capturing)
+        if (!_options.TryGetValue("shot", out string? path) || _capturing || _ground?.TakesOwnShots == true)
         {
             _elapsed += delta;
             return;
@@ -315,7 +315,7 @@ public partial class Main : Node
         }
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         Image image = GetViewport().GetTexture().GetImage();
-        Error error = image.SavePng(path);
+        Error error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? image.SaveJpg(path, 0.9f) : image.SavePng(path);
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
         GetTree().Quit(error == Error.Ok ? 0 : 1);
     }

@@ -99,6 +99,8 @@ public static class NetConvert
         SurfaceSeed = spec.SurfaceSeed,
         LatitudeDegrees = spec.LatitudeDegrees,
         LongitudeDegrees = spec.LongitudeDegrees,
+        StandIn = spec.StandIn,
+        RotationTimeScale = (float)spec.RotationTimeScale,
     };
 
     public static ZoneSpec FromInfo(in ZoneInfo info) => new()
@@ -110,6 +112,8 @@ public static class NetConvert
         SurfaceSeed = info.SurfaceSeed,
         LatitudeDegrees = info.LatitudeDegrees,
         LongitudeDegrees = info.LongitudeDegrees,
+        StandIn = info.StandIn,
+        RotationTimeScale = info.RotationTimeScale > 0 && float.IsFinite(info.RotationTimeScale) ? info.RotationTimeScale : 1,
     };
 
     private static sbyte Axis(float value) => (sbyte)Math.Round(Math.Clamp(value, -1f, 1f) * 127f, MidpointRounding.ToEven);

@@ -10,13 +10,22 @@ public sealed record ServerOptions
 
     public string Name { get; init; } = "Hollow development server";
 
-    /// <summary>
-    /// Where the zone's origin is on the first world, in degrees. The planet package chooses the landing site; until
-    /// then this is a temperate point picked by hand.
-    /// </summary>
-    public double Latitude { get; init; } = 28.4;
+    /// <summary>Where the zone's origin is on the first world, in degrees: by default the landing site (GROUND.md §3).</summary>
+    public double Latitude { get; init; } = Surface.FirstWorld.LandingLatitude;
 
-    public double Longitude { get; init; } = -61.7;
+    public double Longitude { get; init; } = Surface.FirstWorld.LandingLongitude;
+
+    /// <summary>The stand-in ground instead of the planet (tests and benchmarks that want a plain world).</summary>
+    public bool StandIn { get; init; }
+
+    /// <summary>How much faster than real the planet turns (GROUND.md §1; 1 = its real day).</summary>
+    public double RotationTimeScale { get; init; } = Simulation.ZoneSpec.DefaultRotationTimeScale;
+
+    /// <summary>
+    /// New characters arrive at the zone's origin (the landing site) instead of on a beach, as in Rust: for load tests
+    /// and measurements that want everyone in one place.
+    /// </summary>
+    public bool SpawnAtOrigin { get; init; }
 
     /// <summary>The SQLite database; null runs without persistence (characters start fresh every time).</summary>
     public string? DatabasePath { get; init; } = "hollow-server.db";

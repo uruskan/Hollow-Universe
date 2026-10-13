@@ -77,6 +77,9 @@ public sealed class FloraLibrary
 
     public Species? For(ScatterKind kind) => _byKind.TryGetValue(kind, out Species? s) ? s : null;
 
+    /// <summary>Kinds the scatter never makes: the red and blue berry bushes picked bare (the ground game draws them).</summary>
+    public const ScatterKind BareBerryRed = (ScatterKind)253, BareBerryBlue = (ScatterKind)254;
+
     // ---------------------------------------------------------------- data (worker thread)
 
     /// <summary>Paints the textures and builds every variant's geometry. Deterministic per seed; a second or two.</summary>
@@ -150,6 +153,13 @@ public sealed class FloraLibrary
             {
                 Seed = s, R = 0.85f, H = 1.05f, Cards = 12, Size = 0.95f, Cell = FloraTextures.Berry, Berries = new Vector3(0.05f, 0.06f, 0.2f),
             }, lod));
+        // The berry bushes picked bare (drawn by the ground game, never scattered): the same bushes, without berries.
+        Add(data, "berry_red_bare", BareBerryRed, 1.0f, shrubs, false, "bark", 2, (s, lod) =>
+            FloraGeometry.Bush(new FloraGeometry.Shrub { Seed = s, R = 0.85f, H = 1.05f, Cards = 12, Size = 0.95f, Cell = FloraTextures.Berry }, lod),
+            seedKind: ScatterKind.BerryRed);
+        Add(data, "berry_blue_bare", BareBerryBlue, 1.0f, shrubs, false, "bark", 2, (s, lod) =>
+            FloraGeometry.Bush(new FloraGeometry.Shrub { Seed = s, R = 0.85f, H = 1.05f, Cards = 12, Size = 0.95f, Cell = FloraTextures.Berry }, lod),
+            seedKind: ScatterKind.BerryBlue);
         Add(data, "fern", ScatterKind.Fern, 1.0f, new Bands(24, 75, impostor: false), false, "bark", 3, (s, lod) => FloraGeometry.Fern(s, lod));
         Add(data, "rock", ScatterKind.Rock, 1.0f, new Bands(40, 200, impostor: false), false, "rock", 4, (s, lod) =>
         {
@@ -191,12 +201,12 @@ public sealed class FloraLibrary
     }
 
     private static void Add(Data data, string name, ScatterKind kind, float scale, Bands bands, bool tree, string bark, int variants,
-        Func<int, bool, GeometryBuilder> build)
+        Func<int, bool, GeometryBuilder> build, ScatterKind? seedKind = null)
     {
         var list = new List<(GeometryBuilder, GeometryBuilder, float, float)>();
         for (int v = 0; v < variants; v++)
         {
-            int seed = (int)(Hash64.Of(0x464C4F52, (ulong)kind, (ulong)v) & 0x7FFFFFFF);
+            int seed = (int)(Hash64.Of(0x464C4F52, (ulong)(seedKind ?? kind), (ulong)v) & 0x7FFFFFFF);
             GeometryBuilder lod0 = build(seed, false);
             GeometryBuilder lod1 = build(seed, true);
             (float height, float extent) = lod0.Size();
