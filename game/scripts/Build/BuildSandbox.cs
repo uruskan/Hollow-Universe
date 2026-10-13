@@ -6,6 +6,7 @@ using Godot;
 using Hollow.Core;
 using Hollow.Simulation;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using HollowUniverse.App;
@@ -35,6 +36,7 @@ public partial class BuildSandbox : Node3D
     private const int MeasureFrames = 300;
 
     private BuildingData _data = null!;
+    private Texts _texts = null!;
     private Zone _zone = null!;
     private BuildingWorld _world = null!;
     private BuildingAssets _assets = null!;
@@ -76,11 +78,10 @@ public partial class BuildSandbox : Node3D
     public override void _Ready()
     {
         _shot = Options.ContainsKey("shot");
-        _data = BuildingData.Load(ProjectSettings.GlobalizePath("res://data/ground/building.json"));
-        foreach (string problem in _data.Problems)
-        {
-            GD.PushWarning("building.json: " + problem);
-        }
+        // The whole game data: the building's numbers, and the player's lines for its answers (texts.json).
+        GameContent content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
+        _data = content.Building;
+        _texts = content.Texts;
         ZoneSpec spec = ZoneSpec.FirstWorld(GalaxyService.Galaxy, 28.4, -61.7) ?? new ZoneSpec
         {
             Radius = 6_435_000,
@@ -409,12 +410,12 @@ public partial class BuildSandbox : Node3D
             _hud.Line = $"{piece.Name.ToUpperInvariant()}  ·  {_data.CostOf(piece, 0)} {_data.MaterialName(twig.Material).ToUpperInvariant()} ({_wallet.Count(twig.Material):N0})";
             if (_plan == null)
             {
-                _hud.Reason = Outcome.DefaultText(Refusal.NoSocket);
+                _hud.Reason = _texts.Line(OutcomeCode.NoSocket);
                 _hud.ReasonIsWarning = false;
             }
             else if (!_plan.Valid)
             {
-                _hud.Reason = _plan.Outcome.Text;
+                _hud.Reason = _texts.Line(_plan.Outcome);
                 _hud.ReasonIsWarning = true;
             }
             else
@@ -548,7 +549,7 @@ public partial class BuildSandbox : Node3D
     {
         if (!outcome.Ok)
         {
-            _model.Say(outcome.Text);
+            _model.Say(_texts.Line(outcome));
         }
     }
 
@@ -631,7 +632,7 @@ public partial class BuildSandbox : Node3D
                 Tell(_world.Place(_plan, Player, eye, _wallet, _clock, out _));
                 break;
             case 0:
-                _model.Say(Outcome.DefaultText(Refusal.NoSocket));
+                _model.Say(_texts.Line(OutcomeCode.NoSocket));
                 break;
             case 1 when _target is Piece piece:
                 Tell(_world.Repair(Player, piece, _wallet, eye, _clock));
@@ -641,7 +642,7 @@ public partial class BuildSandbox : Node3D
                 Piece? opening = OpeningAimed(eye, forward);
                 if (opening == null)
                 {
-                    _model.Say(Outcome.DefaultText(Refusal.NotAnOpening));
+                    _model.Say(_texts.Line(OutcomeCode.NotAnOpening));
                     break;
                 }
                 Tell(_world.PlaceDoor(Player, DoorHeld(_model.ActiveBelt)!, opening, _flip, eye, out _));

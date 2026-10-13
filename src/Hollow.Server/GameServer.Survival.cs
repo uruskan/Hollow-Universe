@@ -318,7 +318,7 @@ public sealed partial class GameServer
                 // respawn happens on the tick it is ready (FinishRespawns), on the beach point picked now.
                 if (session.Playing && Zone.RespawnPoint(me, bag) is { } at && !Zone.Physics.GroundReady(at))
                 {
-                    if (TakeIntent(session, out ActionResult refused))
+                    if (TakeIntent(session, out Outcome refused))
                     {
                         _respawns.Add(new PendingRespawn(session, me, m.Seq, bag, at, Zone.Tick));
                     }
@@ -367,34 +367,36 @@ public sealed partial class GameServer
         }
     }
 
-    private bool Intent(PlayerSession session, uint seq, Func<ActionResult> act, bool whileDead = false)
+    // Every intent (GROUND_SYSTEMS.md §3.2): it spends from the player's budget (a bad one too), is applied at once, and is
+    // answered with one IntentResult after this tick's changes (containers) have gone out.
+    private bool Intent(PlayerSession session, uint seq, Func<Outcome> act, bool whileDead = false)
     {
-        Answer(session, seq, TakeIntent(session, out ActionResult refused) ? act() : refused);
+        Answer(session, seq, TakeIntent(session, out Outcome refused) ? act() : refused);
         return true;
     }
 
     // Spends an intent's token: false, and why, if it can't be done at all (over the budget, or not playing).
-    private bool TakeIntent(PlayerSession session, out ActionResult refused)
+    private bool TakeIntent(PlayerSession session, out Outcome refused)
     {
         SurvivalTuning s = Content.Survival;
-        refused = ActionResult.Accepted;
+        refused = OutcomeCode.Done;
         if (!session.SpendIntentToken(Zone.Tick, s.IntentBurst, s.IntentsPerSecond))
         {
-            refused = ActionResult.RateLimited;
+            refused = OutcomeCode.RateLimited;
             session.IntentsRateLimited++;
             return false;
         }
         if (!session.Playing)
         {
-            refused = ActionResult.Dead;
+            refused = OutcomeCode.Dead;
             return false;
         }
         return true;
     }
 
-    private static void Answer(PlayerSession session, uint seq, ActionResult result)
+    private static void Answer(PlayerSession session, uint seq, Outcome result)
     {
-        if (result == ActionResult.Accepted)
+        if (result.Ok)
         {
             session.IntentsAccepted++;
         }
@@ -402,7 +404,7 @@ public sealed partial class GameServer
         {
             session.IntentsRefused++;
         }
-        session.PendingResults.Add(new IntentResult { Seq = seq, Result = result });
+        session.PendingResults.Add(new IntentResult { Seq = seq, Code = result.Code, Detail = (uint)Math.Max(0, result.Detail) });
         session.LastIntentSeq = Math.Max(session.LastIntentSeq, seq);
     }
 
@@ -415,10 +417,10 @@ public sealed partial class GameServer
 
     private readonly List<PendingRespawn> _respawns = new();
 
-    private ActionResult RespawnNow(Entity me, EntityId bag, Vector3? beach)
+    private Outcome RespawnNow(Entity me, EntityId bag, Vector3? beach)
     {
-        ActionResult result = Zone.Respawn(me, bag, beach);
-        if (result == ActionResult.Accepted && _options.KitEveryLife && _options.JoinKit != null &&
+        Outcome result = Zone.Respawn(me, bag, beach);
+        if (result == OutcomeCode.Done && _options.KitEveryLife && _options.JoinKit != null &&
             Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(me) is { } p)
         {
             GiveKit(p, kit);
@@ -511,7 +513,6 @@ public sealed partial class GameServer
             }
             session.PendingResults.Clear();
         }
-        SendBuildResults();
     }
 
     private void Send(PlayerSession session) => session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);

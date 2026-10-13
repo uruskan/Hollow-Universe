@@ -849,8 +849,8 @@ public partial class GroundTour : Node
                 Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
                 // Within the placement reach of the eye (3 m).
                 Num.Vector3 at = Client.Character.Position + Forward() * 2.2f;
-                ActionResult? refused = null;
-                void Refused(IntentAnswer answer) => refused = answer.Result;
+                Outcome? refused = null;
+                void Refused(IntentAnswer answer) => refused = answer.Outcome;
                 Me.IntentRejected += Refused;
                 if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Client.AimGround(at + up * 2, -up, 4) is { } ground)
                 {
@@ -1421,8 +1421,8 @@ public partial class GroundTour : Node
     private async Task<RemoteThing?> PlaceNear(string key, Num.Vector3 from, Num.Vector3 towards, float yaw)
     {
         Num.Vector3 up = Client.Frame.UpAt(from);
-        ActionResult refused = ActionResult.Accepted;
-        void Refused(IntentAnswer answer) => refused = answer.Result;
+        Outcome refused = OutcomeCode.Done;
+        void Refused(IntentAnswer answer) => refused = answer.Outcome;
         Me.IntentRejected += Refused;
         try
         {
@@ -1440,9 +1440,9 @@ public partial class GroundTour : Node
                     continue;
                 }
                 var before = Client.Things.Select(t => t.Id).ToHashSet();
-                refused = ActionResult.Accepted;
+                refused = OutcomeCode.Done;
                 Me.Place(ContainerRef.Main, slot, ground, yaw);
-                await Until(() => refused != ActionResult.Accepted ||
+                await Until(() => refused != OutcomeCode.Done ||
                     Client.Things.Any(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key), 5);
                 RemoteThing? placed = Client.Things.FirstOrDefault(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key);
                 if (placed != null)

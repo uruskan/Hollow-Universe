@@ -83,7 +83,7 @@ public sealed class BuildBrain
         if (!_subscribed)
         {
             _subscribed = true;
-            me.BuildAnswered += a =>
+            me.IntentAnswered += a =>
             {
                 if (a.Seq == _waiting)
                 {

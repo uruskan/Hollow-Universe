@@ -71,8 +71,16 @@ public readonly record struct ItemsChangedEvent(ItemDef Item, int Count, GainRea
 /// <summary>Damage taken from an attack: how much, where, from which point (zone frame), with what (an item, or none).</summary>
 public readonly record struct DamageEvent(float Damage, HitRegion Region, Vector3 From, ItemDef? Weapon);
 
-/// <summary>An intent's answer.</summary>
-public readonly record struct IntentAnswer(uint Seq, ActionResult Result);
+/// <summary>
+/// An intent's answer (GROUND_SYSTEMS.md §3.2): done, or the code of why not, with the number its line names
+/// (<see cref="Simulation.Content.Texts"/> says it).
+/// </summary>
+public readonly record struct IntentAnswer(uint Seq, OutcomeCode Code, int Detail = 0)
+{
+    public bool Done => Code == OutcomeCode.Done;
+
+    public Outcome Outcome => new(Code, Detail);
+}
 
 /// <summary>
 /// The local player's own survival state and actions, for the UI (GROUND.md §4.3, §6). It mirrors what the server
@@ -239,7 +247,7 @@ public sealed partial class LocalPlayer
     public uint Drop(ContainerRef from, int slot, int amount = 0)
     {
         ushort expected = ItemAt(from, slot);
-        return Intend(new Pending(p => p.Resolve(from) is { } c && InventoryRules.Remove(c, slot, amount, expected, out _) == ActionResult.Accepted),
+        return Intend(new Pending(p => p.Resolve(from) is { } c && InventoryRules.Remove(c, slot, amount, expected, out _) == OutcomeCode.Done),
             w => new DropIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, Amount = (uint)Math.Max(0, amount), Expected = expected }.WriteMessage(w));
     }
 
@@ -253,34 +261,34 @@ public sealed partial class LocalPlayer
 
     /// <summary>Starts crafting <paramref name="count"/> of a recipe (by its output item's ID).</summary>
     public uint Craft(int recipeId, int count = 1) =>
-        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints, p.StationFor(recipeId)) == ActionResult.Accepted),
+        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints, p.StationFor(recipeId)) == OutcomeCode.Done),
             w => new CraftIntent { Seq = _nextSeq, Recipe = (uint)Math.Max(0, recipeId), Count = (uint)Math.Max(0, count) }.WriteMessage(w));
 
     /// <summary>Whether a recipe could start now (known, bench in reach, materials for <paramref name="count"/>), as the UI shows it.</summary>
-    public ActionResult CanCraft(Recipe recipe, int count = 1)
+    public Outcome CanCraft(Recipe recipe, int count = 1)
     {
         if (!Blueprints.Knows(recipe))
         {
-            return ActionResult.UnknownRecipe;
+            return OutcomeCode.UnknownRecipe;
         }
         if (WorkbenchLevel < recipe.Workbench)
         {
-            return ActionResult.NeedsWorkbench;
+            return OutcomeCode.NeedsWorkbench.With(recipe.Workbench);
         }
         if (recipe.Station is { } needs && (StationNear?.Invoke(needs) ?? 0) == 0)
         {
-            return ActionResult.NeedsStation;
+            return OutcomeCode.NeedsStation.With(needs.Item.Id);
         }
         if (_craft.Jobs.Count >= CraftQueue.MaxJobs)
         {
-            return ActionResult.QueueFull;
+            return OutcomeCode.QueueFull;
         }
-        return Inventory.Has(recipe.Ingredients, count) ? ActionResult.Accepted : ActionResult.NotEnough;
+        return Inventory.Has(recipe.Ingredients, count) ? OutcomeCode.Done : OutcomeCode.NotEnough;
     }
 
     /// <summary>Cancels a job (its ingredients come back).</summary>
     public uint CancelCraft(uint ticket) =>
-        Intend(new Pending(p => p._craft.Cancel(p.Content, p.Inventory, ticket, p._scratch) == ActionResult.Accepted),
+        Intend(new Pending(p => p._craft.Cancel(p.Content, p.Inventory, ticket, p._scratch) == OutcomeCode.Done),
             w => new CancelCraftIntent { Seq = _nextSeq, Ticket = ticket }.WriteMessage(w));
 
     /// <summary>Opens a box, device, corpse or sleeper (its entity ID); the contents arrive with <see cref="ContainerOpened"/>.</summary>
@@ -300,7 +308,7 @@ public sealed partial class LocalPlayer
     {
         ushort expected = ItemAt(from, slot);
         return Intend(new Pending(p => p.Resolve(from) is { } c && from is ContainerRef.Main or ContainerRef.Belt &&
-                p.Content.Item(expected)?.Deploys != null && InventoryRules.Remove(c, slot, 1, expected, out _) == ActionResult.Accepted),
+                p.Content.Item(expected)?.Deploys != null && InventoryRules.Remove(c, slot, 1, expected, out _) == OutcomeCode.Done),
             w => new PlaceIntent
             {
                 Seq = _nextSeq, From = from, Slot = (byte)slot, Expected = expected, X = at.X, Y = at.Y, Z = at.Z, Yaw = Quantize.Angle16(yaw),
@@ -321,14 +329,14 @@ public sealed partial class LocalPlayer
     {
         ushort expected = ItemAt(from, slot);
         return Intend(new Pending(p => from is ContainerRef.Main or ContainerRef.Belt && weaponIn is ContainerRef.Main or ContainerRef.Belt &&
-                AttachmentRules.Attach(p.Content, p.Resolve(from)!, slot, p.Resolve(weaponIn)!, weaponSlot, expected) == ActionResult.Accepted),
+                AttachmentRules.Attach(p.Content, p.Resolve(from)!, slot, p.Resolve(weaponIn)!, weaponSlot, expected) == OutcomeCode.Done),
             w => new AttachIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, WeaponIn = weaponIn, WeaponSlot = (byte)weaponSlot, Expected = expected }.WriteMessage(w));
     }
 
     /// <summary>Takes the attachment in a slot (sight, muzzle, rail) off the firearm in a slot, into the inventory.</summary>
     public uint Detach(ContainerRef weaponIn, int weaponSlot, AttachmentSlot mod) =>
         Intend(new Pending(p => weaponIn is ContainerRef.Main or ContainerRef.Belt &&
-                AttachmentRules.Detach(p.Content, p.Inventory, p.Resolve(weaponIn)!, weaponSlot, mod) == ActionResult.Accepted),
+                AttachmentRules.Detach(p.Content, p.Inventory, p.Resolve(weaponIn)!, weaponSlot, mod) == OutcomeCode.Done),
             w => new DetachIntent { Seq = _nextSeq, WeaponIn = weaponIn, WeaponSlot = (byte)weaponSlot, Mod = mod }.WriteMessage(w));
 
     /// <summary>Helps a wounded player up (the interact key on them, within 2.5 m): <see cref="GameClient.Aim"/> finds them.</summary>
@@ -377,7 +385,7 @@ public sealed partial class LocalPlayer
         {
             return false;
         }
-        return InventoryRules.Move(Content, a, fromSlot, b, toSlot, amount, expected) == ActionResult.Accepted;
+        return InventoryRules.Move(Content, a, fromSlot, b, toSlot, amount, expected) == OutcomeCode.Done;
     }
 
     private bool ApplyQuickMove(ContainerRef from, int slot, ushort expected)
@@ -395,7 +403,7 @@ public sealed partial class LocalPlayer
                 _targets.Add(target);
             }
         }
-        return InventoryRules.QuickMove(Content, source, slot, _targets, expected) == ActionResult.Accepted;
+        return InventoryRules.QuickMove(Content, source, slot, _targets, expected) == OutcomeCode.Done;
     }
 
     private bool ApplyUse(ContainerRef from, int slot, ushort expected)
@@ -408,7 +416,7 @@ public sealed partial class LocalPlayer
         {
             // G7: reading a blueprint learns it (unless it is known), and uses it up.
             if (Content.Recipe(c[slot].Condition) is not { } recipe || Blueprints.Knows(recipe) ||
-                InventoryRules.Remove(c, slot, 1, expected, out _) != ActionResult.Accepted)
+                InventoryRules.Remove(c, slot, 1, expected, out _) != OutcomeCode.Done)
             {
                 return false;
             }
@@ -419,7 +427,7 @@ public sealed partial class LocalPlayer
         {
             return false;
         }
-        return InventoryRules.Remove(c, slot, 1, expected, out _) == ActionResult.Accepted;
+        return InventoryRules.Remove(c, slot, 1, expected, out _) == OutcomeCode.Done;
     }
 
     private bool ApplyClose()
@@ -700,9 +708,10 @@ public sealed partial class LocalPlayer
             _pending.RemoveAt(index);
             _dirty = true;
         }
-        var answer = new IntentAnswer(m.Seq, m.Result);
+        var answer = new IntentAnswer(m.Seq, m.Code, (int)Math.Min(m.Detail, int.MaxValue));
+        AnsweredPiece(m.Seq, answer.Done);
         IntentAnswered?.Invoke(answer);
-        if (m.Result != ActionResult.Accepted)
+        if (!answer.Done)
         {
             IntentRejected?.Invoke(answer);
         }

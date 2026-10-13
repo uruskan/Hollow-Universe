@@ -15,9 +15,11 @@ public static partial class Protocol
     /// opens as take-only loot, <c>LootKind.Crate</c>); 13: gathering's feedback (a natural object's change carries its run
     /// of weak-spot hits, how fresh its last hit is and where it met the surface); 14: the damage pipeline's Destroyed
     /// event (<see cref="ThingDestroyed"/>, GROUND.md §6.4.2); 15: free look (Alt), the head's turn from the view in every
-    /// input and in characters' state.
+    /// input and in characters' state; 16: the shared foundations (GROUND_SYSTEMS.md §3): one answer for every intent
+    /// (<see cref="IntentResult"/>'s code and detail; <c>BuildResult</c> is gone), things named by
+    /// <see cref="TargetNet"/> (family, ID, part) and hit kinds by target family, and viewer flags.
     /// </summary>
-    public const uint Version = 15;
+    public const uint Version = 16;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

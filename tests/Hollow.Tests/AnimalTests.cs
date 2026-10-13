@@ -332,12 +332,12 @@ public static class AnimalTests
         rig.Give(ada, "campfire", 1);
         Vector3 at = rig.Zone.GroundAt(21.5f, 20);
         rig.Look(ada, at);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Place(ada, ContainerRef.Main, 0, c.ItemByKey("campfire").Id, at, 0), "place the campfire");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, 0, c.ItemByKey("campfire").Id, at, 0), "place the campfire");
         Deployable fire = rig.Zone.Statics().OfType<Deployable>().Single();
         DeviceStats device = fire.Def.Device!;
         fire.Storage!.Set(device.FuelSlots[0], ItemStack.Of(c.ItemByKey("wood"), 200));
         fire.Storage.Set(device.InputSlots[0], ItemStack.Of(c.ItemByKey("raw-venison"), 1));
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Toggle(ada, fire.Id), "light it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Toggle(ada, fire.Id), "light it");
         int Count(string key) => device.OutputSlots.Sum(s => fire.Storage[s].Item == c.ItemByKey(key).Id ? fire.Storage[s].Count : 0);
         rig.Step(15 * 30 - 2);
         Assert.Equal(0, Count("cooked-venison"), "not cooked before 15 s");
@@ -354,11 +354,11 @@ public static class AnimalTests
         rig.Give(ada, "raw-venison", 1);
         rig.Give(ada, "cooked-venison", 1);
         int raw = Enumerable.Range(0, 24).First(i => p.Inventory.Main[i].Item == c.ItemByKey("raw-venison").Id);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.UseItem(ada, ContainerRef.Main, raw, 0), "eat it raw");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.UseItem(ada, ContainerRef.Main, raw, 0), "eat it raw");
         Assert.Near(70, p.Vitals.Health, 0.01, "raw venison costs 10 health");
         Assert.Near(120, p.Vitals.Calories, 0.01, "and gives 20 calories");
         int cooked = Enumerable.Range(0, 24).First(i => p.Inventory.Main[i].Item == c.ItemByKey("cooked-venison").Id);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.UseItem(ada, ContainerRef.Main, cooked, 0), "eat it cooked");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.UseItem(ada, ContainerRef.Main, cooked, 0), "eat it cooked");
         Assert.Near(160, p.Vitals.Calories, 0.01, "40 calories");
         Assert.Near(10, p.Vitals.PendingHeal, 0.01, "and 10 health to heal");
 
@@ -368,7 +368,7 @@ public static class AnimalTests
         Assert.True(c.Recipe(c.ItemByKey("lamp-oil").Id)!.Ingredients.Any(i => i.Item.Key == "charcoal"), "beside the charcoal one");
         rig.Give(ada, "animal-fat", 3);
         rig.Give(ada, "cloth", 1);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Craft(ada, fat.Id, 1, out _), "craft it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Craft(ada, fat.Id, 1, out _), "craft it");
         rig.Step((int)(fat.Seconds * 30) + 2);
         Assert.Equal(4, p.Inventory.Count(c.ItemByKey("lamp-oil")), "four lamp oil");
         Assert.Equal(0, p.Inventory.Count(c.ItemByKey("animal-fat")), "the fat used");
@@ -473,7 +473,7 @@ public static class AnimalTests
         foreach (string key in new[] { "woven-trousers", "chest-plate", "woven-shirt" })
         {
             int slot = Enumerable.Range(0, 24).First(i => p.Inventory.Main[i].Item == c.ItemByKey(key).Id);
-            Assert.Equal(ActionResult.Accepted, rig.Zone.QuickMove(ada, ContainerRef.Main, slot, c.ItemByKey(key).Id), $"wear the {key}");
+            Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Main, slot, c.ItemByKey(key).Id), $"wear the {key}");
         }
         float legs = p.Inventory.Protection(c, HitRegion.Limb, projectile: false), body = p.Inventory.Protection(c, HitRegion.Body, projectile: false);
         rig.Zone.AnimalAttacksPlayer(wolf, p.Id);

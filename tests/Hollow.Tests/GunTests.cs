@@ -298,7 +298,7 @@ public static class GunTests
         {
             rig.Give(bo, key, 1);
             int slot = Enumerable.Range(0, 24).First(i => b.Inventory.Main[i].Item == c.ItemByKey(key).Id);
-            Assert.Equal(ActionResult.Accepted, rig.Zone.QuickMove(bo, ContainerRef.Main, slot, 0), $"wear the {key}");
+            Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(bo, ContainerRef.Main, slot, 0), $"wear the {key}");
         }
         float body = Hit(HitRegion.Body), head = Hit(HitRegion.Head), limb = Hit(HitRegion.Limb);
         Fixtures.Report($"body {bareBody:0.0} → {body:0.00} (chest plate and shirt), head {bareHead:0.0} → {head:0.0} (metal mask), limb {limb:0.00} (shirt sleeves)");
@@ -406,15 +406,15 @@ public static class GunTests
             rig.Give(ada, key, 1);
         }
         int Slot(string key) => Enumerable.Range(0, 24).First(i => a.Inventory.Main[i].Item == c.ItemByKey(key).Id);
-        Assert.Equal(ActionResult.NotAllowed, rig.Zone.Attach(ada, ContainerRef.Main, Slot("scope"), ContainerRef.Belt, 0, 0), "the pistol takes no scope");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Attach(ada, ContainerRef.Main, Slot("muzzle-brake"), ContainerRef.Belt, 0, 0), "a muzzle brake on");
+        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.Attach(ada, ContainerRef.Main, Slot("scope"), ContainerRef.Belt, 0, 0), "the pistol takes no scope");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Attach(ada, ContainerRef.Main, Slot("muzzle-brake"), ContainerRef.Belt, 0, 0), "a muzzle brake on");
         Assert.Equal(c.ItemByKey("muzzle-brake").Id, a.Inventory.Belt[0].Muzzle, "on the muzzle");
         Guns.Queue(rig, ada, 1);
         rig.Step();
         Assert.Near(c.ItemByKey("pistol").Firearm!.Recoil.PitchPerShot * 0.5, a.Gun.Recoil.Pitch, 0.5 * 3 * 0.12 + 1e-9, "half the kick");
 
         int silencer = Slot("silencer");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Attach(ada, ContainerRef.Main, silencer, ContainerRef.Belt, 0, 0), "a silencer swaps it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Attach(ada, ContainerRef.Main, silencer, ContainerRef.Belt, 0, 0), "a silencer swaps it");
         Assert.Equal(c.ItemByKey("muzzle-brake").Id, a.Inventory.Main[silencer].Item, "the brake back where the silencer was");
         rig.Zone.GameEvents.Clear();
         rig.Step(5);
@@ -423,7 +423,7 @@ public static class GunTests
         ZoneEvent launch = Guns.Launches(rig).Single();
         Assert.True(launch.Flag, "silenced");
         Assert.Near(300 * 0.75, launch.Velocity.Length(), 0.01, "slower");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Detach(ada, ContainerRef.Belt, 0, AttachmentSlot.Muzzle), "off again");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Detach(ada, ContainerRef.Belt, 0, AttachmentSlot.Muzzle), "off again");
         Assert.True(a.Inventory.Belt[0].Muzzle == 0 && a.Inventory.Count(c.ItemByKey("silencer")) == 1, "into the inventory");
         Assert.Equal(13, (int)a.Inventory.Belt[0].Loaded, "the magazine stayed with the gun throughout");
     }

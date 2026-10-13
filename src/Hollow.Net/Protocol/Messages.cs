@@ -555,12 +555,16 @@ public partial struct RespawnIntent
 
 // ---------------------------------------------------------------- G2: the player's own state (server → owner, reliable)
 
-/// <summary>The answer to an intent: accepted, or why not. Sent after the changes it made.</summary>
+/// <summary>
+/// The answer to every intent (GROUND_SYSTEMS.md §3.2): done, or the code of why not, and the number its line names (an
+/// item, seconds, a percentage; 0 for none). Sent after the changes it made.
+/// </summary>
 [NetMessage(70)]
 public partial struct IntentResult
 {
     [VarInt] public uint Seq;
-    [Bits(5)] public ActionResult Result;
+    [Bits(7)] public OutcomeCode Code;
+    [VarInt] public uint Detail;
 }
 
 /// <summary>
@@ -833,7 +837,7 @@ public partial struct GunUpdate
 }
 
 // ---------------------------------------------------------------- G3: building intents (client → server, reliable)
-// Each has a sequence number from the same series as G2's intents and is answered with a BuildResult (GROUND.md §6.3).
+// Each has a sequence number from the same series as G2's intents and is answered with an IntentResult (GROUND.md §6.3).
 
 /// <summary>
 /// Place a piece from the building plan: on a support's socket in an orientation (the server derives the pose), or,
@@ -905,15 +909,6 @@ public partial struct ClaimIntent
     public double X;
     public double Z;
     [Bits(4)] public byte Yaw;
-}
-
-/// <summary>The answer to a building intent: done (None), or the rules' reason with the player's line.</summary>
-[NetMessage(95)]
-public partial struct BuildResult
-{
-    [VarInt] public uint Seq;
-    [Bits(6)] public Refusal Reason;
-    [MaxLength(96)] public string Text;
 }
 
 // ---------------------------------------------------------------- G3: building replication (server → client, reliable)

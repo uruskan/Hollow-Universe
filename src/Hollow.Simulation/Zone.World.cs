@@ -417,7 +417,7 @@ public sealed partial class Zone
     /// The switch of a recycler (on or off: it needs no fuel) or research table (starts a research: the item in its
     /// item slot and the salvage its tier costs are taken, and a blueprint of it comes out after Rust's 10 s).
     /// </summary>
-    private ActionResult ToggleMachine(Deployable d)
+    private Outcome ToggleMachine(Deployable d)
     {
         Container storage = d.Storage!;
         GameContent content = Content!;
@@ -436,33 +436,33 @@ public sealed partial class Zone
                 }
                 if (!any)
                 {
-                    return ActionResult.CantStart;
+                    return OutcomeCode.CantStart;
                 }
                 d.Lit = true;
                 d.BurnTicksLeft = recycler.Ticks;
             }
             d.Revision++;
-            return ActionResult.Accepted;
+            return OutcomeCode.Done;
         }
         if (d.Def.Research is not { } research)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
         if (d.Lit)
         {
-            return ActionResult.CantStart; // a research can't be stopped (Rust's)
+            return OutcomeCode.CantStart; // a research can't be stopped (Rust's)
         }
         ItemStack item = storage[research.ItemSlot];
         if (item.IsEmpty || content.Item(item.Item) is not { } def || !Research.CanResearch(content, def) || !storage[research.OutputSlot].IsEmpty)
         {
-            return ActionResult.CantStart;
+            return OutcomeCode.CantStart;
         }
         Recipe recipe = content.Recipe(def.Id)!;
         int cost = Research.Cost(content, recipe);
         ItemStack salvage = storage[research.SalvageSlot];
         if (salvage.Item != content.World.Currency?.Id || salvage.Count < cost)
         {
-            return ActionResult.NotEnough;
+            return OutcomeCode.NotEnough;
         }
         item.Count--;
         storage.Set(research.ItemSlot, item);
@@ -473,7 +473,7 @@ public sealed partial class Zone
         d.BurnTicksLeft = research.Ticks;
         d.Lit = true;
         d.Revision++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // A research table broken mid-research gives back what it was working on, with its contents (in their bag).
@@ -501,57 +501,57 @@ public sealed partial class Zone
     /// Unlocks a tech tree node (Rust's): at a workbench of its level within reach, once one of the nodes before it is
     /// known, for its salvage from the player's main and belt slots. The blueprint is learnt at once.
     /// </summary>
-    public ActionResult Unlock(Entity entity, int recipeId)
+    public Outcome Unlock(Entity entity, int recipeId)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         GameContent content = Content!;
         if (content.World.NodeOf(recipeId) is not { } node)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
-        ActionResult can = TechTrees.CanUnlock(node, p.Blueprints);
-        if (can != ActionResult.Accepted)
+        Outcome can = TechTrees.CanUnlock(node, p.Blueprints);
+        if (can != OutcomeCode.Done)
         {
             return can;
         }
         if (WorkbenchLevel(Entities.Get<Character>(entity).State.Position) < node.Tier)
         {
-            return ActionResult.NeedsWorkbench;
+            return OutcomeCode.NeedsWorkbench.With(node.Tier);
         }
         if (content.World.Currency is not { } salvage || !InventoryRules.Take(p.Inventory.Carried, salvage.Id, node.Cost))
         {
-            return ActionResult.NotEnough;
+            return OutcomeCode.NotEnough.With(content.World.Currency?.Id ?? 0);
         }
         p.Blueprints.Learn(node.Recipe);
         WorldStats.Unlocked++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // Using a blueprint item learns its recipe (it is used up), unless that is known already.
-    private ActionResult LearnBlueprint(Player p, Container source, int slot, ItemStack stack)
+    private Outcome LearnBlueprint(Player p, Container source, int slot, ItemStack stack)
     {
         if (Content!.Recipe(stack.Condition) is not { } recipe || p.Blueprints.Knows(recipe))
         {
-            return ActionResult.AlreadyKnown;
+            return OutcomeCode.AlreadyKnown;
         }
         p.Blueprints.Learn(recipe);
         stack.Count--;
         source.Set(slot, stack);
         WorldStats.Learned++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // ---------------------------------------------------------------- teams
 
     /// <summary>Team actions (Rust's): create, invite a player near by, accept or decline an invite, leave, and the leader's kick and promote.</summary>
-    public ActionResult TeamAct(Entity entity, TeamAction action, EntityId target, ulong team)
+    public Outcome TeamAct(Entity entity, TeamAction action, EntityId target, ulong team)
     {
         if (PlayerOf(entity) is not { } p || p.Sleeping)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         switch (action)
         {
@@ -562,12 +562,12 @@ public sealed partial class Zone
                 // A player in sight, as Rust's invite by looking at them: awake, alive and near.
                 if (!TryFindPlayer(target, out Entity other, out Player invited) || !invited.IsAwakeAndAlive)
                 {
-                    return ActionResult.NotFound;
+                    return OutcomeCode.NotFound;
                 }
                 Vector3 a = Entities.Get<Character>(entity).State.Position, b = Entities.Get<Character>(other).State.Position;
                 if (Vector3.Distance(a, b) > Content!.Survival.InteractReach + 3)
                 {
-                    return ActionResult.OutOfReach;
+                    return OutcomeCode.OutOfReach;
                 }
                 return Teams.Invite(p.Id, invited.Id, UnixMilliseconds);
             }
@@ -582,7 +582,7 @@ public sealed partial class Zone
             case TeamAction.Promote:
                 return Teams.Promote(p.Id, target);
             default:
-                return ActionResult.Invalid;
+                return OutcomeCode.Invalid;
         }
     }
 
@@ -626,21 +626,21 @@ public sealed partial class Zone
     // ---------------------------------------------------------------- the map's markers
 
     /// <summary>Puts a marker on the map (at most world.json's <c>map.markers</c>, within the map), with a colour and a short label.</summary>
-    public ActionResult PlaceMarker(Entity entity, Vector3 at, byte colour, string? label)
+    public Outcome PlaceMarker(Entity entity, Vector3 at, byte colour, string? label)
     {
         if (PlayerOf(entity) is not { } p || p.Sleeping)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         WorldData world = Content!.World;
         float half = (float)(world.MapMetres / 2);
         if (!float.IsFinite(at.X) || !float.IsFinite(at.Z) || MathF.Abs(at.X) > half || MathF.Abs(at.Z) > half || colour >= MapMarker.Colours)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (p.Markers.Count >= world.MaxMarkers)
         {
-            return ActionResult.NoSpace;
+            return OutcomeCode.NoSpace;
         }
         string text = (label ?? "").Trim();
         if (text.Length > MapMarker.MaxLabel)
@@ -649,15 +649,15 @@ public sealed partial class Zone
         }
         p.Markers.Add(new MapMarker(Settle(at), colour, text));
         p.MapRevision++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>Takes a marker off the map (−1: all of them).</summary>
-    public ActionResult RemoveMarker(Entity entity, int index)
+    public Outcome RemoveMarker(Entity entity, int index)
     {
         if (PlayerOf(entity) is not { } p || p.Sleeping)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (index == -1)
         {
@@ -669,10 +669,10 @@ public sealed partial class Zone
         }
         else
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         p.MapRevision++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // A respawn point placed or gone: its owner's map changes.

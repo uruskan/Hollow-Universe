@@ -79,14 +79,14 @@ public sealed partial class Zone
     /// from in front of the eye, its fuse already burning; a charge sticks to the first surface it touches, a grenade
     /// bounces and comes to rest. The view is the intent's when it is within reach of the player's own (anti-cheat).
     /// </summary>
-    public ActionResult ThrowExplosive(Entity entity, int slot, ushort expected, float yaw, float pitch, bool lob)
+    public Outcome ThrowExplosive(Entity entity, int slot, ushort expected, float yaw, float pitch, bool lob)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
-        ActionResult check = CanThrow(p, slot, expected, out ThrowableStats? stats);
-        if (check != ActionResult.Accepted)
+        Outcome check = CanThrow(p, slot, expected, out ThrowableStats? stats);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
@@ -108,27 +108,27 @@ public sealed partial class Zone
         RaidStats.Thrown++;
         p.ActionCount++;
         p.LastAction = ActionKind.Throw;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>
     /// Places the charge in a belt slot on the surface the view meets within reach (a wall, a door, a floor, a box, the
     /// ground): it sticks there with its fuse burning. No building rights are needed (raiding: RustMVP's rule).
     /// </summary>
-    public ActionResult PlaceCharge(Entity entity, int slot, ushort expected, float yaw, float pitch)
+    public Outcome PlaceCharge(Entity entity, int slot, ushort expected, float yaw, float pitch)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
-        ActionResult check = CanThrow(p, slot, expected, out ThrowableStats? stats);
-        if (check != ActionResult.Accepted)
+        Outcome check = CanThrow(p, slot, expected, out ThrowableStats? stats);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
         if (!stats!.Placeable)
         {
-            return ActionResult.NotUsable;
+            return OutcomeCode.NotUsable;
         }
         ref Character c = ref Entities.Get<Character>(entity);
         (yaw, pitch) = TrustedView(c, yaw, pitch);
@@ -136,7 +136,7 @@ public sealed partial class Zone
         Vector3 direction = CharacterMotor.ViewDirection(yaw, pitch, Frame.UpAt(c.State.Position));
         if (!Sweep(eye, eye + direction * Content!.PlacementReach, 0, out SurfaceHit hit))
         {
-            return ActionResult.OutOfReach;
+            return OutcomeCode.OutOfReach;
         }
         TakeOne(p, slot, stats);
         LiveExplosive e = Spawn(stats, p.Id, p.Name, hit.Point, Vector3.Zero);
@@ -145,59 +145,59 @@ public sealed partial class Zone
         RaidStats.Placed++;
         p.ActionCount++;
         p.LastAction = ActionKind.Throw;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>Lights a dud again (the interact key on it, within reach): a new fuse, which may go out again.</summary>
-    public ActionResult Rearm(Entity entity, EntityId explosive)
+    public Outcome Rearm(Entity entity, EntityId explosive)
     {
         if (!Acting(entity, out Player _))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (ExplosiveOf(explosive) is not { } e)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
         if (!e.Dud)
         {
-            return ActionResult.NotUsable;
+            return OutcomeCode.NotUsable;
         }
         if (Vector3.Distance(EyeOf(Entities.Get<Character>(entity).State), e.Position) > Content!.Survival.InteractReach + 0.5f)
         {
-            return ActionResult.OutOfReach;
+            return OutcomeCode.OutOfReach;
         }
         Arm(e);
         RaidStats.Rearmed++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
-    private ActionResult CanThrow(Player p, int slot, ushort expected, out ThrowableStats? stats)
+    private Outcome CanThrow(Player p, int slot, ushort expected, out ThrowableStats? stats)
     {
         stats = null;
         if (slot is < 0 or >= PlayerInventory.BeltSlots)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         ItemStack s = p.Inventory.Belt[slot];
         if (s.IsEmpty || (expected != 0 && s.Item != expected))
         {
-            return ActionResult.Stale;
+            return OutcomeCode.Stale;
         }
         if (Content!.Item(s.Item)?.Throwable is not { } t)
         {
-            return ActionResult.NotUsable;
+            return OutcomeCode.NotUsable;
         }
         if (Tick < _nextThrowTick.GetValueOrDefault(p.Id))
         {
-            return ActionResult.Cooldown;
+            return OutcomeCode.Cooldown;
         }
         if (_explosives.Count >= MaxExplosives)
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         stats = t;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     private void TakeOne(Player p, int slot, ThrowableStats stats)

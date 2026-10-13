@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using Hollow.Client;
 using Hollow.Core;
+using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
@@ -61,6 +62,9 @@ public partial class BuildView : Node3D
     public object? Interactable { get; private set; }
 
     private BuildingData Data => Client.Content.Building;
+
+    // The player's line for an answer (texts.json).
+    private string Line(Outcome outcome) => Client.Content.Texts.Line(outcome);
 
     /// <summary>Every frame, after the camera: the building drawn, the ghost and the lines for the held tool.</summary>
     public void Refresh(double delta, Num.Vector3 eye, Num.Vector3 forward)
@@ -343,12 +347,12 @@ public partial class BuildView : Node3D
         Hud.Line = $"{piece.Name.ToUpperInvariant()}  ·  {Data.CostOf(piece, 0)} {Data.MaterialName(twig.Material).ToUpperInvariant()} ({Owned(twig.Material):N0})";
         if (_plan == null)
         {
-            Hud.Reason = Outcome.DefaultText(Refusal.NoSocket);
+            Hud.Reason = Line(OutcomeCode.NoSocket);
             Hud.ReasonIsWarning = false;
         }
         else if (!_plan.Valid)
         {
-            Hud.Reason = _plan.Outcome.Text;
+            Hud.Reason = Line(_plan.Outcome);
             Hud.ReasonIsWarning = true;
         }
         else
@@ -458,7 +462,7 @@ public partial class BuildView : Node3D
                 me.PlacePiece(_plan);
                 break;
             case BuildingRole.Plan:
-                Say?.Invoke(_plan?.Outcome.Text ?? Outcome.DefaultText(Refusal.NoSocket));
+                Say?.Invoke(Line(_plan?.Outcome ?? OutcomeCode.NoSocket));
                 break;
             case BuildingRole.Hammer when _target is Piece piece:
                 me.Repair(piece);
@@ -470,7 +474,7 @@ public partial class BuildView : Node3D
                 }
                 else
                 {
-                    Say?.Invoke(Outcome.DefaultText(Refusal.NotAnOpening));
+                    Say?.Invoke(Line(OutcomeCode.NotAnOpening));
                 }
                 break;
             case BuildingRole.KeyLock or BuildingRole.CodeLock when _target is Door door:

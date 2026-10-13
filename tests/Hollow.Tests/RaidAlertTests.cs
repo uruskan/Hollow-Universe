@@ -174,7 +174,7 @@ public static class RaidAlertTests
         rig.Step(2);
         rig.Look(bo, doorFace + doorOut * 0.2f);
         ref Character ch = ref rig.Ch(bo);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.PlaceCharge(bo, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "a charge on the door");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.PlaceCharge(bo, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "a charge on the door");
         Assert.True(rig.Zone.Explosives.Single().Support == hut.Door, "stuck to the door");
         Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 8, doorFace.Z + doorOut.Z * 8));
         Raids.StepUntil(rig, () => { Route(rig, service); return hut.Door!.Gone; }, 320, "the door breaking");
@@ -188,7 +188,7 @@ public static class RaidAlertTests
         Vector3 beside = hut.ToZone(new(0.3, 0, 0.7));
         rig.Look(bo, beside);
         ch = ref rig.Ch(bo);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.PlaceCharge(bo, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "a charge beside her");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.PlaceCharge(bo, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "a charge beside her");
         Assert.True(rig.Zone.Explosives.Single().Support == hut.Foundation, "on the floor");
         Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 8, doorFace.Z + doorOut.Z * 8));
         long before = rig.Zone.UnixMilliseconds;
@@ -202,7 +202,7 @@ public static class RaidAlertTests
         // Bo loots. The base's minute passes.
         Raids.Stand(rig, bo, body.Position);
         rig.Step(2);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Open(bo, body.Id), "Bo opens her body");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(bo, body.Id), "Bo opens her body");
         rig.Zone.UnixMilliseconds = before + 61_000;
         Route(rig, service);
         Assert.Equal(2, store.Count, "the follow-up alert queued");

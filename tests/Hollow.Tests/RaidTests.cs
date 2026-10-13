@@ -196,7 +196,7 @@ public static class RaidTests
         Vector3 up = rig.Zone.Frame.UpAt(box.Centre);
         rig.Look(ada, box.Centre + up * 0.45f);
         ref Character ch = ref rig.Ch(ada);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.ThrowExplosive(ada, 0, c.ItemByKey("tin-grenade").Id, ch.Input.Yaw, ch.Input.Pitch, lob: false), "the grenade");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.ThrowExplosive(ada, 0, c.ItemByKey("tin-grenade").Id, ch.Input.Yaw, ch.Input.Pitch, lob: false), "the grenade");
         LiveExplosive grenade = rig.Zone.Explosives.Single();
         Raids.StepUntil(rig, () => grenade.State != ExplosiveState.Flying, 90, "the grenade coming to rest");
         float height = rig.Zone.HeightAboveGround(grenade.Position);
@@ -208,7 +208,7 @@ public static class RaidTests
         rig.Step(30);
         rig.Look(ada, box.Centre + up * 1.1f);
         ch = ref rig.Ch(ada);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.ThrowExplosive(ada, 1, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch, lob: false), "the charge");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.ThrowExplosive(ada, 1, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch, lob: false), "the charge");
         LiveExplosive charge = rig.Zone.Explosives.Single(e => e.Item.Key == "timed-charge");
         Raids.StepUntil(rig, () => charge.State != ExplosiveState.Flying, 30, "the charge landing");
         Assert.True(charge.State == ExplosiveState.Stuck && charge.Support == box, $"stuck to the box ({charge.State} on {charge.SupportKind})");
@@ -250,11 +250,11 @@ public static class RaidTests
         // Ada places the charge on the wall in front of her.
         rig.Look(ada, face);
         ref Character ch = ref rig.Ch(ada);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.PlaceCharge(ada, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "placed");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.PlaceCharge(ada, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "placed");
         LiveExplosive charge = rig.Zone.Explosives.Single();
         Assert.True(charge.State == ExplosiveState.Stuck && charge.Support == north, $"stuck to the north wall ({charge.State}, {charge.Support})");
         Assert.True(rig.P(ada).Inventory.Belt[0].IsEmpty, "the charge left the belt");
-        Assert.Equal(ActionResult.Stale, rig.Zone.PlaceCharge(ada, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "nothing more to place");
+        Assert.Equal(OutcomeCode.Stale, rig.Zone.PlaceCharge(ada, 0, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch), "nothing more to place");
         Assert.Equal(300, charge.FuseTicks, "a ten-second fuse");
         // She runs off (out of the blast); everyone else stays.
         Raids.Stand(rig, ada, rig.Zone.GroundAt(face.X + outward.X * 9, face.Z + outward.Z * 9));
@@ -309,13 +309,13 @@ public static class RaidTests
         // Thrown at the wall, it flies and sticks to it.
         rig.Look(ada, face);
         ref Character ch = ref rig.Ch(ada);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.ThrowExplosive(ada, 0, bag, ch.Input.Yaw, ch.Input.Pitch, lob: false), "thrown");
-        Assert.Equal(ActionResult.Cooldown, rig.Zone.ThrowExplosive(ada, 0, bag, ch.Input.Yaw, ch.Input.Pitch, lob: false), "one a second");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.ThrowExplosive(ada, 0, bag, ch.Input.Yaw, ch.Input.Pitch, lob: false), "thrown");
+        Assert.Equal(OutcomeCode.Cooldown, rig.Zone.ThrowExplosive(ada, 0, bag, ch.Input.Yaw, ch.Input.Pitch, lob: false), "one a second");
         LiveExplosive thrown = rig.Zone.Explosives.Single();
         Raids.StepUntil(rig, () => thrown.State != ExplosiveState.Flying, 30, "the bag charge landing");
         Assert.True(thrown.State == ExplosiveState.Stuck && thrown.Support == east, $"stuck to the east wall ({thrown.State} on {thrown.Support})");
         Assert.InRange(6 * 30, 12 * 30, thrown.FuseTicks, "a 6–12 s fuse");
-        Assert.Equal(ActionResult.NotUsable, rig.Zone.Rearm(ada, thrown.Id), "a burning fuse can't be lit again");
+        Assert.Equal(OutcomeCode.NotUsable, rig.Zone.Rearm(ada, thrown.Id), "a burning fuse can't be lit again");
         Raids.StepUntil(rig, () => thrown.Gone || thrown.Dud, 12 * 30 + 2, "the thrown charge");
         Fixtures.Report($"thrown bag charge: {(thrown.Dud ? "a dud" : $"went off, the stone wall at {east.Health}")}");
 
@@ -331,14 +331,14 @@ public static class RaidTests
         Assert.Equal(1L, rig.Zone.RaidStats.Duds - (thrown.Dud ? 1 : 0), "counted");
 
         // Lit again: not from afar; by the interact key within reach; it may go out again, until it goes off.
-        Assert.Equal(ActionResult.OutOfReach, rig.Zone.Rearm(ada, dud.Id), "too far to reach");
+        Assert.Equal(OutcomeCode.OutOfReach, rig.Zone.Rearm(ada, dud.Id), "too far to reach");
         Raids.Stand(rig, ada, rig.Zone.GroundAt(face.X + outward.X * 1.0f, face.Z + outward.Z * 1.0f));
         rig.Step(2);
         int lit = 0;
         while (!dud.Gone)
         {
             Assert.True(lit < 10, "it goes off in the end");
-            Assert.Equal(ActionResult.Accepted, rig.Zone.Rearm(ada, dud.Id), "lit again");
+            Assert.Equal(OutcomeCode.Done, rig.Zone.Rearm(ada, dud.Id), "lit again");
             lit++;
             Assert.True(dud.Burning && !dud.Dud, "burning again");
             Raids.Stand(rig, ada, rig.Zone.GroundAt(face.X + outward.X * 10, face.Z + outward.Z * 10));
@@ -350,7 +350,7 @@ public static class RaidTests
             }
         }
         Assert.True(east.Gone || east.Health < wall, $"the relit charge hurt the wall ({wall} → {east.Health})");
-        Assert.Equal(ActionResult.NotFound, rig.Zone.Rearm(ada, dud.Id), "nothing left to light");
+        Assert.Equal(OutcomeCode.NotFound, rig.Zone.Rearm(ada, dud.Id), "nothing left to light");
         Fixtures.Report($"the dud took {lit} lighting(s) to go off; the wall {wall} → {(east.Gone ? "broken" : east.Health)}");
     }
 

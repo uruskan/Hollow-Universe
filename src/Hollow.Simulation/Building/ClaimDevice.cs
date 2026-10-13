@@ -82,33 +82,33 @@ public sealed partial class BuildingWorld
         device = null;
         if (support.Gone || support.Collapsing)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!support.Def.IsSlab)
         {
-            return Outcome.Refuse(Refusal.NotOnStructure);
+            return OutcomeCode.NotOnStructure;
         }
         if (support.Structure.Claim != null)
         {
-            return Outcome.Refuse(Refusal.HasClaim);
+            return OutcomeCode.HasClaim;
         }
         var position = new Vector3D(localPoint.X, support.Pose.Position.Y, localPoint.Z);
         Vector3D onPiece = PieceGeometry.ToLocal(support.Pose, position);
         if (PieceGeometry.ClosestOnFootprint(support.Def.Shape, Data.Width, onPiece) is var inside &&
             (inside - new Vector3D(onPiece.X, 0, onPiece.Z)).LengthSquared > 1e-6)
         {
-            return Outcome.Refuse(Refusal.NotOnStructure);
+            return OutcomeCode.NotOnStructure;
         }
         var pose = new Pose(position, PieceGeometry.Wrap(yaw));
         (Vector3 zonePosition, Quaternion zoneRotation) = support.Structure.Frame.ToZone(pose);
         if (PrivilegeAt(player, zonePosition, 0) == Privilege.Blocked)
         {
-            return Outcome.Refuse(Refusal.BuildingBlocked);
+            return OutcomeCode.BuildingBlocked;
         }
         ConvexPart[] parts = { PieceShapes.Claim(Data) };
         if (CharacterInside(parts, zonePosition, zoneRotation))
         {
-            return Outcome.Refuse(Refusal.PlayerInTheWay);
+            return OutcomeCode.PlayerInTheWay;
         }
         if (Physics != null)
         {
@@ -117,7 +117,7 @@ public sealed partial class BuildingWorld
             {
                 if (Physics.OwnerOf(hit.Body) != support)
                 {
-                    return Outcome.Refuse(Refusal.HitsObject);
+                    return OutcomeCode.Blocked;
                 }
             }
         }
@@ -183,11 +183,11 @@ public sealed partial class BuildingWorld
     {
         if (device.Gone)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!device.IsAuthorised(player))
         {
-            return Outcome.Refuse(Refusal.NotAuthorised);
+            return OutcomeCode.NotAuthorised;
         }
         RemoveClaim(device);
         return Outcome.Done;
@@ -198,13 +198,13 @@ public sealed partial class BuildingWorld
     {
         if (device.Gone)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!device.IsAuthorised(player))
         {
             if (device.AuthorisedList.Count >= Data.ClaimMaxAuthorised)
             {
-                return Outcome.Refuse(Refusal.ListFull);
+                return OutcomeCode.ListFull;
             }
             device.AuthorisedList.Add(player);
             Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimChanged, device.Support, Claim: device, Structure: device.Structure));
@@ -227,7 +227,7 @@ public sealed partial class BuildingWorld
     {
         if (!device.IsAuthorised(player))
         {
-            return Outcome.Refuse(Refusal.NotAuthorised);
+            return OutcomeCode.NotAuthorised;
         }
         device.AuthorisedList.Clear();
         Changed?.Invoke(new BuildingEvent(BuildingChange.ClaimChanged, device.Support, Claim: device, Structure: device.Structure));

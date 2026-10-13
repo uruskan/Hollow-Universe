@@ -39,8 +39,6 @@ public sealed partial class ClientGroundUi
     private readonly List<TeamInviteInfo> _invites = new();
     private TeamView? _teamBefore;
     private double? _settledAt;
-    private uint _unlockSeq;
-    private TechNode? _unlocking;
 
     /// <summary>Every frame, from the ground view: notices start once the first lists after joining are in.</summary>
     public void Frame()
@@ -195,7 +193,7 @@ public sealed partial class ClientGroundUi
             {
                 TechNode node = tree.Nodes[i];
                 TechNodeState state = Me.Knows(node.Recipe) ? TechNodeState.Known
-                    : TechTrees.CanUnlock(node, Me.Blueprints) == ActionResult.Locked ? TechNodeState.Locked
+                    : TechTrees.CanUnlock(node, Me.Blueprints) == OutcomeCode.NeedsEarlierNode ? TechNodeState.Locked
                     : TechNodeState.Open;
                 nodes[i] = new TechNodeView(node.Item.Key, node.Cost, node.Depth, node.After.Select(a => a.Item.Key).ToArray(), state);
             }
@@ -209,24 +207,14 @@ public sealed partial class ClientGroundUi
         {
             return;
         }
-        ActionResult can = Me.CanUnlock(node);
-        if (can != ActionResult.Accepted)
+        Outcome can = Me.CanUnlock(node);
+        if (!can.Ok)
         {
-            Notice?.Invoke(UnlockRefusal(node, can));
+            Notice?.Invoke(C.Texts.Line(can));
             return;
         }
-        _unlocking = node;
-        _unlockSeq = Me.Unlock(node.Recipe.Id);
+        Me.Unlock(node.Recipe.Id);
     }
-
-    private static string UnlockRefusal(TechNode node, ActionResult why) => why switch
-    {
-        ActionResult.AlreadyKnown => "You know that blueprint already.",
-        ActionResult.Locked => "Unlock one of the nodes before it first.",
-        ActionResult.NeedsWorkbench => $"Needs a level {node.Tier} workbench nearby.",
-        ActionResult.NotEnough => $"Needs {node.Cost} salvage.",
-        _ => "You can't unlock that now.",
-    };
 
     // What the player has learnt, as one number (the same set gives the same number, in any order).
     private long KnownSignature()
@@ -395,10 +383,6 @@ public sealed partial class ClientGroundUi
 
     private void OnBlueprintLearned(SimRecipe recipe)
     {
-        if (_unlocking?.Recipe == recipe)
-        {
-            _unlocking = null;
-        }
         if (!Settled)
         {
             return;
@@ -458,25 +442,5 @@ public sealed partial class ClientGroundUi
         {
             Notice?.Invoke(team.Leader == Me.EntityId ? "You lead the team now." : $"{NameOf(team.Leader)} leads the team now.");
         }
-    }
-
-    // The refusals G7 adds, as notices (null: not one of them).
-    private string? WorldRefusal(IntentAnswer answer)
-    {
-        if (answer.Seq == _unlockSeq && _unlockSeq != 0 && _unlocking is { } node)
-        {
-            _unlocking = null;
-            return UnlockRefusal(node, answer.Result);
-        }
-        return answer.Result switch
-        {
-            ActionResult.AlreadyKnown => "You know that blueprint already.",
-            ActionResult.InTeam => "Already in a team.",
-            ActionResult.NotLeader => "Only the team's leader can do that.",
-            ActionResult.TeamFull => "The team is full.",
-            ActionResult.NoTeam => "You're not in a team.",
-            ActionResult.CantStart => "It can't start with what's in it.",
-            _ => null,
-        };
     }
 }

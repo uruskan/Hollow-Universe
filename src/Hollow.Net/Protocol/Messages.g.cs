@@ -22,7 +22,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x47A42FFA2BA57AD2UL;
+    public const ulong SchemaHash = 0x443BFAAA9E56254EUL;
 }
 
 partial struct Hello
@@ -1684,14 +1684,16 @@ partial struct IntentResult
     public readonly void Write(BitWriter w)
     {
         w.WriteVarUInt(Seq);
-        w.WriteBits((uint)Result, 5);
+        w.WriteBits((uint)Code, 7);
+        w.WriteVarUInt(Detail);
     }
 
     public static IntentResult Read(BitReader r)
     {
         var v = new IntentResult();
         v.Seq = r.ReadVarUInt();
-        v.Result = (ActionResult)r.ReadBits(5);
+        v.Code = (OutcomeCode)r.ReadBits(7);
+        v.Detail = r.ReadVarUInt();
         return v;
     }
 }
@@ -2605,34 +2607,6 @@ partial struct ClaimIntent
         v.X = r.ReadDouble();
         v.Z = r.ReadDouble();
         v.Yaw = (byte)r.ReadBits(4);
-        return v;
-    }
-}
-
-partial struct BuildResult
-{
-    public const byte TypeId = 95;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits((uint)Reason, 6);
-        w.WriteString(Text, 96);
-    }
-
-    public static BuildResult Read(BitReader r)
-    {
-        var v = new BuildResult();
-        v.Seq = r.ReadVarUInt();
-        v.Reason = (Refusal)r.ReadBits(6);
-        v.Text = r.ReadString(96);
         return v;
     }
 }

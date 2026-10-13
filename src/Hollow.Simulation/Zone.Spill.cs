@@ -200,9 +200,9 @@ public sealed partial class Zone
     }
 
     // A body or a bag whose last stack its looter took goes at once, and the looter's panel with it.
-    private ActionResult TookFrom(Player p, ActionResult result)
+    private Outcome TookFrom(Player p, Outcome result)
     {
-        if (result == ActionResult.Accepted && LootTarget(p).Thing is DroppedContainer { Loot.IsEmpty: true } emptied)
+        if (result == OutcomeCode.Done && LootTarget(p).Thing is DroppedContainer { Loot.IsEmpty: true } emptied)
         {
             RemoveStatic(emptied);
             p.Looting = EntityId.None;

@@ -54,7 +54,7 @@ public static class SurvivalNetTests
         uint split = me.MoveItem(ContainerRef.Main, wood, ContainerRef.Belt, 3, 100);
         Assert.True(me.Inventory.Belt[3].Count == 100 && me.Inventory.Main[wood].Count == 200, "shown at once");
         RunUntil(rig, () => answers.Any(a => a.Seq == split), "the answer");
-        Assert.Equal(ActionResult.Accepted, answers.Single(a => a.Seq == split).Result, "accepted");
+        Assert.Equal(OutcomeCode.Done, answers.Single(a => a.Seq == split).Code, "accepted");
         Assert.True(me.Inventory.Belt[3].Count == 100 && me.PendingCount == 0, "and still there");
 
         // Rollback: the stone vanishes on the server (as if another looter took it) just before the client moves it.
@@ -70,13 +70,13 @@ public static class SurvivalNetTests
         uint move = me.MoveItem(ContainerRef.Main, stone, ContainerRef.Belt, 4);
         Assert.Equal(50, me.Inventory.Belt[4].Count, "the client moved it at once");
         RunUntil(rig, () => rejected.Any(a => a.Seq == move), "the refusal");
-        Assert.Equal(ActionResult.Stale, rejected.Single(a => a.Seq == move).Result, "stale");
+        Assert.Equal(OutcomeCode.Stale, rejected.Single(a => a.Seq == move).Code, "stale");
         Assert.True(me.Inventory.Belt[4].IsEmpty && me.Inventory.Main[stone].IsEmpty, "rolled back to the server's state");
 
         // A refused craft says why (not enough stone now) and changes nothing.
         uint craft = me.Craft(ContentFixture.Item("stone-hatchet").Id);
         RunUntil(rig, () => rejected.Any(a => a.Seq == craft), "the craft's refusal");
-        Assert.Equal(ActionResult.NotEnough, rejected.Single(a => a.Seq == craft).Result, "not enough");
+        Assert.Equal(OutcomeCode.NotEnough, rejected.Single(a => a.Seq == craft).Code, "not enough");
 
         // Forty intents in one frame: the budget lets about sixteen through.
         for (int i = 0; i < 40; i++)
@@ -84,7 +84,7 @@ public static class SurvivalNetTests
             me.Close();
         }
         RunUntil(rig, () => answers.Count >= 43, "forty answers");
-        int limited = answers.Count(a => a.Result == ActionResult.RateLimited);
+        int limited = answers.Count(a => a.Code == OutcomeCode.RateLimited);
         Fixtures.Report($"of 40 intents in one frame, {40 - limited} accepted and {limited} rate limited");
         Assert.InRange(20, 26, limited, "rate limited past the burst");
         int refused = rig.Server.Inspect(sv => (int)sv.Players.Single().IntentsRateLimited);

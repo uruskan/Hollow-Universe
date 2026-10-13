@@ -534,29 +534,29 @@ public sealed partial class Zone
     /// Puts an attachment (from the player's main slots or belt) on a firearm (also in them): into its slot, swapping out
     /// what was there (it goes where the attachment came from). The gun must take it (<see cref="AttachmentRules"/>).
     /// </summary>
-    public ActionResult Attach(Entity entity, ContainerRef from, int slot, ContainerRef weaponIn, int weaponSlot, ushort expected)
+    public Outcome Attach(Entity entity, ContainerRef from, int slot, ContainerRef weaponIn, int weaponSlot, ushort expected)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (from is not (ContainerRef.Main or ContainerRef.Belt) || weaponIn is not (ContainerRef.Main or ContainerRef.Belt))
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         return AttachmentRules.Attach(Content!, p.Inventory[from], slot, p.Inventory[weaponIn], weaponSlot, expected);
     }
 
     /// <summary>Takes an attachment off a firearm in the player's main slots or belt, into the inventory (refused when full).</summary>
-    public ActionResult Detach(Entity entity, ContainerRef weaponIn, int weaponSlot, AttachmentSlot modSlot)
+    public Outcome Detach(Entity entity, ContainerRef weaponIn, int weaponSlot, AttachmentSlot modSlot)
     {
         if (!Acting(entity, out Player p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (weaponIn is not (ContainerRef.Main or ContainerRef.Belt))
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         return AttachmentRules.Detach(Content!, p.Inventory, p.Inventory[weaponIn], weaponSlot, modSlot);
     }

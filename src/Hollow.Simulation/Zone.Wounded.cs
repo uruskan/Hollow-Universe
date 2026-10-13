@@ -47,23 +47,23 @@ public sealed partial class Zone
     /// Helps a wounded player up (Rust's assist, with the interact key): within reach, awake and not down oneself. They
     /// get up with the health they have.
     /// </summary>
-    public ActionResult HelpUp(Entity entity, EntityId target)
+    public Outcome HelpUp(Entity entity, EntityId target)
     {
         if (!Acting(entity, out Player _))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (!Entities.TryFind(target, out Entity e) || e == entity || PlayerOf(e) is not { Wounded: true, Dead: false } down)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
         Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
         if (Vector3.Distance(eye, Entities.Get<Character>(e).State.Position) > Content!.Survival.HelpReach + 0.5f)
         {
-            return ActionResult.OutOfReach;
+            return OutcomeCode.OutOfReach;
         }
         GetUp(e, down, Entities.IdOf(entity));
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>Whether a wounded player whose time ran out gets up by themselves (a roll fixed by who and when).</summary>

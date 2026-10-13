@@ -422,11 +422,11 @@ public sealed partial class Zone
         p = PlayerOf(entity)!;
         if (Building == null || p == null)
         {
-            return Outcome.Refuse(Refusal.Invalid);
+            return OutcomeCode.Invalid;
         }
         if (!p.IsAwakeAndAlive)
         {
-            return Outcome.Refuse(Refusal.Dead);
+            return OutcomeCode.Dead;
         }
         eye = EyeOf(Entities.Get<Character>(entity).State);
         return Outcome.Done;
@@ -445,6 +445,19 @@ public sealed partial class Zone
             }
         }
         return false;
+    }
+
+    // The tool of a building role (the building plan, the hammer), for "You need a hammer".
+    private int ToolItem(BuildingRole role)
+    {
+        foreach (ItemDef item in Content!.Items)
+        {
+            if (item.Building == role)
+            {
+                return item.Id;
+            }
+        }
+        return 0;
     }
 
     // The numbers of the keys a player carries.
@@ -470,17 +483,17 @@ public sealed partial class Zone
         item = null;
         if (from is not (ContainerRef.Main or ContainerRef.Belt) || !p.Inventory[from].InRange(slot))
         {
-            return Outcome.Refuse(Refusal.Invalid);
+            return OutcomeCode.Invalid;
         }
         ItemStack s = p.Inventory[from][slot];
         if (s.IsEmpty || (expected != 0 && s.Item != expected))
         {
-            return Outcome.Refuse(Refusal.Stale);
+            return OutcomeCode.Stale;
         }
         item = Content!.Item(s.Item);
         if (item?.Building != role && !(role == BuildingRole.KeyLock && item?.Building == BuildingRole.CodeLock))
         {
-            return Outcome.Refuse(Refusal.Invalid);
+            return OutcomeCode.Invalid;
         }
         return Outcome.Done;
     }
@@ -518,27 +531,27 @@ public sealed partial class Zone
         BuildingWorld building = Building!;
         if (building.Data.Piece(pieceId) is not { } def)
         {
-            return Outcome.Refuse(Refusal.Invalid);
+            return OutcomeCode.Invalid;
         }
         if (!Carries(p, BuildingRole.Plan))
         {
-            return Outcome.Refuse(Refusal.NoTool, "You need a building plan");
+            return OutcomeCode.NoTool.With(ToolItem(BuildingRole.Plan));
         }
         PlacementPlan? plan;
         if (!supportId.IsNone)
         {
             if (building.PieceOf(supportId) is not { } support)
             {
-                return Outcome.Refuse(Refusal.Gone);
+                return OutcomeCode.NotFound;
             }
             if (SocketId.FromCode(socket) is not { } at || orientation is < 0 or > 255)
             {
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
             }
             plan = building.FromIntent(def, support, at, orientation);
             if (plan == null)
             {
-                return Outcome.Refuse(Refusal.NoSocket);
+                return OutcomeCode.NoSocket;
             }
         }
         else
@@ -546,7 +559,7 @@ public sealed partial class Zone
             if (def.Family != PieceFamily.Foundation || !float.IsFinite(point.X) || !float.IsFinite(point.Y) || !float.IsFinite(point.Z) ||
                 headingSteps is < 0 or >= BuildingWorld.HeadingSteps)
             {
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
             }
             // The point is on the player's aim: where to look for the ground (across it, near the player) and how high
             // the top goes, which the ground under the foundation bounds (FoundationAt); the rules check the reach to
@@ -554,12 +567,12 @@ public sealed partial class Zone
             Vector3 across = point - eye, up = Frame.UpAt(eye);
             if ((across - up * Vector3.Dot(across, up)).Length() > building.Data.Reach + 1)
             {
-                return Outcome.Refuse(Refusal.TooFar);
+                return OutcomeCode.OutOfReach;
             }
             plan = building.FoundationAt(def, point, headingSteps * BuildingWorld.HeadingStep);
             if (plan == null)
             {
-                return Outcome.Refuse(Refusal.Floating);
+                return OutcomeCode.Floating;
             }
         }
         return building.Place(plan, p.Id.Value, eye, new ItemWallet(Content!, p.Inventory.Carried), BuildingNow, out piece);
@@ -575,12 +588,12 @@ public sealed partial class Zone
         }
         if (!Carries(p, BuildingRole.Hammer))
         {
-            return Outcome.Refuse(Refusal.NoTool, "You need a hammer");
+            return OutcomeCode.NoTool.With(ToolItem(BuildingRole.Hammer));
         }
         BuildingWorld building = Building!;
         if (building.PieceOf(target) is not { } piece)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         var wallet = new ItemWallet(Content!, p.Inventory.Carried);
         return action switch
@@ -589,7 +602,7 @@ public sealed partial class Zone
             HammerAction.Rotate => building.Rotate(p.Id.Value, piece, eye, BuildingNow),
             HammerAction.Demolish => Demolish(p, piece, eye),
             HammerAction.Repair => building.Repair(p.Id.Value, piece, wallet, eye, BuildingNow),
-            _ => Outcome.Refuse(Refusal.Invalid),
+            _ => OutcomeCode.Invalid,
         };
     }
 
@@ -614,7 +627,7 @@ public sealed partial class Zone
             }
             if (building.PieceOf(target) is not { } frame)
             {
-                return Outcome.Refuse(Refusal.Gone);
+                return OutcomeCode.NotFound;
             }
             Outcome placed = building.PlaceDoor(p.Id.Value, item!.Door!, frame, flip, eye, out _);
             if (placed.Ok)
@@ -625,11 +638,11 @@ public sealed partial class Zone
         }
         if (building.DoorOf(target) is not { } door)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!WithinReach(eye, DoorMiddle(door)))
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return OutcomeCode.OutOfReach;
         }
         switch (action)
         {
@@ -646,7 +659,7 @@ public sealed partial class Zone
                 return taken;
             }
             default:
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
         }
     }
 
@@ -676,11 +689,11 @@ public sealed partial class Zone
         BuildingWorld building = Building!;
         if (building.DoorOf(target) is not { } door)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         if (!WithinReach(eye, DoorMiddle(door)))
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return OutcomeCode.OutOfReach;
         }
         ulong player = p.Id.Value;
         switch (action)
@@ -713,20 +726,20 @@ public sealed partial class Zone
             {
                 if (door.Lock is not KeyLock keyLock)
                 {
-                    return Outcome.Refuse(Refusal.NoLock);
+                    return OutcomeCode.NoLock;
                 }
                 if (keyLock.Owner != player)
                 {
-                    return Outcome.Refuse(Refusal.NotOwner);
+                    return OutcomeCode.NotOwner;
                 }
                 BuildingData data = building.Data;
                 if (Content!.Item(data.KeyItem) is not { } key)
                 {
-                    return Outcome.Refuse(Refusal.Invalid);
+                    return OutcomeCode.Invalid;
                 }
                 if (!new ItemWallet(Content, p.Inventory.Carried).Take(data.KeyCostMaterial, data.KeyCost))
                 {
-                    return Outcome.Refuse(Refusal.NotEnough, $"A key costs {data.KeyCost} {data.MaterialName(data.KeyCostMaterial).ToLowerInvariant()}");
+                    return OutcomeCode.NotEnough.With(data.MaterialItem(data.KeyCostMaterial));
                 }
                 GiveBack(entity, p, key, 1, (ushort)keyLock.KeyCode);
                 return Outcome.Done;
@@ -744,7 +757,7 @@ public sealed partial class Zone
                 return removed;
             }
             default:
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
         }
     }
 
@@ -773,16 +786,16 @@ public sealed partial class Zone
             }
             if (building.PieceOf(target) is not { } support)
             {
-                return Outcome.Refuse(Refusal.Gone);
+                return OutcomeCode.NotFound;
             }
             if (!double.IsFinite(localX) || !double.IsFinite(localZ))
             {
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
             }
             Vector3 at = BuildingWorld.F(support.Structure.Frame.ToZone(new Vector3D(localX, support.Pose.Position.Y, localZ)));
             if (Vector3.Distance(eye, at) > building.Data.Reach)
             {
-                return Outcome.Refuse(Refusal.TooFar);
+                return OutcomeCode.OutOfReach;
             }
             Outcome placed = building.PlaceClaim(player, support, new Vector3D(localX, 0, localZ), yaw, out _);
             if (placed.Ok)
@@ -793,12 +806,12 @@ public sealed partial class Zone
         }
         if (building.ClaimOf(target) is not { } device)
         {
-            return Outcome.Refuse(Refusal.Gone);
+            return OutcomeCode.NotFound;
         }
         (Vector3 position, _) = device.ZoneTransform;
         if (!WithinReach(eye, position + Frame.UpAt(position) * 0.9f))
         {
-            return Outcome.Refuse(Refusal.TooFar);
+            return OutcomeCode.OutOfReach;
         }
         switch (action)
         {
@@ -814,7 +827,7 @@ public sealed partial class Zone
             {
                 if (!device.IsAuthorised(player))
                 {
-                    return Outcome.Refuse(Refusal.NotAuthorised);
+                    return OutcomeCode.NotAuthorised;
                 }
                 if (DeployableOf(device)?.Storage is { } store)
                 {
@@ -835,7 +848,7 @@ public sealed partial class Zone
                 return taken;
             }
             default:
-                return Outcome.Refuse(Refusal.Invalid);
+                return OutcomeCode.Invalid;
         }
     }
 }

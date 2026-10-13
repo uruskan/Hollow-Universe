@@ -31,6 +31,9 @@ public sealed partial class GameContent
         "surfaces.json",
     };
 
+    /// <summary>Files read with the rest but not part of <see cref="Hash"/>: the player's lines (a translation may differ).</summary>
+    public static readonly string[] Unhashed = { Content.Texts.File };
+
     private readonly ItemDef?[] _byId;
     private readonly Dictionary<string, ItemDef> _byKey;
     private readonly Dictionary<ushort, Recipe> _recipes;
@@ -65,6 +68,7 @@ public sealed partial class GameContent
         PlacementMaxStep = loaded.PlacementMaxStep;
         Hash = loaded.Hash;
         Problems = loaded.Problems;
+        Texts = loaded.Texts!;
         Building = loaded.Building ?? BuildingData.Parse("{}");
         ClaimDeployable = loaded.ClaimDeployable ?? new DeployableDef { Key = "claim-device", Item = new ItemDef { Key = "claim-device" }, Health = 200, Slots = 24 };
         _byId = new ItemDef?[ushort.MaxValue + 1];
@@ -184,6 +188,9 @@ public sealed partial class GameContent
     /// <summary>The claim device as the zone keeps it: a deployable whose storage is its upkeep store (never placed on the ground).</summary>
     public DeployableDef ClaimDeployable { get; }
 
+    /// <summary>The player's lines for every answer (texts.json, GROUND_SYSTEMS.md §3.2).</summary>
+    public Texts Texts { get; }
+
     /// <summary>Everything wrong with the files: empty when they are good. <see cref="Load"/> refuses any.</summary>
     public IReadOnlyList<string> Problems { get; }
 
@@ -240,7 +247,7 @@ public sealed partial class GameContent
     public static GameContent Read(string folder)
     {
         var texts = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (string file in Files)
+        foreach (string file in Files.Concat(Unhashed))
         {
             string path = Path.Combine(folder, file);
             texts[file] = File.Exists(path) ? File.ReadAllText(path) : "";
@@ -283,12 +290,43 @@ public sealed partial class GameContent
         loaded.Hash = hash;
         var reader = new ContentReader(new JsonFields(problems), documents, loaded);
         reader.ReadAll();
+        loaded.Texts = ReadTexts(texts.GetValueOrDefault(Content.Texts.File) ?? "", loaded, problems);
         LinkBuilding(texts.GetValueOrDefault("building.json") ?? "", documents["building.json"], loaded, problems);
         Validation.Check(loaded, problems);
         ExplosivesReader.Check(loaded, loaded.Building, problems);
         WorldReader.Check(loaded, problems);
         AnimalsReader.Check(loaded, problems);
         return new GameContent(loaded);
+    }
+
+    // The player's lines (texts.json): read like the rest, outside the hash.
+    private static Texts ReadTexts(string text, Loaded loaded, List<string> problems)
+    {
+        var names = new Dictionary<int, string>();
+        foreach (ItemDef item in loaded.Items)
+        {
+            names.TryAdd(item.Id, item.Name);
+        }
+        string? NameOf(int id) => names.GetValueOrDefault(id);
+        if (text.Length == 0)
+        {
+            problems.Add($"{Content.Texts.File}: missing or empty");
+            return Content.Texts.Read(new JsonFields(problems), default, NameOf);
+        }
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(text, new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+            });
+            return Content.Texts.Read(new JsonFields(problems), document.RootElement.Clone(), NameOf);
+        }
+        catch (JsonException e)
+        {
+            problems.Add($"{Content.Texts.File}: not valid JSON ({e.Message})");
+            return Content.Texts.Read(new JsonFields(problems), default, NameOf);
+        }
     }
 
     // building.json (GROUND.md §6.3) has its own reader; its items are linked here: a door item to its door, and the
@@ -343,7 +381,11 @@ public sealed partial class GameContent
         Expect(data.KeyItem, BuildingRole.Key, "the key");
         foreach (string material in data.Materials)
         {
-            if (!byKey.ContainsKey(material))
+            if (byKey.TryGetValue(material, out ItemDef? item))
+            {
+                data.LinkMaterial(material, item.Id);
+            }
+            else
             {
                 problems.Add($"building.json: material \"{material}\" is not an item");
             }
@@ -416,6 +458,7 @@ public sealed partial class GameContent
         public SurvivalTuning Survival = new();
         public BuildingData? Building;
         public DeployableDef? ClaimDeployable;
+        public Texts? Texts;
         public float PlacementReach = 3f;
         public float PlacementMaxStep = 0.6f;
         public ulong Hash;

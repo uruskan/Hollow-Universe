@@ -61,7 +61,7 @@ public sealed partial class GameServer
         var target = new EntityId(m.Ship);
         return Intent(session, m.Seq, () =>
         {
-            ActionResult result = m.Action switch
+            Outcome result = m.Action switch
             {
                 ShipAction.Hatch => Zone.ShipHatch(me, target),
                 ShipAction.Board => Zone.Board(me, target),
@@ -69,9 +69,9 @@ public sealed partial class GameServer
                 ShipAction.Lock => Zone.LockShip(me, target),
                 ShipAction.Refuel => Zone.RefuelShip(me, target),
                 ShipAction.Descend => Zone.Descend(me),
-                _ => ActionResult.Invalid,
+                _ => OutcomeCode.Invalid,
             };
-            if (result == ActionResult.Accepted)
+            if (result == OutcomeCode.Done)
             {
                 ShipIntentsAccepted++;
             }

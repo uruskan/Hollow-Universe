@@ -396,33 +396,33 @@ public sealed partial class Zone
     }
 
     // The ship a player acts on from beside it (at its hatch) or from its seat; why not otherwise.
-    private ActionResult ReachShip(Entity entity, EntityId target, out Player p, out Ship ship, out bool inside)
+    private Outcome ReachShip(Entity entity, EntityId target, out Player p, out Ship ship, out bool inside)
     {
         ship = null!;
         inside = false;
         if (!Acting(entity, out p))
         {
-            return ActionResult.Dead;
+            return OutcomeCode.Dead;
         }
         if (ShipOf(target) is not { Destroyed: false } found)
         {
-            return ActionResult.NotFound;
+            return OutcomeCode.NotFound;
         }
         ship = found;
         Ship? seat = SeatOf(entity);
         inside = seat == ship;
         if (inside)
         {
-            return ActionResult.Accepted;
+            return OutcomeCode.Done;
         }
-        return seat == null && InShipReach(entity, ship, ship.Def.Hatch) ? ActionResult.Accepted : ActionResult.OutOfReach;
+        return seat == null && InShipReach(entity, ship, ship.Def.Hatch) ? OutcomeCode.Done : OutcomeCode.OutOfReach;
     }
 
     /// <summary>Opens or shuts a ship's hatch (the interact key at it, or the pilot's): opened only when still, and a locked one only by its owner.</summary>
-    public ActionResult ShipHatch(Entity entity, EntityId target)
+    public Outcome ShipHatch(Entity entity, EntityId target)
     {
-        ActionResult check = ReachShip(entity, target, out Player p, out Ship ship, out bool inside);
-        if (check != ActionResult.Accepted)
+        Outcome check = ReachShip(entity, target, out Player p, out Ship ship, out bool inside);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
@@ -430,49 +430,49 @@ public sealed partial class Zone
         {
             if (!ShipStill(ship))
             {
-                return ActionResult.NotLanded;
+                return OutcomeCode.NotLanded;
             }
             if (ship.Locked && p.Id != ship.Owner && !inside)
             {
-                return ActionResult.Locked;
+                return OutcomeCode.Locked;
             }
         }
         ship.HatchOpen = !ship.HatchOpen;
         WakeShip(ship);
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>Climbs into the seat through the open hatch; the hatch shuts behind the pilot.</summary>
-    public ActionResult Board(Entity entity, EntityId target)
+    public Outcome Board(Entity entity, EntityId target)
     {
-        ActionResult check = ReachShip(entity, target, out Player p, out Ship ship, out bool inside);
-        if (check != ActionResult.Accepted)
+        Outcome check = ReachShip(entity, target, out Player p, out Ship ship, out bool inside);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
         if (inside)
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         if (ship.Locked && p.Id != ship.Owner)
         {
-            return ActionResult.Locked;
+            return OutcomeCode.Locked;
         }
         if (ship.Piloted)
         {
-            return ActionResult.Occupied;
+            return OutcomeCode.SeatTaken;
         }
         if (!ship.HatchOpen || ship.HatchProgress < Ship.HatchTicks / 2)
         {
-            return ActionResult.HatchShut;
+            return OutcomeCode.HatchShut;
         }
         if (!ShipStill(ship))
         {
-            return ActionResult.NotLanded;
+            return OutcomeCode.NotLanded;
         }
         Seat(entity, p, ship);
         ship.HatchOpen = false;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // Puts a character in a ship's seat (boarding, or a sleeper restored where it was).
@@ -511,23 +511,23 @@ public sealed partial class Zone
     /// Steps out of the seat to the first safe point beside the ship (the hatch's side first), when it is still; the
     /// hatch opens. From orbit there is no stepping out.
     /// </summary>
-    public ActionResult ExitShip(Entity entity)
+    public Outcome ExitShip(Entity entity)
     {
         if (PlayerOf(entity) is not { Dead: false } || SeatOf(entity) is not { } ship)
         {
-            return ActionResult.Invalid;
+            return OutcomeCode.Invalid;
         }
         if (ship.InOrbit || !ShipStill(ship))
         {
-            return ActionResult.NotLanded;
+            return OutcomeCode.NotLanded;
         }
         if (!ExitPoint(ship, out Vector3 at))
         {
-            return ActionResult.Blocked;
+            return OutcomeCode.Blocked;
         }
         Unseat(entity, ship, at);
         ship.HatchOpen = true;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // Takes a character out of a ship's seat, standing at a point.
@@ -599,70 +599,70 @@ public sealed partial class Zone
     }
 
     /// <summary>Locks or unlocks a ship (its owner, beside it or in the seat).</summary>
-    public ActionResult LockShip(Entity entity, EntityId target)
+    public Outcome LockShip(Entity entity, EntityId target)
     {
-        ActionResult check = ReachShip(entity, target, out Player p, out Ship ship, out _);
-        if (check != ActionResult.Accepted)
+        Outcome check = ReachShip(entity, target, out Player p, out Ship ship, out _);
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
         if (p.Id != ship.Owner)
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         ship.Locked = !ship.Locked;
         ship.Revision++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>Fills a ship's tank from the player's lamp oil (main slots, then belt), as much as fits: at the fuel cap, the hatch or in the seat.</summary>
-    public ActionResult RefuelShip(Entity entity, EntityId target)
+    public Outcome RefuelShip(Entity entity, EntityId target)
     {
-        ActionResult check = ReachShip(entity, target, out Player p, out Ship ship, out _);
-        if (check == ActionResult.OutOfReach && ship != null && SeatOf(entity) == null && InShipReach(entity, ship, ship.Def.FuelCap))
+        Outcome check = ReachShip(entity, target, out Player p, out Ship ship, out _);
+        if (check == OutcomeCode.OutOfReach && ship != null && SeatOf(entity) == null && InShipReach(entity, ship, ship.Def.FuelCap))
         {
-            check = ActionResult.Accepted;
+            check = OutcomeCode.Done;
         }
-        if (check != ActionResult.Accepted)
+        if (check != OutcomeCode.Done)
         {
             return check;
         }
         int room = (int)MathF.Floor(ship!.Def.FuelCapacity - ship.State.Fuel);
         if (room <= 0)
         {
-            return ActionResult.NoSpace;
+            return OutcomeCode.NoSpace;
         }
         int have = p.Inventory.Count(ship.Def.Fuel);
         if (have <= 0)
         {
-            return ActionResult.NotEnough;
+            return OutcomeCode.NotEnough;
         }
         int taken = Math.Min(room, have);
         p.Inventory.Take(new[] { new ItemAmount(ship.Def.Fuel, taken) });
         ship.State.Fuel += taken;
         WakeShip(ship);
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = ship.Def.Fuel.Id, Count = -taken, Reason = GainReason.Used });
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     /// <summary>The ship whose cargo a player has open, or null.</summary>
     public Ship? LootShip(Player p) => p.Looting.IsNone ? null : ShipOf(p.Looting) is { Destroyed: false } ship ? ship : null;
 
     // Opening a ship's cargo (Open on its ID): at the hatch while it is still, or from the seat; not if locked to them.
-    private ActionResult OpenShip(Entity entity, Player p, Ship ship)
+    private Outcome OpenShip(Entity entity, Player p, Ship ship)
     {
         bool inside = SeatOf(entity) == ship;
         if (!inside && (SeatOf(entity) != null || !InShipReach(entity, ship, ship.Def.Hatch) || !ShipStill(ship)))
         {
-            return ActionResult.OutOfReach;
+            return OutcomeCode.OutOfReach;
         }
         if (ship.Locked && p.Id != ship.Owner && !inside)
         {
-            return ActionResult.Locked;
+            return OutcomeCode.Locked;
         }
         p.Looting = ship.Id;
         p.LootRevision++;
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // Whether a player looting a ship's cargo may go on (CheckLoot, once a second).
@@ -689,11 +689,11 @@ public sealed partial class Zone
     }
 
     /// <summary>From orbit, back down over the spot it left: level, nose where it was, falling at 40 m/s with flight assist on.</summary>
-    public ActionResult Descend(Entity entity)
+    public Outcome Descend(Entity entity)
     {
         if (PlayerOf(entity) is not { Dead: false } || SeatOf(entity) is not { InOrbit: true } ship)
         {
-            return ActionResult.NotAllowed;
+            return OutcomeCode.NotAllowed;
         }
         Vector3 up = Frame.UpAt(ship.OrbitAnchor);
         float yaw = ShipMotor.YawOf(ship.State.Rotation, up);
@@ -706,7 +706,7 @@ public sealed partial class Zone
         ship.State.Flags &= ~ShipFlags.InOrbit;
         ship.State.RestTicks = 0;
         ShipEvents.Add(new ShipEvent(ShipEventKind.Orbit, ship, 0, ship.Pilot));
-        return ActionResult.Accepted;
+        return OutcomeCode.Done;
     }
 
     // ---------------------------------------------------------------- damage and wrecks

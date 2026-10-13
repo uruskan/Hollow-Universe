@@ -67,7 +67,7 @@ public static class ShipNetTests
         zone.PlayerOf(ada)!.Vitals.Health = 100;
         ship.HatchOpen = true;
         ship.HatchProgress = Ship.HatchTicks;
-        Assert.Equal(ActionResult.Accepted, zone.Board(ada, ship.Id), "boards");
+        Assert.Equal(OutcomeCode.Done, zone.Board(ada, ship.Id), "boards");
         rig.Step(2);
 
         // The client: its own ground and trees, the character's predictor (which records the inputs) and the ship's.

@@ -142,7 +142,7 @@ public static class WorldTests
         rig.P(ada).Inventory.Belt.Set(0, rig.P(ada).Inventory.Main[SlotOf(rig.P(ada).Inventory.Main, "rock")]);
         rig.P(ada).Inventory.Main.Clear();
         StandBy(rig, ada, barrel, 0.8f);
-        Assert.Equal(ActionResult.NotFound, rig.Zone.Open(ada, barrel.Id), "a barrel doesn't open");
+        Assert.Equal(OutcomeCode.NotFound, rig.Zone.Open(ada, barrel.Id), "a barrel doesn't open");
         int ticks = StepUntil(rig, () => rig.Zone.PropAt(spot) == null, 30 * 12, "the barrel to break", () =>
         {
             rig.Look(ada, barrel.Centre);
@@ -163,17 +163,17 @@ public static class WorldTests
         WorldProp crate = NearestProp(rig, WorldPropKind.Crate);
         ulong crateSpot = crate.Id.Value;
         StandBy(rig, ada, crate);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Open(ada, crate.Id), "a crate opens");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, crate.Id), "a crate opens");
         Assert.Equal(Hollow.Simulation.Items.LootKind.Crate, rig.Zone.LootKindOf(rig.P(ada)), "as a crate");
         rig.Give(ada, "wood", 10);
         int wood = SlotOf(rig.P(ada).Inventory.Main, "wood");
-        Assert.Equal(ActionResult.NotAllowed, rig.Zone.MoveItem(ada, ContainerRef.Main, wood, ContainerRef.Loot, crate.Storage!.Size - 1, 0, 0),
+        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.MoveItem(ada, ContainerRef.Main, wood, ContainerRef.Loot, crate.Storage!.Size - 1, 0, 0),
             "nothing goes into a crate");
         for (int i = 0; i < crate.Storage.Size; i++)
         {
             if (!crate.Storage[i].IsEmpty)
             {
-                Assert.Equal(ActionResult.Accepted, rig.Zone.QuickMove(ada, ContainerRef.Loot, i, 0), $"take slot {i}");
+                Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Loot, i, 0), $"take slot {i}");
             }
         }
         rig.Step(31);
@@ -204,20 +204,20 @@ public static class WorldTests
         WorldProp recycler = NearestProp(rig, WorldPropKind.Recycler);
         Entity ada = rig.Add("Ada", 0, 0);
         StandBy(rig, ada, recycler, 1.0f);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Open(ada, recycler.Id), "open");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, recycler.Id), "open");
         Assert.Equal(Hollow.Simulation.Items.LootKind.Device, rig.Zone.LootKindOf(rig.P(ada)), "a machine");
-        Assert.Equal(ActionResult.CantStart, rig.Zone.Toggle(ada, recycler.Id), "nothing to take apart");
+        Assert.Equal(OutcomeCode.CantStart, rig.Zone.Toggle(ada, recycler.Id), "nothing to take apart");
         rig.Give(ada, "gears", 10);
         rig.Give(ada, "salvage", 50);
         rig.Give(ada, "metal-hatchet", 1);
         Container main = rig.P(ada).Inventory.Main;
-        Assert.Equal(ActionResult.NotAllowed, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(main, "salvage"), ContainerRef.Loot, 0, 0, 0),
+        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(main, "salvage"), ContainerRef.Loot, 0, 0, 0),
             "salvage isn't recycled");
-        Assert.Equal(ActionResult.NotAllowed, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(main, "gears"), ContainerRef.Loot, 7, 0, 0),
+        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(main, "gears"), ContainerRef.Loot, 7, 0, 0),
             "nothing goes into the outputs");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(main, "gears"), ContainerRef.Loot, 0, 0, 0), "gears in");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(main, "metal-hatchet"), ContainerRef.Loot, 1, 0, 0), "a hatchet in");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Toggle(ada, recycler.Id), "on");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(main, "gears"), ContainerRef.Loot, 0, 0, 0), "gears in");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(main, "metal-hatchet"), ContainerRef.Loot, 1, 0, 0), "a hatchet in");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Toggle(ada, recycler.Id), "on");
         int count(string key) => recycler.Storage!.Slots.ToArray().Where(s => s.Item == c.ItemByKey(key).Id).Sum(s => s.Count);
         // Gears stack to 20: two a batch, five batches; then the hatchet; then it stops by itself.
         int ticks = Raids.StepUntil(rig, () => !recycler.Lit, 30 * 60, "the recycler to finish");
@@ -252,49 +252,49 @@ public static class WorldTests
         ushort hatchet = c.ItemByKey("metal-hatchet").Id, pickaxe = c.ItemByKey("metal-pickaxe").Id;
         Assert.True(!c.Recipe(hatchet)!.Known && c.Recipe(c.ItemByKey("stone-hatchet").Id)!.Known && c.Recipe(c.ItemByKey("workbench-1").Id)!.Known,
             "Rust's default blueprints: stone tools and the first workbench, not metal ones");
-        Assert.Equal(ActionResult.UnknownRecipe, rig.Zone.Craft(ada, hatchet, 1, out _), "unknown at first");
-        Assert.Equal(ActionResult.NeedsWorkbench, rig.Zone.Unlock(ada, hatchet), "needs a level 1 workbench");
+        Assert.Equal(OutcomeCode.UnknownRecipe, rig.Zone.Craft(ada, hatchet, 1, out _), "unknown at first");
+        Assert.Equal(OutcomeCode.NeedsWorkbench, rig.Zone.Unlock(ada, hatchet), "needs a level 1 workbench");
         var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-1")!, rig.Zone.Settle(new Vector3(31.5f, 0, 30)),
             rig.Zone.Frame.UpAt(new Vector3(31.5f, 0, 30)), 0, a.Id);
         rig.Zone.AddStatic(bench);
-        Assert.Equal(ActionResult.Locked, rig.Zone.Unlock(ada, pickaxe), "the pickaxe comes after the hatchet");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Unlock(ada, hatchet), "unlocked");
+        Assert.Equal(OutcomeCode.NeedsEarlierNode, rig.Zone.Unlock(ada, pickaxe), "the pickaxe comes after the hatchet");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Unlock(ada, hatchet), "unlocked");
         Assert.Equal(600 - 75, a.Inventory.Count(c.ItemByKey("salvage")), "for its 75 salvage");
-        Assert.Equal(ActionResult.AlreadyKnown, rig.Zone.Unlock(ada, hatchet), "once");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Unlock(ada, pickaxe), "then the pickaxe");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Craft(ada, hatchet, 1, out _), "and it crafts");
-        Assert.Equal(ActionResult.Invalid, rig.Zone.Unlock(ada, c.ItemByKey("stone-hatchet").Id), "a default blueprint is in no tree");
+        Assert.Equal(OutcomeCode.AlreadyKnown, rig.Zone.Unlock(ada, hatchet), "once");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Unlock(ada, pickaxe), "then the pickaxe");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Craft(ada, hatchet, 1, out _), "and it crafts");
+        Assert.Equal(OutcomeCode.Invalid, rig.Zone.Unlock(ada, c.ItemByKey("stone-hatchet").Id), "a default blueprint is in no tree");
 
         // Research: a pistol and its tier's salvage make a pistol blueprint.
         rig.Give(ada, "research-table", 1);
         Vector3 at = rig.Zone.Settle(new Vector3(30, 0, 31.6f));
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Place(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "research-table"), 0, at, 0), "a research table");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Place(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "research-table"), 0, at, 0), "a research table");
         Deployable table = rig.Zone.Statics().OfType<Deployable>().Single(d => d.Def.Research != null);
         rig.Look(ada, table.Centre);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Open(ada, table.Id), "open it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(ada, table.Id), "open it");
         rig.Give(ada, "pistol", 1);
         rig.Give(ada, "gears", 1);
         ResearchStats rs = c.World.Research;
-        Assert.Equal(ActionResult.NotAllowed, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "gears"), ContainerRef.Loot, rs.ItemSlot, 0, 0),
+        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "gears"), ContainerRef.Loot, rs.ItemSlot, 0, 0),
             "a component isn't researched");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "pistol"), ContainerRef.Loot, rs.ItemSlot, 0, 0), "the pistol in");
-        Assert.Equal(ActionResult.NotEnough, rig.Zone.Toggle(ada, table.Id), "no salvage yet");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "pistol"), ContainerRef.Loot, rs.ItemSlot, 0, 0), "the pistol in");
+        Assert.Equal(OutcomeCode.NotEnough, rig.Zone.Toggle(ada, table.Id), "no salvage yet");
         int cost = Research.Cost(c, c.Recipe(c.ItemByKey("pistol").Id)!);
         Assert.Equal(125, cost, "a level 2 item costs 125 salvage (Rust's)");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "salvage"), ContainerRef.Loot, rs.SalvageSlot, 200, 0),
+        Assert.Equal(OutcomeCode.Done, rig.Zone.MoveItem(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "salvage"), ContainerRef.Loot, rs.SalvageSlot, 200, 0),
             "salvage in");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.Toggle(ada, table.Id), "start");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Toggle(ada, table.Id), "start");
         Assert.True(table.Storage![rs.ItemSlot].IsEmpty && table.Storage[rs.SalvageSlot].Count == 200 - cost, "the pistol and its price are taken");
         int ticks = Raids.StepUntil(rig, () => !table.Lit, 30 * 12, "the research");
         Assert.InRange(299, 301, ticks, "10 s");
         ItemStack print = table.Storage[rs.OutputSlot];
         Assert.True(print.Item == c.ItemByKey("blueprint").Id && print.Condition == c.ItemByKey("pistol").Id, "a pistol blueprint");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.QuickMove(ada, ContainerRef.Loot, rs.OutputSlot, 0), "taken");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Loot, rs.OutputSlot, 0), "taken");
         int slot = SlotOf(a.Inventory.Main, "blueprint");
-        Assert.Equal(ActionResult.Accepted, rig.Zone.UseItem(ada, ContainerRef.Main, slot, 0), "read");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.UseItem(ada, ContainerRef.Main, slot, 0), "read");
         Assert.True(a.Blueprints.Knows(c.Recipe(c.ItemByKey("pistol").Id)!) && a.Inventory.Count(c.ItemByKey("blueprint")) == 0, "learnt, and used up");
         a.Inventory.Main.Set(0, TechTrees.BlueprintOf(c, c.Recipe(c.ItemByKey("pistol").Id)!));
-        Assert.Equal(ActionResult.AlreadyKnown, rig.Zone.UseItem(ada, ContainerRef.Main, 0, 0), "known already");
+        Assert.Equal(OutcomeCode.AlreadyKnown, rig.Zone.UseItem(ada, ContainerRef.Main, 0, 0), "known already");
         rig.Zone.Hurt(ada, a, 1000, "Test", EntityId.None, "");
         Assert.True(a.Dead && a.Blueprints.Learnt.Count == 3, "blueprints last through death");
         Assert.True(rig.Zone.WorldStats.Unlocked == 2 && rig.Zone.WorldStats.Learned == 1, "two unlocked, one learnt");
@@ -313,45 +313,45 @@ public static class WorldTests
         Zone z = rig.Zone;
         Entity ada = rig.Add("Ada", 0, 0), bo = rig.Add("Bo", 2, 0), cy = rig.Add("Cy", 0, 2), far = rig.Add("Far", 60, 60);
         EntityId A = rig.P(ada).Id, B = rig.P(bo).Id, C = rig.P(cy).Id;
-        Assert.Equal(ActionResult.NoTeam, z.TeamAct(ada, TeamAction.Invite, B, 0), "no team to invite to");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Create, EntityId.None, 0), "created");
+        Assert.Equal(OutcomeCode.NoTeam, z.TeamAct(ada, TeamAction.Invite, B, 0), "no team to invite to");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Create, EntityId.None, 0), "created");
         Team team = z.Teams.TeamOf(A)!;
         Assert.Equal(A, team.Leader, "she leads it");
-        Assert.Equal(ActionResult.OutOfReach, z.TeamAct(ada, TeamAction.Invite, rig.P(far).Id, 0), "only players close by");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Invite, B, 0), "Bo invited");
+        Assert.Equal(OutcomeCode.OutOfReach, z.TeamAct(ada, TeamAction.Invite, rig.P(far).Id, 0), "only players close by");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Invite, B, 0), "Bo invited");
         Assert.Equal(1, z.Teams.InvitesOf(B).Count, "he has the invite");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(bo, TeamAction.Accept, EntityId.None, team.Id), "and accepts");
-        Assert.Equal(ActionResult.NotLeader, z.TeamAct(bo, TeamAction.Invite, C, 0), "only the leader invites");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Invite, C, 0), "Cy invited");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(cy, TeamAction.Decline, EntityId.None, team.Id), "declines");
-        Assert.Equal(ActionResult.NoTeam, z.TeamAct(cy, TeamAction.Accept, EntityId.None, team.Id), "and can't accept after");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Invite, C, 0), "invited again");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(bo, TeamAction.Accept, EntityId.None, team.Id), "and accepts");
+        Assert.Equal(OutcomeCode.NotLeader, z.TeamAct(bo, TeamAction.Invite, C, 0), "only the leader invites");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Invite, C, 0), "Cy invited");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(cy, TeamAction.Decline, EntityId.None, team.Id), "declines");
+        Assert.Equal(OutcomeCode.NoTeam, z.TeamAct(cy, TeamAction.Accept, EntityId.None, team.Id), "and can't accept after");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Invite, C, 0), "invited again");
         z.UnixMilliseconds += 301_000;
         rig.Step(30);
-        Assert.Equal(ActionResult.NoTeam, z.TeamAct(cy, TeamAction.Accept, EntityId.None, team.Id), "the invite ran out");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Invite, C, 0), "invited once more");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(cy, TeamAction.Accept, EntityId.None, team.Id), "joins");
+        Assert.Equal(OutcomeCode.NoTeam, z.TeamAct(cy, TeamAction.Accept, EntityId.None, team.Id), "the invite ran out");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Invite, C, 0), "invited once more");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(cy, TeamAction.Accept, EntityId.None, team.Id), "joins");
         Assert.Equal(3, team.Members.Count, "three");
-        Assert.Equal(ActionResult.InTeam, z.TeamAct(cy, TeamAction.Create, EntityId.None, 0), "in a team already");
-        Assert.Equal(ActionResult.NotLeader, z.TeamAct(bo, TeamAction.Kick, C, 0), "only the leader kicks");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Kick, C, 0), "Cy kicked");
+        Assert.Equal(OutcomeCode.InTeam, z.TeamAct(cy, TeamAction.Create, EntityId.None, 0), "in a team already");
+        Assert.Equal(OutcomeCode.NotLeader, z.TeamAct(bo, TeamAction.Kick, C, 0), "only the leader kicks");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Kick, C, 0), "Cy kicked");
         Assert.True(z.Teams.TeamOf(C) == null && !team.Has(C), "out");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Promote, B, 0), "Bo promoted");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Promote, B, 0), "Bo promoted");
         Assert.Equal(B, team.Leader, "Bo leads");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(bo, TeamAction.Leave, EntityId.None, 0), "the leader leaves");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(bo, TeamAction.Leave, EntityId.None, 0), "the leader leaves");
         Assert.Equal(A, team.Leader, "the lead passes to Ada, who joined first");
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Leave, EntityId.None, 0), "the last one out");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Leave, EntityId.None, 0), "the last one out");
         Assert.True(z.Teams.Get(team.Id) == null && z.Teams.Ended.Contains(team.Id), "the team ended");
 
         // Eight at most.
-        Assert.Equal(ActionResult.Accepted, z.TeamAct(ada, TeamAction.Create, EntityId.None, 0), "a new team");
+        Assert.Equal(OutcomeCode.Done, z.TeamAct(ada, TeamAction.Create, EntityId.None, 0), "a new team");
         Team big = z.Teams.TeamOf(A)!;
         for (int i = 0; i < 8; i++)
         {
             Entity e = rig.Add($"M{i}", 1 + i * 0.3f, -1);
-            ActionResult invited = z.TeamAct(ada, TeamAction.Invite, rig.P(e).Id, 0);
-            ActionResult joined = invited == ActionResult.Accepted ? z.TeamAct(e, TeamAction.Accept, EntityId.None, big.Id) : invited;
-            Assert.Equal(i < 7 ? ActionResult.Accepted : ActionResult.TeamFull, joined, $"member {i + 2}");
+            Outcome invited = z.TeamAct(ada, TeamAction.Invite, rig.P(e).Id, 0);
+            Outcome joined = invited == OutcomeCode.Done ? z.TeamAct(e, TeamAction.Accept, EntityId.None, big.Id) : invited;
+            Assert.Equal(i < 7 ? OutcomeCode.Done : OutcomeCode.TeamFull, joined, $"member {i + 2}");
         }
         Assert.Equal(8, big.Members.Count, "Rust's eight");
 
@@ -389,7 +389,7 @@ public static class WorldTests
         Assert.True(claim.IsAuthorised(A) && claim.IsAuthorised(B) && !claim.IsAuthorised(C), "Ada and Bo are on its list, Cy isn't");
         Raids.Stand(rig, ada, z.Settle(door.Frame.ZoneTransform.Position + new Vector3(0, 0, -1.5f)));
         Outcome stranger = z.LockAct(ada, LockAction.AuthoriseTeam, ContainerRef.Main, 0, 0, door.Id, null);
-        Assert.Equal(Refusal.NotAuthorised, stranger.Reason, "a stranger to the lock can't");
+        Assert.Equal(OutcomeCode.NotOnLock, stranger.Code, "a stranger to the lock can't");
         Assert.True(z.LockAct(ada, LockAction.EnterCode, ContainerRef.Main, 0, 0, door.Id, "1234").Ok, "the code");
         Assert.True(z.LockAct(ada, LockAction.AuthoriseTeam, ContainerRef.Main, 0, 0, door.Id, null).Ok, "then she can");
         Assert.True(codeLock!.IsAuthorised(B) && !codeLock.IsAuthorised(C), "Bo is on the lock now");
@@ -409,20 +409,20 @@ public static class WorldTests
         uint revision = a.MapRevision;
         for (int i = 0; i < 5; i++)
         {
-            Assert.Equal(ActionResult.Accepted, z.PlaceMarker(ada, new Vector3(100 * i, 0, -50 * i), (byte)i, $"spot {i}"), $"marker {i + 1}");
+            Assert.Equal(OutcomeCode.Done, z.PlaceMarker(ada, new Vector3(100 * i, 0, -50 * i), (byte)i, $"spot {i}"), $"marker {i + 1}");
         }
-        Assert.Equal(ActionResult.NoSpace, z.PlaceMarker(ada, Vector3.Zero, 0, "six"), "five at most");
-        Assert.Equal(ActionResult.Invalid, z.PlaceMarker(ada, new Vector3(5000, 0, 0), 0, "far"), "within the map");
-        Assert.Equal(ActionResult.Invalid, z.PlaceMarker(ada, Vector3.Zero, 9, "colour"), "a colour of the palette");
+        Assert.Equal(OutcomeCode.NoSpace, z.PlaceMarker(ada, Vector3.Zero, 0, "six"), "five at most");
+        Assert.Equal(OutcomeCode.Invalid, z.PlaceMarker(ada, new Vector3(5000, 0, 0), 0, "far"), "within the map");
+        Assert.Equal(OutcomeCode.Invalid, z.PlaceMarker(ada, Vector3.Zero, 9, "colour"), "a colour of the palette");
         Assert.True(a.MapRevision > revision && a.Markers[2].Label == "spot 2" && a.Markers[2].Colour == 2, "kept with colour and label");
         Assert.True(Math.Abs(z.HeightAboveGround(a.Markers[3].Position)) < 0.01, "on the ground");
-        Assert.Equal(ActionResult.Accepted, z.RemoveMarker(ada, 0), "one off");
+        Assert.Equal(OutcomeCode.Done, z.RemoveMarker(ada, 0), "one off");
         Assert.Equal("spot 1", a.Markers[0].Label, "the rest move up");
-        Assert.Equal(ActionResult.Accepted, z.RemoveMarker(ada, -1), "all off");
+        Assert.Equal(OutcomeCode.Done, z.RemoveMarker(ada, -1), "all off");
         Assert.True(a.Markers.Count == 0, "none left");
         rig.Give(ada, "sleeping-bag", 1);
         revision = a.MapRevision;
-        Assert.Equal(ActionResult.Accepted, z.Place(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "sleeping-bag"), 0, z.Settle(new Vector3(11, 0, 11.5f)), 0),
+        Assert.Equal(OutcomeCode.Done, z.Place(ada, ContainerRef.Main, SlotOf(a.Inventory.Main, "sleeping-bag"), 0, z.Settle(new Vector3(11, 0, 11.5f)), 0),
             "a bag");
         Assert.True(a.MapRevision > revision, "the bag is on her map");
         Assert.True(a.DeathPoint == null, "not dead yet");
