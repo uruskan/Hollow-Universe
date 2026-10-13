@@ -331,8 +331,8 @@ public static class BuildingTests
     public static void DecayCatchUpMatchesLiveTicking()
     {
         const double hours = 82;
-        (BuildingWorld once, Dictionary<string, int> onceStock) = DecayBase();
-        (BuildingWorld live, Dictionary<string, int> liveStock) = DecayBase();
+        (BuildingWorld once, Wallet onceStock) = DecayBase();
+        (BuildingWorld live, Wallet liveStock) = DecayBase();
         using (once)
         using (live)
         {
@@ -352,7 +352,7 @@ public static class BuildingTests
             var a = once.AllPieces.ToDictionary(p => p.Id);
             var b = live.AllPieces.ToDictionary(p => p.Id);
             Fixtures.Report($"after {hours} h: {a.Count} pieces left; catch-up {onceMs:0.00} ms, {steps} live steps {liveMs:0} ms; " +
-                $"stock {string.Join(", ", onceStock.Select(s => $"{s.Value} {s.Key}"))}");
+                $"stock {string.Join(", ", once.Data.Materials.Select(m => $"{onceStock[m]} {m}"))}");
             Assert.Equal(a.Count, b.Count, "pieces left");
             Assert.True(a.Count > 0 && a.Count < 10, "some decayed away, some stood");
             foreach ((EntityId id, Piece p) in a)
@@ -360,7 +360,7 @@ public static class BuildingTests
                 Assert.True(b.ContainsKey(id), $"{p} stands in both");
                 Assert.Near(p.Health, b[id].Health, 1e-6 * p.MaxHealth, $"{p} health");
             }
-            foreach (string material in onceStock.Keys)
+            foreach (string material in once.Data.Materials)
             {
                 Assert.Equal(onceStock[material], liveStock[material], material + " left");
             }
@@ -370,7 +370,7 @@ public static class BuildingTests
 
     // A claimed base: stone foundations, wood walls, a twig floor, a metal doorway; the device holds a little wood and
     // stone, no metal: the metal decays at once, the wood runs out first, the stone lasts.
-    private static (BuildingWorld World, Dictionary<string, int> Stock) DecayBase()
+    private static (BuildingWorld World, Wallet Stock) DecayBase()
     {
         BuildingWorld world = PureWorld();
         Piece f = First(world, grade: 2);
@@ -381,9 +381,9 @@ public static class BuildingTests
         On(world, f2, Edge(0), "wall", grade: 1);
         On(world, f2, Edge(1), "half-wall", grade: 2);
         world.PlaceClaim(Ada, f, new Vector3D(0.4, 0, -0.4), 0, out ClaimDevice? claim);
-        claim!.Stock["wood"] = 60;
-        claim.Stock["stone"] = 400;
-        return (world, claim.Stock);
+        var store = new Wallet { ["wood"] = 60, ["stone"] = 400 };
+        claim!.Store = store;
+        return (world, store);
     }
 
     /// <summary>

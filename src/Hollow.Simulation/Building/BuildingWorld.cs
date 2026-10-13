@@ -149,7 +149,7 @@ public sealed partial class BuildingWorld : IDisposable
     /// to its neighbours, joins structures it connects, gives it a body and solves stability.
     /// </summary>
     public Piece Add(Structure structure, PieceDef def, int grade, Pose pose, ulong owner, double placedAt, double? health = null,
-        EntityId id = default)
+        EntityId id = default, uint body = 0)
     {
         var piece = new Piece(_nextHandle++, id.IsNone ? _newId() : id, def, grade, pose, owner, placedAt)
         {
@@ -160,17 +160,34 @@ public sealed partial class BuildingWorld : IDisposable
         structure.Index(piece);
         ZoneIndex(piece, add: true);
         _pieceCount++;
-        AddBody(piece);
+        _pieceIds[piece.Id] = piece;
+        AddBody(piece, body);
         Link(piece);
-        // Join every structure of the same frame it links to.
+        // Join every structure of the same frame it links to: the smaller moves into the bigger.
         foreach (Link link in piece.SupportedBy.Concat(piece.Supports).ToList())
         {
-            if (link.Other.Structure != structure)
+            Structure mine = piece.Structure, theirs = link.Other.Structure;
+            if (theirs != mine)
             {
-                Merge(structure, link.Other.Structure);
+                if (theirs.Count > mine.Count)
+                {
+                    Merge(theirs, mine);
+                }
+                else
+                {
+                    Merge(mine, theirs);
+                }
             }
         }
-        Solve(structure);
+        structure = piece.Structure;
+        if (_batch > 0)
+        {
+            _unsolved.Add(structure);
+        }
+        else
+        {
+            Solve(structure);
+        }
         Changed?.Invoke(new BuildingEvent(BuildingChange.PieceAdded, piece, Structure: structure));
         return piece;
     }
@@ -179,14 +196,14 @@ public sealed partial class BuildingWorld : IDisposable
     public Piece AddFirst(BuildingFrame frame, PieceDef def, int grade, ulong owner, double placedAt) =>
         Add(NewStructure(frame), def, grade, new Pose(Vector3D.Zero, 0), owner, placedAt);
 
-    private void AddBody(Piece piece)
+    private void AddBody(Piece piece, uint body = 0)
     {
         if (Physics == null)
         {
             return;
         }
         (Vector3 position, Quaternion rotation) = piece.ZoneTransform;
-        piece.Body = Physics.Add(piece, ShapeOf(piece.Def), position, rotation);
+        piece.Body = Physics.Add(piece, ShapeOf(piece.Def), position, rotation, body);
     }
 
     internal Shape ShapeOf(PieceDef def) => Physics!.ShapeFor(def, _parts[def]);
@@ -264,6 +281,10 @@ public sealed partial class BuildingWorld : IDisposable
         foreach ((string material, double debt) in other.UpkeepDebt)
         {
             into.UpkeepDebt[material] = into.UpkeepDebt.GetValueOrDefault(material) + debt;
+        }
+        if (_unsolved.Remove(other))
+        {
+            _unsolved.Add(into);
         }
         other.PieceSet.Clear();
         DropStructure(other);
@@ -422,7 +443,9 @@ public sealed partial class BuildingWorld : IDisposable
     private void Settle(Structure structure, double now, bool immediate, List<Piece>? removed)
     {
         Solve(structure);
-        List<Piece> unsupported = structure.PieceSet.Where(p => !p.Collapsing && p.Stability < Data.MinimumStability).ToList();
+        // A mirror (a client's copy) takes nothing down by itself: the server says what goes.
+        List<Piece> unsupported = Mirror ? new List<Piece>()
+            : structure.PieceSet.Where(p => !p.Collapsing && p.Stability < Data.MinimumStability).ToList();
         if (unsupported.Count > 0)
         {
             if (immediate)
@@ -518,6 +541,7 @@ public sealed partial class BuildingWorld : IDisposable
         structure.Unindex(piece, piece.Pose);
         structure.PieceSet.Remove(piece);
         _pieceCount--;
+        _pieceIds.Remove(piece.Id);
         piece.Gone = true;
         piece.Collapsing = false;
         Changed?.Invoke(new BuildingEvent(BuildingChange.PieceRemoved, piece, Structure: structure));

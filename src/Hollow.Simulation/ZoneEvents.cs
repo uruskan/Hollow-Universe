@@ -48,6 +48,9 @@ public enum HitTarget : byte
     Natural,
     Deployable,
     Ground,
+
+    /// <summary>A building piece, door or claim device (G3).</summary>
+    Building,
 }
 
 /// <summary>

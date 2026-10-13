@@ -307,7 +307,7 @@ public partial struct ProjectileEnd
     public float X;
     public float Y;
     public float Z;
-    [Bits(2)] public HitTarget Target;
+    [Bits(3)] public HitTarget Target;
 }
 
 // ---------------------------------------------------------------- G2: intents (client → server, reliable ordered)
@@ -522,7 +522,7 @@ public partial struct CraftQueueState
 [NetMessage(76)]
 public partial struct HitMarker
 {
-    [Bits(2)] public HitTarget Target;
+    [Bits(3)] public HitTarget Target;
     [Bits(2)] public HitRegion Region;
     [VarInt] public uint Damage;
     public bool Killed;

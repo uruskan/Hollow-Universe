@@ -41,6 +41,9 @@ public struct TraceHit
     public NaturalObject Natural;
     public Deployable? Deployable;
 
+    /// <summary>The building piece, door or claim device hit.</summary>
+    public object? Building;
+
     public readonly bool Hit => Distance >= 0;
 }
 
@@ -146,6 +149,12 @@ public sealed partial class Zone
                 DamageDeployable(hit.Deployable!, melee.Structure);
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = hit.Deployable!.Id, Target = HitTarget.Deployable, Amount = melee.Structure, Position = hit.Point });
                 break;
+            case HitTarget.Building:
+            {
+                float lost = DamageBuilding(hit.Building!, direction, melee.Structure, projectile: false);
+                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
+                break;
+            }
         }
         Wear(entity, p, p.HeldSlot);
     }
@@ -328,6 +337,15 @@ public sealed partial class Zone
                     GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = hit.Deployable!.Id, Target = HitTarget.Deployable, Amount = pr.Damage * ammo.Structure, Position = hit.Point });
                 }
                 break;
+            case HitTarget.Building:
+            {
+                float lost = DamageBuilding(hit.Building!, Vector3.Normalize(pr.Velocity), pr.Damage * ammo.Structure, projectile: true);
+                if (shooter != null)
+                {
+                    GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
+                }
+                break;
+            }
         }
         // A miss often leaves the arrow where it landed.
         var rng = new Rng(Hash64.Of(pr.Id, (ulong)Tick, 0xA770));
@@ -437,6 +455,13 @@ public sealed partial class Zone
             float t = Geometry.RayBox(origin, direction, length, d.Centre, d.Def.HalfExtents + new Vector3(thickness), right, d.Up, forward);
             var candidate = new TraceHit { Deployable = d };
             Consider(t, HitTarget.Deployable, ref candidate);
+        }
+
+        // Building pieces, doors and claim devices: walls stop swings and arrows.
+        if (Building != null && TraceBuilding(origin, direction, best.Distance >= 0 ? best.Distance : length, out float wall, out object? part))
+        {
+            var candidate = new TraceHit { Building = part };
+            Consider(wall, HitTarget.Building, ref candidate);
         }
 
         // The ground, which hides all behind it.

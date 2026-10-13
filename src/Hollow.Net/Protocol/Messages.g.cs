@@ -17,7 +17,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x4CC6D9E9ACCEBB6CUL;
+    public const ulong SchemaHash = 0x090AAB1EFE3E2A12UL;
 }
 
 partial struct Hello
@@ -855,7 +855,7 @@ partial struct ProjectileEnd
         w.WriteFloat(X);
         w.WriteFloat(Y);
         w.WriteFloat(Z);
-        w.WriteBits((uint)Target, 2);
+        w.WriteBits((uint)Target, 3);
     }
 
     public static ProjectileEnd Read(BitReader r)
@@ -865,7 +865,7 @@ partial struct ProjectileEnd
         v.X = r.ReadFloat();
         v.Y = r.ReadFloat();
         v.Z = r.ReadFloat();
-        v.Target = (HitTarget)r.ReadBits(2);
+        v.Target = (HitTarget)r.ReadBits(3);
         return v;
     }
 }
@@ -1504,7 +1504,7 @@ partial struct HitMarker
 
     public readonly void Write(BitWriter w)
     {
-        w.WriteBits((uint)Target, 2);
+        w.WriteBits((uint)Target, 3);
         w.WriteBits((uint)Region, 2);
         w.WriteVarUInt(Damage);
         w.WriteBool(Killed);
@@ -1514,7 +1514,7 @@ partial struct HitMarker
     public static HitMarker Read(BitReader r)
     {
         var v = new HitMarker();
-        v.Target = (HitTarget)r.ReadBits(2);
+        v.Target = (HitTarget)r.ReadBits(3);
         v.Region = (HitRegion)r.ReadBits(2);
         v.Damage = r.ReadVarUInt();
         v.Killed = r.ReadBool();

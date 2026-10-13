@@ -188,6 +188,12 @@ public sealed partial class Zone
         {
             return;
         }
+        if (ClaimOf(d) is { } claim)
+        {
+            // A claim device takes its damage through the building rules (Zone.Building.cs).
+            DamageBuilding(claim, Vector3.Zero, amount, projectile: false);
+            return;
+        }
         d.Health -= amount;
         d.Revision++;
         if (d.Health > 0)

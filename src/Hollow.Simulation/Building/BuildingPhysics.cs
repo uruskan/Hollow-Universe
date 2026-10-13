@@ -31,6 +31,7 @@ public sealed class BuildingPhysics : IDisposable
     private readonly Stack<uint> _free = new();
     private readonly List<CollideShapeResult> _collide = new();
     private readonly OnlyGround _onlyGround = new();
+    private readonly OnlyBuilding _onlyBuilding = new();
     private uint _next = PhysicsWorld.FirstBuildingBody;
     private bool _disposed;
 
@@ -40,6 +41,9 @@ public sealed class BuildingPhysics : IDisposable
     }
 
     public PhysicsWorld World => _world;
+
+    /// <summary>A mirror's bodies all carry the server's IDs: without one, a body isn't made.</summary>
+    public bool OnlyRequested { get; set; }
 
     /// <summary>Building bodies in the world.</summary>
     public int BodyCount => _owners.Count;
@@ -82,11 +86,30 @@ public sealed class BuildingPhysics : IDisposable
         return shape;
     }
 
-    /// <summary>Adds a static body for an owner; returns its ID, or 0 when the building range is full.</summary>
-    public uint Add(object owner, Shape shape, Vector3 position, Quaternion rotation)
+    /// <summary>
+    /// Adds a static body for an owner; returns its ID, or 0 when the building range is full. A client's mirror asks
+    /// for the server's ID (<paramref name="requested"/>), so its prediction meets the same contacts in the same order.
+    /// </summary>
+    public uint Add(object owner, Shape shape, Vector3 position, Quaternion rotation, uint requested = 0)
     {
         uint id;
-        if (_free.Count > 0)
+        if (requested != 0)
+        {
+            if (requested < PhysicsWorld.FirstBuildingBody || requested >= PhysicsWorld.FirstBuildingBody + PhysicsWorld.MaxBuildingBodies)
+            {
+                return 0;
+            }
+            if (_owners.ContainsKey(requested))
+            {
+                Remove(requested);
+            }
+            id = requested;
+        }
+        else if (OnlyRequested)
+        {
+            return 0;
+        }
+        else if (_free.Count > 0)
         {
             id = _free.Pop();
         }
@@ -176,14 +199,15 @@ public sealed class BuildingPhysics : IDisposable
         }
     }
 
-    /// <summary>The nearest body along a ray, within <paramref name="length"/> metres; ground only when asked.</summary>
-    public bool Ray(Vector3 origin, Vector3 direction, float length, out RayHit hit, bool groundOnly = false)
+    /// <summary>The nearest body along a ray, within <paramref name="length"/> metres; ground only, or building only, when asked.</summary>
+    public bool Ray(Vector3 origin, Vector3 direction, float length, out RayHit hit, bool groundOnly = false, bool buildingOnly = false)
     {
         hit = default;
         var ray = new Ray(origin, Vector3.Normalize(direction) * length);
         lock (JoltRuntime.Gate)
         {
-            if (!_world.Jolt.NarrowPhaseQuery.CastRay(ray, out RayCastResult result, null, null, groundOnly ? _onlyGround : null))
+            BodyFilter? filter = groundOnly ? _onlyGround : buildingOnly ? _onlyBuilding : null;
+            if (!_world.Jolt.NarrowPhaseQuery.CastRay(ray, out RayCastResult result, null, null, filter))
             {
                 return false;
             }
@@ -222,6 +246,7 @@ public sealed class BuildingPhysics : IDisposable
             }
             _shapes.Clear();
             _onlyGround.Dispose();
+            _onlyBuilding.Dispose();
         }
     }
 
@@ -230,5 +255,14 @@ public sealed class BuildingPhysics : IDisposable
         protected override bool ShouldCollide(BodyID bodyID) => PhysicsWorld.IsGroundBody(bodyID.ID);
 
         protected override bool ShouldCollideLocked(Body body) => body != null && PhysicsWorld.IsGroundBody(body.ID.ID);
+    }
+
+    private sealed class OnlyBuilding : BodyFilter
+    {
+        private static bool IsBuilding(uint id) => id >= PhysicsWorld.FirstBuildingBody && id < PhysicsWorld.FirstBuildingBody + PhysicsWorld.MaxBuildingBodies;
+
+        protected override bool ShouldCollide(BodyID bodyID) => IsBuilding(bodyID.ID);
+
+        protected override bool ShouldCollideLocked(Body body) => body != null && IsBuilding(body.ID.ID);
     }
 }

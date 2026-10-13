@@ -30,6 +30,11 @@ public sealed class PlacementPlan
 
     public int Orientation { get; init; }
 
+    /// <summary>A free foundation's aim point on the ground (zone frame) and its heading in 15° steps, as the wire asks for it.</summary>
+    public Vector3 Point { get; init; }
+
+    public int HeadingSteps { get; init; }
+
     public Outcome Outcome { get; internal set; } = Outcome.Done;
 
     /// <summary>The stability it would have, in thousandths.</summary>
@@ -282,7 +287,12 @@ public sealed partial class BuildingWorld
             return null;
         }
         BuildingFrame frame = BuildingFrame.At(D(centre) + upD * (highest + Data.FoundationClearance + 0.02), upD, headingRadians);
-        return new PlacementPlan { Piece = piece, Structure = null, Frame = frame, Pose = new Pose(Vector3D.Zero, 0) };
+        int steps = (int)Math.Round(headingRadians / HeadingStep);
+        return new PlacementPlan
+        {
+            Piece = piece, Structure = null, Frame = frame, Pose = new Pose(Vector3D.Zero, 0), Point = point,
+            HeadingSteps = ((steps % HeadingSteps) + HeadingSteps) % HeadingSteps,
+        };
     }
 
     // Where the ground is sampled under a foundation: its corners and its centre (RustMVP's).
@@ -597,6 +607,11 @@ public sealed partial class BuildingWorld
             Orientation = orientation,
         };
     }
+
+    /// <summary>A free foundation turns in steps of 15° (24 to the turn).</summary>
+    public const int HeadingSteps = 24;
+
+    public const double HeadingStep = Math.PI / 12;
 
     /// <summary>Planet up at a zone point (the zone frame's), or +Y without physics.</summary>
     public Vector3 Up(Vector3 zonePoint) => Physics != null ? Physics.World.Frame.UpAt(zonePoint) : Vector3.UnitY;
