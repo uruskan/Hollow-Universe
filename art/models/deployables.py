@@ -11,9 +11,12 @@ import math
 import sys
 from pathlib import Path
 
+import bmesh
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mathutils import Matrix, Vector, noise  # noqa: E402
+from mathutils import Matrix, Vector, geometry, noise  # noqa: E402
+from mathutils.bvhtree import BVHTree  # noqa: E402
 
 from hollow import WORLD, script_args  # noqa: E402
 from hollow.build import (BASALT, CANVAS, GUNMETAL, LEATHER, PARCHMENT, ROCK, RUBBER, RUST, STEEL, TIMBER,  # noqa: E402
@@ -333,127 +336,491 @@ def loot_sack(seed=117):
     m.export(hulls=[((0, 0.03, 0.12), (0.5, 0.6, 0.24), (0, 0, 0))])
 
 
+# The bag dropped items lie in (dropped_bag).
+BAG_HALF = (0.192, 0.148)  # half the wrapped load's length (x) and depth (y)
+BAG_HEIGHT = 0.283
+BAG_ROUND = (0.03, 0.035, 0.015)  # how round its upright, top and bottom edges are
+STRAP_HALF, STRAP_THICK = 0.021, 0.004
+CANVAS_TINT = (0.74, 0.76, 0.72)
+
+
 def dropped_bag(seed=119):
-    """Whatever lies on the ground (GROUND.md §6.1, decision U4): a square of burlap wrapped round its load and gathered
-    up into a neck, tied off with a cord, its corners standing out of the knot as two ears; a leather strap cinched round
-    its belly with an iron buckle at the front. About 0.42 x 0.36 m and 0.32 m high. Our own design."""
+    """Whatever lies on the ground (GROUND.md §6.1, decision U4): a bundle wrapped in a canvas tarp and strapped shut.
+    The tarp is wrapped round a box-like load, its hemmed edge (with grommets) ending over itself across the front, its
+    ends folded in like a parcel's, the top flap over the bottom one, wrinkled where the folds pull it round the
+    corners. Two dark leather straps cross over the top, pressing the cloth in so it pillows between them, each with an
+    iron buckle: the cross strap's on top, the long strap's on one end. 0.42 x 0.32 m and 0.3 m high. Our own design:
+    only the idea of a strapped bundle came from the owner's picture."""
     m = Model("dropped-bag", WORLD, seed=seed)
-    burlap = (0.8, 0.72, 0.56)
-    belt_z, belt_half = 0.095, 0.019  # the strap: the height of its middle, half its width
-    # The load: a sack's profile turned round (flat on the ground, a full belly, gathered into a neck at 0.24 m)...
-    profile = smooth([(0.15, 0.0), (0.185, 0.01), (0.205, 0.03), (0.214, 0.06), (0.212, 0.1), (0.196, 0.14), (0.16, 0.175),
-                      (0.11, 0.205), (0.068, 0.225), (0.05, 0.236), (0.044, 0.245)], 3)
-    body = m.lathe(profile, sides=48, tile=CANVAS, tint=burlap, metres=0.45, vary=0.16, vary_scale=12, sharp=0)
-    lumps = Vector((3.1, 7.3, 1.7))
-    for v in body.data.vertices:
-        p = v.co
-        ang = math.atan2(p.y, p.x)
-        # ...creased where it is gathered, folds running up into the neck...
-        f = smoothstep(0.11, 0.235, p.z)
-        k = 1.0 + f * (0.11 * math.sin(7 * ang + 0.8) + 0.05 * math.sin(12 * ang + 2.1))
-        # ...lumpy with what is inside...
-        k *= 1.0 + 0.045 * noise.noise(p * 11 + lumps) * (1.0 - f)
-        # ...and pressed in where the strap runs, so the cloth bulges either side of it.
-        d = abs(p.z - belt_z)
-        if d < 0.045:
-            k *= 1.0 - 0.08 * (1.0 - d / 0.045) ** 2
-        p.x *= k
-        p.y *= k * 0.86
-    body.data.update()
-    top = max(v.co.z for v in body.data.vertices)
+    off = Vector((m.rng.uniform(0, 50), m.rng.uniform(0, 50), m.rng.uniform(0, 50)))
 
-    bins = 48
-    leather = (0.5, 0.35, 0.23)
-    belt = girth(body, belt_z, belt_half * 1.2, bins)
-    # The strap, following the cloth round; its tongue doubled over it from the buckle at the front (-Y) to one side.
-    m.from_mesh(*band(belt, belt_z, belt_half, -0.002, 0.0055, 0, bins), tile=LEATHER, tint=leather, metres=0.3, vary=0.12,
-                vary_scale=20, sharp=50)
-    front = bins // 4  # the bin facing -Y
-    m.from_mesh(*band(belt, belt_z - 0.001, belt_half * 0.85, 0.005, 0.009, front, front + 5), tile=LEATHER,
-                tint=(0.44, 0.31, 0.2), metres=0.2, vary=0.1, vary_scale=20, sharp=50)
-    # The buckle: an iron frame and its prong, standing on the strap.
-    y = -(belt[front] + 0.008)
-    for dx, dz, w, h in ((-0.024, 0, 0.007, 0.05), (0.024, 0, 0.007, 0.05), (0, -0.022, 0.055, 0.007), (0, 0.022, 0.055, 0.007)):
-        m.box((w, 0.008, h), (dx, y, belt_z + dz), bevel=0.0015, tile=GUNMETAL, tint=(0.62, 0.6, 0.58), metres=0.1)
-    m.box((0.004, 0.006, 0.042), (-0.004, y - 0.003, belt_z), (0, 18, 0), bevel=0.001, tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.05)
+    def grime(co, t):
+        # Dirt splashed up from the ground, grubby edges and corners, a few darker stains.
+        dirt = 1 - 0.5 * (1 - smoothstep(0.0, 0.08, co.z + 0.03 * noise.noise(co * 13 + off)))
+        x, y, z = abs(co.x) / BAG_HALF[0], abs(co.y) / BAG_HALF[1], co.z / BAG_HEIGHT
+        rim = max(smoothstep(0.8, 1.0, x), smoothstep(0.75, 1.0, y))
+        edge = max(smoothstep(0.8, 1.0, x) * smoothstep(0.75, 1.0, y), smoothstep(0.85, 1.0, z) * rim)
+        stain = 1 - 0.28 * smoothstep(0.1, 0.5, noise.noise(co * 5.5 + off * 1.7))
+        k = dirt * stain * (1 - 0.16 * edge)
+        return (t[0] * k, t[1] * k * (0.97 + 0.03 * dirt), t[2] * k * (0.88 + 0.12 * dirt))
 
-    # The knot on top of the neck, two corners of the cloth standing out of it as ears, a cord bound round the neck.
-    m.blob((0.095, 0.082, 0.06), (0, 0, top + 0.012), subdivisions=3, rough=0.14, freq=2.6, tile=CANVAS,
-           tint=(0.72, 0.64, 0.5), metres=0.2, vary=0.18, vary_scale=25)
-    for side, lean in ((-1, 0.012), (1, -0.01)):
-        m.blob((0.125, 0.022, 0.074), (side * 0.06, lean, top + 0.04), (6 * side, -side * 42, side * 18),
-               subdivisions=3, rough=0.12, freq=2.2, tile=CANVAS, tint=(0.78, 0.7, 0.54), metres=0.2, vary=0.15, vary_scale=25)
-    # The cord: wound twice round the neck, rising as it goes, hugging the folds.
-    steps = 72
-    low, high = top - 0.02, top - 0.004
-    neck = [girth(body, low + (high - low) * k / 3, 0.006, 36) for k in range(4)]
-    cord = []
-    for n in range(steps + 1):
-        u = n / steps
-        t = u * 4 * math.pi
-        i = int(((t % (2 * math.pi)) / (2 * math.pi)) * 36) % 36
-        r = neck[min(3, int(u * 4))][i] + 0.004
-        cord.append((r * math.cos(t - math.pi), r * math.sin(t - math.pi), low + (high - low) * u))
-    m.tube(cord, 0.0045, sides=8, tile=CANVAS, tint=(0.42, 0.33, 0.22), metres=0.1)
+    canvas = dict(tile=CANVAS, tint=CANVAS_TINT, metres=0.45, vary=0.1, vary_scale=9, sharp=0, tint_fn=grime)
+    leather = dict(tile=LEATHER, tint=(0.8, 0.74, 0.68), metres=0.3, vary=0.12, vary_scale=14, sharp=50)
+    iron = dict(tile=STEEL, tint=(0.72, 0.7, 0.66), metres=0.1, sharp=0)
+
+    # The load under the tarp, then each layer laid on what is already there: the ends' bottom flaps folded up, the top
+    # flaps folded down over them, the hem where the wrap ends across the front.
+    h = BAG_HEIGHT
+    (xs, _, zs), verts, faces, flat = bundle(off)
+    cloth = Cloth(verts, faces, flat, wrap_uv(m.from_mesh(verts, faces, **canvas), flat, m.rng))
+    layers = [(verts, faces)]
+    # Wrinkles where the folded ends pull the cloth round the corners: front -1 or back +1, which end, from (x, height
+    # as a share of the bundle's) to (x, height), width, height of the ridge, bow.
+    for side, end, (x0, z0), (x1, z1), width, peak, bow in (
+            (-1, -1, (0.172, 0.66), (0.088, 0.87), 0.028, 0.0024, 0.007),
+            (-1, -1, (0.17, 0.56), (0.112, 0.62), 0.02, 0.0017, -0.003),
+            (-1, 1, (0.172, 0.745), (0.104, 0.885), 0.024, 0.0021, -0.005),
+            (-1, 1, (0.172, 0.59), (0.082, 0.715), 0.03, 0.0026, 0.008),
+            (1, -1, (0.172, 0.69), (0.096, 0.88), 0.026, 0.0024, -0.006),
+            (1, -1, (0.172, 0.385), (0.09, 0.55), 0.028, 0.0024, 0.006),
+            (1, 1, (0.172, 0.63), (0.09, 0.84), 0.026, 0.0026, 0.006),
+            (1, 1, (0.17, 0.355), (0.11, 0.465), 0.02, 0.0017, -0.004)):
+        rows, ups, uvs = crease(cloth, side, (end * x0, z0 * h), (end * x1, z1 * h), width, peak, bow)
+        sheet(m, rows, ups, uvs=uvs, **canvas)
+    for fold_z, tip_z, tip_half, thick in ((0.004, 0.6 * h, 0.03, 0.006), (h - 0.012, 0.32 * h, 0.035, 0.008)):
+        for end in (-1, 1):
+            rows, ups = end_fold(tree(layers), end, fold_z, tip_z, BAG_HALF[1] - 0.014, tip_half, thick)
+            # Textured flat across the end, as the cloth under it is (a box projection would change over the fold).
+            uvs = [cloth.to_uv(q.y + BAG_HALF[1], q.z) for row in rows for q in row]
+            layers.append(sheet(m, rows, ups, uvs=uvs, **canvas))
+    hem_top = min(zs, key=lambda z: abs(z - 0.4 * h))  # on a grid line of the cloth, so it follows the cloth exactly
+    hem_z = hem_top - 0.025
+    rows, ups, uvs = hem(cloth, [x for x in xs if abs(x) <= BAG_HALF[0] - 0.01], hem_z, hem_top, 0.0035)
+    layers.append(sheet(m, rows, ups, uvs=uvs, **dict(canvas, tint_fn=lambda co, c: [
+        k * (0.84 + 0.16 * smoothstep(hem_z + 0.003, hem_top, co.z)) for k in grime(co, c)])))
+
+    # The long strap round the ends, then the cross strap over it; they bridge the folds' edges.
+    centre = Vector((0, 0, h * 0.5))
+    long_path = girdle(tree(layers), centre, Vector((1, 0, 0)), Vector((0, 0, 1)))
+    layers.append(strap(m, long_path, centre, Vector((0, 1, 0)), **leather))
+    cross_path = girdle(tree(layers), centre, Vector((0, 1, 0)), Vector((0, 0, 1)))
+    layers.append(strap(m, cross_path, centre, Vector((1, 0, 0)), **leather))
+
+    # Grommets in the hem, either side of the cross strap.
+    surface = tree(layers)
+    for x in (-0.15, -0.085, 0.085, 0.15):
+        at = cast(surface, Vector((x, -0.6, hem_z + 0.011)), Vector((0, 1, 0)))
+        m.lathe([(0.0034, 0.0), (0.0066, 0.0), (0.006, 0.0024), (0.0034, 0.0024), (0.0034, 0.0)], at, (90, 0, 0), sides=7,
+                close=False, **iron)
+        m.cylinder(0.0034, 0.0016, at - Vector((0, 0.0006, 0)), (90, 0, 0), sides=6, tile=RUBBER, tint=(0.3, 0.27, 0.24),
+                   metres=0.05)
+
+    # The buckles: the cross strap's on top toward the front, its end running on toward the middle; the long strap's
+    # on the +x end, over the top flap, its end hanging down.
+    buckle(m, cross_path, centre, Vector((1, 0, 0)), lambda p: p.z > centre.z and p.y < 0, 1, -0.08, 0.045, leather, iron)
+    buckle(m, long_path, centre, Vector((0, 1, 0)), lambda p: p.x > 0, 2, 0.7 * h, -0.06, leather, iron)
     m.socket("use", (0, -0.55, 0.25))
     m.export()
+
+
+def bundle(off):
+    """The tarp over the load: a rounded box, pillowed where nothing holds it and pressed in under the straps (the cross
+    strap at x = 0, the long one at y = 0), a little uneven, its hidden bottom one face. Returns its grid lines (x, y
+    and z), the vertices, the faces, and where each vertex was on the box before it was rounded (for its texture)."""
+    (hx, hy), h = BAG_HALF, BAG_HEIGHT
+    rv, rt, rb = BAG_ROUND
+    pinch = (STRAP_HALF + 0.002, STRAP_HALF + 0.037)  # flat under a strap, then rising back
+    marks = (pinch[0], (pinch[0] + pinch[1]) / 2 - 0.004, pinch[1])
+    axes = (ticks(hx, rv, marks, 0.036), ticks(hy, rv, marks, 0.036),
+            [0.0, rb / 2] + fill(rb, h - rt, 0.036) + [h - rt * 2 / 3, h - rt / 3, h])
+    lo = Vector((-hx + rv, -hy + rv, rb))
+    hi = Vector((hx - rv, hy - rv, h - rt))
+
+    def shape(p):
+        q = Vector([min(max(p[c], lo[c]), hi[c]) for c in range(3)])
+        r = Vector((rv, rv, rt if p.z > h / 2 else rb))
+        e = Vector([(p[c] - q[c]) / r[c] for c in range(3)]).normalized()
+        pos = q + Vector([r[c] * e[c] for c in range(3)])
+        n = Vector([e[c] / r[c] for c in range(3)]).normalized()
+        x, y, z = pos
+        along, across = max(0.0, 1 - (x / hx) ** 2), max(0.0, 1 - (y / hy) ** 2)
+        up = max(0.0, math.sin(math.pi * min(1.0, z / h)))
+        bulge = 0.011 * max(0.0, n.z) ** 2 * along * across + 0.009 * n.y ** 2 * along * up + 0.005 * n.x ** 2 * across * up
+        fx = 1 - smoothstep(pinch[0], pinch[1], abs(x))
+        fy = 1 - smoothstep(pinch[0], pinch[1], abs(y))
+        fe = 1 - smoothstep(pinch[0], pinch[1] + 0.02, abs(y))  # on the ends, under the folds: a softer dent
+        fz = fy + (fe - fy) * abs(n.x)  # turning from the top onto an end
+        dent = Vector((n.x * fe, n.y * fx, max(0.0, n.z) * max(fx, fz))) * -0.011
+        wobble = 0.0025 * noise.noise(pos * 7 + off) * (1 - max(fx, fy)) * (1 - 0.7 * abs(n.x)) if n.z > -0.5 else 0.0
+        pos = pos + n * (bulge + wobble) + dent
+        pos.z = max(0.0, pos.z - 0.003 * (x / hx + 1) / 2 * (z / h))  # settled a little lower at one end
+        return pos
+
+    index, verts, faces, flat = {}, [], [], []
+
+    def vertex(key):
+        if key not in index:
+            index[key] = len(verts)
+            flat.append(Vector([axes[c][key[c]] for c in range(3)]))
+            verts.append(shape(flat[-1]))
+        return index[key]
+
+    i0, i1, j0, j1 = 3, len(axes[0]) - 4, 3, len(axes[1]) - 4  # the bottom's middle, inside its rounded edge
+    for axis in range(3):
+        a, b = [c for c in range(3) if c != axis]
+        for side in (0, len(axes[axis]) - 1):
+            for i in range(len(axes[a]) - 1):
+                for j in range(len(axes[b]) - 1):
+                    if axis == 2 and side == 0 and i0 <= i < i1 and j0 <= j < j1:
+                        continue
+                    quad = []
+                    for di, dj in ((0, 0), (1, 0), (1, 1), (0, 1)):
+                        key = [0, 0, 0]
+                        key[axis], key[a], key[b] = side, i + di, j + dj
+                        quad.append(vertex(tuple(key)))
+                    faces.append(quad)
+    ring = ([(i, j0) for i in range(i0, i1)] + [(i1, j) for j in range(j0, j1)] + [(i, j1) for i in range(i1, i0, -1)] +
+            [(i0, j) for j in range(j1, j0, -1)])
+    faces.append([vertex((i, j, 0)) for i, j in ring])
+    return axes, verts, faces, flat
+
+
+def wrap_uv(o, flat, rng, tile=CANVAS, metres=0.45):
+    """The tarp's texture laid on as the cloth wraps: over the top and down the front and back as one sheet (mirrored
+    about the long strap, which hides the fold), the ends flat on their own; so no seam runs along the top's long
+    edges, as a box projection's would. `flat`: each vertex on the box before it was rounded. Returns the mapping
+    from those sheet coordinates (metres) to the atlas, for the layers laid on the cloth."""
+    (hx, hy), h = BAG_HALF, BAG_HEIGHT
+    scale = 1.0 / metres
+    ou = 0.03 + rng.random() * (0.94 - 2 * hx * scale)
+    ov = 0.03 + rng.random() * (0.94 - (hy + h) * scale)
+
+    def to_uv(u, v):
+        return (tile % 4 + ou + u * scale) / 4, (tile // 4 + ov + v * scale) / 4
+
+    me = o.data
+    uv = me.uv_layers["UVMap"]
+    for poly in me.polygons:
+        corners = [flat[i] for i in poly.vertices]
+        for li in poly.loop_indices:
+            uv.data[li].uv = to_uv(*wrap_coords(corners, flat[me.loops[li].vertex_index]))
+    return to_uv
+
+
+def wrap_coords(corners, p):
+    """Where p (on the unrounded box, on the face with these corners) lies on the tarp's texture, in metres."""
+    (hx, hy), h = BAG_HALF, BAG_HEIGHT
+    if all(abs(abs(c.x) - hx) < 1e-6 for c in corners):  # an end
+        return p.y + hy, p.z
+    if all(abs(abs(c.y) - hy) < 1e-6 for c in corners):  # the front or back
+        return p.x + hx, hy + h - p.z
+    if all(c.z > h - 1e-6 for c in corners):  # the top
+        return p.x + hx, abs(p.y)
+    return p.x + hx, hy + h  # the bottom, never seen
+
+
+class Cloth:
+    """The tarp's body as built: its faces, where each vertex was on the box before it was rounded, its texture mapping
+    and a ray-casting tree, so a layer laid on it can take the cloth's own texture."""
+
+    def __init__(self, verts, faces, flat, to_uv):
+        self.verts, self.faces, self.flat, self.to_uv = verts, faces, flat, to_uv
+        self.tree = tree([(verts, faces)])
+
+    def hit(self, origin, direction):
+        """Where a ray meets the cloth: the point, the cloth's normal there facing the ray, and the texture's UV."""
+        point, normal, index, _ = self.tree.ray_cast(origin, direction)
+        if point is None:
+            raise RuntimeError(f"dropped-bag: no cloth from {tuple(origin)} along {tuple(direction)}")
+        ids = self.faces[index]
+        corners = [self.flat[i] for i in ids]
+        uv = self.to_uv(*wrap_coords(corners, unrounded(point, [self.verts[i] for i in ids], corners)))
+        return point, (-normal if normal.dot(direction) > 0 else normal), uv
+
+
+def unrounded(point, corners, flats):
+    """Where a point on a face of the bundle was on the box before it was rounded: the same place in the face's
+    triangle (a fan from its first corner, as the ray-casting tree splits it)."""
+    for i in range(1, len(corners) - 1):
+        if geometry.intersect_point_tri(point, corners[0], corners[i], corners[i + 1]) is not None:
+            return geometry.barycentric_transform(point, corners[0], corners[i], corners[i + 1], flats[0], flats[i],
+                                                  flats[i + 1])
+    return geometry.barycentric_transform(point, corners[0], corners[1], corners[2], flats[0], flats[1], flats[2])
+
+
+def crease(cloth, side, a, b, width, peak, bow):
+    """A wrinkle in the tarp on its front (side -1) or back (+1) from a to b ((x, z) points), bowed `bow` metres to one
+    side: a soft ridge `peak` high and `width` across, fading out at both ends, textured as the cloth under it. Returns
+    its rows, the surface's normals under them and their UVs."""
+    a, b = Vector(a), Vector(b)
+    along = b - a
+    across = Vector((-along.y, along.x)).normalized()
+    look = Vector((0, -side, 0))
+    rows, ups, uvs = [], [], []
+    for f in (0.0, 0.12, 0.28, 0.5, 0.72, 0.88, 1.0):
+        row, up = [], []
+        taper = math.sin(math.pi * f) ** 0.6
+        for s in (-1.0, -0.45, 0.0, 0.45, 1.0):
+            q = a + along * f + across * (bow * math.sin(math.pi * f) + s * width / 2 * (0.55 + 0.45 * taper))
+            hit, normal, uv = cloth.hit(Vector((q.x, side * 0.6, q.y)), look)
+            row.append(hit + normal * peak * math.sin(math.pi * (s + 1) / 2) ** 2 * taper)
+            up.append(normal)
+            uvs.append(uv)
+        rows.append(row)
+        ups.append(up)
+    return rows, ups, uvs
+
+
+def fill(a, b, step):
+    """a to b in equal steps no longer than `step`, both ends included."""
+    n = max(1, math.ceil((b - a) / step - 1e-9))
+    return [a + (b - a) * k / n for k in range(n + 1)]
+
+
+def ticks(half, rounding, marks, step, border=3):
+    """Grid lines across one side of the bundle, symmetric about 0: at `marks`, no wider apart than `step`, then
+    `border` lines over the rounded edge."""
+    inner = half - rounding
+    stops = sorted({0.0, inner, *(x for x in marks if 0.0 < x < inner)})
+    line = [0.0]
+    for a, b in zip(stops, stops[1:]):
+        line += fill(a, b, step)[1:]
+    line += [inner + rounding * k / border for k in range(1, border + 1)]
+    return [-x for x in reversed(line[1:])] + line
+
+
+def tree(layers):
+    """A ray-casting tree over (vertices, faces) layers."""
+    verts, faces = [], []
+    for vs, fs in layers:
+        base = len(verts)
+        verts += [Vector(v) for v in vs]
+        faces += [[base + i for i in f] for f in fs]
+    return BVHTree.FromPolygons(verts, faces)
+
+
+def touch(surface, origin, direction):
+    """Where a ray first meets the surface, and the surface's normal there facing the ray (None, None if it misses)."""
+    hit, normal, _, _ = surface.ray_cast(origin, direction)
+    if hit is None:
+        return None, None
+    return hit, (-normal if normal.dot(direction) > 0 else normal)
+
+
+def cast(surface, origin, direction):
+    hit = touch(surface, origin, direction)[0]
+    if hit is None:
+        raise RuntimeError(f"dropped-bag: no surface from {tuple(origin)} along {tuple(direction)}")
+    return hit
+
+
+def lip(d, r):
+    """How much of a cloth layer's thickness there is d metres in from its edge, rounded over r."""
+    return math.sin(min(1.0, max(0.0, d) / r) * math.pi / 2)
+
+
+def sheet(m, rows, ups, uvs=None, **kw):
+    """A layer of cloth lying on the bundle, from a grid of points (rows of equal length) and the normals of the surface
+    under them (each quad faces the way its corners' do), with its own UVs (one per point) if given. Returns its
+    vertices and faces."""
+    bm = bmesh.new()
+    grid = [[bm.verts.new(p) for p in row] for row in rows]
+    width = len(rows[0])
+    faces = []
+    for i in range(len(rows) - 1):
+        for j in range(width - 1):
+            quad = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]
+            ps = [rows[a][b] for a, b in quad]
+            if (ps[1] - ps[0]).cross(ps[3] - ps[0]).dot(sum((ups[a][b] for a, b in quad), Vector())) < 0:
+                quad.reverse()
+            bm.faces.new([grid[a][b] for a, b in quad])
+            faces.append([a * width + b for a, b in quad])
+    o = m.add(bm, **kw)
+    if uvs:
+        layer = o.data.uv_layers["UVMap"]
+        for loop in o.data.loops:
+            layer.data[loop.index].uv = uvs[loop.vertex_index]
+    return [p for row in rows for p in row], faces
+
+
+def end_fold(surface, end, fold_z, tip_z, fold_half, tip_half, thick):
+    """One flap of a parcel's end on the side x = end * ...: a trapezoid of cloth folded at fold_z (fold_half either
+    side of the middle) narrowing to its tip at tip_z (tip_half either side), `thick` proud of what it lies on and
+    rounded over at its free edges, merging into the cloth at the fold."""
+    length = abs(tip_z - fold_z)
+    rows, ups = [], []
+    for v in (0.0, 0.04, 0.09, 0.17, 0.3, 0.48, 0.68, 0.86, 1 - 0.0035 / length, 1.0):
+        z = fold_z + (tip_z - fold_z) * v
+        half = fold_half + (tip_half - fold_half) * v + 0.005 * math.sin(math.pi * v)
+        width = 2 * half
+        row, up = [], []
+        for d in [0.0, 0.0035] + [0.0035 + (width - 0.007) * k / 12 for k in range(1, 12)] + [width - 0.0035, width]:
+            y = d - half
+            hit, normal = touch(surface, Vector((end * 0.6, y, z)), Vector((-end, 0, 0)))
+            while hit is None and abs(y) > 0.002:  # a corner rounder than the fold: in a little
+                y -= math.copysign(0.002, y)
+                hit, normal = touch(surface, Vector((end * 0.6, y, z)), Vector((-end, 0, 0)))
+            if hit is None:
+                raise RuntimeError(f"dropped-bag: no end to fold at z {z:.3f}")
+            out = thick * lip(d, 0.005) * lip(width - d, 0.005) * lip((1 - v) * length, 0.005) * smoothstep(0.0, 0.16, v)
+            if 0.0 < d < width and v < 1.0:
+                out = max(out, 0.0018)
+            row.append(hit + normal * out)
+            up.append(normal)
+        rows.append(row)
+        ups.append(up)
+    return rows, ups
+
+
+def hem(cloth, xs, z0, z1, thick):
+    """The tarp's hemmed edge across the front, where the wrap ends over itself: a fold standing `thick` proud at z0,
+    fading into the cloth above by z1, over the cloth's own grid lines xs (so it follows the cloth exactly), textured
+    as the cloth under it. Returns its rows, the cloth's normals under them and their UVs."""
+    rows, ups, uvs = [], [], []
+    look = Vector((0, 1, 0))
+    rise = z0 + 0.01
+    for z in (z0, z0 + 0.0015, z0 + 0.004, rise) + tuple(rise + (z1 - rise) * k / 5 for k in range(1, 6)):
+        row, up = [], []
+        for x in xs:
+            hit, normal, uv = cloth.hit(Vector((x, -0.6, z)), look)
+            out = thick * lip(z - z0, 0.004) * (1 - smoothstep(rise, z1, z)) * smoothstep(xs[-1], xs[-1] - 0.03, abs(x))
+            row.append(hit + normal * (max(out, 0.0006) if z0 < z < z1 - 1e-6 else 0.0))
+            up.append(normal)
+            uvs.append(uv)
+        rows.append(row)
+        ups.append(up)
+    return rows, ups, uvs
+
+
+def girdle(surface, centre, u, v, samples=1440, bridge=0.009):
+    """Where a strap pulled tight round the bundle lies, in the plane of u and v through `centre`: densely, a closed
+    loop on the outermost surface. A strap bridges a dip narrower than about twice `bridge` (a fold's edge, a strap it
+    crosses), and bends smoothly."""
+    dirs, reach = [], []
+    for i in range(samples):
+        a = 2 * math.pi * i / samples
+        d = u * math.cos(a) + v * math.sin(a)
+        dirs.append(d)
+        reach.append((cast(surface, centre + d * 0.6, -d) - centre).length)
+    step = 2 * math.pi / samples
+    bridged = [max(reach[(i + j) % samples] for j in range(-k, k + 1))
+               for i, k in ((i, max(1, int(bridge / (r * step)))) for i, r in enumerate(reach))]
+    smoothed = [sum(bridged[(i + j) % samples] for j in range(-k, k + 1)) / (2 * k + 1)
+                for i, k in ((i, max(1, int(0.006 / (r * step)))) for i, r in enumerate(bridged))]
+    return [centre + d * r for d, r in zip(dirs, smoothed)]
+
+
+def simplify(path, turn=math.radians(8), step=0.04):
+    """Every point of a dense path where it has turned by `turn` or run on `step` metres since the last one kept."""
+    keep = [path[0]]
+    bent = run = 0.0
+    for i in range(1, len(path)):
+        a, b, c = path[i - 1], path[i], path[(i + 1) % len(path)]
+        if (b - a).length > 1e-9 and (c - b).length > 1e-9:
+            bent += (b - a).angle(c - b)
+        run += (b - a).length
+        if bent >= turn or run >= step:
+            keep.append(b)
+            bent = run = 0.0
+    return keep
+
+
+def normals_of(pts, centre, across, closed):
+    """Each point's normal across a path (perpendicular to it and to `across`), pointing away from `centre`."""
+    out = []
+    n = len(pts)
+    for i, p in enumerate(pts):
+        a = pts[(i - 1) % n] if closed else pts[max(i - 1, 0)]
+        b = pts[(i + 1) % n] if closed else pts[min(i + 1, n - 1)]
+        nn = (b - a).cross(across).normalized()
+        out.append(nn if nn.dot(p - centre) > 0 else -nn)
+    return out
+
+
+def ribbon(m, pts, across, normals, inner, outer, half, closed=False, floor=False, **kw):
+    """A leather strip along pts: `half` either side across, from `inner` to `outer` along each normal (each a number
+    or one per point); kept above the ground when `floor`. Returns its vertices and faces."""
+    n = len(pts)
+    per = [x if isinstance(x, list) else [x] * n for x in (across, inner, outer, half)]
+    verts, faces = [], []
+    for i, p in enumerate(pts):
+        w, lo, hi, hw = (x[i] for x in per)
+        for o, s in ((lo, -1), (hi, -1), (hi, 1), (lo, 1)):
+            q = p + normals[i] * o + w * (s * hw)
+            verts.append(Vector((q.x, q.y, max(0.0, q.z))) if floor else q)
+    for i in range(n if closed else n - 1):
+        a, b = i * 4, (i + 1) % n * 4
+        for k in range(4):
+            faces.append((a + k, b + k, b + (k + 1) % 4, a + (k + 1) % 4))
+    if not closed:
+        last = (n - 1) * 4
+        faces += [(3, 2, 1, 0), (last, last + 1, last + 2, last + 3)]
+    m.from_mesh(verts, faces, **kw)
+    return verts, faces
+
+
+def strap(m, path, centre, across, **kw):
+    """A strap round the bundle along a dense closed path; returns its vertices and faces."""
+    pts = simplify(path)
+    return ribbon(m, pts, across, normals_of(pts, centre, across, True), -0.0008, STRAP_THICK, STRAP_HALF, closed=True,
+                  floor=True, **kw)
+
+
+def stretch(path, side):
+    """The run of a closed path where side(point) holds, in order."""
+    n = len(path)
+    start = next(i for i in range(n) if not side(path[i - 1]) and side(path[i]))
+    out = []
+    while len(out) < n and side(path[(start + len(out)) % n]):
+        out.append(path[(start + len(out)) % n])
+    return out
+
+
+def buckle(m, path, centre, across, side, axis, at, tail, leather, iron):
+    """An iron buckle on a strap where coordinate `axis` of its path is `at` (on the run `side` picks), and the strap's
+    end run on through it for `tail` metres along that axis (signed), its tip lifting."""
+    run = stretch(path, side)
+    k = next(i for i in range(len(run) - 1) if (run[i][axis] - at) * (run[i + 1][axis] - at) <= 0)
+    if (run[k + 1][axis] - run[k][axis]) * tail < 0:
+        run.reverse()
+        k = len(run) - 2 - k
+    a, b = run[k], run[k + 1]
+    at_point = a.lerp(b, (at - a[axis]) / (b[axis] - a[axis]))
+    t = (b - a).normalized()
+    n = normals_of([a, at_point, b], centre, across, False)[1]
+    # The end: from under the buckle's middle on along the strap, every 5 mm or so.
+    pts = [at_point - t * 0.01]
+    for p in run[k + 1:]:
+        if (p[axis] - (at + tail)) * tail > 0:
+            break
+        if (p - pts[-1]).length >= 0.005:
+            pts.append(p)
+    total = sum((q - p).length for p, q in zip(pts, pts[1:]))
+    normals = normals_of(pts, centre, across, False)
+    lifts, halves, run_on = [], [], 0.0
+    for i, p in enumerate(pts):
+        run_on += (p - pts[i - 1]).length if i else 0.0
+        f = run_on / total
+        lifts.append(STRAP_THICK - 0.0004 + 0.007 * smoothstep(0.55, 1.0, f) ** 2)
+        halves.append(STRAP_HALF * 0.96 * (1 - 0.3 * smoothstep(0.82, 1.0, f)))
+    ribbon(m, pts, across, normals, lifts, [x + STRAP_THICK * 0.9 for x in lifts], halves, **leather)
+    # The frame rests on the strap and, past its middle, on the end run through it; the prong across the middle.
+    wire, ht, hw, rc = 0.0026, 0.018, STRAP_HALF + 0.007, 0.006
+
+    def frame(u, w, lift=0.0):
+        return at_point + t * u + across * w + n * (STRAP_THICK + wire + 0.004 * (u + ht) / (2 * ht) + lift)
+
+    loop = []
+    for cu, cw, a0 in ((ht - rc, hw - rc, 0), (-ht + rc, hw - rc, 90), (-ht + rc, -hw + rc, 180), (ht - rc, -hw + rc, 270)):
+        loop += [frame(cu + rc * math.cos(math.radians(a0 + 45 * s)), cw + rc * math.sin(math.radians(a0 + 45 * s)))
+                 for s in range(3)]
+    m.tube(loop + [loop[0]], wire, sides=6, **iron)
+    m.tube([frame(-ht + 0.002, 0.0, 0.0012), frame(ht - 0.004, 0.0, 0.0012)], wire * 0.75, sides=6, **iron)
 
 
 def smoothstep(a, b, x):
     t = min(1.0, max(0.0, (x - a) / (b - a)))
     return t * t * (3 - 2 * t)
-
-
-def smooth(points, steps):
-    """A Catmull-Rom curve through (r, z) points, `steps` segments between each pair (for a lathe's profile)."""
-    out = []
-    n = len(points)
-    for i in range(n - 1):
-        p0, p1, p2, p3 = (points[max(i - 1, 0)], points[i], points[i + 1], points[min(i + 2, n - 1)])
-        for s in range(steps):
-            t = s / steps
-            out.append(tuple(0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t * t +
-                                    (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t * t * t) for k in range(2)))
-    out.append(points[-1])
-    return out
-
-
-def girth(body, z, half, bins):
-    """How far a body reaches from its upright axis at height z (within `half`), in `bins` angles from -pi."""
-    radius = [0.0] * bins
-    for v in body.data.vertices:
-        if abs(v.co.z - z) < half:
-            i = int((math.atan2(v.co.y, v.co.x) + math.pi) / (2 * math.pi) * bins) % bins
-            radius[i] = max(radius[i], math.hypot(v.co.x, v.co.y))
-    for _ in range(bins):  # angles no vertex fell in take their neighbours'
-        for i in range(bins):
-            if radius[i] == 0.0:
-                radius[i] = max(radius[i - 1], radius[(i + 1) % bins])
-    return radius
-
-
-def band(radius, z, half, inner, outer, start, end, bins=None):
-    """A strip round a body (vertices and faces): `inner` to `outer` metres off its girth, `half` its width either side
-    of height z; over the bins start..end, or right round when end is the bin count."""
-    bins = bins or len(radius)
-    closed = end - start >= len(radius)
-    count = end - start if closed else end - start + 1
-    verts, faces = [], []
-    for n in range(count):
-        i = (start + n) % len(radius)
-        ang = (i + 0.5) / len(radius) * 2 * math.pi - math.pi
-        for r, h in ((radius[i] + inner, z - half), (radius[i] + outer, z - half), (radius[i] + outer, z + half), (radius[i] + inner, z + half)):
-            verts.append((r * math.cos(ang), r * math.sin(ang), h))
-    for n in range(count if closed else count - 1):
-        a, b = n * 4, (n + 1) % count * 4
-        for k in range(4):
-            q = (k + 1) % 4
-            faces.append((a + k, b + k, b + q, a + q))
-    if not closed:
-        faces.append((0, 3, 2, 1))
-        last = (count - 1) * 4
-        faces.append((last, last + 1, last + 2, last + 3))
-    return verts, faces
 
 
 QUILT_TILE = 9

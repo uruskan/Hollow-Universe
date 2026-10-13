@@ -444,3 +444,11 @@ damage code as modular as RustMVP's foundation planned?
   through Alt and the mouse, a lifted foundation) and the character viewer (a head turned, every held item). New
   tests: free look over the network, free foundations on a slope, the catalogue's grips; with `ground` merged (protocol
   13 after the bags' 12), 168 of 168 tests pass.
+
+## 13 October 2026, the loot bag remade (`ground-bagart`)
+
+- **The bag dropped items lie in** (`dropped-bag`, GROUND.md §9.1, U4) now reads like the owner's picture: a strapped
+  bundle, not a sack. Only the idea was taken; the design is our own. A khaki canvas tarp is wrapped round a box-like
+  load, its ends folded like a parcel's and a grommeted hem across the front, with two crossed leather straps and iron
+  buckles. 0.42 × 0.32 × 0.30 m; LODs of 6,242, 3,120 and 1,366 triangles. No game code changed; 178 of 178 tests
+  pass. Pictures: `docs/images/ground/drop/bag-model.jpg`, `bag.jpg`, `bag-open.jpg`.

@@ -1634,7 +1634,7 @@ work, a spent arrow.
   `ABagIsTakenWholeOrOpened`, `SurvivalNetTests.OthersSeeOnlyABag`, and the restart in `EverythingSurvivesARestart`.
 - Pictures (`docs/images/ground/drop/`, the screenshot run's `--tour-steps bags`): `bag.jpg` (five stacks dropped in
   the meadow, one bag and its prompt), `bag-open.jpg` (opened beside the inventory: one row, take only),
-  `bag-model.jpg` (the model, `--view models --model dropped-bag`).
+  `bag-model.jpg` (the model, `--view models --model dropped-bag --yaw -50`).
 
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
 ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
@@ -3476,7 +3476,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
 | `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
-| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a burlap bundle, its corners knotted on top, a leather strap with a buckle cinched round it) |
+| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a canvas-wrapped bundle strapped shut, below) |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
@@ -3542,6 +3542,15 @@ fore grip (`grip_l`), a folding frame sight on the left (`sight`, `eye`), `muzzl
 (+X pointing backwards, for the back blast); class `gun`, so the character package holds it two-handed like the rifle.
 The rockets lie on the ground along their length: an olive warhead with a yellow band, or for `rocket-hv` a slimmer
 pointed one with a blue band, on a motor with four fins.
+
+**The loot bag** (`dropped-bag`, U4; remade on 13 October 2026 to read like the owner's picture of a strapped bundle,
+our own design): 0.42 × 0.32 × 0.30 m, a khaki canvas tarp over a box-like load, wrapped like a parcel. Its ends are
+folded, top flap over bottom, and its hemmed edge with four grommets runs across the front. It wrinkles where the folds
+pull it round the corners and is grimy toward the ground. Two dark leather straps cross over the top and press the cloth
+in, so it pillows between them. Each has an iron buckle: the cross strap's on top, the long strap's on the +x end. Each
+layer is laid on what is already there by casting rays: the folds and the hem on the cloth, the long strap over the
+folds, the cross strap over the long strap. The cloth's texture is laid on as it wraps, over the top and down the front
+and back as one sheet, so no box-projection seam runs along the top's edges. LODs: 6,242, 3,120 and 1,366 triangles.
 
 `ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
 merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
@@ -4578,10 +4587,11 @@ confirm or overturn (numbered U1 on):
   taken before); one holding more opens in the loot panel as a crate does (`LootKind.Crate`, take only), whose grid
   shows only the rows its stacks fill. Others see only the bag and how many stacks it holds (the prompt's verb needs
   it), never what is in it.
-- U4. **The bag is our own model** (`art/models/deployables.py`, `dropped-bag`): a burlap bundle about 0.42 × 0.34 m and
-  0.3 m high, its corners gathered into a knot with two ears on top, a leather strap cinched round its middle with an
-  iron buckle at the front. Rust's is a squarer grey parcel with straps; only the idea was taken from the owner's
-  picture.
+- U4. **The bag is our own model** (`art/models/deployables.py`, `dropped-bag`, §9.1): a squarish bundle 0.42 × 0.32 m
+  and 0.3 m high, a khaki canvas tarp wrapped round a box-like load, its ends folded in like a parcel's and its hemmed,
+  grommeted edge across the front, two dark leather straps crossing over the top with iron buckles. The first model, a
+  burlap sack knotted at the neck, was remade on 13 October 2026 at the owner's request, to read like their picture of
+  a strapped bundle. Rust's is a grey parcel with straps and a knot; only the idea was taken.
 - U5. **A bag rests on what is under it:** the first solid surface below where it lands (a floor or foundation, a box's
   lid, the ground's own collision; a Jolt ray down from half a metre above, at most 4.5 m), not the terrain under a
   base, where dropped items used to end up. A drop lands 0.7 m ahead of the feet, short of a wall in the way; a broken
