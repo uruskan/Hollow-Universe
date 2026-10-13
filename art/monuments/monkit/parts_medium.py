@@ -250,7 +250,7 @@ def roof_hatch(b, at, size=(1.0, 1.0), floor_z=0.0, roof_z=3.4, tint=YELLOW):
 
 
 def switchback(b, at, rot, rise, width=1.0, flight_rise=2.6, tread=0.27, landing=1.2, gap=0.15, tint=YELLOW,
-               rails=True, base_landing=False):
+               rails=True, base_landing=False, landing_rails=True):
     """A switchback stair climbing `rise` from `at`: flights alternate up +Y and back down -Y, side by side (the
     first on the -X side), with grated landings at both ends. Returns the top landing's centre (current frame)."""
     n = max(1, int(math.ceil(rise / flight_rise - 1e-6)))
@@ -274,7 +274,7 @@ def switchback(b, at, rot, rise, width=1.0, flight_rise=2.6, tread=0.27, landing
             b.box((full, 0.12, 0.16), (0, ly + (landing / 2 if ly > 0 else -landing / 2), lz - 0.1), mat=PAINT,
                   tint=DARK, solid=False, vary=0)
             edge = ly + (landing / 2 if ly > 0 else -landing / 2)
-            if rails:
+            if rails and landing_rails:
                 railing(b, (-full / 2, edge, lz), (full / 2, edge, lz), tint=tint)
                 near = ly - (landing / 2 if ly > 0 else -landing / 2)
                 for sx in (-full / 2, full / 2):
@@ -1136,6 +1136,86 @@ def barricade(b, at, rot, length=6.0, kind="mixed"):
                       tint=tint, solid=False)
                 x += 1.6
         b.collide_box(Vector((0, 0, 0.6)), (length, 0.6, 1.2), (0, 0, 0))
+
+
+def shack(b, at, rot, w=4.0, d=3.5, h=2.5, stilts=0.0, door=True, roof_tint=srgb(0.6, 0.55, 0.5), pipe=True,
+          window=True):
+    """A Reclaimer shack (front toward -Y): a plank floor (on stilts with steps when `stilts` > 0), welded scrap
+    walls with a doorway, a corrugated mono-pitch roof, a stovepipe. Returns the floor height."""
+    rng = b.rng
+    z = stilts
+    with b.frame(at, rot):
+        if stilts > 0:
+            for x in (-w / 2 + 0.2, w / 2 - 0.2):
+                for y in (-d / 2 + 0.2, d / 2 - 0.2):
+                    b.box((0.18, 0.18, stilts + 0.1), (x, y, stilts / 2), mat=MATTE, tint=WOOD, solid=False,
+                          vary=0.1)
+            stairs(b, (-w / 2 + 0.8, -d / 2 - stilts * 1.4, 0), (0, 0, 0), 0.9, stilts, stilts * 1.4, tint=WOOD,
+                   grate=False, rails=False)
+        b.box((w + 0.2, d + 0.2, 0.12), (0, 0, z + 0.06), mat=MATTE, tint=WOOD, vary=0.08)
+        for k in range(int(w / 0.6)):
+            b.box((0.02, d + 0.2, 0.005), (-w / 2 + 0.3 + k * 0.6, 0, z + 0.122), mat=MATTE, tint=srgb(0.3, 0.24, 0.18),
+                  solid=False, vary=0)
+        door_w = 0.95
+        dx = -w / 2 + 0.8 + door_w / 2
+        hw, hd = w / 2, d / 2
+        if door:
+            scrap_wall(b, (-hw, -hd, z), (dx - door_w / 2, -hd, z), height=h, marks=0.0, posts=1.2)
+            scrap_wall(b, (dx + door_w / 2, -hd, z), (hw, -hd, z), height=h, marks=0.4, posts=2.0)
+            b.box((door_w + 0.2, 0.1, 0.12), (dx, -hd, z + 2.1), mat=RUST, tint=(1, 1, 1), solid=False)
+            b.marker("door", (dx, -hd, z), 180.0, kind_of="shack", width=door_w, height=2.0)
+        else:
+            scrap_wall(b, (-hw, -hd, z), (hw, -hd, z), height=h, marks=0.4)
+        scrap_wall(b, (hw, -hd, z), (hw, hd, z), height=h + 0.3, marks=0.2)
+        scrap_wall(b, (hw, hd, z), (-hw, hd, z), height=h + 0.5, marks=0.2)
+        scrap_wall(b, (-hw, hd, z), (-hw, -hd, z), height=h + 0.3, marks=0.2)
+        ang = math.degrees(math.atan2(0.5, d))
+        ln = math.hypot(d + 0.6, 0.5)
+        strips = max(2, int(round((w + 0.6) / 0.9)))
+        for k in range(strips):
+            x = -w / 2 - 0.3 + (w + 0.6) * (k + 0.5) / strips
+            b.box(((w + 0.6) / strips + 0.04, ln, 0.04), (x, 0, z + h + 0.3 + rng.uniform(-0.03, 0.03)),
+                  (ang + rng.uniform(-2, 2), rng.uniform(-2, 2), 0), mat=CORRUGATED, tint=roof_tint, solid=False,
+                  vary=0.08)
+        b.collide_box(Vector((0, 0, z + h + 0.3)), (w + 0.6, ln, 0.1), (ang, 0, 0))
+        if pipe:
+            b.cyl(0.09, 1.6, (w / 2 - 0.6, d / 2 - 0.5, z + h + 0.9), mat=RUST, tint=(1, 1, 1), sides=8, solid=False)
+            b.cyl(0.16, 0.08, (w / 2 - 0.6, d / 2 - 0.5, z + h + 1.72), mat=RUST, tint=(1, 1, 1), sides=8, solid=False)
+        b.box((0.12, 0.12, 0.16), (dx, -hd - 0.3, z + 2.3), mat=LAMP, tint=WARM_LAMP, solid=False, vary=0)
+    return z
+
+
+def boardwalk(b, a, c, width=1.4, posts=2.5, rails=True):
+    """A timber boardwalk from `a` to `c` (its walking surface) on posts down to the ground, with rope rails."""
+    a, c = Vector(a), Vector(c)
+    d = c - a
+    length = d.length
+    yaw = _yaw(d)
+    pitch = math.degrees(math.atan2(d.z, math.hypot(d.x, d.y)))
+    mid = (a + c) / 2
+    b.box((length, width, 0.1), (mid.x, mid.y, mid.z - 0.05), (0, -pitch, yaw), mat=MATTE, tint=WOOD, solid=False,
+          vary=0.06)
+    side = Vector((-d.y, d.x, 0)).normalized()
+    for s in (-1, 1):
+        o = side * (width / 2 - 0.05) * s
+        b.beam(a + o - Vector((0, 0, 0.15)), c + o - Vector((0, 0, 0.15)), 0.1, 0.18, mat=MATTE,
+               tint=srgb(0.36, 0.28, 0.2))
+    n = max(1, int(length / posts))
+    for i in range(n + 1):
+        p = a + d * (i / n)
+        for s in (-1, 1):
+            q = p + side * (width / 2) * s
+            if q.z > 0.2:
+                b.box((0.14, 0.14, q.z + 0.3), (q.x, q.y, (q.z + 0.3) / 2 - 0.3), mat=MATTE, tint=srgb(0.34, 0.27, 0.2),
+                      solid=False, vary=0.1)
+            if rails:
+                b.box((0.08, 0.08, 1.0), (q.x, q.y, q.z + 0.5), mat=MATTE, tint=srgb(0.4, 0.32, 0.24), solid=False,
+                      vary=0.1)
+    if rails:
+        for s in (-1, 1):
+            o = side * (width / 2) * s + Vector((0, 0, 0.95))
+            cable(b, a + o, c + o, sag=0.01, radius=0.02, tint=srgb(0.55, 0.48, 0.36), segments=max(2, n))
+    b.collide_box(mid - Vector((0, 0, 0.05)), (length, width, 0.1), (0, -pitch, yaw))
 
 
 def power_pole(b, at, height=9.0, arm=1.4, tint=srgb(0.66, 0.65, 0.62), rot=(0, 0, 0)):
