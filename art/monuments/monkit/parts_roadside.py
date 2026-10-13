@@ -890,8 +890,12 @@ def microwave_dish(b, at, yaw=0.0, radius=0.6, pitch=0.0, cover=True, tint=LIGHT
             b.cyl(radius * 1.03, 0.04, (0, -depth / 2 + 0.03, 0), (90, 0, 0), mat=PAINT, tint=GREY, sides=20,
                   solid=False, vary=0)
         else:
-            prof = [(radius * 0.97 * k / 6, -depth / 2 + depth * 0.8 * (k / 6) ** 2) for k in range(7)]
-            b.lathe(prof, (0, 0, 0), (90, 0, 0), mat=PAINT, tint=SIGN_WHITE, sides=20, close=False, solid=False)
+            # The bare reflector as a shell 3 cm thick (front surface out to the rim and back again), a closed solid
+            # so both faces draw (the game culls back faces).
+            front = [(radius * 0.97 * k / 6, -depth / 2 + depth * 0.8 * (k / 6) ** 2) for k in range(7)]
+            back = [(r, z + 0.03) for r, z in reversed(front)]
+            b.lathe(front + back, (0, 0, 0), (90, 0, 0), mat=PAINT, tint=SIGN_WHITE, sides=20, close=False,
+                    solid=False)
             b.cyl(0.03, depth * 0.9, (0, -depth * 0.2, 0), (90, 0, 0), mat=PAINT, tint=GREY, sides=6, solid=False)
         b.box((radius * 0.7, depth * 0.6, radius * 0.7), (0, depth * 0.75, 0), mat=PAINT, tint=GREY, solid=False)
         if arm > 0:
@@ -3093,8 +3097,7 @@ def haul_truck(b, at, yaw=0.0, tint=MINE_YELLOW, body_tint=None, tip=0.0, code="
             b.box((4.7, 0.2, 0.6), (0, -9.1, 3.35), mat=PAINT, tint=body_tint, solid=False)
             for s in (-1, 1):
                 b.beam((s * 2.2, -6.7, 2.4), (s * 2.3, -8.9, 3.5), 0.15, 0.2, mat=PAINT, tint=body_tint)
-            b.mesh([(-2.3, -0.2, 0.35), (2.3, -0.2, 0.35), (2.3, 0.4, 1.4), (-2.3, 0.4, 1.4)], [[0, 1, 2, 3]],
-                   mat=PAINT, tint=body_tint, solid=False)
+            b.beam((0, -0.25, 0.42), (0, 0.38, 1.35), 4.6, 0.12, mat=PAINT, tint=body_tint)     # the tail lip
             floor = b.world((0, -3.4, 0.5))
         for s in (-1, 1):
             base = Vector((s * 1.1, 0.0, 1.6))

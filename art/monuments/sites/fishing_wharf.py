@@ -127,8 +127,8 @@ def net_shed(b, at, w=3.0, d=3.2, h=6.5, yaw=0.0):
             b.box((ln, d + 0.4, 0.07), (s * (w / 2 + 0.2) / 2, 0, 0.2 + h + rise / 2), (0, s * ang, 0),
                   mat=PAINT, tint=srgb(0.2, 0.19, 0.18))
         for y in (-d / 2, d / 2):
-            b.mesh([(-w / 2, y, 0.2 + h), (w / 2, y, 0.2 + h), (0, y, 0.2 + h + rise)], [[0, 1, 2]], mat=MATTE,
-                   tint=TAR, solid="hull")
+            b.mesh([(-w / 2, y, 0.2 + h), (w / 2, y, 0.2 + h), (0, y, 0.2 + h + rise)],
+                   [[0, 1, 2] if y < 0 else [0, 2, 1]], mat=MATTE, tint=TAR, solid="hull")
         b.box((1.0, 0.06, 1.1), (0.4, -d / 2 - 0.04, 1.45), mat=PAINT, tint=srgb(0.2, 0.19, 0.18), solid=False)
         with b.frame((0.9, -d / 2 - 0.04, 2.0), (0, 0, 70.0)):
             b.box((1.0, 0.05, 1.0), (-0.5, 0, 0.5), mat=PAINT, tint=srgb(0.2, 0.19, 0.18), solid=False)
@@ -160,7 +160,7 @@ def boathouse(b, cx, y0, y1, w=8.0, h=6.0):
         ang = math.degrees(math.atan2(rise, hw + 0.4))
         P.grid_box(b, (ln, L + 0.8, 0.07), (cx + s * (hw + 0.4) / 2, (y0 + y1) / 2, QZ + h + rise / 2),
                    (0, s * ang, 0), mat=CORRUGATED, tint=srgb(0.35, 0.38, 0.38), step=1.5)
-    b.mesh([(cx - hw, y1, QZ + h), (cx + hw, y1, QZ + h), (cx, y1, QZ + h + rise)], [[0, 1, 2]], mat=CORRUGATED,
+    b.mesh([(cx - hw, y1, QZ + h), (cx + hw, y1, QZ + h), (cx, y1, QZ + h + rise)], [[0, 2, 1]], mat=CORRUGATED,
            tint=srgb(0.45, 0.5, 0.48), solid="hull")
     P.grid_box(b, (w, 0.1, h), (cx, y1, QZ + h / 2), mat=CORRUGATED, tint=srgb(0.45, 0.5, 0.48), step=1.5)
     # The doors to the water, folded back against the walls (each hinged at its corner post).

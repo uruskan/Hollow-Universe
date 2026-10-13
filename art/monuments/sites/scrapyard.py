@@ -11,7 +11,7 @@ from mathutils import Vector
 from monkit import parts_roadside as P
 from monkit.kit import (BLACK, CONCRETE_T, DARK, GREY, LIGHTGREY, OFFWHITE, ORANGE, RED, TEAL, YELLOW, lamp, srgb,
                         stripes)
-from monkit.structures import shed, ship_hull
+from monkit.structures import hull_ring, shed, ship_hull
 from monkit.surfaces import CONCRETE, CORRUGATED, GRATE, MATTE, PAINT, RUST
 
 KEY = "scrapyard"
@@ -247,8 +247,15 @@ def build(b):
     b.marker("loot", (34.0, 7.0, 0.1), table="salvage")
     b.marker("loot", (3.0, 20.0, 0.1), table="salvage")
     b.marker("loot", (-12.0, 1.0, 0.1), table="salvage")
-    ship_hull(b, (-14.0, 26.0, 0.0), (0, 0, -32.0), length=30.0, width=7.0, height=5.2, stations=8, damage=0.12,
-              broken_at=0.5, n=16, buried=0.12, band=ORANGE)
+    prof = ship_hull(b, (-14.0, 26.0, 0.0), (0, 0, -32.0), length=30.0, width=7.0, height=5.2, stations=8,
+                     damage=0.0, broken_at=0.5, n=16, buried=0.12, band=ORANGE)
+    # Its broken end: a dark bulkhead just inside the break (the hull is a single skin, which the game draws from
+    # outside only), so the cut reads as a dark interior and not as a hole through to the sky.
+    with b.frame((-14.0, 26.0, 0.0), (0, 0, -32.0)):
+        y, w, h, zc = prof[-1]
+        ring = hull_ring(w * 0.98, h * 0.98, y - 0.4, zc, n=16)
+        b.mesh(ring, [list(range(16))[::-1]], mat=MATTE, tint=srgb(0.04, 0.04, 0.045), solid=False, vary=0,
+               smooth=False)
     P.skiff(b, (6.0, 8.0, 0.25), (0, 6.0, 140.0), torn=("left", "right"), hatch=None, panels_missing=0.5, burnt=0.2,
             skids=(False, True), dorsal=False)
     tyre_heap(b, (-18.0, -30.0, 0.0), 4.5, 2.2)

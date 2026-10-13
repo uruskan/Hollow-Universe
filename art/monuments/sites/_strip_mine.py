@@ -49,50 +49,55 @@ def pt(theta, off, z):
     return (CX + (A + off) * math.cos(t), CY + (B + off) * math.sin(t), z)
 
 
-def strip(b, rows, tint, rough=0.35, mat=CONCRETE, wear=0.8):
-    """A surface swept round the horseshoe through `rows` [(offset, z, jitter)...] (inside to outside), its ends
-    capped by the end rows' polygon; jitter roughens a row radially and in height. Visual only (collision is added
-    separately)."""
+def sweep(b, prof, tint, mat=CONCRETE, wear=0.8):
+    """A closed solid swept round the horseshoe: `prof` is a closed cross-section [(offset, z, jitter)...], its two
+    ends capped by the profile (the entrance's cut faces). A closed manifold, so the builder's normal recalculation
+    turns every face outward (an open strip would be turned away from its own centre, i.e. into the rock, and the
+    game culls back faces). Jitter roughens a point radially and in height along the sweep. Visual only: the
+    collision is added separately."""
     t0, t1 = -90.0 + GAP, 270.0 - GAP
     verts, faces = [], []
-    nr = len(rows)
+    nr = len(prof)
     ph = [b.rng.random() * 6.28 for _ in range(3)]
     for i in range(SEGS + 1):
         th = t0 + (t1 - t0) * i / SEGS
-        for (off, z, jit) in rows:
-            n = jit * (0.6 * math.sin(math.radians(th) * 9 + ph[0]) + 0.4 * (b.rng.random() - 0.5) * 2)
-            m = jit * 0.5 * math.sin(math.radians(th) * 5 + ph[1])
+        end = 1.0 if 0 < i < SEGS else 0.3
+        for (off, z, jit) in prof:
+            n = end * jit * (0.6 * math.sin(math.radians(th) * 9 + ph[0]) + 0.4 * (b.rng.random() - 0.5) * 2)
+            m = end * jit * 0.5 * math.sin(math.radians(th) * 5 + ph[1])
             verts.append(pt(th, off + n, z + m))
     for i in range(SEGS):
-        for j in range(nr - 1):
+        for j in range(nr):
             a = i * nr + j
-            faces.append([a, a + nr, a + nr + 1, a + 1])
+            c = i * nr + (j + 1) % nr
+            faces.append([a, a + nr, c + nr, c])
+    faces.append(list(range(nr)))
+    faces.append([SEGS * nr + j for j in range(nr)][::-1])
     b.mesh(verts, faces, mat=mat, tint=tint, solid=False, wear=wear, vary=0.02, smooth=True)
 
 
 def pit(b, v):
-    """The benches, their faces and talus, the rim and the spoil slope, with collision boxes for the rock."""
+    """The benches (each a closed slice of rock from its face back to the rim, so its face and bench top show and the
+    rest lies hidden in the next one), the spoil ring outside, talus and boulders, collision boxes for the rock."""
     walls = v["walls"]
     for i in range(3):
         o0, z0 = i * STEP, i * BENCH
-        strip(b, [(o0 - 0.1, z0 - 0.05, 0.0), (o0 + BATTER * 0.45, z0 + BENCH * 0.5, 0.35),
-                  (o0 + BATTER, z0 + BENCH, 0.25)], walls[i])
-        top = [(o0 + BATTER, z0 + BENCH, 0.25), ((o0 + STEP) * 0.5 + (o0 + BATTER) * 0.5, z0 + BENCH + 0.05, 0.15),
-               (o0 + STEP - 0.1, z0 + BENCH - 0.02, 0.0)] if i < 2 else \
-            [(o0 + BATTER, z0 + BENCH, 0.25), (RIM - 1.0, z0 + BENCH + 0.3, 0.3), (RIM, z0 + BENCH + 0.1, 0.2)]
-        strip(b, top, v["benches"])
-    strip(b, [(RIM, 3 * BENCH + 0.1, 0.2), (RIM + 3.0, 3 * BENCH - 1.6, 0.6), (RIM + 6.0, 6.0, 0.8),
-              (FOOT - 3.0, 1.6, 0.6), (FOOT, -0.1, 0.0)], v["spoil"], rough=0.5)
-    # The two cut faces of the entrance, where the horseshoe ends.
-    for th in (-90.0 + GAP, 270.0 - GAP):
-        prof = [(0.0, 0.0), (BATTER, BENCH), (STEP, BENCH), (STEP + BATTER, 2 * BENCH), (2 * STEP, 2 * BENCH),
-                (2 * STEP + BATTER, 3 * BENCH), (RIM, 3 * BENCH + 0.1), (RIM + 3.0, 3 * BENCH - 1.6),
-                (RIM + 6.0, 6.0), (FOOT, 0.0)]
-        verts = [pt(th, o, z) for o, z in prof]
-        face = list(range(len(verts)))
-        if th > 90:
-            face = face[::-1]
-        b.mesh(verts, [face], mat=CONCRETE, tint=walls[1], solid=False, wear=0.8, vary=0.02, smooth=False)
+        zt = z0 + BENCH
+        prof = [(o0 - 0.1, z0 - 0.05, 0.0), (o0 + BATTER * 0.45, z0 + BENCH * 0.5, 0.35), (o0 + BATTER, zt, 0.25)]
+        if i < 2:
+            prof += [((o0 + STEP) * 0.5 + (o0 + BATTER) * 0.5, zt + 0.05, 0.15), (o0 + STEP + 0.2, zt, 0.0),
+                     (RIM, zt, 0.0)]
+        else:
+            prof += [(RIM - 1.0, zt + 0.3, 0.3), (RIM, zt + 0.1, 0.0)]
+        prof += [(RIM, z0 - 0.05, 0.0)]
+        sweep(b, prof, walls[i])
+    sweep(b, [(RIM, -0.05, 0.0), (RIM, 3 * BENCH + 0.1, 0.0), (RIM + 3.0, 3 * BENCH - 1.6, 0.6),
+              (RIM + 6.0, 6.0, 0.8), (FOOT - 3.0, 1.6, 0.6), (FOOT, -0.1, 0.0)], v["spoil"])
+    # The bench tops' dusty floors over the slices (thin closed bands just above them).
+    for i in range(2):
+        o0, zt = i * STEP, (i + 1) * BENCH
+        sweep(b, [(o0 + BATTER + 0.3, zt + 0.16, 0.0), (o0 + STEP - 0.15, zt + 0.16, 0.0),
+                  (o0 + STEP - 0.15, zt - 0.1, 0.0), (o0 + BATTER + 0.3, zt - 0.1, 0.0)], v["benches"])
     # Talus along the foot of every face, boulders on the benches.
     for i in range(3):
         o0, z0 = i * STEP, i * BENCH

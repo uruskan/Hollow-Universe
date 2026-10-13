@@ -163,11 +163,11 @@ def cottage(b, at, yaw):
             if ridge_along_x:
                 for x in (cx - w / 2, cx + w / 2):
                     b.mesh([(x, cy - d / 2, 0.45 + h), (x, cy + d / 2, 0.45 + h), (x, cy, 0.45 + h + rise)],
-                           [[0, 1, 2]], mat=PANEL, tint=wall, solid="hull")
+                           [[0, 1, 2] if x > cx else [0, 2, 1]], mat=PANEL, tint=wall, solid="hull")
             else:
                 for y in (cy - d / 2, cy + d / 2):
                     b.mesh([(cx - w / 2, y, 0.45 + h), (cx + w / 2, y, 0.45 + h), (cx, y, 0.45 + h + rise)],
-                           [[0, 1, 2]], mat=PANEL, tint=wall, solid="hull")
+                           [[0, 1, 2] if y < cy else [0, 2, 1]], mat=PANEL, tint=wall, solid="hull")
             return rise
 
         rise = wing(0.0, 0.0, 10.0, 6.0, 2.8)
