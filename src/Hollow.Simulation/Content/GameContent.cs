@@ -26,12 +26,13 @@ public sealed partial class GameContent
         "items.json", "recipes.json", "gather.json", "deployables.json", "loot.json", "survival.json", "categories.json",
         "weapons.json",
         "building.json", "explosives.json",
-        "ships.json", "world.json",
+        "ships.json", "world.json", "animals.json",
     };
 
     private readonly ItemDef?[] _byId;
     private readonly Dictionary<string, ItemDef> _byKey;
     private readonly Dictionary<ushort, Recipe> _recipes;
+    private readonly Dictionary<string, Recipe> _recipesByKey;
     private readonly Dictionary<string, NaturalKind> _natural;
     private readonly Dictionary<string, DeployableDef> _deployables;
     private readonly Dictionary<string, LootTable> _loot;
@@ -53,6 +54,10 @@ public sealed partial class GameContent
         Throwables = loaded.Throwables;
         RaidAlerts = loaded.RaidAlerts;
         World = loaded.World ?? new WorldData();
+        Animals = loaded.Animals;
+        AnimalSenses = loaded.AnimalSenses;
+        AnimalSpawning = loaded.AnimalSpawning;
+        HarvestRates = loaded.HarvestRates;
         Survival = loaded.Survival;
         WeakSpot = loaded.WeakSpot;
         PlacementReach = loaded.PlacementReach;
@@ -69,9 +74,11 @@ public sealed partial class GameContent
             _byKey.TryAdd(item.Key, item);
         }
         _recipes = new Dictionary<ushort, Recipe>();
+        _recipesByKey = new Dictionary<string, Recipe>(StringComparer.Ordinal);
         foreach (Recipe recipe in Recipes)
         {
             _recipes.TryAdd(recipe.Id, recipe);
+            _recipesByKey.TryAdd(recipe.Key, recipe);
         }
         _natural = NaturalKinds.GroupBy(k => k.Key).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         _deployables = Deployables.GroupBy(d => d.Key).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
@@ -112,6 +119,40 @@ public sealed partial class GameContent
 
     /// <summary>A world prop by its number (what clients see a thing of kind Prop as), or null.</summary>
     public PropDef? Prop(int id) => World.Prop(id);
+
+    /// <summary>G7 (animals.json, GROUND.md §6.9): the species, how noises carry to them, where they live, how tools harvest them.</summary>
+    public IReadOnlyList<AnimalSpecies> Animals { get; }
+
+    public AnimalSenses AnimalSenses { get; }
+
+    public AnimalSpawning AnimalSpawning { get; }
+
+    public HarvestRates HarvestRates { get; }
+
+    /// <summary>A species by its number (from outside: untrusted, null when unknown) or key.</summary>
+    public AnimalSpecies? Animal(int id)
+    {
+        foreach (AnimalSpecies s in Animals)
+        {
+            if (s.Id == id)
+            {
+                return s;
+            }
+        }
+        return null;
+    }
+
+    public AnimalSpecies? Animal(string key)
+    {
+        foreach (AnimalSpecies s in Animals)
+        {
+            if (s.Key == key)
+            {
+                return s;
+            }
+        }
+        return null;
+    }
 
     /// <summary>A blast by key, or null.</summary>
     public BlastStats? Blast(string key)
@@ -156,8 +197,14 @@ public sealed partial class GameContent
     /// <summary>An item that must exist (a key written in code).</summary>
     public ItemDef ItemByKey(string key) => Item(key) ?? throw new KeyNotFoundException($"No item \"{key}\" in items.json.");
 
-    /// <summary>The recipe making an item (recipe IDs are output item IDs).</summary>
-    public Recipe? Recipe(int outputId) => AsId(outputId) is { } k && _recipes.TryGetValue(k, out Recipe? r) ? r : null;
+    /// <summary>
+    /// A recipe by its number: the recipe making an item has the item's ID; a second way to make it has a number of its
+    /// own (G7, <see cref="Content.Recipe.Id"/>).
+    /// </summary>
+    public Recipe? Recipe(int recipeId) => AsId(recipeId) is { } k && _recipes.TryGetValue(k, out Recipe? r) ? r : null;
+
+    /// <summary>A recipe by its key (an output's key, or a second way's own key).</summary>
+    public Recipe? RecipeByKey(string key) => _recipesByKey.GetValueOrDefault(key);
 
     public NaturalKind? Natural(int index) => index >= 0 && index < NaturalKinds.Count ? NaturalKinds[index] : null;
 
@@ -241,6 +288,7 @@ public sealed partial class GameContent
         Validation.Check(loaded, problems);
         ExplosivesReader.Check(loaded, loaded.Building, problems);
         WorldReader.Check(loaded, problems);
+        AnimalsReader.Check(loaded, problems);
         return new GameContent(loaded);
     }
 
@@ -362,6 +410,10 @@ public sealed partial class GameContent
         public List<ThrowableStats> Throwables = new();
         public RaidAlertSettings RaidAlerts = new();
         public WorldData? World;
+        public List<AnimalSpecies> Animals = new();
+        public AnimalSenses AnimalSenses = new();
+        public AnimalSpawning AnimalSpawning = new();
+        public HarvestRates HarvestRates = new();
         public SurvivalTuning Survival = new();
         public BuildingData? Building;
         public DeployableDef? ClaimDeployable;
@@ -391,6 +443,7 @@ public sealed partial class GameContent
             ExplosivesReader.Read(f, files[ExplosivesReader.File], loaded, Resolve);
             ReadShips();
             WorldReader.Read(f, files[WorldReader.File], loaded, Resolve);
+            AnimalsReader.Read(f, files[AnimalsReader.File], loaded, Resolve);
         }
 
         private JsonElement Root(string file, params string[] fields)
@@ -548,7 +601,7 @@ public sealed partial class GameContent
 
         private ConsumeStats Consume(JsonElement e, string where)
         {
-            f.OnlyKnown(e, where, "calories", "hydration", "health", "heal", "stopsBleeding");
+            f.OnlyKnown(e, where, "calories", "hydration", "health", "heal", "stopsBleeding", "poison");
             return new ConsumeStats
             {
                 Calories = f.Number(e, "calories", where, 0),
@@ -556,6 +609,7 @@ public sealed partial class GameContent
                 Health = f.Number(e, "health", where, 0),
                 Heal = f.Number(e, "heal", where, 0),
                 StopsBleeding = f.Flag(e, "stopsBleeding", where, false),
+                Poison = f.Number(e, "poison", where, 0),
             };
         }
 
@@ -629,7 +683,7 @@ public sealed partial class GameContent
                 JsonElement e = list[i];
                 string output = f.Text(e, "output", $"recipes.json: recipes[{i}]");
                 string where = $"recipes.json: {JsonFields.Quote(output)}";
-                f.OnlyKnown(e, where, "output", "amount", "seconds", "workbench", "ingredients", "known", "station");
+                f.OnlyKnown(e, where, "output", "amount", "seconds", "workbench", "ingredients", "known", "station", "id", "key");
                 ItemDef? item = Resolve(output, where);
                 var ingredients = new List<ItemAmount>();
                 foreach (JsonElement ingredient in f.List(e, "ingredients", where))
@@ -644,6 +698,13 @@ public sealed partial class GameContent
                 {
                     continue;
                 }
+                // A second way to make an item (G7) has a number and a key of its own; the first is its output's.
+                bool own = f.Has(e, "id") || f.Has(e, "key");
+                int id = own ? f.Integer(e, "id", where) : item.Id;
+                if (id is < 1 or > ushort.MaxValue)
+                {
+                    f.Problem(where, $"id {id} must be 1 … 65535");
+                }
                 loaded.Recipes.Add(new Recipe
                 {
                     Output = item,
@@ -652,6 +713,8 @@ public sealed partial class GameContent
                     Workbench = f.Integer(e, "workbench", where, 0),
                     Ingredients = ingredients,
                     Known = f.Flag(e, "known", where, true),
+                    Id = (ushort)Math.Clamp(id, 1, ushort.MaxValue),
+                    Key = own ? f.Text(e, "key", where) : item.Key,
                     StationKey = f.Has(e, "station") ? f.Text(e, "station", where) : null,
                 });
             }

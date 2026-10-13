@@ -123,7 +123,7 @@ public readonly record struct Ingredient(string Key, int Amount);
 
 /// <summary>A blueprint the player knows: what it makes, from what, how long it takes and at which workbench.</summary>
 public sealed record Recipe(string Key, string Category, float Seconds, IReadOnlyList<Ingredient> Ingredients,
-    int Yield = 1, int Workbench = 0);
+    int Yield = 1, int Workbench = 0, string? Station = null);
 
 /// <summary>A crafting category and how many recipes it holds.</summary>
 public readonly record struct CraftCategory(string Name, int Count);

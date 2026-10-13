@@ -129,7 +129,7 @@ Godot.
   tests the old hilly sphere). Each tick: receive, finish logins, run admin commands, give every character its input
   for this tick, step the zone, send snapshots (20 a second), save every 30 s, send. Tick time is measured (average,
   99th percentile, maximum) and profiled by part (`TickProfile`: time, calls and garbage per part, the slow ticks'
-  parts, the collections that paused ticks; the load test prints it, §5.10). The tick runs above normal priority and
+  parts, the collections that paused ticks; the load test prints it, §5.11). The tick runs above normal priority and
   with .NET's sustained low-latency collector, as the game does.
   - **Arrival:** a new character arrives on a random one of the zone's beach points, as in Rust (`Beaches`: up to 24
     points of sandy shore 0.5–3.5 m above the sea with the water within 30 m, at least 45 m apart, nearest to the
@@ -143,7 +143,7 @@ Godot.
   - Ground near the spawn is built at start, so the first arrival doesn't stall the tick. A respawn or a login waits
     for the ground where the player comes in: the point is picked when the player asks (the beach as of that tick),
     its tiles are built on worker threads, and the player comes in, and the respawn intent is answered, on the tick
-    they are ready (a second at most; §4.5, §5.10).
+    they are ready (a second at most; §4.5, §5.11).
 
 ### 4.3 Client
 
@@ -301,7 +301,7 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   sides. A tile's Jolt body ID follows from its grid position (Jolt orders contacts by body ID), so tiles agree where
   they meet whatever else each side holds. Tiles exist within ±8.2 km of the zone's origin. Building parts are boxes
   and convex hulls from data. Deployables and natural objects use simple shapes.
-- **Streaming the ground** (`PhysicsWorld`, §5.10), the same code on the server and in every client's prediction, so
+- **Streaming the ground** (`PhysicsWorld`, §5.11), the same code on the server and in every client's prediction, so
   both meet the same ground wherever a query can reach:
   - *Who asks:* a character on foot needs the 3 × 3 tiles round it and builds 5 × 5 ahead; a ship needs only the
     tiles its queries of the tick can reach (its bounding sphere, a tick's travel, the skids' rays and the widest
@@ -341,7 +341,7 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   every contact query. The physics takes the triangles in pooled arrays (`GroundCollisionPooled`, the same to the
   bit, a test), and the planet keeps the heights of the last 4,096 grids it sampled for them (`GridHeights`, 36 MB
   at most): a 64 m tile's nine grids are mostly its neighbours', so a tile costs a worker 16 ms and 63 KB of garbage
-  instead of 42 ms and 600 KB (§5.10).
+  instead of 42 ms and 600 KB (§5.11).
 - **Height**, in layers:
   - *Plates:* 14–20 plates (Voronoi on the sphere, seen through a warped direction so their edges bend), each
     continental or oceanic with its own Euler pole. Every plate near a point weighs in softly, and each boundary's
@@ -1027,7 +1027,8 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --dura
   instead of 99.
 
 **Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 3
-with building, raiding and the effects library in the game, except `menu.jpg`):
+with building, raiding and the effects library in the game, except `menu.jpg`; pass 4 added the ship's and G7's, from
+its `ship` and `world` steps):
 
 | Picture | What it shows |
 |---|---|
@@ -1046,7 +1047,22 @@ with building, raiding and the effects library in the game, except `menu.jpg`):
 | `charge.jpg` | A timed charge stuck on the hut's side wall, its lamp lit; another in hand. |
 | `explosion.jpg` | The charge going off: the fireball, debris and the smoke rising over the hut; the raid alert at the top right. |
 | `firefight.jpg` | Firing at the hut from the meadow, in the frame a shot leaves: the muzzle brake's flame out of its ports, the tracer, the holo sight and brake on the rifle; the second player firing beside. |
-| `death.jpg` | The death screen over the map of the real coast. |
+| `ship-craft.jpg` | Pass 4: the Tin Finch's recipe at a vehicle workbench (behind the menu): "VEHICLE WORKBENCH REQUIRED" in green, its five makings. |
+| `ship-boarding.jpg` | The Tin Finch rolled out onto the bench's bay (the builder told so in chat), its hatch open: "E BOARD TIN FINCH". |
+| `ship-cockpit.jpg` | The cockpit at 106 m/s, 59 m over the forest, with the flight HUD (speed, height, climb, heading, the lever, flight assist, fuel and hull). |
+| `ship-chase.jpg` | The chase camera hovering 10 m up near the hut, the lift nozzles burning; the second player on the ground just below, watching. |
+| `ship-landed.jpg` | Landed beside the stone hut: "LANDED", and the keys to step out, work the hatch and lock it. |
+| `team-invite.jpg` | Pass 4, G7: a team made ("You made a team…"), the second player looked at: "E INVITE TO TEAM BO". |
+| `teammate.jpg` | "Bo joined the team.": 73 m off among the trees, her name in the team's green with how far. |
+| `loot-props.jpg` | The barrels and the crate nearest the landing site, at a forest edge, seen from the clearest side. |
+| `crate.jpg` | A world crate opened beside the barrels nearest the landing site: salvage, a hammer, cloth, gears. |
+| `recycler.jpg` | A recycler at work: gears and pipes in, salvage and metal fragments out, the batch's progress, TURN OFF. |
+| `recycler-running.jpg` | The recycler running, its green lamp lit on the body's top corner by the hopper: "E OPEN RECYCLER". |
+| `workbench.jpg` | A level 1 workbench placed in the meadow: "E OPEN TECH TREE". |
+| `techtree.jpg` | Its tech tree: the metal hatchet just unlocked ("Blueprint learnt: Metal hatchet."), the pickaxe after it ready for 125 of the 525 salvage. |
+| `research.jpg`, `research-done.jpg` | A research table: a pistol and 200 salvage in, "SERVICE PISTOL: 125 SALVAGE", BEGIN RESEARCH; ten seconds later the pistol's blueprint in its third slot, drawn in blueprint blue, 75 salvage left. |
+| `map.jpg` | The map (G) on the zone's parchment picture: the player, the teammate, a sleeping bag, two markers, the grid; the markers' and the team's panels beside it. |
+| `death.jpg` | The death screen over the zone's map: the body's skull, the sleeping bag beside it and its countdown. |
 | `night.jpg` | Night, by the catalogue's campfire, lit: the effects library's flames, embers and smoke, and its flickering light on the grass; the respawn kit on the belt. |
 
 **Judgement.** It plays as one game: arrive on a real beach, walk, swim and fall on the planet's ground, gather from
@@ -1155,7 +1171,37 @@ minutes).
 - **An earlier run on a busy PC** (945 clock jumps, 2.5 % of inputs late) measured 7.28 ms average and 61.4 / 438 ms at
   the 99th percentile and worst; there the bots still swung into each other at the barrels: 54 hits, 30 deaths.
 
-### 5.10 Server performance on the real planet
+### 5.10 G7 load test: 200 animals among 100 bots
+
+Measured on the owner's PC on 13 October 2026, after G6 and G7's part A were merged: 100 survival bots
+(`--script survive --kit load-test-kit`, as §5.7) at the landing site, and 200 animals in herds within 220 m of it
+(`--animals 200`: about 120 deer, 30 boars, 45 wolves and 5 bears), always out, natural spawning off, so every bot has
+most of them in range; the same run without animals beside it. The bots don't hunt; the animals do (wolves and bears
+landed 100–150 attacks a run on the bots).
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit --animals 200
+```
+
+| | 100 bots, 200 animals | 100 bots, no animals | Target |
+|---|---|---|---|
+| Server tick, average | 9.13 ms, of which the zone's step 1.86 ms and the animals 0.41 ms (2.1 µs an animal) | 6.69 ms, the zone's step 1.52 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 27.3 / 181 ms (13 of 1,802 over 33 ms) | 22.8 / 115 ms (13 over 33 ms) | ≤ 33 ms |
+| Bandwidth per client, down / up | 131.8 (148.9 at most) / 21.6 kbit/s | 94.6 / 22.2 kbit/s | ≤ 256 kbit/s |
+| Entities per snapshot | 85.9 of 106.5 relevant | 53.7 of 53.7 | |
+| Inputs on their tick, snapshots lost | 97.6 %, 0 % | 97.9 %, 0 % | |
+
+- **The animals' own cost is small**: their AI, movement and population 0.41 ms a tick for 200 (4.5 thinks an animal
+  a second). The rest of the 2.4 ms they add is replication: a hundred clients with twice the entities in range each.
+  Animals at rest are left out of snapshots once a client holds their state (N8); without that the tick was about 3 ms
+  slower.
+- **After the calm think rate went from 3.75 to 5 a second**, a last run on a busier PC (53 % CPU taken by other
+  agents' work when it started; 1,284 clock jumps and 94.3 % of inputs on time) measured 10.37 ms average, 49.4 / 185 ms
+  at the 99th percentile and worst, the animals 0.56 ms (2.8 µs an animal, 5.5 thinks a second), 126.5 kbit/s down.
+- **In play the load is far lower**: natural spawning puts about 20 animals round a player at the landing site
+  (§6.9), not 200 within reach of everyone.
+
+### 5.11 Server performance on the real planet
 
 Measured on the owner's PC (12 threads, 16 GB) on 13 October 2026 on the first world's own ground, from `ground` after
 pass 3 and G6, the server in the load test's process and the bots in a child process (§5.1). Other agents' work
@@ -2319,7 +2365,7 @@ that was every third tick at 5.6 ms (2 ms a tick, the longest 26 ms), and tiles 
 make the rest of the spikes. Runs while other agents' load tests shared the PC measured up to twice these averages.
 Making streamed ground cheaper for fast movers (coarser collision and no trees far under a ship, fewer tiles kept
 behind it, a rebuild that scales with the world) is the next step for whoever takes the server's performance (done
-in §5.10: bodies kept once made, the broadphase updated incrementally, ships asking only for the ground in reach).
+in §5.11: bodies kept once made, the broadphase updated incrementally, ships asking only for the ground in reach).
 
 What the flying bots found, fixed here: the near-ground band was a second's travel deep (a ship cruising at 150 m
 counted as near and swept the ground every tick), now a quarter second's; the prefetch built 25 tiles round the point a
@@ -2396,6 +2442,29 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
 4. Other pilots: a seated character (`Stance.Seated`) drawn sitting at the seat socket, or hidden.
 5. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
    `ShipEventKind.Destroyed`.
+
+**Hooked up** (integration pass 4, `game/scripts/Ground/ShipsView.cs` and `GroundView`):
+- Every ship the client knows is drawn by a `ShipView` (`ShipsView`): others at `RemoteShip.Origin` and `Rotation`
+  with their hatch, thrust and flags, the one flown at `OwnShipRenderPosition`/`OwnShipRenderRotation` with the
+  predicted thrust and flags; `ShipView.Exposure` from the sky; hidden in orbit. In the cockpit the own ship's nearest
+  plumes hide (`FromCockpit`).
+- While `Piloting`, `ShipControls.Read` fills `InputFrame.Ship` each frame (with the interface open the lever stays and
+  the stick lets go); the mouse moves the stick; the camera is `ShipCamera.Follow` on the ship as drawn (cockpit or
+  chase, V), with the blasts' shake; `ShipHud` replaces the belt, the vitals and the crosshair (`IGroundUi.Piloting`);
+  the arms draw nothing; F steps out, H works the hatch, L the lock, J descends from orbit; E, R and Space belong to the
+  ship (roll, nothing, rise).
+- On foot, `AimShip` gives the prompt under the crosshair ("E BOARD TIN FINCH", the hatch, "REFUEL", the cargo) after
+  the survival targets; E `Interact`s; the cargo opens in the loot panel like a box; refusals (locked, occupied, not
+  landed, the hatch shut) are toasts.
+- Seated pilots aren't drawn: the character contract (§4.8) has no sitting pose (§11 87).
+- The vehicle workbench is a deployable like any other; the crafting menu shows the Tin Finch's "VEHICLE WORKBENCH
+  REQUIRED" (green within reach) and the client checks the station as the server does (`LocalPlayer.StationNear`);
+  crafted, it rolls out onto the bench's bay, and the builder is told in chat.
+- Sounds (`sounds.json`, built from Kenney's CC0 sci-fi pack by `art/audio/events.py`, `ships()`): `ship.engine` (a
+  hum) and `ship.thrust` (the burn), loops at `socket_engine_audio` turned up with the thrust; `ship.boost` when a boost
+  starts; `ship.hatch.open`/`close`; `ship.touchdown` when it lands moving; `ship.crash` when the hull is hurt as the
+  ship stops short; the wreck's `explosion`. The wreck: `explosion.rocket` (1.6 ×) and `fire.burning` on the hull
+  until it goes. All from the replicated flags, hull and velocity: the server sends no ship events to clients.
 
 ### 6.8 World: economy, progression, teams, the map (G7, part A)
 
@@ -2557,7 +2626,164 @@ numbered from the north, as Rust's) and every label are drawn by the interface, 
   `sewing-kit`, `tech-scrap`, `metal-blade`, `sheet-metal`, `sign-plate`, `receiver`, `rifle-frame`), `torn-schematic`,
   `sealed-schematic`, `blueprint` and `research-table` (flat placeholders in `ItemIcons` until then).
 
+**Hooked up** (integration pass 4, `game/scripts/Ground/ClientGroundUi.World.cs`, `ThingsView`, `PeopleView`,
+`GroundOverlay` and `GroundView`):
+- The map (G): its picture (1,024 px) starts rendering on a worker thread as soon as the zone is known, and comes from the
+  disk cache after; the markers through `ToMap`: bags and beds, the last death, the player's markers, teammates (where
+  they are drawn, else where the server last said; dim and marked while asleep, down or dead) and the player with their
+  facing (the ship's nose while flying). A click puts a marker down (`ToZone`), a right-click takes it off. The death
+  screen draws this map, its body and bags placed through `ToMap`; G2's survey picture is gone (§11 94).
+- The tech tree: E on a workbench ("OPEN TECH TREE", Rust's) or the crafting screen's TECH TREE tab opens the tree of
+  the bench level in reach (`WorkbenchLevel`), its nodes known, open or locked (`Knows`, `TechTrees.CanUnlock`);
+  UNLOCK checks `CanUnlock` first and says why not (the salvage, the bench, a node before it). The crafting list holds
+  the recipes known, from the start or learnt, again whenever one is learnt.
+- Crates open in the loot panel (take only), recyclers with their six inputs, six outputs and switch, the research
+  table with its item, salvage and blueprint, its price (`Research.Cost`) and why it can't start (no item, one that
+  can't be researched, the last blueprint not taken out, the salvage short); running and progress come from `Machine`.
+  A blueprint is drawn as the item it teaches, on blueprint blue, and is learnt by using it.
+- Props from the model catalogue by their key; a running recycler's lamp (a small green light on its top) and hum; a
+  barrel rings under blows, and one gone within 40 m broke: its sound and a burst of metal (§11 91); bullets strike
+  metal on barrels, military crates and recyclers. Crates and recyclers open and shut with the box's sounds.
+- Teams: E on a player close by while leading says "INVITE TO TEAM"; the map's panel creates, leaves, promotes, kicks
+  and answers invites; chat lines starting `/t ` go to the team and show as [TEAM]. Teammates' names are drawn in the
+  team's green at any distance and through walls, with how far beyond 40 m (§11 90).
+- Notices (with their sounds): a blueprint learnt, an invite ("answer on the map"), the team made, joined or left,
+  members coming and going, a new leader, and the refusals G7 adds. They wait 3 s after joining (§11 92).
+
 **Bots and the load test**: `WorldBrain` and `loadtest --script world` (§5.9).
+
+### 6.9 Animals (G7, part B)
+
+Rust's wildlife on the first world: deer that graze in herds and run, boars that charge when hurt, wolves that hunt in
+packs, and a rare bear. Each has server-side AI, can be killed and butchered, and gives meat to cook. The bar is Rust's:
+believable movement, a threat you can read before it lands, and fights you can win. The rules are engine-free
+`Hollow.Simulation` code; the numbers are in `animals.json`; the network, storage and client API follow G2's patterns;
+the Godot side is `game/scripts/Animals`.
+
+| Part | Where |
+|---|---|
+| Numbers | `game/data/ground/animals.json` (species, senses, spawning, harvest rates); items 200–216 in `items.json`; recipes (`lamp-oil-from-fat`, id 220; the bone knife and club) in `recipes.json` |
+| Rules | `Content/Animals.cs` (reader and checks), `Animals/` (`AnimalWorld` and its brain, steering and spawning, `NavGrid`, `AnimalHitboxes`), `Zone.Animals.cs` (players as the animals see and hear them, attacks on players, damage, butchering) |
+| Server | `GameServer.Animals.cs` (replication, saved corpses, admin `animals` and `spawn`); `--no-animals`, `--animals <n>` |
+| Network | `AnimalNet.cs` (what an animal's snapshot state means), `EntityKind.Animal`, protocol 10 |
+| Storage | `AnimalCodec` (corpses, things of kind 17) |
+| Client | `GameClient.Animals.cs` (`Animals`, `ClientAnimal`, `AnimalEvent`) |
+| Godot | `game/scripts/Animals`: `AnimalView`, `AnimalsView` (the seam), `AnimalSandbox` (`--view animals`); models from `art/animals/build_animals.py`, voices from `art/audio/animal_voices.py` |
+| Tests | `AnimalTests.cs`, `AnimalNetTests.cs` (`dotnet run --project tests/Hollow.Tests -- Animal`) |
+
+**Sources.** Rust's numbers where the Facepunch wiki has them: health (wolf 100; deer and boar 150, as its stag and pig;
+bear 400), what a corpse gives, the food values of its meats, cooking times, the bone knife, the low-grade fuel recipe,
+and its server's populations. Speeds, senses, bites, charges, temperaments and herd sizes are ours (the wiki has none),
+set against the player's 5.5 m/s sprint and 100 health. Names are plain words.
+
+**The species** (`animals.json`):
+
+| | Deer | Boar | Wolf | Bear |
+|---|---|---|---|---|
+| Health | 150 | 150 | 100 | 400 |
+| Walk / trot / run (m/s) | 1.4 / 3.8 / 10.5 | 1.2 / 3.2 / 6.6 | 1.5 / 3.8 / 9.2 | 1.3 / 3.2 / 8.2 |
+| Sight, cone, hearing | 55 m, 310°, ×1.4 | 25 m, 260°, ×0.9 | 60 m, 270°, ×1.2 | 35 m, 240°, ×1.0 |
+| Temperament | flees (people within 30 m, shots, wolves and bears) | defends: warns within 4.5 m, charges whoever hurts it (9 s, 45 m); gunfire sends it off | hunts when hungry (people, deer, boars); fed, warns within 7 m | hunts only when very hungry; warns within 15 m, then charges (15 s, 70 m) |
+| Runs when below | always | 20 % health | 30 % | 12 % |
+| Group | 2–5 | 1–3 | 2–4 | 1 |
+| Attack | none | charge: 16 to a limb, every 1.6 s, wind-up 0.35 s | bite: 12 to a limb, every 1.4 s, wind-up 0.45 s | swipe: 30 to the body, every 1.9 s, wind-up 0.6 s |
+| Density (a km² of land that suits it) | 12 | 8 | 4 | 1.2 |
+| Respawn | 300 s | 360 s | 600 s | 900 s |
+| Corpse gives | 4 raw venison, 50 hide, 50 bone fragments, 10 animal fat | 8 raw pork, 20, 50, 40 | 5 raw wolf meat, 75, 40, 10 | 20 raw bear meat, 100, 150, 100 |
+
+**The AI** (`AnimalWorld`), on the zone's tick after the wounded (§4.2):
+- States: idle, graze, wander, alert (watching, or warning someone off), flee, chase, attack, eat, dead. Each animal
+  thinks on a staggered tick (7.5 times a second when engaged, 5 when calm, spread by its seed); movement runs every tick.
+  Animals farther than 340 m from every player sleep (no thinking, no moving).
+- Perception: players by sight (the species' range and cone; a crouching player is seen at 55 % of it, one standing
+  still at 80 %, anyone within 5 m whichever way it faces), by their footsteps (sprint 28 m, walk 10, crouch 3, swim 12,
+  times the species' hearing) and by noises (gunshots 180 m, silenced 45, a bow 14, blows 18, gathering 30, explosions
+  400). One animal alarmed alarms its herd.
+- Herds and packs stay together (a cohesion radius, the leader wandering and the rest following, stepping aside from
+  each other); a whole herd runs when one runs. A hungry pack shares its prey: it stalks at a trot from afar, runs in,
+  and at most two bite at once while the rest circle. A fighter that someone walks up to warns first (1.4 s: a wolf's
+  growl, a boar's snort, the bear rearing up and roaring), then charges; one that is hurt turns on its attacker; one that
+  is badly hurt runs. A chase gives up after the species' time or distance.
+- Steering: terrain-following and kinematic (turn rate, acceleration, speed limits; the feet on the ground's height),
+  context steering over 16 headings (where it wants to go against what is in the way), a short A* path around trees
+  and rocks when the straight line is blocked, a break-away when stuck. In the way: water deeper than 0.35 m, slopes
+  steeper than the species takes (36–42°), trunks and boulders (the zone's natural objects: on the planet, its own
+  scatter), building pieces and deployables (traced). The navigation grid is 64 m areas of 2 m cells, built on workers
+  around animals that are awake.
+- Hits: a capsule for the body, a sphere for the head (×2, as on people), capsules for the legs, from the model's
+  measured size; lag-compensated like characters' (one second of poses). Every weapon works: blows, arrows, bullets with
+  their falloff, blasts. An animal's attack on a player lands at its wind-up's end if the player is still in reach and
+  in front, through the armour on the region it hits (a wolf's bite on the legs, the bear's swipe on the chest), and
+  makes them bleed.
+
+**Butchering.** A corpse lies 300 s, then goes. Any melee tool takes harvest health off it: the bone knife 30 a hit,
+the machete 26, the metal hatchet 24, the stone hatchet 18, a rock 8, the torch 4, others 40 % of their damage; what it
+gives comes out in proportion (a better tool is quicker, not richer, §6.1): a deer is 7 cuts with the bone knife, 25
+blows with a rock.
+
+**Food and items** (items 200–216): raw, cooked and burnt meat of each kind. Raw meat makes you sick (poison: health
+lost at once, as "Food poisoning"); cooked meat feeds and heals; burnt meat feeds a little and makes you a little sick.
+Meat cooks in 15 s on a campfire and burns 45 s later; meat left in the campfire's output slots burns there too (Rust).
+
+| Meat | Raw | Cooked | Burnt |
+|---|---|---|---|
+| Venison | 20 calories, 10 poison | 40 calories, 3 water, 10 healing | 10 calories, 2 healing, 4 poison |
+| Pork | 30, 5 poison | 70, 2 water, 8 healing | 15, 2, 4 poison |
+| Wolf meat | 20, 10 poison | 60, 1 water, 5 healing | 10, 2, 4 poison |
+| Bear meat | 10, 3 water, 5 poison | 100, 1 water, 10 healing | 20, 2, 4 poison |
+
+Hide (stack 1,000) waits for leather goods; bone fragments make the bone knife (30, 10 s: 16 damage, reach 1.5 m, the
+butcher's tool) and the bone club (20: 24 damage, a slower swing); animal fat makes lamp oil, Rust's way, beside the
+charcoal recipe: 3 fat and 1 cloth make 4 in 5 s. A second way to make an item is a recipe with an `id` and `key` of its
+own (`Recipe.Id`, `Recipe.Key`, `GameContent.RecipeByKey`); a tech tree's node names an item's own recipe, and the
+crafting list keys recipes by `Recipe.Key`.
+
+**Spawning** (deterministic, from the planet): the zone is cut into 256 m spawn areas. An area within 380 m of a player
+is surveyed once (its land and biomes from `PlanetSurface`, its tree cover from the vegetation) and gets herds: for
+each species, its density × the area's land × how well the biomes and the cover suit it, as herds of its size, the
+fraction a seeded draw. An area comes out when its navigation grid is ready, its herds at least 70 m from every player;
+it goes 30 s after the last player is beyond 560 m. A herd killed off comes back after the species' respawn time, never
+above its size. At most 600 animals in a zone. Living animals are not saved (they come back from their areas); corpses
+are, while their timer runs. Round the landing site that makes about 20 animals in the areas near a player.
+
+**Network** (protocol 10): animals are entities of kind `Animal` in the same delta-coded, prioritised snapshots as
+characters (`CharacterNetState` reused; `AnimalNet` says what its fields mean: species, state, alert, warning, health or
+the harvest left, attack and hit counters), relevant within 300 m. Their `Spawn` carries the species' key. An animal at
+rest (its state unchanged for two snapshots and confirmed by the client) is left out until it moves.
+
+**The client API**: `GameClient.Animals` (`ClientAnimal`: species, position and heading interpolated 100 ms behind,
+state, alert, warning, health, speed over the ground, attack and hurt counters, the last attack's kind, seconds since
+the last attack, hurt and death) and `GameClient.AnimalEvent` (appeared, attack, hurt, died, fled, threatens, gone).
+Animals are not in `Entities` (characters only).
+
+**Drawn** (`game/scripts/Animals`):
+- `AnimalsView` is the seam: set `Client` and call `Refresh(delta)` every frame (the ground view does); it makes an
+  `AnimalView` per animal and keeps spares per species. Without a client it draws a `Source` of `AnimalFrame`s (the
+  sandbox's local zone).
+- `AnimalView`: the species' model (three levels of detail, changing at 22 and 60 m, gone at 450 m), a state machine
+  over its clips (idle, graze, alert, threaten, eat; walk, trot and run played at the speed over the ground ÷ the clip's
+  own; attack, hurt and death as one-shots, the death pose held for the corpse; a corpse seen later lies as it fell),
+  tilted along the slope it climbs; far away its skeleton is posed less often. Footsteps at each footfall, calls now and
+  then, the alarm, threat, attack, hurt and death through `AudioDirector` (`animal.<species>.<role>`); blood through
+  `FxDirector` (a hit, a kill, a trail of drops when badly hurt, a cut when butchered). A quarter of the deer carry
+  antlers.
+- The models (`art/animals/build_animals.py`, Blender 5.2): our own metaball anatomy per species polygonised into one
+  skin, rigid parts (antlers, hooves, tusks, claws, eyes), a quadruped skeleton weighted by distance, vertex-coloured
+  coats over a shared fur texture, and eleven procedural clips each, the gaits made for the species' speeds.
+- The voices are made in code (`art/audio/animal_voices.py`): a glottal source through formant resonators, a growl's
+  rattle, clicks for teeth and a jaw; footsteps are the grass recordings made lighter or heavier (§9.2, N11).
+- The sandbox, `--view animals` (AGENTS.md): a local zone on the real surface with five scenes at clearings near the
+  landing site: a deer herd with boars nearby, a hungry pack stalking a test dummy, the bear warning it off, butchering
+  with a bone knife, meat roasting on a campfire.
+
+![A deer herd grazing in a meadow by the forest](images/ground/animals/herd.jpg)
+![A hungry pack stalking a test dummy across the meadow](images/ground/animals/wolves.jpg)
+![The bear rearing up to warn off the dummy, before it charges](images/ground/animals/bear.jpg)
+![A player butchering a deer with a bone knife](images/ground/animals/harvest.jpg)
+![Meat roasting on a campfire at dusk: raw, cooked and burnt](images/ground/animals/cooking.jpg)
+
+**Admin and bots**: `animals` (how many of each, awake, what they cost), `spawn <species> <name> [n] [m]`;
+`loadtest --animals <n>` places n animals round the landing site, always out (§5.10).
 
 ---
 
@@ -2573,8 +2799,8 @@ numbered from the north, as Rust's) and every label are drawn by the interface, 
 A test checks that every reference resolves and that every recipe can be made from gatherable resources (since G7, also
 from what the world's barrels and crates give and the recycler's fixed lists turn it into).
 
-**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (eleven:
-G3 phase 2a added building.json, G5 explosives.json, G7 world.json),
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (thirteen:
+G3 phase 2a added building.json, G5 explosives.json, G6 ships.json, G7 world.json and animals.json),
 resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
 a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
 `game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
@@ -2593,6 +2819,7 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 | `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
 | `world.json` (G7) | The world's economy and progression (§6.8): the currency (salvage) and the blueprint item; the world props (barrels, crates, the recycler: number, model key, health, size, slots, loot table, respawn); the recycler's slots, pace, share of a recipe and batch; the fixed recycle lists of loot-only components; the research table's slots, time and prices by tier; the three tech trees (node, salvage, the nodes before it); where loot spots are kept (radius, cell, clear ring, chances by kind of place, a cluster's make-up, the landing cluster); the recyclers' points; teams (size, invite time); the map (markers, size, grid). Its checks: props, slots, yields, research slots and prices, trees (a recipe in at most one, at its bench or below, no loops), blueprint loot entries, and that every recipe stays makeable now that loot and the recycler supply parts. | Rust's numbers (scrap, recycler, research, tech tree costs, teams, markers); hollow-orbit `items.js` (`RECYCLE`, `LOOT`, `RESEARCH_COST`, `DEFAULT_KNOWN`) and `devices.js` |
 | `explosives.json` (G5) | The blasts (radius, falloff, splash, damage to people and deployables, one hit's damage to a piece of each grade by side and to a door of each protection), the explosives thrown or placed by hand (fuse, dud chance, sticky or not, throw and lob speeds, bounce, size), and how raid alerts go out (cooldown, how long and how many are kept). §6.6 has the tables. | Rust's raid costs; RustMVP `building_damage.md`; hollow-orbit `construct.js` and `items.js`; ours for fuses' spread, throws and alerts |
+| `animals.json` (G7) | The animals (§6.9): how far noises carry to them (`senses`), the spawn areas (`spawning`), what each tool takes off a corpse (`harvest`), and each species: number, key, name, health, size (with where its head is), walk, trot and run speeds, turn rate and acceleration, sight, cone and hearing, temperament, flee, calm and warning distances, when it runs, chase time and range, hunger, prey, group size and cohesion, its attack (kind, damage, reach, rate, wind-up, bleeding, the region it hits, damage to animals), the biomes and cover it likes, density, steepest slope, respawn, corpse time and what its corpse gives. | The Facepunch wiki for health, yields and populations; ours for the rest |
 
 The client alone also reads `sounds.json`, the sound catalogue (§4.9); it is not part of the game data's hash.
 
@@ -2682,8 +2909,8 @@ moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as not
 descriptions and stats come from items.json, the crafting tabs from categories.json. Item icons are the model
 catalogue's renders (`CatalogItemIcons`, §9.1); with `--placeholder-icons`, `ItemIconAliases` maps items.json keys
 onto the placeholder drawings. The inventory shows the player's own body in what they wear (`InventoryBody`, through
-`CharacterPreview.Body`), and the death screen the real ground around the landing site, 9.6 by 4 km (`ZoneMap`,
-through `DeathMap.Use`). Pictures of it in play are in §5.4.
+`CharacterPreview.Body`), and the death screen the zone's map (G7: `GameClient.Map`, the map screen's picture, 3.9 km
+across), the body and the bags placed on it through `ZoneMap.ToMap`. Pictures of it in play are in §5.4.
 
 ### 8.2 Behaviour
 
@@ -3230,7 +3457,8 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
     is 500 wood and 100 metal fragments, and workbenches 2 and 3 cost refined metal (smelted from the high-grade ore
     metal outcrops give, as Rust's high-quality metal). *Replaced in G7 (§6.8, W1, W3): the workbenches cost salvage.*
 19. **Lamp oil** (our low-grade fuel) is made from charcoal and fibre, since there are no animals for fat yet; a
-    furnace needs ten. So the first furnace comes after a campfire has burnt wood into charcoal.
+    furnace needs ten. So the first furnace comes after a campfire has burnt wood into charcoal. *Joined in G7 (§6.9,
+    N5) by Rust's recipe: 3 animal fat and 1 cloth make 4.*
 20. **Every recipe is known** from the start; the tech tree (G7) will hide some (`known` in recipes.json). *Replaced in
     G7 (§6.8, W4): Rust's default blueprints, the rest learnt.*
 21. **Yield is fixed per object**: a better tool or the weak spot gathers it faster, not more of it (hollow-orbit's
@@ -3596,6 +3824,26 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     point isn't used yet (Rust raises the sight line to it).
 86. **Attaching is a drop and detaching a button** (cheaper than Rust's attachment slots in the item panel): an
     attachment dropped on a gun goes onto it; the gun's panel lists REMOVE <PART> for each one.
+87. **A seated pilot isn't drawn** in the cockpit, others' or one's own: the character contract has no sitting pose
+    (§4.8), and a standing body would stick out of the canopy. A `Seated` stance there would put them in the seat.
+88. **The ships' sounds are made from Kenney's sci-fi pack** (CC0, already a source of the explosions): the Tin Finch
+    hums and burns with its thrust; a ship's crash is told from its hull dropping while its speed changes by more
+    than 3 m/s in a frame (gunfire hurts the hull without the jolt), since the server sends no ship events.
+89. **E on a workbench opens its tech tree** ("OPEN TECH TREE", as Rust's workbench does), and the tree shown is that of
+    the highest bench level in reach (`WorkbenchLevel`): beside a level 2 bench, the level 1 tree needs a level 1 bench.
+90. **Teammates are named at any distance, in the team's green, through walls**; beyond 40 m, where other players'
+    names stop, with how far. Out of range, at the place the server sends twice a second; teammates asleep or dead out
+    there aren't named.
+91. **A running recycler shows a green lamp of ours** at its model's `socket_lamp` (the stand-in model has none, so on
+    its body's top front corner), with a little light seen at night; its hum and a
+    barrel's break are W14's stand-ins, the break with a burst of metal sparks. A barrel that goes within 40 m of the
+    player is taken to have broken (the server sends no prop events; one leaving the range goes at 300 m).
+92. **Notices wait 3 s after joining**: the blueprints and team the server sends at once would otherwise read as news.
+93. **The crafting list shows the recipes known**, from the start or learnt, not the locked ones (Rust can show those
+    under a filter); the tech tree and the research table are where the rest are seen.
+94. **The death screen draws the zone's map**, the map screen's 3.9 km picture, instead of G2's 9.6 by 4 km survey
+    picture. While the picture renders (about a second, on the first run on a machine) the placeholder coast shows under
+    the right places.
 
 
 Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn (numbered S1 on):
@@ -3702,7 +3950,57 @@ confirm or overturn (numbered W1 on):
   shared with the ship's, `ChatKind.Team`, `StaticKind.Prop`, item IDs 150–171, categories `components` (before the
   ships' `vehicles`), and `world.json` read after `ships.json`.
 
-Decisions taken for the server's performance (§5.10) without the owner, to confirm or overturn (numbered P1 on):
+Decisions taken during G7's part B (step "World": the animals, §6.9) without the owner, to confirm or overturn
+(numbered N1 on):
+
+- N1. **Rust's numbers where the wiki has them** (health, what a corpse gives, the meats' food values, 15 s to cook,
+  the bone knife, the low-grade fuel recipe, the populations' starting point); speeds, senses, attacks, warnings, herd
+  sizes and temperaments are ours (§6.9). Names are plain words: deer, boar, wolf, bear; venison, pork, wolf meat, bear
+  meat; hide (Rust's leather), bone fragments, animal fat.
+- N2. **Animals give fair warning.** A fed wolf growls at anyone within 7 m, a boar snorts within 4.5 m and the bear
+  rears up and roars within 15 m, each for 1.4 s, before it charges; a hurt one turns at once. Rust's bears and wolves
+  come straight in. At most two wolves of a pack bite at once while the rest circle, and a chase gives up after its time
+  or distance, so a fight can be won or run from.
+- N3. **Denser than Rust's populations** (deer 12, boars 8, wolves 4, the bear 1.2 a km² of land that suits them,
+  against Rust's 3, 5, 2, 2): over our 256 m spawn areas Rust's numbers left the landing site with no animal within reach
+  (one bear 330 m off a player on the beach). Now a player usually has a herd or two within 380 m: 20 animals came out
+  round the landing site in the test. Herds rather than single animals: deer 2–5, boars 1–3, wolves 2–4, the bear alone.
+- N4. **The planet's tree cover counts 50 trees a hectare as closed forest** (its trees are big and spaced); at 200,
+  the landing site's forest read as 4–20 % cover and the wooded species were rarer than the eye says they should be.
+- N5. **Lamp oil keeps the charcoal recipe and adds Rust's** (3 animal fat and 1 cloth make 4 in 5 s), as a second
+  recipe with its own key (`lamp-oil-from-fat`) and number (220): `recipes.json` takes optional `id` and `key`; a tech
+  tree's node names an item's own recipe; the crafting list keys recipes by `Recipe.Key` and draws a recipe's icon by its
+  item (`ClientGroundUi`, `GroundUi.Paint`).
+- N6. **Raw meat makes you sick at once** (`consume.poison`: health lost as "Food poisoning"), as Rust's; burnt meat a
+  little. Meat left in a campfire's output slots goes on cooking and burns there (Rust's).
+- N7. **Animals don't collide with characters**: their bodies keep apart from each other only, and a player can walk
+  through one, as players through each other (G1, decision 7). Rust's animals block. They do go round trunks, rocks,
+  building pieces and deployables.
+- N8. **An animal's snapshot state is a character's** (`CharacterNetState` with `AnimalNet`'s meanings; the warning is
+  `MoveFlags.Sprinting`), so replication, priorities and the delta coding are reused unchanged; animals at rest are left
+  out of snapshots once the client holds their state (it took about 3 ms off the load test's tick with 200 animals,
+  §5.10).
+- N9. **Living animals are not saved**; their areas bring them back. Corpses are, as things of kind 17, while their
+  timer runs (300 s of world time).
+- N10. **Our own models, made from text** (`art/animals/build_animals.py`: metaball anatomy, a quadruped skeleton,
+  procedural clips) rather than a download: four consistent species without a licence question. They read as their
+  animals at play distances but are below Rust's: smooth, untextured fur, simple clips (no inverse kinematics on the
+  feet, no blending between gaits, no ragdoll; the death is a clip and the pose is held).
+- N11. **The voices are made in code** (`art/audio/animal_voices.py`), as stand-ins: no recording of these animals is in
+  the project's CC0 libraries, and no new download was made for this package. They have not been listened to by a
+  person; recordings should replace them once chosen (OpenGameArt and BigSoundBank have CC0 dogs, horses and goats to
+  build from). Footsteps reuse the grass recordings, deaths BigSoundBank's body falls.
+- N12. **The numbers taken in shared spaces** (G7's part B merged after G6 and G7's part A): protocol 10,
+  `EntityKind.Animal` after `Ship`, `HitTarget.Animal` 7 (the ship took 6), items 200–216 and recipe 220 (part A took
+  150–171), the thing kind 17 for corpses (explosives have 16), `animals.json` read after `world.json`. No message and no
+  schema step: animals ride in snapshots and corpses in the things table.
+- N13. **A quarter of the deer carry antlers**, chosen on the client from the animal's ID: the rules have no sexes.
+- N14. **The ground view draws the animals**: three lines in `GroundView` create `AnimalsView` with the client and
+  refresh it every frame (the integration package's file; the seam is `AnimalsView`).
+- N15. **A spectator keeps animals awake without being seen** (`AnimalWorld.Watchers`: the sandbox's camera); players
+  do it as observers. Animals farther than 340 m from all of them sleep.
+
+Decisions taken for the server's performance (§5.11) without the owner, to confirm or overturn (numbered P1 on):
 
 - P1. **Jolt bodies are kept once made.** Taking a body out of the world parks it (out of the broadphase, on a tiny
   shared shape) instead of destroying it, and the first prop makes all 65,536 prop bodies ahead: Jolt's walk of its
@@ -3725,8 +4023,8 @@ Decisions taken for the server's performance (§5.10) without the owner, to conf
 - P7. **The planet keeps the heights of the last 4,096 collision grids** (36 MB at most) for neighbouring tiles.
 - P8. **The server ticks with .NET's sustained low-latency collector**, as the game does: no blocking full
   collections while it runs, unless the PC runs short of memory.
-- P9. **The load test's walking bots now respawn when dead** (the storms of §5.10); before, a mixed bot that died
+- P9. **The load test's walking bots now respawn when dead** (the storms of §5.11); before, a mixed bot that died
   stayed dead.
 - P10. **The server's tick runs above normal priority**, before the ground tiles it has built on worker threads and
   before the rest of the PC's ordinary work. Its tick takes 5–10 ms of every 33, so nothing else starves; on the busy
-  PC of §5.10 its 99th percentile went from 15–31 ms to 11–13 ms.
+  PC of §5.11 its 99th percentile went from 15–31 ms to 11–13 ms.

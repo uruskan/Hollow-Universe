@@ -401,8 +401,9 @@ internal static class WorldReader
             f.Problem(File, "\"research\" is missing");
         }
 
-        // Tech trees: nodes by recipe, then their links; a recipe in a tree is not known from the start.
-        var recipes = loaded.Recipes.ToDictionary(x => x.Output.Key, StringComparer.Ordinal);
+        // Tech trees: nodes by recipe, then their links; a recipe in a tree is not known from the start. A node names an
+        // item, so its item's own recipe (a second way to make it, G7's lamp oil from fat, has a key of its own).
+        var recipes = loaded.Recipes.ToDictionary(x => x.Key, StringComparer.Ordinal);
         var trees = new List<TechTree>();
         foreach (JsonElement t in f.List(root, "techTrees", File))
         {

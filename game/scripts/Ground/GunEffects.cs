@@ -140,7 +140,7 @@ public static class GunEffects
                 foreach (RemoteThing t in client.Things)
                 {
                     float d = Num.Vector3.Distance(t.Position, end);
-                    if (d < best && t.Kind == StaticKind.Deployable)
+                    if (d < best && t.Kind is StaticKind.Deployable or StaticKind.Prop)
                     {
                         (best, thing) = (d, t);
                     }
@@ -148,7 +148,8 @@ public static class GunEffects
                 return thing?.Deployable(client.Content)?.Key switch
                 {
                     "furnace" => FxSurface.Rock,
-                    "workbench-2" or "workbench-3" or "vehicle-workbench" or "engineering-workbench" => FxSurface.Metal,
+                    "workbench-2" or "workbench-3" or "vehicle-workbench" or "engineering-workbench" or "research-table" => FxSurface.Metal,
+                    "loot-barrel-1" or "loot-barrel-2" or "military-crate" or "recycler" => FxSurface.Metal,
                     "sleeping-bag" => FxSurface.Dirt,
                     _ => FxSurface.Wood,
                 };

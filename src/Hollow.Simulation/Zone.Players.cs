@@ -58,6 +58,7 @@ public sealed partial class Zone
         Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
         InitBuilding(content);
         InitWorld(content);
+        InitAnimals(content);
     }
 
     // After movement: GROUND.md §4.2's order.
@@ -70,6 +71,7 @@ public sealed partial class Zone
         StepBullets();
         StepExplosives();
         StepWounded();
+        StepAnimals();
         if (Tick % CharacterMotor.TickRate == 0)
         {
             StepVitals();

@@ -134,6 +134,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         StartBuilding();
         StartRaid();
         StartWorld();
+        StartAnimals();
         Zone.Profile = Profile;
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
@@ -176,11 +177,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     public void Run()
     {
         TimerResolution.Begin();
-        // The tick can't wait for a blocking full collection (GROUND.md §5.10): full collections run in the background
+        // The tick can't wait for a blocking full collection (GROUND.md §5.11): full collections run in the background
         // while it ticks, as in the game's own process.
         System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
         // The tick before the work it starts on other threads (ground tiles built ahead) and before the rest of a busy
-        // PC: with other work on it, its 99th percentile halved (GROUND.md §5.10).
+        // PC: with other work on it, its 99th percentile halved (GROUND.md §5.11).
         Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
         try
         {
@@ -322,6 +323,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         using (Profile.Time(ProfileSection.AfterStep))
         {
             AfterStep();
+            AfterAnimals();
         }
 
         _snapshotAccumulator += (double)Protocol.SnapshotRate / TickRate;
@@ -349,7 +351,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         Profile.EndTick((GC.GetTotalPauseDuration() - gcBefore).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocatedBefore);
     }
 
-    /// <summary>Where the ticks go (GROUND.md §5.10): the load test prints it.</summary>
+    /// <summary>Where the ticks go (GROUND.md §5.11): the load test prints it.</summary>
     public TickProfile Profile { get; } = new();
 
     private void ReportFalls()
@@ -694,6 +696,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             _netStates[values[i].NetId] = (entity, state);
         }
+        PrepareAnimals();
         PrepareThings();
         PrepareShips();
         PrepareExplosives();
@@ -747,16 +750,17 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 if (session.Relevant.Add(netId))
                 {
                     _writer.Reset();
-                    new Spawn
-                    {
-                        NetId = netId,
-                        EntityId = Zone.Entities.IdOf(entity).Value,
-                        Kind = EntityKind.Character,
-                        Name = Zone.Entities.Get<Named>(entity).Name,
-                    }.WriteMessage(_writer);
+                    SpawnOf(netId, entity).WriteMessage(_writer);
                     session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
                 }
-                SendLook(session, netId, entity);
+                if (!IsAnimal(netId))
+                {
+                    SendLook(session, netId, entity);
+                }
+                else if (AnimalAtRest(session, netId, state))
+                {
+                    continue;
+                }
                 float distance = Vector3.Distance(position, centre);
                 _candidates.Add(new SnapshotCandidate
                 {

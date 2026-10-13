@@ -89,7 +89,7 @@ public sealed partial class GameServer
         }
         foreach (ThingRecord t in stored.Things)
         {
-            if (StoredExplosive(t))
+            if (StoredExplosive(t) || StoredCorpse(t))
             {
                 continue;
             }
@@ -119,6 +119,7 @@ public sealed partial class GameServer
         LoadBuilding(stored);
         LoadShips(stored);
         RestoreExplosives();
+        RestoreCorpses();
         LoadWorldState(stored);
         Log($"loaded {sleepers} sleepers, {things} things and {stored.Naturals.Count} changed natural objects");
     }
@@ -208,6 +209,7 @@ public sealed partial class GameServer
             current.Add(thing.Id);
         }
         AddExplosivesToSave(save, current);
+        AddAnimalsToSave(save, current);
         foreach (EntityId id in _savedThings)
         {
             if (!current.Contains(id))
@@ -530,7 +532,7 @@ public sealed partial class GameServer
                         Target = e.Target,
                         Region = e.Region,
                         Damage = Tenths(e.Amount),
-                        Killed = e.Target == HitTarget.Character && e.Flag,
+                        Killed = e.Target is HitTarget.Character or HitTarget.Animal && e.Flag,
                         WeakSpot = e.Target == HitTarget.Natural && e.Flag,
                         Downed = e.Downed,
                     }.WriteMessage(_writer);
@@ -1107,6 +1109,10 @@ public sealed class GameCounters
     public long Downed { get; private set; }
     public long Recovered { get; private set; }
 
+    /// <summary>G7: hits on animals (and harvesting blows), animals killed by players.</summary>
+    public long AnimalHits { get; private set; }
+    public long AnimalKills { get; private set; }
+
     public void Count(in ZoneEvent e)
     {
         switch (e.Kind)
@@ -1129,6 +1135,10 @@ public sealed class GameCounters
             case ZoneEventKind.Recovered:
                 Recovered++;
                 break;
+            case ZoneEventKind.HitConfirmed when e.Target == HitTarget.Animal:
+                AnimalHits++;
+                AnimalKills += e.Flag ? 1 : 0;
+                break;
             case ZoneEventKind.CraftFinished:
                 Crafted += e.Count;
                 break;
@@ -1150,5 +1160,5 @@ public sealed class GameCounters
     public override string ToString() =>
         $"{GatherHits} gathering hits ({WeakSpotHits} on the weak spot) for {Gathered} items, {PickedUp} items picked up, " +
         $"{Crafted} crafted, {Arrows} arrows, {Shots} shots ({BulletHits} hit someone), {CharacterHits} hits on players, {Kills} kills, " +
-        $"{Downed} knocked down ({Recovered} up again), {Deaths} deaths";
+        $"{Downed} knocked down ({Recovered} up again), {Deaths} deaths; {AnimalHits} hits on animals, {AnimalKills} animals killed";
 }

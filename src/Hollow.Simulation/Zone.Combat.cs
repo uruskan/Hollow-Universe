@@ -47,6 +47,9 @@ public struct TraceHit
     /// <summary>The ship hit (G6).</summary>
     public Ships.Ship? Ship;
 
+    /// <summary>The animal hit (alive or a corpse), G7.</summary>
+    public Animals.Animal? Animal;
+
     public readonly bool Hit => Distance >= 0;
 }
 
@@ -177,6 +180,17 @@ public sealed partial class Zone
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = hit.Ship!.Id, Target = HitTarget.Ship, Amount = lost, Position = hit.Point });
                 break;
             }
+            case HitTarget.Animal when hit.Animal is { } animal:
+                // G7: a blow on an animal; a tool on a corpse harvests it (GROUND.md §6.9).
+                if (animal.IsDead)
+                {
+                    HarvestAnimal(p, entity, animal, item, hit.Point);
+                }
+                else
+                {
+                    DamageAnimal(animal, melee.Damage * content.Survival.RegionMultiplier(hit.Region), hit.Region, eye, p, p.Id, p.Name, item.Id);
+                }
+                break;
         }
         Wear(entity, p, p.HeldSlot);
     }
@@ -378,6 +392,14 @@ public sealed partial class Zone
                 }
                 return; // an arrow on a hull is lost
             }
+            case HitTarget.Animal when hit.Animal is { } animal:
+                // G7: an arrow in an animal stays in it; one in a corpse is lost too.
+                if (!animal.IsDead)
+                {
+                    DamageAnimal(animal, pr.Damage * Content!.Survival.RegionMultiplier(hit.Region), hit.Region, pr.Position, shooter, pr.Shooter,
+                        pr.ShooterName, pr.Ammo.Id);
+                }
+                return;
         }
         // A miss often leaves the arrow where it landed.
         var rng = new Rng(Hash64.Of(pr.Id, (ulong)Tick, 0xA770));
@@ -452,6 +474,13 @@ public sealed partial class Zone
             float t = Hitboxes.Raycast(pose, origin, direction, length, thickness, out HitRegion region);
             var candidate = new TraceHit { Character = e, Region = region };
             Consider(t, HitTarget.Character, ref candidate);
+        }
+
+        // Animals (G7), where the attacker saw them; corpses as they lie.
+        if (Animals != null && TraceAnimal(origin, direction, length, thickness, viewTick, out float animalAt, out Animals.Animal? animal, out HitRegion animalRegion))
+        {
+            var candidate = new TraceHit { Animal = animal, Region = animalRegion };
+            Consider(animalAt, HitTarget.Animal, ref candidate);
         }
 
         // Trees and outcrops.

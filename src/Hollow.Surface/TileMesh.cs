@@ -243,7 +243,7 @@ public static class TileMesh
     /// <summary>
     /// <see cref="Collision"/>'s triangles, the same to the bit, in arrays rented from the shared pools: the physics
     /// builds ground tiles all the time, and each made 600 KB of garbage, most of it large-object arrays that bring on
-    /// full collections (GROUND.md §5.10). Dispose the result to give them back.
+    /// full collections (GROUND.md §5.11). Dispose the result to give them back.
     /// </summary>
     public static PooledTriangles CollisionPooled(ISurface surface, in ZoneFrame frame, double centreX, double centreZ, double size,
         int level, int cells, GridHeights? heights = null)
@@ -331,7 +331,7 @@ public static class TileMesh
 }
 
 /// <summary>
-/// The heights of grids' vertices, kept for the grids around them (GROUND.md §5.10): a 64 m physics tile samples
+/// The heights of grids' vertices, kept for the grids around them (GROUND.md §5.11): a 64 m physics tile samples
 /// about nine level-18 grids and its neighbours share most of them, so each grid's 1,089 heights are worked out once
 /// instead of three or four times. Heights are a pure function of the surface, so a kept one is the same to the bit.
 /// Thread-safe; the least recently used quarter goes when it holds more than its limit.

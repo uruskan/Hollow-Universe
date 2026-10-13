@@ -33,7 +33,18 @@ public sealed class Recipe
 
     public string? StationKey { get; init; }
 
-    public ushort Id => Output.Id;
+    private readonly ushort? _id;
+    private readonly string? _key;
+
+    /// <summary>
+    /// The recipe's number (the wire, the crafting queue and saves use it): its output's item ID, unless the recipe is a
+    /// second way to make that item (G7: lamp oil from animal fat beside lamp oil from charcoal), which has a number of
+    /// its own that no item uses.
+    /// </summary>
+    public ushort Id { get => _id ?? Output.Id; init => _id = value; }
+
+    /// <summary>Its name in data and in the interface: its output's key, or its own for a second way to make the item.</summary>
+    public string Key { get => _key ?? Output.Key; init => _key = value; }
 
     /// <summary>Ticks to make one unit.</summary>
     public int UnitTicks => Math.Max(1, (int)Math.Round(Seconds * CharacterTicks.Rate));

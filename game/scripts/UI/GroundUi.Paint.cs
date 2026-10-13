@@ -44,12 +44,17 @@ public partial class GroundUi
                 return;
         }
         bool inventory = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.TechTree;
-        if (Screen == GroundScreen.Hud && Wheel == null)
+        // Flying, the ship's HUD (drawn by the ground view) has the centre, the belt's and the vitals' places.
+        bool flying = Screen == GroundScreen.Hud && Model.Piloting;
+        if (Screen == GroundScreen.Hud && Wheel == null && !flying)
         {
             PaintCentre();
         }
-        PaintBelt(inventory);
-        PaintVitals(inventory);
+        if (!flying)
+        {
+            PaintBelt(inventory);
+            PaintVitals(inventory);
+        }
         if (Screen == GroundScreen.Hud)
         {
             PaintFeed();
@@ -170,7 +175,8 @@ public partial class GroundUi
             return;
         }
         int pw = Ui.Px(w), ph = Ui.Px(h), side = Math.Min(pw, ph);
-        Texture2D? texture = ItemIcons.Get(key, side);
+        // By the item's key (a recipe's key names its item: G7's second ways to make one).
+        Texture2D? texture = ItemIcons.Get(Model.Item(key).Key, side);
         if (texture == null)
         {
             return;

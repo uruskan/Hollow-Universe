@@ -227,7 +227,7 @@ public sealed partial class Zone : IDisposable
         }
     }
 
-    /// <summary>Times the zone's step and its ground on the server (GROUND.md §5.10); null measures nothing.</summary>
+    /// <summary>Times the zone's step and its ground on the server (GROUND.md §5.11); null measures nothing.</summary>
     public TickProfile? Profile
     {
         get => Physics.Profile;

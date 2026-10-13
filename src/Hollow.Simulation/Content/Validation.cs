@@ -22,7 +22,15 @@ internal static class Validation
             Problem("items.json", $"id {g.Key} is used by {string.Join(", ", g.Select(i => i.Key))}");
         }
         Duplicates("categories.json", c.Categories.Select(x => x.Key));
-        Duplicates("recipes.json", c.Recipes.Select(r => r.Output.Key), "has more than one recipe");
+        Duplicates("recipes.json", c.Recipes.Select(r => r.Key), "has more than one recipe (a second way needs its own key and id)");
+        foreach (IGrouping<ushort, Recipe> g in c.Recipes.GroupBy(r => r.Id).Where(g => g.Count() > 1))
+        {
+            Problem("recipes.json", $"id {g.Key} is used by {string.Join(", ", g.Select(r => r.Key))}");
+        }
+        foreach (Recipe r in c.Recipes.Where(r => r.Id != r.Output.Id && c.Items.Any(i => i.Id == r.Id)))
+        {
+            Problem($"recipes.json: \"{r.Key}\"", $"id {r.Id} is an item's; a second way to make something needs a number no item uses");
+        }
         Duplicates("gather.json", c.Natural.Select(k => k.Key));
         Duplicates("deployables.json", c.Deployables.Select(d => d.Key));
         Duplicates("loot.json", c.Loot.Select(t => t.Key));
@@ -382,6 +390,14 @@ internal static class Validation
         foreach (NaturalKind k in c.Natural)
         {
             foreach (ItemAmount y in k.Yield)
+            {
+                obtainable.Add(y.Item);
+            }
+        }
+        // G7: what animals' corpses give (animals.json) is gathered too.
+        foreach (AnimalSpecies species in c.Animals)
+        {
+            foreach (ItemAmount y in species.Harvest)
             {
                 obtainable.Add(y.Item);
             }

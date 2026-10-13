@@ -37,6 +37,20 @@
     "blue-berries": {"use": "survival.eat"},
     "wild-tuber": {"use": "survival.eat"},
     "roasted-tuber": {"use": "survival.eat"},
+    "raw-venison": {"use": "survival.eat"},
+    "raw-pork": {"use": "survival.eat"},
+    "raw-wolf-meat": {"use": "survival.eat"},
+    "raw-bear-meat": {"use": "survival.eat"},
+    "cooked-venison": {"use": "survival.eat"},
+    "cooked-pork": {"use": "survival.eat"},
+    "cooked-wolf-meat": {"use": "survival.eat"},
+    "cooked-bear-meat": {"use": "survival.eat"},
+    "burnt-venison": {"use": "survival.eat"},
+    "burnt-pork": {"use": "survival.eat"},
+    "burnt-wolf-meat": {"use": "survival.eat"},
+    "burnt-bear-meat": {"use": "survival.eat"},
+    "bone-knife": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "bone-club": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "sleeping-bag": {"place": "deploy.place"},
     "bed": {"place": "deploy.place"},
     "workbench-1": {"place": "deploy.place"},
@@ -68,6 +82,7 @@
     "rocket": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
     "rocket-hv": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
     "rifle-ammo-explosive": {"explode": "impact.metal"},
+    "tin-finch": {"engine": "ship.engine", "thrust": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open", "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash", "destroyed": "explosion"},
     "wooden-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
     "metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
     "armoured-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.wood"},
@@ -2159,6 +2174,118 @@
       ]
     },
     {
+      "key": "ship.engine",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 300.0,
+      "priority": 65,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ship/engine_loop.ogg"
+      ]
+    },
+    {
+      "key": "ship.thrust",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 400.0,
+      "priority": 65,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ship/thrust_loop.ogg"
+      ]
+    },
+    {
+      "key": "ship.boost",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 400.0,
+      "priority": 70,
+      "limit": 4,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/boost_01.ogg",
+        "res://assets/audio/ship/boost_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.hatch.open",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 3.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/hatch_open_01.ogg",
+        "res://assets/audio/ship/hatch_open_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.hatch.close",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 3.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/hatch_close_01.ogg",
+        "res://assets/audio/ship/hatch_close_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.touchdown",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/touchdown_01.ogg",
+        "res://assets/audio/ship/touchdown_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.crash",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 150.0,
+      "priority": 75,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/crash_01.ogg",
+        "res://assets/audio/ship/crash_02.ogg"
+      ]
+    },
+    {
       "key": "ui.click",
       "category": "ui",
       "bus": "UI",
@@ -2520,6 +2647,458 @@
       "files": [
         "res://assets/audio/ambience/crow_01.ogg",
         "res://assets/audio/ambience/crow_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.call",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 8.0,
+      "maxDistance": 140.0,
+      "priority": 55,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_call_01.ogg",
+        "res://assets/audio/animals/deer_call_02.ogg",
+        "res://assets/audio/animals/deer_call_03.ogg",
+        "res://assets/audio/animals/deer_call_04.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.alarm",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 160.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_alarm_01.ogg",
+        "res://assets/audio/animals/deer_alarm_02.ogg",
+        "res://assets/audio/animals/deer_alarm_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_hurt_01.ogg",
+        "res://assets/audio/animals/deer_hurt_02.ogg",
+        "res://assets/audio/animals/deer_hurt_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_death_01.ogg",
+        "res://assets/audio/animals/deer_death_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.call",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": -6.0,
+      "unitSize": 4.0,
+      "maxDistance": 45.0,
+      "priority": 55,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_call_01.ogg",
+        "res://assets/audio/animals/boar_call_02.ogg",
+        "res://assets/audio/animals/boar_call_03.ogg",
+        "res://assets/audio/animals/boar_call_04.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.alarm",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 160.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_alarm_01.ogg",
+        "res://assets/audio/animals/boar_alarm_02.ogg",
+        "res://assets/audio/animals/boar_alarm_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.threat",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_threat_01.ogg",
+        "res://assets/audio/animals/boar_threat_02.ogg",
+        "res://assets/audio/animals/boar_threat_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.attack",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_attack_01.ogg",
+        "res://assets/audio/animals/boar_attack_02.ogg",
+        "res://assets/audio/animals/boar_attack_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_hurt_01.ogg",
+        "res://assets/audio/animals/boar_hurt_02.ogg",
+        "res://assets/audio/animals/boar_hurt_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_death_01.ogg",
+        "res://assets/audio/animals/boar_death_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.call",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 40.0,
+      "maxDistance": 900.0,
+      "priority": 55,
+      "limit": 2,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_call_01.ogg",
+        "res://assets/audio/animals/wolf_call_02.ogg",
+        "res://assets/audio/animals/wolf_call_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.alarm",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 160.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_alarm_01.ogg",
+        "res://assets/audio/animals/wolf_alarm_02.ogg",
+        "res://assets/audio/animals/wolf_alarm_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.threat",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_threat_01.ogg",
+        "res://assets/audio/animals/wolf_threat_02.ogg",
+        "res://assets/audio/animals/wolf_threat_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.attack",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_attack_01.ogg",
+        "res://assets/audio/animals/wolf_attack_02.ogg",
+        "res://assets/audio/animals/wolf_attack_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_hurt_01.ogg",
+        "res://assets/audio/animals/wolf_hurt_02.ogg",
+        "res://assets/audio/animals/wolf_hurt_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_death_01.ogg",
+        "res://assets/audio/animals/wolf_death_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.call",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 6.0,
+      "maxDistance": 70.0,
+      "priority": 55,
+      "limit": 2,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_call_01.ogg",
+        "res://assets/audio/animals/bear_call_02.ogg",
+        "res://assets/audio/animals/bear_call_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.alarm",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 160.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_alarm_01.ogg",
+        "res://assets/audio/animals/bear_alarm_02.ogg",
+        "res://assets/audio/animals/bear_alarm_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.threat",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 14.0,
+      "maxDistance": 240.0,
+      "priority": 65,
+      "limit": 2,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_threat_01.ogg",
+        "res://assets/audio/animals/bear_threat_02.ogg",
+        "res://assets/audio/animals/bear_threat_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.attack",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_attack_01.ogg",
+        "res://assets/audio/animals/bear_attack_02.ogg",
+        "res://assets/audio/animals/bear_attack_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_hurt_01.ogg",
+        "res://assets/audio/animals/bear_hurt_02.ogg",
+        "res://assets/audio/animals/bear_hurt_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_death_01.ogg",
+        "res://assets/audio/animals/bear_death_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.step",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -2.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_step_01.ogg",
+        "res://assets/audio/animals/deer_step_02.ogg",
+        "res://assets/audio/animals/deer_step_03.ogg",
+        "res://assets/audio/animals/deer_step_04.ogg",
+        "res://assets/audio/animals/deer_step_05.ogg",
+        "res://assets/audio/animals/deer_step_06.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.step",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -3.0,
+      "unitSize": 2.0,
+      "maxDistance": 28.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_step_01.ogg",
+        "res://assets/audio/animals/boar_step_02.ogg",
+        "res://assets/audio/animals/boar_step_03.ogg",
+        "res://assets/audio/animals/boar_step_04.ogg",
+        "res://assets/audio/animals/boar_step_05.ogg",
+        "res://assets/audio/animals/boar_step_06.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.step",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 20.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_step_01.ogg",
+        "res://assets/audio/animals/wolf_step_02.ogg",
+        "res://assets/audio/animals/wolf_step_03.ogg",
+        "res://assets/audio/animals/wolf_step_04.ogg",
+        "res://assets/audio/animals/wolf_step_05.ogg",
+        "res://assets/audio/animals/wolf_step_06.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.step",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 2.0,
+      "unitSize": 2.0,
+      "maxDistance": 40.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_step_01.ogg",
+        "res://assets/audio/animals/bear_step_02.ogg",
+        "res://assets/audio/animals/bear_step_03.ogg",
+        "res://assets/audio/animals/bear_step_04.ogg",
+        "res://assets/audio/animals/bear_step_05.ogg",
+        "res://assets/audio/animals/bear_step_06.ogg"
       ]
     }
   ]

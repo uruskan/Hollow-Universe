@@ -293,6 +293,9 @@ public sealed partial class Zone
             }
         }
 
+        // Animals in sight (G7).
+        BlastAnimals(blast, at, radius, attacker, attackerName, item);
+
         // Claimed bases: one report each for the notification service.
         foreach (RaidTally tally in raids.Values)
         {

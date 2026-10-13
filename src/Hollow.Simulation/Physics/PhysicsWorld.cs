@@ -78,7 +78,7 @@ public sealed class PhysicsWorld : IDisposable
 
     // Jolt gives a body the ID asked for (CreateBodyWithID) by walking its list of free IDs, and with the IDs this world
     // uses (tiles by grid position, props by hash: far apart) that walk cost 20–60 µs a body, so a tile's trees took
-    // 2–3 ms to add (GROUND.md §5.10). So a body, once made, is kept: taken out of the world it leaves the broadphase
+    // 2–3 ms to add (GROUND.md §5.11). So a body, once made, is kept: taken out of the world it leaves the broadphase
     // and is parked on a tiny shared shape; put back, it takes its new shape and pose exactly as a new body would.
     private const byte NoBody = 0, ParkedBody = 1, BodyInWorld = 2;
     private readonly byte[] _bodies = new byte[FirstShipBody + MaxShipBodies];
@@ -465,7 +465,7 @@ public sealed class PhysicsWorld : IDisposable
     /// a tree grown body by body makes every contact query walk all that was added since. The world never steps Jolt
     /// (characters and ships move by queries), so this runs the broadphase part of Jolt's update alone (an update with
     /// no time step does nothing else): it rebuilds only the parts of the tree that changed, as Jolt does for a
-    /// streaming world, in about 0.1–0.3 ms where a whole rebuild took 5–10 ms with 30,000 bodies (GROUND.md §5.10).
+    /// streaming world, in about 0.1–0.3 ms where a whole rebuild took 5–10 ms with 30,000 bodies (GROUND.md §5.11).
     /// Queries find the same bodies whatever the tree's shape. Call with the Jolt lock held, once a tick before
     /// characters move.
     /// </summary>

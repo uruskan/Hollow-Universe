@@ -147,7 +147,7 @@ public static class PlanetSurfaceTests
         Assert.True(worst < 0.002, "collision vertex = render vertex (within 2 mm of float rounding)");
         Assert.True(minX <= -20 && maxX >= 40 && minZ <= -50 && maxZ >= 10, "covers the square");
         Assert.True(up >= mesh.TriangleCount * 0.99, "triangles face up");
-        // The physics' pooled copy (GROUND.md §5.10) is the same mesh to the bit, its grids' heights kept from a
+        // The physics' pooled copy (GROUND.md §5.11) is the same mesh to the bit, its grids' heights kept from a
         // neighbouring square's.
         surface.GroundCollisionPooled(frame, 40, -20, 60).Dispose();
         using PooledTriangles pooled = surface.GroundCollisionPooled(frame, 10, -20, 60);
