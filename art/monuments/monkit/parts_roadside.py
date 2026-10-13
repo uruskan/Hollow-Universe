@@ -1698,6 +1698,102 @@ def military_truck(b, at, rot=(0, 0, 0), tint=OLIVE_DRAB, canvas=CANVAS, code="B
     return bed
 
 
+# ------------------------------------------------------------------------------------------------ pipework
+
+PIPE_OCHRE = srgb(0.80, 0.62, 0.22)
+VALVE_GREEN = srgb(0.24, 0.36, 0.30)
+
+
+def bend(a, corner, c, radius, steps=6):
+    """Points of a pipe run from `a` through a rounded corner at `corner` to `c` (the bend's radius in metres)."""
+    a, corner, c = Vector(a), Vector(corner), Vector(c)
+    d0 = (corner - a).normalized()
+    d1 = (c - corner).normalized()
+    ang = d0.angle(d1, 0.0)
+    if ang < 1e-3:
+        return [a.to_tuple(), c.to_tuple()]
+    cut = radius * math.tan(ang / 2)
+    p0 = corner - d0 * cut
+    p1 = corner + d1 * cut
+    pts = [a.to_tuple()]
+    for k in range(steps + 1):
+        t = k / steps
+        q = (1 - t) ** 2 * p0 + 2 * (1 - t) * t * corner + t * t * p1     # a quadratic Bezier through the corner
+        pts.append(q.to_tuple())
+    pts.append(c.to_tuple())
+    return pts
+
+
+def flange(b, at, axis_rot, radius, tint=PIPE_OCHRE, bolts=8):
+    """A bolted pipe flange at `at`, its axis along the frame `axis_rot`'s Z, for a pipe of `radius`."""
+    with b.frame(at, axis_rot):
+        b.cyl(radius * 1.32, 0.09, (0, 0, -0.05), mat=PAINT, tint=tint, sides=20, solid=False, vary=0)
+        b.cyl(radius * 1.32, 0.09, (0, 0, 0.05), mat=PAINT, tint=tint, sides=20, solid=False, vary=0)
+        for k in range(bolts):
+            a = 2 * math.pi * (k + 0.5) / bolts
+            b.cyl(0.022, 0.26, (math.cos(a) * radius * 1.17, math.sin(a) * radius * 1.17, 0), mat=PAINT, tint=DARK,
+                  sides=6, solid=False, vary=0)
+
+
+def handwheel(b, at, rot=(0, 0, 0), radius=0.35, tint=RED, spokes=4, rim=0.025, knob=True):
+    """A valve handwheel facing -Y of its frame (its axis along Y): a round rim, spokes, a hub and a spinner knob."""
+    with b.frame(at, rot):
+        pts = [(radius * math.cos(2 * math.pi * k / 16), 0.0, radius * math.sin(2 * math.pi * k / 16))
+               for k in range(17)]
+        b.tube(pts, rim, mat=PAINT, tint=tint, sides=6, cap=False)
+        b.cyl(radius * 0.16, 0.09, (0, 0, 0), (90, 0, 0), mat=PAINT, tint=tint, sides=10, solid=False)
+        for k in range(spokes):
+            a = 2 * math.pi * k / spokes + 0.3
+            b.beam((radius * 0.15 * math.cos(a), 0, radius * 0.15 * math.sin(a)),
+                   (radius * math.cos(a), 0, radius * math.sin(a)), rim * 1.2, rim * 1.6, mat=PAINT, tint=tint)
+        if knob:
+            b.cyl(rim * 0.9, 0.12, (radius * 0.98, -0.07, 0.0), (90, 0, 0), mat=PAINT, tint=DARK, sides=6,
+                  solid=False)
+
+
+def gate_valve(b, at, yaw=0.0, radius=0.5, tint=VALVE_GREEN, wheel=RED, actuator=True, flange_tint=PIPE_OCHRE):
+    """A line valve on a pipe of `radius` running along the frame's X: a cast body with flanges, a bonnet, a yoke and
+    a gear actuator with a handwheel on its side (or a plain rising stem and wheel when `actuator` is False)."""
+    r = radius
+    with b.frame(at, (0, 0, yaw)):
+        b.box((r * 1.9, r * 2.0, r * 2.2), (0, 0, 0), mat=PAINT, tint=tint, bevel=0.06)
+        b.cyl(r * 0.95, r * 2.05, (0, 0, 0), (90, 0, 0), mat=PAINT, tint=tint, sides=18, solid=False)
+        for s in (-1, 1):
+            flange(b, (s * r * 1.05, 0, 0), (0, 90, 0), r, tint=flange_tint)
+        b.cyl(r * 0.75, r * 1.6, (0, 0, r * 1.1 + r * 0.8), mat=PAINT, tint=tint, sides=16)
+        b.cyl(r * 0.95, 0.1, (0, 0, r * 1.9 + 0.05), mat=PAINT, tint=tint, sides=16, solid=False)
+        top = r * 1.9 + 0.1
+        if actuator:
+            for s in (-1, 1):
+                b.box((0.08, r * 0.6, 0.9), (s * r * 0.45, 0, top + 0.45), mat=PAINT, tint=tint, solid=False)
+            b.cyl(0.05, 0.9, (0, 0, top + 0.45), mat=PAINT, tint=srgb(0.75, 0.75, 0.74), sides=8, solid=False)
+            b.box((0.62, 0.5, 0.5), (0, 0, top + 1.15), mat=PAINT, tint=tint, bevel=0.04)
+            b.cyl(0.2, 0.32, (0, -0.37, top + 1.15), (90, 0, 0), mat=PAINT, tint=tint, sides=12, solid=False)
+            handwheel(b, (0, -0.62, top + 1.15), (0, 0, 0), 0.42, wheel)
+            b.box((0.3, 0.02, 0.15), (0, 0.26, top + 1.25), mat=PAINT, tint=YELLOW, solid=False, vary=0)
+            return top + 1.4
+        b.cyl(0.035, 0.6, (0, 0, top + 0.3), mat=PAINT, tint=srgb(0.75, 0.75, 0.74), sides=8, solid=False)
+        handwheel(b, (0, 0, top + 0.55), (90, 0, 0), min(0.45, r * 1.4), wheel)
+        return top + 0.6
+
+
+def pipe_support(b, at, radius, yaw=0.0, height=None, tint=GREY):
+    """A pipe support under a pipe of `radius` whose centre is at `at` (axis along the frame's X turned `yaw`): a
+    concrete sleeper, a steel saddle and a strap over the top."""
+    x, y, z = at
+    h = height if height is not None else z - radius
+    with b.frame((x, y, 0), (0, 0, yaw)):
+        b.box((0.6, radius * 2.6 + 0.3, 0.3), (0, 0, 0.1), mat=CONCRETE, tint=srgb(0.74, 0.73, 0.70), bevel=0.02)
+        if h > 0.3:
+            b.box((0.25, radius * 1.4, h - 0.25), (0, 0, 0.25 + (h - 0.25) / 2), mat=PAINT, tint=tint)
+        b.box((0.3, radius * 2.2, 0.08), (0, 0, h - 0.04), mat=PAINT, tint=tint, solid=False)
+        arc =[(0.0, (radius + 0.02) * math.cos(math.pi * k / 8), z + (radius + 0.02) * math.sin(math.pi * k / 8))
+               for k in range(9)]
+        b.tube(arc, 0.012, mat=PAINT, tint=DARK, sides=4, cap=False)
+        for s in (-1, 1):
+            b.cyl(0.018, 0.1, (0, s * (radius + 0.02), h + 0.04), mat=PAINT, tint=DARK, sides=6, solid=False)
+
+
 # ------------------------------------------------------------------------------------------------ ships
 
 HULL_WHITE = srgb(0.84, 0.84, 0.81)
