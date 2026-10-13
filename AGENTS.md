@@ -3,14 +3,16 @@
 Read first, in this order:
 
 1. [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md): what the game is.
-2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it's built. Its principles (§2) and determinism rules (§8)
+2. [docs/LORE.md](docs/LORE.md): the setting (a vanished human civilisation, scrap technology, no factions, no
+   aliens), before you make any model, texture, sound, name, item text or monument.
+3. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it's built. Its principles (§2) and determinism rules (§8)
    are not optional.
-3. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
-4. [docs/GROUND.md](docs/GROUND.md): the Rust-style ground game, if you touch planet surfaces, the server, the
+4. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
+5. [docs/GROUND.md](docs/GROUND.md): the Rust-style ground game, if you touch planet surfaces, the server, the
    network or anything players do on foot.
-5. [docs/handoff-ground.md](docs/handoff-ground.md) and [docs/progress-ground.md](docs/progress-ground.md): where the
+6. [docs/handoff-ground.md](docs/handoff-ground.md) and [docs/progress-ground.md](docs/progress-ground.md): where the
    ground game stands, what to do next, how merges between work packages go, and what happened so far.
-6. [docs/GROUND_SYSTEMS.md](docs/GROUND_SYSTEMS.md): the shared systems every ground feature goes through, if you
+7. [docs/GROUND_SYSTEMS.md](docs/GROUND_SYSTEMS.md): the shared systems every ground feature goes through, if you
    touch interaction, placement, held items, item information, damage or anything a player does to a world thing.
 
 ## Rules
