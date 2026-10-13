@@ -23,6 +23,7 @@ public sealed partial class GameServer
         "heal <name>                   full health, food and water, no bleeding\n" +
         "kill <name>                   a player dies (a corpse with their things)\n" +
         "ship <name>                   a Tin Finch beside a player, full and theirs, its hatch open\n" +
+        "raidbase <name> [grade]       a claimed hut 8 m in front of a player, listing them (grade 0-4, stone by default)\n" +
         "save                          save the world now\n" +
         "quit                          save everyone and stop";
 
@@ -120,6 +121,19 @@ public sealed partial class GameServer
                 if (Find(words[1]) is { Playing: true } pilot)
                 {
                     Log(GiveShip(pilot) is { } given ? $"a {given.Def.Name} for {pilot.Name} ({given.Id})" : $"no room for a ship beside {pilot.Name}");
+                }
+                break;
+            case "raidbase" when words.Length >= 2:
+                if (Find(words[1]) is { Playing: true } builder && Zone.PlayerOf(builder.Entity) is { } owner2)
+                {
+                    int grade = words.Length > 2 && int.TryParse(words[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int g) ? Math.Clamp(g, 0, 4) : 2;
+                    ref Character c = ref Zone.Entities.Get<Character>(builder.Entity);
+                    Vector3 up = Zone.Frame.UpAt(c.State.Position);
+                    Vector3 ahead = c.State.Position + Simulation.Movement.CharacterMotor.ViewDirection(c.Input.Yaw, 0, up) * 8;
+                    // The doorway faces the player.
+                    Simulation.Raid.TestBases.Hut? hut = Simulation.Raid.TestBases.Build(Zone, Zone.GroundAt(ahead.X, ahead.Z),
+                        Math.Atan2(c.State.Position.X - ahead.X, c.State.Position.Z - ahead.Z), grade, owner2.Id.Value);
+                    Log(hut != null ? $"built a {Content.Building.Grades[grade].Name.ToLowerInvariant()} hut for {builder.Name}" : "no ground there");
                 }
                 break;
             case "save":

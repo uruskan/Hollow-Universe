@@ -210,9 +210,27 @@ public static class ShipGameTests
         zone.ShipHatch(ada, ship.Id);
         rig.Step(Ship.HatchTicks);
         Assert.Equal(ActionResult.Accepted, zone.Board(ada, ship.Id), "boards");
-        zone.DamageShip(ship, 10_000, ShipDamage.Explosive, pb);
-        Assert.True(ship.Destroyed, "destroyed");
         Player pa = zone.PlayerOf(ada)!;
+
+        // G5's blasts: a rocket going off a metre and a half from the nose takes its falloff's share; the pilot inside
+        // is the cabin's to protect. Then charges stuck to the hull, whole.
+        BlastStats rocket = c.Blast("rocket")!;
+        Vector3 at = ship.PointOf(new Vector3(0, 1.4f, 3.6f));
+        float distance = Vector3.Distance(Zone.ShipClosestPoint(ship, at), at);
+        float hull = ship.State.Health, health = pa.Vitals.Health;
+        zone.Blast(rocket, at, Vector3.UnitZ, null, HitTarget.Nothing, pb.Id, "Bo", c.ItemByKey("rocket").Id);
+        float expected = (float)(rocket.Deployable * rocket.Falloff(distance)) * ShipRig.Finch.ExplosiveDamage;
+        Fixtures.Report(FormattableString.Invariant($"a rocket {distance:0.00} m from the hull: {hull - ship.State.Health:0.0} hull lost"));
+        Assert.True(expected > 0, "in the blast's reach");
+        Assert.Near(expected, hull - ship.State.Health, 1e-2, "a rocket's blast hurts the hull");
+        Assert.Equal(health, pa.Vitals.Health, "the pilot is sheltered");
+        BlastStats charge = c.Blast("timed-charge")!;
+        Vector3 skin = Zone.ShipClosestPoint(ship, ship.PointOf(new Vector3(-2, 1.4f, 0.4f)));
+        for (int i = 0; i < 2 && !ship.Destroyed; i++)
+        {
+            zone.Blast(charge, skin, -Vector3.UnitX, ship, HitTarget.Ship, pb.Id, "Bo", c.ItemByKey("timed-charge").Id);
+        }
+        Assert.True(ship.Destroyed, "two timed charges stuck to it destroy it");
         Assert.True(pa.Dead && pa.KilledBy == "Bo", "the pilot went down with it, killed by Bo");
         Corpse? wreck = zone.Statics().OfType<Corpse>().FirstOrDefault(k => k.Of == ship.Id);
         Assert.True(wreck != null, "a wreck");

@@ -29,8 +29,13 @@ public static class ModelCatalogueTests
         "vehicle-workbench", "engineering-workbench", "bed",
         // G4: attachments and ammunition types.
         "holo-sight", "scope", "silencer", "weapon-light", "muzzle-brake", "pistol-ammo-hv", "rifle-ammo-hv",
-        "rifle-ammo-incendiary",
+        "rifle-ammo-incendiary", "pistol-ammo-incendiary", "gunpowder", "metal-mask",
+        // G5: the raid package's keys.
+        "bag-charge", "tin-grenade", "rocket-launcher", "rocket", "rocket-hv", "rifle-ammo-explosive",
     };
+
+    // Models that replaced stand-ins: none of them may be marked as a stand-in again.
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary" };
 
     // World objects the gathering rules place (gather.json) and the ship.
     private static readonly string[] RequiredWorld =
@@ -57,6 +62,7 @@ public static class ModelCatalogueTests
         {
             string key = m.GetProperty("key").GetString()!;
             Assert.True(keys.Add(key), $"{key}: listed twice");
+            Assert.True(!NotStandIns.Contains(key) || !m.TryGetProperty("standIn", out _), $"{key}: still marked as a stand-in");
             var paths = new List<string>();
             if (m.TryGetProperty("file", out JsonElement file))
             {

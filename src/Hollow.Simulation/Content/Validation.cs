@@ -140,7 +140,7 @@ internal static class Validation
         foreach (NaturalKind k in c.Natural)
         {
             string where = $"gather.json: \"{k.Key}\"";
-            if (k.Yield.Count == 0 || k.Yield.Any(y => y.Count < 1))
+            if (k.Class != NaturalClass.Boulder && (k.Yield.Count == 0 || k.Yield.Any(y => y.Count < 1)))
             {
                 Problem(where, "needs a yield, each at least 1");
             }

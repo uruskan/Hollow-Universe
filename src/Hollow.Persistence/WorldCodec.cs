@@ -23,9 +23,9 @@ public static class WorldCodec
 {
     /// <summary>
     /// Raised by hand when a layout changes; decoding reads every older version. 2 (G4): a firearm's magazine and
-    /// attachments in its stack; a character's burning and being down.
+    /// attachments in its stack; a character's burning and being down. 3: the body the player chose.
     /// </summary>
-    public const byte PlayerVersion = 2;
+    public const byte PlayerVersion = 3;
     public const byte ThingVersion = 2;
 
     // ---------------------------------------------------------------- characters
@@ -66,6 +66,7 @@ public static class WorldCodec
                 w.Write(job.TicksLeft);
                 w.Write(job.UnitTicks);
             }
+            w.Write(p.Body);
         }
         return stream.ToArray();
     }
@@ -119,6 +120,10 @@ public static class WorldCodec
             }
         }
         p.Crafting.Set(list, nextTicket);
+        if (version >= 3)
+        {
+            p.Body = Math.Min(r.ReadByte(), (byte)1);
+        }
         if (p.Dead)
         {
             p.Vitals = default;

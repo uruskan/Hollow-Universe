@@ -18,14 +18,14 @@ public sealed class ContentException(string message) : Exception(message);
 /// the same files; <see cref="Hash"/> is checked at connect, so both run the same rules. Read once at start, then
 /// read-only (safe to share between threads).
 /// </summary>
-public sealed class GameContent
+public sealed partial class GameContent
 {
     /// <summary>The files, in the order their text goes into <see cref="Hash"/>.</summary>
     public static readonly string[] Files =
     {
         "items.json", "recipes.json", "gather.json", "deployables.json", "loot.json", "survival.json", "categories.json",
         "weapons.json",
-        "building.json",
+        "building.json", "explosives.json",
         "ships.json",
     };
 
@@ -49,6 +49,9 @@ public sealed class GameContent
         Bullets = loaded.Bullets;
         Attachments = loaded.Attachments;
         Ships = loaded.Ships;
+        Blasts = loaded.Blasts;
+        Throwables = loaded.Throwables;
+        RaidAlerts = loaded.RaidAlerts;
         Survival = loaded.Survival;
         WeakSpot = loaded.WeakSpot;
         PlacementReach = loaded.PlacementReach;
@@ -96,6 +99,25 @@ public sealed class GameContent
 
     /// <summary>The kinds of ship (ships.json, G6); each also hangs off its item.</summary>
     public IReadOnlyList<Ships.ShipDef> Ships { get; }
+    /// <summary>G5 (explosives.json): every blast, the explosives thrown or placed by hand, and how raid alerts go out.</summary>
+    public IReadOnlyList<BlastStats> Blasts { get; }
+
+    public IReadOnlyList<ThrowableStats> Throwables { get; }
+
+    public RaidAlertSettings RaidAlerts { get; }
+
+    /// <summary>A blast by key, or null.</summary>
+    public BlastStats? Blast(string key)
+    {
+        foreach (BlastStats b in Blasts)
+        {
+            if (b.Key == key)
+            {
+                return b;
+            }
+        }
+        return null;
+    }
 
     public SurvivalTuning Survival { get; }
 
@@ -210,6 +232,7 @@ public sealed class GameContent
         reader.ReadAll();
         LinkBuilding(texts.GetValueOrDefault("building.json") ?? "", documents["building.json"], loaded, problems);
         Validation.Check(loaded, problems);
+        ExplosivesReader.Check(loaded, loaded.Building, problems);
         return new GameContent(loaded);
     }
 
@@ -327,6 +350,9 @@ public sealed class GameContent
         public List<BulletStats> Bullets = new();
         public List<AttachmentStats> Attachments = new();
         public List<Ships.ShipDef> Ships = new();
+        public List<BlastStats> Blasts = new();
+        public List<ThrowableStats> Throwables = new();
+        public RaidAlertSettings RaidAlerts = new();
         public SurvivalTuning Survival = new();
         public BuildingData? Building;
         public DeployableDef? ClaimDeployable;
@@ -353,6 +379,7 @@ public sealed class GameContent
             ReadLoot();
             ReadSurvival();
             ReadWeapons();
+            ExplosivesReader.Read(f, files[ExplosivesReader.File], loaded, Resolve);
             ReadShips();
         }
 
@@ -622,6 +649,11 @@ public sealed class GameContent
 
         private void ReadGather()
         {
+            static string Hyphenated(Surface.ScatterKind k) =>
+                string.Concat(k.ToString().Select((ch, i) => char.IsUpper(ch) && i > 0 ? "-" + char.ToLowerInvariant(ch) : char.ToLowerInvariant(ch).ToString()));
+            static IEnumerable<string> ScatterKindNames() => Enum.GetValues<Surface.ScatterKind>().Select(Hyphenated);
+            static Surface.ScatterKind? ScatterKindNamed(string name) =>
+                Enum.GetValues<Surface.ScatterKind>().Where(k => Hyphenated(k) == name).Select(k => (Surface.ScatterKind?)k).FirstOrDefault();
             JsonElement root = Root("gather.json", "weakSpot", "kinds");
             if (f.TryChild(root, "weakSpot", out JsonElement weak))
             {
@@ -634,7 +666,7 @@ public sealed class GameContent
                 JsonElement e = list[i];
                 string key = f.Text(e, "key", $"gather.json: kinds[{i}]");
                 string where = $"gather.json: {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "key", "name", "class", "health", "yield", "stages", "respawn", "radius", "height", "standIn");
+                f.OnlyKnown(e, where, "key", "name", "class", "health", "yield", "stages", "respawn", "radius", "height", "standIn", "scatter");
                 string className = f.Text(e, "class", where);
                 NaturalClass kind = className switch
                 {
@@ -642,11 +674,12 @@ public sealed class GameContent
                     "node" => NaturalClass.Node,
                     "pickup" => NaturalClass.Pickup,
                     "bush" => NaturalClass.Bush,
+                    "boulder" => NaturalClass.Boulder,
                     _ => NaturalClass.Pickup,
                 };
-                if (className is not ("tree" or "node" or "pickup" or "bush"))
+                if (className is not ("tree" or "node" or "pickup" or "bush" or "boulder"))
                 {
-                    f.Problem(where, $"class \"{className}\" is not tree, node, pickup or bush");
+                    f.Problem(where, $"class \"{className}\" is not tree, node, pickup, bush or boulder");
                 }
                 var yields = new List<ItemAmount>();
                 foreach (JsonElement y in f.List(e, "yield", where))
@@ -662,6 +695,24 @@ public sealed class GameContent
                     f.OnlyKnown(standIn, where + ".standIn", "perTile");
                     perTile = f.Number(standIn, "perTile", where + ".standIn");
                 }
+                var scatterKinds = new List<Surface.ScatterKind>();
+                float minScale = 0;
+                if (f.TryChild(e, "scatter", out JsonElement scatter))
+                {
+                    f.OnlyKnown(scatter, where + ".scatter", "kinds", "minScale");
+                    foreach (string name in f.Texts(scatter, "kinds", where + ".scatter"))
+                    {
+                        if (ScatterKindNamed(name) is { } sk)
+                        {
+                            scatterKinds.Add(sk);
+                        }
+                        else
+                        {
+                            f.Problem(where + ".scatter", $"\"{name}\" is not a scatter kind ({string.Join(", ", ScatterKindNames())})");
+                        }
+                    }
+                    minScale = f.Number(scatter, "minScale", where + ".scatter", 0f);
+                }
                 bool harvested = kind is NaturalClass.Tree or NaturalClass.Node;
                 loaded.Natural.Add(new NaturalKind
                 {
@@ -676,6 +727,8 @@ public sealed class GameContent
                     Radius = f.Number(e, "radius", where),
                     Height = f.Number(e, "height", where),
                     StandInPerTile = perTile,
+                    ScatterKinds = scatterKinds,
+                    ScatterMinScale = minScale,
                 });
             }
         }
@@ -1004,7 +1057,7 @@ public sealed class GameContent
                 JsonElement e = ammo[i];
                 string key = f.Text(e, "item", $"{file}: ammo[{i}]");
                 string where = $"{file}: ammo {JsonFields.Quote(key)}";
-                f.OnlyKnown(e, where, "item", "calibre", "damage", "speed", "bleed", "burn", "structure", "note");
+                f.OnlyKnown(e, where, "item", "calibre", "damage", "speed", "bleed", "burn", "structure", "blast", "note");
                 ItemDef? item = Resolve(key, where);
                 if (item == null)
                 {
@@ -1019,6 +1072,7 @@ public sealed class GameContent
                     Bleed = f.Double(e, "bleed", where, 0),
                     Burn = f.Double(e, "burn", where, 0),
                     Structure = f.Double(e, "structure", where, 0),
+                    BlastKey = f.Has(e, "blast") ? f.Text(e, "blast", where) : null,
                 };
                 if (item.Bullet != null)
                 {

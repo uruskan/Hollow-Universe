@@ -62,6 +62,9 @@ public sealed record ClientOptions
 {
     public string Name { get; init; } = "Player";
 
+    /// <summary>The body the player chose (0 male, 1 female; GROUND.md §4.8), sent at connect.</summary>
+    public byte Body { get; init; }
+
     /// <summary>Bad-network simulation (through a local relay), or none.</summary>
     public NetConditions Conditions { get; init; } = NetConditions.None;
 
@@ -155,6 +158,9 @@ public sealed partial class GameClient : INetEventListener, IDisposable
 
     public string Name => _options.Name;
 
+    /// <summary>The body the player chose (0 male, 1 female).</summary>
+    public byte Body => _options.Body;
+
     public string ServerName { get; private set; } = "";
 
     public ZoneSpec? Zone { get; private set; }
@@ -229,7 +235,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
             target = _ownRelay.LocalEndPoint;
         }
         _writer.Reset();
-        new Hello { ProtocolVersion = Protocol.Version, SchemaHash = Protocol.SchemaHash, PlayerName = _options.Name, ContentHash = Content.Hash }.WriteMessage(_writer);
+        new Hello { ProtocolVersion = Protocol.Version, SchemaHash = Protocol.SchemaHash, PlayerName = _options.Name, ContentHash = Content.Hash, Body = _options.Body }.WriteMessage(_writer);
         _peer = _net.Connect(target, _writer.Data);
         _connectStarted = _clock.Elapsed.TotalMilliseconds;
         State = ClientState.Connecting;

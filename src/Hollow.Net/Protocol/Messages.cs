@@ -6,6 +6,7 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Raid;
 using Hollow.Simulation.World;
 
 namespace Hollow.Net.Protocol;
@@ -28,6 +29,9 @@ public partial struct Hello
 
     /// <summary>The hash of the client's game data (game/data/ground): both sides must run the same rules.</summary>
     public ulong ContentHash;
+
+    /// <summary>The body the player chose (GROUND.md §4.8): 0 male, 1 female; saved with the character.</summary>
+    public byte Body;
 }
 
 /// <summary>Why a connection was refused or closed (connection reject or disconnect data).</summary>
@@ -50,6 +54,11 @@ public partial struct ZoneInfo
     public double LatitudeDegrees;
     public double LongitudeDegrees;
 
+    /// <summary>The stand-in ground instead of the body's real surface (tests).</summary>
+    public bool StandIn;
+
+    /// <summary>How much faster than real the planet turns for play (GROUND.md §1: 24), counted from J2000.</summary>
+    public float RotationTimeScale;
     /// <summary>The air's density at the mean radius (kg/m³) and its scale height (m): ships' drag (G6).</summary>
     public float AirDensity;
     public float AirScaleHeight;
@@ -343,6 +352,9 @@ public partial struct CharacterLook
 {
     [VarInt] public uint NetId;
     [MaxCount(7)] public WornItem[] Wear;
+
+    /// <summary>The character's body: 0 male, 1 female.</summary>
+    public byte Body;
 }
 
 /// <summary>A natural object as players changed it; health 255, not depleted and no weak spot is as new.</summary>
@@ -1003,4 +1015,124 @@ public partial struct ClaimNet
 public partial struct BuildClaims
 {
     [MaxCount(16)] public ClaimNet[] Claims;
+}
+
+// ---------------------------------------------------------------- G5: raiding (GROUND.md §6.6)
+
+/// <summary>Throw the explosive in a belt slot along the view (a lob: gently), with its fuse lit.</summary>
+[NetMessage(110)]
+public partial struct ThrowIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public byte Slot;
+    [VarInt] public uint Expected;
+    [Angle] public ushort Yaw;
+    [Angle] public ushort Pitch;
+    public bool Lob;
+}
+
+/// <summary>Place the charge in a belt slot on the surface the view meets within reach.</summary>
+[NetMessage(111)]
+public partial struct PlaceChargeIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public byte Slot;
+    [VarInt] public uint Expected;
+    [Angle] public ushort Yaw;
+    [Angle] public ushort Pitch;
+}
+
+/// <summary>Light a dud again (the interact key on it).</summary>
+[NetMessage(112)]
+public partial struct RearmIntent
+{
+    [VarInt] public uint Seq;
+    public ulong Target;
+}
+
+/// <summary>
+/// An explosive as the server has it (to everyone within range, reliable), when it comes into range and whenever it
+/// changes: thrown, bounced, stuck, at rest, a dud, lit again, moved with a door. Flying, it is on the arc from
+/// (X, Y, Z) at (VelocityX, …) at <c>StateTick</c> under the planet's gravity, which the client draws itself. Its fuse
+/// ends at <c>FuseEndTick</c> (0: not burning) and was <c>FuseTicks</c> long.
+/// </summary>
+[NetMessage(113)]
+public partial struct ExplosiveUpdate
+{
+    public ulong Id;
+    [VarInt] public uint Item;
+    [VarInt] public uint Owner;
+    [Bits(2)] public ExplosiveState State;
+    public bool Dud;
+    public float X;
+    public float Y;
+    public float Z;
+    public float VelocityX;
+    public float VelocityY;
+    public float VelocityZ;
+    [Quantize(-1, 1, 12)] public float NormalX;
+    [Quantize(-1, 1, 12)] public float NormalY;
+    [Quantize(-1, 1, 12)] public float NormalZ;
+    public uint StateTick;
+    public uint FuseEndTick;
+    [VarInt] public uint FuseTicks;
+}
+
+/// <summary>An explosive left the player's range, or went without a blast (a dud that lay too long).</summary>
+[NetMessage(114)]
+public partial struct ExplosiveGone
+{
+    public ulong Id;
+}
+
+/// <summary>
+/// An explosion (to everyone within hearing, reliable; an explosive round's unreliable): where, facing which way, how
+/// far it reaches, of what (the explosive or round), on what, and whose; <c>Id</c> is the explosive that went off (0 for
+/// a rocket or round).
+/// </summary>
+[NetMessage(115)]
+public partial struct Detonation
+{
+    public ulong Id;
+    [VarInt] public uint Item;
+    [VarInt] public uint Owner;
+    public float X;
+    public float Y;
+    public float Z;
+    [Quantize(-1, 1, 12)] public float NormalX;
+    [Quantize(-1, 1, 12)] public float NormalY;
+    [Quantize(-1, 1, 12)] public float NormalZ;
+    [Quantize(0, 20, 10)] public float Radius;
+    [Bits(3)] public HitTarget Target;
+    public bool Round;
+}
+
+/// <summary>A raid alert: which base (its claim device), where it is (zone frame), when it was hit (Unix ms), how often, what broke and with what.</summary>
+[NetStruct]
+public partial struct RaidAlertNet
+{
+    public ulong Base;
+    public float X;
+    public float Y;
+    public float Z;
+    [VarInt] public ulong FirstUnixMs;
+    [VarInt] public ulong LastUnixMs;
+    [VarInt] public uint Hits;
+    [VarInt] public uint Destroyed;
+    [MaxLength(160)] public string What;
+    [VarInt] public uint Item;
+}
+
+/// <summary>A base the player is authorised on is being raided (to them, online, reliable).</summary>
+[NetMessage(116)]
+public partial struct RaidAlertMessage
+{
+    public RaidAlertNet Alert;
+}
+
+/// <summary>The raid alerts that waited while the player was offline (at login, oldest first).</summary>
+[NetMessage(117)]
+public partial struct RaidAlertList
+{
+    [MaxCount(64)] public RaidAlertNet[] Alerts;
 }

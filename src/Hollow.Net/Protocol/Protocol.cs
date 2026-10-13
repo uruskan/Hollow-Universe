@@ -4,10 +4,12 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>
-    /// Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect. 4: G4, guns and the
-    /// wounded (3 is the integration package's); 5: G3, building over the network; 6: G6, ships.
+    /// Raised by hand for changes the schema hash can't see (meaning, not layout). Checked at connect. 3: the zone on the
+    /// real planet (stand-in flag, day scale); 4: G4, guns and the wounded; 5: G3, building over the network (and the
+    /// integration package's 3 + 4 together); 6: G5, raiding (explosives, detonations, raid alerts); 7: all of them
+    /// together on the real planet; 8: G6, ships.
     /// </summary>
-    public const uint Version = 6;
+    public const uint Version = 8;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

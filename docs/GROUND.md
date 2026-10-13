@@ -123,10 +123,16 @@ Godot.
 - **Static entities** (building parts, deployables, boxes) cost nothing per tick until something happens to them.
 - **Natural things** (trees, ore, plants) come from the surface generator. Only changes are stored, such as "this tree
   is cut until T" (ARCHITECTURE.md P1).
-- **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world at a
-  latitude and longitude from the command line (the planet package picks the landing site). Each tick: receive, finish
-  logins, run admin commands, give every character its input for this tick, step the zone, send snapshots (20 a
-  second), save every 30 s, send. Tick time is measured (average, 99th percentile, maximum).
+- **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world, its
+  origin at the landing site (§3; `--lat`, `--lon` move it), on the planet's real surface (`ZoneSpec.CreateSurface`:
+  `PlanetSurface`, one instance per process shared by the server, the prediction and the terrain; `--stand-in` gives
+  tests the old hilly sphere). Each tick: receive, finish logins, run admin commands, give every character its input
+  for this tick, step the zone, send snapshots (20 a second), save every 30 s, send. Tick time is measured (average,
+  99th percentile, maximum).
+  - **Arrival:** a new character arrives on a random one of the zone's beach points, as in Rust (`Beaches`: up to 24
+    points of sandy shore 0.5–3.5 m above the sea with the water within 30 m, at least 45 m apart, nearest to the
+    origin first; at the landing site they lie 0.3–0.8 km away). `--spawn origin` puts arrivals at the landing site
+    instead (load tests, measurements).
   - **Login** is by player name for development: the name is the account, one character per name, refused if in use.
   - **Admin console:** `status`, `kick <name> [reason]`, `teleport <name> <x> <z>` or `teleport <name> <other>`,
     `say <text>`, `save`, `quit`. Ctrl+C or `quit` saves everyone, says goodbye to every client and stops.
@@ -161,15 +167,47 @@ Godot.
     snapshots on either side; if snapshots stop they carry on for up to 4 ticks along their last motion, then hold.
   - **Statistics:** round trip (measured by echo), snapshot rate and loss, bandwidth both ways with UDP and IP
     headers, prediction error (last, mean and worst), input margin, clock rate.
-- **The ground mode in Godot** (`game/scripts/Ground/`, G1 placeholders): `--view ground` connects to a server
-  (`--connect host:port`) or hosts one in the game for solo play (`--host`, the default). First-person camera at the
-  eye, mouse look every frame, W A S D, Shift sprint, Ctrl crouch, Space jump. Other players are capsule mannequins of
-  the character's size with a visor and their name (placed by `Labeller`). The ground is drawn from the same collision
-  tiles, 448 m across, coloured by slope, under a placeholder sky and haze; the planet package's renderer replaces
-  it. F3 shows the network graph, Enter opens chat. Zone-frame metres are Godot's coordinates (no floating origin yet:
-  the zone stays within 8.2 km of its origin, where floats are good to half a millimetre).
-
-![Two clients: Bo sees Ada](images/ground/two-players.png)
+- **The ground mode in Godot** (`game/scripts/Ground/`), one game on the real planet:
+  - **Starting:** `--view ground` alone opens the main menu over the landing site (PLAY hosts a game on this
+    computer, CONNECT joins one by address and port, the name is remembered, QUIT). `--host` or `--connect host:port`
+    start at once (`play-ground.cmd`, AGENTS.md). Hosting starts the dedicated server (`Hollow.Server`, the newer of
+    its Release and Debug builds) as a process of its own on localhost (`ChildServer`): the game connects once it says
+    "Ready.", its log lines show in the game's as "[server]", admin commands go to its console, and it saves and stops
+    with the game (`quit`, or by itself through `--parent <pid>` if the game goes away). `--in-process` keeps the
+    server on a thread of the game (tests, statistics read from the server directly).
+  - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.Driven`, `OpenZone`): its
+    terrain, sea, sky, clouds, plants and grass, with the render frame on the zone's own frame (the same origin and
+    axes, and no floating-origin moves: the zone keeps within 8.2 km of its origin, where floats are good to half a
+    millimetre), so zone-frame metres are Godot's coordinates and the drawn ground is the collision's triangles. The
+    sky shows the universe time on the day of play (§1: × 24 from J2000, as the server's climate), so every player
+    sees the same time of day. The game places the view's camera at the predicted eye every frame.
+  - **Natural objects** as the game changed them (`NatureView`): the surface view asks, per scatter object, which
+    kind to draw (`Vegetation.Changes`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn bare
+    (the same bush without its berries, `FloraLibrary.BareBerryRed` and `BareBerryBlue`); their scatter tiles are drawn
+    again when their state changes. A tree felled within 150 m tips over away from the player on its own model and
+    sinks into the ground. Outcrops are drawn by the game from `GroundModels`: the model catalogue's stone, metal and
+    sulphur outcrops, one model per depletion stage (§9.1). Weak spots glow on what was hit.
+  - **Characters:** other players are the character package's `CharacterView`, fed every frame from the replicated
+    state (position, up, yaw, pitch, the velocity seen, stance, ground, the item in hand), with swings and shots,
+    flinches when hurt, a ragdoll on death and lying down asleep; corpses are ragdolls (a player's own body if they
+    died in view). Each wears what their worn items show (`ItemLooks.Worn`: the woven hood as the knit cap until a hood
+    exists, shirt, trousers, the work boots as the laced boots, the chest plate as the riveted breastplate; gloves and
+    the metal mask have no garment yet) in the body they chose in the menu (`CharacterView.Body`, male or female: sent
+    in `Hello.Body`, kept in the character's saved state, shown to others in `CharacterLook.Body`). The player has
+    `ViewmodelView` arms of their own body in their sleeves, holding the belt item's catalogue model (`ItemLooks`,
+    through `HeldItems`), and the inventory shows the same body. Godot's own physics gets the ground near the player
+    for ragdolls and feet (`GroundCollision`).
+  - **Interface:** the RustMVP interface (`GroundUi`, §8) over `ClientGroundUi`, names over other players (placed by
+    `Labeller`), F3 for the network graph.
+  - **Sound** (`GroundAudio`, §4.9): the audio package's director at the camera, ambience from the place, every
+    character's footsteps on the ground under them, and the game's events (gathering, pickups, food and bandages,
+    hurt and death, the cold, fires, boxes, placing, swings, the bow and arrows, hit markers, the interface).
+  - **Steady frames** (measured with `--measure`, §5.4): everything the game may show is drawn once, tiny, while the
+    world opens, so the renderer never builds a pipeline in play (`GroundView.Warmup`); the plants near the camera are
+    rebuilt on a worker thread with the game's changes frozen when it starts (`Vegetation.ChangesSnapshot`), and so
+    are tree impostor blocks; changes farther than 25 m wait up to five seconds to be drawn together; scatter objects
+    are only looked up in tiles already generated (`ScatterNaturalObjects.TryGetCached`); the game runs with .NET's
+    sustained low-latency collector. A lost connection returns to the menu.
 
 ### 4.4 Network
 
@@ -187,7 +225,7 @@ Godot.
 - **Transport:** LiteNetLib 2.1 in manual mode (no background threads: the server polls once a tick, a client once a
   frame). Reliable ordered: `Welcome`, `Spawn`, `Despawn`, chat. Sequenced (unreliable, newest wins): inputs and
   snapshots.
-- **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name). A
+- **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name, the body chosen). A
   refusal carries a `Goodbye` with a reason (protocol mismatch, bad name, name in use, server full; also kick and
   shutdown). An accepted player gets `Welcome`: net and entity IDs, the server tick, the rates, the zone (body, radius,
   gravity, surface seed, latitude, longitude) and the saved view.
@@ -274,7 +312,10 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
 - **Tile grids:** 32 × 32 cells, each quad split along the same diagonal at every level. Vertices also carry their
   position on the parent's grid, so the client morphs between levels without popping, plus eight ground-material
   weights and the climate. **Collision is built from the level-18 grids** (1.2 m spacing), exactly the vertices the
-  client draws near the player (`GroundCollision`; a test checks it).
+  client draws near the player (`GroundCollision`; a test checks it). Of the grids under a 64 m physics tile, the
+  physics keeps the triangles over the tile's square and 2 m around it, seen from the planet's centre
+  (`PhysicsWorld.ClipMargin`): the grids overlap the square by up to one of theirs, and the same ground twice costs
+  every contact query.
 - **Height**, in layers:
   - *Plates:* 14–20 plates (Voronoi on the sphere, seen through a warped direction so their edges bend), each
     continental or oceanic with its own Euler pole. Every plate near a point weighs in softly, and each boundary's
@@ -301,6 +342,11 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   rocks 3.2 m), each kept with the probability its density gives. Trees grow in stands of one kind (fir, pine, birch,
   broadleaf). An object's ID is the tile plus its index: kind in the top byte, candidate cell below (ARCHITECTURE.md
   §7). Grass is a density per vertex, drawn by the client.
+  - **Gameplay kinds** come after the plants and are drawn by the ground game, not the surface view: stone, metal and
+    sulphur outcrops (`ScatterKind` 9–11) on a 12-cell grid per tile, about one per 3,000 m² of open, gentle land of
+    average roughness: more on stony and mountain ground, 40 % fewer in closed forest, none on sand, ice, cliffs or
+    within 1.5 m of the sea; mostly stone, about a third metal, a sixth sulphur (more ore in the mountains). Each kind
+    has its own candidates and random streams, so adding them moved nothing else; new kinds only ever go at the end.
 - **Speed:** about 3.7 µs per height and 7 µs per drawn vertex (with climate and materials), about 7 ms per tile on
   one core; the client builds tiles on worker threads.
 - **Sky:** `SkyEphemeris` turns the planet's body frame in the system frame: the spin axis leans from the system's
@@ -404,6 +450,9 @@ disk and a login always reads the last save. Characters are saved on disconnect,
 Schema 3 (G3, §6.5) adds the body's building: a row per piece, door (with its lock) and claim device (with its list,
 store and upkeep debt), each a versioned binary record, written only when it changed and deleted when it's gone. The
 zone's record keeps when upkeep and decay were last applied, so loading catches up the time the server was down.
+
+Schema 4 (G5, §6.6) adds a `notifications` table: raid alerts waiting for players who were offline, handed over at
+login. Charges in the world are saved with the zone's things.
 
 ### 4.8 Characters
 
@@ -538,7 +587,7 @@ the magazine (the catalogue's guns are one mesh); the female body's crop top sti
 ### 4.9 Audio
 
 Rust's sound is the bar: grounded, punchy, readable, nothing cartoonish. Built in the `ground-audio` package from CC0
-recordings (§9.2); the ground mode and the surface view still have to call it (the hook-up list below).
+recordings (§9.2); the ground mode calls it (`GroundAudio` and the views, the hook-up list below).
 
 | Part | Where |
 |---|---|
@@ -638,7 +687,12 @@ agree with the pipeline.
 
 ![The audition viewer: the rifle at 320 m (mid 98 %, far 45 %, arriving after 933 ms) and a forest morning](images/ground/audio/sounds.jpg)
 
-**How to hook it up** (the ground mode and the surface view own these; nothing below is wired yet):
+**How it is hooked up** (`game/scripts/Ground`: `GroundAudio` owns the director, the ambience, the player's feet and
+the client's events; the views play what they draw through `Sounds`; `--mute` leaves sound out, `--sound-trace`
+prints every sound started). Wired: everything below except building, doors and locks (G3's network phase), guns
+(the G4 layer, §6.4) and explosives (G5), which come with their packages' hook-ups. The listener's place (biome,
+trees within 30 m, the sea within 1.6 km, how exposed it is) is worked out on a worker every 3 s; the wind is a calm
+0.3 until there is weather.
 1. At start: add one `AudioDirector` (set `OcclusionMask` to the world and building layers) and one `AmbienceDirector`;
    `SoundLibrary.Preload` the footsteps and the held items' events.
 2. Each frame, the player's `FootstepDriver { Local = true }.Update(dt, FootInput, feet)` from the predicted character
@@ -849,6 +903,160 @@ budget; 1,364 door toggles. The bots' shared copy held all 965 pieces.
 - **Prediction** stays exact with 965 pieces and 97 doors in the shared prediction physics: the copy's bodies carry
   the server's IDs, so contacts are the same on both sides.
 
+### 5.5 G5 load test: 100 bots raiding
+
+Measured on the owner's PC on 13 October 2026, after merging phase 2a (so the huts are replicated and in every client's
+prediction), with other agents' work running on it. The server builds 50 claimed stone huts with sheet metal doors on a
+ring 70 m around the origin (`--raid-bases`, half the bots by default) and lists two bots on each as they join; every 20 s
+it puts back what the raids broke. Every bot gets the `raid-kit` loot table with every life (four timed charges, six bag
+charges, eight tin grenades, a rocket launcher with six rockets and two high-velocity ones, a rifle with 96 explosive
+rounds, clothes, bandages, food) and raids the next bot's hut (`--script raid`, `RaidBrain`): a timed charge on the door
+or the doorway beside it, then out of its blast; bag charges and grenades thrown from 5–6 m; rockets from 15 m; bursts of
+explosive rounds from 10 m. It doesn't look at what still stands; it works through its plan. All 100 stay within 120 m of
+the origin, so each sees the 99 others.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script raid
+```
+
+| | G5, 100 raiding bots | G4, 100 bots in firefights (§5.3) | Target |
+|---|---|---|---|
+| Server tick, average | 9.66 ms, of which the zone's step 4.60 ms, flying bullets and rockets 1.41 ms and explosives and blasts 0.12 ms | 8.64 ms, of which the zone's step 2.03 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 30.7 / 100 ms (16 of 1,802 over 33 ms) | 18.5 / 227 ms | ≤ 33 ms |
+| Bandwidth per client, down (99 characters and 50 huts in view) | 157 kbit/s | 169 kbit/s | ≤ 256 kbit/s |
+| Bandwidth per client, up | 22 kbit/s | 23 kbit/s | |
+| Snapshots lost / inputs on their tick | 0 % / 99.97 % | 0 % / 99.96 % | |
+| Prediction: mean / worst error, corrections | 0.006 / 157 mm, 10 (and 94 respawns) | 0.24 / 307 mm, 525 | |
+
+In the 80 s the bots placed 117 timed charges (96 found a door or wall within reach; the rest met a hut already blown
+open), threw 243 bag charges and grenades, fired 236 rockets and 990 bursts of explosive rounds: 2,425 detonations on the
+server (most of them explosive rounds), 35 duds, 44 pieces and 66 doors broken, 75,058 damage to buildings, 1,925 raid
+hits on claimed huts summed into 105 alerts, 210 deliveries to bots in the game (two owners a hut), 93 huts put back.
+101 bots died, most in each other's blasts.
+- **Tick time:** the zone's step is up on G4's by the bodies of 300 building pieces the characters move among, by the
+  building's changes (what the raids break and the server puts back, replicated) and by the bullets (explosive rounds
+  every few ticks); explosives and blasts cost about 0.1 ms a tick. The PC was busy with other agents' work during the
+  run (the bots' process saw 57 clock jumps, and 57 inputs came late), so the worst ticks are the PC's. A run a few
+  minutes earlier on the same code, except that broken doors and claim devices weren't put back yet (13 doors broken in
+  all), measured 8.46 / 15.8 / 71.0 ms.
+- **Down** is lower than G4's: raiding bots stand still while they place, throw and aim, and explosives' and detonations'
+  messages are few (a detonation is about 30 bytes to everyone within 600 m; an explosive's state about 50 bytes when it
+  changes); the huts' changes come on top.
+- **Prediction** is all but exact: every client has the huts in its prediction physics (phase 2a's replication). Before
+  the merge, characters bumping into huts their clients didn't have made 651 corrections.
+
+### 5.6 G1 and G2 as one game on the first world
+
+Measured on the owner's PC (RTX 2070 Super, 12 threads) on 13 October 2026, with other agents' builds, servers and
+bots running on it at the same time, so the worst frames and ticks vary from run to run.
+
+**Frame time** at the landing site, 1600 × 900, vsync off: the player, a second player (a headless client) and 50
+survival bots, all within 120 m, the player looking at them (`--measure 20 --expect 45`: 20 s once at least 45 others
+are in view; AGENTS.md has the commands).
+
+| | Alone, looking over the meadow | 2 players and 50 bots, dedicated server | 2 players and 50 bots, hosted (server in the game) | Target |
+|---|---|---|---|---|
+| Frame, average | 13.7 ms (73 fps) | 12.3 ms (81 fps) | 12.7 ms (79 fps) | 16.7 ms (60 fps) |
+| Frame, 99th percentile / worst | 16.7 / 28.6 ms | 16.7 / 53 ms | 19.0 / 139 ms | |
+| GPU | 12.7 ms | 10.3 ms | 10.2 ms | |
+| Server tick | 0.2 ms | 6.8 ms average, 8.5 ms most in the last 10 s | 8.5 ms average, 72 ms 99th percentile, 234 ms worst (8 of 592 over 33 ms) | ≤ 10 ms typical, ≤ 33 ms |
+
+- **60 fps is met** with others in view, hosted or not; with the dedicated server 99 % of frames make it. The GPU draws the terrain, sea, sky, about 4,000 plant meshes,
+  414,000 tree impostors, 45,000 grass tufts and the characters; looking at the crowd it has less of the meadow to
+  draw than alone.
+- **The worst frame** of each run is the first one after the player turns to the crowd (the first sight of fifty
+  bodies); in play the slowest frames are 20–33 ms: a garbage collection, or the body of a new corpse (a ragdoll, about
+  40 ms to make).
+- **Before the near plants were rebuilt on a worker thread** (§4.3), every change others made to the plants within
+  25 m, and every 8 m walked, cost the frame 10–15 ms: 14.6 ms average and 28 ms at the 99th percentile with the
+  dedicated server, 17.0 and 30 ms hosted.
+- **Hosting costs the server, not the frame**: the server in the game's process shares its garbage collections, so its
+  ticks stall when the game collects (decision 63). For a crowd, run the dedicated server.
+
+**Server tick on the planet** (load test, 100 survival bots with full inventories, as §5.2; 40 s measured):
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 40 --script survive --kit load-test-kit
+```
+
+| | The first world | Stand-in (§5.2) | Target |
+|---|---|---|---|
+| Server tick, average | 11.7 ms | 5.9 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 16.8 / 127 ms (6 of 1,202 over 33 ms) | 12.3 / 65.5 ms | ≤ 33 ms |
+| Ground tiles | 189 (73 built on demand) | | |
+| Prediction: mean / worst error, corrections | 0.06 / 243 mm, 75 in 80,100 | 0.007 / 183 mm, 6 | |
+| Bandwidth per client, down / up (60 s run, before clipping) | 62.5 / 21.0 kbit/s | 105 / 24 kbit/s | ≤ 256 kbit/s |
+
+- **The planet costs twice the stand-in**, nearly all of it in movement: characters' contact queries against the
+  planet's ground and its solid props (trees, outcrops, boulders: about 5,000 around the bots). Keeping only each
+  collision tile's own square (§4.6) took the average from 13.7 to 11.7 ms; it is above the 10 ms typical target with
+  100 players in one place, and well within budget for the 51 of the frame-time run.
+- **Down** is lower than on the stand-in: bots seeking trees and outcrops spread out, and each sees about 46 others
+  instead of 99.
+
+**Pictures** (`docs/images/ground/play/`, 1600 × 900, from the screenshot run `--tour`, AGENTS.md; retaken in pass 2
+with the catalogue's models and icons, the female body and the gun layer, except `menu.jpg`):
+
+| Picture | What it shows |
+|---|---|
+| `menu.jpg` | The main menu over the landing site at dusk: PLAY, CONNECT with name, address and port, QUIT. |
+| `hud.jpg` | The HUD in the meadow by the landing site, a red berry bush ahead, the stone hatchet in hand, the catalogue's icons on the belt. |
+| `berries.jpg` | The bush picked: the same bush, bare, "+4 Red berries". |
+| `inventory.jpg` | The inventory: the player's own body in what they wear, the hatchet's panel, quick craft. |
+| `crafting.jpg` | Crafting: the stone hatchet's recipe, two wooden spears in the queue. |
+| `player.jpg` | The second player with the female body, in the knit cap, woven shirt and trousers, laced boots and the riveted cuirass, hatchet in hand, her name above her. |
+| `chop.jpg`, `chop-falling.jpg`, `chopped.jpg` | A birch hit on its glowing weak spot, the tree falling, and gone. |
+| `outcrop.jpg`, `outcrop-broken.jpg` | The catalogue's metal outcrop, and its broken stage after the pickaxe. |
+| `gun.jpg` | The rifle aimed down its sights the moment a shot leaves: the flash, 28 of 60 rounds. |
+| `death.jpg` | The death screen over the map of the real coast. |
+| `night.jpg` | Night, by the catalogue's campfire, lit: the fire's own light on the grass; the respawn kit on the belt. |
+
+**Judgement.** It plays as one game: arrive on a real beach, walk, swim and fall on the planet's ground, gather from
+its own trees, bushes, ferns and outcrops, craft, wear, cook, fight, die, loot bodies and respawn, with another player
+in view, by day and night, at 60 fps. What doesn't look finished yet: outcrops, deployables, dropped items and some held
+items are placeholders (§11, decision 68), bodies and sleepers fall as ragdolls with no sleeping pose, and a new body
+costs a frame.
+
+### 5.7 Pass 2: the host's server in its own process, and the planet's tick
+
+Measured on the owner's PC on 13 October 2026 with other agents' load tests running on it at the same time (8 % of
+inputs missed their tick in some runs for that reason), after G3 phase 1, G4, the assets, the sound and the character
+polish were merged.
+
+**The server's tick on the planet** (the load test of §5.6, 100 survival bots, 40 s; `--duration 40`):
+
+| | Before | After | Target |
+|---|---|---|---|
+| Server tick, average | 10.26 ms, of which the zone's step 6.18 ms | 5.04 ms, of which the zone's step 1.21 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 20.4 / 96.7 ms (7 of 1,202 over 33 ms) | 13.1 / 93.3 ms (3 of 1,202 over 33 ms) | ≤ 33 ms |
+| Prediction: mean / worst error, corrections | 0.033 / 187 mm, 67 in 80,000 | 0.089 / 259 mm, 125 in 80,460 | |
+| Bandwidth per client, down / up | 104.9 / 21.9 kbit/s | 105.3 / 22.1 kbit/s | ≤ 256 kbit/s |
+
+- **Where the time went** (a profile of the tick, per tick on average): the characters' movement 6.3–7.0 ms, nearly
+  all of it in Jolt's character queries (refreshing contacts 2.0 ms, the extended update 4.9 ms), against 1.4 ms on the
+  stand-in; replication 2.5–3.0 ms; receiving 0.7–1.0 ms; sending 0.6 ms; the ground's upkeep 0.2 ms (and 100 KB of
+  allocations a tick, from streaming tiles and their natural objects); everything G2 and G4 add, under 0.2 ms.
+- **The cause**: the zone never runs Jolt's own update (characters are moved by queries), and that update is what keeps
+  the broadphase tree in shape; on the planet 4,000–5,000 props and 170 ground tiles come and go one body at a time, so
+  every query walked a tree grown that way. `PhysicsWorld.OptimizeBroadPhase` now rebuilds it after bodies change (at
+  most twice a second, sooner after 64 changes), on the server and in every client's prediction: movement went from
+  7.0 to 1.1 ms (contacts 0.46 ms, the update 0.55 ms). The worst ticks left are a respawn's ground built on the spot
+  (nine tiles at about 10 ms each) and garbage collections.
+- Prediction stays exact on a clean line (the physics check's hash is unchanged); the corrections above come with the
+  inputs that missed their tick on a loaded PC (the runs before the change had 148 and 176).
+
+**Hosted play** (2 players and 50 bots at the landing site, as §5.6):
+
+| | In the game's process (pass 1) | In its own process (pass 2) |
+|---|---|---|
+| Server tick | 8.5 ms average, 72 ms 99th percentile, 234 ms worst | 3.05 ms average, 114 ms the most in the last 10 s |
+| Frame, average / 99th percentile / worst | 12.7 / 19.0 / 139 ms | 14.6 / 23.2 / 122 ms |
+
+The frame now carries the sound and the catalogue's models, and the PC was busier; the slowest frames left are a new
+ragdoll (40–60 ms, the character package's) and plant rebuilds landing (20–30 ms). Players coming back into range
+take a spare body (`PeopleView`: four of each body made while the world opens, and those leaving are kept), so only
+new arrivals and corpses build one.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -905,10 +1113,21 @@ progress included; what doesn't fit is dropped. At death the queue's ingredients
 only when the job starts (Rust). Crafting pauses while the player is offline or asleep.
 
 **Gathering** (`Nature/`). Natural objects come from `INaturalObjects`: objects in a rectangle of the zone's tangent
-plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. The planet package's
-scatter will provide them; until then `StandInNaturalObjects` places each kind at its density per 64 m tile from a
-seeded stream (deterministic: the server and every client place the same objects), keeping 9 m around the zone's origin
-clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
+plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. `ZoneSpec.CreateNature`
+is the one place that picks the provider:
+- **On the real surface, the planet's own scatter** (`ScatterNaturalObjects`): exactly the objects the client draws,
+  under the same IDs on the server and every client (4 bits tag, cube face, the level-16 tile's X and Y, the scatter
+  kind and the candidate cell). gather.json maps scatter kinds onto gameplay kinds (`scatter`): spruces, pines,
+  birches and broadleaf trees give wood; red and blue berry bushes are picked; ferns are the fibre plants; rocks of size
+  0.9 and more are boulders (`boulder` class: solid, they stop a swing or an arrow, give nothing); outcrops are the
+  scatter's gameplay kinds. Plain bushes and small stones are scenery. Scatter tiles are generated on demand (about
+  15 ms each; ahead on the physics prefetch workers, `ITileListener.TilePreparing`) and cached, at most 384, least
+  recently used first out. An ID from outside is untrusted: one that doesn't decode to a mapped object of a tile in the
+  zone isn't found, and a pick-up names a place near the player before anything is generated (`TryGetNear`). Around
+  the landing site, 800 × 800 m hold about 4,000 trees, 2,000 berry bushes, 19,000 ferns, 800 boulders and 210
+  outcrops (111 stone, 69 metal, 30 sulphur).
+- **On the stand-in** (tests), `StandInNaturalObjects` places each kind at its density per 64 m tile from a seeded
+  stream (deterministic), keeping 9 m around the zone's origin clear.
 - **Trees and outcrops** have health (gather.json × the object's size). A hit takes the tool's tree or ore rate
   (items.json) and gives the share of the object's whole yield that health was, in whole units, so the hits add up to
   exactly the total: a better tool is quicker, not richer. The last hit gives the rest. A 0.94-size pine (206 wood)
@@ -923,10 +1142,11 @@ clear. `ZoneSpec.CreateNature` is the one place that picks the provider.
   interact key; a pickup is gone, a bush stays bare, until it grows back.
 - **Respawn** on the real clock (Unix milliseconds): trees after 20 minutes, outcrops 10, pickups and bushes 8. Only
   changes are stored (`NaturalState`: health, weak-spot moves, depleted until), and saved.
-- **Collision**: trees (capsules) and outcrops (spheres) are static Jolt bodies while their ground tile exists, on the
-  server and in every client's prediction (`NaturalBodies`); a felled tree's body goes, and comes back when it does.
-  Their body IDs come after every ground tile's, so contacts sort the same way on both sides; two props touched at
-  once may sort differently and cost a small correction.
+- **Collision**: trees (capsules), outcrops and boulders (spheres) are static Jolt bodies while their ground tile
+  exists, on the server and in every client's prediction (`NaturalBodies`); a felled tree's body goes, and comes back
+  when it does. Their body IDs come after every ground tile's, so contacts sort the same way on both sides; a prop's ID
+  is the first free one after a hash of its key, not the order props arrived in, so two props touched at once sort the
+  same way too (with arrival order they cost 9 cm corrections on the real planet).
 
 **The zone's game** (`Zone.*.cs`). A zone built with `GameContent` runs the survival game after movement each tick, in
 §4.2's order: fall damage into the vitals; actions (held item, swings, shots); projectiles and damage; once a second
@@ -943,8 +1163,10 @@ starts at 60 / 260 / 160 (hollow-orbit's respawn values).
   bleeding, 0.04 a second more, twice that by a fire.
 - **Bleeding** (ours): a hit with a blade, spear or arrow adds its damage × the weapon's bleed fraction to a pool, lost
   at 1 health a second while the pool clots by 0.2 a second; bandages and injectors empty it.
-- **Temperature**: felt = the air (`IClimate`: the stand-in has the first world's mean 18 °C, ±3.5 °C over the
-  compressed 87-minute day, −6.5 °C a kilometre up), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but
+- **Temperature**: felt = the air (`IClimate`; on the real planet `PlanetClimate`: the planet's annual mean at the
+  place from its latitude and height, about 11 °C at the landing site, ±3.5 °C following the zone's sun at play speed,
+  warmest at 14:00 local solar time and coldest at 02:00, so it is cold when it looks dark; the stand-in has the first
+  world's mean 18 °C over a compressed 87-minute day), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but
   never past 25 °C, and 10 °C colder for two minutes after swimming. Clothing insulation (3–6 °C an item) counts
   against the cold: with it added, below 5 °C a character gets cold (fully at −10 °C); cold costs calories faster and,
   past 0.6, 0.15 health a second. There is no overheating yet. The first world is mild, so cold matters on mountains
@@ -969,11 +1191,12 @@ melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks an
 while the server is down) and is picked up with the interact key, as much as fits.
 
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
-ingredients, go into a corpse where the player fell (any number of slots), which anyone may take from but not put into;
+ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
+clothing 30–36; the queue's ingredients fill empty main slots, then follow), which anyone may take from but not put into;
 it goes when emptied or after 300 s of world time (Rust's corpse lifetime). The dead player chooses: a random beach point
 (no wait, as in Rust; survival.json can add one) or one of their own sleeping bags or beds that has cooled down. A new life has
-the spawn vitals, a rock and a torch. Until the planet package marks beaches, "the beach" is a random point 15–60 m
-from the zone's origin (`Zone.Beaches` takes the real coast).
+the spawn vitals, and a rock and a torch on the belt (Rust). The beach points are the real coast's (`Beaches`, §4.2); on the stand-in ground
+"the beach" is a random point 15–60 m from the zone's origin.
 
 **Sleepers**: a player who logs off stays where they were, asleep (lying hit shapes), lootable and killable; looting a
 sleeper shows their main slots, belt and clothing, take only. A sleeper killed leaves a corpse like anyone. Logging in
@@ -1066,14 +1289,14 @@ Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), 
 act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
 campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
 
-**Godot** (`game/scripts/Ground`, placeholders until the other packages' models and the RustMVP interface): natural
-objects as simple shapes per 64 m tile (trees, outcrops shrinking with their stage, piles, plants, bushes with their
-berries), glowing weak spots near the player, deployables as boxes (a lit fire has a flame and a light), drops,
-corpses, arrows in flight, the item in hand with a swing, a ghost where a held deployable would go, the interact prompt
-and a debug overlay (`SurvivalOverlay`); mannequins lie down asleep and swing what they hold. `--demo` sets up the camp
-below for screenshots.
+**Godot** (`game/scripts/Ground`, §4.3): deployables, dropped stacks and the dead's backpacks from `GroundModels`
+(`CatalogModels`: the model catalogue's, §9.1; a dropped stack is the item's own model at its drop scale, lying on the
+ground, or the dropped-item bag; `--placeholder-models` keeps shapes made in code), a lit fire's flame and light at the
+model's `socket_fire` (its real strength next to the sun's: the sky meters the camera a few thousand times brighter by
+night, `Glow`), arrows in flight, the held deployable's own model as a ghost where it would go, and the interact
+prompt; holding E on a fire or furnace lights it or puts it out. A body lies for 150 s in view, then only its backpack
+(`loot-sack`) is drawn; a corpse first seen farther than 80 m is drawn as its backpack at once.
 
-![A camp in the demo: a box, a lit campfire, a sleeping bag, a stone hatchet in hand](images/ground/survival-camp.png)
 ### 6.3 Building, claims and doors (G3)
 
 Built in phases. **Phase 1** (this section): the rules, engine-free and tested, their data, the kit's art and a local
@@ -1250,7 +1473,7 @@ neither level). Measured on the owner's PC at 1600 × 900, vsync off, shadows an
 
 ![The house](images/ground/build/house.jpg)
 
-### 6.3 Combat as built in G4
+### 6.4 Combat as built in G4
 
 Firearms, their rounds and attachments, bullets with drop and drag, Rust's recoil, armour by body part and the wounded
 state. The rules are `Hollow.Simulation` code shared by the server and the shooter's client (`Combat/Firearms.cs`:
@@ -1366,7 +1589,7 @@ asleep. Down:
   of what downed them, killed by whoever did;
 - logging off while down is death.
 
-### 6.4 Network, persistence and the client API (G4)
+### 6.4.1 Network, persistence and the client API (G4)
 
 **Protocol** (version 4, `Messages.cs`):
 - **Shots and reloads** are intents for a tick: `FireIntent` (the gun action's sequence number, the client's tick, the
@@ -1421,6 +1644,19 @@ bullets as tracers and their impacts by `EndTarget` (nothing for `Nothing`); oth
 and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attachments (and a light cone) from `HeldMods`;
 the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
+
+**As built** (`game/scripts/Ground`): `GroundView` adds `ViewKick` to the camera, passes the mouse's turn to
+`ObserveLook` and adds `TakeCompensation` to the view, zooms by `Zoom` while `Aimed` (eased), and reloads on R;
+`FirstPersonView` kicks the arms on `ShotFired`, plays the shot at the muzzle and flashes it, and plays a reload's
+parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws bullets as tracers (our own
+leaving the muzzle and closing on the shot's line over 50 m) and, where one stops, a puff and the sound of what it hit
+(the nearest natural object's class tells wood from rock; the sea from its depth); `PeopleView` plays others' shots
+(silenced from `HeldMods`) with a flash and their reloads; the HUD's ammo counter and the gun's slot show the
+magazine; `GroundOverlay` draws the hip crosshair from `Spread`, a reload's progress under the centre, and the
+wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The flash, tracer and puff
+are plain ones made in code behind `ShotEffects.Provider` (`IShotEffects`) until the effects package lands. Not drawn
+yet, for want of the character contract (§4.8): attachments on guns in hand, others' aiming pose, and crawling (the
+wounded crouch instead).
 
 ### 6.5 Building over the network and saved (G3, phase 2a)
 
@@ -1515,6 +1751,164 @@ stability); `BuildingPersistenceTests.ABaseSurvivesARestart` (pieces exactly, do
 locks, codes, lists, the claim device and its store) and `DecayCatchesUpOnLoad` (an hour away: an unclaimed wood
 foundation and wall at two thirds, a twig foundation gone).
 
+### 6.6 Raiding (G5)
+
+Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids. The rules
+are `Hollow.Simulation` code (`Zone.Raid.cs`, `Zone.Blast.cs`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
+`explosives.json` and `weapons.json`; the server's side is `GameServer.Raid.cs` and the notification service
+`Hollow.Server/Notifications`; the client's `GameClient.Raid.cs`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
+
+| Tests | `dotnet run --project tests/Hollow.Tests -- Raid` |
+|---|---|
+| `RaidTests` | the raid-cost table on every grade, side and door; thrown explosives bouncing, resting and sticking; walls shielding what is behind them; duds lit again; rocket flight and blast; a broken foundation bringing a hut down |
+| `RaidAlertTests` | alerts to owners online and offline, rate-limited per base; a whole offline raid |
+| `RaidNetTests` | raiding over the network (throw, replication, a dud lit again, detonations, a live alert); charges and alerts surviving a restart |
+
+**Sources.** The owner allows Rust's numbers. Rust's well-known raid tables give how many of each explosive break each grade and
+door (the targets below). RustMVP's `docs/architecture/legacy/building_damage.md` gave the timed charge (C4: 250 explosive damage,
+a 10 s fuse, stuck to the piece or door it is placed on, no building rights needed, 1/1/2/4/8 to break twig to armoured) and
+`unreal/Bare/Source/Bare/Rules/damage_rules.hpp` the resolver (channels summed, rounded up once). hollow-orbit's
+`js/game/construct.js` (`explode`) and `js/game/items.js` (`EXPLOSIVE`) gave the blast: a radius, full damage within 40% of it,
+the piece hit taking the table's damage and others in sight 30% of it, shielding by what stands between, and its per-tier damage
+(275 for a charge, 137.5 for a rocket, a satchel's 100/50/44/44), which reach Rust's counts. Recipes and workbench levels are
+Rust's. Names are ours: timed charge (C4-like), bag charge (satchel-like), tin grenade (beancan-like), rocket launcher, rocket,
+high-velocity rocket, explosive rifle rounds, explosives.
+
+**The explosives** (`explosives.json`, `weapons.json`):
+
+| Item | Used | Fuse, dud | Blast radius | People (at the centre) | Deployables | Recipe (workbench) |
+|---|---|---|---|---|---|---|
+| `timed-charge` | placed (3 m) or thrown (9 m/s), sticks | 10 s, never | 4 m | 275 | 550 | 20 explosives, 5 fibre, 2 refined metal (3) |
+| `bag-charge` | placed or thrown, sticks | 6–12 s, 1 in 5 | 3 m | 120 | 150 | 4 tin grenades, 20 fibre (1) |
+| `tin-grenade` | thrown (15 m/s) or lobbed (6 m/s), bounces | 3.5–4.5 s, 3 in 20 | 3.5 m | 60 | 40 | 60 gunpowder, 20 metal fragments (1) |
+| `rocket` (`rocket-launcher`) | fired, 18 m/s, falls a little | explodes where it hits, or after 5 s | 3 m | 210 | 300 | 10 explosives, 150 gunpowder, 2 refined metal (2) |
+| `rocket-hv` | fired, 40 m/s | as the rocket | 2 m | 175 | 120 | 100 gunpowder, 1 refined metal (2) |
+| `rifle-ammo-explosive` | the rifle's rounds (×0.6 damage, ×0.6 speed) | bursts where it lands | 0.6 m | 4 | 4 | 10 metal fragments, 20 gunpowder, 10 sulphur → 2 (3) |
+| `explosives` | the compound charges and rockets are made of | | | | | 50 gunpowder, 3 lamp oil, 10 sulphur, 10 metal fragments (2) |
+
+So a timed charge costs 2,200 sulphur, a rocket 1,400, a bag charge 480 and an explosive round 25, as in Rust. The rocket
+launcher (`weapons.json`; 50 refined metal and 100 metal fragments at workbench 2) is a firearm of calibre `rocket`: one in the
+magazine, a 5 s reload, 1 s to take up, no damage of its own; it fires through G4's gun pipeline (fire and reload intents, the
+client's prediction).
+
+**Raid costs**, how many break each thing, hit on either side (Rust's counts; the test prints the table):
+
+| | twig | wood | stone | metal | armoured | wooden door | sheet metal door | garage door | armoured door |
+|---|---|---|---|---|---|---|---|---|---|
+| Timed charge | 1 | 1 | 2 | 4 | 8 | 1 | 1 | 2 | 2 |
+| Rocket | 1 | 2 | 4 | 8 | 15 | 1 | 2 | 3 | 4 |
+| Bag charge | 1 | 3 | 10 | 23 | 46 | 2 | 4 | 9 | 12 |
+| Tin grenade | 1 | 13 | 46 | 112 | 223 | 10 | 18 | 43 | 56 |
+| Explosive rounds | 1 | 49 | 185 | 400 | 799 | 19 | 63 | 150 | 200 |
+| High-velocity rocket (ours) | 1 | 4 | 12 | 23 | 45 | 3 | 4 | 9 | 12 |
+
+The damage of one hit against each grade and door protection is in `explosives.json`, set so these counts come out on our hit
+points (twig 10, wood 200, stone 500, metal 1,000, armoured 2,000; doors 200, 250, 600, 1,000): a charge does 275 to a wall of any
+grade but twig, a rocket 137.5, a bag charge 75/51/44/44, a grenade 16/11/8.99/8.99, an explosive round 4.12/2.71/2.505/2.505.
+The building rules take whole points (RustMVP's resolver rounds every hit up), so the blast keeps the fractions of a point and
+carries them to the next hit on the same piece: a grenade's 8.99 against metal takes 112, not 100. The damage goes in through
+`BuildingWorld.Damage`'s explosive channel, whose transmissions in `building.json` stay 1: the tables here own the numbers.
+
+**A blast** (`Zone.Blast`): everything within its radius is looked at before anything is damaged (a wall that breaks still
+shields what was behind it).
+- *Building pieces and doors* in sight take the table's damage for their grade (their protection's, for a door) and side, times
+  the falloff (full within 40% of the radius, nothing at it). The one the explosive is stuck to (or the rocket or round hit) takes
+  it whole; with nothing stuck, the nearest one in sight counts as hit; every other takes 30% (hollow-orbit's splash). A piece is
+  in sight when a ray from the blast to its nearest point or its middle meets no other piece, door or claim device, and no
+  ground; behind a wall, a floor or a door, nothing.
+- *Deployables* in sight take the blast's deployable damage with the falloff; one broken spills what it held. A
+  claim device takes it through the building rules' explosive channel, as part of the raid on its base.
+- *Characters* in sight (chest or head; sleepers and the downed lying) take the blast's damage with the falloff, less what they
+  wear on the body against projectiles; a lethal blast may knock down (G4's rule: not at 75 or more). Sleepers are killable.
+- A piece broken comes down through the building rules: what it held collapses layer by layer (§6.3).
+- A claimed structure hit is a *raid hit* for the notification service (below).
+
+**Sides.** Explosives hurt both sides of a wall alike, as in Rust; `explosives.json` takes `[hard, soft]` for a grade to tune that.
+The soft side matters for blows (§6.3, §11 36): a stone wall takes 5% of a pickaxe's blow on its hard side, all of it on its soft
+side; a stranger soft-siding a claimed wall raises a raid alert too.
+
+**Throwing and placing** (intents, from a belt slot): a throw leaves a hand's length in front of the eye along the view (the
+intent's, when it is within 0.6 rad of the view the server has for the player, else the server's: no throwing behind one's back)
+with the throw's or the lob's speed plus half the player's velocity, its fuse already lit. It flies under the planet's gravity in
+two steps a tick; a charge sticks to the first surface it touches (a piece, a door's leaf, a box, a tree or outcrop, the ground);
+a grenade bounces (restitution 0.35, 30% of its sliding speed lost) and rests once slow on ground flat enough. Thrown things
+pass through characters. A charge can also be placed on the surface the view meets within 3 m. One throw or placement a second
+(0.8 s for grenades); at most 1,024 explosives in a zone. A charge on a door moves with its leaf; one whose support goes (broken,
+collapsed, a felled tree) falls and sticks or rests again.
+
+**Fuses and duds.** A fuse's length and whether it goes out are drawn when it is lit, from a seed of the explosive and how often
+it was lit. A dud lies there, harmless; anyone within reach lights it again with the interact key (a new fuse, which may go out
+again); one left alone goes after 10 minutes.
+
+**Rockets and explosive rounds** are server bullets (§6.3) with a blast: a rocket explodes where it hits (5 cm short of the
+surface, so its blast starts outside a wall) or at the end of its flight; an explosive round does its bullet's damage to a person
+and bursts where it lands, which is all it does to buildings.
+
+**Raid alerts** (the notification service, ARCHITECTURE.md §14: `INotificationService`, implemented by `NotificationService`).
+- A claimed structure hurt by any explosive, or by a blow, arrow or bullet of someone its claim device doesn't list, is a raid
+  hit: the base (its claim device's ID and place), everyone the device lists at that moment, what was hit and broken, with what,
+  when. Decay is not a raid.
+- *Rate-limited per base:* the first hit sends an alert at once; hits within the next minute are summed (hits, pieces broken,
+  what, first and last time) into one alert sent when the minute is over.
+- *Online* players (playing now) get it in the game (`RaidAlertMessage`). *Offline* ones (logged off: a sleeper, or not in the
+  zone) get it queued (the database's `notifications` table; in memory without one), at most 50 each, kept 7 days, and handed
+  over at login (`RaidAlertList`), listed with the base, the time and what was hit.
+- *Push later:* every alert queued for someone offline also goes to an `IPushChannel` (none yet), where a phone app's push will
+  plug in.
+
+**Offline raids** (ARCHITECTURE.md §10.4: they are live). The zone runs whether the owners are there or not: their sleepers lie
+where they logged off and die to blasts and bullets like anyone (into a lootable corpse), upkeep is taken from the claim device's
+store and unpaid pieces decay on the zone's slow schedule (every minute, in closed form), and the alerts wait for them.
+`RaidAlertTests.AWholeOfflineRaid` walks through one: the owner logs off asleep in a stone hut with a sheet metal door; two hours
+pass (upkeep paid from the claim device, an unclaimed twig foundation nearby decayed away, the hut whole); a raider breaks the
+door with a timed charge (alert queued), kills the sleeper with a second one inside, which breaks the claim device too (summed
+into a follow-up after the minute), and loots the body; the owner logs in dead to two alerts.
+
+**Network** (protocol 6, `Messages.cs`):
+- *Intents* (the general sequence, answered by `IntentResult`): `ThrowIntent` (belt slot, item, view, lob), `PlaceChargeIntent`
+  (belt slot, item, view), `RearmIntent` (the explosive). Rockets go through `FireIntent` and `ReloadIntent` (§6.4).
+- *Explosives* (`ExplosiveUpdate`, reliable, to everyone within 300 m when one appears and whenever it changes: thrown, bounced,
+  stuck, at rest, a dud, lit again, moved with a door): its ID, item, owner, state (flying, resting, stuck), dud, the arc's start
+  and velocity at a server tick, the surface's normal, the tick its fuse ends on and the fuse's length. `ExplosiveGone` when one
+  leaves range or goes without a blast.
+- *Detonations* (`Detonation`, reliable to everyone within 600 m; an explosive round's unreliable): position, normal, radius, the
+  item (explosive or round), what it was on, whose, and the explosive's ID (none for a rocket or round).
+- *Alerts:* `RaidAlertMessage` (one, live) and `RaidAlertList` (those that waited, at login).
+
+**The client API for the visual layer and sound:**
+
+| Member | What |
+|---|---|
+| `GameClient.Explosives` (`ClientExplosive`: `Id`, `Item`, `State`, `Dud`, `Normal`, `Burning`, `FuseTicks`; `PositionAt(serverTick)`, `FuseSecondsLeft(serverTick)`), `ExplosiveOf(id)`, `ServerTickNow` | The explosives in range: draw each at `PositionAt(ServerTickNow)` (on its arc while flying; `RenderTick` keeps it with the other players, 100 ms behind), its model by `Item.Key`, oriented by `Normal` when stuck or resting; a blinking light that quickens as `FuseSecondsLeft` falls; no light on a dud. |
+| `GameClient.ExplosiveChanged`, `ExplosiveRemoved` | One appeared or changed (a throw's whoosh, a bounce's clink, the stick of a charge, a fizzle when it turns `Dud`, a hiss when lit again), or went without a blast. |
+| `GameClient.Detonated` (`DetonationEvent`: position, normal, radius, item, target, round, owner), `GameClient.Detonations` | An explosion: flash, smoke, debris and dust by the item and radius (a round's small burst, a rocket's, a charge's), a shake and the sound by distance. |
+| `GameClient.Projectiles` | Rockets in flight are projectiles whose `Ammo` is a rocket: draw the rocket with its smoke trail. |
+| `Local.Throw(slot, yaw, pitch, lob)`, `Local.PlaceCharge(slot, yaw, pitch)`, `Local.Rearm(id)` | Intents; the item leaves the belt at once. `GameClient.Aim` → `InteractionKind.Rearm` on a dud ("E: Light Bag charge"), `Interact` lights it. |
+| `Local.RaidAlerts` (`RaidAlertView`: base, where, first and last time, hits, broken, what, item, `WhileAway`), `Local.RaidAlertReceived` | Raid alerts: a notice and a sound when one comes; the list at login for those that waited. |
+| `RemoteEntity.Action == ActionKind.Throw` | Others' throws and placements, to animate. |
+
+**What the visual layer does with it** (the Godot work after the integration package): models for the new items (the assets
+package: `timed-charge`, `bag-charge`, `tin-grenade`, `rocket-launcher`, `rocket`, `rocket-hv`, `rifle-ammo-explosive`, and
+`explosives`); explosives drawn and blinking, with throw, bounce, stick, fizzle and relight sounds; the throw and place animations
+(held item, left mouse throws, right mouse lobs or places: the controls are the integration's); detonations with flash, smoke,
+debris, a camera shake and a loud, far sound; rockets with a trail; the "Light" prompt on duds; the raid-alert notice and the list
+at login (base on the map, time, what was hit); pieces showing damage (their health is replicated by phase 2a). Until the sound
+package makes them, `sounds.json` maps the new items to stand-ins (§11 R15).
+
+**Persistence.** Charges stuck or lying in the world (duds too, and any still in the air, which fall on) survive a restart: they
+are saved with the zone's things (`things.kind` 16, `ExplosiveCodec`) with their fuse as world time left, which pauses while the
+server is down, and restored after the rest of the world with what they were stuck to; one whose support is gone falls. Rockets
+and rounds in flight are not saved (as bullets). Queued alerts live in `notifications` (schema 4) until handed over.
+
+**Bots and the load test:** `RaidBrain` and `loadtest --script raid` (§5.5); the admin's `raidbase <name> [grade]` builds a
+claimed hut in front of a player for playtests.
+
+**Building** is phase 2a's (§6.3, §6.5). A blast goes into `BuildingWorld.Damage`'s explosive channel, so what it
+breaks and brings down replicates and is saved like any other change. Swings, arrows and bullets that stop at a piece,
+door or claim device (`HitTarget.Building`) go through `Zone.DamageBuildingBy`, which damages through the same rules
+and raises a raid hit when the claim doesn't list the attacker. Test huts come from `TestBases`: built through the
+building rules, on the analytic ground (§11 R14).
+
 ### 6.7 Ships (G6)
 
 The starter ship, the **Tin Finch** (§1, `D:\GameDev\Assets\TinFinch_TF01`): built at the **vehicle workbench**, boarded
@@ -1527,7 +1921,7 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
 | Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
 | In the zone | `src/Hollow.Simulation/Zone.Ships.cs`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
-| Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 4 (`ships`) in `GameDatabase.cs`; `GameServer.Ships.cs` loads and saves |
+| Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `GameServer.Ships.cs` loads and saves |
 | Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/GameServer.Ships.cs`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, `LocalPlayer.Ships.cs` |
 | Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
 | Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
@@ -1595,7 +1989,10 @@ flight assist and no input, until the fuel runs out.
 
 **Damage** goes through the zone's hooks: a swing, an arrow or a bullet that meets the hull (the six boxes, as the ship
 is now: ships aren't rewound like characters) does its damage times the hull's share for the kind (melee 0.25, arrows
-0.1, bullets 0.5, explosives 1: `Zone.DamageShip`, G5's blasts call it too). At 0 the ship is destroyed: the pilot dies
+0.1, bullets 0.5, explosives 1: `Zone.DamageShip`). G5's blasts reach hulls too (`Zone.BlastShips`): a hull within a
+blast's radius that it sees takes the blast's damage to deployables with the falloff, the one a rocket hit or a charge
+is stuck to whole (a rocket 1.9 m from the hull takes 178 of the 750; two timed charges on it destroy it); the pilot
+is the cabin's to shelter and takes nothing from the blast itself. At 0 the ship is destroyed: the pilot dies
 in it (killed by whoever hurt it last), and a wreck (a corpse anyone may loot, for 300 s) holds the cargo, half the fuel
 and 300 metal fragments and 20 refined metal. The burning hull stays two seconds for everyone to see, then goes.
 
@@ -1605,7 +2002,7 @@ the physics and parks at its orbit marker over the spot it left, the pilot still
 (G8, ARCHITECTURE.md §12): `Zone.OrbitTransfer`, asked first; a handler that takes the ship and its pilot to local space
 returns true, and the parking above is what happens without one.
 
-**Network** (protocol 6, `Messages.cs` 120; `Replication/DeltaChannel.cs`, `GameServer.Ships.cs`, `GameClient.Ships.cs`,
+**Network** (protocol 8, `Messages.cs` 120; `Replication/DeltaChannel.cs`, `GameServer.Ships.cs`, `GameClient.Ships.cs`,
 `ShipPredictor.cs`, `RemoteShip.cs`, `LocalPlayer.Ships.cs`):
 - **Controls** ride in every tick's input while flying (`ShipControls`: stick, throttle lever, strafe and up/down in
   1/127, boost and flight assist; one bit on foot), and the pilot's client predicts its ship with exactly what the
@@ -1629,7 +2026,7 @@ returns true, and the parking above is what happens without one.
 - The server's admin gives a player a ship (`ship <name>`: beside them, full, theirs, the hatch open);
   `ServerOptions.ShipOnJoin` gives every new character one (the load test).
 
-**Storage** (schema 4, `ShipCodec`): a row per ship in a `ships` table (step 3 → 4), written with the whole zone every
+**Storage** (schema 5, `ShipCodec`): a row per ship in a `ships` table (step 4 → 5), written with the whole zone every
 30 s, at shutdown and within a second of a death: its kind, owner and lock, its centre of mass, turn and velocity in the
 **body frame** (so it stays where it was on the planet whatever zone frame comes next), hull, fuel, boost timers,
 flags, hatch, pilot, orbit marker and cargo (stacks in G4's form: a gun keeps its magazine). At start the ships come back
@@ -1638,25 +2035,36 @@ goes. Decoding treats the bytes as untrusted (a kind the game lost gives nothing
 
 **Bots** (`--script fly`, `tools/Hollow.Bots/FlyBrain.cs`): each joins with a Tin Finch beside it (`ShipOnJoin`),
 walks round to its hatch, boards through the intent and flies loops a few hundred metres across, between 50 and 200 m
-over the ground, boosting now and then and turning home past 900 m. Measured on the owner's PC with other agents' work
-running (13 October 2026), 20 flying bots, 40 s after a 15 s warm-up:
+over the ground, boosting now and then and turning home past 900 m. Measured on the owner's PC (13 October 2026), 20
+flying bots, 40 s after a 15 s warm-up, on the first world's own ground since the integration (and, for comparison, on
+the stand-in ground with `--stand-in`, as before it):
 
 ```bash
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly
 ```
 
-| | 20 bots flying |
-|---|---|
-| Server tick, average / 99th percentile | 2.38 ms / 17.6 ms (one tick over 33 ms) |
-| Ships stepped | 1.16 ms a tick, 58 µs a ship step on average (a ship high up costs about 6 µs; one within 40 m of the ground about 66 µs: two substeps of four skid rays, a sweep and an overlap) |
-| Bandwidth per client, down / up | 60 kbit/s (20 ships in view) / 26 kbit/s |
-| Prediction | ships and characters never corrected; inputs 100 % on their tick |
+| 20 bots flying | The planet's own ground | The stand-in ground |
+|---|---|---|
+| Server tick, average / 99th percentile | 5.6 ms / 44 ms (26 ticks over 33 ms in 40 s) | 2.3 ms / 10.6 ms (one) |
+| Ships stepped | 0.96 ms a tick, 48 µs a ship step (a ship high up costs about 6 µs; one within the near band about 60: two substeps of four skid rays, a sweep and an overlap) | 1.01 ms a tick, 51 µs a step |
+| What the physics holds | 750 ground tiles, 28,700 trees, rocks and bushes | 750 tiles, 9,700 stand-ins |
+| Bandwidth per client, down / up | 59 kbit/s (20 ships in view) / 26 kbit/s | 60 / 26 |
+| Prediction | inputs 99.9 % on their tick; one correction | none |
 
-Two things the flying bots found, fixed here: the near-ground band was a second's travel deep (a ship cruising at 150 m
-counted as near and swept the ground every tick), now a quarter second's; and Jolt's broadphase was never rebuilt, so
-after hundreds of ground tiles had come and gone a ray took 5 µs instead of 0.7 (60 µs on the loaded server).
-`PhysicsWorld.ReleaseUnusedGround` now rebuilds it once 16 bodies have come since the last time (queries find the same
-bodies either way; the movement check's hash is unchanged).
+The ships themselves stay cheap; what the planet's ground costs is the ground the ships stream as they roam: each keeps
+the tiles a second ahead of it, and for ten seconds behind, with the planet's trees in them, and Jolt's broadphase is
+rebuilt after every 64 bodies that come or go (the integration's `PhysicsWorld.OptimizeBroadPhase`): with 30,000 bodies
+that was every third tick at 5.6 ms (2 ms a tick, the longest 26 ms), and tiles built when one wasn't ready in time
+make the rest of the spikes. Runs while other agents' load tests shared the PC measured up to twice these averages.
+Making streamed ground cheaper for fast movers (coarser collision and no trees far under a ship, fewer tiles kept
+behind it, a rebuild that scales with the world) is the next step for whoever takes the server's performance.
+
+What the flying bots found, fixed here: the near-ground band was a second's travel deep (a ship cruising at 150 m
+counted as near and swept the ground every tick), now a quarter second's; the prefetch built 25 tiles round the point a
+second ahead, now 9 (a sweep needs no more), so 20 ships keep about 780 tiles of the planet's ground instead of 970; and
+Jolt's broadphase was never rebuilt (a ray took 5 µs instead of 0.7): found here and by the integration at the same
+time, the merge keeps the integration's rebuild, which parked ships' bodies now count toward. The load test now
+reports the rebuilds.
 
 **The viewer** (`game/scripts/Ships`, presentation only; the host hands it the ship's pose and flags each frame):
 - `ShipView` draws a ship from the catalogue model (`tin-finch`: three levels of detail switching at 60 and 160 m).
@@ -1681,12 +2089,13 @@ bodies either way; the movement check's hash is unchanged).
   hull where the vitals sit, with flight assist, boost (time left, or cooling), landed (or "too steep") and orbit stacked
   above; the stick and a crosshair in the middle; warnings at the top (pull up when the ground is under 4 s away, hull
   critical, low fuel, the distance to orbit in the last 3 km); the key under the crosshair (step out, descend).
-- **The sandbox** (`--view ship`, `ShipSandbox`): a local zone on the first world's own ground (`PlanetSurface`; the
-  stand-in trees and rocks are off, S16), drawn by a `SurfaceView` used as a component (its camera driven from here),
-  with the same rules the server runs. You stand beside your Tin Finch, parked on the bay of a vehicle workbench in the
-  flattest open spot within 90 m of the landing site. `--scene pad|hover|forest|cockpit|slope|ceiling` sets up the
-  pictures below (screenshots hold the scene's camera and pause the zone); `--tour` plays the whole loop through the
-  same keys a player presses and prints what happened.
+- **The sandbox** (`--view ship`, `ShipSandbox`): a local zone on the first world's own ground and nature (its trees
+  and rocks are solid where they are drawn; S16), drawn by the integration's driven `SurfaceView` (`OpenZone`: render
+  coordinates are the zone's), with the same rules the server runs, on the play clock (24 × the planet's day; `--hour`
+  picks the hour, half past nine by default). You stand beside your Tin Finch, parked on the bay of a vehicle workbench
+  in the flattest open spot within 90 m of the landing site that nothing of the planet's stands in.
+  `--scene pad|hover|forest|cockpit|slope|ceiling` sets up the pictures below (screenshots hold the scene's camera and
+  pause the zone); `--tour` plays the whole loop through the same keys a player presses and prints what happened.
 
 | Picture (`docs/images/ground/ship/`) | |
 |---|---|
@@ -1698,10 +2107,10 @@ bodies either way; the movement check's hash is unchanged).
 | `ceiling.png` | 14.4 km up, climbing for the ceiling: "orbit in 570 m" |
 
 `--tour`, measured (13 October 2026): walked to the hatch in 0.8 s and opened it in 1.0 s; boarded; 3 s of "up"
-lifted it to 58 m; 0.6 s of W set the lever to three quarters and in 6 s it reached 120 m/s, climbing over a hill
-when the ground came within 45 m; a turn with a boost touched 168 m/s; X and flight assist stopped it from 166 m/s
-in 8.9 s and 761 m (sliding through the turn: at speed a yaw turn outruns the 45 kN of side thrust, as in Elite); held
-"down" sank 46 m in 6.5 s, the landing assist slowing it to touch down at 1.9 m/s with no hull lost on ground
+lifted it to 61 m; 0.6 s of W set the lever to three quarters and in 6 s it reached 120 m/s, climbing over a hill
+when the ground came within 45 m; a turn with a boost touched 166 m/s; X and flight assist stopped it from 163 m/s
+in 9.0 s and 761 m (sliding through the turn: at speed a yaw turn outruns the 45 kN of side thrust, as in Elite); held
+"down" sank 46 m in 6.8 s, the landing assist slowing it to touch down at 1.9 m/s with no hull lost on ground
 sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The zone's tick in the client took under
 0.2 ms.
 
@@ -1710,7 +2119,7 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
 | `ShipPersistenceTests.AShipAndItsPilotSurviveARestart` | A locked, damaged, part-fuelled ship with a loaded rifle and metal in its cargo and Ada in the seat comes back the same (0.3 mm off, the same turn); Ada sleeps in the seat, logs in there and flies it; after it is wrecked its row is gone |
 | `ShipNetTests.PredictionMatchesTheServer` | 900 ticks of a recorded flight (lift-off, a turn, boost, flight assist off, pitch, roll, strafe, a landing with the stick moving), the client's predictors on their own ground and trees against the zone: 0 ship ticks and 0 character ticks differ |
 | `ShipNetTests.OthersSeeItFly` | Over loopback: Ada boards the ship the server gave her through the intent, climbs and flies; Bo sees it 28 m up at 45 m/s, piloted, engines on; Ada's prediction is never corrected |
-| `ShipTests` (four) and `ShipGameTests` (three) | Hovering under flight assist, its braking, landing on slopes, crash damage; boarding and stepping out, the lock, building at the workbench, weapons and the wreck (the numbers in the table above) |
+| `ShipTests` (four) and `ShipGameTests` (three) | Hovering under flight assist, its braking, landing on slopes, crash damage; boarding and stepping out, the lock, building at the workbench, weapons, G5's blasts (a rocket beside the hull, charges stuck to it, the pilot sheltered) and the wreck (the numbers in the table above) |
 
 **The ground mode's hookup** (after this package; `scripts/Ground` is the integration's):
 1. Draw every `GameClient.Ships` with a `ShipView`: the pivot from `RemoteShip.Origin` and `Rotation`, `Hatch`,
@@ -1723,9 +2132,7 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
 3. On foot: `GameClient.AimShip(eye, direction)` for the prompt under the crosshair, E `Interact` (hatch, board, refuel,
    cargo, which opens with the box screen); `IntentResult` refusals and `Notice` events as toasts.
 4. Other pilots: a seated character (`Stance.Seated`) drawn sitting at the seat socket, or hidden.
-5. A public external-camera mode for `SurfaceView` (the sandbox reaches its camera and `UpdateWorld` by reflection,
-   S16), and solid natural objects where the planet draws them (the planet package's scatter for `CreateNature`).
-6. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
+5. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
    `ShipEventKind.Destroyed`.
 
 ---
@@ -1741,8 +2148,8 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
 
 A test checks that every reference resolves and that every recipe can be made from gatherable resources.
 
-**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (nine since
-G3 phase 2a added building.json),
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (ten:
+G3 phase 2a added building.json, G5 explosives.json),
 resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
 a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
 `game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
@@ -1750,15 +2157,16 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 
 | File | What | Sources |
 |---|---|---|
-| `items.json` | 69 items (43 in G2; G4 adds the pistol and rifle, six kinds of round, five attachments, gunpowder and the metal mask; G3 phase 2a the building plan, hammer, claim device, locks, key and doors): resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`, `building` (what it does with the building rules) and `door`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
-| `recipes.json` | 54 recipes (G3: the building plan, hammer, claim device, locks and doors; G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows, the key lock and the double and garage doors; times ours |
+| `items.json` | 77 items (43 in G2; G4 adds the pistol and rifle, six kinds of round, five attachments, gunpowder and the metal mask; G3 phase 2a the building plan, hammer, claim device, locks, key and doors; G5 the explosives, timed and bag charges, the tin grenade, the rocket launcher, two rockets and explosive rifle rounds, ids 120–127): resources, tools, melee weapons, the bow and arrows, medical, food, clothing, deployables. Each has a stable numeric `id` (saves and the wire use it; never reused) and a `key` (data uses it). Blocks: `melee` (damage, reach, swing and strike times, gather rates on trees and ore, damage to deployables, bleeding), `bow`, `ammo`, `consume`, `wear` (layers, body regions covered, protection, insulation), `fuel`, `cook`, `deploys`, `building` (what it does with the building rules) and `door`. | hollow-orbit `items.js`; RustMVP stack sizes; Rust's bow, arrows, spears and berries |
+| `recipes.json` | 62 recipes (G3: the building plan, hammer, claim device, locks and doors; G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask; G5: Rust's raiding recipes): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows, the key lock, the double and garage doors and raiding; times ours |
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
 | `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
-| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`). | Rust |
+| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`, `raid-kit`). | Rust |
 | `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
 | `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
 | `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
+| `explosives.json` (G5) | The blasts (radius, falloff, splash, damage to people and deployables, one hit's damage to a piece of each grade by side and to a door of each protection), the explosives thrown or placed by hand (fuse, dud chance, sticky or not, throw and lob speeds, bounce, size), and how raid alerts go out (cooldown, how long and how many are kept). §6.6 has the tables. | Rust's raid costs; RustMVP `building_damage.md`; hollow-orbit `construct.js` and `items.js`; ours for fuses' spread, throws and alerts |
 
 The client alone also reads `sounds.json`, the sound catalogue (§4.9); it is not part of the game data's hash.
 
@@ -1834,10 +2242,17 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
 
-**In the game:** the ground mode puts `GroundUi` on a `CanvasLayer` with the client adapter as its `Model`, frees the
-mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the right mouse button (with a plan or
-hammer held, `HeldWheel`) to it. Until that hook lands the ground mode keeps its placeholder HUD
-(`scripts/Ground/GroundHud.cs`).
+**In the game:** the ground mode puts `GroundUi` on a `CanvasLayer` with `ClientGroundUi` (game/scripts/Ground) as its
+`Model`, frees the mouse while `WantsCursor` is set, and leaves Tab, Q, Esc, 1–6, Enter, H and the right mouse button
+(with a plan or hammer held, `HeldWheel`) to it. The adapter reads `GameClient.Local`: containers as the server has
+them with unanswered intents on top (a sleeper's main, belt and clothing laid out as a body), vitals, the crafting
+queue, the life and the respawn choices; it acts through the intents, and turns the client's events into the HUD's
+moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as notices, chat). Item names,
+descriptions and stats come from items.json, the crafting tabs from categories.json. Item icons are the model
+catalogue's renders (`CatalogItemIcons`, §9.1); with `--placeholder-icons`, `ItemIconAliases` maps items.json keys
+onto the placeholder drawings. The inventory shows the player's own body in what they wear (`InventoryBody`, through
+`CharacterPreview.Body`), and the death screen the real ground around the landing site, 9.6 by 4 km (`ZoneMap`,
+through `DeathMap.Use`). Pictures of it in play are in §5.4.
 
 ### 8.2 Behaviour
 
@@ -1871,7 +2286,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Wheels:** held right mouse button with the plan or the hammer; release (or click) chooses, Esc cancels. The plan's
   sectors start at −81° so the top ray falls between the foundation and the triangle roof; the hammer's first sector
   is centred at twelve o'clock.
-- **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, address and port (HOST SOLO or CONNECT); QUIT.
+- **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
+  port (HOST SOLO or CONNECT); QUIT.
   The name and address are remembered.
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
   drop outside and on a panel, split, Q, CRAFT, Tab) against `MockGroundUi` and quits with 0 when all pass.
@@ -1962,14 +2378,15 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
 | `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
 | `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
-| `models/resources.py` | The eleven resources as small piles (their dropped look), and the four world pickups as bigger piles |
+| `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
-| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition, key lock |
-| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate |
+| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
+| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
 | `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
+| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
 rifle's LOD1–LOD3, as the character package chose); `UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as
@@ -2020,7 +2437,18 @@ it, and of the rifle's receiver cover), a silencer's or brake's rear face on `so
 `socket_under` (under the pistol's frame and the rifle's handguard). The rail and under sockets are placed by casting
 rays onto the converted guns' surfaces. `ModelCatalog.Attach(gun, gunKey, attachmentKey)` mounts one; the sights carry
 `socket_eye` for aiming through them. Ammunition types are the boxes with colour bands and painted tips: blue for high
-velocity (`pistol-ammo-hv`, `rifle-ammo-hv`), orange for incendiary (`rifle-ammo-incendiary`).
+velocity (`pistol-ammo-hv`, `rifle-ammo-hv`), orange for incendiary (`pistol-ammo-incendiary`, `rifle-ammo-incendiary`),
+yellow striped black with yellow tips for explosive (`rifle-ammo-explosive`, G5).
+
+**Raid items** (G5, `models/raid.py`, our own designs): the bag charge is a stuffed canvas satchel, two belts, a carry
+loop and an igniter with its fuse cord; the tin grenade a ribbed food tin with nails bound round it under wire and tape
+and a fuse through the lid. Both are held by a palm socket at their middle (`grip_r`, +X out of the front), as the
+timed charge is, and carry `socket_fuse` for the fuse's sparks. The rocket launcher is a 1.1 m painted tube with a
+flared venturi, a canvas heat sleeve where it rests on the shoulder, a pistol grip (`grip_r`, the pivot) and a vertical
+fore grip (`grip_l`), a folding frame sight on the left (`sight`, `eye`), `muzzle` at the front and `exhaust` at the back
+(+X pointing backwards, for the back blast); class `gun`, so the character package holds it two-handed like the rifle.
+The rockets lie on the ground along their length: an olive warhead with a yellow band, or for `rocket-hv` a slimmer
+pointed one with a blue band, on a motor with four fins.
 
 `ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
 merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
@@ -2048,7 +2476,8 @@ has its LODs, hulls, palm sockets and mapped materials, that icons are square RG
 item key (and every item of `items.json` when present) has a model.
 
 Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `icons-g4.jpg` (the bed, the G4 items and
-the reworked icons), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
+the reworked icons), `icons-g5.jpg` (the G5 raid items and the models that replaced the last stand-ins: gunpowder, the
+metal mask, incendiary pistol rounds), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
 `models.jpg` (everything on the ground),
 `items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
 
@@ -2090,6 +2519,157 @@ piezo tones (the code lock's verdicts and the charge's timer). No sound comes fr
 Archives are unpacked into `art/.cache/audio/src` by Python's `zipfile` and our own 7z reader (`art/audio/sevenzip.py`:
 LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. The waveform and
 spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since nobody listened while they were made.
+
+### 9.3 Effects
+
+Every visual effect of the ground game: shots, hits, blood, gathering, blasts, fires and the world's dust. The aim is
+Rust's: punchy and readable, never cartoonish, at a steady frame rate. Presentation only (ARCHITECTURE.md §2): the
+library plays what the game tells it; nothing it does reaches the rules.
+
+| Part | Where |
+|---|---|
+| Library | `game/scripts/Fx/`: `FxDirector` (the API, caps, distance, budget, delays, loops), `FxBatch` (the particle batches), `FxFlashes` (muzzle flashes), `FxTracers`, `FxDecals`, `FxLights`, `FxLoops` (fires, trails, fuses), `FxShake`, `FxCatalog` |
+| Catalogue | `game/data/ground/fx.json`: every effect's layers and numbers (sizes, speeds, lives, cones, colours), caps, cull distances, loops and tracers |
+| Assets | `game/assets/fx/`: `c4/` (the PSG C4 VFX kit converted), `textures/` and `decals/` (ours), `chunks.glb` (debris meshes), `shaders/` |
+| Builder | `art/fx/build.py` (Blender 5.2, background): converts the kit, paints our textures and decals, builds the debris meshes |
+| Viewer | `game/scripts/Fx/FxViewer*.cs`, `FxStage.cs` (`--view fx`) |
+
+**How it draws.**
+- **Particle batches.** Fourteen `GPUParticles3D` cover the whole world, one per kind of particle: `spark`, `ember`,
+  `flash`, `fire`, `dust`, `smoke`, `smoke_hero`, `haze`, `haze_rise`, `ring`, `droplet`, `chunk_stone`, `chunk_wood`,
+  `chunk_metal`. None emits by itself: effects put particles into them with `EmitParticle`, each with its own position,
+  size, velocity, colour, life and random number, and one particle shader (`fx_process.gdshader`) moves them: gravity
+  or buoyancy, drag, slow turbulence, streaks along the velocity, tumbling debris that bounces on the floor and settles.
+  So ten players firing cost one simulation step and one draw call per kind of particle, however many hits there are;
+  a batch's capacity caps what lives at once, and a batch with nothing alive goes idle and costs nothing.
+- **Draw shaders.** Camera-facing billboards (`fx_billboard.gdshaderinc`): lit dust and smoke, rounded, fading into
+  what is behind them (soft particles) and away near the camera; smoke from the C4 kit's flipbook with its normals; the
+  C4 fire flipbook blended premultiplied, so its light adds and its soot darkens; additive flashes and embers; heat
+  haze that bends the screen. Streaks (`fx_streak.gdshaderinc`): sparks that cool from white-yellow to red, droplets of
+  blood, water and sand, never thinner than about a pixel and a half (thinner ones are drawn dimmer instead), so far
+  sparks don't shimmer. Rings lying in a surface. Debris meshes, several shapes in one mesh, one picked per particle.
+- **Muzzle flashes** are cards on the gun's muzzle socket (+X along the barrel) for two or three frames: flames along
+  the barrel, a burst across it, a brake's flames out of its side ports; a card seen edge-on fades out. Each shot picks
+  one of four variants, turns and stretches them. First person draws them with the view model's field of view on its
+  render layer, without shadows, exactly where the gun is drawn; the shot's smoke is moved to where the view model
+  shows the muzzle (`ViewmodelToWorld`).
+- **Tracers** fly the projectile's own path (gravity and drag as `ClientProjectile.PositionAt`), so they meet the
+  impact; the head stops where the projectile stopped and the tail catches up. One MultiMesh draws all of them, never
+  thinner than a pixel and a half.
+- **Fires** (loops) are flame cards stood up along world up and turned to the camera, drawn by a shader from scrolling
+  noise (a tongue of fire hottest at its foot, breaking into licks as it rises), with emitters for embers, smoke and
+  heat haze at their rates, and a flickering light.
+- **Decals** (holes, blood, scuffs, scorch) come from a small pool per texture that keeps its texture (changing a
+  decal's texture makes Godot rebuild its decal atlas, which stalls frames) and fade out; **lights** from a pool of
+  shadowless omni lights that rise and fall; **camera shake** is summed per camera position from each blast's
+  strength, radius and age.
+- **Render layer 20** (`FxDirector.RenderLayer`) holds every effect drawn in the world; decals skip it, so a scorch or
+  a bullet hole never stains the dust over it. Cameras draw all twenty layers by default.
+- **Limits.** Each effect has a cap on how many may play at once (`cap`) and a distance past which it is skipped
+  (`cull`); fewer particles play with distance (all within 20 m, half by 55 m, a quarter past 110 m), debris only within
+  45 m, decals within 70 m; a frame may emit 1,500 particles.
+
+**The API** (`HollowUniverse.Fx`, static, from anywhere; the director puts itself under the scene tree's root on
+first use, or `FxDirector.Install(parent)`):
+
+| Call | What |
+|---|---|
+| `FxDirector.Play(key, position, normal, FxParams p = default)` | A one-shot effect at a point on a surface facing `normal` (up in the open). Returns false when skipped (unknown key, too far, at its cap). |
+| `FxParams` | `Direction` (a bullet's flight, a tree's fall, along a door), `Scale`, `Area` (half extents to spread over, in the frame of the normal and the direction), `Tint`, `Follow` (a node flashes, lights and loops follow), `FirstPerson`, `Floor` (where debris lands), `Duration` (loops), `Seed` |
+| `FxDirector.Impact(surface, position, normal, incoming)` | A bullet's hit on `FxSurface` Dirt, Grass, Sand, Rock, Wood, Metal, Water or Flesh (`impact.bullet.<surface>`) |
+| `FxDirector.Muzzle(key, muzzleSocket, firstPerson)`, `FxDirector.MuzzleKey(weapon, silenced, brake)` | A shot's flash, light, smoke and spark on the gun's muzzle socket |
+| `FxDirector.WantsTracer(shooter, seq)` | Whether a shot draws a tracer: some do, as in Rust (`tracerEvery` in fx.json: every third, per shooter) |
+| `FxDirector.Tracer(key, origin, velocity, gravity, drag)` → id; `FxDirector.EndTracer(id, at)` | A tracer or trail along the projectile's path; where it stopped |
+| `FxDirector.Start(key, position, normal, p)` → `FxHandle`; `Stop(handle)`, `Move(handle, position)` | Loops: fires, torches, burning, rocket trails, fuses; at a point or on `p.Follow`; they fade in and out |
+| `FxDirector.CameraShake(cameraPosition)` | The camera's offset this frame (pitch, yaw, roll in radians): add it to the camera like the gun's `ViewKick`, never to the view the player controls. `FxDirector.Shaken` fires when a shake starts. |
+| `FxDirector.ViewmodelToWorld(point)` | Where a point of the view model appears in the world's projection |
+| `FxSurfaces.Of(GroundMaterial)`, `FxSurfaces.OfGrade(grade)` | The surface of a ground material or a building grade |
+
+**Hook-up list** (the integration package wires these; the library does nothing by itself):
+
+| Game event | Effect |
+|---|---|
+| `Local.Gun.ShotFired` | `Muzzle(MuzzleKey(weapon, silenced, brake), the view model's muzzle socket, true)`; when `WantsTracer(own id, seq)`, `Tracer("tracer.bullet"` or `"tracer.incendiary", origin, direction × speed, gravity, drag)` from `ViewmodelToWorld(muzzle)`, so it leaves the gun where the view model draws it |
+| Others' shots (`RemoteEntity.ActionCount`, `ProjectileLaunch`) | `Muzzle(…, their held gun's muzzle socket, false)`; a tracer as above when `WantsTracer(shooter, seq)` |
+| `GameClient.Projectiles` that are bullets, ending (`EndedAt`, `EndTarget`) | `EndTracer`; `Impact(surface, EndedAt, normal, DirectionAt)`: `Ground` by the ground material there (`FxSurfaces.Of`), `Natural` by the object (tree Wood, outcrop Rock, bush Grass), `Deployable` by its material (Wood or Metal), building pieces by grade (`OfGrade`), water Water, `Character` Flesh (`blood.hit`; `blood.hit.heavy` for a head shot); nothing for `Nothing` |
+| Incendiary rounds' hits | `impact.incendiary`, and `Start("fire.burning", …, Duration = 3)` where they set fire |
+| Explosive rounds' hits | `explosion.ammo` |
+| Arrows in flight, landing | `Tracer("trail.arrow", …)`, `EndTracer`; the impact as for bullets |
+| `Local.HitMarker`, `DamageTaken`, bleeding | `blood.hit` on the victim; while bleeding, `blood.drip` on the ground under them every second or two |
+| A gathering hit (the swing's impact, `ItemsChanged` with `Gather`) | `gather.wood` on trees, `gather.rock` on stone, `gather.sparks` on metal and sulphur ore; `gather.weakspot` too when `WeakSpot` |
+| A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); `gather.node-break` |
+| Timed charge, bag charge, tin grenade, rocket, explosive round going off | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`; a dud `explosion.dud`; while a fuse burns, `Start("fuse.burning", Follow = socket_fuse)` |
+| A rocket fired, in flight | `Muzzle("muzzle.rocket", socket_muzzle, first person)`, `Play("backblast.rocket")` on `socket_exhaust` (+X backwards), `Start("trail.rocket", Follow = the rocket)` |
+| Campfire, furnace lit and out | `Start("fire.campfire"` / `"fire.furnace", Follow = its model)`, `Stop` |
+| A lit torch in hand | `Start("fire.torch", Follow = socket_flame, FirstPerson)` (third person for others) |
+| A player burning (`Vitals.Burning`) | `Start("fire.burning", Follow = the body)` while it burns |
+| A building piece collapsing | `world.collapse` (`Area` the piece's half size, `Tint` the grade's colour) |
+| An upgrade with the hammer | `world.upgrade.wood`, `.stone`, `.metal`, `.armoured` over the piece (`Area`) |
+| A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
+| A step on sand (footsteps) | `world.footstep.sand` |
+| Every frame | the camera: rotation += `FxDirector.CameraShake(camera position)` |
+
+**The effects** (`fx.json`; each has an `about` line there):
+
+| Family | Keys |
+|---|---|
+| muzzle | `muzzle.rifle`, `muzzle.rifle.brake`, `muzzle.pistol`, `muzzle.pistol.brake`, `muzzle.silenced` (no flash, no light, a little smoke), `muzzle.rocket`, `backblast.rocket`; each first or third person |
+| tracer | `tracer.bullet`, `tracer.incendiary`, `trail.arrow`, `trail.rocket` (a loop) |
+| impact | `impact.bullet.dirt`, `.grass`, `.sand`, `.rock`, `.wood`, `.metal`, `.water`, `.flesh`, `impact.incendiary`: debris, dust and a decal where right (holes in wood, rock and metal, a scuff in earth) |
+| blood | `blood.hit`, `blood.hit.heavy` (a short mist and a few drops, restrained), `blood.drip` (a drop and a stain) |
+| gather | `gather.wood`, `gather.rock`, `gather.sparks`, `gather.weakspot`, `gather.tree-fall`, `gather.node-break` |
+| explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
+| fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning` (loops) |
+| world | `world.collapse`, `world.upgrade.wood`, `.stone`, `.metal`, `.armoured`, `world.door-slam`, `world.footstep.sand` |
+
+**Assets** (`art/fx/build.py`, about 15 s):
+- *The PSG C4 VFX kit* (`D:\GameDev\Assets\PSG_C4VFX_R01`, made for this project: a Mantaflow simulation rendered by
+  Blender, and procedural textures), converted to `fx/c4/`: the smoke flipbook (8 × 8, 4K → 2K) and its normals turned
+  to OpenGL's convention, the fire flipbook (4 × 4 HDR EXR → 2K, stored sRGB at 1/1.25 of its value, which the shader
+  multiplies back), flash, pressure ring, heat distortion, dust puff and spark (512 px or less), the scorch mask baked
+  into soot and an ember glow, the concrete texture of its debris; its four concrete shards and two metal fragments
+  (from the kit's `.blend`, in metres) go into the debris meshes.
+- *Ours, procedural:* the muzzle flash atlas (four flames from the side and four bursts down the barrel, painted from
+  noise and a fire colour ramp), tileable noise, a soft dot, a droplet; decals with normal maps: bullet holes in wood
+  (fibres torn along the grain, splinters), rock (a crushed crater with cracks) and metal (a punched hole with a torn
+  bright rim and chipped paint), blood stains, a dirt scuff; debris: rock chips and clods, wood splinters and bark, torn
+  tin.
+
+**The viewer** (`--view fx`): every effect in turn on its station while the camera turns about it. The stations: ground
+of each kind with the planet's own textures, rock, wood, metal and stone walls from the building kit, water, a target
+dummy, the guns, the campfire, furnace and torch. Options: `--fx <key>` (start there; with `--shot`, caught `--at <s>`
+after it starts, its `hero` moment by default), `--sheet <family>` (a contact sheet: every effect of a family in its
+own cell at its hero moment, muzzle flashes in first and third person), `--strip <key> --times a,b,c` (one effect at
+several moments), `--action <family>` (a scene of the family in use), `--stress firefight --measure <s>` (below),
+`--night`, `--only-batch <name>` (tuning), `--spikes` (with `--stress`: print every frame over 12 ms). Keys: ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
+fx.json.
+
+```bash
+$GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png
+$GODOT --path game --resolution 1600x900 -- --view fx --action fire --shot fire.png
+$GODOT --path game --resolution 1600x900 -- --view fx --stress firefight --measure 8
+blender -b --factory-startup --python art/fx/build.py        # the effects' assets (-- c4 | textures | decals | chunks)
+```
+
+**Cost.** `--stress firefight` has ten players (five a side, rifles and a pistol each side) fire bursts across an arena
+of walls, rock and open ground for 8 s at a time with the effects off, on, off and on, about 34 shots a second: every
+shot's muzzle effect (the camera's own in first person), a tracer for every third, its impact after its flight (one in
+eight on a body), and a grenade every six seconds. On the owner's PC (RTX 2070 Super, 1600 × 900, vsync off):
+
+| | Frame, average | Frame, 95th percentile | GPU | The library's CPU time |
+|---|---|---|---|---|
+| Effects off | 2.32 ms | 2.38 ms | 1.72 ms | |
+| Effects on | 2.61 ms | 2.78 ms | 1.97 ms | 0.03 ms (emission and updates) |
+| **What the effects cost** | **+0.29 ms** | +0.40 ms | +0.25 ms | |
+
+So a ten-player firefight's effects cost about 0.3 ms a frame, well inside the 2 ms allowed (an earlier run during
+tuning measured +0.41 ms). The figures are the means of the two halves of a run (`[fx-measure] RESULT` in the log);
+other programs busy on the PC move them by a few tenths and can add stalls to either half.
+
+Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's contact sheet) and `action-<family>.jpg`
+(each family in use), for muzzle, tracer, impact, blood, gather, explosion, fire and world.
+
+![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 
 ---
 
@@ -2187,8 +2767,8 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
     workbench is checked when a job starts (Rust). Crafting pauses while the player is offline or asleep (RustMVP).
 23. **Sleepers are frozen**: no hunger, thirst or bleeding while logged off; looting them is take only; logging in wakes
     them at once (no key press).
-24. **The beach** is, until the planet package marks real coasts (`Zone.Beaches`), a random point 15–60 m from the
-    zone's origin; a beach respawn has no wait (Rust). New characters still arrive at G1's spawn ring.
+24. **The beach** is one of the zone's real beach points (§4.2: up to 24, nearest the origin first); a beach respawn
+    has no wait (Rust), and new characters arrive there too.
 25. **Timers**: corpses and dropped items last 300 s of world time, which pauses while the server is down, as does
     crafting and a fire's fuel; sleeping-bag cooldowns and respawning nature run on the real clock.
 26. **Bleeding and the cold** use our own numbers (survival.json) where neither source had any; a fire warms the air
@@ -2197,8 +2777,8 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
     at most 0.25 s (ARCHITECTURE.md §11.5) over a 36-tick history.
 28. **Deployables**: sleeping bags and campfires don't block movement; a broken deployable spills everything it held;
     arrows do a quarter of their damage to deployables, melee the tool's `structure` value.
-29. **Natural objects' bodies** take free IDs after the ground tiles', so two props touched at once may sort differently
-    on the client than on the server, costing a small correction (§6.1).
+29. **Natural objects' bodies** take IDs after the ground tiles', each the first free one after a hash of its key, so
+    the client and the server give a prop the same ID (§6.1).
 30. **Decisions taken in the surface work** (to confirm):
    - Plants are generated in code in hollow-orbit's style rather than scanned models; trees switch to their second
      mesh at 50 m and to impostors at 170 m, which keeps the frame time near 11 ms. Forests farther than 2.2 km are
@@ -2240,6 +2820,14 @@ they merge beside the other packages' items):
   bullet tips (blue high velocity, orange incendiary).
 - M10. **First-person poses are placements without arms:** the character package's viewmodel holds items by their palm
   sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback).
+- M11. **The metal mask is our own design** (round eye ports in riveted bezels, a brow band, a slotted grille over the
+  mouth), not Rust's slit-eyed plate. Only the item is modelled here; the worn mask is the character package's.
+- M12. **The G5 raid items are our own designs** (a stuffed satchel with an igniter, a nail-bound food tin with a fuse,
+  a painted tube launcher with a venturi and a heat sleeve). The launcher's class is `gun`, so until the character package
+  gives it a shoulder pose it is held two-handed like the rifle; the thrown charges are held by a palm socket at their
+  middle, like the timed charge.
+- M13. **Explosive rounds are marked yellow striped black** with yellow tips, so the four kinds of round read apart at a
+  glance (plain, blue, orange, hazard stripes).
 
 Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 
@@ -2366,6 +2954,158 @@ Decisions taken in G3's phase 2a (§6.5, building over the network), to confirm 
 - B11. **The load test's bots build 36 m apart:** a claim device covers 25 m round itself (with 2.25 m of padding for
   the hammer), so nearer bases would block each other.
 
+Decisions taken during G5 (step "Raid", §6.6) without the owner, to confirm or overturn (numbered R1 on):
+
+- R1. **Raid costs are Rust's counts on our hit points.** One hit's damage per grade and door is set so Rust's counts come
+  out on RustMVP's hit points (wood 200 against Rust's 250, the armoured door 1,000 against 800); the blast keeps
+  fractions of a point from hit to hit, since the building resolver rounds every hit up. The tin grenade's doors and the
+  high-velocity rocket are ours, in proportion.
+- R2. **Explosives ignore the side** of a wall (Rust); the data can give a grade [hard, soft]. G5 leaves the melee
+  soft-side numbers of decision 36 as they are.
+- R3. **The blast is hollow-orbit's:** the piece stuck to or hit takes the table whole, the nearest in sight counts as
+  hit when nothing is stuck, other pieces in sight take 30% with the falloff (full within 40% of the radius). Rust's
+  stuck charges hurt only their piece; here a charge's neighbours in sight take a share too.
+- R4. **Line of sight:** building pieces, doors, claim devices and the ground block a blast; deployables, trees and
+  characters don't. Everything is looked at before anything is damaged, so a wall that breaks still shields what was
+  behind it.
+- R5. **Fuses and duds:** timed charge 10 s, never a dud (RustMVP, Rust); bag charge 6–12 s with one in five a dud, tin
+  grenade 3.5–4.5 s with three in twenty (Rust's in kind; exact Rust numbers not on record). Anyone within reach lights a
+  dud again, any number of times; a dud left alone goes after 10 minutes of world time (ours).
+- R6. **Throwing:** from any belt slot (not only the one in hand), at 9 m/s for charges and 15 m/s for grenades, or a
+  lob; the view is the intent's when within 0.6 rad of the server's (anti-cheat); one a second (grenades 0.8 s); thrown
+  things pass through people; charges stick to anything static; grenades bounce (restitution 0.35) and rest. Placing
+  reaches 3 m (the deployables' reach; RustMVP had 6 m) and needs no building rights (RustMVP). At most 1,024 explosives
+  in a zone (RustMVP: 1,000 charges).
+- R7. **The rocket launcher is a firearm** of its own calibre, so rockets use G4's fire and reload intents and the
+  client's gun prediction (the task's "fire rocket" intent is `FireIntent`); a rocket flies 18 m/s with 0.15× the
+  planet's gravity for 5 s and explodes on contact or at the end; the high-velocity one 2.22× faster with a small blast.
+  Its 5 s reload and 1 s equip are ours.
+- R8. **Explosive rifle rounds** do ×0.6 damage at ×0.6 speed (Rust's speed ratio) and burst (0.6 m); the burst is all
+  they do to buildings and deployables.
+- R9. **Blasts on people** use what is worn on the body against projectiles (armour has no explosion protection yet); a
+  lethal blast may knock down unless it does 75 or more.
+- R10. **Recipes are Rust's** with stand-ins for what doesn't exist yet: fibre for cloth, rope and the stash, refined
+  metal for tech trash and pipes, lamp oil for low-grade fuel. Rust's intermediate "explosives" is a new item key
+  (`explosives`, id 120).
+- R11. **Raid alerts:** to everyone the claim device lists at the hit; for any explosive damage to a claimed piece, door
+  or claim device, and blows or shots by someone it doesn't list; not for decay. One a minute per base, the hits in
+  between summed into the next; queued alerts kept 7 days, 50 a player; a push channel is a seam with nothing behind it.
+  The base is its claim device's ID; its place is in the zone's frame (a moved zone would show it elsewhere).
+- R12. **Charges survive a restart** with their fuse left as world time (it pauses while the server is down, like a
+  fire's fuel, while the building's own timers run on the real clock, B6), rather than being defused on load; one whose
+  support is gone falls. Saved as things (`things.kind` 16), not a table of their own. Queued alerts are a
+  `notifications` table: schema 4, after phase 2a's `building` table at 3.
+- R13. **Hits on buildings go through `Zone.DamageBuildingBy`:** phase 2a's swings, arrows and bullets that stop at a
+  piece, door or claim device (`HitTarget.Building`) are kept and take the same building rules; the one call adds the
+  raid alert for a stranger's hit. A claim device in a blast takes the blast's damage to deployables (with the falloff,
+  no splash share) through the explosive channel, as part of the raid; blows and shots on its box stay phase 2a's (B7).
+- R14. **Test bases and explosives use the analytic ground:** `TestBases` takes a foundation's frame from the surface
+  itself, and explosives' flight and lines of sight take the ground from it too, because Jolt's rays straight down onto
+  the ground tiles' meshes missed about a third of the time here (phase 2a found the seam between two tiles and tries
+  again a millimetre aside in `FoundationAt`). Rays against building hulls never missed in 13,000 tries.
+- R15. **Stand-in models and sounds** for the new items until the assets and sound packages make them: the timed charge
+  for the bag charge and grenade, the rifle for the launcher, rifle rounds for rockets, incendiary rounds for explosive
+  ones, sulphur for explosives; in `sounds.json` (and `art/audio/events.py`) the charge's fuse and explosion for every
+  explosive, a swing for a throw, a fire going out for a dud and a fire lit for lighting it again, a metal impact for a
+  grenade's bounce and an explosive round's burst, the rifle's sounds for the launcher and an arrow's flight for a rocket.
+- R16. **The raid arena runs only without a database** (`--raid-bases`, the load test's huts): the building is saved now,
+  so its huts would come back at the next start and be built again over themselves. The admin's `raidbase` builds one
+  hut that is saved like any other.
+
+Decisions taken for the effects (§9.3) without the owner, to confirm or overturn (numbered F1 on):
+
+- F1. **One particle system per kind of particle for the whole world**, fed by `EmitParticle`, instead of a particle
+  system per effect: a firefight then costs a dozen dispatches and draws however many hits there are, and nothing has
+  to be pooled or restarted per effect. Particles carry their own size, life and colour, so one batch serves every
+  surface's dust.
+- F2. **Some shots draw a tracer, as in Rust:** every third shot per shooter (`tracerEvery` in fx.json), the same on
+  every client because it follows the shot's sequence number.
+- F3. **The C4 kit's fire flipbook is drawn premultiplied**, its light added and its dark smoky parts covering what is
+  behind, and blasts throw a burst of smaller flipbook fireballs rather than one big billboard: the single billboard
+  read as a flat orange cut-out.
+- F4. **Campfire, furnace, torch and burning flames are drawn by a shader** (scrolling noise shaped into tongues) on a
+  few cards rather than from a flipbook: the C4 kit's fire is a fireball, and a looping fire flipbook of our own would
+  need its own fluid simulation.
+- F5. **Smoke and dust are lit by the scene** (the sun, the sky, fires and flashes), so they darken at night and glow by
+  a fire; they get no backlight term.
+- F6. **Effects draw on render layer 20**, which decals skip: Godot's decals otherwise stain the transparent dust over
+  a scorch. Every camera must keep layer 20 in its cull mask (all cameras do by default).
+- F7. **No collision with the world for particles:** debris bounces on a floor each effect gives (the hit's height on
+  the ground, 1.2 m below a hit on a wall, or `FxParams.Floor`). Godot's particle colliders would need the scene
+  rendered into a height field every frame.
+- F8. **Each decal texture keeps its own pool** (24 decals, 10 for scorch marks): changing a decal's texture made
+  Godot rebuild its decal atlas and stalled frames by up to 30 ms in the firefight.
+- F9. **The camera shake is an offset the camera's owner adds**, like the gun's `ViewKick`; the library owns no
+  camera. A blast shakes within its radius (35 m for the timed charge), most close by.
+- F10. **Blood stays restrained:** a short dark mist and a few drops on a hit, small stains from drips that fade
+  within a minute; no pools or splatter on walls.
+
+Decisions taken while joining the pieces into one game on the real planet (G1 and G2 integrated), to confirm or overturn:
+
+57. **Ferns are the fibre plants** (10 fibre each, as Rust's hemp gives cloth). On the real planet they are many
+    (about 19,000 in 800 × 800 m around the landing site), so fibre is easy to come by; a rarer plant of our own can
+    replace them later.
+58. **Scenery and obstacles**: plain bushes and stones smaller than 0.9 of the rock model are scenery (walked through,
+    as Rust's bushes); bigger rocks are boulders that block movement, swings and arrows and give nothing (Rust's
+    boulders can't be mined either). Stone, metal and sulphur come from the outcrops (§4.6), about one per 3,000 m².
+59. **Arrival and respawn on the beach**: as in Rust, new characters arrive on a random beach point, not at the landing
+    site; the nearest beach is 0.3 km from it. The landing site is the zone's origin and the place of the screenshots.
+60. **The day of play** is the planet's rotation × 24 counted from J2000 (`ZoneSpec.RotationTimeScale`, sent to clients
+    with the zone, `--day-scale` on the server), so every player sees the same time of day and the air is cold when it
+    is dark. The server's climate is the real planet's mean at the place (11 °C at the landing site, not the stand-in's
+    18 °C) with the same ±3.5 °C day swing.
+61. **The stand-in stays for tests**: the old hilly sphere and its natural objects (`ZoneSpec.StandIn`,
+    `ServerOptions.StandIn`) keep the network and survival tests plain and quick; the game, the dedicated server and
+    the load test run on the planet.
+62. **Rust's hands**: the attack button places a held deployable and uses held food or medicine (Rust), so F, G and H
+    are gone; a tap of E acts, holding E on a fire or furnace lights it or puts it out (Rust's "more options"); the death
+    screen's buttons respawn (B is gone); Esc closes what is open, then opens the menu.
+63. **The host's server runs in a process of its own** (since pass 2; G1 ran it on a thread of the game): in one
+    process the game's garbage collections stalled the server's ticks (72 ms at the 99th percentile, §5.4).
+    `--in-process` keeps the old way for tests.
+64. **Fires are lit with their real strength** next to the sun (about 5 lux at 2 m): invisible by day, as in life, and
+    the light of the camp by night, when the eye-like exposure is thousands of times higher. Glowing things (flames,
+    weak spots) are divided by the exposure, so they look as bright by day as by night.
+65. **What others change in the plants is drawn in batches**: within 25 m of the player at once, farther away every
+    5 s, tree impostors every 10 s; each is a rebuild of 10–15 ms on a worker thread while the old meshes show. A felled
+    tree tips over on its own model only within 150 m.
+66. **A body keeps its layout** (main, belt, clothing) as the loot panel shows one, and the furnace has the interface's
+    six slots (one fuel, two inputs, three outputs) instead of seven.
+67. **Sleepers lie down as ragdolls**, as the dead do: there is no sleeping pose yet. A corpse that comes into range
+    after its player died gets a fresh body (dressed as its player was last seen) that falls where it lies.
+68. **The assets come in through seams**: `GroundModels.Provider` (`CatalogModels` over `ModelCatalog`, with
+    `PlaceholderModels` for what it lacks), `ItemIcons.Provider` (the catalogue's `CatalogItemIcons`; `ItemIconAliases`
+    only with `--placeholder-icons`) and `ItemLooks` (held items by their catalogue key through the character
+    package's `HeldItems`).
+69. **Collision tiles keep only their square and 2 m around it** (§4.6): the load test's tick on the planet went from
+    13.7 to 11.7 ms; the stand-in's tiles are unchanged.
+70. **`--demo` is replaced by the screenshot run** (`--tour`), which plays the same moments on the real planet.
+71. **The respawn kit goes on the belt** (Rust): a new life starts with the rock and the torch in the hotbar; what is
+    gathered, crafted or given still fills the main inventory first.
+72. **A body becomes its backpack after 150 s in view** (Rust's corpse turning into a bag), drawn by the client: the
+    server's corpse is one thing for its 300 s either way. A corpse first seen farther than 80 m is its backpack at once,
+    so a crowd of the dead costs no ragdolls far away.
+73. **A picked berry bush is the same bush without berries**: two draw-only flora kinds (253 and 254, never
+    scattered) built from the berry bushes' own seeds.
+74. **The body is chosen in the menu at every connect**, like the name: the server keeps the latest choice with the
+    character (player state version 3), so others see it while the player sleeps. A third of the bots are female.
+75. **Sleepers stay ragdolls**: the character package's clips include a death fall and a sitting idle, but its
+    contract (§4.8) has no lying pose to ask for; a `Sleep` event or a lying stance there would replace the ragdoll.
+76. **Hits on trees and outcrops sound when their state changes** (the natural object's health, stage or weak spot in a
+    snapshot), for everyone's hits alike, so one's own hit sounds a round trip after the swing; a burst of more than 20
+    changes at once is an area coming into range and is silent. A deployable that appears within 25 m once the world
+    is in was just placed.
+77. **A muzzle flash is drawn over the gun** (no depth test) for two drawn frames: the arms are drawn over the world,
+    so a flash at the very muzzle would hide behind the barrel. Aimed down the sights, one's own tracer is seen almost
+    end-on, as in life.
+78. **What the character contract can't show yet is left out** rather than drawn around it: attachments on guns in
+    hand, others' aiming pose, crawling (the wounded crouch), sleepers' pose (75). The character package's views would
+    need an attachment list for `Hold`, an aiming flag and a crawling stance.
+79. **Jolt's broadphase is rebuilt after bodies change** (`PhysicsWorld.OptimizeBroadPhase`: at most twice a second,
+    sooner after 64 changes), since the zone never runs Jolt's update that would do it (§5.5).
+80. **Spare bodies**: four of each body are built while the world opens, and players leaving range give theirs back
+    (kept up to eight of each), so coming back into view costs no frame.
+
 Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn (numbered S1 on):
 
 - S1. **Our own six-degree integrator, not a Jolt rigid body.** A ship's step is a pure function of its state, its
@@ -2395,7 +3135,7 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
   pilot takes a tenth and is never knocked down in the seat; a pilot in a destroyed ship dies.
 - S11. **Landing:** three pads carrying the ship with nothing asked of the controls idle the engines; it counts as landed
   on ground up to 25°, and the pads' friction (0.55) holds it up to 29°.
-- S12. **Numbers taken in shared spaces:** protocol 6, `ShipIntent` 120, schema step 3 → 4 (`ships`), `ActionResult`
+- S12. **Numbers taken in shared spaces:** protocol 8, `ShipIntent` 120, schema step 4 → 5 (`ships`), `ActionResult`
   19–23 (needs a station, locked, occupied, not landed, hatch shut), `HitTarget.Ship` 6, physics bodies from
   `PhysicsWorld.FirstShipBody` (1,024 of them). Whichever branch merges second takes the next free protocol number and
   schema step (the step's SQL stands alone).
@@ -2407,10 +3147,12 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
   out.
 - S15. **Plumes, lamps and ship lights are scaled by the camera's exposure** (brightness over exposure), not lit
   physically: a thruster reads as a thruster at noon, and doesn't blind at night.
-- S16. **The ship sandbox drives the surface view by reflection** (`_camera`, `_frame`, `UpdateWorld`), as
-  `scripts/Surface` was not this package's to change, and turns the stand-in natural objects off (their places don't
-  match the planet's drawn trees, so a ship would land on invisible trunks): nothing natural is solid there until the
-  planet's scatter becomes the zone's nature (§4.6).
+- S16. **The ship sandbox is a local zone with the server's rules** on the planet's own ground and nature, drawn by the
+  integration's driven surface view, not a hosted game: it starts in seconds and its scenes set any state. Its scenes
+  look for their spots (a flat clearing, a hillside near 19°, the thickest forest) on the planet and check them clear
+  of the planet's trees and rocks.
 - S17. **The cameras:** the cockpit is the model's pilot-camera socket, looking 4° down; the chase camera follows the
   heading and half the climb, not the roll (rolling into a turn tilts the ship, not the world).
+- S18. **A pilot's ground is the ship's business:** the zone's ground pass skips seated characters (a pilot at 150 m
+  needs no tiles under it; the ship asks for them when it nears the ground), and a blast leaves a pilot to the cabin.
 

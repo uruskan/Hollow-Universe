@@ -1,5 +1,5 @@
 {
-  "source": "Hit points and sizes from hollow-orbit js/game/items.js DEPLOY; slots from Rust (boxes 18 and 48); the sleeping bag's 300 s cooldown from RustMVP inventory_survival.md §9 (and Rust), the bed's 120 s from hollow-orbit and Rust. Sizes are half extents in metres (x across, y up, z along). Fuel burn and cooking times are on the items. G6 (ours): the vehicle workbench's size from its model (PSG Starter Kit); its 'bay' is where a ship it builds rolls out (in its own frame: x across, z out of its front) and the space that must be clear there.",
+  "source": "Hit points and sizes from hollow-orbit js/game/items.js DEPLOY; slots from Rust (boxes 18 and 48; the furnace's fuel, two inputs and three outputs as RustMVP's interface lays them out); the sleeping bag's 300 s cooldown from RustMVP inventory_survival.md §9 (and Rust), the bed's 120 s from hollow-orbit and Rust. Sizes are half extents in metres (x across, y up, z along). Fuel burn and cooking times are on the items. G6 (ours): the vehicle workbench's size from its model (PSG Starter Kit); its 'bay' is where a ship it builds rolls out (in its own frame: x across, z out of its front) and the space that must be clear there.",
   "placement": { "reach": 3.0, "maxStep": 0.6 },
   "deployables": [
     { "key": "sleeping-bag", "item": "sleeping-bag", "health": 60, "size": [0.45, 0.08, 1.0], "maxSlope": 30, "solid": false,
@@ -10,8 +10,8 @@
       "slots": 5,
       "device": { "fuel": [0], "input": [1, 2], "output": [3, 4], "cooks": "campfire", "warmth": { "radius": 4, "celsius": 20 } } },
     { "key": "furnace", "item": "furnace", "health": 300, "size": [0.5, 0.85, 0.5], "maxSlope": 25,
-      "slots": 7,
-      "device": { "fuel": [0], "input": [1, 2, 3], "output": [4, 5, 6], "cooks": "furnace", "warmth": { "radius": 3, "celsius": 10 } } },
+      "slots": 6,
+      "device": { "fuel": [0], "input": [1, 2], "output": [3, 4, 5], "cooks": "furnace", "warmth": { "radius": 3, "celsius": 10 } } },
     { "key": "small-box", "item": "small-box", "health": 150, "size": [0.4, 0.25, 0.25], "maxSlope": 30, "slots": 18 },
     { "key": "large-box", "item": "large-box", "health": 250, "size": [0.75, 0.38, 0.4], "maxSlope": 25, "slots": 48 },
     { "key": "workbench-1", "item": "workbench-1", "health": 300, "size": [1.0, 0.5, 0.45], "maxSlope": 20, "workbench": 1 },

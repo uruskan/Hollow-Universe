@@ -244,7 +244,7 @@ public sealed class ShipCollider : IDisposable
             ?? throw new InvalidOperationException($"Jolt refused ship body {id}.");
         bodies.AddBody(body.ID, Activation.DontActivate);
         _bodies.Add(id);
-        _world.NoteBodyAdded();
+        _world.NoteBodyChanged();
         return id;
     }
 
@@ -255,6 +255,7 @@ public sealed class ShipCollider : IDisposable
             return;
         }
         _world.Jolt.BodyInterface.RemoveAndDestroyBody(new BodyID(id));
+        _world.NoteBodyChanged();
         _free.Push(id);
     }
 

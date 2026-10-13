@@ -173,10 +173,12 @@ public sealed class Predictor : IDisposable
             return;
         }
         InputCommand command = CommandFor(tick);
+        // The ground first, outside Jolt's lock (a tile being built doesn't hold up a server in the same process).
+        _world.EnsureGround(state.Position);
+        _world.Prefetch(state.Position);
         lock (JoltRuntime.Gate)
         {
-            _world.EnsureGround(state.Position);
-            _world.Prefetch(state.Position);
+            _world.OptimizeBroadPhase();
             CharacterMotor.Step(ref state, NetConvert.ToMoveInput(command), _body, _context);
         }
     }

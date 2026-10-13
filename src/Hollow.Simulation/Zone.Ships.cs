@@ -711,6 +711,72 @@ public sealed partial class Zone
     // ---------------------------------------------------------------- damage and wrecks
 
     /// <summary>
+    /// A blast's share for ships (G5's explosions, GROUND.md §6.6 and §6.7): every hull within the radius whose nearest
+    /// point the blast sees takes the blast's damage to deployables with the falloff (the one a rocket or round hit, or a
+    /// charge stuck to, whole), times the hull's share for explosives. The pilot inside is the cabin's to protect.
+    /// </summary>
+    private void BlastShips(Content.BlastStats blast, Vector3 at, object? stuckTo, ushort item, Player? by, Raid.BlastReport report)
+    {
+        float radius = (float)blast.Radius;
+        foreach (Ship ship in _ships)
+        {
+            if (ship.Destroyed || ship.InOrbit)
+            {
+                continue;
+            }
+            Vector3 point = ShipClosestPoint(ship, at);
+            float distance = ship == stuckTo ? 0 : Vector3.Distance(point, at);
+            if (distance > radius)
+            {
+                continue;
+            }
+            // Seen from the blast: a point just off the hull toward it (the hull itself never hides its own side).
+            Vector3 off = at - point;
+            Vector3 seen = off.LengthSquared() > 1e-6f ? point + Vector3.Normalize(off) * 0.05f : point;
+            if (ship != stuckTo && !BlastSees(at, seen))
+            {
+                report.Shielded.Add(ship);
+                continue;
+            }
+            float lost = DamageShip(ship, (float)(blast.Deployable * blast.Falloff(distance)), ShipDamage.Explosive, by);
+            if (lost <= 0)
+            {
+                continue;
+            }
+            report.Damage[ship] = lost;
+            report.ShipsHit++;
+            if (by != null)
+            {
+                GameEvents.Add(new ZoneEvent
+                {
+                    Kind = ZoneEventKind.HitConfirmed, Player = by.Id, Other = ship.Id, Target = HitTarget.Ship, Amount = lost, Position = point, Item = item,
+                });
+            }
+        }
+    }
+
+    /// <summary>The point of a ship's hull (its boxes) nearest to a point.</summary>
+    public static Vector3 ShipClosestPoint(Ship ship, Vector3 at)
+    {
+        ShipDef def = ship.Def;
+        Quaternion q = ship.State.Rotation;
+        Vector3 local = Vector3.Transform(at - ship.State.Position, Quaternion.Conjugate(q)) + def.CentreOfMass;
+        Vector3 best = local;
+        float nearest = float.MaxValue;
+        foreach (HullBox box in def.Hull)
+        {
+            Vector3 p = Vector3.Clamp(local, box.Centre - box.HalfExtents, box.Centre + box.HalfExtents);
+            float d = Vector3.DistanceSquared(p, local);
+            if (d < nearest)
+            {
+                nearest = d;
+                best = p;
+            }
+        }
+        return ship.PointOf(best);
+    }
+
+    /// <summary>
     /// Damage to a ship's hull from a weapon (the hook for melee, arrows, bullets and G5's explosions): the hull takes its
     /// share for the kind; at 0 it is destroyed. Returns the hull lost.
     /// </summary>

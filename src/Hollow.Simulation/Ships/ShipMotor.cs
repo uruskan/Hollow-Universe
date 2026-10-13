@@ -208,7 +208,9 @@ public static class ShipMotor
         bool near = collider != null && overGround < NearGround + speed * 0.25f + def.BoundingRadius;
         if (collider != null && overGround < 3 * NearGround + speed * 2)
         {
-            collider.World.Prefetch(s.Position + s.Velocity, radius: 2);
+            // The tiles under where it will be in a second, built on worker threads before the near band needs them; one
+            // tile round that point covers a sweep (the planet's tiles carry its trees, so fewer is cheaper to keep).
+            collider.World.Prefetch(s.Position + s.Velocity, radius: 1);
         }
         if (near)
         {

@@ -187,7 +187,30 @@ def pistol_ammo(key="pistol-ammo", band=RED, tip=None, seed=65):
     m.export()
 
 
-def rifle_ammo(key="rifle-ammo", band=None, tip=None, seed=67):
+def hazard_stripes(m, w, d, z, height, stripe=0.006, proud=0.0016):
+    """Black diagonal stripes over a band of `height` around a w x d box at height z (the explosive rounds' band)."""
+    black = (0.07, 0.07, 0.07)
+    for sign in (-1, 1):
+        # Front and back faces: parallelograms leaning 45 degrees, kept inside the face.
+        x = -w / 2 + 0.002
+        while x + stripe + height < w / 2 - 0.001:
+            outline = [(x, z - height / 2), (x + stripe, z - height / 2), (x + stripe + height, z + height / 2),
+                       (x + height, z + height / 2)]
+            m.extrude(outline, proud, (0, sign * (d / 2 + proud / 2 + 0.0008), 0), bevel=0.0, tile=RUBBER, tint=black,
+                      metres=0.05, sharp=0)
+            x += stripe * 2.2
+        # The sides: the same outline across Y, turned to face X.
+        y = -d / 2 + 0.002
+        while y + stripe + height < d / 2 - 0.001:
+            outline = [(y, z - height / 2), (y + stripe, z - height / 2), (y + stripe + height, z + height / 2),
+                       (y + height, z + height / 2)]
+            o = m.extrude(outline, proud, (0, 0, 0), bevel=0.0, tile=RUBBER, tint=black, metres=0.05, sharp=0)
+            o.data.transform(Matrix.Translation((sign * (w / 2 + proud / 2 + 0.0008), 0, 0)) @ Matrix.Rotation(math.radians(90), 4, "Z"))
+            o.data.update()
+            y += stripe * 2.2
+
+
+def rifle_ammo(key="rifle-ammo", band=None, tip=None, seed=67, hazard=False):
     m = Model(key, seed=seed)
     # An olive tin with a hinged lid standing open, rounds lying in a row on top; special rounds have a painted band.
     w, d, h = 0.11, 0.06, 0.05
@@ -199,6 +222,9 @@ def rifle_ammo(key="rifle-ammo", band=None, tip=None, seed=67):
     if band:
         m.box((w + 0.002, d + 0.002, 0.013), (0, 0, h * 0.42), bevel=0.001, tile=IVORY, tint=band, metres=0.1)
         m.box((w * 0.9, 0.0045, 0.012), (0, d / 2 + 0.0085, h + d * 0.5), (-8, 0, 0), bevel=0.0005, tile=IVORY, tint=band, metres=0.1)
+    if hazard:
+        # The explosive rounds' band: black stripes over the yellow, on the box and the lid's label.
+        hazard_stripes(m, w + 0.002, d + 0.002, h * 0.42, 0.013)
     for i in range(5):
         cartridge(m, (-0.04 + i * 0.02, -0.002, h + 0.0045), (-90, 0, 0), case=0.039, neck=0.0041, r=0.0056, bullet=0.017, tip=tip)
     cartridge(m, (0.03, -0.062, 0.0056), (90, 0, 75), case=0.039, neck=0.0041, r=0.0056, bullet=0.017, tip=tip)
@@ -232,6 +258,10 @@ ALL = {"bandage": bandage, "medical-injector": injector,
        "rifle-ammo": lambda: rifle_ammo(),
        "rifle-ammo-hv": lambda: rifle_ammo("rifle-ammo-hv", band=BLUE, tip=BLUE, seed=81),
        "rifle-ammo-incendiary": lambda: rifle_ammo("rifle-ammo-incendiary", band=ORANGE, tip=(0.85, 0.12, 0.06), seed=83),
+       "pistol-ammo-incendiary": lambda: pistol_ammo("pistol-ammo-incendiary", band=ORANGE, tip=(0.85, 0.12, 0.06), seed=85),
+       # G5: explosive rifle rounds, a yellow band striped black, yellow tips.
+       "rifle-ammo-explosive": lambda: rifle_ammo("rifle-ammo-explosive", band=(0.95, 0.74, 0.08), tip=(0.95, 0.74, 0.08),
+                                                  seed=87, hazard=True),
        "key-lock": key_lock}
 
 for key in script_args() or list(ALL):

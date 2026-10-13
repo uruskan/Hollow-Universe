@@ -1,11 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Godot;
 using Hollow.Core;
 using Hollow.Galaxy.Systems;
@@ -27,10 +23,10 @@ namespace HollowUniverse.Ships;
 
 /// <summary>
 /// The ship sandbox (<c>--view ship</c>, GROUND.md §6.7): the Tin Finch on the first world's real surface. A local zone
-/// on the planet's own ground (<see cref="PlanetSurface"/>) runs the same rules the server does; the planet is drawn by
-/// a <see cref="SurfaceView"/> used as a component (its camera driven from here). You start on foot beside your ship,
-/// parked on the bay of a vehicle workbench at the landing site: open the hatch and board (E), lift off, fly, land
-/// anywhere, step out (F).
+/// on the planet's own ground and nature (its trees stand where they are drawn) runs the same rules the server does; the
+/// planet is drawn by a <see cref="SurfaceView"/> driven in the zone's frame, as the ground game drives it. You start on
+/// foot beside your ship, parked on the bay of a vehicle workbench at the landing site: open the hatch and board (E),
+/// lift off, fly, land anywhere, step out (F).
 /// <para>
 /// In the seat: the mouse is the stick; W/S the throttle lever, X lever to zero; A/D sideways; Space/C rise and sink;
 /// Q/E roll; arrows a keyboard stick; Shift boost; Z flight assist; V cockpit or chase camera; H the hatch; L the lock;
@@ -50,9 +46,6 @@ public partial class ShipSandbox : Node3D
     private Zone _zone = null!;
     private SurfaceView _surface = null!;
     private Camera3D _camera = null!;
-    private RenderFrame _frame = null!;
-    private MethodInfo _updateWorld = null!;
-    private Basis _zoneToRender = Basis.Identity;
     private Ship _ship = null!;
     private ShipView _shipView = null!;
     private Deployable _bench = null!;
@@ -75,7 +68,6 @@ public partial class ShipSandbox : Node3D
     private string _scene = "pad";
     private (Num.Vector3 Eye, Num.Vector3 At)? _observer;
     private int _frames;
-    private int _idleFrames;
     private string? _notice;
     private bool _touring;
     private double _noticeUntil;
@@ -87,7 +79,7 @@ public partial class ShipSandbox : Node3D
     public Dictionary<string, string> Options { get; set; } = new();
 
     /// <summary>For automated screenshots: the scene set up, the ground, plants and grass around the camera streamed.</summary>
-    public bool ReadyForShot => _frames > 30 && _idleFrames > 20;
+    public bool ReadyForShot => _frames > 30 && _surface.IsReady;
 
     private bool Seated => _zone.SeatOf(_player) == _ship;
 
@@ -96,35 +88,32 @@ public partial class ShipSandbox : Node3D
         _shot = Options.ContainsKey("shot");
         _touring = Options.ContainsKey("tour");
         _scene = Options.TryGetValue("scene", out string? scene) ? scene : "pad";
-        var found = FirstWorld.Find(GalaxyService.Galaxy);
-        if (found == null)
+        ZoneSpec? spec = ZoneSpec.FirstWorld(GalaxyService.Galaxy, FirstWorld.LandingLatitude, FirstWorld.LandingLongitude);
+        if (spec == null || PlanetSurfaces.Find(spec.SystemAddress, spec.BodyPath) is not { } found)
         {
             GD.PushError("--view ship: the first world is not in this universe.");
             return;
         }
-        (StarSystem system, Body planet) = found.Value;
-        _planet = PlanetSurface.For(GalaxyService.Galaxy, system, planet);
-        _content = LoadContent();
-        ZoneSpec spec = ZoneSpec.FirstWorld(GalaxyService.Galaxy, FirstWorld.LandingLatitude, FirstWorld.LandingLongitude)!;
-        _zone = new Zone(_planet, spec, content: _content);
+        _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
+        _zone = new Zone(spec, content: _content);
+        _planet = found.Surface;
 
-        // The planet: the surface view as a component. It neither moves its camera nor reads keys; this sandbox does both.
-        _surface = new SurfaceView { Name = "Surface" };
+        // The planet: the surface view driven in the zone's frame (render coordinates are the zone's), as the ground game
+        // drives it: it draws around the camera this sandbox places.
+        _surface = new SurfaceView { Name = "Surface", Driven = true };
         AddChild(_surface);
-        double time = Options.TryGetValue("time", out string? t) ? ParseTime(t) : ParseTime(LookDevTime);
-        _surface.Open(system, planet, _planet, FirstWorld.LandingLatitude, FirstWorld.LandingLongitude, 1.7, 0, 0, time);
-        _surface.SetTime(time, paused: true);
-        _surface.InterfaceVisible = false;
-        _surface.SetProcess(false);
-        _surface.SetProcessUnhandledInput(false);
-        const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
-        _camera = (Camera3D)typeof(SurfaceView).GetField("_camera", Private)!.GetValue(_surface)!;
-        _frame = (RenderFrame)typeof(SurfaceView).GetField("_frame", Private)!.GetValue(_surface)!;
-        _updateWorld = typeof(SurfaceView).GetMethod("UpdateWorld", Private)!;
+        // The play clock (the planet turning 24 times faster, as the server keeps it): --time, or the moment after the
+        // look-dev date when it is --hour o'clock at the landing site (by default half past nine in the morning).
+        double time = Options.TryGetValue("time", out string? t) ? ParseTime(t)
+            : PlayTime(found, spec.RotationTimeScale, ParseTime(LookDevTime), Options.TryGetValue("hour", out string? h) ? Parse(h) : 9.5);
+        _surface.OpenZone(found.System, found.Body, found.Surface, _zone.Frame.Origin, time, spec.RotationTimeScale);
+        if (_shot)
+        {
+            _surface.SetTime(time, paused: true); // screenshots never wait for the sun
+        }
+        _camera = _surface.Camera;
         _camera.Fov = 70;
         _camera.MakeCurrent();
-        ZoneFrame z = _zone.Frame;
-        _zoneToRender = new Basis(_frame.DirectionToRender(z.East), _frame.DirectionToRender(z.Up), _frame.DirectionToRender(z.South));
 
         _layer = new CanvasLayer { Name = "Interface" };
         AddChild(_layer);
@@ -141,42 +130,13 @@ public partial class ShipSandbox : Node3D
 
     // ---------------------------------------------------------------- set-up
 
-    /// <summary>The game's content, with the stand-in natural objects off: the trees here are the planet's own, drawn by the surface view.</summary>
-    private static GameContent LoadContent()
-    {
-        string folder = ProjectSettings.GlobalizePath("res://data/ground");
-        var texts = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (string file in GameContent.Files)
-        {
-            string path = Path.Combine(folder, file);
-            texts[file] = File.Exists(path) ? File.ReadAllText(path) : "";
-        }
-        var options = new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
-        if (JsonNode.Parse(texts["gather.json"], null, options) is JsonObject gather && gather["kinds"] is JsonArray kinds)
-        {
-            foreach (JsonNode? kind in kinds)
-            {
-                if (kind?["standIn"] is JsonObject standIn)
-                {
-                    standIn["perTile"] = 0;
-                }
-            }
-            texts["gather.json"] = gather.ToJsonString();
-        }
-        GameContent content = GameContent.FromTexts(texts);
-        foreach (string problem in content.Problems)
-        {
-            GD.PushWarning("content: " + problem);
-        }
-        return content;
-    }
-
     // The flattest open spot near the landing site: the workbench, its bay and the ship parked on it, and the pilot.
     private void BuildPad()
     {
-        _pad = FindSite(Num.Vector3.Zero, 90, 6, s => s.Spread < 0.6f && s.Trees < 0.004 ? -s.Spread - (float)s.Trees * 200 - s.Distance * 0.002f : float.MinValue,
-            fallback: Num.Vector3.Zero);
         _padYaw = -MathF.PI / 2; // the nose east: in the morning the sun lights the hatch side
+        ShipDef finch = _content.Ship("tin-finch") ?? _content.Ships[0];
+        _pad = FindSite(Num.Vector3.Zero, 90, 6, s => s.Spread < 0.6f && s.Trees < 0.004 ? -s.Spread - (float)s.Trees * 200 - s.Distance * 0.002f : float.MinValue,
+            fallback: Num.Vector3.Zero, accept: g => _zone.ShipSpaceClear(finch, g, _padYaw));
         Num.Vector3 up = _zone.Frame.UpAt(_pad);
         (Num.Vector3 forward, Num.Vector3 right) = CharacterMotor.HorizontalBasis(_padYaw, up);
         DeployableDef benchDef = _content.Deployable("vehicle-workbench")!;
@@ -215,11 +175,11 @@ public partial class ShipSandbox : Node3D
     /// The best-scoring point on a grid around <paramref name="around"/> (radius and step in metres): each is scored by the
     /// height spread over a ship's footprint (8 m across), the slope there (degrees) and the planet's tree density.
     /// </summary>
-    private Num.Vector3 FindSite(Num.Vector3 around, float radius, float step, Func<Site, float> score, Num.Vector3 fallback)
+    private Num.Vector3 FindSite(Num.Vector3 around, float radius, float step, Func<Site, float> score, Num.Vector3 fallback,
+        Func<Num.Vector3, bool>? accept = null)
     {
         int n = (int)(radius / step);
-        float best = float.MinValue;
-        Num.Vector3 site = fallback;
+        var candidates = new List<(float Score, Num.Vector3 Ground)>();
         Span<double> biomes = stackalloc double[BiomeTable.Count];
         for (int i = -n; i <= n; i++)
         {
@@ -247,14 +207,21 @@ public partial class ShipSandbox : Node3D
                 double trees = _planet.Vegetation(dir, s, climate, biomes, Math.Sin(slope)).Trees;
                 float footprint = MathF.Atan((hi - lo) / 8) * 180 / MathF.PI;
                 float value = score(new Site(g, hi - lo, slope * 180 / MathF.PI, footprint, trees, new Num.Vector2(i * step, j * step).Length()));
-                if (value > best)
+                if (value > float.MinValue)
                 {
-                    best = value;
-                    site = g;
+                    candidates.Add((value, g));
                 }
             }
         }
-        return site;
+        // The best that is also acceptable (nothing of the planet's own standing there, say).
+        foreach ((float _, Num.Vector3 ground) in candidates.OrderByDescending(c => c.Score).Take(60))
+        {
+            if (accept == null || accept(ground))
+            {
+                return ground;
+            }
+        }
+        return fallback;
     }
 
     // ---------------------------------------------------------------- scenes
@@ -303,7 +270,7 @@ public partial class ShipSandbox : Node3D
                 Num.Vector3 hill = FindSite(Num.Vector3.Zero, 2000, 40,
                     s => s.Slope is > 14 and < 24 && MathF.Abs(s.Footprint - s.Slope) < 4
                         ? -MathF.Abs(s.Slope - 19) - (float)s.Trees * 300 - s.Distance * 0.001f : float.MinValue,
-                    fallback: _pad);
+                    fallback: _pad, accept: g => _zone.ShipSpaceClear(def, g, 0));
                 Num.Vector3 hillUp = _zone.Frame.UpAt(hill);
                 (Num.Vector3 normal, float slope) = _zone.GroundNormal(hill);
                 Num.Vector3 downhill = normal - hillUp * Num.Vector3.Dot(normal, hillUp);
@@ -446,10 +413,8 @@ public partial class ShipSandbox : Node3D
         float alpha = _paused ? 1 : (float)(_accumulator / CharacterMotor.DeltaTime);
         ShipState shown = Interpolate(_shipBefore, _shipNow, alpha);
 
-        // The camera first (the surface view streams around it), then the world, then what stands in it.
+        // The camera (the surface view streams around it in its own process step), then what stands in the world.
         PlaceCamera(shown, (float)delta, alpha);
-        _updateWorld.Invoke(_surface, new object[] { delta });
-        _idleFrames = _surface.Terrain.IsIdle && (_surface.Plants?.IsIdle ?? true) && (_surface.Grass?.IsIdle ?? false) ? _idleFrames + 1 : 0;
         ShipView.Exposure = _surface.Sky?.Exposure ?? 1;
         if (_zone.Ships.Contains(_ship))
         {
@@ -606,8 +571,7 @@ public partial class ShipSandbox : Node3D
     private Transform3D Pivot(in ShipState s)
     {
         Num.Quaternion q = s.Rotation;
-        var basis = _zoneToRender * new Basis(new Quaternion(q.X, q.Y, q.Z, q.W));
-        return new Transform3D(basis, R(s.Origin(_ship.Def.CentreOfMass)));
+        return new Transform3D(new Basis(new Quaternion(q.X, q.Y, q.Z, q.W)), R(s.Origin(_ship.Def.CentreOfMass)));
     }
 
     private void PlaceCamera(in ShipState shown, float delta, float alpha)
@@ -726,7 +690,7 @@ public partial class ShipSandbox : Node3D
         float pitch = MathF.Asin(Math.Clamp(Num.Vector3.Dot(s.Forward, up), -1, 1)) * 180 / MathF.PI;
         float roll = MathF.Asin(Math.Clamp(Num.Vector3.Dot(s.Right, up), -1, 1)) * 180 / MathF.PI;
         GD.Print(FormattableString.Invariant(
-            $"[trace] t={_clock:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} ticks={_tickMs:0.00}ms ship {s.Velocity.Length():0.0} m/s climb {Num.Vector3.Dot(s.Velocity, up):0.0} {over:0.0} m over ground pitch {pitch:0.0}° roll {roll:0.0}° thrust ({s.Thrust.X:0.00},{s.Thrust.Y:0.00},{s.Thrust.Z:0.00}) fuel {s.Fuel:0} hull {s.Health:0} {s.Flags} tiles={_surface.Terrain.DrawnTiles} pending={_surface.Terrain.Pending} idle={_idleFrames} exposure={ShipView.Exposure:0.###}"));
+            $"[trace] t={_clock:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} ticks={_tickMs:0.00}ms ship {s.Velocity.Length():0.0} m/s climb {Num.Vector3.Dot(s.Velocity, up):0.0} {over:0.0} m over ground pitch {pitch:0.0}° roll {roll:0.0}° thrust ({s.Thrust.X:0.00},{s.Thrust.Y:0.00},{s.Thrust.Z:0.00}) fuel {s.Fuel:0} hull {s.Health:0} {s.Flags} tiles={_surface.Terrain.DrawnTiles} pending={_surface.Terrain.Pending} ready={_surface.IsReady} exposure={ShipView.Exposure:0.###}"));
     }
 
     // ---------------------------------------------------------------- input
@@ -862,12 +826,34 @@ public partial class ShipSandbox : Node3D
 
     // ---------------------------------------------------------------- frames
 
-    /// <summary>A zone-frame point in render space.</summary>
-    private Vector3 R(Num.Vector3 zone) => _frame.ToRender(_zone.Frame.ToBody(zone));
+    /// <summary>A zone-frame point in render space (the driven surface view draws in the zone's frame).</summary>
+    private static Vector3 R(Num.Vector3 zone) => new(zone.X, zone.Y, zone.Z);
 
     /// <summary>A zone-frame direction in render space.</summary>
-    private Vector3 Dir(Num.Vector3 v) => _zoneToRender * new Vector3(v.X, v.Y, v.Z);
+    private static Vector3 Dir(Num.Vector3 v) => new(v.X, v.Y, v.Z);
 
     private static double ParseTime(string text) => UniverseTime.SecondsSinceJ2000(
         DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal));
+
+    private static double Parse(string text) => double.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
+
+    /// <summary>The first moment from <paramref name="from"/> when it is <paramref name="hour"/> o'clock, local solar time, at the landing site on the play clock.</summary>
+    private static double PlayTime(PlanetSurfaces.Entry planet, double rotationTimeScale, double from, double hour)
+    {
+        var sky = new SkyEphemeris(planet.System, planet.Body);
+        sky.SetRotationTimeScale(rotationTimeScale, 0);
+        Vector3D site = ZoneFrame.Direction(FirstWorld.LandingLatitude * Math.PI / 180, FirstWorld.LandingLongitude * Math.PI / 180);
+        double best = from, error = double.MaxValue;
+        for (double s = 0; s < 6 * 3600; s += 20)
+        {
+            double h = sky.LocalSolarHours(site, sky.Sun.Index, from + s);
+            double e = Math.Abs(((h - hour) % 24 + 36) % 24 - 12);
+            if (e < error)
+            {
+                error = e;
+                best = from + s;
+            }
+        }
+        return best;
+    }
 }

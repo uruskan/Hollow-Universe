@@ -167,7 +167,7 @@ public sealed partial class Zone
                 break;
             case HitTarget.Building:
             {
-                float lost = DamageBuilding(hit.Building!, direction, melee.Structure, projectile: false);
+                float lost = DamageBuildingBy(hit.Building!, direction, melee.Structure, projectile: false, p, item.Id);
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
                 break;
             }
@@ -362,7 +362,7 @@ public sealed partial class Zone
                 break;
             case HitTarget.Building:
             {
-                float lost = DamageBuilding(hit.Building!, Vector3.Normalize(pr.Velocity), pr.Damage * ammo.Structure, projectile: true);
+                float lost = DamageBuildingBy(hit.Building!, Vector3.Normalize(pr.Velocity), pr.Damage * ammo.Structure, projectile: true, shooter, pr.Ammo.Id);
                 if (shooter != null)
                 {
                     GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
@@ -463,7 +463,7 @@ public sealed partial class Zone
         foreach (NaturalObject o in _traceNature)
         {
             NaturalKind? kind = Content!.Natural(o.Kind);
-            if (kind == null || !kind.IsHarvested || Natural!.IsDepleted(o.Id))
+            if (kind == null || !kind.IsSolid || Natural!.IsDepleted(o.Id))
             {
                 continue;
             }
@@ -477,6 +477,13 @@ public sealed partial class Zone
             {
                 (Vector3 centre, float r) = NaturalShapes.Rock(o, kind);
                 t = Geometry.RaySphere(origin, direction, length, centre, r + thickness);
+            }
+            if (!kind.IsHarvested)
+            {
+                // A boulder: stops the swing or the arrow like the ground, and gives nothing.
+                var stone = new TraceHit();
+                Consider(t, HitTarget.Ground, ref stone);
+                continue;
             }
             var candidate = new TraceHit { Natural = o };
             Consider(t, HitTarget.Natural, ref candidate);
@@ -501,7 +508,7 @@ public sealed partial class Zone
             Consider(t, HitTarget.Ship, ref candidate);
         }
 
-        // Building pieces, doors and claim devices: walls stop swings and arrows.
+        // Building pieces, doors and claim devices: walls stop swings, arrows and bullets.
         if (Building != null && TraceBuilding(origin, direction, best.Distance >= 0 ? best.Distance : length, out float wall, out object? part))
         {
             var candidate = new TraceHit { Building = part };

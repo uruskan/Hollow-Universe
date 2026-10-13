@@ -392,13 +392,13 @@ public sealed partial class Zone
                 b.Velocity = velocity;
                 if (spent)
                 {
-                    EndBullet(b, b.Position, HitTarget.Nothing);
+                    EndFlight(b);
                     ended = true;
                 }
             }
             if (!ended && ++b.AgeTicks >= b.LifetimeTicks)
             {
-                EndBullet(b, b.Position, HitTarget.Nothing);
+                EndFlight(b);
                 ended = true;
             }
             if (ended)
@@ -412,11 +412,28 @@ public sealed partial class Zone
     private void EndBullet(Bullet b, Vector3 at, HitTarget target) =>
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ProjectileEnded, Player = b.Shooter, Projectile = b.Id, Position = at, Target = target, Seq = b.Seq });
 
+    // Out of range or time in the air: a bullet just stops; a rocket goes off where it is (G5).
+    private void EndFlight(Bullet b)
+    {
+        EndBullet(b, b.Position, HitTarget.Nothing);
+        if (b.Round.Blast is { } blast && b.Damage <= 0)
+        {
+            TryFindPlayer(b.Shooter, out _, out Player? shooter);
+            BulletBlast(b, blast, new TraceHit { Point = b.Position, Target = HitTarget.Nothing }, shooter);
+        }
+    }
+
     private void BulletHit(Bullet b, in TraceHit hit)
     {
         float distance = b.Distance + hit.Distance;
         EndBullet(b, hit.Point, hit.Target);
         TryFindPlayer(b.Shooter, out _, out Player? shooter);
+        if (b.Round.Blast is { } rocket && b.Damage <= 0)
+        {
+            // A rocket (G5): its blast is all it does.
+            BulletBlast(b, rocket, hit, shooter);
+            return;
+        }
         switch (hit.Target)
         {
             case HitTarget.Character:
@@ -451,8 +468,10 @@ public sealed partial class Zone
             }
             case HitTarget.Building:
             {
-                // A wall stops the bullet; what it takes is its grade's protection against bullets (none from stone up).
-                float lost = DamageBuilding(hit.Building!, Vector3.Normalize(b.Velocity), (float)(b.Damage * b.Gun.Falloff(distance)), projectile: true);
+                // A wall stops the bullet; what it takes is its grade's protection against bullets (none from stone up). An explosive
+                // round's burst (below) is all it does to buildings, so Rust's counts hold (GROUND.md §6.6).
+                float amount = b.Round.Blast != null ? 0 : (float)(b.Damage * b.Gun.Falloff(distance));
+                float lost = amount > 0 ? DamageBuildingBy(hit.Building!, Vector3.Normalize(b.Velocity), amount, projectile: true, shooter, b.Gun.Item.Id) : 0;
                 if (shooter != null)
                 {
                     GameEvents.Add(new ZoneEvent
@@ -462,6 +481,11 @@ public sealed partial class Zone
                 }
                 break;
             }
+        }
+        if (b.Round.Blast is { } burst)
+        {
+            // An explosive round (G5) bursts where it hit, besides what the bullet did.
+            BulletBlast(b, burst, hit, shooter);
         }
     }
 

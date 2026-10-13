@@ -39,7 +39,7 @@ public sealed partial class Zone
     /// <summary>Hands out IDs for new persistent entities (the server's allocator); a counter if not set.</summary>
     public Func<EntityId>? NewEntityId { get; set; }
 
-    /// <summary>A beach point for a respawn (the planet package's coast); the stand-in ring if not set.</summary>
+    /// <summary>A beach point for a respawn (the server sets the planet's real coast, <see cref="Simulation.Beaches"/>); the stand-in ring if not set.</summary>
     public Func<ulong, Vector3>? Beaches { get; set; }
 
     /// <summary>One second of poses of every character, for hits as the attacker saw them.</summary>
@@ -66,6 +66,7 @@ public sealed partial class Zone
         StepActions();
         StepProjectiles();
         StepBullets();
+        StepExplosives();
         StepWounded();
         if (Tick % CharacterMotor.TickRate == 0)
         {
@@ -149,9 +150,11 @@ public sealed partial class Zone
         if (Content.Loot(s.RespawnKitKey) is { } kit)
         {
             var rng = new Rng(Hash64.Of(p.Id.Value, (ulong)Tick));
+            // On the belt, as in Rust: a new life starts with the rock and the torch in the hotbar.
+            var beltFirst = new[] { p.Inventory.Belt, p.Inventory.Main };
             foreach (ItemAmount a in kit.Roll(ref rng))
             {
-                p.Inventory.Give(Content, a.Item, a.Count);
+                InventoryRules.AddTo(Content, beltFirst, ItemStack.Of(a.Item, a.Count));
             }
         }
     }
@@ -265,13 +268,34 @@ public sealed partial class Zone
         }
         GameContent content = Content!;
         ref Character c = ref Entities.Get<Character>(entity);
-        var stacks = new List<ItemStack>(p.Inventory.Stacks());
-        stacks.AddRange(p.Crafting.TakeAll(content));
+        // The body keeps the player's layout (main 0–23, belt 24–29, clothing 30–36, as the loot panel shows a body);
+        // the crafting queue's ingredients fill empty main slots, then go after the clothing.
+        var stacks = new List<ItemStack>();
+        foreach (Container part in new[] { p.Inventory.Main, p.Inventory.Belt, p.Inventory.Wear })
+        {
+            for (int i = 0; i < part.Size; i++)
+            {
+                stacks.Add(part[i]);
+            }
+        }
+        foreach (ItemStack refund in p.Crafting.TakeAll(content))
+        {
+            int free = stacks.FindIndex(0, PlayerInventory.MainSlots, s => s.IsEmpty);
+            if (free >= 0)
+            {
+                stacks[free] = refund;
+            }
+            else
+            {
+                stacks.Add(refund);
+            }
+        }
+        bool any = stacks.Exists(s => !s.IsEmpty);
         p.Inventory.Clear();
-        if (stacks.Count > 0)
+        if (any)
         {
             Vector3 at = Settle(c.State.Position);
-            var corpse = new Corpse(NextId(), p.Name, p.Id, Math.Max(PlayerInventory.MainSlots + PlayerInventory.BeltSlots + PlayerInventory.WearSlots, stacks.Count),
+            var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
                 at, Frame.UpAt(at), c.Input.Yaw, Tick + (long)(content.Survival.CorpseSeconds * CharacterMotor.TickRate));
             for (int i = 0; i < stacks.Count; i++)
             {
@@ -348,11 +372,12 @@ public sealed partial class Zone
         c.Input = new MoveInput { Yaw = yaw };
         c.Actions = default;
         SyncHealth(ref c, p);
+        Physics.Prefetch(at, 1);
         Physics.EnsureGround(at);
         return ActionResult.Accepted;
     }
 
-    /// <summary>A random beach point: the planet package's coast, or until then a ring 15–60 m around the origin.</summary>
+    /// <summary>A random beach point: the planet's coast (<see cref="Beaches"/>), or on the stand-in ground a ring 15–60 m around the origin.</summary>
     public Vector3 BeachPoint(ulong salt)
     {
         if (Beaches != null)

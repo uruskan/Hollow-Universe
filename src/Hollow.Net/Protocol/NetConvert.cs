@@ -99,6 +99,8 @@ public static class NetConvert
         SurfaceSeed = spec.SurfaceSeed,
         LatitudeDegrees = spec.LatitudeDegrees,
         LongitudeDegrees = spec.LongitudeDegrees,
+        StandIn = spec.StandIn,
+        RotationTimeScale = (float)spec.RotationTimeScale,
         AirDensity = (float)spec.AirDensity,
         AirScaleHeight = (float)spec.AirScaleHeight,
     };
@@ -112,6 +114,8 @@ public static class NetConvert
         SurfaceSeed = info.SurfaceSeed,
         LatitudeDegrees = info.LatitudeDegrees,
         LongitudeDegrees = info.LongitudeDegrees,
+        StandIn = info.StandIn,
+        RotationTimeScale = info.RotationTimeScale > 0 && float.IsFinite(info.RotationTimeScale) ? info.RotationTimeScale : 1,
         AirDensity = info.AirDensity,
         AirScaleHeight = info.AirScaleHeight,
     };

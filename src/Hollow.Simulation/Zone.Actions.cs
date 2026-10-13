@@ -331,7 +331,8 @@ public sealed partial class Zone
         {
             return ActionResult.Dead;
         }
-        if (!Nature!.TryGet(id, out NaturalObject o) || Content!.Natural(o.Kind) is not { } kind)
+        Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
+        if (!Nature!.TryGetNear(id, eye, Content!.Survival.InteractReach + 4, out NaturalObject o) || Content.Natural(o.Kind) is not { } kind)
         {
             return ActionResult.NotFound;
         }
@@ -343,7 +344,6 @@ public sealed partial class Zone
         {
             return ActionResult.NotFound;
         }
-        Vector3 eye = EyeOf(Entities.Get<Character>(entity).State);
         if (Vector3.Distance(eye, NaturalShapes.Middle(o, kind)) > Content.Survival.InteractReach + kind.Radius * o.Scale)
         {
             return ActionResult.OutOfReach;
@@ -509,7 +509,7 @@ public sealed partial class Zone
         {
             if (Content.Natural(o.Kind) is { IsSolid: true } kind && !Natural!.IsDepleted(o.Id))
             {
-                float radius = kind.Radius * o.Scale, height = kind.Class == NaturalClass.Tree ? kind.Height * o.Scale : kind.Radius * o.Scale * 1.35f;
+                float radius = kind.Radius * o.Scale, height = NaturalShapes.Top(o, kind);
                 if (Geometry.BoxCylinderOverlap(centre, def.HalfExtents, yaw, o.Position, radius, height, up))
                 {
                     return ActionResult.Blocked;

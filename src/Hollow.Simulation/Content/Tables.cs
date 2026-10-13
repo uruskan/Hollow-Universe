@@ -52,6 +52,9 @@ public enum NaturalClass : byte
 
     /// <summary>Picked with the interact key but stays, bare, until it grows back (berry bushes).</summary>
     Bush,
+
+    /// <summary>Only stands in the way: a solid rock that gives nothing (the planet's boulders).</summary>
+    Boulder,
 }
 
 /// <summary>A kind of natural object (gather.json): what it gives and how it is gathered.</summary>
@@ -82,15 +85,23 @@ public sealed class NaturalKind
 
     public float Height { get; init; }
 
-    /// <summary>How many the stand-in places per 64 m tile (the planet package's scatter replaces it).</summary>
+    /// <summary>How many the stand-in places per 64 m tile (stand-in zones only; real surfaces use the scatter).</summary>
     public float StandInPerTile { get; init; }
+
+    /// <summary>
+    /// Which of the planet's scatter kinds are this kind (GROUND.md §6.1, gather.json <c>scatter</c>): every scatter
+    /// object of one of them, and at least <see cref="ScatterMinScale"/> in size, is one of these.
+    /// </summary>
+    public IReadOnlyList<Surface.ScatterKind> ScatterKinds { get; init; } = Array.Empty<Surface.ScatterKind>();
+
+    public float ScatterMinScale { get; init; }
 
     public bool IsHarvested => Class is NaturalClass.Tree or NaturalClass.Node;
 
     public bool IsPicked => Class is NaturalClass.Pickup or NaturalClass.Bush;
 
-    /// <summary>Solid to walk into (trees and outcrops).</summary>
-    public bool IsSolid => IsHarvested;
+    /// <summary>Solid to walk into (trees, outcrops and boulders).</summary>
+    public bool IsSolid => IsHarvested || Class == NaturalClass.Boulder;
 
     public override string ToString() => Key;
 }

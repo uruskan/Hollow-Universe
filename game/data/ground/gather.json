@@ -1,18 +1,18 @@
 {
-  "source": "Natural objects of the ground (GROUND.md §6). Health, yields and respawn times from hollow-orbit (js/world/planet.js: trees 400 hp, nodes 500 hp, stone 300, metal 250 + 20 rich, sulphur 250, nodes back after 10 min, trees 20, plants 8); pickups and fibre from Rust (piles of 50, fibre plants 10). The weak spot is Rust's: a hit on it counts double and moves it. 'standIn' is only for the stand-in placement until the planet package scatters these.",
+  "source": "Natural objects of the ground (GROUND.md §6). Health, yields and respawn times from hollow-orbit (js/world/planet.js: trees 400 hp, nodes 500 hp, stone 300, metal 250 + 20 rich, sulphur 250, nodes back after 10 min, trees 20, plants 8); pickups and fibre from Rust (piles of 50, fibre plants 10). The weak spot is Rust's: a hit on it counts double and moves it. 'scatter' maps the planet's scatter kinds (GROUND.md §4.6) onto these kinds: every tree species gives wood, berry bushes are picked, ferns are the fibre plants, rocks of size 0.9 and more are boulders that only stand in the way, and outcrops are the scatter's own gameplay kinds; trunk radius and height match the drawn trees (FloraLibrary, at size 1). 'standIn' is only for stand-in zones (tests). Kinds are only ever added at the end: a kind's index is its number on the wire.",
   "weakSpot": { "radius": 0.3, "bonus": 2.0 },
   "kinds": [
     { "key": "pine-tree", "name": "Pine", "class": "tree", "health": 400, "yield": [["wood", 220]], "respawn": 1200,
-      "radius": 0.32, "height": 10, "standIn": { "perTile": 7 } },
+      "radius": 0.38, "height": 14, "standIn": { "perTile": 7 }, "scatter": { "kinds": ["pine"] } },
     { "key": "broadleaf-tree", "name": "Broadleaf tree", "class": "tree", "health": 500, "yield": [["wood", 300]], "respawn": 1200,
-      "radius": 0.45, "height": 9, "standIn": { "perTile": 3 } },
+      "radius": 0.48, "height": 10, "standIn": { "perTile": 3 }, "scatter": { "kinds": ["broadleaf"] } },
 
     { "key": "stone-node", "name": "Stone outcrop", "class": "node", "health": 500, "yield": [["stone", 300]], "stages": 3, "respawn": 600,
-      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 1.4 } },
+      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 1.4 }, "scatter": { "kinds": ["stone-outcrop"] } },
     { "key": "metal-node", "name": "Metal outcrop", "class": "node", "health": 500, "yield": [["metal-ore", 250], ["high-grade-ore", 20]], "stages": 3, "respawn": 600,
-      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 0.9 } },
+      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 0.9 }, "scatter": { "kinds": ["metal-outcrop"] } },
     { "key": "sulphur-node", "name": "Sulphur outcrop", "class": "node", "health": 500, "yield": [["sulphur-ore", 250]], "stages": 3, "respawn": 600,
-      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 0.6 } },
+      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 0.6 }, "scatter": { "kinds": ["sulphur-outcrop"] } },
 
     { "key": "wood-pile", "name": "Wood pile", "class": "pickup", "yield": [["wood", 50]], "respawn": 480,
       "radius": 0.5, "height": 0.4, "standIn": { "perTile": 0.6 } },
@@ -22,13 +22,20 @@
       "radius": 0.35, "height": 0.3, "standIn": { "perTile": 0.3 } },
     { "key": "sulphur-pile", "name": "Sulphur ore lump", "class": "pickup", "yield": [["sulphur-ore", 50]], "respawn": 480,
       "radius": 0.35, "height": 0.3, "standIn": { "perTile": 0.25 } },
-    { "key": "fibre-plant", "name": "Fibre plant", "class": "pickup", "yield": [["fibre", 10]], "respawn": 480,
-      "radius": 0.35, "height": 1.2, "standIn": { "perTile": 4 } },
+    { "key": "fibre-plant", "name": "Fern", "class": "pickup", "yield": [["fibre", 10]], "respawn": 480,
+      "radius": 0.45, "height": 0.9, "standIn": { "perTile": 4 }, "scatter": { "kinds": ["fern"] } },
     { "key": "tuber-plant", "name": "Wild tuber", "class": "pickup", "yield": [["wild-tuber", 2]], "respawn": 480,
       "radius": 0.3, "height": 0.5, "standIn": { "perTile": 1 } },
     { "key": "red-berry-bush", "name": "Red berry bush", "class": "bush", "yield": [["red-berries", 4]], "respawn": 480,
-      "radius": 0.6, "height": 1.0, "standIn": { "perTile": 1 } },
+      "radius": 0.6, "height": 1.0, "standIn": { "perTile": 1 }, "scatter": { "kinds": ["berry-red"] } },
     { "key": "blue-berry-bush", "name": "Blue berry bush", "class": "bush", "yield": [["blue-berries", 4]], "respawn": 480,
-      "radius": 0.6, "height": 1.0, "standIn": { "perTile": 1 } }
+      "radius": 0.6, "height": 1.0, "standIn": { "perTile": 1 }, "scatter": { "kinds": ["berry-blue"] } },
+
+    { "key": "fir-tree", "name": "Spruce", "class": "tree", "health": 400, "yield": [["wood", 220]], "respawn": 1200,
+      "radius": 0.36, "height": 12, "scatter": { "kinds": ["fir"] } },
+    { "key": "birch-tree", "name": "Birch", "class": "tree", "health": 300, "yield": [["wood", 160]], "respawn": 1200,
+      "radius": 0.24, "height": 11, "scatter": { "kinds": ["birch"] } },
+    { "key": "boulder", "name": "Boulder", "class": "boulder", "yield": [], "respawn": 600,
+      "radius": 0.95, "height": 0.65, "scatter": { "kinds": ["rock"], "minScale": 0.9 } }
   ]
 }

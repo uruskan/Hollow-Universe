@@ -202,3 +202,58 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   With 100 bots building 100 bases the tick is 7.4 ms on average and each client uses 84 kbit/s. A 1,074-piece
   base streams to a newcomer in 1.9 s. The ground-mode hookup (held plan and hammer, ghost, wheels, drawing
   structures) follows the running integration pass. 110 of 110 tests pass.
+- **G5 raid core merged** (`ground-raid`):
+  - explosives that are thrown, lobbed, placed and stick; bag charges can dud and be relit;
+  - the rocket launcher, and explosive rifle rounds;
+  - blasts with shielding, matching Rust's raid counts exactly;
+  - collapse;
+  - raid alerts, in game or waiting until login;
+  - offline raids that work.
+
+  With 100 raiding bots the tick is 9.7 ms on average and each client uses 157 kbit/s. Models, sounds and visuals
+  for raiding come with the effects package and the next integration pass. 120 of 120 tests pass.
+- **Effects merged** (`ground-fx`):
+  - 45 effects: muzzle flashes, tracers, impacts and decals per surface, blood, gathering chips;
+  - explosions from the PSG C4 VFX kit, fire, world dust;
+  - real models for the raid items and the earlier stand-ins.
+
+  A firefight costs about 0.3 ms a frame. 120 of 120 tests pass. The effects get wired into the game in the next
+  integration pass.
+- **G7b animals started** (`ground-animals`):
+  - deer, boar, wolf packs and a rare bear-like predator, with server-side AI (graze, flee, charge, hunt);
+  - corpses you harvest for meat, hide, bone and fat;
+  - cooking, and lamp oil from fat;
+  - animal sounds, and a `--view animals` sandbox.
+- **Still running:** integration pass 2, the ship (G6), the wardrobe and looks, and G7a (salvage, recycler, tech
+  tree, teams, map).
+- **Integration pass 2 finished** (`ground-integrate`), with `ground` merged in (assets, G3 phase 1, G4 core,
+  character polish, sound):
+  - the asset catalogue through the integration's seams: deployables, outcrops at their three stages, dropped items,
+    the dead's backpack (a body becomes its backpack after 150 s), held items and icons; a picked berry bush is the same
+    bush, bare;
+  - a male or female body chosen in the main menu, kept with the character and seen by everyone; worn items as the
+    character package's garments;
+  - sound everywhere the game has an event, ambience from the place, footsteps on the ground under each player;
+  - the G4 layer: recoil on the camera, zoom, reload on R, muzzle flash, tracers, impacts, others' shots, the ammo
+    counter, the hip crosshair, the wounded screen and help-up;
+  - hosting runs the dedicated server in a process of its own, and Jolt's broadphase is rebuilt after bodies change:
+    with 100 bots on the planet the tick went from 10.3 to 5.0 ms (GROUND.md §5.5).
+
+  Not done, for want of the character contract: sleeping pose, crawling, others' aiming, attachments on guns in hand.
+  Screenshots retaken in `docs/images/ground/play/` (a female player, a rifle down the sights). 109 of 109 tests pass.
+- **Integration merged into `ground` (3b4703d).** `ground` now holds the playable game together with G3 networking,
+  G4, G5, effects and sound. Launch it with `play-ground.cmd` (host), `play-ground.cmd join`, or
+  `play-ground.cmd menu`. Pass 2 also brought:
+  - real models and icons from the catalogue;
+  - worn clothing on characters, with a male or female choice;
+  - sound;
+  - the gun visuals;
+  - Host as its own server process;
+  - the broadphase fix that halved the server tick (10.3 to 5.0 ms with 100 bots).
+
+  The protocol is now version 7, and 124 of 124 tests pass. Integration pass 3 is running:
+  - a smoke test of the merged game;
+  - building in the game (plan, hammer, ghost, doors, code locks, claim device);
+  - raid visuals and alerts;
+  - real effects everywhere;
+  - attachments on guns in hand.

@@ -63,13 +63,18 @@ public static class Scatter
     private const int FernCells = 96;
     private const int RockCells = 48;
     private const int BerryCells = 24;
+    private const int OutcropCells = 12;
+
+    /// <summary>Outcrops per square metre on open, gentle land of average roughness (about one per 3,000 m²).</summary>
+    public const double OutcropDensity = 1.0 / 3000;
 
     private readonly struct Densities
     {
         public readonly float Trees, Bushes, Ferns, Rocks, Area, RedBerries, BlueBerries;
         public readonly float Fir, Pine, Birch, Broadleaf;
+        public readonly float Outcrops, Mountain;
 
-        public Densities(in VegetationSample v, double area, ReadOnlySpan<double> kinds)
+        public Densities(in VegetationSample v, double area, ReadOnlySpan<double> kinds, double outcrops, double mountain)
         {
             Trees = (float)v.Trees;
             Bushes = (float)v.Bushes;
@@ -82,6 +87,8 @@ public static class Scatter
             Pine = (float)kinds[1];
             Birch = (float)kinds[2];
             Broadleaf = (float)kinds[3];
+            Outcrops = (float)outcrops;
+            Mountain = (float)mountain;
         }
     }
 
@@ -109,6 +116,8 @@ public static class Scatter
             Place(surface, tile, grid, tileSeed, ScatterKind.Rock, RockCells, items);
             Place(surface, tile, grid, tileSeed, ScatterKind.BerryRed, BerryCells, items);
             Place(surface, tile, grid, tileSeed, ScatterKind.BerryBlue, BerryCells, items);
+            // Gameplay kinds after the plants, each from its own candidates and streams, so adding them moved nothing.
+            Place(surface, tile, grid, tileSeed, ScatterKind.StoneOutcrop, OutcropCells, items);
         }
         return items;
     }
@@ -150,7 +159,7 @@ public static class Scatter
                 surface.BiomeWeights(directions[k], samples[k], climate, biomes);
                 VegetationSample v = surface.Vegetation(directions[k], samples[k], climate, biomes, slope);
                 BiomeTable.TreeKinds(biomes, kinds);
-                result[j * n + i] = new Densities(v, area, kinds);
+                result[j * n + i] = new Densities(v, area, kinds, Outcrops(samples[k], biomes, slope), samples[k].Mountain);
             }
         }
         return result;
@@ -197,6 +206,11 @@ public static class Scatter
                     double r = rng.NextDouble();
                     scale = (float)(0.25 + 2.2 * r * r * r);
                 }
+                else if (kind == ScatterKind.StoneOutcrop)
+                {
+                    placed = OutcropKind(ref rng, Bilinear(a.Mountain, b.Mountain, c.Mountain, d.Mountain, tx, ty));
+                    scale = (float)rng.Range(0.8, 1.25);
+                }
                 else
                 {
                     scale = (float)rng.Range(0.6, 1.4);
@@ -207,6 +221,30 @@ public static class Scatter
                 items.Add(new ScatterItem((int)placed << 24 | candidate, placed, variant, direction, height, yaw, scale));
             }
         }
+    }
+
+    // Outcrops of stone and ore (gameplay, GROUND.md §6.1): on any land but sand, ice and cliffs, more on stony and
+    // mountain ground, fewer in closed forest, none at the waterline.
+    private static double Outcrops(in SurfaceSample s, ReadOnlySpan<double> biomes, double slope)
+    {
+        double land = Math.Max(0, 1 - biomes[(int)Biome.Ocean] - biomes[(int)Biome.Beach] - biomes[(int)Biome.IceSheet]);
+        if (land <= 0 || s.Height < 1.5)
+        {
+            return 0;
+        }
+        double stony = Math.Min(3, 0.6 + 1.4 * s.Roughness + 1.5 * s.Mountain + 0.8 * biomes[(int)Biome.Alpine]);
+        double forest = biomes[(int)Biome.BorealForest] + biomes[(int)Biome.TemperateForest] + biomes[(int)Biome.TropicalForest];
+        double cliffs = 1 - DMath.SmoothStep(0.55, 0.75, slope);
+        double shore = DMath.SmoothStep(1.5, 5, s.Height);
+        return OutcropDensity * land * stony * cliffs * shore * (1 - 0.4 * Math.Min(1, forest));
+    }
+
+    // Which outcrop a candidate is: mostly stone, metal about a third, sulphur a sixth; more ore in the mountains.
+    private static ScatterKind OutcropKind(ref Rng rng, double mountain)
+    {
+        double metal = 0.32 + 0.15 * Math.Min(1, mountain), sulphur = 0.17 + 0.05 * Math.Min(1, mountain);
+        double r = rng.NextDouble();
+        return r < sulphur ? ScatterKind.SulphurOutcrop : r < sulphur + metal ? ScatterKind.MetalOutcrop : ScatterKind.StoneOutcrop;
     }
 
     // Trees grow in stands: a stand (about 40 m across) mostly holds one kind, picked from the local mix.
@@ -234,6 +272,7 @@ public static class Scatter
         ScatterKind.Fern => d.Ferns,
         ScatterKind.BerryRed => d.RedBerries,
         ScatterKind.BerryBlue => d.BlueBerries,
+        ScatterKind.StoneOutcrop => d.Outcrops,
         _ => d.Rocks,
     };
 

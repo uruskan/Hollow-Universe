@@ -52,8 +52,39 @@ public sealed record ZoneSpec
     }
 
     /// <summary>
-    /// The first world (GROUND.md §3) at a latitude and longitude, or null if the generator no longer makes it. The
-    /// landing site is the planet package's to choose; until then the server takes it from its options.
+    /// The stand-in ground (a hilly sphere without a sea, and stand-in natural objects) instead of the body's real
+    /// surface: for tests and benchmarks that want a plain, predictable world. Sent to clients with the zone.
+    /// </summary>
+    public bool StandIn { get; init; }
+
+    /// <summary>
+    /// How much faster than real the planet turns for play (GROUND.md §1: 24, so the first world's 34.9-hour day
+    /// lasts 87 minutes), counted from J2000 so that the server and every client agree on the time of day. Orbits and
+    /// seasons stay real. 1 is the planet's real rotation.
+    /// </summary>
+    public double RotationTimeScale { get; init; } = DefaultRotationTimeScale;
+
+    /// <summary>The compressed day of play (GROUND.md §1).</summary>
+    public const double DefaultRotationTimeScale = 24;
+
+    /// <summary>
+    /// The planet's sky for this zone at play speed: <see cref="RotationTimeScale"/> from J2000, so a universe time
+    /// gives the same time of day on the server and every client. Null for bodies the universe doesn't know.
+    /// </summary>
+    public SkyEphemeris? CreateSky()
+    {
+        if (PlanetSurfaces.Find(SystemAddress, BodyPath) is not { } found)
+        {
+            return null;
+        }
+        var sky = new SkyEphemeris(found.System, found.Body);
+        sky.SetRotationTimeScale(RotationTimeScale, 0);
+        return sky;
+    }
+
+    /// <summary>
+    /// The first world (GROUND.md §3) at a latitude and longitude (the server's options; by default the landing site,
+    /// <see cref="Hollow.Surface.FirstWorld.LandingLatitude"/>), or null if the generator no longer makes it.
     /// </summary>
     public static ZoneSpec? FirstWorld(Galaxy.Galaxy galaxy, double latitudeDegrees, double longitudeDegrees)
     {
@@ -79,22 +110,26 @@ public sealed record ZoneSpec
     }
 
     /// <summary>
-    /// The ground of this zone's body. <b>The one place that picks the surface:</b> the stand-in sphere until the planet
-    /// package's real surface lands, then that (GROUND.md §4.6).
+    /// The ground of this zone's body. <b>The one place that picks the surface</b> (GROUND.md §4.6): the body's real
+    /// surface (<see cref="PlanetSurface"/>, shared within the process), or the stand-in sphere for
+    /// <see cref="StandIn"/> zones and bodies the universe doesn't know.
     /// </summary>
-    public ISurface CreateSurface() => new SphereSurface(Radius, SurfaceSeed);
+    public ISurface CreateSurface() =>
+        !StandIn && PlanetSurfaces.Find(SystemAddress, BodyPath) is { } real ? real.Surface : new SphereSurface(Radius, SurfaceSeed);
 
     /// <summary>
     /// The natural objects of this zone's ground (trees, outcrops, pickups, bushes). <b>The one place that picks
-    /// them:</b> the stand-in placement until the planet package's scatter lands (GROUND.md §4.6).
+    /// them</b> (GROUND.md §6.1): the planet's own scatter on a real surface, the stand-in placement on the stand-in.
     /// </summary>
     public Nature.INaturalObjects CreateNature(ISurface surface, ZoneFrame frame, Content.GameContent content) =>
-        new Nature.StandInNaturalObjects(surface, frame, content, Core.Hash64.Of(SurfaceSeed, 0x7A7));
+        surface is PlanetSurface planet
+            ? new Nature.ScatterNaturalObjects(planet, frame, content)
+            : new Nature.StandInNaturalObjects(surface, frame, content, Core.Hash64.Of(SurfaceSeed, 0x7A7));
 
     /// <summary>The zone's frame on a surface built by <see cref="CreateSurface"/>.</summary>
     public ZoneFrame CreateFrame(ISurface surface) =>
         ZoneFrame.At(surface, LatitudeDegrees * Math.PI / 180, LongitudeDegrees * Math.PI / 180);
 
     public override string ToString() => string.Create(CultureInfo.InvariantCulture,
-        $"body {SystemAddress:X16}/{BodyPath:X8}, radius {Radius / 1000:0} km, {SurfaceGravity:0.00} g, at {LatitudeDegrees:0.###}°, {LongitudeDegrees:0.###}°");
+        $"body {SystemAddress:X16}/{BodyPath:X8}, radius {Radius / 1000:0} km, {SurfaceGravity:0.00} g, at {LatitudeDegrees:0.####}°, {LongitudeDegrees:0.####}°, {(StandIn ? "stand-in ground" : "day x" + RotationTimeScale.ToString("0.##", CultureInfo.InvariantCulture))}");
 }

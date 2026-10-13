@@ -7,6 +7,7 @@ using Hollow.Galaxy;
 using Hollow.Galaxy.Systems;
 using HollowUniverse.Audio;
 using HollowUniverse.Build;
+using HollowUniverse.Fx;
 using HollowUniverse.GalaxyMap;
 using HollowUniverse.Ground;
 using HollowUniverse.Surface;
@@ -39,6 +40,7 @@ public partial class Main : Node
     private IconRenderer? _icons;
     private ModelViewer? _models;
     private SoundViewer? _sounds;
+    private FxViewer? _fx;
 
     public override void _Ready()
     {
@@ -72,6 +74,13 @@ public partial class Main : Node
             // Every catalogue model on the ground, or one on a turntable (GROUND.md §9).
             _models = new ModelViewer { Name = "Models", Options = _options };
             AddChild(_models);
+            return;
+        }
+        if (Option("view", "galaxy") == "fx")
+        {
+            // The effects library on its stations, contact sheets, scenes and the firefight measurement (GROUND.md §9.3).
+            _fx = new FxViewer { Name = "Fx", Options = _options };
+            AddChild(_fx);
             return;
         }
         if (Option("view", "galaxy") == "ui")
@@ -264,7 +273,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _build == null
-            && _sounds == null && _ship == null)
+            && _sounds == null && _fx == null && _ship == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
@@ -278,7 +287,7 @@ public partial class Main : Node
                 GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0}ms stars={_galaxyMap.Stars.LoadedStars} blocks={_galaxyMap.Stars.LoadedBlocks} pending={_galaxyMap.Stars.PendingBlocks} glow={_galaxyMap.IsGlowReady} sky={_galaxyMap.SkyBrightness:0.0} {_galaxyMap.TimingDebug} crowd {_galaxyMap.CrowdingDebug}");
             }
         }
-        if (!_options.TryGetValue("shot", out string? path) || _capturing)
+        if (!_options.TryGetValue("shot", out string? path) || _capturing || _ground?.TakesOwnShots == true)
         {
             _elapsed += delta;
             return;
@@ -297,6 +306,7 @@ public partial class Main : Node
             : _ship != null ? _ship.ReadyForShot
             : _sounds != null ? _sounds.ReadyForShot
             : _icons != null ? _icons.ReadyForShot : _models != null ? _models.ReadyForShot
+            : _fx != null ? _fx.ReadyForShot
             : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady
             : _surfaceView.Visible ? _surfaceView.IsReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
@@ -315,7 +325,7 @@ public partial class Main : Node
         }
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         Image image = GetViewport().GetTexture().GetImage();
-        Error error = image.SavePng(path);
+        Error error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? image.SaveJpg(path, 0.9f) : image.SavePng(path);
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
         GetTree().Quit(error == Error.Ok ? 0 : 1);
     }
