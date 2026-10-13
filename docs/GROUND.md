@@ -1640,7 +1640,7 @@ first use, or `FxDirector.Install(parent)`):
 
 | Game event | Effect |
 |---|---|
-| `Local.Gun.ShotFired` | `Muzzle(MuzzleKey(weapon, silenced, brake), the view model's muzzle socket, true)`; when `WantsTracer(own id, seq)`, `Tracer("tracer.bullet"` or `"tracer.incendiary", origin, direction × speed, gravity, drag)` |
+| `Local.Gun.ShotFired` | `Muzzle(MuzzleKey(weapon, silenced, brake), the view model's muzzle socket, true)`; when `WantsTracer(own id, seq)`, `Tracer("tracer.bullet"` or `"tracer.incendiary", origin, direction × speed, gravity, drag)` from `ViewmodelToWorld(muzzle)`, so it leaves the gun where the view model draws it |
 | Others' shots (`RemoteEntity.ActionCount`, `ProjectileLaunch`) | `Muzzle(…, their held gun's muzzle socket, false)`; a tracer as above when `WantsTracer(shooter, seq)` |
 | `GameClient.Projectiles` that are bullets, ending (`EndedAt`, `EndTarget`) | `EndTracer`; `Impact(surface, EndedAt, normal, DirectionAt)`: `Ground` by the ground material there (`FxSurfaces.Of`), `Natural` by the object (tree Wood, outcrop Rock, bush Grass), `Deployable` by its material (Wood or Metal), building pieces by grade (`OfGrade`), water Water, `Character` Flesh (`blood.hit`; `blood.hit.heavy` for a head shot); nothing for `Nothing` |
 | Incendiary rounds' hits | `impact.incendiary`, and `Start("fire.burning", …, Duration = 3)` where they set fire |
@@ -1692,7 +1692,7 @@ dummy, the guns, the campfire, furnace and torch. Options: `--fx <key>` (start t
 after it starts, its `hero` moment by default), `--sheet <family>` (a contact sheet: every effect of a family in its
 own cell at its hero moment, muzzle flashes in first and third person), `--strip <key> --times a,b,c` (one effect at
 several moments), `--action <family>` (a scene of the family in use), `--stress firefight --measure <s>` (below),
-`--night`, `--only-batch <name>` (tuning). Keys: ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
+`--night`, `--only-batch <name>` (tuning), `--spikes` (with `--stress`: print every frame over 12 ms). Keys: ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
 fx.json.
 
 ```bash
