@@ -241,3 +241,19 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
 
   Not done, for want of the character contract: sleeping pose, crawling, others' aiming, attachments on guns in hand.
   Screenshots retaken in `docs/images/ground/play/` (a female player, a rifle down the sights). 109 of 109 tests pass.
+- **Integration merged into `ground` (3b4703d).** `ground` now holds the playable game together with G3 networking,
+  G4, G5, effects and sound. Launch it with `play-ground.cmd` (host), `play-ground.cmd join`, or
+  `play-ground.cmd menu`. Pass 2 also brought:
+  - real models and icons from the catalogue;
+  - worn clothing on characters, with a male or female choice;
+  - sound;
+  - the gun visuals;
+  - Host as its own server process;
+  - the broadphase fix that halved the server tick (10.3 to 5.0 ms with 100 bots).
+
+  The protocol is now version 7, and 124 of 124 tests pass. Integration pass 3 is running:
+  - a smoke test of the merged game;
+  - building in the game (plan, hammer, ghost, doors, code locks, claim device);
+  - raid visuals and alerts;
+  - real effects everywhere;
+  - attachments on guns in hand.
