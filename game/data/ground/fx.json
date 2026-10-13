@@ -72,7 +72,7 @@
       "tracer": {"length": 0.034, "width": 0.026, "brightness": 16, "color": [1.0, 0.42, 0.14], "fadeIn": 0.01, "maxTime": 2.0} },
     { "key": "trail.arrow", "family": "tracer", "about": "An arrow's faint trail: a thin pale streak behind it.", "cap": 64, "cull": 120, "hero": 0.12,
       "stage": "air",
-      "tracer": {"length": 0.12, "width": 0.009, "brightness": 0.75, "opacity": 0.85, "color": [0.9, 0.9, 0.88], "fadeIn": 0.02, "maxTime": 3.0} },
+      "tracer": {"length": 0.15, "width": 0.012, "brightness": 1.6, "opacity": 0.8, "color": [0.9, 0.9, 0.88], "fadeIn": 0.02, "maxTime": 3.0} },
     { "key": "trail.rocket", "family": "tracer",
       "about": "A rocket in flight: a bright exhaust, sparks and a long trail of smoke (a loop that follows the rocket).", "cap": 8, "cull": 500,
       "hero": 0.8, "stage": "air",

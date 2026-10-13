@@ -290,8 +290,8 @@ public partial class FxViewer
             charge.Position = at;
             AddChild(charge);
         }
-        _camera.Position = new Vector3(-5.5f, 1.6f, -2.2f);
-        _camera.LookAt(new Vector3(0.4f, 2.0f, -10.5f), Vector3.Up);
+        _camera.Position = new Vector3(-5.2f, 1.95f, -2.6f);
+        _camera.LookAt(new Vector3(0.4f, 1.7f, -10.5f), Vector3.Up);
         At(1.0, () =>
         {
             charge?.QueueFree();

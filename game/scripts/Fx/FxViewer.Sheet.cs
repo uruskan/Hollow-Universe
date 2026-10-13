@@ -144,6 +144,7 @@ public partial class FxViewer
     {
         "muzzle" => def.Key.Contains("rocket", StringComparison.Ordinal) ? 0.8f : 0.36f,
         "explosion" => 0.9f,
+        "tracer" => def.Key == "trail.rocket" ? 0.4f : 0.3f,
         "impact" => def.Stage is "flesh" ? 0.45f : def.Stage is "water" or "dirt" or "grass" or "sand" ? 0.38f : 0.42f,
         "blood" => def.Key == "blood.drip" ? 0.45f : 0.6f,
         "gather" => def.Key is "gather.tree-fall" or "gather.node-break" ? 0.6f : 0.55f,
