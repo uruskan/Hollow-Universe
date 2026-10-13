@@ -36,8 +36,8 @@ public partial class GroundTour : Node
     /// <summary>Where the pictures go (relative to game/, where Godot runs), or "guest" for the second client's part.</summary>
     public string Folder { get; set; } = "";
 
-    /// <summary>The hosted server (admin commands), or null when joined.</summary>
-    public GameServer? Server { get; set; }
+    /// <summary>Admin commands to the game hosted here (in this process or its own), or null when joined.</summary>
+    public Func<string, bool>? Command { get; set; }
 
     private GameClient Client => View.Client;
 
@@ -207,14 +207,14 @@ public partial class GroundTour : Node
         _guestName = guest.Name;
         foreach (string item in new[] { "woven-hood 1", "woven-shirt 1", "woven-trousers 1", "work-boots 1", "chest-plate 1", "stone-hatchet 1" })
         {
-            Server?.Execute($"give {_guestName} {item}");
+            Command?.Invoke($"give {_guestName} {item}");
         }
         // An open spot of the meadow; the guest three metres ahead, the host's hands empty.
         (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Client.Character.Position);
         await TeleportTo(spot);
         Me.HeldSlot = -1;
         Num.Vector3 ahead = spot + towards * 3.0f;
-        Server?.Execute(string.Create(CultureInfo.InvariantCulture, $"teleport {_guestName} {ahead.X:0.00} {ahead.Z:0.00}"));
+        Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {_guestName} {ahead.X:0.00} {ahead.Z:0.00}"));
         // Until the guest has dressed (their look arrives with what they wear).
         await Until(() => Client.Entities.FirstOrDefault(e => e.Name == _guestName)?.Wear.Count(w => w != 0) >= 4, 15);
         await Seconds(2.0);
@@ -471,7 +471,7 @@ public partial class GroundTour : Node
 
     // ---------------------------------------------------------------- helpers
 
-    private void Admin(string command, string args) => Server?.Execute($"{command} {Client.Name} {args}".Trim());
+    private void Admin(string command, string args) => Command?.Invoke($"{command} {Client.Name} {args}".Trim());
 
     private int Count(string key) => Client.Content.Item(key) is { } def ? Me.Inventory.Count(def) : 0;
 
@@ -563,7 +563,7 @@ public partial class GroundTour : Node
 
     private async Task TeleportTo(Num.Vector3 point)
     {
-        Server?.Execute(string.Create(CultureInfo.InvariantCulture, $"teleport {Client.Name} {point.X:0.00} {point.Z:0.00}"));
+        Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {Client.Name} {point.X:0.00} {point.Z:0.00}"));
         await Until(() => new Num.Vector2(Client.Character.Position.X - point.X, Client.Character.Position.Z - point.Z).Length() < 1.5f, 5);
         await Seconds(0.5);
     }

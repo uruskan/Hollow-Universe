@@ -157,8 +157,9 @@ Client options (after `--`):
   the ambience beds' levels once a second.
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
 - Ground (GROUND.md §4.3): `--view ground` alone opens the main menu; `--body male|female` (default: the menu's last
-  choice); `--mute` (no sound), `--sound-trace` (print every sound started); `--name <n>` with `--host [--port <n>]` (a
-  server in the game) or `--connect host:port` starts at once. `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad
+  choice); `--mute` (no sound), `--sound-trace` (print every sound started); `--name <n>` with `--host [--port <n>]` (the
+  dedicated server started as a process of its own; `--in-process` runs it on a thread of the game) or
+  `--connect host:port` starts at once. `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad
   network through a local relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a

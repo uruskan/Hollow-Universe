@@ -19,8 +19,9 @@ namespace HollowUniverse.Ground;
 /// <summary>
 /// The ground game (GROUND.md §4.3). With neither <c>--host</c> nor <c>--connect</c> it opens the main menu over the
 /// landing site: PLAY hosts a game on this computer, CONNECT joins one by address, the name is remembered, QUIT. With
-/// them it starts at once: <c>--host [--port n]</c> runs the server in this process for solo play (others can join on
-/// the port), <c>--connect host:port</c> joins one. Other options (after "--"): <c>--name</c>, <c>--lag</c>,
+/// them it starts at once: <c>--host [--port n]</c> hosts a game on this computer (others can join on the port): the
+/// dedicated server as a process of its own (<see cref="ChildServer"/>), or with <c>--in-process</c> on a thread of
+/// this one (tests, the screenshot run's statistics); <c>--connect host:port</c> joins one. Other options (after "--"): <c>--name</c>, <c>--lag</c>,
 /// <c>--jitter</c>, <c>--loss</c> (bad-network test), <c>--netgraph</c>, <c>--face &lt;name&gt;</c> (turn toward a
 /// player once seen), <c>--db &lt;path&gt;</c> (the hosted server's database), <c>--spawn origin</c> (hosted: arrive at
 /// the landing site, not on a beach), <c>--time &lt;UTC&gt;</c> or <c>--hour &lt;h&gt;</c> (show another time of day: a
@@ -31,6 +32,8 @@ namespace HollowUniverse.Ground;
 public partial class GroundMode : Node
 {
     private GameServer? _server;
+    private ChildServer? _child;
+    private (string Host, int Port)? _connectWhenReady;
     private GameClient? _client;
     private GroundView? _view;
     private GroundTour? _tour;
@@ -148,16 +151,35 @@ public partial class GroundMode : Node
     // Hosts (host null) or joins a game and shows it.
     private void Start(string name, string? host, int port)
     {
+        string database = Options.TryGetValue("db", out string? dbOption) && dbOption != "true" ? dbOption : ProjectSettings.GlobalizePath("user://hollow-host.db");
+        bool connectNow = true;
+        if (host == null && !Options.ContainsKey("in-process"))
+        {
+            // Hosting: the dedicated server in a process of its own, so neither stalls the other (GROUND.md §4.3).
+            string repository = System.IO.Path.GetFullPath(System.IO.Path.Combine(ProjectSettings.GlobalizePath("res://"), ".."));
+            if (ChildServer.Find(repository) is { } dll)
+            {
+                _child = ChildServer.Start(dll, repository, port, System.IO.Path.GetFullPath(database), $"{name}'s game",
+                    Option("spawn", "beach") == "origin");
+                host = "127.0.0.1";
+                connectNow = false;
+                _connectWhenReady = (host, port);
+            }
+            else
+            {
+                GD.PushWarning("The dedicated server isn't built (dotnet build HollowUniverse.sln): hosting in this process.");
+            }
+        }
         if (host == null)
         {
-            // Solo play: the same server, on a background thread of this process (Host mode).
+            // Hosting in this process: the same server on a background thread (--in-process).
             try
             {
                 _server = new GameServer(new ServerOptions
                 {
                     Port = port,
                     Name = $"{name}'s game",
-                    DatabasePath = Options.TryGetValue("db", out string? db) && db != "true" ? db : ProjectSettings.GlobalizePath("user://hollow-host.db"),
+                    DatabasePath = database,
                     Content = _content,
                     SpawnAtOrigin = Option("spawn", "beach") == "origin",
                     Log = line => GD.Print("[server] " + line),
@@ -183,21 +205,20 @@ public partial class GroundMode : Node
             Content = _content,
             Log = line => GD.Print("[client] " + line),
         });
-        _client.Connect(host, port);
+        if (connectNow)
+        {
+            _client.Connect(host, port);
+        }
         _view = new GroundView
         {
             Name = "GroundView",
             Client = _client,
-            HostedPort = _server?.Port,
+            HostedPort = _server?.Port ?? _child?.Port,
             FaceName = Options.TryGetValue("face", out string? face) ? face : null,
             ShowNetGraph = Options.ContainsKey("netgraph"),
             Muted = Options.ContainsKey("mute"),
             SoundTrace = Options.ContainsKey("sound-trace"),
-            HostCommand = _server == null ? null : command =>
-            {
-                _server.Execute(command);
-                return true;
-            },
+            HostCommand = Command,
             TimeOverride = TimeOption(),
         };
         _view.QuitRequested += () => GetTree().Quit();
@@ -208,17 +229,69 @@ public partial class GroundMode : Node
         {
             AddChild(new GroundMeasure
             {
-                Name = "Measure", View = _view, Server = _server, Seconds = Number("measure", 20), Expect = (int)Number("expect", 0),
+                Name = "Measure", View = _view, Server = _server, Command = Command, Seconds = Number("measure", 20), Expect = (int)Number("expect", 0),
             });
         }
         if (Options.TryGetValue("tour", out string? folder) && folder != "true")
         {
             _tour = new GroundTour
             {
-                Name = "Tour", View = _view, Folder = folder, Server = _server,
+                Name = "Tour", View = _view, Folder = folder, Command = Command,
                 Only = Options.TryGetValue("tour-steps", out string? steps) ? new HashSet<string>(steps.Split(',')) : null,
             };
             AddChild(_tour);
+        }
+    }
+
+    // An admin command to the game hosted here (null when joined elsewhere).
+    private Func<string, bool>? Command => _server != null
+        ? command =>
+        {
+            _server.Execute(command);
+            return true;
+        }
+        : _child != null
+            ? command =>
+            {
+                _child.Execute(command);
+                return true;
+            }
+            : null;
+
+    public override void _Process(double delta)
+    {
+        if (_child == null)
+        {
+            return;
+        }
+        foreach (string line in _child.TakeLines())
+        {
+            GD.Print("[server] " + line);
+        }
+        if (_connectWhenReady is { } target)
+        {
+            if (_child.Ready)
+            {
+                _connectWhenReady = null;
+                _client?.Connect(target.Host, target.Port);
+            }
+            else if (_child.Exited)
+            {
+                _connectWhenReady = null;
+                if (_child.PortTaken)
+                {
+                    // Another game hosts on this port here: join that one instead.
+                    GD.PushWarning($"Port {target.Port} is taken: another game hosts on it here; joining that one instead.");
+                    _client?.Connect(target.Host, target.Port);
+                }
+                else
+                {
+                    _view?.Interface.ShowMenu(inGame: false);
+                    _view?.Interface.SetMenuStatus("The server stopped while starting (see the log).");
+                }
+                _child.Dispose();
+                _child = null;
+            }
         }
     }
 
@@ -230,11 +303,17 @@ public partial class GroundMode : Node
         _view = null;
         _client?.Dispose();
         _client = null;
+        _connectWhenReady = null;
         if (_server != null)
         {
             _server.Stop();
             _server.Dispose();
             _server = null;
+        }
+        if (_child != null)
+        {
+            _child.Dispose();
+            _child = null;
         }
     }
 

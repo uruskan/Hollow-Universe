@@ -19,7 +19,7 @@ public static class Program
         if (o.ContainsKey("help"))
         {
             Console.WriteLine("Hollow.Server options: --port <n> --name <text> --db <path> | --no-db --lat <deg> --lon <deg> " +
-                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --day-scale <x> --spawn beach|origin --stand-in\nCommands:\n" +
+                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --day-scale <x> --spawn beach|origin --stand-in --parent <pid>\nCommands:\n" +
                 GameServer.CommandHelp);
             return 0;
         }
@@ -45,6 +45,24 @@ public static class Program
             e.Cancel = true;
             server.RequestStop();
         };
+        // Started by a game that hosts it (--parent <pid>): stop, saving everyone, when that game is gone.
+        if (o.TryGetValue("parent", out string? parent) && int.TryParse(parent, NumberStyles.Integer, CultureInfo.InvariantCulture, out int pid))
+        {
+            new Thread(() =>
+            {
+                try
+                {
+                    using var game = System.Diagnostics.Process.GetProcessById(pid);
+                    game.WaitForExit();
+                }
+                catch (ArgumentException)
+                {
+                    // Already gone.
+                }
+                server.RequestStop();
+            })
+            { IsBackground = true, Name = "Hollow parent" }.Start();
+        }
         var console = new Thread(() =>
         {
             while (!server.IsStopping)

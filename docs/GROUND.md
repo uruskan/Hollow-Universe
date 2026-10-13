@@ -170,7 +170,11 @@ Godot.
 - **The ground mode in Godot** (`game/scripts/Ground/`), one game on the real planet:
   - **Starting:** `--view ground` alone opens the main menu over the landing site (PLAY hosts a game on this
     computer, CONNECT joins one by address and port, the name is remembered, QUIT). `--host` or `--connect host:port`
-    start at once (`play-ground.cmd`, AGENTS.md).
+    start at once (`play-ground.cmd`, AGENTS.md). Hosting starts the dedicated server (`Hollow.Server`, the newer of
+    its Release and Debug builds) as a process of its own on localhost (`ChildServer`): the game connects once it says
+    "Ready.", its log lines show in the game's as "[server]", admin commands go to its console, and it saves and stops
+    with the game (`quit`, or by itself through `--parent <pid>` if the game goes away). `--in-process` keeps the
+    server on a thread of the game (tests, statistics read from the server directly).
   - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.Driven`, `OpenZone`): its
     terrain, sea, sky, clouds, plants and grass, with the render frame on the zone's own frame (the same origin and
     axes, and no floating-origin moves: the zone keeps within 8.2 km of its origin, where floats are good to half a
@@ -2159,8 +2163,9 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
 62. **Rust's hands**: the attack button places a held deployable and uses held food or medicine (Rust), so F, G and H
     are gone; a tap of E acts, holding E on a fire or furnace lights it or puts it out (Rust's "more options"); the death
     screen's buttons respawn (B is gone); Esc closes what is open, then opens the menu.
-63. **The host's server runs in the game's process** (as G1 built it), so a hosted game with many players shares its
-    garbage collections and CPU with the client (§5.4): fine for a few friends, a dedicated server for crowds.
+63. **The host's server runs in a process of its own** (since pass 2; G1 ran it on a thread of the game): in one
+    process the game's garbage collections stalled the server's ticks (72 ms at the 99th percentile, §5.4).
+    `--in-process` keeps the old way for tests.
 64. **Fires are lit with their real strength** next to the sun (about 5 lux at 2 m): invisible by day, as in life, and
     the light of the camp by night, when the eye-like exposure is thousands of times higher. Glowing things (flames,
     weak spots) are divided by the exposure, so they look as bright by day as by night.

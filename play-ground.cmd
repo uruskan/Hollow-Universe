@@ -1,7 +1,8 @@
 @echo off
 rem Hollow Universe: the ground game on the first world (docs/GROUND.md 4.3).
 rem
-rem   play-ground.cmd                  build, then host a game on this computer (others can join on port 27015)
+rem   play-ground.cmd                  build, then host a game on this computer (others can join on port 27015);
+rem                                    the server runs as its own process, stopped with the game
 rem   play-ground.cmd join [address]   build, then join a game as another player (default 127.0.0.1)
 rem   play-ground.cmd menu             build, then open the main menu (PLAY, CONNECT, name, QUIT)
 rem
@@ -13,6 +14,9 @@ if "%GODOT%"=="" set "GODOT=D:\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stabl
 if not exist "%GODOT%" goto nogodot
 echo Building...
 dotnet build HollowUniverse.sln -nologo -v quiet -clp:ErrorsOnly
+if errorlevel 1 exit /b 1
+rem The hosted game runs the dedicated server in a process of its own: build it for speed too.
+dotnet build src\Hollow.Server -c Release -nologo -v quiet -clp:ErrorsOnly
 if errorlevel 1 exit /b 1
 if not exist "game\.godot\imported" "%GODOT%" --headless --path game --import
 if /i "%~1"=="join" goto join

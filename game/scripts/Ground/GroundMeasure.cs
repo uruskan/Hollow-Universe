@@ -29,6 +29,9 @@ public partial class GroundMeasure : Node
 
     public GameServer? Server { get; set; }
 
+    /// <summary>Admin commands to a server hosted in its own process: its tick is asked for with "status".</summary>
+    public Func<string, bool>? Command { get; set; }
+
     public double Seconds { get; set; } = 20;
 
     public int Expect { get; set; }
@@ -139,6 +142,11 @@ public partial class GroundMeasure : Node
             $"{(GC.GetAllocatedBytesForCurrentThread() - _allocatedHere) / Seconds / 1e6:0.0} MB/s on the main thread, of which the ground view's parts (KB a frame): " +
             string.Join(", ", View.Allocations.Select(p => $"{p.Key} {p.Value / 1024.0 / _frames.Count:0.0}")) +
             $"; process phase {_late!.Phase / 1024.0 / _frames.Count:0.0} KB a frame, the rest {_early!.Bytes / 1024.0 / _frames.Count:0.0} KB");
+        if (Server == null)
+        {
+            // A server in its own process prints its tick (the game's log shows it as "[server] tick ...").
+            Command?.Invoke("status");
+        }
         if (Server != null)
         {
             TickStats t = Server.Ticks;
