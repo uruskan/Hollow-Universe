@@ -453,6 +453,34 @@ def arc_panel(b, radius, a0, a1, z0, z1, thick=0.05, segs=8, mat=PAINT, tint=GRE
 # ------------------------------------------------------------------------------------------------ road things
 
 
+def long_road(b, a, c, width=7.0, seg=7.0, lines=True, tint=(1, 1, 1)):
+    """A straight asphalt road from `a` to `c` ((x, y)), cut into pieces about `seg` metres long so the texture's
+    random offset changes along it (a long road made of one box repeats its 6 m tile visibly), each cut in three across
+    so no vertex lies under the centre dashes (it would bake black under them); the pieces overlap by
+    2 cm at alternating heights so they never fight. Centre dashes and edge lines as structures.road paints them."""
+    a, c = Vector((a[0], a[1], 0)), Vector((c[0], c[1], 0))
+    d = c - a
+    n = max(1, int(round(d.length / seg)))
+    yaw = math.degrees(math.atan2(d.y, d.x))
+    side = Vector((-d.y, d.x, 0)).normalized() * (width / 2 - 0.3)
+    for k in range(n):
+        p = a + d * ((k + 0.5) / n)
+        grid_box(b, (d.length / n + 0.02, width, 0.1 + 0.0015 * (k % 2)), (p.x, p.y, 0.05 + 0.00075 * (k % 2)),
+                 (0, 0, yaw), step=width / 2.6, mat=ASPHALT, tint=tint, vary=0.02)
+    if lines:
+        line = srgb(0.85, 0.83, 0.75)
+        m = int(d.length / 6)
+        for k in range(m):
+            p = a + d * ((k + 0.5) / m)
+            b.box((3.0, 0.15, 0.012), (p.x, p.y, 0.108), (0, 0, yaw), mat=PAINT, tint=line, solid=False, vary=0,
+                  wear=0.7)
+        for s in (side, -side):
+            for k in range(n):
+                p = a + d * ((k + 0.5) / n) + s
+                b.box((d.length / n, 0.12, 0.012), (p.x, p.y, 0.108), (0, 0, yaw), mat=PAINT, tint=line, solid=False,
+                      vary=0, wear=0.7)
+
+
 def verge(b, x, y0, y1, side=1, width=1.4, tint=srgb(0.56, 0.53, 0.47), step=2.5):
     """A gravel shoulder along a road edge at `x` from `y0` to `y1`, `side` +1 or -1 (outward); ragged outer edge."""
     inner, outer = [], []
@@ -2161,3 +2189,161 @@ def small_turbine(b, at, height=6.0, yaw=0.0, tint=OFFWHITE, broken=False):
             with b.frame((0, -0.42, 0), (0, ang, 0)):
                 b.extrude([(-0.06, 0.08), (0.1, 0.08), (0.05, 1.6), (-0.02, 1.6)], 0.03, (0, 0, 0), (0, 0, 0),
                           mat=PAINT, tint=tint, solid=False)
+
+
+# ------------------------------------------------------------------------------------------------ depots
+
+RECYCLER_OLIVE = srgb(0.36, 0.40, 0.33)
+
+
+def _fuel_pump(b):
+    """A Seedward fuel dispenser: a plinth, an off-white cabinet with rounded corners and an orange band, a head with a
+    dark display and price window, a nozzle in its holster on each side with its hose looping down."""
+    b.box((1.1, 0.62, 0.16), (0, 0, 0.08), mat=CONCRETE, tint=srgb(0.72, 0.71, 0.68), bevel=0.02)
+    b.box((0.9, 0.5, 1.25), (0, 0, 0.16 + 0.625), mat=PANEL, tint=OFFWHITE, bevel=0.06)
+    b.box((0.92, 0.52, 0.16), (0, 0, 0.62), mat=PAINT, tint=ORANGE, solid=False, vary=0)
+    b.box((0.92, 0.52, 0.04), (0, 0, 0.52), mat=PAINT, tint=TEAL, solid=False, vary=0)
+    b.box((0.96, 0.44, 0.5), (0, 0, 1.41 + 0.25), mat=PANEL, tint=OFFWHITE, bevel=0.05)
+    for s in (-1, 1):
+        b.box((0.62, 0.02, 0.22), (0, s * 0.225, 1.72), mat=GLOSS, tint=srgb(0.04, 0.05, 0.05), solid=False, vary=0)
+        b.box((0.3, 0.025, 0.08), (0.1, s * 0.226, 1.53), mat=LAMP, tint=srgb(0.9, 0.5, 0.15), solid=False, vary=0)
+        b.box((0.24, 0.02, 0.16), (0.0, s * 0.255, 1.05), mat=PAINT, tint=DARK, solid=False, vary=0)
+        # Nozzle in its holster, the hose looping down to the base and up into the cabinet.
+        b.box((0.14, 0.12, 0.22), (-0.3, s * 0.3, 1.02), mat=PAINT, tint=DARK, solid=False)
+        b.box((0.05, 0.22, 0.05), (-0.3, s * 0.38, 1.06), (s * 20, 0, 0), mat=PAINT, tint=srgb(0.25, 0.45, 0.25),
+              solid=False)
+        b.tube([(-0.3, s * 0.32, 0.92), (-0.32, s * 0.42, 0.55), (-0.25, s * 0.45, 0.3), (-0.05, s * 0.4, 0.28),
+                (0.15, s * 0.34, 0.45), (0.3, s * 0.27, 1.2)], 0.02, mat=PAINT, tint=BLACK, sides=5, cap=False)
+    b.collide_box(Vector((0, 0, 0.95)), (1.0, 0.55, 1.9), (0, 0, 0))
+
+
+def _recycler(b):
+    """A reclaimer press (the monuments' recycler, MONUMENTS.md §7): a squat olive machine on a skid, a striped
+    intake funnel on top, a rumbling drum behind louvres, an output chute and tray at the side, a control box with a
+    big lever and two lamps, cable to a junction box. Its marker sits at the controls."""
+    b.box((2.4, 1.6, 0.18), (0, 0, 0.09), mat=PAINT, tint=DARK)
+    for x in (-1.0, 1.0):
+        b.box((0.16, 1.6, 0.12), (x, 0, 0.24), mat=PAINT, tint=DARK, solid=False)
+    b.box((1.9, 1.3, 1.3), (0, 0, 0.18 + 0.65), mat=PAINT, tint=RECYCLER_OLIVE, bevel=0.05)
+    b.box((1.92, 1.32, 0.12), (0, 0, 1.2), mat=PAINT, tint=DARK, solid=False)
+    # Intake funnel: a frustum with a hazard-striped lip.
+    b.cyl(0.62, 0.55, (-0.25, 0.05, 1.75), (0, 0, 45), mat=PAINT, tint=RECYCLER_OLIVE, sides=4, radius2=0.95,
+          cap=False, solid="hull")
+    b.cyl(0.66, 0.08, (-0.25, 0.05, 1.5), (0, 0, 45), mat=PAINT, tint=DARK, sides=4, solid=False)
+    with b.frame((-0.25, 0.05, 2.05), (0, 0, 0)):
+        for k in range(4):
+            a = math.radians(90 * k)
+            with b.frame((0.67 * math.cos(a), 0.67 * math.sin(a), 0), (0, 0, 90 * k + 90)):
+                stripes(b, (-0.62, 0.0, 0), (0.62, 0.0, 0), 0.08, width=0.16, at_z=-0.06, normal=(0, -1, 0))
+    b.box((1.0, 0.04, 0.6), (-0.25, -0.66, 0.85), mat=PAINT, tint=DARK, solid=False)
+    for k in range(6):
+        b.box((0.9, 0.05, 0.03), (-0.25, -0.69, 0.62 + k * 0.09), (30, 0, 0), mat=PAINT, tint=GREY, solid=False,
+              vary=0)
+    # Output chute and tray on the +X side.
+    b.box((0.5, 0.6, 0.1), (1.12, 0.1, 0.72), (0, -25, 0), mat=PAINT, tint=GREY)
+    b.box((0.7, 0.8, 0.3), (1.4, 0.1, 0.33), mat=PAINT, tint=GREY, solid=False)
+    b.box((0.66, 0.76, 0.05), (1.4, 0.1, 0.46), mat=PAINT, tint=DARK, solid=False)
+    # Controls: a box with a lever and lamps on the front (-Y) right.
+    b.box((0.5, 0.25, 0.5), (0.6, -0.78, 1.0), mat=PAINT, tint=LIGHTGREY, bevel=0.02)
+    b.box((0.06, 0.06, 0.42), (0.75, -0.95, 1.12), (0, -35, 0), mat=PAINT, tint=RED, solid=False)
+    b.cyl(0.05, 0.08, (0.87, -0.95, 1.29), mat=PAINT, tint=BLACK, sides=8, solid=False)
+    for x, col in ((0.45, srgb(0.3, 1.0, 0.4)), (0.6, srgb(1.0, 0.25, 0.1))):
+        b.box((0.07, 0.03, 0.07), (x, -0.91, 1.15), mat=LAMP, tint=col, solid=False, vary=0)
+    stencil(b, "RECLAIM", (-0.25, -0.67, 1.27), (0, 0, 0), 0.08, YELLOW, align="centre")
+    b.tube([(-0.95, 0.4, 0.4), (-1.3, 0.5, 0.15), (-1.7, 0.6, 0.05), (-2.1, 0.7, 0.05)], 0.035, mat=PAINT,
+           tint=BLACK, sides=5)
+    b.box((0.3, 0.2, 0.4), (-2.2, 0.75, 0.22), mat=PAINT, tint=GREY, solid=False)
+    b.collide_box(Vector((0, 0, 0.9)), (2.0, 1.4, 1.8), (0, 0, 0))
+    b.marker("recycler", (0.6, -1.3, 0.0))
+
+
+def _dumpster(b):
+    """A steel waste skip with two lids (one thrown back), side pockets and casters."""
+    b.box((1.8, 1.1, 1.1), (0, 0, 0.2 + 0.55), mat=PAINT, tint=srgb(0.25, 0.4, 0.3), bevel=0.03)
+    b.box((1.84, 1.14, 0.08), (0, 0, 1.28), mat=PAINT, tint=srgb(0.25, 0.4, 0.3), solid=False)
+    for x in (-0.8, 0.8):
+        for y in (-0.45, 0.45):
+            b.cyl(0.08, 0.06, (x, y, 0.1), (90, 0, 0), mat=PAINT, tint=BLACK, sides=8, solid=False)
+            b.box((0.12, 0.12, 0.1), (x, y, 0.2), mat=PAINT, tint=DARK, solid=False)
+    b.box((0.88, 1.12, 0.05), (-0.45, 0, 1.33), mat=PAINT, tint=srgb(0.2, 0.2, 0.2), solid=False)
+    b.box((0.88, 0.05, 0.9), (0.45, 0.6, 1.72), (-12, 0, 0), mat=PAINT, tint=srgb(0.2, 0.2, 0.2), solid=False)
+    for x in (-0.95, 0.95):
+        b.box((0.1, 0.5, 0.12), (x, 0, 0.95), mat=PAINT, tint=DARK, solid=False)
+    b.collide_box(Vector((0, 0, 0.7)), (1.8, 1.1, 1.3), (0, 0, 0))
+
+
+kit.PIECES["fuel-pump"] = _fuel_pump
+kit.PIECES["recycler"] = _recycler
+kit.PIECES["dumpster"] = _dumpster
+
+
+def pod_car(b, at, rot=(0, 0, 0), tint=srgb(0.62, 0.70, 0.74), wrecked=0.5, doors=(0.0, 0.0), wheels=True,
+            flat=False):
+    """A colonist's small electric car, 3.6 m long: a rounded body (a side profile extruded across), a glasshouse,
+    bumpers, lamps, four small wheels. `wrecked` (0..1) breaks glass, dents and rusts it; `doors` opens the front
+    doors (left, right) by that many degrees; without `wheels` it sits on its hubs. Front toward -Y."""
+    w = 1.7
+    hw = w / 2
+    z0 = 0.18 if wheels else 0.02
+    with b.frame(at, rot):
+        prof = [(-1.8, z0 + 0.2), (1.8, z0 + 0.2), (1.82, z0 + 0.62), (1.6, z0 + 0.9), (-1.1, z0 + 0.9),
+                (-1.72, z0 + 0.72), (-1.84, z0 + 0.42)]
+        with b.frame((0, 0, 0), (0, 0, 90)):
+            b.extrude(prof, w, (0, 0, 0), (0, 0, 0), mat=PAINT, tint=tint, bevel=0.06)
+        # Glasshouse: pillars and a roof, the glass (or the empty frames).
+        roof = z0 + 1.48
+        b.box((w - 0.16, 1.9, 0.08), (0, 0.45, roof), mat=PAINT, tint=tint, bevel=0.02)
+        for y0, y1 in ((-1.0, -0.5), (1.38, 1.4)):
+            for s in (-1, 1):
+                b.beam((s * (hw - 0.1), y0, z0 + 0.9), (s * (hw - 0.1), y1, roof - 0.03), 0.07, 0.07, mat=PAINT,
+                       tint=tint)
+        glass = GLASS
+        for (cx, cy, cz, sx, sy, sz, rx) in ((0, -0.75, z0 + 1.19, w - 0.3, 0.02, 0.74, -41.0),
+                                             (0, 1.4, z0 + 1.19, w - 0.3, 0.02, 0.55, 0.0)):
+            if b.rng.random() < wrecked:
+                continue
+            b.box((sx, sy, sz), (cx, cy, cz), (rx, 0, 0), mat=glass, solid=False)
+        for s in (-1, 1):
+            if b.rng.random() > wrecked * 0.8:
+                b.box((0.02, 1.7, 0.5), (s * (hw - 0.1), 0.45, z0 + 1.17), mat=glass, solid=False)
+        # Doors: seams, handles; opened doors swing on their front hinges.
+        for i, s in enumerate((-1, 1)):
+            ang = doors[i]
+            if ang:
+                with b.frame((s * hw, -0.45, z0 + 0.2), (0, 0, -s * ang)):
+                    b.box((0.06, 1.1, 0.7), (0, 0.55, 0.35), mat=PAINT, tint=tint)
+                    b.box((0.03, 0.9, 0.48), (s * 0.0, 0.5, 0.95), mat=glass, solid=False)
+            else:
+                b.box((0.012, 0.02, 0.68), (s * (hw + 0.002), -0.45, z0 + 0.55), mat=PAINT, tint=DARK, solid=False,
+                      vary=0)
+                b.box((0.012, 0.02, 0.68), (s * (hw + 0.002), 0.65, z0 + 0.55), mat=PAINT, tint=DARK, solid=False,
+                      vary=0)
+                b.box((0.03, 0.14, 0.03), (s * (hw + 0.01), 0.45, z0 + 0.75), mat=PAINT, tint=GREY, solid=False)
+        # Bumpers, lamps, a livery stripe.
+        for y in (-1.86, 1.86):
+            b.box((w + 0.04, 0.12, 0.18), (0, y, z0 + 0.32), mat=PAINT, tint=DARK, solid=False)
+        for s in (-1, 1):
+            b.box((0.3, 0.04, 0.12), (s * 0.55, -1.84, z0 + 0.62), mat=GLOSS, tint=srgb(0.9, 0.9, 0.85), solid=False,
+                  vary=0)
+            b.box((0.28, 0.04, 0.1), (s * 0.58, 1.83, z0 + 0.66), mat=GLOSS, tint=RED, solid=False, vary=0)
+            b.box((0.012, 3.0, 0.08), (s * (hw + 0.004), 0.0, z0 + 0.45), mat=PAINT, tint=OFFWHITE, solid=False,
+                  vary=0)
+        # Wheels in the arches (or the hubs on blocks).
+        for y in (-1.2, 1.2):
+            for s in (-1, 1):
+                if wheels:
+                    with b.frame((s * (hw - 0.12), y, 0.32 if not flat else 0.27), (0, 90, 0)):
+                        b.cyl(0.32, 0.2, (0, 0, 0), mat=MATTE, tint=RUBBER, sides=14, solid=False)
+                        b.cyl(0.2, 0.22, (0, 0, 0), mat=PAINT, tint=LIGHTGREY, sides=12, solid=False)
+                else:
+                    b.cyl(0.12, 0.1, (s * (hw - 0.1), y, z0 + 0.25), (0, 90, 0), mat=PAINT, tint=GREY, sides=10,
+                          solid=False)
+        # Wear: rust patches and dents as dark blotches; the interior seats.
+        for k in range(int(wrecked * 6)):
+            s = 1 if b.rng.random() < 0.5 else -1
+            b.box((0.012, 0.3 + 0.5 * b.rng.random(), 0.2 + 0.3 * b.rng.random()),
+                  (s * (hw + 0.006), b.rng.uniform(-1.4, 1.4), z0 + b.rng.uniform(0.35, 0.75)), mat="M_Mon_Rust",
+                  tint=(1, 1, 1), solid=False, vary=0)
+        for y in (-0.15, 0.75):
+            b.box((1.3, 0.5, 0.4), (0, y, z0 + 0.62), mat=MATTE, tint=srgb(0.2, 0.22, 0.24), solid=False)
+        b.collide_box(Vector((0, 0, z0 + 0.7)), (w, 3.7, 1.3), (0, 0, 0))
