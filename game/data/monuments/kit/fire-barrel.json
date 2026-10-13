@@ -1,0 +1,54 @@
+{
+ "key": "fire-barrel",
+ "model": "res://assets/monuments/kit/fire-barrel.glb",
+ "collision": [
+  {
+   "box": [
+    0.0,
+    0.45,
+    -0.0
+   ],
+   "half": [
+    0.3,
+    0.45,
+    0.3
+   ],
+   "rot": [
+    1.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  }
+ ],
+ "markers": [
+  {
+   "kind": "light",
+   "at": [
+    0.0,
+    1.2,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "colour": [
+    1.0,
+    0.45,
+    0.12
+   ],
+   "range": 7.0,
+   "flicker": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.65,
+   -0.64,
+   -0.65
+  ],
+  "max": [
+   0.65,
+   1.22,
+   0.65
+  ]
+ }
+}
