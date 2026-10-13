@@ -63,19 +63,81 @@
       ],
       "triangles": 368
     },
-    "hair_lod0": {
+    "hair_short02_lod0": {
       "lods": [
         0
       ],
       "triangles": 3344
     },
-    "hair_lod1": {
+    "hair_short02_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 1100
+    },
+    "hair_short01_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 3678
+    },
+    "hair_short01_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 1100
+    },
+    "hair_short03_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 1922
+    },
+    "hair_short03_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 1099
+    },
+    "hair_short04_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 1050
+    },
+    "hair_short04_lod1": {
+      "lods": [
+        1
+      ],
+      "triangles": 1050
+    },
+    "hair_afro01_lod0": {
+      "lods": [
+        0
+      ],
+      "triangles": 2192
+    },
+    "hair_afro01_lod1": {
       "lods": [
         1
       ],
       "triangles": 1100
     }
   },
+  "hair_styles": [
+    "short02",
+    "short01",
+    "short03",
+    "short04",
+    "afro01"
+  ],
+  "faces": [
+    "face_1",
+    "face_2",
+    "face_3",
+    "face_4",
+    "face_5"
+  ],
   "bones": 53,
   "bone_heads_blender": {
     "Root": [

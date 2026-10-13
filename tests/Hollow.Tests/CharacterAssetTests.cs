@@ -25,7 +25,8 @@ public static class CharacterAssetTests
 
     /// <summary>
     /// GROUND.md §4.8: the built character files agree with the client: the same regions in the same order, every
-    /// clip the graph plays, a body at each of the three levels of detail, and each garment of the first outfit.
+    /// clip the graph plays, a body at each of the three levels of detail, the looks' hair styles, faces and skin maps,
+    /// and every garment.
     /// </summary>
     [Test]
     public static void CharacterFilesAgreeWithTheClient()
@@ -53,6 +54,20 @@ public static class CharacterAssetTests
         int triangles = body.RootElement.GetProperty("meshes").GetProperty("body_lod0").GetProperty("triangles").GetInt32();
         Assert.InRange(15000, 25000, triangles, $"{which} body triangles at level 0");
 
+        // Looks (Looks.cs): four to six hair styles, each drawn near and in the middle distance, and four to six faces.
+        string[] styles = body.RootElement.GetProperty("hair_styles").EnumerateArray().Select(e => e.GetString()!).ToArray();
+        Assert.InRange(4, 6, styles.Length, $"{which} hair styles");
+        foreach (string style in styles)
+        {
+            Assert.True(meshes.ContainsKey($"hair_{style}_lod0") && meshes.ContainsKey($"hair_{style}_lod1"), $"{which}: hair {style} at levels 0 and 1");
+            Assert.True(File.Exists(Path.Combine(folder, "textures", $"hair_{style}_albedo.png")), $"hair {style} has its texture");
+        }
+        Assert.InRange(4, 6, body.RootElement.GetProperty("faces").GetArrayLength(), $"{which} face shapes");
+        foreach (string map in new[] { "albedo", "dark", "mask", "normal" })
+        {
+            Assert.True(File.Exists(Path.Combine(folder, "textures", $"skin_{which}_{map}.png")), $"skin_{which}_{map}.png");
+        }
+
         using JsonDocument clothing = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, $"clothing{suffix}.json")));
         Dictionary<string, int[]> garments = Lods(clothing.RootElement);
         foreach (string item in new[] { "knit_cap", "woven_shirt", "woven_trousers", "laced_boots", "riveted_breastplate" })
@@ -69,7 +84,7 @@ public static class CharacterAssetTests
         {
             Assert.True(clips.TryGetProperty(clip, out _), $"animations{suffix}.json has {clip}");
         }
-        Fixtures.Report($"{which}: {regions.Length} regions, {meshes.Count} body meshes, {garments.Count} garment meshes, {clips.EnumerateObject().Count()} clips");
+        Fixtures.Report($"{which}: {regions.Length} regions, {meshes.Count} body meshes, {styles.Length} hair styles, {garments.Count} garment meshes, {clips.EnumerateObject().Count()} clips");
     }
 
     private static Dictionary<string, int[]> Lods(JsonElement root)

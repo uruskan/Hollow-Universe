@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://5vxk3p2n8mvp"
-path.s3tc="res://.godot/imported/hair_female_albedo.png-ea145e8443c02bc80227dcb11acf0d18.s3tc.ctex"
+uid="uid://7yw3m02lpij3"
+path.s3tc="res://.godot/imported/hair_short04_albedo.png-022c1182a6983bc8b3ece8325c8a3577.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/characters/textures/hair_female_albedo.png"
-dest_files=["res://.godot/imported/hair_female_albedo.png-ea145e8443c02bc80227dcb11acf0d18.s3tc.ctex"]
+source_file="res://assets/characters/textures/hair_short04_albedo.png"
+dest_files=["res://.godot/imported/hair_short04_albedo.png-022c1182a6983bc8b3ece8325c8a3577.s3tc.ctex"]
 
 [params]
 

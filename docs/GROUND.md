@@ -418,7 +418,8 @@ knows about the network.
 |---|---|
 | `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional). |
 | `Trigger(CharacterEvent, direction)` | `Swing` (tool strike or punch), `Fire`, `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`). `Revive()` stands it up again. |
-| `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). |
+| `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). `Wardrobe.ForItem(itemKey)` gives the garments an items.json key is worn as (every clothing and armour key has one); `Wardrobe.ForItems(keys)` a whole outfit. |
+| `Look` | How the player looks: `Looks.ForPlayer(id, body)` (skin tone, face, hair style and colour, stubble from the ID; the body is the player's choice). Set any time; `ViewmodelView.Look` gives the arms the same skin. |
 
 `ViewmodelView` is the first-person counterpart, a child of the player's camera: `Hold(kind, item)`, `Wear(items)`,
 `Apply(ViewmodelFrame)` every frame (velocity in the camera's frame, look rate, grounded, sprinting, crouching, aiming)
@@ -431,7 +432,7 @@ works in the character's own frame. The ragdoll falls along −`Up` at the momen
 **Body.** A MakeHuman adult male (1.78 m, eyes at 1.67 m), MPFB's game-engine skeleton: 53 bones with UE-style names
 (`pelvis`, `spine_01`…`spine_03`, `neck_01`, `head`, `clavicle_l`, `upperarm_l`, `lowerarm_l`, `hand_l`, three bones per
 finger, `thigh_l`, `calf_l`, `foot_l`, `ball_l`). Rest pose: MakeHuman's A-pose. Levels of detail: about 18,000, 7,000
-and 2,400 triangles for the body; eyes, brows, lashes and short hair (MakeHuman CC0 assets) drop out with distance.
+and 2,400 triangles for the body; eyes, brows, lashes and the hair style (MakeHuman CC0 assets) drop out with distance.
 A female body (1.61 m, eyes at 1.50 m) is built by the same scripts (`-- --body female`): the same skeleton names, her
 own meshes, clothing cut from her body and clips retargeted onto her rig (`human_female.glb`, `clothing_female.glb`,
 `animations_female.glb`); a character picks its body with `CharacterView.Body` and `ViewmodelView.Body`. Players
@@ -440,6 +441,24 @@ for a woman a crop top cut straight round the chest), so nobody is ever without 
 "blink" shape on the body and lashes from MakeHuman's eyelid-closure expression units); the eyes have a wet clear coat;
 the hair cards blend their thin ends over a depth pre-pass, and a dark hair base painted on the scalp fades into the
 forehead, so the hairline is soft.
+
+**Looks.** As in Rust, the body is the player's choice and the rest comes from their ID (`Looks.ForPlayer(id, body)`;
+a string ID, such as the account name, through its 64-bit FNV-1a hash), the same on every machine:
+- *skin tone*: ten tones from pale to very dark. The shader blends MakeHuman's light skin texture with its dark one
+  (both bodies have both; the dark one's painted scalp hair is replaced by its own skin when it is built), spread so
+  equal steps look equal, with a tint (rosier, more olive) and less light scattered under darker skin;
+- *face*: six per body, the base face and five shape keys (`face_1` … `face_5`) made by `build_body.py` from MakeHuman's
+  nose, mouth, cheek and chin targets and its African and East Asian race macros (less the body's own mix, and less
+  the head's movement as a whole). They change only the lower and middle face, so the eyes, brows, lashes, every hair
+  style and every garment fit all six; they are drawn at the nearest level of detail;
+- *hair*: five MakeHuman styles per body (men: short02, short01, short03, short04, afro01; women: ponytail01, bob01,
+  bob02, short03, afro01) or a buzz cut (the hair base alone), in one of ten natural colours whose odds follow the
+  skin tone. Hair textures are stored as brightness about their mean, so any style takes any colour; one material
+  per style, the colour an instance uniform (`hair_colour`). The brows take it a little darker, the hair base painted on
+  the scalp and the stubble take it too;
+- *stubble* for men: none, light or heavy (a mask painted by `build_body.py`).
+
+Everything per player is an instance uniform or a blend shape, so the materials stay shared.
 
 **Clothing.** Every body face belongs to one of fourteen regions (face, scalp, neck, collar, chest, belly, pelvis, upper
 arm, forearm, hand, thigh, calf, ankle, foot). A garment lists the regions it covers completely; the body's triangles there
@@ -2027,6 +2046,19 @@ they merge beside the other packages' items):
   bullet tips (blue high velocity, orange incendiary).
 - M10. **First-person poses are placements without arms:** the character package's viewmodel holds items by their palm
   sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback).
+
+Decisions taken for the wardrobe, looks and animations (§4.8) without the owner, to confirm or overturn (numbered C1
+on):
+
+- C1. **Looks come from the player's ID**, as in Rust; the body is the player's choice. A string ID (the account name
+  with development logins) is hashed with 64-bit FNV-1a, so a look is the same on every machine and in every session.
+- C2. **Skin tones blend two MakeHuman skins** (the light and dark young adult textures) rather than tinting one, so
+  dark skin keeps its own detail (lighter palms, darker lips); ten tones with small tints and a little jitter.
+- C3. **Hair styles end at the shoulders**: MakeHuman's long01 and braid01 hang down the back, where the shirt and the
+  back plate stand, so they are left out. Five MakeHuman styles a body plus a buzz cut; afro hair is more likely on
+  darker skin, as are the faces that lean African; the face leaning East Asian is more likely on lighter skin.
+- C4. **Faces change only the lower and middle face** (nose, cheeks, mouth, jaw, chin): the hair, brows, eyes and every
+  garment then fit all of them without a fit per face.
 
 Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 

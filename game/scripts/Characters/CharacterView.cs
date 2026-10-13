@@ -63,6 +63,26 @@ public partial class CharacterView : Node3D
     public BodyType Body { get; set; } = BodyType.Male;
 
     private BodyAssets _assets = null!;
+    private Look? _look;
+    private bool _ready;
+    private readonly List<(MeshInstance3D Mesh, int[] Shapes)> _faceShapes = new();
+
+    /// <summary>
+    /// How this player looks (GROUND.md §4.8): skin tone, face, hair style and colour, stubble, from
+    /// <see cref="Looks.ForPlayer(ulong, BodyType)"/>. Set it any time; until it is set, the body's default look.
+    /// </summary>
+    public Look Look
+    {
+        get => _look ?? Looks.Default(Body);
+        set
+        {
+            _look = value;
+            if (_ready)
+            {
+                ApplyLook();
+            }
+        }
+    }
 
     /// <summary>Holds the eyelids at this closure (0 open, 1 shut) instead of blinking now and then; −1 blinks.</summary>
     public float BlinkOverride { get; set; } = -1f;
@@ -105,6 +125,15 @@ public partial class CharacterView : Node3D
             {
                 _blinkers.Add((mi, shape));
             }
+            var faces = new int[_assets.Faces.Count];
+            for (int f = 0; f < faces.Length; f++)
+            {
+                faces[f] = mi.FindBlendShapeByName(_assets.Faces[f]);
+            }
+            if (Array.Exists(faces, i => i >= 0))
+            {
+                _faceShapes.Add((mi, faces));
+            }
         }
         _nextBlink = 1f + (float)(GD.Randf() * 4.0);
         _poser = new CharacterPoser { Name = "Poser" };
@@ -128,13 +157,81 @@ public partial class CharacterView : Node3D
         _tree.AddAnimationLibrary("", _assets.Library);
         _model.AddChild(_tree);
         _tree.Active = true;
+        _ready = true;
+        ApplyLook();
         ApplyRegions();
     }
 
+    // The hair is the look's (ApplyLook); everything else of the body is always there.
     private static bool IsBodyPart(string name) =>
         name.StartsWith("body_", StringComparison.Ordinal) || name.StartsWith("eyes_", StringComparison.Ordinal) ||
-        name.StartsWith("brows_", StringComparison.Ordinal) || name.StartsWith("lashes_", StringComparison.Ordinal) ||
-        name.StartsWith("hair_", StringComparison.Ordinal);
+        name.StartsWith("brows_", StringComparison.Ordinal) || name.StartsWith("lashes_", StringComparison.Ordinal);
+
+    /// <summary>Puts the look on: its hair style's meshes, the skin's tone, stubble and hair base, the hair and brow
+    /// colour, and its face shape.</summary>
+    private void ApplyLook()
+    {
+        Look look = Look;
+        for (int i = _meshes.Count - 1; i >= 0; i--)
+        {
+            if (_meshes[i].Mesh.Name.ToString().StartsWith("hair", StringComparison.Ordinal))
+            {
+                _meshes[i].Mesh.QueueFree();
+                _meshes.RemoveAt(i);
+            }
+        }
+        foreach (MeshPart part in HairParts(_assets, look.Hair))
+        {
+            _meshes.Add((Instance(part), part.Lods, false));
+        }
+        LookUniforms.Apply(_meshes.ConvertAll(m => m.Mesh), look);
+        foreach ((MeshInstance3D mesh, int[] shapes) in _faceShapes)
+        {
+            for (int f = 0; f < shapes.Length; f++)
+            {
+                if (shapes[f] >= 0)
+                {
+                    mesh.SetBlendShapeValue(shapes[f], f + 1 == look.Face ? 1f : 0f);
+                }
+            }
+        }
+        _lod = -1;
+    }
+
+    /// <summary>The meshes of a hair style (none for the buzz cut; the body's first style if it has no such style).</summary>
+    internal static List<MeshPart> HairParts(BodyAssets assets, string style)
+    {
+        var parts = new List<MeshPart>();
+        if (style == Looks.Buzz)
+        {
+            return parts;
+        }
+        if (!Contains(assets.HairStyles, style))
+        {
+            style = assets.HairStyles.Count > 0 ? assets.HairStyles[0] : "";
+        }
+        string stem = style.Length > 0 ? "hair_" + style + "_lod" : "hair_lod";
+        for (int level = 0; level < 3; level++)
+        {
+            if (assets.Part(stem + level) is MeshPart part)
+            {
+                parts.Add(part);
+            }
+        }
+        return parts;
+    }
+
+    private static bool Contains(IReadOnlyList<string> list, string item)
+    {
+        foreach (string s in list)
+        {
+            if (s == item)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private MeshInstance3D Instance(MeshPart part)
     {
@@ -182,9 +279,10 @@ public partial class CharacterView : Node3D
         _worn.AddRange(bySlot.Values);
         foreach (Wearable w in _worn)
         {
+            string mesh = MeshOf(w, bySlot);
             for (int level = 0; level < 3; level++)
             {
-                MeshPart? part = _assets.Part(w.Mesh + "_lod" + level);
+                MeshPart? part = _assets.Part(mesh + "_lod" + level);
                 if (part == null)
                 {
                     continue;
@@ -196,6 +294,13 @@ public partial class CharacterView : Node3D
         _lod = -1;
         ApplyRegions();
     }
+
+    /// <summary>The mesh a garment is drawn with: its own, or its variant over what is worn under it (the hood over a
+    /// mask) when the body has that variant.</summary>
+    private string MeshOf(Wearable w, Dictionary<WearSlot, Wearable> bySlot) =>
+        w.Over is (WearSlot under, string variant) && bySlot.ContainsKey(under) && _assets.Part(variant + "_lod0") != null
+            ? variant
+            : w.Mesh;
 
     /// <summary>A one-off action. <paramref name="direction"/> is where a hit or a death push travels (parent space).</summary>
     public void Trigger(CharacterEvent e, Vector3 direction = default)
@@ -426,7 +531,7 @@ public partial class CharacterView : Node3D
             BodyRegions under = BodyRegions.None;
             foreach (Wearable other in _worn)
             {
-                if (Layer(other) > Layer(item))
+                if (Wardrobe.Layer(other) > Wardrobe.Layer(item))
                 {
                     under |= other.Hides;
                 }
@@ -434,17 +539,6 @@ public partial class CharacterView : Node3D
             mesh.SetInstanceShaderParameter("hidden_regions", (int)under);
         }
     }
-
-    /// <summary>Which garment goes over which: trousers under the shirt's hem, both under boots and armour.</summary>
-    private static int Layer(Wearable w) => w.Slot switch
-    {
-        WearSlot.Legs => 1,
-        WearSlot.Torso => 2,
-        WearSlot.Feet => 3,
-        WearSlot.Hands => 3,
-        WearSlot.TorsoArmour => 4,
-        _ => 2,
-    };
 
     private void Animate(float dt, int lod)
     {

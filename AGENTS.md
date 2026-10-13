@@ -121,7 +121,9 @@ Client options (after `--`):
   ∓ 6 h), T day speed (1×, 60×, 600×, 3600×), P pause time, H hide the interface, Esc back.
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
-- Character viewer: `--view character`; `--body <male|female>`, `--outfit <0–4>`, `--item <key>` (any item key with a held pose in `data/ground/models.json`, e.g. `stone-hatchet`, `rock`, `pistol`, `rifle`, `bow`),
+- Character viewer: `--view character`; `--body <male|female>`, `--outfit <0–8>`, `--seed <n>` or `--player <name>` (the
+  look `Looks.ForPlayer` gives that ID; N / Shift+N the next or previous seed), `--lineup <n>` (n players in a row
+  facing the camera, looks from `--seed` on, `--spacing <m>`), `--item <key>` (any item key with a held pose in `data/ground/models.json`, e.g. `stone-hatchet`, `rock`, `pistol`, `rifle`, `bow`),
   `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim>`,
   `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death>` with `--event-at <s>`, `--fp` (first person),
   `--ads`, `--vm-orbit <yaw,pitch,m>` (look at the first-person hands from another side), `--blink <0–1>` (hold the eyelids), `--slope` (stand on the ramp), `--face <deg>` (character yaw), `--lod <0–2>`, camera `--yaw`, `--pitch`,

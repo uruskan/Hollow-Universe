@@ -35,11 +35,26 @@ public static class CharacterMaterials
             ClearcoatRoughness = 0.02f,
             TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
         },
-        "brow" or "lash" or "brow_female" => Cards(surface + "_albedo.png", null, 0.75f, surface == "lash" ? 0.35f : 0.3f),
-        "hair" or "hair_female" => Cards(surface + "_albedo.png", Exists(surface + "_normal.png") ? surface + "_normal.png" : null,
-            0.55f, 0.3f, BaseMaterial3D.CullModeEnum.Back, blended: true),
+        "lash" => Cards(surface + "_albedo.png", null, 0.75f, 0.35f),
+        // Brows and hair take the player's hair colour (an instance uniform, hair_colour).
+        "brow" or "brow_female" => Hair(surface, "res://shaders/character_brow.gdshader", 0.75f),
+        _ when surface.StartsWith("hair", System.StringComparison.Ordinal) => Hair(surface, "res://shaders/character_hair.gdshader", 0.55f),
         _ => Garment(surface),
     };
+
+    /// <summary>Hair cards or brows: the texture's brightness about its mean, coloured per instance.</summary>
+    private static ShaderMaterial Hair(string surface, string shader, float roughness)
+    {
+        var m = new ShaderMaterial { Shader = GD.Load<Shader>(shader) };
+        m.SetShaderParameter("albedo_texture", Texture(surface + "_albedo.png"));
+        if (Exists(surface + "_normal.png"))
+        {
+            m.SetShaderParameter("normal_texture", Texture(surface + "_normal.png"));
+            m.SetShaderParameter("use_normal", true);
+        }
+        m.SetShaderParameter("roughness", roughness);
+        return m;
+    }
 
     private static readonly List<Material> ViewmodelMaterials = new();
 
@@ -95,6 +110,13 @@ public static class CharacterMaterials
     {
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/character_skin.gdshader") };
         m.SetShaderParameter("albedo_texture", Texture(stem + "_albedo.png"));
+        if (Exists(stem + "_dark.png") && Exists(stem + "_mask.png"))
+        {
+            // Looks: the dark skin and the mask of the hair base and stubble (GROUND.md §4.8).
+            m.SetShaderParameter("albedo_dark", Texture(stem + "_dark.png"));
+            m.SetShaderParameter("look_mask", Texture(stem + "_mask.png"));
+            m.SetShaderParameter("use_look", true);
+        }
         m.SetShaderParameter("detail_normal", Texture("skin_detail_normal.png"));
         if (Exists(stem + "_normal.png"))
         {

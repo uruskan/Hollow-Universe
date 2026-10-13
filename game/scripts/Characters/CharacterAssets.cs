@@ -33,7 +33,7 @@ public sealed class BodyAssets
     private readonly Dictionary<string, ClipInfo> _clips;
 
     internal BodyAssets(BodyType type, Skeleton3D skeleton, Dictionary<string, MeshPart> parts,
-        Dictionary<string, ClipInfo> clips, AnimationLibrary library, float eyeHeight)
+        Dictionary<string, ClipInfo> clips, AnimationLibrary library, float eyeHeight, string[] hairStyles, string[] faces)
     {
         Type = type;
         _skeleton = skeleton;
@@ -41,9 +41,17 @@ public sealed class BodyAssets
         _clips = clips;
         Library = library;
         EyeHeight = eyeHeight;
+        HairStyles = hairStyles;
+        Faces = faces;
     }
 
     public BodyType Type { get; }
+
+    /// <summary>The MakeHuman hair styles built for this body (meshes hair_&lt;style&gt;_lod0/1), the default first.</summary>
+    public IReadOnlyList<string> HairStyles { get; }
+
+    /// <summary>The face shapes on the nearest body (blend shapes face_1 …); face 0 is the base face.</summary>
+    public IReadOnlyList<string> Faces { get; }
 
     /// <summary>Eye height above the feet in the rest pose.</summary>
     public float EyeHeight { get; }
@@ -127,10 +135,12 @@ public static class CharacterAssets
         }
         using JsonDocument facts = JsonDocument.Parse(FileAccess.GetFileAsString(Folder + Stem(body) + ".json"));
         float eye = facts.RootElement.GetProperty("eye_height_m").GetSingle();
+        string[] hairStyles = Strings(facts.RootElement, "hair_styles");
+        string[] faces = Strings(facts.RootElement, "faces");
         string animations = ResourceLoader.Exists(Folder + "animations" + suffix + ".glb") ? "animations" + suffix : "animations";
         var clips = new Dictionary<string, ClipInfo>();
         AnimationLibrary library = LoadAnimations(animations, clips);
-        assets = new BodyAssets(body, skeleton, parts, clips, library, eye);
+        assets = new BodyAssets(body, skeleton, parts, clips, library, eye, hairStyles, faces);
         Bodies[body] = assets;
         GD.Print($"[characters] {body}: loaded {parts.Count} meshes, {clips.Count} clips in {(Time.GetTicksUsec() - start) / 1000.0:0} ms");
         return assets;
@@ -154,6 +164,19 @@ public static class CharacterAssets
     }
 
     private static string Stem(BodyType body) => "human_" + body.ToString().ToLowerInvariant();
+
+    private static string[] Strings(JsonElement root, string property)
+    {
+        var list = new List<string>();
+        if (root.TryGetProperty(property, out JsonElement array) && array.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement e in array.EnumerateArray())
+            {
+                list.Add(e.GetString() ?? "");
+            }
+        }
+        return list.ToArray();
+    }
 
     // ---------------------------------------------------------------- loading
 

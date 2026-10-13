@@ -26,6 +26,8 @@ public partial class CharacterLab : Node3D
     private readonly List<(CharacterView View, float Radius, float Phase, float Speed, HeldKind Held, string Motion)> _crowd = new();
 
     private int _outfit;
+    private ulong _seed;
+    private bool _seeded;
     private int _item = -1;
     private int _motion;
     private float _aimPitch;
@@ -40,7 +42,7 @@ public partial class CharacterLab : Node3D
     private bool _dragging;
 
     // Interface.
-    private Label _outfitLabel = null!, _itemLabel = null!, _motionLabel = null!, _lodLabel = null!, _frameLabel = null!;
+    private Label _outfitLabel = null!, _lookLabel = null!, _itemLabel = null!, _motionLabel = null!, _lodLabel = null!, _frameLabel = null!;
     private Control _hud = null!;
 
     // Automation.
@@ -70,6 +72,17 @@ public partial class CharacterLab : Node3D
         BuildInterface();
 
         _outfit = (int)Number("outfit", 0) % Wardrobe.Outfits.Count;
+        if (_options.TryGetValue("player", out string? player))
+        {
+            _seed = Looks.Hash(player);
+            _seeded = true;
+        }
+        else if (_options.TryGetValue("seed", out string? seed))
+        {
+            _seed = ulong.Parse(seed, CultureInfo.InvariantCulture);
+            _seeded = true;
+        }
+        ApplyLook();
         _motion = Math.Max(0, Array.IndexOf(Motions, Option("motion", "idle").Replace('_', ' ')));
         string item = Option("item", "none");
         _item = item == "none" ? -1 : IndexOfItem(item);
@@ -104,6 +117,11 @@ public partial class CharacterLab : Node3D
         if (crowd > 0)
         {
             SpawnCrowd(crowd);
+        }
+        int lineup = (int)Number("lineup", 0);
+        if (lineup > 0)
+        {
+            SpawnLineup(lineup);
         }
         if (_options.ContainsKey("measure"))
         {
@@ -210,7 +228,10 @@ public partial class CharacterLab : Node3D
         string[] motions = { "idle", "walk", "jog", "sprint", "crouch walk", "jog", "walk" };
         for (int i = 0; i < count; i++)
         {
-            var view = new CharacterView { Name = "Crowd" + i };
+            // Every other one a woman; each with its own look.
+            BodyType body = i % 2 == 1 && CharacterAssets.Has(BodyType.Female) ? BodyType.Female : BodyType.Male;
+            var view = new CharacterView { Name = "Crowd" + i, Body = body };
+            view.Look = Looks.ForPlayer((ulong)(1000 + i * 7919), body);
             AddChild(view);
             if (_options.TryGetValue("lod", out string? lod))
             {
@@ -220,6 +241,42 @@ public partial class CharacterLab : Node3D
             _crowd.Add((view, 2.5f + (i % 10) * 2.6f, rng.Randf() * MathF.Tau, 0f, kinds[i % kinds.Length], motions[i % motions.Length]));
         }
     }
+
+    /// <summary>
+    /// A row of players facing the camera (<c>--lineup n</c>): every other one a woman, each with the look of a seed
+    /// from <c>--seed</c> on and an outfit of the list in turn. The viewer's own character steps aside.
+    /// </summary>
+    private void SpawnLineup(int count)
+    {
+        _character.Visible = false;
+        _character.ProcessMode = ProcessModeEnum.Disabled;
+        ulong first = _options.TryGetValue("seed", out string? seed) ? ulong.Parse(seed, CultureInfo.InvariantCulture) : 1;
+        float spacing = (float)Number("spacing", 0.85);
+        for (int i = 0; i < count; i++)
+        {
+            BodyType body = i % 2 == 1 && CharacterAssets.Has(BodyType.Female) ? BodyType.Female : BodyType.Male;
+            var view = new CharacterView { Name = "Lineup" + i, Body = body };
+            AddChild(view);
+            view.Look = Looks.ForPlayer(first + (ulong)i, body);
+            view.Wear(LineupOutfits[i % LineupOutfits.Length]);
+            float x = (i - (count - 1) * 0.5f) * spacing;
+            view.Apply(CharacterFrame.Standing(new Vector3(x, 0f, MathF.Abs(x) * 0.12f), Vector3.Up, 0f));
+            _lineup.Add(view);
+        }
+    }
+
+    private readonly List<CharacterView> _lineup = new();
+
+    /// <summary>Outfits the lineup goes through (what players wear in the first hours of a wipe and after).</summary>
+    private static readonly Wearable[][] LineupOutfits =
+    {
+        new[] { Wardrobe.WovenShirt, Wardrobe.WovenTrousers },
+        new[] { Wardrobe.WovenShirt, Wardrobe.WovenTrousers, Wardrobe.LacedBoots },
+        Array.Empty<Wearable>(),
+        new[] { Wardrobe.KnitCap, Wardrobe.WovenShirt, Wardrobe.WovenTrousers, Wardrobe.LacedBoots },
+        new[] { Wardrobe.WovenTrousers, Wardrobe.LacedBoots },
+        new[] { Wardrobe.WovenShirt, Wardrobe.WovenTrousers, Wardrobe.LacedBoots, Wardrobe.RivetedBreastplate },
+    };
 
     // ---------------------------------------------------------------- interface
 
@@ -240,6 +297,7 @@ public partial class CharacterLab : Node3D
         GridContainer rows = Ui.Rows();
         content.AddChild(rows);
         _outfitLabel = Ui.AddRow(rows, "Outfit", "", numeric: false);
+        _lookLabel = Ui.AddRow(rows, "Look", "", numeric: false);
         _itemLabel = Ui.AddRow(rows, "Holding", "", numeric: false);
         _motionLabel = Ui.AddRow(rows, "Motion", "", numeric: false);
         _lodLabel = Ui.AddRow(rows, "Detail", "", numeric: false);
@@ -249,7 +307,7 @@ public partial class CharacterLab : Node3D
         (PanelContainer keys, VBoxContainer keyContent) = Ui.Card(6);
         Ui.Place(keys, Control.LayoutPreset.BottomLeft);
         root.AddChild(keys);
-        HFlowContainer hints = Ui.KeyHints(("O", "outfit"), ("I", "item"), ("M", "motion"), ("Q", "swing"), ("F", "fire"),
+        HFlowContainer hints = Ui.KeyHints(("O", "outfit"), ("N", "look"), ("I", "item"), ("M", "motion"), ("Q", "swing"), ("F", "fire"),
             ("R", "reload"), ("H", "hit"), ("K", "die / revive"), ("V", "first person"), ("RMB", "aim"), ("↑|↓", "look"),
             ("L", "detail"));
         keyContent.AddChild(hints);
@@ -259,8 +317,18 @@ public partial class CharacterLab : Node3D
     private void Refresh()
     {
         _outfitLabel.Text = Wardrobe.Outfits[_outfit].Name;
+        Look look = _character.Look;
+        _lookLabel.Text = (_seeded ? $"#{_seed} · " : "Default · ") +
+            $"{look.SkinName} skin, {look.HairColourName} {(look.Hair == Looks.Buzz ? "buzz cut" : look.Hair)}, face {look.Face}";
         _itemLabel.Text = _item < 0 ? "Nothing" : HeldItems.All[_item].Name;
         _motionLabel.Text = char.ToUpperInvariant(Motions[_motion][0]) + Motions[_motion][1..] + (_firstPerson ? " · first person" : "");
+    }
+
+    private void ApplyLook()
+    {
+        Look look = _seeded ? Looks.ForPlayer(_seed, _character.Body) : Looks.Default(_character.Body);
+        _character.Look = look;
+        _viewmodel.Look = look;
     }
 
     private void ApplyOutfit()
@@ -304,6 +372,11 @@ public partial class CharacterLab : Node3D
                 case Key.O:
                     _outfit = (_outfit + 1) % Wardrobe.Outfits.Count;
                     ApplyOutfit();
+                    break;
+                case Key.N:
+                    _seed = key.ShiftPressed ? _seed - 1 : _seed + 1;
+                    _seeded = true;
+                    ApplyLook();
                     break;
                 case Key.I:
                     _item = _item + 1 >= HeldItems.All.Count ? -1 : _item + 1;

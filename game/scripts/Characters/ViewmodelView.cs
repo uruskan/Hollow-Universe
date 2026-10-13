@@ -75,6 +75,21 @@ public partial class ViewmodelView : Node3D
     public BodyType Body { get; set; } = BodyType.Male;
 
     private BodyAssets _assets = null!;
+    private Look? _look;
+
+    /// <summary>The player's look (<see cref="Looks.ForPlayer(ulong, BodyType)"/>): the arms take its skin tone.</summary>
+    public Look Look
+    {
+        get => _look ?? Looks.Default(Body);
+        set
+        {
+            _look = value;
+            if (_arms.Count > 0)
+            {
+                LookUniforms.Apply(_arms, value);
+            }
+        }
+    }
 
     public override void _Ready()
     {
@@ -93,6 +108,7 @@ public partial class ViewmodelView : Node3D
         // In first person the fist closes tightly, so the handle sits further into the palm, across its crease.
         _gripR = HandFrame.Measure(_skeleton, right: true, along: HandPoses.FistAlong, lift: HandPoses.FistLift);
         _gripL = HandFrame.Measure(_skeleton, right: false);
+        LookUniforms.Apply(_arms, Look);
         _upperR = _skeleton.FindBone("upperarm_r");
         _lowerR = _skeleton.FindBone("lowerarm_r");
         _handR = _skeleton.FindBone("hand_r");
