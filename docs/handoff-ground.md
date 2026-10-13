@@ -5,6 +5,24 @@ Written 13 October 2026, morning, when the first session's context filled up. Re
 Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a-shader-system` and
 `minimal-automated-testing` hold the owner's standing decisions.
 
+## State on 13 October 2026, evening (read this first)
+
+- `ground` holds everything below plus the owner's first playtest's fixes and the **shared systems** of
+  [GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) (approved by the owner): P0 foundations (targets, outcomes and `texts.json`,
+  capabilities and viewer flags, reach and sight, support links, lifetimes), P5 the radial, P1 interaction (verbs in
+  `interactions.json`, one targeting query, `InteractIntent`, hold-E radial, stuck arrows), P2 placement
+  (`placement.json`, solvers and checks, one ghost, `PlaceIntent`, the Tin Finch from its item), P3 held items (parts,
+  information rows, item actions, ammo icon and hold-R radial, drop anywhere, workbench speed), the damage pipeline
+  with the Destroyed event, gibs, the loading screen. **217 tests pass; protocol 19.**
+- Another session works on monuments (G7c) in worktree `D:\GameDev\Projects\Hollow-wt\monuments`, branch
+  `ground-monuments`, and fast-forwarded `ground` to it once (486716d). Merge with care; don't rewrite its files.
+- **Left, in order:** the owner's playtest of all of this; the code identifiers' rename from claim device to tool
+  cupboard (the visible name is done; deferred so the monuments session isn't disturbed); P6 (one model for every
+  world thing) and P7 (characters and held items), to plan with the owner; the deferred questions below (the
+  half-wall floor, the foundation height range); smaller leftovers in GROUND.md §11 (gibs don't collide with each
+  other or walls, an open door breaks from its shut pose, the pistol's support hand, an outcrop's collision taller than
+  its broken stages, own hits not predicted, the world's opening freezes 6 s behind the loading screen).
+
 ## Where things are
 
 - **`ground`** (worktree `D:\GameDev\Projects\Hollow-wt\ground`, branched from `generator-v2`) holds the playable
