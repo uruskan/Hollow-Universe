@@ -34,7 +34,6 @@ public sealed record ModelEntry(
     float IconCrop,
     int IconBundle,
     HeldInfo? Held,
-    float DropScale,
     float[]? LodDistances,
     string Source,
     string? StandIn,
@@ -59,7 +58,7 @@ public enum ModelUse
 }
 
 /// <summary>
-/// The model catalogue (GROUND.md §9): which GLB, icon, grip, drop scale, LODs and collision each item key and
+/// The model catalogue (GROUND.md §9): which GLB, icon, grip, LODs and collision each item key and
 /// world-object kind has. Read from <c>res://data/ground/models.json</c> once.
 /// </summary>
 public static class ModelCatalog
@@ -444,7 +443,6 @@ public static class ModelCatalog
             iconCrop,
             iconBundle,
             held,
-            m.TryGetProperty("drop", out JsonElement drop) && drop.TryGetProperty("scale", out JsonElement ds) ? ds.GetSingle() : 1f,
             lodDistances,
             m.TryGetProperty("source", out JsonElement src) ? src.GetString() ?? "" : "",
             // A stand-in names why it is one; some entries only say true.

@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mathutils import Matrix, Vector  # noqa: E402
+from mathutils import Matrix, Vector, noise  # noqa: E402
 
 from hollow import WORLD, script_args  # noqa: E402
 from hollow.build import (BASALT, CANVAS, GUNMETAL, LEATHER, PARCHMENT, ROCK, RUBBER, RUST, STEEL, TIMBER,  # noqa: E402
@@ -334,22 +334,126 @@ def loot_sack(seed=117):
 
 
 def dropped_bag(seed=119):
+    """Whatever lies on the ground (GROUND.md §6.1, decision U4): a square of burlap wrapped round its load and gathered
+    up into a neck, tied off with a cord, its corners standing out of the knot as two ears; a leather strap cinched round
+    its belly with an iron buckle at the front. About 0.42 x 0.36 m and 0.32 m high. Our own design."""
     m = Model("dropped-bag", WORLD, seed=seed)
-    # A small drawstring sack, tied at the neck.
-    body = m.blob((0.24, 0.22, 0.2), (0, 0, 0.1), subdivisions=4, rough=0.06, freq=2.0, flatten=-0.8, tile=CANVAS,
-                  tint=(0.7, 0.66, 0.56), metres=0.4, vary=0.12, vary_scale=10)
+    burlap = (0.8, 0.72, 0.56)
+    belt_z, belt_half = 0.095, 0.019  # the strap: the height of its middle, half its width
+    # The load: a sack's profile turned round (flat on the ground, a full belly, gathered into a neck at 0.24 m)...
+    profile = smooth([(0.15, 0.0), (0.185, 0.01), (0.205, 0.03), (0.214, 0.06), (0.212, 0.1), (0.196, 0.14), (0.16, 0.175),
+                      (0.11, 0.205), (0.068, 0.225), (0.05, 0.236), (0.044, 0.245)], 3)
+    body = m.lathe(profile, sides=48, tile=CANVAS, tint=burlap, metres=0.45, vary=0.16, vary_scale=12, sharp=0)
+    lumps = Vector((3.1, 7.3, 1.7))
     for v in body.data.vertices:
-        if v.co.z > 0.14:
-            k = (v.co.z - 0.14) / 0.06
-            v.co.x *= 1 - 0.55 * k
-            v.co.y *= 1 - 0.55 * k
-    m.lathe([(0.0, 0.18), (0.045, 0.19), (0.06, 0.23), (0.035, 0.255), (0.0, 0.26)], sides=14, tile=CANVAS, tint=(0.66, 0.62, 0.52),
-            metres=0.2, vary=0.2, vary_scale=30, sharp=0)
-    ring = [(0.038 * math.cos(a), 0.038 * math.sin(a), 0.192) for a in (2 * math.pi * i / 14 for i in range(15))]
-    m.tube(ring, 0.006, sides=6, tile=CANVAS, tint=(0.45, 0.38, 0.28), metres=0.1, cap=False)
-    m.tube([(0.03, -0.02, 0.192), (0.06, -0.06, 0.17), (0.07, -0.09, 0.12)], 0.005, sides=6, tile=CANVAS, tint=(0.45, 0.38, 0.28), metres=0.1)
-    m.socket("use", (0, -0.5, 0.2))
+        p = v.co
+        ang = math.atan2(p.y, p.x)
+        # ...creased where it is gathered, folds running up into the neck...
+        f = smoothstep(0.11, 0.235, p.z)
+        k = 1.0 + f * (0.11 * math.sin(7 * ang + 0.8) + 0.05 * math.sin(12 * ang + 2.1))
+        # ...lumpy with what is inside...
+        k *= 1.0 + 0.045 * noise.noise(p * 11 + lumps) * (1.0 - f)
+        # ...and pressed in where the strap runs, so the cloth bulges either side of it.
+        d = abs(p.z - belt_z)
+        if d < 0.045:
+            k *= 1.0 - 0.08 * (1.0 - d / 0.045) ** 2
+        p.x *= k
+        p.y *= k * 0.86
+    body.data.update()
+    top = max(v.co.z for v in body.data.vertices)
+
+    bins = 48
+    leather = (0.5, 0.35, 0.23)
+    belt = girth(body, belt_z, belt_half * 1.2, bins)
+    # The strap, following the cloth round; its tongue doubled over it from the buckle at the front (-Y) to one side.
+    m.from_mesh(*band(belt, belt_z, belt_half, -0.002, 0.0055, 0, bins), tile=LEATHER, tint=leather, metres=0.3, vary=0.12,
+                vary_scale=20, sharp=50)
+    front = bins // 4  # the bin facing -Y
+    m.from_mesh(*band(belt, belt_z - 0.001, belt_half * 0.85, 0.005, 0.009, front, front + 5), tile=LEATHER,
+                tint=(0.44, 0.31, 0.2), metres=0.2, vary=0.1, vary_scale=20, sharp=50)
+    # The buckle: an iron frame and its prong, standing on the strap.
+    y = -(belt[front] + 0.008)
+    for dx, dz, w, h in ((-0.024, 0, 0.007, 0.05), (0.024, 0, 0.007, 0.05), (0, -0.022, 0.055, 0.007), (0, 0.022, 0.055, 0.007)):
+        m.box((w, 0.008, h), (dx, y, belt_z + dz), bevel=0.0015, tile=GUNMETAL, tint=(0.62, 0.6, 0.58), metres=0.1)
+    m.box((0.004, 0.006, 0.042), (-0.004, y - 0.003, belt_z), (0, 18, 0), bevel=0.001, tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.05)
+
+    # The knot on top of the neck, two corners of the cloth standing out of it as ears, a cord bound round the neck.
+    m.blob((0.095, 0.082, 0.06), (0, 0, top + 0.012), subdivisions=3, rough=0.14, freq=2.6, tile=CANVAS,
+           tint=(0.72, 0.64, 0.5), metres=0.2, vary=0.18, vary_scale=25)
+    for side, lean in ((-1, 0.012), (1, -0.01)):
+        m.blob((0.125, 0.022, 0.074), (side * 0.06, lean, top + 0.04), (6 * side, -side * 42, side * 18),
+               subdivisions=3, rough=0.12, freq=2.2, tile=CANVAS, tint=(0.78, 0.7, 0.54), metres=0.2, vary=0.15, vary_scale=25)
+    # The cord: wound twice round the neck, rising as it goes, hugging the folds.
+    steps = 72
+    low, high = top - 0.02, top - 0.004
+    neck = [girth(body, low + (high - low) * k / 3, 0.006, 36) for k in range(4)]
+    cord = []
+    for n in range(steps + 1):
+        u = n / steps
+        t = u * 4 * math.pi
+        i = int(((t % (2 * math.pi)) / (2 * math.pi)) * 36) % 36
+        r = neck[min(3, int(u * 4))][i] + 0.004
+        cord.append((r * math.cos(t - math.pi), r * math.sin(t - math.pi), low + (high - low) * u))
+    m.tube(cord, 0.0045, sides=8, tile=CANVAS, tint=(0.42, 0.33, 0.22), metres=0.1)
+    m.socket("use", (0, -0.55, 0.25))
     m.export()
+
+
+def smoothstep(a, b, x):
+    t = min(1.0, max(0.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
+def smooth(points, steps):
+    """A Catmull-Rom curve through (r, z) points, `steps` segments between each pair (for a lathe's profile)."""
+    out = []
+    n = len(points)
+    for i in range(n - 1):
+        p0, p1, p2, p3 = (points[max(i - 1, 0)], points[i], points[i + 1], points[min(i + 2, n - 1)])
+        for s in range(steps):
+            t = s / steps
+            out.append(tuple(0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t * t +
+                                    (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t * t * t) for k in range(2)))
+    out.append(points[-1])
+    return out
+
+
+def girth(body, z, half, bins):
+    """How far a body reaches from its upright axis at height z (within `half`), in `bins` angles from -pi."""
+    radius = [0.0] * bins
+    for v in body.data.vertices:
+        if abs(v.co.z - z) < half:
+            i = int((math.atan2(v.co.y, v.co.x) + math.pi) / (2 * math.pi) * bins) % bins
+            radius[i] = max(radius[i], math.hypot(v.co.x, v.co.y))
+    for _ in range(bins):  # angles no vertex fell in take their neighbours'
+        for i in range(bins):
+            if radius[i] == 0.0:
+                radius[i] = max(radius[i - 1], radius[(i + 1) % bins])
+    return radius
+
+
+def band(radius, z, half, inner, outer, start, end, bins=None):
+    """A strip round a body (vertices and faces): `inner` to `outer` metres off its girth, `half` its width either side
+    of height z; over the bins start..end, or right round when end is the bin count."""
+    bins = bins or len(radius)
+    closed = end - start >= len(radius)
+    count = end - start if closed else end - start + 1
+    verts, faces = [], []
+    for n in range(count):
+        i = (start + n) % len(radius)
+        ang = (i + 0.5) / len(radius) * 2 * math.pi - math.pi
+        for r, h in ((radius[i] + inner, z - half), (radius[i] + outer, z - half), (radius[i] + outer, z + half), (radius[i] + inner, z + half)):
+            verts.append((r * math.cos(ang), r * math.sin(ang), h))
+    for n in range(count if closed else count - 1):
+        a, b = n * 4, (n + 1) % count * 4
+        for k in range(4):
+            q = (k + 1) % 4
+            faces.append((a + k, b + k, b + q, a + q))
+    if not closed:
+        faces.append((0, 3, 2, 1))
+        last = (count - 1) * 4
+        faces.append((last, last + 1, last + 2, last + 3))
+    return verts, faces
 
 
 QUILT_TILE = 9

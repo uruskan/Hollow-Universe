@@ -359,7 +359,17 @@ public sealed class SurvivalTuning
     public float EquipSeconds { get; init; } = 0.3f;
 
     public float CorpseSeconds { get; init; } = 300;
+
+    /// <summary>How long a bag of dropped items lasts from the newest item put in (world time).</summary>
     public float DroppedItemSeconds { get; init; } = 300;
+
+    /// <summary>
+    /// Bags of dropped items (GROUND.md §6.1): what they are called, their slots, and how near a bag (metres) loose
+    /// items must land to go into it rather than into a bag of their own.
+    /// </summary>
+    public string BagName { get; init; } = "Loot bag";
+    public int BagSlots { get; init; } = 48;
+    public float BagMergeRadius { get; init; } = 1.5f;
     public float InteractReach { get; init; } = 3;
     public float LootReach { get; init; } = 3.5f;
     public float BeachCooldownSeconds { get; init; }

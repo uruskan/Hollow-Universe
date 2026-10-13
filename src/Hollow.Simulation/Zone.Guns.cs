@@ -255,7 +255,7 @@ public sealed partial class Zone
         p.Inventory.Belt.Set(p.HeldSlot, weapon);
         if (returned > 0 && Content!.Item(returnedAmmo) is { } old)
         {
-            GiveBack(entity, p, ItemStack.Of(old, returned));
+            GiveOrDrop(entity, p, ItemStack.Of(old, returned));
         }
     }
 
@@ -604,30 +604,23 @@ public sealed partial class Zone
         return AttachmentRules.Detach(Content!, p.Inventory, p.Inventory[weaponIn], weaponSlot, modSlot);
     }
 
-    /// <summary>A gun that broke gives back its rounds and its attachments.</summary>
+    /// <summary>
+    /// A gun that broke gives back its rounds and its attachments: into the inventory, the rest at the player's feet (no
+    /// notification: these were the player's already).
+    /// </summary>
     private void ReturnRounds(Entity entity, Player p, in ItemStack weapon)
     {
         GameContent content = Content!;
         if (weapon.Loaded > 0 && content.Item(weapon.LoadedAmmo) is { } round)
         {
-            GiveBack(entity, p, ItemStack.Of(round, weapon.Loaded));
+            GiveOrDrop(entity, p, ItemStack.Of(round, weapon.Loaded));
         }
         foreach (AttachmentSlot slot in GunMods.Slots)
         {
             if (weapon.Mod(slot) != 0 && content.Item(weapon.Mod(slot)) is { } part)
             {
-                GiveBack(entity, p, ItemStack.Of(part, 1));
+                GiveOrDrop(entity, p, ItemStack.Of(part, 1));
             }
-        }
-    }
-
-    // Into the inventory, the rest at the player's feet (no notification: these were the player's already).
-    private void GiveBack(Entity entity, Player p, ItemStack stack)
-    {
-        int left = p.Inventory.Give(Content!, stack);
-        if (left > 0)
-        {
-            Drop(entity, stack.WithCount(left));
         }
     }
 }

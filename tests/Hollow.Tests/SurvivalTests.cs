@@ -414,23 +414,109 @@ public static class SurvivalTests
         Assert.True(fragments == 2 && charcoal >= 4, "an ore every 4 s, a charcoal per 2 s of wood");
         Assert.True(furnace.Lit, "still burning");
 
-        // Breaking it spills what it held.
+        // Breaking it spills what it held, in one bag where it stood.
         rig.Zone.DamageDeployable(furnace, 10_000);
-        Assert.True(!rig.Zone.Statics().OfType<Deployable>().Any() && rig.Zone.Statics().OfType<DroppedItem>().Count() >= 3, "broken, contents on the ground");
+        DroppedBag spilled = rig.Zone.Statics().OfType<DroppedBag>().Single();
+        Assert.True(!rig.Zone.Statics().OfType<Deployable>().Any() && spilled.ShownCount >= 3, "broken, its contents in one bag on the ground");
         Assert.True(!rig.Zone.Physics.HasProp(Hollow.Simulation.Physics.PropLayer.Deployable, furnace.Id.Value), "no longer solid");
 
-        // Dropped items: picked up again, or gone after their time.
-        DroppedItem dropped = rig.Zone.Statics().OfType<DroppedItem>().First();
-        rig.Zone.Teleport(ada, dropped.Position + dropped.Up * 0.05f);
+        // The bag: picked up again, or gone after its time.
+        rig.Zone.Teleport(ada, spilled.Position + spilled.Up * 0.05f);
         int before = a.Inventory.Stacks().Sum(s => s.Count);
-        Assert.Equal(ActionResult.Accepted, rig.Zone.PickUpItem(ada, dropped.Id), "picked up");
-        Assert.True(a.Inventory.Stacks().Sum(s => s.Count) > before && rig.Zone.StaticOf(dropped.Id) == null, "in the inventory, gone from the ground");
+        Assert.Equal(ActionResult.Accepted, rig.Zone.PickUpItem(ada, spilled.Id), "picked up");
+        Assert.True(a.Inventory.Stacks().Sum(s => s.Count) > before && rig.Zone.StaticOf(spilled.Id) == null, "in the inventory, gone from the ground");
         Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 1, 0, 0), "dropped");
-        DroppedItem mine = rig.Zone.Statics().OfType<DroppedItem>().OrderByDescending(d => d.DespawnTick).First();
+        DroppedBag mine = rig.Zone.Statics().OfType<DroppedBag>().Single();
         Assert.Near(0, rig.Zone.HeightAboveGround(mine.Position), 0.05, "settled on the ground");
         mine.DespawnTick = rig.Zone.Tick + 5;
         rig.Step(31);
         Assert.True(rig.Zone.StaticOf(mine.Id) == null, "and gone after its time");
+    }
+
+    /// <summary>
+    /// GROUND.md §6.1, bags (decisions U1–U3): whatever lands on the ground within 1.5 m of a bag with room goes into it
+    /// (a drop, a craft's or a refund's overflow, a spill), onto stacks of the same item first; farther off it starts a
+    /// bag of its own, as does what a full bag can't take. A bag lasts its time from the newest item put in.
+    /// </summary>
+    [Test]
+    public static void DroppedItemsArePackedIntoBags()
+    {
+        using var rig = new GameRig();
+        GameContent c = rig.C;
+        Entity ada = rig.Add("Ada", 30, 30);
+        rig.Give(ada, "wood", 900);
+        rig.Give(ada, "stone", 200);
+        rig.Give(ada, "bandage", 3);
+
+        // Three drops from where she stands, turning between them: one bag, the stone's two drops in one stack.
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 1, 120, 0), "stone");
+        rig.Ch(ada).Input.Yaw += 1.2f;
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 1, 80, 0), "more stone, facing elsewhere");
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 2, 0, 0), "the bandages");
+        DroppedBag bag = rig.Zone.Statics().OfType<DroppedBag>().Single();
+        Assert.Equal(2, bag.ShownCount, "one bag of two stacks");
+        Assert.Equal(200, InventoryRules.Count(new[] { bag.Loot }, c.ItemByKey("stone").Id), "the stone together");
+        Assert.True(bag.Look == 0, "others see a bag, not what is in it");
+
+        // Later drops start its time again; a refund's overflow (here: given straight to the ground) joins it too.
+        rig.Step(30 * 10);
+        long before = bag.DespawnTick;
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 0, 100, 0), "wood");
+        Assert.True(bag.DespawnTick >= before + 30 * 10 - 1, "its time runs from the newest item");
+        rig.Zone.Drop(ada, new List<ItemStack> { ItemStack.Of(c.ItemByKey("rope"), 3), ItemStack.Of(c.ItemByKey("cloth"), 2) });
+        Assert.Equal(5, bag.ShownCount, "what doesn't fit goes into the same bag");
+
+        // Two metres on, a bag of its own; and what a full bag can't take starts another beside it.
+        rig.Zone.Teleport(ada, rig.Zone.GroundAt(30, 32.5f));
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 0, 100, 0), "wood farther off");
+        Assert.Equal(2, rig.Zone.Statics().OfType<DroppedBag>().Count(), "a second bag");
+        List<ItemDef> others = c.Items.Where(i => InventoryRules.Count(new[] { bag.Loot }, i.Id) == 0).Take(c.Survival.BagSlots).ToList();
+        foreach (ItemDef item in others)
+        {
+            rig.Zone.Spill(bag.Position, ItemStack.Of(item, 1));
+        }
+        Fixtures.Report($"{rig.Zone.Statics().OfType<DroppedBag>().Count()} bags after spilling {c.Survival.BagSlots} more kinds by the first");
+        Assert.True(bag.ShownCount == c.Survival.BagSlots && rig.Zone.Statics().OfType<DroppedBag>().Count() == 3, "full, the rest in a third bag");
+    }
+
+    /// <summary>
+    /// GROUND.md §6.1: the interact key takes a bag of one stack whole; a bag holding more opens as take-only loot (like
+    /// a crate), and once its last stack is taken it goes at once, closing the looter's panel.
+    /// </summary>
+    [Test]
+    public static void ABagIsTakenWholeOrOpened()
+    {
+        using var rig = new GameRig();
+        GameContent c = rig.C;
+        Entity ada = rig.Add("Ada", 40, 30);
+        Entity bo = rig.Add("Bo", 41.5f, 30);
+        rig.Give(ada, "wood", 300);
+        rig.Give(ada, "stone", 100);
+        rig.Give(bo, "metal-ore", 10);
+
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 0, 0, 0), "the wood");
+        DroppedBag one = rig.Zone.Statics().OfType<DroppedBag>().Single();
+        rig.Look(bo, one.Position);
+        Assert.Equal(ActionResult.Accepted, rig.Zone.PickUpItem(bo, one.Id), "one stack: taken whole");
+        Assert.True(rig.P(bo).Inventory.Count(c.ItemByKey("wood")) == 300 && rig.Zone.StaticOf(one.Id) == null, "Bo has it, the bag is gone");
+
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 1, 60, 0), "stone");
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 1, 0, 0), "and the rest of it");
+        Player a = rig.P(ada);
+        rig.Give(ada, "bandage", 2);
+        Assert.Equal(ActionResult.Accepted, rig.Zone.DropItem(ada, ContainerRef.Main, 0, 0, 0), "bandages");
+        DroppedBag two = rig.Zone.Statics().OfType<DroppedBag>().Single();
+        Assert.Equal(2, two.ShownCount, "stone and bandages");
+        Assert.Equal(ActionResult.Accepted, rig.Zone.Open(bo, two.Id), "opened like a box");
+        Assert.Equal(LootKind.Crate, rig.Zone.LootKindOf(rig.P(bo)), "take only, gone once empty");
+        Assert.Equal(ActionResult.NotAllowed, rig.Zone.MoveItem(bo, ContainerRef.Main, 1, ContainerRef.Loot, 5, 0, 0), "nothing goes in");
+        int stone = Enumerable.Range(0, two.Loot.Size).First(i => two.Loot[i].Item == c.ItemByKey("stone").Id);
+        Assert.Equal(ActionResult.Accepted, rig.Zone.QuickMove(bo, ContainerRef.Loot, stone, 0), "take the stone");
+        Assert.True(rig.Zone.StaticOf(two.Id) != null, "still a bag with the bandages");
+        int bandages = Enumerable.Range(0, two.Loot.Size).First(i => !two.Loot[i].IsEmpty);
+        Assert.Equal(ActionResult.Accepted, rig.Zone.QuickMove(bo, ContainerRef.Loot, bandages, 0), "take the bandages");
+        Assert.True(rig.Zone.StaticOf(two.Id) == null && rig.P(bo).Looting.IsNone, "emptied: gone at once, the panel closed");
+        Assert.True(rig.P(bo).Inventory.Count(c.ItemByKey("stone")) == 100 && a.Inventory.Count(c.ItemByKey("stone")) == 0, "Bo has the stone");
     }
 
     private sealed class FixedClimate(float celsius) : IClimate

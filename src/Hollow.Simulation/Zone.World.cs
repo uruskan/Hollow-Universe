@@ -476,8 +476,8 @@ public sealed partial class Zone
         return ActionResult.Accepted;
     }
 
-    // A research table broken mid-research gives back what it was working on, beside its contents.
-    private void SpillResearch(Deployable d)
+    // A research table broken mid-research gives back what it was working on, with its contents (in their bag).
+    private void SpillResearch(Deployable d, Vector3 at)
     {
         if (d.Def.Research == null || !d.Lit)
         {
@@ -485,11 +485,11 @@ public sealed partial class Zone
         }
         if (Content!.Item(d.ResearchItem) is { } item)
         {
-            DropAt(d.Position + d.Up * 0.3f, ItemStack.Of(item, 1));
+            Spill(at, ItemStack.Of(item, 1), d.Yaw);
         }
         if (d.ResearchSalvage > 0 && Content.World.Currency is { } salvage)
         {
-            DropAt(d.Position + d.Up * 0.3f, ItemStack.Of(salvage, Math.Min(d.ResearchSalvage, salvage.StackSize)));
+            Spill(at, ItemStack.Of(salvage, Math.Min(d.ResearchSalvage, salvage.StackSize)), d.Yaw);
         }
         d.ResearchItem = 0;
         d.ResearchSalvage = 0;

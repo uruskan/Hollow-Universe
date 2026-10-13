@@ -337,6 +337,28 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   Protocol 11; the console's tests (parsing, completion, a non-admin refused, give, teleport, spawn, kill and time over
   the network, god and noclip against the prediction) pass with the rest.
 
+## 13 October 2026, dropped items lie in bags (owner's playtest)
+
+- **Bags** (`ground-drop`, GROUND.md §6.1, decisions U1–U7), for the owner's finding that a dropped Tin Finch lay on the
+  ground as a full-size ship. Everything that lands on the ground now lies in a small bag: one function
+  (`Zone.Spill`) packs whatever lands within 1.5 m of a bag with room into it, else starts a bag where it comes to rest,
+  and every source calls it: drops, crafts, refunds and gifts that don't fit, broken boxes, furnaces, barrels and claim
+  devices, a broken research table's work, spent arrows. A bag has 48 slots, lasts 300 s from its newest item, rests on
+  the floor it lands on (not the terrain under a base) and goes once emptied; E takes a bag of one stack whole and opens
+  one holding more (take only, the rows it fills). Others see only a bag and its number of stacks.
+- **Our own model** (`dropped-bag`): a burlap sack gathered into a neck with a wound cord, two corners standing out of
+  the knot, a leather strap with a buckle round its belly. Pictures: `docs/images/ground/drop/bag.jpg`, `bag-open.jpg`,
+  `bag-model.jpg` (new screenshot step `--tour-steps bags`).
+- **Shared code made generic on the way:** bodies and bags are one `DroppedContainer`; what clients are told of a thing
+  (health, count, burning, whose, name) is the thing's own; how a container is looted follows its kind; the copies of
+  "give, drop the rest" are one `GiveOrDrop`. Bots open the bags they find and take what they want.
+- Protocol 12, the things' record version 3 (old dropped stacks load as bags; no SQL step), survival.json's `bag`;
+  models.json's unused `drop.scale` went. 166 of 166 tests pass (three new: packing, taking or opening, and what
+  another player sees over the network).
+- **Not done:** deploying the Tin Finch from its item (the other half of this package) was stopped by the owner's new
+  rule: placement (deployables, doors, locks, the claim device, charges, building pieces and the ship) will be one
+  system, designed with the owner first. No ship-deploy code was written.
+
 ## 13 October 2026, gathering's feedback
 
 - **The owner's playtest: "no feedback other than the sound"** when hitting trees and outcrops (`ground-gather`,
@@ -354,10 +376,10 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   stage models' tops measured by the new `--view models --survey-surfaces` into surfaces.json); hits on it pay 150%,
   200%, 250%, at most 300%; the outcrop gives the same ore in under half the hits; the last hit with a pickaxe pays 20%
   more (Devblog 166). Each stage breaks with a burst and its sound.
-- **Every hit plays where it landed**, for everyone in range: protocol 12 sends the point where the swing met the
+- **Every hit plays where it landed**, for everyone in range: protocol 13 sends the point where the swing met the
   drawn surface, the run of spot hits and how fresh the hit is, so old hits never replay.
 - Checked once in the hosted game (the tour's `chop` and `mine` steps on a pine and a metal outcrop): wood per hit
   rising with X hits, the felling hit 84 wood, the outcrop at its last stage in 4 hotspot hits. The nature view cost
-  52 µs a frame on average. Pictures: `docs/images/ground/gather/`. 170 of 170 tests pass (seven new: the X, the
-  hotspot, the fall's share, the pickaxe's bonus, spots on the drawn rock, the looks' references, hits over the
-  network).
+  52 µs a frame on average. Pictures: `docs/images/ground/gather/`. 173 of 173 tests pass with `ground` merged (seven
+  new: the X, the hotspot, the fall's share, the pickaxe's bonus, spots on the drawn rock, the looks' references, hits
+  over the network). Protocol 13.

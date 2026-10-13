@@ -212,12 +212,9 @@ public partial class GroundUi
     private void PaintLoot(LootView loot)
     {
         IReadOnlyList<ItemStack> slots = loot.Slots;
-        float y = loot.Kind switch
-        {
-            ContainerKind.Corpse => 70,
-            ContainerKind.Box when slots.Count > 36 => 70,
-            _ => 191,
-        };
+        // A take-only grid (a crate, a bag of dropped items) shows the rows its stacks fill: nothing goes into the rest.
+        int cells = loot.Kind == ContainerKind.Crate ? FilledRows(slots) * 6 : slots.Count;
+        float y = loot.Kind == ContainerKind.Corpse || cells > 36 ? 70 : 191;
         Section("LOOT", 1040, y);
         Rect(1040, y + 34, 475, 27, G.Panel);
         Text(loot.Title.ToUpperInvariant(), 1050, y + 34, 16, G.Ink, bold: true);
@@ -281,14 +278,25 @@ public partial class GroundUi
                 bottom = PaintMachine(loot, y, (i, x, top, size) => Cell(i, x, top, size));
                 break;
             default:
-                for (int i = 0; i < slots.Count; i++)
+                for (int i = 0; i < cells; i++)
                 {
                     Cell(i, 1040 + i % 6 * 80, y + 67 + i / 6 * 80);
                 }
-                bottom = y + 67 + (slots.Count + 5) / 6 * 80;
+                bottom = y + 67 + (cells + 5) / 6 * 80;
                 break;
         }
         PanelArea(1037, y - 4, 483, bottom - y + 8);
+    }
+
+    // Rows of six down to the last filled slot (at least one).
+    private static int FilledRows(IReadOnlyList<ItemStack> slots)
+    {
+        int last = -1;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            last = slots[i].IsEmpty ? last : i;
+        }
+        return Math.Max(1, last / 6 + 1);
     }
 
     private static string Minutes(float seconds)

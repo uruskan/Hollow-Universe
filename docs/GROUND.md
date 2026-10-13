@@ -82,6 +82,10 @@ this is the one closest to an Earth-like place to live.
 
 ## 4. Architecture
 
+The shared systems every feature goes through (naming targets, interaction, placement, held items and their
+information, damage and destruction) and the rule behind them, one system per concern with no special-case paths, are in
+[GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) (proposal of 13 October 2026, for the owner's review).
+
 ### 4.1 Projects
 
 ```
@@ -1578,7 +1582,8 @@ starts at 60 / 260 / 160 (hollow-orbit's respawn values).
 snapped to the ground below (at most 0.6 m off), refused under water, outside the zone, on ground steeper than the
 item allows (20–30°), or overlapping another deployable, a tree, an outcrop or a character (blocked). Boxes, furnaces and
 workbenches are solid Jolt boxes on both sides; sleeping bags and campfires are not. Every deployable has hit points;
-melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground.
+melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks and its contents spill on the ground, in
+one bag.
 - **Sleeping bag and bed**: respawn points for their owner only, with a cooldown from placing and after each use (bag
   300 s, bed 120 s; real clock, as in RustMVP, so it runs while the server is down). A bed needs workbench 1.
 - **Campfire and furnace**: lit by hand when they have fuel; a lit one burns a unit of fuel every `fuel.seconds` (wood:
@@ -1588,8 +1593,28 @@ melee does its `structure` damage, arrows a quarter of theirs; at 0 it breaks an
 - **Workbenches**: a level counts for crafting within 4 m.
 - **Boxes**: 18 and 48 slots.
 
-**Dropped items**: a drop lands on the ground in front of the player, lies there for 300 s of world time (it pauses
-while the server is down) and is picked up with the interact key, as much as fits.
+**Dropped items lie in bags** (U1–U6; `Zone.Spill.cs`, survival.json's `bag`). Everything that lands on the ground goes
+through one function, `Zone.Spill`, whatever sends it there: a drop from the inventory, a finished craft, a refund or an
+admin's gift that doesn't fit, a broken box's, furnace's, barrel's or claim device's contents, a broken research table's
+work, a spent arrow.
+- **Packing:** it goes into the nearest bag within 1.5 m that has room, onto stacks of the same item first, then empty
+  slots; farther off, or what a full bag can't take, starts a new bag where it comes to rest. So what lands together is
+  one bag: a broken large box's 48 stacks, or a whole inventory (37 slots), fill one 48-slot bag (Rust drops one pouch).
+- **Where it rests:** on the first solid surface under the point (a floor or foundation, a box's lid, the ground's own
+  collision) within 4.5 m, so a bag dropped in a base lies on its floor; a drop lands 0.7 m ahead of the player's feet,
+  short of a wall in the way.
+- **Time:** 300 s of world time (it pauses while the server is down) from the newest item put in; an emptied bag goes at
+  once.
+- **Taking:** the interact key takes a bag of one stack whole (as much as fits); a bag holding more opens in the loot
+  panel, take only (a crate's loot), showing only the rows its stacks fill. Others see only the bag and how many stacks
+  it holds (for the prompt's verb); its contents go only to whoever opens it.
+- A bag and a body are the same kind of thing (`DroppedContainer`: a container lying for a while, take only, gone when
+  emptied or when its time is up). Bags are saved with the zone's things (their record's version 3; a stack saved
+  alone before comes back as a bag of it). Tests: `SurvivalTests.DroppedItemsArePackedIntoBags` and
+  `ABagIsTakenWholeOrOpened`, `SurvivalNetTests.OthersSeeOnlyABag`, and the restart in `EverythingSurvivesARestart`.
+- Pictures (`docs/images/ground/drop/`, the screenshot run's `--tour-steps bags`): `bag.jpg` (five stacks dropped in
+  the meadow, one bag and its prompt), `bag-open.jpg` (opened beside the inventory: one row, take only),
+  `bag-model.jpg` (the model, `--view models --model dropped-bag`).
 
 **Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
 ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
@@ -1634,7 +1659,7 @@ refused (`ContentMismatch`). Each tick's input also carries the belt slot in han
 pressed is latched like jump) and the view delay in quarter ticks (lag compensation). A character's snapshot state
 adds the item in hand, a 4-bit count of swings and shots with the last kind (others animate each), and asleep.
 - **Intents** (client → server, reliable ordered, each with a sequence number): move, quick move, drop, use, craft,
-  cancel craft, open, close, pick up (a natural object or a dropped item), place, light or put out, respawn. The
+  cancel craft, open, close, pick up (a natural object, or a bag of dropped items: all of it that fits), place, light or put out, respawn. The
   server applies them as they arrive (at the start of a tick) and answers every one with `IntentResult` (accepted, or
   the `ActionResult` reason) after that tick's changes have gone out.
 - **Budget** (RustMVP's command budget): 16 at once, 20 a second; every arrival spends one, a bad one too; over it the
@@ -1648,12 +1673,14 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
 - **Events** (reliable, to whom they concern): hit markers, items gained or lost and why, damage taken (amount, body
   part, from where, with what), a craft finished; projectiles loosed and stopped (to everyone within 300 m), which
   clients draw on their own arc.
-- **Static things** (deployables, dropped items, corpses) are sent once when they come within 300 m (`ThingSpawn`; at
-  most 48 new ones per snapshot, so a crowded place streams in), again when they change (`ThingUpdate`: health, count,
-  lit, the receiver's own bag) and `Despawn`ed when gone or out of range (320 m).
+- **Static things** (deployables, bags of dropped items, corpses) are sent once when they come within 300 m
+  (`ThingSpawn`; at most 48 new ones per snapshot, so a crowded place streams in), again when they change
+  (`ThingUpdate`: health, a bag's number of stacks, lit, the receiver's own sleeping bag) and `Despawn`ed when gone or
+  out of range (320 m). What is sent of a thing is the thing's own to say (`WorldObject`: its look, health, count,
+  burning, whose, and its own name: a body's, a bag's, a world prop's); a bag shows no item (protocol 12).
 - **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
   changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens. Since
-  protocol 12 a change also carries the run of weak-spot hits, where the last hit met the drawn surface (3 cm steps
+  protocol 13 a change also carries the run of weak-spot hits, where the last hit met the drawn surface (3 cm steps
   from the base) and how many ticks old that hit was when sent: a client counts a hit as news (`SeenHits`) only when
   it is at most 30 ticks old, so an area coming into range replays no hits, and no felled tree falls again.
 - **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
@@ -1693,9 +1720,9 @@ Beside it, `GameClient` keeps the static things in range (`Things`, `ThingOf`), 
 act on (`Aim(eye, direction)`, `Interact(target)`). `InputFrame` gains the attack and aim buttons. Whether a looted
 campfire or furnace burns is `ThingOf(Local.LootTarget).Lit`.
 
-**Godot** (`game/scripts/Ground`, §4.3): deployables, dropped stacks and the dead's backpacks from `GroundModels`
-(`CatalogModels`: the model catalogue's, §9.1; a dropped stack is the item's own model at its drop scale, lying on the
-ground, or the dropped-item bag; `--placeholder-models` keeps shapes made in code), a lit fire's flame and light at the
+**Godot** (`game/scripts/Ground`, §4.3): deployables, bags of dropped items and the dead's backpacks from `GroundModels`
+(`CatalogModels`: the model catalogue's, §9.1; a bag is `dropped-bag` whatever it holds; `--placeholder-models` keeps
+shapes made in code), a lit fire's flame and light at the
 model's `socket_fire` (its real strength next to the sun's: the sky meters the camera a few thousand times brighter by
 night, `Glow`), arrows in flight, the held deployable's own model as a ghost where it would go, and the interact
 prompt; holding E on a fire or furnace lights it or puts it out. A body lies for 150 s in view, then only its backpack
@@ -2944,7 +2971,7 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
 | `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
 | `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`, `raid-kit`, `world-kit`); G7 the world's barrels and crates (`barrel`, `fuel-barrel`, `crate`, `military-crate`), whose `blueprint` entries take a fifth number, the workbench level of the recipe taught. | Rust; hollow-orbit `LOOT` |
-| `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
+| `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, the bags dropped items lie in (§6.1), reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
 | `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
 | `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
@@ -3097,7 +3124,7 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `kick` | `<player> [reason]` | admins | server | Disconnects a player. |
 | `say` | `<text>` | admins | server | A server line in everyone's chat. |
 | `save` | | admins | server | Saves the world now. |
-| `ents` | | admins | server | Counts: players and characters (asleep, dead, wounded), animals by species, deployables, world props, dropped items, bodies, building pieces, doors, claims, ships, explosives, changed natural objects, ground tiles, net entities. |
+| `ents` | | admins | server | Counts: players and characters (asleep, dead, wounded), animals by species, deployables, world props, loot bags, bodies, building pieces, doors, claims, ships, explosives, changed natural objects, ground tiles, net entities. |
 | `clearinv` | `[player]` | admins | server | Empties an inventory: main, belt and clothing. |
 | `ship` | `[player]` | admins | server | A Tin Finch beside a player, theirs, fuelled, its hatch open (as `spawn tin-finch`). |
 | `raidbase` | `[grade] [player]` | admins | server | A claimed hut 8 m in front, listing the player (`twig`, `wood`, `stone`, `metal`, `armoured` or 0–4; stone by default). |
@@ -3213,6 +3240,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Machines (G7):** a recycler shows INPUT and OUTPUT rows, the progress of the batch and TURN ON or OFF (no fuel); a
   research table the item, the salvage and the blueprint with arrows between, the price or the reason it can't start,
   and BEGIN RESEARCH. A blueprint is drawn as the item it teaches on blueprint blue. A world crate is a box's grid.
+- **Bags of dropped items (U3):** a bag opens as a crate does, titled LOOT BAG: a box's grid, take only, showing only
+  the rows its stacks fill (a crate's grid does the same). The prompt says E PICK UP LOOT BAG for a bag of one stack
+  (taken whole) and E OPEN LOOT BAG for one holding more.
 - **Team chat (G7):** "/t " or "/team " before a line sends it to the team; team lines are green, marked [TEAM].
 - **Commands in chat:** any other line starting with "/" runs as in the F1 console (`/give rifle`), with the player's
   own rights on any server; the answer's first line shows as a notice, and the whole of it in the console's log.
@@ -3309,7 +3339,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
 | `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
-| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
+| `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a burlap bundle, its corners knotted on top, a leather strap with a buckle cinched round it) |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
@@ -3352,7 +3382,6 @@ recipe (Windows: System.Drawing and Consolas).
 | `collision` | `convex`: hulls in the file |
 | `icon` | Present when the item has an icon; `view` is the icon camera's yaw, pitch and roll (degrees) when the class default isn't right; `key` borrows another item's icon |
 | `held` | `firstPerson`: where the grip sits in camera space (position in metres, rotation in degrees, Euler YXZ) when no arms are drawn; `thirdPerson`: the item relative to the hand's grip frame (the character package's `HandFrame`; identity, since the pivot is the grip socket); `offHand`: the other hand's socket; `hand`: `left` for the bow |
-| `drop` | `scale`: how big it lies on the ground when dropped (big deployables shrink to a kit) |
 | `standIn` | A note when the model is a stand-in to replace |
 | `slot` | Attachments: the gun slot they mount on, `sight`, `muzzle` or `under` |
 | `sockets` | Guns: each slot's socket node (`sight` → `socket_rail`, `muzzle` → `socket_muzzle`, `under` → `socket_under`) |
@@ -3628,7 +3657,7 @@ the local player, usually below or beside the crosshair, with chips too small an
 weak spot was a small orange ball that floated beside broken outcrops; trees paid nothing for falling; and an area
 coming into range replayed its old hits (sounds, effects, even felled trees falling again). Now one view
 (`NatureView`) plays every class's gather.json `look`, with no tree or outcrop branches in the code:
-- **Every fresh hit** (protocol 12, §6.2) plays its look's `hit` cue where the swing met the drawn surface, along that
+- **Every fresh hit** (protocol 13, §6.2) plays its look's `hit` cue where the swing met the drawn surface, along that
   surface's normal, with its debris landing on the ground under the object: chips, bark flakes and sawdust on trees
   (`gather.wood`), chips and grey dust on stone (`gather.rock`), sparks on metal and sulphur (`gather.sparks`). Seen and
   heard within 70 m.
@@ -4394,6 +4423,39 @@ Decisions taken for the F1 console (§8.2) without the owner, to confirm or over
 - K15. **Numbers taken in shared spaces:** protocol 11, messages 150–153, two bits for the cheats in `OwnState`. Whichever
   branch merges second takes the next free protocol number.
 
+Decisions taken for the owner's first playtest, dropped items (§6.1, package `ground-drop`), without the owner, to
+confirm or overturn (numbered U1 on):
+
+- U1. **Everything on the ground lies in a bag**, and what lands within 1.5 m of a bag with room goes into it (onto
+  stacks of the same item first): the owner's request, built as one service (`Zone.Spill`) that every source calls, a
+  drop, a craft, a refund or a gift that doesn't fit, a broken container's contents, a broken research table's work.
+  Spent arrows that can be picked up again go into bags too, so one rule holds everywhere (Rust leaves them lying as
+  arrows; say if they should come back). The dead's backpack (a body after 150 s) stays as it was.
+- U2. **A bag has 48 slots** (a large box's): whatever one container spills is one bag, as Rust's one pouch, and a whole
+  inventory (37 slots) fits. Its time is the dropped items' 300 s of world time, counted from the newest item put in;
+  it is take only, as Rust's dropped containers are, and goes once emptied.
+- U3. **One stack is taken, more are opened:** the interact key takes a bag of one stack whole (as dropped items were
+  taken before); one holding more opens in the loot panel as a crate does (`LootKind.Crate`, take only), whose grid
+  shows only the rows its stacks fill. Others see only the bag and how many stacks it holds (the prompt's verb needs
+  it), never what is in it.
+- U4. **The bag is our own model** (`art/models/deployables.py`, `dropped-bag`): a burlap bundle about 0.42 × 0.34 m and
+  0.3 m high, its corners gathered into a knot with two ears on top, a leather strap cinched round its middle with an
+  iron buckle at the front. Rust's is a squarer grey parcel with straps; only the idea was taken from the owner's
+  picture.
+- U5. **A bag rests on what is under it:** the first solid surface below where it lands (a floor or foundation, a box's
+  lid, the ground's own collision; a Jolt ray down from half a metre above, at most 4.5 m), not the terrain under a
+  base, where dropped items used to end up. A drop lands 0.7 m ahead of the feet, short of a wall in the way; a broken
+  box's body goes before its contents spill, so they lie where it stood.
+- U6. **Bodies and bags are one kind of thing** (`DroppedContainer`: a container lying for a while, take only, gone when
+  emptied or when its time is up), so an emptied body now goes at once too, rather than within the second. What clients
+  are told of a thing (health, count, burning, whose, its name) is the thing's own to say (`WorldObject`'s virtual
+  members; a world prop now sends its name, which titles a crate's loot as it does a bag's), and how a container is
+  looted follows its kind (`LootRules.KindOf`): three switches and tests over object types replaced.
+- U7. **Numbers taken in shared spaces:** protocol 12 (a change of meaning, not of layout: a thing of kind
+  `StaticKind.DroppedBag`, formerly `DroppedItem` with the same value, shows no item and counts its stacks); the things'
+  record version 3 (`WorldCodec.ThingVersion`; the things table is unchanged, so no SQL schema step); survival.json's
+  `bag` section. The model catalogue's `drop.scale` entries went: no item lies as its own model any more.
+
 Decisions taken for gathering's feedback (§6.1, §9.3; the owner's first playtest: "no feedback other than the sound" when
 hitting trees and outcrops) without the owner, to confirm or overturn (numbered H1 on):
 
@@ -4421,7 +4483,7 @@ hitting trees and outcrops) without the owner, to confirm or overturn (numbered 
   hotspot.
 - H7. **The run of spot hits and the last hit's point aren't saved**: a restart forgets them, as Rust forgets its bonus
   level when a node is unloaded.
-- H8. **Protocol 12: a natural object's change says where its last hit landed and how fresh it is.** Effects play at the
+- H8. **Protocol 13: a natural object's change says where its last hit landed and how fresh it is.** Effects play at the
   point where the swing met the drawn surface, for every player in range, not at a guessed spot facing the local player;
   a hit older than a second when sent (an area coming into range) plays nothing. Six bytes more per change, and only
   changed objects travel.
@@ -4441,3 +4503,6 @@ hitting trees and outcrops) without the owner, to confirm or overturn (numbered 
 - H14. **Outcrops' physics shapes are unchanged**: an outcrop is still a sphere to walk into and for the swing's thick ray,
   taller than its broken stages; only the weak spot and the hit's point use the drawn surface. Fitting the physics to the
   stages is left for later.
+- H15. **Numbers taken in shared spaces:** protocol 13 (after the bags' 12: `NaturalNet` gained five fields); no new
+  messages; no save change (the run and the last hit aren't saved); one new data file, `surfaces.json`, in the content
+  hash.
