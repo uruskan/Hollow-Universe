@@ -1955,3 +1955,209 @@ def skiff(b, at, rot=(0, 0, 0), tint=HULL_WHITE, band=TEAL, stripe=ORANGE, code=
                       (side * (hw + 0.045), b.rng.uniform(y_nose + 1.0, y_tail - 0.3),
                        b.rng.uniform(z_floor + 0.3, z_roof - 0.3)), mat=MATTE, tint=SCORCH, solid=False, vary=0.2)
     return seat, stubs
+
+
+# ------------------------------------------------------------------------------------------------ colonist
+
+LEAF = srgb(0.30, 0.42, 0.16)
+LEAF_DRY = srgb(0.52, 0.48, 0.24)
+SOIL = srgb(0.36, 0.27, 0.19)
+
+
+def hab_pod(b, at, rot=(0, 0, 0), length=7.0, radius=1.8, legs=0.5, tint=OFFWHITE, band=ORANGE, stripe=TEAL,
+            door_open=70.0, windows=3, code=None, interior="bunk", steps=True, porthole=True):
+    """A colonist's prefab hab pod you can walk into: a horizontal can of composite panels on saddles, ribs and a
+    livery band, a flat floor inside, an end wall with a 2.3 m door (at +X) swung open over a few steps, a porthole
+    in the other end, windows down both flanks; furnished (`interior`: "bunk", "kitchen", "store" or None).
+    Returns the floor's centre in the monument's frame."""
+    r, L = radius, length
+    hl = L / 2
+    zc = legs + r
+    zf = legs + 0.5
+    rw = r - 0.06
+    with b.frame(at, rot):
+        # Saddles and feet.
+        for x in (-hl + 1.0, hl - 1.0):
+            b.box((0.3, r * 1.5, 0.3), (x, 0, legs + 0.05), mat=PAINT, tint=DARK)
+            for y in (-r * 0.6, r * 0.6):
+                b.box((0.18, 0.18, legs), (x, y, legs / 2), mat=PAINT, tint=DARK)
+                b.box((0.4, 0.4, 0.06), (x, y, 0.03), mat=PAINT, tint=GREY, solid=False)
+        # The shell: twelve curved panels (local angle 0 = down, 90 = +Y, 180 = up, 270 = -Y).
+        with b.frame((0, 0, zc), (0, 90, 0)):
+            for k in range(12):
+                arc_panel(b, r, 30.0 * k + 0.4, 30.0 * (k + 1) - 0.4, -hl + 0.02, hl - 0.02, 0.06, 3, mat=PANEL,
+                          tint=tint, solid=True)
+            # The livery band and its pinstripe down both flanks, below the windows.
+            for lo, hi, s_lo, s_hi in ((60.0, 74.0, 56.0, 58.0), (286.0, 300.0, 302.0, 304.0)):
+                arc_panel(b, r + 0.012, lo, hi, -hl + 0.3, hl - 0.3, 0.012, 3, mat=PAINT, tint=band)
+                arc_panel(b, r + 0.012, s_lo, s_hi, -hl + 0.3, hl - 0.3, 0.012, 1, mat=PAINT, tint=stripe)
+        for x in (-hl + 0.12, -hl / 3, hl / 3, hl - 0.12):
+            b.cyl(r + 0.035, 0.12, (x, 0, zc), (0, 90, 0), mat=PAINT, tint=GREY, sides=24, cap=False, solid=False)
+        # Windows: glass and a frame laid on each flank, tilted to the shell.
+        for side, ang in ((-1, -15.0), (1, 15.0)):
+            for k in range(windows):
+                x = -hl + L * (k + 1) / (windows + 1) - 0.3
+                n = Vector((0, side * math.cos(math.radians(15)), math.sin(math.radians(15))))
+                c = Vector((x, 0, zc)) + n * (r + 0.015)
+                b.box((0.8, 0.02, 0.5), tuple(c), (side * 15.0, 0, 0), mat=GLASS, solid=False)
+                b.box((0.9, 0.015, 0.6), tuple(c - n * 0.005), (side * 15.0, 0, 0), mat=PAINT, tint=DARK,
+                      solid=False)
+        # Floor inside.
+        fw = 2 * math.sqrt(max(0.1, rw * rw - (zf - zc) ** 2)) - 0.1
+        b.box((L - 0.1, fw, 0.08), (0, 0, zf - 0.04), mat=PAINT, tint=srgb(0.45, 0.42, 0.36))
+        # End walls: the door end at +X, the porthole end at -X.
+        jamb = 0.5
+        zb = zc - math.sqrt(rw * rw - jamb * jamb)
+        top = zf + 2.3
+        arc = []
+        a0 = math.atan2(zb - zc, jamb)
+        a1 = math.atan2(zb - zc, -jamb) + 2 * math.pi
+        for k in range(19):
+            a = a0 + (a1 - a0) * k / 18
+            arc.append((rw * math.cos(a), zc + rw * math.sin(a)))
+        door_outline = arc + [(-jamb, top), (jamb, top)]
+        with b.frame((hl - 0.05, 0, 0), (0, 0, 90)):
+            b.extrude(door_outline, 0.08, (0, 0, 0), (0, 0, 0), mat=PANEL, tint=tint, solid="hull")
+        with b.frame((hl - 0.05, 0, 0), (0, 0, 0)):
+            for y in (-jamb - 0.04, jamb + 0.04):
+                b.box((0.14, 0.08, top - zf), (0.04, y, (zf + top) / 2), mat=PAINT, tint=DARK, solid=False)
+            b.box((0.14, 2 * jamb + 0.16, 0.08), (0.04, 0, top + 0.04), mat=PAINT, tint=DARK, solid=False)
+            b.box((0.4, 2 * jamb + 0.1, zf - zb + 0.02), (0.15, 0, (zf + zb) / 2), mat=PAINT, tint=GREY)
+        with b.frame((hl + 0.02, jamb, zf), (0, 0, door_open)):
+            grid_box(b, (0.06, 2 * jamb - 0.04, 2.26), (0.03, -jamb + 0.02, 1.13), mat=PANEL, tint=band, step=0.7)
+            b.box((0.05, 0.04, 0.16), (0.08, -2 * jamb + 0.12, 1.05), mat=PAINT, tint=GREY, solid=False)
+            b.box((0.02, 0.5, 0.35), (0.065, -jamb + 0.02, 1.7), mat=GLASS, solid=False)
+        b.marker("door", (hl + 0.8, 0, 0.0), kind_of="pod")
+        circle = [(rw * math.cos(2 * math.pi * k / 20), zc + rw * math.sin(2 * math.pi * k / 20)) for k in range(20)]
+        with b.frame((-hl + 0.05, 0, 0), (0, 0, 90)):
+            b.extrude(circle, 0.08, (0, 0, 0), (0, 0, 0), mat=PANEL, tint=tint, solid="hull")
+        if porthole:
+            b.cyl(0.32, 0.05, (-hl - 0.01, 0, zc + 0.3), (0, 90, 0), mat=PAINT, tint=DARK, sides=16, solid=False)
+            b.cyl(0.26, 0.05, (-hl - 0.025, 0, zc + 0.3), (0, 90, 0), mat=GLASS, sides=16, solid=False)
+        if code:
+            stencil(b, code, (hl + 0.002, -0.95, zc + 0.75), (0, 0, 90), 0.18, DARK, align="centre")
+        if steps:
+            from .kit import stairs
+            run = 1.1
+            stairs(b, (hl + 0.36 + run, 0, 0), (0, 0, 90), 1.0, zf, run, tint=GREY, rails=False)
+        # Furniture.
+        if interior == "bunk":
+            with b.frame((-hl + 1.3, fw / 2 - 0.45, zf), (0, 0, 0)):
+                b.box((1.95, 0.8, 0.35), (0, 0, 0.18), mat=PAINT, tint=DARK)
+                b.box((1.9, 0.75, 0.14), (0, 0, 0.42), mat=MATTE, tint=srgb(0.45, 0.5, 0.55), solid=False)
+                b.box((0.5, 0.35, 0.1), (-0.65, 0.05, 0.54), mat=MATTE, tint=srgb(0.85, 0.83, 0.78), solid=False)
+                b.box((1.2, 0.78, 0.05), (0.3, -0.02, 0.51), (0, 3, 6), mat=MATTE, tint=srgb(0.55, 0.3, 0.2),
+                      solid=False)
+            b.box((0.9, 0.6, 0.04), (0.6, -fw / 2 + 0.4, zf + 0.75), mat=PAINT, tint=srgb(0.55, 0.45, 0.32),
+                  solid=False)
+            b.box((0.06, 0.06, 0.73), (0.6, -fw / 2 + 0.4, zf + 0.37), mat=PAINT, tint=DARK, solid=False)
+            b.box((0.4, 0.4, 0.45), (1.3, -fw / 2 + 0.55, zf + 0.23), mat=PAINT, tint=srgb(0.4, 0.42, 0.4),
+                  solid=False)
+            b.marker("bed", (-hl + 1.3, fw / 2 - 0.45, zf + 0.5), chance=0.4)
+        elif interior == "kitchen":
+            with b.frame((0.0, fw / 2 - 0.35, zf), (0, 0, 0)):
+                b.box((3.0, 0.6, 0.9), (0, 0, 0.45), mat=PANEL, tint=LIGHTGREY)
+                b.box((3.05, 0.65, 0.04), (0, 0, 0.92), mat=PAINT, tint=srgb(0.5, 0.45, 0.38), solid=False)
+                b.box((0.5, 0.4, 0.04), (-0.6, -0.02, 0.945), mat=PAINT, tint=GREY, solid=False)
+                for k in range(4):
+                    b.cyl(0.06 + 0.02 * (k % 2), 0.16, (0.4 + 0.2 * k, 0, 1.02), mat=PAINT,
+                          tint=(RED, TEAL, YELLOW, GREY)[k], sides=10, solid=False)
+                b.box((3.0, 0.3, 0.04), (0, 0.12, 1.6), mat=PAINT, tint=GREY, solid=False)
+            b.box((1.0, 0.7, 0.04), (-1.4, -fw / 2 + 0.5, zf + 0.75), mat=PAINT, tint=srgb(0.55, 0.45, 0.32),
+                  solid=False)
+            for x in (-1.85, -0.95):
+                b.box((0.06, 0.6, 0.73), (x, -fw / 2 + 0.5, zf + 0.37), mat=PAINT, tint=DARK, solid=False)
+        elif interior == "store":
+            for k in range(3):
+                b.box((0.5, fw - 0.6, 0.04), (-hl + 0.6 + k * 0.9, 0, zf + 0.6 + 0.4 * (k % 2)), mat=PAINT,
+                      tint=GREY, solid=False)
+                b.box((0.45, 0.5, 0.35), (-hl + 0.6 + k * 0.9, 0.3, zf + 0.18), mat=PAINT,
+                      tint=(srgb(0.3, 0.35, 0.3), ORANGE, GREY)[k], solid=False)
+        centre = b.world((0.6, 0, zf))
+    return centre
+
+
+def tarp(b, corners, sag=0.35, tint=TARP_BLUE, cells=(6, 4), thick=0.02, mat=MATTE):
+    """A sheet stretched between four corner points (in order round the sheet), sagging `sag` metres in the middle;
+    a closed thin slab (two-sided in the game). Returns its centre."""
+    c = [Vector(p) for p in corners]
+    nu, nv = cells
+    top, bot = [], []
+    for j in range(nv + 1):
+        v = j / nv
+        for i in range(nu + 1):
+            u = i / nu
+            p = (c[0] * (1 - u) + c[1] * u) * (1 - v) + (c[3] * (1 - u) + c[2] * u) * v
+            p = p - Vector((0, 0, sag * 16 * u * (1 - u) * v * (1 - v)))
+            top.append(p.to_tuple())
+            bot.append((p.x, p.y, p.z - thick))
+    n = len(top)
+    faces = []
+    for j in range(nv):
+        for i in range(nu):
+            a = j * (nu + 1) + i
+            faces.append([a, a + 1, a + nu + 2, a + nu + 1])
+            faces.append([n + a, n + a + nu + 1, n + a + nu + 2, n + a + 1])
+    for i in range(nu):
+        a, d = i, nv * (nu + 1) + i
+        faces.append([a, n + a, n + a + 1, a + 1])
+        faces.append([d + 1, n + d + 1, n + d, d])
+    for j in range(nv):
+        a, d = j * (nu + 1), j * (nu + 1) + nu
+        faces.append([a + nu + 1, n + a + nu + 1, n + a, a])
+        faces.append([d, n + d, n + d + nu + 1, d + nu + 1])
+    b.mesh(top + bot, faces, mat=mat, tint=tint, solid=False, wear=0.5, vary=0.02)
+    return sum(c, Vector()) / 4
+
+
+def bush(b, at, size=1.0, tint=LEAF, lumps=5):
+    """A rounded leafy bush of a few overlapping low lumps."""
+    x, y, z = at
+    for k in range(lumps):
+        a = b.rng.random() * math.tau
+        r = size * 0.35 * b.rng.random()
+        s = size * (0.35 + 0.25 * b.rng.random())
+        ball(b, (x + math.cos(a) * r, y + math.sin(a) * r, z + s * 0.7), s, tint, mat=MATTE, sides=10, rings=6)
+
+
+def bean_poles(b, at, height=1.8, tint=LEAF_DRY):
+    """A teepee of four poles with a dry vine wound up it."""
+    x, y, z = at
+    for k in range(4):
+        a = math.radians(90 * k + 45)
+        b.beam((x + 0.4 * math.cos(a), y + 0.4 * math.sin(a), z), (x, y, z + height), 0.03, 0.03, mat=PAINT,
+               tint=WOOD_GREY)
+    pts = []
+    for i in range(25):
+        t = i / 24
+        a = t * 6 * math.pi
+        rr = 0.4 * (1 - t) + 0.05
+        pts.append((x + rr * math.cos(a), y + rr * math.sin(a), z + 0.1 + t * (height - 0.2)))
+    b.tube(pts, 0.015, mat=MATTE, tint=tint, sides=4, cap=False)
+    for i in range(0, 25, 3):
+        p = pts[i]
+        b.box((0.14, 0.02, 0.1), p, (0, 0, b.rng.uniform(0, 360)), mat=MATTE, tint=tint, solid=False, vary=0.1)
+
+
+def small_turbine(b, at, height=6.0, yaw=0.0, tint=OFFWHITE, broken=False):
+    """A homestead wind turbine: a guyed pole, a nacelle with a tail fin and a three-bladed rotor 1.6 m long."""
+    x, y, z = at
+    b.box((0.6, 0.6, 0.3), (x, y, z + 0.1), mat=CONCRETE, tint=srgb(0.75, 0.74, 0.71))
+    b.cyl(0.07, height, (x, y, z + height / 2), mat=PAINT, tint=GREY, sides=10)
+    for k in range(3):
+        a = math.radians(120 * k)
+        from .kit import cable
+        cable(b, (x + 3.0 * math.cos(a), y + 3.0 * math.sin(a), z + 0.05), (x, y, z + height * 0.7), sag=0.003,
+              radius=0.006, tint=srgb(0.5, 0.5, 0.5), segments=4)
+    with b.frame((x, y, z + height + 0.15), (0, 0, yaw)):
+        b.cyl(0.14, 0.7, (0, 0, 0), (90, 0, 0), mat=PAINT, tint=tint, sides=12)
+        b.lathe([(0.14, 0.0), (0.1, 0.12), (0.0, 0.2)], (0, -0.35, 0), (90, 0, 0), mat=PAINT, tint=tint, sides=12)
+        b.box((0.04, 0.9, 0.04), (0, 0.8, 0), mat=PAINT, tint=GREY, solid=False)
+        b.box((0.02, 0.5, 0.45), (0, 1.25, 0.1), mat=PAINT, tint=tint, solid=False)
+        for k in range(3):
+            if broken and k == 2:
+                continue
+            ang = 120 * k + 15
+            with b.frame((0, -0.42, 0), (0, ang, 0)):
+                b.extrude([(-0.06, 0.08), (0.1, 0.08), (0.05, 1.6), (-0.02, 1.6)], 0.03, (0, 0, 0), (0, 0, 0),
+                          mat=PAINT, tint=tint, solid=False)
