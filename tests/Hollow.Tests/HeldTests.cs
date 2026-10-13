@@ -69,4 +69,57 @@ public static class HeldTests
         Assert.Equal(OutcomeCode.NotUsable, rig.Zone.ThrowExplosive(ada, 0, 0, 0, 0, lob: false).Code, "a rock isn't thrown");
         Assert.Equal(OutcomeCode.Done, rig.Zone.ThrowExplosive(ada, 1, 0, 0, 0, lob: false).Code, "a grenade is");
     }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §7: an item's information comes from a describer per part, every part has one, and every item
+    /// that has a part shows something. The AK says its damage, rate of fire, magazine, reload, aim cone, range and recoil,
+    /// and its stack what is loaded and fitted; the bag charge (the owner's example of what was missing) its fuse, blast and
+    /// how many it takes to break each wall and door; a blueprint what it teaches, and whether the reader knows it.
+    /// </summary>
+    [Test]
+    public static void EveryPartIsDescribed()
+    {
+        GameContent c = ContentFixture.Content;
+        Assert.Equal(Enum.GetValues<ItemPart>().Length, ItemRows.Create().Handlers.Count(), "a describer for every part");
+        var empty = c.Items.Where(i => !i.Parts.IsEmpty && ItemRows.Describe(c, i).Count == 0).Select(i => i.Key).ToList();
+        Assert.True(empty.Count == 0, "items with parts but nothing to say: " + string.Join(", ", empty));
+        Fixtures.Report($"{c.Items.Count(i => i.Parts.IsEmpty)} items have no part ({string.Join(", ", c.Items.Where(i => i.Parts.IsEmpty).Select(i => i.Key))})");
+
+        string Row(List<ItemRow> rows, string label) => rows.FirstOrDefault(r => r.Label == label).Value ?? "(none)";
+        ItemDef rifle = c.ItemByKey("rifle");
+        var ak = ItemStack.Of(rifle, 1);
+        ak.Loaded = 30;
+        ak.LoadedAmmo = c.ItemByKey("rifle-ammo").Id;
+        ak.Sight = c.ItemByKey("holo-sight").Id;
+        List<ItemRow> akRows = ItemRows.Describe(c, rifle, ak);
+        Fixtures.Report("AK: " + string.Join("; ", akRows.Select(r => $"{r.Label} {r.Value}")));
+        Assert.Equal("35", Row(akRows, "Damage"), "damage");
+        Assert.Equal("Auto, 450 rpm", Row(akRows, "Fire"), "rate of fire");
+        Assert.Equal("30", Row(akRows, "Magazine"), "magazine");
+        Assert.Equal("2.4 s", Row(akRows, "Reload"), "reload");
+        Assert.Equal("1.5° hip, 0.18° aimed", Row(akRows, "Aim cone"), "aim cone, the holo sight's narrower aimed");
+        Assert.Equal("200 m, full to 70 m", Row(akRows, "Range"), "range");
+        Assert.Equal("29° up, a set pattern", Row(akRows, "Recoil"), "recoil");
+        Assert.True(Row(akRows, "Loaded").StartsWith("30 ", StringComparison.Ordinal) && Row(akRows, "Fitted") == c.ItemByKey("holo-sight").Name.ToLowerInvariant(),
+            "the stack's magazine and sight");
+        Assert.Equal("100%", Row(akRows, "Condition"), "its condition");
+
+        List<ItemRow> charge = ItemRows.Describe(c, c.ItemByKey("bag-charge"));
+        Fixtures.Report("bag charge: " + string.Join("; ", charge.Select(r => $"{r.Label} {r.Value}")));
+        Assert.Equal("6–12 s, 20% duds", Row(charge, "Fuse"), "fuse");
+        Assert.Equal("3 m, 120 damage", Row(charge, "Blast"), "blast");
+        Assert.Equal("3 to break", Row(charge, "Wood wall"), "200 / 75");
+        Assert.Equal("10 to break", Row(charge, "Stone wall"), "500 / 51");
+        Assert.Equal("46 to break", Row(charge, "Armoured wall"), "2000 / 44");
+        Assert.Equal("wood 2, metal 4, armoured 12", Row(charge, "Doors"), "the single doors");
+
+        ItemDef blueprint = c.World.Blueprint!;
+        Recipe pistol = c.RecipeByKey("pistol")!;
+        var book = new BlueprintBook();
+        List<ItemRow> teaches = ItemRows.Describe(c, blueprint, new ItemStack(blueprint.Id, 1, pistol.Id), book);
+        Assert.True(Row(teaches, "Teaches") == pistol.Output.Name && Row(teaches, "Known") == "Not yet", "a blueprint says what it teaches");
+        book.Learn(pistol);
+        Assert.Equal("Yes", Row(ItemRows.Describe(c, blueprint, new ItemStack(blueprint.Id, 1, pistol.Id), book), "Known"), "and that it is known");
+        Assert.True(Row(ItemRows.Describe(c, c.ItemByKey("gears")), "Recycles into").Contains("salvage", StringComparison.Ordinal), "a component's salvage");
+    }
 }

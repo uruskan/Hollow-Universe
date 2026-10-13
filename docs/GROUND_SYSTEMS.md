@@ -330,6 +330,17 @@ over its own slot cancels (Rust). Today a release over any panel silently cancel
 - **The gun's answers** joined the one answer list (§3.2): `GunResult` is gone; its refusals are `OutcomeCode`s with
   lines in texts.json (`NoWeapon`, `Reloading`, `Empty`, `Cadence`, `NoAmmo`, `Full`, `Lowered`, `TooLate`, numbered
   from 100), and `GunUpdate` carries the code in 7 bits.
+- **Information** (`Items/ItemRows.cs`): a describer per part in a registry (every part has one, or nothing starts), each
+  adding its rows; an item's information is its parts' rows in order, then its condition. A stack is described with
+  what is its own: a gun's magazine and attachments (which change its numbers), what a blueprint teaches and whether the
+  reader knows it. Guns say their damage, fire (auto or semi, rounds a minute), magazine, reload, aim cone hip and aimed,
+  range and recoil; rounds what fires them, their damage, speed, bleeding, fire and blast; attachments what they fit and
+  change; explosives their fuse and duds, blast, and how many break each grade of wall and each door; deployables their
+  health, slots, workbench level, fuel, cooking, warmth, machine and respawn time; doors, locks, the cupboard, the plan
+  and the hammer their numbers from building.json; ships their hull, fuel and speeds; components what uses them and what
+  they recycle into; and melee (now with structures and bleeding), bows, arrows, food (now with poison), clothing (now
+  where it is worn), fuel and cooking as before. The panel lays the rows out label left, value right, and narrows a long
+  value's font until it fits (`IGroundUi.Rows`). Test: `HeldTests.EveryPartIsDescribed`.
 
 ## 8. Damage and destruction (package P4, built: GROUND.md §6.4.2)
 

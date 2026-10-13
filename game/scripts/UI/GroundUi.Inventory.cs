@@ -101,28 +101,15 @@ public partial class GroundUi
         Rect(552, 116, 475, 76, G.Panel);
         Paragraph(info.Description, 567, 127, 368, 17, G.Ink, 3);
         Icon(stack.Key, 950, 121, 70, 66);
-        Rect(552, 194, 272, content - 109, G.Panel);
-        Rect(827, 194, 200, content - 109, G.Panel);
-        Rect(552, 194, 272, 25, G.Panel);
-        Rect(827, 194, 200, 25, G.Panel);
+        // INFORMATION (the describers' rows, GROUND_SYSTEMS.md §7) and ACTIONS side by side.
+        Rect(552, 194, InfoWidth, content - 109, G.Panel);
+        Rect(ActionsX, 194, ActionsWidth, content - 109, G.Panel);
+        Rect(552, 194, InfoWidth, 25, G.Panel);
+        Rect(ActionsX, 194, ActionsWidth, 25, G.Panel);
         Text("INFORMATION", 558, 194, 17, G.Ink, bold: true);
-        Text("ACTIONS", 833, 194, 17, G.Ink, bold: true);
+        Text("ACTIONS", ActionsX + 6, 194, 17, G.Ink, bold: true);
         PanelArea(545, 80, 492, 370);
-
-        var stats = new List<ItemStat>(info.Stats);
-        if (stack.HasCondition)
-        {
-            stats.Add(new ItemStat("Condition", Ui.Number(stack.Condition * 100, "N0") + "%", stack.Condition >= 0.25f));
-        }
-        if (stack.HasAmmo)
-        {
-            stats.Add(new ItemStat("Loaded", stack.Ammo.ToString(CultureInfo.InvariantCulture)));
-        }
-        for (int i = 0; i < stats.Count && 225 + i * 24 < 194 + content - 109 - 20; i++)
-        {
-            TextIn(stats[i].Label, 470, 225 + i * 24, 186, 15, G.Ink, HorizontalAlignment.Right, bold: true);
-            Text(stats[i].Value, 688, 225 + i * 24, 16, stats[i].Positive ? G.Green : G.Short, bold: true);
-        }
+        PaintRows(Model.Rows(slot), 194 + content - 109);
 
         var actions = new List<(string Label, Action Act)>();
         if (info.Usable)
@@ -139,7 +126,7 @@ public partial class GroundUi
         for (int i = 0; i < actions.Count; i++)
         {
             (string label, Action act) = actions[i];
-            Button(label, 827, 221 + i * 46, 200, 42, act, label.Length > 15 ? 18 : 22);
+            Button(label, ActionsX, 222 + i * 40, ActionsWidth, 37, act, label.Length > 15 ? 16 : label.Length > 11 ? 19 : 21);
         }
 
         if (split)
@@ -162,6 +149,28 @@ public partial class GroundUi
             TextIn(Count(amount), 971, 420, 50, 16, G.Ink, HorizontalAlignment.Right, bold: true);
             _hits.Add(new Hit(icon, HitKind.SplitIcon, Slot: slot));
             PanelArea(552, 382, 475, 63);
+        }
+    }
+
+    // The INFORMATION column's width and the ACTIONS column's place and width (design pixels).
+    private const float InfoWidth = 312, ActionsX = 867, ActionsWidth = 160;
+
+    // The rows of the INFORMATION column, as many as fit above `bottom`: the label on the left, the value on the right in
+    // green (good news) or amber, its font narrowed until the two fit side by side.
+    private void PaintRows(IReadOnlyList<ItemStat> rows, float bottom)
+    {
+        const float step = 17, size = 14, left = 560, right = 552 + InfoWidth - 8;
+        for (int i = 0; i < rows.Count && 224 + (i + 1) * step <= bottom - 2; i++)
+        {
+            float y = 224 + i * step;
+            float label = Text(rows[i].Label, left, y, size, G.Ink, bold: true, condensed: true);
+            float room = right - left - label - 12, value = size;
+            while (value > 10 && Measure(rows[i].Value, value, bold: true) > room)
+            {
+                value--;
+            }
+            TextIn(rows[i].Value, left + label + 12, y + (size - value) / 2, room, value, rows[i].Positive ? G.Green : G.Short,
+                HorizontalAlignment.Right, bold: true);
         }
     }
 

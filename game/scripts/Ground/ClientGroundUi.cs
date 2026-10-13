@@ -501,78 +501,40 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     private string CategoryName(string key) => (C.Categories.FirstOrDefault(c => c.Key == key)?.Name ?? key).ToUpperInvariant();
 
+    // An item kind's name, description, tab and rows (GROUND_SYSTEMS.md §7: a describer per part, ItemRows).
     private ItemInfo Describe(ItemDef d)
     {
         var stats = new List<ItemStat>();
-        string N(float v) => v.ToString(v % 1 == 0 ? "0" : "0.#", CultureInfo.InvariantCulture);
-        if (d.Melee is { } m)
+        foreach (ItemRow row in ItemRows.Describe(C, d))
         {
-            stats.Add(new ItemStat("Damage", N(m.Damage)));
-            if (m.Tree > 0)
-            {
-                stats.Add(new ItemStat("Wood per hit", N(m.Tree), m.Tree >= 20));
-            }
-            if (m.Ore > 0)
-            {
-                stats.Add(new ItemStat("Ore per hit", N(m.Ore), m.Ore >= 20));
-            }
-            stats.Add(new ItemStat("Reach", N(m.Reach) + " m"));
-        }
-        if (d.Bow is { } bow)
-        {
-            stats.Add(new ItemStat("Draw", N(bow.DrawSeconds) + " s"));
-        }
-        if (d.Ammo is { } ammo)
-        {
-            stats.Add(new ItemStat("Damage", N(ammo.Damage)));
-        }
-        if (d.Consume is { } food)
-        {
-            if (food.Calories != 0)
-            {
-                stats.Add(new ItemStat("Calories", (food.Calories > 0 ? "+" : "") + N(food.Calories), food.Calories > 0));
-            }
-            if (food.Hydration != 0)
-            {
-                stats.Add(new ItemStat("Hydration", (food.Hydration > 0 ? "+" : "") + N(food.Hydration), food.Hydration > 0));
-            }
-            if (food.Health != 0)
-            {
-                stats.Add(new ItemStat("Instant health", "+" + N(food.Health)));
-            }
-            if (food.Heal != 0)
-            {
-                stats.Add(new ItemStat("Healing", "+" + N(food.Heal)));
-            }
-            if (food.StopsBleeding)
-            {
-                stats.Add(new ItemStat("Bleeding", "Stops"));
-            }
-        }
-        if (d.Wear is { } wear)
-        {
-            if (wear.Melee > 0)
-            {
-                stats.Add(new ItemStat("Melee protection", N(wear.Melee * 100) + "%"));
-            }
-            if (wear.Projectile > 0)
-            {
-                stats.Add(new ItemStat("Projectile protection", N(wear.Projectile * 100) + "%"));
-            }
-            if (wear.Insulation > 0)
-            {
-                stats.Add(new ItemStat("Warmth", "+" + N(wear.Insulation) + " °C"));
-            }
-        }
-        if (d.Fuel is { } fuel)
-        {
-            stats.Add(new ItemStat("Burns for", N(fuel.Seconds) + " s"));
-        }
-        if (d.Cook is { Into: { } into })
-        {
-            stats.Add(new ItemStat(d.Cook.In == "furnace" ? "Smelts into" : "Cooks into", into.Name));
+            stats.Add(new ItemStat(row.Label, row.Value, row.Positive));
         }
         return new ItemInfo(d.Key, d.Name, d.Description, CategoryName(d.Category), d.StackSize, d.Wear != null, d.Consume != null, stats);
+    }
+
+    private (SlotRef Slot, SimStack Stack, uint Known, IReadOnlyList<ItemStat> Rows) _rows;
+
+    /// <summary>A slot's rows: its kind's and its stack's own (condition, magazine, attachments, what a blueprint teaches).</summary>
+    public IReadOnlyList<ItemStat> Rows(SlotRef slot)
+    {
+        if (Resolve(slot) is not var (c, i) || Me.Resolve(c) is not { } container || !container.InRange(i) || container[i].IsEmpty ||
+            C.Item(container[i].Item) is not { } def)
+        {
+            return Array.Empty<ItemStat>();
+        }
+        SimStack stack = container[i];
+        uint known = Me.Blueprints.Revision;
+        if (_rows.Rows != null && _rows.Slot == slot && _rows.Stack == stack && _rows.Known == known)
+        {
+            return _rows.Rows;
+        }
+        var rows = new List<ItemStat>();
+        foreach (ItemRow row in ItemRows.Describe(C, def, stack, Me.Blueprints))
+        {
+            rows.Add(new ItemStat(row.Label, row.Value, row.Positive));
+        }
+        _rows = (slot, stack, known, rows);
+        return rows;
     }
 
     private IReadOnlyList<UiStack> Of(ContainerRef which, Container container)

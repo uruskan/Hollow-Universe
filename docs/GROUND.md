@@ -5088,3 +5088,7 @@ owner, to confirm or overturn (numbered V1 on):
 - V3. **The gun's answers are outcome codes from 100 up**, so the codes P1 and P2 add from 73 never meet them. Equipping
   is `Cooldown` ("Not ready yet"), down or dead is `Dead`; the gun's refusals still roll its prediction back by
   themselves and aren't shown as notices (a refused shot is a misprediction, not the player's mistake).
+- V4. **The item panel's INFORMATION is wider and its rows closer**: 312 design pixels (ACTIONS 160), rows 17 apart in
+  14 px Barlow, the label on the left and the value right-aligned, its font narrowed to fit, so the AK's eleven rows and
+  the bag charge's nine fit (RustMVP's column was 272 wide with 24 px rows and room for nine short ones). An explosive's
+  damage to walls and doors reads as how many it takes to break one (from the wall's hard side), Rust's way of reading it.

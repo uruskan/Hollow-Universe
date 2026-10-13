@@ -22,6 +22,31 @@ public interface IGroundUi
     /// <summary>Name, description, category, stack size and stats of an item key. Unknown keys get a stand-in.</summary>
     ItemInfo Item(string key);
 
+    /// <summary>
+    /// The item panel's INFORMATION for a slot's stack (GROUND_SYSTEMS.md §7): its kind's rows and its own (condition, a
+    /// gun's magazine and attachments, what a blueprint teaches). By default the kind's stats, the condition and the rounds.
+    /// </summary>
+    IReadOnlyList<ItemStat> Rows(SlotRef slot)
+    {
+        IReadOnlyList<ItemStack> slots = Slots(slot.Container);
+        ItemStack stack = slot.Index >= 0 && slot.Index < slots.Count ? slots[slot.Index] : default;
+        if (stack.IsEmpty)
+        {
+            return Array.Empty<ItemStat>();
+        }
+        var rows = new List<ItemStat>(Item(stack.Key).Stats);
+        if (stack.HasCondition)
+        {
+            rows.Add(new ItemStat("Condition", MathF.Round(stack.Condition * 100).ToString(System.Globalization.CultureInfo.InvariantCulture) + "%",
+                stack.Condition >= 0.25f));
+        }
+        if (stack.HasAmmo)
+        {
+            rows.Add(new ItemStat("Loaded", stack.Ammo.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        return rows;
+    }
+
     Vitals Vitals { get; }
 
     /// <summary>A container's slots: Main 24, Belt 6, Wear 7, Loot as many as the open container has (none if closed).</summary>
