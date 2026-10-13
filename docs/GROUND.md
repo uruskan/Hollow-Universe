@@ -1468,14 +1468,15 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
 | `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
 | `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
-| `models/resources.py` | The eleven resources as small piles (their dropped look), and the four world pickups as bigger piles |
+| `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
-| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition, key lock |
-| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate |
+| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
+| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
 | `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the dropped-item bag |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
+| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
 rifle's LOD1–LOD3, as the character package chose); `UCX_` hulls renamed `<Part>_hull<i>-convcolonly`; sockets kept as
@@ -1526,7 +1527,18 @@ it, and of the rifle's receiver cover), a silencer's or brake's rear face on `so
 `socket_under` (under the pistol's frame and the rifle's handguard). The rail and under sockets are placed by casting
 rays onto the converted guns' surfaces. `ModelCatalog.Attach(gun, gunKey, attachmentKey)` mounts one; the sights carry
 `socket_eye` for aiming through them. Ammunition types are the boxes with colour bands and painted tips: blue for high
-velocity (`pistol-ammo-hv`, `rifle-ammo-hv`), orange for incendiary (`rifle-ammo-incendiary`).
+velocity (`pistol-ammo-hv`, `rifle-ammo-hv`), orange for incendiary (`pistol-ammo-incendiary`, `rifle-ammo-incendiary`),
+yellow striped black with yellow tips for explosive (`rifle-ammo-explosive`, G5).
+
+**Raid items** (G5, `models/raid.py`, our own designs): the bag charge is a stuffed canvas satchel, two belts, a carry
+loop and an igniter with its fuse cord; the tin grenade a ribbed food tin with nails bound round it under wire and tape
+and a fuse through the lid. Both are held by a palm socket at their middle (`grip_r`, +X out of the front), as the
+timed charge is, and carry `socket_fuse` for the fuse's sparks. The rocket launcher is a 1.1 m painted tube with a
+flared venturi, a canvas heat sleeve where it rests on the shoulder, a pistol grip (`grip_r`, the pivot) and a vertical
+fore grip (`grip_l`), a folding frame sight on the left (`sight`, `eye`), `muzzle` at the front and `exhaust` at the back
+(+X pointing backwards, for the back blast); class `gun`, so the character package holds it two-handed like the rifle.
+The rockets lie on the ground along their length: an olive warhead with a yellow band, or for `rocket-hv` a slimmer
+pointed one with a blue band, on a motor with four fins.
 
 `ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
 merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
@@ -1554,7 +1566,8 @@ has its LODs, hulls, palm sockets and mapped materials, that icons are square RG
 item key (and every item of `items.json` when present) has a model.
 
 Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `icons-g4.jpg` (the bed, the G4 items and
-the reworked icons), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
+the reworked icons), `icons-g5.jpg` (the G5 raid items and the models that replaced the last stand-ins: gunpowder, the
+metal mask, incendiary pistol rounds), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
 `models.jpg` (everything on the ground),
 `items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
 
@@ -1707,6 +1720,14 @@ they merge beside the other packages' items):
   bullet tips (blue high velocity, orange incendiary).
 - M10. **First-person poses are placements without arms:** the character package's viewmodel holds items by their palm
   sockets, so `firstPerson` only matters where no arms are drawn (the viewer, a fallback).
+- M11. **The metal mask is our own design** (round eye ports in riveted bezels, a brow band, a slotted grille over the
+  mouth), not Rust's slit-eyed plate. Only the item is modelled here; the worn mask is the character package's.
+- M12. **The G5 raid items are our own designs** (a stuffed satchel with an igniter, a nail-bound food tin with a fuse,
+  a painted tube launcher with a venturi and a heat sleeve). The launcher's class is `gun`, so until the character package
+  gives it a shoulder pose it is held two-handed like the rifle; the thrown charges are held by a palm socket at their
+  middle, like the timed charge.
+- M13. **Explosive rounds are marked yellow striped black** with yellow tips, so the four kinds of round read apart at a
+  glance (plain, blue, orange, hazard stripes).
 
 Decisions taken for building (§6.3) without the owner, to confirm or overturn:
 
