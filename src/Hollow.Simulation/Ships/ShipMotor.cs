@@ -75,6 +75,7 @@ public static class ShipMotor
     private const float WaterDensity = 1000f;
     private const float Restitution = 0.15f;
     private const float HullFriction = 0.35f;
+    private const int FrictionPasses = 8;
 
     /// <summary>A contact found by the skids in a substep.</summary>
     private struct SkidLoad
@@ -82,6 +83,9 @@ public static class ShipMotor
         public Vector3 Arm;
         public Vector3 Normal;
         public float Force;
+
+        /// <summary>The friction impulse given so far this substep.</summary>
+        public Vector3 Friction;
     }
 
     /// <summary>Advances a ship by one tick. <paramref name="ignoreBody"/> is the ship's own parked body, if it has one.</summary>
@@ -131,7 +135,8 @@ public static class ShipMotor
 
         bool engines = input.Engines && s.Fuel > 0;
         bool boosting = TickBoost(ref s, def, engines && input.Has(ShipButtons.Boost), ref events);
-        bool landedIdle = s.Has(ShipFlags.Landed) && !input.WantsMotion;
+        // On its skids with nothing asked of it, the engines idle and the ship sits (or slides off what is too steep).
+        bool landedIdle = s.Has(ShipFlags.Touching) && !input.WantsMotion;
         bool assist = !input.Has(ShipButtons.AssistOff);
         float m = def.Mass;
 
@@ -264,13 +269,13 @@ public static class ShipMotor
             s.Velocity += accel * h;
             s.AngularVelocity += angular * h;
 
-            // Friction at the pads: as much of their sliding as the load allows is taken out (two passes, as the pads
-            // pull on each other through the rotation).
-            for (int pass = 0; pass < 2 && loaded > 0; pass++)
+            // Friction at the pads: as much of their sliding as the load allows is taken out. Several passes, as the pads
+            // pull on each other through the rotation; each pad's impulse over both stays within its friction.
+            for (int pass = 0; pass < FrictionPasses && loaded > 0; pass++)
             {
                 for (int i = 0; i < loaded; i++)
                 {
-                    Friction(ref s, def, loads[i].Arm, loads[i].Normal, def.SkidFriction * loads[i].Force * h);
+                    loads[i].Friction = Friction(ref s, def, loads[i].Arm, loads[i].Normal, def.SkidFriction * loads[i].Force * h, loads[i].Friction);
                 }
             }
             if (!assist && engines)
@@ -320,6 +325,7 @@ public static class ShipMotor
         }
 
         // ---------------------------------------------------------------- what the step found
+        events.Contacts = loaded;
         speed = s.Velocity.Length();
         bool wasLanded = s.Has(ShipFlags.Landed);
         bool landed = false;
@@ -329,6 +335,7 @@ public static class ShipMotor
             landed = cos >= MathF.Cos(def.MaxLandingSlope);
         }
         s.Flags = landed ? s.Flags | ShipFlags.Landed : s.Flags & ~ShipFlags.Landed;
+        s.Flags = loaded >= 3 ? s.Flags | ShipFlags.Touching : s.Flags & ~ShipFlags.Touching;
         if (landed && !wasLanded)
         {
             events.Touchdown = true;
@@ -483,8 +490,11 @@ public static class ShipMotor
         return -un;
     }
 
-    /// <summary>Takes a pad's sliding out, up to <paramref name="most"/> (N·s).</summary>
-    private static void Friction(ref ShipState s, ShipDef def, Vector3 arm, Vector3 normal, float most)
+    /// <summary>
+    /// Takes a pad's sliding out, the pad's friction impulse over the substep (<paramref name="given"/> so far) staying
+    /// within <paramref name="most"/> (N·s). Returns the impulse given in all.
+    /// </summary>
+    private static Vector3 Friction(ref ShipState s, ShipDef def, Vector3 arm, Vector3 normal, float most, Vector3 given)
     {
         Vector3 spin = Vector3.Transform(s.AngularVelocity, s.Rotation);
         Vector3 u = s.Velocity + Vector3.Cross(spin, arm);
@@ -492,12 +502,19 @@ public static class ShipMotor
         float slide = ut.Length();
         if (slide < 1e-6f || most <= 0)
         {
-            return;
+            return given;
         }
         Vector3 t = ut / slide;
         Vector3 rt = Vector3.Cross(arm, t);
         float k = 1 / def.Mass + Vector3.Dot(rt, InverseInertia(s, def, rt));
-        Apply(ref s, def, arm, -t * MathF.Min(slide / k, most));
+        Vector3 total = given - t * (slide / k);
+        float length = total.Length();
+        if (length > most)
+        {
+            total *= most / length;
+        }
+        Apply(ref s, def, arm, total - given);
+        return total;
     }
 
     private static void Apply(ref ShipState s, ShipDef def, Vector3 arm, Vector3 impulse)

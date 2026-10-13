@@ -19,7 +19,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x72734C5FE4FFE692UL;
+    public const ulong SchemaHash = 0x58B85D74827BFF8FUL;
 }
 
 partial struct Hello
@@ -89,6 +89,8 @@ partial struct ZoneInfo
         w.WriteBits64(SurfaceSeed, 64);
         w.WriteDouble(LatitudeDegrees);
         w.WriteDouble(LongitudeDegrees);
+        w.WriteFloat(AirDensity);
+        w.WriteFloat(AirScaleHeight);
     }
 
     public static ZoneInfo Read(BitReader r)
@@ -101,6 +103,8 @@ partial struct ZoneInfo
         v.SurfaceSeed = r.ReadBits64(64);
         v.LatitudeDegrees = r.ReadDouble();
         v.LongitudeDegrees = r.ReadDouble();
+        v.AirDensity = r.ReadFloat();
+        v.AirScaleHeight = r.ReadFloat();
         return v;
     }
 }

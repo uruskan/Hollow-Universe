@@ -9,7 +9,7 @@
       "centreOfMass": [0, 1.23, -0.28],
       "health": 750,
       "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
-      "thrust": { "main": 150000, "retro": 60000, "lateral": 45000, "lift": 110000, "down": 40000 },
+      "thrust": { "main": 150000, "retro": 90000, "lateral": 45000, "lift": 110000, "down": 40000 },
       "speed": { "forward": 160, "reverse": 40, "lateral": 40, "up": 25, "down": 20 },
       "boost": { "thrust": 1.8, "speed": 260, "seconds": 4, "cooldown": 5 },
       "rates": { "pitch": [55, 160], "yaw": [35, 100], "roll": [110, 320] },

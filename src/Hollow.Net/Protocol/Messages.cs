@@ -48,6 +48,10 @@ public partial struct ZoneInfo
     public ulong SurfaceSeed;
     public double LatitudeDegrees;
     public double LongitudeDegrees;
+
+    /// <summary>The air's density at the mean radius (kg/m³) and its scale height (m): ships' drag (G6).</summary>
+    public float AirDensity;
+    public float AirScaleHeight;
 }
 
 /// <summary>The server's first message to an accepted client.</summary>

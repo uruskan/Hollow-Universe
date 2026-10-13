@@ -10,8 +10,8 @@ namespace Hollow.Simulation.Ships;
 /// <summary>Where a ray from a ship met the world: how far, the point and the surface's normal there.</summary>
 public readonly record struct ShipRayHit(uint Body, float Distance, Vector3 Point, Vector3 Normal);
 
-/// <summary>A contact of the hull with the world: the point, the normal pointing out of the world, how deep.</summary>
-public readonly record struct ShipContact(Vector3 Point, Vector3 Normal, float Depth);
+/// <summary>A contact of the hull with the world: the point, the normal pointing out of the world, how deep, and the body.</summary>
+public readonly record struct ShipContact(Vector3 Point, Vector3 Normal, float Depth, uint Body = 0);
 
 /// <summary>
 /// A ship's side of a zone's Jolt world (GROUND.md §6.6): the queries the flight model asks (rays for the skids, the
@@ -166,7 +166,7 @@ public sealed class ShipCollider : IDisposable
         float length = axis.Length();
         Vector3 normal = length > 1e-9f ? -axis / length : -Vector3.Normalize(displacement);
         fraction = Math.Clamp(best.Fraction, 0, 1);
-        contact = new ShipContact(best.ContactPointOn2, normal, best.PenetrationDepth);
+        contact = new ShipContact(best.ContactPointOn2, normal, best.PenetrationDepth, best.BodyID2.ID);
         return true;
     }
 
@@ -199,7 +199,7 @@ public sealed class ShipCollider : IDisposable
             {
                 continue;
             }
-            into[count++] = new ShipContact(c.ContactPointOn2, -axis / length, c.PenetrationDepth);
+            into[count++] = new ShipContact(c.ContactPointOn2, -axis / length, c.PenetrationDepth, c.BodyID2.ID);
         }
         return count;
     }

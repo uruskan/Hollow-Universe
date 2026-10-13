@@ -6,7 +6,7 @@ namespace Hollow.Simulation.Ships;
 
 /// <summary>What a ship is doing, besides its motion. Some are found by the last step (outputs), some set by the zone.</summary>
 [Flags]
-public enum ShipFlags : byte
+public enum ShipFlags : ushort
 {
     None = 0,
 
@@ -33,6 +33,9 @@ public enum ShipFlags : byte
 
     /// <summary>In the sea.</summary>
     Wet = 128,
+
+    /// <summary>At least three skid pads carried it at the end of the last step (its engines idle there unless asked to move).</summary>
+    Touching = 256,
 }
 
 /// <summary>Buttons of a pilot's tick of input.</summary>
@@ -168,4 +171,7 @@ public struct ShipEvents
 
     /// <summary>The tank ran dry this step.</summary>
     public bool OutOfFuel;
+
+    /// <summary>Skid pads touching the ground at the end of the step.</summary>
+    public int Contacts;
 }

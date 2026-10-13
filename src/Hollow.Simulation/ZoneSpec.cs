@@ -31,6 +31,27 @@ public sealed record ZoneSpec
     public double LongitudeDegrees { get; init; }
 
     /// <summary>
+    /// The air (G6, ships' drag): its density at the body's mean radius in kg/m³ and its scale height in metres. A body
+    /// without air has 0. Earth's by default (tests and stand-ins).
+    /// </summary>
+    public double AirDensity { get; init; } = 1.225;
+
+    public double AirScaleHeight { get; init; } = 8500;
+
+    /// <summary>
+    /// The air of a body with a surface pressure (atmospheres), a mean temperature (K) and gravity (g), as an ideal gas
+    /// of air's molar mass (nitrogen and oxygen; heavier air is denser, which waits for its first world).
+    /// </summary>
+    public static (double Density, double ScaleHeight) Air(double pressureAtmospheres, double temperatureKelvin, double gravityG)
+    {
+        const double molarMass = 0.029, gasConstant = 8.314462618;
+        double temperature = Math.Max(temperatureKelvin, 30);
+        double density = Math.Max(pressureAtmospheres, 0) * 101_325 * molarMass / (gasConstant * temperature);
+        double scaleHeight = gasConstant * temperature / (molarMass * Math.Max(gravityG, 0.01) * 9.80665);
+        return (density, scaleHeight);
+    }
+
+    /// <summary>
     /// The first world (GROUND.md §3) at a latitude and longitude, or null if the generator no longer makes it. The
     /// landing site is the planet package's to choose; until then the server takes it from its options.
     /// </summary>
@@ -42,8 +63,11 @@ public sealed record ZoneSpec
             return null;
         }
         (StarSystem system, Body planet) = found.Value;
+        (double density, double scaleHeight) = Air(planet.SurfacePressure, planet.Temperature, planet.SurfaceGravity);
         return new ZoneSpec
         {
+            AirDensity = density,
+            AirScaleHeight = scaleHeight,
             SystemAddress = system.Address.Value,
             BodyPath = planet.Path,
             Radius = planet.Radius,

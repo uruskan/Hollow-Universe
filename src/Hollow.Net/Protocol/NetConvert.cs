@@ -99,6 +99,8 @@ public static class NetConvert
         SurfaceSeed = spec.SurfaceSeed,
         LatitudeDegrees = spec.LatitudeDegrees,
         LongitudeDegrees = spec.LongitudeDegrees,
+        AirDensity = (float)spec.AirDensity,
+        AirScaleHeight = (float)spec.AirScaleHeight,
     };
 
     public static ZoneSpec FromInfo(in ZoneInfo info) => new()
@@ -110,6 +112,8 @@ public static class NetConvert
         SurfaceSeed = info.SurfaceSeed,
         LatitudeDegrees = info.LatitudeDegrees,
         LongitudeDegrees = info.LongitudeDegrees,
+        AirDensity = info.AirDensity,
+        AirScaleHeight = info.AirScaleHeight,
     };
 
     private static sbyte Axis(float value) => (sbyte)Math.Round(Math.Clamp(value, -1f, 1f) * 127f, MidpointRounding.ToEven);

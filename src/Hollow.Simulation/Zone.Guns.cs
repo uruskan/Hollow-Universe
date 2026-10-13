@@ -437,6 +437,18 @@ public sealed partial class Zone
                     });
                 }
                 break;
+            case HitTarget.Ship:
+            {
+                float lost = DamageShip(hit.Ship!, (float)(b.Damage * b.Gun.Falloff(distance)), ShipDamage.Bullet, shooter);
+                if (shooter != null)
+                {
+                    GameEvents.Add(new ZoneEvent
+                    {
+                        Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = hit.Ship!.Id, Target = HitTarget.Ship, Amount = lost, Position = hit.Point, Item = b.Gun.Item.Id,
+                    });
+                }
+                break;
+            }
             case HitTarget.Building:
             {
                 // A wall stops the bullet; what it takes is its grade's protection against bullets (none from stone up).

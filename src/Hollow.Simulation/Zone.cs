@@ -179,10 +179,17 @@ public sealed partial class Zone : IDisposable
                     character.Events = default;
                     continue;
                 }
+                if (character.State.Stance == Stance.Seated)
+                {
+                    // In a ship (G6): it carries the character after it moves (Zone.Ships.cs).
+                    character.Events = default;
+                    continue;
+                }
                 Physics.EnsureGround(character.State.Position);
                 Physics.Prefetch(character.State.Position);
                 character.Events = CharacterMotor.Step(ref character.State, character.Input, character.Body, Movement);
             }
+            StepShips();
         }
         Physics.ReleaseUnusedGround(GroundKeepTicks);
         if (Content != null)
@@ -198,6 +205,7 @@ public sealed partial class Zone : IDisposable
         {
             character.Body.Dispose();
         }
+        _shipCollider?.Dispose();
         Physics.Dispose();
     }
 }

@@ -33,6 +33,9 @@ public enum ZoneEventKind : byte
 
     /// <summary>To a player: they got up again (<see cref="ZoneEvent.Other"/>: who helped them up, or none).</summary>
     Recovered,
+
+    /// <summary>To a player: a line to read (<see cref="ZoneEvent.Text"/>), such as a built ship waiting for room (G6).</summary>
+    Notice,
 }
 
 /// <summary>Why items arrived, for the UI's notifications.</summary>
@@ -60,6 +63,9 @@ public enum HitTarget : byte
 
     /// <summary>A building piece, door or claim device (G3).</summary>
     Building,
+
+    /// <summary>A ship's hull (G6; 6, as G5 may take 5's neighbours).</summary>
+    Ship = 6,
 }
 
 /// <summary>

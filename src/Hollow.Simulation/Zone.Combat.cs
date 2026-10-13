@@ -44,6 +44,9 @@ public struct TraceHit
     /// <summary>The building piece, door or claim device hit.</summary>
     public object? Building;
 
+    /// <summary>The ship hit (G6).</summary>
+    public Ships.Ship? Ship;
+
     public readonly bool Hit => Distance >= 0;
 }
 
@@ -160,6 +163,12 @@ public sealed partial class Zone
             {
                 float lost = DamageBuilding(hit.Building!, direction, melee.Structure, projectile: false);
                 GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = HitTarget.Building, Amount = lost, Position = hit.Point });
+                break;
+            }
+            case HitTarget.Ship:
+            {
+                float lost = DamageShip(hit.Ship!, melee.Damage, ShipDamage.Melee, p);
+                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = hit.Ship!.Id, Target = HitTarget.Ship, Amount = lost, Position = hit.Point });
                 break;
             }
         }
@@ -354,6 +363,15 @@ public sealed partial class Zone
                 }
                 break;
             }
+            case HitTarget.Ship:
+            {
+                float lost = DamageShip(hit.Ship!, pr.Damage, ShipDamage.Arrow, shooter);
+                if (shooter != null)
+                {
+                    GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = shooter.Id, Other = hit.Ship!.Id, Target = HitTarget.Ship, Amount = lost, Position = hit.Point });
+                }
+                return; // an arrow on a hull is lost
+            }
         }
         // A miss often leaves the arrow where it landed.
         var rng = new Rng(Hash64.Of(pr.Id, (ulong)Tick, 0xA770));
@@ -467,6 +485,14 @@ public sealed partial class Zone
             float t = Geometry.RayBox(origin, direction, length, d.Centre, d.Def.HalfExtents + new Vector3(thickness), right, d.Up, forward);
             var candidate = new TraceHit { Deployable = d };
             Consider(t, HitTarget.Deployable, ref candidate);
+        }
+
+        // Ships' hulls (G6), as they are now.
+        if (_ships.Count > 0)
+        {
+            float t = TraceShips(origin, direction, length, thickness, out Ships.Ship? ship);
+            var candidate = new TraceHit { Ship = ship };
+            Consider(t, HitTarget.Ship, ref candidate);
         }
 
         // Building pieces, doors and claim devices: walls stop swings and arrows.
