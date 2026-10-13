@@ -80,8 +80,11 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     /// <summary>What the interact key would act on now (set by the view every frame).</summary>
     public InteractionPrompt? Prompt { get; set; }
 
-    /// <summary>Test commands typed in chat (lines starting with '/'); null sends them as chat.</summary>
+    /// <summary>Console commands typed in chat (lines starting with '/'); null sends them as chat.</summary>
     public Action<string>? Command { get; set; }
+
+    /// <summary>The F1 panel's model (GROUND.md §8.2), set by the ground view.</summary>
+    public IConsoleModel? Console { get; set; }
 
     // ---------------------------------------------------------------- reads
 

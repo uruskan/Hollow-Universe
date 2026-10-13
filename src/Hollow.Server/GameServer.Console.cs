@@ -725,14 +725,14 @@ public sealed partial class GameServer
     private void CountEntities(CommandContext ctx)
     {
         Player[] players = Zone.Entities.Pool<PlayerLink>().Values.ToArray().Select(l => l.Player).ToArray();
-        ctx.Out($"Players: {_sessions.Count} on; {players.Length} characters in the zone ({players.Count(p => p.Sleeping)} asleep, " +
+        ctx.Out($"Players: {_sessions.Count} on; characters in the zone: {players.Length} ({players.Count(p => p.Sleeping)} asleep, " +
             $"{players.Count(p => p.Dead)} dead, {players.Count(p => p.Wounded)} wounded).");
         if (Zone.Animals is { } animals)
         {
             Animal[] all = animals.All.Where(a => !a.Removed).ToArray();
             string kinds = string.Join(", ", all.Where(a => !a.IsDead).GroupBy(a => a.Species.Key).OrderBy(g => g.Key, StringComparer.Ordinal)
                 .Select(g => $"{g.Count()} {g.Key}"));
-            ctx.Out($"Animals: {all.Count(a => !a.IsDead)} alive ({(kinds.Length > 0 ? kinds : "none")}), {all.Count(a => a.IsDead)} corpses, {animals.Awake} awake.");
+            ctx.Out($"Animals: {all.Count(a => !a.IsDead)} alive ({(kinds.Length > 0 ? kinds : "none")}), {animals.Awake} awake; dead ones lying: {all.Count(a => a.IsDead)}.");
         }
         WorldObject[] statics = Zone.Statics().ToArray();
         ctx.Out($"Things: {statics.Count(s => s.Kind == StaticKind.Deployable)} deployables, {statics.Count(s => s.Kind == StaticKind.Prop)} world props, " +

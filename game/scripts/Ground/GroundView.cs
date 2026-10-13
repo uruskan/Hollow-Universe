@@ -27,8 +27,10 @@ namespace HollowUniverse.Ground;
 /// </summary>
 public partial class GroundView : Node3D
 {
-    /// <summary>Radians of view per mouse count (RustMVP's default).</summary>
-    private const float MouseSensitivity = 0.002f;
+    /// <summary>Radians of view per mouse count at sensitivity 1 (RustMVP's default); the console's sensitivity scales it.</summary>
+    private const float MouseRadians = 0.002f;
+
+    private float MouseSensitivity => MouseRadians * _settings.Sensitivity;
 
     private const float MaxPitch = 85f * Mathf.Pi / 180f;
 
@@ -68,8 +70,12 @@ public partial class GroundView : Node3D
     private uint _codeSeq;
     private float _lookDYaw, _lookDPitch;
 
-    /// <summary>The camera's field of view when not zoomed (degrees, vertical).</summary>
-    public const float FieldOfView = 75;
+    /// <summary>The camera's field of view when not zoomed (degrees, vertical): the console's fov, 75 by default.</summary>
+    public float FieldOfView => _settings.Fov;
+
+    // The view's settings the console sets, and the F1 panel's model (GROUND.md §8.2).
+    private ViewSettings _settings = new();
+    private ClientConsole _console = null!;
     private float _yaw;
     private float _pitch;
     private bool _viewRestored;
@@ -196,6 +202,18 @@ public partial class GroundView : Node3D
         FxDirector.Install(this);
         FxDirector.HeatHaze = false;
         _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build };
+        // The F1 panel (GROUND.md §8.2): its console runs the view's own commands here, the rest on the server.
+        _settings = ViewSettings.Load();
+        _console = new ClientConsole(Client, _settings)
+        {
+            ToggleNetGraph = () => _overlay.ShowNetGraph = !_overlay.ShowNetGraph,
+            Quit = () => QuitRequested?.Invoke(),
+            Notice = _model.ShowNotice,
+            LocalHours = () => _world?.Sky?.LocalHours,
+            Address = ServerAddress,
+        };
+        _model.Console = _console;
+        Client.ZoneDayChanged += ApplyDay;
         _build.Say = _model.ShowNotice;
         _ui = new GroundUi { Name = "GroundUi", Model = _model };
         _ui.QuitRequested += () => QuitRequested?.Invoke();
@@ -236,6 +254,8 @@ public partial class GroundView : Node3D
 
     public override void _ExitTree()
     {
+        Client.ZoneDayChanged -= ApplyDay;
+        _console.Dispose();
         _model.Dispose();
         InventoryBody.Release();
     }
@@ -260,6 +280,10 @@ public partial class GroundView : Node3D
             AddChild(_world);
             MoveChild(_world, 0);
             _world.OpenZone(found.System, found.Body, found.Surface, Client.Frame.Origin, time, zone.RotationTimeScale);
+            if (Client.Day is { } day)
+            {
+                ApplyDay(day);
+            }
             _camera = _world.Camera;
             _nature.World = _world;
         }
@@ -412,6 +436,7 @@ public partial class GroundView : Node3D
         }
 
         Glow.Exposure = _world?.Sky?.Exposure ?? 1;
+        _overlay.ShowFps = _settings.ShowFps;
         // The effects' numbers are seen at exposure 1 under a sun of 1.3 (their viewer): the camera's exposure divides them,
         // so a blast or a fire looks as bright by day as by night, like everything that glows.
         FxDirector.Brightness = 1.3f / Glow.Exposure;
@@ -922,34 +947,18 @@ public partial class GroundView : Node3D
         }
     }
 
-    // Chat lines starting with '/' are test commands (AGENTS.md).
-    private void Command(string line)
-    {
-        string[] w = line.TrimStart('/').Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (w.Length == 0)
-        {
-            return;
-        }
-        int Arg(int i, int fallback) => w.Length > i && int.TryParse(w[i], out int n) ? n : fallback;
-        switch (w[0].ToLowerInvariant())
-        {
-            case "give" when w.Length > 1 && HostCommand != null:
-                HostCommand($"give {Client.Name} {w[1]} {Arg(2, 1)}");
-                break;
-            case "kit" when w.Length > 1 && HostCommand != null:
-                HostCommand($"kit {Client.Name} {w[1]}");
-                break;
-            case "heal" when HostCommand != null:
-                HostCommand($"heal {Client.Name}");
-                break;
-            case "kill" when HostCommand != null:
-                HostCommand($"kill {Client.Name}");
-                break;
-            default:
-                _model.ShowNotice(HostCommand != null ? "Commands: /give <item> [n], /kit <table>, /heal, /kill" : "Test commands work when hosting.");
-                break;
-        }
-    }
+    // Chat lines starting with '/' are console commands (GROUND.md §8.2): "/give rifle" runs as "give rifle" does in
+    // the F1 console, with the player's own rights; the answer's first line shows on the HUD.
+    private void Command(string line) => _console.SubmitFromChat(line);
+
+    /// <summary>Where this game is connected (the F1 panel's INFO tab).</summary>
+    public string ServerAddress { get; set; } = "";
+
+    /// <summary>The F1 panel's model (scripted runs type into it).</summary>
+    public ClientConsole Console => _console;
+
+    // The zone's clock as the server keeps it (an admin's time or timescale): the sky turns with it.
+    private void ApplyDay(ZoneDay day) => _world?.Sky?.Ephemeris.SetSpin(day.BaseTime, day.BaseTurns, day.Scale);
 
     // Turns toward the player named by --face once they are in view (for screenshots), looking a little down at them.
     private void FaceTarget(Num.Vector3 eye, Num.Vector3 up)

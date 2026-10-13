@@ -56,8 +56,11 @@ public sealed class ChildServer : IDisposable
         return best;
     }
 
-    /// <summary>Starts the server; it is <see cref="Ready"/> once its world is built (a few seconds).</summary>
-    public static ChildServer Start(string serverDll, string repository, int port, string database, string name, bool spawnAtOrigin)
+    /// <summary>
+    /// Starts the server; it is <see cref="Ready"/> once its world is built (a few seconds). <paramref name="admin"/>, the
+    /// hosting player, may run the F1 console's admin commands (GROUND.md §8.2).
+    /// </summary>
+    public static ChildServer Start(string serverDll, string repository, int port, string database, string name, bool spawnAtOrigin, string admin)
     {
         string exe = Path.ChangeExtension(serverDll, OperatingSystem.IsWindows() ? ".exe" : null);
         var info = new ProcessStartInfo
@@ -78,6 +81,7 @@ public sealed class ChildServer : IDisposable
                  {
                      "--port", port.ToString(System.Globalization.CultureInfo.InvariantCulture), "--db", database, "--name", name,
                      "--spawn", spawnAtOrigin ? "origin" : "beach", "--parent", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                     "--admin", admin,
                  })
         {
             info.ArgumentList.Add(a);

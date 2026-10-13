@@ -309,3 +309,30 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   New pictures in `docs/images/ground/play/`: the ship's recipe, boarding, cockpit, chase camera and landing; a team
   invite, a teammate far off, the props, a crate, the recycler, a workbench, its tech tree, the research table, the map
   and the death screen. 145 of 145 tests pass.
+
+## 13 October 2026, the F1 console
+
+- **The F1 console** (`ground-console`, GROUND.md §8.2), for the owner's playtest. F1 opens Rust's F1 menu in our
+  interface's style, five tabs:
+  - CONSOLE: a log in colours (typed lines, answers, things done, refusals), history on Up and Down kept between runs,
+    Tab completion of commands, item keys, players, loot tables and things to spawn;
+  - INFO: the game and its build, this computer, the world (planet, landing site, local time, the day's speed), the
+    server;
+  - NET: ping, loss, bandwidth, snapshots, prediction error, input margin, and a graph of the last 30 seconds;
+  - ITEMS: every item with its icon, in categories with a search; an admin's click gives 1, 10, 100 or 1,000;
+  - TOOLS: god, noclip, heal, kill, a time-of-day slider and the time scale, spawn buttons (animals, the Tin Finch,
+    barrels and crates, every deployable, a raid base), teleport to a player or the map marker, entity counts, save.
+- **Commands:** for everyone `help`, `find`, `kill` (Rust's: dead at once, the respawn screen opens), `players`,
+  `whereami`, `clear`, `quit`, `fps`, `netgraph`, `fov`, `sensitivity`; for admins `give`, `kit`, `learn`, `teleport`
+  (to a player, metres or latitude and longitude), `tp2me`, `tpmarker`, `spawn`, `heal`, `kill <player>`, `god`,
+  `noclip`, `time`, `timescale`, `status`, `kick`, `say`, `save`, `ents`, `clearinv`, `ship`, `raidbase`, `admin`;
+  Rust's names work too (`inventory.give`, `global.teleport`, `env.time`, `global.god`, `global.noclip`,
+  `entity.spawn`, `server.save`).
+- **Rights:** the server checks every line. A hosted game's host is its admin; a dedicated server takes `--admin <name>`,
+  `admins.txt` and `--dev`. Others are told plainly, and everyone keeps `kill`. Five lines a second at most.
+- **God mode and noclip** ride in the player's own state, so the prediction flies exactly as the server does: no
+  corrections while flying. **time** and **timescale** turn this zone's sun only; universe time stays as it is.
+- Checked once in the hosted game: help, give rifle, spawn wolf 2, teleport, noclip up and down, time 21 (10 of 10).
+  Pictures: `docs/images/ground/play/f1-console.jpg`, `f1-info.jpg`, `f1-net.jpg`, `f1-items.jpg`, `f1-tools.jpg`.
+  Protocol 11; the console's tests (parsing, completion, a non-admin refused, give, teleport, spawn, kill and time over
+  the network, god and noclip against the prediction) pass with the rest.

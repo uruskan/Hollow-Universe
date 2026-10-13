@@ -21,6 +21,9 @@ public enum GroundScreen
 
     /// <summary>G7: the tech tree of the workbench in reach.</summary>
     TechTree,
+
+    /// <summary>The F1 panel: the console and Rust's other F1 tabs (GROUND.md §8.2).</summary>
+    Console,
 }
 
 /// <summary>
@@ -140,6 +143,7 @@ public partial class GroundUi : Control
             }
             CloseChat();
         };
+        CreateConsoleFields();
         LoadPreferences();
 
         _overlay = new Painter { Name = "Overlay", Paint = PaintOverlay };
@@ -304,6 +308,9 @@ public partial class GroundUi : Control
         Place(_host, entry, LeftFrame, 916, 561, 400, 45);
         Place(_port, entry, LeftFrame, 1333, 561, 118, 45);
         Place(_chat, _chat.Visible, LeftFrame, 20, 806, 440, 32);
+        bool console = Screen == GroundScreen.Console;
+        Place(_consoleInput, console && _consoleTab == ConsoleTab.Console, TopFrame, 70, 698, 1484, 44);
+        Place(_itemSearch, console && _consoleTab == ConsoleTab.Items, TopFrame, 300, 88, 440, 38);
         bool wheel = Wheel != null && Screen == GroundScreen.Hud, menu = Screen == GroundScreen.Menu;
         _blur.Visible = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.Menu or GroundScreen.TechTree || wheel;
         _blurMaterial.SetShaderParameter("blur", wheel ? 1.6f : menu ? 3.2f : 2.5f);
@@ -349,11 +356,14 @@ public partial class GroundUi : Control
     public override void _Process(double delta)
     {
         _now += delta;
-        if (Model.Death != null && Screen is not (GroundScreen.Death or GroundScreen.Menu))
+        bool dead = Model.Death != null;
+        // A death shows the death screen; the F1 panel may stay open over it, but a death (kill) closes it.
+        if (dead && (Screen is not (GroundScreen.Death or GroundScreen.Menu or GroundScreen.Console) || (Screen == GroundScreen.Console && !_wasDeadForConsole)))
         {
             Open(GroundScreen.Death);
         }
-        else if (Model.Death == null && Screen == GroundScreen.Death)
+        _wasDeadForConsole = dead;
+        if (!dead && Screen == GroundScreen.Death)
         {
             Open(GroundScreen.Hud);
         }
@@ -378,7 +388,11 @@ public partial class GroundUi : Control
     // Tab works even while a text field has focus (RustMVP routes it first).
     public override void _Input(InputEvent e)
     {
-        if (e is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Tab } && Screen is not (GroundScreen.Menu or GroundScreen.Death))
+        if (e is InputEventKey { Pressed: true } consoleKey && ConsoleKey(consoleKey))
+        {
+            GetViewport().SetInputAsHandled();
+        }
+        else if (e is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Tab } && Screen is not (GroundScreen.Menu or GroundScreen.Death or GroundScreen.Console))
         {
             ToggleInventory();
             GetViewport().SetInputAsHandled();
@@ -489,7 +503,7 @@ public partial class GroundUi : Control
     {
         if (button is MouseButton.WheelUp or MouseButton.WheelDown)
         {
-            if (!ZoomMap(button == MouseButton.WheelUp ? -1 : 1))
+            if (!ZoomMap(button == MouseButton.WheelUp ? -1 : 1) && !ScrollConsole(button == MouseButton.WheelDown ? 1 : -1))
             {
                 ScrollRecipes(button == MouseButton.WheelDown ? 1 : -1);
             }
@@ -536,6 +550,7 @@ public partial class GroundUi : Control
 
     private void Release(MouseButton button)
     {
+        ReleaseConsole(button);
         if (button == MouseButton.Left)
         {
             GrabMap(false);

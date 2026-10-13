@@ -160,7 +160,7 @@ public partial class GroundMode : Node
             if (ChildServer.Find(repository) is { } dll)
             {
                 _child = ChildServer.Start(dll, repository, port, System.IO.Path.GetFullPath(database), $"{name}'s game",
-                    Option("spawn", "beach") == "origin");
+                    Option("spawn", "beach") == "origin", admin: name);
                 host = "127.0.0.1";
                 connectNow = false;
                 _connectWhenReady = (host, port);
@@ -182,6 +182,8 @@ public partial class GroundMode : Node
                     DatabasePath = database,
                     Content = _content,
                     SpawnAtOrigin = Option("spawn", "beach") == "origin",
+                    // The hosting player is the game's admin (GROUND.md §8.2).
+                    Admins = new[] { name },
                     Log = line => GD.Print("[server] " + line),
                 }, GalaxyService.Galaxy);
             }
@@ -220,6 +222,9 @@ public partial class GroundMode : Node
             SoundTrace = Options.ContainsKey("sound-trace"),
             HostCommand = Command,
             TimeOverride = TimeOption(),
+            ServerAddress = host == "127.0.0.1" && (_server != null || _child != null)
+                ? $"this computer, port {port} (hosted here)"
+                : $"{host}:{port}",
         };
         _view.QuitRequested += () => GetTree().Quit();
         AddChild(_view);

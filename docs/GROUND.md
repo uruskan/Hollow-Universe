@@ -137,7 +137,9 @@ Godot.
     instead (load tests, measurements).
   - **Login** is by player name for development: the name is the account, one character per name, refused if in use.
   - **Admin console:** `status`, `kick <name> [reason]`, `teleport <name> <x> <z>` or `teleport <name> <other>`,
-    `say <text>`, `save`, `quit`. Ctrl+C or `quit` saves everyone, says goodbye to every client and stops.
+    `say <text>`, `save`, `quit`. Ctrl+C or `quit` saves everyone, says goodbye to every client and stops. Since the F1
+    console (§8.2) the server's console runs the same commands as players' F1 consoles, with every right; players run
+    them over the network, the server checking their rights (`--admin`, `admins.txt`, `--dev`).
   - **Host mode:** the game runs the same `GameServer` on a background thread for solo play (`--host`); other
     clients can join it on the same port.
   - Ground near the spawn is built at start, so the first arrival doesn't stall the tick. A respawn or a login waits
@@ -3015,13 +3017,132 @@ onto the placeholder drawings. The inventory shows the player's own body in what
 `CharacterPreview.Body`), and the death screen the zone's map (G7: `GameClient.Map`, the map screen's picture, 3.9 km
 across), the body and the bags placed on it through `ZoneMap.ToMap`. Pictures of it in play are in §5.4.
 
-### 8.2 Behaviour
+### 8.2 Console (F1)
+
+Rust's F1 menu, in our interface's style and our own drawing: F1 opens one dark translucent panel hanging from the top
+edge (the belt stays in sight below it, so what `give` hands over shows), with Rust's five tabs. F1 or Esc closes it;
+it frees the mouse while open, and the game takes no keys. Anyone may open it; the admin commands are the server's to
+allow (§8.2.2). Pictures from the real game (`--tour-steps f1`, 1600 × 900): `docs/images/ground/play/f1-console.jpg`,
+`f1-info.jpg`, `f1-net.jpg`, `f1-items.jpg`, `f1-tools.jpg`.
+
+| Tab | What it shows |
+|---|---|
+| CONSOLE | The log (newest at the bottom; the wheel or Page Up and Page Down scroll it) and the input line. Lines typed show after a red ">", the game's own answers in grey, the server's in pale blue, things done in green, refusals and errors in amber. Up and Down go through the last 100 lines typed (kept in `user://console-history.txt`); Tab completes the word being typed (§8.2.3). |
+| INFO | The game (version, the commit and branch built from and when, protocol and schema, game data hash, engine), this computer (system, processor, graphics and driver, memory, window and interface scale, frame rate), the world (planet, system and its address, body path, radius and gravity, the landing site, the zone's origin, the local solar time here, the day's speed and whether an admin set it, universe time) and the server (name, address, players, tick and snapshot rates, the player's rights). |
+| NET | Ping, snapshot loss, bandwidth in and out, snapshots a second, prediction error, input margin, clock rate, corrections and teleports, clock jumps, ship corrections, what is in view; and a graph of the last 30 s of round trip, bandwidth down and prediction error, each on its own scale (labelled with its top). |
+| ITEMS | Every item (items.json) as a grid of its catalogue icons and names, in categories with their counts, with a search. The item under the pointer, or the one chosen last, shows on the right: icon, name, key, category, stack size, description, stats. An admin picks an amount (1, 10, 100, 1000) and a click gives it at once (Rust's item list); anyone else browses. |
+| TOOLS | An admin's buttons, each running a console command (it shows in the log as if typed, and its answer under the buttons): god and noclip (lit when on), heal, kill; the zone's time of day as a slider (dragged, set on release) with 06:00, 12:00, 18:00, 00:00 and reset; the time scale (stop, ×1, ×10, ×60); spawning (the animals, the Tin Finch, barrels, crates and the recycler, every deployable, a raid base of each grade); teleporting to each player on, or to the player's map marker; entity counts, save, status, players. Without admin rights it says so and offers kill. |
+
+#### 8.2.1 Commands
+
+Words are split at spaces; "double quotes" keep a name with spaces whole; a leading slash is ignored (so chat's
+`/give rifle` works too). Names and aliases are any case. Where a command takes a player, a part of the name is enough
+when only one player's name has it; without one, it means the player who typed it ("me"). The server's own console
+(its standard input, and the hosting game's calls) has every right and no "me", so there a command names its player;
+the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <name> <item>`, `raidbase <name> [grade]`,
+`spawn <species> <name> [count] [metres]`) still work.
+
+| Command | Arguments | Who | Where | What it does |
+|---|---|---|---|---|
+| `help` | `[command]` | everyone | game | The commands (admins' listed only for admins), or one command's forms, aliases, rights and side. |
+| `find` | `<text>` | everyone | game | Commands, items, loot tables and kinds to spawn whose names (or help) hold the text. |
+| `clear` | | everyone | game | Empties the log. Alias `cls`. |
+| `quit` | | everyone | game | Leaves the game (a hosted game saves and stops). |
+| `fps` | | everyone | game | Shows or hides the frame rate at the top left. |
+| `netgraph` | | everyone | game | Shows or hides the network graph (as F3). |
+| `fov` | `[degrees]` | everyone | game | The field of view, 60–100 (75); kept in `user://ground-settings.cfg`. |
+| `sensitivity` | `[x]` | everyone | game | Mouse look, 0.1–5 (1 = RustMVP's 0.002 rad a count); kept there too. |
+| `kill` | `[player]` | everyone (another player: admins) | server | You die where you stand ("Suicide"): your body keeps what you carried and the respawn screen opens, as Rust's F1 kill: to come back at a bag in a base under attack (GAME_DESIGN.md §5). God mode doesn't stop it. |
+| `players` | | everyone | server | Who is on, admins marked, alive, wounded or dead (admins also see pings), and how many sleep in the world. |
+| `whereami` | | everyone | server | Latitude and longitude, the zone position (with the `teleport` that comes back here), height above the sea, map cell, biome, local solar time, the air's temperature. |
+| `give` | `<item> [amount] [player]` | admins | server | Items into an inventory (1–100,000); what doesn't fit drops at the feet (24 stacks at most); "+N" in the pickup feed. |
+| `kit` | `<loot table> [player]` | admins | server | A loot table's items (loot.json). |
+| `learn` | `<item\|all> [player]` | admins | server | A blueprint, or every one. |
+| `teleport` | `<player>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <x> <z>` | admins | server | To a player (1.5 m east of them), or to a point of the zone on the ground: metres east and south of its origin, or a latitude and longitude (marked N, S, E or W, or with three decimals or more on both and inside the zone). Not out of a ship's seat. |
+| `tp2me` | `<player>` | admins | server | A player to two metres in front of you. |
+| `tpmarker` | `[marker]` | admins | server | To your newest map marker, or the numbered one. |
+| `spawn` | `<kind> [count] [player]`, `spawn raidbase [grade]` | admins | server | In front of you (§8.2.4): an animal herd (`deer`, `boar`, `wolf`, `bear`; up to 12), `tin-finch`, `barrel`, `fuel-barrel`, `crate`, `military-crate`, `recycler`, any deployable by key (up to 10 in a row), or `raidbase`. |
+| `heal` | `[player]` | admins | server | Full health, food and water; no bleeding or burning. |
+| `god` | `[on\|off] [player]` | admins | server | No damage of any kind, falls included (a toggle without on or off). |
+| `noclip` | `[on\|off] [player]` | admins | server | Flies through everything: W A S D along the view, Space up, Ctrl down, Shift fast (10 and 40 m/s). |
+| `time` | (none) · `<hour>` · `reset` | admins | server | The zone's local solar time at its origin, set (0–24, `21` or `21:30`), or back to the planet's own clock (§8.2.5). |
+| `timescale` | `[x]` | admins | server | How fast the zone's day runs: 1 the day of play (×24), 0 stops the sun, up to 1,000. |
+| `status` | | admins | server | Tick time, ground tiles, every player's ping, place, traffic and inputs on time. |
+| `kick` | `<player> [reason]` | admins | server | Disconnects a player. |
+| `say` | `<text>` | admins | server | A server line in everyone's chat. |
+| `save` | | admins | server | Saves the world now. |
+| `ents` | | admins | server | Counts: players and characters (asleep, dead, wounded), animals by species, deployables, world props, dropped items, bodies, building pieces, doors, claims, ships, explosives, changed natural objects, ground tiles, net entities. |
+| `clearinv` | `[player]` | admins | server | Empties an inventory: main, belt and clothing. |
+| `ship` | `[player]` | admins | server | A Tin Finch beside a player, theirs, fuelled, its hatch open (as `spawn tin-finch`). |
+| `raidbase` | `[grade] [player]` | admins | server | A claimed hut 8 m in front, listing the player (`twig`, `wood`, `stone`, `metal`, `armoured` or 0–4; stone by default). |
+| `admin`, `unadmin` | `<name>` | admins | server | Gives or takes admin rights until the server stops (admins.txt keeps them). |
+| `world`, `animals` | | admins | server | The world's props, teams and economy; the animals, by kind, and what they cost. |
+
+Rust's names work too, so the hands remember them: `inventory.give`, `inventory.giveto`, `global.teleport`, `tp`,
+`teleportpos`, `teleport2me`, `teleport2marker`, `env.time`, `env.timescale`, `global.god`, `global.noclip`, `fly`,
+`global.kill`, `suicide`, `global.status`, `global.kick`, `global.say`, `server.save`, `entity.spawn`, `ent.spawn`,
+`entity.count`, `ownerid`, `removeowner`, `global.players`, `perf`, `graphics.fov`, `input.sensitivity` (the catalogue
+in `src/Hollow.Net/Commands/ConsoleCatalog.cs` has them all; `help <command>` lists a command's).
+
+#### 8.2.2 Rights and the network
+
+- **Admins** are named, as logins are (decision 9): `--admin <name>` (as often as wanted) and the names in `admins.txt`
+  (the working directory's, or `--admins <file>`; one a line, `#` comments) at the dedicated server's start; `--dev`
+  makes everyone an admin. A hosted game (`play-ground.cmd`, PLAY in the menu) passes its host's name, so the host is
+  the game's admin. `admin` and `unadmin` change the list until the server stops.
+- **The server decides.** Every server command goes to it as typed (`ConsoleRun`, message 150, reliable ordered, with a
+  sequence number); it parses the line, checks the rights there and then, runs it with the player as "me", and answers
+  line by line (`ConsoleReply`, 151: output, error or success, with the sequence number). A player who isn't an admin
+  gets "'give' needs admin rights on this server, which you don't have." and nothing happens. The client runs its own
+  commands (help, find, clear, quit, fps, netgraph, fov, sensitivity) at once and sends nothing.
+- **Budget:** ten lines at once, five a second per player (as chat's and the intents' budgets); over it the answer is
+  "Slow down" and the line isn't run.
+- **What the console knows of the server** (`ServerState`, 152, at joining and whenever someone joins, leaves or their
+  rights change): whether this player is an admin (the ADMIN badge, the TOOLS tab), and who is on (completion, TOOLS'
+  teleport buttons, INFO).
+- Every line run is in the server's log (`[console] Ada: give rifle`); teleports, cheats and kills are logged too.
+
+#### 8.2.3 Completion
+
+Tab completes the word at the end of the line from what that place of the command takes: command names (Rust's dotted
+aliases once a dot is typed), item keys, players on, loot tables, kinds to spawn, building grades, blueprints, on and
+off, commands (after `help`). Optional counts are passed over: `give rifle A` completes the player. One match completes
+the word and adds a space; several extend it to what they share and are listed over the bottom of the log (48 at most).
+Engine-free in `ConsoleCompletion`, with the catalogue, so the tests check it.
+
+#### 8.2.4 Spawning
+
+Things come in front of the player who typed the command (or the one named), on the ground, facing them, without the
+placing rules: animals 18 m ahead (wolves and bears 22 m) as a herd of their own (`AnimalWorld.SpawnHerd`, never
+refilled; the world's areas still come and go by themselves); a prop or deployable 2–3 m ahead, several in a row across
+the view, a sleeping bag or bed theirs and ready at once; the Tin Finch beside them where its hull fits; a raid base 8 m
+ahead with its doorway towards them. A barrel or crate spawned this way is the world's to everything else (it breaks,
+spills, empties), but it doesn't come back once gone and isn't kept across a restart (`Zone.SpawnProp`).
+
+#### 8.2.5 God mode, noclip and the zone's clock
+
+- **God mode and noclip** are flags of the character's movement state (`MoveCheats` in `CharacterState`), which only the
+  server sets; the player's own state in every snapshot carries them (`OwnState.Cheats`), so the prediction steps with
+  them exactly as the server does: one correction when one is switched (as a teleport), none while flying (a test flies
+  through the real ground at the landing site tick for tick, and over the network with no correction). Noclip is a mode
+  of `CharacterMotor`: along the view, no gravity, no collision, within the zone's ground and 20 km of height; leaving it
+  stops the character where it is (put back onto the ground if it was under it). God mode makes `Zone.Hurt` take nothing
+  and a landing cost no health. Both last through a death and a respawn, not a restart.
+- **The zone's clock** is the planet's spin as this zone's server keeps it (`SkyEphemeris.Spin`): `time <hour>` turns the
+  planet, from now on, so that it is that hour of local solar time at the zone's origin; `timescale <x>` makes it turn x
+  times faster than the day of play (0 stops the sun). Only the spin changes: orbits, seasons, the universe's time, and
+  any other zone's sky stay as they are. The climate follows it (it is cold after `time 3`); every client gets it
+  (`ZoneClock`, 153, at joining and when it changes) and turns its sky with it. It isn't saved: a restart, or `time
+  reset`, brings back the planet's own clock.
+
+### 8.3 Behaviour
 
 RustMVP's rules, with Rust's where RustMVP had none:
 
 - **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
   inventory, closing any open container; Esc closes the wheel, the inventory or crafting, then opens the menu; 1–6
-  select the belt; Enter opens chat. A container opened in the world opens the inventory with it.
+  select the belt; Enter opens chat; F1 opens and closes the console (§8.2, even from a text field; it may stay open
+  over the death screen, but a death closes it). A container opened in the world opens the inventory with it.
 - **Inventory:** a click selects a slot and shows the item panel (name, description, INFORMATION, ACTIONS, and
   SPLITTING for stacks). Dragging moves the whole stack; middle-dragging half, with left Shift a third (rounded up);
   dragging the split icon moves the slider's amount. Right-click moves a stack across (into the open container and
@@ -3067,6 +3188,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
   research table the item, the salvage and the blueprint with arrows between, the price or the reason it can't start,
   and BEGIN RESEARCH. A blueprint is drawn as the item it teaches on blueprint blue. A world crate is a box's grid.
 - **Team chat (G7):** "/t " or "/team " before a line sends it to the team; team lines are green, marked [TEAM].
+- **Commands in chat:** any other line starting with "/" runs as in the F1 console (`/give rifle`), with the player's
+  own rights on any server; the answer's first line shows as a notice, and the whole of it in the console's log.
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
   drop outside and on a panel, split, Q, CRAFT, Tab) against `MockGroundUi` and quits with 0 when all pass.
 
@@ -4168,3 +4291,45 @@ Decisions taken for the server's performance (§5.11) without the owner, to conf
 - P10. **The server's tick runs above normal priority**, before the ground tiles it has built on worker threads and
   before the rest of the PC's ordinary work. Its tick takes 5–10 ms of every 33, so nothing else starves; on the busy
   PC of §5.11 its 99th percentile went from 15–31 ms to 11–13 ms.
+
+Decisions taken for the F1 console (§8.2) without the owner, to confirm or overturn (numbered K1 on):
+
+- K1. **The F1 panel is a screen of the ground interface** (`GroundUi.Console.cs`, painted like the rest), hanging from the
+  top edge with the belt in sight below, rather than a full-screen overlay as Rust's: what `give` hands over lands where
+  it shows. Its look is ours in RustMVP's colours (a dark translucent panel, the blue of a selected tab, a red rule),
+  with Rust's five tabs: console, info, net, items, tools.
+- K2. **Admin rights are by name**, as logins are (decision 9): the hosting player (the game passes `--admin` with its
+  name), `--admin`, `admins.txt` and `--dev`. A name alone is no protection on a public server; real accounts will
+  carry the rights (ARCHITECTURE.md §11.1).
+- K3. **One command runner for the server's console and every player's**, with the player as "me": the older forms that
+  name the player first still work, so the tests, the bots and the screenshot run kept theirs.
+- K4. **kill is everyone's**, for themselves (GAME_DESIGN.md §5's designed respawn), straight to death rather than
+  knocked down, even in god mode; the body keeps the loot as any death's does. Killing another player is an admin's.
+- K5. **God mode and noclip live in the movement state** (`MoveCheats`), not in a server table: the prediction then runs
+  them as the server does, so flying has no corrections. Noclip is 10 m/s (40 with Shift), along the view, within the
+  zone's ground; god mode blocks every damage through `Zone.Hurt` and the landing's. Both last through a respawn, not a
+  restart.
+- K6. **The zone's clock is the planet's spin, per zone** (`time`, `timescale`): orbits, seasons and universe time stay
+  global, and the sky of every client turns with the zone's (`ZoneClock`). Not saved: a restart brings back the planet's
+  own clock. `time` is local solar time at the zone's origin, as the map and the climate count it.
+- K7. **Two numbers after teleport are metres** east and south of the zone's origin (as the old admin command), unless
+  they read as a latitude and longitude: marked N, S, E or W, or both with three decimals or more and inside the zone
+  that way. `whereami` prints both forms ready to paste.
+- K8. **Spawned herds are one-off** (`SpawnHerd`, not a refilled slot as the old `spawn` made), so a pack spawned to test
+  a fight doesn't come back; spawned barrels and crates don't come back either and aren't saved. Things are placed
+  without the placing rules, an admin's privilege.
+- K9. **The console's budget is ten lines at once and five a second** per player, with a refusal line rather than
+  silence; the TOOLS and ITEMS tabs' clicks spend it too.
+- K10. **The game's own commands run in the game** (help, find, clear, quit, fps, netgraph, fov, sensitivity); fov,
+  sensitivity and fps are kept in `user://ground-settings.cfg`, the history (100 lines) in `user://console-history.txt`.
+  Sensitivity scales mouse look on foot; a ship's stick keeps its own feel.
+- K11. **Chat's slash commands go through the console** with the player's rights, on any server: `/give rifle` works for
+  an admin who joined, and a player who isn't one gets the refusal (before, they worked only when hosting).
+- K12. **An admin's click on the ITEMS tab gives at once** (Rust's item list), in the amount chosen; pointing at an item
+  shows it on the right, so nothing is given by looking.
+- K13. **The TOOLS tab's buttons are console lines**, shown in the log as typed (to learn the commands from) but not added
+  to the history; the newest answer shows under the buttons.
+- K14. **The INFO tab's build line reads the repository's git HEAD** beside `game/` (commit and branch, and when the C#
+  was built), for bug reports; an exported game would show only the build time.
+- K15. **Numbers taken in shared spaces:** protocol 11, messages 150–153, two bits for the cheats in `OwnState`. Whichever
+  branch merges second takes the next free protocol number.

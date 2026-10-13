@@ -49,7 +49,10 @@ dotnet run --project tests/Hollow.Tests -- MovementCheck   # the physics check (
 dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Protocol/Messages.cs: rewrites Messages.g.cs
 dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server on the first world's landing site (--no-db,
                                                  # --db <path>, --lat, --lon, --spawn beach|origin, --day-scale <x>,
-                                                 # --stand-in for the old test sphere; type help)
+                                                 # --stand-in for the old test sphere; type help). F1 console admins:
+                                                 # --admin <name> (repeatable), admins.txt (or --admins <file>),
+                                                 # --dev (everyone is an admin); GROUND.md §8.2
+dotnet run --project tests/Hollow.Tests -- Console    # the F1 console: parsing, completion, rights, commands over the network, god and noclip
 dotnet run -c Release --project tools/Hollow.Bots -- --server 127.0.0.1:27015 --count 100   # bots (--script, --lag/--jitter/--loss)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60   # server + 100 bots at the landing site: tick
                                                  # time, bandwidth, prediction (--spawn beach, --stand-in)
@@ -200,9 +203,10 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,death,night`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,death,night,f1`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
-  the team invite), `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
+  the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs),
+  `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
   (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire; with the building plan: place
@@ -214,12 +218,16 @@ Client options (after `--`):
   into the team one leads); 1–6 belt; Tab inventory (an attachment dropped on a gun goes onto it, the gun's panel takes
   it off; a blueprint is used like food, and learnt); Q crafting (its TECH TREE tab at a workbench); G the map (a click
   puts a marker down, a right-click takes it off; the team beside it); Enter chat (`/t ` before a line: to the team
-  alone); Esc back, then the menu; F3 network graph; the death screen's buttons respawn. At a ship, E opens its hatch, boards, refuels or opens the cargo. Flying (G6): the mouse is the
+  alone); F1 the console (GROUND.md §8.2: CONSOLE, INFO, NET, ITEMS and TOOLS tabs; Tab completes, Up and Down the
+  history, Esc or F1 closes); Esc back, then the menu; F3 network graph; the death screen's buttons respawn. At a ship, E opens its hatch, boards, refuels or opens the cargo. Flying (G6): the mouse is the
   stick, W/S move the throttle lever (X: zero), A/D slide, Space/C rise and sink, Q/E roll, Shift boosts, Z switches
-  flight assist, V the camera (chase or cockpit), F steps out, H the hatch, L the lock, J descends from orbit. Chat lines starting with `/` are test commands when
-  hosting: `/give <item> [n]`, `/kit <loot table>`, `/heal`, `/kill`.
+  flight assist, V the camera (chase or cockpit), F steps out, H the hatch, L the lock, J descends from orbit. Chat lines starting with `/` run as console commands
+  (`/give rifle`), with the player's rights on any server. A hosted game makes its host the admin.
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
-  `heal`, `kill` besides G1's (type `help`); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
+  `heal`, `kill` besides G1's (type `help`; every command of the F1 console is in GROUND.md §8.2: `give <item> [amount]
+  [player]`, `teleport`, `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`, `timescale`,
+  `ents`, `whereami`, `players`, Rust's names such as `inventory.give`, `global.teleport`, `env.time`; at the server's
+  console a command names its player, and the older `give <name> <item> [count]` forms still work); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
   (and `--raid-radius <m>`; servers without a database) builds claimed huts on a ring for raid tests;
   `raidbase <name> [grade]` builds one in front of a player, listing them.
   `ship <name>` sets a Tin Finch down beside a player, theirs and fuelled (G6).
@@ -250,7 +258,8 @@ Client options (after `--`):
   code 0 when every step passes.
 - Ground interface viewer (GROUND.md §8): `--view ui --screen <screen>` shows the RustMVP interface on sample data
   (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`, and
-  G7's `map`, `techtree`, `recycler`, `research`);
+  G7's `map`, `techtree`, `recycler`, `research`, and the F1 panel's `console`, `console-info`, `console-net`,
+  `console-items`, `console-tools` on sample data);
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
   `--view ui --ui-check` drives the inventory and crafting with real input events (drag, middle-drag, split, quick
   move, drop, craft) and quits with exit code 0 when every check passes.
@@ -270,12 +279,12 @@ Client options (after `--`):
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, `PlanetSurface` (plates, climate, biomes), cube-sphere tiles, collision, scatter, `SkyEphemeris`, the stand-in `SphereSurface`, `FirstWorld` |
 | `src/Hollow.Simulation` | Rules and simulation of the ground game: entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3); G4 (§6.3): firearms (`Combat/Firearms.cs`: recoil, spread, cadence, reload, ballistics), bullets and damage (`Zone.Guns.cs`), the wounded state (`Zone.Wounded.cs`); G5 (§6.6): explosives, blasts with line of sight, rockets and explosive rounds, raid hits (`Zone.Raid.cs`, `Zone.Blast.cs`, `Raid/`); G6 (§6.7): ships in `Ships/` (`ShipDef`, `ShipState`, `ShipMotor`, `ShipCollider`) and `Zone.Ships.cs`; G7 (§6.8): world props and where they stand (`Zone.World.cs`, `Nature/LootSpots.cs`, `World/WorldObjects.cs`), the recycler, research and tech trees (`Economy/`, `Items/Blueprints.cs`, `Content/World.cs`), teams (`Teams/`), map markers |
-| `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay |
+| `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay; `Commands/`: the F1 console's command catalogue, parsing and Tab completion (§8.2) |
 | `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread; the building's records (`BuildingCodec`, §6.5); explosives (`ExplosiveCodec`) and queued notifications (§6.6); ships (`ShipCodec`, §6.7); teams and world props' overrides (`TeamCodec`, schema 6, §6.8) |
 | `src/Hollow.Client` | The client without graphics (GROUND.md §4.3): connection, clock sync, prediction and reconciliation, interpolation, statistics; `LocalPlayer`, the survival API the UI binds to (§6.2); `LocalGun`, the predicted gun and its events for the visual layer (§6.4); `Audio/`: the sound catalogue model, a BS.1770 loudness meter, distance layers, footstep and ambience rules (§4.9); `BuildingReplica`, the building in range and the ghost check, and the building intents on `LocalPlayer` (§6.5); explosives, detonations and raid alerts (`GameClient.Raid.cs`, `LocalPlayer.Raid.cs`, §6.6); ships: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, the ship intents on `LocalPlayer` (§6.7); G7 (§6.8): blueprints and tech trees, teams, map markers, world props (`LocalPlayer.World.cs`, `GameClient.World.cs`), the zone's map and its picture (`Map/ZoneMap.cs`) |
-| `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication (the building's in `GameServer.Building.cs`, ships' in `GameServer.Ships.cs`), login, admin; raiding and the notification service (`GameServer.Raid.cs`, `Notifications/`: raid alerts, GROUND.md §6.6); the world's props, each player's blueprints, team and map, team chat (`GameServer.World.cs`, §6.8) |
+| `src/Hollow.Server` | The dedicated server (GROUND.md §4.2): console program and library (Host mode), zone, replication (the building's in `GameServer.Building.cs`, ships' in `GameServer.Ships.cs`), login, admin; raiding and the notification service (`GameServer.Raid.cs`, `Notifications/`: raid alerts, GROUND.md §6.6); the world's props, each player's blueprints, team and map, team chat (`GameServer.World.cs`, §6.8); the F1 console's commands, rights, zone clock and spawning (`AdminCommands.cs`, `GameServer.Console.cs`, §8.2) |
 | `game/` | Godot project: galaxy map, system map, ground mode (`scripts/Ground`), UI, shaders |
-| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu), the view model `Model/IGroundUi` with `MockGroundUi`, `ItemIcons`, and the viewer (`Viewer/`) |
+| `game/scripts/UI` | The ground game's interface (GROUND.md §8): `GroundUi` (HUD, inventory, loot, crafting, death, wheels, menu, the F1 panel in `GroundUi.Console.cs`), the view model `Model/IGroundUi` with `MockGroundUi` (and `IConsoleModel` with `MockConsole`), `ItemIcons`, and the viewer (`Viewer/`) |
 | `game/assets/building` | The building and door kits as GLB (three levels of detail, Godot collision names) and their 2K textures (GROUND.md §6.3) |
 | `game/scripts/Build` | The build sandbox (`--view build`): batched rendering of structures, the plan's ghost, doors, the HUD lines and the wheels' view model |
 | `src/Hollow.Simulation/Animals` | G7's animals (GROUND.md §6.9): `AnimalWorld` (the staggered AI tick, perception, the brain, steering, spawning), `NavGrid` (ground, water, slopes and trunks in 2 m cells, short paths), `AnimalHitboxes`; the zone's side in `Zone.Animals.cs`; the numbers in `game/data/ground/animals.json` |

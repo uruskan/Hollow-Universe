@@ -377,6 +377,7 @@ public partial class GroundUi
         }
         PanMap();
         DragMap();
+        DragConsoleSlider();
     }
 
     private void UpdateSplit()

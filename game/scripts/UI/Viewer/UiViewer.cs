@@ -9,7 +9,8 @@ namespace HollowUniverse.UI.Viewer;
 /// <summary>
 /// The interface viewer (<c>--view ui</c>, GROUND.md §8): the ground interface on <see cref="MockGroundUi"/> over a
 /// plain backdrop, opened on one screen for a look or a screenshot. Options (after "--"):
-/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|menu|map|techtree|recycler|research</c>, and
+/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|menu|map|techtree|recycler|research</c>,
+/// the F1 panel's <c>console|console-info|console-net|console-items|console-tools</c>, and
 /// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, wheel sectors).
 /// Screenshots hold the HUD's moments and the sample's clock still; without <c>--shot</c> the mock runs and every
 /// screen is interactive. <c>--ui-check</c> drives the inventory and crafting with real input events, checks the
@@ -112,6 +113,19 @@ public partial class UiViewer : Node
                 _model.OpenMachine(ContainerKind.ResearchTable);
                 _ui.Open(GroundScreen.Inventory);
                 _ui.Select(new SlotRef(ContainerId.Loot, 2));
+                break;
+            case "console" or "console-info" or "console-net" or "console-items" or "console-tools":
+                // The F1 panel (GROUND.md §8.2) on sample data.
+                _model.HudSample();
+                _ui.ToggleConsole();
+                _ui.ConsoleTab = screen switch
+                {
+                    "console-info" => ConsoleTab.Info,
+                    "console-net" => ConsoleTab.Net,
+                    "console-items" => ConsoleTab.Items,
+                    "console-tools" => ConsoleTab.Tools,
+                    _ => ConsoleTab.Console,
+                };
                 break;
             default:
                 _model.HudSample();
