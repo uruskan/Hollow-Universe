@@ -3223,3 +3223,73 @@ def box_trailer(b, at, yaw=0.0, length=13.0, tint=OFFWHITE, band=ORANGE, code="D
                   solid=False)
         b.collide_box(Vector((0, 0, floor + h / 2)), (2.5, length, h), (0, 0, 0))
     return b.world((0, hl - 2.0, floor + 0.1))
+
+
+# ------------------------------------------------------------------------------------------------ mine railway
+
+def narrow_track(b, pts, gauge=0.6, step=0.9, tint=srgb(0.45, 0.36, 0.26), z=0.0):
+    """Narrow-gauge mine track along a smooth curve through `pts` (x, y): timber sleepers every `step` metres, two
+    light rails following the curve, a ballast bed."""
+    curve = spline([Vector((q[0], q[1], 0)) for q in pts], step)
+    ribbon(b, [tuple(p.xy) for p in curve[::2]] + [tuple(curve[-1].xy)], 1.5, z, srgb(0.4, 0.38, 0.35), mat=CONCRETE,
+           step=1.0)
+    rails = ([], [])
+    for i, q in enumerate(curve):
+        d = curve[min(i + 1, len(curve) - 1)] - curve[max(i - 1, 0)]
+        side = Vector((-d.y, d.x, 0)).normalized()
+        yaw = math.degrees(math.atan2(d.y, d.x))
+        b.box((0.16, gauge + 0.5, 0.1), (q.x, q.y, z + 0.06), (0, 0, yaw + 90.0 + b.rng.uniform(-3, 3)), mat=PAINT,
+              tint=tint, solid=False, vary=0.08)
+        for k, s in enumerate((-1, 1)):
+            p = q + side * s * gauge / 2
+            rails[k].append((p.x, p.y, z + 0.16))
+    for r in rails:
+        b.tube(r, 0.03, mat=RUST, tint=(1, 1, 1), sides=4, cap=True)
+
+
+def ore_cart(b, at, yaw=0.0, tipped=0.0, load=None, tint=srgb(0.36, 0.38, 0.36), gauge=0.6):
+    """A side-tipping mine car: a V-shaped steel body on a cradle over a frame with four flanged wheels and buffers;
+    `tipped` degrees rolls the body over on its cradle, `load` heaps it with ore of that colour."""
+    with b.frame(at, (0, 0, yaw)):
+        b.box((0.5, 1.5, 0.14), (0, 0, 0.36), mat=PAINT, tint=DARK)
+        for y in (-0.5, 0.5):
+            b.cyl(0.03, gauge + 0.12, (0, y, 0.2), (0, 90, 0), mat=PAINT, tint=DARK, sides=6, solid=False, vary=0)
+            for s in (-1, 1):
+                b.cyl(0.18, 0.06, (s * gauge / 2, y, 0.2), (0, 90, 0), mat=PAINT, tint=srgb(0.3, 0.3, 0.3), sides=10,
+                      solid=False)
+                b.cyl(0.21, 0.02, (s * (gauge / 2 - 0.035), y, 0.2), (0, 90, 0), mat=PAINT, tint=srgb(0.3, 0.3, 0.3),
+                      sides=10, solid=False, vary=0)
+        for y in (-0.82, 0.82):
+            b.box((0.36, 0.12, 0.14), (0, y, 0.38), mat=PAINT, tint=DARK, solid=False)
+        b.box((0.12, 1.2, 0.1), (0, 0, 0.48), mat=PAINT, tint=DARK, solid=False)
+        with b.frame((0, 0, 0.55), (0, tipped, 0)):
+            prof = [(-0.55, 0.65), (-0.2, 0.0), (0.2, 0.0), (0.55, 0.65)]
+            inner = [(0.49, 0.65), (0.17, 0.06), (-0.17, 0.06), (-0.49, 0.65)]
+            b.extrude(prof + inner, 1.4, (0, 0, 0), (0, 0, 90), mat=PAINT, tint=tint, solid="hull")
+            for y in (-0.7, 0.7):
+                b.extrude([(-0.55, 0.65), (-0.2, 0.0), (0.2, 0.0), (0.55, 0.65)], 0.05, (0, y, 0), (0, 0, 0),
+                          mat=PAINT, tint=tint, solid=False)
+            for s in (-1, 1):
+                b.box((0.04, 1.42, 0.06), (s * 0.55, 0, 0.66), mat=PAINT, tint=tint, solid=False)
+            if load:
+                mound(b, (0, 0, 0.42), 0.55, 0.38, tint=load, rough=0.35, mat=CONCRETE, squash=1.25)
+    b.collide_box(Vector((at[0], at[1], at[2] + 0.6)), (1.0, 1.6, 1.2), (0, 0, yaw))
+
+
+def sheave(b, at, yaw=0.0, radius=1.6, tint=DARK):
+    """A headframe sheave wheel in the plane through `at` turned `yaw` degrees (its axle across): a grooved rim,
+    eight spokes, the hub and its bearing blocks."""
+    with b.frame(at, (0, 0, yaw)):
+        with b.frame((0, 0, 0), (0, 90, 0)):
+            b.lathe([(radius - 0.12, -0.12), (radius, -0.14), (radius - 0.06, 0.0), (radius, 0.14),
+                     (radius - 0.12, 0.12)], (0, 0, 0), mat=PAINT, tint=tint, sides=32, close=False, solid=False)
+            b.cyl(radius - 0.12, 0.24, (0, 0, 0), mat=PAINT, tint=tint, sides=32, cap=False, solid=False)
+            b.cyl(0.22, 0.3, (0, 0, 0), mat=PAINT, tint=tint, sides=12, solid=False)
+            for k in range(8):
+                a = 2 * math.pi * k / 8
+                b.beam((0.2 * math.cos(a), 0.2 * math.sin(a), 0), ((radius - 0.15) * math.cos(a),
+                                                                  (radius - 0.15) * math.sin(a), 0), 0.07, 0.12,
+                       mat=PAINT, tint=tint)
+        b.cyl(0.08, 1.0, (0, 0, 0), (0, 90, 0), mat=PAINT, tint=GREY, sides=8, solid=False)
+        for s in (-1, 1):
+            b.box((0.3, 0.3, 0.25), (s * 0.45, 0, -0.15), mat=PAINT, tint=GREY, solid=False)
