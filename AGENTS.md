@@ -127,6 +127,7 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ground --name Ada
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
 xvfb-run -a $GODOT --path game -- --view icons --out game/assets/items/icons   # render every item icon (GROUND.md §9.1)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view models --shot models.png
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view monuments --focus launch-complex --shot lc.png   # every monument at real size (docs/MONUMENTS.md 8.5; view-monuments.cmd on Windows)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --scene forest --shot forest.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --tour   # the whole flying loop through the keys; exit code 0 when it lands and steps out

@@ -39,6 +39,7 @@ public partial class Main : Node
     private UiViewer? _ui;
     private IconRenderer? _icons;
     private ModelViewer? _models;
+    private HollowUniverse.Monuments.MonumentViewer? _monuments;
     private SoundViewer? _sounds;
     private FxViewer? _fx;
     private HollowUniverse.Animals.AnimalSandbox? _animals;
@@ -75,6 +76,13 @@ public partial class Main : Node
             // Every catalogue model on the ground, or one on a turntable (GROUND.md §9).
             _models = new ModelViewer { Name = "Models", Options = _options };
             AddChild(_models);
+            return;
+        }
+        if (Option("view", "galaxy") == "monuments")
+        {
+            // Every monument at its real size, a row per tier, with a fly camera (MONUMENTS.md §8.5).
+            _monuments = new HollowUniverse.Monuments.MonumentViewer { Name = "Monuments", Options = _options };
+            AddChild(_monuments);
             return;
         }
         if (Option("view", "galaxy") == "fx")
@@ -280,7 +288,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
-        if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _build == null
+        if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _monuments == null && _build == null
             && _sounds == null && _fx == null && _ship == null && _animals == null)
         {
             _traceTimer += delta;
@@ -314,6 +322,7 @@ public partial class Main : Node
             : _ship != null ? _ship.ReadyForShot
             : _sounds != null ? _sounds.ReadyForShot
             : _icons != null ? _icons.ReadyForShot : _models != null ? _models.ReadyForShot
+            : _monuments != null ? _monuments.ReadyForShot
             : _fx != null ? _fx.ReadyForShot
             : _animals != null ? _animals.ReadyForShot
             : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady

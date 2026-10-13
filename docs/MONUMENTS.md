@@ -457,11 +457,10 @@ zones (`zone`: radiation with a level, safe, no-build, arc) and its pad (`set_pa
 The grid substation exports 417 primitives and 12 pieces: 21,410 triangles at level 0, 2.0 MB; the Atmosphere
 Processor 13,653 primitives, 310,628 triangles, 33.8 MB. The landmarks stay under 600,000 triangles at level 0
 each; those with lines (the Tether Anchor's cable, the Mass Driver's rail) build only their first kilometres and
-list in their JSON (`line`) the kit pieces, spacing and profile the game uses to lay the rest. **Open**: how the
-models ship. A catalogue of 66 at a few MB
-each is too much to commit as GLB, so the GLBs are rebuilt from the scripts and not committed for now. The likely
-answer (M6): the JSON already lists every primitive, so the game can build the meshes itself from it (a few hundred
-KB per monument), with per-site variation for free; only the kit pieces stay GLB.
+list in their JSON (`line`) the kit pieces, spacing and profile the game uses to lay the rest. The GLBs are committed with their import settings (the owner's
+decision, 13 October 2026; about 600 MB for the 55 monuments and their kit pieces, the largest the Arcology's 75 MB).
+Later (M6) the game may build the meshes itself from the JSON, which already lists every primitive, for per-site
+variation; the kit pieces would stay GLB.
 
 ### 8.4 Variation
 
@@ -469,10 +468,18 @@ A monument script is a template. **Proposal**: each site seeds its own Builder (
 damage (missing panels, fallen walls, broken windows), dressing, the loot spots' positions and the guards' differ per
 instance while the layout players learn stays. States (§7.5) change the dressing again.
 
-### 8.5 Look-dev images
+### 8.5 Look-dev images and the viewer
 
-`docs/images/monuments/`: every monument from its views (§5's "Built" entries), and a scale chart of all of them
-beside a person and the Tin Finch.
+`docs/images/monuments/`: every monument from its views (§5's "Built" entries), and scale charts (`scale-*.jpg`,
+by `art/monuments/scale_chart.py`): every monument of a tier in rows at one scale, labelled with its footprint and
+height, a person and a Tin Finch at the start of every row.
+
+**The monument viewer** (`--view monuments`, `game/scripts/Monuments/MonumentViewer.cs`; `view-monuments.cmd` builds,
+imports and opens it): every monument in `game/data/monuments` at its real size on open ground, a row per tier,
+with its kit pieces placed, its pad, a label, and its levels of detail switching at its own distances as they will
+in the game. Hold the right mouse button to look, W A S D to fly, Q / E down and up, Shift faster, the wheel sets the
+speed, ← → jump between monuments, Home shows the whole park, L hides the labels. Options: `--focus <key>`,
+`--yaw`, `--pitch`, `--distance`, `--park`, `--shot <file>`.
 
 ---
 
