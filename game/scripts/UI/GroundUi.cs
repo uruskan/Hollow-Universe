@@ -51,6 +51,12 @@ public partial class GroundUi : Control
     /// <summary>Whether the game should free the mouse pointer.</summary>
     public bool WantsCursor => Screen != GroundScreen.Hud || Radial != null || IsChatting;
 
+    /// <summary>
+    /// Whether the interface takes the keys the game walks with: a screen over the HUD or chat does; a radial doesn't
+    /// (RustMVP's: the player walks while choosing; its pointer only keeps the mouse).
+    /// </summary>
+    public bool TakesKeys => Screen != GroundScreen.Hud || IsChatting;
+
     public bool IsChatting => _chat != null && _chat.Visible;
 
     /// <summary>The menu's PLAY or HOST SOLO: the player name.</summary>

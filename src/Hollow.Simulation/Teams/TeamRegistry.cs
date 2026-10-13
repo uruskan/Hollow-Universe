@@ -4,11 +4,13 @@ using Hollow.Simulation.Entities;
 
 namespace Hollow.Simulation.Teams;
 
-/// <summary>What a player does with teams (GROUND.md §6.8, Rust's).</summary>
+/// <summary>
+/// What a player does with teams (GROUND.md §6.8, Rust's). An invite is a verb on the player invited (GROUND_SYSTEMS.md §5,
+/// the character capability's).
+/// </summary>
 public enum TeamAction : byte
 {
     Create,
-    Invite,
     Accept,
     Decline,
     Leave,

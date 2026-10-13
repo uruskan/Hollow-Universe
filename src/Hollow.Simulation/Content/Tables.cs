@@ -175,6 +175,12 @@ public sealed class DeployableDef
     /// <summary>Its storage is take only (a world crate, G7).</summary>
     public bool TakeOnly { get; init; }
 
+    /// <summary>
+    /// Picked back up as its item with E (deployables.json <c>pickup</c>, GROUND_SYSTEMS.md §11.3): when empty, where the
+    /// player has building rights (Rust's).
+    /// </summary>
+    public bool Pickup { get; init; }
+
     /// <summary>A recycler (G7): its input and output slots and pace (world.json); null for anything else.</summary>
     public RecyclerStats? Recycler { get; internal set; }
 
@@ -368,6 +374,15 @@ public sealed class SurvivalTuning
 
     /// <summary>A dud (a charge whose fuse went out) nobody lights again.</summary>
     public LifetimeRule DudLifetime { get; init; } = new(600, LifetimeRestart.None, false);
+
+    /// <summary>A spent arrow stuck where it hit (GROUND_SYSTEMS.md §5): it lies this long unless someone takes it.</summary>
+    public LifetimeRule ArrowLifetime { get; init; } = new(300, LifetimeRestart.None, false);
+
+    /// <summary>At most this many spent arrows in a zone: the oldest goes first (survival.json's <c>arrows</c>).</summary>
+    public int ArrowsMost { get; init; } = 600;
+
+    /// <summary>How deep a spent arrow's tip is in what it hit, metres.</summary>
+    public float ArrowDepth { get; init; } = 0.1f;
 
     /// <summary>
     /// Bags of dropped items (GROUND.md §6.1): what they are called, their slots, and how near a bag (metres) loose

@@ -23,7 +23,7 @@ public sealed record PendingPiece(uint Seq, PieceDef Piece, BuildingFrame Frame,
 // The building intents (GROUND.md §6.3, phase 2). Each returns its sequence number (0 if it couldn't be sent); the
 // answer comes as every intent's does (IntentAnswered, and IntentRejected when refused). Optimistic like every intent:
 // the materials or the item it uses leave the inventory at once, a placement is drawn at once (PendingPieces), and a
-// refusal rolls back.
+// refusal rolls back. Doors, locks and the tool cupboard are used through verbs (Interact, GROUND_SYSTEMS.md §5).
 public sealed partial class LocalPlayer
 {
     private readonly List<PendingPiece> _pendingPieces = new();
@@ -111,12 +111,6 @@ public sealed partial class LocalPlayer
                 .WriteMessage(w));
     }
 
-    public uint ToggleDoor(Door door) =>
-        Intend(null, w => new DoorIntent { Seq = _nextSeq, Action = DoorAction.Toggle, Target = door.Id.Value }.WriteMessage(w));
-
-    public uint PickUpDoor(Door door) =>
-        Intend(null, w => new DoorIntent { Seq = _nextSeq, Action = DoorAction.PickUp, Target = door.Id.Value }.WriteMessage(w));
-
     /// <summary>Fits the key or code lock in a slot to a door.</summary>
     public uint AttachLock(ContainerRef from, int slot, Door door)
     {
@@ -125,27 +119,6 @@ public sealed partial class LocalPlayer
             w => new LockIntent { Seq = _nextSeq, Action = LockAction.Attach, From = from, Slot = (byte)slot, Expected = expected, Door = door.Id.Value }
                 .WriteMessage(w));
     }
-
-    public uint SetCode(Door door, string code) => LockAct(LockAction.SetCode, door, code);
-
-    public uint EnterCode(Door door, string code) => LockAct(LockAction.EnterCode, door, code);
-
-    public uint Lock(Door door) => LockAct(LockAction.Lock, door);
-
-    public uint Unlock(Door door) => LockAct(LockAction.Unlock, door);
-
-    public uint RemoveLock(Door door) => LockAct(LockAction.Remove, door);
-
-    /// <summary>Cuts a key for a key lock (its owner; the wood leaves at once).</summary>
-    public uint MakeKey(Door door)
-    {
-        BuildingData data = Content.Building;
-        return Intend(new Pending(p => new ItemWallet(p.Content, p.Inventory.Carried).Take(data.KeyCostMaterial, data.KeyCost)),
-            w => new LockIntent { Seq = _nextSeq, Action = LockAction.MakeKey, Door = door.Id.Value }.WriteMessage(w));
-    }
-
-    private uint LockAct(LockAction action, Door door, string code = "") =>
-        Intend(null, w => new LockIntent { Seq = _nextSeq, Action = action, Door = door.Id.Value, Code = code }.WriteMessage(w));
 
     /// <summary>
     /// Places the claim device in a slot on a foundation or floor, at a point of its top (<paramref name="x"/>,
@@ -160,17 +133,6 @@ public sealed partial class LocalPlayer
             Yaw = (byte)PieceGeometry.Wrap(yaw),
         }.WriteMessage(w));
     }
-
-    public uint Authorise(ClaimDevice device) => ClaimAct(ClaimAction.Authorise, device);
-
-    public uint Deauthorise(ClaimDevice device) => ClaimAct(ClaimAction.Deauthorise, device);
-
-    public uint ClearAuthorised(ClaimDevice device) => ClaimAct(ClaimAction.ClearList, device);
-
-    public uint PickUpClaim(ClaimDevice device) => ClaimAct(ClaimAction.PickUp, device);
-
-    private uint ClaimAct(ClaimAction action, ClaimDevice device) =>
-        Intend(null, w => new ClaimIntent { Seq = _nextSeq, Action = action, Target = device.Id.Value }.WriteMessage(w));
 
     private Pending TakingOne(ContainerRef from, int slot, ushort expected) =>
         new(p => from is ContainerRef.Main or ContainerRef.Belt && p.Resolve(from) is { } c &&

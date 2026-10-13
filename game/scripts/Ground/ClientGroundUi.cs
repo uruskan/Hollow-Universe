@@ -55,7 +55,11 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         me.Died += OnDied;
         client.ChatReceived += OnChat;
         SubscribeWorld(me);
-        Radials = new[] { new RadialBinding(RadialInput.Aim, 0, () => Build?.HeldRadial) };
+        Radials = new[]
+        {
+            new RadialBinding(RadialInput.Aim, 0, () => Build?.HeldRadial),
+            new RadialBinding(RadialInput.Interact, client.Content.Interactions.HoldSeconds, OpenInteraction),
+        };
     }
 
     public void Dispose()
@@ -78,7 +82,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     /// <summary>The camera's yaw (radians, the movement code's convention), for the bearing of damage.</summary>
     public Func<float> ViewYaw { get; set; } = () => 0;
 
-    /// <summary>What the interact key would act on now (set by the view every frame).</summary>
+    /// <summary>What the interact key acts on now, as the prompt says it (set every frame by <see cref="Aim"/>; none over the keypad).</summary>
     public InteractionPrompt? Prompt { get; set; }
 
     /// <summary>Console commands typed in chat (lines starting with '/'); null sends them as chat.</summary>
@@ -465,14 +469,6 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     }
 
     public void SelectBelt(int index) => Me.HeldSlot = index == Me.HeldSlot ? -1 : Math.Clamp(index, -1, PlayerInventory.BeltSlots - 1);
-
-    public void SetBurning(bool on)
-    {
-        if (Me.LootKind == LootKind.Device && _client.ThingOf(Me.LootTarget) is { } thing && thing.Lit != on)
-        {
-            Me.Toggle(Me.LootTarget);
-        }
-    }
 
     public void CloseLoot()
     {

@@ -16,7 +16,7 @@ public sealed class CapabilityData
     public const string File = "capabilities.json";
 
     private readonly Dictionary<string, int> _index = new(StringComparer.Ordinal);
-    private readonly CapabilitySet _owned, _container, _burner, _machine;
+    private readonly CapabilitySet _owned, _container, _burner, _machine, _station, _portable;
     private readonly CapabilitySet[] _locks;
 
     internal CapabilityData(IReadOnlyList<string> keys)
@@ -30,17 +30,25 @@ public sealed class CapabilityData
         _container = Set("container");
         _burner = Set("burner");
         _machine = Set("machine");
-        Bag = Set("container", "lifetime");
+        _station = Set("station");
+        _portable = Set("portable");
+        Bag = Set("container", "lifetime", "pickup");
         Corpse = Set("container", "lifetime");
         Door = Set("door", "owned");
         _locks = new CapabilitySet[Enum.GetValues<LockKind>().Length];
         _locks[(int)LockKind.Key] = Set("key-lock");
         _locks[(int)LockKind.Code] = Set("code-lock");
-        Cupboard = Set("cupboard", "owned");
+        Cupboard = Set("cupboard", "owned", "container");
         Ship = Set("ship", "owned", "container");
+        ShipPart = Set("ship", "owned");
         Explosive = Set("owned", "explosive");
-        Dud = Set("owned", "explosive", "lifetime");
+        Dud = Set("owned", "explosive", "lifetime", "dud");
         Carcass = Set("lifetime");
+        Sleeper = Set("container");
+        Down = Set("container", "wounded");
+        Awake = Set("character");
+        Pickup = Set("pickup");
+        Arrow = Set("pickup", "lifetime", "arrow");
     }
 
     /// <summary>The list's keys, by index.</summary>
@@ -65,12 +73,15 @@ public sealed class CapabilityData
 
     public CapabilitySet Corpse { get; }
 
-    /// <summary>A door (its lock's are added while it has one, <see cref="Lock"/>), the claim device, a ship, an explosive.</summary>
+    /// <summary>A door (its lock's are added while it has one, <see cref="Lock"/>), the tool cupboard (its store a container), a ship, an explosive.</summary>
     public CapabilitySet Door { get; }
 
     public CapabilitySet Cupboard { get; }
 
     public CapabilitySet Ship { get; }
+
+    /// <summary>A ship's hatch or fuel cap (its cargo, reached through the open hatch, is <see cref="Ship"/>'s whole set).</summary>
+    public CapabilitySet ShipPart { get; }
 
     public CapabilitySet Explosive { get; }
 
@@ -80,12 +91,28 @@ public sealed class CapabilityData
     /// <summary>An animal's carcass: it goes after its species' time, or once harvested out.</summary>
     public CapabilitySet Carcass { get; }
 
+    /// <summary>A player asleep (logged off): looted.</summary>
+    public CapabilitySet Sleeper { get; }
+
+    /// <summary>A player down (wounded): looted, and helped up.</summary>
+    public CapabilitySet Down { get; }
+
+    /// <summary>A player up and about: a team's leader invites them.</summary>
+    public CapabilitySet Awake { get; }
+
+    /// <summary>A natural pickup or berry bush: taken with E.</summary>
+    public CapabilitySet Pickup { get; }
+
+    /// <summary>A spent arrow stuck where it hit: taken with E, gone after a while, falls when what holds it goes.</summary>
+    public CapabilitySet Arrow { get; }
+
     /// <summary>A lock's, by its kind (none for none).</summary>
     public CapabilitySet Lock(LockKind kind) => (uint)kind < (uint)_locks.Length ? _locks[(int)kind] : CapabilitySet.Empty;
 
     /// <summary>
     /// A deployable's (or world prop's), from its blocks: placed by a player (owned), <c>slots</c> (container),
-    /// <c>device</c> (burner), <c>recycler</c> or <c>research</c> (machine).
+    /// <c>device</c> (burner), <c>recycler</c> or <c>research</c> (machine), <c>workbench</c> (station), <c>pickup</c>
+    /// (portable).
     /// </summary>
     public CapabilitySet Of(DeployableDef def)
     {
@@ -98,9 +125,17 @@ public sealed class CapabilityData
         {
             set = set.With(_burner);
         }
-        if (def.IsMachine)
+        if (def.Recycler != null || def.Research != null)
         {
             set = set.With(_machine);
+        }
+        if (def.Workbench > 0)
+        {
+            set = set.With(_station);
+        }
+        if (def.Pickup)
+        {
+            set = set.With(_portable);
         }
         return set;
     }

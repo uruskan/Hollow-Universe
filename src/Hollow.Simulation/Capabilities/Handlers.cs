@@ -39,16 +39,23 @@ public interface ILifetime : ITargetable
 /// without its handler, or a handler without its entry, stops the start. One class each; a new kind of behaviour is one
 /// class here and one line in the data.
 /// </summary>
-public static class CapabilityHandlers
+public static partial class CapabilityHandlers
 {
-    /// <summary>The handlers by capabilities.json's index, sealed (throws listing what is missing or extra).</summary>
-    public static Registry<ICapability> Create(CapabilityData data)
+    /// <summary>
+    /// The handlers by capabilities.json's index, sealed (throws listing what is missing or extra). Those with verbs
+    /// (GROUND_SYSTEMS.md §5) find theirs in the content's interactions.json.
+    /// </summary>
+    public static Registry<ICapability> Create(GameContent content)
     {
+        CapabilityData data = content.Capabilities;
+        InteractionData verbs = content.Interactions;
         var registry = new Registry<ICapability>("capabilities", data.Keys);
         foreach (ICapability handler in new ICapability[]
                  {
-                     new Owned(), new Holds(), new Burner(), new Machine(), new DoorCapability(), new KeyLockCapability(), new CodeLockCapability(),
-                     new CupboardCapability(), new ShipCapability(), new Lifetime(), new ExplosiveCapability(),
+                     new Owned(), new Holds(verbs), new Burner(verbs), new Machine(verbs), new DoorCapability(verbs), new KeyLockCapability(verbs),
+                     new CodeLockCapability(verbs), new CupboardCapability(verbs), new ShipCapability(verbs), new Lifetime(), new ExplosiveCapability(),
+                     new Pickup(verbs), new Portable(verbs, data), new Station(verbs), new WoundedCapability(verbs), new CharacterCapability(verbs),
+                     new DudCapability(verbs), new ArrowCapability(),
                  })
         {
             registry.Add(handler.Key, handler);
@@ -83,7 +90,7 @@ public static class CapabilityHandlers
     }
 
     /// <summary>Holds items: Empty while it holds nothing.</summary>
-    private sealed class Holds : ICapability
+    private sealed partial class Holds : ICapability
     {
         public string Key => "container";
 
@@ -100,19 +107,19 @@ public static class CapabilityHandlers
     }
 
     /// <summary>Burns fuel (a campfire, a furnace).</summary>
-    private sealed class Burner : Works
+    private sealed partial class Burner : Works
     {
         public override string Key => "burner";
     }
 
     /// <summary>Works on what is in it (a recycler, a research table).</summary>
-    private sealed class Machine : Works
+    private sealed partial class Machine : Works
     {
         public override string Key => "machine";
     }
 
     /// <summary>Opens and shuts: CanUse when the viewer may pass it now (no lock, unlocked, on its list, its key).</summary>
-    private sealed class DoorCapability : ICapability
+    private sealed partial class DoorCapability : ICapability
     {
         public string Key => "door";
 
@@ -121,7 +128,7 @@ public static class CapabilityHandlers
     }
 
     /// <summary>A key lock on a door: Locked.</summary>
-    private sealed class KeyLockCapability : ICapability
+    private sealed partial class KeyLockCapability : ICapability
     {
         public string Key => "key-lock";
 
@@ -130,7 +137,7 @@ public static class CapabilityHandlers
     }
 
     /// <summary>A code lock on a door: Locked; HasCode once set; Authorised when the viewer is on its list.</summary>
-    private sealed class CodeLockCapability : ICapability
+    private sealed partial class CodeLockCapability : ICapability
     {
         public string Key => "code-lock";
 
@@ -146,7 +153,7 @@ public static class CapabilityHandlers
     }
 
     /// <summary>The claim device: Authorised when the viewer is on its list (their building rights there).</summary>
-    private sealed class CupboardCapability : ICapability
+    private sealed partial class CupboardCapability : ICapability
     {
         public string Key => "cupboard";
 
@@ -155,7 +162,7 @@ public static class CapabilityHandlers
     }
 
     /// <summary>A ship: Locked when its owner locked it.</summary>
-    private sealed class ShipCapability : ICapability
+    private sealed partial class ShipCapability : ICapability
     {
         public string Key => "ship";
 

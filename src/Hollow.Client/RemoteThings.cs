@@ -45,6 +45,9 @@ public sealed class RemoteThing
     /// <summary>Its own name, as the server gives it: a body's (the dead player's), a bag's, a world prop's; empty for a deployable.</summary>
     public string Name { get; set; } = "";
 
+    /// <summary>Its capabilities, as the server's rules see them (GROUND_SYSTEMS.md §2.1): what the interaction rules offer on it.</summary>
+    public Simulation.Capabilities.CapabilitySet Capabilities { get; set; }
+
     public bool Lit => (Flags & ViewerFlags.Lit) != 0;
 
     /// <summary>The receiving player's own (their sleeping bag).</summary>

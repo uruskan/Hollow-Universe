@@ -138,25 +138,12 @@ public sealed partial class Zone
         return OutcomeCode.Done;
     }
 
-    /// <summary>Lights a dud again (the interact key on it, within reach): a new fuse, which may go out again.</summary>
-    public Outcome Rearm(Entity entity, EntityId explosive)
+    /// <summary>Lights a dud again (the dud capability's verb, GROUND_SYSTEMS.md §5): a new fuse, which may go out again.</summary>
+    internal Outcome Relight(LiveExplosive e)
     {
-        if (!Acting(entity, out Player _))
-        {
-            return OutcomeCode.Dead;
-        }
-        if (ExplosiveOf(explosive) is not { } e)
-        {
-            return OutcomeCode.NotFound;
-        }
         if (!e.Dud)
         {
             return OutcomeCode.NotUsable;
-        }
-        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), e.Ref, Content!.Survival.InteractReach);
-        if (!reach.Ok)
-        {
-            return reach;
         }
         Arm(e);
         RaidStats.Rearmed++;

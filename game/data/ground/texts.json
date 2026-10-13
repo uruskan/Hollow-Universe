@@ -80,6 +80,9 @@
     "NotOnStructure": "Place it on a foundation or a floor",
     "ListFull": "The list is full",
     "NotOnLock": "You aren't authorised on this lock",
-    "NeedsKey": "You need its key"
+    "NeedsKey": "You need its key",
+
+    "Seated": "Not from the seat",
+    "NotEmpty": "Empty it first"
   }
 }

@@ -91,6 +91,9 @@ public static class FoundationTests
         var nearby = new List<NaturalObject>();
         z.Nature!.Query(-80, -80, 80, 80, nearby);
         NaturalObject tree = nearby.First(o => c.Natural(o.Kind)?.Class == NaturalClass.Tree);
+        // A spent arrow stuck in the ground, as one shot down at it leaves it.
+        var shot = new Projectile { Id = 1, Ammo = c.ItemByKey("arrow"), Velocity = new Vector3(0, -20, -40) };
+        SpentArrow arrow = z.StickArrow(shot, new TraceHit { Target = TargetRef.Ground, Point = z.GroundAt(-10, 10) })!;
 
         var named = new (TargetRef Target, object? Thing, string What)[]
         {
@@ -103,6 +106,7 @@ public static class FoundationTests
             (hut.Claim!.Ref, hut.Claim, "the claim device"),
             (charge.Ref, charge, "a charge"),
             (ship.Ref, ship, "a ship"),
+            (arrow.Ref, arrow, "a spent arrow"),
             (TargetRef.Ground, null, "the ground"),
         };
         Assert.Equal(Enum.GetValues<TargetFamily>().Length - 1, named.Select(n => n.Target.Family).Distinct().Count(), "every family named once");
@@ -180,10 +184,10 @@ public static class FoundationTests
             throw new TestFailure("no place");
         }
         StandFromSide(s.OpenReach - 0.1f);
-        Assert.Equal(OutcomeCode.Done, z.Open(ada, box.Id), "opened from 0.1 m inside the reach of its side");
+        Assert.Equal(OutcomeCode.Done, z.Interact(ada, box.Ref, "open"), "opened from 0.1 m inside the reach of its side");
         z.Close(ada);
         Vector3 eye = StandFromSide(s.OpenReach + 0.1f);
-        Assert.Equal(OutcomeCode.OutOfReach, z.Open(ada, box.Id), "not from 0.1 m beyond it");
+        Assert.Equal(OutcomeCode.OutOfReach, z.Interact(ada, box.Ref, "open"), "not from 0.1 m beyond it");
         Fixtures.Report($"reach {s.OpenReach} m to the side: {Vector3.Distance(eye, box.Centre):0.00} m from its centre is too far");
 
         // A hut: a box inside is hidden from outside by a wall, not from inside.
@@ -194,9 +198,9 @@ public static class FoundationTests
         (Vector3 face, Vector3 outward) = hut.Face(hut.Walls[1], height: 0);
         Raids.Stand(rig, ada, z.Settle(face + outward * 1.2f));
         Assert.True(Vector3.Distance(chest.Nearest(Eye()), Eye()) < s.OpenReach, "the box inside is within reach");
-        Assert.Equal(OutcomeCode.OutOfSight, z.Open(ada, chest.Id), "but the wall hides it");
+        Assert.Equal(OutcomeCode.OutOfSight, z.Interact(ada, chest.Ref, "open"), "but the wall hides it");
         Raids.Stand(rig, ada, z.Settle(inside + hut.Direction(new(0, 0, 1)) * 1.0f));
-        Assert.Equal(OutcomeCode.Done, z.Open(ada, chest.Id), "from inside it opens");
+        Assert.Equal(OutcomeCode.Done, z.Interact(ada, chest.Ref, "open"), "from inside it opens");
         z.Close(ada);
 
         // The door, from aside in front of the doorway: its frame holds it and doesn't hide it.
@@ -204,7 +208,7 @@ public static class FoundationTests
         (Vector3 front, Vector3 doorOut) = hut.Face(hut.Doorway, height: 0);
         Vector3 aside = Vector3.Normalize(Vector3.Cross(z.Frame.UpAt(front), doorOut));
         Raids.Stand(rig, ada, z.Settle(front + doorOut * 0.8f + aside * 1.6f));
-        Assert.Equal(OutcomeCode.Done, z.DoorAct(ada, DoorAction.Toggle, ContainerRef.Main, 0, 0, door.Id, 0), "the door opens from aside");
+        Assert.Equal(OutcomeCode.Done, z.Interact(ada, door.Ref, "door-open"), "the door opens from aside");
 
         // A dud stuck on the east wall's outside: not lit through the wall, lit from in front.
         (Vector3 east, Vector3 eastOut) = hut.Face(hut.Walls[1], height: 1.0);
@@ -212,9 +216,9 @@ public static class FoundationTests
         Raids.StepUntil(rig, () => dud.Dud, 12 * 30 + 2, "the fuse going out");
         (Vector3 eastIn, Vector3 inward) = hut.Face(hut.Walls[1], height: 0, inside: true);
         Raids.Stand(rig, ada, z.Settle(eastIn + inward * 0.6f));
-        Assert.Equal(OutcomeCode.OutOfSight, z.Rearm(ada, dud.Id), "the wall hides the dud");
+        Assert.Equal(OutcomeCode.OutOfSight, z.Interact(ada, dud.Ref, "relight"), "the wall hides the dud");
         Raids.Stand(rig, ada, z.Settle(face + outward * 1.0f));
-        Assert.Equal(OutcomeCode.Done, z.Rearm(ada, dud.Id), "lit from in front");
+        Assert.Equal(OutcomeCode.Done, z.Interact(ada, dud.Ref, "relight"), "lit from in front");
     }
 
     /// <summary>
@@ -229,7 +233,7 @@ public static class FoundationTests
         using var rig = new GameRig();
         Zone z = rig.Zone;
         GameContent c = rig.C;
-        Assert.True(CapabilityHandlers.Create(c.Capabilities).Problems.Count == 0 && z.Capabilities.Count == c.Capabilities.Keys.Count,
+        Assert.True(CapabilityHandlers.Create(c).Problems.Count == 0 && z.Capabilities.Count == c.Capabilities.Keys.Count,
             "every capability in the data has its handler");
         Entity ada = rig.Add("Ada", 0, -4), bo = rig.Add("Bo", 1, -4);
         Player a = rig.P(ada), b = rig.P(bo);
@@ -243,7 +247,7 @@ public static class FoundationTests
         box.Storage!.Set(0, ItemStack.Of(c.ItemByKey("wood"), 10));
         Assert.Equal(ViewerFlags.Mine, As(a, box), "no longer empty");
         z.TeamAct(ada, TeamAction.Create, EntityId.None, 0);
-        z.TeamAct(ada, TeamAction.Invite, b.Id, 0);
+        z.Interact(ada, b.Ref, "invite");
         z.TeamAct(bo, TeamAction.Accept, EntityId.None, z.Teams.TeamOf(a.Id)!.Id);
         Assert.Equal(ViewerFlags.Teammate, As(b, box), "to Bo, his teammate's box");
 
@@ -318,7 +322,7 @@ public static class FoundationTests
         DoorState mine = ada.BuildingReplica!.StateOf(adaDoor), his = bo.BuildingReplica!.StateOf(boDoor);
         Assert.True(mine is { Mine: true, HasCode: false, CanUse: true } && his is { Mine: false, HasCode: false },
             $"a fresh code lock: Ada's, no code ({mine.Flags}; Bo: {his.Flags})");
-        ada.Local.SetCode(adaDoor, "4711");
+        ada.Local.Interact(adaDoor.Ref, "set-code", code: "4711");
         Until(() => ada.BuildingReplica!.StateOf(adaDoor).HasCode && bo.BuildingReplica!.StateOf(boDoor).HasCode, "the code on both");
         mine = ada.BuildingReplica!.StateOf(adaDoor);
         his = bo.BuildingReplica!.StateOf(boDoor);
@@ -329,7 +333,7 @@ public static class FoundationTests
         rig.Run(0.5, (_, _) => default);
         ada.Local.CreateTeam();
         Until(() => ada.Local.Team != null, "Ada's team");
-        ada.Local.InviteToTeam(bo.EntityId);
+        ada.Local.Interact(new TargetRef(TargetFamily.Character, bo.EntityId.Value), "invite");
         Until(() => bo.Local.TeamInvites.Count > 0, "Bo's invite");
         bo.Local.AcceptInvite(bo.Local.TeamInvites[0].Team);
         Until(() => bo.ThingOf(bagId)!.Flags.HasFlag(ViewerFlags.Teammate), "Bo told the bag is his teammate's");
@@ -436,7 +440,7 @@ public static class FoundationTests
 
         // Bags: emptied, one goes at once; another's time starts again with the newest item.
         DroppedBag near = z.Spill(z.GroundAt(1.2f, 0), ItemStack.Of(c.ItemByKey("stone"), 10))!;
-        Assert.Equal(OutcomeCode.Done, z.PickUpItem(ada, near.Id), "picked up");
+        Assert.Equal(OutcomeCode.Done, z.Interact(ada, near.Ref, "pick-up"), "picked up");
         Assert.True(z.StaticOf(near.Id) == null && z.LooseCount == 0, "emptied, gone at once");
         DroppedBag bag = z.Spill(z.GroundAt(3, 3), ItemStack.Of(c.ItemByKey("stone"), 10))!;
         Assert.True(bag.Lifetime == c.Survival.BagLifetime && bag.DespawnTick == z.Tick + c.Survival.BagLifetime.Ticks, "a bag's lifetime, from data");

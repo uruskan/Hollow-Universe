@@ -198,8 +198,6 @@ public sealed partial class Zone
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Thing };
 
-        public bool Keeps => false;
-
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             Vector3 end = ray.Origin + ray.Direction * ray.Length;

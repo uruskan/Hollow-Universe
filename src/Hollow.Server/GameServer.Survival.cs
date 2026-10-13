@@ -280,32 +280,23 @@ public sealed partial class GameServer
                 CancelCraftIntent m = CancelCraftIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.CancelCraft(me, m.Ticket));
             }
-            case OpenIntent.TypeId:
+            case InteractIntent.TypeId:
             {
-                OpenIntent m = OpenIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Open(me, new EntityId(m.Target)));
+                // GROUND_SYSTEMS.md §5: every verb, one path (Zone.Interact).
+                InteractIntent m = InteractIntent.Read(_reader);
+                return !_reader.Failed && Intent(session, m.Seq,
+                    () => Zone.Interact(me, NetConvert.ToRef(m.Target), (int)Math.Min(m.Verb, int.MaxValue), m.Arg, m.Code));
             }
             case CloseIntent.TypeId:
             {
                 CloseIntent m = CloseIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.Close(me));
             }
-            case PickUpIntent.TypeId:
-            {
-                PickUpIntent m = PickUpIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq,
-                    () => m.Natural ? Zone.PickUpNatural(me, m.Target) : Zone.PickUpItem(me, new EntityId(m.Target)));
-            }
             case PlaceIntent.TypeId:
             {
                 PlaceIntent m = PlaceIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq,
                     () => Zone.Place(me, m.From, m.Slot, Expected(m.Expected), new Vector3(m.X, m.Y, m.Z), Quantize.FromAngle16(m.Yaw)));
-            }
-            case ToggleIntent.TypeId:
-            {
-                ToggleIntent m = ToggleIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Toggle(me, new EntityId(m.Target)));
             }
             case RespawnIntent.TypeId:
             {
@@ -358,11 +349,6 @@ public sealed partial class GameServer
             {
                 DetachIntent m = DetachIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq, () => Zone.Detach(me, m.WeaponIn, m.WeaponSlot, m.Mod));
-            }
-            case HelpUpIntent.TypeId:
-            {
-                HelpUpIntent m = HelpUpIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.HelpUp(me, new EntityId(m.Target)));
             }
             default:
                 return ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type) || ReceiveWorldIntent(session, type);
@@ -970,6 +956,7 @@ public sealed partial class GameServer
                     Count = count,
                     Flags = flags,
                     Name = thing.Name,
+                    Capabilities = thing.CapabilitiesIn(Content.Capabilities).Bits,
                 }.WriteMessage(_writer);
                 Send(session);
             }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using Hollow.Simulation;
+using Hollow.Simulation.Interaction;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
@@ -316,7 +317,9 @@ public static class RaidTests
         Raids.StepUntil(rig, () => thrown.State != ExplosiveState.Flying, 30, "the bag charge landing");
         Assert.True(thrown.State == ExplosiveState.Stuck && thrown.Link.Support.Whole == east.Ref, $"stuck to the east wall ({thrown.State} on {thrown.Link.Support})");
         Assert.InRange(6 * 30, 12 * 30, thrown.FuseTicks, "a 6–12 s fuse");
-        Assert.Equal(OutcomeCode.NotUsable, rig.Zone.Rearm(ada, thrown.Id), "a burning fuse can't be lit again");
+        var offered = new List<InteractOption>();
+        Assert.True(rig.Zone.Options(ada, thrown.Ref, offered) && InteractionRules.Find(offered, c.Interactions.Index("relight")) == null,
+            "a burning fuse isn't offered to be lit again");
         Raids.StepUntil(rig, () => thrown.Gone || thrown.Dud, 12 * 30 + 2, "the thrown charge");
         Fixtures.Report($"thrown bag charge: {(thrown.Dud ? "a dud" : $"went off, the stone wall at {east.Health}")}");
 
@@ -332,14 +335,14 @@ public static class RaidTests
         Assert.Equal(1L, rig.Zone.RaidStats.Duds - (thrown.Dud ? 1 : 0), "counted");
 
         // Lit again: not from afar; by the interact key within reach; it may go out again, until it goes off.
-        Assert.Equal(OutcomeCode.OutOfReach, rig.Zone.Rearm(ada, dud.Id), "too far to reach");
+        Assert.Equal(OutcomeCode.OutOfReach, rig.Zone.Interact(ada, dud.Ref, "relight"), "too far to reach");
         Raids.Stand(rig, ada, rig.Zone.GroundAt(face.X + outward.X * 1.0f, face.Z + outward.Z * 1.0f));
         rig.Step(2);
         int lit = 0;
         while (!dud.Gone)
         {
             Assert.True(lit < 10, "it goes off in the end");
-            Assert.Equal(OutcomeCode.Done, rig.Zone.Rearm(ada, dud.Id), "lit again");
+            Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, dud.Ref, "relight"), "lit again");
             lit++;
             Assert.True(dud.Burning && !dud.Dud, "burning again");
             Raids.Stand(rig, ada, rig.Zone.GroundAt(face.X + outward.X * 10, face.Z + outward.Z * 10));
@@ -351,7 +354,7 @@ public static class RaidTests
             }
         }
         Assert.True(east.Gone || east.Health < wall, $"the relit charge hurt the wall ({wall} → {east.Health})");
-        Assert.Equal(OutcomeCode.NotFound, rig.Zone.Rearm(ada, dud.Id), "nothing left to light");
+        Assert.Equal(OutcomeCode.NotFound, rig.Zone.Interact(ada, dud.Ref, "relight"), "nothing left to light");
         Fixtures.Report($"the dud took {lit} lighting(s) to go off; the wall {wall} → {(east.Gone ? "broken" : east.Health)}");
     }
 

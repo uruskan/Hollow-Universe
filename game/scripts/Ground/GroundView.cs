@@ -34,9 +34,6 @@ public partial class GroundView : Node3D
 
     private const float MaxPitch = 85f * Mathf.Pi / 180f;
 
-    /// <summary>Holding the interact key this long on a fire or furnace lights it or puts it out (Rust's "more options").</summary>
-    private const double HoldSeconds = 0.4;
-
     private SurfaceView? _world;
     private Camera3D? _camera;
     private GroundTerrain? _flat;
@@ -57,16 +54,10 @@ public partial class GroundView : Node3D
     private readonly HollowUniverse.Ships.ShipControls _shipControls = new();
     private readonly HollowUniverse.Ships.ShipCamera _shipCamera = new();
     private bool _wasPiloting;
-    private ShipInteraction? _aimedShip;
-
-    // A workbench in reach (G7): E opens its tech tree.
-    private RemoteThing? _aimedBench;
     private double _thrownAt = -10;
     private bool _effectsWarmed;
     private Keypad _keypad = null!;
-    private OptionsMenu _options = null!;
-    private Hollow.Simulation.Building.Door? _keypadDoor;
-    private bool _keypadSets;
+    private Func<string, uint>? _keypadSends;
     private uint _codeSeq;
     private float _lookDYaw, _lookDPitch;
 
@@ -86,10 +77,7 @@ public partial class GroundView : Node3D
 
     // The buttons pressed for the hands since the last frame (Hands acts on them).
     private HandPress _presses;
-    private Interaction? _aimed;
     private Num.Vector3? _placeAt;
-    private double _interactHeld = -1;
-    private bool _interactDone;
     private bool _faced;
     private bool _menuAfterDisconnect;
 
@@ -142,8 +130,12 @@ public partial class GroundView : Node3D
     /// <summary>The code lock's keypad (scripted runs show and close it).</summary>
     public Keypad Keypad => _keypad;
 
-    /// <summary>Asks a door's code on the keypad, or a new code from its owner (<paramref name="set"/>).</summary>
-    public void ShowKeypad(Hollow.Simulation.Building.Door door, bool set) => OpenKeypad(door, set);
+    /// <summary>Asks for a code on the keypad (its title), then sends it as <paramref name="sends"/> says (none: the keypad alone).</summary>
+    public void ShowKeypad(string title, Func<string, uint>? sends = null)
+    {
+        _keypadSends = sends;
+        _keypad.Ask(title);
+    }
 
     /// <summary>The view's yaw and pitch (radians, the movement code's convention); scripted runs set them.</summary>
     public float Yaw
@@ -158,8 +150,8 @@ public partial class GroundView : Node3D
         set => _pitch = Mathf.Clamp(value, -MaxPitch, MaxPitch);
     }
 
-    /// <summary>What the interact key would act on now.</summary>
-    public Interaction? Aimed => _aimed;
+    /// <summary>What the interact key acts on now (its target, what is known of it, its options).</summary>
+    public InteractAim? Aimed => _model.Aimed;
 
     /// <summary>Scripted input instead of the keyboard (screenshots, checks): attack, aim, walking.</summary>
     public InputFrame? Scripted { get; set; }
@@ -208,7 +200,7 @@ public partial class GroundView : Node3D
         FxDirector.HeatHaze = false;
         // Things breaking apart (GROUND.md §9.4): every destruction the server reports, one path.
         AddChild(new GibsView { Name = "Gibs", Client = Client });
-        _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build };
+        _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build, AskCode = ShowKeypad };
         // The F1 panel (GROUND.md §8.2): its console runs the view's own commands here, the rest on the server.
         _settings = ViewSettings.Load();
         _console = new ClientConsole(Client, _settings)
@@ -225,25 +217,24 @@ public partial class GroundView : Node3D
         _ui = new GroundUi { Name = "GroundUi", Model = _model };
         _ui.QuitRequested += () => QuitRequested?.Invoke();
         layer.AddChild(_ui);
-        // The code lock's keypad and the held-E options, over the interface.
-        _options = new OptionsMenu { Name = "Options" };
-        layer.AddChild(_options);
+        // The panels a verb opens, by the name interactions.json gives them (GROUND_SYSTEMS.md §5): one table.
+        var panels = new System.Collections.Generic.Dictionary<string, Action>(StringComparer.Ordinal) { ["techtree"] = _ui.OpenTechTree };
+        _model.OpenPanel = panel =>
+        {
+            if (panels.TryGetValue(panel, out Action? open))
+            {
+                open();
+            }
+        };
+        // The code lock's keypad, over the interface: a code verb asks for its digits, then sends them.
         _keypad = new Keypad { Name = "Keypad" };
         layer.AddChild(_keypad);
         _keypad.Pressed += () => Sounds.Flat("codelock.beep");
         _keypad.Entered += code =>
         {
-            if (_keypadDoor is not { } door)
+            if (_keypadSends is { } sends)
             {
-                return;
-            }
-            if (_keypadSets)
-            {
-                Client.Local.SetCode(door, code);
-            }
-            else
-            {
-                _codeSeq = Client.Local.EnterCode(door, code);
+                _codeSeq = sends(code);
             }
         };
         Client.Local.IntentAnswered += answer =>
@@ -525,9 +516,19 @@ public partial class GroundView : Node3D
         _people.Refresh(delta);
         _animals.Refresh(delta);
         Time("people", ref t0);
+        // What the interact key acts on (GROUND_SYSTEMS.md §5: the one query, the options from the same rules as the
+        // server's), and its prompt; the building's lines say what it is (a door, the tool cupboard).
+        LocalPlayer me = Client.Local;
+        bool alive = !me.IsDead;
+        _model.Aim(eye, forward, alive && !me.IsWounded && !piloting);
+        if (_keypad.Visible || piloting)
+        {
+            _model.Prompt = null;
+        }
+        _build.Aimed = _model.AimedTarget;
         _build.Refresh(delta, eye, forward);
-        // The lines under the crosshair give way to the keypad and the options.
-        _build.Hud.Visible = !_keypad.Visible && !_options.Visible;
+        // The lines under the crosshair give way to the keypad.
+        _build.Hud.Visible = !_keypad.Visible;
         Time("building", ref t0);
         _raid.Refresh(delta);
         Time("raid", ref t0);
@@ -537,30 +538,13 @@ public partial class GroundView : Node3D
         _audio?.Refresh(delta, input.Sprint);
         Time("audio", ref t0);
 
-        // What the interact key would act on, and where a held deployable would go.
-        LocalPlayer me = Client.Local;
-        bool alive = !me.IsDead;
-        _aimed = alive && !piloting ? Client.Aim(eye, forward) : null;
-        _aimedShip = alive && !piloting ? Client.AimShip(eye, forward) : null;
-        _aimedBench = alive && !piloting && _aimed == null && _aimedShip == null ? AimWorkbench(eye, forward) : null;
+        // Where a held deployable would go.
         _placeAt = alive && me.HeldItem?.Hands == HandUse.Place ? Client.AimGround(eye, forward, Client.Content.PlacementReach) : null;
         _firstPerson.PlacementPoint = _placeAt;
         _firstPerson.PlacementYaw = _yaw;
         Time("aim", ref t0);
         _firstPerson.Refresh(delta, input, _yaw, _pitch);
         Time("first person", ref t0);
-        UpdateInteract(delta);
-        _model.Prompt = _aimed is { } aimed
-            ? new InteractionPrompt("E", $"{aimed.Verb} {aimed.Name}".ToUpperInvariant(), MoreOptions: IsDevice(aimed))
-            : _aimedShip is { } ship
-                ? new InteractionPrompt("E", $"{ship.Verb} {ship.Name}".ToUpperInvariant())
-                : _aimedBench != null
-                    ? new InteractionPrompt("E", "OPEN TECH TREE")
-                    : _build.Prompt();
-        if (_keypad.Visible || piloting)
-        {
-            _model.Prompt = null;
-        }
         _overlay.Refresh(_camera, _people.Names(ToGodot(eye)), status);
         Time("overlay", ref t0);
     }
@@ -593,33 +577,6 @@ public partial class GroundView : Node3D
         }
         _allocatedBefore = allocated;
     }
-
-    // The workbench the view meets within reach, if one with a tech tree (G7, GROUND.md §6.8).
-    private RemoteThing? AimWorkbench(Num.Vector3 eye, Num.Vector3 direction)
-    {
-        float reach = Client.InteractReach, best = float.MaxValue;
-        RemoteThing? found = null;
-        foreach (RemoteThing thing in Client.Things)
-        {
-            if (thing.Kind != Hollow.Simulation.World.StaticKind.Deployable || Num.Vector3.DistanceSquared(thing.Position, eye) > (reach + 2) * (reach + 2) ||
-                thing.Deployable(Client.Content) is not { Workbench: > 0 } def || Client.Content.World.Tree(def.Workbench) == null)
-            {
-                continue;
-            }
-            Num.Vector3 up = Client.Frame.UpAt(thing.Position);
-            (Num.Vector3 right, Num.Vector3 front) = Hollow.Simulation.Combat.Geometry.Axes(up, thing.Yaw);
-            float t = Hollow.Simulation.Combat.Geometry.RayBox(eye, direction, reach, thing.Position + up * def.HalfExtents.Y,
-                def.HalfExtents + new Num.Vector3(0.1f), right, up, front);
-            if (t >= 0 && t < best)
-            {
-                (best, found) = (t, thing);
-            }
-        }
-        return found;
-    }
-
-    private bool IsDevice(in Interaction target) =>
-        target.Kind == InteractionKind.Open && Client.ThingOf(target.Entity)?.Deployable(Client.Content)?.Device != null;
 
     // The game has the mouse unless the interface wants it (inventory, crafting, menu, death, chat) or the window is
     // in the background.
@@ -659,8 +616,9 @@ public partial class GroundView : Node3D
             };
             return input;
         }
-        // Keys move the character only while the game has the mouse (not in the inventory, crafting, chat or menu).
-        if (_ui.WantsCursor || _keypad.Visible || Client.Local.IsDead || !GetWindow().HasFocus())
+        // Keys move the character unless a screen takes them (the inventory, crafting, chat, the menu, the keypad); a radial
+        // doesn't (RustMVP's: the player walks while choosing), though its pointer keeps the buttons.
+        if (_ui.TakesKeys || _keypad.Visible || Client.Local.IsDead || !GetWindow().HasFocus())
         {
             return input;
         }
@@ -670,8 +628,8 @@ public partial class GroundView : Node3D
         input.Crouch = Input.IsPhysicalKeyPressed(Key.Ctrl);
         input.Jump = Input.IsPhysicalKeyPressed(Key.Space);
         input.JumpPressed = _jumpPressed;
-        input.Primary = Input.IsMouseButtonPressed(MouseButton.Left);
-        input.Secondary = Input.IsMouseButtonPressed(MouseButton.Right);
+        input.Primary = !_ui.WantsCursor && Input.IsMouseButtonPressed(MouseButton.Left);
+        input.Secondary = !_ui.WantsCursor && Input.IsMouseButtonPressed(MouseButton.Right);
         return input;
     }
 
@@ -762,59 +720,6 @@ public partial class GroundView : Node3D
         }
         me.Throw(me.HeldSlot, _yaw, _pitch, lob: secondary);
         _firstPerson.Throw(item.Key);
-    }
-
-    // E: a tap acts on what is aimed at; held on a fire or furnace, it lights it or puts it out.
-    private void UpdateInteract(double delta)
-    {
-        if (_interactHeld < 0)
-        {
-            return;
-        }
-        if (Client.Piloting)
-        {
-            // In the seat E rolls the ship.
-            _interactHeld = -1;
-            return;
-        }
-        if (!Input.IsPhysicalKeyPressed(Key.E))
-        {
-            if (_options.Visible)
-            {
-                _options.Choose();
-            }
-            else if (!_interactDone && _aimed is { } tap)
-            {
-                Client.Interact(tap);
-            }
-            else if (!_interactDone && _aimedShip is { } ship)
-            {
-                // A ship: its hatch, the seat, the fuel cap or the cargo (which opens like a box).
-                Client.Interact(ship);
-            }
-            else if (!_interactDone && _aimedBench != null)
-            {
-                // A workbench: its tech tree (G7).
-                _ui.OpenTechTree();
-            }
-            else if (!_interactDone)
-            {
-                _build.Interact(OpenKeypad);
-            }
-            _interactHeld = -1;
-            return;
-        }
-        _interactHeld += delta;
-        if (!_interactDone && _interactHeld >= HoldSeconds && _aimed is { } target && IsDevice(target))
-        {
-            Client.Local.Toggle(target.Entity);
-            _interactDone = true;
-        }
-        else if (!_interactDone && _interactHeld >= HoldSeconds && _aimed == null && _build.Interactable is { } building)
-        {
-            _options.Offer(_build.Options(building, OpenKeypad));
-            _interactDone = true;
-        }
     }
 
     // ---------------------------------------------------------------- flying (G6, GROUND.md §6.7)
@@ -938,14 +843,6 @@ public partial class GroundView : Node3D
         _shipHud.Refresh();
     }
 
-    // The code lock's keypad: a code to open the door, or (its owner) a new one.
-    private void OpenKeypad(Hollow.Simulation.Building.Door door, bool set)
-    {
-        _keypadDoor = door;
-        _keypadSets = set;
-        _keypad.Ask(set ? "NEW CODE" : "ENTER CODE");
-    }
-
     public override void _UnhandledInput(InputEvent e)
     {
         if (_ui.WantsCursor || _keypad.Visible)
@@ -959,11 +856,6 @@ public partial class GroundView : Node3D
         }
         switch (e)
         {
-            case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured && _options.Visible:
-                // Held E: the mouse picks an option, the view stays.
-                _options.Move(motion.Relative.Y);
-                GetViewport().SetInputAsHandled();
-                break;
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
             {
                 float yaw = -motion.Relative.X * MouseSensitivity, pitch = -motion.Relative.Y * MouseSensitivity;
@@ -998,11 +890,6 @@ public partial class GroundView : Node3D
                         break;
                     case Key.R:
                         _presses |= HandPress.Reload;
-                        GetViewport().SetInputAsHandled();
-                        break;
-                    case Key.E when !Client.Local.IsDead:
-                        _interactHeld = 0;
-                        _interactDone = false;
                         GetViewport().SetInputAsHandled();
                         break;
                     case Key.F3:

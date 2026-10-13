@@ -13,6 +13,12 @@ namespace Hollow.Net.Protocol;
 /// </summary>
 public static class NetConvert
 {
+    /// <summary>A thing named on the wire (GROUND_SYSTEMS.md §3.1).</summary>
+    public static TargetNet ToNet(in Simulation.Targets.TargetRef target) => new() { Family = target.Family, Id = target.Id, Part = target.Part };
+
+    /// <summary>A thing named from the wire (untrusted: a family that doesn't exist names nothing).</summary>
+    public static Simulation.Targets.TargetRef ToRef(in TargetNet target) => new(target.Family, target.Id, target.Part);
+
     public static InputCommand ToCommand(in MoveInput input) => new()
     {
         Forward = Axis(input.Forward),

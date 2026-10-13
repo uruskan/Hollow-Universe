@@ -203,7 +203,7 @@ public static class RaidAlertTests
         // Bo loots. The base's minute passes.
         Raids.Stand(rig, bo, body.Position);
         rig.Step(2);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Open(bo, body.Id), "Bo opens her body");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, body.Ref, "loot"), "Bo opens her body");
         rig.Zone.UnixMilliseconds = before + 61_000;
         Route(rig, service);
         Assert.Equal(2, store.Count, "the follow-up alert queued");

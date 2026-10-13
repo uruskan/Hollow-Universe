@@ -81,6 +81,7 @@ public sealed partial class Zone
             StepVitals();
             Natural!.Respawn(UnixMilliseconds);
             StepLifetimes();
+            NoteArrowPoses();
             StepWorld();
             CheckLoot();
         }
@@ -448,12 +449,7 @@ public sealed partial class Zone
     }
 
     /// <summary>How far a point is above the ground, in metres (negative below).</summary>
-    public float HeightAboveGround(Vector3 point)
-    {
-        Vector3D body = Frame.ToBody(point);
-        double r = body.Length;
-        return (float)(r - (Surface.Radius + Surface.HeightAt(body / r)));
-    }
+    public float HeightAboveGround(Vector3 point) => GroundAim.Height(Surface, Frame, point);
 
     /// <summary>The ground's up and its slope (radians) under a point, from the surface by finite differences.</summary>
     public (Vector3 Normal, float Slope) GroundNormal(Vector3 point)

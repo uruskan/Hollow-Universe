@@ -207,7 +207,7 @@ public sealed class BuildBrain
                 if (time >= _nextToggle && _doorway?.Door is { Gone: false } door)
                 {
                     _nextToggle = time + _rng.Range(4, 10);
-                    me.ToggleDoor(door);
+                    Interacting.Tap(client, door.Ref);
                     Toggles++;
                 }
                 break;
@@ -422,7 +422,7 @@ public sealed class BuildBrain
         _tasks.Enqueue(c => _doorway == null ? 0 : _doorway.Door is { } door
             ? c.Local.Inventory.Count(c.Content.ItemByKey("code-lock")) > 0 ? c.Local.AttachLock(ContainerRef.Main, SlotOf(c, "code-lock"), door) : 0
             : NotYet);
-        _tasks.Enqueue(c => _doorway == null ? 0 : _doorway.Door is { Lock: CodeLock } door ? c.Local.SetCode(door, "1357") : NotYet);
+        _tasks.Enqueue(c => _doorway == null ? 0 : _doorway.Door is { Lock: CodeLock } door ? c.Local.Interact(door.Ref, "set-code", code: "1357") : NotYet);
         // Upgrades: the foundations to stone, the walls to wood.
         _tasks.Enqueue(c =>
         {

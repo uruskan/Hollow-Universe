@@ -17,9 +17,12 @@ public static partial class Protocol
     /// event (<see cref="ThingDestroyed"/>, GROUND.md §6.4.2); 15: free look (Alt), the head's turn from the view in every
     /// input and in characters' state; 16: the shared foundations (GROUND_SYSTEMS.md §3): one answer for every intent
     /// (<see cref="IntentResult"/>'s code and detail; <c>BuildResult</c> is gone), things named by
-    /// <see cref="TargetNet"/> (family, ID, part) and hit kinds by target family, and viewer flags.
+    /// <see cref="TargetNet"/> (family, ID, part) and hit kinds by target family, and viewer flags; 17: interaction
+    /// (GROUND_SYSTEMS.md §5): one <see cref="InteractIntent"/> for every verb (Open, PickUp, Toggle, HelpUp, Rearm and
+    /// Unlock gone; Door, Lock and Claim only place, Team doesn't invite, Ship is the pilot's keys alone), spent arrows
+    /// (<see cref="ArrowStates"/>, <see cref="ArrowsGone"/>, the Arrow target family).
     /// </summary>
-    public const uint Version = 16;
+    public const uint Version = 17;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -86,14 +89,12 @@ public enum ShipNetFlags : ushort
     Asleep = 512,
 }
 
-/// <summary>A ship action (<see cref="ShipIntent"/>).</summary>
+/// <summary>A pilot's key in the seat (<see cref="ShipIntent"/>); on foot a ship's hatch, seat, tank and lock are verbs.</summary>
 public enum ShipAction : byte
 {
     Hatch,
-    Board,
     Exit,
     Lock,
-    Refuel,
     Descend,
 }
 

@@ -11,6 +11,13 @@
     { "key": "cupboard", "note": "building.json claim: a base's building rights and upkeep. Authorised when the viewer is on its list." },
     { "key": "ship", "note": "ships.json. Locked when its owner locked it." },
     { "key": "lifetime", "note": "Goes after a while, on world time, by the zone's one lifetime step (GROUND_SYSTEMS.md §3.7): survival.json lifetimes (bags of dropped items, bodies, a dud), animals.json corpse (an animal's carcass). At once when emptied, if its rule says so." },
-    { "key": "explosive", "note": "explosives.json throwables: a charge or grenade with its fuse. Stuck to or lying on a thing, it falls when that goes (GROUND_SYSTEMS.md §3.6)." }
+    { "key": "explosive", "note": "explosives.json throwables: a charge or grenade with its fuse. Stuck to or lying on a thing, it falls when that goes (GROUND_SYSTEMS.md §3.6)." },
+    { "key": "pickup", "note": "Taken whole with E (GROUND_SYSTEMS.md §5): gather.json's pickups and berry bushes (a bush is picked bare and stays), bags of dropped items (all that fits), spent arrows." },
+    { "key": "portable", "note": "deployables.json pickup: an emptied deployable is picked back up as its item where the viewer has building rights (Rust's)." },
+    { "key": "station", "note": "deployables.json workbench: its tech tree, opened with E, and the tree's unlocks (world.json trees)." },
+    { "key": "wounded", "note": "A player down (the wounded state): another helps them up." },
+    { "key": "character", "note": "A player awake: the leader of a team invites them into it." },
+    { "key": "dud", "note": "An explosive whose fuse went out: anyone lights it again." },
+    { "key": "arrow", "note": "A spent arrow stuck where it hit (GROUND_SYSTEMS.md §5), held by what it hit: when that goes it falls to the ground below." }
   ]
 }

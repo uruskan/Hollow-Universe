@@ -721,6 +721,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         PrepareThings();
         PrepareShips();
         PrepareExplosives();
+        PrepareArrows();
 
         foreach (PlayerSession session in _sessions.Values)
         {
@@ -824,6 +825,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             {
                 ReplicateBuilding(session, centre);
                 ReplicateExplosives(session, centre);
+                ReplicateArrows(session, centre);
             }
         }
         FinishThings();

@@ -24,6 +24,8 @@ namespace HollowUniverse.Ground;
 /// asks for its code (<see cref="Keypad"/>); held E on a door or the claim device offers its options (lock, change the
 /// code, cut a key, authorise, clear the list, pick up). Pieces placed and upgraded, and doors, sound and show (the
 /// effects library); pieces broken, brought down or demolished break apart through the gibs (<see cref="GibsView"/>).
+/// What E does to doors and the tool cupboard is the interaction's (GROUND_SYSTEMS.md §5); with no building tool held, the
+/// lines under the crosshair say what the door or cupboard aimed at is.
 /// </summary>
 public partial class BuildView : Node3D, IHammerActions
 {
@@ -69,8 +71,8 @@ public partial class BuildView : Node3D, IHammerActions
     /// <summary>What the held item does in building (none: not a building tool).</summary>
     public BuildingRole Held { get; private set; }
 
-    /// <summary>The door or claim device within reach of the interact key, if any.</summary>
-    public object? Interactable { get; private set; }
+    /// <summary>What the interact key acts on now (set by the view each frame): a door or the tool cupboard has its line.</summary>
+    public Hollow.Simulation.Targets.TargetRef Aimed { get; set; }
 
     private BuildingData Data => Client.Content.Building;
 
@@ -89,8 +91,6 @@ public partial class BuildView : Node3D, IHammerActions
             return;
         }
         _target = _world.Target(eye, forward, (float)Data.Reach, out _hit);
-        // Doors and the claim device are opened within survival.json's reach.open, as the server checks.
-        Interactable = _target is Door or ClaimDevice && _hit.Distance < Client.Content.Survival.OpenReach ? _target : null;
         LocalPlayer me = Client.Local;
         ItemDef? item = me.IsDead ? null : me.HeldItem;
         Held = item?.Building ?? BuildingRole.None;
@@ -123,9 +123,11 @@ public partial class BuildView : Node3D, IHammerActions
                 Hud.Line = _target is Piece { Def.IsSlab: true } slab ? TargetLine(slab) : null;
                 break;
             default:
-                if (Interactable != null)
+                // The door or tool cupboard the interact key acts on (an ID names one thing, whatever its family).
+                var aimed = new Hollow.Simulation.Entities.EntityId(Aimed.Id);
+                if (!Aimed.IsNone && ((object?)_world.DoorOf(aimed) ?? _world.ClaimOf(aimed)) is { } part)
                 {
-                    Hud.Line = TargetLine(Interactable);
+                    Hud.Line = TargetLine(part);
                 }
                 break;
         }
@@ -476,117 +478,6 @@ public partial class BuildView : Node3D, IHammerActions
             }
         }
         return best;
-    }
-
-    // ---------------------------------------------------------------- doors and the claim device
-
-    /// <summary>The interact key's prompt for a door or the claim device within reach (null: none).</summary>
-    public InteractionPrompt? Prompt()
-    {
-        switch (Interactable)
-        {
-            case Door door:
-            {
-                DoorState state = Client.BuildingReplica!.StateOf(door);
-                string action = state.CanUse ? door.Open ? "CLOSE DOOR" : "OPEN DOOR" : state.Lock == LockKind.Code ? "ENTER CODE" : "LOCKED";
-                return new InteractionPrompt("E", action, MoreOptions: Options(door).Count > 0);
-            }
-            case ClaimDevice:
-                return new InteractionPrompt("E", "OPEN " + Data.ClaimName.ToUpperInvariant(), MoreOptions: true);
-        }
-        return null;
-    }
-
-    /// <summary>A tap of the interact key on what is within reach: a door opens or shuts (or asks for its code), the claim
-    /// device's store opens. Returns false when there is nothing.</summary>
-    public bool Interact(Action<Door, bool> keypad)
-    {
-        switch (Interactable)
-        {
-            case Door door:
-            {
-                DoorState state = Client.BuildingReplica!.StateOf(door);
-                if (state.CanUse)
-                {
-                    Client.Local.ToggleDoor(door);
-                }
-                else if (state.Lock == LockKind.Code)
-                {
-                    keypad(door, false);
-                }
-                else
-                {
-                    Sounds.At("lock.key", GroundView.ToGodot(door.Frame.ZoneTransform.Position));
-                    Say?.Invoke("It's locked.");
-                }
-                return true;
-            }
-            case ClaimDevice claim:
-                Client.Local.Open(claim.Id);
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>What holding the interact key offers on a door or the claim device: (label, action).</summary>
-    public IReadOnlyList<(string Label, Action Act)> Options(object? target, Action<Door, bool>? keypad = null)
-    {
-        var options = new List<(string, Action)>();
-        LocalPlayer me = Client.Local;
-        switch (target)
-        {
-            case Door door:
-            {
-                // What the server tells this player of the door (GROUND_SYSTEMS.md §3.3): theirs (its lock's fitter), whether
-                // its code lock has a code and lists them, locked, whether they may pass. The full menu is the interaction
-                // package's; this offers what the flags allow, a fresh code lock's code first.
-                DoorState state = Client.BuildingReplica!.StateOf(door);
-                if (state.Lock == LockKind.Code && !state.HasCode)
-                {
-                    if (state.Mine && keypad != null)
-                    {
-                        options.Add(("SET CODE", () => keypad(door, true)));
-                    }
-                }
-                else if (state.Lock == LockKind.Code && state.Authorised)
-                {
-                    options.Add((state.Locked ? "UNLOCK" : "LOCK", () => { if (state.Locked) { me.Unlock(door); } else { me.Lock(door); } }));
-                    if (!state.Locked && keypad != null)
-                    {
-                        options.Add(("CHANGE CODE", () => keypad(door, true)));
-                    }
-                }
-                if (state.Lock == LockKind.Key && state.CanUse)
-                {
-                    options.Add((state.Locked ? "UNLOCK" : "LOCK", () => { if (state.Locked) { me.Unlock(door); } else { me.Lock(door); } }));
-                    if (state.Mine)
-                    {
-                        options.Add(("CUT A KEY", () => me.MakeKey(door)));
-                    }
-                }
-                if (state.Lock != LockKind.None && !state.Locked && (state.Lock == LockKind.Code ? state.Authorised : state.Mine))
-                {
-                    options.Add(("TAKE THE LOCK", () => me.RemoveLock(door)));
-                }
-                if (state.Lock == LockKind.None && state.Mine)
-                {
-                    options.Add(("PICK UP DOOR", () => me.PickUpDoor(door)));
-                }
-                break;
-            }
-            case ClaimDevice claim:
-            {
-                bool authorised = Client.BuildingReplica!.StateOf(claim).Authorised;
-                options.Add((authorised ? "DEAUTHORISE" : "AUTHORISE", () => { if (authorised) { me.Deauthorise(claim); } else { me.Authorise(claim); } }));
-                if (authorised)
-                {
-                    options.Add(("CLEAR THE LIST", () => me.ClearAuthorised(claim)));
-                    options.Add(("PICK UP", () => me.PickUpClaim(claim)));
-                }
-                break;
-            }
-        }
-        return options;
     }
 
     // ---------------------------------------------------------------- helpers

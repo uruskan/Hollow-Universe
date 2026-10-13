@@ -338,7 +338,7 @@ public static class AnimalTests
         DeviceStats device = fire.Def.Device!;
         fire.Storage!.Set(device.FuelSlots[0], ItemStack.Of(c.ItemByKey("wood"), 200));
         fire.Storage.Set(device.InputSlots[0], ItemStack.Of(c.ItemByKey("raw-venison"), 1));
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Toggle(ada, fire.Id), "light it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, fire.Ref, "light"), "light it");
         int Count(string key) => device.OutputSlots.Sum(s => fire.Storage[s].Item == c.ItemByKey(key).Id ? fire.Storage[s].Count : 0);
         rig.Step(15 * 30 - 2);
         Assert.Equal(0, Count("cooked-venison"), "not cooked before 15 s");

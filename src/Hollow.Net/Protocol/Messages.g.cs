@@ -23,7 +23,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x0D9C53CD20319249UL;
+    public const ulong SchemaHash = 0x80B813A1C09E6B3EUL;
 }
 
 partial struct Hello
@@ -1078,6 +1078,7 @@ partial struct ThingSpawn
         w.WriteVarUInt(Count);
         w.WriteBits((uint)Flags, 8);
         w.WriteString(Name, 32);
+        w.WriteVarULong(Capabilities);
     }
 
     public static ThingSpawn Read(BitReader r)
@@ -1095,6 +1096,7 @@ partial struct ThingSpawn
         v.Count = r.ReadVarUInt();
         v.Flags = (ViewerFlags)r.ReadBits(8);
         v.Name = r.ReadString(32);
+        v.Capabilities = r.ReadVarULong();
         return v;
     }
 }
@@ -1538,32 +1540,6 @@ partial struct CancelCraftIntent
     }
 }
 
-partial struct OpenIntent
-{
-    public const byte TypeId = 56;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits64(Target, 64);
-    }
-
-    public static OpenIntent Read(BitReader r)
-    {
-        var v = new OpenIntent();
-        v.Seq = r.ReadVarUInt();
-        v.Target = r.ReadBits64(64);
-        return v;
-    }
-}
-
 partial struct CloseIntent
 {
     public const byte TypeId = 57;
@@ -1584,34 +1560,6 @@ partial struct CloseIntent
     {
         var v = new CloseIntent();
         v.Seq = r.ReadVarUInt();
-        return v;
-    }
-}
-
-partial struct PickUpIntent
-{
-    public const byte TypeId = 58;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBool(Natural);
-        w.WriteBits64(Target, 64);
-    }
-
-    public static PickUpIntent Read(BitReader r)
-    {
-        var v = new PickUpIntent();
-        v.Seq = r.ReadVarUInt();
-        v.Natural = r.ReadBool();
-        v.Target = r.ReadBits64(64);
         return v;
     }
 }
@@ -1650,32 +1598,6 @@ partial struct PlaceIntent
         v.Y = r.ReadFloat();
         v.Z = r.ReadFloat();
         v.Yaw = (ushort)r.ReadBits(16);
-        return v;
-    }
-}
-
-partial struct ToggleIntent
-{
-    public const byte TypeId = 60;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits64(Target, 64);
-    }
-
-    public static ToggleIntent Read(BitReader r)
-    {
-        var v = new ToggleIntent();
-        v.Seq = r.ReadVarUInt();
-        v.Target = r.ReadBits64(64);
         return v;
     }
 }
@@ -2379,32 +2301,6 @@ partial struct DetachIntent
     }
 }
 
-partial struct HelpUpIntent
-{
-    public const byte TypeId = 66;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits64(Target, 64);
-    }
-
-    public static HelpUpIntent Read(BitReader r)
-    {
-        var v = new HelpUpIntent();
-        v.Seq = r.ReadVarUInt();
-        v.Target = r.ReadBits64(64);
-        return v;
-    }
-}
-
 partial struct GunUpdate
 {
     public const byte TypeId = 81;
@@ -3071,32 +2967,6 @@ partial struct PlaceChargeIntent
     }
 }
 
-partial struct RearmIntent
-{
-    public const byte TypeId = 112;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteBits64(Target, 64);
-    }
-
-    public static RearmIntent Read(BitReader r)
-    {
-        var v = new RearmIntent();
-        v.Seq = r.ReadVarUInt();
-        v.Target = r.ReadBits64(64);
-        return v;
-    }
-}
-
 partial struct ExplosiveUpdate
 {
     public const byte TypeId = 113;
@@ -3315,32 +3185,6 @@ partial struct RaidAlertList
         {
             v.Alerts[i] = RaidAlertNet.Read(r);
         }
-        return v;
-    }
-}
-
-partial struct UnlockIntent
-{
-    public const byte TypeId = 130;
-
-    /// <summary>The type byte, then the message.</summary>
-    public readonly void WriteMessage(BitWriter w)
-    {
-        w.WriteBits(TypeId, 8);
-        Write(w);
-    }
-
-    public readonly void Write(BitWriter w)
-    {
-        w.WriteVarUInt(Seq);
-        w.WriteVarUInt(Recipe);
-    }
-
-    public static UnlockIntent Read(BitReader r)
-    {
-        var v = new UnlockIntent();
-        v.Seq = r.ReadVarUInt();
-        v.Recipe = r.ReadVarUInt();
         return v;
     }
 }
@@ -3963,6 +3807,149 @@ partial struct ZoneClock
         v.BaseTurns = r.ReadDouble();
         v.Scale = r.ReadDouble();
         v.Overridden = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct InteractIntent
+{
+    public const byte TypeId = 210;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        Target.Write(w);
+        w.WriteVarUInt(Verb);
+        w.WriteVarUInt(Arg);
+        w.WriteString(Code, 8);
+    }
+
+    public static InteractIntent Read(BitReader r)
+    {
+        var v = new InteractIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Target = TargetNet.Read(r);
+        v.Verb = r.ReadVarUInt();
+        v.Arg = r.ReadVarUInt();
+        v.Code = r.ReadString(8);
+        return v;
+    }
+}
+
+partial struct ArrowNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteVarUInt(Item);
+        Support.Write(w);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteQuantized(RotationX, -1f, 1f, 16);
+        w.WriteQuantized(RotationY, -1f, 1f, 16);
+        w.WriteQuantized(RotationZ, -1f, 1f, 16);
+        w.WriteQuantized(RotationW, -1f, 1f, 16);
+    }
+
+    public static ArrowNet Read(BitReader r)
+    {
+        var v = new ArrowNet();
+        v.Id = r.ReadBits64(64);
+        v.Item = r.ReadVarUInt();
+        v.Support = TargetNet.Read(r);
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.RotationX = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationY = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationZ = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationW = r.ReadQuantized(-1f, 1f, 16);
+        return v;
+    }
+}
+
+partial struct ArrowStates
+{
+    public const byte TypeId = 211;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countArrows = Arrows == null ? 0 : Math.Min(Arrows.Length, 64);
+        w.WriteBits((uint)countArrows, 7);
+        for (int i = 0; i < countArrows; i++)
+        {
+            Arrows![i].Write(w);
+        }
+    }
+
+    public static ArrowStates Read(BitReader r)
+    {
+        var v = new ArrowStates();
+        int countArrows = (int)r.ReadBits(7);
+        if (countArrows > 64)
+        {
+            r.Fail();
+            countArrows = 0;
+        }
+        v.Arrows = new ArrowNet[countArrows];
+        for (int i = 0; i < countArrows; i++)
+        {
+            v.Arrows[i] = ArrowNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ArrowsGone
+{
+    public const byte TypeId = 212;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countIds = Ids == null ? 0 : Math.Min(Ids.Length, 255);
+        w.WriteBits((uint)countIds, 8);
+        for (int i = 0; i < countIds; i++)
+        {
+            Ids![i].Write(w);
+        }
+    }
+
+    public static ArrowsGone Read(BitReader r)
+    {
+        var v = new ArrowsGone();
+        int countIds = (int)r.ReadBits(8);
+        if (countIds > 255)
+        {
+            r.Fail();
+            countIds = 0;
+        }
+        v.Ids = new BuildIdNet[countIds];
+        for (int i = 0; i < countIds; i++)
+        {
+            v.Ids[i] = BuildIdNet.Read(r);
+        }
         return v;
     }
 }

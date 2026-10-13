@@ -182,6 +182,14 @@ public enum OutcomeCode : byte
 
     /// <summary>A key lock, without its key.</summary>
     NeedsKey = 72,
+
+    // ---------------------------------------------------------------- interaction (GROUND_SYSTEMS.md §5)
+
+    /// <summary>Not from a ship's seat: the verb's gates keep the seated out.</summary>
+    Seated = 73,
+
+    /// <summary>It holds something: empty it before picking it up.</summary>
+    NotEmpty = 74,
 }
 
 /// <summary>

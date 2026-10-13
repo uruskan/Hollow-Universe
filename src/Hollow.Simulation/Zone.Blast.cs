@@ -173,29 +173,7 @@ public sealed partial class Zone
     }
 
     // The nearest point of a door's leaves (boxes hanging from their hinges), and the leaf's centre.
-    private static (Vector3 Point, Vector3 Centre) ClosestPoint(Door door, Vector3 at)
-    {
-        (Vector3 Point, Vector3 Centre) best = default;
-        float nearest = float.MaxValue;
-        for (int i = 0; i < door.Def.Leaves.Count; i++)
-        {
-            LeafDef leaf = door.Def.Leaves[i];
-            (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
-            Vector3 local = Vector3.Transform(at - position, Quaternion.Inverse(rotation));
-            Vector3 size = leaf.Size;
-            var min = new Vector3(MathF.Min(0, size.X), 0, -MathF.Abs(size.Z) / 2);
-            var max = new Vector3(MathF.Max(0, size.X), size.Y, MathF.Abs(size.Z) / 2);
-            Vector3 clamped = Vector3.Clamp(local, min, max);
-            Vector3 point = position + Vector3.Transform(clamped, rotation);
-            float d = Vector3.DistanceSquared(point, at);
-            if (d < nearest)
-            {
-                nearest = d;
-                best = (point, position + Vector3.Transform((min + max) / 2, rotation));
-            }
-        }
-        return best;
-    }
+    private static (Vector3 Point, Vector3 Centre) ClosestPoint(Door door, Vector3 at) => DoorShapes.Nearest(door, at);
 
     private static Vector3 ClosestPoint(Deployable d, Vector3 at)
     {

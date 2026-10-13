@@ -347,6 +347,12 @@ public partial struct ThingSpawn
 
     /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
     [MaxLength(32)] public string Name;
+
+    /// <summary>
+    /// Its capabilities (GROUND_SYSTEMS.md §2.1, capabilities.json's numbers as bits): what the interaction rules offer on
+    /// it, the same set the server's rules see.
+    /// </summary>
+    [VarInt] public ulong Capabilities;
 }
 
 /// <summary>A relevant static thing changed: health, count, or what the receiver is told of it.</summary>
@@ -515,27 +521,10 @@ public partial struct CancelCraftIntent
     [VarInt] public uint Ticket;
 }
 
-/// <summary>Open a box, device, corpse or sleeper.</summary>
-[NetMessage(56)]
-public partial struct OpenIntent
-{
-    [VarInt] public uint Seq;
-    public ulong Target;
-}
-
 [NetMessage(57)]
 public partial struct CloseIntent
 {
     [VarInt] public uint Seq;
-}
-
-/// <summary>Pick up a pickup or berry bush (a natural object's ID) or a dropped item (an entity ID).</summary>
-[NetMessage(58)]
-public partial struct PickUpIntent
-{
-    [VarInt] public uint Seq;
-    public bool Natural;
-    public ulong Target;
 }
 
 /// <summary>Place the deployable in a slot at a point (zone frame), turned by a yaw.</summary>
@@ -550,14 +539,6 @@ public partial struct PlaceIntent
     public float Y;
     public float Z;
     [Angle] public ushort Yaw;
-}
-
-/// <summary>Light or put out a campfire or furnace.</summary>
-[NetMessage(60)]
-public partial struct ToggleIntent
-{
-    [VarInt] public uint Seq;
-    public ulong Target;
 }
 
 /// <summary>Respawn at one of the player's sleeping bags (its entity ID), or on the beach (0).</summary>
@@ -583,8 +564,9 @@ public partial struct IntentResult
 }
 
 /// <summary>
-/// A ship action (G6, client → server, reliable ordered, the general intent sequence and budget, answered by
-/// <see cref="IntentResult"/>): the hatch, boarding, stepping out, the lock, refuelling, descending from orbit.
+/// The pilot's keys in the seat (G6, client → server, reliable ordered, the general intent sequence and budget, answered
+/// by <see cref="IntentResult"/>): the hatch, stepping out, the lock, descending from orbit. On foot, a ship's hatch, seat,
+/// tank, lock and cargo are verbs (<see cref="InteractIntent"/>).
 /// </summary>
 [NetMessage(120)]
 public partial struct ShipIntent
@@ -810,14 +792,6 @@ public partial struct DetachIntent
     [Bits(2)] public AttachmentSlot Mod;
 }
 
-/// <summary>Help a wounded player up (the interact key on them).</summary>
-[NetMessage(66)]
-public partial struct HelpUpIntent
-{
-    [VarInt] public uint Seq;
-    public ulong Target;
-}
-
 /// <summary>
 /// The gun in the player's hand as the server has it (to the owner, reliable, when it changes: each shot or reload
 /// applied, a reload done, an equip): the last gun action applied and the last refused (and why), the gun and its
@@ -882,7 +856,7 @@ public partial struct HammerIntent
     [Bits(3)] public byte Grade;
 }
 
-/// <summary>Fit the door in a slot into a frame piece (flipped or not), open or shut a door, or pick one up.</summary>
+/// <summary>Fit the door in a slot into a frame piece (flipped or not). Opening, shutting and picking up are verbs (<see cref="InteractIntent"/>).</summary>
 [NetMessage(92)]
 public partial struct DoorIntent
 {
@@ -895,7 +869,7 @@ public partial struct DoorIntent
     public bool Flip;
 }
 
-/// <summary>A lock on a door: fit one from a slot, set or enter a code, lock, unlock, cut a key, take it off.</summary>
+/// <summary>Fit a lock from a slot to a door. Its code, locking, keys and taking it off are verbs (<see cref="InteractIntent"/>).</summary>
 [NetMessage(93)]
 public partial struct LockIntent
 {
@@ -909,8 +883,8 @@ public partial struct LockIntent
 }
 
 /// <summary>
-/// The claim device: place the one in a slot on a foundation or floor at a point of its top (frame metres, X and Z)
-/// turned by 30° steps; authorise, deauthorise, clear the list; pick it up.
+/// The tool cupboard: place the one in a slot on a foundation or floor at a point of its top (frame metres, X and Z) turned
+/// by 30° steps. Its list and picking it up are verbs (<see cref="InteractIntent"/>).
 /// </summary>
 [NetMessage(94)]
 public partial struct ClaimIntent
@@ -1078,14 +1052,6 @@ public partial struct PlaceChargeIntent
     [Angle] public ushort Pitch;
 }
 
-/// <summary>Light a dud again (the interact key on it).</summary>
-[NetMessage(112)]
-public partial struct RearmIntent
-{
-    [VarInt] public uint Seq;
-    public ulong Target;
-}
-
 /// <summary>
 /// An explosive as the server has it (to everyone within range, reliable), when it comes into range and whenever it
 /// changes: thrown, bounced, stuck, at rest, a dud, lit again, moved with a door. Flying, it is on the arc from
@@ -1174,18 +1140,11 @@ public partial struct RaidAlertList
 }
 
 // ---------------------------------------------------------------- G7: the world (GROUND.md §6.8)
-// Intents (client → server, the general sequence, answered by IntentResult). A blueprint is learnt with UseIntent, a
-// recycler or research table started with ToggleIntent, "authorise team" is ClaimIntent's and LockIntent's.
+// Intents (client → server, the general sequence, answered by IntentResult). A blueprint is learnt with UseIntent; a
+// recycler or research table switched, a tech tree's node unlocked, a team's invite and "authorise team" are verbs
+// (InteractIntent).
 
-/// <summary>Unlock a tech tree node (its recipe) at a workbench of its level within reach, for its salvage.</summary>
-[NetMessage(130)]
-public partial struct UnlockIntent
-{
-    [VarInt] public uint Seq;
-    [VarInt] public uint Recipe;
-}
-
-/// <summary>A team action: create; invite a player near by (Target); accept or decline a team's invite (Team); leave; kick or promote a member (Target).</summary>
+/// <summary>A team action: create; accept or decline a team's invite (Team); leave; kick or promote a member (Target).</summary>
 [NetMessage(131)]
 public partial struct TeamIntent
 {
@@ -1377,6 +1336,58 @@ public partial struct ZoneClock
     public double BaseTurns;
     public double Scale;
     public bool Overridden;
+}
+
+// ---------------------------------------------------------------- interaction (GROUND_SYSTEMS.md §5)
+
+/// <summary>
+/// The one interaction intent (GROUND_SYSTEMS.md §5): a verb (interactions.json's number) done to a target, with a number
+/// (the tech tree's recipe) and a code (a code lock's four digits) where the verb takes them. The server resolves the
+/// target, checks the verb's gates, the reach and sight, and that the target offers the verb to this player now, and
+/// answers with <see cref="IntentResult"/>.
+/// </summary>
+[NetMessage(210)]
+public partial struct InteractIntent
+{
+    [VarInt] public uint Seq;
+    public TargetNet Target;
+    [VarInt] public uint Verb;
+    [VarInt] public uint Arg;
+    [MaxLength(8)] public string Code;
+}
+
+/// <summary>
+/// A spent arrow (GROUND_SYSTEMS.md §5): what it is (its item), what holds it (a thing, a door's leaf, a body's bone; the
+/// ground) and its tip's place and turn in that holder's frame, the shaft along its +X. A client draws it where its holder
+/// is now, so it rides a moving body.
+/// </summary>
+[NetStruct]
+public partial struct ArrowNet
+{
+    public ulong Id;
+    [VarInt] public uint Item;
+    public TargetNet Support;
+    public float X;
+    public float Y;
+    public float Z;
+    [Quantize(-1, 1, 16)] public float RotationX;
+    [Quantize(-1, 1, 16)] public float RotationY;
+    [Quantize(-1, 1, 16)] public float RotationZ;
+    [Quantize(-1, 1, 16)] public float RotationW;
+}
+
+/// <summary>Spent arrows that came within range, or changed (one fell when what held it went), to everyone in range.</summary>
+[NetMessage(211)]
+public partial struct ArrowStates
+{
+    [MaxCount(64)] public ArrowNet[] Arrows;
+}
+
+/// <summary>Spent arrows gone (taken, their time up) or out of range.</summary>
+[NetMessage(212)]
+public partial struct ArrowsGone
+{
+    [MaxCount(255)] public BuildIdNet[] Ids;
 }
 
 // ---------------------------------------------------------------- destruction (GROUND.md §6.4.2)

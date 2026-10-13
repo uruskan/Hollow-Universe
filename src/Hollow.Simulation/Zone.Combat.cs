@@ -337,8 +337,8 @@ public sealed partial class Zone
         }
     }
 
-    // An arrow stops at what it met: an arrow request through the damage pipeline (GROUND.md §6.4.2); one in a body or a
-    // hull stays there, one elsewhere is often left where it landed.
+    // An arrow stops at what it met: an arrow request through the damage pipeline (GROUND.md §6.4.2); one that stays whole
+    // sticks where it hit, in whatever it hit, a living body too (GROUND_SYSTEMS.md §5, Zone.Arrows.cs).
     private void ProjectileHit(Projectile pr, in TraceHit hit)
     {
         AmmoStats ammo = pr.Ammo.Ammo!;
@@ -367,15 +367,11 @@ public sealed partial class Zone
             Direction = Vector3.Normalize(pr.Velocity),
             Markers = TargetFamilies.All,
         });
-        if (Keeps(hit.Target.Family))
-        {
-            return;
-        }
-        // A miss often leaves the arrow where it landed (in a bag, with others that landed close by).
+        // It stays whole as often as its ammo says (Rust's arrows break now and then), and then sticks.
         var rng = new Rng(Hash64.Of(pr.Id, (ulong)Tick, 0xA770));
         if (rng.NextDouble() < ammo.Recover)
         {
-            Spill(hit.Point - Vector3.Normalize(pr.Velocity) * 0.1f, ItemStack.Of(pr.Ammo, 1));
+            StickArrow(pr, hit);
         }
     }
 
@@ -412,8 +408,6 @@ public sealed partial class Zone
     private sealed class CharacterReceiver(Zone zone) : IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Character };
-
-        public bool Keeps => true;
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
@@ -498,41 +492,7 @@ public sealed partial class Zone
     }
 
     /// <summary>Where a ray first goes below the ground (within <paramref name="length"/>), or −1.</summary>
-    public float GroundCrossing(Vector3 origin, Vector3 direction, float length)
-    {
-        float previous = HeightAboveGround(origin);
-        if (previous < 0)
-        {
-            return -1; // starting under the ground: the surface doesn't block (it would block everything)
-        }
-        int steps = Math.Max(1, (int)MathF.Ceiling(length / 0.5f));
-        float t0 = 0;
-        for (int i = 1; i <= steps; i++)
-        {
-            float t1 = length * i / steps;
-            float height = HeightAboveGround(origin + direction * t1);
-            if (height < 0)
-            {
-                // Bisect between the last point above and this one.
-                float lo = t0, hi = t1;
-                for (int k = 0; k < 8; k++)
-                {
-                    float mid = (lo + hi) / 2;
-                    if (HeightAboveGround(origin + direction * mid) < 0)
-                    {
-                        hi = mid;
-                    }
-                    else
-                    {
-                        lo = mid;
-                    }
-                }
-                return hi;
-            }
-            t0 = t1;
-        }
-        return -1;
-    }
+    public float GroundCrossing(Vector3 origin, Vector3 direction, float length) => GroundAim.Crossing(Surface, Frame, origin, direction, length);
 
     /// <summary>
     /// Trees, outcrops and boulders (GROUND.md §6.4.2): found by their trunks and rocks along a ray (a boulder stops a
@@ -542,8 +502,6 @@ public sealed partial class Zone
     private sealed class NatureReceiver(Zone zone) : IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Natural };
-
-        public bool Keeps => false;
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
@@ -594,8 +552,6 @@ public sealed partial class Zone
     private sealed class GroundReceiver(Zone zone) : IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Ground };
-
-        public bool Keeps => false;
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {

@@ -41,6 +41,9 @@ public enum TargetFamily : byte
 
     /// <summary>Ships (their parts: the hatch, the fuel cap, the cargo).</summary>
     Ship = 10,
+
+    /// <summary>Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5), held by what they hit.</summary>
+    Arrow = 11,
 }
 
 /// <summary>
@@ -116,10 +119,8 @@ public readonly record struct TargetPose(Vector3 Position, Quaternion Rotation)
 /// outside are untrusted (an unknown one simply doesn't exist). The damage pipeline's receivers are the families' damage
 /// side (GROUND.md §6.4.2).
 /// </summary>
-public interface ITargetFamily
+public interface ITargetFamily : ITargetView
 {
-    TargetFamily Family { get; }
-
     /// <summary>Whether its things move (bodies, doors' leaves, ships): what rests on them follows (GROUND_SYSTEMS.md §3.6).</summary>
     bool Moves { get; }
 
@@ -129,11 +130,11 @@ public interface ITargetFamily
     /// <summary>The thing itself (its store's object), or null when it doesn't exist.</summary>
     object? Resolve(ulong id);
 
-    /// <summary>Where the thing, or its part (<see cref="TargetRef.Part"/>), is now.</summary>
-    bool TryPose(in TargetRef target, out TargetPose pose);
-
-    /// <summary>The nearest point of the thing's bounds (or its part's) to a point.</summary>
-    bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point);
+    /// <summary>
+    /// Where the thing, or its part, was at a past tick, as an attacker saw it (a body's bone in the hit history: an arrow
+    /// that hit it is stuck where it hit, relative to the bone then); now, for what doesn't keep a history.
+    /// </summary>
+    bool TryPoseAt(in TargetRef target, double viewTick, out TargetPose pose) => TryPose(target, out pose);
 
     /// <summary>What it is drawn as (the model catalogue's key); empty when nothing draws it.</summary>
     string ModelKey(ulong id);

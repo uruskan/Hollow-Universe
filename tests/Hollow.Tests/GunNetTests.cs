@@ -429,7 +429,7 @@ public static class GunNetTests
         // Ada helps him up.
         rig.Server.Execute("teleport Ada Bo");
         rig.Run(0.3, Still);
-        ada.Local.HelpUp(bo.EntityId);
+        ada.Local.Interact(new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Character, bo.EntityId.Value), "help-up");
         RunUntil(rig, () => boUp && !bo.Local.IsWounded, "Bo up again", Still);
     }
 

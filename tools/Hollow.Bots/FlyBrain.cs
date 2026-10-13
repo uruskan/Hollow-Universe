@@ -91,13 +91,11 @@ public sealed class FlyBrain
         if (time >= _nextIntent)
         {
             _nextIntent = time + 1.5;
-            if (ship.Has(ShipNetFlags.HatchOpen) && ship.Hatch > 0.6f)
+            // A tap of E at the hatch: opened when shut, boarded when open.
+            if (!ship.Has(ShipNetFlags.HatchOpen) || ship.Hatch > 0.6f)
             {
-                client.Local.Board(ship.Id);
-            }
-            else if (!ship.Has(ShipNetFlags.HatchOpen))
-            {
-                client.Local.ShipHatch(ship.Id);
+                Interacting.Tap(client, new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Ship, ship.Id.Value,
+                    Hollow.Simulation.Ships.ShipParts.Hatch));
             }
         }
         return input;

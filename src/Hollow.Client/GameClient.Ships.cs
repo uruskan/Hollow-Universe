@@ -10,27 +10,9 @@ using Hollow.Simulation.Ships;
 
 namespace Hollow.Client;
 
-/// <summary>What the interact key does at a ship (G6).</summary>
-public enum ShipTouch : byte
-{
-    /// <summary>Open the hatch, or shut it.</summary>
-    Hatch,
-
-    /// <summary>Climb into the seat (the hatch is open, the seat free).</summary>
-    Board,
-
-    /// <summary>Fill the tank from the inventory's lamp oil.</summary>
-    Refuel,
-
-    /// <summary>Open the cargo.</summary>
-    Cargo,
-}
-
-/// <summary>A ship within reach the interact key acts on, and how to say so ("E: Board Tin Finch").</summary>
-public readonly record struct ShipInteraction(ShipTouch Touch, RemoteShip Ship, string Verb, string Name, float Distance);
-
 // Ships in the client (GROUND.md §6.7): every ship near, interpolated; the one the player flies, predicted (its controls
-// ride in each tick's input); parked ships solid in the prediction's own physics; what the interact key does at a ship.
+// ride in each tick's input); parked ships solid in the prediction's own physics. What the interact key does at a ship is
+// its parts' verbs (GameClient.Targets.cs, GROUND_SYSTEMS.md §5).
 public sealed partial class GameClient
 {
     private readonly Dictionary<uint, RemoteShip> _ships = new();
@@ -235,53 +217,4 @@ public sealed partial class GameClient
             ship.Sample(renderTick);
         }
     }
-
-    /// <summary>
-    /// What the interact key would do at a ship from the eye along a direction: its hatch (open, shut, board), its fuel
-    /// cap or its cargo, within the ship's reach; null for none.
-    /// </summary>
-    public ShipInteraction? AimShip(Vector3 eye, Vector3 direction)
-    {
-        ShipInteraction? best = null;
-        foreach (RemoteShip ship in _ships.Values)
-        {
-            if (!ship.Spawned || !ship.HasState || ship.Def is not { } def || ship.Has(ShipNetFlags.Destroyed) || ship.Has(ShipNetFlags.InOrbit) ||
-                Vector3.DistanceSquared(ship.Position, eye) > (def.BoundingRadius + def.Reach + 1) * (def.BoundingRadius + def.Reach + 1))
-            {
-                continue;
-            }
-            void Consider(Vector3 local, float radius, ShipTouch touch, string verb)
-            {
-                float t = Geometry.RaySphere(eye, direction, def.Reach + 0.5f, ship.PointOf(local), radius);
-                if (t >= 0 && (best == null || t < best.Value.Distance))
-                {
-                    best = new ShipInteraction(touch, ship, verb, def.Name, t);
-                }
-            }
-            bool open = ship.Has(ShipNetFlags.HatchOpen);
-            if (open && !ship.Has(ShipNetFlags.Piloted) && ship.Hatch > 0.5f)
-            {
-                Consider(def.Hatch, 0.7f, ShipTouch.Board, "Board");
-            }
-            else
-            {
-                Consider(def.Hatch, 0.7f, ShipTouch.Hatch, open ? "Shut the hatch of" : "Open the hatch of");
-            }
-            Consider(def.FuelCap, 0.45f, ShipTouch.Refuel, "Refuel");
-            if (open)
-            {
-                Consider(def.Hatch + new Vector3(0.15f, -0.45f, -0.75f), 0.45f, ShipTouch.Cargo, "Open the cargo of");
-            }
-        }
-        return best;
-    }
-
-    /// <summary>Acts on what <see cref="AimShip"/> found. Returns the intent's sequence number.</summary>
-    public uint Interact(in ShipInteraction target) => target.Touch switch
-    {
-        ShipTouch.Board => Local.Board(target.Ship.Id),
-        ShipTouch.Refuel => Local.RefuelShip(target.Ship.Id),
-        ShipTouch.Cargo => Local.Open(target.Ship.Id),
-        _ => Local.ShipHatch(target.Ship.Id),
-    };
 }

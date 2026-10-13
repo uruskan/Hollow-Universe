@@ -9,6 +9,7 @@ using Hollow.Client;
 using Hollow.Core;
 using Hollow.Server;
 using Hollow.Simulation;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
@@ -176,9 +177,9 @@ public partial class GroundTour : Node
         await TeleportTo(Away(b.Position, 1.7f));
         Face(b.Position + b.Up * 0.5f);
         await Seconds(1.0);
-        if (View.Aimed is { Kind: InteractionKind.PickNatural } aimed)
+        if (View.Aimed is { Target.Family: TargetFamily.Natural })
         {
-            Client.Interact(aimed);
+            TapAimed();
         }
         await Until(() => Client.Natural?.IsDepleted(b.Id) == true, 3);
         await Seconds(0.4);
@@ -575,10 +576,10 @@ public partial class GroundTour : Node
         View.UseHeld();
         await Until(() => Doors().Any(d => d.Lock is CodeLock), 5);
         Door locked = Doors().FirstOrDefault(d => d.Lock is CodeLock) ?? door;
-        Me.SetCode(locked, "2580");
+        Me.Interact(locked.Ref, "set-code", code: "2580");
         await Seconds(0.6);
         // The keypad, two digits in.
-        View.ShowKeypad(locked, set: false);
+        View.ShowKeypad("ENTER CODE");
         foreach (Key digit in new[] { Key.Key2, Key.Key5 })
         {
             Input.ParseInputEvent(new InputEventKey { Keycode = digit, PhysicalKeycode = digit, Pressed = true });
@@ -794,18 +795,19 @@ public partial class GroundTour : Node
         await TeleportTo(hatch + side * 2.4f);
         Face(hatch);
         await Seconds(0.6);
+        var atHatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, Hollow.Simulation.Ships.ShipParts.Hatch);
         if (!ship.Has(Hollow.Net.Protocol.ShipNetFlags.HatchOpen))
         {
-            Me.ShipHatch(ship.Id);
+            Me.Interact(atHatch, "hatch-open");
             await Until(() => ship.Hatch > 0.95f, 4);
         }
         // The tank filled with the lamp oil left over from the recipe.
-        Me.RefuelShip(ship.Id);
+        Me.Interact(atHatch with { Part = Hollow.Simulation.Ships.ShipParts.FuelCap }, "refuel");
         await Seconds(0.5);
         Face(ship.PointOf(def.Hatch));
         await Seconds(0.4);
         await Shot("ship-boarding");
-        Me.Board(ship.Id);
+        Me.Interact(atHatch, "board");
         await Until(() => Client.Piloting, 5);
         await Seconds(0.8);
         // Up and out over the forest, from the cockpit.
@@ -1246,16 +1248,16 @@ public partial class GroundTour : Node
                 Face(there.Position + Client.Frame.UpAt(there.Position) * 1.1f);
             }
             await Settle();
-            await Until(() => View.Aimed?.Kind == InteractionKind.InviteToTeam, 5);
+            await Until(() => AimedVerb() == "invite", 5);
             await Seconds(0.5);
             await Shot("team-invite");
-            if (View.Aimed is { Kind: InteractionKind.InviteToTeam } invite)
+            if (AimedVerb() == "invite")
             {
-                Client.Interact(invite);
+                TapAimed();
             }
             else
             {
-                Me.InviteToTeam(guest.Id);
+                Me.Interact(new TargetRef(TargetFamily.Character, guest.Id.Value), "invite");
             }
             await Until(() => Me.Team?.Members.Count >= 2, 15);
             GD.Print($"[tour] team: {string.Join(", ", Me.Team?.Members.Select(m => m.Name) ?? Array.Empty<string>())}");
@@ -1307,7 +1309,7 @@ public partial class GroundTour : Node
             await TeleportTo(Away(crate.Position, 1.6f));
             Face(crate.Position + up * 0.3f);
             await Seconds(0.5);
-            Me.Open(crate.Id);
+            Me.Interact(Thing(crate.Id), "loot");
             await Until(() => Me.LootKind == LootKind.Crate, 5);
             await Seconds(1.0);
             await Shot("crate");
@@ -1331,7 +1333,7 @@ public partial class GroundTour : Node
             await TeleportTo(Away(recycler.Position, 2.4f));
             Face(middle);
             await Settle();
-            Me.Open(recycler.Id);
+            Me.Interact(Thing(recycler.Id), "open");
             await Until(() => Me.LootKind == LootKind.Device, 5);
             if (SlotOf(Me.Inventory.Main, "gears") is int gears)
             {
@@ -1343,7 +1345,7 @@ public partial class GroundTour : Node
                 Me.MoveItem(ContainerRef.Main, pipes, ContainerRef.Loot, 1);
                 await Seconds(0.4);
             }
-            Me.Toggle(recycler.Id);
+            Me.Interact(Thing(recycler.Id), "turn-on");
             await Until(() => Me.Machine?.Running == true, 5);
             await Seconds(6.5);
             await Shot("recycler");
@@ -1392,7 +1394,7 @@ public partial class GroundTour : Node
             // The research table: a pistol and salvage in, the price; then the blueprint out, and read.
             await TeleportTo(side);
             Face(table.Position + Client.Frame.UpAt(table.Position) * 0.8f);
-            Me.Open(table.Id);
+            Me.Interact(Thing(table.Id), "open");
             await Until(() => Me.LootKind == LootKind.Device, 5);
             if (SlotOf(Me.Inventory.Main, "pistol") is int pistol)
             {
@@ -1406,7 +1408,7 @@ public partial class GroundTour : Node
             }
             await Seconds(0.8);
             await Shot("research");
-            Me.Toggle(table.Id);
+            Me.Interact(Thing(table.Id), "turn-on");
             await Until(() => Me.Loot is { Size: > 2 } slots && !slots[2].IsEmpty, 15);
             await Seconds(0.8);
             await Shot("research-done");
@@ -1554,14 +1556,14 @@ public partial class GroundTour : Node
             Me.Place(ContainerRef.Main, fire, ground, View.Yaw);
             await Until(() => Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "campfire"), 5);
             RemoteThing campfire = Client.Things.First(t => t.Deployable(Client.Content)?.Key == "campfire");
-            Me.Open(campfire.Id);
+            Me.Interact(Thing(campfire.Id), "open");
             await Until(() => Me.LootKind == LootKind.Device, 5);
             if (SlotOf(Me.Inventory.Main, "wood") is int wood)
             {
                 Me.MoveItem(ContainerRef.Main, wood, ContainerRef.Loot, 0, 60);
                 await Seconds(0.5);
             }
-            Me.Toggle(campfire.Id);
+            Me.Interact(Thing(campfire.Id), "light");
             await Seconds(0.5);
             Me.Close();
             View.Interface.Open(GroundScreen.Hud);
@@ -1755,9 +1757,9 @@ public partial class GroundTour : Node
         Face(bag.Position + Client.Frame.UpAt(bag.Position) * 0.15f);
         await Seconds(1.0);
         await Shot("bag");
-        if (View.Aimed is { Kind: InteractionKind.Open } aimed)
+        if (View.Aimed is { Target.Family: TargetFamily.Thing })
         {
-            Client.Interact(aimed);
+            TapAimed();
         }
         await Until(() => Me.LootKind == LootKind.Crate && Me.Loot != null, 4);
         await Seconds(1.0);
@@ -1828,7 +1830,7 @@ public partial class GroundTour : Node
         string? refused = null;
         void Rejected(IntentAnswer answer) => refused = Client.Content.Texts.Line(answer.Outcome);
         Me.IntentRejected += Rejected;
-        Me.Open(claim.Id);
+        Me.Interact(claim.Ref, "open");
         await Until(() => refused != null, 3);
         Me.IntentRejected -= Rejected;
         GD.Print($"[tour] the claim device through its wall: {refused ?? "not refused"}");
@@ -1839,6 +1841,21 @@ public partial class GroundTour : Node
     // ---------------------------------------------------------------- helpers
 
     private void Admin(string command, string args) => Command?.Invoke($"{command} {Client.Name} {args}".Trim());
+
+    private static TargetRef Thing(Hollow.Simulation.Entities.EntityId id) => new(TargetFamily.Thing, id.Value);
+
+    // The verb a tap of E would do now (the prompt's), by its key; null for none.
+    private string? AimedVerb() =>
+        View.Aimed is { Primary: >= 0 } aim ? Client.Content.Interactions.Verb(aim.Options[aim.Primary].Verb)?.Key : null;
+
+    // A tap of E now, as the player's: the aimed thing's primary verb.
+    private void TapAimed()
+    {
+        if (View.Aimed is { Primary: >= 0 } aim)
+        {
+            Me.Interact(aim.Target, aim.Options[aim.Primary].Verb);
+        }
+    }
 
     private int Count(string key) => Client.Content.Item(key) is { } def ? Me.Inventory.Count(def) : 0;
 

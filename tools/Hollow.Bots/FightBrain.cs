@@ -101,7 +101,7 @@ public sealed class FightBrain
             {
                 if (Steer(ref input, feet, target.Position, 1.6f, delta) && me.HeldSlot >= 0)
                 {
-                    me.HelpUp(target.Id);
+                    Interacting.Tap(client, Interacting.Character(target.Id));
                     Assists++;
                     _assist = false;
                     _target = 0;

@@ -14,45 +14,14 @@ using LiteNetLib;
 
 namespace Hollow.Client;
 
-/// <summary>What the player is aiming at that the interact key acts on.</summary>
-public enum InteractionKind : byte
-{
-    /// <summary>A pickup or berry bush: pick it.</summary>
-    PickNatural,
-
-    /// <summary>A bag of dropped items holding one stack: take it.</summary>
-    PickItem,
-
-    /// <summary>A box, device, corpse or a bag holding more than one stack: open it.</summary>
-    Open,
-
-    /// <summary>A sleeping player: loot them.</summary>
-    LootSleeper,
-
-    /// <summary>A wounded player: help them up (G4).</summary>
-    HelpUp,
-
-    /// <summary>A dud explosive: light it again (G5).</summary>
-    Rearm,
-
-    /// <summary>A player close by, awake: invite them to the team the player leads (G7).</summary>
-    InviteToTeam,
-}
-
-/// <summary>Something within reach the interact key acts on, and how to say so ("E: Pick up Wood pile").</summary>
-public readonly record struct Interaction(InteractionKind Kind, ulong NaturalId, EntityId Entity, string Verb, string Name, float Distance);
-
 // The survival game in the client (GROUND.md §4.3, §6): the local player's state and intents (LocalPlayer), static
-// things, natural objects as players changed them, projectiles in flight, and what the interact key would act on.
+// things, natural objects as players changed them, projectiles in flight. What the interact key acts on is the one
+// targeting query's (GameClient.Interaction.cs).
 public sealed partial class GameClient
 {
-    /// <summary>The interact key reaches this far from the eye to a thing's surface (survival.json's reach.interact).</summary>
-    public float InteractReach => Content.Survival.InteractReach;
-
     private readonly Dictionary<uint, RemoteThing> _things = new();
     private readonly Dictionary<EntityId, RemoteThing> _thingsById = new();
     private readonly List<ClientProjectile> _projectiles = new();
-    private readonly List<NaturalObject> _nearby = new();
     private bool _primaryLatched;
 
     /// <summary>The game's data (the same as the server's: checked at connect).</summary>
@@ -122,46 +91,26 @@ public sealed partial class GameClient
             _ = new NaturalBodies(_predictor!.World, Natural);
         }
         StartBuilding();
+        StartTargets();
     }
 
     private void UpdateSurvival()
     {
         Local.ServerTick = _remoteClock;
         Local.ClockSeconds = ClockSeconds;
-        Local.WorkbenchLevel = WorkbenchNear();
+        Local.WorkbenchLevel = ThingOf(new EntityId(BenchNear().Id))?.Deployable(Content)?.Workbench ?? 0;
         Local.StationNear ??= StationNear;
         Local.Update();
         Local.UpdateBuilding();
         UpdateRaid();
         UpdateDestroyed();
+        UpdateArrows();
         double now = ClockSeconds;
         _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 8);
     }
 
     // The eye, for the reach of stations: as the server measures it (Zone.EyeOf).
     private Vector3 StationEye => Character.Position + Frame.UpAt(Character.Position) * EyeHeight;
-
-    // The best workbench level within reach, as the server's Zone.WorkbenchLevel finds it: a bench's nearest surface
-    // within survival.json's reach.station of the eye (GROUND_SYSTEMS.md §3.4).
-    private int WorkbenchNear()
-    {
-        if (!HasCharacter)
-        {
-            return 0;
-        }
-        Vector3 eye = StationEye;
-        float reach = Content.Survival.StationReach;
-        int best = 0;
-        foreach (RemoteThing thing in _things.Values)
-        {
-            if (thing.Deployable(Content) is { Workbench: > 0 } d && d.Workbench > best &&
-                Vector3.DistanceSquared(Geometry.NearestOnBox(thing.Position, Frame.UpAt(thing.Position), thing.Yaw, d.HalfExtents, eye), eye) <= reach * reach)
-            {
-                best = d.Workbench;
-            }
-        }
-        return best;
-    }
 
     // The nearest deployable of a kind within a station's reach, as the server's Zone.StationNear finds a ship's vehicle
     // workbench.
@@ -222,6 +171,7 @@ public sealed partial class GameClient
                     Count = (int)Math.Min(m.Count, int.MaxValue),
                     Flags = m.Flags,
                     Name = m.Name ?? "",
+                    Capabilities = new Simulation.Capabilities.CapabilitySet(m.Capabilities),
                 };
                 _things[m.NetId] = thing;
                 _thingsById[thing.Id] = thing;
@@ -418,7 +368,7 @@ public sealed partial class GameClient
                 return;
             }
             default:
-                if (!ReceiveRaid(type) && !ReceiveWorld(type) && !ReceiveDestroyed(type))
+                if (!ReceiveRaid(type) && !ReceiveWorld(type) && !ReceiveDestroyed(type) && !ReceiveArrows(type))
                 {
                     ReceiveBuilding(type);
                 }
@@ -448,112 +398,6 @@ public sealed partial class GameClient
             Health = n.Health / 255f * max, HasWeakSpot = n.HasWeakSpot, WeakSpotYaw = n.WeakSpotYaw, WeakSpotLift = n.WeakSpotLift, Depleted = n.Depleted,
             Streak = n.Streak, LastHit = n.HitOffset, SeenHits = n.HitAge <= FreshHitTicks ? (byte)(seen + 1) : seen,
         });
-    }
-
-    /// <summary>
-    /// What the interact key would act on from the eye along a direction: the nearest pickup or berry bush, bag of
-    /// dropped items, box, device, corpse or sleeper within reach (for the prompt, and for bots). What the view meets of the
-    /// building first hides what lies behind it, as the server's sight rule refuses it (GROUND_SYSTEMS.md §3.4); a thing's
-    /// own body (the claim device's box) doesn't.
-    /// </summary>
-    public Interaction? Aim(Vector3 eye, Vector3 direction, float? reach = null)
-    {
-        float range = reach ?? InteractReach;
-        Interaction? best = null;
-        float wall = float.PositiveInfinity;
-        ulong wallOf = 0;
-        if (Building?.Physics is { } building && building.Ray(eye, direction, range, out Simulation.Building.RayHit hit, buildingOnly: true))
-        {
-            wall = hit.Distance;
-            wallOf = building.OwnerOf(hit.Body) is Simulation.Targets.ITargetable owner ? owner.Ref.Id : 0;
-        }
-        void Consider(float t, InteractionKind kind, ulong natural, EntityId entity, string verb, string name)
-        {
-            if (t >= 0 && t <= range && (best == null || t < best.Value.Distance) && (t <= wall || wallOf == entity.Value && wallOf != 0))
-            {
-                best = new Interaction(kind, natural, entity, verb, name, t);
-            }
-        }
-        if (Nature != null && Natural != null)
-        {
-            _nearby.Clear();
-            Nature.Query(eye.X - range - 1, eye.Z - range - 1, eye.X + range + 1, eye.Z + range + 1, _nearby);
-            foreach (NaturalObject o in _nearby)
-            {
-                if (Content.Natural(o.Kind) is { IsPicked: true } kind && !Natural.IsDepleted(o.Id))
-                {
-                    float r = kind.Radius * o.Scale;
-                    float t = Geometry.RaySphere(eye, direction, range, NaturalShapes.Middle(o, kind), r + 0.2f);
-                    Consider(t, InteractionKind.PickNatural, o.Id, EntityId.None, kind.Class == NaturalClass.Bush ? "Pick" : "Pick up", kind.Name);
-                }
-            }
-        }
-        foreach (RemoteThing thing in _things.Values)
-        {
-            if (Vector3.DistanceSquared(thing.Position, eye) > (range + 2) * (range + 2))
-            {
-                continue;
-            }
-            switch (thing.Kind)
-            {
-                case StaticKind.DroppedBag:
-                {
-                    // A bag of one stack is taken at once; one holding more opens like a box (GROUND.md §6.1).
-                    bool open = thing.Count > 1;
-                    Consider(Geometry.RaySphere(eye, direction, range, thing.Position + Frame.UpAt(thing.Position) * 0.15f, 0.35f),
-                        open ? InteractionKind.Open : InteractionKind.PickItem, 0, thing.Id, open ? "Open" : "Pick up", thing.Name);
-                    break;
-                }
-                case StaticKind.Corpse:
-                    Consider(Geometry.RaySphere(eye, direction, range, thing.Position + Frame.UpAt(thing.Position) * 0.25f, 0.6f),
-                        InteractionKind.Open, 0, thing.Id, "Loot", $"{thing.Name}'s body");
-                    break;
-                case StaticKind.Prop when thing.Prop(Content) is { Openable: true } prop:
-                {
-                    // G7: a crate or recycler opens; a barrel is broken instead.
-                    DeployableDef d = prop.Deployable;
-                    Vector3 up = Frame.UpAt(thing.Position);
-                    (Vector3 right, Vector3 forward) = Geometry.Axes(up, thing.Yaw);
-                    float t = Geometry.RayBox(eye, direction, range, thing.Position + up * d.HalfExtents.Y, d.HalfExtents + new Vector3(0.1f), right, up, forward);
-                    Consider(t, InteractionKind.Open, 0, thing.Id, "Open", prop.Name);
-                    break;
-                }
-                case StaticKind.Deployable when thing.Deployable(Content) is { } d && (d.Slots > 0):
-                {
-                    Vector3 up = Frame.UpAt(thing.Position);
-                    (Vector3 right, Vector3 forward) = Geometry.Axes(up, thing.Yaw);
-                    float t = Geometry.RayBox(eye, direction, range, thing.Position + up * d.HalfExtents.Y, d.HalfExtents + new Vector3(0.1f), right, up, forward);
-                    Consider(t, InteractionKind.Open, 0, thing.Id, "Open", d.Item.Name);
-                    break;
-                }
-            }
-        }
-        foreach (RemoteEntity remote in _remotes.Values)
-        {
-            if (!remote.Spawned || !remote.HasState || remote.Kind != EntityKind.Character || (remote.Flags & Simulation.Movement.MoveFlags.Dead) != 0)
-            {
-                continue;
-            }
-            if (remote.Sleeping)
-            {
-                Consider(Geometry.RaySphere(eye, direction, range, remote.Position + Frame.UpAt(remote.Position) * 0.25f, 0.7f),
-                    InteractionKind.LootSleeper, 0, remote.Id, "Loot", $"{remote.Name} (asleep)");
-            }
-            else if (remote.Wounded)
-            {
-                // Down: the interact key helps them up (G4).
-                Consider(Geometry.RaySphere(eye, direction, MathF.Min(range, Content.Survival.HelpReach),
-                    remote.Position + Frame.UpAt(remote.Position) * 0.25f, 0.7f), InteractionKind.HelpUp, 0, remote.Id, "Help up", remote.Name);
-            }
-            else if (Local.LeadsTeam && !Local.Team!.Has(remote.Id) && Local.Team.Members.Count < Content.World.TeamSize)
-            {
-                // G7: the leader invites a player close by (Rust's).
-                Consider(Geometry.RaySphere(eye, direction, range, remote.Position + Frame.UpAt(remote.Position) * 1.1f, 0.5f),
-                    InteractionKind.InviteToTeam, 0, remote.Id, "Invite to team", remote.Name);
-            }
-        }
-        AimAtDuds(eye, direction, range, (t, id, name) => Consider(t, InteractionKind.Rearm, 0, id, "Light", name));
-        return best;
     }
 
     /// <summary>
@@ -605,17 +449,6 @@ public sealed partial class GameClient
             return (float)(r - (surface.Radius + surface.HeightAt(body / r)));
         }
     }
-
-    /// <summary>Acts on what <see cref="Aim"/> found: picks, picks up, opens or helps up. Returns the intent's sequence number.</summary>
-    public uint Interact(in Interaction target) => target.Kind switch
-    {
-        InteractionKind.PickNatural => Local.PickUpNatural(target.NaturalId),
-        InteractionKind.PickItem => Local.PickUpItem(target.Entity),
-        InteractionKind.HelpUp => Local.HelpUp(target.Entity),
-        InteractionKind.Rearm => Local.Rearm(target.Entity),
-        InteractionKind.InviteToTeam => Local.InviteToTeam(target.Entity),
-        _ => Local.Open(target.Entity),
-    };
 
     // Our own shot: drawn at once, from the eye along the predicted direction (the server's ProjectileLaunch then names it).
     private void OnOwnShot(ShotEvent shot)
