@@ -253,13 +253,13 @@ public sealed partial class LocalPlayer
 
     /// <summary>Starts crafting <paramref name="count"/> of a recipe (by its output item's ID).</summary>
     public uint Craft(int recipeId, int count = 1) =>
-        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.StationFor(recipeId)) == ActionResult.Accepted),
+        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints, p.StationFor(recipeId)) == ActionResult.Accepted),
             w => new CraftIntent { Seq = _nextSeq, Recipe = (uint)Math.Max(0, recipeId), Count = (uint)Math.Max(0, count) }.WriteMessage(w));
 
     /// <summary>Whether a recipe could start now (known, bench in reach, materials for <paramref name="count"/>), as the UI shows it.</summary>
     public ActionResult CanCraft(Recipe recipe, int count = 1)
     {
-        if (!recipe.Known)
+        if (!Blueprints.Knows(recipe))
         {
             return ActionResult.UnknownRecipe;
         }
@@ -400,8 +400,22 @@ public sealed partial class LocalPlayer
 
     private bool ApplyUse(ContainerRef from, int slot, ushort expected)
     {
-        if (from is not (ContainerRef.Main or ContainerRef.Belt) || Resolve(from) is not { } c || !c.InRange(slot) ||
-            Content.Item(c[slot].Item)?.Consume == null)
+        if (from is not (ContainerRef.Main or ContainerRef.Belt) || Resolve(from) is not { } c || !c.InRange(slot))
+        {
+            return false;
+        }
+        if (Content.World.Blueprint is { } blueprint && c[slot].Item == blueprint.Id)
+        {
+            // G7: reading a blueprint learns it (unless it is known), and uses it up.
+            if (Content.Recipe(c[slot].Condition) is not { } recipe || Blueprints.Knows(recipe) ||
+                InventoryRules.Remove(c, slot, 1, expected, out _) != ActionResult.Accepted)
+            {
+                return false;
+            }
+            Blueprints.Learn(recipe);
+            return true;
+        }
+        if (Content.Item(c[slot].Item)?.Consume == null)
         {
             return false;
         }
@@ -426,6 +440,7 @@ public sealed partial class LocalPlayer
         CopyLoot(_serverLootBelt, LootBelt);
         CopyLoot(_serverLootWear, LootWear);
         _craft.Set(_serverCraft.Jobs, _serverCraft.NextTicket);
+        RebuildWorld();
         foreach (Pending pending in _pending)
         {
             pending.Apply(this);
@@ -577,6 +592,7 @@ public sealed partial class LocalPlayer
             LootKind.Box => ContainerKind.Box,
             LootKind.Device => ContainerKind.Device,
             LootKind.Corpse => ContainerKind.Corpse,
+            LootKind.Crate => ContainerKind.Crate,
             _ => which == ContainerRef.LootBelt ? ContainerKind.Belt : which == ContainerRef.LootWear ? ContainerKind.Wear : ContainerKind.Main,
         };
         var server = new Container(kind, size, LootDevice);

@@ -386,6 +386,17 @@ internal static class Validation
                 obtainable.Add(y.Item);
             }
         }
+        // G7: what the world's barrels and crates hold is found, not made; the recycler turns items into others.
+        foreach (PropDef prop in c.World?.Props ?? Array.Empty<PropDef>())
+        {
+            foreach (LootTable.Entry e in prop.Loot is { } table ? table.Guaranteed.Concat(table.Entries) : Array.Empty<LootTable.Entry>())
+            {
+                if (e.Tier < 0)
+                {
+                    obtainable.Add(e.Item);
+                }
+            }
+        }
         bool grew = true;
         while (grew)
         {
@@ -409,6 +420,13 @@ internal static class Validation
                 if (item.Fuel?.Byproduct is { } byproduct && devices.Count > 0)
                 {
                     grew |= obtainable.Add(byproduct);
+                }
+                if (c.World is { RecyclerCount: > 0 } world && world.FixedYield(item.Id) is { } yields)
+                {
+                    foreach (ItemAmount y in yields)
+                    {
+                        grew |= obtainable.Add(y.Item);
+                    }
                 }
             }
         }

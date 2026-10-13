@@ -18,6 +18,9 @@ public enum LootKind : byte
 
     /// <summary>A sleeping player: take only (their main slots, belt and clothing).</summary>
     Sleeper,
+
+    /// <summary>A world crate (G7): take only, gone once empty.</summary>
+    Crate,
 }
 
 /// <summary>

@@ -33,6 +33,9 @@ public enum BotScript
 
     /// <summary>Boards the Tin Finch the server gave it and flies loops (<see cref="FlyBrain"/>, G6).</summary>
     Fly,
+
+    /// <summary>Lives off the world's loot: barrels, crates, the recycler, research, teams (<see cref="WorldBrain"/>, G7).</summary>
+    World,
 }
 
 /// <summary>

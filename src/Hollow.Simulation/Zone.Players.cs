@@ -56,6 +56,7 @@ public sealed partial class Zone
         _ = new NaturalBodies(Physics, Natural);
         Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
         InitBuilding(content);
+        InitWorld(content);
     }
 
     // After movement: GROUND.md §4.2's order.
@@ -73,6 +74,7 @@ public sealed partial class Zone
             StepVitals();
             Natural!.Respawn(UnixMilliseconds);
             StepDespawns();
+            StepWorld();
             CheckLoot();
         }
         StepDevices();
@@ -306,6 +308,8 @@ public sealed partial class Zone
         p.Dead = true;
         p.Wounded = false;
         ResetGun(p);
+        p.DeathPoint = c.State.Position;
+        p.MapRevision++;
         p.DeathCause = cause;
         p.KilledBy = byName;
         p.Vitals = default;

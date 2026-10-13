@@ -12,6 +12,9 @@ public enum StaticKind : byte
     Deployable,
     DroppedItem,
     Corpse,
+
+    /// <summary>A world prop (G7): a barrel, a crate or a recycler the world places (<see cref="WorldProp"/>).</summary>
+    Prop,
 }
 
 /// <summary>
@@ -50,8 +53,11 @@ public abstract class WorldObject
     public abstract ushort Look { get; }
 }
 
-/// <summary>A placed object (GROUND.md §6): sleeping bag, campfire, furnace, box, workbench.</summary>
-public sealed class Deployable : WorldObject
+/// <summary>
+/// A placed object (GROUND.md §6): sleeping bag, campfire, furnace, box, workbench, research table; and (G7) the
+/// world's own props (<see cref="WorldProp"/>), which hits, blasts, opening and replication treat the same way.
+/// </summary>
+public class Deployable : WorldObject
 {
     public Deployable(EntityId id, DeployableDef def, Vector3 position, Vector3 up, float yaw, EntityId owner)
         : base(id, position, up, yaw)
@@ -61,8 +67,9 @@ public sealed class Deployable : WorldObject
         Health = def.Health;
         if (def.Slots > 0)
         {
-            Storage = new Container(def.Device != null ? ContainerKind.Device : ContainerKind.Box, def.Slots, def);
-            CookProgress = def.Device != null ? new int[def.Slots] : Array.Empty<int>();
+            ContainerKind kind = def.IsMachine ? ContainerKind.Device : def.TakeOnly ? ContainerKind.Crate : ContainerKind.Box;
+            Storage = new Container(kind, def.Slots, def);
+            CookProgress = def.IsMachine ? new int[def.Slots] : Array.Empty<int>();
         }
         else
         {
@@ -99,6 +106,56 @@ public sealed class Deployable : WorldObject
 
     /// <summary>Where a box stands: its centre (the base is on the ground).</summary>
     public Vector3 Centre => Position + Up * Def.HalfExtents.Y;
+
+    /// <summary>A research table's work under way (G7): the item being taken apart (0: none; kept in its first cook slot, so it is saved).</summary>
+    public ushort ResearchItem
+    {
+        get => CookProgress.Length > 0 ? (ushort)Math.Clamp(CookProgress[0], 0, ushort.MaxValue) : (ushort)0;
+        set
+        {
+            if (CookProgress.Length > 0)
+            {
+                CookProgress[0] = value;
+            }
+        }
+    }
+
+    /// <summary>The salvage a research under way was paid with (given back if the table breaks first; its second cook slot).</summary>
+    public int ResearchSalvage
+    {
+        get => CookProgress.Length > 1 ? CookProgress[1] : 0;
+        set
+        {
+            if (CookProgress.Length > 1)
+            {
+                CookProgress[1] = Math.Max(0, value);
+            }
+        }
+    }
+}
+
+/// <summary>
+/// A prop the world places (GROUND.md §6.8, G7): a barrel to break, a crate to loot, a recycler. Its ID is its loot
+/// spot's (or recycler point's), stable across restarts, so only what players changed is stored (overrides). Clients
+/// see it as a thing of kind <see cref="StaticKind.Prop"/> whose look is the prop's number.
+/// </summary>
+public sealed class WorldProp : Deployable
+{
+    public WorldProp(EntityId id, PropDef prop, Vector3 position, Vector3 up, float yaw)
+        : base(id, prop.Deployable, position, up, yaw, EntityId.None)
+    {
+        Prop = prop;
+    }
+
+    public PropDef Prop { get; }
+
+    public override StaticKind Kind => StaticKind.Prop;
+
+    /// <summary>A barrel's loot is only had by breaking it; a crate and a recycler open like a box.</summary>
+    public override Container? Container => Prop.Openable ? Storage : null;
+
+    /// <summary>Whether players changed it since it spawned (looted, damaged, used): then it is stored.</summary>
+    public bool Touched { get; set; }
 }
 
 /// <summary>An item dropped in the world (GROUND.md §6): picked up with the interact key, gone after a while.</summary>

@@ -57,6 +57,13 @@ public partial class GroundUi
         Button("", 802, 0, 250, 60, () => Open(GroundScreen.Inventory), 30);
         Arrow(833, 33, -1);
         Text("INVENTORY", 869, 13, 30, G.Ink, bold: true, condensed: true);
+        if (Model.TechTree != null)
+        {
+            // G7: the tech tree of the workbench in reach.
+            Button("", 1060, 0, 250, 60, OpenTechTree, 30);
+            Text("TECH TREE", 1092, 13, 30, G.Ink, bold: true, condensed: true);
+            Arrow(1268, 33);
+        }
 
         _o = CanvasFrame;
         Rect(87, 65, 175, 597, G.Panel);

@@ -454,6 +454,12 @@ zone's record keeps when upkeep and decay were last applied, so loading catches 
 Schema 4 (G5, §6.6) adds a `notifications` table: raid alerts waiting for players who were offline, handed over at
 login. Charges in the world are saved with the zone's things.
 
+Schema 5 (G6, §6.7) adds `ships`: a row per ship, in the body frame, with its pilot.
+
+Schema 6 (G7, §6.8) adds `teams` (the server's teams, not a body's) and `prop_overrides` (world props as players changed
+them: gone until a time, or as left); characters' records keep the blueprints learnt, the map's markers and the last
+death. A database at schema 4 migrates through 5 (ships) to 6.
+
 ### 4.8 Characters
 
 What a player looks like to others and to themselves. Code in `game/scripts/Characters/`, assets in
@@ -1089,6 +1095,45 @@ were running on the same PC at the time, so the comparison is rough.
 - The average sits at 60 fps with the GPU at 11.1 ms: the other agent's client was drawing on the same GPU, and the
   server's tick, doubled, shares the CPU with its bots.
 
+### 5.9 G7 load test: 100 bots living off the world's loot
+
+Measured on the owner's PC on 13 October 2026, with other agents' work on it but in a quiet stretch (71 clock jumps in
+the bots' process, 99.96 % of inputs on their tick). Every bot gets the `world-kit` loot table (a machete, a metal
+hatchet, a research table, 100 salvage, two gears and two metal pipes, bandages and food) and plays `--script world`
+(`WorldBrain`): it walks to the barrels and crates it can see (one of the nearest five, so the crowd spreads), breaks
+barrels with the machete (holding the swing while someone else stands at the barrel: friendly fire is on), picks up the
+salvage, components and blueprints that spill, empties crates, takes three or more components to one of the recyclers
+in range and turns it on, places its research table once and researches the hatchet into a blueprint, and learns every
+blueprint it finds. One bot in four leads a team and invites the bots within 5 m; the others accept. Each puts a marker
+on its map. All arrive at the landing site and roam up to 450 m.
+
+```bash
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script world
+```
+
+| | G7, 100 world bots | 100 survival bots on the first world (§5.7, after) | Target |
+|---|---|---|---|
+| Server tick, average | 5.75 ms, of which the zone's step 1.51 ms; the world's steps 0.006 ms and its messages 0.024 ms | 5.04 ms, of which the zone's step 1.21 ms | ≤ 10 ms typical |
+| Server tick, 99th percentile / worst | 18.6 / 48.5 ms (5 of 1,802 over 33 ms) | 13.1 / 93.3 ms | ≤ 33 ms |
+| Bandwidth per client, down (91 characters in view) / up | 100.0 / 20.4 kbit/s | 105.3 / 22.1 kbit/s | ≤ 256 kbit/s |
+| Snapshots lost / inputs on their tick | 0 % / 99.96 % | | |
+| Prediction: mean / worst error, corrections | 0.012 / 282 mm, 46 in 120,000 | 0.089 / 259 mm, 125 in 80,460 | |
+
+In the 80 s the server counted 10 barrels broken and 3 crates emptied (a hundred bots share the cluster near the landing
+site and those 200–450 m out, and a barrel takes four blows), 62 components recycled in 31 batches, 35 research runs and
+28 blueprints learnt, and 22 teams with 55 members; 198 props stood at the end (none came back: barrels return after 20
+minutes).
+- **The world costs next to nothing**: its steps (crates going, props coming back, recyclers and research tables at
+  work) take 0.006 ms a tick, and its messages (blueprints, teams, invites, markers, machines, teammates' positions twice a
+  second) 0.024 ms. The rest of the tick is movement and replication, as in §5.7.
+- **Prediction is exact** but for the crowd shoving at the same barrels and recyclers: solid deployables and props are
+  now in every client's prediction physics (W10). Before that, 8 world bots made 120 corrections in 48 s walking into
+  barrels and crates; after it, none.
+- **Refusals** (186 of 1,025 intents) are the crowd's: a research table placed where another bot stood (106; the bot
+  turns and tries again), an invite to a bot already in a team (62), an output another bot took first (9).
+- **An earlier run on a busy PC** (945 clock jumps, 2.5 % of inputs late) measured 7.28 ms average and 61.4 / 438 ms at
+  the 99th percentile and worst; there the bots still swung into each other at the barrels: 54 hits, 30 deaths.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -1108,7 +1153,7 @@ saying where it came from. Sources, in order of preference:
 | Survival | Health, calories, hydration, temperature (planet climate, clothing, fires), bleeding, later radiation and comfort. |
 | Gathering | Trees, ore nodes, plants, pickups, animal corpses. Yield grows with the tool; the weak spot gives a bonus. Nodes have depletion stages and respawn. |
 | Inventory | 24 main slots, 6 belt, 7 wear. Stacks, splitting, quick move, drag and drop, loot panels. |
-| Crafting | Queue with times, ingredients taken up front and refunded on cancel. Workbench tiers 1–3. Blueprints and tech tree in G6. |
+| Crafting | Queue with times, ingredients taken up front and refunded on cancel. Workbench tiers 1–3. Blueprints, tech trees and research in G7 (§6.8). |
 | Building | 3 m module and storey. Square and triangle foundations, walls, doorways, windows, frames, floors, stairs, roofs, half and low walls. Five grades. Sockets and snapping, placement checks, stability, upgrade, rotate and demolish within a time window, repair. |
 | Claims | The claim device (our tool cupboard): authorised players, build rights in an area, upkeep storage, decay when unpaid. |
 | Doors | Wooden, metal and armoured, single and double, garage door. Key locks and code locks. |
@@ -2224,6 +2269,169 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
   ship stops short; the wreck's `explosion`. The wreck: `explosion.rocket` (1.6 ×) and `fire.burning` on the hull
   until it goes. All from the replicated flags, hull and velocity: the server sends no ship events to clients.
 
+### 6.8 World: economy, progression, teams, the map (G7, part A)
+
+Rust's progression and social layer: salvage (our scrap) from barrels and crates, the recycler, tech trees and research
+with blueprints, teams, and the map with its markers. Animals and monuments come later, in other packages. The rules are
+engine-free `Hollow.Simulation` code; the numbers are in `world.json` (with the items, recipes and loot tables of §7);
+the server, network, storage and client API follow G2's patterns; the interface's screens are new files beside
+`GroundUi` (§8).
+
+| Part | Where |
+|---|---|
+| Numbers | `game/data/ground/world.json` (currency, props, recycler, recycle lists, research, tech trees, loot spots, recyclers, teams, map); items 150–171 in `items.json`; `recipes.json`; the world's tables in `loot.json`; the research table in `deployables.json` |
+| Rules | `Content/World.cs` (reader and checks), `Nature/LootSpots.cs` (where props stand), `Economy/Rules.cs` (recycling, research, tech trees), `Items/Blueprints.cs`, `Teams/TeamRegistry.cs`, `Players/MapMarker.cs`, `World/WorldObjects.cs` (`WorldProp`), `Zone.World.cs` |
+| Server | `GameServer.World.cs` (intents, each player's own world state, teammates' positions, team chat, saving, admin `learn` and `world`) |
+| Storage | schema 6: `teams`, `prop_overrides` (`GameDatabase.cs`); `TeamCodec`; `WorldCodec` player records version 4 (blueprints, markers, last death) and `EncodeProp` |
+| Client | `LocalPlayer.World.cs`, `GameClient.World.cs`, `Map/ZoneMap.cs` (the map and its picture) |
+| Tests | `tests/Hollow.Tests/WorldTests.cs`, `WorldNetTests.cs` (`dotnet run --project tests/Hollow.Tests -- World`) |
+
+**Sources.** The owner allows Rust's numbers; names stay ours. Rust's economy: scrap from barrels (a rock breaks one in
+five blows) and crates; the recycler's half of a recipe and its fixed table for components (gears 10 scrap and 13 metal
+fragments, springs 10 and one HQM, pipes 5 and one, tech trash 20 and one, blades 2 and 15 fragments, sheet metal 8, 100
+fragments and one, road signs 5 and one, the semi body 15, 75 and two, the rifle body 25 and two), 5 s a cycle; the
+workbenches' scrap (50, 500, 1,250); the research table (10 s, 20 / 75 / 125 / 500 scrap by tier); tech trees with scrap
+costs; blueprint fragments; teams of 8; five map markers. hollow-orbit's `items.js` (`RECYCLE`, `LOOT`, `RESEARCH_COST`,
+`DEFAULT_KNOWN`) and `devices.js` (the research table) agree in kind and filled the gaps (the barrel and crate tables'
+make-up, the default blueprints). RustMVP's specs have nothing on these.
+
+**Salvage and components** (items 150–164). Salvage stacks to 1,000 and pays for workbenches, research and the tech
+trees. Components, Rust's in kind with our names: gears, springs, metal pipe, rope, cloth, sewing kit, tech scrap, metal
+blade, sheet metal, sign plate, gun receiver, rifle frame. Rope (15 fibre), cloth (50 fibre) and the sewing kit (10 fibre,
+2 rope) are crafted; the rest come from loot. Higher tiers need components, as in Rust: the pistol a receiver and a pipe,
+the rifle a rifle frame and four springs, sights tech scrap, the silencer a pipe, the garage and armoured doors gears, the
+rocket launcher four pipes and rockets two, the timed charge two tech scrap, the bag charge rope, the bed a sewing kit. The
+torn and sealed schematics (Rust's blueprint fragments) come from crates; the level 2 and 3 workbenches need three each.
+
+**Loot spots** (`LootSpots`): generated, never stored. One candidate per 130 m cell within 1.6 km of the zone's origin
+(never within 90 m of it, where players arrive), kept by what is round it: the sea within 35 m (a coast, 70 %), a forest
+edge (forest and open biomes side by side, or trees within 22 m but none on the spot; 35 %), or open ground (6 %). A kept
+cluster is two to four barrels (a fifth of them fuel barrels) and, 85 % of the time, a crate (a military one 22 % of
+those), within 6 m, each on dry ground gentler than 22° and clear of trees and outcrops. A cluster always stands about
+130 m from the origin, so arrivals find loot. Three recyclers take the first valid of six fixed points 100–150 m from
+the landing site. Deterministic (Hash64, Rng, DMath and the surface): a spot's ID (a tag byte, the cell, the member)
+names the same place after every restart. On the stand-in surface (§4.6) there are about 580 spots in 150 clusters.
+
+**World props** (`WorldProp`) are deployables to the rules, so blows, arrows, bullets, blasts, opening and replication
+treat them as such; clients see things of kind `Prop` whose look is the prop's number (world.json).
+
+| Prop | Model | What | Loot | Back after |
+|---|---|---|---|---|
+| Barrel (`loot-barrel-1`) | its own | 25 health: a rock breaks it in five blows, a stone hatchet four; its loot spills on the ground | `barrel`: 1–3 salvage, then one or two of components, metal fragments, rounds, arrows, lamp oil, bandages, food, now and then a blueprint | 20 min |
+| Fuel barrel (`loot-barrel-2`) | its own | as the barrel | `fuel-barrel`: lamp oil and salvage, maybe a pipe, gears, fragments or gunpowder | 20 min |
+| Crate (`loot-crate`) | its own | opened, take only; can't be broken; goes once empty | `crate`: 4–7 salvage, then two or three of components, tools, clothing, rounds, medicine, food, a torn schematic, a blueprint | 30 min |
+| Military crate (`military-crate`) | its own | as the crate | `military-crate`: 8–12 salvage, then three or four of gun parts, springs, pipes, tech scrap, a pistol, rounds, sights, armour, injectors, gunpowder, schematics, a blueprint of level 2 or 3 | 45 min |
+| Recycler (`recycler`) | its own | a public machine, opened and switched on by anyone, no fuel; can't be broken | | |
+
+A gone prop comes back on the real clock (as nature does), unless a player, a deployable or a building piece is in the
+way, then as soon as it isn't. Only what players changed is stored (`prop_overrides`): a prop gone until a time, or a
+standing one as left (health, slots, running).
+
+**The recycler**: six input and six output slots; anything with a recipe or a fixed list goes in, nothing into the
+outputs, never salvage, raw materials or blueprints. Switched on (it needs something to take apart), every 5 s it takes a
+batch (a tenth of the item's stack size, at least one) of the first input stack: a loot-only component gives its fixed
+list (`recycle` in world.json), anything crafted half of each ingredient of its recipe per unit, scaled by its condition,
+a fraction of a unit coming out as a chance (seeded by the recycler and the tick). It stops at once when nothing is left,
+and when the outputs can't take a batch. Ten gears and a metal hatchet: 100 salvage, 130 fragments and half the hatchet's
+(50 wood, 37 or 38 fragments) in 30 s (a test).
+
+**Blueprints and tech trees.** A recipe in no tech tree is known from the start (Rust's default blueprints: stone tools,
+spears, the bow, bandages, clothing, the bag, campfire, furnace, small box, the three workbenches, the building plan,
+hammer, claim device, key and code locks, the wooden door, rope, cloth, the sewing kit, lamp oil and gunpowder); this
+replaces G2's "every recipe is known" (§11 20). The rest are learnt three ways, and last through death:
+- *Tech trees*: one per workbench level (13, 14 and 7 nodes), each node a recipe and its salvage (75–500); a root is
+  open, any other needs one of the nodes before it known. A player at a workbench of the tree's level or higher (within
+  4 m) unlocks it with an intent; the salvage comes from the main slots and belt.
+- *Research*: a research table (a deployable: 200 metal fragments and 20 salvage at workbench 1; in the level 1 tree) takes
+  an item whose recipe isn't known from the start and its tier's salvage (20, 75, 125, 500: no workbench, levels 1–3),
+  and 10 s later a blueprint of it comes out in its third slot. Both are taken when it starts (given back if the table
+  breaks first); it can't be stopped.
+- *Blueprint items* (`blueprint`, its condition the recipe it teaches, as a key's holds its lock): from research and from
+  loot (barrels and crates of level 1–2, military crates 2–3); using one learns it and uses it up, unless it is known.
+
+**Teams** (`TeamRegistry`, Rust's): a player creates a team and leads it; the leader invites a player in no team within
+6 m (looking at them: the interact key's "Invite to team"); an invite lasts 5 minutes; accepting joins while there are
+fewer than eight; the leader kicks and promotes; a member leaves; a leader who leaves hands the lead to the member who
+joined first, and the last one out ends the team. Team chat goes to members alone. Twice a second every member online
+hears where the others are (unreliable), for the map and for name tags beyond the 300 m range. "Authorise team": at a
+claim device it puts the player and their team on its list (anyone may authorise there, as in Rust); on a code lock only
+someone the lock knows can, and it adds the team. Friendly fire stays on, as in Rust. Teams belong to the server, not to
+a body, and are saved in `teams`.
+
+**The map's markers**: up to five per player, a point in the zone (on the ground), one of six colours and a label of up
+to 24 characters; one taken off, or all. The map also shows where the player died last and their sleeping bags and beds;
+all of it is the player's own, saved with the character.
+
+**Network** (protocol 9, `Messages.cs` 130–145):
+- *Intents* (the general sequence and budget, answered by `IntentResult`): `UnlockIntent` (a node's recipe),
+  `TeamIntent` (create; invite a player; accept or decline a team's invite; leave; kick or promote a member),
+  `MarkerIntent` (place, or take off by index, −1 all). Using a blueprint is G2's `UseIntent`, a recycler's switch and a
+  research's start G2's `ToggleIntent`, "authorise team" an action of `ClaimIntent` and `LockIntent`. New refusals:
+  `AlreadyKnown`, `Locked`, `InTeam`, `NotLeader`, `TeamFull`, `NoTeam`, `CantStart`.
+- *Public state*: world props are static things of kind `Prop` (`ThingSpawn`, `ThingUpdate`): a barrel's health, a
+  recycler's running (the `Lit` flag), a research table's researching; crates and barrels despawn when gone and spawn
+  again when back.
+- *The player's own* (reliable): `BlueprintList` (every blueprint learnt, when that changes), `TeamState` (the team, its
+  leader and members, who is online), `TeamInvites`, `MapState` (markers, last death, bags and beds), `MachineState`
+  (the recycler or research table being looted: running, progress, seconds left, what it researches);
+  `TeamPositions` (unreliable, twice a second, the newest wins). Team chat: `TeamChatSend` up, `ChatLine` of kind `Team`
+  down.
+
+**Storage** (schema 6, step 5 → 6 after the ships' 4 → 5): `teams` (a row per team: its leader and members, `TeamCodec`)
+and `prop_overrides` (per body and spot: gone until a time, or health, slots and running, `WorldCodec.EncodeProp`),
+written when changed, deleted when back to as generated. Characters' records (version 4) add the blueprints learnt, the
+markers and the last death's point; decoding keeps only recipes the game has and doesn't teach everyone, and a blueprint
+item of nothing is dropped.
+
+**The client API** (`Hollow.Client`):
+
+| Member | What |
+|---|---|
+| `Local.Blueprints`, `Local.Knows(recipe)`, `Local.CanCraft` | What the player knows (the server's, with unlocks not yet answered); crafting checks it |
+| `Local.CanUnlock(node)`, `Local.Unlock(recipe)` | A tech tree node: whether it can be unlocked now (known, locked, bench, salvage) and the intent (the salvage leaves and the blueprint is known at once) |
+| `Content.World.TechTrees`, `.NodeOf(recipe)`, `.Research`, `.Props`, `Economy.Research.Cost(content, recipe)` | The trees (node, cost, nodes before it, depth for the layout), research prices, the props |
+| `Local.Learn(from, slot)` | Reads a blueprint item (`Use`) |
+| `Local.Toggle(id)`, `Local.Machine` (`MachineView`) | A recycler on or off, a research started; the looted machine's running, progress, seconds left and what it researches |
+| `Local.Team` (`TeamView`: members with name, online, leader, me), `Local.LeadsTeam`, `Local.TeamInvites`, `Local.Teammates` (`TeammateView`: position, yaw, awake, asleep, down or dead) | The team, its invites, where teammates are |
+| `Local.CreateTeam()`, `InviteToTeam(player)`, `AcceptInvite(team)`, `DeclineInvite(team)`, `LeaveTeam()`, `KickFromTeam(member)`, `PromoteInTeam(member)`, `GameClient.SendTeamChat(text)` | Team intents and chat (`ChatReceived` gives lines of kind `Team`) |
+| `GameClient.IsTeammate(id)` | For name tags (draw teammates' names, through walls) and the map |
+| `Local.Markers`, `Local.PlaceMarker(at, colour, label)`, `Local.RemoveMarker(index)`, `Local.DeathPoint`, `Local.RespawnPoints` | The map's own markers |
+| `GameClient.Props`, `RemoteThing.Prop(content)` | World props in range: barrels, crates, recyclers |
+| `GameClient.Aim` → `InteractionKind.Open` on crates and recyclers, `InviteToTeam` on a player close by (when leading a team) | The interact key |
+| `GameClient.Map` (`ZoneMap`: `Metres`, `Cells`, `ToMap`, `ToZone`, `GridName`, `CacheKey`, `Render(pixels)`) | The map and its picture |
+| Events: `Local.BlueprintLearned`, `TeamChanged`, `TeamInviteReceived`, `MapChanged` | For notices and sounds |
+
+**The map's picture** (`ZoneMapImage`, client side): a square of 3.9 km centred on the zone's origin, north up,
+rendered from the surface at any size (1,024 px by default) in Rust's parchment manner: land coloured by its biome
+weights and darker where forest stands (the planet's own vegetation), hill shading from the north-west, faint contours
+every 25 m and stronger every 100 m, the sea in muted teal deepening offshore with a light band at the surf and an inked
+shoreline, and paper grain, stains and a darker edge. Deterministic (Hash64 noise, no platform maths; rows in parallel),
+so the game caches it on disk under `ZoneMap.CacheKey`. The grid (26 × 26 cells of 150 m, lettered A–Z from the west and
+numbered from the north, as Rust's) and every label are drawn by the interface, crisp at any scale.
+
+**What the visual layer does with it** (the Godot work after this package; the screens are built, §8):
+- `ClientGroundUi` implements `IGroundUi`'s G7 members from `GameClient.Local` and `GameClient.Map`: `Map` (the
+  `ZoneMap`'s cache key, `Render`, metres and cells), `MapMarkers` in the map's 0–1 frame (`ToMap`): the player with their
+  yaw, `Teammates`, `DeathPoint`, `RespawnPoints` (bed or bag), `Markers`; `PlaceMarker` and `RemoveMarker` through
+  `ToZone`; `TechTree` from `Content.World.Tree(WorkbenchLevel)` with `Knows` and `CanUnlock` for the states; `Team` and
+  `TeamInvites`; the loot kinds `Recycler`, `ResearchTable` and `Crate` with `Machine` (`IsOn`, `Progress`,
+  `Researching`, `Cost`, `Reason`); a blueprint stack's `Teaches` (the key of `Content.Recipe(condition).Output`); team
+  chat lines. Once `Map` is given, the death screen draws that map, so the death's and the bags' places must be in its
+  frame too (`ToMap`), not the old survey picture's.
+- Open the tech tree at a workbench (`GroundUi.OpenTechTree`; the crafting screen has a TECH TREE tab too). G opens the
+  map (`GroundUi` handles it).
+- Draw the props from the model catalogue by their key (`loot-barrel-1`, `loot-barrel-2`, `loot-crate`,
+  `military-crate`, `recycler`: stand-ins now), the recycler's light and hum while it runs (`Lit`), sounds for a barrel
+  breaking, a crate opening and a blueprint learnt (`sounds.json` has stand-in roles).
+- Teammates' name tags (`IsTeammate`: through walls, as Rust's), and an "Invite to team" prompt on a player within 6 m
+  while leading a team; notices for invites, team changes and blueprints learnt.
+- Icons and models for the new items: `salvage`, the components (`gears`, `springs`, `metal-pipe`, `rope`, `cloth`,
+  `sewing-kit`, `tech-scrap`, `metal-blade`, `sheet-metal`, `sign-plate`, `receiver`, `rifle-frame`), `torn-schematic`,
+  `sealed-schematic`, `blueprint` and `research-table` (flat placeholders in `ItemIcons` until then).
+
+**Bots and the load test**: `WorldBrain` and `loadtest --script world` (§5.9).
+
+
 ---
 
 ## 7. Data
@@ -2235,10 +2443,11 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
 - weapons, ammo and recoil patterns;
 - damage and protection tables, survival constants.
 
-A test checks that every reference resolves and that every recipe can be made from gatherable resources.
+A test checks that every reference resolves and that every recipe can be made from gatherable resources (since G7, also
+from what the world's barrels and crates give and the recycler's fixed lists turn it into).
 
-**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (ten:
-G3 phase 2a added building.json, G5 explosives.json),
+**As built in G2** (`Hollow.Simulation.Content`, engine-free): `GameContent.Load(folder)` reads the files below (eleven:
+G3 phase 2a added building.json, G5 explosives.json, G7 world.json),
 resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
 a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
 `game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
@@ -2250,11 +2459,12 @@ data is refused. Each file starts with a `source` note saying where its numbers 
 | `recipes.json` | 62 recipes (G3: the building plan, hammer, claim device, locks and doors; G4: gunpowder, the guns at workbench 2 and 3, rounds, attachments, the metal mask; G5: Rust's raiding recipes): output, amount, seconds, workbench level, ingredients, known. A recipe's ID is its output's. | hollow-orbit; Rust for spears, bow, arrows, the key lock, the double and garage doors and raiding; times ours |
 | `gather.json` | Natural kinds: trees, three outcrops (three depletion stages), pickups (piles, fibre plants, wild tubers), red and blue berry bushes; health, yields, respawn, shape; the weak spot (radius 0.3 m, ×2). | hollow-orbit `planet.js`; Rust's pickups and weak spot |
 | `deployables.json` | Sleeping bag, bed, campfire, furnace, small and large box, workbenches 1–3: hit points, half extents, steepest slope, solid or not, slots, device slots (fuel, input, output), warmth, bag cooldown, workbench level. | hollow-orbit `DEPLOY`; Rust's box sizes; RustMVP's 300 s bag; the bed's 120 s from hollow-orbit and Rust |
-| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`, `raid-kit`). | Rust |
+| `loot.json` | Loot tables (guaranteed entries, then weighted rolls): the respawn kit (rock and torch), a supply crate for tests, the load tests' kits (`load-test-kit`, `gunfight-kit`, `build-kit`, `raid-kit`, `world-kit`); G7 the world's barrels and crates (`barrel`, `fuel-barrel`, `crate`, `military-crate`), whose `blueprint` entries take a fifth number, the workbench level of the recipe taught. | Rust; hollow-orbit `LOOT` |
 | `survival.json` | Vitals, metabolism, bleeding, burning (G4), the wounded state (G4), temperature, the climate stand-in, body-part multipliers, rewind limit, corpse and dropped-item lifetimes, reach, action rate limits. | RustMVP, hollow-orbit `player.js` |
 | `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
 | `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
+| `world.json` (G7) | The world's economy and progression (§6.8): the currency (salvage) and the blueprint item; the world props (barrels, crates, the recycler: number, model key, health, size, slots, loot table, respawn); the recycler's slots, pace, share of a recipe and batch; the fixed recycle lists of loot-only components; the research table's slots, time and prices by tier; the three tech trees (node, salvage, the nodes before it); where loot spots are kept (radius, cell, clear ring, chances by kind of place, a cluster's make-up, the landing cluster); the recyclers' points; teams (size, invite time); the map (markers, size, grid). Its checks: props, slots, yields, research slots and prices, trees (a recipe in at most one, at its bench or below, no loops), blueprint loot entries, and that every recipe stays makeable now that loot and the recycler supply parts. | Rust's numbers (scrap, recycler, research, tech tree costs, teams, markers); hollow-orbit `items.js` (`RECYCLE`, `LOOT`, `RESEARCH_COST`, `DEFAULT_KNOWN`) and `devices.js` |
 | `explosives.json` (G5) | The blasts (radius, falloff, splash, damage to people and deployables, one hit's damage to a piece of each grade by side and to a door of each protection), the explosives thrown or placed by hand (fuse, dud chance, sticky or not, throw and lob speeds, bounce, size), and how raid alerts go out (cooldown, how long and how many are kept). §6.6 has the tables. | Rust's raid costs; RustMVP `building_damage.md`; hollow-orbit `construct.js` and `items.js`; ours for fuses' spread, throws and alerts |
 
 The client alone also reads `sounds.json`, the sound catalogue (§4.9); it is not part of the game data's hash.
@@ -2274,6 +2484,7 @@ The RustMVP interface is the reference, matched exactly: layout, colours, fonts,
 ```bash
 $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot inventory.png
 # --screen hud | inventory | loot | corpse | furnace | campfire | crafting | death | wheel | hammer | menu
+#          map | techtree | recycler | research   (G7)
 ```
 
 | Screen | Reference (in `D:\GameDev\Projects\RustMVP`) | As built (`docs/images/ground/ui/`) |
@@ -2284,6 +2495,9 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
 | Building and hammer wheels | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png` | `wheel.jpg`, `hammer.jpg` |
 | Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.jpg` |
 | Main menu | `logs/ui-polish/menu.png` | `menu.jpg` |
+| Map (G7) | Rust's map: parchment, a lettered and numbered grid, markers; RustMVP's panels beside it | `map.jpg` |
+| Tech tree (G7) | Rust's workbench tech tree, drawn with RustMVP's slots and buttons | `techtree.jpg` |
+| Recycler and research table (G7) | Rust's loot panels for them, in the furnace's manner | `recycler.jpg`, `research.jpg` |
 | Other scales | | `crafting-720p.jpg` (scale 0.8), `inventory-1440p.jpg` (scale 1.3125) |
 | Specification | `docs/architecture/legacy/weapons_character_ui.md` | |
 
@@ -2327,6 +2541,7 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | HUD | `Prompt` (key, action, more options). Events: hit confirmed (head shot), damaged (bearing), gathered (item, amount), crafted (item, amount), notice, chat line. |
 | Wheels | `Wheel(kind)`: the plan's pieces or the hammer's actions in clockwise order (glyph, title, description, cost line, reason it can't be chosen); `WheelCurrent(kind)`. |
 | Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Use(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `ChooseWheel(kind, i)`, `CloseLoot()`, `Say(text)`. Each is a request; the answer is a changed read, or a notice. |
+| World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
@@ -2378,6 +2593,23 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
   port (HOST SOLO or CONNECT); QUIT.
   The name and address are remembered.
+- **Map (G7):** G opens and closes it (Esc closes it). The zone's map (§6.8: heights, sea and beach, hill shading,
+  contours, the grid in 150 m cells lettered across and numbered down) fills a square on the left, following the
+  player until dragged; the wheel zooms. Markers: the player (an arrow with their facing), teammates (dim offline),
+  the last death, bags and beds, and the player's own (up to five, numbered, in six colours); names placed by the
+  `Labeller`. A click puts a marker down in the chosen colour, a right-click on one takes it off. Beside the map: the
+  cell the player is in, FOLLOWING YOU, the markers with their cells (× removes, CLEAR ALL), the team (LEAD and KICK
+  for its leader, LEAVE TEAM, or CREATE TEAM) and the invites (ACCEPT, DECLINE, seconds left). The keys sit at the
+  panel's foot. The death screen draws the same map, with the zone's cells, when the model has one.
+- **Tech tree (G7):** the crafting screen's TECH TREE tab, when a workbench is in reach (the game also opens it at a
+  workbench). Each subtree takes as many columns as it has leaves, its root above them; a node is the item's slot with
+  its salvage on a strip below it, green and ticked once known, blueprint blue and dim while locked; lines from the
+  nodes before it turn green once those are known. The chosen node on the right: the item, its description, why it
+  can't be unlocked yet (or READY TO UNLOCK) and UNLOCK · N SALVAGE.
+- **Machines (G7):** a recycler shows INPUT and OUTPUT rows, the progress of the batch and TURN ON or OFF (no fuel); a
+  research table the item, the salvage and the blueprint with arrows between, the price or the reason it can't start,
+  and BEGIN RESEARCH. A blueprint is drawn as the item it teaches on blueprint blue. A world crate is a box's grid.
+- **Team chat (G7):** "/t " or "/team " before a line sends it to the team; team lines are green, marked [TEAM].
 - **Check:** `--view ui --ui-check` plays these gestures through Godot's input (click, drag, middle-drag, right-click,
   drop outside and on a panel, split, Q, CRAFT, Tab) against `MockGroundUi` and quits with 0 when all pass.
 
@@ -2869,10 +3101,11 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
 
 18. **No scrap yet.** Rust's workbenches cost scrap, which comes from barrels and crates (G7). Until then workbench 1
     is 500 wood and 100 metal fragments, and workbenches 2 and 3 cost refined metal (smelted from the high-grade ore
-    metal outcrops give, as Rust's high-quality metal).
+    metal outcrops give, as Rust's high-quality metal). *Replaced in G7 (§6.8, W1, W3): the workbenches cost salvage.*
 19. **Lamp oil** (our low-grade fuel) is made from charcoal and fibre, since there are no animals for fat yet; a
     furnace needs ten. So the first furnace comes after a campfire has burnt wood into charcoal.
-20. **Every recipe is known** from the start; the tech tree (G7) will hide some (`known` in recipes.json).
+20. **Every recipe is known** from the start; the tech tree (G7) will hide some (`known` in recipes.json). *Replaced in
+    G7 (§6.8, W4): Rust's default blueprints, the rest learnt.*
 21. **Yield is fixed per object**: a better tool or the weak spot gathers it faster, not more of it (hollow-orbit's
     rule; Rust's numbers differ per tool). The weak spot shows after the first hit, facing the hitter (Rust).
 22. **Dragging onto a stack of the same item tops it up and leaves the rest** (Rust); RustMVP refused the whole move.
@@ -3291,4 +3524,58 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
   heading and half the climb, not the roll (rolling into a turn tilts the ship, not the world).
 - S18. **A pilot's ground is the ship's business:** the zone's ground pass skips seated characters (a pilot at 150 m
   needs no tiles under it; the ship asks for them when it nears the ground), and a blast leaves a pilot to the cabin.
+
+Decisions taken during G7's part A (step "World": economy, progression, teams, the map; §6.8) without the owner, to
+confirm or overturn (numbered W1 on):
+
+- W1. **Salvage is our scrap** and Rust's currency: barrels give 1–3 (Rust's 2, hollow-orbit's 2–4), crates 4–7, military
+  crates 8–12; workbenches cost Rust's 50, 500 and 1,250 (hollow-orbit's 50, 300, 750), research Rust's 20, 75, 125 and
+  500 by tier (hollow-orbit's 20, 60, 125, 250). Replaces decision 18.
+- W2. **Components** are Rust's in kind with our names (gears, springs, metal pipe, rope, cloth, sewing kit, tech scrap,
+  metal blade, sheet metal, sign plate, gun receiver, rifle frame). Fibre stands for Rust's cloth, so rope (15), cloth (50,
+  Rust's tarp in kind) and the sewing kit (10 and two rope) are made of it; the rest come only from loot. Recipes that
+  used refined metal for parts (decision 54, R10) now take the components, as in Rust.
+- W3. **Schematics** (torn and sealed) are Rust's blueprint fragments: the level 2 and 3 workbenches need three each
+  (Rust's five, from monuments; three until monuments exist), found in crates (torn) and military crates (both).
+- W4. **Default blueprints are the recipes in no tech tree** (Rust's default set in kind, hollow-orbit's `DEFAULT_KNOWN`
+  close to it); the three workbenches are among them, gated by their cost. Replaces decision 20.
+- W5. **Tech trees**: a node needs one of the nodes before it (Rust's graph), a workbench of the tree's level *or
+  higher* within 4 m (Rust shows each bench its own tree), and its salvage (ours, in Rust's range: 75–500).
+- W6. **Research** takes the item and its salvage when it starts (given back if the table breaks first; hollow-orbit took
+  them at the end), puts the blueprint in a third slot (hollow-orbit used the item's), and can't be stopped. A tier is the
+  tree's level, else the level the recipe needs.
+- W7. **The recycler**: Rust's fixed lists for loot-only components; half a crafted item's recipe, scaled by its
+  condition, a fraction of a unit coming out as a seeded chance (hollow-orbit rounds down); a tenth of the item's stack
+  per 5 s batch; it stops at once when empty or when its outputs can't take a batch. Public and unbreakable; three stand
+  at fixed points 100–150 m from the landing site until monuments bring their own.
+- W8. **Barrels** have 25 health (a rock's five blows), spill their loot on the ground (Rust's) and come back after 20
+  minutes; **crates** can't be broken, take nothing, go once empty and come back after 30 (45 military); a prop never comes
+  back on top of a player, a deployable or a building piece. Respawns run on the real clock, as nature's.
+- W9. **Loot spots** are generated clusters (coasts, forest edges, the open), within 1.6 km of the zone's origin and never
+  within 90 m of it, where players arrive (and the tests play); one cluster always about 130 m out. Barrels and crates
+  stand anywhere a cluster is kept, not along roads (there are none).
+- W10. **World props are deployables to the rules** (hits, blasts, opening, replication). Clients see them as things of
+  kind `Prop`. They are solid on the server and in every client's prediction, as boxes and furnaces now are: a solid
+  deployable or prop reaching a client gets the server's box (same place, up and yaw) in its prediction physics, and
+  loses it when it goes (`GameClient.ThingBodyAdded`; clients sharing a physics world, the bots, count who holds each).
+  Before, walking into one was corrected: 8 world bots made 120 corrections in 48 s, and none after.
+- W11. **Teams**: Rust's size of 8; an invite lasts 5 minutes and goes to a player within 6 m (looking at them); a leader
+  who leaves passes the lead to the oldest member. "Authorise team" on a claim device adds the player and the team (anyone
+  may authorise there); on a code lock only someone it knows can. Friendly fire stays on. Teammates' positions go to
+  members twice a second, unreliably. Teams are the server's, not a body's.
+- W12. **Map markers**: five, each a point, one of six colours and a label (Rust's markers in kind); saved with the
+  character in the zone frame (a moved zone would move them), as the last death's point.
+- W13. **The map** is 3.9 km across, centred on the zone's origin, with 26 × 26 cells of 150 m (Rust's 146 m) lettered
+  from the west and numbered from the north; its picture is rendered by each client from the surface (deterministic,
+  cached on disk), not sent by the server.
+- W14. **Stand-in models and sounds** for the new items until the assets and sound packages make them (`models.json`
+  `standIn`, `sounds.json` and `art/audio/events.py`): metal fragments for salvage and tech scrap, refined metal for the
+  metal components, fibre for rope, cloth and the sewing kit, the building plan for schematics and blueprints, the
+  engineering workbench for the research table; box sounds for crates and the recycler's lid, the furnace's for its
+  motor, metal impacts for barrels, the crafting clicks for research.
+- W15. **Numbers taken in shared spaces** (G7 merged after G6, so it took the next ones, as S12 asks): protocol 9,
+  messages 130–133 (intents) and 140–145 (state), schema step 5 → 6 (`teams`, `prop_overrides`), player records version
+  4, `ActionResult` 24–29 (already known, in a team, not the leader, team full, no team, can't start) with `Locked` (20)
+  shared with the ship's, `ChatKind.Team`, `StaticKind.Prop`, item IDs 150–171, categories `components` (before the
+  ships' `vehicles`), and `world.json` read after `ships.json`.
 

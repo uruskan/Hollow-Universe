@@ -1,5 +1,5 @@
 {
-  "source": "Loot tables: a table gives every 'guaranteed' entry, then 'rolls' picks from 'entries' by weight ([item, least, most, weight]). The respawn kit is Rust's (a rock and a torch). Crates and barrels come with monuments (G7); 'supply-crate' is here for admin tests and the bots; 'gunfight-kit' arms the G4 load test's bots (a rifle and a pistol with rounds, two attachments, armour, bandages and food). 'build-kit' is what a building bot needs for its base (G3). 'raid-kit' is what the G5 raid bots carry (charges, bag charges, grenades, a rocket launcher with rockets, a rifle with explosive rounds).",
+  "source": "Loot tables: a table gives every 'guaranteed' entry, then 'rolls' picks from 'entries' by weight ([item, least, most, weight]). An entry of \"blueprint\" takes a fifth number: the workbench level of the recipe it teaches, drawn from those not known from the start (world.json). The respawn kit is Rust's (a rock and a torch). G7: the world's barrels and crates (world.json says which prop rolls which table), in Rust's manner: salvage every time (barrels 1-3 as Rust's 2, crates 4-7, military crates 8-12), then components, ammunition, food, medicine, tools, and now and then a blueprint or a schematic; military crates hold gun parts, guns and armour. 'supply-crate' is here for admin tests and the bots; 'gunfight-kit' arms the G4 load test's bots (a rifle and a pistol with rounds, two attachments, armour, bandages and food). 'build-kit' is what a building bot needs for its base (G3). 'raid-kit' is what the G5 raid bots carry (charges, bag charges, grenades, a rocket launcher with rockets, a rifle with explosive rounds). 'world-kit' is what the G7 world bots start with (a machete for barrels, a metal hatchet to research, a research table, salvage, a few components for the recycler).",
   "tables": [
     { "key": "respawn-kit", "guaranteed": [["rock", 1, 1], ["torch", 1, 1]] },
     { "key": "supply-crate", "rolls": [2, 4],
@@ -31,6 +31,44 @@
         ["timed-charge", 4, 4], ["bag-charge", 6, 6], ["tin-grenade", 8, 8], ["rocket-launcher", 1, 1], ["rocket", 3, 3], ["rocket", 3, 3],
         ["rocket-hv", 2, 2], ["rifle", 1, 1], ["rifle-ammo-explosive", 96, 96], ["rifle-ammo", 64, 64], ["bandage", 3, 3],
         ["roasted-tuber", 10, 10], ["woven-shirt", 1, 1], ["woven-trousers", 1, 1], ["work-boots", 1, 1], ["chest-plate", 1, 1]
+      ] },
+    { "key": "world-kit", "guaranteed": [
+        ["machete", 1, 1], ["metal-hatchet", 1, 1], ["research-table", 1, 1], ["salvage", 100, 100], ["gears", 2, 2], ["metal-pipe", 2, 2],
+        ["bandage", 2, 2], ["roasted-tuber", 5, 5]
+      ] },
+
+    { "key": "barrel", "rolls": [1, 2],
+      "guaranteed": [["salvage", 1, 3]],
+      "entries": [
+        ["rope", 1, 1, 2], ["metal-pipe", 1, 1, 1.2], ["gears", 1, 1, 1.2], ["springs", 1, 1, 0.8], ["sewing-kit", 1, 1, 1],
+        ["sign-plate", 1, 1, 1], ["metal-blade", 1, 1, 1], ["sheet-metal", 1, 1, 0.5], ["tech-scrap", 1, 1, 0.3], ["cloth", 1, 1, 0.6],
+        ["metal-fragments", 15, 35, 2], ["pistol-ammo", 4, 10, 0.8], ["arrow", 3, 8, 1], ["lamp-oil", 5, 15, 1],
+        ["bandage", 1, 2, 1], ["roasted-tuber", 1, 2, 1], ["blue-berries", 2, 5, 0.6],
+        ["blueprint", 1, 1, 0.15, 1], ["blueprint", 1, 1, 0.04, 2]
+      ] },
+    { "key": "fuel-barrel", "rolls": [0, 1],
+      "guaranteed": [["lamp-oil", 10, 25], ["salvage", 1, 2]],
+      "entries": [["metal-pipe", 1, 1, 1], ["gears", 1, 1, 0.6], ["metal-fragments", 10, 25, 1], ["gunpowder", 5, 15, 0.5]] },
+    { "key": "crate", "rolls": [2, 3],
+      "guaranteed": [["salvage", 4, 7]],
+      "entries": [
+        ["rope", 1, 2, 1.5], ["metal-pipe", 1, 2, 1.5], ["gears", 1, 2, 1.5], ["springs", 1, 1, 1], ["sewing-kit", 1, 2, 1],
+        ["sheet-metal", 1, 1, 0.8], ["tech-scrap", 1, 1, 0.6], ["metal-blade", 1, 1, 0.8], ["sign-plate", 1, 2, 0.8],
+        ["stone-hatchet", 1, 1, 0.5], ["stone-pickaxe", 1, 1, 0.5], ["metal-hatchet", 1, 1, 0.25], ["machete", 1, 1, 0.2],
+        ["woven-shirt", 1, 1, 0.4], ["woven-trousers", 1, 1, 0.4], ["work-boots", 1, 1, 0.3],
+        ["pistol-ammo", 8, 16, 0.7], ["arrow", 6, 12, 0.7], ["bandage", 2, 3, 0.8], ["medical-injector", 1, 1, 0.3],
+        ["roasted-tuber", 2, 4, 0.6], ["torn-schematic", 1, 1, 0.3],
+        ["blueprint", 1, 1, 0.35, 1], ["blueprint", 1, 1, 0.12, 2]
+      ] },
+    { "key": "military-crate", "rolls": [3, 4],
+      "guaranteed": [["salvage", 8, 12]],
+      "entries": [
+        ["receiver", 1, 1, 0.5], ["rifle-frame", 1, 1, 0.25], ["tech-scrap", 1, 2, 1], ["springs", 1, 2, 1], ["metal-pipe", 1, 2, 1],
+        ["gears", 1, 2, 0.8], ["sheet-metal", 1, 1, 0.6], ["pistol", 1, 1, 0.12], ["rifle-ammo", 10, 20, 0.8], ["pistol-ammo", 12, 24, 0.8],
+        ["rifle-ammo-hv", 6, 12, 0.2], ["holo-sight", 1, 1, 0.08], ["muzzle-brake", 1, 1, 0.08], ["chest-plate", 1, 1, 0.1],
+        ["metal-mask", 1, 1, 0.08], ["medical-injector", 1, 2, 0.6], ["bandage", 2, 3, 0.4], ["gunpowder", 15, 30, 0.6],
+        ["torn-schematic", 1, 2, 0.6], ["sealed-schematic", 1, 1, 0.3],
+        ["blueprint", 1, 1, 0.4, 2], ["blueprint", 1, 1, 0.15, 3]
       ] }
   ]
 }
