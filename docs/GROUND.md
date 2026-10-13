@@ -1529,7 +1529,8 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | In the zone | `src/Hollow.Simulation/Zone.Ships.cs`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
 | Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 4 (`ships`) in `GameDatabase.cs`; `GameServer.Ships.cs` loads and saves |
 | Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/GameServer.Ships.cs`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, `LocalPlayer.Ships.cs` |
-| Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly) |
+| Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
+| Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
 
 **The flight model** (`ShipMotor.Step`, one 30 Hz tick, a pure function of the state, the pilot's input and the static
 world, like a character's step, §4.5). Six degrees of freedom in the zone's frame: the centre of mass, a rotation, a
@@ -1657,11 +1658,75 @@ after hundreds of ground tiles had come and gone a ray took 5 µs instead of 0.7
 `PhysicsWorld.ReleaseUnusedGround` now rebuilds it once 16 bodies have come since the last time (queries find the same
 bodies either way; the movement check's hash is unchanged).
 
+**The viewer** (`game/scripts/Ships`, presentation only; the host hands it the ship's pose and flags each frame):
+- `ShipView` draws a ship from the catalogue model (`tin-finch`: three levels of detail switching at 60 and 160 m).
+  The hatch swings by sampling the model's own `Hatch_Open` clip at the hatch's progress. Every nozzle in ships.json
+  has a plume (a quad turned about its axis to face the camera) and a glow at its mouth (`ship_exhaust.gdshader`,
+  additive, unlit): the main engine and the two side exhausts grow with forward thrust, the four lift nozzles with up
+  thrust, the two small side thrusters with sideways, braking and down thrust; their length goes as the square root of
+  the thrust, smoothed over 70 ms; a running engine keeps a pilot light; boosting turns the gas blue-white. Plumes and
+  lamps are scaled by the camera's exposure so they read alike by day and night (S15). Nav lights (red on the left pod,
+  green on the right, a white beacon on the spine) and a landing light under the nose burn while the engines run; the
+  lift nozzles light the ground below; the lamps' material is the ship's own, bright with the engines, dim parked.
+- `ShipCamera`: the **cockpit** camera at the model's pilot-camera socket, 4° below the nose line; the **chase** camera
+  12.5 m behind and 3.4 m above, following the heading and half the climb but not the roll, swinging after the ship in
+  turns (its offset is smoothed, never its position, so it never falls behind at 260 m/s) and staying 1.6 m over the
+  ground. V switches them.
+- `ShipControls` (S14): the mouse is a virtual stick that springs back to the middle (a turn follows how fast the mouse
+  moves; the arrows are a keyboard stick); W/S move a throttle lever that stays where it is put (X: zero); A/D slide,
+  Space/C rise and sink, Q/E roll, Shift boosts, Z switches flight assist. In the seat F steps out, H works the hatch, L
+  the lock, J descends from orbit; on foot E opens the hatch and boards.
+- `ShipHud`, in the ground interface's style and design canvas (§8): speed, height over the ground and climb at the
+  bottom with the heading above them; the throttle lever on the left with the speed flight assist will hold; fuel and
+  hull where the vitals sit, with flight assist, boost (time left, or cooling), landed (or "too steep") and orbit stacked
+  above; the stick and a crosshair in the middle; warnings at the top (pull up when the ground is under 4 s away, hull
+  critical, low fuel, the distance to orbit in the last 3 km); the key under the crosshair (step out, descend).
+- **The sandbox** (`--view ship`, `ShipSandbox`): a local zone on the first world's own ground (`PlanetSurface`; the
+  stand-in trees and rocks are off, S16), drawn by a `SurfaceView` used as a component (its camera driven from here),
+  with the same rules the server runs. You stand beside your Tin Finch, parked on the bay of a vehicle workbench in the
+  flattest open spot within 90 m of the landing site. `--scene pad|hover|forest|cockpit|slope|ceiling` sets up the
+  pictures below (screenshots hold the scene's camera and pause the zone); `--tour` plays the whole loop through the
+  same keys a player presses and prints what happened.
+
+| Picture (`docs/images/ground/ship/`) | |
+|---|---|
+| `pad.png` | On foot by the ship on the workbench's bay, the hatch open |
+| `hover.png` | Hovering 8 m over the pad under flight assist: the lift nozzles carry 49 % |
+| `forest.png` | The chase camera over the forest at 95 m/s, 58 m up, with the HUD |
+| `cockpit.png` | The cockpit at 55 m/s over the forest edge |
+| `slope.png` | Landed on a 15° hillside (the planet's own slope, found by the scene), leaning 15.5° with it |
+| `ceiling.png` | 14.4 km up, climbing for the ceiling: "orbit in 570 m" |
+
+`--tour`, measured (13 October 2026): walked to the hatch in 0.8 s and opened it in 1.0 s; boarded; 3 s of "up"
+lifted it to 58 m; 0.6 s of W set the lever to three quarters and in 6 s it reached 120 m/s, climbing over a hill
+when the ground came within 45 m; a turn with a boost touched 168 m/s; X and flight assist stopped it from 166 m/s
+in 8.9 s and 761 m (sliding through the turn: at speed a yaw turn outruns the 45 kN of side thrust, as in Elite); held
+"down" sank 46 m in 6.5 s, the landing assist slowing it to touch down at 1.9 m/s with no hull lost on ground
+sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The zone's tick in the client took under
+0.2 ms.
+
 | Test | What it shows |
 |---|---|
 | `ShipPersistenceTests.AShipAndItsPilotSurviveARestart` | A locked, damaged, part-fuelled ship with a loaded rifle and metal in its cargo and Ada in the seat comes back the same (0.3 mm off, the same turn); Ada sleeps in the seat, logs in there and flies it; after it is wrecked its row is gone |
 | `ShipNetTests.PredictionMatchesTheServer` | 900 ticks of a recorded flight (lift-off, a turn, boost, flight assist off, pitch, roll, strafe, a landing with the stick moving), the client's predictors on their own ground and trees against the zone: 0 ship ticks and 0 character ticks differ |
 | `ShipNetTests.OthersSeeItFly` | Over loopback: Ada boards the ship the server gave her through the intent, climbs and flies; Bo sees it 28 m up at 45 m/s, piloted, engines on; Ada's prediction is never corrected |
+| `ShipTests` (four) and `ShipGameTests` (three) | Hovering under flight assist, its braking, landing on slopes, crash damage; boarding and stepping out, the lock, building at the workbench, weapons and the wreck (the numbers in the table above) |
+
+**The ground mode's hookup** (after this package; `scripts/Ground` is the integration's):
+1. Draw every `GameClient.Ships` with a `ShipView`: the pivot from `RemoteShip.Origin` and `Rotation`, `Hatch`,
+   `Thrust` and the flags; the pilot's own from `OwnShipRenderPosition`/`OwnShipRenderRotation` with `OwnShip`'s thrust
+   and flags. Set `ShipView.Exposure` from the sky each frame.
+2. While `GameClient.Piloting`: `ShipControls.Read` into `InputFrame.Ship` each tick (mouse motion to
+   `ShipControls.Mouse`, Z and X to `ShipControls.Key`), the camera from `ShipCamera.Follow` on the predicted state, and
+   `ShipHud` in place of the belt and crosshair (fill `ShipHudData` as `ShipSandbox.FillHud` does); hide the viewmodel
+   and the local body; F `Local.ExitShip()`, H `Local.ShipHatch`, L `Local.LockShip`, J `Local.Descend()`.
+3. On foot: `GameClient.AimShip(eye, direction)` for the prompt under the crosshair, E `Interact` (hatch, board, refuel,
+   cargo, which opens with the box screen); `IntentResult` refusals and `Notice` events as toasts.
+4. Other pilots: a seated character (`Stance.Seated`) drawn sitting at the seat socket, or hidden.
+5. A public external-camera mode for `SurfaceView` (the sandbox reaches its camera and `UpdateWorld` by reflection,
+   S16), and solid natural objects where the planet draws them (the planet package's scatter for `CreateNature`).
+6. Sounds (engine by thrust at `socket_engine_audio`, boost, hatch, touchdown, crash) and the wreck's fire (Fx) on
+   `ShipEventKind.Destroyed`.
 
 ---
 
@@ -2330,4 +2395,22 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
   pilot takes a tenth and is never knocked down in the seat; a pilot in a destroyed ship dies.
 - S11. **Landing:** three pads carrying the ship with nothing asked of the controls idle the engines; it counts as landed
   on ground up to 25°, and the pads' friction (0.55) holds it up to 29°.
+- S12. **Numbers taken in shared spaces:** protocol 6, `ShipIntent` 120, schema step 3 → 4 (`ships`), `ActionResult`
+  19–23 (needs a station, locked, occupied, not landed, hatch shut), `HitTarget.Ship` 6, physics bodies from
+  `PhysicsWorld.FirstShipBody` (1,024 of them). Whichever branch merges second takes the next free protocol number and
+  schema step (the step's SQL stands alone).
+- S13. **Ships are relevant within 2 km and get up to 35 % of a snapshot's budget** (characters the rest; a 6 m ship
+  2 km away is about ten pixels across at 1600 × 900).
+- S14. **The pilot's keys** are Elite's habits on our ground keys: the mouse turns (pitch and yaw, the owner's own
+  binding; a stick that springs back rather than a pointer to fly toward), Q/E roll, W/S a throttle lever that stays put,
+  A/D and Space/C the thrusters, Shift boost, Z flight assist; E stays the interact key on foot, so in the seat F steps
+  out.
+- S15. **Plumes, lamps and ship lights are scaled by the camera's exposure** (brightness over exposure), not lit
+  physically: a thruster reads as a thruster at noon, and doesn't blind at night.
+- S16. **The ship sandbox drives the surface view by reflection** (`_camera`, `_frame`, `UpdateWorld`), as
+  `scripts/Surface` was not this package's to change, and turns the stand-in natural objects off (their places don't
+  match the planet's drawn trees, so a ship would land on invisible trunks): nothing natural is solid there until the
+  planet's scatter becomes the zone's nature (§4.6).
+- S17. **The cameras:** the cockpit is the model's pilot-camera socket, looking 4° down; the chase camera follows the
+  heading and half the climb, not the roll (rolling into a turn tilts the ship, not the world).
 
