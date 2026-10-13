@@ -1635,7 +1635,51 @@ def _railcar(b):
     b.collide_box(Vector((0, 0, 2.6)), (L, W, 3.6), (0, 0, 0))
 
 
+def _cell_front(b):
+    """The barred front of a cell, 3.2 m wide: posts and a header, fixed bars, a barred door (shut), a food slot."""
+    steel = srgb(0.32, 0.34, 0.33)
+    b.box((3.2, 0.2, 0.3), (0, 0, 3.0), tint=steel)
+    for x in (-1.55, 1.55, 0.15):
+        b.box((0.12, 0.16, 3.1), (x, 0, 1.55), tint=steel)
+    for z in (0.15, 1.1, 2.1):
+        b.box((3.0, 0.08, 0.06), (0, 0, z), tint=steel, solid=False, vary=0)
+    for k in range(7):
+        b.cyl(0.022, 2.9, (-1.4 + k * 0.21, 0, 1.5), tint=steel, sides=5, solid=False, vary=0)
+    for k in range(6):
+        b.cyl(0.022, 2.7, (0.3 + k * 0.2, -0.05, 1.4), tint=steel, sides=5, solid=False, vary=0)
+    b.box((1.3, 0.08, 0.08), (0.85, -0.05, 2.75), tint=steel, solid=False, vary=0)
+    b.box((0.35, 0.1, 0.12), (0.85, -0.05, 1.05), tint=DARK, solid=False, vary=0)
+    b.box((0.2, 0.12, 0.25), (1.35, -0.07, 1.2), tint=DARK, solid=False, vary=0)
+    b.collide_box(Vector((0, 0, 1.55)), (3.2, 0.15, 3.1), (0, 0, 0))
+
+
+def _razor_coil(b):
+    """Three metres of concertina razor wire: overlapping rings on two strands (instanced along wall tops)."""
+    wire = srgb(0.62, 0.62, 0.6)
+    for k in range(10):
+        x = -1.5 + 0.15 + k * 0.3
+        tilt = 18.0 if k % 2 else -18.0
+        with b.frame((x, 0.0, 0.36), (0, tilt, 0)):
+            pts = [(0.0, 0.36 * math.cos(2 * math.pi * i / 9), 0.36 * math.sin(2 * math.pi * i / 9)) for i in range(10)]
+            b.tube(pts, 0.008, mat=RUST, tint=(1, 1, 1), sides=3, cap=False, vary=0)
+    for z in (0.05, 0.62):
+        b.tube([(-1.5, 0.0, z), (1.5, 0.0, z)], 0.007, tint=wire, sides=3, cap=False)
+    b.tube([(-1.5, 0.3, 0.3), (1.5, -0.3, 0.4)], 0.007, tint=wire, sides=3, cap=False)
+
+
+def _cctv(b):
+    """A security camera on a wall bracket, with its cable."""
+    b.box((0.12, 0.5, 0.1), (0, -0.25, 0), tint=DARK, solid=False)
+    b.box((0.22, 0.42, 0.2), (0, -0.62, -0.08), (-15, 0, 0), tint=OFFWHITE, bevel=0.02, solid=False)
+    b.box((0.16, 0.03, 0.12), (0, -0.84, -0.13), (-15, 0, 0), mat=GLASS, solid=False, vary=0)
+    b.box((0.3, 0.3, 0.06), (0, -0.62, 0.06), tint=OFFWHITE, solid=False)
+    b.tube([(0.0, 0.0, -0.05), (0.0, 0.0, -1.2)], 0.012, tint=BLACK, sides=4)
+
+
 kit.PIECES.update({
+    "razor-coil": _razor_coil,
+    "cctv": _cctv,
+    "cell-front": _cell_front,
     "railcar": _railcar,
     "bunk": _bunk,
     "gabion-row": _gabion_row,

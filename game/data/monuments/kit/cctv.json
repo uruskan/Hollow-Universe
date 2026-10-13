@@ -1,0 +1,18 @@
+{
+ "key": "cctv",
+ "model": "res://assets/monuments/kit/cctv.glb",
+ "collision": [],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -0.575,
+   -1.2,
+   -0.575
+  ],
+  "max": [
+   0.575,
+   0.25,
+   0.92
+  ]
+ }
+}
