@@ -1313,6 +1313,9 @@ alternating with and without:
 | Normal priority | 6.63 / 15.4 / 39.9 ms, 1 over (memory 97 %) | 9.58 / 30.6 / 73.6 ms, 8 over (96 %) |
 | Above normal | 5.81 / 10.8 / 18.3 ms, 0 over (88 %) | 7.28 / 13.2 / 20.2 ms, 0 over (94 %) |
 
+On the final code, with G7a and G7b merged, one more run of the hardest case on the same busy PC (memory at 88 %):
+7.83 ms on average, 16.0 ms at the 99th percentile, 40.2 ms worst, one tick over 33 ms; 158 of 158 tests pass.
+
 **What is left:**
 - **Replication** is now the largest part of the tick: 2–3 ms a tick (snapshots 1.0–1.7 ms, then every player's
   relevance, things and nature), all on the tick's thread. Each player's snapshot is independent of the others', so
