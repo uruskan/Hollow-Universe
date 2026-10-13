@@ -194,3 +194,11 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   - the gun visual layer;
   - Host as a separate server process, since hosting in-process stalls on shared garbage collection;
   - tick profiling.
+- **G3 building phase 2a merged:**
+  - building works over the network and survives restarts, with costs paid from the inventory;
+  - the claim device's store pays upkeep;
+  - code locks and keys.
+
+  With 100 bots building 100 bases the tick is 7.4 ms on average and each client uses 84 kbit/s. A 1,074-piece
+  base streams to a newcomer in 1.9 s. The ground-mode hookup (held plan and hammer, ghost, wheels, drawing
+  structures) follows the running integration pass. 110 of 110 tests pass.
