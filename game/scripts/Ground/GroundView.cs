@@ -371,7 +371,7 @@ public partial class GroundView : Node3D
                 }
             }
         }
-        if (GroundModels.Provider.Dropped("wood") is { } dropped)
+        if (GroundModels.Provider.Bag() is { } dropped)
         {
             warm.AddChild(dropped);
         }

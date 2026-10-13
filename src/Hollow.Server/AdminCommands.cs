@@ -345,15 +345,11 @@ public sealed partial class GameServer
         }
         count = Math.Clamp(count, 1, 100_000);
         int left = p.Inventory.Give(Content, item, count);
-        int given = count - left, dropped = 0;
-        // What doesn't fit drops at their feet, as a finished craft does (two dozen stacks at most).
-        for (int stacks = 0; left > 0 && stacks < 24; stacks++)
-        {
-            int stack = Math.Min(left, Math.Max(1, item.StackSize));
-            Zone.Drop(whom!.Entity, Simulation.Items.ItemStack.Of(item, stack));
-            left -= stack;
-            dropped += stack;
-        }
+        int given = count - left;
+        // What doesn't fit drops at their feet, in a bag as a finished craft's does (two dozen stacks at most).
+        int dropped = Math.Min(left, 24 * Math.Max(1, item.StackSize));
+        Zone.Drop(whom!.Entity, Simulation.Items.ItemStack.Of(item, dropped));
+        left -= dropped;
         if (given > 0)
         {
             // The pickup feed's "+N" for the receiver.

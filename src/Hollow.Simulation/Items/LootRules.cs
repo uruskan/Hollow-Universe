@@ -19,16 +19,26 @@ public enum LootKind : byte
     /// <summary>A sleeping player: take only (their main slots, belt and clothing).</summary>
     Sleeper,
 
-    /// <summary>A world crate (G7): take only, gone once empty.</summary>
+    /// <summary>Take only, gone once empty: a world crate (G7), a bag of dropped items (GROUND.md §6.1).</summary>
     Crate,
 }
 
 /// <summary>
-/// Rules about looting that the server applies and the client predicts the same way: what takes deposits, and where
-/// a quick move sends an item.
+/// Rules about looting that the server applies and the client predicts the same way: how a container is looted, what
+/// takes deposits, and where a quick move sends an item.
 /// </summary>
 public static class LootRules
 {
+    /// <summary>How a container lying or standing in the world is looted, from what kind of container it is.</summary>
+    public static LootKind KindOf(Container container) => container.Kind switch
+    {
+        ContainerKind.Box => LootKind.Box,
+        ContainerKind.Device => LootKind.Device,
+        ContainerKind.Corpse => LootKind.Corpse,
+        ContainerKind.Crate => LootKind.Crate,
+        _ => LootKind.None,
+    };
+
     public static bool CanDeposit(LootKind kind) => kind is LootKind.Box or LootKind.Device;
 
     public static bool IsLoot(ContainerRef which) => which is ContainerRef.Loot or ContainerRef.LootBelt or ContainerRef.LootWear;

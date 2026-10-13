@@ -317,7 +317,7 @@ public partial struct ChatLine
 
 // ---------------------------------------------------------------- G2: static things, clothing, nature, projectiles
 
-/// <summary>A static thing became relevant: a deployable, a dropped item or a corpse, with all a client draws of it.</summary>
+/// <summary>A static thing became relevant: a deployable, a bag of dropped items or a corpse, with all a client draws of it.</summary>
 [NetMessage(22)]
 public partial struct ThingSpawn
 {
@@ -325,7 +325,7 @@ public partial struct ThingSpawn
     public ulong EntityId;
     [Bits(2)] public StaticKind Kind;
 
-    /// <summary>What it looks like: a deployable's item or a dropped stack's item (0 for a corpse).</summary>
+    /// <summary>What it looks like: a deployable's item, a world prop's number; 0 for a corpse or a bag (what a bag holds goes only to whoever opens it).</summary>
     [VarInt] public uint Look;
 
     /// <summary>Its base on the ground, in the zone frame, and its turn about up.</summary>
@@ -334,12 +334,12 @@ public partial struct ThingSpawn
     public float Z;
     [Angle] public ushort Yaw;
 
-    /// <summary>Health as a fraction of 255 (deployables), the count of a dropped stack.</summary>
+    /// <summary>Health as a fraction of 255 (deployables); how many stacks a bag holds.</summary>
     public byte Health;
     [VarInt] public uint Count;
     [Bits(4)] public ThingFlags Flags;
 
-    /// <summary>A corpse's name.</summary>
+    /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
     [MaxLength(32)] public string Name;
 }
 

@@ -12,7 +12,7 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// Placed and dropped things (GROUND.md §6.1): deployables and dropped stacks from <see cref="GroundModels"/>, a lit
+/// Placed and dropped things (GROUND.md §6.1): deployables and bags of dropped items from <see cref="GroundModels"/>, a lit
 /// campfire's or furnace's fire (the effects library's), arrows in flight with their trail, and bullets: a tracer for
 /// some, flying the bullet's own path from the gun, and each hit's effect and sound by what it hit (§6.4, §9.3). The
 /// world's props (G7, §6.8): barrels, crates and recyclers from the model catalogue by their key, a running recycler's
@@ -197,15 +197,10 @@ public partial class ThingsView : Node3D
                 }
                 break;
             }
-            case StaticKind.DroppedItem:
-            {
-                string key = Client.Content.Item(thing.Look)?.Key ?? "";
-                if (GroundModels.Provider.Dropped(key) is { } model)
-                {
-                    node.AddChild(model);
-                }
+            case StaticKind.DroppedBag when GroundModels.Provider.Bag() is { } model:
+                // Whatever it holds, a bag looks like a bag (GROUND.md §6.1).
+                node.AddChild(model);
                 break;
-            }
         }
         return node;
     }

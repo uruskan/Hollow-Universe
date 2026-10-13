@@ -106,7 +106,8 @@ public static class WorldNetTests
         me.MoveItem(ContainerRef.Main, SlotOf(me.Inventory.Main, "gears"), ContainerRef.Loot, 0);
         me.Toggle(recycler);
         RunUntil(rig, () => me.Machine is { Running: true }, "it to run");
-        Assert.True(ada.ThingOf(recycler)!.Lit, "others see it running");
+        // The thing's lamp comes with the things' own updates, not always in the same packet as the machine's state.
+        RunUntil(rig, () => ada.ThingOf(recycler)!.Lit, "others to see it running", 2);
         RunUntil(rig, () => me.Loot!.Slots.ToArray().Any(s => s.Item == c.ItemByKey("salvage").Id) && me.Machine is { Running: false }, "the salvage", 8);
         Assert.Equal(20, me.Loot!.Slots.ToArray().Where(s => s.Item == c.ItemByKey("salvage").Id).Sum(s => s.Count), "two gears' salvage");
         me.Close();

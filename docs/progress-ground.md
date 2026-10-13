@@ -337,6 +337,28 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   Protocol 11; the console's tests (parsing, completion, a non-admin refused, give, teleport, spawn, kill and time over
   the network, god and noclip against the prediction) pass with the rest.
 
+## 13 October 2026, dropped items lie in bags (owner's playtest)
+
+- **Bags** (`ground-drop`, GROUND.md §6.1, decisions U1–U7), for the owner's finding that a dropped Tin Finch lay on the
+  ground as a full-size ship. Everything that lands on the ground now lies in a small bag: one function
+  (`Zone.Spill`) packs whatever lands within 1.5 m of a bag with room into it, else starts a bag where it comes to rest,
+  and every source calls it: drops, crafts, refunds and gifts that don't fit, broken boxes, furnaces, barrels and claim
+  devices, a broken research table's work, spent arrows. A bag has 48 slots, lasts 300 s from its newest item, rests on
+  the floor it lands on (not the terrain under a base) and goes once emptied; E takes a bag of one stack whole and opens
+  one holding more (take only, the rows it fills). Others see only a bag and its number of stacks.
+- **Our own model** (`dropped-bag`): a burlap sack gathered into a neck with a wound cord, two corners standing out of
+  the knot, a leather strap with a buckle round its belly. Pictures: `docs/images/ground/drop/bag.jpg`, `bag-open.jpg`,
+  `bag-model.jpg` (new screenshot step `--tour-steps bags`).
+- **Shared code made generic on the way:** bodies and bags are one `DroppedContainer`; what clients are told of a thing
+  (health, count, burning, whose, name) is the thing's own; how a container is looted follows its kind; the copies of
+  "give, drop the rest" are one `GiveOrDrop`. Bots open the bags they find and take what they want.
+- Protocol 12, the things' record version 3 (old dropped stacks load as bags; no SQL step), survival.json's `bag`;
+  models.json's unused `drop.scale` went. 166 of 166 tests pass (three new: packing, taking or opening, and what
+  another player sees over the network).
+- **Not done:** deploying the Tin Finch from its item (the other half of this package) was stopped by the owner's new
+  rule: placement (deployables, doors, locks, the claim device, charges, building pieces and the ship) will be one
+  system, designed with the owner first. No ship-deploy code was written.
+
 ## 13 October 2026, the playtest's looking, hands and foundations
 
 - **Free look** (`ground-look`, GROUND.md §4.5, L2–L6): hold Left Alt and the mouse turns the camera and the head, up
@@ -345,7 +367,7 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   placing, throwing, reloading or turning a piece): one place now decides what the item in hand does (`GroundView.Hands`,
   from the item's data, `ItemDef.Hands`). The arms stay with the body, so they slide out of the picture as the head
   turns. Others see the head turn and ease back (two bytes on every input and on a character's state; the server bounds
-  them and lets go after 0.8 s without input). In the Tin Finch's cockpit Alt turns the pilot's head. Protocol 12.
+  them and lets go after 0.8 s without input). In the Tin Finch's cockpit Alt turns the pilot's head. Protocol 13.
 - **The rock in hand** (§4.8, L7–L10): it was held like a hatchet handle, the fist closed inside the rock and the palm a
   pale blob behind it. It now lies in the right hand at the lower right, the fingers round its far side, and swings from
   the wrist. How a hand holds an item became data (`held.grip` in models.json); the bandage and the grenade are held the
@@ -357,4 +379,6 @@ Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan an
   under it, always valid where the slope leaves room. The ghost and the server work it out from the same point.
   Pictures: `docs/images/ground/build/foundation-lifted.png`, `docs/images/ground/look/game-foundation-lifted.jpg`.
 - Checked once each: the sandbox's build check (9 of 9), the hosted game's new `look` tour step (rock, free look
-  through Alt and the mouse, a lifted foundation) and the character viewer (a head turned, every held item).
+  through Alt and the mouse, a lifted foundation) and the character viewer (a head turned, every held item). New
+  tests: free look over the network, free foundations on a slope, the catalogue's grips; with `ground` merged (protocol
+  13 after the bags' 12), 168 of 168 tests pass.

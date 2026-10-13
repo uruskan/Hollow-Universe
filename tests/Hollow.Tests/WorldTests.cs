@@ -150,8 +150,8 @@ public static class WorldTests
         });
         Fixtures.Report($"a rock breaks a barrel in {ticks / 30.0:0.0} s");
         rig.Ch(ada).Actions = default;
-        Assert.True(rig.Zone.Statics().OfType<DroppedItem>().Any(d => d.Stack.Item == c.ItemByKey("salvage").Id && Vector3.Distance(d.Position, barrel.Position) < 2),
-            "its salvage lies where it stood");
+        Assert.True(rig.Zone.Statics().OfType<DroppedBag>().Any(b => InventoryRules.Count(new[] { b.Loot }, c.ItemByKey("salvage").Id) > 0 && Vector3.Distance(b.Position, barrel.Position) < 2),
+            "its salvage lies where it stood, in a bag");
         long respawn = rig.Zone.RespawnOf(spot)!.Value;
         Assert.Near(barrel.Prop.RespawnSeconds * 1000, respawn - rig.Zone.UnixMilliseconds, 2000, "comes back after its time");
         rig.Zone.UnixMilliseconds = respawn + 10;
