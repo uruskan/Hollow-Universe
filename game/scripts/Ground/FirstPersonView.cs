@@ -18,6 +18,7 @@ namespace HollowUniverse.Ground;
 /// </summary>
 public partial class FirstPersonView : Node3D
 {
+    private Node3D _body = null!;
     private ViewmodelView _arms = null!;
     private Node3D _placeholder = null!;
     private MeshInstance3D _stick = null!;
@@ -40,6 +41,12 @@ public partial class FirstPersonView : Node3D
     public Num.Vector3? PlacementPoint { get; set; }
 
     public float PlacementYaw { get; set; }
+
+    /// <summary>
+    /// The aim seen from the camera (the camera's basis inverted, times the aim's): identity, unless free look (Alt) has
+    /// turned the camera away. The arms belong to the body, so they stay on the aim and leave the view as the head turns.
+    /// </summary>
+    public Basis ArmsTurn { get; set; } = Basis.Identity;
 
     public override void _Ready()
     {
@@ -70,7 +77,7 @@ public partial class FirstPersonView : Node3D
         }
         else
         {
-            Vector3 forward = -_camera.GlobalBasis.Z;
+            Vector3 forward = -_body.GlobalBasis.Z;
             FxDirector.Play(key, Muzzle(), forward, new FxParams { Direction = forward, FirstPerson = true });
         }
     }
@@ -97,7 +104,7 @@ public partial class FirstPersonView : Node3D
         bool rifle = Client.Local.HeldItem?.Key == "rifle";
         float aim = _arms.AimAmount;
         Vector3 local = new Vector3(0.14f, -0.12f, -(rifle ? 1.0f : 0.6f)).Lerp(new Vector3(0, -0.05f, -(rifle ? 1.05f : 0.6f)), aim);
-        return _camera.GlobalTransform * local;
+        return _body.GlobalTransform * local;
     }
 
     // A reload: the arms play it, and its parts sound as they come (magazine out, in, the slide or bolt).
@@ -112,12 +119,14 @@ public partial class FirstPersonView : Node3D
         rack.Timeout += () => Sounds.Flat(Sounds.Item(key, "rack"));
     }
 
-    /// <summary>Puts the arms on the player's camera.</summary>
+    /// <summary>Puts the arms on the player's camera (on the aim, <see cref="ArmsTurn"/>).</summary>
     public void Attach(Camera3D camera)
     {
         _camera = camera;
+        _body = new Node3D { Name = "Arms" };
+        camera.AddChild(_body);
         _arms = new ViewmodelView { Name = "Viewmodel", Body = (BodyType)Client.Body };
-        camera.AddChild(_arms);
+        _body.AddChild(_arms);
         _placeholder = new Node3D { Name = "HeldPlaceholder", Visible = false };
         _stick = new MeshInstance3D
         {
@@ -127,7 +136,7 @@ public partial class FirstPersonView : Node3D
             Layers = ViewmodelView.RenderLayer,
         };
         _placeholder.AddChild(_stick);
-        camera.AddChild(_placeholder);
+        _body.AddChild(_placeholder);
         _ghost = new MeshInstance3D
         {
             Name = "PlacementGhost",
@@ -166,9 +175,10 @@ public partial class FirstPersonView : Node3D
             GunEffects.Dress(Client.Content, gun, _arms.Model!.Id, Client.Local.Gun.Mods.Bits, ForArms);
         }
 
-        // Motion of the arms: velocity in the camera's frame, how fast the view turns.
+        // Motion of the arms: velocity in their own frame (the aim's), how fast the view turns.
+        _body.Basis = ArmsTurn;
         CharacterState state = Client.Character;
-        Basis view = _camera.GlobalBasis;
+        Basis view = _body.GlobalBasis;
         Vector3 v = GroundView.ToGodot(state.Velocity);
         float dt = (float)Math.Max(delta, 1e-4);
         var rate = new Vector2(Mathf.AngleDifference(_lastYaw, yaw) / dt, (pitch - _lastPitch) / dt);

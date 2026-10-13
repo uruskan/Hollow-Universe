@@ -10,9 +10,10 @@ public static partial class Protocol
     /// together on the real planet; 8: G6, ships; 9: G7, the world (world props, blueprints and tech trees, teams, the
     /// map); 10: G7, animals (entities of kind <see cref="EntityKind.Animal"/>, whose snapshot state means what
     /// <see cref="AnimalNet"/> says, and <c>HitTarget.Animal</c>); 11: the F1 console (its commands and answers, the
-    /// server's state for it, the zone's clock, and god and noclip in the player's own state).
+    /// server's state for it, the zone's clock, and god and noclip in the player's own state); 12: free look (Alt), the
+    /// head's turn from the view in every input and in characters' state.
     /// </summary>
-    public const uint Version = 11;
+    public const uint Version = 12;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

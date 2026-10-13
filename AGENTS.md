@@ -169,7 +169,8 @@ Client options (after `--`):
   facing the camera, looks from `--seed` on, `--spacing <m>`), `--item <key>` (any item key with a held pose in `data/ground/models.json`, e.g. `stone-hatchet`, `rock`, `pistol`, `rifle`, `bow`),
   `--motion <idle|walk|jog|sprint|crouch|crouch_walk|strafe_left|strafe_right|back|jump|fall|swim_idle|swim|down|crawl|sleep>`
   (down and crawl: wounded; sleep: logged off),
-  `--aim <deg>` (view pitch), `--event <swing|fire|reload|hit|death|helpup|use|eat|bandage|inject|motion:NAME>` with
+  `--aim <deg>` (view pitch), `--look <yaw,pitch>` (degrees: the head's free look, as others see it),
+  `--event <swing|fire|reload|hit|death|helpup|use|eat|bandage|inject|motion:NAME>` with
   `--event-at <s>` (motion:idle from down plays getting up, motion:down from idle the fall), `--partner <male|female>`
   (a wounded player in front, who gets up when the character helps; `--partner-outfit <n>`, `--partner-distance <m>`),
   `--ads` (aim; with the bow, draw), keys U use, G help up, `--fp` (first person),
@@ -208,7 +209,8 @@ Client options (after `--`):
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
-  server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look; left mouse attack
+  server's tick; then quits). Keys, as in Rust: W A S D, Shift sprint, Ctrl crouch, Space jump, mouse look (Left Alt held:
+  free look, the camera and head turn while the hands do nothing; in the cockpit too); left mouse attack
   (with a deployable in hand: place it; with food or medicine: use it; with a gun: fire; with the building plan: place
   the piece; with the hammer: repair; with a door, a lock or the claim device: fit or place it; with an explosive: throw
   it), right mouse aim or draw (with the plan or the hammer, held: its wheel; with a charge: put it on the surface

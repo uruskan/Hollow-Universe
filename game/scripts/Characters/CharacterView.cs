@@ -739,9 +739,31 @@ public partial class CharacterView : Node3D
             _ => f.Pitch,
         };
         _poser.SpinePitchShare = lying ? 0f : _held is HeldKind.Pistol or HeldKind.Rifle || _bowAim > 0.5f ? 0.85f : 0.45f;
+        TurnHead(f, dt);
         _poser.GroundProbe = _lod == 0 && FootPlacement && !lying ? Probe : null;
         _poser.Active = lod <= 1 || MathF.Abs(_legYaw) > 0.05f || MathF.Abs(f.Pitch) > 0.05f || _held == HeldKind.Rifle ||
-            _bowAim > 0f || _thrust >= 0f || _useTime >= 0f;
+            _bowAim > 0f || _thrust >= 0f || _useTime >= 0f || MathF.Abs(_lookYaw) + MathF.Abs(_lookPitch) > 0.01f;
+    }
+
+    // Free look as drawn: eased towards the frame's (RustMVP's rate 14), back to the view when it ends.
+    private float _lookYaw, _lookPitch;
+
+    /// <summary>How far the head turns from the chest (RustMVP's 95°), and nods from the chest beyond the view's share.</summary>
+    private const float HeadYawLimit = 95f * MathF.PI / 180f, HeadPitchLimit = 65f * MathF.PI / 180f;
+
+    // The head's free look (CharacterFrame.LookYaw/LookPitch), eased and within what a neck does: asleep none; the
+    // pitch kept so the head's own nod from the chest (its share of the view's pitch and the look) stays within its limit.
+    private void TurnHead(in CharacterFrame f, float dt)
+    {
+        bool awake = _stance != CharacterStance.Sleep;
+        float headFromView = _poser.Pitch * (1 - _poser.SpinePitchShare);
+        float wantYaw = awake ? Math.Clamp(f.LookYaw, -HeadYawLimit, HeadYawLimit) : 0f;
+        float wantPitch = awake ? Math.Clamp(headFromView + f.LookPitch, -HeadPitchLimit, HeadPitchLimit) - headFromView : 0f;
+        float k = Math.Min(1f, dt * 14f);
+        _lookYaw += (wantYaw - _lookYaw) * k;
+        _lookPitch += (wantPitch - _lookPitch) * k;
+        _poser.LookYaw = _lookYaw;
+        _poser.LookPitch = _lookPitch;
     }
 
     private static float Wrap(float a)

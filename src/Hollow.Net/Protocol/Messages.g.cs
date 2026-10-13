@@ -22,7 +22,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xDFE5143E621761C1UL;
+    public const ulong SchemaHash = 0x396780AE3782E319UL;
 }
 
 partial struct Hello
@@ -166,6 +166,8 @@ partial struct InputCommand
         w.WriteSigned(Right, 8);
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Pitch, 16);
+        w.WriteSigned(LookYaw, 8);
+        w.WriteSigned(LookPitch, 8);
         w.WriteBits((uint)Buttons, 4);
         w.WriteBits((uint)Held, 3);
         w.WriteBits((uint)Actions, 3);
@@ -185,6 +187,8 @@ partial struct InputCommand
         v.Right = (sbyte)r.ReadSigned(8);
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
+        v.LookYaw = (sbyte)r.ReadSigned(8);
+        v.LookPitch = (sbyte)r.ReadSigned(8);
         v.Buttons = (MoveButtons)r.ReadBits(4);
         v.Held = (byte)r.ReadBits(3);
         v.Actions = (ActionButtons)r.ReadBits(3);
@@ -665,6 +669,8 @@ partial struct CharacterNetState
         w.WriteSigned(Z, 32);
         w.WriteBits((uint)Yaw, 16);
         w.WriteBits((uint)Pitch, 16);
+        w.WriteSigned(LookYaw, 8);
+        w.WriteSigned(LookPitch, 8);
         w.WriteBits((uint)Flags, 4);
         w.WriteBits((uint)Stance, 2);
         w.WriteBits((uint)Health, 8);
@@ -684,6 +690,8 @@ partial struct CharacterNetState
         v.Z = (int)r.ReadSigned(32);
         v.Yaw = (ushort)r.ReadBits(16);
         v.Pitch = (ushort)r.ReadBits(16);
+        v.LookYaw = (sbyte)r.ReadSigned(8);
+        v.LookPitch = (sbyte)r.ReadSigned(8);
         v.Flags = (MoveFlags)r.ReadBits(4);
         v.Stance = (Stance)r.ReadBits(2);
         v.Health = (byte)r.ReadBits(8);
@@ -739,6 +747,24 @@ partial struct CharacterNetState
         {
             w.WriteBool(true);
             w.WriteDelta((short)unchecked((ushort)(Pitch - b.Pitch)));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (LookYaw != b.LookYaw)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)LookYaw - (int)b.LookYaw));
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
+        if (LookPitch != b.LookPitch)
+        {
+            w.WriteBool(true);
+            w.WriteDelta(unchecked((int)LookPitch - (int)b.LookPitch));
         }
         else
         {
@@ -836,6 +862,14 @@ partial struct CharacterNetState
         }
         if (r.ReadBool())
         {
+            v.LookYaw = unchecked((sbyte)((int)b.LookYaw + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
+            v.LookPitch = unchecked((sbyte)((int)b.LookPitch + r.ReadDelta()));
+        }
+        if (r.ReadBool())
+        {
             v.Flags = (MoveFlags)r.ReadBits(4);
         }
         if (r.ReadBool())
@@ -867,7 +901,7 @@ partial struct CharacterNetState
         return v;
     }
 
-    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping && Aiming == o.Aiming && HeldMods == o.HeldMods;
+    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && Yaw == o.Yaw && Pitch == o.Pitch && LookYaw == o.LookYaw && LookPitch == o.LookPitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping && Aiming == o.Aiming && HeldMods == o.HeldMods;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in CharacterNetState b)
@@ -878,6 +912,8 @@ partial struct CharacterNetState
         bits += Z == b.Z ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)Z - (int)b.Z));
         bits += Yaw == b.Yaw ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Yaw - b.Yaw)));
         bits += Pitch == b.Pitch ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)(Pitch - b.Pitch)));
+        bits += LookYaw == b.LookYaw ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)LookYaw - (int)b.LookYaw));
+        bits += LookPitch == b.LookPitch ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)LookPitch - (int)b.LookPitch));
         bits += Flags == b.Flags ? 1 : 5;
         bits += Stance == b.Stance ? 1 : 3;
         bits += Health == b.Health ? 1 : 9;
@@ -891,7 +927,7 @@ partial struct CharacterNetState
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 175;
+    public const int FullBits = 191;
 }
 
 partial struct Spawn

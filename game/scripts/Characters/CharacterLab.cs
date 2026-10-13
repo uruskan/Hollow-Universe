@@ -32,6 +32,9 @@ public partial class CharacterLab : Node3D
     private int _item = -1;
     private int _motion;
     private float _aimPitch;
+
+    // --look yaw,pitch (degrees): the head's free look (Alt), as another player would see it.
+    private Vector2 _look;
     private bool _firstPerson;
     private bool _aiming;
     private Vector3? _viewmodelOrbit;
@@ -104,6 +107,12 @@ public partial class CharacterLab : Node3D
         string item = Option("item", "none");
         _item = item == "none" ? -1 : IndexOfItem(item);
         _aimPitch = Mathf.DegToRad((float)Number("aim", 0));
+        if (_options.TryGetValue("look", out string? look))
+        {
+            string[] v = look.Split(',');
+            _look = new Vector2(Mathf.DegToRad(float.Parse(v[0], CultureInfo.InvariantCulture)),
+                v.Length > 1 ? Mathf.DegToRad(float.Parse(v[1], CultureInfo.InvariantCulture)) : 0f);
+        }
         _yaw = (float)Number("yaw", _yaw);
         _pitch = (float)Number("pitch", _pitch);
         _distance = (float)Number("distance", _distance);
@@ -573,6 +582,8 @@ public partial class CharacterLab : Node3D
         _elapsed += delta;
         CharacterFrame frame = MotionFrame(Motions[_motion], _time, dt);
         frame.Pitch = _aimPitch;
+        frame.LookYaw = _look.X;
+        frame.LookPitch = _look.Y;
         HeldItemModel? held = _item >= 0 ? HeldItems.All[_item] : null;
         frame.Held = held?.Kind ?? HeldKind.Unarmed;
         frame.HeldItem = held?.Id;

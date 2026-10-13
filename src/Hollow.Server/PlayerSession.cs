@@ -239,7 +239,15 @@ public sealed class PlayerSession
         _margins.Enqueue((serverTick, margin));
     }
 
-    /// <summary>The input for a tick: the one received for it, or the last one again (without its jump press).</summary>
+    /// <summary>Ticks of repeated input after which the head's free look turns back (RustMVP's 0.8 s of silence).</summary>
+    private const int LookTimeoutTicks = (int)(Simulation.Movement.FreeLook.TimeoutSeconds * Simulation.Movement.CharacterMotor.TickRate);
+
+    private int _repeated;
+
+    /// <summary>
+    /// The input for a tick: the one received for it, or the last one again (without its jump press, and after
+    /// <see cref="Simulation.Movement.FreeLook.TimeoutSeconds"/> of that without its free look).
+    /// </summary>
     public InputCommand InputFor(uint tick)
     {
         LastSimulatedTick = tick;
@@ -247,12 +255,17 @@ public sealed class PlayerSession
         {
             LastInput = _inputs[tick % InputRing];
             InputsApplied++;
+            _repeated = 0;
         }
         else
         {
             InputCommand repeated = LastInput;
             repeated.Buttons &= ~Simulation.Movement.MoveButtons.JumpPressed;
             repeated.Actions &= ~Simulation.Players.ActionButtons.PrimaryPressed;
+            if (++_repeated > LookTimeoutTicks)
+            {
+                repeated.LookYaw = repeated.LookPitch = 0;
+            }
             LastInput = repeated;
             InputsMissing++;
         }

@@ -216,6 +216,25 @@ public enum BuildingRole : byte
     Door,
 }
 
+/// <summary>What the attack and aim buttons do with an item in hand (Rust's hands; <see cref="ItemDef.Hands"/>).</summary>
+public enum HandUse : byte
+{
+    /// <summary>Swings, fires or punches; the aim button aims a gun or draws a bow.</summary>
+    Attack,
+
+    /// <summary>A building tool (<see cref="ItemDef.Building"/>): a click builds, repairs, fits or claims.</summary>
+    Build,
+
+    /// <summary>A deployable: a click places it.</summary>
+    Place,
+
+    /// <summary>Food or medicine: a click uses it.</summary>
+    Use,
+
+    /// <summary>An explosive: a click throws it; the aim button puts it on a surface or lobs it.</summary>
+    Throw,
+}
+
 /// <summary>One kind of item (items.json).</summary>
 public sealed class ItemDef
 {
@@ -275,6 +294,16 @@ public sealed class ItemDef
     public Building.DoorDef? Door { get; internal set; }
     /// <summary>An explosive thrown or placed by hand (explosives.json, G5); null for other items.</summary>
     public ThrowableStats? Throwable { get; internal set; }
+
+    /// <summary>
+    /// What the hands do with it (the one place that says, from its data): an explosive is thrown, a building tool builds,
+    /// a deployable is placed, food and medicine are used, and everything else attacks.
+    /// </summary>
+    public HandUse Hands => Throwable != null ? HandUse.Throw
+        : Building != BuildingRole.None ? HandUse.Build
+        : Deploys != null ? HandUse.Place
+        : Consume != null ? HandUse.Use
+        : HandUse.Attack;
 
     public bool HasCondition => MaxCondition > 0;
 

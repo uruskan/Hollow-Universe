@@ -159,7 +159,8 @@ Godot.
     and are confirmed or rejected by the server.
 - **Godot** draws that world and nothing else: a surface mode with a floating origin, terrain from Hollow.Surface,
   entity views pooled by type, a first-person camera and viewmodel, third-person characters, UI and audio.
-  Mouse look is applied every frame, never held back by the tick.
+  Mouse look is applied every frame, never held back by the tick. Held Left Alt is free look (RustMVP's, §4.5): the
+  mouse turns the camera and the head, not the view.
 - **Bots** are Hollow.Client with scripted input. Tests run the server and bots headless.
 - **As built in G1** (`src/Hollow.Client`, no Godot): `GameClient.Update(delta, input)` every frame receives, runs
   the ticks that are due (each predicts and sends its input) and advances what is drawn.
@@ -243,14 +244,15 @@ Godot.
   server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. The first lead
   comes from the connect handshake's round trip.
 - **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, yaw and pitch in 1/65,536 of a turn,
-  buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the snapshot acknowledgements and
-  a client timestamp for measuring the round trip. Only four losses in a row lose an input. The server applies each
-  tick's input on that tick; without one it repeats the last (without the jump press) and counts a miss.
+  the head's free look in 1.5° steps, a byte each way, buttons: jump held, jump pressed this tick, crouch, sprint) and
+  the three before it, the snapshot acknowledgements and a client timestamp for measuring the round trip. Only four
+  losses in a row lose an input. The server applies each tick's input on that tick; without one it repeats the last
+  (without the jump press, and after 0.8 s without the free look) and counts a miss.
 - **Snapshots:** 20 a second per client (every 1.5 ticks on average). The header has the sequence, the server tick,
   the input margin, the player's own character exactly (floats, for reconciliation) with its tick, and the echo. Then
   the relevant entities, each delta-coded against its newest state the client confirmed (acknowledged by sequence and
   32 bits), highest accumulated priority first, within 1,600 bytes and the path's MTU. Remote positions are on a
-  1/256 m grid.
+  1/256 m grid; a character's view angles come with its head's free look (two bits while nobody looks round).
 - **Relevance:** a 64 m grid; an entity becomes relevant within 300 m (reliable `Spawn`) and stops beyond 320 m
   (`Despawn`). Everyone's own character is always theirs.
 - **Bad network:** `ConditionedRelay`, a local UDP relay below LiteNetLib (whose own simulation is compiled out of its
@@ -299,6 +301,15 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   - **Swimming** where `ISurface.SeaRadius` > 0: a character swims once the water reaches 65 % of its height (Rust's
     threshold), steers in the view direction (look down to dive), rises with jump and sinks with crouch, and floats
     at 75 % depth otherwise. 2.0 m/s, 3.0 m/s with sprint. Landing in water never hurts.
+- **Free look** (Left Alt held; RustMVP's, `FreeLook`): the mouse turns the camera and the head instead of the view,
+  up to 120° either side of it, the pitch so the camera stays within ±85°. The view (the input's yaw and pitch) stays
+  the movement's basis and the aim of every shot, swing, placement and throw, so a free look never disagrees with them:
+  while Alt is held the hands do nothing (`GroundView.Hands`, the one place that decides what the held item does), and
+  the recoil's countersteer never sees the mouse. Letting go, or the cursor showing (inventory, crafting, map, menu,
+  chat, keypad), turns the camera back to the view at once. The turn rides each input to the server (1.5° steps, a
+  byte each way; the prediction ignores it) and the character's state to everyone else, whose views turn the neck and
+  head and ease them back (§4.8). The server bounds it (yaw ±120°, pitch ±170°, RustMVP's) and, after 0.8 s without
+  the player's input, lets it go. In the Tin Finch's cockpit the same keys turn the pilot's head about the seat.
 - **Collision:** the ground is static mesh tiles of 64 m built from `ISurface.GroundCollision`, identical on both
   sides. A tile's Jolt body ID follows from its grid position (Jolt orders contacts by body ID), so tiles agree where
   they meet whatever else each side holds. Tiles exist within ±8.2 km of the zone's origin. Building parts are boxes
@@ -499,7 +510,7 @@ knows about the network.
 
 | Input | Meaning |
 |---|---|
-| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `Velocity` (m/s); `Stance` (stand, crouch, swim; `Crawl`: down and wounded, lying or crawling; `Sleep`: asleep, logged off); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional); `Aiming` (a gun raised, the bow drawn and held). |
+| `Apply(CharacterFrame)`, every frame | `Position` (feet) and `Up` (unit, away from the planet's centre), in the view's parent space; `Yaw` (radians about `Up`, 0 = north = the parent's −Z laid on the ground plane, anticlockwise seen from above: the movement code's view yaw); `Pitch` (view pitch, + up); `LookYaw` and `LookPitch` (free look, §4.5: the neck and head turn that much further, easing there and back at RustMVP's rate 14, the head at most 95° from the chest and nodding at most 65° from it; asleep, never); `Velocity` (m/s); `Stance` (stand, crouch, swim; `Crawl`: down and wounded, lying or crawling; `Sleep`: asleep, logged off); `Grounded`; `Held` (unarmed, tool, pistol, rifle) and `HeldItem` (the model, optional); `Aiming` (a gun raised, the bow drawn and held). |
 | `Trigger(CharacterEvent, direction)` | `Swing` (tool strike, punch, spear thrust), `Fire` (a shot; with the bow, the arrow loosed), `Reload`, `Hit` (a flinch), `Death` (ragdoll, pushed along `direction`), `HelpUp` (helping a wounded player up), `Use` (the item in hand: food is eaten, a bandage wound on, an injector used), `Eat`, `Bandage`, `Inject`. `Revive()` stands it up again. Changing `Stance` from standing to `Crawl` plays the fall; from `Crawl` to standing, getting up. |
 | `Wear(items)` | The worn clothing and armour: one item per wear slot (seven slots, §6: head, face, torso, torso armour, legs, hands, feet). `Wardrobe.ForItem(itemKey)` gives the garments an items.json key is worn as (every clothing and armour key has one); `Wardrobe.ForItems(keys)` a whole outfit. |
 | `Look` | How the player looks: `Looks.ForPlayer(id, body)` (skin tone, face, hair style and colour, stubble from the ID; the body is the player's choice). Set any time; `ViewmodelView.Look` gives the arms the same skin. |
@@ -660,7 +671,9 @@ part) drops and comes back. The bow is raised upright in front of the left eye a
 half its third-person draw, so the hand stops in front of the face), an arrow on the string; a shot looses it. A spear
 is thrust along its shaft. Eating brings the food to the mouth for a few bites; bandaging raises the left forearm into
 view and winds the bandage round it; injecting pushes the injector into the raised forearm. Gloves are drawn with the
-forearms. Unarmed shows no arms, as in Rust.
+forearms. Unarmed shows no arms, as in Rust. The arms belong to the body: while the player free looks (Alt, §4.5) they
+stay on the view, where everything is aimed, and leave the picture as the head turns away (`FirstPersonView.ArmsTurn`,
+L2).
 
 **Death.** `PhysicalBoneSimulator3D` with fourteen capsules (pelvis, two spine, head, upper and lower arms, thighs,
 calves, feet), cones at the spine, shoulders and hips, hinges at the elbows and knees. Built on first use. Ragdolls
@@ -3147,7 +3160,8 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
   inventory, closing any open container; Esc closes the wheel, the inventory or crafting, then opens the menu; 1–6
   select the belt; Enter opens chat; F1 opens and closes the console (§8.2, even from a text field; it may stay open
-  over the death screen, but a death closes it). A container opened in the world opens the inventory with it.
+  over the death screen, but a death closes it). A container opened in the world opens the inventory with it. Left Alt
+  held is free look (§4.5): the camera turns, the hands do nothing, and any screen that shows the cursor ends it.
 - **Inventory:** a click selects a slot and shows the item panel (name, description, INFORMATION, ACTIONS, and
   SPLITTING for stacks). Dragging moves the whole stack; middle-dragging half, with left Shift a third (rounded up);
   dragging the split icon moves the slider's amount. Right-click moves a stack across (into the open container and
@@ -4347,3 +4361,19 @@ without the owner, to confirm or overturn (numbered L1 on):
   centre plus the clearance and the lowest plus its depth, rather than RustMVP's limits at the centre alone, so whatever
   the aim, a slope that leaves room gives a foundation the ground check accepts. Only a hit on the ground stops the aim's
   distance (RustMVP: anything but a building piece), as Hollow's free foundation did before.
+- L2. **In first person the arms keep to the view while the player free looks**: they belong to the body, which keeps
+  facing and aiming where it did, so they leave the picture as the head turns away and are back in place the moment Alt
+  is let go. No source says what Rust's do (its viewmodel may turn with the camera); ours never show a weapon pointing
+  somewhere it won't fire.
+- L3. **Free look rides the existing view state**, not a message of its own: two signed bytes (1.5° steps) beside the
+  view in every input (sent with the three repeats, about 8 bytes a packet) and beside the view angles in characters'
+  snapshot state (two bits when nobody looks round). RustMVP's rate limits aren't needed: inputs come once a tick. Its
+  0.8 s of silence is counted in repeated inputs: after 24 ticks without one the server's copy lets go.
+- L4. **While Alt is held the hands do nothing at all**: no attack, aiming down the sights or drawing the bow, placing,
+  using, throwing, reloading or turning a piece (RustMVP blocked the weapon and the R and left-button actions). E still
+  acts on what the view is on, as in RustMVP. The decision lives in one place, `GroundView.Hands`, which reads the item's
+  use from its data (`ItemDef.Hands`: throw, build, place, use or attack); the left and right buttons and R only record
+  presses for it.
+- L5. **Free look also works in the Tin Finch's cockpit** (the head turns about the seat while the stick lets go); in
+  the chase camera Alt does nothing. A seated pilot isn't drawn (decision 87), so nobody sees that head turn.
+- L6. **Protocol 12** (free look in inputs and characters' state); no message IDs were needed from 160–164.

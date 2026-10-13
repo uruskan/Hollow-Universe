@@ -174,6 +174,53 @@ public static class MultiplayerTests
         Assert.True(bo.Stats.PredictionErrorMean < 0.01, "at 150 ms and 5 % loss prediction holds");
     }
 
+    /// <summary>
+    /// GROUND.md §4.5: free look (Alt) turns the head, not the view. Ada walks while looking back over her shoulder,
+    /// further than a neck goes: her turn is held at RustMVP's 120° and her view within ±85°; her view, so her aim and
+    /// her walk, stays where it was (Bo sees it unchanged and her prediction holds) while Bo sees her head turned. Letting
+    /// go turns it back at once. When her input stops for longer than 0.8 s the server turns her head back by itself.
+    /// </summary>
+    [Test]
+    public static void FreeLookTurnsTheHeadOthersSee()
+    {
+        var look = new FreeLook();
+        look.Hold(true);
+        look.Turn(3f, 2f, viewPitch: 0.3f);
+        Assert.Near(FreeLook.MaxYaw, look.Yaw, 1e-6, "the turn stops at 120°");
+        Assert.Near(FreeLook.MaxViewPitch - 0.3f, look.Pitch, 1e-6, "the view looks no higher than 85°");
+        Assert.Equal((sbyte)80, NetConvert.BoundLook(127, FreeLook.MaxYaw), "a turn sent too far is held at 120° by the server");
+
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        GameClient bo = rig.Join("Bo");
+        rig.WaitUntilPlaying();
+        rig.Run(1.0, (_, _) => default);
+        ada.Stats.ResetTotals();
+        InputFrame walking = new() { Forward = 1, Yaw = 0.5f, Pitch = 0.3f, LookYaw = look.Yaw, LookPitch = look.Pitch };
+        rig.Run(1.2, (client, _) => client == ada ? walking : default);
+        RemoteEntity seen = bo.Entities.First(e => e.Name == "Ada");
+        Fixtures.Report($"Bo sees Ada's view at {seen.Yaw:0.000}, {seen.Pitch:0.000} rad and her head turned {seen.LookYaw:0.000}, " +
+            $"{seen.LookPitch:0.000} rad; her prediction error {ada.Stats.PredictionErrorMean * 1000:0.000} mm");
+        Assert.Near(look.Yaw, seen.LookYaw, NetConvert.LookStep, "Bo sees her head turned");
+        Assert.Near(look.Pitch, seen.LookPitch, NetConvert.LookStep, "and nodded");
+        Assert.Near(0.5, seen.Yaw, 0.001, "her view stays where she walks and aims");
+        Assert.True(ada.Stats.PredictionErrorMean < 0.001, "her movement is predicted as before");
+
+        look.Hold(false);
+        Assert.True(look.Yaw == 0 && look.Pitch == 0, "letting go turns the camera back at once");
+        rig.Run(0.5, (client, _) => client == ada ? walking with { LookYaw = 0, LookPitch = 0 } : default);
+        Assert.Near(0, seen.LookYaw, 1e-6, "and others see the head back");
+
+        // Her client stops sending (a stall): the server keeps her last input a while, then turns the head back.
+        rig.Run(0.5, (client, _) => client == ada ? walking : default);
+        rig.Clients.Remove(ada);
+        rig.Run(0.5, (_, _) => default);
+        Assert.Near(walking.LookYaw, seen.LookYaw, NetConvert.LookStep, "half a second without input: still turned");
+        rig.Run(0.9, (_, _) => default);
+        Assert.Near(0, seen.LookYaw, 1e-6, "after 0.8 s the server turns it back");
+        rig.Clients.Add(ada);
+    }
+
     /// <summary>GROUND.md §5 G1: after a server restart you're where you left off (saved on disconnect, restored).</summary>
     [Test]
     public static void CharacterReturnsAfterServerRestart()

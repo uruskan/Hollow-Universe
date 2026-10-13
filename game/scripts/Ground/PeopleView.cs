@@ -242,6 +242,8 @@ public partial class PeopleView : Node3D
             Up = GroundView.ToGodot(up),
             Yaw = e.Yaw,
             Pitch = e.Pitch,
+            LookYaw = e.LookYaw,
+            LookPitch = e.LookPitch,
             Velocity = p.Velocity,
             // Crawling (down, G4) has no pose in the character contract yet: crouched is the nearest.
             Stance = swimming ? CharacterStance.Swim : e.Stance is Stance.Crouching or Stance.Crawling ? CharacterStance.Crouch : CharacterStance.Stand,
