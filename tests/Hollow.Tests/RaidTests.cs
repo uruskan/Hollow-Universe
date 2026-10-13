@@ -177,6 +177,47 @@ public static class RaidTests
     }
 
     /// <summary>
+    /// GROUND.md §6.5, throwing: a tin grenade thrown at a box bounces off it and comes to rest on the ground (not hanging in
+    /// the air beside the box); a timed charge thrown at the box sticks to it, and its blast breaks the box.
+    /// </summary>
+    [Test]
+    public static void ThrownExplosivesBounceRestAndStick()
+    {
+        using var rig = new GameRig();
+        GameContent c = rig.C;
+        Vector3 boxAt = rig.Zone.GroundAt(0, 0);
+        var box = new Deployable(rig.Zone.NextId(), c.Deployable("large-box")!, boxAt, rig.Zone.Frame.UpAt(boxAt), 0, EntityId.None);
+        rig.Zone.AddStatic(box);
+        Entity ada = rig.Add("Ada", 0, 4.5f);
+        Raids.Belt(rig, ada, 0, "tin-grenade", 1);
+        Raids.Belt(rig, ada, 1, "timed-charge", 1);
+        rig.Step(2);
+        // Aimed a little high: it drops on the way (0.4 m over 4.5 m at 15 m/s).
+        Vector3 up = rig.Zone.Frame.UpAt(box.Centre);
+        rig.Look(ada, box.Centre + up * 0.45f);
+        ref Character ch = ref rig.Ch(ada);
+        Assert.Equal(ActionResult.Accepted, rig.Zone.ThrowExplosive(ada, 0, c.ItemByKey("tin-grenade").Id, ch.Input.Yaw, ch.Input.Pitch, lob: false), "the grenade");
+        LiveExplosive grenade = rig.Zone.Explosives.Single();
+        Raids.StepUntil(rig, () => grenade.State != ExplosiveState.Flying, 90, "the grenade coming to rest");
+        float height = rig.Zone.HeightAboveGround(grenade.Position);
+        Assert.True(grenade.Bounces >= 2, $"it bounced off the box and the ground ({grenade.Bounces})");
+        Assert.True(grenade.State == ExplosiveState.Resting && (height < 0.3f || grenade.Support == box),
+            $"resting on the ground or the box ({grenade.State} on {grenade.SupportKind}, {height:0.00} m up)");
+        Fixtures.Report($"the grenade bounced {grenade.Bounces} time(s) and lies {Vector3.Distance(grenade.Position, box.Centre):0.0} m from the box, {height:0.00} m up");
+
+        rig.Step(30);
+        rig.Look(ada, box.Centre + up * 1.1f);
+        ch = ref rig.Ch(ada);
+        Assert.Equal(ActionResult.Accepted, rig.Zone.ThrowExplosive(ada, 1, c.ItemByKey("timed-charge").Id, ch.Input.Yaw, ch.Input.Pitch, lob: false), "the charge");
+        LiveExplosive charge = rig.Zone.Explosives.Single(e => e.Item.Key == "timed-charge");
+        Raids.StepUntil(rig, () => charge.State != ExplosiveState.Flying, 30, "the charge landing");
+        Assert.True(charge.State == ExplosiveState.Stuck && charge.Support == box, $"stuck to the box ({charge.State} on {charge.SupportKind})");
+        Raids.Stand(rig, ada, rig.Zone.GroundAt(0, 15));
+        Raids.StepUntil(rig, () => charge.Gone, 320, "the charge going off");
+        Assert.True(box.Health <= 0, "the box broke");
+    }
+
+    /// <summary>
     /// GROUND.md §6.5, line of sight: a timed charge placed on a hut's north wall from outside breaks a share of it; a box
     /// and a player outside within the blast are hurt (with the falloff: the farther, the less); the box and the sleeper
     /// inside, the walls behind and the door across the room take nothing: the wall stands between. A grenade thrown in

@@ -1964,7 +1964,9 @@ Decisions taken during G5 (step "Raid") without the owner, to confirm or overtur
     two migrations 4.
 69. **Building in the zone before phase 2a:** `Zone.Building.cs` carries what raiding needs under 2a's names, so 2a's file replaces
     it on merging; 2a's `DamageBuilding` callers for blows, arrows and bullets should call `DamageBuildingBy`, which raises the
-    alerts for strangers' blows. Upkeep and decay advance every 60 s here (2a's data has its own `advanceSeconds`).
+    alerts for strangers' blows. Upkeep and decay advance every 60 s here (2a's data has its own `advanceSeconds`). Claim devices
+    have no health on this branch, so blasts pass them by; with 2a's `Damage(ClaimDevice, …)` the blast should hurt them as it
+    hurts deployables.
     `HitTarget.Building` is appended after G4's `Nothing` (2a appended it after `Ground`): one of the two goes.
 70. **Test bases stand on the surface itself:** `TestBases` computes a foundation's frame from the analytic ground, because Jolt's
     rays straight down onto the ground tiles' meshes miss about a third of the time (a ray against a mesh tile; rays against

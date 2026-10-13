@@ -369,7 +369,8 @@ public sealed partial class Zone
                     return;
                 }
                 float fraction = Math.Clamp(hit.Distance / MathF.Max(1e-6f, Vector3.Distance(p, next)), 0, 1);
-                Vector3 at = hit.Point + hit.Normal * radius;
+                // A centimetre clear of the surface, so the next step doesn't meet it again on the way off.
+                Vector3 at = hit.Point + hit.Normal * (radius + 0.01f);
                 Vector3 vh = v + g * (h * fraction);
                 float vn = Vector3.Dot(vh, hit.Normal);
                 Vector3 bounced = vn < 0 ? vh - hit.Normal * ((1 + (float)t.Bounce) * vn) : vh;
@@ -423,7 +424,6 @@ public sealed partial class Zone
         e.ArcVelocity = Vector3.Zero;
         e.Normal = hit.Normal;
         e.StateTick = Tick;
-        e.Bounces = 0;
         e.Airborne = 0;
         e.SupportKind = hit.Kind;
         e.SupportId = hit.Id;
@@ -473,6 +473,7 @@ public sealed partial class Zone
     private void Fall(LiveExplosive e)
     {
         e.State = ExplosiveState.Flying;
+        e.Bounces = 0;
         e.Velocity = Vector3.Zero;
         e.ArcStart = e.Position;
         e.ArcVelocity = Vector3.Zero;
@@ -1027,6 +1028,10 @@ public sealed partial class Zone
                 float x = Vector3.Dot(local, right) / half.X, y = Vector3.Dot(local, thing.Up) / half.Y, z = Vector3.Dot(local, forward) / half.Z;
                 Vector3 normal = MathF.Abs(x) >= MathF.Abs(y) && MathF.Abs(x) >= MathF.Abs(z) ? right * MathF.Sign(x)
                     : MathF.Abs(y) >= MathF.Abs(z) ? thing.Up * MathF.Sign(y) : forward * MathF.Sign(z);
+                if (t <= 0 && Vector3.Dot(direction, normal) >= 0)
+                {
+                    continue; // touching it and moving away
+                }
                 best = new SurfaceHit { Distance = t, Point = point - normal * radius, Normal = normal, Kind = SupportKind.Deployable, Id = thing.Id.Value, Thing = thing };
                 reach = t;
             }
@@ -1062,7 +1067,7 @@ public sealed partial class Zone
                     t = Geometry.RaySphere(from, direction, reach, centre, r + radius);
                     normal = SafeNormal(from + direction * MathF.Max(0, t) - centre, -direction);
                 }
-                if (t >= 0 && t < best.Distance)
+                if (t >= 0 && t < best.Distance && !(t <= 0 && Vector3.Dot(direction, normal) >= 0))
                 {
                     best = new SurfaceHit
                     {

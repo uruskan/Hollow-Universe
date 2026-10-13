@@ -99,8 +99,10 @@ public sealed class NotificationCounters
 
     public long Pushed { get; internal set; }
 
-    /// <summary>Alerts handed over at login.</summary>
-    public long TakenAtLogin { get; internal set; }
+    /// <summary>Alerts handed over at login (counted on the persistence worker's thread, hence the interlocked field).</summary>
+    public long TakenAtLogin => System.Threading.Interlocked.Read(ref _takenAtLogin);
+
+    internal long _takenAtLogin;
 
     public override string ToString() =>
         $"{Hits} raid hits made {Alerts} alerts: {Delivered} to players in the game, {Queued} queued for players offline ({TakenAtLogin} handed over at login)";
@@ -170,7 +172,7 @@ public sealed class NotificationService : INotificationService
     public async Task<IReadOnlyList<RaidAlert>> TakeQueued(EntityId player, long unixMs)
     {
         IReadOnlyList<RaidAlert> alerts = await _store.Take(player, unixMs - (long)(_settings.KeepDays * 86_400_000)).ConfigureAwait(false);
-        Counters.TakenAtLogin += alerts.Count;
+        System.Threading.Interlocked.Add(ref Counters._takenAtLogin, alerts.Count);
         return alerts;
     }
 

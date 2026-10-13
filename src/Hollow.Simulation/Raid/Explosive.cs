@@ -119,8 +119,8 @@ public sealed class LiveExplosive
     /// <summary>Gone: exploded or despawned.</summary>
     public bool Gone { get; internal set; }
 
-    /// <summary>Bounces so far in this flight.</summary>
-    internal int Bounces;
+    /// <summary>Bounces in its last flight.</summary>
+    public int Bounces { get; internal set; }
 
     /// <summary>Ticks in the air so far.</summary>
     internal int Airborne;
