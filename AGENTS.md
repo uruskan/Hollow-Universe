@@ -12,8 +12,8 @@ owner's request, the `ground` branch was merged into `main` so the game lives in
   (`docs/SPACE_CONCEPT.md`);
 - the scale proposal (`docs/SCALE.md`): small worlds and a galaxy of landmarks, waiting for the owner's approval;
 - its package S3, one zone for a whole world and a map of the whole world (`docs/WHOLE_WORLD.md`): the owner said go
-  on 14 October 2026; the design waits for their approval, then its code goes on the branch `whole-world` (worktree
-  `D:\GameDev\Projects\Hollow-wt\whole-world`). Code that S3 rewrites (frames, facings, spatial indexes, the map) is
+  on 14 October 2026 and approved the design the same evening; its code is being built on the branch `whole-world`
+  (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`). Code that S3 rewrites (frames, facings, spatial indexes, the map) is
   best left alone on `main` meanwhile, or changed knowing it will be merged into that branch.
 
 Work happens here, on `main`. A package that needs isolation gets a short-lived branch and worktree under

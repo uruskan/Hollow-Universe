@@ -8,7 +8,8 @@ it is found; a fixed one gets its date and commit.** The handoff points here; AG
 read first.
 
 Status words: *open* (nothing done), *planned* (in a package below, not started), *designing* (a design doc is being
-written or waits for the owner), *waiting* (needs the owner's word), *done* (with the date).
+written or waits for the owner), *building* (an approved package is being built), *waiting* (needs the owner's word),
+*done* (with the date).
 
 ## 1. The second playtest (14 October 2026, about 3 am): 30 findings, none fixed yet
 
@@ -21,7 +22,7 @@ F2 developer panel (GROUND.md §8.5), none of which touch these findings. Number
 
 | # | What the owner saw | Cause as traced | Package | Status |
 |---|---|---|---|---|
-| 1 | The map does not show the whole world; it is flat on a sphere. | The map covers a 3.9 km square, 6 % of the 16 km zone, and opens zoomed to 1.5 km; flat is right at zone scale (2 ppm distortion). | Scale, package S3: one zone holds the whole 2.4 km world, and one map shows it as a globe that becomes a flat chart as you zoom in (WHOLE_WORLD.md §11). The owner asked again on 14 October 2026, evening, and said go for S3. | designing (WHOLE_WORLD.md) |
+| 1 | The map does not show the whole world; it is flat on a sphere. | The map covers a 3.9 km square, 6 % of the 16 km zone, and opens zoomed to 1.5 km; flat is right at zone scale (2 ppm distortion). | Scale, package S3: one zone holds the whole 2.4 km world, and one map shows it as a globe that becomes a flat chart as you zoom in (WHOLE_WORLD.md §11). The owner asked again on 14 October 2026, evening, said go for S3 and approved its design. | building (S3 on `whole-world`) |
 | 3 | 30 to 80 fps, thick forest everywhere, no biomes, valleys, rivers, lakes, cliffs or flat land; the 4K scans unused. | Everything that varies the land changes over 60 to 2,200 km, so a 16 km zone gets one landscape; no code for rivers, lakes, cliffs or plateaus; 8 of 34 scan sets reach the game, none of the 62 scanned cliffs and rocks. | World v3 was to be a design first; the owner's scale decisions of 14 October (small worlds, landmarks) replace it: SCALE.md carries the world's features at walking scale. | waiting (SCALE.md) |
 
 ### Performance and hit feedback (finding 23, plus the frame rate)
@@ -115,7 +116,7 @@ These are written in GROUND.md as decisions of the form "left for later" and wer
 | P7, characters and held items | Grips, clipping, Rust's closed grip, first-person poses as data, full-body clips from local AI tools. | wave 2, designing |
 | The rename from claim device to tool cupboard in the code | Deferred because another session worked in that code at the time. | open, small |
 | The zone host, transfers between zones, the lifecycle with catch-up (GROUND_SYSTEMS.md K14) | Deferred by the owner on 14 October: one dedicated server for now. | deferred |
-| SCALE.md | The scale proposal (2.4 km worlds, a galaxy of landmarks) decides findings 1 and 3. On 14 October 2026 the owner said go for S3 (one zone for a whole world, the globe map): its design, WHOLE_WORLD.md, waits for their approval, then the code goes on the branch `whole-world`. S4 (the ground at walking scale) is to be talked through with the owner first. | S3 designing; the rest waiting |
+| SCALE.md | The scale proposal (2.4 km worlds, a galaxy of landmarks) decides findings 1 and 3. On 14 October 2026 the owner said go for S3 (one zone for a whole world, the globe map) and approved its design, WHOLE_WORLD.md; it is built on the branch `whole-world`. S4 (the ground at walking scale) is to be talked through with the owner first. | S3 building; the rest waiting |
 | `prototypes/map-ux` | Three web prototypes of the galaxy map wait for the owner's choice. | waiting |
 | The front door | The menu as the default start, a Developer page listing the viewers, a desktop shortcut (asked on 14 October after the F2 panel). | waiting |
 | The owner's window size | Asked in the playtest plan and never answered; the frame-rate work depends on it. | waiting |

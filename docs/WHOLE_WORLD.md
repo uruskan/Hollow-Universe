@@ -1,10 +1,10 @@
 # One zone, the whole world (S3)
 
-Status: **design of 14 October 2026, for the owner's approval.** This is package S3 of [SCALE.md](SCALE.md) §6. The
+Status: **approved by the owner on 14 October 2026; being built.** This is package S3 of [SCALE.md](SCALE.md) §6. The
 owner said go on 14 October 2026, after asking why the map still shows a 3.9 km square without proper zoom (finding 1 of
-[KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)). Nothing in it is built. The code goes on the branch `whole-world` (worktree
-`D:\GameDev\Projects\Hollow-wt\whole-world`) and starts once the owner approves this document. Rows marked
-**Proposal** have their default in §2, where each can be changed in one line.
+[KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)), and approved the twelve defaults of §2 the same evening, so they are
+decisions. The code is built on the branch `whole-world` (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`),
+starting with S3a (§14).
 
 Four read-only surveys of the code (14 October 2026: the simulation, the network and saves, the world and the animals,
 the Godot client) found every place that assumes the zone is a flat patch. This design is built on them.
@@ -42,9 +42,9 @@ on its branch until the owner says otherwise (§14).
 
 ---
 
-## 2. Decisions for the owner
+## 2. Decisions (approved by the owner, 14 October 2026)
 
-| # | Question | Default (Proposal) | Alternative |
+| # | Question | Decision | Alternative not taken |
 |---|---|---|---|
 | 1 | The development world's saves | Wiped once (schema 7): bases, things, ships, overrides, markers. Accounts and teams stay; characters start a new life | None that works: positions on a 6,435 km plane have no place on a 2.41 km ball |
 | 2 | Facing | A view direction, carried along the ground as you move (§5) | A compass heading from the north pole: simpler, but it spins and flips at the poles |
@@ -117,7 +117,7 @@ distance over-includes on a ball: at a pole it takes in both polar caps. The ext
 
 ---
 
-## 4. The stand-in world (Proposal, decision 7)
+## 4. The stand-in world (decision 7)
 
 The stand-in is `SphereSurface` at 2,410 m, with three additions so the ball has something to test:
 
