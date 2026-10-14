@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using Hollow.Client;
+using Hollow.Server;
 using Hollow.Simulation;
 using Hollow.Simulation.Animals;
 using Hollow.Simulation.Content;
@@ -51,7 +52,7 @@ public static class AnimalNetTests
         {
             Vector3 her = Her(sv);
             Animal a = sv.Zone.Animals().World!.All.OrderBy(x => Vector3.Distance(x.Position, her)).First();
-            return (sv.AnimalStatus(), Vector3.Distance(a.Position, her), a.Position);
+            return (sv.Animals().AnimalStatus(), Vector3.Distance(a.Position, her), a.Position);
         });
         Fixtures.Report($"around the landing site: {status}; the nearest {nearest:0} m away");
         Assert.True(nearest >= 60, $"none came out on top of her ({nearest:0} m)");

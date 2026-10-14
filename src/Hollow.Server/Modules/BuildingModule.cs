@@ -12,15 +12,18 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Capabilities;
+using Hollow.Simulation.Diagnostics;
 
 namespace Hollow.Server;
 
-// Building on the server (GROUND.md §4.4, §6.3, phase 2): players' building intents (on the same budget as every
-// intent, each answered with the rules' reason) applied to the zone, and the replication of pieces, doors and claim
-// devices as static entities. A 64 m area of pieces is queued for a player when it comes within range; queued parts
-// go out a few hundred bytes a snapshot, nearest areas first, so a big base streams in over a few seconds without a
-// hitch; after that only changes travel. Frames are numbered once for everyone, so bots can share one copy.
-public sealed partial class GameServer
+/// <summary>
+/// Building on the server (GROUND.md §4.4, §6.3, phase 2): players' building intents (on the same budget as every
+/// intent, each answered with the rules' reason) applied to the zone, and the replication of pieces, doors and claim
+/// devices as static entities. A 64 m area of pieces is queued for a player when it comes within range; queued parts
+/// go out a few hundred bytes a snapshot, nearest areas first, so a big base streams in over a few seconds without a
+/// hitch; after that only changes travel. Frames are numbered once for everyone, so bots can share one copy.
+/// </summary>
+public sealed class BuildingModule : ServerModule
 {
     /// <summary>Bytes of building a player is sent per snapshot at most (about 190 kbit/s while a base streams in).</summary>
     public const int BuildBytesPerSnapshot = 1200;
@@ -37,7 +40,6 @@ public sealed partial class GameServer
     private readonly List<object> _buildChanged = new();
     private readonly HashSet<object> _buildChangedSet = new();
     private readonly List<(object Part, bool Destroyed)> _buildRemoved = new();
-    private readonly Dictionary<PlayerSession, BuildView> _buildViews = new();
     private readonly List<(int X, int Z)> _cellsNear = new();
     private readonly List<PieceNet> _pieceBatch = new();
     private readonly List<DoorNet> _doorBatch = new();
@@ -48,27 +50,27 @@ public sealed partial class GameServer
     private readonly HashSet<EntityId> _buildDeleted = new();
     private readonly Dictionary<ClaimDevice, uint> _storeRevisions = new();
     private uint _nextFrameId = 1;
-    private bool _buildingStarted;
 
     /// <summary>Pieces placed, for the load test.</summary>
-    public long PiecesPlaced => PlacedOf("piece");
+    public long PiecesPlaced => Server.Placement().PlacedOf("piece");
 
-    private void StartBuilding()
+    protected internal override void Init(MessageHandlers<PlayerSession> handlers)
     {
-        if (!_buildingStarted)
+        Zone.Building().World!.Changed += OnBuildingChanged;
+        handlers.On<HammerIntent>((PlayerSession session, in HammerIntent message) =>
         {
-            _buildingStarted = true;
-            Zone.Building().World!.Changed += OnBuildingChanged;
-        }
+            HammerIntent m = message;
+            Entity me = session.Entity;
+            Intent(session, m.Seq, () => Zone.Building().Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
+        });
     }
 
     // ---------------------------------------------------------------- loading and saving (GROUND.md §4.7)
 
     // The body's building as it was saved: pieces (stability solved once), doors and locks, claim devices with their
     // stores; then upkeep and decay are caught up for the time the server was down, in one closed-form step.
-    private void LoadBuilding(ZoneRecord stored)
+    protected internal override void Restore(ZoneRecord stored, HashSet<EntityId> saved)
     {
-        StartBuilding();
         BuildingWorld b = Zone.Building().World!;
         int pieces = 0, doors = 0, claims = 0, lost = 0;
         bool Try(BuildingRecord record, Func<bool> restore)
@@ -116,6 +118,8 @@ public sealed partial class GameServer
         Zone.Building().AdvanceBuilding();
         Log($"loaded the building: {pieces} pieces, {doors} doors, {claims} claim devices ({lost} left out); " +
             $"{away / 3600:0.0} h of upkeep and decay caught up, {b.PieceCount} pieces stand");
+        // What stood on pieces that didn't come back goes now (GROUND_SYSTEMS.md §3.6).
+        Zone.Placement().SettleSupports();
     }
 
     private bool RestoreClaim(BuildingRecord record)
@@ -144,7 +148,7 @@ public sealed partial class GameServer
     }
 
     // What changed since the last save (only that is written), what is gone, and when upkeep was last applied.
-    private void AddBuildingToSave(ZoneSave save)
+    protected internal override void Save(ZoneSave save, HashSet<EntityId> current)
     {
         BuildingWorld b = Zone.Building().World!;
         foreach (ClaimDevice c in b.Claims)
@@ -253,33 +257,6 @@ public sealed partial class GameServer
         }
     }
 
-    // ---------------------------------------------------------------- intents
-
-    private bool ReceiveBuildIntent(PlayerSession session, uint type)
-    {
-        Entity me = session.Entity;
-        switch (type)
-        {
-            case HammerIntent.TypeId:
-            {
-                HammerIntent m = HammerIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Building().Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
-            }
-            default:
-                return ReceiveShipIntent(session, type);
-        }
-    }
-
-    private BuildView ViewOf(PlayerSession session)
-    {
-        if (!_buildViews.TryGetValue(session, out BuildView? view))
-        {
-            view = new BuildView { Session = session };
-            _buildViews.Add(session, view);
-        }
-        return view;
-    }
-
     // ---------------------------------------------------------------- replication
 
     private uint FrameId(in BuildingFrame frame)
@@ -295,9 +272,17 @@ public sealed partial class GameServer
 
     // One player's building for this snapshot: what is gone, what changed, the areas that came into or out of range,
     // then as many queued parts as the budget allows.
+    protected internal override void Replicate(PlayerSession session, Vector3 centre)
+    {
+        using (Profile.Time(ProfileSection.ReplicateBuilding))
+        {
+            ReplicateBuilding(session, centre);
+        }
+    }
+
     private void ReplicateBuilding(PlayerSession session, Vector3 centre)
     {
-        BuildView view = ViewOf(session);
+        BuildView view = session.State<BuildView>();
         for (int kind = 0; kind < _removedBatch.Length; kind++)
         {
             _removedBatch[kind].Clear();
@@ -344,7 +329,7 @@ public sealed partial class GameServer
         }
 
         // Areas coming into range (nearest first), and going out of it.
-        float radius = _options.RelevanceRadius, near = radius + BuildCellSize * 0.71f, far = near + BuildCellSize;
+        float radius = Options.RelevanceRadius, near = radius + BuildCellSize * 0.71f, far = near + BuildCellSize;
         _cellsNear.Clear();
         foreach ((int x, int z) in _buildCells.Keys)
         {
@@ -430,7 +415,7 @@ public sealed partial class GameServer
             {
                 continue;
             }
-            budget -= Write(view, part);
+            budget -= Write(session, view, part);
         }
         view.Updates.RemoveRange(0, updates);
         FlushBuild(session);
@@ -461,9 +446,9 @@ public sealed partial class GameServer
             List<BuildIdNet> ids = batches[kind];
             for (int start = 0; start < ids.Count; start += 255)
             {
-                _writer.Reset();
+                Writer.Reset();
                 new BuildRemoved { Kind = (BuildPartKind)kind, Destroyed = destroyed, Ids = ids.GetRange(start, Math.Min(255, ids.Count - start)).ToArray() }
-                    .WriteMessage(_writer);
+                    .WriteMessage(Writer);
                 Send(session);
             }
             ids.Clear();
@@ -477,7 +462,7 @@ public sealed partial class GameServer
     }
 
     // Puts one part on this snapshot's batches; returns its bytes.
-    private int Write(BuildView view, object part)
+    private int Write(PlayerSession session, BuildView view, object part)
     {
         int bytes = 0;
         switch (part)
@@ -505,12 +490,12 @@ public sealed partial class GameServer
                 break;
             }
             case Door { Gone: false } door when view.Sent.Contains(door.Frame):
-                _doorBatch.Add(NetOf(door, view.Session));
+                _doorBatch.Add(NetOf(door, session));
                 view.Sent.Add(door);
                 bytes += DoorBytes;
                 break;
             case ClaimDevice { Gone: false } claim when view.Sent.Contains(claim.Support):
-                _claimBatch.Add(NetOf(claim, view.Session));
+                _claimBatch.Add(NetOf(claim, session));
                 view.Sent.Add(claim);
                 bytes += ClaimBytes;
                 break;
@@ -523,42 +508,35 @@ public sealed partial class GameServer
     {
         for (int start = 0; start < _frameBatch.Count; start += 16)
         {
-            _writer.Reset();
-            new BuildFrames { Frames = _frameBatch.GetRange(start, Math.Min(16, _frameBatch.Count - start)).ToArray() }.WriteMessage(_writer);
+            Writer.Reset();
+            new BuildFrames { Frames = _frameBatch.GetRange(start, Math.Min(16, _frameBatch.Count - start)).ToArray() }.WriteMessage(Writer);
             Send(session);
         }
         for (int start = 0; start < _pieceBatch.Count; start += 30)
         {
-            _writer.Reset();
-            new BuildPieces { Pieces = _pieceBatch.GetRange(start, Math.Min(30, _pieceBatch.Count - start)).ToArray() }.WriteMessage(_writer);
+            Writer.Reset();
+            new BuildPieces { Pieces = _pieceBatch.GetRange(start, Math.Min(30, _pieceBatch.Count - start)).ToArray() }.WriteMessage(Writer);
             Send(session);
         }
         for (int start = 0; start < _doorBatch.Count; start += 32)
         {
-            _writer.Reset();
-            new BuildDoors { Doors = _doorBatch.GetRange(start, Math.Min(32, _doorBatch.Count - start)).ToArray() }.WriteMessage(_writer);
+            Writer.Reset();
+            new BuildDoors { Doors = _doorBatch.GetRange(start, Math.Min(32, _doorBatch.Count - start)).ToArray() }.WriteMessage(Writer);
             Send(session);
         }
         for (int start = 0; start < _claimBatch.Count; start += 16)
         {
-            _writer.Reset();
-            new BuildClaims { Claims = _claimBatch.GetRange(start, Math.Min(16, _claimBatch.Count - start)).ToArray() }.WriteMessage(_writer);
+            Writer.Reset();
+            new BuildClaims { Claims = _claimBatch.GetRange(start, Math.Min(16, _claimBatch.Count - start)).ToArray() }.WriteMessage(Writer);
             Send(session);
         }
     }
 
-    private void FinishBuilding()
+    protected internal override void Finish()
     {
         _buildChanged.Clear();
         _buildChangedSet.Clear();
         _buildRemoved.Clear();
-        if (_buildViews.Count > _sessions.Count)
-        {
-            foreach (PlayerSession gone in _buildViews.Keys.Where(s => !_sessions.ContainsValue(s)).ToList())
-            {
-                _buildViews.Remove(gone);
-            }
-        }
     }
 
     private static BuildFrameNet NetOf(uint id, in BuildingFrame f) => new()
@@ -633,8 +611,6 @@ public sealed partial class GameServer
     /// <summary>What one player has been sent of the building, and what waits to go.</summary>
     private sealed class BuildView
     {
-        public PlayerSession Session = null!;
-
         /// <summary>Areas within range: their pieces are sent or queued.</summary>
         public readonly HashSet<(int X, int Z)> Cells = new();
 
@@ -654,4 +630,10 @@ public sealed partial class GameServer
 
         public readonly HashSet<uint> Frames = new();
     }
+}
+
+/// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): the building's replication and storage.</summary>
+public static class BuildingModuleAccess
+{
+    public static BuildingModule Building(this GameServer server) => server.Require<BuildingModule>();
 }

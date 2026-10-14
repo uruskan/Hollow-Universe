@@ -18,11 +18,13 @@ using LiteNetLib;
 
 namespace Hollow.Server;
 
-// The world on the server (GROUND.md §6.8, G7): the world's props placed at start as stored (their public state goes
-// out as things, like deployables); the economy's and teams' intents; each player's own: the blueprints they know, their
-// team and invites, their map (markers, last death, bags and beds), the machine they are looting; teammates' positions
-// twice a second; team chat; and teams and props saved with the zone.
-public sealed partial class GameServer
+/// <summary>
+/// The world on the server (GROUND.md §6.8, G7): the world's props placed at start as stored (their public state goes
+/// out as things, like deployables); the economy's and teams' intents; each player's own: the blueprints they know, their
+/// team and invites, their map (markers, last death, bags and beds), the machine they are looting; teammates' positions
+/// twice a second; team chat; and teams and props saved with the zone.
+/// </summary>
+public sealed class WorldModule : ServerModule
 {
     /// <summary>What a player was last sent of their world state.</summary>
     private sealed class WorldView
@@ -38,15 +40,14 @@ public sealed partial class GameServer
         public bool MachineRunning;
     }
 
-    private readonly Dictionary<PlayerSession, WorldView> _worldViews = new();
     private readonly Dictionary<ulong, PropOverride> _storedProps = new();
     private readonly Dictionary<ulong, ulong> _savedProps = new();
     private readonly Dictionary<ulong, uint> _savedTeams = new();
     private readonly List<TeammateNet> _mates = new();
     private uint _teamPositionSequence;
 
-    // From LoadWorld: the world props as players left them, and the teams.
-    private void LoadWorldState(ZoneRecord stored)
+    // The world props as players left them, and the teams.
+    protected internal override void Restore(ZoneRecord stored, HashSet<EntityId> saved)
     {
         int lost = 0;
         foreach (PropRecord p in stored.Props)
@@ -82,9 +83,9 @@ public sealed partial class GameServer
     }
 
     // At start, after loading: the world's barrels, crates and recyclers (GROUND.md §6.8).
-    private void StartWorld()
+    protected internal override void Start()
     {
-        if (!_options.World)
+        if (!Options.World)
         {
             return;
         }
@@ -100,35 +101,30 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- intents
 
-    private bool ReceiveWorldIntent(PlayerSession session, uint type)
+    protected internal override void Init(MessageHandlers<PlayerSession> handlers)
     {
-        Entity me = session.Entity;
-        switch (type)
+        handlers.On<TeamIntent>((PlayerSession session, in TeamIntent message) =>
         {
-            case TeamIntent.TypeId:
+            TeamIntent m = message;
+            Entity me = session.Entity;
+            Intent(session, m.Seq, () => Zone.World().TeamAct(me, m.Action, new EntityId(m.Target), m.Team), whileDead: true);
+        });
+        handlers.On<MarkerIntent>((PlayerSession session, in MarkerIntent message) =>
+        {
+            MarkerIntent m = message;
+            Entity me = session.Entity;
+            Intent(session, m.Seq,
+                () => m.Remove ? Zone.World().RemoveMarker(me, m.Index) : Zone.World().PlaceMarker(me, new Vector3(m.X, 0, m.Z), m.Colour, m.Label), whileDead: true);
+        });
+        handlers.On<TeamChatSend>((PlayerSession session, in TeamChatSend m) =>
+        {
+            if (string.IsNullOrWhiteSpace(m.Text))
             {
-                TeamIntent m = TeamIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.World().TeamAct(me, m.Action, new EntityId(m.Target), m.Team), whileDead: true);
+                session.BadPackets++;
+                return;
             }
-            case MarkerIntent.TypeId:
-            {
-                MarkerIntent m = MarkerIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq,
-                    () => m.Remove ? Zone.World().RemoveMarker(me, m.Index) : Zone.World().PlaceMarker(me, new Vector3(m.X, 0, m.Z), m.Colour, m.Label), whileDead: true);
-            }
-            case TeamChatSend.TypeId:
-            {
-                TeamChatSend m = TeamChatSend.Read(_reader);
-                if (_reader.Failed || string.IsNullOrWhiteSpace(m.Text))
-                {
-                    return false;
-                }
-                TeamChat(session, m.Text.Trim());
-                return true;
-            }
-            default:
-                return false;
-        }
+            TeamChat(session, m.Text.Trim());
+        });
     }
 
     // A line to the sender's team (the chat budget's, as any line).
@@ -142,11 +138,11 @@ public sealed partial class GameServer
         }
         session.ChatTokens -= 1;
         Log($"<{session.Name} to team> {text}");
-        _writer.Reset();
-        new ChatLine { Kind = ChatKind.Team, From = session.Name, Text = text }.WriteMessage(_writer);
+        Writer.Reset();
+        new ChatLine { Kind = ChatKind.Team, From = session.Name, Text = text }.WriteMessage(Writer);
         foreach (EntityId member in team.Members)
         {
-            if (_sessionOf.TryGetValue(member, out PlayerSession? to))
+            if (SessionOf(member) is { } to)
             {
                 Send(to);
             }
@@ -158,7 +154,7 @@ public sealed partial class GameServer
     /// <summary>The server's time in the world's messages after each step (blueprints, teams, invites, map, machines, teammates).</summary>
     public TimeSpan WorldTime { get; private set; }
 
-    private void AfterWorld()
+    protected internal override void AfterStep()
     {
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
         SendWorld();
@@ -169,28 +165,21 @@ public sealed partial class GameServer
     {
         foreach (EntityId affected in Zone.World().Teams.Affected)
         {
-            if (_sessionOf.TryGetValue(affected, out PlayerSession? s))
+            if (SessionOf(affected) is { } s)
             {
-                WorldViewOf(s).Invites = true;
+                s.State<WorldView>().Invites = true;
             }
         }
         Zone.World().Teams.Affected.Clear();
         Zone.World().Teams.Changed.Clear();
         bool second = Zone.Tick % TickRate == 0;
-        if (second && _worldViews.Count > _sessions.Count)
-        {
-            foreach (PlayerSession gone in _worldViews.Keys.Where(s => !_sessions.ContainsValue(s)).ToList())
-            {
-                _worldViews.Remove(gone);
-            }
-        }
-        foreach (PlayerSession session in _sessions.Values)
+        foreach (PlayerSession session in Players)
         {
             if (!session.Playing || Zone.Players().PlayerOf(session.Entity) is not { } p)
             {
                 continue;
             }
-            WorldView view = WorldViewOf(session);
+            WorldView view = session.State<WorldView>();
             if (view.Blueprints != p.Blueprints.Revision)
             {
                 view.Blueprints = p.Blueprints.Revision;
@@ -223,16 +212,6 @@ public sealed partial class GameServer
         }
     }
 
-    private WorldView WorldViewOf(PlayerSession session)
-    {
-        if (!_worldViews.TryGetValue(session, out WorldView? view))
-        {
-            view = new WorldView();
-            _worldViews[session] = view;
-        }
-        return view;
-    }
-
     // Which members play now, as a hash, so a teammate logging in or out refreshes the team panel.
     private ulong OnlineHash(Team? team)
     {
@@ -243,19 +222,19 @@ public sealed partial class GameServer
         ulong hash = 0x7EA;
         foreach (EntityId m in team.Members)
         {
-            hash = Hash64.Combine(hash, _sessionOf.ContainsKey(m) ? m.Value : 0);
+            hash = Hash64.Combine(hash, SessionOf(m) != null ? m.Value : 0);
         }
         return hash;
     }
 
     private void SendBlueprints(PlayerSession session, Player p)
     {
-        _writer.Reset();
+        Writer.Reset();
         new BlueprintList
         {
             LastSeq = session.LastIntentSeq,
             Recipes = p.Blueprints.Learnt.OrderBy(r => r).Select(r => new RecipeNet { Recipe = r }).ToArray(),
-        }.WriteMessage(_writer);
+        }.WriteMessage(Writer);
         Send(session);
     }
 
@@ -268,12 +247,12 @@ public sealed partial class GameServer
             {
                 Id = m.Value,
                 Name = Zone.Players().TryFindPlayer(m, out _, out Player member) ? member.Name : "",
-                Online = _sessionOf.ContainsKey(m),
+                Online = SessionOf(m) != null,
             });
         }
-        _writer.Reset();
+        Writer.Reset();
         new TeamState { LastSeq = session.LastIntentSeq, Team = team?.Id ?? 0, Leader = team?.Leader.Value ?? 0, Members = members.ToArray() }
-            .WriteMessage(_writer);
+            .WriteMessage(Writer);
         Send(session);
     }
 
@@ -289,8 +268,8 @@ public sealed partial class GameServer
                 Seconds = (uint)Math.Max(0, Math.Ceiling((invite.ExpiresAtUnixMs - Zone.UnixMilliseconds) / 1000.0)),
             });
         }
-        _writer.Reset();
-        new TeamInvites { Invites = invites.ToArray() }.WriteMessage(_writer);
+        Writer.Reset();
+        new TeamInvites { Invites = invites.ToArray() }.WriteMessage(Writer);
         Send(session);
     }
 
@@ -306,7 +285,7 @@ public sealed partial class GameServer
             }
         }
         Vector3 death = p.DeathPoint ?? Vector3.Zero;
-        _writer.Reset();
+        Writer.Reset();
         new MapState
         {
             LastSeq = session.LastIntentSeq,
@@ -316,7 +295,7 @@ public sealed partial class GameServer
             DeathY = death.Y,
             DeathZ = death.Z,
             Points = points.ToArray(),
-        }.WriteMessage(_writer);
+        }.WriteMessage(Writer);
         Send(session);
     }
 
@@ -337,7 +316,7 @@ public sealed partial class GameServer
         view.Machine = machine.Id.Value;
         view.MachineRunning = machine.Lit;
         view.MachineProgress = progress;
-        _writer.Reset();
+        Writer.Reset();
         new MachineState
         {
             Target = machine.Id.Value,
@@ -345,7 +324,7 @@ public sealed partial class GameServer
             Progress = (byte)progress,
             SecondsLeft = machine.Lit ? (uint)Math.Ceiling(Math.Max(0, machine.BurnTicksLeft) / (double)TickRate) : 0,
             Item = machine.Def.Research != null ? machine.ResearchItem : 0u,
-        }.WriteMessage(_writer);
+        }.WriteMessage(Writer);
         Send(session);
     }
 
@@ -380,13 +359,13 @@ public sealed partial class GameServer
             }
             foreach (EntityId m in team.Members)
             {
-                if (!_sessionOf.TryGetValue(m, out PlayerSession? session) || !session.Playing)
+                if (SessionOf(m) is not { } session || !session.Playing)
                 {
                     continue;
                 }
-                _writer.Reset();
-                new TeamPositions { Sequence = _teamPositionSequence, Members = _mates.Where(x => x.Id != m.Value).ToArray() }.WriteMessage(_writer);
-                session.Peer.Send(_writer.Data, DeliveryMethod.Unreliable);
+                Writer.Reset();
+                new TeamPositions { Sequence = _teamPositionSequence, Members = _mates.Where(x => x.Id != m.Value).ToArray() }.WriteMessage(Writer);
+                session.Peer.Send(Writer.Data, DeliveryMethod.Unreliable);
             }
         }
     }
@@ -394,7 +373,7 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------- saving
 
     // Teams that changed or ended since the last save; world props' overrides that changed, and those back to as generated.
-    private void AddWorldToSave(ZoneSave save)
+    protected internal override void Save(ZoneSave save, HashSet<EntityId> current)
     {
         var teams = new HashSet<ulong>();
         foreach (Team team in Zone.World().Teams.All)
@@ -444,8 +423,14 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------- admin
 
     /// <summary>What <c>world</c> prints: the world's props, teams and economy (G7).</summary>
-    private string WorldStatus() =>
+    internal string WorldStatus() =>
         $"world props: {Zone.World().Props.Count} standing ({Zone.World().Props.Count(x => x.Prop.Kind == WorldPropKind.Barrel)} barrels, " +
         $"{Zone.World().Props.Count(x => x.Prop.Kind == WorldPropKind.Crate)} crates, {Zone.World().Props.Count(x => x.Prop.Kind == WorldPropKind.Recycler)} recyclers), " +
         $"{(Zone.World().LootSpots?.Spots.Count ?? 0) - Zone.World().Props.Count} gone; {Zone.World().Teams.Count} teams; {Zone.World().WorldStats}";
+}
+
+/// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): the world's props, teams, blueprints and maps.</summary>
+public static class WorldModuleAccess
+{
+    public static WorldModule World(this GameServer server) => server.Require<WorldModule>();
 }

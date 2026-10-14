@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
@@ -11,19 +10,21 @@ using Hollow.Persistence;
 using Hollow.Server.Notifications;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Raid;
 using LiteNetLib;
 
 namespace Hollow.Server;
 
-// Raiding on the server (GROUND.md §6.6, G5): throw and place intents (a dud is lit again by a verb); explosives replicated to everyone in range
-// with their arc and fuse; detonations to everyone within hearing; claimed bases hurt by raids handed to the notification
-// service, which alerts the players they list in the game, or queues the alert for those offline and hands it over when
-// they log in; charges saved with their fuse left; and the raid load test's bases.
-public sealed partial class GameServer : IPlayerPresence
+/// <summary>
+/// Raiding on the server (GROUND.md §6.6, G5): throw and place intents (a dud is lit again by a verb); explosives replicated to everyone in range
+/// with their arc and fuse; detonations to everyone within hearing; claimed bases hurt by raids handed to the notification
+/// service, which alerts the players they list in the game, or queues the alert for those offline and hands it over when
+/// they log in; charges saved with their fuse left; and the raid load test's bases.
+/// </summary>
+public sealed class RaidModule : ServerModule, IPlayerPresence
 {
-    private readonly ConditionalWeakTable<PlayerSession, Dictionary<ulong, uint>> _explosivesSent = new();
     private readonly Dictionary<ulong, LiveExplosive> _explosivesNow = new();
     private readonly List<ulong> _explosivesLeaving = new();
     private readonly List<(PlayerSession Session, EntityId Player, Task<IReadOnlyList<RaidAlert>> Alerts)> _alertDeliveries = new();
@@ -37,35 +38,35 @@ public sealed partial class GameServer : IPlayerPresence
     /// <summary>The raid load test's bases (<see cref="ServerOptions.RaidBases"/>), or null.</summary>
     public RaidArena? Arena => _arena;
 
-    private void StartRaid()
+    /// <summary>The explosives this player has, by ID, with the revision sent.</summary>
+    private sealed class ExplosiveView
     {
-        RaidAlertSettings settings = Content.RaidAlerts;
-        INotificationStore store = _persistence != null
-            ? new DatabaseNotificationStore(_persistence, settings.MaxQueued)
-            : new MemoryNotificationStore(settings.MaxQueued);
-        _notifications = new NotificationService(this, store, settings, _options.Push);
-        if (_options.RaidBases > 0)
-        {
-            _arena = new RaidArena(Zone, _options.RaidBases, _options.RaidRadius, _options.RaidBasePrefix);
-            Log($"raid arena: {_arena.Count} huts {_options.RaidRadius:0} m around the origin");
-        }
+        public readonly Dictionary<ulong, uint> Sent = new();
     }
 
-    // ---------------------------------------------------------------- intents
-
-    private bool ReceiveRaidIntent(PlayerSession session, uint type)
+    protected internal override void Init(MessageHandlers<PlayerSession> handlers)
     {
-        Entity me = session.Entity;
-        switch (type)
+        handlers.On<ThrowIntent>((PlayerSession session, in ThrowIntent message) =>
         {
-            case ThrowIntent.TypeId:
-            {
-                ThrowIntent m = ThrowIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.Explosives().ThrowExplosive(me, m.Slot, Expected(m.Expected), Quantize.FromAngle16(m.Yaw), Quantize.FromAngle16(m.Pitch), m.Lob));
-            }
-            default:
-                return false;
+            ThrowIntent m = message;
+            Entity me = session.Entity;
+            Intent(session, m.Seq,
+                () => Zone.Explosives().ThrowExplosive(me, m.Slot, Expected(m.Expected), Quantize.FromAngle16(m.Yaw), Quantize.FromAngle16(m.Pitch), m.Lob));
+        });
+        Zone.Events.On<Detonated>((in Detonated e) => SendDetonation(e));
+    }
+
+    protected internal override void Start()
+    {
+        RaidAlertSettings settings = Content.RaidAlerts;
+        INotificationStore store = Persistence != null
+            ? new DatabaseNotificationStore(Persistence, settings.MaxQueued)
+            : new MemoryNotificationStore(settings.MaxQueued);
+        _notifications = new NotificationService(this, store, settings, Options.Push);
+        if (Options.RaidBases > 0)
+        {
+            _arena = new RaidArena(Zone, Options.RaidBases, Options.RaidRadius, Options.RaidBasePrefix);
+            Log($"raid arena: {_arena.Count} huts {Options.RaidRadius:0} m around the origin");
         }
     }
 
@@ -73,7 +74,7 @@ public sealed partial class GameServer : IPlayerPresence
 
     // Raid hits to the notification service; once a second, the alerts that waited for their base's cooldown; queued
     // alerts handed over to players who just logged in; the arena's bases kept standing.
-    private void AfterRaid()
+    protected internal override void AfterStep()
     {
         foreach (RaidHit hit in Zone.Explosives().RaidHits)
         {
@@ -92,15 +93,15 @@ public sealed partial class GameServer : IPlayerPresence
                 continue;
             }
             _alertDeliveries.RemoveAt(i);
-            if (!alerts.IsCompletedSuccessfully || alerts.Result.Count == 0 || !_sessions.ContainsValue(session) || session.EntityId != player)
+            if (!alerts.IsCompletedSuccessfully || alerts.Result.Count == 0 || !Players.Contains(session) || session.EntityId != player)
             {
                 continue;
             }
             List<RaidAlert> all = alerts.Result.ToList();
             for (int start = Math.Max(0, all.Count - 64); start < all.Count; start += 64)
             {
-                _writer.Reset();
-                new RaidAlertList { Alerts = all.Skip(start).Take(64).Select(Net).ToArray() }.WriteMessage(_writer);
+                Writer.Reset();
+                new RaidAlertList { Alerts = all.Skip(start).Take(64).Select(Net).ToArray() }.WriteMessage(Writer);
                 Send(session);
             }
             Log($"{session.Name}: {all.Count} raid alert(s) waited while they were away");
@@ -109,7 +110,7 @@ public sealed partial class GameServer : IPlayerPresence
     }
 
     /// <summary>A player joined: the raid alerts that waited for them are fetched, and sent when they arrive.</summary>
-    private void QueueAlertDelivery(PlayerSession session)
+    protected internal override void Joined(PlayerSession session, bool newCharacter)
     {
         _alertDeliveries.Add((session, session.EntityId, _notifications!.TakeQueued(session.EntityId, Zone.UnixMilliseconds)));
         _arena?.Joined(Zone, session.Name, session.EntityId);
@@ -117,12 +118,12 @@ public sealed partial class GameServer : IPlayerPresence
 
     bool IPlayerPresence.Deliver(EntityId player, RaidAlert alert)
     {
-        if (!_sessionOf.TryGetValue(player, out PlayerSession? session) || !session.Playing)
+        if (SessionOf(player) is not { } session || !session.Playing)
         {
             return false;
         }
-        _writer.Reset();
-        new RaidAlertMessage { Alert = Net(alert) }.WriteMessage(_writer);
+        Writer.Reset();
+        new RaidAlertMessage { Alert = Net(alert) }.WriteMessage(Writer);
         Send(session);
         return true;
     }
@@ -145,7 +146,7 @@ public sealed partial class GameServer : IPlayerPresence
     // and only cosmetic) unreliable.
     private void SendDetonation(in Detonated e)
     {
-        _writer.Reset();
+        Writer.Reset();
         new Detonation
         {
             Id = e.Explosive.Value,
@@ -160,22 +161,21 @@ public sealed partial class GameServer : IPlayerPresence
             Radius = Math.Clamp(e.Radius, 0, 20),
             Target = e.On.Family,
             Round = e.Round,
-        }.WriteMessage(_writer);
-        float hearing = 2 * _options.RelevanceRadius;
+        }.WriteMessage(Writer);
+        float hearing = 2 * Options.RelevanceRadius;
         DeliveryMethod method = e.Round ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered;
-        foreach (PlayerSession session in _sessions.Values)
+        foreach (PlayerSession session in Players)
         {
             if (session.Playing && Vector3.DistanceSquared(Zone.Entities.Get<Character>(session.Entity).State.Position, e.Position) <= hearing * hearing)
             {
-                session.Peer.Send(_writer.Data, method);
+                session.Peer.Send(Writer.Data, method);
             }
         }
     }
 
-    private uint NetIdOf(EntityId id) =>
-        !id.IsNone && Zone.Entities.TryFind(id, out Entity entity) && Zone.Entities.Has<NetPresence>(entity) ? Zone.Entities.Get<NetPresence>(entity).NetId : 0;
-
     // ---------------------------------------------------------------- replication
+
+    protected internal override void Prepare() => PrepareExplosives();
 
     private void PrepareExplosives()
     {
@@ -187,11 +187,19 @@ public sealed partial class GameServer : IPlayerPresence
     }
 
     // The explosives within the player's range: each when it appears and whenever it changes; one gone or out of range
-    // is said gone (a detonation has already said so to those near).
+    // is said gone (a detonation has already said so to those near). Timed with the building's, as the profile has it.
+    protected internal override void Replicate(PlayerSession session, Vector3 centre)
+    {
+        using (Profile.Time(ProfileSection.ReplicateBuilding))
+        {
+            ReplicateExplosives(session, centre);
+        }
+    }
+
     private void ReplicateExplosives(PlayerSession session, Vector3 centre)
     {
-        Dictionary<ulong, uint> sent = _explosivesSent.GetValue(session, _ => new Dictionary<ulong, uint>());
-        float radius = _options.RelevanceRadius;
+        Dictionary<ulong, uint> sent = session.State<ExplosiveView>().Sent;
+        float radius = Options.RelevanceRadius;
         _explosivesLeaving.Clear();
         foreach (ulong id in sent.Keys)
         {
@@ -203,8 +211,8 @@ public sealed partial class GameServer : IPlayerPresence
         foreach (ulong id in _explosivesLeaving)
         {
             sent.Remove(id);
-            _writer.Reset();
-            new ExplosiveGone { Id = id }.WriteMessage(_writer);
+            Writer.Reset();
+            new ExplosiveGone { Id = id }.WriteMessage(Writer);
             Send(session);
         }
         foreach (LiveExplosive e in _explosivesNow.Values)
@@ -215,7 +223,7 @@ public sealed partial class GameServer : IPlayerPresence
                 continue;
             }
             sent[e.Id.Value] = e.Revision;
-            _writer.Reset();
+            Writer.Reset();
             new ExplosiveUpdate
             {
                 Id = e.Id.Value,
@@ -235,7 +243,7 @@ public sealed partial class GameServer : IPlayerPresence
                 StateTick = (uint)Math.Max(0, e.StateTick),
                 FuseEndTick = e.Burning ? (uint)Math.Max(1, e.FuseEndTick) : 0,
                 FuseTicks = (uint)Math.Max(0, e.FuseTicks),
-            }.WriteMessage(_writer);
+            }.WriteMessage(Writer);
             Send(session);
         }
     }
@@ -243,7 +251,7 @@ public sealed partial class GameServer : IPlayerPresence
     // ---------------------------------------------------------------- saving and loading
 
     // Explosives go with the things: stuck and lying charges, duds, and those in the air (they carry on falling).
-    private void AddExplosivesToSave(ZoneSave save, HashSet<EntityId> current)
+    protected internal override void Save(ZoneSave save, HashSet<EntityId> current)
     {
         foreach (LiveExplosive e in Zone.Explosives().All)
         {
@@ -263,16 +271,18 @@ public sealed partial class GameServer : IPlayerPresence
         }
     }
 
-    // A stored explosive waits until the rest of the world is loaded (what it is stuck to must be there first).
-    private bool StoredExplosive(ThingRecord t)
+    // A stored explosive comes back once the rest of the world is loaded (what it is stuck to must be there first).
+    protected internal override void Restore(ZoneRecord stored, HashSet<EntityId> saved)
     {
-        if (t.Kind != ExplosiveCodec.ThingKind)
+        foreach (ThingRecord t in stored.Things)
         {
-            return false;
+            if (t.Kind == ExplosiveCodec.ThingKind)
+            {
+                _storedExplosives.Add(t);
+                saved.Add(t.Id);
+            }
         }
-        _storedExplosives.Add(t);
-        _savedThings.Add(t.Id);
-        return true;
+        RestoreExplosives();
     }
 
     private void RestoreExplosives()
@@ -394,4 +404,10 @@ public sealed class RaidArena
             Restored++;
         }
     }
+}
+
+/// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): raiding, the notification service and the raid arena.</summary>
+public static class RaidModuleAccess
+{
+    public static RaidModule Raid(this GameServer server) => server.Require<RaidModule>();
 }

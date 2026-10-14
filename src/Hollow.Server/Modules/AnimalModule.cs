@@ -13,13 +13,12 @@ using Hollow.Simulation.Entities;
 
 namespace Hollow.Server;
 
-// Animals on the server (GROUND.md §6.9): the zone's population turned on, animals replicated as entities of their own
-// kind in the snapshots (their state packed by AnimalNet), corpses saved while their timers run, admin commands.
-public sealed partial class GameServer
+/// <summary>
+/// Animals on the server (GROUND.md §6.9): the zone's population turned on, animals replicated as entities of their own
+/// kind in the snapshots (their state packed by AnimalNet), corpses saved while their timers run, admin commands.
+/// </summary>
+public sealed class AnimalModule : ServerModule
 {
-    /// <summary>An animal's place in <see cref="_netStates"/>: no zone entity of its own.</summary>
-    private static readonly Entity AnimalEntity = Entity.None;
-
     private readonly Dictionary<EntityId, uint> _animalNetIds = new();
     private readonly Dictionary<uint, Animal> _animalsByNet = new();
 
@@ -27,22 +26,22 @@ public sealed partial class GameServer
     private readonly Dictionary<uint, (CharacterNetState State, int Same)> _animalStill = new();
     private readonly List<ThingRecord> _storedCorpses = new();
 
-    private void StartAnimals()
+    protected internal override void Start()
     {
         if (Zone.Animals().World is not { } animals)
         {
             return;
         }
-        animals.NaturalSpawning = _options.Animals;
-        if (_options.AnimalPopulation > 0)
+        animals.NaturalSpawning = Options.Animals;
+        if (Options.AnimalPopulation > 0)
         {
-            animals.Populate(Vector3.Zero, _options.AnimalRadius, _options.AnimalPopulation);
+            animals.Populate(Vector3.Zero, Options.AnimalRadius, Options.AnimalPopulation);
             Log($"{animals.Count} animals placed around the origin");
         }
     }
 
     // After every step: animals gone free their net IDs (their despawns go out with the next snapshot).
-    private void AfterAnimals()
+    protected internal override void AfterStep()
     {
         if (Zone.Animals().World is not { } animals)
         {
@@ -59,7 +58,7 @@ public sealed partial class GameServer
     }
 
     // Once per snapshot: every animal (and corpse) in the relevance grid with its packed state.
-    private void PrepareAnimals()
+    protected internal override void Prepare()
     {
         if (Zone.Animals().World is not { } animals)
         {
@@ -73,13 +72,12 @@ public sealed partial class GameServer
             }
             if (!_animalNetIds.TryGetValue(a.Id, out uint netId))
             {
-                netId = _nextNetId++;
+                netId = NextNetId();
                 _animalNetIds.Add(a.Id, netId);
                 _animalsByNet.Add(netId, a);
             }
-            _grid.Add(netId, a.Position);
             CharacterNetState state = AnimalNet.Pack(a);
-            _netStates[netId] = (AnimalEntity, state);
+            Present(netId, a.Position, state);
             int same = _animalStill.TryGetValue(netId, out (CharacterNetState State, int Same) last) &&
                 state.DeltaBits(last.State) <= Unchanged ? last.Same + 1 : 0;
             _animalStill[netId] = (state, same);
@@ -93,19 +91,21 @@ public sealed partial class GameServer
     /// it at rest) whose state this client has confirmed: nothing to send it until it moves. Grazing, idle and sleeping
     /// animals cost the snapshots nothing.
     /// </summary>
-    private bool AnimalAtRest(PlayerSession session, uint netId, in CharacterNetState state) =>
+    protected internal override bool AtRest(PlayerSession session, uint netId, in CharacterNetState state) =>
         _animalStill.TryGetValue(netId, out (CharacterNetState State, int Same) still) && still.Same >= 2 && session.Snapshots.Holds(netId, state);
 
-    /// <summary>The Spawn of a net entity: a character (its name), or an animal (its species).</summary>
-    private Spawn SpawnOf(uint netId, Entity entity) => _animalsByNet.TryGetValue(netId, out Animal? animal)
-        ? new Spawn { NetId = netId, EntityId = animal.Id.Value, Kind = EntityKind.Animal, Name = animal.Species.Key }
-        : new Spawn { NetId = netId, EntityId = Zone.Entities.IdOf(entity).Value, Kind = EntityKind.Character, Name = Zone.Entities.Get<Named>(entity).Name };
-
-    private bool IsAnimal(uint netId) => _animalsByNet.ContainsKey(netId);
+    /// <summary>The Spawn of an animal: its species.</summary>
+    protected internal override void Describe(uint netId, ref Spawn spawn)
+    {
+        if (_animalsByNet.TryGetValue(netId, out Animal? animal))
+        {
+            spawn = new Spawn { NetId = netId, EntityId = animal.Id.Value, Kind = EntityKind.Animal, Name = animal.Species.Key };
+        }
+    }
 
     // ---------------------------------------------------------------- corpses saved and restored
 
-    private void AddAnimalsToSave(ZoneSave save, HashSet<EntityId> current)
+    protected internal override void Save(ZoneSave save, HashSet<EntityId> current)
     {
         if (Zone.Animals().World is not { } animals)
         {
@@ -130,15 +130,17 @@ public sealed partial class GameServer
         }
     }
 
-    private bool StoredCorpse(ThingRecord t)
+    protected internal override void Restore(ZoneRecord stored, HashSet<EntityId> saved)
     {
-        if (t.Kind != AnimalCodec.ThingKind)
+        foreach (ThingRecord t in stored.Things)
         {
-            return false;
+            if (t.Kind == AnimalCodec.ThingKind)
+            {
+                _storedCorpses.Add(t);
+                saved.Add(t.Id);
+            }
         }
-        _storedCorpses.Add(t);
-        _savedThings.Add(t.Id);
-        return true;
+        RestoreCorpses();
     }
 
     private void RestoreCorpses()
@@ -189,4 +191,10 @@ public sealed partial class GameServer
             $"{animals.Areas.Count(a => a.Active)} areas out; {perTick:0.000} ms a tick on animals; {Zone.Animals().AnimalAttacks} attacks landed, " +
             $"{Zone.Animals().AnimalsKilled} killed");
     }
+}
+
+/// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): the animals' replication, corpses and status.</summary>
+public static class AnimalModuleAccess
+{
+    public static AnimalModule Animals(this GameServer server) => server.Require<AnimalModule>();
 }

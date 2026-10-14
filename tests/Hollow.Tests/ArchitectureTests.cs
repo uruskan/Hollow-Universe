@@ -108,6 +108,29 @@ public static class ArchitectureTests
         Assert.True(hostLines < 450, $"Zone.cs has {hostLines} lines: rules are creeping back into the host");
         Fixtures.Report($"{systems.Length} systems, {game.Length} in the game's list; the host is {hostLines} lines");
     }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §12.5, K10: the server is a host and its concerns are modules. No partial file of GameServer is
+    /// left, every module is in ServerModules' list exactly once (completeness, as a registry), and the host stays small.
+    /// </summary>
+    [Test]
+    public static void TheServerIsAHost()
+    {
+        string server = Path.Combine(Fixtures.Root, "src", "Hollow.Server");
+        string[] partials = Directory.GetFiles(server, "GameServer.*.cs");
+        Assert.True(partials.Length == 0, $"GameServer has partial files again: {string.Join(", ", partials.Select(Path.GetFileName))}");
+        Type[] modules = typeof(Server.ServerModule).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && typeof(Server.ServerModule).IsAssignableFrom(t))
+            .ToArray();
+        List<Type> listed = Server.ServerModules.All().Select(m => m.GetType()).ToList();
+        string[] missing = modules.Where(m => !listed.Contains(m)).Select(m => m.Name).ToArray();
+        Assert.True(missing.Length == 0, $"modules not in the list: {string.Join(", ", missing)}");
+        string[] twice = listed.GroupBy(t => t).Where(g => g.Count() > 1).Select(g => g.Key.Name).ToArray();
+        Assert.True(twice.Length == 0, $"modules listed twice: {string.Join(", ", twice)}");
+        int hostLines = File.ReadAllLines(Path.Combine(server, "GameServer.cs")).Length;
+        Assert.True(hostLines < 1100, $"GameServer.cs has {hostLines} lines: concerns are creeping back into the host");
+        Fixtures.Report($"{modules.Length} modules, {listed.Count} in the list; the host is {hostLines} lines");
+    }
     // The line with string and character literals blanked and any // comment removed, so text inside strings can
     // neither hide a banned call nor look like one. (Literals spanning lines are rare enough to ignore.)
     private static string CodeOnly(string line)

@@ -1,26 +1,33 @@
-using Hollow.Simulation;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using Hollow.Net.Protocol;
+using Hollow.Simulation;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 
 namespace Hollow.Server;
 
-// Spent arrows on the server (GROUND_SYSTEMS.md §5): each player is told of the arrows within their range — what holds
-// each and where its tip is in that holder's frame, so their client draws it riding its holder — again when one falls
-// (what held it went), and that it went when it is taken, its time is up or it leaves their range.
-public sealed partial class GameServer
+/// <summary>
+/// Spent arrows on the server (GROUND_SYSTEMS.md §5): each player is told of the arrows within their range — what holds
+/// each and where its tip is in that holder's frame, so their client draws it riding its holder — again when one falls
+/// (what held it went), and that it went when it is taken, its time is up or it leaves their range.
+/// </summary>
+public sealed class ArrowModule : ServerModule
 {
-    private readonly ConditionalWeakTable<PlayerSession, Dictionary<ulong, uint>> _arrowsSent = new();
     private readonly Dictionary<ulong, (SpentArrow Arrow, Vector3 At)> _arrowsNow = new();
     private readonly List<ulong> _arrowsLeaving = new();
     private readonly List<ArrowNet> _arrowBatch = new();
     private readonly List<BuildIdNet> _arrowGoneBatch = new();
 
+    /// <summary>The arrows this player has, by ID, with the revision sent.</summary>
+    private sealed class ArrowView
+    {
+        public readonly Dictionary<ulong, uint> Sent = new();
+    }
+
     // Once per snapshot: where every arrow is now (on a moving holder, it moves).
-    private void PrepareArrows()
+    protected internal override void Prepare()
     {
         _arrowsNow.Clear();
         foreach (SpentArrow arrow in Zone.Arrows().All)
@@ -33,10 +40,19 @@ public sealed partial class GameServer
     }
 
     // The arrows within the player's range, each when it comes in and whenever it changes; those gone or out of range.
+    // Timed with the building's, as the profile has it.
+    protected internal override void Replicate(PlayerSession session, Vector3 centre)
+    {
+        using (Profile.Time(ProfileSection.ReplicateBuilding))
+        {
+            ReplicateArrows(session, centre);
+        }
+    }
+
     private void ReplicateArrows(PlayerSession session, Vector3 centre)
     {
-        Dictionary<ulong, uint> sent = _arrowsSent.GetValue(session, _ => new Dictionary<ulong, uint>());
-        float radius = _options.RelevanceRadius;
+        Dictionary<ulong, uint> sent = session.State<ArrowView>().Sent;
+        float radius = Options.RelevanceRadius;
         _arrowsLeaving.Clear();
         foreach (ulong id in sent.Keys)
         {
@@ -85,8 +101,8 @@ public sealed partial class GameServer
         {
             return;
         }
-        _writer.Reset();
-        new ArrowStates { Arrows = _arrowBatch.ToArray() }.WriteMessage(_writer);
+        Writer.Reset();
+        new ArrowStates { Arrows = _arrowBatch.ToArray() }.WriteMessage(Writer);
         Send(session);
         _arrowBatch.Clear();
     }
@@ -97,9 +113,15 @@ public sealed partial class GameServer
         {
             return;
         }
-        _writer.Reset();
-        new ArrowsGone { Ids = _arrowGoneBatch.ToArray() }.WriteMessage(_writer);
+        Writer.Reset();
+        new ArrowsGone { Ids = _arrowGoneBatch.ToArray() }.WriteMessage(Writer);
         Send(session);
         _arrowGoneBatch.Clear();
     }
+}
+
+/// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): spent arrows as replicated.</summary>
+public static class ArrowModuleAccess
+{
+    public static ArrowModule Arrows(this GameServer server) => server.Require<ArrowModule>();
 }

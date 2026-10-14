@@ -138,6 +138,11 @@ Godot.
   its own (`src/Hollow.Simulation/Systems`), listed once in `GroundSystems` in this tick order and found by its accessor
   (`zone.Players()`, `zone.Guns()`, `zone.Building().World`...). The host keeps what they share: the entities, the
   physics, the natural objects, the pose history, the clock, the content, the events.
+- **Modules** (GROUND_SYSTEMS.md §12.5, K3a, 14 October 2026): the server is a host too; everything the game does on it
+  is a `ServerModule` of its own (`src/Hollow.Server/Modules`), listed once in `ServerModules` in the order its hooks run
+  (the order a client receives a tick in) and found by its accessor (`server.Raid().Notifications`, `server.Ships()`...).
+  The host keeps the connection, the logins and spawns, the tick loop, the inputs, the snapshots of the dynamic
+  entities, chat, the saves and the console's plumbing.
 - **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world, its
   origin at the landing site (§3; `--lat`, `--lon` move it), on the planet's real surface (`ZoneSpec.CreateSurface`:
   `PlanetSurface`, one instance per process shared by the server, the prediction and the terrain; `--stand-in` gives
