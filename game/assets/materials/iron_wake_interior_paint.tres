@@ -1,0 +1,17 @@
+[gd_resource type="ORMMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_PBR_Paint_BaseColor_2K.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_PBR_Paint_ORM_2K.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_PBR_Paint_NormalGL_2K.png" id="3"]
+
+[resource]
+resource_name = "M_IronWake_InteriorPaint"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.748379, 0.767376, 0.722027, 1)
+albedo_texture = ExtResource("1")
+orm_texture = ExtResource("2")
+ao_enabled = true
+normal_enabled = true
+normal_scale = 0.35
+normal_texture = ExtResource("3")
+texture_filter = 5

@@ -6,8 +6,13 @@ from . import MATERIALS, log, res_path
 
 def write_material(name, resource_name, albedo=None, orm=None, normal=None, emission=None, emission_energy=1.0,
                    colour=(1, 1, 1, 1), roughness=1.0, metallic=0.0, vertex_colour=True, transparent=False,
-                   uv_scale=None, extra=None):
-    """Writes game/assets/materials/<name>.tres: an ORMMaterial3D (with an ORM texture) or a StandardMaterial3D."""
+                   uv_scale=None, extra=None, ao=False, normal_scale=None, emission_colour=None,
+                   vertex_colour_srgb=True):
+    """Writes game/assets/materials/<name>.tres: an ORMMaterial3D (with an ORM texture) or a StandardMaterial3D.
+    `ao` reads the ORM texture's red channel as ambient occlusion; `normal_scale` sets the normal map's strength;
+    `emission_colour` (sRGB) lights the material, multiplied by the emission texture when there is one (glTF's
+    emissive factor times texture). `vertex_colour_srgb` False reads the vertex colour as linear: Godot 4.7.2 keeps a
+    GLB's COLOR_0 as the file has it, linear (measured for the Iron Wake, docs/IRON_WAKE.md §9.2)."""
     kind = "ORMMaterial3D" if orm else "StandardMaterial3D"
     textures = [t for t in (albedo, orm, normal, emission) if t]
     ids = {t: str(i + 1) for i, t in enumerate(textures)}
@@ -20,8 +25,9 @@ def write_material(name, resource_name, albedo=None, orm=None, normal=None, emis
     if transparent:
         out.append("transparency = 1")
     out.append("vertex_color_use_as_albedo = " + ("true" if vertex_colour else "false"))
-    if vertex_colour:
-        # Godot's glTF importer stores COLOR_0 (linear in the file) as sRGB; decode it back.
+    if vertex_colour and vertex_colour_srgb:
+        # The models built before the Iron Wake were tuned with this on; Godot 4.7.2 keeps COLOR_0 linear, so it
+        # darkens their vertex colours (see vertex_colour_srgb).
         out.append("vertex_color_is_srgb = true")
     out.append("albedo_color = Color(%g, %g, %g, %g)" % tuple(colour))
     if albedo:
@@ -31,12 +37,21 @@ def write_material(name, resource_name, albedo=None, orm=None, normal=None, emis
     else:
         out.append(f"roughness = {roughness:g}")
         out.append(f"metallic = {metallic:g}")
+    if ao and orm:
+        out.append("ao_enabled = true")
     if normal:
         out.append("normal_enabled = true")
+        if normal_scale is not None:
+            out.append(f"normal_scale = {normal_scale:g}")
         out.append(f'normal_texture = ExtResource("{ids[normal]}")')
-    if emission:
+    if emission or emission_colour:
         out.append("emission_enabled = true")
-        out.append(f'emission_texture = ExtResource("{ids[emission]}")')
+        if emission_colour:
+            out.append("emission = Color(%g, %g, %g, 1)" % tuple(emission_colour[:3]))
+        if emission and emission_colour:
+            out.append("emission_operator = 1")
+        if emission:
+            out.append(f'emission_texture = ExtResource("{ids[emission]}")')
         out.append(f"emission_energy_multiplier = {emission_energy:g}")
     if uv_scale:
         out.append("uv1_scale = Vector3(%g, %g, %g)" % tuple(uv_scale))
@@ -52,9 +67,10 @@ def write_material(name, resource_name, albedo=None, orm=None, normal=None, emis
 
 
 
-def write_scene_import(glb, materials, animations=False):
+def write_scene_import(glb, materials, animations=False, extra=None):
     """The `.import` beside a GLB: no generated LODs (the files carry their own), tangents, and every material
-    mapped to a shared Godot material. `materials` maps the GLB's material names to .tres paths."""
+    mapped to a shared Godot material. `materials` maps the GLB's material names to .tres paths; `extra` adds or
+    overrides import parameters."""
     glb = Path(glb)
     entries = []
     for name, tres in sorted(materials.items()):
@@ -71,6 +87,7 @@ def write_scene_import(glb, materials, animations=False):
         "gltf/embedded_image_handling": "0",
         "_subresources": "\n".join(["{", '"materials": {', ",\n".join(entries), "}", "}"]),
     }
+    params.update(extra or {})
     merge_import(glb.with_name(glb.name + ".import"), ['importer="scene"', "importer_version=1", 'type="PackedScene"'],
                  params)
 
