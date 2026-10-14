@@ -1672,8 +1672,9 @@ function run({ THREE, Line2, LineMaterial, LineGeometry }) {
     const key = date + tm + st + sim.playing + sim.trueScale;
     if (key === timeKey) return; timeKey = key;
     smEl.time.innerHTML = `<div class="tb-btns"><button class="tbtn" data-tm="slower" title="Slower (,)">${I.rew}</button><button class="tbtn" data-tm="play" title="Play / pause (Space)">${sim.playing ? I.pause : I.play}</button><button class="tbtn" data-tm="faster" title="Faster (.)">${I.ff}</button></div>
-      <div class="tb-date"><b>${date}&nbsp;&nbsp;${tm}</b><span>${st}</span></div>
-      <div class="tb-seg"><button class="${sim.trueScale ? '' : 'on'}" data-tm="comp" title="Compressed (L)">Compressed</button><button class="${sim.trueScale ? 'on' : ''}" data-tm="true" title="True scale (L)">True scale</button></div>`;
+      <div class="tb-date"><b>${date}&nbsp;&nbsp;${tm}</b><span>${st}</span></div>`;
+    // True scale was removed (owner, 14 Oct 2026): proportional distances crammed the inner planets into the star,
+    // and where planets are evenly spaced it looked the same as Compressed. The map is always Compressed.
   }
   smEl.time.addEventListener('click', e => {
     const b = e.target.closest('[data-tm]'); if (!b) return;
@@ -1681,8 +1682,6 @@ function run({ THREE, Line2, LineMaterial, LineGeometry }) {
     if (t === 'play') sim.playing = !sim.playing;
     else if (t === 'slower') { sim.speed = Math.max(0, sim.speed - 1); sim.playing = true; }
     else if (t === 'faster') { sim.speed = Math.min(SPEEDS.length - 1, sim.speed + 1); sim.playing = true; }
-    else if (t === 'comp') sim.trueScale = false;
-    else if (t === 'true') sim.trueScale = true;
     renderTime();
   });
   smEl.left.addEventListener('click', e => {
@@ -2495,7 +2494,6 @@ function run({ THREE, Line2, LineMaterial, LineGeometry }) {
       if (k === ' ') { e.preventDefault(); sim.playing = !sim.playing; renderTime(); return; }
       if (k === ',') { sim.speed = Math.max(0, sim.speed - 1); sim.playing = true; renderTime(); return; }
       if (k === '.') { sim.speed = Math.min(SPEEDS.length - 1, sim.speed + 1); sim.playing = true; renderTime(); return; }
-      if (k === 'l' || k === 'L') { sim.trueScale = !sim.trueScale; renderTime(); return; }
     }
     if (k === '/' || (k.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); openSearch(); return; }
     if (k === 'Escape') { e.preventDefault(); backOut(); return; }
@@ -2889,7 +2887,6 @@ function run({ THREE, Line2, LineMaterial, LineGeometry }) {
     if (g('sector')) { const k = SECTORS.findIndex(q => q[0].toLowerCase() === g('sector').toLowerCase()); if (k >= 0) { select({ t: 'sector', k }, { keepCam: true }); if (k) cam.goal.a.set(SECTORS[k][4], 0, SECTORS[k][6]); } }
     if (g('struct')) select({ t: 'struct', id: g('struct') }, { keepCam: true });
     if (g('group')) { const gr = K.groupById(g('group')); if (gr) { select({ t: 'group', g: gr.index }, { keepCam: true }); if (!g('dist')) { cam.goal.a.set(gr.centre[0], gr.centre[1], gr.centre[2]); cam.goal.ld = clamp(log10(Math.max(gr.radius, 8) * 3.4 + 12), log10(30), log10(420)); } } }
-    if (g('scale') === 'true') { sim.trueScale = true; sim.blend = 1; }
     if (g('time')) sim.days = +g('time') || 0;
     if (s >= 0 && lvl !== 'system') select({ t: 'star', i: s }, { keepCam: true });
     if (g('intent')) runIntent(g('intent'));
