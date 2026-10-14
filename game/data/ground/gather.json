@@ -1,0 +1,70 @@
+{
+  "source": "Natural objects of the ground (GROUND.md §6). Health, yields and respawn times from hollow-orbit (js/world/planet.js: trees 400 hp, nodes 500 hp, stone 300, metal 250 + 20 rich, sulphur 250, nodes back after 10 min, trees 20, plants 8); pickups and fibre from Rust (piles of 50, fibre plants 10). 'classes' says how each class is gathered, one rule for all (NaturalState.Hit): the tool rate it takes; Rust's weak spot ('spot': it shows with the first hit, facing the hitter; hits on it in a row pay and take 1 + step × the run, up to max, and move it; a hit elsewhere resets the run and leaves it; the object's whole yield stays the same, so it goes in fewer hits); what the last hit pays ('last': a share of the whole yield kept back from the hits, and a bonus on top with the listed tools); and how it shows ('look': the marker, effects of fx.json, sounds of sounds.json, 'gibs' on a cue to break the object's model into its pieces, GROUND.md §9.4: an outcrop's last remnant; a kind may replace parts). Trees follow Rust's November 2017 update (Rustafied, 'Timmmberrr'): a red X on the trunk after the first hit; hits on it in a row pay 1.125, 1.25 ... up to 2 times (a metal hatchet's 15 wood a hit becomes 16, 18 ... 30); the tree pays half its wood when it falls. Ore nodes follow Devblog 170 (July 2017; Facepunch wiki 'Ore nodes'): a glowing hotspot; hits on it in a row pay 150%, 200%, 250%, at most 300%; a miss resets the bonus; the node's total does not change. Devblog 166 (June 2017): the last hit with a proper tool (a pickaxe; not a rock or a bone club) pays a bonus of about 20% of the total. The spot sits on the drawn surface: a tree's trunk (its capsule, at a band of heights above the base), an outcrop's measured top at its current stage (surfaces.json). 'scatter' maps the planet's scatter kinds (GROUND.md §4.6) onto these kinds: every tree species gives wood, berry bushes are picked, ferns are the fibre plants, rocks of size 0.9 and more are boulders that only stand in the way, and outcrops are the scatter's own gameplay kinds; trunk radius and height match the drawn trees (FloraLibrary, at size 1). 'standIn' is only for stand-in zones (tests). Kinds are only ever added at the end: a kind's index is its number on the wire.",
+  "classes": {
+    "tree": {
+      "rate": "tree",
+      "spot": { "surface": "trunk", "height": [0.7, 2.0], "follow": 0.35, "facing": 35, "radius": 0.25, "step": 0.125, "max": 2.0 },
+      "last": { "share": 0.5 },
+      "look": {
+        "marker": { "style": "painted-x", "size": 0.42, "depth": 0.5, "colour": [0.82, 0.08, 0.04], "glow": 0.08 },
+        "hit": { "fx": "gather.wood", "sound": "gather.wood.hit" },
+        "spotHit": { "fx": "gather.x-hit", "sound": "gather.weakspot", "pitchStep": 0.05 },
+        "depleted": { "sound": "gather.wood.break", "soundDelay": 0.95 },
+        "fall": { "tip": 2.4, "lie": 2.2, "sink": 1.6, "fx": "gather.tree-fall" },
+        "shake": { "metres": 0.12, "seconds": 0.7 }
+      }
+    },
+    "node": {
+      "rate": "ore",
+      "spot": { "surface": "measured", "low": 0.4, "facing": 50, "radius": 0.3, "step": 0.5, "max": 3.0 },
+      "last": { "share": 0, "bonus": 0.2, "tools": ["stone-pickaxe", "metal-pickaxe"] },
+      "look": {
+        "marker": { "style": "hotspot", "size": 0.42, "depth": 0.6, "colour": [1.0, 0.8, 0.45], "glow": 5.0, "pulse": 1.4, "glint": 0.24,
+          "sparkle": "gather.hotspot-glint", "sparkleEvery": 0.55 },
+        "hit": { "fx": "gather.rock", "sound": "gather.stone.hit" },
+        "spotHit": { "fx": "gather.weakspot", "sound": "gather.weakspot", "pitchStep": 0.08 },
+        "stage": { "fx": "gather.node-break", "fxScale": 0.6, "sound": "gather.node.break.{stage}" },
+        "depleted": { "gibs": true, "sound": "gather.node.break.3" }
+      }
+    }
+  },
+  "kinds": [
+    { "key": "pine-tree", "name": "Pine", "class": "tree", "health": 400, "yield": [["wood", 220]], "respawn": 1200,
+      "radius": 0.38, "height": 14, "standIn": { "perTile": 7 }, "scatter": { "kinds": ["pine"] } },
+    { "key": "broadleaf-tree", "name": "Broadleaf tree", "class": "tree", "health": 500, "yield": [["wood", 300]], "respawn": 1200,
+      "radius": 0.48, "height": 10, "standIn": { "perTile": 3 }, "scatter": { "kinds": ["broadleaf"] } },
+
+    { "key": "stone-node", "name": "Stone outcrop", "class": "node", "health": 500, "yield": [["stone", 300]], "stages": 3, "respawn": 600,
+      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 1.4 }, "scatter": { "kinds": ["stone-outcrop"] } },
+    { "key": "metal-node", "name": "Metal outcrop", "class": "node", "health": 500, "yield": [["metal-ore", 250], ["high-grade-ore", 20]], "stages": 3, "respawn": 600,
+      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 0.9 }, "scatter": { "kinds": ["metal-outcrop"] },
+      "look": { "hit": { "fx": "gather.sparks", "sound": "gather.ore.hit" } } },
+    { "key": "sulphur-node", "name": "Sulphur outcrop", "class": "node", "health": 500, "yield": [["sulphur-ore", 250]], "stages": 3, "respawn": 600,
+      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 0.6 }, "scatter": { "kinds": ["sulphur-outcrop"] },
+      "look": { "hit": { "fx": "gather.sparks", "sound": "gather.ore.hit" } } },
+
+    { "key": "wood-pile", "name": "Wood pile", "class": "pickup", "yield": [["wood", 50]], "respawn": 480,
+      "radius": 0.5, "height": 0.4, "standIn": { "perTile": 0.6 } },
+    { "key": "stone-pile", "name": "Loose stones", "class": "pickup", "yield": [["stone", 50]], "respawn": 480,
+      "radius": 0.4, "height": 0.3, "standIn": { "perTile": 0.5 } },
+    { "key": "metal-pile", "name": "Metal ore lump", "class": "pickup", "yield": [["metal-ore", 50]], "respawn": 480,
+      "radius": 0.35, "height": 0.3, "standIn": { "perTile": 0.3 } },
+    { "key": "sulphur-pile", "name": "Sulphur ore lump", "class": "pickup", "yield": [["sulphur-ore", 50]], "respawn": 480,
+      "radius": 0.35, "height": 0.3, "standIn": { "perTile": 0.25 } },
+    { "key": "fibre-plant", "name": "Fern", "class": "pickup", "yield": [["fibre", 10]], "respawn": 480,
+      "radius": 0.45, "height": 0.9, "standIn": { "perTile": 4 }, "scatter": { "kinds": ["fern"] } },
+    { "key": "tuber-plant", "name": "Wild tuber", "class": "pickup", "yield": [["wild-tuber", 2]], "respawn": 480,
+      "radius": 0.3, "height": 0.5, "standIn": { "perTile": 1 } },
+    { "key": "red-berry-bush", "name": "Red berry bush", "class": "bush", "yield": [["red-berries", 4]], "respawn": 480,
+      "radius": 0.6, "height": 1.0, "standIn": { "perTile": 1 }, "scatter": { "kinds": ["berry-red"] } },
+    { "key": "blue-berry-bush", "name": "Blue berry bush", "class": "bush", "yield": [["blue-berries", 4]], "respawn": 480,
+      "radius": 0.6, "height": 1.0, "standIn": { "perTile": 1 }, "scatter": { "kinds": ["berry-blue"] } },
+
+    { "key": "fir-tree", "name": "Spruce", "class": "tree", "health": 400, "yield": [["wood", 220]], "respawn": 1200,
+      "radius": 0.36, "height": 12, "scatter": { "kinds": ["fir"] } },
+    { "key": "birch-tree", "name": "Birch", "class": "tree", "health": 300, "yield": [["wood", 160]], "respawn": 1200,
+      "radius": 0.24, "height": 11, "scatter": { "kinds": ["birch"] } },
+    { "key": "boulder", "name": "Boulder", "class": "boulder", "yield": [], "respawn": 600,
+      "radius": 0.95, "height": 0.65, "scatter": { "kinds": ["rock"], "minScale": 0.9 } }
+  ]
+}

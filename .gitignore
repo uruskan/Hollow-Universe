@@ -15,3 +15,11 @@ export_presets.cfg
 
 # Local tools
 .tmp/
+
+# Blender build scratch
+art/.cache/
+# Python (Blender scripts in art/)
+__pycache__/
+
+# The dedicated server's admins (GROUND.md §8.2): per machine, never shared
+/admins.txt

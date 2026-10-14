@@ -1,0 +1,57 @@
+{
+  "source": "GROUND.md §6.3 (Fit) and decisions J1–J9. How art/import/building_fit.py fits every building piece's drawn mesh, in every grade and level of detail, to its logical slot (the module sizes in game/data/ground/building.json, where its collision and sockets are): the mesh is measured face by face against the slot and moved onto it, so no piece stops short of a neighbour (a gap) and no two neighbours' drawn faces lie in one plane (z-fighting). Collision, sockets and stability never move. Distances in metres.",
+
+  "measure": {
+    "step": 0.006,
+    "bin": 0.01,
+    "cornerMargin": 0.09,
+    "regionMargin": 0.02,
+    "note": "Points every 6 mm over the mesh's triangles (finer than a bin, so a thin branch along a face fills every bin); a face is measured in 1 cm bins along it (9 cm at a slab edge's corners and 2 cm at the ends of a wall's solid parts left out); its reach is how far past the logical face the mesh gets in a bin, positive beyond it. A face's robust reach is a percentile over its bins (faces' 'percentile')."
+  },
+
+  "faces": {
+    "slab top": { "percentile": 90, "target": 0.0, "note": "the walking surface: the level most of the deck reaches, onto the slot's top; a slab's base is nobody's joint" },
+    "slab edge": { "percentile": 10, "target": 0.0, "overlap": true, "note": "nine bins in ten reach the edge: neighbours meet, back to back" },
+    "wall bottom": { "percentile": 10, "target": 0.0, "overlap": true },
+    "wall top": { "percentile": 90, "target": 0.0, "note": "what stands on a wall covers its top: nine bins in ten stay under it" },
+    "wall end": { "percentile": 10, "target": 0.0, "overlap": true },
+    "opening side": { "percentile": 10, "target": 0.0 },
+    "opening head": { "percentile": 10, "target": 0.0 },
+    "opening sill": { "percentile": 10, "target": 0.0 },
+    "column bottom": { "percentile": 10, "target": 0.0 },
+    "column top": { "percentile": 90, "target": 0.0 }
+  },
+
+  "walls": {
+    "drop": 0.003,
+    "endSag": 0.004,
+    "endLength": 0.3,
+    "endShear": 0.02,
+    "note": "After the fit every wall is drawn 3 mm lower, so its base tucks into what it stands on and whatever stands on its top (a floor, a roof's eave, the next wall) is the drawn face there. Within 30 cm of each end its top and base sink a further 0-4 mm toward the end, so two walls meeting at a corner or a T (the overlap reaches 26 cm along a wall at a 60° corner) have their tops in different planes, and the end leans 2 cm a metre about the wall's middle (x += 0.02 z, ±3 mm at its faces), so a floor's or foundation's side never lies in the plane of a wall's end. The same shape on every wall, either way round: stacked walls and walls in line still meet exactly."
+  },
+
+  "grades": {
+    "twig": { "overlap": 0.008, "note": "twig's crooked, round branches: joints reach 8 mm past the slot so their irregularity never opens a gap; round against round never lies in one plane" },
+    "wood": { "overlap": 0.0 },
+    "stone": { "overlap": 0.0 },
+    "metal": { "overlap": 0.0 },
+    "armoured": { "overlap": 0.0 }
+  },
+
+  "corners": {
+    "angles": [60, 90, 120, 150],
+    "recess": 0.001,
+    "grades": ["wood", "stone", "metal", "armoured"],
+    "note": "Corner posts (building_kit.corner, drawn by the renderer's CornerPosts wherever walls meet at an angle): one for each interior angle two walls can meet at (a triangle's 60, a square's 90, two triangles' 120, a square and a triangle's 150) and each wall height, a millimetre inside the walls' outside faces and ends. Twig's round end posts already close its corners."
+  },
+
+  "levels": {
+    "note": "Levels of detail the fit can't mend, left out so the game draws the next finer level there: the kit's 45 % decimation broke the stone floor frames' outline (6 cm short). It also sank most of the stone slabs' tiles 1.5-2 cm into their bed; that level is kept, the fit lifting its top onto the slot like any other (what it leaves uneven is a sixth of a pixel at 64 m, where the level starts), since drawing level 1 there instead would double the slabs' triangles at a distance.",
+    "drop": {
+      "stone": { "floor-frame": [2], "floor-frame-triangle": [2] }
+    }
+  },
+
+  "limit": 0.08,
+  "limitNote": "No face moves further than 8 cm: a measurement past that is reported and left alone (a broken level of detail is mended at its source, not stretched)."
+}

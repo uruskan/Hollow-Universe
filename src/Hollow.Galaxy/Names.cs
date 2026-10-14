@@ -153,13 +153,19 @@ public static class SectorNames
 
 /// <summary>
 /// Procedural system names: <c>&lt;Sector&gt; &lt;Cell&gt; &lt;Level&gt;-&lt;Index&gt;</c>, e.g.
-/// "Varen Doron QX-AB 6-23" (GALAXY.md §9).
+/// "Lumtum Delis FF-WL 6-0" (GALAXY.md §9); in a named region, the region's name replaces the sector's.
 /// </summary>
 public static class SystemNames
 {
     private static readonly int[] CellLetters = { 0, 1, 2, 2, 3, 4, 4, 5 };
 
-    public static string Format(SystemAddress address)
+    public static string Format(SystemAddress address) => Format(address, null);
+
+    /// <summary>
+    /// The name with <paramref name="prefix"/> in place of the sector's name: a named region's systems (GALAXY.md §9),
+    /// e.g. "Pleiades LA-YS 6-0".
+    /// </summary>
+    public static string Format(SystemAddress address, string? prefix)
     {
         if (address.IsCatalogue)
         {
@@ -167,7 +173,7 @@ public static class SystemNames
         }
         CellKey cell = address.Cell;
         var sb = new StringBuilder(40);
-        sb.Append(SectorNames.Name(cell.SectorX, cell.SectorY, cell.SectorZ));
+        sb.Append(prefix ?? SectorNames.Name(cell.SectorX, cell.SectorY, cell.SectorZ));
         sb.Append(' ');
         if (cell.Level > 0)
         {

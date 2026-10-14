@@ -1,0 +1,73 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://cvepg3g6hof7g"
+path="res://.godot/imported/fuel-pump.glb-2c646b1215381fcd76c2843d526faa2b.scn"
+
+[deps]
+
+source_file="res://assets/monuments/kit/fuel-pump.glb"
+dest_files=["res://.godot/imported/fuel-pump.glb-2c646b1215381fcd76c2843d526faa2b.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=false
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=false
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"M_Mon_Concrete": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/monument_concrete.tres",
+"use_external/path": "res://assets/materials/monument_concrete.tres"
+},
+"M_Mon_Gloss": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/monument_gloss.tres",
+"use_external/path": "res://assets/materials/monument_gloss.tres"
+},
+"M_Mon_Lamp": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/monument_lamp.tres",
+"use_external/path": "res://assets/materials/monument_lamp.tres"
+},
+"M_Mon_Paint": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/monument_paint.tres",
+"use_external/path": "res://assets/materials/monument_paint.tres"
+},
+"M_Mon_Panel": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/monument_panel.tres",
+"use_external/path": "res://assets/materials/monument_panel.tres"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=0
+gltf/texture_map_mode=0

@@ -37,7 +37,6 @@ public partial class SystemMapView : Node3D
     private double _time;
     private int _speedIndex = 3;
     private bool _paused;
-    private bool _logScale = true;
     private double _referenceA;
     private double _scaleK;
     private double _maxA;
@@ -87,7 +86,6 @@ public partial class SystemMapView : Node3D
         };
         _ui.SpeedStep += step => _speedIndex = Math.Clamp(_speedIndex + step, 0, Speeds.Length - 1);
         _ui.PauseToggled += () => _paused = !_paused;
-        _ui.ScaleToggled += ToggleScale;
     }
 
     public void SetActive(bool active)
@@ -148,15 +146,6 @@ public partial class SystemMapView : Node3D
         _pitch = pitchDegrees * Math.PI / 180;
     }
 
-    private void ToggleScale()
-    {
-        _logScale = !_logScale;
-        if (_system != null)
-        {
-            Rebuild();
-        }
-    }
-
     // ---------------------------------------------------------------- building
 
     private void Rebuild()
@@ -168,12 +157,19 @@ public partial class SystemMapView : Node3D
         _views.Clear();
         StarSystem system = _system!;
 
+        // The scale spans from the innermost orbit around any star (or pair) out to the farthest thing around the root.
         double minA = double.MaxValue;
         _maxA = 0;
+        foreach (Body b in system.Bodies)
+        {
+            if (b.Kind is BodyKind.Planet or BodyKind.Belt or BodyKind.Star && b.Parent >= 0 && b.Orbit.SemiMajorAxis > 0)
+            {
+                minA = Math.Min(minA, b.Orbit.SemiMajorAxis);
+            }
+        }
         foreach (int child in system.Root.Children)
         {
             Body b = system.Bodies[child];
-            minA = Math.Min(minA, b.Orbit.SemiMajorAxis);
             _maxA = Math.Max(_maxA, b.Kind == BodyKind.Belt ? b.Orbit.SemiMajorAxis + b.BeltWidth / 2 : b.Orbit.Apoapsis);
         }
         if (_maxA <= 0)
@@ -197,6 +193,8 @@ public partial class SystemMapView : Node3D
                 case BodyKind.Belt:
                     BuildBelt(view);
                     break;
+                case BodyKind.Barycentre:
+                    break; // an empty point: its stars and planets orbit it
                 default:
                     BuildPlanet(view);
                     break;
@@ -336,7 +334,7 @@ public partial class SystemMapView : Node3D
         {
             double r = a + (rng.NextDouble() - 0.5) * body.BeltWidth;
             double angle = rng.NextDouble() * Math.PI * 2;
-            float d = (float)MapRoot(r);
+            float d = (float)MapAround(body, r);
             points[i] = new Vector3(Mathf.Cos((float)angle) * d, (float)(rng.Gaussian() * 0.15), Mathf.Sin((float)angle) * d);
             float shade = (float)rng.Range(0.35, 0.6);
             colours[i] = new Color(shade, shade * 0.92f, shade * 0.82f);
@@ -379,7 +377,7 @@ public partial class SystemMapView : Node3D
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.LineStrip, arrays);
         Color colour = body.Kind switch
         {
-            BodyKind.Star => new Color(1f, 0.75f, 0.4f, 0.35f),
+            BodyKind.Star or BodyKind.Barycentre => new Color(1f, 0.75f, 0.4f, 0.35f),
             BodyKind.Moon => new Color(0.5f, 0.7f, 0.9f, 0.18f),
             _ => new Color(0.45f, 0.75f, 1f, 0.32f),
         };
@@ -396,15 +394,22 @@ public partial class SystemMapView : Node3D
 
     // ---------------------------------------------------------------- positions
 
-    private double MapRoot(double metres) => _logScale
-        ? _scaleK * Math.Log10(1 + metres / _referenceA)
-        : SystemRadius * metres / _maxA;
+    // Distances are always compressed (logarithmic). A true-scale mode existed until 14 October 2026; the owner had it
+    // removed because proportional distances cram the inner planets into the star.
+    private double MapRoot(double metres) => _scaleK * Math.Log10(1 + metres / _referenceA);
 
     private double MapMoon(BodyView planet, double metres)
     {
         double planetRadius = Math.Max(planet.Body.Radius, 1);
         return planet.Radius * (1.9 + 1.5 * Math.Log10(1 + metres / (4 * planetRadius)));
     }
+
+    // Around the root, distances use the system's scale; around a companion or an inner pair, a smaller copy of it,
+    // so that host's planets stay clustered around it instead of spreading across the whole system.
+    private const double NestedScale = 0.35;
+
+    private double MapAround(Body body, double metres) =>
+        body.Parent > 0 ? NestedScale * MapRoot(metres) : MapRoot(metres);
 
     // Display offset from the parent for a true offset in metres.
     private Vector3 Map(Body body, BodyView parent, Hollow.Core.Vector3D offset)
@@ -414,7 +419,7 @@ public partial class SystemMapView : Node3D
         {
             return Vector3.Zero;
         }
-        double mapped = body.Kind == BodyKind.Moon ? MapMoon(parent, length) : MapRoot(length);
+        double mapped = body.Kind == BodyKind.Moon ? MapMoon(parent, length) : MapAround(body, length);
         Hollow.Core.Vector3D dir = offset / length;
         return new Vector3((float)(dir.X * mapped), (float)(dir.Y * mapped), (float)(dir.Z * mapped));
     }
@@ -473,7 +478,7 @@ public partial class SystemMapView : Node3D
         _camera.LookAtFromPosition(_focusPosition + back * (float)_distance, _focusPosition, Vector3.Up);
         _camera.Near = (float)Math.Clamp(_distance * 0.002, 0.002, 1);
 
-        _ui.SetTime(UniverseTime.ToUtc(_time), SpeedNames[_speedIndex], _paused, _logScale);
+        _ui.SetTime(UniverseTime.ToUtc(_time), SpeedNames[_speedIndex], _paused);
         DrawOverlay();
     }
 
@@ -508,7 +513,11 @@ public partial class SystemMapView : Node3D
                     continue;
                 }
             }
-            Vector2 p = _camera.UnprojectPosition(body.Kind == BodyKind.Belt ? world + new Vector3((float)MapRoot(body.Orbit.SemiMajorAxis), 0, 0) : world);
+            if (body.Kind == BodyKind.Barycentre && _selected != body.Index)
+            {
+                continue; // barycentres are labelled only when selected
+            }
+            Vector2 p = _camera.UnprojectPosition(body.Kind == BodyKind.Belt ? world + new Vector3((float)MapAround(body, body.Orbit.SemiMajorAxis), 0, 0) : world);
             Color colour = body.Kind switch
             {
                 BodyKind.Star => new Color(1f, 0.85f, 0.6f, 0.9f),
@@ -622,9 +631,6 @@ public partial class SystemMapView : Node3D
                     case Key.Period:
                         _speedIndex = Math.Min(Speeds.Length - 1, _speedIndex + 1);
                         break;
-                    case Key.L:
-                        ToggleScale();
-                        break;
                 }
                 break;
         }
@@ -638,7 +644,7 @@ public partial class SystemMapView : Node3D
         float bestDistance = float.MaxValue;
         foreach (BodyView view in _views)
         {
-            Vector3 world = view.Body.Kind == BodyKind.Belt ? view.Pivot.GlobalPosition + new Vector3((float)MapRoot(view.Body.Orbit.SemiMajorAxis), 0, 0) : view.Pivot.GlobalPosition;
+            Vector3 world = view.Body.Kind == BodyKind.Belt ? view.Pivot.GlobalPosition + new Vector3((float)MapAround(view.Body, view.Body.Orbit.SemiMajorAxis), 0, 0) : view.Pivot.GlobalPosition;
             if (_camera.IsPositionBehind(world))
             {
                 continue;
@@ -666,13 +672,14 @@ public partial class SystemMapView : Node3D
         BodyView view = _views[index];
         _targetDistance = view.Body.Kind switch
         {
-            BodyKind.Star when index == 0 => SystemRadius * 1.6,
+            _ when index == 0 => SystemRadius * 1.6,
             BodyKind.Belt => SystemRadius * 1.2,
+            BodyKind.Barycentre => SystemRadius * 0.6,
             _ => Math.Max(view.Radius * 14, 2.5),
         };
         if (view.Body.Kind == BodyKind.Belt)
         {
-            _focus = 0;
+            _focus = view.Body.Parent;
         }
     }
 }

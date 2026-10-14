@@ -1,0 +1,23 @@
+{
+  "source": "Hit points and sizes from hollow-orbit js/game/items.js DEPLOY; slots from Rust (boxes 18 and 48; the furnace's fuel, two inputs and three outputs as RustMVP's interface lays them out); the sleeping bag's 300 s cooldown from RustMVP inventory_survival.md §9 (and Rust), the bed's 120 s from hollow-orbit and Rust. Sizes are half extents in metres (x across, y up, z along). Fuel burn and cooking times are on the items. G6 (ours): the vehicle workbench's size from its model (PSG Starter Kit); its 'bay' is where a ship it builds rolls out (in its own frame: x across, z out of its front) and the space that must be clear there. G7: the research table (Rust's item and scrap slots, and one for the blueprint it makes; what it does is in world.json). P2 (GROUND_SYSTEMS.md §6): each one's placement rule is placement.json's deployable rule with its own 'placement' block on top (the steepest ground it stands on, RustMVP's 128 sleeping bags a player). P1: pickup, picked back up as its item with E when empty, where the player has building rights (Rust's; GROUND_SYSTEMS.md §11.3).",
+  "deployables": [
+    { "key": "sleeping-bag", "item": "sleeping-bag", "pickup": true, "health": 60, "size": [0.45, 0.08, 1.0], "placement": { "maxSlope": 30, "limits": { "player": 128 } }, "solid": false,
+      "respawn": 300 },
+    { "key": "bed", "item": "bed", "pickup": true, "health": 150, "size": [0.6, 0.3, 1.1], "placement": { "maxSlope": 20, "limits": { "player": 128 } }, "solid": false,
+      "respawn": 120 },
+    { "key": "campfire", "item": "campfire", "pickup": true, "health": 100, "size": [0.5, 0.25, 0.5], "placement": { "maxSlope": 30 }, "solid": false,
+      "slots": 5,
+      "device": { "fuel": [0], "input": [1, 2], "output": [3, 4], "cooks": "campfire", "warmth": { "radius": 4, "celsius": 20 } } },
+    { "key": "furnace", "item": "furnace", "pickup": true, "health": 300, "size": [0.5, 0.85, 0.5], "placement": { "maxSlope": 25 },
+      "slots": 6,
+      "device": { "fuel": [0], "input": [1, 2], "output": [3, 4, 5], "cooks": "furnace", "warmth": { "radius": 3, "celsius": 10 } } },
+    { "key": "small-box", "item": "small-box", "pickup": true, "health": 150, "size": [0.4, 0.25, 0.25], "placement": { "maxSlope": 30 }, "slots": 18 },
+    { "key": "large-box", "item": "large-box", "pickup": true, "health": 250, "size": [0.75, 0.38, 0.4], "placement": { "maxSlope": 25 }, "slots": 48 },
+    { "key": "workbench-1", "item": "workbench-1", "pickup": true, "health": 300, "size": [1.0, 0.5, 0.45], "placement": { "maxSlope": 20 }, "workbench": 1 },
+    { "key": "workbench-2", "item": "workbench-2", "pickup": true, "health": 500, "size": [1.1, 0.7, 0.5], "placement": { "maxSlope": 20 }, "workbench": 2 },
+    { "key": "workbench-3", "item": "workbench-3", "pickup": true, "health": 750, "size": [1.3, 1.0, 0.7], "placement": { "maxSlope": 20 }, "workbench": 3 },
+    { "key": "vehicle-workbench", "item": "vehicle-workbench", "pickup": true, "health": 1000, "size": [1.2, 1.05, 0.6], "placement": { "maxSlope": 15 },
+      "bay": { "at": [0, 0, 4.6], "clear": [1.7, 3.2, 3.3], "maxSlope": 20 } },
+    { "key": "research-table", "item": "research-table", "pickup": true, "health": 200, "size": [0.75, 0.45, 0.4], "placement": { "maxSlope": 20 }, "slots": 3 }
+  ]
+}

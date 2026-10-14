@@ -8,3 +8,7 @@
 *.ogg binary
 *.wav binary
 *.glb binary
+*.nupkg binary
+*.dll binary
+*.so binary
+*.cmd text eol=crlf

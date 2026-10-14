@@ -195,7 +195,7 @@ public partial class GalaxyMapView : Node3D
             {
                 companions = real.Companions.Count;
             }
-            _ui.ShowSelection(_galaxy.NameOf(s.Address), s, Galaxy.SectorNameAt(s.Position), companions);
+            _ui.ShowSelection(_galaxy.NameOf(s), s, PlaceName(s.Position), companions);
         }
         else
         {
@@ -269,7 +269,7 @@ public partial class GalaxyMapView : Node3D
             _lastStalkMs = watch.Elapsed.TotalMilliseconds;
         }
 
-        _ui.SetFocus(Galaxy.SectorNameAt(_view.Focus), _view.Focus, _view.Distance);
+        _ui.SetFocus(Galaxy.SectorNameAt(_view.Focus), Regions.At(_view.Focus), _view.Focus, _view.Distance);
         _ui.SetStatus($"{_stars.LoadedStars:N0} stars loaded · {_stars.LoadedBlocks:N0} blocks · {_stars.PendingBlocks:N0} generating · {_fps:0} fps");
         DrawOverlay();
     }
@@ -811,13 +811,13 @@ public partial class GalaxyMapView : Node3D
             selectedAddress = selected.Address;
             overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(13), Ui.Warm, Ui.Pxf(2)));
             overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(18), new Color(Ui.Warm, 0.35f), Ui.Pxf(1)));
-            front.Add(AlwaysLabel(labeller, sp, Ui.Pxf(19), _galaxy.NameOf(selected.Address), Ui.Warm, 16,
+            front.Add(AlwaysLabel(labeller, sp, Ui.Pxf(19), _galaxy.NameOf(selected), Ui.Warm, 16,
                 [LabelSide.Below, LabelSide.Above, LabelSide.Right, LabelSide.Left]));
         }
         if (_hover is GalaxyStar hover && !hover.Address.Equals(selectedAddress) && Project(hover.Position, view, projection, size, out Vector2 hp))
         {
             overlay.Rings.Add(new MapOverlay.Ring(hp, Ui.Pxf(10), new Color(Ui.Accent, 0.7f), Ui.Pxf(1.5f)));
-            front.Insert(0, AlwaysLabel(labeller, hp, Ui.Pxf(11), _galaxy.NameOf(hover.Address), Ui.Text, 15,
+            front.Insert(0, AlwaysLabel(labeller, hp, Ui.Pxf(11), _galaxy.NameOf(hover), Ui.Text, 15,
                 [LabelSide.Right, LabelSide.Left, LabelSide.Above, LabelSide.Below]));
         }
 
@@ -907,10 +907,54 @@ public partial class GalaxyMapView : Node3D
             }
         }
 
+        // Named regions (GALAXY.md §15.2), real clusters and nebulae, last: a ring of their size and their name where
+        // there is room. Shown from outside, out to 60 times their radius (at least 2,500 ly).
+        double focal = 0.5 * size.Y / Math.Tan(0.5 * _camera.Fov * Math.PI / 180);
+        foreach (Region r in Regions.All)
+        {
+            double away = Vector3D.Distance(r.Centre, camera);
+            if (away <= r.Radius * 1.2 || away > Math.Max(2500, 60 * r.Radius) || !Project(r.Centre, view, projection, size, out Vector2 rp)
+                || rp.X < 0 || rp.Y < 0 || rp.X > size.X || rp.Y > size.Y)
+            {
+                continue;
+            }
+            float pixels = (float)(r.Radius / away * focal);
+            Color colour = RegionColour(r.Kind);
+            if (pixels >= Ui.Pxf(5))
+            {
+                overlay.Rings.Add(new MapOverlay.Ring(rp, Math.Min(pixels, size.Y), new Color(colour, 0.5f), Ui.Pxf(1)));
+            }
+            if (labeller.TryPlaceAround(rp, Math.Max(pixels, Ui.Pxf(3)), r.Name, new Color(colour, 0.95f), 14, MapLabel.Name,
+                    [LabelSide.Below, LabelSide.Above, LabelSide.Right, LabelSide.Left], out MapOverlay.Text label))
+            {
+                names.Add(label);
+            }
+        }
+
         overlay.Texts.AddRange(regions);
         overlay.Texts.AddRange(names);
         overlay.Texts.AddRange(front);
         overlay.QueueRedraw();
+    }
+
+    // Region colours by kind: glowing gas red, reflected light blue, dark clouds dusky, star clusters pale.
+    private static Color RegionColour(RegionKind kind) => kind switch
+    {
+        RegionKind.EmissionNebula => new Color(1.0f, 0.55f, 0.62f),
+        RegionKind.ReflectionNebula => new Color(0.55f, 0.72f, 1.0f),
+        RegionKind.DarkNebula => new Color(0.78f, 0.68f, 0.58f),
+        RegionKind.PlanetaryNebula => new Color(0.45f, 0.95f, 0.85f),
+        RegionKind.SupernovaRemnant => new Color(1.0f, 0.75f, 0.45f),
+        RegionKind.GlobularCluster => new Color(1.0f, 0.9f, 0.62f),
+        _ => new Color(0.78f, 0.88f, 1.0f),
+    };
+
+    // Where a position is: its named region (if any) and its sector.
+    private static string PlaceName(Vector3D position)
+    {
+        string sector = Galaxy.SectorNameAt(position);
+        Region? region = Regions.At(position);
+        return region == null ? sector : sector.Length > 0 ? $"{region.Name}, {sector}" : region.Name;
     }
 
     // A label that always shows: on the first free side, or on the first side regardless.

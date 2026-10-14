@@ -11,6 +11,12 @@ public static class Streams
     public const ulong Star = 0x53544152; // "STAR"
     public const ulong System = 0x53595354; // "SYST"
     public const ulong Suppression = 0x53555050; // "SUPP"
+    public const ulong CatalogueAge = 0x43414745; // "CAGE": age estimates of real stars
+
+    // Stage seeds: the universe seed mixed with a stage's generator version (GeneratorVersion).
+    public const ulong GalaxyStage = 0x47414C56; // "GALV"
+    public const ulong SystemStage = 0x53595356; // "SYSV"
+    public const ulong SurfaceStage = 0x53555256; // "SURV"
 }
 
 /// <summary>
@@ -20,30 +26,38 @@ public static class Streams
 /// </summary>
 public sealed class CellGenerator
 {
-    /// <summary>Per level: within this distance of Sol the real-star catalogue is complete (GALAXY.md §8.3).</summary>
-    public static readonly double[] CatalogueRadius = { 3000, 1500, 650, 350, 190, 90, 50, 30 };
-
-    /// <summary>Procedural stars fade back in over this fraction of the radius beyond it.</summary>
-    public const double CatalogueRampFraction = 0.25;
-
     /// <summary>Hard limit per cell, far above anything the density cap allows; protects memory.</summary>
     public const long MaxStarsPerCell = 4_000_000;
 
-    private const int PositionTries = 16;
+    // The density is sampled on a grid of NX × NY × NZ points per cell (NY doubled for the tall cells of levels
+    // 0–2). Each point stands for a sub-cell: the grid integrates the density, and a star's position is drawn by
+    // first choosing a sub-cell by its sampled density, then rejection sampling inside it.
+    private const int GridX = 4;
+    private const int GridZ = 4;
+    private const int MaxGridY = 8;
+    private const int MaxSubCells = GridX * MaxGridY * GridZ;
+    private const int PositionTries = 24;
+
+    // Rejection bound inside a sub-cell: this many times the largest sample of the sub-cell and its neighbours.
+    private const double BoundFactor = 1.3;
 
     private readonly ulong _seed;
     private readonly DensityModel _density;
     private readonly bool _leaveSolToCatalogue;
 
+    /// <summary>A cell generator for a universe seed, at the current galaxy-stage version.</summary>
     public CellGenerator(ulong seed, DensityModel density)
-        : this(seed, density, leaveSolToCatalogue: true)
+        : this(seed, density, leaveSolToCatalogue: true, GeneratorVersion.Galaxy)
     {
     }
 
-    /// <summary>Test seam: generates the region near Sol too, to prove suppression changes nothing else.</summary>
-    internal CellGenerator(ulong seed, DensityModel density, bool leaveSolToCatalogue)
+    /// <summary>
+    /// Test seam: <paramref name="leaveSolToCatalogue"/> = false generates the region near Sol too, to prove
+    /// suppression changes nothing else; <paramref name="version"/> stands in for another galaxy-stage version.
+    /// </summary>
+    internal CellGenerator(ulong seed, DensityModel density, bool leaveSolToCatalogue, int version = GeneratorVersion.Galaxy)
     {
-        _seed = seed;
+        _seed = GeneratorVersion.GalaxySeed(seed, version);
         _density = density;
         _leaveSolToCatalogue = leaveSolToCatalogue;
     }
@@ -52,17 +66,18 @@ public sealed class CellGenerator
     public double ExpectedCount(CellKey cell)
     {
         Span<double> lambda = stackalloc double[DensityModel.ComponentCount];
-        Span<double> maxDensity = stackalloc double[DensityModel.ComponentCount];
-        return Integrate(cell, lambda, maxDensity);
+        Span<double> samples = stackalloc double[MaxSubCells * DensityModel.ComponentCount];
+        return Integrate(cell, lambda, samples);
     }
 
     public GalaxyStar[] Generate(CellKey cell)
     {
-        Span<double> lambda = stackalloc double[DensityModel.ComponentCount];
-        Span<double> maxDensity = stackalloc double[DensityModel.ComponentCount];
-        Span<double> components = stackalloc double[DensityModel.ComponentCount];
+        const int components = DensityModel.ComponentCount;
+        Span<double> lambda = stackalloc double[components];
+        Span<double> samples = stackalloc double[MaxSubCells * components];
+        Span<double> densities = stackalloc double[components];
 
-        double total = Integrate(cell, lambda, maxDensity);
+        double total = Integrate(cell, lambda, samples);
         if (total <= 0)
         {
             return Array.Empty<GalaxyStar>();
@@ -78,10 +93,24 @@ public sealed class CellGenerator
         }
 
         int level = cell.Level;
-        double size = cell.Size;
+        int gridY = GridY(level);
+        int subCells = GridX * gridY * GridZ;
         Vector3D min = cell.Min;
-        double suppressRadius = CatalogueRadius[level];
+        var subSize = new Vector3D(cell.Size / GridX, cell.Size / gridY, cell.Size / GridZ);
+        double catalogueReach = CatalogueCompleteness.EmptyBeyond(level);
         var stars = new List<GalaxyStar>((int)Math.Min(count, 1 << 16));
+
+        // Per component, the running sum of its samples over the sub-cells: choosing a sub-cell is a binary search.
+        Span<double> cumulative = stackalloc double[MaxSubCells * components];
+        for (int c = 0; c < components; c++)
+        {
+            double sum = 0;
+            for (int k = 0; k < subCells; k++)
+            {
+                sum += samples[k * components + c];
+                cumulative[c * MaxSubCells + k] = sum;
+            }
+        }
 
         for (long i = 0; i < count; i++)
         {
@@ -100,59 +129,114 @@ public sealed class CellGenerator
                 continue;
             }
 
-            // Position: rejection sampling against this component's density inside the cell.
-            Vector3D position = min;
-            double bound = maxDensity[c] * 1.3;
+            // Position: a sub-cell chosen by this component's sampled density, then rejection sampling inside it
+            // against the density itself. Every candidate lies in a sub-cell where the component has stars, so even
+            // a star that runs out of tries can't land where the density says there are none.
+            ReadOnlySpan<double> sums = cumulative.Slice(c * MaxSubCells, subCells);
+            int s = PickSubCell(sums, rng.NextDouble() * sums[subCells - 1]);
+            int ix = s % GridX;
+            int iy = s / GridX % gridY;
+            int iz = s / (GridX * gridY);
+            double bound = BoundFactor * NeighbourhoodMax(samples, c, ix, iy, iz, gridY);
+            Vector3D corner = min + new Vector3D(ix * subSize.X, iy * subSize.Y, iz * subSize.Z);
+            Vector3D position = corner;
             for (int t = 0; t < PositionTries; t++)
             {
-                position = min + new Vector3D(rng.NextDouble() * size, rng.NextDouble() * size, rng.NextDouble() * size);
-                _density.Evaluate(position, components);
-                if (rng.NextDouble() * bound <= components[c])
+                position = corner + new Vector3D(rng.NextDouble() * subSize.X, rng.NextDouble() * subSize.Y, rng.NextDouble() * subSize.Z);
+                _density.Evaluate(position, densities);
+                if (rng.NextDouble() * bound <= densities[c])
                 {
                     break;
                 }
             }
 
-            // Near Sol the real catalogue already has these stars (GALAXY.md §8.3). The keep roll has its own
-            // stream, so a star that survives is identical to the one an unsuppressed run would make.
+            // Near Sol the real catalogue holds a share of this level's stars (GALAXY.md §8.3); a procedural star is
+            // left out with that probability. The roll has its own stream, so a star that survives is identical to
+            // the one an unsuppressed run would make.
             double d = position.Length;
-            if (_leaveSolToCatalogue && d < suppressRadius * (1.0 + CatalogueRampFraction))
+            if (_leaveSolToCatalogue && d < catalogueReach)
             {
-                if (d < suppressRadius)
+                double catalogued = CatalogueCompleteness.Of(level, d);
+                if (catalogued >= 1)
                 {
                     continue;
                 }
-                double keep = (d - suppressRadius) / (CatalogueRampFraction * suppressRadius);
                 var keepRng = new Rng(Hash64.Of(_seed, Streams.Suppression, address.Value));
-                if (keepRng.NextDouble() >= keep)
+                if (keepRng.NextDouble() < catalogued)
                 {
                     continue;
                 }
             }
 
-            (StarClass starClass, StarPhysics physics) = StarClassTable.Roll(entry, ref rng);
+            (StarClass starClass, StarPhysics physics, double age) = StarClassTable.Roll(entry, component, ref rng);
             (double mean, double sigma) = DensityModel.MetallicityOf(component);
             float metallicity = (float)StellarTables.Clamp(rng.Gaussian(mean, sigma), -3.0, 0.6);
-            stars.Add(new GalaxyStar(address, position, starClass, physics, metallicity, component, level));
+            stars.Add(new GalaxyStar(address, position, starClass, physics, metallicity, component, level, (float)age));
         }
         return stars.ToArray();
     }
 
-    // Integrates the density over the cell; fills the expected star count per component at this level and the
-    // largest sampled density per component. Returns the total expected count.
-    private double Integrate(CellKey cell, Span<double> lambda, Span<double> maxDensity)
+    private static int GridY(int level) => level <= 2 ? MaxGridY : 4;
+
+    // The first sub-cell whose running sum exceeds the target (sums never decrease, and target < the last sum), so
+    // the chosen sub-cell always has a positive sample.
+    private static int PickSubCell(ReadOnlySpan<double> sums, double target)
     {
-        Span<double> components = stackalloc double[DensityModel.ComponentCount];
+        int lo = 0;
+        int hi = sums.Length - 1;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) / 2;
+            if (sums[mid] > target)
+            {
+                hi = mid;
+            }
+            else
+            {
+                lo = mid + 1;
+            }
+        }
+        return lo;
+    }
+
+    // The largest sampled density of a component in a sub-cell and its 26 neighbours: a local bound on the density,
+    // since a peak between sample points shows up in the samples around it.
+    private static double NeighbourhoodMax(ReadOnlySpan<double> samples, int c, int ix, int iy, int iz, int gridY)
+    {
+        double max = 0;
+        for (int z = Math.Max(0, iz - 1); z <= Math.Min(GridZ - 1, iz + 1); z++)
+        {
+            for (int y = Math.Max(0, iy - 1); y <= Math.Min(gridY - 1, iy + 1); y++)
+            {
+                for (int x = Math.Max(0, ix - 1); x <= Math.Min(GridX - 1, ix + 1); x++)
+                {
+                    double v = samples[((z * gridY + y) * GridX + x) * DensityModel.ComponentCount + c];
+                    if (v > max)
+                    {
+                        max = v;
+                    }
+                }
+            }
+        }
+        return max;
+    }
+
+    // Integrates the density over the cell: fills the expected star count per component at this level, and the
+    // density of each component at each grid point (sub-cell k = x + GridX·(y + gridY·z)). Returns the total.
+    private double Integrate(CellKey cell, Span<double> lambda, Span<double> samples)
+    {
+        const int components = DensityModel.ComponentCount;
+        Span<double> densities = stackalloc double[components];
         int level = cell.Level;
-        int nx = 4;
-        int ny = level <= 2 ? 8 : 4;
-        int nz = 4;
+        int nx = GridX;
+        int ny = GridY(level);
+        int nz = GridZ;
         double size = cell.Size;
         Vector3D min = cell.Min;
         double volumePerSample = size * size * size / (nx * ny * nz);
         lambda.Clear();
-        maxDensity.Clear();
 
+        int k = 0;
         for (int iz = 0; iz < nz; iz++)
         {
             for (int iy = 0; iy < ny; iy++)
@@ -163,15 +247,13 @@ public sealed class CellGenerator
                         min.X + (ix + 0.5) / nx * size,
                         min.Y + (iy + 0.5) / ny * size,
                         min.Z + (iz + 0.5) / nz * size);
-                    _density.Evaluate(p, components);
-                    for (int c = 0; c < DensityModel.ComponentCount; c++)
+                    _density.Evaluate(p, densities);
+                    for (int c = 0; c < components; c++)
                     {
-                        lambda[c] += components[c];
-                        if (components[c] > maxDensity[c])
-                        {
-                            maxDensity[c] = components[c];
-                        }
+                        lambda[c] += densities[c];
+                        samples[k * components + c] = densities[c];
                     }
+                    k++;
                 }
             }
         }

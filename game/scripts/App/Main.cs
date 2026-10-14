@@ -5,8 +5,16 @@ using Godot;
 using Hollow.Core;
 using Hollow.Galaxy;
 using Hollow.Galaxy.Systems;
+using HollowUniverse.Audio;
+using HollowUniverse.Build;
+using HollowUniverse.Fx;
 using HollowUniverse.GalaxyMap;
+using HollowUniverse.Ground;
+using HollowUniverse.Surface;
+using HollowUniverse.Items;
+using HollowUniverse.Ships;
 using HollowUniverse.SystemMap;
+using HollowUniverse.UI.Viewer;
 
 namespace HollowUniverse.App;
 
@@ -19,15 +27,31 @@ public partial class Main : Node
 {
     private GalaxyMapView _galaxyMap = null!;
     private SystemMapView _systemMap = null!;
+    private SurfaceView _surfaceView = null!;
     private Dictionary<string, string> _options = new();
     private double _elapsed;
     private bool _capturing;
     private bool _rescaled;
     private UiScaler _scaler = null!;
+    private GroundMode? _ground;
+    private BuildSandbox? _build;
+    private ShipSandbox? _ship;
+    private UiViewer? _ui;
+    private IconRenderer? _icons;
+    private ModelViewer? _models;
+    private HollowUniverse.Monuments.MonumentViewer? _monuments;
+    private SoundViewer? _sounds;
+    private FxViewer? _fx;
+    private HollowUniverse.Animals.AnimalSandbox? _animals;
 
     public override void _Ready()
     {
         _options = ParseOptions(OS.GetCmdlineUserArgs());
+        if (_options.ContainsKey("physics-check"))
+        {
+            GroundChecks.RunPhysicsCheck(this);
+            return;
+        }
         // The interface scale has to be known before any interface is built.
         _scaler = new UiScaler { Name = "UiScaler" };
         if (_options.ContainsKey("ui-scale"))
@@ -35,14 +59,99 @@ public partial class Main : Node
             _scaler.Override = (float)Number("ui-scale", 1);
         }
         AddChild(_scaler);
+        // Item icons rendered from the models (GROUND.md §9); --placeholder-icons keeps the vector drawings.
+        if (!_options.ContainsKey("placeholder-icons"))
+        {
+            CatalogItemIcons.Install();
+        }
+        if (Option("view", "galaxy") == "icons")
+        {
+            // Renders the item icons (--out <dir>) and shows them all on one sheet (GROUND.md §9).
+            _icons = new IconRenderer { Name = "Icons", Options = _options };
+            AddChild(_icons);
+            return;
+        }
+        if (Option("view", "galaxy") == "models")
+        {
+            // Every catalogue model on the ground, or one on a turntable (GROUND.md §9).
+            _models = new ModelViewer { Name = "Models", Options = _options };
+            AddChild(_models);
+            return;
+        }
+        if (Option("view", "galaxy") == "monuments")
+        {
+            // Every monument at its real size, a row per tier, with a fly camera (MONUMENTS.md §8.5).
+            _monuments = new HollowUniverse.Monuments.MonumentViewer { Name = "Monuments", Options = _options };
+            AddChild(_monuments);
+            return;
+        }
+        if (Option("view", "galaxy") == "fx")
+        {
+            // The effects library on its stations, contact sheets, scenes and the firefight measurement (GROUND.md §9.3).
+            _fx = new FxViewer { Name = "Fx", Options = _options };
+            AddChild(_fx);
+            return;
+        }
+        if (Option("view", "galaxy") == "ui")
+        {
+            // The ground game's interface on sample data (GROUND.md §8): --screen hud|inventory|crafting|...
+            _ui = new UiViewer { Name = "UiViewer", Options = _options };
+            AddChild(_ui);
+            return;
+        }
+        if (Option("view", "galaxy") == "sounds")
+        {
+            // The audition viewer (GROUND.md §4.9): every sound event, a source walking away, the ambience.
+            _sounds = new SoundViewer { Name = "Sounds", Options = _options };
+            AddChild(_sounds);
+            return;
+        }
+        if (Option("view", "") == "character")
+        {
+            // The character viewer (GROUND.md §4.8) needs no galaxy; it handles --shot itself.
+            AddChild(new HollowUniverse.Characters.CharacterLab(_options));
+            SetProcess(false);
+            return;
+        }
         GalaxyService.Load();
+        if (Option("view", "galaxy") == "ground")
+        {
+            // The ground game (GROUND.md §4.3): its own view; the maps aren't built.
+            _ground = new GroundMode { Name = "Ground", Options = _options };
+            AddChild(_ground);
+            return;
+        }
+        if (Option("view", "galaxy") == "animals")
+        {
+            // The animal sandbox (GROUND.md §6.9): herds, a wolf pack, the bear, butchering and cooking on the real surface.
+            _animals = new HollowUniverse.Animals.AnimalSandbox { Name = "Animals", Options = _options };
+            AddChild(_animals);
+            return;
+        }
+        if (Option("view", "galaxy") == "build")
+        {
+            // The build sandbox (GROUND.md §6.3): the building rules and their art in a local zone.
+            _build = new BuildSandbox { Name = "Build", Options = _options };
+            AddChild(_build);
+            return;
+        }
+        if (Option("view", "galaxy") == "ship")
+        {
+            // The ship sandbox (GROUND.md §6.7): the Tin Finch on the first world's real surface.
+            _ship = new ShipSandbox { Name = "Ship", Options = _options };
+            AddChild(_ship);
+            return;
+        }
 
         _galaxyMap = new GalaxyMapView { Name = "GalaxyMap" };
         AddChild(_galaxyMap);
         _systemMap = new SystemMapView { Name = "SystemMap" };
         AddChild(_systemMap);
+        _surfaceView = new SurfaceView { Name = "Surface" };
+        AddChild(_surfaceView);
         _galaxyMap.OpenSystemRequested += address => OpenSystem(address, UniverseTime.Now);
         _systemMap.BackRequested += ShowGalaxy;
+        _surfaceView.BackRequested += ShowGalaxy;
         ShowGalaxy();
         ApplyOptions();
         if (_options.ContainsKey("shot"))
@@ -55,7 +164,44 @@ public partial class Main : Node
     private void ShowGalaxy()
     {
         _systemMap.SetActive(false);
+        _surfaceView.SetActive(false);
         _galaxyMap.SetActive(true);
+    }
+
+    /// <summary>Opens the first world's surface (GROUND.md §3): the surface view's options are degrees and metres.</summary>
+    private void OpenSurface(double time)
+    {
+        var found = Hollow.Surface.FirstWorld.Find(GalaxyService.Galaxy);
+        if (found == null)
+        {
+            GD.PushError("--view surface: the first world is not in this universe.");
+            return;
+        }
+        (StarSystem system, Body planet) = found.Value;
+        var surface = Hollow.Surface.PlanetSurface.For(GalaxyService.Galaxy, system, planet);
+        _galaxyMap.SetActive(false);
+        _systemMap.SetActive(false);
+        _surfaceView.SetActive(true);
+        _surfaceView.Open(system, planet, surface, Number("lat", Hollow.Surface.FirstWorld.LandingLatitude),
+            Number("lon", Hollow.Surface.FirstWorld.LandingLongitude), Number("alt", 1.7), Number("yaw", 0), Number("pitch", 0), time);
+        if (_options.ContainsKey("time-scale"))
+        {
+            _surfaceView.SetRotationTimeScale(Math.Clamp(Number("time-scale", 1), 0.01, 100000));
+        }
+        _surfaceView.SetTime(time, paused: _options.ContainsKey("shot"));
+        _surfaceView.DebugSky = (int)Number("debug-sky", 0);
+        if (_options.ContainsKey("hide-ui"))
+        {
+            _surfaceView.InterfaceVisible = false;
+        }
+        if (_options.ContainsKey("clouds"))
+        {
+            _surfaceView.CloudCoverage = (float)Number("clouds", 0.5);
+        }
+        if (_options.ContainsKey("flora-lineup"))
+        {
+            _surfaceView.ShowFloraLineup((float)Number("flora-lineup", 40), (int)Number("flora-lod", 0));
+        }
     }
 
     private bool OpenSystem(SystemAddress address, double time)
@@ -111,13 +257,14 @@ public partial class Main : Node
             _galaxyMap.Search(search);
         }
 
+        if (view == "surface")
+        {
+            OpenSurface(OptionTime());
+        }
+
         if (view == "system" && focusAddress.HasValue)
         {
-            double time = UniverseTime.Now;
-            if (_options.TryGetValue("time", out string? t))
-            {
-                time = UniverseTime.SecondsSinceJ2000(DateTime.Parse(t, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal));
-            }
+            double time = OptionTime();
             if (OpenSystem(focusAddress.Value, time))
             {
                 _systemMap.SetTime(time, paused: _options.ContainsKey("shot"));
@@ -133,20 +280,30 @@ public partial class Main : Node
         }
     }
 
+    private double OptionTime() => _options.TryGetValue("time", out string? t)
+        ? UniverseTime.SecondsSinceJ2000(DateTime.Parse(t, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal))
+        : UniverseTime.Now;
+
     private double _traceTimer;
 
     public override void _Process(double delta)
     {
-        if (_options.ContainsKey("trace"))
+        if (_options.ContainsKey("trace") && _ground == null && _ui == null && _icons == null && _models == null && _monuments == null && _build == null
+            && _sounds == null && _fx == null && _ship == null && _animals == null)
         {
             _traceTimer += delta;
             if (_traceTimer >= 1)
             {
                 _traceTimer = 0;
+                if (_surfaceView.Visible)
+                {
+                    GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} tiles={_surfaceView.Terrain.DrawnTiles} pending={_surfaceView.Terrain.Pending} build={_surfaceView.Terrain.BuildMicroseconds:0}us plants={_surfaceView.Plants?.MeshInstances}/{_surfaceView.Plants?.ImpostorInstances} grass={_surfaceView.Grass?.Tufts} ready={_surfaceView.IsReady} exposure={_surfaceView.Sky?.Exposure:0.###} sun={_surfaceView.Sky?.SunElevation:0.0} {_surfaceView.LightDebug}");
+                }
+                else
                 GD.Print($"[trace] t={_elapsed:0.0}s frame={delta * 1000:0}ms stars={_galaxyMap.Stars.LoadedStars} blocks={_galaxyMap.Stars.LoadedBlocks} pending={_galaxyMap.Stars.PendingBlocks} glow={_galaxyMap.IsGlowReady} sky={_galaxyMap.SkyBrightness:0.0} {_galaxyMap.TimingDebug} crowd {_galaxyMap.CrowdingDebug}");
             }
         }
-        if (!_options.TryGetValue("shot", out string? path) || _capturing)
+        if (!_options.TryGetValue("shot", out string? path) || _capturing || _ground?.TakesOwnShots == true)
         {
             _elapsed += delta;
             return;
@@ -160,7 +317,16 @@ public partial class Main : Node
             _scaler.Apply();
         }
         double wait = Number("wait", 2);
-        bool ready = _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady : true;
+        bool ready = _ui != null ? _ui.ReadyForShot : _ground != null ? _ground.ReadyForShot
+            : _build != null ? _build.ReadyForShot
+            : _ship != null ? _ship.ReadyForShot
+            : _sounds != null ? _sounds.ReadyForShot
+            : _icons != null ? _icons.ReadyForShot : _models != null ? _models.ReadyForShot
+            : _monuments != null ? _monuments.ReadyForShot
+            : _fx != null ? _fx.ReadyForShot
+            : _animals != null ? _animals.ReadyForShot
+            : _galaxyMap.Visible ? _galaxyMap.Stars.IsIdle && _galaxyMap.IsGlowReady
+            : _surfaceView.Visible ? _surfaceView.IsReady : true;
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
         {
             _capturing = true;
@@ -177,7 +343,7 @@ public partial class Main : Node
         }
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         Image image = GetViewport().GetTexture().GetImage();
-        Error error = image.SavePng(path);
+        Error error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? image.SaveJpg(path, 0.9f) : image.SavePng(path);
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
         GetTree().Quit(error == Error.Ok ? 0 : 1);
     }

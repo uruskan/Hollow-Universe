@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Hollow.Bots</RootNamespace>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Hollow.Core/Hollow.Core.csproj" />
+    <ProjectReference Include="../../src/Hollow.Simulation/Hollow.Simulation.csproj" />
+    <ProjectReference Include="../../src/Hollow.Net/Hollow.Net.csproj" />
+    <ProjectReference Include="../../src/Hollow.Client/Hollow.Client.csproj" />
+    <ProjectReference Include="../../src/Hollow.Server/Hollow.Server.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,582 @@
+# Hollow Universe — Monuments
+
+Status: draft 1, 13 October 2026. What monuments are, the whole catalogue, how they are placed on every planet of
+the galaxy, the events that spawn at random, and how they are built and brought into the game. It extends
+[GROUND.md](GROUND.md) step G7 ("monuments with loot, guards and radiation") and the Surface stage of
+[ARCHITECTURE.md](ARCHITECTURE.md) §9. Research behind it: §13.
+
+Every rule is marked **Decided** (the owner said so), **Proposal** (waiting for a yes or no) or **Open**.
+
+**Built so far (13 October 2026):** 55 of the 66 monuments: every roadside, small, medium, large and landmark
+monument in §5 (58 scripts with the Strip Mine's three variants), each with three or four look-dev views in
+`docs/images/monuments/` and scale charts of the tiers (`scale-*.jpg`). The wonders, orbital and sea monuments are
+designed here but not built. None is in the game yet (§11, M3).
+
+---
+
+## 1. Decisions
+
+| Topic | Rule | Status |
+|---|---|---|
+| What a monument is | A built site on a planet (or in orbit) with special loot, danger and a reason to come back: Rust's monuments, on real planets. | Decided (GAME_DESIGN.md §4) |
+| Inspiration | Rust first (the loot ladder, keycards, fuses, radiation, guards, recyclers, safe zones, landmarks by silhouette). Dune: Awakening for the space setting (wrecks, buried sites, sites that renew, events you see from afar). Empyrion for sites on many procedural worlds. Mechanics and numbers may be borrowed; names, layouts, models and art never are (GAME_DESIGN.md §10). | Proposal |
+| How many | 66 kinds of monument in eight scales, from a fenced substation to a kilometre-tall tower, plus 12 events, most of them spawning at random (§5, §6). Rust has about 45 kinds, Dune: Awakening about 20. | Proposal |
+| Scale | Real scale. The largest monuments are kilometres across or tall and read from 40–60 km away in clear air. Interiors stay human-scale. | Proposal |
+| Rarity | By encounter rate, not by count: something small every few minutes on foot, a roadside site near every landing, a large monument on most colonised worlds, a landmark every few systems, wonders only through leads (§4). | Proposal |
+| Where | A pure function of the planet (seed, body, history and terrain), so every server and client agrees without storing anything (§9). Only what players change is stored. | Decided (ARCHITECTURE.md §7–8) |
+| Random sites | Events (crashes, drops, surges, quakes...) come from a hash of the place and a time window, so they are deterministic too and the server stays authoritative (§6). | Proposal |
+| Lore | The ruins of a great human civilisation that spread across the galaxy and vanished; nobody knows why (§3, LORE.md). | Decided |
+| Build | Blender scripts in `art/monuments` build every monument from a shared kit and its own geometry, at three levels of detail, with collision and gameplay markers, into GLB and JSON (§8). | Proposal |
+
+---
+
+## 2. What monuments are for
+
+Monuments are where the ground game's progression lives (GAME_DESIGN.md pillar 4, "earned in the world"):
+
+1. **The loot ladder.** Salvage, components and blueprints from barrels and crates at every site; access chips
+   (Rust's keycards) that open the next tier's rooms; sealed crates whose best loot exists nowhere else (§7).
+2. **PvP magnets.** Contested loot draws players together. A monument's value, timers and noise decide how many fights
+   it starts. Pillar 5, "big and quiet, then sudden", happens at monuments.
+3. **Landmarks.** Players navigate by silhouettes: a cooling tower, a dish, a broken hull, a tower on the horizon.
+   The map names them.
+4. **Social places.** Two kinds of safe zone (the Exchange, the Reclaimer Camp) where nobody may shoot: trade,
+   recycling, rumours (§5.4).
+5. **Reasons to travel.** Landmarks and wonders hold what home doesn't: unique blueprints, ship parts, rare materials.
+   They are worth a flight to another planet or system (GAME_DESIGN.md §7, "special loot").
+6. **The world's past.** Every ruin shows what it was and how it fell (LORE.md §6), so worlds differ.
+
+What each source taught us (§13 has the research):
+
+| From | We take | We avoid |
+|---|---|---|
+| Rust | The ladder of access chips and power cells, each room giving the next chip and blueprint fragments; tiers as distance bands from where players arrive; a full ladder guaranteed on every map, the largest monuments placed first; contamination as a gear check, a clock and an eviction tool; recyclers at monuments, taxed in safe zones; guards and armoured patrols at the big ones; events everyone sees and hears (a crate dropped, a cargo ship arriving); the 2026 power grid that ties monuments into one economy; reworking what players ignore. | Its names, layouts and models; monuments that silently fail to spawn on unlucky seeds; rooms campers can starve. |
+| Dune: Awakening | A fixed layer players learn plus a layer that renews; each kind of site the main source of one family of parts; wrecks and buried stations; events announced loudly (a column you see for kilometres, an explosion overhead); scale shown on the approach, not inside. | Waves of enemies in locked rooms as the main content; an endgame gated behind PvP. |
+| Empyrion | Compound sites from many small pieces; loot rank tied to how hard a place is to reach; site variants by biome. | A placer that retries at random and quietly drops what doesn't fit; the same set of sites on every planet of a type. |
+| Others | State overlays (abandoned, occupied, infested, powered); damage and dressing variants; logs that differ per site; trade-able leads; events with a short life near active players. | Hand-made templates repeated without variation (Starfield). |
+
+---
+
+## 3. Lore
+
+The lore is [LORE.md](LORE.md): a great human civilisation spread across the galaxy and vanished, nobody knows why,
+and the monuments are what it left. No factions, no history, no aliens. LORE.md §5 says who guards the monuments
+(Reclaimers, people; Wardens, machines) and §6 gives the visual families, so a ruin says what it was. The history
+this section first proposed (Seedward, the Quiet, the Bulwark) is retired (LORE.md §7).
+
+---
+
+## 4. Scale and rarity (Proposal)
+
+### 4.1 Tiers
+
+| Tier | Footprint | Height | Run | Seen from | Frequency where the world was settled | Rust's nearest |
+|---|---|---|---|---|---|---|
+| **R** Roadside | 5–50 m | to 30 m | 1–5 min | 0.5–2 km | Every few hundred metres along the old lines; several in sight from any hill | Substations, roadside junk, water wells, cabins |
+| **S** Small | 50–150 m | to 40 m | 5–15 min | 2–5 km | Every 1–2 km² | Gas station, supermarket, lighthouse, quarries, fishing village |
+| **M** Medium | 150–350 m | to 80 m | 15–40 min | 5–10 km | A few in every 4 × 4 km zone | Dome, satellite dish, harbour, sewer branch, outpost, bandit camp |
+| **L** Large | 300–700 m | to 150 m | 40–90 min | 10–20 km | One or two per zone near old settlements | Launch site, power plant, train yard, military tunnels, excavator |
+| **X** Landmark | 0.8–5 km (lines to 40 km) | to 900 m | Hours | 40–60 km, and from orbit | One per old region (about every 100 km) on colonised worlds | — (Dune's heighliner wreck, in spirit) |
+| **W** Wonder | Any | Any | Sessions | Through leads | A few per planet at most; some planets none | — |
+| **O** Orbital | 100–800 m | — | 20–60 min | From the system map | A few per settled system | Oil rigs, cargo ship |
+| **E** Event | Any | Any | 15–35 min | Heard and seen from far | Rolling, near active players | Cargo ship, crate drops, patrol helicopter |
+
+A 4 × 4 km zone on a settled world (the size of a Rust map) therefore holds about what a Rust map does: 1–2 large,
+3–5 medium, 8–12 small, dozens of roadside sites, and a landmark on the horizon. Wild worlds hold far less (§9.2).
+
+For comparison (Rust's research, §13): a 4.5 km Rust map holds about 17 main monuments, two safe zones, three fishing
+villages, a dozen small sites, about 26 substations, caves, quarries and wells. Its largest monument (544 × 276 m)
+spans 12% of the map; its landmarks stand 84–120 m tall; footprint area tracks reward (roadside about 3,000 m², the
+green tier 10,000–50,000, the large set 50,000–100,000, the launch site 150,000). Our L tier keeps those sizes; the X
+tier goes beyond them because players see whole planets, from the air and from orbit.
+
+### 4.2 Showing scale
+
+- **Silhouette first.** Every monument from medium up has one shape that reads from far away (a dome, a dish, a
+  cooling tower, a broken hull, a tower). Landmarks are visible from 40–60 km and from orbit.
+- **The approach.** Debris fields, roads and power lines lead in; scars in the terrain; the wall around the works.
+- **Lights at night.** Aviation lamps blink on everything tall (§7.6), so the sky line of a settled world shows at night.
+- **Inside, human scale.** Rooms, stairs, catwalks and ladders sized for a person (the Builder's kit uses real
+  dimensions: 1.1 m rails, 0.19 m risers, 2.3 m doors).
+
+### 4.3 Planet history decides what exists
+
+Each landable body gets a **history** from its physical state (GALAXY.md §10.3), its distance from Sol and a hash:
+
+| History | Typical bodies | Monuments |
+|---|---|---|
+| **Colonised** | Earth-like and temperate worlds near the old routes (the first world is one) | Every tier; two or more old regions with towns, industry, power, landmarks |
+| **Industrial** | Metal-rich rocky worlds, big moons | Mines, smelters, bores, mass drivers, yards; few towns |
+| **Outpost** | Any landable body near a settled system | Roadside and small sites, a landing field, a relay, crash sites |
+| **Research** | Ice worlds, odd chemistry, near neutron stars and white dwarfs | Research outposts, ice stations, uplinks, anomalies |
+| **Fortress** | Rare; worlds the old military held | Garrisons, redoubts, launch complexes, warship wrecks |
+| **Battlefield** | Rare; worlds that ended in fighting | Wrecks everywhere, craters, ruined towns, heavy contamination |
+| **Untouched** | Most of the galaxy | Only natural sites, crash sites and events |
+
+This is how GAME_DESIGN.md's rule "rare monuments depend on the type of star and planet" works.
+
+---
+
+## 5. The catalogue
+
+Each entry: footprint (and height), where it stands, what it looks like, what it holds, and its nearest relative in
+the games we studied (for mechanics only). "Built" names the Blender script once one exists.
+
+Gameplay terms used below (§7): **chips** amber, cyan and violet (Rust's green, blue and red keycards, in kind);
+**cells** (power cells, Rust's fuses); **contamination** 1–5; **crates** (crate, military crate, sealed crate, vault
+crate); **guards**: Reclaimers (people) and Wardens (machines).
+
+### 5.1 Roadside (R) — 14
+
+| # | Monument | Size | Where | What | Holds and does | Like |
+|---|---|---|---|---|---|---|
+| 1 | **Grid Substation** | 40 × 28 m | On old power lines, every few km | A fenced switchyard: two transformers behind a blast wall (one burnt out), breakers, a gantry taking the line in from a pylon, a control house, lamp posts | Barrels, two crates, a locker that opens during a **Surge** (§6). Arcing hazard while powered. *Built: `grid_substation.py`* | Rust's power substations |
+| 2 | **Toppled Pylon** | 60 × 20 m | On power lines | A transmission tower fallen across the road, cables snaking through the grass, a line crew's trailer and drum | Copper wire and cable reels to salvage, a crate in the trailer. *Built: `toppled_pylon.py`* | Roadside junk |
+| 3 | **Relay Mast** | 30 m round, 60 m tall | Hilltops, ridges | A guyed lattice mast with dishes, an equipment hut, a fence | Tech scrap, a chance of an amber chip; climbing the mast reveals the zone's sites on the map. *Built: `relay_mast.py`* | — |
+| 4 | **Drop Pod** | 12 m crater | Anywhere open | A supply pod half-buried in a scorched crater, its petals open | One military crate. Also an event (§6.2). *Built: `drop_pod.py`* | Rust's airdrop |
+| 5 | **Container Spill** | 40 × 15 m | Roads | A hauler on its side and its freight containers strewn along the verge, some burst | Crates and barrels in and around the containers. *Built: `container_spill.py`* | Roadside junk |
+| 6 | **Stalled Crawler** | 25 × 8 m | Roads, tracks | A six-wheeled crawler and trailer, abandoned mid-route, doors open | Fuel, salvage, a crate in the cab. *Built: `stalled_crawler.py`* | — |
+| 7 | **Survey Marker** | 10 m | Peaks, plains | A survey tripod with a solar panel and a sealed cache box | Map reveal for the area; a small cache once per cycle. *Built: `survey_marker.py`* | — |
+| 8 | **Wellhead** | 20 m | Plains, deserts | A pump jack nodding over a well, a tank, a pipe to the road | Refill water (or lamp oil on oil worlds), barrels. *Built: `wellhead.py`* | Rust's water wells |
+| 9 | **Checkpoint** | 30 × 20 m | Roads into regions | A barrier, a guard booth, sandbag walls, a watchtower, a shot-up truck | Military crate, ammo; sometimes Reclaimers. *Built: `checkpoint.py`* | Rust's roadside military |
+| 10 | **Bunker Hatch** | 8 m pad | Anywhere | A sealed hatch on a concrete pad with a vent | A cell opens it: a small underground room with a crate and a chance of a cyan chip. *Built: `bunker_hatch.py`* | — |
+| 11 | **Crashed Skiff** | 15 m | Anywhere | A wrecked single-seat ship like the Tin Finch, nose in the dirt | Ship parts, a crate. Also an event (§6.1). *Built: `crashed_skiff.py`* | Dune's small crashed ships |
+| 12 | **Valve Station** | 25 × 15 m | On pipelines | A valve house where the pipeline surfaces, handwheels, a pig launcher | Pipes, gears, lamp oil. *Built: `valve_station.py`* | — |
+| 13 | **Weather Station** | 15 m | Open ground, coasts | An instrument mast, screens, a solar shed | Tech scrap; predicts storms on the map. *Built: `weather_station.py`* | — |
+| 14 | **Hab Pods** | 20 m | Forest edges, valleys | Two or three colonists' prefab pods, a tarp, a fire pit, a garden gone wild | Food, cloth, a crate, sometimes a bed. *Built: `hab_pods.py`* | Rust's abandoned cabins |
+
+### 5.2 Small (S) — 11
+
+| # | Monument | Size | Where | What | Holds and does | Like |
+|---|---|---|---|---|---|---|
+| 15 | **Fuel Depot** | 70 × 50 m | Road junctions | A canopy over pumps, a shop, two buried tanks with vent stacks, a tanker trailer | Crates, barrels, an amber chip spawn, a **recycler**. *Built: `fuel_depot.py`* | Rust's gas station |
+| 16 | **Scrapyard** | 120 × 90 m | Near towns | Piles of wrecked vehicles and hulls, a magnet crane, a crusher, a shed | Salvage piles; the crusher turns vehicles into metal; recycler. *Built: `scrapyard.py`* | Rust's junkyard |
+| 17 | **Water Tower** | 60 × 40 m | Towns, farms | An elevated tank on a frame, a pump house, pipes | Water, barrels, a ladder climb to a crate. *Built: `water_tower.py`* | — |
+| 18 | **Homestead** | 120 × 80 m | Farmland, grassland | A colonist farm: two barns, a silo row, a greenhouse, a hab, a wind turbine, fences | Food, seeds, cloth; animals nearby; a stable vendor in the safe variant. *Built: `homestead.py`* | Rust's ranch and barn |
+| 19 | **Fishing Wharf** | 100 × 60 m | Sheltered coasts | Piers on piles, boathouses, net sheds, a crane | Boats (later); the safe variant has a boat vendor. *Built: `fishing_wharf.py`* | Rust's fishing villages |
+| 20 | **Strip Mine** (stone, metal, sulphur) | 150 × 120 m | Hills, ore-rich ground | A stepped pit with a fuel-powered digger rig, a hopper, a conveyor to an output bin | Fill with fuel to produce ore over time; contested by design. *Built: `strip_mine_stone.py`, `strip_mine_metal.py`, `strip_mine_sulphur.py` (shared design in `_strip_mine.py`)* | Rust's quarries |
+| 21 | **Coast Beacon** | 40 m, 45 m tall | Headlands | A beacon tower with its lamp still turning, the keeper's house, a fog horn | A climb to a military crate at the top, an amber chip spawn. *Built: `coast_beacon.py`* | Rust's lighthouse |
+| 22 | **Supply Depot** | 80 × 60 m | Towns, roads | A logistics warehouse with racks and loading docks, a forklift | Crates on racks, an amber chip spawn, recycler. *Built: `supply_depot.py`* | Rust's supermarket |
+| 23 | **Shuttle Wreck** | 60 × 40 m | Anywhere | A 40 m shuttle crash-landed on its belly, one wing torn off, a furrow behind it | Ship parts, two crates, a sealed crate in the hold. *Built: `shuttle_wreck.py`* | — |
+| 24 | **Field Clinic** | 60 × 50 m | Near towns | Prefab wards and tents, a container lab, a helipad | Medical supplies; a medical vendor in rare safe variants. *Built: `field_clinic.py`* | — |
+| 25 | **Mining Camp** | 90 × 70 m | Mountains | A shaft headframe over a tunnel, ore bins, workers' huts, a winch house | Ore, gears, an amber chip spawn, recycler. *Built: `mining_camp.py`* | Rust's mining outpost |
+
+### 5.3 Medium (M) — 12
+
+| # | Monument | Size | Where | What | Holds and does | Like |
+|---|---|---|---|---|---|---|
+| 26 | **Biodome** | 160 m, dome 70 m tall | Plains near towns | A geodesic greenhouse dome, half its panes gone, overgrown inside, with service buildings | A climb up the frame to crates at the top; contamination 2 *Built: `biodome.py`* | Rust's dome |
+| 27 | **Uplink Array** | 220 × 160 m | Plateaus | A 60 m dish and three smaller ones, a control block, transformer yard | Cyan room behind an amber chip door; tech; contamination 1 *Built: `uplink_array.py`* | Rust's satellite dish |
+| 28 | **Transit Station** | 200 × 80 m | On rail lines | Platforms under a canopy, a ticket hall, a portal into the tunnel network | The way into the underground (tunnels link stations, §5.9); Reclaimers below *Built: `transit_station.py`* | Rust's train stations and tunnels |
+| 29 | **Refinery** | 300 × 200 m | Coasts, oil worlds | Distillation columns, tank farm, flare stack, pipe racks | Fuel, gunpowder makings; cyan room; contamination 2 *Built: `refinery.py`* | — |
+| 30 | **Research Outpost** | 200 × 150 m | Odd ground: craters, ice, near anomalies | White modular labs on stilts, clean rooms, a test range | An access puzzle through the labs (chips, cells, a code found inside); schematics *Built: `research_outpost.py`* | Dune's testing stations |
+| 31 | **Cargo Port** | 350 × 200 m | Coasts | Quays, two gantry cranes, container stacks, a warehouse, a ship at the quay | Cyan room, container crates, recycler; a boat way in *Built: `cargo_port.py`* | Rust's harbours |
+| 32 | **Garrison** | 250 × 200 m | Strategic ground | Barracks, a motor pool, watchtowers, sandbag walls, an armoury | Reclaimers guard it; military crates, weapons; armoury needs a cyan chip *Built: `garrison.py`* | Rust's military bases |
+| 33 | **Landing Field** | 400 × 250 m | Flat ground | Pads, two hangars, a control tower, a fuel farm, a crashed lander | Ship parts and fuel; cyan room in the tower *Built: `landing_field.py`* | Rust's airfield |
+| 34 | **Drainage Works** | 150 × 100 m (and under) | Below towns | A pumping station over storm drains; a parkour route through the drains | An amber-chip puzzle underground; recycler *Built: `drainage_works.py`* | Rust's sewer branch |
+| 35 | **Detention Block** | 220 × 220 m | Remote | A walled penal compound, cell blocks, guard towers, a yard | Reclaimers; cells as loot rooms; violet room in the warden's office *Built: `detention_block.py`* | — |
+| 36 | **Reclaimer Camp** (safe) | 200 × 150 m | Swamps, forests | A Reclaimers' market in a scrap-walled ruin: stalls, a gambling wheel, a bar | Safe zone; trades, gambling, a recycler; hostile to the hostile (§7.4) *Built: `reclaimer_camp.py`* | Rust's bandit camp |
+| 37 | **Exchange** (safe) | 250 × 200 m | Near the landing site of each zone | A repurposed depot under Warden turrets that enforce the peace | Safe zone; vendors, recycler, research table, workbench, drone market (later) *Built: `exchange.py`* | Rust's outpost |
+
+### 5.4 Large (L) — 10
+
+| # | Monument | Size | Where | What | Holds and does | Like |
+|---|---|---|---|---|---|---|
+| 38 | **Fusion Plant** | 600 × 400 m, towers 120 m | Rivers, coasts | Reactor hall, turbine hall, two cooling towers, switchyard, chimney | Violet room; contamination 3–4 near the core; recycler. *Built: `fusion_plant.py`* | Rust's power plant |
+| 39 | **Launch Complex** | 700 × 500 m, tower 140 m | Flat plains, coasts | A rocket on its service tower, an assembly hall, a propellant farm, a bunker | Vault crates at the top of the tower; contamination 3; a **Sentinel Crawler** patrols (§7.3). *Built: `launch_complex.py`* | Rust's launch site |
+| 40 | **Freight Yard** | 700 × 300 m | On rail lines | Rail yard with gantry cranes, sheds, wagons, a signal tower, an engine shed | Cyan room; crates in wagons; recycler. *Built: `freight_yard.py`* | Rust's train yard |
+| 41 | **Water Works** | 400 × 300 m | Rivers | Settling basins, filter halls, pump houses, a water tower | Cyan room; recycler. *Built: `water_works.py`* | Rust's water treatment plant |
+| 42 | **Mountain Redoubt** | 300 m front, tunnels 600 m deep | Cliffs | An old military fortress cut into a cliff: gun ports, blast doors, tunnels, a command bunker | Heavy Reclaimers inside; military and vault crates; violet room. *Built: `mountain_redoubt.py`* | Rust's military tunnels |
+| 43 | **Frigate Wreck** | 420 m hull in two halves (240 and 180 m), 93 m tall; site 700 × 260 m | Plains, deserts, seabeds | An old warship broken in two, half-buried, burnt; halves 300 m apart | Ship parts (only source of some); Reclaimers nest inside; contamination 2 in the drive section. *Built: `frigate_wreck.py`* | Dune's named shipwrecks |
+| 44 | **Colony Ruins** | 600 × 500 m | Coasts, river valleys | A ruined prefab town: streets, blocks, a plaza, a clinic, burnt cars | Many low-tier crates; contamination 1–3 by street; Reclaimers. *Built: `colony_ruins.py`* | Rust's radtown |
+| 45 | **Ore Smelter** | 500 × 300 m | Near mines | Crushers, conveyors, blast furnaces, slag heaps, a rail spur | Refined metal makings; cyan room; heat hazard. *Built: `ore_smelter.py`* | — |
+| 46 | **Bucket-Wheel Pit** | 800 m pit, machine 120 m | Ore-rich plains | A huge bucket-wheel excavator in an open pit, its boom over the face | Fill with fuel and it digs (a slow, loud, contested producer of ore); vault crates on the machine. *Built: `bucket_wheel_pit.py`* | Rust's giant excavator |
+| 47 | **Ice Station** | 400 × 300 m | Ice sheets, poles | Domes and masts on stilts, a hangar, snow vehicles | Cyan and violet rooms; cold as the hazard. *Built: `ice_station.py`* | Rust's arctic research base |
+
+### 5.5 Landmarks (X) — 8
+
+The huge ones. One per old region at most, each a destination of its own.
+
+| # | Monument | Size | Where | What | Holds and does |
+|---|---|---|---|---|---|
+| 48 | **Atmosphere Processor** | Works 1.3 km across, tower 860 m | Plains and plateaus of colonised worlds | A terraforming tower on four 330 m buttresses, intake halls at its foot, galleries every 150 m, an elevator spine, a crown of red lamps. A walled works round it | The climb: a vertical dungeon to the crown, with rest galleries; contamination 4 inside; vault crates at the top; the crown reveals every site within 100 km. *Built: `atmosphere_processor.py` (crown of emitter vanes and a mast to 1,005 m)* |
+| 49 | **Tether Anchor** | Station 1.2 km, cable 40+ km | Equator (elevators need it) | A space elevator's ground station; its snapped tether lies across the land for tens of kilometres, buildings crushed under it | The station (L-size inside) and the cable itself: a line of sites along it; climbing the stump. *Built: `tether_anchor.py` (stump 470 m; the cable laid from kit pieces `tether-segment` and `tether-segment-torn`)* |
+| 50 | **Grounded Colony Ship** | 2.4 km, three pieces | Plains, deserts | A colony ship that came down at the end, broken in three, a furrow kilometres long | A dungeon of decks and holds (cryo bays, farms, the bridge); only source of the best schematics. *Built: `colony_ship.py` (pieces 640, 960 and 690 m; hull 150-170 m tall; radiator sails to 230 m)* |
+| 51 | **Deep Bore** | Shaft 1 km across | Mountains of metal-rich worlds | A planetary drill rig over a shaft 1 km across, spiral haul roads down | Descend for ore and the rig's vault; contamination rises with depth. *Built: `deep_bore.py` (headframe crown 520 m; rim, collar and the haul road's top two turns modelled, the pit itself is terrain)* |
+| 52 | **Mass Driver** | 8 km rail, halls 600 m | Up a mountainside | An electromagnetic launch rail climbing a mountain, capacitor halls at its foot, a cradle on the rail | A line of sites; the capacitor halls are a violet monument; restarting it is a server event. *Built: `mass_driver.py` (the halls and the first 1.5 km; the line continues from kit pieces `driver-rail`, `driver-pylon`, `driver-pylon-section`)* |
+| 53 | **Great Dam** | 700 m wide, 180 m tall | Mountain valleys | A concrete arch dam with a powerhouse and spillways, the reservoir behind | Powerhouse (L-size), galleries inside the dam, a crawler on the crest. *Built: `great_dam.py` (crest about 750 m; the valley walls, reservoir and river are drawn only in its look-dev renders)* |
+| 54 | **Arcology** | 600 m base, 400 m tall | Old colony capitals | A ziggurat megablock of the old colony, terraces overgrown | A city in one building: floors of loot, Reclaimers by level, the top. *Built: `arcology.py` (ten tiers to 400 m, crown to 525 m, the ruined capital round it)* |
+| 55 | **Ring Fall** | Debris field 10 km | Wherever it fell | A kilometre-long piece of an orbital station lying across the land, debris for kilometres | Ship and station parts; a wreck of wrecks. *Built: `ring_fall.py` (fragment 1 km; the stump of a spoke stands to about 510 m; debris within 2 km)* |
+
+### 5.6 Wonders (W) — 4
+
+| # | Monument | What |
+|---|---|---|
+| 56 | **The Vault** | A sealed archive of the old civilisation in a mountain, one per colonised world at most. Its door takes a set of tokens from the planet's landmarks; inside, the best loot of the planet and blueprints found nowhere else. |
+| 57 | **Command Spire** | The administrative citadel of an old colony: the place its last records are kept. Logs here point to wonders on other worlds (leads, §7.8). |
+| 58 | **Quiet Beacon** | A relay that still transmits. Reaching it reveals every monument on the planet's map; the signal can be heard from orbit. |
+| 59 | **Anomaly** | Something nobody can explain. Nothing in the game is alien (LORE.md §2), so it is the old civilisation's own work, such as a failed experiment, or it goes. **Open** (LORE.md §8). |
+
+### 5.7 Orbital (O) — 5
+
+Rust's offshore monuments, for a space game: you reach them by ship.
+
+| # | Monument | What |
+|---|---|---|
+| 60 | **Derelict Station** | An orbital platform: dock, fight Wardens room by room, crack the sealed crate (15 minutes) while others come. Small and large. (Rust's oil rigs.) |
+| 61 | **Drifting Freighter** | An event: a freighter coasts through the system for about an hour, then its orbit decays and it falls (becoming §6.1). (Rust's cargo ship.) |
+| 62 | **Belt Platform** | An asteroid mining platform in a belt: ore, fuel, a refinery. |
+| 63 | **Dead Satellite** | A small relay satellite: tech scrap, a short visit. |
+| 64 | **Moon Outpost** | A sealed base on an airless moon: the vacuum as the hazard. |
+
+### 5.8 Sea (2) and nature (3)
+
+| # | Monument | What |
+|---|---|---|
+| 65 | **Sea Platform** | An offshore rig on legs, small and large; reached by boat or ship. |
+| 66 | **Sunken Hulk** | A wreck on the sea floor (when diving exists). |
+| — | **Caves**, **lava tubes**, **impact craters**, **hot springs** | Natural places that may hold a cache, a nest or a rare material; part of the Surface stage, listed here because players treat them as monuments. |
+
+### 5.9 Lines between monuments
+
+Monuments of a settled region are joined, as in Rust:
+
+- **Roads** link towns, depots, the landing field and the big sites, with roadside sites along them.
+- **Power lines** run from power plants and dams to towns and industry on lattice pylons; **Grid Substations** stand
+  where they branch, every few kilometres. This is where the "leftover electric stations" come from.
+- **Pipelines** run from wells and refineries to depots; **Valve Stations** stand along them.
+- **Rail** links freight yards, mines and transit stations; tunnels run under hills, with stations underground.
+
+---
+
+## 6. Events: what spawns at random (Proposal)
+
+This section and §7 are an outline of how monuments will play, kept for the gameplay pass that comes after the
+monuments are in the world; the monuments themselves (§5, §8) are designed and built first.
+
+Events are the renewing layer. Each comes from a hash of (planet, cell, time window) or from what players do (E5's
+grid, E11), so every server and client
+agrees on where and when; the server announces it and stores only what players took. Each is loud (seen or heard
+from far), short (15–35 minutes) and contested.
+
+| # | Event | What happens | Draw | Like |
+|---|---|---|---|---|
+| E1 | **Orbital Fall** | A derelict's orbit decays: a fireball crosses the sky, a sonic boom, an impact. A burning wreck (a skiff, a shuttle or a freighter section) with **sealed cargo pods** that take 15 minutes to crack. | Everyone in the zone sees it fall | Dune's crashing ships; Rust's locked crate |
+| E2 | **Supply Drop** | A pod falls on a parachute of fire to a random clearing (or to a player's signal flare). | The trail is visible for kilometres | Rust's airdrop |
+| E3 | **Warden Gunship** | An automated gunship patrols between monuments and attacks armed players; shot down, it crashes into an Orbital Fall of its own. | Its sound | Rust's patrol helicopter |
+| E4 | **Sentinel Crawler** | A tracked Warden patrols the Launch Complex and other big sites; destroyed, it leaves crates. | Permanent at its sites | Rust's armoured patrol |
+| E5 | **Surge** | A dead part of the old grid re-energises: a Grid Substation's lamps come on, arcs crackle, its locker unlocks for 10 minutes; Wardens wake to defend it. | Lights on the horizon at night, a hum | — |
+| E6 | **Quake Reveal** | A quake (the first world's hazard) opens a buried site for a few hours: a bunker, a vault corridor, a cave. | The quake itself | Dune's storm-revealed stations |
+| E7 | **Storm Front** | On dusty, sandy or snowy worlds a storm crosses the zone; afterwards buried caches and wrecks lie exposed. | The wall of the storm | Dune's sandstorms |
+| E8 | **Meteor Fall** | A shower: impact craters hold exotic ore for a day (the rare materials of GAME_DESIGN.md §4 come partly from here). | Streaks in the sky | — |
+| E9 | **Trader Convoy** | A Reclaimer convoy crosses the zone selling rare goods; attacked, it fights back. | Its lights and horns | Rust's travelling vendor |
+| E10 | **Freighter Drift** | The Drifting Freighter (§5.7): an hour in orbit to board, then it falls as an Orbital Fall. | System-wide broadcast | Rust's cargo ship |
+| E11 | **Called Fall** | Players who power the Launch Complex's tracking room and feed it a guidance core bring a dead satellite down on purpose: its descent is visible to the whole server, and its crates open once the wreck cools. | Everyone sees it fall | Rust's satellite crash (2026) |
+| E12 | **Wreck Field Window** | In orbit, a debris field of derelicts opens for about three hours, then a radiation storm closes it for one to two and a half; whatever is left inside is lost. Its derelicts restock slowly. | A system-wide warning 20 minutes before it closes | Rust's Deep Sea (2026) |
+
+Rules for every event (from the research, §13):
+
+- **Fixed places, random timing** where it makes sense (meteor craters, storm paths reuse their marks, so veterans know
+  where but not when).
+- **Never on top of players or bases**; never within 300 m of a building piece.
+- **Loot never respawns at the same event**; its timers have random spread so nobody can camp it.
+- **Planet epochs**: some worlds have a cycle (a storm season, a weekly quake swarm) that re-rolls their buried sites, a
+  fixed band near the landing site staying the same (Dune's Deep Desert lesson). **Open**: whether Hollow wants it.
+
+---
+
+## 7. Systems monuments need (Proposal)
+
+### 7.1 The ladder
+
+| Tier | Opens with | Found at | Gives |
+|---|---|---|---|
+| 1 | Nothing | Roadside and small sites | Barrels, crates, salvage, amber chips (in offices, on desks) |
+| 2 | **Amber chip** + **power cell** | Medium sites' locked rooms | Military crates, a cyan chip, a torn schematic |
+| 3 | **Cyan chip** + **power cell** (some an amber chip too) | Medium and large sites' secure rooms | A violet chip, two torn schematics |
+| 4 | **Violet chip** + **power cell** (some lower chips too) | Large sites' vaults, orbital stations | Vault crates (best guns, armour), two sealed schematics |
+| 5 | Tokens from landmarks | Landmarks, the Vault | Unique blueprints, ship parts |
+
+The schematics are G7a's torn and sealed schematics (Rust's blueprint fragments), which the level 2 and 3 workbenches
+need, so the ladder is the workbench gate it became in Rust in 2025. Rust's rules, which we keep:
+
+- A **power cell** goes into a fuse box (often in another building), a switch is thrown, and the chip reader is live
+  for 3 minutes. A **chip** loses a quarter of its condition per swipe.
+- A room's **refresh timer starts when someone loots it**; 10 minutes before the refresh the room floods with
+  contamination nobody survives, and it resets only after 5 minutes with nobody inside or near. Campers can't starve
+  it.
+- Rooms sitting farther from the landing sites (§9.1) roll better crates.
+
+### 7.2 Contamination
+
+Levels 1–5 with Rust's numbers: 2, 10, 25 and 45 doses a second for levels 1–4 (75 for level 5, the cores of
+landmarks), less the protection worn; no harm at all when protection reaches the level's dose. Pills and a tea take
+some off. Each monument lists its zones (the builder's `zone("radiation", ...)`). On worlds with bad air, the planet's
+own hazard adds to it (no air, cold, heat), so the same monument is harder on a harsher world.
+
+Contamination does four jobs, as in Rust: a **gear check** (enter only with the suit), a **clock** (how long you
+can stay), **eviction** (rooms before refresh, orbital stations after their crate opens, the Wreck Field Window
+closing) and a **weapon** (contaminated water players can use against raiders).
+
+### 7.3 Guards
+
+| Guard | What | Where |
+|---|---|---|
+| **Reclaimers** | Human scavengers in hazard gear with guns; patrol and hold rooms; respawn | Medium and large sites, wrecks, ruins |
+| **Reclaimer heavies** | Armoured, with heavy weapons | Redoubts, wrecks, sealed-crate events |
+| **Warden turrets** | Automated guns on posts and walls | Old civil and industrial sites; the Exchange (peacekeepers) |
+| **Warden drones** | Flying, light | Research outposts, landmarks |
+| **Sentinel Crawler** | A tracked armoured Warden with a cannon and rockets | Launch Complex, landmarks |
+| **Warden Gunship** | A flying gunship | Patrols (E3) |
+
+Reclaimers reuse the player character (§4.8 of GROUND.md) with their own clothing; Wardens are new models.
+
+### 7.4 Safe zones
+
+The Exchange and the Reclaimer Camp: no damage to players inside; anyone who shoots there is marked hostile for a few
+minutes and the turrets kill them; vendors, recyclers, a research table and a workbench. Safety costs something, as
+in Rust since 2024: recyclers in safe zones give 80% and take 8 s a batch, those at monuments 120% and 5 s.
+
+### 7.5 States
+
+Every monument instance has a **state** that changes its dressing and guards without a new model:
+abandoned (empty), occupied (Reclaimers moved in: tarps, lights, barricades), infested (animals nest), powered (lamps
+lit, doors working, Wardens awake). States come from the planet's history and the event layer.
+
+### 7.6 Lights
+
+Aviation lamps on everything tall blink red at night (landmarks visible far away); powered sites light their flood
+lamps (`marker("light")`). Lights stay off in the abandoned state.
+
+### 7.7 What each family gives
+
+Each family of monument is the main source of one family of parts, so every kind is worth visiting (Dune's lesson):
+civil and power sites give **electrical parts**; industry gives **mechanical parts**; research gives **tech scrap and
+schematics**; military gives **gun parts and armour**; wrecks give **ship parts**; colony sites give **food,
+medicine and cloth**. **Open**: the exact items (G7a's components are Rust's set).
+
+### 7.8 Leads
+
+Logs and terminals at monuments point to others: a site on the same planet, a landmark in the next system, a wonder
+somewhere in the region. Leads are items, so they can be traded.
+
+### 7.9 The old grid
+
+The old civilisation's power grid is a system of its own, after Rust's 2026 grid: a goal a whole server cares about, and the
+reason the leftover substations matter.
+
+- **Sources:** a region's Fusion Plant (or Great Dam) can be restarted: heavy cells into its reactor hall, a sequence of
+  switches, contested while it spins up. It then runs for a day of real time per load.
+- **Lines:** power runs out along the region's power lines (§5.9). Every **Grid Substation** on the way is a switch
+  that someone must close (a power cell in its fuse box, a breaker thrown) for power to pass; anyone can open it
+  again, cutting everything beyond.
+- **What power does:** lamps light at powered monuments (the sky line of a region shows who holds the grid); extra loot
+  rooms open (one per medium and large site, behind powered doors); recyclers there run faster; lifts and cranes work
+  (the tower climbs get shorter); Wardens wake at powered old sites. Players can also draw power from a powered
+  line for their bases.
+- **Surges** (E5) are the grid waking on its own for a few minutes somewhere, which is how players find out the grid
+  exists.
+
+---
+
+## 8. How monuments are built
+
+### 8.1 Pipeline
+
+Blender 5.2 scripts in `art/monuments` (§9 of GROUND.md: our own scripts only, no downloaded models):
+
+```bash
+blender -b --factory-startup --python art/monuments/build.py                               # every monument
+blender -b --factory-startup --python art/monuments/build.py -- grid-substation            # one
+blender -b --factory-startup --python art/monuments/build.py -- --surfaces [--force]       # the texture sets
+blender -b --factory-startup --python art/monuments/build.py -- grid-substation --preview docs/images/monuments
+```
+
+| File | What |
+|---|---|
+| `monkit/surfaces.py` | The tileable texture sets, made from noise (§8.2) |
+| `monkit/godot_mats.py` | The Godot materials on `shaders/monument.gdshader` |
+| `monkit/builder.py` | The Builder: primitives, frames, kit instances, markers, zones, pad, collision, export (§8.3) |
+| `monkit/kit.py` | Small parts (rails, stairs, ladders, walkways, pipes, fences, insulators, lamps, stripes, windows, block buildings, tanks, lattice towers, barriers, cables, rubble) and the fixed pieces placed as instances |
+| `monkit/structures.py` | Large parts (sheds, quonset huts, hab modules, watchtowers, walls, sandbags, cooling towers, chimneys, silos, dishes, cranes, conveyors, rail, roads, solar arrays, wind turbines, ship hulls, rockets) |
+| `monkit/preview.py` | Look-dev renders: physical sky, sun, distance haze, ground and pad, a person and a Tin Finch for scale |
+| `sites/<name>.py` | One monument each: `KEY`, `TITLE`, `build(b)`, `VIEWS` |
+
+### 8.2 Surfaces
+
+Eleven materials, one shader. Nine are tileable texture sets made by `surfaces.py` from noise (no scans: nothing to
+credit, the same file on every build): concrete, board-formed concrete, painted steel, rust, corrugated sheet,
+asphalt, bar grating, chain-link, ship hull plating and composite panels; plus glass, lamps and plain glossy and matte
+colours. Each set is an albedo (A: where the tint applies, so chips, rust and bare metal keep their colour), an ORM
+and a normal map, 1024² and seamless, at a fixed size in metres (concrete 4 m, paint 2 m, hull 8 m...).
+
+`shaders/monument.gdshader` draws every surface: UVs in metres divided by the set's size; the vertex tint (RGB) and
+baked occlusion (A); grime and splashed dirt near the ground from UV2 (height above the monument's ground, the
+part's wear); a slow variation so long walls don't repeat; per-instance tint for kit pieces and a `lit` switch for
+lamps; self-contained, so monuments draw in any view (the viewers, the importer). On a planet (M3) the world view swaps in a variant with the planet's air and cloud shadows, as on the terrain, so a tower 20 km away sits in the haze; the planet's air needs the surface view's global shader values, which only exist while it runs.
+
+### 8.3 The Builder
+
+A monument script calls primitives (`box`, `cyl`, `lathe`, `tube`, `extrude`, `slab`, `mesh`, `beam`) inside frames,
+places kit pieces (`piece`), adds markers (`marker`: loot with its table, guard, door, ladder, light, locker, landmark),
+zones (`zone`: radiation with a level, safe, no-build, arc) and its pad (`set_pad`: shape, ground material, blend).
+`export()` writes:
+
+- `game/assets/monuments/<key>.glb`: the monument's own geometry in chunks on a square grid (40 m by default, larger
+  for landmarks), three levels per chunk. Levels are rebuilt from the primitives, not decimated: level 1 drops parts
+  under half a metre, the bevels and half the sides of round parts; level 2 keeps the big masses. Occlusion is baked
+  per vertex by rays (against the pieces too); big faces are subdivided so it has somewhere to land.
+- `game/assets/monuments/kit/<piece>.glb`: each kit piece used, once (transformer, breaker, gantry, lamp post,
+  container, barrier, drum stack, cable reel...), placed by instance.
+- `game/data/monuments/<key>.json`: in the game's frame (metres, +Y up, front toward +Z): bounds, level distances,
+  the pieces' instances, collision (boxes, cylinders and convex hulls; stairs as ramps, rails as walls), markers,
+  zones and the pad. `game/data/monuments/kit/<piece>.json`: each piece's collision and markers.
+
+The grid substation exports 417 primitives and 12 pieces: 21,410 triangles at level 0, 2.0 MB; the Atmosphere
+Processor 13,653 primitives, 310,628 triangles, 33.8 MB. The landmarks stay under 600,000 triangles at level 0
+each; those with lines (the Tether Anchor's cable, the Mass Driver's rail) build only their first kilometres and
+list in their JSON (`line`) the kit pieces, spacing and profile the game uses to lay the rest. The GLBs are committed with their import settings (the owner's
+decision, 13 October 2026; about 600 MB for the 55 monuments and their kit pieces, the largest the Arcology's 75 MB).
+Later (M6) the game may build the meshes itself from the JSON, which already lists every primitive, for per-site
+variation; the kit pieces would stay GLB.
+
+### 8.4 Variation
+
+A monument script is a template. **Proposal**: each site seeds its own Builder (`seed` from the site's ID), so
+damage (missing panels, fallen walls, broken windows), dressing, the loot spots' positions and the guards' differ per
+instance while the layout players learn stays. States (§7.5) change the dressing again.
+
+### 8.5 Look-dev images and the viewer
+
+`docs/images/monuments/`: every monument from its views (§5's "Built" entries), and scale charts (`scale-*.jpg`,
+by `art/monuments/scale_chart.py`): every monument of a tier in rows at one scale, labelled with its footprint and
+height, a person and a Tin Finch at the start of every row.
+
+**The monument viewer** (`--view monuments`, `game/scripts/Monuments/MonumentViewer.cs`; `view-monuments.cmd` builds,
+imports and opens it): every monument in `game/data/monuments` at its real size on open ground, a row per tier,
+with its kit pieces placed, its pad, a label, and its levels of detail switching at its own distances as they will
+in the game. Hold the right mouse button to look, W A S D to fly, Q / E down and up, Shift faster, the wheel sets the
+speed, ← → jump between monuments, Home shows the whole park, L hides the labels. Options: `--focus <key>`,
+`--yaw`, `--pitch`, `--distance`, `--park`, `--shot <file>`.
+
+---
+
+## 9. How monuments are placed (Proposal)
+
+### 9.1 Sites from cells
+
+Placement is local and deterministic, like the scatter (GROUND.md §4.6) and Minecraft's structure grid (§13):
+
+- **Districts** are the unit Rust calls a map: cube-sphere tiles of level 11 (about 5 km on the first world). Each
+  settled district draws a **set** of monuments that completes the ladder (§7.1): tier-1 sites, two or three amber
+  rooms, one or two cyan, one violet, a safe zone or recycler site near its landing points, as Rust guarantees a full
+  set per map.
+- **Tiers by distance**, as in Rust: inside a district the low tiers go near its coast and landing points and the high
+  tiers farthest from them, so loot rises as players move out.
+- **Placement by terrain analysis, largest first:** candidate spots on a jittered grid (`Hash64(seed, district, i)`)
+  are scored for each kind (flat enough across its pad, the ground it wants: coast, river, plain, cliff, ore; dry; not
+  on ice unless meant to be); the largest kinds take the best spots first; minimum distances relax step by step down
+  to a quarter when room runs out; a monument the ladder needs is never dropped (it takes the best remaining spot or a
+  smaller variant). Rust's biggest generator problem was monuments silently missing on unlucky seeds; a test generates
+  thousands of districts and checks every ladder is complete.
+- **Regions** (level 8, about 40 km) hold the landmarks, one at most, placed the same way; **scatter cells** (level 15,
+  about 300 m) hold the roadside sites that don't follow a line.
+- **Lines** (roads, power lines, pipelines, rail) join a region's monuments as a minimum spanning tree plus a few
+  extra links, routed along gentle ground; roadside sites are then placed along the lines (substations at junctions,
+  every few km).
+- A site's **ID** is its tier, tile and index, a natural feature's ID as in ARCHITECTURE.md §7: nothing is stored
+  until a player changes something there (a crate looted, a door opened).
+- Every zone origin (a landing site) gets an Exchange or a small site with a recycler within a few hundred metres,
+  so arrivals always find their footing.
+
+### 9.2 Density by history
+
+Colonised worlds hold the tiers' full density inside their old regions (a few regions per planet, each 50–200 km
+across, around a landmark) and a tenth of it between them; outposts and industrial worlds a tenth; untouched worlds
+none but crash sites and events. Rarity is per hour of play, not per planet: a player who lands anywhere on a
+colonised world finds a roadside site within minutes and a large monument within a short flight.
+
+### 9.3 The pad: terrain under a monument
+
+The planet surface is a pure function (GROUND.md §4.6), so monuments shape it inside that function, and the server's
+collision and the client's terrain still agree to the bit:
+
+- `PlanetSurface.Sample` finds the sites near a point (the tiles round it at each tier, cached per tile) and blends
+  the natural height toward the site's **pad height** (the mean natural height under its footprint) inside the pad's
+  shape, back to nature over its blend distance (10 m for roadside sites, 60 m for landmarks).
+- Materials: inside the pad the ground becomes the pad's material (gravel, concrete, asphalt, dirt), blended at the
+  edge; plants are cleared there and for the pad's `clear` distance beyond.
+- Sites never sit where the blend would need more than a set cut or fill (8 m for roadside, 40 m for landmarks).
+- The golden test of the surface (GROUND.md §3) changes where a golden point falls inside a pad; that update is made
+  on purpose when this lands, and said so in the commit.
+
+### 9.4 Events
+
+Each zone keeps a list of candidate event spots per kind (from the same cells), and each kind has a period. For
+period window `w`, `Hash64(seed, kind, w)` picks whether one fires, where and when inside the window. The server
+skips spots near players and building pieces and announces what fires.
+
+---
+
+## 10. How monuments run in the game (Proposal)
+
+Monuments bring **no code paths of their own** (the owner's rule of 13 October 2026: one shared, data-driven system
+per concern, behaviour from capabilities in the data, no chains of special cases). Everything a monument holds is
+data that the ground game's shared systems already handle or will:
+
+| Monument data | Becomes | Through |
+|---|---|---|
+| Collision primitives (boxes, cylinders, hulls) | Static bodies | The same path as building pieces and props (a physics ID range for monuments) |
+| A marker `loot` with a `table` | A world object of the kind the table names (barrel, crate, military crate...) | The world-object registry: kinds and their capabilities in `world.json` (lootable, breakable, respawns) |
+| `door` with `chip` / `cell` | A door world object with a lock capability (chip tier, cell powered) | The shared interaction system (hold-E) |
+| `locker`, `recycler`, `vendor`, `research-table`, `workbench` | World objects of those kinds | Their capabilities, as for player-placed ones |
+| `ladder`, `light` | Climb volumes, lamps switched by power and states | Movement; the client's lights |
+| `guard`, `patrol`, `turret` | Spawn points for the guard system (M5) | The NPC system, when it exists |
+| Zones (`radiation`, `safe`, `no-build`, `arc`) | Area effects with their capability | One zone system: contamination dose, safe-zone rules, the claim device's build check |
+| The pad | Terrain height and material, cleared plants | `PlanetSurface` (§9.3) |
+
+| Part | What |
+|---|---|
+| Surface (`Hollow.Surface`) | `MonumentSites`: sites per tile and tier, pads, lines; `PlanetSurface.Sample` blends pads; materials and vegetation cleared. The kinds' pad shapes and placement rules are compiled into the code from the JSON by a tool (as `Hollow.NetGen` does for messages), so generation never depends on a data file loading (ARCHITECTURE.md §8.6) |
+| Data (`game/data/monuments`) | Each monument's JSON (§8.3) and `kit/*.json`; a table of kinds per tier and history |
+| Simulation (`Hollow.Simulation`) | Monument sites near players become static bodies and world objects through the shared systems above; a site's objects are named by the site's ID and the marker's index, so nothing is stored until a player changes one |
+| Server | Event scheduling (§9.4) and guards (M5), through the same systems |
+| Client (`game/scripts/Ground`) | One view that draws monuments: a monument's GLB and kit pieces when within its farthest level's distance, placed in the zone frame, levels by distance, lights at night; the map names monuments |
+| Network | Monuments are generated on both sides, so only their objects' state crosses the wire, as for world props now |
+
+M3 starts when the owner has approved this document, and after the ground game's shared world-object work it
+depends on.
+
+## 11. Steps
+
+| Step | What | Done when |
+|---|---|---|
+| **M1 Kit and look** | The surfaces, the shader, the Builder, the kit; the first monuments built and rendered | The owner approves the look from the renders |
+| **M2 The catalogue** | Every monument of tiers R, S, M, L and X built and rendered; the scale chart | Every "Built" entry in §5 filled |
+| **M3 In the world** | Sites, pads and lines on the first world; the client draws monuments; collision; crates, barrels and recyclers at the markers | Walk into the substation and the processor works on the first world, at their real scale, in the game |
+| **M4 The ladder** | Chips, power cells, locked doors, lockers, contamination zones and protection, loot tables per tier | A player runs from roadside sites to a violet room |
+| **M5 Guards and events** | Reclaimers and Wardens, the Sentinel Crawler, the Gunship; events E1–E9 | An Orbital Fall draws two teams into a fight over the sealed pods |
+| **M6 Variation and states** | Per-site seeds, damage and dressing, states, epochs | No two substations look the same |
+
+---
+
+## 12. Open questions
+
+1. The names (Wardens, Reclaimers, chips) are proposals; the owner may rename anything. Seedward, the Quiet and the
+   Bulwark are retired (LORE.md §7).
+2. Nothing in the galaxy is not human (LORE.md, decided 13 October 2026); what the Anomaly becomes is open (§5.6).
+3. Planet epochs that re-roll buried sites (§6): wanted, and how long a cycle?
+4. Do safe zones exist on every colonised world, or only near the starting region?
+5. The exact component families per monument family (§7.7).
+6. How deep the underground goes (tunnels between transit stations, the drainage works): its own work package?
+
+---
+
+## 13. Research
+
+Done on 13 October 2026 for this document: Rust's monuments to its 1 October 2026 patch (Facepunch's devblogs and
+changelists, the map-making wiki, the community wiki; footprints from a server plugin's bounding boxes), Dune: Awakening's
+points of interest (Funcom's posts, patch notes and the community wiki, to patch 1.5), and Empyrion with No Man's Sky,
+Starfield, Star Citizen and others (playfield files, developer guidelines, reviews). The notes, with their sources,
+are kept on the owner's PC in `research_notes/Monuments/` of the main checkout (excluded from git, like the Elite
+research). What each taught is in §2 and §6.

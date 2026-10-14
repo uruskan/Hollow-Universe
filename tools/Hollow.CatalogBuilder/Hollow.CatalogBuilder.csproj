@@ -9,4 +9,7 @@
     <ProjectReference Include="../../src/Hollow.Core/Hollow.Core.csproj" />
     <ProjectReference Include="../../src/Hollow.Galaxy/Hollow.Galaxy.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="supplement.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

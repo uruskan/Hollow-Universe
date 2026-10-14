@@ -14,7 +14,12 @@ public static class ArchitectureTests
     [Test]
     public static void EngineFreeLibrariesDoNotReferenceGodot()
     {
-        Assembly[] libraries = { typeof(DMath).Assembly, typeof(Galaxy.Galaxy).Assembly };
+        Assembly[] libraries =
+        {
+            typeof(DMath).Assembly, typeof(Galaxy.Galaxy).Assembly, typeof(Surface.ISurface).Assembly,
+            typeof(Simulation.Movement.CharacterMotor).Assembly, typeof(Net.Protocol.Protocol).Assembly,
+            typeof(Persistence.GameDatabase).Assembly, typeof(Client.GameClient).Assembly, typeof(Server.GameServer).Assembly,
+        };
         foreach (Assembly library in libraries)
         {
             string[] godot = library.GetReferencedAssemblies()
@@ -45,7 +50,10 @@ public static class ArchitectureTests
     {
         var problems = new List<string>();
         int files = 0;
-        foreach (string folder in new[] { "Hollow.Core", "Hollow.Galaxy" })
+        // Natural objects and the world's loot spots are generated too (the same every time), and the map's picture (G7).
+        // Animals spawn from the planet and their AI is replayed from the same inputs (G7): deterministic too.
+        foreach (string folder in new[] { "Hollow.Core", "Hollow.Galaxy", "Hollow.Surface", "Hollow.Simulation/Nature", "Hollow.Client/Map",
+                     "Hollow.Simulation/Animals" })
         {
             string root = Path.Combine(Fixtures.Root, "src", folder);
             foreach (string file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
@@ -75,6 +83,77 @@ public static class ArchitectureTests
         Fixtures.Report($"{files} source files checked");
         Assert.True(files > 10, "found the sources");
         Assert.True(problems.Count == 0, "non-deterministic API in generation code:\n        " + string.Join("\n        ", problems));
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §12.2, K6: the zone is a host and the rules are its systems. No partial file of Zone is left,
+    /// every system is in GroundSystems' lists exactly once (completeness, as a registry), and the host stays small.
+    /// </summary>
+    [Test]
+    public static void TheZoneIsAHost()
+    {
+        string simulation = Path.Combine(Fixtures.Root, "src", "Hollow.Simulation");
+        string[] partials = Directory.GetFiles(simulation, "Zone.*.cs");
+        Assert.True(partials.Length == 0, $"Zone has partial files again: {string.Join(", ", partials.Select(Path.GetFileName))}");
+        Type[] systems = typeof(Simulation.ZoneSystem).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && typeof(Simulation.ZoneSystem).IsAssignableFrom(t))
+            .ToArray();
+        Simulation.ZoneSystem[] game = Simulation.GroundSystems.Game();
+        List<Type> listed = game.Concat(Simulation.GroundSystems.MovementOnly()).Select(s => s.GetType()).ToList();
+        string[] missing = systems.Where(s => !listed.Contains(s)).Select(s => s.Name).ToArray();
+        Assert.True(missing.Length == 0, $"systems in no list: {string.Join(", ", missing)}");
+        string[] twice = game.GroupBy(s => s.GetType()).Where(g => g.Count() > 1).Select(g => g.Key.Name).ToArray();
+        Assert.True(twice.Length == 0, $"systems listed twice: {string.Join(", ", twice)}");
+        int hostLines = File.ReadAllLines(Path.Combine(simulation, "Zone.cs")).Length;
+        Assert.True(hostLines < 450, $"Zone.cs has {hostLines} lines: rules are creeping back into the host");
+        Fixtures.Report($"{systems.Length} systems, {game.Length} in the game's list; the host is {hostLines} lines");
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §12.5, K11: the client is a host and its concerns are modules. No partial file of GameClient is
+    /// left, every module is in ClientModules' list exactly once (completeness, as a registry), and the host stays small.
+    /// </summary>
+    [Test]
+    public static void TheClientIsAHost()
+    {
+        string client = Path.Combine(Fixtures.Root, "src", "Hollow.Client");
+        string[] partials = Directory.GetFiles(client, "GameClient.*.cs");
+        Assert.True(partials.Length == 0, $"GameClient has partial files again: {string.Join(", ", partials.Select(Path.GetFileName))}");
+        Type[] modules = typeof(Client.ClientModule).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && typeof(Client.ClientModule).IsAssignableFrom(t))
+            .ToArray();
+        Client.ClientModule[] all = Client.ClientModules.All();
+        List<Type> listed = all.Select(m => m.GetType()).ToList();
+        string[] missing = modules.Where(m => !listed.Contains(m)).Select(m => m.Name).ToArray();
+        Assert.True(missing.Length == 0, $"modules not in the list: {string.Join(", ", missing)}");
+        string[] twice = all.GroupBy(m => m.GetType()).Where(g => g.Count() > 1).Select(g => g.Key.Name).ToArray();
+        Assert.True(twice.Length == 0, $"modules listed twice: {string.Join(", ", twice)}");
+        int hostLines = File.ReadAllLines(Path.Combine(client, "GameClient.cs")).Length;
+        Assert.True(hostLines < 900, $"GameClient.cs has {hostLines} lines: concerns are creeping back into the host");
+        Fixtures.Report($"{modules.Length} modules, all listed once; the host is {hostLines} lines");
+    }
+
+    /// <summary>
+    /// GROUND_SYSTEMS.md §12.5, K10: the server is a host and its concerns are modules. No partial file of GameServer is
+    /// left, every module is in ServerModules' list exactly once (completeness, as a registry), and the host stays small.
+    /// </summary>
+    [Test]
+    public static void TheServerIsAHost()
+    {
+        string server = Path.Combine(Fixtures.Root, "src", "Hollow.Server");
+        string[] partials = Directory.GetFiles(server, "GameServer.*.cs");
+        Assert.True(partials.Length == 0, $"GameServer has partial files again: {string.Join(", ", partials.Select(Path.GetFileName))}");
+        Type[] modules = typeof(Server.ServerModule).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && typeof(Server.ServerModule).IsAssignableFrom(t))
+            .ToArray();
+        List<Type> listed = Server.ServerModules.All().Select(m => m.GetType()).ToList();
+        string[] missing = modules.Where(m => !listed.Contains(m)).Select(m => m.Name).ToArray();
+        Assert.True(missing.Length == 0, $"modules not in the list: {string.Join(", ", missing)}");
+        string[] twice = listed.GroupBy(t => t).Where(g => g.Count() > 1).Select(g => g.Key.Name).ToArray();
+        Assert.True(twice.Length == 0, $"modules listed twice: {string.Join(", ", twice)}");
+        int hostLines = File.ReadAllLines(Path.Combine(server, "GameServer.cs")).Length;
+        Assert.True(hostLines < 1100, $"GameServer.cs has {hostLines} lines: concerns are creeping back into the host");
+        Fixtures.Report($"{modules.Length} modules, {listed.Count} in the list; the host is {hostLines} lines");
     }
 
     // The line with string and character literals blanked and any // comment removed, so text inside strings can

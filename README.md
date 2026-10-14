@@ -15,8 +15,6 @@
   <i>Godot 4.7 · C# / .NET 10 · dedicated server · in development (pre-alpha)</i>
 </p>
 
-<p align="center"><sub>You are on <code>main</code> (milestone 1, the galaxy). The game described here, with its server and ground game, is on the <a href="https://github.com/uruskan/Hollow-Universe/tree/ground"><code>ground</code></a> branch.</sub></p>
-
 ---
 
 Hollow Universe is an online survival game with the scale of a real galaxy. You arrive on a beach with a rock and a
@@ -153,7 +151,7 @@ Z flight assist · V cockpit or chase camera · F step out.
 right-drag or W A S D moves, R/F go up and down, the wheel zooms, a click selects a star, a double-click flies to it,
 Enter opens its system, H and G return to Sol and to the whole galaxy, and the search box finds real names ("Sirius",
 "61 Cygni"), generated systems ("Nolcas Peris BF-BA 5-0") and sectors. On the system map, the wheel zooms, a click
-selects a body, Space pauses, `,` and `.` change the time's speed, L switches between compressed and true scale.
+selects a body, Space pauses, and `,` and `.` change the time's speed. Distances are always compressed.
 
 From a terminal:
 
@@ -165,11 +163,11 @@ dotnet run --project src/Hollow.Server -- --port 27015   # a dedicated server
 
 ## For developers
 
-- [AGENTS.md](https://github.com/uruskan/Hollow-Universe/blob/ground/AGENTS.md): the rules, every command and option, and the repository's layout, for people and AI agents.
-- [docs/handoff-ground.md](https://github.com/uruskan/Hollow-Universe/blob/ground/docs/handoff-ground.md): where development stands and what comes next.
-- [docs/GAME_DESIGN.md](https://github.com/uruskan/Hollow-Universe/blob/ground/docs/GAME_DESIGN.md), [docs/ARCHITECTURE.md](https://github.com/uruskan/Hollow-Universe/blob/ground/docs/ARCHITECTURE.md),
-  [docs/GALAXY.md](https://github.com/uruskan/Hollow-Universe/blob/ground/docs/GALAXY.md), [docs/GROUND.md](https://github.com/uruskan/Hollow-Universe/blob/ground/docs/GROUND.md) and
-  [docs/GROUND_SYSTEMS.md](https://github.com/uruskan/Hollow-Universe/blob/ground/docs/GROUND_SYSTEMS.md): the design and how it's built.
+- [AGENTS.md](AGENTS.md): the rules, every command and option, and the repository's layout, for people and AI agents.
+- [docs/handoff-ground.md](docs/handoff-ground.md): where development stands and what comes next.
+- [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+  [docs/GALAXY.md](docs/GALAXY.md), [docs/GROUND.md](docs/GROUND.md) and
+  [docs/GROUND_SYSTEMS.md](docs/GROUND_SYSTEMS.md): the design and how it's built.
 
 Nothing in `src/` depends on Godot: the rules, the simulation, the network and the server are plain .NET, shared by the
 server, the client and the test bots.
@@ -181,13 +179,13 @@ server, the client and the test bots.
 
 - Star data: the [HYG Database](https://github.com/astronexus/HYG-Database) v4.1 by David Nash (astronexus), under
   [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); the converted `game/data/catalog/hyg41.bin.gz` is
-  shared under the same licence ([its licence file](https://github.com/uruskan/Hollow-Universe/blob/ground/game/data/catalog/LICENSE.md) lists the changes).
+  shared under the same licence ([its licence file](game/data/catalog/LICENSE.md) lists the changes).
 - Real orbital elements of the planets: NASA JPL approximate positions of the planets (J2000).
 - Fonts: [Inter](https://github.com/rsms/inter) and [Barlow](https://github.com/jpt/barlow), under the SIL Open Font
   License 1.1.
 - Characters: the [MakeHuman](http://www.makehumancommunity.org/) base mesh and assets (CC0), animations from
   Quaternius' Universal Animation Library 1 and 2 (CC0), retargeted and dressed by our own scripts.
 - Sounds, textures and other third-party material, each with its source, licence and checksum:
-  [game/assets/THIRD_PARTY.md](https://github.com/uruskan/Hollow-Universe/blob/ground/game/assets/THIRD_PARTY.md).
+  [game/assets/THIRD_PARTY.md](game/assets/THIRD_PARTY.md).
 - Everything else, including the generated universe and every model made by the scripts in `art/`, is original. The
   code has no licence yet, so all rights are reserved until one is chosen.

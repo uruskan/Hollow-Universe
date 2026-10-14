@@ -1,0 +1,3105 @@
+{
+  "source": "GROUND.md §4.9. Written by art/audio/build.py, which owns each event's files and category; every other field may be tuned by hand and is kept.",
+  "categories": {
+    "footstep": {"metric": "event", "target": -26.0, "min": -30.0, "max": -22.0},
+    "foley": {"metric": "event", "target": -23.0, "min": -27.0, "max": -19.0},
+    "click": {"metric": "event", "target": -27.0, "min": -33.0, "max": -21.0},
+    "gather": {"metric": "event", "target": -19.0, "min": -23.0, "max": -15.0},
+    "impact": {"metric": "event", "target": -21.0, "min": -27.0, "max": -17.0},
+    "voice": {"metric": "event", "target": -21.0, "min": -25.0, "max": -17.0},
+    "gunshot": {"metric": "event", "target": -20.0, "min": -25.0, "max": -16.0},
+    "distant": {"metric": "event", "target": -22.0, "min": -27.0, "max": -17.0},
+    "explosion": {"metric": "event", "target": -13.0, "min": -18.0, "max": -9.0},
+    "ui": {"metric": "event", "target": -27.0, "min": -33.0, "max": -21.0},
+    "marker": {"metric": "event", "target": -23.0, "min": -28.0, "max": -18.0},
+    "loop": {"metric": "integrated", "target": -29.0, "min": -34.0, "max": -24.0},
+    "ambience": {"metric": "integrated", "target": -30.0, "min": -34.0, "max": -26.0},
+    "accent": {"metric": "event", "target": -27.0, "min": -32.0, "max": -22.0}
+  },
+  "items": {
+    "rock": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "torch": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "stone-hatchet": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "stone-pickaxe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "metal-hatchet": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "metal-pickaxe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "wooden-spear": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "stone-spear": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "machete": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "bow": {"draw": "bow.draw", "release": "bow.release", "flight": "arrow.flight", "impact": "arrow.impact", "impactFlesh": "arrow.impact.flesh", "hitMarker": "hit.marker", "headshot": "hit.headshot", "kill": "hit.kill"},
+    "arrow": {"flight": "arrow.flight", "impact": "arrow.impact", "impactFlesh": "arrow.impact.flesh", "pickup": "gather.pickup"},
+    "pistol": {"shot": "pistol.shot", "shotSilenced": "pistol.shot.silenced", "magOut": "reload.pistol.magout", "magIn": "reload.pistol.magin", "rack": "reload.pistol.slide", "dryFire": "gun.dryfire", "shell": "gun.shell", "hitMarker": "hit.marker", "headshot": "hit.headshot", "kill": "hit.kill"},
+    "rifle": {"shot": "rifle.shot", "shotSilenced": "rifle.shot.silenced", "magOut": "reload.rifle.magout", "magIn": "reload.rifle.magin", "rack": "reload.rifle.bolt", "dryFire": "gun.dryfire", "shell": "gun.shell", "hitMarker": "hit.marker", "headshot": "hit.headshot", "kill": "hit.kill"},
+    "silencer": {"shotPistol": "pistol.shot.silenced", "shotRifle": "rifle.shot.silenced"},
+    "bandage": {"use": "survival.bandage"},
+    "medical-injector": {"use": "survival.bandage"},
+    "red-berries": {"use": "survival.eat"},
+    "blue-berries": {"use": "survival.eat"},
+    "wild-tuber": {"use": "survival.eat"},
+    "roasted-tuber": {"use": "survival.eat"},
+    "raw-venison": {"use": "survival.eat"},
+    "raw-pork": {"use": "survival.eat"},
+    "raw-wolf-meat": {"use": "survival.eat"},
+    "raw-bear-meat": {"use": "survival.eat"},
+    "cooked-venison": {"use": "survival.eat"},
+    "cooked-pork": {"use": "survival.eat"},
+    "cooked-wolf-meat": {"use": "survival.eat"},
+    "cooked-bear-meat": {"use": "survival.eat"},
+    "burnt-venison": {"use": "survival.eat"},
+    "burnt-pork": {"use": "survival.eat"},
+    "burnt-wolf-meat": {"use": "survival.eat"},
+    "burnt-bear-meat": {"use": "survival.eat"},
+    "bone-knife": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "bone-club": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "sleeping-bag": {"place": "deploy.place"},
+    "bed": {"place": "deploy.place"},
+    "workbench-1": {"place": "deploy.place"},
+    "workbench-2": {"place": "deploy.place"},
+    "workbench-3": {"place": "deploy.place"},
+    "vehicle-workbench": {"place": "deploy.place"},
+    "engineering-workbench": {"place": "deploy.place"},
+    "claim-device": {"place": "deploy.place"},
+    "ladder": {"place": "deploy.place"},
+    "campfire": {"place": "deploy.place", "loop": "campfire.loop", "ignite": "campfire.ignite", "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
+    "furnace": {"place": "deploy.place", "loop": "furnace.loop", "ignite": "furnace.ignite", "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
+    "small-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
+    "large-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
+    "research-table": {"place": "deploy.place", "open": "box.open", "close": "box.close", "start": "ui.craft.start", "done": "ui.craft.done"},
+    "blueprint": {"learn": "ui.craft.done"},
+    "loot-barrel-1": {"hit": "impact.metal", "break": "impact.metal"},
+    "loot-barrel-2": {"hit": "impact.metal", "break": "impact.metal"},
+    "loot-crate": {"open": "box.open", "close": "box.close"},
+    "military-crate": {"open": "box.open", "close": "box.close"},
+    "recycler": {"open": "box.open", "close": "box.close", "start": "furnace.ignite", "loop": "furnace.loop", "stop": "fire.extinguish"},
+    "building-plan": {"placeTwig": "build.place.twig", "placeWood": "build.place.wood", "placeStone": "build.place.stone", "placeMetal": "build.place.metal", "placeArmoured": "build.place.armoured"},
+    "hammer": {"swing": "melee.swing", "upgradeWood": "build.upgrade.wood", "upgradeStone": "build.upgrade.stone", "upgradeMetal": "build.upgrade.metal", "upgradeArmoured": "build.upgrade.armoured", "repair": "build.repair", "demolish": "build.demolish", "collapse": "build.collapse"},
+    "code-lock": {"press": "codelock.beep", "accept": "codelock.accept", "deny": "codelock.deny", "place": "lock.key"},
+    "key-lock": {"turn": "lock.key", "place": "lock.key"},
+    "timed-charge": {"fuse": "explosive.fuse", "beep": "explosive.beep", "explode": "explosion", "debris": "explosion.debris", "place": "deploy.place", "throw": "melee.swing"},
+    "bag-charge": {"fuse": "explosive.fuse", "explode": "explosion", "debris": "explosion.debris", "place": "deploy.place", "throw": "melee.swing", "fizzle": "fire.extinguish", "relight": "campfire.ignite"},
+    "tin-grenade": {"fuse": "explosive.fuse", "explode": "explosion", "debris": "explosion.debris", "place": "deploy.place", "throw": "melee.swing", "bounce": "impact.metal", "fizzle": "fire.extinguish", "relight": "campfire.ignite"},
+    "rocket-launcher": {"shot": "rifle.shot", "magOut": "reload.rifle.magout", "magIn": "reload.rifle.magin", "rack": "reload.rifle.bolt", "dryFire": "gun.dryfire", "hitMarker": "hit.marker", "kill": "hit.kill"},
+    "rocket": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
+    "rocket-hv": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
+    "rifle-ammo-explosive": {"explode": "impact.metal"},
+    "tin-finch": {"engine": "ship.engine", "thrust": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open", "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash", "destroyed": "explosion"},
+    "wooden-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
+    "metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
+    "armoured-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.wood"},
+    "double-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
+    "garage-door": {"open": "door.open.garage", "close": "door.close.garage", "place": "build.place.wood"},
+    "sheet-metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
+    "wooden-double-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
+    "sheet-metal-double-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
+    "armoured-double-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.wood"}
+  },
+  "events": [
+    {
+      "key": "footstep.walk.grass",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/grass/walk_01.ogg",
+        "res://assets/audio/footstep/grass/walk_02.ogg",
+        "res://assets/audio/footstep/grass/walk_03.ogg",
+        "res://assets/audio/footstep/grass/walk_04.ogg",
+        "res://assets/audio/footstep/grass/walk_05.ogg",
+        "res://assets/audio/footstep/grass/walk_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.run.grass",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 3.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/grass/run_01.ogg",
+        "res://assets/audio/footstep/grass/run_02.ogg",
+        "res://assets/audio/footstep/grass/run_03.ogg",
+        "res://assets/audio/footstep/grass/run_04.ogg",
+        "res://assets/audio/footstep/grass/run_05.ogg",
+        "res://assets/audio/footstep/grass/run_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.crouch.grass",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 14.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/grass/crouch_01.ogg",
+        "res://assets/audio/footstep/grass/crouch_02.ogg",
+        "res://assets/audio/footstep/grass/crouch_03.ogg",
+        "res://assets/audio/footstep/grass/crouch_04.ogg"
+      ]
+    },
+    {
+      "key": "footstep.land.grass",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 4.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/grass/land_01.ogg",
+        "res://assets/audio/footstep/grass/land_02.ogg",
+        "res://assets/audio/footstep/grass/land_03.ogg"
+      ]
+    },
+    {
+      "key": "footstep.walk.dirt",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/dirt/walk_01.ogg",
+        "res://assets/audio/footstep/dirt/walk_02.ogg",
+        "res://assets/audio/footstep/dirt/walk_03.ogg",
+        "res://assets/audio/footstep/dirt/walk_04.ogg",
+        "res://assets/audio/footstep/dirt/walk_05.ogg",
+        "res://assets/audio/footstep/dirt/walk_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.run.dirt",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 3.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/dirt/run_01.ogg",
+        "res://assets/audio/footstep/dirt/run_02.ogg",
+        "res://assets/audio/footstep/dirt/run_03.ogg",
+        "res://assets/audio/footstep/dirt/run_04.ogg",
+        "res://assets/audio/footstep/dirt/run_05.ogg",
+        "res://assets/audio/footstep/dirt/run_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.crouch.dirt",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 14.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/dirt/crouch_01.ogg",
+        "res://assets/audio/footstep/dirt/crouch_02.ogg",
+        "res://assets/audio/footstep/dirt/crouch_03.ogg",
+        "res://assets/audio/footstep/dirt/crouch_04.ogg"
+      ]
+    },
+    {
+      "key": "footstep.land.dirt",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 4.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/dirt/land_01.ogg",
+        "res://assets/audio/footstep/dirt/land_02.ogg",
+        "res://assets/audio/footstep/dirt/land_03.ogg"
+      ]
+    },
+    {
+      "key": "footstep.walk.sand",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/sand/walk_01.ogg",
+        "res://assets/audio/footstep/sand/walk_02.ogg",
+        "res://assets/audio/footstep/sand/walk_03.ogg",
+        "res://assets/audio/footstep/sand/walk_04.ogg",
+        "res://assets/audio/footstep/sand/walk_05.ogg",
+        "res://assets/audio/footstep/sand/walk_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.run.sand",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 3.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/sand/run_01.ogg",
+        "res://assets/audio/footstep/sand/run_02.ogg",
+        "res://assets/audio/footstep/sand/run_03.ogg",
+        "res://assets/audio/footstep/sand/run_04.ogg",
+        "res://assets/audio/footstep/sand/run_05.ogg",
+        "res://assets/audio/footstep/sand/run_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.crouch.sand",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 14.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/sand/crouch_01.ogg",
+        "res://assets/audio/footstep/sand/crouch_02.ogg",
+        "res://assets/audio/footstep/sand/crouch_03.ogg",
+        "res://assets/audio/footstep/sand/crouch_04.ogg"
+      ]
+    },
+    {
+      "key": "footstep.land.sand",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 4.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/sand/land_01.ogg",
+        "res://assets/audio/footstep/sand/land_02.ogg",
+        "res://assets/audio/footstep/sand/land_03.ogg"
+      ]
+    },
+    {
+      "key": "footstep.walk.rock",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/rock/walk_01.ogg",
+        "res://assets/audio/footstep/rock/walk_02.ogg",
+        "res://assets/audio/footstep/rock/walk_03.ogg",
+        "res://assets/audio/footstep/rock/walk_04.ogg",
+        "res://assets/audio/footstep/rock/walk_05.ogg",
+        "res://assets/audio/footstep/rock/walk_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.run.rock",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 3.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/rock/run_01.ogg",
+        "res://assets/audio/footstep/rock/run_02.ogg",
+        "res://assets/audio/footstep/rock/run_03.ogg",
+        "res://assets/audio/footstep/rock/run_04.ogg",
+        "res://assets/audio/footstep/rock/run_05.ogg",
+        "res://assets/audio/footstep/rock/run_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.crouch.rock",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 14.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/rock/crouch_01.ogg",
+        "res://assets/audio/footstep/rock/crouch_02.ogg",
+        "res://assets/audio/footstep/rock/crouch_03.ogg",
+        "res://assets/audio/footstep/rock/crouch_04.ogg"
+      ]
+    },
+    {
+      "key": "footstep.land.rock",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 4.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/rock/land_01.ogg",
+        "res://assets/audio/footstep/rock/land_02.ogg",
+        "res://assets/audio/footstep/rock/land_03.ogg"
+      ]
+    },
+    {
+      "key": "footstep.walk.snow",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/snow/walk_01.ogg",
+        "res://assets/audio/footstep/snow/walk_02.ogg",
+        "res://assets/audio/footstep/snow/walk_03.ogg",
+        "res://assets/audio/footstep/snow/walk_04.ogg",
+        "res://assets/audio/footstep/snow/walk_05.ogg",
+        "res://assets/audio/footstep/snow/walk_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.run.snow",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 3.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/snow/run_01.ogg",
+        "res://assets/audio/footstep/snow/run_02.ogg",
+        "res://assets/audio/footstep/snow/run_03.ogg",
+        "res://assets/audio/footstep/snow/run_04.ogg",
+        "res://assets/audio/footstep/snow/run_05.ogg",
+        "res://assets/audio/footstep/snow/run_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.crouch.snow",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 14.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/snow/crouch_01.ogg",
+        "res://assets/audio/footstep/snow/crouch_02.ogg",
+        "res://assets/audio/footstep/snow/crouch_03.ogg",
+        "res://assets/audio/footstep/snow/crouch_04.ogg"
+      ]
+    },
+    {
+      "key": "footstep.land.snow",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 4.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/snow/land_01.ogg",
+        "res://assets/audio/footstep/snow/land_02.ogg",
+        "res://assets/audio/footstep/snow/land_03.ogg"
+      ]
+    },
+    {
+      "key": "footstep.walk.wood",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/wood/walk_01.ogg",
+        "res://assets/audio/footstep/wood/walk_02.ogg",
+        "res://assets/audio/footstep/wood/walk_03.ogg",
+        "res://assets/audio/footstep/wood/walk_04.ogg",
+        "res://assets/audio/footstep/wood/walk_05.ogg",
+        "res://assets/audio/footstep/wood/walk_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.run.wood",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 3.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/wood/run_01.ogg",
+        "res://assets/audio/footstep/wood/run_02.ogg",
+        "res://assets/audio/footstep/wood/run_03.ogg",
+        "res://assets/audio/footstep/wood/run_04.ogg",
+        "res://assets/audio/footstep/wood/run_05.ogg",
+        "res://assets/audio/footstep/wood/run_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.crouch.wood",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 14.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/wood/crouch_01.ogg",
+        "res://assets/audio/footstep/wood/crouch_02.ogg",
+        "res://assets/audio/footstep/wood/crouch_03.ogg",
+        "res://assets/audio/footstep/wood/crouch_04.ogg"
+      ]
+    },
+    {
+      "key": "footstep.land.wood",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 4.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/wood/land_01.ogg",
+        "res://assets/audio/footstep/wood/land_02.ogg",
+        "res://assets/audio/footstep/wood/land_03.ogg"
+      ]
+    },
+    {
+      "key": "footstep.walk.metal",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/metal/walk_01.ogg",
+        "res://assets/audio/footstep/metal/walk_02.ogg",
+        "res://assets/audio/footstep/metal/walk_03.ogg",
+        "res://assets/audio/footstep/metal/walk_04.ogg",
+        "res://assets/audio/footstep/metal/walk_05.ogg",
+        "res://assets/audio/footstep/metal/walk_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.run.metal",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 3.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/metal/run_01.ogg",
+        "res://assets/audio/footstep/metal/run_02.ogg",
+        "res://assets/audio/footstep/metal/run_03.ogg",
+        "res://assets/audio/footstep/metal/run_04.ogg",
+        "res://assets/audio/footstep/metal/run_05.ogg",
+        "res://assets/audio/footstep/metal/run_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.crouch.metal",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 14.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/metal/crouch_01.ogg",
+        "res://assets/audio/footstep/metal/crouch_02.ogg",
+        "res://assets/audio/footstep/metal/crouch_03.ogg",
+        "res://assets/audio/footstep/metal/crouch_04.ogg"
+      ]
+    },
+    {
+      "key": "footstep.land.metal",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 4.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/metal/land_01.ogg",
+        "res://assets/audio/footstep/metal/land_02.ogg",
+        "res://assets/audio/footstep/metal/land_03.ogg"
+      ]
+    },
+    {
+      "key": "footstep.walk.water",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/water/walk_01.ogg",
+        "res://assets/audio/footstep/water/walk_02.ogg",
+        "res://assets/audio/footstep/water/walk_03.ogg",
+        "res://assets/audio/footstep/water/walk_04.ogg",
+        "res://assets/audio/footstep/water/walk_05.ogg",
+        "res://assets/audio/footstep/water/walk_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.run.water",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 3.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/water/run_01.ogg",
+        "res://assets/audio/footstep/water/run_02.ogg",
+        "res://assets/audio/footstep/water/run_03.ogg",
+        "res://assets/audio/footstep/water/run_04.ogg",
+        "res://assets/audio/footstep/water/run_05.ogg",
+        "res://assets/audio/footstep/water/run_06.ogg"
+      ]
+    },
+    {
+      "key": "footstep.crouch.water",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 14.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/water/crouch_01.ogg",
+        "res://assets/audio/footstep/water/crouch_02.ogg",
+        "res://assets/audio/footstep/water/crouch_03.ogg",
+        "res://assets/audio/footstep/water/crouch_04.ogg"
+      ]
+    },
+    {
+      "key": "footstep.land.water",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 4.0,
+      "unitSize": 2.0,
+      "maxDistance": 45.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/water/land_01.ogg",
+        "res://assets/audio/footstep/water/land_02.ogg",
+        "res://assets/audio/footstep/water/land_03.ogg"
+      ]
+    },
+    {
+      "key": "swim.stroke",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 0.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/footstep/swim/stroke_01.ogg",
+        "res://assets/audio/footstep/swim/stroke_02.ogg",
+        "res://assets/audio/footstep/swim/stroke_03.ogg",
+        "res://assets/audio/footstep/swim/stroke_04.ogg"
+      ]
+    },
+    {
+      "key": "gather.wood.hit",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 70.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/wood_hit_01.ogg",
+        "res://assets/audio/gather/wood_hit_02.ogg",
+        "res://assets/audio/gather/wood_hit_03.ogg",
+        "res://assets/audio/gather/wood_hit_04.ogg",
+        "res://assets/audio/gather/wood_hit_05.ogg",
+        "res://assets/audio/gather/wood_hit_06.ogg"
+      ]
+    },
+    {
+      "key": "gather.wood.break",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 60,
+      "limit": 2,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/wood_break_01.ogg",
+        "res://assets/audio/gather/wood_break_02.ogg",
+        "res://assets/audio/gather/wood_break_03.ogg"
+      ]
+    },
+    {
+      "key": "gather.stone.hit",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 70.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/stone_hit_01.ogg",
+        "res://assets/audio/gather/stone_hit_02.ogg",
+        "res://assets/audio/gather/stone_hit_03.ogg",
+        "res://assets/audio/gather/stone_hit_04.ogg",
+        "res://assets/audio/gather/stone_hit_05.ogg",
+        "res://assets/audio/gather/stone_hit_06.ogg"
+      ]
+    },
+    {
+      "key": "gather.ore.hit",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 70.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/ore_hit_01.ogg",
+        "res://assets/audio/gather/ore_hit_02.ogg",
+        "res://assets/audio/gather/ore_hit_03.ogg",
+        "res://assets/audio/gather/ore_hit_04.ogg"
+      ]
+    },
+    {
+      "key": "gather.node.break.1",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 6.0,
+      "maxDistance": 90.0,
+      "priority": 55,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/node_break1_01.ogg",
+        "res://assets/audio/gather/node_break1_02.ogg"
+      ]
+    },
+    {
+      "key": "gather.node.break.2",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 3.0,
+      "unitSize": 6.0,
+      "maxDistance": 90.0,
+      "priority": 55,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/node_break2_01.ogg",
+        "res://assets/audio/gather/node_break2_02.ogg"
+      ]
+    },
+    {
+      "key": "gather.node.break.3",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 4.0,
+      "unitSize": 6.0,
+      "maxDistance": 90.0,
+      "priority": 55,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/node_break3_01.ogg",
+        "res://assets/audio/gather/node_break3_02.ogg"
+      ]
+    },
+    {
+      "key": "gather.weakspot",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 4.0,
+      "maxDistance": 40.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.98, 1.02],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/weakspot_01.ogg",
+        "res://assets/audio/gather/weakspot_02.ogg",
+        "res://assets/audio/gather/weakspot_03.ogg"
+      ]
+    },
+    {
+      "key": "gather.berry",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 25.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/berry_01.ogg",
+        "res://assets/audio/gather/berry_02.ogg",
+        "res://assets/audio/gather/berry_03.ogg",
+        "res://assets/audio/gather/berry_04.ogg"
+      ]
+    },
+    {
+      "key": "gather.plant",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 25.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/plant_01.ogg",
+        "res://assets/audio/gather/plant_02.ogg",
+        "res://assets/audio/gather/plant_03.ogg",
+        "res://assets/audio/gather/plant_04.ogg"
+      ]
+    },
+    {
+      "key": "gather.pickup",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/gather/pickup_01.ogg",
+        "res://assets/audio/gather/pickup_02.ogg",
+        "res://assets/audio/gather/pickup_03.ogg",
+        "res://assets/audio/gather/pickup_04.ogg"
+      ]
+    },
+    {
+      "key": "survival.eat",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 15.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/survival/eat_01.ogg",
+        "res://assets/audio/survival/eat_02.ogg",
+        "res://assets/audio/survival/eat_03.ogg",
+        "res://assets/audio/survival/eat_04.ogg"
+      ]
+    },
+    {
+      "key": "survival.drink",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 15.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/survival/drink_01.ogg",
+        "res://assets/audio/survival/drink_02.ogg",
+        "res://assets/audio/survival/drink_03.ogg"
+      ]
+    },
+    {
+      "key": "survival.bandage",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 15.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/survival/bandage_01.ogg",
+        "res://assets/audio/survival/bandage_02.ogg",
+        "res://assets/audio/survival/bandage_03.ogg"
+      ]
+    },
+    {
+      "key": "survival.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 35.0,
+      "priority": 70,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/survival/hurt_01.ogg",
+        "res://assets/audio/survival/hurt_02.ogg",
+        "res://assets/audio/survival/hurt_03.ogg",
+        "res://assets/audio/survival/hurt_04.ogg",
+        "res://assets/audio/survival/hurt_05.ogg",
+        "res://assets/audio/survival/hurt_06.ogg"
+      ]
+    },
+    {
+      "key": "survival.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 4.0,
+      "maxDistance": 45.0,
+      "priority": 80,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/survival/death_01.ogg",
+        "res://assets/audio/survival/death_02.ogg",
+        "res://assets/audio/survival/death_03.ogg"
+      ]
+    },
+    {
+      "key": "survival.cold",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 4.0,
+      "maxDistance": 10.0,
+      "priority": 40,
+      "limit": 1,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/survival/cold_01.ogg",
+        "res://assets/audio/survival/cold_02.ogg",
+        "res://assets/audio/survival/cold_03.ogg",
+        "res://assets/audio/survival/cold_04.ogg"
+      ]
+    },
+    {
+      "key": "campfire.loop",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 35.0,
+      "priority": 40,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/deploy/campfire_loop.ogg"
+      ]
+    },
+    {
+      "key": "furnace.loop",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 40.0,
+      "priority": 40,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/deploy/furnace_loop.ogg"
+      ]
+    },
+    {
+      "key": "campfire.ignite",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/deploy/campfire_ignite_01.ogg",
+        "res://assets/audio/deploy/campfire_ignite_02.ogg"
+      ]
+    },
+    {
+      "key": "furnace.ignite",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 35.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/deploy/furnace_ignite_01.ogg",
+        "res://assets/audio/deploy/furnace_ignite_02.ogg"
+      ]
+    },
+    {
+      "key": "fire.extinguish",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 25.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/deploy/extinguish_01.ogg",
+        "res://assets/audio/deploy/extinguish_02.ogg",
+        "res://assets/audio/deploy/extinguish_03.ogg"
+      ]
+    },
+    {
+      "key": "box.open",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/deploy/box_open_01.ogg",
+        "res://assets/audio/deploy/box_open_02.ogg",
+        "res://assets/audio/deploy/box_open_03.ogg"
+      ]
+    },
+    {
+      "key": "box.close",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/deploy/box_close_01.ogg",
+        "res://assets/audio/deploy/box_close_02.ogg",
+        "res://assets/audio/deploy/box_close_03.ogg"
+      ]
+    },
+    {
+      "key": "deploy.place",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/deploy/place_01.ogg",
+        "res://assets/audio/deploy/place_02.ogg",
+        "res://assets/audio/deploy/place_03.ogg",
+        "res://assets/audio/deploy/place_04.ogg"
+      ]
+    },
+    {
+      "key": "build.place.twig",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/place_twig_01.ogg",
+        "res://assets/audio/build/place_twig_02.ogg",
+        "res://assets/audio/build/place_twig_03.ogg"
+      ]
+    },
+    {
+      "key": "build.place.wood",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/place_wood_01.ogg",
+        "res://assets/audio/build/place_wood_02.ogg",
+        "res://assets/audio/build/place_wood_03.ogg"
+      ]
+    },
+    {
+      "key": "build.place.stone",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/place_stone_01.ogg",
+        "res://assets/audio/build/place_stone_02.ogg",
+        "res://assets/audio/build/place_stone_03.ogg"
+      ]
+    },
+    {
+      "key": "build.place.metal",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/place_metal_01.ogg",
+        "res://assets/audio/build/place_metal_02.ogg",
+        "res://assets/audio/build/place_metal_03.ogg"
+      ]
+    },
+    {
+      "key": "build.place.armoured",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/place_armoured_01.ogg",
+        "res://assets/audio/build/place_armoured_02.ogg",
+        "res://assets/audio/build/place_armoured_03.ogg"
+      ]
+    },
+    {
+      "key": "build.upgrade.wood",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/upgrade_wood_01.ogg",
+        "res://assets/audio/build/upgrade_wood_02.ogg",
+        "res://assets/audio/build/upgrade_wood_03.ogg"
+      ]
+    },
+    {
+      "key": "build.upgrade.stone",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/upgrade_stone_01.ogg",
+        "res://assets/audio/build/upgrade_stone_02.ogg",
+        "res://assets/audio/build/upgrade_stone_03.ogg"
+      ]
+    },
+    {
+      "key": "build.upgrade.metal",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/upgrade_metal_01.ogg",
+        "res://assets/audio/build/upgrade_metal_02.ogg",
+        "res://assets/audio/build/upgrade_metal_03.ogg"
+      ]
+    },
+    {
+      "key": "build.upgrade.armoured",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/upgrade_armoured_01.ogg",
+        "res://assets/audio/build/upgrade_armoured_02.ogg",
+        "res://assets/audio/build/upgrade_armoured_03.ogg"
+      ]
+    },
+    {
+      "key": "build.repair",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/repair_01.ogg",
+        "res://assets/audio/build/repair_02.ogg",
+        "res://assets/audio/build/repair_03.ogg"
+      ]
+    },
+    {
+      "key": "build.demolish",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 4.0,
+      "maxDistance": 80.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/demolish_01.ogg",
+        "res://assets/audio/build/demolish_02.ogg",
+        "res://assets/audio/build/demolish_03.ogg"
+      ]
+    },
+    {
+      "key": "build.collapse",
+      "category": "explosion",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 200.0,
+      "priority": 75,
+      "limit": 3,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/collapse_01.ogg",
+        "res://assets/audio/build/collapse_02.ogg",
+        "res://assets/audio/build/collapse_03.ogg"
+      ]
+    },
+    {
+      "key": "door.open.wood",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 45.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/door_wood_open_01.ogg",
+        "res://assets/audio/build/door_wood_open_02.ogg",
+        "res://assets/audio/build/door_wood_open_03.ogg"
+      ]
+    },
+    {
+      "key": "door.close.wood",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/door_wood_close_01.ogg",
+        "res://assets/audio/build/door_wood_close_02.ogg",
+        "res://assets/audio/build/door_wood_close_03.ogg"
+      ]
+    },
+    {
+      "key": "door.open.metal",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 45.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/door_metal_open_01.ogg",
+        "res://assets/audio/build/door_metal_open_02.ogg"
+      ]
+    },
+    {
+      "key": "door.close.metal",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/door_metal_close_01.ogg",
+        "res://assets/audio/build/door_metal_close_02.ogg"
+      ]
+    },
+    {
+      "key": "door.open.armoured",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 45.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/door_armoured_open_01.ogg",
+        "res://assets/audio/build/door_armoured_open_02.ogg"
+      ]
+    },
+    {
+      "key": "door.close.armoured",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/door_armoured_close_01.ogg",
+        "res://assets/audio/build/door_armoured_close_02.ogg"
+      ]
+    },
+    {
+      "key": "door.open.garage",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 45.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/door_garage_open_01.ogg",
+        "res://assets/audio/build/door_garage_open_02.ogg"
+      ]
+    },
+    {
+      "key": "door.close.garage",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/door_garage_close_01.ogg",
+        "res://assets/audio/build/door_garage_close_02.ogg"
+      ]
+    },
+    {
+      "key": "lock.key",
+      "category": "click",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 15.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/build/key_lock_01.ogg",
+        "res://assets/audio/build/key_lock_02.ogg"
+      ]
+    },
+    {
+      "key": "codelock.beep",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 4.0,
+      "maxDistance": 12.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "files": [
+        "res://assets/audio/build/codelock_beep_01.ogg",
+        "res://assets/audio/build/codelock_beep_02.ogg",
+        "res://assets/audio/build/codelock_beep_03.ogg"
+      ]
+    },
+    {
+      "key": "codelock.accept",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 15.0,
+      "priority": 65,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "files": [
+        "res://assets/audio/build/codelock_accept.ogg"
+      ]
+    },
+    {
+      "key": "codelock.deny",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 4.0,
+      "maxDistance": 15.0,
+      "priority": 65,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "files": [
+        "res://assets/audio/build/codelock_deny.ogg"
+      ]
+    },
+    {
+      "key": "melee.swing",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/swing_01.ogg",
+        "res://assets/audio/weapon/swing_02.ogg",
+        "res://assets/audio/weapon/swing_03.ogg",
+        "res://assets/audio/weapon/swing_04.ogg"
+      ]
+    },
+    {
+      "key": "melee.swing.heavy",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 25.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/swing_heavy_01.ogg",
+        "res://assets/audio/weapon/swing_heavy_02.ogg",
+        "res://assets/audio/weapon/swing_heavy_03.ogg",
+        "res://assets/audio/weapon/swing_heavy_04.ogg"
+      ]
+    },
+    {
+      "key": "melee.hit.flesh",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 35.0,
+      "priority": 65,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/hit_flesh_01.ogg",
+        "res://assets/audio/weapon/hit_flesh_02.ogg",
+        "res://assets/audio/weapon/hit_flesh_03.ogg",
+        "res://assets/audio/weapon/hit_flesh_04.ogg",
+        "res://assets/audio/weapon/hit_flesh_05.ogg",
+        "res://assets/audio/weapon/hit_flesh_06.ogg"
+      ]
+    },
+    {
+      "key": "melee.hit.hard",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 45.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/hit_hard_01.ogg",
+        "res://assets/audio/weapon/hit_hard_02.ogg",
+        "res://assets/audio/weapon/hit_hard_03.ogg",
+        "res://assets/audio/weapon/hit_hard_04.ogg"
+      ]
+    },
+    {
+      "key": "bow.draw",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 15.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/bow_draw_01.ogg",
+        "res://assets/audio/weapon/bow_draw_02.ogg"
+      ]
+    },
+    {
+      "key": "bow.release",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/bow_release_01.ogg",
+        "res://assets/audio/weapon/bow_release_02.ogg"
+      ]
+    },
+    {
+      "key": "arrow.flight",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -6.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 40,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/arrow_flight_01.ogg",
+        "res://assets/audio/weapon/arrow_flight_02.ogg",
+        "res://assets/audio/weapon/arrow_flight_03.ogg"
+      ]
+    },
+    {
+      "key": "arrow.impact",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 35.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/arrow_impact_01.ogg",
+        "res://assets/audio/weapon/arrow_impact_02.ogg",
+        "res://assets/audio/weapon/arrow_impact_03.ogg",
+        "res://assets/audio/weapon/arrow_impact_04.ogg"
+      ]
+    },
+    {
+      "key": "arrow.impact.flesh",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 35.0,
+      "priority": 65,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/arrow_flesh_01.ogg",
+        "res://assets/audio/weapon/arrow_flesh_02.ogg",
+        "res://assets/audio/weapon/arrow_flesh_03.ogg"
+      ]
+    },
+    {
+      "key": "rifle.shot",
+      "category": "gunshot",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 85,
+      "limit": 10,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "delay": true,
+      "layers": [
+        { "name": "near", "from": 0.0, "to": 60.0, "fade": 30.0, "volume": 0.0, "unitSize": 12.0, "maxDistance": 160.0, "category": "gunshot", "files": [
+          "res://assets/audio/weapon/rifle_near_01.ogg",
+          "res://assets/audio/weapon/rifle_near_02.ogg",
+          "res://assets/audio/weapon/rifle_near_03.ogg",
+          "res://assets/audio/weapon/rifle_near_04.ogg",
+          "res://assets/audio/weapon/rifle_near_05.ogg",
+          "res://assets/audio/weapon/rifle_near_06.ogg"
+        ] },
+        { "name": "mid", "from": 60.0, "to": 350.0, "fade": 80.0, "volume": -3.0, "unitSize": 40.0, "maxDistance": 600.0, "category": "distant", "files": [
+          "res://assets/audio/weapon/rifle_mid_01.ogg",
+          "res://assets/audio/weapon/rifle_mid_02.ogg",
+          "res://assets/audio/weapon/rifle_mid_03.ogg",
+          "res://assets/audio/weapon/rifle_mid_04.ogg"
+        ] },
+        { "name": "far", "from": 350.0, "to": 1500.0, "fade": 150.0, "volume": -6.0, "unitSize": 120.0, "maxDistance": 1600.0, "category": "distant", "files": [
+          "res://assets/audio/weapon/rifle_far_01.ogg",
+          "res://assets/audio/weapon/rifle_far_02.ogg",
+          "res://assets/audio/weapon/rifle_far_03.ogg"
+        ] }
+      ]
+    },
+    {
+      "key": "rifle.shot.silenced",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 80,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "delay": true,
+      "layers": [
+        { "name": "near", "from": 0.0, "to": 40.0, "fade": 20.0, "volume": 0.0, "unitSize": 4.0, "maxDistance": 70.0, "category": "impact", "files": [
+          "res://assets/audio/weapon/rifle_silenced_01.ogg",
+          "res://assets/audio/weapon/rifle_silenced_02.ogg",
+          "res://assets/audio/weapon/rifle_silenced_03.ogg"
+        ] }
+      ]
+    },
+    {
+      "key": "pistol.shot",
+      "category": "gunshot",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 85,
+      "limit": 10,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "delay": true,
+      "layers": [
+        { "name": "near", "from": 0.0, "to": 60.0, "fade": 30.0, "volume": 0.0, "unitSize": 12.0, "maxDistance": 160.0, "category": "gunshot", "files": [
+          "res://assets/audio/weapon/pistol_near_01.ogg",
+          "res://assets/audio/weapon/pistol_near_02.ogg",
+          "res://assets/audio/weapon/pistol_near_03.ogg",
+          "res://assets/audio/weapon/pistol_near_04.ogg",
+          "res://assets/audio/weapon/pistol_near_05.ogg"
+        ] },
+        { "name": "mid", "from": 60.0, "to": 350.0, "fade": 80.0, "volume": -3.0, "unitSize": 40.0, "maxDistance": 600.0, "category": "distant", "files": [
+          "res://assets/audio/weapon/pistol_mid_01.ogg",
+          "res://assets/audio/weapon/pistol_mid_02.ogg",
+          "res://assets/audio/weapon/pistol_mid_03.ogg",
+          "res://assets/audio/weapon/pistol_mid_04.ogg"
+        ] },
+        { "name": "far", "from": 350.0, "to": 1500.0, "fade": 150.0, "volume": -6.0, "unitSize": 120.0, "maxDistance": 1600.0, "category": "distant", "files": [
+          "res://assets/audio/weapon/pistol_far_01.ogg",
+          "res://assets/audio/weapon/pistol_far_02.ogg",
+          "res://assets/audio/weapon/pistol_far_03.ogg"
+        ] }
+      ]
+    },
+    {
+      "key": "pistol.shot.silenced",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 80,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "delay": true,
+      "layers": [
+        { "name": "near", "from": 0.0, "to": 40.0, "fade": 20.0, "volume": 0.0, "unitSize": 4.0, "maxDistance": 70.0, "category": "impact", "files": [
+          "res://assets/audio/weapon/pistol_silenced_01.ogg",
+          "res://assets/audio/weapon/pistol_silenced_02.ogg",
+          "res://assets/audio/weapon/pistol_silenced_03.ogg"
+        ] }
+      ]
+    },
+    {
+      "key": "reload.pistol.magout",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/pistol_magout_01.ogg",
+        "res://assets/audio/weapon/pistol_magout_02.ogg"
+      ]
+    },
+    {
+      "key": "reload.pistol.magin",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/pistol_magin_01.ogg",
+        "res://assets/audio/weapon/pistol_magin_02.ogg",
+        "res://assets/audio/weapon/pistol_magin_03.ogg"
+      ]
+    },
+    {
+      "key": "reload.pistol.slide",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/pistol_slide_01.ogg",
+        "res://assets/audio/weapon/pistol_slide_02.ogg",
+        "res://assets/audio/weapon/pistol_slide_03.ogg"
+      ]
+    },
+    {
+      "key": "reload.rifle.magout",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/rifle_magout_01.ogg",
+        "res://assets/audio/weapon/rifle_magout_02.ogg"
+      ]
+    },
+    {
+      "key": "reload.rifle.magin",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/rifle_magin_01.ogg",
+        "res://assets/audio/weapon/rifle_magin_02.ogg",
+        "res://assets/audio/weapon/rifle_magin_03.ogg"
+      ]
+    },
+    {
+      "key": "reload.rifle.bolt",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 20.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/rifle_bolt_01.ogg",
+        "res://assets/audio/weapon/rifle_bolt_02.ogg",
+        "res://assets/audio/weapon/rifle_bolt_03.ogg"
+      ]
+    },
+    {
+      "key": "gun.dryfire",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 4.0,
+      "maxDistance": 12.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/dryfire_01.ogg",
+        "res://assets/audio/weapon/dryfire_02.ogg"
+      ]
+    },
+    {
+      "key": "gun.shell",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -8.0,
+      "unitSize": 4.0,
+      "maxDistance": 10.0,
+      "priority": 20,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/shell_01.ogg",
+        "res://assets/audio/weapon/shell_02.ogg",
+        "res://assets/audio/weapon/shell_03.ogg",
+        "res://assets/audio/weapon/shell_04.ogg"
+      ]
+    },
+    {
+      "key": "impact.flesh",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/impact_flesh_01.ogg",
+        "res://assets/audio/weapon/impact_flesh_02.ogg",
+        "res://assets/audio/weapon/impact_flesh_03.ogg",
+        "res://assets/audio/weapon/impact_flesh_04.ogg"
+      ]
+    },
+    {
+      "key": "impact.wood",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/impact_wood_01.ogg",
+        "res://assets/audio/weapon/impact_wood_02.ogg",
+        "res://assets/audio/weapon/impact_wood_03.ogg",
+        "res://assets/audio/weapon/impact_wood_04.ogg"
+      ]
+    },
+    {
+      "key": "impact.stone",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/impact_stone_01.ogg",
+        "res://assets/audio/weapon/impact_stone_02.ogg",
+        "res://assets/audio/weapon/impact_stone_03.ogg",
+        "res://assets/audio/weapon/impact_stone_04.ogg"
+      ]
+    },
+    {
+      "key": "impact.metal",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/impact_metal_01.ogg",
+        "res://assets/audio/weapon/impact_metal_02.ogg",
+        "res://assets/audio/weapon/impact_metal_03.ogg",
+        "res://assets/audio/weapon/impact_metal_04.ogg"
+      ]
+    },
+    {
+      "key": "impact.dirt",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/impact_dirt_01.ogg",
+        "res://assets/audio/weapon/impact_dirt_02.ogg",
+        "res://assets/audio/weapon/impact_dirt_03.ogg",
+        "res://assets/audio/weapon/impact_dirt_04.ogg"
+      ]
+    },
+    {
+      "key": "impact.water",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/impact_water_01.ogg",
+        "res://assets/audio/weapon/impact_water_02.ogg",
+        "res://assets/audio/weapon/impact_water_03.ogg",
+        "res://assets/audio/weapon/impact_water_04.ogg"
+      ]
+    },
+    {
+      "key": "hit.marker",
+      "category": "marker",
+      "bus": "UI",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.99, 1.01],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/hit_marker_01.ogg",
+        "res://assets/audio/ui/hit_marker_02.ogg"
+      ]
+    },
+    {
+      "key": "hit.headshot",
+      "category": "marker",
+      "bus": "UI",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/hit_headshot_01.ogg",
+        "res://assets/audio/ui/hit_headshot_02.ogg"
+      ]
+    },
+    {
+      "key": "hit.kill",
+      "category": "marker",
+      "bus": "UI",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/hit_kill_01.ogg"
+      ]
+    },
+    {
+      "key": "explosive.fuse",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 2.0,
+      "maxDistance": 20.0,
+      "priority": 70,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/weapon/fuse_loop.ogg"
+      ]
+    },
+    {
+      "key": "explosive.beep",
+      "category": "click",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 25.0,
+      "priority": 70,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "files": [
+        "res://assets/audio/weapon/timer_beep_01.ogg"
+      ]
+    },
+    {
+      "key": "explosion",
+      "category": "explosion",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 95,
+      "limit": 6,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.0,
+      "delay": true,
+      "layers": [
+        { "name": "near", "from": 0.0, "to": 80.0, "fade": 40.0, "volume": 0.0, "unitSize": 20.0, "maxDistance": 250.0, "category": "explosion", "files": [
+          "res://assets/audio/weapon/explosion_near_01.ogg",
+          "res://assets/audio/weapon/explosion_near_02.ogg",
+          "res://assets/audio/weapon/explosion_near_03.ogg"
+        ] },
+        { "name": "mid", "from": 80.0, "to": 500.0, "fade": 120.0, "volume": -2.0, "unitSize": 60.0, "maxDistance": 900.0, "category": "distant", "files": [
+          "res://assets/audio/weapon/explosion_mid_01.ogg",
+          "res://assets/audio/weapon/explosion_mid_02.ogg"
+        ] },
+        { "name": "far", "from": 500.0, "to": 2500.0, "fade": 250.0, "volume": -4.0, "unitSize": 200.0, "maxDistance": 2600.0, "category": "distant", "files": [
+          "res://assets/audio/weapon/explosion_far_01.ogg",
+          "res://assets/audio/weapon/explosion_far_02.ogg"
+        ] }
+      ]
+    },
+    {
+      "key": "explosion.debris",
+      "category": "gather",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 120.0,
+      "priority": 60,
+      "limit": 3,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/debris_01.ogg",
+        "res://assets/audio/weapon/debris_02.ogg",
+        "res://assets/audio/weapon/debris_03.ogg"
+      ]
+    },
+    {
+      "key": "ship.engine",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 300.0,
+      "priority": 65,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ship/engine_loop.ogg"
+      ]
+    },
+    {
+      "key": "ship.thrust",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 400.0,
+      "priority": 65,
+      "limit": 8,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ship/thrust_loop.ogg"
+      ]
+    },
+    {
+      "key": "ship.boost",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 400.0,
+      "priority": 70,
+      "limit": 4,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/boost_01.ogg",
+        "res://assets/audio/ship/boost_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.hatch.open",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 3.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/hatch_open_01.ogg",
+        "res://assets/audio/ship/hatch_open_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.hatch.close",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 3.0,
+      "maxDistance": 30.0,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/hatch_close_01.ogg",
+        "res://assets/audio/ship/hatch_close_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.touchdown",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/touchdown_01.ogg",
+        "res://assets/audio/ship/touchdown_02.ogg"
+      ]
+    },
+    {
+      "key": "ship.crash",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 150.0,
+      "priority": 75,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/ship/crash_01.ogg",
+        "res://assets/audio/ship/crash_02.ogg"
+      ]
+    },
+    {
+      "key": "ui.click",
+      "category": "ui",
+      "bus": "UI",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/click_01.wav",
+        "res://assets/audio/ui/click_02.wav",
+        "res://assets/audio/ui/click_03.wav"
+      ]
+    },
+    {
+      "key": "ui.hover",
+      "category": "ui",
+      "bus": "UI",
+      "volume": -6.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "cooldown": 0.05,
+      "files": [
+        "res://assets/audio/ui/hover_01.wav",
+        "res://assets/audio/ui/hover_02.wav"
+      ]
+    },
+    {
+      "key": "ui.drag",
+      "category": "ui",
+      "bus": "UI",
+      "volume": -3.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/drag_01.wav",
+        "res://assets/audio/ui/drag_02.wav"
+      ]
+    },
+    {
+      "key": "ui.drop",
+      "category": "ui",
+      "bus": "UI",
+      "volume": -2.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/drop_01.wav",
+        "res://assets/audio/ui/drop_02.wav"
+      ]
+    },
+    {
+      "key": "ui.craft.start",
+      "category": "ui",
+      "bus": "UI",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/craft_start_01.ogg",
+        "res://assets/audio/ui/craft_start_02.ogg"
+      ]
+    },
+    {
+      "key": "ui.craft.done",
+      "category": "ui",
+      "bus": "UI",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/craft_done_01.ogg",
+        "res://assets/audio/ui/craft_done_02.ogg"
+      ]
+    },
+    {
+      "key": "ui.error",
+      "category": "ui",
+      "bus": "UI",
+      "volume": -2.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "cooldown": 0.2,
+      "files": [
+        "res://assets/audio/ui/error_01.ogg",
+        "res://assets/audio/ui/error_02.ogg"
+      ]
+    },
+    {
+      "key": "ui.inventory.open",
+      "category": "ui",
+      "bus": "UI",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/inventory_open_01.ogg",
+        "res://assets/audio/ui/inventory_open_02.ogg"
+      ]
+    },
+    {
+      "key": "ui.inventory.close",
+      "category": "ui",
+      "bus": "UI",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/ui/inventory_close_01.ogg",
+        "res://assets/audio/ui/inventory_close_02.ogg"
+      ]
+    },
+    {
+      "key": "ui.notify",
+      "category": "ui",
+      "bus": "UI",
+      "volume": -2.0,
+      "space": "2d",
+      "priority": 90,
+      "limit": 3,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "occlude": false,
+      "cooldown": 0.5,
+      "files": [
+        "res://assets/audio/ui/notify_01.ogg",
+        "res://assets/audio/ui/notify_02.ogg"
+      ]
+    },
+    {
+      "key": "amb.wind.calm",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/wind_calm.ogg"
+      ]
+    },
+    {
+      "key": "amb.wind.strong",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/wind_strong.ogg"
+      ]
+    },
+    {
+      "key": "amb.wind.high",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/wind_high.ogg"
+      ]
+    },
+    {
+      "key": "amb.birds.meadow",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/birds_meadow.ogg"
+      ]
+    },
+    {
+      "key": "amb.birds.forest",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/birds_forest.ogg"
+      ]
+    },
+    {
+      "key": "amb.insects.night",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/insects_night.ogg"
+      ]
+    },
+    {
+      "key": "amb.surf.near",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/surf_near.ogg"
+      ]
+    },
+    {
+      "key": "amb.surf.far",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/surf_far.ogg"
+      ]
+    },
+    {
+      "key": "amb.leaves",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/ambience/leaves.ogg"
+      ]
+    },
+    {
+      "key": "amb.thunder",
+      "category": "accent",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "3d",
+      "priority": 25,
+      "limit": 1,
+      "pitch": [0.85, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "unitSize": 400.0,
+      "maxDistance": 6000.0,
+      "files": [
+        "res://assets/audio/ambience/thunder_01.ogg",
+        "res://assets/audio/ambience/thunder_02.ogg",
+        "res://assets/audio/ambience/thunder_03.ogg",
+        "res://assets/audio/ambience/thunder_04.ogg"
+      ]
+    },
+    {
+      "key": "amb.owl",
+      "category": "accent",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "3d",
+      "priority": 20,
+      "limit": 1,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "unitSize": 30.0,
+      "maxDistance": 400.0,
+      "files": [
+        "res://assets/audio/ambience/owl_01.ogg",
+        "res://assets/audio/ambience/owl_02.ogg"
+      ]
+    },
+    {
+      "key": "amb.crow",
+      "category": "accent",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "3d",
+      "priority": 20,
+      "limit": 1,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "unitSize": 30.0,
+      "maxDistance": 400.0,
+      "files": [
+        "res://assets/audio/ambience/crow_01.ogg",
+        "res://assets/audio/ambience/crow_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.call",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 8.0,
+      "maxDistance": 140.0,
+      "priority": 55,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_call_01.ogg",
+        "res://assets/audio/animals/deer_call_02.ogg",
+        "res://assets/audio/animals/deer_call_03.ogg",
+        "res://assets/audio/animals/deer_call_04.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.alarm",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 160.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_alarm_01.ogg",
+        "res://assets/audio/animals/deer_alarm_02.ogg",
+        "res://assets/audio/animals/deer_alarm_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_hurt_01.ogg",
+        "res://assets/audio/animals/deer_hurt_02.ogg",
+        "res://assets/audio/animals/deer_hurt_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_death_01.ogg",
+        "res://assets/audio/animals/deer_death_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.call",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": -6.0,
+      "unitSize": 4.0,
+      "maxDistance": 45.0,
+      "priority": 55,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_call_01.ogg",
+        "res://assets/audio/animals/boar_call_02.ogg",
+        "res://assets/audio/animals/boar_call_03.ogg",
+        "res://assets/audio/animals/boar_call_04.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.alarm",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 160.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_alarm_01.ogg",
+        "res://assets/audio/animals/boar_alarm_02.ogg",
+        "res://assets/audio/animals/boar_alarm_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.threat",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_threat_01.ogg",
+        "res://assets/audio/animals/boar_threat_02.ogg",
+        "res://assets/audio/animals/boar_threat_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.attack",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_attack_01.ogg",
+        "res://assets/audio/animals/boar_attack_02.ogg",
+        "res://assets/audio/animals/boar_attack_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_hurt_01.ogg",
+        "res://assets/audio/animals/boar_hurt_02.ogg",
+        "res://assets/audio/animals/boar_hurt_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_death_01.ogg",
+        "res://assets/audio/animals/boar_death_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.call",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 40.0,
+      "maxDistance": 900.0,
+      "priority": 55,
+      "limit": 2,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_call_01.ogg",
+        "res://assets/audio/animals/wolf_call_02.ogg",
+        "res://assets/audio/animals/wolf_call_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.alarm",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 160.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_alarm_01.ogg",
+        "res://assets/audio/animals/wolf_alarm_02.ogg",
+        "res://assets/audio/animals/wolf_alarm_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.threat",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_threat_01.ogg",
+        "res://assets/audio/animals/wolf_threat_02.ogg",
+        "res://assets/audio/animals/wolf_threat_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.attack",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_attack_01.ogg",
+        "res://assets/audio/animals/wolf_attack_02.ogg",
+        "res://assets/audio/animals/wolf_attack_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_hurt_01.ogg",
+        "res://assets/audio/animals/wolf_hurt_02.ogg",
+        "res://assets/audio/animals/wolf_hurt_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_death_01.ogg",
+        "res://assets/audio/animals/wolf_death_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.call",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 6.0,
+      "maxDistance": 70.0,
+      "priority": 55,
+      "limit": 2,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_call_01.ogg",
+        "res://assets/audio/animals/bear_call_02.ogg",
+        "res://assets/audio/animals/bear_call_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.alarm",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 160.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_alarm_01.ogg",
+        "res://assets/audio/animals/bear_alarm_02.ogg",
+        "res://assets/audio/animals/bear_alarm_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.threat",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 14.0,
+      "maxDistance": 240.0,
+      "priority": 65,
+      "limit": 2,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_threat_01.ogg",
+        "res://assets/audio/animals/bear_threat_02.ogg",
+        "res://assets/audio/animals/bear_threat_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.attack",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 80.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_attack_01.ogg",
+        "res://assets/audio/animals/bear_attack_02.ogg",
+        "res://assets/audio/animals/bear_attack_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.hurt",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 110.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_hurt_01.ogg",
+        "res://assets/audio/animals/bear_hurt_02.ogg",
+        "res://assets/audio/animals/bear_hurt_03.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.death",
+      "category": "voice",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_death_01.ogg",
+        "res://assets/audio/animals/bear_death_02.ogg"
+      ]
+    },
+    {
+      "key": "animal.deer.step",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -2.0,
+      "unitSize": 2.0,
+      "maxDistance": 30.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/deer_step_01.ogg",
+        "res://assets/audio/animals/deer_step_02.ogg",
+        "res://assets/audio/animals/deer_step_03.ogg",
+        "res://assets/audio/animals/deer_step_04.ogg",
+        "res://assets/audio/animals/deer_step_05.ogg",
+        "res://assets/audio/animals/deer_step_06.ogg"
+      ]
+    },
+    {
+      "key": "animal.boar.step",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -3.0,
+      "unitSize": 2.0,
+      "maxDistance": 28.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/boar_step_01.ogg",
+        "res://assets/audio/animals/boar_step_02.ogg",
+        "res://assets/audio/animals/boar_step_03.ogg",
+        "res://assets/audio/animals/boar_step_04.ogg",
+        "res://assets/audio/animals/boar_step_05.ogg",
+        "res://assets/audio/animals/boar_step_06.ogg"
+      ]
+    },
+    {
+      "key": "animal.wolf.step",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": -7.0,
+      "unitSize": 2.0,
+      "maxDistance": 20.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/wolf_step_01.ogg",
+        "res://assets/audio/animals/wolf_step_02.ogg",
+        "res://assets/audio/animals/wolf_step_03.ogg",
+        "res://assets/audio/animals/wolf_step_04.ogg",
+        "res://assets/audio/animals/wolf_step_05.ogg",
+        "res://assets/audio/animals/wolf_step_06.ogg"
+      ]
+    },
+    {
+      "key": "animal.bear.step",
+      "category": "footstep",
+      "bus": "Footsteps",
+      "volume": 2.0,
+      "unitSize": 2.0,
+      "maxDistance": 40.0,
+      "priority": 30,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/animals/bear_step_01.ogg",
+        "res://assets/audio/animals/bear_step_02.ogg",
+        "res://assets/audio/animals/bear_step_03.ogg",
+        "res://assets/audio/animals/bear_step_04.ogg",
+        "res://assets/audio/animals/bear_step_05.ogg",
+        "res://assets/audio/animals/bear_step_06.ogg"
+      ]
+    }
+  ]
+}

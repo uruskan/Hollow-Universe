@@ -30,16 +30,12 @@ public partial class SystemMapUi : Control
     private Label _time = null!;
     private Label _speed = null!;
     private Button _pause = null!;
-    private Button _compressed = null!;
-    private Button _trueScale = null!;
-    private bool _logScale = true;
     private readonly List<Control> _panels = new();
 
     public event Action<int>? BodyChosen;
     public event Action? BackRequested;
     public event Action<int>? SpeedStep;
     public event Action? PauseToggled;
-    public event Action? ScaleToggled;
 
     public MapOverlay Overlay { get; private set; } = null!;
 
@@ -174,7 +170,7 @@ public partial class SystemMapUi : Control
         _panels.Add(_info);
     }
 
-    // Top centre: time travel and the distance scale.
+    // Top centre: time travel. (Distances are always compressed; the true-scale switch was removed on 14 October 2026.)
     private void BuildTimeBar()
     {
         var bar = new PanelContainer();
@@ -209,27 +205,6 @@ public partial class SystemMapUi : Control
         clock.AddChild(_speed);
         row.AddChild(clock);
 
-        var divider = new VSeparator();
-        Ui.Track(divider, c =>
-        {
-            c.AddThemeConstantOverride("separation", Ui.Px(14));
-            c.AddThemeStyleboxOverride("separator", new StyleBoxLine
-            {
-                Color = Ui.Divider,
-                Thickness = Math.Max(1, (int)MathF.Round(Ui.Scale)),
-                Vertical = true,
-            });
-        });
-        row.AddChild(divider);
-
-        var segments = new ButtonGroup();
-        _compressed = Segment("Compressed", segments);
-        _trueScale = Segment("True scale", segments);
-        _compressed.Pressed += () => ChooseScale(true);
-        _trueScale.Pressed += () => ChooseScale(false);
-        row.AddChild(_compressed);
-        row.AddChild(_trueScale);
-
         bar.AddChild(row);
         AddChild(bar);
         Ui.Place(bar, LayoutPreset.CenterTop);
@@ -245,7 +220,7 @@ public partial class SystemMapUi : Control
         foreach ((string keys, string action) in new[]
                  {
                      ("Drag", "Rotate"), ("Wheel", "Zoom"), ("Click", "Select"), ("Double-click", "Focus"),
-                     ("Space", "Pause"), (",|.", "Time speed"), ("L", "Scale"), ("Esc", "Galaxy map"),
+                     ("Space", "Pause"), (",|.", "Time speed"), ("Esc", "Galaxy map"),
                  })
         {
             line.AddChild(Ui.KeyHint(keys, action));
@@ -273,27 +248,11 @@ public partial class SystemMapUi : Control
         IconAlignment = HorizontalAlignment.Center,
     };
 
-    private static Button Segment(string text, ButtonGroup group) => new()
-    {
-        Text = text,
-        ThemeTypeVariation = "SegmentButton",
-        ToggleMode = true,
-        ButtonGroup = group,
-    };
-
-    private void ChooseScale(bool logScale)
-    {
-        if (logScale != _logScale)
-        {
-            ScaleToggled?.Invoke();
-        }
-    }
-
     public void ShowSystem(StarSystem system, double distanceFromSol)
     {
         _name.Text = system.Name;
         GalaxyStar primary = system.Primary;
-        _star.Text = $"{system.Root.StarClass} · {system.Root.StarClass.KindName}";
+        _star.Text = $"{system.PrimaryStar.StarClass} · {system.PrimaryStar.StarClass.KindName}";
         int stars = system.Count(BodyKind.Star);
         int planets = system.Count(BodyKind.Planet);
         int moons = system.Count(BodyKind.Moon);
@@ -396,9 +355,26 @@ public partial class SystemMapUi : Control
             else
             {
                 Row("Width", Ui.Distance(body.BeltWidth));
+                Row("Material", BodyText.MaterialName(body.BeltMaterial), numeric: false);
+                Row("Mass", Ui.Times(body.Mass / Units.EarthMass, "Earth", "G2"));
             }
         }
-        if (body.Kind == BodyKind.Star)
+        if (body.Kind == BodyKind.Barycentre)
+        {
+            Row("Mass", Ui.Times(body.Mass / Units.SolarMass, "Sun"));
+            var members = new List<string>();
+            foreach (int child in body.Children)
+            {
+                Body member = system.Bodies[child];
+                if (member.Kind is BodyKind.Star or BodyKind.Barycentre)
+                {
+                    members.Add(ShortName(system, member));
+                }
+            }
+            Row("Members", string.Join(" and ", members), numeric: false);
+            Row("Age", Ui.Age(system.Age));
+        }
+        else if (body.Kind == BodyKind.Star)
         {
             Row("Mass", Ui.Times(body.Mass / Units.SolarMass, "Sun"));
             Row("Radius", body.Radius < 0.01 * Units.SolarRadius
@@ -412,8 +388,9 @@ public partial class SystemMapUi : Control
             {
                 Row("Luminosity", Ui.Times(body.Luminosity, "Sun", body.Luminosity < 0.01 ? "G3" : "N2"));
             }
+            Row("Age", Ui.Age(system.Age));
         }
-        else if (body.Kind != BodyKind.Belt)
+        else if (body.Kind is BodyKind.Planet or BodyKind.Moon)
         {
             double earthMasses = body.Mass / Units.EarthMass;
             Row("Mass", earthMasses < 0.001
@@ -422,15 +399,44 @@ public partial class SystemMapUi : Control
             Row("Radius", Ui.Number(body.Radius / 1000, "N0") + " km");
             Row("Gravity", Ui.Number(body.SurfaceGravity, "N2") + " g");
             Row("Temperature", Ui.Temperature(body.Temperature));
+            PlanetState? state = body.State;
+            if (state != null && state.MaxTemperature - state.MinTemperature > 20)
+            {
+                Row("Day / night", Ui.Number(state.MaxTemperature, "N0") + " / " + Ui.Temperature(state.MinTemperature));
+            }
             Row("Atmosphere", AtmosphereName(body), numeric: false);
             if (body.RotationPeriod != 0)
             {
                 Row("Day length", body.TidallyLocked ? "Tidally locked" : Ui.Duration(body.RotationPeriod), !body.TidallyLocked);
             }
             Row("Axial tilt", Ui.Number(body.AxialTilt * 180 / Math.PI, "0.0") + "°");
+            if (state != null)
+            {
+                Row("Surface", BodyText.Surface(state), numeric: false);
+                Row("Made of", BodyText.Composition(state.Composition), numeric: false);
+                if (state.Surface != SurfaceKind.None)
+                {
+                    Row("Geology", BodyText.Geology(state), numeric: false);
+                    Row("Heat flow", Ui.Number(state.HeatFlow, state.HeatFlow < 0.1 ? "0.000" : "N2") + " W/m²"
+                        + (state.TidalHeating > 0.5 * state.HeatFlow ? " (tides)" : ""));
+                }
+                if (state.MagneticField >= 0.01)
+                {
+                    Row("Magnetic field", Ui.Times(state.MagneticField, "Earth", state.MagneticField < 10 ? "N2" : "N0"));
+                }
+                if (state.SubsurfaceOcean)
+                {
+                    Row("Under the ice", "Liquid water ocean", numeric: false);
+                }
+                if (state.Biosphere != Biosphere.None)
+                {
+                    Row("Life", BodyText.Life(state.Biosphere), numeric: false);
+                }
+                Row("Hazards", BodyText.HazardList(state.Hazards), numeric: false);
+            }
             if (body.HasRings)
             {
-                Row("Rings", "Yes", numeric: false);
+                Row("Rings", body.RingMaterial != Hollow.Galaxy.Systems.Material.None ? BodyText.MaterialName(body.RingMaterial) : "Yes", numeric: false);
             }
             Row("Landable", body.Landable ? "Yes" : "No", numeric: false);
         }
@@ -455,15 +461,12 @@ public partial class SystemMapUi : Control
         }
     }
 
-    public void SetTime(DateTime utc, string speed, bool paused, bool logScale)
+    public void SetTime(DateTime utc, string speed, bool paused)
     {
         _time.Text = utc.ToString("d MMM yyyy  HH:mm", CultureInfo.InvariantCulture) + " UTC";
         _speed.Text = paused ? "Paused" : speed;
         _pause.Icon = UiIcons.Get(paused ? UiIcon.Play : UiIcon.Pause, 18);
         _pause.TooltipText = paused ? "Play  (Space)" : "Pause  (Space)";
-        _logScale = logScale;
-        _compressed.SetPressedNoSignal(logScale);
-        _trueScale.SetPressedNoSignal(!logScale);
     }
 
     private static UiIcon IconOf(Body body) => body.Kind switch
@@ -471,6 +474,7 @@ public partial class SystemMapUi : Control
         BodyKind.Star => UiIcon.Star,
         BodyKind.Belt => UiIcon.Belt,
         BodyKind.Moon => UiIcon.Moon,
+        BodyKind.Barycentre => UiIcon.Barycentre,
         _ => UiIcon.Planet,
     };
 
@@ -481,6 +485,10 @@ public partial class SystemMapUi : Control
         {
             return StarColors.For(body.StarClass, (float)body.Temperature).Lerp(Ui.Warm, 0.25f);
         }
+        if (body.Kind == BodyKind.Barycentre)
+        {
+            return Ui.Secondary;
+        }
         return body.PlanetType switch
         {
             PlanetType.EarthLike => new Color(0.45f, 0.85f, 0.65f),
@@ -489,27 +497,33 @@ public partial class SystemMapUi : Control
             PlanetType.IceGiant => new Color(0.55f, 0.85f, 0.95f),
             PlanetType.AmmoniaWorld => new Color(0.85f, 0.75f, 0.45f),
             PlanetType.MetalRich => new Color(0.95f, 0.60f, 0.40f),
+            PlanetType.LavaWorld => new Color(1.00f, 0.50f, 0.28f),
+            PlanetType.GasDwarf => new Color(0.62f, 0.82f, 0.84f),
             PlanetType.Icy or PlanetType.RockyIce => new Color(0.78f, 0.86f, 0.94f),
             PlanetType.AsteroidBelt => Ui.Tertiary,
             _ => body.Kind == BodyKind.Moon ? Ui.Secondary : new Color(0.75f, 0.72f, 0.68f),
         };
     }
 
-    /// <summary>A body's name without the system's name in front ("A 4" for "Nolcas Peris BF-BA 5-0 A 4"); stars keep theirs.</summary>
+    /// <summary>
+    /// A body's name without the system's name in front ("A 4" for "Nolcas Peris BF-BA 5-0 A 4", "B" for its star B);
+    /// a single star keeps its name.
+    /// </summary>
     public static string ShortName(StarSystem system, Body body) =>
-        body.Kind != BodyKind.Star && body.Name.StartsWith(system.Name + " ", StringComparison.Ordinal)
+        body.Name.StartsWith(system.Name + " ", StringComparison.Ordinal)
             ? body.Name[(system.Name.Length + 1)..]
             : body.Name;
 
-    private static string AtmosphereName(Body body) => body.Atmosphere switch
+    // The atmosphere by its gases and pressure, e.g. "Thick carbon dioxide, 92 atm"; a giant's has no surface.
+    private static string AtmosphereName(Body body)
     {
-        AtmosphereType.None => "None",
-        AtmosphereType.Thin => $"Thin ({Ui.Number(body.SurfacePressure, body.SurfacePressure < 0.01 ? "G2" : "N2")} atm)",
-        AtmosphereType.Thick => $"Thick ({Ui.Number(body.SurfacePressure, "N1")} atm)",
-        AtmosphereType.Breathable => $"Breathable ({Ui.Number(body.SurfacePressure, "N2")} atm)",
-        AtmosphereType.HydrogenHelium => "Hydrogen–helium",
-        _ => "Unknown",
-    };
+        if (body.Atmosphere == AtmosphereType.None || body.State is { Surface: SurfaceKind.None })
+        {
+            return body.AtmosphereName;
+        }
+        double p = body.SurfacePressure;
+        return body.AtmosphereName + ", " + Ui.Number(p, p < 0.01 ? "G2" : p < 10 ? "N2" : "N0") + " atm";
+    }
 
     // Bodies in tree order: each star or planet followed by what orbits it, inner orbits first.
     private static IEnumerable<Body> TreeOrder(StarSystem system)
@@ -542,7 +556,7 @@ public partial class SystemMapUi : Control
             depth++;
             parent = system.Bodies[parent].Parent;
         }
-        return body.Kind == BodyKind.Star && body.Index == 0 ? 0 : depth + 1;
+        return body.Index == 0 ? 0 : depth + 1;
     }
 
     private static string Plural(int n, string word) => $"{n} {word}{(n == 1 ? "" : "s")}";

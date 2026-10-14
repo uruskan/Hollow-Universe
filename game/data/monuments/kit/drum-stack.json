@@ -1,0 +1,37 @@
+{
+ "key": "drum-stack",
+ "model": "res://assets/monuments/kit/drum-stack.glb",
+ "collision": [
+  {
+   "box": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "half": [
+    0.6,
+    0.5,
+    0.6
+   ],
+   "rot": [
+    1.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  }
+ ],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -0.74,
+   -0.53,
+   -0.74
+  ],
+  "max": [
+   0.74,
+   1.03,
+   0.74
+  ]
+ }
+}

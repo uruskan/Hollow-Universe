@@ -1,0 +1,24 @@
+{
+  "note": "The kinds of behaviour a world thing may have (GROUND_SYSTEMS.md §2.1, §3.3): append only, an entry's index is its number. Each has exactly one handler in Hollow.Simulation (Capabilities/), and the zone refuses to start while one lacks it or a handler names none. Which things have which is said by their own data, in the blocks each note names; what a capability tells a player about a thing is its share of the thing's viewer flags.",
+  "capabilities": [
+    { "key": "owned", "note": "Placed or built by a player: every deployable (deployables.json), a door and its lock, the claim device, a ship, an explosive. Mine for its owner (a door's: its lock's fitter, if it has a lock), Teammate for their team." },
+    { "key": "container", "note": "Holds items: deployables.json slots, world props, bags of dropped items, bodies, a ship's cargo. Empty while it holds nothing." },
+    { "key": "burner", "note": "Burns fuel: deployables.json device (the campfire, the furnace). Lit while it burns." },
+    { "key": "machine", "note": "Works on what is in it: deployables.json recycler and research (the recycler, the research table). Lit while at work." },
+    { "key": "door", "note": "Opens and shuts: building.json doors. CanUse when the viewer may pass it now." },
+    { "key": "key-lock", "note": "items.json building KeyLock, fitted to a door. Locked." },
+    { "key": "code-lock", "note": "items.json building CodeLock, fitted to a door. Locked; HasCode once a code is set; Authorised when the viewer is on its list." },
+    { "key": "cupboard", "note": "building.json claim: a base's building rights and upkeep. Authorised when the viewer is on its list." },
+    { "key": "ship", "note": "ships.json. Locked when its owner locked it." },
+    { "key": "lifetime", "note": "Goes after a while, on world time, by the zone's one lifetime step (GROUND_SYSTEMS.md §3.7): survival.json lifetimes (bags of dropped items, bodies, a dud), animals.json corpse (an animal's carcass). At once when emptied, if its rule says so." },
+    { "key": "explosive", "note": "explosives.json throwables: a charge or grenade with its fuse. Stuck to or lying on a thing, it falls when that goes (GROUND_SYSTEMS.md §3.6)." },
+    { "key": "standing", "note": "Placed on something that may go (GROUND_SYSTEMS.md §6): every deployable (deployables.json). Standing on a foundation or floor, it goes when that goes (Rust): it breaks and what it held spills in one bag. Nothing for a viewer." },
+    { "key": "pickup", "note": "Taken whole with E (GROUND_SYSTEMS.md §5): gather.json's pickups and berry bushes (a bush is picked bare and stays), bags of dropped items (all that fits), spent arrows." },
+    { "key": "portable", "note": "deployables.json pickup: an emptied deployable is picked back up as its item where the viewer has building rights (Rust's)." },
+    { "key": "station", "note": "deployables.json workbench: its tech tree, opened with E, and the tree's unlocks (world.json trees)." },
+    { "key": "wounded", "note": "A player down (the wounded state): another helps them up." },
+    { "key": "character", "note": "A player awake: the leader of a team invites them into it." },
+    { "key": "dud", "note": "An explosive whose fuse went out: anyone lights it again." },
+    { "key": "arrow", "note": "A spent arrow stuck where it hit (GROUND_SYSTEMS.md §5), held by what it hit: when that goes it falls to the ground below." }
+  ]
+}

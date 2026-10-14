@@ -74,18 +74,24 @@ Phases 2 and 3 need no rewrite because of P7.
 ```
 src/Hollow.Core          math (double vectors, deterministic math), hashing, RNG, IDs, units, time
 src/Hollow.Galaxy        galaxy model, addresses, sectors, star generation, catalogue, names, star systems
-src/Hollow.Simulation    (M2) entities, components, rules: movement, items, crafting, building, combat
-src/Hollow.Net           (M2) protocol, serialization, replication, prediction support, transport adapter
-src/Hollow.Persistence   (M3) storage interfaces, SQLite and PostgreSQL implementations
-src/Hollow.Server        (M2) the dedicated server program: zone host, coordinator, services
+src/Hollow.Surface       (G1) planet surfaces: height, climate, biomes, scatter, chunk meshes and collision
+src/Hollow.Simulation    (G1) entities, components, rules: movement, items, crafting, building, combat
+src/Hollow.Net           (G1) protocol, serialization, replication, prediction support, transport adapter
+src/Hollow.Client        (G1) the client without graphics: connection, prediction, interpolation, client world
+src/Hollow.Persistence   (G1) storage interfaces, SQLite and PostgreSQL implementations
+src/Hollow.Server        (G1) the dedicated server program: zone host, coordinator, services
 game/                    the Godot client (project.godot, HollowUniverse.csproj)
+game/data/ground         (G2) item, recipe, building, loot and weapon tables, read by server and client
 tests/Hollow.Tests       test runner for everything engine-free
-tools/                   catalogue builder, bots, load tests
+tools/                   catalogue builder, generator report, bots (Hollow.Bots), load tests
+third_party/             vendored packages, so everything builds without network access
 ```
 
-Dependencies only point down this list: `Core ← Galaxy ← Simulation ← Net ← Server / client`.
-Persistence depends on Core and Simulation. **Nothing in `src/` references Godot.** A test fails the build
-if any `src/` assembly references `GodotSharp`.
+Dependencies only point down this list: `Core ← Galaxy ← Surface ← Simulation ← Net ← Client / Server`.
+Persistence depends on Core and Simulation. The Godot client uses `Hollow.Client`, and `Hollow.Server` when it
+hosts a game itself. Bots are `Hollow.Client` without graphics. **Nothing in `src/` references Godot.** A test fails
+the build if any `src/` assembly references `GodotSharp`. GROUND.md §4 describes how these fit together for the
+ground game.
 
 ---
 
@@ -99,11 +105,15 @@ if any `src/` assembly references `GodotSharp`.
 | Engine (client) | **Godot 4.7.2 .NET edition**, Forward+ renderer | Text-based project files, light editor, MIT licence. |
 | Server | Plain .NET console program, no engine | P3. Runs on Linux or Windows. |
 | Transport | **LiteNetLib** (MIT, pure C#) over UDP | Proven reliable/unreliable channels, fragmentation, MTU discovery. |
-| Physics | **Jolt** through a C# binding on server and client (decide at M2, see §17) | Same engine family as Godot's built-in physics. Good kinematic character controller. |
+| Physics | **Jolt** through JoltPhysicsSharp on server and client (confirmed by the G1 spike: identical results in a console process and in the Godot client, GROUND.md §4.5) | Same engine family as Godot's built-in physics. Its virtual character is a good kinematic controller and isn't part of the solver, so replaying inputs for prediction is cheap. |
 | Database | SQLite for development and small shards, PostgreSQL for production | Same repository interfaces. |
-| Tests | Plain console runner in `tests/` (no NuGet packages needed) | The AI workspace cannot reach NuGet. Can move to xUnit later. |
+| Tests | Plain console runner in `tests/` | Can move to xUnit later. |
+| Third-party packages | Vendored in `third_party/packages` as `.nupkg` files; `NuGet.config` maps their IDs to that folder only (`third_party/README.md` lists them) | The AI workspace cannot reach NuGet, so a clone must build offline. |
 
-No reflection or JSON on hot paths. Serializers are generated at compile time (C# source generators).
+No reflection or JSON on hot paths. Serializers are generated ahead of time: `tools/Hollow.NetGen` reads the message
+definitions (`src/Hollow.Net/Protocol/Messages.cs`) and writes `Messages.g.cs` into the repository, and a test fails
+when that file is out of date. A Roslyn source generator would need the compiler packages, which aren't vendored;
+a text-to-text tool also keeps working when a definition changes in a way the old generated code can't compile with.
 
 ---
 
@@ -114,7 +124,7 @@ Three frames, each with its own type, so they can't be mixed by accident:
 | Frame | Used for | Type | Unit | Origin and axes |
 |---|---|---|---|---|
 | **Galactic** | star positions, galaxy map, jumps | `GalacticPosition` (3 × double) | light-year | Sol. +Z toward the Galactic Centre, +Y toward the north galactic pole, +X toward galactic longitude 90° (the direction of the Sun's orbit). Right-handed, Y up, like Godot. |
-| **System** | bodies, stations, ships in supercruise | `SystemPosition` (3 × double) | metre | the system's primary star. Reference plane is the system's orbital plane (x–z), +Y is its north. |
+| **System** | bodies, stations, ships in supercruise | `SystemPosition` (3 × double) | metre | the root of the system's orbit tree: its only star, or the barycentre of its stars (GALAXY.md §10.1). Reference plane is the system's orbital plane (x–z), +Y is its north. |
 | **Local** | physics, rendering, gameplay | `LocalPosition` (3 × float) | metre | the zone's origin, close to the players. Planet surfaces use a tangent frame: origin on the surface, +Y = local up. |
 
 Rules:
@@ -136,7 +146,7 @@ Rules:
 | Thing | ID | Stored in the database? |
 |---|---|---|
 | Star system | `SystemAddress`, 64 bits. Procedural: level + sector + cell + index. Catalogue: flag + catalogue + catalogue ID. Layout in GALAXY.md §6. | No, it's generated |
-| Body (star, planet, moon, belt) | `BodyId` = SystemAddress + 32-bit body path (star, planet, moon) | No |
+| Body (star, barycentre, planet, moon, belt) | `BodyId` = SystemAddress + 32-bit body path: node (star or barycentre), orbit slot, moon, feature (GALAXY.md §10.1). Never a list position, so it can't shift. | No |
 | Surface tile | BodyId + cube face + quadtree path | Only if players changed it |
 | Natural feature (ore node, tree, monument) | tile + index | Only overrides, e.g. "depleted until T" |
 | Persistent entity (base part, box, item, ship, character) | `EntityId`, 64 bits, allocated by the shard: 41 bits time + 9 bits allocator + 14 bits sequence | Yes |
@@ -161,9 +171,12 @@ every machine, because the server and every client generate the same universe in
    rounded by IEEE 754 and therefore identical everywhere).
 3. **Every generated object has its own RNG stream** seeded from its address. Adding a new property to
    one object never shifts another object's results.
-4. **Generator versions.** `GalaxyVersion` is a constant. Golden tests pin a hash of known outputs. While
-   in development the generator may change freely (update the goldens on purpose). **Once a shard goes
-   live, its generator version is frozen.** Changes then ship as a new version for new shards or wipes.
+4. **Generator versions.** Each pipeline stage (§9) has a version constant (`GeneratorVersion.Galaxy`,
+   `.System`, `.Surface`), mixed into that stage's seed, so a stage's output is a function of (seed, address,
+   version) and the stages change independently (GALAXY.md §14). Golden tests pin hashes of known outputs,
+   every stored field included. While in development the generator may change freely (update the goldens on
+   purpose). **Once a shard goes live, its generator versions are frozen.** Changes then ship as a new version
+   of the stage for new shards or wipes.
 5. **Floats to integers** go through explicit rounding helpers, never casts of values that could sit on a
    boundary.
 6. **Never depend on optional data.** Generation must give the same result whether or not a data file
@@ -183,12 +196,18 @@ Galaxy (density model)
  └ Sector         1024-ly cube, has a generated name
     └ Cell        octree levels 0–7; brighter stars live in bigger cells
        └ Star system   stars, planets, moons, rings, belts            ← M1 stops here
+                       and each body's physical state (the surface's inputs)
           └ Surface    terrain, biomes, resources, monuments          ← M4
              └ Points of interest, wrecks, signals                    ← later
 ```
 
 Each stage is a pure function of (seed, address, version), computed on worker threads and cached (LRU)
 on both server and client. The full specification of the first three stages is in [GALAXY.md](GALAXY.md).
+
+Real content (famous exoplanets, real names of stars, named clusters and nebulae) is an **authored layer** laid
+over the generated stages (GALAXY.md §15): compiled into `Hollow.Galaxy`, versioned like a stage, and keyed by
+catalogue ID and body path for systems and by position for regions, so it replaces exactly what it names and
+moves nothing else.
 
 ---
 
@@ -226,11 +245,16 @@ cross-boundary events. This is what lets zones move to other processes later (P7
 ### 10.2 Entities
 
 - An **entity** is a 64-bit ID plus components (data only). **Systems** (logic) run each tick in a fixed
-  order. Storage is archetype-based (decide own vs. the Arch library at M2).
+  order. Storage is our own and small (`Hollow.Simulation.Entities`, decided in G1): an entity is a slot with a
+  generation and a permanent `EntityId`; each component type has one sparse set (dense arrays to iterate, O(1) add,
+  get and remove). Archetype storage can replace the pools if profiling ever asks for it.
+- **As built (K0, 14 October 2026):** the zone is a host and each rule is a `ZoneSystem` with its own state, listed once
+  in `GroundSystems` and stepped in that order (ships under the physics gate, the slow ones once a second); systems find
+  each other by type and the host times each (GROUND_SYSTEMS.md §12.2).
 - **Static entities** (building parts, deployables, boxes) change rarely: no per-tick cost, replicated
   reliably when they change.
 - **Dynamic entities** (characters, projectiles, vehicles, ships) are simulated and snapshotted every tick.
-- Components declare their network and save schema with attributes. Serializers are source-generated.
+- Components declare their network and save schema with attributes. Serializers are generated (§5).
 
 ### 10.3 Physics
 
@@ -240,6 +264,10 @@ cross-boundary events. This is what lets zones move to other processes later (P7
 - **Client**: the same physics library runs a small local copy of the nearby collision world, so the
   player's own character and ship are predicted with exactly the server's code. Godot's built-in physics
   is only for cosmetics (debris, ragdolls).
+- **Streaming** (both sides, the same code): the ground and its natural objects exist only where something can
+  touch them (a character's surroundings, what a ship's queries can reach this tick), built ahead on worker threads
+  and taken in a few a tick; Jolt bodies are kept once made and the broadphase is updated incrementally, so the
+  world's churn costs little (GROUND.md §4.5).
 
 ### 10.4 Elapsed time (nothing ticks while unloaded)
 
@@ -255,7 +283,8 @@ live ticking within rounding.
 
 **Offline raids are live.** Attackers' presence loads the zone, so the base exists in full and its
 defences work. The owners get a raid alert from the notification service and can respawn at a bed inside
-the base.
+the base. As built in G5 (GROUND.md §6.6): sleepers die to raids like anyone, upkeep and decay run on the zone's slow
+schedule, and alerts wait for the owners' login.
 
 ---
 
@@ -272,9 +301,15 @@ the base.
 
 ### 11.2 Messages
 
-- Messages are C# structs with attributes. A source generator writes bit-packed serializers: variable-length
-  integers, quantized floats, delta-encoded fields.
-- A protocol version is checked on connect.
+- Messages are C# structs with attributes (`[NetMessage(id)]`, `[NetStruct]`, `[NetState]`; fields with `[Bits]`,
+  `[Signed]`, `[VarInt]`, `[Angle]`, `[Quantize]`, `[MaxLength]`, `[MaxCount]`). `tools/Hollow.NetGen` writes their
+  bit-packed serializers (§5): variable-length integers, quantized floats, and for entity states a delta against a
+  baseline (a bit per field, then the difference in as few bits as fit). Readers never throw on bad data; a message
+  that reads past its end or breaks a limit is dropped. Each generated message implements `INetMessage<T>` (its type
+  byte, its reader and its writers), and `MessageHandlers<TContext>` routes a packet's type byte to the one handler
+  registered for it (GROUND_SYSTEMS.md §12.4).
+- A protocol version and a hash of every message layout (generated) are checked on connect, so builds that don't
+  speak the same protocol refuse each other with a reason.
 
 ### 11.3 Replication (server → client)
 
@@ -282,9 +317,10 @@ the base.
   entity type. The player's own character, ship and team are always relevant.
 - **Static entities** are sent once when they become relevant (rate-limited batches), then only changes.
   A big base streams in over a few seconds instead of arriving as one burst.
-- **Dynamic entities** are sent in snapshots at 20 Hz, delta-compressed against the last snapshot the
-  client acknowledged. A priority accumulator decides what fits in the client's bandwidth budget
-  (target ≤ 256 kbit/s in a fight).
+- **Dynamic entities** are sent in snapshots at 20 Hz, delta-compressed against what the client acknowledged:
+  each entity against its newest state in a snapshot the client confirmed (by sequence and a 32-bit mask), so a lost
+  snapshot never breaks a later one. A priority accumulator decides what fits in the client's bandwidth budget
+  (target ≤ 256 kbit/s in a fight). GROUND.md §4.4 has the details as built.
 - **Events**: shots, impacts and sounds are unreliable when cosmetic and reliable when they change state.
 
 ### 11.4 Prediction, reconciliation, interpolation
@@ -357,7 +393,7 @@ exactly one owner.
 | Accounts | login, connect tokens, bans | module in the server process |
 | Directory | where each player is, which zone host owns which zone | module |
 | Chat | global, local, team, direct messages | module |
-| Notifications | raid alerts, "your miner is full"; later push to a phone app | module |
+| Notifications | raid alerts, "your miner is full"; later push to a phone app | module (G5: `INotificationService` in `Hollow.Server/Notifications`: raid alerts in the game or queued in SQLite for login, a push seam; GROUND.md §6.6) |
 | Market | trading between players | later |
 | Discovery | who first scanned which system or body (optional feature) | later |
 | Admin | moderation, server control | console commands first |
@@ -421,14 +457,22 @@ Each is an interface from day one, so moving it to its own process later is a de
 | M7 | Raiding | Explosives, structure damage, decay and upkeep, raid alerts. |
 | M8 | Empire | Miners and automation, monuments and rare loot, ship engineering, deeper crafting. |
 
+**The ground game runs ahead** (decided 12 October 2026) as steps G1–G7 in GROUND.md §5, on a real planet from the
+start:
+- M2 and M3 become part of G1–G3;
+- M6 and M7 become G2–G5;
+- G1 builds one planet's surface ahead of M4;
+- M4 finishes with G7 (every landable body, zones that merge and split);
+- M5 (ships) follows.
+
 ---
 
 ## 18. Open decisions
 
 | Decision | Options | Lean | Decide at |
 |---|---|---|---|
-| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | Jolt | M2 |
-| Entity storage | own archetype store / Arch | own, small | M2 |
+| Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | **Decided: Jolt** (JoltPhysicsSharp; the G1 spike passed, GROUND.md §4.5) | done |
+| Entity storage | own archetype store / Arch | **Decided: own, small** — a sparse set per component type (§10.2) | done |
 | Hosting | own machines / rented servers / cloud | rented dedicated servers | M3 |
 | Surface tile size and interaction distance | 1–4 km / 2–6 km | 2 km / 4 km | M4 |
 | Real-star catalogue | HYG 4.1 (~120k stars) / AT-HYG (~2.5M) | HYG now, AT-HYG later | after M1 |

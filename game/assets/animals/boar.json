@@ -1,0 +1,65 @@
+{
+  "species": "boar",
+  "source": "Hollow (art/animals/build_animals.py): our own, metaball anatomy, procedural clips",
+  "clips": {
+    "Idle": {
+      "seconds": 4.0,
+      "loop": true
+    },
+    "Graze": {
+      "seconds": 3.0,
+      "loop": true
+    },
+    "Alert": {
+      "seconds": 2.0,
+      "loop": true
+    },
+    "Threaten": {
+      "seconds": 2.0,
+      "loop": true
+    },
+    "Eat": {
+      "seconds": 2.4,
+      "loop": true
+    },
+    "Walk": {
+      "seconds": 0.8,
+      "loop": true,
+      "speed": 1.2
+    },
+    "Trot": {
+      "seconds": 0.46,
+      "loop": true,
+      "speed": 3.2
+    },
+    "Run": {
+      "seconds": 0.38,
+      "loop": true,
+      "speed": 6.6
+    },
+    "Attack": {
+      "seconds": 0.75,
+      "loop": false,
+      "hit": 0.35
+    },
+    "Hurt": {
+      "seconds": 0.4,
+      "loop": false
+    },
+    "Death": {
+      "seconds": 1.3,
+      "loop": false
+    }
+  },
+  "lods": [
+    5199,
+    1899,
+    639
+  ],
+  "length": 1.63,
+  "height": 0.86,
+  "head": [
+    0.58,
+    0.58
+  ]
+}

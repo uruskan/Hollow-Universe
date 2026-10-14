@@ -6,5 +6,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Deterministic>true</Deterministic>
     <AnalysisLevel>latest</AnalysisLevel>
+    <!-- Packages are vendored (third_party/, NuGet.config); the vulnerability audit would need nuget.org. -->
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 </Project>

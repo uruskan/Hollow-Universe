@@ -552,6 +552,114 @@ public static class Ui
 
     public static string Magnitude(double value) => value.ToString("+0.00;−0.00", CultureInfo.InvariantCulture);
 
+    /// <summary>An age given in Gyr: "4.57 billion years", "120 million years".</summary>
+    public static string Age(double gyr) => gyr >= 1
+        ? Number(gyr, gyr < 10 ? "N2" : "N1") + " billion years"
+        : Number(gyr * 1000, gyr < 0.01 ? "N1" : "N0") + " million years";
+
     /// <summary>A multiple of the Sun or the Earth, e.g. "1.02 × Sun".</summary>
     public static string Times(double value, string of, string format = "N2") => Number(value, format) + " × " + of;
+
+    // ---------------------------------------------------------------- the ground game's style (GROUND.md §8)
+
+    /// <summary>
+    /// The ground game's interface style: RustMVP's interface, matched exactly (its palette, Barlow type and 1600 × 900
+    /// design canvas). It sits beside the map styles above and changes none of them. Lengths still go through
+    /// <see cref="Px"/>, so the ground screens are as crisp as the maps at any scale.
+    /// </summary>
+    public static class Ground
+    {
+        // Colours as authored in sRGB in RustMVP (unreal/Bare/Source/Bare/UI/SBareRoot.cpp).
+        public static readonly Color Ink = new(0.89f, 0.875f, 0.84f);
+        public static readonly Color Muted = new(0.635f, 0.667f, 0.663f);
+        public static readonly Color Red = new(0.725f, 0.286f, 0.212f);
+        public static readonly Color Green = new(0.596f, 0.725f, 0.337f);
+        public static readonly Color Panel = new(0.71f, 0.69f, 0.65f, 0.17f);
+        public static readonly Color PanelHover = new(0.75f, 0.73f, 0.69f, 0.26f);
+        public static readonly Color HudSlot = new(0.16f, 0.17f, 0.16f, 0.38f);
+        public static readonly Color Selected = new(0.16f, 0.48f, 0.67f, 0.76f);
+        public static readonly Color Category = new(0.18f, 0.53f, 0.74f, 0.8f);
+        public static readonly Color Health = new(0.553f, 0.722f, 0.247f);
+        public static readonly Color Water = new(0.322f, 0.62f, 0.8f);
+        public static readonly Color Food = new(0.737f, 0.455f, 0.224f);
+        public static readonly Color Ivory = new(0.97f, 0.935f, 0.89f);
+        public static readonly Color Brick = new(0.76f, 0.235f, 0.17f);
+        public static readonly Color Short = new(0.84f, 0.66f, 0.30f);
+        public static readonly Color Warning = new(1f, 0.60f, 0.43f);
+        public static readonly Color Tooltip = new(0.125f, 0.153f, 0.157f, 0.98f);
+        public static readonly Color Toast = new(0.733f, 0.769f, 0.765f);
+        public static readonly Color Star = new(0.84f, 0.77f, 0.27f);
+        public static readonly Color Dialog = new(0.10f, 0.12f, 0.13f, 0.96f);
+        public static readonly Color Entry = new(0.13f, 0.16f, 0.14f, 0.8f);
+        public static readonly Color EntryFocus = new(0.21f, 0.25f, 0.21f, 0.9f);
+
+        private const string Folder = "res://assets/fonts/Barlow/";
+        private static FontFile? _medium;
+        private static FontFile? _semiBold;
+        private static FontFile? _condensed;
+        private static FontFile? _condensedMedium;
+
+        /// <summary>Barlow Medium: regular text.</summary>
+        public static FontFile Medium => _medium ??= Load("Barlow-Medium.ttf");
+
+        /// <summary>Barlow SemiBold: bold text below 26 px.</summary>
+        public static FontFile SemiBold => _semiBold ??= Load("Barlow-SemiBold.ttf");
+
+        /// <summary>Barlow Condensed Bold: headings, buttons, and bold text from 26 px.</summary>
+        public static FontFile Condensed => _condensed ??= Load("BarlowCondensed-Bold.ttf");
+
+        /// <summary>Barlow Condensed Medium: small condensed hints.</summary>
+        public static FontFile CondensedMedium => _condensedMedium ??= Load("BarlowCondensed-Medium.ttf");
+
+        /// <summary>
+        /// RustMVP's type rule: regular text in Barlow Medium; bold in SemiBold below 26 px and in Condensed Bold from
+        /// 26 px; condensed text in Condensed Bold.
+        /// </summary>
+        public static FontFile Font(float size, bool bold = false, bool condensed = false) =>
+            condensed ? Condensed : bold ? (size >= 26 ? Condensed : SemiBold) : Medium;
+
+        // The same crisp rasterisation as the map fonts: no distance field, light hinting, greyscale antialiasing.
+        private static FontFile Load(string file)
+        {
+            FontFile font = GD.Load<FontFile>(Folder + file);
+            font.MultichannelSignedDistanceField = false;
+            font.Hinting = TextServer.Hinting.Light;
+            font.SubpixelPositioning = TextServer.SubpixelPositioning.Auto;
+            font.Antialiasing = TextServer.FontAntialiasing.Gray;
+            font.GenerateMipmaps = false;
+            font.AllowSystemFallback = true;
+            return font;
+        }
+
+        /// <summary>
+        /// Styles a text field as RustMVP's: a flat fill (another when focused), Barlow Medium in ink, padding
+        /// 14 × 3 px. Everything follows the scale.
+        /// </summary>
+        public static void Field(LineEdit field, float fontSize, Color fill, Color focused)
+        {
+            Track(field, f =>
+            {
+                StyleBoxFlat Fill(Color colour) => new()
+                {
+                    BgColor = colour,
+                    ContentMarginLeft = Px(14),
+                    ContentMarginRight = Px(14),
+                    ContentMarginTop = Px(3),
+                    ContentMarginBottom = Px(3),
+                };
+                f.AddThemeStyleboxOverride("normal", Fill(fill));
+                f.AddThemeStyleboxOverride("read_only", Fill(fill));
+                f.AddThemeStyleboxOverride("focus", Fill(focused));
+                f.AddThemeFontOverride("font", Medium);
+                f.AddThemeFontSizeOverride("font_size", Px(fontSize));
+                f.AddThemeColorOverride("font_color", Ink);
+                f.AddThemeColorOverride("font_placeholder_color", Muted);
+                f.AddThemeColorOverride("caret_color", Ink);
+                f.AddThemeColorOverride("selection_color", new Color(Selected, 0.55f));
+                f.AddThemeConstantOverride("caret_width", Math.Max(1, Px(1.5f)));
+                // The field is exactly as wide as the design says, however short (RustMVP's amount field is 80 px).
+                f.AddThemeConstantOverride("minimum_character_width", 0);
+            });
+        }
+    }
 }

@@ -1,0 +1,146 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Godot;
+using Hollow.Core;
+using Hollow.Surface;
+using HollowUniverse.Surface.Flora;
+
+namespace HollowUniverse.Surface;
+
+// What the ground game changed about scatter objects (GROUND.md §6.1): felled trees, picked ferns and berry bushes.
+// Additive to the plants of the surface view: the view asks, per object, which kind to draw it as.
+public sealed partial class Vegetation
+{
+    /// <summary>A kind no species has: an object drawn as this isn't drawn at all.</summary>
+    public const ScatterKind NotDrawn = (ScatterKind)255;
+
+    private readonly Dictionary<ulong, (Task<List<float>> Job, Block Block)> _blockJobs = new();
+
+    /// <summary>
+    /// Set by the ground game: the kind to draw a scatter object of a tile as: its own, another (a picked berry bush as
+    /// the same bush bare), or <see cref="NotDrawn"/> (felled, picked). Null: everything as generated. Called while meshes are
+    /// rebuilt, on the main thread; call <see cref="Refresh"/> when an answer changes.
+    /// </summary>
+    public Func<TileKey, ScatterItem, ScatterKind>? Changes { get; set; }
+
+    private ScatterKind DrawnKind(TileKey tile, in ScatterItem item) => Changes == null ? item.Kind : Changes(tile, item);
+
+    /// <summary>
+    /// Set by the ground game: the meshes near the camera are then rebuilt on a worker thread (10–15 ms of work every
+    /// 8 m walked and whenever the game changes a plant), and the old ones show until the new are ready. It returns
+    /// <see cref="Changes"/> frozen as they are when a rebuild starts: a function safe to call from another thread.
+    /// Null: rebuilt on the main thread, as the planet viewer does.
+    /// </summary>
+    public Func<Func<TileKey, ScatterItem, ScatterKind>>? ChangesSnapshot { get; set; }
+
+    /// <summary>How many times the meshes near the camera were put in place (the game notes it when measuring).</summary>
+    public int NearBuilds { get; private set; }
+
+    private Task<NearData>? _nearJob;
+
+    private void RebuildNear(List<TileKey> tiles, Vector3D camera)
+    {
+        if (ChangesSnapshot == null)
+        {
+            BuildNear(tiles, camera);
+            NearBuilds++;
+            return;
+        }
+        if (_nearJob != null)
+        {
+            return; // one at a time: what asked for this one is still there when it lands
+        }
+        _nearCentre = camera;
+        _nearDirty = false;
+        Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();
+        var list = new List<TileKey>(tiles);
+        Vector3D anchor = _frame.Origin;
+        float clock = Clock;
+        _nearJob = Task.Run(() => ComputeNear(list, camera, anchor, clock, kinds));
+    }
+
+    // Puts a near set laid out on a worker in place (the upload of its buffers).
+    private void ApplyNear()
+    {
+        if (_nearJob is not { IsCompleted: true } job)
+        {
+            return;
+        }
+        _nearJob = null;
+        if (!job.IsCompletedSuccessfully)
+        {
+            _nearDirty = true;
+            return;
+        }
+        PlaceNear(job.Result);
+        NearBuilds++;
+    }
+
+    /// <summary>
+    /// Draws a scatter tile again after the game changed its objects: the meshes near the camera (<paramref name="near"/>,
+    /// at the next update), and its impostor block (<paramref name="trees"/>: impostors are trees only). A block of
+    /// twenty to thirty thousand impostors takes 30–50 ms to lay out, so with <see cref="ChangesSnapshot"/> a built one
+    /// is laid out on a worker thread and swapped in by <see cref="ApplyRefreshes"/>; the old impostors show meanwhile.
+    /// </summary>
+    public void Refresh(TileKey tile, bool near = true, bool trees = true)
+    {
+        _nearDirty |= near;
+        if (!trees)
+        {
+            return;
+        }
+        int shift = Scatter.Level - BlockLevel;
+        var key = new TileKey(tile.Face, BlockLevel, tile.X >> shift, tile.Y >> shift);
+        if (!_blocks.TryGetValue(key.Packed, out Block? b) || !b.Built || _blockJobs.ContainsKey(key.Packed))
+        {
+            return; // not built yet: it will be, with the change
+        }
+        if (b.Instance == null || _library == null || ChangesSnapshot == null)
+        {
+            b.Built = false; // built again on the main thread
+            return;
+        }
+        int span = 1 << shift;
+        var tiles = new List<TileKey>(span * span);
+        for (int y = 0; y < span; y++)
+        {
+            for (int x = 0; x < span; x++)
+            {
+                tiles.Add(new TileKey(key.Face, Scatter.Level, key.X * span + x, key.Y * span + y));
+            }
+        }
+        Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();
+        Vector3D anchor = b.Anchor;
+        _blockJobs[key.Packed] = (Task.Run(() => ImpostorBuffer(tiles, anchor, kinds)), b);
+    }
+
+    /// <summary>Puts impostor blocks laid out on workers in place (call every frame).</summary>
+    public void ApplyRefreshes()
+    {
+        if (_blockJobs.Count == 0)
+        {
+            return;
+        }
+        var done = new List<ulong>();
+        foreach ((ulong key, (Task<List<float>> job, Block block)) in _blockJobs)
+        {
+            if (!job.IsCompleted)
+            {
+                continue;
+            }
+            done.Add(key);
+            if (!job.IsCompletedSuccessfully || block.Instance == null || !_blocks.ContainsKey(key))
+            {
+                continue;
+            }
+            MultiMesh mm = block.Instance.Multimesh;
+            mm.InstanceCount = job.Result.Count / 16;
+            mm.Buffer = job.Result.ToArray();
+        }
+        foreach (ulong key in done)
+        {
+            _blockJobs.Remove(key);
+        }
+    }
+}

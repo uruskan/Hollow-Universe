@@ -1,0 +1,18 @@
+{
+ "key": "track-10",
+ "model": "res://assets/monuments/kit/track-10.glb",
+ "collision": [],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -5.0,
+   -5.0,
+   -5.0
+  ],
+  "max": [
+   5.0,
+   5.0,
+   5.0
+  ]
+ }
+}

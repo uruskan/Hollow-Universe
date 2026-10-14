@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" load_steps=5 format=3]
+
+[ext_resource type="Shader" path="res://shaders/monument.gdshader" id="1"]
+[ext_resource type="Texture2D" path="res://assets/textures/monuments/concrete_albedo.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/textures/monuments/concrete_orm.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/textures/monuments/concrete_normal.png" id="4"]
+
+[resource]
+resource_name = "M_Mon_Concrete"
+shader = ExtResource("1")
+shader_parameter/tile_metres = 4
+shader_parameter/wear = 0.35
+shader_parameter/albedo_tex = ExtResource("2")
+shader_parameter/orm_tex = ExtResource("3")
+shader_parameter/normal_tex = ExtResource("4")
+shader_parameter/textured = true

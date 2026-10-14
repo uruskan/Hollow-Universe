@@ -2,12 +2,16 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Hollow.Core;
+using Hollow.Galaxy.Authored;
 using Hollow.Galaxy.Systems;
 
 namespace Hollow.Galaxy;
 
-/// <summary>A search hit: a system, or a sector when the text names one.</summary>
-public readonly record struct SearchResult(string Name, SystemAddress Address, Vector3D Position, bool IsSector);
+/// <summary>
+/// A search hit: a system, or a place (a sector or a named region, <paramref name="IsSector"/>) when the text names
+/// one; <paramref name="PlaceKind"/> says which ("sector", "open cluster", "emission nebula", …).
+/// </summary>
+public readonly record struct SearchResult(string Name, SystemAddress Address, Vector3D Position, bool IsSector, string PlaceKind = "sector");
 
 /// <summary>
 /// The galaxy: density model, procedural stars, real-star catalogue, names and star systems.
@@ -15,10 +19,9 @@ public readonly record struct SearchResult(string Name, SystemAddress Address, V
 /// </summary>
 public sealed class Galaxy
 {
-    /// <summary>Generator version (GALAXY.md). Frozen once a shard goes live.</summary>
-    public const int GeneratorVersion = 1;
-
-    /// <summary>The seed of the main universe.</summary>
+    /// <summary>
+    /// The seed of the main universe. Each stage mixes its own generator version into it (<see cref="GeneratorVersion"/>).
+    /// </summary>
     public static readonly ulong DefaultSeed = Hash64.Of("Hollow Universe galaxy, version 1");
 
     private const int CellCacheLimit = 4096;
@@ -125,11 +128,19 @@ public sealed class Galaxy
         return false;
     }
 
-    /// <summary>The system's name: the real name for catalogue systems, the procedural name otherwise.</summary>
+    /// <summary>
+    /// The system's name: the real name for catalogue systems, the procedural name otherwise, which inside a named
+    /// region (in the region's home sector) starts with the region's name instead of the sector's (GALAXY.md §9).
+    /// </summary>
     public string NameOf(SystemAddress address)
     {
         if (!address.IsCatalogue)
         {
+            // Only systems in a region's home sector can carry its name, so most never need their star looked up.
+            if (SectorHasRegion(address) && TryGetStar(address, out GalaxyStar star))
+            {
+                return ProceduralName(address, star.Position);
+            }
             return SystemNames.Format(address);
         }
         CatalogueStar? real = FindCatalogueStar(address);
@@ -140,7 +151,24 @@ public sealed class Galaxy
         return real.SystemName.Length > 0 ? real.SystemName : real.Name;
     }
 
-    public string NameOf(in GalaxyStar star) => NameOf(star.Address);
+    public string NameOf(in GalaxyStar star) =>
+        star.Address.IsCatalogue ? NameOf(star.Address) : ProceduralName(star.Address, star.Position);
+
+    private static string ProceduralName(SystemAddress address, Vector3D position) =>
+        SystemNames.Format(address, Regions.NamingRegion(address, position)?.Name);
+
+    private static bool SectorHasRegion(SystemAddress address)
+    {
+        CellKey cell = address.Cell;
+        foreach (Region r in Regions.All)
+        {
+            if (r.InGrid && r.SectorX == cell.SectorX && r.SectorY == cell.SectorY && r.SectorZ == cell.SectorZ)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>The sector name at a galactic position, or an empty string outside the grid.</summary>
     public static string SectorNameAt(Vector3D position) =>
@@ -160,7 +188,23 @@ public sealed class Galaxy
         }
         if (SystemNames.TryParse(query, out SystemAddress address) && TryGetStar(address, out GalaxyStar star))
         {
-            results.Add(new SearchResult(SystemNames.Format(address), address, star.Position, false));
+            results.Add(new SearchResult(NameOf(star), address, star.Position, false));
+        }
+        // A system of a named region: the region's name, then the rest of a procedural name.
+        if (Regions.TrySplitName(query, out Region region, out string rest) && region.InGrid
+            && SystemNames.TryParse(SectorNames.Name(region.SectorX, region.SectorY, region.SectorZ) + " " + rest, out SystemAddress inRegion)
+            && TryGetStar(inRegion, out GalaxyStar regional) && Regions.NamingRegion(inRegion, regional.Position) == region)
+        {
+            results.Add(new SearchResult(NameOf(regional), inRegion, regional.Position, false));
+        }
+        // Named regions themselves, as places.
+        foreach (Region r in Regions.All)
+        {
+            if (results.Count < max && ((query.Length >= 3 && r.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(r.Designation, query, StringComparison.OrdinalIgnoreCase)))
+            {
+                results.Add(new SearchResult($"{r.Name} ({r.Designation})", default, r.Centre, true, r.KindName));
+            }
         }
         if (SectorNames.TryParse(query, out int sx, out int sy, out int sz))
         {
@@ -203,9 +247,9 @@ public sealed class Galaxy
             foreach (CatalogueStar c in real.Companions)
             {
                 companions.Add(new GalaxyStar(SystemAddress.Catalogue(Catalogue.Number, c.Id), c.Position, c.Class,
-                    c.Physics, 0f, GalaxyComponent.Catalogue, c.Level));
+                    c.Physics, 0f, GalaxyComponent.Catalogue, c.Level, primary.Age));
             }
-            return _systems.Generate(primary, name, companions);
+            return _systems.Generate(primary, name, companions, AuthoredLayer.Find(address));
         }
         return _systems.Generate(primary, name);
     }

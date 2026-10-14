@@ -1,0 +1,175 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Numerics;
+using Hollow.Client;
+using Hollow.Server;
+using Hollow.Simulation;
+using Hollow.Simulation.Animals;
+using Hollow.Simulation.Content;
+using Hollow.Simulation.Entities;
+using Hollow.Simulation.Players;
+
+namespace Hollow.Tests;
+
+public static class AnimalNetTests
+{
+    private static void RunUntil(LoopbackRig rig, Func<bool> done, string what, double seconds = 6)
+    {
+        var watch = Stopwatch.StartNew();
+        while (!done())
+        {
+            Assert.True(watch.Elapsed.TotalSeconds < seconds, $"timed out waiting for {what}");
+            rig.Run(0.05, (_, _) => default);
+        }
+    }
+
+    /// <summary>
+    /// GROUND.md §6.9 on the real planet: a player at the landing site has the spawn areas around her surveyed from the
+    /// planet's own biomes and forests, and herds come out in them, none nearer than 70 m; walking up to one, her client
+    /// sees it.
+    /// </summary>
+    [Test]
+    public static void AnimalsComeOutOnThePlanet()
+    {
+        using var rig = new LoopbackRig(planet: true, animals: true);
+        GameClient ada = rig.Join("Ada");
+        rig.WaitUntilPlaying();
+        var id = new EntityId(ada.EntityId.Value);
+        Vector3 Her(Hollow.Server.GameServer sv) => sv.Zone.Players().TryFindPlayer(id, out Entity e, out _) ? sv.Zone.Entities.Get<Character>(e).State.Position : default;
+        // To the landing site, inland (she arrived on a beach).
+        rig.Server.Inspect(sv =>
+        {
+            sv.Zone.Players().TryFindPlayer(id, out Entity e, out _);
+            Vector3 ground = sv.Zone.GroundAt(0, 0);
+            sv.Zone.Teleport(e, ground + sv.Zone.Frame.UpAt(ground) * 0.05f);
+            return 0;
+        });
+        RunUntil(rig, () => rig.Server.Inspect(sv => sv.Zone.Animals().World!.Count) > 0, "herds out around the landing site", 20);
+        rig.Run(1, (_, _) => default);
+        (string status, float nearest, Vector3 herd) = rig.Server.Inspect(sv =>
+        {
+            Vector3 her = Her(sv);
+            Animal a = sv.Zone.Animals().World!.All.OrderBy(x => Vector3.Distance(x.Position, her)).First();
+            return (sv.Animals().AnimalStatus(), Vector3.Distance(a.Position, her), a.Position);
+        });
+        Fixtures.Report($"around the landing site: {status}; the nearest {nearest:0} m away");
+        Assert.True(nearest >= 60, $"none came out on top of her ({nearest:0} m)");
+
+        // She goes up to the nearest herd: it comes into her view.
+        rig.Server.Inspect(sv =>
+        {
+            sv.Zone.Players().TryFindPlayer(id, out Entity e, out _);
+            Vector3 her = Her(sv);
+            Vector3 d = Vector3.Normalize(new Vector3(her.X - herd.X, 0, her.Z - herd.Z));
+            Vector3 ground = sv.Zone.GroundAt(herd.X + d.X * 45, herd.Z + d.Z * 45);
+            sv.Zone.Teleport(e, ground + sv.Zone.Frame.UpAt(ground) * 0.05f);
+            return 0;
+        });
+        RunUntil(rig, () => ada.Animals().All.Count > 0, "animals in her view", 10);
+        Assert.True(ada.Animals().All.All(a => a.Species != null), "of species her data knows: " + string.Join(", ", ada.Animals().All.Select(a => a.SpeciesKey)));
+    }
+
+    /// <summary>
+    /// GROUND.md §6.9 over the network: a herd the server places in front of a player appears in her client as animals
+    /// of its species (not as characters), interpolated where the server has them; a hit makes one flinch and the herd
+    /// run (the client sees the hurt event and the flight); a kill leaves a corpse that stays in view with its harvest
+    /// left; when the corpse goes, it leaves the client too.
+    /// </summary>
+    [Test]
+    public static void AnimalsReplicateWithTheirEvents()
+    {
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        rig.WaitUntilPlaying();
+        var events = new List<AnimalEvent>();
+        ada.Animals().AnimalEvent += events.Add;
+        int characters = ada.Entities.Count();
+
+        rig.Server.Execute("spawn deer Ada 3 35");
+        RunUntil(rig, () => ada.Animals().All.Count == 3, "three deer in view");
+        Assert.True(ada.Animals().All.All(a => a.SpeciesKey == "deer" && a.Species?.Key == "deer" && !a.Dead), "deer, alive");
+        Assert.Equal(characters, ada.Entities.Count(), "animals aren't characters");
+        Assert.Equal(3, events.Count(e => e.Kind == AnimalEventKind.Appeared), "each appeared once");
+        rig.Run(0.5, (_, _) => default);
+        Dictionary<EntityId, Vector3> server = rig.Server.Inspect(sv => sv.Zone.Animals().World!.All.ToDictionary(a => a.Id, a => a.Position));
+        foreach (ClientAnimal a in ada.Animals().All)
+        {
+            float off = Vector3.Distance(a.Position, server[a.Id]);
+            Assert.True(off < 1.5f, $"{a} drawn {off:0.00} m from the server's (100 ms behind)");
+        }
+
+        // A hit: it flinches, the herd runs.
+        ClientAnimal target = ada.Animals().All.First();
+        rig.Server.Inspect(sv =>
+        {
+            sv.Zone.Players().TryFindPlayer(new EntityId(ada.EntityId.Value), out _, out Player p);
+            Animal deer = sv.Zone.Animals().World!.Find(target.Id)!;
+            return sv.Zone.Animals().DamageAnimal(deer, 40, HitRegion.Body, deer.Position + new Vector3(0, 1, 30), p, p.Id, p.Name);
+        });
+        RunUntil(rig, () => events.Any(e => e.Kind == AnimalEventKind.Hurt && e.Animal == target), "the flinch");
+        RunUntil(rig, () => ada.Animals().All.Count(a => a.State == AnimalState.Flee) == 3, "the herd's flight");
+        Assert.True(events.Count(e => e.Kind == AnimalEventKind.Fled) >= 3, "each one's fright");
+        Assert.Near(110 / 150.0, target.Health, 0.01, "its health as the server has it");
+        RunUntil(rig, () => ada.Animals().All.Max(a => a.Speed) > 7, "running");
+
+        // A kill: a corpse in view, then gone with its timer.
+        rig.Server.Inspect(sv =>
+        {
+            Animal deer = sv.Zone.Animals().World!.Find(target.Id)!;
+            return sv.Zone.Animals().DamageAnimal(deer, 500, HitRegion.Head, deer.Position, null);
+        });
+        RunUntil(rig, () => target.Dead, "the death");
+        Assert.True(events.Any(e => e.Kind == AnimalEventKind.Died && e.Animal == target), "the death event");
+        Assert.Near(1, target.Health, 0.01, "a whole corpse to harvest");
+        rig.Server.Inspect(sv =>
+        {
+            Animal corpse = sv.Zone.Animals().World!.Find(target.Id)!;
+            corpse.DespawnTick = sv.Zone.Tick + 3;
+            return 0;
+        });
+        RunUntil(rig, () => ada.Animals().AnimalOf(target.NetId) == null, "the corpse leaving");
+        Assert.True(events.Any(e => e.Kind == AnimalEventKind.Gone && e.Animal == target), "the gone event");
+        Fixtures.Report($"{events.Count} events: " + string.Join(", ", events.GroupBy(e => e.Kind).Select(g => $"{g.Count()} {g.Key}")));
+    }
+
+    /// <summary>
+    /// GROUND.md §6.9, persistence: animals are never stored, but a corpse survives a restart with what is left to harvest
+    /// and its timer (world time, paused while the server was down); living animals don't come back from storage.
+    /// </summary>
+    [Test]
+    public static void CorpsesSurviveARestart()
+    {
+        using var file = new TempDatabase();
+        EntityId corpseId = default;
+        long ticksLeft = 0;
+        float left = 0;
+        using (var rig = new LoopbackRig(file.Path))
+        {
+            GameClient ada = rig.Join("Ada");
+            rig.WaitUntilPlaying();
+            rig.Server.Execute("spawn wolf Ada 2 20");
+            RunUntil(rig, () => ada.Animals().All.Count == 2, "two wolves");
+            (corpseId, ticksLeft, left) = rig.Server.Inspect(sv =>
+            {
+                Animal wolf = sv.Zone.Animals().World!.All.First();
+                sv.Zone.Animals().DamageAnimal(wolf, 500, HitRegion.Body, wolf.Position, null);
+                sv.Zone.Animals().World.Harvest(wolf, 40);
+                return (wolf.Id, wolf.DespawnTick - sv.Zone.Tick, wolf.HarvestLeft);
+            });
+            rig.Server.SaveAll().Wait();
+        }
+        using (var rig = new LoopbackRig(file.Path))
+        {
+            var report = rig.Server.Inspect(sv => (sv.Zone.Animals().World!.All.Select(a => (a.Id, a.IsDead, a.Species.Key, a.HarvestLeft, a.DespawnTick - sv.Zone.Tick)).ToList()));
+            Fixtures.Report("after the restart: " + string.Join(", ", report.Select(r => $"{r.Key} {(r.IsDead ? "corpse" : "alive")} " +
+                $"{r.HarvestLeft:0} left, {r.Item5 / 30.0:0} s")));
+            Assert.Equal(1, report.Count, "only the corpse came back");
+            (EntityId id, bool dead, string key, float harvest, long timer) = report[0];
+            Assert.True(id == corpseId && dead && key == "wolf", "the same corpse");
+            Assert.Near(left, harvest, 1e-3, "with its harvest left");
+            Assert.InRange(ticksLeft - 90, ticksLeft, timer, "and its timer, paused while the server was down");
+        }
+    }
+}

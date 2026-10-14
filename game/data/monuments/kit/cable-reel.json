@@ -1,0 +1,37 @@
+{
+ "key": "cable-reel",
+ "model": "res://assets/monuments/kit/cable-reel.glb",
+ "collision": [
+  {
+   "box": [
+    0.0,
+    0.9,
+    -0.0
+   ],
+   "half": [
+    0.9,
+    0.9,
+    0.6
+   ],
+   "rot": [
+    1.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  }
+ ],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -0.9,
+   -0.0,
+   -1.45
+  ],
+  "max": [
+   0.9,
+   1.8,
+   1.45
+  ]
+ }
+}

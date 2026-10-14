@@ -1,0 +1,37 @@
+{
+ "key": "crate-stack",
+ "model": "res://assets/monuments/kit/crate-stack.glb",
+ "collision": [
+  {
+   "box": [
+    0.0,
+    0.55,
+    -0.0
+   ],
+   "half": [
+    0.6,
+    0.55,
+    0.5
+   ],
+   "rot": [
+    1.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  }
+ ],
+ "markers": [],
+ "bounds": {
+  "min": [
+   -1.0,
+   -0.53,
+   -0.6
+  ],
+  "max": [
+   1.0,
+   1.1775,
+   0.705
+  ]
+ }
+}
