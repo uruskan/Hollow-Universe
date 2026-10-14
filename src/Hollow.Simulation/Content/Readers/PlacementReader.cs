@@ -6,7 +6,7 @@ using System.Text.Json;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Placement;
 
-namespace Hollow.Simulation.Content;
+namespace Hollow.Simulation.Content.Readers;
 
 /// <summary>
 /// placement.json (GROUND_SYSTEMS.md §6): the defaults every placement rule starts from, each kind's block over them, the
@@ -15,7 +15,7 @@ namespace Hollow.Simulation.Content;
 /// file, since a placeable names their things; the handlers are sealed against the names here, and the building's reach,
 /// sight slack and claim padding are the piece rule's.
 /// </summary>
-internal static class PlacementReader
+internal sealed class PlacementReader : IContentReader
 {
     private static readonly string[] RuleFields =
     {
@@ -31,8 +31,13 @@ internal static class PlacementReader
         ["any"] = PlacementSurfaces.Any,
     };
 
-    public static void Read(JsonFields f, IReadOnlyDictionary<string, JsonElement> documents, GameContent.Loaded loaded)
+    public string File => PlacementData.File;
+
+    public void Read(ContentReading r)
     {
+        JsonFields f = r.Fields;
+        GameContent.Loaded loaded = r.Loaded;
+        IReadOnlyDictionary<string, JsonElement> documents = r.Documents;
         const string file = PlacementData.File;
         JsonElement root = documents.GetValueOrDefault(file);
         if (root.ValueKind != JsonValueKind.Object)
@@ -160,6 +165,11 @@ internal static class PlacementReader
         {
             loaded.Building?.UsePlacement(piece.Rule.Reach, piece.Rule.Sight, piece.Rule.Padding);
         }
+    }
+
+    public void Check(ContentChecking c)
+    {
+        // Checked as it is read: the names against the handlers, each placeable by its kind, and that everything placeable is listed.
     }
 
     // A placeable that names nothing keeps its number (the list is the wire's), but nobody can place it.

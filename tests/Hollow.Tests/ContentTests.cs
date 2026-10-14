@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Content.Readers;
 
 namespace Hollow.Tests;
 
@@ -106,5 +107,24 @@ public static class ContentTests
             threw = e.Message.Contains("items.json: missing or empty", StringComparison.Ordinal);
         }
         Assert.True(threw, "a missing file is an error, never a different game");
+    }
+    /// <summary>
+    /// GROUND_SYSTEMS.md §12.6: one reader per data file. Every file in <see cref="GameContent.Files"/> (and the texts
+    /// file) has exactly one reader in <see cref="ContentReaders.All"/>, and every reader reads one of those files: the
+    /// registry is complete (§3.5).
+    /// </summary>
+    [Test]
+    public static void EveryDataFileHasOneReader()
+    {
+        string[] files = GameContent.Files.Concat(GameContent.Unhashed).ToArray();
+        foreach (string file in files)
+        {
+            Assert.Equal(1, ContentReaders.All.Count(r => r.File == file), $"readers of {file}");
+        }
+        foreach (IContentReader reader in ContentReaders.All.Where(r => r.File.Length > 0))
+        {
+            Assert.True(files.Contains(reader.File), $"{reader.GetType().Name} reads {reader.File}, which GameContent.Files doesn't list");
+        }
+        Fixtures.Report($"{ContentReaders.All.Count} readers for {files.Length} files, and the checks across them");
     }
 }
