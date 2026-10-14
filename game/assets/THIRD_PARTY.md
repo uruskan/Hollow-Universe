@@ -69,6 +69,35 @@ else in them was made for the project.
 | `building/` (GLB) | The building kit's 13 pieces in 5 grades and the door and window kit's doors, garage door, bars, glass and embrasures, converted by `art/import/`; 7 more pieces built by the same scripts with the kit's own generator | `D:\GameDev\Assets\PSG_BuildingKit_R01`, `PSG_DoorWindowKit_R01`: our own kits, made by Blender Python (GROUND.md §9) | Ours |
 | `building/textures/` | The kits' surface atlases, shrunk to 2K: Poly Haven's weathered brown planks, brown bark 02, rock surface, rusty metal sheet and painted concrete, as the kits' `texture_manifest.json` and `source_texture_provenance.json` record | [Poly Haven](https://polyhaven.com) | CC0 1.0 |
 
+### The Iron Wake (`ships/`, `textures/iron_wake/`, `materials/iron_wake_*.tres`)
+
+The model and the ship's data file (`data/ground/ships/iron-wake.json`) are converted by `art/import/iron_wake.py`
+(docs/IRON_WAKE.md §9.1) from `D:\GameDev\Assets\IronWake_Buildable_R01`: the owner's own Iron Wake, rebuilt for the
+project with ChatGPT from the owner's local Iron Wake geometry. Its geometry, its motion and its instrument display
+artwork are original (the displays' lettering was rasterised from the Windows font Bahnschrift; no font file is
+shipped). No file from Rust, Starfield or any other game is in it.
+
+Its surface finishes are the asset's art-directed derivatives (neutralised and tinted paint, darkened steel with an
+authored oxidation mask, machined metal, rubber, roughened deck, tread, louvre and grate relief) of three Poly Haven
+sets, filtered from 4096 to 2048 px by the import (`textures/iron_wake/T_IW_PBR_*_2K.png`). The asset's record is its
+`Documentation/material_source_provenance.json` (retrieved 14 October 2026, each file checked against the API's MD5)
+and `material_revision.json` (the derivatives). The originals, as downloaded:
+
+| Set | Author | Source | File | SHA-256 | Licence |
+|---|---|---|---|---|---|
+| Blue Metal Plate (the paints) | Rob Tuytel | https://polyhaven.com/a/blue_metal_plate | `blue_metal_plate_diff_4k.png` | `cd7dfc69866c6b67af3e1fe8a17b700fdf24954cebd9fa46d52877ae8af05d64` | CC0 1.0 |
+| | | | `blue_metal_plate_arm_4k.png` | `845785e231b3f502ee1a1e9f0242285247b9b4fd44fa5e9c4838634a338f7e41` | |
+| | | | `blue_metal_plate_nor_gl_4k.png` | `fa0e94e8632abc57c098a27f18bcf93dd2018f78b94d88465f0ae9b42761a475` | |
+| Rusty Metal Sheet (the steels, machined metal, rubber and deck) | Amal Kumar | https://polyhaven.com/a/rusty_metal_sheet | `rusty_metal_sheet_diff_4k.png` | `b6cb2479d9036626acad12cb897c4f4f48d8d358dd3b91ea9572ee42ea150620` | CC0 1.0 |
+| | | | `rusty_metal_sheet_arm_4k.png` | `51ba120d19ef4eac824a5b8ab31ce804004f3b4fcf746e55ace1e730f516c1b2` | |
+| | | | `rusty_metal_sheet_nor_gl_4k.png` | `8b7815cbafe5e97f19c2ca28640c466dac3462b58400b97a608747509b01ec08` | |
+| Book Pattern (the seat fabric) | Rob Tuytel | https://polyhaven.com/a/book_pattern | `book_pattern_col1_4k.png` | `abb83f4360439d8978710ade86d3eecb07d703dd10302f96fd517ceb336dd9ee` | CC0 1.0 |
+| | | | `book_pattern_arm_4k.png` | `ae6c19620bc6cc8f422a6b39bbbf72b68a7155b05a7a905861dbfd3bc39dcb4e` | |
+| | | | `book_pattern_nor_gl_4k.png` | `877cb2cebc57d5db25c218a1a10e12ac337ba57fca0177318a94ae6ec8357e91` | |
+
+The licence is https://polyhaven.com/license. The display atlas (`T_IronWake_Markings_*.png`, 2048 px) is the asset's
+own artwork, as is everything else in `ships/iron-wake.glb`.
+
 ## Sounds (`audio/`)
 
 Downloaded on 13 October 2026 with the owner's approval of free CC0 downloads, each into its own folder under

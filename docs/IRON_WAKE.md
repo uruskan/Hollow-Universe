@@ -75,6 +75,11 @@ geometry and textures, Poly Haven CC0 materials; no other game's files):
   files agree.
 - **Uncrewed weapons.** The 12-cell launch bank on the roof and the keel lance under the bow have no stations. They stay
   fittings (§15.4).
+- **Port and starboard** are mirrored in the asset's names (found by IW-A, §9.1 "As built"). The names stay; the data
+  file records the true sides.
+- **The gunners' displays.** In the `.blend`, the six gunners' sight displays show the pilot's navigation screen (atlas
+  tile 3). The asset's own source (`Source/make_ironwake.py`) and `display_artwork.json` give the defense gunners tile 5
+  and the siege gunners tile 6, so the import moves those faces' UVs (§9.2 "As built").
 
 **Made here, because the asset has none of it:**
 - the loading mechanisms (breeches, loader arms and trays, rammers, ready racks and the defense mounts' cassettes;
@@ -630,6 +635,90 @@ It writes `game/assets/ships/iron-wake.glb` and the data file the simulation rea
 The model catalogue entry, `iron-wake` (`kind` world, `class` vehicle), carries the LOD distances (§9.3) and later its
 `gibs`.
 
+#### As built (15 October 2026, IW-A part 1)
+
+`art/import/iron_wake.py`, run by `blender -b --factory-startup --python art/build.py -- iron_wake` (about five
+minutes; `art/import/iron_wake.py -- data` writes the data file alone in 15 s). It never writes into the asset.
+
+**Port and starboard are mirrored in the asset.** Blender's frame is right-handed: with +X forward and +Z up, +Y is
+the ship's left. The asset puts what it calls Port at native −Y, the ship's right: Engine_Port, Outrigger_Port, the
+`Defense_*_P` mounts (y −9), the airlock and BoardingExit (y −7.35) and the pilot's seat (y −1.75, the copilot at
++1.75). Its `HandGrip_L` sockets sit at each gunner's right hand. Its own exterior preview agrees: the bow points
+right and the side in view, with the airlock, is the ship's right. The import keeps every asset name unchanged on
+the nodes and in the data file, so they can be traced back. It records the true side, measured in game axes
+(+X the left), wherever a side is recorded:
+- `side` on the data file's parts, stations and lights, the ship's side at the parked pose (`Defense_F_P` is
+  `starboard`), and `mountSide` on each station's barrels, its side of the mount as the gunner sees it;
+- the hull's boxes (`drive-starboard` comes from Engine_Port);
+- each station's `grips` (`left` names `…_HandGrip_R`);
+- `assetSides`, which maps the asset's labels to the truth.
+
+Later packages show players port and starboard from these, never from the asset's labels.
+
+**The model**, `game/assets/ships/iron-wake.glb` (56 MB, 649 nodes), from the asset's origin on the ground plane,
++Z the nose:
+- `Body_lod0..4`: the 52 static groups outside the hold, merged by material at each level (16 surfaces at LOD0–3,
+  one at LOD4).
+- `Hold_lod0..3`: Deck A's floor, linings, bulkheads, overhead and the stair (8 surfaces, 7 from LOD2). It is a part
+  of its own so that occlusion culling can drop it from outside. `Hold_lod4` is an empty node: nothing of the hold
+  shows beyond 1.2 km, and the node keeps every part's five levels named.
+- 31 moving parts, each an empty at its pivot without a rotation of its own, so its motion is about or along the
+  model's axes:
+  - `Ramp_Main` (the hinge, about +X; −114° opens it) holds `Ramp_Leaf` (+180°);
+  - `Airlock_Door` slides 2.5 m along +Z;
+  - each station's `<Station>_Yaw` (about +Y; positive turns the guns to port) holds `<Station>_Pitch` (about −X;
+    positive raises them), which holds its `<Station>_Recoil_0n` (recoil along −Z).
+
+  Each has `<Part>_lod0..4`. The asset's turrets have no other moving nodes: the KeelLance and the launch bank stay
+  fittings (§3).
+- 358 hulls `<Part>_hull<i>-convcolonly`: the asset's convex pieces, 271 static ones as `Body_hull<i>`, 14 under each
+  turret's yaw, one under each leaf of the ramp and one under the airlock door. The pitch and recoil nodes have none,
+  as in the asset.
+- 91 `socket_<Name>` with the asset's names and orientation (+X the documented direction, +Y up), each under the part
+  that carries it.
+- Occluders for Godot's occlusion culling (`-occonly`, imported as `OccluderInstance3D`): `Body_occluder` (1,736
+  triangles of the body's and the hold's LOD3 faces of 1 m² and more, none touching a pane of glass) and one each
+  under the ramp's leaves and the airlock door (76, 36 and 12 triangles), so they move with them. The project has
+  occlusion culling off (`rendering/occlusion_culling/use_occlusion_culling`); IW6 turns it on.
+- 20 clips from the asset's documented motion (`Source/weapon_motion.py`, `weapon_motion.json`): `CargoRamp_Open` and
+  `_Close` (3 s, both leaves), `Airlock_Open` and `_Close` (1.4 s), and the sixteen `<Station>_Fire_0n` (0.9 s siege,
+  0.32 s defense). A moved part keeps its rest in `delta_location`, so the clips' channels never overwrite the rest
+  pose. Godot resamples clips at 30 frames a second, so the fire clips are previews; the batteries' recoil is driven
+  from data (§6.3).
+- Godot imports it without vertex compression (`meshes/force_disable_compression`). The metric UVs run to ±80, and
+  16-bit UVs would move the textures by up to five texels.
+
+**The data file**, `game/data/ground/ships/iron-wake.json` (223 kB, written deterministically: the same asset gives
+the same bytes), in game axes from the model's origin at the parked pose:
+- `source`: the `.blend`'s and the manifest's SHA-256.
+- `parts`: the body and the 31 moving parts with pivot, parent, axis, motion (hinge angles from the manifest, the
+  door's 2.5 m slide, the recoil's travel and seconds) and true side. Each yaw has `levelArcs`, measured at import:
+  where its guns clear the ship firing level.
+- `pieces`: the 358 convex pieces as points (deduplicated, to 1 mm) with their part and the asset's collider name.
+  Glass is flagged.
+- `sockets`: 91, each with position, forward, up and the part that carries it.
+- `stations`, six. Each has its kind, true side, yaw, pitch, mount and access nodes and its barrels (recoil node,
+  muzzle socket, breech, side of the mount). It names the seat, eye, camera, left and right grips, entry, exit and
+  interaction sockets, its route and access points, and its occupied volumes. Two blocks were measured at import:
+  - `receiver`: the pitch housing's box and each barrel's rear end, length and radius, in the pitch frame;
+  - `clearance`: per degree of yaw, the lowest elevation from −20° to 70° from which the barrels clear the ship, from
+    the breech to 6 m past the muzzle.
+- `rooms` (4), `boarding` (120 boxes: the rooms, every walkable top with 2.2 m over it, and the open ramp),
+  `buildZones` (4), `exclusions` (93) and `routes` (6). The exclusions are §8's: the ramp's top and swing, the
+  airlock's approach, the stair with its landings, the stairwell, the bridge, 1.2 m lanes along every route, and
+  each station's access and exit. The import adds lanes from the ramp and from the airlock to the stair's foot,
+  because the asset's routes start on the upper deck.
+- `hull`: the ten sweep boxes (body, bow, superstructure, bridge, two drive pods, two outriggers with the defense
+  mounts' turning circles, and the two siege batteries in their yaw's frame) and the four landing pads' feet.
+- `lights`: the 38 fixtures of the lamp material, each with position, size, direction and room, `omni` or `spot`
+  by which of its faces are open to the room. The four drive glows are marked `exhaust`.
+- `materials`: the lamps', displays', glass's, drive glows' and LOD4's materials by name and path, for the views to
+  find and drive, never by a name in code.
+- `centreOfMass` (the asset's hint) and `bounds`.
+
+**The loading mechanisms' hook** (§9.5): right after the asset is loaded, the import calls `build(ctx)` from
+`art/ships/iron_wake_loaders.py` when it exists; the contract is in §9.5.
+
 ### 9.2 Materials and textures
 
 - **The sixteen finishes.** The asset's sixteen surface definitions (`material_revision.json`) become shared Godot
@@ -649,6 +738,50 @@ The model catalogue entry, `iron-wake` (`kind` world, `class` vehicle), carries 
 - **Texture memory:** about 150 MB at 2K with mipmaps (block compressed), against about 850 MB the 4K maps would hold
   for the whole game.
 
+#### As built (15 October 2026, IW-A part 1)
+
+**The finishes.** All sixteen of `material_revision.json` are written as `iron_wake_<finish>.tres` (`ORMMaterial3D`);
+the model uses thirteen of them (no face of the asset is IvoryPaint, BrownPaint or GrateSteel). Each finish takes:
+- the revision's textures: its 4K Poly Haven derivatives filtered to 2K once, 16 files `T_IW_PBR_*_2K.png` in
+  `game/assets/textures/iron_wake`;
+- its tint as the albedo colour, and its normal strength as `normal_scale`;
+- the ORM's occlusion at the strength the asset's own materials read it (0.65), baked into the 2K red channel;
+- `ao_enabled`. A throwaway test in Godot, under ambient light alone, showed the material darkening with the ORM's
+  red channel, so the occlusion is read.
+
+**Vertex colour is linear.** Godot 4.7.2 keeps a GLB's vertex colours as the file has them, linear: the mean of
+`Body_lod4`'s colours read back in Godot equals the file's. The house's materials set `vertex_color_is_srgb`, which
+would decode them once more and darken them. The Iron Wake's materials leave it off (`write_material`'s
+`vertex_colour_srgb`). The older models keep the flag they were tuned with; it darkens their contact darkening a
+little, a question for whoever next tunes them.
+
+**Special materials:**
+- **Displays** (`iron_wake_displays.tres`): the asset's markings atlas, which now holds only screens (navigation,
+  propulsion, defense battery, siege battery). The emissive art is multiplied by the asset's emissive factor
+  (0.45, 1, 0.6), at energy 1, which the views drive with the ship's power through the data file's `materials`. Its ORM
+  stays; its normal map is flat, so it is dropped (5.6 MB). The gunners' displays are moved onto their batteries'
+  screens (§3): the import shifts the UVs of those faces at every level (`sight_tiles`, `retile`).
+- **Glass** (`iron_wake_glass.tres`): transparent, alpha 0.22, roughness 0.065, a dark blue-green; no vertex colour.
+  Every pane shares it, so panes seen through panes blend the same in any order. It does not write depth.
+- **Lamps** (`iron_wake_lamps.tres`): warm white, emission (1, 0.66, 0.32) at energy 3. The light itself comes from the
+  data file's `lights` (§9.4).
+- **Drive glow** (`iron_wake_engine_glow.tres`, departure): the asset gave the plates inside the four drive nozzles the
+  lamps' material, which read as white discs on a ship at rest. They are sooty steel now, with an emission the views
+  raise with thrust (energy 0 at rest; `materials.exhaust` in the data file).
+- **Distant** (`iron_wake_distant.tres`): LOD4's single material; vertex colour, roughness 0.65 (the finishes'
+  average, weighted by area), not metallic.
+
+**Contact darkening** as designed: 40 rays per vertex to 1.2 m, with the monument kit's walk-through of buried
+vertices (319,500 vertices at LOD0 in about 105 s), carried to LOD1–3 by the nearest point and mixed as
+lerp(1, AO, 0.42).
+
+**Texture memory:** 19 textures at 2K, **66.7 MiB** with mipmaps (BC1 for the colour and ORM maps, BC5 for the six
+normal maps), against the 150 MB budget; 73 MB of PNG on disk.
+
+**What reads as the asset made it:** the revision's DarkSteel and Gunmetal carry an oxidation mask that reads as heavy
+rust mottling up close (`docs/images/iron-wake/turret.jpg`), and the hull's paint is the revision's dark teal
+(`exterior.jpg`). Both are kept as the revision binds them; changing them is the asset's or a later material pass's call.
+
 ### 9.3 Detail levels and draw calls
 
 The asset's LODs keep their triangles but not their draw calls: 291 at LOD3. The import merges the static hull's
@@ -665,6 +798,40 @@ meshes by material at each level; moving parts stay their own.
 Shadows draw the same meshes again from the sun, so the hull's LODs also bound its shadow cost. The interior's
 fittings, from the outside, are hidden by occluders made from the hull's own boxes (Godot's occlusion culling), and the
 outside is hidden from the inside the same way, except through the open ramp and the glass.
+
+#### As built (15 October 2026, IW-A part 1)
+
+Measured by the import (its log's last lines), at the designed distances, which the catalogue's `lodDistances` keep:
+
+| Level | Shown | Triangles (static + moving) | Draw calls (static + moving) |
+|---|---|---|---|
+| LOD0 | to 70 m | 622,060 (403,612 + 218,448) | 161 (24 + 137) |
+| LOD1 | to 180 m | 331,740 (212,460 + 119,280) | 155 (24 + 131) |
+| LOD2 | to 450 m | 63,360 (37,024 + 26,336) | 138 (23 + 115) |
+| LOD3 | to 1,200 m | 51,736 (31,984 + 19,752) | 138 (23 + 115) |
+| LOD4 | to 4 km | 9,131 (5,666 + 3,465) | 32 (1 + 31) |
+
+- **Static:** `Body` and `Hold`, merged by material: 24 draw calls against about 20 planned. The hold is apart so that
+  occlusion culling can drop it (§9.1).
+- **Moving (departure):** 137 draw calls at LOD0 against about 45 planned. Each of the 31 moving parts stays a mesh
+  of its own so that it can move, and draws once per material: a siege turret's yaw alone has nine. Fewer would take
+  rigid skinning: all moving parts in one skinned mesh per material, a bone at each pivot, and the views posing bones
+  instead of nodes. That changes §9.1's structure, so it is left for the owner, once IW6 has measured the real cost.
+- **LOD4**, made by the import:
+  - The faces of each part that can be seen from outside (48 directions, glass counting as in the way), as a voxel
+    shell of 2.5 to 15 cm, decimated to 5,500 triangles for the body and 2,600 for the moving parts together, shared
+    out by area.
+  - Each face takes its finish's average colour times the contact darkening, all in the one distant material.
+  - Times 0.72, so that it renders as bright as LOD3 does at 1 km (`lod3-at-1km.jpg` and `lod4-at-1km.jpg`, both
+    through a narrow lens).
+  - Departure: every moving part keeps a LOD4 of its own, so the batteries keep their aim and the ramp its pose at
+    range: 32 draw calls, not 2.
+  - `Hold_lod4` is an empty node.
+- **Occluders and culling:** as §9.1 lists. Occlusion culling stays off in the project until IW6 turns it on.
+- **Pictures** (`docs/images/iron-wake/`, the model viewer): `exterior.jpg`, `turret.jpg` (the forward siege battery),
+  `gunner.jpg` (the forward port defense station, `Defense_F_S`: seat, grip, and the display on its battery's screen),
+  `hull-surface.jpg` (the hull's side, close), `open-deck.jpg` (Deck A up the open ramp), `hold.jpg` (Deck A
+  inside), `lod0.jpg` to `lod4.jpg` (each level from the same place), and the two at 1 km.
 
 ### 9.4 Light inside the ship
 
@@ -707,6 +874,57 @@ Made in Blender by our own script, `art/ships/iron_wake_loaders.py`:
   before the mechanism is wired to the rules.
 - **The motion lives in the loader table**, not in clips: the phases name a node, an axis, a travel and an easing, and
   the view poses them. If clips are wanted for the model viewer, the script bakes them from the same table.
+
+**The import's hook** (built by IW-A part 1, `art/import/iron_wake.py`). Right after the asset's `.blend` is loaded,
+and before any conversion, LOD, occlusion bake or export, the import calls `build(ctx)` from
+`art/ships/iron_wake_loaders.py` when that file exists.
+
+What `ctx` holds:
+- `ctx.objects`: {group: the asset's LOD0 object}, e.g. `ctx.objects["Siege_Forward_Pitch"]`
+  (`SM_IW_Siege_Forward_Pitch`). Everything is in the asset's native frame (+X forward, +Z up, metres) at the parked
+  pose: yaw 0, pitch 0, barrels run out.
+- `ctx.lods`: {group: [LOD0, LOD1, LOD2, LOD3 objects]}.
+- `ctx.manifest`, `ctx.layout`, `ctx.motion`, `ctx.revision`: the asset's `asset_manifest.json`,
+  `gunner_station_layout.json`, `weapon_motion.json` and `material_revision.json`.
+- `ctx.stations`: {station id: its manifest entry merged with its articulated turret (yaw, pitch, recoil nodes,
+  weapon class)}.
+- `ctx.materials`: {finish: Blender material}, the sixteen finishes and `Markings`, `Glass` and `Lamps`.
+- `ctx.collection`: the collection new objects go in. Only objects in it are picked up.
+- `ctx.source` (the asset's folder) and `ctx.log(...)`.
+
+What it may add:
+- **A moving piece** is an empty in `ctx.collection` at its pivot. Its local axes are its motion's. It is named
+  `<Station>_<Piece>[_nn]` (e.g. `Siege_Forward_LoaderArm_00`) and parented, keeping its transform, to the asset object
+  it rides on (`SM_IW_<Station>_Yaw`, `_Pitch` or `_Recoil_0n`) or to another such empty. It becomes a part of that
+  name in the model and in the data file's `parts` (`kind` `loader`, with its pivot and local axes in game axes).
+- **Its meshes** are parented to it and named `<Empty>_LOD0` to `_LOD3`. LOD1 to LOD3 are optional: a missing level is
+  decimated from the one above. LOD4 is always made by the import.
+- **A static addition** is a mesh parented straight to an asset object and named `<anything>_LOD<n>`. It joins that
+  part's LOD n mesh.
+- **Materials:** faces use `ctx.materials` only, so every surface maps to a shared Godot material.
+- **Optional extras:** `UCX_<anything>` meshes parented to an empty become its collision hulls, and `SOCKET_<Name>`
+  empties under it become `socket_<Name>`.
+- **A return value:** `build()` may return a dict, written under `loaders` in the data file.
+
+Everything added goes through the same pipeline as the asset's parts: the turn into game axes, the contact darkening,
+LOD4, the export and the data file.
+
+**Where the mechanisms go** (measured by the import and in `stations[].receiver`, in each pitch node's frame at rest,
+game axes, metres from the trunnion):
+- **Siege battery.** The barrels' rear ends sit on their axes at (±0.9975, 0, +0.945), inside the receiver: the pitch
+  part, from z −0.725 to +3.517.
+  - Up to z +0.4 the receiver is a trunnion block across the full width (x ±2.15, y ±0.72).
+  - From z +0.9 it becomes two sleeves (x ±1.28 to ±1.35), the barrels in them.
+  - The yaw's gun house covers the receiver up to z +0.719. Its inner faces are at x ±1.87 to ±2.14 and its top at
+    y +0.48 to +0.80.
+  - So the barrels' breech ends lie 0.23 m in front of the gun house, under the receiver's open top (y +0.745), with
+    open space outboard of each sleeve from z +0.72 forward.
+  - Behind the gun house, the gunner's seat is at (0, +0.09, −2.49).
+- **Defense mount.** The three tubes' rear ends are at (−0.275, 0, +0.387), (0, 0, +0.387) and (+0.275, 0, +0.387),
+  inside the pitch housing: z −0.297 to +1.441, x ±0.88 at the trunnion, the tube cluster ±0.38 from z +0.6.
+  - The gun house's front face is at z +0.295 (+0.163 above y +0.25). Its inner faces are at x ±0.80.
+  - The housing's top is at y +0.305.
+  - The seat is at (0, +0.447, −1.994).
 
 ### 9.6 People in seats
 

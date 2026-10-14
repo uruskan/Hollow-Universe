@@ -251,9 +251,10 @@ def box_hull(name, centre, size, target, rotation=(0, 0, 0)):
     return o
 
 
-def export_glb(path, objects, materials, animations=False):
+def export_glb(path, objects, materials, animations=False, import_extra=None):
     """Exports `objects` (and only them) as GLB without images, then writes the Godot `.import` mapping each
-    material to its shared .tres. `materials`: {material name in Blender: .tres path}."""
+    material to its shared .tres. `materials`: {material name in Blender: .tres path}; `import_extra`: more Godot
+    import parameters."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     select_only(objects)
@@ -270,7 +271,7 @@ def export_glb(path, objects, materials, animations=False):
     missing = used - set(materials)
     if missing:
         raise RuntimeError(f"{path.name}: no Godot material for {sorted(missing)}")
-    write_scene_import(path, {k: v for k, v in materials.items() if k in used}, animations)
+    write_scene_import(path, {k: v for k, v in materials.items() if k in used}, animations, import_extra)
     tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in objects
                if o.type == "MESH" and o.name.lower().endswith("_lod0"))
     log(f"exported {path.name}: {len(objects)} nodes, LOD0 {tris} triangles, {path.stat().st_size / 1e6:.2f} MB")

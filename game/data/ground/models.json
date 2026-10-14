@@ -403,6 +403,9 @@
       "gibs": { "file": "res://assets/gibs/doors-garage.glb", "material": "metal", "budget": 800 }, "source": "PSG Door & Window Kit R01 (art/import): the garage door; its parts are building.json's doors drawn from it" },
 
     { "key": "tin-finch", "kind": "world", "class": "vehicle", "file": "res://assets/world/tin-finch.glb", "lods": 3, "collision": "convex",
-      "icon": { "view": [38, 22, 0] }, "lodDistances": [60, 160, 0], "source": "Tin Finch TF-01 (our own, converted)" }
+      "icon": { "view": [38, 22, 0] }, "lodDistances": [60, 160, 0], "source": "Tin Finch TF-01 (our own, converted)" },
+    { "key": "iron-wake", "kind": "world", "class": "vehicle", "file": "res://assets/ships/iron-wake.glb", "lods": 5, "collision": "convex",
+      "icon": { "view": [38, 22, 0] }, "lodDistances": [70, 180, 450, 1200, 4000],
+      "source": "Iron Wake Buildable Shell R01 (the owner's own Iron Wake, converted by art/import/iron_wake.py; Poly Haven CC0 materials)" }
   ]
 }

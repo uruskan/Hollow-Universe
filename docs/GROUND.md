@@ -3864,7 +3864,8 @@ Every item key and world object has a model, an icon if it's an item, and a line
 rebuilt by scripts:
 
 ```bash
-blender -b --factory-startup --python art/build.py                 # every model (30 s; 2 min converting the textures)
+blender -b --factory-startup --python art/build.py                 # every model (30 s, the Iron Wake 5 min more;
+                                                                   # 2 min converting the textures)
 blender -b --factory-startup --python art/build.py -- tools        # one script (names below)
 $GODOT --path game -- --view icons --out game/assets/items/icons   # every icon (a real window; --only a,b for some)
 $GODOT --path game --resolution 1600x900 -- --view icons --shot icons.png       # the contact sheet
@@ -3880,6 +3881,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
 | `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
 | `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
+| `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes, and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone) |
 | `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
@@ -3915,7 +3917,10 @@ recipe (Windows: System.Drawing and Consolas).
   (`psg_surface` and `psg_markings`, the PSG atlas; `frontier_metal` and `frontier_furniture`; `tin_finch_*`;
   `hollow_rock`, a tiling CC0 rock; `hollow_glossy`, plain). Our own models use the PSG atlas's sixteen material tiles
   (timber, rusted steel, gunmetal, enamel, canvas, leather, basalt...) tinted per vertex; the vertex colour also
-  carries baked occlusion. Godot stores glTF vertex colours as sRGB, so these materials set `vertex_color_is_srgb`.
+  carries baked occlusion. These materials set `vertex_color_is_srgb`, taking Godot to store glTF vertex colours as
+  sRGB. Measured for the Iron Wake (15 October 2026), Godot 4.7.2 keeps them as the file has them, linear, so the flag
+  decodes them once more and darkens them. These models were tuned with it on and keep it; the Iron Wake's materials
+  leave it off (IRON_WAKE.md §9.2).
 
 **Catalogue:** `game/data/ground/models.json`, read by `game/scripts/Items/ModelCatalog.cs`. One entry per item key
 (kind `item`) or world object (kind `world`):
@@ -3961,6 +3966,15 @@ layer is laid on what is already there by casting rays: the folds and the hem on
 folds, the cross strap over the long strap. The cloth's texture is laid on as it wraps, over the top and down the front
 and back as one sheet, so no box-projection seam runs along the top's edges. LODs: 6,242, 3,120 and 1,366 triangles.
 
+**The Iron Wake** (`iron-wake`, class `vehicle`; `import/iron_wake.py`, docs/IRON_WAKE.md §9.1–§9.3) is the first
+model converted from a whole ship asset: the owner's own Iron Wake, 58 m long, with the revision's Poly Haven
+finishes at 2K (`game/assets/textures/iron_wake`, 66.7 MiB in video memory). Its GLB (`game/assets/ships`) keeps
+five levels for every part (`lodDistances` 70, 180, 450, 1,200 and 4,000 m; LOD4 is a coloured shell made by the
+import) and its moving parts under empties at their pivots. What the rules need (rooms, boarding, build zones,
+stations, the hull's boxes, lights) goes to its own data file, `game/data/ground/ships/iron-wake.json`, written
+deterministically from the same asset. The asset's port and starboard names are mirrored; the data file records the
+true sides.
+
 `ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
 merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
 resampled to the exact pixel size asked, and falls back to the placeholder drawings for keys without an icon; `Main`
@@ -3980,9 +3994,11 @@ from the lower right with the head toward the middle, guns point in toward the c
 angles.
 
 **Viewer** (`--view models`): every model on the ground in groups by size with a 1.8 m figure for scale, or one on a
-turntable (`--model <key>`, Tab); LOD keys 0, 1, 2 and A; F (or `--first-person`) shows a held item at its first-person
-pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open`; the ship stands on a plain
-stand. `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
+turntable (`--model <key>`, Tab); LOD keys 0 to 4 and A; F (or `--first-person`) shows a held item at its first-person
+pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open`; a vehicle under 25 m stands
+on a plain stand, the Iron Wake on its own legs. `--from=x,y,z --at=x,y,z` put the camera in the model's own frame
+(metres, +Z its front) and hold the turntable, for a close look at one place; `--fov <deg>` sets the lens.
+`tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
 has its LODs, hulls, palm sockets and mapped materials, that icons are square RGBA PNGs at both sizes, and that every
 item key (and every item of `items.json` when present) has a model.
 
@@ -3990,7 +4006,8 @@ Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `ic
 the reworked icons), `icons-g5.jpg` (the G5 raid items and the models that replaced the last stand-ins: gunpowder, the
 metal mask, incendiary pistol rounds), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
 `models.jpg` (everything on the ground),
-`items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
+`items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand). The Iron Wake's are in
+`docs/images/iron-wake/` (IRON_WAKE.md §9.3).
 
 ### 9.2 Sounds, as built
 

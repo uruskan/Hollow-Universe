@@ -41,7 +41,7 @@ public static class ModelCatalogueTests
     private static readonly string[] RequiredWorld =
     {
         "stone-node", "metal-node", "sulphur-node", "wood-pile", "stone-pile", "metal-pile", "sulphur-pile",
-        "loot-sack", "dropped-bag", "tin-finch",
+        "loot-sack", "dropped-bag", "tin-finch", "iron-wake",
         // G7 props.
         "loot-barrel-1", "loot-barrel-2", "loot-crate", "military-crate", "recycler",
     };

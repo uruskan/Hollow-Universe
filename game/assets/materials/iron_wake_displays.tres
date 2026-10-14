@@ -1,0 +1,19 @@
+[gd_resource type="ORMMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IronWake_Markings_BaseColor.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IronWake_Markings_ORM.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IronWake_Markings_Emissive.png" id="3"]
+
+[resource]
+resource_name = "M_IronWake_Markings"
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("1")
+orm_texture = ExtResource("2")
+ao_enabled = true
+emission_enabled = true
+emission = Color(0.701411, 1, 0.797738, 1)
+emission_operator = 1
+emission_texture = ExtResource("3")
+emission_energy_multiplier = 1
+texture_filter = 5
