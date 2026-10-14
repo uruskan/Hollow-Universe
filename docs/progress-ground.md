@@ -668,3 +668,54 @@ textures/meshes glitching constantly, almost like flickering". Measured, then fi
   The stress block: 400 draw calls before, 405 after (the corner posts); 16.85 M and 16.79 M triangles; frame time
   within this PC's run-to-run swing (another game was running). One new test (`BuildingFitTests`: 298 meshes fill their
   slots); 218 of 218 pass; the sandbox's build check passes 9 of 9.
+
+## 14 October 2026, the kernel (`ground-systems`)
+
+GROUND_SYSTEMS.md §12 and decisions K1–K14. The owner asked whether the code was "a mess or a proper architecture",
+heard that four things grew with every feature and every feature was wired through all four (`Zone`, 24 partial files
+and 8,800 lines calling each other freely; `GameServer`, 12; `GameClient`, 14; `GameContent` with a 1,200-line reader
+inside; one event struct of 17 fields for 12 kinds; a switch or chain for every message on both sides), and decided:
+one dedicated server for now, no zone host and no transfers yet, but the rest fixed now, by applying §2's registry rule
+one level up. Built in five packages, each landing with every old path moved and deleted:
+
+- **K0, the zone is a host:** `Zone` keeps what every rule shares (the entities, the physics, the natural objects, the
+  pose history, the clock, the content, the events) and is 360 lines; every rule is a `ZoneSystem` of its own in
+  `src/Hollow.Simulation/Systems` (24 of them), listed once in `GroundSystems` in the tick's order, initialised in
+  `InitOrder`, timed by the host, found by its accessor (`zone.Players()`, `zone.Building().World`, `zone.Ships().All`).
+  A movement-only zone is the same host with `AutoRespawn`, `Ships` and `Damage`. The conversion was scripted (each
+  member's new home chosen by its file; 575 call sites outside the simulation moved to the accessors; what was private
+  and used by another system became internal, 154 members); three overloads that clashed across files were renamed
+  (`TryLinkPose`, `ResolveContainer`, `DropExplosive`); `SetCheats` and the ground helpers are the host's. The 68
+  `Content == null` paths went. Test: `ArchitectureTests.TheZoneIsAHost`.
+- **K1, events are types:** twelve records in `Events/` (`HitConfirmed`, `Hurt`, `ItemsGained`, `Crafted`, `Died`,
+  `ProjectileLaunched`, `ProjectileEnded`, `WentDown`, `GotUp`, `Detonated`, `Notice`, `Destroyed`); `Zone.Events`
+  keeps them by kind and tells each subscriber the moment one is added; the server's 23-case route and its counters are
+  subscriptions made once at start, the animals hear noises as they happen. Test: `EventTests.EventsAreTypedAndHeard`.
+- **K2, messages find their handler:** every generated message implements `INetMessage<T>`; `MessageHandlers<TContext>`
+  routes a packet's type byte to the one handler registered for it, without allocating; the schema hash is unchanged.
+  Test: `NetTests.MessageHandlersRouteByTypeByte`.
+- **K4, one reader per data file:** `Content/Readers`, nineteen readers in `ContentReaders.All`, the checks with the
+  file they check and the cross-file ones last; `GameContent.cs` from 1,675 lines to 400, `Validation.cs` gone, the
+  content hash and every problem text unchanged. Test: `ContentTests.EveryDataFileHasOneReader`.
+- **K3a, the server is a host:** `GameServer` keeps the connection, logins, the tick loop, the snapshots of dynamic
+  entities, chat, saving and shutdown (1,079 lines, no partial left but `AdminCommands.cs`); twelve `ServerModule`s in
+  `src/Hollow.Server/Modules` (things, building, placement, ships, raid, world, animals, arrows, damage, survival, guns,
+  console), listed once in `ServerModules`, each registering its intents in the handler table and hooked by the core
+  (`Restore`, `Start`, `Joined`, `Left`, `BeforeStep`, `Input`, `AfterStep`, `Prepare`, `Describe`, `AtRest`, `Seen`,
+  `Snapshot`, `Replicate`, `Finish`, `Save`); the per-player state a module keeps lives in `session.State<T>()` (the thing,
+  build, explosive, arrow, ship and world views, the own state, the looks, the budgets), so the weak tables and the
+  per-feature dictionaries are gone; the wire order of a tick is unchanged, and a 20-bot load test ticks in 0.7 ms as
+  before. Test: `ArchitectureTests.TheServerIsAHost`.
+- **K3b, the client is a host:** `GameClient` keeps the connection, the clock, the input, the prediction, the snapshots,
+  the remote entities and chat (837 lines, no partial left); thirteen `ClientModule`s in `src/Hollow.Client/Modules`
+  (survival, targets, world, building, placement, interaction, raid, ships, animals, arrows, console, damage, loading),
+  listed once in `ClientModules`, each registering its messages in the handler table and hooked by the core (`Welcome`,
+  `Spawned`, `Despawned`, `Seated`, `BeforePredict`, `AfterSnapshot`, `Sample`, `Render`, `Update`), found by accessor
+  (`client.Raid().Explosives`, `client.Ships().Piloting`, `client.Building().World`); 385 call sites moved in the
+  presentation, the bots and the tests; a packet nobody handles is counted (`Stats.UnhandledMessages`). Test:
+  `ArchitectureTests.TheClientIsAHost`.
+
+224 tests pass (218 before). The game runs as before (a frame rendered on the first world after each package, the
+server a child process, the saved world loaded); 100 survival bots tick in 6.6 ms as before (§5.11). Deferred by the
+owner: the zone host, transfers, the lifecycle with catch-up (ARCHITECTURE.md §10.1, §10.4, §12) and P6; nothing above
+has to be redone for them.

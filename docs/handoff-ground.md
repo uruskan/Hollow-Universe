@@ -1,11 +1,50 @@
 # Ground game: handoff to the next session
 
-Written 13 October 2026, morning, when the first session's context filled up. Read this first, then
+Written 13 October 2026, morning, when the first session filled its context; the kernel of 14 October added on top. Read this first, then
 [GROUND.md](GROUND.md) (design and everything as built) and [progress-ground.md](progress-ground.md) (what happened).
 Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a-shader-system` and
 `minimal-automated-testing` hold the owner's standing decisions.
 
-## State on 13 October 2026, evening (read this first)
+## State on 14 October 2026, evening: the kernel (read this first)
+
+- **`ground` holds the kernel** (GROUND_SYSTEMS.md §12, packages K0–K4, merged from `ground-systems` on 14 October
+  2026): the zone is a host of `ZoneSystem`s, events are types, messages find their handler in a table, the server and
+  the client are hosts of modules, and every data file has one reader. 224 tests pass. The game runs as before (a frame
+  rendered on the first world, the saved world loaded; 100 bots tick in 6.6 ms). The packages' branches (`ground-k2`,
+  `ground-k4`, `ground-k3a`, `ground-k3b`, `ground-systems`) are merged; their worktrees under `Hollow-wt\` can go.
+- **Where things go now** (the rule of §12 is the rule of §2 one level up):
+  - a rule of the game: a `ZoneSystem` in `src/Hollow.Simulation/Systems`, listed once in `GroundSystems` (its position
+    is its place in the tick; `InitOrder` if its `Init` must follow another's); its file ends with its accessor, so
+    callers write `zone.Guns()`, `zone.Building().World`, `zone.Ships().All`; what it needs of another system it finds
+    once in `Init` and keeps (`Zone.Require<T>()`);
+  - something that happened: a record in `src/Hollow.Simulation/Events`, added with `Events.Add(new X(...))`; whoever
+    cares subscribes once (`Events.On<X>`): the server's route, a system's hearing, a test reads `Events.Of<X>()`;
+  - a message: its struct in `Messages.cs` as before, and one `handlers.On<X>(...)` in the module that owns it, on
+    each side; nothing else routes;
+  - the server's or the client's part of a concern: a `ServerModule` in `src/Hollow.Server/Modules` or a
+    `ClientModule` in `src/Hollow.Client/Modules`, listed once in `ServerModules` / `ClientModules`, with its accessor
+    (`server.Raid()`, `client.Ships()`); per-player state a server module keeps goes in `session.State<T>()`;
+  - a data file: its reader in `src/Hollow.Simulation/Content/Readers`, listed in `ContentReaders.All`, with its check.
+  - The checks that keep this shape: `ArchitectureTests.TheZoneIsAHost`, `TheServerIsAHost`, `TheClientIsAHost`,
+    `ContentTests.EveryDataFileHasOneReader`, `NetTests.MessageHandlersRouteByTypeByte`, `EventTests`.
+- **Renamed in K0** (the names a reader of older notes will miss): the supports' `TryPose(in SupportLink)` is
+  `TryLinkPose`; the actions' `Resolve(Player, ContainerRef)` is `ResolveContainer`; the explosives' `Drop(LiveExplosive)`
+  is `DropExplosive`; `Zone.Building` is `zone.Building().World`, `Zone.Animals` is `zone.Animals().World`,
+  `Zone.Placement` is `zone.Placement().World`, `Zone.Ships`/`Arrows`/`Explosives` are `zone.Ships().All` and so on;
+  `Zone.GameEvents` is `Zone.Events`; the event kinds `DamageTaken`, `CraftFinished`, `Wounded` and `Recovered` are the
+  records `Hurt`, `Crafted`, `WentDown` and `GotUp`. On the client (K3b): `client.Animals`, `Ships` and `Arrows` are
+  `client.Animals().All` and so on, `client.Building` is `client.Building().World`, `client.BuildingReplica` is
+  `client.Building().Replica`, `client.Placement` is `client.Placement().World`; everything else keeps its name behind
+  its module's accessor (`client.Survival().Things`, `client.Raid().Explosives`, `client.Ships().Piloting`). On the
+  server (K3a): a concern's members sit behind its module's accessor (`server.Raid().Notifications`,
+  `server.Console()`, `server.Survival()`); what a module remembers per player is `session.State<T>()`.
+- **Deferred by the owner (14 October 2026):** the zone host (many zones in one server), transfers between zones, the
+  lifecycle with catch-up for unloaded time, and P6 (one model for every world thing). A second zone is a second host
+  with the same lists; nothing of the kernel has to be redone for them.
+- **Left, in order:** the owner's playtest of all of this (the shared systems of 13 October and the kernel); the
+  second playtest's 30 findings (the wave plan in `ground-game-plan`, awaiting the owner's go); the rename from claim
+  device to tool cupboard in the code; P6 and P7, to plan with the owner; the deferred questions below.
+## State on 13 October 2026, evening (what the kernel was built on)
 
 - `ground` holds everything below plus the owner's first playtest's fixes and the **shared systems** of
   [GROUND_SYSTEMS.md](GROUND_SYSTEMS.md) (approved by the owner): P0 foundations (targets, outcomes and `texts.json`,
