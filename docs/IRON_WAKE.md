@@ -765,9 +765,88 @@ room reverb (`AudioBuses.SetSpace`) is never called. The Iron Wake adds three th
 
 - **Sources.** The CC0 packs already on this PC (`D:\GameDev\Assets\Downloads`: BigSoundBank's 251 recordings, Kenney's
   impact and sci-fi packs, the free firearm library and others), layered and processed by the recipe pipeline
-  (`art/audio`). Synthesis (`synth.py`) supplies impulse responses and motors.
+  (`art/audio`). Synthesis (`synth.py`, and `machines.py` for the ship's machinery, §10.1) supplies impulse responses and
+  motors.
 - **Mixing.** Every event is measured (`levels.json`). The mix is judged in the playable check (§14) from the bridge,
   the empty deck and outside, with and without built equipment aboard.
+
+### 10.1 As built (IW-S, 15 October 2026)
+
+Built on the branch `iw-sound`: **56 events, 198 files** in `game/assets/audio/iron-wake/` (Ogg Vorbis at 48 kHz,
+7.3 MB), measured in `levels.json` and listed in `sounds.json`. Nothing plays them yet: IW6 hooks them up by the notes
+in the table. `--view sounds` auditions every one (groups Iron Wake, Batteries, Rockets and Fire); `--sound-check`
+agrees with the pipeline on all of them.
+
+![The audition viewer with the Iron Wake's and the batteries' events, the rammer's four variants measured by the
+pipeline and the engine](images/iron-wake/sounds.jpg)
+
+**How they are made** (GROUND.md §9.2). No recording on this PC holds a ship's drive, a cannon, a klaxon or an alarm
+bell, so the machinery is modelled in code (`art/audio/machines.py`) and layered with recordings of real mechanisms in
+`events.py`'s `iron_wake()`:
+- **The drive** is a turbine shaft (53 Hz at ground idle, 85 Hz at full thrust) whose running phase drives its orders:
+  the shaft's hum and harmonics; a 23-blade stage's whine with the shaft's sidebands, singing louder while it spools up;
+  a second stage; an accessory gearbox's mesh; fuel pumps (a motor, a gear pump, the strokes' chug); combustion as
+  noise in four bands moved by turbulence, brighter and crackling under load, with a big gasoline fire's real roar
+  slowed under it; the mains' hum while the contactors are in; the hull's low modes (36, 97 and 158 Hz) swelling as the
+  shaft's orders pass them and ringing on (the settled hull resonance); loose fittings ticking, several objects each with
+  its own ring.
+- **Steel** is modal (a pulse strikes resonances with their own decays); **contactors** a coil's thump, an armature's
+  clack, the contacts' arc and the coil's buzz; **gas** shaped noise; **servos, chains and ratchets** motors and modal
+  clicks on eased speeds; the **klaxon** a motor-driven toothed wheel on a steel diaphragm through a horn, its pitch
+  rising and falling with the motor; the **bell** a trembler's hammer on a gong whose modes are split pairs.
+- **Recordings** (BigSoundBank unless named; all CC0 and already on this PC, nothing downloaded): barn-lock and door-lock
+  bolts (1539, 1540, 0191) for latches and contactors; drawers on steel rails (0773, 0792) for breech blocks, trays and
+  cassettes; a creaking steel door and a grinding gate, slowed two to four times (0616, 0683), for the hull; quenching
+  steam (1694–1696) for hydraulics and vents; an anvil and steel bars (3590, 1771–1777) for rings and rattles; the free
+  firearm library's 12-gauge shotguns at half speed (a cannon's body) and its rifles (the crack); explosions (1806–1808,
+  1023); gasoline fires (1340–1344) and burning branches (0987–0989, 2857); a strong wind (0146) in the lift engines'
+  downwash; a sliding gate's motor and rollers (0513) in the ramp's actuators; Kenney's impacts and latches; rubberduck's
+  steel, springs and keys. Every recorded transient starts at its measured attack, so layers land together.
+- **Loops** are periodic by construction and cut without a crossfade: no seam to hear (checked: one period on, every
+  made source repeats to 3·10⁻⁸; the encoded joins are ordinary samples of their files).
+
+| Events (variants) | What | Hookup (IW6) |
+|---|---|---|
+| `iw.drive.start` (3 × 7.6 s) | Main contactor, the pumps' contactor and their run-up, the igniter's sparks, light-off, the spool to ground idle (the whine rising, the hull shuddering through its mode), a bleed valve | At start; fade `iw.drive.idle.slow` in over its last 1.5 s (their levels meet within 1 dB) |
+| `iw.drive.idle.slow`, `.fast` (16 s loops) | Ground idle (53 Hz shaft) and flight idle (58 Hz) | Crossfade by spool and airborne |
+| `iw.drive.load.slow`, `.fast` (16 s loops) | The whole drive at part thrust (72 Hz) and full thrust (85 Hz): the roar, the crackle, the hull under load | Gain by thrust over idle; crossfade slow to fast by thrust (equal power) |
+| `iw.drive.release` (4) | The load letting go, the blow-off vent, the whine falling back | When thrust falls quickly; the loops carry on under it |
+| `iw.drive.shutdown` (3 × 8 s) | Fuel valve, the flame's last puff, the rundown through the hull's mode, the pumps' contactor and their stop, the main contactor, the metal ticking as it cools | At stop; fade the loops over its first 0.5 s (volume −3 dB matches its start to the idle loop) |
+| `iw.lift.loop.slow`, `.fast` (16 s loops) | Four ducted fans beating against each other, the downwash with real gusts | Gain and crossfade by lift thrust |
+| `iw.rcs.puff` (6) | A solenoid's snap, a hard burst of gas, its chuff and thump; taps and pushes | Each manoeuvring jet's firing |
+| `iw.boost.strain.slow`, `.fast` (12 s loops) | The drive overdriven, a wavering groan, steel singing at 2.35 kHz | Over the load while boosting: slow as it begins, fast toward its sixth second |
+| `iw.boost.release` (4) | The flame's exhale, the vent, the whine falling, the structure relaxing | When the boost ends |
+| `iw.hull.strain.light`, `.medium`, `.heavy` (6, 6, 5) | Creaks; groans with a stick-slip tone and a panel popping through; deep groans with pops, a boom and rattles; all ringing in the hull | By the simulation's strain event's size; structure-borne, so `occlude` is off and `structureDb` applies |
+| `iw.touchdown` (4) | The legs' oleo struts, 420 t landing, the gear's steel, a rebound, rattles, a settling creak | On touchdown, at the legs |
+| `iw.interior.ventilation`, `iw.interior.machinery` (48 and 56 s stereo beds) | Two fans beating slowly through ducts; the mains' hum, a generator far off, a pump, the hull's rumble, now and then a knock or a relay | Ambience beds by room, faded by the listener's space |
+| `iw.ramp.release`, `.actuator` (10 s loop), `.contact`, `.lock` (3, 1, 4, 3) | The hydraulics' valve and two locking pins drawn; the power pack's motor and pump, the oil's rush, the gate's rollers; the lip landing; pins driven home and pressure let go | The ramp's phases (§5.3), at its hinge |
+| `iw.airlock.slide`, `.seal` (3, 3) | The door's motor running 1.4 s along its rail to the stop; the gasket, two dogs, the pressure equalising | Its 1.5 s motion; when it shuts |
+| `iw.alarm.hull`, `iw.alarm.fire` (3, 3) | A klaxon's two or three rasping blasts; an electric bell ringing 2.2–2.6 s | Sparse: a phrase every 20–30 s while it holds; flat for the crew aboard |
+| `siege.fire.mechanism` (5) | The sear, the barrel's 80 ms of recoil, the buffer's thud with the cradle ringing, the oil's hiss, a short rattle | At the breech with the shot |
+| `siege.fire.report` (5 near, 4 mid, 3 far) | A shotgun at half speed for the body, a rifle's crack, an explosion's blast, a low push of air and the open air's rolling echo; mid and far as heard across the world | At the muzzle; layered by distance (120 and 800 m) and delayed |
+| `siege.fire.interior` (4) | The shot through the structure: a muffled thump, the hull answering, rattles overhead and along the rails | For listeners aboard, by `structureDb` |
+| `siege.recover`, `siege.latch` (4, 4) | The recuperator pushing back to battery over 0.9 s and its firm stop; the latch catching | The recover phase; the latch at its end |
+| `loader.*` (3–4 each) | Breech open (0.45 s), arm swing (0.80 s and a 0.55 s short), rack index (a ratchet), transfer (0.40), ram (a chain rammer, ending as the rocket seats), retract (0.40), breech close (0.35); the cassette's release (0.30), eject (0.45: the drop into the chute), raise (0.70), seat (0.45), lock (0.30) | Each at its phase's start (§6.6); each fits its phase |
+| `defense.fire.report` (6 near, 4 mid, 3 far), `.mechanism` (5) | Its own report: a rifle's hard crack, the tube's steel ring and the rocket's hiss tearing out ("tchang-fsss"), a small blast; per barrel, a solenoid's snap and a knock | Per barrel of the ripple, 0.25 s apart |
+| `turret.traverse.slow`, `.fast` (8 s loops), `turret.limit` (4) | The traverse drive: motor, gear mesh, the slewing ring's rumble and ticks; the stop at a limit | Crossfade by slew rate; the stop when it reaches an arc's end |
+| `rocket.ignite` (4), `rocket.flight` (2 × 6 s loops), `rocket.incendiary.burst` (4 near, 3 mid, 2 far) | The motor catching a few metres out; a rocket motor's roar and crackle with a gasoline fire's real turbulence; a small blast and the fuel's whoomp, splash and crackle | Ignition at the light-up point; the flight loop on the rocket's node (`Loop`, `Stop` on arrival); the burst at impact, delayed |
+| `fire.ignite` (4), `fire.patch.small`, `.large` (20 and 24 s loops) | Fuel catching with a whoomp; crackle; a roar | The fire's start; its 18 s by size (§7) |
+
+**Not mapped yet.** The `rocket` and `rocket-hv` items' `flight` role still plays `arrow.flight`: `RaidView` plays that role
+once at the launch point (`Sounds.At`), and a loop there would never stop. When the rockets' view loops `rocket.flight`
+on the rocket and stops it on arrival (IW4 or IW6), the role becomes `"flight": "rocket.flight"` in `events.py`'s items.
+
+**The listener's spaces** (`sounds.json` → `spaces`, for `AudioBuses.SetSpace`; Godot's `AudioEffectReverb` terms):
+
+| Space | Room size | Damping | Wet | Pre-delay | Feedback | Spread | High-pass | Structure-borne |
+|---|---|---|---|---|---|---|---|---|
+| `outside` | 0.20 | 0.70 | 0.02 | 12 ms | 0.20 | 0.8 | 0.15 | −80 dB (none) |
+| `deck` (Deck A, the bay and the mezzanine, connected) | 0.78 | 0.28 | 0.34 (dry 0.92) | 22 ms | 0.32 | 1.0 | 0.08 | 0 dB |
+| `bridge` (glazed, insulated, padded) | 0.22 | 0.85 | 0.07 | 3 ms | 0.05 | 0.5 | 0.30 | −6 dB |
+
+**Loudness** (GROUND.md §4.9): four categories were added for these, as built: machine −21.5 … −20.9 LUFS (event),
+mechanism −25.4 … −25.0, engine −25.3 … −25.0 (integrated), alarm −20.1 … −19.9; the siege report's near layer is an
+explosion's (−14.9 … −13.9), the defense mount's a gunshot's (−22.4 … −21.8); every file peaks under −1.3 dBTP.
 
 ## 11. Effects
 

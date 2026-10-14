@@ -14,7 +14,16 @@
     "marker": {"metric": "event", "target": -23.0, "min": -28.0, "max": -18.0},
     "loop": {"metric": "integrated", "target": -29.0, "min": -34.0, "max": -24.0},
     "ambience": {"metric": "integrated", "target": -30.0, "min": -34.0, "max": -26.0},
-    "accent": {"metric": "event", "target": -27.0, "min": -32.0, "max": -22.0}
+    "accent": {"metric": "event", "target": -27.0, "min": -32.0, "max": -22.0},
+    "machine": {"metric": "event", "target": -21.0, "min": -26.0, "max": -16.0},
+    "mechanism": {"metric": "event", "target": -25.0, "min": -31.0, "max": -20.0},
+    "engine": {"metric": "integrated", "target": -25.0, "min": -30.0, "max": -21.0},
+    "alarm": {"metric": "event", "target": -20.0, "min": -24.0, "max": -16.0}
+  },
+  "spaces": {
+    "outside": {"roomSize": 0.2, "damping": 0.7, "spread": 0.8, "hipass": 0.15, "dry": 1.0, "wet": 0.02, "predelayMs": 12.0, "predelayFeedback": 0.2, "structureDb": -80.0, "note": "Open air: no tail of its own (today's SetSpace(0))."},
+    "deck": {"roomSize": 0.78, "damping": 0.28, "spread": 1.0, "hipass": 0.08, "dry": 0.92, "wet": 0.34, "predelayMs": 22.0, "predelayFeedback": 0.32, "structureDb": 0.0, "note": "Deck A, the bay and the mezzanine as one connected steel room: long, bright, with flutter between parallel plates."},
+    "bridge": {"roomSize": 0.22, "damping": 0.85, "spread": 0.5, "hipass": 0.3, "dry": 1.0, "wet": 0.07, "predelayMs": 3.0, "predelayFeedback": 0.05, "structureDb": -6.0, "note": "The glazed bridge, insulated and padded: small and dry."}
   },
   "items": {
     "rock": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
@@ -3099,6 +3108,1032 @@
         "res://assets/audio/animals/bear_step_04.ogg",
         "res://assets/audio/animals/bear_step_05.ogg",
         "res://assets/audio/animals/bear_step_06.ogg"
+      ]
+    },
+    {
+      "key": "iw.drive.idle.slow",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 16.0,
+      "maxDistance": 400.0,
+      "priority": 72,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/drive_idle_slow.ogg"
+      ]
+    },
+    {
+      "key": "iw.drive.idle.fast",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 16.0,
+      "maxDistance": 400.0,
+      "priority": 72,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/drive_idle_fast.ogg"
+      ]
+    },
+    {
+      "key": "iw.drive.load.slow",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 16.0,
+      "maxDistance": 900.0,
+      "priority": 72,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/drive_load_slow.ogg"
+      ]
+    },
+    {
+      "key": "iw.drive.load.fast",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 16.0,
+      "maxDistance": 900.0,
+      "priority": 72,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/drive_load_fast.ogg"
+      ]
+    },
+    {
+      "key": "iw.drive.start",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 16.0,
+      "maxDistance": 500.0,
+      "priority": 75,
+      "limit": 2,
+      "pitch": [0.99, 1.01],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/iron-wake/drive_start_01.ogg",
+        "res://assets/audio/iron-wake/drive_start_02.ogg",
+        "res://assets/audio/iron-wake/drive_start_03.ogg"
+      ]
+    },
+    {
+      "key": "iw.drive.shutdown",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 16.0,
+      "maxDistance": 500.0,
+      "priority": 75,
+      "limit": 2,
+      "pitch": [0.99, 1.01],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/iron-wake/drive_shutdown_01.ogg",
+        "res://assets/audio/iron-wake/drive_shutdown_02.ogg",
+        "res://assets/audio/iron-wake/drive_shutdown_03.ogg"
+      ]
+    },
+    {
+      "key": "iw.drive.release",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 16.0,
+      "maxDistance": 600.0,
+      "priority": 70,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/drive_release_01.ogg",
+        "res://assets/audio/iron-wake/drive_release_02.ogg",
+        "res://assets/audio/iron-wake/drive_release_03.ogg",
+        "res://assets/audio/iron-wake/drive_release_04.ogg"
+      ]
+    },
+    {
+      "key": "iw.lift.loop.slow",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 16.0,
+      "maxDistance": 800.0,
+      "priority": 72,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/lift_loop_slow.ogg"
+      ]
+    },
+    {
+      "key": "iw.lift.loop.fast",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 16.0,
+      "maxDistance": 800.0,
+      "priority": 72,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/lift_loop_fast.ogg"
+      ]
+    },
+    {
+      "key": "iw.rcs.puff",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 6.0,
+      "maxDistance": 180.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [0.94, 1.06],
+      "jitter": 1.5,
+      "files": [
+        "res://assets/audio/iron-wake/rcs_puff_01.ogg",
+        "res://assets/audio/iron-wake/rcs_puff_02.ogg",
+        "res://assets/audio/iron-wake/rcs_puff_03.ogg",
+        "res://assets/audio/iron-wake/rcs_puff_04.ogg",
+        "res://assets/audio/iron-wake/rcs_puff_05.ogg",
+        "res://assets/audio/iron-wake/rcs_puff_06.ogg"
+      ]
+    },
+    {
+      "key": "iw.boost.strain.slow",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 18.0,
+      "maxDistance": 900.0,
+      "priority": 74,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/boost_strain_slow.ogg"
+      ]
+    },
+    {
+      "key": "iw.boost.strain.fast",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 18.0,
+      "maxDistance": 900.0,
+      "priority": 74,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/boost_strain_fast.ogg"
+      ]
+    },
+    {
+      "key": "iw.boost.release",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 18.0,
+      "maxDistance": 700.0,
+      "priority": 72,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/boost_release_01.ogg",
+        "res://assets/audio/iron-wake/boost_release_02.ogg",
+        "res://assets/audio/iron-wake/boost_release_03.ogg",
+        "res://assets/audio/iron-wake/boost_release_04.ogg"
+      ]
+    },
+    {
+      "key": "iw.hull.strain.light",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 10.0,
+      "maxDistance": 90.0,
+      "priority": 50,
+      "limit": 3,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.5,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/iron-wake/hull_strain_light_01.ogg",
+        "res://assets/audio/iron-wake/hull_strain_light_02.ogg",
+        "res://assets/audio/iron-wake/hull_strain_light_03.ogg",
+        "res://assets/audio/iron-wake/hull_strain_light_04.ogg",
+        "res://assets/audio/iron-wake/hull_strain_light_05.ogg",
+        "res://assets/audio/iron-wake/hull_strain_light_06.ogg"
+      ]
+    },
+    {
+      "key": "iw.hull.strain.medium",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 12.0,
+      "maxDistance": 120.0,
+      "priority": 55,
+      "limit": 3,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/iron-wake/hull_strain_medium_01.ogg",
+        "res://assets/audio/iron-wake/hull_strain_medium_02.ogg",
+        "res://assets/audio/iron-wake/hull_strain_medium_03.ogg",
+        "res://assets/audio/iron-wake/hull_strain_medium_04.ogg",
+        "res://assets/audio/iron-wake/hull_strain_medium_05.ogg",
+        "res://assets/audio/iron-wake/hull_strain_medium_06.ogg"
+      ]
+    },
+    {
+      "key": "iw.hull.strain.heavy",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 16.0,
+      "maxDistance": 160.0,
+      "priority": 60,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/iron-wake/hull_strain_heavy_01.ogg",
+        "res://assets/audio/iron-wake/hull_strain_heavy_02.ogg",
+        "res://assets/audio/iron-wake/hull_strain_heavy_03.ogg",
+        "res://assets/audio/iron-wake/hull_strain_heavy_04.ogg",
+        "res://assets/audio/iron-wake/hull_strain_heavy_05.ogg"
+      ]
+    },
+    {
+      "key": "iw.touchdown",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 14.0,
+      "maxDistance": 250.0,
+      "priority": 70,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/touchdown_01.ogg",
+        "res://assets/audio/iron-wake/touchdown_02.ogg",
+        "res://assets/audio/iron-wake/touchdown_03.ogg",
+        "res://assets/audio/iron-wake/touchdown_04.ogg"
+      ]
+    },
+    {
+      "key": "iw.interior.ventilation",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/interior_ventilation.ogg"
+      ]
+    },
+    {
+      "key": "iw.interior.machinery",
+      "category": "ambience",
+      "bus": "Ambience",
+      "volume": 0.0,
+      "space": "2d",
+      "priority": 20,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/interior_machinery.ogg"
+      ]
+    },
+    {
+      "key": "iw.ramp.release",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 7.0,
+      "maxDistance": 140.0,
+      "priority": 62,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/ramp_release_01.ogg",
+        "res://assets/audio/iron-wake/ramp_release_02.ogg",
+        "res://assets/audio/iron-wake/ramp_release_03.ogg"
+      ]
+    },
+    {
+      "key": "iw.ramp.actuator",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 7.0,
+      "maxDistance": 140.0,
+      "priority": 60,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/ramp_actuator.ogg"
+      ]
+    },
+    {
+      "key": "iw.ramp.contact",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 66,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/ramp_contact_01.ogg",
+        "res://assets/audio/iron-wake/ramp_contact_02.ogg",
+        "res://assets/audio/iron-wake/ramp_contact_03.ogg",
+        "res://assets/audio/iron-wake/ramp_contact_04.ogg"
+      ]
+    },
+    {
+      "key": "iw.ramp.lock",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 90.0,
+      "priority": 60,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/ramp_lock_01.ogg",
+        "res://assets/audio/iron-wake/ramp_lock_02.ogg",
+        "res://assets/audio/iron-wake/ramp_lock_03.ogg"
+      ]
+    },
+    {
+      "key": "iw.airlock.slide",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 4.0,
+      "maxDistance": 70.0,
+      "priority": 55,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/airlock_slide_01.ogg",
+        "res://assets/audio/iron-wake/airlock_slide_02.ogg",
+        "res://assets/audio/iron-wake/airlock_slide_03.ogg"
+      ]
+    },
+    {
+      "key": "iw.airlock.seal",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 55,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/airlock_seal_01.ogg",
+        "res://assets/audio/iron-wake/airlock_seal_02.ogg",
+        "res://assets/audio/iron-wake/airlock_seal_03.ogg"
+      ]
+    },
+    {
+      "key": "iw.alarm.hull",
+      "category": "alarm",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 14.0,
+      "maxDistance": 160.0,
+      "priority": 92,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/iron-wake/alarm_hull_01.ogg",
+        "res://assets/audio/iron-wake/alarm_hull_02.ogg",
+        "res://assets/audio/iron-wake/alarm_hull_03.ogg"
+      ]
+    },
+    {
+      "key": "iw.alarm.fire",
+      "category": "alarm",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 14.0,
+      "maxDistance": 160.0,
+      "priority": 92,
+      "limit": 2,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/iron-wake/alarm_fire_01.ogg",
+        "res://assets/audio/iron-wake/alarm_fire_02.ogg",
+        "res://assets/audio/iron-wake/alarm_fire_03.ogg"
+      ]
+    },
+    {
+      "key": "siege.fire.mechanism",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 120.0,
+      "priority": 82,
+      "limit": 4,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/siege_mechanism_01.ogg",
+        "res://assets/audio/iron-wake/siege_mechanism_02.ogg",
+        "res://assets/audio/iron-wake/siege_mechanism_03.ogg",
+        "res://assets/audio/iron-wake/siege_mechanism_04.ogg",
+        "res://assets/audio/iron-wake/siege_mechanism_05.ogg"
+      ]
+    },
+    {
+      "key": "siege.fire.report",
+      "category": "explosion",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 96,
+      "limit": 6,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "delay": true,
+      "layers": [
+        { "name": "near", "from": 0.0, "to": 120.0, "fade": 50.0, "volume": 0.0, "unitSize": 25.0, "maxDistance": 300.0, "category": "explosion", "files": [
+          "res://assets/audio/iron-wake/siege_report_near_01.ogg",
+          "res://assets/audio/iron-wake/siege_report_near_02.ogg",
+          "res://assets/audio/iron-wake/siege_report_near_03.ogg",
+          "res://assets/audio/iron-wake/siege_report_near_04.ogg",
+          "res://assets/audio/iron-wake/siege_report_near_05.ogg"
+        ] },
+        { "name": "mid", "from": 120.0, "to": 800.0, "fade": 150.0, "volume": -2.0, "unitSize": 80.0, "maxDistance": 1200.0, "category": "distant", "files": [
+          "res://assets/audio/iron-wake/siege_report_mid_01.ogg",
+          "res://assets/audio/iron-wake/siege_report_mid_02.ogg",
+          "res://assets/audio/iron-wake/siege_report_mid_03.ogg",
+          "res://assets/audio/iron-wake/siege_report_mid_04.ogg"
+        ] },
+        { "name": "far", "from": 800.0, "to": 3000.0, "fade": 300.0, "volume": -4.0, "unitSize": 250.0, "maxDistance": 3200.0, "category": "distant", "files": [
+          "res://assets/audio/iron-wake/siege_report_far_01.ogg",
+          "res://assets/audio/iron-wake/siege_report_far_02.ogg",
+          "res://assets/audio/iron-wake/siege_report_far_03.ogg"
+        ] }
+      ]
+    },
+    {
+      "key": "siege.fire.interior",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 30.0,
+      "maxDistance": 120.0,
+      "priority": 86,
+      "limit": 3,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/iron-wake/siege_interior_01.ogg",
+        "res://assets/audio/iron-wake/siege_interior_02.ogg",
+        "res://assets/audio/iron-wake/siege_interior_03.ogg",
+        "res://assets/audio/iron-wake/siege_interior_04.ogg"
+      ]
+    },
+    {
+      "key": "siege.recover",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 5.0,
+      "maxDistance": 80.0,
+      "priority": 70,
+      "limit": 4,
+      "pitch": [0.98, 1.02],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/siege_recover_01.ogg",
+        "res://assets/audio/iron-wake/siege_recover_02.ogg",
+        "res://assets/audio/iron-wake/siege_recover_03.ogg",
+        "res://assets/audio/iron-wake/siege_recover_04.ogg"
+      ]
+    },
+    {
+      "key": "siege.latch",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 66,
+      "limit": 4,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/siege_latch_01.ogg",
+        "res://assets/audio/iron-wake/siege_latch_02.ogg",
+        "res://assets/audio/iron-wake/siege_latch_03.ogg",
+        "res://assets/audio/iron-wake/siege_latch_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.breech.open",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_breech_open_01.ogg",
+        "res://assets/audio/iron-wake/loader_breech_open_02.ogg",
+        "res://assets/audio/iron-wake/loader_breech_open_03.ogg",
+        "res://assets/audio/iron-wake/loader_breech_open_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.arm.swing",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_arm_swing_01.ogg",
+        "res://assets/audio/iron-wake/loader_arm_swing_02.ogg",
+        "res://assets/audio/iron-wake/loader_arm_swing_03.ogg",
+        "res://assets/audio/iron-wake/loader_arm_swing_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.arm.swing.short",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_arm_swing_short_01.ogg",
+        "res://assets/audio/iron-wake/loader_arm_swing_short_02.ogg",
+        "res://assets/audio/iron-wake/loader_arm_swing_short_03.ogg"
+      ]
+    },
+    {
+      "key": "loader.rack.index",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_rack_index_01.ogg",
+        "res://assets/audio/iron-wake/loader_rack_index_02.ogg",
+        "res://assets/audio/iron-wake/loader_rack_index_03.ogg",
+        "res://assets/audio/iron-wake/loader_rack_index_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.transfer",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_transfer_01.ogg",
+        "res://assets/audio/iron-wake/loader_transfer_02.ogg",
+        "res://assets/audio/iron-wake/loader_transfer_03.ogg",
+        "res://assets/audio/iron-wake/loader_transfer_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.ram",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_ram_01.ogg",
+        "res://assets/audio/iron-wake/loader_ram_02.ogg",
+        "res://assets/audio/iron-wake/loader_ram_03.ogg",
+        "res://assets/audio/iron-wake/loader_ram_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.retract",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_retract_01.ogg",
+        "res://assets/audio/iron-wake/loader_retract_02.ogg",
+        "res://assets/audio/iron-wake/loader_retract_03.ogg",
+        "res://assets/audio/iron-wake/loader_retract_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.breech.close",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_breech_close_01.ogg",
+        "res://assets/audio/iron-wake/loader_breech_close_02.ogg",
+        "res://assets/audio/iron-wake/loader_breech_close_03.ogg",
+        "res://assets/audio/iron-wake/loader_breech_close_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.cassette.release",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_cassette_release_01.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_release_02.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_release_03.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_release_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.cassette.eject",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_cassette_eject_01.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_eject_02.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_eject_03.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_eject_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.cassette.raise",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_cassette_raise_01.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_raise_02.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_raise_03.ogg"
+      ]
+    },
+    {
+      "key": "loader.cassette.seat",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_cassette_seat_01.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_seat_02.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_seat_03.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_seat_04.ogg"
+      ]
+    },
+    {
+      "key": "loader.cassette.lock",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 3.0,
+      "maxDistance": 45.0,
+      "priority": 62,
+      "limit": 8,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/loader_cassette_lock_01.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_lock_02.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_lock_03.ogg",
+        "res://assets/audio/iron-wake/loader_cassette_lock_04.ogg"
+      ]
+    },
+    {
+      "key": "defense.fire.report",
+      "category": "gunshot",
+      "bus": "SFX",
+      "volume": 2.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 92,
+      "limit": 9,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "delay": true,
+      "layers": [
+        { "name": "near", "from": 0.0, "to": 70.0, "fade": 30.0, "volume": 0.0, "unitSize": 14.0, "maxDistance": 180.0, "category": "gunshot", "files": [
+          "res://assets/audio/iron-wake/defense_report_near_01.ogg",
+          "res://assets/audio/iron-wake/defense_report_near_02.ogg",
+          "res://assets/audio/iron-wake/defense_report_near_03.ogg",
+          "res://assets/audio/iron-wake/defense_report_near_04.ogg",
+          "res://assets/audio/iron-wake/defense_report_near_05.ogg",
+          "res://assets/audio/iron-wake/defense_report_near_06.ogg"
+        ] },
+        { "name": "mid", "from": 70.0, "to": 450.0, "fade": 100.0, "volume": -3.0, "unitSize": 45.0, "maxDistance": 800.0, "category": "distant", "files": [
+          "res://assets/audio/iron-wake/defense_report_mid_01.ogg",
+          "res://assets/audio/iron-wake/defense_report_mid_02.ogg",
+          "res://assets/audio/iron-wake/defense_report_mid_03.ogg",
+          "res://assets/audio/iron-wake/defense_report_mid_04.ogg"
+        ] },
+        { "name": "far", "from": 450.0, "to": 1800.0, "fade": 200.0, "volume": -6.0, "unitSize": 140.0, "maxDistance": 1900.0, "category": "distant", "files": [
+          "res://assets/audio/iron-wake/defense_report_far_01.ogg",
+          "res://assets/audio/iron-wake/defense_report_far_02.ogg",
+          "res://assets/audio/iron-wake/defense_report_far_03.ogg"
+        ] }
+      ]
+    },
+    {
+      "key": "defense.fire.mechanism",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 80.0,
+      "priority": 72,
+      "limit": 6,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/defense_mechanism_01.ogg",
+        "res://assets/audio/iron-wake/defense_mechanism_02.ogg",
+        "res://assets/audio/iron-wake/defense_mechanism_03.ogg",
+        "res://assets/audio/iron-wake/defense_mechanism_04.ogg",
+        "res://assets/audio/iron-wake/defense_mechanism_05.ogg"
+      ]
+    },
+    {
+      "key": "turret.traverse.slow",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 5.0,
+      "maxDistance": 90.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/turret_traverse_slow.ogg"
+      ]
+    },
+    {
+      "key": "turret.traverse.fast",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 5.0,
+      "maxDistance": 90.0,
+      "priority": 55,
+      "limit": 8,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/turret_traverse_fast.ogg"
+      ]
+    },
+    {
+      "key": "turret.limit",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 5.0,
+      "maxDistance": 90.0,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/turret_limit_01.ogg",
+        "res://assets/audio/iron-wake/turret_limit_02.ogg",
+        "res://assets/audio/iron-wake/turret_limit_03.ogg",
+        "res://assets/audio/iron-wake/turret_limit_04.ogg"
+      ]
+    },
+    {
+      "key": "rocket.ignite",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 10.0,
+      "maxDistance": 400.0,
+      "priority": 80,
+      "limit": 8,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.0,
+      "delay": true,
+      "files": [
+        "res://assets/audio/iron-wake/rocket_ignite_01.ogg",
+        "res://assets/audio/iron-wake/rocket_ignite_02.ogg",
+        "res://assets/audio/iron-wake/rocket_ignite_03.ogg",
+        "res://assets/audio/iron-wake/rocket_ignite_04.ogg"
+      ]
+    },
+    {
+      "key": "rocket.flight",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 12.0,
+      "maxDistance": 500.0,
+      "priority": 75,
+      "limit": 12,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/rocket_flight_01.ogg",
+        "res://assets/audio/iron-wake/rocket_flight_02.ogg"
+      ]
+    },
+    {
+      "key": "rocket.incendiary.burst",
+      "category": "explosion",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 90,
+      "limit": 6,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.0,
+      "delay": true,
+      "layers": [
+        { "name": "near", "from": 0.0, "to": 60.0, "fade": 30.0, "volume": 0.0, "unitSize": 10.0, "maxDistance": 150.0, "category": "explosion", "files": [
+          "res://assets/audio/iron-wake/incendiary_near_01.ogg",
+          "res://assets/audio/iron-wake/incendiary_near_02.ogg",
+          "res://assets/audio/iron-wake/incendiary_near_03.ogg",
+          "res://assets/audio/iron-wake/incendiary_near_04.ogg"
+        ] },
+        { "name": "mid", "from": 60.0, "to": 400.0, "fade": 100.0, "volume": -2.0, "unitSize": 40.0, "maxDistance": 600.0, "category": "distant", "files": [
+          "res://assets/audio/iron-wake/incendiary_mid_01.ogg",
+          "res://assets/audio/iron-wake/incendiary_mid_02.ogg",
+          "res://assets/audio/iron-wake/incendiary_mid_03.ogg"
+        ] },
+        { "name": "far", "from": 400.0, "to": 1500.0, "fade": 150.0, "volume": -4.0, "unitSize": 120.0, "maxDistance": 1600.0, "category": "distant", "files": [
+          "res://assets/audio/iron-wake/incendiary_far_01.ogg",
+          "res://assets/audio/iron-wake/incendiary_far_02.ogg"
+        ] }
+      ]
+    },
+    {
+      "key": "fire.ignite",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 150.0,
+      "priority": 70,
+      "limit": 6,
+      "pitch": [0.95, 1.05],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/iron-wake/fire_ignite_01.ogg",
+        "res://assets/audio/iron-wake/fire_ignite_02.ogg",
+        "res://assets/audio/iron-wake/fire_ignite_03.ogg",
+        "res://assets/audio/iron-wake/fire_ignite_04.ogg"
+      ]
+    },
+    {
+      "key": "fire.patch.small",
+      "category": "loop",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 45,
+      "limit": 12,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/fire_patch_small.ogg"
+      ]
+    },
+    {
+      "key": "fire.patch.large",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 90.0,
+      "priority": 50,
+      "limit": 12,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/iron-wake/fire_patch_large.ogg"
       ]
     }
   ]

@@ -961,6 +961,810 @@ def animals():
               "Footsteps", volume[key], maxDistance=reach_steps[key])
 
 
+# ---------------------------------------------------------------- the Iron Wake (IRON_WAKE.md §10)
+
+IW = "iron-wake/"
+LOOP_S, LOOP_PRE = 16.0, 4.0     # the drives' loops: 16 s periodic, after 4 s for the filters to settle
+
+
+def iron_wake():
+    """The Iron Wake's sounds (IRON_WAKE.md §10, SHIP_FEEL.md), all in iron-wake/: the drives, the hull, the doors,
+    the alarms, the siege batteries and their loaders, the defense mounts, the turrets, rockets and fire.
+
+    What the libraries have no recording of is made in code (machines.py: shafts, turbines, pumps, contactors,
+    servos, chains, ratchets, steel's modes, klaxons and bells) and layered with recordings of real mechanisms: locks
+    and latches (BigSoundBank 0191, 1539, 1540), drawers sliding on steel rails (0773, 0792), creaking and grinding
+    steel (0616, 0683), steam venting (1694-1696), steel bars and anvils, gunfire (the free firearm library's
+    shotguns and rifles), explosions (1806-1808, 1023), gasoline fires (1340-1344) and burning wood (0987-0989).
+    Loops are periodic by construction and cut without a crossfade (build.make_loop)."""
+    m = __import__("machines")
+    synth = __import__("synth")
+    hull_ir = m.steel_ir("hull_ir", seconds=1.8, t60=1.25)
+    ir = [synth.outdoor_ir("ir_outdoor_a", seed=1),
+          synth.outdoor_ir("ir_outdoor_b", seed=5, t60=2.2, reflections=((0.13, 0.4), (0.29, 0.28), (0.52, 0.18),
+                                                                         (0.81, 0.12), (1.24, 0.08)))]
+    _iw_drives(m)
+    _iw_hull(m, hull_ir)
+    _iw_doors(m, hull_ir)
+    _iw_alarms(m)
+    _iw_siege(m, hull_ir, ir)
+    _iw_loader(m)
+    _iw_defense(m, ir)
+    _iw_turret(m)
+    _iw_rockets(m, ir)
+    _iw_fire(m)
+
+
+# Recorded parts the Iron Wake's mechanisms share: (BigSoundBank id, start, seconds).
+CLACKS = [("1540", 1.25, 0.4), ("1540", 0.87, 0.32), ("0191", 2.46, 0.38), ("0191", 7.02, 0.36), ("0191", 1.32, 0.42),
+          ("0191", 8.6, 0.3), ("0191", 3.51, 0.36), ("0191", 2.9, 0.22)]      # heavy latches and bolts
+SLIDES = [("0773", 0.15, 1.25), ("0773", 2.5, 1.15), ("0773", 5.05, 1.1), ("0792", 2.24, 0.72), ("0792", 11.79, 0.9),
+          ("0792", 21.41, 0.7)]   # steel sliding on rails, then its stop (65-83 % in): parts up to 0.6 are only sliding
+CREAKS = [(0.04, 1.9), (12.63, 0.86), (15.09, 0.88), (40.81, 1.6), (44.87, 2.6), (56.89, 1.85), (68.64, 1.5),
+          (5.24, 0.6), (26.08, 0.5), (28.24, 0.7), (51.32, 0.8), (75.17, 1.0), (65.3, 0.5), (60.3, 0.57)]  # in 0616
+SQUEALS = [(9.33, 0.9), (11.10, 0.85), (14.9, 0.8), (17.04, 1.5), (18.93, 1.5), (20.87, 1.25)]   # in 0683
+
+
+_ONSETS = {}
+
+
+def _onset(path, start=0.0, dur=0.5, pre=0.002, floor_db=-24.0):
+    """Where a part of a recording really starts: the first millisecond within `floor_db` of its loudest (a shot's
+    or a clack's attack), less `pre`; layers recorded with different leads then land together."""
+    key = (path, start, dur, pre, floor_db)
+    if key not in _ONSETS:
+        x = audiolib.decode(path, 48000, start, dur)
+        hop = 48
+        env = [sum(v * v for v in x[i:i + hop]) for i in range(0, max(0, len(x) - hop), hop)]
+        top = max(env) if env else 0.0
+        k = next((i for i, v in enumerate(env) if v >= top * 10 ** (floor_db / 10.0)), 0)
+        _ONSETS[key] = max(0.0, start + k * 0.001 - pre)
+    return _ONSETS[key]
+
+
+def _clack(k, **kw):
+    """A heavy latch or bolt, from its attack."""
+    sid, start, dur = CLACKS[k % len(CLACKS)]
+    path = bsb(sid)
+    t = _onset(path, start, dur, 0.003)
+    return Seg(path, t, dur - (t - start), **kw)
+
+
+def _slide(k, part=None, **kw):
+    """A slide on rails and its stop; `part` (from, to) in fractions of it."""
+    sid, start, dur = SLIDES[k % len(SLIDES)]
+    if part:
+        start, dur = start + dur * part[0], dur * (part[1] - part[0])
+    return Seg(bsb(sid), start, dur, **kw)
+
+
+def _creak(k, longest=None, **kw):
+    start, dur = CREAKS[k % len(CREAKS)]
+    return Seg(bsb("0616"), start, min(dur, longest or dur), **kw)
+
+
+def _iw_drives(m):
+    loop = (LOOP_S, 0.0, LOOP_PRE)
+    total = LOOP_PRE + LOOP_S + 0.01
+    # Real flame under the made combustion: a big gasoline fire's steady roar, slowed (BigSoundBank 1342).
+    roar = [m.looped(bsb("1342"), 12.0 + 9.0 * k, LOOP_S, 3.0, total, pitch=p) for k, p in enumerate((0.5, 0.56))]
+    # The drive at four points, crossfaded by the game: ground idle, flight idle, part thrust, full thrust.
+    for key, speed, load in (("idle.slow", 0.62, 0.0), ("idle.fast", 0.68, 0.06), ("load.slow", 0.84, 0.55),
+                             ("load.fast", 1.0, 1.0)):
+        segs = [Seg(m.drive_loop("drive_" + key.replace(".", "_"), speed=speed, load=load, seconds=LOOP_S,
+                                 pre=LOOP_PRE, seed=11))]
+        if load > 0.2:
+            segs.append(Seg(roar[0 if load < 0.8 else 1], gain=-16 + 9 * load, fx="lowpass=f=2400,highpass=f=40"))
+        event("iw.drive." + key, [Out(IW + "drive_%s.ogg" % key.replace(".", "_"), "engine", segs,
+                                      fx="highpass=f=25", loop=loop)],
+              "SFX", 0.0, unitSize=16.0, maxDistance=900.0 if key.startswith("load") else 400.0, priority=72, limit=4,
+              pitch=[1.0, 1.0], jitter=0.0)
+
+    # Start: the main contactor, the pumps' contactor, the pumps running up, the igniter, light-off, the spool to
+    # ground idle through the hull's resonance (a creak as it passes), a bleed valve closing.
+    outs = []
+    for k, t in enumerate((dict(contactors=(0.0, 0.34), sparks=(1.15, 1.85), light=1.85),
+                           dict(contactors=(0.0, 0.41), sparks=(1.2, 1.98), light=1.98),
+                           dict(contactors=(0.0, 0.29), sparks=(1.1, 1.78), light=1.78))):
+        c0, c1 = t["contactors"]
+        outs.append(Out(IW + numbered("drive_start", k), "machine", [
+            Seg(m.drive_start("drive_start_%d" % k, seconds=7.6, seed=21 + k, **t)),
+            _clack(0, pitch=0.78, gain=-17, at=c0, fx="highpass=f=120"),
+            _clack(2 + k, pitch=0.85, gain=-19, at=c1, fx="highpass=f=150"),
+            Seg(bsb("1340"), 0.0, 1.6, pitch=0.6, gain=-14, at=t["light"] - 0.02, fade_out=0.6, fx="lowpass=f=1800"),
+            _creak(1 + k, 0.8, pitch=0.5, gain=-18, at=t["light"] + 1.8, fade_in=0.08, fade_out=0.25,
+                   fx="lowpass=f=2500"),
+            Seg(rpg("metalLatch.ogg"), pitch=0.7, gain=-14, at=6.3 + 0.1 * k)],
+            fx="highpass=f=25", tail_db=-55, max_fade=0.8, length=7.6))
+    event("iw.drive.start", outs, "SFX", 0.0, unitSize=16.0, maxDistance=500.0, priority=75, limit=2,
+          pitch=[0.99, 1.01], jitter=0.5)
+
+    # Shutdown: the fuel valve shuts, the flame dies, the turbine runs down (the hull creaks as it passes its
+    # resonance), the pumps' contactor drops, the pumps stop, the main contactor drops, the metal ticks as it cools.
+    outs = []
+    for k, t in enumerate((dict(pumps_off=1.0, mains_off=5.6, ticks=9), dict(pumps_off=1.25, mains_off=5.9, ticks=8),
+                           dict(pumps_off=0.85, mains_off=5.3, ticks=10))):
+        outs.append(Out(IW + numbered("drive_shutdown", k), "machine", [
+            Seg(m.drive_shutdown("drive_shutdown_%d" % k, seconds=8.6, seed=31 + k, **t)),
+            _clack(1, pitch=0.72, gain=-15, fx="highpass=f=100"),
+            _clack(3 + k, pitch=0.82, gain=-19, at=t["pumps_off"], fx="highpass=f=150"),
+            _clack(0, pitch=0.74, gain=-18, at=t["mains_off"], fx="highpass=f=120"),
+            _creak(3 + k, 1.3, pitch=0.48, gain=-17, at=1.0, fade_in=0.2, fade_out=0.4, fx="lowpass=f=2200")],
+            fx="highpass=f=25", tail_db=-55, max_fade=0.6))
+    event("iw.drive.shutdown", outs, "SFX", -3.0, unitSize=16.0, maxDistance=500.0, priority=75, limit=2,
+          pitch=[0.99, 1.01], jitter=0.5)
+
+    # Release: thrust falling. The load lets go, the blow-off vents, the whine falls back (the loops carry on).
+    outs = []
+    for k in range(4):
+        h = ("1695", "1694", "1696", "1695")[k]
+        outs.append(Out(IW + numbered("drive_release", k), "machine", [
+            Seg(m.drive_release("drive_release_%d" % k, seed=41 + k, top=(0.92, 0.95, 0.88, 0.97)[k],
+                                blow=(1.0, 0.8, 1.2, 0.9)[k])),
+            Seg(rpg("metalLatch.ogg"), pitch=(0.6, 0.66, 0.58, 0.63)[k], gain=-12, at=0.01),
+            Seg(bsb(h), (0.0, 0.1, 0.0, 0.5)[k], 1.0, pitch=0.85, gain=-14, at=0.03, fade_out=0.5,
+                fx="highpass=f=600"),
+            _creak(7 + k, 0.6, pitch=0.6, gain=-18, at=0.6, fade_out=0.2, fx="lowpass=f=3000")],
+            fx="highpass=f=25", tail_db=-50, max_fade=0.6))
+    event("iw.drive.release", outs, "SFX", -2.0, unitSize=16.0, maxDistance=600.0, priority=70, limit=2,
+          pitch=[0.97, 1.03], jitter=1.0)
+
+    # The lift engines: four ducted fans beating against each other, the downwash (a strong wind's real gusts in it).
+    wind = m.looped(bsb("0146"), 20.0, LOOP_S, 3.0, total, pitch=0.85)
+    for key, speed in (("slow", 0.4), ("fast", 1.0)):
+        event("iw.lift.loop." + key, [Out(IW + "lift_loop_%s.ogg" % key, "engine", [
+            Seg(m.lift_loop("lift_" + key, speed=speed, seconds=LOOP_S, pre=LOOP_PRE, seed=51)),
+            Seg(wind, gain=-14 + 4 * speed, fx="highpass=f=60,lowpass=f=5000")], fx="highpass=f=25", loop=loop)],
+            "SFX", 0.0, unitSize=16.0, maxDistance=800.0, priority=72, limit=4, pitch=[1.0, 1.0], jitter=0.0)
+
+    # Manoeuvring puffs: a solenoid's snap and a hard burst of gas, short taps and longer pushes.
+    outs = []
+    for k in range(6):
+        size = (0.6, 1.0, 1.5, 0.8, 1.2, 0.5)[k]
+        h, s0 = (("1694", 0.13), ("1695", 0.05), ("1696", 0.03))[k % 3]
+        outs.append(Out(IW + numbered("rcs_puff", k), "machine", [
+            Seg(m.puff("rcs_%d" % k, seconds=0.25 + 0.3 * size, seed=61 + k, size=size)),
+            Seg(bsb(h), s0, 0.12 + 0.25 * size, pitch=1.35, gain=-10, fade_out=0.1, fx="highpass=f=900")],
+            fx="highpass=f=40", tail_db=-50, max_fade=0.15))
+    event("iw.rcs.puff", outs, "SFX", -4.0, unitSize=6.0, maxDistance=180.0, priority=55, limit=8,
+          pitch=[0.94, 1.06], jitter=1.5)
+
+    # The boost: its strain as a layer over the load (slow as it begins, fast at its height), and its release.
+    roar_b = m.looped(bsb("1342"), 40.0, 12.0, 2.5, 16.01, pitch=0.62)
+    for key, level in (("slow", 0.0), ("fast", 1.0)):
+        event("iw.boost.strain." + key, [Out(IW + "boost_strain_%s.ogg" % key, "engine", [
+            Seg(m.boost_loop("boost_" + key, level=level, seconds=12.0, pre=4.0, seed=71)),
+            Seg(roar_b, gain=-10 + 3 * level, fx="lowpass=f=3500,highpass=f=40")], fx="highpass=f=25",
+            loop=(12.0, 0.0, 4.0))],
+            "SFX", 0.0, unitSize=18.0, maxDistance=900.0, priority=74, limit=2, pitch=[1.0, 1.0], jitter=0.0)
+    outs = []
+    for k in range(4):
+        h = ("1695", "1694", "1695", "1696")[k]
+        start, dur = SQUEALS[k]
+        outs.append(Out(IW + numbered("boost_release", k), "machine", [
+            Seg(m.boost_release("boost_release_%d" % k, seed=81 + k)),
+            Seg(bsb(h), 0.0, 1.2, pitch=0.75, gain=-12, at=0.02, fade_out=0.6, fx="highpass=f=500"),
+            Seg(bsb("0683"), start, min(dur, 1.0), pitch=0.36, gain=-14, at=0.35, fade_in=0.1, fade_out=0.4,
+                fx="lowpass=f=1800"),
+            Seg(kenney("impactMetal_heavy_%03d.ogg" % k), pitch=0.5, gain=-12, at=0.9, fx="lowpass=f=4000")],
+            fx="highpass=f=25", tail_db=-50, max_fade=0.7))
+    event("iw.boost.release", outs, "SFX", 0.0, unitSize=18.0, maxDistance=700.0, priority=72, limit=2,
+          pitch=[0.97, 1.03], jitter=1.0)
+
+
+def _iw_hull(m, hull_ir):
+    # Strain by intensity: the hull's steel creaking (BigSoundBank 0616 slowed), groaning (made: stick-slip through the
+    # plates' modes; 0683's squeals slowed far down) and popping through (oil-canning), ringing in the structure.
+    door = bsb("0616")
+    light = []
+    for k in range(6):
+        start, dur = CREAKS[7 + k]
+        light.append(Out(IW + numbered("hull_strain_light", k), "machine", [
+            Seg(door, start, min(dur, 0.9), pitch=(0.72, 0.8, 0.66, 0.76, 0.7, 0.84)[k], fade_in=0.03,
+                fade_out=0.15, fx="highpass=f=90", ir=hull_ir, wet=0.35, dry=1.0),
+            Seg(m.strike("ping_%d" % k, seconds=0.3, seed=101 + k, f0=(2600.0, 3100.0, 2300.0, 3500.0, 2800.0,
+                                                                        3300.0)[k],
+                         ratios=m.PLATE[:5], decay_s=0.09, hardness=0.9), gain=-16, at=(0.1, 0.3, 0.05, 0.4, 0.2,
+                                                                                          0.15)[k])],
+            fx="highpass=f=40", tail_db=-50, max_fade=0.4))
+    event("iw.hull.strain.light", light, "SFX", -4.0, unitSize=10.0, maxDistance=90.0, priority=50, limit=3,
+          pitch=[0.95, 1.05], jitter=1.5, occlude=False)
+    medium = []
+    for k in range(6):
+        start, dur = CREAKS[k]
+        medium.append(Out(IW + numbered("hull_strain_medium", k), "machine", [
+            Seg(door, start, min(dur, 1.4), pitch=(0.44, 0.47, 0.41, 0.5, 0.4, 0.45)[k], fade_in=0.05, fade_out=0.3,
+                fx="highpass=f=60", ir=hull_ir, wet=0.4, dry=1.0),
+            Seg(m.groan("groan_m%d" % k, seconds=1.5, seed=111 + k, f0=(72.0, 84.0, 66.0, 90.0, 78.0, 70.0)[k],
+                        glide=(0.85, 0.9, 0.8, 0.92, 0.86, 0.82)[k]), gain=-10, ir=hull_ir, wet=0.3, dry=1.0),
+            Seg(m.oilcan("pop_m%d" % k, seed=121 + k, f0=(170.0, 210.0, 150.0, 240.0, 190.0, 160.0)[k]), gain=-9,
+                at=(0.45, 0.6, 0.3, 0.7, 0.5, 0.35)[k], ir=hull_ir, wet=0.4, dry=1.0)],
+            fx="highpass=f=35", tail_db=-50, max_fade=0.6))
+    event("iw.hull.strain.medium", medium, "SFX", -2.0, unitSize=12.0, maxDistance=120.0, priority=55, limit=3,
+          pitch=[0.96, 1.04], jitter=1.0, occlude=False)
+    heavy = []
+    for k in range(5):
+        start, dur = SQUEALS[k]
+        heavy.append(Out(IW + numbered("hull_strain_heavy", k), "machine", [
+            Seg(bsb("0683"), start, min(dur, 1.4), pitch=(0.25, 0.28, 0.23, 0.27, 0.22)[k], fade_in=0.15,
+                fade_out=0.5, fx="lowpass=f=1600,highpass=f=40", ir=hull_ir, wet=0.45, dry=1.0),
+            Seg(m.groan("groan_h%d" % k, seconds=2.2, seed=131 + k, f0=(48.0, 55.0, 44.0, 58.0, 51.0)[k], glide=0.8,
+                        rough=0.9, bright=0.8), gain=-6, ir=hull_ir, wet=0.35, dry=1.0),
+            Seg(m.oilcan("pop_h%d" % k, seed=141 + k, f0=(130.0, 150.0, 120.0, 160.0, 140.0)[k], size=1.4), gain=-6,
+                at=(0.5, 0.7, 0.4, 0.9, 0.6)[k], ir=hull_ir, wet=0.45, dry=1.0),
+            Seg(m.oilcan("pop_h2%d" % k, seed=151 + k, f0=(210.0, 190.0, 230.0, 200.0, 180.0)[k]), gain=-10,
+                at=(1.2, 1.4, 1.1, 1.5, 1.3)[k]),
+            Seg(m.boom("boom_h%d" % k, seconds=1.4, seed=161 + k, f_start=54.0, f_end=41.0, decay_s=1.0), gain=-8,
+                at=0.08),
+            _creak(k + 3, 0.9, pitch=0.62, gain=-14, at=1.0, fade_out=0.3, fx="highpass=f=80"),
+            Seg(m.rattle_burst("rattle_h%d" % k, seconds=1.0, seed=171 + k, rate=30.0, f0=0.9), gain=-16, at=0.6)],
+            fx="highpass=f=30", tail_db=-52, max_fade=0.8))
+    event("iw.hull.strain.heavy", heavy, "SFX", 0.0, unitSize=16.0, maxDistance=160.0, priority=60, limit=2,
+          pitch=[0.97, 1.03], jitter=1.0, occlude=False)
+
+    # Touchdown: the legs' oleo struts compressing (the steam of a vent for their hydraulics), 420 t landing in a deep
+    # thud, the gear's steel clanking, a rebound, things rattling, and the hull settling with a creak.
+    falls = [("2455", 0.09, 0.5), ("2453", 0.41, 0.4), ("2454", 0.26, 0.4), ("2456", 0.7, 0.55)]
+    outs = []
+    for k in range(4):
+        sid, s0, d = falls[k]
+        outs.append(Out(IW + numbered("touchdown", k), "machine", [
+            Seg(bsb(sid), s0, d, pitch=0.5, gain=-2, fx="lowpass=f=1200"),
+            Seg(kenney("impactSoft_heavy_%03d.ogg" % k), pitch=0.55, gain=-4, fx="lowpass=f=900"),
+            Seg(m.boom("boom_td%d" % k, seconds=1.4, seed=181 + k, f_start=68.0, f_end=42.0, decay_s=0.9), gain=-1),
+            Seg(bsb("3590"), (1.18, 2.22, 5.62, 9.82)[k], 0.5, pitch=0.42, gain=-16, fade_out=0.3,
+                fx="lowpass=f=3000"),
+            Seg(rubber("metal_slam_01.ogg"), pitch=(0.6, 0.55, 0.65, 0.58)[k], gain=-10, at=0.02),
+            Seg(bsb(("1695", "1694", "1696", "1695")[k]), 0.0, 0.9, pitch=0.6, gain=-14, at=0.03, fade_out=0.4,
+                fx="highpass=f=300"),
+            Seg(m.boom("boom_tr%d" % k, seconds=0.8, seed=191 + k, f_start=58.0, f_end=40.0, decay_s=0.5), gain=-9,
+                at=0.32),
+            Seg(m.rattle_burst("rattle_td%d" % k, seconds=1.1, seed=201 + k, rate=40.0), gain=-14, at=0.05),
+            _creak(k * 2, 0.9, pitch=0.55, gain=-14, at=0.7, fade_in=0.05, fade_out=0.3, fx="highpass=f=60")],
+            fx="highpass=f=28", tail_db=-52, max_fade=0.7))
+    event("iw.touchdown", outs, "SFX", 0.0, unitSize=14.0, maxDistance=250.0, priority=70, limit=2,
+          pitch=[0.97, 1.03], jitter=1.0)
+
+    # Inside: the ventilation and the machinery, long seamless beds (stereo), played by room.
+    event("iw.interior.ventilation", [Out(IW + "interior_ventilation.ogg", "ambience", [
+        Seg(m.ventilation("ventilation", seconds=48.0, pre=4.0, seed=211))], fx="highpass=f=30", channels=2,
+        loop=(48.0, 0.0, 4.0))], "Ambience", 0.0)
+    event("iw.interior.machinery", [Out(IW + "interior_machinery.ogg", "ambience", [
+        Seg(m.machinery("machinery", seconds=56.0, pre=4.0, seed=221))], fx="highpass=f=30", channels=2,
+        loop=(56.0, 0.0, 4.0))], "Ambience", 0.0)
+
+
+def _iw_doors(m, hull_ir):
+    # The cargo ramp: release (the hydraulics' valve, two locking pins drawn, the weight taken), the actuators'
+    # travel (a loop: the power pack's motor and pump, the oil's rush, the hinges' rumble), contact (the lip landing)
+    # and lock (pins driven home, pressure let go).
+    outs = []
+    for k in range(3):
+        outs.append(Out(IW + numbered("ramp_release", k), "machine", [
+            Seg(rpg("metalClick.ogg"), pitch=0.8, gain=-10),
+            Seg(m.hiss("ramp_hiss%d" % k, seconds=1.4, seed=231 + k, attack=0.05, hold=0.5, decay_s=0.8, lo=700.0,
+                       hi=7000.0, sweep=(2600.0, 1500.0)), gain=-16, at=0.03),
+            Seg(bsb("1539"), _onset(bsb("1539"), 1.5, 0.35), 0.3, pitch=(0.6, 0.64, 0.57)[k], gain=-3, at=0.15),
+            Seg(bsb("1539"), _onset(bsb("1539"), 1.85, 0.4), 0.38, pitch=(0.62, 0.58, 0.66)[k], gain=-4,
+                at=0.42 + 0.04 * k),
+            Seg(kenney("impactSoft_heavy_%03d.ogg" % (k + 1)), pitch=0.55, gain=-6, at=0.6),
+            Seg(m.boom("boom_rr%d" % k, seconds=0.9, seed=241 + k, f_start=72.0, f_end=45.0, decay_s=0.6), gain=-6,
+                at=0.6),
+            _creak(10 + k, 0.7, pitch=0.6, gain=-16, at=0.7, fade_out=0.25, fx="highpass=f=80")],
+            fx="highpass=f=30", tail_db=-50, max_fade=0.5))
+    event("iw.ramp.release", outs, "SFX", 0.0, unitSize=7.0, maxDistance=140.0, priority=62, limit=2,
+          pitch=[0.98, 1.02], jitter=1.0)
+    event("iw.ramp.actuator", [Out(IW + "ramp_actuator.ogg", "engine", [
+        Seg(m.motor_loop("ramp_pack", rot_hz=24.6, seconds=10.0, pre=3.0, seed=251, gear=9, poles=4, brush=0.3,
+                         ring_rumble=1.4, ticks=1.0)),
+        Seg(m.looped(bsb("0513"), 2.0, 10.0, 2.0, 13.01, pitch=0.8), gain=-6, fx="highpass=f=50,lowpass=f=6000"),
+        Seg(m.looped(bsb("1342"), 60.0, 10.0, 2.0, 13.01, pitch=1.6), gain=-24, fx="highpass=f=1500,lowpass=f=7000")],
+        fx="highpass=f=40", loop=(10.0, 0.0, 3.0))],
+        "SFX", 0.0, unitSize=7.0, maxDistance=140.0, priority=60, limit=2, pitch=[1.0, 1.0], jitter=0.0)
+    outs = []
+    for k in range(4):
+        outs.append(Out(IW + numbered("ramp_contact", k), "machine", [
+            Seg(rubber("metal_slam_01.ogg"), pitch=(0.5, 0.55, 0.47, 0.52)[k], gain=-2),
+            Seg(kenney("impactPlate_heavy_%03d.ogg" % k), pitch=0.55, gain=-4),
+            Seg(bsb("3590"), (0.15, 1.2, 3.23, 5.64)[k], 0.4, pitch=0.33, gain=-18, fade_out=0.3, fx="lowpass=f=2500"),
+            Seg(bsb(("2455", "2453", "2454", "2456")[k]), (0.09, 0.41, 0.26, 0.7)[k], 0.5, pitch=0.55, gain=-4,
+                fx="lowpass=f=1500"),
+            Seg(m.boom("boom_rc%d" % k, seconds=1.2, seed=261 + k, f_start=62.0, f_end=42.0, decay_s=0.7), gain=-3),
+            Seg(m.strike("plate_rc%d" % k, seconds=2.0, seed=271 + k, f0=(82.0, 95.0, 76.0, 101.0)[k],
+                         ratios=m.PLATE, decay_s=1.3, hardness=0.4), gain=-10),
+            Seg(bsb(("1772", "1775", "1777", "1773")[k]), 0.0, 1.2, pitch=0.7, gain=-14, at=0.06, fade_out=0.4,
+                fx="lowpass=f=5000")],
+            fx="highpass=f=28", tail_db=-52, max_fade=0.7))
+    event("iw.ramp.contact", outs, "SFX", 0.0, unitSize=9.0, maxDistance=220.0, priority=66, limit=2,
+          pitch=[0.97, 1.03], jitter=1.0)
+    outs = []
+    for k in range(3):
+        outs.append(Out(IW + numbered("ramp_lock", k), "mechanism", [
+            Seg(rpg("metalLatch.ogg"), pitch=(0.65, 0.6, 0.7)[k], gain=-6),
+            _clack(0, pitch=(0.72, 0.68, 0.76)[k], gain=0, at=0.12),
+            Seg(m.strike("lock_rl%d" % k, seconds=0.7, seed=281 + k, f0=(380.0, 350.0, 410.0)[k], decay_s=0.4,
+                         hardness=0.7), gain=-8, at=0.12),
+            Seg(m.boom("boom_rl%d" % k, seconds=0.5, seed=291 + k, f_start=95.0, f_end=60.0, decay_s=0.25), gain=-10,
+                at=0.12),
+            Seg(bsb("1696"), 0.0, 0.6, pitch=1.0, gain=-16, at=0.22, fade_out=0.3, fx="highpass=f=900")],
+            fx="highpass=f=40", tail_db=-50, max_fade=0.4))
+    event("iw.ramp.lock", outs, "SFX", 0.0, unitSize=6.0, maxDistance=90.0, priority=60, limit=2,
+          pitch=[0.98, 1.02], jitter=1.0)
+
+    # The side airlock: the door's motor running its 1.5 s along the rail to its stop; the seal's gasket, dogs and
+    # the pressure equalising.
+    outs = []
+    for k in range(3):
+        outs.append(Out(IW + numbered("airlock_slide", k), "machine", [
+            Seg(m.servo("airlock_motor%d" % k, seconds=1.36, seed=301 + k, top_hz=(105.0, 112.0, 98.0)[k],
+                        gear=13, up=0.22, down=0.28, grit=1.4, brake=0.6)),
+            _slide(k, (0.05, 0.6), pitch=0.7, gain=-3, fade_in=0.08, fade_out=0.15, fx="highpass=f=80"),
+            _slide(k + 3, (0.15, 0.6), pitch=0.75, gain=-4, at=0.62, fade_in=0.12, fade_out=0.1, fx="highpass=f=80"),
+            Seg(rubber("metal_close_01.ogg"), pitch=(0.7, 0.66, 0.74)[k], gain=-5, at=1.36),
+            Seg(kenney("impactSoft_heavy_%03d.ogg" % (k + 2)), pitch=0.7, gain=-9, at=1.36),
+            Seg(m.boom("boom_as%d" % k, seconds=0.5, seed=311 + k, f_start=110.0, f_end=75.0, decay_s=0.2), gain=-10,
+                at=1.36)],
+            fx="highpass=f=40", tail_db=-50, max_fade=0.35))
+    event("iw.airlock.slide", outs, "SFX", -2.0, unitSize=4.0, maxDistance=70.0, priority=55, limit=2,
+          pitch=[0.98, 1.02], jitter=1.0)
+    outs = []
+    for k in range(3):
+        outs.append(Out(IW + numbered("airlock_seal", k), "mechanism", [
+            Seg(kenney("impactSoft_heavy_%03d.ogg" % k), pitch=0.7, gain=-2, fx="lowpass=f=1500"),
+            Seg(m.boom("boom_ae%d" % k, seconds=0.5, seed=321 + k, f_start=85.0, f_end=58.0, decay_s=0.25), gain=-6),
+            Seg(rpg("metalLatch.ogg"), pitch=(0.7, 0.74, 0.68)[k], gain=-4, at=0.12),
+            Seg(rpg("metalLatch.ogg"), pitch=(0.66, 0.7, 0.72)[k], gain=-5, at=0.21),
+            _clack(2 + k, pitch=0.8, gain=-6, at=0.3),
+            Seg(bsb(("1696", "1694", "1695")[k]), 0.0, 0.7, pitch=1.2, gain=-14, at=0.36, fade_in=0.04,
+                fade_out=0.3, fx="highpass=f=1200")],
+            fx="highpass=f=40", tail_db=-50, max_fade=0.35))
+    event("iw.airlock.seal", outs, "SFX", 0.0, unitSize=4.0, maxDistance=60.0, priority=55, limit=2,
+          pitch=[0.98, 1.02], jitter=1.0)
+
+
+def _iw_alarms(m):
+    # Annunciators, sparse (the game repeats them): an electro-mechanical klaxon for hull critical, an electric bell
+    # for fire aboard. Made in code: a motor-driven klaxon's rasp and a trembler bell's gong; no voice, no beeps.
+    outs = []
+    for k, (blasts, low, high, dia) in enumerate((
+            (((0.0, 0.95), (1.3, 0.95)), 290.0, 470.0, 430.0),
+            (((0.0, 1.1), (1.45, 0.8)), 270.0, 440.0, 400.0),
+            (((0.0, 0.85), (1.15, 0.85), (2.3, 0.6)), 300.0, 490.0, 455.0))):
+        outs.append(Out(IW + numbered("alarm_hull", k), "alarm", [
+            Seg(m.klaxon("klaxon_%d" % k, blasts=blasts, seconds=blasts[-1][0] + blasts[-1][1] + 0.4, seed=331 + k,
+                         low=low, high=high, diaphragm=dia))], fx="highpass=f=150,lowpass=f=9000", tail_db=-50,
+            max_fade=0.3))
+    event("iw.alarm.hull", outs, "SFX", 0.0, unitSize=14.0, maxDistance=160.0, priority=92, limit=2,
+          pitch=[1.0, 1.0], jitter=0.0, occlude=False)
+    outs = []
+    for k, (secs, rate, f0) in enumerate(((2.4, 19.0, 1150.0), (2.2, 20.5, 1060.0), (2.6, 18.0, 1240.0))):
+        outs.append(Out(IW + numbered("alarm_fire", k), "alarm", [
+            Seg(m.bell("bell_%d" % k, seconds=secs, seed=341 + k, strike_hz=rate, f0=f0))],
+            fx="highpass=f=200", tail_db=-50, max_fade=0.6))
+    event("iw.alarm.fire", outs, "SFX", 0.0, unitSize=14.0, maxDistance=160.0, priority=92, limit=2,
+          pitch=[1.0, 1.0], jitter=0.0, occlude=False)
+
+
+# The firearm library's heavy guns (GUNS): shotguns for a cannon's body, rifles for its crack; near and mid.
+SHOTGUNS_NEAR = ["CD/H_21P.wav", "Model 12/K_22P.wav", "Mossberg/N_30P.wav", "Nova/O_21P.wav"]
+SHOTGUNS_MID = ["CD/H_16P.wav", "Model 12/K_17P.wav", "Mossberg/N_26P.wav", "Nova/O_17P.wav"]
+RIFLES_NEAR = ["1917/B_24P.wav", "Mosin Nagant/M_21P.wav", "Arisaka/E_25P.wav", "Tikka/W_29P.wav",
+               "Savage 10 .300 Blackout/T_27P.wav"]
+RIFLES_MID = ["1917/B_16P.wav", "Mosin Nagant/M_26P.wav", "Tikka/W_24P.wav", "Savage 10 .300 Blackout/T_17P.wav"]
+
+
+def _first_shot(name, which=0, length=1.5):
+    """A shot of the firearm library, from its attack (so a crack and a body recorded apart start together)."""
+    p = gun(name)
+    found = shots(p, which + 1, length)
+    s, _ = found[min(which, len(found) - 1)]
+    return p, _onset(p, max(0.0, s - 0.05), 0.3)
+
+
+def _iw_siege(m, hull_ir, ir):
+    # The mechanism at the mount: the sear's sharp release, the barrel's 0.48 m of recoil in 80 ms (steel sliding
+    # fast), the buffer's thud with the cradle ringing, the oil's hiss, and a short rattle.
+    outs = []
+    hammers = [("1994", 0.0, 0.2), ("1995", 0.04, 0.25), ("1992", 0.0, 0.2), ("1993", 0.04, 0.2), ("1995", 0.21, 0.2)]
+    for k in range(5):
+        sid, s0, d = hammers[k]
+        outs.append(Out(IW + numbered("siege_mechanism", k), "impact", [
+            Seg(bsb(sid), s0, d, pitch=(0.55, 0.6, 0.52, 0.58, 0.56)[k], gain=-2, fx="highpass=f=200"),
+            Seg(rpg("metalLatch.ogg"), pitch=(0.75, 0.7, 0.8, 0.72, 0.78)[k], gain=-6),
+            Seg(m.strike("sear_%d" % k, seconds=0.4, seed=351 + k, f0=(560.0, 600.0, 520.0, 640.0, 580.0)[k],
+                         decay_s=0.22, hardness=0.9), gain=-6),
+            Seg(m.hiss("recoil_%d" % k, seconds=0.16, seed=361 + k, attack=0.004, hold=0.05, decay_s=0.06, lo=500.0,
+                       hi=9000.0, rough=0.5, sweep=(3800.0, 900.0), q=1.5), gain=-6, at=0.005),
+            _slide(k, (0.5, 0.6), pitch=1.4, gain=-12, at=0.0, fade_in=0.01, fade_out=0.02, fx="highpass=f=300"),
+            Seg(kenney("impactSoft_heavy_%03d.ogg" % k), pitch=0.5, gain=-2, at=0.08, fx="lowpass=f=1200"),
+            Seg(m.boom("buffer_%d" % k, seconds=0.6, seed=371 + k, f_start=82.0, f_end=52.0, decay_s=0.3), gain=-4,
+                at=0.08),
+            Seg(bsb("3590"), (1.18, 2.22, 5.62, 9.82, 12.5)[k], 0.45, pitch=0.45, gain=-20, at=0.08, fade_out=0.3,
+                fx="lowpass=f=4000"),
+            Seg(m.strike("cradle_%d" % k, seconds=1.2, seed=381 + k, f0=(178.0, 196.0, 165.0, 205.0, 185.0)[k],
+                         decay_s=0.9, hardness=0.5), gain=-8, at=0.08),
+            Seg(m.hiss("buffer_oil_%d" % k, seconds=0.5, seed=391 + k, attack=0.01, hold=0.05, decay_s=0.3, lo=1200.0,
+                       hi=6000.0), gain=-14, at=0.09),
+            Seg(m.rattle_burst("rattle_sm%d" % k, seconds=0.6, seed=401 + k, rate=50.0, f0=1.1, decay_s=0.35),
+                gain=-12, at=0.1),
+            Seg(rubber("keys_0%d.ogg" % (k + 1)), pitch=0.8, gain=-18, at=0.12)],
+            fx="highpass=f=40", tail_db=-50, max_fade=0.4))
+    event("siege.fire.mechanism", outs, "SFX", 0.0, unitSize=6.0, maxDistance=120.0, priority=82, limit=4,
+          pitch=[0.97, 1.03], jitter=1.0)
+
+    # The report, outside: a cannon's heavy body (shotguns slowed), a rifle's crack on top, an explosion's blast,
+    # a low push of air and the open air's rolling echo; the middle and far layers as heard across the world.
+    near = []
+    for k in range(5):
+        sg, sgs = _first_shot(SHOTGUNS_NEAR[k % 4], k // 4)
+        rf, rfs = _first_shot(RIFLES_NEAR[k])
+        near.append(Out(IW + numbered("siege_report_near", k), "explosion", [
+            Seg(sg, sgs, 1.6, pitch=(0.55, 0.52, 0.58, 0.5, 0.56)[k], ir=ir[k % 2], wet=0.3, dry=1.0,
+                post="lowpass=f=7000"),
+            Seg(rf, rfs, 1.0, pitch=0.8, gain=-8, fx="highpass=f=200"),
+            Seg(bsb(("1808", "1807")[k % 2]), _onset(bsb(("1808", "1807")[k % 2]), 0.0, 0.2),
+                pitch=(0.65, 0.7, 0.62, 0.68, 0.66)[k], gain=-5, fx="highpass=f=35"),
+            Seg(m.boom("siege_sub_%d" % k, seconds=1.4, seed=411 + k, f_start=66.0, f_end=41.0, decay_s=0.9),
+                gain=-3),
+            Seg(bsb("1023"), 0.35, 4.0, fade_in=0.3, gain=-10, at=0.12, fx="lowpass=f=2500")],
+            fx="highpass=f=30,equalizer=f=70:t=q:w=1:g=2", tail_db=-55, max_fade=1.2))
+    mid = []
+    for k in range(4):
+        sg, sgs = _first_shot(SHOTGUNS_MID[k], 0, 2.5)
+        mid.append(Out(IW + numbered("siege_report_mid", k), "distant", [
+            Seg(sg, sgs, 2.5, pitch=(0.55, 0.52, 0.58, 0.5)[k], fx="lowpass=f=4500", ir=ir[k % 2], wet=0.4, dry=1.0,
+                post="lowpass=f=4500"),
+            Seg(bsb("1806"), pitch=0.7, gain=-6, fx="lowpass=f=3000"),
+            Seg(m.boom("siege_sub_mid_%d" % k, seconds=1.4, seed=421 + k, f_start=56.0, f_end=41.0, decay_s=1.0),
+                gain=-8),
+            Seg(bsb("1023"), 0.35, 4.0, fade_in=0.3, gain=-6, at=0.2, fx="lowpass=f=1800")],
+            fx="highpass=f=30", tail_db=-55, max_fade=1.2))
+    far = []
+    for k in range(3):
+        sg, sgs = _first_shot(SHOTGUNS_MID[k + 1], 0, 2.5)
+        far.append(Out(IW + numbered("siege_report_far", k), "distant", [
+            Seg(sg, sgs, 2.5, pitch=0.52, fx="lowpass=f=1100,highpass=f=40,afade=t=in:d=0.008,"
+                                             "acompressor=threshold=-38dB:ratio=5:attack=0.5:release=500:makeup=12",
+                ir=ir[k % 2], wet=0.45, dry=1.0, post="lowpass=f=1300"),
+            Seg(bsb("1023"), 0.0, 4.5, gain=-3, fx="highpass=f=30,lowpass=f=1200"),
+            Seg(m.boom("siege_sub_far_%d" % k, seconds=1.6, seed=431 + k, f_start=50.0, f_end=40.0, decay_s=1.2),
+                gain=-10)],
+            fx="highpass=f=28", tail_db=-55, max_fade=1.5))
+    layered("siege.fire.report", [
+        ("near", near, 0.0, 120.0, 50.0, 0.0, 25.0, 300.0),
+        ("mid", mid, 120.0, 800.0, 150.0, -2.0, 80.0, 1200.0),
+        ("far", far, 800.0, 3000.0, 300.0, -4.0, 250.0, 3200.0),
+    ], "SFX", 0.0, priority=96, limit=6, delay=True, pitch=[0.97, 1.03], jitter=1.0)
+
+    # Inside the ship: the shot transmitted through the structure, a muffled thump with the hull's steel answering,
+    # then small rattles overhead and along the rails.
+    outs = []
+    for k in range(4):
+        sg, sgs = _first_shot(SHOTGUNS_NEAR[k], 0)
+        outs.append(Out(IW + numbered("siege_interior", k), "impact", [
+            Seg(sg, sgs, 1.2, pitch=0.4, fx="lowpass=f=220,lowpass=f=220", ir=hull_ir, wet=0.4, dry=1.0),
+            Seg(m.boom("siege_in_sub_%d" % k, seconds=1.2, seed=441 + k, f_start=60.0, f_end=42.0, decay_s=0.7),
+                gain=-1),
+            Seg(m.strike("hull_bong_%d" % k, seconds=1.6, seed=451 + k, f0=(96.0, 108.0, 88.0, 116.0)[k],
+                         ratios=m.PLATE, decay_s=1.1, hardness=0.3), gain=-12, ir=hull_ir, wet=0.5, dry=1.0),
+            Seg(m.rattle_burst("rattle_si%d" % k, seconds=1.2, seed=461 + k, rate=55.0, f0=(0.9, 1.0, 0.85, 1.1)[k],
+                               decay_s=0.7), gain=-8, at=0.03),
+            Seg(rubber("keys_0%d.ogg" % (k + 2)), pitch=0.9, gain=-16, at=0.06, fx="lowpass=f=6000"),
+            Seg(bsb(("1771", "1773", "1775", "1772")[k]), 0.0, 1.0, pitch=0.8, gain=-18, at=0.09, fade_out=0.4,
+                fx="lowpass=f=3500")],
+            fx="highpass=f=28,lowpass=f=6000", tail_db=-52, max_fade=0.7))
+    event("siege.fire.interior", outs, "SFX", 0.0, unitSize=30.0, maxDistance=120.0, priority=86, limit=3,
+          pitch=[0.96, 1.04], jitter=1.0, occlude=False)
+
+    # Recovery: the recuperator's oil pushing the barrel back to battery over 0.9 s, the slide, the firm stop.
+    outs = []
+    for k in range(4):
+        outs.append(Out(IW + numbered("siege_recover", k), "mechanism", [
+            Seg(m.hiss("recuperator_%d" % k, seconds=0.9, seed=471 + k, attack=0.12, hold=0.4, decay_s=0.3, lo=500.0,
+                       hi=5000.0, rough=0.35, sweep=(700.0, 1500.0), q=1.6), gain=-6),
+            _slide(k + 2, (0.05, 0.6), pitch=0.72, gain=-6, fade_in=0.1, fade_out=0.1, fx="highpass=f=120"),
+            Seg(rubber("metal_close_01.ogg"), pitch=(0.6, 0.64, 0.57, 0.62)[k], gain=-3, at=0.84),
+            Seg(kenney("impactSoft_heavy_%03d.ogg" % (k + 1)), pitch=0.65, gain=-9, at=0.84),
+            Seg(m.strike("battery_%d" % k, seconds=0.6, seed=481 + k, f0=(300.0, 330.0, 285.0, 315.0)[k],
+                         decay_s=0.3, hardness=0.65), gain=-6, at=0.84),
+            Seg(bsb("1696"), 0.0, 0.3, pitch=1.4, gain=-18, at=0.87, fade_out=0.15, fx="highpass=f=1500")],
+            fx="highpass=f=45", tail_db=-50, max_fade=0.3, length=1.25))
+    event("siege.recover", outs, "SFX", -2.0, unitSize=5.0, maxDistance=80.0, priority=70, limit=4,
+          pitch=[0.98, 1.02], jitter=1.0)
+
+    # The latch: the barrel caught in battery.
+    outs = []
+    for k in range(4):
+        outs.append(Out(IW + numbered("siege_latch", k), "mechanism", [
+            _clack(k % 2, pitch=(0.7, 0.78, 0.74, 0.72)[k], gain=0),
+            Seg(rpg("metalLatch.ogg"), pitch=(0.55, 0.58, 0.52, 0.6)[k], gain=-5),
+            Seg(m.strike("latch_%d" % k, seconds=0.5, seed=491 + k, f0=(450.0, 520.0, 480.0, 500.0)[k], decay_s=0.3,
+                         hardness=0.8), gain=-6),
+            Seg(m.boom("latch_th%d" % k, seconds=0.3, seed=501 + k, f_start=110.0, f_end=75.0, decay_s=0.12),
+                gain=-10)],
+            fx="highpass=f=50", tail_db=-50, max_fade=0.25))
+    event("siege.latch", outs, "SFX", 0.0, unitSize=4.0, maxDistance=60.0, priority=66, limit=4,
+          pitch=[0.97, 1.03], jitter=1.0)
+
+
+def _iw_loader(m):
+    # Each sound fits its phase (IRON_WAKE.md §6.6); several turrets run them at once, so each has variants. All at
+    # the loader's scale: breech blocks and trays of steel, servos, a chain rammer, a ratchet drum, cassettes.
+    def loader(key, rel, n, make, phase, volume=0.0, cat="mechanism"):
+        outs = [Out(IW + numbered(rel, k), cat, make(k), fx="highpass=f=60", tail_db=-48, max_fade=0.12,
+                    length=phase + 0.15) for k in range(n)]
+        event(key, outs, "SFX", volume, unitSize=3.0, maxDistance=45.0, priority=62, limit=8, pitch=[0.97, 1.03],
+              jitter=1.0)
+
+    impm = ["impactMetal_medium_%03d.ogg" % i for i in range(5)]
+    impp = ["impactPlate_medium_%03d.ogg" % i for i in range(5)]
+    # Breech open (0.45 s): unlocked, the hydraulics push, the block slides down to its stop.
+    loader("loader.breech.open", "loader_breech_open", 4, lambda k: [
+        _clack(2 + k, pitch=0.72, gain=-2),
+        Seg(m.hiss("breech_o%d" % k, seconds=0.4, seed=511 + k, attack=0.02, hold=0.15, decay_s=0.2, lo=900.0,
+                   hi=6000.0, sweep=(2600.0, 1300.0)), gain=-10, at=0.02),
+        _slide(k, (0.3, 0.6), pitch=0.85, gain=-6, at=0.04, fade_in=0.05, fade_out=0.05, fx="highpass=f=150"),
+        Seg(kenney(impm[k]), pitch=0.6, gain=-3, at=0.37),
+        Seg(m.boom("breech_ob%d" % k, seconds=0.25, seed=521 + k, f_start=125.0, f_end=85.0, decay_s=0.12), gain=-12,
+            at=0.37)], 0.45)
+    # The arm's swing (0.80 s, and a shorter 0.55 s): its servo, gears and brake.
+    loader("loader.arm.swing", "loader_arm_swing", 4, lambda k: [
+        Seg(m.servo("arm_%d" % k, seconds=0.78, seed=531 + k, top_hz=(132.0, 144.0, 126.0, 150.0)[k],
+                    gear=(11, 12, 11, 13)[k])),
+        _creak(8 + k, 0.4, pitch=1.4, gain=-26, at=0.2, fade_in=0.1, fade_out=0.1, fx="highpass=f=400")], 0.80, -3.0)
+    loader("loader.arm.swing.short", "loader_arm_swing_short", 3, lambda k: [
+        Seg(m.servo("arm_short_%d" % k, seconds=0.53, seed=541 + k, top_hz=(128.0, 140.0, 134.0)[k], gear=11,
+                    up=0.14, down=0.17))], 0.55, -3.0)
+    # The rack's index (in the fetch's 0.80 s): solenoid, the pawl over the ratchet, the detent.
+    loader("loader.rack.index", "loader_rack_index", 4, lambda k: [
+        Seg(m.ratchet_run("rack_%d" % k, clicks=(5, 4, 6, 5)[k], spacing=(0.045, 0.05, 0.04, 0.048)[k],
+                          seed=551 + k)),
+        Seg(bsb(("1986", "1987", "1986", "1987")[k]), 0.04, 0.42, pitch=(0.8, 0.85, 0.78, 0.82)[k], gain=-12,
+            at=0.03)], 0.60)
+    # Transfer (0.40 s): the pusher's breath of air, the rocket sliding onto the tray, landing in it.
+    loader("loader.transfer", "loader_transfer", 4, lambda k: [
+        Seg(m.puff("pusher_%d" % k, seconds=0.25, seed=561 + k, valve=0.6, size=0.35), gain=-12),
+        _slide(k + 3, (0.25, 0.58), pitch=1.0, gain=-5, at=0.02, fade_in=0.04, fade_out=0.05, fx="highpass=f=150"),
+        Seg(kenney(impp[k]), pitch=0.7, gain=-3, at=0.3),
+        Seg(kenney("impactSoft_medium_%03d.ogg" % k), pitch=0.8, gain=-8, at=0.3)], 0.40)
+    # Ram (0.50 s): the chain rammer runs out and drives the rocket home; it ends as the rocket seats.
+    loader("loader.ram", "loader_ram", 4, lambda k: [
+        Seg(m.chain_run("ram_%d" % k, seconds=0.46, seed=571 + k, rate=(48.0, 72.0), size=(1.0, 1.05, 0.95, 1.1)[k],
+                        seat=1.0)),
+        _clack(k, pitch=0.62, gain=-8, at=0.46),
+        Seg(kenney("impactMetal_heavy_%03d.ogg" % k), pitch=0.55, gain=-8, at=0.46)], 0.50 + 0.2)
+    # Retract (0.40 s): the rammer folds back, lighter; the tray swings clear and clicks.
+    loader("loader.retract", "loader_retract", 4, lambda k: [
+        Seg(m.chain_run("retract_%d" % k, seconds=0.34, seed=581 + k, rate=(62.0, 36.0), size=0.9, motor=0.8,
+                        seat=0.0)),
+        Seg(rpg("metalClick.ogg"), 0.2, 0.2, pitch=0.8, gain=-6, at=0.35)], 0.40, -2.0)
+    # Breech close (0.35 s): pushed up, locked with a clank.
+    loader("loader.breech.close", "loader_breech_close", 4, lambda k: [
+        Seg(m.hiss("breech_c%d" % k, seconds=0.3, seed=591 + k, attack=0.015, hold=0.12, decay_s=0.12, lo=900.0,
+                   hi=6000.0, sweep=(1300.0, 2600.0)), gain=-10),
+        _slide(k + 1, (0.35, 0.6), pitch=1.1, gain=-7, fade_in=0.03, fade_out=0.04, fx="highpass=f=150"),
+        _clack(k % 2, pitch=0.82, gain=0, at=0.26),
+        Seg(m.strike("breech_cl%d" % k, seconds=0.45, seed=601 + k, f0=(560.0, 600.0, 530.0, 580.0)[k], decay_s=0.3,
+                     hardness=0.8), gain=-5, at=0.26),
+        Seg(m.boom("breech_cb%d" % k, seconds=0.3, seed=611 + k, f_start=120.0, f_end=80.0, decay_s=0.12), gain=-10,
+            at=0.26)], 0.35 + 0.25)
+
+    # The defense mount's cassette.
+    loader("loader.cassette.release", "loader_cassette_release", 4, lambda k: [
+        Seg(rpg("metalLatch.ogg"), pitch=(0.68, 0.72, 0.65, 0.7)[k], gain=-2),
+        Seg(rpg("metalLatch.ogg"), pitch=(0.64, 0.67, 0.7, 0.62)[k], gain=-4, at=0.07),
+        Seg(m.strike("cas_rel_%d" % k, seconds=0.3, seed=921 + k, f0=(820.0, 870.0, 790.0, 850.0)[k], decay_s=0.12,
+                     hardness=0.8), gain=-8),
+        Seg(m.boom("cas_rel_th%d" % k, seconds=0.2, seed=925 + k, f_start=150.0, f_end=110.0, decay_s=0.06), gain=-12,
+            at=0.07),
+        Seg(rubber("metal_spring_0%d.ogg" % (k % 2 + 1)), pitch=0.8, gain=-12, at=0.1)], 0.30)
+    loader("loader.cassette.eject", "loader_cassette_eject", 4, lambda k: [
+        _slide(k + 3, (0.35, 0.6), pitch=1.2, gain=-6, fade_in=0.03, fade_out=0.04, fx="highpass=f=150"),
+        Seg(rubber("bfh1_metal_falling_0%d.ogg" % (k % 3 + 2)), pitch=0.75, gain=-2, at=0.18),
+        Seg(kenney("impactMetal_heavy_%03d.ogg" % (k + 1)), pitch=0.65, gain=-2, at=0.34),
+        Seg(m.strike("chute_%d" % k, seconds=0.6, seed=621 + k, f0=(240.0, 260.0, 225.0, 250.0)[k], ratios=m.PLATE,
+                     decay_s=0.4, hardness=0.6), gain=-9, at=0.34)], 0.45 + 0.2)
+    loader("loader.cassette.raise", "loader_cassette_raise", 3, lambda k: [
+        Seg(m.chain_run("hoist_%d" % k, seconds=0.62, seed=631 + k, rate=(30.0, 40.0), size=1.2, motor=1.5)),
+        Seg(m.servo("hoist_motor_%d" % k, seconds=0.62, seed=641 + k, top_hz=(95.0, 102.0, 90.0)[k], gear=7,
+                    brake=0.0), gain=-4),
+        Seg(kenney(impp[k + 1]), pitch=0.7, gain=-5, at=0.63)], 0.70)
+    loader("loader.cassette.seat", "loader_cassette_seat", 4, lambda k: [
+        _slide(k, (0.3, 0.6), pitch=1.05, gain=-5, fade_in=0.03, fade_out=0.04, fx="highpass=f=150")] + [
+        Seg(m.strike("tube_%d_%d" % (k, j), seconds=0.25, seed=651 + 10 * k + j, f0=(700.0, 760.0, 730.0)[j],
+                     decay_s=0.12, hardness=0.5), gain=-9, at=0.2 + 0.05 * j) for j in range(3)] + [
+        Seg(kenney(impp[(k + 2) % 5]), pitch=0.75, gain=-2, at=0.36)], 0.45)
+    loader("loader.cassette.lock", "loader_cassette_lock", 4, lambda k: [
+        Seg(rpg("metalLatch.ogg"), pitch=(0.74, 0.7, 0.78, 0.72)[k], gain=-3, at=0.02),
+        Seg(rpg("metalLatch.ogg"), pitch=(0.7, 0.73, 0.68, 0.76)[k], gain=-3, at=0.07),
+        Seg(m.strike("cas_lock_%d" % k, seconds=0.3, seed=931 + k, f0=(760.0, 800.0, 735.0, 780.0)[k], decay_s=0.15,
+                     hardness=0.8), gain=-6, at=0.16),
+        Seg(m.boom("cas_lock_th%d" % k, seconds=0.2, seed=935 + k, f_start=140.0, f_end=100.0, decay_s=0.07), gain=-10,
+            at=0.16),
+        Seg(bsb("1988"), 0.27, 0.2, pitch=0.7, gain=-6, at=0.16)], 0.30)
+
+
+def _iw_defense(m, ir):
+    # The defense mount's report: sharper and smaller than the siege gun's and its own: a rifle's hard crack, the
+    # launch tube's steel ring and the rocket's hiss tearing out of it ("tchang-fsss"), a small blast and a short
+    # push of air. Rippled three at a time a quarter second apart.
+    near = []
+    for k in range(6):
+        rf, rfs = _first_shot(RIFLES_NEAR[(k + 1) % 5], k // 5)
+        near.append(Out(IW + numbered("defense_report_near", k), "gunshot", [
+            Seg(rf, rfs, 0.9, pitch=(0.92, 0.95, 0.9, 0.97, 0.93, 0.9)[k], gain=-1),
+            Seg(m.strike("tube_ring_%d" % k, seconds=0.7, seed=661 + k, f0=(420.0, 455.0, 395.0, 470.0, 440.0,
+                                                                            410.0)[k],
+                         ratios=m.BAR, decay_s=0.45, hardness=0.85), gain=-10),
+            Seg(m.hiss("launch_hiss_%d" % k, seconds=0.45, seed=671 + k, attack=0.003, hold=0.04, decay_s=0.22,
+                       lo=1200.0, hi=9000.0, rough=0.5, sweep=(6000.0, 2200.0), q=1.3), gain=-7),
+            Seg(bsb("1340"), 0.02, 0.4, pitch=1.6, gain=-12, fade_out=0.15, fx="highpass=f=800"),
+            Seg(bsb("1807"), _onset(bsb("1807"), 0.0, 0.2), pitch=0.9, gain=-10, fx="highpass=f=60"),
+            Seg(m.boom("def_sub_%d" % k, seconds=0.4, seed=681 + k, f_start=96.0, f_end=60.0, decay_s=0.18),
+                gain=-7)],
+            fx="highpass=f=45", tail_db=-55, max_fade=0.5))
+    mid = []
+    for k in range(4):
+        rf, rfs = _first_shot(RIFLES_MID[k], 0, 2.0)
+        mid.append(Out(IW + numbered("defense_report_mid", k), "distant", [
+            Seg(rf, rfs, 2.0, pitch=0.92, fx="lowpass=f=6000", ir=ir[k % 2], wet=0.25, dry=1.0),
+            Seg(m.hiss("launch_hiss_mid_%d" % k, seconds=0.5, seed=691 + k, attack=0.004, hold=0.03, decay_s=0.25,
+                       lo=900.0, hi=5000.0, rough=0.4), gain=-12)],
+            fx="highpass=f=50", tail_db=-55, max_fade=0.8))
+    far = []
+    for k in range(3):
+        rf, rfs = _first_shot(RIFLES_MID[k + 1], 0, 2.2)
+        far.append(Out(IW + numbered("defense_report_far", k), "distant", [
+            Seg(rf, rfs, 2.2, pitch=0.9, fx="lowpass=f=1300,highpass=f=50,afade=t=in:d=0.008,"
+                                           "acompressor=threshold=-38dB:ratio=5:attack=0.5:release=500:makeup=12",
+                ir=ir[k % 2], wet=0.4, dry=1.0, post="lowpass=f=1600")],
+            fx="highpass=f=45", tail_db=-55, max_fade=1.0))
+    layered("defense.fire.report", [
+        ("near", near, 0.0, 70.0, 30.0, 0.0, 14.0, 180.0),
+        ("mid", mid, 70.0, 450.0, 100.0, -3.0, 45.0, 800.0),
+        ("far", far, 450.0, 1800.0, 200.0, -6.0, 140.0, 1900.0),
+    ], "SFX", 2.0, priority=92, limit=9, delay=True, pitch=[0.96, 1.04], jitter=1.0)
+    # Its mechanism, per barrel: the firing solenoid's snap, the short recoil's knock, a ping of the tube.
+    outs = []
+    for k in range(5):
+        outs.append(Out(IW + numbered("defense_mechanism", k), "mechanism", [
+            Seg(m.strike("def_sol_%d" % k, seconds=0.2, seed=701 + k, f0=(1200.0, 1300.0, 1150.0, 1250.0, 1350.0)[k],
+                         decay_s=0.06, hardness=0.9), gain=-4),
+            Seg(bsb(("1992", "1993", "1994", "1992", "1995")[k]), (0.0, 0.04, 0.0, 0.0, 0.04)[k], 0.18,
+                pitch=0.8, gain=-4, fx="highpass=f=300"),
+            Seg(kenney("impactMetal_light_%03d.ogg" % k), pitch=0.7, gain=-5, at=0.02),
+            Seg(m.boom("def_kn%d" % k, seconds=0.3, seed=711 + k, f_start=140.0, f_end=90.0, decay_s=0.1), gain=-9,
+                at=0.02),
+            Seg(m.strike("def_ping_%d" % k, seconds=0.45, seed=721 + k, f0=(760.0, 820.0, 730.0, 790.0, 845.0)[k],
+                         ratios=m.BAR, decay_s=0.25, hardness=0.7), gain=-12, at=0.02)],
+            fx="highpass=f=60", tail_db=-50, max_fade=0.2))
+    event("defense.fire.mechanism", outs, "SFX", 0.0, unitSize=4.0, maxDistance=80.0, priority=72, limit=6,
+          pitch=[0.97, 1.03], jitter=1.0)
+
+
+def _iw_turret(m):
+    # Traverse: electric drives on a slewing ring, slow (the siege battery's 24°/s) and fast (the defense mount's
+    # 80°/s), crossfaded by slew rate; the stop at a limit.
+    for key, rot, gear, brush, rumble in (("slow", 38.0, 23, 0.8, 1.0), ("fast", 62.0, 23, 1.4, 1.5)):
+        event("turret.traverse." + key, [Out(IW + "turret_traverse_%s.ogg" % key, "loop", [
+            Seg(m.motor_loop("traverse_" + key, rot_hz=rot, seconds=8.0, pre=3.0, seed=731, gear=gear, poles=4,
+                             brush=brush, ring_rumble=rumble, ticks=3.0 if key == "fast" else 1.5))],
+            fx="highpass=f=40", loop=(8.0, 0.0, 3.0))],
+            "SFX", 0.0, unitSize=5.0, maxDistance=90.0, priority=55, limit=8, pitch=[1.0, 1.0], jitter=0.0)
+    outs = []
+    for k in range(4):
+        outs.append(Out(IW + numbered("turret_limit", k), "mechanism", [
+            Seg(kenney("impactMetal_heavy_%03d.ogg" % k), pitch=0.5, gain=-2),
+            _clack(k % 2, pitch=0.65, gain=-5),
+            Seg(m.strike("limit_%d" % k, seconds=0.9, seed=741 + k, f0=(210.0, 230.0, 195.0, 220.0)[k], decay_s=0.6,
+                         hardness=0.6), gain=-6),
+            Seg(m.boom("limit_th%d" % k, seconds=0.5, seed=751 + k, f_start=88.0, f_end=55.0, decay_s=0.25), gain=-6),
+            Seg(m.rattle_burst("rattle_tl%d" % k, seconds=0.6, seed=761 + k, rate=30.0, decay_s=0.3), gain=-16,
+                at=0.04)],
+            fx="highpass=f=45", tail_db=-50, max_fade=0.35))
+    event("turret.limit", outs, "SFX", 0.0, unitSize=5.0, maxDistance=90.0, priority=60, limit=6,
+          pitch=[0.97, 1.03], jitter=1.0)
+
+
+def _iw_rockets(m, ir):
+    # The motor lighting a few metres out, a proper flight loop (a rocket motor's roar and crackle), and the
+    # incendiary's burst: a small blast and the fuel catching with a whoomp, splashing and crackling.
+    outs = []
+    for k in range(4):
+        outs.append(Out(IW + numbered("rocket_ignite", k), "impact", [
+            Seg(m.rocket_ignite("ignite_%d" % k, seconds=1.1, seed=771 + k, size=(1.0, 0.85, 1.15, 0.95)[k])),
+            Seg(bsb("1340"), 0.0, 0.9, pitch=(1.25, 1.35, 1.2, 1.3)[k], gain=-10, fade_out=0.4,
+                fx="highpass=f=300")],
+            fx="highpass=f=40", tail_db=-50, max_fade=0.4))
+    event("rocket.ignite", outs, "SFX", 0.0, unitSize=10.0, maxDistance=400.0, priority=80, limit=8,
+          pitch=[0.95, 1.05], jitter=1.0, delay=True)
+    roar = [m.looped(bsb("1342"), 70.0 + 7.0 * k, 6.0, 1.5, 8.01, pitch=1.5) for k in range(2)]
+    event("rocket.flight", [Out(IW + "rocket_flight_%02d.ogg" % (k + 1), "engine", [
+        Seg(m.rocket_loop("rocket_%d" % k, seconds=6.0, pre=2.0, seed=781 + k, body=(1.0, 0.85)[k])),
+        Seg(roar[k], gain=-5, fx="highpass=f=150,lowpass=f=9000")], fx="highpass=f=40", loop=(6.0, 0.0, 2.0))
+        for k in range(2)],
+        "SFX", 0.0, unitSize=12.0, maxDistance=500.0, priority=75, limit=12, pitch=[1.0, 1.0], jitter=0.0)
+    whoosh = [("1341", 0.07, 1.4), ("1342", 0.29, 1.4), ("1344", 0.05, 1.3), ("1340", 0.0, 1.5)]
+    near = []
+    for k in range(4):
+        sid, s0, d = whoosh[k]
+        near.append(Out(IW + numbered("incendiary_near", k), "explosion", [
+            Seg(bsb(("1807", "1808")[k % 2]), pitch=(0.95, 0.9, 1.0, 0.92)[k], gain=-2),
+            Seg(scifi("explosionCrunch_%03d.ogg" % k), pitch=0.85, gain=-10, fx="lowpass=f=6000"),
+            Seg(m.whump("inc_whump_%d" % k, seconds=1.3, seed=791 + k, size=(1.0, 1.1, 0.9, 1.05)[k]), gain=-1),
+            Seg(bsb(sid), s0, d, pitch=0.8, gain=-3, fade_out=0.5),
+            Seg(bsb(("1529", "1531", "1533", "1530")[k]), 0.0, 0.5, pitch=0.6, gain=-14, at=0.05, fade_out=0.2),
+            Seg(bsb("0987"), 3.4 + 2.0 * k, 1.6, gain=-12, at=0.35, fade_in=0.2, fade_out=0.6)],
+            fx="highpass=f=35", tail_db=-55, max_fade=1.0))
+    mid = []
+    for k in range(3):
+        sid, s0, d = whoosh[k + 1]
+        mid.append(Out(IW + numbered("incendiary_mid", k), "distant", [
+            Seg(bsb(("1806", "1807", "1808")[k]), pitch=0.85, gain=-3, fx="lowpass=f=3500"),
+            Seg(m.whump("inc_whump_mid_%d" % k, seconds=1.3, seed=801 + k), gain=-2, fx="lowpass=f=1500"),
+            Seg(bsb(sid), s0, d, pitch=0.8, gain=-6, fade_out=0.5, fx="lowpass=f=3000", ir=ir[k % 2], wet=0.35,
+                dry=1.0),
+            Seg(bsb("1023"), 0.35, 3.0, fade_in=0.3, gain=-10, at=0.15, fx="lowpass=f=2000")],
+            fx="highpass=f=35", tail_db=-55, max_fade=1.0))
+    far = []
+    for k in range(2):
+        far.append(Out(IW + numbered("incendiary_far", k), "distant", [
+            Seg(bsb("1806"), pitch=(0.8, 0.85)[k], gain=-2, fx="lowpass=f=1200"),
+            Seg(m.whump("inc_whump_far_%d" % k, seconds=1.5, seed=811 + k, size=1.2), gain=-4, fx="lowpass=f=900",
+                ir=ir[k], wet=0.4, dry=1.0),
+            Seg(bsb("1023"), 0.0, 3.5, gain=-4, fx="highpass=f=30,lowpass=f=1100")],
+            fx="highpass=f=30", tail_db=-55, max_fade=1.2))
+    layered("rocket.incendiary.burst", [
+        ("near", near, 0.0, 60.0, 30.0, 0.0, 10.0, 150.0),
+        ("mid", mid, 60.0, 400.0, 100.0, -2.0, 40.0, 600.0),
+        ("far", far, 400.0, 1500.0, 150.0, -4.0, 120.0, 1600.0),
+    ], "SFX", -4.0, priority=90, limit=6, delay=True, pitch=[0.95, 1.05], jitter=1.0)
+
+
+def _iw_fire(m):
+    # Fire (IRON_WAKE.md §7): catching with a whoomp, then burning, small (crackle) or large (roar), as loops.
+    starts = [("1340", 0.0, 1.6), ("1341", 0.0, 1.5), ("1342", 0.25, 1.4), ("1344", 0.0, 1.4)]
+    outs = []
+    for k in range(4):
+        sid, s0, d = starts[k]
+        outs.append(Out(IW + numbered("fire_ignite", k), "impact", [
+            Seg(m.whump("fire_whump_%d" % k, seconds=1.2, seed=821 + k, size=(0.9, 1.0, 1.1, 0.95)[k]), gain=-2),
+            Seg(bsb(sid), s0, d, gain=-1, fade_out=0.5),
+            Seg(bsb("0988"), 6.4 + 3.1 * k, 1.4, gain=-12, at=0.3, fade_in=0.15, fade_out=0.5)],
+            fx="highpass=f=35", tail_db=-50, max_fade=0.6))
+    event("fire.ignite", outs, "SFX", 0.0, unitSize=8.0, maxDistance=150.0, priority=70, limit=6,
+          pitch=[0.95, 1.05], jitter=1.0)
+    event("fire.patch.small", [Out(IW + "fire_patch_small.ogg", "loop", [
+        Seg(m.looped(bsb("1341"), 2.0, 20.0, 3.0, 23.01, pitch=1.05), gain=0.0, fx="highpass=f=80"),
+        Seg(m.looped(bsb("2857"), 8.0, 20.0, 3.0, 23.01), gain=-4, fx="highpass=f=200"),
+        Seg(m.fire_roar("fire_small_roar", seconds=20.0, pre=3.0, seed=831, low=420.0), gain=-12)],
+        fx="highpass=f=45", loop=(20.0, 0.0, 3.0))],
+        "SFX", 0.0, unitSize=4.0, maxDistance=60.0, priority=45, limit=12, pitch=[1.0, 1.0], jitter=0.0)
+    event("fire.patch.large", [Out(IW + "fire_patch_large.ogg", "engine", [
+        Seg(m.looped(bsb("1342"), 10.0, 24.0, 3.0, 27.01), gain=0.0, fx="highpass=f=40"),
+        Seg(m.looped(bsb("0989"), 30.0, 24.0, 3.0, 27.01), gain=-6, fx="highpass=f=150"),
+        Seg(m.fire_roar("fire_large_roar", seconds=24.0, pre=3.0, seed=841, low=280.0), gain=-6)],
+        fx="highpass=f=30", loop=(24.0, 0.0, 3.0))],
+        "SFX", 0.0, unitSize=6.0, maxDistance=90.0, priority=50, limit=12, pitch=[1.0, 1.0], jitter=0.0)
+
+
+# The listener's spaces (IRON_WAKE.md §10): reverb presets for AudioBuses.SetSpace, in the terms of Godot's
+# AudioEffectReverb, written into sounds.json (a preset tuned by hand there is kept). `structureDb` is how loud
+# structure-borne sounds (siege.fire.interior, the hull's strain) are heard in the space.
+SPACES = {
+    "outside": {"roomSize": 0.2, "damping": 0.7, "spread": 0.8, "hipass": 0.15, "dry": 1.0, "wet": 0.02,
+                "predelayMs": 12.0, "predelayFeedback": 0.2, "structureDb": -80.0,
+                "note": "Open air: no tail of its own (today's SetSpace(0))."},
+    "deck": {"roomSize": 0.78, "damping": 0.28, "spread": 1.0, "hipass": 0.08, "dry": 0.92, "wet": 0.34,
+             "predelayMs": 22.0, "predelayFeedback": 0.32, "structureDb": 0.0,
+             "note": "Deck A, the bay and the mezzanine as one connected steel room: long, bright, with flutter "
+                     "between parallel plates."},
+    "bridge": {"roomSize": 0.22, "damping": 0.85, "spread": 0.5, "hipass": 0.3, "dry": 1.0, "wet": 0.07,
+               "predelayMs": 3.0, "predelayFeedback": 0.05, "structureDb": -6.0,
+               "note": "The glazed bridge, insulated and padded: small and dry."},
+}
+
+
 # ---------------------------------------------------------------- what each item sounds like
 
 MELEE = {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard",
@@ -1070,4 +1874,5 @@ def everything():
     interface()
     ambience()
     animals()
+    iron_wake()
     return list(OUTS), list(EVENTS)

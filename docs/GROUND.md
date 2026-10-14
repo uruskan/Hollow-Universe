@@ -898,8 +898,8 @@ recordings (§9.2); the ground mode calls it (`GroundAudio` and the views, the h
 
 | Part | Where |
 |---|---|
-| Sound files: 463, Ogg Vorbis q5 at 48 kHz (interface clicks 16-bit WAV), 12.6 MB | `game/assets/audio/` |
-| The catalogue: 138 events with their variants, volume, random pitch and volume, attenuation, bus, priority, voice limit; distance layers; loudness categories; what each item plays | `game/data/ground/sounds.json` |
+| Sound files: 761, Ogg Vorbis q5 at 48 kHz (interface clicks 16-bit WAV), 21.0 MB; the Iron Wake's 198 (7.3 MB) in `iron-wake/` | `game/assets/audio/` |
+| The catalogue: 227 events with their variants, volume, random pitch and volume, attenuation, bus, priority, voice limit; distance layers; loudness categories; the listener's spaces; what each item plays | `game/data/ground/sounds.json` |
 | Every file's measurements (loudness, true peak, spectrum, lead, tail, SHA-256) | `game/assets/audio/levels.json` |
 | The pipeline that builds both (§9.2) | `art/audio/` |
 | Engine-free rules: the catalogue model, a BS.1770 meter, distance layers, footstep surfaces and cadence, the ambience mix | `src/Hollow.Client/Audio/` |
@@ -914,7 +914,10 @@ recordings (§9.2); the ground mode calls it (`GroundAudio` and the views, the h
 (`from`, `to`, `fade`), its own volume and falloff. `items` maps item keys and door kinds to roles and events
 (`"stone-hatchet": {"swing": "melee.swing.heavy", "hitWood": "gather.wood.hit", …}`), so the game asks
 `SoundCatalogData.ItemEvent(item, role)` instead of knowing keys. The build owns each event's files and category and
-the item map; every other field may be tuned by hand and is kept when the build runs again.
+the item map; every other field may be tuned by hand and is kept when the build runs again. `spaces` holds the
+listener's reverb presets for `AudioBuses.SetSpace` (outside, deck and bridge, in the terms of Godot's
+`AudioEffectReverb`, with `structureDb`, how loud structure-borne sounds are there; IRON_WAKE.md §10): the build adds a
+missing preset or field and keeps the ones edited here. The catalogue's reader ignores the block until the game uses it.
 
 **Events.** Footsteps: walk, run, crouch and land on grass, dirt, sand, rock, snow, wood, metal and shallow water, and a
 swim stroke. Gathering: wood hit, a tree falling, stone hit, ore hit, an outcrop breaking at each of its three stages,
@@ -927,9 +930,13 @@ three layers and silenced, reload parts (magazine out and in, slide or bolt), dr
 flesh, wood, stone, metal, dirt and water, the hit marker, a head shot and a kill. Explosives: the fuse, the timer's
 beep, the blast in three layers, debris. Interface (Rust's manner: quiet clicks, cloth for the inventory): click,
 hover, drag, drop, craft started and finished, error, inventory open and close, a notice. Ambience: calm, strong and
-high wind, meadow and forest birds, night insects, near and far surf, leaves; owls, crows and distant thunder.
+high wind, meadow and forest birds, night insects, near and far surf, leaves; owls, crows and distant thunder. The Iron
+Wake (IRON_WAKE.md §10, 56 events): its drives (start, idle, load, release, shutdown, lift engines, manoeuvring puffs,
+boost), its hull (strain, touchdown, the ventilation and machinery inside), the ramp and the airlock, the hull and fire
+alarms, the siege batteries and their loaders, the defense mounts, the turrets' traverse and stops, rockets (ignition, a
+flight loop, the incendiary's burst) and fire.
 
-**Loudness** (ITU-R BS.1770, measured with ffmpeg after encoding; the engine's own decode agrees within 0.7 LU,
+**Loudness** (ITU-R BS.1770, measured with ffmpeg after encoding; the engine's own decode agrees within 0.9 LU,
 `--sound-check`). A one-shot's *event loudness* is its highest momentary loudness corrected for sounds shorter than
 the 400 ms window (down to 100 ms), a loop's is its integrated loudness. Every file peaks under −1 dBTP (highest
 −1.10).
@@ -941,14 +948,18 @@ the 400 ms window (down to 100 ms), a loop's is its integrated loudness. Every f
 | click (reloads, locks, cases) | event | −27 | −33 … −21 | −32.0 … −26.9 |
 | gather (chops, picks, building) | event | −19 | −23 … −15 | −22.4 … −18.9 |
 | impact (hits, bullet impacts) | event | −21 | −27 … −17 | −25.6 … −20.9 |
-| voice | event | −21 | −25 … −17 | −21.4 … −21.0 |
-| gunshot (near) | event | −20 | −25 … −16 | −24.3 … −22.2 |
+| voice | event | −21 | −25 … −17 | −21.4 … −20.9 |
+| gunshot (near) | event | −20 | −25 … −16 | −24.3 … −21.8 |
 | distant (mid and far layers) | event | −22 | −27 … −17 | −25.8 … −21.9 |
-| explosion (near) | event | −13 | −18 … −9 | −14.8 … −13.4 |
+| explosion (near) | event | −13 | −18 … −9 | −14.9 … −13.4 |
 | ui, marker | event | −27, −23 | −33 … −21, −28 … −18 | −27.9 … −26.9, −23.5 … −23.0 |
 | loop (fires, fuse) | integrated | −29 | −34 … −24 | −32.6 … −29.0 |
-| ambience (beds) | integrated | −30 | −34 … −26 | −30.5 … −30.1 |
+| ambience (beds) | integrated | −30 | −34 … −26 | −30.5 … −30.0 |
 | accent | event | −27 | −32 … −22 | −27.3 … −26.9 |
+| machine (the Iron Wake's drives' one-shots, hull, doors) | event | −21 | −26 … −16 | −21.5 … −20.9 |
+| mechanism (loaders, latches, breeches, stops) | event | −25 | −31 … −20 | −25.4 … −25.0 |
+| engine (the drives', lift engines', ramp's and rocket's loops, a large fire) | integrated | −25 | −30 … −21 | −25.3 … −25.0 |
+| alarm (klaxon, bell) | event | −20 | −24 … −16 | −20.1 … −19.9 |
 
 A recorded gunshot is a few milliseconds of blast: at −1 dBTP its event loudness is about −22 LUFS, and no more than
 6 dB of limiting is allowed, so shots aren't squashed. They are louder in the game than the numbers say: their
@@ -989,8 +1000,9 @@ near trees, crows by day, thunder only in a storm (no weather yet, so none).
 **Viewer** (`--view sounds`, options in AGENTS.md): every event in a list, a click plays it; its settings, layers, and
 each variant's loudness from the pipeline beside the engine's decode; a source walking away from the listener (posts at
 10 m to 1.5 km; layer weights and the arrival delay shown); the ambience by biome, hour, wind, sea, forest, height and
-storm with every bed's level. `--sound-check` loads and measures all 463 files in the engine and quits with 0 when they
-agree with the pipeline.
+storm with every bed's level. The list follows the selection (`--sound`, the arrow keys) and groups the events (the
+Iron Wake's under Iron Wake, Batteries, Rockets and Fire). `--sound-check` loads and measures all 761 files in the engine
+and quits with 0 when they agree with the pipeline.
 
 ![The audition viewer: the rifle at 320 m (mid 98 %, far 45 %, arriving after 933 ms) and a forest morning](images/ground/audio/sounds.jpg)
 
@@ -4030,6 +4042,25 @@ piezo tones (the code lock's verdicts and the charge's timer). No sound comes fr
 Archives are unpacked into `art/.cache/audio/src` by Python's `zipfile` and our own 7z reader (`art/audio/sevenzip.py`:
 LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. The waveform and
 spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since nobody listened while they were made.
+
+**The Iron Wake** (IRON_WAKE.md §10, 15 October 2026): 56 events, 198 files in `iron-wake/`. What no recording on this
+PC holds (a ship's drive, a cannon, a klaxon, an alarm bell, servos, chains) is made in code by `art/audio/machines.py`:
+rotating machines as a shaft whose running phase drives their orders (hum and harmonics, a turbine's blade-pass whine
+with sidebands, a gear's mesh, a pump's strokes), combustion and gas as shaped noise moved by turbulence, steel as modes
+struck by a pulse, contactors, sparks, a klaxon's toothed wheel on a diaphragm, a trembler bell's gong, the beds' fans,
+ducts and machinery, a steel space's impulse response. `events.py`'s `iron_wake()` layers them with recordings of real
+mechanisms (bolts, drawers on steel rails, creaking steel, steam, anvils, shotguns and rifles, explosions, fires). The
+pipeline gained:
+- **Loops periodic by construction.** In `machines.py` every random source repeats with the loop's period and every tone
+  completes a whole number of cycles in it; a recording in such a loop is made periodic first (`machines.looped`, an
+  equal-power crossfade). An `Out` whose `loop` is `(length, 0, skip)` is cut to one period after `skip` seconds, once
+  every filter has settled, and not crossfaded (`build.make_loop`); the older loops keep their crossfade.
+- **Attacks aligned.** Recorded shots and latches start at their measured attack (`_onset` in `events.py`), so a rifle's
+  crack and a slowed shotgun's body, or a clack and a made clank, land together.
+- **Four loudness categories** (machine, mechanism, engine, alarm; §4.9) and the `spaces` block (`events.SPACES`).
+- **A cache by code.** Made sounds are cached in `art/.cache/audio/synth/iw_*` under a hash of their arguments and of
+  the code they depend on (`machines._sources`), so an edit remakes exactly the sounds it can change. A first build
+  makes them all in about six minutes.
 
 ### 9.3 Effects
 
