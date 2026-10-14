@@ -151,7 +151,7 @@ Z flight assist · V cockpit or chase camera · F step out.
 right-drag or W A S D moves, R/F go up and down, the wheel zooms, a click selects a star, a double-click flies to it,
 Enter opens its system, H and G return to Sol and to the whole galaxy, and the search box finds real names ("Sirius",
 "61 Cygni"), generated systems ("Nolcas Peris BF-BA 5-0") and sectors. On the system map, the wheel zooms, a click
-selects a body, Space pauses, `,` and `.` change the time's speed, L switches between compressed and true scale.
+selects a body, Space pauses, and `,` and `.` change the time's speed. Distances are always compressed.
 
 From a terminal:
 
