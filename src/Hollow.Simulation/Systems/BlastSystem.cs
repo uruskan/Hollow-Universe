@@ -15,7 +15,7 @@ namespace Hollow.Simulation;
 
 // What a blast sees, and the building's side of raiding (GROUND.md §6.6): the explosive channel's fractions of a point,
 // carried to the next hit, and the raid hits on claimed bases, summed per base over a blast. The blast itself is
-// Zone.Damage.cs's: every receiver finds its own things in its reach.
+// DamageSystem's: every receiver finds its own things in its reach.
 public sealed class BlastSystem : ZoneSystem
 {
     private BuildingSystem? _buildingSystem;

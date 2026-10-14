@@ -280,7 +280,7 @@ public sealed class ThingSystem : ZoneSystem
         }
         if (Building.ClaimOf(d) is { } claim)
         {
-            // A claim device takes its damage through the building rules (Zone.Building.cs).
+            // A claim device takes its damage through the building rules (BuildingSystem).
             Building.DamageBuilding(claim, Vector3.Zero, amount, projectile: false);
             return false;
         }

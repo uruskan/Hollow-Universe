@@ -258,7 +258,7 @@ public sealed class ActionSystem : ZoneSystem
     }
 
     // ---------------------------------------------------------------- looting
-    // Opening a container is a verb (GROUND_SYSTEMS.md §5, the container capability's): Zone.Interaction.cs.
+    // Opening a container is a verb (GROUND_SYSTEMS.md §5, the container capability's): InteractionSystem.
 
     public Outcome Close(Entity entity)
     {
@@ -311,7 +311,7 @@ public sealed class ActionSystem : ZoneSystem
         }
     }
 
-    // ---------------------------------------------------------------- from moved here
+    // ---------------------------------------------------------------- what was moved here
 
     private readonly List<ItemStack> _overflow = new();
 

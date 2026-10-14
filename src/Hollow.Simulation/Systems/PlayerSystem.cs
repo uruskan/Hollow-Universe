@@ -18,7 +18,7 @@ namespace Hollow.Simulation;
 // The survival game's players (GROUND.md §6): their lives, sleep, death into a corpse, and respawn at a bag or on the
 // beach; and the order of the game's phases each tick.
 
-// (from Zone.Admin.cs)
+// (from PlayerSystem)
 // What an admin's F1 console does to the zone (GROUND.md §8.2): world props and deployables placed by hand, and god mode
 // and noclip on a character.
 public sealed class PlayerSystem : ZoneSystem
@@ -178,7 +178,7 @@ public sealed class PlayerSystem : ZoneSystem
 
     /// <summary>
     /// Takes health; at 0 the character dies, or is knocked down (wounded, G4) when <paramref name="canWound"/> and the
-    /// hit is small enough (Zone.Wounded.cs). Returns the health taken.
+    /// hit is small enough (WoundedSystem). Returns the health taken.
     /// </summary>
     public float Hurt(Entity entity, Player p, float amount, string cause, EntityId by, string byName, bool canWound = true)
     {
@@ -385,9 +385,9 @@ public sealed class PlayerSystem : ZoneSystem
     // ---------------------------------------------------------------- history
 
 
-    // ---------------------------------------------------------------- from Zone.Admin.cs
+    // ---------------------------------------------------------------- what was PlayerSystem
 
-    // Props an admin placed: gone for good once broken or emptied (Zone.World.cs, PropGone).
+    // Props an admin placed: gone for good once broken or emptied (WorldSystem, PropGone).
     internal readonly HashSet<ulong> _oneOffProps = new();
 
     /// <summary>

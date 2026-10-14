@@ -429,7 +429,7 @@ public sealed class ExplosiveSystem : ZoneSystem
     }
 
     // A stuck or resting explosive follows what holds it when that moves (a door's leaf); when it goes, the support rule
-    // (Zone.Supports.cs) drops it.
+    // (SupportSystem) drops it.
     private void Follow(LiveExplosive e)
     {
         if (e.Link.IsNone || !Supports.Moves(e.Link.Support) || !Supports.TryLinkPose(e.Link, out TargetPose pose))

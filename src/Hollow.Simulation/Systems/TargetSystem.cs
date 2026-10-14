@@ -27,7 +27,7 @@ namespace Hollow.Simulation;
 // the nearest point of its bounds, what it is drawn as. The four lookups the zone had (the entity store, the building's,
 // the animals', a scan of the explosives) are each one family's business now.
 
-// (from Zone.Reach.cs)
+// (from TargetSystem)
 // Reach and sight (GROUND_SYSTEMS.md §3.4): one rule for every action on a thing. The distance runs from the eye to the
 // thing's nearest surface (its family's), within a reach from data (survival.json's reach); one ray from the eye to just
 // in front of that point must meet nothing of the building but the thing itself, nor the ground short of the thing. It
@@ -899,7 +899,7 @@ public sealed class TargetSystem : ZoneSystem
         }
     }
 
-    // ---------------------------------------------------------------- from Zone.Reach.cs
+    // ---------------------------------------------------------------- what was TargetSystem
 
     /// <summary>
     /// A line of sight ends this far in front of the thing's nearest point: the eye must see the air before it. What the

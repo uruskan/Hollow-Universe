@@ -29,7 +29,7 @@ public sealed class HeldSystem : ZoneSystem
         _held.Add((int)HeldUse.Melee, new MeleeRules(Zone));
         _held.Add((int)HeldUse.Bow, new BowRules(Zone));
         // The rest act by their intents, each checked by the behaviour that sends it (ItemFor): the gun's shots, reloads
-        // and unloads on its own timeline (Zone.Guns.cs), throws, placing, the hammer's work, eating and learning.
+        // and unloads on its own timeline (GunSystem), throws, placing, the hammer's work, eating and learning.
         var byIntents = new ActsByIntents();
         foreach (HeldUse use in new[] { HeldUse.Firearm, HeldUse.Throwable, HeldUse.Placer, HeldUse.Planner, HeldUse.Hammer, HeldUse.Consumable, HeldUse.Blueprint })
         {

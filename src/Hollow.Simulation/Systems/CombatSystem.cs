@@ -342,7 +342,7 @@ public sealed class CombatSystem : ZoneSystem
     }
 
     // An arrow stops at what it met: an arrow request through the damage pipeline (GROUND.md §6.4.2); one that stays whole
-    // sticks where it hit, in whatever it hit, a living body too (GROUND_SYSTEMS.md §5, Zone.Arrows.cs).
+    // sticks where it hit, in whatever it hit, a living body too (GROUND_SYSTEMS.md §5, ArrowSystem).
     private void ProjectileHit(Projectile pr, in TraceHit hit)
     {
         AmmoStats ammo = pr.Ammo.Ammo!;

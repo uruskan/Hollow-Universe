@@ -1724,7 +1724,7 @@ it or nothing, with a reason (an `Outcome`: one code list for the whole game and
 are in texts.json, GROUND_SYSTEMS.md §3.2). An action on a thing needs the eye within reach of its nearest surface, in
 sight (survival.json `reach`, GROUND_SYSTEMS.md §3.4). Every new persistent thing gets an `EntityId` from the server's allocator.
 
-**Survival** (`Zone.Vitals.cs`, once a second, survival.json). Health 0–100, calories 0–500, hydration 0–250; a new life
+**Survival** (`VitalsSystem`, once a second, survival.json). Health 0–100, calories 0–500, hydration 0–250; a new life
 starts at 60 / 260 / 160 (hollow-orbit's respawn values).
 - Needs fall by 0.07 calories and 0.09 water a second, ×1.8 sprinting, ×1.4 cold. At zero, starvation costs 0.2 health
   a second and thirst 0.3.
@@ -1742,7 +1742,7 @@ starts at 60 / 260 / 160 (hollow-orbit's respawn values).
   and when wet at night.
 - Sleepers are left as they are (no hunger, no bleeding) until they wake. Crafting pauses for them too.
 
-**Deployables** (`Zone.Things.cs`; placed through the placement pipeline since P2, §6.10). Placed from an inventory slot
+**Deployables** (`ThingSystem`; placed through the placement pipeline since P2, §6.10). Placed from an inventory slot
 where the ghost shows them: on the ground or the top of a foundation, floor or stairs' landing at most 0.6 m from the
 aim, within 3 m of the eye to their nearest point and in sight of it, every corner held within 15 cm; refused in the water
 (5 cm), on ground steeper than the item allows (15–30°), in someone else's claim, overlapping anything (a body, another
@@ -1760,7 +1760,7 @@ one bag.
 - **Workbenches**: a level counts for crafting within 4 m.
 - **Boxes**: 18 and 48 slots.
 
-**Dropped items lie in bags** (U1–U6; `Zone.Spill.cs`, survival.json's `bag`). Everything that lands on the ground goes
+**Dropped items lie in bags** (U1–U6; `SpillSystem`, survival.json's `bag`). Everything that lands on the ground goes
 through one function, `Zone.Spill`, whatever sends it there: a drop from the inventory, a finished craft, a refund or an
 admin's gift that doesn't fit, a broken box's, furnace's, barrel's or claim device's contents, a broken research table's
 work, a spent arrow.
@@ -1783,7 +1783,7 @@ work, a spent arrow.
   the meadow, one bag and its prompt), `bag-open.jpg` (opened beside the inventory: one row, take only),
   `bag-model.jpg` (the model, `--view models --model dropped-bag --yaw -50`).
 
-**Death and respawn** (`Zone.Players.cs`). At 0 health everything carried and worn, and the crafting queue's
+**Death and respawn** (`PlayerSystem`). At 0 health everything carried and worn, and the crafting queue's
 ingredients, go into a corpse where the player fell, laid out as the loot panel shows a body (main 0–23, belt 24–29,
 clothing 30–36; the queue's ingredients fill empty main slots, then follow), which anyone may take from but not put into;
 it goes when emptied or after 300 s of world time (Rust's corpse lifetime; survival.json `lifetimes.body`). The dead player chooses: a random beach point
@@ -1795,7 +1795,7 @@ the spawn vitals, and a rock and a torch on the belt (Rust). The beach points ar
 sleeper shows their main slots, belt and clothing, take only. A sleeper killed leaves a corpse like anyone. Logging in
 wakes them where they lie; a player killed while away logs in dead and chooses a respawn.
 
-**Melee** (`Zone.Combat.cs`). The held item comes from the belt slot each input names; taking an item up takes 0.3 s.
+**Melee** (`CombatSystem`). The held item comes from the belt slot each input names; taking an item up takes 0.3 s.
 While the primary button is held a melee item swings every `swing` seconds and strikes `strike` seconds after the swing
 starts: a ray from the eye along that tick's view, thickened to 0.15 m, out to the item's reach (1.6–2.4 m). The first
 thing it meets takes the hit, as a melee request through the damage pipeline (§6.4.2): a character (damage), a tree or
@@ -2168,7 +2168,7 @@ whole zone. Measured on the owner's PC at 1600 × 900, vsync off, shadows and SS
 
 Firearms, their rounds and attachments, bullets with drop and drag, Rust's recoil, armour by body part and the wounded
 state. The rules are `Hollow.Simulation` code shared by the server and the shooter's client (`Combat/Firearms.cs`:
-`FirearmRules`, `Recoil`, `Ballistics`; `Zone.Guns.cs`, `Zone.Wounded.cs`); the numbers are in `weapons.json` and
+`FirearmRules`, `Recoil`, `Ballistics`; `GunSystem`, `WoundedSystem`); the numbers are in `weapons.json` and
 `survival.json`.
 
 **The guns** (`weapons.json`, from RustMVP's `weapon_definition.hpp`, every field it has used exactly):
@@ -2376,7 +2376,7 @@ instead).
 
 Every way of hurting something goes through one pipeline, as RustMVP's damage plan (`docs/damage_architecture.md`) laid
 it out: damage source → delivery → receiver (its defences) → resolver → consequences. The code is
-`Combat/Damage.cs` (the types), `Zone.Damage.cs` (the entry point, the registry, `Trace`, `Blast` and the Destroyed event)
+`Combat/Damage.cs` (the types), `DamageSystem` (the entry point, the registry, `Trace`, `Blast` and the Destroyed event)
 and one receiver class in each domain's own file.
 
 - **The request** (`DamageRequest`), built by every delivery: who (`By`, the attacking player while in the zone;
@@ -2402,13 +2402,13 @@ and one receiver class in each domain's own file.
 
 | Receiver | Found by | Defences | Consequences |
 |---|---|---|---|
-| Characters (`Zone.Combat.cs`) | hit shapes where the attacker saw them (lag compensation); chest and head in a blast | what is worn on the part hit, against blows or against projectiles and blasts | health (a lethal hit may knock down, not a projectile to the head), bleeding, burning, the victim's damage indicator |
-| Animals (`Zone.Animals.cs`) | their hit shapes and history; their middle in a blast | none | health, a flinch, turning on the attacker or running, the kill; a tool's blow on a corpse butchers it |
-| Trees and outcrops (`Zone.Combat.cs`) | trunks and rocks (a boulder stops a ray like the ground) | — | a tool's blow gathers (§6.1's code, unchanged); arrows and bullets do nothing |
-| Deployables and props (`Zone.Things.cs`) | their boxes | crates and recyclers can't be broken | health; at 0 its contents spill in one bag (§6.1), a research table gives back its work, a barrel goes until its respawn; destroyed |
-| The building (`Zone.Building.cs`) | pieces, doors and claim devices by their bodies; by nearest point in a blast (a claim device by its box) | a grade's or door's protection by channel, a wall's soft side, whole points; a blast's own table by grade and door, whole on the piece hit and a splash share on the rest, fractions carried to the next hit | the building rules' (breaking, collapse), raid hits (any explosive on a claimed base; a blow, arrow or bullet that took something off one whose claim doesn't list the attacker) |
-| Ships (`Zone.Ships.cs`) | hull boxes; nearest point in a blast | the hull's share by delivery (ships.json) | hull health, last attacker; at 0 a wreck (the pilot dies, loot); destroyed |
-| The ground (`Zone.Combat.cs`) | the surface (a bullet's test steps by height) | — | — (it hides what is behind it) |
+| Characters (`CombatSystem`) | hit shapes where the attacker saw them (lag compensation); chest and head in a blast | what is worn on the part hit, against blows or against projectiles and blasts | health (a lethal hit may knock down, not a projectile to the head), bleeding, burning, the victim's damage indicator |
+| Animals (`AnimalSystem`) | their hit shapes and history; their middle in a blast | none | health, a flinch, turning on the attacker or running, the kill; a tool's blow on a corpse butchers it |
+| Trees and outcrops (`CombatSystem`) | trunks and rocks (a boulder stops a ray like the ground) | — | a tool's blow gathers (§6.1's code, unchanged); arrows and bullets do nothing |
+| Deployables and props (`ThingSystem`) | their boxes | crates and recyclers can't be broken | health; at 0 its contents spill in one bag (§6.1), a research table gives back its work, a barrel goes until its respawn; destroyed |
+| The building (`BuildingSystem`) | pieces, doors and claim devices by their bodies; by nearest point in a blast (a claim device by its box) | a grade's or door's protection by channel, a wall's soft side, whole points; a blast's own table by grade and door, whole on the piece hit and a splash share on the rest, fractions carried to the next hit | the building rules' (breaking, collapse), raid hits (any explosive on a claimed base; a blow, arrow or bullet that took something off one whose claim doesn't list the attacker) |
+| Ships (`ShipSystem`) | hull boxes; nearest point in a blast | the hull's share by delivery (ships.json) | hull health, last attacker; at 0 a wreck (the pilot dies, loot); destroyed |
+| The ground (`CombatSystem`) | the surface (a bullet's test steps by height) | — | — (it hides what is behind it) |
 
 **A new damageable thing** (a vehicle, a monument's door) is one class implementing `IDamageReceiver` (how to find it
 along a ray and in a blast's reach, its defences, its consequences) and one `Register` line; no delivery changes. A new
@@ -2477,7 +2477,7 @@ is saved with the zone. The ground mode's hookup is phase 2b.
 | Part | Where |
 |---|---|
 | Items, recipes, kits | `game/data/ground/items.json` (100–110), `recipes.json`, `loot.json` (`build-kit`), `categories.json` (Construction) |
-| In the zone | `src/Hollow.Simulation/Zone.Building.cs`; `Building/ItemWallet.cs`; `Building/BuildingWorld.Replica.cs` (lookups by ID, batches, restoring, the mirror) |
+| In the zone | `src/Hollow.Simulation/BuildingSystem`; `Building/ItemWallet.cs`; `Building/BuildingWorld.Replica.cs` (lookups by ID, batches, restoring, the mirror) |
 | Protocol | `src/Hollow.Net/Protocol/Messages.cs` (90–100: intents, `BuildFrames`, `BuildPieces`, `BuildRemoved`, `BuildDoors`, `BuildClaims`; 95, `BuildResult`, went with P0: `IntentResult` answers building intents) |
 | Server | `src/Hollow.Server/GameServer.Building.cs` (intents, replication, loading and saving) |
 | Storage | `src/Hollow.Persistence/BuildingCodec.cs`, schema 3 in `GameDatabase.cs` |
@@ -2494,7 +2494,7 @@ number of the lock it was cut for. Recipes, hollow-orbit's and Rust's: plan 20 w
 costs 75 wood, cut at its lock by the lock's owner. building.json is now read with the rest of the data and is part of
 the content hash (§7).
 
-**In the zone** (`Zone.Building.cs`). The zone owns the `BuildingWorld` on its Jolt world. Each tick it takes down the
+**In the zone** (`BuildingSystem`). The zone owns the `BuildingWorld` on its Jolt world. Each tick it takes down the
 pieces whose collapse is due (nothing at all while none is); every 60 s it applies upkeep and decay in closed form. The
 building's clock is the real one (Unix seconds): edit windows, repair delays, code waits, upkeep and decay run on while
 the server is down. Players act through zone methods that check what they carry and answer with the rules' `Outcome`:
@@ -2581,7 +2581,7 @@ foundation and wall at two thirds, a twig foundation gone).
 ### 6.6 Raiding (G5)
 
 Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids. The rules
-are `Hollow.Simulation` code (`Zone.Raid.cs`, `Zone.Blast.cs`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
+are `Hollow.Simulation` code (`ExplosiveSystem`, `BlastSystem`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
 `explosives.json` and `weapons.json`; the server's side is `GameServer.Raid.cs` and the notification service
 `Hollow.Server/Notifications`; the client's `GameClient.Raid.cs`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
 
@@ -2767,7 +2767,7 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 |---|---|
 | Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
 | Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
-| In the zone | `src/Hollow.Simulation/Zone.Ships.cs`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
+| In the zone | `src/Hollow.Simulation/ShipSystem`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
 | Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `GameServer.Ships.cs` loads and saves |
 | Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/GameServer.Ships.cs`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `GameClient.Ships.cs`, `LocalPlayer.Ships.cs` |
 | Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
@@ -3021,7 +3021,7 @@ the server, network, storage and client API follow G2's patterns; the interface'
 | Part | Where |
 |---|---|
 | Numbers | `game/data/ground/world.json` (currency, props, recycler, recycle lists, research, tech trees, loot spots, recyclers, teams, map); items 150–171 in `items.json`; `recipes.json`; the world's tables in `loot.json`; the research table in `deployables.json` |
-| Rules | `Content/World.cs` (reader and checks), `Nature/LootSpots.cs` (where props stand), `Economy/Rules.cs` (recycling, research, tech trees), `Items/Blueprints.cs`, `Teams/TeamRegistry.cs`, `Players/MapMarker.cs`, `World/WorldObjects.cs` (`WorldProp`), `Zone.World.cs` |
+| Rules | `Content/World.cs` (reader and checks), `Nature/LootSpots.cs` (where props stand), `Economy/Rules.cs` (recycling, research, tech trees), `Items/Blueprints.cs`, `Teams/TeamRegistry.cs`, `Players/MapMarker.cs`, `World/WorldObjects.cs` (`WorldProp`), `WorldSystem` |
 | Server | `GameServer.World.cs` (intents, each player's own world state, teammates' positions, team chat, saving, admin `learn` and `world`) |
 | Storage | schema 6: `teams`, `prop_overrides` (`GameDatabase.cs`); `TeamCodec`; `WorldCodec` player records version 4 (blueprints, markers, last death) and `EncodeProp` |
 | Client | `LocalPlayer.World.cs`, `GameClient.World.cs`, `Map/ZoneMap.cs` (the map and its picture) |
@@ -3209,7 +3209,7 @@ the Godot side is `game/scripts/Animals`.
 | Part | Where |
 |---|---|
 | Numbers | `game/data/ground/animals.json` (species, senses, spawning, harvest rates); items 200–216 in `items.json`; recipes (`lamp-oil-from-fat`, id 220; the bone knife and club) in `recipes.json` |
-| Rules | `Content/Animals.cs` (reader and checks), `Animals/` (`AnimalWorld` and its brain, steering and spawning, `NavGrid`, `AnimalHitboxes`), `Zone.Animals.cs` (players as the animals see and hear them, attacks on players, damage, butchering) |
+| Rules | `Content/Animals.cs` (reader and checks), `Animals/` (`AnimalWorld` and its brain, steering and spawning, `NavGrid`, `AnimalHitboxes`), `AnimalSystem` (players as the animals see and hear them, attacks on players, damage, butchering) |
 | Server | `GameServer.Animals.cs` (replication, saved corpses, admin `animals` and `spawn`); `--no-animals`, `--animals <n>` |
 | Network | `AnimalNet.cs` (what an animal's snapshot state means), `EntityKind.Animal`, protocol 10 |
 | Storage | `AnimalCodec` (corpses, things of kind 17) |
@@ -3341,7 +3341,7 @@ Tin Finch. Its design and how it is built are GROUND_SYSTEMS.md §6; decisions Z
 |---|---|
 | Rules | `game/data/ground/placement.json` (defaults, kinds, the placeables' wire list); a `placement` block next to a definition overrides them (deployables.json, building.json's pieces, doors, locks and claim, explosives.json's throwables, ships.json) |
 | Pipeline | `src/Hollow.Simulation/Placement/`: `Placer` (`Plan`, `Settle`, `Check`), solvers, rotations, checks, kinds, footprints, `PlacementWorld`; `Content/PlacementReader.cs` |
-| Server | `Zone.Place(entity, PlaceRequest)` and the kinds' `Put` (`Zone.Placement.cs`); `GameServer.Placement.cs` |
+| Server | `Zone.Place(entity, PlaceRequest)` and the kinds' `Put` (`PlacementSystem`); `GameServer.Placement.cs` |
 | Client | `GameClient.Plan`, `PlanAt`, `Settle`, `PlacementNothing`, `Placement` (`GameClient.Placement.cs`); `Local.Place`, `Local.PendingPlacements` (`LocalPlayer.Placement.cs`) |
 | Game | `PlacementView` (the controller), `PlacementGhost` and `shaders/placement_ghost.gdshader` |
 | Tests | `PlacementTests` (one a rule), and every placement in the survival, building, raid, world and ship tests |
