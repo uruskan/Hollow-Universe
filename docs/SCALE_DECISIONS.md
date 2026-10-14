@@ -53,5 +53,7 @@ Open, ask him before deciding (see the "agreement is not every detail" rule: con
 | `Hollow Universe\EliteClone-wt` (controls, maps, ui) | Its three phase-2 worktrees, all merged into EliteClone `main` | Removable (2.5 GB). |
 | `Hollow Universe\research_notes`, `reports` | The Elite-generation research (git-excluded) | Keep; reference only (Elite data must never enter Hollow). |
 | `D:\GameDev\Projects\Hollow-LAN` | A LAN build of the ground game (folder + zip) | Build output. |
-| `RustMVP`, `Frontier-Drift-v0.2-Complete`, `Proper-Space-Game-v0.2-Complete`, `SphericalFrontierLab`, `DevSandbox`, `hollow-orbit-source` (+ zips) | Earlier attempts and labs | Archive candidates; RustMVP holds Rust-extracted files that must never enter Hollow. |
+| `D:\GameDev\Projects\_archive` | Earlier attempts and labs: `Frontier-Drift-v0.2-Complete`, `Proper-Space-Game-v0.2-Complete`, `SphericalFrontierLab`, `DevSandbox` (+ zips, and `hollow-orbit-source.zip`) | **Archived by the owner's choice on 14 Oct** (moved, not deleted). The reusable PSG kits live in `D:\GameDev\Assets`, not here. |
+| `hollow-orbit-source` | The earlier web prototype whose plants and building specs the ground game follows | Kept in place: `docs/CODE_LAYOUT.md` and the ground work read it at this path. |
+| `RustMVP` | Earlier UE5 attempt; its website is becoming Hollow's | Kept in place; holds Rust-extracted files that must never enter Hollow. |
 | `EDAPGui`, `EliteCompanion`, `EliteNexus`, `RoutePilot`, `sharex-capture-panel` | Separate tools, not the game | Leave alone. |
