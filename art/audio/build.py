@@ -59,11 +59,17 @@ CATEGORIES = {
     "loop": ("integrated", -29.0, -34.0, -24.0, 4.0),
     "ambience": ("integrated", -30.0, -34.0, -26.0, 1.0),
     "accent": ("event", -27.0, -32.0, -22.0, 1.0),
+    # The Iron Wake (IRON_WAKE.md §10): big machinery's one-shots (drives, doors, the hull, touchdown); the loaders',
+    # breeches' and latches' mechanisms; the drives' and other machines' loops, louder than a campfire's; annunciators.
+    "machine": ("event", -21.0, -26.0, -16.0, 6.0),
+    "mechanism": ("event", -25.0, -31.0, -20.0, 8.0),
+    "engine": ("integrated", -25.0, -30.0, -21.0, 3.0),
+    "alarm": ("event", -20.0, -24.0, -16.0, 2.0),
 }
 
 
 # Categories whose limiter lets go quickly, so a shot's body isn't ducked behind its crack.
-FAST = {"gunshot", "explosion", "impact", "click"}
+FAST = {"gunshot", "explosion", "impact", "click", "mechanism"}
 
 
 class Seg:
@@ -184,8 +190,15 @@ def cut(out, src, dst):
 
 
 def make_loop(out, src, dst):
-    """A seamless loop of `length` seconds: the start crossfades with what follows the end (equal power)."""
-    length, overlap = out.loop
+    """A seamless loop of `length` seconds: the start crossfades with what follows the end (equal power). A loop whose
+    parts were made periodic in code (machines.py) has no overlap: one period is cut from `skip` seconds on (its third
+    number), once every filter has settled, and nothing is crossfaded."""
+    length, overlap = out.loop[0], out.loop[1]
+    if overlap <= 0:
+        skip = out.loop[2] if len(out.loop) > 2 else 0.0
+        audiolib.run(["-i", src, "-af", "atrim=start_sample=%d:end_sample=%d,asetpts=PTS-STARTPTS"
+                      % (round(skip * RATE), round((skip + length) * RATE)), "-c:a", "pcm_f32le", dst])
+        return
     graph = ("[0:a]asplit=3[a][b][c];"
              "[a]atrim=0:%.5f,asetpts=PTS-STARTPTS,afade=t=in:d=%.5f:curve=qsin[h];"
              "[b]atrim=%.5f:%.5f,asetpts=PTS-STARTPTS,afade=t=out:d=%.5f:curve=qsin[t];"
@@ -366,7 +379,7 @@ def main(argv):
         if failures:
             print("%d failed" % len(failures))
             return 1
-    write_catalogue(catalogue, events.ITEMS)
+    write_catalogue(catalogue, events.ITEMS, getattr(events, "SPACES", {}))
     changed = fix_imports(outs)
     if changed:
         print("%d .import files updated: run Godot's import again" % changed)
@@ -397,10 +410,17 @@ def fix_imports(outs):
     return changed
 
 
-def write_catalogue(events_list, items):
+def write_catalogue(events_list, items, spaces=None):
     """sounds.json: the build owns each event's files and category and the item map; every other field of an event
-    is kept as edited."""
+    is kept as edited. `spaces` are the listener's reverb presets (events.SPACES): a preset or field tuned by hand in
+    sounds.json is kept, a missing one is added."""
     old = load_json(CATALOGUE, {})
+    kept = old.get("spaces", {})
+    merged_spaces = {}
+    for name, preset in (spaces or {}).items():
+        merged_spaces[name] = dict(preset, **kept.get(name, {}))
+    for name, preset in kept.items():
+        merged_spaces.setdefault(name, preset)
     by_key = {e["key"]: e for e in old.get("events", [])}
     merged = []
     for e in events_list:
@@ -431,6 +451,7 @@ def write_catalogue(events_list, items):
         "source": old.get("source", "GROUND.md §4.9. Written by art/audio/build.py, which owns each event's files "
                                     "and category; every other field may be tuned by hand and is kept."),
         "categories": {k: {"metric": v[0], "target": v[1], "min": v[2], "max": v[3]} for k, v in CATEGORIES.items()},
+        "spaces": merged_spaces,
         "items": items,
         "events": merged,
     }
@@ -449,6 +470,13 @@ def write_catalogue_json(data):
     for i, (k, v) in enumerate(cats):
         lines.append('    %s: %s%s' % (json.dumps(k), json.dumps(v), "," if i < len(cats) - 1 else ""))
     lines.append("  },")
+    if data.get("spaces"):
+        lines.append('  "spaces": {')
+        sps = list(data["spaces"].items())
+        for i, (k, v) in enumerate(sps):
+            lines.append('    %s: %s%s' % (json.dumps(k), json.dumps(v, ensure_ascii=False),
+                                          "," if i < len(sps) - 1 else ""))
+        lines.append("  },")
     lines.append('  "items": {')
     its = list(data["items"].items())
     for i, (k, v) in enumerate(its):

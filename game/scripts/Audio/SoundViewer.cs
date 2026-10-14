@@ -36,6 +36,7 @@ public partial class SoundViewer : Node3D
     private AmbienceDirector _ambience = null!;
     private Node3D _emitter = null!;
     private readonly List<(SoundEventData Event, Button Button)> _rows = new();
+    private ScrollContainer? _list;
     private SoundEventData? _selected;
     private int _frames;
 
@@ -185,6 +186,7 @@ public partial class SoundViewer : Node3D
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
         };
         list.AddChild(scroll);
+        _list = scroll;
         var rows = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         Ui.Track(rows, r => r.AddThemeConstantOverride("separation", Ui.Px(1)));
         scroll.AddChild(rows);
@@ -192,11 +194,11 @@ public partial class SoundViewer : Node3D
         string last = "";
         foreach (SoundEventData e in data.Events)
         {
-            string head = e.Key.Split('.')[0];
+            string head = GroupName(e.Key);
             if (head != last)
             {
                 last = head;
-                Label h = Ui.Label(GroupName(head), TextStyle.Overline);
+                Label h = Ui.Label(head, TextStyle.Overline);
                 rows.AddChild(h);
             }
             var button = new Button
@@ -300,8 +302,12 @@ public partial class SoundViewer : Node3D
         }
     }
 
-    private static string GroupName(string head) => head switch
+    private static string GroupName(string key) => key.Split('.')[0] switch
     {
+        "fire" when key != "fire.extinguish" => "Fire",
+        "iw" => "Iron Wake",
+        "siege" or "loader" or "defense" or "turret" => "Batteries",
+        "rocket" => "Rockets",
         "footstep" => "Footsteps",
         "swim" => "Swimming",
         "gather" => "Gathering",
@@ -312,7 +318,7 @@ public partial class SoundViewer : Node3D
         "explosive" or "explosion" => "Explosives",
         "ui" => "Interface",
         "amb" => "Ambience",
-        _ => head,
+        string head => head,
     };
 
     private static Button MakeButton(string text, string variation, Action action)
@@ -440,9 +446,14 @@ public partial class SoundViewer : Node3D
         _selected = e;
         foreach ((SoundEventData ev, Button b) in _rows)
         {
-            if (ev == e && !b.ButtonPressed)
+            if (ev == e)
             {
-                b.SetPressedNoSignal(true);
+                if (!b.ButtonPressed)
+                {
+                    b.SetPressedNoSignal(true);
+                }
+                // The list follows the selection (an event chosen by --sound or the arrow keys is seen).
+                _list?.CallDeferred(ScrollContainer.MethodName.EnsureControlVisible, b);
             }
         }
         _title.Text = e.Key;
