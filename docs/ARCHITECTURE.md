@@ -302,7 +302,9 @@ schedule, and alerts wait for the owners' login.
   `[Signed]`, `[VarInt]`, `[Angle]`, `[Quantize]`, `[MaxLength]`, `[MaxCount]`). `tools/Hollow.NetGen` writes their
   bit-packed serializers (§5): variable-length integers, quantized floats, and for entity states a delta against a
   baseline (a bit per field, then the difference in as few bits as fit). Readers never throw on bad data; a message
-  that reads past its end or breaks a limit is dropped.
+  that reads past its end or breaks a limit is dropped. Each generated message implements `INetMessage<T>` (its type
+  byte, its reader and its writers), and `MessageHandlers<TContext>` routes a packet's type byte to the one handler
+  registered for it (GROUND_SYSTEMS.md §12.4).
 - A protocol version and a hash of every message layout (generated) are checked on connect, so builds that don't
   speak the same protocol refuse each other with a reason.
 

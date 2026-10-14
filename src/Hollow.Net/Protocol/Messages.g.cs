@@ -26,9 +26,11 @@ public static partial class Protocol
     public const ulong SchemaHash = 0x824D9E2D1F9B8F8FUL;
 }
 
-partial struct Hello
+partial struct Hello : INetMessage<Hello>
 {
     public const byte TypeId = 1;
+
+    static byte INetMessage<Hello>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -58,9 +60,11 @@ partial struct Hello
     }
 }
 
-partial struct Goodbye
+partial struct Goodbye : INetMessage<Goodbye>
 {
     public const byte TypeId = 2;
+
+    static byte INetMessage<Goodbye>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -119,9 +123,11 @@ partial struct ZoneInfo
     }
 }
 
-partial struct Welcome
+partial struct Welcome : INetMessage<Welcome>
 {
     public const byte TypeId = 3;
+
+    static byte INetMessage<Welcome>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -236,9 +242,11 @@ partial struct ShipControls
     }
 }
 
-partial struct InputPacket
+partial struct InputPacket : INetMessage<InputPacket>
 {
     public const byte TypeId = 10;
+
+    static byte INetMessage<InputPacket>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -947,9 +955,11 @@ partial struct CharacterNetState
     public const int FullBits = 191;
 }
 
-partial struct Spawn
+partial struct Spawn : INetMessage<Spawn>
 {
     public const byte TypeId = 20;
+
+    static byte INetMessage<Spawn>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -977,9 +987,11 @@ partial struct Spawn
     }
 }
 
-partial struct Despawn
+partial struct Despawn : INetMessage<Despawn>
 {
     public const byte TypeId = 21;
+
+    static byte INetMessage<Despawn>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1001,9 +1013,11 @@ partial struct Despawn
     }
 }
 
-partial struct ChatSend
+partial struct ChatSend : INetMessage<ChatSend>
 {
     public const byte TypeId = 30;
+
+    static byte INetMessage<ChatSend>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1025,9 +1039,11 @@ partial struct ChatSend
     }
 }
 
-partial struct ChatLine
+partial struct ChatLine : INetMessage<ChatLine>
 {
     public const byte TypeId = 31;
+
+    static byte INetMessage<ChatLine>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1053,9 +1069,11 @@ partial struct ChatLine
     }
 }
 
-partial struct ThingSpawn
+partial struct ThingSpawn : INetMessage<ThingSpawn>
 {
     public const byte TypeId = 22;
+
+    static byte INetMessage<ThingSpawn>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1105,9 +1123,11 @@ partial struct ThingSpawn
     }
 }
 
-partial struct ThingUpdate
+partial struct ThingUpdate : INetMessage<ThingUpdate>
 {
     public const byte TypeId = 23;
+
+    static byte INetMessage<ThingUpdate>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1150,9 +1170,11 @@ partial struct WornItem
     }
 }
 
-partial struct CharacterLook
+partial struct CharacterLook : INetMessage<CharacterLook>
 {
     public const byte TypeId = 24;
+
+    static byte INetMessage<CharacterLook>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1228,9 +1250,11 @@ partial struct NaturalNet
     }
 }
 
-partial struct NaturalStates
+partial struct NaturalStates : INetMessage<NaturalStates>
 {
     public const byte TypeId = 40;
+
+    static byte INetMessage<NaturalStates>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1267,9 +1291,11 @@ partial struct NaturalStates
     }
 }
 
-partial struct ProjectileLaunch
+partial struct ProjectileLaunch : INetMessage<ProjectileLaunch>
 {
     public const byte TypeId = 41;
+
+    static byte INetMessage<ProjectileLaunch>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1311,9 +1337,11 @@ partial struct ProjectileLaunch
     }
 }
 
-partial struct ProjectileEnd
+partial struct ProjectileEnd : INetMessage<ProjectileEnd>
 {
     public const byte TypeId = 42;
+
+    static byte INetMessage<ProjectileEnd>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1362,9 +1390,11 @@ partial struct TargetNet
     }
 }
 
-partial struct MoveItemIntent
+partial struct MoveItemIntent : INetMessage<MoveItemIntent>
 {
     public const byte TypeId = 50;
+
+    static byte INetMessage<MoveItemIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1398,9 +1428,11 @@ partial struct MoveItemIntent
     }
 }
 
-partial struct QuickMoveIntent
+partial struct QuickMoveIntent : INetMessage<QuickMoveIntent>
 {
     public const byte TypeId = 51;
+
+    static byte INetMessage<QuickMoveIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1428,9 +1460,11 @@ partial struct QuickMoveIntent
     }
 }
 
-partial struct DropIntent
+partial struct DropIntent : INetMessage<DropIntent>
 {
     public const byte TypeId = 52;
+
+    static byte INetMessage<DropIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1460,9 +1494,11 @@ partial struct DropIntent
     }
 }
 
-partial struct CraftIntent
+partial struct CraftIntent : INetMessage<CraftIntent>
 {
     public const byte TypeId = 54;
+
+    static byte INetMessage<CraftIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1488,9 +1524,11 @@ partial struct CraftIntent
     }
 }
 
-partial struct CancelCraftIntent
+partial struct CancelCraftIntent : INetMessage<CancelCraftIntent>
 {
     public const byte TypeId = 55;
+
+    static byte INetMessage<CancelCraftIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1514,9 +1552,11 @@ partial struct CancelCraftIntent
     }
 }
 
-partial struct CloseIntent
+partial struct CloseIntent : INetMessage<CloseIntent>
 {
     public const byte TypeId = 57;
+
+    static byte INetMessage<CloseIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1538,9 +1578,11 @@ partial struct CloseIntent
     }
 }
 
-partial struct RespawnIntent
+partial struct RespawnIntent : INetMessage<RespawnIntent>
 {
     public const byte TypeId = 61;
+
+    static byte INetMessage<RespawnIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1564,9 +1606,11 @@ partial struct RespawnIntent
     }
 }
 
-partial struct IntentResult
+partial struct IntentResult : INetMessage<IntentResult>
 {
     public const byte TypeId = 70;
+
+    static byte INetMessage<IntentResult>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1592,9 +1636,11 @@ partial struct IntentResult
     }
 }
 
-partial struct ShipIntent
+partial struct ShipIntent : INetMessage<ShipIntent>
 {
     public const byte TypeId = 120;
+
+    static byte INetMessage<ShipIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1681,9 +1727,11 @@ partial struct SlotNet
     }
 }
 
-partial struct ContainerContents
+partial struct ContainerContents : INetMessage<ContainerContents>
 {
     public const byte TypeId = 71;
+
+    static byte INetMessage<ContainerContents>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1726,9 +1774,11 @@ partial struct ContainerContents
     }
 }
 
-partial struct ContainerSlots
+partial struct ContainerSlots : INetMessage<ContainerSlots>
 {
     public const byte TypeId = 72;
+
+    static byte INetMessage<ContainerSlots>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1769,9 +1819,11 @@ partial struct ContainerSlots
     }
 }
 
-partial struct LootState
+partial struct LootState : INetMessage<LootState>
 {
     public const byte TypeId = 73;
+
+    static byte INetMessage<LootState>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1797,9 +1849,11 @@ partial struct LootState
     }
 }
 
-partial struct VitalsUpdate
+partial struct VitalsUpdate : INetMessage<VitalsUpdate>
 {
     public const byte TypeId = 74;
+
+    static byte INetMessage<VitalsUpdate>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1862,9 +1916,11 @@ partial struct CraftJobNet
     }
 }
 
-partial struct CraftQueueState
+partial struct CraftQueueState : INetMessage<CraftQueueState>
 {
     public const byte TypeId = 75;
+
+    static byte INetMessage<CraftQueueState>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1907,9 +1963,11 @@ partial struct CraftQueueState
     }
 }
 
-partial struct HitMarker
+partial struct HitMarker : INetMessage<HitMarker>
 {
     public const byte TypeId = 76;
+
+    static byte INetMessage<HitMarker>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1941,9 +1999,11 @@ partial struct HitMarker
     }
 }
 
-partial struct ItemsChanged
+partial struct ItemsChanged : INetMessage<ItemsChanged>
 {
     public const byte TypeId = 77;
+
+    static byte INetMessage<ItemsChanged>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1971,9 +2031,11 @@ partial struct ItemsChanged
     }
 }
 
-partial struct DamageTaken
+partial struct DamageTaken : INetMessage<DamageTaken>
 {
     public const byte TypeId = 78;
+
+    static byte INetMessage<DamageTaken>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2005,9 +2067,11 @@ partial struct DamageTaken
     }
 }
 
-partial struct CraftFinished
+partial struct CraftFinished : INetMessage<CraftFinished>
 {
     public const byte TypeId = 79;
+
+    static byte INetMessage<CraftFinished>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2052,9 +2116,11 @@ partial struct BagNet
     }
 }
 
-partial struct LifeState
+partial struct LifeState : INetMessage<LifeState>
 {
     public const byte TypeId = 80;
+
+    static byte INetMessage<LifeState>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2103,9 +2169,11 @@ partial struct LifeState
     }
 }
 
-partial struct FireIntent
+partial struct FireIntent : INetMessage<FireIntent>
 {
     public const byte TypeId = 62;
+
+    static byte INetMessage<FireIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2141,9 +2209,11 @@ partial struct FireIntent
     }
 }
 
-partial struct ReloadIntent
+partial struct ReloadIntent : INetMessage<ReloadIntent>
 {
     public const byte TypeId = 63;
+
+    static byte INetMessage<ReloadIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2173,9 +2243,11 @@ partial struct ReloadIntent
     }
 }
 
-partial struct AttachIntent
+partial struct AttachIntent : INetMessage<AttachIntent>
 {
     public const byte TypeId = 64;
+
+    static byte INetMessage<AttachIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2207,9 +2279,11 @@ partial struct AttachIntent
     }
 }
 
-partial struct GunUpdate
+partial struct GunUpdate : INetMessage<GunUpdate>
 {
     public const byte TypeId = 81;
+
+    static byte INetMessage<GunUpdate>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2267,9 +2341,11 @@ partial struct GunUpdate
     }
 }
 
-partial struct HammerIntent
+partial struct HammerIntent : INetMessage<HammerIntent>
 {
     public const byte TypeId = 91;
+
+    static byte INetMessage<HammerIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2336,9 +2412,11 @@ partial struct BuildFrameNet
     }
 }
 
-partial struct BuildFrames
+partial struct BuildFrames : INetMessage<BuildFrames>
 {
     public const byte TypeId = 96;
+
+    static byte INetMessage<BuildFrames>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2412,9 +2490,11 @@ partial struct PieceNet
     }
 }
 
-partial struct BuildPieces
+partial struct BuildPieces : INetMessage<BuildPieces>
 {
     public const byte TypeId = 97;
+
+    static byte INetMessage<BuildPieces>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2466,9 +2546,11 @@ partial struct BuildIdNet
     }
 }
 
-partial struct BuildRemoved
+partial struct BuildRemoved : INetMessage<BuildRemoved>
 {
     public const byte TypeId = 98;
+
+    static byte INetMessage<BuildRemoved>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2544,9 +2626,11 @@ partial struct DoorNet
     }
 }
 
-partial struct BuildDoors
+partial struct BuildDoors : INetMessage<BuildDoors>
 {
     public const byte TypeId = 99;
+
+    static byte INetMessage<BuildDoors>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2616,9 +2700,11 @@ partial struct ClaimNet
     }
 }
 
-partial struct BuildClaims
+partial struct BuildClaims : INetMessage<BuildClaims>
 {
     public const byte TypeId = 100;
+
+    static byte INetMessage<BuildClaims>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2655,9 +2741,11 @@ partial struct BuildClaims
     }
 }
 
-partial struct ThrowIntent
+partial struct ThrowIntent : INetMessage<ThrowIntent>
 {
     public const byte TypeId = 110;
+
+    static byte INetMessage<ThrowIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2689,9 +2777,11 @@ partial struct ThrowIntent
     }
 }
 
-partial struct ExplosiveUpdate
+partial struct ExplosiveUpdate : INetMessage<ExplosiveUpdate>
 {
     public const byte TypeId = 113;
+
+    static byte INetMessage<ExplosiveUpdate>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2745,9 +2835,11 @@ partial struct ExplosiveUpdate
     }
 }
 
-partial struct ExplosiveGone
+partial struct ExplosiveGone : INetMessage<ExplosiveGone>
 {
     public const byte TypeId = 114;
+
+    static byte INetMessage<ExplosiveGone>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2769,9 +2861,11 @@ partial struct ExplosiveGone
     }
 }
 
-partial struct Detonation
+partial struct Detonation : INetMessage<Detonation>
 {
     public const byte TypeId = 115;
+
+    static byte INetMessage<Detonation>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2848,9 +2942,11 @@ partial struct RaidAlertNet
     }
 }
 
-partial struct RaidAlertMessage
+partial struct RaidAlertMessage : INetMessage<RaidAlertMessage>
 {
     public const byte TypeId = 116;
+
+    static byte INetMessage<RaidAlertMessage>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2872,9 +2968,11 @@ partial struct RaidAlertMessage
     }
 }
 
-partial struct RaidAlertList
+partial struct RaidAlertList : INetMessage<RaidAlertList>
 {
     public const byte TypeId = 117;
+
+    static byte INetMessage<RaidAlertList>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2911,9 +3009,11 @@ partial struct RaidAlertList
     }
 }
 
-partial struct TeamIntent
+partial struct TeamIntent : INetMessage<TeamIntent>
 {
     public const byte TypeId = 131;
+
+    static byte INetMessage<TeamIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2941,9 +3041,11 @@ partial struct TeamIntent
     }
 }
 
-partial struct TeamChatSend
+partial struct TeamChatSend : INetMessage<TeamChatSend>
 {
     public const byte TypeId = 132;
+
+    static byte INetMessage<TeamChatSend>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -2965,9 +3067,11 @@ partial struct TeamChatSend
     }
 }
 
-partial struct MarkerIntent
+partial struct MarkerIntent : INetMessage<MarkerIntent>
 {
     public const byte TypeId = 133;
+
+    static byte INetMessage<MarkerIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3016,9 +3120,11 @@ partial struct RecipeNet
     }
 }
 
-partial struct BlueprintList
+partial struct BlueprintList : INetMessage<BlueprintList>
 {
     public const byte TypeId = 140;
+
+    static byte INetMessage<BlueprintList>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3076,9 +3182,11 @@ partial struct TeamMemberNet
     }
 }
 
-partial struct TeamState
+partial struct TeamState : INetMessage<TeamState>
 {
     public const byte TypeId = 141;
+
+    static byte INetMessage<TeamState>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3140,9 +3248,11 @@ partial struct TeamInviteNet
     }
 }
 
-partial struct TeamInvites
+partial struct TeamInvites : INetMessage<TeamInvites>
 {
     public const byte TypeId = 142;
+
+    static byte INetMessage<TeamInvites>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3204,9 +3314,11 @@ partial struct TeammateNet
     }
 }
 
-partial struct TeamPositions
+partial struct TeamPositions : INetMessage<TeamPositions>
 {
     public const byte TypeId = 143;
+
+    static byte INetMessage<TeamPositions>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3291,9 +3403,11 @@ partial struct RespawnPointNet
     }
 }
 
-partial struct MapState
+partial struct MapState : INetMessage<MapState>
 {
     public const byte TypeId = 144;
+
+    static byte INetMessage<MapState>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3357,9 +3471,11 @@ partial struct MapState
     }
 }
 
-partial struct MachineState
+partial struct MachineState : INetMessage<MachineState>
 {
     public const byte TypeId = 145;
+
+    static byte INetMessage<MachineState>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3389,9 +3505,11 @@ partial struct MachineState
     }
 }
 
-partial struct ConsoleRun
+partial struct ConsoleRun : INetMessage<ConsoleRun>
 {
     public const byte TypeId = 150;
+
+    static byte INetMessage<ConsoleRun>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3415,9 +3533,11 @@ partial struct ConsoleRun
     }
 }
 
-partial struct ConsoleReply
+partial struct ConsoleReply : INetMessage<ConsoleReply>
 {
     public const byte TypeId = 151;
+
+    static byte INetMessage<ConsoleReply>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3460,9 +3580,11 @@ partial struct ServerPlayerNet
     }
 }
 
-partial struct ServerState
+partial struct ServerState : INetMessage<ServerState>
 {
     public const byte TypeId = 152;
+
+    static byte INetMessage<ServerState>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3503,9 +3625,11 @@ partial struct ServerState
     }
 }
 
-partial struct ZoneClock
+partial struct ZoneClock : INetMessage<ZoneClock>
 {
     public const byte TypeId = 153;
+
+    static byte INetMessage<ZoneClock>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3533,9 +3657,11 @@ partial struct ZoneClock
     }
 }
 
-partial struct InteractIntent
+partial struct InteractIntent : INetMessage<InteractIntent>
 {
     public const byte TypeId = 210;
+
+    static byte INetMessage<InteractIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3598,9 +3724,11 @@ partial struct ArrowNet
     }
 }
 
-partial struct ArrowStates
+partial struct ArrowStates : INetMessage<ArrowStates>
 {
     public const byte TypeId = 211;
+
+    static byte INetMessage<ArrowStates>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3637,9 +3765,11 @@ partial struct ArrowStates
     }
 }
 
-partial struct ArrowsGone
+partial struct ArrowsGone : INetMessage<ArrowsGone>
 {
     public const byte TypeId = 212;
+
+    static byte INetMessage<ArrowsGone>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3676,9 +3806,11 @@ partial struct ArrowsGone
     }
 }
 
-partial struct ThingDestroyed
+partial struct ThingDestroyed : INetMessage<ThingDestroyed>
 {
     public const byte TypeId = 165;
+
+    static byte INetMessage<ThingDestroyed>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3753,9 +3885,11 @@ partial struct PoseNet
     }
 }
 
-partial struct PlaceIntent
+partial struct PlaceIntent : INetMessage<PlaceIntent>
 {
     public const byte TypeId = 220;
+
+    static byte INetMessage<PlaceIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3793,9 +3927,11 @@ partial struct PlaceIntent
     }
 }
 
-partial struct ItemActionIntent
+partial struct ItemActionIntent : INetMessage<ItemActionIntent>
 {
     public const byte TypeId = 230;
+
+    static byte INetMessage<ItemActionIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -3827,9 +3963,11 @@ partial struct ItemActionIntent
     }
 }
 
-partial struct UnloadIntent
+partial struct UnloadIntent : INetMessage<UnloadIntent>
 {
     public const byte TypeId = 231;
+
+    static byte INetMessage<UnloadIntent>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)

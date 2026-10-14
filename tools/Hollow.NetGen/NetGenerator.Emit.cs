@@ -37,12 +37,20 @@ public static partial class NetGenerator
 
     private static void EmitStruct(StringBuilder o, StructDef def)
     {
-        o.Append($"partial struct {def.Name}\n{{\n");
         if (def.Kind == StructKind.Message)
         {
+            // A message implements INetMessage<T> (GROUND_SYSTEMS.md §12.4), so a handler registry finds it by its type
+            // byte; Read, Write and WriteMessage are the interface's other members. The layout is untouched, so the
+            // schema hash is too.
+            o.Append($"partial struct {def.Name} : INetMessage<{def.Name}>\n{{\n");
             o.Append($"    public const byte TypeId = {def.Id};\n\n");
+            o.Append($"    static byte INetMessage<{def.Name}>.Id => TypeId;\n\n");
             o.Append("    /// <summary>The type byte, then the message.</summary>\n");
             o.Append("    public readonly void WriteMessage(BitWriter w)\n    {\n        w.WriteBits(TypeId, 8);\n        Write(w);\n    }\n\n");
+        }
+        else
+        {
+            o.Append($"partial struct {def.Name}\n{{\n");
         }
         o.Append("    public readonly void Write(BitWriter w)\n    {\n");
         foreach (Field f in def.Fields)
