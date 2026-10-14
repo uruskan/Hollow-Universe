@@ -5,6 +5,14 @@ Written 13 October 2026, morning, when the first session filled its context; the
 Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a-shader-system` and
 `minimal-automated-testing` hold the owner's standing decisions.
 
+## 14 October 2026, late night: the Iron Wake designed
+
+The owner gave the game its benchmark ship, the Iron Wake (`D:\GameDev\Assets\IronWake_Buildable_R01`): a 58 m carrier
+with walkable decks that players furnish, six crewed rocket cannons with a visible loading mechanism, and a new
+incendiary rocket. The design is [IRON_WAKE.md](IRON_WAKE.md), **waiting for the owner's approval** of its fourteen
+defaults (§2). Its rules (people aboard in the ship's own frame, seats, stations, fire, building aboard) wait for S3a,
+which rewrites the same code; its art, sound and effects can start on `main` once approved.
+
 ## 14 October 2026, night: one place (read this first)
 
 **Known problems live in [KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)** since 14 October 2026, night: the second playtest's
