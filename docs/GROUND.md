@@ -4120,6 +4120,14 @@ first use, or `FxDirector.Install(parent)`):
 | A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
 | A step on sand (footsteps) | `world.footstep.sand` |
 | Every frame | the camera: rotation += `FxDirector.CameraShake(camera position)` |
+| The Iron Wake's siege battery fires a barrel (IRON_WAKE.md §6) | `Muzzle("muzzle.siege", the barrel's muzzle socket, false)`; `Play("muzzle.siege.dust", the deck or ground under the muzzle, its normal)` with `Direction` the barrel's direction along it, `Tint` the ground's dust colour and `Scale` 1 for a muzzle up to 4 m over it, falling to 0.4 at 15 m (none higher) |
+| A battery rocket's motor lights (its launch profile's distance, IRON_WAKE.md §6.4) | `Play("ignite.rocket", the rocket's tail, its flight)` with `Direction` its flight and `Follow` the tail; `Start("trail.rocket", Follow = the tail, Direction = its flight)`, stopped when the motor burns out (1.0 to 1.4 s) |
+| A defense mount fires a barrel (each of a ripple) | `Muzzle("muzzle.defense", the barrel's muzzle socket, false)`; its rocket as above |
+| A siege barrel's loader reaches "breech open" (IRON_WAKE.md §6.6) | `Play("breech.smoke", the breech socket, out of it, Follow = it)`; `Start("breech.smoke.wisps", Follow = the breech socket, Duration = until "ram")` |
+| A lift engine pushes near the ground | `Start("wash.lift", the ground under the nozzle, its normal, Tint = the ground's dust colour)`, `Move` it as the ship moves, `Stop` it above 25 m or at no thrust; its rate by thrust and nearness waits for a loop intensity (below) |
+| An incendiary rocket bursts; its fire starts and ends (IRON_WAKE.md §7) | `explosion.incendiary`; on `FireStarted` `Start("fire.patch", the fire's point, its normal, Duration = 18, Scale = radius ÷ 3.5)`, on `FireEnded` `Stop` it and `Play("fire.patch.out", the same point, Scale)` |
+| A bullet on the Iron Wake's hull | `Play("impact.hull", the hit, its normal, Direction = the bullet's flight)` |
+| A battery disabled, the hull below a quarter | `Start("smoke.damaged", Follow = the battery's gun house or the hull's damage socket)` until repaired |
 
 **Hooked up in the game** (pass 3):
 - *Shots:* `FirstPersonView.OnShot` plays `Muzzle(GunEffects.MuzzleKey(gun, its attachments), the muzzle of the gun the
@@ -4142,21 +4150,78 @@ first use, or `FxDirector.Install(parent)`):
 - *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades and doors in
   `BuildView` (§6.5), and whatever breaks in `GibsView` (§9.4); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
   place and installs the director with the view.
-- *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`.
+- *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`, and the Iron Wake's
+  effects (IW-F, below), which its packages IW3, IW4 and IW6 hook up (IRON_WAKE.md §13).
+
+**The Iron Wake's effects** (IW-F, IRON_WAKE.md §11; built 15 October 2026 from the existing batches and the C4 kit's
+flipbooks, with two decals of our own):
+- *`muzzle.siege`*, along the barrel (`Muzzle` on its socket): a 5 m star flash and a light of energy 22 for 0.2 s; a
+  fireball rolled 2 to 6 m down the bore from the C4 fire flipbook, with a ring of flame round the muzzle; the shock as
+  a fast ring of dust thrown out across the bore (a drawn ring read as a hoop by night); a doughnut of smoke round the
+  muzzle, a cone of gun smoke driven 6 to 24 m ahead (pale, with sooty puffs), a cloud round the muzzle and smoke that
+  lingers 8 to 12 s and rises; fast sparks, slow burning flecks of propellant and embers; a shake of 0.75 to 40 m. About
+  210 particles a shot. From the gunner's seat, 13 m behind the muzzles, it never hides the target for more than a
+  moment.
+- *`muzzle.siege.dust`*, its partner on the deck or ground under the muzzle: a low sheet of dust swept out in a ring,
+  more of it ahead, rising billows, streaks of grit, chips and flakes, a pressure ring.
+- *`muzzle.defense`*, per barrel: a 2 m flash for 35 ms, a jet of flame, the crack of a fast ring of dust across the
+  bore, a quick puff of smoke, sparks, a short light and a small shake; a ripple a quarter second apart reads as three
+  shots.
+- *`ignite.rocket`*: a burst out of the nozzle a few metres from the muzzle (flash, a cough of flame and sparks back
+  along the path, a ring and a puff of smoke, a light); `trail.rocket` takes over.
+- *`trail.rocket`*, reworked (it read as a string of separate puffs): a white-hot nozzle, a tongue of flame (thick spark
+  streaks blasted back), flame puffs, sparks and a pale, continuous trail of dust-batch smoke blasted back along the
+  path at two speeds, so it stays whole at the shoulder launcher's 18 to 40 m/s and fills its gaps within a few frames
+  at the batteries' 70 to 260 m/s. Stop it when the motor burns out; its smoke hangs and spreads.
+- *`breech.smoke`* and *`breech.smoke.wisps`*: a puff rolling out of the breech when it opens, then a loop of thin smoke
+  trailing from it, on its socket, until the rammer closes it.
+- *`wash.lift`*, a loop on the ground under a lift nozzle: a fast, low sheet of dust driven out to 20 m, billows rising
+  at its edge, streaks of sand and grit, bits of grass and leaves.
+- *`explosion.incendiary`*: a smaller blast than the rocket's, a tall fuel fireball, 50 to 70 glowing globs of burning
+  fuel thrown out in arcs (thick spark streaks cooling to red), black oily smoke, embers and a scorch.
+- *`fire.patch`*, a loop over 3.5 m: 53 flame cards overlapping into a burning pool (tallest in the middle), 70 small
+  rolling C4 fireballs a second over it with bigger gouts, embers, a column of black smoke and a flickering light of 16
+  m. *`fire.patch.out`* leaves the burnt patch: a 7 m decal of our own (`decals/scorch_fire`: a charred pool, cracked
+  crust, ash, fuel splashed out in fingers and drops, embers glowing that die down), the last smoke and embers.
+- *`impact.hull`*: a hard spray of sparks off the plate, a flash and a small light, a puff of paint and grit, flecks,
+  and a strike mark of our own (`decals/strike_hull_0`, `_1`: a bright dent smeared with lead, paint chipped round it,
+  soot), 20 cm.
+- *`smoke.damaged`*, a loop: heavy black smoke pouring up, a lighter grey with it, embers and a dim flickering glow.
+
+**What the library can't do yet** (code for the packages that hook these up; IW-F changed only `fx.json`, the assets and
+the viewer):
+- *A loop's intensity.* A loop fades in and out but takes no rate: `wash.lift` needs `FxDirector.SetIntensity(handle,
+  k)` (or `FxParams.Intensity` with a setter) multiplying its emit rates and light, k = thrust share × nearness (1 at 4
+  m, 0 at 25 m). Until then the view starts it at full thrust under 25 m and stops it otherwise.
+- *Trails at speed.* A loop emits where its node is each frame, so a trail behind a 140 to 260 m/s rocket is laid in
+  steps of 2 to 4 m at 60 frames a second; `trail.rocket`'s backward speeds fill them within a few frames, but the first
+  10 m behind a fast rocket still show beads. The fix is in `UpdateLoop`: spread each frame's particles along the
+  segment from where the loop emitted last (`FxLoop.LastEmit` is there, unused).
+- *Scaled loops.* `FxParams.Scale` sizes a loop's particles but not its flame cards or light: `fire.patch` at another
+  radius than 3.5 m needs the flames' transform and the light's range scaled in `UpdateLoop`.
+- *Moving ships.* Particles are in the world and start with their own velocity only; a shot from a ship at speed leaves
+  its blast behind at once (as smoke in the air should, but the fireball too). `FxParams.Velocity`, added to every
+  particle, would carry the first moments with the muzzle. None of the ship's one-shots has a delayed layer, so nothing
+  appears where the ship was.
+- *A soft puff.* The `smoke` batch's frames are the C4 blast's flat-bottomed clouds, which clump when spread thin, and
+  `dust` has its puff's dark core; the trail and the wash would be smoother from a batch of its own with a round, soft
+  smoke flipbook (rendered in Blender as the kit was), and a pool of fire smoother if flame cards could dim their feet
+  (the shader makes every card hottest at its foot, so 50 overlapping cards show bright domes at their bases).
 
 **The effects** (`fx.json`; each has an `about` line there):
 
 | Family | Keys |
 |---|---|
 | muzzle | `muzzle.rifle`, `muzzle.rifle.brake`, `muzzle.pistol`, `muzzle.pistol.brake`, `muzzle.silenced` (no flash, no light, a little smoke), `muzzle.rocket`, `backblast.rocket`; each first or third person |
-| tracer | `tracer.bullet`, `tracer.incendiary`, `trail.arrow`, `trail.rocket` (a loop) |
+| tracer | `tracer.bullet`, `tracer.incendiary`, `trail.arrow`, `trail.rocket` (a loop; reworked for IW-F, above) |
 | impact | `impact.bullet.dirt`, `.grass`, `.sand`, `.rock`, `.wood`, `.metal`, `.water`, `.flesh`, `impact.incendiary`: debris, dust and a decal where right (holes in wood, rock and metal, a scuff in earth) |
 | blood | `blood.hit`, `blood.hit.heavy` (a short mist and a few drops, restrained), `blood.drip` (a drop and a stain) |
 | gather | `gather.wood`, `gather.rock`, `gather.sparks`, `gather.weakspot`, `gather.tree-fall`, `gather.node-break` |
-| explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
-| fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning` (loops) |
+| explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `.incendiary` (IW-F), `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
+| fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning`, `fire.patch` (loops), `fire.patch.out` (IW-F) |
 | world | `world.collapse`, `world.upgrade.wood`, `.stone`, `.metal`, `.armoured`, `world.door-slam`, `world.footstep.sand` |
 | gibs | `gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`: the dust of something breaking apart (§9.4), tinted by its material, over its size |
+| ship | `muzzle.siege`, `muzzle.siege.dust`, `muzzle.defense`, `ignite.rocket`, `breech.smoke`, `breech.smoke.wisps` (a loop), `wash.lift` (a loop), `impact.hull`, `smoke.damaged` (a loop): the Iron Wake's (IW-F, above) |
 
 **Assets** (`art/fx/build.py`, about 15 s):
 - *The PSG C4 VFX kit* (`D:\GameDev\Assets\PSG_C4VFX_R01`, made for this project: a Mantaflow simulation rendered by
@@ -4169,21 +4234,35 @@ first use, or `FxDirector.Install(parent)`):
   noise and a fire colour ramp), tileable noise, a soft dot, a droplet; decals with normal maps: bullet holes in wood
   (fibres torn along the grain, splinters), rock (a crushed crater with cracks) and metal (a punched hole with a torn
   bright rim and chipped paint), blood stains, a dirt scuff; debris: rock chips and clods, wood splinters and bark, torn
-  tin.
+  tin. For the Iron Wake (IW-F): bullet strikes on its hull plate (`strike_hull_0`, `_1`: a dent scoured bright and
+  smeared with lead, splash streaks, paint chipped off in a ragged ring and flakes, soot) and the burnt patch an
+  incendiary fire leaves (`scorch_fire`, 1024 px for 7 m: a charred pool, its crust cracked, ash, fuel splashed out in
+  fingers and drops, a brown scorch round it, with `_glow` embers and `_normal` relief).
 
 **The viewer** (`--view fx`): every effect in turn on its station while the camera turns about it. The stations: ground
 of each kind with the planet's own textures, rock, wood, metal and stone walls from the building kit, water, a target
-dummy, the guns, the campfire, furnace and torch. Options: `--fx <key>` (start there; with `--shot`, caught `--at <s>`
-after it starts, its `hero` moment by default), `--sheet <family>` (a contact sheet: every effect of a family in its
-own cell at its hero moment, muzzle flashes in first and third person), `--strip <key> --times a,b,c` (one effect at
-several moments), `--action <family>` (a scene of the family in use), `--stress firefight --measure <s>` (below),
-`--night`, `--only-batch <name>` (tuning), `--spikes` (with `--stress`: print every frame over 12 ms). Keys: ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
-fx.json.
+dummy, the guns, the campfire, furnace and torch; and on a ring of their own, the Iron Wake's (`FxStage.Ship.cs`):
+stand-ins of its siege battery (scale 1.05: two barrels 2 m apart, the muzzles 2.3 m over its deck) played at the muzzle
+(`siege`), on the deck under it (`siege-deck`), at the breech (`siege-breech`), on a rocket fired at the battery's 70
+m/s that lights 4 m out (`ignite`) and on the gun house (`damaged`); a defense mount (scale 0.43, three tubes 0.275 m
+apart) that ripples its barrels a quarter second apart; a panel of hull plate; a lift nozzle 6 m over the ground
+(`wash`); open ground to burn (`patch`). Each plays its effects as the ship's views will, on named sockets
+(`FxStation.Sockets`). Options: `--fx <key>` (start there; with `--shot`, caught `--at <s>` after it starts, its `hero`
+moment by default), `--sheet <family>` (a contact sheet: every effect of a family in its own cell at its hero moment,
+muzzle flashes in first and third person), `--strip <key> --times a,b,c` (one effect at several moments), `--action
+<family>` (a scene of the family in use; `ship`: the siege battery firing over its deck beside a rippling defense mount,
+fires burning downrange), `--stress firefight --measure <s>` (below), `--stress battery --measure <s>` (the Iron Wake's
+guns in a fight, below; `--battery-parts siege,defense,fires,hull,wash,smoke` plays some), `--gunner` (a battery's
+effects from its gunner's seat), `--scale <f>` (every effect that much bigger), `--night`, `--only-batch <name>`
+(tuning), `--spikes` (with `--stress`: print every frame over 12 ms). Keys: ← → effect, ↑ ↓ family, Space replay, P
+pause, N night, R reload fx.json.
 
 ```bash
 $GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png
 $GODOT --path game --resolution 1600x900 -- --view fx --action fire --shot fire.png
 $GODOT --path game --resolution 1600x900 -- --view fx --stress firefight --measure 8
+$GODOT --path game --resolution 1600x900 -- --view fx --fx muzzle.siege --gunner --at 0.05 --shot gunner.png
+$GODOT --path game --resolution 1600x900 -- --view fx --stress battery --measure 8
 blender -b --factory-startup --python art/fx/build.py        # the effects' assets (-- c4 | textures | decals | chunks)
 ```
 
@@ -4202,8 +4281,30 @@ So a ten-player firefight's effects cost about 0.3 ms a frame, well inside the 2
 tuning measured +0.41 ms). The figures are the means of the two halves of a run (`[fx-measure] RESULT` in the log);
 other programs busy on the PC move them by a few tenths and can add stalls to either half.
 
+`--stress battery` (IW-F, 15 October 2026) is the Iron Wake's guns in a fight, everything at once: both siege
+batteries firing every 2.3 s and the four defense mounts rippling three rockets every 3 s (40 shots in 8 s, each with
+its muzzle, the siege shots' deck dust, every rocket's ignition and trail until burnout, every siege breech's smoke);
+an incendiary rocket bursting downrange every 3 s with six fires burning; a bullet on the hull every tenth of a second;
+two hulks smoking; four lift engines' wash at full thrust. Same PC and settings, the PC otherwise idle; the firefight
+measured +0.23 ms in the same session:
+
+| | Frame, average | Frame, 95th percentile | GPU | The library's CPU time |
+|---|---|---|---|---|
+| Effects off | 2.22 ms | 2.38 ms | 1.67 ms | |
+| Effects on | 3.04 ms | 3.33 ms | 2.48 ms | 0.09 ms |
+| **What the effects cost** | **+0.81 ms** | +0.95 ms | +0.81 ms | |
+
+By part (`--battery-parts`, one at a time): the two siege batteries +0.16 ms, the four defense mounts and their twelve
+rockets every 3 s +0.26 ms, the six fires +0.07 ms, the four washes +0.34 ms (each wash about 0.09 ms; a loop
+intensity will scale them with height and thrust). A frame emitted 7 particles on average at about 330 frames a second
+and 216 at most (a siege shot with its dust and ignition), against the budget of 1,500; the lights in use stayed under
+the pool's 24.
+
 Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's contact sheet) and `action-<family>.jpg`
-(each family in use), for muzzle, tracer, impact, blood, gather, explosion, fire and world.
+(each family in use), for muzzle, tracer, impact, blood, gather, explosion, fire and world. The Iron Wake's
+(`docs/images/iron-wake/fx-*.jpg`): one per effect by day (`fx-<key>.jpg`), the siege shot and the fires also at night
+(`-night`), the siege shot from the gunner's seat and over time (`-gunner`, `-strip`), the trail at both speeds, the
+contact sheets of the ship, fire and explosion families and the scene (`fx-action-ship.jpg`).
 
 ![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 

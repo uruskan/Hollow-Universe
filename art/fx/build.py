@@ -7,7 +7,8 @@
   the smoke flipbook (8 x 8) with its normals, the fire flipbook (4 x 4, HDR), flash, pressure ring, heat distortion,
   dust puff, spark, scorch, and the concrete texture of its debris. 2K at most; normals turned to OpenGL's convention.
 - textures: our own, procedural (numpy): muzzle flash atlas, tileable noise, soft dot, droplet streak.
-- decals: our own bullet holes (wood, rock, metal), blood, dirt scuff, with normal maps.
+- decals: our own bullet holes (wood, rock, metal), blood, dirt scuff, bullet strikes on the Iron Wake's hull plate and
+  the burnt patch an incendiary fire leaves (with its embers' glow), with normal maps.
 - chunks: debris meshes for the particle batches, several shapes merged per mesh with the shape's index in UV2.x:
   stone (the kit's four concrete shards and our own chips and clods), wood (splinters and bark), metal (the kit's two
   fragments and our own tin shards). game/assets/fx/chunks.glb, no materials (the game draws them with its own shader).
@@ -389,6 +390,134 @@ def blood_and_scuffs():
     decal("scuff", col, cov * 0.8, -cov * 0.3 + n * 0.1, 3.0)
 
 
+def hull_strikes():
+    """Bullets striking the Iron Wake's armour plate (impact.hull, IRON_WAKE.md §11): no hole, a shallow dent scoured to
+    bright steel, the bullet's lead smeared in it and splashed out in streaks, the paint chipped off round it in a ragged
+    ring and flakes (dark primer and dull steel under it), a faint ring of soot. Two variants, 256 px for about 15 cm."""
+    size = 256
+    yy, xx = np.mgrid[0:size, 0:size] / (size - 1)
+    x, y = (xx - 0.5) * 2, (yy - 0.5) * 2
+    r = np.hypot(x, y)
+    th = np.arctan2(y, x)
+    for v in range(2):
+        seed = 700 + v * 10
+        rng = np.random.default_rng(seed)
+        n = noise2(size, size, 16, seed, 4)
+        fine = noise2(size, size, 4, seed + 1, 3)
+        # The dent, a little oval: shots come in at an angle.
+        a = rng.uniform(0, np.pi)
+        xr, yr = x * np.cos(a) + y * np.sin(a), -x * np.sin(a) + y * np.cos(a)
+        e = np.hypot(xr, yr / rng.uniform(0.72, 0.88))
+        rim = 0.19 + 0.04 * (n - 0.5)
+        dent = smoothstep(rim, rim - 0.05, e)
+        lead = smoothstep(0.09, 0.025, e * (0.85 + 0.3 * fine))
+        streaks = np.zeros_like(r)
+        for _ in range(int(rng.integers(8, 12))):
+            ang = rng.uniform(0, 2 * np.pi)
+            length = rng.uniform(0.28, 0.55)
+            width = rng.uniform(0.01, 0.024)
+            d = np.angle(np.exp(1j * (th - ang)))
+            streaks = np.maximum(streaks, smoothstep(width, 0.0, np.abs(d) * r) * smoothstep(length, length * 0.4, r) * (r > 0.04))
+        # The paint chipped off round it, the edge ragged, loose flakes beyond.
+        edge = 0.36 + 0.1 * (n - 0.5) + 0.04 * np.sin(th * 5 + v * 2)
+        chips = smoothstep(edge, edge - 0.025, r)
+        flake_n = noise2(size, size, 4, seed + 3, 3)
+        flakes = smoothstep(0.62, 0.67, flake_n) * smoothstep(edge + 0.14, edge + 0.01, r) * (r > edge - 0.01)
+        bare = np.clip(chips + flakes, 0, 1)
+        soot = smoothstep(0.95, 0.25, r) * (0.55 + 0.45 * n)
+        f = fine[..., None]
+        col = np.array([0.05, 0.046, 0.042]) * (0.8 + 0.4 * f) * np.ones((size, size, 3))
+        primer = np.array([0.07, 0.066, 0.06]) * (0.75 + 0.5 * f)
+        col = col * (1 - bare[..., None]) + primer * bare[..., None]
+        col = col * (1 - dent[..., None]) + np.array([0.62, 0.62, 0.6]) * (0.78 + 0.4 * f) * dent[..., None]
+        smear = np.clip(np.maximum(lead, streaks * 0.85), 0, 1)
+        col = col * (1 - smear[..., None]) + np.array([0.15, 0.15, 0.16]) * (0.85 + 0.3 * f) * smear[..., None]
+        alpha = np.clip(np.maximum(np.maximum(bare * 0.97, dent), np.maximum(smear, soot * 0.55)), 0, 1)
+        h = -dent * (1 - (e / rim) ** 2).clip(0, 1) * 0.9 + smoothstep(rim + 0.04, rim, e) * (1 - dent) * 0.25 - bare * 0.2 + smear * 0.06
+        decal(f"strike_hull_{v}", col, alpha, h, 7.0)
+
+
+def fire_scorch():
+    """Where an incendiary fire burned (fire.patch.out, IRON_WAKE.md §7; about 7 m across): a pool of burnt fuel charred
+    black, its crust cracked, ash drifted on it; fuel thrown out of it in fingers ending in blobs and strings of drops;
+    a soft brown scorch round it all; embers glowing in the char (_glow, which the decal lets die down) and the crust's
+    relief (_normal). 1024 px."""
+    size = 1024
+    yy, xx = np.mgrid[0:size, 0:size] / (size - 1)
+    x, y = (xx - 0.5) * 2, (yy - 0.5) * 2
+    r = np.hypot(x, y)
+    th = np.arctan2(y, x)
+    rng = np.random.default_rng(820)
+    n = noise2(size, size, 220, 821, 5)
+    fine = noise2(size, size, 14, 822, 4)
+    grain = noise2(size, size, 4, 823, 3)
+    crack_n = noise2(size, size, 70, 826, 4)
+    # The pool: an uneven blot, its edge wandering with the angle and frayed by fine noise.
+    lobes = np.zeros_like(r)
+    for k in range(5):
+        lobes += rng.uniform(0.02, 0.045) * np.sin(th * (k + 2) + rng.uniform(0, 2 * np.pi))
+    edge = 0.55 + lobes + 0.14 * (n - 0.5) + 0.05 * (fine - 0.5)
+    pool = smoothstep(edge, edge - 0.03, r)
+    halo = smoothstep(edge + 0.22, edge - 0.01, r)
+
+    def blob(cx, cy, radius, stretch, angle):
+        """A drop, drawn out along `angle` by `stretch`."""
+        dx, dy = x - cx, y - cy
+        along = dx * np.cos(angle) + dy * np.sin(angle)
+        across = -dx * np.sin(angle) + dy * np.cos(angle)
+        ragged = radius * (0.8 + 0.4 * fine)
+        return smoothstep(ragged, ragged * 0.55, np.hypot(along / stretch, across))
+
+    # Fuel thrown out of the pool: fingers that narrow and end in a blob, a string of drops beyond.
+    splash = np.zeros_like(r)
+    for _ in range(12):
+        a0 = rng.uniform(0, 2 * np.pi)
+        start, length = 0.4, rng.uniform(0.66, 0.88)
+        w = rng.uniform(0.03, 0.06)
+        bend = rng.uniform(-0.25, 0.25)
+        wobble = 0.035 * (fine - 0.5) / np.maximum(r, 0.1)
+        d = np.abs(np.angle(np.exp(1j * (th - a0 - bend * (r - start) - wobble))))
+        t = np.clip((r - start) / (length - start), 0, 1)
+        width = np.maximum(w * (1 - 0.6 * t) * (0.75 + 0.5 * fine), 1e-4)
+        finger = smoothstep(width, width * 0.55, d * r) * (r > start - 0.05) * smoothstep(length + 0.01, length - 0.02, r)
+        tip_a = a0 + bend * (length - start)
+        tip = blob(np.cos(tip_a) * length, np.sin(tip_a) * length, w * 0.85, 1.3, tip_a)
+        splash = np.maximum(splash, np.maximum(finger, tip))
+        dist = length
+        for _ in range(int(rng.integers(1, 4))):
+            dist += rng.uniform(0.04, 0.1)
+            rad = rng.uniform(0.008, 0.02)
+            splash = np.maximum(splash, blob(np.cos(tip_a) * dist, np.sin(tip_a) * dist, rad, rng.uniform(1.2, 2.2), tip_a))
+    for _ in range(36):
+        a0 = rng.uniform(0, 2 * np.pi)
+        dist = rng.uniform(0.5, 0.95)
+        splash = np.maximum(splash, blob(np.cos(a0) * dist, np.sin(a0) * dist, rng.uniform(0.006, 0.022), rng.uniform(1.0, 2.0), a0))
+    splash *= smoothstep(1.0, 0.94, r)
+    # Inside the pool: darkest in the middle, the crust cracked, drifts of ash.
+    deep = smoothstep(edge - 0.02, edge - 0.32, r)
+    breaks = smoothstep(0.38, 0.62, noise2(size, size, 30, 827, 3))
+    cracks = smoothstep(0.022, 0.0, np.abs(crack_n - 0.5)) * pool * breaks * (0.6 + 0.4 * fine)
+    ash = smoothstep(0.6, 0.8, noise2(size, size, 26, 824, 4)) * smoothstep(edge - 0.06, edge - 0.3, r)
+    f = fine[..., None]
+    brown = np.array([0.12, 0.08, 0.05]) * (0.75 + 0.5 * f)
+    charred = np.array([0.05, 0.04, 0.032]) * (0.8 + 0.4 * f)
+    black = np.array([0.024, 0.021, 0.019]) * (0.8 + 0.4 * f)
+    col = brown * (1 - splash[..., None]) + charred * splash[..., None]
+    col = col * (1 - pool[..., None]) + (charred * (1 - deep[..., None]) + black * deep[..., None]) * pool[..., None]
+    col = col * (1 - cracks[..., None] * 0.6) + np.array([0.085, 0.07, 0.055]) * cracks[..., None] * 0.6
+    col = col * (1 - ash[..., None] * 0.65) + np.array([0.17, 0.165, 0.155]) * (0.8 + 0.4 * grain[..., None]) * ash[..., None] * 0.65
+    alpha = np.clip(np.maximum(np.maximum(halo * 0.5, splash * 0.9), pool * 0.97) * (0.9 + 0.1 * fine), 0, 1)
+    h = pool * 0.2 + ash * 0.5 - cracks * 0.6 + splash * 0.15 + fine * 0.2 + grain * 0.1
+    decal("scorch_fire", col, alpha, h, 4.0)
+    # Embers in the char, where the ash is thin.
+    hot = smoothstep(0.68, 0.8, noise2(size, size, 16, 825, 3)) * deep * (1 - 0.8 * ash) * (1 - cracks)
+    glow = np.zeros((size, size, 4))
+    glow[..., 0], glow[..., 1], glow[..., 2] = hot, hot * 0.33, hot * 0.07
+    glow[..., 3] = 1
+    write_png(DECALS / "scorch_fire_glow.png", glow, 3)
+    texture_import(DECALS / "scorch_fire_glow.png")
+
+
 # ---------------------------------------------------------------- chunk meshes
 
 
@@ -581,6 +710,8 @@ def decals():
     DECALS.mkdir(parents=True, exist_ok=True)
     bullet_holes()
     blood_and_scuffs()
+    hull_strikes()
+    fire_scorch()
 
 
 PARTS = {"c4": c4, "textures": textures, "decals": decals, "chunks": chunks}

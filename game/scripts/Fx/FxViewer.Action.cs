@@ -47,6 +47,9 @@ public partial class FxViewer
             case "world":
                 ActionWorld();
                 break;
+            case "ship":
+                ActionShip();
+                break;
             default:
                 GD.PushError($"--action: no scene for '{family}'.");
                 break;

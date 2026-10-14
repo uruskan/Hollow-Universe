@@ -565,8 +565,8 @@ The fire then does the work.
 - Every half second it hurts what is within its radius and in its sight, by distance. It doesn't spread.
 - **The network:** `FireStarted` and `FireEnded` reliably to everyone within 300 m. Fires aren't saved (the longest
   lasts 18 s).
-- **Drawn as** `fire.burning`, scaled to the radius, with a flickering light, crackle and roar by size, scorch decals
-  where it burned, and smoke.
+- **Drawn as** `fire.patch` (§11), scaled to the radius, with a flickering light, crackle and roar by size, smoke, and
+  `fire.patch.out`'s scorch where it burned.
 
 ## 8. Building aboard (IW10)
 
@@ -785,6 +785,32 @@ room reverb (`AudioBuses.SetSpace`) is never called. The Iron Wake adds three th
 
 Everything goes through `FxDirector` and its budgets (1,500 particles a frame; the firefight test's +0.29 ms against 2
 ms). The siege muzzle stays within one heavy effect's share.
+
+**As built** (IW-F, 15 October 2026; GROUND.md §9.3 has each effect's make-up, the calls and the viewer):
+- *The keys.* The table's effects are in `fx.json`, with three partners: `muzzle.siege.dust` (the deck or ground under
+  the muzzle), `breech.smoke.wisps` (a loop trailing from the breech while it stays open) and `fire.patch.out` (the
+  burnt patch a fire leaves). `trail.rocket` was reworked: it read as a string of puffs. The fire of §7 is drawn by
+  `fire.patch`, made for a 3.5 m pool of burning fuel, rather than `fire.burning`. They are made from the existing
+  particle batches and the C4 kit's flipbooks; two decals are our own (`decals/strike_hull_*`, `decals/scorch_fire`).
+  Plumes stay the ship view's own (§5.1 `nozzles`), not the library's.
+- *How the views play them* (IW3, IW4, IW6): the siege shot as `Muzzle` on the barrel's socket, with
+  `muzzle.siege.dust` on the deck or ground under it (`Direction` the barrel's along it, `Tint` the ground's dust,
+  `Scale` 1 for a muzzle up to 4 m over it, 0.4 at 15 m, none higher); `ignite.rocket` on the rocket's tail where its
+  motor lights and `trail.rocket` on it until the motor burns out; `muzzle.defense` per barrel; `breech.smoke` at
+  "breech open" and `breech.smoke.wisps` until "ram"; `wash.lift` on the ground under each lift nozzle within 25 m;
+  `explosion.incendiary` at the burst, `fire.patch` on `FireStarted` (`Duration` 18, `Scale` radius ÷ 3.5) and
+  `fire.patch.out` on `FireEnded`; `impact.hull` on a bullet's hit; `smoke.damaged` on a disabled battery's gun house
+  or the hull's damage socket. None of the ship's one-shots has a delayed layer, so a moving ship never leaves one
+  behind.
+- *Cost* (`--stress battery`: both siege batteries and all four defense mounts firing at their full rates with every
+  rocket's ignition and trail and every breech's smoke, an incendiary rocket every 3 s with six fires burning, a hull
+  hit every tenth of a second, two hulks smoking and four lift engines' wash, all at once): +0.81 ms a frame on the
+  owner's PC (GPU +0.81 ms, the library's CPU 0.09 ms), against the 2 ms allowed; the siege batteries' share +0.16 ms.
+  A siege shot with its dust and ignition puts 216 particles into one frame, against the 1,500 budget.
+- *Waiting for code* (GROUND.md §9.3): a loop's intensity (the wash's rate by thrust and nearness), trails laid along
+  each frame's path (rockets at 140 to 260 m/s), loops scaled whole (fires of another radius), and the ship's velocity
+  added to its shots' particles.
+- *Pictures:* `docs/images/iron-wake/fx-*.jpg`.
 
 ## 12. Network, saves and budgets
 
