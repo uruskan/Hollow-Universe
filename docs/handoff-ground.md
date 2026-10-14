@@ -10,7 +10,7 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
 - **`ground` holds the kernel** (GROUND_SYSTEMS.md §12, packages K0–K4, merged from `ground-systems` on 14 October
   2026): the zone is a host of `ZoneSystem`s, events are types, messages find their handler in a table, the server and
   the client are hosts of modules, and every data file has one reader. 224 tests pass. The game runs as before (a frame
-  rendered on the first world, the saved world loaded; 100 bots tick in 6.6 ms). The packages' branches (`ground-k2`,
+  rendered on the first world, the saved world loaded; 100 bots tick in 5 to 7 ms). The packages' branches (`ground-k2`,
   `ground-k4`, `ground-k3a`, `ground-k3b`, `ground-systems`) are merged; their worktrees under `Hollow-wt\` can go.
 - **Where things go now** (the rule of §12 is the rule of §2 one level up):
   - a rule of the game: a `ZoneSystem` in `src/Hollow.Simulation/Systems`, listed once in `GroundSystems` (its position

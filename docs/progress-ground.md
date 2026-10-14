@@ -716,6 +716,6 @@ one level up. Built in five packages, each landing with every old path moved and
   `ArchitectureTests.TheClientIsAHost`.
 
 224 tests pass (218 before). The game runs as before (a frame rendered on the first world after each package, the
-server a child process, the saved world loaded); 100 survival bots tick in 6.6 ms as before (§5.11). Deferred by the
+server a child process, the saved world loaded); 100 survival bots tick in 5 to 7 ms as before (§5.11). Deferred by the
 owner: the zone host, transfers, the lifecycle with catch-up (ARCHITECTURE.md §10.1, §10.4, §12) and P6; nothing above
 has to be redone for them.
