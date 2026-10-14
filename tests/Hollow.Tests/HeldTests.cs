@@ -348,8 +348,8 @@ public static class HeldTests
         Entity ada = rig.Add("Ada", 30, 30);
         Player a = rig.P(ada);
         rig.Give(ada, "wood", 500);
-        var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-2")!, rig.Zone.Settle(new Vector3(31.5f, 0, 30)),
-            rig.Zone.Frame.UpAt(new Vector3(31.5f, 0, 30)), 0, a.Id);
+        var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-2")!, rig.Zone.GroundAt(31.5f, 30),
+            rig.Zone.Frame.UpAt(rig.Zone.GroundAt(31.5f, 30)), 0, a.Id);
         rig.Zone.Things().AddStatic(bench);
         Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().Craft(ada, spear.Id, 1, out _), "crafting");
         Assert.Equal(spearTicks[2], a.Crafting.Jobs[0].UnitTicks, "a quarter of the time");

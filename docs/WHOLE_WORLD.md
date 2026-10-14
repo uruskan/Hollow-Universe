@@ -3,8 +3,8 @@
 Status: **approved by the owner on 14 October 2026; being built.** This is package S3 of [SCALE.md](SCALE.md) §6. The
 owner said go on 14 October 2026, after asking why the map still shows a 3.9 km square without proper zoom (finding 1 of
 [KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)), and approved the twelve defaults of §2 the same evening, so they are
-decisions. The code is built on the branch `whole-world` (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`),
-starting with S3a (§14).
+decisions. The code is built on the branch `whole-world` (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`).
+S3a is built (14 October 2026; how it differs from this design is at the end of §14); S3b to S3d remain.
 
 Four read-only surveys of the code (14 October 2026: the simulation, the network and saves, the world and the animals,
 the Godot client) found every place that assumes the zone is a flat patch. This design is built on them.
@@ -471,6 +471,35 @@ They reach `whole-world` when `main` is merged in, so conflicts stay in those th
 
 **Into `main`.** The branch merges when the owner says: together with S4's ground, or earlier if they accept playing on
 the stand-in.
+
+**S3a as built (14 October 2026).** The checks: the 227 tests pass; the movement check's line is now
+`0xD16D9135CE374BD2` (final position 849.89264, 1428.0099, 1734.6373); the walk round the world brings the character
+back within 61 cm and the Tin Finch, 100 m up, within 9 cm and at its height, both facing the way they set off.
+Godot's `--physics-check` hasn't been run against the new line (S3c), nor the load test with 100 bots surviving,
+building, fighting, raiding and flying (S3b); 20 walking bots ran for 20 seconds at 1.6 ms a tick, their prediction
+exact. Where the build differs from the design above:
+- **Things that stand still** keep a yaw, measured from local north (§5 has them carry a forward direction). Their point
+  never moves, so its north never changes; the wire and the saves for them stay as they were.
+- **Ships** (§6.5): the ground turns under a ship as it goes. Every substep its attitude and its velocity turn with the
+  ground, and a straight step over the curve doesn't lift it, only its way up does. Without this, the Tin Finch's
+  160 m/s at full throttle is faster than an orbit of the first world (about 147 m/s at 0.92 g) and its nose pitches
+  against the horizon. So the ball flies as the flat ground did, and a ship flown straight ahead goes round the world
+  at its height. A new ship
+  stands level at its centre of mass: from its pivot, 0.28 m behind, the up is 0.0064° off, which flight assist held as
+  a sink of a metre a minute.
+- **Scatter levels by size** (§3.2) wait for S4: zones don't use the real planet's scatter until then.
+- **The climate** (§6.6) follows the zone's sky where each player stands on every server; a zone a test makes without a
+  sky keeps one compressed day.
+- **Schema 7** (§9) gives characters a new life by clearing their place and state, so blueprints go with the inventory
+  and markers. The player codec is version 5; markers and the death's point in older states are dropped.
+- **The tests:** stand-in servers in tests arrive at the landing site, where the tests lay out their places
+  (`LoopbackRig`'s `SpawnAtOrigin`); `GameRig.Clear` fells trees along a test's line of fire, since the stand-in's
+  placement moved them; the animals' network test goes to the nearest area its survey gives herds (the stand-in's
+  habitat is thin); the real-planet tests read the planet's scatter in a frame at the landing site, and walk, swim and
+  find beaches on the stand-in.
+- **Found while converting:** the nature changes' replication, rewritten for 3D cubes, sent a fresh hit twice, once
+  for its cube coming into range and once as this tick's change (fixed); the X's height test passed by luck (its
+  bound now follows where the swing meets the trunk).
 
 ---
 

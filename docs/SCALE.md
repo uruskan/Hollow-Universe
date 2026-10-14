@@ -1,9 +1,11 @@
 # Scale: small worlds in a galaxy of landmarks
 
-Status: **proposal of 14 October 2026, for the owner's review.** Nothing in it is built. Rows marked **Decided** are the
-owner's answers of 14 October 2026 (the questions are in [SCALE_DECISIONS.md](SCALE_DECISIONS.md)). Everything else is a
-**Proposal**, listed with its default in §8 so it can be changed in one line, or **Open**. It replaces the 1:1 galaxy of
-[GAME_DESIGN.md](GAME_DESIGN.md) pillar 1, which the owner reversed, and the real-size planets of [GROUND.md](GROUND.md) §3.
+Status: **proposal of 14 October 2026, for the owner's review.** Nothing in it is built except S3's first step: the owner
+approved S3, the zone as a whole ball, on 14 October 2026, and S3a is built on the branch `whole-world` (§5.1, §6). Rows
+marked **Decided** are the owner's answers of 14 October 2026 (the questions are in [SCALE_DECISIONS.md](SCALE_DECISIONS.md)).
+Everything else is a **Proposal**, listed with its default in §8 so it can be changed in one line, or **Open**. It replaces
+the 1:1 galaxy of [GAME_DESIGN.md](GAME_DESIGN.md) pillar 1, which the owner reversed, and the real-size planets of
+[GROUND.md](GROUND.md) §3.
 
 ---
 
@@ -101,7 +103,8 @@ now the size of four Rust maps, so Rust's maps are the right reference for its f
   from equator to pole now spans 3.8 km of walking.
 - **Tile levels by size, not by number.** The cube-sphere levels that mean 154 m (scatter) and 39 m (collision) on today's
   world would mean 6 cm and 1.4 cm on a 2.4 km one. Each fixed level becomes "the level whose tiles are about N metres on
-  this world".
+  this world". Since S3a, `TileKey.LevelFor(radius, metres)` gives that level: the zone's physics tiles, nav grids,
+  animal spawn areas, loot cells and the stand-in's nature use it; the scatter waits for this ground.
 - **First a design document with look-dev renders**, as the owner asked for any world work, then the generator.
 
 ### 3.4 Air, clouds and sky
@@ -148,14 +151,18 @@ real angle; these distances matter where a ship flies.
 
 ### 3.7 Flying and leaving a world
 
-- **Gravity points to the world's centre for everything** (Proposal). Characters, bullets, arrows, thrown charges and ships
-  already fall toward the centre, with the world's constant gravity. Ragdolls, gibs and the client's cosmetic arcs keep the
-  "down" of where they started, and animals walk on heights measured along the landing site's up. That is wrong on a
-  2.4 km world (an arc 50 m long ends 1.2° off), so they move to the same radial rule.
+- **Gravity points to the world's centre for everything** (decided for S3: WHOLE_WORLD.md decision 3). Characters, bullets,
+  arrows, thrown charges and ships already fall toward the centre, with the world's constant gravity. Ragdolls, gibs and the
+  client's cosmetic arcs keep the "down" of where they started, and before S3a animals walked on heights measured along the
+  landing site's up. That is wrong on a 2.4 km world (an arc 50 m long ends 1.2° off), so they move to the same radial rule: the
+  animals did in S3a, the rest follow in S3c.
 - **No real orbits near a world.** At this size and 0.92 g a real orbit would take 150 m/s. Ships keep their flight model
-  with flight assist, and the air thins with game height.
-- **Leaving:** today a ship reaches orbit 15 km above the mean radius. It becomes 2 world radii above the ground (4.8 km on
-  the first world), where the world below is a ball about 38° wide. Above it the ship is in space (M5).
+  with flight assist, and the air thins with game height. Since S3a the ground turns under a ship as it goes, so it flies
+  over the ball as it did over flat ground, and the first world's air is scaled so that the climb to the leaving height
+  thins it as the climb to 15 km did.
+- **Leaving:** before S3 a ship reached orbit 15 km above the mean radius. Since S3a it does so 2 world radii above the
+  ground (4.8 km on the first world; `ships.json`'s ceiling, in world radii), where the world below is a ball about 38°
+  wide. Above it the ship is in space (M5).
 - **From space**, a 2.4 km world is a 1° disc from 275 km away. Markers show bodies from further, as in supercruise.
 
 ---
@@ -287,43 +294,65 @@ first change is the largest.
 
 ### 5.1 The zone becomes a whole ball
 
-Today a zone is laid out on a tangent plane at the landing site. "Up" is radial at every point, but much is measured on the
-plane:
+Before S3 a zone was laid out on a tangent plane at the landing site. "Up" was radial at every point, but much was measured
+on the plane:
 
-- the ground under (x, z) is found through the plane (`GroundProbe.At`);
-- physics tiles are 64 m squares of the plane, out to ±8.2 km;
-- relevance measures X/Z distance, and nav grids read slope from the frame's Y;
-- the map is an X/Z square, a character's yaw turns about the landing site's up, and the grass and wind lie along it.
+- the ground under (x, z) was found through the plane (`GroundProbe.At`);
+- physics tiles were 64 m squares of the plane, out to ±8.2 km;
+- relevance measured X/Z distance, and nav grids read slope from the frame's Y;
+- the map was an X/Z square, a character's yaw turned about the landing site's up, and the grass and wind lay along it.
 
-That works for a 16 km patch of a 6,435 km world. On a 2.4 km world the plane reaches only the near half, and 90° from the
-landing site it breaks: the near and far halves even share tile keys. Proposal: the zone's frame is the world's own frame,
-origin at the centre, and everything spatial is native to the sphere. One zone holds the whole world, so a world has no zone
-borders, and the deferred zone host (several zones in one server) becomes several worlds in one server.
+That worked for a 16 km patch of a 6,435 km world. On a 2.4 km world the plane reaches only the near half, and 90° from the
+landing site it breaks: the near and far halves even share tile keys. S3, approved by the owner on 14 October 2026: the
+zone's frame is the world's own frame, origin at the centre, and everything spatial is native to the sphere. One zone holds
+the whole world, so a world has no zone borders, and the deferred zone host (several zones in one server) becomes several
+worlds in one server.
 
-| Today | Proposal |
-|---|---|
-| The ground under (x, z) of the plane | The ground under a direction from the centre (the radial probe `HeightAbove` already uses) |
-| Physics tiles: 64 m squares of the plane | The surface's own cube-sphere tiles, at the level of about 64 m on this world |
-| Relevance by X/Z distance | By straight-line distance between positions, in a 3D grid |
-| Nav grids: 2 m cells of the plane, slope from the frame's Y | One per cube-sphere tile, each in its own local frame |
-| A character's yaw about the landing site's up | Its facing as a direction along the ground, carried as it moves: no pole and no seam |
-| The map: a 3.9 km square | The whole world: a globe to turn and a flat projection (Proposal) |
-| Arrival beaches, loot spots and recyclers found near the landing site | Found on the whole world |
-| Ships kept within ±7.8 km of the plane | Bounded only by the leaving height (§3.7) |
-| The time of day at the landing site | At each player's position |
+| Before S3 | With S3 | Built |
+|---|---|---|
+| The ground under (x, z) of the plane | The ground under a direction from the centre (the radial probe `HeightAbove` already uses) | S3a |
+| Physics tiles: 64 m squares of the plane | The surface's own cube-sphere tiles, at the level of about 64 m on this world | S3a: level 6, 59 m |
+| Relevance by X/Z distance | By straight-line distance between positions, in a 3D grid | S3a |
+| Nav grids: 2 m cells of the plane, slope from the frame's Y | One per cube-sphere tile, each in its own local frame | S3a |
+| A character's yaw about the landing site's up | Its facing as a direction along the ground, carried as it moves: no pole and no seam | S3a (the game's camera: S3c) |
+| The map: a 3.9 km square | The whole world: a globe that becomes a flat chart as you zoom in (decided: WHOLE_WORLD.md decision 5) | S3d |
+| Arrival beaches, loot spots and recyclers found near the landing site | Found on the whole world | S3a |
+| Ships kept within ±7.8 km of the plane | Bounded only by the leaving height (§3.7) | S3a |
+| The time of day at the landing site | At each player's position | S3a |
 
 Positions stay within a few kilometres of the centre, so Jolt's single precision still keeps a quarter of a millimetre.
 The detailed design, from four surveys of the code, is [WHOLE_WORLD.md](WHOLE_WORLD.md).
 
+**Where it stands** (14 October 2026). S3 is being built on the branch `whole-world`, and S3a is built there:
+
+- the zone's frame is the world's own, centred on a ball of 2.41 km (`ZoneFrame.World`; the radius is a constant,
+  `ZoneSpec.FirstWorldRadius`, until S1);
+- every zone stands on the stand-in world until S4 (`StandInWorld`: continents, a sea over 45% of it, climate bands);
+- tiles are chosen by size (`TileKey.LevelFor`, §3.3);
+- a character's input carries a view direction, and headings are measured from local north (`Facing`);
+- protocol 21 carries the views, ships' rotations and 3D points;
+- players arrive on beaches anywhere, loot lies over the whole world, and each face of the world's cube has a recycler;
+- ships reach orbit 2 world radii above the ground, and the ground turns under them as they go (§3.7);
+- the console's `teleport` and `whereami` use latitude and longitude, or metres along the ground from the landing site,
+  and `time` sets the hour where the admin stands;
+- the climate's day follows the hour where each player stands;
+- schema 7 wipes the world's rows once, and characters start a new life (§5.4).
+
+In the tests a character and a Tin Finch go straight ahead round the world, over both poles, and come back within a
+metre. S3b (the load test with 100 bots on the ball), S3c (the Godot client draws the ball; playing on the ball waits for
+it) and S3d (the map) remain. WHOLE_WORLD.md §14 says where the build differs from the design.
+
 ### 5.2 Every length from `GameScale`
 
 - `ZoneSpec` and the `Welcome` message take the world's radius, gravity and air from `GameScale`; the real surface
-  (`PlanetSurface`) is built at the game radius.
+  (`PlanetSurface`) is built at the game radius. Until then S3a uses 2.41 km as a constant (`ZoneSpec.FirstWorldRadius`),
+  and every zone stands on the stand-in world until S4 (§5.1).
 - The atmosphere model reads `GameScale` for the drawn shell and the real values for the sky (§3.4). The aerial-perspective
   table (400 km today) shrinks to the world.
 - The clouds' heights and noise, the sea's ripples and the grass's frame move onto the sphere.
-- The leaving height (15 km in `ships.json`, checked between 1 and 19 km) and the noclip limit (±20 km) become multiples of
-  the world's radius.
+- The leaving height (before S3, 15 km in `ships.json`, checked between 1 and 19 km) and the noclip limit (±20 km) become
+  multiples of the world's radius. Done in S3a: `ships.json`'s ceiling is 2 world radii (checked between 1 and 3), and
+  noclip stays between 500 m under the mean radius and 3 radii from the centre.
 - The camera's far plane (900 km) and the far forests follow the horizon.
 - Readouts like "radius 2 km" show metres.
 
@@ -340,17 +369,19 @@ The detailed design, from four surveys of the code, is [WHOLE_WORLD.md](WHOLE_WO
 ### 5.4 Saves and golden values
 
 - **Saves:** positions are stored in metres from the world's centre, and natural objects' changes by scatter tile. The
-  development world's saves are wiped once. The map's picture cache gets the radius and the generator version in its key
+  development world's saves are wiped once (done in S3a: schema 7 deletes the world's rows and gives characters a new
+  life; accounts and teams stay). The map's picture cache gets the radius and the generator version in its key
   (today it would show the old picture).
 - **Golden values that change on purpose:** the surface (new ground), the first world's name, the names of generated
-  members, the movement check's stand-in (a 2.4 km sphere).
+  members, the movement check's stand-in (a 2.4 km sphere; changed in S3a).
 - **Golden values that stay:** every real system and the first world's system (bodies, orbits, physical state), because
   generation keeps reading real values and real positions.
 - **New checks:**
   - the landmark list: counts, unique names and addresses, the same every run, untrusted addresses finding nothing, every
     system on the plane and spaced;
   - `GameScale`: the size rule, the bands, the moon factor on B 3 a and on Io;
-  - the zone on a ball: a walk all the way round the world, through points 90° and 180° from the start and over a pole.
+  - the zone on a ball: a walk all the way round the world, through points 90° and 180° from the start and over a pole
+    (built in S3a: `MovementTests.WalkRoundTheWorld`, and the same flown, `ShipTests.FlyRoundTheWorld`).
 
 ---
 
@@ -362,7 +393,7 @@ Each package ends green with one check, on its own branch, as usual.
 |---|---|---|---|
 | S1 | `GameScale` and the landmark layer, engine-free, with GALAXY.md and GAME_DESIGN.md | Approval | A generator report listing every landmark and system |
 | S2 | The galaxy map on the list (Godot) | S1 | One screenshot |
-| S3 | The zone as a whole ball (§5.1), on a 2.4 km stand-in sphere: movement, building, guns, raiding, ships, animals, saves. Designed in [WHOLE_WORLD.md](WHOLE_WORLD.md) (approved by the owner on 14 October 2026; being built on the branch `whole-world`) | Approval | The bots' load test on the ball, and a walk round it |
+| S3 | The zone as a whole ball (§5.1), on a 2.4 km stand-in sphere: movement, building, guns, raiding, ships, animals, saves. Designed in [WHOLE_WORLD.md](WHOLE_WORLD.md) (approved by the owner on 14 October 2026; being built on the branch `whole-world`: S3a is built, S3b to S3d remain, §5.1) | Approval | The bots' load test on the ball, and a walk round it |
 | S4 | The ground at walking scale (§3.3): its design document with look-dev renders first, then the generator | S3 | The look-dev views, judged by the owner |
 | S5 | Air, clouds, sky and moons at the new scale (§3.4, §3.6) | S4 | The look-dev views at morning, golden hour, night and from 2 km up |
 | S6 | Clean-up: the 1:1 path out of the game, the docs, the golden values | S2, S5 | Build and tests |
@@ -392,14 +423,14 @@ the scale and can go first or alongside.
 | 1 | The size rule: 2.4 km × the cube root of the real size, from 1 to 3.5 km | §3.1 |
 | 2 | The bands: gravity 0.5 to 1.5 g, the day 30 minutes to 4 hours, temperature −90 to +90 °C, air up to 10 atm | §3.5 |
 | 3 | The moon factor: a world's largest moon looks as generated from it; a giant looks as generated from its moons | §3.6 |
-| 4 | The leaving height: 2 world radii above the ground | §3.7 |
+| 4 | The leaving height: 2 world radii above the ground (decided for S3, WHOLE_WORLD.md decision 4; built in S3a) | §3.7 |
 | 5 | Climate at real-equivalent heights, so the highest peaks carry snow | §3.3 |
 | 6 | The landmark list, with the Witch Head Nebula | §4.2 |
 | 7 | The counts per landmark, about 215 systems | §4.5 |
 | 8 | Generated members named from Hollow's syllables, shown with their landmark | §4.7 |
 | 9 | The first world kept, renamed Nolcas Peris, among Sol's neighbours | §4.8 |
 | 10 | The night sky keeps its drawn star field | §4.9 |
-| 11 | The world map as a globe and a flat projection | §5.1 |
+| 11 | The world map as a globe and a flat projection (for S3 the owner chose one map, a globe that becomes a flat chart as you zoom in: WHOLE_WORLD.md decision 5) | §5.1 |
 
 ---
 

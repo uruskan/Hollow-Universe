@@ -9,8 +9,9 @@ namespace Hollow.Simulation.Building;
 
 /// <summary>
 /// A structure's frame (GROUND.md §6.3): its origin in the zone and its axes, with +Y the planet's up at its first
-/// foundation. Pieces snap in this frame, so a structure stays square on a curved world; over a base's size the
-/// planet's curvature is far below a millimetre. Kept in double precision; the zone gets floats.
+/// foundation. Pieces snap in this frame, so a structure stays square on a curved world; on a 2.41 km world the ground
+/// falls away from it by about a metre 67 m out, where pieces stop finding support (docs/WHOLE_WORLD.md §6.4). Kept in
+/// double precision; the zone gets floats.
 /// </summary>
 public readonly struct BuildingFrame : IEquatable<BuildingFrame>
 {

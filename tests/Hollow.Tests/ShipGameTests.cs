@@ -24,7 +24,7 @@ public static class ShipGameTests
         Player p = zone.Players().PlayerOf(e)!;
         p.Inventory.Clear();
         p.Vitals.Health = 100;
-        zone.Entities.Get<Character>(e).Input.Yaw = yaw;
+        zone.Entities.Get<Character>(e).Input.View = Facing.View(yaw, 0, zone.Frame.UpAt(ground));
         return e;
     }
 
@@ -37,9 +37,7 @@ public static class ShipGameTests
         Vector3 eye = rig.Zone.EyeOf(c.State);
         Vector3 up = rig.Zone.Frame.UpAt(c.State.Position);
         Vector3 d = at - eye;
-        Vector3 flat = d - up * Vector3.Dot(d, up);
-        c.Input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        c.Input.Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length());
+        c.Input.View = d.LengthSquared() > 1e-10f ? Vector3.Normalize(d) : Facing.Compass(up).North;
     }
 
     /// <summary>GROUND.md §6.7: the hatch, boarding, the seat carrying the pilot, stepping out to a safe point, the lock.</summary>
@@ -54,7 +52,7 @@ public static class ShipGameTests
 
         // Ada stands at the hatch (on the ship's right: east, the nose facing north).
         Vector3 hatch = ship.PointOf(ShipRig.Finch.Hatch);
-        Entity ada = AddPlayer(rig, "Ada", hatch + new Vector3(1.6f, 0, 0));
+        Entity ada = AddPlayer(rig, "Ada", zone.Frame.Beside(hatch, 1.6f, 0, 0));
         ship.Owner = zone.Players().PlayerOf(ada)!.Id;
         Look(rig, ada, hatch);
         TargetRef atHatch = new(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), atCap = atHatch with { Part = ShipParts.FuelCap },
@@ -63,7 +61,7 @@ public static class ShipGameTests
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atHatch, "hatch-open"), "opens the hatch");
         rig.Step(Ship.HatchTicks);
         Assert.Equal(Ship.HatchTicks, ship.HatchProgress, "the hatch swung open in a second");
-        Entity bo = AddPlayer(rig, "Bo", hatch + new Vector3(1.4f, 0, 0.8f));
+        Entity bo = AddPlayer(rig, "Bo", zone.Frame.Beside(hatch, 1.4f, 0, 0.8f));
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atHatch, "board"), "Ada boards");
         Assert.Equal(OutcomeCode.SeatTaken, zone.Interaction().Interact(bo, atHatch, "board"), "the seat is taken");
         Assert.True(zone.Ships().SeatOf(ada) == ship && ship.Pilot == zone.Players().PlayerOf(ada)!.Id, "Ada is in the seat");
@@ -134,7 +132,7 @@ public static class ShipGameTests
         Zone zone = rig.Zone;
         GameContent c = ContentFixture.Content;
         Recipe recipe = c.Recipe(c.ItemByKey("tin-finch").Id)!;
-        Entity ada = AddPlayer(rig, "Ada", new Vector3(0, 0, 2));
+        Entity ada = AddPlayer(rig, "Ada", zone.GroundAt(0, 2));
         Player p = zone.Players().PlayerOf(ada)!;
         foreach (ItemAmount a in recipe.Ingredients)
         {
@@ -144,12 +142,12 @@ public static class ShipGameTests
 
         // The bench, facing north; its bay is in front of it.
         DeployableDef bench = c.Deployable("vehicle-workbench")!;
-        Vector3 at = zone.Settle(Vector3.Zero);
+        Vector3 at = zone.Landing;
         var station = new Deployable(zone.NextId(), bench, at, zone.Frame.UpAt(at), 0, p.Id);
         zone.Things().AddStatic(station);
         // Something in the way on the bay first: a box.
         DeployableDef boxDef = c.Deployable("large-box")!;
-        Vector3 bay = zone.Settle(new Vector3(0, 0, -bench.Bay!.At.Z));
+        Vector3 bay = zone.GroundAt(0, -bench.Bay!.At.Z);
         var box = new Deployable(zone.NextId(), boxDef, bay, zone.Frame.UpAt(bay), 0, p.Id);
         zone.Things().AddStatic(box);
         Assert.Equal(OutcomeCode.Done, zone.Actions().Craft(ada, recipe.Id, 1, out _), "starts the Tin Finch at the bench");
@@ -190,7 +188,7 @@ public static class ShipGameTests
 
         // A melee hit through the zone's trace, as a swing lands.
         Vector3 side = ship.PointOf(new Vector3(-0.8f, 1.4f, 0.4f));
-        Entity bo = AddPlayer(rig, "Bo", side + new Vector3(1.5f, -1.4f, 0));
+        Entity bo = AddPlayer(rig, "Bo", zone.Frame.Beside(side, 1.5f, -1.4f, 0));
         Player pb = zone.Players().PlayerOf(bo)!;
         pb.Inventory.Give(c, c.ItemByKey("stone-hatchet"), 1);
         Look(rig, bo, side);
@@ -208,7 +206,7 @@ public static class ShipGameTests
 
         // Ada in the seat when it goes.
         Vector3 hatch = ship.PointOf(ShipRig.Finch.Hatch);
-        Entity ada = AddPlayer(rig, "Ada", hatch + new Vector3(1.6f, 0, 0));
+        Entity ada = AddPlayer(rig, "Ada", zone.Frame.Beside(hatch, 1.6f, 0, 0));
         Look(rig, ada, hatch);
         var atHatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch);
         zone.Interaction().Interact(ada, atHatch, "hatch-open");

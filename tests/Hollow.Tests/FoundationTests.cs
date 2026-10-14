@@ -89,7 +89,7 @@ public static class FoundationTests
         LiveExplosive charge = z.Explosives().StickExplosive(c.ItemByKey("timed-charge").Throwable!, face + outward * 1.5f, -outward, 3, rig.P(ada).Id, "Ada", dud: true)!;
         Ship ship = z.Ships().SpawnShip(c.Ship("tin-finch")!, z.GroundAt(30, 30), 0, rig.P(ada).Id, 10);
         var nearby = new List<NaturalObject>();
-        z.Nature!.Query(-80, -80, 80, 80, nearby);
+        z.Nature!.Query(z.Landing, 110, nearby);
         NaturalObject tree = nearby.First(o => c.Natural(o.Kind)?.Class == NaturalClass.Tree);
         // A spent arrow stuck in the ground, as one shot down at it leaves it.
         var shot = new Projectile { Id = 1, Ammo = c.ItemByKey("arrow"), Velocity = new Vector3(0, -20, -40) };
@@ -311,9 +311,9 @@ public static class FoundationTests
             return (hut.Door!.Id, bag.Id, face + outward * 1.5f);
         });
         // Ada in front of the door, in reach and in sight of it.
-        rig.Server.Execute(FormattableString.Invariant($"teleport Ada {front.X:0.00} {front.Z:0.00}"));
+        rig.Teleport("Ada", front);
         Until(() => ada.Building().World!.DoorOf(doorId) != null && bo.Building().World!.DoorOf(doorId) != null && ada.Survival().ThingOf(bagId) != null && bo.Survival().ThingOf(bagId) != null &&
-            Vector2.Distance(new Vector2(ada.Character.Position.X, ada.Character.Position.Z), new Vector2(front.X, front.Z)) < 0.5f,
+            AnimalRig.Flat(ada.Character.Position, front) < 0.5f,
             "the door and the bag on both clients, Ada in front of the door on hers");
         Assert.True(ada.Survival().ThingOf(bagId)!.Mine && !bo.Survival().ThingOf(bagId)!.Mine, "the bag is Ada's on her client alone");
         Door adaDoor = ada.Building().World!.DoorOf(doorId)!, boDoor = bo.Building().World!.DoorOf(doorId)!;
@@ -333,7 +333,7 @@ public static class FoundationTests
         Assert.True(mine is { Locked: true, Authorised: true, CanUse: true } && his is { Locked: true, Authorised: false, CanUse: false },
             $"locked: Ada passes, Bo doesn't ({mine.Flags}; Bo: {his.Flags})");
 
-        rig.Server.Execute(FormattableString.Invariant($"teleport Bo {front.X + 1.2f:0.00} {front.Z:0.00}"));
+        rig.Teleport("Bo", front, east: 1.2f);
         rig.Run(0.5, (_, _) => default);
         ada.Local.CreateTeam();
         Until(() => ada.Local.Team != null, "Ada's team");
@@ -385,7 +385,7 @@ public static class FoundationTests
             rig.Step(1);
             if (i % 60 == 0)
             {
-                z.Animals().World.Hurt(deer, 0.01f, deer.Position + new Vector3(5, 0, 0), default, "");
+                z.Animals().World.Hurt(deer, 0.01f, z.Frame.Beside(deer.Position, 5, 0, 0), default, "");
             }
         }
         Assert.True(Vector3.Distance(deer.Position, before) >= 1.5f, "the deer walked off");

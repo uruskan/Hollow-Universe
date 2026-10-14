@@ -67,28 +67,23 @@ public static class Facing
     }
 
     /// <summary>
-    /// A direction carried from a point with up <paramref name="from"/> to one with up <paramref name="to"/>: turned by
-    /// the shortest rotation between them, so walking straight ahead follows a great circle round the world and over the
-    /// poles (the client's camera, §5).
+    /// The shortest rotation from up <paramref name="from"/> to up <paramref name="to"/> (both unit): what the ground
+    /// turns by under something that moves between them. Exact for the tiny turns of a tick (its axis part is their cross
+    /// product, with no cosine to lose them in); none between opposite points, which no tick spans.
     /// </summary>
-    public static Vector3 Carry(Vector3 direction, Vector3 from, Vector3 to)
+    public static Quaternion Turn(Vector3 from, Vector3 to)
     {
-        float cos = Vector3.Dot(from, to);
-        if (cos > 0.9999999f)
-        {
-            return direction;
-        }
-        Vector3 axis = Vector3.Cross(from, to);
-        float sin = axis.Length();
-        if (sin < 1e-7f)
-        {
-            return direction; // opposite points: no one rotation (never between two ticks)
-        }
-        axis /= sin;
-        // Rodrigues' rotation by the angle between the two ups.
-        Vector3 turned = direction * cos + Vector3.Cross(axis, direction) * sin + axis * (Vector3.Dot(axis, direction) * (1f - cos));
-        return Vector3.Normalize(turned);
+        float w = 1f + Vector3.Dot(from, to);
+        return w < 1e-6f ? Quaternion.Identity : Quaternion.Normalize(new Quaternion(Vector3.Cross(from, to), w));
     }
+
+    /// <summary>
+    /// A direction carried from a point with up <paramref name="from"/> to one with up <paramref name="to"/>: turned by
+    /// the shortest rotation between them (<see cref="Turn"/>), so walking straight ahead follows a great circle round
+    /// the world and over the poles (the client's camera, §5).
+    /// </summary>
+    public static Vector3 Carry(Vector3 direction, Vector3 from, Vector3 to) =>
+        Vector3.Normalize(Vector3.Transform(direction, Turn(from, to)));
 
     /// <summary>The turn of a thing standing along <paramref name="up"/> and facing <paramref name="forward"/>: X right, Y up, −Z forward.</summary>
     public static Quaternion Upright(Vector3 up, Vector3 forward)

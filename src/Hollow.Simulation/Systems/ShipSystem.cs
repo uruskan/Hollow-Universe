@@ -106,9 +106,13 @@ public sealed class ShipSystem : ZoneSystem
     public Ship SpawnShip(ShipDef def, Vector3 ground, float yaw, EntityId owner, float fuel)
     {
         Vector3 up = Frame.UpAt(ground);
+        ShipState state = ShipMotor.Standing(def, ground + up * 0.02f, up, yaw);
+        // Level where its centre of mass is, the point the motor flies: on a small world the pivot's up is a hair off
+        // (the Tin Finch's 0.28 m is 0.0064° on a 2.41 km world), which flight assist would hold as a slow sink.
+        state.Rotation = Quaternion.Normalize(Facing.Turn(up, Frame.UpAt(state.Position)) * state.Rotation);
         var ship = new Ship(NextId(), def, owner)
         {
-            State = ShipMotor.Standing(def, ground + up * 0.02f, up, yaw),
+            State = state,
         };
         ship.State.Fuel = Math.Clamp(fuel, 0, def.FuelCapacity);
         Physics.EnsureGround(ground);

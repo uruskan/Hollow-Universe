@@ -323,12 +323,12 @@ public static class PlacementTests
             Vector3 top;
             (foundationId, top) = rig.Server.Inspect(sv =>
             {
-                Piece f = BuildingNetTests.Foundation(sv.Zone, sv.Zone.Settle(new Vector3(2.6f, 0, 0)), adaId);
+                Piece f = BuildingNetTests.Foundation(sv.Zone, sv.Zone.GroundAt(2.6f, 0), adaId);
                 return (f.Id, Top(sv.Zone, f));
             });
             RunUntil(rig, () => ada.Building().World!.PieceOf(foundationId) != null && ada.Local.Inventory.Count(furnaceItem) == 1 &&
                 ada.Local.Inventory.Count(ContentFixture.Item("wood")) == 1000 &&
-                new Vector2(ada.Character.Position.X, ada.Character.Position.Z).Length() < 0.5f, "the foundation, the furnace and Ada in place");
+                AnimalRig.Flat(ada.Character.Position, rig.Server.Zone.Landing) < 0.5f, "the foundation, the furnace and Ada in place");
             Placeable furnacePlaceable = ada.Content.ItemByKey("furnace").Places!;
             PlacementCandidate? ghost = ada.Placement().PlanAt(furnacePlaceable, top, 0);
             Assert.True(ghost is { Valid: true, Surface: PlacementSurfaces.Floor } && ghost.Support.Id == foundationId.Value, $"the ghost on the foundation ({ghost})");

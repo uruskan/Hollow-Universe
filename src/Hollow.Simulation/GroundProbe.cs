@@ -51,6 +51,25 @@ public readonly struct GroundProbe(ISurface surface, ZoneFrame frame)
         return On((Frame.ToBody(local.X, local.Y, local.Z) - Frame.Origin).Normalized);
     }
 
+    /// <summary>
+    /// How far a point is east and south of another, along the ground (<see cref="Offset"/>'s inverse): the arc between
+    /// their directions from the centre, split by the first point's compass.
+    /// </summary>
+    public (float East, float South) OffsetOf(Vector3 from, Vector3 point)
+    {
+        Vector3 up = Frame.UpAt(from), to = Frame.UpAt(point);
+        (Vector3 north, Vector3 east) = Facing.Compass(up);
+        Vector3 along = to - up * Vector3.Dot(to, up);
+        float length = along.Length();
+        if (length < 1e-9f)
+        {
+            return (0, 0);
+        }
+        float arc = (float)(DMath.Atan2(length, Vector3.Dot(to, up)) * Surface.Radius);
+        along /= length;
+        return (Vector3.Dot(along, east) * arc, -Vector3.Dot(along, north) * arc);
+    }
+
     /// <summary>How far a point is above the ground, in metres (negative below).</summary>
     public float HeightAbove(Vector3 point)
     {

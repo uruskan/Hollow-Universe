@@ -19,7 +19,8 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// The ground game in first person (GROUND.md §4.3), one whole on the real planet: the surface view draws the world
+/// The ground game in first person (GROUND.md §4.3), one whole on the first world (the stand-in world until S4,
+/// docs/WHOLE_WORLD.md §4): the surface view draws the world
 /// (terrain, sea, sky at the universe time, plants, grass) in the zone's own frame, so the server's collision and the
 /// drawn ground are the same triangles; the natural objects as the game changed them; deployables, drops and arrows;
 /// the other players as characters; the player's arms and tools; and the RustMVP interface over
@@ -803,6 +804,7 @@ public partial class GroundView : Node3D
         d.Speed = s.Velocity.Length();
         d.VerticalSpeed = Num.Vector3.Dot(s.Velocity, up);
         d.Height = (float)(Client.Frame.ToBody(s.Position).Length - (Client.Surface?.Radius ?? 0));
+        d.Ceiling = def.CeilingOn(Client.Surface?.Radius ?? 0);
         d.OverGround = OverGround(s.Origin(def.CentreOfMass));
         Num.Vector3 f = s.Forward;
         d.Heading = MathF.Atan2(f.X, -f.Z) * 180 / MathF.PI;

@@ -45,8 +45,7 @@ public static class Guns
             Kind = kind,
             Slot = slot,
             Item = rig.P(e).Inventory.Belt[slot].Item,
-            Yaw = c.Input.Yaw,
-            Pitch = c.Input.Pitch,
+            View = c.Input.View,
             Aimed = aimed,
             ViewDelay = viewDelay,
             Ammo = ammo,
@@ -125,7 +124,7 @@ public static class GunTests
         // bullet is where the integral says.
         Entity ada = rig.Add("Ada", 0, 0);
         Guns.Arm(rig, ada, "rifle", "rifle-ammo", 30);
-        rig.Ch(ada).Input.Pitch = 70 * MathF.PI / 180;
+        rig.Turn(ada, rig.Yaw(ada), 70 * MathF.PI / 180);
         rig.Zone.Events.Clear();
         Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "queued");
         rig.Step();
@@ -164,7 +163,7 @@ public static class GunTests
             using var rig = new GameRig();
             Entity ada = rig.Add("Ada", -4, 0);
             Entity bo = rig.Add("Bo", 4, 0);
-            rig.Ch(bo).Input.Yaw = MathF.PI / 2; // facing Ada (west), so his chest is towards her and his arms aside
+            rig.Turn(bo, MathF.PI / 2); // facing Ada (west), so his chest is towards her and his arms aside
             Guns.Arm(rig, ada, "rifle", "rifle-ammo", 30);
             Player b = rig.P(bo);
             Vector3 seen = rig.Ch(bo).State.Position + rig.Zone.Frame.UpAt(rig.Ch(bo).State.Position) * 1.2f;
@@ -205,7 +204,7 @@ public static class GunTests
         Entity ada = rig.Add("Ada", 0, 0);
         Guns.Arm(rig, ada, "rifle", "rifle-ammo", 30);
         Player a = rig.P(ada);
-        rig.Ch(ada).Input.Pitch = 0.1f;
+        rig.Turn(ada, rig.Yaw(ada), 0.1f);
         double pitchSum = 0, yawSum = 0;
         uint seq = 0;
         for (int shot = 0; shot < 30; shot++)
@@ -223,7 +222,7 @@ public static class GunTests
             // The bullet: the view plus the recoil before this shot's kick, within the hip spread and bloom.
             Vector3 up = rig.Zone.Frame.UpAt(launch.Position);
             Vector3 aim = CharacterMotor.ViewDirection(
-                rig.Ch(ada).Input.Yaw - (float)(before.Yaw * DMath.DegToRad), rig.Ch(ada).Input.Pitch + (float)(before.Pitch * DMath.DegToRad), up);
+                rig.Yaw(ada) - (float)(before.Yaw * DMath.DegToRad), rig.Pitch(ada) + (float)(before.Pitch * DMath.DegToRad), up);
             double off = Math.Acos(Math.Clamp(Vector3.Dot(aim, Vector3.Normalize(launch.Velocity)), -1, 1)) * DMath.RadToDeg;
             Assert.True(off <= rifle.Spread.Hip + before.Bloom + 1e-3, $"shot {shot + 1} within the cone: {off:0.000}°");
             rig.Step(3);

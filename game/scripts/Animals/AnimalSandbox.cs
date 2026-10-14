@@ -23,7 +23,8 @@ namespace HollowUniverse.Animals;
 
 /// <summary>
 /// The animal sandbox (GROUND.md §6.9): <c>--view animals</c>. A zone of the game's rules runs in this process on the
-/// first world's real surface, drawn by the surface view in the zone's frame, with its animals drawn by
+/// first world's ground (the stand-in world until S4, docs/WHOLE_WORLD.md §4), drawn by the surface view in the zone's
+/// frame, with its animals drawn by
 /// <see cref="AnimalsView"/> exactly as the ground game draws replicated ones. Scenes, each at its own clearing found
 /// near the landing site (<c>--scene</c>, or the keys 1-5):
 /// <list type="bullet">

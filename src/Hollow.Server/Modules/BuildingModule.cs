@@ -34,13 +34,13 @@ public sealed class BuildingModule : ServerModule
     // Rough bytes on the wire, for the budget.
     private const int PieceBytes = 44, DoorBytes = 44, ClaimBytes = 52, FrameBytes = 100, RemovedBytes = 8;
 
-    private readonly Dictionary<(int X, int Z), List<Piece>> _buildCells = new();
+    private readonly Dictionary<(int X, int Y, int Z), List<Piece>> _buildCells = new();
     private readonly Dictionary<BuildingFrame, uint> _frameIds = new();
     private readonly Dictionary<uint, BuildingFrame> _frames = new();
     private readonly List<object> _buildChanged = new();
     private readonly HashSet<object> _buildChangedSet = new();
     private readonly List<(object Part, bool Destroyed)> _buildRemoved = new();
-    private readonly List<(int X, int Z)> _cellsNear = new();
+    private readonly List<(int X, int Y, int Z)> _cellsNear = new();
     private readonly List<PieceNet> _pieceBatch = new();
     private readonly List<DoorNet> _doorBatch = new();
     private readonly List<ClaimNet> _claimBatch = new();
@@ -185,9 +185,10 @@ public sealed class BuildingModule : ServerModule
         save.Meta = BuildingCodec.EncodeZone(Zone.Building().BuildingAdvancedAt);
     }
 
-    private static (int X, int Z) BuildCell(Vector3 p) => ((int)MathF.Floor(p.X / BuildCellSize), (int)MathF.Floor(p.Z / BuildCellSize));
+    private static (int X, int Y, int Z) BuildCell(Vector3 p) =>
+        ((int)MathF.Floor(p.X / BuildCellSize), (int)MathF.Floor(p.Y / BuildCellSize), (int)MathF.Floor(p.Z / BuildCellSize));
 
-    private static (int X, int Z) CellOf(Piece piece) => BuildCell(piece.ZoneTransform.Position);
+    private static (int X, int Y, int Z) CellOf(Piece piece) => BuildCell(piece.ZoneTransform.Position);
 
     // Everything the rules change goes on this snapshot's lists; pieces are indexed by area.
     private void OnBuildingChanged(BuildingEvent e)
@@ -197,7 +198,7 @@ public sealed class BuildingModule : ServerModule
             case BuildingChange.PieceAdded when e.Piece is { } piece:
             {
                 _buildDirty.Add(piece);
-                (int, int) cell = CellOf(piece);
+                (int, int, int) cell = CellOf(piece);
                 if (!_buildCells.TryGetValue(cell, out List<Piece>? list))
                 {
                     list = new List<Piece>();
@@ -210,7 +211,7 @@ public sealed class BuildingModule : ServerModule
             case BuildingChange.PieceRemoved when e.Piece is { } piece:
             {
                 Deleted(piece, piece.Id);
-                (int, int) cell = CellOf(piece);
+                (int, int, int) cell = CellOf(piece);
                 if (_buildCells.TryGetValue(cell, out List<Piece>? list))
                 {
                     list.Remove(piece);
@@ -329,17 +330,17 @@ public sealed class BuildingModule : ServerModule
         }
 
         // Areas coming into range (nearest first), and going out of it.
-        float radius = Options.RelevanceRadius, near = radius + BuildCellSize * 0.71f, far = near + BuildCellSize;
+        float radius = Options.RelevanceRadius, near = radius + BuildCellSize * 0.87f, far = near + BuildCellSize;
         _cellsNear.Clear();
-        foreach ((int x, int z) in _buildCells.Keys)
+        foreach ((int x, int y, int z) in _buildCells.Keys)
         {
-            if (!view.Cells.Contains((x, z)) && CellDistance(x, z, centre) <= near)
+            if (!view.Cells.Contains((x, y, z)) && CellDistance(x, y, z, centre) <= near)
             {
-                _cellsNear.Add((x, z));
+                _cellsNear.Add((x, y, z));
             }
         }
-        _cellsNear.Sort((a, b) => CellDistance(a.X, a.Z, centre).CompareTo(CellDistance(b.X, b.Z, centre)));
-        foreach ((int, int) cell in _cellsNear)
+        _cellsNear.Sort((a, b) => CellDistance(a.X, a.Y, a.Z, centre).CompareTo(CellDistance(b.X, b.Y, b.Z, centre)));
+        foreach ((int, int, int) cell in _cellsNear)
         {
             view.Cells.Add(cell);
             foreach (Piece piece in _buildCells[cell])
@@ -351,14 +352,14 @@ public sealed class BuildingModule : ServerModule
             }
         }
         view.Leaving.Clear();
-        foreach ((int x, int z) in view.Cells)
+        foreach ((int x, int y, int z) in view.Cells)
         {
-            if (CellDistance(x, z, centre) > far)
+            if (CellDistance(x, y, z, centre) > far)
             {
-                view.Leaving.Add((x, z));
+                view.Leaving.Add((x, y, z));
             }
         }
-        foreach ((int, int) cell in view.Leaving)
+        foreach ((int, int, int) cell in view.Leaving)
         {
             view.Cells.Remove(cell);
             if (!_buildCells.TryGetValue(cell, out List<Piece>? pieces))
@@ -455,11 +456,8 @@ public sealed class BuildingModule : ServerModule
         }
     }
 
-    private static float CellDistance(int x, int z, Vector3 centre)
-    {
-        float dx = (x + 0.5f) * BuildCellSize - centre.X, dz = (z + 0.5f) * BuildCellSize - centre.Z;
-        return MathF.Sqrt(dx * dx + dz * dz);
-    }
+    private static float CellDistance(int x, int y, int z, Vector3 centre) =>
+        Vector3.Distance(new Vector3(x + 0.5f, y + 0.5f, z + 0.5f) * BuildCellSize, centre);
 
     // Puts one part on this snapshot's batches; returns its bytes.
     private int Write(PlayerSession session, BuildView view, object part)
@@ -612,9 +610,9 @@ public sealed class BuildingModule : ServerModule
     private sealed class BuildView
     {
         /// <summary>Areas within range: their pieces are sent or queued.</summary>
-        public readonly HashSet<(int X, int Z)> Cells = new();
+        public readonly HashSet<(int X, int Y, int Z)> Cells = new();
 
-        public readonly List<(int X, int Z)> Leaving = new();
+        public readonly List<(int X, int Y, int Z)> Leaving = new();
 
         /// <summary>Pieces, doors and devices the client has.</summary>
         public readonly HashSet<object> Sent = new();

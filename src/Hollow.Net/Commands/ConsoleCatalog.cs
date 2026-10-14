@@ -78,7 +78,7 @@ public static class ConsoleCatalog
             [ArgKind.Blueprint, ArgKind.Player], "blueprint.learn", "unlockall"),
         Def("teleport", ["teleport <player>", "teleport <x> <z>", "teleport <latitude> <longitude>", "teleport <player> <target player>",
                 "teleport <player> <x> <z>"],
-            "Moves you (or a player) to a player, or to a point of the zone: metres east and south of its origin, or a latitude and " +
+            "Moves you (or a player) to a player, or to a point of the zone: metres east and south of the landing site along the ground, or a latitude and " +
             "longitude (three decimals or more, or N, S, E, W).",
             true, CommandSide.Server, [ArgKind.Player, ArgKind.Player], "tp", "global.teleport", "teleportpos", "global.teleportpos"),
         Def("tp2me", ["tp2me <player>"], "Brings a player to you.", true, CommandSide.Server, [ArgKind.Player],
@@ -95,7 +95,7 @@ public static class ConsoleCatalog
             "Flies through everything: W A S D along the view, Space up, Ctrl down, Shift fast.", true, CommandSide.Server,
             [ArgKind.OnOff, ArgKind.Player], "global.noclip", "fly"),
         Def("time", ["time", "time <hour>", "time reset"],
-            "The zone's time of day (local solar time at its origin): this zone's sun only; universe time stays as it is.",
+            "The zone's time of day (local solar time where you stand; at the server's console, the landing site): this zone's sun only; universe time stays as it is.",
             true, CommandSide.Server, [ArgKind.Number], "env.time"),
         Def("timescale", ["timescale [x]"], "How fast the zone's day runs: 1 the day of play, 0 stops the sun, 60 a minute an hour.",
             true, CommandSide.Server, [ArgKind.Number], "env.timescale"),

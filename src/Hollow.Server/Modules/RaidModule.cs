@@ -66,7 +66,7 @@ public sealed class RaidModule : ServerModule, IPlayerPresence
         if (Options.RaidBases > 0)
         {
             _arena = new RaidArena(Zone, Options.RaidBases, Options.RaidRadius, Options.RaidBasePrefix);
-            Log($"raid arena: {_arena.Count} huts {Options.RaidRadius:0} m around the origin");
+            Log($"raid arena: {_arena.Count} huts {Options.RaidRadius:0} m around the landing site");
         }
     }
 

@@ -54,28 +54,44 @@ public sealed class PlanetClimate : IClimate
 
 /// <summary>
 /// The stand-in ground's climate in short (GROUND.md §3; survival.json, <c>climateStandIn</c>): a mean temperature, a
-/// day-night swing over the compressed day, and air cooling with height (6.5 °C a kilometre).
+/// day-night swing, and air cooling with height (6.5 °C a kilometre). With the zone's sky the swing follows the local
+/// solar time where a player stands, warmest at two in the afternoon, so night is a place (docs/WHOLE_WORLD.md decision
+/// 11); without one (a zone a test makes), one compressed day for everywhere.
 /// </summary>
 public sealed class StandInClimate : IClimate
 {
     private readonly SurvivalTuning _tuning;
     private readonly ZoneFrame _frame;
     private readonly double _radius;
+    private readonly SkyEphemeris? _sky;
+    private readonly int _sun;
 
-    public StandInClimate(SurvivalTuning tuning, ZoneFrame frame, double radius)
+    public StandInClimate(SurvivalTuning tuning, ZoneFrame frame, double radius, SkyEphemeris? sky = null)
     {
         _tuning = tuning;
         _frame = frame;
         _radius = radius;
+        _sky = sky;
+        _sun = sky?.Sun.Index ?? 0;
     }
 
     public float TemperatureAt(Vector3 position, double unixSeconds)
     {
-        double day = Math.Max(60, _tuning.DayLengthSeconds);
-        double phase = (unixSeconds % day) / day;
-        // Warmest a little after noon (phase 0.5), coldest before dawn.
-        double swing = -DMath.Cos(DMath.TwoPi * (phase - 0.08));
-        double height = _frame.ToBody(position).Length - _radius;
+        Vector3D body = _frame.ToBody(position);
+        double swing;
+        if (_sky != null)
+        {
+            double hours = _sky.LocalSolarHours(body.Normalized, _sun, unixSeconds - PlanetClimate.UnixJ2000);
+            swing = DMath.Cos(DMath.TwoPi * (hours - 14) / 24);
+        }
+        else
+        {
+            double day = Math.Max(60, _tuning.DayLengthSeconds);
+            double phase = (unixSeconds % day) / day;
+            // Warmest a little after noon (phase 0.5), coldest before dawn.
+            swing = -DMath.Cos(DMath.TwoPi * (phase - 0.08));
+        }
+        double height = body.Length - _radius;
         return (float)(_tuning.ClimateMeanCelsius + _tuning.ClimateDaySwing * swing - _tuning.ClimateLapsePerKilometre * height / 1000);
     }
 }

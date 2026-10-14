@@ -5,14 +5,14 @@ using System.Numerics;
 namespace Hollow.Net.Replication;
 
 /// <summary>
-/// Which entities each client hears about (ARCHITECTURE.md §11.3): a uniform grid over the zone's tangent plane,
-/// rebuilt once per snapshot tick, queried for the entities within a radius of a point. Per client, an entity becomes
-/// relevant inside <see cref="Radius"/> and stops being relevant beyond <see cref="Radius"/> + <see cref="Hysteresis"/>,
-/// so one walking along the edge doesn't spawn and despawn over and over.
+/// Which entities each client hears about (ARCHITECTURE.md §11.3): a uniform grid of cubes in the zone's frame (the
+/// world's own, docs/WHOLE_WORLD.md §3.3), rebuilt once per snapshot tick, queried for the entities within a straight-line
+/// radius of a point. Per client, an entity becomes relevant inside <see cref="Radius"/> and stops being relevant beyond
+/// <see cref="Radius"/> + <see cref="Hysteresis"/>, so one walking along the edge doesn't spawn and despawn over and over.
 /// </summary>
 public sealed class RelevanceGrid
 {
-    private readonly Dictionary<(int X, int Z), List<int>> _cells = new();
+    private readonly Dictionary<(int X, int Y, int Z), List<int>> _cells = new();
     private readonly Stack<List<int>> _spare = new();
     private readonly List<(uint NetId, Vector3 Position)> _entities = new();
 
@@ -47,7 +47,7 @@ public sealed class RelevanceGrid
     {
         int index = _entities.Count;
         _entities.Add((netId, position));
-        (int X, int Z) key = CellOf(position);
+        (int, int, int) key = CellOf(position);
         if (!_cells.TryGetValue(key, out List<int>? cell))
         {
             cell = _spare.Count > 0 ? _spare.Pop() : new List<int>();
@@ -59,38 +59,60 @@ public sealed class RelevanceGrid
     /// <summary>
     /// The entities relevant to a viewer at <paramref name="centre"/>: within <see cref="Radius"/>, or within the
     /// hysteresis band if they are in <paramref name="wasRelevant"/> already. Fills <paramref name="result"/> with
-    /// indices into the order of <see cref="Add"/>.
+    /// indices into the order of <see cref="Add"/>. Looks through the cubes within reach, or through every occupied
+    /// cube when there are fewer of those.
     /// </summary>
     public void Query(Vector3 centre, HashSet<uint> wasRelevant, List<int> result)
     {
         result.Clear();
         float outer = Radius + Hysteresis;
         int reach = (int)MathF.Ceiling(outer / CellSize);
-        (int cx, int cz) = CellOf(centre);
-        for (int z = cz - reach; z <= cz + reach; z++)
+        (int cx, int cy, int cz) = CellOf(centre);
+        int span = 2 * reach + 1;
+        if ((long)span * span * span <= _cells.Count)
         {
-            for (int x = cx - reach; x <= cx + reach; x++)
+            for (int z = cz - reach; z <= cz + reach; z++)
             {
-                if (!_cells.TryGetValue((x, z), out List<int>? cell))
+                for (int y = cy - reach; y <= cy + reach; y++)
                 {
-                    continue;
-                }
-                foreach (int index in cell)
-                {
-                    (uint netId, Vector3 position) = _entities[index];
-                    float dx = position.X - centre.X, dz = position.Z - centre.Z;
-                    float distanceSquared = dx * dx + dz * dz;
-                    if (distanceSquared <= Radius * Radius || (distanceSquared <= outer * outer && wasRelevant.Contains(netId)))
+                    for (int x = cx - reach; x <= cx + reach; x++)
                     {
-                        result.Add(index);
+                        if (_cells.TryGetValue((x, y, z), out List<int>? cell))
+                        {
+                            Take(cell, centre, outer, wasRelevant, result);
+                        }
                     }
+                }
+            }
+        }
+        else
+        {
+            foreach (((int X, int Y, int Z) key, List<int> cell) in _cells)
+            {
+                if (Math.Abs(key.X - cx) <= reach && Math.Abs(key.Y - cy) <= reach && Math.Abs(key.Z - cz) <= reach)
+                {
+                    Take(cell, centre, outer, wasRelevant, result);
                 }
             }
         }
         result.Sort();
     }
 
+    private void Take(List<int> cell, Vector3 centre, float outer, HashSet<uint> wasRelevant, List<int> result)
+    {
+        foreach (int index in cell)
+        {
+            (uint netId, Vector3 position) = _entities[index];
+            float distanceSquared = Vector3.DistanceSquared(position, centre);
+            if (distanceSquared <= Radius * Radius || (distanceSquared <= outer * outer && wasRelevant.Contains(netId)))
+            {
+                result.Add(index);
+            }
+        }
+    }
+
     public (uint NetId, Vector3 Position) this[int index] => _entities[index];
 
-    private (int X, int Z) CellOf(Vector3 p) => ((int)MathF.Floor(p.X / CellSize), (int)MathF.Floor(p.Z / CellSize));
+    private (int X, int Y, int Z) CellOf(Vector3 p) =>
+        ((int)MathF.Floor(p.X / CellSize), (int)MathF.Floor(p.Y / CellSize), (int)MathF.Floor(p.Z / CellSize));
 }

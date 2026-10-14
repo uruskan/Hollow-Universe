@@ -13,7 +13,12 @@ using Hollow.Surface;
 
 namespace Hollow.Tests;
 
-/// <summary>The ground game on the first world's real surface at the landing site (GROUND.md §3, §6.1).</summary>
+/// <summary>
+/// The first world's ground (GROUND.md §3, §6.1): the real planet's own scatter as natural objects, and the whole world
+/// a zone stands on, its beaches all round it, walking, swimming and falling on it. Until S4 makes the real ground at
+/// walking scale, zones stand on the stand-in world (docs/WHOLE_WORLD.md §4); the planet's scatter is read in a frame at
+/// the landing site, as S4 will give it its place.
+/// </summary>
 public static class PlanetGroundTests
 {
     private static GameContent C => ContentFixture.Content;
@@ -21,24 +26,25 @@ public static class PlanetGroundTests
     private static ZoneSpec Landing => ZoneSpec.FirstWorld(Fixtures.Galaxy, FirstWorld.LandingLatitude, FirstWorld.LandingLongitude)!;
 
     /// <summary>
-    /// The natural objects are the planet's own scatter: each one is a scatter item of the tile its ID names, at the
-    /// same place, of the kind gather.json maps it to (trees give wood, berry bushes, ferns as fibre, boulders of size
-    /// 0.9 and more); outcrops of all three kinds lie within a few hundred metres; two instances agree; made-up and
+    /// The natural objects of the real planet are its own scatter: each one is a scatter item of the tile its ID names,
+    /// at the same place, of the kind gather.json maps it to (trees give wood, berry bushes, ferns as fibre, boulders of
+    /// size 0.9 and more); outcrops of all three kinds lie within a few hundred metres; two instances agree; made-up and
     /// far IDs are refused.
     /// </summary>
     [Test]
     public static void ScatterNatureIsThePlanetsOwn()
     {
         ZoneSpec spec = Landing;
-        ISurface surface = spec.CreateSurface();
-        Assert.True(surface is PlanetSurface, "the zone stands on the real surface");
-        Assert.True(ReferenceEquals(surface, spec.CreateSurface()), "one surface per process");
-        ZoneFrame frame = spec.CreateFrame(surface);
+        var found = FirstWorld.Find(Fixtures.Galaxy)!.Value;
+        PlanetSurface surface = PlanetSurface.For(Fixtures.Galaxy, found.System, found.Planet);
+        ZoneFrame frame = ZoneFrame.At(surface, spec.LatitudeDegrees * Math.PI / 180, spec.LongitudeDegrees * Math.PI / 180);
         INaturalObjects a = spec.CreateNature(surface, frame, C), b = spec.CreateNature(surface, frame, C);
+        Assert.True(a is ScatterNaturalObjects, "the planet's scatter on the planet's surface");
         var first = new List<NaturalObject>();
         var second = new List<NaturalObject>();
-        a.Query(-400, -400, 400, 400, first);
-        b.Query(-400, -400, 400, 400, second);
+        Vector3 landing = new GroundProbe(surface, frame).On(spec.LandingDirection);
+        a.Query(landing, 560, first);
+        b.Query(landing, 560, second);
         Assert.True(first.Count > 1000 && first.SequenceEqual(second), $"two instances give the same objects ({first.Count})");
 
         var counts = new Dictionary<string, int>();
@@ -74,55 +80,61 @@ public static class PlanetGroundTests
         Fixtures.Report(string.Join(", ", counts.OrderByDescending(p => p.Value).Select(p => $"{p.Key} {p.Value}")) + $" in 800 × 800 m ({tiles.Count} scatter tiles)");
     }
 
-    /// <summary>The beach points are real coast near the landing site: sand just above the sea, the water close.</summary>
+    /// <summary>
+    /// The beach points are coast all round the world a zone stands on (docs/WHOLE_WORLD.md decision 8): beach just above
+    /// the sea, the water close, on most faces of the world's cube, and the same every time.
+    /// </summary>
     [Test]
     public static void BeachesAreRealCoast()
     {
         ZoneSpec spec = Landing;
-        var surface = (PlanetSurface)spec.CreateSurface();
+        ISurface surface = spec.CreateSurface();
         ZoneFrame frame = spec.CreateFrame(surface);
         Beaches beaches = Beaches.Find(surface, frame);
-        Assert.True(beaches.Points.Count >= 4, $"several beach points ({beaches.Points.Count})");
-        Span<double> biomes = stackalloc double[BiomeTable.Count];
+        Assert.True(beaches.Points.Count >= 20, $"beach points all round ({beaches.Points.Count})");
+        double sea = surface.SeaRadius - surface.Radius;
         foreach (Vector3 p in beaches.Points)
         {
             Vector3D d = frame.ToBody(p).Normalized;
-            SurfaceSample s = surface.Sample(d);
-            surface.BiomeWeights(d, s, surface.Climate(d, s), biomes);
-            Assert.InRange(0.4, 3.6, s.Height, "just above the sea");
-            Assert.True(biomes[(int)Biome.Beach] >= 0.5, "on the beach");
+            Assert.InRange(0.4, 3.6, surface.HeightAt(d) - sea, "just above the sea");
+            Assert.Equal(Biome.Beach, surface.BiomeAt(d), "on the beach");
         }
-        Assert.Equal(beaches.Points.Count, Beaches.Find(surface, frame).Points.Count, "the same search finds the same points");
-        Fixtures.Report($"{beaches.Points.Count} beach points, nearest {beaches.Points[0].Length():0} m, farthest {beaches.Points[^1].Length():0} m from the landing site");
+        int faces = beaches.Points.Select(p => TileKey.At(frame.ToBody(p), 0).Face).Distinct().Count();
+        Assert.True(faces >= 4, $"on most faces of the world ({faces})");
+        Assert.True(beaches.Points.SequenceEqual(Beaches.Find(surface, frame).Points), "the same search finds the same points");
+        Vector3 landing = new GroundProbe(surface, frame).On(spec.LandingDirection);
+        Fixtures.Report($"{beaches.Points.Count} beach points on {faces} faces, the nearest {beaches.Points.Min(p => Vector3.Distance(p, landing)):0} m from the landing site");
     }
 
     /// <summary>
-    /// GROUND.md §4.5 on the real ground: a walk across the meadow stays on the ground, a walk from the beach into the
-    /// sea ends swimming without harm, and a fall from 40 m onto the meadow kills.
+    /// GROUND.md §4.5 on a whole world's ground: a walk across the land stays on the ground, a walk from a beach into the
+    /// sea ends swimming without harm, and a fall from 40 m onto the land kills.
     /// </summary>
     [Test]
     public static void WalkSwimAndFallOnTheRealGround()
     {
         ZoneSpec spec = Landing;
         using var zone = new Zone(spec);
-        var surface = (PlanetSurface)zone.Surface;
+        ISurface surface = zone.Surface;
 
         // Walk north-east for 15 s from the landing site.
-        Entity walker = zone.AddCharacter(new EntityId(1), "walker", zone.NewCharacter(zone.SpawnPoint(1)));
+        Vector3 start = zone.SpawnPoint(1);
+        Entity walker = zone.AddCharacter(new EntityId(1), "walker", zone.NewCharacter(start));
         float lifted = 0;
         for (int i = 0; i < 15 * CharacterMotor.TickRate; i++)
         {
             ref Character c = ref zone.Entities.Get<Character>(walker);
-            c.Input = new MoveInput { Forward = 1, Yaw = -0.8f };
+            c.Input = new MoveInput { Forward = 1, View = Facing.View(-0.8f, 0, zone.Frame.UpAt(c.State.Position)) };
             zone.Step();
             if ((zone.Entities.Get<Character>(walker).State.Flags & MoveFlags.OnGround) != 0)
             {
                 Vector3 at = zone.Entities.Get<Character>(walker).State.Position;
-                lifted = Math.Max(lifted, Vector3.Dot(at - zone.GroundAt(at.X, at.Z), zone.Frame.UpAt(at)));
+                lifted = Math.Max(lifted, Vector3.Dot(at - zone.Settle(at), zone.Frame.UpAt(at)));
             }
         }
         Vector3 end = zone.Entities.Get<Character>(walker).State.Position;
-        Assert.True(new Vector2(end.X, end.Z).Length() > 25, $"walked away ({new Vector2(end.X, end.Z).Length():0.0} m)");
+        float walked = Vector3.Distance(end, start);
+        Assert.True(walked > 25, $"walked away ({walked:0.0} m)");
         Assert.True(lifted < 0.15f, $"on the ground ({lifted * 100:0.0} cm above it at most)");
 
         // From a beach into the sea.
@@ -131,12 +143,11 @@ public static class PlanetGroundTests
         float yaw = 0;
         for (int k = 0; k < 8; k++)
         {
-            float angle = k * MathF.PI / 4;
-            var towards = new Vector3(MathF.Cos(angle), 0, MathF.Sin(angle));
-            Vector3D d = zone.Frame.ToBody(beach + towards * 30).Normalized;
-            if (surface.HeightAt(d) < 0)
+            float heading = k * MathF.PI / 4;
+            Vector3D d = zone.Frame.ToBody(beach + Facing.Basis(heading, zone.Frame.UpAt(beach)).Forward * 30).Normalized;
+            if (surface.Radius + surface.HeightAt(d) < surface.SeaRadius)
             {
-                yaw = MathF.Atan2(-towards.X, -towards.Z);
+                yaw = heading;
                 break;
             }
         }
@@ -147,7 +158,7 @@ public static class PlanetGroundTests
         for (int i = 0; i < 45 * CharacterMotor.TickRate && !swam; i++)
         {
             ref Character c = ref zone.Entities.Get<Character>(swimmer);
-            c.Input = new MoveInput { Forward = 1, Yaw = yaw, Buttons = MoveButtons.Sprint };
+            c.Input = new MoveInput { Forward = 1, View = Facing.View(yaw, 0, zone.Frame.UpAt(c.State.Position)), Buttons = MoveButtons.Sprint };
             zone.Step();
             damage = Math.Max(damage, zone.Entities.Get<Character>(swimmer).Events.FallDamage);
             swam = (zone.Entities.Get<Character>(swimmer).State.Flags & MoveFlags.Swimming) != 0;
@@ -156,7 +167,7 @@ public static class PlanetGroundTests
         Assert.True(swam, $"walked into the sea and swims ({Vector3.Distance(swum, beach):0} m from the beach)");
         Assert.Equal(0, damage, "no harm");
 
-        // A fall from 40 m onto the meadow.
+        // A fall from 40 m onto the land.
         Vector3 meadow = zone.SpawnPoint(3);
         Entity faller = zone.AddCharacter(new EntityId(3), "faller", zone.NewCharacter(meadow));
         zone.Teleport(faller, meadow + zone.Frame.UpAt(meadow) * 40);
@@ -167,11 +178,11 @@ public static class PlanetGroundTests
             fall = Math.Max(fall, zone.Entities.Get<Character>(faller).Events.FallDamage);
         }
         Assert.True(fall >= 100, $"a 40 m fall kills ({fall} damage)");
-        Fixtures.Report($"walked {new Vector2(end.X, end.Z).Length():0} m, {lifted * 100:0.0} cm off the ground at most; swims {Vector3.Distance(swum, beach):0} m out from the beach {beach.Length():0} m from the landing site; 40 m fall: {fall} damage");
+        Fixtures.Report($"walked {walked:0} m, {lifted * 100:0.0} cm off the ground at most; swims {Vector3.Distance(swum, beach):0} m out from the beach {Vector3.Distance(beach, zone.Landing):0} m from the landing site; 40 m fall: {fall} damage");
     }
 
     /// <summary>
-    /// Over the network on the real planet: a new player arrives on a beach, the client's prediction stands on the
+    /// Over the network on a server with beaches: a new player arrives on a beach, the client's prediction stands on the
     /// same ground as the server (no corrections while walking up the beach), and the client knows the same natural
     /// objects under the same IDs.
     /// </summary>
@@ -187,17 +198,16 @@ public static class PlanetGroundTests
         Vector3 arrived = ada.Character.Position;
         Assert.True(rig.Server.Beaches!.Points.Any(p => Vector3.Distance(p, arrived) < 1), $"arrived on a beach ({arrived})");
         // Walk inland (towards the landing site) for three seconds.
-        Vector3 inland = -arrived;
-        float yaw = MathF.Atan2(-inland.X, -inland.Z);
+        float yaw = Facing.YawOf(rig.Server.Zone.Landing - arrived, ada.Frame.UpAt(arrived));
         rig.Run(3, (_, _) => new InputFrame { Forward = 1, Yaw = yaw });
         Assert.True(Vector3.Distance(ada.Character.Position, arrived) > 5, "walked");
         Assert.Equal(0L, ada.Stats.Corrections, $"prediction on the same ground as the server (worst {ada.Stats.PredictionErrorWorst * 1000:0.0} mm, last {ada.Stats.LastPredictionError * 1000:0.0} mm of {ada.Stats.Reconciliations})");
         var mine = new List<NaturalObject>();
         var servers = new List<NaturalObject>();
         Vector3 at = ada.Character.Position;
-        ada.Survival().Nature!.Query(at.X - 60, at.Z - 60, at.X + 60, at.Z + 60, mine);
-        rig.Server.Zone.Nature!.Query(at.X - 60, at.Z - 60, at.X + 60, at.Z + 60, servers);
+        ada.Survival().Nature!.Query(at, 60, mine);
+        rig.Server.Zone.Nature!.Query(at, 60, servers);
         Assert.True(mine.Select(o => o.Id).SequenceEqual(servers.Select(o => o.Id)), $"the same natural objects ({mine.Count})");
-        Fixtures.Report($"arrived {arrived.Length():0} m from the landing site; {mine.Count} natural objects within 60 m; {ada.Stats.Corrections} corrections");
+        Fixtures.Report($"arrived {Vector3.Distance(arrived, rig.Server.Zone.Landing):0} m from the landing site; {mine.Count} natural objects within 60 m; {ada.Stats.Corrections} corrections");
     }
 }

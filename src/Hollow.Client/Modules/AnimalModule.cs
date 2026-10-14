@@ -161,7 +161,8 @@ public sealed class ClientAnimal
         if (delta > 1e-6)
         {
             Vector3 d = Position - _last;
-            float speed = MathF.Sqrt(d.X * d.X + d.Z * d.Z) / (float)delta;
+            Vector3 up = Position.LengthSquared() > 0 ? Vector3.Normalize(Position) : Vector3.UnitY;
+            float speed = (d - up * Vector3.Dot(d, up)).Length() / (float)delta;
             float k = 1 - MathF.Exp(-(float)delta * 8);
             Speed = Dead ? 0 : Speed + (MathF.Min(speed, 30) - Speed) * k;
         }

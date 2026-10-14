@@ -10,7 +10,7 @@ namespace Hollow.Simulation.Ships;
 public readonly struct ShipContext
 {
     public ShipContext(ZoneFrame frame, ISurface surface, float gravity, float airDensity, float scaleHeight, ShipCollider? collider,
-        float edge = ShipMotor.ZoneEdge)
+        float edge = 0)
     {
         Frame = frame;
         Surface = surface;
@@ -36,7 +36,10 @@ public readonly struct ShipContext
     /// <summary>The static world, or null for a ship in open air (tests).</summary>
     public readonly ShipCollider? Collider;
 
-    /// <summary>The half width of the square of the zone a ship may fly in (its ground's extent, less a margin).</summary>
+    /// <summary>
+    /// The farthest a ship may be from the world's centre, in metres (0: <see cref="ShipMotor.EdgeRadii"/> world radii, well
+    /// past the leaving height: docs/WHOLE_WORLD.md §6.5, a whole world has no edge on the ground).
+    /// </summary>
     public readonly float Edge;
 
     /// <summary>The planet's gravity in m/s² for a surface gravity in g.</summary>
@@ -60,8 +63,8 @@ public static class ShipMotor
     /// <summary>A sleeping ship checks every this many ticks that it still has ground under its skids.</summary>
     public const int SupportCheckTicks = 2 * CharacterMotor.TickRate;
 
-    /// <summary>The ground tiles reach ±8.2 km; ships stay within this (G8's zones that follow players lift it).</summary>
-    public const float ZoneEdge = 7800f;
+    /// <summary>A ship is held within this many world radii of the centre (the leaving height parks it in orbit long before).</summary>
+    public const float EdgeRadii = 4f;
 
     /// <summary>Within this height over the ground (plus a second's travel) the hull and skids look for contacts.</summary>
     public const float NearGround = 40f;
@@ -229,6 +232,7 @@ public static class ShipMotor
         Vector3 groundNormal = Vector3.Zero;
         for (int step = 0; step < steps; step++)
         {
+            Vector3 from = s.Position, under = ctx.Frame.UpAt(from);
             q = s.Rotation;
             qi = Quaternion.Conjugate(q);
             vLocal = Vector3.Transform(s.Velocity, qi);
@@ -332,7 +336,17 @@ public static class ShipMotor
             {
                 s.Position += move;
             }
-            KeepInZone(ref s, ctx.Edge);
+            KeepInZone(ref s, ctx.Edge > 0 ? ctx.Edge : (float)(ctx.Surface.Radius * EdgeRadii));
+            // The ground turns under a ship as it goes (docs/WHOLE_WORLD.md §6.5): its attitude and its velocity turn with
+            // it, and a straight step over the curve doesn't lift it (only its way up does), so the ball flies as the flat
+            // ground did (gravity straight down, no orbit below the leaving height: on a 2.41 km world at 0.92 g about
+            // 147 m/s would be one), and straight ahead with the stick still goes round the world at its height.
+            Vector3 over = ctx.Frame.UpAt(s.Position);
+            double rise = ctx.Frame.ToBody(s.Position).Length - ctx.Frame.ToBody(from).Length - Vector3.Dot(s.Position - from, under);
+            s.Position -= over * (float)rise;
+            Quaternion carry = Facing.Turn(under, over);
+            s.Rotation = Quaternion.Normalize(carry * s.Rotation);
+            s.Velocity = Vector3.Transform(s.Velocity, carry);
         }
 
         // ---------------------------------------------------------------- what the step found
@@ -384,7 +398,7 @@ public static class ShipMotor
                 s.Flags |= ShipFlags.Destroyed;
             }
         }
-        if (height > def.Ceiling)
+        if (height > def.CeilingOn(ctx.Surface.Radius))
         {
             events.ReachedCeiling = true;
         }
@@ -575,34 +589,23 @@ public static class ShipMotor
         return Quaternion.Normalize(q * delta);
     }
 
-    // The ground's tiles end at ±8.2 km: the ship is held inside the zone's square (G8 lifts this).
+    // A whole world has no edge on the ground: a ship is only held within a sphere round the centre (the leaving height
+    // parks it in orbit long before), its outward speed stopped there.
     private static void KeepInZone(ref ShipState s, float edge)
     {
-        Vector3 p = s.Position;
-        bool out_ = false;
-        if (MathF.Abs(p.X) > edge)
+        float r = s.Position.Length();
+        if (r <= edge || r <= 0)
         {
-            p.X = MathF.CopySign(edge, p.X);
-            if (s.Velocity.X * p.X > 0)
-            {
-                s.Velocity.X = 0;
-            }
-            out_ = true;
+            return;
         }
-        if (MathF.Abs(p.Z) > edge)
+        Vector3 outward = s.Position / r;
+        s.Position = outward * edge;
+        float away = Vector3.Dot(s.Velocity, outward);
+        if (away > 0)
         {
-            p.Z = MathF.CopySign(edge, p.Z);
-            if (s.Velocity.Z * p.Z > 0)
-            {
-                s.Velocity.Z = 0;
-            }
-            out_ = true;
+            s.Velocity -= outward * away;
         }
-        if (out_)
-        {
-            s.Position = p;
-            s.Flags |= ShipFlags.AtEdge;
-        }
+        s.Flags |= ShipFlags.AtEdge;
     }
 
     /// <summary>

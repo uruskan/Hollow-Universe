@@ -222,10 +222,10 @@ internal sealed class ShipsReader : IContentReader
             {
                 c.Problem(where, "hull: boxes of positive size");
             }
-            if (ship.CargoSlots is < 0 or > 64 || ship.Exits.Count == 0 || ship.Ceiling is < 1000 or > 19000 ||
+            if (ship.CargoSlots is < 0 or > 64 || ship.Exits.Count == 0 || ship.Ceiling is < 1 or > 3 ||
                 new[] { ship.MeleeDamage, ship.ArrowDamage, ship.BulletDamage, ship.ExplosiveDamage }.Any(m => m is < 0 or > 10))
             {
-                c.Problem(where, "cargo 0 … 64 slots, an exit, a ceiling of 1 … 19 km (inside the zone), damage multipliers 0 … 10");
+                c.Problem(where, "cargo 0 … 64 slots, an exit, a ceiling of 1 … 3 world radii, damage multipliers 0 … 10");
             }
         }
     }

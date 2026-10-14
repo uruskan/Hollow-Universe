@@ -5,6 +5,7 @@ using System.Numerics;
 using Hollow.Core;
 using Hollow.Persistence;
 using Hollow.Simulation;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
@@ -40,12 +41,13 @@ public static class WorldTests
     }
 
     private static WorldProp NearestProp(GameRig rig, WorldPropKind kind, Vector3? from = null) =>
-        rig.Zone.World().Props.Where(p => p.Prop.Kind == kind).OrderBy(p => Vector3.Distance(p.Position, from ?? Vector3.Zero)).First();
+        rig.Zone.World().Props.Where(p => p.Prop.Kind == kind).OrderBy(p => Vector3.Distance(p.Position, from ?? rig.Zone.Landing)).First();
 
-    // Puts a character beside a prop, facing it.
+    // Puts a character beside a prop, on its side toward the landing site, facing it.
     private static void StandBy(GameRig rig, Entity e, Deployable d, float distance = 1.4f)
     {
-        Vector3 away = d.Position.LengthSquared() > 1 ? Vector3.Normalize(new Vector3(-d.Position.X, 0, -d.Position.Z)) : Vector3.UnitX;
+        Vector3 toward = rig.Zone.Frame.Flat(d.Position, rig.Zone.Landing - d.Position);
+        Vector3 away = toward.LengthSquared() > 1 ? Vector3.Normalize(toward) : Facing.Compass(rig.Zone.Frame.UpAt(d.Position)).East;
         Vector3 ground = rig.Zone.Settle(d.Position + away * (distance + d.Def.HalfExtents.X));
         Raids.Stand(rig, e, ground);
         rig.Look(e, d.Centre);
@@ -96,8 +98,9 @@ public static class WorldTests
 
     /// <summary>
     /// GROUND.md §6.8, where loot stands: the spots are the same every time (a spot's ID names the same place after a
-    /// restart), none within 90 m of the origin, each on dry ground; barrels and crates in clusters, one always near
-    /// the origin, and three recyclers at their points near the landing site.
+    /// restart), none within 90 m of the landing site, each on dry ground; barrels and crates in clusters over the whole
+    /// world, one always near the landing site, and a recycler on each face of the world's cube (docs/WHOLE_WORLD.md
+    /// decision 9).
     /// </summary>
     [Test]
     public static void LootSpotsAreDeterministicClustersAwayFromTheSpawn()
@@ -105,17 +108,17 @@ public static class WorldTests
         using var rig = new GameRig();
         Zone z = rig.Zone;
         var watch = System.Diagnostics.Stopwatch.StartNew();
-        LootSpots a = LootSpots.Generate(z.Surface, z.Frame, z.Nature!, rig.C, 7);
+        LootSpots a = LootSpots.Generate(z.Surface, z.Frame, z.Nature!, rig.C, 7, z.Spec.LandingDirection);
         double ms = watch.Elapsed.TotalMilliseconds;
-        LootSpots b = LootSpots.Generate(z.Surface, z.Frame, z.Nature!, rig.C, 7);
+        LootSpots b = LootSpots.Generate(z.Surface, z.Frame, z.Nature!, rig.C, 7, z.Spec.LandingDirection);
         Assert.Equal(a.Spots.Count, b.Spots.Count, "the same count");
         Assert.True(a.Spots.Zip(b.Spots).All(p => p.First.Id == p.Second.Id && p.First.Position == p.Second.Position && p.First.Prop == p.Second.Prop),
             "the same spots, IDs and props");
         Assert.True(a.Spots.Select(s => s.Id).Distinct().Count() == a.Spots.Count, "IDs are unique");
         float clear = (float)rig.C.World.Loot.Clear;
-        Assert.True(a.Spots.All(s => new Vector2(s.Position.X, s.Position.Z).Length() >= clear), "nothing within 90 m of the origin");
-        Assert.True(a.Spots.Count(s => s.Site == LootSite.Landing) >= 2, "a cluster near the origin");
-        Assert.Equal(3, a.Spots.Count(s => s.Prop.Kind == WorldPropKind.Recycler), "three recyclers");
+        Assert.True(a.Spots.All(s => AnimalRig.Flat(s.Position, z.Landing) >= clear), "nothing within 90 m of the landing site");
+        Assert.True(a.Spots.Count(s => s.Site == LootSite.Landing) >= 2, "a cluster near the landing site");
+        Assert.Equal(6, a.Spots.Count(s => s.Prop.Kind == WorldPropKind.Recycler), "a recycler on each face");
         int barrels = a.Spots.Count(s => s.Prop.Kind == WorldPropKind.Barrel), crates = a.Spots.Count(s => s.Prop.Kind == WorldPropKind.Crate);
         Fixtures.Report($"{a.Spots.Count} spots ({barrels} barrels, {crates} crates) in {a.ForestEdges} forest-edge, {a.Coasts} coast and {a.Opens} open clusters; " +
             $"generated in {ms:0} ms");
@@ -254,8 +257,8 @@ public static class WorldTests
         Assert.True(!c.Recipe(hatchet)!.Known && c.Recipe(c.ItemByKey("stone-hatchet").Id)!.Known && c.Recipe(c.ItemByKey("workbench-1").Id)!.Known,
             "Rust's default blueprints: stone tools and the first workbench, not metal ones");
         Assert.Equal(OutcomeCode.UnknownRecipe, rig.Zone.Actions().Craft(ada, hatchet, 1, out _), "unknown at first");
-        var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-1")!, rig.Zone.Settle(new Vector3(31.5f, 0, 30)),
-            rig.Zone.Frame.UpAt(new Vector3(31.5f, 0, 30)), 0, a.Id);
+        var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-1")!, rig.Zone.GroundAt(31.5f, 30),
+            rig.Zone.Frame.UpAt(rig.Zone.GroundAt(31.5f, 30)), 0, a.Id);
         rig.Zone.Things().AddStatic(bench);
         // A node is unlocked at a workbench (its verb, the recipe its argument), of the node's level within reach.
         Outcome Unlock(ushort item) => rig.Zone.Interaction().Interact(ada, bench.Ref, "unlock", item);
@@ -270,7 +273,7 @@ public static class WorldTests
 
         // Research: a pistol and its tier's salvage make a pistol blueprint.
         rig.Give(ada, "research-table", 1);
-        Vector3 at = rig.Zone.Settle(new Vector3(30, 0, 31.6f));
+        Vector3 at = rig.Zone.GroundAt(30, 31.6f);
         Assert.Equal(OutcomeCode.Done, rig.Place(ada, SlotOf(a.Inventory.Main, "research-table"), at, 0), "a research table");
         Deployable table = rig.Zone.Things().Statics().OfType<Deployable>().Single(d => d.Def.Research != null);
         rig.Look(ada, table.Centre);
@@ -391,7 +394,7 @@ public static class WorldTests
         Outcome claimed = z.Interaction().Interact(ada, claim.Ref, "authorise-team");
         Assert.True(claimed.Ok, $"authorise team at the claim device: {claimed}");
         Assert.True(claim.IsAuthorised(A) && claim.IsAuthorised(B) && !claim.IsAuthorised(C), "Ada and Bo are on its list, Cy isn't");
-        Raids.Stand(rig, ada, z.Settle(door.Frame.ZoneTransform.Position + new Vector3(0, 0, -1.5f)));
+        Raids.Stand(rig, ada, z.Settle(z.Frame.Beside(door.Frame.ZoneTransform.Position, 0, 0, -1.5f)));
         Outcome stranger = z.Interaction().Interact(ada, door.Ref, "code-team");
         Assert.Equal(OutcomeCode.NotUsable, stranger.Code, "a stranger to the lock isn't offered it");
         Assert.True(z.Interaction().Interact(ada, door.Ref, "enter-code", code: "1234").Ok, "the code");
@@ -400,7 +403,7 @@ public static class WorldTests
     }
 
     /// <summary>
-    /// GROUND.md §6.8, the map's markers: up to five, within the map, a colour and a label each; one taken off, or all;
+    /// GROUND.md §6.8, the map's markers: up to five, anywhere on the world, a colour and a label each; one taken off, or all;
     /// where the player died; placing a sleeping bag or bed changes their map.
     /// </summary>
     [Test]
@@ -413,11 +416,12 @@ public static class WorldTests
         uint revision = a.MapRevision;
         for (int i = 0; i < 5; i++)
         {
-            Assert.Equal(OutcomeCode.Done, z.World().PlaceMarker(ada, new Vector3(100 * i, 0, -50 * i), (byte)i, $"spot {i}"), $"marker {i + 1}");
+            Assert.Equal(OutcomeCode.Done, z.World().PlaceMarker(ada, z.GroundAt(100 * i, -50 * i), (byte)i, $"spot {i}"), $"marker {i + 1}");
         }
-        Assert.Equal(OutcomeCode.NoSpace, z.World().PlaceMarker(ada, Vector3.Zero, 0, "six"), "five at most");
-        Assert.Equal(OutcomeCode.Invalid, z.World().PlaceMarker(ada, new Vector3(5000, 0, 0), 0, "far"), "within the map");
-        Assert.Equal(OutcomeCode.Invalid, z.World().PlaceMarker(ada, Vector3.Zero, 9, "colour"), "a colour of the palette");
+        Assert.Equal(OutcomeCode.NoSpace, z.World().PlaceMarker(ada, z.Landing, 0, "six"), "five at most");
+        Assert.Equal(OutcomeCode.Invalid, z.World().PlaceMarker(ada, z.Landing * 0.1f, 0, "inside"), "a point of the world, not deep inside it");
+        Assert.Equal(OutcomeCode.Invalid, z.World().PlaceMarker(ada, new Vector3(float.NaN), 0, "broken"), "nor a broken one");
+        Assert.Equal(OutcomeCode.Invalid, z.World().PlaceMarker(ada, z.Landing, 9, "colour"), "a colour of the palette");
         Assert.True(a.MapRevision > revision && a.Markers[2].Label == "spot 2" && a.Markers[2].Colour == 2, "kept with colour and label");
         Assert.True(Math.Abs(z.HeightAboveGround(a.Markers[3].Position)) < 0.01, "on the ground");
         Assert.Equal(OutcomeCode.Done, z.World().RemoveMarker(ada, 0), "one off");
@@ -426,7 +430,7 @@ public static class WorldTests
         Assert.True(a.Markers.Count == 0, "none left");
         rig.Give(ada, "sleeping-bag", 1);
         revision = a.MapRevision;
-        Assert.Equal(OutcomeCode.Done, rig.Place(ada, SlotOf(a.Inventory.Main, "sleeping-bag"), z.Settle(new Vector3(11, 0, 11.5f)), 0), "a bag");
+        Assert.Equal(OutcomeCode.Done, rig.Place(ada, SlotOf(a.Inventory.Main, "sleeping-bag"), z.GroundAt(11, 11.5f), 0), "a bag");
         Assert.True(a.MapRevision > revision, "the bag is on her map");
         Assert.True(a.DeathPoint == null, "not dead yet");
         z.Players().Hurt(ada, a, 1000, "Test", EntityId.None, "");
@@ -460,7 +464,41 @@ public static class WorldTests
         GameContent c = ContentFixture.Content;
         var p = new Player(new EntityId(0xA1), "Ada") { Body = 1 };
         p.Inventory.Main.Set(0, ItemStack.Of(c.ItemByKey("rock"), 1));
-        // Version 4 with no blueprints, markers or death ends in 16 bytes (a count, a count, a flag, a point).
+
+        // Schema 6 → 7 (docs/WHOLE_WORLD.md decision 1): the world's rows go, characters start a new life, accounts and
+        // teams stay.
+        using (var wiped = new TempDatabase())
+        {
+            long account;
+            using (GameDatabase db = GameDatabase.Open(wiped.Path))
+            {
+                account = db.GetOrCreateAccount("Ada", 0);
+                db.SaveCharacters(new[]
+                {
+                    new CharacterRecord { Id = p.Id, AccountId = account, Name = "Ada", BodyX = 1e6, BodyY = 2e6, BodyZ = 3e6, State = WorldCodec.EncodePlayer(p) },
+                });
+                var save = new ZoneSave { SystemAddress = 1, BodyPath = 2, SavedAtUnixMilliseconds = 0, Meta = new byte[] { 1 } };
+                save.Things.Add(new ThingRecord { Id = new EntityId(0xB1), SystemAddress = 1, BodyPath = 2, Kind = 1, Data = new byte[] { 1 } });
+                save.Teams.Add(new TeamRecord(7, new byte[] { 1 }));
+                db.SaveZone(save);
+                db.QueueNotification(p.Id.Value, 1, 0, new byte[] { 1 }, 10);
+            }
+            using (var raw = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={wiped.Path};Pooling=False"))
+            {
+                raw.Open();
+                using var command = raw.CreateCommand();
+                command.CommandText = "PRAGMA user_version = 6;";
+                command.ExecuteNonQuery();
+            }
+            using (GameDatabase db = GameDatabase.Open(wiped.Path))
+            {
+                CharacterRecord? ada = db.LoadCharacter(account);
+                Assert.True(db.ThingCount == 0 && db.NotificationCount == 0 && db.TeamCount == 1, "the world's rows gone, the team kept");
+                Assert.True(ada is { State: null, BodyX: 0, BodyY: 0, BodyZ: 0, Dead: false } && ada.Id == p.Id, "Ada kept, with no place and no state: a new life");
+            }
+        }
+
+        // Version 5 (4's layout) with no blueprints, markers or death ends in 16 bytes (a count, a count, a flag, a point).
         byte[] four = WorldCodec.EncodePlayer(p);
         byte[] three = four[..^16];
         three[0] = 3;

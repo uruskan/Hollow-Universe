@@ -88,11 +88,11 @@ public static class Program
 {
     public static int Main(string[] args)
     {
-        string filter = args.Length > 0 ? args[0] : "";
+        // Every test, or those whose name contains any of the words given.
         List<MethodInfo> tests = typeof(Program).Assembly.GetTypes()
             .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Static))
             .Where(m => m.GetCustomAttribute<TestAttribute>() != null)
-            .Where(m => (m.DeclaringType!.Name + "." + m.Name).Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .Where(m => args.Length == 0 || args.Any(f => (m.DeclaringType!.Name + "." + m.Name).Contains(f, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(m => m.DeclaringType!.Name, StringComparer.Ordinal)
             .ThenBy(m => m.MetadataToken)
             .ToList();

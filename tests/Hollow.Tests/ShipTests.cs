@@ -12,8 +12,9 @@ using Hollow.Surface;
 namespace Hollow.Tests;
 
 /// <summary>
-/// A test ground tilted about the zone's north–south axis: it rises toward the east by <c>tan(slope)</c> a metre, through
-/// the zone's origin (the body-frame vector <paramref name="east"/> is the zone's east there).
+/// A test ground tilted about the north–south line through the landing site: it rises toward the east by
+/// <c>tan(slope)</c> a metre, at the mean radius on that line (the body-frame vector <paramref name="east"/> is the local
+/// east at the landing site).
 /// </summary>
 public sealed class SlopeSurface : ISurface
 {
@@ -33,8 +34,6 @@ public sealed class SlopeSurface : ISurface
 
     public double HeightAt(Vector3D direction) => _rise * Radius * Vector3D.Dot(direction, _east);
 
-    public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
-        SphereSurface.GridCollision(this, frame, centreX, centreZ, size, spacing: 2.0);
 }
 
 /// <summary>A zone with ships (and characters when asked), stepped by hand; the first world's gravity and air.</summary>
@@ -42,7 +41,7 @@ public sealed class ShipRig : IDisposable
 {
     private long _ids = 1;
 
-    public const double Earthlike = 6_435_000;
+    public const double Earthlike = ZoneSpec.FirstWorldRadius;
 
     public ShipRig(ISurface? surface = null, bool content = false, double slopeDegrees = 0)
     {
@@ -140,6 +139,40 @@ public static class ShipTests
         float lost = before - rig.Height(ship);
         Fixtures.Report($"a 15 m/s sink stopped in {ticks / 30.0:0.00} s and {lost:0.0} m");
         Assert.True(ticks < 60 && lost < 15, "flight assist stops a 15 m/s sink within 2 s and 15 m");
+    }
+
+    /// <summary>
+    /// docs/WHOLE_WORLD.md §13, the walk round the world, flown: a Tin Finch 100 m up flies straight ahead at full throttle
+    /// with the stick still, flight assist on. The ground turns its attitude and its way with it (§6.5), so it goes north
+    /// over the pole, through the far side and over the other pole, and comes back over its start within a metre, at its
+    /// height, facing the way it set off.
+    /// </summary>
+    [Test]
+    public static void FlyRoundTheWorld()
+    {
+        using var rig = new ShipRig();
+        Ship ship = rig.Add(height: 100, yaw: 0);
+        Vector3 nose = Vector3.Transform(Vector3.UnitZ, ship.State.Rotation);
+        var lap = new Lap(ship.State.Position, nose);
+        float low = float.MaxValue, high = float.MinValue;
+        int ticks = 0;
+        while (!lap.Round && ticks++ < 30 * 300)
+        {
+            rig.Fly(ship, new ShipInput { Throttle = 1 }, 1);
+            lap.Add(ship.State.Position);
+            low = MathF.Min(low, rig.Height(ship));
+            high = MathF.Max(high, rig.Height(ship));
+        }
+        Vector3 now = Vector3.Transform(Vector3.UnitZ, ship.State.Rotation);
+        float facing = MathF.Acos(Math.Clamp(Vector3.Dot(now, nose), -1, 1)) * 180 / MathF.PI;
+        Fixtures.Report($"round the world in {ticks / 30.0:0} s: back {lap.Back * 100:0.0} cm from the start, at most {lap.Astray * 100:0.0} cm off its " +
+            $"circle, over the poles {lap.North * 100:0.0} and {lap.South * 100:0.0} cm from their axis, {low:0.0} to {high:0.0} m up; " +
+            $"facing {facing:0.000} degrees from the way it set off, fuel {ship.State.Fuel:0.0}");
+        Assert.True(lap.Round, "went round");
+        Assert.True(lap.Back < 1, "back over its start within a metre");
+        Assert.True(lap.North < 1 && lap.South < 1, "over both poles");
+        Assert.True(low > 95 && high < 105, "at its height");
+        Assert.True(facing < 0.5f, "facing the way it set off");
     }
 
     /// <summary>GROUND.md §6.7: flight assist brakes to the throttle's speed; with it off the ship coasts (the air drags).</summary>

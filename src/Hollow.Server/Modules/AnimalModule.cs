@@ -35,8 +35,8 @@ public sealed class AnimalModule : ServerModule
         animals.NaturalSpawning = Options.Animals;
         if (Options.AnimalPopulation > 0)
         {
-            animals.Populate(Vector3.Zero, Options.AnimalRadius, Options.AnimalPopulation);
-            Log($"{animals.Count} animals placed around the origin");
+            animals.Populate(Zone.Landing, Options.AnimalRadius, Options.AnimalPopulation);
+            Log($"{animals.Count} animals placed around the landing site");
         }
     }
 

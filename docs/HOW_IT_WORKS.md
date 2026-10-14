@@ -64,13 +64,19 @@ Everything in the table runs on the tick thread, one after another; nothing in t
 
 ## 4. The zone: a host and its systems
 
-`Zone` (`src/Hollow.Simulation/Zone.cs`, 360 lines) owns what every rule shares and nothing else:
+`Zone` (`src/Hollow.Simulation/Zone.cs`, 377 lines) owns what every rule shares and nothing else:
 
+- `Frame`, `Surface` and `Landing`: the frame is the world's own (`ZoneFrame.World`: metres from the planet's centre,
+  +Y the north pole), so one zone holds a whole world (the first world's radius is 2,410 m); up at a point is its
+  direction from the centre (`Frame.UpAt`). Until S4 brings the real ground at walking scale, the server's zone stands
+  on the stand-in world (`StandInWorld`). `Landing` is the ground at the spec's latitude and longitude;
+  `GroundAt(east, south)` lays places out from it along the ground.
 - `Entities`: the entity store (an ID with a generation, plus components in sparse sets: `Character`, `Named`,
   `PlayerLink`, `StaticLink`, `NetPresence` on the server).
-- `Physics`: the Jolt world of this zone (ground tiles 2 km around anyone, props, building bodies, characters' capsules).
-- `Nature` and `Natural`: the planet's trees, outcrops, pickups and bushes, generated where you look, and what players
-  did to them (cut, mined, respawning).
+- `Physics`: the Jolt world of this zone (ground tiles within 64 m of anyone, built ahead to 128 m: the world's
+  cube-sphere tiles, about 59 m on the first world; props, building bodies, characters' capsules).
+- `Nature` and `Natural`: the world's trees, outcrops, pickups and bushes (on the stand-in world, a seeded stream per
+  cube-sphere tile), generated where you look, and what players did to them (cut, mined, respawning).
 - `History`: a second of everyone's poses, for hits judged as the shooter saw them.
 - `Content`: the game's data (`GameContent`, §8). `Climate`: the air temperature. `UnixMilliseconds`: the clock the
   server sets before each step. `Events`: §5.
@@ -128,14 +134,15 @@ test reads them by kind. A new kind of event is one record and its subscribers.
 
 ## 6. The server: a host and its modules
 
-`GameServer` (`src/Hollow.Server/GameServer.cs`, 1,079 lines) keeps the connection and the sessions, logins and spawns,
-the tick loop, the snapshots of the dynamic entities (characters, animals, ships: §7), chat, saving and shutdown. Each
+`GameServer` (`src/Hollow.Server/GameServer.cs`, 1,093 lines) keeps the connection and the sessions, logins and spawns,
+the tick loop, the snapshots of the dynamic entities (characters, animals, ships: §7), chat, saving and shutdown. A new
+character arrives on a beach anywhere on the world (`Beaches.Find`), or at the landing site with `--spawn origin`. Each
 concern is a `ServerModule` in `Modules/`, listed once in `ServerModules`, reached as `server.Raid()`:
 
 | Module | Intents it handles | What it replicates and keeps |
 |---|---|---|
 | `ThingModule` | | static things and natural objects by relevance (spawn once, then changes); their save and load |
-| `BuildingModule` | hammer | the building by 64 m cells within a byte budget; frames, pieces, doors, claims; its save |
+| `BuildingModule` | hammer | the building by 64 m cubes within a byte budget; frames, pieces, doors, claims; its save |
 | `PlacementModule` | place | |
 | `ShipModule` | the pilot's keys | ships in the snapshot's ship section; crashes, wrecks; their save |
 | `RaidModule` | throw | explosives in range with their arcs and fuses; detonations; raid alerts (`Notifications`, queued for the offline) |
@@ -164,9 +171,11 @@ corrects it.
 
 `src/Hollow.Net/Protocol/Messages.cs` defines every message as a struct with attributes saying how it is packed
 (`[Bits(4)]`, `[Angle]` for a 16-bit angle, `[VarInt]`, `[Quantize]`, `[MaxCount]`); `tools/Hollow.NetGen` writes the
-readers and writers (`Messages.g.cs`, 69 messages), a schema hash that both sides compare at connect, and the
+readers and writers (`Messages.g.cs`, 76 messages), a schema hash that both sides compare at connect, and the
 `INetMessage<T>` each message implements, so `MessageHandlers<TContext>` can route a packet's type byte to the one
-handler registered for it. UDP through LiteNetLib, four kinds of delivery:
+handler registered for it. A view travels as a direction in the zone's frame, two 16-bit octahedral numbers
+(`Quantize.Octahedral`), and a ship's turn as a smallest-three quaternion (`Quantize.SmallestThree`): unlike angles from
+local north, neither breaks at a pole (protocol 21). UDP through LiteNetLib, four kinds of delivery:
 
 | What | Channel | Rate |
 |---|---|---|
@@ -175,9 +184,10 @@ handler registered for it. UDP through LiteNetLib, four kinds of delivery:
 | Intents, answers, static things, building, own state | reliable, ordered | when something changes |
 | Cosmetic events (bullets flying, explosive rounds) | unreliable | as they happen |
 
-Relevance: a grid per zone; a player hears about what is within 300 m (ships 2 km); what leaves is despawned. Static
-things are sent once when they become relevant, then only on change; a big base streams in over a few seconds. Measured
-with 99 characters in view (the worst case): 105 to 192 kbit/s down, 18 to 24 kbit/s up, against the budget of 256.
+Relevance: a grid of cubes per zone; a player hears about what is within 300 m in a straight line (ships 2 km); what
+leaves is despawned. Static things are sent once when they become relevant, then only on change; a big base streams in
+over a few seconds. Measured with 99 characters in view (the worst case): 105 to 192 kbit/s down, 18 to 24 kbit/s up,
+against the budget of 256.
 
 **Prediction.** The client runs its own character every tick with the same `CharacterMotor` on its own copy of the
 nearby physics, sends the input, and when a snapshot says "input 412 processed, you are here", rewinds to that state
@@ -187,7 +197,7 @@ and replays its newer inputs (`Predictor`); small corrections are eased out. Shi
 
 ## 8. The client and the game
 
-`GameClient` (`src/Hollow.Client/GameClient.cs`, 837 lines) keeps the connection, the clock, the input, the prediction,
+`GameClient` (`src/Hollow.Client/GameClient.cs`, 859 lines) keeps the connection, the clock, the input, the prediction,
 the snapshots, the remote entities and chat; `LocalPlayer` is the player's own state (inventory, belt, wear, crafting,
 vitals, the gun) and the intents it sends. Each concern is a `ClientModule` in `Modules/`, listed in `ClientModules`,
 reached as `client.Raid().Explosives`: survival (things, nature, projectiles), targets (the families' views, the same
@@ -201,7 +211,9 @@ The Godot project (`game/scripts`) draws it: `GroundMode` starts the client (and
 `GroundView` is the scene (the terrain, `PeopleView`, `ThingsView`, `NatureView`, `BuildView`, `ArrowsView`, `GibsView`,
 the first-person view and view model, `FxDirector`, `AudioDirector`), and the interface is `GroundUi` (HUD, inventory,
 crafting, map, death screen, radials, console) drawing an `IGroundUi` model that `ClientGroundUi` fills from the client
-(and `MockGroundUi` fills for screenshots without a server). Every length goes through `Ui.Px`.
+(and `MockGroundUi` fills for screenshots without a server). Every length goes through `Ui.Px`. The Godot side builds
+but does not draw the whole world yet: its render frame, terrain, sea, plants, effects and cameras are S3c's
+(docs/WHOLE_WORLD.md §14), so playing on the ball waits for that step.
 
 **The data.** 23 JSON files in `game/data/ground` (items, recipes, deployables, weapons, building, animals, world,
 interactions, placement, capabilities, texts...). `GameContent.Load` runs one reader per file (`Content/Readers`,
@@ -209,15 +221,15 @@ interactions, placement, capabilities, texts...). `GameContent.Load` runs one re
 
 ## 9. Three journeys
 
-**You chop a tree.** Godot reads the mouse and keys into an `InputFrame`; `GameClient.RunTick` packs it into the
-tick's `InputCommand` (attack held, the hatchet's belt slot) and sends it. The server puts it into your `Character`;
-`Zone.Step` moves you; `CombatSystem.StepActions` asks `HeldSystem` what a hatchet does when swung (`StepMelee`), which
-traces the swing through `DamageSystem.Trace` (every receiver tests its own things; `NatureReceiver` finds the tree in
-`Natural`), then `CombatSystem.Gather` works out the yield (`gather.json`, Rust's X and the hotspot) and gives it to
-your inventory; the events `HitConfirmed` and `ItemsGained` fire; the server's routes send you `HitMarker` and
-`ItemsChanged`; `ThingModule` sends the tree's new state (`NaturalStates`) to everyone near. On your client
-`SurvivalModule` updates the tree and `LocalPlayer` your inventory; `NatureView` redraws the tree, `GroundUi` shows the
-marker and the gain.
+**You chop a tree.** Godot reads the mouse and keys into an `InputFrame`; `GameClient.RunTick` packs it into the tick's
+`InputCommand` (the view as a direction, attack held, the hatchet's belt slot) and sends it. The server puts it into
+your `Character`; `Zone.Step` moves you; `CombatSystem.StepActions` asks `HeldSystem` what a hatchet does when swung
+(`StepMelee`), which traces the swing through `DamageSystem.Trace` (every receiver tests its own things;
+`NatureReceiver` finds the tree in `Natural`), then `CombatSystem.Gather` works out the yield (`gather.json`, Rust's X
+and the hotspot) and gives it to your inventory; the events `HitConfirmed` and `ItemsGained` fire; the server's routes
+send you `HitMarker` and `ItemsChanged`; `ThingModule` sends the tree's new state (`NaturalStates`) to everyone near. On
+your client `SurvivalModule` updates the tree and `LocalPlayer` your inventory; `NatureView` redraws the tree,
+`GroundUi` shows the marker and the gain.
 
 **You place a box.** `PlacementModule` (client) runs `Placer.Plan` on the client's own `PlacementWorld` every frame:
 the ghost is red or green by the same rules the server will apply. On click, `PlaceIntent` goes out. The server's
@@ -227,13 +239,14 @@ cell, its support link to the floor), and answers `Done`; `ThingModule` sends `T
 `ThingsView` draws it; your own client had already stopped drawing the ghost.
 
 **You shoot someone.** `LocalGun.Tick` fires on your predicted state (the recoil pattern and spread from a seed the
-server shares) and sends `FireIntent` with the tick and a sequence number. The server's `GunModule` queues it
-(`GunSystem.QueueGunAction`); at that tick `StepGun` makes the `Bullet`; `StepBullets` flies it two substeps a tick
-with drop and drag, each step tracing through `DamageSystem.Trace` with the world rewound to what you saw (`History`,
-up to 250 ms back); `CharacterReceiver` takes the hit through the victim's armour (`PlayerInventory.Protection`) and
-`PlayerSystem.Hurt` applies it (a lethal small hit knocks down instead, `WoundedSystem`). The events: `HitConfirmed` to
-you (`HitMarker`), `Hurt` to them (`DamageTaken`), `ProjectileLaunched` and `ProjectileEnded` to everyone near,
-unreliable, for the tracer and the impact. `GunEffects` and `FxDirector` draw them.
+server shares) and sends `FireIntent` with the tick, a sequence number and the view. The server's `GunModule` queues it
+(`GunSystem.QueueGunAction`); at that tick `StepGun` reads the view as a heading and pitch where you stand, as your
+client did, and makes the `Bullet`; `StepBullets` flies it two substeps a tick with drop and drag, each step tracing
+through `DamageSystem.Trace` with the world rewound to what you saw (`History`, up to 250 ms back); `CharacterReceiver`
+takes the hit through the victim's armour (`PlayerInventory.Protection`) and `PlayerSystem.Hurt` applies it (a lethal
+small hit knocks down instead, `WoundedSystem`). The events: `HitConfirmed` to you (`HitMarker`), `Hurt` to them
+(`DamageTaken`), `ProjectileLaunched` and `ProjectileEnded` to everyone near, unreliable, for the tracer and the impact.
+`GunEffects` and `FxDirector` draw them.
 
 ## 10. Persistence
 
@@ -246,10 +259,10 @@ who leaves stays in the world asleep.
 
 ## 11. Performance and what runs in parallel
 
-Measured on the owner's PC (GROUND.md §5.11): with 100 survival bots the server ticks in 5.2 ms on average, 9.4 at the
-99th percentile, none over the 33.3 ms budget; the zone's step is 1.0 ms of it (movement 1.0, the game's rules 0.1),
-replication 3.1 (snapshots 1.8, nature 0.6, things 0.3), receiving 0.7, sending 0.6. A client draws at 86 to 108 fps on
-an RTX 2070 at 1600×900.
+Measured on the owner's PC before S3 made the zone a whole world (GROUND.md §5.11; the load test on the ball is S3b's):
+with 100 survival bots the server ticks in 5.2 ms on average, 9.4 at the 99th percentile, none over the 33.3 ms budget;
+the zone's step is 1.0 ms of it (movement 1.0, the game's rules 0.1), replication 3.1 (snapshots 1.8, nature 0.6, things
+0.3), receiving 0.7, sending 0.6. A client draws at 86 to 108 fps on an RTX 2070 at 1600×900.
 
 What runs off the tick thread today: the ground tiles and nav grids built ahead (worker tasks), every database write
 (the persistence thread), the console; the hosted server as a whole (its own process). What is serial: the zone's step

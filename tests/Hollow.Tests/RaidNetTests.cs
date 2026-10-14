@@ -10,6 +10,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.World;
@@ -33,7 +34,7 @@ public static class RaidNetTests
     {
         Vector3 d = at - eye;
         Vector3 flat = d - up * Vector3.Dot(d, up);
-        return (MathF.Atan2(-flat.X, -flat.Z), MathF.Atan2(Vector3.Dot(d, up), flat.Length()));
+        return (Facing.YawOf(d, up), MathF.Atan2(Vector3.Dot(d, up), flat.Length()));
     }
 
     /// <summary>
@@ -68,14 +69,15 @@ public static class RaidNetTests
         bo.Raid().Detonated += blasts.Add;
         ada.Local.RaidAlertReceived += alerts.Add;
 
-        // Bo, 4.5 m from the doorway's face, moves the grenade to his belt and throws it at the door's foot.
+        // Bo, 4.5 m from the doorway's face, moves the grenade to his belt and throws it at the door's foot (one that meets
+        // the door higher up at full speed bounces back about 3.7 m, beyond its 3.5 m reach).
         int slot = Enumerable.Range(0, PlayerInventory.MainSlots).First(i => bo.Local.Inventory.Main[i].Item == c.ItemByKey("tin-grenade").Id);
         bo.Local.MoveItem(ContainerRef.Main, slot, ContainerRef.Belt, 2);
-        rig.Server.Execute($"teleport Bo {face.X + outward.X * 4.5f} {face.Z + outward.Z * 4.5f}");
+        rig.Teleport("Bo", face + outward * 4.5f);
         rig.Run(0.6, (_, _) => default);
         Vector3 feet = bo.Character.Position;
         Vector3 up = bo.Frame.UpAt(feet);
-        (float yaw, float pitch) = LookAt(feet + up * bo.EyeHeight, face, up);
+        (float yaw, float pitch) = LookAt(feet + up * bo.EyeHeight, face - up * 0.5f, up);
         InputFrame Aim(GameClient client, double t) => client == bo ? new InputFrame { Yaw = yaw, Pitch = pitch } : default;
         rig.Run(0.3, Aim);
         Assert.True(bo.Local.Throw(2, yaw, pitch) != 0, "thrown");
@@ -97,7 +99,7 @@ public static class RaidNetTests
             }
             Assert.True(lit++ < 6, "it goes off in the end");
             Vector3 at = bo.Raid().ExplosiveOf(grenade.Id)!.PositionAt(bo.ServerTickNow);
-            rig.Server.Execute($"teleport Bo {at.X + outward.X * 1.5f} {at.Z + outward.Z * 1.5f}");
+            rig.Teleport("Bo", at + outward * 1.5f);
             rig.Run(0.5, (_, _) => default);
             Vector3 eye = bo.Character.Position + up * bo.EyeHeight;
             InteractAim? target = bo.Interaction().AimInteraction(eye, Vector3.Normalize(at - eye));
@@ -105,7 +107,7 @@ public static class RaidNetTests
                 bo.Content.Interactions.Verb(target.Options[target.Primary].Verb)?.Key == "relight", $"the dud is the interact key's target ({target?.Target})");
             bo.Local.Interact(target!.Target, target.Options[target.Primary].Verb);
             RunUntil(rig, () => bo.Raid().ExplosiveOf(grenade.Id) is { Dud: false, Burning: true }, "the grenade lit again", 3);
-            rig.Server.Execute($"teleport Bo {at.X + outward.X * 9} {at.Z + outward.Z * 9}");
+            rig.Teleport("Bo", at + outward * 9);
         }
         RunUntil(rig, () => blasts.Count >= 2, "the blast on both clients", 2);
         DetonationEvent blast = blasts[0];
@@ -113,7 +115,17 @@ public static class RaidNetTests
         Assert.True(ada.Raid().Explosives.Count == 0 && bo.Raid().Explosives.Count == 0, "and it is gone");
 
         // Ada, playing, hears of the raid on her hut.
-        RunUntil(rig, () => alerts.Count > 0, "Ada's raid alert", 3);
+        try
+        {
+            RunUntil(rig, () => alerts.Count > 0, "Ada's raid alert", 3);
+        }
+        catch (TestFailure e)
+        {
+            Vector3 off = blast.Position - face;
+            throw new TestFailure($"{e.Message} (the blast {Vector3.Distance(blast.Position, face):0.0} m from the doorway's face: {Vector3.Dot(off, outward):0.00} out, " +
+                $"{Vector3.Dot(off, up):0.00} up, after {bounces} bounces, {lit} lit again; Bo {Vector3.Dot(bo.Character.Position - face, outward):0.00} out; " +
+                $"{rig.Server.Inspect(sv => sv.Raid().Notifications.Counters.ToString())})");
+        }
         RaidAlertView alert = alerts[0];
         Assert.True(!alert.WhileAway && alert.Item?.Key == "tin-grenade" && alert.What.Length > 0, $"the alert: {alert.What} with {alert.Item?.Key}");
         Fixtures.Report($"the grenade bounced {bounces} time(s), was lit again {lit} time(s), went off; Ada's alert: \"{alert.What}\" " +
@@ -151,7 +163,7 @@ public static class RaidNetTests
                 Vector3 boxAt = z.GroundAt(6, -6);
                 var box = new Deployable(z.NextId(), c.Deployable("small-box")!, boxAt, z.Frame.UpAt(boxAt), 0, EntityId.None);
                 z.Things().AddStatic(box);
-                LiveExplosive bag = z.Explosives().StickExplosive(c.ItemByKey("bag-charge").Throwable!, box.Centre + new Vector3(0, 2, 0), -Vector3.UnitY, 3, EntityId.None, "Bo", dud: true)!;
+                LiveExplosive bag = z.Explosives().StickExplosive(c.ItemByKey("bag-charge").Throwable!, box.Centre + z.Frame.UpAt(boxAt) * 2, -z.Frame.UpAt(boxAt), 3, EntityId.None, "Bo", dud: true)!;
                 Vector3 ground = z.GroundAt(-6, -6);
                 LiveExplosive charge = z.Explosives().StickExplosive(c.ItemByKey("timed-charge").Throwable!, ground + z.Frame.UpAt(ground) * 2, -z.Frame.UpAt(ground), 3,
                     EntityId.None, "Bo")!;

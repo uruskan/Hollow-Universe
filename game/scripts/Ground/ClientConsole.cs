@@ -459,8 +459,8 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
                     ? string.Create(CultureInfo.InvariantCulture, $"{planet.System.Name} ({zone.SystemAddress:X16})")
                     : zone.SystemAddress.ToString("X16", CultureInfo.InvariantCulture)));
                 world.Add(new InfoRow("Body", string.Create(CultureInfo.InvariantCulture, $"{zone.BodyPath:X8}, radius {zone.Radius / 1000:0} km, {zone.SurfaceGravity:0.00} g")));
-                world.Add(new InfoRow("Landing site", Degrees(FirstWorld.LandingLatitude, FirstWorld.LandingLongitude)));
-                world.Add(new InfoRow("Zone origin", Degrees(zone.LatitudeDegrees, zone.LongitudeDegrees) + (zone.StandIn ? ", stand-in ground" : "")));
+                // The zone holds the whole world (docs/WHOLE_WORLD.md); its landing site is this server's (--lat, --lon).
+                world.Add(new InfoRow("Landing site", Degrees(zone.LatitudeDegrees, zone.LongitudeDegrees) + (zone.StandIn ? ", stand-in ground" : "")));
                 world.Add(new InfoRow("Local time", LocalHours?.Invoke() is { } hours ? Clock(hours) + " (local solar time here)" : "not yet"));
                 ZoneDay? day = _client.Console().Day;
                 double scale = day?.Scale ?? zone.RotationTimeScale;
@@ -592,7 +592,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
         }
     }
 
-    // The local solar time at the zone's origin by the zone's clock (as the server keeps it).
+    // The local solar time at the landing site by the zone's clock (as the server keeps it).
     private double? ZoneHours()
     {
         if (_client.Zone is not { } zone || _client.Console().Day is not { } day)
@@ -609,7 +609,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
             _skyDay = day;
             _sky.SetSpin(day.BaseTime, day.BaseTurns, day.Scale);
         }
-        return _sky.LocalSolarHours(_client.Frame.Origin.Normalized, _sky.Sun.Index, UniverseTime.Now);
+        return _sky.LocalSolarHours(zone.LandingDirection, _sky.Sun.Index, UniverseTime.Now);
     }
 
     private static IReadOnlyList<ToolGroup> SpawnGroups(GameContent c)

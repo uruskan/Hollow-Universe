@@ -17,16 +17,11 @@ public sealed class GunModule : ServerModule
 {
     protected internal override void Init(MessageHandlers<PlayerSession> handlers)
     {
-        handlers.On<FireIntent>((PlayerSession session, in FireIntent m) =>
+        handlers.On<FireIntent>((PlayerSession session, in FireIntent m) => GunIntent(session, new GunAction
         {
-            // The view as a heading and pitch where the shooter stands (docs/WHOLE_WORLD.md §5).
-            (float yaw, float pitch) = ViewAt(session, Quantize.FromOctahedral(m.ViewU, m.ViewV));
-            GunIntent(session, new GunAction
-            {
-                Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = Expected(m.Item),
-                Yaw = yaw, Pitch = pitch, Aimed = m.Aimed, ViewDelay = m.ViewDelay,
-            });
-        });
+            Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = Expected(m.Item),
+            View = Quantize.FromOctahedral(m.ViewU, m.ViewV), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
+        }));
         handlers.On<ReloadIntent>((PlayerSession session, in ReloadIntent m) => GunIntent(session, new GunAction
         {
             Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Reload, Slot = m.Slot, Item = Expected(m.Item), Ammo = Expected(m.Ammo),

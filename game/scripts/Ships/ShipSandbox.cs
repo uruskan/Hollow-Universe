@@ -24,8 +24,9 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ships;
 
 /// <summary>
-/// The ship sandbox (<c>--view ship</c>, GROUND.md §6.7): the Tin Finch on the first world's real surface. A local zone
-/// on the planet's own ground and nature (its trees stand where they are drawn) runs the same rules the server does; the
+/// The ship sandbox (<c>--view ship</c>, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world
+/// until S4, docs/WHOLE_WORLD.md §4). A local zone on the world's own ground and nature (its trees stand where they are
+/// drawn) runs the same rules the server does; the
 /// planet is drawn by a <see cref="SurfaceView"/> driven in the zone's frame, as the ground game drives it. You start on
 /// foot beside your ship, parked on the bay of a vehicle workbench at the landing site: open the hatch and board (E),
 /// lift off, fly, land anywhere, step out (F).
@@ -302,8 +303,8 @@ public partial class ShipSandbox : Node3D
             {
                 // High up, climbing for the ceiling: 600 m short of orbit.
                 Board();
-                float height = def.Ceiling - 600;
-                Num.Vector3 at = up * (float)(height - (_zone.Frame.ToBody(_pad).Length - _planet.Radius)) + _pad;
+                float height = def.CeilingOn(_zone.Surface.Radius) - 600;
+                Num.Vector3 at = up * (float)(height - (_zone.Frame.ToBody(_pad).Length - _zone.Surface.Radius)) + _pad;
                 float yaw = _padYaw + 0.6f;
                 (Num.Vector3 ahead, _) = CharacterMotor.HorizontalBasis(yaw, up);
                 Teleport(at, yaw, up * 20 + ahead * 60);
@@ -637,13 +638,16 @@ public partial class ShipSandbox : Node3D
         d.VerticalSpeed = Num.Vector3.Dot(s.Velocity, up);
         Vector3D body = _zone.Frame.ToBody(s.Origin(def.CentreOfMass));
         double r = body.Length;
-        double ground = _planet.HeightAt(body / r);
-        if (_planet.SeaRadius > 0)
+        // Heights over the zone's own ground (the stand-in world since S3a), the one the ship flies over.
+        ISurface surface = _zone.Surface;
+        double ground = surface.HeightAt(body / r);
+        if (surface.SeaRadius > 0)
         {
-            ground = Math.Max(ground, 0);
+            ground = Math.Max(ground, surface.SeaRadius - surface.Radius);
         }
-        d.Height = (float)(_zone.Frame.ToBody(s.Position).Length - _planet.Radius);
-        d.OverGround = (float)(r - _planet.Radius - ground);
+        d.Height = (float)(_zone.Frame.ToBody(s.Position).Length - surface.Radius);
+        d.Ceiling = _ship.Def.CeilingOn(surface.Radius);
+        d.OverGround = (float)(r - surface.Radius - ground);
         Num.Vector3 f = s.Forward;
         d.Heading = MathF.Atan2(f.X, -f.Z) * 180 / MathF.PI;
         d.Throttle = _controls.Throttle;

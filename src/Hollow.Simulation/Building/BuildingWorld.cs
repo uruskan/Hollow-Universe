@@ -27,7 +27,7 @@ public sealed partial class BuildingWorld : IDisposable
     private readonly Func<EntityId> _newId;
     private readonly HashSet<Structure> _structures = new();
     private readonly Dictionary<BuildingFrame, List<Structure>> _lattices = new();
-    private readonly Dictionary<(int, int), List<Piece>> _zoneCells = new();
+    private readonly Dictionary<(int, int, int), List<Piece>> _zoneCells = new();
     private readonly Dictionary<PieceDef, ConvexPart[]> _parts = new();
     private readonly List<(double At, Piece Piece)> _collapse = new();
     private readonly List<SocketId> _sockets = new();
@@ -293,7 +293,7 @@ public sealed partial class BuildingWorld : IDisposable
     private void ZoneIndex(Piece piece, bool add)
     {
         (Vector3 position, _) = piece.ZoneTransform;
-        (int, int) key = ((int)MathF.Floor(position.X / ZoneCell), (int)MathF.Floor(position.Z / ZoneCell));
+        (int, int, int) key = ZoneCellOf(position);
         if (add)
         {
             if (!_zoneCells.TryGetValue(key, out List<Piece>? list))
@@ -313,30 +313,53 @@ public sealed partial class BuildingWorld : IDisposable
         }
     }
 
+    // Pieces are indexed by cubes of the world's frame (docs/WHOLE_WORLD.md §3.3).
+    private static (int, int, int) ZoneCellOf(Vector3 p) =>
+        ((int)MathF.Floor(p.X / ZoneCell), (int)MathF.Floor(p.Y / ZoneCell), (int)MathF.Floor(p.Z / ZoneCell));
+
     /// <summary>Pieces whose pivot is within <paramref name="radius"/> of a zone segment.</summary>
     public void PiecesNear(Vector3 a, Vector3 b, float radius, List<Piece> into)
     {
         into.Clear();
         Vector3 min = Vector3.Min(a, b) - new Vector3(radius), max = Vector3.Max(a, b) + new Vector3(radius);
-        int x0 = (int)MathF.Floor(min.X / ZoneCell), x1 = (int)MathF.Floor(max.X / ZoneCell);
-        int z0 = (int)MathF.Floor(min.Z / ZoneCell), z1 = (int)MathF.Floor(max.Z / ZoneCell);
+        (int x0, int y0, int z0) = ZoneCellOf(min);
+        (int x1, int y1, int z1) = ZoneCellOf(max);
         var a3 = new Vector3D(a.X, a.Y, a.Z);
         var b3 = new Vector3D(b.X, b.Y, b.Z);
+        void Take(List<Piece> list, List<Piece> found)
+        {
+            foreach (Piece p in list)
+            {
+                (Vector3 position, _) = p.ZoneTransform;
+                var p3 = new Vector3D(position.X, position.Y, position.Z);
+                if (PieceGeometry.DistanceToSegmentSquared(p3, a3, b3) <= radius * radius)
+                {
+                    found.Add(p);
+                }
+            }
+        }
+        // The box's cubes, or every cube with pieces when there are fewer of those (a long ray across the world).
+        long volume = (long)(x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
+        if (volume > _zoneCells.Count)
+        {
+            foreach (((int X, int Y, int Z) key, List<Piece> list) in _zoneCells)
+            {
+                if (key.X >= x0 && key.X <= x1 && key.Y >= y0 && key.Y <= y1 && key.Z >= z0 && key.Z <= z1)
+                {
+                    Take(list, into);
+                }
+            }
+            return;
+        }
         for (int x = x0; x <= x1; x++)
         {
-            for (int z = z0; z <= z1; z++)
+            for (int y = y0; y <= y1; y++)
             {
-                if (!_zoneCells.TryGetValue((x, z), out List<Piece>? list))
+                for (int z = z0; z <= z1; z++)
                 {
-                    continue;
-                }
-                foreach (Piece p in list)
-                {
-                    (Vector3 position, _) = p.ZoneTransform;
-                    var p3 = new Vector3D(position.X, position.Y, position.Z);
-                    if (PieceGeometry.DistanceToSegmentSquared(p3, a3, b3) <= radius * radius)
+                    if (_zoneCells.TryGetValue((x, y, z), out List<Piece>? list))
                     {
-                        into.Add(p);
+                        Take(list, into);
                     }
                 }
             }

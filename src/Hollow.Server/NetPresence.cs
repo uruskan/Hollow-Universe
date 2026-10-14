@@ -1,6 +1,6 @@
 namespace Hollow.Server;
 
-/// <summary>The server's part of a networked entity: its net ID, view angles (with the head's free look) and owner.</summary>
+/// <summary>The server's part of a networked entity: its net ID, view (octahedral, with the head's free look) and owner.</summary>
 public struct NetPresence
 {
     public uint NetId;

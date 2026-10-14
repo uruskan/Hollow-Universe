@@ -118,13 +118,13 @@ public static class DamageTests
         using var rig = new LoopbackRig();
         GameClient ada = rig.Join("Ada");
         rig.WaitUntilPlaying();
-        (EntityId barrel, Vector3 at) = rig.Server.Inspect(sv =>
+        (EntityId barrel, Vector3 at, Vector3 stand) = rig.Server.Inspect(sv =>
         {
-            WorldProp p = sv.Zone.World().Props.Where(x => x.Prop.Kind == WorldPropKind.Barrel).OrderBy(x => x.Position.Length()).First();
-            return (p.Id, p.Position);
+            // The barrel nearest the landing site; two metres from it on the landing site's side.
+            WorldProp p = sv.Zone.World().Props.Where(x => x.Prop.Kind == WorldPropKind.Barrel).OrderBy(x => Vector3.Distance(x.Position, sv.Zone.Landing)).First();
+            return (p.Id, p.Position, p.Position + Vector3.Normalize(sv.Zone.Frame.Flat(p.Position, sv.Zone.Landing - p.Position)) * 2f);
         });
-        Vector3 stand = at + Vector3.Normalize(new Vector3(-at.X, 0, -at.Z)) * 2f;
-        rig.Server.Execute(FormattableString.Invariant($"teleport Ada {stand.X} {stand.Z}"));
+        rig.Teleport("Ada", stand);
         RunUntil(rig, () => ada.Survival().ThingOf(barrel) != null, "the barrel in range");
         string key = rig.Server.Inspect(sv =>
         {

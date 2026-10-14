@@ -121,13 +121,15 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             throw new SocketException((int)SocketError.AddressAlreadyInUse);
         }
         Port = _net.LocalPort;
-        // The real planet (GROUND.md §6.1): its climate follows the sun of the zone's sky, and players arrive and
-        // respawn on its real beaches near the zone.
-        // The zone's sky: its spin is the zone's clock (GROUND.md §8.2: admins set it), which the climate follows.
+        // The zone's sky: its spin is the zone's clock (GROUND.md §8.2: admins set it), which the climate follows, the
+        // local solar time where each player stands (docs/WHOLE_WORLD.md decision 11): the real planet's air, or the
+        // stand-in's in short.
         Sky = Spec.CreateSky();
-        if (Zone.Surface is PlanetSurface planet && Sky != null)
+        if (Sky != null)
         {
-            Zone.Climate = new PlanetClimate(Content.Survival, planet, Zone.Frame, Sky);
+            Zone.Climate = Zone.Surface is PlanetSurface planet
+                ? new PlanetClimate(Content.Survival, planet, Zone.Frame, Sky)
+                : new StandInClimate(Content.Survival, Zone.Frame, Zone.Surface.Radius, Sky);
         }
         // Beaches anywhere on the world (docs/WHOLE_WORLD.md decision 8): where players arrive and respawn.
         Beaches = Simulation.Beaches.Find(Zone.Surface, Zone.Frame);
@@ -188,8 +190,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     internal BitWriter Writer => _writer;
 
     /// <summary>
-    /// Where a new character arrives: a beach point picked by <paramref name="salt"/>, as in Rust; at the landing site
-    /// with <see cref="ServerOptions.SpawnAtOrigin"/>, on the stand-in ground, or with no coast near.
+    /// Where a new character arrives: a beach point anywhere on the world picked by <paramref name="salt"/>, as in Rust
+    /// (docs/WHOLE_WORLD.md decision 8); at the landing site with <see cref="ServerOptions.SpawnAtOrigin"/> or on a world
+    /// without a coast.
     /// </summary>
     public Vector3 Arrival(ulong salt) =>
         !_options.SpawnAtOrigin && Beaches?.Pick(salt) is { } beach ? beach : Zone.SpawnPoint(salt);

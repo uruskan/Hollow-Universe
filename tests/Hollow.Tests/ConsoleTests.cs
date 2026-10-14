@@ -121,6 +121,13 @@ public static class ConsoleTests
         return answers;
     }
 
+    // How far a point is east and south of the landing site, along the ground (the console's metres).
+    private static Vector2 FromLanding(LoopbackRig rig, Vector3 point) => rig.Server.Inspect(sv =>
+    {
+        (float east, float south) = sv.Zone.OffsetOf(point);
+        return new Vector2(east, south);
+    });
+
     private static Vector3 ServerPosition(LoopbackRig rig, GameClient client) => rig.Server.Inspect(sv =>
         sv.Zone.Players().TryFindPlayer(new EntityId(client.EntityId.Value), out Entity e, out _) ? sv.Zone.Entities.Get<Character>(e).State.Position : default);
 
@@ -177,8 +184,8 @@ public static class ConsoleTests
             bo.Local.Inventory.Count(c.ItemByKey("wood")) == 300, "the items in their inventories");
 
         Assert.True(Run(rig, ada, "teleport 30 -40").Any(a => a.Kind == ConsoleReplyKind.Success), "teleported");
-        RunUntil(rig, () => Vector2.Distance(new Vector2(ServerPosition(rig, ada).X, ServerPosition(rig, ada).Z), new Vector2(30, -40)) < 0.5f, "Ada at 30, -40");
-        RunUntil(rig, () => Vector2.Distance(new Vector2(ada.Character.Position.X, ada.Character.Position.Z), new Vector2(30, -40)) < 1.5f, "her client there too");
+        RunUntil(rig, () => Vector2.Distance(FromLanding(rig, ServerPosition(rig, ada)), new Vector2(30, -40)) < 0.5f, "Ada at 30, -40");
+        RunUntil(rig, () => Vector2.Distance(FromLanding(rig, ada.Character.Position), new Vector2(30, -40)) < 1.5f, "her client there too");
         Run(rig, bo, "teleport 0 0"); // refused: Bo isn't an admin
         Run(rig, ada, "tp2me Bo");
         RunUntil(rig, () => Vector3.Distance(ServerPosition(rig, bo), ServerPosition(rig, ada)) < 3, "Bo brought to Ada");
@@ -186,10 +193,10 @@ public static class ConsoleTests
         Run(rig, ada, "global.teleport Bo");
         RunUntil(rig, () => Vector3.Distance(ServerPosition(rig, bo), ServerPosition(rig, ada)) < 3, "Ada went to Bo");
 
-        // Latitude and longitude: the zone's origin.
+        // Latitude and longitude: the landing site.
         ZoneSpec spec = rig.Server.Spec;
         Run(rig, ada, FormattableString.Invariant($"teleport {spec.LatitudeDegrees:0.000000} {spec.LongitudeDegrees:0.000000}"));
-        RunUntil(rig, () => new Vector2(ServerPosition(rig, ada).X, ServerPosition(rig, ada).Z).Length() < 1, "Ada at the zone's origin");
+        RunUntil(rig, () => FromLanding(rig, ServerPosition(rig, ada)).Length() < 1, "Ada at the landing site");
 
         // Spawning: a wolf pack 22 m in front of her, a box at her feet.
         List<ConsoleAnswer> wolves = Run(rig, ada, "spawn wolf 2");
@@ -209,16 +216,16 @@ public static class ConsoleTests
         Assert.True(Run(rig, ada, "kill Bo").Any(a => a.Kind == ConsoleReplyKind.Success), "killed");
         RunUntil(rig, () => bo.Local.IsDead, "Bo dead");
 
-        // The zone's time of day: nine in the evening at its origin, on every client's clock too.
-        Fixtures.Report($"the planet's own clock: {rig.Server.Inspect(sv => sv.Console().ZoneHours ?? -1):0.00} h at the origin");
+        // The zone's time of day: nine in the evening at the landing site, on every client's clock too.
+        Fixtures.Report($"the planet's own clock: {rig.Server.Inspect(sv => sv.Console().ZoneHours ?? -1):0.00} h at the landing site");
         Assert.True(Run(rig, ada, "time 21").Any(a => a.Kind == ConsoleReplyKind.Success), "time set");
         RunUntil(rig, () => bo.Console().Day is { Overridden: true }, "the new clock at Bo's client");
         double hours = rig.Server.Inspect(sv => sv.Console().ZoneHours ?? -1);
-        Assert.Near(21, hours, 0.05, "local solar time at the origin (h)");
+        Assert.Near(21, hours, 0.05, "local solar time at the landing site (h)");
         Surface.SkyEphemeris sky = spec.CreateSky()!;
         ZoneDay day = bo.Console().Day!.Value;
         sky.SetSpin(day.BaseTime, day.BaseTurns, day.Scale);
-        double clientHours = sky.LocalSolarHours(rig.Server.Zone.Frame.Origin.Normalized, sky.Sun.Index, Core.UniverseTime.Now);
+        double clientHours = sky.LocalSolarHours(spec.LandingDirection, sky.Sun.Index, Core.UniverseTime.Now);
         Assert.Near(21, clientHours, 0.1, "the client's sky says the same (h)");
         Run(rig, ada, "timescale 0");
         Run(rig, ada, "time reset");
@@ -227,7 +234,7 @@ public static class ConsoleTests
 
     /// <summary>
     /// GROUND.md §8.2: god mode and noclip run the same on the server and in the prediction. A character noclipping
-    /// through the real ground at the landing site (along the view, sprinting, up and down) is predicted exactly, tick
+    /// through the ground at the landing site (along the view, sprinting, up and down) is predicted exactly, tick
     /// for tick; out of noclip in god mode it falls 40 m and lands with no damage, also exactly as the server has it.
     /// Over the network the toggles reach the client's prediction, which then flies with no correction, and god mode
     /// takes no damage on the server.
@@ -245,9 +252,10 @@ public static class ConsoleTests
             float lowest = float.MaxValue;
             for (uint tick = 1; tick <= 420; tick++)
             {
-                MoveInput input = MovementCheck.Script((int)tick);
+                Vector3 up = zone.Frame.UpAt(zone.Entities.Get<Character>(entity).State.Position);
+                MoveInput input = MovementCheck.Script((int)tick, up);
                 // Down through the ground for a while, then up again.
-                input.Pitch = tick < 120 ? -0.9f : tick < 240 ? 0.6f : input.Pitch;
+                input.View = Facing.View(input.YawAt(up), tick < 120 ? -0.9f : tick < 240 ? 0.6f : input.PitchAt(up), up);
                 InputCommand command = NetConvert.ToCommand(input);
                 zone.Entities.Get<Character>(entity).Input = NetConvert.ToMoveInput(command);
                 zone.Step();
@@ -261,14 +269,14 @@ public static class ConsoleTests
 
             // Out of noclip 40 m up, in god mode: the fall lands with no damage, on both sides.
             ref Character c = ref zone.Entities.Get<Character>(entity);
-            Vector3 ground = zone.GroundAt(c.State.Position.X, c.State.Position.Z);
+            Vector3 ground = zone.Settle(c.State.Position);
             zone.Teleport(entity, ground + zone.Frame.UpAt(ground) * 40);
             zone.SetCheats(entity, MoveCheats.God);
             uint at = 420;
             predictor.Reconcile(at, zone.Entities.Get<Character>(entity).State);
             for (uint tick = at + 1; tick <= at + 150; tick++)
             {
-                InputCommand idle = NetConvert.ToCommand(new MoveInput { Yaw = 0.3f });
+                InputCommand idle = NetConvert.ToCommand(new MoveInput { View = Facing.View(0.3f, 0, zone.Frame.UpAt(zone.Entities.Get<Character>(entity).State.Position)) });
                 zone.Entities.Get<Character>(entity).Input = NetConvert.ToMoveInput(idle);
                 zone.Step();
                 predictor.RecordInput(tick, idle);
@@ -295,7 +303,7 @@ public static class ConsoleTests
         Vector3 flown = ada.Character.Position - start;
         Fixtures.Report($"flew {flown.Length():0.0} m, {ada.Stats.Corrections - corrections} corrections, worst error {ada.Stats.PredictionErrorWorst * 1000:0.0} mm");
         Assert.True(flown.Length() > 25, $"flew ({flown.Length():0.0} m)");
-        Assert.True(Vector3.Dot(flown, Vector3.UnitY) > 5, "up along the view");
+        Assert.True(Vector3.Dot(flown, ada.Frame.UpAt(start)) > 5, "up along the view");
         Assert.Equal(corrections, ada.Stats.Corrections, "no corrections while flying");
         Assert.Equal(teleports, ada.Stats.Teleports, "no snaps while flying");
         float taken = rig.Server.Inspect(sv =>

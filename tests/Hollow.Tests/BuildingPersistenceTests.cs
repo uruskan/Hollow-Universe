@@ -42,7 +42,7 @@ public static class BuildingPersistenceTests
                 Zone z = sv.Zone;
                 BuildingWorld b = z.Building().World!;
                 double now = z.Building().BuildingNow;
-                Piece f = BuildingNetTests.Foundation(z, z.Settle(new Vector3(30, 0, 30)), Ada, grade: 2);
+                Piece f = BuildingNetTests.Foundation(z, z.GroundAt(30, 30), Ada, grade: 2);
                 Piece f2 = BuildingNetTests.On(z, f, BuildingNetTests.Facing(f, 1, 0), "foundation", Ada, grade: 2);
                 Piece doorway = BuildingNetTests.On(z, f, BuildingNetTests.Facing(f, -1, 0), "doorway", Ada, grade: 2);
                 Piece second = BuildingNetTests.On(z, f2, BuildingNetTests.Facing(f2, 1, 0), "doorway", Ada, grade: 1);
@@ -121,8 +121,8 @@ public static class BuildingPersistenceTests
             (twig, wood, wall, system, body) = rig.Server.Inspect(sv =>
             {
                 Zone z = sv.Zone;
-                Piece t = BuildingNetTests.Foundation(z, z.Settle(new Vector3(-30, 0, 20)), Ada, grade: 0);
-                Piece f = BuildingNetTests.Foundation(z, z.Settle(new Vector3(-30, 0, 30)), Ada, grade: 1);
+                Piece t = BuildingNetTests.Foundation(z, z.GroundAt(-30, 20), Ada, grade: 0);
+                Piece f = BuildingNetTests.Foundation(z, z.GroundAt(-30, 30), Ada, grade: 1);
                 Piece w = BuildingNetTests.On(z, f, BuildingNetTests.Facing(f, 1, 0), "wall", Ada, grade: 1);
                 return (t.Id, f.Id, w.Id, sv.Spec.SystemAddress, sv.Spec.BodyPath);
             });

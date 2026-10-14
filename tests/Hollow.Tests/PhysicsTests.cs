@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using Hollow.Core;
+using Hollow.Simulation;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Surface;
@@ -20,7 +21,8 @@ public static class PhysicsTests
         MovementCheck.Result second = MovementCheck.Run();
         Fixtures.Report(first.ToString());
         Assert.Equal(first.Hash, second.Hash, "hash of every state in two runs");
-        Assert.True(first.Position.Length() > 40, "the character got somewhere");
+        Vector3 start = new GroundProbe(new SphereSurface(MovementCheck.Radius, 0xF1257), ZoneFrame.World).On(ZoneFrame.Direction(0.62, -1.1));
+        Assert.True(Vector3.Distance(first.Position, start) > 40, "the character got somewhere");
         Assert.Equal(100, (int)first.Health, "nothing in the script hurts");
     }
 
@@ -44,16 +46,14 @@ public static class PhysicsTests
 
     private static ulong Walk(bool reuse, out int made, out int back, out int touching)
     {
-        var surface = new SphereSurface(6_435_000, 0xF1257);
-        ZoneFrame frame = ZoneFrame.At(surface, 0.62, -1.1);
+        var surface = new SphereSurface(MovementCheck.Radius, 0xF1257);
+        ZoneFrame frame = ZoneFrame.World;
         MovementTuning tuning = MovementTuning.Default;
-        var context = new MoveContext(frame, surface.SeaRadius, MoveContext.CharacterGravity(0.92, tuning), tuning);
+        var context = new MoveContext(frame, surface.SeaRadius, MoveContext.CharacterGravity(0.92, tuning), tuning, surface.Radius);
         using var world = new PhysicsWorld(surface, frame) { MakePropBodiesAhead = reuse };
-        Vector3 Ground(float x, float z)
-        {
-            Vector3D d = frame.ToBody(x, 0, z).Normalized;
-            return frame.ToLocal(d * (surface.Radius + surface.HeightAt(d)));
-        }
+        var probe = new GroundProbe(surface, frame);
+        Vector3 start = probe.On(ZoneFrame.Direction(0.62, -1.1));
+        Vector3 Ground(float x, float z) => probe.Offset(start, x, z);
         void Grove(ulong salt)
         {
             for (int i = -14; i <= 14; i++)
@@ -78,7 +78,7 @@ public static class PhysicsTests
             if (reuse)
             {
                 // Other props and tiles first, then everything out: the walk's bodies come back from parking.
-                world.EnsureGround(Vector3.Zero, 2);
+                world.EnsureGroundWithin(start, 160);
                 Grove(0);
                 Grove(1_000_000);
                 world.OptimizeBroadPhase();
@@ -90,7 +90,7 @@ public static class PhysicsTests
                 world.ReleaseUnusedGround(-1);
                 world.OptimizeBroadPhase();
             }
-            var state = new CharacterState { Position = new Vector3(0, 3, 0), Health = tuning.MaxHealth };
+            var state = new CharacterState { Position = start + frame.UpAt(start) * 3, Health = tuning.MaxHealth };
             world.EnsureGround(state.Position);
             Grove(0);
             world.OptimizeBroadPhase();
@@ -102,7 +102,7 @@ public static class PhysicsTests
                 world.EnsureGround(state.Position);
                 world.OptimizeBroadPhase();
                 Vector3 before = state.Position;
-                MoveInput input = MovementCheck.Script(tick);
+                MoveInput input = MovementCheck.Script(tick, frame.UpAt(state.Position));
                 CharacterMotor.Step(ref state, input, body, context);
                 hash = Hash64.Combine(hash, Hash64.Of(BitConverter.SingleToUInt32Bits(state.Position.X),
                     BitConverter.SingleToUInt32Bits(state.Position.Y), BitConverter.SingleToUInt32Bits(state.Position.Z)));

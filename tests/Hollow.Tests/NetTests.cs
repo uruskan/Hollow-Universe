@@ -121,7 +121,7 @@ public static class NetTests
                     s.X += rng.NextInt(140) - 70;
                     s.Z += rng.NextInt(140) - 70;
                     s.Y += rng.NextInt(10) - 5;
-                    s.Yaw = (ushort)(s.Yaw + rng.NextInt(2000) - 1000);
+                    s.ViewU = (ushort)(s.ViewU + rng.NextInt(2000) - 1000);
                 }
                 if (rng.Chance(0.02))
                 {

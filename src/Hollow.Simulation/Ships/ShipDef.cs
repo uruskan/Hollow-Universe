@@ -179,8 +179,14 @@ public sealed class ShipDef
 
     public IReadOnlyList<Vector3> RcsNozzles { get; init; } = Array.Empty<Vector3>();
 
-    /// <summary>Above this height over the planet's mean radius the ship reaches orbit (GROUND.md §6.6).</summary>
+    /// <summary>
+    /// The leaving height in world radii over the ground (docs/WHOLE_WORLD.md decision 4: 2, 4.8 km on the first world):
+    /// above it the ship reaches orbit (GROUND.md §6.6).
+    /// </summary>
     public float Ceiling { get; init; }
+
+    /// <summary>The leaving height in metres over the mean radius on a world of this radius.</summary>
+    public float CeilingOn(double radius) => (float)(Ceiling * radius);
 
     /// <summary>What a destroyed ship leaves in its wreck besides its cargo and fuel.</summary>
     public IReadOnlyList<ItemAmount> Wreck { get; init; } = Array.Empty<ItemAmount>();

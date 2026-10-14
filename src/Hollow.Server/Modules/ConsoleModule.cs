@@ -745,22 +745,24 @@ public sealed class ConsoleModule : ServerModule
             $"{Math.Abs(latitude):0.00000}° {(latitude >= 0 ? 'N' : 'S')}, {Math.Abs(longitude):0.00000}° {(longitude >= 0 ? 'E' : 'W')} " +
             $"(teleport {latitude:0.00000} {longitude:0.00000})"));
         double sea = Zone.Surface.SeaRadius > 0 ? body.Length - Zone.Surface.SeaRadius : body.Length - Zone.Surface.Radius;
+        (float east, float south) = Zone.OffsetOf(at);
         ctx.Out(string.Create(CultureInfo.InvariantCulture,
-            $"Zone position {at.X:0.0} m east, {-at.Z:0.0} m north of its origin, {at.Y:0.0} m up (teleport {at.X:0.0} {at.Z:0.0}); " +
-            $"{sea:0} m above the sea; map cell {MapCell(at)}."));
-        string biome = Zone.Surface is PlanetSurface planet ? Words(planet.BiomeAt(direction).ToString()) : "the stand-in ground";
+            $"{east:0.0} m east, {-south:0.0} m north of the landing site along the ground (teleport {east:0.0} {south:0.0}); " +
+            $"{sea:0} m above the sea; map cell {MapCell(east, south)}."));
+        string biome = Words(Zone.Surface.BiomeAt(direction).ToString());
         string time = Sky != null ? $"{Hours(Sky.LocalSolarHours(direction, Sky.Sun.Index, UniverseSeconds))} local solar time" : "no sky here";
         float air = Zone.Climate?.TemperatureAt(at, Zone.UnixMilliseconds / 1000.0) ?? float.NaN;
         ctx.Out(string.Create(CultureInfo.InvariantCulture, $"{biome}; {time}; the air {air:0} °C."));
     }
 
-    // A map cell's name, as the map draws its grid: columns lettered from the west, rows numbered from the north.
-    private string MapCell(Vector3 at)
+    // A map cell's name, as the map draws its grid round the landing site: columns lettered from the west, rows numbered
+    // from the north.
+    private string MapCell(float east, float south)
     {
         double metres = Content.World.MapMetres;
         int cells = Math.Max(1, (int)Math.Round(metres / Content.World.MapCell));
-        int column = Math.Clamp((int)Math.Floor((at.X + metres / 2) / metres * cells), 0, cells - 1);
-        int row = Math.Clamp((int)Math.Floor((at.Z + metres / 2) / metres * cells), 0, cells - 1);
+        int column = Math.Clamp((int)Math.Floor((east + metres / 2) / metres * cells), 0, cells - 1);
+        int row = Math.Clamp((int)Math.Floor((south + metres / 2) / metres * cells), 0, cells - 1);
         return Column(column) + row.ToString(CultureInfo.InvariantCulture);
     }
 

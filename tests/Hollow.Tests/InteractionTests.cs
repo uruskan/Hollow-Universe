@@ -13,6 +13,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Interaction;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Ships;
@@ -203,7 +204,7 @@ public static class InteractionTests
         rig.Step(45);
         ship.HatchOpen = true;
         ship.HatchProgress = Ship.HatchTicks;
-        Raids.Stand(rig, ada, z.Settle(ship.PointOf(ship.Def.Hatch) + new Vector3(1.4f, 0, 0)));
+        Raids.Stand(rig, ada, z.Settle(z.Frame.Beside(ship.PointOf(ship.Def.Hatch), 1.4f, 0, 0)));
         var hatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch);
         Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, hatch, "board"), "Ada boards");
         Assert.Equal(OutcomeCode.Seated, z.Interaction().Interact(ada, box.Ref, "open"), "seated, she does nothing on foot");
@@ -337,15 +338,16 @@ public static class InteractionTests
         Herd herd = AnimalRig.Herd(rig, "deer", -30, 10, 1, 2);
         Animal deer = herd.Members[0];
         rig.Step(2); // (the herd is found where it is once it has stepped)
-        Raids.Stand(rig, ada, z.Settle(deer.Position + new Vector3(0, 0, 5)));
+        Raids.Stand(rig, ada, z.Settle(z.Frame.Beside(deer.Position, 0, 0, 5)));
         z.Targets().TryNearest(deer.Ref, z.EyeOf(rig.Ch(ada).State), out Vector3 hide);
         SpentArrow inDeer = StickInto(rig, ada, deer.Ref, hide);
         Assert.True(inDeer.Link.Support.Family == TargetFamily.Animal && inDeer.Link.Support.Id == deer.Id.Value && inDeer.Link.Support.Part > 0,
             "held by a bone of the deer");
         Vector3 was = Pose(z, inDeer).Position;
-        deer.Position += new Vector3(4, 0, 0);
-        Assert.True(Vector3.Distance(Pose(z, inDeer).Position, was + new Vector3(4, 0, 0)) < 0.05f, "it goes with the deer");
-        Raids.Stand(rig, ada, z.Settle(Pose(z, inDeer).Position + new Vector3(0, 0, 1.5f)));
+        Vector3 step = z.Frame.Beside(deer.Position, 4, 0, 0) - deer.Position;
+        deer.Position += step;
+        Assert.True(Vector3.Distance(Pose(z, inDeer).Position, was + step) < 0.05f, "it goes with the deer");
+        Raids.Stand(rig, ada, z.Settle(z.Frame.Beside(Pose(z, inDeer).Position, 0, 0, 1.5f)));
         Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, inDeer.Ref, "pick-up"), "taken from the living deer");
 
         // In Bo, alive: it goes where he goes; taken from him.
@@ -402,7 +404,7 @@ public static class InteractionTests
             z.Things().AddStatic(d);
             DroppedBag dropped = z.Spill().Spill(z.GroundAt(1.2f, -1.4f), ItemStack.Of(c.ItemByKey("stone"), 3))!;
             Vector3 eye = z.EyeOf(z.Entities.Get<Character>(e).State);
-            Vector3 aim = d.Centre + new Vector3(-0.4f, 0.1f, 0);
+            Vector3 aim = z.Frame.Beside(d.Centre, -0.4f, 0.1f, 0);
             TraceHit hit = z.Damage().Trace(eye, Vector3.Normalize(aim - eye), 10, CombatSystem.ArrowRadius, p.Id, z.Tick);
             SpentArrow stuck = z.Arrows().StickArrow(new Projectile { Id = 7, Ammo = c.ItemByKey("arrow"), Velocity = Vector3.Normalize(aim - eye) * 50 }, hit)!;
             return (d.Id.Value, dropped.Id.Value, stuck.Id.Value);
@@ -417,14 +419,13 @@ public static class InteractionTests
 
         // Along a fan of views from Ada's eye: the same thing met, the same options offered (the client leaves out those
         // beyond their verb's reach, which the server would refuse).
-        Vector3 eye = ada.Character.Position + ada.Frame.UpAt(ada.Character.Position) * ada.EyeHeight;
+        Vector3 up = ada.Frame.UpAt(ada.Character.Position), eye = ada.Character.Position + up * ada.EyeHeight;
         var views = new List<Vector3>();
         for (int yaw = -40; yaw <= 40; yaw += 4)
         {
             for (int pitch = -50; pitch <= 10; pitch += 6)
             {
-                float y = yaw * MathF.PI / 180, p = pitch * MathF.PI / 180;
-                views.Add(new Vector3(MathF.Sin(y) * MathF.Cos(p), MathF.Sin(p), -MathF.Cos(y) * MathF.Cos(p)));
+                views.Add(Facing.View(yaw * MathF.PI / 180, pitch * MathF.PI / 180, up));
             }
         }
         (AimHit Hit, InteractOption[] Options)[] there = rig.Server.Inspect(sv =>

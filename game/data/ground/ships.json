@@ -44,7 +44,7 @@
         "rcs": [[1.246, 0.98, -0.71], [-1.246, 0.98, -0.71]]
       },
       "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 12, "sight": 0.5 },
-      "ceiling": 15000,
+      "ceiling": 2,
       "wreck": [["metal-fragments", 300], ["refined-metal", 20]]
     }
   ]

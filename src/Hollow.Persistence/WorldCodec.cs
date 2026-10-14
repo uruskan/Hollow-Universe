@@ -25,9 +25,11 @@ public static class WorldCodec
     /// <summary>
     /// Raised by hand when a layout changes; decoding reads every older version. 2 (G4): a firearm's magazine and
     /// attachments in its stack; a character's burning and being down. 3: the body the player chose. 4 (G7): the
-    /// blueprints learnt, the map's markers and the last death's point.
+    /// blueprints learnt, the map's markers and the last death's point. 5 (S3): the same layout, the markers and the
+    /// death's point in the body frame (a whole world's zone frame, docs/WHOLE_WORLD.md §9); an older state's are
+    /// dropped, being in a frame at the old landing site.
     /// </summary>
-    public const byte PlayerVersion = 4;
+    public const byte PlayerVersion = 5;
 
     /// <summary>A world prop's stored state (G7, <see cref="EncodeProp"/>).</summary>
     public const byte PropVersion = 1;
@@ -171,14 +173,14 @@ public static class WorldCodec
                 var at = new Vector3(Finite(r.ReadSingle()), Finite(r.ReadSingle()), Finite(r.ReadSingle()));
                 byte colour = r.ReadByte();
                 string label = r.ReadString();
-                if (p.Markers.Count < content.World.MaxMarkers && colour < MapMarker.Colours)
+                if (version >= 5 && p.Markers.Count < content.World.MaxMarkers && colour < MapMarker.Colours)
                 {
                     p.Markers.Add(new MapMarker(at, colour, label.Length > MapMarker.MaxLabel ? label[..MapMarker.MaxLabel] : label));
                 }
             }
             bool died = r.ReadBoolean();
             var point = new Vector3(Finite(r.ReadSingle()), Finite(r.ReadSingle()), Finite(r.ReadSingle()));
-            p.DeathPoint = died ? point : null;
+            p.DeathPoint = died && version >= 5 ? point : null;
         }
         if (p.Dead)
         {

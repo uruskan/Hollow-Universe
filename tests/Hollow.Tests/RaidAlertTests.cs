@@ -170,26 +170,26 @@ public static class RaidAlertTests
 
         // Bo, at the door: a timed charge on it.
         (Vector3 doorFace, Vector3 doorOut) = hut.Face(hut.Doorway, height: 1.1);
-        Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 1.3f, doorFace.Z + doorOut.Z * 1.3f));
+        Raids.Stand(rig, bo, rig.Zone.Settle(doorFace + doorOut * 1.3f));
         Raids.Belt(rig, bo, 0, "timed-charge", 2);
         rig.Step(2);
         rig.Look(bo, doorFace + doorOut * 0.2f);
         Assert.Equal(OutcomeCode.Done, rig.PlaceAimed(bo, ContainerRef.Belt, 0, "timed-charge"), "a charge on the door");
         Assert.True(rig.Zone.Explosives().All.Single().Link.Support.Whole == hut.Door!.Ref, "stuck to the door");
-        Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 8, doorFace.Z + doorOut.Z * 8));
+        Raids.Stand(rig, bo, rig.Zone.Settle(doorFace + doorOut * 8));
         Raids.StepUntil(rig, () => { Route(rig, service); return hut.Door!.Gone; }, 320, "the door breaking");
         Assert.Equal(0, presence.Delivered.Count, "nobody to tell in the game");
         Assert.Equal(1, store.Count, "the alert waits for Ada");
         Assert.True(!rig.P(ada).Dead && rig.P(ada).Vitals.Health == 100, "the door shielded her");
 
         // In through the doorway: the second charge on the floor beside her (and a metre from the claim device).
-        Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 0.5f, doorFace.Z + doorOut.Z * 0.5f));
+        Raids.Stand(rig, bo, rig.Zone.Settle(doorFace + doorOut * 0.5f));
         rig.Step(30);
         Vector3 beside = hut.ToZone(new(0.3, 0, 0.7));
         rig.Look(bo, beside);
         Assert.Equal(OutcomeCode.Done, rig.PlaceAimed(bo, ContainerRef.Belt, 0, "timed-charge"), "a charge beside her");
         Assert.True(rig.Zone.Explosives().All.Single().Link.Support.Whole == hut.Foundation.Ref, "on the floor");
-        Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 8, doorFace.Z + doorOut.Z * 8));
+        Raids.Stand(rig, bo, rig.Zone.Settle(doorFace + doorOut * 8));
         long before = rig.Zone.UnixMilliseconds;
         Raids.StepUntil(rig, () => { Route(rig, service); return rig.Zone.Explosives().All.Count == 0; }, 320, "the second charge");
         Assert.True(rig.P(ada).Dead, "her sleeper died");

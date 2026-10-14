@@ -72,8 +72,7 @@ public static class GunNetTests
             {
                 Forward = t is > 40 and < 120 ? 0.6f : t is >= 200 and < 220 ? 1 : 0,
                 Right = t is > 60 and < 100 ? -0.8f : 0,
-                Yaw = 0.3f + 0.002f * t,
-                Pitch = 0.05f - 0.004f * (t % 50),
+                View = Facing.View(0.3f + 0.002f * t, 0.05f - 0.004f * (t % 50), predictor.Frame.UpAt(predictor.Latest.Position)),
                 Buttons = (t is > 80 and < 110 ? MoveButtons.Crouch : MoveButtons.None) | (t is >= 200 and < 220 ? MoveButtons.Sprint : MoveButtons.None),
             };
             bool burst = (t % 40) is > 5 and < 30;
@@ -103,7 +102,7 @@ public static class GunNetTests
                     rig.Zone.Guns().QueueGunAction(ada, new GunAction
                     {
                         Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = (ushort)m.Item,
-                        Yaw = Quantize.FromAngle16(m.Yaw), Pitch = Quantize.FromAngle16(m.Pitch), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
+                        View = Quantize.FromOctahedral(m.ViewU, m.ViewV), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
                     });
                 }
                 else if (type == ReloadIntent.TypeId)
@@ -245,7 +244,7 @@ public static class GunNetTests
                 }
             }
             bool fire = spray == 0 ? sprays[0].Count < 30 : tick >= secondFrom;
-            var move = new MoveInput { Yaw = 0.4f, Pitch = 0.05f, Buttons = spray == 1 ? MoveButtons.Crouch : MoveButtons.None };
+            var move = new MoveInput { View = Facing.View(0.4f, 0.05f, predictor.Frame.UpAt(predictor.Latest.Position)), Buttons = spray == 1 ? MoveButtons.Crouch : MoveButtons.None };
             var actions = new ActionInput
             {
                 HeldSlot = 0,
@@ -266,7 +265,7 @@ public static class GunNetTests
                     rig.Zone.Guns().QueueGunAction(ada, new GunAction
                     {
                         Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = (ushort)m.Item,
-                        Yaw = Quantize.FromAngle16(m.Yaw), Pitch = Quantize.FromAngle16(m.Pitch), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
+                        View = Quantize.FromOctahedral(m.ViewU, m.ViewV), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
                     });
                 }
                 else if (type == ReloadIntent.TypeId)
@@ -400,7 +399,7 @@ public static class GunNetTests
             bool firing = time - shotsFrom < 0.05;
             return new InputFrame
             {
-                Yaw = MathF.Atan2(-flat.X, -flat.Z), Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length()), Primary = firing, Secondary = true,
+                Yaw = Facing.YawOf(d, up), Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length()), Primary = firing, Secondary = true,
                 PrimaryPressed = firing,
             };
         }
@@ -489,4 +488,6 @@ public static class GunNetTests
         Assert.True(rig.Zone.Things().Statics().OfType<Corpse>().Any(k => k.Of == saved.Id && k.Loot.Slots.ToArray().Contains(rifle)), "their corpse has the rifle");
         Assert.True(rig.Zone.Entities.Get<Character>(again).State.IsDead, "and the character is dead");
     }
+
+    private static Vector3 Up(GameRig rig, Entity e) => rig.Zone.Frame.UpAt(rig.Ch(e).State.Position);
 }

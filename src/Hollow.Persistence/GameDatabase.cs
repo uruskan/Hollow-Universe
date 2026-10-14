@@ -162,7 +162,7 @@ public sealed record ShipRecord(EntityId Id, byte[] Data);
 public sealed class GameDatabase : IDisposable
 {
     /// <summary>The schema this build writes. Each step up is a migration in <see cref="Migrations"/>.</summary>
-    public const int SchemaVersion = 6;
+    public const int SchemaVersion = 7;
 
     private static readonly string[] Migrations =
     {
@@ -270,6 +270,20 @@ public sealed class GameDatabase : IDisposable
             data BLOB NOT NULL,
             PRIMARY KEY (system_address, body_path, prop_id)
         );
+        """,
+        // 6 → 7 (S3, docs/WHOLE_WORLD.md decision 1): the world is a 2.41 km ball, where nothing stored on the 6,435 km
+        // planet has a place. The world's rows go (things, building, ships, both override tables, zones' data, waiting
+        // alerts); characters keep their IDs and accounts but start a new life (no place, no state: inventories, markers
+        // and blueprints go); accounts and teams stay.
+        """
+        DELETE FROM things;
+        DELETE FROM building;
+        DELETE FROM ships;
+        DELETE FROM natural_overrides;
+        DELETE FROM prop_overrides;
+        DELETE FROM zones;
+        DELETE FROM notifications;
+        UPDATE characters SET body_x = 0, body_y = 0, body_z = 0, yaw = 0, pitch = 0, stance = 0, dead = 0, state = NULL;
         """,
     };
 

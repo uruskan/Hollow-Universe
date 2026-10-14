@@ -232,8 +232,12 @@ public struct GunAction
     public GunActionKind Kind;
     public byte Slot;
     public ushort Item;
-    public float Yaw;
-    public float Pitch;
+
+    /// <summary>
+    /// The view the shot leaves along, a direction in the zone's frame as it came on the wire (docs/WHOLE_WORLD.md §5): read
+    /// as a heading and pitch where the shooter stands on that tick, on the server and in the client's prediction alike.
+    /// </summary>
+    public Vector3 View;
     public bool Aimed;
     public byte ViewDelay;
     public ushort Ammo;

@@ -11,20 +11,26 @@ public sealed record ServerOptions
 
     public string Name { get; init; } = "Hollow development server";
 
-    /// <summary>Where the zone's origin is on the first world, in degrees: by default the landing site (GROUND.md §3).</summary>
+    /// <summary>
+    /// The landing site on the first world, in degrees (GROUND.md §3): where <see cref="SpawnAtOrigin"/> arrives and what
+    /// places are laid out from. The zone holds the whole world wherever it is (docs/WHOLE_WORLD.md).
+    /// </summary>
     public double Latitude { get; init; } = Surface.FirstWorld.LandingLatitude;
 
     public double Longitude { get; init; } = Surface.FirstWorld.LandingLongitude;
 
-    /// <summary>The stand-in ground instead of the planet (tests and benchmarks that want a plain world).</summary>
+    /// <summary>
+    /// Marks the zone as one on the stand-in ground (its spec says so to clients). Until S4 makes the real ground at
+    /// walking scale every zone stands on the stand-in world (docs/WHOLE_WORLD.md §4), so it changes nothing else.
+    /// </summary>
     public bool StandIn { get; init; }
 
     /// <summary>How much faster than real the planet turns (GROUND.md §1; 1 = its real day).</summary>
     public double RotationTimeScale { get; init; } = Simulation.ZoneSpec.DefaultRotationTimeScale;
 
     /// <summary>
-    /// New characters arrive at the zone's origin (the landing site) instead of on a beach, as in Rust: for load tests
-    /// and measurements that want everyone in one place.
+    /// New characters arrive at the landing site instead of on a beach anywhere on the world, as in Rust: for load tests,
+    /// measurements and tests that want everyone in one place.
     /// </summary>
     public bool SpawnAtOrigin { get; init; }
 
@@ -76,7 +82,7 @@ public sealed record ServerOptions
     /// </summary>
     public bool Animals { get; init; } = true;
 
-    /// <summary>The animal load test's population: this many animals in herds within <see cref="AnimalRadius"/> metres of the origin, always out.</summary>
+    /// <summary>The animal load test's population: this many animals in herds within <see cref="AnimalRadius"/> metres of the landing site, always out.</summary>
     public int AnimalPopulation { get; init; }
 
     public float AnimalRadius { get; init; } = 220f;

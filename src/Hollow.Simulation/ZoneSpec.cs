@@ -52,8 +52,9 @@ public sealed record ZoneSpec
     }
 
     /// <summary>
-    /// The stand-in ground (a hilly sphere without a sea, and stand-in natural objects) instead of the body's real
-    /// surface: for tests and benchmarks that want a plain, predictable world. Sent to clients with the zone.
+    /// Marks a zone on the stand-in ground (<see cref="StandInWorld"/>: continents, a sea and climate bands, with stand-in
+    /// natural objects). Until S4 makes the real ground at walking scale every zone stands on it
+    /// (<see cref="CreateSurface"/>), whatever this says; it is sent to clients with the zone.
     /// </summary>
     public bool StandIn { get; init; }
 

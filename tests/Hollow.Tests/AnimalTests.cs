@@ -34,9 +34,14 @@ public static class AnimalRig
     public static IEnumerable<Animal> Alive(Herd herd) => herd.Members.Where(a => !a.IsDead && !a.Removed);
 
     /// <summary>A player stands still where they are (no input), facing a point.</summary>
-    public static void Still(GameRig rig, Entity e) => rig.Ch(e).Input = new MoveInput { Yaw = rig.Ch(e).Input.Yaw };
+    public static void Still(GameRig rig, Entity e) => rig.Ch(e).Input = new MoveInput { View = rig.Ch(e).Input.View };
 
-    public static float Flat(Vector3 a, Vector3 b) => MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
+    /// <summary>The distance between two points along the ground: the arc between their directions from the world's centre.</summary>
+    public static float Flat(Vector3 a, Vector3 b)
+    {
+        float la = a.Length(), lb = b.Length();
+        return 2 * MathF.Asin(Math.Min(1, (a / la - b / lb).Length() / 2)) * (la + lb) / 2;
+    }
 }
 
 public static class AnimalTests
@@ -169,7 +174,7 @@ public static class AnimalTests
         wolf.Hunger = 0;
         rig2.Step(60, () => AnimalRig.Still(rig2, bo));
         Assert.True(wolf.State is not (AnimalState.Chase or AnimalState.Attack), $"fed and 12 m off: no bite ({wolf.State})");
-        rig2.Zone.Teleport(bo, wolf.Position + new Vector3(4.5f, 0.3f, 0));
+        rig2.Zone.Teleport(bo, rig2.Zone.Frame.Beside(wolf.Position, 4.5f, 0.3f, 0));
         AnimalState seen = AnimalState.Idle;
         long warned = -1, charged = -1;
         rig2.Step(90, () =>
@@ -436,7 +441,7 @@ public static class AnimalTests
         rig.Zone.Teleport(ada, far + rig.Zone.Frame.UpAt(far) * 0.02f);
         rig.Step(30 * 36, () => AnimalRig.Still(rig, ada));
         Assert.True(active.All(a => !a.Active), "the areas she left are empty");
-        Assert.Equal(0, animals.All.Count(a => !a.IsDead && AnimalRig.Flat(a.Position, Vector3.Zero) < 600), "no animals left there");
+        Assert.Equal(0, animals.All.Count(a => !a.IsDead && AnimalRig.Flat(a.Position, rig.Zone.Landing) < 600), "no animals left there");
         Vector3 home = rig.Zone.GroundAt(0, 0);
         rig.Zone.Teleport(ada, home + rig.Zone.Frame.UpAt(home) * 0.02f);
         rig.Step(30 * 3, () => AnimalRig.Still(rig, ada));
@@ -487,7 +492,7 @@ public static class AnimalTests
         // A step back in the wind-up: the swipe misses.
         p.Vitals.Health = 100;
         p.Vitals.Bleeding = 0;
-        Vector3 near = bear.Position + new Vector3(0, 0, 2.6f);
+        Vector3 near = rig.Zone.Frame.Beside(bear.Position, 0, 0, 2.6f);
         rig.Zone.Teleport(ada, near + rig.Zone.Frame.UpAt(near) * 0.02f);
         bear.Hunger = 0;
         rig.Zone.Animals().DamageAnimal(bear, 1, HitRegion.Body, near, p, p.Id, p.Name);
@@ -498,8 +503,8 @@ public static class AnimalTests
             if (bear.State == AnimalState.Attack && started < 0)
             {
                 started = rig.Zone.Tick;
-                Vector3 away = rig.Ch(ada).State.Position + new Vector3(0, 0, 4f);
-                rig.Zone.Teleport(ada, rig.Zone.GroundAt(away.X, away.Z) + new Vector3(0, 0.02f, 0));
+                Vector3 away = rig.Zone.Settle(rig.Zone.Frame.Beside(rig.Ch(ada).State.Position, 0, 0, 4f));
+                rig.Zone.Teleport(ada, away + rig.Zone.Frame.UpAt(away) * 0.02f);
             }
         });
         Assert.True(started > 0, "the bear began a swipe");
@@ -521,7 +526,7 @@ public static class AnimalTests
             double angle = i * Math.PI * 2 / 10;
             players.Add(rig.Add($"P{i}", (float)(120 * Math.Cos(angle)), (float)(120 * Math.Sin(angle))));
         }
-        animals.Populate(Vector3.Zero, 220, 200);
+        animals.Populate(rig.Zone.Landing, 220, 200);
         foreach (Animal a in animals.All)
         {
             a.Hunger = 0;

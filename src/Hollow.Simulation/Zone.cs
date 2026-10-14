@@ -250,6 +250,9 @@ public sealed class Zone : IDisposable
     /// </summary>
     public Vector3 GroundAt(float east, float south) => Ground.Offset(Landing, east, south);
 
+    /// <summary>How far a point is east and south of the landing site, along the ground (<see cref="GroundAt"/>'s inverse).</summary>
+    public (float East, float South) OffsetOf(Vector3 point) => Ground.OffsetOf(Landing, point);
+
     /// <summary>How far a point is above the ground, in metres (negative below).</summary>
     public float HeightAboveGround(Vector3 point) => Ground.HeightAbove(point);
 
