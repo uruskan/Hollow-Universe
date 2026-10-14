@@ -5,7 +5,16 @@ Written 13 October 2026, morning, when the first session filled its context; the
 Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a-shader-system` and
 `minimal-automated-testing` hold the owner's standing decisions.
 
-## State on 14 October 2026, evening: the kernel (read this first)
+## 14 October 2026, night: one place (read this first)
+
+At the owner's request the `ground` branch was merged into `main`, together with the scale proposal
+([SCALE.md](SCALE.md), waiting for the owner's approval). The whole game is on `main`, in
+`D:\GameDev\Projects\Hollow Universe`. The `scale` branch and worktree were removed; the old `ground` worktree is no longer
+used and goes as soon as nothing has it open (a Godot editor did). Below, "`ground`"
+means the line of work that is now `main`. New work happens on `main`; a package that needs isolation gets a
+short-lived branch and worktree under `D:\GameDev\Projects\Hollow-wt\`, merged back into `main` when green.
+
+## State on 14 October 2026, evening: the kernel
 
 - **`ground` holds the kernel** (GROUND_SYSTEMS.md §12, packages K0–K4, merged from `ground-systems` on 14 October
   2026): the zone is a host of `ZoneSystem`s, events are types, messages find their handler in a table, the server and
@@ -77,8 +86,8 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
 
 ## Where things are
 
-- **`ground`** (worktree `D:\GameDev\Projects\Hollow-wt\ground`, branched from `generator-v2`) holds the playable
-  game. It covers:
+- **`main`** (`D:\GameDev\Projects\Hollow Universe`; until 14 October 2026 the `ground` branch, branched from
+  `generator-v2`) holds the playable game. It covers:
   - G1 and G2 on the real first world;
   - G3 building;
   - G4 guns;
@@ -88,17 +97,17 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
     (map on G, tech tree from a workbench, recycler, research, teams);
   - effects, sound, characters and assets.
 
-  163/163 tests passed then, at protocol version 11 (the F1 console). Nothing of the ground game is merged into `main`
-  (that needs the owner).
+  163/163 tests passed then, at protocol version 11 (the F1 console). The whole ground game was merged into `main` on
+  14 October 2026, at the owner's request.
 - **Play it:** `play-ground.cmd` hosts a game; `play-ground.cmd join` adds a second player; `play-ground.cmd menu`
   opens the main menu. Controls and tour steps are in AGENTS.md.
 
 ## Branches
 
-Everything is on `ground`: every work package, the monuments, the kernel (K0–K4, 14 October 2026), the galaxy map's
-web prototypes (`prototypes/map-ux`, waiting for the owner's choice) and the space concept (`docs/SPACE_CONCEPT.md`) were
-merged on 14 October 2026, and their branches and worktrees removed. `main` holds M1 and points here. New work goes on
-a branch in its own worktree under `D:\GameDev\Projects\Hollow-wt\`, merged back here when green.
+Everything is on `main` since 14 October 2026: every work package, the monuments, the kernel (K0–K4), the developer
+panel, the galaxy map's web prototypes (`prototypes/map-ux`, waiting for the owner's choice), the space concept
+(`docs/SPACE_CONCEPT.md`) and the scale proposal (`docs/SCALE.md`). New work goes on `main`, or on a short-lived branch
+in its own worktree under `D:\GameDev\Projects\Hollow-wt\`, merged back into `main` when green.
 **The owner's first playtest (13 October 2026) and where each finding stands:**
 - Done and merged into `ground`: Left Alt free look; the hands on held items (the rock and 40 others); free-foundation height
   by aim; the AK and pistol recoil exactly RustMVP's; one damage pipeline with the Destroyed event; Rust's X on trees and

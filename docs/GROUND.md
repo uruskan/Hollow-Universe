@@ -4363,10 +4363,10 @@ on quiet frames but the occasional sparkle effect (67 B a frame on average).
 ## 10. How the work is run
 
 - **Branches:**
-  - The `ground` branch lives in `D:\GameDev\Projects\Hollow-wt\ground` and starts from `generator-v2` for the
-    planet state.
-  - Work packages run on their own branches and worktrees and merge into `ground`.
-  - Nothing merges into `main` without the owner.
+  - Until 14 October 2026 the ground game lived on its own branch, `ground` (in `D:\GameDev\Projects\Hollow-wt\ground`,
+    started from `generator-v2` for the planet state), and nothing merged into `main` without the owner.
+  - On 14 October 2026, at the owner's request, `ground` was merged into `main`: the whole game is on `main`, in
+    `D:\GameDev\Projects\Hollow Universe`. Work packages run on their own branches and worktrees and merge into `main`.
 - **G1 runs as two packages in parallel:** network core (`ground-net`) and planet surface (`ground-planet`). They
   meet at `ISurface` (§4.6).
 - **Every package:**

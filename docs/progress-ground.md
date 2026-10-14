@@ -1,6 +1,7 @@
 # Ground game: progress log
 
-Branch `ground`, in worktree `D:\GameDev\Projects\Hollow-wt\ground`. The plan and the decisions are in
+On `main`, in `D:\GameDev\Projects\Hollow Universe`, since 14 October 2026 (before that, branch `ground` in
+`D:\GameDev\Projects\Hollow-wt\ground`). The plan and the decisions are in
 [GROUND.md](GROUND.md). This log says what happened, newest last, so the owner can catch up at a glance.
 
 ## 12 October 2026, evening
@@ -734,3 +735,13 @@ answers admins only and sends nothing while nobody watches: `DevModule` on both 
 (protocol 20), a window on the tick profile. The tour's step `f2` pictures it on a hosted game
 (`docs/images/ground/play/f2-*.jpg`); the interface viewer shows it on sample data (`--screen developer...`).
 Test: `DevTests.TheServerAnswersAWatchingAdmin`. 225 tests pass.
+
+## 14 October 2026, night: one place
+
+The owner was tired of the game living in two places, so `ground` was merged into `main` with the scale proposal
+(`docs/SCALE.md`, the owner's scale answers of the same day, waiting for approval). Conflicts in AGENTS.md, README.md
+and GAME_DESIGN.md took `ground`'s side; AGENTS.md now says the whole game is on `main` and work happens there. Before
+the merge, the developer panel's five missing Godot `.uid` files were committed on `ground` (0352bf5), and a
+whitespace-only re-indent of `building.json` left in the old worktree was stashed (`git stash list`). The `scale`
+worktree and branch were then removed; the old `ground` worktree is unused and goes once the Godot editor open on it is
+closed. The merged checkout builds, its assets were imported, and the tests pass.

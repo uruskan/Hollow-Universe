@@ -58,9 +58,9 @@ The questions as they were put before the answers:
 
 | Where | What | State |
 |---|---|---|
-| `D:\GameDev\Projects\Hollow Universe` (`main`) | Milestone M1 | `ground` is 449 commits ahead; `main` has 4 doc commits (AGENTS.md, LORE.md) not in `ground`. |
-| `Hollow-wt\ground` (`ground`) | The active line: ground game, generator overhaul, monuments, kernel, map prototypes, space concept | Active; another session works here. |
-| `Hollow-wt\dev-panel` (`dev-panel`) | Branch made from `ground` on 14 Oct by another session | Purpose unknown to this session: ask before touching. |
+| `D:\GameDev\Projects\Hollow Universe` (`main`) | The whole game | Since the night of 14 October 2026: `ground` (with `dev-panel`) and `scale` were merged in, at the owner's request. |
+| `Hollow-wt\ground` (`ground`), `Hollow-wt\scale` (`scale`) | The former active line, and the scale proposal | Merged into `main` on 14 October 2026. `scale` removed; the `ground` worktree is unused and goes once nothing has it open. |
+| `dev-panel` | The F2 developer panel (GROUND.md §8.5) | Merged into `ground` on 14 October 2026, so it is on `main`. |
 | `Hollow Universe\EliteClone` | The Elite feasibility test (own local git repo, git-excluded from Hollow) | Finished; keep-or-discard pending. |
 | `Hollow Universe\EliteClone-wt` (controls, maps, ui) | Its three phase-2 worktrees, all merged into EliteClone `main` | Removable (2.5 GB). |
 | `Hollow Universe\research_notes`, `reports` | The Elite-generation research (git-excluded) | Keep; reference only (Elite data must never enter Hollow). |
