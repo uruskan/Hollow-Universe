@@ -99,7 +99,7 @@ public abstract class ZoneSystem : IDisposable
 
     protected HitboxHistory History => Zone.History;
 
-    protected List<ZoneEvent> GameEvents => Zone.GameEvents;
+    protected ZoneEvents Events => Zone.Events;
 
     protected EntityId NextId() => Zone.NextId();
 

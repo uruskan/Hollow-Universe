@@ -54,7 +54,7 @@ public static class Guns
     }
 
     /// <summary>The launch events of a step (bullets leaving guns).</summary>
-    public static List<ZoneEvent> Launches(GameRig rig) => rig.Zone.GameEvents.Where(x => x.Kind == ZoneEventKind.ProjectileLaunched).ToList();
+    public static List<ProjectileLaunched> Launches(GameRig rig) => rig.Zone.Events.Of<ProjectileLaunched>().ToList();
 
     /// <summary>A bullet of a gun and round, as a shot would launch it (for damage tests).</summary>
     public static Bullet Round(GameContent c, string gun, string ammo, EntityId shooter = default) => new()
@@ -126,10 +126,10 @@ public static class GunTests
         Entity ada = rig.Add("Ada", 0, 0);
         Guns.Arm(rig, ada, "rifle", "rifle-ammo", 30);
         rig.Ch(ada).Input.Pitch = 70 * MathF.PI / 180;
-        rig.Zone.GameEvents.Clear();
+        rig.Zone.Events.Clear();
         Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "queued");
         rig.Step();
-        ZoneEvent launch = Guns.Launches(rig).Single();
+        ProjectileLaunched launch = Guns.Launches(rig).Single();
         rig.Step(11);
         Bullet bullet = rig.Zone.Guns().Bullets.Single();
         Vector3 up = rig.Zone.Frame.UpAt(launch.Position);
@@ -172,11 +172,11 @@ public static class GunTests
             rig.Zone.Teleport(bo, rig.Zone.GroundAt(4, 1.2f) + rig.Zone.Frame.UpAt(seen) * 0.02f);
             rig.Step(2);
             rig.Look(ada, seen);
-            rig.Zone.GameEvents.Clear();
+            rig.Zone.Events.Clear();
             Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1, aimed: true, viewDelay: viewDelay), "queued");
             rig.Step(3);
-            float taken = rig.Zone.GameEvents.Where(x => x.Kind == ZoneEventKind.DamageTaken && x.Player == b.Id).Sum(x => x.Amount);
-            bool marker = rig.Zone.GameEvents.Any(x => x.Kind == ZoneEventKind.HitConfirmed && x.Player == rig.P(ada).Id && x.Target.Family == TargetFamily.Character);
+            float taken = rig.Zone.Events.Of<Hurt>().Where(x => x.Player == b.Id).Sum(x => x.Amount);
+            bool marker = rig.Zone.Events.Of<HitConfirmed>().Any(x => x.By == rig.P(ada).Id && x.Target.Family == TargetFamily.Character);
             Fixtures.Report($"view delay {viewDelay / 4.0:0} ticks: Bo took {taken:0.0}; hit marker {marker}");
             if (viewDelay > 0)
             {
@@ -210,12 +210,12 @@ public static class GunTests
         uint seq = 0;
         for (int shot = 0; shot < 30; shot++)
         {
-            rig.Zone.GameEvents.Clear();
+            rig.Zone.Events.Clear();
             Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, ++seq), $"shot {shot + 1} queued");
             RecoilSample before = Recoil.Sample(a.Gun.Recoil, rifle, rig.Zone.Tick + 1);
             rig.Step();
             Assert.Equal(OutcomeCode.Done, a.GunRefusedSeq == seq ? a.GunRefused : OutcomeCode.Done, $"shot {shot + 1}");
-            ZoneEvent launch = Guns.Launches(rig).Single();
+            ProjectileLaunched launch = Guns.Launches(rig).Single();
             pitchSum += rifle.Recoil.Pattern[shot].Pitch;
             yawSum += rifle.Recoil.Pattern[shot].Yaw;
             Assert.Near(pitchSum, a.Gun.Recoil.Pitch, 1e-9, $"pitch after shot {shot + 1}");
@@ -417,12 +417,12 @@ public static class GunTests
         int silencer = Slot("silencer");
         Assert.Equal(OutcomeCode.Done, rig.Zone.Guns().Attach(ada, ContainerRef.Main, silencer, ContainerRef.Belt, 0, 0), "a silencer swaps it");
         Assert.Equal(c.ItemByKey("muzzle-brake").Id, a.Inventory.Main[silencer].Item, "the brake back where the silencer was");
-        rig.Zone.GameEvents.Clear();
+        rig.Zone.Events.Clear();
         rig.Step(5);
         Guns.Queue(rig, ada, 2);
         rig.Step();
-        ZoneEvent launch = Guns.Launches(rig).Single();
-        Assert.True(launch.Flag, "silenced");
+        ProjectileLaunched launch = Guns.Launches(rig).Single();
+        Assert.True(launch.Silenced, "silenced");
         Assert.Near(300 * 0.75, launch.Velocity.Length(), 0.01, "slower");
         Assert.Equal(OutcomeCode.Done, rig.Act(ada, ContainerRef.Belt, 0, "remove", (int)AttachmentSlot.Muzzle), "off again");
         Assert.True(a.Inventory.Belt[0].Muzzle == 0 && a.Inventory.Count(c.ItemByKey("silencer")) == 1, "into the inventory");

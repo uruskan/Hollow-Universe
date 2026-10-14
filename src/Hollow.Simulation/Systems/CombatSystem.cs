@@ -203,7 +203,7 @@ public sealed class CombatSystem : ZoneSystem
         {
             Supports.SupportGone(new TargetRef(TargetFamily.Natural, o.Id));
         }
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = new TargetRef(TargetFamily.Natural, o.Id), Flag = result.WeakSpot, Position = result.Point });
+        Events.Add(new HitConfirmed(By: p.Id, Target: new TargetRef(TargetFamily.Natural, o.Id), Flag: result.WeakSpot, Point: result.Point));
         Give(entity, p, result.Yield, GainReason.Gathered, result.WeakSpot);
     }
 
@@ -213,7 +213,7 @@ public sealed class CombatSystem : ZoneSystem
         foreach (ItemAmount a in items)
         {
             Spill.GiveOrDrop(entity, p, ItemStack.Of(a.Item, a.Count));
-            GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = a.Item.Id, Count = a.Count, Reason = reason, Flag = flag });
+            Events.Add(new ItemsGained(Player: p.Id, Item: a.Item.Id, Count: a.Count, Reason: reason, WeakSpot: flag));
         }
     }
 
@@ -234,7 +234,7 @@ public sealed class CombatSystem : ZoneSystem
         {
             p.Inventory.Belt.Set(beltSlot, default);
             Guns.ReturnRounds(entity, p, s);
-            GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = s.Item, Count = -1, Reason = GainReason.Broke });
+            Events.Add(new ItemsGained(Player: p.Id, Item: s.Item, Count: -1, Reason: GainReason.Broke));
             return;
         }
         s.Condition--;
@@ -296,15 +296,7 @@ public sealed class CombatSystem : ZoneSystem
     public void Launch(Projectile projectile)
     {
         _projectiles.Add(projectile);
-        GameEvents.Add(new ZoneEvent
-        {
-            Kind = ZoneEventKind.ProjectileLaunched,
-            Player = projectile.Shooter,
-            Projectile = projectile.Id,
-            Item = projectile.Ammo.Id,
-            Position = projectile.Position,
-            Velocity = projectile.Velocity,
-        });
+        Events.Add(new ProjectileLaunched(Shooter: projectile.Shooter, Projectile: projectile.Id, Ammo: projectile.Ammo.Id, Position: projectile.Position, Velocity: projectile.Velocity));
     }
 
     // Arrows fly in two steps a tick, under the planet's gravity, tested against the world now and against characters
@@ -340,7 +332,7 @@ public sealed class CombatSystem : ZoneSystem
             if (!ended && ++pr.AgeTicks >= pr.LifetimeTicks)
             {
                 ended = true;
-                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ProjectileEnded, Player = pr.Shooter, Projectile = pr.Id, Position = pr.Position });
+                Events.Add(new ProjectileEnded(Shooter: pr.Shooter, Projectile: pr.Id, Position: pr.Position));
             }
             if (ended)
             {
@@ -354,7 +346,7 @@ public sealed class CombatSystem : ZoneSystem
     private void ProjectileHit(Projectile pr, in TraceHit hit)
     {
         AmmoStats ammo = pr.Ammo.Ammo!;
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ProjectileEnded, Player = pr.Shooter, Projectile = pr.Id, Position = hit.Point, Target = hit.Target });
+        Events.Add(new ProjectileEnded(Shooter: pr.Shooter, Projectile: pr.Id, Position: hit.Point, Target: hit.Target));
         Players.TryFindPlayer(pr.Shooter, out _, out Player? shooter);
         Damage.Damage(new DamageRequest
         {
@@ -494,11 +486,7 @@ public sealed class CombatSystem : ZoneSystem
             // Rust: a projectile to the head kills outright; anything else lethal may knock down instead (G4).
             float taken = zone.Players().Hurt(victimEntity, victim, amount, r.Cause, r.Attacker, r.AttackerName,
                 canWound: !(r.Channel == DamageType.Bullet && region == HitRegion.Head));
-            zone.GameEvents.Add(new ZoneEvent
-            {
-                Kind = ZoneEventKind.DamageTaken, Player = victim.Id, Other = r.ByAnimal?.Id ?? r.Attacker, Amount = amount, Region = region, Position = r.From,
-                Item = r.Weapon,
-            });
+            zone.Events.Add(new Hurt(Player: victim.Id, By: r.ByAnimal?.Id ?? r.Attacker, Amount: amount, Region: region, From: r.From, Weapon: r.Weapon));
             return new DamageOutcome(true, amount, taken, victim.Dead, victim.Wounded && !wasDown, victim.Id);
         }
     }

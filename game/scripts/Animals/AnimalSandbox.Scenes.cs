@@ -235,7 +235,7 @@ public partial class AnimalSandbox
                 facing: YawOf(Side(toward, up))).Leader!;
             Player p = butcher!.Player;
             _zone.Animals().DamageAnimal(corpse, 1000, HitRegion.Body, butcher.Current + up * 1.2f, p, p.Id, p.Name);
-            _zone.GameEvents.Clear();
+            _zone.Events.Clear();
         }
         scene.Build = () =>
         {

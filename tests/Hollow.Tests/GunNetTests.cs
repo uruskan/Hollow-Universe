@@ -122,14 +122,14 @@ public static class GunNetTests
             ref Character ch = ref rig.Ch(ada);
             ch.Input = NetConvert.ToMoveInput(command);
             ch.Actions = NetConvert.ToActions(command);
-            rig.Zone.GameEvents.Clear();
+            rig.Zone.Events.Clear();
             rig.Step();
             Assert.True(predictor.Latest.Equals(rig.Ch(ada).State), $"tick {t}: the movement agrees");
             if ((rig.Ch(ada).State.Flags & MoveFlags.Sprinting) != 0 && burst)
             {
                 sprintTicks++;
             }
-            List<ZoneEvent> fired = Guns.Launches(rig);
+            List<ProjectileLaunched> fired = Guns.Launches(rig);
             Assert.Equal(fired.Count, shots.Count - before, $"tick {t}: shots on both sides");
             for (int i = 0; i < fired.Count; i++)
             {
@@ -282,10 +282,10 @@ public static class GunNetTests
             ref Character ch = ref rig.Ch(ada);
             ch.Input = NetConvert.ToMoveInput(command);
             ch.Actions = NetConvert.ToActions(command);
-            rig.Zone.GameEvents.Clear();
+            rig.Zone.Events.Clear();
             rig.Step();
             Assert.True(local.Gun.State.Recoil.Equals(p.Gun.Recoil), $"tick {t}: the client's recoil is the server's, to the bit");
-            List<ZoneEvent> fired = Guns.Launches(rig);
+            List<ProjectileLaunched> fired = Guns.Launches(rig);
             Assert.Equal(fired.Count, shots.Count - before, $"tick {t}: shots on both sides");
             if (fired.Count == 0)
             {

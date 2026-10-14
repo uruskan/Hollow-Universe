@@ -355,17 +355,7 @@ public sealed class GunSystem : ZoneSystem
             Silenced = shot.Mods.Silenced,
         };
         _bullets.Add(bullet);
-        GameEvents.Add(new ZoneEvent
-        {
-            Kind = ZoneEventKind.ProjectileLaunched,
-            Player = p.Id,
-            Projectile = bullet.Id,
-            Item = shot.Round.Id,
-            Position = bullet.Position,
-            Velocity = bullet.Velocity,
-            Seq = a.Seq,
-            Flag = bullet.Silenced,
-        });
+        Events.Add(new ProjectileLaunched(Shooter: p.Id, Projectile: bullet.Id, Ammo: shot.Round.Id, Position: bullet.Position, Velocity: bullet.Velocity, Seq: a.Seq, Silenced: bullet.Silenced));
     }
 
     // Bullets fly in two steps a tick, with gravity and drag integrated exactly, tested against the world now and
@@ -431,7 +421,7 @@ public sealed class GunSystem : ZoneSystem
     }
 
     private void EndBullet(Bullet b, Vector3 at, TargetRef target) =>
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ProjectileEnded, Player = b.Shooter, Projectile = b.Id, Position = at, Target = target, Seq = b.Seq });
+        Events.Add(new ProjectileEnded(Shooter: b.Shooter, Projectile: b.Id, Position: at, Target: target, Seq: b.Seq));
 
     // Out of range or time in the air: a bullet just stops; a rocket goes off where it is (G5).
     private void EndFlight(Bullet b)

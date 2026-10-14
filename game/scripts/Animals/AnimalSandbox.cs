@@ -274,14 +274,14 @@ public partial class AnimalSandbox : Node3D
         animals.Watchers.Add(ToZone(_world.Camera.GlobalPosition));
         _zone.UnixMilliseconds += 1000 / CharacterMotor.TickRate;
         _zone.Step();
-        foreach (ZoneEvent e in _zone.GameEvents)
+        foreach (HitConfirmed e in _zone.Events.Of<HitConfirmed>())
         {
-            if (e.Kind == ZoneEventKind.HitConfirmed && e.Target.Family == TargetFamily.Animal && _audio != null)
+            if (e.Target.Family == TargetFamily.Animal && _audio != null)
             {
-                _audio.Play("melee.hit.flesh", ToRender(e.Position));
+                _audio.Play("melee.hit.flesh", ToRender(e.Point));
             }
         }
-        _zone.GameEvents.Clear();
+        _zone.Events.Clear();
         foreach (Person p in _people)
         {
             p.Current = _zone.Entities.Get<Character>(p.Entity).State.Position;

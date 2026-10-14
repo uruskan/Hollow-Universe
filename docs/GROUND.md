@@ -2431,7 +2431,7 @@ were looked at after the building's damage, so a wall the blast broke didn't shi
 left keeps their name on a kill (D7, D8, D10).
 
 **The Destroyed event.** One place makes it (`Zone.Destroyed`): the receivers' consequences end there when the thing
-broke, and so do the building's own removals and a ship's crash. It is `ZoneEventKind.Destroyed` in the zone and
+broke, and so do the building's own removals and a ship's crash. It is the `Destroyed` event in the zone (GROUND_SYSTEMS.md §12.3) and
 `ThingDestroyed` (message 165, reliable, protocol 14) to every client within the relevance radius of where it stood; the
 client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.Destructions` (the last two seconds).
 

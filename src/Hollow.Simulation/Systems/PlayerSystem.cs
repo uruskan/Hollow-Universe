@@ -274,7 +274,7 @@ public sealed class PlayerSystem : ZoneSystem
         c.State.Flags = MoveFlags.Dead;
         History.Forget(p.Id);
         Supports.SupportGone(p.Ref);
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.Died, Player = p.Id, Other = by, Text = cause, Position = c.State.Position });
+        Events.Add(new Died(Player: p.Id, By: by, Cause: cause, Position: c.State.Position));
     }
 
     /// <summary>

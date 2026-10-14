@@ -59,13 +59,13 @@ public static class AnimalTests
         Guns.Arm(rig, ada, "rifle", "rifle-ammo", 30);
         Animal target = herd.Leader!;
         rig.Look(ada, target.Position + rig.Zone.Frame.UpAt(target.Position) * 0.95f);
-        rig.Zone.GameEvents.Clear();
+        rig.Zone.Events.Clear();
         Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "the shot");
         float[] before = herd.Members.Select(a => AnimalRig.Flat(a.Position, rig.Ch(ada).State.Position)).ToArray();
         bool hit = false;
         rig.Step(15, () =>
         {
-            hit |= rig.Zone.GameEvents.Any(e => e.Kind == ZoneEventKind.HitConfirmed && e.Target.Family == TargetFamily.Animal);
+            hit |= rig.Zone.Events.Of<HitConfirmed>().Any(e => e.Target.Family == TargetFamily.Animal);
         });
         Assert.True(hit && target.Health < target.Species.Health && target.HurtCount == 1, $"the deer was hit ({target.Health:0} health left)");
         Assert.True(AnimalRig.Alive(herd).All(a => a.State == AnimalState.Flee), "the whole herd runs: " + string.Join(", ", herd.Members.Select(a => a.State)));
@@ -283,7 +283,7 @@ public static class AnimalTests
             Assert.True(deer.IsDead && deer.HarvestLeft == deer.Species.HarvestHealth, "a corpse to harvest");
             rig.Give(ada, tool, 1);
             rig.Zone.Actions().MoveItem(ada, ContainerRef.Main, 0, ContainerRef.Belt, 0, 0, 0);
-            rig.Zone.GameEvents.Clear();
+            rig.Zone.Events.Clear();
             int count = 0;
             Vector3 aim = deer.Position + rig.Zone.Frame.UpAt(deer.Position) * 0.25f;
             rig.Step(30 * 30, () =>
@@ -292,8 +292,8 @@ public static class AnimalTests
                 ch.Input = new MoveInput { Buttons = MoveButtons.Crouch };
                 rig.Look(ada, aim);
                 ch.Actions = new ActionInput { HeldSlot = 0, Buttons = deer.Removed ? ActionButtons.None : ActionButtons.Primary };
-                count += rig.Zone.GameEvents.Count(e => e.Kind == ZoneEventKind.HitConfirmed && e.Target.Family == TargetFamily.Animal && e.Player == p.Id);
-                rig.Zone.GameEvents.Clear();
+                count += rig.Zone.Events.Of<HitConfirmed>().Count(e => e.Target.Family == TargetFamily.Animal && e.By == p.Id);
+                rig.Zone.Events.Clear();
             });
             string gained = string.Join(", ", deer.Species.Harvest.Select(y => $"{p.Inventory.Count(y.Item)} {y.Item.Key}"));
             Fixtures.Report($"{tool}: {count} hits, {gained}");

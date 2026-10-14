@@ -143,6 +143,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         StartRaid();
         StartWorld();
         StartAnimals();
+        RouteEvents();
         Zone.Profile = Profile;
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();

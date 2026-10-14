@@ -19,7 +19,7 @@ namespace Hollow.Tests;
 /// <summary>The damage pipeline's Destroyed event (GROUND.md §6.4.2), in the zone and over the network.</summary>
 public static class DamageTests
 {
-    private static List<ZoneEvent> Destroyed(GameRig rig) => rig.Zone.GameEvents.Where(e => e.Kind == ZoneEventKind.Destroyed).ToList();
+    private static List<Destroyed> Destructions(GameRig rig) => rig.Zone.Events.Of<Destroyed>().ToList();
 
     /// <summary>
     /// GROUND.md §6.4.2: what breaks is reported once, from the one place, saying what it was, where it stood and why: a
@@ -45,62 +45,62 @@ public static class DamageTests
         Vector3 size = door.Def.Leaves[0].Size;
         Vector3 face = hinge + Vector3.Transform(new Vector3(size.X / 2, 1.1f, MathF.Abs(size.Z) / 2), leafTurn);
         ushort charge = c.ItemByKey("timed-charge").Id;
-        rig.Zone.GameEvents.Clear();
+        rig.Zone.Events.Clear();
         rig.Zone.Damage().Blast(c.Blast("timed-charge")!, face + outward * ExplosiveSystem.StuckOffset, outward, door.Ref, TargetFamily.Door, a.Id, a.Name, charge);
-        List<ZoneEvent> blown = Destroyed(rig);
+        List<Destroyed> blown = Destructions(rig);
         Assert.True(door.Gone && !hut.Doorway.Gone, "the door is blown off, the stone doorway stands");
-        Assert.Equal(1, blown.Count, $"one thing destroyed ({string.Join(", ", blown.Select(e => e.Text))})");
-        ZoneEvent d = blown[0];
-        Assert.True(d.Target == door.Ref && d.Other == door.Id && d.Text == "wooden-door", $"the door, by its ID and key ({d.Target} {d.Text})");
-        Assert.True(d.Cause == DestroyCause.Explosion && d.Player == a.Id && d.Item == charge, $"by Ada's timed charge ({d.Cause})");
-        Assert.True(Vector3.Distance(d.Position, frameAt) < 1e-4f && Quaternion.Dot(d.Rotation, frameTurn) > 0.9999f && !d.Flag,
+        Assert.Equal(1, blown.Count, $"one thing destroyed ({string.Join(", ", blown.Select(e => e.Key))})");
+        Destroyed d = blown[0];
+        Assert.True(d.Target == door.Ref && d.Id == door.Id && d.Key == "wooden-door", $"the door, by its ID and key ({d.Target} {d.Key})");
+        Assert.True(d.Cause == DestroyCause.Explosion && d.Player == a.Id && d.Weapon == charge, $"by Ada's timed charge ({d.Cause})");
+        Assert.True(Vector3.Distance(d.Position, frameAt) < 1e-4f && Quaternion.Dot(d.Rotation, frameTurn) > 0.9999f && !d.Open,
             "where its frame stands, shut");
-        Assert.True(Vector3.Dot(d.Velocity, -outward) > 0.999f, "the blow travelling into it");
+        Assert.True(Vector3.Dot(d.Direction, -outward) > 0.999f, "the blow travelling into it");
 
         // A box broken by a blow.
         Vector3 boxAt = rig.Zone.GroundAt(4, 4);
         var box = new Deployable(rig.Zone.NextId(), c.Deployable("large-box")!, boxAt, rig.Zone.Frame.UpAt(boxAt), 0.7f, EntityId.None);
         rig.Zone.Things().AddStatic(box);
-        rig.Zone.GameEvents.Clear();
+        rig.Zone.Events.Clear();
         rig.Zone.Things().DamageDeployable(box, 10_000);
-        ZoneEvent b = Destroyed(rig).Single();
+        Destroyed b = Destructions(rig).Single();
         Vector3 up = rig.Zone.Frame.UpAt(boxAt);
         (Vector3 right, Vector3 forward) = Geometry.Axes(up, 0.7f);
-        Assert.True(b.Target == box.Ref && b.Other == box.Id && b.Text == "large-box" && b.Cause == DestroyCause.Melee,
-            $"the box, by a blow ({b.Target} {b.Text} {b.Cause})");
+        Assert.True(b.Target == box.Ref && b.Id == box.Id && b.Key == "large-box" && b.Cause == DestroyCause.Melee,
+            $"the box, by a blow ({b.Target} {b.Key} {b.Cause})");
         Assert.True(Vector3.Distance(b.Position, boxAt) < 1e-5f && Vector3.Distance(Vector3.Transform(Vector3.UnitY, b.Rotation), up) < 1e-4f &&
             Vector3.Distance(Vector3.Transform(-Vector3.UnitZ, b.Rotation), forward) < 1e-4f && Vector3.Distance(Vector3.Transform(Vector3.UnitX, b.Rotation), right) < 1e-4f,
             "standing where it stood, turned as it was drawn");
 
         // The roof demolished with the hammer, within its edit window.
         Piece roof = hut.Roof!;
-        rig.Zone.GameEvents.Clear();
+        rig.Zone.Events.Clear();
         Outcome demolished = rig.Zone.Building().Hammer(ada, HammerAction.Demolish, roof.Id, 0);
         Assert.True(demolished.Ok, $"Ada demolishes the roof ({demolished})");
-        ZoneEvent r = Destroyed(rig).Single();
-        Assert.True(r.Target == roof.Ref && r.Other == roof.Id && r.Text == "floor" && r.Grade == 2 && r.Cause == DestroyCause.Demolish &&
-            r.Player == a.Id && r.Velocity == Vector3.Zero, $"the roof, demolished by Ada ({r.Text} {r.Cause})");
+        Destroyed r = Destructions(rig).Single();
+        Assert.True(r.Target == roof.Ref && r.Id == roof.Id && r.Key == "floor" && r.Grade == 2 && r.Cause == DestroyCause.Demolish &&
+            r.Player == a.Id && r.Direction == Vector3.Zero, $"the roof, demolished by Ada ({r.Key} {r.Cause})");
 
         // The foundation broken by a blow: the claim device on it goes with it; the walls come down after it.
         ClaimDevice claim = hut.Claim!;
-        rig.Zone.GameEvents.Clear();
-        var seen = new List<ZoneEvent>();
+        rig.Zone.Events.Clear();
+        var seen = new List<Destroyed>();
         rig.Zone.Building().DamageBuilding(hut.Foundation, -up, 1_000_000, projectile: false);
-        seen.AddRange(Destroyed(rig));
-        rig.Zone.GameEvents.Clear();
+        seen.AddRange(Destructions(rig));
+        rig.Zone.Events.Clear();
         int fell = Raids.StepUntil(rig, () =>
         {
-            seen.AddRange(Destroyed(rig));
-            rig.Zone.GameEvents.Clear();
+            seen.AddRange(Destructions(rig));
+            rig.Zone.Events.Clear();
             return hut.Walls.All(w => w.Gone) && rig.Zone.Building().World!.Collapsing == 0;
         }, 90, "the walls coming down");
-        Assert.True(seen.Any(e => e.Other == hut.Foundation.Id && e.Cause == DestroyCause.Melee && e.Text == "foundation"), "the foundation, by the blow");
+        Assert.True(seen.Any(e => e.Id == hut.Foundation.Id && e.Cause == DestroyCause.Melee && e.Key == "foundation"), "the foundation, by the blow");
         Assert.True(seen.Any(e => e.Target == claim.Ref && e.Cause == DestroyCause.Melee),
             "the claim device with its piece, by the same blow");
         foreach (Piece wall in hut.Walls)
         {
-            ZoneEvent w = seen.Single(e => e.Other == wall.Id);
-            Assert.True(w.Cause == DestroyCause.Collapse && w.Velocity == Vector3.Zero && w.Text == wall.Def.Key, $"{wall.Def.Key}: brought down ({w.Cause})");
+            Destroyed w = seen.Single(e => e.Id == wall.Id);
+            Assert.True(w.Cause == DestroyCause.Collapse && w.Direction == Vector3.Zero && w.Key == wall.Def.Key, $"{wall.Def.Key}: brought down ({w.Cause})");
         }
         Assert.Equal(1 + 1 + hut.Walls.Length, seen.Count, "each once");
         Assert.True(seen.All(e => float.IsFinite(e.Position.X) && MathF.Abs(e.Rotation.Length() - 1) < 1e-4f), "every one placed");

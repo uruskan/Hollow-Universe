@@ -228,7 +228,7 @@ public sealed class ArrowSystem : ZoneSystem
                 return OutcomeCode.NoSpace;
             }
             zone.Arrows().RemoveArrow(arrow);
-            zone.GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = arrow.Item.Id, Count = 1, Reason = GainReason.PickedUp });
+            zone.Events.Add(new ItemsGained(Player: p.Id, Item: arrow.Item.Id, Count: 1, Reason: GainReason.PickedUp));
             return Outcome.Done;
         }
     }

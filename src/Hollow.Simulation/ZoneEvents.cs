@@ -1,63 +1,7 @@
-using System.Numerics;
-using Hollow.Simulation.Combat;
-using Hollow.Simulation.Content;
-using Hollow.Simulation.Entities;
-using Hollow.Simulation.Targets;
+using System;
+using System.Collections.Generic;
 
 namespace Hollow.Simulation;
-
-/// <summary>What a <see cref="ZoneEvent"/> reports.</summary>
-public enum ZoneEventKind : byte
-{
-    /// <summary>To the attacker: their hit landed (<see cref="ZoneEvent.Other"/>: what was hit).</summary>
-    HitConfirmed,
-
-    /// <summary>To the victim: damage taken, from <see cref="ZoneEvent.Position"/>.</summary>
-    DamageTaken,
-
-    /// <summary>To a player: items gained (gathering, picking up, crafting, looting) or lost (a tool broke).</summary>
-    ItemsGained,
-
-    /// <summary>To a player: a crafted unit is done.</summary>
-    CraftFinished,
-
-    /// <summary>To a player: they died (<see cref="ZoneEvent.Text"/>: how; <see cref="ZoneEvent.Other"/>: by whom).</summary>
-    Died,
-
-    /// <summary>To everyone near: a projectile was loosed (position, velocity, ammo).</summary>
-    ProjectileLaunched,
-
-    /// <summary>To everyone near: a projectile stopped (position).</summary>
-    ProjectileEnded,
-
-    /// <summary>To a player: they were knocked down, wounded (<see cref="ZoneEvent.Text"/>: how; <see cref="ZoneEvent.Other"/>: by whom).</summary>
-    Wounded,
-
-    /// <summary>To a player: they got up again (<see cref="ZoneEvent.Other"/>: who helped them up, or none).</summary>
-    Recovered,
-
-    /// <summary>
-    /// To everyone near (G5): an explosion at <see cref="ZoneEvent.Position"/>, of <see cref="ZoneEvent.Item"/> (the
-    /// explosive or round), radius <see cref="ZoneEvent.Amount"/>, facing <see cref="ZoneEvent.Velocity"/> (the surface's
-    /// normal), on <see cref="ZoneEvent.Target"/>; <see cref="ZoneEvent.Other"/> is the explosive that went off (none for a
-    /// rocket or round, whose <see cref="ZoneEvent.Flag"/> is set for a round). <see cref="ZoneEvent.Player"/>: whose.
-    /// </summary>
-    Detonated,
-    /// <summary>To a player: a line to read (<see cref="ZoneEvent.Text"/>), such as a built ship waiting for room (G6).</summary>
-    Notice,
-
-    /// <summary>
-    /// To everyone near (GROUND.md §6.4.2): something was destroyed: a deployable or world prop broken, a building piece,
-    /// door or claim device broken, brought down, decayed or demolished, a ship wrecked. <see cref="ZoneEvent.Target"/> names
-    /// it (its family and ID), <see cref="ZoneEvent.Text"/> is its model key (a piece's with <see cref="ZoneEvent.Grade"/>);
-    /// <see cref="ZoneEvent.Position"/> and <see cref="ZoneEvent.Rotation"/> where it stood (zone frame, as it is drawn: a
-    /// door's are its frame piece's, with <see cref="ZoneEvent.Flag"/> set when it was open);
-    /// <see cref="ZoneEvent.Velocity"/> the blow's direction (zero for a collapse, decay or demolition);
-    /// <see cref="ZoneEvent.Cause"/> what did it; <see cref="ZoneEvent.Player"/> who and <see cref="ZoneEvent.Item"/> with what.
-    /// Made in one place, <c>Zone.Destroyed</c>.
-    /// </summary>
-    Destroyed,
-}
 
 /// <summary>Why items arrived, for the UI's notifications.</summary>
 public enum GainReason : byte
@@ -72,51 +16,101 @@ public enum GainReason : byte
 }
 
 /// <summary>
-/// Something that happened in a tick that a player should hear about (GROUND.md §4.3: hit markers, gather yields,
-/// damage taken, a craft finished). The zone collects them; the server sends each to whom it concerns and clears
-/// the list.
+/// Something that happened in a tick that a player, the server or another system should hear about (GROUND.md §4.3:
+/// hit markers, gather yields, damage taken, a craft finished; GROUND_SYSTEMS.md §12.3, K7): one record struct per kind,
+/// in <c>Events/</c>.
 /// </summary>
-public struct ZoneEvent
+public interface IZoneEvent
 {
-    public ZoneEventKind Kind;
+}
 
-    /// <summary>Who it is for (for projectiles: who shot).</summary>
-    public EntityId Player;
+/// <summary>What a subscriber does with an event, as it happens.</summary>
+public delegate void ZoneEventHandler<T>(in T e) where T : struct, IZoneEvent;
 
-    /// <summary>The other side: the victim, the attacker, the object hit.</summary>
-    public EntityId Other;
+/// <summary>
+/// The zone's events (GROUND_SYSTEMS.md §12.3, K7): by type, in the order they happened. A system adds one; every
+/// handler subscribed to its type runs at once (on the tick thread, inside the step), and the event stays in its list
+/// (<see cref="Of{T}"/>) until whoever consumes the lists clears them (the server after each tick; the tests when they
+/// look). The union struct and its kind enum are gone (K8): a new kind of event is one record and its subscribers.
+/// </summary>
+public sealed class ZoneEvents
+{
+    private readonly Dictionary<Type, Channel> _channels = new();
+    private readonly List<Channel> _all = new();
 
-    /// <summary>
-    /// What was hit, landed on, was on or was destroyed (GROUND_SYSTEMS.md §3.1): its family, ID and part (a body's bone);
-    /// only the family where the ID doesn't matter (a projectile's end, what an explosion was on).
-    /// </summary>
-    public TargetRef Target;
-    public HitRegion Region;
-    public GainReason Reason;
+    /// <summary>Adds an event and tells its subscribers.</summary>
+    public void Add<T>(in T e) where T : struct, IZoneEvent
+    {
+        Channel<T> channel = ChannelOf<T>();
+        channel.Events.Add(e);
+        foreach (ZoneEventHandler<T> handler in channel.Handlers)
+        {
+            handler(in e);
+        }
+    }
 
-    public ushort Item;
-    public int Count;
-    public float Amount;
+    /// <summary>The events of a kind since the last <see cref="Clear"/>, oldest first.</summary>
+    public IReadOnlyList<T> Of<T>() where T : struct, IZoneEvent => ChannelOf<T>().Events;
 
-    /// <summary>Killed (hits), on the weak spot (gathering), silenced (a bullet launched).</summary>
-    public bool Flag;
+    /// <summary>Subscribes to a kind of event (at start-up: a server's route, a system's hearing).</summary>
+    public void On<T>(ZoneEventHandler<T> handler) where T : struct, IZoneEvent
+    {
+        Channel<T> channel = ChannelOf<T>();
+        var handlers = new ZoneEventHandler<T>[channel.Handlers.Length + 1];
+        channel.Handlers.CopyTo(handlers, 0);
+        handlers[^1] = handler;
+        channel.Handlers = handlers;
+    }
 
-    /// <summary>The hit knocked the victim down (wounded them), G4.</summary>
-    public bool Downed;
+    /// <summary>Events of every kind since the last <see cref="Clear"/>.</summary>
+    public int Count
+    {
+        get
+        {
+            int count = 0;
+            foreach (Channel channel in _all)
+            {
+                count += channel.Count;
+            }
+            return count;
+        }
+    }
 
-    /// <summary>A bullet's shot: the shooter's gun action sequence number (0 for arrows), so their client knows it.</summary>
-    public uint Seq;
+    /// <summary>Forgets every event (the subscribers already had them).</summary>
+    public void Clear()
+    {
+        foreach (Channel channel in _all)
+        {
+            channel.Clear();
+        }
+    }
 
-    public Vector3 Position;
-    public Vector3 Velocity;
-    public uint Projectile;
-    public string? Text;
+    private Channel<T> ChannelOf<T>() where T : struct, IZoneEvent
+    {
+        if (!_channels.TryGetValue(typeof(T), out Channel? channel))
+        {
+            channel = new Channel<T>();
+            _channels.Add(typeof(T), channel);
+            _all.Add(channel);
+        }
+        return (Channel<T>)channel;
+    }
 
-    /// <summary>A destroyed thing's turn as it was drawn (<see cref="ZoneEventKind.Destroyed"/>).</summary>
-    public Quaternion Rotation;
+    private abstract class Channel
+    {
+        public abstract int Count { get; }
 
-    /// <summary>What destroyed it, and a piece's grade (<see cref="ZoneEventKind.Destroyed"/>).</summary>
-    public DestroyCause Cause;
+        public abstract void Clear();
+    }
 
-    public byte Grade;
+    private sealed class Channel<T> : Channel where T : struct, IZoneEvent
+    {
+        public readonly List<T> Events = new();
+
+        public ZoneEventHandler<T>[] Handlers = Array.Empty<ZoneEventHandler<T>>();
+
+        public override int Count => Events.Count;
+
+        public override void Clear() => Events.Clear();
+    }
 }

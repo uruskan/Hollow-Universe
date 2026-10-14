@@ -480,7 +480,8 @@ public sealed partial class GameServer
             IndexOverride(id);
         }
         natural.Changed.Clear();
-        RouteEvents();
+        // The events went to their subscribers as they happened (RouteEvents); the lists are done with.
+        Zone.Events.Clear();
         RouteShipEvents();
         AfterRaid();
         AfterWorld();
@@ -506,81 +507,89 @@ public sealed partial class GameServer
 
     private void Send(PlayerSession session) => session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
 
-    // What happened this tick, to whom it concerns.
+    // What happens in the zone, to whom it concerns, as it happens (GROUND_SYSTEMS.md §12.3): one subscription per kind
+    // of event, made once at start; the handlers run on the tick thread, inside the zone's step.
     private void RouteEvents()
     {
-        foreach (ZoneEvent e in Zone.GameEvents)
+        ZoneEvents events = Zone.Events;
+        Counters.Listen(events);
+        events.On<HitConfirmed>((in HitConfirmed e) =>
         {
-            Counters.Count(e);
-            PlayerSession? to = _sessionOf.GetValueOrDefault(e.Player);
-            _writer.Reset();
-            switch (e.Kind)
+            if (_sessionOf.GetValueOrDefault(e.By) is { } to)
             {
-                case ZoneEventKind.HitConfirmed when to != null:
-                    new HitMarker
-                    {
-                        Target = e.Target.Family,
-                        Region = e.Region,
-                        Damage = Tenths(e.Amount),
-                        Killed = e.Target.Family is TargetFamily.Character or TargetFamily.Animal && e.Flag,
-                        WeakSpot = e.Target.Family == TargetFamily.Natural && e.Flag,
-                        Downed = e.Downed,
-                    }.WriteMessage(_writer);
-                    Send(to);
-                    break;
-                case ZoneEventKind.DamageTaken when to != null:
-                    new DamageTaken { Damage = Tenths(e.Amount), Region = e.Region, FromX = e.Position.X, FromY = e.Position.Y, FromZ = e.Position.Z, Weapon = e.Item }
-                        .WriteMessage(_writer);
-                    Send(to);
-                    break;
-                case ZoneEventKind.ItemsGained when to != null:
-                    new ItemsChanged { Item = e.Item, Count = e.Count, Reason = e.Reason, WeakSpot = e.Flag }.WriteMessage(_writer);
-                    Send(to);
-                    break;
-                case ZoneEventKind.CraftFinished when to != null:
-                    new CraftFinished { Item = e.Item, Count = (uint)Math.Max(0, e.Count) }.WriteMessage(_writer);
-                    Send(to);
-                    break;
-                case ZoneEventKind.Died:
-                    Log($"{NameOf(e.Player)} died: {e.Text}" + (e.Other.IsNone ? "" : $", by {NameOf(e.Other)}"));
-                    if (_persistence != null)
-                    {
-                        // Deaths commit at once (ARCHITECTURE.md §13): within a second, several deaths in one save.
-                        _deathToSave = true;
-                    }
-                    break;
-                case ZoneEventKind.ProjectileLaunched:
-                    uint shooter = Zone.Entities.TryFind(e.Player, out Entity s) && Zone.Entities.Has<NetPresence>(s) ? Zone.Entities.Get<NetPresence>(s).NetId : 0;
-                    new ProjectileLaunch
-                    {
-                        Id = e.Projectile, Shooter = shooter, Ammo = e.Item, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z,
-                        VelocityX = e.Velocity.X, VelocityY = e.Velocity.Y, VelocityZ = e.Velocity.Z, Seq = e.Seq, Silenced = e.Flag && e.Seq != 0,
-                    }.WriteMessage(_writer);
-                    // Bullets are cosmetic to others and many: unreliable (ARCHITECTURE.md §11.3); arrows stay reliable.
-                    SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
-                    break;
-                case ZoneEventKind.ProjectileEnded:
-                    new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target.Family }.WriteMessage(_writer);
-                    SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
-                    break;
-                case ZoneEventKind.Notice:
-                    Notify(e.Player, e.Text ?? "");
-                    break;
-                case ZoneEventKind.Wounded:
-                    Log($"{NameOf(e.Player)} is down: {e.Text}" + (e.Other.IsNone ? "" : $", by {NameOf(e.Other)}"));
-                    break;
-                case ZoneEventKind.Recovered:
-                    Log($"{NameOf(e.Player)} is up again" + (e.Other.IsNone ? "" : $", helped by {NameOf(e.Other)}"));
-                    break;
-                case ZoneEventKind.Detonated:
-                    SendDetonation(e);
-                    break;
-                case ZoneEventKind.Destroyed:
-                    SendDestroyed(e);
-                    break;
+                _writer.Reset();
+                new HitMarker
+                {
+                    Target = e.Target.Family,
+                    Region = e.Region,
+                    Damage = Tenths(e.Amount),
+                    Killed = e.Target.Family is TargetFamily.Character or TargetFamily.Animal && e.Flag,
+                    WeakSpot = e.Target.Family == TargetFamily.Natural && e.Flag,
+                    Downed = e.Downed,
+                }.WriteMessage(_writer);
+                Send(to);
             }
-        }
-        Zone.GameEvents.Clear();
+        });
+        events.On<Hurt>((in Hurt e) =>
+        {
+            if (_sessionOf.GetValueOrDefault(e.Player) is { } to)
+            {
+                _writer.Reset();
+                new DamageTaken { Damage = Tenths(e.Amount), Region = e.Region, FromX = e.From.X, FromY = e.From.Y, FromZ = e.From.Z, Weapon = e.Weapon }
+                    .WriteMessage(_writer);
+                Send(to);
+            }
+        });
+        events.On<ItemsGained>((in ItemsGained e) =>
+        {
+            if (_sessionOf.GetValueOrDefault(e.Player) is { } to)
+            {
+                _writer.Reset();
+                new ItemsChanged { Item = e.Item, Count = e.Count, Reason = e.Reason, WeakSpot = e.WeakSpot }.WriteMessage(_writer);
+                Send(to);
+            }
+        });
+        events.On<Crafted>((in Crafted e) =>
+        {
+            if (_sessionOf.GetValueOrDefault(e.Player) is { } to)
+            {
+                _writer.Reset();
+                new CraftFinished { Item = e.Item, Count = (uint)Math.Max(0, e.Count) }.WriteMessage(_writer);
+                Send(to);
+            }
+        });
+        events.On<Died>((in Died e) =>
+        {
+            Log($"{NameOf(e.Player)} died: {e.Cause}" + (e.By.IsNone ? "" : $", by {NameOf(e.By)}"));
+            if (_persistence != null)
+            {
+                // Deaths commit at once (ARCHITECTURE.md §13): within a second, several deaths in one save.
+                _deathToSave = true;
+            }
+        });
+        events.On<ProjectileLaunched>((in ProjectileLaunched e) =>
+        {
+            uint shooter = Zone.Entities.TryFind(e.Shooter, out Entity s) && Zone.Entities.Has<NetPresence>(s) ? Zone.Entities.Get<NetPresence>(s).NetId : 0;
+            _writer.Reset();
+            new ProjectileLaunch
+            {
+                Id = e.Projectile, Shooter = shooter, Ammo = e.Ammo, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z,
+                VelocityX = e.Velocity.X, VelocityY = e.Velocity.Y, VelocityZ = e.Velocity.Z, Seq = e.Seq, Silenced = e.Silenced && e.Seq != 0,
+            }.WriteMessage(_writer);
+            // Bullets are cosmetic to others and many: unreliable (ARCHITECTURE.md §11.3); arrows stay reliable.
+            SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
+        });
+        events.On<ProjectileEnded>((in ProjectileEnded e) =>
+        {
+            _writer.Reset();
+            new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target.Family }.WriteMessage(_writer);
+            SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
+        });
+        events.On<Notice>((in Notice e) => Notify(e.Player, e.Text));
+        events.On<WentDown>((in WentDown e) => Log($"{NameOf(e.Player)} is down: {e.Cause}" + (e.By.IsNone ? "" : $", by {NameOf(e.By)}")));
+        events.On<GotUp>((in GotUp e) => Log($"{NameOf(e.Player)} is up again" + (e.Helper.IsNone ? "" : $", helped by {NameOf(e.Helper)}")));
+        events.On<Detonated>((in Detonated e) => SendDetonation(e));
+        events.On<Destroyed>((in Destroyed e) => SendDestroyed(e));
     }
 
     private string NameOf(EntityId id) => Zone.Players().TryFindPlayer(id, out _, out Player p) ? p.Name : id.ToString();
@@ -1117,48 +1126,61 @@ public sealed class GameCounters
     public long AnimalHits { get; private set; }
     public long AnimalKills { get; private set; }
 
-    public void Count(in ZoneEvent e)
+    /// <summary>Subscribes to the zone's events (GROUND_SYSTEMS.md §12.3): each kind counted as it happens.</summary>
+    public void Listen(ZoneEvents events)
     {
-        switch (e.Kind)
+        events.On<ItemsGained>((in ItemsGained e) =>
         {
-            case ZoneEventKind.ItemsGained when e.Reason == GainReason.Gathered:
+            if (e.Reason == GainReason.Gathered)
+            {
                 Gathered += e.Count;
-                break;
-            case ZoneEventKind.ItemsGained when e.Reason == GainReason.PickedUp:
+            }
+            else if (e.Reason == GainReason.PickedUp)
+            {
                 PickedUp += e.Count;
-                break;
-            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Natural:
+            }
+        });
+        events.On<HitConfirmed>((in HitConfirmed e) =>
+        {
+            // A tally by what was hit.
+            if (e.Target.Family == TargetFamily.Natural)
+            {
                 GatherHits++;
                 WeakSpotHits += e.Flag ? 1 : 0;
-                break;
-            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Character:
+            }
+            else if (e.Target.Family == TargetFamily.Character)
+            {
                 CharacterHits++;
                 Kills += e.Flag ? 1 : 0;
                 Downed += e.Downed ? 1 : 0;
-                break;
-            case ZoneEventKind.Recovered:
-                Recovered++;
-                break;
-            case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Animal:
+            }
+            else if (e.Target.Family == TargetFamily.Animal)
+            {
                 AnimalHits++;
                 AnimalKills += e.Flag ? 1 : 0;
-                break;
-            case ZoneEventKind.CraftFinished:
-                Crafted += e.Count;
-                break;
-            case ZoneEventKind.Died:
-                Deaths++;
-                break;
-            case ZoneEventKind.ProjectileLaunched when e.Seq != 0:
+            }
+        });
+        events.On<GotUp>((in GotUp e) => Recovered++);
+        events.On<Crafted>((in Crafted e) => Crafted += e.Count);
+        events.On<Died>((in Died e) => Deaths++);
+        events.On<ProjectileLaunched>((in ProjectileLaunched e) =>
+        {
+            if (e.Seq != 0)
+            {
                 Shots++;
-                break;
-            case ZoneEventKind.ProjectileLaunched:
+            }
+            else
+            {
                 Arrows++;
-                break;
-            case ZoneEventKind.ProjectileEnded when e.Seq != 0 && e.Target.Family == TargetFamily.Character:
+            }
+        });
+        events.On<ProjectileEnded>((in ProjectileEnded e) =>
+        {
+            if (e.Seq != 0 && e.Target.Family == TargetFamily.Character)
+            {
                 BulletHits++;
-                break;
-        }
+            }
+        });
     }
 
     public override string ToString() =>

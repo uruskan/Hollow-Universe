@@ -446,7 +446,7 @@ public sealed class BuildingSystem : ZoneSystem
     private void GiveBack(Entity entity, Player p, ItemDef item, int count = 1, ushort condition = 0)
     {
         Spill.GiveOrDrop(entity, p, condition != 0 ? new ItemStack(item.Id, count, condition) : ItemStack.Of(item, count));
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = item.Id, Count = count, Reason = GainReason.Refunded });
+        Events.Add(new ItemsGained(Player: p.Id, Item: item.Id, Count: count, Reason: GainReason.Refunded));
     }
 
     /// <summary>Upgrades (to <paramref name="grade"/>), turns, demolishes or repairs a piece with the hammer (the player must carry one).</summary>

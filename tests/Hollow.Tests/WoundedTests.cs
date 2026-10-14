@@ -37,7 +37,7 @@ public static class WoundedTests
         Assert.InRange(s.WoundedHealthLeast, s.WoundedHealthMost, b.Vitals.Health, "a little health");
         Assert.Equal(Stance.Crawling, rig.Ch(bo).State.Stance, "crawling");
         Assert.InRange(rig.Zone.Tick + s.WoundedSecondsLeast * 30 - 1, rig.Zone.Tick + s.WoundedSecondsMost * 30 + 1, b.WoundedUntilTick, "40-50 s");
-        Assert.True(rig.Zone.GameEvents.Any(e => e.Kind == ZoneEventKind.HitConfirmed && e.Player == a.Id && e.Downed), "Ada's marker says downed");
+        Assert.True(rig.Zone.Events.Of<HitConfirmed>().Any(e => e.By == a.Id && e.Downed), "Ada's marker says downed");
         Assert.Equal(OutcomeCode.Dead, rig.Zone.Actions().Craft(bo, c.ItemByKey("campfire").Id, 1, out _), "the wounded can't act");
         Assert.Equal(OutcomeCode.Done, rig.Zone.Interaction().Interact(ada, b.Ref, "loot"), "the wounded can be looted");
         rig.Zone.Actions().Close(ada);

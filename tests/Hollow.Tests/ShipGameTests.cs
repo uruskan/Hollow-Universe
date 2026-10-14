@@ -158,8 +158,8 @@ public static class ShipGameTests
         for (int i = 0; i < ticks; i++)
         {
             rig.Step();
-            notices += zone.GameEvents.Count(e => e.Kind == ZoneEventKind.Notice);
-            zone.GameEvents.Clear();
+            notices += zone.Events.Of<Notice>().Count;
+            zone.Events.Clear();
         }
         Assert.Equal(0, zone.Ships().All.Count, "no ship while the bay is blocked");
         Assert.Equal(1, notices, "told once to clear the bay");

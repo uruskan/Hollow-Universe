@@ -45,7 +45,7 @@ public sealed class WoundedSystem : ZoneSystem
         ref Character c = ref Entities.Get<Character>(entity);
         c.State.Stance = Stance.Crawling;
         PlayerSystem.SyncHealth(ref c, p);
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.Wounded, Player = p.Id, Other = by, Text = cause, Position = c.State.Position });
+        Events.Add(new WentDown(Player: p.Id, By: by, Cause: cause, Position: c.State.Position));
     }
 
     /// <summary>
@@ -103,7 +103,7 @@ public sealed class WoundedSystem : ZoneSystem
         // Up to a crouch; the next step stands up where there is room.
         c.State.Stance = Stance.Crouching;
         PlayerSystem.SyncHealth(ref c, p);
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.Recovered, Player = p.Id, Other = helper, Position = c.State.Position });
+        Events.Add(new GotUp(Player: p.Id, Helper: helper, Position: c.State.Position));
     }
 
     protected internal override void Step()

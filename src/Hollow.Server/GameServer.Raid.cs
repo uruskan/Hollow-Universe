@@ -143,26 +143,26 @@ public sealed partial class GameServer : IPlayerPresence
 
     // An explosion, to everyone within hearing (twice the relevance radius): reliable, but an explosive round's (many,
     // and only cosmetic) unreliable.
-    private void SendDetonation(in ZoneEvent e)
+    private void SendDetonation(in Detonated e)
     {
         _writer.Reset();
         new Detonation
         {
-            Id = e.Other.Value,
+            Id = e.Explosive.Value,
             Item = e.Item,
             Owner = NetIdOf(e.Player),
             X = e.Position.X,
             Y = e.Position.Y,
             Z = e.Position.Z,
-            NormalX = e.Velocity.X,
-            NormalY = e.Velocity.Y,
-            NormalZ = e.Velocity.Z,
-            Radius = Math.Clamp(e.Amount, 0, 20),
-            Target = e.Target.Family,
-            Round = e.Flag,
+            NormalX = e.Normal.X,
+            NormalY = e.Normal.Y,
+            NormalZ = e.Normal.Z,
+            Radius = Math.Clamp(e.Radius, 0, 20),
+            Target = e.On.Family,
+            Round = e.Round,
         }.WriteMessage(_writer);
         float hearing = 2 * _options.RelevanceRadius;
-        DeliveryMethod method = e.Flag ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered;
+        DeliveryMethod method = e.Round ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered;
         foreach (PlayerSession session in _sessions.Values)
         {
             if (session.Playing && Vector3.DistanceSquared(Zone.Entities.Get<Character>(session.Entity).State.Position, e.Position) <= hearing * hearing)

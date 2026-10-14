@@ -717,4 +717,13 @@ is unchanged. Test: `NetTests.MessageHandlersRouteByTypeByte`.
 `GameContent.cs` went from 1,675 lines to 400 and `Validation.cs` is gone; the content hash and every problem text are
 unchanged. Test: `ContentTests.EveryDataFileHasOneReader`.
 
-*As built:* K1 and K3 below as they land.
+*As built, K1 (14 October 2026):* `src/Hollow.Simulation/ZoneEvents.cs` (`IZoneEvent`, `ZoneEventHandler<T>` and
+`ZoneEvents`: `Add`, `On`, `Of`, `Count`, `Clear`) and `Events/` with the twelve records: `HitConfirmed`, `Hurt`,
+`ItemsGained`, `Crafted`, `Died`, `ProjectileLaunched`, `ProjectileEnded`, `WentDown`, `GotUp`, `Detonated`, `Notice`,
+`Destroyed` (named so that none clashes with a message). A subscriber hears an event the moment it is added, on the tick
+thread; the lists keep the tick's events until the server clears them after the step. The server subscribes once at
+start (`GameServer.RouteEvents` and `GameCounters.Listen`); the animals' hearing subscribes in `AnimalSystem.Init`. The
+union struct, its kind enum, the 23-case route and the animals' scan of the list are gone; the 25 producers name their
+fields. Test: `EventTests.EventsAreTypedAndHeard`.
+
+*As built:* K3 below as it lands.

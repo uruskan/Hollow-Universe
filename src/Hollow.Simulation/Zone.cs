@@ -154,8 +154,8 @@ public sealed class Zone : IDisposable
     /// <summary>One second of poses of every character, for hits as the attacker saw them (<see cref="HistorySystem"/> records them).</summary>
     public HitboxHistory History { get; } = new();
 
-    /// <summary>What happened this tick that players should hear about; the server sends and clears it.</summary>
-    public List<ZoneEvent> GameEvents { get; } = new();
+    /// <summary>What happened this tick, by kind, for the server, the systems and the tests to hear about (GROUND_SYSTEMS.md §12.3).</summary>
+    public ZoneEvents Events { get; } = new();
 
     /// <summary>The systems, in the order they step.</summary>
     public IReadOnlyList<ZoneSystem> Systems => _systems;

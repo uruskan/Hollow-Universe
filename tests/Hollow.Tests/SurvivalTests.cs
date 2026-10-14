@@ -255,7 +255,7 @@ public static class SurvivalTests
                 rig.Ch(ada).Actions = new ActionInput { HeldSlot = 0, ViewDelay = viewDelay };
             });
             float taken = health - b.Vitals.Health;
-            List<ZoneEvent> hits = rig.Zone.GameEvents.Where(e => e.Kind == ZoneEventKind.HitConfirmed).ToList();
+            List<HitConfirmed> hits = rig.Zone.Events.Of<HitConfirmed>().ToList();
             Fixtures.Report($"view delay {viewDelay / 4.0:0.0} ticks: Bo took {taken:0} damage; swing began at tick {swingStart}");
             if (viewDelay > 0)
             {
@@ -297,17 +297,17 @@ public static class SurvivalTests
             rig.Ch(ada).Actions = new ActionInput { HeldSlot = 0, Buttons = ActionButtons.Secondary | (loose ? ActionButtons.Primary | ActionButtons.PrimaryPressed : 0) };
         }
         rig.Step(45, () => Hold(false, aim));
-        rig.Zone.GameEvents.Clear();
+        rig.Zone.Events.Clear();
         rig.Step(1, () => Hold(true, aim));
         long launched = rig.Zone.Tick;
-        Assert.True(rig.Zone.GameEvents.Any(e => e.Kind == ZoneEventKind.ProjectileLaunched), "loosed");
+        Assert.True(rig.Zone.Events.Of<ProjectileLaunched>().Count > 0, "loosed");
         Assert.Equal(9, rig.P(ada).Inventory.Count(c.ItemByKey("arrow")), "one arrow used");
         float health = b.Vitals.Health;
         long hitTick = 0;
         rig.Step(30, () =>
         {
             Hold(false, aim);
-            if (hitTick == 0 && rig.Zone.GameEvents.Any(e => e.Kind == ZoneEventKind.DamageTaken))
+            if (hitTick == 0 && rig.Zone.Events.Of<Hurt>().Count > 0)
             {
                 hitTick = rig.Zone.Tick;
             }
@@ -319,15 +319,15 @@ public static class SurvivalTests
         Assert.InRange(flight * 30 - 1, flight * 30 + 2, ticks, "the flight takes its time");
 
         // Flat from the eye: it comes down about 30 m out (the ground is gently hilly).
-        rig.Zone.GameEvents.Clear();
+        rig.Zone.Events.Clear();
         Vector3 flat = rig.Zone.EyeOf(rig.Ch(ada).State) + new Vector3(1, 0, 0) * 30;
         rig.Step(35, () => Hold(false, flat));
         rig.Step(1, () => Hold(true, flat));
-        ZoneEvent? landed = null;
+        ProjectileEnded? landed = null;
         rig.Step(40, () =>
         {
             Hold(false, flat);
-            landed ??= rig.Zone.GameEvents.Where(e => e.Kind == ZoneEventKind.ProjectileEnded).Select(e => (ZoneEvent?)e).FirstOrDefault();
+            landed ??= rig.Zone.Events.Of<ProjectileEnded>().Select(e => (ProjectileEnded?)e).FirstOrDefault();
         });
         Assert.True(landed?.Target.Family == TargetFamily.Ground, "it came down on the ground");
         float distance = Vector3.Distance(landed!.Value.Position, rig.Ch(ada).State.Position);

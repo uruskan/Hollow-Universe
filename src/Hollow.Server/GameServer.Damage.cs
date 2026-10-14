@@ -8,13 +8,13 @@ namespace Hollow.Server;
 public sealed partial class GameServer
 {
     // Something destroyed, to everyone within range (where it was drawn): reliable, so no wall breaks without its pieces.
-    private void SendDestroyed(in ZoneEvent e)
+    private void SendDestroyed(in Destroyed e)
     {
         _writer.Reset();
         new ThingDestroyed
         {
             Target = new TargetNet { Family = e.Target.Family, Id = e.Target.Id, Part = e.Target.Part },
-            Key = e.Text is { Length: > 48 } key ? key[..48] : e.Text ?? "",
+            Key = e.Key is { Length: > 48 } key ? key[..48] : e.Key,
             Grade = (byte)System.Math.Min(e.Grade, (byte)7),
             X = e.Position.X,
             Y = e.Position.Y,
@@ -23,13 +23,13 @@ public sealed partial class GameServer
             RotationY = e.Rotation.Y,
             RotationZ = e.Rotation.Z,
             RotationW = e.Rotation.W,
-            DirectionX = e.Velocity.X,
-            DirectionY = e.Velocity.Y,
-            DirectionZ = e.Velocity.Z,
+            DirectionX = e.Direction.X,
+            DirectionY = e.Direction.Y,
+            DirectionZ = e.Direction.Z,
             Cause = e.Cause,
-            Open = e.Flag,
+            Open = e.Open,
             Attacker = NetIdOf(e.Player),
-            Item = e.Item,
+            Item = e.Weapon,
         }.WriteMessage(_writer);
         SendNear(e.Position, DeliveryMethod.ReliableOrdered);
     }

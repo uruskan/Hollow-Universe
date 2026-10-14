@@ -291,14 +291,7 @@ public sealed class ShipSystem : ZoneSystem
             if (_shipNotices.GetValueOrDefault(p.Id, long.MinValue / 2) + 30 * CharacterMotor.TickRate <= Tick)
             {
                 _shipNotices[p.Id] = Tick;
-                GameEvents.Add(new ZoneEvent
-                {
-                    Kind = ZoneEventKind.Notice,
-                    Player = p.Id,
-                    Text = steep
-                        ? $"Your {def.Name} is ready, but the ground in front of the bench is too steep for it."
-                        : $"Your {def.Name} is ready: clear the space in front of the vehicle workbench.",
-                });
+                Events.Add(new Notice(Player: p.Id, Text: steep                         ? $"Your {def.Name} is ready, but the ground in front of the bench is too steep for it."                         : $"Your {def.Name} is ready: clear the space in front of the vehicle workbench."));
             }
             return false;
         }
@@ -598,7 +591,7 @@ public sealed class ShipSystem : ZoneSystem
         p.Inventory.Take(new[] { new ItemAmount(ship.Def.Fuel, taken) });
         ship.State.Fuel += taken;
         WakeShip(ship);
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = ship.Def.Fuel.Id, Count = -taken, Reason = GainReason.Used });
+        Events.Add(new ItemsGained(Player: p.Id, Item: ship.Def.Fuel.Id, Count: -taken, Reason: GainReason.Used));
         return OutcomeCode.Done;
     }
 

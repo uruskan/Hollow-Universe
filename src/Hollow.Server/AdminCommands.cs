@@ -369,7 +369,7 @@ public sealed partial class GameServer
         if (given > 0)
         {
             // The pickup feed's "+N" for the receiver.
-            Zone.GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = item.Id, Count = given, Reason = GainReason.Looted });
+            Zone.Events.Add(new ItemsGained(Player: p.Id, Item: item.Id, Count: given, Reason: GainReason.Looted));
         }
         ctx.Done($"Gave {Whom(ctx, whom!)} {given + dropped} {item.Name}" + (dropped > 0 ? $" ({dropped} on the ground: no room)" : "") +
             (left > 0 ? $"; {left} more didn't fit" : "") + ".");

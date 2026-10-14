@@ -37,7 +37,6 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
     private readonly List<Piece> _animalPieces = new();
     private readonly List<Deployable> _animalThings = new();
     internal readonly List<Animal> _animalTrace = new();
-    private int _heard;
 
     /// <summary>The zone's animals (null in a movement-only zone).</summary>
     public AnimalWorld World { get; private set; } = null!;
@@ -48,6 +47,7 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
     private void InitAnimals(GameContent content)
     {
         World = new AnimalWorld(Zone, this, content, Hash64.Of(Spec.SurfaceSeed, 0xA417A15));
+        Listen();
     }
 
     private void StepAnimals()
@@ -58,7 +58,6 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
         }
         long started = Stopwatch.GetTimestamp();
         Observe();
-        Listen();
         World.Step();
         foreach (Animal gone in World.Gone)
         {
@@ -106,39 +105,31 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
         }
     }
 
-    // The tick's noises: shots (silenced ones carry less), arrows loosed, blasts, chopping and blows.
+    // The animals' hearing (GROUND_SYSTEMS.md §12.3): shots (silenced ones carry less), arrows loosed, blasts, chopping
+    // and blows, each the moment it happens; the animals think about the noises on their next step.
     private void Listen()
     {
-        AnimalWorld animals = World!;
-        AnimalSenses senses = Content.AnimalSenses;
-        if (_heard > GameEvents.Count)
+        Events.On<ProjectileLaunched>((in ProjectileLaunched e) =>
         {
-            _heard = 0; // the server cleared the list after the last tick
-        }
-        for (int i = _heard; i < GameEvents.Count; i++)
+            AnimalSenses senses = Content.AnimalSenses;
+            World.Noises.Add(e.Seq != 0
+                ? new AnimalNoise { Position = e.Position, Radius = e.Silenced ? senses.Silenced : senses.Gunshot, Tick = Tick, Source = e.Shooter, Loud = !e.Silenced }
+                : new AnimalNoise { Position = e.Position, Radius = senses.Bow, Tick = Tick, Source = e.Shooter });
+        });
+        Events.On<Detonated>((in Detonated e) =>
+            World.Noises.Add(new AnimalNoise { Position = e.Position, Radius = Content.AnimalSenses.Explosion, Tick = Tick, Source = e.Player, Loud = true }));
+        Events.On<HitConfirmed>((in HitConfirmed e) =>
         {
-            ZoneEvent e = GameEvents[i];
-            switch (e.Kind)
+            AnimalSenses senses = Content.AnimalSenses;
+            if (e.Target.Family == TargetFamily.Natural)
             {
-                case ZoneEventKind.ProjectileLaunched when e.Seq != 0:
-                    animals.Noises.Add(new AnimalNoise { Position = e.Position, Radius = e.Flag ? senses.Silenced : senses.Gunshot, Tick = Tick, Source = e.Player, Loud = !e.Flag });
-                    break;
-                case ZoneEventKind.ProjectileLaunched:
-                    animals.Noises.Add(new AnimalNoise { Position = e.Position, Radius = senses.Bow, Tick = Tick, Source = e.Player });
-                    break;
-                case ZoneEventKind.Detonated:
-                    animals.Noises.Add(new AnimalNoise { Position = e.Position, Radius = senses.Explosion, Tick = Tick, Source = e.Player, Loud = true });
-                    break;
-                case ZoneEventKind.HitConfirmed when e.Target.Family == TargetFamily.Natural:
-                    animals.Noises.Add(new AnimalNoise { Position = e.Position, Radius = senses.Gather, Tick = Tick, Source = e.Player });
-                    break;
-                case ZoneEventKind.HitConfirmed when e.Target.Family is TargetFamily.Piece or TargetFamily.Door or TargetFamily.Cupboard or TargetFamily.Thing
-                    or TargetFamily.Character:
-                    animals.Noises.Add(new AnimalNoise { Position = e.Position, Radius = senses.Melee, Tick = Tick, Source = e.Player });
-                    break;
+                World.Noises.Add(new AnimalNoise { Position = e.Point, Radius = senses.Gather, Tick = Tick, Source = e.By });
             }
-        }
-        _heard = GameEvents.Count;
+            else if (e.Target.Family is TargetFamily.Piece or TargetFamily.Door or TargetFamily.Cupboard or TargetFamily.Thing or TargetFamily.Character)
+            {
+                World.Noises.Add(new AnimalNoise { Position = e.Point, Radius = senses.Melee, Tick = Tick, Source = e.By });
+            }
+        });
     }
 
     // ---------------------------------------------------------------- what the animals ask of the zone
@@ -343,11 +334,7 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
         }
         List<ItemAmount> gained = World!.Harvest(corpse, rate);
         Things.EndIfEmptied(corpse); // harvested out: it goes at once
-        GameEvents.Add(new ZoneEvent
-        {
-            Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = corpse.Id, Target = corpse.Ref, Region = HitRegion.Body, Amount = rate,
-            Position = point, Item = tool.Id,
-        });
+        Events.Add(new HitConfirmed(By: p.Id, Victim: corpse.Id, Target: corpse.Ref, Region: HitRegion.Body, Amount: rate, Point: point, Weapon: tool.Id));
         World.Noises.Add(new AnimalNoise { Position = point, Radius = Content.AnimalSenses.Gather, Tick = Tick, Source = p.Id });
         if (gained.Count > 0)
         {

@@ -168,11 +168,7 @@ public sealed class DamageSystem : ZoneSystem
         }
         if (result.Landed && request.By is { } by && result.Victim != by.Id && request.Markers.Has(request.Hit.Target.Family))
         {
-            GameEvents.Add(new ZoneEvent
-            {
-                Kind = ZoneEventKind.HitConfirmed, Player = by.Id, Other = result.Victim, Target = request.Hit.Target, Region = request.Hit.Region,
-                Amount = result.Dealt, Flag = result.Killed, Downed = result.Downed, Position = request.Hit.Point, Item = request.Weapon,
-            });
+            Events.Add(new HitConfirmed(By: by.Id, Victim: result.Victim, Target: request.Hit.Target, Region: request.Hit.Region, Amount: result.Dealt, Flag: result.Killed, Downed: result.Downed, Point: request.Hit.Point, Weapon: request.Weapon));
         }
         return result;
     }
@@ -211,21 +207,7 @@ public sealed class DamageSystem : ZoneSystem
     internal void Destroyed(TargetRef target, string key, int grade, Vector3 position, Quaternion rotation, DestroyCause? own = null, bool open = false)
     {
         Blow blow = _blow;
-        GameEvents.Add(new ZoneEvent
-        {
-            Kind = ZoneEventKind.Destroyed,
-            Player = blow.Active ? blow.Attacker : EntityId.None,
-            Other = new EntityId(target.Id),
-            Target = target.Whole,
-            Text = key,
-            Grade = (byte)Math.Clamp(grade, 0, 255),
-            Position = position,
-            Rotation = rotation,
-            Velocity = own == null && blow.Active ? blow.Direction : Vector3.Zero,
-            Cause = own ?? (blow.Active ? blow.Cause : DestroyCause.Melee),
-            Item = blow.Active ? blow.Weapon : (ushort)0,
-            Flag = open,
-        });
+        Events.Add(new Destroyed(Player: blow.Active ? blow.Attacker : EntityId.None, Id: new EntityId(target.Id), Target: target.Whole, Key: key, Grade: (byte)Math.Clamp(grade, 0, 255), Position: position, Rotation: rotation, Direction: own == null && blow.Active ? blow.Direction : Vector3.Zero, Cause: own ?? (blow.Active ? blow.Cause : DestroyCause.Melee), Weapon: blow.Active ? blow.Weapon : (ushort)0, Open: open));
         // What rested on it or was stuck in it goes with it (GROUND_SYSTEMS.md §3.6).
         Zone.Get<SupportSystem>()?.SupportGone(target);
     }
@@ -346,11 +328,7 @@ public sealed class DamageSystem : ZoneSystem
         // Claimed bases: one report each for the notification service.
         raids.Report(Zone, attacker, attackerName, item);
         Explosives.RaidStats.Detonations++;
-        GameEvents.Add(new ZoneEvent
-        {
-            Kind = ZoneEventKind.Detonated, Player = attacker, Other = explosive, Position = at, Velocity = normal, Item = item, Amount = radius,
-            Target = new TargetRef(on, 0), Flag = round,
-        });
+        Events.Add(new Detonated(Player: attacker, Explosive: explosive, Position: at, Normal: normal, Item: item, Radius: radius, On: new TargetRef(on, 0), Round: round));
         return report;
     }
 

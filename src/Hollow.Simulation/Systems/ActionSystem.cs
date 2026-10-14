@@ -334,8 +334,8 @@ public sealed class ActionSystem : ZoneSystem
             p.Crafting.Advance(content, p.Inventory, _overflow, _finished, (recipe, station) => Ships.DeliverShip(crafter, p, recipe, station));
             foreach (ItemAmount a in _finished)
             {
-                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.CraftFinished, Player = p.Id, Item = a.Item.Id, Count = a.Count });
-                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = a.Item.Id, Count = a.Count, Reason = GainReason.Crafted });
+                Events.Add(new Crafted(Player: p.Id, Item: a.Item.Id, Count: a.Count));
+                Events.Add(new ItemsGained(Player: p.Id, Item: a.Item.Id, Count: a.Count, Reason: GainReason.Crafted));
             }
             Spill.Drop(crafter, _overflow);
         }

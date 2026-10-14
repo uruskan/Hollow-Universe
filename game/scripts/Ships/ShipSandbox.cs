@@ -385,7 +385,7 @@ public partial class ShipSandbox : Node3D
         {
             _zone.Step();
             _zone.Ships().ShipEvents.Clear();
-            _zone.GameEvents.Clear();
+            _zone.Events.Clear();
         }
     }
 
@@ -502,7 +502,7 @@ public partial class ShipSandbox : Node3D
             }
         }
         _zone.Ships().ShipEvents.Clear();
-        _zone.GameEvents.Clear();
+        _zone.Events.Clear();
     }
 
     // A ship destroyed or a pilot dead: a new ship on the pad and the pilot beside it, after a moment.

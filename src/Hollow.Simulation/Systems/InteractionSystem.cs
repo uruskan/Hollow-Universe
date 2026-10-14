@@ -160,7 +160,7 @@ public sealed class InteractionSystem : ZoneSystem
             {
                 continue;
             }
-            GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = stack.Item, Count = stack.Count - left, Reason = GainReason.PickedUp });
+            Events.Add(new ItemsGained(Player: p.Id, Item: stack.Item, Count: stack.Count - left, Reason: GainReason.PickedUp));
             bag.Loot.Set(i, stack.WithCount(left));
             taken = true;
         }
@@ -178,7 +178,7 @@ public sealed class InteractionSystem : ZoneSystem
     {
         Things.RemoveStatic(d);
         Spill.GiveOrDrop(entity, p, ItemStack.Of(d.Def.Item, 1));
-        GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = d.Def.Item.Id, Count = 1, Reason = GainReason.PickedUp });
+        Events.Add(new ItemsGained(Player: p.Id, Item: d.Def.Item.Id, Count: 1, Reason: GainReason.PickedUp));
         return Outcome.Done;
     }
 
