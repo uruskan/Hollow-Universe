@@ -121,7 +121,7 @@ public static class ConsoleTests
     }
 
     private static Vector3 ServerPosition(LoopbackRig rig, GameClient client) => rig.Server.Inspect(sv =>
-        sv.Zone.TryFindPlayer(new EntityId(client.EntityId.Value), out Entity e, out _) ? sv.Zone.Entities.Get<Character>(e).State.Position : default);
+        sv.Zone.Players().TryFindPlayer(new EntityId(client.EntityId.Value), out Entity e, out _) ? sv.Zone.Entities.Get<Character>(e).State.Position : default);
 
     /// <summary>
     /// GROUND.md §8.2: a player who isn't an admin is told so, clearly, and nothing happens; everyone may still list the
@@ -299,8 +299,8 @@ public static class ConsoleTests
         Assert.Equal(teleports, ada.Stats.Teleports, "no snaps while flying");
         float taken = rig.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(new EntityId(ada.EntityId.Value), out Entity e, out Player p);
-            return sv.Zone.Hurt(e, p, 500, "Test", EntityId.None, "");
+            sv.Zone.Players().TryFindPlayer(new EntityId(ada.EntityId.Value), out Entity e, out Player p);
+            return sv.Zone.Players().Hurt(e, p, 500, "Test", EntityId.None, "");
         });
         Assert.Equal(0f, taken, "god mode takes no damage");
         Run(rig, ada, "noclip off");

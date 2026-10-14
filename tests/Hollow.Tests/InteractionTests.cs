@@ -91,14 +91,14 @@ public static class InteractionTests
         Entity ada = rig.Add("Ada", 40, 40);
         Player a = rig.P(ada);
         Vector3 Eye() => z.EyeOf(rig.Ch(ada).State);
-        TargetRef AimAt(Vector3 at) => z.Aim(Eye(), at - Eye(), a.Id.Value).Target;
+        TargetRef AimAt(Vector3 at) => z.Interaction().Aim(Eye(), at - Eye(), a.Id.Value).Target;
 
         Deployable box = Box(rig, 40, 37, a.Id);
         Assert.Equal(box.Ref, AimAt(box.Centre), "the box");
-        DroppedBag front = z.Spill(z.GroundAt(40, 38.4f), ItemStack.Of(c.ItemByKey("stone"), 5))!;
+        DroppedBag front = z.Spill().Spill(z.GroundAt(40, 38.4f), ItemStack.Of(c.ItemByKey("stone"), 5))!;
         Vector3 frontBall = front.Position + front.Up * AimShapes.BagLift;
         Assert.Equal(front.Ref, AimAt(frontBall), "a bag in front of the box: the bag");
-        DroppedBag behind = z.Spill(z.GroundAt(40, 35.8f), ItemStack.Of(c.ItemByKey("wood"), 5))!;
+        DroppedBag behind = z.Spill().Spill(z.GroundAt(40, 35.8f), ItemStack.Of(c.ItemByKey("wood"), 5))!;
         Assert.True(front.Id != behind.Id, "two bags");
         Assert.Equal(box.Ref, AimAt(behind.Position + behind.Up * AimShapes.BagLift), "a bag behind the box: the box");
 
@@ -115,14 +115,14 @@ public static class InteractionTests
         TargetRef wall = AimAt(chest.Centre);
         Assert.True(wall.Family == TargetFamily.Piece && wall.Id == hut.Walls[1].Ref.Id, $"the wall, not the box behind it ({wall})");
         var options = new List<InteractOption>();
-        Assert.True(z.Options(ada, wall, options) && options.Count == 0, "a wall offers nothing");
+        Assert.True(z.Interaction().Options(ada, wall, options) && options.Count == 0, "a wall offers nothing");
 
         // Bo in front of Ada; Ada looking down at her own feet; the sky.
         Raids.Stand(rig, ada, z.GroundAt(40, 45));
         Entity bo = rig.Add("Bo", 40, 43.5f);
         Assert.Equal(rig.P(bo).Ref, AimAt(z.EyeOf(rig.Ch(bo).State) - z.Frame.UpAt(z.GroundAt(40, 43.5f)) * 0.5f) with { Part = 0 }, "Bo");
         Assert.Equal(TargetRef.Ground, AimAt(rig.Ch(ada).State.Position), "her own feet: the ground under them, not herself");
-        Assert.True(!z.Aim(Eye(), z.Frame.UpAt(Eye()), a.Id.Value).Hit, "nothing in the sky");
+        Assert.True(!z.Interaction().Aim(Eye(), z.Frame.UpAt(Eye()), a.Id.Value).Hit, "nothing in the sky");
     }
 
     /// <summary>
@@ -143,23 +143,23 @@ public static class InteractionTests
         Raids.Stand(rig, ada, z.Settle(position + outward * 2.2f));
         Vector3 eye = z.EyeOf(rig.Ch(ada).State), middle = position + up * 1.2f;
 
-        AimHit shut = z.Aim(eye, middle - eye, me);
+        AimHit shut = z.Interaction().Aim(eye, middle - eye, me);
         Assert.True(shut.Target.Family == TargetFamily.Door && shut.Target.Id == door.Id.Value, $"the shut door ({shut.Target})");
         Assert.Equal("door-open*, door-pick-up (OpenItFirst)", Offer(z, ada, shut.Target), "shut: E opens it");
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, shut.Target, "door-open"), "opened");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, shut.Target, "door-open"), "opened");
         Assert.True(door.Open, "rolled up");
 
-        AimHit open = z.Aim(eye, middle - eye, me);
+        AimHit open = z.Interaction().Aim(eye, middle - eye, me);
         Assert.True(open.Target.Family == TargetFamily.Door && open.Target.Id == door.Id.Value, $"through its opening, the door ({open.Target})");
         Assert.True(Vector3.Distance(eye + Vector3.Normalize(middle - eye) * open.Distance, middle) < 1.0f, "met in its opening");
         Assert.Equal("door-close*, door-pick-up", Offer(z, ada, open.Target), "open: E shuts it");
 
         // The open doorway hides nothing behind it: a box just inside is aimed at through it.
         Deployable box = Box(rig, 0, 0, rig.P(ada).Id, at: position - outward * 1.0f);
-        Assert.Equal(box.Ref, z.Aim(eye, box.Centre - eye, me).Target, "a box just inside, through the open doorway");
-        z.RemoveStatic(box);
+        Assert.Equal(box.Ref, z.Interaction().Aim(eye, box.Centre - eye, me).Target, "a box just inside, through the open doorway");
+        z.Things().RemoveStatic(box);
 
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, open.Target, "door-close"), "shut through its opening");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, open.Target, "door-close"), "shut through its opening");
         Assert.True(!door.Open, "shut");
     }
 
@@ -179,34 +179,34 @@ public static class InteractionTests
         Deployable box = Box(rig, 0, -2.2f, a.Id);
         Deployable bench = Box(rig, 2, -2.2f, a.Id, "workbench-1");
 
-        Assert.Equal(OutcomeCode.Invalid, z.Interact(ada, box.Ref, 9999), "a verb number outside the list");
-        Assert.Equal(OutcomeCode.NotFound, z.Interact(ada, new TargetRef(TargetFamily.Thing, 0xDEAD_BEEF), "open"), "a thing that isn't");
-        Assert.Equal(OutcomeCode.NotUsable, z.Interact(ada, box.Ref, "door-open"), "a verb the box doesn't offer");
-        Assert.Equal(OutcomeCode.NotUsable, z.Interact(ada, bench.Ref, "tech-tree"), "a panel's verb is the interface's own");
+        Assert.Equal(OutcomeCode.Invalid, z.Interaction().Interact(ada, box.Ref, 9999), "a verb number outside the list");
+        Assert.Equal(OutcomeCode.NotFound, z.Interaction().Interact(ada, new TargetRef(TargetFamily.Thing, 0xDEAD_BEEF), "open"), "a thing that isn't");
+        Assert.Equal(OutcomeCode.NotUsable, z.Interaction().Interact(ada, box.Ref, "door-open"), "a verb the box doesn't offer");
+        Assert.Equal(OutcomeCode.NotUsable, z.Interaction().Interact(ada, bench.Ref, "tech-tree"), "a panel's verb is the interface's own");
         box.Storage!.Set(0, ItemStack.Of(c.ItemByKey("wood"), 10));
-        Assert.Equal(OutcomeCode.NotEmpty, z.Interact(ada, box.Ref, "retrieve"), "offered, but not now: the offer's reason");
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, box.Ref, "open"), "opened");
+        Assert.Equal(OutcomeCode.NotEmpty, z.Interaction().Interact(ada, box.Ref, "retrieve"), "offered, but not now: the offer's reason");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, box.Ref, "open"), "opened");
         Assert.True(a.Looting == box.Id, "looking inside");
-        z.Close(ada);
+        z.Actions().Close(ada);
 
-        z.Wound(bo, b, "Test", EntityId.None, "");
-        Assert.Equal(OutcomeCode.Dead, z.Interact(bo, box.Ref, "open"), "the wounded can't");
+        z.Wounded().Wound(bo, b, "Test", EntityId.None, "");
+        Assert.Equal(OutcomeCode.Dead, z.Interaction().Interact(bo, box.Ref, "open"), "the wounded can't");
         Assert.Equal("help-up*, loot", Offer(z, ada, b.Ref), "a player down: helped up with a tap, looted with held E");
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, b.Ref, "help-up"), "helped up");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, b.Ref, "help-up"), "helped up");
 
         Raids.Stand(rig, ada, z.GroundAt(0, 4));
-        Assert.Equal(OutcomeCode.OutOfReach, z.Interact(ada, box.Ref, "open"), "from 6 m");
-        Assert.Equal(OutcomeCode.OutOfReach, z.Interact(ada, box.Ref, "retrieve"), "reach before the offer's reason (it isn't empty)");
+        Assert.Equal(OutcomeCode.OutOfReach, z.Interaction().Interact(ada, box.Ref, "open"), "from 6 m");
+        Assert.Equal(OutcomeCode.OutOfReach, z.Interaction().Interact(ada, box.Ref, "retrieve"), "reach before the offer's reason (it isn't empty)");
 
         // In a ship's seat: nothing on foot.
-        Ship ship = z.SpawnShip(c.Ship("tin-finch")!, z.GroundAt(-20, 0), 0, a.Id, 10);
+        Ship ship = z.Ships().SpawnShip(c.Ship("tin-finch")!, z.GroundAt(-20, 0), 0, a.Id, 10);
         rig.Step(45);
         ship.HatchOpen = true;
         ship.HatchProgress = Ship.HatchTicks;
         Raids.Stand(rig, ada, z.Settle(ship.PointOf(ship.Def.Hatch) + new Vector3(1.4f, 0, 0)));
         var hatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch);
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, hatch, "board"), "Ada boards");
-        Assert.Equal(OutcomeCode.Seated, z.Interact(ada, box.Ref, "open"), "seated, she does nothing on foot");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, hatch, "board"), "Ada boards");
+        Assert.Equal(OutcomeCode.Seated, z.Interaction().Interact(ada, box.Ref, "open"), "seated, she does nothing on foot");
     }
 
     /// <summary>
@@ -223,22 +223,22 @@ public static class InteractionTests
         ulong me = rig.P(ada).Id.Value;
         TestBases.Hut hut = Raids.Hut(rig, 10, 0, grade: 1, owner: me, door: "wooden-door");
         Door door = hut.Door!;
-        Assert.True(z.Building!.AttachCodeLock(me, door, out _).Ok, "a code lock fitted");
+        Assert.True(z.Building().World!.AttachCodeLock(me, door, out _).Ok, "a code lock fitted");
         (Vector3 front, Vector3 outward) = hut.Face(hut.Doorway, height: 0);
         Raids.Stand(rig, ada, z.Settle(front + outward * 1.4f));
         Raids.Stand(rig, bo, z.Settle(front + outward * 1.6f + Vector3.Normalize(Vector3.Cross(z.Frame.UpAt(front), outward)) * 0.8f));
-        Assert.True(z.Interactions.Verbs.Verb("set-code")!.Code, "set-code asks for a code first");
+        Assert.True(z.Interaction().Interactions.Verbs.Verb("set-code")!.Code, "set-code asks for a code first");
 
         Assert.Equal("set-code*, door-open, code-lock (NoCode), code-remove", Offer(z, ada, door.Ref), "fresh: SET CODE is the tap");
         Assert.Equal("door-open*", Offer(z, bo, door.Ref), "to Bo, an open door");
-        Assert.Equal(OutcomeCode.NoCode, z.Interact(ada, door.Ref, "code-lock"), "no locking without a code");
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, door.Ref, "set-code", code: "2580"), "the code set");
+        Assert.Equal(OutcomeCode.NoCode, z.Interaction().Interact(ada, door.Ref, "code-lock"), "no locking without a code");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, door.Ref, "set-code", code: "2580"), "the code set");
 
         Assert.Equal("door-open*, code-unlock, change-code (UnlockItFirst), code-remove (UnlockItFirst)", Offer(z, ada, door.Ref), "locked, Ada's");
         Assert.Equal("enter-code*, door-open (Locked)", Offer(z, bo, door.Ref), "to Bo: enter the code");
-        Assert.Equal(OutcomeCode.Locked, z.Interact(bo, door.Ref, "door-open"), "locked to Bo");
-        Assert.Equal(OutcomeCode.Done, z.Interact(bo, door.Ref, "enter-code", code: "2580"), "the right code");
-        Assert.Equal(OutcomeCode.Done, z.Interact(bo, door.Ref, "door-open"), "he opens it");
+        Assert.Equal(OutcomeCode.Locked, z.Interaction().Interact(bo, door.Ref, "door-open"), "locked to Bo");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(bo, door.Ref, "enter-code", code: "2580"), "the right code");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(bo, door.Ref, "door-open"), "he opens it");
     }
 
     /// <summary>
@@ -256,10 +256,10 @@ public static class InteractionTests
         Raids.Stand(rig, bo, z.Settle(hut.Inside + hut.Direction(new(0, 0, 1)) * 0.6f));
 
         Assert.Equal("authorise*, open", Offer(z, bo, cupboard.Ref), "to a stranger: authorise, and its store");
-        Assert.Equal(OutcomeCode.Done, z.Interact(bo, cupboard.Ref, "authorise"), "Bo authorised");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(bo, cupboard.Ref, "authorise"), "Bo authorised");
         Assert.True(cupboard.IsAuthorised(rig.P(bo).Id.Value), "on its list");
         Assert.Equal("open*, deauthorise, clear-list, cupboard-pick-up", Offer(z, bo, cupboard.Ref), "listed: E opens its store");
-        Assert.Equal(OutcomeCode.Done, z.Interact(bo, cupboard.Ref, "open"), "its store open");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(bo, cupboard.Ref, "open"), "its store open");
         Assert.True(rig.P(bo).Looting == cupboard.Id, "looking in it");
     }
 
@@ -283,14 +283,14 @@ public static class InteractionTests
         box.Storage.Set(3, default);
         box.PublishChanges();
         Assert.Equal("open*, retrieve", Offer(z, ada, box.Ref), "empty: picked up with held E");
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, box.Ref, "retrieve"), "picked up");
-        Assert.True(z.StaticOf(box.Id) == null && a.Inventory.Count(c.ItemByKey("large-box")) == 1, "gone, back as its item");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, box.Ref, "retrieve"), "picked up");
+        Assert.True(z.Things().StaticOf(box.Id) == null && a.Inventory.Count(c.ItemByKey("large-box")) == 1, "gone, back as its item");
 
         // Ada's box in Bo's hut: his cupboard doesn't list her.
         TestBases.Hut hut = Raids.Hut(rig, 30, 10, grade: 1, owner: rig.P(bo).Id.Value, door: null);
         Deployable inside = Box(rig, 0, 0, a.Id, at: hut.Inside + hut.Direction(new(-1, 0, 0)) * 0.9f);
         Raids.Stand(rig, ada, z.Settle(hut.Inside + hut.Direction(new(1, 0, 1)) * 0.5f));
-        Assert.Equal(OutcomeCode.BuildingBlocked, z.Interact(ada, inside.Ref, "retrieve"), "not under another's cupboard");
+        Assert.Equal(OutcomeCode.BuildingBlocked, z.Interaction().Interact(ada, inside.Ref, "retrieve"), "not under another's cupboard");
     }
 
     /// <summary>
@@ -310,7 +310,7 @@ public static class InteractionTests
         Player a = rig.P(ada);
         rig.Give(ada, "bow", 1);
         rig.Give(ada, "arrow", 12);
-        z.MoveItem(ada, ContainerRef.Main, 0, ContainerRef.Belt, 0, 0, 0);
+        z.Actions().MoveItem(ada, ContainerRef.Main, 0, ContainerRef.Belt, 0, 0, 0);
 
         // Shot with the bow at a hut's wall from 7 m: an arrow that stays whole (items.json's recover) sticks in it.
         TestBases.Hut hut = Raids.Hut(rig, -45, 30, grade: 1);
@@ -324,21 +324,21 @@ public static class InteractionTests
         }
         Assert.True(inWall != null, $"an arrow stuck in {shots} shots");
         Assert.Equal(hut.Walls[1].Ref, inWall!.Link.Support with { Part = 0 }, "held by the wall");
-        Assert.True(!z.Statics().OfType<DroppedBag>().Any(), "no bag of arrows anywhere");
+        Assert.True(!z.Things().Statics().OfType<DroppedBag>().Any(), "no bag of arrows anywhere");
         (Vector3 nock, Vector3 tip) = SpentArrow.Shaft(Pose(z, inWall));
         Assert.True(Vector3.Dot(tip - face, outward) < 0.02f && Vector3.Dot(nock - face, outward) > 0.5f, "its tip in the wall, its shaft out");
         int carried = a.Inventory.Count(arrowItem);
         Raids.Stand(rig, ada, z.Settle(face + outward * 1.6f));
         Assert.Equal("pick-up*", Offer(z, ada, inWall.Ref), "E takes it");
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, inWall.Ref, "pick-up"), "taken back");
-        Assert.True(z.ArrowOf(inWall.Id) == null && a.Inventory.Count(arrowItem) == carried + 1, "out of the wall, into Ada's slots");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, inWall.Ref, "pick-up"), "taken back");
+        Assert.True(z.Arrows().ArrowOf(inWall.Id) == null && a.Inventory.Count(arrowItem) == carried + 1, "out of the wall, into Ada's slots");
 
         // In a deer, alive: it rides the deer's bone, and is taken from it.
         Herd herd = AnimalRig.Herd(rig, "deer", -30, 10, 1, 2);
         Animal deer = herd.Members[0];
         rig.Step(2); // (the herd is found where it is once it has stepped)
         Raids.Stand(rig, ada, z.Settle(deer.Position + new Vector3(0, 0, 5)));
-        z.TryNearest(deer.Ref, z.EyeOf(rig.Ch(ada).State), out Vector3 hide);
+        z.Targets().TryNearest(deer.Ref, z.EyeOf(rig.Ch(ada).State), out Vector3 hide);
         SpentArrow inDeer = StickInto(rig, ada, deer.Ref, hide);
         Assert.True(inDeer.Link.Support.Family == TargetFamily.Animal && inDeer.Link.Support.Id == deer.Id.Value && inDeer.Link.Support.Part > 0,
             "held by a bone of the deer");
@@ -346,14 +346,14 @@ public static class InteractionTests
         deer.Position += new Vector3(4, 0, 0);
         Assert.True(Vector3.Distance(Pose(z, inDeer).Position, was + new Vector3(4, 0, 0)) < 0.05f, "it goes with the deer");
         Raids.Stand(rig, ada, z.Settle(Pose(z, inDeer).Position + new Vector3(0, 0, 1.5f)));
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, inDeer.Ref, "pick-up"), "taken from the living deer");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, inDeer.Ref, "pick-up"), "taken from the living deer");
 
         // In Bo, alive: it goes where he goes; taken from him.
         Entity bo = rig.Add("Bo", -10, 30);
         Player b = rig.P(bo);
         Raids.Stand(rig, ada, z.Settle(z.GroundAt(-10, 34)));
         rig.Step(2); // (a body is hit where the shooter saw it: its history needs a tick or two)
-        z.TryNearest(b.Ref with { Part = 0 }, z.EyeOf(rig.Ch(ada).State), out Vector3 chest);
+        z.Targets().TryNearest(b.Ref with { Part = 0 }, z.EyeOf(rig.Ch(ada).State), out Vector3 chest);
         SpentArrow inBo = StickInto(rig, ada, b.Ref, chest);
         Assert.True(inBo.Link.Support.Family == TargetFamily.Character && inBo.Link.Support.Id == b.Id.Value, "held by Bo");
         was = Pose(z, inBo).Position;
@@ -361,7 +361,7 @@ public static class InteractionTests
         Vector3 moved = rig.Ch(bo).State.Position - z.GroundAt(-10, 30);
         Assert.True(Vector3.Distance(Pose(z, inBo).Position, was + moved) < 0.1f, "it goes with Bo");
         Raids.Stand(rig, ada, z.Settle(z.GroundAt(-8, 31.5f)));
-        Assert.Equal(OutcomeCode.Done, z.Interact(ada, inBo.Ref, "pick-up"), "taken from Bo");
+        Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, inBo.Ref, "pick-up"), "taken from Bo");
 
         // In a box that goes: it falls to the ground. Its lifetime ends it.
         Deployable box = Box(rig, -30, 26, a.Id);
@@ -369,13 +369,13 @@ public static class InteractionTests
         SpentArrow inBox = StickInto(rig, ada, box.Ref, box.Centre);
         Assert.Equal(box.Ref, inBox.Link.Support, "held by the box");
         Assert.True(inBox.EndsAt == z.Tick + c.Survival.ArrowLifetime.Ticks, "its lifetime from survival.json");
-        z.RemoveStatic(box);
-        Assert.True(z.ArrowOf(inBox.Id) == inBox && inBox.Link.Support == TargetRef.Ground, "the box gone, the ground holds it");
+        z.Things().RemoveStatic(box);
+        Assert.True(z.Arrows().ArrowOf(inBox.Id) == inBox && inBox.Link.Support == TargetRef.Ground, "the box gone, the ground holds it");
         Assert.True(z.HeightAboveGround(Pose(z, inBox).Position) < 0.1f, "lying on the ground");
         inBox.EndsAt = z.Tick + 1;
         rig.Step(31);
-        Assert.True(z.ArrowOf(inBox.Id) == null && inBox.Gone, "its time up, gone");
-        Fixtures.Report($"shots until one stuck in the wall: {shots}; arrows left: {z.Arrows.Count}");
+        Assert.True(z.Arrows().ArrowOf(inBox.Id) == null && inBox.Gone, "its time up, gone");
+        Fixtures.Report($"shots until one stuck in the wall: {shots}; arrows left: {z.Arrows().All.Count}");
     }
 
     /// <summary>
@@ -396,21 +396,21 @@ public static class InteractionTests
         (ulong box, ulong bag, ulong arrow) = rig.Server.Inspect(sv =>
         {
             Zone z = sv.Zone;
-            z.TryFindPlayer(adaId, out Entity e, out Player p);
+            z.Players().TryFindPlayer(adaId, out Entity e, out Player p);
             Vector3 at = z.GroundAt(0, -2.5f);
             var d = new Deployable(z.NextId(), c.Deployable("large-box")!, at, z.Frame.UpAt(at), 0, p.Id);
-            z.AddStatic(d);
-            DroppedBag dropped = z.Spill(z.GroundAt(1.2f, -1.4f), ItemStack.Of(c.ItemByKey("stone"), 3))!;
+            z.Things().AddStatic(d);
+            DroppedBag dropped = z.Spill().Spill(z.GroundAt(1.2f, -1.4f), ItemStack.Of(c.ItemByKey("stone"), 3))!;
             Vector3 eye = z.EyeOf(z.Entities.Get<Character>(e).State);
             Vector3 aim = d.Centre + new Vector3(-0.4f, 0.1f, 0);
-            TraceHit hit = z.Trace(eye, Vector3.Normalize(aim - eye), 10, Zone.ArrowRadius, p.Id, z.Tick);
-            SpentArrow stuck = z.StickArrow(new Projectile { Id = 7, Ammo = c.ItemByKey("arrow"), Velocity = Vector3.Normalize(aim - eye) * 50 }, hit)!;
+            TraceHit hit = z.Damage().Trace(eye, Vector3.Normalize(aim - eye), 10, CombatSystem.ArrowRadius, p.Id, z.Tick);
+            SpentArrow stuck = z.Arrows().StickArrow(new Projectile { Id = 7, Ammo = c.ItemByKey("arrow"), Velocity = Vector3.Normalize(aim - eye) * 50 }, hit)!;
             return (d.Id.Value, dropped.Id.Value, stuck.Id.Value);
         });
         RunUntil(rig, () => ada.ThingOf(new EntityId(box)) != null && ada.ThingOf(new EntityId(bag)) != null && ada.ArrowOf(new EntityId(arrow)) is { Placed: true },
             "the box, the bag and the arrow");
         RemoteArrow remote = ada.ArrowOf(new EntityId(arrow))!;
-        TargetPose served = rig.Server.Inspect(sv => sv.Zone.TryPose(new TargetRef(TargetFamily.Arrow, arrow), out TargetPose pose) ? pose : default);
+        TargetPose served = rig.Server.Inspect(sv => sv.Zone.Targets().TryPose(new TargetRef(TargetFamily.Arrow, arrow), out TargetPose pose) ? pose : default);
         Assert.True(Vector3.Distance(remote.Pose.Position, served.Position) < 0.01f &&
             Vector3.Dot(Vector3.Transform(Vector3.UnitX, remote.Pose.Rotation), Vector3.Transform(Vector3.UnitX, served.Rotation)) > 0.999f,
             "the arrow where the server has it, along its flight");
@@ -429,12 +429,12 @@ public static class InteractionTests
         }
         (AimHit Hit, InteractOption[] Options)[] there = rig.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(adaId, out Entity e, out _);
+            sv.Zone.Players().TryFindPlayer(adaId, out Entity e, out _);
             var offered = new List<InteractOption>();
             return views.Select(view =>
             {
-                AimHit hit = sv.Zone.Aim(eye, view, adaId.Value);
-                sv.Zone.Options(e, hit.Target, offered);
+                AimHit hit = sv.Zone.Interaction().Aim(eye, view, adaId.Value);
+                sv.Zone.Interaction().Options(e, hit.Target, offered);
                 return (hit, offered.ToArray());
             }).ToArray();
         });
@@ -493,7 +493,7 @@ public static class InteractionTests
         Zone zone = rig.Zone;
         Vector3 where = at ?? zone.GroundAt(x, z);
         var d = new Deployable(zone.NextId(), rig.C.Deployable(key)!, where, zone.Frame.UpAt(where), 0, owner);
-        zone.AddStatic(d);
+        zone.Things().AddStatic(d);
         return d;
     }
 
@@ -501,30 +501,30 @@ public static class InteractionTests
     private static string Offer(Zone z, Entity e, in TargetRef target)
     {
         var options = new List<InteractOption>();
-        Assert.True(z.Options(e, target, options), $"{target} is known");
+        Assert.True(z.Interaction().Options(e, target, options), $"{target} is known");
         int primary = InteractionRules.Primary(options);
         return string.Join(", ", options.Select((o, i) =>
-            z.Interactions.Verbs.Verb(o.Verb)!.Key + (i == primary ? "*" : "") + (o.Enabled ? "" : $" ({o.Reason.Code})")));
+            z.Interaction().Interactions.Verbs.Verb(o.Verb)!.Key + (i == primary ? "*" : "") + (o.Enabled ? "" : $" ({o.Reason.Code})")));
     }
 
     private static TargetPose Pose(Zone z, SpentArrow arrow) =>
-        z.TryPose(arrow.Ref, out TargetPose pose) ? pose : throw new TestFailure($"arrow {arrow.Id} has no pose");
+        z.Targets().TryPose(arrow.Ref, out TargetPose pose) ? pose : throw new TestFailure($"arrow {arrow.Id} has no pose");
 
     /// <summary>An arrow shot from a player's eye at a point sticks in what it meets there (the hit the bow's flight would make).</summary>
     private static SpentArrow StickInto(GameRig rig, Entity e, in TargetRef expected, Vector3 at)
     {
         Zone z = rig.Zone;
         Vector3 eye = z.EyeOf(rig.Ch(e).State), along = Vector3.Normalize(at - eye);
-        TraceHit hit = z.Trace(eye, along, Vector3.Distance(eye, at) + 1, Zone.ArrowRadius, rig.P(e).Id, z.Tick);
+        TraceHit hit = z.Damage().Trace(eye, along, Vector3.Distance(eye, at) + 1, CombatSystem.ArrowRadius, rig.P(e).Id, z.Tick);
         Assert.True(hit.Hit && hit.Target.Family == expected.Family && hit.Target.Id == expected.Id, $"the shot meets {expected} ({hit.Target})");
-        return z.StickArrow(new Projectile { Id = (uint)z.Tick, Ammo = rig.C.ItemByKey("arrow"), Velocity = along * 50 }, hit) ?? throw new TestFailure("not stuck");
+        return z.Arrows().StickArrow(new Projectile { Id = (uint)z.Tick, Ammo = rig.C.ItemByKey("arrow"), Velocity = along * 50 }, hit) ?? throw new TestFailure("not stuck");
     }
 
     /// <summary>The bow drawn for a second and loosed at a point; steps until the arrow ends. The arrow it left, if it stuck.</summary>
     private static SpentArrow? Shoot(GameRig rig, Entity e, Vector3 at)
     {
         Zone z = rig.Zone;
-        var before = new HashSet<EntityId>(z.Arrows.Select(x => x.Id));
+        var before = new HashSet<EntityId>(z.Arrows().All.Select(x => x.Id));
         void Hold(bool loose)
         {
             rig.Look(e, at);
@@ -533,21 +533,21 @@ public static class InteractionTests
         rig.Step(40, () => Hold(false));
         rig.Step(1, () => Hold(true));
         rig.Step(15, () => Hold(false));
-        return z.Arrows.FirstOrDefault(x => !before.Contains(x.Id));
+        return z.Arrows().All.FirstOrDefault(x => !before.Contains(x.Id));
     }
 
     /// <summary>A foundation with a wall frame on its south edge (+Z) and a garage door in it.</summary>
     private static (Piece Frame, Door Door) Garage(GameRig rig, float x, float z, ulong owner)
     {
         Zone zone = rig.Zone;
-        BuildingWorld world = zone.Building!;
+        BuildingWorld world = zone.Building().World!;
         BuildingData data = world.Data;
         Vector3 at = zone.GroundAt(x, z);
         zone.Physics.EnsureGround(at);
         PieceDef foundationDef = data.Piece("foundation")!, frameDef = data.Piece("wall-frame")!;
-        Piece foundation = world.AddFirst(TestBases.FrameOver(zone, data, foundationDef, at, 0), foundationDef, 2, owner, zone.BuildingNow);
+        Piece foundation = world.AddFirst(TestBases.FrameOver(zone, data, foundationDef, at, 0), foundationDef, 2, owner, zone.Building().BuildingNow);
         PlacementPlan plan = world.FromIntent(frameDef, foundation, new SocketId(SocketKind.Edge, 0), 0) ?? throw new TestFailure("no wall frame");
-        Piece frame = world.Add(plan.Structure!, frameDef, 2, plan.Pose, owner, zone.BuildingNow);
+        Piece frame = world.Add(plan.Structure!, frameDef, 2, plan.Pose, owner, zone.Building().BuildingNow);
         Assert.True(world.PlaceDoor(owner, data.Door("garage-door")!, frame, 0, out Door? door).Ok, "the garage door fitted");
         return (frame, door!);
     }

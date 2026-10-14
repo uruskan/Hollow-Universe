@@ -38,7 +38,7 @@ public static class Guns
         long? tick = null, byte slot = 0, ushort ammo = 0)
     {
         ref Character c = ref rig.Ch(e);
-        return rig.Zone.QueueGunAction(e, new GunAction
+        return rig.Zone.Guns().QueueGunAction(e, new GunAction
         {
             Seq = seq,
             Tick = tick ?? rig.Zone.Tick + 1,
@@ -131,10 +131,10 @@ public static class GunTests
         rig.Step();
         ZoneEvent launch = Guns.Launches(rig).Single();
         rig.Step(11);
-        Bullet bullet = rig.Zone.Bullets.Single();
+        Bullet bullet = rig.Zone.Guns().Bullets.Single();
         Vector3 up = rig.Zone.Frame.UpAt(launch.Position);
         // The bullet's first steps were in the tick it was fired: 12 ticks, 24 steps.
-        (Vector3 expected, _) = Fly(launch.Velocity, -up * g, rifle.Drag, Zone.BulletStepSeconds, 24, launch.Position);
+        (Vector3 expected, _) = Fly(launch.Velocity, -up * g, rifle.Drag, GunSystem.BulletStepSeconds, 24, launch.Position);
         Fixtures.Report($"zone bullet after 0.4 s: {Vector3.Distance(launch.Position, bullet.Position):0.0} m out, " +
             $"{Vector3.Distance(bullet.Position, expected) * 1000:0.000} mm from the integral");
         Assert.True(Vector3.Distance(bullet.Position, expected) < 0.01f, "the zone flies bullets by the same integral (up varies a hair)");
@@ -263,13 +263,13 @@ public static class GunTests
         {
             b.Vitals.Health = 100;
             b.Vitals.Bleeding = 0;
-            rig.Zone.ShootCharacter(bo, b, Guns.Round(c, "rifle", "rifle-ammo"), region, distance, Vector3.Zero, null);
+            rig.Zone.Guns().ShootCharacter(bo, b, Guns.Round(c, "rifle", "rifle-ammo"), region, distance, Vector3.Zero, null);
             Assert.Near(expected, 100 - b.Vitals.Health, 1e-3, $"{region} at {distance} m");
             Assert.True(b.Vitals.Bleeding > 0, "bullets start bleeding");
         }
         // The kind of round: high-velocity hits a little softer; incendiary sets the victim burning.
         b.Vitals.Health = 100;
-        rig.Zone.ShootCharacter(bo, b, Guns.Round(c, "rifle", "rifle-ammo-incendiary"), HitRegion.Body, 10, Vector3.Zero, null);
+        rig.Zone.Guns().ShootCharacter(bo, b, Guns.Round(c, "rifle", "rifle-ammo-incendiary"), HitRegion.Body, 10, Vector3.Zero, null);
         Assert.Near(35 * 0.85, 100 - b.Vitals.Health, 1e-3, "incendiary damage");
         Assert.True(b.Vitals.Burning > 0, "and burning");
         float burning = b.Vitals.Burning, health = b.Vitals.Health;
@@ -291,7 +291,7 @@ public static class GunTests
         float Hit(HitRegion region)
         {
             b.Vitals.Health = 100;
-            rig.Zone.ShootCharacter(bo, b, Guns.Round(c, "rifle", "rifle-ammo"), region, 10, Vector3.Zero, null);
+            rig.Zone.Guns().ShootCharacter(bo, b, Guns.Round(c, "rifle", "rifle-ammo"), region, 10, Vector3.Zero, null);
             return 100 - b.Vitals.Health;
         }
         float bareBody = Hit(HitRegion.Body), bareHead = Hit(HitRegion.Head);
@@ -299,7 +299,7 @@ public static class GunTests
         {
             rig.Give(bo, key, 1);
             int slot = Enumerable.Range(0, 24).First(i => b.Inventory.Main[i].Item == c.ItemByKey(key).Id);
-            Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(bo, ContainerRef.Main, slot, 0), $"wear the {key}");
+            Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().QuickMove(bo, ContainerRef.Main, slot, 0), $"wear the {key}");
         }
         float body = Hit(HitRegion.Body), head = Hit(HitRegion.Head), limb = Hit(HitRegion.Limb);
         Fixtures.Report($"body {bareBody:0.0} → {body:0.00} (chest plate and shirt), head {bareHead:0.0} → {head:0.0} (metal mask), limb {limb:0.00} (shirt sleeves)");
@@ -407,15 +407,15 @@ public static class GunTests
             rig.Give(ada, key, 1);
         }
         int Slot(string key) => Enumerable.Range(0, 24).First(i => a.Inventory.Main[i].Item == c.ItemByKey(key).Id);
-        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.Attach(ada, ContainerRef.Main, Slot("scope"), ContainerRef.Belt, 0, 0), "the pistol takes no scope");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Attach(ada, ContainerRef.Main, Slot("muzzle-brake"), ContainerRef.Belt, 0, 0), "a muzzle brake on");
+        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.Guns().Attach(ada, ContainerRef.Main, Slot("scope"), ContainerRef.Belt, 0, 0), "the pistol takes no scope");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Guns().Attach(ada, ContainerRef.Main, Slot("muzzle-brake"), ContainerRef.Belt, 0, 0), "a muzzle brake on");
         Assert.Equal(c.ItemByKey("muzzle-brake").Id, a.Inventory.Belt[0].Muzzle, "on the muzzle");
         Guns.Queue(rig, ada, 1);
         rig.Step();
         Assert.Near(c.ItemByKey("pistol").Firearm!.Recoil.PitchPerShot * 0.5, a.Gun.Recoil.Pitch, 0.5 * 3 * 0.12 + 1e-9, "half the kick");
 
         int silencer = Slot("silencer");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Attach(ada, ContainerRef.Main, silencer, ContainerRef.Belt, 0, 0), "a silencer swaps it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Guns().Attach(ada, ContainerRef.Main, silencer, ContainerRef.Belt, 0, 0), "a silencer swaps it");
         Assert.Equal(c.ItemByKey("muzzle-brake").Id, a.Inventory.Main[silencer].Item, "the brake back where the silencer was");
         rig.Zone.GameEvents.Clear();
         rig.Step(5);

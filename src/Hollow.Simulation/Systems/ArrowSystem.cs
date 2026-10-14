@@ -1,7 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System;
 using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
@@ -12,6 +12,8 @@ using Hollow.Simulation.Players;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 
+using Hollow.Simulation.Movement;
+
 namespace Hollow.Simulation;
 
 // Spent arrows (GROUND_SYSTEMS.md §5, the owner's): an arrow that stays whole on a hit sticks where it hit, its tip in,
@@ -19,14 +21,23 @@ namespace Hollow.Simulation;
 // bone it rides on as the body moves — and is its own small target, taken back with E (the pickup capability), from a
 // living player or animal too. The one lifetime step (§3.7) takes it away after a while; when what holds it goes, it falls
 // to the ground. They no longer go into bags. At most survival.json's arrows.most of them: the oldest goes first.
-public sealed partial class Zone
+public sealed class ArrowSystem : ZoneSystem
 {
-    private readonly Dictionary<EntityId, SpentArrow> _arrows = new();
+    private SpillSystem? _spillSystem;
+    private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
+    private SupportSystem? _supportsSystem;
+    private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
+    private TargetSystem? _targetsSystem;
+    private TargetSystem Targets => _targetsSystem ??= Zone.Require<TargetSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
+    internal readonly Dictionary<EntityId, SpentArrow> _arrows = new();
     private readonly Queue<SpentArrow> _arrowOrder = new();
     private long _arrowSerial;
 
     /// <summary>The spent arrows in the zone.</summary>
-    public IReadOnlyCollection<SpentArrow> Arrows => _arrows.Values;
+    public IReadOnlyCollection<SpentArrow> All => _arrows.Values;
 
     public SpentArrow? ArrowOf(EntityId id) => _arrows.GetValueOrDefault(id);
 
@@ -36,7 +47,7 @@ public sealed partial class Zone
     /// </summary>
     internal SpentArrow? StickArrow(Projectile pr, in TraceHit hit)
     {
-        GameContent content = Content!;
+        GameContent content = Content;
         if (hit.Target.IsNone || content.Survival.ArrowsMost <= 0)
         {
             return null;
@@ -44,7 +55,7 @@ public sealed partial class Zone
         Vector3 direction = pr.Velocity.LengthSquared() > 1e-8f ? Vector3.Normalize(pr.Velocity) : Vector3.UnitY;
         var at = new TargetPose(hit.Point + direction * content.Survival.ArrowDepth, Along(direction));
         TargetRef support = hit.Target;
-        SupportLink link = FamilyOf(support.Family) is { } family && family.TryPoseAt(support, Tick - pr.RewindTicks, out TargetPose then)
+        SupportLink link = Targets.FamilyOf(support.Family) is { } family && family.TryPoseAt(support, Tick - pr.RewindTicks, out TargetPose then)
             ? SupportLink.Of(support, then, at)
             : SupportLink.Of(TargetRef.Ground, new TargetPose(Vector3.Zero, Quaternion.Identity), at);
         return AddArrow(pr.Ammo, link, at);
@@ -53,12 +64,12 @@ public sealed partial class Zone
     // A new spent arrow: held, loose (its lifetime runs), and the oldest gone when there are too many.
     private SpentArrow AddArrow(ItemDef item, SupportLink link, in TargetPose at)
     {
-        LifetimeRule lifetime = Content!.Survival.ArrowLifetime;
+        LifetimeRule lifetime = Content.Survival.ArrowLifetime;
         var arrow = new SpentArrow(NextId(), item, link, lifetime, Tick + lifetime.Ticks, ++_arrowSerial) { LastPose = at };
         _arrows.Add(arrow.Id, arrow);
         _arrowOrder.Enqueue(arrow);
-        Hold(arrow.Ref, link.Support);
-        Loose(arrow);
+        Supports.Hold(arrow.Ref, link.Support);
+        Things.Loose(arrow);
         while (_arrows.Count > Content.Survival.ArrowsMost && _arrowOrder.TryDequeue(out SpentArrow? oldest))
         {
             RemoveArrow(oldest);
@@ -84,8 +95,8 @@ public sealed partial class Zone
             return false;
         }
         arrow.Gone = true;
-        Release(arrow.Ref);
-        Unloose(arrow);
+        Supports.Release(arrow.Ref);
+        Things.Unloose(arrow);
         return true;
     }
 
@@ -95,8 +106,8 @@ public sealed partial class Zone
     /// </summary>
     internal void ArrowFalls(SpentArrow arrow)
     {
-        TargetPose was = TryPose(arrow.Link, out TargetPose now) ? now : arrow.LastPose;
-        Vector3 rest = RestingPoint(was.Position);
+        TargetPose was = Supports.TryLinkPose(arrow.Link, out TargetPose now) ? now : arrow.LastPose;
+        Vector3 rest = Spill.RestingPoint(was.Position);
         Vector3 up = Frame.UpAt(rest);
         Vector3 along = Vector3.Transform(Vector3.UnitX, was.Rotation);
         Vector3 flat = along - up * Vector3.Dot(along, up);
@@ -113,7 +124,7 @@ public sealed partial class Zone
     {
         foreach (SpentArrow arrow in _arrows.Values)
         {
-            if (Moves(arrow.Link.Support) && TryPose(arrow.Link, out TargetPose pose))
+            if (Supports.Moves(arrow.Link.Support) && Supports.TryLinkPose(arrow.Link, out TargetPose pose))
             {
                 arrow.LastPose = pose;
             }
@@ -141,20 +152,20 @@ public sealed partial class Zone
     /// Spent arrows (GROUND_SYSTEMS.md §5): each found by its shaft, where its support is now (they move with what holds
     /// them); taken whole with E into the taker's slots; taken away when their lifetime ends.
     /// </summary>
-    private sealed class ArrowTargets(Zone zone) : ITargetFamily, IPickupFamily
+    internal sealed class ArrowTargets(Zone zone) : ITargetFamily, IPickupFamily
     {
         public TargetFamily Family => TargetFamily.Arrow;
 
         public bool Moves => true;
 
-        public bool Exists(ulong id) => zone.ArrowOf(new EntityId(id)) != null;
+        public bool Exists(ulong id) => zone.Arrows().ArrowOf(new EntityId(id)) != null;
 
-        public object? Resolve(ulong id) => zone.ArrowOf(new EntityId(id));
+        public object? Resolve(ulong id) => zone.Arrows().ArrowOf(new EntityId(id));
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
-            if (zone.ArrowOf(new EntityId(target.Id)) is not { } arrow || !zone.TryPose(arrow.Link, out pose))
+            if (zone.Arrows().ArrowOf(new EntityId(target.Id)) is not { } arrow || !zone.Supports().TryLinkPose(arrow.Link, out pose))
             {
                 return false;
             }
@@ -177,9 +188,9 @@ public sealed partial class Zone
         public void Aim(in AimRay ray, ref AimHit best)
         {
             float reach = ray.Upto(best) + SpentArrow.Length;
-            foreach (SpentArrow arrow in zone._arrows.Values)
+            foreach (SpentArrow arrow in zone.Arrows()._arrows.Values)
             {
-                if (Vector3.DistanceSquared(arrow.LastPose.Position, ray.Origin) > (reach + 2) * (reach + 2) || !zone.TryPose(arrow.Link, out TargetPose pose))
+                if (Vector3.DistanceSquared(arrow.LastPose.Position, ray.Origin) > (reach + 2) * (reach + 2) || !zone.Supports().TryLinkPose(arrow.Link, out TargetPose pose))
                 {
                     continue;
                 }
@@ -191,7 +202,7 @@ public sealed partial class Zone
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (zone.ArrowOf(new EntityId(target.Id)) is not { } arrow || !TryPose(target, out TargetPose pose))
+            if (zone.Arrows().ArrowOf(new EntityId(target.Id)) is not { } arrow || !TryPose(target, out TargetPose pose))
             {
                 return false;
             }
@@ -199,16 +210,16 @@ public sealed partial class Zone
             return true;
         }
 
-        public string ModelKey(ulong id) => zone.ArrowOf(new EntityId(id))?.Item.Key ?? "";
+        public string ModelKey(ulong id) => zone.Arrows().ArrowOf(new EntityId(id))?.Item.Key ?? "";
 
-        public CapabilitySet Capabilities(ulong id) => zone.ArrowOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Arrow : CapabilitySet.Empty;
+        public CapabilitySet Capabilities(ulong id) => zone.Arrows().ArrowOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Arrow : CapabilitySet.Empty;
 
-        public bool Remove(ulong id) => zone.ArrowOf(new EntityId(id)) is { } arrow && zone.RemoveArrow(arrow);
+        public bool Remove(ulong id) => zone.Arrows().ArrowOf(new EntityId(id)) is { } arrow && zone.Arrows().RemoveArrow(arrow);
 
         // Taken back into the taker's slots, whole (none taken when there is no room).
         public Outcome PickUp(Entity entity, Player p, in TargetRef target)
         {
-            if (zone.ArrowOf(new EntityId(target.Id)) is not { } arrow)
+            if (zone.Arrows().ArrowOf(new EntityId(target.Id)) is not { } arrow)
             {
                 return OutcomeCode.NotFound;
             }
@@ -216,9 +227,22 @@ public sealed partial class Zone
             {
                 return OutcomeCode.NoSpace;
             }
-            zone.RemoveArrow(arrow);
+            zone.Arrows().RemoveArrow(arrow);
             zone.GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = arrow.Item.Id, Count = 1, Reason = GainReason.PickedUp });
             return Outcome.Done;
         }
     }
+
+    public override int Every => CharacterMotor.TickRate;
+
+    protected internal override void Step()
+    {
+        NoteArrowPoses();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class ArrowSystemAccess
+{
+    public static ArrowSystem Arrows(this Zone zone) => zone.Require<ArrowSystem>();
 }

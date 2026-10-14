@@ -29,7 +29,7 @@ public sealed partial class GameServer
 
     private void StartAnimals()
     {
-        if (Zone.Animals is not { } animals)
+        if (Zone.Animals().World is not { } animals)
         {
             return;
         }
@@ -44,7 +44,7 @@ public sealed partial class GameServer
     // After every step: animals gone free their net IDs (their despawns go out with the next snapshot).
     private void AfterAnimals()
     {
-        if (Zone.Animals is not { } animals)
+        if (Zone.Animals().World is not { } animals)
         {
             return;
         }
@@ -61,7 +61,7 @@ public sealed partial class GameServer
     // Once per snapshot: every animal (and corpse) in the relevance grid with its packed state.
     private void PrepareAnimals()
     {
-        if (Zone.Animals is not { } animals)
+        if (Zone.Animals().World is not { } animals)
         {
             return;
         }
@@ -107,7 +107,7 @@ public sealed partial class GameServer
 
     private void AddAnimalsToSave(ZoneSave save, HashSet<EntityId> current)
     {
-        if (Zone.Animals is not { } animals)
+        if (Zone.Animals().World is not { } animals)
         {
             return;
         }
@@ -143,7 +143,7 @@ public sealed partial class GameServer
 
     private void RestoreCorpses()
     {
-        if (Zone.Animals is not { } animals)
+        if (Zone.Animals().World is not { } animals)
         {
             _storedCorpses.Clear();
             return;
@@ -177,16 +177,16 @@ public sealed partial class GameServer
     /// <summary>The <c>animals</c> command: how many, awake, of each kind, what the AI costs.</summary>
     public string AnimalStatus()
     {
-        if (Zone.Animals is not { } animals)
+        if (Zone.Animals().World is not { } animals)
         {
             return "no animals in this zone";
         }
         string kinds = string.Join(", ", animals.All.Where(a => !a.Removed).GroupBy(a => a.Species.Key)
             .Select(g => $"{g.Count(a => !a.IsDead)} {g.Key}" + (g.Any(a => a.IsDead) ? $" ({g.Count(a => a.IsDead)} dead)" : "")));
-        double perTick = Zone.Tick > 0 ? Zone.AnimalTime.TotalMilliseconds / Zone.Tick : 0;
+        double perTick = Zone.Tick > 0 ? Zone.Animals().AnimalTime.TotalMilliseconds / Zone.Tick : 0;
         return string.Create(CultureInfo.InvariantCulture,
             $"{animals.Count} animals ({animals.Awake} awake): {kinds}; spawning {(animals.NaturalSpawning ? "on" : "off")}, " +
-            $"{animals.Areas.Count(a => a.Active)} areas out; {perTick:0.000} ms a tick on animals; {Zone.AnimalAttacks} attacks landed, " +
-            $"{Zone.AnimalsKilled} killed");
+            $"{animals.Areas.Count(a => a.Active)} areas out; {perTick:0.000} ms a tick on animals; {Zone.Animals().AnimalAttacks} attacks landed, " +
+            $"{Zone.Animals().AnimalsKilled} killed");
     }
 }

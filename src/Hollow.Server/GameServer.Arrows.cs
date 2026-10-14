@@ -1,3 +1,4 @@
+using Hollow.Simulation;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -22,9 +23,9 @@ public sealed partial class GameServer
     private void PrepareArrows()
     {
         _arrowsNow.Clear();
-        foreach (SpentArrow arrow in Zone.Arrows)
+        foreach (SpentArrow arrow in Zone.Arrows().All)
         {
-            if (Zone.TryPose(arrow.Link, out TargetPose pose))
+            if (Zone.Supports().TryLinkPose(arrow.Link, out TargetPose pose))
             {
                 _arrowsNow[arrow.Id.Value] = (arrow, pose.Position);
             }

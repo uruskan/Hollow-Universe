@@ -1,15 +1,17 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Physics;
-using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
-using Hollow.Simulation.Capabilities;
+using Hollow.Simulation.World;
+
+using Hollow.Simulation.Movement;
 
 namespace Hollow.Simulation;
 
@@ -17,13 +19,28 @@ namespace Hollow.Simulation;
 // workbench reach; and the one lifetime step (GROUND_SYSTEMS.md §3.7) for every loose thing of any family (bags, bodies,
 // duds, carcasses). The zone keeps the loose things (those with a lifetime) and the working ones (burners and machines)
 // in lists of their own, so neither the lifetime step nor the devices' step looks at every static thing.
-public sealed partial class Zone
+public sealed class ThingSystem : ZoneSystem
 {
+    private BuildingSystem? _buildingSystem;
+    private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
+    private DamageSystem? _damageSystem;
+    private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
+    private PlacementSystem? _placementSystem;
+    private PlacementSystem Placement => _placementSystem ??= Zone.Require<PlacementSystem>();
+    private SpillSystem? _spillSystem;
+    private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
+    private SupportSystem? _supportsSystem;
+    private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
+    private TargetSystem? _targetsSystem;
+    private TargetSystem Targets => _targetsSystem ??= Zone.Require<TargetSystem>();
+    private WorldSystem? _worldSystem;
+    private WorldSystem World => _worldSystem ??= Zone.Require<WorldSystem>();
+
     /// <summary>Side of the cells deployables are indexed by, for placement checks and hit tests.</summary>
     private const float ThingCell = 16f;
 
     private readonly Dictionary<(int X, int Z), List<Deployable>> _deployableCells = new();
-    private readonly List<ILifetime> _loose = new();
+    internal readonly List<ILifetime> _loose = new();
     private readonly List<ILifetime> _over = new();
     private readonly List<Deployable> _workers = new();
 
@@ -53,10 +70,10 @@ public sealed partial class Zone
             {
                 Physics.AddProp(PropLayer.Deployable, d.Id.Value, PropShape.Box(d.Centre, d.Def.HalfExtents, d.Up, d.Yaw));
             }
-            RespawnPointChanged(d);
-            CountOwned(d, +1);
+            World.RespawnPointChanged(d);
+            Placement.CountOwned(d, +1);
             // Standing on a piece, it goes with it (GROUND_SYSTEMS.md §3.6; restored, its piece may come back after it).
-            Hold(d.Ref, d.Support);
+            Supports.Hold(d.Ref, d.Support);
         }
         thing.Revision++;
         return entity;
@@ -76,8 +93,8 @@ public sealed partial class Zone
         {
             Cell(d.Position).Remove(d);
             Physics.RemoveProp(PropLayer.Deployable, d.Id.Value);
-            CountOwned(d, -1);
-            Release(d.Ref);
+            Placement.CountOwned(d, -1);
+            Supports.Release(d.Ref);
         }
         if (Entities.TryFind(thing.Id, out Entity entity))
         {
@@ -85,9 +102,9 @@ public sealed partial class Zone
         }
         if (thing is Deployable gone)
         {
-            RespawnPointChanged(gone);
+            World.RespawnPointChanged(gone);
         }
-        SupportGone(thing.Ref);
+        Supports.SupportGone(thing.Ref);
     }
 
     /// <summary>Every static object, for saving and replication.</summary>
@@ -134,7 +151,7 @@ public sealed partial class Zone
         }
     }
 
-    private readonly List<Deployable> _near = new();
+    internal readonly List<Deployable> _near = new();
 
     /// <summary>
     /// The best workbench level within reach of an eye (0: none): a bench counts when its nearest surface is within
@@ -142,7 +159,7 @@ public sealed partial class Zone
     /// </summary>
     public int WorkbenchLevel(Vector3 eye)
     {
-        float reach = Content!.Survival.StationReach;
+        float reach = Content.Survival.StationReach;
         _near.Clear();
         DeployablesNear(eye, reach + 3f, _near);
         int best = 0;
@@ -182,7 +199,7 @@ public sealed partial class Zone
     /// Damage to a deployable (tests, the admin's tools): a blow of <paramref name="amount"/> through the deployables'
     /// receiver, with no hit marker; at 0 it breaks and its contents spill, in one bag.
     /// </summary>
-    public void DamageDeployable(Deployable d, float amount) => Damage(new DamageRequest
+    public void DamageDeployable(Deployable d, float amount) => Damage.Damage(new DamageRequest
     {
         AttackerName = "",
         Delivery = DamageDelivery.Melee,
@@ -199,16 +216,16 @@ public sealed partial class Zone
     /// health (a claim device's box passes it to the building rules); at 0 one breaks: what it held spills in one bag,
     /// a research table gives back its work, a barrel goes until its respawn, and it is reported destroyed.
     /// </summary>
-    private sealed class DeployableReceiver(Zone zone) : IDamageReceiver
+    internal sealed class DeployableReceiver(Zone zone) : DamageSystem.IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Thing };
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             Vector3 end = ray.Origin + ray.Direction * ray.Length;
-            zone._traceThings.Clear();
-            zone.DeployablesNear((ray.Origin + end) / 2, ray.Length / 2 + 2f, zone._traceThings);
-            foreach (Deployable d in zone._traceThings)
+            zone.Combat()._traceThings.Clear();
+            zone.Things().DeployablesNear((ray.Origin + end) / 2, ray.Length / 2 + 2f, zone.Combat()._traceThings);
+            foreach (Deployable d in zone.Combat()._traceThings)
             {
                 (Vector3 right, Vector3 forward) = Geometry.Axes(d.Up, d.Yaw);
                 float t = Geometry.RayBox(ray.Origin, ray.Direction, ray.Length, d.Centre, d.Def.HalfExtents + new Vector3(ray.Thickness), right, d.Up, forward);
@@ -218,16 +235,16 @@ public sealed partial class Zone
 
         public void InReach(in BlastQuery blast, List<BlastTarget> into)
         {
-            zone._blastThings.Clear();
-            zone.DeployablesNear(blast.At, blast.Radius + 2f, zone._blastThings);
-            foreach (Deployable d in zone._blastThings)
+            zone.Explosives()._blastThings.Clear();
+            zone.Things().DeployablesNear(blast.At, blast.Radius + 2f, zone.Explosives()._blastThings);
+            foreach (Deployable d in zone.Explosives()._blastThings)
             {
                 // A claim device's box is the building's (its receiver finds it).
-                if (d.Health <= 0 || zone.ClaimOf(d) != null)
+                if (d.Health <= 0 || zone.Building().ClaimOf(d) != null)
                 {
                     continue;
                 }
-                Vector3 point = ClosestPoint(d, blast.At);
+                Vector3 point = BlastSystem.ClosestPoint(d, blast.At);
                 float distance = Vector3.Distance(point, blast.At);
                 bool stuck = blast.IsStuckTo(d.Ref);
                 if (distance <= blast.Radius || stuck)
@@ -243,28 +260,28 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (zone.StaticOf(new EntityId(r.Hit.Target.Id)) is not Deployable d)
+            if (zone.Things().StaticOf(new EntityId(r.Hit.Target.Id)) is not Deployable d)
             {
                 return default;
             }
             float amount = r.Amounts.Structure;
             float before = d.Health;
-            bool broke = zone.HurtDeployable(d, amount);
+            bool broke = zone.Things().HurtDeployable(d, amount);
             return new DamageOutcome(true, amount, Math.Max(0, before - Math.Max(0, d.Health)), broke, false, d.Id);
         }
     }
 
     // The deployables' consequences: true when it broke.
-    private bool HurtDeployable(Deployable d, float amount)
+    internal bool HurtDeployable(Deployable d, float amount)
     {
         if (amount <= 0 || d.Health <= 0 || d is WorldProp { Prop.Breakable: false })
         {
             return false; // crates and recyclers can't be broken (Rust's)
         }
-        if (ClaimOf(d) is { } claim)
+        if (Building.ClaimOf(d) is { } claim)
         {
             // A claim device takes its damage through the building rules (Zone.Building.cs).
-            DamageBuilding(claim, Vector3.Zero, amount, projectile: false);
+            Building.DamageBuilding(claim, Vector3.Zero, amount, projectile: false);
             return false;
         }
         d.Health -= amount;
@@ -292,14 +309,14 @@ public sealed partial class Zone
         Vector3 at = d.Position + d.Up * 0.3f;
         if (d.Storage != null)
         {
-            Spill(at, d.Storage, d.Yaw);
+            Spill.Spill(at, d.Storage, d.Yaw);
         }
-        SpillResearch(d, at);
+        World.SpillResearch(d, at);
         if (d is WorldProp prop)
         {
-            PropGone(prop); // a barrel's loot lies on the ground; the barrel comes back on its timer (G7)
+            World.PropGone(prop); // a barrel's loot lies on the ground; the barrel comes back on its timer (G7)
         }
-        Destroyed(d.Ref, d.ModelKey, 0, d.Position, Geometry.Upright(Frame.UpAt(d.Position), d.Yaw), cause);
+        Damage.Destroyed(d.Ref, d.ModelKey, 0, d.Position, Geometry.Upright(Frame.UpAt(d.Position), d.Yaw), cause);
     }
 
     // Campfires and furnaces (GROUND.md §6): a lit one burns a unit of fuel every fuel.seconds, leaving its by-product
@@ -316,14 +333,14 @@ public sealed partial class Zone
             }
             else if (d is { Lit: true, Def.IsMachine: true })
             {
-                StepMachine(d); // G7: a recycler or research table at work
+                World.StepMachine(d); // G7: a recycler or research table at work
             }
         }
     }
 
     private void StepDevice(Deployable d, DeviceStats device, Container storage)
     {
-        GameContent content = Content!;
+        GameContent content = Content;
         if (--d.BurnTicksLeft <= 0)
         {
             int fuelSlot = -1;
@@ -435,7 +452,7 @@ public sealed partial class Zone
         _machineCapability = content.Capabilities.Index("machine");
     }
 
-    private ILifetimeCapability Lifetimes => (ILifetimeCapability)Capabilities[_lifetimeCapability];
+    private ILifetimeCapability Lifetimes => (ILifetimeCapability)Targets.Capabilities[_lifetimeCapability];
 
     /// <summary>How many loose things there are (things with a lifetime running), for statistics and tests.</summary>
     public int LooseCount => _loose.Count;
@@ -468,24 +485,43 @@ public sealed partial class Zone
         }
         foreach (ILifetime thing in _over)
         {
-            lifetimes.End(this, thing.Ref, thing);
+            lifetimes.End(Zone, thing.Ref, thing);
             Unloose(thing);
         }
     }
 
     /// <summary>A loose thing's time starts again if its rule restarts on <paramref name="why"/> (something put in a bag).</summary>
-    private void Restart(ILifetime thing, LifetimeRestart why) => Lifetimes.Restart(thing, why, Tick);
+    internal void Restart(ILifetime thing, LifetimeRestart why) => Lifetimes.Restart(thing, why, Tick);
 
     /// <summary>A loose thing just emptied (looted, harvested out) goes at once if its rule ends it so; true when it went.</summary>
-    private bool EndIfEmptied(ILifetime thing)
+    internal bool EndIfEmptied(ILifetime thing)
     {
         ILifetimeCapability lifetimes = Lifetimes;
         if (!lifetimes.Over(thing, Tick))
         {
             return false;
         }
-        lifetimes.End(this, thing.Ref, thing);
+        lifetimes.End(Zone, thing.Ref, thing);
         Unloose(thing);
         return true;
     }
+
+    public override int InitOrder => 10;
+
+    protected internal override void Init() => InitThings(Content);
+
+    protected internal override void Step()
+    {
+        if (Tick % CharacterMotor.TickRate == 0)
+        {
+            StepLifetimes();
+        }
+        StepDevices();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class ThingSystemAccess
+{
+    public static ThingSystem Things(this Zone zone) => zone.Require<ThingSystem>();
 }

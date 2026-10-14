@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 using Hollow.Core;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
@@ -9,9 +9,11 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.Teams;
 using Hollow.Simulation.World;
-using Hollow.Simulation.Targets;
+
+using Hollow.Simulation.Movement;
 
 namespace Hollow.Simulation;
 
@@ -58,9 +60,18 @@ public sealed class WorldStats
 // The world's economy and progression in the zone (GROUND.md §6.8, G7): the barrels, crates and recyclers the world
 // places, their loot and respawns; recycling and research; tech tree unlocks and blueprints; teams and the map's
 // markers. Rules are Economy/, Teams/ and Nature/LootSpots; this file applies them to the zone's players and things.
-public sealed partial class Zone
+public sealed class WorldSystem : ZoneSystem
 {
-    private readonly Dictionary<ulong, LootSpot> _spots = new();
+    private BuildingSystem? _buildingSystem;
+    private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private SpillSystem? _spillSystem;
+    private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
+    internal readonly Dictionary<ulong, LootSpot> _spots = new();
     private readonly Dictionary<ulong, WorldProp> _props = new();
     private readonly Dictionary<ulong, long> _depleted = new();
     private readonly Dictionary<WorldProp, uint> _spawnRevisions = new();
@@ -97,7 +108,7 @@ public sealed partial class Zone
     /// </summary>
     public void StartWorld(IReadOnlyDictionary<ulong, PropOverride>? stored = null)
     {
-        if (LootSpots != null || Content == null)
+        if (LootSpots != null)
         {
             return;
         }
@@ -118,7 +129,7 @@ public sealed partial class Zone
     }
 
     // A prop on its spot: as stored, or with fresh loot from its table (seeded by the spot and the time).
-    private WorldProp Spawn(in LootSpot spot, PropOverride? stored)
+    internal WorldProp Spawn(in LootSpot spot, PropOverride? stored)
     {
         var prop = new WorldProp(new EntityId(spot.Id), spot.Prop, spot.Position, spot.Up, spot.Yaw);
         if (stored != null)
@@ -137,14 +148,14 @@ public sealed partial class Zone
         else if (spot.Prop.Loot is { } table && prop.Storage != null)
         {
             var rng = new Rng(Hash64.Of(spot.Id, (ulong)UnixMilliseconds, 0x1007));
-            List<ItemStack> loot = table.RollStacks(ref rng, Content!);
+            List<ItemStack> loot = table.RollStacks(ref rng, Content);
             for (int i = 0; i < loot.Count && i < prop.Storage.Size; i++)
             {
                 prop.Storage.Set(i, loot[i]);
             }
         }
         prop.Storage?.ClearDirty();
-        AddStatic(prop);
+        Things.AddStatic(prop);
         _props[spot.Id] = prop;
         // Untouched (and so not stored) until players change something; a stored one stays stored.
         _spawnRevisions[prop] = stored != null ? uint.MaxValue : prop.Storage?.Revision ?? 0;
@@ -178,14 +189,14 @@ public sealed partial class Zone
     }
 
     // A barrel broken or a crate emptied: gone until its respawn time (the real clock, as nature's).
-    private void PropGone(WorldProp prop)
+    internal void PropGone(WorldProp prop)
     {
         if (!_props.Remove(prop.Id.Value))
         {
             return;
         }
         _spawnRevisions.Remove(prop);
-        if (_oneOffProps.Remove(prop.Id.Value))
+        if (Players._oneOffProps.Remove(prop.Id.Value))
         {
             // An admin's (GROUND.md §8.2): gone for good, its spot with it.
             _spots.Remove(prop.Id.Value);
@@ -217,7 +228,7 @@ public sealed partial class Zone
         }
         foreach (WorldProp prop in _gone)
         {
-            RemoveStatic(prop);
+            Things.RemoveStatic(prop);
             PropGone(prop);
         }
         _due.Clear();
@@ -245,9 +256,9 @@ public sealed partial class Zone
     {
         DeployableDef def = spot.Prop.Deployable;
         Vector3 centre = spot.Position + spot.Up * def.HalfExtents.Y;
-        _near.Clear();
-        DeployablesNear(spot.Position, 4f, _near);
-        foreach (Deployable other in _near)
+        Things._near.Clear();
+        Things.DeployablesNear(spot.Position, 4f, Things._near);
+        foreach (Deployable other in Things._near)
         {
             if (Combat.Geometry.BoxesOverlap(centre, def.HalfExtents, spot.Yaw, other.Centre, other.Def.HalfExtents, other.Yaw, spot.Up))
             {
@@ -263,10 +274,10 @@ public sealed partial class Zone
                 return false;
             }
         }
-        if (Building != null)
+        if (Building.World != null)
         {
             _piecesNear.Clear();
-            Building.PiecesNear(spot.Position, spot.Position, 3f, _piecesNear);
+            Building.World.PiecesNear(spot.Position, spot.Position, 3f, _piecesNear);
             if (_piecesNear.Count > 0)
             {
                 return false;
@@ -280,7 +291,7 @@ public sealed partial class Zone
     // ---------------------------------------------------------------- machines: the recycler and the research table
 
     // A lit recycler or research table, each tick (Zone.Things' devices pass).
-    private void StepMachine(Deployable d)
+    internal void StepMachine(Deployable d)
     {
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
         if (d.Storage is { } storage)
@@ -306,7 +317,7 @@ public sealed partial class Zone
             return;
         }
         d.BurnTicksLeft = stats.Ticks;
-        GameContent content = Content!;
+        GameContent content = Content;
         int from = -1;
         foreach (int s in stats.InputSlots)
         {
@@ -403,7 +414,7 @@ public sealed partial class Zone
         {
             return;
         }
-        if (Content!.Recipe(d.ResearchItem) is { } recipe && storage[stats.OutputSlot].IsEmpty)
+        if (Content.Recipe(d.ResearchItem) is { } recipe && storage[stats.OutputSlot].IsEmpty)
         {
             storage.Set(stats.OutputSlot, TechTrees.BlueprintOf(Content, recipe));
             WorldStats.Researched++;
@@ -429,7 +440,7 @@ public sealed partial class Zone
         {
             return Outcome.Done;
         }
-        GameContent content = Content!;
+        GameContent content = Content;
         if (d.Def.Recycler is { } recycler)
         {
             if (d.Lit)
@@ -486,19 +497,19 @@ public sealed partial class Zone
     }
 
     // A research table broken mid-research gives back what it was working on, with its contents (in their bag).
-    private void SpillResearch(Deployable d, Vector3 at)
+    internal void SpillResearch(Deployable d, Vector3 at)
     {
         if (d.Def.Research == null || !d.Lit)
         {
             return;
         }
-        if (Content!.Item(d.ResearchItem) is { } item)
+        if (Content.Item(d.ResearchItem) is { } item)
         {
-            Spill(at, ItemStack.Of(item, 1), d.Yaw);
+            Spill.Spill(at, ItemStack.Of(item, 1), d.Yaw);
         }
         if (d.ResearchSalvage > 0 && Content.World.Currency is { } salvage)
         {
-            Spill(at, ItemStack.Of(salvage, Math.Min(d.ResearchSalvage, salvage.StackSize)), d.Yaw);
+            Spill.Spill(at, ItemStack.Of(salvage, Math.Min(d.ResearchSalvage, salvage.StackSize)), d.Yaw);
         }
         d.ResearchItem = 0;
         d.ResearchSalvage = 0;
@@ -513,7 +524,7 @@ public sealed partial class Zone
     /// </summary>
     internal Outcome UnlockNode(Entity entity, Player p, int recipeId)
     {
-        GameContent content = Content!;
+        GameContent content = Content;
         if (content.World.NodeOf(recipeId) is not { } node)
         {
             return OutcomeCode.Invalid;
@@ -523,7 +534,7 @@ public sealed partial class Zone
         {
             return can;
         }
-        if (WorkbenchLevel(EyeOf(Entities.Get<Character>(entity).State)) < node.Tier)
+        if (Things.WorkbenchLevel(EyeOf(Entities.Get<Character>(entity).State)) < node.Tier)
         {
             return OutcomeCode.NeedsWorkbench.With(node.Tier);
         }
@@ -545,7 +556,7 @@ public sealed partial class Zone
     /// </summary>
     public Outcome TeamAct(Entity entity, TeamAction action, EntityId target, ulong team)
     {
-        if (PlayerOf(entity) is not { } p || p.Sleeping)
+        if (Players.PlayerOf(entity) is not { } p || p.Sleeping)
         {
             return OutcomeCode.Invalid;
         }
@@ -593,7 +604,7 @@ public sealed partial class Zone
     // "Authorise team" on a claim device: the player and every teammate onto its list (anyone may authorise there, as in Rust).
     internal Outcome AuthoriseTeam(ulong player, ClaimDevice device, List<ulong> members)
     {
-        BuildingWorld building = Building!;
+        BuildingWorld building = Building.World!;
         Outcome first = building.Authorise(player, device);
         if (!first.Ok)
         {
@@ -614,11 +625,11 @@ public sealed partial class Zone
     /// <summary>Puts a marker on the map (at most world.json's <c>map.markers</c>, within the map), with a colour and a short label.</summary>
     public Outcome PlaceMarker(Entity entity, Vector3 at, byte colour, string? label)
     {
-        if (PlayerOf(entity) is not { } p || p.Sleeping)
+        if (Players.PlayerOf(entity) is not { } p || p.Sleeping)
         {
             return OutcomeCode.Invalid;
         }
-        WorldData world = Content!.World;
+        WorldData world = Content.World;
         float half = (float)(world.MapMetres / 2);
         if (!float.IsFinite(at.X) || !float.IsFinite(at.Z) || MathF.Abs(at.X) > half || MathF.Abs(at.Z) > half || colour >= MapMarker.Colours)
         {
@@ -641,7 +652,7 @@ public sealed partial class Zone
     /// <summary>Takes a marker off the map (−1: all of them).</summary>
     public Outcome RemoveMarker(Entity entity, int index)
     {
-        if (PlayerOf(entity) is not { } p || p.Sleeping)
+        if (Players.PlayerOf(entity) is not { } p || p.Sleeping)
         {
             return OutcomeCode.Invalid;
         }
@@ -662,11 +673,28 @@ public sealed partial class Zone
     }
 
     // A respawn point placed or gone: its owner's map changes.
-    private void RespawnPointChanged(Deployable d)
+    internal void RespawnPointChanged(Deployable d)
     {
-        if (d.Def.IsRespawnPoint && TryFindPlayer(d.Owner, out _, out Player owner))
+        if (d.Def.IsRespawnPoint && Players.TryFindPlayer(d.Owner, out _, out Player owner))
         {
             owner.MapRevision++;
         }
     }
+
+    public override int InitOrder => 40;
+
+    protected internal override void Init() => InitWorld(Content);
+
+    public override int Every => CharacterMotor.TickRate;
+
+    protected internal override void Step()
+    {
+        StepWorld();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class WorldSystemAccess
+{
+    public static WorldSystem World(this Zone zone) => zone.Require<WorldSystem>();
 }

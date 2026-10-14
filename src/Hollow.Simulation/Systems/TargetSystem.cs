@@ -1,23 +1,24 @@
-using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
+using System;
 using Hollow.Simulation.Animals;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Interaction;
+using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
+using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
-using Hollow.Simulation.World;
-using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Teams;
-using Hollow.Simulation.Interaction;
-using Hollow.Simulation.Items;
-using System.Collections.Generic;
-using System.Linq;
+using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
@@ -25,11 +26,24 @@ namespace Hollow.Simulation;
 // answers for its members: whether one exists, the thing itself, where it (or a part: a door's leaf, a body's bone) is,
 // the nearest point of its bounds, what it is drawn as. The four lookups the zone had (the entity store, the building's,
 // the animals', a scan of the explosives) are each one family's business now.
-public sealed partial class Zone
+
+// (from Zone.Reach.cs)
+// Reach and sight (GROUND_SYSTEMS.md §3.4): one rule for every action on a thing. The distance runs from the eye to the
+// thing's nearest surface (its family's), within a reach from data (survival.json's reach); one ray from the eye to just
+// in front of that point must meet nothing of the building but the thing itself, nor the ground short of the thing. It
+// replaces the slack constants each action had (+0.3, +0.5, +1.5, +3, +4 to centres, middles and feet).
+public sealed class TargetSystem : ZoneSystem
 {
+    private BuildingSystem? _buildingSystem;
+    private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
+    private CombatSystem? _combatSystem;
+    private CombatSystem Combat => _combatSystem ??= Zone.Require<CombatSystem>();
+    private WorldSystem? _worldSystem;
+    private WorldSystem World => _worldSystem ??= Zone.Require<WorldSystem>();
+
     private Registry<ITargetFamily>? _families;
     private Registry<ICapability>? _capabilities;
-    private ITargetView[] _views = Array.Empty<ITargetView>();
+    internal ITargetView[] _views = Array.Empty<ITargetView>();
 
     /// <summary>The families of world things, by <see cref="TargetFamily"/> (null in a movement-only zone).</summary>
     public Registry<ITargetFamily> Families => _families ?? throw new InvalidOperationException("a zone without game data names no things");
@@ -39,17 +53,16 @@ public sealed partial class Zone
         var families = Registry<ITargetFamily>.ForEnum<TargetFamily>("target families", complete: true, TargetFamily.None);
         foreach (ITargetFamily family in new ITargetFamily[]
                  {
-                     new GroundTargets(this), new CharacterTargets(this), new AnimalTargets(this), new NaturalTargets(this), new ThingTargets(this),
-                     new PieceTargets(this), new DoorTargets(this), new CupboardTargets(this), new ExplosiveTargets(this), new ShipTargets(this),
-                     new ArrowTargets(this),
+                     new GroundTargets(Zone), new CharacterTargets(Zone), new AnimalTargets(Zone), new NaturalTargets(Zone), new ThingTargets(Zone),
+                     new PieceTargets(Zone), new DoorTargets(Zone), new CupboardTargets(Zone), new ExplosiveTargets(Zone), new ShipTargets(Zone),
+                     new ArrowSystem.ArrowTargets(Zone),
                  })
         {
             families.Add((int)family.Family, family);
         }
         _families = families.Seal();
         _views = _families.Handlers.ToArray<ITargetView>();
-        _capabilities = CapabilityHandlers.Create(Content!);
-        _interactions = new InteractionRules(Content!, _capabilities);
+        _capabilities = CapabilityHandlers.Create(Content);
     }
 
     /// <summary>The families as the interact key aims through them (GROUND_SYSTEMS.md §5), in their numbers' order.</summary>
@@ -75,7 +88,7 @@ public sealed partial class Zone
     /// A player as a viewer: their ID, their team and the numbers of the keys they carry. The keys are the zone's own
     /// list, good until the next call.
     /// </summary>
-    public Viewer ViewerOf(Player p) => new(p.Id, Teams.TeamOf(p.Id), KeysOf(p));
+    public Viewer ViewerOf(Player p) => new(p.Id, World.Teams.TeamOf(p.Id), Building.KeysOf(p));
 
     /// <summary>The family a target belongs to, or null (none, or a number from outside that names no family).</summary>
     public ITargetFamily? FamilyOf(TargetFamily family) => _families?.Find((int)family);
@@ -106,7 +119,7 @@ public sealed partial class Zone
     // ---------------------------------------------------------------- the families
 
     /// <summary>The terrain: always there, its pose the zone frame itself (what lies on it keeps its own place).</summary>
-    private sealed class GroundTargets(Zone zone) : ITargetFamily
+    internal sealed class GroundTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Ground;
 
@@ -134,7 +147,7 @@ public sealed partial class Zone
 
         // The ground hides what is behind it; it offers nothing.
         public void Aim(in AimRay ray, ref AimHit best) =>
-            ray.Consider(ref best, zone.GroundCrossing(ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground, AimKind.Backdrop);
+            ray.Consider(ref best, zone.Combat().GroundCrossing(ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground, AimKind.Backdrop);
 
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
@@ -144,15 +157,15 @@ public sealed partial class Zone
     }
 
     /// <summary>Players' characters, awake, down or asleep (a dead one is gone: its body is a thing); parts are bones.</summary>
-    private sealed class CharacterTargets(Zone zone) : ITargetFamily
+    internal sealed class CharacterTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Character;
 
         public bool Moves => true;
 
-        public bool Exists(ulong id) => zone.TryFindPlayer(new EntityId(id), out _, out Player p) && !p.Dead;
+        public bool Exists(ulong id) => zone.Players().TryFindPlayer(new EntityId(id), out _, out Player p) && !p.Dead;
 
-        public object? Resolve(ulong id) => zone.TryFindPlayer(new EntityId(id), out _, out Player p) && !p.Dead ? p : null;
+        public object? Resolve(ulong id) => zone.Players().TryFindPlayer(new EntityId(id), out _, out Player p) && !p.Dead ? p : null;
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
@@ -186,7 +199,7 @@ public sealed partial class Zone
 
         public string ModelKey(ulong id) => "";
 
-        public CapabilitySet Capabilities(ulong id) => zone.TryFindPlayer(new EntityId(id), out _, out Player p) && !p.Dead ? Of(p) : CapabilitySet.Empty;
+        public CapabilitySet Capabilities(ulong id) => zone.Players().TryFindPlayer(new EntityId(id), out _, out Player p) && !p.Dead ? Of(p) : CapabilitySet.Empty;
 
         // Asleep: looted; down: looted and helped up; up and about: invited into a team.
         private CapabilitySet Of(Player p)
@@ -227,13 +240,13 @@ public sealed partial class Zone
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (!zone.TryFindPlayer(new EntityId(target.Id), out Entity e, out Player p) || p.Dead)
+            if (!zone.Players().TryFindPlayer(new EntityId(target.Id), out Entity e, out Player p) || p.Dead)
             {
                 return false;
             }
             facts = new TargetFacts
             {
-                Capabilities = Of(p), Flags = zone.FlagsFor(target, viewer), Name = p.Name, Body = true,
+                Capabilities = Of(p), Flags = zone.Targets().FlagsFor(target, viewer), Name = p.Name, Body = true,
                 Position = zone.Entities.Get<Character>(e).State.Position,
             };
             return true;
@@ -243,7 +256,7 @@ public sealed partial class Zone
         private bool Body(ulong id, out HitPose pose)
         {
             pose = default;
-            if (!zone.TryFindPlayer(new EntityId(id), out Entity e, out Player p) || p.Dead)
+            if (!zone.Players().TryFindPlayer(new EntityId(id), out Entity e, out Player p) || p.Dead)
             {
                 return false;
             }
@@ -253,14 +266,14 @@ public sealed partial class Zone
                 Feet = c.State.Position,
                 Up = zone.Frame.UpAt(c.State.Position),
                 Yaw = c.Input.Yaw,
-                Pose = p.Sleeping || p.Wounded ? Combat.Pose.Lying : c.State.Stance == Stance.Crouching ? Combat.Pose.Crouching : Combat.Pose.Standing,
+                Pose = p.Sleeping || p.Wounded ? Simulation.Combat.Pose.Lying : c.State.Stance == Stance.Crouching ? Simulation.Combat.Pose.Crouching : Simulation.Combat.Pose.Standing,
             };
             return true;
         }
     }
 
     /// <summary>Animals, alive or a corpse until it goes; parts are bones.</summary>
-    private sealed class AnimalTargets(Zone zone) : ITargetFamily
+    internal sealed class AnimalTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Animal;
 
@@ -277,7 +290,7 @@ public sealed partial class Zone
             {
                 return false;
             }
-            HitPose body = zone.PoseOf(a);
+            HitPose body = zone.Animals().PoseOf(a);
             if (target.Part == 0)
             {
                 pose = new TargetPose(body.Feet, Geometry.Upright(body.Up, body.Yaw));
@@ -296,7 +309,7 @@ public sealed partial class Zone
                 return false;
             }
             Span<HitShape> shapes = stackalloc HitShape[Hitboxes.MostShapes];
-            Span<HitShape> all = shapes[..AnimalHitboxes.Shapes(a.Species, zone.PoseOf(a), shapes)];
+            Span<HitShape> all = shapes[..AnimalHitboxes.Shapes(a.Species, zone.Animals().PoseOf(a), shapes)];
             point = target.Part == 0 ? Hitboxes.NearestPoint(all, from) : all[Math.Clamp(target.Part - 1, 0, all.Length - 1)].Nearest(from);
             return true;
         }
@@ -308,7 +321,7 @@ public sealed partial class Zone
         // A bone as the attacker saw it (the animals' hit history), for what sticks in it where it hit.
         public bool TryPoseAt(in TargetRef target, double viewTick, out TargetPose pose)
         {
-            if (target.Part == 0 || Find(target.Id) is not { IsDead: false } a || !zone.Animals!.History.Sample(a.Id, viewTick, out HitPose then))
+            if (target.Part == 0 || Find(target.Id) is not { IsDead: false } a || !zone.Animals().World!.History.Sample(a.Id, viewTick, out HitPose then))
             {
                 return TryPose(target, out pose);
             }
@@ -320,17 +333,17 @@ public sealed partial class Zone
         // Animals as they are now, by their hit shapes: they hide what is behind them, and offer nothing themselves.
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            if (zone.Animals is not { } animals)
+            if (zone.Animals().World is not { } animals)
             {
                 return;
             }
             float length = ray.Upto(best);
-            animals.Near(ray.Origin + ray.Direction * (length / 2), length / 2 + 4f, zone._aimAnimals);
-            foreach (Animal a in zone._aimAnimals)
+            animals.Near(ray.Origin + ray.Direction * (length / 2), length / 2 + 4f, zone.Interaction()._aimAnimals);
+            foreach (Animal a in zone.Interaction()._aimAnimals)
             {
                 if (!a.Removed)
                 {
-                    ray.Consider(ref best, AnimalHitboxes.Raycast(a.Species, zone.PoseOf(a), ray.Origin, ray.Direction, length, AimShapes.BodyMargin, out _), a.Ref,
+                    ray.Consider(ref best, AnimalHitboxes.Raycast(a.Species, zone.Animals().PoseOf(a), ray.Origin, ray.Direction, length, AimShapes.BodyMargin, out _), a.Ref,
                         AimKind.Backdrop);
                 }
             }
@@ -353,15 +366,15 @@ public sealed partial class Zone
             {
                 return false;
             }
-            zone.Animals!.Remove(a);
+            zone.Animals().World!.Remove(a);
             return true;
         }
 
-        private Animal? Find(ulong id) => zone.Animals?.Find(new EntityId(id)) is { Removed: false } a ? a : null;
+        private Animal? Find(ulong id) => zone.Animals().World?.Find(new EntityId(id)) is { Removed: false } a ? a : null;
     }
 
     /// <summary>Trees, outcrops, pickups and bushes (felled, broken or picked ones are gone until they come back).</summary>
-    private sealed class NaturalTargets(Zone zone) : ITargetFamily, IPickupFamily
+    internal sealed class NaturalTargets(Zone zone) : ITargetFamily, IPickupFamily
     {
         public TargetFamily Family => TargetFamily.Natural;
 
@@ -404,7 +417,7 @@ public sealed partial class Zone
         {
             if (zone.Nature != null && zone.Natural != null)
             {
-                NaturalAim.Aim(zone.Nature, zone.Natural, zone.Content!, ray, ref best, zone._aimNature);
+                NaturalAim.Aim(zone.Nature, zone.Natural, zone.Content!, ray, ref best, zone.Interaction()._aimNature);
             }
         }
 
@@ -427,7 +440,7 @@ public sealed partial class Zone
                 return OutcomeCode.NotFound;
             }
             GatherResult result = zone.Natural!.Pick(o, zone.UnixMilliseconds);
-            zone.Give(entity, p, result.Yield, GainReason.PickedUp);
+            zone.Combat().Give(entity, p, result.Yield, GainReason.PickedUp);
             return Outcome.Done;
         }
 
@@ -445,20 +458,20 @@ public sealed partial class Zone
     }
 
     /// <summary>The static things of the entity store: deployables, world props, bags of dropped items, bodies.</summary>
-    private sealed class ThingTargets(Zone zone) : ITargetFamily, IPickupFamily
+    internal sealed class ThingTargets(Zone zone) : ITargetFamily, IPickupFamily
     {
         public TargetFamily Family => TargetFamily.Thing;
 
         public bool Moves => false;
 
-        public bool Exists(ulong id) => zone.StaticOf(new EntityId(id)) != null;
+        public bool Exists(ulong id) => zone.Things().StaticOf(new EntityId(id)) != null;
 
-        public object? Resolve(ulong id) => zone.StaticOf(new EntityId(id));
+        public object? Resolve(ulong id) => zone.Things().StaticOf(new EntityId(id));
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
-            if (zone.StaticOf(new EntityId(target.Id)) is not { } thing)
+            if (zone.Things().StaticOf(new EntityId(target.Id)) is not { } thing)
             {
                 return false;
             }
@@ -469,7 +482,7 @@ public sealed partial class Zone
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
-            if (zone.StaticOf(new EntityId(target.Id)) is not { } thing)
+            if (zone.Things().StaticOf(new EntityId(target.Id)) is not { } thing)
             {
                 return false;
             }
@@ -477,25 +490,25 @@ public sealed partial class Zone
             return true;
         }
 
-        public string ModelKey(ulong id) => zone.StaticOf(new EntityId(id))?.ModelKey ?? "";
+        public string ModelKey(ulong id) => zone.Things().StaticOf(new EntityId(id))?.ModelKey ?? "";
 
-        public CapabilitySet Capabilities(ulong id) => zone.StaticOf(new EntityId(id))?.CapabilitiesIn(zone.Content!.Capabilities) ?? CapabilitySet.Empty;
+        public CapabilitySet Capabilities(ulong id) => zone.Things().StaticOf(new EntityId(id))?.CapabilitiesIn(zone.Content!.Capabilities) ?? CapabilitySet.Empty;
 
         // Deployables and props by their boxes (the cell index), bags and bodies by their spheres (the loose things); the
         // tool cupboard's box is the cupboard's (found by its body).
         public void Aim(in AimRay ray, ref AimHit best)
         {
             float length = ray.Upto(best);
-            zone._aimThings.Clear();
-            zone.DeployablesNear(ray.Origin + ray.Direction * (length / 2), length / 2 + 2f, zone._aimThings);
-            foreach (Deployable d in zone._aimThings)
+            zone.Interaction()._aimThings.Clear();
+            zone.Things().DeployablesNear(ray.Origin + ray.Direction * (length / 2), length / 2 + 2f, zone.Interaction()._aimThings);
+            foreach (Deployable d in zone.Interaction()._aimThings)
             {
-                if (zone.ClaimOf(d) == null)
+                if (zone.Building().ClaimOf(d) == null)
                 {
                     ray.Consider(ref best, AimShapes.Box(ray, d.Position, d.Up, d.Yaw, d.Def.HalfExtents), d.Ref);
                 }
             }
-            foreach (ILifetime loose in zone._loose)
+            foreach (ILifetime loose in zone.Things()._loose)
             {
                 if (loose is DroppedContainer dropped && Vector3.DistanceSquared(dropped.Position, ray.Origin) <= (length + 2) * (length + 2))
                 {
@@ -507,14 +520,14 @@ public sealed partial class Zone
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (zone.StaticOf(new EntityId(target.Id)) is not { } thing)
+            if (zone.Things().StaticOf(new EntityId(target.Id)) is not { } thing)
             {
                 return false;
             }
             DeployableDef? def = (thing as Deployable)?.Def;
             facts = new TargetFacts
             {
-                Capabilities = thing.CapabilitiesIn(zone.Content!.Capabilities), Flags = zone.FlagsFor(target, viewer),
+                Capabilities = thing.CapabilitiesIn(zone.Content!.Capabilities), Flags = zone.Targets().FlagsFor(target, viewer),
                 Name = thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "", Count = thing.ShownCount,
                 Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position,
             };
@@ -523,21 +536,21 @@ public sealed partial class Zone
 
         // A bag of dropped items is taken whole: everything in it that fits (an emptied bag goes).
         public Outcome PickUp(Entity entity, Player p, in TargetRef target) =>
-            zone.StaticOf(new EntityId(target.Id)) is DroppedBag bag ? zone.TakeBag(p, bag) : OutcomeCode.NotFound;
+            zone.Things().StaticOf(new EntityId(target.Id)) is DroppedBag bag ? zone.Interaction().TakeBag(p, bag) : OutcomeCode.NotFound;
 
         public bool Remove(ulong id)
         {
-            if (zone.StaticOf(new EntityId(id)) is not { } thing)
+            if (zone.Things().StaticOf(new EntityId(id)) is not { } thing)
             {
                 return false;
             }
-            zone.RemoveStatic(thing);
+            zone.Things().RemoveStatic(thing);
             return true;
         }
     }
 
     /// <summary>Building pieces (one coming down still stands until it is taken away).</summary>
-    private sealed class PieceTargets(Zone zone) : ITargetFamily
+    internal sealed class PieceTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Piece;
 
@@ -566,7 +579,7 @@ public sealed partial class Zone
             {
                 return false;
             }
-            point = ClosestPoint(zone.Building!.Data, piece, from);
+            point = BlastSystem.ClosestPoint(zone.Building().World!.Data, piece, from);
             return true;
         }
 
@@ -577,7 +590,7 @@ public sealed partial class Zone
         // Every building body in one query (pieces, doors' leaves, the tool cupboard): whatever owns the body names it.
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            if (zone.Building is { } building)
+            if (zone.Building().World is { } building)
             {
                 BuildingAim.Bodies(building, ray, ref best);
             }
@@ -594,11 +607,11 @@ public sealed partial class Zone
             return true;
         }
 
-        private Piece? Find(ulong id) => zone.Building?.PieceOf(new EntityId(id)) is { Gone: false } piece ? piece : null;
+        private Piece? Find(ulong id) => zone.Building().World?.PieceOf(new EntityId(id)) is { Gone: false } piece ? piece : null;
     }
 
     /// <summary>Doors in their frames; a door's parts are its leaves (part i + 1: leaf i), which swing.</summary>
-    private sealed class DoorTargets(Zone zone) : ITargetFamily
+    internal sealed class DoorTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Door;
 
@@ -630,8 +643,8 @@ public sealed partial class Zone
             {
                 return false;
             }
-            point = ClosestPoint(door, from).Point;
-            if (target.Part == 0 && AimShapes.NearestInDoorway(zone.Building!.Data, door.Frame, from, out Vector3 opening) &&
+            point = BlastSystem.ClosestPoint(door, from).Point;
+            if (target.Part == 0 && AimShapes.NearestInDoorway(zone.Building().World!.Data, door.Frame, from, out Vector3 opening) &&
                 Vector3.DistanceSquared(opening, from) < Vector3.DistanceSquared(point, from))
             {
                 point = opening;
@@ -643,9 +656,9 @@ public sealed partial class Zone
         // whose leaves swung or rolled out of the way, is still what the aim through its doorway meets.
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            if (zone.Building is { } building)
+            if (zone.Building().World is { } building)
             {
-                BuildingAim.Openings(building, ray, ref best, zone._aimPieces);
+                BuildingAim.Openings(building, ray, ref best, zone.Interaction()._aimPieces);
             }
         }
 
@@ -658,7 +671,7 @@ public sealed partial class Zone
             }
             facts = new TargetFacts
             {
-                Capabilities = Capabilities(target.Id), Flags = zone.FlagsFor(target, viewer), Name = door.Def.Name, Open = door.Open,
+                Capabilities = Capabilities(target.Id), Flags = zone.Targets().FlagsFor(target, viewer), Name = door.Def.Name, Open = door.Open,
                 Lock = door.Lock?.Kind ?? LockKind.None, Position = door.Frame.ZoneTransform.Position,
             };
             return true;
@@ -672,11 +685,11 @@ public sealed partial class Zone
             return Find(id) is { } door ? door.Lock is { } fitted ? data.Door.With(data.Lock(fitted.Kind)) : data.Door : CapabilitySet.Empty;
         }
 
-        private Door? Find(ulong id) => zone.Building?.DoorOf(new EntityId(id)) is { Gone: false } door ? door : null;
+        private Door? Find(ulong id) => zone.Building().World?.DoorOf(new EntityId(id)) is { Gone: false } door ? door : null;
     }
 
     /// <summary>The claim device (the base's cupboard), found by its box.</summary>
-    private sealed class CupboardTargets(Zone zone) : ITargetFamily
+    internal sealed class CupboardTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Cupboard;
 
@@ -705,7 +718,7 @@ public sealed partial class Zone
             {
                 return false;
             }
-            point = zone.DeployableOf(claim) is { } box ? ClosestPoint(box, from) : claim.ZoneTransform.Position;
+            point = zone.Building().DeployableOf(claim) is { } box ? BlastSystem.ClosestPoint(box, from) : claim.ZoneTransform.Position;
             return true;
         }
 
@@ -729,30 +742,30 @@ public sealed partial class Zone
             facts = new TargetFacts
             {
                 Capabilities = Capabilities(target.Id),
-                Flags = zone.FlagsFor(target, viewer) | zone.FlagsFor(new TargetRef(TargetFamily.Thing, claim.Id.Value), viewer),
+                Flags = zone.Targets().FlagsFor(target, viewer) | zone.Targets().FlagsFor(new TargetRef(TargetFamily.Thing, claim.Id.Value), viewer),
                 Name = zone.Content!.ClaimDeployable.Item.Name, Position = claim.ZoneTransform.Position,
             };
             return true;
         }
 
-        private ClaimDevice? Find(ulong id) => zone.Building?.ClaimOf(new EntityId(id)) is { Gone: false } claim ? claim : null;
+        private ClaimDevice? Find(ulong id) => zone.Building().World?.ClaimOf(new EntityId(id)) is { Gone: false } claim ? claim : null;
     }
 
     /// <summary>Explosives in the world, by their IDs (they were a scan of the list).</summary>
-    private sealed class ExplosiveTargets(Zone zone) : ITargetFamily
+    internal sealed class ExplosiveTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Explosive;
 
         public bool Moves => true;
 
-        public bool Exists(ulong id) => zone.ExplosiveOf(new EntityId(id)) != null;
+        public bool Exists(ulong id) => zone.Explosives().ExplosiveOf(new EntityId(id)) != null;
 
-        public object? Resolve(ulong id) => zone.ExplosiveOf(new EntityId(id));
+        public object? Resolve(ulong id) => zone.Explosives().ExplosiveOf(new EntityId(id));
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
-            if (zone.ExplosiveOf(new EntityId(target.Id)) is not { } e)
+            if (zone.Explosives().ExplosiveOf(new EntityId(target.Id)) is not { } e)
             {
                 return false;
             }
@@ -763,7 +776,7 @@ public sealed partial class Zone
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
-            if (zone.ExplosiveOf(new EntityId(target.Id)) is not { } e)
+            if (zone.Explosives().ExplosiveOf(new EntityId(target.Id)) is not { } e)
             {
                 return false;
             }
@@ -771,12 +784,12 @@ public sealed partial class Zone
             return true;
         }
 
-        public string ModelKey(ulong id) => zone.ExplosiveOf(new EntityId(id))?.Item.Key ?? "";
+        public string ModelKey(ulong id) => zone.Explosives().ExplosiveOf(new EntityId(id))?.Item.Key ?? "";
 
         public void Aim(in AimRay ray, ref AimHit best)
         {
             float length = ray.Upto(best);
-            foreach (LiveExplosive e in zone.Explosives)
+            foreach (LiveExplosive e in zone.Explosives().All)
             {
                 if (!e.Gone && Vector3.DistanceSquared(e.Position, ray.Origin) <= (length + 1) * (length + 1))
                 {
@@ -788,24 +801,24 @@ public sealed partial class Zone
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (zone.ExplosiveOf(new EntityId(target.Id)) is not { Gone: false } e)
+            if (zone.Explosives().ExplosiveOf(new EntityId(target.Id)) is not { Gone: false } e)
             {
                 return false;
             }
-            facts = new TargetFacts { Capabilities = Capabilities(target.Id), Flags = zone.FlagsFor(target, viewer), Name = e.Item.Name, Position = e.Position };
+            facts = new TargetFacts { Capabilities = Capabilities(target.Id), Flags = zone.Targets().FlagsFor(target, viewer), Name = e.Item.Name, Position = e.Position };
             return true;
         }
 
         public CapabilitySet Capabilities(ulong id)
         {
             CapabilityData data = zone.Content!.Capabilities;
-            return zone.ExplosiveOf(new EntityId(id)) is { } e ? e.Dud ? data.Dud : data.Explosive : CapabilitySet.Empty;
+            return zone.Explosives().ExplosiveOf(new EntityId(id)) is { } e ? e.Dud ? data.Dud : data.Explosive : CapabilitySet.Empty;
         }
 
         // Gone at once; the explosives' step lets go of it on its next tick (its link, its ID), as for one that went off.
         public bool Remove(ulong id)
         {
-            if (zone.ExplosiveOf(new EntityId(id)) is not { Gone: false } e)
+            if (zone.Explosives().ExplosiveOf(new EntityId(id)) is not { Gone: false } e)
             {
                 return false;
             }
@@ -815,21 +828,21 @@ public sealed partial class Zone
     }
 
     /// <summary>Ships, wrecks included until they go; found by their hulls.</summary>
-    private sealed class ShipTargets(Zone zone) : ITargetFamily
+    internal sealed class ShipTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Ship;
 
         public bool Moves => true;
 
-        public bool Exists(ulong id) => zone.ShipOf(new EntityId(id)) != null;
+        public bool Exists(ulong id) => zone.Ships().ShipOf(new EntityId(id)) != null;
 
-        public object? Resolve(ulong id) => zone.ShipOf(new EntityId(id));
+        public object? Resolve(ulong id) => zone.Ships().ShipOf(new EntityId(id));
 
         // The ship by its pivot, or a part (the hatch, the fuel cap, the cargo) at its point on the hull.
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
-            if (zone.ShipOf(new EntityId(target.Id)) is not { } ship)
+            if (zone.Ships().ShipOf(new EntityId(target.Id)) is not { } ship)
             {
                 return false;
             }
@@ -841,22 +854,22 @@ public sealed partial class Zone
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
-            if (zone.ShipOf(new EntityId(target.Id)) is not { } ship)
+            if (zone.Ships().ShipOf(new EntityId(target.Id)) is not { } ship)
             {
                 return false;
             }
-            point = target.Part == ShipParts.Hull ? ShipClosestPoint(ship, from) : ship.PointOf(ship.Def.PartPoint(target.Part));
+            point = target.Part == ShipParts.Hull ? ShipSystem.ShipClosestPoint(ship, from) : ship.PointOf(ship.Def.PartPoint(target.Part));
             return true;
         }
 
-        public string ModelKey(ulong id) => zone.ShipOf(new EntityId(id))?.Def.Key ?? "";
+        public string ModelKey(ulong id) => zone.Ships().ShipOf(new EntityId(id))?.Def.Key ?? "";
 
-        public CapabilitySet Capabilities(ulong id) => zone.ShipOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Ship : CapabilitySet.Empty;
+        public CapabilitySet Capabilities(ulong id) => zone.Ships().ShipOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Ship : CapabilitySet.Empty;
 
         // Its parts, round their points: the hatch, the fuel cap and, through the open hatch, the cargo.
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            foreach (Ship ship in zone.Ships)
+            foreach (Ship ship in zone.Ships().All)
             {
                 if (!ship.Destroyed && !ship.InOrbit)
                 {
@@ -870,19 +883,81 @@ public sealed partial class Zone
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (zone.ShipOf(new EntityId(target.Id)) is not { Destroyed: false } ship)
+            if (zone.Ships().ShipOf(new EntityId(target.Id)) is not { Destroyed: false } ship)
             {
                 return false;
             }
             CapabilityData data = zone.Content!.Capabilities;
-            bool still = zone.ShipStill(ship);
+            bool still = zone.Ships().ShipStill(ship);
             facts = new TargetFacts
             {
                 Capabilities = target.Part == ShipParts.Cargo && ship.HatchOpen && still ? data.Ship : data.ShipPart,
-                Flags = zone.FlagsFor(target, viewer), Name = ship.Def.Name, Open = ship.HatchOpen, Busy = ship.Piloted, Still = still,
+                Flags = zone.Targets().FlagsFor(target, viewer), Name = ship.Def.Name, Open = ship.HatchOpen, Busy = ship.Piloted, Still = still,
                 Position = ship.State.Position,
             };
             return true;
         }
     }
+
+    // ---------------------------------------------------------------- from Zone.Reach.cs
+
+    /// <summary>
+    /// A line of sight ends this far in front of the thing's nearest point: the eye must see the air before it. What the
+    /// thing touches there (a door's jamb beside its leaf, the floor under a box) doesn't hide it, while a wall it is
+    /// against from the far side (0.3 m thick) does.
+    /// </summary>
+    private const float SightShortBy = 0.1f;
+
+    /// <summary>The ground this close to the thing doesn't hide it: what lies on the ground meets it there.</summary>
+    private const float SightGroundAtThing = 0.25f;
+
+    /// <summary>
+    /// The one reach rule (GROUND_SYSTEMS.md §3.4): whether the eye reaches a thing: its nearest surface within
+    /// <paramref name="reach"/> metres, and (unless <paramref name="sight"/> is false: a workbench's level, an open
+    /// container staying open) in sight. Done, or NotFound, OutOfReach or OutOfSight.
+    /// </summary>
+    public Outcome Reach(Vector3 eye, in TargetRef target, float reach, bool sight = true)
+    {
+        if (!TryNearest(target, eye, out Vector3 point))
+        {
+            return OutcomeCode.NotFound;
+        }
+        if (Vector3.DistanceSquared(eye, point) > reach * reach)
+        {
+            return OutcomeCode.OutOfReach;
+        }
+        return !sight || InSight(eye, point, target) ? Outcome.Done : OutcomeCode.OutOfSight;
+    }
+
+    /// <summary>
+    /// Whether the eye sees a thing at one of its points: from the eye to just in front of the point, no building body but
+    /// the thing's own (by its ID: the claim device's body is its box's too), and no ground short of the thing.
+    /// </summary>
+    public bool InSight(Vector3 eye, Vector3 point, in TargetRef target)
+    {
+        Vector3 d = point - eye;
+        float distance = d.Length(), length = distance - SightShortBy;
+        if (length <= 0)
+        {
+            return true;
+        }
+        Vector3 direction = d / distance;
+        if (Building.World?.Physics is { } physics && physics.Ray(eye, direction, length, out RayHit hit, buildingOnly: true) &&
+            (physics.OwnerOf(hit.Body) is not ITargetable owner || owner.Ref.Id != target.Id))
+        {
+            return false;
+        }
+        float ground = Combat.GroundCrossing(eye, direction, length);
+        return ground < 0 || ground > distance - SightGroundAtThing;
+    }
+
+    public override int InitOrder => 60;
+
+    protected internal override void Init() => InitTargets();
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class TargetSystemAccess
+{
+    public static TargetSystem Targets(this Zone zone) => zone.Require<TargetSystem>();
 }

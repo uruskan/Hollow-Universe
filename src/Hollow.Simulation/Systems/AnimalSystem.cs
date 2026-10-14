@@ -1,7 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System;
 using Hollow.Core;
 using Hollow.Simulation.Animals;
 using Hollow.Simulation.Building;
@@ -11,48 +11,61 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
-using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
 // Animals in the zone (GROUND.md §6.9): the glue between the animal world (Animals/) and the rest of the game. Players
 // are observed and the tick's shots, blasts and blows are heard; animals' attacks hurt players through their armour;
 // swings, arrows, bullets and blasts hurt animals (as the attacker saw them); tools harvest corpses like gathering.
-public sealed partial class Zone : IAnimalHost
+public sealed class AnimalSystem : ZoneSystem, IAnimalHost
 {
+    private BuildingSystem? _buildingSystem;
+    private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
+    private CombatSystem? _combatSystem;
+    private CombatSystem Combat => _combatSystem ??= Zone.Require<CombatSystem>();
+    private DamageSystem? _damageSystem;
+    private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private SupportSystem? _supportsSystem;
+    private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
     private readonly List<Piece> _animalPieces = new();
     private readonly List<Deployable> _animalThings = new();
-    private readonly List<Animal> _animalTrace = new();
+    internal readonly List<Animal> _animalTrace = new();
     private int _heard;
 
     /// <summary>The zone's animals (null in a movement-only zone).</summary>
-    public AnimalWorld? Animals { get; private set; }
+    public AnimalWorld World { get; private set; } = null!;
 
     /// <summary>Time spent on animals (their AI, movement, the population), for statistics and the load test.</summary>
     public TimeSpan AnimalTime { get; private set; }
 
     private void InitAnimals(GameContent content)
     {
-        Animals = new AnimalWorld(this, this, content, Hash64.Of(Spec.SurfaceSeed, 0xA417A15));
+        World = new AnimalWorld(Zone, this, content, Hash64.Of(Spec.SurfaceSeed, 0xA417A15));
     }
 
     private void StepAnimals()
     {
-        if (Animals == null)
+        if (World == null)
         {
             return;
         }
         long started = Stopwatch.GetTimestamp();
         Observe();
         Listen();
-        Animals.Step();
-        foreach (Animal gone in Animals.Gone)
+        World.Step();
+        foreach (Animal gone in World.Gone)
         {
-            SupportGone(gone.Ref);
+            Supports.SupportGone(gone.Ref);
             if (gone.IsDead)
             {
-                Unloose(gone);
+                Things.Unloose(gone);
             }
         }
         AnimalTime += Stopwatch.GetElapsedTime(started);
@@ -61,8 +74,8 @@ public sealed partial class Zone : IAnimalHost
     // Players as the animals see and hear them: where, how fast, how loud their steps are, crouching, lying.
     private void Observe()
     {
-        AnimalWorld animals = Animals!;
-        AnimalSenses senses = Content!.AnimalSenses;
+        AnimalWorld animals = World!;
+        AnimalSenses senses = Content.AnimalSenses;
         animals.Observers.Clear();
         ComponentPool<PlayerLink> players = Entities.Pool<PlayerLink>();
         for (int i = 0; i < players.Count; i++)
@@ -96,8 +109,8 @@ public sealed partial class Zone : IAnimalHost
     // The tick's noises: shots (silenced ones carry less), arrows loosed, blasts, chopping and blows.
     private void Listen()
     {
-        AnimalWorld animals = Animals!;
-        AnimalSenses senses = Content!.AnimalSenses;
+        AnimalWorld animals = World!;
+        AnimalSenses senses = Content.AnimalSenses;
         if (_heard > GameEvents.Count)
         {
             _heard = 0; // the server cleared the list after the last tick
@@ -136,12 +149,12 @@ public sealed partial class Zone : IAnimalHost
     /// </summary>
     public bool AnimalAttacksPlayer(Animal animal, EntityId player)
     {
-        if (Content == null || animal.Species.Attack is not { } attack || !TryFindPlayer(player, out Entity entity, out Player p) || p.Dead)
+        if (animal.Species.Attack is not { } attack || !Players.TryFindPlayer(player, out Entity entity, out Player p) || p.Dead)
         {
             return false;
         }
         // An animal's attack is a blow from its head on the region it goes for, through the characters' receiver.
-        DamageOutcome bite = Damage(new DamageRequest
+        DamageOutcome bite = Damage.Damage(new DamageRequest
         {
             Attacker = EntityId.None,
             AttackerName = animal.Species.Name,
@@ -181,12 +194,12 @@ public sealed partial class Zone : IAnimalHost
     public float ObstacleAlong(Vector3 from, Vector3 direction, float length)
     {
         float best = -1;
-        if (Building != null && TraceBuilding(from, direction, length, out float wall, out _))
+        if (Building.World != null && Building.TraceBuilding(from, direction, length, out float wall, out _))
         {
             best = wall;
         }
         _animalThings.Clear();
-        DeployablesNear(from + direction * (length / 2), length / 2 + 2f, _animalThings);
+        Things.DeployablesNear(from + direction * (length / 2), length / 2 + 2f, _animalThings);
         foreach (Deployable d in _animalThings)
         {
             (Vector3 right, Vector3 forward) = Geometry.Axes(d.Up, d.Yaw);
@@ -201,25 +214,25 @@ public sealed partial class Zone : IAnimalHost
 
     public bool ObstaclesNear(Vector3 point, float radius)
     {
-        if (Building != null)
+        if (Building.World != null)
         {
-            Building.PiecesNear(point, point, radius + 3f, _animalPieces);
+            Building.World.PiecesNear(point, point, radius + 3f, _animalPieces);
             if (_animalPieces.Count > 0)
             {
                 return true;
             }
         }
         _animalThings.Clear();
-        DeployablesNear(point, radius, _animalThings);
+        Things.DeployablesNear(point, radius, _animalThings);
         return _animalThings.Count > 0;
     }
 
-    private HitPose PoseOf(Animal a) => new()
+    internal HitPose PoseOf(Animal a) => new()
     {
         Feet = a.Position,
         Up = Frame.UpAt(a.Position),
         Yaw = a.Yaw,
-        Pose = a.IsDead ? Combat.Pose.Lying : Combat.Pose.Standing,
+        Pose = a.IsDead ? Simulation.Combat.Pose.Lying : Simulation.Combat.Pose.Standing,
     };
 
     // ---------------------------------------------------------------- what the game does to animals
@@ -230,7 +243,7 @@ public sealed partial class Zone : IAnimalHost
     /// animals' receiver; the attacker hears of the hit (a hit marker, the kill). Returns the health taken.
     /// </summary>
     public float DamageAnimal(Animal a, float amount, HitRegion region, Vector3 from, Player? attacker, EntityId attackerId = default,
-        string attackerName = "", ushort weapon = 0, Animal? by = null) => Damage(new DamageRequest
+        string attackerName = "", ushort weapon = 0, Animal? by = null) => Damage.Damage(new DamageRequest
         {
             By = attacker,
             Attacker = attacker?.Id ?? attackerId,
@@ -252,13 +265,13 @@ public sealed partial class Zone : IAnimalHost
     /// health taken, a flinch, turning on the attacker or running, the kill counted; a blow of a tool on a corpse
     /// butchers it instead (the gathering rule, which confirms its own hit).
     /// </summary>
-    private sealed class AnimalReceiver(Zone zone) : IDamageReceiver
+    internal sealed class AnimalReceiver(Zone zone) : DamageSystem.IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Animal };
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
-            if (zone.Animals != null && zone.TraceAnimal(ray.Origin, ray.Direction, ray.Length, ray.Thickness, ray.ViewTick, out float at, out Animal? animal,
+            if (zone.Animals().World != null && zone.Animals().TraceAnimal(ray.Origin, ray.Direction, ray.Length, ray.Thickness, ray.ViewTick, out float at, out Animal? animal,
                 out HitRegion region, out int shape))
             {
                 ray.Consider(ref best, at, new TargetRef(TargetFamily.Animal, animal!.Id.Value, (byte)(shape + 1)), region);
@@ -267,18 +280,18 @@ public sealed partial class Zone : IAnimalHost
 
         public void InReach(in BlastQuery blast, List<BlastTarget> into)
         {
-            if (zone.Animals == null)
+            if (zone.Animals().World == null)
             {
                 return;
             }
-            zone.Animals.Near(blast.At, blast.Radius + 3, zone._animalTrace);
-            foreach (Animal a in zone._animalTrace)
+            zone.Animals().World.Near(blast.At, blast.Radius + 3, zone.Animals()._animalTrace);
+            foreach (Animal a in zone.Animals()._animalTrace)
             {
                 if (a.IsDead || a.Removed)
                 {
                     continue;
                 }
-                Vector3 middle = AnimalHitboxes.Middle(a.Species, zone.PoseOf(a));
+                Vector3 middle = AnimalHitboxes.Middle(a.Species, zone.Animals().PoseOf(a));
                 float distance = MathF.Max(0, Vector3.Distance(middle, blast.At) - a.Species.Radius);
                 if (distance <= blast.Radius)
                 {
@@ -293,52 +306,52 @@ public sealed partial class Zone : IAnimalHost
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (zone.Animals?.Find(new EntityId(r.Hit.Target.Id)) is not { } a)
+            if (zone.Animals().World?.Find(new EntityId(r.Hit.Target.Id)) is not { } a)
             {
                 return default;
             }
             if (a.IsDead)
             {
-                if (r.Channel == DamageType.Melee && r.By is { } p && zone.Content!.Item(r.Weapon) is { } tool && zone.TryFindPlayer(p.Id, out Entity entity, out _))
+                if (r.Channel == DamageType.Melee && r.By is { } p && zone.Content!.Item(r.Weapon) is { } tool && zone.Players().TryFindPlayer(p.Id, out Entity entity, out _))
                 {
-                    zone.HarvestAnimal(p, entity, a, tool, r.Hit.Point);
+                    zone.Animals().HarvestAnimal(p, entity, a, tool, r.Hit.Point);
                 }
                 return default;
             }
             float amount = r.Amounts.Flesh;
-            if (zone.Animals == null || a.Removed || amount <= 0)
+            if (zone.Animals().World == null || a.Removed || amount <= 0)
             {
                 return default;
             }
             AnimalTarget source = r.By != null ? AnimalTarget.Player(r.By.Id) : r.ByAnimal != null ? AnimalTarget.Animal(r.ByAnimal.Id) : AnimalTarget.None;
-            float taken = zone.Animals.Hurt(a, amount, r.From, source, r.By?.Name ?? r.AttackerName);
+            float taken = zone.Animals().World.Hurt(a, amount, r.From, source, r.By?.Name ?? r.AttackerName);
             if (a.IsDead)
             {
-                zone.AnimalsKilled++;
+                zone.Animals().AnimalsKilled++;
             }
             return new DamageOutcome(true, amount, taken, a.IsDead, false, a.Id);
         }
     }
 
     // A tool on a corpse: gathering (GROUND.md §6.1's rule: a better tool is quicker, not richer).
-    private void HarvestAnimal(Player p, Entity entity, Animal corpse, ItemDef tool, Vector3 point)
+    internal void HarvestAnimal(Player p, Entity entity, Animal corpse, ItemDef tool, Vector3 point)
     {
-        float rate = Content!.HarvestRates.Rate(tool);
+        float rate = Content.HarvestRates.Rate(tool);
         if (rate <= 0)
         {
             return;
         }
-        List<ItemAmount> gained = Animals!.Harvest(corpse, rate);
-        EndIfEmptied(corpse); // harvested out: it goes at once
+        List<ItemAmount> gained = World!.Harvest(corpse, rate);
+        Things.EndIfEmptied(corpse); // harvested out: it goes at once
         GameEvents.Add(new ZoneEvent
         {
             Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Other = corpse.Id, Target = corpse.Ref, Region = HitRegion.Body, Amount = rate,
             Position = point, Item = tool.Id,
         });
-        Animals.Noises.Add(new AnimalNoise { Position = point, Radius = Content.AnimalSenses.Gather, Tick = Tick, Source = p.Id });
+        World.Noises.Add(new AnimalNoise { Position = point, Radius = Content.AnimalSenses.Gather, Tick = Tick, Source = p.Id });
         if (gained.Count > 0)
         {
-            Give(entity, p, gained, GainReason.Gathered);
+            Combat.Give(entity, p, gained, GainReason.Gathered);
         }
     }
 
@@ -346,14 +359,14 @@ public sealed partial class Zone : IAnimalHost
     /// The nearest animal along a thickened ray, as it was at <paramref name="viewTick"/> (the attacker's view, from the
     /// animals' hit history); corpses as they lie now.
     /// </summary>
-    private bool TraceAnimal(Vector3 origin, Vector3 direction, float length, float thickness, double viewTick, out float distance,
+    internal bool TraceAnimal(Vector3 origin, Vector3 direction, float length, float thickness, double viewTick, out float distance,
         out Animal? hit, out HitRegion region, out int shape)
     {
         distance = -1;
         hit = null;
         region = HitRegion.None;
         shape = -1;
-        AnimalWorld animals = Animals!;
+        AnimalWorld animals = World!;
         Vector3 middle = origin + direction * (length / 2);
         animals.Near(middle, length / 2 + 4f, _animalTrace);
         foreach (Animal a in _animalTrace)
@@ -378,4 +391,19 @@ public sealed partial class Zone : IAnimalHost
         }
         return hit != null;
     }
+
+    public override int InitOrder => 50;
+
+    protected internal override void Init() => InitAnimals(Content);
+
+    protected internal override void Step()
+    {
+        StepAnimals();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class AnimalSystemAccess
+{
+    public static AnimalSystem Animals(this Zone zone) => zone.Require<AnimalSystem>();
 }

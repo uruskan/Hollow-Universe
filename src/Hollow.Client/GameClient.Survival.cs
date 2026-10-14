@@ -112,7 +112,7 @@ public sealed partial class GameClient
     // The eye, for the reach of stations: as the server measures it (Zone.EyeOf).
     private Vector3 StationEye => Character.Position + Frame.UpAt(Character.Position) * EyeHeight;
 
-    // The nearest deployable of a kind within a station's reach, as the server's Zone.StationNear finds a ship's vehicle
+    // The nearest deployable of a kind within a station's reach, as the server's Zone.Ships().StationNear finds a ship's vehicle
     // workbench.
     private ulong StationNear(DeployableDef def)
     {

@@ -1,22 +1,22 @@
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System;
 using Hollow.Core;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
+using Hollow.Simulation.Placement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
-using Hollow.Simulation.Capabilities;
-using Hollow.Simulation.Placement;
 
 namespace Hollow.Simulation;
 
@@ -26,8 +26,23 @@ namespace Hollow.Simulation;
 // ground stands in between; the piece hit (or the nearest in sight) takes the table's damage, others in sight a share.
 // Claimed bases hurt this way are reported (RaidHits) for the notification service. Server only: clients get the
 // explosives' states and the detonations.
-public sealed partial class Zone
+public sealed class ExplosiveSystem : ZoneSystem
 {
+    private ActionSystem? _actionsSystem;
+    private ActionSystem Actions => _actionsSystem ??= Zone.Require<ActionSystem>();
+    private DamageSystem? _damageSystem;
+    private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
+    private HeldSystem? _heldSystem;
+    private HeldSystem Held => _heldSystem ??= Zone.Require<HeldSystem>();
+    private PlacementSystem? _placementSystem;
+    private PlacementSystem Placement => _placementSystem ??= Zone.Require<PlacementSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private SupportSystem? _supportsSystem;
+    private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
     /// <summary>At most this many explosives live in a zone at once (RustMVP allowed 1,000 charges); more are refused.</summary>
     public const int MaxExplosives = 1024;
 
@@ -45,14 +60,14 @@ public sealed partial class Zone
 
     private readonly List<LiveExplosive> _explosives = new();
     private readonly Dictionary<EntityId, LiveExplosive> _explosiveIds = new();
-    private readonly Dictionary<object, double> _blastResidue = new(ReferenceEqualityComparer.Instance);
+    internal readonly Dictionary<object, double> _blastResidue = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<EntityId, long> _nextThrowTick = new();
-    private readonly List<Piece> _blastPieces = new();
-    private readonly List<Deployable> _blastThings = new();
+    internal readonly List<Piece> _blastPieces = new();
+    internal readonly List<Deployable> _blastThings = new();
     private readonly List<NaturalObject> _blastNature = new();
 
     /// <summary>Explosives in the world (flying, stuck, resting, duds).</summary>
-    public IReadOnlyList<LiveExplosive> Explosives => _explosives;
+    public IReadOnlyList<LiveExplosive> All => _explosives;
 
     /// <summary>Claimed bases hurt by raids this tick: the server hands them to the notification service and clears the list.</summary>
     public List<RaidHit> RaidHits { get; } = new();
@@ -72,7 +87,7 @@ public sealed partial class Zone
     /// </summary>
     public Outcome ThrowExplosive(Entity entity, int slot, ushort expected, float yaw, float pitch, bool lob)
     {
-        if (!Acting(entity, out Player p))
+        if (!Actions.Acting(entity, out Player p))
         {
             return OutcomeCode.Dead;
         }
@@ -88,7 +103,7 @@ public sealed partial class Zone
         Vector3 eye = EyeOf(c.State);
         // From a hand's length in front of the eye, unless something is right there.
         Vector3 start = eye + direction * 0.3f;
-        if (Placement.Sweep(eye, start, 0, out _))
+        if (Placement.World.Sweep(eye, start, 0, out _))
         {
             start = eye;
         }
@@ -109,7 +124,7 @@ public sealed partial class Zone
     /// </summary>
     public Outcome PutCharge(ulong player, ThrowableStats stats, PlacementCandidate c)
     {
-        if (!TryFindPlayer(new EntityId(player), out _, out Player p))
+        if (!Players.TryFindPlayer(new EntityId(player), out _, out Player p))
         {
             return OutcomeCode.Dead;
         }
@@ -148,7 +163,7 @@ public sealed partial class Zone
     private Outcome CanThrow(Player p, int slot, ushort expected, out ThrowableStats? stats)
     {
         stats = null;
-        Outcome holding = ItemFor(p, ContainerRef.Belt, slot, expected, HeldUse.Throwable, out ItemDef item);
+        Outcome holding = Held.ItemFor(p, ContainerRef.Belt, slot, expected, HeldUse.Throwable, out ItemDef item);
         if (!holding.Ok)
         {
             return holding;
@@ -211,7 +226,7 @@ public sealed partial class Zone
     public LiveExplosive? StickExplosive(ThrowableStats stats, Vector3 from, Vector3 direction, float reach, EntityId owner, string ownerName,
         bool? dud = null)
     {
-        if (!Placement.Sweep(from, from + Vector3.Normalize(direction) * reach, 0, out PlacementHit hit))
+        if (!Placement.World.Sweep(from, from + Vector3.Normalize(direction) * reach, 0, out PlacementHit hit))
         {
             return null;
         }
@@ -223,7 +238,7 @@ public sealed partial class Zone
 
     private LiveExplosive Spawn(ThrowableStats stats, EntityId owner, string ownerName, Vector3 at, Vector3 velocity)
     {
-        var e = new LiveExplosive(NextId(), stats, owner, ownerName, Content!.Survival.DudLifetime)
+        var e = new LiveExplosive(NextId(), stats, owner, ownerName, Content.Survival.DudLifetime)
         {
             State = ExplosiveState.Flying,
             Position = at,
@@ -250,7 +265,7 @@ public sealed partial class Zone
         e.FuseEndTick = Tick + fuse;
         if (e.Dud)
         {
-            Unloose(e); // a dud lit again lies loose no longer
+            Things.Unloose(e); // a dud lit again lies loose no longer
         }
         e.Dud = false;
         e.DespawnTick = -1;
@@ -290,7 +305,7 @@ public sealed partial class Zone
                     e.DespawnTick = Tick + e.Lifetime.Ticks;
                     e.Revision++;
                     RaidStats.Duds++;
-                    Loose(e);
+                    Things.Loose(e);
                 }
                 else
                 {
@@ -302,7 +317,7 @@ public sealed partial class Zone
         {
             if (_explosives[i].Gone)
             {
-                Release(_explosives[i].Ref);
+                Supports.Release(_explosives[i].Ref);
             }
         }
         for (int i = _explosives.Count - 1; i >= 0; i--)
@@ -311,7 +326,7 @@ public sealed partial class Zone
             {
                 if (_explosives[i].Dud)
                 {
-                    Unloose(_explosives[i]);
+                    Things.Unloose(_explosives[i]);
                 }
                 _explosiveIds.Remove(_explosives[i].Id);
                 _explosives.RemoveAt(i);
@@ -342,7 +357,7 @@ public sealed partial class Zone
             Vector3 g = -Frame.UpAt(p) * gravity;
             float h = FlightStepSeconds;
             Vector3 next = p + v * h + g * (0.5f * h * h);
-            if (Placement.Sweep(p, next, radius, out PlacementHit hit))
+            if (Placement.World.Sweep(p, next, radius, out PlacementHit hit))
             {
                 if (t.Sticky)
                 {
@@ -408,8 +423,8 @@ public sealed partial class Zone
         e.Normal = hit.Normal;
         e.StateTick = Tick;
         e.Airborne = 0;
-        e.Link = LinkTo(hit.Target, new TargetPose(at, Geometry.Upright(hit.Normal, 0)));
-        Hold(e.Ref, e.Link.Support);
+        e.Link = Supports.LinkTo(hit.Target, new TargetPose(at, Geometry.Upright(hit.Normal, 0)));
+        Supports.Hold(e.Ref, e.Link.Support);
         e.Revision++;
     }
 
@@ -417,7 +432,7 @@ public sealed partial class Zone
     // (Zone.Supports.cs) drops it.
     private void Follow(LiveExplosive e)
     {
-        if (e.Link.IsNone || !Moves(e.Link.Support) || !TryPose(e.Link, out TargetPose pose))
+        if (e.Link.IsNone || !Supports.Moves(e.Link.Support) || !Supports.TryLinkPose(e.Link, out TargetPose pose))
         {
             return;
         }
@@ -432,7 +447,7 @@ public sealed partial class Zone
     }
 
     /// <summary>An explosive whose support went (the explosive capability's consequence): it falls from where it is.</summary>
-    internal void Drop(LiveExplosive e)
+    internal void DropExplosive(LiveExplosive e)
     {
         if (e.Gone || e.State == ExplosiveState.Flying)
         {
@@ -449,7 +464,7 @@ public sealed partial class Zone
         e.ArcStart = e.Position;
         e.ArcVelocity = Vector3.Zero;
         e.StateTick = Tick;
-        Release(e.Ref);
+        Supports.Release(e.Ref);
         e.Link = SupportLink.None;
         e.Revision++;
     }
@@ -459,16 +474,16 @@ public sealed partial class Zone
     {
         e.Gone = true;
         TargetRef on = e.Link.Support;
-        Release(e.Ref);
-        Blast(e.Stats.Blast, e.Position, e.Normal, e.State == ExplosiveState.Stuck ? on : TargetRef.None, on.Family, e.Owner, e.OwnerName, e.Item.Id, e.Id);
+        Supports.Release(e.Ref);
+        Damage.Blast(e.Stats.Blast, e.Position, e.Normal, e.State == ExplosiveState.Stuck ? on : TargetRef.None, on.Family, e.Owner, e.OwnerName, e.Item.Id, e.Id);
     }
 
     // A rocket or an explosive round goes off a little short of what it hit (so its blast starts outside a wall).
-    private void BulletBlast(Bullet b, BlastStats blast, in TraceHit hit, Player? shooter)
+    internal void BulletBlast(Bullet b, BlastStats blast, in TraceHit hit, Player? shooter)
     {
         Vector3 direction = b.Velocity.LengthSquared() > 1e-6f ? Vector3.Normalize(b.Velocity) : -Frame.UpAt(b.Position);
         Vector3 at = hit.Point - direction * 0.05f;
-        Blast(blast, at, -direction, hit.Target, hit.Target.Family, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
+        Damage.Blast(blast, at, -direction, hit.Target, hit.Target.Family, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
     }
 
     // ---------------------------------------------------------------- saving and loading
@@ -500,12 +515,12 @@ public sealed partial class Zone
     /// </summary>
     public bool RestoreExplosive(ExplosiveSave s)
     {
-        if (Content!.Item(s.Item)?.Throwable is not { } stats || ExplosiveOf(s.Id) != null || _explosives.Count >= MaxExplosives ||
+        if (Content.Item(s.Item)?.Throwable is not { } stats || ExplosiveOf(s.Id) != null || _explosives.Count >= MaxExplosives ||
             !float.IsFinite(s.Position.X) || !float.IsFinite(s.Position.Y) || !float.IsFinite(s.Position.Z))
         {
             return false;
         }
-        LifetimeRule dudLifetime = Content!.Survival.DudLifetime;
+        LifetimeRule dudLifetime = Content.Survival.DudLifetime;
         var e = new LiveExplosive(s.Id, stats, s.Owner, s.OwnerName, dudLifetime)
         {
             State = s.State,
@@ -527,12 +542,12 @@ public sealed partial class Zone
         _explosiveIds[e.Id] = e;
         if (e.Dud)
         {
-            Loose(e);
+            Things.Loose(e);
         }
         if (e.State != ExplosiveState.Flying)
         {
             // What held it is asked of its family (an ID from storage: untrusted); gone, the explosive falls.
-            e.Link = LinkTo(s.Support, new TargetPose(e.Position, Geometry.Upright(e.Normal, 0)));
+            e.Link = Supports.LinkTo(s.Support, new TargetPose(e.Position, Geometry.Upright(e.Normal, 0)));
             if (e.Link.IsNone)
             {
                 e.State = ExplosiveState.Flying;
@@ -541,11 +556,22 @@ public sealed partial class Zone
             }
             else
             {
-                Hold(e.Ref, e.Link.Support);
+                Supports.Hold(e.Ref, e.Link.Support);
             }
         }
         return true;
     }
 
     private static Vector3 Finite(Vector3 v) => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z) ? v : Vector3.Zero;
+
+    protected internal override void Step()
+    {
+        StepExplosives();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class ExplosiveSystemAccess
+{
+    public static ExplosiveSystem Explosives(this Zone zone) => zone.Require<ExplosiveSystem>();
 }

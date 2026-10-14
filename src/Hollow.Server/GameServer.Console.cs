@@ -376,7 +376,7 @@ public sealed partial class GameServer
     // tpmarker [n]: the caller's newest map marker, or the one with that number.
     private void TeleportToMarker(CommandContext ctx, IReadOnlyList<string> args)
     {
-        if (ctx.Caller is not { Playing: true } me || Zone.PlayerOf(me.Entity) is not { } p)
+        if (ctx.Caller is not { Playing: true } me || Zone.Players().PlayerOf(me.Entity) is not { } p)
         {
             ctx.Error("Only a player in the world has map markers.");
             return;
@@ -530,7 +530,7 @@ public sealed partial class GameServer
 
         if (Content.Animal(kind) is { } species)
         {
-            if (Zone.Animals is not { } animals)
+            if (Zone.Animals().World is not { } animals)
             {
                 ctx.Error("This zone has no animals.");
                 return;
@@ -571,11 +571,11 @@ public sealed partial class GameServer
             Vector3 ground = Zone.GroundAt(at.X, at.Z);
             if (prop != null)
             {
-                Zone.SpawnProp(prop, ground, yaw);
+                Zone.Players().SpawnProp(prop, ground, yaw);
             }
             else
             {
-                Zone.SpawnDeployable(deployable, ground, yaw, p.Id);
+                Zone.Players().SpawnDeployable(deployable, ground, yaw, p.Id);
             }
         }
         string name = prop?.Name ?? deployable.Item.Name;
@@ -614,7 +614,7 @@ public sealed partial class GameServer
         {
             return;
         }
-        if (Zone.Building == null)
+        if (Zone.Building().World == null)
         {
             ctx.Error("This zone has no building.");
             return;
@@ -684,7 +684,7 @@ public sealed partial class GameServer
         ctx.Out($"{on.Length} of {_options.MaxPlayers} players on:");
         foreach (PlayerSession s in on)
         {
-            string state = !s.Playing ? "joining" : Zone.PlayerOf(s.Entity) is { } p ? (p.Dead ? "dead" : p.Wounded ? "wounded" : "alive") : "in the world";
+            string state = !s.Playing ? "joining" : Zone.Players().PlayerOf(s.Entity) is { } p ? (p.Dead ? "dead" : p.Wounded ? "wounded" : "alive") : "in the world";
             string ping = ctx.Admin ? $", ping {s.Peer.RoundTripTime} ms" : "";
             ctx.Out($"  {s.Name}{(IsAdmin(s) ? " (admin)" : "")}: {state}{ping}");
         }
@@ -743,22 +743,22 @@ public sealed partial class GameServer
         Player[] players = Zone.Entities.Pool<PlayerLink>().Values.ToArray().Select(l => l.Player).ToArray();
         ctx.Out($"Players: {_sessions.Count} on; characters in the zone: {players.Length} ({players.Count(p => p.Sleeping)} asleep, " +
             $"{players.Count(p => p.Dead)} dead, {players.Count(p => p.Wounded)} wounded).");
-        if (Zone.Animals is { } animals)
+        if (Zone.Animals().World is { } animals)
         {
             Animal[] all = animals.All.Where(a => !a.Removed).ToArray();
             string kinds = string.Join(", ", all.Where(a => !a.IsDead).GroupBy(a => a.Species.Key).OrderBy(g => g.Key, StringComparer.Ordinal)
                 .Select(g => $"{g.Count()} {g.Key}"));
             ctx.Out($"Animals: {all.Count(a => !a.IsDead)} alive ({(kinds.Length > 0 ? kinds : "none")}), {animals.Awake} awake; dead ones lying: {all.Count(a => a.IsDead)}.");
         }
-        WorldObject[] statics = Zone.Statics().ToArray();
+        WorldObject[] statics = Zone.Things().Statics().ToArray();
         ctx.Out($"Things: {statics.Count(s => s.Kind == StaticKind.Deployable)} deployables, {statics.Count(s => s.Kind == StaticKind.Prop)} world props, " +
             $"{statics.Count(s => s.Kind == StaticKind.DroppedBag)} loot bags, {statics.Count(s => s.Kind == StaticKind.Corpse)} bodies.");
-        if (Zone.Building is { } building)
+        if (Zone.Building().World is { } building)
         {
             ctx.Out($"Building: {building.PieceCount} pieces, {building.Doors.Count()} doors, {building.Claims.Count()} claim devices" +
                 (building.Collapsing > 0 ? $", {building.Collapsing} collapsing." : "."));
         }
-        ctx.Out($"Ships: {Zone.Ships.Count}; explosives: {Zone.Explosives.Count}; natural objects changed: {Zone.Natural?.Count ?? 0}; " +
+        ctx.Out($"Ships: {Zone.Ships().All.Count}; explosives: {Zone.Explosives().All.Count}; natural objects changed: {Zone.Natural?.Count ?? 0}; " +
             $"ground tiles: {Zone.Physics.TileCount}; net entities: {_netStates.Count}.");
     }
 }

@@ -255,7 +255,7 @@ public static class MultiplayerTests
 
     // Where the server's zone has a client's character now (read across threads: fine for a test's comparison).
     private static Vector3 ServerPosition(LoopbackRig rig, GameClient client) =>
-        rig.Server.Zone.TryFindPlayer(client.EntityId, out Entity entity, out _)
+        rig.Server.Zone.Players().TryFindPlayer(client.EntityId, out Entity entity, out _)
             ? rig.Server.Zone.Entities.Get<Character>(entity).State.Position
             : client.Character.Position;
 

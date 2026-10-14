@@ -32,11 +32,11 @@ public static class PlacementTests
         Ghost(rig, e, rig.C.ItemByKey(item).Places!, at, turns);
 
     private static PlacementCandidate? Ghost(GameRig rig, Entity e, Placeable placeable, Vector3 at, int turns = 0) =>
-        rig.Zone.Aim(e, placeable, at - rig.Zone.EyeOf(rig.Ch(e).State), turns);
+        rig.Zone.Placement().Aim(e, placeable, at - rig.Zone.EyeOf(rig.Ch(e).State), turns);
 
     /// <summary>Places what a ghost shows from the main slot holding its item: the intent its client sends.</summary>
     private static Outcome Place(GameRig rig, Entity e, PlacementCandidate ghost) =>
-        rig.Zone.Place(e, ContainerRef.Main, SlotOf(rig.P(e).Inventory.Main, ghost.Placeable.SlotItem!), ghost);
+        rig.Zone.Placement().Place(e, ContainerRef.Main, SlotOf(rig.P(e).Inventory.Main, ghost.Placeable.SlotItem!), ghost);
 
     private static int SlotOf(Container main, ItemDef item) => Enumerable.Range(0, main.Size).First(i => main[i].Item == item.Id);
 
@@ -51,7 +51,7 @@ public static class PlacementTests
     private static Vector3 Top(Zone zone, Piece slab, double x = 0, double z = 0)
     {
         Vector3 over = BuildingWorld.F(slab.Structure.Frame.ToZone(PieceGeometry.ToFrame(slab.Pose, new Vector3D(x, 1, z))));
-        Assert.True(zone.Placement.Ray(over, -zone.Frame.UpAt(over), 3, out PlacementHit hit) && hit.Target == slab.Ref, $"the top of the {slab.Def.Key}");
+        Assert.True(zone.Placement().World.Ray(over, -zone.Frame.UpAt(over), 3, out PlacementHit hit) && hit.Target == slab.Ref, $"the top of the {slab.Def.Key}");
         return hit.Point;
     }
 
@@ -136,8 +136,8 @@ public static class PlacementTests
         Assert.True(middle is { Valid: true, Surface: PlacementSurfaces.Floor } && middle.Support == roof.Ref, $"a furnace on the floor ({middle})");
         Assert.Equal(OutcomeCode.Overhangs, Ghost(rig, ada, "furnace", Top(rig.Zone, roof, 1.3))?.Outcome.Code, "half over its edge");
         Assert.Equal(OutcomeCode.Done, Place(rig, ada, middle!).Code, "placed");
-        Deployable furnace = rig.Zone.Statics().OfType<Deployable>().Single(d => d.Def.Key == "furnace");
-        Assert.True(furnace.Support == roof.Ref && rig.Zone.DependentsOf(roof.Ref).Contains(furnace.Ref), "standing on the floor");
+        Deployable furnace = rig.Zone.Things().Statics().OfType<Deployable>().Single(d => d.Def.Key == "furnace");
+        Assert.True(furnace.Support == roof.Ref && rig.Zone.Supports().DependentsOf(roof.Ref).Contains(furnace.Ref), "standing on the floor");
     }
 
     /// <summary>Water (RustMVP's 5 cm, every placeable's rule): a box isn't put in the sea; a charge, whose rule lets it, is.</summary>
@@ -225,13 +225,13 @@ public static class PlacementTests
         rig.Give(ada, "furnace", 2);
         Placeable furnace = rig.C.ItemByKey("furnace").Places!;
         Outcome Claim(PlacementClaim claim) =>
-            rig.Zone.Place(ada, new PlaceRequest(ContainerRef.Main, SlotOf(rig.P(ada).Inventory.Main, furnace.Item!), 0, furnace.Index, claim));
+            rig.Zone.Placement().Place(ada, new PlaceRequest(ContainerRef.Main, SlotOf(rig.P(ada).Inventory.Main, furnace.Item!), 0, furnace.Index, claim));
         PlacementCandidate ghost = Ghost(rig, ada, furnace, rig.Zone.GroundAt(2, 0))!;
         Assert.True(ghost.Valid, $"the ghost ({ghost})");
         Vector3 up = rig.Zone.Frame.UpAt(ghost.Position);
         Assert.Equal(OutcomeCode.Misplaced, Claim(ghost.Claim with { Position = ghost.Position + up * 0.5f }).Code, "half a metre over the ground");
         Assert.Equal(OutcomeCode.Done, Claim(ghost.Claim with { Position = ghost.Position + up * 0.1f }).Code, "ten centimetres over it");
-        Deployable placed = rig.Zone.Statics().OfType<Deployable>().Single();
+        Deployable placed = rig.Zone.Things().Statics().OfType<Deployable>().Single();
         Assert.True(Vector3.Distance(placed.Position, ghost.Position) < 0.01f, $"where the server's own pose is ({placed.Position} for {ghost.Position})");
 
         Piece foundation = BuildingNetTests.Foundation(rig.Zone, rig.Zone.GroundAt(-3, 0), rig.P(ada).Id.Value);
@@ -264,7 +264,7 @@ public static class PlacementTests
             $"a door in the doorway ({door}); R hangs it the other way ({turned})");
         Assert.True(MathF.Abs(Quaternion.Dot(door!.Rotation, turned!.Rotation)) < 0.01f, "turned round");
         Placeable wooden = door.Placeable;
-        Outcome refused = rig.Zone.Place(ada, new PlaceRequest(ContainerRef.Main, SlotOf(rig.P(ada).Inventory.Main, wooden.Item!), 0, wooden.Index,
+        Outcome refused = rig.Zone.Placement().Place(ada, new PlaceRequest(ContainerRef.Main, SlotOf(rig.P(ada).Inventory.Main, wooden.Item!), 0, wooden.Index,
             door.Claim with { Position = door.Position + Vector3.Cross(outward, rig.Zone.Frame.UpAt(face)) }));
         Assert.Equal(OutcomeCode.Misplaced, refused.Code, "claimed a metre along the wall");
         Assert.Equal(OutcomeCode.Done, Place(rig, ada, door).Code, "fitted");
@@ -293,7 +293,7 @@ public static class PlacementTests
         PlacementCandidate? ghost = Ghost(rig, ada, "tin-finch", pad);
         Assert.True(ghost is { Valid: true, Surface: PlacementSurfaces.Terrain }, $"its ghost on the ground ({ghost})");
         Assert.Equal(OutcomeCode.Done, Place(rig, ada, ghost!).Code, "placed");
-        Ship ship = rig.Zone.Ships.Single();
+        Ship ship = rig.Zone.Ships().All.Single();
         ShipDef finch = rig.C.Ship("tin-finch")!;
         Assert.True(ship.Owner == rig.P(ada).Id && ship.Def == finch, "Ada's Tin Finch");
         Assert.Near(50, ship.State.Fuel, 1e-3, "with 50 of lamp oil");
@@ -360,11 +360,11 @@ public static class PlacementTests
             rig.Server.Inspect(sv =>
             {
                 Zone z = sv.Zone;
-                Piece f = z.Building!.PieceOf(foundationId)!;
-                Deployable furnace = z.Statics().OfType<Deployable>().Single(d => d.Id == furnaceId);
-                Assert.True(furnace.Support == f.Ref && z.DependentsOf(f.Ref).Contains(furnace.Ref), "after the restart it stands on the foundation");
-                z.Building.Damage(f, new DamageHit(Vector3.UnitY, Melee: 1e6), z.BuildingNow);
-                Assert.True(f.Gone && !z.Statics().Any(s => s.Id == furnaceId), "the foundation gone, the furnace with it");
+                Piece f = z.Building().World!.PieceOf(foundationId)!;
+                Deployable furnace = z.Things().Statics().OfType<Deployable>().Single(d => d.Id == furnaceId);
+                Assert.True(furnace.Support == f.Ref && z.Supports().DependentsOf(f.Ref).Contains(furnace.Ref), "after the restart it stands on the foundation");
+                z.Building().World.Damage(f, new DamageHit(Vector3.UnitY, Melee: 1e6), z.Building().BuildingNow);
+                Assert.True(f.Gone && !z.Things().Statics().Any(s => s.Id == furnaceId), "the foundation gone, the furnace with it");
                 return 0;
             });
         }

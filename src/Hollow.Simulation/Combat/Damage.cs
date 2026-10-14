@@ -157,7 +157,7 @@ public struct DamageRequest
     public TargetFamilies Markers;
 
     /// <summary>A blast's raid alerts, summed per base over the whole blast; null: a blow's own alert.</summary>
-    internal Zone.RaidTallies? Raids;
+    internal BlastSystem.RaidTallies? Raids;
 }
 
 /// <summary>What a blow came to (RustMVP's damage result).</summary>

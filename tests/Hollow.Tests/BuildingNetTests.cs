@@ -37,7 +37,7 @@ public static class BuildingNetTests
     // Every server and client loads its own copy of the data: pieces are asked of the one that will use them.
     private static PieceDef Piece(GameClient client, string key) => client.Content.Building.Piece(key)!;
 
-    private static PieceDef Piece(Zone zone, string key) => zone.Building!.Data.Piece(key)!;
+    private static PieceDef Piece(Zone zone, string key) => zone.Building().World!.Data.Piece(key)!;
 
     // A client's ghost of a piece where it aims (the placement pipeline on its replicated world, GROUND_SYSTEMS.md §6).
     private static PlacementCandidate? Ghost(GameClient client, string key, Vector3 eye, Vector3 direction) =>
@@ -60,17 +60,17 @@ public static class BuildingNetTests
     /// <summary>A first foundation on the ground at a zone point, without checks (owned by <paramref name="owner"/>).</summary>
     internal static Piece Foundation(Zone zone, Vector3 at, ulong owner, int grade = 0)
     {
-        BuildingWorld b = zone.Building!;
+        BuildingWorld b = zone.Building().World!;
         PlacementPlan plan = b.FoundationAt(Piece(zone, "foundation"), at, 0) ?? throw new TestFailure($"no ground for a foundation at {at}");
-        return b.AddFirst(plan.Frame, plan.Piece, grade, owner, zone.BuildingNow);
+        return b.AddFirst(plan.Frame, plan.Piece, grade, owner, zone.Building().BuildingNow);
     }
 
     /// <summary>A piece on a socket of another, without checks.</summary>
     internal static Piece On(Zone zone, Piece parent, SocketId socket, string key, ulong owner, int orientation = 0, int grade = 0)
     {
-        BuildingWorld b = zone.Building!;
+        BuildingWorld b = zone.Building().World!;
         PlacementPlan plan = b.FromIntent(Piece(zone, key), parent, socket, orientation) ?? throw new TestFailure($"{key} doesn't fit {parent.Def.Key} {socket}");
-        return b.Add(plan.Structure!, plan.Piece, grade, plan.Pose, owner, zone.BuildingNow);
+        return b.Add(plan.Structure!, plan.Piece, grade, plan.Pose, owner, zone.Building().BuildingNow);
     }
 
     /// <summary>The edge of a slab whose middle points furthest along a frame direction.</summary>
@@ -172,8 +172,8 @@ public static class BuildingNetTests
         Piece arrived = ada.Building.AllPieces.Single(p => p.Def.Key == "wall");
         Assert.True(arrived.Pose == wallPlan!.Pose && arrived.Structure.Frame.Equals(wallPlan.Frame), "exactly where the ghost was");
         Assert.Equal(1000, foundation.Stability, "the copy's stability is solved like the server's");
-        Assert.Equal(arrived.Stability, rig.Server.Inspect(sv => sv.Zone.Building!.PieceOf(arrived.Id)!.Stability), "the wall's too");
-        Assert.True(arrived.BodyId != 0 && arrived.BodyId == rig.Server.Inspect(sv => sv.Zone.Building!.PieceOf(arrived.Id)!.BodyId),
+        Assert.Equal(arrived.Stability, rig.Server.Inspect(sv => sv.Zone.Building().World!.PieceOf(arrived.Id)!.Stability), "the wall's too");
+        Assert.True(arrived.BodyId != 0 && arrived.BodyId == rig.Server.Inspect(sv => sv.Zone.Building().World!.PieceOf(arrived.Id)!.BodyId),
             "with the server's body ID");
 
     }
@@ -248,9 +248,9 @@ public static class BuildingNetTests
         ada.Local.Interact(claim.Ref, "open");
         RunUntil(rig, () => ada.Local.LootKind == Simulation.Items.LootKind.Box && ada.Local.Loot?.Size == 24, "its store open");
         ada.Local.MoveItem(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wood"), ContainerRef.Loot, 0);
-        RunUntil(rig, () => rig.Server.Inspect(sv => InventoryRules.Count(new[] { sv.Zone.DeployableOf(sv.Zone.Building!.ClaimOf(claim.Id)!)!.Storage! },
+        RunUntil(rig, () => rig.Server.Inspect(sv => InventoryRules.Count(new[] { sv.Zone.Building().DeployableOf(sv.Zone.Building().World!.ClaimOf(claim.Id)!)!.Storage! },
             ContentFixture.Item("wood").Id)) == 200, "the wood in the store");
-        Assert.True(rig.Server.Inspect(sv => sv.Zone.Building!.ProtectedSeconds(sv.Zone.Building.ClaimOf(claim.Id)!.Structure)) > 0, "paying its upkeep");
+        Assert.True(rig.Server.Inspect(sv => sv.Zone.Building().World!.ProtectedSeconds(sv.Zone.Building().World.ClaimOf(claim.Id)!.Structure)) > 0, "paying its upkeep");
         ada.Local.Close();
 
         // Bo: locked out; a wrong code makes him wait; the right one lets him in. Ada steps out of the door's way.
@@ -277,7 +277,7 @@ public static class BuildingNetTests
         Assert.Equal(OutcomeCode.Done, BoAsks(bo.Local.Interact(boDoor.Ref, "enter-code", code: "4711"), "the right code"), "let in");
         Assert.Equal(OutcomeCode.Done, BoAsks(bo.Local.Interact(boDoor.Ref, "door-open"), "Bo opens the door"), "opened");
         RunUntil(rig, () => door.Open && boDoor.Open, "the door open on both clients");
-        Assert.True(rig.Server.Inspect(sv => sv.Zone.Building!.DoorOf(door.Id)!.Open), "and on the server");
+        Assert.True(rig.Server.Inspect(sv => sv.Zone.Building().World!.DoorOf(door.Id)!.Open), "and on the server");
 
         // The claim: Bo may not build on Ada's base (he aims at its far side, away from the doorway).
         Vector3 far = middle - outward * 1.5f;
@@ -303,7 +303,7 @@ public static class BuildingNetTests
         int pieces = rig.Server.Inspect(sv =>
         {
             Zone z = sv.Zone;
-            BuildingWorld b = z.Building!;
+            BuildingWorld b = z.Building().World!;
             b.BeginBatch();
             var grid = new Piece[11, 10];
             for (int i = 0; i < 11; i++)
@@ -324,7 +324,7 @@ public static class BuildingNetTests
                     PlacementPlan plan = b.FromIntent(Piece(z, "wall"), f, new SocketId(SocketKind.Edge, e), 0)!;
                     if (taken.Add(((long)Math.Round(plan.Pose.Position.X * 100), (long)Math.Round(plan.Pose.Position.Z * 100))))
                     {
-                        walls.Add(b.Add(plan.Structure!, plan.Piece, 1, plan.Pose, 1, z.BuildingNow));
+                        walls.Add(b.Add(plan.Structure!, plan.Piece, 1, plan.Pose, 1, z.Building().BuildingNow));
                     }
                 }
             }
@@ -336,7 +336,7 @@ public static class BuildingNetTests
                     below = On(z, below, new SocketId(SocketKind.Top, 0), "wall", 1, grade: storey % 2 + 1);
                 }
             }
-            b.EndBatch(z.BuildingNow);
+            b.EndBatch(z.Building().BuildingNow);
             return b.PieceCount;
         });
         Assert.Equal(1074, pieces, "the base's pieces");
@@ -376,7 +376,7 @@ public static class BuildingNetTests
         BuildingWorld copy = cy.Building!;
         Assert.Equal(1, copy.Structures.Count, "one structure, as on the server");
         int[] mine = copy.AllPieces.OrderBy(p => p.Id.Value).Select(p => p.Stability).ToArray();
-        int[] theirs = rig.Server.Inspect(sv => sv.Zone.Building!.AllPieces.OrderBy(p => p.Id.Value).Select(p => p.Stability).ToArray());
+        int[] theirs = rig.Server.Inspect(sv => sv.Zone.Building().World!.AllPieces.OrderBy(p => p.Id.Value).Select(p => p.Stability).ToArray());
         Assert.True(mine.SequenceEqual(theirs), "stability as the server has it");
     }
 }

@@ -33,7 +33,7 @@ public sealed partial class GameServer
         var claim = new PlacementClaim(new TargetRef(m.Support.Family, m.Support.Id, m.Support.Part), m.Socket,
             new Vector3(m.Pose.X, m.Pose.Y, m.Pose.Z), Quantize.FromAngle16(m.Pose.Yaw), m.Variant);
         int placeable = (int)Math.Min(m.Placeable, int.MaxValue);
-        Outcome placed = Zone.Place(session.Entity, new PlaceRequest(m.From, m.Slot, Expected(m.Expected), placeable, claim));
+        Outcome placed = Zone.Placement().Place(session.Entity, new PlaceRequest(m.From, m.Slot, Expected(m.Expected), placeable, claim));
         if (placed.Ok && Content.Placement[placeable] is { } p)
         {
             _placed[p.Kind.Name] = _placed.GetValueOrDefault(p.Kind.Name) + 1;

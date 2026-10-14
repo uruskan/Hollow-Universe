@@ -72,7 +72,7 @@ public static partial class CapabilityHandlers
 
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
-        private static Outcome Open(in InteractContext ctx, in InteractArgs args) => ctx.Zone!.OpenLoot(ctx.Player!, new EntityId(ctx.Target.Id));
+        private static Outcome Open(in InteractContext ctx, in InteractArgs args) => ctx.Zone!.Interaction().OpenLoot(ctx.Player!, new EntityId(ctx.Target.Id));
     }
 
     /// <summary>Taken whole with E: a natural pickup, a berry bush (picked bare), a bag of dropped items (all that fits), a spent arrow.</summary>
@@ -100,7 +100,7 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         // The thing's family hands it over (a natural object's yield, a bag's stacks, an arrow).
-        private static Outcome Take(in InteractContext ctx, in InteractArgs args) => ctx.Zone!.PickUp(ctx.Entity, ctx.Player!, ctx.Target);
+        private static Outcome Take(in InteractContext ctx, in InteractArgs args) => ctx.Zone!.Interaction().PickUp(ctx.Entity, ctx.Player!, ctx.Target);
     }
 
     /// <summary>A deployable picked back up as its item (GROUND_SYSTEMS.md §11.3): empty, where the doer has building rights.</summary>
@@ -133,7 +133,7 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Retrieve(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Deployable d ? ctx.Zone!.TakeDeployable(ctx.Entity, ctx.Player!, d) : OutcomeCode.NotFound;
+            ctx.Thing is Deployable d ? ctx.Zone!.Interaction().TakeDeployable(ctx.Entity, ctx.Player!, d) : OutcomeCode.NotFound;
     }
 
     /// <summary>A campfire or furnace: lit (with fuel in it) and put out, with E held or the loot panel's switch.</summary>
@@ -156,7 +156,7 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Switch(in InteractContext ctx, bool on) =>
-            ctx.Thing is Deployable d ? ctx.Zone!.SwitchBurner(d, on) : OutcomeCode.NotFound;
+            ctx.Thing is Deployable d ? ctx.Zone!.Interaction().SwitchBurner(d, on) : OutcomeCode.NotFound;
     }
 
     /// <summary>A recycler (on and off) or a research table (started; a research can't be stopped, Rust's).</summary>
@@ -189,7 +189,7 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Switch(in InteractContext ctx, bool on) =>
-            ctx.Thing is Deployable d ? ctx.Zone!.SwitchMachine(d, on) : OutcomeCode.NotFound;
+            ctx.Thing is Deployable d ? ctx.Zone!.World().SwitchMachine(d, on) : OutcomeCode.NotFound;
     }
 
     /// <summary>
@@ -229,6 +229,6 @@ public static partial class CapabilityHandlers
 
         // A node of the tree, for its salvage, at a bench of its level within reach (as crafting counts benches).
         private static Outcome Unlock(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Zone!.UnlockNode(ctx.Entity, ctx.Player!, (int)Math.Min(args.Arg, int.MaxValue));
+            ctx.Zone!.World().UnlockNode(ctx.Entity, ctx.Player!, (int)Math.Min(args.Arg, int.MaxValue));
     }
 }

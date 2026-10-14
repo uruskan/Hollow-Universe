@@ -235,7 +235,7 @@ public sealed partial class AnimalWorld
         };
         herd.Members.Add(corpse);
         Add(corpse);
-        _zone.Loose(corpse);
+        _zone.Things().Loose(corpse);
         return corpse;
     }
 
@@ -517,7 +517,7 @@ public sealed partial class AnimalWorld
             }
             else if (Find(a.StrikeTarget.Id) is { IsDead: false } prey)
             {
-                _zone.DamageAnimal(prey, attack.AnimalDamage, HitRegion.Body, a.Position, attacker: null, attackerId: a.Id, attackerName: a.Species.Name,
+                _zone.Animals().DamageAnimal(prey, attack.AnimalDamage, HitRegion.Body, a.Position, attacker: null, attackerId: a.Id, attackerName: a.Species.Name,
                     weapon: 0, by: a);
             }
         }
@@ -615,7 +615,7 @@ public sealed partial class AnimalWorld
         a.Alert = false;
         a.HarvestLeft = a.Species.HarvestHealth;
         a.DespawnTick = Tick + a.Species.Carcass.Ticks;
-        _zone.Loose(a);
+        _zone.Things().Loose(a);
         a.KilledBy = by.Kind == TargetKind.Player ? by.Id : EntityId.None;
         a.KilledByName = byName;
         Raise(a.Herd, a.Position, null);

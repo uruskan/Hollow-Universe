@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 using Hollow.Core;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
@@ -10,89 +10,29 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
-using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
 // The survival game's players (GROUND.md §6): their lives, sleep, death into a corpse, and respawn at a bag or on the
 // beach; and the order of the game's phases each tick.
-public sealed partial class Zone
+
+// (from Zone.Admin.cs)
+// What an admin's F1 console does to the zone (GROUND.md §8.2): world props and deployables placed by hand, and god mode
+// and noclip on a character.
+public sealed class PlayerSystem : ZoneSystem
 {
-    private readonly List<ItemStack> _overflow = new();
-    private readonly List<ItemAmount> _finished = new();
-    private readonly List<Entity> _scratchEntities = new();
-    private long _localIds = 1;
+    private SupportSystem? _supportsSystem;
+    private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+    private WorldSystem? _worldSystem;
+    private WorldSystem World => _worldSystem ??= Zone.Require<WorldSystem>();
+    private WoundedSystem? _woundedSystem;
+    private WoundedSystem Wounded => _woundedSystem ??= Zone.Require<WoundedSystem>();
 
-    /// <summary>The game's numbers; null in a movement-only zone (G1).</summary>
-    public GameContent? Content { get; private set; }
-
-    /// <summary>Where the trees, outcrops, pickups and bushes are, and what players did to them.</summary>
-    public INaturalObjects? Nature { get; private set; }
-
-    public NaturalState? Natural { get; private set; }
-
-    /// <summary>The air temperature (the stand-in until the planet package's climate).</summary>
-    public IClimate? Climate { get; set; }
-
-    /// <summary>The real clock (Unix ms), set by the server before every step: respawn timers and bag cooldowns.</summary>
-    public long UnixMilliseconds { get; set; }
-
-    /// <summary>Hands out IDs for new persistent entities (the server's allocator); a counter if not set.</summary>
-    public Func<EntityId>? NewEntityId { get; set; }
-
-    /// <summary>A beach point for a respawn (the server sets the planet's real coast, <see cref="Simulation.Beaches"/>); the stand-in ring if not set.</summary>
-    public Func<ulong, Vector3>? Beaches { get; set; }
-
-    /// <summary>One second of poses of every character, for hits as the attacker saw them.</summary>
-    public HitboxHistory History { get; } = new();
-
-    /// <summary>What happened this tick that players should hear about; the server sends and clears it.</summary>
-    public List<ZoneEvent> GameEvents { get; } = new();
-
-    private void InitGame(GameContent content)
-    {
-        Content = content;
-        Nature = Spec.CreateNature(Surface, Frame, content);
-        Natural = new NaturalState(content, Nature);
-        _ = new NaturalBodies(Physics, Natural);
-        Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
-        InitThings(content);
-        InitBuilding(content);
-        InitPlacement(content);
-        InitWorld(content);
-        InitAnimals(content);
-        InitTargets();
-        InitDamage();
-        InitHeld();
-    }
-
-    // After movement: GROUND.md §4.2's order.
-    private void StepGame()
-    {
-        GameContent content = Content!;
-        TakeFallDamage();
-        StepActions();
-        StepProjectiles();
-        StepBullets();
-        StepExplosives();
-        StepWounded();
-        StepAnimals();
-        if (Tick % CharacterMotor.TickRate == 0)
-        {
-            StepVitals();
-            Natural!.Respawn(UnixMilliseconds);
-            StepLifetimes();
-            NoteArrowPoses();
-            StepWorld();
-            CheckLoot();
-        }
-        StepDevices();
-        StepCrafting(content);
-        StepBuilding();
-        RecordHistory();
-    }
-
+    internal readonly List<Entity> _scratchEntities = new();
     // ---------------------------------------------------------------- players
 
     /// <summary>The survival state of a character, or null (not a player, or a G1 zone).</summary>
@@ -144,7 +84,7 @@ public sealed partial class Zone
     /// <summary>A fresh life: spawn vitals (survival.json) and the respawn kit (a rock and a torch).</summary>
     private void StartLife(Player p)
     {
-        SurvivalTuning s = Content!.Survival;
+        SurvivalTuning s = Content.Survival;
         p.Dead = false;
         p.Vitals = new Vitals
         {
@@ -157,7 +97,7 @@ public sealed partial class Zone
         p.StrikeTick = -1;
         p.DrawStartTick = -1;
         p.VitalsRevision++;
-        ResetGun(p);
+        GunSystem.ResetGun(p);
         p.Wounded = false;
         if (Content.Loot(s.RespawnKitKey) is { } kit)
         {
@@ -201,7 +141,7 @@ public sealed partial class Zone
             p.Sleeping = false;
             p.VitalsRevision++;
             // A new connection numbers its gun actions from 1 again, and takes up what it holds afresh.
-            ResetGun(p);
+            GunSystem.ResetGun(p);
             p.Gun.LastSeq = 0;
             p.GunRefusedSeq = 0;
             p.HeldSlot = ActionInput.NoSlot;
@@ -210,7 +150,7 @@ public sealed partial class Zone
     }
 
     /// <summary>Health as the character's movement state carries it (whole points; 0 is dead).</summary>
-    private static void SyncHealth(ref Character c, Player p)
+    internal static void SyncHealth(ref Character c, Player p)
     {
         c.State.Health = (byte)Math.Clamp(Math.Ceiling(p.Vitals.Health), 0, 255);
         if (c.State.Health == 0 && !p.Dead)
@@ -253,9 +193,9 @@ public sealed partial class Zone
         ref Character c = ref Entities.Get<Character>(entity);
         if (p.Vitals.Health <= 0)
         {
-            if (canWound && CanBeWounded(p, amount) && !Entities.Has<Ships.ShipSeat>(entity))
+            if (canWound && Wounded.CanBeWounded(p, amount) && !Entities.Has<Ships.ShipSeat>(entity))
             {
-                Wound(entity, p, cause, by, byName);
+                Wounded.Wound(entity, p, cause, by, byName);
             }
             else
             {
@@ -279,7 +219,7 @@ public sealed partial class Zone
         {
             return;
         }
-        GameContent content = Content!;
+        GameContent content = Content;
         ref Character c = ref Entities.Get<Character>(entity);
         // The body keeps the player's layout (main 0–23, belt 24–29, clothing 30–36, as the loot panel shows a body);
         // the crafting queue's ingredients fill empty main slots, then go after the clothing.
@@ -314,11 +254,11 @@ public sealed partial class Zone
             {
                 corpse.Loot.Set(i, stacks[i]);
             }
-            AddStatic(corpse);
+            Things.AddStatic(corpse);
         }
         p.Dead = true;
         p.Wounded = false;
-        ResetGun(p);
+        GunSystem.ResetGun(p);
         p.DeathPoint = c.State.Position;
         p.MapRevision++;
         p.DeathCause = cause;
@@ -333,7 +273,7 @@ public sealed partial class Zone
         c.State.Velocity = Vector3.Zero;
         c.State.Flags = MoveFlags.Dead;
         History.Forget(p.Id);
-        SupportGone(p.Ref);
+        Supports.SupportGone(p.Ref);
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.Died, Player = p.Id, Other = by, Text = cause, Position = c.State.Position });
     }
 
@@ -363,7 +303,7 @@ public sealed partial class Zone
         float yaw = 0;
         if (!bag.IsNone)
         {
-            if (!Entities.TryFind(bag, out Entity bagEntity) || StaticOf(bagEntity) is not Deployable d || !d.Def.IsRespawnPoint)
+            if (!Entities.TryFind(bag, out Entity bagEntity) || Things.StaticOf(bagEntity) is not Deployable d || !d.Def.IsRespawnPoint)
             {
                 return OutcomeCode.NotFound;
             }
@@ -386,7 +326,7 @@ public sealed partial class Zone
             {
                 return OutcomeCode.Cooldown;
             }
-            p.BeachReadyAtUnixMs = UnixMilliseconds + (long)(Content!.Survival.BeachCooldownSeconds * 1000);
+            p.BeachReadyAtUnixMs = UnixMilliseconds + (long)(Content.Survival.BeachCooldownSeconds * 1000);
             at = beach ?? BeachPoint(Hash64.Of(p.Id.Value, (ulong)Tick, 0xBEAC));
         }
         StartLife(p);
@@ -416,7 +356,7 @@ public sealed partial class Zone
         {
             return BeachPoint(Hash64.Of(p.Id.Value, (ulong)Tick, 0xBEAC));
         }
-        return Entities.TryFind(bag, out Entity bagEntity) && StaticOf(bagEntity) is Deployable { Def.IsRespawnPoint: true } d ? BagPoint(d) : null;
+        return Entities.TryFind(bag, out Entity bagEntity) && Things.StaticOf(bagEntity) is Deployable { Def.IsRespawnPoint: true } d ? BagPoint(d) : null;
     }
 
     // In front of a sleeping bag, on the ground.
@@ -440,74 +380,49 @@ public sealed partial class Zone
         return ground + Frame.UpAt(ground) * 0.05f;
     }
 
-    /// <summary>A new persistent entity ID.</summary>
-    public EntityId NextId() => NewEntityId?.Invoke() ?? new EntityId(0x7000_0000_0000_0000UL + (ulong)_localIds++);
-
-    /// <summary>The point on the ground below (or above) a point.</summary>
-    public Vector3 Settle(Vector3 point) => Ground.Settle(point);
-
-    /// <summary>How far a point is above the ground, in metres (negative below).</summary>
-    public float HeightAboveGround(Vector3 point) => Ground.HeightAbove(point);
-
-    /// <summary>The ground's up and its slope (radians) under a point, from the surface by finite differences.</summary>
-    public (Vector3 Normal, float Slope) GroundNormal(Vector3 point) => Ground.Normal(point);
-
-    /// <summary>The eye of a character now.</summary>
-    public Vector3 EyeOf(in CharacterState state) => state.Position + Frame.UpAt(state.Position) * Tuning.EyeHeight(state.Stance);
-
     // ---------------------------------------------------------------- crafting
-
-    private void StepCrafting(GameContent content)
-    {
-        ComponentPool<PlayerLink> players = Entities.Pool<PlayerLink>();
-        ReadOnlySpan<int> slots = players.Slots;
-        for (int i = 0; i < slots.Length; i++)
-        {
-            Player p = players.Values[i].Player;
-            if (!p.IsAwakeAndAlive || p.Crafting.IsEmpty)
-            {
-                continue;
-            }
-            _overflow.Clear();
-            _finished.Clear();
-            Entity crafter = Entities.AtSlot(slots[i]);
-            p.Crafting.Advance(content, p.Inventory, _overflow, _finished, (recipe, station) => DeliverShip(crafter, p, recipe, station));
-            foreach (ItemAmount a in _finished)
-            {
-                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.CraftFinished, Player = p.Id, Item = a.Item.Id, Count = a.Count });
-                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = a.Item.Id, Count = a.Count, Reason = GainReason.Crafted });
-            }
-            Drop(crafter, _overflow);
-        }
-    }
 
     // ---------------------------------------------------------------- history
 
-    private void RecordHistory()
+
+    // ---------------------------------------------------------------- from Zone.Admin.cs
+
+    // Props an admin placed: gone for good once broken or emptied (Zone.World.cs, PropGone).
+    internal readonly HashSet<ulong> _oneOffProps = new();
+
+    /// <summary>
+    /// A world prop placed by an admin: a barrel, a crate or a recycler, with fresh loot, on the ground at a point and
+    /// turned by <paramref name="yaw"/>. To everything else it is one of the world's (hits, looting, replication); broken
+    /// or emptied it doesn't come back, and a restart doesn't keep it (its spot isn't one the world generates).
+    /// </summary>
+    public WorldProp SpawnProp(PropDef def, Vector3 ground, float yaw)
     {
-        ComponentPool<PlayerLink> players = Entities.Pool<PlayerLink>();
-        ReadOnlySpan<int> slots = players.Slots;
-        for (int i = 0; i < slots.Length; i++)
-        {
-            Player p = players.Values[i].Player;
-            if (p.Dead)
-            {
-                continue;
-            }
-            ref Character c = ref Entities.Get<Character>(Entities.AtSlot(slots[i]));
-            if (c.State.Stance == Stance.Seated)
-            {
-                // In a ship's cabin (G6): shots hit the hull, not the pilot.
-                History.Forget(p.Id);
-                continue;
-            }
-            History.Record(p.Id, Tick, new HitPose
-            {
-                Feet = c.State.Position,
-                Up = Frame.UpAt(c.State.Position),
-                Yaw = c.Input.Yaw,
-                Pose = p.Sleeping || p.Wounded ? Pose.Lying : c.State.Stance == Stance.Crouching ? Pose.Crouching : Pose.Standing,
-            });
-        }
+        var spot = new LootSpot(NextId().Value, def, ground, Frame.UpAt(ground), yaw, LootSite.Open);
+        World._spots[spot.Id] = spot;
+        _oneOffProps.Add(spot.Id);
+        return World.Spawn(spot, null);
     }
+
+    /// <summary>
+    /// A deployable placed by an admin, without the placing rules (reach, slope, room): on the ground at a point, turned
+    /// by <paramref name="yaw"/>, owned by <paramref name="owner"/> (whose bag it is), a bag or bed ready at once.
+    /// </summary>
+    public Deployable SpawnDeployable(DeployableDef def, Vector3 ground, float yaw, EntityId owner)
+    {
+        var placed = new Deployable(NextId(), def, ground, Frame.UpAt(ground), yaw, owner);
+        Things.AddStatic(placed);
+        return placed;
+    }
+
+
+    protected internal override void Step()
+    {
+        TakeFallDamage();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class PlayerSystemAccess
+{
+    public static PlayerSystem Players(this Zone zone) => zone.Require<PlayerSystem>();
 }

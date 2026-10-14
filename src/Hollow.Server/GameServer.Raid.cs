@@ -62,7 +62,7 @@ public sealed partial class GameServer : IPlayerPresence
             {
                 ThrowIntent m = ThrowIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.ThrowExplosive(me, m.Slot, Expected(m.Expected), Quantize.FromAngle16(m.Yaw), Quantize.FromAngle16(m.Pitch), m.Lob));
+                    () => Zone.Explosives().ThrowExplosive(me, m.Slot, Expected(m.Expected), Quantize.FromAngle16(m.Yaw), Quantize.FromAngle16(m.Pitch), m.Lob));
             }
             default:
                 return false;
@@ -75,11 +75,11 @@ public sealed partial class GameServer : IPlayerPresence
     // alerts handed over to players who just logged in; the arena's bases kept standing.
     private void AfterRaid()
     {
-        foreach (RaidHit hit in Zone.RaidHits)
+        foreach (RaidHit hit in Zone.Explosives().RaidHits)
         {
             _notifications!.Raid(hit);
         }
-        Zone.RaidHits.Clear();
+        Zone.Explosives().RaidHits.Clear();
         if (Zone.Tick % TickRate == 0)
         {
             _notifications!.Tick(Zone.UnixMilliseconds);
@@ -180,7 +180,7 @@ public sealed partial class GameServer : IPlayerPresence
     private void PrepareExplosives()
     {
         _explosivesNow.Clear();
-        foreach (LiveExplosive e in Zone.Explosives)
+        foreach (LiveExplosive e in Zone.Explosives().All)
         {
             _explosivesNow[e.Id.Value] = e;
         }
@@ -245,7 +245,7 @@ public sealed partial class GameServer : IPlayerPresence
     // Explosives go with the things: stuck and lying charges, duds, and those in the air (they carry on falling).
     private void AddExplosivesToSave(ZoneSave save, HashSet<EntityId> current)
     {
-        foreach (LiveExplosive e in Zone.Explosives)
+        foreach (LiveExplosive e in Zone.Explosives().All)
         {
             if (e.Gone)
             {
@@ -257,7 +257,7 @@ public sealed partial class GameServer : IPlayerPresence
                 SystemAddress = Spec.SystemAddress,
                 BodyPath = Spec.BodyPath,
                 Kind = ExplosiveCodec.ThingKind,
-                Data = ExplosiveCodec.Encode(Zone.SaveOf(e), Zone.Frame.ToBody),
+                Data = ExplosiveCodec.Encode(Zone.Explosives().SaveOf(e), Zone.Frame.ToBody),
             });
             current.Add(e.Id);
         }
@@ -282,7 +282,7 @@ public sealed partial class GameServer : IPlayerPresence
         {
             try
             {
-                if (Zone.RestoreExplosive(ExplosiveCodec.Decode(t.Id, t.Data, Zone.Frame.ToLocal)))
+                if (Zone.Explosives().RestoreExplosive(ExplosiveCodec.Decode(t.Id, t.Data, Zone.Frame.ToLocal)))
                 {
                     restored++;
                 }
@@ -326,7 +326,7 @@ public sealed class RaidArena
         {
             _huts[i] = Build(i);
         }
-        _nextRestore = zone.BuildingNow + RestoreSeconds;
+        _nextRestore = zone.Building().BuildingNow + RestoreSeconds;
     }
 
     public int Count => _huts.Count(h => h != null);
@@ -343,7 +343,7 @@ public sealed class RaidArena
         if (hut?.Claim is { } claim)
         {
             // Nobody's yet: the bots are listed as they join.
-            _zone.Building!.Deauthorise(0, claim);
+            _zone.Building().World!.Deauthorise(0, claim);
         }
         return hut;
     }
@@ -354,17 +354,17 @@ public sealed class RaidArena
         if (name.StartsWith(_prefix, StringComparison.Ordinal) && int.TryParse(name[_prefix.Length..], out int n) && n >= 1 &&
             _huts[(n - 1) % _huts.Length]?.Claim is { Gone: false } claim)
         {
-            zone.Building!.Authorise(player.Value, claim);
+            zone.Building().World!.Authorise(player.Value, claim);
         }
     }
 
     public void Tick()
     {
-        if (_zone.BuildingNow < _nextRestore)
+        if (_zone.Building().BuildingNow < _nextRestore)
         {
             return;
         }
-        _nextRestore = _zone.BuildingNow + RestoreSeconds;
+        _nextRestore = _zone.Building().BuildingNow + RestoreSeconds;
         for (int i = 0; i < _huts.Length; i++)
         {
             TestBases.Hut? hut = _huts[i];
@@ -376,7 +376,7 @@ public sealed class RaidArena
             {
                 if (hut.Claim is { } restored)
                 {
-                    _zone.Building!.Deauthorise(0, restored);
+                    _zone.Building().World!.Deauthorise(0, restored);
                 }
             }
             else
@@ -387,7 +387,7 @@ public sealed class RaidArena
                 {
                     foreach (ulong player in listed)
                     {
-                        _zone.Building!.Authorise(player, claim);
+                        _zone.Building().World!.Authorise(player, claim);
                     }
                 }
             }

@@ -134,6 +134,10 @@ Godot.
   nearest surface, survival.json `reach`); what rests on or sticks in a thing is linked to it and goes with it; one
   step a second ends every loose thing whose lifetime is up (survival.json `lifetimes`). Handlers live in registries
   filled at start-up and checked against the data.
+- **Systems** (GROUND_SYSTEMS.md §12.2, K0, 14 October 2026): the zone is a host; every rule above is a `ZoneSystem` of
+  its own (`src/Hollow.Simulation/Systems`), listed once in `GroundSystems` in this tick order and found by its accessor
+  (`zone.Players()`, `zone.Guns()`, `zone.Building().World`...). The host keeps what they share: the entities, the
+  physics, the natural objects, the pose history, the clock, the content, the events.
 - **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world, its
   origin at the landing site (§3; `--lat`, `--lon` move it), on the planet's real surface (`ZoneSpec.CreateSurface`:
   `PlanetSurface`, one instance per process shared by the server, the prediction and the terrain; `--stand-in` gives

@@ -32,15 +32,15 @@ public static class WoundedTests
 
         // Down: a lethal body shot from Ada.
         b.Vitals.Health = 20;
-        rig.Zone.ShootCharacter(bo, b, Guns.Round(c, "rifle", "rifle-ammo", a.Id), HitRegion.Body, 5, Vector3.Zero, a);
+        rig.Zone.Guns().ShootCharacter(bo, b, Guns.Round(c, "rifle", "rifle-ammo", a.Id), HitRegion.Body, 5, Vector3.Zero, a);
         Assert.True(b.Wounded && !b.Dead, "knocked down, not dead");
         Assert.InRange(s.WoundedHealthLeast, s.WoundedHealthMost, b.Vitals.Health, "a little health");
         Assert.Equal(Stance.Crawling, rig.Ch(bo).State.Stance, "crawling");
         Assert.InRange(rig.Zone.Tick + s.WoundedSecondsLeast * 30 - 1, rig.Zone.Tick + s.WoundedSecondsMost * 30 + 1, b.WoundedUntilTick, "40-50 s");
         Assert.True(rig.Zone.GameEvents.Any(e => e.Kind == ZoneEventKind.HitConfirmed && e.Player == a.Id && e.Downed), "Ada's marker says downed");
-        Assert.Equal(OutcomeCode.Dead, rig.Zone.Craft(bo, c.ItemByKey("campfire").Id, 1, out _), "the wounded can't act");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, b.Ref, "loot"), "the wounded can be looted");
-        rig.Zone.Close(ada);
+        Assert.Equal(OutcomeCode.Dead, rig.Zone.Actions().Craft(bo, c.ItemByKey("campfire").Id, 1, out _), "the wounded can't act");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interaction().Interact(ada, b.Ref, "loot"), "the wounded can be looted");
+        rig.Zone.Actions().Close(ada);
 
         // Crawling: slow, no jumping, the stance kept.
         Vector3 start = rig.Ch(bo).State.Position;
@@ -53,30 +53,30 @@ public static class WoundedTests
         // Helped up by Ada (within reach), back on his feet with the health he had.
         float downHealth = b.Vitals.Health;
         rig.Zone.Teleport(ada, rig.Ch(bo).State.Position + new Vector3(1, 0, 0));
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, b.Ref, "help-up"), "help up");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interaction().Interact(ada, b.Ref, "help-up"), "help up");
         Assert.True(!b.Wounded && !b.Dead && b.Vitals.Health == downHealth, "up again");
         rig.Step(2, () => rig.Ch(bo).Input = default);
         Assert.Equal(Stance.Standing, rig.Ch(bo).State.Stance, "standing where there is room");
-        Assert.Equal(OutcomeCode.NotUsable, rig.Zone.Interact(ada, b.Ref, "help-up"), "nobody to help now");
+        Assert.Equal(OutcomeCode.NotUsable, rig.Zone.Interaction().Interact(ada, b.Ref, "help-up"), "nobody to help now");
 
         // Finished off: down again, and one more hit kills.
         b.Vitals.Health = 10;
-        rig.Zone.ShootCharacter(bo, b, Guns.Round(c, "pistol", "pistol-ammo", a.Id), HitRegion.Limb, 5, Vector3.Zero, a);
+        rig.Zone.Guns().ShootCharacter(bo, b, Guns.Round(c, "pistol", "pistol-ammo", a.Id), HitRegion.Limb, 5, Vector3.Zero, a);
         Assert.True(b.Wounded, "down again");
-        rig.Zone.ShootCharacter(bo, b, Guns.Round(c, "pistol", "pistol-ammo", a.Id), HitRegion.Limb, 5, Vector3.Zero, a);
+        rig.Zone.Guns().ShootCharacter(bo, b, Guns.Round(c, "pistol", "pistol-ammo", a.Id), HitRegion.Limb, 5, Vector3.Zero, a);
         Assert.True(b.Dead && !b.Wounded, "finished off");
-        Assert.Equal(100, InventoryRules.Count(new[] { rig.Zone.Statics().OfType<Corpse>().Single().Loot }, c.ItemByKey("wood").Id), "a corpse");
+        Assert.Equal(100, InventoryRules.Count(new[] { rig.Zone.Things().Statics().OfType<Corpse>().Single().Loot }, c.ItemByKey("wood").Id), "a corpse");
 
         // Outright: a shot to the head, a hit of 75 or more, the cold.
         Entity cy = rig.Add("Cy", 15, -22);
         Player cyp = rig.P(cy);
         cyp.Vitals.Health = 30;
-        rig.Zone.ShootCharacter(cy, cyp, Guns.Round(c, "rifle", "rifle-ammo", a.Id), HitRegion.Head, 5, Vector3.Zero, a);
+        rig.Zone.Guns().ShootCharacter(cy, cyp, Guns.Round(c, "rifle", "rifle-ammo", a.Id), HitRegion.Head, 5, Vector3.Zero, a);
         Assert.True(cyp.Dead && !cyp.Wounded, "a head shot kills");
         Entity dee = rig.Add("Dee", 16, -22);
         Player d = rig.P(dee);
         d.Vitals.Health = 10;
-        rig.Zone.Hurt(dee, d, s.WoundMaxDamage, "Test", EntityId.None, "");
+        rig.Zone.Players().Hurt(dee, d, s.WoundMaxDamage, "Test", EntityId.None, "");
         Assert.True(d.Dead, "a hit of 75 kills");
 
         // Their time runs out: up by themselves, or dead of it, as their roll says.
@@ -87,9 +87,9 @@ public static class WoundedTests
             p.Vitals.Health = 5;
             p.Vitals.Calories = name == "Eve" ? s.MaxCalories : 0;
             p.Vitals.Hydration = name == "Eve" ? s.MaxHydration : 0;
-            rig.Zone.Hurt(e, p, 20, "Fell", EntityId.None, "");
+            rig.Zone.Players().Hurt(e, p, 20, "Fell", EntityId.None, "");
             Assert.True(p.Wounded, $"{name} down");
-            bool recovers = rig.Zone.RecoversByThemselves(p);
+            bool recovers = rig.Zone.Wounded().RecoversByThemselves(p);
             rig.Step((int)(p.WoundedUntilTick - rig.Zone.Tick) + 1);
             Fixtures.Report($"{name} ({(name == "Eve" ? "fed and watered" : "starving")}): {(recovers ? "got up" : "died")}");
             Assert.True(recovers ? !p.Wounded && !p.Dead : p.Dead && p.DeathCause == "Fell", $"{name} as the roll says");
@@ -99,8 +99,8 @@ public static class WoundedTests
         Entity ivy = rig.Add("Ivy", 25, -25);
         Player iv = rig.P(ivy);
         iv.Vitals.Health = 5;
-        rig.Zone.Hurt(ivy, iv, 10, "Struck down", a.Id, "Ada");
-        rig.Zone.Sleep(ivy);
+        rig.Zone.Players().Hurt(ivy, iv, 10, "Struck down", a.Id, "Ada");
+        rig.Zone.Players().Sleep(ivy);
         Assert.True(iv.Dead && iv.KilledBy == "Ada", "dies on logging off, killed by whoever downed them");
     }
 }

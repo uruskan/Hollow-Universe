@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
@@ -8,11 +8,11 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
+using Hollow.Simulation.Placement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
-using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
-using Hollow.Simulation.Placement;
+using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
@@ -47,14 +47,25 @@ public readonly record struct ShipEvent(ShipEventKind Kind, Ship Ship, float Amo
 // Ships in the zone (GROUND.md §6.7): built at a vehicle workbench, boarded through the hatch, flown by their pilot's
 // inputs, parked on their skids (a static body characters walk into), fuelled, locked, looted, hurt by weapons and
 // crashes, wrecked when the hull goes, parked in orbit above the ceiling.
-public sealed partial class Zone
+public sealed class ShipSystem : ZoneSystem
 {
+    private DamageSystem? _damageSystem;
+    private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
+    private PlacementSystem? _placementSystem;
+    private PlacementSystem Placement => _placementSystem ??= Zone.Require<PlacementSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private TargetSystem? _targetsSystem;
+    private TargetSystem Targets => _targetsSystem ??= Zone.Require<TargetSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
     /// <summary>A pilot may step out (and others open the hatch) only this slow, and this near the ground (or on the sea).</summary>
     public const float ExitSpeed = 2.5f;
 
     public const float ExitHeight = 3.5f;
 
-    private readonly List<Ship> _ships = new();
+    internal readonly List<Ship> _ships = new();
     private readonly List<Ship> _shipsGone = new();
     private readonly Dictionary<EntityId, long> _shipNotices = new();
     private ShipCollider? _shipCollider;
@@ -63,7 +74,7 @@ public sealed partial class Zone
     public ShipCollider ShipCollider => _shipCollider ??= new ShipCollider(Physics);
 
     /// <summary>Every ship in the zone, in the order they are stepped (by entity ID).</summary>
-    public IReadOnlyList<Ship> Ships => _ships;
+    public IReadOnlyList<Ship> All => _ships;
 
     /// <summary>What happened to ships this tick (the server sends and clears it).</summary>
     public List<ShipEvent> ShipEvents { get; } = new();
@@ -185,7 +196,7 @@ public sealed partial class Zone
                 ShipEvents.Add(new ShipEvent(ShipEventKind.Crashed, ship, ship.Events.CrashDamage));
                 if (pilot != null && ship.Def.CrashPilotShare > 0)
                 {
-                    Hurt(pilotEntity, pilot, ship.Events.CrashDamage * ship.Def.CrashPilotShare, "Crashed", EntityId.None, "", canWound: false);
+                    Players.Hurt(pilotEntity, pilot, ship.Events.CrashDamage * ship.Def.CrashPilotShare, "Crashed", EntityId.None, "", canWound: false);
                 }
             }
             if (ship.Events.ReachedCeiling && (ship.Piloted || ship.Autopilot) && !ship.Destroyed)
@@ -251,13 +262,13 @@ public sealed partial class Zone
     /// Rolls a ship out of the station it was built at, onto its bay (or, if the station is gone, in front of its
     /// builder), when the space there is clear. False when it must wait.
     /// </summary>
-    private bool DeliverShip(Entity builder, Player p, Recipe recipe, ulong stationId)
+    internal bool DeliverShip(Entity builder, Player p, Recipe recipe, ulong stationId)
     {
         ShipDef def = recipe.Output.Ship!;
         Vector3 at;
         float yaw;
         float maxSlope;
-        if (StaticOf(new EntityId(stationId)) is Deployable { Def.Bay: { } bay } station)
+        if (Things.StaticOf(new EntityId(stationId)) is Deployable { Def.Bay: { } bay } station)
         {
             (Vector3 right, Vector3 forward) = Geometry.Axes(station.Up, station.Yaw);
             at = station.Position + right * bay.At.X + forward * bay.At.Z;
@@ -308,11 +319,11 @@ public sealed partial class Zone
     public Deployable? StationNear(Vector3 eye, DeployableDef def)
     {
         float reach = Content!.Survival.StationReach;
-        _near.Clear();
-        DeployablesNear(eye, reach + 6f, _near);
+        Things._near.Clear();
+        Things.DeployablesNear(eye, reach + 6f, Things._near);
         Deployable? best = null;
         float bestDistance = float.MaxValue;
-        foreach (Deployable d in _near)
+        foreach (Deployable d in Things._near)
         {
             float distance = Vector3.Distance(d.Nearest(eye), eye);
             if (d.Def == def && distance <= reach && distance < bestDistance)
@@ -332,7 +343,7 @@ public sealed partial class Zone
     /// placement system's hull footprint (GROUND_SYSTEMS.md §6), as when one is placed from its item.
     /// </summary>
     public bool ShipSpaceClear(ShipDef def, Vector3 ground, float yaw) =>
-        HullFootprint.Clear(Placement, def, ground, yaw, _hullCharacters, _hullShips).Ok;
+        HullFootprint.Clear(Placement.World, def, ground, yaw, _hullCharacters, _hullShips).Ok;
 
     // ---------------------------------------------------------------- the hatch, the seat, the lock, the fuel
     // On foot these are verbs (GROUND_SYSTEMS.md §5: the ship capability offers them by part, the interaction's one path
@@ -596,9 +607,9 @@ public sealed partial class Zone
 
     // Whether a player looting a ship's cargo may go on (CheckLoot, once a second): from its seat, or beside it while it is
     // at rest, the cargo within the reach that keeps a container open (GROUND_SYSTEMS.md §3.4).
-    private bool StillAtShip(Entity entity, Ship ship) =>
+    internal bool StillAtShip(Entity entity, Ship ship) =>
         SeatOf(entity) == ship || (!ship.InOrbit && ShipStill(ship) &&
-            Reach(EyeOf(Entities.Get<Character>(entity).State), new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Cargo), Content!.Survival.KeepOpenReach,
+            Targets.Reach(EyeOf(Entities.Get<Character>(entity).State), new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Cargo), Content!.Survival.KeepOpenReach,
                 sight: false).Ok);
 
     // ---------------------------------------------------------------- orbit (GROUND.md §6.7: the seam for G8)
@@ -650,15 +661,15 @@ public sealed partial class Zone
     /// the hull's health and last attacker; at 0 the ship is wrecked (the pilot dies in it, a wreck to loot) and reported
     /// destroyed. The pilot inside is the cabin's to protect.
     /// </summary>
-    private sealed class ShipReceiver(Zone zone) : IDamageReceiver
+    internal sealed class ShipReceiver(Zone zone) : DamageSystem.IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Ship };
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
-            if (zone._ships.Count > 0)
+            if (zone.Ships()._ships.Count > 0)
             {
-                float t = zone.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship);
+                float t = zone.Ships().TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship);
                 if (ship != null)
                 {
                     ray.Consider(ref best, t, ship.Ref);
@@ -668,7 +679,7 @@ public sealed partial class Zone
 
         public void InReach(in BlastQuery blast, List<BlastTarget> into)
         {
-            foreach (Ship ship in zone._ships)
+            foreach (Ship ship in zone.Ships()._ships)
             {
                 if (ship.Destroyed || ship.InOrbit)
                 {
@@ -693,11 +704,11 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (zone.ShipOf(new EntityId(r.Hit.Target.Id)) is not { } ship || ship.Destroyed || ship.InOrbit)
+            if (zone.Ships().ShipOf(new EntityId(r.Hit.Target.Id)) is not { } ship || ship.Destroyed || ship.InOrbit)
             {
                 return default;
             }
-            float lost = zone.HurtShip(ship, r.Amounts.Hull, r.Delivery, r.By);
+            float lost = zone.Ships().HurtShip(ship, r.Amounts.Hull, r.Delivery, r.By);
             return new DamageOutcome(true, lost, lost, ship.Destroyed, false, ship.Id);
         }
     }
@@ -709,7 +720,7 @@ public sealed partial class Zone
     /// Damage to a ship's hull from a weapon of a kind (tests): a request through the ships' receiver, with no hit marker.
     /// The hull takes its share for the kind; at 0 it is wrecked. Returns the hull lost.
     /// </summary>
-    public float DamageShip(Ship ship, float damage, ShipDamage kind, Player? attacker) => Damage(new DamageRequest
+    public float DamageShip(Ship ship, float damage, ShipDamage kind, Player? attacker) => Damage.Damage(new DamageRequest
     {
         By = attacker,
         Attacker = attacker?.Id ?? EntityId.None,
@@ -734,7 +745,7 @@ public sealed partial class Zone
     }).Taken;
 
     // The ships' consequences: the hull's share for how the blow came; at 0 the ship is wrecked. Returns the hull lost.
-    private float HurtShip(Ship ship, float damage, DamageDelivery delivery, Player? attacker)
+    internal float HurtShip(Ship ship, float damage, DamageDelivery delivery, Player? attacker)
     {
         if (ship.Destroyed || ship.InOrbit || damage <= 0)
         {
@@ -782,7 +793,7 @@ public sealed partial class Zone
         ship.State.Velocity = Vector3.Zero;
         ship.State.AngularVelocity = Vector3.Zero;
         // Destroyed by the blow being applied, or (none) by its crash.
-        Destroyed(ship.Ref, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, _blow.Active ? null : DestroyCause.Crash);
+        Damage.Destroyed(ship.Ref, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, Damage._blow.Active ? null : DestroyCause.Crash);
         if (ship.ParkedBody != 0)
         {
             lock (JoltRuntime.Gate)
@@ -796,7 +807,7 @@ public sealed partial class Zone
         if (ship.Piloted && Entities.TryFind(ship.Pilot, out Entity pilot) && PlayerOf(pilot) is { } p)
         {
             Unseat(pilot, ship, at + up * 0.05f);
-            Die(pilot, p, "Went down with the ship", ship.LastAttacker, ship.LastAttackerName);
+            Players.Die(pilot, p, "Went down with the ship", ship.LastAttacker, ship.LastAttackerName);
         }
         var stacks = new List<ItemStack>();
         for (int i = 0; i < ship.Cargo.Size; i++)
@@ -824,13 +835,13 @@ public sealed partial class Zone
             {
                 wreck.Loot.Set(i, stacks[i]);
             }
-            AddStatic(wreck);
+            Things.AddStatic(wreck);
         }
         ShipEvents.Add(new ShipEvent(ShipEventKind.Destroyed, ship, 0, ship.LastAttacker));
     }
 
     /// <summary>The ship a ray (thickened) meets first: the distance along it (−1 for none) and the ship.</summary>
-    private float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit)
+    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit)
     {
         hit = null;
         float best = -1;
@@ -856,4 +867,22 @@ public sealed partial class Zone
         }
         return best;
     }
+
+    public override bool InsidePhysicsGate => true;
+
+    protected internal override void Step()
+    {
+        StepShips();
+    }
+
+    public override void Dispose() => _shipCollider?.Dispose();
+
+    /// <summary>The survival state of a character, or null: not a player, or G1's movement-only zone, where ships fly without players.</summary>
+    private Player? PlayerOf(Entity entity) => Zone.Get<PlayerSystem>()?.PlayerOf(entity);
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class ShipSystemAccess
+{
+    public static ShipSystem Ships(this Zone zone) => zone.Require<ShipSystem>();
 }

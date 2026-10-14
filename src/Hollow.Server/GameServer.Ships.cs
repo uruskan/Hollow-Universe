@@ -38,7 +38,7 @@ public sealed partial class GameServer
     // A pilot's controls for this tick go to their ship (none while on foot: hands off the stick).
     private void ApplyShipInput(PlayerSession session, in InputCommand input)
     {
-        if (Zone.SeatOf(session.Entity) is { } ship && ship.Pilot == session.EntityId)
+        if (Zone.Ships().SeatOf(session.Entity) is { } ship && ship.Pilot == session.EntityId)
         {
             ship.Input = ShipConvert.ToShipInput(input);
         }
@@ -63,10 +63,10 @@ public sealed partial class GameServer
         {
             Outcome result = m.Action switch
             {
-                ShipAction.Hatch => Zone.ShipHatch(me, target),
-                ShipAction.Exit => Zone.ExitShip(me),
-                ShipAction.Lock => Zone.LockShip(me, target),
-                ShipAction.Descend => Zone.Descend(me),
+                ShipAction.Hatch => Zone.Ships().ShipHatch(me, target),
+                ShipAction.Exit => Zone.Ships().ExitShip(me),
+                ShipAction.Lock => Zone.Ships().LockShip(me, target),
+                ShipAction.Descend => Zone.Ships().Descend(me),
                 _ => OutcomeCode.Invalid,
             };
             if (result == OutcomeCode.Done)
@@ -88,7 +88,7 @@ public sealed partial class GameServer
     {
         _shipGrid.Clear();
         _shipsPresent.Clear();
-        foreach (Ship ship in Zone.Ships)
+        foreach (Ship ship in Zone.Ships().All)
         {
             if (!_shipNetIds.TryGetValue(ship.Id, out uint netId))
             {
@@ -144,7 +144,7 @@ public sealed partial class GameServer
             _shipCandidates.Add(new ShipCandidate
             {
                 NetId = netId,
-                State = ShipConvert.ToNet(ship, Zone.FlagsFor(ship.Ref, session.Viewer)),
+                State = ShipConvert.ToNet(ship, Zone.Targets().FlagsFor(ship.Ref, session.Viewer)),
                 Weight = (moving ? 3f : 0.5f) + 4f * MathF.Max(0f, 1f - distance / ShipRelevanceRadius) + (ship.Pilot == session.EntityId ? 10f : 0f),
             });
         }
@@ -167,7 +167,7 @@ public sealed partial class GameServer
     /// <summary>The ship this player flies, exactly, for the snapshot's header (none on foot).</summary>
     private OwnShipState[]? OwnShip(PlayerSession session)
     {
-        if (Zone.SeatOf(session.Entity) is not { } ship || ship.Pilot != session.EntityId || !_shipNetIds.TryGetValue(ship.Id, out uint netId))
+        if (Zone.Ships().SeatOf(session.Entity) is not { } ship || ship.Pilot != session.EntityId || !_shipNetIds.TryGetValue(ship.Id, out uint netId))
         {
             return null;
         }
@@ -192,12 +192,12 @@ public sealed partial class GameServer
                 {
                     continue;
                 }
-                Ship ship = Zone.AddShip(restored.Ship);
+                Ship ship = Zone.Ships().AddShip(restored.Ship);
                 Zone.Physics.EnsureGround(ship.State.Position);
                 loaded++;
-                if (!restored.Pilot.IsNone && Zone.Entities.TryFind(restored.Pilot, out Entity pilot) && Zone.PlayerOf(pilot) != null)
+                if (!restored.Pilot.IsNone && Zone.Entities.TryFind(restored.Pilot, out Entity pilot) && Zone.Players().PlayerOf(pilot) != null)
                 {
-                    Zone.Reseat(pilot, ship);
+                    Zone.Ships().Reseat(pilot, ship);
                 }
             }
             catch (Exception e) when (e is System.IO.EndOfStreamException or System.IO.InvalidDataException or ArgumentException)
@@ -215,7 +215,7 @@ public sealed partial class GameServer
     private void AddShipsToSave(ZoneSave save)
     {
         var current = new HashSet<EntityId>();
-        foreach (Ship ship in Zone.Ships)
+        foreach (Ship ship in Zone.Ships().All)
         {
             if (ship.Destroyed)
             {
@@ -240,7 +240,7 @@ public sealed partial class GameServer
     // What happened to ships this tick: the builder hears theirs rolled out; crashes and wrecks go in the log.
     private void RouteShipEvents()
     {
-        foreach (ShipEvent e in Zone.ShipEvents)
+        foreach (ShipEvent e in Zone.Ships().ShipEvents)
         {
             switch (e.Kind)
             {
@@ -261,7 +261,7 @@ public sealed partial class GameServer
                     break;
             }
         }
-        Zone.ShipEvents.Clear();
+        Zone.Ships().ShipEvents.Clear();
     }
 
     /// <summary>Ships built, destroyed and crashes, for <c>status</c> and the load test.</summary>
@@ -304,9 +304,9 @@ public sealed partial class GameServer
                 Vector3 ground = Zone.Settle(at);
                 // The ship's right is (cos yaw, −sin yaw) east and north... in the characters' yaw: point it back at the player.
                 float yaw = MathF.Atan2(-MathF.Cos(angle), -MathF.Sin(angle));
-                if (Zone.ShipSpaceClear(def, ground, yaw))
+                if (Zone.Ships().ShipSpaceClear(def, ground, yaw))
                 {
-                    Ship ship = Zone.SpawnShip(def, ground, yaw, session.EntityId, def.FuelCapacity);
+                    Ship ship = Zone.Ships().SpawnShip(def, ground, yaw, session.EntityId, def.FuelCapacity);
                     ship.HatchOpen = true;
                     ship.HatchProgress = Ship.HatchTicks;
                     return ship;

@@ -40,7 +40,7 @@ public static class WorldNetTests
     {
         (EntityId id, Vector3 at) = OnServer(rig, sv =>
         {
-            WorldProp p = sv.Zone.Props.Where(x => x.Prop.Kind == kind).OrderBy(x => x.Position.Length()).First();
+            WorldProp p = sv.Zone.World().Props.Where(x => x.Prop.Kind == kind).OrderBy(x => x.Position.Length()).First();
             return (p.Id, p.Position);
         });
         prop = id;
@@ -94,7 +94,7 @@ public static class WorldNetTests
         // Whatever the crate gave her goes; then two gears.
         OnServer(rig, sv =>
         {
-            sv.Zone.TryFindPlayer(ada.EntityId, out _, out Player p);
+            sv.Zone.Players().TryFindPlayer(ada.EntityId, out _, out Player p);
             p.Inventory.Main.Clear();
             p.Inventory.Belt.Clear();
             return 0;
@@ -209,21 +209,21 @@ public static class WorldNetTests
             (barrel, crate, barrelBack, left) = OnServer(rig, sv =>
             {
                 Zone z = sv.Zone;
-                WorldProp b = z.Props.First(p => p.Prop.Kind == WorldPropKind.Barrel);
-                WorldProp k = z.Props.First(p => p.Prop.Kind == WorldPropKind.Crate && p.Storage!.Slots.ToArray().Count(s => !s.IsEmpty) >= 2);
-                z.DamageDeployable(b, 1000);
+                WorldProp b = z.World().Props.First(p => p.Prop.Kind == WorldPropKind.Barrel);
+                WorldProp k = z.World().Props.First(p => p.Prop.Kind == WorldPropKind.Crate && p.Storage!.Slots.ToArray().Count(s => !s.IsEmpty) >= 2);
+                z.Things().DamageDeployable(b, 1000);
                 int first = Enumerable.Range(0, k.Storage!.Size).First(i => !k.Storage[i].IsEmpty);
                 k.Storage.Set(first, default);
-                return (b.Id, k.Id, z.RespawnOf(b.Id.Value)!.Value, k.Storage.Slots.ToArray());
+                return (b.Id, k.Id, z.World().RespawnOf(b.Id.Value)!.Value, k.Storage.Slots.ToArray());
             });
             rig.Server.Execute("kill Bo");
             RunUntil(rig, () => bo.Local.IsDead, "Bo dead");
         }
         using (var rig = new LoopbackRig(file.Path))
         {
-            (bool gone, long back, ItemStack[] kept, ulong teamId, int members) = OnServer(rig, sv => (sv.Zone.PropAt(barrel.Value) == null,
-                sv.Zone.RespawnOf(barrel.Value) ?? 0, sv.Zone.PropAt(crate.Value)!.Storage!.Slots.ToArray(),
-                sv.Zone.Teams.All.Single().Id, sv.Zone.Teams.All.Single().Members.Count));
+            (bool gone, long back, ItemStack[] kept, ulong teamId, int members) = OnServer(rig, sv => (sv.Zone.World().PropAt(barrel.Value) == null,
+                sv.Zone.World().RespawnOf(barrel.Value) ?? 0, sv.Zone.World().PropAt(crate.Value)!.Storage!.Slots.ToArray(),
+                sv.Zone.World().Teams.All.Single().Id, sv.Zone.World().Teams.All.Single().Members.Count));
             Assert.True(gone && back == barrelBack, "the barrel stays gone until the same time");
             Assert.True(kept.SequenceEqual(left), "the crate keeps what was left");
             Assert.True(teamId == team && members == 2, "the team");

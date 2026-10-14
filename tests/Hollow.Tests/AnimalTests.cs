@@ -21,7 +21,7 @@ public static class AnimalRig
 {
     public static AnimalWorld Animals(GameRig rig)
     {
-        AnimalWorld animals = rig.Zone.Animals!;
+        AnimalWorld animals = rig.Zone.Animals().World!;
         animals.Nav.Synchronous = true;
         return animals;
     }
@@ -94,7 +94,7 @@ public static class AnimalTests
         rig.Step(45, () => AnimalRig.Still(rig, ada));
         Assert.True(boar.State is not (AnimalState.Chase or AnimalState.Attack or AnimalState.Flee), $"a boar 12 m off leaves her be ({boar.State})");
 
-        rig.Zone.DamageAnimal(boar, 20, HitRegion.Body, rig.Zone.EyeOf(rig.Ch(ada).State), p, p.Id, p.Name, rig.C.ItemByKey("arrow").Id);
+        rig.Zone.Animals().DamageAnimal(boar, 20, HitRegion.Body, rig.Zone.EyeOf(rig.Ch(ada).State), p, p.Id, p.Name, rig.C.ItemByKey("arrow").Id);
         rig.Step(3, () => AnimalRig.Still(rig, ada));
         Assert.True(boar.State == AnimalState.Chase && boar.Target == AnimalTarget.Player(p.Id), $"it charges her ({boar.State})");
         float health = p.Vitals.Health;
@@ -279,10 +279,10 @@ public static class AnimalTests
             Herd herd = AnimalRig.Herd(rig, "deer", 1.4f, 0, 1);
             Animal deer = herd.Leader!;
             rig.Step(2);
-            rig.Zone.DamageAnimal(deer, 1000, HitRegion.Body, rig.Ch(ada).State.Position, p, p.Id, p.Name);
+            rig.Zone.Animals().DamageAnimal(deer, 1000, HitRegion.Body, rig.Ch(ada).State.Position, p, p.Id, p.Name);
             Assert.True(deer.IsDead && deer.HarvestLeft == deer.Species.HarvestHealth, "a corpse to harvest");
             rig.Give(ada, tool, 1);
-            rig.Zone.MoveItem(ada, ContainerRef.Main, 0, ContainerRef.Belt, 0, 0, 0);
+            rig.Zone.Actions().MoveItem(ada, ContainerRef.Main, 0, ContainerRef.Belt, 0, 0, 0);
             rig.Zone.GameEvents.Clear();
             int count = 0;
             Vector3 aim = deer.Position + rig.Zone.Frame.UpAt(deer.Position) * 0.25f;
@@ -311,7 +311,7 @@ public static class AnimalTests
         rig3.Add("Ada", 0, 0);
         Animal wolf = AnimalRig.Herd(rig3, "wolf", 0, -20, 1).Leader!;
         rig3.Step(2);
-        rig3.Zone.DamageAnimal(wolf, 500, HitRegion.Head, rig3.Zone.GroundAt(0, 0), null);
+        rig3.Zone.Animals().DamageAnimal(wolf, 500, HitRegion.Head, rig3.Zone.GroundAt(0, 0), null);
         Assert.Equal(rig3.Zone.Tick + 300 * 30, wolf.DespawnTick, "the corpse's timer");
         wolf.DespawnTick = rig3.Zone.Tick + 5;
         rig3.Step(40); // the lifetime step runs once a second (GROUND_SYSTEMS.md §3.7)
@@ -334,11 +334,11 @@ public static class AnimalTests
         Vector3 at = rig.Zone.GroundAt(21.5f, 20);
         rig.Look(ada, at);
         Assert.Equal(OutcomeCode.Done, rig.Place(ada, 0, at, 0, c.ItemByKey("campfire").Id), "place the campfire");
-        Deployable fire = rig.Zone.Statics().OfType<Deployable>().Single();
+        Deployable fire = rig.Zone.Things().Statics().OfType<Deployable>().Single();
         DeviceStats device = fire.Def.Device!;
         fire.Storage!.Set(device.FuelSlots[0], ItemStack.Of(c.ItemByKey("wood"), 200));
         fire.Storage.Set(device.InputSlots[0], ItemStack.Of(c.ItemByKey("raw-venison"), 1));
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(ada, fire.Ref, "light"), "light it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interaction().Interact(ada, fire.Ref, "light"), "light it");
         int Count(string key) => device.OutputSlots.Sum(s => fire.Storage[s].Item == c.ItemByKey(key).Id ? fire.Storage[s].Count : 0);
         rig.Step(15 * 30 - 2);
         Assert.Equal(0, Count("cooked-venison"), "not cooked before 15 s");
@@ -369,7 +369,7 @@ public static class AnimalTests
         Assert.True(c.Recipe(c.ItemByKey("lamp-oil").Id)!.Ingredients.Any(i => i.Item.Key == "charcoal"), "beside the charcoal one");
         rig.Give(ada, "animal-fat", 3);
         rig.Give(ada, "cloth", 1);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Craft(ada, fat.Id, 1, out _), "craft it");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().Craft(ada, fat.Id, 1, out _), "craft it");
         rig.Step((int)(fat.Seconds * 30) + 2);
         Assert.Equal(4, p.Inventory.Count(c.ItemByKey("lamp-oil")), "four lamp oil");
         Assert.Equal(0, p.Inventory.Count(c.ItemByKey("animal-fat")), "the fat used");
@@ -414,7 +414,7 @@ public static class AnimalTests
         Herd herd = slot.Herd!;
         foreach (Animal a in herd.Members.ToList())
         {
-            rig.Zone.DamageAnimal(a, 10_000, HitRegion.Body, a.Position, rig.P(ada));
+            rig.Zone.Animals().DamageAnimal(a, 10_000, HitRegion.Body, a.Position, rig.P(ada));
         }
         Assert.Equal(slot.Size, slot.Respawns.Count, "every member waits to come back");
         Assert.True(slot.Respawns.All(t => t == rig.Zone.Tick + (long)Math.Round(slot.Species.RespawnSeconds * 30)), "after the species' respawn time");
@@ -462,7 +462,7 @@ public static class AnimalTests
         rig.Step(2);
 
         p.Vitals.Health = 100;
-        Assert.True(rig.Zone.AnimalAttacksPlayer(wolf, p.Id), "a bite");
+        Assert.True(rig.Zone.Animals().AnimalAttacksPlayer(wolf, p.Id), "a bite");
         Assert.Near(88, p.Vitals.Health, 1e-3, "12 on bare legs");
         Assert.Near(6, p.Vitals.Bleeding, 1e-3, "and half of it bleeds");
 
@@ -474,13 +474,13 @@ public static class AnimalTests
         foreach (string key in new[] { "woven-trousers", "chest-plate", "woven-shirt" })
         {
             int slot = Enumerable.Range(0, 24).First(i => p.Inventory.Main[i].Item == c.ItemByKey(key).Id);
-            Assert.Equal(OutcomeCode.Done, rig.Zone.QuickMove(ada, ContainerRef.Main, slot, c.ItemByKey(key).Id), $"wear the {key}");
+            Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().QuickMove(ada, ContainerRef.Main, slot, c.ItemByKey(key).Id), $"wear the {key}");
         }
         float legs = p.Inventory.Protection(c, HitRegion.Limb, projectile: false), body = p.Inventory.Protection(c, HitRegion.Body, projectile: false);
-        rig.Zone.AnimalAttacksPlayer(wolf, p.Id);
+        rig.Zone.Animals().AnimalAttacksPlayer(wolf, p.Id);
         Assert.Near(100 - 12 * (1 - legs), p.Vitals.Health, 1e-3, $"the trousers take {legs:P0} of a bite");
         p.Vitals.Health = 100;
-        rig.Zone.AnimalAttacksPlayer(bear, p.Id);
+        rig.Zone.Animals().AnimalAttacksPlayer(bear, p.Id);
         Assert.Near(100 - 30 * (1 - body), p.Vitals.Health, 1e-3, $"the chest plate and shirt take {body:P0} of a swipe");
         Fixtures.Report($"a wolf's bite: 12 bare, {12 * (1 - legs):0.0} through trousers; a bear's swipe: 30 bare, {30 * (1 - body):0.0} through a chest plate and shirt");
 
@@ -490,7 +490,7 @@ public static class AnimalTests
         Vector3 near = bear.Position + new Vector3(0, 0, 2.6f);
         rig.Zone.Teleport(ada, near + rig.Zone.Frame.UpAt(near) * 0.02f);
         bear.Hunger = 0;
-        rig.Zone.DamageAnimal(bear, 1, HitRegion.Body, near, p, p.Id, p.Name);
+        rig.Zone.Animals().DamageAnimal(bear, 1, HitRegion.Body, near, p, p.Id, p.Name);
         long started = -1;
         rig.Step(60, () =>
         {
@@ -527,13 +527,13 @@ public static class AnimalTests
             a.Hunger = 0;
         }
         rig.Step(60);
-        TimeSpan before = rig.Zone.AnimalTime;
+        TimeSpan before = rig.Zone.Animals().AnimalTime;
         long thinks = animals.Thinks, steps = animals.Steps;
         var watch = Stopwatch.StartNew();
         int awake = 0;
         rig.Step(450, () => awake = Math.Max(awake, animals.Awake));
         watch.Stop();
-        double perTick = (rig.Zone.AnimalTime - before).TotalMilliseconds / (animals.Steps - steps);
+        double perTick = (rig.Zone.Animals().AnimalTime - before).TotalMilliseconds / (animals.Steps - steps);
         double perAnimal = perTick * 1000 / Math.Max(1, animals.Count);
         double thinksPerSecond = (animals.Thinks - thinks) / 15.0 / Math.Max(1, animals.Count);
         Fixtures.Report($"{animals.Count} animals ({awake} awake): {perTick:0.000} ms a tick for all of them, {perAnimal:0.0} µs an animal a tick; " +

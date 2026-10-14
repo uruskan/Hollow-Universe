@@ -393,7 +393,7 @@ internal sealed class SweepSolver : IPlacementSolver
 
     private static PlacementCandidate Of(PlacementWorld world, in PlacementContext ctx, in PlacementHit hit) => new(ctx.Placeable)
     {
-        Position = hit.Point + hit.Normal * Zone.StuckOffset,
+        Position = hit.Point + hit.Normal * ExplosiveSystem.StuckOffset,
         Nearest = hit.Point,
         Normal = hit.Normal,
         Up = ctx.Rule.Align == AlignMode.Normal ? hit.Normal : world.Frame.UpAt(hit.Point),

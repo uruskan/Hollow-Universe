@@ -50,7 +50,7 @@ public static class ShipPersistenceTests
             Assert.True(ada.Piloting, "Ada is in the seat");
             (shipId, before, position, rotation) = rig.Server.Inspect(sv =>
             {
-                Ship ship = sv.Zone.Ships.Single();
+                Ship ship = sv.Zone.Ships().All.Single();
                 ItemStack rifle = ItemStack.Of(c.ItemByKey("rifle"), 1);
                 rifle.Loaded = 17;
                 rifle.LoadedAmmo = c.ItemByKey("rifle-ammo").Id;
@@ -58,7 +58,7 @@ public static class ShipPersistenceTests
                 ship.Cargo.Set(3, ItemStack.Of(c.ItemByKey("metal-fragments"), 777));
                 ship.Locked = true;
                 ship.State.Fuel = 321.5f;
-                sv.Zone.DamageShip(ship, 300, ShipDamage.Bullet, null);
+                sv.Zone.Ships().DamageShip(ship, 300, ShipDamage.Bullet, null);
                 return (ship.Id, Fingerprint(ship), ship.State.Position, ship.State.Rotation);
             });
             rig.Run(0.2, (_, _) => default);
@@ -69,9 +69,9 @@ public static class ShipPersistenceTests
         {
             (string after, Vector3 p, Quaternion q, bool seated, int ships) = rig.Server.Inspect(sv =>
             {
-                Ship ship = sv.Zone.ShipOf(shipId)!;
-                bool inSeat = sv.Zone.Entities.TryFind(adaId, out Entity pilot) && sv.Zone.SeatOf(pilot) == ship && ship.Pilot == adaId;
-                return (Fingerprint(ship), ship.State.Position, ship.State.Rotation, inSeat, sv.Zone.Ships.Count);
+                Ship ship = sv.Zone.Ships().ShipOf(shipId)!;
+                bool inSeat = sv.Zone.Entities.TryFind(adaId, out Entity pilot) && sv.Zone.Ships().SeatOf(pilot) == ship && ship.Pilot == adaId;
+                return (Fingerprint(ship), ship.State.Position, ship.State.Rotation, inSeat, sv.Zone.Ships().All.Count);
             });
             Fixtures.Report($"before: {before}");
             Fixtures.Report($"after:  {after}");
@@ -82,7 +82,7 @@ public static class ShipPersistenceTests
             Assert.True(Vector3.Distance(p, position) < 0.002f, "where it was");
             Assert.True(MathF.Abs(Quaternion.Dot(q, rotation)) > 0.99999f, "turned as it was");
             Assert.True(seated, "Ada asleep in its seat");
-            Assert.True(rig.Server.Inspect(sv => sv.Zone.ShipOf(shipId)!.Cargo[0].Loaded) == 17, "the rifle in the cargo keeps its magazine");
+            Assert.True(rig.Server.Inspect(sv => sv.Zone.Ships().ShipOf(shipId)!.Cargo[0].Loaded) == 17, "the rifle in the cargo keeps its magazine");
 
             GameClient ada = rig.Join("Ada");
             rig.WaitUntilPlaying();
@@ -90,13 +90,13 @@ public static class ShipPersistenceTests
             Assert.True(ada.Piloting, "Ada wakes in the seat and flies it again");
 
             // A wreck's row goes.
-            rig.Server.Inspect(sv => sv.Zone.DamageShip(sv.Zone.ShipOf(shipId)!, 10_000, ShipDamage.Explosive, null));
+            rig.Server.Inspect(sv => sv.Zone.Ships().DamageShip(sv.Zone.Ships().ShipOf(shipId)!, 10_000, ShipDamage.Explosive, null));
             rig.Run(3.0, (_, _) => default);
             rig.Server.Inspect(sv => sv.SaveAll()).Wait(TimeSpan.FromSeconds(10));
         }
         using (var rig = new LoopbackRig(file.Path))
         {
-            Assert.Equal(0, rig.Server.Inspect(sv => sv.Zone.Ships.Count), "the wrecked ship is gone from storage");
+            Assert.Equal(0, rig.Server.Inspect(sv => sv.Zone.Ships().All.Count), "the wrecked ship is gone from storage");
         }
     }
 }

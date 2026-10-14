@@ -9,11 +9,16 @@ namespace Hollow.Simulation;
 
 // Survival, once a second (GROUND.md §6): metabolism, temperature, bleeding, healing, and the damage of starvation,
 // thirst and cold. Sleepers are left as they are until they wake.
-public sealed partial class Zone
+public sealed class VitalsSystem : ZoneSystem
 {
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
     private void StepVitals()
     {
-        GameContent content = Content!;
+        GameContent content = Content;
         SurvivalTuning s = content.Survival;
         ComponentPool<PlayerLink> players = Entities.Pool<PlayerLink>();
         double now = UnixMilliseconds / 1000.0;
@@ -43,7 +48,7 @@ public sealed partial class Zone
                 v.WetSeconds = Math.Max(0, v.WetSeconds - 1);
             }
             float air = Climate?.TemperatureAt(c.State.Position, now) ?? s.ClimateMeanCelsius;
-            float warmth = Warmth(c.State.Position);
+            float warmth = Things.Warmth(c.State.Position);
             v.Comfort = warmth > 0;
             float warmed = warmth > 0 ? Math.Max(air, Math.Min(air + warmth, s.FireWarmsTo)) : air;
             v.Temperature = warmed - (v.WetSeconds > 0 ? s.WetCooling : 0);
@@ -100,11 +105,11 @@ public sealed partial class Zone
             }
             if (harm > 0)
             {
-                Hurt(entity, p, harm, cause, EntityId.None, "", canWound: !outright);
+                Players.Hurt(entity, p, harm, cause, EntityId.None, "", canWound: !outright);
             }
             else
             {
-                SyncHealth(ref c, p);
+                PlayerSystem.SyncHealth(ref c, p);
             }
             if (before != ((int)Math.Ceiling(v.Health), (int)v.Calories, (int)v.Hydration, (int)Math.Round(v.Temperature), v.Bleeding > 0, v.Burning > 0))
             {
@@ -130,4 +135,17 @@ public sealed partial class Zone
         }
         p.VitalsRevision++;
     }
+
+    public override int Every => CharacterMotor.TickRate;
+
+    protected internal override void Step()
+    {
+        StepVitals();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class VitalsSystemAccess
+{
+    public static VitalsSystem Vitals(this Zone zone) => zone.Require<VitalsSystem>();
 }

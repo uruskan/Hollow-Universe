@@ -694,4 +694,27 @@ Decisions:
   (ARCHITECTURE.md §10.1, §10.4, §12) and P6 (§9). Nothing here has to be redone for them: a second zone is a second
   host with the same lists, and P6's one entity model sits inside the systems.
 
-*As built:* filled in per package below.
+*As built, K0 (14 October 2026):* `src/Hollow.Simulation/Systems/`: `ZoneSystem` (the base: `Init`, `Start`, `Step`, `Every`,
+`InitOrder`, `InsidePhysicsGate`, `Time`, `Dispose`, and the host's shared things under the names the rules use),
+`GroundSystems` (the lists: `Game`, and `MovementOnly` with `AutoRespawn`, `Ships` and `Damage`, since ships crash and break
+in G1's zone too), and one class per row of the table above; `Zone.cs` is 360 lines. The host runs `Init` in `InitOrder`
+(the things, the building, the placement, the world, the animals, then the targets, the damage receivers, the held rules
+and the interaction rules, as the old `InitGame` did) and steps in the list's order. Each system's file ends with its
+accessor (`zone.Players()`); a system keeps the others it needs in lazily found fields. Three overloads that clashed
+across files were renamed: the supports' `TryLinkPose`, the actions' `ResolveContainer`, the explosives' `DropExplosive`.
+A system's world object is its `World` (`zone.Building().World`), its main collection its `All` (`zone.Ships().All`). What
+was private and used by another system is internal (154 members), to be narrowed as P6 settles the entity model.
+`SetCheats` and the ground helpers (`Settle`, `HeightAboveGround`, `GroundNormal`, `EyeOf`) are the host's. The conversion
+was scripted (every member's new home chosen by its file; 575 call sites outside the simulation moved), so the rules'
+text is the same, line for line, where it stands. Test: `ArchitectureTests.TheZoneIsAHost`.
+
+*As built, K2 (14 October 2026):* `src/Hollow.Net/Protocol/INetMessage.cs` and `MessageHandlers.cs`; the generator
+(`tools/Hollow.NetGen/NetGenerator.Emit.cs`, `EmitStruct`) gives every `[NetMessage]` struct the interface. The schema hash
+is unchanged. Test: `NetTests.MessageHandlersRouteByTypeByte`.
+
+*As built, K4 (14 October 2026):* `src/Hollow.Simulation/Content/Readers/`: `IContentReader` with `ContentReading` and
+`ContentChecking`, nineteen readers in `ContentReaders.All` (one per data file, `CrossChecks` last), `ReaderHelpers`;
+`GameContent.cs` went from 1,675 lines to 400 and `Validation.cs` is gone; the content hash and every problem text are
+unchanged. Test: `ContentTests.EveryDataFileHasOneReader`.
+
+*As built:* K1 and K3 below as they land.

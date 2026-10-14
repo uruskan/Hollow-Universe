@@ -55,7 +55,7 @@ public static class RaidNetTests
         RunUntil(rig, () => bo.Local.Inventory.Count(c.ItemByKey("tin-grenade")) == 1, "the grenade", 5);
         (Vector3 face, Vector3 outward) = rig.Server.Inspect(sv =>
         {
-            Assert.True(sv.Zone.TryFindPlayer(ada.EntityId, out _, out Player owner), "Ada's character");
+            Assert.True(sv.Zone.Players().TryFindPlayer(ada.EntityId, out _, out Player owner), "Ada's character");
             TestBases.Hut hut = TestBases.Build(sv.Zone, sv.Zone.GroundAt(0, 0), 0, 2, owner.Id.Value)!;
             return hut.Face(hut.Doorway, height: 0.6);
         });
@@ -149,17 +149,17 @@ public static class RaidNetTests
                 // A box with a bag charge stuck to it (one that will fizzle), and a timed charge on the ground.
                 Vector3 boxAt = z.GroundAt(6, -6);
                 var box = new Deployable(z.NextId(), c.Deployable("small-box")!, boxAt, z.Frame.UpAt(boxAt), 0, EntityId.None);
-                z.AddStatic(box);
-                LiveExplosive bag = z.StickExplosive(c.ItemByKey("bag-charge").Throwable!, box.Centre + new Vector3(0, 2, 0), -Vector3.UnitY, 3, EntityId.None, "Bo", dud: true)!;
+                z.Things().AddStatic(box);
+                LiveExplosive bag = z.Explosives().StickExplosive(c.ItemByKey("bag-charge").Throwable!, box.Centre + new Vector3(0, 2, 0), -Vector3.UnitY, 3, EntityId.None, "Bo", dud: true)!;
                 Vector3 ground = z.GroundAt(-6, -6);
-                LiveExplosive charge = z.StickExplosive(c.ItemByKey("timed-charge").Throwable!, ground + z.Frame.UpAt(ground) * 2, -z.Frame.UpAt(ground), 3,
+                LiveExplosive charge = z.Explosives().StickExplosive(c.ItemByKey("timed-charge").Throwable!, ground + z.Frame.UpAt(ground) * 2, -z.Frame.UpAt(ground), 3,
                     EntityId.None, "Bo")!;
                 Assert.True(bag.Link.Support.Whole == box.Ref && charge.Link.Support.Family == TargetFamily.Ground, "stuck to the box and the ground");
                 // A raid on Ada's hut while she is away.
-                Assert.True(z.TryFindPlayer(adaId, out _, out Player owner) && owner.Sleeping, "Ada asleep");
+                Assert.True(z.Players().TryFindPlayer(adaId, out _, out Player owner) && owner.Sleeping, "Ada asleep");
                 TestBases.Hut hut = TestBases.Build(z, z.GroundAt(0, 6), 0, 2, owner.Id.Value)!;
                 (Vector3 face, Vector3 outward) = hut.Face(hut.Walls[1]);
-                z.Blast(c.Blast("timed-charge")!, face + outward * Zone.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, EntityId.None, "Bo",
+                z.Damage().Blast(c.Blast("timed-charge")!, face + outward * ExplosiveSystem.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, EntityId.None, "Bo",
                     c.ItemByKey("timed-charge").Id);
                 return (charge.Id, bag.Id, box.Id, charge.FuseEndTick - z.Tick);
             });
@@ -172,7 +172,7 @@ public static class RaidNetTests
             string report = rig.Server.Inspect(sv =>
             {
                 Zone z = sv.Zone;
-                LiveExplosive? charge = z.ExplosiveOf(chargeId), bag = z.ExplosiveOf(bagId);
+                LiveExplosive? charge = z.Explosives().ExplosiveOf(chargeId), bag = z.Explosives().ExplosiveOf(bagId);
                 Assert.True(charge != null && bag != null, "both charges are back");
                 long left = charge!.FuseEndTick - z.Tick;
                 Assert.InRange(chargeLeft - 60, chargeLeft, left, "the timed charge's fuse goes on from where it was");

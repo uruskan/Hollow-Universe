@@ -46,7 +46,7 @@ public partial class ShipSandbox
             _ship.HatchOpen = false;
             _ship.HatchProgress = 0;
         }
-        if (_ship.Destroyed || !_zone.Ships.Contains(_ship))
+        if (_ship.Destroyed || !_zone.Ships().All.Contains(_ship))
         {
             GD.PrintErr($"[tour] the ship was destroyed in {_leg}");
             Finish(false);

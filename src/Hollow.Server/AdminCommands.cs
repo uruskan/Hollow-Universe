@@ -284,7 +284,7 @@ public sealed partial class GameServer
         {
             return false;
         }
-        if (!session.Playing || Zone.PlayerOf(session.Entity) is not { } p)
+        if (!session.Playing || Zone.Players().PlayerOf(session.Entity) is not { } p)
         {
             ctx.Error($"{session.Name} isn't in the world yet.");
             return false;
@@ -364,7 +364,7 @@ public sealed partial class GameServer
         int given = count - left;
         // What doesn't fit drops at their feet, in a bag as a finished craft's does (two dozen stacks at most).
         int dropped = Math.Min(left, 24 * Math.Max(1, item.StackSize));
-        Zone.Drop(whom!.Entity, stack.WithCount(dropped));
+        Zone.Spill().Drop(whom!.Entity, stack.WithCount(dropped));
         left -= dropped;
         if (given > 0)
         {
@@ -431,7 +431,7 @@ public sealed partial class GameServer
         {
             whom = TargetOrMe(ctx, args, 1);
         }
-        if (whom == null || !whom.Playing || Zone.PlayerOf(whom.Entity) is not { } p)
+        if (whom == null || !whom.Playing || Zone.Players().PlayerOf(whom.Entity) is not { } p)
         {
             return;
         }
@@ -506,7 +506,7 @@ public sealed partial class GameServer
         }
         bool me = IsMe(ctx, whom!);
         // Straight to death (not knocked down), whatever god mode says: the body keeps what was carried.
-        Zone.Die(whom!.Entity, p, me ? "Suicide" : "Killed by an admin", EntityId.None, "");
+        Zone.Players().Die(whom!.Entity, p, me ? "Suicide" : "Killed by an admin", EntityId.None, "");
         Log($"{whom.Name} died: {(me ? "killed themselves (console)" : "killed by an admin")}");
         ctx.Done(me ? "You died. Choose where to respawn." : $"Killed {whom.Name}.");
     }

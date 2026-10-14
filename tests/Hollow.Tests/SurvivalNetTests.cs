@@ -63,7 +63,7 @@ public static class SurvivalNetTests
         me.IntentRejected += rejected.Add;
         rig.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(new EntityId(ada.EntityId.Value), out _, out Player p);
+            sv.Zone.Players().TryFindPlayer(new EntityId(ada.EntityId.Value), out _, out Player p);
             p.Inventory.Main.Set(stone, default);
             return 0;
         });
@@ -246,15 +246,15 @@ public static class SurvivalNetTests
             rig.Run(0.5, (_, _) => default);
             (corpseLeft, droppedLeft, bagReady) = rig.Server.Inspect(sv =>
             {
-                sv.Zone.TryFindPlayer(boId, out Entity sleeper, out Player p);
+                sv.Zone.Players().TryFindPlayer(boId, out Entity sleeper, out Player p);
                 Assert.True(p.Sleeping, "Bo sleeps in the world");
                 var at = sv.Zone.Entities.Get<Character>(sleeper).State.Position;
                 var corpse = new Corpse(sv.Zone.NextId(), "Cy", EntityId.None, 37, sv.Zone.Settle(at + new Vector3(3, 0, 0)), Vector3.UnitY, 0, c.Survival.BodyLifetime,
                     sv.Zone.Tick + 5000);
                 corpse.Loot.Set(0, ItemStack.Of(c.ItemByKey("bandage"), 2));
-                sv.Zone.AddStatic(corpse);
-                DroppedBag dropped = sv.Zone.Statics().OfType<DroppedBag>().Single();
-                Deployable bag = sv.Zone.Statics().OfType<Deployable>().Single(d => d.Def.IsRespawnPoint);
+                sv.Zone.Things().AddStatic(corpse);
+                DroppedBag dropped = sv.Zone.Things().Statics().OfType<DroppedBag>().Single();
+                Deployable bag = sv.Zone.Things().Statics().OfType<Deployable>().Single(d => d.Def.IsRespawnPoint);
                 return (corpse.DespawnTick - sv.Zone.Tick, dropped.DespawnTick - sv.Zone.Tick, bag.ReadyAtUnixMs);
             });
         }
@@ -265,25 +265,25 @@ public static class SurvivalNetTests
             var report = rig.Server.Inspect(sv =>
             {
                 Zone z = sv.Zone;
-                Assert.True(z.TryFindPlayer(adaId, out _, out Player ada) && ada.Sleeping, "Ada is back, asleep");
-                Assert.True(z.TryFindPlayer(boId, out _, out Player bo) && bo.Sleeping, "Bo too");
+                Assert.True(z.Players().TryFindPlayer(adaId, out _, out Player ada) && ada.Sleeping, "Ada is back, asleep");
+                Assert.True(z.Players().TryFindPlayer(boId, out _, out Player bo) && bo.Sleeping, "Bo too");
                 Assert.Equal(77, bo.Inventory.Count(c.ItemByKey("metal-ore")), "with his ore");
                 Assert.Equal(1, ada.Crafting.Jobs.Count, "Ada's craft is queued");
                 Assert.Equal(ticket, ada.Crafting.Jobs[0].Ticket, "the same job");
-                Deployable box = z.Statics().OfType<Deployable>().Single(d => d.Def.Key == "small-box");
+                Deployable box = z.Things().Statics().OfType<Deployable>().Single(d => d.Def.Key == "small-box");
                 Assert.Equal(250, InventoryRules.Count(new[] { box.Storage! }, c.ItemByKey("wood").Id), "the box keeps its wood");
-                Deployable bag = z.Statics().OfType<Deployable>().Single(d => d.Def.IsRespawnPoint);
+                Deployable bag = z.Things().Statics().OfType<Deployable>().Single(d => d.Def.IsRespawnPoint);
                 Assert.Equal(bagReady, bag.ReadyAtUnixMs, "the bag's cooldown");
                 Assert.True(bag.Owner == adaId, "and its owner");
-                Corpse corpse = z.Statics().OfType<Corpse>().Single();
+                Corpse corpse = z.Things().Statics().OfType<Corpse>().Single();
                 Assert.InRange(corpseLeft - 60, corpseLeft, corpse.DespawnTick - z.Tick, "the corpse's time left");
                 Assert.Equal(2, InventoryRules.Count(new[] { corpse.Loot }, c.ItemByKey("bandage").Id), "and its contents");
-                DroppedBag dropped = z.Statics().OfType<DroppedBag>().Single();
+                DroppedBag dropped = z.Things().Statics().OfType<DroppedBag>().Single();
                 Assert.True(InventoryRules.Count(new[] { dropped.Loot }, c.ItemByKey("stone").Id) == 30 && dropped.ShownCount == 1 &&
                     dropped.DespawnTick - z.Tick <= droppedLeft, "the dropped stone in its bag, and its time");
                 Assert.True(z.Nature!.TryGet(treeId, out NaturalObject tree) && Math.Abs(z.Natural!.Health(tree, c.Natural(tree.Kind)!) - treeHealth) < 1e-3,
                     "the tree as Ada left it");
-                return $"{z.Statics().Count()} things, {z.Natural!.Count} natural changes";
+                return $"{z.Things().Statics().Count()} things, {z.Natural!.Count} natural changes";
             });
             Fixtures.Report($"after the restart: {report}");
 
@@ -293,7 +293,7 @@ public static class SurvivalNetTests
             RunUntil(rig, () => again.Local.Inventory.Count(c.ItemByKey("wood")) > 0 && again.Local.Crafting.Count == 1, "Ada's state");
             Assert.Equal(again.EntityId, adaId, "the same character");
             Assert.Equal(900 - 250 - 200, again.Local.Inventory.Count(c.ItemByKey("wood")), "her wood");
-            Assert.True(rig.Server.Inspect(sv => sv.Zone.TryFindPlayer(adaId, out _, out Player p) && !p.Sleeping), "awake");
+            Assert.True(rig.Server.Inspect(sv => sv.Zone.Players().TryFindPlayer(adaId, out _, out Player p) && !p.Sleeping), "awake");
         }
     }
 }

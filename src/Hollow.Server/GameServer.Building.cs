@@ -58,7 +58,7 @@ public sealed partial class GameServer
         if (!_buildingStarted)
         {
             _buildingStarted = true;
-            Zone.Building!.Changed += OnBuildingChanged;
+            Zone.Building().World!.Changed += OnBuildingChanged;
         }
     }
 
@@ -69,7 +69,7 @@ public sealed partial class GameServer
     private void LoadBuilding(ZoneRecord stored)
     {
         StartBuilding();
-        BuildingWorld b = Zone.Building!;
+        BuildingWorld b = Zone.Building().World!;
         int pieces = 0, doors = 0, claims = 0, lost = 0;
         bool Try(BuildingRecord record, Func<bool> restore)
         {
@@ -93,7 +93,7 @@ public sealed partial class GameServer
         {
             pieces += Try(record, () => BuildingCodec.RestorePiece(b, record.Id, record.Data, Zone.Frame) != null) ? 1 : 0;
         }
-        b.EndBatch(Zone.BuildingNow);
+        b.EndBatch(Zone.Building().BuildingNow);
         foreach (BuildingRecord record in stored.Building.Where(r => r.Kind == BuildPartKind.Door))
         {
             doors += Try(record, () => BuildingCodec.RestoreDoor(b, record.Id, record.Data) != null) ? 1 : 0;
@@ -105,22 +105,22 @@ public sealed partial class GameServer
         _buildDirty.Clear();
         foreach (ClaimDevice c in b.Claims)
         {
-            if (Zone.DeployableOf(c)?.Storage is { } store)
+            if (Zone.Building().DeployableOf(c)?.Storage is { } store)
             {
                 _storeRevisions[c] = store.Revision;
             }
         }
         double advancedAt = BuildingCodec.DecodeZone(stored.Meta);
-        double away = double.IsNaN(advancedAt) ? 0 : Math.Max(0, Zone.BuildingNow - advancedAt);
-        Zone.BuildingAdvancedAt = advancedAt;
-        Zone.AdvanceBuilding();
+        double away = double.IsNaN(advancedAt) ? 0 : Math.Max(0, Zone.Building().BuildingNow - advancedAt);
+        Zone.Building().BuildingAdvancedAt = advancedAt;
+        Zone.Building().AdvanceBuilding();
         Log($"loaded the building: {pieces} pieces, {doors} doors, {claims} claim devices ({lost} left out); " +
             $"{away / 3600:0.0} h of upkeep and decay caught up, {b.PieceCount} pieces stand");
     }
 
     private bool RestoreClaim(BuildingRecord record)
     {
-        BuildingWorld b = Zone.Building!;
+        BuildingWorld b = Zone.Building().World!;
         StoredClaim stored = BuildingCodec.DecodeClaim(record.Id, record.Data, Content);
         ClaimRecord c = stored.Claim;
         if (b.PieceOf(c.Support) is not { } support ||
@@ -128,7 +128,7 @@ public sealed partial class GameServer
         {
             return false;
         }
-        if (Zone.DeployableOf(device)?.Storage is { } store)
+        if (Zone.Building().DeployableOf(device)?.Storage is { } store)
         {
             for (int i = 0; i < stored.Store.Count && i < store.Size; i++)
             {
@@ -146,10 +146,10 @@ public sealed partial class GameServer
     // What changed since the last save (only that is written), what is gone, and when upkeep was last applied.
     private void AddBuildingToSave(ZoneSave save)
     {
-        BuildingWorld b = Zone.Building!;
+        BuildingWorld b = Zone.Building().World!;
         foreach (ClaimDevice c in b.Claims)
         {
-            if (Zone.DeployableOf(c)?.Storage is { } store && (!_storeRevisions.TryGetValue(c, out uint revision) || revision != store.Revision))
+            if (Zone.Building().DeployableOf(c)?.Storage is { } store && (!_storeRevisions.TryGetValue(c, out uint revision) || revision != store.Revision))
             {
                 _storeRevisions[c] = store.Revision;
                 _buildDirty.Add(c);
@@ -167,7 +167,7 @@ public sealed partial class GameServer
                     break;
                 case ClaimDevice { Gone: false } c:
                     save.Building.Add(new BuildingRecord(c.Id, BuildPartKind.Claim,
-                        BuildingCodec.EncodeClaim(c, Zone.DeployableOf(c)?.Storage, b.DebtOf(c.Structure))));
+                        BuildingCodec.EncodeClaim(c, Zone.Building().DeployableOf(c)?.Storage, b.DebtOf(c.Structure))));
                     break;
             }
         }
@@ -178,7 +178,7 @@ public sealed partial class GameServer
         {
             _storeRevisions.Remove(gone);
         }
-        save.Meta = BuildingCodec.EncodeZone(Zone.BuildingAdvancedAt);
+        save.Meta = BuildingCodec.EncodeZone(Zone.Building().BuildingAdvancedAt);
     }
 
     private static (int X, int Z) BuildCell(Vector3 p) => ((int)MathF.Floor(p.X / BuildCellSize), (int)MathF.Floor(p.Z / BuildCellSize));
@@ -263,7 +263,7 @@ public sealed partial class GameServer
             case HammerIntent.TypeId:
             {
                 HammerIntent m = HammerIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Building().Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
             }
             default:
                 return ReceiveShipIntent(session, type);
@@ -574,8 +574,8 @@ public sealed partial class GameServer
 
     private PieceNet NetOf(Piece p, uint frame)
     {
-        BuildingData data = Zone.Building!.Data;
-        double editLeft = data.EditWindow - (Zone.BuildingNow - p.PlacedAt);
+        BuildingData data = Zone.Building().World!.Data;
+        double editLeft = data.EditWindow - (Zone.Building().BuildingNow - p.PlacedAt);
         return new PieceNet
         {
             Id = p.Id.Value,
@@ -595,7 +595,7 @@ public sealed partial class GameServer
 
     private DoorNet NetOf(Door d, PlayerSession session)
     {
-        BuildingData data = Zone.Building!.Data;
+        BuildingData data = Zone.Building().World!.Data;
         return new DoorNet
         {
             Id = d.Id.Value,
@@ -606,7 +606,7 @@ public sealed partial class GameServer
             Health = Fraction(d.Health, d.Def.Health),
             Lock = d.Lock?.Kind ?? LockKind.None,
             LockId = d.Lock?.Id.Value ?? 0,
-            Flags = Zone.FlagsFor(d.Ref, session.Viewer),
+            Flags = Zone.Targets().FlagsFor(d.Ref, session.Viewer),
             Body0 = d.BodyIds.Count > 0 ? d.BodyIds[0] : 0,
             Body1 = d.BodyIds.Count > 1 ? d.BodyIds[1] : 0,
         };
@@ -614,7 +614,7 @@ public sealed partial class GameServer
 
     private ClaimNet NetOf(ClaimDevice c, PlayerSession session)
     {
-        double protectedSeconds = Zone.Building!.ProtectedSeconds(c.Structure);
+        double protectedSeconds = Zone.Building().World!.ProtectedSeconds(c.Structure);
         return new ClaimNet
         {
             Id = c.Id.Value,
@@ -623,8 +623,8 @@ public sealed partial class GameServer
             Y = c.Position.Y,
             Z = c.Position.Z,
             Yaw = (byte)c.Yaw,
-            Health = Fraction(c.Health, Zone.Building.Data.ClaimHealth),
-            Flags = Zone.FlagsFor(c.Ref, session.Viewer),
+            Health = Fraction(c.Health, Zone.Building().World.Data.ClaimHealth),
+            Flags = Zone.Targets().FlagsFor(c.Ref, session.Viewer),
             Body = c.BodyId,
             ProtectedMinutes = double.IsInfinity(protectedSeconds) ? uint.MaxValue : (uint)Math.Clamp(protectedSeconds / 60, 0, uint.MaxValue - 1),
         };

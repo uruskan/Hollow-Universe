@@ -46,7 +46,7 @@ public static class DamageTests
         Vector3 face = hinge + Vector3.Transform(new Vector3(size.X / 2, 1.1f, MathF.Abs(size.Z) / 2), leafTurn);
         ushort charge = c.ItemByKey("timed-charge").Id;
         rig.Zone.GameEvents.Clear();
-        rig.Zone.Blast(c.Blast("timed-charge")!, face + outward * Zone.StuckOffset, outward, door.Ref, TargetFamily.Door, a.Id, a.Name, charge);
+        rig.Zone.Damage().Blast(c.Blast("timed-charge")!, face + outward * ExplosiveSystem.StuckOffset, outward, door.Ref, TargetFamily.Door, a.Id, a.Name, charge);
         List<ZoneEvent> blown = Destroyed(rig);
         Assert.True(door.Gone && !hut.Doorway.Gone, "the door is blown off, the stone doorway stands");
         Assert.Equal(1, blown.Count, $"one thing destroyed ({string.Join(", ", blown.Select(e => e.Text))})");
@@ -60,9 +60,9 @@ public static class DamageTests
         // A box broken by a blow.
         Vector3 boxAt = rig.Zone.GroundAt(4, 4);
         var box = new Deployable(rig.Zone.NextId(), c.Deployable("large-box")!, boxAt, rig.Zone.Frame.UpAt(boxAt), 0.7f, EntityId.None);
-        rig.Zone.AddStatic(box);
+        rig.Zone.Things().AddStatic(box);
         rig.Zone.GameEvents.Clear();
-        rig.Zone.DamageDeployable(box, 10_000);
+        rig.Zone.Things().DamageDeployable(box, 10_000);
         ZoneEvent b = Destroyed(rig).Single();
         Vector3 up = rig.Zone.Frame.UpAt(boxAt);
         (Vector3 right, Vector3 forward) = Geometry.Axes(up, 0.7f);
@@ -75,7 +75,7 @@ public static class DamageTests
         // The roof demolished with the hammer, within its edit window.
         Piece roof = hut.Roof!;
         rig.Zone.GameEvents.Clear();
-        Outcome demolished = rig.Zone.Hammer(ada, HammerAction.Demolish, roof.Id, 0);
+        Outcome demolished = rig.Zone.Building().Hammer(ada, HammerAction.Demolish, roof.Id, 0);
         Assert.True(demolished.Ok, $"Ada demolishes the roof ({demolished})");
         ZoneEvent r = Destroyed(rig).Single();
         Assert.True(r.Target == roof.Ref && r.Other == roof.Id && r.Text == "floor" && r.Grade == 2 && r.Cause == DestroyCause.Demolish &&
@@ -85,14 +85,14 @@ public static class DamageTests
         ClaimDevice claim = hut.Claim!;
         rig.Zone.GameEvents.Clear();
         var seen = new List<ZoneEvent>();
-        rig.Zone.DamageBuilding(hut.Foundation, -up, 1_000_000, projectile: false);
+        rig.Zone.Building().DamageBuilding(hut.Foundation, -up, 1_000_000, projectile: false);
         seen.AddRange(Destroyed(rig));
         rig.Zone.GameEvents.Clear();
         int fell = Raids.StepUntil(rig, () =>
         {
             seen.AddRange(Destroyed(rig));
             rig.Zone.GameEvents.Clear();
-            return hut.Walls.All(w => w.Gone) && rig.Zone.Building!.Collapsing == 0;
+            return hut.Walls.All(w => w.Gone) && rig.Zone.Building().World!.Collapsing == 0;
         }, 90, "the walls coming down");
         Assert.True(seen.Any(e => e.Other == hut.Foundation.Id && e.Cause == DestroyCause.Melee && e.Text == "foundation"), "the foundation, by the blow");
         Assert.True(seen.Any(e => e.Target == claim.Ref && e.Cause == DestroyCause.Melee),
@@ -120,7 +120,7 @@ public static class DamageTests
         rig.WaitUntilPlaying();
         (EntityId barrel, Vector3 at) = rig.Server.Inspect(sv =>
         {
-            WorldProp p = sv.Zone.Props.Where(x => x.Prop.Kind == WorldPropKind.Barrel).OrderBy(x => x.Position.Length()).First();
+            WorldProp p = sv.Zone.World().Props.Where(x => x.Prop.Kind == WorldPropKind.Barrel).OrderBy(x => x.Position.Length()).First();
             return (p.Id, p.Position);
         });
         Vector3 stand = at + Vector3.Normalize(new Vector3(-at.X, 0, -at.Z)) * 2f;
@@ -128,8 +128,8 @@ public static class DamageTests
         RunUntil(rig, () => ada.ThingOf(barrel) != null, "the barrel in range");
         string key = rig.Server.Inspect(sv =>
         {
-            var prop = (WorldProp)sv.Zone.StaticOf(barrel)!;
-            sv.Zone.DamageDeployable(prop, 1_000);
+            var prop = (WorldProp)sv.Zone.Things().StaticOf(barrel)!;
+            sv.Zone.Things().DamageDeployable(prop, 1_000);
             return prop.Prop.Key;
         });
         RunUntil(rig, () => ada.Destructions.Any(e => e.Target.Id == barrel.Value), "the barrel's breaking");

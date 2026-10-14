@@ -37,7 +37,7 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome HelpUp(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Player down ? ctx.Zone!.HelpUp(ctx.Entity, down) : OutcomeCode.NotFound;
+            ctx.Thing is Player down ? ctx.Zone!.Wounded().HelpUp(ctx.Entity, down) : OutcomeCode.NotFound;
     }
 
     /// <summary>A player up and about: the leader of a team invites them into it (Rust's invite by looking at them).</summary>
@@ -70,7 +70,7 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Invite(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Player invited ? ctx.Zone!.Invite(ctx.Player!, invited) : OutcomeCode.NotFound;
+            ctx.Thing is Player invited ? ctx.Zone!.World().Invite(ctx.Player!, invited) : OutcomeCode.NotFound;
     }
 
     /// <summary>An explosive whose fuse went out (GROUND.md §6.6): anyone lights it again, a new fuse that may go out too.</summary>
@@ -96,7 +96,7 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Relight(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is LiveExplosive { Dud: true } dud ? ctx.Zone!.Relight(dud) : OutcomeCode.NotUsable;
+            ctx.Thing is LiveExplosive { Dud: true } dud ? ctx.Zone!.Explosives().Relight(dud) : OutcomeCode.NotUsable;
     }
 
     /// <summary>
@@ -141,16 +141,16 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Hatch(in InteractContext ctx, bool open) =>
-            ctx.Thing is Ship ship ? ctx.Zone!.SetHatch(ctx.Player!, ship, open) : OutcomeCode.NotFound;
+            ctx.Thing is Ship ship ? ctx.Zone!.Ships().SetHatch(ctx.Player!, ship, open) : OutcomeCode.NotFound;
 
         private static Outcome Board(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Ship ship ? ctx.Zone!.BoardShip(ctx.Entity, ctx.Player!, ship) : OutcomeCode.NotFound;
+            ctx.Thing is Ship ship ? ctx.Zone!.Ships().BoardShip(ctx.Entity, ctx.Player!, ship) : OutcomeCode.NotFound;
 
         private static Outcome Refuel(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Ship ship ? ctx.Zone!.Refuel(ctx.Player!, ship) : OutcomeCode.NotFound;
+            ctx.Thing is Ship ship ? ctx.Zone!.Ships().Refuel(ctx.Player!, ship) : OutcomeCode.NotFound;
 
         private static Outcome Lock(in InteractContext ctx, bool locked) =>
-            ctx.Thing is Ship ship ? ctx.Zone!.SetShipLock(ctx.Player!, ship, locked) : OutcomeCode.NotFound;
+            ctx.Thing is Ship ship ? ctx.Zone!.Ships().SetShipLock(ctx.Player!, ship, locked) : OutcomeCode.NotFound;
     }
 
     /// <summary>
@@ -167,7 +167,7 @@ public static partial class CapabilityHandlers
         {
             if (thing is SpentArrow arrow)
             {
-                zone.ArrowFalls(arrow);
+                zone.Arrows().ArrowFalls(arrow);
             }
         }
     }

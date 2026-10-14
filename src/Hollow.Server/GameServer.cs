@@ -466,7 +466,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     // Where Spawn brings a player in: null for a sleeper (its ground is kept), else the stored place or the beach.
     private Vector3? ArrivalPoint(PlayerSession session, CharacterRecord? record)
     {
-        if (record != null && Zone.TryFindPlayer(record.Id, out _, out _))
+        if (record != null && Zone.Players().TryFindPlayer(record.Id, out _, out _))
         {
             return null;
         }
@@ -483,10 +483,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         Entity entity;
         float yaw = 0, pitch = 0;
         string how;
-        if (record != null && Zone.TryFindPlayer(record.Id, out entity, out Player _))
+        if (record != null && Zone.Players().TryFindPlayer(record.Id, out entity, out Player _))
         {
             id = record.Id;
-            Zone.Wake(entity);
+            Zone.Players().Wake(entity);
             yaw = Zone.Entities.Get<Character>(entity).Input.Yaw;
             pitch = record.Pitch;
             how = "woke";
@@ -515,18 +515,18 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             {
                 id = _ids.Next();
             }
-            entity = Zone.AddPlayer(id, session.Name, state, player);
+            entity = Zone.Players().AddPlayer(id, session.Name, state, player);
             Zone.Entities.Get<Character>(entity).Input.Yaw = yaw;
             if (how == "new" && (_options.ShipOnJoin || _options.ShipOnJoinFor?.Invoke(session.Name) == true))
             {
                 _shipOnJoin.Add(session);
             }
-            if (how == "new" && _options.JoinKit != null && Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(entity) is { } fresh)
+            if (how == "new" && _options.JoinKit != null && Content.Loot(_options.JoinKit) is { } kit && Zone.Players().PlayerOf(entity) is { } fresh)
             {
                 GiveKit(fresh, kit);
             }
         }
-        if (Zone.PlayerOf(entity) is { } chosen)
+        if (Zone.Players().PlayerOf(entity) is { } chosen)
         {
             chosen.Body = session.Body; // the body chosen in the menu, kept with the character
         }
@@ -596,11 +596,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
         if (session.Playing)
         {
-            Zone.Sleep(session.Entity);
+            Zone.Players().Sleep(session.Entity);
             ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(session.Entity);
             presence.Owner = null;
             _sessionOf.Remove(session.EntityId);
-            if (_persistence != null && Zone.PlayerOf(session.Entity) is { } p)
+            if (_persistence != null && Zone.Players().PlayerOf(session.Entity) is { } p)
             {
                 _persistence.Save(new[] { RecordOf(session.Entity, p) });
             }
@@ -702,7 +702,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             ref Character character = ref Zone.Entities.Get<Character>(entity);
             _grid.Add(values[i].NetId, character.State.Position);
             CharacterNetState state = NetConvert.ToNet(character.State, values[i].Yaw, values[i].Pitch, values[i].LookYaw, values[i].LookPitch);
-            if (Zone.PlayerOf(entity) is { } p)
+            if (Zone.Players().PlayerOf(entity) is { } p)
             {
                 state.Held = p.IsAwakeAndAlive ? p.HeldItem : (ushort)0;
                 // Only an awake player's head looks around (a sleeper sends nothing more, a body nothing at all).
@@ -712,7 +712,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 state.Action = p.LastAction;
                 state.Sleeping = p.Sleeping && !p.Dead;
                 // G4: a gun aimed down its sights, and what is on it, for others to draw.
-                state.HeldMods = p.CanAct ? Zone.HeldGunLook(p) : (byte)0;
+                state.HeldMods = p.CanAct ? Zone.Guns().HeldGunLook(p) : (byte)0;
                 state.Aiming = p.CanAct && p.Gun.Item != 0 && !p.Gun.Reloading && character.Actions.Has(ActionButtons.Secondary);
             }
             _netStates[values[i].NetId] = (entity, state);
@@ -836,12 +836,12 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     // team (and who is in it) and the keys they carry decide what they are told of doors, things and ships.
     private void ViewAs(PlayerSession session)
     {
-        if (Zone.Content == null || Zone.PlayerOf(session.Entity) is not { } p)
+        if (Zone.Content == null || Zone.Players().PlayerOf(session.Entity) is not { } p)
         {
             session.ViewerChanged = false;
             return;
         }
-        Viewer viewer = Zone.ViewerOf(p);
+        Viewer viewer = Zone.Targets().ViewerOf(p);
         ulong signature = Hash64.Of(viewer.Id.Value, viewer.Team?.Id ?? 0, viewer.Team?.Revision ?? 0);
         foreach (int key in viewer.Keys ?? Array.Empty<int>())
         {

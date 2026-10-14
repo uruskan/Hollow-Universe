@@ -1,5 +1,5 @@
-using System;
 using System.Numerics;
+using System;
 using Hollow.Core;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -13,16 +13,21 @@ namespace Hollow.Simulation;
 // the player down instead. Down they crawl with a little health and can't act; another player can help them up; any more
 // damage finishes them off; when their time runs out they get up by themselves now and then (more often well fed and
 // watered), else they die of it. A wounded player who logs off dies. survival.json "wounded" has the numbers.
-public sealed partial class Zone
+public sealed class WoundedSystem : ZoneSystem
 {
+    private GunSystem? _gunsSystem;
+    private GunSystem Guns => _gunsSystem ??= Zone.Require<GunSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+
     /// <summary>Whether a lethal hit of <paramref name="amount"/> knocks this player down rather than killing them.</summary>
     public bool CanBeWounded(Player p, float amount) =>
-        Content != null && !p.Wounded && !p.Sleeping && !p.Dead && amount < Content.Survival.WoundMaxDamage;
+        !p.Wounded && !p.Sleeping && !p.Dead && amount < Content.Survival.WoundMaxDamage;
 
     /// <summary>Knocks a player down (instead of a death): a little health, crawling, a timer; what they were doing stops.</summary>
     public void Wound(Entity entity, Player p, string cause, EntityId by, string byName)
     {
-        SurvivalTuning s = Content!.Survival;
+        SurvivalTuning s = Content.Survival;
         var rng = new Rng(Hash64.Of(p.Id.Value, (ulong)Tick, 0x3D0E));
         int least = (int)Math.Ceiling(s.WoundedHealthLeast), most = Math.Max(least, (int)Math.Floor(s.WoundedHealthMost));
         p.Wounded = true;
@@ -36,10 +41,10 @@ public sealed partial class Zone
         p.StrikeTick = -1;
         p.DrawStartTick = -1;
         p.VitalsRevision++;
-        RefuseGunActions(p, OutcomeCode.Dead);
+        Guns.RefuseGunActions(p, OutcomeCode.Dead);
         ref Character c = ref Entities.Get<Character>(entity);
         c.State.Stance = Stance.Crawling;
-        SyncHealth(ref c, p);
+        PlayerSystem.SyncHealth(ref c, p);
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.Wounded, Player = p.Id, Other = by, Text = cause, Position = c.State.Position });
     }
 
@@ -49,7 +54,7 @@ public sealed partial class Zone
     /// </summary>
     internal Outcome HelpUp(Entity helper, Player down)
     {
-        if (!down.Wounded || down.Dead || !TryFindPlayer(down.Id, out Entity e, out _) || e == helper)
+        if (!down.Wounded || down.Dead || !Players.TryFindPlayer(down.Id, out Entity e, out _) || e == helper)
         {
             return OutcomeCode.NotFound;
         }
@@ -60,7 +65,7 @@ public sealed partial class Zone
     /// <summary>Whether a wounded player whose time ran out gets up by themselves (a roll fixed by who and when).</summary>
     public bool RecoversByThemselves(Player p)
     {
-        SurvivalTuning s = Content!.Survival;
+        SurvivalTuning s = Content.Survival;
         float fed = Math.Clamp((p.Vitals.Calories / s.MaxCalories + p.Vitals.Hydration / s.MaxHydration) / 2, 0, 1);
         double chance = s.WoundedRecoverChance + s.WoundedFedBonus * fed;
         var rng = new Rng(Hash64.Of(p.Id.Value, (ulong)p.WoundedUntilTick, 0x0E5C));
@@ -85,7 +90,7 @@ public sealed partial class Zone
             }
             else
             {
-                Die(entity, p, p.WoundedCause.Length > 0 ? p.WoundedCause : "Bled out", p.WoundedBy, p.WoundedByName);
+                Players.Die(entity, p, p.WoundedCause.Length > 0 ? p.WoundedCause : "Bled out", p.WoundedBy, p.WoundedByName);
             }
         }
     }
@@ -97,7 +102,18 @@ public sealed partial class Zone
         ref Character c = ref Entities.Get<Character>(entity);
         // Up to a crouch; the next step stands up where there is room.
         c.State.Stance = Stance.Crouching;
-        SyncHealth(ref c, p);
+        PlayerSystem.SyncHealth(ref c, p);
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.Recovered, Player = p.Id, Other = helper, Position = c.State.Position });
     }
+
+    protected internal override void Step()
+    {
+        StepWounded();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class WoundedSystemAccess
+{
+    public static WoundedSystem Wounded(this Zone zone) => zone.Require<WoundedSystem>();
 }

@@ -41,10 +41,10 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Swing(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building!.Toggle(ctx.Doer.Id.Value, door, ctx.Zone.KeysOf(ctx.Player!)) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().World!.Toggle(ctx.Doer.Id.Value, door, ctx.Zone!.Building().KeysOf(ctx.Player!)) : OutcomeCode.NotFound;
 
         private static Outcome PickUp(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.TakeDoor(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().TakeDoor(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
     }
 
     /// <summary>
@@ -80,13 +80,13 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Turn(in InteractContext ctx, bool locked) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building!.SetLocked(ctx.Doer.Id.Value, door, locked, ctx.Zone.KeysOf(ctx.Player!)) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().World!.SetLocked(ctx.Doer.Id.Value, door, locked, ctx.Zone!.Building().KeysOf(ctx.Player!)) : OutcomeCode.NotFound;
 
         private static Outcome Cut(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.CutKey(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().CutKey(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
 
         private static Outcome Remove(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.TakeLock(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().TakeLock(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
     }
 
     /// <summary>
@@ -142,19 +142,19 @@ public static partial class CapabilityHandlers
 
         // Setting a code, or changing it: four digits, unlocked; it locks, and lists only the setter.
         private static Outcome SetCode(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building!.SetCode(ctx.Doer.Id.Value, door, args.Code) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().World!.SetCode(ctx.Doer.Id.Value, door, args.Code) : OutcomeCode.NotFound;
 
         private static Outcome EnterCode(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building!.EnterCode(ctx.Doer.Id.Value, door, args.Code, ctx.Zone.BuildingNow) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().World!.EnterCode(ctx.Doer.Id.Value, door, args.Code, ctx.Zone!.Building().BuildingNow) : OutcomeCode.NotFound;
 
         private static Outcome Turn(in InteractContext ctx, bool locked) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building!.SetLocked(ctx.Doer.Id.Value, door, locked) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().World!.SetLocked(ctx.Doer.Id.Value, door, locked) : OutcomeCode.NotFound;
 
         private static Outcome Team(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building!.AuthoriseOnLock(ctx.Doer.Id.Value, door, ctx.Zone.TeamOf(ctx.Player!)) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().World!.AuthoriseOnLock(ctx.Doer.Id.Value, door, ctx.Zone!.World().TeamOf(ctx.Player!)) : OutcomeCode.NotFound;
 
         private static Outcome Remove(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.TakeLock(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
+            ctx.Thing is Door door ? ctx.Zone!.Building().TakeLock(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
     }
 
     /// <summary>
@@ -194,18 +194,18 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Authorise(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building!.Authorise(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
+            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building().World!.Authorise(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
 
         private static Outcome Deauthorise(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building!.Deauthorise(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
+            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building().World!.Deauthorise(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
 
         private static Outcome Team(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.AuthoriseTeam(ctx.Doer.Id.Value, device, ctx.Zone.TeamOf(ctx.Player!)) : OutcomeCode.NotFound;
+            ctx.Thing is ClaimDevice device ? ctx.Zone!.World().AuthoriseTeam(ctx.Doer.Id.Value, device, ctx.Zone!.World().TeamOf(ctx.Player!)) : OutcomeCode.NotFound;
 
         private static Outcome Clear(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building!.ClearAuthorised(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
+            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building().World!.ClearAuthorised(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
 
         private static Outcome PickUp(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.TakeClaim(ctx.Entity, ctx.Player!, device) : OutcomeCode.NotFound;
+            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building().TakeClaim(ctx.Entity, ctx.Player!, device) : OutcomeCode.NotFound;
     }
 }

@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 using Hollow.Core;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
@@ -10,8 +10,8 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
-using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
@@ -48,8 +48,23 @@ public struct TraceHit
 
 // Melee and the bow (GROUND.md §6): swings and shots from the held item, tested on the server against where others
 // were when the attacker saw them (ARCHITECTURE.md §11.5); arrows fly with drop; damage by body part, armour, bleeding.
-public sealed partial class Zone
+public sealed class CombatSystem : ZoneSystem
 {
+    private ArrowSystem? _arrowsSystem;
+    private ArrowSystem Arrows => _arrowsSystem ??= Zone.Require<ArrowSystem>();
+    private DamageSystem? _damageSystem;
+    private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
+    private GunSystem? _gunsSystem;
+    private GunSystem Guns => _gunsSystem ??= Zone.Require<GunSystem>();
+    private HeldSystem? _heldSystem;
+    private HeldSystem Held => _heldSystem ??= Zone.Require<HeldSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private SpillSystem? _spillSystem;
+    private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
+    private SupportSystem? _supportsSystem;
+    private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
+
     /// <summary>A melee swing is a ray thickened by this much (metres).</summary>
     public const float SweepRadius = 0.15f;
 
@@ -57,39 +72,39 @@ public sealed partial class Zone
     public const float ArrowRadius = 0.02f;
 
     private readonly List<Projectile> _projectiles = new();
-    private readonly List<NaturalObject> _traceNature = new();
-    private readonly List<Deployable> _traceThings = new();
-    private uint _nextProjectile = 1;
+    internal readonly List<NaturalObject> _traceNature = new();
+    internal readonly List<Deployable> _traceThings = new();
+    internal uint _nextProjectile = 1;
 
     public IReadOnlyList<Projectile> Projectiles => _projectiles;
 
-    private float MaxRewindTicks => Content!.Survival.MaxRewindSeconds * CharacterMotor.TickRate;
+    internal float MaxRewindTicks => Content.Survival.MaxRewindSeconds * CharacterMotor.TickRate;
 
     private void StepActions()
     {
-        GameContent content = Content!;
+        GameContent content = Content;
         ComponentPool<PlayerLink> players = Entities.Pool<PlayerLink>();
-        _scratchEntities.Clear();
+        Players._scratchEntities.Clear();
         for (int i = 0; i < players.Count; i++)
         {
-            _scratchEntities.Add(Entities.AtSlot(players.Slots[i]));
+            Players._scratchEntities.Add(Entities.AtSlot(players.Slots[i]));
         }
-        foreach (Entity entity in _scratchEntities)
+        foreach (Entity entity in Players._scratchEntities)
         {
-            if (PlayerOf(entity) is not { IsAwakeAndAlive: true } p)
+            if (Players.PlayerOf(entity) is not { IsAwakeAndAlive: true } p)
             {
                 continue;
             }
             ref Character c = ref Entities.Get<Character>(entity);
             if (p.Wounded)
             {
-                RefuseGunActions(p, OutcomeCode.Dead);
+                Guns.RefuseGunActions(p, OutcomeCode.Dead);
                 continue;
             }
             if (Entities.Has<Ships.ShipSeat>(entity))
             {
                 // In a ship's seat (G6): the hands are on the controls.
-                RefuseGunActions(p, OutcomeCode.Lowered);
+                Guns.RefuseGunActions(p, OutcomeCode.Lowered);
                 continue;
             }
             ActionInput input = c.Actions;
@@ -98,23 +113,23 @@ public sealed partial class Zone
             ushort inSlot = input.HeldSlot < PlayerInventory.BeltSlots ? p.Inventory.Belt[input.HeldSlot].Item : (ushort)0;
             if (input.HeldSlot != p.HeldSlot || inSlot != p.HeldItem)
             {
-                IHeldRules? putAway = HeldRulesOf(content.Item(p.HeldItem));
+                HeldSystem.IHeldRules? putAway = Held.HeldRulesOf(content.Item(p.HeldItem));
                 p.HeldSlot = input.HeldSlot;
                 p.HeldItem = inSlot;
                 p.EquipReadyTick = Tick + CharacterTicks.From(content.Survival.EquipSeconds);
                 putAway?.PutAway(p);
-                EquipGun(p);
+                Guns.EquipGun(p);
             }
             // The item in hand's buttons, by its held behaviour.
             if (p.Held(content) is { } held)
             {
-                HeldRulesOf(held)?.Step(entity, ref c, p, held);
+                Held.HeldRulesOf(held)?.Step(entity, ref c, p, held);
             }
-            StepGun(entity, ref c, p);
+            Guns.StepGun(entity, ref c, p);
         }
     }
 
-    private void StepMelee(Entity entity, ref Character c, Player p, ItemDef item, MeleeStats melee)
+    internal void StepMelee(Entity entity, ref Character c, Player p, ItemDef item, MeleeStats melee)
     {
         if (p.StrikeTick < 0 && c.Actions.Has(ActionButtons.Primary) && Tick >= p.NextSwingTick && Tick >= p.EquipReadyTick)
         {
@@ -138,17 +153,17 @@ public sealed partial class Zone
     /// </summary>
     private void Strike(Entity entity, ref Character c, Player p, ItemDef item, MeleeStats melee)
     {
-        GameContent content = Content!;
+        GameContent content = Content;
         Vector3 up = Frame.UpAt(c.State.Position);
         Vector3 eye = EyeOf(c.State);
         Vector3 direction = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, up);
         float rewind = Math.Min(c.Actions.ViewDelay / 4f, MaxRewindTicks);
-        TraceHit hit = Trace(eye, direction, melee.Reach, SweepRadius, p.Id, Tick - rewind);
+        TraceHit hit = Damage.Trace(eye, direction, melee.Reach, SweepRadius, p.Id, Tick - rewind);
         if (!hit.Hit || hit.Target.Family == TargetFamily.Ground)
         {
             return;
         }
-        Damage(new DamageRequest
+        Damage.Damage(new DamageRequest
         {
             By = p,
             Attacker = p.Id,
@@ -174,43 +189,43 @@ public sealed partial class Zone
         Wear(entity, p, p.HeldSlot);
     }
 
-    private void Gather(Player p, Entity entity, in NaturalObject o, MeleeStats tool, Vector3 point, Vector3 eye)
+    internal void Gather(Player p, Entity entity, in NaturalObject o, MeleeStats tool, Vector3 point, Vector3 eye)
     {
         // The swing's own line (the thick ray may have touched the object off it) and the tool (the last hit's bonus).
         ref Character c = ref Entities.Get<Character>(entity);
         Vector3 view = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, Frame.UpAt(c.State.Position));
-        GatherResult result = Natural!.Hit(o, new GatherSwing(p.Held(Content!), tool, point, eye, view, UnixMilliseconds, Tick));
+        GatherResult result = Natural!.Hit(o, new GatherSwing(p.Held(Content), tool, point, eye, view, UnixMilliseconds, Tick));
         if (!result.Hit)
         {
             return;
         }
         if (Natural.IsDepleted(o.Id))
         {
-            SupportGone(new TargetRef(TargetFamily.Natural, o.Id));
+            Supports.SupportGone(new TargetRef(TargetFamily.Natural, o.Id));
         }
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.HitConfirmed, Player = p.Id, Target = new TargetRef(TargetFamily.Natural, o.Id), Flag = result.WeakSpot, Position = result.Point });
         Give(entity, p, result.Yield, GainReason.Gathered, result.WeakSpot);
     }
 
     /// <summary>Gives items to a player (onto stacks, then empty slots; the rest at their feet) and says so.</summary>
-    private void Give(Entity entity, Player p, List<ItemAmount> items, GainReason reason, bool flag = false)
+    internal void Give(Entity entity, Player p, List<ItemAmount> items, GainReason reason, bool flag = false)
     {
         foreach (ItemAmount a in items)
         {
-            GiveOrDrop(entity, p, ItemStack.Of(a.Item, a.Count));
+            Spill.GiveOrDrop(entity, p, ItemStack.Of(a.Item, a.Count));
             GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = a.Item.Id, Count = a.Count, Reason = reason, Flag = flag });
         }
     }
 
     // A use costs the held tool one point of condition; at none it breaks.
-    private void Wear(Entity entity, Player p, int beltSlot)
+    internal void Wear(Entity entity, Player p, int beltSlot)
     {
         if (beltSlot >= PlayerInventory.BeltSlots)
         {
             return;
         }
         ItemStack s = p.Inventory.Belt[beltSlot];
-        ItemDef? item = Content!.Item(s.Item);
+        ItemDef? item = Content.Item(s.Item);
         if (item == null || !item.HasCondition)
         {
             return;
@@ -218,7 +233,7 @@ public sealed partial class Zone
         if (s.Condition <= 1)
         {
             p.Inventory.Belt.Set(beltSlot, default);
-            ReturnRounds(entity, p, s);
+            Guns.ReturnRounds(entity, p, s);
             GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = s.Item, Count = -1, Reason = GainReason.Broke });
             return;
         }
@@ -226,7 +241,7 @@ public sealed partial class Zone
         p.Inventory.Belt.Set(beltSlot, s);
     }
 
-    private void StepBow(Entity entity, ref Character c, Player p, ItemDef item, BowStats bow)
+    internal void StepBow(Entity entity, ref Character c, Player p, ItemDef item, BowStats bow)
     {
         ItemDef? ammo = null;
         foreach (ItemDef a in bow.Ammo)
@@ -311,7 +326,7 @@ public sealed partial class Zone
                 float length = path.Length();
                 if (length > 1e-6f)
                 {
-                    TraceHit hit = Trace(pr.Position, path / length, length, ArrowRadius, pr.Shooter, Tick - pr.RewindTicks);
+                    TraceHit hit = Damage.Trace(pr.Position, path / length, length, ArrowRadius, pr.Shooter, Tick - pr.RewindTicks);
                     if (hit.Hit)
                     {
                         ProjectileHit(pr, hit);
@@ -340,8 +355,8 @@ public sealed partial class Zone
     {
         AmmoStats ammo = pr.Ammo.Ammo!;
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ProjectileEnded, Player = pr.Shooter, Projectile = pr.Id, Position = hit.Point, Target = hit.Target });
-        TryFindPlayer(pr.Shooter, out _, out Player? shooter);
-        Damage(new DamageRequest
+        Players.TryFindPlayer(pr.Shooter, out _, out Player? shooter);
+        Damage.Damage(new DamageRequest
         {
             By = shooter,
             Attacker = shooter?.Id ?? EntityId.None,
@@ -351,7 +366,7 @@ public sealed partial class Zone
             Channel = DamageType.Bullet,
             Amounts = new DamageAmounts
             {
-                Flesh = pr.Damage * Content!.Survival.RegionMultiplier(hit.Region),
+                Flesh = pr.Damage * Content.Survival.RegionMultiplier(hit.Region),
                 Structure = pr.Damage * ammo.Structure,
                 Building = pr.Damage * ammo.Structure,
                 Hull = pr.Damage,
@@ -368,7 +383,7 @@ public sealed partial class Zone
         var rng = new Rng(Hash64.Of(pr.Id, (ulong)Tick, 0xA770));
         if (rng.NextDouble() < ammo.Recover)
         {
-            StickArrow(pr, hit);
+            Arrows.StickArrow(pr, hit);
         }
     }
 
@@ -378,7 +393,7 @@ public sealed partial class Zone
     /// proportion. Tells the victim and the attacker. Returns the health taken.
     /// </summary>
     public float DamageCharacter(Entity victimEntity, Player victim, float damage, HitRegion region, bool projectile, float bleed,
-        Player? attacker, Vector3 from, ushort weapon) => Damage(new DamageRequest
+        Player? attacker, Vector3 from, ushort weapon) => Damage.Damage(new DamageRequest
         {
             By = attacker,
             Attacker = attacker?.Id ?? EntityId.None,
@@ -386,7 +401,7 @@ public sealed partial class Zone
             Weapon = weapon,
             Delivery = projectile ? DamageDelivery.Arrow : DamageDelivery.Melee,
             Channel = projectile ? DamageType.Bullet : DamageType.Melee,
-            Amounts = new DamageAmounts { Flesh = damage * Content!.Survival.RegionMultiplier(region) },
+            Amounts = new DamageAmounts { Flesh = damage * Content.Survival.RegionMultiplier(region) },
             Bleed = bleed,
             Cause = projectile ? "Shot" : "Struck down",
             Direct = true,
@@ -402,7 +417,7 @@ public sealed partial class Zone
     /// lethal hit may knock down instead, except a projectile to the head), bleeding and burning, the victim's damage
     /// indicator.
     /// </summary>
-    private sealed class CharacterReceiver(Zone zone) : IDamageReceiver
+    internal sealed class CharacterReceiver(Zone zone) : DamageSystem.IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Character };
 
@@ -418,7 +433,7 @@ public sealed partial class Zone
                 {
                     continue;
                 }
-                if (!zone.TryFindPlayer(id, out _, out Player p) || p.Dead)
+                if (!zone.Players().TryFindPlayer(id, out _, out Player p) || p.Dead)
                 {
                     continue;
                 }
@@ -462,7 +477,7 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (!zone.TryFindPlayer(new EntityId(r.Hit.Target.Id), out Entity victimEntity, out Player victim))
+            if (!zone.Players().TryFindPlayer(new EntityId(r.Hit.Target.Id), out Entity victimEntity, out Player victim))
             {
                 return default;
             }
@@ -477,7 +492,7 @@ public sealed partial class Zone
             victim.Vitals.Bleeding += amount * r.Bleed;
             victim.Vitals.Burning += r.Burn * (1 - protection);
             // Rust: a projectile to the head kills outright; anything else lethal may knock down instead (G4).
-            float taken = zone.Hurt(victimEntity, victim, amount, r.Cause, r.Attacker, r.AttackerName,
+            float taken = zone.Players().Hurt(victimEntity, victim, amount, r.Cause, r.Attacker, r.AttackerName,
                 canWound: !(r.Channel == DamageType.Bullet && region == HitRegion.Head));
             zone.GameEvents.Add(new ZoneEvent
             {
@@ -496,7 +511,7 @@ public sealed partial class Zone
     /// swing or an arrow like the ground and gives nothing); blasts pass them by. A blow of a tool gathers (the gathering
     /// rules, §6.1, which confirm the hit with its weak spot); arrows and bullets do nothing to them.
     /// </summary>
-    private sealed class NatureReceiver(Zone zone) : IDamageReceiver
+    internal sealed class NatureReceiver(Zone zone) : DamageSystem.IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Natural };
 
@@ -504,10 +519,10 @@ public sealed partial class Zone
         {
             Vector3 end = ray.Origin + ray.Direction * ray.Length;
             float margin = 3f;
-            zone._traceNature.Clear();
+            zone.Combat()._traceNature.Clear();
             zone.Nature!.Query(MathF.Min(ray.Origin.X, end.X) - margin, MathF.Min(ray.Origin.Z, end.Z) - margin,
-                MathF.Max(ray.Origin.X, end.X) + margin, MathF.Max(ray.Origin.Z, end.Z) + margin, zone._traceNature);
-            foreach (NaturalObject o in zone._traceNature)
+                MathF.Max(ray.Origin.X, end.X) + margin, MathF.Max(ray.Origin.Z, end.Z) + margin, zone.Combat()._traceNature);
+            foreach (NaturalObject o in zone.Combat()._traceNature)
             {
                 NaturalKind? kind = zone.Content!.Natural(o.Kind);
                 if (kind == null || !kind.IsSolid || zone.Natural!.IsDepleted(o.Id))
@@ -536,24 +551,24 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r)
         {
-            if (r.Channel == DamageType.Melee && r.By is { } p && zone.Content!.Item(r.Weapon)?.Melee is { } tool && zone.TryFindPlayer(p.Id, out Entity entity, out _) &&
+            if (r.Channel == DamageType.Melee && r.By is { } p && zone.Content!.Item(r.Weapon)?.Melee is { } tool && zone.Players().TryFindPlayer(p.Id, out Entity entity, out _) &&
                 zone.Nature!.TryGet(r.Hit.Target.Id, out NaturalObject o))
             {
-                zone.Gather(p, entity, o, tool, r.Hit.Point, r.From);
+                zone.Combat().Gather(p, entity, o, tool, r.Hit.Point, r.From);
             }
             return default;
         }
     }
 
     /// <summary>The ground (GROUND.md §6.4.2): it hides all behind it, and takes nothing.</summary>
-    private sealed class GroundReceiver(Zone zone) : IDamageReceiver
+    internal sealed class GroundReceiver(Zone zone) : DamageSystem.IDamageReceiver
     {
         public TargetFamily[] Families { get; } = { TargetFamily.Ground };
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             float length = ray.Upto(best);
-            float ground = ray.Bullet ? zone.BulletGroundCrossing(ray.Origin, ray.Direction, length) : zone.GroundCrossing(ray.Origin, ray.Direction, length);
+            float ground = ray.Bullet ? zone.Guns().BulletGroundCrossing(ray.Origin, ray.Direction, length) : zone.Combat().GroundCrossing(ray.Origin, ray.Direction, length);
             if (ground >= 0)
             {
                 ray.Consider(ref best, ground, TargetRef.Ground);
@@ -566,4 +581,16 @@ public sealed partial class Zone
 
         public DamageOutcome Receive(in DamageRequest r) => default;
     }
+
+    protected internal override void Step()
+    {
+        StepActions();
+        StepProjectiles();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class CombatSystemAccess
+{
+    public static CombatSystem Combat(this Zone zone) => zone.Require<CombatSystem>();
 }

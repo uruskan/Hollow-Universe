@@ -248,6 +248,9 @@ cross-boundary events. This is what lets zones move to other processes later (P7
   order. Storage is our own and small (`Hollow.Simulation.Entities`, decided in G1): an entity is a slot with a
   generation and a permanent `EntityId`; each component type has one sparse set (dense arrays to iterate, O(1) add,
   get and remove). Archetype storage can replace the pools if profiling ever asks for it.
+- **As built (K0, 14 October 2026):** the zone is a host and each rule is a `ZoneSystem` with its own state, listed once
+  in `GroundSystems` and stepped in that order (ships under the physics gate, the slow ones once a second); systems find
+  each other by type and the host times each (GROUND_SYSTEMS.md §12.2).
 - **Static entities** (building parts, deployables, boxes) change rarely: no per-tick cost, replicated
   reliably when they change.
 - **Dynamic entities** (characters, projectiles, vehicles, ships) are simulated and snapshotted every tick.

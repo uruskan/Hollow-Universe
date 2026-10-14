@@ -71,7 +71,7 @@ public sealed class ShipRig : IDisposable
     public Ship Add(float x = 0, float z = 0, float height = 0, float yaw = 0, float fuel = 500)
     {
         Vector3 ground = Zone.GroundAt(x, z);
-        Ship ship = Zone.SpawnShip(Finch, ground + Zone.Frame.UpAt(ground) * height, yaw, EntityId.None, fuel);
+        Ship ship = Zone.Ships().SpawnShip(Finch, ground + Zone.Frame.UpAt(ground) * height, yaw, EntityId.None, fuel);
         return ship;
     }
 

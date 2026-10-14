@@ -1,6 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
+using BuildingPiece = Hollow.Simulation.Building.Piece;
 using Hollow.Simulation.Animals;
 using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Content;
@@ -11,7 +12,6 @@ using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
-using BuildingPiece = Hollow.Simulation.Building.Piece;
 
 namespace Hollow.Simulation;
 
@@ -19,14 +19,29 @@ namespace Hollow.Simulation;
 // target through its family, checks the verb's gates (alive, awake, not down, not seated), the one reach and sight rule
 // (§3.4) with the verb's reach, and that the target's capabilities offer the verb, enabled, to this player now; then the
 // verb's one handler does it. The same offer is what a client's prompt and radial show, from the same rules.
-public sealed partial class Zone
+public sealed class InteractionSystem : ZoneSystem
 {
+    private BuildingSystem? _buildingSystem;
+    private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private ShipSystem? _shipsSystem;
+    private ShipSystem Ships => _shipsSystem ??= Zone.Require<ShipSystem>();
+    private SpillSystem? _spillSystem;
+    private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
+    private TargetSystem? _targetsSystem;
+    private TargetSystem Targets => _targetsSystem ??= Zone.Require<TargetSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+    private WorldSystem? _worldSystem;
+    private WorldSystem World => _worldSystem ??= Zone.Require<WorldSystem>();
+
     private InteractionRules? _interactions;
     private readonly List<InteractOption> _options = new();
-    private readonly List<Animal> _aimAnimals = new();
-    private readonly List<NaturalObject> _aimNature = new();
-    private readonly List<Deployable> _aimThings = new();
-    private readonly List<BuildingPiece> _aimPieces = new();
+    internal readonly List<Animal> _aimAnimals = new();
+    internal readonly List<NaturalObject> _aimNature = new();
+    internal readonly List<Deployable> _aimThings = new();
+    internal readonly List<BuildingPiece> _aimPieces = new();
 
     /// <summary>The interaction rules: every verb's handler, the options a target offers (null in a movement-only zone).</summary>
     public InteractionRules Interactions => _interactions ?? throw new InvalidOperationException("a zone without game data has no interactions");
@@ -35,9 +50,9 @@ public sealed partial class Zone
     public Doer DoerOf(Entity entity, Player p)
     {
         DoerState state = (p.Dead ? DoerState.Dead : 0) | (p.Sleeping ? DoerState.Asleep : 0) | (p.Wounded ? DoerState.Wounded : 0) |
-            (SeatOf(entity) != null ? DoerState.Seated : 0);
-        var team = Teams.TeamOf(p.Id);
-        return new Doer(p.Id, state, team != null, team?.Leader == p.Id, team != null && team.Members.Count >= Content!.World.TeamSize);
+            (Ships.SeatOf(entity) != null ? DoerState.Seated : 0);
+        var team = World.Teams.TeamOf(p.Id);
+        return new Doer(p.Id, state, team != null, team?.Leader == p.Id, team != null && team.Members.Count >= Content.World.TeamSize);
     }
 
     /// <summary>
@@ -46,19 +61,19 @@ public sealed partial class Zone
     /// what it was told.
     /// </summary>
     public AimHit Aim(Vector3 eye, Vector3 direction, ulong ignore = 0) =>
-        Targeting.Aim(_views, new AimRay(eye, Vector3.Normalize(direction), Interactions.Verbs.LongestReach, ignore));
+        Targeting.Aim(Targets._views, new AimRay(eye, Vector3.Normalize(direction), Interactions.Verbs.LongestReach, ignore));
 
     /// <summary>The context of a player acting on a target (the server's: with the zone, the player and the thing), or none.</summary>
     private bool TryContext(Entity entity, in TargetRef target, out InteractContext ctx)
     {
         ctx = default;
-        if (PlayerOf(entity) is not { } p || FamilyOf(target.Family) is not { } family || !family.TryFacts(target, ViewerOf(p), out TargetFacts facts))
+        if (Players.PlayerOf(entity) is not { } p || Targets.FamilyOf(target.Family) is not { } family || !family.TryFacts(target, Targets.ViewerOf(p), out TargetFacts facts))
         {
             return false;
         }
         ctx = new InteractContext
         {
-            Content = Content!, Target = target, Facts = facts, Doer = DoerOf(entity, p), Building = Building, Zone = this, Entity = entity, Player = p,
+            Content = Content, Target = target, Facts = facts, Doer = DoerOf(entity, p), Building = Building.World, Zone = Zone, Entity = entity, Player = p,
             Thing = family.Resolve(target.Id),
         };
         return true;
@@ -82,7 +97,7 @@ public sealed partial class Zone
     /// </summary>
     public Outcome Interact(Entity entity, in TargetRef target, int verb, uint arg = 0, string? code = null)
     {
-        if (PlayerOf(entity) is not { } p || Interactions.Verbs.Verb(verb) is not { } def)
+        if (Players.PlayerOf(entity) is not { } p || Interactions.Verbs.Verb(verb) is not { } def)
         {
             return OutcomeCode.Invalid;
         }
@@ -99,7 +114,7 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotFound;
         }
-        Outcome reach = Reach(EyeOf(Entities.Get<Character>(entity).State), target, def.Reach, def.Sight);
+        Outcome reach = Targets.Reach(EyeOf(Entities.Get<Character>(entity).State), target, def.Reach, def.Sight);
         if (!reach.Ok)
         {
             return reach;
@@ -128,7 +143,7 @@ public sealed partial class Zone
 
     /// <summary>Takes a thing whole into a player's slots, as its family hands it over (a pickup, a bag, an arrow).</summary>
     internal Outcome PickUp(Entity entity, Player p, in TargetRef target) =>
-        FamilyOf(target.Family) is IPickupFamily family ? family.PickUp(entity, p, target) : OutcomeCode.NotUsable;
+        Targets.FamilyOf(target.Family) is IPickupFamily family ? family.PickUp(entity, p, target) : OutcomeCode.NotUsable;
 
     /// <summary>
     /// A bag of dropped items taken whole: everything in it that fits (a bag of one stack is taken at a tap; one holding
@@ -140,7 +155,7 @@ public sealed partial class Zone
         for (int i = 0; i < bag.Loot.Size; i++)
         {
             ItemStack stack = bag.Loot[i];
-            int left = stack.IsEmpty ? 0 : p.Inventory.Give(Content!, stack);
+            int left = stack.IsEmpty ? 0 : p.Inventory.Give(Content, stack);
             if (left == stack.Count)
             {
                 continue;
@@ -154,15 +169,15 @@ public sealed partial class Zone
             return OutcomeCode.NoSpace;
         }
         bag.PublishChanges();
-        EndIfEmptied(bag);
+        Things.EndIfEmptied(bag);
         return OutcomeCode.Done;
     }
 
     /// <summary>A deployable picked back up as its item (GROUND_SYSTEMS.md §11.3): it goes, its item into the player's slots.</summary>
     internal Outcome TakeDeployable(Entity entity, Player p, Deployable d)
     {
-        RemoveStatic(d);
-        GiveOrDrop(entity, p, ItemStack.Of(d.Def.Item, 1));
+        Things.RemoveStatic(d);
+        Spill.GiveOrDrop(entity, p, ItemStack.Of(d.Def.Item, 1));
         GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = d.Def.Item.Id, Count = 1, Reason = GainReason.PickedUp });
         return Outcome.Done;
     }
@@ -192,11 +207,22 @@ public sealed partial class Zone
         }
         foreach (int s in device.FuelSlots)
         {
-            if (Content!.Item(storage[s].Item)?.Fuel != null)
+            if (Content.Item(storage[s].Item)?.Fuel != null)
             {
                 return true;
             }
         }
         return false;
     }
+
+    public override int InitOrder => 90;
+
+    /// <summary>The rules come after the target system made the capabilities (GroundSystems lists it first).</summary>
+    protected internal override void Init() => _interactions = new InteractionRules(Content, Targets.Capabilities);
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class InteractionSystemAccess
+{
+    public static InteractionSystem Interaction(this Zone zone) => zone.Require<InteractionSystem>();
 }

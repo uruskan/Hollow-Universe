@@ -1,6 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
+using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -9,7 +10,6 @@ using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.World;
-using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Simulation;
 
@@ -19,8 +19,15 @@ namespace Hollow.Simulation;
 // a new bag where it comes to rest, so what lands together is one bag (Rust's loot bag). A bag is a DroppedContainer:
 // take only, with the bag's lifetime (survival.json lifetimes.bag, GROUND_SYSTEMS.md §3.7): gone once emptied, otherwise
 // its seconds after the newest item went in.
-public sealed partial class Zone
+public sealed class SpillSystem : ZoneSystem
 {
+    private ActionSystem? _actionsSystem;
+    private ActionSystem Actions => _actionsSystem ??= Zone.Require<ActionSystem>();
+    private ShipSystem? _shipsSystem;
+    private ShipSystem Ships => _shipsSystem ??= Zone.Require<ShipSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
     /// <summary>A dropped stack lands this far ahead of the character's feet (less before a wall).</summary>
     private const float DropAhead = 0.7f;
 
@@ -63,7 +70,7 @@ public sealed partial class Zone
     /// </summary>
     public int GiveOrDrop(Entity entity, Player p, ItemStack stack)
     {
-        int left = p.Inventory.Give(Content!, stack);
+        int left = p.Inventory.Give(Content, stack);
         if (left > 0)
         {
             Drop(entity, stack.WithCount(left));
@@ -106,7 +113,7 @@ public sealed partial class Zone
         lock (JoltRuntime.Gate)
         {
             // A ray that starts inside something (a wall, a trunk) meets it at once: then the ground below will do.
-            if (ShipCollider.Ray(point + up * RestFrom, -up, RestFrom + RestDepth, ShipCollider.NoBody, out ShipRayHit hit) && hit.Distance > 1e-3f)
+            if (Ships.ShipCollider.Ray(point + up * RestFrom, -up, RestFrom + RestDepth, ShipCollider.NoBody, out ShipRayHit hit) && hit.Distance > 1e-3f)
             {
                 return hit.Point;
             }
@@ -124,7 +131,7 @@ public sealed partial class Zone
         float ahead = DropAhead;
         lock (JoltRuntime.Gate)
         {
-            if (ShipCollider.Ray(feet + up * 0.6f, forward, DropAhead + BagRadius, ShipCollider.NoBody, out ShipRayHit hit))
+            if (Ships.ShipCollider.Ray(feet + up * 0.6f, forward, DropAhead + BagRadius, ShipCollider.NoBody, out ShipRayHit hit))
             {
                 ahead = MathF.Max(0, hit.Distance - BagRadius);
             }
@@ -135,7 +142,7 @@ public sealed partial class Zone
     // A stack into the bags near where it rests, the nearest with room first, then into new bags there.
     private DroppedBag? Pack(Vector3 rest, ItemStack stack, float? yaw)
     {
-        GameContent content = Content!;
+        GameContent content = Content;
         if (stack.IsEmpty || content.Item(stack.Item) == null)
         {
             return null;
@@ -159,7 +166,7 @@ public sealed partial class Zone
             EntityId id = NextId();
             var bag = new DroppedBag(id, content.Survival.BagName, content.Survival.BagSlots, rest, Frame.UpAt(rest), yaw ?? BagYaw(id), lifetime,
                 Tick + lifetime.Ticks);
-            AddStatic(bag);
+            Things.AddStatic(bag);
             int before = left;
             left = Fill(bag, stack.WithCount(left));
             last = bag;
@@ -176,10 +183,10 @@ public sealed partial class Zone
     private int Fill(DroppedBag bag, ItemStack stack)
     {
         _oneBag[0] = bag.Loot;
-        int left = InventoryRules.AddTo(Content!, _oneBag, stack, byPlayer: false);
+        int left = InventoryRules.AddTo(Content, _oneBag, stack, byPlayer: false);
         if (left < stack.Count)
         {
-            Restart(bag, LifetimeRestart.Deposit);
+            Things.Restart(bag, LifetimeRestart.Deposit);
             bag.PublishChanges();
         }
         return left;
@@ -192,7 +199,7 @@ public sealed partial class Zone
     public void BagsNear(Vector3 point, float radius, List<DroppedBag> into)
     {
         into.Clear();
-        foreach (ILifetime thing in _loose)
+        foreach (ILifetime thing in Things._loose)
         {
             if (thing is DroppedBag bag && Vector3.DistanceSquared(bag.Position, point) <= radius * radius)
             {
@@ -204,18 +211,24 @@ public sealed partial class Zone
 
     // What a looter took from shows others its count (a bag's stacks) at once; a loose thing (a body, a bag) whose last
     // stack they took goes at once if its lifetime ends it so (GROUND_SYSTEMS.md §3.7), and the looter's panel with it.
-    private Outcome TookFrom(Player p, Outcome result)
+    internal Outcome TookFrom(Player p, Outcome result)
     {
-        if (!result.Ok || LootTarget(p).Thing is not { } looted)
+        if (!result.Ok || Actions.LootTarget(p).Thing is not { } looted)
         {
             return result;
         }
         looted.PublishChanges();
-        if (looted is ILifetime loose && EndIfEmptied(loose))
+        if (looted is ILifetime loose && Things.EndIfEmptied(loose))
         {
             p.Looting = EntityId.None;
             p.LootRevision++;
         }
         return result;
     }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class SpillSystemAccess
+{
+    public static SpillSystem Spill(this Zone zone) => zone.Require<SpillSystem>();
 }

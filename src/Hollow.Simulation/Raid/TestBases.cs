@@ -82,11 +82,11 @@ public static class TestBases
     /// </summary>
     public static Hut? Build(Zone zone, Vector3 at, double heading, int grade, ulong owner, string? door = "sheet-metal-door", bool claim = true)
     {
-        BuildingWorld world = zone.Building ?? throw new InvalidOperationException("The zone has no building (no game data).");
+        BuildingWorld world = zone.Building().World ?? throw new InvalidOperationException("The zone has no building (no game data).");
         BuildingData data = world.Data;
         zone.Physics.EnsureGround(at);
         PieceDef foundationDef = data.Piece("foundation")!;
-        double now = zone.BuildingNow;
+        double now = zone.Building().BuildingNow;
         Piece foundation = world.AddFirst(FrameOver(zone, data, foundationDef, at, heading), foundationDef, grade, owner, now);
         var walls = new Piece[4];
         string[] keys = { "doorway", "wall", "wall", "wall" };
@@ -112,7 +112,7 @@ public static class TestBases
     // character standing there.
     private static ClaimDevice? PutClaim(Zone zone, Piece foundation, ulong owner, IEnumerable<ulong> listed)
     {
-        BuildingWorld world = zone.Building!;
+        BuildingWorld world = zone.Building().World!;
         return world.RestoreClaim(zone.NextId(), owner, foundation, new Vector3D(0.8, foundation.Pose.Position.Y, -0.8), 0, world.Data.ClaimHealth,
             listed);
     }
@@ -120,12 +120,12 @@ public static class TestBases
     /// <summary>Puts back whatever of a hut is gone (a wall, the door, the roof, the claim device), as new; false when its foundation went (build another).</summary>
     public static bool Restore(Zone zone, Hut hut)
     {
-        BuildingWorld world = zone.Building!;
+        BuildingWorld world = zone.Building().World!;
         if (hut.Foundation.Gone)
         {
             return false;
         }
-        double now = zone.BuildingNow;
+        double now = zone.Building().BuildingNow;
         string[] keys = { "doorway", "wall", "wall", "wall" };
         for (int e = 0; e < 4; e++)
         {
@@ -185,7 +185,7 @@ public static class TestBases
     // The door in the doorway, shut and unlocked: put straight in like the claim device (PutClaim).
     private static void FitDoor(Zone zone, Hut hut)
     {
-        BuildingWorld world = zone.Building!;
+        BuildingWorld world = zone.Building().World!;
         if (world.Data.Door(hut.DoorKey!) is not { } def)
         {
             return;

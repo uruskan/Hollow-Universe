@@ -204,7 +204,7 @@ public sealed partial class LocalPlayer
 
     /// <summary>
     /// The station of a kind within reach (its entity ID, 0 for none): a recipe made at one (a ship at the vehicle
-    /// workbench, G6) needs it, as the server's <c>Zone.StationNear</c> does.
+    /// workbench, G6) needs it, as the server's <c>Zone.Ships().StationNear</c> does.
     /// </summary>
     public Func<Simulation.Content.DeployableDef, ulong>? StationNear { get; internal set; }
 

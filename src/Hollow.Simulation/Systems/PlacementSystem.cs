@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -25,16 +25,31 @@ public readonly record struct PlaceRequest(ContainerRef From, int Slot, ushort E
 // told: every thing, character and ship, what stands on what, whose things are whose), the one entry point for every
 // placement intent, and what the kinds make. The pipeline itself (solvers, checks, kinds) is Placement/, shared with the
 // client's ghost.
-public sealed partial class Zone : IPlacementSite
+public sealed class PlacementSystem : ZoneSystem, IPlacementSite
 {
-    private readonly Dictionary<(ulong Owner, DeployableDef Def), int> _owned = new();
+    private ActionSystem? _actionsSystem;
+    private ActionSystem Actions => _actionsSystem ??= Zone.Require<ActionSystem>();
+    private BuildingSystem? _buildingSystem;
+    private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private ShipSystem? _shipsSystem;
+    private ShipSystem Ships => _shipsSystem ??= Zone.Require<ShipSystem>();
+    private SupportSystem? _supportsSystem;
+    private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
+    private TargetSystem? _targetsSystem;
+    private TargetSystem Targets => _targetsSystem ??= Zone.Require<TargetSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
+    internal readonly Dictionary<(ulong Owner, DeployableDef Def), int> _owned = new();
 
     /// <summary>The placement world on this zone (GROUND_SYSTEMS.md §6): the server's half of the ghost's code.</summary>
-    public PlacementWorld Placement { get; private set; } = null!;
+    public PlacementWorld World { get; private set; } = null!;
 
     private void InitPlacement(GameContent content)
     {
-        Placement = new PlacementWorld(content, Frame, Surface, Physics, Building, new ZoneSurroundings(this), Nature, Natural, ShipCollider);
+        World = new PlacementWorld(content, Frame, Surface, Physics, Building.World, new ZoneSurroundings(Zone), Nature, Natural, Ships.ShipCollider);
     }
 
     /// <summary>
@@ -45,11 +60,11 @@ public sealed partial class Zone : IPlacementSite
     /// </summary>
     public Outcome Place(Entity entity, in PlaceRequest request)
     {
-        if (!Acting(entity, out Player p))
+        if (!Actions.Acting(entity, out Player p))
         {
             return OutcomeCode.Dead;
         }
-        if (Content!.Placement[request.Placeable] is not { SlotItem: { } needs } placeable || request.From is not (ContainerRef.Main or ContainerRef.Belt))
+        if (Content.Placement[request.Placeable] is not { SlotItem: { } needs } placeable || request.From is not (ContainerRef.Main or ContainerRef.Belt))
         {
             return OutcomeCode.Invalid;
         }
@@ -69,7 +84,7 @@ public sealed partial class Zone : IPlacementSite
         }
         var wallet = new ItemWallet(Content, p.Inventory.Carried);
         var ctx = new PlacementContext(p.Id.Value, EyeOf(Entities.Get<Character>(entity).State), placeable, wallet);
-        if (Placer.Settle(Placement, ctx, request.Claim, out Outcome refused) is not { } candidate)
+        if (Placer.Settle(World, ctx, request.Claim, out Outcome refused) is not { } candidate)
         {
             return refused;
         }
@@ -95,13 +110,13 @@ public sealed partial class Zone : IPlacementSite
     /// </summary>
     public PlacementCandidate? Aim(Entity entity, Placeable placeable, Vector3 direction, int turns = 0)
     {
-        if (PlayerOf(entity) is not { } p)
+        if (Players.PlayerOf(entity) is not { } p)
         {
             return null;
         }
         ref Character c = ref Entities.Get<Character>(entity);
-        var ctx = new PlacementContext(p.Id.Value, EyeOf(c.State), placeable, new ItemWallet(Content!, p.Inventory.Carried));
-        return Placer.Plan(Placement, ctx, new PlacementAim(direction, c.Input.Yaw, turns));
+        var ctx = new PlacementContext(p.Id.Value, EyeOf(c.State), placeable, new ItemWallet(Content, p.Inventory.Carried));
+        return Placer.Plan(World, ctx, new PlacementAim(direction, c.Input.Yaw, turns));
     }
 
     /// <summary>Places from a slot what a candidate (a ghost) says: the intent a client sends for it.</summary>
@@ -119,14 +134,14 @@ public sealed partial class Zone : IPlacementSite
         {
             placed.ReadyAtUnixMs = UnixMilliseconds + (long)(def.RespawnSeconds * 1000);
         }
-        AddStatic(placed);
+        Things.AddStatic(placed);
         return Outcome.Done;
     }
 
     /// <summary>A ship from its item, set down where the checked candidate says, the player's, with the tank ships.json gives it.</summary>
     public Outcome PutShip(ulong player, ShipDef def, PlacementCandidate c)
     {
-        SpawnShip(def, c.Position, c.Yaw, new EntityId(player), def.PlacedFuel);
+        Ships.SpawnShip(def, c.Position, c.Yaw, new EntityId(player), def.PlacedFuel);
         return Outcome.Done;
     }
 
@@ -137,21 +152,21 @@ public sealed partial class Zone : IPlacementSite
     public void SettleSupports()
     {
         var gone = new List<TargetRef>();
-        foreach (TargetRef support in _dependents.Keys)
+        foreach (TargetRef support in Supports._dependents.Keys)
         {
-            if (!Exists(support))
+            if (!Targets.Exists(support))
             {
                 gone.Add(support);
             }
         }
         foreach (TargetRef support in gone)
         {
-            SupportGone(support);
+            Supports.SupportGone(support);
         }
     }
 
     // How many of a deployable each player owns (a limit per player: RustMVP's sleeping bags), kept as things come and go.
-    private void CountOwned(Deployable d, int change)
+    internal void CountOwned(Deployable d, int change)
     {
         if (d.Owner.IsNone || d is WorldProp)
         {
@@ -170,14 +185,14 @@ public sealed partial class Zone : IPlacementSite
     }
 
     /// <summary>The zone's surroundings for placement: every thing, character and ship it has, the support links, the owners.</summary>
-    private sealed class ZoneSurroundings(Zone zone) : IPlacementSurroundings
+    internal sealed class ZoneSurroundings(Zone zone) : IPlacementSurroundings
     {
         private readonly List<Deployable> _near = new();
 
         public void ThingsNear(Vector3 point, float radius, List<PlacedThing> into)
         {
             _near.Clear();
-            zone.DeployablesNear(point, radius, _near);
+            zone.Things().DeployablesNear(point, radius, _near);
             foreach (Deployable d in _near)
             {
                 into.Add(new PlacedThing(d.Ref, d.Def, d.Position, d.Up, d.Yaw));
@@ -199,7 +214,7 @@ public sealed partial class Zone : IPlacementSite
 
         public void ShipsNear(Vector3 point, float radius, List<PlacedShip> into)
         {
-            foreach (Ship ship in zone._ships)
+            foreach (Ship ship in zone.Ships()._ships)
             {
                 if (!ship.Destroyed && Vector3.DistanceSquared(ship.State.Position, point) <= radius * radius)
                 {
@@ -211,13 +226,33 @@ public sealed partial class Zone : IPlacementSite
         public int ThingsOn(in TargetRef support)
         {
             int count = 0;
-            foreach (TargetRef dependent in zone.DependentsOf(support))
+            foreach (TargetRef dependent in zone.Supports().DependentsOf(support))
             {
                 count += dependent.Family == TargetFamily.Thing ? 1 : 0;
             }
             return count;
         }
 
-        public int ThingsOwned(ulong player, DeployableDef def) => zone._owned.GetValueOrDefault((player, def));
+        public int ThingsOwned(ulong player, DeployableDef def) => zone.Placement()._owned.GetValueOrDefault((player, def));
     }
+
+    public override int InitOrder => 30;
+
+    protected internal override void Init() => InitPlacement(Content);
+
+    private ExplosiveSystem? _explosivesSystem;
+    private ExplosiveSystem Explosives => _explosivesSystem ??= Zone.Require<ExplosiveSystem>();
+
+    // IPlacementSite: what the placement rules ask of the zone (GROUND_SYSTEMS.md §6), answered by the systems that own it.
+    BuildingWorld? IPlacementSite.Building => Building.World;
+
+    double IPlacementSite.BuildingNow => Building.BuildingNow;
+
+    Outcome IPlacementSite.PutCharge(ulong player, ThrowableStats stats, PlacementCandidate c) => Explosives.PutCharge(player, stats, c);
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class PlacementSystemAccess
+{
+    public static PlacementSystem Placement(this Zone zone) => zone.Require<PlacementSystem>();
 }

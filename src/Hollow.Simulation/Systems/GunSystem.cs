@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 using DamageType = Hollow.Simulation.Building.DamageType;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
@@ -8,8 +8,8 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
-using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
@@ -53,8 +53,21 @@ public sealed class Bullet
 // Firearms (GROUND.md §6.3): shots and reloads the clients asked for, applied at the tick they happened on with the
 // rules both sides share (Combat/Firearms.cs); bullets flown with drop and drag and tested against characters where
 // the shooter saw them; damage by distance, body part and armour; attachments put on and taken off.
-public sealed partial class Zone
+public sealed class GunSystem : ZoneSystem
 {
+    private ActionSystem? _actionsSystem;
+    private ActionSystem Actions => _actionsSystem ??= Zone.Require<ActionSystem>();
+    private CombatSystem? _combatSystem;
+    private CombatSystem Combat => _combatSystem ??= Zone.Require<CombatSystem>();
+    private DamageSystem? _damageSystem;
+    private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
+    private ExplosiveSystem? _explosivesSystem;
+    private ExplosiveSystem Explosives => _explosivesSystem ??= Zone.Require<ExplosiveSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private SpillSystem? _spillSystem;
+    private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
+
     /// <summary>At most this many gun actions wait per player; and they may be at most this many ticks ahead.</summary>
     public const int MaxQueuedGunActions = 64;
 
@@ -98,7 +111,7 @@ public sealed partial class Zone
     /// </summary>
     public OutcomeCode QueueGunAction(Entity entity, GunAction action)
     {
-        if (PlayerOf(entity) is not { } p)
+        if (Players.PlayerOf(entity) is not { } p)
         {
             return OutcomeCode.Invalid;
         }
@@ -141,9 +154,9 @@ public sealed partial class Zone
     }
 
     // The gun in hand, after melee and the bow: a reload that ends, then the actions whose tick has come, in order.
-    private void StepGun(Entity entity, ref Character c, Player p)
+    internal void StepGun(Entity entity, ref Character c, Player p)
     {
-        FirearmStats? gun = p.Held(Content!)?.Firearm;
+        FirearmStats? gun = p.Held(Content)?.Firearm;
         if (p.Gun.Reloading && Tick >= p.Gun.ReloadEndTick)
         {
             FinishReload(entity, p, gun);
@@ -188,7 +201,7 @@ public sealed partial class Zone
             return OutcomeCode.TooLate;
         }
         ItemStack weapon = p.Inventory.Belt[p.HeldSlot];
-        GameContent content = Content!;
+        GameContent content = Content;
         if (a.Kind == GunActionKind.Unload)
         {
             // UNLOAD in hand (GROUND_SYSTEMS.md §7): the rounds back into the inventory, in order with the shots before it.
@@ -242,7 +255,7 @@ public sealed partial class Zone
         LaunchBullet(p, gun, shot, a);
         p.ActionCount++;
         p.LastAction = ActionKind.Shoot;
-        Wear(entity, p, p.HeldSlot);
+        Combat.Wear(entity, p, p.HeldSlot);
         return OutcomeCode.Done;
     }
 
@@ -261,16 +274,16 @@ public sealed partial class Zone
         (int take, int returned, ushort returnedAmmo) = FirearmRules.FinishReload(ref p.Gun, ref weapon, gun, InventoryRules.Count(carried, ammo));
         InventoryRules.Take(carried, ammo, take);
         p.Inventory.Belt.Set(p.HeldSlot, weapon);
-        if (returned > 0 && Content!.Item(returnedAmmo) is { } old)
+        if (returned > 0 && Content.Item(returnedAmmo) is { } old)
         {
-            GiveOrDrop(entity, p, ItemStack.Of(old, returned));
+            Spill.GiveOrDrop(entity, p, ItemStack.Of(old, returned));
         }
     }
 
     /// <summary>Starts afresh with what is in hand now (after an equip): a gun's equip time, no recoil, no reload.</summary>
-    private void EquipGun(Player p)
+    internal void EquipGun(Player p)
     {
-        FirearmStats? gun = Content!.Item(p.HeldItem)?.Firearm;
+        FirearmStats? gun = Content.Item(p.HeldItem)?.Firearm;
         if (FirearmRules.Equip(ref p.Gun, p.HeldSlot, gun != null ? p.HeldItem : (ushort)0, gun, Tick))
         {
             p.GunRevision++;
@@ -278,7 +291,7 @@ public sealed partial class Zone
     }
 
     /// <summary>A new life or a death: nothing in hand, and every waiting action answered (the client drops them).</summary>
-    private static void ResetGun(Player p)
+    internal static void ResetGun(Player p)
     {
         uint last = p.Gun.LastSeq;
         foreach (GunAction a in p.GunQueue)
@@ -292,7 +305,7 @@ public sealed partial class Zone
     }
 
     /// <summary>Answers every waiting action with a refusal (the player went down).</summary>
-    private void RefuseGunActions(Player p, OutcomeCode result)
+    internal void RefuseGunActions(Player p, OutcomeCode result)
     {
         foreach (GunAction a in p.GunQueue)
         {
@@ -309,7 +322,7 @@ public sealed partial class Zone
     /// <summary>What others see on the gun a player holds: a bit per attachment (weapons.json order).</summary>
     public byte HeldGunLook(Player p)
     {
-        if (p.HeldSlot >= PlayerInventory.BeltSlots || Content!.Item(p.Inventory.Belt[p.HeldSlot].Item)?.Firearm is not { } gun)
+        if (p.HeldSlot >= PlayerInventory.BeltSlots || Content.Item(p.Inventory.Belt[p.HeldSlot].Item)?.Firearm is not { } gun)
         {
             return 0;
         }
@@ -322,7 +335,7 @@ public sealed partial class Zone
     {
         var bullet = new Bullet
         {
-            Id = _nextProjectile++,
+            Id = Combat._nextProjectile++,
             Shooter = p.Id,
             ShooterName = p.Name,
             Seq = a.Seq,
@@ -338,7 +351,7 @@ public sealed partial class Zone
             Damage = shot.Damage,
             Range = (float)gun.Range,
             LifetimeTicks = Math.Max(1, CharacterTicks.From(gun.LifetimeSeconds)),
-            RewindTicks = Math.Min(a.ViewDelay / 4f + Math.Max(0, Tick - a.Tick), MaxRewindTicks),
+            RewindTicks = Math.Min(a.ViewDelay / 4f + Math.Max(0, Tick - a.Tick), Combat.MaxRewindTicks),
             Silenced = shot.Mods.Silenced,
         };
         _bullets.Add(bullet);
@@ -386,7 +399,7 @@ public sealed partial class Zone
                 {
                     Vector3 direction = path / length;
                     float reach = spent ? MathF.Max(0, b.Range - b.Distance) : length;
-                    TraceHit hit = reach > 1e-6f ? Trace(b.Position, direction, reach, BulletRadius, b.Shooter, Tick - b.RewindTicks, bullet: true)
+                    TraceHit hit = reach > 1e-6f ? Damage.Trace(b.Position, direction, reach, BulletRadius, b.Shooter, Tick - b.RewindTicks, bullet: true)
                         : new TraceHit { Distance = -1 };
                     if (hit.Hit)
                     {
@@ -426,8 +439,8 @@ public sealed partial class Zone
         EndBullet(b, b.Position, TargetRef.None);
         if (b.Round.Blast is { } blast && b.Damage <= 0)
         {
-            TryFindPlayer(b.Shooter, out _, out Player? shooter);
-            BulletBlast(b, blast, new TraceHit { Point = b.Position, Target = TargetRef.None }, shooter);
+            Players.TryFindPlayer(b.Shooter, out _, out Player? shooter);
+            Explosives.BulletBlast(b, blast, new TraceHit { Point = b.Position, Target = TargetRef.None }, shooter);
         }
     }
 
@@ -435,18 +448,18 @@ public sealed partial class Zone
     {
         float distance = b.Distance + hit.Distance;
         EndBullet(b, hit.Point, hit.Target);
-        TryFindPlayer(b.Shooter, out _, out Player? shooter);
+        Players.TryFindPlayer(b.Shooter, out _, out Player? shooter);
         if (b.Round.Blast is { } rocket && b.Damage <= 0)
         {
             // A rocket (G5): its blast is all it does.
-            BulletBlast(b, rocket, hit, shooter);
+            Explosives.BulletBlast(b, rocket, hit, shooter);
             return;
         }
-        Damage(BulletRequest(b, hit, distance, shooter));
+        Damage.Damage(BulletRequest(b, hit, distance, shooter));
         if (b.Round.Blast is { } burst)
         {
             // An explosive round (G5) bursts where it hit, besides what the bullet did.
-            BulletBlast(b, burst, hit, shooter);
+            Explosives.BulletBlast(b, burst, hit, shooter);
         }
     }
 
@@ -493,7 +506,7 @@ public sealed partial class Zone
     /// knocks down first (the wounded state). Returns the health taken.
     /// </summary>
     public float ShootCharacter(Entity victimEntity, Player victim, Bullet b, HitRegion region, float distance, Vector3 at, Player? shooter) =>
-        Damage(BulletRequest(b, new TraceHit { Target = victim.Ref, Region = region, Point = at }, distance, shooter)).Taken;
+        Damage.Damage(BulletRequest(b, new TraceHit { Target = victim.Ref, Region = region, Point = at }, distance, shooter)).Taken;
 
     /// <summary>
     /// Where a bullet's path first goes below the ground, or −1: steps as long as the height above the ground allows
@@ -543,7 +556,7 @@ public sealed partial class Zone
     /// </summary>
     public Outcome Attach(Entity entity, ContainerRef from, int slot, ContainerRef weaponIn, int weaponSlot, ushort expected)
     {
-        if (!Acting(entity, out Player p))
+        if (!Actions.Acting(entity, out Player p))
         {
             return OutcomeCode.Dead;
         }
@@ -551,26 +564,37 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotAllowed;
         }
-        return AttachmentRules.Attach(Content!, p.Inventory[from], slot, p.Inventory[weaponIn], weaponSlot, expected);
+        return AttachmentRules.Attach(Content, p.Inventory[from], slot, p.Inventory[weaponIn], weaponSlot, expected);
     }
 
     /// <summary>
     /// A gun that broke gives back its rounds and its attachments: into the inventory, the rest at the player's feet (no
     /// notification: these were the player's already).
     /// </summary>
-    private void ReturnRounds(Entity entity, Player p, in ItemStack weapon)
+    internal void ReturnRounds(Entity entity, Player p, in ItemStack weapon)
     {
-        GameContent content = Content!;
+        GameContent content = Content;
         if (weapon.Loaded > 0 && content.Item(weapon.LoadedAmmo) is { } round)
         {
-            GiveOrDrop(entity, p, ItemStack.Of(round, weapon.Loaded));
+            Spill.GiveOrDrop(entity, p, ItemStack.Of(round, weapon.Loaded));
         }
         foreach (AttachmentSlot slot in GunMods.Slots)
         {
             if (weapon.Mod(slot) != 0 && content.Item(weapon.Mod(slot)) is { } part)
             {
-                GiveOrDrop(entity, p, ItemStack.Of(part, 1));
+                Spill.GiveOrDrop(entity, p, ItemStack.Of(part, 1));
             }
         }
     }
+
+    protected internal override void Step()
+    {
+        StepBullets();
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class GunSystemAccess
+{
+    public static GunSystem Guns(this Zone zone) => zone.Require<GunSystem>();
 }

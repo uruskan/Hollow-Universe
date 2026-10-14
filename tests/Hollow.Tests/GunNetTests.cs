@@ -100,7 +100,7 @@ public static class GunNetTests
                 if (type == FireIntent.TypeId)
                 {
                     FireIntent m = FireIntent.Read(r);
-                    rig.Zone.QueueGunAction(ada, new GunAction
+                    rig.Zone.Guns().QueueGunAction(ada, new GunAction
                     {
                         Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = (ushort)m.Item,
                         Yaw = Quantize.FromAngle16(m.Yaw), Pitch = Quantize.FromAngle16(m.Pitch), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
@@ -109,7 +109,7 @@ public static class GunNetTests
                 else if (type == ReloadIntent.TypeId)
                 {
                     ReloadIntent m = ReloadIntent.Read(r);
-                    rig.Zone.QueueGunAction(ada, new GunAction
+                    rig.Zone.Guns().QueueGunAction(ada, new GunAction
                     {
                         Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Reload, Slot = m.Slot, Item = (ushort)m.Item, Ammo = (ushort)m.Ammo,
                     });
@@ -263,7 +263,7 @@ public static class GunNetTests
                 if (type == FireIntent.TypeId)
                 {
                     FireIntent m = FireIntent.Read(r);
-                    rig.Zone.QueueGunAction(ada, new GunAction
+                    rig.Zone.Guns().QueueGunAction(ada, new GunAction
                     {
                         Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = (ushort)m.Item,
                         Yaw = Quantize.FromAngle16(m.Yaw), Pitch = Quantize.FromAngle16(m.Pitch), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
@@ -272,7 +272,7 @@ public static class GunNetTests
                 else if (type == ReloadIntent.TypeId)
                 {
                     ReloadIntent m = ReloadIntent.Read(r);
-                    rig.Zone.QueueGunAction(ada, new GunAction
+                    rig.Zone.Guns().QueueGunAction(ada, new GunAction
                     {
                         Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Reload, Slot = m.Slot, Item = (ushort)m.Item, Ammo = (ushort)m.Ammo,
                     });
@@ -383,7 +383,7 @@ public static class GunNetTests
         // Fire at Bo's chest, a few rounds at a time, until he is down.
         Vector3 chest = rig.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(bo.EntityId, out Entity e, out _);
+            sv.Zone.Players().TryFindPlayer(bo.EntityId, out Entity e, out _);
             Vector3 at = sv.Zone.Entities.Get<Character>(e).State.Position;
             return at + sv.Zone.Frame.UpAt(at) * 1.15f;
         });
@@ -414,7 +414,7 @@ public static class GunNetTests
         int fired = events.Count(e => e == "shot");
         int serverLoaded = rig.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(ada.EntityId, out _, out Player p);
+            sv.Zone.Players().TryFindPlayer(ada.EntityId, out _, out Player p);
             return (int)p.Inventory.Belt[2].Loaded;
         });
         Fixtures.Report($"Ada fired {fired}, {markers.Count(m => m.Target == TargetFamily.Character)} hit Bo ({string.Join(", ", markers.Select(m => $"{m.Region} {m.Damage:0.#}"))}); " +
@@ -484,9 +484,9 @@ public static class GunNetTests
         a.WoundedByName = "Bo";
         Player saved = WorldCodec.DecodePlayer(WorldCodec.EncodePlayer(a), new EntityId(0xADA2), "Ada2", c);
         Assert.True(saved.Wounded, "stored down");
-        Entity again = rig.Zone.AddPlayer(saved.Id, saved.Name, rig.Zone.NewCharacter(rig.Zone.GroundAt(6, 6)), saved);
+        Entity again = rig.Zone.Players().AddPlayer(saved.Id, saved.Name, rig.Zone.NewCharacter(rig.Zone.GroundAt(6, 6)), saved);
         Assert.True(saved.Dead && saved.KilledBy == "Bo", "added down: dead, killed by who downed them");
-        Assert.True(rig.Zone.Statics().OfType<Corpse>().Any(k => k.Of == saved.Id && k.Loot.Slots.ToArray().Contains(rifle)), "their corpse has the rifle");
+        Assert.True(rig.Zone.Things().Statics().OfType<Corpse>().Any(k => k.Of == saved.Id && k.Loot.Slots.ToArray().Contains(rifle)), "their corpse has the rifle");
         Assert.True(rig.Zone.Entities.Get<Character>(again).State.IsDead, "and the character is dead");
     }
 }

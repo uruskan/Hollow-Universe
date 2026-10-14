@@ -36,21 +36,21 @@ public static class AnimalNetTests
         GameClient ada = rig.Join("Ada");
         rig.WaitUntilPlaying();
         var id = new EntityId(ada.EntityId.Value);
-        Vector3 Her(Hollow.Server.GameServer sv) => sv.Zone.TryFindPlayer(id, out Entity e, out _) ? sv.Zone.Entities.Get<Character>(e).State.Position : default;
+        Vector3 Her(Hollow.Server.GameServer sv) => sv.Zone.Players().TryFindPlayer(id, out Entity e, out _) ? sv.Zone.Entities.Get<Character>(e).State.Position : default;
         // To the landing site, inland (she arrived on a beach).
         rig.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(id, out Entity e, out _);
+            sv.Zone.Players().TryFindPlayer(id, out Entity e, out _);
             Vector3 ground = sv.Zone.GroundAt(0, 0);
             sv.Zone.Teleport(e, ground + sv.Zone.Frame.UpAt(ground) * 0.05f);
             return 0;
         });
-        RunUntil(rig, () => rig.Server.Inspect(sv => sv.Zone.Animals!.Count) > 0, "herds out around the landing site", 20);
+        RunUntil(rig, () => rig.Server.Inspect(sv => sv.Zone.Animals().World!.Count) > 0, "herds out around the landing site", 20);
         rig.Run(1, (_, _) => default);
         (string status, float nearest, Vector3 herd) = rig.Server.Inspect(sv =>
         {
             Vector3 her = Her(sv);
-            Animal a = sv.Zone.Animals!.All.OrderBy(x => Vector3.Distance(x.Position, her)).First();
+            Animal a = sv.Zone.Animals().World!.All.OrderBy(x => Vector3.Distance(x.Position, her)).First();
             return (sv.AnimalStatus(), Vector3.Distance(a.Position, her), a.Position);
         });
         Fixtures.Report($"around the landing site: {status}; the nearest {nearest:0} m away");
@@ -59,7 +59,7 @@ public static class AnimalNetTests
         // She goes up to the nearest herd: it comes into her view.
         rig.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(id, out Entity e, out _);
+            sv.Zone.Players().TryFindPlayer(id, out Entity e, out _);
             Vector3 her = Her(sv);
             Vector3 d = Vector3.Normalize(new Vector3(her.X - herd.X, 0, her.Z - herd.Z));
             Vector3 ground = sv.Zone.GroundAt(herd.X + d.X * 45, herd.Z + d.Z * 45);
@@ -92,7 +92,7 @@ public static class AnimalNetTests
         Assert.Equal(characters, ada.Entities.Count(), "animals aren't characters");
         Assert.Equal(3, events.Count(e => e.Kind == AnimalEventKind.Appeared), "each appeared once");
         rig.Run(0.5, (_, _) => default);
-        Dictionary<EntityId, Vector3> server = rig.Server.Inspect(sv => sv.Zone.Animals!.All.ToDictionary(a => a.Id, a => a.Position));
+        Dictionary<EntityId, Vector3> server = rig.Server.Inspect(sv => sv.Zone.Animals().World!.All.ToDictionary(a => a.Id, a => a.Position));
         foreach (ClientAnimal a in ada.Animals)
         {
             float off = Vector3.Distance(a.Position, server[a.Id]);
@@ -103,9 +103,9 @@ public static class AnimalNetTests
         ClientAnimal target = ada.Animals.First();
         rig.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(new EntityId(ada.EntityId.Value), out _, out Player p);
-            Animal deer = sv.Zone.Animals!.Find(target.Id)!;
-            return sv.Zone.DamageAnimal(deer, 40, HitRegion.Body, deer.Position + new Vector3(0, 1, 30), p, p.Id, p.Name);
+            sv.Zone.Players().TryFindPlayer(new EntityId(ada.EntityId.Value), out _, out Player p);
+            Animal deer = sv.Zone.Animals().World!.Find(target.Id)!;
+            return sv.Zone.Animals().DamageAnimal(deer, 40, HitRegion.Body, deer.Position + new Vector3(0, 1, 30), p, p.Id, p.Name);
         });
         RunUntil(rig, () => events.Any(e => e.Kind == AnimalEventKind.Hurt && e.Animal == target), "the flinch");
         RunUntil(rig, () => ada.Animals.Count(a => a.State == AnimalState.Flee) == 3, "the herd's flight");
@@ -116,15 +116,15 @@ public static class AnimalNetTests
         // A kill: a corpse in view, then gone with its timer.
         rig.Server.Inspect(sv =>
         {
-            Animal deer = sv.Zone.Animals!.Find(target.Id)!;
-            return sv.Zone.DamageAnimal(deer, 500, HitRegion.Head, deer.Position, null);
+            Animal deer = sv.Zone.Animals().World!.Find(target.Id)!;
+            return sv.Zone.Animals().DamageAnimal(deer, 500, HitRegion.Head, deer.Position, null);
         });
         RunUntil(rig, () => target.Dead, "the death");
         Assert.True(events.Any(e => e.Kind == AnimalEventKind.Died && e.Animal == target), "the death event");
         Assert.Near(1, target.Health, 0.01, "a whole corpse to harvest");
         rig.Server.Inspect(sv =>
         {
-            Animal corpse = sv.Zone.Animals!.Find(target.Id)!;
+            Animal corpse = sv.Zone.Animals().World!.Find(target.Id)!;
             corpse.DespawnTick = sv.Zone.Tick + 3;
             return 0;
         });
@@ -152,16 +152,16 @@ public static class AnimalNetTests
             RunUntil(rig, () => ada.Animals.Count == 2, "two wolves");
             (corpseId, ticksLeft, left) = rig.Server.Inspect(sv =>
             {
-                Animal wolf = sv.Zone.Animals!.All.First();
-                sv.Zone.DamageAnimal(wolf, 500, HitRegion.Body, wolf.Position, null);
-                sv.Zone.Animals.Harvest(wolf, 40);
+                Animal wolf = sv.Zone.Animals().World!.All.First();
+                sv.Zone.Animals().DamageAnimal(wolf, 500, HitRegion.Body, wolf.Position, null);
+                sv.Zone.Animals().World.Harvest(wolf, 40);
                 return (wolf.Id, wolf.DespawnTick - sv.Zone.Tick, wolf.HarvestLeft);
             });
             rig.Server.SaveAll().Wait();
         }
         using (var rig = new LoopbackRig(file.Path))
         {
-            var report = rig.Server.Inspect(sv => (sv.Zone.Animals!.All.Select(a => (a.Id, a.IsDead, a.Species.Key, a.HarvestLeft, a.DespawnTick - sv.Zone.Tick)).ToList()));
+            var report = rig.Server.Inspect(sv => (sv.Zone.Animals().World!.All.Select(a => (a.Id, a.IsDead, a.Species.Key, a.HarvestLeft, a.DespawnTick - sv.Zone.Tick)).ToList()));
             Fixtures.Report("after the restart: " + string.Join(", ", report.Select(r => $"{r.Key} {(r.IsDead ? "corpse" : "alive")} " +
                 $"{r.HarvestLeft:0} left, {r.Item5 / 30.0:0} s")));
             Assert.Equal(1, report.Count, "only the corpse came back");

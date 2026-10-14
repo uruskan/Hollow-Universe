@@ -180,7 +180,7 @@ public static partial class CapabilityHandlers
         {
             if (thing is LiveExplosive e)
             {
-                zone.Drop(e);
+                zone.Explosives().DropExplosive(e);
             }
         }
     }
@@ -199,7 +199,7 @@ public static partial class CapabilityHandlers
         {
             if (thing is Deployable d)
             {
-                zone.Break(d, Combat.DestroyCause.Collapse);
+                zone.Things().Break(d, Combat.DestroyCause.Collapse);
             }
         }
     }
@@ -225,6 +225,6 @@ public static partial class CapabilityHandlers
             }
         }
 
-        public void End(Zone zone, in TargetRef target, object thing) => zone.RemoveTarget(target);
+        public void End(Zone zone, in TargetRef target, object thing) => zone.Targets().RemoveTarget(target);
     }
 }

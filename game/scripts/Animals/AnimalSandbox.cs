@@ -236,7 +236,7 @@ public partial class AnimalSandbox : Node3D
     {
         Vector3 eye = _world.Camera.GlobalPosition;
         var parts = new List<string>();
-        foreach (Animal a in _zone.Animals!.All)
+        foreach (Animal a in _zone.Animals().World!.All)
         {
             float d = eye.DistanceTo(ToRender(a.Position));
             if (d < 120 && !a.Removed)
@@ -252,7 +252,7 @@ public partial class AnimalSandbox : Node3D
 
     private void Step()
     {
-        AnimalWorld animals = _zone.Animals!;
+        AnimalWorld animals = _zone.Animals().World!;
         _before.Clear();
         foreach (Animal a in animals.All)
         {
@@ -298,7 +298,7 @@ public partial class AnimalSandbox : Node3D
     private void Frames(float alpha)
     {
         _frames.Clear();
-        foreach (Animal a in _zone.Animals!.All)
+        foreach (Animal a in _zone.Animals().World!.All)
         {
             if (a.Removed)
             {
@@ -320,14 +320,14 @@ public partial class AnimalSandbox : Node3D
     private Person AddPerson(string name, Num.Vector3 at, float yaw, string? held = null, bool dummy = false)
     {
         Num.Vector3 ground = _zone.GroundAt(at.X, at.Z);
-        Entity e = _zone.AddPlayer(_zone.NextId(), name, _zone.NewCharacter(ground + _zone.Frame.UpAt(ground) * 0.02f));
-        Player player = _zone.PlayerOf(e)!;
+        Entity e = _zone.Players().AddPlayer(_zone.NextId(), name, _zone.NewCharacter(ground + _zone.Frame.UpAt(ground) * 0.02f));
+        Player player = _zone.Players().PlayerOf(e)!;
         player.Inventory.Clear();
         player.Vitals.Health = 100;
         if (held != null)
         {
             player.Inventory.Give(_content, _content.ItemByKey(held), 1);
-            _zone.MoveItem(e, Hollow.Simulation.Items.ContainerRef.Main, 0, Hollow.Simulation.Items.ContainerRef.Belt, 0, 0, 0);
+            _zone.Actions().MoveItem(e, Hollow.Simulation.Items.ContainerRef.Main, 0, Hollow.Simulation.Items.ContainerRef.Belt, 0, 0, 0);
         }
         ref Character c = ref _zone.Entities.Get<Character>(e);
         c.Input = new MoveInput { Yaw = yaw };

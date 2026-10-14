@@ -24,7 +24,7 @@ public sealed class RigPresence(GameRig rig) : IPlayerPresence, IPushChannel
 
     public bool Deliver(EntityId player, RaidAlert alert)
     {
-        if (!rig.Zone.TryFindPlayer(player, out _, out Player p) || p.Sleeping)
+        if (!rig.Zone.Players().TryFindPlayer(player, out _, out Player p) || p.Sleeping)
         {
             return false;
         }
@@ -40,11 +40,11 @@ public static class RaidAlertTests
     // The zone's raid hits of the step to the service, as the server does after each step.
     private static void Route(GameRig rig, NotificationService service)
     {
-        foreach (RaidHit hit in rig.Zone.RaidHits)
+        foreach (RaidHit hit in rig.Zone.Explosives().RaidHits)
         {
             service.Raid(hit);
         }
-        rig.Zone.RaidHits.Clear();
+        rig.Zone.Explosives().RaidHits.Clear();
         service.Tick(rig.Zone.UnixMilliseconds);
     }
 
@@ -64,8 +64,8 @@ public static class RaidAlertTests
         Entity bo = rig.Add("Bo", 2, -6);
         Entity cy = rig.Add("Cy", -2, -6);
         TestBases.Hut hut = Raids.Hut(rig, 0, 0, owner: rig.P(ada).Id.Value);
-        Assert.True(rig.Zone.Building!.Authorise(rig.P(bo).Id.Value, hut.Claim!).Ok, "Bo is listed too");
-        rig.Zone.Sleep(bo);
+        Assert.True(rig.Zone.Building().World!.Authorise(rig.P(bo).Id.Value, hut.Claim!).Ok, "Bo is listed too");
+        rig.Zone.Players().Sleep(bo);
         var presence = new RigPresence(rig);
         var store = new MemoryNotificationStore();
         var service = new NotificationService(presence, store, c.RaidAlerts, presence);
@@ -73,8 +73,8 @@ public static class RaidAlertTests
 
         // A charge on the east wall: one alert at once, to Ada in the game and queued (and pushed) for Bo.
         (Vector3 face, Vector3 outward) = hut.Face(hut.Walls[1]);
-        rig.Zone.Blast(charge, face + outward * Zone.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
-        Assert.Equal(1, rig.Zone.RaidHits.Count, "one raid hit");
+        rig.Zone.Damage().Blast(charge, face + outward * ExplosiveSystem.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
+        Assert.Equal(1, rig.Zone.Explosives().RaidHits.Count, "one raid hit");
         Route(rig, service);
         Assert.Equal(1, presence.Delivered.Count, "Ada, playing, got it in the game");
         Assert.True(presence.Delivered[0].Player == rig.P(ada).Id, "Ada");
@@ -87,10 +87,10 @@ public static class RaidAlertTests
         // Within the minute: summed, not sent; after it, one alert with both hits (the second charge breaks the east wall;
         // a rocket on the north wall, which still hides the claim device).
         rig.Zone.UnixMilliseconds += 10_000;
-        rig.Zone.Blast(charge, face + outward * Zone.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
+        rig.Zone.Damage().Blast(charge, face + outward * ExplosiveSystem.StuckOffset, outward, hut.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
         rig.Zone.UnixMilliseconds += 10_000;
         (Vector3 northFace, Vector3 northOut) = hut.Face(hut.Walls[2]);
-        rig.Zone.Blast(c.Blast("rocket")!, northFace + northOut * Zone.StuckOffset, northOut, hut.Walls[2].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy",
+        rig.Zone.Damage().Blast(c.Blast("rocket")!, northFace + northOut * ExplosiveSystem.StuckOffset, northOut, hut.Walls[2].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy",
             c.ItemByKey("rocket").Id);
         Assert.True(!hut.Claim!.Gone, "the claim device stands");
         Route(rig, service);
@@ -106,17 +106,17 @@ public static class RaidAlertTests
         // Blows: by Ada (listed) nothing; by Cy (a stranger), soft-siding the north wall, a raid.
         Piece north = hut.Walls[2];
         (Vector3 inside, Vector3 inward) = hut.Face(north, inside: true);
-        rig.Zone.DamageBuildingBy(north, -inward, 10, projectile: false, rig.P(ada), c.ItemByKey("rock").Id);
-        Assert.Equal(0, rig.Zone.RaidHits.Count, "the owner's own blows are no raid");
-        rig.Zone.DamageBuildingBy(north, -inward, 10, projectile: false, rig.P(cy), c.ItemByKey("rock").Id);
-        Assert.Equal(1, rig.Zone.RaidHits.Count, "a stranger's are");
-        rig.Zone.RaidHits.Clear();
+        rig.Zone.Blasts().DamageBuildingBy(north, -inward, 10, projectile: false, rig.P(ada), c.ItemByKey("rock").Id);
+        Assert.Equal(0, rig.Zone.Explosives().RaidHits.Count, "the owner's own blows are no raid");
+        rig.Zone.Blasts().DamageBuildingBy(north, -inward, 10, projectile: false, rig.P(cy), c.ItemByKey("rock").Id);
+        Assert.Equal(1, rig.Zone.Explosives().RaidHits.Count, "a stranger's are");
+        rig.Zone.Explosives().RaidHits.Clear();
 
         // An unclaimed structure: nobody to tell.
         TestBases.Hut open = TestBases.Build(rig.Zone, rig.Zone.GroundAt(0, 7), 0, 2, 1, claim: false)!;
         (Vector3 openFace, Vector3 openOut) = open.Face(open.Walls[1]);
-        rig.Zone.Blast(charge, openFace + openOut * Zone.StuckOffset, openOut, open.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
-        Assert.Equal(0, rig.Zone.RaidHits.Count, "no claim, no alert");
+        rig.Zone.Damage().Blast(charge, openFace + openOut * ExplosiveSystem.StuckOffset, openOut, open.Walls[1].Ref, TargetFamily.Piece, rig.P(cy).Id, "Cy", c.ItemByKey("timed-charge").Id);
+        Assert.Equal(0, rig.Zone.Explosives().RaidHits.Count, "no claim, no alert");
 
         // Bo logs in: his two alerts, once.
         IReadOnlyList<RaidAlert> queued = service.TakeQueued(rig.P(bo).Id, rig.Zone.UnixMilliseconds).Result;
@@ -143,14 +143,14 @@ public static class RaidAlertTests
         Entity bo = rig.Add("Bo", 0, 9);
         TestBases.Hut hut = Raids.Hut(rig, 0, 0, owner: rig.P(ada).Id.Value);
         ClaimDevice claim = hut.Claim!;
-        Container upkeep = rig.Zone.DeployableOf(claim)!.Storage!;
+        Container upkeep = rig.Zone.Building().DeployableOf(claim)!.Storage!;
         upkeep.Set(0, ItemStack.Of(c.ItemByKey("stone"), 500));
         int Stone() => InventoryRules.Count(new[] { upkeep }, c.ItemByKey("stone").Id);
-        BuildingWorld world = rig.Zone.Building!;
+        BuildingWorld world = rig.Zone.Building().World!;
         Vector3 twigAt = rig.Zone.GroundAt(9, -6);
         rig.Zone.Physics.EnsureGround(twigAt);
         Piece twig = world.AddFirst(TestBases.FrameOver(rig.Zone, c.Building, c.Building.Piece("foundation")!, twigAt, 0), c.Building.Piece("foundation")!, 0, 99,
-            rig.Zone.BuildingNow);
+            rig.Zone.Building().BuildingNow);
         var presence = new RigPresence(rig);
         var store = new MemoryNotificationStore();
         var service = new NotificationService(presence, store, c.RaidAlerts, presence);
@@ -159,7 +159,7 @@ public static class RaidAlertTests
         // Ada lies down inside and logs off. Two hours of upkeep and decay pass.
         Raids.Stand(rig, ada, hut.ToZone(new(-0.5, 0, 0.1)));
         rig.Step(10);
-        rig.Zone.Sleep(ada);
+        rig.Zone.Players().Sleep(ada);
         double wallHealth = hut.Walls[1].Health;
         rig.Zone.UnixMilliseconds += 2 * 3_600_000;
         rig.Step();
@@ -175,7 +175,7 @@ public static class RaidAlertTests
         rig.Step(2);
         rig.Look(bo, doorFace + doorOut * 0.2f);
         Assert.Equal(OutcomeCode.Done, rig.PlaceAimed(bo, ContainerRef.Belt, 0, "timed-charge"), "a charge on the door");
-        Assert.True(rig.Zone.Explosives.Single().Link.Support.Whole == hut.Door!.Ref, "stuck to the door");
+        Assert.True(rig.Zone.Explosives().All.Single().Link.Support.Whole == hut.Door!.Ref, "stuck to the door");
         Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 8, doorFace.Z + doorOut.Z * 8));
         Raids.StepUntil(rig, () => { Route(rig, service); return hut.Door!.Gone; }, 320, "the door breaking");
         Assert.Equal(0, presence.Delivered.Count, "nobody to tell in the game");
@@ -188,26 +188,26 @@ public static class RaidAlertTests
         Vector3 beside = hut.ToZone(new(0.3, 0, 0.7));
         rig.Look(bo, beside);
         Assert.Equal(OutcomeCode.Done, rig.PlaceAimed(bo, ContainerRef.Belt, 0, "timed-charge"), "a charge beside her");
-        Assert.True(rig.Zone.Explosives.Single().Link.Support.Whole == hut.Foundation.Ref, "on the floor");
+        Assert.True(rig.Zone.Explosives().All.Single().Link.Support.Whole == hut.Foundation.Ref, "on the floor");
         Raids.Stand(rig, bo, rig.Zone.GroundAt(doorFace.X + doorOut.X * 8, doorFace.Z + doorOut.Z * 8));
         long before = rig.Zone.UnixMilliseconds;
-        Raids.StepUntil(rig, () => { Route(rig, service); return rig.Zone.Explosives.Count == 0; }, 320, "the second charge");
+        Raids.StepUntil(rig, () => { Route(rig, service); return rig.Zone.Explosives().All.Count == 0; }, 320, "the second charge");
         Assert.True(rig.P(ada).Dead, "her sleeper died");
         Assert.True(claim.Gone, "her claim device broke");
-        Corpse body = rig.Zone.Statics().OfType<Corpse>().Single(x => x.Of == rig.P(ada).Id);
+        Corpse body = rig.Zone.Things().Statics().OfType<Corpse>().Single(x => x.Of == rig.P(ada).Id);
         Assert.Equal(300, InventoryRules.Count(new[] { body.Loot }, c.ItemByKey("metal-fragments").Id), "her things are in her body");
         Assert.Equal(1, store.Count, "the second hit waits for the base's minute");
 
         // Bo loots. The base's minute passes.
         Raids.Stand(rig, bo, body.Position);
         rig.Step(2);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Interact(bo, body.Ref, "loot"), "Bo opens her body");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Interaction().Interact(bo, body.Ref, "loot"), "Bo opens her body");
         rig.Zone.UnixMilliseconds = before + 61_000;
         Route(rig, service);
         Assert.Equal(2, store.Count, "the follow-up alert queued");
 
         // Ada logs in: dead, with her alerts.
-        rig.Zone.Wake(ada);
+        rig.Zone.Players().Wake(ada);
         IReadOnlyList<RaidAlert> alerts = service.TakeQueued(rig.P(ada).Id, rig.Zone.UnixMilliseconds).Result;
         Assert.Equal(2, alerts.Count, "two alerts");
         Assert.True(alerts.All(a => a.Base == claim.Id), "both for her base");

@@ -72,8 +72,8 @@ public static class HeldTests
         rig.P(ada).Inventory.Belt.Set(0, ItemStack.Of(c.ItemByKey("rock"), 1));
         rig.P(ada).Inventory.Belt.Set(1, ItemStack.Of(c.ItemByKey("tin-grenade"), 1));
         rig.Step(2);
-        Assert.Equal(OutcomeCode.NotUsable, rig.Zone.ThrowExplosive(ada, 0, 0, 0, 0, lob: false).Code, "a rock isn't thrown");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.ThrowExplosive(ada, 1, 0, 0, 0, lob: false).Code, "a grenade is");
+        Assert.Equal(OutcomeCode.NotUsable, rig.Zone.Explosives().ThrowExplosive(ada, 0, 0, 0, 0, lob: false).Code, "a rock isn't thrown");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Explosives().ThrowExplosive(ada, 1, 0, 0, 0, lob: false).Code, "a grenade is");
     }
 
     /// <summary>
@@ -192,7 +192,7 @@ public static class HeldTests
         Assert.Equal((int)OutcomeCode.Done, Act(5, "remove", (int)AttachmentSlot.Sight), "the sight off");
         Assert.True(a.Inventory.Main[5].Sight == 0 && a.Inventory.Count(c.ItemByKey("holo-sight")) == 1, "into the inventory");
         Assert.Equal((int)OutcomeCode.NotUsable, Act(6, "learn"), "a rock isn't learnt");
-        Assert.Equal((int)OutcomeCode.Invalid, (int)rig.Zone.ItemAction(ada, ContainerRef.Main, 0, 0, 99, 0).Code, "no such action");
+        Assert.Equal((int)OutcomeCode.Invalid, (int)rig.Zone.Actions().ItemAction(ada, ContainerRef.Main, 0, 0, 99, 0).Code, "no such action");
         Assert.Equal((int)OutcomeCode.NotAllowed, Act(0, "use", from: ContainerRef.Loot), "only the player's own slots");
 
         // Over the network: shown at once, confirmed; a refused one says why.
@@ -263,7 +263,7 @@ public static class HeldTests
         Loopback.RunUntil(net, () => me.Gun.PendingCount == 0 && me.Inventory.Count(c.ItemByKey("rifle-ammo")) == 60, "the server agrees");
         int serverLoaded = net.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(bo.EntityId, out _, out Player p);
+            sv.Zone.Players().TryFindPlayer(bo.EntityId, out _, out Player p);
             return (int)p.Inventory.Belt[1].Loaded + 1000 * p.Inventory.Count(c.ItemByKey("rifle-ammo"));
         });
         Assert.Equal(60_000, serverLoaded, "the server's magazine empty and the rounds back");
@@ -271,7 +271,7 @@ public static class HeldTests
         // The other rifle, loaded on the server (as if found loaded), unloaded from the main slots.
         net.Server.Inspect(sv =>
         {
-            sv.Zone.TryFindPlayer(bo.EntityId, out _, out Player p);
+            sv.Zone.Players().TryFindPlayer(bo.EntityId, out _, out Player p);
             ItemStack spare = p.Inventory.Main[rifles[1]];
             spare.Loaded = 12;
             spare.LoadedAmmo = c.ItemByKey("rifle-ammo-hv").Id;
@@ -350,10 +350,10 @@ public static class HeldTests
         rig.Give(ada, "wood", 500);
         var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-2")!, rig.Zone.Settle(new Vector3(31.5f, 0, 30)),
             rig.Zone.Frame.UpAt(new Vector3(31.5f, 0, 30)), 0, a.Id);
-        rig.Zone.AddStatic(bench);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Craft(ada, spear.Id, 1, out _), "crafting");
+        rig.Zone.Things().AddStatic(bench);
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().Craft(ada, spear.Id, 1, out _), "crafting");
         Assert.Equal(spearTicks[2], a.Crafting.Jobs[0].UnitTicks, "a quarter of the time");
-        rig.Zone.RemoveStatic(bench);
+        rig.Zone.Things().RemoveStatic(bench);
         int ticks = 0;
         while (a.Inventory.Count(c.ItemByKey("wooden-spear")) == 0 && ticks < spear.UnitTicks + 10)
         {

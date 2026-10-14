@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -8,21 +8,34 @@ using Hollow.Simulation.Items;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
-using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.World;
+
+using Hollow.Simulation.Movement;
 
 namespace Hollow.Simulation;
 
 // Players' actions (ARCHITECTURE.md §11.4: intents): every one checks everything against the server's state and
 // either does all it says or nothing, with the reason (Outcome). The server calls these as intents arrive.
-public sealed partial class Zone
+public sealed class ActionSystem : ZoneSystem
 {
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private ShipSystem? _shipsSystem;
+    private ShipSystem Ships => _shipsSystem ??= Zone.Require<ShipSystem>();
+    private SpillSystem? _spillSystem;
+    private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
+    private TargetSystem? _targetsSystem;
+    private TargetSystem Targets => _targetsSystem ??= Zone.Require<TargetSystem>();
+    private ThingSystem? _thingsSystem;
+    private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+
     private readonly List<ItemStack> _refunds = new();
     private readonly List<Container> _targets = new();
 
-    private bool Acting(Entity entity, out Player p)
+    internal bool Acting(Entity entity, out Player p)
     {
-        p = PlayerOf(entity)!;
+        p = Players.PlayerOf(entity)!;
         return p is { CanAct: true };
     }
 
@@ -35,11 +48,11 @@ public sealed partial class Zone
         {
             return default;
         }
-        if (StaticOf(e) is { Container: not null } thing)
+        if (Things.StaticOf(e) is { Container: not null } thing)
         {
             return (thing, null, e);
         }
-        if (PlayerOf(e) is { Dead: false } sleeper && (sleeper.Sleeping || sleeper.Wounded))
+        if (Players.PlayerOf(e) is { Dead: false } sleeper && (sleeper.Sleeping || sleeper.Wounded))
         {
             // A sleeper, or a player down (Rust lets the wounded be looted too).
             return (null, sleeper, e);
@@ -50,7 +63,7 @@ public sealed partial class Zone
     /// <summary>How what a player loots is looted: by its container's kind (a ship's cargo, G6, is a box's), or as a sleeper.</summary>
     public LootKind LootKindOf(Player p)
     {
-        if (LootShip(p) is { } ship)
+        if (Ships.LootShip(p) is { } ship)
         {
             return LootRules.KindOf(ship.Cargo);
         }
@@ -59,7 +72,7 @@ public sealed partial class Zone
     }
 
     /// <summary>The container an intent names, or null when there is no such open container.</summary>
-    public Container? Resolve(Player p, ContainerRef which)
+    public Container? ResolveContainer(Player p, ContainerRef which)
     {
         switch (which)
         {
@@ -68,7 +81,7 @@ public sealed partial class Zone
             case ContainerRef.Wear:
                 return p.Inventory[which];
         }
-        if (LootShip(p) is { } ship)
+        if (Ships.LootShip(p) is { } ship)
         {
             return which == ContainerRef.Loot ? ship.Cargo : null;
         }
@@ -96,7 +109,7 @@ public sealed partial class Zone
         {
             return OutcomeCode.Dead;
         }
-        Container? a = Resolve(p, from), b = Resolve(p, to);
+        Container? a = ResolveContainer(p, from), b = ResolveContainer(p, to);
         if (a == null || b == null)
         {
             return OutcomeCode.NotOpen;
@@ -105,7 +118,7 @@ public sealed partial class Zone
         {
             return OutcomeCode.NotAllowed;
         }
-        return TookFrom(p, InventoryRules.Move(Content!, a, fromSlot, b, toSlot, amount, expected));
+        return Spill.TookFrom(p, InventoryRules.Move(Content, a, fromSlot, b, toSlot, amount, expected));
     }
 
     public Outcome QuickMove(Entity entity, ContainerRef from, int slot, ushort expected)
@@ -114,7 +127,7 @@ public sealed partial class Zone
         {
             return OutcomeCode.Dead;
         }
-        Container? source = Resolve(p, from);
+        Container? source = ResolveContainer(p, from);
         if (source == null)
         {
             return OutcomeCode.NotOpen;
@@ -123,19 +136,19 @@ public sealed partial class Zone
         {
             return OutcomeCode.Invalid;
         }
-        if (Content!.Item(source[slot].Item) is not { } item)
+        if (Content.Item(source[slot].Item) is not { } item)
         {
             return OutcomeCode.Stale;
         }
         _targets.Clear();
         foreach (ContainerRef r in LootRules.QuickTargets(from, item, LootKindOf(p)))
         {
-            if (Resolve(p, r) is { } target)
+            if (ResolveContainer(p, r) is { } target)
             {
                 _targets.Add(target);
             }
         }
-        return TookFrom(p, InventoryRules.QuickMove(Content, source, slot, _targets, expected));
+        return Spill.TookFrom(p, InventoryRules.QuickMove(Content, source, slot, _targets, expected));
     }
 
     /// <summary>Drops (part of) a stack in front of the player: into the bag lying there, or a new one (<see cref="Spill(Vector3, ItemStack, float?)"/>).</summary>
@@ -145,7 +158,7 @@ public sealed partial class Zone
         {
             return OutcomeCode.Dead;
         }
-        Container? source = Resolve(p, from);
+        Container? source = ResolveContainer(p, from);
         if (source == null)
         {
             return OutcomeCode.NotOpen;
@@ -153,7 +166,7 @@ public sealed partial class Zone
         Outcome result = InventoryRules.Remove(source, slot, amount, expected, out ItemStack taken);
         if (result == OutcomeCode.Done)
         {
-            Drop(entity, taken);
+            Spill.Drop(entity, taken);
         }
         return result;
     }
@@ -169,11 +182,11 @@ public sealed partial class Zone
         {
             return OutcomeCode.Dead;
         }
-        return Content!.ItemActions.Do(new PlayerActor(this, entity, p), from, slot, expected, action, arg);
+        return Content.ItemActions.Do(new PlayerActor(Zone, entity, p), from, slot, expected, action, arg);
     }
 
     /// <summary>The player an item action acts for, as the zone has them: eating feeds them, learning counts, the gun in hand hears of its magazine.</summary>
-    private sealed class PlayerActor(Zone zone, Entity entity, Player p) : IItemActor
+    internal sealed class PlayerActor(Zone zone, Entity entity, Player p) : IItemActor
     {
         public GameContent Content => zone.Content!;
 
@@ -186,17 +199,17 @@ public sealed partial class Zone
         public void Consumed(ItemDef item)
         {
             ConsumeStats consume = item.Consume!;
-            Consume(p, consume, Content.Survival);
+            VitalsSystem.Consume(p, consume, Content.Survival);
             ref Character c = ref zone.Entities.Get<Character>(entity);
-            SyncHealth(ref c, p);
+            PlayerSystem.SyncHealth(ref c, p);
             if (consume.Poison > 0)
             {
                 // G7: raw or burnt meat makes the eater sick.
-                zone.Hurt(entity, p, consume.Poison, "Food poisoning", EntityId.None, "");
+                zone.Players().Hurt(entity, p, consume.Poison, "Food poisoning", EntityId.None, "");
             }
         }
 
-        public void Learned(Recipe recipe) => zone.WorldStats.Learned++;
+        public void Learned(Recipe recipe) => zone.World().WorldStats.Learned++;
 
         public void MagazineChanged(ContainerRef from, int slot)
         {
@@ -218,18 +231,18 @@ public sealed partial class Zone
             return OutcomeCode.Dead;
         }
         Vector3 at = EyeOf(Entities.Get<Character>(entity).State);
-        int bench = WorkbenchLevel(at);
+        int bench = Things.WorkbenchLevel(at);
         ulong station = 0;
-        if (Content!.Recipe(recipe) is { Station: { } needs })
+        if (Content.Recipe(recipe) is { Station: { } needs })
         {
             // Made at a station (a ship at the vehicle workbench, G6): the nearest within reach builds it.
-            if (StationNear(at, needs) is not { } found)
+            if (Ships.StationNear(at, needs) is not { } found)
             {
                 return OutcomeCode.NeedsStation.With(needs.Item.Id);
             }
             station = found.Id.Value;
         }
-        return p.Crafting.Start(Content!, p.Inventory, recipe, count, bench, out ticket, p.Blueprints, station);
+        return p.Crafting.Start(Content, p.Inventory, recipe, count, bench, out ticket, p.Blueprints, station);
     }
 
     public Outcome CancelCraft(Entity entity, uint ticket)
@@ -239,8 +252,8 @@ public sealed partial class Zone
             return OutcomeCode.Dead;
         }
         _refunds.Clear();
-        Outcome result = p.Crafting.Cancel(Content!, p.Inventory, ticket, _refunds);
-        Drop(entity, _refunds);
+        Outcome result = p.Crafting.Cancel(Content, p.Inventory, ticket, _refunds);
+        Spill.Drop(entity, _refunds);
         return result;
     }
 
@@ -249,7 +262,7 @@ public sealed partial class Zone
 
     public Outcome Close(Entity entity)
     {
-        if (PlayerOf(entity) is not { } p)
+        if (Players.PlayerOf(entity) is not { } p)
         {
             return OutcomeCode.Invalid;
         }
@@ -272,10 +285,10 @@ public sealed partial class Zone
             {
                 continue;
             }
-            if (ShipOf(p.Looting) is { } ship)
+            if (Ships.ShipOf(p.Looting) is { } ship)
             {
                 // A ship's cargo (G6): open while at its hatch, or in its seat.
-                if (ship.Destroyed || !p.IsAwakeAndAlive || !StillAtShip(Entities.AtSlot(players.Slots[i]), ship))
+                if (ship.Destroyed || !p.IsAwakeAndAlive || !Ships.StillAtShip(Entities.AtSlot(players.Slots[i]), ship))
                 {
                     p.Looting = EntityId.None;
                     p.LootRevision++;
@@ -288,7 +301,7 @@ public sealed partial class Zone
             {
                 // Open while its nearest surface is within reach (walking round it is no reason to close).
                 Vector3 eye = EyeOf(Entities.Get<Character>(Entities.AtSlot(players.Slots[i])).State);
-                keep = Reach(eye, thing?.Ref ?? sleeper!.Ref, Content!.Survival.KeepOpenReach, sight: false).Ok;
+                keep = Targets.Reach(eye, thing?.Ref ?? sleeper!.Ref, Content.Survival.KeepOpenReach, sight: false).Ok;
             }
             if (!keep)
             {
@@ -297,4 +310,50 @@ public sealed partial class Zone
             }
         }
     }
+
+    // ---------------------------------------------------------------- from moved here
+
+    private readonly List<ItemStack> _overflow = new();
+
+    private readonly List<ItemAmount> _finished = new();
+
+    private void StepCrafting(GameContent content)
+    {
+        ComponentPool<PlayerLink> players = Entities.Pool<PlayerLink>();
+        ReadOnlySpan<int> slots = players.Slots;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            Player p = players.Values[i].Player;
+            if (!p.IsAwakeAndAlive || p.Crafting.IsEmpty)
+            {
+                continue;
+            }
+            _overflow.Clear();
+            _finished.Clear();
+            Entity crafter = Entities.AtSlot(slots[i]);
+            p.Crafting.Advance(content, p.Inventory, _overflow, _finished, (recipe, station) => Ships.DeliverShip(crafter, p, recipe, station));
+            foreach (ItemAmount a in _finished)
+            {
+                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.CraftFinished, Player = p.Id, Item = a.Item.Id, Count = a.Count });
+                GameEvents.Add(new ZoneEvent { Kind = ZoneEventKind.ItemsGained, Player = p.Id, Item = a.Item.Id, Count = a.Count, Reason = GainReason.Crafted });
+            }
+            Spill.Drop(crafter, _overflow);
+        }
+    }
+
+
+    protected internal override void Step()
+    {
+        if (Tick % CharacterMotor.TickRate == 0)
+        {
+            CheckLoot();
+        }
+        StepCrafting(Content);
+    }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class ActionSystemAccess
+{
+    public static ActionSystem Actions(this Zone zone) => zone.Require<ActionSystem>();
 }

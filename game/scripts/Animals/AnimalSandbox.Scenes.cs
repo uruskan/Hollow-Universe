@@ -149,10 +149,10 @@ public partial class AnimalSandbox
         var scene = new Scene { Name = "herd", Site = site, Toward = toward, Hour = 9.5, Fov = 42 };
         scene.Build = () =>
         {
-            herd = _zone.Animals!.SpawnHerd(_content.Animal("deer")!, site, 5, range: 40);
+            herd = _zone.Animals().World!.SpawnHerd(_content.Animal("deer")!, site, 5, range: 40);
             // Boars rooting at the trees' edge across the clearing.
             Num.Vector3 edge = site + toward * 30 + Side(toward, _zone.Frame.UpAt(site)) * 14;
-            _zone.Animals.SpawnHerd(_content.Animal("boar")!, _zone.GroundAt(edge.X, edge.Z), 2, range: 30);
+            _zone.Animals().World.SpawnHerd(_content.Animal("boar")!, _zone.GroundAt(edge.X, edge.Z), 2, range: 30);
         };
         scene.Camera = () =>
         {
@@ -172,7 +172,7 @@ public partial class AnimalSandbox
         scene.Build = () =>
         {
             dummy = AddPerson("Dummy", site, YawOf(toward), dummy: true);
-            pack = _zone.Animals!.SpawnHerd(_content.Animal("wolf")!, _zone.GroundAt(site.X + toward.X * 42, site.Z + toward.Z * 42), 4,
+            pack = _zone.Animals().World!.SpawnHerd(_content.Animal("wolf")!, _zone.GroundAt(site.X + toward.X * 42, site.Z + toward.Z * 42), 4,
                 range: 40, facing: YawOf(-toward));
             foreach (Animal w in pack.Members)
             {
@@ -201,7 +201,7 @@ public partial class AnimalSandbox
         scene.Build = () =>
         {
             dummy = AddPerson("Dummy", site, YawOf(toward), dummy: true);
-            bear = _zone.Animals!.SpawnHerd(_content.Animal("bear")!, _zone.GroundAt(site.X + toward.X * 13.5f, site.Z + toward.Z * 13.5f), 1,
+            bear = _zone.Animals().World!.SpawnHerd(_content.Animal("bear")!, _zone.GroundAt(site.X + toward.X * 13.5f, site.Z + toward.Z * 13.5f), 1,
                 range: 30, facing: YawOf(-toward)).Leader!;
             bear.Hunger = 0;
         };
@@ -231,10 +231,10 @@ public partial class AnimalSandbox
         {
             Num.Vector3 up = _zone.Frame.UpAt(site);
             Num.Vector3 at = site + toward * 1.3f;
-            corpse = _zone.Animals!.SpawnHerd(_content.Animal("deer")!, _zone.GroundAt(at.X, at.Z), 1, range: 5,
+            corpse = _zone.Animals().World!.SpawnHerd(_content.Animal("deer")!, _zone.GroundAt(at.X, at.Z), 1, range: 5,
                 facing: YawOf(Side(toward, up))).Leader!;
             Player p = butcher!.Player;
-            _zone.DamageAnimal(corpse, 1000, HitRegion.Body, butcher.Current + up * 1.2f, p, p.Id, p.Name);
+            _zone.Animals().DamageAnimal(corpse, 1000, HitRegion.Body, butcher.Current + up * 1.2f, p, p.Id, p.Name);
             _zone.GameEvents.Clear();
         }
         scene.Build = () =>

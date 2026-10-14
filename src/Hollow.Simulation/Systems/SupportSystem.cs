@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using System;
 using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Targets;
 
@@ -10,21 +10,24 @@ namespace Hollow.Simulation;
 // removal: a piece picked up or coming down, a box taken, a tree felled, an animal or a body gone) its dependents go with it
 // by one rule: each by its own capabilities' consequence (IDependentCapability: an explosive falls). A link to a moving
 // support (a door's leaf, a body's bone) is followed by its dependent through TryPose.
-public sealed partial class Zone
+public sealed class SupportSystem : ZoneSystem
 {
-    private readonly Dictionary<TargetRef, List<TargetRef>> _dependents = new();
+    private TargetSystem? _targetsSystem;
+    private TargetSystem Targets => _targetsSystem ??= Zone.Require<TargetSystem>();
+
+    internal readonly Dictionary<TargetRef, List<TargetRef>> _dependents = new();
     private readonly Dictionary<TargetRef, TargetRef> _supportOf = new();
     private readonly Stack<List<TargetRef>> _spareDependents = new();
 
     /// <summary>The link that holds a thing at a pose on a support as it is now (none when the support doesn't exist).</summary>
     public SupportLink LinkTo(in TargetRef support, in TargetPose at) =>
-        TryPose(support, out TargetPose pose) ? SupportLink.Of(support, pose, at) : SupportLink.None;
+        Targets.TryPose(support, out TargetPose pose) ? SupportLink.Of(support, pose, at) : SupportLink.None;
 
     /// <summary>Where a linked thing is now: its support's pose (or part's) and its own pose there.</summary>
-    public bool TryPose(in SupportLink link, out TargetPose pose)
+    public bool TryLinkPose(in SupportLink link, out TargetPose pose)
     {
         pose = default;
-        if (link.IsNone || !TryPose(link.Support, out TargetPose support))
+        if (link.IsNone || !Targets.TryPose(link.Support, out TargetPose support))
         {
             return false;
         }
@@ -33,7 +36,7 @@ public sealed partial class Zone
     }
 
     /// <summary>Whether a support's things follow it as it moves (a door's leaf, a body).</summary>
-    public bool Moves(in TargetRef support) => FamilyOf(support.Family)?.Moves == true;
+    public bool Moves(in TargetRef support) => Targets.FamilyOf(support.Family)?.Moves == true;
 
     /// <summary>
     /// Records that a thing (<paramref name="dependent"/>) rests on or is stuck in <paramref name="support"/>, in place of
@@ -79,7 +82,7 @@ public sealed partial class Zone
     /// The one rule (GROUND_SYSTEMS.md §3.6): a support went (destroyed or removed), so everything on it or in it goes with
     /// it, each by its own capabilities' consequence.
     /// </summary>
-    private void SupportGone(in TargetRef support)
+    internal void SupportGone(in TargetRef support)
     {
         if (_dependents.Count == 0 || !_dependents.Remove(support.Whole, out List<TargetRef>? list))
         {
@@ -89,19 +92,25 @@ public sealed partial class Zone
         foreach (TargetRef dependent in list)
         {
             _supportOf.Remove(dependent);
-            if (FamilyOf(dependent.Family) is not { } family || family.Resolve(dependent.Id) is not { } thing)
+            if (Targets.FamilyOf(dependent.Family) is not { } family || family.Resolve(dependent.Id) is not { } thing)
             {
                 continue;
             }
             foreach (int capability in family.Capabilities(dependent.Id))
             {
-                if (Capabilities.Find(capability) is IDependentCapability handler)
+                if (Targets.Capabilities.Find(capability) is IDependentCapability handler)
                 {
-                    handler.SupportLost(this, dependent, thing);
+                    handler.SupportLost(Zone, dependent, thing);
                 }
             }
         }
         list.Clear();
         _spareDependents.Push(list);
     }
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class SupportSystemAccess
+{
+    public static SupportSystem Supports(this Zone zone) => zone.Require<SupportSystem>();
 }

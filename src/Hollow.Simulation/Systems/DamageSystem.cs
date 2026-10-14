@@ -1,7 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
@@ -63,15 +63,24 @@ internal struct BlastTarget
 // then its own consequences; the shared step after it gives the attacker their hit marker. The receivers also find their
 // things along a ray (Trace) and in a blast's reach (Blast), so a new kind of damageable thing (a vehicle, a monument's
 // door) is one more receiver, registered in InitDamage: no delivery changes.
-public sealed partial class Zone
+public sealed class DamageSystem : ZoneSystem
 {
+    private BlastSystem? _blastsSystem;
+    private BlastSystem Blasts => _blastsSystem ??= Zone.Require<BlastSystem>();
+    private ExplosiveSystem? _explosivesSystem;
+    private ExplosiveSystem Explosives => _explosivesSystem ??= Zone.Require<ExplosiveSystem>();
+    private PlayerSystem? _playersSystem;
+    private PlayerSystem Players => _playersSystem ??= Zone.Require<PlayerSystem>();
+    private SupportSystem? _supportsSystem;
+    private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
+
     /// <summary>
     /// The damage side of a target family (RustMVP's receiver capability, GROUND_SYSTEMS.md §3.1): it finds its things along
     /// a ray and within a blast's reach, and takes a request against one of them: its defences first (armour, a grade, a
     /// hull's share), then its consequences (health, death or breaking, what spills, what is reported). One receiver may
     /// serve more than one family (the building's pieces, doors and cupboards).
     /// </summary>
-    private interface IDamageReceiver
+    internal interface IDamageReceiver
     {
         /// <summary>The families it is the damage side of.</summary>
         TargetFamily[] Families { get; }
@@ -90,7 +99,7 @@ public sealed partial class Zone
     private readonly List<IDamageReceiver> _receiverOrder = new();
     private readonly List<BlastTarget> _blastTargets = new();
     private int _blasts;
-    private Blow _blow;
+    internal Blow _blow;
 
     // The one place receivers are registered, in the order a ray tests them: everything that is found along the whole
     // ray first, then the building and the ground, which look only as far as the nearest found so far. A blast takes
@@ -99,13 +108,13 @@ public sealed partial class Zone
     {
         // By target family (the explosives' takes no damage: it has no receiver).
         _receivers = Registry<IDamageReceiver>.ForEnum<TargetFamily>("damage receivers", complete: false, TargetFamily.None);
-        Register(new CharacterReceiver(this));
-        Register(new AnimalReceiver(this));
-        Register(new NatureReceiver(this));
-        Register(new DeployableReceiver(this));
-        Register(new ShipReceiver(this));
-        Register(new BuildingReceiver(this));
-        Register(new GroundReceiver(this));
+        Register(new CombatSystem.CharacterReceiver(Zone));
+        Register(new AnimalSystem.AnimalReceiver(Zone));
+        Register(new CombatSystem.NatureReceiver(Zone));
+        Register(new ThingSystem.DeployableReceiver(Zone));
+        Register(new ShipSystem.ShipReceiver(Zone));
+        Register(new BuildingSystem.BuildingReceiver(Zone));
+        Register(new CombatSystem.GroundReceiver(Zone));
         _receivers.Seal();
     }
 
@@ -169,7 +178,7 @@ public sealed partial class Zone
     }
 
     // The blow being applied (Damage sets it around its receiver): what anything it breaks is reported with.
-    private struct Blow
+    internal struct Blow
     {
         public bool Active;
         public DestroyCause Cause;
@@ -199,7 +208,7 @@ public sealed partial class Zone
     /// and a ship's crash. The blow being applied gives the cause (unless <paramref name="own"/> names one), its
     /// direction, who and with what.
     /// </summary>
-    private void Destroyed(TargetRef target, string key, int grade, Vector3 position, Quaternion rotation, DestroyCause? own = null, bool open = false)
+    internal void Destroyed(TargetRef target, string key, int grade, Vector3 position, Quaternion rotation, DestroyCause? own = null, bool open = false)
     {
         Blow blow = _blow;
         GameEvents.Add(new ZoneEvent
@@ -218,7 +227,7 @@ public sealed partial class Zone
             Flag = open,
         });
         // What rested on it or was stuck in it goes with it (GROUND_SYSTEMS.md §3.6).
-        SupportGone(target);
+        Zone.Get<SupportSystem>()?.SupportGone(target);
     }
 
     // ---------------------------------------------------------------- the blast
@@ -250,7 +259,7 @@ public sealed partial class Zone
         }
     }
 
-    private BlastReport Blast(List<BlastTarget> targets, BlastStats blast, Vector3 at, Vector3 normal, TargetRef stuckTo, TargetFamily on,
+    internal BlastReport Blast(List<BlastTarget> targets, BlastStats blast, Vector3 at, Vector3 normal, TargetRef stuckTo, TargetFamily on,
         EntityId attacker, string attackerName, ushort item, EntityId explosive, bool round)
     {
         var report = new BlastReport();
@@ -266,7 +275,7 @@ public sealed partial class Zone
         for (int i = 0; i < targets.Count; i++)
         {
             BlastTarget t = targets[i];
-            t.Visible = t.Stuck || Visible(at, t.Sight, t.Self) || (t.Sight2 != t.Sight && Visible(at, t.Sight2, t.Self));
+            t.Visible = t.Stuck || Blasts.Visible(at, t.Sight, t.Self) || (t.Sight2 != t.Sight && Blasts.Visible(at, t.Sight2, t.Self));
             targets[i] = t;
             if (!t.Visible)
             {
@@ -290,8 +299,8 @@ public sealed partial class Zone
             }
         }
 
-        TryFindPlayer(attacker, out _, out Player? by);
-        var raids = new RaidTallies();
+        Players.TryFindPlayer(attacker, out _, out Player? by);
+        var raids = new BlastSystem.RaidTallies();
         for (int i = 0; i < targets.Count; i++)
         {
             BlastTarget t = targets[i];
@@ -335,8 +344,8 @@ public sealed partial class Zone
         }
 
         // Claimed bases: one report each for the notification service.
-        raids.Report(this, attacker, attackerName, item);
-        RaidStats.Detonations++;
+        raids.Report(Zone, attacker, attackerName, item);
+        Explosives.RaidStats.Detonations++;
         GameEvents.Add(new ZoneEvent
         {
             Kind = ZoneEventKind.Detonated, Player = attacker, Other = explosive, Position = at, Velocity = normal, Item = item, Amount = radius,
@@ -344,4 +353,14 @@ public sealed partial class Zone
         });
         return report;
     }
+
+    public override int InitOrder => 70;
+
+    protected internal override void Init() => InitDamage();
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class DamageSystemAccess
+{
+    public static DamageSystem Damage(this Zone zone) => zone.Require<DamageSystem>();
 }

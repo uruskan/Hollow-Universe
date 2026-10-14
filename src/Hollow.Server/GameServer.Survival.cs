@@ -82,9 +82,9 @@ public sealed partial class GameServer
             }
             CharacterState state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
             state.Stance = (Stance)Math.Min(r.Stance, (byte)Stance.Crouching);
-            Entity entity = Zone.AddPlayer(r.Id, r.Name, state, DecodePlayer(r));
+            Entity entity = Zone.Players().AddPlayer(r.Id, r.Name, state, DecodePlayer(r));
             Zone.Entities.Get<Character>(entity).Input.Yaw = r.Yaw;
-            Zone.Sleep(entity);
+            Zone.Players().Sleep(entity);
             Zone.Entities.Add(entity, new NetPresence { NetId = _nextNetId++, Yaw = Quantize.Angle16(r.Yaw), Pitch = Quantize.Angle16(r.Pitch) });
             _accountOf[r.Id] = r.AccountId;
             sleepers++;
@@ -100,7 +100,7 @@ public sealed partial class GameServer
                 WorldObject? thing = WorldCodec.DecodeThing(t.Id, (StaticKind)t.Kind, t.Data, Content, Zone.Frame.ToLocal, Zone.Frame.UpAt, Zone.Tick);
                 if (thing != null && !Zone.Entities.TryFind(thing.Id, out _))
                 {
-                    Zone.AddStatic(thing);
+                    Zone.Things().AddStatic(thing);
                     things++;
                 }
                 _savedThings.Add(t.Id);
@@ -120,7 +120,7 @@ public sealed partial class GameServer
         }
         LoadBuilding(stored);
         // What stood on pieces that didn't come back goes now (GROUND_SYSTEMS.md §3.6).
-        Zone.SettleSupports();
+        Zone.Placement().SettleSupports();
         LoadShips(stored);
         RestoreExplosives();
         RestoreCorpses();
@@ -196,9 +196,9 @@ public sealed partial class GameServer
             }
         }
         var current = new HashSet<EntityId>();
-        foreach (WorldObject thing in Zone.Statics())
+        foreach (WorldObject thing in Zone.Things().Statics())
         {
-            if (thing is Deployable deployable && Zone.ClaimOf(deployable) != null)
+            if (thing is Deployable deployable && Zone.Building().ClaimOf(deployable) != null)
             {
                 continue; // saved with the building
             }
@@ -255,45 +255,45 @@ public sealed partial class GameServer
             {
                 MoveItemIntent m = MoveItemIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.MoveItem(me, m.From, m.FromSlot, m.To, m.ToSlot, Amount(m.Amount), Expected(m.Expected)));
+                    () => Zone.Actions().MoveItem(me, m.From, m.FromSlot, m.To, m.ToSlot, Amount(m.Amount), Expected(m.Expected)));
             }
             case QuickMoveIntent.TypeId:
             {
                 QuickMoveIntent m = QuickMoveIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.QuickMove(me, m.From, m.Slot, Expected(m.Expected)));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Actions().QuickMove(me, m.From, m.Slot, Expected(m.Expected)));
             }
             case DropIntent.TypeId:
             {
                 DropIntent m = DropIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.DropItem(me, m.From, m.Slot, Amount(m.Amount), Expected(m.Expected)));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Actions().DropItem(me, m.From, m.Slot, Amount(m.Amount), Expected(m.Expected)));
             }
             case ItemActionIntent.TypeId:
             {
                 ItemActionIntent m = ItemActionIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.ItemAction(me, m.From, m.Slot, Expected(m.Expected), Amount(m.Action), Amount(m.Arg)));
+                    () => Zone.Actions().ItemAction(me, m.From, m.Slot, Expected(m.Expected), Amount(m.Action), Amount(m.Arg)));
             }
             case CraftIntent.TypeId:
             {
                 CraftIntent m = CraftIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Craft(me, Amount(m.Recipe), Amount(m.Count), out _));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Actions().Craft(me, Amount(m.Recipe), Amount(m.Count), out _));
             }
             case CancelCraftIntent.TypeId:
             {
                 CancelCraftIntent m = CancelCraftIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.CancelCraft(me, m.Ticket));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Actions().CancelCraft(me, m.Ticket));
             }
             case InteractIntent.TypeId:
             {
-                // GROUND_SYSTEMS.md §5: every verb, one path (Zone.Interact).
+                // GROUND_SYSTEMS.md §5: every verb, one path (Zone.Interaction().Interact).
                 InteractIntent m = InteractIntent.Read(_reader);
                 return !_reader.Failed && Intent(session, m.Seq,
-                    () => Zone.Interact(me, NetConvert.ToRef(m.Target), (int)Math.Min(m.Verb, int.MaxValue), m.Arg, m.Code));
+                    () => Zone.Interaction().Interact(me, NetConvert.ToRef(m.Target), (int)Math.Min(m.Verb, int.MaxValue), m.Arg, m.Code));
             }
             case CloseIntent.TypeId:
             {
                 CloseIntent m = CloseIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Close(me));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Actions().Close(me));
             }
             case RespawnIntent.TypeId:
             {
@@ -306,7 +306,7 @@ public sealed partial class GameServer
                 var bag = new EntityId(m.Bag);
                 // The ground where the player comes in is built first, on worker threads (GROUND.md §4.6): the
                 // respawn happens on the tick it is ready (FinishRespawns), on the beach point picked now.
-                if (session.Playing && Zone.RespawnPoint(me, bag) is { } at && !Zone.Physics.GroundReady(at))
+                if (session.Playing && Zone.Players().RespawnPoint(me, bag) is { } at && !Zone.Physics.GroundReady(at))
                 {
                     if (TakeIntent(session, out Outcome refused))
                     {
@@ -348,7 +348,7 @@ public sealed partial class GameServer
             case AttachIntent.TypeId:
             {
                 AttachIntent m = AttachIntent.Read(_reader);
-                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Attach(me, m.From, m.Slot, m.WeaponIn, m.WeaponSlot, Expected(m.Expected)));
+                return !_reader.Failed && Intent(session, m.Seq, () => Zone.Guns().Attach(me, m.From, m.Slot, m.WeaponIn, m.WeaponSlot, Expected(m.Expected)));
             }
             default:
                 return ReceivePlacementIntent(session, type) || ReceiveBuildIntent(session, type) || ReceiveRaidIntent(session, type) ||
@@ -408,9 +408,9 @@ public sealed partial class GameServer
 
     private Outcome RespawnNow(Entity me, EntityId bag, Vector3? beach)
     {
-        Outcome result = Zone.Respawn(me, bag, beach);
+        Outcome result = Zone.Players().Respawn(me, bag, beach);
         if (result == OutcomeCode.Done && _options.KitEveryLife && _options.JoinKit != null &&
-            Content.Loot(_options.JoinKit) is { } kit && Zone.PlayerOf(me) is { } p)
+            Content.Loot(_options.JoinKit) is { } kit && Zone.Players().PlayerOf(me) is { } p)
         {
             GiveKit(p, kit);
         }
@@ -448,7 +448,7 @@ public sealed partial class GameServer
         }
         if (session.Playing)
         {
-            Zone.QueueGunAction(session.Entity, action);
+            Zone.Guns().QueueGunAction(session.Entity, action);
         }
         return true;
     }
@@ -486,7 +486,7 @@ public sealed partial class GameServer
         AfterWorld();
         foreach (PlayerSession session in _sessions.Values)
         {
-            if (session.Playing && Zone.PlayerOf(session.Entity) is { } p)
+            if (session.Playing && Zone.Players().PlayerOf(session.Entity) is { } p)
             {
                 SendOwnState(session, p);
             }
@@ -583,7 +583,7 @@ public sealed partial class GameServer
         Zone.GameEvents.Clear();
     }
 
-    private string NameOf(EntityId id) => Zone.TryFindPlayer(id, out _, out Player p) ? p.Name : id.ToString();
+    private string NameOf(EntityId id) => Zone.Players().TryFindPlayer(id, out _, out Player p) ? p.Name : id.ToString();
 
     private void SendNear(Vector3 point, DeliveryMethod method = DeliveryMethod.ReliableOrdered)
     {
@@ -612,12 +612,12 @@ public sealed partial class GameServer
         if (p.LootRevision != session.SentLoot)
         {
             session.SentLoot = p.LootRevision;
-            (WorldObject? thing, Player? sleeper, _) = Zone.LootTarget(p);
+            (WorldObject? thing, Player? sleeper, _) = Zone.Actions().LootTarget(p);
             _writer.Reset();
-            Simulation.Ships.Ship? ship = Zone.LootShip(p);
+            Simulation.Ships.Ship? ship = Zone.Ships().LootShip(p);
             new LootState
             {
-                LastSeq = session.LastIntentSeq, Target = thing != null || sleeper != null || ship != null ? p.Looting.Value : 0, Kind = Zone.LootKindOf(p),
+                LastSeq = session.LastIntentSeq, Target = thing != null || sleeper != null || ship != null ? p.Looting.Value : 0, Kind = Zone.Actions().LootKindOf(p),
             }.WriteMessage(_writer);
             Send(session);
             if (ship != null)
@@ -718,7 +718,7 @@ public sealed partial class GameServer
         var bags = new List<BagNet>();
         if (p.Dead)
         {
-            foreach (WorldObject thing in Zone.Statics())
+            foreach (WorldObject thing in Zone.Things().Statics())
             {
                 if (thing is Deployable { Def.IsRespawnPoint: true } bag && bag.Owner == p.Id && bags.Count < 32)
                 {
@@ -790,7 +790,7 @@ public sealed partial class GameServer
         }
         foreach (PlayerSession session in _sessions.Values)
         {
-            if (!session.Playing || Zone.PlayerOf(session.Entity) is not { } p)
+            if (!session.Playing || Zone.Players().PlayerOf(session.Entity) is not { } p)
             {
                 continue;
             }
@@ -799,9 +799,9 @@ public sealed partial class GameServer
             Watch(p.Inventory.Wear, session, ContainerRef.Wear);
             if (!p.Looting.IsNone)
             {
-                Watch(Zone.Resolve(p, ContainerRef.Loot), session, ContainerRef.Loot);
-                Watch(Zone.Resolve(p, ContainerRef.LootBelt), session, ContainerRef.LootBelt);
-                Watch(Zone.Resolve(p, ContainerRef.LootWear), session, ContainerRef.LootWear);
+                Watch(Zone.Actions().ResolveContainer(p, ContainerRef.Loot), session, ContainerRef.Loot);
+                Watch(Zone.Actions().ResolveContainer(p, ContainerRef.LootBelt), session, ContainerRef.LootBelt);
+                Watch(Zone.Actions().ResolveContainer(p, ContainerRef.LootWear), session, ContainerRef.LootWear);
             }
         }
         foreach ((Container container, List<(PlayerSession Session, ContainerRef Which)> list) in _watchers)
@@ -834,7 +834,7 @@ public sealed partial class GameServer
 
     private void SendLook(PlayerSession session, uint netId, Entity entity)
     {
-        if (Zone.PlayerOf(entity) is not { } p)
+        if (Zone.Players().PlayerOf(entity) is not { } p)
         {
             return;
         }
@@ -868,7 +868,7 @@ public sealed partial class GameServer
     {
         _thingGrid.Clear();
         _thingsPresent.Clear();
-        foreach (WorldObject thing in Zone.Statics())
+        foreach (WorldObject thing in Zone.Things().Statics())
         {
             if (!_thingNetIds.TryGetValue(thing.Id, out uint netId))
             {
@@ -924,7 +924,7 @@ public sealed partial class GameServer
                 // Sent again when it changed, or when what the player is told of it did (its contents, the viewer).
                 if (sent.Revision != thing.Revision || sent.Contents != contents || session.ViewerChanged)
                 {
-                    ViewerFlags flags = Zone.FlagsFor(thing.Ref, session.Viewer);
+                    ViewerFlags flags = Zone.Targets().FlagsFor(thing.Ref, session.Viewer);
                     session.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags);
                     if (sent.Revision != thing.Revision || flags != sent.Flags)
                     {
@@ -939,7 +939,7 @@ public sealed partial class GameServer
             {
                 spawned++;
                 _thingsRelevant.Add(netId);
-                ViewerFlags flags = Zone.FlagsFor(thing.Ref, session.Viewer);
+                ViewerFlags flags = Zone.Targets().FlagsFor(thing.Ref, session.Viewer);
                 session.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags);
                 (byte health, uint count) = Look(thing);
                 _writer.Reset();

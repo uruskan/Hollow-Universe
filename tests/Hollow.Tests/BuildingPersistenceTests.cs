@@ -40,8 +40,8 @@ public static class BuildingPersistenceTests
             (before, codeDoor, keyDoor, claimId, keyCode) = rig.Server.Inspect(sv =>
             {
                 Zone z = sv.Zone;
-                BuildingWorld b = z.Building!;
-                double now = z.BuildingNow;
+                BuildingWorld b = z.Building().World!;
+                double now = z.Building().BuildingNow;
                 Piece f = BuildingNetTests.Foundation(z, z.Settle(new Vector3(30, 0, 30)), Ada, grade: 2);
                 Piece f2 = BuildingNetTests.On(z, f, BuildingNetTests.Facing(f, 1, 0), "foundation", Ada, grade: 2);
                 Piece doorway = BuildingNetTests.On(z, f, BuildingNetTests.Facing(f, -1, 0), "doorway", Ada, grade: 2);
@@ -59,7 +59,7 @@ public static class BuildingPersistenceTests
                 Assert.True(b.SetLocked(Ada, other!, true).Ok, "locked");
                 Assert.True(b.PlaceClaim(Ada, f, new Vector3D(0.6, 0, 0.6), 2, out ClaimDevice? claim).Ok, "the claim device");
                 b.Authorise(Bo, claim!);
-                Container store = z.DeployableOf(claim!)!.Storage!;
+                Container store = z.Building().DeployableOf(claim!)!.Storage!;
                 store.Set(0, ItemStack.Of(content.ItemByKey("wood"), 900));
                 store.Set(3, ItemStack.Of(content.ItemByKey("stone"), 450));
                 return (b.AllPieces.ToDictionary(p => p.Id, Fingerprint), door!.Id, other!.Id, claim!.Id, key!.KeyCode);
@@ -74,7 +74,7 @@ public static class BuildingPersistenceTests
             string report = rig.Server.Inspect(sv =>
             {
                 Zone z = sv.Zone;
-                BuildingWorld b = z.Building!;
+                BuildingWorld b = z.Building().World!;
                 Dictionary<EntityId, string> after = b.AllPieces.ToDictionary(p => p.Id, Fingerprint);
                 Assert.Equal(before.Count, after.Count, "every piece is back");
                 foreach ((EntityId id, string was) in before)
@@ -87,17 +87,17 @@ public static class BuildingPersistenceTests
                 Assert.True(door is { Open: true, Lock: CodeLock { Locked: true } }, "the metal door open, its lock locked");
                 var code = (CodeLock)door.Lock!;
                 Assert.True(code.IsAuthorised(Ada) && code.IsAuthorised(Bo) && code.Authorised.Count == 2, "Ada and Bo let in");
-                Assert.Equal(OutcomeCode.WrongCode, b.EnterCode(0x300, door, "1357", z.BuildingNow).Code, "a wrong code is wrong");
-                Assert.True(b.EnterCode(0x400, door, "2468", z.BuildingNow).Ok, "the code is the same");
+                Assert.Equal(OutcomeCode.WrongCode, b.EnterCode(0x300, door, "1357", z.Building().BuildingNow).Code, "a wrong code is wrong");
+                Assert.True(b.EnterCode(0x400, door, "2468", z.Building().BuildingNow).Ok, "the code is the same");
                 Door other = b.DoorOf(keyDoor)!;
                 Assert.True(other.Lock is KeyLock { Locked: true } k && k.KeyCode == keyCode, "the key lock locked, with its number");
                 ClaimDevice claim = b.ClaimOf(claimId)!;
                 Assert.True(claim.IsAuthorised(Ada) && claim.IsAuthorised(Bo), "the claim device's list");
-                Container store = z.DeployableOf(claim)!.Storage!;
+                Container store = z.Building().DeployableOf(claim)!.Storage!;
                 int wood = InventoryRules.Count(new[] { store }, ContentFixture.Item("wood").Id);
                 int stone = InventoryRules.Count(new[] { store }, ContentFixture.Item("stone").Id);
                 Assert.True(wood is > 880 and <= 900 && stone is > 440 and <= 450, $"its store ({wood} wood, {stone} stone)");
-                Assert.True(z.Statics().OfType<Deployable>().Count(d => z.ClaimOf(d) != null) == 1, "kept by the zone as a deployable, once");
+                Assert.True(z.Things().Statics().OfType<Deployable>().Count(d => z.Building().ClaimOf(d) != null) == 1, "kept by the zone as a deployable, once");
                 return $"{after.Count} pieces, stability {string.Join("/", b.AllPieces.Select(p => p.Stability).Distinct().OrderDescending())}";
             });
             Fixtures.Report($"after the restart: {report}");
@@ -138,7 +138,7 @@ public static class BuildingPersistenceTests
         {
             (bool twigGone, double woodHealth, double wallHealth) = rig.Server.Inspect(sv =>
             {
-                BuildingWorld b = sv.Zone.Building!;
+                BuildingWorld b = sv.Zone.Building().World!;
                 return (b.PieceOf(twig) == null, b.PieceOf(wood)?.Health ?? 0, b.PieceOf(wall)?.Health ?? 0);
             });
             Fixtures.Report($"after an hour away: twig foundation {(twigGone ? "gone" : "still there")}, wood foundation {woodHealth:0.0}/200, wall {wallHealth:0.0}/200");

@@ -64,11 +64,11 @@ public static class ShipNetTests
         Vector3 hatch = ship.PointOf(ShipRig.Finch.Hatch);
         Vector3 side = Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, ship.State.Rotation));
         Vector3 standAt = zone.Settle(hatch + side * 1.6f);
-        Entity ada = zone.AddPlayer(zone.NextId(), "Ada", zone.NewCharacter(standAt + zone.Frame.UpAt(standAt) * 0.02f));
-        zone.PlayerOf(ada)!.Vitals.Health = 100;
+        Entity ada = zone.Players().AddPlayer(zone.NextId(), "Ada", zone.NewCharacter(standAt + zone.Frame.UpAt(standAt) * 0.02f));
+        zone.Players().PlayerOf(ada)!.Vitals.Health = 100;
         ship.HatchOpen = true;
         ship.HatchProgress = Ship.HatchTicks;
-        Assert.Equal(OutcomeCode.Done, zone.Interact(ada, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board"), "boards");
+        Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board"), "boards");
         rig.Step(2);
 
         // The client: its own ground and trees, the character's predictor (which records the inputs) and the ship's.

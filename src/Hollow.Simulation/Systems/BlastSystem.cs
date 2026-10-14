@@ -1,33 +1,42 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System;
 using Hollow.Core;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
-using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.World;
 
 namespace Hollow.Simulation;
 
 // What a blast sees, and the building's side of raiding (GROUND.md §6.6): the explosive channel's fractions of a point,
 // carried to the next hit, and the raid hits on claimed bases, summed per base over a blast. The blast itself is
 // Zone.Damage.cs's: every receiver finds its own things in its reach.
-public sealed partial class Zone
+public sealed class BlastSystem : ZoneSystem
 {
+    private BuildingSystem? _buildingSystem;
+    private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
+    private CombatSystem? _combatSystem;
+    private CombatSystem Combat => _combatSystem ??= Zone.Require<CombatSystem>();
+    private DamageSystem? _damageSystem;
+    private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
+    private ExplosiveSystem? _explosivesSystem;
+    private ExplosiveSystem Explosives => _explosivesSystem ??= Zone.Require<ExplosiveSystem>();
+
     // Damage to a piece, door or claim device, kept to the fraction: the building rules take whole points (rounded up
     // once, RustMVP's resolver), so the parts of a point are carried to the next hit; Rust's raid counts come out exactly
     // (a grenade's 8.99 against metal takes 112, not 100). The table's explosive damage goes in through the explosive
     // channel.
-    private (double Lost, bool Destroyed) DamageStructure(IBuildingPart part, double amount, Vector3 direction, double now)
+    internal (double Lost, bool Destroyed) DamageStructure(IBuildingPart part, double amount, Vector3 direction, double now)
     {
-        BuildingWorld building = Building!;
-        double total = _blastResidue.GetValueOrDefault(part) + amount;
+        BuildingWorld building = Building.World!;
+        double total = Explosives._blastResidue.GetValueOrDefault(part) + amount;
         double whole = Math.Floor(total + 1e-9);
-        _blastResidue[part] = Math.Max(0, total - whole);
+        Explosives._blastResidue[part] = Math.Max(0, total - whole);
         if (whole <= 0)
         {
             return (0, false);
@@ -35,7 +44,7 @@ public sealed partial class Zone
         DamageResult result = building.Damage(part, new DamageHit(direction, Explosive: whole), now);
         if (result.Destroyed)
         {
-            _blastResidue.Remove(part);
+            Explosives._blastResidue.Remove(part);
         }
         return (result.Loss, result.Destroyed);
     }
@@ -46,7 +55,7 @@ public sealed partial class Zone
     /// attacker, it is a raid (soft-siding, shooting a wooden door): reported in <see cref="RaidHits"/>. Returns the health lost.
     /// </summary>
     public float DamageBuildingBy(object part, Vector3 direction, float amount, bool projectile, Player? attacker, ushort weapon) =>
-        Damage(new DamageRequest
+        Damage.Damage(new DamageRequest
         {
             By = attacker,
             Attacker = attacker?.Id ?? EntityId.None,
@@ -62,11 +71,11 @@ public sealed partial class Zone
         }).Taken;
 
     /// <summary>What a raid alert calls a piece, door or claim device ("Stone wall", "Sheet Metal Door", "Claim device").</summary>
-    private string RaidName(object part) => part switch
+    internal string RaidName(object part) => part switch
     {
-        Piece piece => $"{Building!.Data.Grades[piece.Grade].Name} {piece.Def.Name.ToLowerInvariant()}",
+        Piece piece => $"{Building.World!.Data.Grades[piece.Grade].Name} {piece.Def.Name.ToLowerInvariant()}",
         Door door => door.Def.Name,
-        _ => Content!.ClaimDeployable.Item.Name,
+        _ => Content.ClaimDeployable.Item.Name,
     };
 
     /// <summary>A blast's raid hits, summed per claimed base (one alert each, in the order the bases were first hit).</summary>
@@ -88,14 +97,14 @@ public sealed partial class Zone
         {
             foreach (RaidTally tally in _bases.Values)
             {
-                zone.RaidHits.Add(tally.Hit(attacker, attackerName, item, zone.UnixMilliseconds));
-                zone.RaidStats.RaidHits++;
+                zone.Explosives().RaidHits.Add(tally.Hit(attacker, attackerName, item, zone.UnixMilliseconds));
+                zone.Explosives().RaidStats.RaidHits++;
             }
         }
     }
 
     // What one blow or blast did to one claimed base.
-    private sealed class RaidTally(ClaimDevice claim)
+    internal sealed class RaidTally(ClaimDevice claim)
     {
         private readonly List<string> _destroyed = new();
         private readonly List<string> _hit = new();
@@ -143,7 +152,7 @@ public sealed partial class Zone
     private bool BlastSees(Vector3 from, Vector3 to) => Visible(from, to, null);
 
     // Nothing of the building (but the target itself) nor the ground between a blast and a point.
-    private bool Visible(Vector3 from, Vector3 to, object? target)
+    internal bool Visible(Vector3 from, Vector3 to, object? target)
     {
         Vector3 d = to - from;
         float length = d.Length();
@@ -152,7 +161,7 @@ public sealed partial class Zone
             return true;
         }
         Vector3 direction = d / length;
-        if (Building?.Physics is { } physics && physics.Ray(from, direction, length - 0.02f, out RayHit hit, buildingOnly: true))
+        if (Building.World?.Physics is { } physics && physics.Ray(from, direction, length - 0.02f, out RayHit hit, buildingOnly: true))
         {
             object? owner = physics.OwnerOf(hit.Body);
             object? part = owner is DoorLeaf leaf ? leaf.Door : owner;
@@ -161,10 +170,10 @@ public sealed partial class Zone
                 return false;
             }
         }
-        return GroundCrossing(from, direction, length) < 0;
+        return Combat.GroundCrossing(from, direction, length) < 0;
     }
 
-    private static Vector3 ClosestPoint(BuildingData data, Piece piece, Vector3 at)
+    internal static Vector3 ClosestPoint(BuildingData data, Piece piece, Vector3 at)
     {
         BuildingFrame frame = piece.Structure.Frame;
         Vector3D local = PieceGeometry.ClosestPoint(data, piece.Def, piece.Pose, frame.ToLocal(new Vector3D(at.X, at.Y, at.Z)));
@@ -173,9 +182,9 @@ public sealed partial class Zone
     }
 
     // The nearest point of a door's leaves (boxes hanging from their hinges), and the leaf's centre.
-    private static (Vector3 Point, Vector3 Centre) ClosestPoint(Door door, Vector3 at) => DoorShapes.Nearest(door, at);
+    internal static (Vector3 Point, Vector3 Centre) ClosestPoint(Door door, Vector3 at) => DoorShapes.Nearest(door, at);
 
-    private static Vector3 ClosestPoint(Deployable d, Vector3 at)
+    internal static Vector3 ClosestPoint(Deployable d, Vector3 at)
     {
         (Vector3 right, Vector3 forward) = Geometry.Axes(d.Up, d.Yaw);
         Vector3 local = at - d.Centre;
@@ -187,7 +196,7 @@ public sealed partial class Zone
     }
 
     // A second point to look at a piece by: its middle (half its height for walls, stairs and roofs).
-    private static Vector3 CentreOf(Piece piece)
+    internal static Vector3 CentreOf(Piece piece)
     {
         double lift = piece.Def.Family is PieceFamily.Wall or PieceFamily.Stairs or PieceFamily.Roof ? piece.Def.Height / 2 : 0.05;
         Vector3D middle = PieceGeometry.ToFrame(piece.Pose, new Vector3D(0, lift, 0));
@@ -196,5 +205,11 @@ public sealed partial class Zone
     }
 
     // A door's second point: its first leaf's centre.
-    private static Vector3 CentreOf(Door door) => ClosestPoint(door, door.Leaf(0, door.Open).Position).Centre;
+    internal static Vector3 CentreOf(Door door) => ClosestPoint(door, door.Leaf(0, door.Open).Position).Centre;
+}
+
+/// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>
+public static class BlastSystemAccess
+{
+    public static BlastSystem Blasts(this Zone zone) => zone.Require<BlastSystem>();
 }

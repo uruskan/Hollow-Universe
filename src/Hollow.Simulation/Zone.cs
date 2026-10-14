@@ -1,14 +1,19 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 using Hollow.Core;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
-using Hollow.Surface;
 using Hollow.Simulation.Targets;
+using Hollow.Surface;
 
 namespace Hollow.Simulation;
 
@@ -27,7 +32,7 @@ public struct Character
 
     public CharacterBody Body;
 
-    /// <summary>Ticks left until a dead character comes back.</summary>
+    /// <summary>Ticks left until a dead character comes back (a movement-only zone, <see cref="AutoRespawnSystem"/>).</summary>
     public int RespawnTicks;
 }
 
@@ -42,26 +47,37 @@ public struct Named
 /// tick at a time (<see cref="CharacterMotor.TickRate"/>). The server owns the clock and calls <see cref="Step"/>;
 /// nothing here reads the time. One thread at a time.
 /// <para>
-/// With <see cref="GameContent"/> (G2) the zone also runs the survival game after movement, in GROUND.md §4.2's
-/// order: actions (swings, shots, crafting), projectiles and damage, survival, devices, timers (Zone.*.cs).
-/// Without it, it is G1's movement-only zone, where the dead come back by themselves.
+/// The zone is a host (GROUND_SYSTEMS.md §12.2): it keeps what every system shares (the entities, the physics, the
+/// natural objects, the pose history, the clock, the content, the events) and steps its <see cref="ZoneSystem"/>s in
+/// the order of its list (<see cref="GroundSystems"/>: with game content the survival game's rules; without, G1's
+/// movement-only zone, where the dead come back by themselves). A system is found by its type, <see cref="Get{T}"/>,
+/// or by the accessor its file gives the zone (<c>zone.Players()</c>).
 /// </para>
 /// </summary>
-public sealed partial class Zone : IDisposable
+public sealed class Zone : IDisposable
 {
-    /// <summary>A dead character comes back at the spawn point after this long (death and respawn proper are G2).</summary>
+    /// <summary>A dead character comes back at the spawn point after this long (a movement-only zone; the game's respawn is the player's choice).</summary>
     public const int RespawnDelayTicks = 3 * CharacterMotor.TickRate;
 
     /// <summary>Ground tiles nobody stood near for this long are dropped.</summary>
     public const int GroundKeepTicks = 10 * CharacterMotor.TickRate;
+
+    private readonly ZoneSystem[] _systems;
+    private readonly ZoneSystem[] _gated;
+    private readonly ZoneSystem[] _free;
+    private readonly Dictionary<Type, ZoneSystem> _byType = new();
+    private long _localIds = 1;
 
     public Zone(ZoneSpec spec, MovementTuning? tuning = null, GameContent? content = null)
         : this(spec.CreateSurface(), spec, tuning, content)
     {
     }
 
-    /// <summary>A zone on a given surface (tests use surfaces of their own, such as one with a sea).</summary>
-    public Zone(ISurface surface, ZoneSpec spec, MovementTuning? tuning = null, GameContent? content = null)
+    /// <summary>
+    /// A zone on a given surface (tests use surfaces of their own, such as one with a sea), with its systems: by default
+    /// <see cref="GroundSystems.Game"/> with content and <see cref="GroundSystems.MovementOnly"/> without.
+    /// </summary>
+    public Zone(ISurface surface, ZoneSpec spec, MovementTuning? tuning = null, GameContent? content = null, IReadOnlyList<ZoneSystem>? systems = null)
     {
         Spec = spec;
         Surface = surface;
@@ -69,10 +85,33 @@ public sealed partial class Zone : IDisposable
         Tuning = tuning ?? MovementTuning.Default;
         Movement = new MoveContext(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), Tuning);
         Physics = new PhysicsWorld(surface, Frame);
+        Content = content;
         if (content != null)
         {
-            InitGame(content);
+            Nature = Spec.CreateNature(Surface, Frame, content);
+            Natural = new NaturalState(content, Nature);
+            _ = new NaturalBodies(Physics, Natural);
+            Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
         }
+        _systems = (systems ?? (content != null ? GroundSystems.Game() : GroundSystems.MovementOnly())).ToArray();
+        foreach (ZoneSystem system in _systems)
+        {
+            if (!_byType.TryAdd(system.GetType(), system))
+            {
+                throw new InvalidOperationException($"{system.GetType().Name} is in the zone's list twice (GROUND_SYSTEMS.md §12.2)");
+            }
+            system.Attach(this);
+        }
+        foreach (ZoneSystem system in _systems.OrderBy(s => s.InitOrder))
+        {
+            system.Init();
+        }
+        foreach (ZoneSystem system in _systems)
+        {
+            system.Start();
+        }
+        _gated = _systems.Where(s => s.InsidePhysicsGate).ToArray();
+        _free = _systems.Where(s => !s.InsidePhysicsGate).ToArray();
     }
 
     public ZoneSpec Spec { get; }
@@ -91,6 +130,42 @@ public sealed partial class Zone : IDisposable
 
     /// <summary>Ticks stepped so far.</summary>
     public long Tick { get; private set; }
+
+    /// <summary>The game's numbers; null in a movement-only zone (G1).</summary>
+    public GameContent? Content { get; }
+
+    /// <summary>Where the trees, outcrops, pickups and bushes are, and what players did to them (null without content).</summary>
+    public INaturalObjects? Nature { get; }
+
+    public NaturalState? Natural { get; }
+
+    /// <summary>The air temperature (the stand-in until the server sets the planet's climate).</summary>
+    public IClimate? Climate { get; set; }
+
+    /// <summary>The real clock (Unix ms), set by the server before every step: respawn timers and bag cooldowns.</summary>
+    public long UnixMilliseconds { get; set; }
+
+    /// <summary>Hands out IDs for new persistent entities (the server's allocator); a counter if not set.</summary>
+    public Func<EntityId>? NewEntityId { get; set; }
+
+    /// <summary>A beach point for a respawn (the server sets the planet's real coast, <see cref="Simulation.Beaches"/>); the stand-in ring if not set.</summary>
+    public Func<ulong, Vector3>? Beaches { get; set; }
+
+    /// <summary>One second of poses of every character, for hits as the attacker saw them (<see cref="HistorySystem"/> records them).</summary>
+    public HitboxHistory History { get; } = new();
+
+    /// <summary>What happened this tick that players should hear about; the server sends and clears it.</summary>
+    public List<ZoneEvent> GameEvents { get; } = new();
+
+    /// <summary>The systems, in the order they step.</summary>
+    public IReadOnlyList<ZoneSystem> Systems => _systems;
+
+    /// <summary>The system of a type, or null when this zone has none (GROUND_SYSTEMS.md §12.2, K4).</summary>
+    public T? Get<T>() where T : ZoneSystem => _byType.TryGetValue(typeof(T), out ZoneSystem? system) ? (T)system : null;
+
+    /// <summary>The system of a type that this zone must have.</summary>
+    public T Require<T>() where T : ZoneSystem =>
+        Get<T>() ?? throw new InvalidOperationException($"this zone has no {typeof(T).Name} (its list is {string.Join(", ", _systems.Select(s => s.GetType().Name))})");
 
     /// <summary>Adds a character at a state (a new player's spawn, or one restored from storage).</summary>
     public Entity AddCharacter(EntityId id, string name, in CharacterState state)
@@ -111,7 +186,7 @@ public sealed partial class Zone : IDisposable
         {
             Entities.Get<Character>(entity).Body.Dispose();
         }
-        SupportGone(new TargetRef(TargetFamily.Character, Entities.IdOf(entity).Value));
+        Get<SupportSystem>()?.SupportGone(new TargetRef(TargetFamily.Character, Entities.IdOf(entity).Value));
         History.Forget(Entities.IdOf(entity));
         Entities.Destroy(entity);
     }
@@ -134,11 +209,45 @@ public sealed partial class Zone : IDisposable
         Physics.EnsureGround(position);
     }
 
+    /// <summary>
+    /// Sets a character's god mode and noclip (only the server does; its client's prediction follows them from the
+    /// player's own state). Leaving noclip, the character stops where it is, and comes up onto the ground if it was
+    /// under it.
+    /// </summary>
+    public void SetCheats(Entity entity, MoveCheats cheats)
+    {
+        ref Character c = ref Entities.Get<Character>(entity);
+        if (c.State.Has(MoveCheats.Noclip) && (cheats & MoveCheats.Noclip) == 0)
+        {
+            c.State.Velocity = Vector3.Zero;
+            if (HeightAboveGround(c.State.Position) < 0)
+            {
+                Vector3 ground = GroundAt(c.State.Position.X, c.State.Position.Z);
+                c.State.Position = ground + Frame.UpAt(ground) * 0.05f;
+            }
+            Physics.Prefetch(c.State.Position, 1);
+            Physics.EnsureGround(c.State.Position);
+        }
+        c.State.Cheats = cheats;
+    }
+
     /// <summary>The ground under a point of the zone's tangent plane, in the zone frame.</summary>
     public Vector3 GroundAt(float x, float z) => Ground.At(x, z);
 
     /// <summary>The surface's own ground, asked as a client asks it (<see cref="GroundProbe"/>).</summary>
     public GroundProbe Ground => new(Surface, Frame);
+
+    /// <summary>The point on the ground below (or above) a point.</summary>
+    public Vector3 Settle(Vector3 point) => Ground.Settle(point);
+
+    /// <summary>How far a point is above the ground, in metres (negative below).</summary>
+    public float HeightAboveGround(Vector3 point) => Ground.HeightAbove(point);
+
+    /// <summary>The ground's up and its slope (radians) under a point, from the surface by finite differences.</summary>
+    public (Vector3 Normal, float Slope) GroundNormal(Vector3 point) => Ground.Normal(point);
+
+    /// <summary>The eye of a character now.</summary>
+    public Vector3 EyeOf(in CharacterState state) => state.Position + Frame.UpAt(state.Position) * Tuning.EyeHeight(state.Stance);
 
     /// <summary>
     /// Where a new character appears: on a ring of 3–8 m around the zone's origin, at a place fixed by
@@ -153,7 +262,13 @@ public sealed partial class Zone : IDisposable
         return ground + Frame.UpAt(ground) * 0.05f;
     }
 
-    /// <summary>One tick: every character moves with its input; the dead count down to respawning.</summary>
+    /// <summary>A new persistent entity ID.</summary>
+    public EntityId NextId() => NewEntityId?.Invoke() ?? new EntityId(0x7000_0000_0000_0000UL + (ulong)_localIds++);
+
+    /// <summary>
+    /// One tick: the ground under everyone; under the physics gate, the characters' movement and the systems that move
+    /// bodies; then the other systems in their order (GROUND.md §4.2).
+    /// </summary>
     public void Step()
     {
         Tick++;
@@ -180,32 +295,13 @@ public sealed partial class Zone : IDisposable
             }
             TickProfile.Scope movement = Profile.Time(ProfileSection.Movement);
             Span<Character> values = characters.Values;
-            ReadOnlySpan<int> slots = characters.Slots;
             for (int i = 0; i < values.Length; i++)
             {
                 ref Character character = ref values[i];
-                if (character.State.IsDead)
+                if (character.State.IsDead || character.State.Stance == Stance.Seated)
                 {
-                    if (Content != null)
-                    {
-                        // G2: the dead wait for a respawn of their choice (Zone.Players.cs).
-                        character.Events = default;
-                        continue;
-                    }
-                    if (character.RespawnTicks <= 0)
-                    {
-                        character.RespawnTicks = RespawnDelayTicks;
-                    }
-                    else if (--character.RespawnTicks == 0)
-                    {
-                        character.State = NewCharacter(SpawnPoint(Entities.IdOf(Entities.AtSlot(slots[i])).Value + (ulong)Tick));
-                    }
-                    character.Events = default;
-                    continue;
-                }
-                if (character.State.Stance == Stance.Seated)
-                {
-                    // In a ship (G6): it carries the character after it moves (Zone.Ships.cs).
+                    // The dead wait for their respawn (PlayerSystem; AutoRespawnSystem without content); a seated
+                    // character is carried by its ship (ShipSystem).
                     character.Events = default;
                     continue;
                 }
@@ -214,18 +310,35 @@ public sealed partial class Zone : IDisposable
             movement.Dispose();
             using (Profile.Time(ProfileSection.Ships))
             {
-                StepShips();
+                foreach (ZoneSystem system in _gated)
+                {
+                    Run(system);
+                }
             }
         }
         using (Profile.Time(ProfileSection.GroundRelease))
         {
             Physics.ReleaseUnusedGround(GroundKeepTicks);
         }
-        if (Content != null)
+        if (_free.Length > 0)
         {
             using TickProfile.Scope _ = Profile.Time(ProfileSection.Game);
-            StepGame();
+            foreach (ZoneSystem system in _free)
+            {
+                Run(system);
+            }
         }
+    }
+
+    private void Run(ZoneSystem system)
+    {
+        if (Tick % system.Every != 0)
+        {
+            return;
+        }
+        long started = Stopwatch.GetTimestamp();
+        system.Step();
+        system.Time += Stopwatch.GetElapsedTime(started);
     }
 
     /// <summary>Times the zone's step and its ground on the server (GROUND.md §5.11); null measures nothing.</summary>
@@ -237,13 +350,15 @@ public sealed partial class Zone : IDisposable
 
     public void Dispose()
     {
+        for (int i = _systems.Length - 1; i >= 0; i--)
+        {
+            _systems[i].Dispose();
+        }
         ComponentPool<Character> characters = Entities.Pool<Character>();
         foreach (Character character in characters.Values)
         {
             character.Body.Dispose();
         }
-        _shipCollider?.Dispose();
-        Building?.Dispose();
         Physics.Dispose();
     }
 }

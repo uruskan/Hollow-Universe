@@ -89,7 +89,7 @@ public partial class ShipSandbox : Node3D
     /// <summary>For automated screenshots: the scene set up, the ground, plants and grass around the camera streamed.</summary>
     public bool ReadyForShot => _frames > 30 && _surface.IsReady;
 
-    private bool Seated => _zone.SeatOf(_player) == _ship;
+    private bool Seated => _zone.Ships().SeatOf(_player) == _ship;
 
     public override void _Ready()
     {
@@ -144,18 +144,18 @@ public partial class ShipSandbox : Node3D
         _padYaw = -MathF.PI / 2; // the nose east: in the morning the sun lights the hatch side
         ShipDef finch = _content.Ship("tin-finch") ?? _content.Ships[0];
         _pad = FindSite(Num.Vector3.Zero, 90, 6, s => s.Spread < 0.6f && s.Trees < 0.004 ? -s.Spread - (float)s.Trees * 200 - s.Distance * 0.002f : float.MinValue,
-            fallback: Num.Vector3.Zero, accept: g => _zone.ShipSpaceClear(finch, g, _padYaw));
+            fallback: Num.Vector3.Zero, accept: g => _zone.Ships().ShipSpaceClear(finch, g, _padYaw));
         Num.Vector3 up = _zone.Frame.UpAt(_pad);
         (Num.Vector3 forward, Num.Vector3 right) = CharacterMotor.HorizontalBasis(_padYaw, up);
         DeployableDef benchDef = _content.Deployable("vehicle-workbench")!;
         float bay = benchDef.Bay?.At.Z ?? 4.6f;
         Num.Vector3 benchAt = _zone.Settle(_pad - forward * bay);
         Entity player = AddPlayer(_pad + right * 4.5f - forward * 0.5f);
-        EntityId owner = _zone.PlayerOf(player)!.Id;
+        EntityId owner = _zone.Players().PlayerOf(player)!.Id;
         _bench = new Deployable(_zone.NextId(), benchDef, benchAt, _zone.Frame.UpAt(benchAt), _padYaw, owner);
-        _zone.AddStatic(_bench);
+        _zone.Things().AddStatic(_bench);
         ShipDef def = _content.Ship("tin-finch") ?? _content.Ships[0];
-        _ship = _zone.SpawnShip(def, _pad, _padYaw, owner, def.FuelCapacity);
+        _ship = _zone.Ships().SpawnShip(def, _pad, _padYaw, owner, def.FuelCapacity);
         _shipView = new ShipView(def);
         AddChild(_shipView);
         _benchModel = ModelCatalog.Instantiate("vehicle-workbench");
@@ -169,8 +169,8 @@ public partial class ShipSandbox : Node3D
     private Entity AddPlayer(Num.Vector3 near)
     {
         Num.Vector3 ground = _zone.Settle(near);
-        _player = _zone.AddPlayer(_zone.NextId(), "Pilot", _zone.NewCharacter(ground + _zone.Frame.UpAt(ground) * 0.05f));
-        Player p = _zone.PlayerOf(_player)!;
+        _player = _zone.Players().AddPlayer(_zone.NextId(), "Pilot", _zone.NewCharacter(ground + _zone.Frame.UpAt(ground) * 0.05f));
+        Player p = _zone.Players().PlayerOf(_player)!;
         p.Inventory.Give(_content, _content.ItemByKey("lamp-oil"), 200);
         _feetBefore = _feetNow = _zone.Entities.Get<Character>(_player).State.Position;
         return _player;
@@ -278,7 +278,7 @@ public partial class ShipSandbox : Node3D
                 Num.Vector3 hill = FindSite(Num.Vector3.Zero, 2000, 40,
                     s => s.Slope is > 14 and < 24 && MathF.Abs(s.Footprint - s.Slope) < 4
                         ? -MathF.Abs(s.Slope - 19) - (float)s.Trees * 300 - s.Distance * 0.001f : float.MinValue,
-                    fallback: _pad, accept: g => _zone.ShipSpaceClear(def, g, 0));
+                    fallback: _pad, accept: g => _zone.Ships().ShipSpaceClear(def, g, 0));
                 Num.Vector3 hillUp = _zone.Frame.UpAt(hill);
                 (Num.Vector3 normal, float slope) = _zone.GroundNormal(hill);
                 Num.Vector3 downhill = normal - hillUp * Num.Vector3.Dot(normal, hillUp);
@@ -341,7 +341,7 @@ public partial class ShipSandbox : Node3D
         c.State.Position = _zone.Settle(hatch + outward * 1.2f) + _zone.Frame.UpAt(hatch) * 0.05f;
         ship.HatchOpen = true;
         ship.HatchProgress = Ship.HatchTicks;
-        Outcome result = _zone.Interact(_player, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board");
+        Outcome result = _zone.Interaction().Interact(_player, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board");
         if (result != OutcomeCode.Done)
         {
             GD.PushWarning($"[ship] could not board for the scene: {result}");
@@ -384,7 +384,7 @@ public partial class ShipSandbox : Node3D
         for (int i = 0; i < ticks; i++)
         {
             _zone.Step();
-            _zone.ShipEvents.Clear();
+            _zone.Ships().ShipEvents.Clear();
             _zone.GameEvents.Clear();
         }
     }
@@ -424,7 +424,7 @@ public partial class ShipSandbox : Node3D
         // The camera (the surface view streams around it in its own process step), then what stands in the world.
         PlaceCamera(shown, (float)delta, alpha);
         ShipView.Exposure = _surface.Sky?.Exposure ?? 1;
-        if (_zone.Ships.Contains(_ship))
+        if (_zone.Ships().All.Contains(_ship))
         {
             _shipView.Visible = true;
             _shipView.FromCockpit = Seated && _shipCamera.Mode == ShipCameraMode.Cockpit && _observer == null;
@@ -482,7 +482,7 @@ public partial class ShipSandbox : Node3D
     // What the zone said this tick: crashes, orbit, the ship's end.
     private void Events()
     {
-        foreach (ShipEvent e in _zone.ShipEvents)
+        foreach (ShipEvent e in _zone.Ships().ShipEvents)
         {
             if (e.Ship != _ship)
             {
@@ -501,15 +501,15 @@ public partial class ShipSandbox : Node3D
                     break;
             }
         }
-        _zone.ShipEvents.Clear();
+        _zone.Ships().ShipEvents.Clear();
         _zone.GameEvents.Clear();
     }
 
     // A ship destroyed or a pilot dead: a new ship on the pad and the pilot beside it, after a moment.
     private void Revive()
     {
-        bool gone = !_zone.Ships.Contains(_ship);
-        bool dead = _zone.PlayerOf(_player)?.Dead ?? true;
+        bool gone = !_zone.Ships().All.Contains(_ship);
+        bool dead = _zone.Players().PlayerOf(_player)?.Dead ?? true;
         if (!gone && !dead)
         {
             return;
@@ -531,7 +531,7 @@ public partial class ShipSandbox : Node3D
         if (gone)
         {
             ShipDef def = _ship.Def;
-            _ship = _zone.SpawnShip(def, _pad, _padYaw, _zone.PlayerOf(_player)!.Id, def.FuelCapacity);
+            _ship = _zone.Ships().SpawnShip(def, _pad, _padYaw, _zone.Players().PlayerOf(_player)!.Id, def.FuelCapacity);
         }
         _shipBefore = _shipNow = _ship.State;
         _feetBefore = _feetNow = _zone.Entities.Get<Character>(_player).State.Position;
@@ -659,12 +659,12 @@ public partial class ShipSandbox : Node3D
     // What a tap of E does at the hatch, within its reach (the interaction's own rules, the zone being local here).
     private string? FootPrompt()
     {
-        if (!_zone.Ships.Contains(_ship) || _ship.Destroyed || !_zone.Options(_player, Hatch, _options))
+        if (!_zone.Ships().All.Contains(_ship) || _ship.Destroyed || !_zone.Interaction().Options(_player, Hatch, _options))
         {
             return null;
         }
         Num.Vector3 eye = _zone.EyeOf(_zone.Entities.Get<Character>(_player).State);
-        if (!_zone.Reach(eye, Hatch, _zone.Content!.Survival.InteractReach).Ok || InteractionRules.Primary(_options) is not (>= 0 and var primary))
+        if (!_zone.Targets().Reach(eye, Hatch, _zone.Content!.Survival.InteractReach).Ok || InteractionRules.Primary(_options) is not (>= 0 and var primary))
         {
             return null;
         }
@@ -674,8 +674,8 @@ public partial class ShipSandbox : Node3D
 
     // A tap of E at the hatch: its primary option (open the hatch, or board).
     private Outcome TapHatch() =>
-        _zone.Options(_player, Hatch, _options) && InteractionRules.Primary(_options) is >= 0 and var primary
-            ? _zone.Interact(_player, Hatch, _options[primary].Verb)
+        _zone.Interaction().Options(_player, Hatch, _options) && InteractionRules.Primary(_options) is >= 0 and var primary
+            ? _zone.Interaction().Interact(_player, Hatch, _options[primary].Verb)
             : OutcomeCode.NotUsable;
 
     private void Notice(string text)
@@ -755,7 +755,7 @@ public partial class ShipSandbox : Node3D
                     break;
                 case Godot.Key.F:
                 {
-                    Outcome r = _zone.ExitShip(_player);
+                    Outcome r = _zone.Ships().ExitShip(_player);
                     if (r == OutcomeCode.Done)
                     {
                         _controls.Reset();
@@ -769,14 +769,14 @@ public partial class ShipSandbox : Node3D
                     break;
                 }
                 case Godot.Key.H:
-                    Refused(_zone.ShipHatch(_player, _ship.Id), "The hatch opens only when the ship is at rest.");
+                    Refused(_zone.Ships().ShipHatch(_player, _ship.Id), "The hatch opens only when the ship is at rest.");
                     break;
                 case Godot.Key.L:
-                    Refused(_zone.LockShip(_player, _ship.Id), "Only the owner locks it.");
+                    Refused(_zone.Ships().LockShip(_player, _ship.Id), "Only the owner locks it.");
                     Notice(_ship.Locked ? "Locked" : "Unlocked");
                     break;
                 case Godot.Key.J:
-                    Refused(_zone.Descend(_player), "Only from orbit.");
+                    Refused(_zone.Ships().Descend(_player), "Only from orbit.");
                     _shipBefore = _shipNow = _ship.State;
                     break;
             }
@@ -790,7 +790,7 @@ public partial class ShipSandbox : Node3D
             case Godot.Key.E:
             {
                 Outcome r = TapHatch();
-                if (r == OutcomeCode.Done && _zone.SeatOf(_player) == _ship)
+                if (r == OutcomeCode.Done && _zone.Ships().SeatOf(_player) == _ship)
                 {
                     _controls.Reset();
                     _shipCamera.Reset();
@@ -799,14 +799,14 @@ public partial class ShipSandbox : Node3D
                 break;
             }
             case Godot.Key.G:
-                Refused(_zone.Interact(_player, Hatch, "hatch-close"), "");
+                Refused(_zone.Interaction().Interact(_player, Hatch, "hatch-close"), "");
                 break;
             case Godot.Key.L:
-                Refused(_zone.Interact(_player, Hatch, _ship.Locked ? "ship-unlock" : "ship-lock"), "");
+                Refused(_zone.Interaction().Interact(_player, Hatch, _ship.Locked ? "ship-unlock" : "ship-lock"), "");
                 Notice(_ship.Locked ? "Locked" : "Unlocked");
                 break;
             case Godot.Key.R:
-                Refused(_zone.Interact(_player, FuelCap, "refuel"), "");
+                Refused(_zone.Interaction().Interact(_player, FuelCap, "refuel"), "");
                 break;
         }
     }
