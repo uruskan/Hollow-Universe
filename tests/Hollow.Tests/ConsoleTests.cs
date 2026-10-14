@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using Hollow.Client;
+using Hollow.Server;
 using Hollow.Net.Commands;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
@@ -209,10 +210,10 @@ public static class ConsoleTests
         RunUntil(rig, () => bo.Local.IsDead, "Bo dead");
 
         // The zone's time of day: nine in the evening at its origin, on every client's clock too.
-        Fixtures.Report($"the planet's own clock: {rig.Server.Inspect(sv => sv.ZoneHours ?? -1):0.00} h at the origin");
+        Fixtures.Report($"the planet's own clock: {rig.Server.Inspect(sv => sv.Console().ZoneHours ?? -1):0.00} h at the origin");
         Assert.True(Run(rig, ada, "time 21").Any(a => a.Kind == ConsoleReplyKind.Success), "time set");
         RunUntil(rig, () => bo.Console().Day is { Overridden: true }, "the new clock at Bo's client");
-        double hours = rig.Server.Inspect(sv => sv.ZoneHours ?? -1);
+        double hours = rig.Server.Inspect(sv => sv.Console().ZoneHours ?? -1);
         Assert.Near(21, hours, 0.05, "local solar time at the origin (h)");
         Surface.SkyEphemeris sky = spec.CreateSky()!;
         ZoneDay day = bo.Console().Day!.Value;

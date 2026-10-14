@@ -9,23 +9,24 @@ using Hollow.Simulation.Targets;
 
 namespace Hollow.Server;
 
-// Placing anything (GROUND_SYSTEMS.md §6): one intent for every placeable, on the general budget, answered by
-// IntentResult; the zone works the placement out again and checks it with the same code as the client's ghost.
-public sealed partial class GameServer
+/// <summary>
+/// Placing anything (GROUND_SYSTEMS.md §6): one intent for every placeable, on the general budget, answered by
+/// IntentResult; the zone works the placement out again and checks it with the same code as the client's ghost.
+/// </summary>
+public sealed class PlacementModule : ServerModule
 {
     private readonly Dictionary<string, long> _placed = new(StringComparer.Ordinal);
 
     /// <summary>Placements accepted, by placeable kind (placement.json's names), for the load test and <c>status</c>.</summary>
     public long PlacedOf(string kind) => _placed.GetValueOrDefault(kind);
 
-    private bool ReceivePlacementIntent(PlayerSession session, uint type)
+    protected internal override void Init(MessageHandlers<PlayerSession> handlers)
     {
-        if (type != PlaceIntent.TypeId)
+        handlers.On<PlaceIntent>((PlayerSession session, in PlaceIntent message) =>
         {
-            return false;
-        }
-        PlaceIntent m = PlaceIntent.Read(_reader);
-        return !_reader.Failed && Intent(session, m.Seq, () => Place(session, m));
+            PlaceIntent m = message;
+            Intent(session, m.Seq, () => Place(session, m));
+        });
     }
 
     private Outcome Place(PlayerSession session, in PlaceIntent m)
@@ -40,4 +41,10 @@ public sealed partial class GameServer
         }
         return placed;
     }
+}
+
+/// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): the placement intent and its counts.</summary>
+public static class PlacementModuleAccess
+{
+    public static PlacementModule Placement(this GameServer server) => server.Require<PlacementModule>();
 }

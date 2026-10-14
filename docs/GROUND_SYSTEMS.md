@@ -726,6 +726,32 @@ start (`GameServer.RouteEvents` and `GameCounters.Listen`); the animals' hearing
 union struct, its kind enum, the 23-case route and the animals' scan of the list are gone; the 25 producers name their
 fields. Test: `EventTests.EventsAreTypedAndHeard`.
 
+*As built, K3a (14 October 2026):* `src/Hollow.Server/ServerModule.cs` (the base: the hooks `Init`, `Restore`, `Start`,
+`Joined`, `Left`, `BeforeStep`, `Input`, `AfterStep`, `Prepare`, `Describe`, `AtRest`, `Seen`, `Snapshot`, `Replicate`,
+`Finish`, `Save`, `Dispose`, and the host's shared things and helpers under the names the code uses: the zone, the content,
+the options, the writer, `Send`, `SendNear`, `Notify`, `Intent`, `Present`...), `ServerModules.cs` (the one list, in the
+order the hooks run) and `Modules/`, one class per concern: `ThingModule` (static things and natural objects: replication
+by relevance, save and load), `BuildingModule`, `PlacementModule`, `ShipModule`, `RaidModule` (with the notification
+service and the raid arena), `WorldModule`, `AnimalModule`, `ArrowModule`, `DamageModule`, `SurvivalModule` (the inventory,
+crafting, interaction, close and respawn intents; the player's own state; the looks; the event routes; the counters),
+`GunModule`, `ConsoleModule` (the F1 console's rights, messages, clock and commands; `AdminCommands.cs`, the commands'
+switch, stays the host's and calls them through the accessors). Each module's file ends with its accessor
+(`server.Raid()`, `server.Ships()`...); the host finds a module by type (`Get<T>`, `Require<T>`). The list's order is what
+a client receives in a tick, unchanged: after the step the ships' notices, the raid alerts, the world's messages, then
+the player's own state and the intents' answers; in a snapshot the things and natural objects, the building, the
+explosives, then the arrows. One order serves both ends only with the things' replication as a module of its own, not
+the survival module's, so it is. The host registers its own messages (`InputPacket`, `ChatSend`) and dispatches every
+other type through K2's table; a type nobody handles is a bad packet, as before. Animals enter the snapshots through
+`Present`, and their presenter answers `Describe` (the Spawn) and `AtRest`; the looks go through `Seen`; the ships fill
+the header and the candidates through `Snapshot`. Per-session state moved off `PlayerSession` into typed slots
+(`session.State<T>()`): what each module sent a player (things and nature cells, the building view, explosives, arrows,
+ships, the world view, the own state's revisions, the looks), the gun budget (`GunBudget`, public: the load test reads it)
+and the console's; the session keeps what the host and several modules share (the connection, the inputs, the snapshots
+and relevance, the chat and intent budgets with the answers, the viewer). `GameServer` was twelve files and 5,600 lines;
+the host is `GameServer.cs` (1,079 lines) and `AdminCommands.cs`, with `NetPresence.cs` and `CharacterRecords.cs` (a
+character's record and its survival state) beside them. The moved code is the old text, line for line, where it stands.
+Test: `ArchitectureTests.TheServerIsAHost`.
+
 *As built, K3b (14 October 2026):* `src/Hollow.Client/ClientModule.cs` (the base: `Init` with the handler table, `Welcome`,
 `Spawned`, `Despawned`, `Seated`, `BeforePredict`, `AfterSnapshot`, `Sample`, `Render`, `Update`, `Dispose`, and the host's
 shared things under the names the moved code uses), `ClientModules.cs` (the list, in the order the hooks run), and one
@@ -746,5 +772,3 @@ others it needs in lazily found fields. Renamed, as the zone's systems were: a m
 (`client.Survival().ThingOf`, `client.Ships().Piloting`, `client.Interaction().AimInteraction`). The conversion moved 385
 call sites outside the client (198 in the presentation, 42 in the bots, 145 in the tests) by a script from the compiler's
 error list, so the moved code's text is the same where it stands. Test: `ArchitectureTests.TheClientIsAHost`.
-
-*As built:* K3a below as it lands.

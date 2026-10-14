@@ -20,16 +20,80 @@ using LiteNetLib;
 
 namespace Hollow.Server;
 
-// The F1 console on the server (GROUND.md §8.2): who is an admin, the console's messages (a line in, the answer's lines
-// out, at most five a second), the state the console shows (rights, who is on), the zone's clock, and the commands
-// that move, spawn, cheat, set the time and count.
-public sealed partial class GameServer
+/// <summary>
+/// The F1 console on the server (GROUND.md §8.2): who is an admin, the console's messages (a line in, the answer's lines
+/// out, at most five a second), the state the console shows (rights, who is on), the zone's clock, and the commands
+/// that move, spawn, cheat, set the time and count.
+/// </summary>
+public sealed class ConsoleModule : ServerModule
 {
     private readonly HashSet<string> _admins = new(StringComparer.OrdinalIgnoreCase);
 
-    // The zone's sky: its spin is the zone's clock, which admins set (time, timescale); the climate follows it.
-    private SkyEphemeris? _sky;
+    // Whether an admin set the zone's clock (time, timescale); the sky it spins is the server's.
     private bool _clockOverridden;
+
+    /// <summary>
+    /// The F1 console's budget (GROUND.md §8.2): ten commands at once, five a second; a line over it is refused with a
+    /// reply, not run; and the lines refused for coming too fast.
+    /// </summary>
+    private sealed class ConsoleBudget
+    {
+        private double _tokens = 10;
+        private long _tick;
+
+        public long RateLimited;
+
+        public bool Spend(long tick)
+        {
+            _tokens = Math.Min(10, _tokens + (tick - _tick) * 5.0 / Simulation.Movement.CharacterMotor.TickRate);
+            _tick = tick;
+            if (_tokens < 1)
+            {
+                return false;
+            }
+            _tokens -= 1;
+            return true;
+        }
+    }
+
+    protected internal override void Init(MessageHandlers<PlayerSession> handlers)
+    {
+        LoadAdmins();
+        // A line from a player's F1 console: run it as them, the answer back to them, line by line.
+        handlers.On<ConsoleRun>((PlayerSession session, in ConsoleRun run) =>
+        {
+            uint seq = run.Seq;
+            var ctx = new CommandContext
+            {
+                Caller = session,
+                Admin = IsAdmin(session),
+                Reply = (kind, text) => SendConsoleReply(session, seq, kind, text),
+            };
+            ConsoleBudget budget = session.State<ConsoleBudget>();
+            if (!budget.Spend(Zone.Tick))
+            {
+                budget.RateLimited++;
+                ctx.Error("Slow down: the console takes five commands a second.");
+                return;
+            }
+            string line = (run.Text ?? "").Trim();
+            if (line.Length == 0)
+            {
+                return;
+            }
+            Log($"[console] {session.Name}: {line}");
+            Server.RunCommand(line, ctx);
+        });
+    }
+
+    /// <summary>A player joined: the zone's clock for them, and who is on for everyone (the F1 console's view, GROUND.md §8.2).</summary>
+    protected internal override void Joined(PlayerSession session, bool newCharacter)
+    {
+        SendClock(session);
+        SendServerStateToAll();
+    }
+
+    protected internal override void Left(PlayerSession session) => SendServerStateToAll();
 
     // ---------------------------------------------------------------- admins
 
@@ -39,11 +103,11 @@ public sealed partial class GameServer
     /// </summary>
     private void LoadAdmins()
     {
-        foreach (string name in _options.Admins)
+        foreach (string name in Options.Admins)
         {
             _admins.Add(name.Trim());
         }
-        if (_options.AdminsFile is { } file && File.Exists(file))
+        if (Options.AdminsFile is { } file && File.Exists(file))
         {
             foreach (string raw in File.ReadAllLines(file))
             {
@@ -55,7 +119,7 @@ public sealed partial class GameServer
             }
         }
         _admins.RemoveWhere(string.IsNullOrWhiteSpace);
-        if (_options.EveryoneAdmin)
+        if (Options.EveryoneAdmin)
         {
             Log("every player is an admin (--dev)");
         }
@@ -66,9 +130,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether a player may run the admin commands (GROUND.md §8.2).</summary>
-    public bool IsAdmin(PlayerSession session) => _options.EveryoneAdmin || _admins.Contains(session.Name);
+    public bool IsAdmin(PlayerSession session) => Options.EveryoneAdmin || _admins.Contains(session.Name);
 
-    private void SetAdmin(CommandContext ctx, string name, bool admin)
+    internal void SetAdmin(CommandContext ctx, string name, bool admin)
     {
         if (!GameServer.IsValidName(name))
         {
@@ -78,7 +142,7 @@ public sealed partial class GameServer
         bool changed = admin ? _admins.Add(name) : _admins.Remove(name);
         ctx.Done(changed
             ? $"{name} {(admin ? "is an admin now" : "isn't an admin any more")}, until the server stops" +
-              (_options.AdminsFile != null ? $" ({Path.GetFileName(_options.AdminsFile)} keeps admins for good)." : ".")
+              (Options.AdminsFile != null ? $" ({Path.GetFileName(Options.AdminsFile)} keeps admins for good)." : ".")
             : $"{name} {(admin ? "was an admin already" : "wasn't an admin")}.");
         if (changed)
         {
@@ -87,37 +151,6 @@ public sealed partial class GameServer
     }
 
     // ---------------------------------------------------------------- the console's messages
-
-    // A line from a player's F1 console: run it as them, the answer back to them, line by line.
-    private void ReceiveConsole(PlayerSession session)
-    {
-        ConsoleRun run = ConsoleRun.Read(_reader);
-        if (_reader.Failed)
-        {
-            session.BadPackets++;
-            return;
-        }
-        uint seq = run.Seq;
-        var ctx = new CommandContext
-        {
-            Caller = session,
-            Admin = IsAdmin(session),
-            Reply = (kind, text) => SendConsoleReply(session, seq, kind, text),
-        };
-        if (!session.SpendConsoleToken(Zone.Tick))
-        {
-            session.ConsoleRateLimited++;
-            ctx.Error("Slow down: the console takes five commands a second.");
-            return;
-        }
-        string line = (run.Text ?? "").Trim();
-        if (line.Length == 0)
-        {
-            return;
-        }
-        Log($"[console] {session.Name}: {line}");
-        RunCommand(line, ctx);
-    }
 
     private void SendConsoleReply(PlayerSession session, uint seq, ConsoleReplyKind kind, string text)
     {
@@ -133,9 +166,9 @@ public sealed partial class GameServer
                     int space = line.LastIndexOf(' ', ConsoleLineChars);
                     cut = space > ConsoleLineChars / 2 ? space : ConsoleLineChars;
                 }
-                _writer.Reset();
-                new ConsoleReply { Seq = seq, Kind = kind, Text = line[..cut] }.WriteMessage(_writer);
-                session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+                Writer.Reset();
+                new ConsoleReply { Seq = seq, Kind = kind, Text = line[..cut] }.WriteMessage(Writer);
+                session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
                 line = line[cut..].TrimStart();
             }
             while (line.Length > 0);
@@ -148,20 +181,20 @@ public sealed partial class GameServer
     // The console's view of the server: this player's rights and who is on.
     private void SendServerState(PlayerSession session)
     {
-        _writer.Reset();
+        Writer.Reset();
         new ServerState
         {
             Admin = IsAdmin(session),
-            MaxPlayers = (uint)Math.Max(0, _options.MaxPlayers),
-            Players = _sessions.Values.Where(s => s.Playing).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+            MaxPlayers = (uint)Math.Max(0, Options.MaxPlayers),
+            Players = Players.Where(s => s.Playing).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
                 .Take(256).Select(s => new ServerPlayerNet { Name = s.Name, Admin = IsAdmin(s) }).ToArray(),
-        }.WriteMessage(_writer);
-        session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+        }.WriteMessage(Writer);
+        session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
     }
 
     private void SendServerStateToAll()
     {
-        foreach (PlayerSession session in _sessions.Values.Where(s => s.Playing))
+        foreach (PlayerSession session in Players.Where(s => s.Playing))
         {
             SendServerState(session);
         }
@@ -174,32 +207,32 @@ public sealed partial class GameServer
 
     private ZoneClock ClockMessage()
     {
-        (double time, double turns, double scale) = _sky?.Spin ?? (0, 0, Spec.RotationTimeScale);
+        (double time, double turns, double scale) = Sky?.Spin ?? (0, 0, Spec.RotationTimeScale);
         return new ZoneClock { BaseTime = time, BaseTurns = turns, Scale = scale, Overridden = _clockOverridden };
     }
 
     private void SendClock(PlayerSession session)
     {
-        _writer.Reset();
-        ClockMessage().WriteMessage(_writer);
-        session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+        Writer.Reset();
+        ClockMessage().WriteMessage(Writer);
+        session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
     }
 
     private void SendClockToAll()
     {
-        foreach (PlayerSession session in _sessions.Values.Where(s => s.Playing))
+        foreach (PlayerSession session in Players.Where(s => s.Playing))
         {
             SendClock(session);
         }
     }
 
     /// <summary>The local solar time (hours) at the zone's origin now, by the zone's clock; null without a sky.</summary>
-    public double? ZoneHours => _sky?.LocalSolarHours(Zone.Frame.Origin.Normalized, _sky.Sun.Index, UniverseSeconds);
+    public double? ZoneHours => Sky?.LocalSolarHours(Zone.Frame.Origin.Normalized, Sky.Sun.Index, UniverseSeconds);
 
     // time; time <hour>; time reset.
-    private void Time(CommandContext ctx, IReadOnlyList<string> args)
+    internal void Time(CommandContext ctx, IReadOnlyList<string> args)
     {
-        if (_sky == null)
+        if (Sky == null)
         {
             ctx.Error("This zone's body has no sky to set.");
             return;
@@ -213,10 +246,10 @@ public sealed partial class GameServer
         }
         if (args[0].ToLowerInvariant() is "reset" or "default" or "real")
         {
-            _sky.SetSpin(0, 0, Spec.RotationTimeScale);
+            Sky.SetSpin(0, 0, Spec.RotationTimeScale);
             _clockOverridden = false;
             SendClockToAll();
-            ctx.Done($"The zone's day is the planet's own again: {Hours(_sky.LocalSolarHours(origin, _sky.Sun.Index, now))} at its origin.");
+            ctx.Done($"The zone's day is the planet's own again: {Hours(Sky.LocalSolarHours(origin, Sky.Sun.Index, now))} at its origin.");
             return;
         }
         if (!TryHours(args[0], out double hours))
@@ -224,16 +257,16 @@ public sealed partial class GameServer
             ctx.Error("Usage: time <hour, 0 to 24, e.g. 21 or 21:30>  |  time reset");
             return;
         }
-        _sky.SetLocalSolarHours(origin, _sky.Sun.Index, now, hours);
+        Sky.SetLocalSolarHours(origin, Sky.Sun.Index, now, hours);
         _clockOverridden = true;
         SendClockToAll();
-        ctx.Done($"It is {Hours(_sky.LocalSolarHours(origin, _sky.Sun.Index, now))} at the zone's origin now: this zone's sun only, universe time unchanged.");
+        ctx.Done($"It is {Hours(Sky.LocalSolarHours(origin, Sky.Sun.Index, now))} at the zone's origin now: this zone's sun only, universe time unchanged.");
     }
 
     // timescale; timescale <x> (x times the day of play; 0 stops the sun).
-    private void TimeScale(CommandContext ctx, IReadOnlyList<string> args)
+    internal void TimeScale(CommandContext ctx, IReadOnlyList<string> args)
     {
-        if (_sky == null)
+        if (Sky == null)
         {
             ctx.Error("This zone's body has no sky to set.");
             return;
@@ -249,10 +282,10 @@ public sealed partial class GameServer
             ctx.Error("Usage: timescale <x>: 1 the day of play, 0 stops the sun, up to 1000.");
             return;
         }
-        _sky.SetSpin(now, _sky.TurnsAt(now), Spec.RotationTimeScale * x);
+        Sky.SetSpin(now, Sky.TurnsAt(now), Spec.RotationTimeScale * x);
         _clockOverridden = true;
         SendClockToAll();
-        double day = Math.Abs(_sky.Planet.RotationPeriod) / Math.Max(1e-9, Spec.RotationTimeScale * x);
+        double day = Math.Abs(Sky.Planet.RotationPeriod) / Math.Max(1e-9, Spec.RotationTimeScale * x);
         ctx.Done(x == 0
             ? "The zone's sun stands still (timescale 1 lets it go on)."
             : string.Create(CultureInfo.InvariantCulture, $"The zone's day runs ×{x:0.###} the day of play: a day lasts {Duration(day)}."));
@@ -261,13 +294,13 @@ public sealed partial class GameServer
     private string ClockLine(CommandContext ctx)
     {
         double now = UniverseSeconds;
-        string line = $"It is {Hours(_sky!.LocalSolarHours(Zone.Frame.Origin.Normalized, _sky.Sun.Index, now))} at the zone's origin";
+        string line = $"It is {Hours(Sky!.LocalSolarHours(Zone.Frame.Origin.Normalized, Sky.Sun.Index, now))} at the zone's origin";
         if (ctx.Caller is { Playing: true } me)
         {
             Vector3D here = Zone.Frame.ToBody(Zone.Entities.Get<Character>(me.Entity).State.Position).Normalized;
-            line += $", {Hours(_sky.LocalSolarHours(here, _sky.Sun.Index, now))} where you stand";
+            line += $", {Hours(Sky.LocalSolarHours(here, Sky.Sun.Index, now))} where you stand";
         }
-        double factor = _sky.RotationTimeScale / Spec.RotationTimeScale;
+        double factor = Sky.RotationTimeScale / Spec.RotationTimeScale;
         return line + string.Create(CultureInfo.InvariantCulture, $" (local solar time); the day runs ×{factor:0.###} the day of play") +
             (_clockOverridden ? ", as an admin set it (time reset goes back)." : ".");
     }
@@ -308,7 +341,7 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------- moving
 
     // teleport <player> | <x> <z> | <latitude> <longitude> | <player> <target> | <player> <x> <z> | <player> <lat> <lon>.
-    private void Teleport(CommandContext ctx, IReadOnlyList<string> args)
+    internal void Teleport(CommandContext ctx, IReadOnlyList<string> args)
     {
         switch (args.Count)
         {
@@ -317,7 +350,7 @@ public sealed partial class GameServer
                 {
                     ctx.Error("Usage here: teleport <player> <target player> or teleport <player> <x> <z>");
                 }
-                else if (Target(ctx, args[0]) is { } to && Beside(ctx, to) is { } there)
+                else if (Server.Target(ctx, args[0]) is { } to && Beside(ctx, to) is { } there)
                 {
                     MoveTo(ctx, ctx.Caller, there, to.Name);
                 }
@@ -333,13 +366,13 @@ public sealed partial class GameServer
                 }
                 return;
             case 2:
-                if (Target(ctx, args[0]) is { } mover && Target(ctx, args[1]) is { } target && Beside(ctx, target) is { } beside)
+                if (Server.Target(ctx, args[0]) is { } mover && Server.Target(ctx, args[1]) is { } target && Beside(ctx, target) is { } beside)
                 {
                     MoveTo(ctx, mover, beside, target.Name);
                 }
                 return;
             case 3:
-                if (Target(ctx, args[0]) is { } moved && Point(ctx, args[1], args[2]) is var (spot, place))
+                if (Server.Target(ctx, args[0]) is { } moved && Point(ctx, args[1], args[2]) is var (spot, place))
                 {
                     MoveTo(ctx, moved, spot, place);
                 }
@@ -351,7 +384,7 @@ public sealed partial class GameServer
     }
 
     // tp2me <player>: two metres in front of the caller.
-    private void BringToMe(CommandContext ctx, IReadOnlyList<string> args)
+    internal void BringToMe(CommandContext ctx, IReadOnlyList<string> args)
     {
         if (ctx.Caller is not { Playing: true } me)
         {
@@ -363,7 +396,7 @@ public sealed partial class GameServer
             ctx.Error("Usage: tp2me <player>");
             return;
         }
-        if (Target(ctx, string.Join(' ', args)) is not { } whom)
+        if (Server.Target(ctx, string.Join(' ', args)) is not { } whom)
         {
             return;
         }
@@ -374,7 +407,7 @@ public sealed partial class GameServer
     }
 
     // tpmarker [n]: the caller's newest map marker, or the one with that number.
-    private void TeleportToMarker(CommandContext ctx, IReadOnlyList<string> args)
+    internal void TeleportToMarker(CommandContext ctx, IReadOnlyList<string> args)
     {
         if (ctx.Caller is not { Playing: true } me || Zone.Players().PlayerOf(me.Entity) is not { } p)
         {
@@ -471,24 +504,24 @@ public sealed partial class GameServer
     // Moves a player onto a point of the ground (not one in a ship's seat).
     private void MoveTo(CommandContext ctx, PlayerSession whom, Vector3 ground, string where)
     {
-        if (!Alive(ctx, whom, out _))
+        if (!Server.Alive(ctx, whom, out _))
         {
             return;
         }
         if (Zone.Entities.Get<Character>(whom.Entity).State.Stance == Stance.Seated)
         {
-            ctx.Error($"{(IsMe(ctx, whom) ? "You are" : whom.Name + " is")} in a ship's seat: step out first (F).");
+            ctx.Error($"{(GameServer.IsMe(ctx, whom) ? "You are" : whom.Name + " is")} in a ship's seat: step out first (F).");
             return;
         }
         Zone.Teleport(whom.Entity, ground + Zone.Frame.UpAt(ground) * 0.05f);
         Log($"teleported {whom.Name} to {where} {Format(ground)}");
-        ctx.Done($"Teleported {Whom(ctx, whom)} to {where}" + (where.Contains(',', StringComparison.Ordinal) ? "" : $" {Format(ground)}") + ".");
+        ctx.Done($"Teleported {GameServer.Whom(ctx, whom)} to {where}" + (where.Contains(',', StringComparison.Ordinal) ? "" : $" {Format(ground)}") + ".");
     }
 
     // ---------------------------------------------------------------- spawning
 
     // spawn <kind> [count] [player]; spawn raidbase [grade]; the older spawn <species> <player> [count] [metres].
-    private void SpawnCommand(CommandContext ctx, IReadOnlyList<string> args)
+    internal void SpawnCommand(CommandContext ctx, IReadOnlyList<string> args)
     {
         if (args.Count == 0)
         {
@@ -503,7 +536,7 @@ public sealed partial class GameServer
         }
         int count = 1, playerAt = 1;
         float? metres = null;
-        if (Content.Animal(kind) != null && args.Count >= 2 && !ConsoleCatalog.IsNumber(args[1]) && Target(ctx, args[1], quiet: true) != null)
+        if (Content.Animal(kind) != null && args.Count >= 2 && !ConsoleCatalog.IsNumber(args[1]) && Server.Target(ctx, args[1], quiet: true) != null)
         {
             // The older form: the player second, then the count and how far.
             count = args.Count > 2 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int herd) ? herd : Content.Animal(kind)!.GroupMost;
@@ -516,8 +549,8 @@ public sealed partial class GameServer
             count = n;
             playerAt = 2;
         }
-        PlayerSession? whom = TargetOrMe(ctx, args, playerAt);
-        if (!Alive(ctx, whom, out Player p))
+        PlayerSession? whom = Server.TargetOrMe(ctx, args, playerAt);
+        if (!Server.Alive(ctx, whom, out Player p))
         {
             return;
         }
@@ -526,7 +559,7 @@ public sealed partial class GameServer
         Vector3 up = Zone.Frame.UpAt(feet);
         float yaw = c.Input.Yaw;
         (Vector3 forward, Vector3 right) = CharacterMotor.HorizontalBasis(yaw, up);
-        string front = IsMe(ctx, whom) ? "you" : whom.Name;
+        string front = GameServer.IsMe(ctx, whom) ? "you" : whom.Name;
 
         if (Content.Animal(kind) is { } species)
         {
@@ -545,7 +578,7 @@ public sealed partial class GameServer
         }
         if (Content.Ships.FirstOrDefault(s => s.Key == kind) is { } shipDef)
         {
-            if (GiveShip(whom) != null)
+            if (Server.Ships().GiveShip(whom) != null)
             {
                 ctx.Done($"A {shipDef.Name} beside {front}, fuelled, its hatch open.");
             }
@@ -589,18 +622,18 @@ public sealed partial class GameServer
         : name + "s";
 
     // raidbase [grade] [player], or the older raidbase <player> [grade]: a claimed hut 8 m in front, its doorway facing them.
-    private void RaidBase(CommandContext ctx, IReadOnlyList<string> args)
+    internal void RaidBase(CommandContext ctx, IReadOnlyList<string> args)
     {
         int grade = 2;
         PlayerSession? whom;
         if (args.Count > 0 && Grade(args[0]) is { } g)
         {
             grade = g;
-            whom = TargetOrMe(ctx, args, 1);
+            whom = Server.TargetOrMe(ctx, args, 1);
         }
         else if (args.Count > 0)
         {
-            whom = Target(ctx, args[0]);
+            whom = Server.Target(ctx, args[0]);
             if (args.Count > 1)
             {
                 grade = Grade(args[1]) ?? 2;
@@ -608,9 +641,9 @@ public sealed partial class GameServer
         }
         else
         {
-            whom = TargetOrMe(ctx, args, 0);
+            whom = Server.TargetOrMe(ctx, args, 0);
         }
-        if (!Alive(ctx, whom, out Player owner))
+        if (!Server.Alive(ctx, whom, out Player owner))
         {
             return;
         }
@@ -626,7 +659,7 @@ public sealed partial class GameServer
             Math.Atan2(c.State.Position.X - ahead.X, c.State.Position.Z - ahead.Z), grade, owner.Id.Value);
         if (hut != null)
         {
-            ctx.Done($"A claimed {Content.Building.Grades[grade].Name.ToLowerInvariant()} hut 8 m in front of {Whom(ctx, whom)}, listing {Whom(ctx, whom)}.");
+            ctx.Done($"A claimed {Content.Building.Grades[grade].Name.ToLowerInvariant()} hut 8 m in front of {GameServer.Whom(ctx, whom)}, listing {GameServer.Whom(ctx, whom)}.");
         }
         else
         {
@@ -642,7 +675,7 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------- cheats
 
     // god|noclip [on|off] [player]: a toggle without on or off.
-    private void Cheat(CommandContext ctx, IReadOnlyList<string> args, MoveCheats cheat, string name)
+    internal void Cheat(CommandContext ctx, IReadOnlyList<string> args, MoveCheats cheat, string name)
     {
         bool? wanted = null;
         int playerAt = 0;
@@ -651,7 +684,7 @@ public sealed partial class GameServer
             wanted = on;
             playerAt = 1;
         }
-        PlayerSession? whom = TargetOrMe(ctx, args, playerAt);
+        PlayerSession? whom = Server.TargetOrMe(ctx, args, playerAt);
         if (whom == null)
         {
             return;
@@ -665,7 +698,7 @@ public sealed partial class GameServer
         bool now = wanted ?? !c.State.Has(cheat);
         Zone.SetCheats(whom.Entity, now ? c.State.Cheats | cheat : c.State.Cheats & ~cheat);
         Log($"{name.ToLowerInvariant()} {(now ? "on" : "off")} for {whom.Name}");
-        ctx.Done($"{name} {(now ? "on" : "off")}{(IsMe(ctx, whom) ? "" : " for " + whom.Name)}." +
+        ctx.Done($"{name} {(now ? "on" : "off")}{(GameServer.IsMe(ctx, whom) ? "" : " for " + whom.Name)}." +
             (now && cheat == MoveCheats.Noclip ? " W A S D along the view, Space up, Ctrl down, Shift fast." : ""));
     }
 
@@ -678,10 +711,10 @@ public sealed partial class GameServer
 
     // ---------------------------------------------------------------- what is where
 
-    private void ListPlayers(CommandContext ctx)
+    internal void ListPlayers(CommandContext ctx)
     {
-        PlayerSession[] on = _sessions.Values.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        ctx.Out($"{on.Length} of {_options.MaxPlayers} players on:");
+        PlayerSession[] on = Players.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+        ctx.Out($"{on.Length} of {Options.MaxPlayers} players on:");
         foreach (PlayerSession s in on)
         {
             string state = !s.Playing ? "joining" : Zone.Players().PlayerOf(s.Entity) is { } p ? (p.Dead ? "dead" : p.Wounded ? "wounded" : "alive") : "in the world";
@@ -696,7 +729,7 @@ public sealed partial class GameServer
     }
 
     // whereami: latitude and longitude, the zone position and map cell, the biome, the local time, the air.
-    private void WhereAmI(CommandContext ctx)
+    internal void WhereAmI(CommandContext ctx)
     {
         if (ctx.Caller is not { Playing: true } me)
         {
@@ -715,7 +748,7 @@ public sealed partial class GameServer
             $"Zone position {at.X:0.0} m east, {-at.Z:0.0} m north of its origin, {at.Y:0.0} m up (teleport {at.X:0.0} {at.Z:0.0}); " +
             $"{sea:0} m above the sea; map cell {MapCell(at)}."));
         string biome = Zone.Surface is PlanetSurface planet ? Words(planet.BiomeAt(direction).ToString()) : "the stand-in ground";
-        string time = _sky != null ? $"{Hours(_sky.LocalSolarHours(direction, _sky.Sun.Index, UniverseSeconds))} local solar time" : "no sky here";
+        string time = Sky != null ? $"{Hours(Sky.LocalSolarHours(direction, Sky.Sun.Index, UniverseSeconds))} local solar time" : "no sky here";
         float air = Zone.Climate?.TemperatureAt(at, Zone.UnixMilliseconds / 1000.0) ?? float.NaN;
         ctx.Out(string.Create(CultureInfo.InvariantCulture, $"{biome}; {time}; the air {air:0} °C."));
     }
@@ -738,10 +771,10 @@ public sealed partial class GameServer
         string.Concat(name.Select((ch, i) => i > 0 && char.IsUpper(ch) ? " " + char.ToLowerInvariant(ch) : char.ToLowerInvariant(ch).ToString()));
 
     // ents: what is in the zone.
-    private void CountEntities(CommandContext ctx)
+    internal void CountEntities(CommandContext ctx)
     {
         Player[] players = Zone.Entities.Pool<PlayerLink>().Values.ToArray().Select(l => l.Player).ToArray();
-        ctx.Out($"Players: {_sessions.Count} on; characters in the zone: {players.Length} ({players.Count(p => p.Sleeping)} asleep, " +
+        ctx.Out($"Players: {Players.Count} on; characters in the zone: {players.Length} ({players.Count(p => p.Sleeping)} asleep, " +
             $"{players.Count(p => p.Dead)} dead, {players.Count(p => p.Wounded)} wounded).");
         if (Zone.Animals().World is { } animals)
         {
@@ -759,6 +792,15 @@ public sealed partial class GameServer
                 (building.Collapsing > 0 ? $", {building.Collapsing} collapsing." : "."));
         }
         ctx.Out($"Ships: {Zone.Ships().All.Count}; explosives: {Zone.Explosives().All.Count}; natural objects changed: {Zone.Natural?.Count ?? 0}; " +
-            $"ground tiles: {Zone.Physics.TileCount}; net entities: {_netStates.Count}.");
+            $"ground tiles: {Zone.Physics.TileCount}; net entities: {Server.NetEntityCount}.");
     }
+
+    private static bool TryNumber(string text, out float value) =>
+        float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && float.IsFinite(value);
+}
+
+/// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): the F1 console's rights, messages, clock and commands.</summary>
+public static class ConsoleModuleAccess
+{
+    public static ConsoleModule Console(this GameServer server) => server.Require<ConsoleModule>();
 }

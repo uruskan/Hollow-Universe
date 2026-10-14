@@ -36,8 +36,8 @@ public sealed class CommandContext
 }
 
 // The console's commands (GROUND.md §8.2) for the server's own console and every player's F1 console: who may run
-// what, who a command means, and the commands that change inventories and health. The rest are in
-// GameServer.Console.cs.
+// what, who a command means, and the commands that change inventories and health. The rest are the console module's
+// (Modules/ConsoleModule.cs): rights, the console's messages, the zone's clock, moving, spawning, cheats, what is where.
 public sealed partial class GameServer
 {
     /// <summary>The commands (GROUND.md §8.2) as <c>help</c> at the server's console prints them.</summary>
@@ -66,7 +66,7 @@ public sealed partial class GameServer
     private void RunCommand(string line) => RunCommand(line, ServerConsole);
 
     /// <summary>Runs a console line for whoever typed it (GROUND.md §8.2), checking their rights.</summary>
-    private void RunCommand(string line, CommandContext ctx)
+    internal void RunCommand(string line, CommandContext ctx)
     {
         (ConsoleCommandDef? command, string typed, IReadOnlyList<string> args) = ConsoleCatalog.Parse(line);
         if (typed.Length == 0)
@@ -112,16 +112,16 @@ public sealed partial class GameServer
                 Learn(ctx, args);
                 break;
             case "teleport":
-                Teleport(ctx, args);
+                this.Console().Teleport(ctx, args);
                 break;
             case "tp2me":
-                BringToMe(ctx, args);
+                this.Console().BringToMe(ctx, args);
                 break;
             case "tpmarker":
-                TeleportToMarker(ctx, args);
+                this.Console().TeleportToMarker(ctx, args);
                 break;
             case "spawn":
-                SpawnCommand(ctx, args);
+                this.Console().SpawnCommand(ctx, args);
                 break;
             case "heal":
                 Heal(ctx, args);
@@ -130,22 +130,22 @@ public sealed partial class GameServer
                 Kill(ctx, args);
                 break;
             case "god":
-                Cheat(ctx, args, Simulation.Movement.MoveCheats.God, "God mode");
+                this.Console().Cheat(ctx, args, Simulation.Movement.MoveCheats.God, "God mode");
                 break;
             case "noclip":
-                Cheat(ctx, args, Simulation.Movement.MoveCheats.Noclip, "Noclip");
+                this.Console().Cheat(ctx, args, Simulation.Movement.MoveCheats.Noclip, "Noclip");
                 break;
             case "time":
-                Time(ctx, args);
+                this.Console().Time(ctx, args);
                 break;
             case "timescale":
-                TimeScale(ctx, args);
+                this.Console().TimeScale(ctx, args);
                 break;
             case "players":
-                ListPlayers(ctx);
+                this.Console().ListPlayers(ctx);
                 break;
             case "whereami":
-                WhereAmI(ctx);
+                this.Console().WhereAmI(ctx);
                 break;
             case "status":
                 foreach (string row in Status().Split('\n'))
@@ -179,7 +179,7 @@ public sealed partial class GameServer
                 ctx.Done("Saving the world.");
                 break;
             case "ents":
-                CountEntities(ctx);
+                this.Console().CountEntities(ctx);
                 break;
             case "clearinv":
                 ClearInventory(ctx, args);
@@ -187,7 +187,7 @@ public sealed partial class GameServer
             case "ship":
                 if (TargetOrMe(ctx, args, 0) is { } pilot && Alive(ctx, pilot, out _))
                 {
-                    if (GiveShip(pilot) is { } given)
+                    if (this.Ships().GiveShip(pilot) is { } given)
                     {
                         ctx.Done($"A {given.Def.Name} for {pilot.Name} ({given.Id}), beside them, fuelled, its hatch open.");
                     }
@@ -198,19 +198,19 @@ public sealed partial class GameServer
                 }
                 break;
             case "raidbase":
-                RaidBase(ctx, args);
+                this.Console().RaidBase(ctx, args);
                 break;
             case "admin" when args.Count >= 1:
-                SetAdmin(ctx, string.Join(' ', args), true);
+                this.Console().SetAdmin(ctx, string.Join(' ', args), true);
                 break;
             case "unadmin" when args.Count >= 1:
-                SetAdmin(ctx, string.Join(' ', args), false);
+                this.Console().SetAdmin(ctx, string.Join(' ', args), false);
                 break;
             case "world":
-                ctx.Out(WorldStatus());
+                ctx.Out(this.World().WorldStatus());
                 break;
             case "animals":
-                ctx.Out(AnimalStatus());
+                ctx.Out(this.Animals().AnimalStatus());
                 break;
             default:
                 Usage(ctx, command);
@@ -227,7 +227,7 @@ public sealed partial class GameServer
     /// A connected player by name: exactly (any case), else the one whose name starts with it, else the one whose name
     /// holds it. Says why not when none or several fit (unless <paramref name="quiet"/>).
     /// </summary>
-    private PlayerSession? Target(CommandContext ctx, string name, bool quiet = false)
+    internal PlayerSession? Target(CommandContext ctx, string name, bool quiet = false)
     {
         PlayerSession[] all = _sessions.Values.ToArray();
         PlayerSession? exact = all.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
@@ -263,7 +263,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>The player named from <paramref name="index"/> on, or the caller when no name is given there.</summary>
-    private PlayerSession? TargetOrMe(CommandContext ctx, IReadOnlyList<string> args, int index)
+    internal PlayerSession? TargetOrMe(CommandContext ctx, IReadOnlyList<string> args, int index)
     {
         if (index < args.Count)
         {
@@ -277,7 +277,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>A player in the world and alive, and their survival state; says why not otherwise.</summary>
-    private bool Alive(CommandContext ctx, PlayerSession? session, out Player player)
+    internal bool Alive(CommandContext ctx, PlayerSession? session, out Player player)
     {
         player = null!;
         if (session == null)
@@ -298,9 +298,9 @@ public sealed partial class GameServer
         return true;
     }
 
-    private static bool IsMe(CommandContext ctx, PlayerSession session) => ctx.Caller == session;
+    internal static bool IsMe(CommandContext ctx, PlayerSession session) => ctx.Caller == session;
 
-    private static string Whom(CommandContext ctx, PlayerSession session) => IsMe(ctx, session) ? "you" : session.Name;
+    internal static string Whom(CommandContext ctx, PlayerSession session) => IsMe(ctx, session) ? "you" : session.Name;
 
     // ---------------------------------------------------------------- inventory
 
@@ -401,7 +401,7 @@ public sealed partial class GameServer
         }
         if (Alive(ctx, whom, out Player p))
         {
-            GiveKit(p, table);
+            this.Survival().GiveKit(p, table);
             ctx.Done($"Gave {Whom(ctx, whom!)} the {table.Key} kit.");
         }
     }
@@ -532,7 +532,4 @@ public sealed partial class GameServer
         }
         return text.ToString();
     }
-
-    private static bool TryNumber(string text, out float value) =>
-        float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && float.IsFinite(value);
 }

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Hollow.Core;
@@ -16,36 +17,27 @@ using Hollow.Net.Replication;
 using Hollow.Net.Transport;
 using Hollow.Persistence;
 using Hollow.Simulation;
+using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.World;
 using Hollow.Surface;
 using LiteNetLib;
-using Hollow.Simulation.Capabilities;
 
 namespace Hollow.Server;
 
-/// <summary>The server's part of a networked entity: its net ID, view angles (with the head's free look) and owner.</summary>
-public struct NetPresence
-{
-    public uint NetId;
-    public ushort Yaw;
-    public ushort Pitch;
-
-    /// <summary>Free look (Alt), as the last input had it: drawn by others only (GROUND.md §4.5).</summary>
-    public sbyte LookYaw;
-    public sbyte LookPitch;
-    public PlayerSession? Owner;
-}
-
 /// <summary>
 /// The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with
-/// development login by name, snapshot replication, chat, persistence and admin commands, and from G2 the survival
-/// game (GameServer.Survival.cs). The console program runs it on its main thread; the game runs it on a background
-/// thread for solo play (Host mode). Everything below happens on the tick thread; <see cref="Execute"/> and
-/// <see cref="RequestStop"/> may be called from anywhere.
+/// development login by name, snapshot replication, chat, persistence and admin commands. It is a host
+/// (GROUND_SYSTEMS.md §12.5): the connection, the logins and spawns, the tick loop, the inputs, the snapshots of the
+/// dynamic entities with their relevance grid, chat, the intents' budget and answers, the saves and the console's
+/// plumbing are its own; everything else the game does on the server is a <see cref="ServerModule"/>, listed in
+/// <see cref="ServerModules"/>, called through its hooks in that one order. The console program runs it on its main
+/// thread; the game runs it on a background thread for solo play (Host mode). Everything below happens on the tick
+/// thread; <see cref="Execute"/> and <see cref="RequestStop"/> may be called from anywhere.
 /// </summary>
 public sealed partial class GameServer : INetEventListener, IDisposable
 {
@@ -56,8 +48,15 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     private readonly PersistenceWorker? _persistence;
     private readonly EntityIdAllocator _ids;
     private readonly Dictionary<NetPeer, PlayerSession> _sessions = new();
+    private readonly Dictionary<EntityId, long> _accountOf = new();
+    private readonly Dictionary<EntityId, PlayerSession> _sessionOf = new();
     private readonly ConcurrentQueue<string> _commands = new();
     private readonly ConcurrentQueue<Action> _inspections = new();
+    private readonly MessageHandlers<PlayerSession> _handlers = new();
+    private readonly ServerModule[] _modules;
+    private readonly Dictionary<Type, ServerModule> _byType = new();
+    private readonly ServerModule[] _onInput;
+    private readonly ServerModule[] _onSeen;
     private readonly BitWriter _writer = new(2048);
     private readonly BitReader _reader = new();
     private readonly RelevanceGrid _grid;
@@ -65,15 +64,22 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     private readonly HashSet<uint> _nowRelevant = new();
     private readonly List<uint> _gone = new();
     private readonly List<SnapshotCandidate> _candidates = new();
-    private readonly Dictionary<uint, (Entity Entity, CharacterNetState State)> _netStates = new();
+    private readonly List<ShipCandidate> _ships = new();
+    private readonly Dictionary<uint, NetEntity> _netStates = new();
+    private readonly HashSet<EntityId> _savedThings = new();
     private readonly CancellationTokenSource _stop = new();
     private uint _nextNetId = 1;
     private double _snapshotAccumulator;
     private long _lastSave;
     private long _lastNetUpdate;
+    private bool _deathToSave;
+    private long _lastDeathSave;
     private Thread? _thread;
     private bool _shutDown;
     private int _failedTicks;
+
+    /// <summary>A dynamic entity in this snapshot: a character (its entity), or one a module presented (an animal: no zone entity, its presenter).</summary>
+    private readonly record struct NetEntity(Entity Entity, CharacterNetState State, ServerModule? Presenter);
 
     public GameServer(ServerOptions options, Galaxy.Galaxy? galaxy = null)
     {
@@ -93,7 +99,6 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             NewEntityId = _ids.Next,
         };
         _grid = new RelevanceGrid(options.RelevanceRadius);
-        _thingGrid = new RelevanceGrid(options.RelevanceRadius);
         if (options.DatabasePath != null)
         {
             _persistence = new PersistenceWorker(options.DatabasePath, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Log);
@@ -117,12 +122,12 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         // The real planet (GROUND.md §6.1): its climate follows the sun of the zone's sky, and players arrive and
         // respawn on its real beaches near the zone.
         // The zone's sky: its spin is the zone's clock (GROUND.md §8.2: admins set it), which the climate follows.
-        _sky = Spec.CreateSky();
+        Sky = Spec.CreateSky();
         if (Zone.Surface is PlanetSurface planet)
         {
-            if (_sky != null)
+            if (Sky != null)
             {
-                Zone.Climate = new PlanetClimate(Content.Survival, planet, Zone.Frame, _sky);
+                Zone.Climate = new PlanetClimate(Content.Survival, planet, Zone.Frame, Sky);
             }
             Beaches = Simulation.Beaches.Find(planet, Zone.Frame);
             if (Beaches.Points.Count > 0)
@@ -137,13 +142,26 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         Vector3 arrival = Arrival(0);
         Zone.Physics.Prefetch(arrival, radius: 2);
         Zone.Physics.EnsureGround(arrival, radius: 2);
-        LoadAdmins();
+        // The modules (GROUND_SYSTEMS.md §12.5): attached, their messages and subscriptions registered after the host's
+        // own, the stored world restored into them, then started.
+        _modules = ServerModules.All();
+        foreach (ServerModule module in _modules)
+        {
+            module.Attach(this);
+            _byType.Add(module.GetType(), module);
+        }
+        _onInput = Overriding(nameof(ServerModule.Input));
+        _onSeen = Overriding(nameof(ServerModule.Seen));
+        RegisterMessages();
+        foreach (ServerModule module in _modules)
+        {
+            module.Init(_handlers);
+        }
         LoadWorld();
-        StartBuilding();
-        StartRaid();
-        StartWorld();
-        StartAnimals();
-        RouteEvents();
+        foreach (ServerModule module in _modules)
+        {
+            module.Start();
+        }
         Zone.Profile = Profile;
         _lastSave = Stopwatch.GetTimestamp();
         _lastNetUpdate = Stopwatch.GetTimestamp();
@@ -155,8 +173,20 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
     public Zone Zone { get; }
 
+    /// <summary>The game's data, as every client must have it too.</summary>
+    public GameContent Content { get; }
+
     /// <summary>The real beaches near the zone where players arrive and respawn (null on the stand-in ground).</summary>
     public Simulation.Beaches? Beaches { get; }
+
+    /// <summary>The zone's sky: its spin is the zone's clock, which the climate follows and admins set; null without one.</summary>
+    internal SkyEphemeris? Sky { get; }
+
+    internal ServerOptions Options => _options;
+
+    internal PersistenceWorker? Persistence => _persistence;
+
+    internal BitWriter Writer => _writer;
 
     /// <summary>
     /// Where a new character arrives: a beach point picked by <paramref name="salt"/>, as in Rust; at the landing site
@@ -179,6 +209,22 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
     /// <summary>Total bytes and packets sent and received, for statistics.</summary>
     public NetStatistics Traffic => _net.Statistics;
+
+    // ---------------------------------------------------------------- the modules
+
+    /// <summary>The modules, in the order their hooks run (<see cref="ServerModules"/>).</summary>
+    public IReadOnlyList<ServerModule> Modules => _modules;
+
+    /// <summary>A module by type, or null when this server has none.</summary>
+    public T? Get<T>() where T : ServerModule => _byType.TryGetValue(typeof(T), out ServerModule? module) ? (T)module : null;
+
+    /// <summary>A module by type; fails naming what is missing.</summary>
+    public T Require<T>() where T : ServerModule =>
+        Get<T>() ?? throw new InvalidOperationException($"this server has no {typeof(T).Name} (its list is {string.Join(", ", _modules.Select(m => m.GetType().Name))})");
+
+    // The modules that override a per-player or per-entity hook, so the hot loops call only those.
+    private ServerModule[] Overriding(string hook) =>
+        _modules.Where(m => m.GetType().GetMethod(hook, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?.DeclaringType != typeof(ServerModule)).ToArray();
 
     // ---------------------------------------------------------------- running
 
@@ -281,7 +327,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         return done.Task.Wait(TimeSpan.FromSeconds(5)) ? done.Task.Result : throw new TimeoutException("The server's tick didn't run.");
     }
 
-    /// <summary>One tick: receive, log players in, step the zone, replicate, save, send.</summary>
+    /// <summary>One tick: receive, log players in, step the zone, the modules' after-step work, replicate, save, send.</summary>
     public void Tick()
     {
         TimeSpan gcBefore = GC.GetTotalPauseDuration();
@@ -295,7 +341,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         using (Profile.Time(ProfileSection.Logins))
         {
             FinishLogins();
-            FinishRespawns();
+            foreach (ServerModule module in _modules)
+            {
+                module.BeforeStep();
+            }
         }
         while (_commands.TryDequeue(out string? command))
         {
@@ -322,7 +371,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             presence.Pitch = input.Pitch;
             presence.LookYaw = input.LookYaw;
             presence.LookPitch = input.LookPitch;
-            ApplyShipInput(session, input);
+            foreach (ServerModule module in _onInput)
+            {
+                module.Input(session, input);
+            }
         }
         long stepStarted = Stopwatch.GetTimestamp();
         using (Profile.Time(ProfileSection.Step))
@@ -330,11 +382,15 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             Zone.Step();
         }
         StepTime += Stopwatch.GetElapsedTime(stepStarted);
-        ReportFalls();
         using (Profile.Time(ProfileSection.AfterStep))
         {
-            AfterStep();
-            AfterAnimals();
+            // The events went to their subscribers as they happened (GROUND_SYSTEMS.md §12.3); the lists are done with.
+            Zone.Events.Clear();
+            foreach (ServerModule module in _modules)
+            {
+                module.AfterStep();
+            }
+            AnswerIntents();
         }
 
         _snapshotAccumulator += (double)Protocol.SnapshotRate / TickRate;
@@ -364,18 +420,6 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
     /// <summary>Where the ticks go (GROUND.md §5.11): the load test prints it.</summary>
     public TickProfile Profile { get; } = new();
-
-    private void ReportFalls()
-    {
-        foreach (PlayerSession session in _sessions.Values)
-        {
-            if (session.Playing && Zone.Entities.Get<Character>(session.Entity).Events.FallDamage > 0)
-            {
-                ref Character c = ref Zone.Entities.Get<Character>(session.Entity);
-                Log($"{session.Name} fell: {c.Events.LandingSpeed:0.0} m/s, {c.Events.FallDamage} damage, {c.State.Health} health left");
-            }
-        }
-    }
 
     // ---------------------------------------------------------------- connecting and logging in
 
@@ -471,12 +515,13 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             return null;
         }
-        return record != null && Restorable(record, out Vector3 local) ? local : Arrival(Hash64.Of(session.Name.ToUpperInvariant()));
+        return record != null && CharacterRecords.Restorable(Zone, Spec, record, out Vector3 local) ? local : Arrival(Hash64.Of(session.Name.ToUpperInvariant()));
     }
 
     /// <summary>
     /// A player joins: their sleeper wakes where it lies (logged off earlier, or loaded at start); a stored character
-    /// that isn't in the zone comes back from its record; anyone else starts a new life at the spawn.
+    /// that isn't in the zone comes back from its record; anyone else starts a new life at the spawn. Then the modules
+    /// hear of them (<see cref="ServerModule.Joined"/>: the join kit, the ship on join, the clock, the alerts that waited).
     /// </summary>
     private void Spawn(PlayerSession session, CharacterRecord? record)
     {
@@ -496,12 +541,12 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             CharacterState state;
             Player? player = null;
-            if (record != null && Restorable(record, out Vector3 local))
+            if (record != null && CharacterRecords.Restorable(Zone, Spec, record, out Vector3 local))
             {
                 id = record.Id;
                 state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
                 state.Stance = (Stance)Math.Min(record.Stance, (byte)Stance.Crouching);
-                player = DecodePlayer(record);
+                player = CharacterRecords.Decode(record, Content, Log);
                 yaw = record.Yaw;
                 pitch = record.Pitch;
                 how = "restored";
@@ -518,14 +563,6 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             }
             entity = Zone.Players().AddPlayer(id, session.Name, state, player);
             Zone.Entities.Get<Character>(entity).Input.Yaw = yaw;
-            if (how == "new" && (_options.ShipOnJoin || _options.ShipOnJoinFor?.Invoke(session.Name) == true))
-            {
-                _shipOnJoin.Add(session);
-            }
-            if (how == "new" && _options.JoinKit != null && Content.Loot(_options.JoinKit) is { } kit && Zone.Players().PlayerOf(entity) is { } fresh)
-            {
-                GiveKit(fresh, kit);
-            }
         }
         if (Zone.Players().PlayerOf(entity) is { } chosen)
         {
@@ -559,29 +596,12 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             Pitch = Quantize.Angle16(pitch),
         }.WriteMessage(_writer);
         session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
-        // The F1 console's view (GROUND.md §8.2): the zone's clock for this player, who is on for everyone.
-        SendClock(session);
-        SendServerStateToAll();
         Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.Entities.Get<Character>(entity).State.Position)}" +
-            (IsAdmin(session) ? " (admin)" : ""));
-        if (_shipOnJoin.Remove(session))
+            (this.Console().IsAdmin(session) ? " (admin)" : ""));
+        foreach (ServerModule module in _modules)
         {
-            GiveShip(session);
+            module.Joined(session, how == "new");
         }
-        QueueAlertDelivery(session);
-    }
-
-    private readonly HashSet<PlayerSession> _shipOnJoin = new();
-
-    // A stored character comes back where it was if that is on this zone's body and within its ground.
-    private bool Restorable(CharacterRecord record, out Vector3 local)
-    {
-        local = Zone.Frame.ToLocal(new Vector3D(record.BodyX, record.BodyY, record.BodyZ));
-        float reach = Simulation.Physics.PhysicsWorld.Extent - 2 * Simulation.Physics.PhysicsWorld.TileSize;
-        return record.SystemAddress == Spec.SystemAddress && record.BodyPath == Spec.BodyPath &&
-            MathF.Abs(local.X) < reach && MathF.Abs(local.Z) < reach &&
-            // A pilot may be high up, in orbit even (G6): their ship's seat brings them back.
-            MathF.Abs(local.Y) < (record.Stance == (byte)Stance.Seated ? 25_000 : 5000);
     }
 
     public void OnPeerConnected(NetPeer peer)
@@ -603,15 +623,45 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             _sessionOf.Remove(session.EntityId);
             if (_persistence != null && Zone.Players().PlayerOf(session.Entity) is { } p)
             {
-                _persistence.Save(new[] { RecordOf(session.Entity, p) });
+                _persistence.Save(new[] { CharacterRecords.Encode(Zone, Spec, session.Entity, p, _accountOf.GetValueOrDefault(p.Id)) });
             }
             session.Entity = Entity.None;
         }
-        SendServerStateToAll();
+        foreach (ServerModule module in _modules)
+        {
+            module.Left(session);
+        }
         Log($"{session.Name} left ({info.Reason})");
     }
 
     // ---------------------------------------------------------------- receiving
+
+    // The host's own messages (GROUND_SYSTEMS.md §12.4): inputs and chat; every other type is a module's, or a bad packet.
+    private void RegisterMessages()
+    {
+        _handlers.On<InputPacket>((PlayerSession session, in InputPacket input) =>
+        {
+            session.Snapshots.Acknowledge(input.AckSequence, input.AckBits);
+            if (input.NewestTick >= session.NewestInputTick)
+            {
+                session.EchoTime = input.ClientTime;
+                session.EchoReceived = Stopwatch.GetTimestamp();
+            }
+            if (session.Playing)
+            {
+                session.ReceiveInputs(input, (uint)Zone.Tick + 1, Zone.Tick);
+            }
+        });
+        _handlers.On<ChatSend>((PlayerSession session, in ChatSend chat) =>
+        {
+            if (string.IsNullOrWhiteSpace(chat.Text))
+            {
+                session.BadPackets++;
+                return;
+            }
+            Chat(session, chat.Text.Trim());
+        });
+    }
 
     public void OnNetworkReceive(NetPeer peer, NetPacketReader packet, byte channel, DeliveryMethod method)
     {
@@ -621,45 +671,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
         // Read in place: the transport recycles the packet after this returns.
         _reader.Reset(packet.RawData, packet.Position, packet.AvailableBytes);
-        uint type = _reader.ReadBits(8);
-        switch (type)
+        byte type = (byte)_reader.ReadBits(8);
+        if (!_handlers.Dispatch(type, _reader, session))
         {
-            case InputPacket.TypeId:
-                InputPacket input = InputPacket.Read(_reader);
-                if (_reader.Failed)
-                {
-                    session.BadPackets++;
-                    return;
-                }
-                session.Snapshots.Acknowledge(input.AckSequence, input.AckBits);
-                if (input.NewestTick >= session.NewestInputTick)
-                {
-                    session.EchoTime = input.ClientTime;
-                    session.EchoReceived = Stopwatch.GetTimestamp();
-                }
-                if (session.Playing)
-                {
-                    session.ReceiveInputs(input, (uint)Zone.Tick + 1, Zone.Tick);
-                }
-                break;
-            case ConsoleRun.TypeId:
-                ReceiveConsole(session);
-                break;
-            case ChatSend.TypeId:
-                ChatSend chat = ChatSend.Read(_reader);
-                if (_reader.Failed || string.IsNullOrWhiteSpace(chat.Text))
-                {
-                    session.BadPackets++;
-                    return;
-                }
-                Chat(session, chat.Text.Trim());
-                break;
-            default:
-                if (!ReceiveIntent(session, type))
-                {
-                    session.BadPackets++;
-                }
-                break;
+            session.BadPackets++;
         }
     }
 
@@ -677,7 +692,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         Broadcast(new ChatLine { Kind = ChatKind.Player, From = session.Name, Text = text });
     }
 
-    private void Broadcast(ChatLine line)
+    internal void Broadcast(ChatLine line)
     {
         _writer.Reset();
         line.WriteMessage(_writer);
@@ -687,7 +702,48 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
     }
 
+    internal void Send(PlayerSession session) => session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+
+    internal void Despawned(PlayerSession session, uint netId)
+    {
+        _writer.Reset();
+        new Despawn { NetId = netId }.WriteMessage(_writer);
+        Send(session);
+    }
+
+    internal PlayerSession? SessionOf(EntityId player) => _sessionOf.GetValueOrDefault(player);
+
+    internal uint NextNetId() => _nextNetId++;
+
+    // ---------------------------------------------------------------- intents
+
+    // The answers (ServerModule.Intent) go after this tick's changes (every module's after-step messages), so the changes
+    // arrive first.
+    private void AnswerIntents()
+    {
+        foreach (PlayerSession session in _sessions.Values)
+        {
+            foreach (IntentResult result in session.PendingResults)
+            {
+                _writer.Reset();
+                result.WriteMessage(_writer);
+                Send(session);
+            }
+            session.PendingResults.Clear();
+        }
+    }
+
     // ---------------------------------------------------------------- replication
+
+    /// <summary>A dynamic entity a module presents for this snapshot (<see cref="ServerModule.Present"/>).</summary>
+    internal void Present(ServerModule presenter, uint netId, Vector3 position, in CharacterNetState state)
+    {
+        _grid.Add(netId, position);
+        _netStates[netId] = new NetEntity(Entity.None, state, presenter);
+    }
+
+    /// <summary>How many dynamic entities the last snapshot had (characters, and what the modules presented).</summary>
+    internal int NetEntityCount => _netStates.Count;
 
     private void Replicate()
     {
@@ -716,13 +772,12 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 state.HeldMods = p.CanAct ? Zone.Guns().HeldGunLook(p) : (byte)0;
                 state.Aiming = p.CanAct && p.Gun.Item != 0 && !p.Gun.Reloading && character.Actions.Has(ActionButtons.Secondary);
             }
-            _netStates[values[i].NetId] = (entity, state);
+            _netStates[values[i].NetId] = new NetEntity(entity, state, null);
         }
-        PrepareAnimals();
-        PrepareThings();
-        PrepareShips();
-        PrepareExplosives();
-        PrepareArrows();
+        foreach (ServerModule module in _modules)
+        {
+            module.Prepare();
+        }
 
         foreach (PlayerSession session in _sessions.Values)
         {
@@ -757,10 +812,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             {
                 session.Relevant.Remove(netId);
                 session.Snapshots.Forget(netId);
-                session.LooksSent.Remove(netId);
-                _writer.Reset();
-                new Despawn { NetId = netId }.WriteMessage(_writer);
-                session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+                Despawned(session, netId);
             }
             _candidates.Clear();
             foreach (int index in _relevantIndices)
@@ -770,18 +822,27 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 {
                     continue;
                 }
-                (Entity entity, CharacterNetState state) = _netStates[netId];
-                if (session.Relevant.Add(netId))
+                (Entity entity, CharacterNetState state, ServerModule? presenter) = _netStates[netId];
+                bool arrived = session.Relevant.Add(netId);
+                if (arrived)
                 {
+                    // A character, or what a module presented (an animal: its species).
+                    Spawn spawn = presenter == null
+                        ? new Spawn { NetId = netId, EntityId = Zone.Entities.IdOf(entity).Value, Kind = EntityKind.Character, Name = Zone.Entities.Get<Named>(entity).Name }
+                        : default;
+                    presenter?.Describe(netId, ref spawn);
                     _writer.Reset();
-                    SpawnOf(netId, entity).WriteMessage(_writer);
+                    spawn.WriteMessage(_writer);
                     session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
                 }
-                if (!IsAnimal(netId))
+                if (presenter == null)
                 {
-                    SendLook(session, netId, entity);
+                    foreach (ServerModule module in _onSeen)
+                    {
+                        module.Seen(session, netId, entity, arrived);
+                    }
                 }
-                else if (AnimalAtRest(session, netId, state))
+                else if (presenter.AtRest(session, netId, state))
                 {
                     continue;
                 }
@@ -802,35 +863,29 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 Own = NetConvert.ToOwn(own.State),
                 EchoTime = session.EchoTime,
                 EchoHold = (ushort)Math.Min(ushort.MaxValue, Stopwatch.GetElapsedTime(session.EchoReceived).TotalMilliseconds),
-                OwnShip = OwnShip(session)!,
             };
-            ReplicateShips(session, centre);
+            _ships.Clear();
+            foreach (ServerModule module in _modules)
+            {
+                module.Snapshot(session, centre, ref header, _ships);
+            }
             using (Profile.Time(ProfileSection.ReplicateSnapshots))
             {
                 int budget = Math.Min(Protocol.SnapshotByteBudget, session.Peer.GetMaxSinglePacketSize(DeliveryMethod.Sequenced));
                 _writer.Reset();
                 session.Snapshots.Write(_writer, header, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_candidates),
-                    System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_shipCandidates), budget);
+                    System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_ships), budget);
                 session.Peer.Send(_writer.Data, DeliveryMethod.Sequenced);
             }
-
-            using (Profile.Time(ProfileSection.ReplicateThings))
+            foreach (ServerModule module in _modules)
             {
-                ReplicateThings(session, centre);
-            }
-            using (Profile.Time(ProfileSection.ReplicateNature))
-            {
-                ReplicateNature(session, centre);
-            }
-            using (Profile.Time(ProfileSection.ReplicateBuilding))
-            {
-                ReplicateBuilding(session, centre);
-                ReplicateExplosives(session, centre);
-                ReplicateArrows(session, centre);
+                module.Replicate(session, centre);
             }
         }
-        FinishThings();
-        FinishBuilding();
+        foreach (ServerModule module in _modules)
+        {
+            module.Finish();
+        }
     }
 
     // The player as a viewer for this snapshot (GROUND_SYSTEMS.md §3.3), and whether that changed since the last: their
@@ -853,7 +908,75 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         session.ViewerSignature = signature;
     }
 
-    // ---------------------------------------------------------------- saving and shutting down
+    // ---------------------------------------------------------------- loading and saving the world
+
+    // Everything stored about this body: characters come back asleep (or dead), then each module's records
+    // (things where they were, natural objects as players left them, the building, ships, explosives, teams, corpses).
+    private void LoadWorld()
+    {
+        if (_persistence == null)
+        {
+            return;
+        }
+        ZoneRecord stored = _persistence.LoadZone(Spec.SystemAddress, Spec.BodyPath).GetAwaiter().GetResult();
+        int sleepers = 0;
+        foreach (CharacterRecord r in stored.Characters)
+        {
+            if (!CharacterRecords.Restorable(Zone, Spec, r, out Vector3 local) || Zone.Entities.TryFind(r.Id, out _))
+            {
+                continue;
+            }
+            CharacterState state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
+            state.Stance = (Stance)Math.Min(r.Stance, (byte)Stance.Crouching);
+            Entity entity = Zone.Players().AddPlayer(r.Id, r.Name, state, CharacterRecords.Decode(r, Content, Log));
+            Zone.Entities.Get<Character>(entity).Input.Yaw = r.Yaw;
+            Zone.Players().Sleep(entity);
+            Zone.Entities.Add(entity, new NetPresence { NetId = _nextNetId++, Yaw = Quantize.Angle16(r.Yaw), Pitch = Quantize.Angle16(r.Pitch) });
+            _accountOf[r.Id] = r.AccountId;
+            sleepers++;
+        }
+        foreach (ServerModule module in _modules)
+        {
+            module.Restore(stored, _savedThings);
+        }
+        Log($"loaded {sleepers} sleepers");
+    }
+
+    // The whole zone in one transaction: every character (players and sleepers), then each module's records, and the
+    // things gone since the last save (those the modules didn't write again).
+    private ZoneSave BuildSave()
+    {
+        var save = new ZoneSave
+        {
+            SystemAddress = Spec.SystemAddress,
+            BodyPath = Spec.BodyPath,
+            SavedAtUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        };
+        ComponentPool<PlayerLink> players = Zone.Entities.Pool<PlayerLink>();
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player p = players.Values[i].Player;
+            if (_accountOf.GetValueOrDefault(p.Id) != 0)
+            {
+                save.Characters.Add(CharacterRecords.Encode(Zone, Spec, Zone.Entities.AtSlot(players.Slots[i]), p, _accountOf.GetValueOrDefault(p.Id)));
+            }
+        }
+        var current = new HashSet<EntityId>();
+        foreach (ServerModule module in _modules)
+        {
+            module.Save(save, current);
+        }
+        foreach (EntityId id in _savedThings)
+        {
+            if (!current.Contains(id))
+            {
+                save.RemovedThings.Add(id);
+            }
+        }
+        _savedThings.Clear();
+        _savedThings.UnionWith(current);
+        return save;
+    }
 
     /// <summary>Queues every character (players and sleepers), static thing and natural change to be written (one transaction).</summary>
     public Task SaveAll()
@@ -864,6 +987,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
         return _persistence.SaveZone(BuildSave());
     }
+
+    /// <summary>A save within the second (deaths commit at once, ARCHITECTURE.md §13: within a second, several deaths in one save).</summary>
+    internal void SaveSoon() => _deathToSave = true;
+
+    // ---------------------------------------------------------------- shutting down
 
     private void Kick(PlayerSession session, GoodbyeReason reason, string text)
     {
@@ -899,6 +1027,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             Thread.Sleep(10);
         }
         _net.Stop();
+        for (int i = _modules.Length - 1; i >= 0; i--)
+        {
+            _modules[i].Dispose();
+        }
         _persistence?.Dispose();
         Zone.Dispose();
         Log("server stopped");
@@ -941,7 +1073,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     {
     }
 
-    private void Log(string line) => _options.Log(line);
+    internal void Log(string line) => _options.Log(line);
 
-    private static string Format(Vector3 p) => string.Create(CultureInfo.InvariantCulture, $"({p.X:0.0}, {p.Y:0.0}, {p.Z:0.0})");
+    internal static string Format(Vector3 p) => string.Create(CultureInfo.InvariantCulture, $"({p.X:0.0}, {p.Y:0.0}, {p.Z:0.0})");
 }

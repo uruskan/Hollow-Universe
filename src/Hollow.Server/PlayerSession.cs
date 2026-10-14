@@ -4,14 +4,16 @@ using System.Threading.Tasks;
 using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
 using Hollow.Persistence;
+using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Entities;
 using LiteNetLib;
-using Hollow.Simulation.Capabilities;
-using Hollow.Simulation.Targets;
 
 namespace Hollow.Server;
 
-/// <summary>One connected player: their connection, character, inputs and what they have been sent.</summary>
+/// <summary>
+/// One connected player: their connection, character, inputs, budgets and what the host has sent them. What a module
+/// keeps of a player lives in a slot of its own (<see cref="State{T}"/>), not here (GROUND_SYSTEMS.md §12.5).
+/// </summary>
 public sealed class PlayerSession
 {
     /// <summary>Inputs are kept by tick in a ring this long (4 s).</summary>
@@ -20,6 +22,7 @@ public sealed class PlayerSession
     private readonly InputCommand[] _inputs = new InputCommand[InputRing];
     private readonly uint[] _inputTicks = new uint[InputRing];
     private readonly Queue<(long Tick, int Margin)> _margins = new();
+    private readonly Dictionary<Type, object> _state = new();
 
     public PlayerSession(NetPeer peer, string name)
     {
@@ -68,8 +71,19 @@ public sealed class PlayerSession
     /// <summary>Entities this player has been told about (Spawn sent, no Despawn since).</summary>
     public HashSet<uint> Relevant { get; } = new();
 
-    /// <summary>The ships (net IDs) this player hears about (G6).</summary>
-    public HashSet<uint> ShipsRelevant { get; } = new();
+    /// <summary>
+    /// A module's state for this player (GROUND_SYSTEMS.md §12.5, K10): one slot per type, made on first use and gone
+    /// with the session, so a module keeps what it sent a player without the session naming it.
+    /// </summary>
+    public T State<T>() where T : class, new()
+    {
+        if (!_state.TryGetValue(typeof(T), out object? state))
+        {
+            state = new T();
+            _state.Add(typeof(T), state);
+        }
+        return (T)state;
+    }
 
     // ---------------------------------------------------------------- statistics
 
@@ -83,28 +97,6 @@ public sealed class PlayerSession
 
     /// <summary>Chat budget (RustMVP's command budget, sized for chat): tokens refill at one a second, up to five.</summary>
     public double ChatTokens { get; set; } = 5;
-
-    /// <summary>
-    /// The F1 console's budget (GROUND.md §8.2): ten commands at once, five a second; a line over it is refused with a
-    /// reply, not run.
-    /// </summary>
-    public bool SpendConsoleToken(long tick)
-    {
-        _consoleTokens = Math.Min(10, _consoleTokens + (tick - _consoleTick) * 5.0 / Simulation.Movement.CharacterMotor.TickRate);
-        _consoleTick = tick;
-        if (_consoleTokens < 1)
-        {
-            return false;
-        }
-        _consoleTokens -= 1;
-        return true;
-    }
-
-    private double _consoleTokens = 10;
-    private long _consoleTick;
-
-    /// <summary>Console lines refused for coming too fast.</summary>
-    public long ConsoleRateLimited { get; set; }
 
     public long ChatTick { get; set; }
 
@@ -134,42 +126,6 @@ public sealed class PlayerSession
 
     private bool _budgetStarted;
 
-    /// <summary>
-    /// The gun budget (RustMVP's weapon budget, survival.json <c>gunBurst</c>, <c>gunActionsPerSecond</c>): shots and
-    /// reloads spend from their own bucket, so a firefight never starves the inventory's intents.
-    /// </summary>
-    public bool SpendGunToken(long tick, int burst, float perSecond)
-    {
-        if (!_gunBudgetStarted)
-        {
-            _gunBudgetStarted = true;
-            _gunTokens = burst;
-            _gunTick = tick;
-        }
-        _gunTokens = Math.Min(burst, _gunTokens + (tick - _gunTick) * (double)perSecond / Simulation.Movement.CharacterMotor.TickRate);
-        _gunTick = tick;
-        if (_gunTokens < 1)
-        {
-            return false;
-        }
-        _gunTokens -= 1;
-        return true;
-    }
-
-    private bool _gunBudgetStarted;
-    private double _gunTokens;
-    private long _gunTick;
-
-    /// <summary>Gun actions (shots and reloads) that arrived, those refused for the budget, and the gun state last sent.</summary>
-    public long GunActions { get; set; }
-
-    public long GunRateLimited { get; set; }
-
-    public uint SentGun { get; set; } = uint.MaxValue;
-
-    /// <summary>Whether the player was down (wounded) when their life was last sent.</summary>
-    public bool? SentWounded { get; set; }
-
     public double IntentTokens { get; private set; }
 
     public long IntentTick { get; private set; }
@@ -187,20 +143,6 @@ public sealed class PlayerSession
     /// <summary>Answers to send after this tick's changes (so the changes arrive first).</summary>
     public List<IntentResult> PendingResults { get; } = new();
 
-    /// <summary>What of the player's own state was sent: the revisions, and whether their containers went in full.</summary>
-    public bool OwnContainersSent { get; set; }
-
-    public uint SentVitals { get; set; } = uint.MaxValue;
-
-    public uint SentCraft { get; set; } = uint.MaxValue;
-
-    public uint SentLoot { get; set; } = uint.MaxValue;
-
-    public bool? SentDead { get; set; }
-
-    /// <summary>Static things this player was told about, by net ID, with the revision sent.</summary>
-    public Dictionary<uint, ThingSent> ThingsSent { get; } = new();
-
     /// <summary>
     /// The player as a viewer this snapshot (GROUND_SYSTEMS.md §3.3: their ID, team and keys), and whether that changed
     /// since the last (a team joined or left, a key picked up or dropped): then the viewer flags of everything they were
@@ -211,12 +153,6 @@ public sealed class PlayerSession
     public ulong ViewerSignature { get; set; }
 
     public bool ViewerChanged { get; set; }
-
-    /// <summary>What each relevant character was last told to wear (a hash of the items).</summary>
-    public Dictionary<uint, ulong> LooksSent { get; } = new();
-
-    /// <summary>The 64 m cells whose natural overrides this player has.</summary>
-    public HashSet<(int X, int Z)> NatureCells { get; } = new();
 
     /// <summary>Stores the inputs of a packet that are still useful: not yet simulated, and not absurdly far ahead.</summary>
     public void ReceiveInputs(in InputPacket packet, uint nextTick, long serverTick)
@@ -308,6 +244,3 @@ public sealed class PlayerSession
         return least == int.MaxValue ? sbyte.MinValue : (sbyte)Math.Clamp(least, -127, 127);
     }
 }
-
-/// <summary>What a player was last sent of a static thing: its revision, its contents' revision, what they were told of it.</summary>
-public readonly record struct ThingSent(uint Revision, uint Contents, ViewerFlags Flags);

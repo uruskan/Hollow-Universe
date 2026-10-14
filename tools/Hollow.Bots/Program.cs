@@ -199,12 +199,12 @@ public static class Program
                 rebuildsBefore = sv.Zone.Physics.BroadPhaseRebuilds;
                 rebuildTimeBefore = sv.Zone.Physics.BroadPhaseTime;
                 worldBefore = sv.Zone.World().WorldStats.Time;
-                worldSendBefore = sv.WorldTime;
+                worldSendBefore = sv.World().WorldTime;
                 animalBefore = sv.Zone.Animals().AnimalTime;
                 thinksBefore = sv.Zone.Animals().World?.Thinks ?? 0;
                 return sv.Players.ToDictionary(p => p.Name, p => Traffic(p));
             });
-        string countersBefore = server.Inspect(sv => sv.Counters.ToString());
+        string countersBefore = server.Inspect(sv => sv.Survival().Counters.ToString());
         (int Gen0, int Gen1, int Gen2, TimeSpan Paused, long Allocated) gcBefore =
             (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2), GC.GetTotalPauseDuration(), GC.GetTotalAllocatedBytes());
         int storms = 0;
@@ -249,25 +249,25 @@ public static class Program
             Structures = sv.Zone.Building().World.Structures.Count,
             Doors = sv.Zone.Building().World.Doors.Count(),
             Claims = sv.Zone.Building().World.Claims.Count(),
-            Placed = sv.PiecesPlaced,
-            Counters = sv.Counters.ToString(),
+            Placed = sv.Building().PiecesPlaced,
+            Counters = sv.Survival().Counters.ToString(),
             Intents = sv.Players.Sum(p => p.IntentsAccepted),
-            GunActions = sv.Players.Sum(p => p.GunActions),
+            GunActions = sv.Players.Sum(p => p.State<GunBudget>().Actions),
             BulletMs = sv.Zone.Guns().BulletTime.TotalMilliseconds,
             GunResults = sv.Zone.Guns().GunResults.ToArray(),
             BulletSteps = sv.Zone.Guns().BulletStepsFlown,
             RaidMs = (sv.Zone.Explosives().RaidStats.Time - raidBefore).TotalMilliseconds,
             Raid = sv.Zone.Explosives().RaidStats.ToString(),
-            Alerts = sv.Notifications.Counters.ToString(),
+            Alerts = sv.Raid().Notifications.Counters.ToString(),
             World = sv.Zone.World().WorldStats.ToString(),
             WorldMs = (sv.Zone.World().WorldStats.Time - worldBefore).TotalMilliseconds,
-            WorldSendMs = (sv.WorldTime - worldSendBefore).TotalMilliseconds,
+            WorldSendMs = (sv.World().WorldTime - worldSendBefore).TotalMilliseconds,
             WorldProps = sv.Zone.World().Props.Count,
             Teams = sv.Zone.World().Teams.Count,
             TeamMembers = sv.Zone.World().Teams.All.Sum(t => t.Members.Count),
             Explosives = sv.Zone.Explosives().All.Count,
-            Restored = sv.Arena?.Restored ?? 0,
-            GunLimited = sv.Players.Sum(p => p.GunRateLimited),
+            Restored = sv.Raid().Arena?.Restored ?? 0,
+            GunLimited = sv.Players.Sum(p => p.State<GunBudget>().RateLimited),
             Refused = sv.Players.Sum(p => p.IntentsRefused),
             Limited = sv.Players.Sum(p => p.IntentsRateLimited),
             OnDemand = sv.Zone.Physics.TilesBuiltOnDemand,
@@ -275,9 +275,9 @@ public static class Program
             ShipsFlying = sv.Zone.Ships().All.Count(x => !x.State.Asleep && !x.InOrbit),
             ShipMs = sv.Zone.Ships().ShipTime.TotalMilliseconds,
             ShipSteps = sv.Zone.Ships().ShipSteps,
-            ShipIntents = sv.ShipIntentsAccepted,
-            ShipRefused = sv.ShipIntentsRefused,
-            Crashes = sv.ShipCrashes,
+            ShipIntents = sv.Ships().ShipIntentsAccepted,
+            ShipRefused = sv.Ships().ShipIntentsRefused,
+            Crashes = sv.Ships().ShipCrashes,
             Rebuilds = sv.Zone.Physics.BroadPhaseRebuilds - rebuildsBefore,
             RebuildMs = (sv.Zone.Physics.BroadPhaseTime - rebuildTimeBefore).TotalMilliseconds,
             RebuildWorstMs = sv.Zone.Physics.BroadPhaseWorst.TotalMilliseconds,
@@ -286,7 +286,7 @@ public static class Program
             AnimalsAwake = sv.Zone.Animals().World?.Awake ?? 0,
             AnimalsDead = sv.Zone.Animals().World?.All.Count(a => a.IsDead) ?? 0,
             Thinks = (sv.Zone.Animals().World?.Thinks ?? 0) - thinksBefore,
-            AnimalStatus = sv.AnimalStatus(),
+            AnimalStatus = sv.Animals().AnimalStatus(),
             Players = sv.Players.Select(p =>
             {
                 var b = before.GetValueOrDefault(p.Name);

@@ -12,10 +12,12 @@ using LiteNetLib;
 
 namespace Hollow.Server;
 
-// Ships on the server (GROUND.md §6.7): the pilots' controls into their ships, ship intents, ships in every nearby
-// player's snapshots (and the pilot's own ship exactly, for its prediction), and what happens to ships told to whom it
-// concerns.
-public sealed partial class GameServer
+/// <summary>
+/// Ships on the server (GROUND.md §6.7): the pilots' controls into their ships, ship intents, ships in every nearby
+/// player's snapshots (and the pilot's own ship exactly, for its prediction), and what happens to ships told to whom it
+/// concerns.
+/// </summary>
+public sealed class ShipModule : ServerModule
 {
     /// <summary>Ships within this many metres (horizontally) of a player are in their snapshots: big, fast and seen far off.</summary>
     public const float ShipRelevanceRadius = 2000f;
@@ -25,7 +27,6 @@ public sealed partial class GameServer
     private readonly Dictionary<uint, Ship> _shipsByNet = new();
     private readonly HashSet<uint> _shipsPresent = new();
     private readonly List<uint> _shipsGone = new();
-    private readonly List<ShipCandidate> _shipCandidates = new();
     private readonly List<int> _shipIndices = new();
     private readonly HashSet<uint> _shipsNow = new();
     private readonly List<uint> _shipsLeaving = new();
@@ -35,8 +36,53 @@ public sealed partial class GameServer
 
     public long ShipIntentsRefused { get; private set; }
 
+    /// <summary>The ships (net IDs) this player hears about (G6).</summary>
+    private sealed class ShipView
+    {
+        public readonly HashSet<uint> Relevant = new();
+    }
+
+    protected internal override void Init(MessageHandlers<PlayerSession> handlers)
+    {
+        handlers.On<ShipIntent>((PlayerSession session, in ShipIntent message) =>
+        {
+            ShipIntent m = message;
+            Entity me = session.Entity;
+            var target = new EntityId(m.Ship);
+            Intent(session, m.Seq, () =>
+            {
+                Outcome result = m.Action switch
+                {
+                    ShipAction.Hatch => Zone.Ships().ShipHatch(me, target),
+                    ShipAction.Exit => Zone.Ships().ExitShip(me),
+                    ShipAction.Lock => Zone.Ships().LockShip(me, target),
+                    ShipAction.Descend => Zone.Ships().Descend(me),
+                    _ => OutcomeCode.Invalid,
+                };
+                if (result == OutcomeCode.Done)
+                {
+                    ShipIntentsAccepted++;
+                }
+                else
+                {
+                    ShipIntentsRefused++;
+                }
+                return result;
+            });
+        });
+    }
+
+    /// <summary>Every new character gets a Tin Finch beside them, full and theirs (<see cref="ServerOptions.ShipOnJoin"/>, the G6 load test's pilots).</summary>
+    protected internal override void Joined(PlayerSession session, bool newCharacter)
+    {
+        if (newCharacter && (Options.ShipOnJoin || Options.ShipOnJoinFor?.Invoke(session.Name) == true))
+        {
+            GiveShip(session);
+        }
+    }
+
     // A pilot's controls for this tick go to their ship (none while on foot: hands off the stick).
-    private void ApplyShipInput(PlayerSession session, in InputCommand input)
+    protected internal override void Input(PlayerSession session, in InputCommand input)
     {
         if (Zone.Ships().SeatOf(session.Entity) is { } ship && ship.Pilot == session.EntityId)
         {
@@ -44,44 +90,9 @@ public sealed partial class GameServer
         }
     }
 
-    // ---------------------------------------------------------------- intents
-
-    private bool ReceiveShipIntent(PlayerSession session, uint type)
-    {
-        if (type != ShipIntent.TypeId)
-        {
-            return false;
-        }
-        ShipIntent m = ShipIntent.Read(_reader);
-        if (_reader.Failed)
-        {
-            return false;
-        }
-        Entity me = session.Entity;
-        var target = new EntityId(m.Ship);
-        return Intent(session, m.Seq, () =>
-        {
-            Outcome result = m.Action switch
-            {
-                ShipAction.Hatch => Zone.Ships().ShipHatch(me, target),
-                ShipAction.Exit => Zone.Ships().ExitShip(me),
-                ShipAction.Lock => Zone.Ships().LockShip(me, target),
-                ShipAction.Descend => Zone.Ships().Descend(me),
-                _ => OutcomeCode.Invalid,
-            };
-            if (result == OutcomeCode.Done)
-            {
-                ShipIntentsAccepted++;
-            }
-            else
-            {
-                ShipIntentsRefused++;
-            }
-            return result;
-        });
-    }
-
     // ---------------------------------------------------------------- replication
+
+    protected internal override void Prepare() => PrepareShips();
 
     // Once per snapshot: every ship gets a net ID (kept while it lives) and goes into the ships' grid; those gone are noted.
     private void PrepareShips()
@@ -92,7 +103,7 @@ public sealed partial class GameServer
         {
             if (!_shipNetIds.TryGetValue(ship.Id, out uint netId))
             {
-                netId = _nextNetId++;
+                netId = NextNetId();
                 _shipNetIds.Add(ship.Id, netId);
             }
             _shipsByNet[netId] = ship;
@@ -114,34 +125,41 @@ public sealed partial class GameServer
         }
     }
 
-    // The ships near a player: spawned and despawned (reliable), offered to their snapshot by nearness.
-    private void ReplicateShips(PlayerSession session, Vector3 centre)
+    /// <summary>The ships for this player's snapshot: their spawns and despawns first (reliable), then the pilot's own ship in the header and the ships offered by nearness.</summary>
+    protected internal override void Snapshot(PlayerSession session, Vector3 centre, ref SnapshotHeader header, List<ShipCandidate> ships)
     {
-        _shipCandidates.Clear();
+        ReplicateShips(session, centre, ships);
+        header.OwnShip = OwnShip(session)!;
+    }
+
+    // The ships near a player: spawned and despawned (reliable), offered to their snapshot by nearness.
+    private void ReplicateShips(PlayerSession session, Vector3 centre, List<ShipCandidate> ships)
+    {
+        HashSet<uint> relevant = session.State<ShipView>().Relevant;
         foreach (uint netId in _shipsGone)
         {
-            if (session.ShipsRelevant.Remove(netId))
+            if (relevant.Remove(netId))
             {
                 session.Snapshots.Forget(netId);
                 Despawned(session, netId);
             }
         }
-        _shipGrid.Query(centre, session.ShipsRelevant, _shipIndices);
+        _shipGrid.Query(centre, relevant, _shipIndices);
         _shipsNow.Clear();
         foreach (int index in _shipIndices)
         {
             (uint netId, Vector3 position) = _shipGrid[index];
             _shipsNow.Add(netId);
             Ship ship = _shipsByNet[netId];
-            if (session.ShipsRelevant.Add(netId))
+            if (relevant.Add(netId))
             {
-                _writer.Reset();
-                new Spawn { NetId = netId, EntityId = ship.Id.Value, Kind = EntityKind.Ship, Name = ship.Def.Key }.WriteMessage(_writer);
-                session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+                Writer.Reset();
+                new Spawn { NetId = netId, EntityId = ship.Id.Value, Kind = EntityKind.Ship, Name = ship.Def.Key }.WriteMessage(Writer);
+                session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
             }
             float distance = Vector3.Distance(position, centre);
             bool moving = !ship.State.Asleep;
-            _shipCandidates.Add(new ShipCandidate
+            ships.Add(new ShipCandidate
             {
                 NetId = netId,
                 State = ShipConvert.ToNet(ship, Zone.Targets().FlagsFor(ship.Ref, session.Viewer)),
@@ -149,7 +167,7 @@ public sealed partial class GameServer
             });
         }
         _shipsLeaving.Clear();
-        foreach (uint netId in session.ShipsRelevant)
+        foreach (uint netId in relevant)
         {
             if (!_shipsNow.Contains(netId))
             {
@@ -158,7 +176,7 @@ public sealed partial class GameServer
         }
         foreach (uint netId in _shipsLeaving)
         {
-            session.ShipsRelevant.Remove(netId);
+            relevant.Remove(netId);
             session.Snapshots.Forget(netId);
             Despawned(session, netId);
         }
@@ -180,7 +198,7 @@ public sealed partial class GameServer
 
     // The body's ships as they were saved: parked, flying (they fall or hover on), in orbit; their pilots, loaded as
     // sleepers, go back into their seats.
-    private void LoadShips(ZoneRecord stored)
+    protected internal override void Restore(ZoneRecord stored, HashSet<EntityId> saved)
     {
         int loaded = 0;
         foreach (ShipRecord record in stored.Ships)
@@ -188,7 +206,7 @@ public sealed partial class GameServer
             _savedShips.Add(record.Id);
             try
             {
-                if (Persistence.ShipCodec.Decode(record.Id, record.Data, Content, Zone.Frame) is not { } restored || Zone.Entities.TryFind(record.Id, out _))
+                if (ShipCodec.Decode(record.Id, record.Data, Content, Zone.Frame) is not { } restored || Zone.Entities.TryFind(record.Id, out _))
                 {
                     continue;
                 }
@@ -212,33 +230,33 @@ public sealed partial class GameServer
     }
 
     // Every ship now (they move), and those gone since the last save.
-    private void AddShipsToSave(ZoneSave save)
+    protected internal override void Save(ZoneSave save, HashSet<EntityId> current)
     {
-        var current = new HashSet<EntityId>();
+        var ships = new HashSet<EntityId>();
         foreach (Ship ship in Zone.Ships().All)
         {
             if (ship.Destroyed)
             {
                 continue;
             }
-            save.Ships.Add(new ShipRecord(ship.Id, Persistence.ShipCodec.Encode(ship, Zone.Frame)));
-            current.Add(ship.Id);
+            save.Ships.Add(new ShipRecord(ship.Id, ShipCodec.Encode(ship, Zone.Frame)));
+            ships.Add(ship.Id);
         }
         foreach (EntityId id in _savedShips)
         {
-            if (!current.Contains(id))
+            if (!ships.Contains(id))
             {
                 save.RemovedShips.Add(id);
             }
         }
         _savedShips.Clear();
-        _savedShips.UnionWith(current);
+        _savedShips.UnionWith(ships);
     }
 
     // ---------------------------------------------------------------- events
 
     // What happened to ships this tick: the builder hears theirs rolled out; crashes and wrecks go in the log.
-    private void RouteShipEvents()
+    protected internal override void AfterStep()
     {
         foreach (ShipEvent e in Zone.Ships().ShipEvents)
         {
@@ -270,18 +288,6 @@ public sealed partial class GameServer
     public long ShipsDestroyed { get; private set; }
 
     public long ShipCrashes { get; private set; }
-
-    /// <summary>A server line in one player's chat.</summary>
-    private void Notify(EntityId player, string text)
-    {
-        if (_sessionOf.GetValueOrDefault(player) is not { } to)
-        {
-            return;
-        }
-        _writer.Reset();
-        new ChatLine { Kind = ChatKind.Server, From = "", Text = text }.WriteMessage(_writer);
-        Send(to);
-    }
 
     /// <summary>A Tin Finch beside a player, full, theirs, its hatch open (the admin's <c>ship</c>, and every new player's with <see cref="ServerOptions.ShipOnJoin"/>).</summary>
     public Ship? GiveShip(PlayerSession session)
@@ -315,4 +321,10 @@ public sealed partial class GameServer
         }
         return null;
     }
+}
+
+/// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): ships' intents, replication and storage.</summary>
+public static class ShipModuleAccess
+{
+    public static ShipModule Ships(this GameServer server) => server.Require<ShipModule>();
 }

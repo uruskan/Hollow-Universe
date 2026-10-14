@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using Hollow.Client;
+using Hollow.Server;
 using Hollow.Server.Notifications;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
@@ -116,7 +117,7 @@ public static class RaidNetTests
         RaidAlertView alert = alerts[0];
         Assert.True(!alert.WhileAway && alert.Item?.Key == "tin-grenade" && alert.What.Length > 0, $"the alert: {alert.What} with {alert.Item?.Key}");
         Fixtures.Report($"the grenade bounced {bounces} time(s), was lit again {lit} time(s), went off; Ada's alert: \"{alert.What}\" " +
-            $"({alert.Hits} hits) at {alert.Last:HH:mm:ss}; {rig.Server.Inspect(sv => sv.Notifications.Counters.ToString())}");
+            $"({alert.Hits} hits) at {alert.Last:HH:mm:ss}; {rig.Server.Inspect(sv => sv.Raid().Notifications.Counters.ToString())}");
     }
 
     /// <summary>
@@ -164,7 +165,7 @@ public static class RaidNetTests
                 return (charge.Id, bag.Id, box.Id, charge.FuseEndTick - z.Tick);
             });
             rig.Run(0.3, (_, _) => default);
-            Assert.Equal(1L, rig.Server.Inspect(sv => sv.Notifications.Counters.Queued), "the alert queued for Ada");
+            Assert.Equal(1L, rig.Server.Inspect(sv => sv.Raid().Notifications.Counters.Queued), "the alert queued for Ada");
         }
 
         using (var rig = new LoopbackRig(file.Path))
