@@ -590,3 +590,108 @@ the game with one screenshot.
 6. UNLOAD is in the ammo radial and in the inventory's ACTIONS.
 7. A drag released anywhere but a slot drops the item.
 8. The claim device is called the tool cupboard everywhere, code included.
+
+## 12. The kernel: systems, events, messages, modules and readers (packages K0–K4, 14 October 2026)
+
+### 12.1 Why
+
+The zone, the server, the client and the content loader each grew as one class cut into partial files: `Zone` was 24
+files and 8,800 lines whose parts called each other freely (the players' file reached into 20 others), `GameServer` 12
+files, `GameClient` 14, and `GameContent` carried a 1,200-line reader inside. A feature added about 1,400 lines to
+`Zone`, a field to the one event struct and a case to five switches; 97 of the branch's 419 commits touched those four
+places, so every parallel package collided there. With most of the game still to come, that was the shape that would
+not scale. The owner decided (14 October 2026): one dedicated server for now, so no zone host and no transfers yet
+(ARCHITECTURE.md §10.1 and §12 stay the plan), but the rest is fixed now, by applying §2's rule one level up: registries
+for the tick, the events, the messages, the server's and the client's concerns, and the data files.
+
+### 12.2 K0: the zone is a host; the rules are systems
+
+Decisions:
+
+- **K1.** `ZoneSystem` (`src/Hollow.Simulation/Systems/ZoneSystem.cs`): one class per concern, with its own state,
+  `Init` (finds what it needs), `Step` (its tick: every tick, or once a second for the slow ones), `Dispose`. What a system
+  holds is its own; C# enforces it (private is private), so nothing reaches into another system's state.
+- **K2.** `Zone` keeps only what every system shares: the spec, the surface and frame, the entities, the physics, the
+  natural objects, the pose history, the tick and the clock, the content, the events, the climate, and its list of
+  systems. Its step: the ground under the characters; then, under the physics gate, the broadphase, the characters'
+  movement and the systems that move bodies (`InsidePhysicsGate`); the ground's release; then the other systems in their
+  order. The host times each system (`ZoneSystem.Time`, principle 6).
+- **K3.** The list and its order live in one place, `GroundSystems` (`Systems/GroundSystems.cs`), in GROUND.md §4.2's
+  order; a movement-only zone (G1's, the tests') has `AutoRespawn` alone. A zone is made from a list, so a later kind of
+  zone (space) is the same host with other systems.
+- **K4.** Systems find each other once, in `Init`, with `zone.Get<T>()` (null when absent) or `Require<T>()` (fails at
+  start naming what is missing). Each system's file gives the zone an accessor (`zone.Players()`, `zone.Guns()`...), an
+  extension method, so the host never names a system and a caller never spells `Require`.
+- **K5.** No `Content == null` paths: a system exists only in a zone with content, and `ZoneSystem.Content` is never
+  null. The 68 checks go.
+- **K6.** The check (`ArchitectureTests.TheZoneIsAHost`): `Zone` has no partial files beyond the host; every class
+  deriving `ZoneSystem` is in `GroundSystems` exactly once (completeness, as §3.5's registries).
+
+| System | Was | Its step |
+|---|---|---|
+| `PlayerSystem` | Zone.Players.cs, Zone.Admin.cs | fall damage; lives, sleep, death, respawn; teleport, god and noclip |
+| `CombatSystem` | Zone.Combat.cs | held items' actions (swings, bows), arrows in flight, hits on characters, natural things and the ground |
+| `GunSystem` | Zone.Guns.cs | gun actions and bullets |
+| `ExplosiveSystem` | Zone.Raid.cs | thrown and placed explosives, fuses, detonations |
+| `BlastSystem` | Zone.Blast.cs | an explosion's reach and line of sight, raid tallies |
+| `WoundedSystem` | Zone.Wounded.cs | the wounded getting up or dying |
+| `AnimalSystem` | Zone.Animals.cs | the animals' AI, attacks, harvest |
+| `VitalsSystem` | Zone.Vitals.cs | metabolism, temperature, bleeding (once a second) |
+| `NatureSystem` | Zone.Players.cs (part) | the natural objects' respawn (once a second) |
+| `ThingSystem` | Zone.Things.cs | static things; lifetimes (once a second); burners and machines |
+| `ArrowSystem` | Zone.Arrows.cs | spent arrows, their poses (once a second) |
+| `WorldSystem` | Zone.World.cs | props, loot spots, recyclers and research, teams, map markers (once a second) |
+| `ActionSystem` | Zone.Actions.cs, Zone.Players.cs (part) | containers, looting, item actions; the loot check (once a second); craft queues |
+| `BuildingSystem` | Zone.Building.cs | building, doors, locks, the cupboard; decay and upkeep |
+| `HistorySystem` | Zone.Players.cs (part) | records the second of poses hits are judged against (last) |
+| `ShipSystem` | Zone.Ships.cs | ships (inside the physics gate, after movement) |
+| `DamageSystem` | Zone.Damage.cs | the damage pipeline (no step) |
+| `SpillSystem` | Zone.Spill.cs | dropped items in bags (no step) |
+| `SupportSystem` | Zone.Supports.cs | support links (no step) |
+| `TargetSystem` | Zone.Targets.cs, Zone.Reach.cs | families, capabilities, viewer flags, reach and sight (no step) |
+| `InteractionSystem` | Zone.Interaction.cs | verbs, options, aim (no step) |
+| `PlacementSystem` | Zone.Placement.cs | placing (no step) |
+| `HeldSystem` | Zone.Held.cs | what a held item does (no step) |
+| `AutoRespawnSystem` | Zone.cs | G1: the dead come back by themselves (movement-only zones) |
+
+### 12.3 K1: events are types
+
+- **K7.** One record struct per kind of event (`Events/`), each an `IZoneEvent`. `Zone.Events` keeps them in the order
+  they happened and by type: a consumer subscribes with `On<T>(handler)` and the host dispatches after each step; the
+  lists are read (`Of<T>()`) and cleared by whoever consumes them (the server; the tests look at them), as today.
+- **K8.** The union struct `ZoneEvent` and `ZoneEventKind` go. The server's 23-case route and its counters, and the
+  animals' hearing, become subscriptions.
+
+### 12.4 K2: messages find their handler
+
+- **K9.** Every generated message implements `INetMessage<T>` (its id, its reader, its writer).
+  `MessageHandlers<TContext>` holds one handler per message type (a second throws) and routes a packet's type byte to
+  it without allocating; a type with no handler, or a read that fails, is a bad packet, as today. Routing by type stays
+  transport (principle 4); the switches and the chain across five server files and eight client files go (K3).
+
+### 12.5 K3: the server and the client are modules
+
+- **K10.** `ServerModule`: one class per concern with its own state; `Init` registers its message handlers and event
+  subscriptions; the server calls its hooks in order (`AfterStep`, `Prepare`, `Replicate(session)`, `Finish`,
+  `Joined(session)`, `Left(session)`, `Save`, `Restore`); per-session state lives in typed slots (`session.State<T>()`),
+  replacing the per-feature properties and weak tables. `GameServer` keeps the connection, logins, the tick loop, the
+  snapshots of dynamic entities, saving and the console's plumbing.
+- **K11.** `ClientModule` likewise for `GameClient` (`Init`, `Update`, `Welcome`, `Dispose`); the presentation reads a
+  module's state through its accessor (`client.Raid().Explosives`).
+
+### 12.6 K4: one reader per data file
+
+- **K12.** `IContentReader`: the file it reads, `Read` and `Check`; `ContentReaders.All` in reading order (items before
+  what refers to them); the reader inside `GameContent` goes, and the validation goes with the file it checks (the
+  cross-file checks last). The hash, the problems and every public member of `GameContent` stay.
+
+### 12.7 Order, guards, what stays
+
+- **K13.** K0, then K1; K2 and K4 beside them; then K3, the server and the client in parallel. Each lands with every
+  existing path moved and the old one deleted, the 218 tests green and one check of its own; the protocol is unchanged
+  unless a layout changes.
+- **K14.** Deferred by the owner (14 October 2026): the zone host, transfers, the lifecycle with catch-up
+  (ARCHITECTURE.md §10.1, §10.4, §12) and P6 (§9). Nothing here has to be redone for them: a second zone is a second
+  host with the same lists, and P6's one entity model sits inside the systems.
+
+*As built:* filled in per package below.
