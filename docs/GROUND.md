@@ -1865,7 +1865,7 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
   it is at most 30 ticks old, so an area coming into range replays no hits, and no felled tree falls again.
 - **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
 
-**Server** (`GameServer.Survival.cs`). The zone runs with the game data; the server sets its real clock each tick,
+**Server** (`SurvivalModule`). The zone runs with the game data; the server sets its real clock each tick,
 applies inputs and actions, steps it, then routes its events, sends each player's own state, the container changes,
 and the answers; static things and natural changes go with each snapshot. A player who logs off stays as a sleeper
 (saved at once); logging in finds their sleeper and wakes it. A death saves the zone within a second. Admin console: `give <name> <item> [count]`,
@@ -2488,7 +2488,7 @@ is saved with the zone. The ground mode's hookup is phase 2b.
 | Items, recipes, kits | `game/data/ground/items.json` (100–110), `recipes.json`, `loot.json` (`build-kit`), `categories.json` (Construction) |
 | In the zone | `src/Hollow.Simulation/BuildingSystem`; `Building/ItemWallet.cs`; `Building/BuildingWorld.Replica.cs` (lookups by ID, batches, restoring, the mirror) |
 | Protocol | `src/Hollow.Net/Protocol/Messages.cs` (90–100: intents, `BuildFrames`, `BuildPieces`, `BuildRemoved`, `BuildDoors`, `BuildClaims`; 95, `BuildResult`, went with P0: `IntentResult` answers building intents) |
-| Server | `src/Hollow.Server/GameServer.Building.cs` (intents, replication, loading and saving) |
+| Server | `src/Hollow.Server/BuildingModule` (intents, replication, loading and saving) |
 | Storage | `src/Hollow.Persistence/BuildingCodec.cs`, schema 3 in `GameDatabase.cs` |
 | Client | `src/Hollow.Client/BuildingReplica.cs`, `BuildingModule`, `LocalPlayer.Building.cs` |
 | Bots | `tools/Hollow.Bots/BuildBrain.cs` (`--script build`) |
@@ -2591,7 +2591,7 @@ foundation and wall at two thirds, a twig foundation gone).
 
 Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids. The rules
 are `Hollow.Simulation` code (`ExplosiveSystem`, `BlastSystem`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
-`explosives.json` and `weapons.json`; the server's side is `GameServer.Raid.cs` and the notification service
+`explosives.json` and `weapons.json`; the server's side is `RaidModule` and the notification service
 `Hollow.Server/Notifications`; the client's `RaidModule`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
 
 | Tests | `dotnet run --project tests/Hollow.Tests -- Raid` |
@@ -2777,8 +2777,8 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
 | Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
 | In the zone | `src/Hollow.Simulation/ShipSystem`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
-| Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `GameServer.Ships.cs` loads and saves |
-| Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/GameServer.Ships.cs`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `ShipModule`, `LocalPlayer.Ships.cs` |
+| Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `ShipModule` loads and saves |
+| Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/ShipModule`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `ShipModule`, `LocalPlayer.Ships.cs` |
 | Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
 | Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
 
@@ -2861,7 +2861,7 @@ the physics and parks at its orbit marker over the spot it left, the pilot still
 (G8, ARCHITECTURE.md §12): `Zone.OrbitTransfer`, asked first; a handler that takes the ship and its pilot to local space
 returns true, and the parking above is what happens without one.
 
-**Network** (protocol 8, `Messages.cs` 120; `Replication/DeltaChannel.cs`, `GameServer.Ships.cs`, `ShipModule`,
+**Network** (protocol 8, `Messages.cs` 120; `Replication/DeltaChannel.cs`, `ShipModule`, `ShipModule`,
 `ShipPredictor.cs`, `RemoteShip.cs`, `LocalPlayer.Ships.cs`):
 - **Controls** ride in every tick's input while flying (`ShipControls`: stick, throttle lever, strafe and up/down in
   1/127, boost and flight assist; one bit on foot), and the pilot's client predicts its ship with exactly what the
@@ -3031,7 +3031,7 @@ the server, network, storage and client API follow G2's patterns; the interface'
 |---|---|
 | Numbers | `game/data/ground/world.json` (currency, props, recycler, recycle lists, research, tech trees, loot spots, recyclers, teams, map); items 150–171 in `items.json`; `recipes.json`; the world's tables in `loot.json`; the research table in `deployables.json` |
 | Rules | `Content/World.cs` (reader and checks), `Nature/LootSpots.cs` (where props stand), `Economy/Rules.cs` (recycling, research, tech trees), `Items/Blueprints.cs`, `Teams/TeamRegistry.cs`, `Players/MapMarker.cs`, `World/WorldObjects.cs` (`WorldProp`), `WorldSystem` |
-| Server | `GameServer.World.cs` (intents, each player's own world state, teammates' positions, team chat, saving, admin `learn` and `world`) |
+| Server | `WorldModule` (intents, each player's own world state, teammates' positions, team chat, saving, admin `learn` and `world`) |
 | Storage | schema 6: `teams`, `prop_overrides` (`GameDatabase.cs`); `TeamCodec`; `WorldCodec` player records version 4 (blueprints, markers, last death) and `EncodeProp` |
 | Client | `LocalPlayer.World.cs`, `WorldModule`, `Map/ZoneMap.cs` (the map and its picture) |
 | Tests | `tests/Hollow.Tests/WorldTests.cs`, `WorldNetTests.cs` (`dotnet run --project tests/Hollow.Tests -- World`) |
@@ -3219,7 +3219,7 @@ the Godot side is `game/scripts/Animals`.
 |---|---|
 | Numbers | `game/data/ground/animals.json` (species, senses, spawning, harvest rates); items 200–216 in `items.json`; recipes (`lamp-oil-from-fat`, id 220; the bone knife and club) in `recipes.json` |
 | Rules | `Content/Animals.cs` (reader and checks), `Animals/` (`AnimalWorld` and its brain, steering and spawning, `NavGrid`, `AnimalHitboxes`), `AnimalSystem` (players as the animals see and hear them, attacks on players, damage, butchering) |
-| Server | `GameServer.Animals.cs` (replication, saved corpses, admin `animals` and `spawn`); `--no-animals`, `--animals <n>` |
+| Server | `AnimalModule` (replication, saved corpses, admin `animals` and `spawn`); `--no-animals`, `--animals <n>` |
 | Network | `AnimalNet.cs` (what an animal's snapshot state means), `EntityKind.Animal`, protocol 10 |
 | Storage | `AnimalCodec` (corpses, things of kind 17) |
 | Client | `AnimalModule` (`Animals`, `ClientAnimal`, `AnimalEvent`) |
@@ -3350,7 +3350,7 @@ Tin Finch. Its design and how it is built are GROUND_SYSTEMS.md §6; decisions Z
 |---|---|
 | Rules | `game/data/ground/placement.json` (defaults, kinds, the placeables' wire list); a `placement` block next to a definition overrides them (deployables.json, building.json's pieces, doors, locks and claim, explosives.json's throwables, ships.json) |
 | Pipeline | `src/Hollow.Simulation/Placement/`: `Placer` (`Plan`, `Settle`, `Check`), solvers, rotations, checks, kinds, footprints, `PlacementWorld`; `Content/PlacementReader.cs` |
-| Server | `Zone.Place(entity, PlaceRequest)` and the kinds' `Put` (`PlacementSystem`); `GameServer.Placement.cs` |
+| Server | `Zone.Place(entity, PlaceRequest)` and the kinds' `Put` (`PlacementSystem`); `PlacementModule` |
 | Client | `GameClient.Plan`, `PlanAt`, `Settle`, `PlacementNothing`, `Placement` (`PlacementModule`); `Local.Place`, `Local.PendingPlacements` (`LocalPlayer.Placement.cs`) |
 | Game | `PlacementView` (the controller), `PlacementGhost` and `shaders/placement_ghost.gdshader` |
 | Tests | `PlacementTests` (one a rule), and every placement in the survival, building, raid, world and ship tests |

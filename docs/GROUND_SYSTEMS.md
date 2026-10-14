@@ -398,7 +398,7 @@ stays its own action and keeps the shared sweep for sticking.
 (`TargetNet`), the socket's code, the pose (`PoseNet`: a point in the zone frame and a 16-bit yaw) and the variant (a
 piece's orientation or a free foundation's heading, a door's side, a turn in the support's steps), answered by
 `IntentResult`. Messages 59, 90 and 111 are free; `DoorIntent`, `LockIntent` and `ClaimIntent` lost their placing
-actions (and, with P1's verbs, everything else: 92–94 are free too, §5). The server's handler (`GameServer.Placement.cs`) is one call, `Zone.Place(entity, PlaceRequest)`: the slot must
+actions (and, with P1's verbs, everything else: 92–94 are free too, §5). The server's handler (`PlacementModule`) is one call, `Zone.Place(entity, PlaceRequest)`: the slot must
 hold the placeable's item (or its tool), the solver settles the claim, every check passes, the kind puts it, then the
 item or the materials are taken. The client takes the price at once and rolls it back on a refusal.
 
