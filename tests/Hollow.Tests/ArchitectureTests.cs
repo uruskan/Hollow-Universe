@@ -131,7 +131,9 @@ public static class ArchitectureTests
         int hostLines = File.ReadAllLines(Path.Combine(client, "GameClient.cs")).Length;
         Assert.True(hostLines < 900, $"GameClient.cs has {hostLines} lines: concerns are creeping back into the host");
         Fixtures.Report($"{modules.Length} modules, all listed once; the host is {hostLines} lines");
+    }
 
+    /// <summary>
     /// GROUND_SYSTEMS.md §12.5, K10: the server is a host and its concerns are modules. No partial file of GameServer is
     /// left, every module is in ServerModules' list exactly once (completeness, as a registry), and the host stays small.
     /// </summary>
@@ -153,6 +155,7 @@ public static class ArchitectureTests
         Assert.True(hostLines < 1100, $"GameServer.cs has {hostLines} lines: concerns are creeping back into the host");
         Fixtures.Report($"{modules.Length} modules, {listed.Count} in the list; the host is {hostLines} lines");
     }
+
     // The line with string and character literals blanked and any // comment removed, so text inside strings can
     // neither hide a banned call nor look like one. (Literals spanning lines are rare enough to ignore.)
     private static string CodeOnly(string line)
