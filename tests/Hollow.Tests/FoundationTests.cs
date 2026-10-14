@@ -312,24 +312,24 @@ public static class FoundationTests
         });
         // Ada in front of the door, in reach and in sight of it.
         rig.Server.Execute(FormattableString.Invariant($"teleport Ada {front.X:0.00} {front.Z:0.00}"));
-        Until(() => ada.Building!.DoorOf(doorId) != null && bo.Building!.DoorOf(doorId) != null && ada.ThingOf(bagId) != null && bo.ThingOf(bagId) != null &&
+        Until(() => ada.Building().World!.DoorOf(doorId) != null && bo.Building().World!.DoorOf(doorId) != null && ada.Survival().ThingOf(bagId) != null && bo.Survival().ThingOf(bagId) != null &&
             Vector2.Distance(new Vector2(ada.Character.Position.X, ada.Character.Position.Z), new Vector2(front.X, front.Z)) < 0.5f,
             "the door and the bag on both clients, Ada in front of the door on hers");
-        Assert.True(ada.ThingOf(bagId)!.Mine && !bo.ThingOf(bagId)!.Mine, "the bag is Ada's on her client alone");
-        Door adaDoor = ada.Building!.DoorOf(doorId)!, boDoor = bo.Building!.DoorOf(doorId)!;
+        Assert.True(ada.Survival().ThingOf(bagId)!.Mine && !bo.Survival().ThingOf(bagId)!.Mine, "the bag is Ada's on her client alone");
+        Door adaDoor = ada.Building().World!.DoorOf(doorId)!, boDoor = bo.Building().World!.DoorOf(doorId)!;
         int lockSlot = Enumerable.Range(0, ada.Local.Inventory.Main.Size).First(i => ada.Local.Inventory.Main[i].Item == ContentFixture.Item("code-lock").Id);
         // Fitted where its ghost shows it on the door (GROUND_SYSTEMS.md §6).
-        Simulation.Placement.PlacementCandidate? lockGhost = ada.PlanAt(ContentFixture.Item("code-lock").Places!, adaDoor.LockSpot.Position, 0);
+        Simulation.Placement.PlacementCandidate? lockGhost = ada.Placement().PlanAt(ContentFixture.Item("code-lock").Places!, adaDoor.LockSpot.Position, 0);
         Assert.True(lockGhost is { Valid: true }, $"the lock's ghost on the door ({lockGhost})");
         ada.Local.Place(lockGhost!, ContainerRef.Main, lockSlot);
-        Until(() => ada.BuildingReplica!.StateOf(adaDoor).Lock == LockKind.Code && bo.BuildingReplica!.StateOf(boDoor).Lock == LockKind.Code, "the lock on both");
-        DoorState mine = ada.BuildingReplica!.StateOf(adaDoor), his = bo.BuildingReplica!.StateOf(boDoor);
+        Until(() => ada.Building().Replica!.StateOf(adaDoor).Lock == LockKind.Code && bo.Building().Replica!.StateOf(boDoor).Lock == LockKind.Code, "the lock on both");
+        DoorState mine = ada.Building().Replica!.StateOf(adaDoor), his = bo.Building().Replica!.StateOf(boDoor);
         Assert.True(mine is { Mine: true, HasCode: false, CanUse: true } && his is { Mine: false, HasCode: false },
             $"a fresh code lock: Ada's, no code ({mine.Flags}; Bo: {his.Flags})");
         ada.Local.Interact(adaDoor.Ref, "set-code", code: "4711");
-        Until(() => ada.BuildingReplica!.StateOf(adaDoor).HasCode && bo.BuildingReplica!.StateOf(boDoor).HasCode, "the code on both");
-        mine = ada.BuildingReplica!.StateOf(adaDoor);
-        his = bo.BuildingReplica!.StateOf(boDoor);
+        Until(() => ada.Building().Replica!.StateOf(adaDoor).HasCode && bo.Building().Replica!.StateOf(boDoor).HasCode, "the code on both");
+        mine = ada.Building().Replica!.StateOf(adaDoor);
+        his = bo.Building().Replica!.StateOf(boDoor);
         Assert.True(mine is { Locked: true, Authorised: true, CanUse: true } && his is { Locked: true, Authorised: false, CanUse: false },
             $"locked: Ada passes, Bo doesn't ({mine.Flags}; Bo: {his.Flags})");
 
@@ -340,8 +340,8 @@ public static class FoundationTests
         ada.Local.Interact(new TargetRef(TargetFamily.Character, bo.EntityId.Value), "invite");
         Until(() => bo.Local.TeamInvites.Count > 0, "Bo's invite");
         bo.Local.AcceptInvite(bo.Local.TeamInvites[0].Team);
-        Until(() => bo.ThingOf(bagId)!.Flags.HasFlag(ViewerFlags.Teammate), "Bo told the bag is his teammate's");
-        Fixtures.Report($"Ada's door to her: {mine.Flags}; to Bo: {his.Flags}; her bag to Bo now: {bo.ThingOf(bagId)!.Flags}");
+        Until(() => bo.Survival().ThingOf(bagId)!.Flags.HasFlag(ViewerFlags.Teammate), "Bo told the bag is his teammate's");
+        Fixtures.Report($"Ada's door to her: {mine.Flags}; to Bo: {his.Flags}; her bag to Bo now: {bo.Survival().ThingOf(bagId)!.Flags}");
     }
 
     /// <summary>

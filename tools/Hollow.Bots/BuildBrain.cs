@@ -134,7 +134,7 @@ public sealed class BuildBrain
                 {
                     break;
                 }
-                _f1 ??= client.Building.AllPieces.FirstOrDefault(p => p.Def.Family == PieceFamily.Foundation && Flat(p.ZoneTransform.Position - _site) < 1.5f);
+                _f1 ??= client.Building().World!.AllPieces.FirstOrDefault(p => p.Def.Family == PieceFamily.Foundation && Flat(p.ZoneTransform.Position - _site) < 1.5f);
                 if (_f1 != null)
                 {
                     // Where the bot stands to build the rest: south of the base's middle.
@@ -257,7 +257,7 @@ public sealed class BuildBrain
     // Spots near a point, nearest first, with no tree or outcrop where the base and the bot's standing place go.
     private static IEnumerable<Vector3> ClearSpots(GameClient client, Vector3 around, int rings)
     {
-        if (client.Nature is not { } nature || client.Natural is not { } state)
+        if (client.Survival().Nature is not { } nature || client.Survival().Natural is not { } state)
         {
             yield return around;
             yield break;
@@ -284,21 +284,21 @@ public sealed class BuildBrain
     // Whether the rules would take a foundation on the ground here, placed from where the bot stands now.
     private static bool SiteWorks(GameClient client, Vector3 site, out PlacementPlan? plan)
     {
-        BuildingWorld building = client.Building!;
+        BuildingWorld building = client.Building().World!;
         // On the plot's ground, looked for from above the bot's feet (the plot's own height is unknown), so the
         // foundation's top is the lowest the ground allows: a point above the ground lifts it, as a raised aim does.
         site.Y = client.Character.Position.Y;
         Vector3 up = client.Frame.UpAt(site);
-        site = client.Ground?.Settle(site) ?? site;
+        site = client.Placement().Ground?.Settle(site) ?? site;
         PieceDef foundation = client.Content.Building.Piece("foundation")!;
         plan = building.FoundationAt(foundation, site, 0);
         // The server's own verdict on it (the placement pipeline, GROUND_SYSTEMS.md §6).
-        return plan != null && client.Content.Placement.Of(foundation) is { } placeable && client.Settle(placeable, plan.Claim, out _) != null;
+        return plan != null && client.Content.Placement.Of(foundation) is { } placeable && client.Placement().Settle(placeable, plan.Claim, out _) != null;
     }
 
     // Places a piece the building rules planned, through the placement intent, paid from the plan's slot.
     private static uint PlacePiece(GameClient client, PlacementPlan plan) =>
-        client.Content.Placement.Of(plan.Piece) is { } placeable && client.Settle(placeable, plan.Claim, out _) is { } ghost
+        client.Content.Placement.Of(plan.Piece) is { } placeable && client.Placement().Settle(placeable, plan.Claim, out _) is { } ghost
             ? client.Local.Place(ghost, ContainerRef.Main, SlotOf(client, "building-plan"))
             : 0;
 
@@ -310,7 +310,7 @@ public sealed class BuildBrain
         {
             return 0;
         }
-        if (client.Settle(placeable, claim, out Outcome refused) is not { } ghost)
+        if (client.Placement().Settle(placeable, claim, out Outcome refused) is not { } ghost)
         {
             Refused++;
             Log?.Invoke($"{client.Name}: {item} refused: {refused}");
@@ -338,7 +338,7 @@ public sealed class BuildBrain
                     continue;
                 }
                 // The server's own verdict (the placement pipeline, GROUND_SYSTEMS.md §6), then the intent.
-                if (c.Settle(placeable, plan.Claim, out Outcome refusal) is { } ghost)
+                if (c.Placement().Settle(placeable, plan.Claim, out Outcome refusal) is { } ghost)
                 {
                     return c.Local.Place(ghost, ContainerRef.Main, SlotOf(c, "building-plan"));
                 }
@@ -360,10 +360,10 @@ public sealed class BuildBrain
             int count = Math.Max(1, PieceGeometry.Orientations(on.Def, socket, def));
             for (int o = 0; o < count; o++)
             {
-                yield return c.Building!.FromIntent(def, on, socket, o);
+                yield return c.Building().World!.FromIntent(def, on, socket, o);
             }
         }
-        Piece? Found(GameClient c, Func<Piece, bool> what) => c.Building!.AllPieces.FirstOrDefault(p => p.Structure == _f1!.Structure && what(p));
+        Piece? Found(GameClient c, Func<Piece, bool> what) => c.Building().World!.AllPieces.FirstOrDefault(p => p.Structure == _f1!.Structure && what(p));
         static bool Near(Pose a, Vector3D at) => Math.Abs(a.Position.X - at.X) < 0.2 && Math.Abs(a.Position.Z - at.Z) < 0.2;
 
         // The second foundation beside the first: east, west or north (never south, where the bot stands), level or
@@ -404,7 +404,7 @@ public sealed class BuildBrain
                         return 0;
                     }
                     int edge = Facing(s, x, z).Edge;
-                    PlacementPlan? wall = c.Building!.FromIntent(data.Piece("wall")!, s, new SocketId(SocketKind.Edge, edge), 0);
+                    PlacementPlan? wall = c.Building().World!.FromIntent(data.Piece("wall")!, s, new SocketId(SocketKind.Edge, edge), 0);
                     if (wall == null || shared.Any(m => Math.Abs(m.X - wall.Pose.Position.X) < 0.3 && Math.Abs(m.Z - wall.Pose.Position.Z) < 0.3) ||
                         Found(c, p => p.Def.Family == PieceFamily.Wall && Near(p.Pose, wall.Pose.Position) && Math.Abs(p.Pose.Position.Y - wall.Pose.Position.Y) < 0.5) != null)
                     {
@@ -428,7 +428,7 @@ public sealed class BuildBrain
                     return 0;
                 }
                 var candidates = new List<PlacementPlan?>();
-                foreach (Piece wall in c.Building!.AllPieces.Where(p => p.Structure == s.Structure && p.Def.Family == PieceFamily.Wall &&
+                foreach (Piece wall in c.Building().World!.AllPieces.Where(p => p.Structure == s.Structure && p.Def.Family == PieceFamily.Wall &&
                     Math.Abs(p.Pose.Position.Y - s.Pose.Position.Y) < 0.5 && (p.Pose.Position - s.Pose.Position).LengthSquared < 2.5 * 2.5))
                 {
                     candidates.AddRange(Orientations(c, wall, new SocketId(SocketKind.Top, 0), "floor").Where(p => p != null && Near(p.Pose, s.Pose.Position)));
@@ -455,7 +455,7 @@ public sealed class BuildBrain
         _tasks.Enqueue(c =>
         {
             walls.Clear();
-            walls.AddRange(c.Building!.AllPieces.Where(p => p.Structure == _f1!.Structure && p.Def.Key == "wall"));
+            walls.AddRange(c.Building().World!.AllPieces.Where(p => p.Structure == _f1!.Structure && p.Def.Key == "wall"));
             return _f1 != null ? c.Local.Upgrade(_f1, 2) : 0;
         });
         _tasks.Enqueue(c => _f2 != null ? c.Local.Upgrade(_f2, 2) : 0);

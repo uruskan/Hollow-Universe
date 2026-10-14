@@ -68,10 +68,10 @@ public static class WorldNetTests
 
         // Props in range arrive as things.
         NextTo(rig, ada, WorldPropKind.Crate, out EntityId crate);
-        RunUntil(rig, () => ada.ThingOf(crate) is { Kind: StaticKind.Prop }, "the crate");
-        RemoteThing seen = ada.ThingOf(crate)!;
-        Fixtures.Report($"Ada sees {ada.Props.Count()} props near the crate: " +
-            string.Join(", ", ada.Props.GroupBy(p => p.Prop(c)!.Name).Select(g => $"{g.Count()} {g.Key}")));
+        RunUntil(rig, () => ada.Survival().ThingOf(crate) is { Kind: StaticKind.Prop }, "the crate");
+        RemoteThing seen = ada.Survival().ThingOf(crate)!;
+        Fixtures.Report($"Ada sees {ada.World().Props.Count()} props near the crate: " +
+            string.Join(", ", ada.World().Props.GroupBy(p => p.Prop(c)!.Name).Select(g => $"{g.Count()} {g.Key}")));
         Assert.Equal(WorldPropKind.Crate, seen.Prop(c)!.Kind, "a crate");
         Assert.True(ada.Physics!.HasProp(PropLayer.Deployable, crate.Value), "solid in her prediction too");
         me.Interact(new TargetRef(TargetFamily.Thing, crate.Value), "open");
@@ -85,7 +85,7 @@ public static class WorldNetTests
                 me.QuickMove(ContainerRef.Loot, i);
             }
         }
-        RunUntil(rig, () => ada.ThingOf(crate) == null, "the emptied crate to go", 4);
+        RunUntil(rig, () => ada.Survival().ThingOf(crate) == null, "the emptied crate to go", 4);
         Assert.True(!ada.Physics!.HasProp(PropLayer.Deployable, crate.Value), "and gone from her prediction");
         Assert.True(me.Inventory.Count(c.ItemByKey("salvage")) >= 4, "its salvage taken");
 
@@ -100,7 +100,7 @@ public static class WorldNetTests
             return 0;
         });
         rig.Server.Execute("give Ada gears 2");
-        RunUntil(rig, () => ada.ThingOf(recycler) != null && me.Inventory.Count(c.ItemByKey("gears")) == 2 &&
+        RunUntil(rig, () => ada.Survival().ThingOf(recycler) != null && me.Inventory.Count(c.ItemByKey("gears")) == 2 &&
             me.Inventory.Count(c.ItemByKey("salvage")) == 0, "the recycler and the gears");
         me.Interact(new TargetRef(TargetFamily.Thing, recycler.Value), "open");
         RunUntil(rig, () => me.LootTarget == recycler && me.Loot != null, "the recycler open");
@@ -108,7 +108,7 @@ public static class WorldNetTests
         me.Interact(new TargetRef(TargetFamily.Thing, recycler.Value), "turn-on");
         RunUntil(rig, () => me.Machine is { Running: true }, "it to run");
         // The thing's lamp comes with the things' own updates, not always in the same packet as the machine's state.
-        RunUntil(rig, () => ada.ThingOf(recycler)!.Lit, "others to see it running", 2);
+        RunUntil(rig, () => ada.Survival().ThingOf(recycler)!.Lit, "others to see it running", 2);
         RunUntil(rig, () => me.Loot!.Slots.ToArray().Any(s => s.Item == c.ItemByKey("salvage").Id) && me.Machine is { Running: false }, "the salvage", 8);
         Assert.Equal(20, me.Loot!.Slots.ToArray().Where(s => s.Item == c.ItemByKey("salvage").Id).Sum(s => s.Count), "two gears' salvage");
         me.Close();
@@ -119,7 +119,7 @@ public static class WorldNetTests
         RunUntil(rig, () => me.Inventory.Count(c.ItemByKey("workbench-1")) == 1 && me.Inventory.Count(c.ItemByKey("salvage")) >= 100, "the bench and salvage");
         Vector3 feet = ada.Character.Position;
         Vector3 away = Vector3.Normalize(new Vector3(-machine.X, 0, -machine.Z));
-        Simulation.Placement.PlacementCandidate? bench = ada.PlanAt(c.ItemByKey("workbench-1").Places!, ada.Ground!.Value.Settle(feet + away * 2.2f), 0);
+        Simulation.Placement.PlacementCandidate? bench = ada.Placement().PlanAt(c.ItemByKey("workbench-1").Places!, ada.Placement().Ground!.Value.Settle(feet + away * 2.2f), 0);
         Assert.True(bench is { Valid: true }, $"the bench's ghost fits ({bench})");
         me.Place(bench!, ContainerRef.Main, SlotOf(me.Inventory.Main, "workbench-1"));
         RunUntil(rig, () => me.WorkbenchLevel == 1, "the bench in reach");
@@ -130,7 +130,7 @@ public static class WorldNetTests
         var refused = new List<IntentAnswer>();
         me.BlueprintLearned += learnt.Add;
         me.IntentRejected += refused.Add;
-        me.Unlock(ada.BenchNear(), hatchet.Id);
+        me.Unlock(ada.Interaction().BenchNear(), hatchet.Id);
         Assert.True(me.Knows(hatchet) && me.Inventory.Count(c.ItemByKey("salvage")) == salvage - 75, "shown at once");
         // (The client has its own copy of the game data: recipes compare by ID.)
         RunUntil(rig, () => (learnt.Any(r => r.Id == hatchet.Id) && me.PendingCount == 0) || refused.Count > 0, "the server's word");
@@ -151,7 +151,7 @@ public static class WorldNetTests
         Assert.Equal("Ada", invites[0].From, "from Ada");
         bo.Local.AcceptInvite(invites[0].Team);
         RunUntil(rig, () => bo.Local.Team?.Members.Count == 2 && me.Team?.Members.Count == 2, "both in the team");
-        Assert.True(ada.IsTeammate(bo.EntityId) && bo.IsTeammate(ada.EntityId) && !ada.IsTeammate(cy.EntityId), "teammates");
+        Assert.True(ada.World().IsTeammate(bo.EntityId) && bo.World().IsTeammate(ada.EntityId) && !ada.World().IsTeammate(cy.EntityId), "teammates");
         Assert.True(me.Team!.Members.All(m => m.Online), "both online");
         RunUntil(rig, () => bo.Local.Teammates.Any(t => t.Id == ada.EntityId && Vector3.Distance(t.Position, ada.Character.Position) < 2), "Ada's position at Bo's");
         Assert.Equal("Ada", bo.Local.Teammates.Single().Name, "with her name");
@@ -162,7 +162,7 @@ public static class WorldNetTests
         {
             client.ChatReceived += line => heard[client.Name].Add(line);
         }
-        ada.SendTeamChat("meet at the recycler");
+        ada.World().SendTeamChat("meet at the recycler");
         RunUntil(rig, () => heard["Bo"].Any(l => l.Kind == ChatKind.Team), "the team line");
         rig.Run(0.3, (_, _) => default);
         Assert.True(heard["Ada"].Any(l => l.Kind == ChatKind.Team && l.Text == "meet at the recycler") && heard["Cy"].Count == 0, "to the team alone");
@@ -173,7 +173,7 @@ public static class WorldNetTests
         Assert.True(me.Markers[0].Label == "base" && me.Markers[0].Colour == 2 && Math.Abs(me.Markers[0].Position.X - 200) < 0.01f, "as placed");
         me.RemoveMarker(0);
         RunUntil(rig, () => me.Markers.Count == 0, "the marker gone");
-        Assert.True(ada.Map!.GridName(ada.Map.ToMap(Vector3.Zero)).Length >= 2, "the map names a grid cell");
+        Assert.True(ada.World().Map!.GridName(ada.World().Map!.ToMap(Vector3.Zero)).Length >= 2, "the map names a grid cell");
     }
 
     /// <summary>

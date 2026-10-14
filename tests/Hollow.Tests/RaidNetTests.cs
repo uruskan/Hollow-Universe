@@ -62,9 +62,9 @@ public static class RaidNetTests
         var seen = new List<ClientExplosive>();
         var blasts = new List<DetonationEvent>();
         var alerts = new List<RaidAlertView>();
-        ada.ExplosiveChanged += e => seen.Add(e);
-        ada.Detonated += blasts.Add;
-        bo.Detonated += blasts.Add;
+        ada.Raid().ExplosiveChanged += e => seen.Add(e);
+        ada.Raid().Detonated += blasts.Add;
+        bo.Raid().Detonated += blasts.Add;
         ada.Local.RaidAlertReceived += alerts.Add;
 
         // Bo, 4.5 m from the doorway's face, moves the grenade to his belt and throws it at the door's foot.
@@ -79,8 +79,8 @@ public static class RaidNetTests
         rig.Run(0.3, Aim);
         Assert.True(bo.Local.Throw(2, yaw, pitch) != 0, "thrown");
         Assert.True(bo.Local.Inventory.Belt[2].IsEmpty, "it left the belt at once");
-        RunUntil(rig, () => ada.Explosives.Count == 1 && bo.Explosives.Count == 1, "the grenade on both clients", 3, Aim);
-        ClientExplosive grenade = ada.Explosives.Single();
+        RunUntil(rig, () => ada.Raid().Explosives.Count == 1 && bo.Raid().Explosives.Count == 1, "the grenade on both clients", 3, Aim);
+        ClientExplosive grenade = ada.Raid().Explosives.Single();
         Assert.True(grenade.Item.Key == "tin-grenade" && grenade.Burning && grenade.FuseTicks is >= 100 and <= 140, $"a lit tin grenade ({grenade})");
         RunUntil(rig, () => grenade.State == ExplosiveState.Resting || blasts.Count > 0, "the grenade coming to rest", 4, Aim);
         int bounces = seen.Count(e => e == grenade) - 1;
@@ -89,27 +89,27 @@ public static class RaidNetTests
         int lit = 0;
         while (blasts.Count == 0)
         {
-            RunUntil(rig, () => blasts.Count > 0 || bo.ExplosiveOf(grenade.Id)?.Dud == true, "the blast or a dud", 8, Aim);
+            RunUntil(rig, () => blasts.Count > 0 || bo.Raid().ExplosiveOf(grenade.Id)?.Dud == true, "the blast or a dud", 8, Aim);
             if (blasts.Count > 0)
             {
                 break;
             }
             Assert.True(lit++ < 6, "it goes off in the end");
-            Vector3 at = bo.ExplosiveOf(grenade.Id)!.PositionAt(bo.ServerTickNow);
+            Vector3 at = bo.Raid().ExplosiveOf(grenade.Id)!.PositionAt(bo.ServerTickNow);
             rig.Server.Execute($"teleport Bo {at.X + outward.X * 1.5f} {at.Z + outward.Z * 1.5f}");
             rig.Run(0.5, (_, _) => default);
             Vector3 eye = bo.Character.Position + up * bo.EyeHeight;
-            InteractAim? target = bo.AimInteraction(eye, Vector3.Normalize(at - eye));
+            InteractAim? target = bo.Interaction().AimInteraction(eye, Vector3.Normalize(at - eye));
             Assert.True(target is { Primary: >= 0 } && target.Target.Id == grenade.Id.Value &&
                 bo.Content.Interactions.Verb(target.Options[target.Primary].Verb)?.Key == "relight", $"the dud is the interact key's target ({target?.Target})");
             bo.Local.Interact(target!.Target, target.Options[target.Primary].Verb);
-            RunUntil(rig, () => bo.ExplosiveOf(grenade.Id) is { Dud: false, Burning: true }, "the grenade lit again", 3);
+            RunUntil(rig, () => bo.Raid().ExplosiveOf(grenade.Id) is { Dud: false, Burning: true }, "the grenade lit again", 3);
             rig.Server.Execute($"teleport Bo {at.X + outward.X * 9} {at.Z + outward.Z * 9}");
         }
         RunUntil(rig, () => blasts.Count >= 2, "the blast on both clients", 2);
         DetonationEvent blast = blasts[0];
         Assert.True(blast.Item?.Key == "tin-grenade" && blast.Explosive == grenade.Id && Math.Abs(blast.Radius - 3.5f) < 0.05f, $"what went off ({blast.Item?.Key}, {blast.Radius} m)");
-        Assert.True(ada.Explosives.Count == 0 && bo.Explosives.Count == 0, "and it is gone");
+        Assert.True(ada.Raid().Explosives.Count == 0 && bo.Raid().Explosives.Count == 0, "and it is gone");
 
         // Ada, playing, hears of the raid on her hut.
         RunUntil(rig, () => alerts.Count > 0, "Ada's raid alert", 3);
@@ -183,12 +183,12 @@ public static class RaidNetTests
             });
             GameClient ada = rig.Join("Ada");
             rig.WaitUntilPlaying();
-            RunUntil(rig, () => ada.Local.RaidAlerts.Count > 0 && ada.Explosives.Count >= 2, "Ada's waiting alert and the charges", 5);
+            RunUntil(rig, () => ada.Local.RaidAlerts.Count > 0 && ada.Raid().Explosives.Count >= 2, "Ada's waiting alert and the charges", 5);
             RaidAlertView alert = ada.Local.RaidAlerts.Single();
             Assert.True(alert.WhileAway && alert.What.Contains("Stone wall", StringComparison.Ordinal) && alert.Item?.Key == "timed-charge",
                 $"what was hit and with what: {alert.What}");
             Assert.True((DateTimeOffset.UtcNow - alert.Last).TotalMinutes < 5, "and when");
-            Assert.True(ada.Explosives.Any(e => e.Id == chargeId && e.Burning), "Ada's client sees the burning charge");
+            Assert.True(ada.Raid().Explosives.Any(e => e.Id == chargeId && e.Burning), "Ada's client sees the burning charge");
             Fixtures.Report($"after the restart: {report}; Ada's alert at login: \"{alert.What}\" ({alert.Last:HH:mm:ss})");
         }
     }

@@ -233,7 +233,7 @@ public partial class LoadTrace : Node
             }
         }
         // The things, building pieces and natural states the server sent: the last time one arrived.
-        (int Things, long Pieces, int Natural) signature = (client.Things.Count(), client.BuildingReplica?.PiecesReceived ?? 0, client.Natural?.Count ?? 0);
+        (int Things, long Pieces, int Natural) signature = (client.Survival().Things.Count(), client.Building().Replica?.PiecesReceived ?? 0, client.Survival().Natural?.Count ?? 0);
         if (signature != _signature)
         {
             _signature = signature;

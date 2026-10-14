@@ -161,7 +161,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             {
                 return null;
             }
-            RemoteThing? thing = _client.ThingOf(Me.LootTarget);
+            RemoteThing? thing = _client.Survival().ThingOf(Me.LootTarget);
             switch (Me.LootKind)
             {
                 case LootKind.Crate:
@@ -190,7 +190,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
                 default:
                 {
                     // The claim device's upkeep store opens like a box (GROUND.md §6.5).
-                    bool claim = thing == null && _client.Building?.Claims.Any(c => c.Id == Me.LootTarget) == true;
+                    bool claim = thing == null && _client.Building().World?.Claims.Any(c => c.Id == Me.LootTarget) == true;
                     string title = claim ? C.Building.ClaimName : thing?.Deployable(C)?.Item.Name ?? "Box";
                     return new LootView(UiContainerKind.Box, title.ToUpperInvariant(), LootSlots());
                 }
@@ -287,7 +287,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
                 {
                     continue;
                 }
-                string name = _client.ThingOf(option.Bag)?.Deployable(C)?.Item.Name ?? "Sleeping bag";
+                string name = _client.Survival().ThingOf(option.Bag)?.Deployable(C)?.Item.Name ?? "Sleeping bag";
                 (float x, float y) = OnMap(new System.Numerics.Vector3(option.Position.X, 0, option.Position.Y));
                 _bags.Add(new RespawnBag(option.Bag.Value.ToString(CultureInfo.InvariantCulture), name, (float)Me.SecondsUntilReady(option), x, y));
             }
@@ -295,7 +295,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    public bool Piloting => _client.Piloting;
+    public bool Piloting => _client.Ships().Piloting;
 
     public bool StationNear(string station) => C.Deployable(station) is { } def && (Me.StationNear?.Invoke(def) ?? 0) != 0;
 

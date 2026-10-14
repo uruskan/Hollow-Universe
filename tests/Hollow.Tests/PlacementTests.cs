@@ -326,11 +326,11 @@ public static class PlacementTests
                 Piece f = BuildingNetTests.Foundation(sv.Zone, sv.Zone.Settle(new Vector3(2.6f, 0, 0)), adaId);
                 return (f.Id, Top(sv.Zone, f));
             });
-            RunUntil(rig, () => ada.Building!.PieceOf(foundationId) != null && ada.Local.Inventory.Count(furnaceItem) == 1 &&
+            RunUntil(rig, () => ada.Building().World!.PieceOf(foundationId) != null && ada.Local.Inventory.Count(furnaceItem) == 1 &&
                 ada.Local.Inventory.Count(ContentFixture.Item("wood")) == 1000 &&
                 new Vector2(ada.Character.Position.X, ada.Character.Position.Z).Length() < 0.5f, "the foundation, the furnace and Ada in place");
             Placeable furnacePlaceable = ada.Content.ItemByKey("furnace").Places!;
-            PlacementCandidate? ghost = ada.PlanAt(furnacePlaceable, top, 0);
+            PlacementCandidate? ghost = ada.Placement().PlanAt(furnacePlaceable, top, 0);
             Assert.True(ghost is { Valid: true, Surface: PlacementSurfaces.Floor } && ghost.Support.Id == foundationId.Value, $"the ghost on the foundation ({ghost})");
             // The ghost's cost a frame (GROUND_SYSTEMS.md §6's budget: 0.2 ms): a deployable's, and a wall's on the foundation's sockets.
             Placeable wall = ada.Content.Placement.Of(ada.Content.Building.Piece("wall")!)!;
@@ -345,12 +345,12 @@ public static class PlacementTests
                 }
                 return watch.Elapsed.TotalMilliseconds * 1000 / 500;
             }
-            PlacementCandidate? wallGhost = ada.Plan(wall, eye, top - eye, 0);
-            double deployable = Cost(() => ada.PlanAt(furnacePlaceable, top, 0)), piece = Cost(() => ada.Plan(wall, eye, top - eye, 0));
+            PlacementCandidate? wallGhost = ada.Placement().Plan(wall, eye, top - eye, 0);
+            double deployable = Cost(() => ada.Placement().PlanAt(furnacePlaceable, top, 0)), piece = Cost(() => ada.Placement().Plan(wall, eye, top - eye, 0));
             Fixtures.Report($"a ghost a frame: {deployable:0} µs for the furnace, {piece:0} µs for a wall on the foundation's sockets ({wallGhost?.Outcome})");
             ada.Local.Place(ghost!, ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, furnaceItem));
-            RunUntil(rig, () => ada.Things.Any(t => t.Look == furnaceItem.Id), "the furnace");
-            RemoteThing seen = ada.Things.Single(t => t.Look == furnaceItem.Id);
+            RunUntil(rig, () => ada.Survival().Things.Any(t => t.Look == furnaceItem.Id), "the furnace");
+            RemoteThing seen = ada.Survival().Things.Single(t => t.Look == furnaceItem.Id);
             Assert.True(seen.Support.Family == TargetFamily.Piece && seen.Support.Id == foundationId.Value, "her client knows what it stands on");
             furnaceId = seen.Id;
             rig.Server.SaveAll().Wait();

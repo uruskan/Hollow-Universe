@@ -69,6 +69,9 @@ public sealed class ClientStats
     /// <summary>Times the ship flown was corrected (G6): its prediction differed from the server's state for a tick.</summary>
     public long ShipCorrections { get; internal set; }
 
+    /// <summary>Packets dropped because no module handles their type, or their message didn't read (GROUND_SYSTEMS.md §12.4).</summary>
+    public long UnhandledMessages { get; internal set; }
+
     // ---------------------------------------------------------------- histories for the graph
 
     public float[] RoundTripHistory { get; } = new float[HistoryLength];

@@ -141,7 +141,7 @@ public static class ShipNetTests
         rig.Server.Execute("ship Ada");
         RemoteShip? seen = null;
         rig.Run(1.0, (_, _) => default);
-        seen = ada.Ships.FirstOrDefault();
+        seen = ada.Ships().All.FirstOrDefault();
         Assert.True(seen?.Def != null, "Ada sees her ship");
         RemoteShip ship = seen!;
         // Ada walks to the hatch (the admin's teleport puts her beside it) and boards.
@@ -152,7 +152,7 @@ public static class ShipNetTests
         rig.Run(0.5, (_, _) => default);
         ada.Local.Interact(new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board");
         rig.Run(0.5, (_, _) => default);
-        Assert.True(ada.Piloting, "Ada flies the ship (her client predicts it)");
+        Assert.True(ada.Ships().Piloting, "Ada flies the ship (her client predicts it)");
         long corrections = ada.Stats.ShipCorrections;
 
         // Up, then forward and round.
@@ -160,12 +160,12 @@ public static class ShipNetTests
         rig.Run(4.0, (client, time) => client == ada
             ? new InputFrame { Ship = new ShipInput { Vertical = time < 2 ? 1 : 0, Throttle = time < 2 ? 0 : 0.4f, Yaw = 0.3f } }
             : default);
-        RemoteShip? bosView = bo.Ships.FirstOrDefault(s => s.Id == ship.Id);
+        RemoteShip? bosView = bo.Ships().All.FirstOrDefault(s => s.Id == ship.Id);
         Assert.True(bosView != null, "Bo sees the ship");
         Vector3 aboveGround = bosView!.Position;
         Fixtures.Report(string.Create(System.Globalization.CultureInfo.InvariantCulture,
             $"Bo sees it {bosView.Position.Y - startHeight:0.0} m up, going {bosView.Velocity.Length():0.0} m/s, engines {(bosView.Has(ShipNetFlags.EnginesOn) ? "on" : "off")}; " +
-            $"Ada's ship corrections {ada.Stats.ShipCorrections - corrections}, predicted at {Vector3.Distance(ada.OwnShip.Position, bosView.Position):0.0} m from Bo's view"));
+            $"Ada's ship corrections {ada.Stats.ShipCorrections - corrections}, predicted at {Vector3.Distance(ada.Ships().OwnShip.Position, bosView.Position):0.0} m from Bo's view"));
         Assert.True(bosView.Has(ShipNetFlags.Piloted) && bosView.Has(ShipNetFlags.EnginesOn), "Bo sees it piloted, engines on");
         Assert.True(bosView.Position.Y - startHeight > 10, "Bo sees it climb");
         Assert.True(bosView.Velocity.Length() > 5, "and fly");

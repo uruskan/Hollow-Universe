@@ -82,12 +82,12 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
     {
         _client = client;
         Settings = settings;
-        _client.ConsoleAnswered += OnAnswer;
+        _client.Console().ConsoleAnswered += OnAnswer;
         LoadHistory();
         Add("Hollow Universe console. Type help for the commands; Tab completes, Up and Down go through what you typed.", ConsoleLineKind.System);
     }
 
-    public void Dispose() => _client.ConsoleAnswered -= OnAnswer;
+    public void Dispose() => _client.Console().ConsoleAnswered -= OnAnswer;
 
     public ViewSettings Settings { get; }
 
@@ -112,7 +112,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
 
     public int Revision { get; private set; }
 
-    public bool Admin => _client.IsAdmin;
+    public bool Admin => _client.Console().IsAdmin;
 
     public IReadOnlyList<ConsoleLine> LastAnswer => _lastAnswer;
 
@@ -190,7 +190,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
             RunHere(command, args);
             return;
         }
-        uint seq = _client.SendConsole(line);
+        uint seq = _client.Console().SendConsole(line);
         if (seq == 0)
         {
             Fail("Not connected to a server.");
@@ -383,10 +383,10 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
 
     public ConsoleCompletionView Complete(string line)
     {
-        if (_sources == null || !ReferenceEquals(_sourcesPlayers, _client.ServerPlayers))
+        if (_sources == null || !ReferenceEquals(_sourcesPlayers, _client.Console().ServerPlayers))
         {
-            _sourcesPlayers = _client.ServerPlayers;
-            _sources = CompletionSources.From(_client.Content, _client.ServerPlayers.Select(p => p.Name));
+            _sourcesPlayers = _client.Console().ServerPlayers;
+            _sources = CompletionSources.From(_client.Content, _client.Console().ServerPlayers.Select(p => p.Name));
         }
         Completion done = ConsoleCompletion.Complete(line, _sources);
         return new ConsoleCompletionView(done.Line, done.Candidates);
@@ -462,7 +462,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
                 world.Add(new InfoRow("Landing site", Degrees(FirstWorld.LandingLatitude, FirstWorld.LandingLongitude)));
                 world.Add(new InfoRow("Zone origin", Degrees(zone.LatitudeDegrees, zone.LongitudeDegrees) + (zone.StandIn ? ", stand-in ground" : "")));
                 world.Add(new InfoRow("Local time", LocalHours?.Invoke() is { } hours ? Clock(hours) + " (local solar time here)" : "not yet"));
-                ZoneDay? day = _client.Day;
+                ZoneDay? day = _client.Console().Day;
                 double scale = day?.Scale ?? zone.RotationTimeScale;
                 double period = planet != null ? Math.Abs(planet.Body.RotationPeriod) : 0;
                 world.Add(new InfoRow("Day", scale <= 0 ? "stopped by an admin"
@@ -474,9 +474,9 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
             {
                 new("Name", _client.ServerName.Length > 0 ? _client.ServerName : "not connected"),
                 new("Address", Address.Length > 0 ? Address : "unknown"),
-                new("Players", string.Create(CultureInfo.InvariantCulture, $"{_client.ServerPlayers.Count} of {_client.MaxPlayers}")),
+                new("Players", string.Create(CultureInfo.InvariantCulture, $"{_client.Console().ServerPlayers.Count} of {_client.Console().MaxPlayers}")),
                 new("Tick rate", string.Create(CultureInfo.InvariantCulture, $"{GameClient.TickRate} Hz, {Protocol.SnapshotRate} snapshots a second")),
-                new("Your rights", _client.IsAdmin ? "admin" : "player"),
+                new("Your rights", _client.Console().IsAdmin ? "admin" : "player"),
             };
             return new[] { new InfoSection("GAME", game), new InfoSection("THIS COMPUTER", machine), new InfoSection("WORLD", world), new InfoSection("SERVER", server) };
         }
@@ -565,7 +565,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
                 new("Corrections", string.Create(CultureInfo.InvariantCulture, $"{s.Corrections} of {s.Reconciliations}, {s.Teleports} teleports")),
                 new("Clock jumps", s.ClockJumps.ToString(CultureInfo.InvariantCulture)),
                 new("Ship corrections", s.ShipCorrections.ToString(CultureInfo.InvariantCulture)),
-                new("In view", string.Create(CultureInfo.InvariantCulture, $"{_client.EntityCount} players, {_client.Animals.Count} animals, {_client.Things.Count()} things")),
+                new("In view", string.Create(CultureInfo.InvariantCulture, $"{_client.EntityCount} players, {_client.Animals().All.Count} animals, {_client.Survival().Things.Count()} things")),
             };
             return new[] { new InfoSection("CONNECTION", rows) };
         }
@@ -583,11 +583,11 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
     {
         get
         {
-            MoveCheats cheats = _client.HasCharacter ? _client.Cheats : MoveCheats.None;
-            ZoneDay? day = _client.Day;
+            MoveCheats cheats = _client.HasCharacter ? _client.Console().Cheats : MoveCheats.None;
+            ZoneDay? day = _client.Console().Day;
             double factor = day is { } d && _client.Zone is { RotationTimeScale: > 0 } z ? d.Scale / z.RotationTimeScale : 1;
             return new ToolsView((cheats & MoveCheats.God) != 0, (cheats & MoveCheats.Noclip) != 0, ZoneHours() ?? 12, factor, day?.Overridden ?? false,
-                _client.ServerPlayers.Select(p => p.Name).Where(n => !string.Equals(n, _client.Name, StringComparison.OrdinalIgnoreCase)).ToArray(),
+                _client.Console().ServerPlayers.Select(p => p.Name).Where(n => !string.Equals(n, _client.Name, StringComparison.OrdinalIgnoreCase)).ToArray(),
                 _spawns ??= SpawnGroups(_client.Content));
         }
     }
@@ -595,7 +595,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
     // The local solar time at the zone's origin by the zone's clock (as the server keeps it).
     private double? ZoneHours()
     {
-        if (_client.Zone is not { } zone || _client.Day is not { } day)
+        if (_client.Zone is not { } zone || _client.Console().Day is not { } day)
         {
             return null;
         }

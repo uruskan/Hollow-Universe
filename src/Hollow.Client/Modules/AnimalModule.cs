@@ -173,24 +173,24 @@ public sealed class ClientAnimal
 
 // Animals in the client (GROUND.md §6.9): remote entities of kind Animal, kept apart from the characters (Entities lists
 // characters only), with their events as the drawn state passes them.
-public sealed partial class GameClient
+public sealed class AnimalModule : ClientModule
 {
     private readonly Dictionary<uint, ClientAnimal> _animals = new();
     private readonly List<AnimalEvent> _animalEvents = new();
     private readonly List<uint> _animalsGone = new();
 
     /// <summary>The animals in view (alive, and corpses).</summary>
-    public IReadOnlyCollection<ClientAnimal> Animals => _animals.Values;
+    public Dictionary<uint, ClientAnimal>.ValueCollection All => _animals.Values;
 
     public ClientAnimal? AnimalOf(uint netId) => _animals.GetValueOrDefault(netId);
 
     /// <summary>An animal appeared, attacked, was hurt, died, took fright, threatened, or went (raised from <see cref="Update"/>).</summary>
     public event Action<AnimalEvent>? AnimalEvent;
 
-    private void UpdateAnimals(double delta)
+    protected internal override void Update(double delta)
     {
         _animalEvents.Clear();
-        foreach (RemoteEntity remote in _remotes.Values)
+        foreach (RemoteEntity remote in Remotes.Values)
         {
             if (remote.Kind != EntityKind.Animal || !remote.Spawned || !remote.HasState)
             {
@@ -206,7 +206,7 @@ public sealed partial class GameClient
         _animalsGone.Clear();
         foreach ((uint netId, ClientAnimal animal) in _animals)
         {
-            if (!_remotes.TryGetValue(netId, out RemoteEntity? remote) || remote != animal.Remote)
+            if (!Remotes.TryGetValue(netId, out RemoteEntity? remote) || remote != animal.Remote)
             {
                 _animalsGone.Add(netId);
             }
@@ -221,4 +221,10 @@ public sealed partial class GameClient
             AnimalEvent?.Invoke(e);
         }
     }
+}
+
+/// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>
+public static class AnimalModuleAccess
+{
+    public static AnimalModule Animals(this GameClient client) => client.Require<AnimalModule>();
 }

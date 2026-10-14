@@ -41,7 +41,7 @@ public static class BuildingNetTests
 
     // A client's ghost of a piece where it aims (the placement pipeline on its replicated world, GROUND_SYSTEMS.md §6).
     private static PlacementCandidate? Ghost(GameClient client, string key, Vector3 eye, Vector3 direction) =>
-        client.Plan(client.Content.Placement.Of(Piece(client, key))!, eye, direction, 0);
+        client.Placement().Plan(client.Content.Placement.Of(Piece(client, key))!, eye, direction, 0);
 
     // Places a piece's ghost, the building plan carried in the main slots.
     private static uint PlacePiece(GameClient client, PlacementCandidate ghost) =>
@@ -50,7 +50,7 @@ public static class BuildingNetTests
     // Places what an item places where its ghost shows it, aimed at a point from the player's eye; the ghost must fit.
     private static uint PlaceItem(GameClient client, string item, Vector3 at)
     {
-        PlacementCandidate? ghost = client.PlanAt(client.Content.ItemByKey(item).Places!, at, 0);
+        PlacementCandidate? ghost = client.Placement().PlanAt(client.Content.ItemByKey(item).Places!, at, 0);
         Assert.True(ghost is { Valid: true }, $"the {item}'s ghost fits ({ghost})");
         return client.Local.Place(ghost!, ContainerRef.Main, SlotOf(client.Local.Inventory.Main, item));
     }
@@ -143,7 +143,7 @@ public static class BuildingNetTests
         Assert.Equal(OutcomeCode.NotEnough, refused.Single().Code, "not enough wood");
         Assert.Equal("Not enough wood", ContentFixture.Content.Texts.Line(refused.Single().Outcome), "names the material");
         Fixtures.Report($"Bo was told: \"{ContentFixture.Content.Texts.Line(refused.Single().Outcome)}\"");
-        Assert.True(bo.Local.PendingPlacements.Count == 0 && bo.Building!.PieceCount == 0, "and nothing was built");
+        Assert.True(bo.Local.PendingPlacements.Count == 0 && bo.Building().World!.PieceCount == 0, "and nothing was built");
 
         var answers = new List<IntentAnswer>();
         ada.Local.IntentAnswered += answers.Add;
@@ -154,12 +154,12 @@ public static class BuildingNetTests
         uint seq = PlacePiece(ada, plan!);
         Assert.Equal(250, ada.Local.Inventory.Count(ContentFixture.Item("wood")), "the twig leaves at once");
         Assert.Equal(1, ada.Local.PendingPlacements.Count, "and the piece shows at once");
-        RunUntil(rig, () => ada.Building!.PieceCount == 1 && bo.Building!.PieceCount == 1, "the foundation on both clients");
+        RunUntil(rig, () => ada.Building().World!.PieceCount == 1 && bo.Building().World!.PieceCount == 1, "the foundation on both clients");
         Assert.True(answers.Single(a => a.Seq == seq).Done, "placed");
         RunUntil(rig, () => ada.Local.PendingPlacements.Count == 0, "the pending piece replaced by the real one");
 
         // A wall on the foundation's edge nearest Ada: the server derives the pose from support, socket and orientation.
-        Piece foundation = ada.Building!.AllPieces.Single();
+        Piece foundation = ada.Building().World!.AllPieces.Single();
         (Vector3 centre, _) = foundation.ZoneTransform;
         eye = Eye(ada);
         Vector3 toward = Vector3.Normalize(centre - eye);
@@ -168,8 +168,8 @@ public static class BuildingNetTests
         PlacementPlan? wallPlan = wall?.Detail as PlacementPlan;
         Assert.True(wall is { Valid: true } && wallPlan!.Support == foundation, $"the ghost: a wall on the foundation ({wall})");
         uint wallSeq = PlacePiece(ada, wall!);
-        RunUntil(rig, () => answers.Any(a => a.Seq == wallSeq) && ada.Building.PieceCount == 2 && bo.Building!.PieceCount == 2, "the wall");
-        Piece arrived = ada.Building.AllPieces.Single(p => p.Def.Key == "wall");
+        RunUntil(rig, () => answers.Any(a => a.Seq == wallSeq) && ada.Building().World!.PieceCount == 2 && bo.Building().World!.PieceCount == 2, "the wall");
+        Piece arrived = ada.Building().World!.AllPieces.Single(p => p.Def.Key == "wall");
         Assert.True(arrived.Pose == wallPlan!.Pose && arrived.Structure.Frame.Equals(wallPlan.Frame), "exactly where the ghost was");
         Assert.Equal(1000, foundation.Stability, "the copy's stability is solved like the server's");
         Assert.Equal(arrived.Stability, rig.Server.Inspect(sv => sv.Zone.Building().World!.PieceOf(arrived.Id)!.Stability), "the wall's too");
@@ -209,9 +209,9 @@ public static class BuildingNetTests
             Piece f = Foundation(sv.Zone, sv.Zone.Settle(new Vector3(0, 0, 3)), adaId);
             return On(sv.Zone, f, Nearest(f, adaAt), "doorway", adaId).Id;
         });
-        RunUntil(rig, () => ada.Building!.PieceOf(doorwayId) != null && bo.Building!.PieceOf(doorwayId) != null, "the doorway");
-        Piece doorway = ada.Building!.PieceOf(doorwayId)!;
-        Piece floor = ada.Building.AllPieces.Single(p => p.Def.Key == "foundation");
+        RunUntil(rig, () => ada.Building().World!.PieceOf(doorwayId) != null && bo.Building().World!.PieceOf(doorwayId) != null, "the doorway");
+        Piece doorway = ada.Building().World!.PieceOf(doorwayId)!;
+        Piece floor = ada.Building().World!.AllPieces.Single(p => p.Def.Key == "foundation");
 
         var answers = new List<IntentAnswer>();
         ada.Local.IntentAnswered += answers.Add;
@@ -226,11 +226,11 @@ public static class BuildingNetTests
         Vector3 opening = doorway.ZoneTransform.Position + ada.Frame.UpAt(doorway.ZoneTransform.Position) * 1.1f;
         Ask(PlaceItem(ada, "wooden-door", opening), "the door fitted");
         Assert.Equal(0, ada.Local.Inventory.Count(ContentFixture.Item("wooden-door")), "the door item is used");
-        RunUntil(rig, () => doorway.Door != null && bo.Building!.PieceOf(doorwayId)?.Door != null, "the door on both clients");
+        RunUntil(rig, () => doorway.Door != null && bo.Building().World!.PieceOf(doorwayId)?.Door != null, "the door on both clients");
         Door door = doorway.Door!;
         Ask(PlaceItem(ada, "code-lock", door.LockSpot.Position), "the code lock fitted");
         Ask(ada.Local.Interact(door.Ref, "set-code", code: "4711"), "the code set");
-        RunUntil(rig, () => ada.BuildingReplica!.StateOf(door) is { Lock: LockKind.Code, Locked: true, CanUse: true }, "locked, and Ada may pass");
+        RunUntil(rig, () => ada.Building().Replica!.StateOf(door) is { Lock: LockKind.Code, Locked: true, CanUse: true }, "locked, and Ada may pass");
         // The claim device placed from her floor, in sight of it (the doorway's wall and its shut door hide the floor from
         // outside), beside her.
         Vector3 floorMiddle = BuildingWorld.F(floor.Structure.Frame.ToZone(floor.Pose.Position));
@@ -238,13 +238,13 @@ public static class BuildingNetTests
         rig.Run(0.6, (_, _) => default);
         Vector3 claimAt = BuildingWorld.F(floor.Structure.Frame.ToZone(floor.Pose.Position + new Vector3D(0.8, 0, 0.8)));
         Ask(PlaceItem(ada, "claim-device", claimAt), "the claim device placed");
-        RunUntil(rig, () => bo.Building!.Claims.Any(), "the claim device on Bo's client");
+        RunUntil(rig, () => bo.Building().World!.Claims.Any(), "the claim device on Bo's client");
 
         // Its store opens like a box, and takes the wood that pays its upkeep.
         rig.Server.Execute("give Ada wood 200");
         RunUntil(rig, () => ada.Local.Inventory.Count(ContentFixture.Item("wood")) == 200, "the wood");
-        ClaimDevice claim = ada.Building.Claims.Single();
-        Assert.True(ada.ThingOf(claim.Id)?.Deployable(ada.Content)?.Slots == 24, "the claim device is a thing with a 24-slot store");
+        ClaimDevice claim = ada.Building().World!.Claims.Single();
+        Assert.True(ada.Survival().ThingOf(claim.Id)?.Deployable(ada.Content)?.Slots == 24, "the claim device is a thing with a 24-slot store");
         ada.Local.Interact(claim.Ref, "open");
         RunUntil(rig, () => ada.Local.LootKind == Simulation.Items.LootKind.Box && ada.Local.Loot?.Size == 24, "its store open");
         ada.Local.MoveItem(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wood"), ContainerRef.Loot, 0);
@@ -263,8 +263,8 @@ public static class BuildingNetTests
         rig.Run(0.6, (_, _) => default);
         var bos = new List<IntentAnswer>();
         bo.Local.IntentAnswered += bos.Add;
-        Door boDoor = bo.Building!.PieceOf(doorwayId)!.Door!;
-        Assert.True(bo.BuildingReplica!.StateOf(boDoor) is { Locked: true, CanUse: false }, "Bo sees a locked door he can't pass");
+        Door boDoor = bo.Building().World!.PieceOf(doorwayId)!.Door!;
+        Assert.True(bo.Building().Replica!.StateOf(boDoor) is { Locked: true, CanUse: false }, "Bo sees a locked door he can't pass");
         OutcomeCode BoAsks(uint seq, string what)
         {
             RunUntil(rig, () => bos.Any(a => a.Seq == seq), what);
@@ -355,7 +355,7 @@ public static class BuildingNetTests
         while (watch.Elapsed.TotalSeconds < 15)
         {
             rig.Run(0.05, (_, _) => default);
-            long now = cy.BuildingReplica?.PiecesReceived ?? 0;
+            long now = cy.Building().Replica?.PiecesReceived ?? 0;
             if (now > previous)
             {
                 batches++;
@@ -373,7 +373,7 @@ public static class BuildingNetTests
         Fixtures.Report($"{pieces} pieces streamed in {last - first:0.00} s ({batches} frames with new pieces); " +
             $"server tick worst {ticks.TotalMaxMs:0.0} ms, 99th percentile {ticks.Item2:0.0} ms");
         Assert.True(last - first > 0.5 && batches > 5, "streamed over several snapshots, not all at once");
-        BuildingWorld copy = cy.Building!;
+        BuildingWorld copy = cy.Building().World!;
         Assert.Equal(1, copy.Structures.Count, "one structure, as on the server");
         int[] mine = copy.AllPieces.OrderBy(p => p.Id.Value).Select(p => p.Stability).ToArray();
         int[] theirs = rig.Server.Inspect(sv => sv.Zone.Building().World!.AllPieces.OrderBy(p => p.Id.Value).Select(p => p.Stability).ToArray());

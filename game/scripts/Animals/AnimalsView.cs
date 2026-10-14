@@ -112,7 +112,7 @@ public partial class AnimalsView : Node3D
             return;
         }
         ZoneFrame frame = client.Frame;
-        foreach (ClientAnimal a in client.Animals)
+        foreach (ClientAnimal a in client.Animals().All)
         {
             into.Add(new AnimalFrame
             {

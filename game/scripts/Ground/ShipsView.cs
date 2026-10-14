@@ -49,8 +49,8 @@ public partial class ShipsView : Node3D
     {
         ShipView.Exposure = exposure;
         _seen.Clear();
-        RemoteShip? own = Client.OwnShipRemote;
-        foreach (RemoteShip ship in Client.Ships)
+        RemoteShip? own = Client.Ships().OwnShipRemote;
+        foreach (RemoteShip ship in Client.Ships().All)
         {
             if (ship.Def is not { } def)
             {
@@ -68,9 +68,9 @@ public partial class ShipsView : Node3D
             ShipLook look;
             if (mine)
             {
-                ShipState s = Client.OwnShip;
-                Num.Quaternion q = Client.OwnShipRenderRotation;
-                Num.Vector3 origin = Client.OwnShipRenderPosition - Num.Vector3.Transform(def.CentreOfMass, q);
+                ShipState s = Client.Ships().OwnShip;
+                Num.Quaternion q = Client.Ships().OwnShipRenderRotation;
+                Num.Vector3 origin = Client.Ships().OwnShipRenderPosition - Num.Vector3.Transform(def.CentreOfMass, q);
                 look = new ShipLook(Pivot(origin, q), ship.Hatch, s.Thrust, s.Has(ShipFlags.EnginesOn), s.Has(ShipFlags.Boosting), true, false);
             }
             else

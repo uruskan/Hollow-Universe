@@ -227,7 +227,7 @@ public partial class GroundAudio : Node
         {
             _placeIn = 3;
             ZoneFrame frame = Client.Frame;
-            INaturalObjects? nature = Client.Nature;
+            INaturalObjects? nature = Client.Survival().Nature;
             int trees = CountTrees(nature, Client.Content, local);
             _placeJob = Task.Run(() => Place(surface, frame, local, trees));
         }
@@ -340,7 +340,7 @@ public partial class GroundAudio : Node
     // A box, campfire or furnace opens and shuts where it stands.
     private void OnOpened(LootKind kind, EntityId id)
     {
-        RemoteThing? thing = Client.Things.FirstOrDefault(t => t.Id == id);
+        RemoteThing? thing = Client.Survival().Things.FirstOrDefault(t => t.Id == id);
         if (thing?.Deployable(Client.Content) is not { } def)
         {
             return;

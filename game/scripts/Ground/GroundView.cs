@@ -259,7 +259,7 @@ public partial class GroundView : Node3D
             Address = ServerAddress,
         };
         _model.Console = _console;
-        Client.ZoneDayChanged += ApplyDay;
+        Client.Console().ZoneDayChanged += ApplyDay;
         _build.Say = _model.ShowNotice;
         _placing.Say = _model.ShowNotice;
         _ui = new GroundUi { Name = "GroundUi", Model = _model };
@@ -299,7 +299,7 @@ public partial class GroundView : Node3D
 
     public override void _ExitTree()
     {
-        Client.ZoneDayChanged -= ApplyDay;
+        Client.Console().ZoneDayChanged -= ApplyDay;
         _console.Dispose();
         _model.Dispose();
         InventoryBody.Release();
@@ -323,7 +323,7 @@ public partial class GroundView : Node3D
         if (_world != null && Client.Surface is PlanetSurface && PlanetSurfaces.Find(zone.SystemAddress, zone.BodyPath) is { } found)
         {
             _world.OpenZone(found.System, found.Body, found.Surface, Client.Frame.Origin, time, zone.RotationTimeScale);
-            if (Client.Day is { } day)
+            if (Client.Console().Day is { } day)
             {
                 ApplyDay(day);
             }
@@ -406,7 +406,7 @@ public partial class GroundView : Node3D
         // Free look while Alt is held and the game has the mouse (on foot, or in the cockpit): letting go, or the cursor
         // showing (inventory, crafting, map, menu, chat, keypad), turns the camera back to the view at once.
         _freeLook.Hold(Input.IsPhysicalKeyPressed(Key.Alt) && Input.MouseMode == Input.MouseModeEnum.Captured &&
-            (!Client.Piloting || _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit));
+            (!Client.Ships().Piloting || _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit));
         InputFrame input = ReadInput(delta);
         Hands(ref input, _presses);
         _presses = HandPress.None;
@@ -452,19 +452,19 @@ public partial class GroundView : Node3D
         // so a blast or a fire looks as bright by day as by night, like everything that glows.
         FxDirector.Brightness = 1.3f / Glow.Exposure;
         // The map (G) and the death screen draw the zone's map: its picture starts as soon as the zone is known.
-        if (!_mapWarm && Client.Map != null)
+        if (!_mapWarm && Client.World().Map != null)
         {
             _mapWarm = _ui.MapReady;
         }
         _model.Frame();
         Num.Vector3 feet = Client.RenderPosition;
         // A respawn or a far teleport on foot is an arrival: the land, plants and things around stream again (§4.3.1).
-        Loading?.Follow(feet.X, feet.Y, feet.Z, arrivals: !Client.Piloting);
+        Loading?.Follow(feet.X, feet.Y, feet.Z, arrivals: !Client.Ships().Piloting);
         Num.Vector3 up = Client.Frame.UpAt(feet);
         Num.Vector3 eye = feet + up * Client.EyeHeight;
         FaceTarget(eye, up);
         Num.Vector3 forward = CharacterMotor.ViewDirection(_yaw, _pitch, up);
-        bool piloting = Client.Piloting && Client.OwnShipDef != null;
+        bool piloting = Client.Ships().Piloting && Client.Ships().OwnShipDef != null;
         if (piloting != _wasPiloting)
         {
             // Boarded or stepped out: the lever back to zero, the chase camera placed afresh.
@@ -476,7 +476,7 @@ public partial class GroundView : Node3D
         {
             // The ship's camera (cockpit or chase, V) on the predicted ship as drawn now; blasts shake it too.
             ShipState shown = OwnShipShown();
-            (Num.Vector3 from, Num.Vector3 towards, Num.Vector3 camUp) = _shipCamera.Follow(shown, Client.OwnShipDef!,
+            (Num.Vector3 from, Num.Vector3 towards, Num.Vector3 camUp) = _shipCamera.Follow(shown, Client.Ships().OwnShipDef!,
                 Client.Frame.UpAt(shown.Position), (float)delta, OverGround);
             eye = from;
             forward = towards;
@@ -618,7 +618,7 @@ public partial class GroundView : Node3D
             // Loading: the character stands as it arrived.
             return input;
         }
-        if (Client.Piloting)
+        if (Client.Ships().Piloting)
         {
             // Flying (G6): the stick, the lever and the thrusters instead of walking. With the interface open the lever
             // stays where it was and the stick lets go.
@@ -673,7 +673,7 @@ public partial class GroundView : Node3D
     private IHeldControl? Holding()
     {
         LocalPlayer me = Client.Local;
-        if (me.IsDead || Client.Piloting || me.HeldItem is not { } item || _held.Find((int)item.Held) is not { } control)
+        if (me.IsDead || Client.Ships().Piloting || me.HeldItem is not { } item || _held.Find((int)item.Held) is not { } control)
         {
             return null;
         }
@@ -720,7 +720,7 @@ public partial class GroundView : Node3D
                     return true;
                 }
                 LocalPlayer me = Client.Local;
-                EntityId ship = Client.OwnShipRemote?.Id ?? EntityId.None;
+                EntityId ship = Client.Ships().OwnShipRemote?.Id ?? EntityId.None;
                 switch (key.PhysicalKeycode)
                 {
                     case Key.V:
@@ -752,9 +752,9 @@ public partial class GroundView : Node3D
     // The ship flown as drawn this frame: its predicted state at the drawn position and turn.
     private ShipState OwnShipShown()
     {
-        ShipState shown = Client.OwnShip;
-        shown.Position = Client.OwnShipRenderPosition;
-        shown.Rotation = Client.OwnShipRenderRotation;
+        ShipState shown = Client.Ships().OwnShip;
+        shown.Position = Client.Ships().OwnShipRenderPosition;
+        shown.Rotation = Client.Ships().OwnShipRenderRotation;
         return shown;
     }
 
@@ -786,7 +786,7 @@ public partial class GroundView : Node3D
             return;
         }
         HollowUniverse.Ships.ShipHudData d = _shipHud.Data;
-        ShipDef def = Client.OwnShipDef!;
+        ShipDef def = Client.Ships().OwnShipDef!;
         ShipState s = OwnShipShown();
         d.Def = def;
         d.State = s;
@@ -814,7 +814,7 @@ public partial class GroundView : Node3D
         {
             return;
         }
-        if (Client.Piloting && Pilot(e))
+        if (Client.Ships().Piloting && Pilot(e))
         {
             GetViewport().SetInputAsHandled();
             return;

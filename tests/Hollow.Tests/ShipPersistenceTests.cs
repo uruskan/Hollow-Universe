@@ -40,14 +40,14 @@ public static class ShipPersistenceTests
             adaId = ada.EntityId;
             rig.Server.Execute("ship Ada");
             rig.Run(0.7, (_, _) => default);
-            RemoteShip seen = ada.Ships.Single();
+            RemoteShip seen = ada.Ships().All.Single();
             Vector3 hatch = seen.PointOf(seen.Def!.Hatch);
             Vector3 at = hatch + Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, seen.Rotation)) * 1.6f;
             rig.Server.Execute(FormattableString.Invariant($"teleport Ada {at.X} {at.Z}"));
             rig.Run(0.5, (_, _) => default);
             ada.Local.Interact(new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Ship, seen.Id.Value, ShipParts.Hatch), "board");
             rig.Run(0.7, (_, _) => default);
-            Assert.True(ada.Piloting, "Ada is in the seat");
+            Assert.True(ada.Ships().Piloting, "Ada is in the seat");
             (shipId, before, position, rotation) = rig.Server.Inspect(sv =>
             {
                 Ship ship = sv.Zone.Ships().All.Single();
@@ -87,7 +87,7 @@ public static class ShipPersistenceTests
             GameClient ada = rig.Join("Ada");
             rig.WaitUntilPlaying();
             rig.Run(0.5, (_, _) => default);
-            Assert.True(ada.Piloting, "Ada wakes in the seat and flies it again");
+            Assert.True(ada.Ships().Piloting, "Ada wakes in the seat and flies it again");
 
             // A wreck's row goes.
             rig.Server.Inspect(sv => sv.Zone.Ships().DamageShip(sv.Zone.Ships().ShipOf(shipId)!, 10_000, ShipDamage.Explosive, null));

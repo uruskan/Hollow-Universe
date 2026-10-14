@@ -106,12 +106,12 @@ public partial class NatureView : Node3D
     /// <summary>Where the player is (feet), for what is drawn near them.</summary>
     public void Refresh(Num.Vector3 feet, double delta)
     {
-        if (Client.Nature == null || Client.Natural == null)
+        if (Client.Survival().Nature == null || Client.Survival().Natural == null)
         {
             return;
         }
         long bytes = GC.GetAllocatedBytesForCurrentThread(), start = System.Diagnostics.Stopwatch.GetTimestamp();
-        bool quiet = Client.Natural.Revision == _revision;
+        bool quiet = Client.Survival().Natural.Revision == _revision;
         RefreshNow(feet, delta);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - bytes;
         _costTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;
@@ -171,7 +171,7 @@ public partial class NatureView : Node3D
     private Func<TileKey, ScatterItem, ScatterKind> FrozenKinds()
     {
         var gone = new HashSet<ulong>(_falling);
-        if (Client.Natural is { } state)
+        if (Client.Survival().Natural is { } state)
         {
             foreach (KeyValuePair<ulong, NaturalOverride> o in state.Overrides)
             {
@@ -199,7 +199,7 @@ public partial class NatureView : Node3D
     // Felled trees and picked ferns aren't drawn; a picked berry bush is drawn bare.
     private ScatterKind DrawnKind(TileKey tile, ScatterItem item)
     {
-        NaturalState? state = Client.Natural;
+        NaturalState? state = Client.Survival().Natural;
         if (state == null || state.Count == 0 && _falling.Count == 0)
         {
             return item.Kind;
@@ -221,7 +221,7 @@ public partial class NatureView : Node3D
     private void TakeChanges(Num.Vector3 feet)
     {
         _changedTiles.Clear();
-        NaturalState state = Client.Natural!;
+        NaturalState state = Client.Survival().Natural!;
         if (state.Revision == _revision)
         {
             return;
@@ -273,7 +273,7 @@ public partial class NatureView : Node3D
     // falling. Returns whether it starts to fall.
     private bool React(in NaturalObject o, TileKey tile, float distance)
     {
-        NaturalState state = Client.Natural!;
+        NaturalState state = Client.Survival().Natural!;
         if (Client.Content.Natural(o.Kind) is not { Gather: { } rules } kind)
         {
             return false;
@@ -396,11 +396,11 @@ public partial class NatureView : Node3D
     // a frame never waits for a tile to be generated.
     private bool Cached(ulong id, out NaturalObject o)
     {
-        if (Client.Nature is ScatterNaturalObjects scatter)
+        if (Client.Survival().Nature is ScatterNaturalObjects scatter)
         {
             return scatter.TryGetCached(id, out o);
         }
-        return Client.Nature!.TryGet(id, out o);
+        return Client.Survival().Nature!.TryGet(id, out o);
     }
 
     /// <summary>The surface view draws plant meshes out to about this far; beyond, only tree impostors.</summary>
@@ -514,8 +514,8 @@ public partial class NatureView : Node3D
             : new Dictionary<ulong, (Node3D, int)>();
         var list = new List<(ulong, Node3D, int)>();
         _scratch.Clear();
-        Client.Nature!.Query(tx * PhysicsWorld.TileSize, tz * PhysicsWorld.TileSize, (tx + 1) * PhysicsWorld.TileSize, (tz + 1) * PhysicsWorld.TileSize, _scratch);
-        NaturalState state = Client.Natural!;
+        Client.Survival().Nature!.Query(tx * PhysicsWorld.TileSize, tz * PhysicsWorld.TileSize, (tx + 1) * PhysicsWorld.TileSize, (tz + 1) * PhysicsWorld.TileSize, _scratch);
+        NaturalState state = Client.Survival().Natural!;
         foreach (NaturalObject o in _scratch)
         {
             if (Client.Content.Natural(o.Kind) is not { Class: NaturalClass.Node } kind || state.IsDepleted(o.Id))
@@ -563,7 +563,7 @@ public partial class NatureView : Node3D
     // when the natural state changes or the player has moved; the markers pulse and sparkle every frame.
     private void UpdateMarkers(Num.Vector3 feet)
     {
-        NaturalState state = Client.Natural!;
+        NaturalState state = Client.Survival().Natural!;
         if (Num.Vector3.DistanceSquared(feet, _scannedAt) > 16 * 16)
         {
             // Every spot in the zone's changes now and then: those met on the way, which changed before they were near.

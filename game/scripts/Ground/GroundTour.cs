@@ -183,7 +183,7 @@ public partial class GroundTour : Node
         {
             TapAimed();
         }
-        await Until(() => Client.Natural?.IsDepleted(b.Id) == true, 3);
+        await Until(() => Client.Survival().Natural?.IsDepleted(b.Id) == true, 3);
         await Seconds(0.4);
         await Shot("berries");
     }
@@ -280,7 +280,7 @@ public partial class GroundTour : Node
         await Until(() => Hits(trunk.Id).Seen >= 1, 5);
         View.Scripted = null;
         await Seconds(1.0);
-        if (Client.Natural?.WeakSpot(trunk, kind) is { } x)
+        if (Client.Survival().Natural?.WeakSpot(trunk, kind) is { } x)
         {
             Face(x);
         }
@@ -292,9 +292,9 @@ public partial class GroundTour : Node
         bool burst = false;
         double started = Time.GetTicksMsec() / 1000.0;
         View.Scripted = new InputFrame { Primary = true };
-        while (Time.GetTicksMsec() / 1000.0 - started < 60 && Client.Natural?.IsDepleted(trunk.Id) != true)
+        while (Time.GetTicksMsec() / 1000.0 - started < 60 && Client.Survival().Natural?.IsDepleted(trunk.Id) != true)
         {
-            if (Client.Natural?.WeakSpot(trunk, kind) is { } spot)
+            if (Client.Survival().Natural?.WeakSpot(trunk, kind) is { } spot)
             {
                 Face(spot);
             }
@@ -359,7 +359,7 @@ public partial class GroundTour : Node
         await Until(() => Hits(rock.Id).Seen >= 1, 5);
         View.Scripted = null;
         await Seconds(0.9);
-        if (Client.Natural?.WeakSpot(rock, kind) is { } hot)
+        if (Client.Survival().Natural?.WeakSpot(rock, kind) is { } hot)
         {
             Face(hot);
         }
@@ -370,9 +370,9 @@ public partial class GroundTour : Node
         bool broke = false;
         double started = Time.GetTicksMsec() / 1000.0;
         View.Scripted = new InputFrame { Primary = true };
-        while (Time.GetTicksMsec() / 1000.0 - started < 40 && Hits(rock.Id).Stage < 2 && !Client.Natural!.IsDepleted(rock.Id))
+        while (Time.GetTicksMsec() / 1000.0 - started < 40 && Hits(rock.Id).Stage < 2 && !Client.Survival().Natural!.IsDepleted(rock.Id))
         {
-            if (Client.Natural.WeakSpot(rock, kind) is { } spot)
+            if (Client.Survival().Natural.WeakSpot(rock, kind) is { } spot)
             {
                 Face(spot);
             }
@@ -399,23 +399,23 @@ public partial class GroundTour : Node
         View.Scripted = null;
         GD.Print($"[tour] mine: {log.Count} hits to stage 2 ({string.Join(" ", log)}); the nature view: {NatureView.CostReport()}");
         await Seconds(1.0);
-        Face(Client.Natural!.WeakSpot(rock, kind) ?? rock.Position + rock.Up * 0.4f);
+        Face(Client.Survival().Natural!.WeakSpot(rock, kind) ?? rock.Position + rock.Up * 0.4f);
         await Seconds(0.3);
         await Shot("outcrop-broken");
         // Mined out: its remnant crumbles into its gibs (GROUND.md §9.4).
         View.Scripted = new InputFrame { Primary = true };
         double mining = Time.GetTicksMsec() / 1000.0;
-        while (Time.GetTicksMsec() / 1000.0 - mining < 40 && !Client.Natural!.IsDepleted(rock.Id))
+        while (Time.GetTicksMsec() / 1000.0 - mining < 40 && !Client.Survival().Natural!.IsDepleted(rock.Id))
         {
-            if (Client.Natural.WeakSpot(rock, kind) is { } spot)
+            if (Client.Survival().Natural.WeakSpot(rock, kind) is { } spot)
             {
                 Face(spot);
             }
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
         View.Scripted = null;
-        GD.Print($"[tour] the outcrop {(Client.Natural!.IsDepleted(rock.Id) ? "is mined out" : "still stands")}");
-        if (Client.Natural.IsDepleted(rock.Id))
+        GD.Print($"[tour] the outcrop {(Client.Survival().Natural!.IsDepleted(rock.Id) ? "is mined out" : "still stands")}");
+        if (Client.Survival().Natural.IsDepleted(rock.Id))
         {
             Face(rock.Position + rock.Up * 0.3f);
             await Seconds(0.3);
@@ -427,8 +427,8 @@ public partial class GroundTour : Node
     // How many fresh hits this client has seen on a natural object, the run of weak-spot hits and the stage.
     private (int Seen, int Streak, int Stage) Hits(ulong id)
     {
-        if (Client.Natural is not { } state || !state.TryGetOverride(id, out NaturalOverride o) ||
-            !Client.Nature!.TryGet(id, out NaturalObject obj) || Client.Content.Natural(obj.Kind) is not { } kind)
+        if (Client.Survival().Natural is not { } state || !state.TryGetOverride(id, out NaturalOverride o) ||
+            !Client.Survival().Nature!.TryGet(id, out NaturalObject obj) || Client.Content.Natural(obj.Kind) is not { } kind)
         {
             return (0, 0, 0);
         }
@@ -610,7 +610,7 @@ public partial class GroundTour : Node
         await Until(() => Count("timed-charge") > 0, 5);
         Num.Vector3 up = Client.Frame.UpAt(hut.Door);
         Num.Vector3 centre = hut.Door - hut.Outward * 1.5f;
-        Piece? wall = Client.Building?.AllPieces.Where(p => p.Def.Key == "wall")
+        Piece? wall = Client.Building().World?.AllPieces.Where(p => p.Def.Key == "wall")
             .OrderBy(p => Num.Vector3.Distance(Centre(p), hut.Door)).FirstOrDefault();
         if (wall == null)
         {
@@ -624,8 +624,8 @@ public partial class GroundTour : Node
         await Hold("timed-charge", 5);
         await Seconds(0.4);
         View.UseHeld(secondary: true);
-        await Until(() => Client.Explosives.Any(e => e.State == ExplosiveState.Stuck), 5);
-        if (Client.Explosives.FirstOrDefault(e => e.State == ExplosiveState.Stuck) is not { } charge)
+        await Until(() => Client.Raid().Explosives.Any(e => e.State == ExplosiveState.Stuck), 5);
+        if (Client.Raid().Explosives.FirstOrDefault(e => e.State == ExplosiveState.Stuck) is not { } charge)
         {
             GD.PushWarning("[tour] the charge was not placed");
             return;
@@ -636,11 +636,11 @@ public partial class GroundTour : Node
         await Shot("charge", frames: 0);
         bool blasted = false;
         void Blast(DetonationEvent _) => blasted = true;
-        Client.Detonated += Blast;
+        Client.Raid().Detonated += Blast;
         await TeleportTo(charge.ArcStart + normal * 9f + Num.Vector3.Normalize(Num.Vector3.Cross(normal, up)) * 3f);
         Face(charge.ArcStart + up * 0.8f);
         await Until(() => blasted, 12);
-        Client.Detonated -= Blast;
+        Client.Raid().Detonated -= Blast;
         // The fireball at its fullest.
         await Seconds(0.22);
         FxDirector.Instance.Paused = true;
@@ -665,7 +665,7 @@ public partial class GroundTour : Node
         await Until(() => Count("rifle") > 0 && Count("rifle-ammo") > 0 && Count("muzzle-brake") > 0, 5);
         Num.Vector3 up = Client.Frame.UpAt(hut.Door);
         Num.Vector3 centre = hut.Door - hut.Outward * 1.5f;
-        Piece? wall = Client.Building?.AllPieces.Where(p => p.Def.Key == "wall")
+        Piece? wall = Client.Building().World?.AllPieces.Where(p => p.Def.Key == "wall")
             .OrderBy(p => Num.Vector3.Distance(Centre(p), hut.Door)).FirstOrDefault();
         if (wall == null)
         {
@@ -779,13 +779,13 @@ public partial class GroundTour : Node
         await Seconds(1.0);
         await Shot("ship-craft");
         View.Interface.Open(GroundScreen.Hud);
-        int ships = Client.Ships.Count();
+        int ships = Client.Ships().All.Count();
         if (Client.Content.Item("tin-finch") is { } finch)
         {
             Me.Craft(finch.Id);
         }
-        await Until(() => Client.Ships.Count() > ships, 140);
-        if (Client.Ships.OrderBy(s => Num.Vector3.Distance(s.Position, Client.Character.Position)).FirstOrDefault() is not { Def: { } def } ship)
+        await Until(() => Client.Ships().All.Count() > ships, 140);
+        if (Client.Ships().All.OrderBy(s => Num.Vector3.Distance(s.Position, Client.Character.Position)).FirstOrDefault() is not { Def: { } def } ship)
         {
             GD.PushWarning("[tour] no ship rolled out");
             return;
@@ -810,7 +810,7 @@ public partial class GroundTour : Node
         await Seconds(0.4);
         await Shot("ship-boarding");
         Me.Interact(atHatch, "board");
-        await Until(() => Client.Piloting, 5);
+        await Until(() => Client.Ships().Piloting, 5);
         await Seconds(0.8);
         // Up and out over the forest, from the cockpit.
         View.ShipCamera.Mode = HollowUniverse.Ships.ShipCameraMode.Cockpit;
@@ -836,12 +836,12 @@ public partial class GroundTour : Node
         Num.Vector3 pad = ClearSpot(home + outward * 8f - across * 10f, 9f);
         await FlyTo(pad, 10f, 3f, 40);
         await Hover(home - outward * 1.5f, 10f, 2.0);
-        await Pilot(new ShipInput { Vertical = -1 }, 12, () => Client.OwnShip.Has(ShipFlags.Landed));
+        await Pilot(new ShipInput { Vertical = -1 }, 12, () => Client.Ships().OwnShip.Has(ShipFlags.Landed));
         await Pilot(default, 1.5);
         View.Scripted = null;
         await Shot("ship-landed", frames: 0);
         Me.ExitShip();
-        await Until(() => !Client.Piloting, 5);
+        await Until(() => !Client.Ships().Piloting, 5);
         await Seconds(0.8);
     }
 
@@ -851,7 +851,7 @@ public partial class GroundTour : Node
     {
         Num.Vector3 up0 = Client.Frame.UpAt(near);
         var solid = new List<NaturalObject>();
-        Client.Nature?.Query(near.X - 60, near.Z - 60, near.X + 60, near.Z + 60, solid);
+        Client.Survival().Nature?.Query(near.X - 60, near.Z - 60, near.X + 60, near.Z + 60, solid);
         solid.RemoveAll(o => Client.Content.Natural(o.Kind) is not { IsSolid: true });
         int tries = 0;
         for (int ring = 0; ring < 6 && tries < 5; ring++)
@@ -877,7 +877,7 @@ public partial class GroundTour : Node
                 void Refused(IntentAnswer answer) => refused = answer.Outcome;
                 Me.IntentRejected += Refused;
                 if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Placeable("vehicle-workbench") is { } workbench &&
-                    Client.PlanAt(workbench, Client.Ground?.Settle(at) ?? at, View.Yaw) is { } ghost)
+                    Client.Placement().PlanAt(workbench, Client.Placement().Ground?.Settle(at) ?? at, View.Yaw) is { } ghost)
                 {
                     if (ghost.Valid)
                     {
@@ -888,13 +888,13 @@ public partial class GroundTour : Node
                         refused = ghost.Outcome;
                     }
                 }
-                await Until(() => Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "vehicle-workbench") || refused != null, 2);
+                await Until(() => Client.Survival().Things.Any(t => t.Deployable(Client.Content)?.Key == "vehicle-workbench") || refused != null, 2);
                 Me.IntentRejected -= Refused;
                 if (refused != null)
                 {
                     GD.Print($"[tour] the vehicle workbench was refused there: {refused}");
                 }
-                if (Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "vehicle-workbench"))
+                if (Client.Survival().Things.Any(t => t.Deployable(Client.Content)?.Key == "vehicle-workbench"))
                 {
                     return true;
                 }
@@ -909,7 +909,7 @@ public partial class GroundTour : Node
         Num.Vector3 up = Client.Frame.UpAt(p);
         Num.Vector3 east = Num.Vector3.Normalize(Num.Vector3.Cross(up, new Num.Vector3(0, 0, 1)));
         Num.Vector3 north = Num.Vector3.Cross(east, up);
-        Num.Vector3? Ground(Num.Vector3 q) => Client.Ground?.Settle(q);
+        Num.Vector3? Ground(Num.Vector3 q) => Client.Placement().Ground?.Settle(q);
         if (Ground(p) is not { } a || Ground(p + east) is not { } b || Ground(p + north) is not { } c)
         {
             return 90;
@@ -936,9 +936,9 @@ public partial class GroundTour : Node
     {
         double start = Time.GetTicksMsec() / 1000.0;
         bool shot = false;
-        while (Client.Piloting && Time.GetTicksMsec() / 1000.0 - start < seconds)
+        while (Client.Ships().Piloting && Time.GetTicksMsec() / 1000.0 - start < seconds)
         {
-            ShipState s = Client.OwnShip;
+            ShipState s = Client.Ships().OwnShip;
             Num.Vector3 up = Client.Frame.UpAt(s.Position);
             Num.Vector3 to = target - s.Position;
             Num.Vector3 flat = to - up * Num.Vector3.Dot(to, up);
@@ -948,7 +948,7 @@ public partial class GroundTour : Node
             {
                 break;
             }
-            float over = OverGround(s.Origin(Client.OwnShipDef!.CentreOfMass));
+            float over = OverGround(s.Origin(Client.Ships().OwnShipDef!.CentreOfMass));
             // Over the trees until over the point and slow, then down to the height asked.
             float wanted = distance > 12 || speed > 6 ? Math.Max(height, 45f) : height;
             float cruise = MathF.Min(95f, MathF.Sqrt(2 * 5f * MathF.Max(0, distance - arrive * 0.5f)));
@@ -970,13 +970,13 @@ public partial class GroundTour : Node
     private async Task Hover(Num.Vector3 face, float height, double seconds)
     {
         double start = Time.GetTicksMsec() / 1000.0;
-        while (Client.Piloting)
+        while (Client.Ships().Piloting)
         {
-            ShipState s = Client.OwnShip;
+            ShipState s = Client.Ships().OwnShip;
             Num.Vector3 up = Client.Frame.UpAt(s.Position);
             Num.Vector3 to = face - s.Position;
             Num.Vector3 flat = to - up * Num.Vector3.Dot(to, up);
-            float over = OverGround(s.Origin(Client.OwnShipDef!.CentreOfMass));
+            float over = OverGround(s.Origin(Client.Ships().OwnShipDef!.CentreOfMass));
             double t = Time.GetTicksMsec() / 1000.0 - start;
             if (t > 15 || (t > seconds && MathF.Abs(over - height) < 1.5f && s.Velocity.Length() < 1.5f))
             {
@@ -993,9 +993,9 @@ public partial class GroundTour : Node
     private Num.Vector3 ClearSpot(Num.Vector3 near, float clear)
     {
         var all = new List<NaturalObject>();
-        Client.Nature?.Query(near.X - 50, near.Z - 50, near.X + 50, near.Z + 50, all);
+        Client.Survival().Nature?.Query(near.X - 50, near.Z - 50, near.X + 50, near.Z + 50, all);
         List<NaturalObject> solid = all.Where(o => Client.Content.Natural(o.Kind) is { IsSolid: true }).ToList();
-        List<Num.Vector3> pieces = Client.Building?.AllPieces.Select(Centre).ToList() ?? new List<Num.Vector3>();
+        List<Num.Vector3> pieces = Client.Building().World?.AllPieces.Select(Centre).ToList() ?? new List<Num.Vector3>();
         for (int ring = 0; ring < 8; ring++)
         {
             for (int k = 0; k < (ring == 0 ? 1 : 12); k++)
@@ -1110,12 +1110,12 @@ public partial class GroundTour : Node
     private Num.Vector3? NearestWall()
     {
         Num.Vector3 me = Client.Character.Position;
-        Piece? wall = Client.Building?.AllPieces.Where(p => p.Def.Key == "wall").OrderBy(p => Num.Vector3.Distance(Centre(p), me)).FirstOrDefault();
+        Piece? wall = Client.Building().World?.AllPieces.Where(p => p.Def.Key == "wall").OrderBy(p => Num.Vector3.Distance(Centre(p), me)).FirstOrDefault();
         return wall != null ? Centre(wall) + Client.Frame.UpAt(me) * 1.3f : null;
     }
 
     private IEnumerable<Door> Doors() =>
-        Client.Building?.AllPieces.Where(p => p.Door != null).Select(p => p.Door!) ?? Enumerable.Empty<Door>();
+        Client.Building().World?.AllPieces.Where(p => p.Door != null).Select(p => p.Door!) ?? Enumerable.Empty<Door>();
 
     private static Num.Vector3 Centre(Piece piece) => piece.Structure.Frame.ToZone(piece.Pose).Position;
 
@@ -1143,7 +1143,7 @@ public partial class GroundTour : Node
     // Places a piece with the plan in hand where a wanted, valid placement is nearest the view; the piece, once there.
     private async Task<Piece?> PlaceAimed(string key, Func<PlacementPlan, bool> want)
     {
-        if (!await AimAt(key, want) || Client.Building is not { } world)
+        if (!await AimAt(key, want) || Client.Building().World is not { } world)
         {
             return null;
         }
@@ -1183,7 +1183,7 @@ public partial class GroundTour : Node
             for (float pitch = -1.2f; pitch <= 0.3f; pitch += 0.03f)
             {
                 Num.Vector3 dir = CharacterMotor.ViewDirection(View.Yaw + dy, pitch, up);
-                if (Client.Plan(piece, eye, dir, View.Yaw + dy) is { Valid: true, Detail: PlacementPlan plan } && want(plan))
+                if (Client.Placement().Plan(piece, eye, dir, View.Yaw + dy) is { Valid: true, Detail: PlacementPlan plan } && want(plan))
                 {
                     float cost = MathF.Abs(dy) + MathF.Abs(pitch - View.Pitch) * 0.5f;
                     if (cost < bestCost)
@@ -1288,7 +1288,7 @@ public partial class GroundTour : Node
 
         // The barrels and crate nearest the landing site: the cluster, a barrel broken with the hatchet, the crate opened.
         RemoteThing? crate = NearestProp(WorldPropKind.Crate, Num.Vector3.Zero);
-        GD.Print($"[tour] props in range: {Client.Props.Count()}, crate at {crate?.Position}");
+        GD.Print($"[tour] props in range: {Client.World().Props.Count()}, crate at {crate?.Position}");
         if (crate != null)
         {
             Num.Vector3 up = Client.Frame.UpAt(crate.Position);
@@ -1308,9 +1308,9 @@ public partial class GroundTour : Node
                 }
                 await Seconds(1.0);
                 View.Scripted = new InputFrame { Primary = true };
-                await Until(() => !Client.Props.Any(t => t.Id == barrel.Id), 15);
+                await Until(() => !Client.World().Props.Any(t => t.Id == barrel.Id), 15);
                 View.Scripted = null;
-                GD.Print($"[tour] the barrel {(Client.Props.Any(t => t.Id == barrel.Id) ? "still stands" : "broke")}");
+                GD.Print($"[tour] the barrel {(Client.World().Props.Any(t => t.Id == barrel.Id) ? "still stands" : "broke")}");
                 // Its pieces in the air, then on the ground (gibs, GROUND.md §9.4).
                 await Seconds(0.25);
                 await Shot("barrel-gibs");
@@ -1454,7 +1454,7 @@ public partial class GroundTour : Node
 
     // The nearest world prop of a kind in range.
     private RemoteThing? NearestProp(WorldPropKind kind, Num.Vector3 near) =>
-        Client.Props.Where(t => t.Prop(Client.Content)?.Kind == kind).OrderBy(t => Flat(t.Position - near)).FirstOrDefault();
+        Client.World().Props.Where(t => t.Prop(Client.Content)?.Kind == kind).OrderBy(t => Flat(t.Position - near)).FirstOrDefault();
 
     // Places a deployable from the main slots 2.2 m from where the player stands, towards a direction or, refused (too
     // steep, something in the way), turned a little further each time; waits for it to stand there.
@@ -1475,19 +1475,19 @@ public partial class GroundTour : Node
                 }
                 Num.Vector3 dir = Num.Vector3.Transform(towards, Num.Quaternion.CreateFromAxisAngle(up, turn));
                 Num.Vector3 at = from + dir * 2.2f;
-                if (Placeable(key) is not { } placeable || Client.PlanAt(placeable, Client.Ground?.Settle(at) ?? at, yaw) is not { } ghost)
+                if (Placeable(key) is not { } placeable || Client.Placement().PlanAt(placeable, Client.Placement().Ground?.Settle(at) ?? at, yaw) is not { } ghost)
                 {
                     continue;
                 }
-                var before = Client.Things.Select(t => t.Id).ToHashSet();
+                var before = Client.Survival().Things.Select(t => t.Id).ToHashSet();
                 refused = ghost.Outcome;
                 if (ghost.Valid)
                 {
                     Me.Place(ghost, ContainerRef.Main, slot);
                 }
                 await Until(() => refused != OutcomeCode.Done ||
-                    Client.Things.Any(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key), 5);
-                RemoteThing? placed = Client.Things.FirstOrDefault(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key);
+                    Client.Survival().Things.Any(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key), 5);
+                RemoteThing? placed = Client.Survival().Things.FirstOrDefault(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == key);
                 if (placed != null)
                 {
                     await Seconds(0.3);
@@ -1511,7 +1511,7 @@ public partial class GroundTour : Node
     {
         var all = new List<NaturalObject>();
         float r = distance + 4;
-        Client.Nature!.Query(target.X - r, target.Z - r, target.X + r, target.Z + r, all);
+        Client.Survival().Nature!.Query(target.X - r, target.Z - r, target.X + r, target.Z + r, all);
         Num.Vector3 best = Away(target, distance);
         float bestCost = float.MaxValue;
         for (int k = 0; k < 16; k++)
@@ -1522,7 +1522,7 @@ public partial class GroundTour : Node
             foreach (NaturalObject o in all)
             {
                 if (Client.Content.Natural(o.Kind) is not { Class: NaturalClass.Tree or NaturalClass.Bush or NaturalClass.Boulder or NaturalClass.Node } kind ||
-                    Client.Natural?.IsDepleted(o.Id) == true)
+                    Client.Survival().Natural?.IsDepleted(o.Id) == true)
                 {
                     continue;
                 }
@@ -1645,11 +1645,11 @@ public partial class GroundTour : Node
         // The fire two metres ahead, lit with wood.
         Num.Vector3 at = Client.Character.Position + Forward() * 2.2f;
         if (SlotOf(Me.Inventory.Main, "campfire") is int fire && Placeable("campfire") is { } campfireItem &&
-            Client.PlanAt(campfireItem, Client.Ground?.Settle(at) ?? at, View.Yaw) is { Valid: true } ghost)
+            Client.Placement().PlanAt(campfireItem, Client.Placement().Ground?.Settle(at) ?? at, View.Yaw) is { Valid: true } ghost)
         {
             Me.Place(ghost, ContainerRef.Main, fire);
-            await Until(() => Client.Things.Any(t => t.Deployable(Client.Content)?.Key == "campfire"), 5);
-            RemoteThing campfire = Client.Things.First(t => t.Deployable(Client.Content)?.Key == "campfire");
+            await Until(() => Client.Survival().Things.Any(t => t.Deployable(Client.Content)?.Key == "campfire"), 5);
+            RemoteThing campfire = Client.Survival().Things.First(t => t.Deployable(Client.Content)?.Key == "campfire");
             Me.Interact(Thing(campfire.Id), "open");
             await Until(() => Me.LootKind == LootKind.Device, 5);
             if (SlotOf(Me.Inventory.Main, "wood") is int wood)
@@ -1749,8 +1749,8 @@ public partial class GroundTour : Node
         }
         ClientConsole console = View.Console;
         GroundUi ui = View.Interface;
-        await Until(() => Client.IsAdmin, 10);
-        Check(Client.IsAdmin, "the host is the game's admin");
+        await Until(() => Client.Console().IsAdmin, 10);
+        Check(Client.Console().IsAdmin, "the host is the game's admin");
         // Nothing hovered in the pictures, wherever the real mouse is.
         ui.HoldPointer(new Vector2(-10000, -10000));
         if (ui.Screen != GroundScreen.Console)
@@ -1774,13 +1774,13 @@ public partial class GroundTour : Node
         Check(new Num.Vector2(Client.Character.Position.X - spot.X, Client.Character.Position.Z - spot.Z).Length() < 1.5f, "teleport: there");
         View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
         await Settle();
-        int wolves = Client.Animals.Count(a => a.SpeciesKey == "wolf" && !a.Dead);
+        int wolves = Client.Animals().All.Count(a => a.SpeciesKey == "wolf" && !a.Dead);
         console.Submit("spawn wolf 2");
-        await Until(() => Client.Animals.Count(a => a.SpeciesKey == "wolf" && !a.Dead) >= wolves + 2, 8);
-        Check(Client.Animals.Count(a => a.SpeciesKey == "wolf" && !a.Dead) >= wolves + 2, "spawn wolf 2: two wolves in front");
+        await Until(() => Client.Animals().All.Count(a => a.SpeciesKey == "wolf" && !a.Dead) >= wolves + 2, 8);
+        Check(Client.Animals().All.Count(a => a.SpeciesKey == "wolf" && !a.Dead) >= wolves + 2, "spawn wolf 2: two wolves in front");
         console.Submit("noclip");
-        await Until(() => (Client.Cheats & MoveCheats.Noclip) != 0, 5);
-        Check((Client.Cheats & MoveCheats.Noclip) != 0, "noclip: on in the prediction");
+        await Until(() => (Client.Console().Cheats & MoveCheats.Noclip) != 0, 5);
+        Check((Client.Console().Cheats & MoveCheats.Noclip) != 0, "noclip: on in the prediction");
         float before = Client.Character.Position.Y;
         long corrections = Client.Stats.Corrections;
         View.Scripted = new InputFrame { Jump = true };
@@ -1789,11 +1789,11 @@ public partial class GroundTour : Node
         await Seconds(0.2);
         Check(Client.Character.Position.Y - before > 3, $"noclip: rose {Client.Character.Position.Y - before:0.0} m, {Client.Stats.Corrections - corrections} corrections");
         console.Submit("noclip");
-        await Until(() => (Client.Cheats & MoveCheats.Noclip) == 0, 5);
+        await Until(() => (Client.Console().Cheats & MoveCheats.Noclip) == 0, 5);
         await Seconds(1.5);
-        Check((Client.Cheats & MoveCheats.Noclip) == 0 && (Client.Character.Flags & MoveFlags.OnGround) != 0, "noclip off: back on the ground");
+        Check((Client.Console().Cheats & MoveCheats.Noclip) == 0 && (Client.Character.Flags & MoveFlags.OnGround) != 0, "noclip off: back on the ground");
         console.Submit("time 21");
-        await Until(() => Client.Day is { Overridden: true }, 5);
+        await Until(() => Client.Console().Day is { Overridden: true }, 5);
         await Seconds(0.3);
         double hours = View.World?.Sky?.LocalHours ?? -1;
         Check(Math.Abs(hours - 21) < 0.3, $"time 21: the sky says {hours:0.00} h");
@@ -1839,8 +1839,8 @@ public partial class GroundTour : Node
             }
         }
         const Hollow.Simulation.World.StaticKind bagKind = Hollow.Simulation.World.StaticKind.DroppedBag;
-        await Until(() => Client.Things.Any(t => t.Kind == bagKind && t.Count >= 5), 5);
-        RemoteThing? bag = Client.Things.Where(t => t.Kind == bagKind)
+        await Until(() => Client.Survival().Things.Any(t => t.Kind == bagKind && t.Count >= 5), 5);
+        RemoteThing? bag = Client.Survival().Things.Where(t => t.Kind == bagKind)
             .OrderBy(t => Num.Vector3.Distance(t.Position, Client.Character.Position)).FirstOrDefault();
         if (bag == null)
         {
@@ -1907,7 +1907,7 @@ public partial class GroundTour : Node
 
         // The claim device from outside the side wall by it (square to the wall, clear of the corners): in reach, out of
         // sight, refused with its line.
-        if (Client.Building?.Claims.OrderBy(c => Num.Vector3.Distance(c.ZoneTransform.Position, doorAt)).FirstOrDefault() is not { } claim)
+        if (Client.Building().World?.Claims.OrderBy(c => Num.Vector3.Distance(c.ZoneTransform.Position, doorAt)).FirstOrDefault() is not { } claim)
         {
             GD.PushWarning("[tour] the hut has no claim device");
             return;
@@ -2016,7 +2016,7 @@ public partial class GroundTour : Node
         Face(door.LockSpot.Position);
         await Seconds(0.8);
         await Shot("code-lock");
-        Piece? wall = Client.Building?.AllPieces.Where(p => p.Def.Key == "wall")
+        Piece? wall = Client.Building().World?.AllPieces.Where(p => p.Def.Key == "wall")
             .OrderBy(p => Num.Vector3.Distance(Centre(p), doorAt)).FirstOrDefault();
         if (wall != null)
         {
@@ -2035,17 +2035,17 @@ public partial class GroundTour : Node
         await Settle();
         await Hold("tin-finch", 5);
         Num.Vector3 feet = Client.Character.Position;
-        Face(Client.Ground?.Settle(feet + padTowards * 6f) ?? feet + padTowards * 6f);
+        Face(Client.Placement().Ground?.Settle(feet + padTowards * 6f) ?? feet + padTowards * 6f);
         await Seconds(0.8);
         await Shot("tin-finch");
-        int ships = Client.Ships.Count();
+        int ships = Client.Ships().All.Count();
         View.UseHeld();
-        await Until(() => Client.Ships.Count() > ships, 5);
+        await Until(() => Client.Ships().All.Count() > ships, 5);
         await Seconds(1.0);
         View.Pitch = Math.Max(View.Pitch, -0.2f);
         await Seconds(0.3);
         await Shot("tin-finch-placed");
-        GD.Print($"[tour] place: the Tin Finch {(Client.Ships.Count() > ships ? "placed" : "not placed")}");
+        GD.Print($"[tour] place: the Tin Finch {(Client.Ships().All.Count() > ships ? "placed" : "not placed")}");
     }
 
     // Interaction in the game (GROUND_SYSTEMS.md §5, P1), through the keys: the prompt on a hut's door with a fresh code lock
@@ -2097,7 +2097,7 @@ public partial class GroundTour : Node
         await Seconds(0.4);
 
         // Inside: the tool cupboard's options (the hut lists its builder).
-        if (Client.Building?.Claims.OrderBy(c => Num.Vector3.Distance(c.ZoneTransform.Position, middle)).FirstOrDefault() is { } cupboard)
+        if (Client.Building().World?.Claims.OrderBy(c => Num.Vector3.Distance(c.ZoneTransform.Position, middle)).FirstOrDefault() is { } cupboard)
         {
             Num.Vector3 at = cupboard.ZoneTransform.Position;
             await TeleportTo(middle + FlatUnit(middle - at) * 0.6f);
@@ -2117,14 +2117,14 @@ public partial class GroundTour : Node
         Num.Vector3 wall = middle + side * 1.6f + up * 1.3f;
         await TeleportTo(middle + side * 8.5f);
         await Hold("bow", 4);
-        int arrows = Client.Arrows.Count;
-        for (int shot = 0; shot < 4 && Client.Arrows.Count < arrows + 2; shot++)
+        int arrows = Client.Arrows().All.Count;
+        for (int shot = 0; shot < 4 && Client.Arrows().All.Count < arrows + 2; shot++)
         {
             await Loose(wall + up * (0.25f * shot) - outward * (0.35f * shot - 0.5f));
         }
         await Seconds(0.5);
-        GD.Print($"[tour] arrows stuck in the wall: {Client.Arrows.Count - arrows}");
-        if (Client.Arrows.Where(a => a.Placed).OrderBy(a => Num.Vector3.Distance(a.Pose.Position, wall)).FirstOrDefault() is { } stuck)
+        GD.Print($"[tour] arrows stuck in the wall: {Client.Arrows().All.Count - arrows}");
+        if (Client.Arrows().All.Where(a => a.Placed).OrderBy(a => Num.Vector3.Distance(a.Pose.Position, wall)).FirstOrDefault() is { } stuck)
         {
             Num.Vector3 nock = SpentArrowNock(stuck);
             await TeleportTo(middle + side * 3.3f + outward * 0.4f);
@@ -2152,13 +2152,13 @@ public partial class GroundTour : Node
         for (int attempt = 0; attempt < 6; attempt++)
         {
             await Hold("bow", 4);
-            int before = Client.Arrows.Count;
+            int before = Client.Arrows().All.Count;
             View.Scripted = new InputFrame { Secondary = true };
             await Seconds(1.1);
-            var known = Client.Animals.Select(a => a.Id).ToHashSet();
+            var known = Client.Animals().All.Select(a => a.Id).ToHashSet();
             Command?.Invoke($"spawn deer {Client.Name} 1 6");
-            await Until(() => Client.Animals.Any(a => !known.Contains(a.Id)), 3);
-            if (Client.Animals.FirstOrDefault(a => !known.Contains(a.Id)) is not { } deer)
+            await Until(() => Client.Animals().All.Any(a => !known.Contains(a.Id)), 3);
+            if (Client.Animals().All.FirstOrDefault(a => !known.Contains(a.Id)) is not { } deer)
             {
                 View.Scripted = null;
                 continue;
@@ -2166,7 +2166,7 @@ public partial class GroundTour : Node
             // At the deer's nearest hit shape, a little into it.
             Num.Vector3 eye = Client.Character.Position + Client.Frame.UpAt(Client.Character.Position) * Client.EyeHeight;
             Num.Vector3 aim = deer.Position + Client.Frame.UpAt(deer.Position) * 0.9f;
-            if (Client.TargetViewOf(TargetFamily.Animal) is { } animals && animals.TryNearest(new TargetRef(TargetFamily.Animal, deer.Id.Value), eye, out Num.Vector3 near))
+            if (Client.Targets().TargetViewOf(TargetFamily.Animal) is { } animals && animals.TryNearest(new TargetRef(TargetFamily.Animal, deer.Id.Value), eye, out Num.Vector3 near))
             {
                 aim = near + Num.Vector3.Normalize(near - eye) * 0.08f;
             }
@@ -2175,9 +2175,9 @@ public partial class GroundTour : Node
             await Seconds(0.1);
             View.Scripted = null;
             Me.HeldSlot = 5;
-            await Until(() => Client.Arrows.Count > before, 1.0);
-            GD.Print($"[tour] the deer, try {attempt + 1}: {(Client.Arrows.Count > before ? "an arrow stuck" : "no arrow stuck")} ({(deer.HurtCount > 0 ? "hit" : "not hit")})");
-            if (Client.Arrows.Count > before)
+            await Until(() => Client.Arrows().All.Count > before, 1.0);
+            GD.Print($"[tour] the deer, try {attempt + 1}: {(Client.Arrows().All.Count > before ? "an arrow stuck" : "no arrow stuck")} ({(deer.HurtCount > 0 ? "hit" : "not hit")})");
+            if (Client.Arrows().All.Count > before)
             {
                 await Seconds(0.3);
                 await Shot("arrow-deer");
@@ -2306,13 +2306,13 @@ public partial class GroundTour : Node
     // The nearest natural object of a kind, preferring ones with no tree within 3 m (in the open).
     private NaturalObject? Nearest(string key, Num.Vector3 near, float radius, bool open)
     {
-        if (Client.Nature == null || Client.Content.Natural(key) is not { } kind)
+        if (Client.Survival().Nature == null || Client.Content.Natural(key) is not { } kind)
         {
             return null;
         }
         var all = new List<NaturalObject>();
-        Client.Nature.Query(near.X - radius, near.Z - radius, near.X + radius, near.Z + radius, all);
-        IEnumerable<NaturalObject> candidates = all.Where(o => o.Kind == kind.Index && !Client.Natural!.IsDepleted(o.Id));
+        Client.Survival().Nature.Query(near.X - radius, near.Z - radius, near.X + radius, near.Z + radius, all);
+        IEnumerable<NaturalObject> candidates = all.Where(o => o.Kind == kind.Index && !Client.Survival().Natural!.IsDepleted(o.Id));
         if (open)
         {
             var solid = all.Where(o => Client.Content.Natural(o.Kind)!.IsSolid).ToList();
@@ -2327,7 +2327,7 @@ public partial class GroundTour : Node
     private (Num.Vector3 Spot, Num.Vector3 Towards) OpenSpot(Num.Vector3 near)
     {
         var all = new List<NaturalObject>();
-        Client.Nature!.Query(near.X - 60, near.Z - 60, near.X + 60, near.Z + 60, all);
+        Client.Survival().Nature!.Query(near.X - 60, near.Z - 60, near.X + 60, near.Z + 60, all);
         var blockers = all.Where(o => Client.Content.Natural(o.Kind)!.Class is NaturalClass.Tree or NaturalClass.Boulder or NaturalClass.Bush or NaturalClass.Node).ToList();
         for (int ring = 0; ring < 12; ring++)
         {

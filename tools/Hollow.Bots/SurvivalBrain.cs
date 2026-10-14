@@ -85,12 +85,12 @@ public sealed class SurvivalBrain
         Vector3 eye = feet + up * client.EyeHeight;
         switch (_goal)
         {
-            case Goal.Gather or Goal.Pick when client.Nature!.TryGet(_target, out NaturalObject o) && !client.Natural!.IsDepleted(_target):
+            case Goal.Gather or Goal.Pick when client.Survival().Nature!.TryGet(_target, out NaturalObject o) && !client.Survival().Natural!.IsDepleted(_target):
             {
                 NaturalKind kind = client.Content.Natural(o.Kind)!;
                 // A tree's or outcrop's weak spot once it shows (after the first hit, facing the hitter), else its middle.
                 Vector3 aim = kind.IsHarvested
-                    ? client.Natural.WeakSpot(o, kind) ?? o.Position + o.Up * (kind.Class == NaturalClass.Tree ? 1.2f : kind.Radius * o.Scale * 0.6f)
+                    ? client.Survival().Natural!.WeakSpot(o, kind) ?? o.Position + o.Up * (kind.Class == NaturalClass.Tree ? 1.2f : kind.Radius * o.Scale * 0.6f)
                     : NaturalShapes.Middle(o, kind);
                 float reach = _goal == Goal.Gather ? 1.1f + kind.Radius * o.Scale : 1.6f;
                 if (Steer(ref input, feet, o.Position, reach, delta))
@@ -100,7 +100,7 @@ public sealed class SurvivalBrain
                     {
                         input.Primary = true;
                     }
-                    else if (client.AimInteraction(eye, Vector3.Normalize(aim - eye)) is { Primary: >= 0 } pick &&
+                    else if (client.Interaction().AimInteraction(eye, Vector3.Normalize(aim - eye)) is { Primary: >= 0 } pick &&
                         pick.Target.Family == Hollow.Simulation.Targets.TargetFamily.Natural)
                     {
                         client.Local.Interact(pick.Target, pick.Options[pick.Primary].Verb);
@@ -170,7 +170,7 @@ public sealed class SurvivalBrain
             }
         }
         _nearby.Clear();
-        client.Nature!.Query(feet.X - 40, feet.Z - 40, feet.X + 40, feet.Z + 40, _nearby);
+        client.Survival().Nature!.Query(feet.X - 40, feet.Z - 40, feet.X + 40, feet.Z + 40, _nearby);
         bool home = new Vector2(feet.X, feet.Z).Length() < BotBrain.HomeRadius;
         bool wantsOre = me.Inventory.Count(client.Content.ItemByKey("stone")) < me.Inventory.Count(client.Content.ItemByKey("wood"));
         NaturalObject? best = null;
@@ -178,7 +178,7 @@ public sealed class SurvivalBrain
         foreach (NaturalObject o in _nearby)
         {
             NaturalKind kind = client.Content.Natural(o.Kind)!;
-            if (client.Natural!.IsDepleted(o.Id) || (!home && new Vector2(o.Position.X, o.Position.Z).Length() > BotBrain.HomeRadius))
+            if (client.Survival().Natural!.IsDepleted(o.Id) || (!home && new Vector2(o.Position.X, o.Position.Z).Length() > BotBrain.HomeRadius))
             {
                 continue;
             }
@@ -279,8 +279,8 @@ public sealed class SurvivalBrain
             Vector3 up = client.Frame.UpAt(feet);
             (Vector3 forward, _) = CharacterMotor.HorizontalBasis(_yaw, up);
             // Where its ghost goes, aimed at the ground ahead (GROUND_SYSTEMS.md §6).
-            if (client.Ground?.Settle(feet + forward * 2.2f) is { } at && c.ItemByKey("campfire").Places is { } placeable &&
-                client.PlanAt(placeable, at, _yaw) is { Valid: true } ghost)
+            if (client.Placement().Ground?.Settle(feet + forward * 2.2f) is { } at && c.ItemByKey("campfire").Places is { } placeable &&
+                client.Placement().PlanAt(placeable, at, _yaw) is { Valid: true } ghost)
             {
                 me.Place(ghost, fire.Which, fire.Slot);
                 _campfire = true;

@@ -46,7 +46,7 @@ public partial class ThingsView : Node3D
     {
         _since += GetProcessDeltaTime();
         var seen = new HashSet<uint>();
-        foreach (RemoteThing thing in Client.Things)
+        foreach (RemoteThing thing in Client.Survival().Things)
         {
             if (thing.Kind == StaticKind.Corpse)
             {
@@ -241,7 +241,7 @@ public partial class ThingsView : Node3D
         int used = 0;
         ArrowSounds();
         Bullets();
-        foreach (ClientProjectile p in Client.Projectiles)
+        foreach (ClientProjectile p in Client.Survival().Projectiles)
         {
             if (p.IsBullet)
             {
@@ -278,7 +278,7 @@ public partial class ThingsView : Node3D
     // from where the gun is drawn; where each stops, the hit's effect and sound by what it hit (G4, GROUND.md §6.4, §9.3).
     private void Bullets()
     {
-        foreach (ClientProjectile p in Client.Projectiles)
+        foreach (ClientProjectile p in Client.Survival().Projectiles)
         {
             if (!p.IsBullet || RaidView.IsRocket(Client, p))
             {
@@ -343,7 +343,7 @@ public partial class ThingsView : Node3D
     // An arrow loosed (the string, its flight, its trail), and where it stops (GROUND.md §4.9).
     private void ArrowSounds()
     {
-        foreach (ClientProjectile p in Client.Projectiles)
+        foreach (ClientProjectile p in Client.Survival().Projectiles)
         {
             if (p.IsBullet)
             {
@@ -386,7 +386,7 @@ public partial class ThingsView : Node3D
         _forget.Clear();
         foreach (ClientProjectile p in _trails.Keys)
         {
-            if (!Client.Projectiles.Contains(p))
+            if (!Client.Survival().Projectiles.Contains(p))
             {
                 _forget.Add(p);
             }

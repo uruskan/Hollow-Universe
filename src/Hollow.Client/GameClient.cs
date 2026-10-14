@@ -103,9 +103,12 @@ public sealed record ClientOptions
 /// The client without graphics (GROUND.md §4.3): the connection, clock synchronisation with the server's ticks, input
 /// sent every tick, prediction and reconciliation of the player's own character, interpolation of everyone else 100 ms
 /// in the past, a mirror of the entities it was told about, and statistics. The Godot game draws it; bots drive it with
-/// scripted input. Call <see cref="Update"/> every frame from one thread.
+/// scripted input. Call <see cref="Update"/> every frame from one thread. The rest of the game on the client is its
+/// modules (GROUND_SYSTEMS.md §12.5, K11): one <see cref="ClientModule"/> per concern, listed in
+/// <see cref="ClientModules"/>, their message handlers in one table (§12.4) and their hooks called here in a fixed
+/// order; the presentation reads each through its accessor (<c>client.Raid()</c>, <c>client.Ships()</c>...).
 /// </summary>
-public sealed partial class GameClient : INetEventListener, IDisposable
+public sealed class GameClient : INetEventListener, IDisposable
 {
     public const int TickRate = CharacterMotor.TickRate;
 
@@ -121,8 +124,13 @@ public sealed partial class GameClient : INetEventListener, IDisposable
     private readonly BitReader _reader = new();
     private readonly SnapshotReceiver _snapshots = new();
     private readonly List<(uint NetId, CharacterNetState State)> _decoded = new();
+    private readonly List<(uint NetId, ShipNetState State)> _decodedShips = new();
     private readonly Dictionary<uint, RemoteEntity> _remotes = new();
     private readonly InputCommand[] _sent = new InputCommand[Protocol.RedundantInputs + 1];
+    private readonly MessageHandlers<GameClient> _handlers = new();
+    private readonly ClientModule[] _modules;
+    private readonly Dictionary<Type, ClientModule> _byType = new();
+    private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
     private ConditionedRelay? _ownRelay;
     private NetPeer? _peer;
     private Predictor? _predictor;
@@ -134,9 +142,15 @@ public sealed partial class GameClient : INetEventListener, IDisposable
     private double _remoteClock;
     private bool _remoteClockStarted;
     private bool _jumpLatched;
+    private bool _primaryLatched;
     private Vector3 _smoothing;
     private float _eyeHeight = MovementTuning.Default.StandingEyeHeight;
     private double _lastMarginLog;
+    private double _roundTrip = -1;
+    private double _connectStarted;
+    private long _inputsSent;
+    private uint _firstInputTick;
+    private int _pruneCounter;
     private bool _disposed;
 
     public GameClient(ClientOptions options)
@@ -153,7 +167,25 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _net.StartInManualMode(0);
         Content = options.Content ?? GameContent.LoadDefault();
         Local = new LocalPlayer(Content) { Send = SendReliable, SendGun = SendUnordered };
-        Local.Gun.ShotFired += OnOwnShot;
+        // The host's own messages; the snapshot is read apart (OnNetworkReceive); every other type is a module's.
+        _handlers
+            .On<Welcome>(static (GameClient client, in Welcome m) => client.OnWelcome(m))
+            .On<Spawn>(static (GameClient client, in Spawn m) => client.OnSpawn(m))
+            .On<Despawn>(static (GameClient client, in Despawn m) => client.OnDespawn(m.NetId))
+            .On<ChatLine>(static (GameClient client, in ChatLine m) => client.ChatReceived?.Invoke(m));
+        _modules = ClientModules.All();
+        foreach (ClientModule module in _modules)
+        {
+            if (!_byType.TryAdd(module.GetType(), module))
+            {
+                throw new InvalidOperationException($"{module.GetType().Name} is in the client's list twice (GROUND_SYSTEMS.md §12.5)");
+            }
+            module.Attach(this);
+        }
+        foreach (ClientModule module in _modules)
+        {
+            module.Init(_handlers);
+        }
     }
 
     public ClientState State { get; private set; }
@@ -193,6 +225,41 @@ public sealed partial class GameClient : INetEventListener, IDisposable
     /// <summary>Chat lines as they arrive.</summary>
     public event Action<ChatLine>? ChatReceived;
 
+    /// <summary>The game's data (the same as the server's: checked at connect).</summary>
+    public GameContent Content { get; }
+
+    /// <summary>The player's own survival state and actions: the UI binds to this.</summary>
+    public LocalPlayer Local { get; }
+
+    /// <summary>Seconds on the client's clock (what projectiles and countdowns are timed by).</summary>
+    public double ClockSeconds => _clock.Elapsed.TotalSeconds;
+
+    /// <summary>The server's tick as the client estimates it now, fractional (explosives' arcs and fuses count by it).</summary>
+    public double ServerTickNow => _remoteClock;
+
+    // ---------------------------------------------------------------- the modules (GROUND_SYSTEMS.md §12.5)
+
+    /// <summary>The modules, in the order their hooks run.</summary>
+    public IReadOnlyList<ClientModule> Modules => _modules;
+
+    /// <summary>The module of a type, or null when this client has none.</summary>
+    public T? Get<T>() where T : ClientModule => _byType.TryGetValue(typeof(T), out ClientModule? module) ? (T)module : null;
+
+    /// <summary>The module of a type that this client must have.</summary>
+    public T Require<T>() where T : ClientModule =>
+        Get<T>() ?? throw new InvalidOperationException($"this client has no {typeof(T).Name} (its list is {string.Join(", ", _modules.Select(m => m.GetType().Name))})");
+
+    // What the modules share of the host (through ClientModule's forwarders), beyond its public state.
+    internal ClientOptions Options => _options;
+
+    internal double TickClock => _tickClock;
+
+    internal uint NextTick => _nextTick;
+
+    internal Dictionary<uint, RemoteEntity> Remotes => _remotes;
+
+    internal List<(uint NetId, ShipNetState State)> DecodedShips => _decodedShips;
+
     // ---------------------------------------------------------------- the player's character
 
     /// <summary>True once the server has placed the character and prediction runs.</summary>
@@ -216,7 +283,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
 
     /// <summary>
     /// Characters this client was told about (spawned), interpolated for drawing. Animals (G7) are entities too, listed
-    /// apart in <see cref="Animals"/>.
+    /// apart in <see cref="AnimalModule.All"/>; ships ride in the snapshots' ship section (<see cref="ShipModule"/>).
     /// </summary>
     public IEnumerable<RemoteEntity> Entities => _remotes.Values.Where(r => r.Spawned && r.HasState && r.Kind == EntityKind.Character);
 
@@ -269,6 +336,44 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
     }
 
+    // ---------------------------------------------------------------- sending
+
+    private bool SendReliable(Action<BitWriter> write) => SendWith(write, DeliveryMethod.ReliableOrdered);
+
+    // Shots and reloads: reliable but unordered, so one lost and resent holds nothing else up (they carry their tick and
+    // sequence; the server puts them in order).
+    private bool SendUnordered(Action<BitWriter> write) => SendWith(write, DeliveryMethod.ReliableUnordered);
+
+    private bool SendWith(Action<BitWriter> write, DeliveryMethod method)
+    {
+        if (_peer == null || State != ClientState.Playing)
+        {
+            return false;
+        }
+        _writer.Reset();
+        write(_writer);
+        _peer.Send(_writer.Data, method);
+        return true;
+    }
+
+    /// <summary>A module's message, in order; false, and nothing sent, while not playing.</summary>
+    internal bool SendReliable<T>(in T message) where T : struct, INetMessage<T> => Send(message, DeliveryMethod.ReliableOrdered);
+
+    /// <summary>A module's message, reliable but unordered; false, and nothing sent, while not playing.</summary>
+    internal bool SendUnordered<T>(in T message) where T : struct, INetMessage<T> => Send(message, DeliveryMethod.ReliableUnordered);
+
+    private bool Send<T>(in T message, DeliveryMethod method) where T : struct, INetMessage<T>
+    {
+        if (_peer == null || State != ClientState.Playing)
+        {
+            return false;
+        }
+        _writer.Reset();
+        message.WriteMessage(_writer);
+        _peer.Send(_writer.Data, method);
+        return true;
+    }
+
     // ---------------------------------------------------------------- every frame
 
     /// <summary>Receives, runs the ticks that are due (each sending its input), and advances what is drawn.</summary>
@@ -304,11 +409,16 @@ public sealed partial class GameClient : INetEventListener, IDisposable
                 {
                     remote.Sample(renderTick);
                 }
-                SampleShips(renderTick);
+                foreach (ClientModule module in _modules)
+                {
+                    module.Sample(renderTick);
+                }
                 PruneStale();
-                UpdateAnimals(delta);
             }
-            UpdateSurvival();
+            foreach (ClientModule module in _modules)
+            {
+                module.Update(delta);
+            }
         }
         if (_peer != null && _roundTrip < 0)
         {
@@ -359,23 +469,31 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         // Free look rides with the view, for others to see the head turn (the prediction never uses it).
         command.LookYaw = NetConvert.ToLook(frame.LookYaw, FreeLook.MaxYaw);
         command.LookPitch = NetConvert.ToLook(frame.LookPitch, FreeLook.MaxPitch);
-        if (Piloting)
+        bool seated = false;
+        foreach (ClientModule module in _modules)
         {
-            // G6: the pilot's controls ride in the input; the ship is predicted first, as the server steps it, so the
-            // seated character goes where its seat is.
+            seated |= module.Seated;
+        }
+        if (seated)
+        {
+            // G6: the pilot's controls ride in the input; the ship is predicted first (BeforePredict), as the server steps
+            // it, so the seated character goes where its seat is.
             command.Ship = new[] { ShipConvert.ToControls(frame.Ship) };
         }
         _predictor!.RecordInput(tick, command);
         if (_predictor.HasState)
         {
-            PredictShip(tick);
+            foreach (ClientModule module in _modules)
+            {
+                module.BeforePredict(tick);
+            }
             _predictor.Predict(tick);
         }
         _predictor.EndTick();
         if (_predictor.HasState)
         {
             // G4: the gun in hand fires (or reloads) on this tick's predicted state, and sends its intent for this tick.
-            Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frame, _predictor.Tuning, EntityId, !Local.IsDead && !Local.IsWounded && !Piloting);
+            Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frame, _predictor.Tuning, EntityId, !Local.IsDead && !Local.IsWounded && !seated);
         }
 
         // The packet: this tick's input and the three before it, and which snapshots arrived.
@@ -399,16 +517,23 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _inputsSent++;
     }
 
-    private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
-    private double _roundTrip = -1;
-    private double _connectStarted;
-    private long _inputsSent;
-
-    private uint _firstInputTick;
+    // How far behind this input's tick the player sees others: the input's tick against the remote render tick.
+    private byte ViewDelay(uint tick)
+    {
+        if (!_remoteClockStarted)
+        {
+            return 0;
+        }
+        double behind = tick - RenderTick;
+        return (byte)Math.Clamp(Math.Round(behind * 4), 0, 255);
+    }
 
     private void UpdateRender(double delta)
     {
-        UpdateShipRender(delta);
+        foreach (ClientModule module in _modules)
+        {
+            module.Render(delta);
+        }
         if (_predictor == null || !_predictor.HasState)
         {
             return;
@@ -469,75 +594,35 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         // Read in place: the transport recycles the packet after this returns.
         _reader.Reset(packet.RawData, packet.Position, packet.AvailableBytes);
         uint type = _reader.ReadBits(8);
-        switch (type)
+        if (type == Protocol.SnapshotTypeId)
         {
-            case Protocol.SnapshotTypeId:
-                OnSnapshot();
-                break;
-            case Welcome.TypeId:
-                Welcome welcome = Welcome.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    OnWelcome(welcome);
-                }
-                break;
-            case Spawn.TypeId:
-                Spawn spawn = Spawn.Read(_reader);
-                if (!_reader.Failed && spawn.Kind == EntityKind.Ship)
-                {
-                    SpawnShip(spawn.NetId, spawn.EntityId, spawn.Name ?? "");
-                }
-                else if (!_reader.Failed)
-                {
-                    RemoteEntity remote = Remote(spawn.NetId);
-                    remote.Spawned = true;
-                    remote.Id = new EntityId(spawn.EntityId);
-                    remote.Kind = spawn.Kind;
-                    remote.Name = spawn.Name;
-                }
-                break;
-            case Despawn.TypeId:
-                Despawn despawn = Despawn.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    _remotes.Remove(despawn.NetId);
-                    RemoveThing(despawn.NetId);
-                    DespawnShip(despawn.NetId);
-                }
-                break;
-            case ChatLine.TypeId:
-                ChatLine line = ChatLine.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    ChatReceived?.Invoke(line);
-                }
-                break;
-            default:
-                if (!ReceiveConsole(type))
-                {
-                    ReceiveSurvival(type);
-                }
-                break;
+            OnSnapshot();
+        }
+        else if (!_handlers.Dispatch((byte)type, _reader, this))
+        {
+            // No module handles the type, or the message didn't read: dropped, as a bad packet (GROUND_SYSTEMS.md §12.4).
+            Stats.UnhandledMessages++;
         }
     }
 
-    private void OnWelcome(Welcome welcome)
+    private void OnWelcome(in Welcome welcome)
     {
         Zone = NetConvert.FromInfo(welcome.Zone);
         _surface = Zone.CreateSurface();
-        DisposeShips();
-        DisposeBuilding();
-        ResetPlacement();
+        // The modules let go of what they made on the last zone's world before it goes, then make it anew on this one.
+        DisposeModules();
         _predictor?.Dispose();
         _predictor = new Predictor(Zone, _surface, _options.SharedPhysics?.Invoke(Zone, _surface));
-        StartSurvival();
-        StartShips();
         NetId = welcome.NetId;
         EntityId = new EntityId(welcome.EntityId);
         Local.EntityId = EntityId;
         ServerName = welcome.ServerName;
         InitialYaw = Quantize.FromAngle16(welcome.Yaw);
         InitialPitch = Quantize.FromAngle16(welcome.Pitch);
+        foreach (ClientModule module in _modules)
+        {
+            module.Welcome();
+        }
         // Start ahead of the Welcome's tick by a round trip (the Welcome came one way, inputs go the other) and the
         // margin; the server's reports refine it.
         double trip = (_roundTrip >= 0 ? _roundTrip : _peer?.RoundTripTime ?? 100) / 1000.0 * TickRate;
@@ -546,6 +631,32 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _tickClock = _nextTick;
         State = ClientState.Playing;
         _options.Log($"joined {ServerName} as {EntityId} on {Zone}");
+    }
+
+    private void OnSpawn(in Spawn spawn)
+    {
+        if (spawn.Kind != EntityKind.Ship)
+        {
+            // The entities the host interpolates (the snapshots' character section); a ship's state rides in its ship section.
+            RemoteEntity remote = Remote(spawn.NetId);
+            remote.Spawned = true;
+            remote.Id = new EntityId(spawn.EntityId);
+            remote.Kind = spawn.Kind;
+            remote.Name = spawn.Name;
+        }
+        foreach (ClientModule module in _modules)
+        {
+            module.Spawned(spawn);
+        }
+    }
+
+    private void OnDespawn(uint netId)
+    {
+        _remotes.Remove(netId);
+        foreach (ClientModule module in _modules)
+        {
+            module.Despawned(netId);
+        }
     }
 
     private void OnSnapshot()
@@ -580,14 +691,16 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         {
             Remote(netId).Add(header.ServerTick, state);
         }
-        ReceiveShips(header.ServerTick);
         SteerClock(header.InputMargin);
+        foreach (ClientModule module in _modules)
+        {
+            module.AfterSnapshot(header);
+        }
 
         if (header.OwnTick == 0 || _predictor == null)
         {
             return;
         }
-        ReconcileShip(header);
         CharacterState server = NetConvert.FromOwn(header.Own);
         if (!_predictor.HasState)
         {
@@ -662,9 +775,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         }
     }
 
-    private int _pruneCounter;
-
-    private RemoteEntity Remote(uint netId)
+    internal RemoteEntity Remote(uint netId)
     {
         if (!_remotes.TryGetValue(netId, out RemoteEntity? remote))
         {
@@ -700,6 +811,15 @@ public sealed partial class GameClient : INetEventListener, IDisposable
     {
     }
 
+    // The modules let go of what Welcome made, last first (as the zone's systems do).
+    private void DisposeModules()
+    {
+        for (int i = _modules.Length - 1; i >= 0; i--)
+        {
+            _modules[i].Dispose();
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -710,9 +830,7 @@ public sealed partial class GameClient : INetEventListener, IDisposable
         _peer?.Disconnect();
         _net.ManualUpdate(0);
         _net.Stop();
-        DisposeShips();
-        DisposeBuilding();
-        ResetPlacement();
+        DisposeModules();
         _predictor?.Dispose();
         _ownRelay?.Dispose();
     }

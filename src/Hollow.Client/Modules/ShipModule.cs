@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Hollow.Net.Protocol;
+using Hollow.Net.Replication;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Physics;
@@ -12,11 +13,10 @@ namespace Hollow.Client;
 
 // Ships in the client (GROUND.md §6.7): every ship near, interpolated; the one the player flies, predicted (its controls
 // ride in each tick's input); parked ships solid in the prediction's own physics. What the interact key does at a ship is
-// its parts' verbs (GameClient.Targets.cs, GROUND_SYSTEMS.md §5).
-public sealed partial class GameClient
+// its parts' verbs (TargetModule, GROUND_SYSTEMS.md §5).
+public sealed class ShipModule : ClientModule
 {
     private readonly Dictionary<uint, RemoteShip> _ships = new();
-    private readonly List<(uint NetId, ShipNetState State)> _decodedShips = new();
     private readonly Dictionary<uint, uint> _parkedBodies = new();
     private ShipPredictor? _shipPredictor;
     private ShipCollider? _shipCollider;
@@ -24,7 +24,10 @@ public sealed partial class GameClient
     private Vector3 _shipSmoothing;
 
     /// <summary>Ships this client was told about, interpolated for drawing.</summary>
-    public IEnumerable<RemoteShip> Ships => _ships.Values.Where(s => s.Spawned && s.HasState);
+    public IEnumerable<RemoteShip> All => _ships.Values.Where(s => s.Spawned && s.HasState);
+
+    /// <summary>Every ship known here, spawned or not, for the views that filter themselves.</summary>
+    internal Dictionary<uint, RemoteShip>.ValueCollection Known => _ships.Values;
 
     public RemoteShip? ShipOf(EntityId id) => _ships.Values.FirstOrDefault(s => s.Id == id);
 
@@ -47,22 +50,26 @@ public sealed partial class GameClient
     public ShipPredictor? ShipPrediction => _shipPredictor;
 
     /// <summary>The ships' world on this client: the zone's frame and ground, the planet's gravity and air, the prediction's physics.</summary>
-    public ShipContext ShipContext => new(Frame, _surface!, ShipContext.GravityOf(Zone!.SurfaceGravity), (float)Zone.AirDensity,
+    public ShipContext ShipContext => new(Frame, Surface!, ShipContext.GravityOf(Zone!.SurfaceGravity), (float)Zone.AirDensity,
         (float)Zone.AirScaleHeight, _shipCollider);
 
-    private void StartShips()
+    /// <summary>Parked ships' bodies in the prediction's physics (null before joining): the placement world avoids them.</summary>
+    internal ShipCollider? Collider => _shipCollider;
+
+    protected internal override bool Seated => Piloting;
+
+    protected internal override void Welcome()
     {
-        DisposeShips();
-        _ownsShipBodies = _options.SharedPhysics == null;
-        _shipCollider = new ShipCollider(_predictor!.World);
-        _shipPredictor = new ShipPredictor(_predictor, () => ShipContext)
+        _ownsShipBodies = Client.Options.SharedPhysics == null;
+        _shipCollider = new ShipCollider(Prediction!.World);
+        _shipPredictor = new ShipPredictor(Prediction, () => ShipContext)
         {
             IgnoreBody = () => _shipPredictor != null && _parkedBodies.TryGetValue(_shipPredictor.NetId, out uint body) ? body : ShipCollider.NoBody,
         };
-        _predictor.Seat = SeatAt;
+        Prediction.Seat = SeatAt;
     }
 
-    private void DisposeShips()
+    public override void Dispose()
     {
         if (_shipCollider != null)
         {
@@ -101,15 +108,18 @@ public sealed partial class GameClient
         return ship;
     }
 
-    private void SpawnShip(uint netId, ulong entityId, string key)
+    protected internal override void Spawned(in Spawn spawn)
     {
-        RemoteShip ship = RemoteShipOf(netId);
-        ship.Spawned = true;
-        ship.Id = new EntityId(entityId);
-        ship.Def ??= Content.Ship(key);
+        if (spawn.Kind == EntityKind.Ship)
+        {
+            RemoteShip ship = RemoteShipOf(spawn.NetId);
+            ship.Spawned = true;
+            ship.Id = new EntityId(spawn.EntityId);
+            ship.Def ??= Content.Ship(spawn.Name ?? "");
+        }
     }
 
-    private void DespawnShip(uint netId)
+    protected internal override void Despawned(uint netId)
     {
         if (_ships.Remove(netId))
         {
@@ -117,10 +127,22 @@ public sealed partial class GameClient
         }
     }
 
-    // A snapshot's ships: interpolation samples, and parked ships' bodies in the prediction's own physics.
+    // A snapshot's ships: interpolation samples, and parked ships' bodies in the prediction's own physics; then the ship
+    // the player flies, as the server had it after the snapshot's tick: start or reconcile its prediction, before the
+    // character's (it is carried by its seat).
+    protected internal override void AfterSnapshot(in SnapshotHeader header)
+    {
+        ReceiveShips(header.ServerTick);
+        if (header.OwnTick == 0 || Prediction == null)
+        {
+            return;
+        }
+        ReconcileShip(header);
+    }
+
     private void ReceiveShips(uint serverTick)
     {
-        foreach ((uint netId, ShipNetState state) in _decodedShips)
+        foreach ((uint netId, ShipNetState state) in DecodedShips)
         {
             RemoteShip ship = RemoteShipOf(netId);
             ship.Def ??= Content.Ship((int)Math.Min(state.Kind, ushort.MaxValue));
@@ -155,7 +177,6 @@ public sealed partial class GameClient
         }
     }
 
-    // The ship the player flies, as the server had it after the snapshot's tick: start or reconcile its prediction.
     private void ReconcileShip(in SnapshotHeader header)
     {
         if (_shipPredictor == null)
@@ -174,7 +195,7 @@ public sealed partial class GameClient
         }
         Vector3 before = _shipPredictor.Active ? _shipPredictor.Latest.Position : Vector3.Zero;
         bool wasActive = _shipPredictor.Active;
-        float? error = _shipPredictor.Reconcile(def, o.NetId, header.OwnTick, ShipConvert.FromOwn(o), _nextTick - 1);
+        float? error = _shipPredictor.Reconcile(def, o.NetId, header.OwnTick, ShipConvert.FromOwn(o), NextTick - 1);
         if (error is > 0)
         {
             Stats.ShipCorrections++;
@@ -183,9 +204,9 @@ public sealed partial class GameClient
         _shipSmoothing = wasActive && (_shipSmoothing + jump).LengthSquared() < 4f ? _shipSmoothing + jump : Vector3.Zero;
     }
 
-    private void PredictShip(uint tick) => _shipPredictor?.Predict(tick);
+    protected internal override void BeforePredict(uint tick) => _shipPredictor?.Predict(tick);
 
-    private void UpdateShipRender(double delta)
+    protected internal override void Render(double delta)
     {
         if (_shipPredictor is not { Active: true } ships)
         {
@@ -197,7 +218,7 @@ public sealed partial class GameClient
         Quaternion rotation = current.Rotation;
         if (ships.TryGetState(ships.LatestTick - 1, out ShipState previous))
         {
-            float alpha = (float)Math.Clamp(_tickClock - _nextTick + 1, 0, 1);
+            float alpha = (float)Math.Clamp(TickClock - NextTick + 1, 0, 1);
             position = Vector3.Lerp(previous.Position, current.Position, alpha);
             rotation = Quaternion.Slerp(previous.Rotation, current.Rotation, alpha);
         }
@@ -210,11 +231,17 @@ public sealed partial class GameClient
         OwnShipRenderRotation = rotation;
     }
 
-    private void SampleShips(double renderTick)
+    protected internal override void Sample(double renderTick)
     {
         foreach (RemoteShip ship in _ships.Values)
         {
             ship.Sample(renderTick);
         }
     }
+}
+
+/// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>
+public static class ShipModuleAccess
+{
+    public static ShipModule Ships(this GameClient client) => client.Require<ShipModule>();
 }

@@ -81,7 +81,7 @@ public partial class PeopleView : Node3D
             {
                 continue;
             }
-            bool team = Client.IsTeammate(p.Id);
+            bool team = Client.World().IsTeammate(p.Id);
             float distance = p.View.GlobalPosition.DistanceTo(eye);
             if (distance < 40 || team)
             {
@@ -105,9 +105,9 @@ public partial class PeopleView : Node3D
     /// <summary>The character view of a player by name (for screenshots that face them).</summary>
     public CharacterView? ViewOf(string name) => _people.Values.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.View;
 
-    public override void _Ready() => Client.LookChanged += OnLook;
+    public override void _Ready() => Client.Survival().LookChanged += OnLook;
 
-    public override void _ExitTree() => Client.LookChanged -= OnLook;
+    public override void _ExitTree() => Client.Survival().LookChanged -= OnLook;
 
     private void OnLook(RemoteEntity entity)
     {
@@ -434,7 +434,7 @@ public partial class PeopleView : Node3D
     {
         double now = Time.GetTicksMsec() / 1000.0;
         var things = new HashSet<uint>();
-        foreach (RemoteThing thing in Client.Things)
+        foreach (RemoteThing thing in Client.Survival().Things)
         {
             if (thing.Kind != StaticKind.Corpse)
             {

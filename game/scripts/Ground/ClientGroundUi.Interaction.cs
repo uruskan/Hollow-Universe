@@ -47,7 +47,7 @@ public sealed partial class ClientGroundUi
     public void Aim(Num.Vector3 eye, Num.Vector3 direction, bool can)
     {
         _eye = eye;
-        _aim = can ? _client.AimInteraction(eye, direction) : null;
+        _aim = can ? _client.Interaction().AimInteraction(eye, direction) : null;
         _aimed = _aim?.Target ?? TargetRef.None;
         Prompt = _aim != null ? PromptFor(_aim) : null;
     }
@@ -90,7 +90,7 @@ public sealed partial class ClientGroundUi
     internal IReadOnlyList<InteractOption> MenuOf(in TargetRef target, out int primary)
     {
         primary = -1;
-        if (!_client.Options(target, _eye, _menu, out _))
+        if (!_client.Interaction().Options(target, _eye, _menu, out _))
         {
             _menu.Clear();
             return _menu;

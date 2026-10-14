@@ -212,7 +212,7 @@ public partial class GroundMode : Node
             Content = _content,
             Log = line => GD.Print("[client] " + line),
         });
-        loading.Add(_client.LoadStages(loading.Plan));
+        loading.Add(_client.Loading().LoadStages(loading.Plan));
         if (connectNow)
         {
             _client.Connect(host, port);

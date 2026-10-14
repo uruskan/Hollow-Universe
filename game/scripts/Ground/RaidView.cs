@@ -64,15 +64,15 @@ public partial class RaidView : Node3D
 
     public override void _Ready()
     {
-        Client.Detonated += OnDetonated;
-        Client.ExplosiveRemoved += OnRemoved;
+        Client.Raid().Detonated += OnDetonated;
+        Client.Raid().ExplosiveRemoved += OnRemoved;
         Client.Local.RaidAlertReceived += OnAlert;
     }
 
     public override void _ExitTree()
     {
-        Client.Detonated -= OnDetonated;
-        Client.ExplosiveRemoved -= OnRemoved;
+        Client.Raid().Detonated -= OnDetonated;
+        Client.Raid().ExplosiveRemoved -= OnRemoved;
         Client.Local.RaidAlertReceived -= OnAlert;
     }
 
@@ -82,7 +82,7 @@ public partial class RaidView : Node3D
         // Explosives are drawn on the clock the other players are drawn on (a bounce arrives before it is drawn).
         double tick = Client.RenderTick;
         _seen.Clear();
-        foreach (ClientExplosive e in Client.Explosives)
+        foreach (ClientExplosive e in Client.Raid().Explosives)
         {
             _seen.Add(e.Id);
             if (!_shown.TryGetValue(e.Id, out Shown? shown))
@@ -377,7 +377,7 @@ public partial class RaidView : Node3D
     private void Rockets()
     {
         double now = Client.ClockSeconds;
-        foreach (ClientProjectile p in Client.Projectiles)
+        foreach (ClientProjectile p in Client.Survival().Projectiles)
         {
             if (!IsRocket(Client, p))
             {
@@ -415,7 +415,7 @@ public partial class RaidView : Node3D
         _rocketsGone.Clear();
         foreach ((ClientProjectile p, (Node3D Node, FxHandle Trail) drawn) in _rockets)
         {
-            bool live = Client.Projectiles.Contains(p) && !(p.EndedAt is { } end && Num.Vector3.DistanceSquared(p.PositionAt(now), end) < 0.04f);
+            bool live = Client.Survival().Projectiles.Contains(p) && !(p.EndedAt is { } end && Num.Vector3.DistanceSquared(p.PositionAt(now), end) < 0.04f);
             if (!live)
             {
                 _rocketsGone.Add(p);

@@ -97,7 +97,7 @@ public static class ConsoleTests
     private static List<ConsoleAnswer> Run(LoopbackRig rig, GameClient client, string line)
     {
         var answers = new List<ConsoleAnswer>();
-        uint seq = client.SendConsole(line);
+        uint seq = client.Console().SendConsole(line);
         Assert.True(seq != 0, $"'{line}' was sent");
         void Collect(ConsoleAnswer a)
         {
@@ -106,7 +106,7 @@ public static class ConsoleTests
                 answers.Add(a);
             }
         }
-        client.ConsoleAnswered += Collect;
+        client.Console().ConsoleAnswered += Collect;
         try
         {
             RunUntil(rig, () => answers.Count > 0, $"the answer to '{line}'");
@@ -114,7 +114,7 @@ public static class ConsoleTests
         }
         finally
         {
-            client.ConsoleAnswered -= Collect;
+            client.Console().ConsoleAnswered -= Collect;
         }
         Fixtures.Report($"{client.Name}> {line}: " + string.Join(" / ", answers.Select(a => $"[{a.Kind}] {a.Text}")));
         return answers;
@@ -133,8 +133,8 @@ public static class ConsoleTests
         using var rig = new LoopbackRig(admins: new[] { "Ada" });
         GameClient bo = rig.Join("Bo");
         rig.WaitUntilPlaying();
-        RunUntil(rig, () => bo.ServerPlayers.Any(p => p.Name == "Bo"), "the server's state");
-        Assert.True(!bo.IsAdmin, "Bo isn't an admin");
+        RunUntil(rig, () => bo.Console().ServerPlayers.Any(p => p.Name == "Bo"), "the server's state");
+        Assert.True(!bo.Console().IsAdmin, "Bo isn't an admin");
         ItemDef rifle = bo.Content.ItemByKey("rifle");
         foreach (string line in new[] { "give rifle", "teleport 10 10", "spawn wolf 2", "noclip", "god", "time 21", "kill Ada", "inventory.give rifle" })
         {
@@ -143,7 +143,7 @@ public static class ConsoleTests
                 $"'{line}' refused for want of admin rights: {answers.FirstOrDefault().Text}");
         }
         Assert.Equal(0, bo.Local.Inventory.Count(rifle), "no rifle given");
-        Assert.True(bo.Cheats == MoveCheats.None, "no cheats");
+        Assert.True(bo.Console().Cheats == MoveCheats.None, "no cheats");
         Assert.True(Run(rig, bo, "players").Any(a => a.Text.Contains("Bo", StringComparison.Ordinal)), "players lists who is on");
         Assert.True(Run(rig, bo, "whereami").Any(a => a.Text.Contains("map cell", StringComparison.Ordinal)), "whereami says where");
         Assert.True(Run(rig, bo, "frobnicate").Single().Kind == ConsoleReplyKind.Error, "an unknown command is an error");
@@ -166,7 +166,7 @@ public static class ConsoleTests
         using var rig = new LoopbackRig(admins: new[] { "ada" });
         GameClient ada = rig.Join("Ada"), bo = rig.Join("Bo");
         rig.WaitUntilPlaying();
-        RunUntil(rig, () => ada.IsAdmin && ada.ServerPlayers.Count == 2, "Ada an admin, both on");
+        RunUntil(rig, () => ada.Console().IsAdmin && ada.Console().ServerPlayers.Count == 2, "Ada an admin, both on");
         GameContent c = ada.Content;
 
         Run(rig, ada, "give rifle");
@@ -193,16 +193,16 @@ public static class ConsoleTests
         // Spawning: a wolf pack 22 m in front of her, a box at her feet.
         List<ConsoleAnswer> wolves = Run(rig, ada, "spawn wolf 2");
         Assert.True(wolves.Any(a => a.Kind == ConsoleReplyKind.Success), "wolves spawned");
-        RunUntil(rig, () => ada.Animals.Count(a => a.SpeciesKey == "wolf") == 2, "two wolves in her view");
-        float ahead = ada.Animals.Where(a => a.SpeciesKey == "wolf").Min(a => Vector3.Distance(a.Position, ada.Character.Position));
+        RunUntil(rig, () => ada.Animals().All.Count(a => a.SpeciesKey == "wolf") == 2, "two wolves in her view");
+        float ahead = ada.Animals().All.Where(a => a.SpeciesKey == "wolf").Min(a => Vector3.Distance(a.Position, ada.Character.Position));
         Assert.InRange(10, 35, ahead, "the pack in front of her (m)");
         List<ConsoleAnswer> usage = Run(rig, ada, "spawn");
         Assert.True(usage.All(a => a.Kind == ConsoleReplyKind.Error && a.Text.Length <= 360) && string.Concat(usage.Select(a => a.Text)).Contains("raidbase", StringComparison.Ordinal),
             "a long answer comes whole, in lines a reply holds");
         Run(rig, ada, "spawn small-box");
-        RunUntil(rig, () => ada.Things.Any(t => t.Deployable(c)?.Key == "small-box"), "a small box in her view");
+        RunUntil(rig, () => ada.Survival().Things.Any(t => t.Deployable(c)?.Key == "small-box"), "a small box in her view");
         Run(rig, ada, "spawn crate");
-        RunUntil(rig, () => ada.Things.Any(t => t.Kind == Simulation.World.StaticKind.Prop), "a crate in her view");
+        RunUntil(rig, () => ada.Survival().Things.Any(t => t.Kind == Simulation.World.StaticKind.Prop), "a crate in her view");
 
         // Kill another player.
         Assert.True(Run(rig, ada, "kill Bo").Any(a => a.Kind == ConsoleReplyKind.Success), "killed");
@@ -211,17 +211,17 @@ public static class ConsoleTests
         // The zone's time of day: nine in the evening at its origin, on every client's clock too.
         Fixtures.Report($"the planet's own clock: {rig.Server.Inspect(sv => sv.ZoneHours ?? -1):0.00} h at the origin");
         Assert.True(Run(rig, ada, "time 21").Any(a => a.Kind == ConsoleReplyKind.Success), "time set");
-        RunUntil(rig, () => bo.Day is { Overridden: true }, "the new clock at Bo's client");
+        RunUntil(rig, () => bo.Console().Day is { Overridden: true }, "the new clock at Bo's client");
         double hours = rig.Server.Inspect(sv => sv.ZoneHours ?? -1);
         Assert.Near(21, hours, 0.05, "local solar time at the origin (h)");
         Surface.SkyEphemeris sky = spec.CreateSky()!;
-        ZoneDay day = bo.Day!.Value;
+        ZoneDay day = bo.Console().Day!.Value;
         sky.SetSpin(day.BaseTime, day.BaseTurns, day.Scale);
         double clientHours = sky.LocalSolarHours(rig.Server.Zone.Frame.Origin.Normalized, sky.Sun.Index, Core.UniverseTime.Now);
         Assert.Near(21, clientHours, 0.1, "the client's sky says the same (h)");
         Run(rig, ada, "timescale 0");
         Run(rig, ada, "time reset");
-        RunUntil(rig, () => bo.Day is { Overridden: false }, "the planet's own clock again");
+        RunUntil(rig, () => bo.Console().Day is { Overridden: false }, "the planet's own clock again");
     }
 
     /// <summary>
@@ -283,10 +283,10 @@ public static class ConsoleTests
         using var rig = new LoopbackRig(admins: new[] { "Ada" });
         GameClient ada = rig.Join("Ada");
         rig.WaitUntilPlaying();
-        RunUntil(rig, () => ada.IsAdmin, "Ada an admin");
+        RunUntil(rig, () => ada.Console().IsAdmin, "Ada an admin");
         Run(rig, ada, "noclip");
         Run(rig, ada, "global.god on");
-        RunUntil(rig, () => ada.Cheats == (MoveCheats.Noclip | MoveCheats.God), "both cheats in her prediction");
+        RunUntil(rig, () => ada.Console().Cheats == (MoveCheats.Noclip | MoveCheats.God), "both cheats in her prediction");
         rig.Run(0.5, (_, _) => default);
         long corrections = ada.Stats.Corrections, teleports = ada.Stats.Teleports;
         Vector3 start = ada.Character.Position;
@@ -304,6 +304,6 @@ public static class ConsoleTests
         });
         Assert.Equal(0f, taken, "god mode takes no damage");
         Run(rig, ada, "noclip off");
-        RunUntil(rig, () => ada.Cheats == MoveCheats.God, "noclip off in her prediction");
+        RunUntil(rig, () => ada.Console().Cheats == MoveCheats.God, "noclip off in her prediction");
     }
 }

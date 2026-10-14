@@ -726,4 +726,25 @@ start (`GameServer.RouteEvents` and `GameCounters.Listen`); the animals' hearing
 union struct, its kind enum, the 23-case route and the animals' scan of the list are gone; the 25 producers name their
 fields. Test: `EventTests.EventsAreTypedAndHeard`.
 
-*As built:* K3 below as it lands.
+*As built, K3b (14 October 2026):* `src/Hollow.Client/ClientModule.cs` (the base: `Init` with the handler table, `Welcome`,
+`Spawned`, `Despawned`, `Seated`, `BeforePredict`, `AfterSnapshot`, `Sample`, `Render`, `Update`, `Dispose`, and the host's
+shared things under the names the moved code uses), `ClientModules.cs` (the list, in the order the hooks run), and one
+class per old partial in `Modules/`: `SurvivalModule` (the local player's state, things, natural objects, projectiles),
+`TargetModule` (the families' views), `WorldModule` (props, the map, teams), `BuildingModule`, `PlacementModule`,
+`InteractionModule`, `RaidModule`, `ShipModule` (the ship's prediction, through the hooks), `AnimalModule`, `ArrowModule`,
+`ConsoleModule`, `DamageModule`, `LoadingModule`. `GameClient.cs` is 837 lines (the core: the connection, the clock, the
+input, the prediction, the snapshots, the remote entities, chat); it registers only its own messages (`Welcome`, `Spawn`,
+`Despawn`, `ChatLine`; the snapshot keeps its special case) and dispatches every other packet through the table, where a
+type nobody handles, or a message that doesn't read, is counted (`Stats.UnhandledMessages`) and dropped. On a Welcome the
+host disposes the modules (what they made on the last zone's world), replaces the predictor, then calls `Welcome` in the
+list's order; the core learns of a module only through a hook, never by name (the ship module says `Seated`, so the
+pilot's controls ride in the input and the held item rests; it predicts the ship before the character, reconciles it
+after a snapshot, samples and draws it). Each module's file ends with its accessor (`client.Raid()`); a module keeps the
+others it needs in lazily found fields. Renamed, as the zone's systems were: a module's main collection is `All`
+(`client.Animals().All`, `client.Ships().All`, `client.Arrows().All`), its world object `World` (`client.Building().World`,
+`client.Placement().World`), the building's replica `Replica`; every other member keeps its name
+(`client.Survival().ThingOf`, `client.Ships().Piloting`, `client.Interaction().AimInteraction`). The conversion moved 385
+call sites outside the client (198 in the presentation, 42 in the bots, 145 in the tests) by a script from the compiler's
+error list, so the moved code's text is the same where it stands. Test: `ArchitectureTests.TheClientIsAHost`.
+
+*As built:* K3a below as it lands.

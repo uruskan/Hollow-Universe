@@ -39,7 +39,7 @@ public sealed class FlyBrain
 
     public InputFrame Think(double time, double delta, GameClient client)
     {
-        if (!client.Piloting)
+        if (!client.Ships().Piloting)
         {
             _boardedAt = -1;
             return Walk(time, client);
@@ -55,7 +55,7 @@ public sealed class FlyBrain
     // On foot: to the hatch of its own ship, open it if it must, and board.
     private InputFrame Walk(double time, GameClient client)
     {
-        RemoteShip? ship = client.Ships.FirstOrDefault(s => s.Mine && s.Def != null && !s.Has(ShipNetFlags.Destroyed));
+        RemoteShip? ship = client.Ships().All.FirstOrDefault(s => s.Mine && s.Def != null && !s.Has(ShipNetFlags.Destroyed));
         if (ship == null || client.Local.IsDead)
         {
             if (client.Local.IsDead && time >= _nextIntent)
@@ -104,7 +104,7 @@ public sealed class FlyBrain
     // In the seat: up, then loops.
     private InputFrame Fly(double time, double delta, GameClient client)
     {
-        ShipState s = client.OwnShip;
+        ShipState s = client.Ships().OwnShip;
         double flying = time - _boardedAt;
         Airborne += delta;
         var ship = new ShipInput();

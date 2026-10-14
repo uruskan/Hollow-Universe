@@ -19,10 +19,10 @@ public partial class GibsView : Node
     public override void _Ready()
     {
         GibDirector.Install(this).Floor = Floor;
-        Client.Destroyed += OnDestroyed;
+        Client.Damage().Destroyed += OnDestroyed;
     }
 
-    public override void _ExitTree() => Client.Destroyed -= OnDestroyed;
+    public override void _ExitTree() => Client.Damage().Destroyed -= OnDestroyed;
 
     private void OnDestroyed(DestroyedEvent e)
     {
@@ -40,7 +40,7 @@ public partial class GibsView : Node
     {
         point = default;
         normal = Vector3.Up;
-        if (Client.Building?.Physics is not { } physics ||
+        if (Client.Building().World?.Physics is not { } physics ||
             !physics.Ray(new Num.Vector3(from.X, from.Y, from.Z), new Num.Vector3(down.X, down.Y, down.Z), length, out RayHit hit))
         {
             return false;
