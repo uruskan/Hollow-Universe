@@ -3386,9 +3386,11 @@ from what the world's barrels and crates give and the recycler's fixed lists tur
 G3 phase 2a added building.json, G5 explosives.json, G6 ships.json, G7 world.json and animals.json, P0 capabilities.json
 and texts.json; texts.json is left out of the data's hash, so a reworded line or a translation refuses nobody),
 resolves every reference by key and checks them all; it lists every problem at once (a missing field, an unknown name,
-a typo'd field) and refuses to start with any. `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else
-`game/data/ground` above the program. A hash of the files' text goes into the connect handshake, so a client with other
-data is refused. Each file starts with a `source` note saying where its numbers came from.
+a typo'd field) and refuses to start with any. Each data file has one reader of its own in `Content/Readers`, found in
+`ContentReaders.All` in the order the files are read, with its own check; the checks across the files come last
+(GROUND_SYSTEMS.md §12.6). `GameContent.FindFolder()` takes `HOLLOW_GROUND_DATA`, else `game/data/ground` above the
+program. A hash of the files' text goes into the connect handshake, so a client with other data is refused. Each file
+starts with a `source` note saying where its numbers came from.
 
 | File | What | Sources |
 |---|---|---|
