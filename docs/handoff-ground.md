@@ -7,6 +7,11 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
 
 ## 14 October 2026, night: one place (read this first)
 
+**Known problems live in [KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)** since 14 October 2026, night: the second playtest's
+30 findings with their causes and packages (none fixed yet; the three-wave plan waits for the owner's go), the gaps
+GROUND.md admits, the deferred structure and the decisions waiting on the owner. A finding goes there the day it is
+found.
+
 At the owner's request the `ground` branch was merged into `main`, together with the scale proposal
 ([SCALE.md](SCALE.md), waiting for the owner's approval). The whole game is on `main`, in
 `D:\GameDev\Projects\Hollow Universe`. The `scale` branch and worktree were removed; the old `ground` worktree is no longer

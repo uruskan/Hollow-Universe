@@ -30,9 +30,11 @@ Read first, in this order:
 4. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
 5. [docs/GROUND.md](docs/GROUND.md): the Rust-style ground game, if you touch planet surfaces, the server, the
    network or anything players do on foot.
-6. [docs/handoff-ground.md](docs/handoff-ground.md) and [docs/progress-ground.md](docs/progress-ground.md): where the
+6. [docs/KNOWN_PROBLEMS.md](docs/KNOWN_PROBLEMS.md): every known problem of the ground game, its cause, its package and
+   its status, with the plan; a playtest finding goes there the day it is found.
+7. [docs/handoff-ground.md](docs/handoff-ground.md) and [docs/progress-ground.md](docs/progress-ground.md): where the
    ground game stands, what to do next, how merges between work packages go, and what happened so far.
-7. [docs/GROUND_SYSTEMS.md](docs/GROUND_SYSTEMS.md): the shared systems every ground feature goes through, if you
+8. [docs/GROUND_SYSTEMS.md](docs/GROUND_SYSTEMS.md): the shared systems every ground feature goes through, if you
    touch interaction, placement, held items, item information, damage or anything a player does to a world thing;
    its §12, the kernel, says where a rule (a `ZoneSystem`), an event, a message, a server or client module or a data
    file goes, and how the host, the modules and the readers are listed.

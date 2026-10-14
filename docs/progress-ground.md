@@ -736,6 +736,12 @@ answers admins only and sends nothing while nobody watches: `DevModule` on both 
 (`docs/images/ground/play/f2-*.jpg`); the interface viewer shows it on sample data (`--screen developer...`).
 Test: `DevTests.TheServerAnswersAWatchingAdmin`. 225 tests pass.
 
+**Known problems in one place** (`docs/KNOWN_PROBLEMS.md`): the owner asked what else is known to be wrong besides
+the chop desync and whether there is a plan. There was one, proposed at 3:49 am after the second playtest and never
+approved, so none of the 30 findings was fixed while the kernel, the merges and the panel were built. The file lists
+all 30 with their causes and packages, the gaps GROUND.md admits, the deferred structure, the decisions waiting on the
+owner, and the plan; AGENTS.md and the handoff point to it.
+
 ## 14 October 2026, night: one place
 
 The owner was tired of the game living in two places, so `ground` was merged into `main` with the scale proposal
