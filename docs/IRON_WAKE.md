@@ -1,7 +1,8 @@
 # The Iron Wake: a crewed carrier
 
-Status: **design for the owner's approval, 14 October 2026.** Nothing in it is built. §2 lists the defaults the owner
-may change; §13 says what is built in which order, and what waits for S3 (WHOLE_WORLD.md).
+Status: **approved by the owner on 15 October 2026, with all fourteen defaults of §2.** The art, sound and effects
+(§13: IW-A, IW-S, IW-F) are being built on `main` in their own worktrees. The rules (IW1–IW6) follow on top of S3a
+(WHOLE_WORLD.md), which was built on `whole-world` on 15 October 2026.
 
 ---
 

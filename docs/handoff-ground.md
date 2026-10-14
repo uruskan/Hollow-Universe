@@ -9,9 +9,9 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
 
 The owner gave the game its benchmark ship, the Iron Wake (`D:\GameDev\Assets\IronWake_Buildable_R01`): a 58 m carrier
 with walkable decks that players furnish, six crewed rocket cannons with a visible loading mechanism, and a new
-incendiary rocket. The design is [IRON_WAKE.md](IRON_WAKE.md), **waiting for the owner's approval** of its fourteen
-defaults (§2). Its rules (people aboard in the ship's own frame, seats, stations, fire, building aboard) wait for S3a,
-which rewrites the same code; its art, sound and effects can start on `main` once approved.
+incendiary rocket. The design is [IRON_WAKE.md](IRON_WAKE.md), **approved by the owner on 15 October 2026** with all
+fourteen defaults (§2). Its art, sound and effects are being built on `main` (branches `iw-art`, `iw-sound`, `iw-fx`);
+its rules (people aboard in the ship's own frame, seats, stations, fire, building aboard) follow on top of S3a.
 
 ## 14 October 2026, night: one place (read this first)
 
