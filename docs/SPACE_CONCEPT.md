@@ -3,6 +3,10 @@
 Status: **direction agreed by the owner on 13 October 2026** (the four ideas in §2). The details are proposals. Nothing in
 [GAME_DESIGN.md](GAME_DESIGN.md) changes until the owner approves the table in §4.
 
+**Scale, 14 October 2026:** the owner replaced the 1:1 galaxy with about 200 to 300 systems at real landmarks, all on one
+plane, and made worlds small (an Earth-like world about 2.4 km in radius, about four Rust maps). The four ideas still hold;
+where this document speaks of billions of stars, read a few hundred. Proposal: [SCALE.md](SCALE.md).
+
 ---
 
 ## 1. The problem
@@ -54,6 +58,8 @@ often have few players online, sometimes one. **It has to be fun alone, and bett
    doesn't have everything, but the next system over can have it all (a steep early curve that flattens out), and a
    few really rare things are scattered anywhere in the galaxy, regardless of distance.
 5. Expeditions: what a typical one looks like, how long it takes, and what you bring back.
+6. Travel between landmarks (owner, 14 October 2026: a gameplay question, decided here): jump range and how a drive
+   grows, routes or gates, how the autopilot takes a 15,000 ly trip. The distances are in SCALE.md §4.6.
 
 ---
 
