@@ -313,6 +313,7 @@ borders, and the deferred zone host (several zones in one server) becomes severa
 | The time of day at the landing site | At each player's position |
 
 Positions stay within a few kilometres of the centre, so Jolt's single precision still keeps a quarter of a millimetre.
+The detailed design, from four surveys of the code, is [WHOLE_WORLD.md](WHOLE_WORLD.md).
 
 ### 5.2 Every length from `GameScale`
 
@@ -361,7 +362,7 @@ Each package ends green with one check, on its own branch, as usual.
 |---|---|---|---|
 | S1 | `GameScale` and the landmark layer, engine-free, with GALAXY.md and GAME_DESIGN.md | Approval | A generator report listing every landmark and system |
 | S2 | The galaxy map on the list (Godot) | S1 | One screenshot |
-| S3 | The zone as a whole ball (§5.1), on a 2.4 km stand-in sphere: movement, building, guns, raiding, ships, animals, saves | Approval | The bots' load test on the ball, and a walk round it |
+| S3 | The zone as a whole ball (§5.1), on a 2.4 km stand-in sphere: movement, building, guns, raiding, ships, animals, saves. Designed in [WHOLE_WORLD.md](WHOLE_WORLD.md) (the owner said go on 14 October 2026; the design waits for approval) | Approval | The bots' load test on the ball, and a walk round it |
 | S4 | The ground at walking scale (§3.3): its design document with look-dev renders first, then the generator | S3 | The look-dev views, judged by the owner |
 | S5 | Air, clouds, sky and moons at the new scale (§3.4, §3.6) | S4 | The look-dev views at morning, golden hour, night and from 2 km up |
 | S6 | Clean-up: the 1:1 path out of the game, the docs, the golden values | S2, S5 | Build and tests |

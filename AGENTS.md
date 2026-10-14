@@ -10,7 +10,11 @@ owner's request, the `ground` branch was merged into `main` so the game lives in
 - the generator overhaul, the monuments, the kernel (`docs/GROUND_SYSTEMS.md` §12) and the F2 developer panel;
 - the galaxy map's web prototypes (`prototypes/map-ux`, waiting for the owner's choice) and the space concept
   (`docs/SPACE_CONCEPT.md`);
-- the scale proposal (`docs/SCALE.md`): small worlds and a galaxy of landmarks, waiting for the owner's approval.
+- the scale proposal (`docs/SCALE.md`): small worlds and a galaxy of landmarks, waiting for the owner's approval;
+- its package S3, one zone for a whole world and a map of the whole world (`docs/WHOLE_WORLD.md`): the owner said go
+  on 14 October 2026; the design waits for their approval, then its code goes on the branch `whole-world` (worktree
+  `D:\GameDev\Projects\Hollow-wt\whole-world`). Code that S3 rewrites (frames, facings, spatial indexes, the map) is
+  best left alone on `main` meanwhile, or changed knowing it will be merged into that branch.
 
 Work happens here, on `main`. A package that needs isolation gets a short-lived branch and worktree under
 `D:\GameDev\Projects\Hollow-wt\`, merged back into `main` when it builds and passes the tests. Sessions commit; the owner
