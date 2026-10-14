@@ -269,7 +269,7 @@ and bushes, bags, arrows), `portable` (deployables.json `pickup`, on all eleven)
 
 *What a handler knows:* `TargetFacts` (`Targets/Targeting.cs`): its capabilities and viewer flags, name, count, whether it is
 a person's (looted, not opened), open, busy, at rest, lock and definition, from its family (`TryFacts`) on the server and from the replicas on a client
-(`GameClient.Targets.cs`, one view per family), so `Offer` runs the same on both. `InteractContext` adds the doer
+(`TargetModule`, one view per family), so `Offer` runs the same on both. `InteractContext` adds the doer
 (`Doer`: dead, asleep, wounded, seated; in a team, its leader, a full team) and the building (rights at a place), and on
 the server the zone, the player and the thing.
 
