@@ -258,13 +258,12 @@ public sealed class FightBrain
 
     private bool Steer(ref InputFrame input, Vector3 feet, Vector3 to, float reach, double delta)
     {
-        Vector3 d = to - feet;
-        var flat = new Vector2(d.X, d.Z);
+        Vector3 flat = BotGround.Flat(to - feet, feet);
         if (flat.Length() <= reach)
         {
             return true;
         }
-        float wanted = MathF.Atan2(-flat.X, -flat.Y);
+        float wanted = BotGround.YawTo(feet, to);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 4, (float)delta * 4);
         input.Pitch = 0;
         input.Forward = 1;
@@ -274,16 +273,12 @@ public sealed class FightBrain
 
     private static void Look(ref InputFrame input, Vector3 eye, Vector3 at, Vector3 up)
     {
-        Vector3 d = at - eye;
-        Vector3 flat = d - up * Vector3.Dot(d, up);
-        input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        input.Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length());
+        (input.Yaw, input.Pitch) = BotGround.LookAt(eye, at);
     }
 
     private void Wander(ref InputFrame input, Vector3 feet, double delta)
     {
-        var flat = new Vector2(feet.X, feet.Z);
-        float wanted = flat.Length() > BotBrain.HomeRadius * 0.8f ? MathF.Atan2(flat.X, flat.Y) : _yaw + (float)_rng.Range(-0.3, 0.3);
+        float wanted = Vector3.Distance(feet, BotGround.Home) > BotBrain.HomeRadius * 0.8f ? BotGround.YawTo(feet, BotGround.Home) : _yaw + (float)_rng.Range(-0.3, 0.3);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 2, (float)delta * 2);
         input.Pitch = 0;
         input.Forward = 1;

@@ -98,7 +98,7 @@ public sealed class ExplosiveSystem : ZoneSystem
         }
         ref Character c = ref Entities.Get<Character>(entity);
         Vector3 up = Frame.UpAt(c.State.Position);
-        (yaw, pitch) = TrustedView(c, yaw, pitch);
+        (yaw, pitch) = TrustedView(c, up, yaw, pitch);
         Vector3 direction = CharacterMotor.ViewDirection(yaw, pitch, up);
         Vector3 eye = EyeOf(c.State);
         // From a hand's length in front of the eye, unless something is right there.
@@ -191,15 +191,16 @@ public sealed class ExplosiveSystem : ZoneSystem
 
     // The view a throw goes along: the intent's (what the player saw when they clicked), unless it is far from the view
     // the server has for them (then theirs): a client can't throw behind its back.
-    private static (float Yaw, float Pitch) TrustedView(in Character c, float yaw, float pitch)
+    private static (float Yaw, float Pitch) TrustedView(in Character c, Vector3 up, float yaw, float pitch)
     {
+        float ownYaw = c.Input.YawAt(up), ownPitch = c.Input.PitchAt(up);
         if (!float.IsFinite(yaw) || !float.IsFinite(pitch) || MathF.Abs(pitch) > FirearmRules.MaxViewPitch)
         {
-            return (c.Input.Yaw, c.Input.Pitch);
+            return (ownYaw, ownPitch);
         }
-        float dy = yaw - c.Input.Yaw;
+        float dy = yaw - ownYaw;
         dy -= MathF.Round(dy / (2 * MathF.PI)) * 2 * MathF.PI;
-        return MathF.Abs(dy) <= 0.6f && MathF.Abs(pitch - c.Input.Pitch) <= 0.6f ? (yaw, pitch) : (c.Input.Yaw, c.Input.Pitch);
+        return MathF.Abs(dy) <= 0.6f && MathF.Abs(pitch - ownPitch) <= 0.6f ? (yaw, pitch) : (ownYaw, ownPitch);
     }
 
     // ---------------------------------------------------------------- explosives in the world

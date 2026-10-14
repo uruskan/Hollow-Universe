@@ -75,15 +75,25 @@ public struct MoveInput
     /// <summary>−1 (left) … 1 (right).</summary>
     public float Right;
 
-    /// <summary>View yaw in radians about the zone's +Y: 0 faces −Z (north), growing anticlockwise seen from above.</summary>
-    public float Yaw;
-
-    /// <summary>View pitch in radians: positive looks up.</summary>
-    public float Pitch;
+    /// <summary>
+    /// Where the character looks: a unit direction in the zone's frame (the body's), its aim, and laid onto the ground
+    /// its forward (docs/WHOLE_WORLD.md §5). A direction has no pole or seam, so it means the same on every side of the
+    /// world and on the server and the client whatever their positions. The client carries it along the ground.
+    /// </summary>
+    public Vector3 View;
 
     public MoveButtons Buttons;
 
     public readonly bool Has(MoveButtons button) => (Buttons & button) != 0;
+
+    /// <summary>The heading of the view at a point with this up (from local north, <see cref="Facing"/>).</summary>
+    public readonly float YawAt(Vector3 up) => Facing.YawOf(View, up);
+
+    /// <summary>How far the view looks above the horizontal at a point with this up.</summary>
+    public readonly float PitchAt(Vector3 up) => Facing.PitchOf(View, up);
+
+    /// <summary>An input looking along a heading and a pitch at a point with this up (bots, tests, a restored view).</summary>
+    public static Vector3 Looking(float yaw, float pitch, Vector3 up) => Facing.View(yaw, pitch, up);
 }
 
 /// <summary>

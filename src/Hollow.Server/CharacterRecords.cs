@@ -18,15 +18,18 @@ namespace Hollow.Server;
 /// </summary>
 internal static class CharacterRecords
 {
-    // A stored character comes back where it was if that is on this zone's body and within its ground.
+    // A stored character comes back where it was if that is on this zone's body and near its ground: within a few
+    // hundred metres of it, a pilot up to the leaving height and more (G6: their ship's seat brings them back).
     public static bool Restorable(Zone zone, ZoneSpec spec, CharacterRecord record, out Vector3 local)
     {
         local = zone.Frame.ToLocal(new Vector3D(record.BodyX, record.BodyY, record.BodyZ));
-        float reach = Simulation.Physics.PhysicsWorld.Extent - 2 * Simulation.Physics.PhysicsWorld.TileSize;
-        return record.SystemAddress == spec.SystemAddress && record.BodyPath == spec.BodyPath &&
-            MathF.Abs(local.X) < reach && MathF.Abs(local.Z) < reach &&
-            // A pilot may be high up, in orbit even (G6): their ship's seat brings them back.
-            MathF.Abs(local.Y) < (record.Stance == (byte)Stance.Seated ? 25_000 : 5000);
+        if (record.SystemAddress != spec.SystemAddress || record.BodyPath != spec.BodyPath || !float.IsFinite(local.LengthSquared()))
+        {
+            return false;
+        }
+        float height = zone.HeightAboveGround(local);
+        float most = record.Stance == (byte)Stance.Seated ? (float)(zone.Surface.Radius * (ZoneSpec.LeavingRadii + 1)) : 500f;
+        return height > -100 && height < most;
     }
 
     /// <summary>The survival state a record holds; null for a new life (a G1 character, or a state this build doesn't read).</summary>
@@ -52,13 +55,16 @@ internal static class CharacterRecords
     {
         ref Character c = ref zone.Entities.Get<Character>(entity);
         Vector3D body = zone.Frame.ToBody(c.State.Position);
-        float yaw = c.Input.Yaw, pitch = c.Input.Pitch;
+        // The view is stored as a heading from local north and a pitch where the character stands (the same place it
+        // comes back to, so the view comes back exactly).
+        Vector3 view = c.Input.View;
         if (zone.Entities.Has<NetPresence>(entity))
         {
             ref NetPresence presence = ref zone.Entities.Get<NetPresence>(entity);
-            yaw = Quantize.FromAngle16(presence.Yaw);
-            pitch = Quantize.FromAngle16(presence.Pitch);
+            view = Quantize.FromOctahedral(presence.ViewU, presence.ViewV);
         }
+        Vector3 up = zone.Frame.UpAt(c.State.Position);
+        float yaw = Facing.YawOf(view, up), pitch = Facing.PitchOf(view, up);
         return new CharacterRecord
         {
             Id = p.Id,

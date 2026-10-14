@@ -461,13 +461,18 @@ public sealed class PlanetSurface : ISurface
 
     // ---------------------------------------------------------------- collision
 
-    public PooledTriangles GroundCollisionPooled(in ZoneFrame frame, double centreX, double centreZ, double size) =>
+    // A zone asks for a cube-sphere tile's ground (ISurface's default grid, docs/WHOLE_WORLD.md §6.1). Until S4 makes this
+    // surface at a game radius no zone stands on it (a centred frame can't hold 6,435 km in floats), so the patch of a
+    // tangent plane built from the level-18 grids remains for the look-dev tools and their tests.
+
+    /// <summary>The ground of a square of a tangent frame's plane, from the level-18 grids (look-dev, tests).</summary>
+    public PooledTriangles PatchCollisionPooled(in ZoneFrame frame, double centreX, double centreZ, double size) =>
         TileMesh.CollisionPooled(this, frame, centreX, centreZ, size, CollisionLevel, TileCells, _collisionHeights);
 
-    // The collision grids' heights, shared by neighbouring physics tiles (GROUND.md §5.11): 4,096 grids, 36 MB at most.
+    // The collision grids' heights, shared by neighbouring patches (GROUND.md §5.11): 4,096 grids, 36 MB at most.
     private readonly GridHeights _collisionHeights = new(4096);
 
-    public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
+    public TriangleMesh PatchCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
         TileMesh.Collision(this, frame, centreX, centreZ, size, CollisionLevel, TileCells);
 
     public IReadOnlyList<ScatterItem> ScatterFor(TileKey tile) => Scatter.ForTile(this, tile);

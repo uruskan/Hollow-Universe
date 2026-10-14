@@ -265,7 +265,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 Feet = c.State.Position,
                 Up = zone.Frame.UpAt(c.State.Position),
-                Yaw = c.Input.Yaw,
+                Yaw = c.Input.YawAt(zone.Frame.UpAt(c.State.Position)),
                 Pose = p.Sleeping || p.Wounded ? Simulation.Combat.Pose.Lying : c.State.Stance == Stance.Crouching ? Simulation.Combat.Pose.Crouching : Simulation.Combat.Pose.Standing,
             };
             return true;

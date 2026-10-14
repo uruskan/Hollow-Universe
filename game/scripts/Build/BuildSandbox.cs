@@ -138,7 +138,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
 
         Num.Vector3 site = FlatSite();
         _site = site;
-        _zone.Physics.EnsureGround(site, 1);
+        _zone.Physics.EnsureGroundWithin(site, 96);
         BuildScene(site);
         _renderer.Attach(_world, _assets);
         // What goes breaks apart (GROUND.md §9.4), as the zone reports it in the game: brought down, demolished, decayed.
@@ -418,7 +418,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
 
     private MoveInput ReadInput()
     {
-        var input = new MoveInput { Yaw = _yaw, Pitch = _pitch };
+        var input = new MoveInput { View = Facing.View(_yaw, _pitch, _zone.Frame.UpAt(_feetNow)) };
         if (_fixedCamera.HasValue || _ui.WantsCursor || Input.MouseMode != Input.MouseModeEnum.Captured)
         {
             return input;

@@ -9,18 +9,22 @@ namespace Hollow.Simulation.Movement;
 /// <summary>What a movement step needs to know about where it happens.</summary>
 public readonly struct MoveContext
 {
-    public MoveContext(ZoneFrame frame, double seaRadius, float gravity, MovementTuning tuning)
+    public MoveContext(ZoneFrame frame, double seaRadius, float gravity, MovementTuning tuning, double radius = 0)
     {
         Frame = frame;
         SeaRadius = seaRadius;
         Gravity = gravity;
         Tuning = tuning;
+        Radius = radius;
     }
 
     public readonly ZoneFrame Frame;
 
     /// <summary>Radius of the sea surface in metres, 0 without one (<see cref="ISurface.SeaRadius"/>).</summary>
     public readonly double SeaRadius;
+
+    /// <summary>The world's mean radius in metres (noclip's bounds); 0 when not known.</summary>
+    public readonly double Radius;
 
     /// <summary>A character's gravity in m/s²: the planet's, times <see cref="MovementTuning.GravityScale"/>.</summary>
     public readonly float Gravity;
@@ -93,7 +97,7 @@ public static class CharacterMotor
         bool crouching = state.Stance == Stance.Crouching;
 
         // The view's horizontal basis at the character, and the wanted direction of travel.
-        (Vector3 forward, Vector3 right) = HorizontalBasis(input.Yaw, up);
+        (Vector3 forward, Vector3 right) = Facing.Basis(input.View, up);
         Vector3 wish = forward * Math.Clamp(input.Forward, -1f, 1f) + right * Math.Clamp(input.Right, -1f, 1f);
         float wishLength = wish.Length();
         if (wishLength > 1f)
@@ -197,14 +201,20 @@ public static class CharacterMotor
 
     public const float NoclipFastSpeed = 40f;
 
+    /// <summary>How far below the mean radius noclip may go, and how many radii from the centre it may reach.</summary>
+    public const float NoclipDepth = 500f;
+
+    public const float NoclipRadii = 3f;
+
     // Noclip (an admin's, GROUND.md §8.2): flies along the view through the ground and everything on it, W and S along
     // the view, A and D sideways, Space up and Ctrl down along the local up; no gravity, no collision, no fall damage.
-    // It stays within the zone's ground (and 20 km of its height), where the zone has tiles to come down on.
+    // It stays between NoclipDepth under the ground and NoclipRadii from the centre (docs/WHOLE_WORLD.md §6.2), never
+    // near the centre, where "up" has no meaning.
     private static void Fly(ref CharacterState state, in MoveInput input, in MoveContext context)
     {
         Vector3 up = context.Frame.UpAt(state.Position);
-        (Vector3 forward, Vector3 right) = HorizontalBasis(input.Yaw, up);
-        Vector3 view = forward * (float)DMath.Cos(input.Pitch) + up * (float)DMath.Sin(input.Pitch);
+        (_, Vector3 right) = Facing.Basis(input.View, up);
+        Vector3 view = SafeView(input.View, up);
         float vertical = (input.Has(MoveButtons.Jump) ? 1f : 0f) - (input.Has(MoveButtons.Crouch) ? 1f : 0f);
         Vector3 wish = view * Math.Clamp(input.Forward, -1f, 1f) + right * Math.Clamp(input.Right, -1f, 1f) + up * vertical;
         float length = wish.Length();
@@ -213,9 +223,17 @@ public static class CharacterMotor
             wish /= length;
         }
         state.Velocity = wish * (input.Has(MoveButtons.Sprint) ? NoclipFastSpeed : NoclipSpeed);
-        float reach = PhysicsWorld.Extent - PhysicsWorld.TileSize;
         Vector3 next = state.Position + state.Velocity * DeltaTime;
-        state.Position = new Vector3(Math.Clamp(next.X, -reach, reach), Math.Clamp(next.Y, -20_000f, 20_000f), Math.Clamp(next.Z, -reach, reach));
+        if (context.Radius > 0)
+        {
+            float r = next.Length();
+            float least = (float)Math.Max(context.Radius - NoclipDepth, context.Radius * 0.5), most = (float)(context.Radius * NoclipRadii);
+            if (r < least || r > most)
+            {
+                next = (r > 1e-3f ? next / r : up) * Math.Clamp(r, least, most);
+            }
+        }
+        state.Position = next;
         if (state.Stance == Stance.Crouching)
         {
             // Ctrl sinks rather than crouches.
@@ -225,25 +243,35 @@ public static class CharacterMotor
     }
 
     /// <summary>
-    /// The horizontal forward and right of a view yaw at a point with this <paramref name="up"/>: the zone-frame
-    /// directions laid onto the local horizontal plane.
+    /// The horizontal forward and right of a heading at a point with this <paramref name="up"/>: 0 faces local north,
+    /// growing anticlockwise seen from above (<see cref="Facing.Basis(float, Vector3)"/>).
     /// </summary>
-    public static (Vector3 Forward, Vector3 Right) HorizontalBasis(float yaw, Vector3 up)
-    {
-        float sin = (float)DMath.Sin(yaw), cos = (float)DMath.Cos(yaw);
-        var flat = new Vector3(-sin, 0f, -cos);
-        Vector3 forward = flat - up * Vector3.Dot(flat, up);
-        float length = forward.Length();
-        forward = length > 1e-6f ? forward / length : Vector3.Normalize(Vector3.Cross(up, Vector3.UnitX));
-        Vector3 right = Vector3.Normalize(Vector3.Cross(forward, up));
-        return (forward, right);
-    }
+    public static (Vector3 Forward, Vector3 Right) HorizontalBasis(float yaw, Vector3 up) => Facing.Basis(yaw, up);
 
-    /// <summary>The view direction for a yaw and pitch at a point with this <paramref name="up"/>.</summary>
-    public static Vector3 ViewDirection(float yaw, float pitch, Vector3 up)
+    /// <summary>The view direction for a heading and pitch at a point with this <paramref name="up"/>.</summary>
+    public static Vector3 ViewDirection(float yaw, float pitch, Vector3 up) => Facing.View(yaw, pitch, up);
+
+    /// <summary>
+    /// An input's view as a unit direction (untrusted: a zero or broken view looks along local north), held at least a
+    /// degree off straight up and down, as the client holds it.
+    /// </summary>
+    public static Vector3 SafeView(Vector3 view, Vector3 up)
     {
-        (Vector3 forward, _) = HorizontalBasis(yaw, up);
-        return forward * (float)DMath.Cos(pitch) + up * (float)DMath.Sin(pitch);
+        float length = view.Length();
+        if (!(length > 1e-6f) || !float.IsFinite(length))
+        {
+            return Facing.Compass(up).North;
+        }
+        view /= length;
+        float sin = Vector3.Dot(view, up);
+        const float limit = 0.99985f; // sin 89°
+        if (MathF.Abs(sin) <= limit)
+        {
+            return view;
+        }
+        (Vector3 forward, _) = Facing.Basis(view, up);
+        float s = MathF.CopySign(limit, sin);
+        return forward * MathF.Sqrt(1 - s * s) + up * s;
     }
 
     /// <summary>How deep the feet are below the sea surface, as a fraction of the standing height (0 when dry).</summary>
@@ -311,7 +339,7 @@ public static class CharacterMotor
         float submersion, bool fast, in MoveContext context)
     {
         MovementTuning tuning = context.Tuning;
-        Vector3 view = forward * (float)DMath.Cos(input.Pitch) + up * (float)DMath.Sin(input.Pitch);
+        Vector3 view = SafeView(input.View, up);
         float vertical = input.Has(MoveButtons.Jump) ? 1f : input.Has(MoveButtons.Crouch) ? -1f : 0f;
         Vector3 wish = view * Math.Clamp(input.Forward, -1f, 1f) + right * Math.Clamp(input.Right, -1f, 1f) + up * vertical;
         float length = wish.Length();

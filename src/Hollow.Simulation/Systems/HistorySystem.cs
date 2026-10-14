@@ -35,7 +35,7 @@ public sealed class HistorySystem : ZoneSystem
             {
                 Feet = c.State.Position,
                 Up = Frame.UpAt(c.State.Position),
-                Yaw = c.Input.Yaw,
+                Yaw = c.Input.YawAt(Frame.UpAt(c.State.Position)),
                 Pose = p.Sleeping || p.Wounded ? Pose.Lying : c.State.Stance == Stance.Crouching ? Pose.Crouching : Pose.Standing,
             });
         }

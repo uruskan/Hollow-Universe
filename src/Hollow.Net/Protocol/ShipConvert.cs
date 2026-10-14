@@ -91,7 +91,7 @@ public static class ShipConvert
     public static ShipNetState ToNet(Ship ship, ViewerFlags viewer)
     {
         ShipState s = ship.State;
-        (float yaw, float pitch, float roll) = Angles(s.Rotation);
+        (byte largest, short a, short b, short c) = Quantize.SmallestThree(s.Rotation);
         ShipNetFlags flags = (ship.Piloted || ship.Autopilot ? ShipNetFlags.Piloted : 0) | (ship.HatchOpen ? ShipNetFlags.HatchOpen : 0)
             | (s.Has(ShipFlags.Landed) ? ShipNetFlags.Landed : 0) | (s.Has(ShipFlags.Destroyed) ? ShipNetFlags.Destroyed : 0)
             | (s.Has(ShipFlags.InOrbit) ? ShipNetFlags.InOrbit : 0) | (s.Has(ShipFlags.Boosting) ? ShipNetFlags.Boosting : 0)
@@ -102,9 +102,10 @@ public static class ShipConvert
             X = Quantize.Fixed(s.Position.X, Quantize.PositionScale),
             Y = Quantize.Fixed(s.Position.Y, Quantize.PositionScale),
             Z = Quantize.Fixed(s.Position.Z, Quantize.PositionScale),
-            Yaw = Quantize.Angle16(yaw),
-            Pitch = Quantize.Angle16(pitch),
-            Roll = Quantize.Angle16(roll),
+            TurnLargest = largest,
+            TurnA = a,
+            TurnB = b,
+            TurnC = c,
             Flags = flags,
             Viewer = viewer,
             Hatch = (byte)Math.Clamp(ship.HatchProgress, 0, 31),
@@ -120,8 +121,7 @@ public static class ShipConvert
     public static Vector3 PositionOf(in ShipNetState s) => new(
         Quantize.FromFixed(s.X, Quantize.PositionScale), Quantize.FromFixed(s.Y, Quantize.PositionScale), Quantize.FromFixed(s.Z, Quantize.PositionScale));
 
-    public static Quaternion RotationOf(in ShipNetState s) =>
-        Rotation(Quantize.FromAngle16(s.Yaw), Quantize.FromAngle16(s.Pitch), Quantize.FromAngle16(s.Roll));
+    public static Quaternion RotationOf(in ShipNetState s) => Quantize.FromSmallestThree(s.TurnLargest, s.TurnA, s.TurnB, s.TurnC);
 
     /// <summary>The thrust fractions a state carries (each axis's thrust; the main engine's boost goes over 1).</summary>
     public static Vector3 ThrustOf(in ShipNetState s) => new(s.ThrustX / 63.5f, s.ThrustY / 63.5f, s.ThrustZ / 63.5f);

@@ -127,7 +127,7 @@ public sealed class SpillSystem : ZoneSystem
         ref Character c = ref Entities.Get<Character>(by);
         Vector3 feet = c.State.Position;
         Vector3 up = Frame.UpAt(feet);
-        (Vector3 forward, _) = CharacterMotor.HorizontalBasis(c.Input.Yaw, up);
+        (Vector3 forward, _) = Facing.Basis(c.Input.View, up);
         float ahead = DropAhead;
         lock (JoltRuntime.Gate)
         {
@@ -136,7 +136,7 @@ public sealed class SpillSystem : ZoneSystem
                 ahead = MathF.Max(0, hit.Distance - BagRadius);
             }
         }
-        return (feet + forward * ahead, c.Input.Yaw);
+        return (feet + forward * ahead, c.Input.YawAt(up));
     }
 
     // A stack into the bags near where it rests, the nearest with room first, then into new bags there.

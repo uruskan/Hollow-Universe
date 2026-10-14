@@ -359,7 +359,7 @@ public partial class ShipSandbox : Node3D
         s.AngularVelocity = Num.Vector3.Zero;
         s.RestTicks = 0;
         s.Flags &= ~(ShipFlags.Landed | ShipFlags.Touching);
-        _zone.Physics.EnsureGround(_zone.Settle(centre), 1);
+        _zone.Physics.EnsureGroundWithin(_zone.Settle(centre), 96);
     }
 
     // Steps the zone with the pilot holding an input for some ticks, or (landing) until the skids touch, letting go then,
@@ -539,7 +539,7 @@ public partial class ShipSandbox : Node3D
 
     private MoveInput ReadWalk()
     {
-        var input = new MoveInput { Yaw = _yaw, Pitch = _pitch };
+        var input = new MoveInput { View = Facing.View(_yaw, _pitch, _zone.Frame.UpAt(_feetNow)) };
         if (_shot || (!_touring && Input.MouseMode != Input.MouseModeEnum.Captured))
         {
             return input;

@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using Hollow.Core;
+using Hollow.Simulation.Movement;
 using Hollow.Surface;
 
 namespace Hollow.Simulation;
@@ -8,7 +9,8 @@ namespace Hollow.Simulation;
 /// <summary>
 /// The surface's own ground (its heights, not the collision tiles' triangles), asked the same way by the zone and by a
 /// client: the ground under a point, how far a point is above it, its normal and slope, and where a ray first goes under
-/// it. One copy of these for both sides (the client's placement had its own).
+/// it. One copy of these for both sides (the client's placement had its own). Everything is radial: the ground under a
+/// point lies along its direction from the world's centre (docs/WHOLE_WORLD.md §6.1).
 /// </summary>
 public readonly struct GroundProbe(ISurface surface, ZoneFrame frame)
 {
@@ -16,32 +18,56 @@ public readonly struct GroundProbe(ISurface surface, ZoneFrame frame)
 
     public ZoneFrame Frame { get; } = frame;
 
-    /// <summary>The ground under a point of the zone's tangent plane, in the zone frame.</summary>
-    public Vector3 At(float x, float z)
+    /// <summary>The point on the ground below (or above) a point: along its direction from the centre.</summary>
+    public Vector3 Settle(Vector3 point)
     {
-        Vector3D direction = Frame.ToBody(x, 0, z).Normalized;
-        return Frame.ToLocal(direction * (Surface.Radius + Surface.HeightAt(direction)));
+        Vector3D body = Frame.ToBody(point);
+        double r = body.Length;
+        return r > 0 ? On(body / r) : point;
     }
 
-    /// <summary>The point on the ground below (or above) a point.</summary>
-    public Vector3 Settle(Vector3 point) => At(point.X, point.Z);
+    /// <summary>The ground at a unit body-frame direction, in the zone frame.</summary>
+    public Vector3 On(Vector3D direction) => Frame.ToLocal(direction * (Surface.Radius + Surface.HeightAt(direction)));
+
+    /// <summary>
+    /// The ground <paramref name="east"/> metres east and <paramref name="south"/> metres south of a point, measured
+    /// along the ground (a turn about the centre by that arc), so layouts keep their sizes on a small world: rings,
+    /// plots, a test's places. At a pole east is the fixed fallback <see cref="Facing.Compass"/> gives.
+    /// </summary>
+    public Vector3 Offset(Vector3 from, float east, float south)
+    {
+        Vector3 up = Frame.UpAt(from);
+        (Vector3 north, Vector3 e) = Facing.Compass(up);
+        Vector3 along = e * east - north * south;
+        float distance = along.Length();
+        if (distance < 1e-6f)
+        {
+            return Settle(from);
+        }
+        double angle = distance / Surface.Radius, cos = DMath.Cos(angle), sin = DMath.Sin(angle);
+        Vector3 t = along / distance;
+        // The turned direction in the frame's axes, then in the body's (the frame's own rotation, without its origin).
+        Vector3D local = new(up.X * cos + t.X * sin, up.Y * cos + t.Y * sin, up.Z * cos + t.Z * sin);
+        return On((Frame.ToBody(local.X, local.Y, local.Z) - Frame.Origin).Normalized);
+    }
 
     /// <summary>How far a point is above the ground, in metres (negative below).</summary>
     public float HeightAbove(Vector3 point)
     {
         Vector3D body = Frame.ToBody(point);
         double r = body.Length;
-        return (float)(r - (Surface.Radius + Surface.HeightAt(body / r)));
+        return r > 0 ? (float)(r - (Surface.Radius + Surface.HeightAt(body / r))) : float.NegativeInfinity;
     }
 
-    /// <summary>The ground's up and its slope (radians) under a point, by finite differences.</summary>
+    /// <summary>The ground's up and its slope (radians) under a point, by finite differences along the local ground.</summary>
     public (Vector3 Normal, float Slope) Normal(Vector3 point)
     {
         const float d = 0.35f;
-        Vector3 a = At(point.X - d, point.Z), b = At(point.X + d, point.Z);
-        Vector3 c = At(point.X, point.Z - d), e = At(point.X, point.Z + d);
-        Vector3 normal = Vector3.Normalize(Vector3.Cross(e - c, b - a));
         Vector3 up = Frame.UpAt(point);
+        (Vector3 north, Vector3 east) = Facing.Compass(up);
+        Vector3 a = Settle(point - east * d), b = Settle(point + east * d);
+        Vector3 c = Settle(point - north * d), e = Settle(point + north * d);
+        Vector3 normal = Vector3.Normalize(Vector3.Cross(b - a, e - c));
         if (Vector3.Dot(normal, up) < 0)
         {
             normal = -normal;

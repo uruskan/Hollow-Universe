@@ -574,7 +574,7 @@ public sealed class TargetModule : ClientModule
             }
             (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
             Vector3 up = c.Frame.UpAt(position), along = Vector3.Transform(Vector3.UnitZ, rotation);
-            point = Geometry.NearestOnBox(position, up, MathF.Atan2(along.X, along.Z), c.Content.ClaimDeployable.HalfExtents, from);
+            point = Geometry.NearestOnBox(position, up, Facing.YawOf(-along, up), c.Content.ClaimDeployable.HalfExtents, from);
             return true;
         }
 

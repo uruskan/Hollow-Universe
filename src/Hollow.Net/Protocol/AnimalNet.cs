@@ -25,7 +25,7 @@ public readonly record struct AnimalLook(
 /// in the same delta-coded, prioritised stream as characters, so they reuse <see cref="CharacterNetState"/> and every
 /// part of replication as it is; this is what its fields mean for an animal:
 /// <list type="table">
-/// <item><term>X, Y, Z, Yaw</term><description>its feet on the ground and its heading, as a character's.</description></item>
+/// <item><term>X, Y, Z, ViewU, ViewV</term><description>its feet on the ground and its heading as a view along the ground, as a character's.</description></item>
 /// <item><term>Flags</term><description><see cref="MoveFlags.Dead"/> for a corpse, else <see cref="MoveFlags.OnGround"/>;
 /// <see cref="MoveFlags.Sprinting"/> while it warns someone off (<see cref="Animal.Warning"/>).</description></item>
 /// <item><term>Health</term><description>its health as a fraction of 255; a corpse's, the harvest left.</description></item>
@@ -34,18 +34,20 @@ public readonly record struct AnimalLook(
 /// <see cref="AttackKind"/>: the client animates each new one.</description></item>
 /// <item><term>HeldMods</term><description>its <see cref="AnimalState"/> in the high four bits, hits taken (4 bits, wrapping) in the low.</description></item>
 /// <item><term>Aiming</term><description>alert: aware of a threat (head up, ears forward).</description></item>
-/// <item><term>Pitch, Stance, Sleeping</term><description>unused (0), so they cost a bit each in a delta.</description></item>
+/// <item><term>Stance, Sleeping</term><description>unused (0), so they cost a bit each in a delta.</description></item>
 /// </list>
 /// The species' key also comes with the animal's <c>Spawn</c> (its name).
 /// </summary>
 public static class AnimalNet
 {
+    /// <summary>An animal on the wire; its heading goes as a view along the ground (the zone's frame is the world's, so up is its position's direction).</summary>
     public static CharacterNetState Pack(Animal a) => new()
     {
         X = Quantize.Fixed(a.Position.X, Quantize.PositionScale),
         Y = Quantize.Fixed(a.Position.Y, Quantize.PositionScale),
         Z = Quantize.Fixed(a.Position.Z, Quantize.PositionScale),
-        Yaw = Quantize.Angle16(a.Yaw),
+        ViewU = Quantize.Octahedral(Simulation.Movement.Facing.Basis(a.Yaw, UpOf(a.Position)).Forward).U,
+        ViewV = Quantize.Octahedral(Simulation.Movement.Facing.Basis(a.Yaw, UpOf(a.Position)).Forward).V,
         Flags = (a.IsDead ? MoveFlags.Dead : MoveFlags.OnGround) | (a.Warning ? MoveFlags.Sprinting : MoveFlags.None),
         Health = (byte)Math.Clamp((int)MathF.Ceiling((a.IsDead ? a.HarvestFraction : a.HealthFraction) * 255), 0, 255),
         Held = a.Species.Id,
@@ -54,6 +56,9 @@ public static class AnimalNet
         HeldMods = (byte)(((byte)a.State & 15) << 4 | (a.HurtCount & 15)),
         Aiming = a.Alert && !a.IsDead,
     };
+
+    private static System.Numerics.Vector3 UpOf(System.Numerics.Vector3 p) =>
+        p.LengthSquared() > 0 ? System.Numerics.Vector3.Normalize(p) : System.Numerics.Vector3.UnitY;
 
     public static AnimalLook Unpack(in CharacterNetState s) => new(
         (byte)Math.Min(s.Held, (ushort)255),

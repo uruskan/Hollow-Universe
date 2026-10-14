@@ -169,6 +169,20 @@ public abstract class ServerModule : IDisposable
         }
     }
 
+    /// <summary>
+    /// A view from the wire as a heading from local north and a pitch where a player's character stands
+    /// (docs/WHOLE_WORLD.md §5): what the zone's rules take for a shot or a throw.
+    /// </summary>
+    protected (float Yaw, float Pitch) ViewAt(PlayerSession session, Vector3 view)
+    {
+        if (!session.Playing || !Zone.Entities.Has<Character>(session.Entity))
+        {
+            return (0, 0);
+        }
+        Vector3 up = Zone.Frame.UpAt(Zone.Entities.Get<Character>(session.Entity).State.Position);
+        return (Facing.YawOf(view, up), Facing.PitchOf(view, up));
+    }
+
     /// <summary>A chat line to everyone.</summary>
     protected void Broadcast(ChatLine line) => Server.Broadcast(line);
 

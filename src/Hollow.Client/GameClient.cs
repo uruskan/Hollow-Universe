@@ -35,7 +35,17 @@ public struct InputFrame
     public float Forward;
     public float Right;
 
-    /// <summary>The view now, in radians (see <see cref="MoveInput.Yaw"/>).</summary>
+    /// <summary>
+    /// Where the player looks: a unit direction in the zone's frame, which the camera carries along the ground
+    /// (docs/WHOLE_WORLD.md §5, <see cref="Facing.Carry"/>). When it is zero, <see cref="Yaw"/> and
+    /// <see cref="Pitch"/> are read instead.
+    /// </summary>
+    public Vector3 View;
+
+    /// <summary>
+    /// The view as a heading from local north and a pitch, in radians, where the player stands (bots and tests), read
+    /// when <see cref="View"/> is zero.
+    /// </summary>
     public float Yaw;
     public float Pitch;
 
@@ -216,9 +226,22 @@ public sealed class GameClient : INetEventListener, IDisposable
     public EntityId EntityId { get; private set; }
 
     /// <summary>The view the server restored (to turn the camera to on joining).</summary>
-    public float InitialYaw { get; private set; }
+    public float InitialYaw => Facing.YawOf(InitialView, OwnUp);
 
-    public float InitialPitch { get; private set; }
+    public float InitialPitch => Facing.PitchOf(InitialView, OwnUp);
+
+    /// <summary>The view the character was saved with, a direction in the zone's frame (the Welcome's).</summary>
+    public Vector3 InitialView { get; private set; } = Vector3.UnitZ;
+
+    /// <summary>Up where the player's predicted character stands (the zone's +Y before the first state).</summary>
+    public Vector3 OwnUp => _predictor is { HasState: true } p ? p.Frame.UpAt(p.Latest.Position) : Vector3.UnitY;
+
+    // The frame's view: the camera's carried direction, or a heading and pitch read where the player stands.
+    private Vector3 ViewOf(in InputFrame frame)
+    {
+        float length = frame.View.Length();
+        return length > 1e-6f && float.IsFinite(length) ? frame.View / length : Facing.View(frame.Yaw, frame.Pitch, OwnUp);
+    }
 
     public ClientStats Stats { get; } = new();
 
@@ -462,8 +485,7 @@ public sealed class GameClient : INetEventListener, IDisposable
         {
             Forward = frame.Forward,
             Right = frame.Right,
-            Yaw = frame.Yaw,
-            Pitch = frame.Pitch,
+            View = ViewOf(frame),
             Buttons = buttons,
         }, actions);
         // Free look rides with the view, for others to see the head turn (the prediction never uses it).
@@ -617,8 +639,8 @@ public sealed class GameClient : INetEventListener, IDisposable
         EntityId = new EntityId(welcome.EntityId);
         Local.EntityId = EntityId;
         ServerName = welcome.ServerName;
-        InitialYaw = Quantize.FromAngle16(welcome.Yaw);
-        InitialPitch = Quantize.FromAngle16(welcome.Pitch);
+        InitialView = Quantize.FromOctahedral(welcome.ViewU, welcome.ViewV);
+        Local.Up = () => OwnUp;
         foreach (ClientModule module in _modules)
         {
             module.Welcome();

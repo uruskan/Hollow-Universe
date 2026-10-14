@@ -150,15 +150,20 @@ public static class TestBases
         return true;
     }
 
-    /// <summary>The <paramref name="index"/>-th of <paramref name="count"/> places on a ring around the zone's origin, and the heading that turns a hut's doorway toward the origin.</summary>
-    public static (float X, float Z, double Heading) Ring(int index, int count, float radius)
+    /// <summary>
+    /// The <paramref name="index"/>-th of <paramref name="count"/> places on a ring of <paramref name="radius"/> metres
+    /// round a point of the world (measured along the ground), and the heading that turns a hut's doorway toward it.
+    /// </summary>
+    public static (Vector3 At, double Heading) Ring(GroundProbe ground, Vector3 centre, int index, int count, float radius)
     {
         double angle = DMath.TwoPi * index / Math.Max(1, count);
-        float x = (float)(radius * DMath.Cos(angle)), z = (float)(radius * DMath.Sin(angle));
-        // A hut's +Z (its doorway's outside) is the frame's AxisZ: x0·sin(h) + z0·cos(h) with x0 east and z0 = east × up
-        // (south, +Z of the zone). Pointing it at the origin, (−x, −z): sin(h) = −x/r, cos(h) = −z/r.
-        double heading = DMath.Atan2(-x, -z);
-        return (x, z, heading);
+        Vector3 at = ground.Offset(centre, (float)(radius * DMath.Cos(angle)), (float)(radius * DMath.Sin(angle)));
+        // A hut's +Z (its doorway's outside) is the frame's AxisZ (BuildingFrame.At): pointed at the centre.
+        Vector3 up = ground.Frame.UpAt(at);
+        Vector3 toward = centre - at;
+        toward -= up * Vector3.Dot(toward, up);
+        double heading = BuildingFrame.HeadingOf(new Vector3D(toward.X, toward.Y, toward.Z), new Vector3D(up.X, up.Y, up.Z));
+        return (at, heading);
     }
 
     /// <summary>
@@ -168,7 +173,7 @@ public static class TestBases
     /// </summary>
     public static BuildingFrame FrameOver(Zone zone, BuildingData data, PieceDef foundation, Vector3 at, double heading)
     {
-        Vector3 ground = zone.GroundAt(at.X, at.Z);
+        Vector3 ground = zone.Settle(at);
         Vector3 up = zone.Frame.UpAt(ground);
         var upD = new Vector3D(up.X, up.Y, up.Z);
         BuildingFrame probe = BuildingFrame.At(new Vector3D(ground.X, ground.Y, ground.Z), upD, heading);

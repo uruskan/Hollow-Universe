@@ -57,9 +57,10 @@ public interface IAnimalHost
 
 /// <summary>
 /// Every animal of a zone and the systems that run them (GROUND.md §6.9): the AI on a slow tick staggered across the
-/// animals (8 Hz engaged, 4 Hz calm), movement every tick along the ground, attacks with a wind-up, corpses with a
+/// animals (7.5 Hz engaged, 5 Hz calm), movement every tick along the ground, attacks with a wind-up, corpses with a
 /// timer, spawn areas from the planet's biomes, and a second of poses for hits as the attacker saw them. Animals near no
-/// player sleep. Server state, on the zone's thread; deterministic given the zone's inputs.
+/// player sleep. Server state, on the zone's thread; deterministic given the zone's inputs. On a whole world
+/// (docs/WHOLE_WORLD.md §7.3): headings from local north, distances in three dimensions, steps along the ground.
 /// </summary>
 public sealed partial class AnimalWorld
 {
@@ -81,7 +82,7 @@ public sealed partial class AnimalWorld
     private readonly IAnimalHost _host;
     private readonly List<Animal> _animals = new();
     private readonly Dictionary<EntityId, Animal> _byId = new();
-    private readonly Dictionary<(int X, int Z), List<Animal>> _cells = new();
+    private readonly Dictionary<(int X, int Y, int Z), List<Animal>> _cells = new();
     private readonly Stack<List<Animal>> _spareCells = new();
     private readonly List<Animal> _removed = new();
     private readonly List<Animal> _near = new();
@@ -167,23 +168,23 @@ public sealed partial class AnimalWorld
     /// <summary>One more animal in a herd, near a point (a member coming back).</summary>
     internal Animal AddMember(Herd herd, Vector3 near, int index)
     {
-        ulong seed = Hash64.Of(_seed, (ulong)Tick, (ulong)_localIds, 0xA111);
+        // Each animal its own seed: a counter, so animals added on one tick differ (KNOWN_PROBLEMS.md).
+        ulong seed = Hash64.Of(_seed, (ulong)Tick, (ulong)_localIds++, 0xA111);
         var rng = new Rng(seed);
         float spread = 1.5f + herd.Species.Cohesion * 0.25f;
-        float x = near.X, z = near.Z;
+        Vector3 at = near;
         for (int attempt = 0; attempt < 8; attempt++)
         {
             double angle = rng.NextDouble() * DMath.TwoPi;
             float distance = index == 0 && attempt == 0 ? 0 : (float)rng.Range(1.5, spread);
-            float cx = near.X + distance * (float)DMath.Cos(angle), cz = near.Z + distance * (float)DMath.Sin(angle);
-            if (Nav.Walkable(cx, cz, herd.Species.MaxSlope))
+            Vector3 candidate = Along(near, angle, distance);
+            if (Nav.Walkable(candidate, herd.Species.MaxSlope))
             {
-                x = cx;
-                z = cz;
+                at = candidate;
                 break;
             }
         }
-        var position = new Vector3(x, Nav.Height(x, z), z);
+        Vector3 position = Nav.Ground(at);
         var animal = new Animal(NewId(), herd.Species, herd, position, (float)(rng.NextDouble() * DMath.TwoPi), seed)
         {
             Slot = herd.Members.Count,
@@ -315,13 +316,11 @@ public sealed partial class AnimalWorld
             float nearest = float.MaxValue;
             foreach (AnimalObserver o in Observers)
             {
-                float dx = o.Position.X - a.Position.X, dz = o.Position.Z - a.Position.Z;
-                nearest = MathF.Min(nearest, dx * dx + dz * dz);
+                nearest = MathF.Min(nearest, Vector3.DistanceSquared(o.Position, a.Position));
             }
             foreach (Vector3 w in Watchers)
             {
-                float dx = w.X - a.Position.X, dz = w.Z - a.Position.Z;
-                nearest = MathF.Min(nearest, dx * dx + dz * dz);
+                nearest = MathF.Min(nearest, Vector3.DistanceSquared(w, a.Position));
             }
             bool asleep = nearest > SleepDistance * SleepDistance;
             if (asleep && !a.Asleep)
@@ -357,7 +356,7 @@ public sealed partial class AnimalWorld
             {
                 continue;
             }
-            (int, int) key = ((int)MathF.Floor(a.Position.X / CellSize), (int)MathF.Floor(a.Position.Z / CellSize));
+            (int, int, int) key = CellOf(a.Position);
             if (!_cells.TryGetValue(key, out List<Animal>? cell))
             {
                 cell = _spareCells.Count > 0 ? _spareCells.Pop() : new List<Animal>();
@@ -367,24 +366,29 @@ public sealed partial class AnimalWorld
         }
     }
 
-    /// <summary>The animals within <paramref name="radius"/> of a point (from this tick's grid).</summary>
+    private static (int X, int Y, int Z) CellOf(Vector3 p) =>
+        ((int)MathF.Floor(p.X / CellSize), (int)MathF.Floor(p.Y / CellSize), (int)MathF.Floor(p.Z / CellSize));
+
+    /// <summary>The animals within <paramref name="radius"/> of a point (from this tick's grid of cubes).</summary>
     public void Near(Vector3 point, float radius, List<Animal> into)
     {
         into.Clear();
-        int x0 = (int)MathF.Floor((point.X - radius) / CellSize), x1 = (int)MathF.Floor((point.X + radius) / CellSize);
-        int z0 = (int)MathF.Floor((point.Z - radius) / CellSize), z1 = (int)MathF.Floor((point.Z + radius) / CellSize);
+        (int x0, int y0, int z0) = CellOf(point - new Vector3(radius));
+        (int x1, int y1, int z1) = CellOf(point + new Vector3(radius));
         for (int z = z0; z <= z1; z++)
         {
-            for (int x = x0; x <= x1; x++)
+            for (int y = y0; y <= y1; y++)
             {
-                if (_cells.TryGetValue((x, z), out List<Animal>? cell))
+                for (int x = x0; x <= x1; x++)
                 {
-                    foreach (Animal a in cell)
+                    if (_cells.TryGetValue((x, y, z), out List<Animal>? cell))
                     {
-                        float dx = a.Position.X - point.X, dz = a.Position.Z - point.Z;
-                        if (dx * dx + dz * dz <= radius * radius)
+                        foreach (Animal a in cell)
                         {
-                            into.Add(a);
+                            if (Vector3.DistanceSquared(a.Position, point) <= radius * radius)
+                            {
+                                into.Add(a);
+                            }
                         }
                     }
                 }
@@ -436,7 +440,7 @@ public sealed partial class AnimalWorld
             a.Speed = 0;
             return;
         }
-        if (!Nav.IsReady(a.Position.X, a.Position.Z))
+        if (!Nav.IsReady(a.Position))
         {
             // Its ground isn't mapped yet (a worker builds it): wait a moment.
             Nav.Prefetch(a.Position, 64);
@@ -444,19 +448,21 @@ public sealed partial class AnimalWorld
         }
         Moves++;
         Vector3 up = UpAt(a.Position);
-        (Vector3 forward, _) = CharacterMotor.HorizontalBasis(a.Yaw, up);
+        (Vector3 forward, _) = Facing.Basis(a.Yaw, up);
         Vector3 step = forward * (a.Speed * dt);
         Vector3 next = a.Position + step;
-        if (!Nav.Walkable(next.X, next.Z, s.MaxSlope))
+        if (!Nav.Walkable(next, s.MaxSlope))
         {
-            // Slide along whichever axis is free, or stop.
-            if (Nav.Walkable(next.X, a.Position.Z, s.MaxSlope))
+            // Slide along whichever of local east and north is free, or stop.
+            (Vector3 north, Vector3 east) = Facing.Compass(up);
+            Vector3 alongEast = a.Position + east * Vector3.Dot(step, east), alongNorth = a.Position + north * Vector3.Dot(step, north);
+            if (Nav.Walkable(alongEast, s.MaxSlope))
             {
-                next = new Vector3(next.X, a.Position.Y, a.Position.Z);
+                next = alongEast;
             }
-            else if (Nav.Walkable(a.Position.X, next.Z, s.MaxSlope))
+            else if (Nav.Walkable(alongNorth, s.MaxSlope))
             {
-                next = new Vector3(a.Position.X, a.Position.Y, next.Z);
+                next = alongNorth;
             }
             else
             {
@@ -472,19 +478,25 @@ public sealed partial class AnimalWorld
             {
                 continue;
             }
-            float dx = next.X - other.Position.X, dz = next.Z - other.Position.Z;
-            float apart = MathF.Sqrt(dx * dx + dz * dz), room = a.Species.Radius + other.Species.Radius + 0.15f;
+            Vector3 d = OnGround(next - other.Position, up);
+            float apart = d.Length(), room = a.Species.Radius + other.Species.Radius + 0.15f;
             if (apart < room && apart > 1e-4f)
             {
-                float push = room - apart;
-                float px = next.X + dx / apart * push, pz = next.Z + dz / apart * push;
-                if (Nav.Walkable(px, pz, s.MaxSlope))
+                Vector3 pushed = next + d / apart * (room - apart);
+                if (Nav.Walkable(pushed, s.MaxSlope))
                 {
-                    next = new Vector3(px, next.Y, pz);
+                    next = pushed;
                 }
             }
         }
-        a.Position = new Vector3(next.X, Nav.Height(next.X, next.Z), next.Z);
+        a.Position = Nav.Ground(next);
+    }
+
+    /// <summary>A point <paramref name="distance"/> metres along the ground from another, <paramref name="angle"/> radians anticlockwise from local east.</summary>
+    private Vector3 Along(Vector3 from, double angle, float distance)
+    {
+        (Vector3 north, Vector3 east) = Facing.Compass(UpAt(from));
+        return Nav.Ground(from + (east * (float)DMath.Cos(angle) + north * (float)DMath.Sin(angle)) * distance);
     }
 
     // ---------------------------------------------------------------- attacks
@@ -692,6 +704,6 @@ public sealed partial class AnimalWorld
         return a;
     }
 
-    /// <summary>The characters' yaw of a horizontal direction (0 faces −Z, anticlockwise from above).</summary>
-    internal static float YawOf(Vector3 direction) => (float)DMath.Atan2(-direction.X, -direction.Z);
+    /// <summary>The heading of a direction at a point with this up (from local north, anticlockwise from above: <see cref="Facing"/>).</summary>
+    internal static float YawOf(Vector3 direction, Vector3 up) => Facing.YawOf(direction, up);
 }

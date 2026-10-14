@@ -47,6 +47,9 @@ public sealed class RemoteEntity
 
     public Vector3 Position { get; private set; }
 
+    /// <summary>Where it looks, a direction in the zone's frame (docs/WHOLE_WORLD.md §5); <see cref="Yaw"/> and <see cref="Pitch"/> read it where it stands.</summary>
+    public Vector3 View { get; private set; } = Vector3.UnitZ;
+
     public float Yaw { get; private set; }
 
     public float Pitch { get; private set; }
@@ -152,8 +155,12 @@ public sealed class RemoteEntity
     private void Blend(in CharacterNetState a, in CharacterNetState b, float t, in CharacterNetState discrete)
     {
         Position = Vector3.Lerp(NetConvert.PositionOf(a), NetConvert.PositionOf(b), t);
-        Yaw = Quantize.FromAngle16(a.Yaw) + t * Quantize.FromAngle16((ushort)(b.Yaw - a.Yaw));
-        Pitch = Quantize.FromAngle16(a.Pitch) + t * Quantize.FromAngle16((ushort)(b.Pitch - a.Pitch));
+        // The views turned between (never angles taken at two places), then read as a heading and pitch where it stands.
+        Vector3 va = NetConvert.ViewOf(a), vb = NetConvert.ViewOf(b);
+        View = Slerp(va, vb, t);
+        Vector3 up = Position.LengthSquared() > 0 ? Vector3.Normalize(Position) : Vector3.UnitY;
+        Yaw = Facing.YawOf(View, up);
+        Pitch = Facing.PitchOf(View, up);
         // The head's turn is blended, never carried on past the newest state.
         float look = Math.Clamp(t, 0f, 1f);
         LookYaw = NetConvert.FromLook(a.LookYaw) + look * (NetConvert.FromLook(b.LookYaw) - NetConvert.FromLook(a.LookYaw));
@@ -167,5 +174,17 @@ public sealed class RemoteEntity
         Sleeping = discrete.Sleeping;
         Aiming = discrete.Aiming;
         HeldMods = discrete.HeldMods;
+    }
+
+    private static Vector3 Slerp(Vector3 a, Vector3 b, float t)
+    {
+        float cos = Math.Clamp(Vector3.Dot(a, b), -1f, 1f);
+        if (cos > 0.9995f)
+        {
+            Vector3 mixed = Vector3.Lerp(a, b, t);
+            return mixed.LengthSquared() > 0 ? Vector3.Normalize(mixed) : a;
+        }
+        float angle = MathF.Acos(cos), sin = MathF.Sin(angle);
+        return Vector3.Normalize(a * (MathF.Sin((1 - t) * angle) / sin) + b * (MathF.Sin(t * angle) / sin));
     }
 }

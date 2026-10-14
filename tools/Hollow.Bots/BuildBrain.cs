@@ -61,8 +61,13 @@ public sealed class BuildBrain
     public BuildBrain(int index)
     {
         _rng = new Rng(Hash64.Of((ulong)index, 0xB01D));
-        _site = new Vector3((index % 10 - 4.5f) * PlotSpacing, 0, (index / 10 % 10 - 4.5f) * PlotSpacing);
+        // The plot, east and south of the landing site (laid on the ground once home is known).
+        _plotEast = (index % 10 - 4.5f) * PlotSpacing;
+        _plotSouth = (index / 10 % 10 - 4.5f) * PlotSpacing;
     }
+
+    private readonly float _plotEast, _plotSouth;
+    private bool _plotted;
 
     /// <summary>Where the bot's own refusals are told (the first bot's).</summary>
     public Action<string>? Log { get; init; }
@@ -106,8 +111,13 @@ public sealed class BuildBrain
             return input;
         }
         Vector3 feet = client.Character.Position;
+        if (!_plotted && BotGround.Home != default)
+        {
+            _site = BotGround.Offset(client, BotGround.Home, _plotEast, _plotSouth);
+            _plotted = true;
+        }
         // The bot stands south of its base's middle, 2 m from its south walls, within reach of everything.
-        Vector3 stand = _site + new Vector3(1.5f, 0, -3.5f);
+        Vector3 stand = BotGround.Offset(client, _site, 1.5f, -3.5f);
         switch (_stage)
         {
             case Stage.WaitForKit:
@@ -125,7 +135,7 @@ public sealed class BuildBrain
                 else if (Stuck(time, feet, stand))
                 {
                     // Stuck behind a tree or a rock: the base goes near where the bot stands.
-                    _site = feet - new Vector3(1.5f, 0, -3.5f);
+                    _site = BotGround.Offset(client, feet, -1.5f, 3.5f);
                     _stage = Stage.Foundation;
                 }
                 break;
@@ -134,7 +144,7 @@ public sealed class BuildBrain
                 {
                     break;
                 }
-                _f1 ??= client.Building().World!.AllPieces.FirstOrDefault(p => p.Def.Family == PieceFamily.Foundation && Flat(p.ZoneTransform.Position - _site) < 1.5f);
+                _f1 ??= client.Building().World!.AllPieces.FirstOrDefault(p => p.Def.Family == PieceFamily.Foundation && Flat(p.ZoneTransform.Position, _site) < 1.5f);
                 if (_f1 != null)
                 {
                     // Where the bot stands to build the rest: south of the base's middle.
@@ -155,7 +165,7 @@ public sealed class BuildBrain
                 // Judged from here, on the ground around: the first spot near the plot, or near where the bot stands,
                 // where the rules take a foundation now.
                 PlacementPlan? plan = null;
-                foreach (Vector3 spot in ClearSpots(client, _site, 2).Concat(ClearSpots(client, feet - new Vector3(1.5f, 0, -3.5f), 2)))
+                foreach (Vector3 spot in ClearSpots(client, _site, 2).Concat(ClearSpots(client, BotGround.Offset(client, feet, -1.5f, 3.5f), 2)))
                 {
                     if (SiteWorks(client, spot, out PlacementPlan? works))
                     {
@@ -167,7 +177,7 @@ public sealed class BuildBrain
                 if (plan == null)
                 {
                     Log?.Invoke($"{client.Name}: no spot for the base near {_site}");
-                    _site = ClearSite(client, _site + new Vector3(0, 0, 10));
+                    _site = ClearSite(client, BotGround.Offset(client, _site, 0, 10));
                     _stage = Stage.Walk;
                     _sentAt = time;
                     break;
@@ -232,12 +242,13 @@ public sealed class BuildBrain
     // The last intent was answered (or given up on after five seconds).
     private bool Answered(double time) => _waiting == 0 || _answered || time - _sentAt > 5;
 
-    private static float Flat(Vector3 v) => new Vector2(v.X, v.Z).Length();
+    // How far apart two points are along the ground.
+    private static float Flat(Vector3 a, Vector3 b) => BotGround.Distance(a, b);
 
     // No closer to where it walks for four seconds.
     private bool Stuck(double time, Vector3 feet, Vector3 to)
     {
-        float left = Flat(to - feet);
+        float left = Flat(to, feet);
         if (_walkFrom != to)
         {
             _walkFrom = to;
@@ -268,9 +279,9 @@ public sealed class BuildBrain
             for (int k = 0; k < (ring == 0 ? 1 : 8); k++)
             {
                 double angle = k * Math.PI / 4;
-                Vector3 site = around + new Vector3((float)(ring * 4 * Math.Cos(angle)), 0, (float)(ring * 4 * Math.Sin(angle)));
+                Vector3 site = BotGround.Offset(client, around, (float)(ring * 4 * Math.Cos(angle)), (float)(ring * 4 * Math.Sin(angle)));
                 found.Clear();
-                nature.Query(site.X - 4, site.Z - 6, site.X + 7, site.Z + 4, found);
+                nature.Query(site, 7, found);
                 if (!found.Any(o => client.Content.Natural(o.Kind) is { IsSolid: true } && !state.IsDepleted(o.Id)))
                 {
                     yield return site;
@@ -509,12 +520,12 @@ public sealed class BuildBrain
     // Walks toward a point until within reach of it; true once there.
     private bool Steer(ref InputFrame input, Vector3 feet, Vector3 to, float reach, double delta)
     {
-        var flat = new Vector2(to.X - feet.X, to.Z - feet.Z);
+        Vector3 flat = BotGround.Flat(to - feet, feet);
         if (flat.Length() <= reach)
         {
             return true;
         }
-        float wanted = MathF.Atan2(-flat.X, -flat.Y);
+        float wanted = BotGround.YawTo(feet, to);
         float turn = wanted - _yaw;
         while (turn > MathF.PI)
         {

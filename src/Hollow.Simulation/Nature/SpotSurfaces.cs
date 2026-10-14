@@ -50,12 +50,8 @@ public static class SpotFrames
     /// <summary>The horizontal direction a yaw faces at an object.</summary>
     public static Vector3 Facing(in NaturalObject o, double yaw) => CharacterMotor.HorizontalBasis((float)yaw, o.Up).Forward;
 
-    /// <summary>The yaw (about the object's up) of a direction.</summary>
-    public static double YawOf(in NaturalObject o, Vector3 direction)
-    {
-        Vector3 flat = direction - o.Up * Vector3.Dot(direction, o.Up);
-        return DMath.Atan2(-flat.X, -flat.Z);
-    }
+    /// <summary>The yaw (about the object's up, from local north: <see cref="Movement.Facing"/>) of a direction.</summary>
+    public static double YawOf(in NaturalObject o, Vector3 direction) => Movement.Facing.YawOf(direction, o.Up);
 
     /// <summary>
     /// The frame a model of the object is drawn in (the client's <c>NatureView.Upright</c>): X its right, Y its up, Z its

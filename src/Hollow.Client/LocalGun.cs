@@ -310,8 +310,9 @@ public sealed class LocalGun
             Shooter = me,
             Seq = _nextSeq,
             Tick = tick,
-            Yaw = Quantize.FromAngle16(command.Yaw),
-            Pitch = Quantize.FromAngle16(command.Pitch),
+            // The command's view as a heading and pitch where the player stands, as the server reads the intent.
+            Yaw = Facing.YawOf(NetConvert.View(command.ViewU, command.ViewV), up),
+            Pitch = Facing.PitchOf(NetConvert.View(command.ViewU, command.ViewV), up),
             Aimed = aim,
             Eye = state.Position + up * tuning.EyeHeight(state.Stance),
             Up = up,
@@ -353,7 +354,7 @@ public sealed class LocalGun
         {
             GunActionKind.Fire => _player.SendRaw(w => new FireIntent
             {
-                Seq = seq, Tick = tick, Slot = slot, Item = item, Yaw = command.Yaw, Pitch = command.Pitch,
+                Seq = seq, Tick = tick, Slot = slot, Item = item, ViewU = command.ViewU, ViewV = command.ViewV,
                 Aimed = (command.Actions & ActionButtons.Secondary) != 0, ViewDelay = command.ViewDelay,
             }.WriteMessage(w)),
             GunActionKind.Reload => _player.SendRaw(w => new ReloadIntent { Seq = seq, Tick = tick, Slot = slot, Item = item, Ammo = ammo }.WriteMessage(w)),

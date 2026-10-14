@@ -4,8 +4,10 @@ namespace Hollow.Server;
 public struct NetPresence
 {
     public uint NetId;
-    public ushort Yaw;
-    public ushort Pitch;
+
+    /// <summary>The view of the last input, octahedral as it came (docs/WHOLE_WORLD.md §5).</summary>
+    public ushort ViewU;
+    public ushort ViewV;
 
     /// <summary>Free look (Alt), as the last input had it: drawn by others only (GROUND.md §4.5).</summary>
     public sbyte LookYaw;

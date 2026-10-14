@@ -82,12 +82,11 @@ public sealed class FlyBrain
         var input = new InputFrame();
         if (flat.Length() > 0.6f)
         {
-            input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
+            input.Yaw = BotGround.YawTo(feet, spot);
             input.Forward = 1;
             return input;
         }
-        Vector3 look = hatch - (feet + up * 1.6f);
-        input.Yaw = MathF.Atan2(-look.X, -look.Z);
+        input.Yaw = BotGround.YawTo(feet + up * 1.6f, hatch);
         if (time >= _nextIntent)
         {
             _nextIntent = time + 1.5;
@@ -118,11 +117,10 @@ public sealed class FlyBrain
         Vector3 forward = s.Forward;
         ship.Throttle = 0.45f + 0.15f * (float)Math.Sin(flying / 7 + _index);
         ship.Yaw = _turn;
-        // Home if strayed: turn toward the origin.
-        var flatPosition = new Vector2(s.Position.X, s.Position.Z);
-        if (flatPosition.Length() > HomeRadius)
+        // Home if strayed: turn toward the landing site.
+        if (Vector3.Distance(s.Position, BotGround.Home) > HomeRadius)
         {
-            Vector3 home = -s.Position;
+            Vector3 home = BotGround.Home - s.Position;
             Vector3 flatHome = Vector3.Normalize(home - up * Vector3.Dot(home, up));
             Vector3 flatForward = forward - up * Vector3.Dot(forward, up);
             float side = Vector3.Dot(Vector3.Cross(flatForward, flatHome), up);

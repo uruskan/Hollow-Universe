@@ -1,5 +1,5 @@
 {
-  "source": "G7 World, part A (GROUND.md §6.8): Rust's loot economy and progression with our names. Salvage is our scrap, the currency. Barrels break and spill their loot; crates are looted and go once empty; both come back on a timer (Rust's spawn groups refill in about 20 to 45 minutes). The recycler returns about half of a crafted item's recipe (Rust's 50%) and fixed salvage and materials for loot-only components (Rust's recycler table: gears 10 scrap and 13 metal fragments, springs 10 and one HQM, pipes 5 and one HQM, tech trash 20 and one HQM, blades 2 and 15 fragments, sheet metal 8, 100 fragments and one HQM, road signs 5 and one HQM, the semi body 15, 75 fragments and two HQM, the rifle body 25 and two HQM), one batch every 5 s, a tenth of a stack at a time. Research tables take 10 s and Rust's scrap prices by tier (20, 75, 125, 500). Tech trees: one per workbench level, Rust's layout and scrap costs in kind, each node needing one of the nodes before it; a recipe in no tree is known from the start (Rust's default blueprints). Teams of 8 (Rust's default), invites last 5 minutes. Up to 5 map markers. Loot spots: deterministic clusters of barrels and a crate along coasts and forest edges round the zone's origin (and some in the open), never within 90 m of the origin, where players arrive. Recyclers stand at fixed points near the landing site.",
+  "source": "G7 World, part A (GROUND.md §6.8): Rust's loot economy and progression with our names. Salvage is our scrap, the currency. Barrels break and spill their loot; crates are looted and go once empty; both come back on a timer (Rust's spawn groups refill in about 20 to 45 minutes). The recycler returns about half of a crafted item's recipe (Rust's 50%) and fixed salvage and materials for loot-only components (Rust's recycler table: gears 10 scrap and 13 metal fragments, springs 10 and one HQM, pipes 5 and one HQM, tech trash 20 and one HQM, blades 2 and 15 fragments, sheet metal 8, 100 fragments and one HQM, road signs 5 and one HQM, the semi body 15, 75 fragments and two HQM, the rifle body 25 and two HQM), one batch every 5 s, a tenth of a stack at a time. Research tables take 10 s and Rust's scrap prices by tier (20, 75, 125, 500). Tech trees: one per workbench level, Rust's layout and scrap costs in kind, each node needing one of the nodes before it; a recipe in no tree is known from the start (Rust's default blueprints). Teams of 8 (Rust's default), invites last 5 minutes. Up to 5 map markers. Loot spots: deterministic clusters of barrels and a crate along coasts and forest edges over the whole world (and some in the open), never within 90 m of the landing site. One recycler stands on each cube face of the world.",
   "currency": "salvage",
   "blueprint": "blueprint",
   "props": [
@@ -69,13 +69,13 @@
     ] }
   ],
   "loot": {
-    "radius": 1600, "cell": 130, "clear": 90, "spread": 6,
+    "cell": 130, "clear": 90, "spread": 6,
     "coast": 0.7, "forestEdge": 0.35, "open": 0.06,
     "barrels": [2, 4], "fuelBarrel": 0.2, "crate": 0.85, "military": 0.22,
     "landing": [130, 0, 40],
-    "note": "One candidate cluster per cell within the radius, kept by what is around it: the sea within 40 m (coast), a forest edge (trees near but not on the spot, or forest and open biomes side by side), or open ground. 'landing' is a cluster always kept near the origin, so arrivals find loot."
+    "note": "One candidate cluster per cube-sphere cell of the level nearest 'cell' metres, over the whole world (docs/WHOLE_WORLD.md §7.2), never within 'clear' of the landing site, kept by what is around it: the sea within 35 m (coast), a forest edge (trees near but not on the spot, or forest and open biomes side by side), or open ground. 'landing' is a cluster always kept near the landing site (metres east, unused, south of it), so arrivals there find loot."
   },
-  "recyclers": { "count": 3, "points": [[105, -40], [-80, 95], [60, 130], [-140, -60], [150, 70], [-30, -150]] },
+  "recyclers": { "perFace": 1, "note": "One recycler on each of the world's six cube faces, on the face's first coastal cell with room, else its first with room (docs/WHOLE_WORLD.md decision 9)." },
   "teams": { "size": 8, "inviteSeconds": 300 },
   "map": { "markers": 5, "metres": 3900, "cell": 150 }
 }

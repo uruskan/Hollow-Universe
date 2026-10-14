@@ -248,7 +248,7 @@ public partial class GroundAudio : Node
             return 0;
         }
         var list = new List<NaturalObject>();
-        nature.Query(at.X - 30, at.Z - 30, at.X + 30, at.Z + 30, list);
+        nature.Query(at, 30, list);
         int trees = 0;
         foreach (NaturalObject o in list)
         {

@@ -29,20 +29,34 @@ public readonly struct BuildingFrame : IEquatable<BuildingFrame>
 
     /// <summary>
     /// A frame at a zone point with +Y along <paramref name="up"/>, turned about it by <paramref name="headingRadians"/>
-    /// from the zone's east (projected onto the local horizontal), the same way piece yaws turn.
+    /// from local east (the pole axis crossed with up; at a pole the body's −Z, as <c>Facing.Compass</c> has it), the same
+    /// way piece yaws turn: +X east and +Z south at heading 0 (docs/WHOLE_WORLD.md §5).
     /// </summary>
     public static BuildingFrame At(Vector3D origin, Vector3D up, double headingRadians)
     {
         Vector3D y = up.Normalized;
-        Vector3D east = Vector3D.UnitX - y * Vector3D.Dot(Vector3D.UnitX, y);
-        if (east.LengthSquared < 1e-12)
-        {
-            east = Vector3D.UnitZ - y * Vector3D.Dot(Vector3D.UnitZ, y);
-        }
-        Vector3D x0 = east.Normalized;
+        Vector3D x0 = EastAt(y);
         Vector3D z0 = Vector3D.Cross(x0, y);
         double c = Math.Cos(headingRadians), s = Math.Sin(headingRadians);
         return new BuildingFrame(origin, x0 * c - z0 * s, y, x0 * s + z0 * c);
+    }
+
+    /// <summary>Local east at a point with this (unit) up: the pole axis crossed with up, or the body's −Z at a pole.</summary>
+    public static Vector3D EastAt(Vector3D up)
+    {
+        var east = new Vector3D(up.Z, 0, -up.X);
+        return east.Length > 1e-4 ? east.Normalized : (new Vector3D(0, 0, -1) + up * up.Z).Normalized;
+    }
+
+    /// <summary>
+    /// The heading <see cref="At"/> takes to turn a frame's +Z along a direction lying on the ground at a point with this
+    /// up (the inverse of <see cref="At"/>'s turn).
+    /// </summary>
+    public static double HeadingOf(Vector3D direction, Vector3D up)
+    {
+        Vector3D x0 = EastAt(up.Normalized);
+        Vector3D z0 = Vector3D.Cross(x0, up.Normalized);
+        return Math.Atan2(Vector3D.Dot(direction, x0), Vector3D.Dot(direction, z0));
     }
 
     public Vector3D ToZone(Vector3D local) => Origin + AxisX * local.X + AxisY * local.Y + AxisZ * local.Z;

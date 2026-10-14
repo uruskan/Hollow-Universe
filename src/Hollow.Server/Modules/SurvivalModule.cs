@@ -428,6 +428,7 @@ public sealed class SurvivalModule : ServerModule
                     {
                         Id = bag.Id.Value,
                         X = bag.Position.X,
+                        Y = bag.Position.Y,
                         Z = bag.Position.Z,
                         ReadySeconds = (uint)Math.Max(0, Math.Ceiling((bag.ReadyAtUnixMs - Zone.UnixMilliseconds) / 1000.0)),
                     });

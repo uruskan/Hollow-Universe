@@ -182,8 +182,7 @@ public static class NaturalAim
         Vector3 end = ray.Origin + ray.Direction * length;
         const float margin = 4f;
         scratch.Clear();
-        nature.Query(MathF.Min(ray.Origin.X, end.X) - margin, MathF.Min(ray.Origin.Z, end.Z) - margin, MathF.Max(ray.Origin.X, end.X) + margin,
-            MathF.Max(ray.Origin.Z, end.Z) + margin, scratch);
+        nature.Query((ray.Origin + end) / 2, length / 2 + margin, scratch);
         foreach (Nature.NaturalObject o in scratch)
         {
             if (content.Natural(o.Kind) is not { } kind || state.IsDepleted(o.Id))

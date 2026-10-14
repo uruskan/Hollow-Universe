@@ -49,7 +49,7 @@ public readonly record struct CraftJobView(uint Ticket, Recipe Recipe, int Count
     float UnitSeconds = 0);
 
 /// <summary>A place to respawn: a sleeping bag (or the beach, with no bag), ready in some seconds.</summary>
-public readonly record struct RespawnOption(EntityId Bag, Vector2 Position, double ReadyAtSeconds)
+public readonly record struct RespawnOption(EntityId Bag, Vector3 Position, double ReadyAtSeconds)
 {
     public bool IsBeach => Bag.IsNone;
 }
@@ -151,6 +151,9 @@ public sealed partial class LocalPlayer
 
     /// <summary>Sends a message on the reliable channel (set by the client); false when not connected and playing.</summary>
     internal Func<Action<BitWriter>, bool>? Send { get; set; }
+
+    /// <summary>Up where the player's predicted character stands (the client sets it): headings are read there.</summary>
+    internal Func<System.Numerics.Vector3>? Up { get; set; }
 
     /// <summary>Sends a gun intent (reliable, unordered: a lost shot holds nothing else up); falls back to <see cref="Send"/>.</summary>
     internal Func<Action<BitWriter>, bool>? SendGun { get; set; }
@@ -739,10 +742,10 @@ public sealed partial class LocalPlayer
         var options = new List<RespawnOption>();
         if (m.Dead)
         {
-            options.Add(new RespawnOption(EntityId.None, Vector2.Zero, ClockSeconds + m.BeachReadySeconds));
+            options.Add(new RespawnOption(EntityId.None, Vector3.Zero, ClockSeconds + m.BeachReadySeconds));
             foreach (BagNet bag in m.Bags ?? Array.Empty<BagNet>())
             {
-                options.Add(new RespawnOption(new EntityId(bag.Id), new Vector2(bag.X, bag.Z), ClockSeconds + bag.ReadySeconds));
+                options.Add(new RespawnOption(new EntityId(bag.Id), new Vector3(bag.X, bag.Y, bag.Z), ClockSeconds + bag.ReadySeconds));
             }
         }
         bool wasDown = Life.Wounded;

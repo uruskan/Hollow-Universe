@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Animals;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Diagnostics;
@@ -330,21 +331,22 @@ public sealed class DevModule : ServerModule
         _cells ??= new DevCellNet[NavCells * NavCells];
         float half = NavCells * NavGrid.CellSize / 2;
         // The areas under the window, built ahead on worker threads and taken in by the animals' step; a cell whose
-        // area isn't in yet says so.
+        // area isn't in yet says so. The window lies flat on the ground at the watcher: columns run east, rows south
+        // (docs/WHOLE_WORLD.md §7.3), as the client draws it.
         nav.Prefetch(at, half + NavGrid.AreaSize / 2);
-        float ox = MathF.Floor((at.X - half) / NavGrid.CellSize) * NavGrid.CellSize;
-        float oz = MathF.Floor((at.Z - half) / NavGrid.CellSize) * NavGrid.CellSize;
+        (Vector3 north, Vector3 east) = Facing.Compass(Zone.Frame.UpAt(at));
+        Vector3 corner = at - east * half + north * half;
         for (int j = 0; j < NavCells; j++)
         {
             for (int i = 0; i < NavCells; i++)
             {
-                float x = ox + (i + 0.5f) * NavGrid.CellSize, z = oz + (j + 0.5f) * NavGrid.CellSize;
+                Vector3 point = corner + (east * (i + 0.5f) - north * (j + 0.5f)) * NavGrid.CellSize;
                 byte flags = 8;
-                if (nav.IsReady(x, z))
+                if (nav.IsReady(point))
                 {
-                    NavFlags f = nav.Flags(x, z);
+                    NavFlags f = nav.Flags(point);
                     flags = (byte)(((f & NavFlags.Water) != 0 ? 1 : 0) | ((f & NavFlags.Blocked) != 0 ? 2 : 0));
-                    if (flags == 0 && !nav.Walkable(x, z, _maxSlope))
+                    if (flags == 0 && !nav.Walkable(point, _maxSlope))
                     {
                         flags = 4;
                     }
@@ -353,7 +355,7 @@ public sealed class DevModule : ServerModule
             }
         }
         Writer.Reset();
-        new DevNav { OriginX = ox, OriginZ = oz, Cells = NavCells, Flags = _cells }.WriteMessage(Writer);
+        new DevNav { CentreX = at.X, CentreY = at.Y, CentreZ = at.Z, Cells = NavCells, Flags = _cells }.WriteMessage(Writer);
         session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
     }
 

@@ -242,8 +242,7 @@ public sealed class PlacementWorld
         {
             _nature.Clear();
             const float margin = 3f;
-            Nature.Query(MathF.Min(from.X, to.X) - margin, MathF.Min(from.Z, to.Z) - margin, MathF.Max(from.X, to.X) + margin,
-                MathF.Max(from.Z, to.Z) + margin, _nature);
+            Nature.Query((from + to) / 2, Vector3.Distance(from, to) / 2 + margin, _nature);
             foreach (NaturalObject o in _nature)
             {
                 NaturalKind? kind = Content.Natural(o.Kind);

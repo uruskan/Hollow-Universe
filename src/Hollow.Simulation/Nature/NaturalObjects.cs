@@ -37,10 +37,10 @@ public readonly record struct NaturalObject
 public interface INaturalObjects
 {
     /// <summary>
-    /// Adds the objects whose base lies in [<paramref name="minX"/>, <paramref name="maxX"/>) ×
-    /// [<paramref name="minZ"/>, <paramref name="maxZ"/>) of the zone's tangent plane, always in the same order.
+    /// Adds the objects whose base lies within <paramref name="radius"/> metres of <paramref name="centre"/> (a point of
+    /// the zone, straight-line distance), always in the same order (docs/WHOLE_WORLD.md §7.1).
     /// </summary>
-    void Query(float minX, float minZ, float maxX, float maxZ, List<NaturalObject> into);
+    void Query(Vector3 centre, float radius, List<NaturalObject> into);
 
     /// <summary>The object with an ID (from outside: untrusted, so a made-up one is simply not found).</summary>
     bool TryGet(ulong id, out NaturalObject found);

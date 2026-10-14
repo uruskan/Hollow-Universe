@@ -44,7 +44,7 @@ public partial class DevDraw : Node3D
     private ImmediateMesh _frameMesh = null!, _navMesh = null!, _areasMesh = null!;
     private MeshInstance3D _frame = null!, _nav = null!, _areas = null!;
     private StandardMaterial3D _throughMaterial = null!, _groundMaterial = null!;
-    private readonly Dictionary<(int X, int Z), MeshInstance3D> _tiles = new();
+    private readonly Dictionary<TileKey, MeshInstance3D> _tiles = new();
     private readonly List<Label3D> _labels = new();
     private int _navSeen = -1, _areasSeen = -1;
     private bool _navWas, _areasWas;
@@ -140,7 +140,7 @@ public partial class DevDraw : Node3D
             for (int i = 0; i <= segments; i++)
             {
                 float angle = i * MathF.Tau / segments;
-                Num.Vector3 p = probe.At(feet.X + radius * MathF.Cos(angle), feet.Z + radius * MathF.Sin(angle));
+                Num.Vector3 p = probe.Offset(feet, radius * MathF.Cos(angle), radius * MathF.Sin(angle));
                 Vector3 point = GroundView.ToGodot(p + Client.Frame.UpAt(p) * 0.3f);
                 if (last is { } previous)
                 {
@@ -229,27 +229,24 @@ public partial class DevDraw : Node3D
             }
             return;
         }
-        (int cx, int cz) = PhysicsWorld.TileOf(feet);
-        var wanted = new HashSet<(int, int)>();
-        for (int dz = -1; dz <= 1; dz++)
+        var near = new List<TileKey>();
+        TileKey.Around(physics.Frame.ToBody(feet), PhysicsWorld.EnsureReach, physics.Surface.Radius, physics.Level, near);
+        var wanted = new HashSet<TileKey>();
+        foreach (TileKey key in near)
         {
-            for (int dx = -1; dx <= 1; dx++)
+            if (!physics.HasTile(key))
             {
-                (int x, int z) = (cx + dx, cz + dz);
-                if (!physics.HasTile(x, z))
-                {
-                    continue;
-                }
-                wanted.Add((x, z));
-                if (!_tiles.ContainsKey((x, z)))
-                {
-                    var instance = new MeshInstance3D { Name = $"Tile {x} {z}", Mesh = TileWire(physics.TileMesh(x, z)), MaterialOverride = _groundMaterial };
-                    AddChild(instance);
-                    _tiles[(x, z)] = instance;
-                }
+                continue;
+            }
+            wanted.Add(key);
+            if (!_tiles.ContainsKey(key))
+            {
+                var instance = new MeshInstance3D { Name = $"Tile {key}", Mesh = TileWire(physics.TileMesh(key)), MaterialOverride = _groundMaterial };
+                AddChild(instance);
+                _tiles[key] = instance;
             }
         }
-        foreach ((int, int) key in new List<(int, int)>(_tiles.Keys))
+        foreach (TileKey key in new List<TileKey>(_tiles.Keys))
         {
             if (!wanted.Contains(key))
             {
@@ -320,13 +317,16 @@ public partial class DevDraw : Node3D
             var probe = new GroundProbe(surface, Client.Frame);
             int n = nav.Cells;
             float size = NavGrid.CellSize;
-            // The corners' heights once, then each cell as its four edges.
+            // The window lies flat on the ground at its centre: columns east, rows south from its north-west corner
+            // (docs/WHOLE_WORLD.md §7.3). The corners' heights once, then each cell as its four edges.
+            (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(Client.Frame.UpAt(nav.Centre));
+            Num.Vector3 corner = nav.Centre - east * (n * size / 2) + north * (n * size / 2);
             var corners = new Vector3[(n + 1) * (n + 1)];
             for (int j = 0; j <= n; j++)
             {
                 for (int i = 0; i <= n; i++)
                 {
-                    Num.Vector3 g = probe.At(nav.OriginX + i * size, nav.OriginZ + j * size);
+                    Num.Vector3 g = probe.Settle(corner + (east * i - north * j) * size);
                     corners[j * (n + 1) + i] = GroundView.ToGodot(g + Client.Frame.UpAt(g) * NavLift);
                 }
             }

@@ -40,15 +40,15 @@ public partial class NatureView : Node3D
     /// <summary>Weak spots are drawn within this distance of the player.</summary>
     private const float MarkerDistance = 12;
 
-    private readonly Dictionary<(int X, int Z), List<(ulong Id, Node3D Node, int Stage)>> _outcrops = new();
+    private readonly Dictionary<TileKey, List<(ulong Id, Node3D Node, int Stage)>> _outcrops = new();
     private readonly List<NaturalObject> _scratch = new();
     private readonly List<TreeFall> _falls = new();
     private readonly HashSet<ulong> _falling = new();
-    private readonly HashSet<(int, int)> _changedTiles = new();
+    private readonly HashSet<TileKey> _changedTiles = new();
     private readonly HashSet<ulong> _spotted = new();
     private readonly List<PendingSound> _pending = new();
     private NatureMarkers _markers = null!;
-    private (int X, int Z) _centre = (int.MinValue, 0);
+    private TileKey? _centre;
     private uint _revision = uint.MaxValue;
     private uint _markedRevision = uint.MaxValue;
     private Num.Vector3 _markedAt = new(float.MaxValue);
@@ -235,12 +235,12 @@ public partial class NatureView : Node3D
                 continue;
             }
             Num.Vector3 centre = Client.Frame.ToLocal(tile.Centre * Client.Surface!.Radius);
-            float distance = Num.Vector2.Distance(new Num.Vector2(centre.X, centre.Z), new Num.Vector2(feet.X, feet.Z));
+            float distance = Num.Vector3.Distance(centre, feet);
             bool tree = World.Plants?.Library?.For((ScatterKind)(index >> 24)) is { Tree: true };
             bool falls = false;
             if (distance < FallDistance + 60 && Cached(id, out NaturalObject o))
             {
-                _changedTiles.Add(PhysicsWorld.TileOf(o.Position));
+                _changedTiles.Add(TileOf(o.Position));
                 distance = Num.Vector3.Distance(o.Position, feet);
                 falls = React(o, tile, distance);
             }
@@ -465,38 +465,43 @@ public partial class NatureView : Node3D
 
     // ---------------------------------------------------------------- outcrops
 
-    private void UpdateOutcrops(Num.Vector3 feet, HashSet<(int, int)> changed)
+    // The ground tile (the physics' level) a point lies in.
+    private TileKey TileOf(Num.Vector3 p) => TileKey.At(Client.Frame.ToBody(p), PhysicsWorld.LevelOn(Client.Surface!.Radius));
+
+    private void UpdateOutcrops(Num.Vector3 feet, HashSet<TileKey> changed)
     {
         // The placeholders take the plants' rock material: wait for it.
         PlaceholderModels.Library ??= World.Plants?.Library;
-        if (PlaceholderModels.Library == null && GroundModels.Provider is PlaceholderModels)
+        if (PlaceholderModels.Library == null && GroundModels.Provider is PlaceholderModels || Client.Surface == null)
         {
             return;
         }
-        (int, int) centre = PhysicsWorld.TileOf(feet);
+        TileKey centre = TileOf(feet);
         if (centre == _centre && changed.Count == 0)
         {
             return;
         }
         _centre = centre;
-        foreach ((int X, int Z) key in _outcrops.Keys.Where(k => Math.Max(Math.Abs(k.X - _centre.X), Math.Abs(k.Z - _centre.Z)) > OutcropTiles + 1).ToList())
+        float reach = OutcropTiles * PhysicsWorld.TileSize;
+        double radius = Client.Surface.Radius;
+        float Distance(TileKey key) => Num.Vector3.Distance(Client.Frame.ToLocal(key.Centre * radius), feet);
+        foreach (TileKey key in _outcrops.Keys.Where(k => Distance(k) > reach + 120).ToList())
         {
             Clear(key);
         }
-        for (int z = _centre.Z - OutcropTiles; z <= _centre.Z + OutcropTiles; z++)
+        var near = new List<TileKey>();
+        TileKey.Around(Client.Frame.ToBody(feet), reach, radius, centre.Level, near);
+        foreach (TileKey key in near)
         {
-            for (int x = _centre.X - OutcropTiles; x <= _centre.X + OutcropTiles; x++)
+            if (_outcrops.ContainsKey(key) && !changed.Contains(key))
             {
-                if (_outcrops.ContainsKey((x, z)) && !changed.Contains((x, z)))
-                {
-                    continue;
-                }
-                BuildOutcrops(x, z);
+                continue;
             }
+            BuildOutcrops(key);
         }
     }
 
-    private void Clear((int X, int Z) key)
+    private void Clear(TileKey key)
     {
         if (_outcrops.Remove(key, out var list))
         {
@@ -507,14 +512,16 @@ public partial class NatureView : Node3D
         }
     }
 
-    private void BuildOutcrops(int tx, int tz)
+    private void BuildOutcrops(TileKey tile)
     {
-        Dictionary<ulong, (Node3D Node, int Stage)> old = _outcrops.TryGetValue((tx, tz), out var existing)
+        Dictionary<ulong, (Node3D Node, int Stage)> old = _outcrops.TryGetValue(tile, out var existing)
             ? existing.ToDictionary(e => e.Id, e => (e.Node, e.Stage))
             : new Dictionary<ulong, (Node3D, int)>();
         var list = new List<(ulong, Node3D, int)>();
         _scratch.Clear();
-        Client.Survival().Nature!.Query(tx * PhysicsWorld.TileSize, tz * PhysicsWorld.TileSize, (tx + 1) * PhysicsWorld.TileSize, (tz + 1) * PhysicsWorld.TileSize, _scratch);
+        double edge = TileKey.EdgeLength(tile.Level, Client.Surface!.Radius);
+        Client.Survival().Nature!.Query(Client.Frame.ToLocal(tile.Centre * Client.Surface.Radius), (float)(edge * 1.1) + 20f, _scratch);
+        _scratch.RemoveAll(o => TileOf(o.Position) != tile);
         NaturalState state = Client.Survival().Natural!;
         foreach (NaturalObject o in _scratch)
         {
@@ -543,7 +550,7 @@ public partial class NatureView : Node3D
         {
             node.QueueFree();
         }
-        _outcrops[(tx, tz)] = list;
+        _outcrops[tile] = list;
         FrameEvents.Note("outcrops");
     }
 

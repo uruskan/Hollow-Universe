@@ -80,13 +80,12 @@ public sealed class RaidBrain
             Chores(client.Content, me);
         }
 
-        // The target: the next bot's hut on the ring; its doorway faces the origin.
-        (float hx, float hz, double _) = TestBases.Ring((_index + 1) % _huts, _huts, _radius);
+        // The target: the next bot's hut on the ring round the landing site; its doorway faces the landing site.
+        (Vector3 centre, double _) = TestBases.Ring(client.Placement().Ground!.Value, BotGround.Home, (_index + 1) % _huts, _huts, _radius);
         Vector3 feet = client.Character.Position;
         Vector3 up = client.Frame.UpAt(feet);
         Vector3 eye = feet + up * client.EyeHeight;
-        var centre = new Vector3(hx, Ground(client, hx, hz), hz);
-        Vector3 outward = Vector3.Normalize(new Vector3(-hx, 0, -hz));
+        Vector3 outward = Vector3.Normalize(BotGround.Flat(BotGround.Home - centre, centre));
         Vector3 right = Vector3.Cross(up, outward);
         // The plan: (stand off how far, aim at which face, what).
         (float stand, Vector3 aim, int slot) = (_step % 5) switch
@@ -236,21 +235,14 @@ public sealed class RaidBrain
         }
     }
 
-    // The ground's height under a point (the client's own surface).
-    private static float Ground(GameClient client, float x, float z)
-    {
-        return client.Placement().Ground?.Settle(new Vector3(x, 0, z)).Y ?? client.Character.Position.Y;
-    }
-
     private bool Steer(ref InputFrame input, Vector3 feet, Vector3 to, float reach, double delta)
     {
-        Vector3 d = to - feet;
-        var flat = new Vector2(d.X, d.Z);
+        Vector3 flat = BotGround.Flat(to - feet, feet);
         if (flat.Length() <= reach)
         {
             return true;
         }
-        float wanted = MathF.Atan2(-flat.X, -flat.Y);
+        float wanted = BotGround.YawTo(feet, to);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 5, (float)delta * 5);
         input.Pitch = 0;
         input.Forward = 1;
@@ -260,10 +252,7 @@ public sealed class RaidBrain
 
     private static void Look(ref InputFrame input, Vector3 eye, Vector3 at, Vector3 up)
     {
-        Vector3 d = at - eye;
-        Vector3 flat = d - up * Vector3.Dot(d, up);
-        input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        input.Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length());
+        (input.Yaw, input.Pitch) = BotGround.LookAt(eye, at);
         input.Forward = 0;
         input.Sprint = false;
     }

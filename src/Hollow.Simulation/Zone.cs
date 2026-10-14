@@ -83,8 +83,9 @@ public sealed class Zone : IDisposable
         Surface = surface;
         Frame = spec.CreateFrame(surface);
         Tuning = tuning ?? MovementTuning.Default;
-        Movement = new MoveContext(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), Tuning);
+        Movement = new MoveContext(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), Tuning, surface.Radius);
         Physics = new PhysicsWorld(surface, Frame);
+        Landing = Ground.On(spec.LandingDirection);
         Content = content;
         if (content != null)
         {
@@ -119,6 +120,12 @@ public sealed class Zone : IDisposable
     public ISurface Surface { get; }
 
     public ZoneFrame Frame { get; }
+
+    /// <summary>
+    /// The ground at the spec's latitude and longitude (the landing site): where <see cref="SpawnPoint"/> puts new
+    /// characters when nothing better is known, and where tests lay out their places (docs/WHOLE_WORLD.md §6.7).
+    /// </summary>
+    public Vector3 Landing { get; }
 
     public MovementTuning Tuning { get; }
 
@@ -172,7 +179,7 @@ public sealed class Zone : IDisposable
     {
         Entity entity = Entities.Create(id);
         // The tiles around are built in parallel, then waited for: one tick's hitch at most where nobody was.
-        Physics.Prefetch(state.Position, 1);
+        Physics.PrefetchWithin(state.Position, PhysicsWorld.EnsureReach);
         Physics.EnsureGround(state.Position);
         var body = new CharacterBody(Physics, Tuning, state.Position, Frame.UpAt(state.Position));
         Entities.Add(entity, new Character { State = state, Body = body });
@@ -205,7 +212,7 @@ public sealed class Zone : IDisposable
         ref Character character = ref Entities.Get<Character>(entity);
         character.State.Position = position;
         character.State.Velocity = Vector3.Zero;
-        Physics.Prefetch(position, 1);
+        Physics.PrefetchWithin(position, PhysicsWorld.EnsureReach);
         Physics.EnsureGround(position);
     }
 
@@ -222,23 +229,26 @@ public sealed class Zone : IDisposable
             c.State.Velocity = Vector3.Zero;
             if (HeightAboveGround(c.State.Position) < 0)
             {
-                Vector3 ground = GroundAt(c.State.Position.X, c.State.Position.Z);
+                Vector3 ground = Settle(c.State.Position);
                 c.State.Position = ground + Frame.UpAt(ground) * 0.05f;
             }
-            Physics.Prefetch(c.State.Position, 1);
+            Physics.PrefetchWithin(c.State.Position, PhysicsWorld.EnsureReach);
             Physics.EnsureGround(c.State.Position);
         }
         c.State.Cheats = cheats;
     }
-
-    /// <summary>The ground under a point of the zone's tangent plane, in the zone frame.</summary>
-    public Vector3 GroundAt(float x, float z) => Ground.At(x, z);
 
     /// <summary>The surface's own ground, asked as a client asks it (<see cref="GroundProbe"/>).</summary>
     public GroundProbe Ground => new(Surface, Frame);
 
     /// <summary>The point on the ground below (or above) a point.</summary>
     public Vector3 Settle(Vector3 point) => Ground.Settle(point);
+
+    /// <summary>
+    /// The ground <paramref name="east"/> metres east and <paramref name="south"/> metres south of the landing site,
+    /// along the ground (<see cref="GroundProbe.Offset"/>): where tests and tools lay out their places.
+    /// </summary>
+    public Vector3 GroundAt(float east, float south) => Ground.Offset(Landing, east, south);
 
     /// <summary>How far a point is above the ground, in metres (negative below).</summary>
     public float HeightAboveGround(Vector3 point) => Ground.HeightAbove(point);
@@ -250,7 +260,7 @@ public sealed class Zone : IDisposable
     public Vector3 EyeOf(in CharacterState state) => state.Position + Frame.UpAt(state.Position) * Tuning.EyeHeight(state.Stance);
 
     /// <summary>
-    /// Where a new character appears: on a ring of 3–8 m around the zone's origin, at a place fixed by
+    /// Where a new character appears: on a ring of 3–8 m around the landing site, at a place fixed by
     /// <paramref name="salt"/> (a name's hash), so players arriving together don't stand inside each other.
     /// </summary>
     public Vector3 SpawnPoint(ulong salt)

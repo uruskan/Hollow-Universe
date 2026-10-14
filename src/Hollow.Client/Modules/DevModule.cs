@@ -27,7 +27,7 @@ public readonly record struct ServerPlayer(string Name, bool Admin, DevPlayerSta
 public readonly record struct DevLine(string Label, string Value);
 
 /// <summary>The animals' nav grid around the player as last sent: a square of cells of 2 m from a corner, row by row, each cell's flags (DevCellNet).</summary>
-public sealed record NavWindow(float OriginX, float OriginZ, int Cells, byte[] Flags);
+public sealed record NavWindow(System.Numerics.Vector3 Centre, int Cells, byte[] Flags);
 
 /// <summary>A slot of a spawn area: its species, its herd's size, how many live, its home and its range.</summary>
 public readonly record struct SpawnSlotView(string Species, int Size, int Living, Vector3 Home, float Range);
@@ -272,7 +272,7 @@ public sealed class DevModule : ClientModule
     private void OnNav(in DevNav m)
     {
         DevCellNet[] cells = m.Flags ?? Array.Empty<DevCellNet>();
-        if (m.Cells is < 1 or > 64 || cells.Length != m.Cells * m.Cells || !float.IsFinite(m.OriginX) || !float.IsFinite(m.OriginZ))
+        if (m.Cells is < 1 or > 64 || cells.Length != m.Cells * m.Cells || !float.IsFinite(m.CentreX) || !float.IsFinite(m.CentreY) || !float.IsFinite(m.CentreZ))
         {
             return;
         }
@@ -281,7 +281,7 @@ public sealed class DevModule : ClientModule
         {
             flags[i] = cells[i].Flags;
         }
-        Nav = new NavWindow(m.OriginX, m.OriginZ, m.Cells, flags);
+        Nav = new NavWindow(new System.Numerics.Vector3(m.CentreX, m.CentreY, m.CentreZ), m.Cells, flags);
         NavRevision++;
     }
 

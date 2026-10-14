@@ -50,8 +50,8 @@ public sealed class RaidModule : ServerModule, IPlayerPresence
         {
             ThrowIntent m = message;
             Entity me = session.Entity;
-            Intent(session, m.Seq,
-                () => Zone.Explosives().ThrowExplosive(me, m.Slot, Expected(m.Expected), Quantize.FromAngle16(m.Yaw), Quantize.FromAngle16(m.Pitch), m.Lob));
+            (float yaw, float pitch) = ViewAt(session, Quantize.FromOctahedral(m.ViewU, m.ViewV));
+            Intent(session, m.Seq, () => Zone.Explosives().ThrowExplosive(me, m.Slot, Expected(m.Expected), yaw, pitch, m.Lob));
         });
         Zone.Events.On<Detonated>((in Detonated e) => SendDetonation(e));
     }
@@ -348,8 +348,9 @@ public sealed class RaidArena
 
     private TestBases.Hut? Build(int i)
     {
-        (float x, float z, double heading) = TestBases.Ring(i, _huts.Length, _radius);
-        TestBases.Hut? hut = TestBases.Build(_zone, _zone.GroundAt(x, z), heading, grade: 2, owner: 0);
+        // A ring round the landing site (docs/WHOLE_WORLD.md §6.7).
+        (Vector3 at, double heading) = TestBases.Ring(_zone.Ground, _zone.Landing, i, _huts.Length, _radius);
+        TestBases.Hut? hut = TestBases.Build(_zone, at, heading, grade: 2, owner: 0);
         if (hut?.Claim is { } claim)
         {
             // Nobody's yet: the bots are listed as they join.

@@ -140,7 +140,7 @@ public sealed class WorldBrain
                 {
                     Look(ref input, eye, barrel.Position + up * 0.45f, up);
                     // Hold the swing while someone else stands at the barrel (friendly fire is on).
-                    bool crowded = client.Entities.Any(e => (e.Flags & MoveFlags.Dead) == 0 && new Vector2(e.Position.X - barrel.Position.X, e.Position.Z - barrel.Position.Z).Length() < 1.3f);
+                    bool crowded = client.Entities.Any(e => (e.Flags & MoveFlags.Dead) == 0 && Vector3.Distance(e.Position, barrel.Position) < 1.3f);
                     input.Primary = !crowded;
                     _hit |= !crowded;
                 }
@@ -195,7 +195,7 @@ public sealed class WorldBrain
         }
         List<RemoteThing> loot = client.World().Props
             .Where(p => p.Prop(c)!.Kind is WorldPropKind.Barrel or WorldPropKind.Crate && !_skip.Contains(p.Id) &&
-                        new Vector2(p.Position.X, p.Position.Z).Length() < Roam)
+                        Vector3.Distance(p.Position, BotGround.Home) < Roam)
             .OrderBy(p => Vector3.Distance(p.Position, feet)).Take(5).ToList();
         if (loot.Count > 0)
         {
@@ -578,7 +578,7 @@ public sealed class WorldBrain
         {
             _marked = true;
             float angle = (float)_rng.Range(-Math.PI, Math.PI), distance = (float)_rng.Range(50, 300);
-            Note(me.PlaceMarker(new Vector3(MathF.Sin(angle) * distance, 0, MathF.Cos(angle) * distance), (byte)(_index % 6), "loot"), "PlaceMarker");
+            Note(me.PlaceMarker(BotGround.Offset(client, BotGround.Home, MathF.Sin(angle) * distance, MathF.Cos(angle) * distance), (byte)(_index % 6), "loot"), "PlaceMarker");
         }
     }
 
@@ -680,14 +680,13 @@ public sealed class WorldBrain
     // it jumps and sidesteps.
     private bool Steer(ref InputFrame input, double time, Vector3 feet, Vector3 to, float reach, double delta)
     {
-        Vector3 d = to - feet;
-        var flat = new Vector2(d.X, d.Z);
+        Vector3 flat = BotGround.Flat(to - feet, feet);
         if (flat.Length() <= reach)
         {
             _lastMoved = time;
             return true;
         }
-        float wanted = MathF.Atan2(-flat.X, -flat.Y);
+        float wanted = BotGround.YawTo(feet, to);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 5, (float)delta * 5);
         input.Pitch = 0;
         input.Forward = 1;
@@ -711,20 +710,16 @@ public sealed class WorldBrain
 
     private static void Look(ref InputFrame input, Vector3 eye, Vector3 at, Vector3 up)
     {
-        Vector3 d = at - eye;
-        Vector3 flat = d - up * Vector3.Dot(d, up);
-        input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        input.Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length());
+        (input.Yaw, input.Pitch) = BotGround.LookAt(eye, at);
         input.Forward = 0;
     }
 
     // Nothing in sight: walk on along the bot's own heading, turning back toward the origin beyond the roaming range.
     private void Wander(ref InputFrame input, Vector3 feet, double delta)
     {
-        var flat = new Vector2(feet.X, feet.Z);
-        if (flat.Length() > Roam * 0.9f)
+        if (Vector3.Distance(feet, BotGround.Home) > Roam * 0.9f)
         {
-            _heading = MathF.Atan2(flat.X, flat.Y);
+            _heading = BotGround.YawTo(feet, BotGround.Home);
         }
         input.Yaw = _yaw + Math.Clamp(Wrap(_heading - _yaw), -(float)delta * 2, (float)delta * 2);
         input.Pitch = 0;

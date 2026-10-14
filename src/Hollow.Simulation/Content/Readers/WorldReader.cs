@@ -229,13 +229,12 @@ internal sealed class WorldReader : IContentReader
         if (f.TryChild(root, "loot", out JsonElement loot))
         {
             string where = File + ": loot";
-            f.OnlyKnown(loot, where, "radius", "cell", "clear", "spread", "coast", "forestEdge", "open", "barrels", "fuelBarrel", "crate",
+            f.OnlyKnown(loot, where, "cell", "clear", "spread", "coast", "forestEdge", "open", "barrels", "fuelBarrel", "crate",
                 "military", "landing", "note");
             int[] barrels = f.Integers(loot, "barrels", where);
             JsonElement[] landing = f.List(loot, "landing", where, required: false);
             world.Loot = new LootSpotSettings
             {
-                Radius = f.Double(loot, "radius", where),
                 Cell = f.Double(loot, "cell", where),
                 Clear = f.Double(loot, "clear", where),
                 Spread = f.Double(loot, "spread", where),
@@ -264,21 +263,9 @@ internal sealed class WorldReader : IContentReader
         if (f.TryChild(root, "recyclers", out JsonElement recyclers))
         {
             string where = File + ": recyclers";
-            f.OnlyKnown(recyclers, where, "count", "points", "note");
-            world.RecyclerCount = f.Integer(recyclers, "count", where);
-            var points = new List<Vector2>();
-            foreach (JsonElement p in f.List(recyclers, "points", where))
-            {
-                if (p.ValueKind == JsonValueKind.Array && p.GetArrayLength() == 2 && p[0].ValueKind == JsonValueKind.Number && p[1].ValueKind == JsonValueKind.Number)
-                {
-                    points.Add(new Vector2((float)p[0].GetDouble(), (float)p[1].GetDouble()));
-                }
-                else
-                {
-                    f.Problem(where, "each point is [x, z] in metres from the zone's origin");
-                }
-            }
-            world.RecyclerPoints = points;
+            f.OnlyKnown(recyclers, where, "perFace", "note");
+            // One per cube face of the world (docs/WHOLE_WORLD.md decision 9): 0 or 1 a face.
+            world.RecyclerCount = Math.Clamp(f.Integer(recyclers, "perFace", where), 0, 1) * Surface.CubeSphere.FaceCount;
         }
         if (f.TryChild(root, "teams", out JsonElement teams))
         {
@@ -424,11 +411,10 @@ internal sealed class WorldReader : IContentReader
             }
         }
         LootSpotSettings l = w.Loot;
-        if (l.Radius <= 0 || l.Cell < 10 || l.Clear < 0 || l.Spread <= 0 || l.LeastBarrels < 0 || l.MostBarrels < l.LeastBarrels ||
-            new[] { l.Coast, l.ForestEdge, l.Open, l.FuelBarrel, l.Crate, l.Military }.Any(x => x is < 0 or > 1) ||
-            l.Radius > Physics.PhysicsWorld.Extent - Physics.PhysicsWorld.TileSize)
+        if (l.Cell < 10 || l.Clear < 0 || l.Spread <= 0 || l.LeastBarrels < 0 || l.MostBarrels < l.LeastBarrels ||
+            new[] { l.Coast, l.ForestEdge, l.Open, l.FuelBarrel, l.Crate, l.Military }.Any(x => x is < 0 or > 1))
         {
-            c.Problem(File + ": loot", "radius within the zone's ground, cells of 10 m or more, chances 0 … 1, barrels [least ≤ most]");
+            c.Problem(File + ": loot", "cells of 10 m or more, chances 0 … 1, barrels [least ≤ most]");
         }
         foreach (string key in new[] { "barrel", "crate" })
         {
@@ -436,10 +422,6 @@ internal sealed class WorldReader : IContentReader
             {
                 c.Problem(File, $"no {key} prop for the loot spots");
             }
-        }
-        if (w.RecyclerCount < 0 || w.RecyclerCount > w.RecyclerPoints.Count)
-        {
-            c.Problem(File + ": recyclers", "at most as many as there are points to try");
         }
         if (w.TeamSize is < 2 or > 16 || w.InviteSeconds <= 0)
         {

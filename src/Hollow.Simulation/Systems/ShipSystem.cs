@@ -278,9 +278,10 @@ public sealed class ShipSystem : ZoneSystem
         else
         {
             ref Character c = ref Entities.Get<Character>(builder);
-            (Vector3 forward, _) = CharacterMotor.HorizontalBasis(c.Input.Yaw, Frame.UpAt(c.State.Position));
+            Vector3 standing = Frame.UpAt(c.State.Position);
+            (Vector3 forward, _) = Facing.Basis(c.Input.View, standing);
             at = c.State.Position + forward * 6f;
-            yaw = c.Input.Yaw;
+            yaw = c.Input.YawAt(standing);
             maxSlope = 20 * MathF.PI / 180;
         }
         Vector3 ground = Settle(at);
@@ -499,7 +500,7 @@ public sealed class ShipSystem : ZoneSystem
         c.State.Velocity = Vector3.Zero;
         c.State.Stance = Stance.Standing;
         c.State.Flags = MoveFlags.OnGround;
-        c.Input.Yaw = ShipMotor.YawOf(ship.State.Rotation, up);
+        c.Input.View = Facing.View(ShipMotor.YawOf(ship.State.Rotation, up), 0, up);
         Physics.EnsureGround(at);
         WakeShip(ship);
     }

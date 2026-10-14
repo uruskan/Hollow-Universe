@@ -172,6 +172,81 @@ public readonly struct TileKey : IEquatable<TileKey>
     /// <summary>Approximate edge length of tiles at a level, in metres, on a sphere of this radius.</summary>
     public static double EdgeLength(int level, double radius) => DMath.HalfPi * radius / (1L << level);
 
+    /// <summary>
+    /// The level whose tiles' edge (<see cref="EdgeLength"/>) is nearest <paramref name="metres"/> on a sphere of this
+    /// radius, nearest by ratio, within <paramref name="most"/> (docs/WHOLE_WORLD.md §3.2: lengths by size, not by level
+    /// number). Only + − × ÷, so the server and every client agree.
+    /// </summary>
+    public static int LevelFor(double radius, double metres, int most = MaxLevel)
+    {
+        int best = 0;
+        double bestRatio = double.MaxValue;
+        for (int level = 0; level <= most; level++)
+        {
+            double edge = EdgeLength(level, radius);
+            double ratio = edge >= metres ? edge / metres : metres / edge;
+            if (ratio < bestRatio)
+            {
+                (best, bestRatio) = (level, ratio);
+            }
+        }
+        return best;
+    }
+
+    /// <summary>How many tiles a level has on the whole sphere.</summary>
+    public static long CountAt(int level) => 6L << (2 * level);
+
+    /// <summary>The tile's place among its level's tiles, 0 … <see cref="CountAt"/> − 1: face, then row, then column.</summary>
+    public long Index => ((long)Face << (2 * Level)) + ((long)Y << Level) + X;
+
+    /// <summary>The tile at a place among a level's tiles, or null outside them (untrusted input).</summary>
+    public static TileKey? FromIndex(int level, long index)
+    {
+        if ((uint)level > MaxLevel || index < 0 || index >= CountAt(level))
+        {
+            return null;
+        }
+        long perFace = 1L << (2 * level);
+        long inFace = index % perFace;
+        return new TileKey((int)(index / perFace), level, (int)(inFace & ((1L << level) - 1)), (int)(inFace >> level));
+    }
+
+    /// <summary>The tile with these coordinates, or null if they name none (untrusted input: never an exception).</summary>
+    public static TileKey? Checked(int face, int level, long x, long y) =>
+        (uint)face < CubeSphere.FaceCount && (uint)level <= MaxLevel && x >= 0 && y >= 0 && x < 1L << level && y < 1L << level
+            ? new TileKey(face, level, (int)x, (int)y)
+            : null;
+
+    /// <summary>
+    /// Every tile of a level within about <paramref name="reach"/> metres of a direction on a sphere of radius
+    /// <paramref name="radius"/>, found by sampling the tangent plane at that point a third of a tile apart, so face
+    /// seams and the cube's corners need nothing special. Adds each tile once, in a fixed order.
+    /// </summary>
+    public static void Around(Vector3D direction, double reach, double radius, int level, System.Collections.Generic.ICollection<TileKey> into)
+    {
+        Vector3D up = direction.Normalized;
+        Vector3D east = Vector3D.Cross(Vector3D.UnitY, up);
+        east = east.LengthSquared > 1e-18 ? east.Normalized : new Vector3D(0, 0, -1);
+        Vector3D north = Vector3D.Cross(up, east);
+        double step = EdgeLength(level, radius) / 3;
+        int n = Math.Max(1, (int)Math.Ceiling(reach / step));
+        TileKey last = At(up, level);
+        into.Add(last);
+        for (int j = -n; j <= n; j++)
+        {
+            for (int i = -n; i <= n; i++)
+            {
+                Vector3D p = up * radius + east * (i * step) + north * (j * step);
+                TileKey key = At(p, level);
+                if (key != last && !into.Contains(key))
+                {
+                    into.Add(key);
+                }
+                last = key;
+            }
+        }
+    }
+
     public bool Equals(TileKey other) => Packed == other.Packed;
     public override bool Equals(object? obj) => obj is TileKey k && Equals(k);
     public override int GetHashCode() => Packed.GetHashCode();

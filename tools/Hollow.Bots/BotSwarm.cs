@@ -159,6 +159,10 @@ public sealed class BotSwarm : IDisposable
             _last = now;
             foreach ((GameClient client, BotBrain brain, SurvivalBrain? survival, FightBrain? fight, BuildBrain? build, RaidBrain? raid) in _bots)
             {
+                if (client.HasCharacter)
+                {
+                    BotGround.Ensure(client); // home: the landing site (docs/WHOLE_WORLD.md §13)
+                }
                 InputFrame input = !client.HasCharacter ? default
                     : _world.TryGetValue(client, out WorldBrain? world) ? world.Think(now, delta, client)
                     : raid != null ? raid.Think(now, delta, client)
