@@ -31,8 +31,8 @@ namespace HollowUniverse.Ground;
 /// base being built with the plan's ghost, a finished hut with a code lock and its keypad, a timed charge on its wall
 /// and the blast, a firefight at the hut, the Tin Finch crafted, boarded, flown and landed, G7's team, props, recycler,
 /// tech tree, research table and map, a bag of dropped items and its loot, the death screen, night by a fire, P3's held
-/// items: a gun's slot and rounds, the AK's, bag charge's and a blueprint's panels, crafting at a workbench, and things
-/// placed with their one ghost) and quits;
+/// items: a gun's slot and rounds, the AK's, bag charge's and a blueprint's panels, crafting at a workbench, things
+/// placed with their one ghost, interaction through the keys, and the forest a kilometre out from above) and quits;
 /// with <c>--tour guest</c>, a second
 /// client that dresses in what it is given, takes up its hatchet and faces the host, fires a rifle it is given at the
 /// nearest building wall, and takes a team invite. Pictures are 1600 × 900 JPEG at the window's size.
@@ -67,7 +67,7 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("f2", F2), ("look", Look),
-            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction), ("map", Map),
+            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction), ("map", Map), ("far", Far),
             ("repair-ships", RepairShips),
             ("repair-corpses", RepairCorpses),
             ("repair-attachments", RepairAttachments),
@@ -2408,6 +2408,62 @@ public partial class GroundTour : Node
         await Seconds(1.5);
         GD.Print($"[tour] tapped E through the opening: the garage door {(garage.Open ? "stayed open" : "is shutting")}");
         await Shot("garage-closing");
+    }
+
+    // The forest a kilometre from the landing site, from above the crowns, looking away from the landing site and back
+    // towards it: the near set's impostors (170 to 290 m) must show both ways. Their bounds were once a fixed box round
+    // the landing site, so out there they vanished whenever it was out of view (docs/KNOWN_PROBLEMS.md).
+    private async Task Far()
+    {
+        var found = new List<NaturalObject>();
+        int Trees(Num.Vector3 at, float half)
+        {
+            found.Clear();
+            Client.Survival().Nature?.Query(at, half, found);
+            return found.Count(o => Client.Content.Natural(o.Kind)?.Class == NaturalClass.Tree);
+        }
+        // Of sixteen points a kilometre out, one on wooded ground with the most trees 170 to 290 m beyond it.
+        (Num.Vector3 Spot, Num.Vector3 Out, int Ahead) best = (Num.Vector3.Zero, new Num.Vector3(0, 0, -1), -1);
+        for (int k = 0; k < 16; k++)
+        {
+            float a = k * MathF.Tau / 16;
+            var outward = new Num.Vector3(MathF.Cos(a), 0, MathF.Sin(a));
+            int ahead = Trees(outward * 1230, 60);
+            if (ahead > best.Ahead && Trees(outward * 1000, 40) > 0)
+            {
+                best = (outward * 1000, outward, ahead);
+            }
+        }
+        if (best.Ahead < 0)
+        {
+            GD.PushWarning("[tour] no wooded ground a kilometre from the landing site");
+            return;
+        }
+        // Empty hands: nothing over the middle of the picture, where those impostors are.
+        int held = Me.HeldSlot;
+        Me.HeldSlot = 5;
+        Command?.Invoke($"noclip on {Client.Name}");
+        await Until(() => (Client.Console().Cheats & MoveCheats.Noclip) != 0, 5);
+        await TeleportTo(best.Spot);
+        Num.Vector3 ground = Client.Character.Position;
+        View.Scripted = new InputFrame { Jump = true };
+        await Until(() => Num.Vector3.Distance(Client.Character.Position, ground) > 35, 8);
+        View.Scripted = new InputFrame();
+        View.Yaw = MathF.Atan2(-best.Out.X, -best.Out.Z);
+        View.Pitch = -0.15f;
+        await Settle();
+        GD.Print($"[tour] far: {Flat(Client.Character.Position):0} m from the landing site, " +
+            $"{Num.Vector3.Distance(Client.Character.Position, ground):0} m up, {best.Ahead} trees 170 to 290 m ahead; " +
+            $"{View.World?.Plants?.MeshInstances} plants near, {View.World?.Plants?.ImpostorInstances} impostors far");
+        await Shot("away");
+        View.Yaw = MathF.Atan2(best.Out.X, best.Out.Z);
+        await Seconds(0.5);
+        await Settle();
+        await Shot("toward");
+        View.Scripted = null;
+        await TeleportTo(Num.Vector3.Zero);
+        Command?.Invoke($"noclip off {Client.Name}");
+        Me.HeldSlot = held;
     }
 
     // A key pressed or let go, as the player's own.

@@ -330,7 +330,7 @@ Client options (after `--`):
   (show another time of day: a universe time, or the next time it is h o'clock at the landing site, or at `--lat`/`--lon`;
   this client's sky only), `--fov <deg>` (this run's field of view, 20 to 120, unsaved: 40 matches a long lens for pictures
   beside a reference; the F1 `fov` command and the settings slider take 30 to 110), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map,far`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
@@ -345,6 +345,8 @@ Client options (after `--`):
   pictures P1's interaction through the keys: the prompt and E held on a fresh code lock's door (SET CODE first), the
   tool cupboard's options, arrows stuck in a wall (one taken back with E) and in a deer, and a garage door shut through
   its opening; `map` pictures the map of the whole world as G opens it, `map-open.jpg`, WHOLE_WORLD.md §11),
+  its opening; `far` pictures the forest a kilometre from the landing site from 35 m up (noclip), looking away from the
+  landing site (`away.jpg`) and towards it (`toward.jpg`): the near trees' impostors, 170 to 290 m out, show both ways),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits), `--load-trace [s]` (GROUND.md §4.3.1: times the start from the process's start to steady

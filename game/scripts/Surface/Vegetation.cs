@@ -71,6 +71,7 @@ public sealed partial class Vegetation : Node3D
     private FloraLibrary? _library;
     private readonly Dictionary<(FloraLibrary.Variant, int), LodSet> _sets = new();
     private readonly List<float> _nearImpostorBuffer = new();
+    private Aabb _nearImpostorBounds;
     private MultiMeshInstance3D? _nearImpostors;
 
     // Each object's level (0, 1, 2 = impostor), the level it is leaving and since when (the LOD clock), and the rebuild
@@ -380,7 +381,7 @@ public sealed partial class Vegetation : Node3D
         PlaceNear(ComputeNear(CaptureNear(tiles, camera, (key, item) => DrawnKind(key, item)), CancellationToken.None));
     }
 
-    // What the near set draws: each variant's buffers per level, and the near impostors.
+    // What the near set draws: each variant's buffers per level, and the near impostors with their bounds.
     private sealed class NearData
     {
         public Vector3D Anchor;
@@ -388,7 +389,25 @@ public sealed partial class Vegetation : Node3D
         public readonly List<float> Impostors = new();
         public Dictionary<(ulong Tile, int Index), LodState> Lods = null!;
         public int Rebuild;
+
+        // Every near impostor's quad however it turns, in render axes from the anchor. The shader places the corners, so
+        // Godot can't bound them from the mesh, and the near set may lie anywhere from its anchor (in play the anchor is
+        // the landing site).
+        public Aabb ImpostorBounds;
         public int Count;
+
+        // Grows the bounds by the impostor just added. Its quad turns about the tree's up through the foot, its corners
+        // within half the extent of that axis and half the height ± half the extent up it (surface_impostor.gdshader):
+        // all within half the height plus the extent of the foot.
+        public void Bound(Transform3D t, VariantInput variant)
+        {
+            // Pack's extent and height back out of the one float.
+            float whole = MathF.Floor(variant.Packed);
+            float extent = whole / 100, height = (variant.Packed - whole) * 100;
+            float reach = (height * 0.5f + extent) * t.Basis.Y.Length();
+            var box = new Aabb(t.Origin - new Vector3(reach, reach, reach), new Vector3(2 * reach, 2 * reach, 2 * reach));
+            ImpostorBounds = Impostors.Count > 16 ? ImpostorBounds.Merge(box) : box;
+        }
     }
 
     // Lays out the near set from the scatter around the camera, with each object drawn as `kinds` says. It touches no
@@ -478,6 +497,7 @@ public sealed partial class Vegetation : Node3D
         }
         _nearImpostorBuffer.Clear();
         _nearImpostorBuffer.AddRange(data.Impostors);
+        _nearImpostorBounds = data.ImpostorBounds;
         FillNearImpostors();
         MeshInstances = data.Count;
     }
@@ -504,6 +524,7 @@ public sealed partial class Vegetation : Node3D
         if (lod == 2)
         {
             Append(data.Impostors, t, a, variant.ImpostorRow, variant.Packed, fade);
+            data.Bound(t, variant);
         }
         else
         {
@@ -538,7 +559,6 @@ public sealed partial class Vegetation : Node3D
                     TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
                     UseCustomData = true,
                     Mesh = _quad,
-                    CustomAabb = new Aabb(new Vector3(-400, -400, -400), new Vector3(800, 800, 800)),
                 },
                 MaterialOverride = _impostors,
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
@@ -549,6 +569,7 @@ public sealed partial class Vegetation : Node3D
         }
         _nearImpostors.Multimesh.InstanceCount = n;
         _nearImpostors.Multimesh.Buffer = _nearImpostorBuffer.ToArray();
+        _nearImpostors.Multimesh.CustomAabb = _nearImpostorBounds;
         _nearImpostors.Transform = new Transform3D(Basis.Identity, _frame.ToRender(_nearAnchor));
         _nearImpostors.Visible = true;
     }
