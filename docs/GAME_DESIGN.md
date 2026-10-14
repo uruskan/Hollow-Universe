@@ -1,7 +1,7 @@
 # Hollow Universe — Game Design
 
-Status: draft 1, 10 October 2026. Owner: Yusuf. This is what the game is. [ARCHITECTURE.md](ARCHITECTURE.md)
-says how it's built.
+Status: draft 1, 10 October 2026; the scale (pillar 1, §4) revised on 14 October 2026 ([SCALE.md](SCALE.md)). Owner:
+Yusuf. This is what the game is. [ARCHITECTURE.md](ARCHITECTURE.md) says how it's built.
 
 Every rule is marked:
 
@@ -13,7 +13,8 @@ Every rule is marked:
 
 ## 1. The game
 
-Hollow Universe is an online survival game set in a full-scale Milky Way.
+Hollow Universe is an online survival game set in the real Milky Way's shape, in a few hundred star systems at its
+famous places: real clusters, nebulae and stars.
 
 You fly your ship between real and generated star systems. You land on a planet, claim land, gather
 resources, build a base, and fight other players for it. Over weeks and months, one base becomes an empire:
@@ -35,7 +36,7 @@ factions, no aliens, no magic; technology is Rust's a step further, built from s
 
 | # | Pillar | Meaning |
 |---|---|---|
-| 1 | **The real galaxy** (Decided) | A 1:1 Milky Way like Elite's, not a stack of procedural galaxies. Real stars near Sol, ~120 billion systems in all. |
+| 1 | **The real galaxy** (Decided) | The real Milky Way's shape and its famous places, not a stack of procedural galaxies: a few hundred star systems at real clusters, nebulae and stars, on the disc's mid-plane. Not 1:1: the owner replaced the ~120 billion systems on 14 October 2026, because thousands of dots overwhelm ([SCALE.md](SCALE.md)). |
 | 2 | **Everything can be taken** (Decided) | Full-loot PvP and raiding, 24/7, including while you're offline. Losing a base is a setback, not the end: you have others. |
 | 3 | **An empire you can see** (Decided) | Progress isn't a level number. It's your bases, miners, ships and gear spread across the galaxy. No limit on the number of bases. |
 | 4 | **Earned in the world** (Proposal) | Power comes from resources, monuments and engineering, not from a shop. |
@@ -59,10 +60,12 @@ factions, no aliens, no magic; technology is Rust's a step further, built from s
 
 | Topic | Rule | Status |
 |---|---|---|
-| Galaxy | 1:1 Milky Way: real catalogue stars near Sol, procedural stars everywhere else. Details in GALAXY.md. | Decided |
+| Galaxy | The real Milky Way's shape, with a few systems at each landmark: real clusters and nebulae, famous real stars and exoplanet systems, the Galactic Centre and a few far objects. About 200 to 300 systems, all on the disc's mid-plane (owner, 14 October 2026). The list is a proposal: SCALE.md §4. | Decided |
 | Travel between systems | Frame shift drive jumps, limited by jump range. A jump is a short hyperspace sequence. | Decided |
-| Travel inside a system | Supercruise between bodies; drop to normal space near a target. | Decided |
+| Travel between landmarks | Gaps of hundreds to thousands of light-years. Jump range, drives, routes and the autopilot are decided with the space gameplay (SCALE.md §7). | Open |
+| Travel inside a system | Supercruise between bodies; drop to normal space near a target. Planets keep their real orbits (owner, 14 October 2026). | Decided |
 | Planets | Procedural spherical planets you can land on, with biomes on worlds that have atmospheres. | Decided |
+| Planet size | Small: an Earth-like world is about 2.4 km in radius, about four 4.2 km Rust maps, and other bodies scale from their real size. Their real gravity, air, temperature and day drive play, clamped only at the extremes (owner, 14 October 2026). The size rule and the bands are proposals: SCALE.md §3. | Decided |
 | Which bodies are landable | Every body with a solid surface of rock or ice (not giants or global oceans). Its physical state (air, temperature, gravity, life) and hazards (GALAXY.md §10.3) decide what it takes to survive there. | Proposal |
 | Where players start | Around Sol. Nothing there is alive any more, as nowhere is (LORE.md §2). | Proposal |
 | Rarity | Rare resources and monuments depend on the type of star and planet (for example, rich metals on metal-rich worlds, exotic materials near neutron stars). They're spread across the whole galaxy, not concentrated in a few systems. | Decided |
@@ -166,3 +169,4 @@ Peris CQ-SLY 7-0 B 3. [GROUND.md](GROUND.md) has the details, the build order an
 5. How blueprints are unlocked.
 6. Team and clan size limits.
 7. How new players are protected (if at all) in the starting region.
+8. Travel between landmarks: jump range, drives, routes, the autopilot (SCALE.md §7).

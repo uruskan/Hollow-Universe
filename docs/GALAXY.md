@@ -800,8 +800,8 @@ period; Kepler's equation is solved per frame (Newton's method).
 
 - An orrery of the selected system: stars, planets, moons, rings and belts on their real orbits, animated by
   universe time (with a time-speed control).
-- Distances are drawn on a compressed (logarithmic) scale by default so inner planets stay visible; a linear
-  scale can be switched on.
+- Distances are drawn on a compressed (logarithmic) scale so inner planets stay visible. (A linear scale was removed on
+  14 October 2026: the owner found the proportional mode looked broken.)
 - Selecting a body shows its data: type, orbit, mass, radius, gravity, temperature (day and night when they
   differ by more than 20 K), atmosphere with its pressure, day length, axial tilt, and its physical state (§10.3):
   surface with its liquids and ice, composition, geology, heat flow, magnetic field, a subsurface ocean, life,

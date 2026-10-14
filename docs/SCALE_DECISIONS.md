@@ -18,7 +18,19 @@ consolidating the repository. This file records exactly what he decided, what is
 
 Settled: much smaller planets; far fewer stars; the real galaxy's shape stays.
 
-Open, ask him before deciding (see the "agreement is not every detail" rule: confirm specifics separately):
+**Answered on 14 October 2026** (the design proposal built on these answers is [SCALE.md](SCALE.md), on branch `scale`):
+
+| Question | The owner's answer |
+|---|---|
+| Exact planet size | About 4 Rust maps: an Earth-like world about 2.4 km in radius (chosen over 1.2 km, whose horizon is 64 m on flat ground). Other bodies scale from their real size. |
+| How many systems | A few per landmark, about 200 to 300 in all. |
+| Which landmarks | Real clusters and nebulae; real famous stars and exoplanet systems; the Galactic Centre and a few far objects. Not generated landmarks. Asked: the Coalsack (already a region) and the Witch Head Nebula (added to the proposal). |
+| 3D or a plane | One plane: every system on the disc's mid-plane; the camera still tilts freely. |
+| Travel between landmarks | Not answered: "Isn't this about gameplay?" It stays open, to decide with the space gameplay. |
+| Physics at game scale | The real values (gravity, air, temperature, day) drive play, with extremes clamped to a playable band. |
+| Inside a system (asked too) | Planets keep their real orbits; only the worlds shrink; moons move in so they look as big in the sky as generated. |
+
+The questions as they were put before the answers:
 - **Exact planet size.** A sphere with the area of a 4.2 km × 4.2 km Rust map has a radius of about 1.2 km
   (circumference about 7.4 km); Astroneer-style worlds are of that order. Confirm which he means.
 - **How many systems in total**, and **which landmarks**. Candidates already in the generator's authored layer:
