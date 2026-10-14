@@ -9,6 +9,7 @@ Read first, in this order:
    are not optional.
    Then [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md): how it runs as built: the layers, the tick, the classes, three
    journeys through the code.
+   And [docs/CODE_LAYOUT.md](docs/CODE_LAYOUT.md): every file, its classes and its line, folder by folder.
 4. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
 5. [docs/GROUND.md](docs/GROUND.md): the Rust-style ground game, if you touch planet surfaces, the server, the
    network or anything players do on foot.
