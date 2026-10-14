@@ -210,6 +210,74 @@ public static class NetTests
             "Messages.g.cs is out of date: run dotnet run --project tools/Hollow.NetGen");
     }
 
+    /// <summary>
+    /// A packet finds its handler by its type byte (GROUND_SYSTEMS.md §12.4): each handler sees its own messages; a type
+    /// with no handler, or a packet cut short, is refused without calling anyone; a type can't get two handlers.
+    /// </summary>
+    [Test]
+    public static void MessageHandlersRouteByTypeByte()
+    {
+        var arrived = new Arrivals();
+        var handlers = new MessageHandlers<Arrivals>()
+            .On<ChatSend>((Arrivals a, in ChatSend m) => a.Texts.Add(m.Text))
+            .On<Despawn>((Arrivals a, in Despawn m) => a.Despawned.Add(m.NetId));
+        Assert.True(handlers.Handles(ChatSend.TypeId) && handlers.Handles(Despawn.TypeId), "both types have handlers");
+        Assert.Equal("ChatSend", handlers.NameOf(ChatSend.TypeId), "the name of a handled type");
+        Assert.True(!handlers.Handles(Goodbye.TypeId) && handlers.NameOf(Goodbye.TypeId) == null, "an unregistered type has neither");
+
+        var writer = new BitWriter(2048);
+        var reader = new BitReader();
+        new ChatSend { Text = "hello from the beach" }.WriteMessage(writer);
+        byte[] packet = writer.ToArray();
+        reader.Reset(packet, 0, packet.Length);
+        byte type = (byte)reader.ReadBits(8);
+        Assert.Equal(ChatSend.TypeId, type, "the type byte comes first");
+        Assert.True(handlers.Dispatch(type, reader, arrived), "a whole packet is dispatched");
+        Assert.Equal(1, arrived.Texts.Count, "the chat handler ran once");
+        Assert.Equal("hello from the beach", arrived.Texts[0], "the chat handler saw the text");
+
+        writer.Reset();
+        new Despawn { NetId = 77 }.WriteMessage(writer);
+        packet = writer.ToArray();
+        reader.Reset(packet, 0, packet.Length);
+        Assert.True(handlers.Dispatch((byte)reader.ReadBits(8), reader, arrived), "another type is dispatched");
+        Assert.True(arrived.Despawned.Count == 1 && arrived.Despawned[0] == 77, "the despawn handler saw the net ID");
+        Assert.Equal(1, arrived.Texts.Count, "and the chat handler didn't run for it");
+
+        writer.Reset();
+        new Goodbye { Reason = GoodbyeReason.Kicked, Text = "" }.WriteMessage(writer);
+        packet = writer.ToArray();
+        reader.Reset(packet, 0, packet.Length);
+        Assert.True(!handlers.Dispatch((byte)reader.ReadBits(8), reader, arrived), "an unregistered type is refused");
+
+        writer.Reset();
+        new ChatSend { Text = "cut short" }.WriteMessage(writer);
+        packet = writer.ToArray();
+        reader.Reset(packet, 0, packet.Length - 4);
+        type = (byte)reader.ReadBits(8);
+        Assert.True(!handlers.Dispatch(type, reader, arrived), "a packet cut short is refused");
+        Assert.True(reader.Failed, "because its message didn't read");
+        Assert.Equal(1, arrived.Texts.Count, "and its handler wasn't called");
+
+        bool threw = false;
+        try
+        {
+            handlers.On<ChatSend>((Arrivals a, in ChatSend m) => a.Texts.Add(m.Text));
+        }
+        catch (InvalidOperationException)
+        {
+            threw = true;
+        }
+        Assert.True(threw, "a second handler for ChatSend throws");
+    }
+
+    /// <summary>What the handlers of <see cref="MessageHandlersRouteByTypeByte"/> received.</summary>
+    private sealed class Arrivals
+    {
+        public readonly List<string> Texts = new();
+        public readonly List<uint> Despawned = new();
+    }
+
     // ---------------------------------------------------------------- random values in range, and comparison
 
     private static object Fill(Type type, ref Rng rng)
