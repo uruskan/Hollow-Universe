@@ -159,7 +159,7 @@ internal static class LocalExport
             w.WriteStartObject();
             w.WriteString("what", "Every star system within 150 ly of Sol, from the real generator (HYG 4.1 catalogue + procedural).");
             w.WriteString("seed", Js.Hex(galaxy.Seed));
-            w.WriteNumber("generatorVersion", HollowGalaxy.GeneratorVersion);
+            w.WriteNumber("generatorVersion", GeneratorVersion.Galaxy);
             w.WriteString("frame", "Galactic frame, light-years, origin Sol. +X toward galactic longitude 90 deg, +Y toward the north galactic pole (up, out of the plane), +Z toward the Galactic Centre. Right-handed, Y up.");
             w.WriteNumber("radiusLy", Radius);
             w.WriteNumber("bodyListRadiusLy", BodyListRadius);
@@ -253,11 +253,15 @@ internal static class LocalExport
 
     public static string AtmosphereName(AtmosphereType type) => type switch
     {
+        // The generator's own kinds (generator-v2): what the air is made of.
         AtmosphereType.None => "none",
-        AtmosphereType.Thin => "thin",
-        AtmosphereType.Thick => "thick",
-        AtmosphereType.Breathable => "breathable",
         AtmosphereType.HydrogenHelium => "hydrogen-helium",
+        AtmosphereType.CarbonDioxide => "carbon-dioxide",
+        AtmosphereType.Nitrogen => "nitrogen",
+        AtmosphereType.NitrogenMethane => "nitrogen-methane",
+        AtmosphereType.Methane => "methane",
+        AtmosphereType.Steam => "steam",
+        AtmosphereType.Ammonia => "ammonia",
         _ => "unknown",
     };
 

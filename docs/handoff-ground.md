@@ -86,13 +86,10 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
 
 ## Branches
 
-Every work package is merged into `ground` (the first session ended with nothing pending):
-- `ground-net`, `-planet`, `-character`, `-survive`, `-ui`, `-assets`, `-build`, `-fight`, `-audio`, `-raid`,
-  `-fx`, `-ship`, `-world`, `-animals`, `-wardrobe` and `-perf`;
-- `ground-integrate`, passes 1–4.
-
-Their worktrees in `D:\GameDev\Projects\Hollow-wt\` can be removed once the owner is happy (`git worktree remove`).
-
+Everything is on `ground`: every work package, the monuments, the kernel (K0–K4, 14 October 2026), the galaxy map's
+web prototypes (`prototypes/map-ux`, waiting for the owner's choice) and the space concept (`docs/SPACE_CONCEPT.md`) were
+merged on 14 October 2026, and their branches and worktrees removed. `main` holds M1 and points here. New work goes on
+a branch in its own worktree under `D:\GameDev\Projects\Hollow-wt\`, merged back here when green.
 **The owner's first playtest (13 October 2026) and where each finding stands:**
 - Done and merged into `ground`: Left Alt free look; the hands on held items (the rock and 40 others); free-foundation height
   by aim; the AK and pistol recoil exactly RustMVP's; one damage pipeline with the Destroyed event; Rust's X on trees and

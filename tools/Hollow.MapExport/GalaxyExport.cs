@@ -155,7 +155,7 @@ internal static class GalaxyExport
                     component = rng.PickWeighted(weights);
                 }
                 int entry = StarClassTable.Pick(DensityModel.PopulationOf((GalaxyComponent)component), level, ref rng);
-                (StarClass cls, StarPhysics phys) = StarClassTable.Roll(entry, ref rng);
+                (StarClass cls, StarPhysics phys, _) = StarClassTable.Roll(entry, (GalaxyComponent)component, ref rng);
                 Vector3D g = GalaxyFrame.FromModel(p);
                 pos[3 * n] = (float)g.X;
                 pos[3 * n + 1] = (float)g.Y;
@@ -218,7 +218,7 @@ internal static class GalaxyExport
             w.WriteStartObject();
             w.WriteString("what", "Galaxy-wide sample drawn from Hollow's density model and star-class table (not individual generated stars), plus label anchors and sectors.");
             w.WriteString("seed", Js.Hex(galaxy.Seed));
-            w.WriteNumber("generatorVersion", HollowGalaxy.GeneratorVersion);
+            w.WriteNumber("generatorVersion", GeneratorVersion.Galaxy);
             w.WriteString("frame", "Galactic frame, light-years, origin Sol. +X toward galactic longitude 90 deg, +Y toward the north galactic pole (up), +Z toward the Galactic Centre. Right-handed, Y up.");
             w.WritePropertyName("galacticCentre");
             WriteVector(w, gc, 1);

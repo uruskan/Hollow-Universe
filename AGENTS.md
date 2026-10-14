@@ -7,6 +7,8 @@ Read first, in this order:
    aliens), before you make any model, texture, sound, name, item text or monument.
 3. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it's built. Its principles (§2) and determinism rules (§8)
    are not optional.
+   Then [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md): how it runs as built: the layers, the tick, the classes, three
+   journeys through the code.
 4. [docs/GALAXY.md](docs/GALAXY.md): the universe generator, if you touch `Hollow.Galaxy` or the maps.
 5. [docs/GROUND.md](docs/GROUND.md): the Rust-style ground game, if you touch planet surfaces, the server, the
    network or anything players do on foot.
