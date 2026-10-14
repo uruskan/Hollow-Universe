@@ -146,6 +146,7 @@ concern is a `ServerModule` in `Modules/`, listed once in `ServerModules`, reach
 | `SurvivalModule` | move item, quick move, drop, item action, craft, cancel, interact, close, respawn | each player's own state (containers, vitals, crafting, loot, life), looks, the event routes, the counters, respawns waiting for ground, kits |
 | `GunModule` | fire, reload, unload, attach | the gun's state and the shot's answers |
 | `ConsoleModule` | console lines | admins' rights, replies, the server's state and the zone's clock for F1 |
+| `DevModule` | watch, inspect | the F2 panel (GROUND.md §8.5): the stats every half second to watching admins, a target described, the nav grid and spawn areas, the log |
 
 The host calls the modules through hooks named for what they do, in a fixed order: `Init` (register intents and
 subscribe to events), `Restore` (the saved world), `Start`, `Joined`/`Left`, `BeforeStep`, `Input`, `AfterStep`,
@@ -191,7 +192,8 @@ the snapshots, the remote entities and chat; `LocalPlayer` is the player's own s
 vitals, the gun) and the intents it sends. Each concern is a `ClientModule` in `Modules/`, listed in `ClientModules`,
 reached as `client.Raid().Explosives`: survival (things, nature, projectiles), targets (the families' views, the same
 `TargetRef`s the server uses), world, building (the replica of the structures), placement (the ghost, with the server's
-rules), interaction (what E would do, from the same rules), raid, ships, animals, arrows, console, damage, loading. The
+rules), interaction (what E would do, from the same rules), raid, ships, animals, arrows, console, damage, loading, dev
+(the F2 panel, GROUND.md §8.5). The
 hooks: `Init` (its messages), `Welcome` (the zone is known), `Spawned`/`Despawned`, `BeforePredict`, `AfterSnapshot`,
 `Sample`, `Render`, `Update`, `Dispose`.
 

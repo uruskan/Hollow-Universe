@@ -229,4 +229,9 @@ public interface IGroundUi
 
     /// <summary>The F1 panel's console and tabs; null where there is none (the menu's model), so F1 does nothing.</summary>
     IConsoleModel? Console => null;
+
+    // ---------------------------------------------------------------- the F2 panel (GROUND.md §8.5)
+
+    /// <summary>The F2 panel's model; null where there is none (the menu's model), so F2 does nothing.</summary>
+    IDeveloperModel? Developer => null;
 }

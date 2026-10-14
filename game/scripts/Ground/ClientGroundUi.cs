@@ -96,6 +96,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     /// <summary>The F1 panel's model (GROUND.md §8.2), set by the ground view.</summary>
     public IConsoleModel? Console { get; set; }
 
+    /// <summary>The F2 panel's model (GROUND.md §8.5), set by the ground view.</summary>
+    public IDeveloperModel? Developer { get; set; }
+
     // ---------------------------------------------------------------- reads
 
     public string PlayerName => _client.Name;

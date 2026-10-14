@@ -719,3 +719,18 @@ one level up. Built in five packages, each landing with every old path moved and
 server a child process, the saved world loaded); 100 survival bots tick in 5 to 7 ms as before (§5.11). Deferred by the
 owner: the zone host, transfers, the lifecycle with catch-up (ARCHITECTURE.md §10.1, §10.4, §12) and P6; nothing above
 has to be redone for them.
+
+## 14 October 2026, night: the developer panel (F2)
+
+The owner, after the architecture tour: a human needs a window on the machine, not a console. So the F2 panel
+(GROUND.md §8.5), in the F1 panel's shape: SERVER (the tick as a graph of the last minute against the budget, the
+profile's sections as its tree, what the zone holds, the game's counters, the process), PLAYERS (everyone on: state,
+where, ping, bandwidth both ways, inputs on time, in view), LOOK (what the crosshair is on from the same aim E uses,
+as this client sees it and as the server describes it: every public member of the object its family resolves it to,
+by reflection, so no kind of thing needs a line of its own; and the last intents answered), DRAW (hitboxes, the
+ground tiles' collision mesh, the relevance circle, the animals' nav grid and spawn areas, drawn in the world and
+staying on when the panel closes) and LOG (the server's lines, which a hosted game otherwise hides). The server
+answers admins only and sends nothing while nobody watches: `DevModule` on both sides, `DevInspector`, six messages
+(protocol 20), a window on the tick profile. The tour's step `f2` pictures it on a hosted game
+(`docs/images/ground/play/f2-*.jpg`); the interface viewer shows it on sample data (`--screen developer...`).
+Test: `DevTests.TheServerAnswersAWatchingAdmin`. 225 tests pass.

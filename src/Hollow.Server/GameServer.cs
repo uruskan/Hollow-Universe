@@ -71,6 +71,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     private uint _nextNetId = 1;
     private double _snapshotAccumulator;
     private long _lastSave;
+    private readonly long _started = Stopwatch.GetTimestamp();
     private long _lastNetUpdate;
     private bool _deathToSave;
     private long _lastDeathSave;
@@ -1073,7 +1074,18 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     {
     }
 
-    internal void Log(string line) => _options.Log(line);
+    internal void Log(string line)
+    {
+        _options.Log(line);
+        Logged?.Invoke(line);
+    }
+
+    /// <summary>A line was logged (the F2 panel's LOG tab, GROUND.md §8.5); on the logging thread.</summary>
+    internal event Action<string>? Logged;
+
+    internal double UpSeconds => Stopwatch.GetElapsedTime(_started).TotalSeconds;
+
+    internal double SecondsSinceSave => Stopwatch.GetElapsedTime(_lastSave).TotalSeconds;
 
     internal static string Format(Vector3 p) => string.Create(CultureInfo.InvariantCulture, $"({p.X:0.0}, {p.Y:0.0}, {p.Z:0.0})");
 }

@@ -3,7 +3,7 @@
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-566 files, 152,696 lines of C#.
+575 files, 156,077 lines of C#.
 
 
 ## src/Hollow.Core
@@ -197,11 +197,11 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `WeaponsReader.cs` | 315 | WeaponsReader | weapons.json (G4): the firearms with their cadence, ballistics, spread and recoil, the kinds of rounds by calibre |
 | `WorldReader.cs` | 454 | WorldReader | Reads world.json (G7) and links it to the items, recipes, loot tables and deployables; then checks it. |
 
-### src/Hollow.Simulation/Diagnostics (1 files, 314 lines)
+### src/Hollow.Simulation/Diagnostics (1 files, 352 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `TickProfile.cs` | 314 | ProfileSection, TickProfile, TickProfileExtensions [Scope] | The parts of a server tick that TickProfile times (GROUND.md §5.11). |
+| `TickProfile.cs` | 352 | ProfileSection, TickProfile, TickProfileExtensions [Scope] | The parts of a server tick that TickProfile times (GROUND.md §5.11). |
 
 ### src/Hollow.Simulation/Economy (1 files, 99 lines)
 
@@ -395,7 +395,7 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 | `ConsoleCatalog.cs` | 207 | CommandSide, ArgKind, ConsoleCommandDef, ConsoleCatalog | Where a console command runs: in the game (the view and its settings) or on the server. |
 | `ConsoleCompletion.cs` | 180 | CompletionSources, Completion, ConsoleCompletion, Spawning | What Tab completes from: the game's data, and the players the server says are on. |
 
-### src/Hollow.Net/Protocol (11 files, 6,111 lines)
+### src/Hollow.Net/Protocol (11 files, 6,848 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -403,8 +403,8 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 | `Attributes.cs` | 76 | NetMessageAttribute, NetStructAttribute, NetStateAttribute, BitsAttribute, SignedAttribute, VarIntAttribute, AngleAttribute, QuantizeAttribute, MaxLengthAttribute, MaxCountAttribute | The vocabulary of message definitions (Messages.cs). tools/Hollow.NetGen reads the definitions as text and writes |
 | `INetMessage.cs` | 24 | INetMessage | A message of the protocol (GROUND.md §4.4): its type byte, its reader and its writers, so a handler registry can |
 | `MessageHandlers.cs` | 71 | MessageHandler, MessageHandlers [Entry, Entry] | What a handler does with a message that arrived, in the context it arrived in (a connection, a client, a server). |
-| `Messages.cs` | 1387 | Hello, Goodbye, ZoneInfo, Welcome, InputCommand, ShipControls, InputPacket, OwnState, SnapshotHeader, OwnShipState, ShipNetState, CharacterNetState, Spawn, Despawn, ChatSend, ChatLine, ThingSpawn, ThingUpdate, WornItem, CharacterLook, NaturalNet, NaturalStates, ProjectileLaunch, ProjectileEnd, TargetNet, MoveItemIntent, QuickMoveIntent, DropIntent, CraftIntent, CancelCraftIntent, CloseIntent, RespawnIntent, IntentResult, ShipIntent, GunNet, SlotNet, ContainerContents, ContainerSlots, LootState, VitalsUpdate, CraftJobNet, CraftQueueState, HitMarker, ItemsChanged, DamageTaken, CraftFinished, BagNet, LifeState, FireIntent, ReloadIntent, AttachIntent, GunUpdate, HammerIntent, BuildFrameNet, BuildFrames, PieceNet, BuildPieces, BuildIdNet, BuildRemoved, DoorNet, BuildDoors, ClaimNet, BuildClaims, ThrowIntent, ExplosiveUpdate, ExplosiveGone, Detonation, RaidAlertNet, RaidAlertMessage, RaidAlertList, TeamIntent, TeamChatSend, MarkerIntent, RecipeNet, BlueprintList, TeamMemberNet, TeamState, TeamInviteNet, TeamInvites, TeammateNet, TeamPositions, MarkerNet, RespawnPointNet, MapState, MachineState, ConsoleRun, ConsoleReply, ServerPlayerNet, ServerState, ZoneClock, InteractIntent, ArrowNet, ArrowStates, ArrowsGone, ThingDestroyed, PoseNet, PlaceIntent, ItemActionIntent, UnloadIntent | Every message of the ground game's protocol (GROUND.md §4.4, ARCHITECTURE.md §11). Definitions only: fields with |
-| `Messages.g.cs` | 3997 | Protocol, Hello, Goodbye, ZoneInfo, Welcome, InputCommand, ShipControls, InputPacket, OwnState, SnapshotHeader, OwnShipState, ShipNetState, CharacterNetState, Spawn, Despawn, ChatSend, ChatLine, ThingSpawn, ThingUpdate, WornItem, CharacterLook, NaturalNet, NaturalStates, ProjectileLaunch, ProjectileEnd, TargetNet, MoveItemIntent, QuickMoveIntent, DropIntent, CraftIntent, CancelCraftIntent, CloseIntent, RespawnIntent, IntentResult, ShipIntent, GunNet, SlotNet, ContainerContents, ContainerSlots, LootState, VitalsUpdate, CraftJobNet, CraftQueueState, HitMarker, ItemsChanged, DamageTaken, CraftFinished, BagNet, LifeState, FireIntent, ReloadIntent, AttachIntent, GunUpdate, HammerIntent, BuildFrameNet, BuildFrames, PieceNet, BuildPieces, BuildIdNet, BuildRemoved, DoorNet, BuildDoors, ClaimNet, BuildClaims, ThrowIntent, ExplosiveUpdate, ExplosiveGone, Detonation, RaidAlertNet, RaidAlertMessage, RaidAlertList, TeamIntent, TeamChatSend, MarkerIntent, RecipeNet, BlueprintList, TeamMemberNet, TeamState, TeamInviteNet, TeamInvites, TeammateNet, TeamPositions, MarkerNet, RespawnPointNet, MapState, MachineState, ConsoleRun, ConsoleReply, ServerPlayerNet, ServerState, ZoneClock, InteractIntent, ArrowNet, ArrowStates, ArrowsGone, ThingDestroyed, PoseNet, PlaceIntent, ItemActionIntent, UnloadIntent | Written by tools/Hollow.NetGen from Messages.cs. Don't edit: change Messages.cs, then run |
+| `Messages.cs` | 1584 | Hello, Goodbye, ZoneInfo, Welcome, InputCommand, ShipControls, InputPacket, OwnState, SnapshotHeader, OwnShipState, ShipNetState, CharacterNetState, Spawn, Despawn, ChatSend, ChatLine, ThingSpawn, ThingUpdate, WornItem, CharacterLook, NaturalNet, NaturalStates, ProjectileLaunch, ProjectileEnd, TargetNet, MoveItemIntent, QuickMoveIntent, DropIntent, CraftIntent, CancelCraftIntent, CloseIntent, RespawnIntent, IntentResult, ShipIntent, GunNet, SlotNet, ContainerContents, ContainerSlots, LootState, VitalsUpdate, CraftJobNet, CraftQueueState, HitMarker, ItemsChanged, DamageTaken, CraftFinished, BagNet, LifeState, FireIntent, ReloadIntent, AttachIntent, GunUpdate, HammerIntent, BuildFrameNet, BuildFrames, PieceNet, BuildPieces, BuildIdNet, BuildRemoved, DoorNet, BuildDoors, ClaimNet, BuildClaims, ThrowIntent, ExplosiveUpdate, ExplosiveGone, Detonation, RaidAlertNet, RaidAlertMessage, RaidAlertList, TeamIntent, TeamChatSend, MarkerIntent, RecipeNet, BlueprintList, TeamMemberNet, TeamState, TeamInviteNet, TeamInvites, TeammateNet, TeamPositions, MarkerNet, RespawnPointNet, MapState, MachineState, ConsoleRun, ConsoleReply, ServerPlayerNet, ServerState, ZoneClock, InteractIntent, ArrowNet, ArrowStates, ArrowsGone, ThingDestroyed, PoseNet, PlaceIntent, ItemActionIntent, UnloadIntent, DevWatch, DevSectionNet, DevPlayerNet, DevStats, DevInspect, DevLineNet, DevInspected, DevCellNet, DevNav, DevSlotNet, DevAreaNet, DevAreas, DevLog | Every message of the ground game's protocol (GROUND.md §4.4, ARCHITECTURE.md §11). Definitions only: fields with |
+| `Messages.g.cs` | 4537 | Protocol, Hello, Goodbye, ZoneInfo, Welcome, InputCommand, ShipControls, InputPacket, OwnState, SnapshotHeader, OwnShipState, ShipNetState, CharacterNetState, Spawn, Despawn, ChatSend, ChatLine, ThingSpawn, ThingUpdate, WornItem, CharacterLook, NaturalNet, NaturalStates, ProjectileLaunch, ProjectileEnd, TargetNet, MoveItemIntent, QuickMoveIntent, DropIntent, CraftIntent, CancelCraftIntent, CloseIntent, RespawnIntent, IntentResult, ShipIntent, GunNet, SlotNet, ContainerContents, ContainerSlots, LootState, VitalsUpdate, CraftJobNet, CraftQueueState, HitMarker, ItemsChanged, DamageTaken, CraftFinished, BagNet, LifeState, FireIntent, ReloadIntent, AttachIntent, GunUpdate, HammerIntent, BuildFrameNet, BuildFrames, PieceNet, BuildPieces, BuildIdNet, BuildRemoved, DoorNet, BuildDoors, ClaimNet, BuildClaims, ThrowIntent, ExplosiveUpdate, ExplosiveGone, Detonation, RaidAlertNet, RaidAlertMessage, RaidAlertList, TeamIntent, TeamChatSend, MarkerIntent, RecipeNet, BlueprintList, TeamMemberNet, TeamState, TeamInviteNet, TeamInvites, TeammateNet, TeamPositions, MarkerNet, RespawnPointNet, MapState, MachineState, ConsoleRun, ConsoleReply, ServerPlayerNet, ServerState, ZoneClock, InteractIntent, ArrowNet, ArrowStates, ArrowsGone, ThingDestroyed, PoseNet, PlaceIntent, ItemActionIntent, UnloadIntent, DevWatch, DevSectionNet, DevPlayerNet, DevStats, DevInspect, DevLineNet, DevInspected, DevCellNet, DevNav, DevSlotNet, DevAreaNet, DevAreas, DevLog | Written by tools/Hollow.NetGen from Messages.cs. Don't edit: change Messages.cs, then run |
 | `NaturalNet.cs` | 27 | NaturalNet |  |
 | `NetConvert.cs` | 154 | NetConvert | Between simulation values and their wire form. The client predicts with ToMoveInput(ToCommand(...)), the |
 | `NetStates.cs` | 16 | CharacterNetState, ShipNetState | The entity states snapshots carry, as the replication's generic sections see them (their serializers are generated). |
@@ -449,22 +449,23 @@ SQLite storage: the database, one worker thread, one codec per kind of record.
 
 The dedicated server: the host and its modules, sessions, admin commands, notifications.
 
-### src/Hollow.Server (10 files, 2,582 lines)
+### src/Hollow.Server (11 files, 2,787 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AdminCommands.cs` | 536 | CommandContext, GameServer | Who runs a console command and where its answer goes (GROUND.md §8.2): a player through the F1 console (their own |
 | `CharacterRecords.cs` | 82 | CharacterRecords | How a character is stored and comes back (GROUND.md §4.7): its record from the zone, its survival state from the |
-| `GameServer.cs` | 1080 | GameServer [NetEntity] | The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with |
+| `DevInspector.cs` | 192 | DevInspector | Describes a target for the F2 panel's LOOK tab (GROUND.md §8.5): what its family resolves it to and every public |
+| `GameServer.cs` | 1092 | GameServer [NetEntity] | The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with |
 | `NetPresence.cs` | 15 | NetPresence | The server's part of a networked entity: its net ID, view angles (with the head's free look) and owner. |
 | `PlayerSession.cs` | 247 | PlayerSession | One connected player: their connection, character, inputs, budgets and what the host has sent them. What a module |
 | `Program.cs` | 143 | Program | The dedicated server's console program: |
 | `ServerModule.cs` | 261 | ServerModule | One concern of the server (GROUND_SYSTEMS.md §12.5, K10): its own state, its message handlers and event |
-| `ServerModules.cs` | 28 | ServerModules | The server's modules and their order (GROUND_SYSTEMS.md §12.5, K10), the one place that lists them. The host calls |
+| `ServerModules.cs` | 29 | ServerModules | The server's modules and their order (GROUND_SYSTEMS.md §12.5, K10), the one place that lists them. The host calls |
 | `ServerOptions.cs` | 105 | ServerOptions | How a server runs. The console program fills it from its command line; the game fills it for Host mode. |
 | `TickStats.cs` | 85 | TickStats | How long ticks take (GROUND.md §5: ≤ 10 ms typical with 100 bots). Keeps the last few seconds for the console's |
 
-### src/Hollow.Server/Modules (12 files, 4,215 lines)
+### src/Hollow.Server/Modules (13 files, 4,665 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -473,6 +474,7 @@ The dedicated server: the host and its modules, sessions, admin commands, notifi
 | `BuildingModule.cs` | 640 | BuildingModule, BuildingModuleAccess [BuildView] | Building on the server (GROUND.md §4.4, §6.3, phase 2): players' building intents (on the same budget as every |
 | `ConsoleModule.cs` | 807 | ConsoleModule, ConsoleModuleAccess [ConsoleBudget] | The F1 console on the server (GROUND.md §8.2): who is an admin, the console's messages (a line in, the answer's lines |
 | `DamageModule.cs` | 48 | DamageModule, DamageModuleAccess | The damage pipeline's replication (GROUND.md §6.4.2): what was destroyed, to the clients that draw it. |
+| `DevModule.cs` | 450 | DevModule, DevModuleAccess [Watch] | The F2 developer panel's server side (GROUND.md §8.5): who watches; every half second the stats (the tick's profile |
 | `GunModule.cs` | 98 | GunModule, GunBudget, GunModuleAccess | Guns on the server (GROUND.md §6.4, G4): shots, reloads and unloads from the player's own gun budget (a refused one |
 | `PlacementModule.cs` | 51 | PlacementModule, PlacementModuleAccess | Placing anything (GROUND_SYSTEMS.md §6): one intent for every placeable, on the general budget, answered by |
 | `RaidModule.cs` | 414 | RaidModule, RaidArena, RaidModuleAccess [ExplosiveView] | Raiding on the server (GROUND.md §6.6, G5): throw and place intents (a dud is lit again by a verb); explosives replicated to everyone in range |
@@ -491,13 +493,13 @@ The dedicated server: the host and its modules, sessions, admin commands, notifi
 
 The client without graphics: the host and its modules, prediction, the local player, the map, sounds' rules.
 
-### src/Hollow.Client (19 files, 4,347 lines)
+### src/Hollow.Client (19 files, 4,348 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BuildingReplica.cs` | 212 | DoorState, ClaimState, BuildingReplica | What a client knows of a door beyond its geometry: its lock, and what the server tells this player of it |
 | `ClientModule.cs` | 149 | ClientModule | One concern of the client (GROUND_SYSTEMS.md §12.5, K11): its own state, its message handlers, and hooks the host |
-| `ClientModules.cs` | 28 | ClientModules | The client's modules and their order (GROUND_SYSTEMS.md §12.5, K11), the one place that lists them: the host calls |
+| `ClientModules.cs` | 29 | ClientModules | The client's modules and their order (GROUND_SYSTEMS.md §12.5, K11), the one place that lists them: the host calls |
 | `ClientStats.cs` | 175 | ClientStats | What the network graph shows (GROUND.md §4.4): round trip, snapshot loss and rate, bandwidth both ways (with UDP |
 | `GameClient.cs` | 838 | ClientState, InputFrame, ClientOptions, GameClient |  |
 | `LocalGun.cs` | 612 | ShotEvent, ReloadEvent, UnloadEvent, GunRefusal, LocalGun, RecoilCompensation [Pending] | A shot this client fired, at once (predicted): for the muzzle flash, the sound, the tracer and the kick. |
@@ -540,7 +542,7 @@ The client without graphics: the host and its modules, prediction, the local pla
 |---|---|---|---|
 | `ZoneMap.cs` | 253 | MapPicture, ZoneMap, ZoneMapImage | A map picture: Size × Size pixels, RGBA, rows from the north edge down. |
 
-### src/Hollow.Client/Modules (13 files, 2,525 lines)
+### src/Hollow.Client/Modules (14 files, 2,851 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -549,6 +551,7 @@ The client without graphics: the host and its modules, prediction, the local pla
 | `BuildingModule.cs` | 66 | BuildingModule, BuildingModuleAccess | Building on the client (GROUND.md §4.3, §6.3, phase 2): the replicated structures to draw, the ghost check with the |
 | `ConsoleModule.cs` | 90 | ConsoleAnswer, ZoneDay, ConsoleModule, ConsoleModuleAccess | A line of the server's answer to a console command (its number), or a line it sent by itself (0). |
 | `DamageModule.cs` | 71 | DestroyedEvent, DamageModule, DamageModuleAccess | Something in range was destroyed (GROUND.md §6.4.2), for break-apart pieces, debris and the sound of it breaking. |
+| `DevModule.cs` | 326 | DevPlayerState, ServerSection, ServerPlayer, DevLine, NavWindow, SpawnSlotView, SpawnAreaView, AnsweredIntent, DevModule, DevModuleAccess | A player's state as the F2 panel lists it. |
 | `InteractionModule.cs` | 153 | InteractAim, InteractionModule, InteractionModuleAccess | What the interact key acts on now (GROUND_SYSTEMS.md §5): the target the one query found, what is known of it, and its |
 | `LoadingModule.cs` | 89 | LoadingModule, LoadingModuleAccess [Backlog] | The client's part of the loading pipeline (GROUND.md §4.3.1): the connection (connected, welcomed, the character |
 | `PlacementModule.cs` | 186 | PlacementModule, PlacementModuleAccess [ClientSurroundings] | Placing on the client (GROUND_SYSTEMS.md §6): the placement world over what this client has (its prediction physics |
@@ -684,7 +687,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GibWarm.cs` | 35 | GibWarm | The gibs' part of the renderer's warm-up (GROUND.md §4.3.1, §9.4): every gib file the catalogue names, read, and a |
 | `GibWorld.cs` | 798 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from  along  for |
 
-### game/scripts/Ground (41 files, 12,646 lines)
+### game/scripts/Ground (43 files, 13,520 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -693,9 +696,11 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `BuildView.cs` | 363 | BuildView, GodotVectors | Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's |
 | `ChildServer.cs` | 176 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
 | `ClientConsole.cs` | 632 | ViewSettings, ClientConsole | The view's settings the console sets (GROUND.md §8.2), kept on this computer: field of view, mouse sensitivity, the frame rate shown. |
+| `ClientDeveloper.cs` | 327 | ClientDeveloper | The F2 panel's model over the client (GROUND.md §8.5): the server's stats, sections and players as the client's dev |
 | `ClientGroundUi.Interaction.cs` | 229 | ClientGroundUi, InteractionRadial | The interact key in the view model (GROUND_SYSTEMS.md §5, GROUND.md §8.4): every frame the one targeting query says |
 | `ClientGroundUi.World.cs` | 447 | ClientGroundUi | The interface's G7 members over the client (GROUND.md §6.8): the zone's map and what is on it (the player, teammates, |
-| `ClientGroundUi.cs` | 666 | ClientGroundUi | The ground interface's view model over the client (GROUND.md §8.1): GroundUi reads the player's own |
+| `ClientGroundUi.cs` | 669 | ClientGroundUi | The ground interface's view model over the client (GROUND.md §8.1): GroundUi reads the player's own |
+| `DevDraw.cs` | 470 | DevDraw | The F2 panel's drawings in the world (GROUND.md §8.5), over the client's dev module's toggles: the hitboxes of every |
 | `FirstPersonView.cs` | 262 | FirstPersonView | The local player in first person (GROUND.md §4.8): the character package's ViewmodelView holding the |
 | `FrameEvents.cs` | 29 | FrameEvents | What happened in this frame that may cost time (for --measure's report of the slowest frames). |
 | `GibsView.cs` | 53 | GibsView | Things breaking apart in the ground game (GROUND.md §9.4): whatever the damage pipeline's Destroyed event names |
@@ -709,8 +714,8 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundModels.cs` | 266 | IGroundModels, GroundModels, CatalogModels, PlaceholderModels | Where the ground game's world models come from (GROUND.md §9): deployables, bags of dropped items, outcrops and the |
 | `GroundOverlay.cs` | 226 | GroundOverlay [Crosshair] | What the ground game shows besides the RustMVP interface: other players' names over their heads (placed by |
 | `GroundTerrain.cs` | 134 | GroundTerrain [TileArrays] | Placeholder ground (GROUND.md §4.3): the collision tiles of ISurface.GroundCollision around the |
-| `GroundTour.cs` | 2409 | GroundTour | The scripted screenshot run of the ground game (GROUND.md §5, --tour &lt;folder&gt;): on the host, a walk |
-| `GroundView.cs` | 909 | GroundView | The ground game in first person (GROUND.md §4.3), one whole on the real planet: the surface view draws the world |
+| `GroundTour.cs` | 2471 | GroundTour | The scripted screenshot run of the ground game (GROUND.md §5, --tour &lt;folder&gt;): on the host, a walk |
+| `GroundView.cs` | 921 | GroundView | The ground game in first person (GROUND.md §4.3), one whole on the real planet: the surface view draws the world |
 | `GroundWarmup.cs` | 41 | GroundWarmup | Everything the ground game can draw, for the renderer's warm-up (GROUND.md §4.3.1): each library's items, read from its |
 | `GunEffects.cs` | 194 | GunEffects | Shots, hits and guns in hand through the effects library and the model catalogue (GROUND.md §6.4, §9.3): which |
 | `InventoryBody.cs` | 51 | InventoryBody | The player's own body on the inventory screen (GROUND.md §8): the character package's CharacterView |
@@ -807,7 +812,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SystemMapUi.cs` | 610 | SystemMapUi | The system map's interface: system summary, body list, selected body, time and scale controls. |
 | `SystemMapView.cs` | 700 | SystemMapView [BodyView] | The system map (GALAXY.md §12): an orrery of one star system, animated by universe time. Distances are |
 
-### game/scripts/UI (18 files, 4,998 lines)
+### game/scripts/UI (19 files, 5,419 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -816,40 +821,43 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundUi.Console.cs` | 739 | GroundUi | The F1 panel (GROUND.md §8.2): Rust's F1 menu in the ground interface's style, our own drawing. One dark translucent |
 | `GroundUi.Crafting.cs` | 239 | GroundUi | The crafting screen (RustMVP's, from SBareRoot.cpp and its Godot predecessor): categories with counts, the |
 | `GroundUi.Death.cs` | 253 | GroundUi | The death screen in Rust's layout: DEAD and how it happened across the top, the map with the body and the |
+| `GroundUi.Developer.cs` | 404 | GroundUi | The F2 panel (GROUND.md §8.5): the developer's window on the game while playing it, in the F1 panel's shape and |
 | `GroundUi.Hud.cs` | 229 | GroundUi | The HUD (RustMVP's, from SBareRoot.cpp): the centre dot, hit marker, damage direction and prompt in the middle; |
 | `GroundUi.Inventory.cs` | 449 | GroundUi [DragState] | The inventory (RustMVP's, from SBareRoot.cpp): the character and clothing on the left, the item panel and the |
 | `GroundUi.Machines.cs` | 69 | GroundUi | The loot panels of G7's machines (GROUND.md §6.8), in the furnace's manner: the recycler's six inputs and six outputs |
 | `GroundUi.Map.cs` | 472 | GroundUi | The map (G7, GROUND.md §6.8), on G as in Rust: the zone's parchment map as large as the window allows, its grid |
 | `GroundUi.Menu.cs` | 100 | GroundUi | A small main menu for playtests, in RustMVP's menu style: the title and a column of big condensed items on the |
-| `GroundUi.Paint.cs` | 359 | GroundUi | Immediate-mode painting on the design canvas, as RustMVP's SBareRoot painted: rectangles, text, icons and lines at |
+| `GroundUi.Paint.cs` | 367 | GroundUi | Immediate-mode painting on the design canvas, as RustMVP's SBareRoot painted: rectangles, text, icons and lines at |
 | `GroundUi.Radial.cs` | 356 | GroundUi [Trigger] | The radial menu (GROUND_SYSTEMS.md §4; RustMVP's wheels, from SBareRoot.cpp): one control for every source of options. |
 | `GroundUi.TechTree.cs` | 214 | GroundUi | The tech tree of the workbench in reach (G7, GROUND.md §6.8), in RustMVP's manner: the tree laid out from its roots |
-| `GroundUi.cs` | 693 | GroundScreen, GroundUi [HitKind, Hit, Pickup] | The ground interface's screens; the HUD shows under the inventory and crafting screens too. |
+| `GroundUi.cs` | 702 | GroundScreen, GroundUi [HitKind, Hit, Pickup] | The ground interface's screens; the HUD shows under the inventory and crafting screens too. |
 | `ItemIcons.cs` | 216 | IItemIconProvider, ItemIcons, PlaceholderItemIcons, GroundGlyphs | Where item icons come from. The icon package will render them from our models; until then, placeholders. |
 | `LoadingScreen.cs` | 199 | LoadingScreen | The loading screen (GROUND.md §4.3.1, §8): a picture of the first world filling the window, the game's name, the |
 | `Painter.cs` | 19 | Painter | A full-window layer whose drawing is done by its owner (the ground interface paints in immediate mode). |
 | `RadialGlyphs.cs` | 198 | RadialGlyphs | The radial menu's outline glyphs (RustMVP's own perspective outlines, from SBareRoot.cpp, and ours in their manner), by |
 
-### game/scripts/UI/Model (9 files, 1,967 lines)
+### game/scripts/UI/Model (11 files, 2,219 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ConsoleUiTypes.cs` | 124 | ConsoleTab, ConsoleLineKind, ConsoleLine, ConsoleCompletionView, InfoRow, InfoSection, NetGraphView, ToolButton, ToolGroup, ToolsView, IConsoleModel | The F1 panel's values (GROUND.md §8.2): plain C#, no Godot types, as the rest of the view model. The game's adapter |
+| `DeveloperUiTypes.cs` | 91 | DeveloperTab, TickGraphView, SectionRow, PlayerRow, DrawToggle, IDeveloperModel | The F2 developer panel's values (GROUND.md §8.5): plain C#, no Godot types, as the rest of the view model. The game's |
 | `GroundUiTypes.cs` | 161 | ContainerId, SlotRef, ItemStack, ItemStat, ItemActionView, ItemInfo, ContainerKind, LootView, Privilege, Vitals, HeldAmmo, Ingredient, Recipe, CraftCategory, CraftJob, RespawnBag, DeathInfo, InteractionPrompt, ChatLine | The values the ground game's interface shows (GROUND.md §8). Plain C#, no Godot types: the client API adapts its |
-| `IGroundUi.cs` | 233 | IGroundUi | The ground game's view model (GROUND.md §8): everything the HUD, inventory, crafting, death and radial screens show, |
+| `IGroundUi.cs` | 238 | IGroundUi | The ground game's view model (GROUND.md §8): everything the HUD, inventory, crafting, death and radial screens show, |
 | `MockConsole.cs` | 161 | MockConsole | The F1 panel on sample data (GROUND.md §8.2), for the interface viewer (--view ui --screen console, and |
+| `MockDeveloper.cs` | 152 | MockDeveloper | The F2 panel on sample data (GROUND.md §8.5), for the interface viewer (--view ui --screen developer, and |
 | `MockGroundUi.Radials.cs` | 161 | MockGroundUi [SampleDoor] | The sample radials (GROUND_SYSTEMS.md §4): the right mouse opens the held plan's or hammer's; E held on the HUD opens |
 | `MockGroundUi.World.cs` | 237 | MockGroundUi | The mock's G7 world (GROUND.md §6.8): the first world's real map round the landing site, a few markers, a team with an |
-| `MockGroundUi.cs` | 676 | MockGroundUi | A stand-in for the client API (GROUND.md §8): a survivor with a believable inventory, recipes, a crafting queue, |
+| `MockGroundUi.cs` | 680 | MockGroundUi | A stand-in for the client API (GROUND.md §8): a survivor with a believable inventory, recipes, a crafting queue, |
 | `RadialTypes.cs` | 145 | RadialIcon, RadialOption, IRadialSource, RadialInput, RadialBinding, RadialMenu | The radial menu's contract (GROUND_SYSTEMS.md §4, GROUND.md §8): one control, drawn in RustMVP's look, on any source |
 | `WorldUiTypes.cs` | 69 | MapView, MapMarkerKind, MapMarkerView, TechNodeState, TechNodeView, TechTreeView, TeamMemberInfo, TeamInfo, TeamInviteInfo | The values the map, tech tree, team and machine screens show (GROUND.md §6.8, §8, G7). Plain C#, no Godot types: the |
 
-### game/scripts/UI/Viewer (2 files, 398 lines)
+### game/scripts/UI/Viewer (2 files, 412 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `UiBackdrop.cs` | 65 | UiBackdrop | A plain scene behind the interface viewer, so the panels' translucency and blur can be judged against something |
-| `UiViewer.cs` | 333 | UiViewer | The interface viewer (--view ui, GROUND.md §8): the ground interface on MockGroundUi over a |
+| `UiViewer.cs` | 347 | UiViewer | The interface viewer (--view ui, GROUND.md §8): the ground interface on MockGroundUi over a |
 
 ## tools
 
@@ -908,7 +916,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 
 The tests, one file per area (the runner needs no packages).
 
-### tests/Hollow.Tests (48 files, 13,767 lines)
+### tests/Hollow.Tests (49 files, 13,830 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -924,6 +932,7 @@ The tests, one file per area (the runner needs no packages).
 | `ContentTests.cs` | 131 | ContentFixture, ContentTests | The ground game's data (GROUND.md §7), loaded once for every test that needs it. |
 | `CoreTests.cs` | 112 | CoreTests |  |
 | `DamageTests.cs` | 153 | DamageTests | The damage pipeline's Destroyed event (GROUND.md §6.4.2), in the zone and over the network. |
+| `DevTests.cs` | 63 | DevTests | The F2 developer panel's server side (GROUND.md §8.5), over the network. |
 | `EventTests.cs` | 34 | EventTests |  |
 | `FoundationTests.cs` | 488 | FoundationTests | The ground game's shared foundations (GROUND_SYSTEMS.md §3, package P0), engine-free. |
 | `GalaxyTests.cs` | 1199 | GalaxyTests |  |

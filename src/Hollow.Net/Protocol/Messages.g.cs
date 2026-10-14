@@ -8,6 +8,7 @@ using Hollow.Net.Bits;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
@@ -23,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x824D9E2D1F9B8F8FUL;
+    public const ulong SchemaHash = 0xA1843297849EDAE2UL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -3991,6 +3992,545 @@ partial struct UnloadIntent : INetMessage<UnloadIntent>
         v.Tick = (uint)r.ReadBits(32);
         v.Slot = (byte)r.ReadBits(3);
         v.Item = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct DevWatch : INetMessage<DevWatch>
+{
+    public const byte TypeId = 155;
+
+    static byte INetMessage<DevWatch>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBool(On);
+        w.WriteBool(Nav);
+        w.WriteBool(Areas);
+        w.WriteBool(Log);
+    }
+
+    public static DevWatch Read(BitReader r)
+    {
+        var v = new DevWatch();
+        v.On = r.ReadBool();
+        v.Nav = r.ReadBool();
+        v.Areas = r.ReadBool();
+        v.Log = r.ReadBool();
+        return v;
+    }
+}
+
+partial struct DevSectionNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Section, 6);
+        w.WriteFloat(AverageMs);
+        w.WriteFloat(WorstMs);
+    }
+
+    public static DevSectionNet Read(BitReader r)
+    {
+        var v = new DevSectionNet();
+        v.Section = (ProfileSection)r.ReadBits(6);
+        v.AverageMs = r.ReadFloat();
+        v.WorstMs = r.ReadFloat();
+        return v;
+    }
+}
+
+partial struct DevPlayerNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteString(Name, 32);
+        w.WriteBool(Admin);
+        w.WriteBits((uint)State, 2);
+        w.WriteVarUInt(PingMs);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteBits((uint)OnTimePercent, 7);
+        w.WriteVarUInt(InView);
+        w.WriteFloat(KilobitsDown);
+        w.WriteFloat(KilobitsUp);
+    }
+
+    public static DevPlayerNet Read(BitReader r)
+    {
+        var v = new DevPlayerNet();
+        v.Name = r.ReadString(32);
+        v.Admin = r.ReadBool();
+        v.State = (byte)r.ReadBits(2);
+        v.PingMs = r.ReadVarUInt();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.OnTimePercent = (byte)r.ReadBits(7);
+        v.InView = r.ReadVarUInt();
+        v.KilobitsDown = r.ReadFloat();
+        v.KilobitsUp = r.ReadFloat();
+        return v;
+    }
+}
+
+partial struct DevStats : INetMessage<DevStats>
+{
+    public const byte TypeId = 156;
+
+    static byte INetMessage<DevStats>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Tick, 32);
+        w.WriteBits((uint)TickRate, 8);
+        w.WriteFloat(IntervalSeconds);
+        w.WriteFloat(AverageMs);
+        w.WriteFloat(WorstMs);
+        w.WriteVarUInt(Overruns);
+        w.WriteFloat(GcPauseMs);
+        w.WriteVarUInt(AllocatedKbPerTick);
+        w.WriteVarUInt(UpSeconds);
+        w.WriteVarUInt(WorkingSetMb);
+        w.WriteVarUInt(HeapMb);
+        w.WriteBool(Saves);
+        w.WriteVarUInt(SinceSaveSeconds);
+        w.WriteFloat(RelevanceRadius);
+        w.WriteVarUInt(Characters);
+        w.WriteVarUInt(Asleep);
+        w.WriteVarUInt(Dead);
+        w.WriteVarUInt(Wounded);
+        w.WriteVarUInt(AnimalsAlive);
+        w.WriteVarUInt(AnimalsAwake);
+        w.WriteVarUInt(AnimalsDead);
+        w.WriteVarUInt(Deployables);
+        w.WriteVarUInt(Props);
+        w.WriteVarUInt(Bags);
+        w.WriteVarUInt(Corpses);
+        w.WriteVarUInt(Pieces);
+        w.WriteVarUInt(Doors);
+        w.WriteVarUInt(Claims);
+        w.WriteVarUInt(Collapsing);
+        w.WriteVarUInt(Ships);
+        w.WriteVarUInt(Explosives);
+        w.WriteVarUInt(Arrows);
+        w.WriteVarUInt(NaturalChanged);
+        w.WriteVarUInt(Tiles);
+        w.WriteVarUInt(TilesOnDemand);
+        w.WriteVarUInt(NetEntities);
+        w.WriteVarUInt(GatherHits);
+        w.WriteVarUInt(Gathered);
+        w.WriteVarUInt(PickedUp);
+        w.WriteVarUInt(Crafted);
+        w.WriteVarUInt(ArrowsShot);
+        w.WriteVarUInt(Shots);
+        w.WriteVarUInt(BulletHits);
+        w.WriteVarUInt(CharacterHits);
+        w.WriteVarUInt(Kills);
+        w.WriteVarUInt(Downed);
+        w.WriteVarUInt(Recovered);
+        w.WriteVarUInt(Deaths);
+        w.WriteVarUInt(AnimalHits);
+        w.WriteVarUInt(AnimalKills);
+        int countSections = Sections == null ? 0 : Math.Min(Sections.Length, 32);
+        w.WriteBits((uint)countSections, 6);
+        for (int i = 0; i < countSections; i++)
+        {
+            Sections![i].Write(w);
+        }
+        int countPlayers = Players == null ? 0 : Math.Min(Players.Length, 256);
+        w.WriteBits((uint)countPlayers, 9);
+        for (int i = 0; i < countPlayers; i++)
+        {
+            Players![i].Write(w);
+        }
+    }
+
+    public static DevStats Read(BitReader r)
+    {
+        var v = new DevStats();
+        v.Tick = (uint)r.ReadBits(32);
+        v.TickRate = (byte)r.ReadBits(8);
+        v.IntervalSeconds = r.ReadFloat();
+        v.AverageMs = r.ReadFloat();
+        v.WorstMs = r.ReadFloat();
+        v.Overruns = r.ReadVarUInt();
+        v.GcPauseMs = r.ReadFloat();
+        v.AllocatedKbPerTick = r.ReadVarUInt();
+        v.UpSeconds = r.ReadVarUInt();
+        v.WorkingSetMb = r.ReadVarUInt();
+        v.HeapMb = r.ReadVarUInt();
+        v.Saves = r.ReadBool();
+        v.SinceSaveSeconds = r.ReadVarUInt();
+        v.RelevanceRadius = r.ReadFloat();
+        v.Characters = r.ReadVarUInt();
+        v.Asleep = r.ReadVarUInt();
+        v.Dead = r.ReadVarUInt();
+        v.Wounded = r.ReadVarUInt();
+        v.AnimalsAlive = r.ReadVarUInt();
+        v.AnimalsAwake = r.ReadVarUInt();
+        v.AnimalsDead = r.ReadVarUInt();
+        v.Deployables = r.ReadVarUInt();
+        v.Props = r.ReadVarUInt();
+        v.Bags = r.ReadVarUInt();
+        v.Corpses = r.ReadVarUInt();
+        v.Pieces = r.ReadVarUInt();
+        v.Doors = r.ReadVarUInt();
+        v.Claims = r.ReadVarUInt();
+        v.Collapsing = r.ReadVarUInt();
+        v.Ships = r.ReadVarUInt();
+        v.Explosives = r.ReadVarUInt();
+        v.Arrows = r.ReadVarUInt();
+        v.NaturalChanged = r.ReadVarUInt();
+        v.Tiles = r.ReadVarUInt();
+        v.TilesOnDemand = r.ReadVarUInt();
+        v.NetEntities = r.ReadVarUInt();
+        v.GatherHits = r.ReadVarUInt();
+        v.Gathered = r.ReadVarUInt();
+        v.PickedUp = r.ReadVarUInt();
+        v.Crafted = r.ReadVarUInt();
+        v.ArrowsShot = r.ReadVarUInt();
+        v.Shots = r.ReadVarUInt();
+        v.BulletHits = r.ReadVarUInt();
+        v.CharacterHits = r.ReadVarUInt();
+        v.Kills = r.ReadVarUInt();
+        v.Downed = r.ReadVarUInt();
+        v.Recovered = r.ReadVarUInt();
+        v.Deaths = r.ReadVarUInt();
+        v.AnimalHits = r.ReadVarUInt();
+        v.AnimalKills = r.ReadVarUInt();
+        int countSections = (int)r.ReadBits(6);
+        if (countSections > 32)
+        {
+            r.Fail();
+            countSections = 0;
+        }
+        v.Sections = new DevSectionNet[countSections];
+        for (int i = 0; i < countSections; i++)
+        {
+            v.Sections[i] = DevSectionNet.Read(r);
+        }
+        int countPlayers = (int)r.ReadBits(9);
+        if (countPlayers > 256)
+        {
+            r.Fail();
+            countPlayers = 0;
+        }
+        v.Players = new DevPlayerNet[countPlayers];
+        for (int i = 0; i < countPlayers; i++)
+        {
+            v.Players[i] = DevPlayerNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct DevInspect : INetMessage<DevInspect>
+{
+    public const byte TypeId = 157;
+
+    static byte INetMessage<DevInspect>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        Target.Write(w);
+    }
+
+    public static DevInspect Read(BitReader r)
+    {
+        var v = new DevInspect();
+        v.Target = TargetNet.Read(r);
+        return v;
+    }
+}
+
+partial struct DevLineNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteString(Label, 40);
+        w.WriteString(Value, 200);
+    }
+
+    public static DevLineNet Read(BitReader r)
+    {
+        var v = new DevLineNet();
+        v.Label = r.ReadString(40);
+        v.Value = r.ReadString(200);
+        return v;
+    }
+}
+
+partial struct DevInspected : INetMessage<DevInspected>
+{
+    public const byte TypeId = 158;
+
+    static byte INetMessage<DevInspected>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        Target.Write(w);
+        int countLines = Lines == null ? 0 : Math.Min(Lines.Length, 64);
+        w.WriteBits((uint)countLines, 7);
+        for (int i = 0; i < countLines; i++)
+        {
+            Lines![i].Write(w);
+        }
+    }
+
+    public static DevInspected Read(BitReader r)
+    {
+        var v = new DevInspected();
+        v.Target = TargetNet.Read(r);
+        int countLines = (int)r.ReadBits(7);
+        if (countLines > 64)
+        {
+            r.Fail();
+            countLines = 0;
+        }
+        v.Lines = new DevLineNet[countLines];
+        for (int i = 0; i < countLines; i++)
+        {
+            v.Lines[i] = DevLineNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct DevCellNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Flags, 4);
+    }
+
+    public static DevCellNet Read(BitReader r)
+    {
+        var v = new DevCellNet();
+        v.Flags = (byte)r.ReadBits(4);
+        return v;
+    }
+}
+
+partial struct DevNav : INetMessage<DevNav>
+{
+    public const byte TypeId = 159;
+
+    static byte INetMessage<DevNav>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteFloat(OriginX);
+        w.WriteFloat(OriginZ);
+        w.WriteBits((uint)Cells, 8);
+        int countFlags = Flags == null ? 0 : Math.Min(Flags.Length, 4096);
+        w.WriteBits((uint)countFlags, 13);
+        for (int i = 0; i < countFlags; i++)
+        {
+            Flags![i].Write(w);
+        }
+    }
+
+    public static DevNav Read(BitReader r)
+    {
+        var v = new DevNav();
+        v.OriginX = r.ReadFloat();
+        v.OriginZ = r.ReadFloat();
+        v.Cells = (byte)r.ReadBits(8);
+        int countFlags = (int)r.ReadBits(13);
+        if (countFlags > 4096)
+        {
+            r.Fail();
+            countFlags = 0;
+        }
+        v.Flags = new DevCellNet[countFlags];
+        for (int i = 0; i < countFlags; i++)
+        {
+            v.Flags[i] = DevCellNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct DevSlotNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteString(Species, 32);
+        w.WriteVarUInt(Size);
+        w.WriteVarUInt(Living);
+        w.WriteFloat(HomeX);
+        w.WriteFloat(HomeY);
+        w.WriteFloat(HomeZ);
+        w.WriteFloat(Range);
+    }
+
+    public static DevSlotNet Read(BitReader r)
+    {
+        var v = new DevSlotNet();
+        v.Species = r.ReadString(32);
+        v.Size = r.ReadVarUInt();
+        v.Living = r.ReadVarUInt();
+        v.HomeX = r.ReadFloat();
+        v.HomeY = r.ReadFloat();
+        v.HomeZ = r.ReadFloat();
+        v.Range = r.ReadFloat();
+        return v;
+    }
+}
+
+partial struct DevAreaNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteFloat(CentreX);
+        w.WriteFloat(CentreY);
+        w.WriteFloat(CentreZ);
+        w.WriteBool(Active);
+        int countSlots = Slots == null ? 0 : Math.Min(Slots.Length, 16);
+        w.WriteBits((uint)countSlots, 5);
+        for (int i = 0; i < countSlots; i++)
+        {
+            Slots![i].Write(w);
+        }
+    }
+
+    public static DevAreaNet Read(BitReader r)
+    {
+        var v = new DevAreaNet();
+        v.CentreX = r.ReadFloat();
+        v.CentreY = r.ReadFloat();
+        v.CentreZ = r.ReadFloat();
+        v.Active = r.ReadBool();
+        int countSlots = (int)r.ReadBits(5);
+        if (countSlots > 16)
+        {
+            r.Fail();
+            countSlots = 0;
+        }
+        v.Slots = new DevSlotNet[countSlots];
+        for (int i = 0; i < countSlots; i++)
+        {
+            v.Slots[i] = DevSlotNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct DevAreas : INetMessage<DevAreas>
+{
+    public const byte TypeId = 160;
+
+    static byte INetMessage<DevAreas>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countAreas = Areas == null ? 0 : Math.Min(Areas.Length, 32);
+        w.WriteBits((uint)countAreas, 6);
+        for (int i = 0; i < countAreas; i++)
+        {
+            Areas![i].Write(w);
+        }
+    }
+
+    public static DevAreas Read(BitReader r)
+    {
+        var v = new DevAreas();
+        int countAreas = (int)r.ReadBits(6);
+        if (countAreas > 32)
+        {
+            r.Fail();
+            countAreas = 0;
+        }
+        v.Areas = new DevAreaNet[countAreas];
+        for (int i = 0; i < countAreas; i++)
+        {
+            v.Areas[i] = DevAreaNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct DevLog : INetMessage<DevLog>
+{
+    public const byte TypeId = 161;
+
+    static byte INetMessage<DevLog>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        int countLines = Lines == null ? 0 : Math.Min(Lines.Length, 32);
+        w.WriteBits((uint)countLines, 6);
+        for (int i = 0; i < countLines; i++)
+        {
+            Lines![i].Write(w);
+        }
+    }
+
+    public static DevLog Read(BitReader r)
+    {
+        var v = new DevLog();
+        int countLines = (int)r.ReadBits(6);
+        if (countLines > 32)
+        {
+            r.Fail();
+            countLines = 0;
+        }
+        v.Lines = new DevLineNet[countLines];
+        for (int i = 0; i < countLines; i++)
+        {
+            v.Lines[i] = DevLineNet.Read(r);
+        }
         return v;
     }
 }

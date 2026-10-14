@@ -105,6 +105,11 @@ public sealed class TickProfile
     private readonly long[] _slow = new long[Count];
     private readonly long[] _allocated = new long[Count];
 
+    // The window since the last ResetWindow (the F2 panel's half second, GROUND.md §8.5): per section, its total and its
+    // longest tick.
+    private readonly long[] _windowTotal = new long[Count];
+    private readonly long[] _windowWorst = new long[Count];
+
     /// <summary>A tick at least this long counts as slow (the budget: a tick at 30 Hz).</summary>
     public double SlowMs { get; init; } = 1000.0 / 30;
 
@@ -140,6 +145,9 @@ public sealed class TickProfile
         Ticks++;
         GcPauseMs += gcPauseMs;
         AllocatedBytes += allocatedBytes;
+        WindowTicks++;
+        WindowGcPauseMs += gcPauseMs;
+        WindowAllocatedBytes += allocatedBytes;
         if (gcPauseMs > 0)
         {
             // What kind of collection paused this tick (the latest one's: a tick seldom holds two).
@@ -161,6 +169,8 @@ public sealed class TickProfile
             _total[i] += _now[i];
             _calls[i] += _nowCalls[i];
             _worst[i] = Math.Max(_worst[i], _now[i]);
+            _windowTotal[i] += _now[i];
+            _windowWorst[i] = Math.Max(_windowWorst[i], _now[i]);
             if (slow)
             {
                 _slow[i] += _now[i];
@@ -203,6 +213,33 @@ public sealed class TickProfile
 
     public long Calls(ProfileSection section) => _calls[(int)section];
 
+    // ---------------------------------------------------------------- the window (GROUND.md §8.5)
+
+    /// <summary>Ticks since <see cref="ResetWindow"/>.</summary>
+    public int WindowTicks { get; private set; }
+
+    /// <summary>The garbage collector's pauses in the window, in milliseconds.</summary>
+    public double WindowGcPauseMs { get; private set; }
+
+    /// <summary>Bytes the tick's thread allocated in the window.</summary>
+    public long WindowAllocatedBytes { get; private set; }
+
+    /// <summary>A section's average per tick in the window, in milliseconds.</summary>
+    public double WindowAverageMs(ProfileSection section) => WindowTicks == 0 ? 0 : Ms(_windowTotal[(int)section]) / WindowTicks;
+
+    /// <summary>A section's longest tick in the window, in milliseconds.</summary>
+    public double WindowWorstMs(ProfileSection section) => Ms(_windowWorst[(int)section]);
+
+    /// <summary>Starts the window afresh (the totals stay).</summary>
+    public void ResetWindow()
+    {
+        Array.Clear(_windowTotal);
+        Array.Clear(_windowWorst);
+        WindowTicks = 0;
+        WindowGcPauseMs = 0;
+        WindowAllocatedBytes = 0;
+    }
+
     /// <summary>The table of GROUND.md §5.11: per section, its average and longest tick, calls a tick, and its share of the slow ticks.</summary>
     public string Report()
     {
@@ -231,8 +268,8 @@ public sealed class TickProfile
         return b.ToString();
     }
 
-    // The report's order and nesting.
-    private static readonly (ProfileSection, int)[] Tree =
+    /// <summary>The report's order and nesting: each section with its depth in the tree (the F2 panel draws the same tree).</summary>
+    public static readonly (ProfileSection Section, int Depth)[] Tree =
     {
         (ProfileSection.Tick, 0),
         (ProfileSection.Receive, 1),
@@ -262,7 +299,8 @@ public sealed class TickProfile
         (ProfileSection.Respawn, 0),
     };
 
-    private static string Label(ProfileSection s) => s switch
+    /// <summary>A section's name in the report.</summary>
+    public static string Label(ProfileSection s) => s switch
     {
         ProfileSection.CharacterGround => "ground (characters)",
         ProfileSection.BroadPhase => "broadphase",

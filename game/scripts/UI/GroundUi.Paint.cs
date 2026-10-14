@@ -51,6 +51,14 @@ public partial class GroundUi
                 PaintConsoleScreen();
                 PaintToast();
                 return;
+            case GroundScreen.Developer:
+                if (Model.Death == null && !Model.Piloting)
+                {
+                    PaintBelt(false);
+                }
+                PaintDeveloperScreen();
+                PaintToast();
+                return;
         }
         bool inventory = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.TechTree;
         // Flying, the ship's HUD (drawn by the ground view) has the centre, the belt's and the vitals' places.

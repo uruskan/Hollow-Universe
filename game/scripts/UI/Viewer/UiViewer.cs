@@ -10,7 +10,8 @@ namespace HollowUniverse.UI.Viewer;
 /// The interface viewer (<c>--view ui</c>, GROUND.md §8): the ground interface on <see cref="MockGroundUi"/> over a
 /// plain backdrop, opened on one screen for a look or a screenshot. Options (after "--"):
 /// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
-/// the F1 panel's <c>console|console-info|console-net|console-items|console-tools</c>, and
+/// the F1 panel's <c>console|console-info|console-net|console-items|console-tools</c>, the F2 panel's
+/// <c>developer|developer-players|developer-look|developer-draw|developer-log</c>, and
 /// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, radial sectors).
 /// Screenshots hold the HUD's moments and the sample's clock still; without <c>--shot</c> the mock runs and every
 /// screen is interactive (on the HUD the right mouse opens the held plan's or hammer's radial, E held the sample door's
@@ -138,6 +139,19 @@ public partial class UiViewer : Node
                     "console-items" => ConsoleTab.Items,
                     "console-tools" => ConsoleTab.Tools,
                     _ => ConsoleTab.Console,
+                };
+                break;
+            case "developer" or "developer-players" or "developer-look" or "developer-draw" or "developer-log":
+                // The F2 panel (GROUND.md §8.5) on sample data.
+                _model.HudSample();
+                _ui.ToggleDeveloper();
+                _ui.DeveloperTab = screen switch
+                {
+                    "developer-players" => DeveloperTab.Players,
+                    "developer-look" => DeveloperTab.Look,
+                    "developer-draw" => DeveloperTab.Draw,
+                    "developer-log" => DeveloperTab.Log,
+                    _ => DeveloperTab.Server,
                 };
                 break;
             default:

@@ -23,5 +23,6 @@ public static class ServerModules
         new SurvivalModule(),
         new GunModule(),
         new ConsoleModule(),
+        new DevModule(),
     };
 }

@@ -12,6 +12,15 @@ Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a
   the client are hosts of modules, and every data file has one reader. 224 tests pass. The game runs as before (a frame
   rendered on the first world, the saved world loaded; 100 bots tick in 5 to 7 ms). The packages' branches (`ground-k2`,
   `ground-k4`, `ground-k3a`, `ground-k3b`, `ground-systems`) are merged; their worktrees under `Hollow-wt\` can go.
+- **The F2 developer panel** (GROUND.md §8.5, 14 October 2026, night; branch `dev-panel`, merged): F2 in the game opens
+  the developer's window: SERVER (the tick's graph and profile sections, what the zone holds, the game's counters, the
+  process), PLAYERS, LOOK (what the crosshair is on as both ends see it; the server describes any object by reflection),
+  DRAW (hitboxes, ground tiles, the relevance circle, the nav grid, the spawn areas, drawn in the world) and LOG (the
+  server's lines). The server answers admins only (a hosted game's host is one); protocol 20. `DevModule` on both
+  sides, `DevInspector`, `GroundUi.Developer.cs`, `ClientDeveloper`, `DevDraw`, `MockDeveloper`; the tour's step `f2`
+  takes `docs/images/ground/play/f2-*.jpg`. The owner asked for it after asking what the architecture is and how to
+  start the game; next on that list: the front door (the menu as the default start, a Developer page listing the
+  viewers, a desktop shortcut) and the merge of `ground` into `main`, which needs the owner's word.
 - **Where things go now** (the rule of §12 is the rule of §2 one level up):
   - a rule of the game: a `ZoneSystem` in `src/Hollow.Simulation/Systems`, listed once in `GroundSystems` (its position
     is its place in the tick; `InitOrder` if its `Init` must follow another's); its file ends with its accessor, so

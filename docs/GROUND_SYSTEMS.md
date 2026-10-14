@@ -735,7 +735,9 @@ by relevance, save and load), `BuildingModule`, `PlacementModule`, `ShipModule`,
 service and the raid arena), `WorldModule`, `AnimalModule`, `ArrowModule`, `DamageModule`, `SurvivalModule` (the inventory,
 crafting, interaction, close and respawn intents; the player's own state; the looks; the event routes; the counters),
 `GunModule`, `ConsoleModule` (the F1 console's rights, messages, clock and commands; `AdminCommands.cs`, the commands'
-switch, stays the host's and calls them through the accessors). Each module's file ends with its accessor
+switch, stays the host's and calls them through the accessors), `DevModule` (the F2 panel, GROUND.md §8.5: who watches,
+the stats every half second, a target described, the nav grid and the spawn areas around a watcher, the log). Each
+module's file ends with its accessor
 (`server.Raid()`, `server.Ships()`...); the host finds a module by type (`Get<T>`, `Require<T>`). The list's order is what
 a client receives in a tick, unchanged: after the step the ships' notices, the raid alerts, the world's messages, then
 the player's own state and the intents' answers; in a snapshot the things and natural objects, the building, the
@@ -758,7 +760,8 @@ shared things under the names the moved code uses), `ClientModules.cs` (the list
 class per old partial in `Modules/`: `SurvivalModule` (the local player's state, things, natural objects, projectiles),
 `TargetModule` (the families' views), `WorldModule` (props, the map, teams), `BuildingModule`, `PlacementModule`,
 `InteractionModule`, `RaidModule`, `ShipModule` (the ship's prediction, through the hooks), `AnimalModule`, `ArrowModule`,
-`ConsoleModule`, `DamageModule`, `LoadingModule`. `GameClient.cs` is 837 lines (the core: the connection, the clock, the
+`ConsoleModule`, `DamageModule`, `LoadingModule`, `DevModule` (the F2 panel's reads and toggles, GROUND.md §8.5).
+`GameClient.cs` is 837 lines (the core: the connection, the clock, the
 input, the prediction, the snapshots, the remote entities, chat); it registers only its own messages (`Welcome`, `Spawn`,
 `Despawn`, `ChatLine`; the snapshot keeps its special case) and dispatches every other packet through the table, where a
 type nobody handles, or a message that doesn't read, is counted (`Stats.UnhandledMessages`) and dropped. On a Welcome the

@@ -229,7 +229,7 @@ Client options (after `--`):
   seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,look,foundations,held,place,interact`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
@@ -267,7 +267,8 @@ Client options (after `--`):
   makes it faster); G the map (a click
   puts a marker down, a right-click takes it off; the team beside it); Enter chat (`/t ` before a line: to the team
   alone); F1 the console (GROUND.md §8.2: CONSOLE, INFO, NET, ITEMS and TOOLS tabs; Tab completes, Up and Down the
-  history, Esc or F1 closes); Esc back, then the menu; F3 network graph; the death screen's buttons respawn. At a ship, E opens its hatch, boards, refuels or opens the cargo. Flying (G6): the mouse is the
+  history, Esc or F1 closes); F2 the developer panel (GROUND.md §8.5: SERVER, PLAYERS, LOOK, DRAW and LOG tabs; the
+  server's side for admins; the DRAW toggles stay on when it closes); Esc back, then the menu; F3 network graph; the death screen's buttons respawn. At a ship, E opens its hatch, boards, refuels or opens the cargo. Flying (G6): the mouse is the
   stick, W/S move the throttle lever (X: zero), A/D slide, Space/C rise and sink, Q/E roll, Shift boosts, Z switches
   flight assist, V the camera (chase or cockpit), F steps out, H the hatch, L the lock, J descends from orbit. Chat lines starting with `/` run as console commands
   (`/give rifle`), with the player's rights on any server. A hosted game makes its host the admin.
@@ -312,7 +313,8 @@ Client options (after `--`):
   (`hud`, `inventory`, `loot`, `corpse`, `furnace`, `campfire`, `crafting`, `death`, `wheel`, `hammer`, `menu`, the
   radial on other sources, `options` (a door's options, held E) and `ammo` (the pistol's rounds, held R), and
   G7's `map`, `techtree`, `recycler`, `research`, and the F1 panel's `console`, `console-info`, `console-net`,
-  `console-items`, `console-tools` on sample data);
+  `console-items`, `console-tools`, and the F2 panel's `developer`, `developer-players`, `developer-look`,
+  `developer-draw`, `developer-log` on sample data);
   `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
   `--view ui --ui-check` drives the inventory, crafting and the radial with real input events (drag, middle-drag,
   split, quick move, drop, craft; the right mouse on the plan, E tapped, held, chosen and cancelled) and quits with

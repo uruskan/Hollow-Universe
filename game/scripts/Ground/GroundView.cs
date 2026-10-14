@@ -75,6 +75,8 @@ public partial class GroundView : Node3D
     // The view's settings the console sets, and the F1 panel's model (GROUND.md §8.2).
     private ViewSettings _settings = new();
     private ClientConsole _console = null!;
+    private ClientDeveloper _developer = null!;
+    private DevDraw _devDraw = null!;
     private float _yaw;
     private float _pitch;
 
@@ -259,6 +261,11 @@ public partial class GroundView : Node3D
             Address = ServerAddress,
         };
         _model.Console = _console;
+        // The F2 panel (GROUND.md §8.5): its model over the client's dev module, and its drawings in the world.
+        _developer = new ClientDeveloper(Client);
+        _model.Developer = _developer;
+        _devDraw = new DevDraw { Name = "DevDraw", Client = Client };
+        AddChild(_devDraw);
         Client.Console().ZoneDayChanged += ApplyDay;
         _build.Say = _model.ShowNotice;
         _placing.Say = _model.ShowNotice;
@@ -529,6 +536,8 @@ public partial class GroundView : Node3D
         LocalPlayer me = Client.Local;
         bool alive = !me.IsDead;
         _model.Aim(eye, forward, alive && !me.IsWounded && !piloting);
+        _developer.Aim(eye, forward);
+        _devDraw.Refresh(feet);
         if (_keypad.Visible || piloting)
         {
             _model.Prompt = null;
@@ -881,6 +890,9 @@ public partial class GroundView : Node3D
 
     /// <summary>The F1 panel's model (scripted runs type into it).</summary>
     public ClientConsole Console => _console;
+
+    /// <summary>The F2 panel's model (scripted runs).</summary>
+    public ClientDeveloper Developer => _developer;
 
     // The zone's clock as the server keeps it (an admin's time or timescale): the sky turns with it.
     private void ApplyDay(ZoneDay day) => _world?.Sky?.Ephemeris.SetSpin(day.BaseTime, day.BaseTurns, day.Scale);

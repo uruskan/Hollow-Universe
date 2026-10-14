@@ -1,6 +1,7 @@
 using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Combat;
+using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
@@ -1383,4 +1384,200 @@ public partial struct UnloadIntent
     public uint Tick;
     [Bits(3)] public byte Slot;
     [VarInt] public uint Item;
+}
+
+// ---------------------------------------------------------------- the developer panel (GROUND.md §8.5)
+
+/// <summary>
+/// A player watches the server through the F2 panel (client → server, reliable ordered): on or off, and which extras they
+/// want (the animals' nav grid around them, the spawn areas near them, the server's log). The server answers an admin
+/// only (GROUND.md §8.2.2); anyone else is ignored.
+/// </summary>
+[NetMessage(155)]
+public partial struct DevWatch
+{
+    public bool On;
+    public bool Nav;
+    public bool Areas;
+    public bool Log;
+}
+
+/// <summary>One section of the tick's profile (GROUND.md §5.11) over the last stats interval: its average and its longest tick.</summary>
+[NetStruct]
+public partial struct DevSectionNet
+{
+    [Bits(6)] public ProfileSection Section;
+    public float AverageMs;
+    public float WorstMs;
+}
+
+/// <summary>A player on the server, for the PLAYERS tab.</summary>
+[NetStruct]
+public partial struct DevPlayerNet
+{
+    [MaxLength(32)] public string Name;
+    public bool Admin;
+
+    /// <summary>0 logging in, 1 alive, 2 wounded, 3 dead.</summary>
+    [Bits(2)] public byte State;
+    [VarInt] public uint PingMs;
+    public float X;
+    public float Y;
+    public float Z;
+    [Bits(7)] public byte OnTimePercent;
+    [VarInt] public uint InView;
+    public float KilobitsDown;
+    public float KilobitsUp;
+}
+
+/// <summary>
+/// The server as the F2 panel's SERVER and PLAYERS tabs show it (server → the watching admins, every half second): the
+/// tick over the last interval, the profile's sections, the garbage collector, what the zone holds, the game's counters
+/// since the server started, the process, and everyone on.
+/// </summary>
+[NetMessage(156)]
+public partial struct DevStats
+{
+    public uint Tick;
+    public byte TickRate;
+    public float IntervalSeconds;
+    public float AverageMs;
+    public float WorstMs;
+    [VarInt] public uint Overruns;
+    public float GcPauseMs;
+    [VarInt] public uint AllocatedKbPerTick;
+    [VarInt] public uint UpSeconds;
+    [VarInt] public uint WorkingSetMb;
+    [VarInt] public uint HeapMb;
+    public bool Saves;
+    [VarInt] public uint SinceSaveSeconds;
+    public float RelevanceRadius;
+
+    // What the zone holds (the console's ents, as numbers).
+    [VarInt] public uint Characters;
+    [VarInt] public uint Asleep;
+    [VarInt] public uint Dead;
+    [VarInt] public uint Wounded;
+    [VarInt] public uint AnimalsAlive;
+    [VarInt] public uint AnimalsAwake;
+    [VarInt] public uint AnimalsDead;
+    [VarInt] public uint Deployables;
+    [VarInt] public uint Props;
+    [VarInt] public uint Bags;
+    [VarInt] public uint Corpses;
+    [VarInt] public uint Pieces;
+    [VarInt] public uint Doors;
+    [VarInt] public uint Claims;
+    [VarInt] public uint Collapsing;
+    [VarInt] public uint Ships;
+    [VarInt] public uint Explosives;
+    [VarInt] public uint Arrows;
+    [VarInt] public uint NaturalChanged;
+    [VarInt] public uint Tiles;
+    [VarInt] public uint TilesOnDemand;
+    [VarInt] public uint NetEntities;
+
+    // The game's counters since the server started (GameCounters).
+    [VarInt] public uint GatherHits;
+    [VarInt] public uint Gathered;
+    [VarInt] public uint PickedUp;
+    [VarInt] public uint Crafted;
+    [VarInt] public uint ArrowsShot;
+    [VarInt] public uint Shots;
+    [VarInt] public uint BulletHits;
+    [VarInt] public uint CharacterHits;
+    [VarInt] public uint Kills;
+    [VarInt] public uint Downed;
+    [VarInt] public uint Recovered;
+    [VarInt] public uint Deaths;
+    [VarInt] public uint AnimalHits;
+    [VarInt] public uint AnimalKills;
+
+    [MaxCount(32)] public DevSectionNet[] Sections;
+    [MaxCount(256)] public DevPlayerNet[] Players;
+}
+
+/// <summary>The F2 panel's LOOK tab asks what a target is (client → server, reliable ordered; at most four a second).</summary>
+[NetMessage(157)]
+public partial struct DevInspect
+{
+    public TargetNet Target;
+}
+
+/// <summary>A fact of a described target, or a line of the log: a label and its value.</summary>
+[NetStruct]
+public partial struct DevLineNet
+{
+    [MaxLength(40)] public string Label;
+    [MaxLength(200)] public string Value;
+}
+
+/// <summary>
+/// The server's description of a target (server → the asking admin): what its family resolves it to, every public
+/// property of that object, and what the rules make of it for this player (GROUND.md §8.5).
+/// </summary>
+[NetMessage(158)]
+public partial struct DevInspected
+{
+    public TargetNet Target;
+    [MaxCount(64)] public DevLineNet[] Lines;
+}
+
+/// <summary>One cell of the nav grid window: bit 0 under water, bit 1 blocked, bit 2 too steep for every animal, bit 3 not built yet.</summary>
+[NetStruct]
+public partial struct DevCellNet
+{
+    [Bits(4)] public byte Flags;
+}
+
+/// <summary>
+/// The animals' nav grid around the watcher (server → the watching admin, once a second while wanted; GROUND.md §6.9): a
+/// square of <see cref="Cells"/> × <see cref="Cells"/> cells of 2 m from the corner (<see cref="OriginX"/>,
+/// <see cref="OriginZ"/>), row by row from there, each cell as its flags.
+/// </summary>
+[NetMessage(159)]
+public partial struct DevNav
+{
+    public float OriginX;
+    public float OriginZ;
+    public byte Cells;
+    [MaxCount(4096)] public DevCellNet[] Flags;
+}
+
+/// <summary>A slot of a spawn area: its species, its herd's size, how many live, its home and its range.</summary>
+[NetStruct]
+public partial struct DevSlotNet
+{
+    [MaxLength(32)] public string Species;
+    [VarInt] public uint Size;
+    [VarInt] public uint Living;
+    public float HomeX;
+    public float HomeY;
+    public float HomeZ;
+    public float Range;
+}
+
+/// <summary>A spawn area of the animals (GROUND.md §6.9): its centre, whether it is active, and its slots.</summary>
+[NetStruct]
+public partial struct DevAreaNet
+{
+    public float CentreX;
+    public float CentreY;
+    public float CentreZ;
+    public bool Active;
+    [MaxCount(16)] public DevSlotNet[] Slots;
+}
+
+/// <summary>The spawn areas near the watcher (server → the watching admin, every two seconds while wanted).</summary>
+[NetMessage(160)]
+public partial struct DevAreas
+{
+    [MaxCount(32)] public DevAreaNet[] Areas;
+}
+
+/// <summary>Lines of the server's log (server → the watching admins who asked: the backlog at first, then as they come), the time as the label.</summary>
+[NetMessage(161)]
+public partial struct DevLog
+{
+    [MaxCount(32)] public DevLineNet[] Lines;
 }

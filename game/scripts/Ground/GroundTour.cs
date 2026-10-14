@@ -66,7 +66,7 @@ public partial class GroundTour : Node
         {
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
-            ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("look", Look),
+            ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("f2", F2), ("look", Look),
             ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction),
         };
         _steps.Enqueue(Prepare);
@@ -1817,6 +1817,68 @@ public partial class GroundTour : Node
         await Seconds(1.0);
         await Shot("f1-tools");
         GD.Print($"[tour] f1: {checks - failed} of {checks} checks passed");
+    }
+
+    // GROUND.md §8.5: the F2 panel on the host, as the admin: the five tabs pictured (two wolves and a small box spawned in
+    // front for the hitboxes and the LOOK tab), then the panel closed and the drawings in the world.
+    private async Task F2()
+    {
+        ClientConsole console = View.Console;
+        GroundUi ui = View.Interface;
+        await Until(() => Client.Console().IsAdmin, 10);
+        ui.HoldPointer(new Vector2(-10000, -10000));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(60, 0, -20));
+        await TeleportTo(spot);
+        Face(spot + towards * 8);
+        await Settle();
+        int wolves = Client.Animals().All.Count(a => a.SpeciesKey == "wolf" && !a.Dead);
+        console.Submit("spawn wolf 2");
+        await Until(() => Client.Animals().All.Count(a => a.SpeciesKey == "wolf" && !a.Dead) >= wolves + 2, 8);
+        console.Submit("spawn small-box");
+        await Until(() => Client.Survival().Things.Any(t => t.Deployable(Client.Content)?.Key == "small-box"), 8);
+        if (ui.Screen != GroundScreen.Developer)
+        {
+            ui.ToggleDeveloper();
+        }
+        ui.DeveloperTab = DeveloperTab.Server;
+        await Until(() => Client.Dev().Server != null, 6);
+        await Seconds(1.2);
+        await Shot("f2-server");
+        ui.DeveloperTab = DeveloperTab.Players;
+        await Seconds(0.5);
+        await Shot("f2-players");
+        RemoteThing? box = Client.Survival().Things.FirstOrDefault(t => t.Deployable(Client.Content)?.Key == "small-box");
+        if (box != null)
+        {
+            Face(box.Position + Client.Frame.UpAt(box.Position) * 0.3f);
+        }
+        ui.DeveloperTab = DeveloperTab.Look;
+        await Until(() => Client.Dev().Lines.Count > 3, 6);
+        await Seconds(0.5);
+        await Shot("f2-look");
+        ui.DeveloperTab = DeveloperTab.Draw;
+        string[] toggles = { "hitboxes", "tiles", "relevance", "nav", "areas" };
+        foreach (string key in toggles)
+        {
+            View.Developer.ToggleDraw(key);
+        }
+        await Seconds(0.5);
+        await Shot("f2-draw");
+        ui.DeveloperTab = DeveloperTab.Log;
+        await Seconds(0.8);
+        await Shot("f2-log");
+        ui.ToggleDeveloper();
+        // The wolves wandered while the tabs were pictured: two more, just spawned, for the hitboxes.
+        console.Submit("spawn wolf 2");
+        Face(spot + towards * 8);
+        View.Pitch = -0.2f;
+        await Seconds(2.5);
+        await Shot("f2-world");
+        foreach (string key in toggles)
+        {
+            View.Developer.ToggleDraw(key);
+        }
+        GD.Print("[tour] f2: pictured");
     }
 
     // GROUND.md §6.1: what is dropped together lies in one bag. Five stacks dropped in the open by the landing site, the

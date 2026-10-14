@@ -3750,6 +3750,50 @@ with the pistol its rounds. `--ui-check` plays the gestures (§8.3).
 
 ![The sample door's options](images/ground/ui/radial/options.jpg)
 
+### 8.5 Developer panel (F2)
+
+A window on the game while playing it (owner, 14 October 2026: a human needs a window on the machine, not a console):
+the server's tick and what it holds, who is on and how their connection does, what the crosshair is on as both ends see
+it, the shapes the rules use but the renderer never draws, and the server's log, which a hosted game otherwise hides. F2
+opens the F1 panel's shape (§8.2: dark, hanging from the top edge, the belt in sight) with five tabs of its own; F2 or Esc
+closes it; the wheel and Page Up and Page Down scroll a tab's list. Anyone may open it, but what the server tells it is
+an admin's (§8.2.2): the panel asks to watch (`DevWatch`), the server answers only an admin, and anyone else sees the
+DRAW tab's own toggles and a line saying the rest needs admin rights. Nothing is sent while nobody asks. Pictures from the
+real game (`--tour-steps f2`, 1600 × 900): `docs/images/ground/play/f2-server.jpg`, `f2-players.jpg`, `f2-look.jpg`,
+`f2-draw.jpg`, `f2-log.jpg` and, with the panel closed, `f2-world.jpg`.
+
+| Tab | What it shows |
+|---|---|
+| SERVER | The tick, as a graph of the last minute: the average and the longest tick of each half second against the budget (33.3 ms at 30 Hz), the scale growing to the longest shown. Under it the profile's sections as its tree (§5.11: receive, logins, the step with its ground, broadphase, movement, ships, release and game, after the step, replication with its snapshots, things, nature and building, save, send; across them the tiles waited for, added and removed, the natural objects looked up, the ground asked for ahead, the respawns), each with its average and longest over the last half second. On the right what the zone holds (`ents` as numbers: players on; characters in the zone, asleep, dead and wounded; animals alive, awake and lying dead; deployables, world props, loot bags, bodies; building pieces, doors, claim devices; ships, explosives, spent arrows, natural objects changed, ground tiles, net entities, the relevance radius), the game's counters since the server started (gathering hits, items gathered and picked up, crafted, arrows, shots and their hits, hits on players, kills, knocked down and up again, deaths, hits on animals, animals killed), and the process (up for, working set, managed heap, the garbage collector's pauses and the tick's allocation over the last half second, ticks over the budget, the last save). |
+| PLAYERS | Everyone on, a row each: name (admins marked; the player's own row marked), state (logging in, alive, wounded, dead), where (zone metres), ping, down and up (kbit/s to and from them over the last half second), inputs on time, in view (the entities relevant to them). |
+| LOOK | What the crosshair is on, from the one aim E uses (GROUND_SYSTEMS.md §5), as this client sees it, at once: the family, the id and part, the distance and the point hit, and from its replica the name, the capabilities, the viewer's flags, the verbs it offers (refused ones with their reason), the deployable, the lock, open, busy, body. Then, from the server, asked when the target changes (at most four times a second, and again every second): its description, one line per fact: the target, its position, its model, its capabilities, the flags and the verbs as the server computes them for this player, then the object its family resolves it to and every public property and field of that object, by reflection, so every kind of thing is covered without a line of code of its own (a player's name, health and inventory; a deployable's definition, owner, health, storage, fuel; a door's frame, lock and keys; an animal's species, state, herd...). Below, the last eight intents answered: sequence, outcome code, detail and how long ago; refusals in amber. |
+| DRAW | Toggles, each drawn in the world while on, and still on when the panel closes: hitboxes (the capsules of every character and animal in view, as the shots test them, §5.6: the head red, the body orange, the limbs yellow); ground tiles (the collision mesh of the tile under the player and its eight neighbours, as wireframe, §4.5); relevance (the circle of the relevance radius around the player, on the ground, §4.4); nav grid (the animals' cells of 2 m in a 96 m square around the player, from the server: green walkable, orange too steep for any animal, red blocked by a trunk or a rock, blue under water, grey not built yet; steep and blocked cells get a diagonal; §6.9); spawn areas (the animals' spawn areas within 300 m, from the server: each area's centre as a post with a diamond, bright when active, and each slot as the circle of its range around its home with a label of its species and how many of its herd live). The first three are the client's own and need no admin; the last two come from the server. |
+| LOG | The server's lines (what its console shows, with the time of day): the last 200 at opening, then each new one as it is logged, the newest at the bottom. |
+
+**Wire (§4.4), protocol 20.** `DevWatch` (client → server, reliable ordered: on or off, and whether the nav grid, the spawn
+areas and the log are wanted); `DevStats` (server → every watching admin, every half second: the tick over the last
+interval, the profile's sections, the garbage collector, what the zone holds, the game's counters, the process, everyone
+on; about 300 bytes plus 40 a player); `DevInspect` and `DevInspected` (a target and its description, at most 64 lines of
+a label and a value); `DevNav` (the 48 × 48 cells of the window, 4 bits each, once a second while wanted: 1.2 KB);
+`DevAreas` (every two seconds while wanted); `DevLog` (lines in batches of 32: the backlog at first, then as they come).
+The server takes at most eight questions a second from one player and ignores the rest.
+
+**As built (14 October 2026):** the server's `DevModule` (`src/Hollow.Server/Modules/DevModule.cs`: the watchers in
+`session.State<T>()`, the stats in `AfterStep` every 15 ticks from the profile's window, `TickProfile.ResetWindow`, the
+nav window from `NavGrid` with its areas prefetched on worker threads, the spawn areas from `AnimalWorld.Areas`, the log
+from `GameServer.Logged` queued across threads) and `DevInspector.cs` (the description, by reflection); the client's
+`DevModule` (`src/Hollow.Client/Modules/DevModule.cs`: the stats and a minute of history, the lines, the nav window, the
+areas, the log, the last intents answered from `LocalPlayer.IntentAnswered`, the DRAW toggles); in the Godot project
+`GroundUi.Developer.cs` (the panel, in the F1 panel's shape; `GroundScreen.Developer`), `IDeveloperModel` and its types
+(`UI/Model/DeveloperUiTypes.cs`), `ClientDeveloper` (the model over the client, and the LOOK tab's aim from the same ray
+as E), `MockDeveloper` (the viewer's sample data: `--view ui --screen developer`, `developer-players`,
+`developer-look`, `developer-draw`, `developer-log`) and `DevDraw` (the drawings: an immediate mesh a frame for the
+hitboxes and the ring, a mesh per tile, a mesh per nav window and per areas list, labels for the slots). The tour's step
+`f2` takes the pictures. `DevTests.TheServerAnswersAWatchingAdmin` is the check: a watching admin gets the stats with
+every section and both players, a description of a player with his name among its members, and the log; a player who
+isn't an admin asks the same and gets nothing. The profile's window and the log event cost nothing measurable; the panel
+costs the server nothing while nobody watches.
+
 ---
 
 ## 9. Assets

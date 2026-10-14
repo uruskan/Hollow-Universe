@@ -28,7 +28,7 @@ public static partial class Protocol
     /// pilot's keys alone), spent arrows (<see cref="ArrowStates"/>, <see cref="ArrowsGone"/>, the Arrow target family), a
     /// thing's capabilities.
     /// </summary>
-    public const uint Version = 19;
+    public const uint Version = 20;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

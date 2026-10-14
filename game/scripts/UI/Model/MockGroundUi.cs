@@ -30,6 +30,7 @@ public sealed partial class MockGroundUi : IGroundUi
     public MockGroundUi()
     {
         Console = new MockConsole(this);
+        Developer = new MockDeveloper();
         DefineItems();
         DefineRecipes();
         Categories = CategoryOrder
@@ -44,6 +45,9 @@ public sealed partial class MockGroundUi : IGroundUi
 
     /// <summary>The F1 panel on sample data (GROUND.md §8.2).</summary>
     public IConsoleModel? Console { get; }
+
+    /// <summary>The F2 panel on sample data (GROUND.md §8.5).</summary>
+    public IDeveloperModel? Developer { get; }
 
     /// <summary>Every sample item's key, for the F1 panel's ITEMS tab.</summary>
     public IReadOnlyList<string> SampleItemKeys => _items.Keys.ToArray();

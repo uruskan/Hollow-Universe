@@ -21,6 +21,7 @@ public static class ClientModules
         new AnimalModule(),
         new ArrowModule(),
         new ConsoleModule(),
+        new DevModule(),
         new DamageModule(),
         new LoadingModule(),
     };

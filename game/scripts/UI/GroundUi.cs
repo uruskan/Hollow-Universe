@@ -24,6 +24,9 @@ public enum GroundScreen
 
     /// <summary>The F1 panel: the console and Rust's other F1 tabs (GROUND.md §8.2).</summary>
     Console,
+
+    /// <summary>The F2 panel: the developer's window on the game (GROUND.md §8.5).</summary>
+    Developer,
 }
 
 /// <summary>
@@ -206,6 +209,11 @@ public partial class GroundUi : Control
             _hoverDone.Clear();
             _hoverStarted.Clear();
         }
+        // The F2 panel is watched by the server while it is open (GROUND.md §8.5).
+        if (screen != Screen && (screen == GroundScreen.Developer || Screen == GroundScreen.Developer))
+        {
+            Model.Developer?.Watch(screen == GroundScreen.Developer);
+        }
         Screen = screen;
         CancelRadial();
         if (screen != GroundScreen.Hud)
@@ -370,11 +378,11 @@ public partial class GroundUi : Control
     // Tab works even while a text field has focus (RustMVP routes it first).
     public override void _Input(InputEvent e)
     {
-        if (e is InputEventKey { Pressed: true } consoleKey && ConsoleKey(consoleKey))
+        if (e is InputEventKey { Pressed: true } panelKey && (DeveloperKey(panelKey) || ConsoleKey(panelKey)))
         {
             GetViewport().SetInputAsHandled();
         }
-        else if (e is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Tab } && Screen is not (GroundScreen.Menu or GroundScreen.Death or GroundScreen.Console))
+        else if (e is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Tab } && Screen is not (GroundScreen.Menu or GroundScreen.Death or GroundScreen.Console or GroundScreen.Developer))
         {
             ToggleInventory();
             GetViewport().SetInputAsHandled();
@@ -483,7 +491,8 @@ public partial class GroundUi : Control
     {
         if (button is MouseButton.WheelUp or MouseButton.WheelDown)
         {
-            if (!ZoomMap(button == MouseButton.WheelUp ? -1 : 1) && !ScrollConsole(button == MouseButton.WheelDown ? 1 : -1))
+            if (!ZoomMap(button == MouseButton.WheelUp ? -1 : 1) && !ScrollConsole(button == MouseButton.WheelDown ? 1 : -1) &&
+                !ScrollDeveloper(button == MouseButton.WheelDown ? 1 : -1))
             {
                 ScrollRecipes(button == MouseButton.WheelDown ? 1 : -1);
             }
